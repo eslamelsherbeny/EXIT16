@@ -1,5 +1,3 @@
-'use client'
-
 import Link from 'next/link'
 import { ArrowRight, Check, Heart, MapPin, Share2, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'

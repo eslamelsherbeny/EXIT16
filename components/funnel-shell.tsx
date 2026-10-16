@@ -1,4 +1,7 @@
+'use client'
+
 import type { ReactNode } from 'react'
+import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -33,7 +36,7 @@ export function FunnelShell({ title, benefits, step, totalSteps, children }: Fun
               </div>
             </CardHeader>
             <CardContent className="p-4 sm:p-5 md:p-8"><div className="animate-in fade-in duration-300">{children}</div></CardContent>
-            <CardFooter className="flex-row-reverse justify-start gap-3 border-t border-border/70 bg-muted/30 p-4 sm:p-5 md:p-8"><Button className="min-w-32 rounded-full bg-primary shadow-sm transition-all duration-200 hover:bg-primary/90 hover:shadow-md">كمّل</Button><Button variant="outline" className="min-w-24 rounded-full bg-transparent shadow-sm transition-all duration-200 hover:border-primary hover:bg-primary/5">ارجع</Button></CardFooter>
+            <CardFooter className="flex-row-reverse justify-start gap-3 border-t border-border/70 bg-muted/30 p-4 sm:p-5 md:p-8"><Button type="button" onClick={() => toast.success('تم استلام طلبك بنجاح، هنتواصل معاك قريباً')} className="min-w-32 rounded-full bg-primary shadow-sm transition-all duration-200 hover:bg-primary/90 hover:shadow-md">كمّل</Button><Button variant="outline" className="min-w-24 rounded-full bg-transparent shadow-sm transition-all duration-200 hover:border-primary hover:bg-primary/5">ارجع</Button></CardFooter>
           </Card>
         </div>
       </div>

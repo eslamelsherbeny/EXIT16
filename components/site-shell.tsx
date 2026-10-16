@@ -5,10 +5,10 @@ import { Button } from '@/components/ui/button'
 const links = [
   { href: '/sell', label: 'بيع وحدتك' },
   { href: '/opportunities', label: 'الفرص المتاحة' },
-  { href: '#story', label: 'قصتنا' },
-  { href: '#how-it-works', label: 'إزاي بنشتغل' },
-  { href: '#contact', label: 'كلمنا' },
-  { href: '#investors', label: 'للمستثمرين' },
+  { href: '/story', label: 'قصتنا' },
+  { href: '/story#how-it-works', label: 'إزاي بنشتغل' },
+  { href: '/contact', label: 'كلمنا' },
+  { href: '/investors', label: 'للمستثمرين' },
 ]
 
 export function Logo() {

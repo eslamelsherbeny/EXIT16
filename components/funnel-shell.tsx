@@ -32,7 +32,7 @@ export function FunnelShell({ title, benefits, step, totalSteps, children }: Fun
                 {Array.from({ length: totalSteps }, (_, index) => <span key={index} className={`h-1.5 flex-1 rounded-full ${index === 0 ? 'bg-primary' : 'bg-[#dce5df]'}`} />)}
               </div>
             </CardHeader>
-            <CardContent className="p-4 sm:p-5 md:p-8">{children}</CardContent>
+            <CardContent className="p-4 sm:p-5 md:p-8"><div className="animate-in fade-in duration-300">{children}</div></CardContent>
             <CardFooter className="flex-row-reverse justify-start gap-3 border-t border-border/70 bg-muted/30 p-4 sm:p-5 md:p-8"><Button className="min-w-32 rounded-full bg-primary shadow-sm transition-all duration-200 hover:bg-primary/90 hover:shadow-md">كمّل</Button><Button variant="outline" className="min-w-24 rounded-full bg-transparent shadow-sm transition-all duration-200 hover:border-primary hover:bg-primary/5">ارجع</Button></CardFooter>
           </Card>
         </div>

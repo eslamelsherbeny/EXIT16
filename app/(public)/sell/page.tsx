@@ -6,6 +6,8 @@ import { Switch } from '@/components/ui/switch'
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
 import { FunnelShell, FormSection, TurnstileBox } from '@/components/funnel-shell'
 
+export const metadata = { title: 'بيع وحدتك | دارك', description: 'بيع وحدتك العقارية بأمان وبسعر عادل مع دارك.' }
+
 export default function SellPage() {
   return <FunnelShell title="عايز تخرج من تعاقدك؟ خليها بحساب" benefits={['نقيّم وحدتك بسعر عادل', 'نوصلّك بالمشتري المناسب', 'بياناتك في أمان كامل']} step="خطوة 1 من 6" totalSteps={6}>
     <div className="flex flex-col gap-10">
@@ -31,7 +33,7 @@ export default function SellPage() {
   </FunnelShell>
 }
 
-function Field({ label, id, placeholder, helper }: { label: string; id: string; placeholder: string; helper?: string }) { return <div className="flex flex-col gap-2"><Label htmlFor={id}>{label}</Label><Input id={id} placeholder={placeholder} />{helper && <span className="text-xs font-medium text-emerald-700">{helper}</span>}</div> }
+function Field({ label, id, placeholder, helper }: { label: string; id: string; placeholder: string; helper?: string }) { return <div className="flex flex-col gap-2"><Label htmlFor={id}>{label}</Label><Input id={id} name={id} type={id.includes('price') || id.includes('installment') ? 'number' : 'text'} inputMode={id.includes('price') || id.includes('installment') ? 'numeric' : undefined} required placeholder={placeholder} />{helper && <span className="text-xs font-medium text-emerald-700">{helper}</span>}</div> }
 function RadioOption({ value, label }: { value: string; label: string }) { return <label className="flex items-center gap-2 text-sm"><RadioGroupItem value={value} />{label}</label> }
 
 function _TurnstileNote() { return <TurnstileBox /> }

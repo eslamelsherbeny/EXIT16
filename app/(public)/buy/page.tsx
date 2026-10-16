@@ -3,6 +3,8 @@ import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { FunnelShell, FormSection } from '@/components/funnel-shell'
 
+export const metadata = { title: 'شراء وحدة | دارك', description: 'اكتشف فرصاً عقارية بسعر التعاقد القديم مع دارك.' }
+
 export default function BuyPage() {
   return <FunnelShell title="اشتري بسعر التعاقد القديم" benefits={['اختيارات بسعر التعاقد القديم', 'نتأكد من كل تفاصيل الوحدة', 'نساعدك لحد استلام المفتاح']} step="خطوة 1 من 3" totalSteps={3}>
     <div className="flex flex-col gap-10">
@@ -18,4 +20,4 @@ export default function BuyPage() {
     </div>
   </FunnelShell>
 }
-function Field({ label, id, placeholder }: { label: string; id: string; placeholder: string }) { return <div className="flex flex-col gap-2"><Label htmlFor={id}>{label}</Label><Input id={id} placeholder={placeholder} /></div> }
+function Field({ label, id, placeholder }: { label: string; id: string; placeholder: string }) { return <div className="flex flex-col gap-2"><Label htmlFor={id}>{label}</Label><Input id={id} name={id} type={id === 'cash' || id === 'installment' || id === 'target-price' ? 'number' : 'text'} inputMode={id === 'cash' || id === 'installment' || id === 'target-price' ? 'numeric' : undefined} required placeholder={placeholder} /></div> }

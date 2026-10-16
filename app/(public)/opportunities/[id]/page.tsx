@@ -7,6 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  return { title: `تفاصيل الفرصة ${id} | دارك`, description: 'راجع تفاصيل الفرصة العقارية وتقدم للحجز.' }
+}
+
 const stats = [['نوع الوحدة', 'شاليه'], ['المساحة', '165 م²'], ['الغرف', '3 غرف'], ['الحمامات', '2 حمام'], ['الحالة', 'متاح للحجز'], ['سنة التعاقد', '2021'], ['سعر المتر', '28,400 ج.م'], ['المشروع', 'ماونتن فيو آي سيتي']]
 
 export default function PropertyDetailsPage() {

@@ -5,6 +5,40 @@ import { createClient } from '@/utils/supabase/server'
 
 export type ActionResult = { success: boolean; error?: string }
 
+export interface Property {
+  id: string
+  developer: string | null
+  project: string | null
+  total_price: number | null
+  comfortable_installment: number | null
+  payment_method: string | null
+  has_overdue_installments: boolean
+  created_at: string
+}
+
+export interface BuyerPreference {
+  id: string
+  user_id: string | null
+  cash_available: number | null
+  max_installment: number | null
+  target_price: number | null
+  areas: string | null
+  property_type: string | null
+  delivery_status: string | null
+  created_at: string
+}
+
+export interface InvestorRequest {
+  id: string
+  user_id: string | null
+  full_name: string
+  email: string
+  phone: string
+  investment_amount: number | null
+  experience: string | null
+  created_at: string
+}
+
 function text(formData: FormData, key: string) {
   return String(formData.get(key) ?? '').trim()
 }

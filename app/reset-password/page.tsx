@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { AuthCard, AuthInput, AuthLayout } from '@/components/auth-layout'
 
+export const metadata = { title: 'استرجاع كلمة السر | دارك', description: 'استرجع الوصول إلى حسابك في دارك.' }
+
 export default function ResetPasswordPage() {
   return (
     <AuthLayout>

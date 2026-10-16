@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { AuthCard, AuthInput, AuthLayout, TurnstileBox } from '@/components/auth-layout'
 
+export const metadata = { title: 'إنشاء حساب | دارك', description: 'أنشئ حسابك وابدأ رحلتك العقارية مع دارك.' }
+
 export default function RegisterPage() {
   return (
     <AuthLayout>

@@ -33,14 +33,14 @@ export default function HomePage() {
     <section className="relative overflow-hidden bg-[#0a1128] text-white">
       <div className="absolute -left-24 top-16 size-96 rounded-full bg-teal-500/15 blur-3xl" />
       <div className="absolute bottom-0 right-1/3 size-80 rounded-full bg-cyan-400/10 blur-3xl" />
-      <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-5 py-16 lg:grid-cols-[1fr_1.05fr] lg:px-8 lg:py-24">
-        <div className="order-1 lg:order-2">
+      <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-5 py-16 lg:grid-cols-[1.05fr_1fr] lg:px-8 lg:py-24">
+        <div className="order-1 lg:order-1">
           <span className="inline-flex rounded-full border border-teal-300/35 bg-transparent px-5 py-2 text-xs font-semibold text-teal-300">منصة التنازل عن وحدات التقسيط - بدون أوفر</span>
           <h1 className="mt-6 max-w-xl text-4xl font-bold leading-[1.25] md:text-6xl">البايع يسترجع كل اللي دفعه كاش، <span className="text-teal-400">والمشتري ياخد سعر التعاقد القديم</span></h1>
           <p className="mt-6 max-w-lg text-sm leading-8 text-white/65 md:text-base">نقل تعاقدك العقاري بسهولة وأمان، من غير أوفر ولا مفاجآت. بنوصلك بالطرف المناسب ونخلي كل خطوة واضحة.</p>
           <div className="mt-8 flex flex-wrap gap-3"><Button size="lg" className="rounded-lg bg-teal-600 px-7 text-white hover:bg-teal-500" render={<Link href="/sell" />}>بيع وحدتك <ArrowLeft data-icon="inline-end" /></Button><Button size="lg" variant="outline" className="rounded-lg border-white/25 bg-transparent px-7 text-white hover:bg-white/10 hover:text-white" render={<Link href="/buy" />}>شوف الفرص المتاحة</Button></div>
         </div>
-        <div className="relative order-2 min-h-[360px] lg:order-1">
+        <div className="relative order-2 min-h-[360px] lg:order-2">
           <div className="absolute inset-8 rounded-[2rem] bg-gradient-to-br from-[#172647] via-[#101b36] to-[#0a1128] shadow-2xl shadow-black/30" />
           <div className="absolute left-0 top-10 w-[78%] rounded-2xl border border-white/15 bg-white/10 p-5 shadow-2xl backdrop-blur-xl"><div className="flex items-center justify-between"><p className="text-xs text-white/60">لو رجّع الوحدة للمطور</p><span className="flex size-6 items-center justify-center rounded-full bg-red-400/15 text-red-300"><X /></span></div><p className="mt-5 text-xs text-white/60">خسارة وقت ومصاريف</p><strong className="mt-2 block text-xl text-red-300">- ١,٥٠٠,٠٠٠ ج.م</strong><div className="mt-4 h-px bg-white/10" /><div className="mt-4 h-2 rounded-full bg-white/10"><div className="h-2 w-1/4 rounded-full bg-red-400" /></div><p className="mt-3 text-xs text-white/50">خسارة ٧٥٪ من فلوسك + سنين انتظار</p></div>
           <div className="absolute bottom-8 right-0 w-[82%] rounded-2xl border border-teal-300/40 bg-[#f8ffff] p-5 text-[#0a1128] shadow-2xl"><div className="flex items-center justify-between"><p className="text-xs font-semibold text-[#0a1128]">لو نقل تعاقده عن طريق عقار إكزت</p><span className="flex size-6 items-center justify-center rounded-full bg-teal-100 text-teal-700"><Check /></span></div><strong className="mt-5 block text-xl text-teal-700">+ ٢,٠٠٠,٠٠٠ ج.م</strong><div className="mt-4 h-2 rounded-full bg-teal-100"><div className="h-2 w-4/5 rounded-full bg-teal-600" /></div><p className="mt-3 text-xs text-teal-700">استرجع كل اللي دفعته بأمان</p></div>

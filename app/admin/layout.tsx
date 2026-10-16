@@ -14,10 +14,10 @@ const links = [
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
     <div dir="rtl" className="min-h-screen bg-muted/30 text-foreground">
-      <aside className="fixed inset-y-0 right-0 z-20 hidden w-72 border-l bg-[#183a32] text-white lg:block">
+      <aside className="fixed inset-y-0 right-0 z-20 hidden w-72 border-l bg-[#0a1128] text-white lg:block">
         <div className="flex h-20 items-center gap-3 border-b border-white/10 px-7 text-xl font-bold">
-          <span className="flex size-10 items-center justify-center rounded-xl bg-[#d5e8d3] text-[#183a32]"><Building2 /></span>
-          <span>دارك<span className="text-[#d5e8d3]">.</span></span>
+          <span className="flex size-10 items-center justify-center rounded-xl bg-teal-600 text-white"><Building2 /></span>
+          <span>دارك<span className="text-teal-300">.</span></span>
           <span className="mr-auto rounded-full bg-white/10 px-2 py-1 text-[10px] font-medium text-white/70">ADMIN</span>
         </div>
         <nav aria-label="التنقل الإداري" className="flex flex-col gap-1 p-5">
@@ -32,7 +32,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <ThemeToggle />
             <label className="hidden items-center rounded-xl border bg-muted/40 px-3 md:flex"><span className="sr-only">بحث</span><input className="h-10 w-48 bg-transparent text-sm outline-none placeholder:text-muted-foreground" placeholder="ابحث في لوحة التحكم" /></label>
             <button className="relative rounded-full border p-2.5 text-muted-foreground" aria-label="الإشعارات"><Bell /><span className="absolute right-1 top-1 size-2 rounded-full bg-destructive" /></button>
-            <div className="flex items-center gap-3 border-r pr-3"><div className="flex size-10 items-center justify-center rounded-full bg-[#d5e8d3] font-bold text-[#183a32]">أ</div><div className="hidden sm:block"><div className="text-sm font-semibold">أحمد محمد</div><div className="text-xs text-muted-foreground">مدير النظام</div></div></div>
+            <div className="flex items-center gap-3 border-r pr-3"><div className="flex size-10 items-center justify-center rounded-full bg-teal-600 font-bold text-white">أ</div><div className="hidden sm:block"><div className="text-sm font-semibold">أحمد محمد</div><div className="text-xs text-muted-foreground">مدير النظام</div></div></div>
           </div>
         </header>
         <main className="p-5 lg:p-8">{children}</main>

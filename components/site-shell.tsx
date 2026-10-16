@@ -1,12 +1,14 @@
 import Link from 'next/link'
-import { ArrowLeft, Building2, Globe, Menu, MessageCircle, Star } from 'lucide-react'
+import { Building2, Globe, Menu, MessageCircle, Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 const links = [
-  { href: '/', label: 'الرئيسية' },
   { href: '/sell', label: 'بيع وحدتك' },
-  { href: '/buy', label: 'عايز تشتري' },
   { href: '/opportunities', label: 'الفرص المتاحة' },
+  { href: '#story', label: 'قصتنا' },
+  { href: '#how-it-works', label: 'إزاي بنشتغل' },
+  { href: '#contact', label: 'كلمنا' },
+  { href: '#investors', label: 'للمستثمرين' },
 ]
 
 export function Logo() {
@@ -14,7 +16,7 @@ export function Logo() {
 }
 
 export function Navbar() {
-  return <header className="sticky top-0 z-40 border-b border-border/70 bg-background/85 backdrop-blur-xl"><div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-5 lg:px-8"><Logo /><nav className="hidden items-center gap-8 lg:flex" aria-label="التنقل الرئيسي">{links.map((link) => <Link key={link.href} href={link.href} className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">{link.label}</Link>)}</nav><div className="flex items-center gap-2"><label className="sr-only" htmlFor="language">اختار اللغة</label><select id="language" defaultValue="ar" className="hidden h-9 rounded-full border border-border bg-background px-3 text-xs font-medium text-foreground outline-none sm:block"><option value="en">English</option><option value="ar">العربية</option><option value="ru">Русский</option><option value="ka">ქართული</option></select><Button variant="ghost" className="hidden sm:inline-flex" asChild><Link href="/dashboard">دخول</Link></Button><Button className="hidden rounded-full px-5 sm:inline-flex" asChild><Link href="/sell">ابدأ الآن <ArrowLeft data-icon="inline-end" /></Link></Button><Button variant="outline" size="icon" className="rounded-full lg:hidden" aria-label="فتح القائمة"><Menu /></Button></div></div></header>
+  return <header className="sticky top-0 z-40 border-b border-border/70 bg-background/85 backdrop-blur-xl"><div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-5 lg:px-8"><Logo /><nav className="hidden items-center gap-8 lg:flex" aria-label="التنقل الرئيسي">{links.map((link) => <Link key={link.href} href={link.href} className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">{link.label}</Link>)}</nav><div className="flex items-center gap-2"><label className="sr-only" htmlFor="language">اختار اللغة</label><select id="language" defaultValue="ar" className="hidden h-9 rounded-full border border-border bg-background px-3 text-xs font-medium text-foreground outline-none sm:block"><option value="en">English</option><option value="ar">العربية</option><option value="ru">Русский</option><option value="ka">ქართული</option></select><Button variant="ghost" className="hidden sm:inline-flex" asChild><Link href="/dashboard">دخول</Link></Button><Button variant="outline" className="hidden rounded-full px-5 sm:inline-flex" asChild><Link href="/buy">عايز تشتري</Link></Button><Button className="hidden rounded-full bg-primary px-5 text-primary-foreground sm:inline-flex" asChild><Link href="/sell">عايز تبيع</Link></Button><Button variant="outline" size="icon" className="rounded-full lg:hidden" aria-label="فتح القائمة"><Menu /></Button></div></div></header>
 }
 
 export function Footer() {

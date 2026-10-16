@@ -25,11 +25,11 @@ export function TurnstileBox() {
   )
 }
 
-export function AuthInput({ label, type = 'text', highlighted = false, placeholder }: { label: string; type?: string; highlighted?: boolean; placeholder?: string }) {
+export function AuthInput({ label, type = 'text', highlighted = false, placeholder, name, required = false }: { label: string; type?: string; highlighted?: boolean; placeholder?: string; name?: string; required?: boolean }) {
   return (
     <label className="flex flex-col gap-2 text-sm font-semibold text-foreground">
       {label}
-      <input type={type} placeholder={placeholder} className={`h-12 rounded-lg border border-border px-4 text-sm font-normal outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/10 ${highlighted ? 'bg-[#fff9e8]' : 'bg-white'}`} />
+      <input name={name} required={required} type={type} placeholder={placeholder} className={`h-12 rounded-lg border border-border px-4 text-sm font-normal outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/10 ${highlighted ? 'bg-[#fff9e8]' : 'bg-white'}`} />
     </label>
   )
 }

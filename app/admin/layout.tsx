@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { Bell, Building2, FileText, LayoutDashboard, Settings, Users, WalletCards } from "lucide-react"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 const links = [
   { href: "/admin", label: "لوحة القيادة", icon: LayoutDashboard },
@@ -28,6 +29,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <header className="flex min-h-20 flex-wrap items-center justify-between gap-4 border-b bg-background px-5 py-4 lg:px-8">
           <div><p className="text-sm text-muted-foreground">لوحة الإدارة</p><h1 className="mt-1 text-xl font-bold">صباح الخير، أحمد</h1></div>
           <div className="flex items-center gap-3">
+            <ThemeToggle />
             <label className="hidden items-center rounded-xl border bg-muted/40 px-3 md:flex"><span className="sr-only">بحث</span><input className="h-10 w-48 bg-transparent text-sm outline-none placeholder:text-muted-foreground" placeholder="ابحث في لوحة التحكم" /></label>
             <button className="relative rounded-full border p-2.5 text-muted-foreground" aria-label="الإشعارات"><Bell /><span className="absolute right-1 top-1 size-2 rounded-full bg-destructive" /></button>
             <div className="flex items-center gap-3 border-r pr-3"><div className="flex size-10 items-center justify-center rounded-full bg-[#d5e8d3] font-bold text-[#183a32]">أ</div><div className="hidden sm:block"><div className="text-sm font-semibold">أحمد محمد</div><div className="text-xs text-muted-foreground">مدير النظام</div></div></div>
@@ -41,7 +43,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
 export { links }
 
-export const metadata = { title: "لوحة الإدارة | دارك" }
 
 /** Mobile navigation is kept compact and visible without changing the public site's shell. */
 export function AdminMobileNav() { return <nav className="mb-5 grid grid-cols-3 gap-2 lg:hidden">{links.slice(0, 6).map(({ href, label }) => <Link key={href} href={href} className="rounded-lg border bg-background px-2 py-2 text-center text-xs">{label}</Link>)}</nav> }

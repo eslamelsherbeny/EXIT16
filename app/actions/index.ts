@@ -99,6 +99,14 @@ export async function addInvestorRequest(formData: FormData): Promise<ActionResu
   return { success: true }
 }
 
+export async function register(formData: FormData): Promise<ActionResult> {
+  const supabase = await createClient()
+  const { error } = await supabase.auth.signUp({ email: text(formData, 'email'), password: text(formData, 'password'), options: { data: { full_name: text(formData, 'full-name') } } })
+  if (error) return { success: false, error: 'تعذر إنشاء الحساب. تأكد من البيانات وحاول مرة أخرى.' }
+  revalidatePath('/', 'layout')
+  return { success: true }
+}
+
 export async function login(email: string, password: string): Promise<ActionResult> {
   const supabase = await createClient()
   const { error } = await supabase.auth.signInWithPassword({ email, password })

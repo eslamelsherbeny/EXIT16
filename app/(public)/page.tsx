@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { ArrowLeft, Check, Download, Headphones, LockKeyhole, ShieldCheck, Smartphone, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import ar from '@/dictionaries/ar.json'
 
 const comparisonRows = [
   ['استرجاع كل اللي دفعته', true, false],
@@ -29,20 +30,21 @@ function CheckLine({ children, negative = false }: { children: React.ReactNode; 
 }
 
 export default function HomePage() {
+  const { hero } = ar
   return <div dir="rtl" className="bg-slate-50">
     <section className="relative overflow-hidden bg-[#0a1128] text-white">
       <div className="absolute inset-0 bg-grid opacity-20" />
       <div className="relative mx-auto grid max-w-7xl items-center gap-14 px-5 py-20 lg:grid-cols-[.9fr_1.1fr] lg:px-8 lg:py-28">
         <div className="order-1 lg:order-2">
-          <div className="mb-6 inline-flex rounded-full border border-teal-300/30 bg-white/5 px-4 py-2 text-sm text-teal-200">خروج عادل من وحدتك العقارية</div>
-          <h1 className="max-w-3xl text-4xl font-bold leading-[1.25] tracking-tight md:text-6xl">البايع يسترجع كل اللي دفعه والمشتري بياخد سعر التعاقد القديم</h1>
-          <p className="mt-6 max-w-2xl text-lg leading-8 text-white/65">منصة عقار إكزت بتخلّي بيع وشراء الوحدات بالتقسيط أسهل، أوضح، ومن غير ما حد يدفع أوفر.</p>
-          <div className="mt-8 flex flex-wrap gap-3"><Button size="lg" className="rounded-full bg-teal-600 px-7 text-[#0a1128] hover:bg-teal-500" render={<Link href="/sell" />}>بيع وحدتك <ArrowLeft data-icon="inline-end" /></Button><Button size="lg" variant="outline" className="rounded-full border-white/25 bg-transparent px-7 text-white hover:bg-white/10 hover:text-white" render={<Link href="/buy" />}>عايز تشتري</Button></div>
+          <div className="mb-6 inline-flex rounded-full border border-teal-300/30 bg-white/5 px-4 py-2 text-sm text-teal-200">{hero.eyebrow}</div>
+          <h1 className="max-w-3xl text-4xl font-bold leading-[1.25] tracking-tight md:text-6xl">{hero.title}</h1>
+          <p className="mt-6 max-w-2xl text-lg leading-8 text-white/65">{hero.description}</p>
+          <div className="mt-8 flex flex-wrap gap-3"><Button size="lg" className="rounded-full bg-teal-600 px-7 text-[#0a1128] hover:bg-teal-500" render={<Link href="/sell" />}>{hero.sellCta} <ArrowLeft data-icon="inline-end" /></Button><Button size="lg" variant="outline" className="rounded-full border-white/25 bg-transparent px-7 text-white hover:bg-white/10 hover:text-white" render={<Link href="/buy" />}>{hero.buyCta}</Button></div>
         </div>
         <div className="relative order-2 min-h-[340px] lg:order-1 lg:min-h-[480px]">
           <div className="absolute inset-8 rounded-[2rem] bg-gradient-to-br from-[#14213d] via-[#0f1b35] to-[#0a1128] shadow-2xl shadow-black/30" />
-          <div className="absolute left-0 top-12 w-[78%] rounded-3xl border border-white/15 bg-white/10 p-6 shadow-2xl backdrop-blur-xl"><p className="text-sm text-white/60">في الريسيل العادي</p><div className="mt-4 flex items-center gap-3 text-xl font-semibold"><span className="flex size-9 items-center justify-center rounded-full bg-red-400/15 text-red-300"><X /></span>تدفع أوفر عشان تبيع</div><div className="mt-4 h-px bg-white/10" /><p className="mt-4 text-sm text-white/60">المشتري بيدفع أكتر من سعر التعاقد</p></div>
-          <div className="absolute bottom-10 right-0 w-[82%] rounded-3xl border border-teal-300/40 bg-[#101b36]/90 p-6 shadow-2xl backdrop-blur-xl"><p className="text-sm text-teal-200">مع عقار إكزت</p><div className="mt-4 flex items-center gap-3 text-xl font-semibold"><span className="flex size-9 items-center justify-center rounded-full bg-teal-600/20 text-teal-200"><Check /></span>تخرج من غير ما تخسر</div><div className="mt-4 h-px bg-white/10" /><p className="mt-4 text-sm text-white/60">سعر التعاقد القديم يفضل هو السعر</p></div>
+          <div className="absolute left-0 top-12 w-[78%] rounded-3xl border border-white/15 bg-white/10 p-6 shadow-2xl backdrop-blur-xl"><p className="text-sm text-white/60">{hero.normalResale}</p><div className="mt-4 flex items-center gap-3 text-xl font-semibold"><span className="flex size-9 items-center justify-center rounded-full bg-red-400/15 text-red-300"><X /></span>{hero.normalResaleProblem}</div><div className="mt-4 h-px bg-white/10" /><p className="mt-4 text-sm text-white/60">{hero.normalResaleDetail}</p></div>
+          <div className="absolute bottom-10 right-0 w-[82%] rounded-3xl border border-teal-300/40 bg-[#101b36]/90 p-6 shadow-2xl backdrop-blur-xl"><p className="text-sm text-teal-200">{hero.platform}</p><div className="mt-4 flex items-center gap-3 text-xl font-semibold"><span className="flex size-9 items-center justify-center rounded-full bg-teal-600/20 text-teal-200"><Check /></span>{hero.platformBenefit}</div><div className="mt-4 h-px bg-white/10" /><p className="mt-4 text-sm text-white/60">{hero.platformDetail}</p></div>
         </div>
       </div>
     </section>

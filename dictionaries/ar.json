@@ -2,7 +2,7 @@
   "brand": { "name": "Aqar", "exit": "Exit" },
   "navbar": {
     "sell": "بيع وحدتك", "opportunities": "الفرص المتاحة", "story": "قصتنا", "howItWorks": "إزاي بنشتغل", "contact": "كلمنا", "investors": "للمستثمرين", "languageLabel": "اختار اللغة", "login": "دخول", "buy": "عايز تشتري", "sellCta": "عايز تبيع", "menuLabel": "فتح القائمة", "menuTitle": "القائمة الرئيسية",
-    "languageOptions": { "ar": "العربية", "en": "English", "ru": "Русский", "ka": "ქართული" }, "themeLight": "تفعيل الوضع الفاتح", "themeDark": "تفعيل الوضع الداكن"
+    "languageOptions": { "ar": "العربية", "en": "English", "ru": "Русский", "ka": "ქართული" }
   },
   "hero": {
     "eyebrow": "منصة التنازل عن وحدات التقسيط - بدون أوفر", "titleBefore": "البايع يسترجع كل اللي دفعه كاش،", "titleAccent": "والمشتري ياخد سعر التعاقد القديم", "description": "نقل تعاقدك العقاري بسهولة وأمان، من غير أوفر ولا مفاجآت. بنوصلك بالطرف المناسب ونخلي كل خطوة واضحة.", "sellCta": "بيع وحدتك", "buyCta": "شوف الفرص المتاحة", "normalTitle": "لو رجّع الوحدة للمطور", "normalLabel": "خسارة وقت ومصاريف", "normalAmount": "- ١,٥٠٠,٠٠٠ ج.م", "normalDetail": "خسارة ٧٥٪ من فلوسك + سنين انتظار", "exitTitle": "لو نقل تعاقده عن طريق عقار إكزت", "exitAmount": "+ ٢,٠٠٠,٠٠٠ ج.م", "exitDetail": "استرجع كل اللي دفعته بأمان"

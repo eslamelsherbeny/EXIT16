@@ -55,7 +55,7 @@
 @layer base {
   * { @apply border-border outline-ring/50; }
   html { scroll-behavior: smooth; }
-  body { @apply bg-background text-foreground; font-family: Arial, Tahoma, sans-serif; }
+  body { @apply bg-background text-foreground; font-family: "Noto Sans Arabic", "Segoe UI", system-ui, sans-serif; }
 }
 
 @layer utilities {

@@ -1,0 +1,18 @@
+import { ArrowLeft, Check, Quote } from 'lucide-react'
+
+const comparisons = [
+  { title: 'للمشتري', points: ['تشتري بسعر التعاقد القديم', 'توفّر جزء كبير من سعر السوق الحالي', 'تستلم وحدة مختارة وملفها واضح'] },
+  { title: 'للبائع', points: ['تخرج من التعاقد بسهولة', 'تسترجع سيولتك بسرعة', 'صفر عمولة على عملية البيع'] },
+]
+
+export default function StoryPage() {
+  return <div dir="rtl" className="bg-background">
+    <section className="bg-foreground text-background"><div className="mx-auto grid max-w-7xl items-center gap-12 px-5 py-20 lg:grid-cols-[1fr_0.9fr] lg:px-8 lg:py-28">
+      <div><p className="mb-5 text-sm font-bold text-primary-foreground/70">قصتنا</p><h1 className="max-w-2xl text-4xl font-black leading-[1.2] md:text-6xl">ليه حد ممكن يخسر جزء كبير من فلوسه من غير ما يعرف؟</h1><p className="mt-7 max-w-xl text-lg leading-9 text-background/70">بدأت دارك من سؤال بسيط: إزاي نخلي العقار فرصة عادلة وواضحة لكل الناس؟</p><p className="mt-8 font-bold">— أحمد، مؤسس دارك.</p></div>
+      <div className="relative mx-auto aspect-[4/5] w-full max-w-md overflow-hidden rounded-[2rem] bg-gradient-to-br from-primary/80 via-primary/30 to-accent/70"><div className="absolute inset-8 rounded-[1.5rem] border border-white/30" /><div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-foreground/80 to-transparent p-7"><p className="text-sm text-white/70">من قلب السوق العقاري</p><p className="mt-1 text-xl font-bold">نبني ثقة، مش مجرد صفقات</p></div></div>
+    </div></section>
+    <section className="mx-auto max-w-3xl px-5 py-20 lg:py-28"><p className="text-lg leading-9 text-muted-foreground">في سوق مليان أرقام وعروض، كان صعب تعرف العرض الحقيقي من الوعد الكبير. شوفنا ناس كتير مرتبطة بعقود مش عارفة تخرج منها، وناس تانية بتدور على فرصة شراء عادلة ومش لاقياها.</p><blockquote className="my-12 border-r-4 border-primary pr-6 text-2xl font-bold leading-relaxed">"العقار مش لازم يكون لعبة حظ. المعلومة الواضحة بتغيّر القرار كله."</blockquote><p className="text-lg leading-9 text-muted-foreground">عشان كده عملنا دارك: منصة بتربط بين اللي محتاج يبيع واللي جاهز يشتري، مع مراجعة كل فرصة وشرح كل رقم بلغة مفهومة. هدفنا إنك تدخل الصفقة وإنت فاهم، وتخرج منها وإنت مطمّن.</p><div className="mt-12 rounded-2xl bg-muted/60 p-7"><div className="flex gap-4"><Quote className="mt-1 shrink-0 text-primary" /><p className="text-xl font-bold leading-9">إحنا مش بنبيعلك حلم. إحنا بنساعدك تشوف القيمة الحقيقية قدامك.</p></div></div></section>
+    <section className="bg-muted/40 px-5 py-20 lg:py-24"><div className="mx-auto max-w-5xl"><div className="mb-10"><p className="text-sm font-bold text-primary">القيمة في كل اتجاه</p><h2 className="mt-2 text-3xl font-black">صفقة أذكى للطرفين</h2></div><div className="grid gap-5 md:grid-cols-2">{comparisons.map((comparison) => <div key={comparison.title} className="rounded-3xl border border-border/70 bg-card p-7"><h3 className="text-2xl font-bold">{comparison.title}</h3><ul className="mt-6 flex flex-col gap-4">{comparison.points.map((point) => <li key={point} className="flex items-start gap-3 text-muted-foreground"><Check className="mt-0.5 size-5 shrink-0 text-primary" />{point}</li>)}</ul></div>)}</div></div></section>
+    <section className="px-5 py-20"><div className="mx-auto flex max-w-5xl flex-col gap-6 rounded-[2rem] bg-foreground px-7 py-12 text-center text-background md:px-16"><p className="text-lg text-background/70">لما تبيع مع دارك</p><p className="text-5xl font-black text-primary md:text-7xl">صفر عمولة للبائع</p><p className="text-background/70">كل جنيه من قيمة صفقتك يفضل ليك.</p><a href="/sell" className="mx-auto inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 font-bold text-primary-foreground">ابدأ دلوقتي <ArrowLeft data-icon="inline-end" /></a></div></section>
+  </div>
+}

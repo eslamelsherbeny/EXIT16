@@ -34,7 +34,7 @@ function list(formData: FormData, key: string) {
   return formData.getAll(key).filter((value): value is string => typeof value === 'string' && value.length > 0)
 }
 
-export type SubmitResult = { success: boolean; error?: string }
+export type SubmitResult = { success: boolean; error?: string; requestId?: string; userId?: string }
 
 const ACCOUNT_ERROR = 'رقم الموبايل أو البريد الإلكتروني مسجل بالفعل. يرجى إدخال كلمة السر الصحيحة الخاصة بهذا الحساب أو استخدام رقم وإيميل جديد.'
 
@@ -132,10 +132,21 @@ export async function submitSellRequest(formData: FormData): Promise<SubmitResul
     const email = payload.email ?? ''
     const account = await establishUser(supabase, { name: payload.name, phone, email, password })
     if (account.error || !account.userId) return { success: false, error: account.error ?? 'تعذر إنشاء الحساب.' }
-    if (await requestAlreadyExists(supabase, 'sell_requests', phone, email)) return { success: true }
-    const { error } = await supabase.from('sell_requests').insert({ ...payload, user_id: account.userId })
-    if (error) return { success: false, error: 'تعذر حفظ الطلب. حاول مرة أخرى.' }
-    return { success: true }
+    const existingRequestId = text(formData, 'request_id')
+    const contactOnly = formData.get('phase') === 'contact'
+    if (contactOnly) {
+      const { data: created, error } = await supabase.from('sell_requests').insert({ name: payload.name, phone, email: email || null, user_id: account.userId }).select('id').single()
+      if (error || !created) return { success: false, error: 'تعذر حفظ بيانات التواصل. حاول مرة أخرى.' }
+      return { success: true, requestId: created.id, userId: account.userId }
+    }
+    if (existingRequestId) {
+      const { error } = await supabase.from('sell_requests').update({ ...payload, user_id: account.userId }).eq('id', existingRequestId).eq('user_id', account.userId)
+      if (error) return { success: false, error: 'تعذر تحديث الطلب. حاول مرة أخرى.' }
+      return { success: true, requestId: existingRequestId, userId: account.userId }
+    }
+    const { data: created, error } = await supabase.from('sell_requests').insert({ ...payload, user_id: account.userId }).select('id').single()
+    if (error || !created) return { success: false, error: 'تعذر حفظ الطلب. حاول مرة أخرى.' }
+    return { success: true, requestId: created.id, userId: account.userId }
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'تعذر إرسال الطلب' }
   }

@@ -35,7 +35,10 @@ export default function BuyersPage() {
   const [pending, startTransition] = useTransition()
 
   const addArea = () => { const value = areaInput.trim(); if (value && !areas.includes(value)) setAreas((current) => [...current, value]); setAreaInput('') }
-  const submitAction = (formData: FormData) => {
+  const submitAction = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (event.nativeEvent instanceof SubmitEvent && event.nativeEvent.submitter?.getAttribute('type') !== 'submit') return
+    const formData = new FormData(event.currentTarget)
     setIsSubmitting(true)
     setSubmitState({})
     startTransition(async () => {
@@ -57,7 +60,7 @@ export default function BuyersPage() {
     <div className="mx-auto max-w-3xl">
       <header className="text-center"><h1 className="text-3xl font-black tracking-tight sm:text-4xl">اشتري بسعر التعاقد القديم</h1><p className="mx-auto mt-4 max-w-2xl text-sm leading-7 text-slate-600">سجّل قدرتك الشرائية — الكاش المتاح دلوقتي والقسط اللي يناسبك — وهتجيلك الفرص المتحقق منها اللي تنفع معاك بالضبط.</p></header>
       <div className="mt-8 flex flex-col gap-4">{benefits.map((benefit, index) => <div key={benefit} className={`flex items-center gap-3 rounded-xl border px-5 py-3 text-sm ${index === 3 ? 'border-teal-300 bg-teal-50 font-bold text-teal-700' : index === 4 ? 'border-slate-500 bg-transparent font-semibold' : 'border-slate-200 bg-white text-slate-700'}`}><Check className="size-4 shrink-0 text-teal-700" />{benefit}</div>)}</div>
-      <form action={submitAction} className="mt-8 rounded-2xl bg-white p-5 shadow-sm sm:p-7">
+      <form onSubmit={submitAction} className="mt-8 rounded-2xl bg-white p-5 shadow-sm sm:p-7">
         <div className="rounded-2xl border border-slate-500 px-5 py-4"><div className="flex items-center gap-2 text-sm font-bold"><UserRound className="size-4" />بتتعامل مع المشتري نفسه بس</div><p className="mt-2 text-xs leading-6 text-slate-600">مش بنقبل طلبات من سمسارة بيدوروها للعميل. الوحدات دي بتتعرض للمشتري النهائي مباشرة.</p></div>
         <div className="mt-6 flex items-center justify-between"><h2 className="text-xl font-black">{step === 1 ? 'قدرتك الشرائية' : step === 2 ? 'تفضيلاتك' : 'بيانات التواصل'}</h2><span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold">خطوة {step} من 3</span></div><div className="mt-5 flex gap-1.5">{[1, 2, 3].map((item) => <span key={item} className={`h-1 flex-1 rounded-full ${item <= step ? 'bg-teal-700' : 'bg-slate-200'}`} />)}</div>
         <div className="mt-7">{step === 1 ? <StepOne cash={cash} setCash={setCash} maxInstallment={maxInstallment} setMaxInstallment={setMaxInstallment} budget={budget} setBudget={setBudget} installment={installment} setInstallment={setInstallment} /> : step === 2 ? <StepTwo selectedTypes={selectedTypes} setSelectedTypes={setSelectedTypes} areas={areas} setAreas={setAreas} areaInput={areaInput} setAreaInput={setAreaInput} addArea={addArea} /> : <StepThree passwordVisible={passwordVisible} setPasswordVisible={setPasswordVisible} />}</div>

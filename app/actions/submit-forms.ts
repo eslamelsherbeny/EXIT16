@@ -96,32 +96,28 @@ export async function submitSellRequest(formData: FormData): Promise<SubmitResul
   try {
     const supabase = await getSupabase()
     const password = text(formData, 'password')
+    const developerName = text(formData, 'developer_name')
     const projectName = text(formData, 'project_name')
+    const rooms = text(formData, 'rooms')
+    const finishing = text(formData, 'finishing')
+    const projectDetails = [
+      developerName,
+      projectName,
+      rooms ? `Rooms: ${rooms}` : '',
+      finishing ? `Finishing: ${finishing}` : '',
+    ].filter(Boolean).join(' - ')
+
     const payload = {
-      project_name: projectName || null,
-      developer_name: text(formData, 'developer_name') || null,
+      project_name: projectDetails || null,
       area: text(formData, 'area') || null,
       unit_type: text(formData, 'unit_type') || null,
       size: number(formData, 'size'),
-      rooms: number(formData, 'rooms'),
-      bathrooms: number(formData, 'bathrooms'),
-      floor_number: number(formData, 'floor_number'),
-      garden_size: number(formData, 'garden_size'),
-      finishing: text(formData, 'finishing') || null,
-      delivery_status: text(formData, 'delivery_status') || null,
-      features: list(formData, 'feature'),
-      description: text(formData, 'description') || null,
       contract_price: number(formData, 'contract_price'),
       paid_amount: number(formData, 'paid_amount'),
       market_price: number(formData, 'market_price'),
       installment_amount: number(formData, 'installment_amount'),
       years_left: integer(formData, 'years_left'),
-      contract_year: integer(formData, 'contract_year'),
-      installment_frequency: text(formData, 'installment_frequency') || null,
-      has_annual_installment: formData.get('has_annual_installment') === 'on',
-      willing_to_discount: formData.get('willing_to_discount') === 'on',
       discount_amount: number(formData, 'discount_amount'),
-      has_overdue_installments: formData.get('has_overdue_installments') === 'on',
       overdue_installments: number(formData, 'overdue_installments'),
       name: text(formData, 'name'),
       phone: text(formData, 'phone'),

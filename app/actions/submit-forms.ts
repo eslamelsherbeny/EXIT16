@@ -36,6 +36,26 @@ function list(formData: FormData, key: string) {
 
 export type SubmitResult = { success: boolean; error?: string }
 
+async function setUserSession(phone: string, email: string) {
+  const cookieStore = await cookies()
+  cookieStore.set('user_session', phone || email, {
+    path: '/',
+    maxAge: 60 * 60 * 24 * 30,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+  })
+}
+
+async function requestAlreadyExists(supabase: Awaited<ReturnType<typeof getSupabase>>, table: 'sell_requests' | 'buy_requests', phone: string, email: string) {
+  if (!phone && !email) return false
+  let query = supabase.from(table).select('id').limit(1)
+  if (phone && email) query = query.or(`phone.eq.${phone},email.eq.${email}`)
+  else if (phone) query = query.eq('phone', phone)
+  else query = query.eq('email', email)
+  const { data } = await query.maybeSingle()
+  return Boolean(data)
+}
+
 export async function submitSellRequest(formData: FormData): Promise<SubmitResult> {
   try {
     const supabase = await getSupabase()
@@ -69,12 +89,15 @@ export async function submitSellRequest(formData: FormData): Promise<SubmitResul
       password_hash: password ? createHash('sha256').update(password).digest('hex') : null,
       is_original_owner: formData.get('is_original_owner') === 'on',
     }
-  console.log('SENDING PAYLOAD:', payload)
-  const { error } = await supabase.from('sell_requests').insert(payload)
-  if (error) {
-    console.log('SUPABASE ERROR:', error)
-    return { success: false, error: `Supabase Error: ${error.message} | Details: ${error.details || ''}` }
-  }
+    const phone = payload.phone
+    const email = payload.email ?? ''
+    if (await requestAlreadyExists(supabase, 'sell_requests', phone, email)) {
+      await setUserSession(phone, email)
+      return { success: true }
+    }
+    const { error } = await supabase.from('sell_requests').insert(payload)
+    if (error) return { success: false, error: 'تعذر حفظ الطلب. حاول مرة أخرى.' }
+    await setUserSession(phone, email)
     return { success: true }
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'تعذر إرسال الطلب' }
@@ -97,12 +120,15 @@ export async function submitBuyRequest(formData: FormData): Promise<SubmitResult
       phone: text(formData, 'phone') || 'Unknown',
       email: text(formData, 'email') || null,
     }
-  console.log('SENDING PAYLOAD:', payload)
-  const { error } = await supabase.from('buy_requests').insert(payload)
-  if (error) {
-    console.log('SUPABASE ERROR:', error)
-    return { success: false, error: `Supabase Error: ${error.message} | Details: ${error.details || ''}` }
-  }
+    const phone = payload.phone
+    const email = payload.email ?? ''
+    if (await requestAlreadyExists(supabase, 'buy_requests', phone, email)) {
+      await setUserSession(phone, email)
+      return { success: true }
+    }
+    const { error } = await supabase.from('buy_requests').insert(payload)
+    if (error) return { success: false, error: 'تعذر حفظ الطلب. حاول مرة أخرى.' }
+    await setUserSession(phone, email)
     return { success: true }
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'تعذر إرسال الطلب' }

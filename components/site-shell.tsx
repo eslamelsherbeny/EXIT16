@@ -48,8 +48,8 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
             </DropdownMenuContent>
           </DropdownMenu>
           <Link href="/login" className="hidden whitespace-nowrap px-3 py-2 text-[15px] font-medium text-slate-700 transition-colors hover:text-[#0c513f] sm:inline-flex">{labels.navbar.login}</Link>
-          <Link href="/buy" className="hidden whitespace-nowrap rounded-md border border-[#0c513f] bg-transparent px-6 py-2 text-[15px] font-bold text-[#0c513f] transition-colors hover:bg-[#0c513f]/5 sm:inline-flex">عايز تشتري</Link>
-          <Link href="/sell" className="hidden whitespace-nowrap rounded-md bg-[#0c513f] px-6 py-2 text-[15px] font-bold text-white transition-colors hover:bg-[#0c513f]/90 sm:inline-flex">عايز تبيع</Link>
+          <Link href="/buy" className="hidden whitespace-nowrap border border-[#0c513f] text-[#0c513f] bg-transparent px-5 py-2.5 rounded-[6px] hover:bg-[#0c513f]/5 transition-all font-bold text-sm sm:inline-flex">عايز تشتري</Link>
+          <Link href="/sell" className="hidden whitespace-nowrap bg-[#0c513f] text-white px-5 py-2.5 rounded-[6px] hover:bg-[#083a2d] transition-all font-bold text-sm sm:inline-flex">عايز تبيع</Link>
         </div>
       </div>
     </header>

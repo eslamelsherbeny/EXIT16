@@ -112,21 +112,47 @@ export async function submitSellRequest(formData: FormData): Promise<SubmitResul
   }
 }
 
-export async function submitBuyRequest(formData: FormData): Promise<SubmitResult> {
+export type BuyRequestPayload = {
+  available_cash: number
+  max_installment: number
+  payment_plan: string
+  budget: number
+  unit_types: string[]
+  min_rooms: number
+  delivery_status: string
+  preferred_areas: string[]
+  name: string
+  phone: string
+  email: string
+}
+
+export async function submitBuyRequest(input: BuyRequestPayload | FormData): Promise<SubmitResult> {
   try {
     const supabase = await getSupabase()
-    const payload = {
-      available_cash: number(formData, 'available_cash', 0),
-      max_installment: number(formData, 'max_installment', 0),
-      payment_plan: text(formData, 'payment_plan') || null,
-      budget: number(formData, 'budget', 0),
-      unit_types: list(formData, 'unit_type'),
-      min_rooms: integer(formData, 'min_rooms', 0),
-      delivery_status: text(formData, 'delivery_status') || null,
-      preferred_areas: list(formData, 'preferred_area'),
-      name: text(formData, 'name') || 'Unknown',
-      phone: text(formData, 'phone') || 'Unknown',
-      email: text(formData, 'email') || null,
+    const payload: BuyRequestPayload = input instanceof FormData ? {
+      available_cash: number(input, 'available_cash', 0),
+      max_installment: number(input, 'max_installment', 0),
+      payment_plan: text(input, 'payment_plan'),
+      budget: number(input, 'budget', 0),
+      unit_types: list(input, 'unit_type'),
+      min_rooms: integer(input, 'min_rooms', 0),
+      delivery_status: text(input, 'delivery_status'),
+      preferred_areas: list(input, 'preferred_area'),
+      name: text(input, 'name') || 'Unknown',
+      phone: text(input, 'phone') || 'Unknown',
+      email: text(input, 'email'),
+    } : {
+      available_cash: Number(input.available_cash) || 0,
+      max_installment: Number(input.max_installment) || 0,
+      payment_plan: input.payment_plan || '',
+      budget: Number(input.budget) || 0,
+      unit_types: input.unit_types,
+      min_rooms: Number.parseInt(String(input.min_rooms), 10) || 0,
+      delivery_status: input.delivery_status || '',
+      preferred_areas: input.preferred_areas,
+      name: input.name.trim() || 'Unknown',
+      phone: input.phone.trim() || 'Unknown',
+      email: input.email.trim(),
     }
     const phone = payload.phone
     const email = payload.email ?? ''

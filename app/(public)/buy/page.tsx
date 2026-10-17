@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState, useState } from 'react'
+import { useState, useTransition } from 'react'
 import { submitBuyRequest } from '@/app/actions/submit-forms'
 import { Check, ChevronDown, Eye, EyeOff, UserRound } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -21,7 +21,9 @@ export default function BuyersPage() {
   const [step, setStep] = useState(1)
   const [selectedTypes, setSelectedTypes] = useState(['شقة'])
   const [passwordVisible, setPasswordVisible] = useState(false)
-  const [submitState, submitAction, pending] = useActionState(async (_state: { success?: boolean; error?: string } | null, formData: FormData) => { try { await submitBuyRequest(formData); return { success: true } } catch (error) { return { error: error instanceof Error ? error.message : 'تعذر إرسال الطلب' } } }, null)
+  const [submitState, setSubmitState] = useState<{ success?: boolean; error?: string }>({})
+  const [pending, startTransition] = useTransition()
+  const submitAction = (formData: FormData) => { startTransition(async () => { const result = await submitBuyRequest(formData); setSubmitState(result.success ? { success: true } : { error: result.error ?? 'تعذر إرسال الطلب' }) }) }
 
   const toggleType = (type: string) => setSelectedTypes((current) => current.includes(type) ? current.filter((item) => item !== type) : [...current, type])
 

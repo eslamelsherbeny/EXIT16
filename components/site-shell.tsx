@@ -15,11 +15,13 @@ const links = [{ href: '/sell', key: 'sell' as const }, { href: '/opportunities'
 export function Logo({ inverse = false }: { inverse?: boolean }) { return <Link href="/" className={`text-[25px] font-light tracking-[-0.08em] ${inverse ? 'text-white' : 'text-[#101a35]'}`} aria-label="Aqar Exit"><span className="font-serif">Aqar</span><span className={`ml-1 font-serif italic ${inverse ? 'text-teal-300' : 'text-teal-600'}`}>Exit</span></Link> }
 export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
   const [language, setLanguage] = useState<'ar' | 'en'>('ar')
+  const [hasSession, setHasSession] = useState(false)
   const pathname = usePathname()
   const labels = language === 'en' ? en : dictionary
 
   useEffect(() => {
     document.cookie = `locale=${language}; path=/; max-age=31536000`
+    setHasSession(document.cookie.split('; ').some((cookie) => cookie.startsWith('user_session=')))
     document.documentElement.lang = language
     document.documentElement.dir = language === 'en' ? 'ltr' : 'rtl'
   }, [language])
@@ -47,7 +49,7 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
               <DropdownMenuItem>{labels.navbar.languageOptions.ka}</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Link href="/login" className="hidden whitespace-nowrap px-3 py-2 text-[15px] font-medium text-slate-700 transition-colors hover:text-[#0c513f] sm:inline-flex">{labels.navbar.login}</Link>
+          <Link href={hasSession ? '/dashboard' : '/login'} className="hidden whitespace-nowrap px-3 py-2 text-[15px] font-medium text-slate-700 transition-colors hover:text-[#0c513f] sm:inline-flex">{hasSession ? 'حسابي' : labels.navbar.login}</Link>
           <Link href="/buy" className="hidden whitespace-nowrap border border-[#0c513f] text-[#0c513f] bg-transparent px-5 py-2.5 rounded-[6px] hover:bg-[#0c513f]/5 transition-all font-bold text-sm sm:inline-flex">عايز تشتري</Link>
           <Link href="/sell" className="hidden whitespace-nowrap bg-[#0c513f] text-white px-5 py-2.5 rounded-[6px] hover:bg-[#083a2d] transition-all font-bold text-sm sm:inline-flex">عايز تبيع</Link>
         </div>

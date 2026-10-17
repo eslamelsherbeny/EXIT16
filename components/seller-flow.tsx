@@ -20,7 +20,7 @@ const features = ['حمام سباحة','جاردن خاصة','رووف','أمن
 const years = ['2026','2025','2024','2023','2022','2021','2020']
 
 export function SellerFlow() {
-  const router = useRouter(); const params = useSearchParams(); const requested = Number(params.get('step') || '2'); const step = Math.min(6, Math.max(2, requested))
+  const router = useRouter(); const params = useSearchParams(); const requested = Number(params.get('step') || '1'); const step = Math.min(6, Math.max(1, requested))
   const go = (next: number) => router.push(`/sell?step=${next}`)
   return <section dir="rtl" className="min-h-[calc(100vh-5rem)] bg-[#f7faf8] px-3 py-8 sm:px-5 sm:py-12 lg:px-8"><div className="mx-auto max-w-6xl"><div className="mb-8 flex items-center gap-3 text-sm text-muted-foreground"><ShieldCheck className="text-primary" /> بياناتك محفوظة وآمنة</div><div className="grid gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-start lg:gap-10"><header className="pt-2 lg:sticky lg:top-28 lg:pt-4"><Badge className="mb-5 rounded-full bg-[#e5eee8] px-4 py-2 text-primary">منصة دارك العقارية</Badge><h1 className="max-w-xl text-4xl font-black leading-tight tracking-tight text-[#193d32] md:text-5xl">{step >= 3 ? 'تفاصيل الوحدة' : 'عايز تخرج من تعاقدك؟ خليها بحساب'}</h1>{step < 3 && <ul className="mt-8 flex flex-col gap-4 text-sm font-medium text-muted-foreground">{['نقيّم وحدتك بسعر عادل','نوصلّك بالمشتري المناسب','بياناتك في أمان كامل'].map((x) => <li key={x} className="flex items-center gap-3"><span className="flex size-6 items-center justify-center rounded-full bg-primary text-primary-foreground"><Check /></span>{x}</li>)}</ul>}</header><StepCard step={step} go={go} /></div></div></section>
 }

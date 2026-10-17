@@ -2,7 +2,7 @@
 
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
-import { createHash } from 'node:crypto'
+import { createHash, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
 
 async function getSupabase() {
   const cookieStore = await cookies()
@@ -44,15 +44,34 @@ async function setUserSession(userId: string) {
   cookieStore.set('session_hint', '1', { path: '/', maxAge: 60 * 60 * 24 * 30, sameSite: 'lax', secure: true })
 }
 
+function hashPassword(password: string) {
+  const salt = randomBytes(16).toString('hex')
+  const derived = scryptSync(password, salt, 64).toString('hex')
+  return `scrypt$${salt}$${derived}`
+}
+
+function verifyPassword(password: string, stored: string | null) {
+  if (!stored) return false
+  if (stored.startsWith('scrypt$')) {
+    const [, salt, expected] = stored.split('$')
+    const actual = scryptSync(password, salt, 64).toString('hex')
+    return actual.length === expected.length && timingSafeEqual(Buffer.from(actual), Buffer.from(expected))
+  }
+  const actual = createHash('sha256').update(password).digest('hex')
+  return actual.length === stored.length && timingSafeEqual(Buffer.from(actual), Buffer.from(stored))
+}
+
 async function establishUser(supabase: Awaited<ReturnType<typeof getSupabase>>, input: { name: string; phone: string; email: string; password: string }) {
   if (!input.phone || !input.email || input.password.length < 8) return { userId: null, error: 'اكتب الاسم ورقم الموبايل والإيميل وكلمة سر لا تقل عن ٨ حروف.' }
-  const hash = createHash('sha256').update(input.password).digest('hex')
+  const hash = hashPassword(input.password)
   const { data: matches, error: lookupError } = await supabase.from('users').select('id, name, phone, email, password_hash').or(`phone.eq.${input.phone},email.eq.${input.email}`)
   if (lookupError) return { userId: null, error: 'تعذر التحقق من بيانات الحساب. حاول مرة أخرى.' }
   const existing = matches?.[0]
-  if (existing && existing.password_hash !== hash) return { userId: null, error: ACCOUNT_ERROR }
+  if (existing && !verifyPassword(input.password, existing.password_hash)) return { userId: null, error: ACCOUNT_ERROR }
   if (existing) {
-    const { error } = await supabase.from('users').update({ name: input.name, phone: input.phone, email: input.email }).eq('id', existing.id)
+    const updates: Record<string, string> = { name: input.name, phone: input.phone, email: input.email }
+    if (!existing.password_hash?.startsWith('scrypt$')) updates.password_hash = hash
+    const { error } = await supabase.from('users').update(updates).eq('id', existing.id)
     if (error) return { userId: null, error: ACCOUNT_ERROR }
     await setUserSession(existing.id)
     return { userId: existing.id, error: null }
@@ -103,7 +122,6 @@ export async function submitSellRequest(formData: FormData): Promise<SubmitResul
       name: text(formData, 'name'),
       phone: text(formData, 'phone'),
       email: text(formData, 'email') || null,
-      password_hash: password ? createHash('sha256').update(password).digest('hex') : null,
       is_original_owner: formData.get('is_original_owner') === 'on',
     }
     const phone = payload.phone
@@ -193,11 +211,9 @@ export async function submitInvestorLead(formData: FormData): Promise<SubmitResu
     email: text(formData, 'email'),
     signature_name: text(formData, 'signature_name') || null,
   }
-  console.log('SENDING PAYLOAD:', payload)
   const { error } = await supabase.from('investor_leads').insert(payload)
   if (error) {
-    console.log('SUPABASE ERROR:', error)
-    return { success: false, error: `Supabase Error: ${error.message} | Details: ${error.details || ''}` }
+    return { success: false, error: 'تعذر إرسال بيانات المستثمرين. حاول مرة أخرى.' }
   }
     return { success: true }
   } catch (error) {

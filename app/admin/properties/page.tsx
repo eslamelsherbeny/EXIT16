@@ -1,27 +1,15 @@
-"use client"
-
-import { useState } from "react"
-import { Check, ChevronDown, Info, X } from "lucide-react"
 import { AdminMobileNav } from "../layout"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Textarea } from "@/components/ui/textarea"
+import { createClient } from "@/lib/supabase/server"
+import PropertiesTable, { type SellRequest } from "./properties-table"
 
-const properties = [
-  { code: "PR-1024", project: "مدينتي", developer: "طلعت مصطفى", price: "٤,٨٥٠,٠٠٠ ج.م", seller: "محمد أحمد", phone: "010 1234 5678", status: "pending" },
-  { code: "PR-1023", project: "الرحاب", developer: "طلعت مصطفى", price: "٩,٢٠٠,٠٠٠ ج.م", seller: "سارة علي", phone: "011 9876 5432", status: "active" },
-  { code: "PR-1022", project: "بالم هيلز", developer: "بالم هيلز", price: "٧,٦٠٠,٠٠٠ ج.م", seller: "عمر حسن", phone: "012 5555 9012", status: "pending" },
-  { code: "PR-1021", project: "هايد بارك", developer: "التعمير", price: "٥,٤٠٠,٠٠٠ ج.م", seller: "نور خالد", phone: "010 7777 3232", status: "sold" },
-]
+export default async function PropertiesPage() {
+  const supabase = await createClient()
+  const { data, error } = await supabase.from("sell_requests").select("*").order("created_at", { ascending: false })
+  const properties = (data ?? []) as SellRequest[]
 
-export default function PropertiesPage() {
-  const [selected, setSelected] = useState<(typeof properties)[number] | null>(null)
-  const [action, setAction] = useState<"approve" | "reject" | null>(null)
-  const [reason, setReason] = useState("")
-  const [notice, setNotice] = useState("")
-  function close() { setAction(null); setSelected(null); setReason("") }
-  function confirm() { setNotice(action === "approve" ? `تم نشر ${selected?.code} بنجاح` : `تم رفض ${selected?.code}${reason ? ` بسبب: ${reason}` : ""}`); close() }
-  return <div className="mx-auto max-w-7xl"><AdminMobileNav /><div className="mb-6"><p className="text-sm font-semibold text-primary">المخزون</p><h2 className="mt-2 text-3xl font-bold">إدارة العقارات</h2><p className="mt-2 text-sm text-muted-foreground">راجع طلبات البائعين وانشر العقارات المعتمدة على الموقع.</p></div><div className="mb-6 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><Info className="mt-0.5 shrink-0" aria-hidden="true" /><p><strong>تنبيه:</strong> جميع بيانات البائعين مخفية تلقائياً عن واجهة الموقع العامة لحماية عمولة المنصة.</p></div>{notice && <div role="status" className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">{notice}</div>}<Card><CardHeader className="border-b"><CardTitle>كل العقارات</CardTitle><CardDescription>بيانات التواصل ظاهرة لفريق الإدارة فقط.</CardDescription></CardHeader><CardContent className="p-0"><div className="overflow-x-auto"><table className="w-full min-w-[1000px] text-right text-sm"><thead className="bg-muted/40 text-xs text-muted-foreground"><tr>{["الكود", "المشروع", "المطور", "المطلوب كاش", "بيانات البائع", "الحالة", "الإجراء"].map((head) => <th key={head} className="px-5 py-4 font-semibold">{head}</th>)}</tr></thead><tbody>{properties.map((property) => <tr key={property.code} className="border-t transition-colors hover:bg-muted/20"><td className="px-5 py-5 font-semibold">{property.code}</td><td className="px-5 py-5 font-medium">{property.project}</td><td className="px-5 py-5 text-muted-foreground">{property.developer}</td><td className="px-5 py-5 font-semibold">{property.price}</td><td className="px-5 py-5"><div className="font-semibold">{property.seller}</div><div className="mt-1 text-xs text-muted-foreground">{property.phone}</div></td><td className="px-5 py-5"><Badge variant={property.status === "active" ? "default" : "secondary"}>{property.status === "active" ? "نشط" : property.status === "sold" ? "مباع" : "في انتظار المراجعة"}</Badge></td><td className="px-5 py-5">{property.status === "pending" ? <div className="flex flex-wrap gap-2"><Button size="sm" className="bg-emerald-600 text-white hover:bg-emerald-700" onClick={() => { setSelected(property); setAction("approve") }}><Check data-icon="inline-start" />موافقة ونشر</Button><Button size="sm" variant="outline" className="text-destructive" onClick={() => { setSelected(property); setAction("reject") }}><X data-icon="inline-start" />رفض</Button><Button size="icon" variant="ghost" aria-label="المزيد"><ChevronDown /></Button></div> : <span className="text-xs text-muted-foreground">لا يوجد إجراء</span>}</td></tr>)}</tbody></table></div></CardContent></Card><Dialog open={Boolean(action)} onOpenChange={(open) => !open && close()}><DialogContent dir="rtl"><DialogHeader><DialogTitle>{action === "approve" ? "نشر العقار" : "رفض طلب العقار"}</DialogTitle><DialogDescription>{action === "approve" ? "هل أنت متأكد من نشر هذا العقار على الموقع ليراه الجميع؟" : "يمكنك إضافة سبب الرفض ليساعد البائع على تحسين طلبه."}</DialogDescription></DialogHeader>{action === "reject" && <Textarea value={reason} onChange={(event) => setReason(event.target.value)} placeholder="سبب الرفض (اختياري)" aria-label="سبب الرفض (اختياري)" />}<DialogFooter><Button variant="outline" onClick={close}>إلغاء</Button><Button onClick={confirm} className={action === "reject" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : "bg-emerald-600 text-white hover:bg-emerald-700"}>{action === "approve" ? "نعم، انشر العقار" : "تأكيد الرفض"}</Button></DialogFooter></DialogContent></Dialog></div>
+  if (error) {
+    return <div className="mx-auto max-w-7xl"><AdminMobileNav /><div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-destructive">تعذر تحميل طلبات البائعين.</div></div>
+  }
+
+  return <PropertiesTable properties={properties} />
 }

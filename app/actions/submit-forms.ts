@@ -25,9 +25,12 @@ function list(formData: FormData, key: string) {
   return formData.getAll(key).filter((value): value is string => typeof value === 'string' && value.length > 0)
 }
 
-export async function submitSellRequest(formData: FormData) {
-  const supabase = await getSupabase()
-  const password = text(formData, 'password')
+export type SubmitResult = { success: boolean; error?: string }
+
+export async function submitSellRequest(formData: FormData): Promise<SubmitResult> {
+  try {
+    const supabase = await getSupabase()
+    const password = text(formData, 'password')
   const { error } = await supabase.from('sell_requests').insert({
     project_name: text(formData, 'project_name') || null,
     area: text(formData, 'area') || null,
@@ -46,12 +49,16 @@ export async function submitSellRequest(formData: FormData) {
     password_hash: password ? createHash('sha256').update(password).digest('hex') : null,
     is_original_owner: formData.get('is_original_owner') === 'on',
   })
-  if (error) throw new Error(error.message)
-  return { success: true }
+    if (error) return { success: false, error: error.message }
+    return { success: true }
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'تعذر إرسال الطلب' }
+  }
 }
 
-export async function submitBuyRequest(formData: FormData) {
-  const supabase = await getSupabase()
+export async function submitBuyRequest(formData: FormData): Promise<SubmitResult> {
+  try {
+    const supabase = await getSupabase()
   const { error } = await supabase.from('buy_requests').insert({
     available_cash: number(formData, 'available_cash'),
     max_installment: number(formData, 'max_installment'),
@@ -65,12 +72,16 @@ export async function submitBuyRequest(formData: FormData) {
     phone: text(formData, 'phone'),
     email: text(formData, 'email') || null,
   })
-  if (error) throw new Error(error.message)
-  return { success: true }
+    if (error) return { success: false, error: error.message }
+    return { success: true }
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'تعذر إرسال الطلب' }
+  }
 }
 
-export async function submitInvestorLead(formData: FormData) {
-  const supabase = await getSupabase()
+export async function submitInvestorLead(formData: FormData): Promise<SubmitResult> {
+  try {
+    const supabase = await getSupabase()
   const { error } = await supabase.from('investor_leads').insert({
     investor_type: text(formData, 'investor_type') || null,
     years_experience: number(formData, 'years_experience'),
@@ -84,6 +95,9 @@ export async function submitInvestorLead(formData: FormData) {
     email: text(formData, 'email'),
     signature_name: text(formData, 'signature_name') || null,
   })
-  if (error) throw new Error(error.message)
-  return { success: true }
+    if (error) return { success: false, error: error.message }
+    return { success: true }
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'تعذر إرسال الطلب' }
+  }
 }

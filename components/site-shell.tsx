@@ -49,7 +49,7 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
               <DropdownMenuItem>{labels.navbar.languageOptions.ka}</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Link href={hasSession ? '/dashboard' : '/login'} className="hidden whitespace-nowrap px-3 py-2 text-[15px] font-medium text-slate-700 transition-colors hover:text-[#0c513f] sm:inline-flex">{hasSession ? 'حسابي' : labels.navbar.login}</Link>
+          <Link href={hasSession ? '/account' : '/login'} className="hidden whitespace-nowrap px-3 py-2 text-[15px] font-medium text-slate-700 transition-colors hover:text-[#0c513f] sm:inline-flex">{hasSession ? 'حسابي' : labels.navbar.login}</Link>
           <Link href="/buy" className="hidden whitespace-nowrap border border-[#0c513f] text-[#0c513f] bg-transparent px-5 py-2.5 rounded-[6px] hover:bg-[#0c513f]/5 transition-all font-bold text-sm sm:inline-flex">عايز تشتري</Link>
           <Link href="/sell" className="hidden whitespace-nowrap bg-[#0c513f] text-white px-5 py-2.5 rounded-[6px] hover:bg-[#083a2d] transition-all font-bold text-sm sm:inline-flex">عايز تبيع</Link>
         </div>

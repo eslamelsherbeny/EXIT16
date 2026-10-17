@@ -43,6 +43,8 @@ export function SellerFlow() {
       if (value !== undefined && value !== '') data.set(key, String(value))
     }
     const selectedValue = (group: string) => selected[group]?.[0] ?? ''
+    const setList = (key: string, values: string[] | undefined) => values?.forEach((value) => data.append(key, value))
+    const setToggle = (key: string, group: string) => { if (selected[group]?.[0] === 'yes') data.set(key, 'on') }
 
     // Convert the six-step UI state into the exact server action field names.
     setValue('developer_name', form.developerDetails || form.developer)
@@ -55,13 +57,21 @@ export function SellerFlow() {
     setValue('market_price', form.marketPrice)
     setValue('installment_amount', form.installment)
     setValue('years_left', form.remainingYears)
-    setValue('discount_amount', form.discountAmount)
-    setValue('overdue_installments', form.overdueCount)
-    setValue('annual_installment_amount', form.annualInstallmentAmount)
-    setValue('overdue_total', form.overdueTotal)
+    setValue('garden_size', form.garden)
+    setValue('rooms', form.rooms)
+    setValue('bathrooms', form.bathrooms)
+    setValue('floor_number', form.floor)
     setValue('finishing', selectedValue('finishing'))
     setValue('delivery_status', selectedValue('delivery'))
-    setValue('frequency', selectedValue('frequency'))
+    setList('feature', selected.features)
+    setValue('description', form.description)
+    setValue('contract_year', selectedValue('year'))
+    setValue('installment_frequency', selectedValue('frequency'))
+    setToggle('has_annual_installment', 'annualInstallment')
+    setToggle('willing_to_discount', 'discountOffer')
+    setToggle('has_overdue_installments', 'overdueInstallments')
+    setValue('discount_amount', form.discountAmount)
+    setValue('overdue_installments', form.overdueCount)
     setValue('name', form.name || 'مقدم طلب بيع')
     setValue('phone', form.phone ? `+${form.countryCode ?? '20'}${form.phone.replace(/^0+/, '')}` : '')
     setValue('email', form.email)

@@ -13,6 +13,19 @@ type SellRequest = {
   contract_price: number | null
   paid_amount: number | null
   status: string | null
+  developer_name: string | null
+  unit_type: string | null
+  size: number | null
+  rooms: number | null
+  bathrooms: number | null
+  finishing: string | null
+  delivery_status: string | null
+  description: string | null
+  contract_year: number | null
+  market_price: number | null
+  installment_amount: number | null
+  installment_frequency: string | null
+  images: string[] | null
 }
 
 type Profile = { id: string; name: string | null; phone: string | null; email: string | null }
@@ -58,14 +71,16 @@ export default async function AccountPage() {
   const supabase = await getSupabase()
   const [{ data: profile }, { data: sells }] = await Promise.all([
     supabase.from('users').select('id, name, phone, email').eq('id', sessionId).maybeSingle<Profile>(),
-    supabase.from('sell_requests').select('id, project_name, area, contract_price, paid_amount, status').eq('user_id', sessionId).order('created_at', { ascending: false }).returns<SellRequest[]>(),
+    supabase.from('sell_requests').select('id, project_name, developer_name, area, unit_type, size, rooms, bathrooms, finishing, delivery_status, description, contract_year, contract_price, paid_amount, market_price, installment_amount, installment_frequency, images, status').eq('user_id', sessionId).order('created_at', { ascending: false }).returns<SellRequest[]>(),
   ])
   if (!profile) redirect('/')
 
   const units = sells ?? []
   const unit = units[0]
   const project = unit?.project_name || 'وحدتك الجديدة'
-  const completion = 94
+  const completionFields = ['developer_name', 'project_name', 'contract_price', 'paid_amount', 'area', 'unit_type', 'size', 'rooms', 'bathrooms', 'finishing', 'delivery_status', 'description', 'contract_year', 'market_price', 'installment_amount', 'installment_frequency'] as const
+  const completionFor = (item: SellRequest | undefined) => { if (!item) return 0; const filled = completionFields.filter((key) => item[key] !== null && item[key] !== undefined && item[key] !== '' && item[key] !== 0).length + (item.images?.length ? 1 : 0); return Math.round((filled / 17) * 100) }
+  const completion = completionFor(unit)
 
   return (
     <main dir="rtl" className="min-h-screen bg-[#f7f8fa] text-[#142238]">
@@ -90,7 +105,7 @@ export default async function AccountPage() {
               <h2 className="mt-4 text-xl font-black sm:text-2xl">فاضل الصور بس — ضيف صورة واحدة على الأقل وننشر وحدتك</h2>
               <p className="mt-2 text-sm leading-7 text-slate-500">كل ما تكمل بيانات وحدتك، نقدر نوصلها بالمشتري المناسب أسرع.</p>
             </div>
-            <button type="button" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#0c513f] px-5 py-3 text-sm font-black text-white transition hover:bg-[#083c30]"><ImagePlus aria-hidden="true" className="size-4" /> أضف الصور</button>
+            {unit && completion < 100 && <a href={`/sell?resume=${unit.id}`} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#0c513f] px-5 py-3 text-sm font-black text-white transition hover:bg-[#083c30]"><ImagePlus aria-hidden="true" className="size-4" /> {completion < 94 ? 'كمل بيانات وحدتك' : 'أضف الصور'}</a>}
           </div>
           <div className="mt-7">
             <div className="mb-2 flex items-center justify-between text-sm font-bold"><span>اكتمال بيانات وحدتك</span><span className="text-[#0c513f]">{completion}%</span></div>

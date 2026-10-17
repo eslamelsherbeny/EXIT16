@@ -128,11 +128,13 @@ export async function submitSellRequest(formData: FormData): Promise<SubmitResul
       email: text(formData, 'email') || null,
       is_original_owner: formData.get('is_original_owner') === 'on',
       images: list(formData, 'image'),
+      password_hash: null,
     }
     const phone = payload.phone
     const email = payload.email ?? ''
     const account = await establishUser(supabase, { name: payload.name, phone, email, password })
     if (account.error || !account.userId) return { success: false, error: account.error ?? 'تعذر إنشاء الحساب.' }
+    payload.password_hash = account.passwordHash
     if (await requestAlreadyExists(supabase, 'sell_requests', phone, email)) return { success: true }
     const { error } = await supabase.from('sell_requests').insert({ ...payload, password_hash: account.passwordHash, user_id: account.userId })
     if (error) return { success: false, error: 'تعذر حفظ الطلب. حاول مرة أخرى.' }
@@ -155,6 +157,7 @@ export type BuyRequestPayload = {
   phone: string
   email: string
   password: string
+  password_hash?: string | null
 }
 
 export async function submitBuyRequest(input: BuyRequestPayload | FormData): Promise<SubmitResult> {
@@ -191,6 +194,7 @@ export async function submitBuyRequest(input: BuyRequestPayload | FormData): Pro
     const email = payload.email ?? ''
     const account = await establishUser(supabase, { name: payload.name, phone, email, password: payload.password })
     if (account.error || !account.userId) return { success: false, error: account.error ?? 'تعذر إنشاء الحساب.' }
+    payload.password_hash = account.passwordHash
     if (await requestAlreadyExists(supabase, 'buy_requests', phone, email)) return { success: true }
     const { error } = await supabase.from('buy_requests').insert({ ...payload, password_hash: account.passwordHash, user_id: account.userId })
     if (error) return { success: false, error: 'تعذر حفظ الطلب. حاول مرة أخرى.' }

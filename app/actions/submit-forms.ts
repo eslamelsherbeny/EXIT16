@@ -74,12 +74,12 @@ async function establishUser(supabase: Awaited<ReturnType<typeof getSupabase>>, 
     const { error } = await supabase.from('users').update(updates).eq('id', existing.id)
     if (error) return { userId: null, error: ACCOUNT_ERROR }
     await setUserSession(existing.id)
-    return { userId: existing.id, error: null }
+    return { userId: existing.id, passwordHash: existing.password_hash?.startsWith('scrypt$') ? existing.password_hash : hash, error: null }
   }
   const { data: created, error } = await supabase.from('users').insert({ name: input.name, phone: input.phone, email: input.email, password_hash: hash }).select('id').single()
   if (error || !created) return { userId: null, error: error?.code === '23505' ? ACCOUNT_ERROR : 'تعذر إنشاء الحساب. حاول مرة أخرى.' }
   await setUserSession(created.id)
-  return { userId: created.id, error: null }
+  return { userId: created.id, passwordHash: hash, error: null }
 }
 
 async function requestAlreadyExists(supabase: Awaited<ReturnType<typeof getSupabase>>, table: 'sell_requests' | 'buy_requests', phone: string, email: string) {
@@ -134,7 +134,7 @@ export async function submitSellRequest(formData: FormData): Promise<SubmitResul
     const account = await establishUser(supabase, { name: payload.name, phone, email, password })
     if (account.error || !account.userId) return { success: false, error: account.error ?? 'تعذر إنشاء الحساب.' }
     if (await requestAlreadyExists(supabase, 'sell_requests', phone, email)) return { success: true }
-    const { error } = await supabase.from('sell_requests').insert({ ...payload, user_id: account.userId })
+    const { error } = await supabase.from('sell_requests').insert({ ...payload, password_hash: account.passwordHash, user_id: account.userId })
     if (error) return { success: false, error: 'تعذر حفظ الطلب. حاول مرة أخرى.' }
     return { success: true }
   } catch (error) {
@@ -192,7 +192,7 @@ export async function submitBuyRequest(input: BuyRequestPayload | FormData): Pro
     const account = await establishUser(supabase, { name: payload.name, phone, email, password: payload.password })
     if (account.error || !account.userId) return { success: false, error: account.error ?? 'تعذر إنشاء الحساب.' }
     if (await requestAlreadyExists(supabase, 'buy_requests', phone, email)) return { success: true }
-    const { error } = await supabase.from('buy_requests').insert({ ...payload, user_id: account.userId })
+    const { error } = await supabase.from('buy_requests').insert({ ...payload, password_hash: account.passwordHash, user_id: account.userId })
     if (error) return { success: false, error: 'تعذر حفظ الطلب. حاول مرة أخرى.' }
     return { success: true }
   } catch (error) {

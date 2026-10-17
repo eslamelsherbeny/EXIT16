@@ -38,9 +38,35 @@ export function SellerFlow() {
   const go = (next: number) => setStep(next)
   const submit = () => {
     const data = new FormData()
-    Object.entries(form).forEach(([key, value]) => data.set(key, value))
-    data.set('name', form.name || 'مقدم طلب بيع')
-    data.set('phone', form.phone || '0000000000')
+    const setValue = (key: string, value: string | number | undefined) => {
+      if (value !== undefined && value !== '') data.set(key, String(value))
+    }
+    const selectedValue = (group: string) => selected[group]?.[0] ?? ''
+
+    // Convert the six-step UI state into the exact server action field names.
+    setValue('developer_name', form.developerDetails || form.developer)
+    setValue('project_name', form.projectDetails || form.project)
+    setValue('area', form.location)
+    setValue('unit_type', selected.type?.join(', '))
+    setValue('size', form.areaSize)
+    setValue('contract_price', form.contractPrice2 || form.contractPrice)
+    setValue('paid_amount', form.paidAmount2 || form.paidAmount)
+    setValue('market_price', form.marketPrice)
+    setValue('installment_amount', form.installment)
+    setValue('years_left', form.remainingYears)
+    setValue('discount_amount', form.discountAmount)
+    setValue('overdue_installments', form.overdueCount)
+    setValue('annual_installment_amount', form.annualInstallmentAmount)
+    setValue('overdue_total', form.overdueTotal)
+    setValue('finishing', selectedValue('finishing'))
+    setValue('delivery_status', selectedValue('delivery'))
+    setValue('frequency', selectedValue('frequency'))
+    setValue('name', form.name || 'مقدم طلب بيع')
+    setValue('phone', form.phone || '0000000000')
+    setValue('email', form.email)
+    setValue('password', form.password)
+    setValue('is_original_owner', form.owner === 'yes' ? 'on' : '')
+    setValue('is_confirmed', form.confirmed === 'yes' ? 'on' : '')
     setError('')
     startTransition(async () => {
       const result = await submitSellRequest(data)

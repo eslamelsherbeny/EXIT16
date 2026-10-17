@@ -84,19 +84,19 @@ export async function submitSellRequest(formData: FormData): Promise<SubmitResul
 export async function submitBuyRequest(formData: FormData): Promise<SubmitResult> {
   try {
     const supabase = await getSupabase()
-  const payload = {
-    available_cash: number(formData, 'available_cash'),
-    max_installment: number(formData, 'max_installment'),
-    payment_plan: text(formData, 'payment_plan') || null,
-    budget: number(formData, 'budget'),
-    unit_types: list(formData, 'unit_type'),
-    min_rooms: number(formData, 'min_rooms'),
-    delivery_status: text(formData, 'delivery_status') || null,
-    preferred_areas: list(formData, 'preferred_area'),
-    name: text(formData, 'name'),
-    phone: text(formData, 'phone'),
-    email: text(formData, 'email') || null,
-  }
+    const payload = {
+      available_cash: number(formData, 'available_cash', 0),
+      max_installment: number(formData, 'max_installment', 0),
+      payment_plan: text(formData, 'payment_plan') || null,
+      budget: number(formData, 'budget', 0),
+      unit_types: list(formData, 'unit_type'),
+      min_rooms: integer(formData, 'min_rooms', 0),
+      delivery_status: text(formData, 'delivery_status') || null,
+      preferred_areas: list(formData, 'preferred_area'),
+      name: text(formData, 'name') || 'Unknown',
+      phone: text(formData, 'phone') || 'Unknown',
+      email: text(formData, 'email') || null,
+    }
   console.log('SENDING PAYLOAD:', payload)
   const { error } = await supabase.from('buy_requests').insert(payload)
   if (error) {

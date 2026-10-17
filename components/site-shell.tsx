@@ -21,9 +21,12 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
 
   useEffect(() => {
     document.cookie = `locale=${language}; path=/; max-age=31536000`
-    setHasSession(document.cookie.split('; ').some((cookie) => cookie.startsWith('session_hint=')))
+    const syncSession = () => setHasSession(document.cookie.split('; ').some((cookie) => cookie.startsWith('session_hint=')))
+    syncSession()
+    window.addEventListener('session-changed', syncSession)
     document.documentElement.lang = language
     document.documentElement.dir = language === 'en' ? 'ltr' : 'rtl'
+    return () => window.removeEventListener('session-changed', syncSession)
   }, [language])
 
   return (

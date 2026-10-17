@@ -46,6 +46,7 @@ export default function BuyersPage() {
   const [areaInput, setAreaInput] = useState('')
   const [passwordVisible, setPasswordVisible] = useState(false)
   const [submitState, setSubmitState] = useState<{ success?: boolean; error?: string }>({})
+  const [isSubmitted, setIsSubmitted] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [pending, startTransition] = useTransition()
 
@@ -56,6 +57,7 @@ export default function BuyersPage() {
   const handleFinalSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setIsSubmitting(true)
+    setIsSubmitted(false)
     setSubmitState({})
     const payload = new FormData()
     payload.set('available_cash', formData.availableCash || '0')
@@ -73,7 +75,12 @@ export default function BuyersPage() {
     startTransition(async () => {
       try {
         const result = await submitBuyRequest(payload)
-        setSubmitState(result.success ? { success: true } : { error: result.error ?? 'تعذر إرسال الطلب' })
+        if (result.success) {
+          setIsSubmitted(true)
+          setSubmitState({ success: true })
+        } else {
+          setSubmitState({ error: result.error ?? 'تعذر إرسال الطلب' })
+        }
       } finally { setIsSubmitting(false) }
     })
   }
@@ -86,7 +93,7 @@ export default function BuyersPage() {
         <div className="rounded-2xl border border-slate-500 px-5 py-4"><div className="flex items-center gap-2 text-sm font-bold"><UserRound className="size-4" />بتتعامل مع المشتري نفسه بس</div><p className="mt-2 text-xs leading-6 text-slate-600">مش بنقبل طلبات من سمسارة بيدوروها للعميل. الوحدات دي بتتعرض للمشتري النهائي مباشرة، عشان السعر يفضل سعر التعاقد من غير أي زيادة.</p></div>
         <div className="mt-6 flex items-center justify-between"><h2 className="text-xl font-black">{step === 1 ? 'قدرتك الشرائية' : step === 2 ? 'تفضيلاتك' : 'بيانات التواصل'}</h2><span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold">خطوة {step} من 3</span></div><div className="mt-5 flex gap-1.5">{[1, 2, 3].map((item) => <span key={item} className={`h-1 flex-1 rounded-full ${item <= step ? 'bg-teal-700' : 'bg-slate-200'}`} />)}</div>
         <div className="mt-7">{step === 1 ? <StepOne data={formData} update={update} /> : step === 2 ? <StepTwo data={formData} update={update} areaInput={areaInput} setAreaInput={setAreaInput} addArea={addArea} /> : <StepThree data={formData} update={update} passwordVisible={passwordVisible} setPasswordVisible={setPasswordVisible} />}</div>
-        {submitState.success && <div className="mt-5 rounded-xl bg-green-50 p-3 text-center text-sm font-semibold text-green-700">تم إرسال طلبك بنجاح</div>}
+        {isSubmitted && <div className="mt-5 rounded-xl bg-green-50 p-3 text-center text-sm font-semibold text-green-700">تم إرسال طلبك بنجاح</div>}
         {submitState.error && <p role="alert" className="mt-5 rounded-xl bg-red-50 p-3 text-center text-sm text-red-700">{submitState.error}</p>}
         {!submitState.success && <div className="mt-7 flex gap-3"><Button type={step === 3 ? 'submit' : 'button'} disabled={pending || isSubmitting} onClick={step < 3 ? nextStep : undefined} className={`h-12 flex-1 rounded-xl ${step === 3 ? 'bg-teal-700 hover:bg-teal-800' : 'bg-[#0a1128] hover:bg-[#172344]'}`}>{pending || isSubmitting ? 'جاري الإرسال...' : step === 3 ? 'إرسال للمراجعة' : 'كمل'}</Button>{step > 1 && <Button type="button" variant="outline" onClick={previousStep} className="h-12 rounded-xl border-slate-300 bg-white px-7">ارجع</Button>}</div>}
       </form>

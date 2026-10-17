@@ -17,8 +17,10 @@ function text(formData: FormData, key: string) {
 }
 
 function number(formData: FormData, key: string) {
-  const value = Number(text(formData, key))
-  return Number.isFinite(value) && value > 0 ? value : null
+  const rawValue = text(formData, key).replace(/,/g, '')
+  if (!rawValue) return null
+  const value = Number(rawValue)
+  return Number.isFinite(value) && value >= 0 ? value : null
 }
 
 function list(formData: FormData, key: string) {
@@ -31,7 +33,7 @@ export async function submitSellRequest(formData: FormData): Promise<SubmitResul
   try {
     const supabase = await getSupabase()
     const password = text(formData, 'password')
-  const { error } = await supabase.from('sell_requests').insert({
+  const payload = {
     project_name: text(formData, 'project_name') || null,
     area: text(formData, 'area') || null,
     unit_type: text(formData, 'unit_type') || null,
@@ -48,8 +50,13 @@ export async function submitSellRequest(formData: FormData): Promise<SubmitResul
     email: text(formData, 'email') || null,
     password_hash: password ? createHash('sha256').update(password).digest('hex') : null,
     is_original_owner: formData.get('is_original_owner') === 'on',
-  })
-    if (error) return { success: false, error: error.message }
+  }
+  console.log('SENDING PAYLOAD:', payload)
+  const { error } = await supabase.from('sell_requests').insert(payload)
+  if (error) {
+    console.log('SUPABASE ERROR:', error)
+    return { success: false, error: `Supabase Error: ${error.message} | Details: ${error.details || ''}` }
+  }
     return { success: true }
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'تعذر إرسال الطلب' }
@@ -59,7 +66,7 @@ export async function submitSellRequest(formData: FormData): Promise<SubmitResul
 export async function submitBuyRequest(formData: FormData): Promise<SubmitResult> {
   try {
     const supabase = await getSupabase()
-  const { error } = await supabase.from('buy_requests').insert({
+  const payload = {
     available_cash: number(formData, 'available_cash'),
     max_installment: number(formData, 'max_installment'),
     payment_plan: text(formData, 'payment_plan') || null,
@@ -71,8 +78,13 @@ export async function submitBuyRequest(formData: FormData): Promise<SubmitResult
     name: text(formData, 'name'),
     phone: text(formData, 'phone'),
     email: text(formData, 'email') || null,
-  })
-    if (error) return { success: false, error: error.message }
+  }
+  console.log('SENDING PAYLOAD:', payload)
+  const { error } = await supabase.from('buy_requests').insert(payload)
+  if (error) {
+    console.log('SUPABASE ERROR:', error)
+    return { success: false, error: `Supabase Error: ${error.message} | Details: ${error.details || ''}` }
+  }
     return { success: true }
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'تعذر إرسال الطلب' }
@@ -82,7 +94,7 @@ export async function submitBuyRequest(formData: FormData): Promise<SubmitResult
 export async function submitInvestorLead(formData: FormData): Promise<SubmitResult> {
   try {
     const supabase = await getSupabase()
-  const { error } = await supabase.from('investor_leads').insert({
+  const payload = {
     investor_type: text(formData, 'investor_type') || null,
     years_experience: number(formData, 'years_experience'),
     preferred_sectors: list(formData, 'preferred_sector'),
@@ -94,8 +106,13 @@ export async function submitInvestorLead(formData: FormData): Promise<SubmitResu
     phone: text(formData, 'phone'),
     email: text(formData, 'email'),
     signature_name: text(formData, 'signature_name') || null,
-  })
-    if (error) return { success: false, error: error.message }
+  }
+  console.log('SENDING PAYLOAD:', payload)
+  const { error } = await supabase.from('investor_leads').insert(payload)
+  if (error) {
+    console.log('SUPABASE ERROR:', error)
+    return { success: false, error: `Supabase Error: ${error.message} | Details: ${error.details || ''}` }
+  }
     return { success: true }
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'تعذر إرسال الطلب' }

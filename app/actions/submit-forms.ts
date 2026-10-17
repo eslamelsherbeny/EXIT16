@@ -204,6 +204,27 @@ export async function submitBuyRequest(input: BuyRequestPayload | FormData): Pro
   }
 }
 
+export async function saveSellProgress(formData: FormData): Promise<SubmitResult> {
+  try {
+    const supabase = await getSupabase()
+    const sessionId = (await cookies()).get('user_session')?.value
+    if (!sessionId) return { success: false, error: 'انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى.' }
+    const payload = {
+      developer_name: text(formData, 'developer_name') || null, project_name: text(formData, 'project_name') || null,
+      area: text(formData, 'area') || null, unit_type: text(formData, 'unit_type') || null, size: number(formData, 'size'),
+      rooms: number(formData, 'rooms'), bathrooms: number(formData, 'bathrooms'), finishing: text(formData, 'finishing') || null,
+      delivery_status: text(formData, 'delivery_status') || null, description: text(formData, 'description') || null,
+      contract_price: number(formData, 'contract_price'), paid_amount: number(formData, 'paid_amount'), market_price: number(formData, 'market_price'),
+      installment_amount: number(formData, 'installment_amount'), installment_frequency: text(formData, 'installment_frequency') || null,
+      contract_year: integer(formData, 'contract_year'), images: list(formData, 'image'), user_id: sessionId,
+    }
+    const { data: existing } = await supabase.from('sell_requests').select('id').eq('user_id', sessionId).order('created_at', { ascending: false }).limit(1).maybeSingle()
+    if (!existing) return { success: false, error: 'لم يتم العثور على طلب البيع الحالي.' }
+    const { error } = await supabase.from('sell_requests').update(payload).eq('id', existing.id).eq('user_id', sessionId)
+    return error ? { success: false, error: 'تعذر حفظ التقدم.' } : { success: true }
+  } catch { return { success: false, error: 'تعذر حفظ التقدم.' } }
+}
+
 export async function submitInvestorLead(formData: FormData): Promise<SubmitResult> {
   try {
     const supabase = await getSupabase()

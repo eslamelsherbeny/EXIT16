@@ -128,18 +128,31 @@ export async function submitSellRequest(formData: FormData): Promise<SubmitResul
       email: text(formData, 'email') || null,
       is_original_owner: formData.get('is_original_owner') === 'on',
       images: list(formData, 'image'),
-      password_hash: null,
     }
     const phone = payload.phone
     const email = payload.email ?? ''
+    
+    // تسجيل اليوزر
     const account = await establishUser(supabase, { name: payload.name, phone, email, password })
     if (account.error || !account.userId) return { success: false, error: account.error ?? 'تعذر إنشاء الحساب.' }
-    payload.password_hash = account.passwordHash
+    
+    // التحقق من التكرار
     if (await requestAlreadyExists(supabase, 'sell_requests', phone, email)) return { success: true }
-    const { error } = await supabase.from('sell_requests').insert({ ...payload, password_hash: account.passwordHash, user_id: account.userId })
-    if (error) return { success: false, error: 'تعذر حفظ الطلب. حاول مرة أخرى.' }
+    
+    // إرسال بيانات الشقة مع user_id فقط
+    const { error } = await supabase.from('sell_requests').insert({ 
+      ...payload, 
+      user_id: account.userId 
+    })
+    
+    if (error) {
+      console.error("Supabase Sell Error:", error);
+      return { success: false, error: 'تعذر حفظ الطلب. حاول مرة أخرى.' }
+    }
+    
     return { success: true }
   } catch (error) {
+    console.error("Sell Catch Error:", error);
     return { success: false, error: error instanceof Error ? error.message : 'تعذر إرسال الطلب' }
   }
 }
@@ -157,12 +170,12 @@ export type BuyRequestPayload = {
   phone: string
   email: string
   password: string
-  password_hash?: string | null
 }
 
 export async function submitBuyRequest(input: BuyRequestPayload | FormData): Promise<SubmitResult> {
   try {
     const supabase = await getSupabase()
+    
     const payload: BuyRequestPayload = input instanceof FormData ? {
       available_cash: number(input, 'available_cash', 0),
       max_installment: number(input, 'max_installment', 0),
@@ -190,16 +203,31 @@ export async function submitBuyRequest(input: BuyRequestPayload | FormData): Pro
       email: input.email.trim(),
       password: input.password.trim(),
     }
+    
     const phone = payload.phone
     const email = payload.email ?? ''
+    
     const account = await establishUser(supabase, { name: payload.name, phone, email, password: payload.password })
     if (account.error || !account.userId) return { success: false, error: account.error ?? 'تعذر إنشاء الحساب.' }
-    payload.password_hash = account.passwordHash
+    
     if (await requestAlreadyExists(supabase, 'buy_requests', phone, email)) return { success: true }
-    const { error } = await supabase.from('buy_requests').insert({ ...payload, password_hash: account.passwordHash, user_id: account.userId })
-    if (error) return { success: false, error: 'تعذر حفظ الطلب. حاول مرة أخرى.' }
+    
+    // فلترة الباسورد عشان ميتعبتش لجدول المشتريين
+    const { password, ...cleanPayload } = payload;
+
+    const { error } = await supabase.from('buy_requests').insert({ 
+      ...cleanPayload, 
+      user_id: account.userId 
+    })
+    
+    if (error) {
+      console.error("Supabase Buy Error:", error);
+      return { success: false, error: 'تعذر حفظ الطلب. حاول مرة أخرى.' }
+    }
+    
     return { success: true }
   } catch (error) {
+    console.error("Submission Error:", error);
     return { success: false, error: error instanceof Error ? error.message : 'تعذر إرسال الطلب' }
   }
 }
@@ -209,42 +237,60 @@ export async function saveSellProgress(formData: FormData): Promise<SubmitResult
     const supabase = await getSupabase()
     const sessionId = (await cookies()).get('user_session')?.value
     if (!sessionId) return { success: false, error: 'انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى.' }
+    
     const payload = {
-      developer_name: text(formData, 'developer_name') || null, project_name: text(formData, 'project_name') || null,
-      area: text(formData, 'area') || null, unit_type: text(formData, 'unit_type') || null, size: number(formData, 'size'),
-      rooms: number(formData, 'rooms'), bathrooms: number(formData, 'bathrooms'), finishing: text(formData, 'finishing') || null,
-      delivery_status: text(formData, 'delivery_status') || null, description: text(formData, 'description') || null,
-      contract_price: number(formData, 'contract_price'), paid_amount: number(formData, 'paid_amount'), market_price: number(formData, 'market_price'),
-      installment_amount: number(formData, 'installment_amount'), installment_frequency: text(formData, 'installment_frequency') || null,
-      contract_year: integer(formData, 'contract_year'), images: list(formData, 'image'), user_id: sessionId,
+      developer_name: text(formData, 'developer_name') || null, 
+      project_name: text(formData, 'project_name') || null,
+      area: text(formData, 'area') || null, 
+      unit_type: text(formData, 'unit_type') || null, 
+      size: number(formData, 'size'),
+      rooms: number(formData, 'rooms'), 
+      bathrooms: number(formData, 'bathrooms'), 
+      finishing: text(formData, 'finishing') || null,
+      delivery_status: text(formData, 'delivery_status') || null, 
+      description: text(formData, 'description') || null,
+      contract_price: number(formData, 'contract_price'), 
+      paid_amount: number(formData, 'paid_amount'), 
+      market_price: number(formData, 'market_price'),
+      installment_amount: number(formData, 'installment_amount'), 
+      installment_frequency: text(formData, 'installment_frequency') || null,
+      contract_year: integer(formData, 'contract_year'), 
+      images: list(formData, 'image'), 
+      user_id: sessionId,
     }
+    
     const { data: existing } = await supabase.from('sell_requests').select('id').eq('user_id', sessionId).order('created_at', { ascending: false }).limit(1).maybeSingle()
     if (!existing) return { success: false, error: 'لم يتم العثور على طلب البيع الحالي.' }
+    
     const { error } = await supabase.from('sell_requests').update(payload).eq('id', existing.id).eq('user_id', sessionId)
     return error ? { success: false, error: 'تعذر حفظ التقدم.' } : { success: true }
-  } catch { return { success: false, error: 'تعذر حفظ التقدم.' } }
+  } catch { 
+    return { success: false, error: 'تعذر حفظ التقدم.' } 
+  }
 }
 
 export async function submitInvestorLead(formData: FormData): Promise<SubmitResult> {
   try {
     const supabase = await getSupabase()
-  const payload = {
-    investor_type: text(formData, 'investor_type') || null,
-    years_experience: number(formData, 'years_experience'),
-    preferred_sectors: list(formData, 'preferred_sector'),
-    investment_range: text(formData, 'investment_range') || null,
-    preferred_structure: text(formData, 'preferred_structure') || null,
-    participation_level: text(formData, 'participation_level') || null,
-    target_roi: number(formData, 'target_roi'),
-    name: text(formData, 'name'),
-    phone: text(formData, 'phone'),
-    email: text(formData, 'email'),
-    signature_name: text(formData, 'signature_name') || null,
-  }
-  const { error } = await supabase.from('investor_leads').insert(payload)
-  if (error) {
-    return { success: false, error: 'تعذر إرسال بيانات المستثمرين. حاول مرة أخرى.' }
-  }
+    const payload = {
+      investor_type: text(formData, 'investor_type') || null,
+      years_experience: number(formData, 'years_experience'),
+      preferred_sectors: list(formData, 'preferred_sector'),
+      investment_range: text(formData, 'investment_range') || null,
+      preferred_structure: text(formData, 'preferred_structure') || null,
+      participation_level: text(formData, 'participation_level') || null,
+      target_roi: number(formData, 'target_roi'),
+      name: text(formData, 'name'),
+      phone: text(formData, 'phone'),
+      email: text(formData, 'email'),
+      signature_name: text(formData, 'signature_name') || null,
+    }
+    
+    const { error } = await supabase.from('investor_leads').insert(payload)
+    if (error) {
+      return { success: false, error: 'تعذر إرسال بيانات المستثمرين. حاول مرة أخرى.' }
+    }
+    
     return { success: true }
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'تعذر إرسال الطلب' }

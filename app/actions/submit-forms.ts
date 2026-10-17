@@ -16,11 +16,18 @@ function text(formData: FormData, key: string) {
   return typeof value === 'string' ? value.trim() : ''
 }
 
-function number(formData: FormData, key: string) {
+function number(formData: FormData, key: string, fallback = 0) {
   const rawValue = text(formData, key).replace(/,/g, '')
-  if (!rawValue) return null
+  if (!rawValue) return fallback
   const value = Number(rawValue)
-  return Number.isFinite(value) && value >= 0 ? value : null
+  return Number.isFinite(value) && value >= 0 ? value : fallback
+}
+
+function integer(formData: FormData, key: string, fallback = 0) {
+  const rawValue = text(formData, key).replace(/,/g, '')
+  if (!rawValue) return fallback
+  const value = Number.parseInt(rawValue, 10)
+  return Number.isFinite(value) && value >= 0 ? value : fallback
 }
 
 function list(formData: FormData, key: string) {
@@ -33,24 +40,35 @@ export async function submitSellRequest(formData: FormData): Promise<SubmitResul
   try {
     const supabase = await getSupabase()
     const password = text(formData, 'password')
-  const payload = {
-    project_name: text(formData, 'project_name') || null,
-    area: text(formData, 'area') || null,
-    unit_type: text(formData, 'unit_type') || null,
-    size: number(formData, 'size'),
-    contract_price: number(formData, 'contract_price'),
-    paid_amount: number(formData, 'paid_amount'),
-    market_price: number(formData, 'market_price'),
-    installment_amount: number(formData, 'installment_amount'),
-    years_left: number(formData, 'years_left'),
-    discount_amount: number(formData, 'discount_amount'),
-    overdue_installments: number(formData, 'overdue_installments'),
-    name: text(formData, 'name'),
-    phone: text(formData, 'phone'),
-    email: text(formData, 'email') || null,
-    password_hash: password ? createHash('sha256').update(password).digest('hex') : null,
-    is_original_owner: formData.get('is_original_owner') === 'on',
-  }
+    const developerName = text(formData, 'developer_name')
+    const projectName = text(formData, 'project_name')
+    const rooms = text(formData, 'rooms')
+    const finishing = text(formData, 'finishing')
+    const projectDetails = [
+      developerName,
+      projectName,
+      rooms ? `Rooms: ${rooms}` : '',
+      finishing ? `Finishing: ${finishing}` : '',
+    ].filter(Boolean).join(' - ')
+
+    const payload = {
+      project_name: projectDetails || null,
+      area: text(formData, 'area') || null,
+      unit_type: text(formData, 'unit_type') || null,
+      size: number(formData, 'size'),
+      contract_price: number(formData, 'contract_price'),
+      paid_amount: number(formData, 'paid_amount'),
+      market_price: number(formData, 'market_price'),
+      installment_amount: number(formData, 'installment_amount'),
+      years_left: integer(formData, 'years_left'),
+      discount_amount: number(formData, 'discount_amount'),
+      overdue_installments: number(formData, 'overdue_installments'),
+      name: text(formData, 'name'),
+      phone: text(formData, 'phone'),
+      email: text(formData, 'email') || null,
+      password_hash: password ? createHash('sha256').update(password).digest('hex') : null,
+      is_original_owner: formData.get('is_original_owner') === 'on',
+    }
   console.log('SENDING PAYLOAD:', payload)
   const { error } = await supabase.from('sell_requests').insert(payload)
   if (error) {

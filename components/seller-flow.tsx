@@ -18,8 +18,8 @@ const deliveries = ['جاهزة للاستلام', 'تحت الإنشاء']
 const features = ['حمام سباحة', 'جاردن خاصة', 'رووف', 'أمن 24 ساعة', 'كلوب هاوس', 'جراج', 'مصعد', 'قريبة من الخدمات']
 const years = ['2026', '2025', '2024', '2023', '2022', '2021', '2020', '2019']
 
-function formatAmount(value: string) {
-  const amount = Number(value.replace(/,/g, ''))
+function formatAmount(value?: string) {
+  const amount = Number((value ?? '').replace(/,/g, ''))
   if (!amount) return ''
   if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(2).replace(/\\.00$/, '')} مليون ج.م`
   if (amount >= 1_000) return `${Math.round(amount / 1_000)} ألف ج.م`

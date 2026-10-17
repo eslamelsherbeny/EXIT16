@@ -4,7 +4,7 @@ import { Cairo } from 'next/font/google'
 import './globals.css'
 import { Toaster } from '@/components/ui/sonner'
 
-const cairo = Cairo({ subsets: ['arabic'], variable: '--font-cairo', display: 'swap' })
+const cairo = Cairo({ subsets: ['arabic'], weight: ['400', '600', '700', '900'], variable: '--font-cairo', display: 'swap' })
 
 export const metadata: Metadata = {
   title: 'دارك | منصتك العقارية الذكية',
@@ -21,7 +21,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="ar" dir="rtl">
-      <body className={`${cairo.variable} antialiased`}>
+      <body className={`${cairo.variable} ${cairo.className} antialiased`}>
         {children}
         <Toaster />
         {process.env.NODE_ENV === 'production' && <Analytics />}

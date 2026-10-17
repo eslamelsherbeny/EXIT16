@@ -30,10 +30,28 @@ export default function BuyersPage() {
   const [areaInput, setAreaInput] = useState('')
   const [passwordVisible, setPasswordVisible] = useState(false)
   const [submitState, setSubmitState] = useState<{ success?: boolean; error?: string }>({})
+  const [isSubmitted, setIsSubmitted] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [pending, startTransition] = useTransition()
 
   const addArea = () => { const value = areaInput.trim(); if (value && !areas.includes(value)) setAreas((current) => [...current, value]); setAreaInput('') }
-  const submitAction = (formData: FormData) => startTransition(async () => { const result = await submitBuyRequest(formData); setSubmitState(result.success ? { success: true } : { error: result.error ?? 'تعذر إرسال الطلب' }) })
+  const submitAction = (formData: FormData) => {
+    setIsSubmitting(true)
+    setSubmitState({})
+    startTransition(async () => {
+      try {
+        const result = await submitBuyRequest(formData)
+        if (result.success) {
+          setIsSubmitted(true)
+          setSubmitState({ success: true })
+        } else {
+          setSubmitState({ error: result.error ?? 'تعذر إرسال الطلب' })
+        }
+      } finally {
+        setIsSubmitting(false)
+      }
+    })
+  }
 
   return <main dir="rtl" className="min-h-screen bg-[#f5f6f8] px-4 py-12 text-[#111a30] sm:px-6 lg:py-16">
     <div className="mx-auto max-w-3xl">
@@ -49,8 +67,8 @@ export default function BuyersPage() {
         <input type="hidden" name="budget" value={budget} />
         {selectedTypes.map((type) => <input key={type} type="hidden" name="unit_type" value={type} />)}
         {areas.map((area) => <input key={area} type="hidden" name="preferred_area" value={area} />)}
-        {submitState.success && <p className="mt-4 rounded-xl bg-teal-50 p-3 text-center text-sm font-semibold text-teal-800">تم إرسال طلبك بنجاح.</p>}{submitState.error && <p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-center text-sm text-red-700">{submitState.error}</p>}
-        <div className="mt-7 flex gap-3"><Button type={step === 3 ? 'submit' : 'button'} disabled={pending} onClick={() => step < 3 && setStep(step + 1)} className={`h-12 flex-1 rounded-xl ${step === 3 ? 'bg-teal-700 hover:bg-teal-800' : 'bg-[#0a1128] hover:bg-[#172344]'}`}>{pending ? 'جاري الإرسال...' : step === 3 ? 'إرسال للمراجعة' : 'كمل'}</Button>{step > 1 && <Button type="button" variant="outline" onClick={() => setStep(step - 1)} className="h-12 rounded-xl border-slate-300 bg-white px-7">ارجع</Button>}</div>
+        {isSubmitted && <div className="mt-4 rounded-xl bg-green-50 p-3 text-center text-sm font-semibold text-green-700">تم إرسال طلبك بنجاح</div>}{submitState.error && <p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-center text-sm text-red-700">{submitState.error}</p>}
+        {!isSubmitted && <div className="mt-7 flex gap-3"><Button type={step === 3 ? 'submit' : 'button'} disabled={pending || isSubmitting} onClick={() => step < 3 && setStep(step + 1)} className={`h-12 flex-1 rounded-xl ${step === 3 ? 'bg-teal-700 hover:bg-teal-800' : 'bg-[#0a1128] hover:bg-[#172344]'}`}>{pending || isSubmitting ? 'جاري الإرسال...' : step === 3 ? 'إرسال للمراجعة' : 'كمل'}</Button>{step > 1 && <Button type="button" variant="outline" onClick={() => setStep(step - 1)} className="h-12 rounded-xl border-slate-300 bg-white px-7">ارجع</Button>}</div>}
       </form>
     </div>
   </main>

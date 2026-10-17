@@ -127,8 +127,6 @@ export async function submitSellRequest(formData: FormData): Promise<SubmitResul
       phone: text(formData, 'phone'),
       email: text(formData, 'email') || null,
       is_original_owner: formData.get('is_original_owner') === 'on',
-      images: list(formData, 'image'),
-      password_hash: password ? hashPassword(password) : null,
     }
     const phone = payload.phone
     const email = payload.email ?? ''

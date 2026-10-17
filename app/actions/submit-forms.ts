@@ -38,11 +38,19 @@ export type SubmitResult = { success: boolean; error?: string }
 
 async function setUserSession(phone: string, email: string) {
   const cookieStore = await cookies()
-  cookieStore.set('user_session', phone || email, {
+  const sessionValue = phone || email
+  cookieStore.set('user_session', sessionValue, {
     path: '/',
     maxAge: 60 * 60 * 24 * 30,
     sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
+    secure: true,
+    httpOnly: true,
+  })
+  cookieStore.set('session_hint', '1', {
+    path: '/',
+    maxAge: 60 * 60 * 24 * 30,
+    sameSite: 'lax',
+    secure: true,
   })
 }
 

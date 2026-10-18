@@ -1,4 +1,3 @@
-
 import Link from "next/link"
 import { cookies } from "next/headers"
 import { createServerClient } from "@supabase/ssr"
@@ -14,6 +13,7 @@ import {
   WalletCards,
 } from "lucide-react"
 
+// الروابط محددة في السيرفر ولا تستخدم usePathname
 const links = [
   { href: "/admin", label: "لوحة القيادة", icon: LayoutDashboard },
   { href: "/admin/properties", label: "إدارة العقارات", icon: Building2 },
@@ -32,8 +32,10 @@ export default async function AdminLayout({
   let adminRole = "ADMIN"
 
   try {
+    // جلب الكوكيز داخل Server Component بشكل آمن
     const cookieStore = await cookies()
     const sessionId = cookieStore.get("user_session")?.value
+    
     if (sessionId) {
       const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -51,7 +53,9 @@ export default async function AdminLayout({
       if (user?.name) adminName = user.name
       if (user?.role === "moderator") adminRole = "MODERATOR"
     }
-  } catch {}
+  } catch (error) {
+    console.error("Supabase Error in AdminLayout:", error)
+  }
 
   const firstLetter = adminName.trim().charAt(0) || "أ"
 
@@ -165,7 +169,7 @@ export function AdminMobileNav() {
         <Link
           key={href}
           href={href}
-          className="rounded-xl border border-gray-200 bg-white px-2.5 py-2.5 text-center text-xs font-bold text-[#0a1122] shadow-2xs transition hover:border-[#105C50] hover:text-[#105C50]"
+          className="rounded-xl border border-gray-200 bg-white px-2.5 py-2.5 text-center text-[10px] font-bold text-[#0a1122] shadow-2xs transition hover:border-[#105C50] hover:text-[#105C50] sm:text-xs"
         >
           {label}
         </Link>

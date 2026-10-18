@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useRef, useEffect } from 'react'
 import Link from 'next/link'
-import { ChevronDown, Eye, EyeOff } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { ChevronDown, Eye, EyeOff, Check } from 'lucide-react'
 import { AuthCard, AuthLayout } from '@/components/auth-layout'
 import { registerAction } from '@/app/actions/auth-actions'
 
@@ -23,14 +24,30 @@ const COUNTRIES = [
 ]
 
 export default function RegisterPage() {
+  const router = useRouter()
   const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [pending, startTransition] = useTransition()
 
-  // حالات خاصة برقم الموبايل
+  // حالات خاصة برقم الموبايل والقائمة المنسدلة
   const [countryCode, setCountryCode] = useState('+20')
   const [phoneNumber, setPhoneNumber] = useState('')
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // إغلاق القائمة المنسدلة عند الضغط خارجها
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const selectedCountry = COUNTRIES.find((c) => c.code === countryCode) || COUNTRIES[0]
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -83,16 +100,17 @@ export default function RegisterPage() {
               name="name"
               type="text"
               required
-              className="h-12 w-full rounded-xl border border-input bg-background px-4 text-right text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary"
+              className="h-12 w-full rounded-xl border border-input bg-background px-4 text-right text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#105C50]"
               placeholder="الاسم الكامل"
             />
           </div>
 
-         <div>
+          <div>
             <label htmlFor="phone" className="mb-2 block text-xs font-bold text-foreground">
               رقم الموبايل
             </label>
-            <div className="flex gap-2">
+            <div className="flex gap-2 relative">
+              {/* حقل إدخال الرقم */}
               <input
                 id="phone"
                 type="tel"
@@ -100,24 +118,55 @@ export default function RegisterPage() {
                 value={phoneNumber}
                 onChange={(e) => setPhoneNumber(e.target.value)}
                 required
-                className="h-12 flex-1 rounded-xl border border-input bg-background px-4 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary"
+                className="h-12 flex-1 rounded-xl border border-input bg-background px-4 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#105C50]"
                 placeholder="1xxxxxxxxx"
               />
-              {/* تم تصغير الحقل وتحديد عرض ثابت له 105px */}
-              <div className="relative w-[105px] shrink-0">
-                <select
-                  value={countryCode}
-                  onChange={(e) => setCountryCode(e.target.value)}
-                  dir="ltr"
-                  className="h-12 w-full appearance-none rounded-xl border border-input bg-background pl-8 pr-3 text-left text-sm font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+
+              {/* القائمة المنسدلة المخصصة للدول */}
+              <div className="relative w-[110px] shrink-0" ref={dropdownRef} dir="ltr">
+                <button
+                  type="button"
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  className="flex h-12 w-full items-center justify-between rounded-xl border border-input bg-background px-3 text-sm font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-[#105C50]"
                 >
-                  {COUNTRIES.map((c) => (
-                    <option key={c.code + c.name} value={c.code}>
-                      {c.flag} {c.code}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <span className="flex items-center gap-1.5">
+                    <span className="text-lg">{selectedCountry.flag}</span>
+                    <span dir="ltr">{selectedCountry.code}</span>
+                  </span>
+                  <ChevronDown className="size-4 text-muted-foreground" />
+                </button>
+
+                {/* نافذة الدول المنسدلة */}
+                {isDropdownOpen && (
+                  <div className="absolute top-[54px] right-0 z-50 max-h-56 w-[220px] overflow-y-auto rounded-xl border border-gray-200 bg-white p-1.5 shadow-xl scrollbar-thin scrollbar-track-gray-50 scrollbar-thumb-gray-200">
+                    {COUNTRIES.map((c) => (
+                      <button
+                        key={c.code + c.name}
+                        type="button"
+                        onClick={() => {
+                          setCountryCode(c.code)
+                          setIsDropdownOpen(false)
+                        }}
+                        className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-right transition-colors hover:bg-gray-50 ${
+                          countryCode === c.code ? 'bg-[#eff8f6]' : ''
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <span className="text-lg">{c.flag}</span>
+                          <span className={`text-sm ${countryCode === c.code ? 'font-bold text-[#105C50]' : 'font-medium text-gray-700'}`}>
+                            {c.name}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span dir="ltr" className="text-[11px] font-bold text-gray-500">
+                            {c.code}
+                          </span>
+                          {countryCode === c.code && <Check className="size-3.5 text-[#105C50]" />}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -132,7 +181,7 @@ export default function RegisterPage() {
               type="email"
               dir="ltr"
               required
-              className="h-12 w-full rounded-xl border border-input bg-background px-4 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary"
+              className="h-12 w-full rounded-xl border border-input bg-background px-4 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#105C50]"
               placeholder="name@example.com"
             />
           </div>
@@ -149,7 +198,7 @@ export default function RegisterPage() {
                 dir="ltr"
                 required
                 minLength={8}
-                className={`h-12 w-full rounded-xl border border-input bg-background pl-4 pr-11 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary ${
+                className={`h-12 w-full rounded-xl border border-input bg-background pl-4 pr-11 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#105C50] ${
                   showPassword ? 'tracking-normal' : 'tracking-widest'
                 }`}
                 placeholder="8 أحرف على الأقل"
@@ -177,7 +226,7 @@ export default function RegisterPage() {
                 dir="ltr"
                 required
                 minLength={8}
-                className={`h-12 w-full rounded-xl border border-input bg-background pl-4 pr-11 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary ${
+                className={`h-12 w-full rounded-xl border border-input bg-background pl-4 pr-11 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#105C50] ${
                   showConfirmPassword ? 'tracking-normal' : 'tracking-widest'
                 }`}
                 placeholder="أعد إدخال كلمة السر"
@@ -196,7 +245,7 @@ export default function RegisterPage() {
           <button
             type="submit"
             disabled={pending}
-            className="mt-2 h-12 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+            className="mt-2 h-12 rounded-xl bg-[#105C50] px-5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#0c483f] disabled:opacity-50"
           >
             {pending ? 'جاري إنشاء الحساب...' : 'إنشاء حساب'}
           </button>
@@ -208,7 +257,7 @@ export default function RegisterPage() {
 
         <p className="mt-6 text-center text-sm text-muted-foreground">
           عندك حساب؟{' '}
-          <Link href="/login" className="font-bold text-primary hover:underline">
+          <Link href="/login" className="font-bold text-[#105C50] hover:underline">
             ادخل من هنا
           </Link>
         </p>

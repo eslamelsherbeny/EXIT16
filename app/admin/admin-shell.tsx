@@ -14,7 +14,7 @@ import {
   Menu,
   Settings,
   ShieldCheck,
-  UserCog,
+  User,
   Users,
   WalletCards,
   X,
@@ -68,13 +68,13 @@ const ADMIN_NAV_LINKS = [
   },
 ]
 
-// العناصر الـ 5 في الشريط السفلي للموبايل (الرئيسية، العقارات، المشترين، المستخدمين، الإعدادات)
+// العناصر الـ 5 في الشريط السفلي للموبايل
 const MOBILE_BOTTOM_LINKS = [
   ADMIN_NAV_LINKS[0],
   ADMIN_NAV_LINKS[1],
   ADMIN_NAV_LINKS[2],
   ADMIN_NAV_LINKS[3],
-  ADMIN_NAV_LINKS[5], // الإعدادات بدلاً من القائمة
+  ADMIN_NAV_LINKS[5],
 ]
 
 export default function AdminShell({
@@ -166,12 +166,13 @@ export default function AdminShell({
         </div>
 
         <div className="p-4">
+          {/* رابط حسابي (توجيه للبروفايل) */}
           <Link
             href="/admin/settings?tab=profile"
             className="mb-2 flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs font-bold text-white/85 transition hover:bg-white/10 hover:text-white"
           >
-            <span>إعدادات حساب الأدمن</span>
-            <UserCog className="size-3.5 text-emerald-400" />
+            <span>حسابي</span>
+            <User className="size-3.5 text-emerald-400" />
           </Link>
 
           <Link
@@ -266,13 +267,14 @@ export default function AdminShell({
             </div>
 
             <div className="space-y-2 border-t border-white/10 p-4">
+              {/* رابط حسابي (توجيه للبروفايل) */}
               <Link
                 href="/admin/settings?tab=profile"
                 onClick={() => setDrawerOpen(false)}
                 className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-xs font-bold text-white/85 transition hover:bg-white/10"
               >
-                <span>تعديل بياناتي (بروفايل الأدمن)</span>
-                <UserCog className="size-3.5 text-emerald-400" />
+                <span>حسابي</span>
+                <User className="size-3.5 text-emerald-400" />
               </Link>
               <Link
                 href="/"
@@ -311,13 +313,12 @@ export default function AdminShell({
             </div>
           </div>
 
-          {/* اليسار: زر بيانات الأدمن + جرس الإشعارات التفاعلي (بدون الدائرة الخضراء الزائدة) */}
+          {/* اليسار: زر حسابي (بدون أيقونة) + جرس الإشعارات */}
           <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
             <Link
               href="/admin/settings?tab=profile"
-              className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-gray-200 bg-gray-50 px-3 text-xs font-bold text-[#0a1122] transition hover:border-[#105C50] hover:bg-white sm:h-10 sm:px-3.5"
+              className="inline-flex h-9 items-center justify-center rounded-xl border border-gray-200 bg-gray-50 px-4 text-xs font-bold text-[#0a1122] transition hover:border-[#105C50] hover:bg-white sm:h-10 sm:px-5"
             >
-              <UserCog className="size-3.5 text-[#105C50]" />
               <span>حسابي</span>
             </Link>
 
@@ -337,7 +338,7 @@ export default function AdminShell({
                 )}
               </button>
 
-              {/* القائمة المنسدلة للإشعارات عند الضغط على الجرس */}
+              {/* القائمة المنسدلة للإشعارات */}
               {notifOpen && (
                 <div className="fixed left-3 right-3 top-[68px] z-50 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl sm:absolute sm:left-0 sm:right-auto sm:top-12 sm:w-80">
                   <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50/80 px-4 py-3">
@@ -425,7 +426,7 @@ export default function AdminShell({
         <main className="p-3.5 sm:p-6 lg:p-8">{children}</main>
       </div>
 
-      {/* ==================== 4. الشريط السفلي للموبايل (مع الإعدادات بدلاً من القائمة) ==================== */}
+      {/* ==================== 4. الشريط السفلي للموبايل ==================== */}
       <nav
         aria-label="التنقل السريع للموبايل"
         className="fixed inset-x-0 bottom-0 z-30 flex h-16 items-center justify-around border-t border-gray-200/90 bg-white/95 px-1 shadow-[0_-4px_16px_rgba(0,0,0,0.04)] backdrop-blur-md lg:hidden"

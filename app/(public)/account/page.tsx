@@ -43,7 +43,7 @@ type BuyerUnitCard = {
   image?: string
 }
 
-// بيانات افتراضية للمشتري لعرض شكل الكروت
+// بيانات الوحدات الكاملة لواجهة المشتري بالفلاتر والكروت
 const buyerMatchedUnits: BuyerUnitCard[] = [
   {
     id: 'hamra-1',
@@ -63,6 +63,36 @@ const buyerMatchedUnits: BuyerUnitCard[] = [
     marketPrice: '3,500,000',
     tags: ['الكاش في ميزانيتك', 'القسط مناسب', 'في المنطقة اللي عايزها'],
     image: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=800&q=80',
+  },
+  {
+    id: 'beit-watan-almera',
+    title: 'بيت الوطن',
+    subtitle: 'Almera Development · التجمع الخامس · شقة',
+    cash: '1,551,400',
+    gain: '+ 2,165,000',
+    marketPrice: '5,000,000',
+    tags: ['الكاش في ميزانيتك', 'القسط مناسب', 'في المنطقة اللي عايزها'],
+    image: 'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&w=800&q=80',
+  },
+  {
+    id: 'stayn-october',
+    title: "Stay'n",
+    subtitle: 'A Plus · 6 أكتوبر · شقة',
+    cash: '337,004',
+    gain: '+ 279,583',
+    marketPrice: '2,600,000',
+    tags: ['الكاش في ميزانيتك', 'القسط مناسب', 'نفس نوع الوحدة'],
+    image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80',
+  },
+  {
+    id: 'kenan-sohag',
+    title: 'كنان',
+    subtitle: 'شركة افق للتطوير العقاري · سوهاج · شقة',
+    cash: '337,370',
+    gain: '+ 469,762',
+    marketPrice: '3,000,000',
+    tags: ['الكاش في ميزانيتك', 'القسط مناسب', 'نفس نوع الوحدة'],
+    image: 'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=800&q=80',
   },
 ]
 
@@ -284,7 +314,7 @@ export default async function AccountPage({ searchParams }: { searchParams?: Pro
           <AccountFooterActions />
         </div>
       ) : isBuyerView ? (
-        /* ==================== 2. واجهة المشتري (Buyer View) ==================== */
+        /* ==================== 2. واجهة المشتري الكاملة بالفلاتر والكروت ==================== */
         <div className="mx-auto max-w-[980px] px-3 sm:px-6">
           <header className="flex flex-wrap items-center justify-between gap-4">
             <h1 className="text-xl font-extrabold text-[#0a1122] sm:text-2xl">فرص تناسب ميزانيتك</h1>
@@ -304,6 +334,7 @@ export default async function AccountPage({ searchParams }: { searchParams?: Pro
             </div>
           </section>
 
+          {/* شريط أزرار الفلترة السريعة بطلبك */}
           <section className="mt-4 text-right">
             <div className="flex flex-wrap items-center justify-start gap-2">
               <span className="ml-1 text-xs font-extrabold text-[#0a1122]">فلتر بطلبك:</span>
@@ -314,6 +345,7 @@ export default async function AccountPage({ searchParams }: { searchParams?: Pro
             <p className="mt-2 text-[11px] text-gray-400">مرتّبة بالأنسب لطلبك — اختار أي شرط عشان تشوف اللي يطابقه بالظبط.</p>
           </section>
 
+          {/* شريط البحث والترتيب والفلترة */}
           <section className="mt-4 rounded-[18px] border border-gray-200/80 bg-white p-3.5 shadow-sm sm:p-5">
             <div className="relative">
               <Search className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
@@ -348,6 +380,7 @@ export default async function AccountPage({ searchParams }: { searchParams?: Pro
             </div>
           </section>
 
+          {/* عرض جميع الكروت والفلاتر */}
           <section className="mt-7">
             <h2 className="mb-4 text-right text-sm font-extrabold text-[#0a1122] sm:text-base">
               الفرص في المنطقة اللي طلبتها ({buyerArea}) <span className="font-normal text-gray-400">(60)</span>

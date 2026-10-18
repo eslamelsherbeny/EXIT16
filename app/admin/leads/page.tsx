@@ -1,6 +1,5 @@
 import { cookies } from "next/headers"
 import { createServerClient } from "@supabase/ssr"
-import { AdminMobileNav } from "../layout"
 import LeadsClientTable, { type BuyerLead } from "./leads-table"
 
 export const dynamic = "force-dynamic"
@@ -24,7 +23,6 @@ export default async function LeadsPage() {
   if (error) {
     return (
       <div className="mx-auto max-w-7xl">
-        <AdminMobileNav />
         <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-sm font-bold text-red-700">
           تعذر تحميل طلبات الشراء.
         </div>
@@ -32,5 +30,9 @@ export default async function LeadsPage() {
     )
   }
 
-  return <LeadsClientTable leads={(leads ?? []) as BuyerLead[]} />
+  return (
+    <div className="mx-auto max-w-7xl">
+      <LeadsClientTable leads={(leads ?? []) as BuyerLead[]} />
+    </div>
+  )
 }

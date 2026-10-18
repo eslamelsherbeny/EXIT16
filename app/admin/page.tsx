@@ -7,7 +7,6 @@ import {
   CircleDollarSign,
   Clock3,
   MessageCircle,
-  Phone,
   Users,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
@@ -42,7 +41,10 @@ const statusMap: Record<string, { label: string; className: string }> = {
     label: "جاري المراجعة",
     className: "bg-blue-100 text-blue-800",
   },
-  active: { label: "معروضة في السوق", className: "bg-emerald-100 text-emerald-800" },
+  active: {
+    label: "معروضة في السوق",
+    className: "bg-emerald-100 text-emerald-800",
+  },
   offer_received: {
     label: "عندها عرض شراء",
     className: "bg-purple-100 text-purple-800",
@@ -91,12 +93,14 @@ export default async function AdminPage() {
     (p) => !p.status || p.status === "pending" || p.status === "under_review"
   )
   const activeProperties = properties.filter((p) => p.status === "active")
+  const soldProperties = properties.filter((p) => p.status === "sold")
 
-  const totalPortfolioValue = properties.reduce(
+  // حساب العمولات المحققة فعلياً من العقارات المباعة فقط (1.25%)
+  const soldPortfolioValue = soldProperties.reduce(
     (sum, p) => sum + (Number(p.contract_price) || Number(p.paid_amount) || 0),
     0
   )
-  const estimatedCommission = Math.round(totalPortfolioValue * 0.025)
+  const realizedCommission = Math.round(soldPortfolioValue * 0.0125)
 
   const kpis = [
     {
@@ -110,11 +114,9 @@ export default async function AdminPage() {
       label: "بانتظار المراجعة",
       value: pendingProperties.length.toLocaleString("ar-EG"),
       note:
-        pendingProperties.length > 0
-          ? "تحتاج مراجعتك"
-          : "تمت مراجعة الكل",
+        pendingProperties.length > 0 ? "تحتاج مراجعتك" : "تمت مراجعة الكل",
       icon: Clock3,
-      href: "/admin/properties?status=pending",
+      href: "/admin/properties",
       highlight: pendingProperties.length > 0,
     },
     {
@@ -125,12 +127,12 @@ export default async function AdminPage() {
       href: "/admin/leads",
     },
     {
-      label: "العمولات (٢.٥٪)",
+      label: "العمولات المحققة",
       value:
-        estimatedCommission > 0
-          ? `${(estimatedCommission / 1_000_000).toFixed(2)}م ج.م`
+        realizedCommission > 0
+          ? `${realizedCommission.toLocaleString("en-US")} ج.م`
           : "٠ ج.م",
-      note: `${investors.length.toLocaleString("ar-EG")} طلب مستثمر`,
+      note: `${soldProperties.length.toLocaleString("ar-EG")} وحدة مباعة · ${investors.length.toLocaleString("ar-EG")} مستثمر`,
       icon: CircleDollarSign,
       href: "/admin/investors",
     },
@@ -168,24 +170,24 @@ export default async function AdminPage() {
         </div>
       </div>
 
-      {/* بطاقات الإحصائيات: كارتين بجانب بعض على الموبايل، و4 على الديسكتوب */}
+      {/* بطاقات الإحصائيات القابلة للضغط على الموبايل والكمبيوتر */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         {kpis.map(({ label, value, note, icon: Icon, href, highlight }) => (
           <Link
             key={label}
             href={href}
-            className="block transition hover:-translate-y-0.5"
+            className="group block cursor-pointer transition-all hover:-translate-y-0.5"
           >
             <Card
               className={
                 highlight
-                  ? "h-full border-[#105C50]/40 bg-[#eaf8f2] shadow-xs"
-                  : "h-full border-gray-200/80 bg-white shadow-xs"
+                  ? "h-full border-[#105C50]/40 bg-[#eaf8f2] shadow-xs transition group-hover:border-[#105C50]"
+                  : "h-full border-gray-200/80 bg-white shadow-xs transition group-hover:border-[#105C50] group-hover:shadow-md"
               }
             >
               <CardContent className="flex flex-col justify-between p-3.5 sm:flex-row sm:items-start sm:p-5">
                 <div className="flex items-center justify-between sm:block">
-                  <p className="text-[11px] font-bold text-gray-500 sm:text-xs">
+                  <p className="text-[11px] font-bold text-gray-500 group-hover:text-[#105C50] sm:text-xs">
                     {label}
                   </p>
                   <span className="rounded-lg bg-[#105C50]/10 p-2 text-[#105C50] sm:hidden">
@@ -208,7 +210,7 @@ export default async function AdminPage() {
                   </p>
                 </div>
 
-                <span className="hidden rounded-xl bg-[#105C50]/10 p-3 text-[#105C50] sm:inline-flex">
+                <span className="hidden rounded-xl bg-[#105C50]/10 p-3 text-[#105C50] transition group-hover:bg-[#105C50] group-hover:text-white sm:inline-flex">
                   <Icon className="size-5" aria-hidden="true" />
                 </span>
               </CardContent>
@@ -218,7 +220,7 @@ export default async function AdminPage() {
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-5 sm:mt-7 lg:grid-cols-3">
-        {/* أحدث طلبات البائعين (العقارات) */}
+        {/* أحدث طلبات البائعين (العقارات) - كل صف أو كارت يفتح صفحة العقارات عند الضغط عليه */}
         <Card className="border-gray-200/80 bg-white shadow-sm lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between border-b border-gray-100 p-4 sm:p-6">
             <div>
@@ -226,7 +228,7 @@ export default async function AdminPage() {
                 أحدث طلبات البائعين (العقارات)
               </CardTitle>
               <CardDescription className="mt-0.5 text-[11px] sm:text-xs">
-                آخر الوحدات المضافة من البائعين وحالتها الحالية.
+                اضغط على أي وحدة للانتقال لإدارتها ومراجعتها.
               </CardDescription>
             </div>
             <Link
@@ -238,7 +240,7 @@ export default async function AdminPage() {
           </CardHeader>
 
           <CardContent className="p-0">
-            {/* عرض الموبايل: كروت مدمجة بدون سكرول أفقي */}
+            {/* عرض الموبايل */}
             <div className="divide-y divide-gray-100 md:hidden">
               {properties.length === 0 ? (
                 <div className="p-8 text-center text-xs text-gray-400">
@@ -249,7 +251,11 @@ export default async function AdminPage() {
                   const st =
                     statusMap[prop.status || "pending"] || statusMap.pending
                   return (
-                    <div key={prop.id} className="p-3.5 hover:bg-gray-50/60">
+                    <Link
+                      key={prop.id}
+                      href="/admin/properties"
+                      className="block p-3.5 transition hover:bg-gray-50"
+                    >
                       <div className="flex items-start justify-between gap-2">
                         <div>
                           <p className="text-xs font-extrabold text-[#0a1122]">
@@ -276,13 +282,13 @@ export default async function AdminPage() {
                           <span dir="ltr">{prop.phone}</span>
                         </div>
                       </div>
-                    </div>
+                    </Link>
                   )
                 })
               )}
             </div>
 
-            {/* عرض الكمبيوتر: الجدول الكامل */}
+            {/* عرض الكمبيوتر */}
             <div className="hidden overflow-x-auto md:block">
               <table className="w-full text-right text-xs sm:text-sm">
                 <thead className="bg-gray-50 text-xs text-gray-500">
@@ -311,12 +317,15 @@ export default async function AdminPage() {
                       return (
                         <tr
                           key={prop.id}
-                          className="border-t border-gray-100 hover:bg-gray-50/60"
+                          className="border-t border-gray-100 transition hover:bg-gray-50/80"
                         >
                           <td className="px-5 py-4">
-                            <div className="font-bold text-[#0a1122]">
+                            <Link
+                              href="/admin/properties"
+                              className="block font-bold text-[#0a1122] hover:text-[#105C50]"
+                            >
                               {prop.project_name || "وحدة سكنية"}
-                            </div>
+                            </Link>
                             <div className="mt-0.5 text-[11px] text-gray-400">
                               {prop.area || "—"} · {prop.unit_type || "شقة"}
                             </div>
@@ -345,7 +354,9 @@ export default async function AdminPage() {
                               : "—"}
                           </td>
                           <td className="px-5 py-4">
-                            <Badge className={st.className}>{st.label}</Badge>
+                            <Link href="/admin/properties">
+                              <Badge className={st.className}>{st.label}</Badge>
+                            </Link>
                           </td>
                         </tr>
                       )
@@ -386,8 +397,8 @@ export default async function AdminPage() {
                   key={lead.id}
                   className="flex items-center justify-between p-3.5 hover:bg-gray-50/60 sm:p-4"
                 >
-                  <div>
-                    <p className="text-xs font-extrabold text-[#0a1122]">
+                  <Link href="/admin/leads" className="min-w-0 flex-1">
+                    <p className="text-xs font-extrabold text-[#0a1122] hover:text-[#105C50]">
                       {lead.name}
                     </p>
                     <p className="mt-0.5 text-[11px] text-gray-500">
@@ -399,17 +410,17 @@ export default async function AdminPage() {
                         ج.م
                       </strong>
                     </p>
-                    <p className="mt-0.5 text-[10px] text-gray-400">
+                    <p className="mt-0.5 truncate text-[10px] text-gray-400">
                       {Array.isArray(lead.preferred_areas)
                         ? lead.preferred_areas.join("، ")
                         : lead.preferred_areas || "جميع المناطق"}
                     </p>
-                  </div>
+                  </Link>
                   <a
                     href={`https://wa.me/${String(lead.phone || "").replace(/\D/g, "")}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex h-8 items-center gap-1 rounded-lg bg-[#25D366] px-3 text-[11px] font-bold text-white transition hover:opacity-90"
+                    className="mr-2 inline-flex h-8 shrink-0 items-center gap-1 rounded-lg bg-[#25D366] px-3 text-[11px] font-bold text-white transition hover:opacity-90"
                   >
                     <MessageCircle className="size-3.5" />
                     <span>تواصل</span>

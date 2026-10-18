@@ -1,63 +1,131 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
   Bell,
   Building2,
+  CheckCircle2,
+  Clock,
   ExternalLink,
   FileText,
   LayoutDashboard,
   Menu,
   Settings,
   ShieldCheck,
-  User,
+  UserCog,
   Users,
   WalletCards,
   X,
 } from "lucide-react"
 
+export type AdminNotificationItem = {
+  id: string
+  title: string
+  subtitle: string
+  href: string
+  type: "property" | "lead" | "investor"
+  createdAt: string
+}
+
 const ADMIN_NAV_LINKS = [
-  { href: "/admin", label: "لوحة القيادة", shortLabel: "الرئيسية", icon: LayoutDashboard },
-  { href: "/admin/properties", label: "إدارة العقارات", shortLabel: "العقارات", icon: Building2 },
-  { href: "/admin/leads", label: "طلبات الشراء", shortLabel: "المشترين", icon: FileText },
-  { href: "/admin/users", label: "المستخدمين والصلاحيات", shortLabel: "المستخدمين", icon: Users },
-  { href: "/admin/investors", label: "المستثمرين", shortLabel: "المستثمرين", icon: WalletCards },
-  { href: "/admin/settings", label: "الإعدادات", shortLabel: "الإعدادات", icon: Settings },
+  {
+    href: "/admin",
+    label: "لوحة القيادة",
+    shortLabel: "الرئيسية",
+    icon: LayoutDashboard,
+  },
+  {
+    href: "/admin/properties",
+    label: "إدارة العقارات",
+    shortLabel: "العقارات",
+    icon: Building2,
+  },
+  {
+    href: "/admin/leads",
+    label: "طلبات الشراء",
+    shortLabel: "المشترين",
+    icon: FileText,
+  },
+  {
+    href: "/admin/users",
+    label: "المستخدمين والصلاحيات",
+    shortLabel: "المستخدمين",
+    icon: Users,
+  },
+  {
+    href: "/admin/investors",
+    label: "المستثمرين",
+    shortLabel: "المستثمرين",
+    icon: WalletCards,
+  },
+  {
+    href: "/admin/settings",
+    label: "إعدادات الموقع",
+    shortLabel: "الإعدادات",
+    icon: Settings,
+  },
+]
+
+// العناصر الـ 5 في الشريط السفلي للموبايل (الرئيسية، العقارات، المشترين، المستخدمين، الإعدادات)
+const MOBILE_BOTTOM_LINKS = [
+  ADMIN_NAV_LINKS[0],
+  ADMIN_NAV_LINKS[1],
+  ADMIN_NAV_LINKS[2],
+  ADMIN_NAV_LINKS[3],
+  ADMIN_NAV_LINKS[5], // الإعدادات بدلاً من القائمة
 ]
 
 export default function AdminShell({
   adminName,
   adminRole,
-  firstLetter,
+  notifications = [],
   children,
 }: {
   adminName: string
   adminRole: string
-  firstLetter: string
+  notifications?: AdminNotificationItem[]
   children: React.ReactNode
 }) {
   const pathname = usePathname()
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [notifOpen, setNotifOpen] = useState(false)
+  const notifRef = useRef<HTMLDivElement>(null)
 
-  // إغلاق القائمة الجانبية تلقائياً عند الانتقال لصفحة جديدة
+  // استخراج الاسم الأول فقط لعرضه في الهيدر بدون قطع
+  const firstName = adminName.trim().split(/\s+/)[0] || "مدير"
+
   useEffect(() => {
     setDrawerOpen(false)
+    setNotifOpen(false)
   }, [pathname])
+
+  // إغلاق قائمة الإشعارات عند الضغط خارجها
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setNotifOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
 
   const isActive = (href: string) => {
     if (href === "/admin") return pathname === "/admin"
     return pathname?.startsWith(href)
   }
 
-  // معرفة عنوان القسم الحالي لعرضه في الهيدر على الهاتف
   const currentSection =
     ADMIN_NAV_LINKS.find((item) => isActive(item.href))?.label || "لوحة الإدارة"
 
   return (
-    <div dir="rtl" className="min-h-screen bg-[#f5f6f8] pb-20 text-[#0a1122] lg:pb-0">
-      {/* ==================== 1. القائمة الجانبية الثابتة للكمبيوتر (Desktop Sidebar) ==================== */}
+    <div
+      dir="rtl"
+      className="min-h-screen bg-[#f5f6f8] pb-20 text-[#0a1122] lg:pb-0"
+    >
+      {/* ==================== 1. القائمة الجانبية الثابتة للكمبيوتر ==================== */}
       <aside className="fixed inset-y-0 right-0 z-30 hidden w-72 border-l border-white/10 bg-[#0a1122] text-white lg:flex lg:flex-col lg:justify-between">
         <div>
           <div className="flex h-20 items-center gap-3 border-b border-white/10 px-7 text-xl font-extrabold">
@@ -86,7 +154,9 @@ export default function AdminShell({
                   }`}
                 >
                   <Icon
-                    className={`size-4 ${active ? "text-white" : "text-emerald-400"}`}
+                    className={`size-4 ${
+                      active ? "text-white" : "text-emerald-400"
+                    }`}
                   />
                   <span>{label}</span>
                 </Link>
@@ -97,11 +167,19 @@ export default function AdminShell({
 
         <div className="p-4">
           <Link
+            href="/admin/settings?tab=profile"
+            className="mb-2 flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs font-bold text-white/85 transition hover:bg-white/10 hover:text-white"
+          >
+            <span>إعدادات حساب الأدمن</span>
+            <UserCog className="size-3.5 text-emerald-400" />
+          </Link>
+
+          <Link
             href="/"
             className="mb-3 flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs font-bold text-white/80 transition hover:bg-white/10 hover:text-white"
           >
             <span>معاينة الموقع العام</span>
-            <ExternalLink className="size-3.5" />
+            <ExternalLink className="size-3.5 text-emerald-400" />
           </Link>
 
           <div className="rounded-2xl bg-gradient-to-br from-[#105C50] to-[#083d34] p-4 text-xs leading-6 text-white/90 shadow-md">
@@ -116,19 +194,16 @@ export default function AdminShell({
         </div>
       </aside>
 
-      {/* ==================== 2. القائمة الجانبية المنزلقة للموبايل (Slide-over Drawer) ==================== */}
+      {/* ==================== 2. القائمة الجانبية المنزلقة للموبايل (تفتح من زر الهيدر ☰) ==================== */}
       {drawerOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
-          {/* الخلفية المعتمة */}
           <div
             className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity"
             onClick={() => setDrawerOpen(false)}
           />
 
-          {/* صندوق القائمة الجانبية */}
           <aside className="fixed inset-y-0 right-0 z-50 flex w-[280px] max-w-[82vw] flex-col justify-between bg-[#0a1122] text-white shadow-2xl">
             <div>
-              {/* هيدر المنيو الجانبية */}
               <div className="flex h-16 items-center justify-between border-b border-white/10 px-5">
                 <div className="flex items-center gap-2.5 text-lg font-extrabold">
                   <span className="flex size-9 items-center justify-center rounded-xl bg-[#105C50] text-white">
@@ -152,22 +227,13 @@ export default function AdminShell({
                 </button>
               </div>
 
-              {/* معلومات الأدمن داخل المنيو */}
-              <div className="mx-4 mt-4 flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-3">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#105C50] text-sm font-extrabold text-white">
-                  {firstLetter}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-xs font-extrabold text-white">
-                    {adminName}
-                  </p>
-                  <p className="text-[10px] text-emerald-400">
-                    صلاحية إدارة كاملة
-                  </p>
-                </div>
+              <div className="mx-4 mt-4 rounded-xl border border-white/10 bg-white/5 p-3.5">
+                <p className="text-xs font-extrabold text-white">{adminName}</p>
+                <p className="mt-0.5 text-[10px] text-emerald-400">
+                  مدير النظام · صلاحية كاملة
+                </p>
               </div>
 
-              {/* روابط صفحات الأدمن */}
               <nav className="mt-3 flex flex-col gap-1 px-3">
                 {ADMIN_NAV_LINKS.map(({ href, label, icon: Icon }) => {
                   const active = isActive(href)
@@ -199,15 +265,14 @@ export default function AdminShell({
               </nav>
             </div>
 
-            {/* روابط سفلية داخل المنيو */}
-            <div className="border-t border-white/10 p-4 space-y-2">
+            <div className="space-y-2 border-t border-white/10 p-4">
               <Link
-                href="/account"
+                href="/admin/settings?tab=profile"
                 onClick={() => setDrawerOpen(false)}
                 className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-xs font-bold text-white/85 transition hover:bg-white/10"
               >
-                <span>حسابي الشخصي</span>
-                <User className="size-3.5 text-emerald-400" />
+                <span>تعديل بياناتي (بروفايل الأدمن)</span>
+                <UserCog className="size-3.5 text-emerald-400" />
               </Link>
               <Link
                 href="/"
@@ -222,11 +287,11 @@ export default function AdminShell({
         </div>
       )}
 
-      {/* ==================== 3. الهيدر العلوي المدمج + المحتوى ==================== */}
+      {/* ==================== 3. الهيدر العلوي المدمج ==================== */}
       <div className="lg:mr-72">
         <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-2 border-b border-gray-200/80 bg-white/95 px-3.5 backdrop-blur-md sm:h-20 sm:px-6 lg:px-8">
-          {/* اليمين: زر المنيو للموبايل + الترحيب والقسم الحالي */}
-          <div className="flex items-center gap-2.5 min-w-0">
+          {/* اليمين: زر القائمة ☰ + اسم القسم + أهلاً بالاسم الأول فقط */}
+          <div className="flex min-w-0 items-center gap-2.5">
             <button
               type="button"
               onClick={() => setDrawerOpen(true)}
@@ -241,41 +306,117 @@ export default function AdminShell({
                 {currentSection}
               </p>
               <h1 className="truncate text-sm font-extrabold text-[#0a1122] sm:text-lg">
-                أهلاً بك، {adminName} 👋
+                أهلاً، {firstName} 👋
               </h1>
             </div>
           </div>
 
-          {/* اليسار: أزرار سريعة ملمومة في سطر واحد */}
-          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+          {/* اليسار: زر بيانات الأدمن + جرس الإشعارات التفاعلي (بدون الدائرة الخضراء الزائدة) */}
+          <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
             <Link
-              href="/account"
-              className="rounded-xl border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-[11px] font-bold text-[#0a1122] transition hover:bg-gray-100 sm:px-3.5 sm:py-2 sm:text-xs"
+              href="/admin/settings?tab=profile"
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-gray-200 bg-gray-50 px-3 text-xs font-bold text-[#0a1122] transition hover:border-[#105C50] hover:bg-white sm:h-10 sm:px-3.5"
             >
-              حسابي
+              <UserCog className="size-3.5 text-[#105C50]" />
+              <span>حسابي</span>
             </Link>
 
-            <Link
-              href="/admin/properties"
-              className="relative flex size-9 items-center justify-center rounded-full border border-gray-200 text-gray-600 transition hover:bg-gray-50 sm:size-10"
-              aria-label="الإشعارات"
-            >
-              <Bell className="size-4" />
-              <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-red-500" />
-            </Link>
+            {/* جرس الإشعارات التفاعلي */}
+            <div className="relative" ref={notifRef}>
+              <button
+                type="button"
+                onClick={() => setNotifOpen((prev) => !prev)}
+                className="relative flex size-9 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700 transition hover:bg-gray-50 sm:size-10"
+                aria-label="الإشعارات"
+              >
+                <Bell className="size-4" />
+                {notifications.length > 0 && (
+                  <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-extrabold text-white">
+                    {notifications.length > 9 ? "+9" : notifications.length}
+                  </span>
+                )}
+              </button>
 
-            <div className="flex items-center gap-2.5 border-r border-gray-200 pr-2 sm:pr-3">
-              <div className="flex size-9 items-center justify-center rounded-full bg-[#105C50] text-xs font-extrabold text-white sm:size-10 sm:text-sm">
-                {firstLetter}
-              </div>
-              <div className="hidden md:block">
-                <div className="text-xs font-extrabold text-[#0a1122]">
-                  {adminName}
+              {/* القائمة المنسدلة للإشعارات عند الضغط على الجرس */}
+              {notifOpen && (
+                <div className="fixed left-3 right-3 top-[68px] z-50 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl sm:absolute sm:left-0 sm:right-auto sm:top-12 sm:w-80">
+                  <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50/80 px-4 py-3">
+                    <span className="text-xs font-extrabold text-[#0a1122]">
+                      التنبيهات والطلبات الجديدة ({notifications.length})
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setNotifOpen(false)}
+                      className="rounded-lg p-1 text-gray-400 hover:bg-gray-200/60 hover:text-gray-700"
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                  </div>
+
+                  <div className="max-h-80 divide-y divide-gray-100 overflow-y-auto">
+                    {notifications.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center px-4 py-8 text-center">
+                        <CheckCircle2 className="mb-2 size-8 text-emerald-500" />
+                        <p className="text-xs font-bold text-[#0a1122]">
+                          لا توجد طلبات معلقة حالياً
+                        </p>
+                        <p className="mt-0.5 text-[11px] text-gray-400">
+                          تمت مراجعة كافة العقارات والطلبات الجديدة.
+                        </p>
+                      </div>
+                    ) : (
+                      notifications.map((item) => (
+                        <Link
+                          key={item.id}
+                          href={item.href}
+                          onClick={() => setNotifOpen(false)}
+                          className="flex items-start gap-3 px-4 py-3 text-right transition hover:bg-gray-50"
+                        >
+                          <span
+                            className={`mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-xl text-xs font-bold ${
+                              item.type === "property"
+                                ? "bg-amber-100 text-amber-800"
+                                : item.type === "lead"
+                                  ? "bg-emerald-100 text-[#105C50]"
+                                  : "bg-blue-100 text-blue-800"
+                            }`}
+                          >
+                            {item.type === "property" ? (
+                              <Building2 className="size-4" />
+                            ) : item.type === "lead" ? (
+                              <FileText className="size-4" />
+                            ) : (
+                              <WalletCards className="size-4" />
+                            )}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-xs font-extrabold text-[#0a1122]">
+                              {item.title}
+                            </p>
+                            <p className="mt-0.5 truncate text-[11px] text-gray-500">
+                              {item.subtitle}
+                            </p>
+                            <p className="mt-1 flex items-center gap-1 text-[10px] text-gray-400">
+                              <Clock className="size-3" />
+                              <span>{item.createdAt}</span>
+                            </p>
+                          </div>
+                        </Link>
+                      ))
+                    )}
+                  </div>
+
+                  <div className="border-t border-gray-100 bg-gray-50/50 p-2 text-center">
+                    <Link
+                      href="/admin/properties"
+                      onClick={() => setNotifOpen(false)}
+                      className="block rounded-lg py-1.5 text-[11px] font-bold text-[#105C50] hover:bg-emerald-50"
+                    >
+                      عرض كل العقارات والطلبات
+                    </Link>
+                  </div>
                 </div>
-                <div className="text-[11px] font-medium text-gray-500">
-                  صلاحية كاملة
-                </div>
-              </div>
+              )}
             </div>
           </div>
         </header>
@@ -284,12 +425,12 @@ export default function AdminShell({
         <main className="p-3.5 sm:p-6 lg:p-8">{children}</main>
       </div>
 
-      {/* ==================== 4. شريط التطبيق السفلي الثابت للموبايل (Bottom App Bar) ==================== */}
+      {/* ==================== 4. الشريط السفلي للموبايل (مع الإعدادات بدلاً من القائمة) ==================== */}
       <nav
         aria-label="التنقل السريع للموبايل"
-        className="fixed bottom-0 inset-x-0 z-30 flex h-16 items-center justify-around border-t border-gray-200/90 bg-white/95 px-1 backdrop-blur-md shadow-[0_-4px_16px_rgba(0,0,0,0.04)] lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-30 flex h-16 items-center justify-around border-t border-gray-200/90 bg-white/95 px-1 shadow-[0_-4px_16px_rgba(0,0,0,0.04)] backdrop-blur-md lg:hidden"
       >
-        {ADMIN_NAV_LINKS.slice(0, 4).map(({ href, shortLabel, icon: Icon }) => {
+        {MOBILE_BOTTOM_LINKS.map(({ href, shortLabel, icon: Icon }) => {
           const active = isActive(href)
           return (
             <Link
@@ -310,20 +451,6 @@ export default function AdminShell({
             </Link>
           )
         })}
-
-        {/* زر فتح القائمة الكاملة */}
-        <button
-          type="button"
-          onClick={() => setDrawerOpen(true)}
-          className={`flex flex-1 flex-col items-center justify-center gap-1 py-1.5 text-[10px] font-bold transition ${
-            drawerOpen ? "text-[#105C50]" : "text-gray-400 hover:text-[#0a1122]"
-          }`}
-        >
-          <span className="flex h-7 w-11 items-center justify-center rounded-full">
-            <Menu className="size-4" />
-          </span>
-          <span>القائمة</span>
-        </button>
       </nav>
     </div>
   )

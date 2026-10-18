@@ -17,7 +17,15 @@ async function getSupabase() {
   )
 }
 
-async function sendAdminEmail({ to, subject, html }: { to: string; subject: string; html: string }) {
+async function sendAdminEmail({
+  to,
+  subject,
+  html,
+}: {
+  to: string
+  subject: string
+  html: string
+}) {
   const user = process.env.EMAIL_USER?.trim()
   const pass = process.env.EMAIL_PASS?.replace(/\s+/g, "")
   if (!user || !pass || !to) return false
@@ -51,11 +59,13 @@ function hashPassword(password: string) {
 }
 
 function revalidateAdminAll() {
+  revalidatePath("/admin", "layout")
   revalidatePath("/admin")
   revalidatePath("/admin/properties")
   revalidatePath("/admin/leads")
   revalidatePath("/admin/users")
   revalidatePath("/admin/investors")
+  revalidatePath("/admin/settings")
   revalidatePath("/account")
   revalidatePath("/opportunities")
 }
@@ -87,18 +97,19 @@ export async function updatePropertyStatusAction(
     .eq("id", propertyId)
 
   if (error) {
-    // محاولة التحديث بدون admin_note لو العمود غير موجود
     const { error: fallbackError } = await supabase
       .from("sell_requests")
       .update({ status })
       .eq("id", propertyId)
 
     if (fallbackError) {
-      return { success: false, error: "تعذر تحديث حالة العقار في قاعدة البيانات." }
+      return {
+        success: false,
+        error: "تعذر تحديث حالة العقار في قاعدة البيانات.",
+      }
     }
   }
 
-  // إرسال إيميل للبائع عند الموافقة أو الرفض أو وجود عرض
   if (prop?.email) {
     const statusMessages: Record<string, { subject: string; body: string }> = {
       active: {
@@ -142,7 +153,10 @@ export async function updatePropertyStatusAction(
 
 export async function deletePropertyAction(propertyId: string) {
   const supabase = await getSupabase()
-  const { error } = await supabase.from("sell_requests").delete().eq("id", propertyId)
+  const { error } = await supabase
+    .from("sell_requests")
+    .delete()
+    .eq("id", propertyId)
   if (error) return { success: false, error: "تعذر حذف العقار." }
   revalidateAdminAll()
   return { success: true }
@@ -151,7 +165,10 @@ export async function deletePropertyAction(propertyId: string) {
 // ==========================================
 // 2. التحكم في حالات طلبات الشراء (المشترين)
 // ==========================================
-export async function updateBuyerLeadStatusAction(leadId: string, status: string) {
+export async function updateBuyerLeadStatusAction(
+  leadId: string,
+  status: string
+) {
   const supabase = await getSupabase()
   const { error } = await supabase
     .from("buy_requests")
@@ -171,7 +188,10 @@ export async function updateBuyerLeadStatusAction(leadId: string, status: string
 
 export async function deleteBuyerLeadAction(leadId: string) {
   const supabase = await getSupabase()
-  const { error } = await supabase.from("buy_requests").delete().eq("id", leadId)
+  const { error } = await supabase
+    .from("buy_requests")
+    .delete()
+    .eq("id", leadId)
   if (error) return { success: false, error: "تعذر حذف طلب الشراء." }
   revalidateAdminAll()
   return { success: true }
@@ -180,7 +200,10 @@ export async function deleteBuyerLeadAction(leadId: string) {
 // ==========================================
 // 3. التحكم في حالات طلبات المستثمرين
 // ==========================================
-export async function updateInvestorStatusAction(investorId: string, status: string) {
+export async function updateInvestorStatusAction(
+  investorId: string,
+  status: string
+) {
   const supabase = await getSupabase()
   const { error } = await supabase
     .from("investor_leads")
@@ -200,7 +223,10 @@ export async function updateInvestorStatusAction(investorId: string, status: str
 
 export async function deleteInvestorAction(investorId: string) {
   const supabase = await getSupabase()
-  const { error } = await supabase.from("investor_leads").delete().eq("id", investorId)
+  const { error } = await supabase
+    .from("investor_leads")
+    .delete()
+    .eq("id", investorId)
   if (error) return { success: false, error: "تعذر حذف طلب المستثمر." }
   revalidateAdminAll()
   return { success: true }
@@ -215,15 +241,15 @@ export async function updateUserRoleAndStatusAction(
   status: string
 ) {
   const supabase = await getSupabase()
-  
-  const cleanRole = String(role || 'user').trim().toLowerCase()
-  const cleanStatus = String(status || 'active').trim().toLowerCase()
+
+  const cleanRole = String(role || "user").trim().toLowerCase()
+  const cleanStatus = String(status || "active").trim().toLowerCase()
 
   const { error } = await supabase
     .from("users")
-    .update({ 
-      role: cleanRole, 
-      status: cleanStatus 
+    .update({
+      role: cleanRole,
+      status: cleanStatus,
     })
     .eq("id", userId)
 
@@ -231,7 +257,8 @@ export async function updateUserRoleAndStatusAction(
     console.error("Update User Role Error:", error)
     return {
       success: false,
-      error: "تعذر تحديث الصلاحية في قاعدة البيانات. تأكد من تشغيل سكريبت الـ SQL.",
+      error:
+        "تعذر تحديث الصلاحية في قاعدة البيانات. تأكد من تشغيل سكريبت الـ SQL.",
     }
   }
 
@@ -259,7 +286,6 @@ export async function createAdminOrUserAction(formData: FormData) {
 
   const supabase = await getSupabase()
 
-  // محاولة الإدخال مع الصلاحية والحالة
   const { error } = await supabase.from("users").insert({
     name,
     email,
@@ -270,7 +296,6 @@ export async function createAdminOrUserAction(formData: FormData) {
   })
 
   if (error) {
-    // محاولة بديلة لو أعمدة role و status غير مضافة بعد
     const { error: fallbackError } = await supabase.from("users").insert({
       name,
       email,
@@ -297,6 +322,106 @@ export async function deleteUserByAdminAction(userId: string) {
   const { error } = await supabase.from("users").delete().eq("id", userId)
 
   if (error) return { success: false, error: "تعذر حذف الحساب." }
+  revalidateAdminAll()
+  return { success: true }
+}
+
+// ==========================================
+// 5. تحديث الملف الشخصي للأدمن (الاسم، الإيميل، الهاتف، كلمة المرور)
+// ==========================================
+export async function updateAdminProfileAction(formData: FormData) {
+  const cookieStore = await cookies()
+  const sessionId = cookieStore.get("user_session")?.value
+  if (!sessionId) {
+    return { success: false, error: "انتهت الجلسة، يرجى تسجيل الدخول مجدداً." }
+  }
+
+  const name = ((formData.get("name") as string) || "").trim()
+  const email = ((formData.get("email") as string) || "").trim().toLowerCase()
+  const rawPhone = ((formData.get("phone") as string) || "").trim()
+  const newPassword = ((formData.get("newPassword") as string) || "").trim()
+
+  if (!name || !email || !rawPhone) {
+    return { success: false, error: "الاسم والبريد الإلكتروني ورقم الهاتف حقول مطلوبة." }
+  }
+
+  const stripped = rawPhone.replace(/^\+?20/, "").replace(/^0+/, "")
+  const formattedPhone = `+20${stripped}`
+
+  const updateData: Record<string, any> = {
+    name,
+    email,
+    phone: formattedPhone,
+  }
+
+  if (newPassword) {
+    if (newPassword.length < 8) {
+      return {
+        success: false,
+        error: "كلمة المرور الجديدة يجب أن تكون 8 أحرف على الأقل.",
+      }
+    }
+    updateData.password_hash = hashPassword(newPassword)
+  }
+
+  const supabase = await getSupabase()
+  const { error } = await supabase
+    .from("users")
+    .update(updateData)
+    .eq("id", sessionId)
+
+  if (error) {
+    return {
+      success: false,
+      error: "تعذر تحديث البيانات، قد يكون البريد أو الهاتف مستخدماً لحساب آخر.",
+    }
+  }
+
+  // حذف أي طلبات بيع أو شراء تجريبية مسجلة باسم الأدمن إن رغب في تنظيف حسابه
+  if (formData.get("clearAdminRequests") === "1") {
+    await supabase.from("sell_requests").delete().eq("user_id", sessionId)
+    await supabase.from("buy_requests").delete().eq("user_id", sessionId)
+  }
+
+  revalidateAdminAll()
+  return { success: true }
+}
+
+// ==========================================
+// 6. حفظ إعدادات الموقع العامة وحالة الصيانة
+// ==========================================
+export async function saveSiteSettingsAction(formData: FormData) {
+  const cookieStore = await cookies()
+  const isProd = process.env.NODE_ENV === "production"
+
+  const settingsPayload = {
+    siteName: ((formData.get("siteName") as string) || "دارك").trim(),
+    whatsappNumber: ((formData.get("whatsappNumber") as string) || "+201018595959").trim(),
+    supportEmail: ((formData.get("supportEmail") as string) || "support@darak.com").trim(),
+    buyerCommission: ((formData.get("buyerCommission") as string) || "1.25").trim(),
+    maintenanceMode: formData.get("maintenanceMode") === "on",
+    allowNewSells: formData.get("allowNewSells") === "on",
+    allowNewBuys: formData.get("allowNewBuys") === "on",
+    emailNotifications: formData.get("emailNotifications") === "on",
+  }
+
+  // حفظ الإعدادات في الكوكيز وفي قاعدة البيانات إن وجد جدول site_settings
+  cookieStore.set("darak_site_settings", JSON.stringify(settingsPayload), {
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+    sameSite: "lax",
+    secure: isProd,
+  })
+
+  try {
+    const supabase = await getSupabase()
+    await supabase.from("site_settings").upsert({
+      id: "global",
+      ...settingsPayload,
+      updated_at: new Date().toISOString(),
+    })
+  } catch {}
+
   revalidateAdminAll()
   return { success: true }
 }

@@ -144,7 +144,7 @@ export default async function AdminPage() {
         <div>
           <p className="text-xs font-extrabold text-[#105C50]">نظرة عامة حية</p>
           <h2 className="mt-1 text-2xl font-extrabold text-[#0a1122] sm:text-3xl">
-            لوحة القيادة
+           الرئيسية
           </h2>
           <p className="mt-1.5 text-xs text-gray-500 sm:text-sm">
             إحصائيات حقيقية مباشرة من قاعدة البيانات لمتابعة حركة البائعين والمشترين.

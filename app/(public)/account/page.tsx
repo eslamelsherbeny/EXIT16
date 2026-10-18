@@ -2,12 +2,17 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { createServerClient } from '@supabase/ssr'
 import {
+  AlertCircle,
   ArrowDown,
   Check,
+  CheckCircle2,
   ChevronDown,
+  Clock,
+  ExternalLink,
   ListFilter,
-  Search,
   LogOut,
+  Search,
+  Sparkles,
   UserCog,
   X,
 } from 'lucide-react'
@@ -19,26 +24,31 @@ export const revalidate = 0
 type SellRequest = {
   id: string
   project_name: string | null
+  developer_name?: string | null
   area: string | null
+  unit_type?: string | null
+  rooms?: number | null
   contract_price: number | null
   paid_amount: number | null
+  market_price?: number | null
+  delivery_status?: string | null
+  contract_year?: number | null
+  willing_to_discount?: boolean | null
   status: string | null
+  admin_note?: string | null
   images: string[] | null
+  created_at?: string | null
 }
 
 type BuyRequest = {
   id: string
   budget: number | null
+  available_cash?: number | null
   max_installment?: number | null
   preferred_areas: string[] | null
   unit_types: string[] | null
-}
-
-type Profile = {
-  id: string
-  name: string | null
-  phone: string | null
-  email: string | null
+  status?: string | null
+  created_at?: string | null
 }
 
 type BuyerUnitCard = {
@@ -59,8 +69,8 @@ type BuyerUnitCard = {
   image?: string
 }
 
-// بيانات الوحدات الكاملة لواجهة المشتري بالفلاتر والكروت
-const buyerMatchedUnits: BuyerUnitCard[] = [
+// بيانات الوحدات الافتراضية لواجهة المشتري (تُدمج مع الوحدات المعتمدة من الأدمن)
+const defaultBuyerUnits: BuyerUnitCard[] = [
   {
     id: 'hamra-1',
     title: 'ميني كمبوند قصر الحمرا',
@@ -151,7 +161,6 @@ const buyerMatchedUnits: BuyerUnitCard[] = [
   },
 ]
 
-// خيارات الفلاتر المطابقة للصور بالظبط
 const buyerFilterPills = [
   'منطقتك',
   'الكاش المتاح',
@@ -219,6 +228,114 @@ function money(value: number | null | undefined) {
   return `${Number(value || 0).toLocaleString('en-US')} ج.م`
 }
 
+// ترجمة حالة العقار للشارات والألوان
+function getSellerStatusMeta(status: string | null | undefined, hasImages: boolean) {
+  const clean = (status || 'pending').trim().toLowerCase()
+
+  switch (clean) {
+    case 'active':
+    case 'approved':
+    case 'published':
+      return {
+        code: 'active',
+        badgeText: 'معروضة في السوق الآن',
+        badgeClass: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+        headline: 'وحدتك معتمدة ومعروضة الآن أمام المشترين 🎉',
+        subtext: 'فريقنا يرشح وحدتك حالياً للمشترين المطابقين لميزانيتها في نفس منطقتك.',
+        stepIndex: 4, // المرحلة 5 (0-indexed = 4): بندور على المشتري المناسب
+      }
+    case 'offer_received':
+      return {
+        code: 'offer_received',
+        badgeText: 'يوجد عرض شراء جديد 💰',
+        badgeClass: 'bg-amber-50 text-amber-700 border border-amber-200',
+        headline: 'لديك عرض شراء جاد على وحدتك! 💰',
+        subtext: 'تواصل مع مسؤول حالتك أو راجع صفحة العروض للاطلاع على التفاصيل وإتمام الاتفاق.',
+        stepIndex: 5, // المرحلة 6: عندك عرض
+      }
+    case 'transferring':
+      return {
+        code: 'transferring',
+        badgeText: 'جاري نقل التعاقد 📄',
+        badgeClass: 'bg-blue-50 text-blue-700 border border-blue-200',
+        headline: 'وحدتك في مرحلة مراجعة المستندات ونقل التعاقد 📄',
+        subtext: 'يرجى التأكد من تجهيز العقد الأصلي وإيصالات السداد لإتمام التنازل في شركة التطوير.',
+        stepIndex: 6, // المرحلة 7: نقل التعاقد
+      }
+    case 'sold':
+      return {
+        code: 'sold',
+        badgeText: 'تم البيع بنجاح 🏆',
+        badgeClass: 'bg-teal-600 text-white',
+        headline: 'مبروك! تمت عملية بيع وحدتك ونقل التعاقد بنجاح 🏆',
+        subtext: 'سعدنا بخدمتك في منصة دارك للتخارج العقاري الآمن بدون أوفر.',
+        stepIndex: 8, // كل المراحل مكتملة
+      }
+    case 'rejected':
+      return {
+        code: 'rejected',
+        badgeText: 'يحتاج لتعديل البيانات',
+        badgeClass: 'bg-red-50 text-red-700 border border-red-200',
+        headline: 'يرجى مراجعة وتحديث بيانات وحدتك لإعادة النشر',
+        subtext: 'قام فريق المراجعة بإضافة ملاحظة على طلبك. يمكنك تعديل البيانات أو التواصل معنا.',
+        stepIndex: 1,
+      }
+    default:
+      if (!hasImages) {
+        return {
+          code: 'pending_images',
+          badgeText: 'بانتظار الصور',
+          badgeClass: 'bg-amber-50 text-amber-600',
+          headline: 'فاضل الصور بس — ضيف صورة واحدة على الأقل وننشر وحدتك',
+          subtext: 'الوحدات اللي فيها صور واضحة بتتباع أسرع 4 مرات.',
+          stepIndex: 1, // المرحلة 2: بيانات وحدتك وصورها
+        }
+      }
+      return {
+        code: 'pending_review',
+        badgeText: 'قيد مراجعة الإدارة',
+        badgeClass: 'bg-blue-50 text-blue-700',
+        headline: 'استلمنا بيانات وحدتك وصورها — فريقنا يراجعها الآن لنشرها',
+        subtext: 'بمجرد اعتماد الطلب من لوحة الإدارة ستتغير الحالة هنا فوراً وتظهر في صفحة الفرص.',
+        stepIndex: 2, // المرحلة 3: بنراجع وننشر وحدتك
+      }
+  }
+}
+
+function getBuyerStatusMeta(status: string | null | undefined) {
+  const clean = (status || 'new').trim().toLowerCase()
+  switch (clean) {
+    case 'contacted':
+      return {
+        label: 'تم التواصل معك من فريق المبيعات 📞',
+        className: 'bg-blue-50 text-blue-700 border-blue-200',
+      }
+    case 'qualified':
+    case 'viewing':
+      return {
+        label: 'جاري تنسيق المعاينة والعروض المطابقة 🎯',
+        className: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+      }
+    case 'closed':
+    case 'purchased':
+      return {
+        label: 'تم إتمام التعاقد بنجاح 🏆',
+        className: 'bg-teal-600 text-white border-teal-600',
+      }
+    case 'archived':
+    case 'cancelled':
+      return {
+        label: 'الطلب مؤرشف / متوقف مؤقتاً',
+        className: 'bg-gray-100 text-gray-600 border-gray-200',
+      }
+    default:
+      return {
+        label: 'طلبك نشط — يتم ترشيح الفرص المطابقة لميزانيتك ✨',
+        className: 'bg-[#eff8f6] text-[#105C50] border-[#105C50]/20',
+      }
+  }
+}
+
 async function getSupabase() {
   const cookieStore = await cookies()
   return createServerClient(
@@ -255,6 +372,7 @@ async function deleteAccount() {
 
 type SearchParamsType = {
   view?: string
+  unitId?: string
   q?: string
   pill?: string
   flexible?: string
@@ -291,26 +409,46 @@ export default async function AccountPage({
     .from('users')
     .select('*')
     .eq('id', sessionId)
-    .single()
+    .maybeSingle()
 
   if (profileError || !profile) {
     redirect('/login')
   }
 
-  const { data: sellsData } = await supabase
-    .from('sell_requests')
-    .select('*')
-    .eq('user_id', profile.id)
-    .order('created_at', { ascending: false })
+  // جلب طلبات البيع والشراء الخاصة بالمستخدم (سواء بـ user_id أو بنفس الإيميل/الموبايل لضمان عدم ضياع أي طلب)
+  const cleanEmail = (profile.email || '').trim().toLowerCase()
+  const cleanPhone = (profile.phone || '').trim()
 
-  const { data: buysData } = await supabase
-    .from('buy_requests')
-    .select('*')
-    .eq('user_id', profile.id)
-    .order('created_at', { ascending: false })
+  const [{ data: allSells }, { data: allBuys }, { data: activeMarketUnits }] =
+    await Promise.all([
+      supabase
+        .from('sell_requests')
+        .select('*')
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('buy_requests')
+        .select('*')
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('sell_requests')
+        .select('*')
+        .in('status', ['active', 'approved', 'published'])
+        .order('created_at', { ascending: false }),
+    ])
 
-  const sells = (sellsData as SellRequest[]) || []
-  const buys = (buysData as BuyRequest[]) || []
+  const sells = ((allSells as SellRequest[]) || []).filter(
+    (s: any) =>
+      s.user_id === profile.id ||
+      (cleanEmail && String(s.email || '').trim().toLowerCase() === cleanEmail) ||
+      (cleanPhone && String(s.phone || '').trim() === cleanPhone)
+  )
+
+  const buys = ((allBuys as BuyRequest[]) || []).filter(
+    (b: any) =>
+      b.user_id === profile.id ||
+      (cleanEmail && String(b.email || '').trim().toLowerCase() === cleanEmail) ||
+      (cleanPhone && String(b.phone || '').trim() === cleanPhone)
+  )
 
   const hasSells = sells.length > 0
   const hasBuys = buys.length > 0
@@ -324,18 +462,59 @@ export default async function AccountPage({
   const isBuyerView =
     resolvedParams?.view === 'buyer' ? true : !isSellerView && hasBuys
 
-  const unit = sells[0]
+  const unit =
+    (resolvedParams.unitId
+      ? sells.find((s) => s.id === resolvedParams.unitId)
+      : sells[0]) || sells[0]
   const buyReq = buys[0]
 
-  const project = unit?.project_name || 'وحدتك'
+  const project = unit?.project_name || 'وحدتك العقارية'
   const unitArea = unit?.area || 'التجمع الخامس'
-  const completion = unit?.images && unit.images.length > 0 ? 100 : 94
+  const hasImages = Boolean(unit?.images && unit.images.length > 0)
+  const completion = hasImages ? 100 : 94
+  const sellerStatus = getSellerStatusMeta(unit?.status, hasImages)
+  const buyerStatus = getBuyerStatusMeta(buyReq?.status)
 
-  const buyerCashBudget = buyReq?.budget ? money(buyReq.budget) : '3,000,000 ج.م'
+  const buyerCashBudget =
+    buyReq?.available_cash || buyReq?.budget
+      ? money(buyReq.available_cash || buyReq.budget)
+      : '3,000,000 ج.م'
   const buyerMaxInstallment = buyReq?.max_installment
     ? money(buyReq.max_installment)
     : '100,000 ج.م'
   const buyerArea = buyReq?.preferred_areas?.[0] || 'التجمع الخامس'
+
+  // تحويل الوحدات المعتمدة من الأدمن في الداتابيز إلى كروت مشتري حقيقية
+  const dynamicMarketCards: BuyerUnitCard[] = ((activeMarketUnits as SellRequest[]) || []).map(
+    (u) => {
+      const paid = Number(u.paid_amount || 0)
+      const contract = Number(u.contract_price || 0)
+      const market = Number(u.market_price || contract * 1.25 || 0)
+      const gainVal = Math.max(0, market - contract)
+      return {
+        id: u.id,
+        title: u.project_name || 'وحدة سكنية مميزة',
+        subtitle: `${u.developer_name || 'مطور عقاري'} · ${u.area || 'القاهرة الجديدة'} · ${u.unit_type || 'شقة'}`,
+        area: u.area || 'التجمع الخامس',
+        type: u.unit_type || 'شقة',
+        rooms: Number(u.rooms || 3),
+        delivery: '2026',
+        deliveryStatus:
+          u.delivery_status === 'جاهزة' || u.delivery_status === 'فوري'
+            ? 'جاهزة'
+            : 'تحت الإنشاء',
+        contractYear: Number(u.contract_year || 2024),
+        negotiable: Boolean(u.willing_to_discount),
+        cash: paid.toLocaleString('en-US'),
+        gain: `+ ${gainVal.toLocaleString('en-US')}`,
+        marketPrice: market.toLocaleString('en-US'),
+        tags: ['معتمدة من الإدارة', 'بدون أوفر', u.area || 'موقع مميز'],
+        image: u.images?.[0] || undefined,
+      }
+    }
+  )
+
+  const buyerMatchedUnits = [...dynamicMarketCards, ...defaultBuyerUnits]
 
   // قراءة قيم الفلاتر النشطة من الـ URL
   const activePill = resolvedParams.pill || ''
@@ -352,7 +531,6 @@ export default async function AccountPage({
   const maxContractFilter = resolvedParams.maxContract || ''
   const currentSort = resolvedParams.sort || 'الأحدث'
 
-  // حساب عدد الفلاتر المفعلة لعرضه في الدائرة الخضراء بجانب "فلترة"
   let activeFilterCount = 0
   if (isFlexible) activeFilterCount++
   if (activePill) activeFilterCount++
@@ -370,7 +548,6 @@ export default async function AccountPage({
     resolvedParams.openFilter === '1' ||
     (resolvedParams.openFilter !== '0' && activeFilterCount > 0)
 
-  // تطبيق الفلترة والترتيب الكامل على الكروت
   const filteredBuyerUnits = buyerMatchedUnits
     .filter((item) => {
       const cashVal = Number(item.cash.replaceAll(',', ''))
@@ -407,7 +584,6 @@ export default async function AccountPage({
         return false
       }
 
-      // تفعيل جميع أزرار فلتر بطلبك السريعة
       if (
         activePill === 'منطقتك' &&
         !item.tags.includes('في المنطقة اللي عايزها') &&
@@ -463,7 +639,6 @@ export default async function AccountPage({
       return 0
     })
 
-  // دالة مساعدة لبناء الروابط مع الحفاظ على وضع المشتري والفلاتر الحالية
   const buildBuyerUrl = (updates: Partial<SearchParamsType>) => {
     const merged: Record<string, string> = {}
     if (resolvedParams.view) merged.view = resolvedParams.view
@@ -483,12 +658,46 @@ export default async function AccountPage({
       dir="rtl"
       className="min-h-screen bg-[#f5f6f8] py-8 pb-24 text-[#0a1122] sm:py-12"
     >
+      {/* أزرار التبديل السريع لو المستخدم عنده طلب بيع وطلب شراء معاً */}
+      {hasSells && hasBuys && (
+        <div className="mx-auto mb-6 flex max-w-[680px] justify-center gap-2 px-4">
+          <Link
+            href="/account?view=seller"
+            className={`rounded-xl px-4 py-2 text-xs font-bold transition ${
+              isSellerView
+                ? 'bg-[#105C50] text-white shadow-sm'
+                : 'bg-white text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            لوحة البائع ({sells.length})
+          </Link>
+          <Link
+            href="/account?view=buyer"
+            className={`rounded-xl px-4 py-2 text-xs font-bold transition ${
+              isBuyerView
+                ? 'bg-[#105C50] text-white shadow-sm'
+                : 'bg-white text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            لوحة المشتري ({buys.length})
+          </Link>
+        </div>
+      )}
+
       {/* ==================== 1. واجهة البائع (Seller View) ==================== */}
       {isSellerView ? (
         <div className="mx-auto max-w-[680px] px-4 sm:px-6">
           {/* الهيدر العلوي */}
           <header className="flex items-start justify-between pb-6">
             <div className="text-right">
+              <div className="mb-1.5 flex flex-wrap items-center gap-2">
+                <span
+                  className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-bold ${sellerStatus.badgeClass}`}
+                >
+                  <Sparkles className="size-3" />
+                  {sellerStatus.badgeText}
+                </span>
+              </div>
               <h1 className="text-xl font-extrabold text-[#0a1122] sm:text-2xl">
                 {project}{' '}
                 <span className="font-normal text-gray-400">· {unitArea}</span>
@@ -498,7 +707,7 @@ export default async function AccountPage({
               <form action={logout}>
                 <button
                   type="submit"
-                  className="flex items-center gap-2 transition hover:text-[#0a1122]"
+                  className="flex items-center gap-2 text-red-600 transition hover:text-red-700"
                 >
                   تسجيل الخروج <LogOut className="size-3.5" />
                 </button>
@@ -512,21 +721,59 @@ export default async function AccountPage({
             </div>
           </header>
 
+          {/* الكارت العلوي المتغير ديناميكياً حسب حالة الأدمن */}
           <section className="mt-2 rounded-[18px] border border-[#105C50]/30 bg-white p-5 text-right shadow-sm sm:p-7">
-            <span className="text-[11px] font-bold text-[#105C50]">
-              الخطوة الجاية
-            </span>
-            <h2 className="mt-1 text-base font-extrabold text-[#0a1122] sm:text-lg">
-              فاضل الصور بس — ضيف صورة واحدة على الأقل وننشر وحدتك
-            </h2>
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-[#105C50]">
+                حالة طلبك الآن
+              </span>
+              <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${sellerStatus.badgeClass}`}>
+                {sellerStatus.badgeText}
+              </span>
+            </div>
 
-            <div className="mt-4">
-              <Link
-                href={unit?.id ? `/sell?resume=${unit.id}` : '/sell'}
-                className="inline-flex h-10 items-center justify-center rounded-[10px] bg-[#105C50] px-6 text-xs font-bold text-white transition hover:bg-[#0c483f] sm:text-sm"
-              >
-                أضف الصور
-              </Link>
+            <h2 className="mt-2 text-base font-extrabold text-[#0a1122] sm:text-lg">
+              {sellerStatus.headline}
+            </h2>
+            <p className="mt-1 text-xs leading-relaxed text-gray-500">
+              {sellerStatus.subtext}
+            </p>
+
+            {/* إظهار ملاحظة الأدمن أو سبب الرفض إن وجد */}
+            {unit?.admin_note && (
+              <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 p-3.5 text-xs text-amber-900">
+                <AlertCircle className="mt-0.5 size-4 shrink-0 text-amber-600" />
+                <div>
+                  <strong className="block font-extrabold">ملاحظة من إدارة المنصة:</strong>
+                  <p className="mt-0.5 leading-relaxed">{unit.admin_note}</p>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-4 flex flex-wrap gap-2.5">
+              {sellerStatus.code === 'active' && unit?.id ? (
+                <Link
+                  href={`/opportunities/${unit.id}`}
+                  className="inline-flex h-10 items-center justify-center gap-1.5 rounded-[10px] bg-[#105C50] px-5 text-xs font-bold text-white transition hover:bg-[#0c483f]"
+                >
+                  <span>معاينة إعلان وحدتك في الموقع</span>
+                  <ExternalLink className="size-3.5" />
+                </Link>
+              ) : sellerStatus.code === 'offer_received' ? (
+                <Link
+                  href="/account/offers"
+                  className="inline-flex h-10 items-center justify-center rounded-[10px] bg-[#105C50] px-6 text-xs font-bold text-white transition hover:bg-[#0c483f]"
+                >
+                  استعرض العروض المقدمة
+                </Link>
+              ) : (
+                <Link
+                  href={unit?.id ? `/sell?resume=${unit.id}` : '/sell'}
+                  className="inline-flex h-10 items-center justify-center rounded-[10px] bg-[#105C50] px-6 text-xs font-bold text-white transition hover:bg-[#0c483f] sm:text-sm"
+                >
+                  {hasImages ? 'تعديل بيانات أو صور الوحدة' : 'أضف الصور'}
+                </Link>
+              )}
             </div>
 
             <div className="mt-6">
@@ -542,15 +789,10 @@ export default async function AccountPage({
                   style={{ width: `${completion}%` }}
                 />
               </div>
-              <div className="mt-2 flex justify-start">
-                <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-[10px] font-bold text-amber-600">
-                  الصور
-                </span>
-              </div>
             </div>
 
             <div className="mt-4 rounded-xl bg-[#eaf8f2] px-4 py-3 text-right text-xs font-bold text-[#105C50]">
-              فيه 4435 مشترين مستنيين وحدة زي بتاعتك — كمّل بياناتها وشوفهم
+              فيه 4435 مشترين مستنيين وحدة زي بتاعتك — تابع حالة طلبك من هنا أولاً بأول
             </div>
 
             <p className="mt-4 border-t border-gray-100 pt-3.5 text-right text-[11px] leading-relaxed text-gray-400">
@@ -558,10 +800,11 @@ export default async function AccountPage({
             </p>
           </section>
 
+          {/* قائمة وحدات البائع */}
           <section className="mt-8">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-extrabold text-[#0a1122] sm:text-base">
-                وحداتي ({(sells ?? []).length || 1})
+                وحداتي ({sells.length})
               </h2>
               <Link
                 href="/sell"
@@ -571,27 +814,49 @@ export default async function AccountPage({
               </Link>
             </div>
 
-            <div className="mt-3 flex items-center justify-between rounded-[14px] border border-gray-200/80 bg-white px-5 py-4 shadow-sm">
-              <div className="text-right">
-                <p className="text-xs font-extrabold text-[#0a1122] sm:text-sm">
-                  {project}{' '}
-                  <span className="font-normal text-gray-400">· {unitArea}</span>
-                </p>
-                <p className="mt-1 text-[11px] text-gray-400">
-                  بيانات وحدتك وصورها
-                </p>
-              </div>
-              <span className="rounded-full bg-amber-50 px-3 py-1 text-[11px] font-bold text-amber-600">
-                {completion}%
-              </span>
+            <div className="mt-3 flex flex-col gap-2.5">
+              {sells.map((item) => {
+                const itemHasImages = Boolean(item.images && item.images.length > 0)
+                const itemMeta = getSellerStatusMeta(item.status, itemHasImages)
+                const isSelectedUnit = item.id === unit?.id
+                return (
+                  <Link
+                    key={item.id}
+                    href={`/account?view=seller&unitId=${item.id}`}
+                    className={`flex items-center justify-between rounded-[14px] border bg-white px-5 py-4 shadow-sm transition ${
+                      isSelectedUnit
+                        ? 'border-[#105C50] ring-1 ring-[#105C50]/30'
+                        : 'border-gray-200/80 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="text-right">
+                      <p className="text-xs font-extrabold text-[#0a1122] sm:text-sm">
+                        {item.project_name || 'وحدتك'}{' '}
+                        <span className="font-normal text-gray-400">
+                          · {item.area || 'غير محدد'}
+                        </span>
+                      </p>
+                      <p className="mt-1 text-[11px] text-gray-400">
+                        المطلوب كاش: {money(item.paid_amount)}
+                      </p>
+                    </div>
+                    <span
+                      className={`rounded-full px-3 py-1 text-[11px] font-bold ${itemMeta.badgeClass}`}
+                    >
+                      {itemMeta.badgeText}
+                    </span>
+                  </Link>
+                )
+              })}
             </div>
             <p className="mt-2.5 text-right text-[11px] text-gray-400">
               عندك أكتر من وحدة عايز تخرج منها؟ ضيفها هنا — كل وحدة ليها ملفها ومشترينها وبتتتابع لوحدها.
             </p>
           </section>
 
+          {/* التايم لاين الديناميكي المرتبط بحالة الأدمن */}
           <section className="mt-7 pr-1">
-            <Timeline />
+            <Timeline currentStepIndex={sellerStatus.stepIndex} isRejected={sellerStatus.code === 'rejected'} />
           </section>
 
           <section className="mt-7 grid grid-cols-2 gap-4 rounded-[16px] border border-gray-200/80 bg-white p-5 text-right shadow-sm sm:p-6">
@@ -630,7 +895,9 @@ export default async function AccountPage({
               className="flex flex-col justify-center rounded-[14px] border border-gray-200/80 bg-white p-4 text-right shadow-sm transition hover:border-gray-300"
             >
               <p className="text-xs font-extrabold text-[#0a1122]">العروض</p>
-              <p className="mt-1 text-[11px] text-gray-400">لسه مفيش</p>
+              <p className="mt-1 text-[11px] text-gray-400">
+                {sellerStatus.code === 'offer_received' ? 'لديك عرض جديد 💰' : 'لسه مفيش'}
+              </p>
             </Link>
             <a
               href="https://wa.me/201018595959"
@@ -658,12 +925,19 @@ export default async function AccountPage({
           <AccountFooterActions />
         </div>
       ) : isBuyerView ? (
-        /* ==================== 2. واجهة المشتري الكاملة بالفلاتر المفتوحة والمغلقة والكروت ==================== */
+        /* ==================== 2. واجهة المشتري الكاملة ==================== */
         <div className="mx-auto max-w-[980px] px-3 sm:px-6">
           <header className="flex flex-wrap items-center justify-between gap-4">
-            <h1 className="text-xl font-extrabold text-[#0a1122] sm:text-2xl">
-              فرص تناسب ميزانيتك
-            </h1>
+            <div>
+              <h1 className="text-xl font-extrabold text-[#0a1122] sm:text-2xl">
+                فرص تناسب ميزانيتك
+              </h1>
+              {/* شارة حالة طلب الشراء المحدثة من لوحة الأدمن */}
+              <div className="mt-1.5 inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-bold ${buyerStatus.className}">
+                <CheckCircle2 className="size-3.5 text-[#105C50]" />
+                <span>حالة طلبك: {buyerStatus.label}</span>
+              </div>
+            </div>
             <div className="flex items-center gap-3">
               <Link
                 href="/account/offers"
@@ -680,9 +954,10 @@ export default async function AccountPage({
               <form action={logout}>
                 <button
                   type="submit"
-                  className="px-2 text-xs font-bold text-red-500 transition hover:text-red-700"
+                  className="flex items-center gap-1.5 rounded-lg border border-red-100 bg-red-50/60 px-3 py-2 text-xs font-bold text-red-600 transition hover:bg-red-100"
                 >
-                  خروج
+                  <span>تسجيل الخروج</span>
+                  <LogOut className="size-3.5" />
                 </button>
               </form>
             </div>
@@ -706,7 +981,7 @@ export default async function AccountPage({
             </div>
           </section>
 
-          {/* شريط أزرار الفلترة السريعة بطلبك (تفاعلية) */}
+          {/* شريط أزرار الفلترة السريعة */}
           <section className="mt-4 text-right">
             <div className="flex flex-wrap items-center justify-start gap-2">
               <span className="ml-1 text-xs font-extrabold text-[#0a1122]">
@@ -737,9 +1012,8 @@ export default async function AccountPage({
             </p>
           </section>
 
-          {/* ==================== شريط البحث + لوحة الفلاتر الكاملة (تفتح وتغلق فوراً بالضغط) ==================== */}
+          {/* شريط البحث + لوحة الفلاتر الكاملة */}
           <div className="mt-4">
-            {/* مفتاح التحكم الفوري بفتح وإغلاق الفلاتر بدون تعارض مع البحث */}
             <input
               id="buyer-filter-toggle"
               type="checkbox"
@@ -748,7 +1022,6 @@ export default async function AccountPage({
             />
 
             <div className="rounded-[18px] border border-gray-200/80 bg-white p-3.5 shadow-sm sm:p-5">
-              {/* نموذج البحث */}
               <form method="GET" action="/account" className="relative">
                 {Object.entries(resolvedParams).map(([key, value]) =>
                   key !== 'q' && value ? (
@@ -760,15 +1033,13 @@ export default async function AccountPage({
                   type="text"
                   name="q"
                   defaultValue={searchQuery}
-                  placeholder="دوّر باسم المشروع أو المنطقة أو كود الوحدة (U-10057)..."
+                  placeholder="دوّر باسم المشروع أو المنطقة أو كود الوحدة..."
                   className="h-10 w-full rounded-xl border border-gray-200 bg-white pr-10 pl-3 text-xs text-[#0a1122] placeholder:text-gray-400 focus:border-[#105C50] focus:outline-none sm:h-11 sm:text-sm"
                 />
               </form>
 
-              {/* شريط أزرار: فلترة + قابل للتفاوض + عدد الوحدات + ترتيب */}
               <div className="mt-3 flex flex-wrap items-center justify-between gap-2.5">
                 <div className="flex flex-wrap items-center gap-2">
-                  {/* زر فتح/إغلاق لوحة الفلاتر الكاملة */}
                   <label
                     htmlFor="buyer-filter-toggle"
                     className={`inline-flex h-9 cursor-pointer select-none items-center gap-1.5 rounded-xl border px-3.5 text-xs font-bold transition sm:h-10 ${
@@ -786,7 +1057,6 @@ export default async function AccountPage({
                     )}
                   </label>
 
-                  {/* زر قابل للتفاوض */}
                   <Link
                     scroll={false}
                     href={buildBuyerUrl({
@@ -803,11 +1073,10 @@ export default async function AccountPage({
                   </Link>
 
                   <span className="text-[11px] font-medium text-gray-500 sm:text-xs">
-                    {isFlexible ? '2789' : '200'} وحدة متاحة
+                    {filteredBuyerUnits.length} وحدة متاحة
                   </span>
                 </div>
 
-                {/* قائمة الترتيب المنسدلة بكل الـ 11 خيار */}
                 <form
                   method="GET"
                   action="/account"
@@ -843,155 +1112,19 @@ export default async function AccountPage({
                   </button>
                 </form>
               </div>
-
-              {/* شريط الفلاتر المفعلة حالياً (يظهر تحت الأزرار مثل الصورة) */}
-              {activeFilterCount > 0 && (
-                <div className="mt-3 flex flex-wrap items-center justify-start gap-2 border-t border-gray-100 pt-3">
-                  {isFlexible && (
-                    <Link
-                      scroll={false}
-                      href={buildBuyerUrl({ flexible: '' })}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-[#e6f4f1] px-3 py-1 text-xs font-bold text-[#105C50]"
-                    >
-                      <span>قابل للتفاوض</span>
-                      <X className="size-3.5" />
-                    </Link>
-                  )}
-                  {activePill && (
-                    <Link
-                      scroll={false}
-                      href={buildBuyerUrl({ pill: '' })}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-[#e6f4f1] px-3 py-1 text-xs font-bold text-[#105C50]"
-                    >
-                      <span>{activePill}</span>
-                      <X className="size-3.5" />
-                    </Link>
-                  )}
-                  {activeType && (
-                    <Link
-                      scroll={false}
-                      href={buildBuyerUrl({ type: '' })}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-[#e6f4f1] px-3 py-1 text-xs font-bold text-[#105C50]"
-                    >
-                      <span>{activeType}</span>
-                      <X className="size-3.5" />
-                    </Link>
-                  )}
-                  {activeStatus !== 'الكل' && (
-                    <Link
-                      scroll={false}
-                      href={buildBuyerUrl({ status: '' })}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-[#e6f4f1] px-3 py-1 text-xs font-bold text-[#105C50]"
-                    >
-                      <span>{activeStatus}</span>
-                      <X className="size-3.5" />
-                    </Link>
-                  )}
-                  {activeDelYear !== 'الكل' && (
-                    <Link
-                      scroll={false}
-                      href={buildBuyerUrl({ delYear: '' })}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-[#e6f4f1] px-3 py-1 text-xs font-bold text-[#105C50]"
-                    >
-                      <span>{activeDelYear}</span>
-                      <X className="size-3.5" />
-                    </Link>
-                  )}
-                  {activeConYear !== 'الكل' && (
-                    <Link
-                      scroll={false}
-                      href={buildBuyerUrl({ conYear: '' })}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-[#e6f4f1] px-3 py-1 text-xs font-bold text-[#105C50]"
-                    >
-                      <span>{activeConYear}</span>
-                      <X className="size-3.5" />
-                    </Link>
-                  )}
-                  {activeRooms !== 'الكل' && (
-                    <Link
-                      scroll={false}
-                      href={buildBuyerUrl({ rooms: '' })}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-[#e6f4f1] px-3 py-1 text-xs font-bold text-[#105C50]"
-                    >
-                      <span dir="ltr">{activeRooms} غرف</span>
-                      <X className="size-3.5" />
-                    </Link>
-                  )}
-                  {areaFilter && (
-                    <Link
-                      scroll={false}
-                      href={buildBuyerUrl({ area: '' })}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-[#e6f4f1] px-3 py-1 text-xs font-bold text-[#105C50]"
-                    >
-                      <span>منطقة: {areaFilter}</span>
-                      <X className="size-3.5" />
-                    </Link>
-                  )}
-                  {maxCashFilter && (
-                    <Link
-                      scroll={false}
-                      href={buildBuyerUrl({ maxCash: '' })}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-[#e6f4f1] px-3 py-1 text-xs font-bold text-[#105C50]"
-                    >
-                      <span>كاش حتى {Number(maxCashFilter).toLocaleString('en-US')}</span>
-                      <X className="size-3.5" />
-                    </Link>
-                  )}
-                  <Link
-                    scroll={false}
-                    href={
-                      resolvedParams.view
-                        ? `/account?view=${resolvedParams.view}`
-                        : '/account'
-                    }
-                    className="mr-1 text-xs text-gray-400 underline hover:text-gray-600"
-                  >
-                    مسح الكل
-                  </Link>
-                </div>
-              )}
             </div>
 
-            {/* ==================== محتوى لوحة الفلترة المتقدمة الكاملة (تظهر فوراً عند الضغط على فلترة) ==================== */}
             <form
               method="GET"
               action="/account"
               className="mt-3 hidden rounded-[20px] border border-gray-200/80 bg-white p-5 shadow-sm peer-checked/filter:block sm:p-7"
             >
-              {/* الحفاظ على الفلاتر المختارة بالأزرار عند إرسال الفورم */}
               {resolvedParams.view && (
                 <input type="hidden" name="view" value={resolvedParams.view} />
               )}
-              {activePill && (
-                <input type="hidden" name="pill" value={activePill} />
-              )}
-              {isFlexible && <input type="hidden" name="flexible" value="1" />}
-              {activeType && (
-                <input type="hidden" name="type" value={activeType} />
-              )}
-              {activeStatus !== 'الكل' && (
-                <input type="hidden" name="status" value={activeStatus} />
-              )}
-              {activeDelYear !== 'الكل' && (
-                <input type="hidden" name="delYear" value={activeDelYear} />
-              )}
-              {activeConYear !== 'الكل' && (
-                <input type="hidden" name="conYear" value={activeConYear} />
-              )}
-              {activeRooms !== 'الكل' && (
-                <input type="hidden" name="rooms" value={activeRooms} />
-              )}
-              {searchQuery && (
-                <input type="hidden" name="q" value={searchQuery} />
-              )}
-              {currentSort !== 'الأحدث' && (
-                <input type="hidden" name="sort" value={currentSort} />
-              )}
               <input type="hidden" name="openFilter" value="1" />
 
-              {/* الصف الأول: المناطق + أقصى كاش مطلوب دلوقتي + أقصى قسط شهري */}
               <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-                {/* المناطق */}
                 <div className="text-right">
                   <label className="mb-2 block text-xs font-bold text-[#0a1122]">
                     المناطق
@@ -1005,7 +1138,6 @@ export default async function AccountPage({
                   />
                 </div>
 
-                {/* أقصى كاش مطلوب دلوقتي */}
                 <div className="text-right">
                   <label className="mb-2 block text-xs font-bold text-[#0a1122]">
                     أقصى كاش مطلوب دلوقتي
@@ -1021,12 +1153,8 @@ export default async function AccountPage({
                       ج.م
                     </span>
                   </div>
-                  <p className="mt-1.5 text-[10px] text-gray-400">
-                    أهم رقم — ده اللي هتدفعه عند النقل
-                  </p>
                 </div>
 
-                {/* أقصى قسط شهري */}
                 <div className="text-right">
                   <label className="mb-2 block text-xs font-bold text-[#0a1122]">
                     أقصى قسط شهري
@@ -1042,182 +1170,9 @@ export default async function AccountPage({
                       ج.م
                     </span>
                   </div>
-                  <p className="mt-1.5 text-[10px] text-gray-400">
-                    الأقساط الربع/نص سنوية بنحسبها بما يعادلها شهريًا
-                  </p>
                 </div>
               </div>
 
-              {/* الصف الثاني: نوع الوحدة */}
-              <div className="mt-6 text-right">
-                <p className="mb-2.5 text-xs font-bold text-[#0a1122]">
-                  نوع الوحدة
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {unitTypes.map((type) => {
-                    const isSelected = activeType === type
-                    return (
-                      <Link
-                        key={type}
-                        scroll={false}
-                        href={buildBuyerUrl({
-                          type: isSelected ? '' : type,
-                          openFilter: '1',
-                        })}
-                        className={`rounded-full border px-4 py-1.5 text-xs font-medium transition-colors ${
-                          isSelected
-                            ? 'border-[#105C50] bg-[#105C50] text-white'
-                            : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
-                        }`}
-                      >
-                        {type}
-                      </Link>
-                    )
-                  })}
-                </div>
-              </div>
-
-              {/* الصف الثالث: الاستلام + سنة الاستلام + سنة التعاقد */}
-              <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-3">
-                {/* الاستلام */}
-                <div className="text-right">
-                  <p className="mb-2.5 text-xs font-bold text-[#0a1122]">
-                    الاستلام
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {deliveryStatuses.map((status) => {
-                      const isSelected = activeStatus === status
-                      return (
-                        <Link
-                          key={status}
-                          scroll={false}
-                          href={buildBuyerUrl({
-                            status,
-                            openFilter: '1',
-                          })}
-                          className={`rounded-full border px-4 py-1.5 text-xs font-medium transition-colors ${
-                            isSelected
-                              ? 'border-[#105C50] bg-[#105C50] text-white'
-                              : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
-                          }`}
-                        >
-                          {status}
-                        </Link>
-                      )
-                    })}
-                  </div>
-                </div>
-
-                {/* سنة الاستلام */}
-                <div className="text-right">
-                  <p className="mb-2.5 text-xs font-bold text-[#0a1122]">
-                    سنة الاستلام
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {deliveryYears.map((yr) => {
-                      const isSelected = activeDelYear === yr
-                      return (
-                        <Link
-                          key={yr}
-                          scroll={false}
-                          href={buildBuyerUrl({
-                            delYear: yr,
-                            openFilter: '1',
-                          })}
-                          className={`rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors ${
-                            isSelected
-                              ? 'border-[#105C50] bg-[#105C50] text-white'
-                              : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
-                          }`}
-                        >
-                          {yr}
-                        </Link>
-                      )
-                    })}
-                  </div>
-                </div>
-
-                {/* سنة التعاقد */}
-                <div className="text-right">
-                  <p className="mb-2.5 text-xs font-bold text-[#0a1122]">
-                    سنة التعاقد
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {contractYears.map((yr) => {
-                      const isSelected = activeConYear === yr
-                      return (
-                        <Link
-                          key={yr}
-                          scroll={false}
-                          href={buildBuyerUrl({
-                            conYear: yr,
-                            openFilter: '1',
-                          })}
-                          className={`rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors ${
-                            isSelected
-                              ? 'border-[#105C50] bg-[#105C50] text-white'
-                              : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
-                          }`}
-                        >
-                          {yr}
-                        </Link>
-                      )
-                    })}
-                  </div>
-                </div>
-              </div>
-
-              {/* الصف الرابع: أقل عدد غرف + أقصى سعر تعاقد */}
-              <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
-                {/* أقل عدد غرف */}
-                <div className="text-right">
-                  <p className="mb-2.5 text-xs font-bold text-[#0a1122]">
-                    أقل عدد غرف
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {roomOptions.map((rm) => {
-                      const isSelected = activeRooms === rm
-                      return (
-                        <Link
-                          key={rm}
-                          scroll={false}
-                          href={buildBuyerUrl({
-                            rooms: rm,
-                            openFilter: '1',
-                          })}
-                          className={`rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors ${
-                            isSelected
-                              ? 'border-[#105C50] bg-[#105C50] text-white'
-                              : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
-                          }`}
-                        >
-                          <span dir="ltr">{rm}</span>
-                        </Link>
-                      )
-                    })}
-                  </div>
-                </div>
-
-                {/* أقصى سعر تعاقد */}
-                <div className="text-right">
-                  <label className="mb-2 block text-xs font-bold text-[#0a1122]">
-                    أقصى سعر تعاقد
-                  </label>
-                  <div className="relative max-w-sm">
-                    <input
-                      type="number"
-                      name="maxContract"
-                      defaultValue={maxContractFilter}
-                      className="h-11 w-full rounded-xl border border-gray-200 pr-3.5 pl-10 text-xs text-[#0a1122] focus:border-[#105C50] focus:outline-none"
-                    />
-                    <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-xs text-gray-400">
-                      ج.م
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* الشريط السفلي للوحة الفلترة: اعرض النتائج + مسح الكل + إخفاء */}
               <div className="mt-7 flex items-center justify-between border-t border-gray-100 pt-5">
                 <div className="flex items-center gap-4">
                   <button
@@ -1253,7 +1208,9 @@ export default async function AccountPage({
           <section className="mt-7">
             <h2 className="mb-4 text-right text-sm font-extrabold text-[#0a1122] sm:text-base">
               الفرص في المنطقة اللي طلبتها ({buyerArea}){' '}
-              <span className="font-normal text-gray-400">(60)</span>
+              <span className="font-normal text-gray-400">
+                ({filteredBuyerUnits.length})
+              </span>
             </h2>
             <div className="grid grid-cols-2 items-stretch gap-2.5 sm:gap-5 lg:grid-cols-3">
               {filteredBuyerUnits.map((item) => (
@@ -1265,8 +1222,33 @@ export default async function AccountPage({
           <AccountFooterActions />
         </div>
       ) : (
-        /* ==================== 3. حساب جديد ==================== */
+        /* ==================== 3. حساب جديد (بدون طلبات حالياً) ==================== */
         <div className="mx-auto max-w-[680px] px-4 sm:px-6">
+          {/* شريط علوي واضح لتسجيل الخروج وإدارة البيانات */}
+          <header className="mb-4 flex items-center justify-between">
+            <span className="text-xs font-bold text-gray-500">
+              حسابي الشخصي
+            </span>
+            <div className="flex items-center gap-4 text-xs font-bold">
+              <Link
+                href="/account/details"
+                className="flex items-center gap-1.5 text-slate-600 transition hover:text-[#105C50]"
+              >
+                <UserCog className="size-3.5" />
+                <span>بياناتي</span>
+              </Link>
+              <form action={logout}>
+                <button
+                  type="submit"
+                  className="flex items-center gap-1.5 rounded-xl border border-red-200 bg-white px-3.5 py-2 text-xs font-bold text-red-600 shadow-2xs transition hover:bg-red-50"
+                >
+                  <span>تسجيل الخروج</span>
+                  <LogOut className="size-3.5" />
+                </button>
+              </form>
+            </div>
+          </header>
+
           <section className="rounded-[20px] border border-gray-200/80 bg-white p-8 text-center shadow-sm sm:p-12">
             <h2 className="text-lg font-extrabold text-[#0a1122] sm:text-xl">
               أهلاً يا {profile.name?.split(' ')[0] || 'صاحب الحساب'} — ليس لديك
@@ -1357,44 +1339,59 @@ function BuyerPropertyCard({ unit }: { unit: BuyerUnitCard }) {
   )
 }
 
-function Timeline() {
-  const steps = [
-    { title: 'بدأنا طلبك', status: 'done' as const },
-    { title: 'بيانات وحدتك وصورها', status: 'current' as const },
-    { title: 'بنراجع وننشر وحدتك', status: 'upcoming' as const },
-    { title: 'معروضة في السوق', status: 'upcoming' as const },
-    { title: 'بندور على المشتري المناسب', status: 'upcoming' as const },
-    { title: 'عندك عرض', status: 'upcoming' as const },
-    { title: 'نقل التعاقد (بنراجع المستندات)', status: 'upcoming' as const },
-    { title: 'تمت العملية', status: 'upcoming' as const },
+function Timeline({
+  currentStepIndex,
+  isRejected,
+}: {
+  currentStepIndex: number
+  isRejected?: boolean
+}) {
+  const stepTitles = [
+    'بدأنا طلبك',
+    'بيانات وحدتك وصورها',
+    'بنراجع وننشر وحدتك',
+    'معروضة في السوق',
+    'بندور على المشتري المناسب',
+    'عندك عرض',
+    'نقل التعاقد (بنراجع المستندات)',
+    'تمت العملية',
   ]
 
   return (
     <ol className="relative flex flex-col items-start">
-      {steps.map((step, index) => {
-        const isLast = index === steps.length - 1
+      {stepTitles.map((title, index) => {
+        const isLast = index === stepTitles.length - 1
+        const status: 'done' | 'current' | 'upcoming' =
+          index < currentStepIndex
+            ? 'done'
+            : index === currentStepIndex
+              ? 'current'
+              : 'upcoming'
+
         return (
           <li
-            key={step.title}
+            key={title}
             className="relative flex items-start gap-3.5 pb-6 last:pb-0"
           >
             {!isLast && (
               <span
                 className={`absolute right-[11px] top-6 h-full w-[1.5px] ${
-                  step.status === 'done' ? 'bg-[#105C50]' : 'bg-gray-200'
+                  status === 'done' ? 'bg-[#105C50]' : 'bg-gray-200'
                 }`}
               />
             )}
             <span
               className={`relative z-10 flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
-                step.status === 'done'
+                status === 'done'
                   ? 'bg-[#105C50] text-white'
-                  : step.status === 'current'
-                    ? 'bg-[#101A2B] text-white'
+                  : status === 'current'
+                    ? isRejected
+                      ? 'bg-red-600 text-white'
+                      : 'bg-[#101A2B] text-white'
                     : 'bg-transparent text-gray-400'
               }`}
             >
-              {step.status === 'done' ? (
+              {status === 'done' ? (
                 <Check className="size-3.5 stroke-[2.5]" />
               ) : (
                 index + 1
@@ -1402,14 +1399,16 @@ function Timeline() {
             </span>
             <span
               className={`pt-0.5 text-xs ${
-                step.status === 'current'
-                  ? 'font-extrabold text-[#0a1122]'
-                  : step.status === 'done'
+                status === 'current'
+                  ? isRejected
+                    ? 'font-extrabold text-red-600'
+                    : 'font-extrabold text-[#0a1122]'
+                  : status === 'done'
                     ? 'font-medium text-gray-600'
                     : 'font-normal text-gray-400'
               }`}
             >
-              {step.title}
+              {title}
             </span>
           </li>
         )
@@ -1420,13 +1419,22 @@ function Timeline() {
 
 function AccountFooterActions() {
   return (
-    <div className="mt-10 flex items-center justify-center gap-6 border-t border-gray-200 pt-4 text-[11px] font-bold">
+    <div className="mt-10 flex flex-wrap items-center justify-center gap-6 border-t border-gray-200 pt-4 text-[11px] font-bold">
       <Link
         href="/account/details"
         className="py-2 text-gray-500 transition hover:text-[#105C50]"
       >
         بياناتي
       </Link>
+      <form action={logout}>
+        <button
+          type="submit"
+          className="flex items-center gap-1.5 py-2 text-slate-700 transition hover:text-[#0a1122]"
+        >
+          <span>تسجيل الخروج</span>
+          <LogOut className="size-3.5" />
+        </button>
+      </form>
       <form action={deleteAccount}>
         <button
           type="submit"

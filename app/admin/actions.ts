@@ -215,15 +215,23 @@ export async function updateUserRoleAndStatusAction(
   status: string
 ) {
   const supabase = await getSupabase()
+  
+  const cleanRole = String(role || 'user').trim().toLowerCase()
+  const cleanStatus = String(status || 'active').trim().toLowerCase()
+
   const { error } = await supabase
     .from("users")
-    .update({ role, status })
+    .update({ 
+      role: cleanRole, 
+      status: cleanStatus 
+    })
     .eq("id", userId)
 
   if (error) {
+    console.error("Update User Role Error:", error)
     return {
       success: false,
-      error: "تأكد من تشغيل كود SQL لإضافة عمودي role و status في جدول users.",
+      error: "تعذر تحديث الصلاحية في قاعدة البيانات. تأكد من تشغيل سكريبت الـ SQL.",
     }
   }
 

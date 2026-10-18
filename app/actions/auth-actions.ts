@@ -488,3 +488,39 @@ export async function resetPasswordAction(email: string, otp: string, newPasswor
 
   return { success: true }
 }
+// ==========================================
+// فحص جلسة المستخدم وصلاحية الأدمن للهيدر
+// ==========================================
+export async function getSessionUserAction() {
+  try {
+    const cookieStore = await cookies()
+    const sessionId = cookieStore.get('user_session')?.value
+
+    if (!sessionId) {
+      return { isLoggedIn: false, isAdmin: false, name: null, role: null }
+    }
+
+    const supabase = await getSupabase()
+    const { data: user } = await supabase
+      .from('users')
+      .select('id, name, role')
+      .eq('id', sessionId)
+      .maybeSingle()
+
+    if (!user) {
+      return { isLoggedIn: false, isAdmin: false, name: null, role: null }
+    }
+
+    const role = String(user.role || 'user').toLowerCase().trim()
+    const isAdmin = role === 'admin' || role === 'moderator'
+
+    return {
+      isLoggedIn: true,
+      isAdmin,
+      name: user.name || null,
+      role,
+    }
+  } catch {
+    return { isLoggedIn: false, isAdmin: false, name: null, role: null }
+  }
+}

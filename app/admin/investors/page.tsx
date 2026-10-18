@@ -1,12 +1,36 @@
-import { CalendarPlus, CheckCircle2, PhoneCall } from "lucide-react"
+import { cookies } from "next/headers"
+import { createServerClient } from "@supabase/ssr"
 import { AdminMobileNav } from "../layout"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { createClient } from "@/lib/supabase/server"
+import InvestorsClientTable, { type InvestorRow } from "./investors-table"
+
+export const dynamic = "force-dynamic"
+export const revalidate = 0
 
 export default async function InvestorsPage() {
-  const supabase = await createClient()
-  const { data: investors, error } = await supabase.from("investor_leads").select("*").order("created_at", { ascending: false })
-  return <div className="mx-auto max-w-7xl"><AdminMobileNav /><div className="mb-6"><p className="text-sm font-semibold text-primary">الشراكات</p><h2 className="mt-2 text-3xl font-bold">طلبات المستثمرين</h2><p className="mt-2 text-sm text-muted-foreground">حوّل طلبات الاستثمار إلى شراكات طويلة المدى.</p></div><Card className="rounded-xl shadow-sm"><CardHeader className="border-b"><CardTitle>كل الطلبات</CardTitle><CardDescription>تابع حالة كل مستثمر والخطوة التالية معه.</CardDescription></CardHeader><CardContent className="p-0"><div className="overflow-x-auto"><table className="w-full min-w-[900px] text-right text-sm"><thead className="bg-muted/40 text-xs text-muted-foreground"><tr>{["الاسم", "الشركة", "فئة الاستثمار", "المبلغ المستهدف", "الحالة", "الإجراء"].map((head) => <th key={head} className="px-5 py-4 font-semibold">{head}</th>)}</tr></thead><tbody>{error ? <tr><td colSpan={6} className="px-5 py-8 text-center text-destructive">تعذر تحميل طلبات المستثمرين.</td></tr> : investors?.length ? investors.map((investor) => <tr key={investor.id} className="border-t transition-colors hover:bg-muted/20"><td className="px-5 py-5 font-semibold">{investor.name}</td><td className="px-5 py-5 text-muted-foreground">{investor.email ?? "—"}</td><td className="px-5 py-5">{investor.preferred_sectors?.join("، ") ?? investor.investor_type ?? "—"}</td><td className="px-5 py-5 font-semibold">{investor.investment_range ?? "—"}</td><td className="px-5 py-5"><Badge className="bg-secondary text-secondary-foreground">جديد</Badge></td><td className="px-5 py-5"><div className="flex gap-2"><Button size="sm" className="rounded-lg bg-teal-600 text-white hover:bg-teal-700"><PhoneCall data-icon="inline-start" />تم التواصل</Button><Button size="sm" variant="outline" className="rounded-lg"><CalendarPlus data-icon="inline-start" />حدد اجتماع</Button></div></td></tr>) : <tr><td colSpan={6} className="px-5 py-8 text-center text-muted-foreground">لا توجد طلبات مستثمرين حتى الآن.</td></tr>}</tbody></table></div></CardContent></Card></div>
+  const cookieStore = await cookies()
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} },
+    }
+  )
+
+  const { data: investors, error } = await supabase
+    .from("investor_leads")
+    .select("*")
+    .order("created_at", { ascending: false })
+
+  if (error) {
+    return (
+      <div className="mx-auto max-w-7xl">
+        <AdminMobileNav />
+        <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-sm font-bold text-red-700">
+          تعذر تحميل طلبات المستثمرين.
+        </div>
+      </div>
+    )
+  }
+
+  return <InvestorsClientTable investors={(investors ?? []) as InvestorRow[]} />
 }

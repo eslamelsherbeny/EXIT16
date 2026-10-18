@@ -1,7 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { createBrowserClient } from '@supabase/ssr'
 import {
   ArrowDown,
   Bell,
@@ -28,20 +29,29 @@ type Property = {
   baths: number
   size: number
   cash: string
+  cashNum: number
   negotiable: boolean
   gain?: string
+  gainNum: number
   marketPrice?: string
+  contractPriceNum: number
   remaining: string
   installment: string
+  installmentNum: number
   installmentFreq: string
   delivery: string
   deliveryStatus: 'جاهزة' | 'تحت الإنشاء'
   contractYear: number
   featured?: boolean
   image: string
+  isFromDb?: boolean
 }
 
-const properties: Property[] = [
+const DEFAULT_FALLBACK_IMAGE =
+  'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=900&q=85'
+
+// الوحدات الافتراضية الأساسية للعرض بجانب الوحدات الحقيقية المعتمدة من الأدمن
+const staticProperties: Property[] = [
   {
     id: 'koun',
     code: 'U-12497',
@@ -53,17 +63,22 @@ const properties: Property[] = [
     baths: 1,
     size: 79,
     cash: '2,800,000',
+    cashNum: 2800000,
     negotiable: true,
     gain: '+ 2,452,680',
+    gainNum: 2452680,
     marketPrice: '12,000,000',
+    contractPriceNum: 9429450,
     remaining: '6,629,450',
     installment: '560,000',
+    installmentNum: 560000,
     installmentFreq: 'نصف سنوي',
     delivery: '2028',
     deliveryStatus: 'تحت الإنشاء',
     contractYear: 2024,
     featured: true,
-    image: 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=900&q=85',
+    image:
+      'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=900&q=85',
   },
   {
     id: 'madinaty',
@@ -76,17 +91,22 @@ const properties: Property[] = [
     baths: 2,
     size: 108,
     cash: '3,450,000',
+    cashNum: 3450000,
     negotiable: true,
     gain: '+ 1,136,116',
+    gainNum: 1136116,
     marketPrice: '10,500,000',
+    contractPriceNum: 9248280,
     remaining: '5,798,280',
     installment: '25,895',
+    installmentNum: 25895,
     installmentFreq: 'شهري',
     delivery: '2027',
     deliveryStatus: 'تحت الإنشاء',
     contractYear: 2023,
     featured: true,
-    image: 'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=900&q=85',
+    image:
+      'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=900&q=85',
   },
   {
     id: 'z-park',
@@ -99,17 +119,22 @@ const properties: Property[] = [
     baths: 3,
     size: 164,
     cash: '5,740,136',
+    cashNum: 5740136,
     negotiable: true,
     gain: '+ 9,514,816',
+    gainNum: 9514816,
     marketPrice: '23,050,000',
+    contractPriceNum: 13310700,
     remaining: '7,570,564',
     installment: '374,265',
+    installmentNum: 374265,
     installmentFreq: 'ربع سنوي',
     delivery: '2027',
     deliveryStatus: 'تحت الإنشاء',
     contractYear: 2023,
     featured: true,
-    image: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=900&q=85',
+    image:
+      'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=900&q=85',
   },
   {
     id: 'marbay',
@@ -122,15 +147,20 @@ const properties: Property[] = [
     baths: 4,
     size: 220,
     cash: '10,200,000',
+    cashNum: 10200000,
     negotiable: true,
+    gainNum: 0,
+    contractPriceNum: 32000000,
     remaining: '21,800,000',
     installment: '636,000',
+    installmentNum: 636000,
     installmentFreq: 'ربع سنوي',
     delivery: '2027',
     deliveryStatus: 'تحت الإنشاء',
     contractYear: 2024,
     featured: true,
-    image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=900&q=85',
+    image:
+      'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=900&q=85',
   },
   {
     id: 'tawny',
@@ -143,17 +173,22 @@ const properties: Property[] = [
     baths: 4,
     size: 288,
     cash: '17,500,000',
+    cashNum: 17500000,
     negotiable: true,
     gain: '+ 10,083,750',
+    gainNum: 10083750,
     marketPrice: '60,000,000',
+    contractPriceNum: 49300000,
     remaining: '31,800,000',
     installment: '1,020,000',
+    installmentNum: 1020000,
     installmentFreq: 'ربع سنوي',
     delivery: '2028',
     deliveryStatus: 'تحت الإنشاء',
     contractYear: 2023,
     featured: true,
-    image: 'https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=900&q=85',
+    image:
+      'https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=900&q=85',
   },
   {
     id: 'south-med',
@@ -166,17 +201,108 @@ const properties: Property[] = [
     baths: 2,
     size: 90,
     cash: '1,387,860',
+    cashNum: 1387860,
     negotiable: true,
+    gainNum: 0,
+    contractPriceNum: 12178380,
     remaining: '10,790,520',
     installment: '118,425',
+    installmentNum: 118425,
     installmentFreq: 'ربع سنوي',
     delivery: '2030',
     deliveryStatus: 'تحت الإنشاء',
     contractYear: 2024,
     featured: true,
-    image: 'https://images.unsplash.com/photo-1600585154526-990dced4db0d?auto=format&fit=crop&w=900&q=85',
+    image:
+      'https://images.unsplash.com/photo-1600585154526-990dced4db0d?auto=format&fit=crop&w=900&q=85',
   },
 ]
+
+// تحويل طلب البيع المعتمد من قاعدة البيانات إلى بطاقة فرصة كاملة
+function mapDbRowToProperty(row: any): Property {
+  const paid = Number(row.paid_amount) || 0
+  const discount = row.willing_to_discount ? Number(row.discount_amount) || 0 : 0
+  const requiredCash = Math.max(0, paid - discount)
+  const contractPrice = Number(row.contract_price) || paid
+  const remainingAmount = Math.max(0, contractPrice - paid)
+  const marketPriceNum = Number(row.market_price) || 0
+  const installmentNum = Number(row.installment_amount) || 0
+
+  // حساب مكسب المشتري عن سعر السوق بعد خصم عمولة 1.25%
+  let gainStr: string | undefined = undefined
+  let gainNum = 0
+  let marketPriceStr: string | undefined = undefined
+
+  if (marketPriceNum > 0 && marketPriceNum > contractPrice) {
+    const commission = Math.round(marketPriceNum * 0.0125)
+    gainNum = Math.max(0, marketPriceNum - (contractPrice - discount) - commission)
+    if (gainNum > 0) {
+      gainStr = `+ ${gainNum.toLocaleString('en-US')}`
+      marketPriceStr = marketPriceNum.toLocaleString('en-US')
+    }
+  }
+
+  const rawDelStatus = String(row.delivery_status || '')
+  const isReady =
+    rawDelStatus.includes('جاهز') ||
+    rawDelStatus.includes('فوري') ||
+    rawDelStatus.includes('مستلم')
+
+  const deliveryStatus: 'جاهزة' | 'تحت الإنشاء' = isReady ? 'جاهزة' : 'تحت الإنشاء'
+
+  // استخراج سنة الاستلام أو حسابها من السنوات المتبقية
+  const yearMatch = rawDelStatus.match(/20\d{2}/)
+  const deliveryYearStr = yearMatch
+    ? yearMatch[0]
+    : isReady
+      ? '2026'
+      : String(new Date().getFullYear() + Math.max(1, Math.min(Number(row.years_left) || 2, 6)))
+
+  const numericCode = String(row.id || '')
+    .replace(/\D/g, '')
+    .slice(0, 5)
+  const fallbackCode = String(row.id || '')
+    .slice(0, 5)
+    .toUpperCase()
+  const code = `U-${numericCode.length >= 4 ? numericCode : fallbackCode}`
+
+  const area = row.area || 'القاهرة الجديدة'
+  const devName = row.developer_name ? `${row.developer_name} · ${area}` : area
+
+  const validImage =
+    Array.isArray(row.images) && row.images.length > 0 && row.images[0]
+      ? row.images[0]
+      : DEFAULT_FALLBACK_IMAGE
+
+  return {
+    id: row.id,
+    code,
+    project: row.project_name || 'وحدة سكنية معتمدة',
+    developer: devName,
+    area,
+    type: row.unit_type || 'شقة',
+    rooms: Number(row.rooms) || 3,
+    baths: Number(row.bathrooms) || 2,
+    size: Number(row.size) || 140,
+    cash: requiredCash.toLocaleString('en-US'),
+    cashNum: requiredCash,
+    negotiable: Boolean(row.willing_to_discount),
+    gain: gainStr,
+    gainNum,
+    marketPrice: marketPriceStr,
+    contractPriceNum: contractPrice,
+    remaining: remainingAmount.toLocaleString('en-US'),
+    installment: installmentNum.toLocaleString('en-US'),
+    installmentNum,
+    installmentFreq: row.installment_frequency || 'ربع سنوي',
+    delivery: deliveryYearStr,
+    deliveryStatus,
+    contractYear: Number(row.contract_year) || 2024,
+    featured: true,
+    image: validImage,
+    isFromDb: true,
+  }
+}
 
 const unitTypes = [
   'شقة',
@@ -382,6 +508,7 @@ function PropertyCard({ property }: { property: Property }) {
 
 // ==================== الصفحة الرئيسية للفرص المتاحة ====================
 export default function OpportunitiesPage() {
+  const [dbProperties, setDbProperties] = useState<Property[]>([])
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [negotiable, setNegotiable] = useState(false)
   const [sort, setSort] = useState('الأحدث')
@@ -397,6 +524,38 @@ export default function OpportunitiesPage() {
   const [deliveryYear, setDeliveryYear] = useState('الكل')
   const [contractYear, setContractYear] = useState('الكل')
   const [minRooms, setMinRooms] = useState('الكل')
+
+  // جلب العقارات المعتمدة من الأدمن في قاعدة البيانات
+  useEffect(() => {
+    async function loadApprovedProperties() {
+      try {
+        const supabase = createBrowserClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        )
+
+        const { data, error } = await supabase
+          .from('sell_requests')
+          .select('*')
+          .in('status', ['active', 'offer_received', 'transferring'])
+          .order('created_at', { ascending: false })
+
+        if (!error && data && data.length > 0) {
+          const mapped = data.map(mapDbRowToProperty)
+          setDbProperties(mapped)
+        }
+      } catch (err) {
+        console.error('Failed to load approved properties:', err)
+      }
+    }
+
+    loadApprovedProperties()
+  }, [])
+
+  // دمج العقارات الحقيقية المعتمدة من الأدمن في المقدمة + العقارات الافتراضية
+  const allProperties = useMemo(() => {
+    return [...dbProperties, ...staticProperties]
+  }, [dbProperties])
 
   const toggleType = (type: string) => {
     setSelectedTypes((prev) =>
@@ -445,37 +604,64 @@ export default function OpportunitiesPage() {
   ])
 
   const visibleProperties = useMemo(() => {
-    return properties.filter((item) => {
+    const filtered = allProperties.filter((item) => {
       const haystack = `${item.project} ${item.developer} ${item.area} ${item.code}`.toLowerCase()
-      const cashNum = Number(item.cash.replaceAll(',', ''))
 
       if (search && !haystack.includes(search.toLowerCase())) return false
       if (areaQuery && !item.area.includes(areaQuery)) return false
       if (negotiable && !item.negotiable) return false
       if (selectedTypes.length > 0 && !selectedTypes.includes(item.type)) return false
       if (deliveryStatus !== 'الكل' && item.deliveryStatus !== deliveryStatus) return false
+
       if (deliveryYear !== 'الكل') {
         const targetYear = Number(deliveryYear.replace('حتى ', ''))
-        if (Number(item.delivery) > targetYear) return false
+        if (targetYear && Number(item.delivery) > targetYear) return false
       }
+
+      if (contractYear !== 'الكل') {
+        const targetConYear = Number(contractYear.replace(/[^0-9]/g, ''))
+        if (targetConYear && item.contractYear > targetConYear) return false
+      }
+
       if (minRooms !== 'الكل') {
         const targetRooms = Number(minRooms.replace('+', ''))
         if (item.rooms < targetRooms) return false
       }
-      if (maxCash && cashNum > Number(maxCash)) return false
+
+      if (maxCash && item.cashNum > Number(maxCash)) return false
+      if (maxInstallment && item.installmentNum > Number(maxInstallment)) return false
+      if (maxContractPrice && item.contractPriceNum > Number(maxContractPrice)) return false
 
       return true
     })
+
+    // تطبيق الترتيب المختار
+    return [...filtered].sort((a, b) => {
+      if (sort === 'الأقل كاش') return a.cashNum - b.cashNum
+      if (sort === 'أقل قسط') return a.installmentNum - b.installmentNum
+      if (sort === 'الأكبر مكسب') return b.gainNum - a.gainNum
+      if (sort === 'الأقرب للاستلام') return Number(a.delivery) - Number(b.delivery)
+      if (sort === 'جاهزة للنقل') return a.deliveryStatus === 'جاهزة' ? -1 : 1
+      return 0
+    })
   }, [
+    allProperties,
     search,
     areaQuery,
     negotiable,
     selectedTypes,
     deliveryStatus,
     deliveryYear,
+    contractYear,
     minRooms,
     maxCash,
+    maxInstallment,
+    maxContractPrice,
+    sort,
   ])
+
+  const totalUnitsCount = 9689 + dbProperties.length
+  const availableUnitsCount = (negotiable ? 2789 : 8526) + dbProperties.length
 
   return (
     <main dir="rtl" className="min-h-screen bg-[#f5f6f8] py-8 text-[#0a1122] sm:py-14">
@@ -499,7 +685,7 @@ export default function OpportunitiesPage() {
               <p className="text-[11px] font-bold text-gray-500 sm:text-xs">الوحدات على المنصة</p>
               <div className="mt-2 flex items-baseline justify-start gap-1.5 sm:mt-3 sm:gap-2">
                 <span className="text-2xl font-extrabold tracking-tight text-[#0a1122] sm:text-5xl">
-                  9,689
+                  {totalUnitsCount.toLocaleString('en-US')}
                 </span>
                 <span className="text-xs font-medium text-gray-500 sm:text-lg">وحدة</span>
               </div>
@@ -583,7 +769,7 @@ export default function OpportunitiesPage() {
               </button>
 
               <span className="text-[11px] font-medium text-gray-500 sm:text-xs">
-                {negotiable ? '2789' : '8526'} وحدة متاحة
+                {availableUnitsCount.toLocaleString('en-US')} وحدة متاحة
               </span>
             </div>
 
@@ -634,6 +820,26 @@ export default function OpportunitiesPage() {
                   <X className="size-3" />
                 </button>
               ))}
+              {deliveryStatus !== 'الكل' && (
+                <button
+                  type="button"
+                  onClick={() => setDeliveryStatus('الكل')}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-[#e6f4f1] px-3 py-1 text-[11px] font-bold text-[#0b6954] sm:text-xs"
+                >
+                  <span>{deliveryStatus}</span>
+                  <X className="size-3" />
+                </button>
+              )}
+              {minRooms !== 'الكل' && (
+                <button
+                  type="button"
+                  onClick={() => setMinRooms('الكل')}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-[#e6f4f1] px-3 py-1 text-[11px] font-bold text-[#0b6954] sm:text-xs"
+                >
+                  <span dir="ltr">{minRooms} غرف</span>
+                  <X className="size-3" />
+                </button>
+              )}
               <button
                 type="button"
                 onClick={clearAll}
@@ -858,15 +1064,31 @@ export default function OpportunitiesPage() {
         <section className="mt-6 sm:mt-8">
           <div className="mb-4 flex items-center justify-start gap-1.5 text-right sm:mb-5">
             <Star className="size-4 fill-amber-400 text-amber-500" />
-            <h2 className="text-base font-extrabold text-[#0a1122] sm:text-lg">فرص مميزة</h2>
+            <h2 className="text-base font-extrabold text-[#0a1122] sm:text-lg">
+              فرص مميزة ({visibleProperties.length})
+            </h2>
           </div>
 
-          {/* grid-cols-2 على شاشة التلفون، و lg:grid-cols-3 على الكمبيوتر */}
-          <div className="grid grid-cols-2 items-start gap-2.5 sm:gap-5 lg:grid-cols-3 lg:gap-6">
-            {visibleProperties.map((property) => (
-              <PropertyCard key={property.id} property={property} />
-            ))}
-          </div>
+          {visibleProperties.length > 0 ? (
+            <div className="grid grid-cols-2 items-start gap-2.5 sm:gap-5 lg:grid-cols-3 lg:gap-6">
+              {visibleProperties.map((property) => (
+                <PropertyCard key={property.id} property={property} />
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-12 text-center">
+              <p className="text-sm font-bold text-gray-600">
+                لا توجد وحدات مطابقة لشروط البحث الحالية.
+              </p>
+              <button
+                type="button"
+                onClick={clearAll}
+                className="mt-3 rounded-xl bg-[#0b6954] px-5 py-2 text-xs font-bold text-white hover:bg-[#095443]"
+              >
+                إعادة ضبط الفلاتر
+              </button>
+            </div>
+          )}
 
           <div className="mt-8 flex justify-center sm:mt-10">
             <button

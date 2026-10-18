@@ -1,21 +1,48 @@
 "use client"
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { Bell, Menu, Smartphone, X } from 'lucide-react'
+import { createBrowserClient } from '@supabase/ssr'
+import {
+  Bell,
+  Building2,
+  ChevronLeft,
+  Menu,
+  ShieldCheck,
+  Smartphone,
+  Sparkles,
+  User,
+  X,
+} from 'lucide-react'
+import * as authActions from '@/app/actions/auth-actions'
 import ar from '@/dictionaries/ar.json'
 import en from '@/dictionaries/en.json'
 
 type Dictionary = typeof ar
 
 const links = [
-  { href: '/sell', key: 'sell' as const, fallback: 'بيع وحدتك' },
-  { href: '/opportunities', key: 'opportunities' as const, fallback: 'الفرص المتاحة' },
-  { href: '/story', key: 'story' as const, fallback: 'قصتنا' },
-  { href: '/how-it-works', key: 'howItWorks' as const, fallback: 'إزاي بنشتغل' },
-  { href: '/contact', key: 'contact' as const, fallback: 'كلمنا' },
-  { href: '/investors', key: 'investors' as const, fallback: 'للمستثمرين' },
+  { href: '/sell', key: 'sell' as const, fallback: 'بيع وحدتك', enFallback: 'Sell Unit' },
+  {
+    href: '/opportunities',
+    key: 'opportunities' as const,
+    fallback: 'الفرص المتاحة',
+    enFallback: 'Opportunities',
+  },
+  { href: '/story', key: 'story' as const, fallback: 'قصتنا', enFallback: 'Our Story' },
+  {
+    href: '/how-it-works',
+    key: 'howItWorks' as const,
+    fallback: 'إزاي بنشتغل',
+    enFallback: 'How It Works',
+  },
+  { href: '/contact', key: 'contact' as const, fallback: 'كلمنا', enFallback: 'Contact Us' },
+  {
+    href: '/investors',
+    key: 'investors' as const,
+    fallback: 'للمستثمرين',
+    enFallback: 'Investors',
+  },
 ]
 
 // ==================== 1. اللوجو المطابق 100% ====================
@@ -103,50 +130,127 @@ export function Logo({ inverse = false }: { inverse?: boolean }) {
 export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
   const [language, setLanguage] = useState<'ar' | 'en'>('ar')
   const [hasSession, setHasSession] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [userName, setUserName] = useState<string | null>(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const notifRef = useRef<HTMLDivElement>(null)
+
   const pathname = usePathname()
   const labels = language === 'en' ? en : dictionary
 
+  // ضبط اللغة والاتجاه
   useEffect(() => {
     document.cookie = `locale=${language}; path=/; max-age=31536000`
-    setHasSession(
-      document.cookie.split('; ').some((cookie) => cookie.startsWith('session_hint='))
-    )
     document.documentElement.lang = language
     document.documentElement.dir = language === 'en' ? 'ltr' : 'rtl'
   }, [language])
 
+  // التحقق من جلسة المستخدم وصلاحية الأدمن (Role) من الداتابيز عند كل تنقل
+  useEffect(() => {
+    let isMounted = true
+
+    async function verifyUserAndRole() {
+      const hintExists = document.cookie
+        .split('; ')
+        .some((cookie) => cookie.startsWith('session_hint='))
+
+      if (isMounted) {
+        setHasSession(hintExists)
+      }
+
+      try {
+        // 1. الفحص الدقيق عبر الـ Server Action إذا كانت مضافة في auth-actions.ts
+        const actionFn = (authActions as any).getSessionUserAction
+        if (typeof actionFn === 'function') {
+          const sessionData = await actionFn()
+          if (isMounted && sessionData) {
+            setHasSession(Boolean(sessionData.isLoggedIn))
+            setIsAdmin(Boolean(sessionData.isAdmin))
+            setUserName(sessionData.name || null)
+            return
+          }
+        }
+
+        // 2. فحص احتياطي مباشر من Supabase لو المستخدم مسجل دخول وعدل الـ role في الداتابيز
+        if (hintExists && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+          const supabase = createBrowserClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+          )
+          const { data: adminUsers } = await supabase
+            .from('users')
+            .select('id, name, role')
+            .in('role', ['admin', 'moderator', 'ADMIN', 'MODERATOR'])
+            .limit(1)
+
+          if (isMounted && adminUsers && adminUsers.length > 0) {
+            setIsAdmin(true)
+            setUserName(adminUsers[0].name || null)
+          }
+        } else if (isMounted && !hintExists) {
+          setIsAdmin(false)
+          setUserName(null)
+        }
+      } catch (err) {
+        console.error('Session check error:', err)
+      }
+    }
+
+    verifyUserAndRole()
+
+    return () => {
+      isMounted = false
+    }
+  }, [pathname])
+
+  // إغلاق القوائم عند تغيير الصفحة
   useEffect(() => {
     setMobileMenuOpen(false)
+    setNotificationsOpen(false)
   }, [pathname])
+
+  // إغلاق قائمة الإشعارات عند الضغط خارجها
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setNotificationsOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   return (
     <header
       dir="rtl"
-      className="sticky top-0 z-50 border-b border-gray-200/80 bg-white"
+      className="sticky top-0 z-50 border-b border-gray-200/80 bg-white/95 backdrop-blur-md"
     >
       <div className="mx-auto flex h-[74px] max-w-[1140px] items-center justify-between px-4 sm:px-6">
         
         {/* اليمين: اللوجو والتابز */}
-        <div className="flex items-center gap-10 xl:gap-14">
+        <div className="flex items-center gap-8 xl:gap-12">
           <Logo />
           <nav
             className="hidden items-center gap-5 lg:flex"
             aria-label={labels.navbar?.menuTitle || 'القائمة الرئيسية'}
           >
             {links.map((link) => {
-              const isActive = pathname === link.href
+              const isActive =
+                pathname === link.href || pathname.startsWith(`${link.href}/`)
               return (
                 <Link
                   key={link.href}
                   href={link.href}
                   className={`whitespace-nowrap text-[14px] transition-colors hover:text-[#0b6954] ${
                     isActive
-                      ? 'font-semibold text-[#0b6954]'
+                      ? 'font-bold text-[#0b6954]'
                       : 'font-normal text-[#4b5563]'
                   }`}
                 >
-                  {labels.navbar?.[link.key] || link.fallback}
+                  {language === 'en'
+                    ? labels.navbar?.[link.key] || link.enFallback
+                    : labels.navbar?.[link.key] || link.fallback}
                 </Link>
               )
             })}
@@ -154,52 +258,148 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
         </div>
 
         {/* اليسار (ديسكتوب) */}
-        <div className="hidden shrink-0 items-center gap-3 lg:flex">
+        <div className="hidden shrink-0 items-center gap-2.5 lg:flex">
           <button
             type="button"
             onClick={() => setLanguage(language === 'ar' ? 'en' : 'ar')}
-            className="ml-2 text-[13px] font-normal text-[#1e293b] transition-colors hover:text-[#0b6954]"
+            className="ml-1 rounded-lg px-2 py-1 text-[13px] font-medium text-[#1e293b] transition-colors hover:bg-gray-100 hover:text-[#0b6954]"
           >
             {language === 'ar' ? 'English' : 'العربية'}
           </button>
 
+          {/* زر لوحة الإدارة — يظهر تلقائياً إذا كان المستخدم أدمن أو مشرف في الداتابيز */}
+          {isAdmin && (
+            <Link
+              href="/admin"
+              className="inline-flex h-[44px] items-center justify-center gap-1.5 whitespace-nowrap rounded-[11px] bg-[#0a1122] px-4 text-[13px] font-bold text-white shadow-xs transition-colors hover:bg-[#16223f]"
+            >
+              <ShieldCheck className="size-4 text-[#2ee59d]" />
+              <span>{language === 'en' ? 'Admin Panel' : 'لوحة الإدارة'}</span>
+            </Link>
+          )}
+
           <Link
             href={hasSession ? '/account' : '/login'}
-            className="inline-flex h-[44px] items-center justify-center whitespace-nowrap rounded-[11px] border border-[#e2e8f0] bg-white px-5 text-[14px] font-semibold text-[#0f172a] transition-colors hover:bg-gray-50"
+            className="inline-flex h-[44px] items-center justify-center gap-1.5 whitespace-nowrap rounded-[11px] border border-[#e2e8f0] bg-white px-4 text-[14px] font-semibold text-[#0f172a] transition-colors hover:bg-gray-50"
           >
-            {hasSession ? 'حسابي' : labels.navbar?.login || 'حسابي'}
+            <User className="size-4 text-gray-500" />
+            <span>
+              {hasSession
+                ? language === 'en'
+                  ? 'My Account'
+                  : 'حسابي'
+                : language === 'en'
+                  ? 'Login'
+                  : labels.navbar?.login || 'حسابي'}
+            </span>
           </Link>
 
           <Link
             href="/buy"
-            className="inline-flex h-[44px] items-center justify-center whitespace-nowrap rounded-[11px] border border-[#e2e8f0] bg-white px-5 text-[14px] font-semibold text-[#0f172a] transition-colors hover:bg-gray-50"
+            className="inline-flex h-[44px] items-center justify-center whitespace-nowrap rounded-[11px] border border-[#e2e8f0] bg-white px-4 text-[14px] font-semibold text-[#0f172a] transition-colors hover:bg-gray-50"
           >
-            عايز تشتري
+            {language === 'en' ? 'Want to Buy' : 'عايز تشتري'}
           </Link>
 
-          <button
-            type="button"
-            aria-label="الإشعارات"
-            className="mx-0.5 flex size-9 items-center justify-center rounded-full text-[#334155] transition-colors hover:bg-gray-100"
-          >
-            <Bell className="size-[19px] stroke-[1.7]" />
-          </button>
+          {/* جرس الإشعارات التفاعلي */}
+          <div className="relative" ref={notifRef}>
+            <button
+              type="button"
+              onClick={() => setNotificationsOpen((prev) => !prev)}
+              aria-label="الإشعارات"
+              className="relative mx-0.5 flex size-10 items-center justify-center rounded-full text-[#334155] transition-colors hover:bg-gray-100"
+            >
+              <Bell className="size-[19px] stroke-[1.8]" />
+              <span className="absolute right-2 top-2 size-2 rounded-full bg-[#0b6954]" />
+            </button>
+
+            {notificationsOpen && (
+              <div className="absolute left-0 top-12 z-50 w-80 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl">
+                <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50/70 px-4 py-3">
+                  <span className="text-xs font-extrabold text-[#0a1122]">
+                    الإشعارات والتنبيهات
+                  </span>
+                  {userName && (
+                    <span className="text-[11px] font-bold text-[#0b6954]">
+                      أهلاً {userName.split(' ')[0]}
+                    </span>
+                  )}
+                </div>
+
+                <div className="divide-y divide-gray-100 text-right text-xs">
+                  {isAdmin && (
+                    <Link
+                      href="/admin/properties"
+                      className="flex items-start gap-3 bg-emerald-50/60 p-3.5 transition hover:bg-emerald-50"
+                    >
+                      <ShieldCheck className="mt-0.5 size-4 shrink-0 text-[#0b6954]" />
+                      <div>
+                        <p className="font-bold text-[#0a1122]">لوحة تحكم الإدارة</p>
+                        <p className="mt-0.5 text-[11px] text-gray-500">
+                          راجع طلبات البائعين والمشترين واعتمد الفرص الجديدة.
+                        </p>
+                      </div>
+                    </Link>
+                  )}
+
+                  <Link
+                    href="/opportunities"
+                    className="flex items-start gap-3 p-3.5 transition hover:bg-gray-50"
+                  >
+                    <Building2 className="mt-0.5 size-4 shrink-0 text-[#0b6954]" />
+                    <div>
+                      <p className="font-bold text-[#0a1122]">فرص تنازل جديدة متاحة</p>
+                      <p className="mt-0.5 text-[11px] text-gray-500">
+                        تصفح أحدث الوحدات المعتمدة بدون أوفر في السوق الآن.
+                      </p>
+                    </div>
+                  </Link>
+
+                  <Link
+                    href={hasSession ? '/account' : '/login'}
+                    className="flex items-start gap-3 p-3.5 transition hover:bg-gray-50"
+                  >
+                    <Sparkles className="mt-0.5 size-4 shrink-0 text-amber-500" />
+                    <div>
+                      <p className="font-bold text-[#0a1122]">
+                        {hasSession ? 'متابعة حالة طلباتك' : 'سجّل دخولك لمتابعة وحدتك'}
+                      </p>
+                      <p className="mt-0.5 text-[11px] text-gray-500">
+                        تابع خطوات بيع وحدتك أو الفرص المطابقة لميزانيتك.
+                      </p>
+                    </div>
+                  </Link>
+                </div>
+              </div>
+            )}
+          </div>
 
           <Link
             href="/sell"
-            className="inline-flex h-[44px] items-center justify-center whitespace-nowrap rounded-[11px] bg-[#0b6954] px-6 text-[14px] font-semibold text-white transition-colors hover:bg-[#085443]"
+            className="inline-flex h-[44px] items-center justify-center whitespace-nowrap rounded-[11px] bg-[#0b6954] px-5 text-[14px] font-semibold text-white transition-colors hover:bg-[#085443]"
           >
-            عايز تبيع
+            {language === 'en' ? 'Want to Sell' : 'عايز تبيع'}
           </Link>
         </div>
 
-        {/* اليسار (موبايل): زر عايز تبيع + القائمة */}
-        <div className="flex items-center gap-3 lg:hidden">
+        {/* اليسار (موبايل): زر لوحة الإدارة المصغر (إن وجد) + زر عايز تبيع + القائمة */}
+        <div className="flex items-center gap-2 lg:hidden">
+          {isAdmin && (
+            <Link
+              href="/admin"
+              aria-label="لوحة الإدارة"
+              className="inline-flex h-[42px] items-center justify-center gap-1 rounded-[11px] bg-[#0a1122] px-3 text-[12px] font-bold text-white"
+            >
+              <ShieldCheck className="size-4 text-[#2ee59d]" />
+              <span>الإدارة</span>
+            </Link>
+          )}
+
           <Link
             href="/sell"
-            className="inline-flex h-[42px] items-center justify-center whitespace-nowrap rounded-[11px] bg-[#0b6954] px-5 text-[14px] font-semibold text-white transition-colors hover:bg-[#085443]"
+            className="inline-flex h-[42px] items-center justify-center whitespace-nowrap rounded-[11px] bg-[#0b6954] px-4 text-[13px] font-semibold text-white transition-colors hover:bg-[#085443]"
           >
-            عايز تبيع
+            {language === 'en' ? 'Sell' : 'عايز تبيع'}
           </Link>
 
           <button
@@ -220,8 +420,8 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
 
       {/* قائمة الموبايل المنسدلة */}
       {mobileMenuOpen && (
-        <div className="fixed inset-x-0 top-[74px] bottom-0 z-50 overflow-y-auto border-t border-gray-100 bg-white px-6 pt-6 pb-10 lg:hidden">
-          <nav className="flex flex-col gap-5 text-right">
+        <div className="fixed inset-x-0 top-[74px] bottom-0 z-50 h-[calc(100vh-74px)] overflow-y-auto border-t border-gray-100 bg-white px-6 pt-6 pb-12 lg:hidden">
+          <nav className="flex flex-col gap-4 text-right">
             <Link
               href="/"
               onClick={() => setMobileMenuOpen(false)}
@@ -229,11 +429,12 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
                 pathname === '/' ? 'font-bold text-[#0b6954]' : 'text-[#0a1122]'
               }`}
             >
-              الرئيسية
+              {language === 'en' ? 'Home' : 'الرئيسية'}
             </Link>
 
             {links.map((link) => {
-              const isActive = pathname === link.href
+              const isActive =
+                pathname === link.href || pathname.startsWith(`${link.href}/`)
               return (
                 <Link
                   key={link.href}
@@ -243,7 +444,9 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
                     isActive ? 'font-bold text-[#0b6954]' : 'text-[#0a1122]'
                   }`}
                 >
-                  {labels.navbar?.[link.key] || link.fallback}
+                  {language === 'en'
+                    ? labels.navbar?.[link.key] || link.enFallback
+                    : labels.navbar?.[link.key] || link.fallback}
                 </Link>
               )
             })}
@@ -251,31 +454,55 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
 
           <hr className="my-6 border-gray-200/80" />
 
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3.5">
+            {/* خيار لوحة الإدارة في منيو الموبايل — يظهر للأدمن */}
+            {isAdmin && (
+              <Link
+                href="/admin"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex h-[52px] w-full items-center justify-center gap-2 rounded-[12px] bg-[#0a1122] text-[15px] font-bold text-white shadow-sm transition-colors hover:bg-[#16223f]"
+              >
+                <ShieldCheck className="size-5 text-[#2ee59d]" />
+                <span>الدخول إلى لوحة الإدارة</span>
+              </Link>
+            )}
+
             <Link
               href="/buy"
               onClick={() => setMobileMenuOpen(false)}
               className="flex h-[50px] w-full items-center justify-center rounded-[12px] border border-[#e2e8f0] bg-white text-[15px] font-semibold text-[#0a1122] transition-colors hover:bg-gray-50"
             >
-              عايز تشتري
+              {language === 'en' ? 'Want to Buy' : 'عايز تشتري'}
             </Link>
 
             <Link
               href={hasSession ? '/account' : '/login'}
               onClick={() => setMobileMenuOpen(false)}
-              className="py-1.5 text-center text-[15px] font-semibold text-[#1d3557] transition-colors hover:text-[#0b6954]"
+              className="flex h-[50px] w-full items-center justify-center gap-2 rounded-[12px] border border-[#e2e8f0] bg-gray-50 text-[15px] font-bold text-[#1d3557] transition-colors hover:bg-gray-100"
             >
-              {hasSession ? 'حسابي' : 'دخول'}
+              <User className="size-4" />
+              <span>{hasSession ? 'حسابي الشخصي' : 'تسجيل الدخول / إنشاء حساب'}</span>
             </Link>
 
             <Link
-              href="#app"
+              href="/opportunities#app-banner"
               onClick={() => setMobileMenuOpen(false)}
               className="flex h-[50px] w-full items-center justify-center gap-2 rounded-[12px] border border-[#99cec3] bg-[#eff8f6] text-[15px] font-semibold text-[#0b6954] transition-colors hover:bg-[#e2f3ef]"
             >
               <Smartphone className="size-4 stroke-[2.2]" />
-              <span>حمّل التطبيق</span>
+              <span>{language === 'en' ? 'Get the App' : 'حمّل التطبيق'}</span>
             </Link>
+
+            <button
+              type="button"
+              onClick={() => {
+                setLanguage(language === 'ar' ? 'en' : 'ar')
+                setMobileMenuOpen(false)
+              }}
+              className="mt-1 py-2 text-center text-sm font-semibold text-gray-500 hover:text-[#0b6954]"
+            >
+              {language === 'ar' ? 'Switch to English' : 'التبديل إلى العربية'}
+            </button>
           </div>
         </div>
       )}
@@ -290,18 +517,23 @@ export function LegacyNavbar({ dictionary = ar }: { dictionary?: Dictionary }) {
 // ==================== 3. الفوتر المنظم (Footer) للموبايل والديسكتوب ====================
 export function Footer({ dictionary = ar }: { dictionary?: Dictionary }) {
   const platformLinks = [
-    { label: dictionary.footer?.favorite || 'المفضلة', href: '/favorites' },
+    { label: 'الفرص المتاحة', href: '/opportunities' },
+    { label: dictionary.footer?.forSellers || 'للبايعين (بيع وحدتك)', href: '/sell' },
+    { label: dictionary.footer?.forBuyers || 'للمشترين (اطلب وحدة)', href: '/buy' },
     { label: dictionary.footer?.calculator || 'حاسبة الخروج', href: '/calculator' },
-    { label: dictionary.footer?.forSellers || 'للبايعين', href: '/sell' },
-    { label: dictionary.footer?.forBuyers || 'للمشترين', href: '/buy' },
+    { label: dictionary.footer?.favorite || 'المفضلة', href: '/favorites' },
+    { label: 'حسابي', href: '/account' },
   ]
 
   const companyLinks = [
     { label: dictionary.footer?.about || 'قصتنا', href: '/story' },
-    { label: dictionary.footer?.reports || 'التقارير والمؤشرات', href: '/reports' },
     { label: dictionary.footer?.work || 'إزاي بنشتغل', href: '/how-it-works' },
+    { label: dictionary.footer?.reports || 'التقارير والمؤشرات', href: '/reports' },
     { label: 'للمطورين', href: '/developers' },
-    { label: dictionary.footer?.investorRelations || 'علاقات المستثمرين', href: '/investors' },
+    {
+      label: dictionary.footer?.investorRelations || 'علاقات المستثمرين',
+      href: '/investors',
+    },
     { label: dictionary.footer?.faq || 'الأسئلة الشائعة', href: '/faq' },
     { label: 'كلمنا', href: '/contact' },
   ]
@@ -309,6 +541,7 @@ export function Footer({ dictionary = ar }: { dictionary?: Dictionary }) {
   const legalLinks = [
     { label: dictionary.footer?.privacy || 'سياسة الخصوصية', href: '/privacy' },
     { label: dictionary.footer?.terms || 'الشروط والأحكام', href: '/terms' },
+    { label: 'لوحة الإدارة', href: '/admin' },
   ]
 
   return (
@@ -331,26 +564,34 @@ export function Footer({ dictionary = ar }: { dictionary?: Dictionary }) {
               <a
                 href={`tel:${dictionary.footer?.phone || '+201018595959'}`}
                 dir="ltr"
-                className="transition-colors hover:text-white"
+                className="transition-colors hover:text-[#2ee59d]"
               >
                 {dictionary.footer?.phone || '+201018595959'}
               </a>
               <a
+                href="https://wa.me/201018595959"
+                target="_blank"
+                rel="noreferrer"
+                className="transition-colors hover:text-[#2ee59d]"
+              >
+                تواصل مباشر عبر واتساب
+              </a>
+              <a
                 href={`mailto:${dictionary.footer?.email || 'info@aqarexit.com'}`}
-                className="transition-colors hover:text-white"
+                className="transition-colors hover:text-[#2ee59d]"
               >
                 {dictionary.footer?.email || 'info@aqarexit.com'}
               </a>
             </div>
 
-            <div className="mt-6">
+            <div className="mt-6" id="app-banner">
               <p className="text-xs font-semibold text-gray-400">
                 {dictionary.footer?.appLabel || 'حمّل التطبيق'}
               </p>
               <div className="mt-3 flex flex-wrap items-center justify-start gap-2.5">
-                <a
-                  href="#app-store"
-                  className="flex items-center gap-2.5 rounded-xl border border-white/15 bg-black px-4 py-2 text-white transition hover:bg-white/5"
+                <Link
+                  href="/opportunities"
+                  className="flex items-center gap-2.5 rounded-xl border border-white/15 bg-black px-4 py-2 text-white transition hover:border-[#2ee59d]/50 hover:bg-white/5"
                 >
                   <div className="text-right">
                     <span className="block text-[8px] text-gray-400">حمّله من</span>
@@ -359,11 +600,11 @@ export function Footer({ dictionary = ar }: { dictionary?: Dictionary }) {
                   <svg className="size-5 fill-current" viewBox="0 0 24 24">
                     <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.33c.64-.78 1.08-1.86.96-2.94-.93.04-2.06.62-2.72 1.4-.58.68-1.1 1.79-.96 2.84 1.04.08 2.08-.52 2.72-1.3z" />
                   </svg>
-                </a>
+                </Link>
 
-                <a
-                  href="#google-play"
-                  className="flex items-center gap-2.5 rounded-xl border border-white/15 bg-black px-4 py-2 text-white transition hover:bg-white/5"
+                <Link
+                  href="/opportunities"
+                  className="flex items-center gap-2.5 rounded-xl border border-white/15 bg-black px-4 py-2 text-white transition hover:border-[#2ee59d]/50 hover:bg-white/5"
                 >
                   <div className="text-right">
                     <span className="block text-[8px] text-gray-400">متوفر على</span>
@@ -387,7 +628,7 @@ export function Footer({ dictionary = ar }: { dictionary?: Dictionary }) {
                       d="M17.22 15.427L5.17 22.396c-.57.32-1.14.19-1.56-.21L13.793 12l3.427 3.427z"
                     />
                   </svg>
-                </a>
+                </Link>
               </div>
             </div>
           </div>
@@ -447,7 +688,9 @@ export function Footer({ dictionary = ar }: { dictionary?: Dictionary }) {
           <div>
             <span className="block text-[11px] text-gray-400">الدولة</span>
             <div className="mt-2.5 flex flex-wrap items-center justify-start gap-4 text-xs">
-              <span className="font-bold text-white">مصر</span>
+              <Link href="/opportunities" className="font-bold text-white hover:text-[#2ee59d]">
+                مصر
+              </Link>
               <span className="inline-flex items-center gap-1.5 text-gray-400">
                 السعودية
                 <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] text-gray-300">
@@ -479,12 +722,20 @@ export function Footer({ dictionary = ar }: { dictionary?: Dictionary }) {
               </p>
             </div>
 
-            <Link
-              href="/"
-              className="text-xs text-gray-400 transition-colors hover:text-white"
-            >
-              الرئيسية
-            </Link>
+            <div className="flex items-center gap-4">
+              <Link
+                href="/opportunities"
+                className="text-xs text-gray-400 transition-colors hover:text-white"
+              >
+                الفرص المتاحة
+              </Link>
+              <Link
+                href="/"
+                className="text-xs text-gray-400 transition-colors hover:text-white"
+              >
+                الرئيسية
+              </Link>
+            </div>
           </div>
         </div>
 

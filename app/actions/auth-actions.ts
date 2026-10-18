@@ -181,7 +181,56 @@ export async function registerAction(formData: FormData): Promise<AuthResult> {
   revalidatePath('/account', 'page')
   return { success: true }
 }
+// التحقق من صحة كود الـ OTP فقط قبل تغيير الباسورد
+export async function verifyOtpAction(email: string, otp: string): Promise<AuthResult> {
+  const supabase = await getSupabase()
+  const { data: user } = await supabase.from('users').select('*').eq('email', email).single()
 
+  if (!user || user.otp_code !== otp) {
+    return { success: false, error: 'الكود غير صحيح.' }
+  }
+
+  if (user.otp_expiry && new Date(user.otp_expiry) < new Date()) {
+    return { success: false, error: 'الكود منتهي الصلاحية.' }
+  }
+
+  return { success: true }
+}
+
+// ==========================================
+// 8. تعيين كلمة مرور جديدة بعد التحقق من الكود
+// ==========================================
+export async function resetPasswordAction(email: string, otp: string, newPassword: string): Promise<AuthResult> {
+  if (newPassword.length < 8) {
+    return { success: false, error: 'كلمة السر يجب أن تكون 8 أحرف على الأقل.' }
+  }
+
+  const supabase = await getSupabase()
+  const { data: user } = await supabase.from('users').select('*').eq('email', email).maybeSingle()
+
+  if (!user || user.otp_code !== otp) {
+    return { success: false, error: 'كود التحقق غير صحيح.' }
+  }
+
+  if (user.otp_expiry && new Date(user.otp_expiry) < new Date()) {
+    return { success: false, error: 'انتهت صلاحية الكود، يرجى طلب كود جديد.' }
+  }
+
+  // تشفير كلمة السر الجديدة وتحديثها في الداتابيز، مع مسح الكود
+  const newHash = hashPassword(newPassword)
+  const { error } = await supabase.from('users').update({ 
+    password_hash: newHash, 
+    otp_code: null, 
+    otp_expiry: null,
+    is_verified: true 
+  }).eq('id', user.id)
+
+  if (error) {
+    return { success: false, error: 'تعذر تحديث كلمة المرور، حاول مرة أخرى.' }
+  }
+
+  return { success: true }
+}
 // ==========================================
 // استرجاع كلمة المرور
 // ==========================================

@@ -609,10 +609,10 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
           if (!open) closeConfirmModal()
         }}
       >
-        <DialogContent
-          dir="rtl"
-          className="w-[90vw] max-w-[360px] rounded-2xl p-5 sm:max-w-[400px]"
-        >
+       <DialogContent
+  dir="rtl"
+  className="w-[90vw] max-w-[360px] rounded-2xl p-5 sm:max-w-[400px]"
+>
           {confirmAction && (
             <>
               <DialogHeader className="text-right">

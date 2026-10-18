@@ -25,10 +25,10 @@ function LoginContent() {
     startTransition(async () => {
       const result = await loginAction(formData)
       if (result.success) {
-        router.push('/account')
-        router.refresh()
+        // توجيه المستخدم فوراً لصفحة حسابه بعد تسجيل الدخول الناجح
+        window.location.href = '/account'
       } else {
-        setError(result.error || 'حدث خطأ أثناء تسجيل الدخول.')
+        setError(result.error || 'بيانات الدخول غير صحيحة، يرجى المحاولة مرة أخرى.')
       }
     })
   }
@@ -43,7 +43,7 @@ function LoginContent() {
 
         {isVerified && !error && (
           <div className="mt-4 rounded-xl bg-emerald-50 p-3 text-center text-xs font-bold text-emerald-700">
-            تم تأكيد بريدك الإلكتروني بنجاح! يمكنك تسجيل الدخول الآن.
+            تم تأكيد حسابك بنجاح! يمكنك تسجيل الدخول الآن.
           </div>
         )}
 

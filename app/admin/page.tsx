@@ -130,7 +130,7 @@ export default async function AdminPage() {
       label: "العمولات المتوقعة (٢.٥٪)",
       value:
         estimatedCommission > 0
-          ? `${(estimatedCommission / 1_000_000).toFixed(2)}م ج.م`
+          ? `${(estimatedCommission / 1_000_000).toFixed(2)} ج.م`
           : "٠ ج.م",
       note: `${investors.length.toLocaleString("ar-EG")} طلب شراكة استثمارية`,
       icon: CircleDollarSign,

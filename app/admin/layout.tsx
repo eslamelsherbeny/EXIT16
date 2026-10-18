@@ -1,26 +1,8 @@
 import Link from "next/link"
 import { cookies } from "next/headers"
 import { createServerClient } from "@supabase/ssr"
-import {
-  Bell,
-  Building2,
-  ExternalLink,
-  FileText,
-  LayoutDashboard,
-  Settings,
-  ShieldCheck,
-  Users,
-  WalletCards,
-} from "lucide-react"
-
-const links = [
-  { href: "/admin", label: "لوحة القيادة", icon: LayoutDashboard },
-  { href: "/admin/properties", label: "إدارة العقارات", icon: Building2 },
-  { href: "/admin/leads", label: "طلبات الشراء", icon: FileText },
-  { href: "/admin/users", label: "المستخدمين والصلاحيات", icon: Users },
-  { href: "/admin/investors", label: "المستثمرين", icon: WalletCards },
-  { href: "/admin/settings", label: "الإعدادات", icon: Settings },
-]
+import { Bell, Building2, ExternalLink, ShieldCheck } from "lucide-react"
+import { adminLinks } from "./constants"
 
 export default async function AdminLayout({
   children,
@@ -72,7 +54,7 @@ export default async function AdminLayout({
           </div>
 
           <nav aria-label="التنقل الإداري" className="flex flex-col gap-1.5 p-5">
-            {links.map(({ href, label, icon: Icon }) => (
+            {adminLinks.map(({ href, label, icon: Icon }) => (
               <Link
                 key={href}
                 href={href}
@@ -155,12 +137,10 @@ export default async function AdminLayout({
   )
 }
 
-export { links }
-
 export function AdminMobileNav() {
   return (
     <nav className="mb-6 grid grid-cols-3 gap-2 lg:hidden">
-      {links.slice(0, 6).map(({ href, label }) => (
+      {adminLinks.slice(0, 6).map(({ href, label }) => (
         <Link
           key={href}
           href={href}

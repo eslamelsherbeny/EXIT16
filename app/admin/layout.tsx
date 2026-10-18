@@ -5,23 +5,9 @@ import {
   Bell,
   Building2,
   ExternalLink,
-  FileText,
-  LayoutDashboard,
-  Settings,
   ShieldCheck,
-  Users,
-  WalletCards,
 } from "lucide-react"
-
-// الروابط محددة في السيرفر ولا تستخدم usePathname
-const links = [
-  { href: "/admin", label: "لوحة القيادة", icon: LayoutDashboard },
-  { href: "/admin/properties", label: "إدارة العقارات", icon: Building2 },
-  { href: "/admin/leads", label: "طلبات الشراء", icon: FileText },
-  { href: "/admin/users", label: "المستخدمين والصلاحيات", icon: Users },
-  { href: "/admin/investors", label: "المستثمرين", icon: WalletCards },
-  { href: "/admin/settings", label: "الإعدادات", icon: Settings },
-]
+import { adminLinks } from "./constants" // استيراد الروابط من الملف الجديد
 
 export default async function AdminLayout({
   children,
@@ -32,7 +18,6 @@ export default async function AdminLayout({
   let adminRole = "ADMIN"
 
   try {
-    // جلب الكوكيز داخل Server Component بشكل آمن
     const cookieStore = await cookies()
     const sessionId = cookieStore.get("user_session")?.value
     
@@ -77,7 +62,7 @@ export default async function AdminLayout({
           </div>
 
           <nav aria-label="التنقل الإداري" className="flex flex-col gap-1.5 p-5">
-            {links.map(({ href, label, icon: Icon }) => (
+            {adminLinks.map(({ href, label, icon: Icon }) => (
               <Link
                 key={href}
                 href={href}
@@ -155,25 +140,20 @@ export default async function AdminLayout({
         </header>
 
         <main className="p-4 sm:p-6 lg:p-8">{children}</main>
+
+        {/* روابط الموبايل بدل ما كانت component بقت جوة الـ layout مباشرة عشان نتفادى التصدير (export) */}
+        <nav className="mb-6 mx-4 grid grid-cols-3 gap-2 lg:hidden sm:mx-6">
+          {adminLinks.slice(0, 6).map(({ href, label }) => (
+            <Link
+              key={href}
+              href={href}
+              className="rounded-xl border border-gray-200 bg-white px-2.5 py-2.5 text-center text-[10px] font-bold text-[#0a1122] shadow-2xs transition hover:border-[#105C50] hover:text-[#105C50] sm:text-xs"
+            >
+              {label}
+            </Link>
+          ))}
+        </nav>
       </div>
     </div>
-  )
-}
-
-export { links }
-
-export function AdminMobileNav() {
-  return (
-    <nav className="mb-6 grid grid-cols-3 gap-2 lg:hidden">
-      {links.slice(0, 6).map(({ href, label }) => (
-        <Link
-          key={href}
-          href={href}
-          className="rounded-xl border border-gray-200 bg-white px-2.5 py-2.5 text-center text-[10px] font-bold text-[#0a1122] shadow-2xs transition hover:border-[#105C50] hover:text-[#105C50] sm:text-xs"
-        >
-          {label}
-        </Link>
-      ))}
-    </nav>
   )
 }

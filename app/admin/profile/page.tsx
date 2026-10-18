@@ -1,11 +1,11 @@
 import { cookies } from "next/headers"
 import { createServerClient } from "@supabase/ssr"
-import SettingsClient from "../settings/settings-client"
+import ProfileClient from "./profile-client"
 
 export const dynamic = "force-dynamic"
 export const revalidate = 0
 
-export default async function AdminProfilePage() {
+export default async function ProfilePage() {
   const cookieStore = await cookies()
   const sessionId = cookieStore.get("user_session")?.value
 
@@ -28,11 +28,18 @@ export default async function AdminProfilePage() {
   }
 
   if (sessionId) {
-    const { data: user } = await supabase
-      .from("users")
-      .select("*")
-      .eq("id", sessionId)
-      .maybeSingle()
+    const [{ data: user }, { count: sellCount }, { count: buyCount }] =
+      await Promise.all([
+        supabase.from("users").select("*").eq("id", sessionId).maybeSingle(),
+        supabase
+          .from("sell_requests")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", sessionId),
+        supabase
+          .from("buy_requests")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", sessionId),
+      ])
 
     if (user) {
       adminProfile = {
@@ -41,38 +48,15 @@ export default async function AdminProfilePage() {
         email: user.email || "",
         phone: user.phone || "",
         role: user.role || "admin",
-        personalSellCount: 0,
-        personalBuyCount: 0,
+        personalSellCount: sellCount || 0,
+        personalBuyCount: buyCount || 0,
       }
     }
   }
 
-  let savedSettings = {
-    siteName: "دارك للعقارات",
-    whatsappNumber: "+201018595959",
-    supportEmail: process.env.EMAIL_USER || "support@darak.com",
-    buyerCommission: "1.25",
-    maintenanceMode: false,
-    allowNewSells: true,
-    allowNewBuys: true,
-    emailNotifications: true,
-  }
-
-  const hasSupabase = Boolean(
-    process.env.NEXT_PUBLIC_SUPABASE_URL &&
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  )
-  const hasEmail = Boolean(process.env.EMAIL_USER && process.env.EMAIL_PASS)
-
   return (
-    <div className="mx-auto max-w-4xl">
-      <SettingsClient
-        initialTab="profile"
-        adminProfile={adminProfile}
-        initialSettings={savedSettings}
-        hasSupabase={hasSupabase}
-        hasEmail={hasEmail}
-      />
+    <div className="mx-auto max-w-3xl">
+      <ProfileClient adminProfile={adminProfile} />
     </div>
   )
 }

@@ -48,5 +48,10 @@ export default async function UsersPage() {
     buyCount: buyCounts[u.id] || 0,
   }))
 
-  return <UsersClientTable users={rows} />
+  return (
+    <div className="mx-auto max-w-7xl">
+      <AdminMobileNav />
+      <UsersClientTable users={rows} />
+    </div>
+  )
 }

@@ -672,7 +672,8 @@ export default function HomePage() {
             </div>
 
             {/* العمود الأيسر: مجسم الموبايل المائل */}
-            <div className="flex justify-center">
+            {/* العمود الأيسر: مجسم الموبايل المائل (يختفي على الموبايل ويظهر على التابلت والكمبيوتر) */}
+<div className="hidden md:flex justify-center">
               <div className="w-[270px] -rotate-3 rounded-[40px] border-[6px] border-[#1c283c] bg-[#0b1323] p-4 shadow-2xl transition-transform duration-300 hover:rotate-0 sm:w-[300px]">
                 {/* سماعة الموبايل العلوية */}
                 <div className="mx-auto mb-4 h-4 w-24 rounded-full bg-black" />

@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from "react"
 import { CalendarPlus, MessageCircle, PhoneCall, Trash2 } from "lucide-react"
-import { AdminMobileNav } from "../layout"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -66,9 +65,7 @@ export default function InvestorsClientTable({
   }
 
   return (
-    <div className="mx-auto max-w-7xl">
-      <AdminMobileNav />
-
+    <div>
       <div className="mb-6">
         <p className="text-xs font-extrabold text-[#105C50]">الشراكات الاستراتيجية</p>
         <h2 className="mt-1 text-2xl font-extrabold text-[#0a1122] sm:text-3xl">

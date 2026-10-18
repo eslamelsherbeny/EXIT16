@@ -18,7 +18,7 @@ const links = [
   { href: '/investors', key: 'investors' as const, fallback: 'للمستثمرين' },
 ]
 
-// ==================== 1. اللوجو المطابق للصورة (SVG دقيق) ====================
+// ==================== 1. اللوجو المطابق 100% (بخط التوقيع اليدوي لكلمة Exit) ====================
 export function Logo({ inverse = false }: { inverse?: boolean }) {
   return (
     <Link
@@ -28,65 +28,88 @@ export function Logo({ inverse = false }: { inverse?: boolean }) {
       aria-label="Aqar Exit"
     >
       <svg
-        width="108"
+        width="102"
         height="48"
-        viewBox="0 0 120 54"
+        viewBox="0 0 116 54"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
-        className="h-[42px] w-auto sm:h-[46px]"
+        className="h-[44px] w-auto"
       >
-        {/* حرف A (على شكل مثلث مفتوح من الأسفل بحواف ناعمة) */}
+        {/* حرف A */}
         <path
-          d="M6 31L18.5 6.5C19.3 4.9 21.2 4.9 22 6.5L34.5 31"
+          d="M5 30L17.5 5.5C18.2 4.1 19.8 4.1 20.5 5.5L33 30"
           stroke="currentColor"
-          strokeWidth="3.6"
+          strokeWidth="3.3"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
         {/* حرف q */}
-        <circle cx="48" cy="21" r="9.5" stroke="currentColor" strokeWidth="3.4" />
+        <circle cx="46.5" cy="20" r="9.2" stroke="currentColor" strokeWidth="3.2" />
         <path
-          d="M57.5 11.5V35.5C57.5 38 59 39.5 61.5 39.5"
+          d="M55.7 10.8V35.5C55.7 37.5 56.8 38.8 58.8 38.8"
           stroke="currentColor"
-          strokeWidth="3.4"
+          strokeWidth="3.2"
           strokeLinecap="round"
         />
         {/* حرف a */}
-        <circle cx="74.5" cy="21" r="9.5" stroke="currentColor" strokeWidth="3.4" />
+        <circle cx="72" cy="20" r="9.2" stroke="currentColor" strokeWidth="3.2" />
         <path
-          d="M84 11.5V30.5"
+          d="M81.2 10.8V29.5"
           stroke="currentColor"
-          strokeWidth="3.4"
+          strokeWidth="3.2"
           strokeLinecap="round"
         />
         {/* حرف r */}
         <path
-          d="M93.5 30.5V18.5C93.5 14 97 11.5 101.5 11.5H104"
+          d="M90.5 29.5V17.5C90.5 13.2 93.8 10.8 98 10.8H100.5"
           stroke="currentColor"
-          strokeWidth="3.4"
+          strokeWidth="3.2"
           strokeLinecap="round"
         />
-        {/* كلمة Exit بخط التوقيع المائل أسفل qar */}
-        <text
-          x="52"
-          y="49"
-          fill="currentColor"
-          style={{
-            fontFamily: "'Playfair Display', 'Georgia', 'Times New Roman', serif",
-            fontStyle: 'italic',
-            fontWeight: 400,
-            fontSize: '22px',
-            letterSpacing: '0.02em',
-          }}
-        >
-          Exit
-        </text>
+
+        {/* كلمة Exit مرسومة كـ Path يدوي متداخل مثل اللوجو الأصلي بالضبط */}
+        {/* حرف E اليدوي */}
+        <path
+          d="M66 35.5C61 34.5 56.5 36.8 56.5 39.8C56.5 42.2 59.5 43.2 63 42.8C58.5 43.5 54.5 45.8 55 48.8C55.5 51.8 60.5 52.5 65.5 50.2"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        {/* حرف x اليدوي */}
+        <path
+          d="M69 42.5L76.5 50M77 42.2C73.5 45 70.5 48 67.5 50.8"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+        />
+        {/* حرف i اليدوي */}
+        <path
+          d="M81.5 43.2L79.5 49.5C79.2 50.3 79.8 50.8 80.8 50.3"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+        />
+        <circle cx="82.5" cy="39.5" r="1" fill="currentColor" />
+        {/* حرف t اليدوي مع الشرطة العريضة */}
+        <path
+          d="M90.5 34.5L86 50.5"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+        />
+        <path
+          d="M83 41.2C88 40.5 94 39.8 100 39.2"
+          stroke="currentColor"
+          strokeWidth="1.4"
+          strokeLinecap="round"
+        />
       </svg>
     </Link>
   )
 }
 
-// ==================== 2. الهيدر الرئيسي (Navbar) ====================
+// ==================== 2. الهيدر المطابق بالبيكسل (Navbar) ====================
 export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
   const [language, setLanguage] = useState<'ar' | 'en'>('ar')
   const [hasSession, setHasSession] = useState(false)
@@ -103,7 +126,6 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
     document.documentElement.dir = language === 'en' ? 'ltr' : 'rtl'
   }, [language])
 
-  // إغلاق قائمة الموبايل تلقائياً عند الانتقال لصفحة أخرى
   useEffect(() => {
     setMobileMenuOpen(false)
   }, [pathname])
@@ -114,79 +136,86 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
       className="sticky top-0 z-50 border-b border-gray-200/80 bg-white"
     >
       {/* الشريط العلوي للهيدر */}
-      <div className="mx-auto flex h-[70px] max-w-[1180px] items-center justify-between px-4 sm:h-[76px] sm:px-6 lg:px-8">
+      <div className="mx-auto flex h-[74px] max-w-[1140px] items-center justify-between px-4 sm:px-6">
         
-        {/* 1. اليمين: اللوجو */}
-        <div className="shrink-0">
+        {/* اليمين: اللوجو + التابز معاً بمسافة محكمة مثل الأصلي */}
+        <div className="flex items-center gap-10 xl:gap-14">
           <Logo />
+
+          {/* التابز متقاربة (gap-5) وليست بعيدة عن بعضها */}
+          <nav
+            className="hidden items-center gap-5 lg:flex"
+            aria-label={labels.navbar?.menuTitle || 'القائمة الرئيسية'}
+          >
+            {links.map((link) => {
+              const isActive = pathname === link.href
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={`whitespace-nowrap text-[14px] transition-colors hover:text-[#0b6954] ${
+                    isActive
+                      ? 'font-semibold text-[#0b6954]'
+                      : 'font-normal text-[#4b5563]'
+                  }`}
+                >
+                  {labels.navbar?.[link.key] || link.fallback}
+                </Link>
+              )
+            })}
+          </nav>
         </div>
 
-        {/* 2. المنتصف (ديسكتوب فقط): التابس في المنتصف تماماً */}
-        <nav
-          className="hidden flex-1 items-center justify-center gap-6 lg:flex xl:gap-8"
-          aria-label={labels.navbar?.menuTitle || 'القائمة الرئيسية'}
-        >
-          {links.map((link) => {
-            const isActive = pathname === link.href
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`whitespace-nowrap text-[14px] font-medium transition-colors hover:text-[#0c6d59] ${
-                  isActive ? 'font-bold text-[#0c6d59]' : 'text-[#4b5563]'
-                }`}
-              >
-                {labels.navbar?.[link.key] || link.fallback}
-              </Link>
-            )
-          })}
-        </nav>
-
-        {/* 3. اليسار (ديسكتوب): English + حسابي + عايز تشتري + الجرس + عايز تبيع */}
-        <div className="hidden shrink-0 items-center gap-2.5 lg:flex">
+        {/* اليسار (ديسكتوب): English + حسابي + عايز تشتري + الجرس + عايز تبيع */}
+        <div className="hidden shrink-0 items-center gap-3 lg:flex">
+          {/* زر English */}
           <button
             type="button"
             onClick={() => setLanguage(language === 'ar' ? 'en' : 'ar')}
-            className="ml-2 text-[13px] font-medium text-[#1f2937] transition-colors hover:text-[#0c6d59]"
+            className="ml-2 text-[13px] font-normal text-[#1e293b] transition-colors hover:text-[#0b6954]"
           >
             {language === 'ar' ? 'English' : 'العربية'}
           </button>
 
+          {/* زر حسابي */}
           <Link
             href={hasSession ? '/account' : '/login'}
-            className="inline-flex h-[40px] items-center justify-center whitespace-nowrap rounded-[10px] border border-gray-300 bg-white px-4 text-[13px] font-bold text-[#0a1122] transition-colors hover:bg-gray-50"
+            className="inline-flex h-[44px] items-center justify-center whitespace-nowrap rounded-[11px] border border-[#e2e8f0] bg-white px-5 text-[14px] font-semibold text-[#0f172a] transition-colors hover:bg-gray-50"
           >
             {hasSession ? 'حسابي' : labels.navbar?.login || 'حسابي'}
           </Link>
 
+          {/* زر عايز تشتري */}
           <Link
             href="/buy"
-            className="inline-flex h-[40px] items-center justify-center whitespace-nowrap rounded-[10px] border border-gray-300 bg-white px-4 text-[13px] font-bold text-[#0a1122] transition-colors hover:bg-gray-50"
+            className="inline-flex h-[44px] items-center justify-center whitespace-nowrap rounded-[11px] border border-[#e2e8f0] bg-white px-5 text-[14px] font-semibold text-[#0f172a] transition-colors hover:bg-gray-50"
           >
             عايز تشتري
           </Link>
 
+          {/* أيقونة الجرس */}
           <button
             type="button"
             aria-label="الإشعارات"
-            className="flex size-9 items-center justify-center rounded-full text-[#1f2937] transition-colors hover:bg-gray-100"
+            className="mx-0.5 flex size-9 items-center justify-center rounded-full text-[#334155] transition-colors hover:bg-gray-100"
           >
-            <Bell className="size-[18px] stroke-[1.8]" />
+            <Bell className="size-[19px] stroke-[1.7]" />
           </button>
 
+          {/* زر عايز تبيع */}
           <Link
             href="/sell"
-            className="inline-flex h-[40px] items-center justify-center whitespace-nowrap rounded-[10px] bg-[#0c6d59] px-5 text-[13px] font-bold text-white transition-colors hover:bg-[#095646]"
+            className="inline-flex h-[44px] items-center justify-center whitespace-nowrap rounded-[11px] bg-[#0b6954] px-6 text-[14px] font-semibold text-white transition-colors hover:bg-[#085443]"
           >
             عايز تبيع
           </Link>
         </div>
 
-        {/* 4. اليسار (موبايل وتابلت فقط): زر عايز تبيع + أيقونة القائمة */}
+        {/* اليسار (موبايل وتابلت فقط): زر عايز تبيع + أيقونة القائمة */}
         <div className="flex items-center gap-3 lg:hidden">
           <Link
             href="/sell"
-            className="inline-flex h-[42px] items-center justify-center whitespace-nowrap rounded-[12px] bg-[#0c6d59] px-5 text-[14px] font-bold text-white transition-colors hover:bg-[#095646]"
+            className="inline-flex h-[42px] items-center justify-center whitespace-nowrap rounded-[11px] bg-[#0b6954] px-5 text-[14px] font-semibold text-white transition-colors hover:bg-[#085443]"
           >
             عايز تبيع
           </Link>
@@ -209,14 +238,13 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
 
       {/* ==================== القائمة المنسدلة للموبايل (مطابقة للصورة) ==================== */}
       {mobileMenuOpen && (
-        <div className="fixed inset-x-0 top-[70px] bottom-0 z-50 overflow-y-auto border-t border-gray-100 bg-white px-6 pt-6 pb-10 sm:top-[76px] lg:hidden">
-          {/* الروابط شاملة "الرئيسية" */}
+        <div className="fixed inset-x-0 top-[74px] bottom-0 z-50 overflow-y-auto border-t border-gray-100 bg-white px-6 pt-6 pb-10 lg:hidden">
           <nav className="flex flex-col gap-5 text-right">
             <Link
               href="/"
               onClick={() => setMobileMenuOpen(false)}
               className={`text-[17px] font-medium transition-colors ${
-                pathname === '/' ? 'font-bold text-[#0c6d59]' : 'text-[#0a1122]'
+                pathname === '/' ? 'font-bold text-[#0b6954]' : 'text-[#0a1122]'
               }`}
             >
               الرئيسية
@@ -230,7 +258,7 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
                   href={link.href}
                   onClick={() => setMobileMenuOpen(false)}
                   className={`text-[17px] font-medium transition-colors ${
-                    isActive ? 'font-bold text-[#0c6d59]' : 'text-[#0a1122]'
+                    isActive ? 'font-bold text-[#0b6954]' : 'text-[#0a1122]'
                   }`}
                 >
                   {labels.navbar?.[link.key] || link.fallback}
@@ -239,34 +267,29 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
             })}
           </nav>
 
-          {/* الخط الفاصل */}
           <hr className="my-6 border-gray-200/80" />
 
-          {/* الأزرار السفلية في قائمة الموبايل */}
           <div className="flex flex-col gap-4">
-            {/* زر عايز تشتري */}
             <Link
               href="/buy"
               onClick={() => setMobileMenuOpen(false)}
-              className="flex h-[50px] w-full items-center justify-center rounded-[12px] border border-gray-300 bg-white text-[15px] font-bold text-[#0a1122] transition-colors hover:bg-gray-50"
+              className="flex h-[50px] w-full items-center justify-center rounded-[12px] border border-[#e2e8f0] bg-white text-[15px] font-semibold text-[#0a1122] transition-colors hover:bg-gray-50"
             >
               عايز تشتري
             </Link>
 
-            {/* رابط دخول / حسابي */}
             <Link
               href={hasSession ? '/account' : '/login'}
               onClick={() => setMobileMenuOpen(false)}
-              className="py-1.5 text-center text-[15px] font-bold text-[#1d3557] transition-colors hover:text-[#0c6d59]"
+              className="py-1.5 text-center text-[15px] font-semibold text-[#1d3557] transition-colors hover:text-[#0b6954]"
             >
               {hasSession ? 'حسابي' : 'دخول'}
             </Link>
 
-            {/* زر حمّل التطبيق */}
             <Link
               href="#app"
               onClick={() => setMobileMenuOpen(false)}
-              className="flex h-[50px] w-full items-center justify-center gap-2 rounded-[12px] border border-[#99cec3] bg-[#eff8f6] text-[15px] font-bold text-[#0c6d59] transition-colors hover:bg-[#e2f3ef]"
+              className="flex h-[50px] w-full items-center justify-center gap-2 rounded-[12px] border border-[#99cec3] bg-[#eff8f6] text-[15px] font-semibold text-[#0b6954] transition-colors hover:bg-[#e2f3ef]"
             >
               <Smartphone className="size-4 stroke-[2.2]" />
               <span>حمّل التطبيق</span>
@@ -278,11 +301,12 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
   )
 }
 
+// ==================== 3. الإبقاء على LegacyNavbar لعدم كسر أي استدعاء ====================
 export function LegacyNavbar({ dictionary = ar }: { dictionary?: Dictionary }) {
   return <Navbar dictionary={dictionary} />
 }
 
-// ==================== 3. الفوتر (Footer) ====================
+// ==================== 4. الفوتر المطابق للصورة (Footer) ====================
 export function Footer({ dictionary = ar }: { dictionary?: Dictionary }) {
   const platformLinks = [
     { label: dictionary.footer?.favorite || 'المفضلة', href: '/favorites' },
@@ -308,11 +332,11 @@ export function Footer({ dictionary = ar }: { dictionary?: Dictionary }) {
 
   return (
     <footer className="bg-[#0a1122] text-white" dir="rtl">
-      <div className="mx-auto max-w-[1180px] px-5 pt-14 pb-12 sm:px-6 lg:px-8 lg:pt-20">
+      <div className="mx-auto max-w-[1140px] px-4 pt-14 pb-12 sm:px-6 lg:pt-20">
         
         <div className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 lg:grid-cols-[1.45fr_1fr_1fr_1fr] lg:gap-12">
           
-          {/* العمود الأول (يمين) */}
+          {/* العمود الأول (أقصى اليمين): اللوجو + الوصف + التواصل + تحميل التطبيق */}
           <div className="col-span-2 text-right sm:col-span-3 lg:col-span-1">
             <Logo inverse />
 
@@ -487,7 +511,7 @@ export function Footer({ dictionary = ar }: { dictionary?: Dictionary }) {
   )
 }
 
-// ==================== 4. التخطيط العام (PublicLayout) ====================
+// ==================== 5. التخطيط العام (PublicLayout) ====================
 export function PublicLayout({ children }: { children: React.ReactNode }) {
   return (
     <>

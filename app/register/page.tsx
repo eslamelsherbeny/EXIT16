@@ -88,7 +88,7 @@ export default function RegisterPage() {
             />
           </div>
 
-          <div>
+         <div>
             <label htmlFor="phone" className="mb-2 block text-xs font-bold text-foreground">
               رقم الموبايل
             </label>
@@ -103,15 +103,17 @@ export default function RegisterPage() {
                 className="h-12 flex-1 rounded-xl border border-input bg-background px-4 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary"
                 placeholder="1xxxxxxxxx"
               />
-              <div className="relative">
+              {/* تم تصغير الحقل وتحديد عرض ثابت له 105px */}
+              <div className="relative w-[105px] shrink-0">
                 <select
                   value={countryCode}
                   onChange={(e) => setCountryCode(e.target.value)}
-                  className="h-12 appearance-none rounded-xl border border-input bg-background pr-3 pl-8 text-xs font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  dir="ltr"
+                  className="h-12 w-full appearance-none rounded-xl border border-input bg-background pl-8 pr-3 text-left text-sm font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                 >
                   {COUNTRIES.map((c) => (
                     <option key={c.code + c.name} value={c.code}>
-                      {c.flag} {c.name} {c.code}
+                      {c.flag} {c.code}
                     </option>
                   ))}
                 </select>

@@ -6,10 +6,9 @@ import {
   Building2,
   CircleDollarSign,
   Clock3,
-  FileText,
   MessageCircle,
+  Phone,
   Users,
-  WalletCards,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -93,7 +92,6 @@ export default async function AdminPage() {
   )
   const activeProperties = properties.filter((p) => p.status === "active")
 
-  // حساب إجمالي قيمة العقارات المعروضة والعمولة التقديرية (مثلاً 2.5%)
   const totalPortfolioValue = properties.reduce(
     (sum, p) => sum + (Number(p.contract_price) || Number(p.paid_amount) || 0),
     0
@@ -102,37 +100,37 @@ export default async function AdminPage() {
 
   const kpis = [
     {
-      label: "إجمالي العقارات المسجلة",
+      label: "إجمالي العقارات",
       value: properties.length.toLocaleString("ar-EG"),
-      note: `${activeProperties.length.toLocaleString("ar-EG")} عقار منشور حالياً`,
+      note: `${activeProperties.length.toLocaleString("ar-EG")} منشور حالياً`,
       icon: Building2,
       href: "/admin/properties",
     },
     {
-      label: "طلبات بانتظار المراجعة",
+      label: "بانتظار المراجعة",
       value: pendingProperties.length.toLocaleString("ar-EG"),
       note:
         pendingProperties.length > 0
-          ? "تحتاج مراجعتك واعتمادك"
-          : "تمت مراجعة كافة الطلبات",
+          ? "تحتاج مراجعتك"
+          : "تمت مراجعة الكل",
       icon: Clock3,
       href: "/admin/properties?status=pending",
       highlight: pendingProperties.length > 0,
     },
     {
-      label: "طلبات الشراء (المشترين)",
+      label: "طلبات المشترين",
       value: leads.length.toLocaleString("ar-EG"),
-      note: `${users.length.toLocaleString("ar-EG")} حساب مسجل بالمنصة`,
+      note: `${users.length.toLocaleString("ar-EG")} حساب مسجل`,
       icon: Users,
       href: "/admin/leads",
     },
     {
-      label: "العمولات المتوقعة (٢.٥٪)",
+      label: "العمولات (٢.٥٪)",
       value:
         estimatedCommission > 0
-          ? `${(estimatedCommission / 1_000_000).toFixed(2)} ج.م`
+          ? `${(estimatedCommission / 1_000_000).toFixed(2)}م ج.م`
           : "٠ ج.م",
-      note: `${investors.length.toLocaleString("ar-EG")} طلب شراكة استثمارية`,
+      note: `${investors.length.toLocaleString("ar-EG")} طلب مستثمر`,
       icon: CircleDollarSign,
       href: "/admin/investors",
     },
@@ -140,63 +138,77 @@ export default async function AdminPage() {
 
   return (
     <div className="mx-auto max-w-7xl">
-      <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+      {/* الهيدر العلوي للصفحة */}
+      <div className="mb-6 flex flex-col justify-between gap-3 sm:mb-8 sm:flex-row sm:items-end">
         <div>
           <p className="text-xs font-extrabold text-[#105C50]">نظرة عامة حية</p>
-          <h2 className="mt-1 text-2xl font-extrabold text-[#0a1122] sm:text-3xl">
-           الرئيسية
+          <h2 className="mt-1 text-xl font-extrabold text-[#0a1122] sm:text-3xl">
+            لوحة القيادة
           </h2>
-          <p className="mt-1.5 text-xs text-gray-500 sm:text-sm">
+          <p className="mt-1 text-xs text-gray-500 sm:text-sm">
             إحصائيات حقيقية مباشرة من قاعدة البيانات لمتابعة حركة البائعين والمشترين.
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-2.5">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-2.5">
           <Link
             href="/admin/properties"
-            className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#105C50] px-4 text-xs font-bold text-white shadow-sm transition hover:bg-[#0c483f]"
+            className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl bg-[#105C50] px-3 text-xs font-bold text-white shadow-sm transition hover:bg-[#0c483f] sm:px-4"
           >
-            <Building2 className="size-4" />
-            <span>إدارة العقارات ({properties.length})</span>
+            <Building2 className="size-4 shrink-0" />
+            <span>العقارات ({properties.length})</span>
           </Link>
           <Link
             href="/admin/users"
-            className="inline-flex h-10 items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-xs font-bold text-[#0a1122] shadow-sm transition hover:bg-gray-50"
+            className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-[#0a1122] shadow-sm transition hover:bg-gray-50 sm:px-4"
           >
-            <Users className="size-4" />
-            <span>إدارة الفريق والصلاحيات</span>
+            <Users className="size-4 shrink-0" />
+            <span>الفريق والصلاحيات</span>
           </Link>
         </div>
       </div>
 
-      {/* بطاقات الإحصائيات الحقيقية */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {/* بطاقات الإحصائيات: كارتين بجانب بعض على الموبايل، و4 على الديسكتوب */}
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         {kpis.map(({ label, value, note, icon: Icon, href, highlight }) => (
-          <Link key={label} href={href} className="block transition hover:-translate-y-0.5">
+          <Link
+            key={label}
+            href={href}
+            className="block transition hover:-translate-y-0.5"
+          >
             <Card
               className={
                 highlight
-                  ? "border-[#105C50]/40 bg-[#eaf8f2] shadow-sm"
-                  : "border-gray-200/80 bg-white shadow-sm"
+                  ? "h-full border-[#105C50]/40 bg-[#eaf8f2] shadow-xs"
+                  : "h-full border-gray-200/80 bg-white shadow-xs"
               }
             >
-              <CardContent className="flex items-start justify-between p-5">
-                <div>
-                  <p className="text-xs font-bold text-gray-500">{label}</p>
-                  <p className="mt-3 text-3xl font-extrabold text-[#0a1122]">
+              <CardContent className="flex flex-col justify-between p-3.5 sm:flex-row sm:items-start sm:p-5">
+                <div className="flex items-center justify-between sm:block">
+                  <p className="text-[11px] font-bold text-gray-500 sm:text-xs">
+                    {label}
+                  </p>
+                  <span className="rounded-lg bg-[#105C50]/10 p-2 text-[#105C50] sm:hidden">
+                    <Icon className="size-4" aria-hidden="true" />
+                  </span>
+                </div>
+
+                <div className="mt-2 sm:mt-0">
+                  <p className="text-xl font-extrabold text-[#0a1122] sm:mt-2 sm:text-3xl">
                     {value}
                   </p>
                   <p
-                    className={
+                    className={`mt-1 text-[10px] sm:mt-2 sm:text-xs ${
                       highlight
-                        ? "mt-2 text-xs font-bold text-[#105C50]"
-                        : "mt-2 text-xs font-semibold text-gray-500"
-                    }
+                        ? "font-bold text-[#105C50]"
+                        : "font-semibold text-gray-500"
+                    }`}
                   >
                     {note}
                   </p>
                 </div>
-                <span className="rounded-xl bg-[#105C50]/10 p-3 text-[#105C50]">
+
+                <span className="hidden rounded-xl bg-[#105C50]/10 p-3 text-[#105C50] sm:inline-flex">
                   <Icon className="size-5" aria-hidden="true" />
                 </span>
               </CardContent>
@@ -205,28 +217,74 @@ export default async function AdminPage() {
         ))}
       </div>
 
-      <div className="mt-7 grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* جدول أحدث طلبات البيع */}
+      <div className="mt-6 grid grid-cols-1 gap-5 sm:mt-7 lg:grid-cols-3">
+        {/* أحدث طلبات البائعين (العقارات) */}
         <Card className="border-gray-200/80 bg-white shadow-sm lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between border-b border-gray-100">
+          <CardHeader className="flex flex-row items-center justify-between border-b border-gray-100 p-4 sm:p-6">
             <div>
-              <CardTitle className="text-base font-extrabold text-[#0a1122]">
+              <CardTitle className="text-sm font-extrabold text-[#0a1122] sm:text-base">
                 أحدث طلبات البائعين (العقارات)
               </CardTitle>
-              <CardDescription className="mt-1 text-xs">
+              <CardDescription className="mt-0.5 text-[11px] sm:text-xs">
                 آخر الوحدات المضافة من البائعين وحالتها الحالية.
               </CardDescription>
             </div>
             <Link
               href="/admin/properties"
-              className="flex items-center gap-1 text-xs font-bold text-[#105C50] hover:underline"
+              className="flex shrink-0 items-center gap-1 text-xs font-bold text-[#105C50] hover:underline"
             >
               عرض الكل <ArrowLeft className="size-3.5" />
             </Link>
           </CardHeader>
+
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[600px] text-right text-xs sm:text-sm">
+            {/* عرض الموبايل: كروت مدمجة بدون سكرول أفقي */}
+            <div className="divide-y divide-gray-100 md:hidden">
+              {properties.length === 0 ? (
+                <div className="p-8 text-center text-xs text-gray-400">
+                  لا توجد وحدات مضافة حتى الآن.
+                </div>
+              ) : (
+                properties.slice(0, 6).map((prop) => {
+                  const st =
+                    statusMap[prop.status || "pending"] || statusMap.pending
+                  return (
+                    <div key={prop.id} className="p-3.5 hover:bg-gray-50/60">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-xs font-extrabold text-[#0a1122]">
+                            {prop.project_name || "وحدة سكنية"}
+                          </p>
+                          <p className="mt-0.5 text-[11px] text-gray-400">
+                            {prop.area || "—"} · {prop.unit_type || "شقة"}
+                          </p>
+                        </div>
+                        <Badge className={`text-[10px] ${st.className}`}>
+                          {st.label}
+                        </Badge>
+                      </div>
+
+                      <div className="mt-2.5 flex items-center justify-between text-xs">
+                        <span className="font-extrabold text-[#105C50]">
+                          {prop.paid_amount
+                            ? `${Number(prop.paid_amount).toLocaleString("en-US")} ج.م`
+                            : "—"}
+                        </span>
+                        <div className="flex items-center gap-2 text-[11px] text-gray-500">
+                          <span>{prop.name}</span>
+                          <span>·</span>
+                          <span dir="ltr">{prop.phone}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })
+              )}
+            </div>
+
+            {/* عرض الكمبيوتر: الجدول الكامل */}
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full text-right text-xs sm:text-sm">
                 <thead className="bg-gray-50 text-xs text-gray-500">
                   <tr>
                     <th className="px-5 py-3.5 font-bold">المشروع والمنطقة</th>
@@ -301,12 +359,12 @@ export default async function AdminPage() {
 
         {/* قائمة أحدث طلبات الشراء */}
         <Card className="border-gray-200/80 bg-white shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between border-b border-gray-100">
+          <CardHeader className="flex flex-row items-center justify-between border-b border-gray-100 p-4 sm:p-6">
             <div>
-              <CardTitle className="text-base font-extrabold text-[#0a1122]">
+              <CardTitle className="text-sm font-extrabold text-[#0a1122] sm:text-base">
                 أحدث المشترين
               </CardTitle>
-              <CardDescription className="mt-1 text-xs">
+              <CardDescription className="mt-0.5 text-[11px] sm:text-xs">
                 عملاء سجلوا ميزانيتهم مؤخراً.
               </CardDescription>
             </div>
@@ -326,7 +384,7 @@ export default async function AdminPage() {
               leads.slice(0, 5).map((lead) => (
                 <div
                   key={lead.id}
-                  className="flex items-center justify-between p-4 hover:bg-gray-50/60"
+                  className="flex items-center justify-between p-3.5 hover:bg-gray-50/60 sm:p-4"
                 >
                   <div>
                     <p className="text-xs font-extrabold text-[#0a1122]">

@@ -1,6 +1,5 @@
 import { cookies } from "next/headers"
 import { createServerClient } from "@supabase/ssr"
-import { AdminMobileNav } from "../layout"
 import PropertiesTable, { type SellRequest } from "./properties-table"
 
 export const dynamic = "force-dynamic"
@@ -26,7 +25,6 @@ export default async function PropertiesPage() {
   if (error) {
     return (
       <div className="mx-auto max-w-7xl">
-        <AdminMobileNav />
         <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-sm font-bold text-red-700">
           تعذر تحميل طلبات البائعين من قاعدة البيانات.
         </div>
@@ -34,5 +32,9 @@ export default async function PropertiesPage() {
     )
   }
 
-  return <PropertiesTable properties={properties} />
+  return (
+    <div className="mx-auto max-w-7xl">
+      <PropertiesTable properties={properties} />
+    </div>
+  )
 }

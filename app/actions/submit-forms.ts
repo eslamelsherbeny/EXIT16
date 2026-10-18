@@ -38,13 +38,17 @@ export type SubmitResult = { success: boolean; error?: string }
 
 const ACCOUNT_ERROR = 'رقم الموبايل أو البريد الإلكتروني مسجل بالفعل بحساب آخر. يرجى إدخال كلمة السر الصحيحة الخاصة بهذا الحساب أو استخدام رقم وإيميل جديد.'
 
+// دالة تأمين الجلسة الاحترافية
 async function setUserSession(userId: string) {
   const cookieStore = await cookies()
   cookieStore.delete('user_session')
   cookieStore.delete('session_hint')
 
-  cookieStore.set('user_session', userId, { path: '/', maxAge: 60 * 60 * 24 * 30, sameSite: 'lax', secure: true, httpOnly: true })
-  cookieStore.set('session_hint', '1', { path: '/', maxAge: 60 * 60 * 24 * 30, sameSite: 'lax', secure: true })
+  // في Vercel (Production) ستكون secure: true وتعمل بكفاءة تامة
+  const isProd = process.env.NODE_ENV === 'production'
+
+  cookieStore.set('user_session', userId, { path: '/', maxAge: 60 * 60 * 24 * 30, sameSite: 'lax', secure: isProd, httpOnly: true })
+  cookieStore.set('session_hint', userId, { path: '/', maxAge: 60 * 60 * 24 * 30, sameSite: 'lax', secure: isProd })
 }
 
 function hashPassword(password: string) {
@@ -109,16 +113,6 @@ async function establishUser(supabase: Awaited<ReturnType<typeof getSupabase>>, 
   return { userId: created.id, error: null }
 }
 
-async function requestAlreadyExists(supabase: Awaited<ReturnType<typeof getSupabase>>, table: 'sell_requests' | 'buy_requests', phone: string, email: string) {
-  if (!phone && !email) return false
-  let query = supabase.from(table).select('id').limit(1)
-  if (phone && email) query = query.or(`phone.eq.${phone},email.eq.${email}`)
-  else if (phone) query = query.eq('phone', phone)
-  else query = query.eq('email', email)
-  const { data } = await query.maybeSingle()
-  return Boolean(data)
-}
-
 export async function submitSellRequest(formData: FormData): Promise<SubmitResult> {
   try {
     const supabase = await getSupabase()
@@ -161,26 +155,19 @@ export async function submitSellRequest(formData: FormData): Promise<SubmitResul
     const phone = payload.phone
     const email = payload.email ?? ''
     
-    // التأكد من تمرير الباسورد بوضوح لإنشاء اليوزر وتسجيل الجلسة
     const account = await establishUser(supabase, { name: payload.name, phone, email, password })
     if (account.error || !account.userId) {
       return { success: false, error: account.error ?? 'تعذر إنشاء الحساب.' }
     }
     
-    // إرسال طلب البيع مرتبطاً بالـ user_id
     const { error } = await supabase.from('sell_requests').insert({ 
       ...payload, 
       user_id: account.userId 
     })
     
-    if (error) {
-      console.error("Supabase Sell Error:", error);
-      return { success: false, error: 'تعذر حفظ الطلب. حاول مرة أخرى.' }
-    }
-    
+    if (error) return { success: false, error: 'تعذر حفظ الطلب. حاول مرة أخرى.' }
     return { success: true }
   } catch (error) {
-    console.error("Sell Catch Error:", error);
     return { success: false, error: error instanceof Error ? error.message : 'تعذر إرسال الطلب' }
   }
 }
@@ -236,25 +223,14 @@ export async function submitBuyRequest(input: BuyRequestPayload | FormData): Pro
     const email = payload.email ?? ''
     
     const account = await establishUser(supabase, { name: payload.name, phone, email, password: payload.password })
-    if (account.error || !account.userId) {
-      return { success: false, error: account.error ?? 'تعذر إنشاء الحساب.' }
-    }
+    if (account.error || !account.userId) return { success: false, error: account.error ?? 'تعذر إنشاء الحساب.' }
     
     const { password, ...cleanPayload } = payload;
-
-    const { error } = await supabase.from('buy_requests').insert({ 
-      ...cleanPayload, 
-      user_id: account.userId 
-    })
+    const { error } = await supabase.from('buy_requests').insert({ ...cleanPayload, user_id: account.userId })
     
-    if (error) {
-      console.error("Supabase Buy Error:", error);
-      return { success: false, error: 'تعذر حفظ الطلب. حاول مرة أخرى.' }
-    }
-    
+    if (error) return { success: false, error: 'تعذر حفظ الطلب. حاول مرة أخرى.' }
     return { success: true }
   } catch (error) {
-    console.error("Submission Error:", error);
     return { success: false, error: error instanceof Error ? error.message : 'تعذر إرسال الطلب' }
   }
 }
@@ -312,12 +288,8 @@ export async function submitInvestorLead(formData: FormData): Promise<SubmitResu
       email: text(formData, 'email'),
       signature_name: text(formData, 'signature_name') || null,
     }
-    
     const { error } = await supabase.from('investor_leads').insert(payload)
-    if (error) {
-      return { success: false, error: 'تعذر إرسال بيانات المستثمرين. حاول مرة أخرى.' }
-    }
-    
+    if (error) return { success: false, error: 'تعذر إرسال بيانات المستثمرين.' }
     return { success: true }
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'تعذر إرسال الطلب' }

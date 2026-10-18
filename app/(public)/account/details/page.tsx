@@ -1,144 +1,102 @@
-'use client'
-
-import { useState, useEffect, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Button } from '@/components/ui/button'
-import { CountrySelector } from '@/components/country-selector'
+import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
+import { createServerClient } from '@supabase/ssr'
 import Link from 'next/link'
 
-type Profile = { id: string; name: string | null; phone: string | null; email: string | null }
+export const dynamic = 'force-dynamic'
 
-export default function AccountDetailsPage() {
-  const router = useRouter()
-  const [profile, setProfile] = useState<Profile | null>(null)
-  const [name, setName] = useState('')
-  const [phone, setPhone] = useState('')
-  const [email, setEmail] = useState('')
-  const [countryCode, setCountryCode] = useState('20')
-  const [loading, setLoading] = useState(true)
-  const [message, setMessage] = useState({ type: '', text: '' })
-  const [pending, startTransition] = useTransition()
+async function getSupabase() {
+  const cookieStore = await cookies()
+  return createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+    cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} },
+  })
+}
 
-  useEffect(() => {
-    async function fetchProfile() {
-      const supabase = createClient()
-      // محاكاة جلب بيانات المستخدم الحالي بناءً على الجلسة
-      const { data } = await supabase.from('users').select('*').limit(1).single()
-      if (data) {
-        setProfile(data)
-        setName(data.name || '')
-        setEmail(data.email || '')
-        // فصل كود الدولة عن الرقم إذا كان موجوداً
-        if (data.phone?.startsWith('+20')) {
-          setCountryCode('20')
-          setPhone(data.phone.substring(3))
-        } else {
-          setPhone(data.phone || '')
-        }
-      } else {
-        router.push('/')
-      }
-      setLoading(false)
-    }
-    fetchProfile()
-  }, [router])
+// دالة الحفظ تعمل على السيرفر مباشرة (Server Action)
+async function updateProfile(formData: FormData) {
+  'use server'
+  const cookieStore = await cookies()
+  const sessionId = cookieStore.get('user_session')?.value
+  if (!sessionId) return redirect('/login')
 
-  const handleSave = async (type: 'personal' | 'email') => {
-    setMessage({ type: '', text: '' })
-    startTransition(async () => {
-      const supabase = createClient()
-      let updates = {}
-      
-      if (type === 'personal') {
-        if (!name.trim() || !phone.trim()) {
-          setMessage({ type: 'error', text: 'الاسم ورقم الموبايل مطلوبين' })
-          return
-        }
-        const fullPhone = `+${countryCode}${phone.replace(/^0+/, '')}`
-        updates = { name, phone: fullPhone }
-      } else {
-        if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-          setMessage({ type: 'error', text: 'يرجى إدخال إيميل صحيح' })
-          return
-        }
-        updates = { email }
-      }
+  const name = formData.get('name') as string
+  const phone = formData.get('phone') as string
+  const email = formData.get('email') as string
 
-      const { error } = await supabase.from('users').update(updates).eq('id', profile?.id)
-      
-      if (error) {
-        setMessage({ type: 'error', text: 'حدث خطأ أثناء الحفظ. ربما هذا الرقم أو الإيميل مستخدم.' })
-      } else {
-        setMessage({ type: 'success', text: 'تم حفظ التعديلات بنجاح!' })
-      }
-    })
+  const supabase = await getSupabase()
+  await supabase.from('users').update({ name, phone, email }).eq('id', sessionId)
+  
+  redirect('/account/details?success=1')
+}
+
+export default async function AccountDetailsPage({ searchParams }: { searchParams: { success?: string } }) {
+  const cookieStore = await cookies()
+  const sessionId = cookieStore.get('user_session')?.value
+
+  if (!sessionId) {
+    redirect('/login')
   }
 
-  if (loading) return <div className="flex h-screen items-center justify-center bg-[#f7f8fa]"><div className="text-[#0c513f] font-bold">جاري التحميل...</div></div>
+  const supabase = await getSupabase()
+  const { data: profile } = await supabase.from('users').select('*').eq('id', sessionId).maybeSingle()
+
+  if (!profile) {
+    redirect('/login')
+  }
+
+  const isSuccess = searchParams.success === '1'
 
   return (
-    <main dir="rtl" className="min-h-screen bg-[#f7f8fa] text-[#142238]">
-      <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
-        <header className="mb-8 text-center">
-          <h1 className="text-3xl font-black tracking-tight">بياناتي</h1>
-          <p className="mt-2 text-sm text-slate-500">غيّر اسمك أو رقمك أو إيميلك في أي وقت.</p>
+    <main dir="rtl" className="min-h-screen bg-[#f9fafc] text-[#0a1128] pb-24">
+      <div className="mx-auto max-w-[600px] px-4 py-10 sm:px-6 md:py-16">
+        
+        <header className="mb-10 text-center">
+          <h1 className="text-[28px] font-black tracking-tight text-[#0a1128]">بياناتي</h1>
+          <p className="mt-2 text-[13px] text-slate-500">غيّر اسمك أو رقمك أو إيميلك في أي وقت.</p>
         </header>
 
-        {message.text && (
-          <div className={`mb-6 rounded-xl p-4 text-center text-sm font-bold ${message.type === 'error' ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'}`}>
-            {message.text}
+        {isSuccess && (
+          <div className="mb-8 rounded-[12px] bg-[#eaf8f2] p-4 text-center text-[13px] font-bold text-[#105C50]">
+            تم حفظ التعديلات بنجاح!
           </div>
         )}
 
-        <div className="flex flex-col gap-6">
-          {/* كارت الاسم والموبايل */}
-          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-black">الاسم ورقم الموبايل</h2>
-            <p className="mt-1 text-xs text-slate-500">الرقم ده اللي بنكلمك عليه وبنبعتلك عليه واتساب — خليه صح.</p>
+        <form action={updateProfile} className="flex flex-col gap-6">
+          <section className="rounded-[20px] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+            <h2 className="text-[16px] font-black text-[#0a1128]">الاسم ورقم الموبايل</h2>
+            <p className="mt-1 text-[11px] text-slate-500">الرقم ده اللي بنكلمك عليه وبنبعتلك عليه واتساب — خليه صح.</p>
             
-            <div className="mt-6 flex flex-col gap-4">
+            <div className="mt-6 flex flex-col gap-5">
               <div>
-                <Label className="text-right block mb-2 font-bold">الاسم</Label>
-                <Input dir="rtl" value={name} onChange={(e) => setName(e.target.value)} className="h-12 rounded-xl text-right" />
+                <label htmlFor="name" className="mb-2 block text-[13px] font-bold text-[#0a1128]">الاسم</label>
+                <input id="name" name="name" type="text" dir="rtl" defaultValue={profile.name || ''} required className="h-12 w-full rounded-[10px] border border-slate-200 bg-[#f9fafc] px-4 text-[13px] font-semibold text-[#0a1128] focus:border-[#105C50] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#105C50] transition" />
               </div>
               <div>
-                <Label className="text-right block mb-2 font-bold">رقم الموبايل</Label>
-                <div dir="ltr" className="flex items-center gap-2">
-                  <CountrySelector value={countryCode} onChange={setCountryCode} />
-                  <Input dir="ltr" value={phone} onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, ''))} className="h-12 flex-1 rounded-xl px-3 text-left" />
-                </div>
+                <label htmlFor="phone" className="mb-2 block text-[13px] font-bold text-[#0a1128]">رقم الموبايل</label>
+                <input id="phone" name="phone" type="tel" dir="ltr" defaultValue={profile.phone || ''} required className="h-12 w-full rounded-[10px] border border-slate-200 bg-[#f9fafc] px-4 text-left text-[13px] font-semibold text-[#0a1128] focus:border-[#105C50] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#105C50] transition" />
               </div>
-              <Button onClick={() => handleSave('personal')} disabled={pending} className="mt-2 h-12 w-32 self-end rounded-xl bg-[#142238] font-bold text-white hover:bg-[#22344f]">
-                {pending ? 'جاري الحفظ...' : 'احفظ'}
-              </Button>
             </div>
           </section>
 
-          {/* كارت الإيميل */}
-          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-black">الإيميل</h2>
-            <p className="mt-1 text-xs text-slate-500">ده الإيميل اللي بتدخل بيه على حسابك.</p>
+          <section className="rounded-[20px] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+            <h2 className="text-[16px] font-black text-[#0a1128]">الإيميل</h2>
+            <p className="mt-1 text-[11px] text-slate-500">ده الإيميل اللي بتدخل بيه على حسابك.</p>
             
-            <div className="mt-6 flex flex-col gap-4">
-              <div>
-                <Label className="text-right block mb-2 font-bold">الإيميل</Label>
-                <Input dir="ltr" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="h-12 rounded-xl text-left" />
-              </div>
-              <Button onClick={() => handleSave('email')} variant="outline" disabled={pending} className="mt-2 h-12 w-32 self-end rounded-xl border-slate-300 font-bold">
-                {pending ? 'جاري الحفظ...' : 'غيّر الإيميل'}
-              </Button>
+            <div className="mt-6">
+              <label htmlFor="email" className="mb-2 block text-[13px] font-bold text-[#0a1128]">الإيميل</label>
+              <input id="email" name="email" type="email" dir="ltr" defaultValue={profile.email || ''} required className="h-12 w-full rounded-[10px] border border-slate-200 bg-[#f9fafc] px-4 text-left text-[13px] font-semibold text-[#0a1128] focus:border-[#105C50] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#105C50] transition" />
             </div>
           </section>
 
-          <div className="mt-4 text-center">
-            <Link href="/account" className="text-sm font-bold text-teal-700 hover:underline">
-              رجوع
+          <div className="mt-6 flex flex-col items-center gap-5">
+            <button type="submit" className="flex h-12 w-full max-w-[240px] items-center justify-center rounded-[10px] bg-[#101A2B] text-[14px] font-bold text-white shadow-md transition hover:bg-[#16223f]">
+              احفظ التعديلات
+            </button>
+            <Link href="/account" className="text-[12px] font-bold text-[#105C50] transition hover:text-[#0c483f] hover:underline">
+              رجوع للحساب
             </Link>
           </div>
-        </div>
+        </form>
       </div>
     </main>
   )

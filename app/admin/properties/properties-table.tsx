@@ -10,7 +10,6 @@ import {
   Trash2,
   X,
 } from "lucide-react"
-import { AdminMobileNav } from "../layout"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -135,9 +134,7 @@ export default function PropertiesTable({
   })
 
   return (
-    <div className="mx-auto max-w-7xl">
-      <AdminMobileNav />
-
+    <div>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs font-extrabold text-[#105C50]">إدارة المخزون</p>

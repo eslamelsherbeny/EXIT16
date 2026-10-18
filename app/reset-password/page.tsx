@@ -15,13 +15,13 @@ export default function ResetPasswordPage() {
     e.preventDefault()
     setError('')
     const formData = new FormData(e.currentTarget)
-    const email = formData.get('email') as string
+    const rawEmail = (formData.get('email') as string) || ''
+    const cleanEmail = rawEmail.trim().toLowerCase()
 
     startTransition(async () => {
       const result = await forgotPasswordAction(formData)
       if (result.success) {
-        // الانتقال تلقائياً لصفحة إدخال الكود مع تمرير الإيميل في الـ URL
-        router.push(`/reset-password/verify?email=${encodeURIComponent(email)}`)
+        router.push(`/reset-password/verify?email=${encodeURIComponent(cleanEmail)}`)
       } else {
         setError(result.error || 'حدث خطأ ما، يرجى المحاولة لاحقاً.')
       }
@@ -33,7 +33,9 @@ export default function ResetPasswordPage() {
       <AuthCard>
         <div className="text-center">
           <h1 className="text-3xl font-bold tracking-tight">استرجاع كلمة السر</h1>
-          <p className="mt-3 text-sm leading-6 text-muted-foreground">اكتب بريدك الإلكتروني وهنبعتلك كود الاسترجاع</p>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            اكتب بريدك الإلكتروني وهنبعتلك كود الاسترجاع
+          </p>
         </div>
 
         {error && (
@@ -44,20 +46,22 @@ export default function ResetPasswordPage() {
 
         <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-5">
           <div>
-            <label htmlFor="email" className="mb-2 block text-xs font-bold text-foreground">بريدك الإلكتروني</label>
-            <input 
-              id="email" 
-              name="email" 
-              type="email" 
+            <label htmlFor="email" className="mb-2 block text-xs font-bold text-foreground">
+              بريدك الإلكتروني
+            </label>
+            <input
+              id="email"
+              name="email"
+              type="email"
               dir="ltr"
-              required 
+              required
               className="h-12 w-full rounded-xl border border-input bg-background px-4 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary"
               placeholder="name@example.com"
             />
           </div>
 
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             disabled={pending}
             className="h-12 rounded-lg bg-primary px-5 text-sm font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
           >
@@ -66,7 +70,9 @@ export default function ResetPasswordPage() {
         </form>
 
         <p className="mt-7 text-center text-sm text-muted-foreground">
-          <Link href="/login" className="font-bold text-primary hover:underline">رجوع لتسجيل الدخول</Link>
+          <Link href="/login" className="font-bold text-primary hover:underline">
+            رجوع لتسجيل الدخول
+          </Link>
         </p>
       </AuthCard>
     </AuthLayout>

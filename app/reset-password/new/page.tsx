@@ -1,19 +1,22 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { Suspense, useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { Eye, EyeOff } from 'lucide-react'
 import { AuthCard, AuthLayout } from '@/components/auth-layout'
 import { resetPasswordAction } from '@/app/actions/auth-actions'
 
-export default function NewPasswordPage() {
+function NewPasswordContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const email = searchParams.get('email') || ''
-  const otp = searchParams.get('otp') || ''
+  const email = (searchParams.get('email') || '').trim().toLowerCase()
+  const otp = (searchParams.get('otp') || '').trim()
 
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [pending, startTransition] = useTransition()
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -61,35 +64,63 @@ export default function NewPasswordPage() {
 
             <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-5">
               <div>
-                <label htmlFor="password" className="mb-2 block text-xs font-bold text-foreground">كلمة السر الجديدة</label>
-                <input 
-                  id="password" 
-                  name="password" 
-                  type="password" 
-                  dir="ltr"
-                  required 
-                  minLength={8}
-                  className="h-12 w-full rounded-xl border border-input bg-background px-4 text-left text-sm font-medium tracking-widest focus:outline-none focus:ring-2 focus:ring-primary"
-                  placeholder="8 أحرف على الأقل"
-                />
+                <label htmlFor="password" className="mb-2 block text-xs font-bold text-foreground">
+                  كلمة السر الجديدة
+                </label>
+                <div className="relative">
+                  <input
+                    id="password"
+                    name="password"
+                    type={showPassword ? 'text' : 'password'}
+                    dir="ltr"
+                    required
+                    minLength={8}
+                    className={`h-12 w-full rounded-xl border border-input bg-background pl-4 pr-11 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary ${
+                      showPassword ? 'tracking-normal' : 'tracking-widest'
+                    }`}
+                    placeholder="8 أحرف على الأقل"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground transition hover:text-foreground"
+                    aria-label={showPassword ? 'إخفاء كلمة السر' : 'إظهار كلمة السر'}
+                  >
+                    {showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
+                  </button>
+                </div>
               </div>
 
               <div>
-                <label htmlFor="confirmPassword" className="mb-2 block text-xs font-bold text-foreground">تأكيد كلمة السر</label>
-                <input 
-                  id="confirmPassword" 
-                  name="confirmPassword" 
-                  type="password" 
-                  dir="ltr"
-                  required 
-                  minLength={8}
-                  className="h-12 w-full rounded-xl border border-input bg-background px-4 text-left text-sm font-medium tracking-widest focus:outline-none focus:ring-2 focus:ring-primary"
-                  placeholder="أعد إدخال كلمة السر"
-                />
+                <label htmlFor="confirmPassword" className="mb-2 block text-xs font-bold text-foreground">
+                  تأكيد كلمة السر
+                </label>
+                <div className="relative">
+                  <input
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    dir="ltr"
+                    required
+                    minLength={8}
+                    className={`h-12 w-full rounded-xl border border-input bg-background pl-4 pr-11 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary ${
+                      showConfirmPassword ? 'tracking-normal' : 'tracking-widest'
+                    }`}
+                    placeholder="أعد إدخال كلمة السر"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword((prev) => !prev)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground transition hover:text-foreground"
+                    aria-label={showConfirmPassword ? 'إخفاء كلمة السر' : 'إظهار كلمة السر'}
+                  >
+                    {showConfirmPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
+                  </button>
+                </div>
               </div>
 
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 disabled={pending}
                 className="h-12 rounded-lg bg-primary px-5 text-sm font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
               >
@@ -100,9 +131,19 @@ export default function NewPasswordPage() {
         )}
 
         <p className="mt-7 text-center text-sm text-muted-foreground">
-          <Link href="/login" className="font-bold text-primary hover:underline">رجوع لتسجيل الدخول</Link>
+          <Link href="/login" className="font-bold text-primary hover:underline">
+            رجوع لتسجيل الدخول
+          </Link>
         </p>
       </AuthCard>
     </AuthLayout>
+  )
+}
+
+export default function NewPasswordPage() {
+  return (
+    <Suspense fallback={null}>
+      <NewPasswordContent />
+    </Suspense>
   )
 }

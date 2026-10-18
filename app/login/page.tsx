@@ -1,14 +1,20 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { Suspense, useState, useTransition } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Eye, EyeOff } from 'lucide-react'
 import { AuthCard, AuthLayout } from '@/components/auth-layout'
 import { loginAction } from '@/app/actions/auth-actions'
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const isVerified = searchParams.get('verified') === '1'
+  const defaultEmail = searchParams.get('email') || ''
+
   const [error, setError] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [pending, startTransition] = useTransition()
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -20,6 +26,7 @@ export default function LoginPage() {
       const result = await loginAction(formData)
       if (result.success) {
         router.push('/account')
+        router.refresh()
       } else {
         setError(result.error || 'حدث خطأ أثناء تسجيل الدخول.')
       }
@@ -34,6 +41,12 @@ export default function LoginPage() {
           <p className="mt-3 text-sm text-muted-foreground">أهلاً بيك تاني في دارك</p>
         </div>
 
+        {isVerified && !error && (
+          <div className="mt-4 rounded-xl bg-emerald-50 p-3 text-center text-xs font-bold text-emerald-700">
+            تم تأكيد بريدك الإلكتروني بنجاح! يمكنك تسجيل الدخول الآن.
+          </div>
+        )}
+
         {error && (
           <div className="mt-4 rounded-xl bg-red-50 p-3 text-center text-xs font-bold text-red-600">
             {error}
@@ -42,13 +55,16 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
           <div>
-            <label htmlFor="emailOrPhone" className="mb-2 block text-xs font-bold text-foreground">البريد الإلكتروني أو رقم الموبايل</label>
-            <input 
-              id="emailOrPhone" 
-              name="emailOrPhone" 
-              type="text" 
+            <label htmlFor="emailOrPhone" className="mb-2 block text-xs font-bold text-foreground">
+              البريد الإلكتروني أو رقم الموبايل
+            </label>
+            <input
+              id="emailOrPhone"
+              name="emailOrPhone"
+              type="text"
               dir="ltr"
-              required 
+              defaultValue={defaultEmail}
+              required
               className="h-12 w-full rounded-xl border border-input bg-background px-4 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary"
               placeholder="name@example.com أو 01xxxxxxxxx"
             />
@@ -56,22 +72,38 @@ export default function LoginPage() {
 
           <div>
             <div className="mb-2 flex items-center justify-between">
-              <label htmlFor="password" className="text-xs font-bold text-foreground">كلمة السر</label>
-              <Link href="/reset-password" className="text-xs font-bold text-primary hover:underline">نسيت كلمة السر؟</Link>
+              <label htmlFor="password" className="text-xs font-bold text-foreground">
+                كلمة السر
+              </label>
+              <Link href="/reset-password" className="text-xs font-bold text-primary hover:underline">
+                نسيت كلمة السر؟
+              </Link>
             </div>
-            <input 
-              id="password" 
-              name="password" 
-              type="password" 
-              dir="ltr"
-              required 
-              className="h-12 w-full rounded-xl border border-input bg-background px-4 text-left text-sm font-medium tracking-widest focus:outline-none focus:ring-2 focus:ring-primary"
-              placeholder="••••••••"
-            />
+            <div className="relative">
+              <input
+                id="password"
+                name="password"
+                type={showPassword ? 'text' : 'password'}
+                dir="ltr"
+                required
+                className={`h-12 w-full rounded-xl border border-input bg-background pl-4 pr-11 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary ${
+                  showPassword ? 'tracking-normal' : 'tracking-widest'
+                }`}
+                placeholder="••••••••"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground transition hover:text-foreground"
+                aria-label={showPassword ? 'إخفاء كلمة السر' : 'إظهار كلمة السر'}
+              >
+                {showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
+              </button>
+            </div>
           </div>
 
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             disabled={pending}
             className="mt-2 h-12 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
           >
@@ -80,9 +112,20 @@ export default function LoginPage() {
         </form>
 
         <p className="mt-7 text-center text-sm text-muted-foreground">
-          معندكش حساب؟ <Link href="/register" className="font-bold text-primary hover:underline">سجل دلوقتي</Link>
+          معندكش حساب؟{' '}
+          <Link href="/register" className="font-bold text-primary hover:underline">
+            سجل دلوقتي
+          </Link>
         </p>
       </AuthCard>
     </AuthLayout>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginContent />
+    </Suspense>
   )
 }

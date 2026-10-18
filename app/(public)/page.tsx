@@ -86,35 +86,41 @@ export default function HomePage() {
     <div dir="rtl" className="min-h-screen overflow-x-hidden bg-[#f5f6f8] text-[#0a1128]">
       
       {/* ==================== 1. قسم الهيرو (Hero Section) ==================== */}
-      <section className="relative flex items-center overflow-hidden bg-[#0a1122] text-white py-12 lg:py-16">
+      <section className="relative flex min-h-[720px] items-center overflow-hidden bg-[#0a1122] text-white lg:min-h-[780px]">
         {/* التوهج الخلفي */}
         <div className="pointer-events-none absolute -left-32 -bottom-40 size-[28rem] rounded-full bg-teal-500/10 blur-[120px] sm:size-[38rem]" />
         <div className="pointer-events-none absolute right-[15%] -top-32 size-[24rem] rounded-full bg-blue-500/10 blur-[120px] sm:size-[32rem]" />
 
-        <div className="relative mx-auto grid w-full max-w-[1140px] grid-cols-1 items-center gap-8 px-4 py-8 sm:px-6 lg:grid-cols-[1.15fr_0.85fr] lg:gap-12 lg:px-8 lg:py-12">
+        <div className="relative mx-auto grid w-full max-w-[1280px] grid-cols-1 items-center gap-12 px-4 py-12 sm:px-6 md:py-16 lg:grid-cols-[1.15fr_0.85fr] lg:gap-16 lg:px-10 lg:py-20">
           
           {/* العمود الأيمن: النصوص والأزرار */}
           <div className="text-right">
-            <span className="mb-5 inline-block rounded-full border border-white/10 bg-[#131d31] px-4 py-1.5 text-[11px] font-medium text-[#2ee59d] sm:text-xs">
-              منصة التنازل عن وحدات التقسيط – بدون أوفر
+            {/* البادج العلوي */}
+            <span className="mb-6 inline-block rounded-full border border-white/10 bg-[#132230] px-4 py-1.5 text-[11px] font-semibold text-[#2dd4a8] sm:text-xs">
+              منصة التنازل عن وحدات التقسيط — بدون أوفر
             </span>
 
-            <h1 className="text-3xl font-extrabold leading-[1.35] tracking-tight text-white sm:text-4xl md:text-5xl lg:text-[52px] lg:leading-[1.28]">
-              {d.hero?.titleBefore || 'البايع يسترجع كل اللي دفعه كاش،'}{' '}
+            {/* العنوان الرئيسي */}
+            <h1 className="text-[30px] font-black leading-[1.32] tracking-tight text-white sm:text-[40px] md:text-[44px] lg:text-[48px] lg:leading-[1.28]">
+              البايع يسترجع كل اللي دفعه
+              <br className="hidden sm:inline" />{' '}
+              كاش،{' '}
               <span className="text-[#19b394]">
-                {d.hero?.titleAccent || 'والمشتري ياخد سعر التعاقد القديم'}
+                والمشتري ياخد سعر
+                <br className="hidden sm:inline" /> التعاقد القديم
               </span>
             </h1>
 
-            <p className="mt-5 max-w-[620px] text-sm leading-[1.95] text-gray-300/90 sm:text-base lg:text-[17px]">
-              {d.hero?.description ||
-                'لو مش قادر تكمّل أقساطك: بيع وحدتك بدون أوفر واسترجع فلوسك، بدل ما تخاطر بخسارة ممكن توصل لـ 10%-15% من سعر الوحدة في الإلغاء حسب عقدك. ولو بتدور على وحدة: اشتري بسعر تعاقد قديم أرخص من سعر السوق وكمّل الأقساط. كل الأرقام متحققة بالمستندات — وإحنا معاكم بنسهّل إجراءات التنازل خطوة بخطوة لحد الإتمام.'}
+            {/* الوصف */}
+            <p className="mt-5 max-w-[565px] text-[13.5px] leading-[1.95] text-[#9ba6b8] sm:text-[15px] lg:text-[15.5px]">
+              لو مش قادر تكمّل أقساطك: بيع وحدتك بدون أوفر واسترجع فلوسك، بدل ما تخاطر بخسارة ممكن توصل لـ 10%-15% من سعر الوحدة في الإلغاء حسب عقدك. ولو بتدور على وحدة: اشتري بسعر تعاقد قديم أرخص من سعر السوق وكمّل الأقساط. كل الأرقام متحققة بالمستندات — وإحنا معاكم بنسهّل إجراءات التنازل خطوة بخطوة لحد الإتمام.
             </p>
 
-            <div className="mt-7 flex flex-wrap items-center justify-start gap-3 sm:mt-8 sm:gap-4">
+            {/* الأزرار */}
+            <div className="mt-7 flex flex-wrap items-center justify-start gap-3.5 sm:mt-8">
               <Button
                 size="lg"
-                className="h-12 flex-1 rounded-[10px] bg-[#007a5a] px-7 text-sm font-bold text-white transition-all hover:bg-[#006248] sm:flex-none sm:px-8 sm:text-base"
+                className="h-12 flex-1 rounded-[10px] bg-[#0d6e52] px-7 text-sm font-bold text-white shadow-sm transition-all hover:bg-[#0a5942] sm:flex-none sm:px-8 sm:text-[15px]"
                 render={<Link href="/sell" />}
               >
                 بيع وحدتك
@@ -122,19 +128,19 @@ export default function HomePage() {
               <Button
                 size="lg"
                 variant="outline"
-                className="h-12 flex-1 rounded-[10px] border border-white/20 !bg-transparent px-7 text-sm font-bold text-white transition-all hover:bg-white/5 hover:text-white sm:flex-none sm:px-8 sm:text-base"
+                className="h-12 flex-1 rounded-[10px] border border-white/15 !bg-[#111a2b]/60 px-7 text-sm font-bold text-white transition-all hover:!bg-white/10 hover:text-white sm:flex-none sm:px-8 sm:text-[15px]"
                 render={<Link href="/buy" />}
               >
                 شوف فرص الشراء
               </Button>
             </div>
 
-            <div className="mt-6 flex items-start justify-start gap-2 text-[11px] leading-relaxed text-gray-400 sm:items-center sm:text-xs">
+            {/* سطر الثقة السفلي */}
+            <div className="mt-6 flex items-start justify-start gap-2 text-[11px] leading-relaxed text-[#7e8b9f] sm:items-center sm:text-xs">
               <ShieldCheck className="mt-0.5 size-4 shrink-0 text-[#19b394] sm:mt-0" />
               <p>للبايع: مجانًا تمامًا — مفيش أي عمولة عليك. للمشتري: أرقام موثقة قبل ما تدفع جنيه</p>
             </div>
           </div>
-
           {/* العمود الأيسر: بطاقات المقارنة */}
           <div className="relative mx-auto flex w-full max-w-[440px] flex-col items-center gap-4">
             {/* البطاقة العلوية (الداكنة) */}
@@ -671,7 +677,7 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* العمود الأيسر: مجسم الموبايل المائل */}
+           
             {/* العمود الأيسر: مجسم الموبايل المائل (يختفي على الموبايل ويظهر على التابلت والكمبيوتر) */}
 <div className="hidden md:flex justify-center">
               <div className="w-[270px] -rotate-3 rounded-[40px] border-[6px] border-[#1c283c] bg-[#0b1323] p-4 shadow-2xl transition-transform duration-300 hover:rotate-0 sm:w-[300px]">

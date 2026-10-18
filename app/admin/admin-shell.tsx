@@ -168,7 +168,7 @@ export default function AdminShell({
         <div className="p-4">
           {/* رابط حسابي (توجيه للبروفايل) */}
           <Link
-            href="/admin/settings?tab=profile"
+            href="/admin/profile"
             className="mb-2 flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs font-bold text-white/85 transition hover:bg-white/10 hover:text-white"
           >
             <span>حسابي</span>
@@ -269,7 +269,7 @@ export default function AdminShell({
             <div className="space-y-2 border-t border-white/10 p-4">
               {/* رابط حسابي (توجيه للبروفايل) */}
               <Link
-                href="/admin/settings?tab=profile"
+                href="/admin/profile"
                 onClick={() => setDrawerOpen(false)}
                 className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-xs font-bold text-white/85 transition hover:bg-white/10"
               >
@@ -316,7 +316,7 @@ export default function AdminShell({
           {/* اليسار: زر حسابي (بدون أيقونة) + جرس الإشعارات */}
           <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
             <Link
-              href="/admin/settings?tab=profile"
+              href="/admin/profile"
               className="inline-flex h-9 items-center justify-center rounded-xl border border-gray-200 bg-gray-50 px-4 text-xs font-bold text-[#0a1122] transition hover:border-[#105C50] hover:bg-white sm:h-10 sm:px-5"
             >
               <span>حسابي</span>

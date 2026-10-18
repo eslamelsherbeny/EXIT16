@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useEffect, useState, useTransition } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Eye, EyeOff } from 'lucide-react'
@@ -16,9 +16,8 @@ function LoginContent() {
   const [error, setError] = useState('')
   const [verifiedSuccess, setVerifiedSuccess] = useState(isVerifiedParam)
   const [showPassword, setShowPassword] = useState(false)
-  const [pending, startTransition] = useTransition()
+  const [pending, setPending] = useState(false)
 
-  // توثيق الحساب في قاعدة البيانات تلقائياً عند قدوم المستخدم من رابط الإيميل
   useEffect(() => {
     if (isVerifiedParam && defaultEmail) {
       verifyAccountAction(defaultEmail, verifyToken).then((res) => {
@@ -27,19 +26,27 @@ function LoginContent() {
     }
   }, [isVerifiedParam, defaultEmail, verifyToken])
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError('')
-    const formData = new FormData(e.currentTarget)
+    setPending(true)
 
-    startTransition(async () => {
+    try {
+      const formData = new FormData(e.currentTarget)
       const result = await loginAction(formData)
+
       if (result.success) {
-        window.location.href = '/account'
+        // تحويل إجباري مباشر مع تحديث كامل لحالة الموقع والهيدر
+        window.location.replace((result as any).redirectTo || '/account')
+        return
       } else {
         setError(result.error || 'بيانات الدخول غير صحيحة، يرجى المحاولة مرة أخرى.')
+        setPending(false)
       }
-    })
+    } catch {
+      setError('حدث خطأ أثناء الاتصال، يرجى المحاولة مرة أخرى.')
+      setPending(false)
+    }
   }
 
   return (

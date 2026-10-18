@@ -180,7 +180,7 @@ export type AuthResult = { success: boolean; error?: string }
 // 3. تسجيل الدخول الذكي (يفحص كل الصفوف ويوضح السبب بدقة)
 // ==========================================
 
-export async function loginAction(formData: FormData): Promise<AuthResult> {
+export async function loginAction(formData: FormData): Promise<AuthResult & { redirectTo?: string }> {
   const rawInput = (formData.get('emailOrPhone') as string) || ''
   const password = (formData.get('password') as string) || ''
 
@@ -218,7 +218,6 @@ export async function loginAction(formData: FormData): Promise<AuthResult> {
     }
   }
 
-  // البحث عن الصف المطابق لكلمة المرور (حتى لو كان هناك أكثر من صف قديم بنفس الإيميل)
   const matchedUser = candidates.find((u) => verifyPassword(password, u.password_hash))
 
   if (!matchedUser) {
@@ -239,21 +238,22 @@ export async function loginAction(formData: FormData): Promise<AuthResult> {
   await setUserSession(matchedUser.id)
 
   if (matchedUser.email) {
-    await sendEmail({
+    // إرسال الإيميل بدون تعطيل عملية الدخول لو تأخر SMTP
+    sendEmail({
       to: matchedUser.email.trim(),
       subject: 'تنبيه أمني: تم تسجيل الدخول لحسابك في دارك',
       html: `<div dir="rtl" style="font-family: Arial, sans-serif; text-align: right; line-height: 1.6;">
               <h2 style="color: #101A2B;">أهلاً بك مجدداً يا ${matchedUser.name || 'مستخدمنا العزيز'} 👋</h2>
               <p>تم تسجيل الدخول إلى حسابك في <strong>منصة دارك</strong> بنجاح.</p>
              </div>`,
-    })
+    }).catch(() => {})
   }
 
-  revalidatePath('/', 'layout')
-  revalidatePath('/account', 'layout')
-  return { success: true }
+  return {
+    success: true,
+    redirectTo: '/account',
+  }
 }
-
 // ==========================================
 // 4. إنشاء حساب جديد + إرسال رابط التوثيق المباشر
 // ==========================================

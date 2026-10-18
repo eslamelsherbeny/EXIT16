@@ -11,7 +11,6 @@ import {
   Trash2,
   UserPlus,
 } from "lucide-react"
-import { AdminMobileNav } from "../layout"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -115,9 +114,7 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
   })
 
   return (
-    <div className="mx-auto max-w-7xl">
-      <AdminMobileNav />
-
+    <div>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs font-extrabold text-[#105C50]">
@@ -360,7 +357,6 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
         </CardContent>
       </Card>
 
-      {/* نافذة إضافة أدمن أو مستخدم جديد */}
       <Dialog open={openAddModal} onOpenChange={setOpenAddModal}>
         <DialogContent dir="rtl" className="max-w-md">
           <DialogHeader>

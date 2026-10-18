@@ -11,7 +11,6 @@ import {
   Users,
   WalletCards,
 } from "lucide-react"
-import { AdminMobileNav } from "./layout"
 import { Badge } from "@/components/ui/badge"
 import {
   Card,
@@ -141,8 +140,6 @@ export default async function AdminPage() {
 
   return (
     <div className="mx-auto max-w-7xl">
-      <AdminMobileNav />
-
       <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs font-extrabold text-[#105C50]">نظرة عامة حية</p>

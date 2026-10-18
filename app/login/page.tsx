@@ -37,7 +37,7 @@ function LoginContent() {
 
       if (result.success) {
         // تحويل إجباري مباشر مع تحديث كامل لحالة الموقع والهيدر
-        window.location.replace((result as any).redirectTo || '/account')
+        window.location.replace((result as any).redirectTo || '/')
         return
       } else {
         setError(result.error || 'بيانات الدخول غير صحيحة، يرجى المحاولة مرة أخرى.')

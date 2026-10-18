@@ -69,7 +69,7 @@ export default function RegisterPage() {
     startTransition(async () => {
       const result = await registerAction(formData)
       if (result.success) {
-        window.location.href = '/account'
+        window.location.href = '/'
       } else {
         setError(result.error || 'حدث خطأ أثناء إنشاء الحساب.')
       }

@@ -251,7 +251,7 @@ export async function loginAction(formData: FormData): Promise<AuthResult & { re
 
   return {
     success: true,
-    redirectTo: '/account',
+    redirectTo: '/',
   }
 }
 // ==========================================

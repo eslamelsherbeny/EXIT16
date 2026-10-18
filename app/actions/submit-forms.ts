@@ -3,6 +3,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
+import { revalidatePath } from 'next/cache' // ضروري لتحديث الكاش
 
 async function getSupabase() {
   const cookieStore = await cookies()
@@ -38,17 +39,15 @@ export type SubmitResult = { success: boolean; error?: string }
 
 const ACCOUNT_ERROR = 'رقم الموبايل أو البريد الإلكتروني مسجل بالفعل بحساب آخر. يرجى إدخال كلمة السر الصحيحة الخاصة بهذا الحساب أو استخدام رقم وإيميل جديد.'
 
-// دالة تأمين الجلسة الاحترافية
 async function setUserSession(userId: string) {
   const cookieStore = await cookies()
   cookieStore.delete('user_session')
   cookieStore.delete('session_hint')
 
-  // في Vercel (Production) ستكون secure: true وتعمل بكفاءة تامة
   const isProd = process.env.NODE_ENV === 'production'
 
   cookieStore.set('user_session', userId, { path: '/', maxAge: 60 * 60 * 24 * 30, sameSite: 'lax', secure: isProd, httpOnly: true })
-  cookieStore.set('session_hint', userId, { path: '/', maxAge: 60 * 60 * 24 * 30, sameSite: 'lax', secure: isProd })
+  cookieStore.set('session_hint', '1', { path: '/', maxAge: 60 * 60 * 24 * 30, sameSite: 'lax', secure: isProd })
 }
 
 function hashPassword(password: string) {
@@ -165,7 +164,13 @@ export async function submitSellRequest(formData: FormData): Promise<SubmitResul
       user_id: account.userId 
     })
     
-    if (error) return { success: false, error: 'تعذر حفظ الطلب. حاول مرة أخرى.' }
+    if (error) {
+      return { success: false, error: 'تعذر حفظ الطلب. حاول مرة أخرى.' }
+    }
+    
+    // إجبار Next.js على تفريغ كاش صفحة الحساب
+    revalidatePath('/account', 'page')
+    
     return { success: true }
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'تعذر إرسال الطلب' }
@@ -223,12 +228,23 @@ export async function submitBuyRequest(input: BuyRequestPayload | FormData): Pro
     const email = payload.email ?? ''
     
     const account = await establishUser(supabase, { name: payload.name, phone, email, password: payload.password })
-    if (account.error || !account.userId) return { success: false, error: account.error ?? 'تعذر إنشاء الحساب.' }
+    if (account.error || !account.userId) {
+      return { success: false, error: account.error ?? 'تعذر إنشاء الحساب.' }
+    }
     
     const { password, ...cleanPayload } = payload;
-    const { error } = await supabase.from('buy_requests').insert({ ...cleanPayload, user_id: account.userId })
+
+    const { error } = await supabase.from('buy_requests').insert({ 
+      ...cleanPayload, 
+      user_id: account.userId 
+    })
     
-    if (error) return { success: false, error: 'تعذر حفظ الطلب. حاول مرة أخرى.' }
+    if (error) {
+      return { success: false, error: 'تعذر حفظ الطلب. حاول مرة أخرى.' }
+    }
+    
+    revalidatePath('/account', 'page')
+
     return { success: true }
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'تعذر إرسال الطلب' }
@@ -266,6 +282,9 @@ export async function saveSellProgress(formData: FormData): Promise<SubmitResult
     if (!existing) return { success: false, error: 'لم يتم العثور على طلب البيع الحالي.' }
     
     const { error } = await supabase.from('sell_requests').update(payload).eq('id', existing.id).eq('user_id', sessionId)
+    
+    revalidatePath('/account', 'page')
+    
     return error ? { success: false, error: 'تعذر حفظ التقدم.' } : { success: true }
   } catch { 
     return { success: false, error: 'تعذر حفظ التقدم.' } 
@@ -288,8 +307,12 @@ export async function submitInvestorLead(formData: FormData): Promise<SubmitResu
       email: text(formData, 'email'),
       signature_name: text(formData, 'signature_name') || null,
     }
+    
     const { error } = await supabase.from('investor_leads').insert(payload)
-    if (error) return { success: false, error: 'تعذر إرسال بيانات المستثمرين.' }
+    if (error) {
+      return { success: false, error: 'تعذر إرسال بيانات المستثمرين. حاول مرة أخرى.' }
+    }
+    
     return { success: true }
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'تعذر إرسال الطلب' }

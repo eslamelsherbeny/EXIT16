@@ -12,7 +12,6 @@ async function getSupabase() {
   })
 }
 
-// دالة الحفظ تعمل على السيرفر مباشرة (Server Action)
 async function updateProfile(formData: FormData) {
   'use server'
   const cookieStore = await cookies()
@@ -29,7 +28,8 @@ async function updateProfile(formData: FormData) {
   redirect('/account/details?success=1')
 }
 
-export default async function AccountDetailsPage({ searchParams }: { searchParams: { success?: string } }) {
+export default async function AccountDetailsPage({ searchParams }: { searchParams?: Promise<{ success?: string }> }) {
+  const resolvedParams = searchParams ? await searchParams : {}
   const cookieStore = await cookies()
   const sessionId = cookieStore.get('user_session')?.value
 
@@ -44,10 +44,10 @@ export default async function AccountDetailsPage({ searchParams }: { searchParam
     redirect('/login')
   }
 
-  const isSuccess = searchParams.success === '1'
+  const isSuccess = resolvedParams.success === '1'
 
   return (
-    <main dir="rtl" className="min-h-screen bg-[#f9fafc] text-[#0a1128] pb-24">
+    <main dir="rtl" className="min-h-screen bg-[#f9fafc] text-[#142238] pb-24">
       <div className="mx-auto max-w-[600px] px-4 py-10 sm:px-6 md:py-16">
         
         <header className="mb-10 text-center">

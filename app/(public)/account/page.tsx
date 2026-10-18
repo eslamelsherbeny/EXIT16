@@ -1,11 +1,11 @@
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { createServerClient } from '@supabase/ssr'
-import { ArrowDown, Check, ChevronDown, ListFilter, Search } from 'lucide-react'
+import { ArrowDown, Check, ChevronDown, ListFilter, Search, LogOut, UserCog } from 'lucide-react'
 import Link from 'next/link'
 
-export const dynamic = 'force-dynamic' // منع التخزين المؤقت
-export const revalidate = 0 // إيقاف الـ Cache تماماً
+export const dynamic = 'force-dynamic' 
+export const revalidate = 0 
 
 type SellRequest = {
   id: string
@@ -43,7 +43,7 @@ type BuyerUnitCard = {
   image?: string
 }
 
-// بيانات الوحدات المطابقة لواجهة المشتري في الصور
+// بيانات افتراضية للمشتري لعرض شكل الكروت
 const buyerMatchedUnits: BuyerUnitCard[] = [
   {
     id: 'hamra-1',
@@ -63,16 +63,6 @@ const buyerMatchedUnits: BuyerUnitCard[] = [
     marketPrice: '3,500,000',
     tags: ['الكاش في ميزانيتك', 'القسط مناسب', 'في المنطقة اللي عايزها'],
     image: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=800&q=80',
-  },
-  {
-    id: 'beit-watan-almera',
-    title: 'بيت الوطن',
-    subtitle: 'Almera Development · التجمع الخامس · شقة',
-    cash: '1,551,400',
-    gain: '+ 2,165,000',
-    marketPrice: '5,000,000',
-    tags: ['الكاش في ميزانيتك', 'القسط مناسب', 'في المنطقة اللي عايزها'],
-    image: 'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&w=800&q=80',
   },
 ]
 
@@ -124,13 +114,10 @@ async function deleteAccount() {
   redirect('/login')
 }
 
-export default async function AccountPage({
-  searchParams,
-}: {
-  searchParams?: Promise<{ view?: string }>
-}) {
+export default async function AccountPage({ searchParams }: { searchParams?: Promise<{ view?: string }> }) {
   const resolvedParams = searchParams ? await searchParams : {}
   const cookieStore = await cookies()
+  
   const sessionId = cookieStore.get('user_session')?.value
 
   if (!sessionId) {
@@ -138,71 +125,82 @@ export default async function AccountPage({
   }
 
   const supabase = await getSupabase()
-  const { data: profile } = await supabase
+  
+  const { data: profile, error: profileError } = await supabase
     .from('users')
     .select('*')
     .eq('id', sessionId)
-    .maybeSingle<Profile>()
+    .single()
 
-  if (!profile) {
+  if (profileError || !profile) {
     redirect('/login')
   }
 
-  const [{ data: sells }, { data: buys }] = await Promise.all([
-    supabase
-      .from('sell_requests')
-      .select('*')
-      .eq('user_id', profile.id)
-      .order('created_at', { ascending: false })
-      .returns<SellRequest[]>(),
-    supabase
-      .from('buy_requests')
-      .select('*')
-      .eq('user_id', profile.id)
-      .order('created_at', { ascending: false })
-      .returns<BuyRequest[]>(),
-  ])
+  const { data: sellsData } = await supabase
+    .from('sell_requests')
+    .select('*')
+    .eq('user_id', profile.id)
+    .order('created_at', { ascending: false })
 
-  // التحديد الدقيق لما إذا كان بائعاً أو مشترياً
-  const hasSells = (sells ?? []).length > 0
-  const hasBuys = (buys ?? []).length > 0
+  const { data: buysData } = await supabase
+    .from('buy_requests')
+    .select('*')
+    .eq('user_id', profile.id)
+    .order('created_at', { ascending: false })
 
-  const isSeller = resolvedParams?.view === 'seller' ? true : resolvedParams?.view === 'buyer' ? false : hasSells
-  const isBuyer = resolvedParams?.view === 'buyer' ? true : !isSeller && hasBuys
+  const sells = (sellsData as SellRequest[]) || []
+  const buys = (buysData as BuyRequest[]) || []
 
-  const unit = sells?.[0]
-  const buyReq = buys?.[0]
+  const hasSells = sells.length > 0
+  const hasBuys = buys.length > 0
+
+  const isSellerView = resolvedParams?.view === 'seller' ? true : resolvedParams?.view === 'buyer' ? false : hasSells
+  const isBuyerView = resolvedParams?.view === 'buyer' ? true : !isSellerView && hasBuys
+
+  const unit = sells[0]
+  const buyReq = buys[0]
+  
   const project = unit?.project_name || 'وحدتك'
   const unitArea = unit?.area || 'التجمع الخامس'
-  const completion = unit?.images?.length ? 100 : 94
+  const completion = unit?.images && unit.images.length > 0 ? 100 : 94
 
   const buyerCashBudget = buyReq?.budget ? money(buyReq.budget) : '3,000,000 ج.م'
   const buyerMaxInstallment = buyReq?.max_installment ? money(buyReq.max_installment) : '100,000 ج.م'
   const buyerArea = buyReq?.preferred_areas?.[0] || 'التجمع الخامس'
 
   return (
-    <main dir="rtl" className="min-h-screen bg-[#f5f6f8] py-8 text-[#0a1122] sm:py-12">
+    <main dir="rtl" className="min-h-screen bg-[#f5f6f8] py-8 text-[#0a1122] sm:py-12 pb-24">
       {/* ==================== 1. واجهة البائع (Seller View) ==================== */}
-      {isSeller ? (
+      {isSellerView ? (
         <div className="mx-auto max-w-[680px] px-4 sm:px-6">
-          {/* العنوان العلوي */}
-          <div className="text-right">
-            <h1 className="text-xl font-extrabold text-[#0a1122] sm:text-2xl">
-              {project} <span className="font-normal text-gray-400">· {unitArea}</span>
-            </h1>
-          </div>
+          
+          {/* الهيدر العلوي */}
+          <header className="flex items-start justify-between pb-6">
+            <div className="text-right">
+              <h1 className="text-xl font-extrabold text-[#0a1122] sm:text-2xl">
+                {project} <span className="font-normal text-gray-400">· {unitArea}</span>
+              </h1>
+            </div>
+            <div className="flex flex-col items-end gap-3 text-[11px] font-bold text-slate-600">
+              <form action={logout}>
+                <button type="submit" className="flex items-center gap-2 hover:text-[#0a1122] transition">
+                  تسجيل الخروج <LogOut className="size-3.5" />
+                </button>
+              </form>
+              <Link href="/account/details" className="flex items-center gap-2 hover:text-[#105C50] transition">
+                بياناتي <UserCog className="size-3.5" />
+              </Link>
+            </div>
+          </header>
 
-          <section className="mt-5 rounded-[18px] border border-[#99cec3] bg-white p-5 text-right shadow-sm sm:p-7">
-            <span className="text-[11px] font-bold text-[#0b6954]">الخطوة الجاية</span>
+          <section className="mt-2 rounded-[18px] border border-[#105C50]/30 bg-white p-5 text-right shadow-sm sm:p-7">
+            <span className="text-[11px] font-bold text-[#105C50]">الخطوة الجاية</span>
             <h2 className="mt-1 text-base font-extrabold text-[#0a1122] sm:text-lg">
               فاضل الصور بس — ضيف صورة واحدة على الأقل وننشر وحدتك
             </h2>
 
             <div className="mt-4">
-              <Link
-                href={unit?.id ? `/sell?resume=${unit.id}` : '/sell'}
-                className="inline-flex h-10 items-center justify-center rounded-[10px] bg-[#0b6954] px-6 text-xs font-bold text-white transition hover:bg-[#085443] sm:text-sm"
-              >
+              <Link href={unit?.id ? `/sell?resume=${unit.id}` : '/sell'} className="inline-flex h-10 items-center justify-center rounded-[10px] bg-[#105C50] px-6 text-xs font-bold text-white transition hover:bg-[#0c483f] sm:text-sm">
                 أضف الصور
               </Link>
             </div>
@@ -213,17 +211,14 @@ export default async function AccountPage({
                 <strong className="font-extrabold text-[#0a1122]">{completion}%</strong>
               </div>
               <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
-                <div
-                  className="h-full rounded-full bg-[#0b6954] transition-all"
-                  style={{ width: `${completion}%` }}
-                />
+                <div className="h-full rounded-full bg-[#105C50] transition-all" style={{ width: `${completion}%` }} />
               </div>
               <div className="mt-2 flex justify-start">
                 <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-[10px] font-bold text-amber-600">الصور</span>
               </div>
             </div>
 
-            <div className="mt-4 rounded-xl bg-[#ecfbf3] px-4 py-3 text-right text-xs font-bold text-[#0b6954]">
+            <div className="mt-4 rounded-xl bg-[#eaf8f2] px-4 py-3 text-right text-xs font-bold text-[#105C50]">
               فيه 4435 مشترين مستنيين وحدة زي بتاعتك — كمّل بياناتها وشوفهم
             </div>
 
@@ -234,13 +229,8 @@ export default async function AccountPage({
 
           <section className="mt-8">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-extrabold text-[#0a1122] sm:text-base">
-                وحداتي ({(sells ?? []).length || 1})
-              </h2>
-              <Link
-                href="/sell"
-                className="inline-flex h-9 items-center justify-center rounded-[10px] bg-[#0a1122] px-4 text-xs font-bold text-white transition hover:bg-[#16223f]"
-              >
+              <h2 className="text-sm font-extrabold text-[#0a1122] sm:text-base">وحداتي ({(sells ?? []).length || 1})</h2>
+              <Link href="/sell" className="inline-flex h-9 items-center justify-center rounded-[10px] bg-[#101A2B] px-4 text-xs font-bold text-white transition hover:bg-[#16223f]">
                 + ضيف وحدة تانية
               </Link>
             </div>
@@ -254,10 +244,7 @@ export default async function AccountPage({
               </div>
               <span className="rounded-full bg-amber-50 px-3 py-1 text-[11px] font-bold text-amber-600">{completion}%</span>
             </div>
-
-            <p className="mt-2.5 text-right text-[11px] text-gray-400">
-              عندك أكتر من وحدة عايز تخرج منها؟ ضيفها هنا — كل وحدة ليها ملفها ومشترينها وبتتتابع لوحدها.
-            </p>
+            <p className="mt-2.5 text-right text-[11px] text-gray-400">عندك أكتر من وحدة عايز تخرج منها؟ ضيفها هنا — كل وحدة ليها ملفها ومشترينها وبتتتابع لوحدها.</p>
           </section>
 
           <section className="mt-7 pr-1">
@@ -267,84 +254,53 @@ export default async function AccountPage({
           <section className="mt-7 grid grid-cols-2 gap-4 rounded-[16px] border border-gray-200/80 bg-white p-5 text-right shadow-sm sm:p-6">
             <div>
               <p className="text-[11px] text-gray-400">سعر الوحدة في العقد</p>
-              <strong className="mt-1 block text-lg font-extrabold text-[#0a1122] sm:text-xl">
-                {unit?.contract_price ? money(unit.contract_price) : '3,000,000 ج.م'}
-              </strong>
+              <strong className="mt-1 block text-lg font-extrabold text-[#0a1122] sm:text-xl">{unit?.contract_price ? money(unit.contract_price) : '3,000,000 ج.م'}</strong>
             </div>
             <div>
               <p className="text-[11px] text-gray-400">اللي دفعته (هدف الاسترداد)</p>
-              <strong className="mt-1 block text-lg font-extrabold text-[#0b6954] sm:text-xl">
-                {unit?.paid_amount ? money(unit.paid_amount) : '2,000,000 ج.م'}
-              </strong>
+              <strong className="mt-1 block text-lg font-extrabold text-[#105C50] sm:text-xl">{unit?.paid_amount ? money(unit.paid_amount) : '2,000,000 ج.م'}</strong>
             </div>
           </section>
 
           <section className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <Link
-              href={unit?.id ? `/sell?resume=${unit.id}` : '/sell'}
-              className="flex flex-col justify-center rounded-[14px] border border-gray-200/80 bg-white p-4 text-right shadow-sm transition hover:border-gray-300"
-            >
+            <Link href={unit?.id ? `/sell?resume=${unit.id}` : '/sell'} className="flex flex-col justify-center rounded-[14px] border border-gray-200/80 bg-white p-4 text-right shadow-sm transition hover:border-gray-300">
               <p className="text-xs font-extrabold text-[#0a1122]">بيانات وحدتك</p>
               <p className="mt-1 text-[11px] text-gray-400">{completion < 100 ? '16/17 مكتملة' : 'مكتملة بالكامل'}</p>
             </Link>
-
-            <Link
-              href="/account/offers"
-              className="flex flex-col justify-center rounded-[14px] border border-gray-200/80 bg-white p-4 text-right shadow-sm transition hover:border-gray-300"
-            >
+            <Link href="/account/offers" className="flex flex-col justify-center rounded-[14px] border border-gray-200/80 bg-white p-4 text-right shadow-sm transition hover:border-gray-300">
               <p className="text-xs font-extrabold text-[#0a1122]">العروض</p>
               <p className="mt-1 text-[11px] text-gray-400">لسه مفيش</p>
             </Link>
-
-            <a
-              href="https://wa.me/201018595959"
-              target="_blank"
-              rel="noreferrer"
-              className="flex flex-col justify-center rounded-[14px] bg-[#0a1122] p-4 text-right text-white shadow-sm transition hover:bg-[#16223f]"
-            >
+            <a href="https://wa.me/201018595959" target="_blank" rel="noreferrer" className="flex flex-col justify-center rounded-[14px] bg-[#101A2B] p-4 text-right text-white shadow-sm transition hover:bg-[#16223f]">
               <p className="text-xs font-extrabold text-white">مسؤول حالتك</p>
               <p className="mt-1 text-[11px] text-gray-300">كلمنا على واتساب في أي وقت</p>
             </a>
           </section>
 
           <p className="mt-4 text-right text-[11px] leading-relaxed text-gray-400">
-            <Link href="/account/documents" className="font-bold text-[#0a1122] underline hover:text-[#0b6954]">مستنداتك</Link> — المستندات (العقد والإيصالات) — تقدر ترفعها دلوقتي أو بعد ما فريقنا يكلمك. مطلوبة قبل إتمام البيع، مش قبل النشر.
+            <Link href="/account/documents" className="font-bold text-[#0a1122] underline hover:text-[#105C50]">مستنداتك</Link> — المستندات (العقد والإيصالات) — تقدر ترفعها دلوقتي أو بعد ما فريقنا يكلمك. مطلوبة قبل إتمام البيع، مش قبل النشر.
           </p>
 
           <AccountFooterActions />
         </div>
-      ) : isBuyer ? (
+      ) : isBuyerView ? (
         /* ==================== 2. واجهة المشتري (Buyer View) ==================== */
         <div className="mx-auto max-w-[980px] px-3 sm:px-6">
           <header className="flex flex-wrap items-center justify-between gap-4">
             <h1 className="text-xl font-extrabold text-[#0a1122] sm:text-2xl">فرص تناسب ميزانيتك</h1>
-
             <div className="flex items-center gap-3">
-              <Link
-                href="/account/offers"
-                className="inline-flex h-10 items-center justify-center rounded-[10px] border border-gray-200 bg-white px-4 text-xs font-bold text-[#0a1122] shadow-sm transition hover:bg-gray-50"
-              >
-                عروضي
-              </Link>
-              <Link
-                href="/buy?edit=1"
-                className="text-xs font-bold text-[#1e3a8a] transition hover:underline"
-              >
-                عدّل ميزانيتك
-              </Link>
+              <Link href="/account/offers" className="inline-flex h-10 items-center justify-center rounded-[10px] border border-gray-200 bg-white px-4 text-xs font-bold text-[#0a1122] shadow-sm transition hover:bg-gray-50">عروضي</Link>
+              <Link href="/buy?edit=1" className="text-xs font-bold text-[#105C50] transition hover:underline">عدّل ميزانيتك</Link>
+              <form action={logout}>
+                <button type="submit" className="text-xs font-bold text-red-500 hover:text-red-700 transition px-2">خروج</button>
+              </form>
             </div>
           </header>
 
           <section className="mt-5 rounded-[14px] border border-gray-200/80 bg-white px-5 py-3.5 text-right shadow-sm">
             <div className="flex flex-wrap items-center justify-start gap-x-5 gap-y-2 text-xs">
-              <div>
-                <span className="text-gray-400">الكاش المتاح دلوقتي: </span>
-                <strong className="font-extrabold text-[#0a1122]">{buyerCashBudget}</strong>
-              </div>
-              <div>
-                <span className="text-gray-400">أقصى قسط يريحك: </span>
-                <strong className="font-extrabold text-[#0a1122]">{buyerMaxInstallment}</strong>
-              </div>
+              <div><span className="text-gray-400">الكاش المتاح دلوقتي: </span><strong className="font-extrabold text-[#0a1122]">{buyerCashBudget}</strong></div>
+              <div><span className="text-gray-400">أقصى قسط يريحك: </span><strong className="font-extrabold text-[#0a1122]">{buyerMaxInstallment}</strong></div>
             </div>
           </section>
 
@@ -352,13 +308,7 @@ export default async function AccountPage({
             <div className="flex flex-wrap items-center justify-start gap-2">
               <span className="ml-1 text-xs font-extrabold text-[#0a1122]">فلتر بطلبك:</span>
               {buyerFilterPills.map((pill) => (
-                <button
-                  key={pill}
-                  type="button"
-                  className="rounded-full border border-gray-200 bg-white px-3.5 py-1.5 text-[11px] font-semibold text-gray-700 shadow-2xs transition hover:border-[#0b6954] hover:text-[#0b6954]"
-                >
-                  {pill}
-                </button>
+                <button key={pill} type="button" className="rounded-full border border-gray-200 bg-white px-3.5 py-1.5 text-[11px] font-semibold text-gray-700 shadow-sm transition hover:border-[#105C50] hover:text-[#105C50]">{pill}</button>
               ))}
             </div>
             <p className="mt-2 text-[11px] text-gray-400">مرتّبة بالأنسب لطلبك — اختار أي شرط عشان تشوف اللي يطابقه بالظبط.</p>
@@ -367,11 +317,7 @@ export default async function AccountPage({
           <section className="mt-4 rounded-[18px] border border-gray-200/80 bg-white p-3.5 shadow-sm sm:p-5">
             <div className="relative">
               <Search className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                placeholder="دوّر باسم المشروع أو المنطقة أو كود الوحدة (U-10057)..."
-                className="h-10 w-full rounded-xl border border-gray-200 bg-white pr-10 pl-3 text-xs text-[#0a1122] placeholder:text-gray-400 focus:border-[#0b6954] focus:outline-none sm:h-11 sm:text-sm"
-              />
+              <input type="text" placeholder="دوّر باسم المشروع أو المنطقة أو كود الوحدة (U-10057)..." className="h-10 w-full rounded-xl border border-gray-200 bg-white pr-10 pl-3 text-xs text-[#0a1122] placeholder:text-gray-400 focus:border-[#105C50] focus:outline-none sm:h-11 sm:text-sm" />
             </div>
 
             <div className="mt-3 flex flex-wrap items-center justify-between gap-2.5">
@@ -416,7 +362,7 @@ export default async function AccountPage({
           <AccountFooterActions />
         </div>
       ) : (
-        /* ==================== 3. حساب جديد لم يضف طلب بيع أو شراء بعد ==================== */
+        /* ==================== 3. حساب جديد ==================== */
         <div className="mx-auto max-w-[680px] px-4 sm:px-6">
           <section className="rounded-[20px] border border-gray-200/80 bg-white p-8 text-center shadow-sm sm:p-12">
             <h2 className="text-lg font-extrabold text-[#0a1122] sm:text-xl">
@@ -426,16 +372,10 @@ export default async function AccountPage({
               ابدأ الآن بعرض وحدتك للتنازل بدون أوفر واسترداد ما دفعته كاش، أو سجل ميزانيتك كمشتري لتصلك الفرص المناسبة.
             </p>
             <div className="mt-7 flex flex-wrap justify-center gap-3">
-              <Link
-                href="/sell"
-                className="rounded-[10px] bg-[#0b6954] px-7 py-2.5 text-xs font-bold text-white transition hover:bg-[#085443] sm:text-sm"
-              >
+              <Link href="/sell" className="rounded-[10px] bg-[#105C50] px-7 py-2.5 text-xs font-bold text-white transition hover:bg-[#0c483f] sm:text-sm">
                 عايز أبيع وحدتي
               </Link>
-              <Link
-                href="/buy"
-                className="rounded-[10px] bg-[#0a1122] px-7 py-2.5 text-xs font-bold text-white transition hover:bg-[#16223f] sm:text-sm"
-              >
+              <Link href="/buy" className="rounded-[10px] bg-[#101A2B] px-7 py-2.5 text-xs font-bold text-white transition hover:bg-[#16223f] sm:text-sm">
                 عايز أشتري وحدة
               </Link>
             </div>
@@ -457,19 +397,19 @@ function BuyerPropertyCard({ unit }: { unit: BuyerUnitCard }) {
           </div>
         )}
         <div className="p-3 text-right sm:p-5">
-          <h3 className="line-clamp-2 text-xs font-extrabold leading-snug text-[#0a1122] group-hover:text-[#0b6954] sm:text-[15px]">{unit.title}</h3>
+          <h3 className="line-clamp-2 text-xs font-extrabold leading-snug text-[#0a1122] group-hover:text-[#105C50] sm:text-[15px]">{unit.title}</h3>
           <p className="mt-1 line-clamp-1 text-[10px] text-gray-400 sm:text-xs">{unit.subtitle}</p>
           <div className="mt-3 sm:mt-4">
             <p className="text-[10px] text-gray-400 sm:text-[11px]">المطلوب كاش دلوقتي</p>
             <p className="mt-0.5 text-sm font-extrabold tracking-tight text-[#0a1122] sm:text-xl">{unit.cash} <span className="text-[11px] font-bold sm:text-xs">ج.م</span></p>
           </div>
           <div className="mt-2.5 rounded-xl bg-[#ecfbf3] px-2.5 py-2 text-right sm:mt-3 sm:px-3 sm:py-2.5">
-            <p dir="ltr" className="text-right text-xs font-extrabold text-[#0b6954] sm:text-sm">{unit.gain} ج.م</p>
-            <p className="mt-0.5 text-[9px] text-[#0b6954]/80 sm:text-[10px]">سعر السوق اليوم: {unit.marketPrice} ج.م</p>
+            <p dir="ltr" className="text-right text-xs font-extrabold text-[#105C50] sm:text-sm">{unit.gain} ج.م</p>
+            <p className="mt-0.5 text-[9px] text-[#105C50]/80 sm:text-[10px]">سعر السوق اليوم: {unit.marketPrice} ج.م</p>
           </div>
           <div className="mt-2.5 flex flex-wrap gap-1 sm:mt-3 sm:gap-1.5">
             {unit.tags.map((tag) => (
-              <span key={tag} className="rounded-md bg-[#e3f2ef] px-2 py-0.5 text-[9px] font-bold text-[#0b6954] sm:text-[10px]">{tag}</span>
+              <span key={tag} className="rounded-md bg-[#e3f2ef] px-2 py-0.5 text-[9px] font-bold text-[#105C50] sm:text-[10px]">{tag}</span>
             ))}
           </div>
         </div>
@@ -496,8 +436,8 @@ function Timeline() {
         const isLast = index === steps.length - 1
         return (
           <li key={step.title} className="relative flex items-start gap-3.5 pb-6 last:pb-0">
-            {!isLast && <span className={`absolute right-[11px] top-6 h-full w-[1.5px] ${step.status === 'done' ? 'bg-[#0b6954]' : 'bg-gray-200'}`} />}
-            <span className={`relative z-10 flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${step.status === 'done' ? 'bg-[#0b6954] text-white' : step.status === 'current' ? 'bg-[#0a1122] text-white' : 'bg-transparent text-gray-400'}`}>
+            {!isLast && <span className={`absolute right-[11px] top-6 h-full w-[1.5px] ${step.status === 'done' ? 'bg-[#105C50]' : 'bg-gray-200'}`} />}
+            <span className={`relative z-10 flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${step.status === 'done' ? 'bg-[#105C50] text-white' : step.status === 'current' ? 'bg-[#101A2B] text-white' : 'bg-transparent text-gray-400'}`}>
               {step.status === 'done' ? <Check className="size-3.5 stroke-[2.5]" /> : index + 1}
             </span>
             <span className={`pt-0.5 text-xs ${step.status === 'current' ? 'font-extrabold text-[#0a1122]' : step.status === 'done' ? 'font-medium text-gray-600' : 'font-normal text-gray-400'}`}>{step.title}</span>
@@ -510,13 +450,10 @@ function Timeline() {
 
 function AccountFooterActions() {
   return (
-    <div className="mt-10 flex items-center justify-end gap-3 pt-4 text-xs">
-      <Link href="/account/details" className="rounded-xl border border-gray-200 bg-white px-4 py-2 font-bold text-gray-600 shadow-2xs transition hover:bg-gray-50 hover:text-[#0a1122]">بياناتي</Link>
+    <div className="mt-10 flex items-center justify-center gap-6 pt-4 text-[11px] font-bold border-t border-gray-200">
+      <Link href="/account/details" className="text-gray-500 hover:text-[#105C50] transition py-2">بياناتي</Link>
       <form action={deleteAccount}>
-        <button type="submit" className="px-2 py-2 font-bold text-red-500 transition hover:text-red-700">حذف الحساب</button>
-      </form>
-      <form action={logout}>
-        <button type="submit" className="rounded-xl border border-gray-200 bg-white px-4 py-2 font-bold text-gray-600 shadow-2xs transition hover:bg-gray-50 hover:text-[#0a1122]">تسجيل الخروج</button>
+        <button type="submit" className="text-red-500 hover:text-red-700 transition py-2">حذف الحساب</button>
       </form>
     </div>
   )

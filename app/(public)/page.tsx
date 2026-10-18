@@ -86,12 +86,12 @@ export default function HomePage() {
     <div dir="rtl" className="min-h-screen overflow-x-hidden bg-[#f5f6f8] text-[#0a1128]">
       
       {/* ==================== 1. قسم الهيرو (Hero Section) ==================== */}
-      <section className="relative flex min-h-[720px] items-center overflow-hidden bg-[#0a1122] text-white lg:min-h-[780px]">
+      <section className="relative flex items-center overflow-hidden bg-[#0a1122] text-white py-12 lg:py-16">
         {/* التوهج الخلفي */}
         <div className="pointer-events-none absolute -left-32 -bottom-40 size-[28rem] rounded-full bg-teal-500/10 blur-[120px] sm:size-[38rem]" />
         <div className="pointer-events-none absolute right-[15%] -top-32 size-[24rem] rounded-full bg-blue-500/10 blur-[120px] sm:size-[32rem]" />
 
-        <div className="relative mx-auto grid w-full max-w-[1280px] grid-cols-1 items-center gap-12 px-4 py-12 sm:px-6 md:py-16 lg:grid-cols-[1.15fr_0.85fr] lg:gap-16 lg:px-10 lg:py-20">
+        <div className="relative mx-auto grid w-full max-w-[1140px] grid-cols-1 items-center gap-8 px-4 py-8 sm:px-6 lg:grid-cols-[1.15fr_0.85fr] lg:gap-12 lg:px-8 lg:py-12">
           
           {/* العمود الأيمن: النصوص والأزرار */}
           <div className="text-right">

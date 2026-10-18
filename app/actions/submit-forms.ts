@@ -36,10 +36,13 @@ function list(formData: FormData, key: string) {
 
 export type SubmitResult = { success: boolean; error?: string }
 
-const ACCOUNT_ERROR = 'رقم الموبايل أو البريد الإلكتروني مسجل بالفعل. يرجى إدخال كلمة السر الصحيحة الخاصة بهذا الحساب أو استخدام رقم وإيميل جديد.'
+const ACCOUNT_ERROR = 'رقم الموبايل أو البريد الإلكتروني مسجل بالفعل بحساب آخر. يرجى إدخال كلمة السر الصحيحة الخاصة بهذا الحساب أو استخدام رقم وإيميل جديد.'
 
 async function setUserSession(userId: string) {
   const cookieStore = await cookies()
+  cookieStore.delete('user_session')
+  cookieStore.delete('session_hint')
+
   cookieStore.set('user_session', userId, { path: '/', maxAge: 60 * 60 * 24 * 30, sameSite: 'lax', secure: true, httpOnly: true })
   cookieStore.set('session_hint', '1', { path: '/', maxAge: 60 * 60 * 24 * 30, sameSite: 'lax', secure: true })
 }
@@ -62,24 +65,48 @@ function verifyPassword(password: string, stored: string | null) {
 }
 
 async function establishUser(supabase: Awaited<ReturnType<typeof getSupabase>>, input: { name: string; phone: string; email: string; password: string }) {
-  if (!input.phone || !input.email || input.password.length < 8) return { userId: null, error: 'اكتب الاسم ورقم الموبايل والإيميل وكلمة سر لا تقل عن ٨ حروف.' }
-  const hash = hashPassword(input.password)
-  const { data: matches, error: lookupError } = await supabase.from('users').select('id, name, phone, email, password_hash').or(`phone.eq.${input.phone},email.eq.${input.email}`)
-  if (lookupError) return { userId: null, error: 'تعذر التحقق من بيانات الحساب. حاول مرة أخرى.' }
-  const existing = matches?.[0]
-  if (existing && !verifyPassword(input.password, existing.password_hash)) return { userId: null, error: ACCOUNT_ERROR }
-  if (existing) {
-    const updates: Record<string, string> = { name: input.name, phone: input.phone, email: input.email }
-    if (!existing.password_hash?.startsWith('scrypt$')) updates.password_hash = hash
-    const { error } = await supabase.from('users').update(updates).eq('id', existing.id)
-    if (error) return { userId: null, error: ACCOUNT_ERROR }
-    await setUserSession(existing.id)
-    return { userId: existing.id, passwordHash: existing.password_hash?.startsWith('scrypt$') ? existing.password_hash : hash, error: null }
+  if (!input.phone || !input.email || !input.password || input.password.length < 8) {
+    return { userId: null, error: 'اكتب الاسم ورقم الموبايل والإيميل وكلمة سر لا تقل عن ٨ حروف.' }
   }
-  const { data: created, error } = await supabase.from('users').insert({ name: input.name, phone: input.phone, email: input.email, password_hash: hash }).select('id').single()
-  if (error || !created) return { userId: null, error: error?.code === '23505' ? ACCOUNT_ERROR : 'تعذر إنشاء الحساب. حاول مرة أخرى.' }
+  
+  const hash = hashPassword(input.password)
+  
+  const { data: matches, error: lookupError } = await supabase
+    .from('users')
+    .select('id, name, phone, email, password_hash')
+    .or(`phone.eq.${input.phone},email.eq.${input.email}`)
+
+  if (lookupError) {
+    return { userId: null, error: 'تعذر التحقق من بيانات الحساب. حاول مرة أخرى.' }
+  }
+
+  const existing = matches?.[0]
+
+  if (existing) {
+    if (!verifyPassword(input.password, existing.password_hash)) {
+      return { userId: null, error: ACCOUNT_ERROR }
+    }
+    const updates: Record<string, string> = { name: input.name, phone: input.phone, email: input.email }
+    if (!existing.password_hash?.startsWith('scrypt$')) {
+      updates.password_hash = hash
+    }
+    await supabase.from('users').update(updates).eq('id', existing.id)
+    await setUserSession(existing.id)
+    return { userId: existing.id, error: null }
+  }
+
+  const { data: created, error } = await supabase
+    .from('users')
+    .insert({ name: input.name, phone: input.phone, email: input.email, password_hash: hash })
+    .select('id')
+    .single()
+
+  if (error || !created) {
+    return { userId: null, error: error?.code === '23505' ? ACCOUNT_ERROR : 'تعذر إنشاء الحساب. حاول مرة أخرى.' }
+  }
+
   await setUserSession(created.id)
-  return { userId: created.id, passwordHash: hash, error: null }
+  return { userId: created.id, error: null }
 }
 
 async function requestAlreadyExists(supabase: Awaited<ReturnType<typeof getSupabase>>, table: 'sell_requests' | 'buy_requests', phone: string, email: string) {
@@ -97,6 +124,7 @@ export async function submitSellRequest(formData: FormData): Promise<SubmitResul
     const supabase = await getSupabase()
     const password = text(formData, 'password')
     const projectName = text(formData, 'project_name')
+    
     const payload = {
       project_name: projectName || null,
       developer_name: text(formData, 'developer_name') || null,
@@ -129,17 +157,17 @@ export async function submitSellRequest(formData: FormData): Promise<SubmitResul
       is_original_owner: formData.get('is_original_owner') === 'on',
       images: list(formData, 'image'),
     }
+    
     const phone = payload.phone
     const email = payload.email ?? ''
     
-    // تسجيل اليوزر
+    // التأكد من تمرير الباسورد بوضوح لإنشاء اليوزر وتسجيل الجلسة
     const account = await establishUser(supabase, { name: payload.name, phone, email, password })
-    if (account.error || !account.userId) return { success: false, error: account.error ?? 'تعذر إنشاء الحساب.' }
+    if (account.error || !account.userId) {
+      return { success: false, error: account.error ?? 'تعذر إنشاء الحساب.' }
+    }
     
-    // التحقق من التكرار
-    if (await requestAlreadyExists(supabase, 'sell_requests', phone, email)) return { success: true }
-    
-    // إرسال بيانات الشقة مع user_id فقط
+    // إرسال طلب البيع مرتبطاً بالـ user_id
     const { error } = await supabase.from('sell_requests').insert({ 
       ...payload, 
       user_id: account.userId 
@@ -208,11 +236,10 @@ export async function submitBuyRequest(input: BuyRequestPayload | FormData): Pro
     const email = payload.email ?? ''
     
     const account = await establishUser(supabase, { name: payload.name, phone, email, password: payload.password })
-    if (account.error || !account.userId) return { success: false, error: account.error ?? 'تعذر إنشاء الحساب.' }
+    if (account.error || !account.userId) {
+      return { success: false, error: account.error ?? 'تعذر إنشاء الحساب.' }
+    }
     
-    if (await requestAlreadyExists(supabase, 'buy_requests', phone, email)) return { success: true }
-    
-    // فلترة الباسورد عشان ميتعبتش لجدول المشتريين
     const { password, ...cleanPayload } = payload;
 
     const { error } = await supabase.from('buy_requests').insert({ 

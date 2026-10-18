@@ -1,6 +1,5 @@
 import Link from "next/link"
 import { CheckCircle2, Database, Mail, ShieldCheck, Smartphone } from "lucide-react"
-import { AdminMobileNav } from "../layout"
 import {
   Card,
   CardContent,
@@ -20,8 +19,6 @@ export default function SettingsPage() {
 
   return (
     <div className="mx-auto max-w-7xl">
-      <AdminMobileNav />
-
       <div className="mb-6">
         <p className="text-xs font-extrabold text-[#105C50]">إعدادات النظام</p>
         <h2 className="mt-1 text-2xl font-extrabold text-[#0a1122] sm:text-3xl">

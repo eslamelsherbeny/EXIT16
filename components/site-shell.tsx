@@ -18,7 +18,7 @@ const links = [
   { href: '/investors', key: 'investors' as const, fallback: 'للمستثمرين' },
 ]
 
-// ==================== 1. اللوجو المطابق 100% (بخط التوقيع اليدوي لكلمة Exit) ====================
+// ==================== 1. اللوجو المطابق 100% ====================
 export function Logo({ inverse = false }: { inverse?: boolean }) {
   return (
     <Link
@@ -35,7 +35,6 @@ export function Logo({ inverse = false }: { inverse?: boolean }) {
         xmlns="http://www.w3.org/2000/svg"
         className="h-[44px] w-auto"
       >
-        {/* حرف A */}
         <path
           d="M5 30L17.5 5.5C18.2 4.1 19.8 4.1 20.5 5.5L33 30"
           stroke="currentColor"
@@ -43,7 +42,6 @@ export function Logo({ inverse = false }: { inverse?: boolean }) {
           strokeLinecap="round"
           strokeLinejoin="round"
         />
-        {/* حرف q */}
         <circle cx="46.5" cy="20" r="9.2" stroke="currentColor" strokeWidth="3.2" />
         <path
           d="M55.7 10.8V35.5C55.7 37.5 56.8 38.8 58.8 38.8"
@@ -51,7 +49,6 @@ export function Logo({ inverse = false }: { inverse?: boolean }) {
           strokeWidth="3.2"
           strokeLinecap="round"
         />
-        {/* حرف a */}
         <circle cx="72" cy="20" r="9.2" stroke="currentColor" strokeWidth="3.2" />
         <path
           d="M81.2 10.8V29.5"
@@ -59,16 +56,12 @@ export function Logo({ inverse = false }: { inverse?: boolean }) {
           strokeWidth="3.2"
           strokeLinecap="round"
         />
-        {/* حرف r */}
         <path
           d="M90.5 29.5V17.5C90.5 13.2 93.8 10.8 98 10.8H100.5"
           stroke="currentColor"
           strokeWidth="3.2"
           strokeLinecap="round"
         />
-
-        {/* كلمة Exit مرسومة كـ Path يدوي متداخل مثل اللوجو الأصلي بالضبط */}
-        {/* حرف E اليدوي */}
         <path
           d="M66 35.5C61 34.5 56.5 36.8 56.5 39.8C56.5 42.2 59.5 43.2 63 42.8C58.5 43.5 54.5 45.8 55 48.8C55.5 51.8 60.5 52.5 65.5 50.2"
           stroke="currentColor"
@@ -76,14 +69,12 @@ export function Logo({ inverse = false }: { inverse?: boolean }) {
           strokeLinecap="round"
           strokeLinejoin="round"
         />
-        {/* حرف x اليدوي */}
         <path
           d="M69 42.5L76.5 50M77 42.2C73.5 45 70.5 48 67.5 50.8"
           stroke="currentColor"
           strokeWidth="1.5"
           strokeLinecap="round"
         />
-        {/* حرف i اليدوي */}
         <path
           d="M81.5 43.2L79.5 49.5C79.2 50.3 79.8 50.8 80.8 50.3"
           stroke="currentColor"
@@ -91,7 +82,6 @@ export function Logo({ inverse = false }: { inverse?: boolean }) {
           strokeLinecap="round"
         />
         <circle cx="82.5" cy="39.5" r="1" fill="currentColor" />
-        {/* حرف t اليدوي مع الشرطة العريضة */}
         <path
           d="M90.5 34.5L86 50.5"
           stroke="currentColor"
@@ -109,7 +99,7 @@ export function Logo({ inverse = false }: { inverse?: boolean }) {
   )
 }
 
-// ==================== 2. الهيدر المطابق بالبيكسل (Navbar) ====================
+// ==================== 2. الهيدر (Navbar) ====================
 export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
   const [language, setLanguage] = useState<'ar' | 'en'>('ar')
   const [hasSession, setHasSession] = useState(false)
@@ -135,14 +125,11 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
       dir="rtl"
       className="sticky top-0 z-50 border-b border-gray-200/80 bg-white"
     >
-      {/* الشريط العلوي للهيدر */}
       <div className="mx-auto flex h-[74px] max-w-[1140px] items-center justify-between px-4 sm:px-6">
         
-        {/* اليمين: اللوجو + التابز معاً بمسافة محكمة مثل الأصلي */}
+        {/* اليمين: اللوجو والتابز */}
         <div className="flex items-center gap-10 xl:gap-14">
           <Logo />
-
-          {/* التابز متقاربة (gap-5) وليست بعيدة عن بعضها */}
           <nav
             className="hidden items-center gap-5 lg:flex"
             aria-label={labels.navbar?.menuTitle || 'القائمة الرئيسية'}
@@ -166,9 +153,8 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
           </nav>
         </div>
 
-        {/* اليسار (ديسكتوب): English + حسابي + عايز تشتري + الجرس + عايز تبيع */}
+        {/* اليسار (ديسكتوب) */}
         <div className="hidden shrink-0 items-center gap-3 lg:flex">
-          {/* زر English */}
           <button
             type="button"
             onClick={() => setLanguage(language === 'ar' ? 'en' : 'ar')}
@@ -177,7 +163,6 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
             {language === 'ar' ? 'English' : 'العربية'}
           </button>
 
-          {/* زر حسابي */}
           <Link
             href={hasSession ? '/account' : '/login'}
             className="inline-flex h-[44px] items-center justify-center whitespace-nowrap rounded-[11px] border border-[#e2e8f0] bg-white px-5 text-[14px] font-semibold text-[#0f172a] transition-colors hover:bg-gray-50"
@@ -185,7 +170,6 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
             {hasSession ? 'حسابي' : labels.navbar?.login || 'حسابي'}
           </Link>
 
-          {/* زر عايز تشتري */}
           <Link
             href="/buy"
             className="inline-flex h-[44px] items-center justify-center whitespace-nowrap rounded-[11px] border border-[#e2e8f0] bg-white px-5 text-[14px] font-semibold text-[#0f172a] transition-colors hover:bg-gray-50"
@@ -193,7 +177,6 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
             عايز تشتري
           </Link>
 
-          {/* أيقونة الجرس */}
           <button
             type="button"
             aria-label="الإشعارات"
@@ -202,7 +185,6 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
             <Bell className="size-[19px] stroke-[1.7]" />
           </button>
 
-          {/* زر عايز تبيع */}
           <Link
             href="/sell"
             className="inline-flex h-[44px] items-center justify-center whitespace-nowrap rounded-[11px] bg-[#0b6954] px-6 text-[14px] font-semibold text-white transition-colors hover:bg-[#085443]"
@@ -211,7 +193,7 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
           </Link>
         </div>
 
-        {/* اليسار (موبايل وتابلت فقط): زر عايز تبيع + أيقونة القائمة */}
+        {/* اليسار (موبايل): زر عايز تبيع + القائمة */}
         <div className="flex items-center gap-3 lg:hidden">
           <Link
             href="/sell"
@@ -236,7 +218,7 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
 
       </div>
 
-      {/* ==================== القائمة المنسدلة للموبايل (مطابقة للصورة) ==================== */}
+      {/* قائمة الموبايل المنسدلة */}
       {mobileMenuOpen && (
         <div className="fixed inset-x-0 top-[74px] bottom-0 z-50 overflow-y-auto border-t border-gray-100 bg-white px-6 pt-6 pb-10 lg:hidden">
           <nav className="flex flex-col gap-5 text-right">
@@ -301,12 +283,11 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
   )
 }
 
-// ==================== 3. الإبقاء على LegacyNavbar لعدم كسر أي استدعاء ====================
 export function LegacyNavbar({ dictionary = ar }: { dictionary?: Dictionary }) {
   return <Navbar dictionary={dictionary} />
 }
 
-// ==================== 4. الفوتر المطابق للصورة (Footer) ====================
+// ==================== 3. الفوتر المنظم (Footer) للموبايل والديسكتوب ====================
 export function Footer({ dictionary = ar }: { dictionary?: Dictionary }) {
   const platformLinks = [
     { label: dictionary.footer?.favorite || 'المفضلة', href: '/favorites' },
@@ -332,12 +313,13 @@ export function Footer({ dictionary = ar }: { dictionary?: Dictionary }) {
 
   return (
     <footer className="bg-[#0a1122] text-white" dir="rtl">
-      <div className="mx-auto max-w-[1140px] px-4 pt-14 pb-12 sm:px-6 lg:pt-20">
+      <div className="mx-auto max-w-[1140px] px-5 pt-14 pb-12 sm:px-6 lg:pt-20">
         
-        <div className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 lg:grid-cols-[1.45fr_1fr_1fr_1fr] lg:gap-12">
+        {/* الهيكل المنظم: أعمدة متجاوبة تماماً مع صور الهاتف */}
+        <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-[1.45fr_1fr_1fr_1fr] lg:gap-12">
           
-          {/* العمود الأول (أقصى اليمين): اللوجو + الوصف + التواصل + تحميل التطبيق */}
-          <div className="col-span-2 text-right sm:col-span-3 lg:col-span-1">
+          {/* العمود الأول: اللوجو + الوصف + التواصل + تحميل التطبيق */}
+          <div className="text-right">
             <Logo inverse />
 
             <p className="mt-5 max-w-sm text-xs leading-[1.9] text-gray-300/85 sm:text-[13px]">
@@ -415,7 +397,7 @@ export function Footer({ dictionary = ar }: { dictionary?: Dictionary }) {
             <h3 className="text-xs font-bold text-gray-400">
               {dictionary.footer?.platform || 'المنصة'}
             </h3>
-            <ul className="mt-5 flex flex-col gap-3.5 text-xs text-gray-200 sm:text-[13px]">
+            <ul className="mt-4 flex flex-col gap-3 text-xs text-gray-200 sm:text-[13px]">
               {platformLinks.map((item) => (
                 <li key={item.label}>
                   <Link href={item.href} className="transition-colors hover:text-[#2ee59d]">
@@ -431,7 +413,7 @@ export function Footer({ dictionary = ar }: { dictionary?: Dictionary }) {
             <h3 className="text-xs font-bold text-gray-400">
               {dictionary.footer?.company || 'الشركة'}
             </h3>
-            <ul className="mt-5 flex flex-col gap-3.5 text-xs text-gray-200 sm:text-[13px]">
+            <ul className="mt-4 flex flex-col gap-3 text-xs text-gray-200 sm:text-[13px]">
               {companyLinks.map((item) => (
                 <li key={item.label}>
                   <Link href={item.href} className="transition-colors hover:text-[#2ee59d]">
@@ -443,11 +425,11 @@ export function Footer({ dictionary = ar }: { dictionary?: Dictionary }) {
           </div>
 
           {/* العمود الرابع: قانوني */}
-          <div className="col-span-2 text-right sm:col-span-1">
+          <div className="text-right">
             <h3 className="text-xs font-bold text-gray-400">
               {dictionary.footer?.legal || 'قانوني'}
             </h3>
-            <ul className="mt-5 flex flex-col gap-3.5 text-xs text-gray-200 sm:text-[13px]">
+            <ul className="mt-4 flex flex-col gap-3 text-xs text-gray-200 sm:text-[13px]">
               {legalLinks.map((item) => (
                 <li key={item.label}>
                   <Link href={item.href} className="transition-colors hover:text-[#2ee59d]">
@@ -460,7 +442,7 @@ export function Footer({ dictionary = ar }: { dictionary?: Dictionary }) {
 
         </div>
 
-        {/* القسم السفلي للفوتر */}
+        {/* القسم السفلي للفوتر (الدولة وإخلاء المسؤولية وحقوق النشر) */}
         <div className="mt-12 border-t border-white/10 pt-8 text-right text-xs text-gray-400">
           <div>
             <span className="block text-[11px] text-gray-400">الدولة</span>
@@ -511,7 +493,7 @@ export function Footer({ dictionary = ar }: { dictionary?: Dictionary }) {
   )
 }
 
-// ==================== 5. التخطيط العام (PublicLayout) ====================
+// ==================== 4. التخطيط العام (PublicLayout) ====================
 export function PublicLayout({ children }: { children: React.ReactNode }) {
   return (
     <>

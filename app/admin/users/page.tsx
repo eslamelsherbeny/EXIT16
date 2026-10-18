@@ -1,6 +1,5 @@
 import { cookies } from "next/headers"
 import { createServerClient } from "@supabase/ssr"
-import { AdminMobileNav } from "../layout"
 import UsersClientTable, { type AdminUserRow } from "./users-table"
 
 export const dynamic = "force-dynamic"
@@ -50,7 +49,6 @@ export default async function UsersPage() {
 
   return (
     <div className="mx-auto max-w-7xl">
-      <AdminMobileNav />
       <UsersClientTable users={rows} />
     </div>
   )

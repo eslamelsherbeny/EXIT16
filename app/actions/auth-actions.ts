@@ -199,7 +199,7 @@ export async function forgotPasswordAction(formData: FormData): Promise<AuthResu
   const otp = generateOTP()
   const expiry = new Date(Date.now() + 15 * 60 * 1000).toISOString()
   
-  // حفظ الـ OTP مؤقتاً (تأكد من وجود عمود otp_code و otp_expiry أو تجاهله لو مش موجود)
+  // حفظ الـ OTP مؤقتاً (تأكد من وجود عمود ffotp_code و otp_expiry أو تجاهله لو مش موجود)
   await supabase.from('users').update({ otp_code: otp, otp_expiry: expiry }).eq('id', user.id)
 
   sendEmail({

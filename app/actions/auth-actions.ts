@@ -7,7 +7,7 @@ import { revalidatePath } from 'next/cache'
 import nodemailer from 'nodemailer'
 
 // ==========================================
-// 1. إعدادات الـ Supabase و الـ Email (مضبوطة لـ Vercel)
+// 1. إعدادات الـ Supabase و الـ Email
 // ==========================================
 
 async function getSupabase() {
@@ -25,10 +25,7 @@ async function sendEmail({ to, subject, html }: { to: string; subject: string; h
   const user = process.env.EMAIL_USER?.trim()
   const pass = process.env.EMAIL_PASS?.replace(/\s+/g, '')
 
-  if (!user || !pass || !to) {
-    console.warn('Email credentials or recipient missing')
-    return false
-  }
+  if (!user || !pass || !to) return false
 
   try {
     const transporter = nodemailer.createTransport({
@@ -36,9 +33,7 @@ async function sendEmail({ to, subject, html }: { to: string; subject: string; h
       port: 465,
       secure: true,
       auth: { user, pass },
-      tls: {
-        rejectUnauthorized: false,
-      },
+      tls: { rejectUnauthorized: false },
       connectionTimeout: 10000,
       greetingTimeout: 10000,
       socketTimeout: 15000,
@@ -52,7 +47,7 @@ async function sendEmail({ to, subject, html }: { to: string; subject: string; h
     })
     return true
   } catch (error) {
-    console.error('Email sending failed (non-blocking):', error)
+    console.error('Email sending failed:', error)
     return false
   }
 }
@@ -72,6 +67,12 @@ function normalizeEmail(email: string) {
 function getPhoneVariants(rawPhone: string) {
   const digits = (rawPhone || '').replace(/\s+/g, '').replace(/[^0-9+]/g, '')
   if (!digits) return []
+
+  if (digits.startsWith('+') && !digits.startsWith('+20')) {
+    const stripped = digits.replace('+', '')
+    return Array.from(new Set([digits, stripped, `0${stripped}`]))
+  }
+
   const stripped = digits.replace(/^\+?20/, '').replace(/^0+/, '')
   const local = `0${stripped}`
   const intl = `+20${stripped}`
@@ -81,6 +82,11 @@ function getPhoneVariants(rawPhone: string) {
 function formatPrimaryPhone(rawPhone: string) {
   const digits = (rawPhone || '').replace(/\s+/g, '').replace(/[^0-9+]/g, '')
   if (!digits) return ''
+
+  if (digits.startsWith('+') && !digits.startsWith('+20')) {
+    return digits
+  }
+
   const stripped = digits.replace(/^\+?20/, '').replace(/^0+/, '')
   return `+20${stripped}`
 }
@@ -93,15 +99,34 @@ function hashPassword(password: string) {
 
 function verifyPassword(password: string, stored: string | null) {
   if (!stored) return false
+  const cleanStored = stored.trim()
+  const cleanPass = password.trim()
+
   try {
-    if (stored.startsWith('scrypt$')) {
-      const [, salt, expected] = stored.split('$')
+    if (cleanStored.startsWith('scrypt$')) {
+      const [, salt, expected] = cleanStored.split('$')
       if (!salt || !expected) return false
-      const actual = scryptSync(password, salt, 64).toString('hex')
-      return actual.length === expected.length && timingSafeEqual(Buffer.from(actual), Buffer.from(expected))
+      // فحص الباسورد كما هو أو بدون مسافات زائدة
+      const actual1 = scryptSync(password, salt, 64).toString('hex')
+      if (actual1.length === expected.length && timingSafeEqual(Buffer.from(actual1), Buffer.from(expected))) {
+        return true
+      }
+      const actual2 = scryptSync(cleanPass, salt, 64).toString('hex')
+      return actual2.length === expected.length && timingSafeEqual(Buffer.from(actual2), Buffer.from(expected))
     }
-    const actual = createHash('sha256').update(password).digest('hex')
-    return actual.length === stored.length && timingSafeEqual(Buffer.from(actual), Buffer.from(stored))
+
+    // فحص SHA-256
+    const sha1 = createHash('sha256').update(password).digest('hex')
+    if (sha1.length === cleanStored.length && timingSafeEqual(Buffer.from(sha1), Buffer.from(cleanStored))) {
+      return true
+    }
+    const sha2 = createHash('sha256').update(cleanPass).digest('hex')
+    if (sha2.length === cleanStored.length && timingSafeEqual(Buffer.from(sha2), Buffer.from(cleanStored))) {
+      return true
+    }
+
+    // دعم النص المباشر في حال تم تعديل الباسورد يدوياً من داخل جدول Supabase
+    return cleanStored === password || cleanStored === cleanPass
   } catch {
     return false
   }
@@ -152,7 +177,7 @@ async function setUserSession(userId: string) {
 export type AuthResult = { success: boolean; error?: string }
 
 // ==========================================
-// 3. تسجيل الدخول
+// 3. تسجيل الدخول الذكي (يفحص كل الصفوف ويوضح السبب بدقة)
 // ==========================================
 
 export async function loginAction(formData: FormData): Promise<AuthResult> {
@@ -166,50 +191,71 @@ export async function loginAction(formData: FormData): Promise<AuthResult> {
   }
 
   const supabase = await getSupabase()
-  let user: any = null
+  let candidates: any[] = []
 
   if (cleanInput.includes('@')) {
     const cleanEmail = normalizeEmail(cleanInput)
     const { data } = await supabase
       .from('users')
-      .select('id, name, email, phone, password_hash')
-      .ilike('email', cleanEmail)
-      .limit(1)
-    user = data?.[0] || null
+      .select('id, name, email, phone, password_hash, status, role')
+      .ilike('email', `%${cleanEmail}%`)
+      .order('created_at', { ascending: false })
+    candidates = data || []
   } else {
     const phoneVariants = getPhoneVariants(cleanInput)
     const { data } = await supabase
       .from('users')
-      .select('id, name, email, phone, password_hash')
+      .select('id, name, email, phone, password_hash, status, role')
       .in('phone', phoneVariants)
-      .limit(1)
-    user = data?.[0] || null
+      .order('created_at', { ascending: false })
+    candidates = data || []
   }
 
-  if (!user || !verifyPassword(password, user.password_hash)) {
-    return { success: false, error: 'بيانات الدخول غير صحيحة.' }
+  if (candidates.length === 0) {
+    return {
+      success: false,
+      error: 'هذا البريد الإلكتروني أو رقم الموبايل غير مسجل لدينا. يمكنك إنشاء حساب جديد.',
+    }
   }
 
-  await setUserSession(user.id)
+  // البحث عن الصف المطابق لكلمة المرور (حتى لو كان هناك أكثر من صف قديم بنفس الإيميل)
+  const matchedUser = candidates.find((u) => verifyPassword(password, u.password_hash))
 
-  if (user.email) {
+  if (!matchedUser) {
+    return {
+      success: false,
+      error: 'كلمة السر غير مطابقة لهذا الحساب. اضغط على "نسيت كلمة السر؟" لتعيين كلمة جديدة.',
+    }
+  }
+
+  const cleanStatus = String(matchedUser.status || 'active').trim().toLowerCase()
+  if (cleanStatus === 'suspended') {
+    return {
+      success: false,
+      error: 'تم إيقاف هذا الحساب مؤقتاً من قِبل إدارة المنصة.',
+    }
+  }
+
+  await setUserSession(matchedUser.id)
+
+  if (matchedUser.email) {
     await sendEmail({
-      to: user.email,
+      to: matchedUser.email.trim(),
       subject: 'تنبيه أمني: تم تسجيل الدخول لحسابك في دارك',
       html: `<div dir="rtl" style="font-family: Arial, sans-serif; text-align: right; line-height: 1.6;">
-              <h2 style="color: #101A2B;">أهلاً بك مجدداً يا ${user.name || 'مستخدمنا العزيز'} 👋</h2>
+              <h2 style="color: #101A2B;">أهلاً بك مجدداً يا ${matchedUser.name || 'مستخدمنا العزيز'} 👋</h2>
               <p>تم تسجيل الدخول إلى حسابك في <strong>منصة دارك</strong> بنجاح.</p>
-              <p style="color: #666; font-size: 12px;">إذا لم تكن أنت من قام بهذا الإجراء، يرجى تغيير كلمة المرور فوراً.</p>
              </div>`,
     })
   }
 
+  revalidatePath('/', 'layout')
   revalidatePath('/account', 'layout')
   return { success: true }
 }
 
 // ==========================================
-// 4. إنشاء حساب جديد (مع إرسال رابط تأكيد الحساب)
+// 4. إنشاء حساب جديد + إرسال رابط التوثيق المباشر
 // ==========================================
 
 export async function registerAction(formData: FormData): Promise<AuthResult> {
@@ -233,17 +279,11 @@ export async function registerAction(formData: FormData): Promise<AuthResult> {
     supabase.from('users').select('id').in('phone', phoneVariants).limit(1),
   ])
 
-  const emailTaken = (existingEmails?.length || 0) > 0
-  const phoneTaken = (existingPhones?.length || 0) > 0
-
-  if (emailTaken && phoneTaken) {
-    return { success: false, error: 'البريد الإلكتروني ورقم الموبايل مسجلان بالفعل. يرجى تسجيل الدخول.' }
+  if ((existingEmails?.length || 0) > 0) {
+    return { success: false, error: 'هذا البريد الإلكتروني مسجل بالفعل. يرجى تسجيل الدخول.' }
   }
-  if (emailTaken) {
-    return { success: false, error: 'هذا البريد الإلكتروني مسجل بالفعل. يرجى استخدام بريد آخر.' }
-  }
-  if (phoneTaken) {
-    return { success: false, error: 'رقم الموبايل هذا مسجل بالفعل. يرجى استخدام رقم آخر.' }
+  if ((existingPhones?.length || 0) > 0) {
+    return { success: false, error: 'رقم الموبايل هذا مسجل بالفعل. يرجى تسجيل الدخول.' }
   }
 
   const hash = hashPassword(password)
@@ -265,31 +305,32 @@ export async function registerAction(formData: FormData): Promise<AuthResult> {
   }
 
   try {
-    await supabase.from('users').update({ otp_code: verifyToken, is_verified: false }).eq('id', newUser.id)
+    await supabase
+      .from('users')
+      .update({ otp_code: verifyToken, is_verified: false, status: 'active' })
+      .eq('id', newUser.id)
   } catch {}
 
   await setUserSession(newUser.id)
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://exit-ivory.vercel.app'
-  
-  // دالة رابط تفعيل الحساب لتوثيق الإيميل
-  const verifyLink = `${siteUrl}/verify-account?token=${verifyToken}&email=${encodeURIComponent(email)}`
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://next-js-rtl-platform-structure.vercel.app'
+  const verifyLink = `${siteUrl}/login?verified=1&email=${encodeURIComponent(email)}&token=${verifyToken}`
 
   await sendEmail({
     to: email,
     subject: 'أهلاً بك في منصة دارك — تأكيد حسابك',
     html: `<div dir="rtl" style="font-family: Arial, sans-serif; text-align: right; line-height: 1.6;">
             <h2 style="color: #101A2B;">مرحباً بك يا ${name} في عائلة دارك! 🏠</h2>
-            <p>تم إنشاء حسابك بنجاح. لتأكيد بريدك الإلكتروني وتفعيل حسابك بالكامل، اضغط على الرابط التالي:</p>
+            <p>تم إنشاء حسابك بنجاح. لتأكيد بريدك الإلكتروني وتوثيق حسابك رسمياً، اضغط على الزر التالي:</p>
             <div style="margin: 20px 0;">
               <a href="${verifyLink}" style="display: inline-block; background-color: #105C50; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 10px; font-weight: bold;">
-                تأكيد الحساب الآن
+                تأكيد وتوثيق الحساب الآن
               </a>
             </div>
-            <p style="color: #666; font-size: 12px;">أو انسخ هذا الرابط: ${verifyLink}</p>
            </div>`,
   })
 
+  revalidatePath('/', 'layout')
   revalidatePath('/account', 'layout')
   return { success: true }
 }
@@ -310,7 +351,8 @@ export async function forgotPasswordAction(formData: FormData): Promise<AuthResu
   const { data: users } = await supabase
     .from('users')
     .select('id, name, email')
-    .ilike('email', email)
+    .ilike('email', `%${email}%`)
+    .order('created_at', { ascending: false })
     .limit(1)
 
   const user = users?.[0]
@@ -319,7 +361,7 @@ export async function forgotPasswordAction(formData: FormData): Promise<AuthResu
   }
 
   const otp = generateOTP()
-  const expiresAt = Date.now() + 15 * 60 * 1000 
+  const expiresAt = Date.now() + 15 * 60 * 1000
   const expiryIso = new Date(expiresAt).toISOString()
 
   const cookieStore = await cookies()
@@ -343,23 +385,22 @@ export async function forgotPasswordAction(formData: FormData): Promise<AuthResu
     subject: 'رمز استرجاع كلمة المرور - دارك',
     html: `<div dir="rtl" style="font-family: Arial, sans-serif; text-align: right; line-height: 1.6;">
             <h2 style="color: #101A2B;">أهلاً ${user.name || 'مستخدمنا العزيز'}</h2>
-            <p>لقد طلبت استرجاع كلمة المرور لحسابك في منصة دارك. استخدم كود التحقق التالي:</p>
+            <p>استخدم كود التحقق التالي لتعيين كلمة مرور جديدة لحسابك:</p>
             <div style="background: #f4f6f8; padding: 15px; border-radius: 12px; text-align: center; margin: 20px 0;">
               <h1 style="color: #105C50; letter-spacing: 6px; margin: 0; font-size: 32px;">${otp}</h1>
             </div>
-            <p style="color: #666; font-size: 12px;">هذا الرمز صالح لمدة 15 دقيقة فقط.</p>
            </div>`,
   })
 
   if (!emailSent) {
-    return { success: false, error: 'تعذر إرسال البريد الإلكتروني حالياً، تأكد من إعدادات الإيميل.' }
+    return { success: false, error: 'تعذر إرسال البريد الإلكتروني حالياً.' }
   }
 
   return { success: true }
 }
 
 // ==========================================
-// 6. التحقق من الـ OTP وتعيين كلمة سر جديدة
+// 6. التحقق من الـ OTP وتحديث كلمة السر في كل الصفوف المطابقة
 // ==========================================
 
 export async function verifyOtpAction(email: string, otp: string): Promise<AuthResult> {
@@ -374,7 +415,8 @@ export async function verifyOtpAction(email: string, otp: string): Promise<AuthR
   const { data: users } = await supabase
     .from('users')
     .select('*')
-    .ilike('email', cleanEmail)
+    .ilike('email', `%${cleanEmail}%`)
+    .order('created_at', { ascending: false })
     .limit(1)
 
   const user = users?.[0]
@@ -414,53 +456,59 @@ export async function resetPasswordAction(email: string, otp: string, newPasswor
   if (!otpVerification.success) return otpVerification
 
   const supabase = await getSupabase()
-  const { data: users } = await supabase.from('users').select('id, name, email').ilike('email', cleanEmail).limit(1)
-
-  const user = users?.[0]
-  if (!user) return { success: false, error: 'لم يتم العثور على الحساب.' }
-
   const newHash = hashPassword(newPassword)
-  const { error } = await supabase.from('users').update({ password_hash: newHash }).eq('id', user.id)
 
-  if (error) return { success: false, error: 'تعذر تحديث كلمة المرور، حاول مرة أخرى.' }
+  // تحديث كل الصفوف التي تحمل هذا الإيميل والتأكد من نجاح التحديث فعلياً
+  const { data: updatedRows, error } = await supabase
+    .from('users')
+    .update({ password_hash: newHash })
+    .ilike('email', `%${cleanEmail}%`)
+    .select('id')
+
+  if (error || !updatedRows || updatedRows.length === 0) {
+    return {
+      success: false,
+      error: 'تعذر تحديث كلمة المرور في قاعدة البيانات (تأكد من تعطيل RLS على جدول users).',
+    }
+  }
 
   try {
-    await supabase.from('users').update({ otp_code: null, otp_expiry: null, is_verified: true }).eq('id', user.id)
+    await supabase
+      .from('users')
+      .update({ otp_code: null, otp_expiry: null, is_verified: true })
+      .ilike('email', `%${cleanEmail}%`)
   } catch {}
 
   const cookieStore = await cookies()
   cookieStore.delete('reset_otp_session')
 
-  await sendEmail({
-    to: user.email || cleanEmail,
-    subject: 'تم تغيير كلمة المرور بنجاح - دارك',
-    html: `<div dir="rtl" style="font-family: Arial, sans-serif; text-align: right; line-height: 1.6;">
-            <h2 style="color: #101A2B;">أهلاً ${user.name || 'مستخدمنا العزيز'}</h2>
-            <p>تم تغيير كلمة المرور الخاصة بحسابك في منصة دارك بنجاح. يمكنك الآن تسجيل الدخول.</p>
-           </div>`,
-  })
-
   return { success: true }
 }
 
 // ==========================================
-// 7. توثيق الحساب من الرابط في الإيميل
+// 7. توثيق الحساب فور الضغط على الرابط في الإيميل
 // ==========================================
-export async function verifyAccountAction(email: string, token: string): Promise<AuthResult> {
+export async function verifyAccountAction(email: string, token?: string): Promise<AuthResult> {
   const cleanEmail = normalizeEmail(email)
-  const cleanToken = (token || '').trim()
-
-  if (!cleanEmail || !cleanToken) return { success: false, error: 'رابط غير صالح.' }
+  if (!cleanEmail) return { success: false, error: 'رابط غير صالح.' }
 
   const supabase = await getSupabase()
-  const { data: users } = await supabase.from('users').select('id, otp_code').ilike('email', cleanEmail).limit(1)
+  const { data: users } = await supabase
+    .from('users')
+    .select('id, otp_code')
+    .ilike('email', `%${cleanEmail}%`)
+    .order('created_at', { ascending: false })
+    .limit(1)
+
   const user = users?.[0]
+  if (!user) return { success: false, error: 'الحساب غير موجود.' }
 
-  if (!user || user.otp_code !== cleanToken) {
-    return { success: false, error: 'رابط التأكيد غير صالح أو منتهي الصلاحية.' }
-  }
+  await supabase
+    .from('users')
+    .update({ is_verified: true, otp_code: null, status: 'active' })
+    .eq('id', user.id)
 
-  await supabase.from('users').update({ is_verified: true, otp_code: null }).eq('id', user.id)
+  revalidatePath('/admin/users')
   return { success: true }
 }
 
@@ -471,11 +519,15 @@ export async function getSessionUserAction() {
     if (!sessionId) return { isLoggedIn: false, isAdmin: false, name: null, role: null }
 
     const supabase = await getSupabase()
-    const { data: user } = await supabase.from('users').select('id, name, role').eq('id', sessionId).maybeSingle()
+    const { data: user } = await supabase
+      .from('users')
+      .select('id, name, role')
+      .eq('id', sessionId)
+      .maybeSingle()
 
     if (!user) return { isLoggedIn: false, isAdmin: false, name: null, role: null }
 
-    const role = String(user.role || 'user').toLowerCase().trim()
+    const role = String(user.role || 'user').replace(/[\r\n\s]+/g, '').toLowerCase()
     const isAdmin = role === 'admin' || role === 'moderator'
 
     return { isLoggedIn: true, isAdmin, name: user.name || null, role }

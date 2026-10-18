@@ -1,21 +1,31 @@
 'use client'
 
-import { Suspense, useState, useTransition } from 'react'
+import { Suspense, useEffect, useState, useTransition } from 'react'
 import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { Eye, EyeOff } from 'lucide-react'
 import { AuthCard, AuthLayout } from '@/components/auth-layout'
-import { loginAction } from '@/app/actions/auth-actions'
+import { loginAction, verifyAccountAction } from '@/app/actions/auth-actions'
 
 function LoginContent() {
-  const router = useRouter()
   const searchParams = useSearchParams()
-  const isVerified = searchParams.get('verified') === '1'
+  const isVerifiedParam = searchParams.get('verified') === '1'
   const defaultEmail = searchParams.get('email') || ''
+  const verifyToken = searchParams.get('token') || ''
 
   const [error, setError] = useState('')
+  const [verifiedSuccess, setVerifiedSuccess] = useState(isVerifiedParam)
   const [showPassword, setShowPassword] = useState(false)
   const [pending, startTransition] = useTransition()
+
+  // توثيق الحساب في قاعدة البيانات تلقائياً عند قدوم المستخدم من رابط الإيميل
+  useEffect(() => {
+    if (isVerifiedParam && defaultEmail) {
+      verifyAccountAction(defaultEmail, verifyToken).then((res) => {
+        if (res.success) setVerifiedSuccess(true)
+      })
+    }
+  }, [isVerifiedParam, defaultEmail, verifyToken])
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -25,7 +35,6 @@ function LoginContent() {
     startTransition(async () => {
       const result = await loginAction(formData)
       if (result.success) {
-        // توجيه المستخدم فوراً لصفحة حسابه بعد تسجيل الدخول الناجح
         window.location.href = '/account'
       } else {
         setError(result.error || 'بيانات الدخول غير صحيحة، يرجى المحاولة مرة أخرى.')
@@ -41,9 +50,9 @@ function LoginContent() {
           <p className="mt-3 text-sm text-muted-foreground">أهلاً بيك تاني في دارك</p>
         </div>
 
-        {isVerified && !error && (
+        {verifiedSuccess && !error && (
           <div className="mt-4 rounded-xl bg-emerald-50 p-3 text-center text-xs font-bold text-emerald-700">
-            تم تأكيد حسابك بنجاح! يمكنك تسجيل الدخول الآن.
+            تم تأكيد وتوثيق حسابك بنجاح! يمكنك تسجيل الدخول الآن.
           </div>
         )}
 

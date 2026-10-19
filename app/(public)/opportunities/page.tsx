@@ -18,6 +18,8 @@ import {
   Zap,
 } from 'lucide-react'
 
+const PAGE_SIZE = 48
+
 type Property = {
   id: string
   code: string
@@ -52,7 +54,6 @@ type Property = {
 const DEFAULT_FALLBACK_IMAGE =
   'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=900&q=85'
 
-// حساب المعادل الشهري للقسط لكي يعمل فلتر "أقصى قسط شهري" وترتيب "أقل قسط" بدقة
 function calcMonthlyEquivalent(amount: number, freq: string): number {
   if (!amount) return 0
   const f = (freq || '').trim()
@@ -64,7 +65,6 @@ function calcMonthlyEquivalent(amount: number, freq: string): number {
   return amount
 }
 
-// تحويل طلب البيع من قاعدة البيانات إلى بطاقة فرصة بنفس التصميم
 function mapDbRowToProperty(row: any): Property {
   const paid = Number(row.paid_amount) || 0
   const discount = row.willing_to_discount ? Number(row.discount_amount) || 0 : 0
@@ -212,10 +212,8 @@ function PropertyCard({ property }: { property: Property }) {
   const [liked, setLiked] = useState(false)
 
   return (
-    <div className="group flex flex-col justify-between overflow-hidden rounded-[14px] border border-gray-200/90 bg-white shadow-sm transition-all duration-200 hover:shadow-md sm:rounded-[18px]">
-      {/* الجزء العلوي من البطاقة */}
+    <div className="group flex h-full flex-col justify-between overflow-hidden rounded-[14px] border border-gray-200/90 bg-white shadow-sm transition-all duration-200 hover:shadow-md sm:rounded-[18px]">
       <div>
-        {/* صورة الوحدة والشارات العلوية */}
         <div className="relative h-[125px] w-full overflow-hidden bg-gray-100 sm:h-[180px] md:h-[200px]">
           <Link href={`/opportunities/${property.id}`} className="block h-full w-full">
             <img
@@ -225,12 +223,10 @@ function PropertyCard({ property }: { property: Property }) {
             />
           </Link>
 
-          {/* شارة متحقق بالمستندات (أعلى اليمين) */}
           <span className="pointer-events-none absolute right-1.5 top-1.5 rounded-full bg-[#e6f4f9]/95 px-2 py-0.5 text-[9px] font-bold text-[#0b6954] shadow-sm backdrop-blur-sm sm:right-3 sm:top-3 sm:px-3 sm:py-1 sm:text-[11px]">
             متحقق بالمستندات
           </span>
 
-          {/* أزرار المفضلة والنجمة المميزة (أعلى اليسار) */}
           <div className="absolute left-1.5 top-1.5 flex items-center sm:left-3 sm:top-3">
             <div className="flex items-center rounded-full bg-white p-0.5 pl-0.5 pr-1.5 shadow-md sm:pl-1 sm:pr-2.5">
               {property.featured && (
@@ -258,36 +254,30 @@ function PropertyCard({ property }: { property: Property }) {
           </div>
         </div>
 
-        {/* تفاصيل البطاقة الوسطى */}
         <div className="p-2.5 pb-2 text-right sm:p-5 sm:pb-3">
-          {/* اسم المشروع */}
           <Link href={`/opportunities/${property.id}`}>
-            <h3 className="line-clamp-1 text-[13px] font-extrabold leading-snug text-[#0a1122] transition-colors group-hover:text-[#0b6954] sm:line-clamp-2 sm:text-[16px]">
+            <h3 className="line-clamp-1 min-h-[20px] text-[13px] font-extrabold leading-snug text-[#0a1122] transition-colors group-hover:text-[#0b6954] sm:line-clamp-2 sm:min-h-[44px] sm:text-[16px]">
               {property.project}
             </h3>
           </Link>
 
-          {/* المطور والمنطقة */}
           <p className="mt-0.5 line-clamp-1 text-[10px] text-gray-500 sm:mt-1 sm:text-xs">
             {property.developer}
           </p>
 
-          {/* كود الوحدة */}
           <div className="mt-0.5 text-left sm:mt-1">
             <span className="font-mono text-[9px] text-gray-400 sm:text-[11px]">
               {property.code}
             </span>
           </div>
 
-          {/* مواصفات الوحدة */}
           <p className="mt-1.5 line-clamp-1 text-[10px] font-extrabold text-[#0a1122] sm:mt-2 sm:text-xs">
             {property.type} · {property.rooms} غرف · {property.baths} حمام · {property.size} م²
           </p>
 
-          {/* المطلوب كاش دلوقتي */}
           <div className="mt-2.5 sm:mt-4">
             <p className="text-[10px] text-gray-400 sm:text-[11px]">المطلوب كاش دلوقتي</p>
-            <p className="mt-0.5 text-[15px] font-extrabold tracking-tight text-[#0a1122] sm:text-[22px]">
+            <p className="mt-0.5 text-[15px] font-extrabold tracking-tight text-[#0a1122] tabular-nums sm:text-[22px]">
               {property.cash}{' '}
               <span className="text-[11px] font-bold sm:text-sm">ج.م</span>
             </p>
@@ -299,7 +289,6 @@ function PropertyCard({ property }: { property: Property }) {
             )}
           </div>
 
-          {/* صندوق مكسبك عن سعر السوق (الأخضر) */}
           {property.gain && (
             <div className="mt-2.5 sm:mt-3.5">
               <div className="rounded-lg border border-[#c8eedd] bg-[#ecfbf3] p-2 text-right sm:rounded-xl sm:p-3">
@@ -308,7 +297,7 @@ function PropertyCard({ property }: { property: Property }) {
                 </p>
                 <p
                   dir="ltr"
-                  className="mt-0.5 text-right text-[13px] font-extrabold text-[#0b6954] sm:text-lg"
+                  className="mt-0.5 text-right text-[13px] font-extrabold text-[#0b6954] tabular-nums sm:text-lg"
                 >
                   {property.gain} ج.م
                 </p>
@@ -324,24 +313,25 @@ function PropertyCard({ property }: { property: Property }) {
         </div>
       </div>
 
-      {/* الجزء السفلي من البطاقة: جدول الـ 3 صفوف + زر التفاصيل */}
       <div className="px-2.5 pb-2.5 pt-1 sm:px-5 sm:pb-5 sm:pt-2">
         <div className="space-y-1.5 border-t border-gray-100 pt-2 text-[10px] sm:space-y-2 sm:pt-3 sm:text-xs">
           <div className="flex items-center justify-between gap-1">
             <span className="shrink-0 text-gray-400">المتبقي للمطور</span>
-            <strong className="truncate font-bold text-[#0a1122]">
+            <strong className="truncate font-bold text-[#0a1122] tabular-nums">
               {property.remaining} ج.م
             </strong>
           </div>
           <div className="flex items-center justify-between gap-1">
             <span className="shrink-0 text-gray-400">القسط</span>
-            <strong className="truncate font-bold text-[#0a1122]">
+            <strong className="truncate font-bold text-[#0a1122] tabular-nums">
               {property.installment} ج.م · {property.installmentFreq}
             </strong>
           </div>
           <div className="flex items-center justify-between gap-1">
             <span className="shrink-0 text-gray-400">الاستلام</span>
-            <strong className="font-bold text-[#0a1122]">{property.delivery}</strong>
+            <strong className="font-bold text-[#0a1122] tabular-nums">
+              {property.delivery}
+            </strong>
           </div>
         </div>
 
@@ -361,7 +351,9 @@ export default function OpportunitiesPage() {
   const [dbProperties, setDbProperties] = useState<Property[]>([])
   const [totalInPlatform, setTotalInPlatform] = useState<number>(0)
   const [loading, setLoading] = useState<boolean>(true)
-  const [visibleLimit, setVisibleLimit] = useState<number>(48)
+
+  // حالة الـ Pagination (تبدأ بـ 48 وتزيد 48 في كل ضغطة على الموبايل والكمبيوتر)
+  const [visibleLimit, setVisibleLimit] = useState<number>(PAGE_SIZE)
 
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [negotiable, setNegotiable] = useState(false)
@@ -379,6 +371,17 @@ export default function OpportunitiesPage() {
   const [contractYear, setContractYear] = useState('الكل')
   const [minRooms, setMinRooms] = useState('الكل')
 
+  // قراءة قيمة ?show= من الرابط عند فتح الصفحة (مثلاً ?show=144)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const showParam = Number(params.get('show'))
+      if (showParam && showParam >= PAGE_SIZE) {
+        setVisibleLimit(showParam)
+      }
+    }
+  }, [])
+
   // جلب العقارات الحقيقية من قاعدة البيانات
   useEffect(() => {
     async function loadApprovedProperties() {
@@ -394,7 +397,8 @@ export default function OpportunitiesPage() {
             .from('sell_requests')
             .select('*')
             .in('status', ['active', 'offer_received', 'transferring'])
-            .order('created_at', { ascending: false }),
+            .order('created_at', { ascending: false })
+            .limit(5000),
           supabase
             .from('sell_requests')
             .select('id', { count: 'exact', head: true }),
@@ -415,7 +419,31 @@ export default function OpportunitiesPage() {
     loadApprovedProperties()
   }, [])
 
-  // الاعتماد على البيانات الحقيقية القادمة من قاعدة البيانات
+  // إعادة ضبط الـ Pagination إلى 48 عند تغيير أي فلتر أو بحث
+  useEffect(() => {
+    setVisibleLimit(PAGE_SIZE)
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href)
+      if (url.searchParams.has('show')) {
+        url.searchParams.delete('show')
+        window.history.replaceState({}, '', url.toString())
+      }
+    }
+  }, [
+    search,
+    areaQuery,
+    negotiable,
+    selectedTypes,
+    deliveryStatus,
+    deliveryYear,
+    contractYear,
+    minRooms,
+    maxCash,
+    maxInstallment,
+    maxContractPrice,
+    sort,
+  ])
+
   const allProperties = useMemo(() => {
     return dbProperties
   }, [dbProperties])
@@ -438,6 +466,20 @@ export default function OpportunitiesPage() {
     setContractYear('الكل')
     setMinRooms('الكل')
     setNegotiable(false)
+    setVisibleLimit(PAGE_SIZE)
+  }
+
+  // دالة تحميل 48 وحدة إضافية تحت الوحدات المعروضة حالياً + تحديث الرابط (?show=96, ?show=144)
+  const handleLoadMore = () => {
+    setVisibleLimit((prev) => {
+      const nextLimit = prev + PAGE_SIZE
+      if (typeof window !== 'undefined') {
+        const url = new URL(window.location.href)
+        url.searchParams.set('show', String(nextLimit))
+        window.history.replaceState({}, '', url.toString())
+      }
+      return nextLimit
+    })
   }
 
   const activeFilterCount = useMemo(() => {
@@ -521,7 +563,6 @@ export default function OpportunitiesPage() {
       return true
     })
 
-    // تطبيق الترتيب المختار
     return [...filtered].sort((a, b) => {
       if (sort === 'الأقل كاش') return a.cashNum - b.cashNum
       if (sort === 'أقل قسط') return a.monthlyInstallmentNum - b.monthlyInstallmentNum
@@ -552,7 +593,6 @@ export default function OpportunitiesPage() {
     sort,
   ])
 
-  // إحصائيات حقيقية من الوحدات الفعلية
   const totalUnitsCount = totalInPlatform || allProperties.length
   const availableUnitsCount = visibleProperties.length
 
@@ -582,8 +622,13 @@ export default function OpportunitiesPage() {
     }
   }, [totalMarketSum])
 
-  const displayedProperties = visibleProperties.slice(0, visibleLimit)
-  const remainingCount = Math.max(0, visibleProperties.length - visibleLimit)
+  // الوحدات المعروضة حالياً (تبدأ بـ 48 وتزيد 48 مع كل ضغطة)
+  const displayedProperties = useMemo(() => {
+    return visibleProperties.slice(0, visibleLimit)
+  }, [visibleProperties, visibleLimit])
+
+  const remainingCount = Math.max(0, visibleProperties.length - displayedProperties.length)
+  const nextBatchCount = Math.min(PAGE_SIZE, remainingCount)
 
   return (
     <main dir="rtl" className="min-h-screen bg-[#f5f6f8] py-8 text-[#0a1122] sm:py-14">
@@ -599,53 +644,66 @@ export default function OpportunitiesPage() {
           </p>
         </div>
 
-        {/* ==================== 2. صندوق الإحصائيات (عمودين حتى على الموبايل) ==================== */}
+        {/* ==================== 2. صندوق الإحصائيات (محاذاة الأرقام على نفس الخط تماماً) ==================== */}
         <section className="mt-6 sm:mt-8">
           <div className="grid grid-cols-2 divide-x divide-x-reverse divide-gray-200/80 overflow-hidden rounded-[16px] border border-gray-200/70 border-t-[3px] border-t-[#0b6954] bg-white shadow-sm sm:rounded-[20px]">
             {/* الوحدات على المنصة */}
-            <div className="p-4 text-right sm:p-10">
-              <p className="text-[11px] font-bold text-gray-500 sm:text-xs">الوحدات على المنصة</p>
+            <div className="flex flex-col justify-between p-4 text-right sm:p-10">
+              <div className="flex min-h-[22px] items-center justify-start">
+                <p className="text-[11px] font-bold text-gray-500 sm:text-xs">
+                  الوحدات على المنصة
+                </p>
+              </div>
+
               <div className="mt-2 flex items-baseline justify-start gap-1.5 sm:mt-3 sm:gap-2">
-                <span className="text-2xl font-extrabold tracking-tight text-[#0a1122] sm:text-5xl">
+                <span className="text-2xl font-extrabold leading-none tracking-tight text-[#0a1122] tabular-nums sm:text-5xl">
                   {totalUnitsCount.toLocaleString('en-US')}
                 </span>
-                <span className="text-xs font-medium text-gray-500 sm:text-lg">وحدة</span>
+                <span className="text-xs font-medium text-gray-500 sm:text-lg">
+                  وحدة
+                </span>
               </div>
-              <div className="mt-3 h-[1px] w-8 bg-teal-600/40 sm:mt-4 sm:w-10" />
-              <p className="mt-2 text-[10px] text-gray-400 sm:mt-3 sm:text-xs">
-                منشورة في السوق، وتحت المراجعة
-              </p>
+
+              <div>
+                <div className="mt-3 h-[1px] w-8 bg-teal-600/40 sm:mt-4 sm:w-10" />
+                <p className="mt-2 text-[10px] leading-snug text-gray-400 sm:mt-3 sm:text-xs">
+                  منشورة في السوق، وتحت المراجعة
+                </p>
+              </div>
             </div>
 
             {/* قيمة الوحدات في السوق */}
-            <div className="p-4 text-right sm:p-10">
-              <div className="flex flex-wrap items-center justify-start gap-1.5 sm:gap-2">
-                <p className="text-[11px] font-bold text-gray-500 sm:text-xs">
+            <div className="flex flex-col justify-between p-4 text-right sm:p-10">
+              <div className="flex min-h-[22px] items-center justify-start gap-1 sm:gap-2">
+                <p className="truncate text-[10.5px] font-bold text-gray-500 sm:text-xs">
                   قيمة الوحدات في السوق
                 </p>
-                <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[9px] font-semibold text-gray-500 sm:text-[10px]">
+                <span className="shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-[8.5px] font-semibold text-gray-500 sm:text-[10px]">
                   تقديري
                 </span>
               </div>
+
               <div className="mt-2 flex items-baseline justify-start gap-1.5 sm:mt-3 sm:gap-2">
-                <span className="text-2xl font-extrabold tracking-tight text-[#0a1122] sm:text-5xl">
+                <span className="text-2xl font-extrabold leading-none tracking-tight text-[#0a1122] tabular-nums sm:text-5xl">
                   {formattedMarketTotal.value}
                 </span>
                 <span className="text-xs font-medium text-gray-500 sm:text-lg">
                   {formattedMarketTotal.unit}
                 </span>
               </div>
-              <div className="mt-3 h-[1px] w-8 bg-teal-600/40 sm:mt-4 sm:w-10" />
-              <p className="mt-2 text-[10px] text-gray-400 sm:mt-3 sm:text-xs">
-                بسعر السوق الحالي للوحدة
-              </p>
+
+              <div>
+                <div className="mt-3 h-[1px] w-8 bg-teal-600/40 sm:mt-4 sm:w-10" />
+                <p className="mt-2 text-[10px] leading-snug text-gray-400 sm:mt-3 sm:text-xs">
+                  بسعر السوق الحالي للوحدة
+                </p>
+              </div>
             </div>
           </div>
         </section>
 
         {/* ==================== 3. شريط البحث والفلترة ==================== */}
         <section className="mt-6 rounded-[16px] border border-gray-200/80 bg-white p-3.5 shadow-sm sm:mt-8 sm:rounded-[20px] sm:p-5">
-          {/* حقل البحث */}
           <div className="relative">
             <Search className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
             <input
@@ -657,9 +715,7 @@ export default function OpportunitiesPage() {
             />
           </div>
 
-          {/* شريط الأزرار والترتيب */}
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2.5 sm:mt-3.5">
-            {/* اليمين: زر فلترة + قابل للتفاوض + عدد الوحدات */}
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
@@ -697,7 +753,6 @@ export default function OpportunitiesPage() {
               </span>
             </div>
 
-            {/* اليسار: قائمة الترتيب */}
             <div className="flex items-center gap-1.5 sm:gap-2">
               <label htmlFor="sort-select" className="text-[11px] text-gray-400 sm:text-xs">
                 ترتيب
@@ -720,7 +775,6 @@ export default function OpportunitiesPage() {
             </div>
           </div>
 
-          {/* شريط الفلاتر النشطة */}
           {activeFilterCount > 0 && (
             <div className="mt-3 flex flex-wrap items-center justify-start gap-2 border-t border-gray-100 pt-2.5">
               {negotiable && (
@@ -1044,7 +1098,7 @@ export default function OpportunitiesPage() {
           </section>
         )}
 
-        {/* ==================== 5. شبكة الكروت (كارتين في الصف دائماً) ==================== */}
+        {/* ==================== 5. شبكة الكروت (عمودين للموبايل، و3 أعمدة للكمبيوتر) + الـ Pagination ==================== */}
         <section className="mt-6 sm:mt-8">
           <div className="mb-4 flex items-center justify-start gap-1.5 text-right sm:mb-5">
             <Star className="size-4 fill-amber-400 text-amber-500" />
@@ -1054,8 +1108,8 @@ export default function OpportunitiesPage() {
           </div>
 
           {loading ? (
-            <div className="grid grid-cols-2 items-start gap-2.5 sm:gap-5">
-              {[1, 2, 3, 4].map((n) => (
+            <div className="grid grid-cols-2 items-stretch gap-2.5 sm:gap-5 lg:grid-cols-3 lg:gap-6">
+              {[1, 2, 3, 4, 5, 6].map((n) => (
                 <div
                   key={n}
                   className="h-[340px] animate-pulse rounded-[14px] border border-gray-200 bg-white p-4 sm:h-[420px] sm:rounded-[18px]"
@@ -1068,7 +1122,7 @@ export default function OpportunitiesPage() {
               ))}
             </div>
           ) : displayedProperties.length > 0 ? (
-            <div className="grid grid-cols-2 items-start gap-2.5 sm:gap-5">
+            <div className="grid grid-cols-2 items-stretch gap-2.5 sm:gap-5 lg:grid-cols-3 lg:gap-6">
               {displayedProperties.map((property) => (
                 <PropertyCard key={property.id} property={property} />
               ))}
@@ -1092,14 +1146,16 @@ export default function OpportunitiesPage() {
             </div>
           )}
 
+          {/* زر الـ Pagination لعرض 48 وحدة إضافية تحت الوحدات الحالية على الموبايل والكمبيوتر */}
           {remainingCount > 0 && (
             <div className="mt-8 flex justify-center sm:mt-10">
               <button
                 type="button"
-                onClick={() => setVisibleLimit((prev) => prev + 48)}
-                className="rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-xs font-bold text-[#0a1122] shadow-sm transition-colors hover:bg-gray-50 sm:px-6 sm:py-3"
+                onClick={handleLoadMore}
+                className="rounded-full border border-gray-200 bg-white px-6 py-2.5 text-xs font-bold text-[#0a1122] shadow-xs transition-all hover:border-gray-300 hover:bg-gray-50 active:scale-95 sm:px-7 sm:py-3"
               >
-                اعرض 48 كمان ({remainingCount} متبقية)
+                اعرض {nextBatchCount === PAGE_SIZE ? '48' : nextBatchCount} كمان (
+                {remainingCount.toLocaleString('en-US')} متبقية)
               </button>
             </div>
           )}

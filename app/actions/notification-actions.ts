@@ -25,8 +25,8 @@ export type NotificationType =
   | "admin_alert"
   | "system"
 
-// 1. جلب الإشعارات للمستخدم الحالي (سواء كان أدمن أو بائع أو مشتري)
-export async function getUserNotificationsAction() {
+// 1. جلب الإشعارات بناءً على السياق (قبعة العميل أم قبعة الإدارة)
+export async function getUserNotificationsAction(context: "client" | "admin" = "client") {
   try {
     const cookieStore = await cookies()
     const sessionId = cookieStore.get("user_session")?.value
@@ -43,9 +43,7 @@ export async function getUserNotificationsAction() {
       .eq("id", sessionId)
       .maybeSingle()
 
-    const role = String(user?.role || "user")
-      .replace(/[\r\n\s]+/g, "")
-      .toLowerCase()
+    const role = String(user?.role || "user").replace(/[\r\n\s]+/g, "").toLowerCase()
     const isAdmin = role === "admin" || role === "moderator"
 
     let query = supabase
@@ -54,9 +52,12 @@ export async function getUserNotificationsAction() {
       .order("created_at", { ascending: false })
       .limit(25)
 
-    if (isAdmin) {
-      query = query.or(`user_id.eq.${sessionId},user_id.is.null`)
+    // الذكاء هنا: فصل الإشعارات
+    if (context === "admin" && isAdmin) {
+      // إذا كان في لوحة الإدارة، اجلب إشعارات النظام الموجهة للإدارة فقط
+      query = query.is("user_id", null)
     } else {
+      // إذا كان في الموقع الأساسي، اجلب إشعاراته الشخصية المربوطة بحسابه فقط
       query = query.eq("user_id", sessionId)
     }
 
@@ -98,8 +99,8 @@ export async function markNotificationAsReadAction(notificationId: string) {
   }
 }
 
-// 3. تعليم جميع الإشعارات كمقروءة بضغطة واحدة (تخفي النقطة الحمراء نهائياً)
-export async function markAllNotificationsAsReadAction() {
+// 3. تعليم جميع الإشعارات كمقروءة بضغطة واحدة مع احترام السياق
+export async function markAllNotificationsAsReadAction(context: "client" | "admin" = "client") {
   try {
     const cookieStore = await cookies()
     const sessionId = cookieStore.get("user_session")?.value
@@ -113,22 +114,22 @@ export async function markAllNotificationsAsReadAction() {
       .eq("id", sessionId)
       .maybeSingle()
 
-    const role = String(user?.role || "user")
-      .replace(/[\r\n\s]+/g, "")
-      .toLowerCase()
+    const role = String(user?.role || "user").replace(/[\r\n\s]+/g, "").toLowerCase()
     const isAdmin = role === "admin" || role === "moderator"
 
-    await supabase
-      .from("notifications")
-      .update({ is_read: true })
-      .eq("user_id", sessionId)
-      .eq("is_read", false)
-
-    if (isAdmin) {
+    if (context === "admin" && isAdmin) {
+      // مسح النقطة الحمراء من إشعارات الإدارة
       await supabase
         .from("notifications")
         .update({ is_read: true })
         .is("user_id", null)
+        .eq("is_read", false)
+    } else {
+      // مسح النقطة الحمراء من الإشعارات الشخصية للعميل
+      await supabase
+        .from("notifications")
+        .update({ is_read: true })
+        .eq("user_id", sessionId)
         .eq("is_read", false)
     }
 

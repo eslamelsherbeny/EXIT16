@@ -8,6 +8,7 @@ import {
   Bell,
   Building2,
   CheckCircle2,
+  ChevronLeft,
   Clock,
   ExternalLink,
   FileText,
@@ -20,7 +21,10 @@ import {
   WalletCards,
   X,
   Zap,
+  CheckSquare,
+  Check
 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import * as authActions from '@/app/actions/auth-actions'
 import {
   getUserNotificationsAction,
@@ -41,82 +45,47 @@ const links = [
   { href: '/investors', key: 'investors' as const, fallback: 'للمستثمرين', enFallback: 'Investors' },
 ]
 
+const d = ar
+
+const comparisonRows = [
+  { criterion: 'السعر', resale: 'أوفر فوق السعر، ومبالغة عشان الفصال', exit: 'بدون أوفر — السعر = اللي اتدفع فعلًا، موثق بالإيصالات' },
+  { criterion: 'الأرقام', resale: 'كلام البايع والسمسار من غير دليل', exit: 'متحققين من العقد والمدفوعات والمتبقي — بالمستندات الرسمية' },
+  { criterion: 'الإجراءات', resale: 'السمسار بيوصّلك وبعدين انت وحظك', exit: 'بنمشي معاك في كل خطوات التنازل لحد الإمضاء والقبض' },
+  { criterion: 'العمولة', resale: 'سعي وسمسرة من الطرفين في كل خطوة ومفاجآت', exit: 'مجانًا للبايع — 1.25% على المشتري بس، وعند إتمام التنازل فقط' },
+]
+
+const workSteps = [
+  { title: 'قيّم عقدك', text: 'دخّل بيانات عقدك واعرف موقفك مجانًا — وأول ما تبعت طلبك، حسابك بيتجهز تلقائيًا' },
+  { title: 'ارفع مستنداتك', text: 'العقد وإيصالات السداد — بنراجعها ونتحقق منها' },
+  { title: 'بنجهّز فرصتك', text: 'بنتحقق من الأرقام بالمستندات ونجهز عرض موثوق للمشترين' },
+  { title: 'بنلاقي المشتري', text: 'بنطابق وحدتك مع مشترين قادرين فعلًا يكمّلوا' },
+  { title: 'نقل التعاقد', text: 'بنمشي معاك في إجراءات النقل خطوة بخطوة لحد ما تقبض' },
+]
+
+const fairStandards = [
+  { title: 'كل رقم له مصدر', text: 'بنوضحلك إيه المؤكد بالمستندات وإيه التقديري — من غير وعود مضللة' },
+  { title: 'مجانًا للبايع بالكامل', text: 'مفيش أي عمولة على البايع خالص. المشتري بيدفع 1.25% عند إتمام النقل بس — من غير أي رسوم مخفية' },
+  { title: 'خصوصيتك محفوظة', text: 'تقدر تختار الخروج الصامت — مفيش إعلان علني ولا تليفونات مزعجة' },
+  { title: 'من غير ضغط', text: 'بنعرض عليك كل الخيارات — حتى لو الأفضل ليك إنك تكمّل تعاقدك' },
+]
+
 // ==================== 1. اللوجو ====================
 export function Logo({ inverse = false }: { inverse?: boolean }) {
   return (
-    <Link
-      href="/"
-      dir="ltr"
-      className={`inline-block select-none ${inverse ? 'text-white' : 'text-[#0a1122]'}`}
-      aria-label="Aqar Exit"
-    >
-      <svg
-        width="102"
-        height="48"
-        viewBox="0 0 116 54"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        className="h-[44px] w-auto"
-      >
-        <path
-          d="M5 30L17.5 5.5C18.2 4.1 19.8 4.1 20.5 5.5L33 30"
-          stroke="currentColor"
-          strokeWidth="3.3"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
+    <Link href="/" dir="ltr" className={`inline-block select-none ${inverse ? 'text-white' : 'text-[#0a1122]'}`} aria-label="Aqar Exit">
+      <svg width="102" height="48" viewBox="0 0 116 54" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-[44px] w-auto">
+        <path d="M5 30L17.5 5.5C18.2 4.1 19.8 4.1 20.5 5.5L33 30" stroke="currentColor" strokeWidth="3.3" strokeLinecap="round" strokeLinejoin="round" />
         <circle cx="46.5" cy="20" r="9.2" stroke="currentColor" strokeWidth="3.2" />
-        <path
-          d="M55.7 10.8V35.5C55.7 37.5 56.8 38.8 58.8 38.8"
-          stroke="currentColor"
-          strokeWidth="3.2"
-          strokeLinecap="round"
-        />
+        <path d="M55.7 10.8V35.5C55.7 37.5 56.8 38.8 58.8 38.8" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" />
         <circle cx="72" cy="20" r="9.2" stroke="currentColor" strokeWidth="3.2" />
-        <path
-          d="M81.2 10.8V29.5"
-          stroke="currentColor"
-          strokeWidth="3.2"
-          strokeLinecap="round"
-        />
-        <path
-          d="M90.5 29.5V17.5C90.5 13.2 93.8 10.8 98 10.8H100.5"
-          stroke="currentColor"
-          strokeWidth="3.2"
-          strokeLinecap="round"
-        />
-        <path
-          d="M66 35.5C61 34.5 56.5 36.8 56.5 39.8C56.5 42.2 59.5 43.2 63 42.8C58.5 43.5 54.5 45.8 55 48.8C55.5 51.8 60.5 52.5 65.5 50.2"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <path
-          d="M69 42.5L76.5 50M77 42.2C73.5 45 70.5 48 67.5 50.8"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-        />
-        <path
-          d="M81.5 43.2L79.5 49.5C79.2 50.3 79.8 50.8 80.8 50.3"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-        />
+        <path d="M81.2 10.8V29.5" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" />
+        <path d="M90.5 29.5V17.5C90.5 13.2 93.8 10.8 98 10.8H100.5" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" />
+        <path d="M66 35.5C61 34.5 56.5 36.8 56.5 39.8C56.5 42.2 59.5 43.2 63 42.8C58.5 43.5 54.5 45.8 55 48.8C55.5 51.8 60.5 52.5 65.5 50.2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M69 42.5L76.5 50M77 42.2C73.5 45 70.5 48 67.5 50.8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M81.5 43.2L79.5 49.5C79.2 50.3 79.8 50.8 80.8 50.3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
         <circle cx="82.5" cy="39.5" r="1" fill="currentColor" />
-        <path
-          d="M90.5 34.5L86 50.5"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-        />
-        <path
-          d="M83 41.2C88 40.5 94 39.8 100 39.2"
-          stroke="currentColor"
-          strokeWidth="1.4"
-          strokeLinecap="round"
-        />
+        <path d="M90.5 34.5L86 50.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M83 41.2C88 40.5 94 39.8 100 39.2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
       </svg>
     </Link>
   )
@@ -130,35 +99,28 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
   const [userName, setUserName] = useState<string | null>(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
-  // حالات الإشعارات الحقيقية المرتبطة بقاعدة البيانات
+  // حالات الإشعارات
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [notifsList, setNotifsList] = useState<any[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [, startTransition] = useTransition()
 
-  const notifRef = useRef<HTMLDivElement>(null)
+  const notifRefDesktop = useRef<HTMLDivElement>(null)
+  const notifRefMobile = useRef<HTMLDivElement>(null)
   const pathname = usePathname()
   const labels = language === 'en' ? en : dictionary
 
-  // ضبط اللغة والاتجاه
   useEffect(() => {
     document.cookie = `locale=${language}; path=/; max-age=31536000`
     document.documentElement.lang = language
     document.documentElement.dir = language === 'en' ? 'ltr' : 'rtl'
   }, [language])
 
-  // التحقق من الجلسة وجلب إشعارات المستخدم الحقيقية
   useEffect(() => {
     let isMounted = true
-
     async function verifyUserAndRole() {
-      const hintExists = document.cookie
-        .split('; ')
-        .some((cookie) => cookie.startsWith('session_hint='))
-
-      if (isMounted) {
-        setHasSession(hintExists)
-      }
+      const hintExists = document.cookie.split('; ').some((cookie) => cookie.startsWith('session_hint='))
+      if (isMounted) setHasSession(hintExists)
 
       try {
         const actionFn = (authActions as any).getSessionUserAction
@@ -170,9 +132,8 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
             setUserName(sessionData.name || null)
           }
         }
-
-        // سحب إشعارات العميل أو الأدمن الحقيقية من الداتابيز
-        const notifRes = await getUserNotificationsAction()
+        // جلب الإشعارات الشخصية (قبعة العميل)
+        const notifRes = await getUserNotificationsAction("client")
         if (isMounted && notifRes.success) {
           setNotifsList(notifRes.notifications)
           setUnreadCount(notifRes.unreadCount)
@@ -181,24 +142,19 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
         console.error('Session/Notif check error:', err)
       }
     }
-
     verifyUserAndRole()
-
-    return () => {
-      isMounted = false
-    }
+    return () => { isMounted = false }
   }, [pathname])
 
-  // إغلاق القوائم عند تغيير الصفحة
   useEffect(() => {
     setMobileMenuOpen(false)
     setNotificationsOpen(false)
   }, [pathname])
 
-  // إغلاق قائمة الإشعارات عند الضغط خارجها
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+      if (notifRefDesktop.current && !notifRefDesktop.current.contains(e.target as Node) &&
+          notifRefMobile.current && !notifRefMobile.current.contains(e.target as Node)) {
         setNotificationsOpen(false)
       }
     }
@@ -206,7 +162,7 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // فتح الجرس وتصفير النقطة الحمراء وتحديث قاعدة البيانات
+  // فتح الجرس ومسح النقطة الحمراء باحترام سياق (العميل)
   const handleToggleNotifications = () => {
     const nextState = !notificationsOpen
     setNotificationsOpen(nextState)
@@ -215,17 +171,14 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
       setUnreadCount(0)
       setNotifsList((prev) => prev.map((n) => ({ ...n, is_read: true })))
       startTransition(async () => {
-        await markAllNotificationsAsReadAction()
+        await markAllNotificationsAsReadAction("client")
       })
     }
   }
 
-  // عند الضغط على إشعار محدد
   const handleSingleNotifClick = (id: string) => {
     setNotificationsOpen(false)
-    setNotifsList((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, is_read: true } : n))
-    )
+    setNotifsList((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)))
     setUnreadCount((prev) => Math.max(0, prev - 1))
     startTransition(async () => {
       await markNotificationAsReadAction(id)
@@ -233,35 +186,22 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
   }
 
   return (
-    <header
-      dir="rtl"
-      className="sticky top-0 z-50 border-b border-gray-200/80 bg-white/95 backdrop-blur-md"
-    >
+    <header dir="rtl" className="sticky top-0 z-50 border-b border-gray-200/80 bg-white/95 backdrop-blur-md">
       <div className="mx-auto flex h-[74px] max-w-[1140px] items-center justify-between px-4 sm:px-6">
         
         {/* اليمين: اللوجو والتابز */}
         <div className="flex items-center gap-8 xl:gap-12">
           <Logo />
-          <nav
-            className="hidden items-center gap-5 lg:flex"
-            aria-label={labels.navbar?.menuTitle || 'القائمة الرئيسية'}
-          >
+          <nav className="hidden items-center gap-5 lg:flex" aria-label={labels.navbar?.menuTitle || 'القائمة الرئيسية'}>
             {links.map((link) => {
-              const isActive =
-                pathname === link.href || pathname.startsWith(`${link.href}/`)
+              const isActive = pathname === link.href || pathname.startsWith(`${link.href}/`)
               return (
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`whitespace-nowrap text-[14px] transition-colors hover:text-[#0b6954] ${
-                    isActive
-                      ? 'font-bold text-[#0b6954]'
-                      : 'font-normal text-[#4b5563]'
-                  }`}
+                  className={`whitespace-nowrap text-[14px] transition-colors hover:text-[#0b6954] ${isActive ? 'font-bold text-[#0b6954]' : 'font-normal text-[#4b5563]'}`}
                 >
-                  {language === 'en'
-                    ? labels.navbar?.[link.key] || link.enFallback
-                    : labels.navbar?.[link.key] || link.fallback}
+                  {language === 'en' ? labels.navbar?.[link.key] || link.enFallback : labels.navbar?.[link.key] || link.fallback}
                 </Link>
               )
             })}
@@ -270,234 +210,148 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
 
         {/* اليسار (ديسكتوب) */}
         <div className="hidden shrink-0 items-center gap-2.5 lg:flex">
-          <button
-            type="button"
-            onClick={() => setLanguage(language === 'ar' ? 'en' : 'ar')}
-            className="ml-1 rounded-lg px-2 py-1 text-[13px] font-medium text-[#1e293b] transition-colors hover:bg-gray-100 hover:text-[#0b6954]"
-          >
+          <button type="button" onClick={() => setLanguage(language === 'ar' ? 'en' : 'ar')} className="ml-1 rounded-lg px-2 py-1 text-[13px] font-medium text-[#1e293b] transition-colors hover:bg-gray-100 hover:text-[#0b6954]">
             {language === 'ar' ? 'English' : 'العربية'}
           </button>
 
           {isAdmin && (
-            <Link
-              href="/admin"
-              className="inline-flex h-[44px] items-center justify-center gap-1.5 whitespace-nowrap rounded-[11px] bg-[#0a1122] px-4 text-[13px] font-bold text-white shadow-xs transition-colors hover:bg-[#16223f]"
-            >
+            <Link href="/admin" className="inline-flex h-[44px] items-center justify-center gap-1.5 whitespace-nowrap rounded-[11px] bg-[#0a1122] px-4 text-[13px] font-bold text-white shadow-xs transition-colors hover:bg-[#16223f]">
               <ShieldCheck className="size-4 text-[#2ee59d]" />
               <span>{language === 'en' ? 'Admin Panel' : 'لوحة الإدارة'}</span>
             </Link>
           )}
 
-          <Link
-            href={hasSession ? '/account' : '/login'}
-            className="inline-flex h-[44px] items-center justify-center gap-1.5 whitespace-nowrap rounded-[11px] border border-[#e2e8f0] bg-white px-4 text-[14px] font-semibold text-[#0f172a] transition-colors hover:bg-gray-50"
-          >
+          <Link href={hasSession ? '/account' : '/login'} className="inline-flex h-[44px] items-center justify-center gap-1.5 whitespace-nowrap rounded-[11px] border border-[#e2e8f0] bg-white px-4 text-[14px] font-semibold text-[#0f172a] transition-colors hover:bg-gray-50">
             <User className="size-4 text-gray-500" />
-            <span>
-              {hasSession
-                ? language === 'en'
-                  ? 'My Account'
-                  : 'حسابي'
-                : language === 'en'
-                  ? 'Login'
-                  : labels.navbar?.login || 'حسابي'}
-            </span>
+            <span>{hasSession ? (language === 'en' ? 'My Account' : 'حسابي') : (language === 'en' ? 'Login' : labels.navbar?.login || 'حسابي')}</span>
           </Link>
 
-          <Link
-            href="/buy"
-            className="inline-flex h-[44px] items-center justify-center whitespace-nowrap rounded-[11px] border border-[#e2e8f0] bg-white px-4 text-[14px] font-semibold text-[#0f172a] transition-colors hover:bg-gray-50"
-          >
+          <Link href="/buy" className="inline-flex h-[44px] items-center justify-center whitespace-nowrap rounded-[11px] border border-[#e2e8f0] bg-white px-4 text-[14px] font-semibold text-[#0f172a] transition-colors hover:bg-gray-50">
             {language === 'en' ? 'Want to Buy' : 'عايز تشتري'}
           </Link>
 
-          {/* جرس الإشعارات الحقيقي للديسكتوب */}
-          <div className="relative" ref={notifRef}>
-            <button
-              type="button"
-              onClick={handleToggleNotifications}
-              aria-label="الإشعارات"
-              className="relative mx-0.5 flex size-10 items-center justify-center rounded-full text-[#334155] transition-colors hover:bg-gray-100"
-            >
-              <Bell className="size-[19px] stroke-[1.8]" />
-              {unreadCount > 0 && (
-                <span
-                  dir="ltr"
-                  className="absolute right-1.5 top-1.5 flex size-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-extrabold text-white"
-                >
-                  {unreadCount > 9 ? '+9' : unreadCount}
-                </span>
-              )}
-            </button>
-
-            {notificationsOpen && (
-              <div className="absolute left-0 top-12 z-50 w-80 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl">
-                <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50/70 px-4 py-3">
-                  <span className="text-xs font-extrabold text-[#0a1122]">
-                    الإشعارات والتنبيهات ({notifsList.length})
+          {/* جرس الإشعارات للديسكتوب */}
+          {hasSession && (
+            <div className="relative" ref={notifRefDesktop}>
+              <button type="button" onClick={handleToggleNotifications} aria-label="الإشعارات" className="relative mx-0.5 flex size-10 items-center justify-center rounded-full text-[#334155] transition-colors hover:bg-gray-100">
+                <Bell className="size-[19px] stroke-[1.8]" />
+                {unreadCount > 0 && (
+                  <span dir="ltr" className="absolute right-1.5 top-1.5 flex size-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-extrabold text-white">
+                    {unreadCount > 9 ? '+9' : unreadCount}
                   </span>
-                  {userName && (
-                    <span className="text-[11px] font-bold text-[#0b6954]">
-                      أهلاً {userName.split(' ')[0]}
-                    </span>
-                  )}
-                </div>
+                )}
+              </button>
 
-                <div className="max-h-80 divide-y divide-gray-100 overflow-y-auto text-right text-xs">
-                  {notifsList.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center px-4 py-8 text-center">
-                      <CheckCircle2 className="mb-2 size-8 text-emerald-500" />
-                      <p className="text-xs font-bold text-[#0a1122]">لا توجد إشعارات حالياً</p>
-                    </div>
-                  ) : (
-                    notifsList.map((item) => (
-                      <Link
-                        key={item.id}
-                        href={item.link || '/account'}
-                        onClick={() => handleSingleNotifClick(item.id)}
-                        className={`flex items-start gap-3 p-3.5 transition hover:bg-gray-50 ${
-                          !item.is_read ? 'bg-emerald-50/40' : 'bg-white'
-                        }`}
-                      >
-                        <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-xl bg-teal-100 text-[#0b6954] font-bold">
-                          {item.type === 'property' || item.type === 'property_match' ? (
-                            <Building2 className="size-4" />
-                          ) : item.type === 'lead' ? (
-                            <FileText className="size-4" />
-                          ) : (
-                            <WalletCards className="size-4" />
-                          )}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className={`truncate text-xs text-[#0a1122] ${!item.is_read ? 'font-extrabold' : 'font-bold'}`}>
-                            {item.title}
-                          </p>
-                          <p className="mt-0.5 truncate text-[11px] text-gray-500">{item.message}</p>
-                          <p className="mt-1 flex items-center gap-1 text-[10px] text-gray-400">
-                            <Clock className="size-3" />
-                            <span dir="ltr">
-                              {item.created_at ? new Date(item.created_at).toLocaleDateString('ar-EG') : 'الآن'}
-                            </span>
-                          </p>
-                        </div>
-                        {!item.is_read && (
-                          <span className="mt-2 size-2 shrink-0 rounded-full bg-red-500" />
-                        )}
-                      </Link>
-                    ))
-                  )}
+              {notificationsOpen && (
+                <div className="absolute left-0 top-12 z-50 w-80 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl">
+                  <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50/70 px-4 py-3">
+                    <span className="text-xs font-extrabold text-[#0a1122]">إشعاراتي ({notifsList.length})</span>
+                    {userName && <span className="text-[11px] font-bold text-[#0b6954]">أهلاً {userName.split(' ')[0]}</span>}
+                  </div>
+                  <div className="max-h-80 divide-y divide-gray-100 overflow-y-auto text-right text-xs">
+                    {notifsList.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center px-4 py-8 text-center">
+                        <CheckCircle2 className="mb-2 size-8 text-emerald-500" />
+                        <p className="text-xs font-bold text-[#0a1122]">لا توجد إشعارات حالياً</p>
+                      </div>
+                    ) : (
+                      notifsList.map((item) => (
+                        <Link key={item.id} href={item.link || '/account'} onClick={() => handleSingleNotifClick(item.id)} className={`flex items-start gap-3 p-3.5 transition hover:bg-gray-50 ${!item.is_read ? 'bg-emerald-50/40' : 'bg-white'}`}>
+                          <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-xl bg-teal-100 text-[#0b6954] font-bold">
+                            <Bell className="size-4" />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className={`truncate text-xs text-[#0a1122] ${!item.is_read ? 'font-extrabold' : 'font-bold'}`}>{item.title}</p>
+                            <p className="mt-0.5 truncate text-[11px] text-gray-500">{item.message}</p>
+                            <p className="mt-1 flex items-center gap-1 text-[10px] text-gray-400"><Clock className="size-3" /><span dir="ltr">{item.created_at ? new Date(item.created_at).toLocaleDateString('ar-EG') : 'الآن'}</span></p>
+                          </div>
+                          {!item.is_read && <span className="mt-2 size-2 shrink-0 rounded-full bg-red-500" />}
+                        </Link>
+                      ))
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
-          <Link
-            href="/sell"
-            className="inline-flex h-[44px] items-center justify-center whitespace-nowrap rounded-[11px] bg-[#0b6954] px-5 text-[14px] font-semibold text-white transition-colors hover:bg-[#085443]"
-          >
+          <Link href="/sell" className="inline-flex h-[44px] items-center justify-center whitespace-nowrap rounded-[11px] bg-[#0b6954] px-5 text-[14px] font-semibold text-white transition-colors hover:bg-[#085443]">
             {language === 'en' ? 'Want to Sell' : 'عايز تبيع'}
           </Link>
         </div>
 
-        {/* اليسار (موبايل): جرس الإشعارات الحقيقي + زر عايز تبيع + القائمة */}
-        <div className="flex items-center gap-1.5 lg:hidden">
+        {/* ========================================================= */}
+        {/* اليسار (موبايل): جرس الإشعارات + زر عايز تبيع + زر القائمة (بدون زر الإدارة) */}
+        {/* ========================================================= */}
+        <div className="flex items-center gap-2 lg:hidden">
           
-          {/* جرس الإشعارات للموبايل (تم تعديل الـ Menu لتفتح في منتصف الشاشة بشكل صحيح) */}
-          <div className="relative" ref={notifRef}>
-            <button
-              type="button"
-              onClick={handleToggleNotifications}
-              aria-label="الإشعارات"
-              className="relative flex size-9 items-center justify-center rounded-full text-[#334155] transition-colors hover:bg-gray-100"
-            >
-              <Bell className="size-[18px] stroke-[1.8]" />
-              {unreadCount > 0 && (
-                <span
-                  dir="ltr"
-                  className="absolute right-1 top-1 flex size-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-extrabold text-white"
-                >
-                  {unreadCount > 9 ? '+9' : unreadCount}
-                </span>
-              )}
-            </button>
-
-            {notificationsOpen && (
-              <div className="fixed left-3 right-3 top-[74px] z-50 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl">
-                <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50/70 px-4 py-3">
-                  <span className="text-xs font-extrabold text-[#0a1122]">
-                    الإشعارات والتنبيهات ({notifsList.length})
+          {/* جرس الإشعارات (للموبايل) - يظهر فقط إذا كان المستخدم مسجل دخول */}
+          {hasSession && (
+            <div className="relative" ref={notifRefMobile}>
+              <button
+                type="button"
+                onClick={handleToggleNotifications}
+                aria-label="الإشعارات"
+                className="relative flex size-[40px] items-center justify-center rounded-xl border border-gray-200/80 bg-white text-[#334155] shadow-xs transition-colors hover:bg-gray-50"
+              >
+                <Bell className="size-[18px] stroke-[2]" />
+                {unreadCount > 0 && (
+                  <span dir="ltr" className="absolute -top-1 -right-1 flex size-[18px] items-center justify-center rounded-full border-2 border-white bg-red-500 text-[9px] font-extrabold text-white">
+                    {unreadCount > 9 ? '+9' : unreadCount}
                   </span>
-                  <button type="button" onClick={() => setNotificationsOpen(false)} className="rounded-lg p-1 text-gray-400">
-                    <X className="size-4" />
-                  </button>
-                </div>
+                )}
+              </button>
 
-                <div className="max-h-80 divide-y divide-gray-100 overflow-y-auto text-right text-xs">
-                  {notifsList.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center px-4 py-8 text-center">
-                      <CheckCircle2 className="mb-2 size-8 text-emerald-500" />
-                      <p className="text-xs font-bold text-[#0a1122]">لا توجد إشعارات حالياً</p>
-                    </div>
-                  ) : (
-                    notifsList.map((item) => (
-                      <Link
-                        key={item.id}
-                        href={item.link || '/account'}
-                        onClick={() => handleSingleNotifClick(item.id)}
-                        className={`flex items-start gap-3 p-3.5 transition hover:bg-gray-50 ${
-                          !item.is_read ? 'bg-emerald-50/40' : 'bg-white'
-                        }`}
-                      >
-                        <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-xl bg-teal-100 text-[#0b6954] font-bold">
-                          {item.type === 'property' || item.type === 'property_match' ? (
-                            <Building2 className="size-4" />
-                          ) : item.type === 'lead' ? (
-                            <FileText className="size-4" />
-                          ) : (
-                            <WalletCards className="size-4" />
-                          )}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className={`truncate text-xs text-[#0a1122] ${!item.is_read ? 'font-extrabold' : 'font-bold'}`}>
-                            {item.title}
-                          </p>
-                          <p className="mt-0.5 truncate text-[11px] text-gray-500">{item.message}</p>
-                          <p className="mt-1 flex items-center gap-1 text-[10px] text-gray-400">
-                            <Clock className="size-3" />
-                            <span dir="ltr">
-                              {item.created_at ? new Date(item.created_at).toLocaleDateString('ar-EG') : 'الآن'}
-                            </span>
-                          </p>
-                        </div>
-                        {!item.is_read && (
-                          <span className="mt-2 size-2 shrink-0 rounded-full bg-red-500" />
-                        )}
-                      </Link>
-                    ))
-                  )}
+              {notificationsOpen && (
+                <div className="absolute left-1/2 top-12 z-50 w-[85vw] max-w-[320px] -translate-x-1/2 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl sm:left-0 sm:translate-x-0">
+                  <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50/70 px-4 py-3">
+                    <span className="text-xs font-extrabold text-[#0a1122]">إشعاراتي ({notifsList.length})</span>
+                    <button type="button" onClick={() => setNotificationsOpen(false)} className="rounded-lg p-1 text-gray-400 hover:bg-gray-200/60">
+                      <X className="size-4" />
+                    </button>
+                  </div>
+                  <div className="max-h-80 divide-y divide-gray-100 overflow-y-auto text-right text-xs">
+                    {notifsList.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center px-4 py-8 text-center">
+                        <CheckCircle2 className="mb-2 size-8 text-emerald-500" />
+                        <p className="text-xs font-bold text-[#0a1122]">لا توجد إشعارات حالياً</p>
+                      </div>
+                    ) : (
+                      notifsList.map((item) => (
+                        <Link key={item.id} href={item.link || '/account'} onClick={() => handleSingleNotifClick(item.id)} className={`flex items-start gap-3 p-3.5 transition hover:bg-gray-50 ${!item.is_read ? 'bg-emerald-50/40' : 'bg-white'}`}>
+                          <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-xl bg-teal-100 text-[#0b6954] font-bold">
+                            <Bell className="size-4" />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className={`truncate text-xs text-[#0a1122] ${!item.is_read ? 'font-extrabold' : 'font-bold'}`}>{item.title}</p>
+                            <p className="mt-0.5 truncate text-[11px] text-gray-500">{item.message}</p>
+                          </div>
+                          {!item.is_read && <span className="mt-2 size-2 shrink-0 rounded-full bg-red-500" />}
+                        </Link>
+                      ))
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
+          {/* زر عايز تبيع (للموبايل) */}
           <Link
             href="/sell"
-            className="inline-flex h-[40px] items-center justify-center whitespace-nowrap rounded-[10px] bg-[#0b6954] px-3.5 text-[12px] font-semibold text-white transition-colors hover:bg-[#085443]"
+            className="inline-flex h-[40px] items-center justify-center whitespace-nowrap rounded-[10px] bg-[#0b6954] px-4 text-[13px] font-semibold text-white transition-colors hover:bg-[#085443]"
           >
             {language === 'en' ? 'Sell' : 'عايز تبيع'}
           </Link>
 
+          {/* زر القائمة المنسدلة (للموبايل) */}
           <button
             type="button"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label="القائمة"
-            className="flex size-9 items-center justify-center text-[#0a1122] focus:outline-none"
+            className="flex size-[40px] items-center justify-center rounded-xl border border-gray-200/80 bg-gray-50 text-[#0a1122] shadow-xs focus:outline-none"
           >
-            {mobileMenuOpen ? (
-              <X className="size-6 stroke-[2]" />
-            ) : (
-              <Menu className="size-6 stroke-[2]" />
-            )}
+            {mobileMenuOpen ? <X className="size-5 stroke-[2]" /> : <Menu className="size-5 stroke-[2]" />}
           </button>
         </div>
 
@@ -507,31 +361,14 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
       {mobileMenuOpen && (
         <div className="fixed inset-x-0 top-[74px] bottom-0 z-50 h-[calc(100vh-74px)] overflow-y-auto border-t border-gray-100 bg-white px-6 pt-6 pb-12 lg:hidden">
           <nav className="flex flex-col gap-4 text-right">
-            <Link
-              href="/"
-              onClick={() => setMobileMenuOpen(false)}
-              className={`text-[17px] font-medium transition-colors ${
-                pathname === '/' ? 'font-bold text-[#0b6954]' : 'text-[#0a1122]'
-              }`}
-            >
+            <Link href="/" onClick={() => setMobileMenuOpen(false)} className={`text-[17px] font-medium transition-colors ${pathname === '/' ? 'font-bold text-[#0b6954]' : 'text-[#0a1122]'}`}>
               {language === 'en' ? 'Home' : 'الرئيسية'}
             </Link>
-
             {links.map((link) => {
-              const isActive =
-                pathname === link.href || pathname.startsWith(`${link.href}/`)
+              const isActive = pathname === link.href || pathname.startsWith(`${link.href}/`)
               return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`text-[17px] font-medium transition-colors ${
-                    isActive ? 'font-bold text-[#0b6954]' : 'text-[#0a1122]'
-                  }`}
-                >
-                  {language === 'en'
-                    ? labels.navbar?.[link.key] || link.enFallback
-                    : labels.navbar?.[link.key] || link.fallback}
+                <Link key={link.href} href={link.href} onClick={() => setMobileMenuOpen(false)} className={`text-[17px] font-medium transition-colors ${isActive ? 'font-bold text-[#0b6954]' : 'text-[#0a1122]'}`}>
+                  {language === 'en' ? labels.navbar?.[link.key] || link.enFallback : labels.navbar?.[link.key] || link.fallback}
                 </Link>
               )
             })}
@@ -540,51 +377,25 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
           <hr className="my-6 border-gray-200/80" />
 
           <div className="flex flex-col gap-3.5">
+            {/* يظهر زر لوحة الإدارة هنا في القائمة المنسدلة فقط للأدمن */}
             {isAdmin && (
-              <Link
-                href="/admin"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex h-[52px] w-full items-center justify-center gap-2 rounded-[12px] bg-[#0a1122] text-[15px] font-bold text-white shadow-sm transition-colors hover:bg-[#16223f]"
-              >
+              <Link href="/admin" onClick={() => setMobileMenuOpen(false)} className="flex h-[52px] w-full items-center justify-center gap-2 rounded-[12px] bg-[#0a1122] text-[15px] font-bold text-white shadow-sm transition-colors hover:bg-[#16223f]">
                 <ShieldCheck className="size-5 text-[#2ee59d]" />
                 <span>الدخول إلى لوحة الإدارة</span>
               </Link>
             )}
-
-            <Link
-              href="/buy"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex h-[50px] w-full items-center justify-center rounded-[12px] border border-[#e2e8f0] bg-white text-[15px] font-semibold text-[#0a1122] transition-colors hover:bg-gray-50"
-            >
+            <Link href="/buy" onClick={() => setMobileMenuOpen(false)} className="flex h-[50px] w-full items-center justify-center rounded-[12px] border border-[#e2e8f0] bg-white text-[15px] font-semibold text-[#0a1122] transition-colors hover:bg-gray-50">
               {language === 'en' ? 'Want to Buy' : 'عايز تشتري'}
             </Link>
-
-            <Link
-              href={hasSession ? '/account' : '/login'}
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex h-[50px] w-full items-center justify-center gap-2 rounded-[12px] border border-[#e2e8f0] bg-gray-50 text-[15px] font-bold text-[#1d3557] transition-colors hover:bg-gray-100"
-            >
+            <Link href={hasSession ? '/account' : '/login'} onClick={() => setMobileMenuOpen(false)} className="flex h-[50px] w-full items-center justify-center gap-2 rounded-[12px] border border-[#e2e8f0] bg-gray-50 text-[15px] font-bold text-[#1d3557] transition-colors hover:bg-gray-100">
               <User className="size-4" />
               <span>{hasSession ? 'حسابي الشخصي' : 'تسجيل الدخول / إنشاء حساب'}</span>
             </Link>
-
-            <Link
-              href="/opportunities#app-banner"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex h-[50px] w-full items-center justify-center gap-2 rounded-[12px] border border-[#99cec3] bg-[#eff8f6] text-[15px] font-semibold text-[#0b6954] transition-colors hover:bg-[#e2f3ef]"
-            >
+            <Link href="/opportunities#app-banner" onClick={() => setMobileMenuOpen(false)} className="flex h-[50px] w-full items-center justify-center gap-2 rounded-[12px] border border-[#99cec3] bg-[#eff8f6] text-[15px] font-semibold text-[#0b6954] transition-colors hover:bg-[#e2f3ef]">
               <Smartphone className="size-4 stroke-[2.2]" />
               <span>{language === 'en' ? 'Get the App' : 'حمّل التطبيق'}</span>
             </Link>
-
-            <button
-              type="button"
-              onClick={() => {
-                setLanguage(language === 'ar' ? 'en' : 'ar')
-                setMobileMenuOpen(false)
-              }}
-              className="mt-1 py-2 text-center text-sm font-semibold text-gray-500 hover:text-[#0b6954]"
-            >
+            <button type="button" onClick={() => { setLanguage(language === 'ar' ? 'en' : 'ar'); setMobileMenuOpen(false); }} className="mt-1 py-2 text-center text-sm font-semibold text-gray-500 hover:text-[#0b6954]">
               {language === 'ar' ? 'Switch to English' : 'التبديل إلى العربية'}
             </button>
           </div>
@@ -594,7 +405,11 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
   )
 }
 
-// ==================== 3. الفوتر المنظم (Footer) للموبايل والديسكتوب ====================
+export function LegacyNavbar({ dictionary = ar }: { dictionary?: Dictionary }) {
+  return <Navbar dictionary={dictionary} />
+}
+
+// ==================== 3. الفوتر المنظم (Footer) ====================
 export function Footer({ dictionary = ar }: { dictionary?: Dictionary }) {
   const platformLinks = [
     { label: 'الفرص المتاحة', href: '/opportunities' },
@@ -632,52 +447,36 @@ export function Footer({ dictionary = ar }: { dictionary?: Dictionary }) {
                 'منصة التنازل عن وحدات التقسيط بدون أوفر — البايع يسترجع فلوسه كاش، والمشتري ياخد سعر التعاقد القديم، وإحنا بنسهّل الإجراءات خطوة بخطوة'}
             </p>
             <div className="mt-5 flex flex-col items-start gap-2 text-xs text-gray-300 sm:text-[13px]">
-              <a href={`tel:${dictionary.footer?.phone || '+201018595959'}`} dir="ltr" className="transition-colors hover:text-[#2ee59d]">
-                {dictionary.footer?.phone || '+201018595959'}
-              </a>
-              <a href="https://wa.me/201018595959" target="_blank" rel="noreferrer" className="transition-colors hover:text-[#2ee59d]">
-                تواصل مباشر عبر واتساب
-              </a>
-              <a href={`mailto:${dictionary.footer?.email || 'info@aqarexit.com'}`} className="transition-colors hover:text-[#2ee59d]">
-                {dictionary.footer?.email || 'info@aqarexit.com'}
-              </a>
+              <a href={`tel:${dictionary.footer?.phone || '+201018595959'}`} dir="ltr" className="transition-colors hover:text-[#2ee59d]">{dictionary.footer?.phone || '+201018595959'}</a>
+              <a href="https://wa.me/201018595959" target="_blank" rel="noreferrer" className="transition-colors hover:text-[#2ee59d]">تواصل مباشر عبر واتساب</a>
+              <a href={`mailto:${dictionary.footer?.email || 'info@aqarexit.com'}`} className="transition-colors hover:text-[#2ee59d]">{dictionary.footer?.email || 'info@aqarexit.com'}</a>
             </div>
           </div>
-
           <div className="text-right">
             <h3 className="text-xs font-bold text-gray-400">{dictionary.footer?.platform || 'المنصة'}</h3>
             <ul className="mt-4 flex flex-col gap-3 text-xs text-gray-200 sm:text-[13px]">
               {platformLinks.map((item) => (
-                <li key={item.label}>
-                  <Link href={item.href} className="transition-colors hover:text-[#2ee59d]">{item.label}</Link>
-                </li>
+                <li key={item.label}><Link href={item.href} className="transition-colors hover:text-[#2ee59d]">{item.label}</Link></li>
               ))}
             </ul>
           </div>
-
           <div className="text-right">
             <h3 className="text-xs font-bold text-gray-400">{dictionary.footer?.company || 'الشركة'}</h3>
             <ul className="mt-4 flex flex-col gap-3 text-xs text-gray-200 sm:text-[13px]">
               {companyLinks.map((item) => (
-                <li key={item.label}>
-                  <Link href={item.href} className="transition-colors hover:text-[#2ee59d]">{item.label}</Link>
-                </li>
+                <li key={item.label}><Link href={item.href} className="transition-colors hover:text-[#2ee59d]">{item.label}</Link></li>
               ))}
             </ul>
           </div>
-
           <div className="text-right">
             <h3 className="text-xs font-bold text-gray-400">{dictionary.footer?.legal || 'قانوني'}</h3>
             <ul className="mt-4 flex flex-col gap-3 text-xs text-gray-200 sm:text-[13px]">
               {legalLinks.map((item) => (
-                <li key={item.label}>
-                  <Link href={item.href} className="transition-colors hover:text-[#2ee59d]">{item.label}</Link>
-                </li>
+                <li key={item.label}><Link href={item.href} className="transition-colors hover:text-[#2ee59d]">{item.label}</Link></li>
               ))}
             </ul>
           </div>
         </div>
-
         <div className="mt-12 border-t border-white/10 pt-8 text-right text-xs text-gray-400">
           <div>
             <span className="block text-[11px] text-gray-400">الدولة</span>
@@ -688,7 +487,7 @@ export function Footer({ dictionary = ar }: { dictionary?: Dictionary }) {
             </div>
           </div>
           <p className="mt-5 text-[11px] leading-relaxed text-gray-400/90 sm:text-xs">
-            {dictionary.footer?.disclaimer || 'الأرقام والتقديرات المعروضة على المنصة استرشادية وتعتمد على بنود كل عقد على حدة، ولا تعتبر استشارة قانونية أو وعدًا بنتيجة محددة.'}
+            {dictionary.footer?.disclaimer || 'الأرقام والتقديرات المعروضة على المنصة استرشادية وتعتمد على بنود كل عقد على حدة، ولا تعتبر استشارة قانونية أو وعدًا بنتيجة محددة. المراجعة النهائية بتتم على عقدك الفعلي مع فريقنا ومستشارين قانونيين مؤهلين.'}
           </p>
           <div className="mt-6 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
             <div className="space-y-1 text-right">

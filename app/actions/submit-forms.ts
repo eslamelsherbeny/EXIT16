@@ -969,96 +969,336 @@ export type BuyRequestPayload = {
   password: string
 }
 
-export async function submitBuyRequest(
-  input: BuyRequestPayload | FormData
-): Promise<SubmitResult> {
+export async function processBuyerStep3Action(payload: {
+  mode: 'session' | 'login' | 'register'
+  available_cash: number
+  max_installment: number
+  payment_plan: string
+  budget: number
+  unit_types: string[]
+  min_rooms: number
+  delivery_status: string
+  preferred_areas: string[]
+  name?: string
+  phone?: string
+  email?: string
+  password?: string
+  loginIdentifier?: string
+}): Promise<Step2AuthResponse> {
   try {
     const supabase = await getSupabase()
+    const siteUrl =
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      'https://next-js-rtl-platform-structure.vercel.app'
 
-    const payload: BuyRequestPayload =
-      input instanceof FormData
-        ? {
-            available_cash: number(input, 'available_cash', 0),
-            max_installment: number(input, 'max_installment', 0),
-            payment_plan: text(input, 'payment_plan'),
-            budget: number(input, 'budget', 0),
-            unit_types: list(input, 'unit_type'),
-            min_rooms: integer(input, 'min_rooms', 0),
-            delivery_status: text(input, 'delivery_status'),
-            preferred_areas: list(input, 'preferred_area'),
-            name: text(input, 'name') || 'Unknown',
-            phone: formatPrimaryPhone(text(input, 'phone')) || 'Unknown',
-            email: normalizeEmail(text(input, 'email')),
-            password: text(input, 'password'),
-          }
-        : {
-            available_cash: Number(input.available_cash) || 0,
-            max_installment: Number(input.max_installment) || 0,
-            payment_plan: input.payment_plan || '',
-            budget: Number(input.budget) || 0,
-            unit_types: input.unit_types,
-            min_rooms: Number.parseInt(String(input.min_rooms), 10) || 0,
-            delivery_status: input.delivery_status || '',
-            preferred_areas: input.preferred_areas,
-            name: input.name.trim() || 'Unknown',
-            phone: formatPrimaryPhone(input.phone) || 'Unknown',
-            email: normalizeEmail(input.email),
-            password: input.password.trim(),
-          }
-
-    const cookieStore = await cookies()
-    let userId = cookieStore.get('user_session')?.value || null
-
-    if (!userId) {
-      const hash = hashPassword(payload.password || '12345678')
-      const { data: existingUser } = await supabase
-        .from('users')
+    // دالة داخلية لحفظ طلب الشراء وإرسال الإشعارات
+    async function insertBuyRequestRecord(
+      userId: string,
+      contact: { name: string; phone: string; email: string }
+    ) {
+      const { data: inserted, error } = await supabase
+        .from('buy_requests')
+        .insert({
+          user_id: userId,
+          available_cash: Number(payload.available_cash) || 0,
+          max_installment: Number(payload.max_installment) || 0,
+          payment_plan: payload.payment_plan || 'شهري',
+          budget: Number(payload.budget) || 0,
+          unit_types: payload.unit_types || [],
+          min_rooms: Number(payload.min_rooms) || 0,
+          delivery_status: payload.delivery_status || 'جاهزة للاستلام',
+          preferred_areas: payload.preferred_areas || [],
+          name: contact.name || 'مشتري',
+          phone: contact.phone || '',
+          email: contact.email || null,
+        })
         .select('id')
-        .or(`email.ilike.${payload.email},phone.eq.${payload.phone}`)
-        .limit(1)
-        .maybeSingle()
+        .single()
 
-      if (existingUser) {
-        userId = existingUser.id
-      } else {
-        const { data: created } = await supabase
-          .from('users')
-          .insert({
-            name: payload.name,
-            phone: payload.phone,
-            email: payload.email,
-            password_hash: hash,
-          })
-          .select('id')
-          .single()
-        userId = created?.id || null
+      if (error) {
+        console.error('Insert Buy Request Error:', error)
       }
 
-      if (userId) await setUserSession(userId)
+      const reqId = inserted?.id ? String(inserted.id) : ''
+      const cashFormatted = Number(
+        payload.available_cash || payload.budget || 0
+      ).toLocaleString('en-US')
+
+      // إشعار فوري للأدمن وللمشتري
+      try {
+        await supabase.from('notifications').insert([
+          {
+            user_id: null,
+            title: `طلب شراء جديد: ${contact.name || 'مشتري'}`,
+            message: `الكاش المتاح: ${cashFormatted} ج.م · المناطق: ${(payload.preferred_areas || []).slice(0, 2).join('، ')}`,
+            type: 'lead',
+            link: '/admin/leads',
+            is_read: false,
+          },
+          {
+            user_id: userId,
+            title: 'تم تفعيل رادار الفرص العقارية لحسابك 🎯',
+            message: `تم حفظ ميزانيتك (${cashFormatted} ج.م)، وسنرسل لك إشعاراً فور نزول أي وحدة مطابقة.`,
+            type: 'property_match',
+            link: '/account?view=buyer',
+            is_read: false,
+          },
+        ])
+      } catch {}
+
+      // إرسال إيميل تأكيد طلب الشراء
+      if (contact.email) {
+        const orderRef = generateOrderRef(reqId)
+        sendNotificationEmail({
+          to: contact.email,
+          subject: `وصلنا طلب الشراء ${orderRef} — عقار إكزت`,
+          html: `<div dir="rtl" style="font-family: Arial, sans-serif; text-align: right; line-height: 1.8; color: #0a1122;">
+                  <p style="font-size: 16px;">أهلاً <strong>${contact.name}</strong>،</p>
+                  <p>وصلنا طلب الشراء الخاص بك — رقم الطلب: <strong>${orderRef}</strong>.</p>
+                  <p>الكاش المتاح المسجل: <strong>${cashFormatted} ج.م</strong>.</p>
+                  <p>تقدر تتابع الفرص المطابقة لميزانيتك مباشرة من حسابك على المنصة:</p>
+                  <p style="margin: 18px 0;">
+                    <a href="${siteUrl}/account?view=buyer" style="color: #0b6954; font-weight: bold;">${siteUrl}/account?view=buyer</a>
+                  </p>
+                  <p>محتاج حاجة؟ كلمنا واتساب: <a href="https://wa.me/201018595959">https://wa.me/201018595959</a></p>
+                 </div>`,
+        }).catch(() => {})
+      }
+
+      return reqId
     }
 
-    const { password, ...cleanPayload } = payload
+    // =====================================================
+    // الحالة 1: المشتري مسجل دخول واختار "كمّل بحسابي الحالي"
+    // =====================================================
+    if (payload.mode === 'session') {
+      const cookieStore = await cookies()
+      const sessionId = cookieStore.get('user_session')?.value
+      if (!sessionId) {
+        return { status: 'error', error: 'انتهت الجلسة، يرجى تسجيل الدخول.' }
+      }
 
-    const { error } = await supabase.from('buy_requests').insert({
-      ...cleanPayload,
-      user_id: userId,
+      const { data: currentUser } = await supabase
+        .from('users')
+        .select('id, name, email, phone')
+        .eq('id', sessionId)
+        .maybeSingle()
+
+      if (!currentUser) {
+        return { status: 'error', error: 'لم يتم العثور على بيانات الحساب.' }
+      }
+
+      const reqId = await insertBuyRequestRecord(currentUser.id, {
+        name: currentUser.name || 'مشتري',
+        phone: currentUser.phone || '',
+        email: currentUser.email || '',
+      })
+
+      revalidatePath('/account', 'page')
+      revalidatePath('/admin', 'layout')
+
+      return {
+        status: 'ok',
+        userId: currentUser.id,
+        unitId: reqId,
+        orderRef: generateOrderRef(reqId),
+      }
+    }
+
+    // =====================================================
+    // الحالة 2: المشتري اختار تبويب "عندي حساب بالفعل"
+    // =====================================================
+    if (payload.mode === 'login') {
+      const rawIdentifier = (payload.loginIdentifier || '').trim()
+      const password = payload.password || ''
+
+      if (!rawIdentifier || !password) {
+        return {
+          status: 'error',
+          error: 'يرجى إدخال البريد الإلكتروني/الموبايل وكلمة السر.',
+        }
+      }
+
+      let candidates: any[] = []
+      if (rawIdentifier.includes('@')) {
+        const { data } = await supabase
+          .from('users')
+          .select('id, name, email, phone, password_hash')
+          .ilike('email', `%${normalizeEmail(rawIdentifier)}%`)
+        candidates = data || []
+      } else {
+        const variants = getPhoneVariants(rawIdentifier)
+        const { data } = await supabase
+          .from('users')
+          .select('id, name, email, phone, password_hash')
+          .in('phone', variants)
+        candidates = data || []
+      }
+
+      if (candidates.length === 0) {
+        return {
+          status: 'error',
+          error: 'هذا الحساب غير مسجل لدينا. اختر "بيانات جديدة" لإنشاء حسابك.',
+        }
+      }
+
+      const matched = candidates.find((u) =>
+        verifyPassword(password, u.password_hash)
+      )
+      if (!matched) {
+        return {
+          status: 'error',
+          error: 'كلمة السر غير صحيحة. جرب مرة أخرى أو اضغط على نسيت كلمة السر.',
+        }
+      }
+
+      await setUserSession(matched.id)
+      const reqId = await insertBuyRequestRecord(matched.id, {
+        name: matched.name || 'مشتري',
+        phone: matched.phone || '',
+        email: matched.email || '',
+      })
+
+      revalidatePath('/account', 'page')
+      revalidatePath('/admin', 'layout')
+
+      return {
+        status: 'ok',
+        userId: matched.id,
+        unitId: reqId,
+        orderRef: generateOrderRef(reqId),
+      }
+    }
+
+    // =====================================================
+    // الحالة 3: الوضع الافتراضي (تسجيل بيانات جديدة)
+    // =====================================================
+    const cleanName = (payload.name || '').trim()
+    const cleanEmail = normalizeEmail(payload.email || '')
+    const formattedPhone = formatPrimaryPhone(payload.phone || '')
+    const phoneVariants = getPhoneVariants(payload.phone || '')
+    const password = payload.password || ''
+
+    if (!cleanName || !cleanEmail || !formattedPhone || password.length < 8) {
+      return {
+        status: 'error',
+        error: 'يرجى إكمال كافة الحقول وكلمة سر 8 حروف على الأقل.',
+      }
+    }
+
+    const [{ data: emailMatches }, { data: phoneMatches }] = await Promise.all([
+      supabase
+        .from('users')
+        .select('id, name, phone, email, password_hash')
+        .ilike('email', `%${cleanEmail}%`)
+        .limit(1),
+      supabase
+        .from('users')
+        .select('id, name, phone, email, password_hash')
+        .in('phone', phoneVariants)
+        .limit(1),
+    ])
+
+    const emailUser = emailMatches?.[0] || null
+    const phoneUser = phoneMatches?.[0] || null
+
+    // أ) إذا كان الإيميل مسجلاً بالفعل -> نحفظ طلب الشراء لحسابه ونظهر شاشة "الإيميل ده عنده حساب بالفعل"
+    if (emailUser) {
+      const reqId = await insertBuyRequestRecord(emailUser.id, {
+        name: cleanName || emailUser.name,
+        phone: emailUser.phone || formattedPhone,
+        email: emailUser.email,
+      })
+
+      revalidatePath('/admin', 'layout')
+
+      return {
+        status: 'email_exists_need_password',
+        userId: emailUser.id,
+        orderRef: generateOrderRef(reqId),
+        userEmail: emailUser.email,
+        userName: emailUser.name,
+      }
+    }
+
+    // ب) إذا كان رقم الموبايل مسجلاً بالفعل ولكن بإيميل مختلف -> نحفظ الطلب ونظهر شاشة "الرقم ده عندنا عليه حساب بالفعل"
+    if (phoneUser && !emailUser) {
+      const reqId = await insertBuyRequestRecord(phoneUser.id, {
+        name: cleanName || phoneUser.name,
+        phone: phoneUser.phone,
+        email: phoneUser.email,
+      })
+
+      revalidatePath('/admin', 'layout')
+
+      return {
+        status: 'phone_exists_different_email',
+        userId: phoneUser.id,
+        orderRef: generateOrderRef(reqId),
+        userEmail: phoneUser.email,
+        userPhone: phoneUser.phone,
+      }
+    }
+
+    // ج) مشتري جديد تماماً -> ننشئ الحساب ونحفظ الطلب وندخله على حسابه فوراً
+    const hash = hashPassword(password)
+    const { data: createdUser, error: createErr } = await supabase
+      .from('users')
+      .insert({
+        name: cleanName,
+        phone: formattedPhone,
+        email: cleanEmail,
+        password_hash: hash,
+        status: 'active',
+      })
+      .select('id, name, email, phone')
+      .single()
+
+    if (createErr || !createdUser) {
+      return {
+        status: 'error',
+        error: 'تعذر إنشاء الحساب حالياً، يرجى المحاولة مرة أخرى.',
+      }
+    }
+
+    await setUserSession(createdUser.id)
+    const reqId = await insertBuyRequestRecord(createdUser.id, {
+      name: cleanName,
+      phone: formattedPhone,
+      email: cleanEmail,
     })
-
-    if (error) {
-      return { success: false, error: 'تعذر حفظ الطلب. حاول مرة أخرى.' }
-    }
 
     revalidatePath('/account', 'page')
     revalidatePath('/admin', 'layout')
-    return { success: true }
-  } catch (error) {
+
     return {
-      success: false,
-      error: error instanceof Error ? error.message : 'تعذر إرسال الطلب',
+      status: 'ok',
+      userId: createdUser.id,
+      unitId: reqId,
+      orderRef: generateOrderRef(reqId),
     }
+  } catch (e) {
+    console.error('processBuyerStep3Action error:', e)
+    return { status: 'error', error: 'حدث خطأ غير متوقع.' }
   }
 }
 
+export async function submitBuyRequest(
+  input: BuyRequestPayload | FormData
+): Promise<SubmitResult> {
+  if (!(input instanceof FormData)) {
+    const res = await processBuyerStep3Action({
+      mode: 'register',
+      ...input,
+    })
+    if (res.status === 'ok') return { success: true, orderRef: res.orderRef }
+    return {
+      success: false,
+      error: res.error || 'هذا الحساب مسجل بالفعل، يرجى تسجيل الدخول.',
+    }
+  }
+  return { success: false, error: 'طريقة إرسال غير مدعومة.' }
+}
 export async function submitInvestorLead(formData: FormData): Promise<SubmitResult> {
   try {
     const supabase = await getSupabase()

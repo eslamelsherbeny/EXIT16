@@ -284,7 +284,7 @@ export default async function HomePage() {
             <div className="flex items-center justify-start gap-2">
               <p className="text-xs font-bold text-gray-500">قيمة الوحدات في السوق</p>
               <span className="rounded-md bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-500">
-                حقيقي من الداتابيز
+              
               </span>
             </div>
             <div className="mt-3 flex items-baseline justify-start gap-2">

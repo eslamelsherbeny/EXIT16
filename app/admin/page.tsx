@@ -105,14 +105,14 @@ export default async function AdminPage() {
   const kpis = [
     {
       label: "إجمالي العقارات",
-      value: properties.length.toLocaleString("ar-EG"),
-      note: `${activeProperties.length.toLocaleString("ar-EG")} منشور حالياً`,
+      value: properties.length.toLocaleString("en-US"), // تغيير إلى en-US
+      note: `${activeProperties.length.toLocaleString("en-US")} منشور حالياً`, // تغيير إلى en-US
       icon: Building2,
       href: "/admin/properties",
     },
     {
       label: "بانتظار المراجعة",
-      value: pendingProperties.length.toLocaleString("ar-EG"),
+      value: pendingProperties.length.toLocaleString("en-US"), // تغيير إلى en-US
       note:
         pendingProperties.length > 0 ? "تحتاج مراجعتك" : "تمت مراجعة الكل",
       icon: Clock3,
@@ -121,8 +121,8 @@ export default async function AdminPage() {
     },
     {
       label: "طلبات المشترين",
-      value: leads.length.toLocaleString("ar-EG"),
-      note: `${users.length.toLocaleString("ar-EG")} حساب مسجل`,
+      value: leads.length.toLocaleString("en-US"), // تغيير إلى en-US
+      note: `${users.length.toLocaleString("en-US")} حساب مسجل`, // تغيير إلى en-US
       icon: Users,
       href: "/admin/leads",
     },
@@ -131,8 +131,8 @@ export default async function AdminPage() {
       value:
         realizedCommission > 0
           ? `${realizedCommission.toLocaleString("en-US")} ج.م`
-          : "٠ ج.م",
-      note: `${soldProperties.length.toLocaleString("ar-EG")} وحدة مباعة · ${investors.length.toLocaleString("ar-EG")} مستثمر`,
+          : "0 ج.م",
+      note: `${soldProperties.length.toLocaleString("en-US")} وحدة مباعة · ${investors.length.toLocaleString("en-US")} مستثمر`, // تغيير إلى en-US
       icon: CircleDollarSign,
       href: "/admin/investors",
     },
@@ -158,7 +158,7 @@ export default async function AdminPage() {
             className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl bg-[#105C50] px-3 text-xs font-bold text-white shadow-sm transition hover:bg-[#0c483f] sm:px-4"
           >
             <Building2 className="size-4 shrink-0" />
-            <span>العقارات ({properties.length})</span>
+            <span>العقارات ({properties.length.toLocaleString("en-US")})</span>
           </Link>
           <Link
             href="/admin/users"
@@ -186,31 +186,33 @@ export default async function AdminPage() {
               }
             >
               <CardContent className="flex flex-col justify-between p-3.5 sm:flex-row sm:items-start sm:p-5">
-                <div className="flex items-center justify-between sm:block">
-                  <p className="text-[11px] font-bold text-gray-500 group-hover:text-[#105C50] sm:text-xs">
-                    {label}
-                  </p>
-                  <span className="rounded-lg bg-[#105C50]/10 p-2 text-[#105C50] sm:hidden">
-                    <Icon className="size-4" aria-hidden="true" />
-                  </span>
+                <div className="flex w-full flex-col items-center justify-center text-center sm:block sm:text-right"> {/* توسيط في الموبايل */}
+                  <div className="flex w-full items-center justify-between sm:block">
+                    <p className="text-[11px] font-bold text-gray-500 group-hover:text-[#105C50] sm:text-xs">
+                      {label}
+                    </p>
+                    <span className="rounded-lg bg-[#105C50]/10 p-2 text-[#105C50] sm:hidden">
+                      <Icon className="size-4" aria-hidden="true" />
+                    </span>
+                  </div>
+
+                  <div className="mt-2 sm:mt-0 w-full text-center sm:text-right"> {/* تأكيد التوسيط للنصوص */}
+                    <p className="text-xl font-extrabold text-[#0a1122] sm:mt-2 sm:text-3xl" dir="ltr"> {/* إضافة dir="ltr" لتأكيد عرض الرقم بشكل صحيح */}
+                      {value}
+                    </p>
+                    <p
+                      className={`mt-1 text-[10px] sm:mt-2 sm:text-xs ${
+                        highlight
+                          ? "font-bold text-[#105C50]"
+                          : "font-semibold text-gray-500"
+                      }`}
+                    >
+                      {note}
+                    </p>
+                  </div>
                 </div>
 
-                <div className="mt-2 sm:mt-0">
-                  <p className="text-xl font-extrabold text-[#0a1122] sm:mt-2 sm:text-3xl">
-                    {value}
-                  </p>
-                  <p
-                    className={`mt-1 text-[10px] sm:mt-2 sm:text-xs ${
-                      highlight
-                        ? "font-bold text-[#105C50]"
-                        : "font-semibold text-gray-500"
-                    }`}
-                  >
-                    {note}
-                  </p>
-                </div>
-
-                <span className="hidden rounded-xl bg-[#105C50]/10 p-3 text-[#105C50] transition group-hover:bg-[#105C50] group-hover:text-white sm:inline-flex">
+                <span className="hidden shrink-0 rounded-xl bg-[#105C50]/10 p-3 text-[#105C50] transition group-hover:bg-[#105C50] group-hover:text-white sm:inline-flex">
                   <Icon className="size-5" aria-hidden="true" />
                 </span>
               </CardContent>
@@ -349,7 +351,7 @@ export default async function AdminPage() {
                           <td className="px-5 py-4 text-xs text-gray-500">
                             {prop.created_at
                               ? new Date(prop.created_at).toLocaleDateString(
-                                  "ar-EG"
+                                  "en-US" // تغيير إلى en-US لتوحيد الأرقام
                                 )
                               : "—"}
                           </td>

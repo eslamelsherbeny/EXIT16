@@ -196,13 +196,7 @@ export default function PropertiesTable({
         </div>
       </div>
 
-      {/* تنبيه أمني */}
-      <div className="mb-5 flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 p-3.5 text-xs text-amber-900 sm:p-4 sm:text-sm">
-        <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-        <p>
-          <strong>تنبيه أمني:</strong> جميع أرقام هواتف البائعين مخفية تلقائياً عن واجهة الموقع العامة لحماية عمولة المنصة، وتظهر هنا لفريق الإدارة فقط.
-        </p>
-      </div>
+    
 
       {/* إشعار واضح بعد كل عملية */}
       {notice && (

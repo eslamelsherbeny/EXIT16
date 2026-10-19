@@ -362,7 +362,10 @@ export async function deleteUserByAdminAction(userId: string) {
 // ==========================================
 // 5. تحديث الملف الشخصي للأدمن (مع التحقق من كلمة المرور القديمة)
 // ==========================================
-export async function updateAdminProfileAction(formData: FormData) {
+// ==========================================
+// 5. تحديث بيانات البروفايل (مع التحقق من الباسورد ودورة توثيق الإيميل)
+// ==========================================
+export async function updateAdminProfileDataAction(formData: FormData) {
   const cookieStore = await cookies()
   const sessionId = cookieStore.get("user_session")?.value
   if (!sessionId) {
@@ -373,11 +376,17 @@ export async function updateAdminProfileAction(formData: FormData) {
   const email = ((formData.get("email") as string) || "").trim().toLowerCase()
   const rawPhone = ((formData.get("phone") as string) || "").trim()
   const currentPassword = ((formData.get("currentPassword") as string) || "").trim()
-  const newPassword = ((formData.get("newPassword") as string) || "").trim()
-  const confirmNewPassword = ((formData.get("confirmNewPassword") as string) || "").trim()
 
-  if (!name || !email || !rawPhone) {
-    return { success: false, error: "الاسم والبريد الإلكتروني ورقم الهاتف حقول مطلوبة." }
+  if (!name || !email || !rawPhone || !currentPassword) {
+    return { success: false, error: "الرجاء إكمال جميع الحقول وإدخال كلمة المرور للمصادقة." }
+  }
+
+  const supabase = await getSupabase()
+
+  // 1. المصادقة: التأكد من صحة الباسورد الحالي
+  const { data: user } = await supabase.from("users").select("password_hash, email").eq("id", sessionId).single()
+  if (!user || !verifyPassword(currentPassword, user.password_hash)) {
+    return { success: false, error: "كلمة المرور الحالية التي أدخلتها للمصادقة غير صحيحة." }
   }
 
   const stripped = rawPhone.replace(/^\+?20/, "").replace(/^0+/, "")
@@ -385,55 +394,84 @@ export async function updateAdminProfileAction(formData: FormData) {
 
   const updateData: Record<string, any> = {
     name,
-    email,
     phone: formattedPhone,
   }
 
-  const supabase = await getSupabase()
+  let successMessage = "تم تحديث بياناتك بنجاح."
 
-  // تأمين تغيير كلمة المرور
-  if (newPassword) {
-    if (newPassword.length < 8) {
-      return { success: false, error: "كلمة المرور الجديدة يجب أن تكون 8 أحرف على الأقل." }
-    }
-    if (newPassword !== confirmNewPassword) {
-      return { success: false, error: "كلمتا المرور الجديدتان غير متطابقتين." }
-    }
-    if (!currentPassword) {
-      return { success: false, error: "يرجى إدخال كلمة المرور الحالية لتتمكن من تغييرها." }
-    }
+  // 2. دورة توثيق الإيميل إذا تم تغييره
+  if (email !== user.email) {
+    updateData.email = email
+    updateData.is_verified = false // تحويل الحساب لغير موثق
+    
+    const verifyToken = randomBytes(24).toString('hex')
+    updateData.otp_code = verifyToken
 
-    // جلب الباسورد القديم للتحقق من هوية صاحب الحساب
-    const { data: user } = await supabase.from("users").select("password_hash").eq("id", sessionId).single()
-    if (!user || !verifyPassword(currentPassword, user.password_hash)) {
-      return { success: false, error: "كلمة المرور الحالية التي أدخلتها غير صحيحة." }
-    }
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://next-js-rtl-platform-structure.vercel.app'
+    const verifyLink = `${siteUrl}/login?verified=1&email=${encodeURIComponent(email)}&token=${verifyToken}`
 
-    updateData.password_hash = hashPassword(newPassword)
+    await sendAdminEmail({
+      to: email,
+      subject: 'دارك — تأكيد البريد الإلكتروني الجديد',
+      html: `<div dir="rtl" style="font-family: Arial, sans-serif; text-align: right; line-height: 1.6;">
+              <h2 style="color: #101A2B;">مرحباً ${name}،</h2>
+              <p>لقد قمت بتغيير بريدك الإلكتروني في منصة دارك. يرجى تأكيد هذا البريد بالضغط على الرابط أدناه لاستعادة توثيق حسابك:</p>
+              <div style="margin: 20px 0;">
+                <a href="${verifyLink}" style="display: inline-block; background-color: #105C50; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 10px; font-weight: bold;">
+                  تأكيد البريد الإلكتروني
+                </a>
+              </div>
+             </div>`,
+    })
+
+    successMessage = "تم تحديث البيانات. يرجى فحص بريدك الجديد لتأكيده وتوثيق الحساب."
   }
 
-  const { error } = await supabase
-    .from("users")
-    .update(updateData)
-    .eq("id", sessionId)
+  const { error } = await supabase.from("users").update(updateData).eq("id", sessionId)
 
   if (error) {
-    return {
-      success: false,
-      error: "تعذر تحديث البيانات، قد يكون البريد أو الهاتف مستخدماً لحساب آخر.",
-    }
+    return { success: false, error: "تعذر التحديث، قد يكون الإيميل أو الهاتف مستخدماً لحساب آخر." }
   }
 
-  // حذف أي طلبات بيع أو شراء تجريبية مسجلة باسم الأدمن إن رغب في تنظيف حسابه
   if (formData.get("clearAdminRequests") === "1") {
     await supabase.from("sell_requests").delete().eq("user_id", sessionId)
     await supabase.from("buy_requests").delete().eq("user_id", sessionId)
   }
 
   revalidateAdminAll()
-  return { success: true }
+  return { success: true, message: successMessage }
 }
 
+// ==========================================
+// 6. تغيير كلمة المرور (مستقل)
+// ==========================================
+export async function changeAdminPasswordAction(formData: FormData) {
+  const cookieStore = await cookies()
+  const sessionId = cookieStore.get("user_session")?.value
+  if (!sessionId) return { success: false, error: "انتهت الجلسة." }
+
+  const currentPassword = ((formData.get("currentPassword") as string) || "").trim()
+  const newPassword = ((formData.get("newPassword") as string) || "").trim()
+
+  if (!currentPassword || !newPassword || newPassword.length < 8) {
+    return { success: false, error: "يرجى كتابة الباسورد الحالي والجديد (8 أحرف على الأقل)." }
+  }
+
+  const supabase = await getSupabase()
+  const { data: user } = await supabase.from("users").select("password_hash").eq("id", sessionId).single()
+  
+  if (!user || !verifyPassword(currentPassword, user.password_hash)) {
+    return { success: false, error: "كلمة المرور الحالية غير صحيحة." }
+  }
+
+  const newHash = hashPassword(newPassword)
+  const { error } = await supabase.from("users").update({ password_hash: newHash }).eq("id", sessionId)
+
+  if (error) return { success: false, error: "تعذر تغيير كلمة المرور." }
+
+  revalidateAdminAll()
+  return { success: true }
+}
 // ==========================================
 // 6. حفظ إعدادات الموقع العامة وحالة الصيانة
 // ==========================================

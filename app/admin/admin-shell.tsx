@@ -308,7 +308,7 @@ export default function AdminShell({
                 {currentSection}
               </p>
               <h1 className="truncate text-sm font-extrabold text-[#0a1122] sm:text-lg">
-                أهلاً، {firstName} 👋
+                أهلاً، {firstName}
               </h1>
             </div>
           </div>

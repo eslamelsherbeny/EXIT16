@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 
 const PAGE_SIZE = 48
+const FAVORITES_STORAGE_KEY = 'darak_favorites'
 
 type Property = {
   id: string
@@ -47,7 +48,7 @@ type Property = {
   delivery: string
   deliveryStatus: 'جاهزة' | 'تحت الإنشاء'
   contractYear: number
-  featured?: boolean
+  featured: boolean
   image: string
   isFromDb?: boolean
 }
@@ -123,6 +124,11 @@ function mapDbRowToProperty(row: any): Property {
       ? row.images[0]
       : DEFAULT_FALLBACK_IMAGE
 
+  // فحص هل الوحدة مشتركة في باقة التمييز وسارية المفعول حالياً
+  const isFeaturedActive =
+    Boolean(row.is_featured) &&
+    (!row.featured_until || new Date(row.featured_until) > new Date())
+
   return {
     id: String(row.id),
     code,
@@ -149,7 +155,7 @@ function mapDbRowToProperty(row: any): Property {
     delivery: deliveryYearStr,
     deliveryStatus,
     contractYear: Number(row.contract_year) || 2024,
-    featured: true,
+    featured: isFeaturedActive,
     image: validImage,
     isFromDb: true,
   }
@@ -208,12 +214,24 @@ const sorts = [
   'الأكثر زيارة',
 ]
 
-// ==================== مكون بطاقة الوحدة ====================
-function PropertyCard({ property }: { property: Property }) {
-  const [liked, setLiked] = useState(false)
-
+// ==================== مكون بطاقة الوحدة (مربوط بالمفضلة وبنجمة التمييز الحقيقية) ====================
+function PropertyCard({
+  property,
+  liked,
+  onToggleLike,
+}: {
+  property: Property
+  liked: boolean
+  onToggleLike: (id: string) => void
+}) {
   return (
-    <div className="group flex h-full flex-col justify-between overflow-hidden rounded-[14px] border border-gray-200/90 bg-white shadow-sm transition-all duration-200 hover:shadow-md sm:rounded-[18px]">
+    <div
+      className={`group flex h-full flex-col justify-between overflow-hidden rounded-[14px] border bg-white shadow-sm transition-all duration-200 hover:shadow-md sm:rounded-[18px] ${
+        property.featured
+          ? 'border-amber-300/80 ring-1 ring-amber-200/50'
+          : 'border-gray-200/90'
+      }`}
+    >
       <div>
         <div className="relative h-[125px] w-full overflow-hidden bg-gray-100 sm:h-[180px] md:h-[200px]">
           <Link href={`/opportunities/${property.id}`} className="block h-full w-full">
@@ -231,16 +249,18 @@ function PropertyCard({ property }: { property: Property }) {
           <div className="absolute left-1.5 top-1.5 flex items-center sm:left-3 sm:top-3">
             <div className="flex items-center rounded-full bg-white p-0.5 pl-0.5 pr-1.5 shadow-md sm:pl-1 sm:pr-2.5">
               {property.featured && (
-                <Star
-                  aria-label="فرصة مميزة"
-                  className="ml-1 size-3 fill-amber-400 text-amber-500 sm:ml-1.5 sm:size-3.5"
-                />
+                <span title="وحدة مميزة" className="inline-flex">
+                  <Star
+                    aria-label="فرصة مميزة"
+                    className="ml-1 size-3 fill-amber-400 text-amber-500 sm:ml-1.5 sm:size-3.5"
+                  />
+                </span>
               )}
               <button
                 type="button"
                 onClick={(e) => {
                   e.preventDefault()
-                  setLiked(!liked)
+                  onToggleLike(property.id)
                 }}
                 aria-label="إضافة للمفضلة"
                 className={`flex size-6 items-center justify-center rounded-full transition-colors sm:size-8 ${
@@ -354,6 +374,7 @@ export default function OpportunitiesPage() {
   const [dbProperties, setDbProperties] = useState<Property[]>([])
   const [totalInPlatform, setTotalInPlatform] = useState<number>(0)
   const [loading, setLoading] = useState<boolean>(true)
+  const [favoriteIds, setFavoriteIds] = useState<string[]>([])
 
   const [visibleLimit, setVisibleLimit] = useState<number>(PAGE_SIZE)
 
@@ -372,6 +393,31 @@ export default function OpportunitiesPage() {
   const [deliveryYear, setDeliveryYear] = useState('الكل')
   const [contractYear, setContractYear] = useState('الكل')
   const [minRooms, setMinRooms] = useState('الكل')
+
+  // تحميل المفضلة المحفوظة
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(FAVORITES_STORAGE_KEY)
+      if (stored) {
+        const parsed = JSON.parse(stored)
+        if (Array.isArray(parsed)) setFavoriteIds(parsed.map(String))
+      }
+    } catch {}
+  }, [])
+
+  const handleToggleFavorite = (unitId: string) => {
+    setFavoriteIds((prev) => {
+      const idStr = String(unitId)
+      const next = prev.includes(idStr)
+        ? prev.filter((x) => x !== idStr)
+        : [...prev, idStr]
+      try {
+        localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(next))
+        window.dispatchEvent(new Event('favorites-updated'))
+      } catch {}
+      return next
+    })
+  }
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -398,6 +444,7 @@ export default function OpportunitiesPage() {
             .from('sell_requests')
             .select('*')
             .in('status', ['active', 'offer_received', 'transferring'])
+            .order('is_featured', { ascending: false })
             .order('created_at', { ascending: false })
             .limit(5000),
           supabase
@@ -563,6 +610,7 @@ export default function OpportunitiesPage() {
       return true
     })
 
+    // ترتيب النتائج: الوحدات المميزة (Featured ⭐) تظهر في المقدمة دائماً في البحث وفي الوضع الافتراضي
     return [...filtered].sort((a, b) => {
       if (sort === 'الأقل كاش') return a.cashNum - b.cashNum
       if (sort === 'أقل قسط') return a.monthlyInstallmentNum - b.monthlyInstallmentNum
@@ -571,6 +619,10 @@ export default function OpportunitiesPage() {
       if (sort === 'جاهزة للنقل') {
         if (a.deliveryStatus === b.deliveryStatus) return a.cashNum - b.cashNum
         return a.deliveryStatus === 'جاهزة' ? -1 : 1
+      }
+      // في الوضع الافتراضي أو الفرص المميزة أو البحث: الوحدات المدفوعة المميزة أولاً
+      if (a.featured !== b.featured) {
+        return a.featured ? -1 : 1
       }
       if (sort === 'الفرص المميزة ⭐' || sort === 'الأنسب لي 🎯') {
         return b.gainNum - a.gainNum
@@ -643,11 +695,10 @@ export default function OpportunitiesPage() {
           </p>
         </div>
 
-        {/* ==================== 2. صندوق الإحصائيات (تحت بعضه على الموبايل ومحاذي لليمين تماماً مثل الصورة الأصلية) ==================== */}
+        {/* ==================== 2. صندوق الإحصائيات ==================== */}
         <section className="mt-6 sm:mt-8">
           <div className="grid grid-cols-1 divide-y divide-gray-200/80 overflow-hidden rounded-[20px] border border-gray-200/70 border-t-[3px] border-t-[#0b6954] bg-white shadow-sm md:grid-cols-2 md:divide-y-0 md:divide-x md:divide-x-reverse">
             
-            {/* الإحصائية الأولى: الوحدات على المنصة */}
             <div className="flex flex-col justify-between p-6 text-right sm:p-10">
               <div className="flex items-center justify-start">
                 <p className="text-xs font-bold text-gray-500 sm:text-sm">
@@ -672,7 +723,6 @@ export default function OpportunitiesPage() {
               </div>
             </div>
 
-            {/* الإحصائية الثانية: قيمة الوحدات في السوق */}
             <div className="flex flex-col justify-between p-6 text-right sm:p-10">
               <div className="flex items-center justify-start gap-2">
                 <p className="text-xs font-bold text-gray-500 sm:text-sm">
@@ -1125,7 +1175,12 @@ export default function OpportunitiesPage() {
           ) : displayedProperties.length > 0 ? (
             <div className="grid grid-cols-2 items-stretch gap-2.5 sm:gap-5 lg:grid-cols-3 lg:gap-6">
               {displayedProperties.map((property) => (
-                <PropertyCard key={property.id} property={property} />
+                <PropertyCard
+                  key={property.id}
+                  property={property}
+                  liked={favoriteIds.includes(String(property.id))}
+                  onToggleLike={handleToggleFavorite}
+                />
               ))}
             </div>
           ) : (

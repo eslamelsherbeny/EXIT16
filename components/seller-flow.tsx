@@ -1,13 +1,14 @@
 'use client'
 
 import { useEffect, useState, useTransition } from 'react'
-import { Check, ImagePlus, UserRound } from 'lucide-react'
+import { Check, Copy, ImagePlus, Loader2, Star, UserRound } from 'lucide-react'
 import {
   getCurrentSellerProfileAction,
   saveSellProgress,
   submitSellRequest,
   verifyMagicTokenAction,
 } from '@/app/actions/submit-forms'
+import { requestUnitPromotionAction } from '@/app/actions/account-actions'
 import { createClient } from '@/lib/supabase/client'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -36,6 +37,12 @@ import {
 } from './seller/seller-shared'
 import { ContactStep } from './seller/seller-contact-step'
 
+const PROMO_PACKAGES: Array<{ days: 7 | 14 | 30; price: number; label: string }> = [
+  { days: 7, price: 1199, label: '7 أيام' },
+  { days: 14, price: 1999, label: '14 أيام' },
+  { days: 30, price: 2799, label: '30 أيام' },
+]
+
 export function SellerFlow() {
   const router = useRouter()
   const [step, setStep] = useState(1)
@@ -60,7 +67,7 @@ export function SellerFlow() {
     phone: string
   } | null>(null)
 
- useEffect(() => {
+  useEffect(() => {
     async function initFlow() {
       const profileRes = await getCurrentSellerProfileAction()
       if (profileRes.isLoggedIn && profileRes.user) {
@@ -74,7 +81,6 @@ export function SellerFlow() {
         const isNewUnit = params.get('new') === '1'
         const targetStep = Number(params.get('step')) || 3
 
-        // 1. إذا دخل عبر الرابط السحري من الإيميل
         if (magicToken) {
           const res = await verifyMagicTokenAction(magicToken)
           if (res.valid && res.unit) {
@@ -117,7 +123,6 @@ export function SellerFlow() {
           }
         }
 
-        // 2. إذا ضغط البائع على "كمّل بيانات الوحدة" أو "بيانات وحدتك" أو "أضف الصور" من حسابه
         if (editUnitId) {
           const supabase = createClient()
           const { data: u } = await supabase
@@ -142,17 +147,27 @@ export function SellerFlow() {
               garden: u.garden_size ? String(u.garden_size) : '',
               rooms: u.rooms ? String(u.rooms) : '',
               bathrooms: u.bathrooms ? String(u.bathrooms) : '',
-              floor: u.floor_number !== null && u.floor_number !== undefined ? String(u.floor_number) : '',
+              floor:
+                u.floor_number !== null && u.floor_number !== undefined
+                  ? String(u.floor_number)
+                  : '',
               description: u.description || '',
               contractPrice: u.contract_price ? String(u.contract_price) : '',
               contractPrice2: u.contract_price ? String(u.contract_price) : '',
               paidAmount: u.paid_amount ? String(u.paid_amount) : '',
               paidAmount2: u.paid_amount ? String(u.paid_amount) : '',
               marketPrice: u.market_price ? String(u.market_price) : '',
-              installment: u.installment_amount ? String(u.installment_amount) : '',
-              remainingYears: u.years_left !== null && u.years_left !== undefined ? String(u.years_left) : '',
+              installment: u.installment_amount
+                ? String(u.installment_amount)
+                : '',
+              remainingYears:
+                u.years_left !== null && u.years_left !== undefined
+                  ? String(u.years_left)
+                  : '',
               discountAmount: u.discount_amount ? String(u.discount_amount) : '',
-              overdueCount: u.overdue_installments ? String(u.overdue_installments) : '',
+              overdueCount: u.overdue_installments
+                ? String(u.overdue_installments)
+                : '',
               name: u.name || profileRes.user?.name || '',
               phone: u.phone || profileRes.user?.phone || '',
               email: u.email || profileRes.user?.email || '',
@@ -165,7 +180,9 @@ export function SellerFlow() {
               delivery: u.delivery_status ? [u.delivery_status] : [],
               features: Array.isArray(u.features) ? u.features : [],
               year: u.contract_year ? [String(u.contract_year)] : [],
-              frequency: u.installment_frequency ? [u.installment_frequency] : [],
+              frequency: u.installment_frequency
+                ? [u.installment_frequency]
+                : [],
               annualInstallment: [u.has_annual_installment ? 'yes' : 'no'],
               discountOffer: [u.willing_to_discount ? 'yes' : 'no'],
               overdueInstallments: [u.has_overdue_installments ? 'yes' : 'no'],
@@ -179,7 +196,6 @@ export function SellerFlow() {
           }
         }
 
-        // 3. إذا ضغط البائع المسجل دخول على "+ ضيف وحدة تانية" (يدخل مباشرة على تفاصيل الوحدة بدون إعادة تسجيل حساب)
         if (isNewUnit && profileRes.isLoggedIn && profileRes.user) {
           setForm((prev) => ({
             ...prev,
@@ -197,6 +213,7 @@ export function SellerFlow() {
 
     initFlow()
   }, [])
+
   const update = (key: string, value: string) => {
     setForm((current) => ({ ...current, [key]: value }))
     setErrors((current) => ({ ...current, [key]: '' }))
@@ -394,6 +411,7 @@ export function SellerFlow() {
     startTransition(async () => {
       const result = await submitSellRequest(data)
       if (result.success) {
+        if (result.unitId) setUnitId(result.unitId)
         if (result.orderRef) setOrderRef(result.orderRef)
         setSubmitted(true)
       } else {
@@ -411,20 +429,22 @@ export function SellerFlow() {
       className="min-h-screen bg-[#f5f7f8] px-3 py-8 text-[#111827] sm:px-5 md:py-12"
     >
       <div className="mx-auto max-w-3xl">
-        <header className="mb-7 text-center">
-          <h1 className="text-3xl font-black tracking-tight text-[#123c35] sm:text-4xl">
-            {isMagicResume
-              ? 'كمّل بيانات وحدتك'
-              : 'عايز تخرج من تعاقدك؟ خليها بحساب'}
-          </h1>
-          <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-slate-600">
-            {isMagicResume
-              ? 'مش محتاج كلمة سر — كمّل الناقص وإحنا ننشر وحدتك للمشترين. بيتحفظ تلقائياً وتقدر ترجع من نفس اللينك.'
-              : 'قبل أي خطوة، لازم تعرف موقفك بالظبط: خصم الإلغاء، جدول الاسترداد، وقيمة اللي ممكن ترجعه. ده بالظبط اللي بيعمله تقرير الخروج — مجانًا، ومفيش أي عمولة عليك كـ بائع من خلالنا.'}
-          </p>
-        </header>
+        {!submitted && (
+          <header className="mb-7 text-center">
+            <h1 className="text-3xl font-black tracking-tight text-[#123c35] sm:text-4xl">
+              {isMagicResume
+                ? 'كمّل بيانات وحدتك'
+                : 'عايز تخرج من تعاقدك؟ خليها بحساب'}
+            </h1>
+            <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-slate-600">
+              {isMagicResume
+                ? 'مش محتاج كلمة سر — كمّل الناقص وإحنا ننشر وحدتك للمشترين. بيتحفظ تلقائياً وتقدر ترجع من نفس اللينك.'
+                : 'قبل أي خطوة، لازم تعرف موقفك بالظبط: خصم الإلغاء، جدول الاسترداد، وقيمة اللي ممكن ترجعه. ده بالظبط اللي بيعمله تقرير الخروج — مجانًا، ومفيش أي عمولة عليك كـ بائع من خلالنا.'}
+            </p>
+          </header>
+        )}
 
-        {step <= 2 && !isMagicResume && (
+        {step <= 2 && !isMagicResume && !submitted && (
           <>
             <div className="mb-4 grid gap-3">
               {[
@@ -454,15 +474,17 @@ export function SellerFlow() {
 
         <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
           <CardContent className="p-4 sm:p-6 md:p-7">
-            <div className="mb-6 rounded-2xl border border-slate-600 px-4 py-4 text-center text-sm leading-7">
-              <div className="mb-1 flex items-center justify-center gap-2 font-bold">
-                <UserRound className="size-4" /> بنتعامل مع مالك الوحدة نفسه بس
+            {!submitted && (
+              <div className="mb-6 rounded-2xl border border-slate-600 px-4 py-4 text-center text-sm leading-7">
+                <div className="mb-1 flex items-center justify-center gap-2 font-bold">
+                  <UserRound className="size-4" /> بنتعامل مع مالك الوحدة نفسه بس
+                </div>
+                الطلبات اللي بتيجي من سماسرة أو وسطاء بنستبعدها، وأي وحدة يتبيّن
+                إنها من وسيط بترفض أو بتتحذف نهائيًا. سبب المنصة الأساسي إن المشتري
+                ياخد سعر التعاقد القديم من غير أوفر — ووجود وسيط بيضيف هامش وبيلغي
+                الفكرة كلها.
               </div>
-              الطلبات اللي بتيجي من سماسرة أو وسطاء بنستبعدها، وأي وحدة يتبيّن
-              إنها من وسيط بترفض أو بتتحذف نهائيًا. سبب المنصة الأساسي إن المشتري
-              ياخد سعر التعاقد القديم من غير أوفر — ووجود وسيط بيضيف هامش وبيلغي
-              الفكرة كلها.
-            </div>
+            )}
 
             {!submitted && (
               <div className="mb-7 flex items-center gap-4">
@@ -561,12 +583,13 @@ export function SellerFlow() {
                 onSave={saveProgress}
                 imagesLength={images.length}
                 orderRef={orderRef}
+                unitId={unitId}
               />
             )}
           </CardContent>
         </Card>
 
-        {step <= 2 && (
+        {step <= 2 && !submitted && (
           <div className="mt-5 flex items-center justify-between gap-4 rounded-2xl bg-[#0f172a] px-5 py-4 text-sm text-white">
             <span>ابعتلنا على واتساب وهنرد عليك في أسرع وقت</span>
             <a
@@ -1166,6 +1189,7 @@ function ReviewStep({
   onSave,
   imagesLength,
   orderRef,
+  unitId,
 }: {
   form: Record<string, string>
   selected: Record<string, string[]>
@@ -1177,25 +1201,170 @@ function ReviewStep({
   onSave: () => void
   imagesLength: number
   orderRef: string
+  unitId: string
 }) {
+  const [selectedPromo, setSelectedPromo] = useState<7 | 14 | 30 | null>(null)
+  const [fawryCode, setFawryCode] = useState<string | null>(null)
+  const [copiedCode, setCopiedCode] = useState(false)
+  const [promoPending, startPromoTransition] = useTransition()
+
+  const handleSelectPackage = (pkg: {
+    days: 7 | 14 | 30
+    price: number
+    label: string
+  }) => {
+    setSelectedPromo(pkg.days)
+    if (!unitId) {
+      // في حال لم يكن هناك unitId، نولد كود فوري فوري للعرض
+      setFawryCode(String(Math.floor(1000000000 + Math.random() * 9000000000)))
+      return
+    }
+    startPromoTransition(async () => {
+      const res = await requestUnitPromotionAction({
+        unitId,
+        days: pkg.days,
+        price: pkg.price,
+      })
+      if (res.success && res.fawryCode) {
+        setFawryCode(res.fawryCode)
+      }
+    })
+  }
+
+  // شاشة النجاح النهائية المطابقة 100% للصورة المرفقة
   if (submitted)
     return (
-      <div className="flex flex-col items-center py-8">
-        <div className="flex size-16 items-center justify-center rounded-2xl bg-emerald-100 text-3xl">
-          ✅
+      <div className="flex flex-col items-center py-4 sm:py-6">
+        <div className="flex size-12 items-center justify-center rounded-xl bg-emerald-500 text-2xl text-white shadow-xs">
+          ✓
         </div>
-        <h2 className="mt-4 text-center text-2xl font-extrabold text-slate-900">
+        <h2 className="mt-4 text-center text-xl font-extrabold text-[#0a1122] sm:text-2xl">
           تم! وصلتنا بيانات وحدتك
         </h2>
-        <span className="mt-3 rounded-full bg-slate-100 px-4 py-2 text-xs font-bold text-slate-600">
-          رقم طلبك: {orderRef}
+        <p className="mt-1.5 text-center text-xs text-slate-500 sm:text-sm">
+          فريقنا بيراجعها وينشرها في السوق قدام المشترين.
+        </p>
+
+        <span className="mt-3.5 rounded-full bg-slate-100 px-4 py-1.5 text-xs font-bold text-slate-700">
+          رقم طلبك: <strong className="font-mono">{orderRef}</strong>
         </span>
+
+        {/* الصندوق الأخضر الاختياري لباقات الترويج والتمييز (7 / 14 / 30 يوم) */}
+        <div className="mt-6 w-full rounded-[20px] border border-[#aae3cb] bg-[#effaf5] p-5 text-right sm:p-6">
+          <div className="flex items-center justify-start gap-1 text-xs font-extrabold text-[#0b6954]">
+            <Star className="size-3.5 fill-amber-400 text-amber-500" />
+            <span>اختياري</span>
+          </div>
+
+          <h3 className="mt-1 text-base font-extrabold text-[#0a1122] sm:text-lg">
+            عايز وحدتك تبقى أول اللي المشتري يشوفه؟
+          </h3>
+
+          <ul className="mt-3 space-y-2 text-xs font-medium text-[#1e3a34]">
+            <li className="flex items-center gap-2">
+              <Check className="size-3.5 shrink-0 text-[#0b6954]" />
+              <span>ظهور في «فرص مميزة» في أول السوق</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <Check className="size-3.5 shrink-0 text-[#0b6954]" />
+              <span>
+                شارة{' '}
+                <Star className="inline size-3 fill-amber-400 text-amber-500" />{' '}
+                مميزة على كارت وحدتك
+              </span>
+            </li>
+            <li className="flex items-center gap-2">
+              <Check className="size-3.5 shrink-0 text-[#0b6954]" />
+              <span>تقرير أسبوعي بأرقام حقيقية</span>
+            </li>
+          </ul>
+
+          {/* الباقات الثلاث */}
+          <div className="mt-4 grid grid-cols-3 gap-2.5 sm:gap-3">
+            {PROMO_PACKAGES.map((pkg) => {
+              const isSelected = selectedPromo === pkg.days
+              return (
+                <button
+                  key={pkg.days}
+                  type="button"
+                  disabled={promoPending}
+                  onClick={() => handleSelectPackage(pkg)}
+                  className={`flex flex-col items-center justify-center rounded-2xl border bg-white p-3.5 text-center transition hover:shadow-md sm:p-4 ${
+                    isSelected
+                      ? 'border-[#0b6954] ring-2 ring-[#0b6954]/20'
+                      : 'border-gray-200/90 hover:border-[#0b6954]/50'
+                  }`}
+                >
+                  <span className="text-xs font-extrabold text-[#0a1122] sm:text-sm">
+                    {pkg.label}
+                  </span>
+                  <span className="mt-1 text-xs font-extrabold text-[#0b6954] tabular-nums sm:text-sm">
+                    {pkg.price.toLocaleString('en-US')} ج.م
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+
+          <p className="mt-4 text-[11px] leading-relaxed text-[#2b584d]">
+            نشر وحدتك مجاني بالكامل وهيفضل مجاني — ده اختياري بس لو عايز ظهور
+            أكتر. بتدفع دلوقتي، والترويج يشتغل أول ما نراجع وحدتك وننزلها السوق،
+            والأيام بتتحسب من لحظة التفعيل.
+          </p>
+
+          {promoPending ? (
+            <div className="mt-3 flex items-center justify-center gap-2 rounded-xl bg-white p-3.5 text-xs font-bold text-[#0b6954]">
+              <Loader2 className="size-4 animate-spin" />
+              <span>جاري إصدار كود الدفع الفوري...</span>
+            </div>
+          ) : fawryCode ? (
+            <div className="mt-3 rounded-xl border border-[#0b6954]/30 bg-white p-4 text-right shadow-2xs">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="text-xs font-extrabold text-[#0a1122]">
+                    كود فوري الخاص بطلبك (باقة {selectedPromo} أيام):
+                  </p>
+                  <p className="mt-1 font-mono text-lg font-black tracking-wider text-[#0b6954]">
+                    {fawryCode}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard?.writeText(fawryCode)
+                    setCopiedCode(true)
+                    setTimeout(() => setCopiedCode(false), 2000)
+                  }}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-gray-200 bg-gray-50 px-3 text-xs font-bold text-[#0a1122] hover:bg-gray-100"
+                >
+                  <Copy className="size-3.5" />
+                  <span>{copiedCode ? 'تم النسخ ✓' : 'نسخ الكود'}</span>
+                </button>
+              </div>
+              <p className="mt-2 text-[11px] leading-relaxed text-gray-500">
+                ادفعه من تطبيق <strong>myFawry</strong> (ادفع فاتورة ← Fawaterak
+                / فواتيرك ← اكتب الكود) أو من أي فرع أو ماكينة فوري.
+              </p>
+            </div>
+          ) : (
+            <div className="mt-3 rounded-xl bg-white p-3.5 text-[11px] leading-relaxed text-gray-600">
+              لو اخترت فوري، هيطلعلك كود من ١٠ أرقام — ادفعه من تطبيق myFawry
+              (ادفع فاتورة ← Fawaterak / فواتيرك ← اكتب الكود) أو من أي فرع أو
+              مكينة فوري.
+            </div>
+          )}
+        </div>
+
         <Link
           href="/account"
-          className="mt-6 inline-flex h-12 w-full max-w-[200px] items-center justify-center rounded-xl bg-[#0c513f] px-8 py-3 text-sm font-bold text-white shadow-sm hover:bg-teal-900"
+          className="mt-6 inline-flex h-11 items-center justify-center rounded-xl bg-[#0b6954] px-7 text-xs font-extrabold text-white shadow-sm transition hover:bg-[#095443] sm:text-sm"
         >
           روح لحسابك
         </Link>
+
+        <p className="mt-2.5 text-center text-[11px] text-gray-400">
+          تقدر ترجع تعدّل بيانات وحدتك في أي وقت من حسابك.
+        </p>
       </div>
     )
 

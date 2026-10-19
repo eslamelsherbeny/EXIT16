@@ -29,6 +29,16 @@ export function AccountViewSwitcher({
   )
   const [switching, setSwitching] = useState(false)
 
+  const mainBuyerRequest =
+    buys.find((b) => {
+      const areasStr = Array.isArray(b.preferred_areas)
+        ? b.preferred_areas.join(' ')
+        : String(b.preferred_areas || '')
+      return !areasStr.includes('🎯') && !areasStr.includes('حجز وحدة')
+    }) ||
+    buys[0] ||
+    null
+
   const handleSwitch = (target: 'seller' | 'buyer') => {
     if (target === currentView) return
     setSwitching(true)
@@ -86,7 +96,7 @@ export function AccountViewSwitcher({
         />
       ) : (
         <BuyerDashboard
-          buyReq={buys[0] || null}
+          buyReq={mainBuyerRequest}
           marketUnits={activeMarketUnits}
           deletionRequested={deletionRequested}
         />

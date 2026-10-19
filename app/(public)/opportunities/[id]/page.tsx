@@ -19,6 +19,7 @@ import {
 
 const FALLBACK_UNIT_IMAGE =
   'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=85'
+const FAVORITES_STORAGE_KEY = 'darak_favorites'
 
 export default function PropertyDetailsPage() {
   const params = useParams()
@@ -48,6 +49,33 @@ export default function PropertyDetailsPage() {
   const [offerSubmitted, setOfferSubmitted] = useState(false)
   const [offerError, setOfferError] = useState('')
 
+  // قراءة حالة المفضلة لهذه الوحدة
+  useEffect(() => {
+    if (!rawId) return
+    try {
+      const stored = localStorage.getItem(FAVORITES_STORAGE_KEY)
+      const list: string[] = stored ? JSON.parse(stored) : []
+      setLiked(list.includes(String(rawId)))
+    } catch {}
+  }, [rawId])
+
+  const handleToggleFavorite = () => {
+    if (!rawId) return
+    try {
+      const stored = localStorage.getItem(FAVORITES_STORAGE_KEY)
+      const list: string[] = stored ? JSON.parse(stored) : []
+      const idStr = String(rawId)
+      const next = list.includes(idStr)
+        ? list.filter((x) => x !== idStr)
+        : [...list, idStr]
+      localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(next))
+      setLiked(next.includes(idStr))
+      window.dispatchEvent(new Event('favorites-updated'))
+    } catch {
+      setLiked(!liked)
+    }
+  }
+
   useEffect(() => {
     async function fetchPropertyDetails() {
       setLoading(true)
@@ -57,7 +85,6 @@ export default function PropertyDetailsPage() {
           process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
         )
 
-        // 1. جلب بيانات الوحدة الحقيقية من جدول sell_requests
         if (rawId) {
           const { data: dbUnit } = await supabase
             .from('sell_requests')
@@ -68,7 +95,6 @@ export default function PropertyDetailsPage() {
           if (dbUnit) {
             setUnitRow(dbUnit)
 
-            // حساب عدد الوحدات الحقيقية الأخرى في نفس المنطقة
             if (dbUnit.area) {
               const { count } = await supabase
                 .from('sell_requests')
@@ -82,16 +108,16 @@ export default function PropertyDetailsPage() {
           }
         }
 
-        // 2. جلب الفرص المشابهة الحقيقية فقط من قاعدة البيانات
         const { data: otherUnits } = await supabase
           .from('sell_requests')
           .select(
-            'id, project_name, area, unit_type, rooms, size, years_left, delivery_status, paid_amount, discount_amount, willing_to_discount, images'
+            'id, project_name, area, unit_type, rooms, size, years_left, delivery_status, paid_amount, discount_amount, willing_to_discount, images, is_featured, featured_until'
           )
           .in('status', ['active', 'offer_received', 'transferring'])
           .neq('id', rawId)
+          .order('is_featured', { ascending: false })
           .order('created_at', { ascending: false })
-          .limit(4)
+          .limit(6)
 
         if (otherUnits && otherUnits.length > 0) {
           const mappedSimilar = otherUnits.map((u) => {
@@ -105,6 +131,10 @@ export default function PropertyDetailsPage() {
                 ? 'جاهزة'
                 : String(new Date().getFullYear() + (Number(u.years_left) || 2))
 
+            const isFeat =
+              Boolean(u.is_featured) &&
+              (!u.featured_until || new Date(u.featured_until) > new Date())
+
             return {
               id: u.id,
               name: u.project_name || 'وحدة معتمدة',
@@ -113,6 +143,7 @@ export default function PropertyDetailsPage() {
                 u.size || 150
               } م² · استلام ${delivYear}`,
               cash: reqCash.toLocaleString('en-US'),
+              featured: isFeat,
               image:
                 Array.isArray(u.images) && u.images.length > 0 && u.images[0]
                   ? u.images[0]
@@ -131,7 +162,6 @@ export default function PropertyDetailsPage() {
     fetchPropertyDetails()
   }, [rawId])
 
-  // استخراج وحساب جميع تفاصيل الوحدة المعروضة من البيانات الحقيقية
   const computedUnit = useMemo(() => {
     if (!unitRow) return null
 
@@ -176,29 +206,19 @@ export default function PropertyDetailsPage() {
     const installmentFreq = row.installment_frequency || 'ربع سنوي'
     const yearsLeft = Number(row.years_left) || 0
 
-    // حساب سعر المتر بالتعاقد
     const pricePerMeter =
       size > 0 && contractPrice > 0 ? Math.round(contractPrice / size) : 0
-
-    // حساب عمولة المنصة (1.25% من إجمالي التعاقد)
     const commission = Math.round(contractPrice * 0.0125)
-
-    // حساب مكسب المشتري عن سعر السوق
     const marketGain =
       marketPrice > contractPrice
         ? Math.max(0, marketPrice - (contractPrice - discountAmount) - commission)
         : 0
-
-    // إجمالي المطلوب الآن (الكاش المطلوب + العمولة)
     const totalRequiredNow = requiredCash + commission
-
-    // نسبة التفاوض التقريبية
     const discountPercentage =
       paidAmount > 0 && discountAmount > 0
         ? Math.max(1, Math.round((discountAmount / paidAmount) * 100))
         : 5
 
-    // سنة الاستلام
     const yearMatch = String(deliveryStatus).match(/20\d{2}/)
     const deliveryYear = yearMatch
       ? yearMatch[0]
@@ -208,7 +228,6 @@ export default function PropertyDetailsPage() {
           ? String(new Date().getFullYear() + Math.min(yearsLeft, 6))
           : 'قريباً'
 
-    // عرض الصور الحقيقية المرفوعة للوحدة فقط بدون إضافة صور افتراضية بجانبها
     const validUrls = Array.isArray(row.images)
       ? row.images.filter((img: string) => Boolean(img && img.trim()))
       : []
@@ -252,11 +271,16 @@ export default function PropertyDetailsPage() {
         size > 0 ? `، بمساحة ${size} م²` : ''
       }. التشطيب ${finishing}، وحالة الوحدة ${deliveryStatus}. معروضة للتنازل المباشر بدون أوفر.`
 
+    const isFeaturedActive =
+      Boolean(row.is_featured) &&
+      (!row.featured_until || new Date(row.featured_until) > new Date())
+
     return {
       projectName,
       areaName,
       subtitle,
       code,
+      featured: isFeaturedActive,
       gallery: unitGallery,
       specs,
       tags,
@@ -278,7 +302,6 @@ export default function PropertyDetailsPage() {
     }
   }, [unitRow])
 
-  // تحديث موضع الشريط السفلي عند تحريك الصور
   const handleScroll = () => {
     const el = scrollContainerRef.current
     if (!el) return
@@ -293,7 +316,6 @@ export default function PropertyDetailsPage() {
     )
   }
 
-  // تحريك الصور عبر الشريط أو الأسهم
   const scrollByAmount = (direction: 'next' | 'prev') => {
     const el = scrollContainerRef.current
     if (!el) return
@@ -317,7 +339,6 @@ export default function PropertyDetailsPage() {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  // إرسال طلب اهتمام المشتري بالوحدة وحفظه في جدول طلبات الشراء ليظهر فوراً في لوحة الأدمن
   const handleInterestSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!computedUnit) return
@@ -430,7 +451,6 @@ export default function PropertyDetailsPage() {
 
         {/* ==================== 2. هيدر الوحدة (العنوان والشارات) ==================== */}
         <header className="mt-4 flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
-          {/* اليمين: اسم المشروع والمطور والكود */}
           <div className="text-right">
             <h1 className="text-2xl font-extrabold tracking-tight text-[#0a1122] sm:text-3xl">
               {computedUnit.projectName}
@@ -454,15 +474,16 @@ export default function PropertyDetailsPage() {
             </button>
           </div>
 
-          {/* اليسار: الشارات وأزرار المشاركة والمفضلة */}
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-full bg-[#e6f4f9] px-3 py-1 text-[11px] font-bold text-[#0b6954]">
               متحقق بالمستندات
             </span>
-            <span className="inline-flex items-center gap-1 rounded-full border border-amber-200/60 bg-amber-50 px-3 py-1 text-[11px] font-bold text-amber-700">
-              <Star className="size-3 fill-amber-400 text-amber-500" />
-              <span>مميزة</span>
-            </span>
+            {computedUnit.featured && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-amber-200/60 bg-amber-50 px-3 py-1 text-[11px] font-bold text-amber-700">
+                <Star className="size-3 fill-amber-400 text-amber-500" />
+                <span>مميزة</span>
+              </span>
+            )}
             <button
               type="button"
               onClick={() =>
@@ -478,7 +499,7 @@ export default function PropertyDetailsPage() {
             </button>
             <button
               type="button"
-              onClick={() => setLiked(!liked)}
+              onClick={handleToggleFavorite}
               className={`inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-bold transition ${
                 liked
                   ? 'border-red-200 bg-red-50 text-red-600'
@@ -490,7 +511,7 @@ export default function PropertyDetailsPage() {
                   liked ? 'fill-current text-red-500' : 'text-gray-500'
                 }`}
               />
-              <span>أضف للمفضلة</span>
+              <span>{liked ? 'في المفضلة' : 'أضف للمفضلة'}</span>
             </button>
           </div>
         </header>
@@ -534,7 +555,6 @@ export default function PropertyDetailsPage() {
             ))}
           </div>
 
-          {/* يظهر شريط التحريك فقط لو كان هناك أكثر من صورة واحدة */}
           {computedUnit.gallery.length > 1 && (
             <div className="mt-2 flex items-center gap-2 px-1">
               <button
@@ -607,10 +627,10 @@ export default function PropertyDetailsPage() {
           </p>
         </section>
 
-        {/* ==================== 6. البطاقة المالية الرئيسية (المطلوب كاش دلوقتي) ==================== */}
+        {/* ==================== 6. البطاقة المالية الرئيسية ==================== */}
         <section className="mt-4 rounded-[18px] border border-[#b8e6d5] bg-white p-5 text-right shadow-sm sm:p-6">
           <p className="text-xs font-bold text-gray-500">المطلوب كاش دلوقتي</p>
-          <p className="mt-1 text-3xl font-extrabold tracking-tight text-[#0a1122] sm:text-[34px]">
+          <p className="mt-1 text-3xl font-extrabold tracking-tight text-[#0a1122] tabular-nums sm:text-[34px]">
             {computedUnit.requiredCash.toLocaleString('en-US')}{' '}
             <span className="text-lg font-bold">ج.م</span>
           </p>
@@ -743,7 +763,7 @@ export default function PropertyDetailsPage() {
           </section>
         )}
 
-        {/* ==================== 9. قسم فرص مميزة مشابهة (يعرض الوحدات الحقيقية الأخرى) ==================== */}
+        {/* ==================== 9. قسم فرص مميزة مشابهة (3 أعمدة على الكمبيوتر وعمودين على الموبايل) ==================== */}
         {similarDbUnits.length > 0 && (
           <section className="mt-8">
             <div className="flex flex-wrap items-baseline justify-between gap-2 text-right">
@@ -755,12 +775,12 @@ export default function PropertyDetailsPage() {
               </span>
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-3 sm:gap-4">
+            <div className="mt-4 grid grid-cols-2 items-stretch gap-3 sm:grid-cols-3 sm:gap-4">
               {similarDbUnits.map((item) => (
                 <Link
                   key={item.id}
                   href={`/opportunities/${item.id}`}
-                  className="group flex flex-col justify-between overflow-hidden rounded-[16px] border border-gray-200/80 bg-white shadow-sm transition hover:shadow-md"
+                  className="group flex h-full flex-col justify-between overflow-hidden rounded-[16px] border border-gray-200/80 bg-white shadow-sm transition hover:shadow-md"
                 >
                   <div>
                     <div className="relative h-28 w-full overflow-hidden bg-gray-100 sm:h-36">
@@ -769,23 +789,25 @@ export default function PropertyDetailsPage() {
                         alt={item.name}
                         className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                       />
-                      <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-0.5 text-[9px] font-bold text-amber-700 shadow-sm">
-                        <Star className="size-2.5 fill-amber-400 text-amber-500" />
-                        <span>مميزة</span>
-                      </span>
+                      {item.featured && (
+                        <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-0.5 text-[9px] font-bold text-amber-700 shadow-sm">
+                          <Star className="size-2.5 fill-amber-400 text-amber-500" />
+                          <span>مميزة</span>
+                        </span>
+                      )}
                     </div>
 
                     <div className="p-3 text-right">
-                      <h3 className="line-clamp-1 text-xs font-extrabold text-[#0a1122] group-hover:text-[#0b6954] sm:text-[13px]">
+                      <h3 className="line-clamp-1 min-h-[18px] text-xs font-extrabold text-[#0a1122] group-hover:text-[#0b6954] sm:text-[13px]">
                         {item.name}
                       </h3>
-                      <p className="mt-0.5 text-[10px] text-gray-400">
+                      <p className="mt-0.5 line-clamp-1 text-[10px] text-gray-400">
                         {item.area}
                       </p>
                       <p className="mt-1.5 line-clamp-1 text-[10px] text-gray-500">
                         {item.specs}
                       </p>
-                      <p className="mt-2 text-[11px] font-extrabold text-[#0a1122]">
+                      <p className="mt-2 text-[11px] font-extrabold text-[#0a1122] tabular-nums">
                         المطلوب كاش: {item.cash} ج.م
                       </p>
                     </div>

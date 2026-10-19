@@ -689,3 +689,72 @@ export async function saveSiteSettingsAction(formData: FormData) {
   revalidateAdminAll()
   return { success: true }
 }
+
+// ==========================================
+// 8. تفعيل أو إلغاء تمييز العقار (Featured Unit ⭐) بواسطة الأدمن
+// ==========================================
+export async function managePropertyPromotionAction(
+  propertyId: string,
+  action: "activate" | "cancel",
+  days: number = 14
+) {
+  const supabase = await getSupabase()
+
+  const { data: prop } = await supabase
+    .from("sell_requests")
+    .select("id, user_id, project_name, name")
+    .eq("id", propertyId)
+    .maybeSingle()
+
+  if (action === "activate") {
+    const untilDate = new Date(
+      Date.now() + days * 24 * 60 * 60 * 1000
+    ).toISOString()
+
+    const { error } = await supabase
+      .from("sell_requests")
+      .update({
+        is_featured: true,
+        featured_days: days,
+        featured_status: "active",
+        featured_until: untilDate,
+      })
+      .eq("id", propertyId)
+
+    if (error) {
+      return {
+        success: false,
+        error: "تأكد من تشغيل سكريبت إضافة أعمدة التمييز في Supabase.",
+      }
+    }
+
+    if (prop?.user_id) {
+      try {
+        await supabase.from("notifications").insert({
+          user_id: prop.user_id,
+          title: `⭐ تم تفعيل تمييز وحدتك لمدة ${days} يوم!`,
+          message: `وحدتك في (${prop.project_name || "مشروعك"}) تظهر الآن بشارة النجمة الذهبية في أول صفحة الفرص المتاحة.`,
+          type: "status_update",
+          link: `/account?view=seller&unitId=${prop.id}`,
+          is_read: false,
+        })
+      } catch {}
+    }
+  } else {
+    const { error } = await supabase
+      .from("sell_requests")
+      .update({
+        is_featured: false,
+        featured_status: "none",
+        featured_until: null,
+      })
+      .eq("id", propertyId)
+
+    if (error) {
+      return { success: false, error: "تعذر إلغاء التمييز." }
+    }
+  }
+
+  revalidateAdminAll()
+  return { success: true }
+}

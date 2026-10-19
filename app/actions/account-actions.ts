@@ -600,3 +600,71 @@ export async function updateBuyerPreferencesAction(payload: {
     return { success: false, error: 'تعذر حفظ التفضيلات.' }
   }
 }
+
+// 10. طلب ترقية وتمييز الوحدة (باقات 7 / 14 / 30 يوم + كود فوري 10 أرقام)
+export async function requestUnitPromotionAction(payload: {
+  unitId: string
+  days: 7 | 14 | 30
+  price: number
+}) {
+  try {
+    const cookieStore = await cookies()
+    const sessionId = cookieStore.get('user_session')?.value
+    if (!sessionId) return { success: false, error: 'يرجى تسجيل الدخول.' }
+
+    const supabase = await getSupabase()
+    const { data: unit } = await supabase
+      .from('sell_requests')
+      .select('id, project_name, name, status')
+      .eq('id', payload.unitId)
+      .maybeSingle()
+
+    if (!unit) return { success: false, error: 'الوحدة غير موجودة.' }
+
+    // توليد كود دفع فوري مكون من 10 أرقام
+    const fawryCode = String(
+      Math.floor(1000000000 + Math.random() * 9000000000)
+    )
+
+    // إذا كانت الوحدة منشورة بالفعل نفعّل التاريخ أو نضعها بانتظار الدفع والتفعيل
+    const { error } = await supabase
+      .from('sell_requests')
+      .update({
+        featured_days: payload.days,
+        featured_price: payload.price,
+        featured_status: 'pending_payment',
+        featured_fawry_code: fawryCode,
+      })
+      .eq('id', payload.unitId)
+
+    if (error) {
+      return {
+        success: false,
+        error: 'تأكد من تشغيل سكريبت إضافة أعمدة التمييز في قاعدة البيانات.',
+      }
+    }
+
+    try {
+      await supabase.from('notifications').insert({
+        user_id: null,
+        title: `⭐ طلب تمييز وحدة (${payload.days} يوم): ${unit.project_name || 'وحدة'}`,
+        message: `المالك: ${unit.name || 'البائع'} · الباقة: ${payload.days} يوم (${payload.price.toLocaleString('en-US')} ج.م) · كود فوري: ${fawryCode}`,
+        type: 'property',
+        link: '/admin/properties',
+        is_read: false,
+      })
+    } catch {}
+
+    revalidatePath('/account')
+    revalidatePath('/opportunities')
+    revalidatePath('/admin/properties')
+    return {
+      success: true,
+      fawryCode,
+      days: payload.days,
+      price: payload.price,
+    }
+  } catch {
+    return { success: false, error: 'حدث خطأ أثناء تسجيل طلب التمييز.' }
+  }
+}

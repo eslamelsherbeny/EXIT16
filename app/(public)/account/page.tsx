@@ -2,6 +2,8 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { createServerClient } from '@supabase/ssr'
 import Link from 'next/link'
+import { Heart, LogOut } from 'lucide-react'
+import { logoutAccountAction } from '@/app/actions/account-actions'
 import type { SellerUnitItem } from '@/components/account/seller-dashboard'
 import type { BuyerRequestItem } from '@/components/account/buyer-dashboard'
 import { AccountActionLinks } from '@/components/account/delete-account-modal'
@@ -72,12 +74,13 @@ export default async function AccountPage({
   ])
 
   const sells = ((allSells as SellerUnitItem[]) || []).filter(
-    (s: any) =>
-      s.user_id === profile.id ||
+  (s: any) =>
+    s.status !== 'deleted_by_seller' &&
+    (s.user_id === profile.id ||
       (cleanEmail &&
         String(s.email || '').trim().toLowerCase() === cleanEmail) ||
-      (cleanPhone && String(s.phone || '').trim() === cleanPhone)
-  )
+      (cleanPhone && String(s.phone || '').trim() === cleanPhone))
+)
 
   const buys = ((allBuys as BuyerRequestItem[]) || []).filter(
     (b: any) =>
@@ -94,7 +97,7 @@ export default async function AccountPage({
     }
   })
 
-  // فلترة حقيقية في الخلفية لحساب عدد المشترين الفعليين المطابقين لكل وحدة من وحدات البائع
+  // حساب عدد المشترين الحقيقيين المطابقين لكل وحدة من وحدات البائع
   const matchedBuyersCountMap: Record<string, number> = {}
   const buyersList = (allBuys as any[]) || []
 
@@ -144,8 +147,29 @@ export default async function AccountPage({
   return (
     <main
       dir="rtl"
-      className="min-h-screen bg-[#f5f6f8] py-8 pb-24 text-[#0a1122] sm:py-12"
+      className="min-h-screen bg-[#f5f6f8] py-6 pb-24 text-[#0a1122] sm:py-10"
     >
+      {/* شريط علوي موحد ونظيف للبائع والمشتري (المفضلة + تسجيل الخروج فقط) */}
+      <div className="mx-auto mb-5 flex max-w-[1020px] items-center justify-between px-3 sm:px-6">
+        <Link
+          href="/account/favorites"
+          className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3.5 text-xs font-extrabold text-[#0a1122] shadow-2xs transition hover:border-red-200 hover:bg-red-50/40"
+        >
+          <Heart className="size-3.5 fill-red-500 text-red-500" />
+          <span>المفضلة</span>
+        </Link>
+
+        <form action={logoutAccountAction}>
+          <button
+            type="submit"
+            className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3.5 text-xs font-bold text-gray-600 shadow-2xs transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+          >
+            <span>تسجيل الخروج</span>
+            <LogOut className="size-3.5" />
+          </button>
+        </form>
+      </div>
+
       {hasSells || hasBuys ? (
         <AccountViewSwitcher
           initialView={initialView}
@@ -184,11 +208,13 @@ export default async function AccountPage({
             </div>
           </section>
 
-          <AccountActionLinks
-            unitsCount={0}
-            initialDeletionRequested={deletionRequested}
-            position="bottom"
-          />
+          <div className="mt-8 flex justify-center [&>*]:justify-center [&_div]:justify-center">
+            <AccountActionLinks
+              unitsCount={0}
+              initialDeletionRequested={deletionRequested}
+              position="bottom"
+            />
+          </div>
         </div>
       )}
     </main>

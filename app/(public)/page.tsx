@@ -1,17 +1,29 @@
 import Link from 'next/link'
+import { cookies } from 'next/headers'
+import { createServerClient } from '@supabase/ssr'
 import {
   Bell,
   Check,
   CheckSquare,
   Home,
   ShieldCheck,
-  X,
   Zap,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import ar from '@/dictionaries/ar.json'
 
-const d = ar
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
+async function getSupabase() {
+  const cookieStore = await cookies()
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} },
+    }
+  )
+}
 
 // بيانات جدول المقارنة
 const comparisonRows = [
@@ -81,7 +93,52 @@ const fairStandards = [
   },
 ]
 
-export default function HomePage() {
+export default async function HomePage() {
+  // جلب الإحصائيات الحقيقية من قاعدة البيانات (الوحدات المنشورة في السوق وتحت المراجعة)
+  let realUnitCount = 0
+  let totalMarketValue = 0
+
+  try {
+    const supabase = await getSupabase()
+    const { data: units } = await supabase
+      .from('sell_requests')
+      .select('status, market_price, contract_price, paid_amount')
+      .neq('status', 'rejected')
+
+    if (units && units.length > 0) {
+      realUnitCount = units.length
+      totalMarketValue = units.reduce((sum, u) => {
+        const unitVal =
+          Number(u.market_price) ||
+          Number(u.contract_price) ||
+          Number(u.paid_amount) ||
+          0
+        return sum + unitVal
+      }, 0)
+    }
+  } catch (err) {
+    console.error('Error fetching real stats on HomePage:', err)
+  }
+
+  // تنسيق القيمة السوقية الإجمالية بشكل ذكي ودقيق (مليار / مليون / ج.م)
+  let formattedValue = '0'
+  let valueUnitLabel = 'ج.م'
+
+  if (totalMarketValue >= 1_000_000_000) {
+    formattedValue = (totalMarketValue / 1_000_000_000).toLocaleString('en-US', {
+      maximumFractionDigits: 2,
+    })
+    valueUnitLabel = 'مليار ج.م'
+  } else if (totalMarketValue >= 1_000_000) {
+    formattedValue = (totalMarketValue / 1_000_000).toLocaleString('en-US', {
+      maximumFractionDigits: 1,
+    })
+    valueUnitLabel = 'مليون ج.م'
+  } else {
+    formattedValue = totalMarketValue.toLocaleString('en-US')
+    valueUnitLabel = 'ج.م'
+  }
+
   return (
     <div dir="rtl" className="min-h-screen overflow-x-hidden bg-[#f5f6f8] text-[#0a1128]">
       
@@ -129,7 +186,7 @@ export default function HomePage() {
                 size="lg"
                 variant="outline"
                 className="h-12 flex-1 rounded-[10px] border border-white/15 !bg-[#111a2b]/60 px-7 text-sm font-bold text-white transition-all hover:!bg-white/10 hover:text-white sm:flex-none sm:px-8 sm:text-[15px]"
-                render={<Link href="/buy" />}
+                render={<Link href="/opportunities" />}
               >
                 شوف فرص الشراء
               </Button>
@@ -141,6 +198,7 @@ export default function HomePage() {
               <p>للبايع: مجانًا تمامًا — مفيش أي عمولة عليك. للمشتري: أرقام موثقة قبل ما تدفع جنيه</p>
             </div>
           </div>
+
           {/* العمود الأيسر: بطاقات المقارنة */}
           <div className="relative mx-auto flex w-full max-w-[440px] flex-col items-center gap-4">
             {/* البطاقة العلوية (الداكنة) */}
@@ -155,11 +213,11 @@ export default function HomePage() {
               <div className="mt-5 flex items-end justify-between gap-2">
                 <div className="text-right">
                   <p className="text-[11px] text-gray-400 sm:text-xs">خصم الإلغاء (15% من سعر الوحدة كله)</p>
-                  <strong className="mt-1 block text-xl font-extrabold text-[#ff5a65] sm:text-[26px]">
+                  <strong dir="ltr" className="mt-1 block text-xl font-extrabold text-[#ff5a65] tabular-nums sm:text-[26px]">
                     - 1,500,000 ج.م
                   </strong>
                 </div>
-                <div className=" shrink-0 text-left">
+                <div className="shrink-0 text-left">
                   <p className="text-[11px] text-gray-400 sm:text-xs">ياخدها على</p>
                   <p className="mt-1 text-sm font-bold text-gray-200 sm:text-base">3 سنين</p>
                 </div>
@@ -186,8 +244,8 @@ export default function HomePage() {
 
               <div className="mt-5 text-right">
                 <p className="text-[11px] text-gray-500 sm:text-xs">يسترجع اللي دفعه</p>
-                <strong className="mt-1 block text-2xl font-extrabold text-[#007a5a] sm:text-[32px]">
-                  2,000,000 ج.م
+                <strong className="mt-1 block text-2xl font-extrabold text-[#007a5a] tabular-nums sm:text-[32px]">
+                  <span dir="ltr">2,000,000</span> ج.م
                 </strong>
                 <p className="mt-1 text-xs font-bold text-[#0a1128]">كاش عند إتمام النقل</p>
               </div>
@@ -201,16 +259,19 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ==================== 2. قسم الإحصائيات (Stats Section) ==================== */}
+      {/* ==================== 2. قسم الإحصائيات الحقيقية من الداتابيز (Stats Section) ==================== */}
       <section className="mx-auto max-w-[1060px] px-4 pt-10 pb-6 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 divide-y divide-gray-200/80 overflow-hidden rounded-[20px] border border-gray-200/70 border-t-[3px] border-t-[#007a5a] bg-white shadow-sm md:grid-cols-2 md:divide-y-0 md:divide-x md:divide-x-reverse">
           
-          {/* الإحصائية الأولى (يمين) */}
+          {/* الإحصائية الأولى: عدد الوحدات الفعلي في الداتابيز */}
           <div className="p-7 text-right sm:p-10">
             <p className="text-xs font-bold text-gray-500">الوحدات على المنصة</p>
             <div className="mt-3 flex items-baseline justify-start gap-2">
-              <span className="text-4xl font-extrabold tracking-tight text-[#0a1128] sm:text-5xl">
-                {d.stats?.unitCount || '9,692'}
+              <span
+                dir="ltr"
+                className="text-4xl font-extrabold tracking-tight text-[#0a1128] tabular-nums sm:text-5xl"
+              >
+                {realUnitCount.toLocaleString('en-US')}
               </span>
               <span className="text-base font-medium text-gray-500 sm:text-lg">وحدة</span>
             </div>
@@ -218,22 +279,27 @@ export default function HomePage() {
             <p className="mt-3 text-xs text-gray-400">منشورة في السوق، وتحت المراجعة</p>
           </div>
 
-          {/* الإحصائية الثانية (يسار) */}
+          {/* الإحصائية الثانية: إجمالي قيمة الوحدات الفعلية في الداتابيز */}
           <div className="p-7 text-right sm:p-10">
             <div className="flex items-center justify-start gap-2">
               <p className="text-xs font-bold text-gray-500">قيمة الوحدات في السوق</p>
               <span className="rounded-md bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-500">
-                تقديري
+                حقيقي من الداتابيز
               </span>
             </div>
             <div className="mt-3 flex items-baseline justify-start gap-2">
-              <span className="text-4xl font-extrabold tracking-tight text-[#0a1128] sm:text-5xl">
-                {d.stats?.estimatedValue || '138.9'}
+              <span
+                dir="ltr"
+                className="text-4xl font-extrabold tracking-tight text-[#0a1128] tabular-nums sm:text-5xl"
+              >
+                {formattedValue}
               </span>
-              <span className="text-base font-medium text-gray-500 sm:text-lg">مليار ج.م</span>
+              <span className="text-base font-medium text-gray-500 sm:text-lg">
+                {valueUnitLabel}
+              </span>
             </div>
             <div className="mt-4 h-[1px] w-10 bg-gray-200" />
-            <p className="mt-3 text-xs text-gray-400">بسعر السوق الحالي للوحدة</p>
+            <p className="mt-3 text-xs text-gray-400">بسعر السوق الحالي للوحدات المسجلة</p>
           </div>
 
         </div>
@@ -327,7 +393,7 @@ export default function HomePage() {
             <div className="mt-8">
               <Button
                 className="h-11 rounded-[10px] bg-[#007a5a] px-6 text-xs font-bold text-white hover:bg-[#006248] sm:text-sm"
-                render={<Link href="/buy" />}
+                render={<Link href="/opportunities" />}
               >
                 شوف الفرص المتاحة
               </Button>
@@ -337,9 +403,9 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ==================== 4. قسم جدول المقارنة (Comparison Section) ==================== */}
+      {/* ==================== 4. قسم جدول المقارنة (جدول موحد للموبايل والكمبيوتر) ==================== */}
       <section className="bg-white py-14 sm:py-20">
-        <div className="mx-auto max-w-[1060px] px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-[1060px] px-3.5 sm:px-6 lg:px-8">
           <div className="text-right">
             <h2 className="text-2xl font-extrabold text-[#0a1128] sm:text-3xl md:text-[34px]">
               إيه الفرق بينا وبين الريسيل العادي؟
@@ -349,63 +415,46 @@ export default function HomePage() {
             </p>
           </div>
 
-          {/* عرض الديسكتوب والتابلت (الجدول المطابق للصورة) */}
-          <div className="mt-10 hidden overflow-hidden rounded-[18px] border border-gray-200/90 shadow-sm md:block">
+          {/* جدول مقارنة احترافي يعمل كـ Table Grid حقيقي على الموبايل والتابلت والديسكتوب */}
+          <div className="mt-8 overflow-hidden rounded-[18px] border border-gray-200/90 shadow-sm sm:mt-10">
             {/* هيدر الجدول */}
-            <div className="grid grid-cols-[140px_1fr_1fr] text-right text-sm font-bold">
-              <div className="bg-[#f4f5f7] p-4" />
-              <div className="border-r border-gray-200/80 bg-[#f4f5f7] p-4 text-gray-600">
+            <div className="grid grid-cols-[74px_1fr_1.1fr] text-right text-[11px] font-bold sm:grid-cols-[120px_1fr_1fr] sm:text-xs md:grid-cols-[140px_1fr_1fr] md:text-sm">
+              <div className="flex items-center bg-[#f4f5f7] px-2.5 py-3 text-[10px] font-extrabold text-gray-400 sm:p-4 sm:text-xs">
+                المقارنة
+              </div>
+              <div className="flex items-center border-r border-gray-200/80 bg-[#f4f5f7] px-2.5 py-3 text-gray-600 sm:p-4">
                 الريسيل العادي
               </div>
-              <div className="bg-[#0a1122] p-4 text-white">عقار إكزت</div>
+              <div className="flex items-center bg-[#0a1122] px-2.5 py-3 text-white sm:p-4">
+                عقار إكزت
+              </div>
             </div>
 
             {/* صفوف الجدول */}
             {comparisonRows.map((row) => (
               <div
                 key={row.criterion}
-                className="grid grid-cols-[140px_1fr_1fr] items-stretch border-t border-gray-200/80 text-right text-xs lg:text-sm"
+                className="grid grid-cols-[74px_1fr_1.1fr] items-stretch border-t border-gray-200/80 text-right text-[11px] leading-relaxed sm:grid-cols-[120px_1fr_1fr] sm:text-xs md:grid-cols-[140px_1fr_1fr] lg:text-sm"
               >
-                <div className="flex items-center bg-[#f8f9fa] p-4 font-extrabold text-[#0a1128]">
+                {/* عمود المعيار */}
+                <div className="flex items-center bg-[#f8f9fa] px-2.5 py-3.5 font-extrabold text-[#0a1128] sm:p-4">
                   {row.criterion}
                 </div>
-                <div className="flex items-center gap-2.5 border-r border-gray-200/80 bg-white p-4 text-gray-500">
-                  <span className="font-bold text-red-500">✕</span>
+
+                {/* عمود الريسيل العادي */}
+                <div className="flex items-start gap-1.5 border-r border-gray-200/80 bg-white px-2.5 py-3.5 text-gray-500 sm:items-center sm:gap-2.5 sm:p-4">
+                  <span className="mt-0.5 shrink-0 font-bold text-red-500 sm:mt-0">
+                    ✕
+                  </span>
                   <span>{row.resale}</span>
                 </div>
-                <div className="flex items-center gap-2.5 bg-[#e3ecec] p-4 font-semibold text-[#0a1128]">
-                  <span className="font-bold text-[#007a5a]">✓</span>
-                  <span>{row.exit}</span>
-                </div>
-              </div>
-            ))}
-          </div>
 
-          {/* عرض الموبايل الاحترافي (بطاقات مكدسة لعدم ضغط النصوص على الشاشات الصغيرة) */}
-          <div className="mt-8 space-y-4 md:hidden">
-            {comparisonRows.map((row) => (
-              <div
-                key={row.criterion}
-                className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm"
-              >
-                <div className="border-b border-gray-100 bg-[#f8f9fa] px-4 py-2.5 text-right text-sm font-extrabold text-[#0a1128]">
-                  {row.criterion}
-                </div>
-                <div className="p-4 text-right">
-                  <div className="flex items-start gap-2 text-xs text-gray-500">
-                    <span className="mt-0.5 shrink-0 font-bold text-red-500">✕</span>
-                    <div>
-                      <span className="block text-[10px] font-bold text-gray-400">الريسيل العادي</span>
-                      <p className="mt-0.5 leading-relaxed">{row.resale}</p>
-                    </div>
-                  </div>
-                  <div className="mt-3 flex items-start gap-2 rounded-xl bg-[#e3ecec] p-3 text-xs font-semibold text-[#0a1128]">
-                    <span className="mt-0.5 shrink-0 font-bold text-[#007a5a]">✓</span>
-                    <div>
-                      <span className="block text-[10px] font-bold text-[#007a5a]">عقار إكزت</span>
-                      <p className="mt-0.5 leading-relaxed">{row.exit}</p>
-                    </div>
-                  </div>
+                {/* عمود عقار إكزت */}
+                <div className="flex items-start gap-1.5 bg-[#e3ecec] px-2.5 py-3.5 font-semibold text-[#0a1128] sm:items-center sm:gap-2.5 sm:p-4">
+                  <span className="mt-0.5 shrink-0 font-bold text-[#007a5a] sm:mt-0">
+                    ✓
+                  </span>
+                  <span>{row.exit}</span>
                 </div>
               </div>
             ))}
@@ -440,7 +489,7 @@ export default function HomePage() {
 
                 <div className="mt-6">
                   <p className="text-xs text-gray-400">خصم الإلغاء (15% من سعر الوحدة كله)</p>
-                  <p className="mt-1.5 text-2xl font-extrabold text-[#d9383a] sm:text-3xl">
+                  <p dir="ltr" className="mt-1.5 text-right text-2xl font-extrabold text-[#d9383a] tabular-nums sm:text-3xl">
                     - 1,500,000 ج.م
                   </p>
                 </div>
@@ -448,8 +497,8 @@ export default function HomePage() {
                 <div className="mt-6 flex items-center justify-between border-t border-gray-100 pt-5">
                   <div className="text-right">
                     <p className="text-xs text-gray-400">اللي هيرجعله</p>
-                    <p className="mt-1 text-lg font-extrabold text-[#0a1128] sm:text-xl">
-                      500,000 ج.م
+                    <p className="mt-1 text-lg font-extrabold text-[#0a1128] tabular-nums sm:text-xl">
+                      <span dir="ltr">500,000</span> ج.م
                     </p>
                   </div>
                   <div className="text-left">
@@ -480,8 +529,8 @@ export default function HomePage() {
 
                 <div className="mt-6">
                   <p className="text-xs text-gray-400">يسترجع اللي دفعه</p>
-                  <p className="mt-1.5 text-2xl font-extrabold text-[#007a5a] sm:text-3xl">
-                    2,000,000 ج.م
+                  <p className="mt-1.5 text-2xl font-extrabold text-[#007a5a] tabular-nums sm:text-3xl">
+                    <span dir="ltr">2,000,000</span> ج.م
                   </p>
                   <p className="mt-1 text-xs font-bold text-[#0a1128]">كاش عند إتمام النقل</p>
                 </div>
@@ -677,9 +726,8 @@ export default function HomePage() {
               </div>
             </div>
 
-           
-            {/* العمود الأيسر: مجسم jjالموبايل المائل (يختفي على الموبايل ويظهر على التابلت والكمبيوتر) */} 
-<div className="hidden md:flex justify-center">
+            {/* العمود الأيسر: مجسم الموبايل المائل */}
+            <div className="hidden justify-center md:flex">
               <div className="w-[270px] -rotate-3 rounded-[40px] border-[6px] border-[#1c283c] bg-[#0b1323] p-4 shadow-2xl transition-transform duration-300 hover:rotate-0 sm:w-[300px]">
                 {/* سماعة الموبايل العلوية */}
                 <div className="mx-auto mb-4 h-4 w-24 rounded-full bg-black" />

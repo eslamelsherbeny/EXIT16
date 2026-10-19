@@ -900,11 +900,26 @@ export async function submitSellRequest(formData: FormData): Promise<SubmitResul
       email: normalizeEmail(text(formData, 'email')) || null,
       is_original_owner: formData.get('is_original_owner') === 'on',
       images: list(formData, 'image'),
-      status: 'pending',
+      status: 'pending', // تعود للمراجعة دائماً عند التعديل لضمان رقابة الإدارة
     }
 
-    // إذا تم إنشاء الوحدة مسبقاً في الخطوة 2، نقوم بتحديثها بكل التفاصيل والصور
     if (existingUnitId) {
+      // فحص هل الوحدة كانت منشورة أو متوقفة سابقاً لتمييزها للأدمن كـ "معدلة من المالك"
+      const { data: prevUnit } = await supabase
+        .from('sell_requests')
+        .select('status, size, area')
+        .eq('id', existingUnitId)
+        .maybeSingle()
+
+      const wasPreviouslySubmitted = Boolean(
+        prevUnit?.area || prevUnit?.size || prevUnit?.status === 'active' || prevUnit?.status === 'paused_by_seller'
+      )
+
+      if (wasPreviouslySubmitted) {
+        payload.submission_type = 'edited_by_seller'
+        payload.last_seller_edit_at = new Date().toISOString()
+      }
+
       const { error } = await supabase
         .from('sell_requests')
         .update(payload)
@@ -914,7 +929,22 @@ export async function submitSellRequest(formData: FormData): Promise<SubmitResul
         return { success: false, error: 'تعذر حفظ بيانات الوحدة النهائية.' }
       }
 
+      // إرسال إشعار للإدارة بأن المالك عدّل بيانات وحدته أو أكملها
+      try {
+        await supabase.from('notifications').insert({
+          user_id: null,
+          title: wasPreviouslySubmitted
+            ? `🔄 تعديل بيانات وحدة من المالك: ${projectName || 'وحدة'}`
+            : `✅ استكمال بيانات وحدة: ${projectName || 'وحدة'}`,
+          message: `قام البائع (${payload.name || 'المالك'}) بتحديث بيانات وصور الوحدة في (${payload.area || '—'}) وبانتظار مراجعتك.`,
+          type: 'property',
+          link: '/admin/properties',
+          is_read: false,
+        })
+      } catch {}
+
       revalidatePath('/account', 'page')
+      revalidatePath('/opportunities', 'page')
       revalidatePath('/admin', 'layout')
       return {
         success: true,
@@ -923,13 +953,13 @@ export async function submitSellRequest(formData: FormData): Promise<SubmitResul
       }
     }
 
-    // احتياطي إذا لم يكن هناك existingUnitId
     const targetUserId = sessionId || null
     const { data: inserted, error } = await supabase
       .from('sell_requests')
       .insert({
         ...payload,
         user_id: targetUserId,
+        submission_type: 'new',
       })
       .select('id')
       .single()
@@ -939,6 +969,17 @@ export async function submitSellRequest(formData: FormData): Promise<SubmitResul
     }
 
     const finalId = String(inserted.id)
+    try {
+      await supabase.from('notifications').insert({
+        user_id: null,
+        title: `عقار جديد بانتظار المراجعة: ${projectName || 'وحدة جديدة'}`,
+        message: `البائع: ${payload.name} · ${payload.area || '—'}`,
+        type: 'property',
+        link: '/admin/properties',
+        is_read: false,
+      })
+    } catch {}
+
     revalidatePath('/account', 'page')
     revalidatePath('/admin', 'layout')
     return {

@@ -118,6 +118,7 @@ export function BuyerDashboard({
   const [isEditingBudget, setIsEditingBudget] = useState(false)
   const [savedToast, setSavedToast] = useState(false)
   const [isPending, startTransition] = useTransition()
+  const [visibleCount, setVisibleCount] = useState(20)
 
   // بيانات الميزانية القابلة للتعديل
   const [bCash, setBCash] = useState<number>(
@@ -743,14 +744,7 @@ export function BuyerDashboard({
   return (
     <div className="mx-auto max-w-[1020px] px-3 sm:px-6">
       {/* شريط علوي لأزرار الحساب (لأن صفحة المشتري طويلة كما طلبت) */}
-      <div className="mb-4 flex items-center justify-between border-b border-gray-200/70 pb-3">
-        <span className="text-xs font-bold text-gray-400">لوحة المشتري</span>
-        <AccountActionLinks
-          unitsCount={0}
-          initialDeletionRequested={deletionRequested}
-          position="top"
-        />
-      </div>
+      
 
       {savedToast && (
         <div className="mb-4 rounded-xl bg-[#eff9f5] p-3 text-center text-xs font-bold text-[#0b6954]">
@@ -1206,6 +1200,53 @@ export function BuyerDashboard({
           )}
         </>
       )}
+      {/* عرض النتائج بحد أقصى 20 وحدة في الدفعة الواحدة + زر Pagination */}
+      {filteredUnits.length === 0 ? (
+        <div className="mt-6 rounded-[20px] border border-gray-200/80 bg-white p-10 text-center shadow-2xs">
+          <p className="text-sm font-bold text-gray-600">
+            مفيش وحدات مطابقة للفلاتر اللي اخترتها.
+          </p>
+          <button
+            type="button"
+            onClick={clearAllFilters}
+            className="mt-4 rounded-xl bg-[#0b6954] px-6 py-2.5 text-xs font-bold text-white hover:bg-[#095443]"
+          >
+            امسح الفلاتر
+          </button>
+        </div>
+      ) : (
+        <>
+          <section className="mt-7">
+            <h2 className="mb-4 text-right text-sm font-extrabold text-[#0a1122] sm:text-base">
+              الفرص في المنطقة اللي طلبتها ({bAreas.join('، ')}){' '}
+              <span className="font-normal text-gray-400">
+                ({filteredUnits.length})
+              </span>
+            </h2>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {filteredUnits.slice(0, visibleCount).map((u) => (
+                <BuyerUnitCard key={u.id} unit={u} />
+              ))}
+            </div>
+
+            {/* زر الـ Pagination لعرض 20 وحدة إضافية */}
+            {filteredUnits.length > visibleCount && (
+              <div className="mt-8 flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => setVisibleCount((prev) => prev + 20)}
+                  className="rounded-full border border-gray-200 bg-white px-7 py-2.5 text-xs font-bold text-[#0a1122] shadow-2xs transition hover:border-[#0b6954] hover:bg-gray-50 active:scale-95"
+                >
+                  اعرض {Math.min(20, filteredUnits.length - visibleCount)} فرصة
+                  كمان ({filteredUnits.length - visibleCount} متبقية)
+                </button>
+              </div>
+            )}
+          </section>
+        </>
+      )}
+
+      
 
       {/* شريط أزرار الحساب في الأسفل أيضاً */}
       <AccountActionLinks

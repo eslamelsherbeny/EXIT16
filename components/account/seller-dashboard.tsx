@@ -1,8 +1,21 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 import Link from 'next/link'
-import { AlertCircle, Check, FileCheck2, UploadCloud } from 'lucide-react'
+import {
+  AlertCircle,
+  Check,
+  FileCheck2,
+  Loader2,
+  PauseCircle,
+  PlayCircle,
+  Trash2,
+  UploadCloud,
+} from 'lucide-react'
+import {
+  deleteUnitBySellerAction,
+  toggleSellerUnitStatusAction,
+} from '@/app/actions/account-actions'
 import { AccountActionLinks } from './delete-account-modal'
 
 export type SellerUnitItem = {
@@ -26,6 +39,7 @@ export type SellerUnitItem = {
   willing_to_discount: boolean | null
   has_overdue_installments: boolean | null
   status: string | null
+  submission_type?: string | null
   admin_note: string | null
   images: string[] | null
   documents: Record<string, any> | null
@@ -36,7 +50,6 @@ function money(value: number | null | undefined) {
   return `${Number(value || 0).toLocaleString('en-US')} ج.م`
 }
 
-// حساب عدد الحقول المكتملة من 18 حقل للوحدة الواحدة بدقة
 function calculateUnitCompletion(unit: SellerUnitItem) {
   const checks = [
     Boolean(unit.developer_name),
@@ -63,7 +76,6 @@ function calculateUnitCompletion(unit: SellerUnitItem) {
   const completedCount = checks.filter(Boolean).length
   const hasImages = Array.isArray(unit.images) && unit.images.length > 0
 
-  // إذا كانت الصور فقط هي الناقصة تكون النسبة 94% تماماً كما في الصور الأصلية
   const percentage = hasImages
     ? Math.round((completedCount / total) * 100)
     : Math.min(94, Math.round((completedCount / total) * 100))
@@ -91,28 +103,42 @@ function getSellerTimelineAndStatus(unit: SellerUnitItem, isComplete: boolean) {
     case 'published':
       return {
         code: 'active',
-        stepIndex: 4, // 5. بندور على المشتري المناسب
-        unitSubtext: 'معروضة في السوق',
+        stepIndex: 4,
+        unitSubtext: 'معروضة في السوق الآن',
         headline: 'وحدتك معتمدة ومعروضة الآن أمام المشترين 🎉',
+      }
+    case 'paused_by_seller':
+      return {
+        code: 'paused_by_seller',
+        stepIndex: 2,
+        unitSubtext: 'متوقفة مؤقتاً بواسطتك',
+        headline: 'أوقفت عرض هذه الوحدة مؤقتاً — يمكنك إعادة عرضها في أي وقت',
+      }
+    case 'paused_deletion':
+      return {
+        code: 'paused_deletion',
+        stepIndex: 2,
+        unitSubtext: 'مخفية بسبب طلب حذف الحساب',
+        headline: 'الوحدة مخفية حالياً من السوق بسبب طلب حذف الحساب',
       }
     case 'offer_received':
       return {
         code: 'offer_received',
-        stepIndex: 5, // 6. عندك عرض
+        stepIndex: 5,
         unitSubtext: 'عندك عرض جديد',
         headline: 'لديك عرض شراء جاد على وحدتك! 💰',
       }
     case 'transferring':
       return {
         code: 'transferring',
-        stepIndex: 6, // 7. نقل التعاقد
+        stepIndex: 6,
         unitSubtext: 'نقل التعاقد (بنراجع المستندات)',
         headline: 'وحدتك في مرحلة مراجعة المستندات ونقل التعاقد 📄',
       }
     case 'sold':
       return {
         code: 'sold',
-        stepIndex: 8, // 8. تمت العملية
+        stepIndex: 8,
         unitSubtext: 'تمت العملية',
         headline: 'مبروك! تمت عملية بيع وحدتك ونقل التعاقد بنجاح 🏆',
       }
@@ -127,15 +153,20 @@ function getSellerTimelineAndStatus(unit: SellerUnitItem, isComplete: boolean) {
       if (!isComplete) {
         return {
           code: 'incomplete',
-          stepIndex: 1, // 2. بيانات وحدتك وصورها
+          stepIndex: 1,
           unitSubtext: 'بيانات وحدتك وصورها',
           headline: 'فاضل الصور بس — ضيف صورة واحدة على الأقل وننشر وحدتك',
         }
       }
       return {
         code: 'pending_review',
-        stepIndex: 2, // 3. بنراجع وننشر وحدتك
-        unitSubtext: 'بنراجع وننشر وحدتك',
+        stepIndex: 2,
+        unitSubtext:
+          unit.submission_type === 'resumed_by_seller'
+            ? 'معاد عرضها — قيد مراجعة الإدارة'
+            : unit.submission_type === 'edited_by_seller'
+              ? 'معدّلة — قيد مراجعة الإدارة'
+              : 'بنراجع وننشر وحدتك',
         headline: 'بياناتك وصلت! فريقنا بيراجع الوحدة وينشرها في السوق قريب',
       }
   }
@@ -145,13 +176,13 @@ export function SellerDashboard({
   sells,
   initialSelectedUnitId,
   offersCountMap = {},
-  waitingBuyersCount = 4510,
+  matchedBuyersCountMap = {},
   deletionRequested = false,
 }: {
   sells: SellerUnitItem[]
   initialSelectedUnitId?: string
   offersCountMap?: Record<string, number>
-  waitingBuyersCount?: number
+  matchedBuyersCountMap?: Record<string, number>
   deletionRequested?: boolean
 }) {
   const [selectedId, setSelectedId] = useState<string>(
@@ -159,13 +190,21 @@ export function SellerDashboard({
       ? initialSelectedUnitId
       : sells[0]?.id || ''
   )
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
+  const [actionMessage, setActionMessage] = useState('')
+  const [isPending, startTransition] = useTransition()
 
   const activeUnit = sells.find((s) => s.id === selectedId) || sells[0]
+  if (!activeUnit) return null
+
   const comp = calculateUnitCompletion(activeUnit)
   const isComplete = comp.percentage === 100
   const meta = getSellerTimelineAndStatus(activeUnit, isComplete)
+  const isPausedBySeller = meta.code === 'paused_by_seller'
 
-  // حساب عدد المستندات المرفوعة لهذه الوحدة
+  // العدد الحقيقي للمشترين المطابقين لهذه الوحدة تحديداً من قاعدة البيانات
+  const realMatchedBuyersCount = matchedBuyersCountMap[activeUnit.id] ?? 0
+
   const uploadedDocsCount = activeUnit.documents
     ? Object.keys(activeUnit.documents).filter(
         (k) => activeUnit.documents?.[k]?.url
@@ -174,24 +213,64 @@ export function SellerDashboard({
 
   const unitOffersCount = offersCountMap[activeUnit.id] || 0
 
-  // الرابط الذكي لتعديل الوحدة أو إكمال الصور
   const editUnitHref = !comp.hasImages
     ? `/sell?editUnitId=${activeUnit.id}&step=5`
     : `/sell?editUnitId=${activeUnit.id}&step=3`
 
+  const handleTogglePause = () => {
+    setActionMessage('')
+    startTransition(async () => {
+      const nextAction = isPausedBySeller ? 'resume' : 'pause'
+      const res = await toggleSellerUnitStatusAction({
+        unitId: activeUnit.id,
+        action: nextAction,
+      })
+      if (res.success) {
+        setActionMessage(
+          nextAction === 'pause'
+            ? 'تم إيقاف عرض الوحدة مؤقتاً وإخفاؤها من السوق.'
+            : 'تم إرسال طلب إعادة عرض الوحدة للإدارة للمراجعة والنشر ✓'
+        )
+      }
+    })
+  }
+
+  const handleDeleteUnit = () => {
+    startTransition(async () => {
+      const res = await deleteUnitBySellerAction(activeUnit.id)
+      if (res.success) {
+        setConfirmDeleteOpen(false)
+        const remaining = sells.filter((s) => s.id !== activeUnit.id)
+        if (remaining[0]) setSelectedId(remaining[0].id)
+      }
+    })
+  }
+
   return (
     <div className="mx-auto max-w-[680px] px-4 sm:px-6">
-      {/* 1. العنوان العلوي للوحدة المختارة حالياً */}
-      <header className="pb-5 text-right">
+      {/* 1. العنوان العلوي للوحدة المختارة */}
+      <header className="flex flex-wrap items-center justify-between gap-3 pb-5 text-right">
         <h1 className="text-xl font-extrabold text-[#0a1122] sm:text-2xl">
           {activeUnit.project_name || 'وحدتك العقارية'}{' '}
           <span className="font-normal text-gray-500">
             · {activeUnit.developer_name || activeUnit.area || 'القاهرة الجديدة'}
           </span>
         </h1>
+
+        {isPausedBySeller && (
+          <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-extrabold text-amber-800">
+            ⏸ متوقفة مؤقتاً بواسطتك
+          </span>
+        )}
       </header>
 
-      {/* 2. الكارت العلوي للخطوة الجاية (يتغير أوتوماتيكياً عند اكتمال البيانات 100%) */}
+      {actionMessage && (
+        <div className="mb-4 rounded-xl bg-[#eff9f5] p-3.5 text-center text-xs font-bold text-[#0b6954]">
+          {actionMessage}
+        </div>
+      )}
+
+      {/* 2. الكارت العلوي للخطوة الجاية */}
       <section className="rounded-[20px] border border-[#0b6954]/25 bg-white p-5 text-right shadow-xs sm:p-7">
         <p className="text-xs font-bold text-[#0b6954]">الخطوة الجاية</p>
         <h2 className="mt-1.5 text-base font-extrabold text-[#0a1122] sm:text-[19px]">
@@ -203,61 +282,112 @@ export function SellerDashboard({
             <AlertCircle className="mt-0.5 size-4 shrink-0 text-amber-600" />
             <div>
               <strong className="block font-extrabold">
-                ملاحظة من إدارة المنصة:
+                حالة المراجعة / ملاحظة الإدارة:
               </strong>
               <p className="mt-0.5 leading-relaxed">{activeUnit.admin_note}</p>
             </div>
           </div>
         )}
 
-        <div className="mt-4">
+        <div className="mt-4 flex flex-wrap items-center gap-2.5">
           <Link
             href={editUnitHref}
             className="inline-flex h-11 items-center justify-center rounded-xl bg-[#0b6954] px-6 text-xs font-bold text-white transition hover:bg-[#095443] sm:text-sm"
           >
-            {!comp.hasImages ? 'أضف الصور' : 'كمّل بيانات الوحدة'}
+            {!comp.hasImages ? 'أضف الصور' : 'كمّل / عدّل بيانات الوحدة'}
           </Link>
+
+          {/* زر إيقاف العرض مؤقتاً أو إعادة عرضه */}
+          {meta.code !== 'sold' && (
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={handleTogglePause}
+              className={`inline-flex h-11 items-center justify-center gap-1.5 rounded-xl border px-4 text-xs font-bold transition ${
+                isPausedBySeller
+                  ? 'border-[#0b6954] bg-[#eff9f5] text-[#0b6954] hover:bg-[#e0f3ec]'
+                  : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              {isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : isPausedBySeller ? (
+                <>
+                  <PlayCircle className="size-4" />
+                  <span>إعادة عرض الوحدة في السوق</span>
+                </>
+              ) : (
+                <>
+                  <PauseCircle className="size-4 text-amber-600" />
+                  <span>إيقاف العرض مؤقتاً</span>
+                </>
+              )}
+            </button>
+          )}
+
+          {/* زر حذف الوحدة */}
+          <button
+            type="button"
+            onClick={() => setConfirmDeleteOpen(true)}
+            className="inline-flex h-11 items-center justify-center gap-1 rounded-xl border border-red-100 bg-red-50/50 px-3.5 text-xs font-bold text-red-600 transition hover:bg-red-100"
+            title="حذف هذه الوحدة"
+          >
+            <Trash2 className="size-3.5" />
+            <span>حذف الوحدة</span>
+          </button>
         </div>
 
-        {/* يظهر شريط النسبة المئوية فقط إذا كانت البيانات غير مكتملة (< 100%) ويختفي عند الاكتمال تماماً كما في الصور */}
+        {/* شريط نسبة الاكتمال يظهر إذا كانت البيانات غير مكتملة */}
         {!isComplete && (
-          <>
-            <div className="mt-6">
-              <div className="mb-2 flex items-center justify-between text-xs">
-                <span className="font-bold text-gray-600">
-                  اكتمال بيانات وحدتك
-                </span>
-                <strong dir="ltr" className="font-extrabold text-[#0a1122]">
-                  {comp.percentage}%
-                </strong>
-              </div>
-              <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
-                <div
-                  className="h-full rounded-full bg-[#0b6954] transition-all duration-300"
-                  style={{ width: `${comp.percentage}%` }}
-                />
-              </div>
-
-              {comp.missingTags.length > 0 && (
-                <div className="mt-2.5 flex flex-wrap gap-1.5">
-                  {comp.missingTags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="rounded-full bg-amber-50 px-3 py-0.5 text-[11px] font-bold text-amber-700"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              )}
+          <div className="mt-6">
+            <div className="mb-2 flex items-center justify-between text-xs">
+              <span className="font-bold text-gray-600">
+                اكتمال بيانات وحدتك
+              </span>
+              <strong dir="ltr" className="font-extrabold text-[#0a1122]">
+                {comp.percentage}%
+              </strong>
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
+              <div
+                className="h-full rounded-full bg-[#0b6954] transition-all duration-300"
+                style={{ width: `${comp.percentage}%` }}
+              />
             </div>
 
-            <div className="mt-4 rounded-xl bg-[#eff9f5] px-4 py-3 text-right text-xs font-bold text-[#0b6954]">
-              فيه {waitingBuyersCount} مشترين مستنيين وحدة زي بتاعتك — كمّل
-              بياناتها وشوفهم
-            </div>
-          </>
+            {comp.missingTags.length > 0 && (
+              <div className="mt-2.5 flex flex-wrap gap-1.5">
+                {comp.missingTags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="rounded-full bg-amber-50 px-3 py-0.5 text-[11px] font-bold text-amber-700"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
         )}
+
+        {/* شريط العدد الحقيقي للمشترين المطابقين لهذه الوحدة من الداتابيز */}
+        <div className="mt-4 rounded-xl bg-[#eff9f5] px-4 py-3 text-right text-xs font-bold text-[#0b6954]">
+          {realMatchedBuyersCount > 0 ? (
+            <>
+              فيه {realMatchedBuyersCount.toLocaleString('en-US')} مشترين
+              مسجلين حالياً في قاعدة البيانات مستنيين وحدة بنفس مواصفات وميزانية
+              وحدتك{' '}
+              {!isComplete
+                ? '— كمّل بياناتها وشوفهم'
+                : '— فريقنا يرشح وحدتك لهم'}
+            </>
+          ) : (
+            <>
+              بمجرد اعتماد وحدتك، سيقوم رادار المنصة بترشيحها تلقائياً لأي مشتري
+              يسجل ميزانية مطابقة لمنطقتك ({activeUnit.area || 'منطقتك'})
+            </>
+          )}
+        </div>
 
         <p className="mt-5 border-t border-gray-100 pt-3.5 text-right text-[11px] leading-relaxed text-gray-400">
           المستندات (العقد والإيصالات) — تقدر ترفعها دلوقتي أو بعد ما فريقنا
@@ -265,13 +395,50 @@ export function SellerDashboard({
         </p>
       </section>
 
-      {/* 3. قائمة وحداتي (تسمح بالتبديل الفوري بين الوحدات لعرض حالة كل وحدة) */}
+      {/* نافذة تأكيد حذف الوحدة */}
+      {confirmDeleteOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-2xs"
+          onClick={() => setConfirmDeleteOpen(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-sm rounded-2xl bg-white p-6 text-right shadow-2xl"
+          >
+            <h3 className="text-base font-black text-[#0a1122]">
+              حذف وحدة ({activeUnit.project_name || 'وحدتك'})؟
+            </h3>
+            <p className="mt-2 text-xs leading-relaxed text-gray-500">
+              هل أنت متأكد من حذف هذه الوحدة نهائياً من حسابك؟ يمكنك بدلاً من
+              ذلك الضغط على «إيقاف العرض مؤقتاً» والاحتفاظ ببياناتها.
+            </p>
+            <div className="mt-5 flex items-center gap-2.5">
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={handleDeleteUnit}
+                className="h-10 flex-1 rounded-xl bg-red-600 text-xs font-bold text-white hover:bg-red-700"
+              >
+                {isPending ? 'جاري الحذف...' : 'نعم، احذف الوحدة نهائياً'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteOpen(false)}
+                className="h-10 rounded-xl border border-gray-200 px-4 text-xs font-bold text-gray-700"
+              >
+                تراجع
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 3. قائمة وحداتي */}
       <section className="mt-8">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-extrabold text-[#0a1122] sm:text-base">
             وحداتي ({sells.length})
           </h2>
-          {/* زر ضيف وحدة تانية يفتح الفورم من مرحلة تفاصيل الوحدة مباشرة لأن العميل مسجل دخول */}
           <Link
             href="/sell?new=1"
             className="inline-flex h-10 items-center justify-center rounded-xl bg-[#0a1122] px-4 text-xs font-bold text-white transition hover:bg-[#16223f]"
@@ -286,11 +453,15 @@ export function SellerDashboard({
             const itemComplete = itemComp.percentage === 100
             const itemMeta = getSellerTimelineAndStatus(item, itemComplete)
             const isSelected = item.id === activeUnit.id
+            const itemMatchedBuyers = matchedBuyersCountMap[item.id] ?? 0
 
             return (
               <div
                 key={item.id}
-                onClick={() => setSelectedId(item.id)}
+                onClick={() => {
+                  setSelectedId(item.id)
+                  setActionMessage('')
+                }}
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => {
@@ -303,7 +474,7 @@ export function SellerDashboard({
                 }`}
               >
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <p className="text-xs font-extrabold text-[#0a1122] sm:text-sm">
                       {item.project_name || 'وحدة سكنية'}{' '}
                       <span className="font-normal text-gray-500">
@@ -315,6 +486,11 @@ export function SellerDashboard({
                         معروضة الآن
                       </span>
                     )}
+                    {itemMatchedBuyers > 0 && (
+                      <span className="rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700">
+                        {itemMatchedBuyers} مشتري مطابق
+                      </span>
+                    )}
                   </div>
                   <p className="mt-1 text-[11px] text-gray-400">
                     {itemMeta.unitSubtext}
@@ -322,7 +498,11 @@ export function SellerDashboard({
                 </div>
 
                 <div className="flex items-center gap-2.5">
-                  {!itemComplete ? (
+                  {item.status === 'paused_by_seller' ? (
+                    <span className="rounded-full bg-gray-100 px-3 py-1 text-[11px] font-bold text-gray-600">
+                      متوقفة مؤقتاً
+                    </span>
+                  ) : !itemComplete ? (
                     <span
                       dir="ltr"
                       className="rounded-full bg-amber-50 px-3 py-1 text-[11px] font-extrabold text-amber-700"
@@ -346,7 +526,7 @@ export function SellerDashboard({
         </p>
       </section>
 
-      {/* 4. شريط التسلسل الزمني (8 مراحل) الخاص بالوحدة المختارة */}
+      {/* 4. شريط التسلسل الزمني */}
       <section className="mt-8 pr-1">
         <Timeline
           currentStepIndex={meta.stepIndex}
@@ -354,7 +534,7 @@ export function SellerDashboard({
         />
       </section>
 
-      {/* 5. كارت سعر الوحدة في العقد والمدفوع */}
+      {/* 5. كارت السعر والمدفوع */}
       <section className="mt-8 grid grid-cols-2 gap-4 rounded-[18px] border border-gray-200/80 bg-white p-5 text-right shadow-2xs sm:p-6">
         <div>
           <p className="text-[11px] text-gray-400">سعر الوحدة في العقد</p>
@@ -372,7 +552,7 @@ export function SellerDashboard({
         </div>
       </section>
 
-      {/* 6. الكروت الثلاثة (بيانات وحدتك، العروض، مسؤول حالتك) */}
+      {/* 6. الكروت الثلاثة السفلية */}
       <section className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Link
           href={`/sell?editUnitId=${activeUnit.id}&step=3`}
@@ -409,7 +589,7 @@ export function SellerDashboard({
         </a>
       </section>
 
-      {/* 7. كارت رفع المستندات الواضح + النص السفلي (كما في الصورة 42) */}
+      {/* 7. كارت رفع المستندات */}
       <div className="mt-4 flex flex-col justify-between gap-3 rounded-[16px] border border-dashed border-[#0b6954]/40 bg-[#eff9f5]/60 p-4 sm:flex-row sm:items-center">
         <div className="flex items-center gap-3 text-right">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#0b6954]/10 text-[#0b6954]">
@@ -453,7 +633,7 @@ export function SellerDashboard({
         يكلمك. مطلوبة قبل إتمام البيع، مش قبل النشر.
       </p>
 
-      {/* 8. أزرار الحساب في الأسفل فقط للبائع */}
+      {/* 8. أزرار الحساب في الأسفل */}
       <AccountActionLinks
         unitsCount={sells.length}
         initialDeletionRequested={deletionRequested}

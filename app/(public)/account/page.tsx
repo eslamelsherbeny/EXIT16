@@ -2,15 +2,10 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { createServerClient } from '@supabase/ssr'
 import Link from 'next/link'
-import {
-  SellerDashboard,
-  type SellerUnitItem,
-} from '@/components/account/seller-dashboard'
-import {
-  BuyerDashboard,
-  type BuyerRequestItem,
-} from '@/components/account/buyer-dashboard'
+import type { SellerUnitItem } from '@/components/account/seller-dashboard'
+import type { BuyerRequestItem } from '@/components/account/buyer-dashboard'
 import { AccountActionLinks } from '@/components/account/delete-account-modal'
+import { AccountViewSwitcher } from '@/components/account/account-view-switcher'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -99,17 +94,50 @@ export default async function AccountPage({
     }
   })
 
+  // فلترة حقيقية في الخلفية لحساب عدد المشترين الفعليين المطابقين لكل وحدة من وحدات البائع
+  const matchedBuyersCountMap: Record<string, number> = {}
+  const buyersList = (allBuys as any[]) || []
+
+  sells.forEach((unit) => {
+    const unitCash = Number(unit.paid_amount) || 0
+    const unitArea = (unit.area || '').trim()
+    const unitType = (unit.unit_type || '').trim()
+
+    const matchingBuyers = buyersList.filter((b) => {
+      if (b.user_id && b.user_id === profile.id) return false
+      const bCash = Number(b.available_cash || b.budget || 0)
+      const bAreas: string[] = Array.isArray(b.preferred_areas)
+        ? b.preferred_areas
+        : []
+      const bTypes: string[] = Array.isArray(b.unit_types) ? b.unit_types : []
+
+      const cashOk = bCash === 0 || unitCash === 0 || unitCash <= bCash * 1.25
+      const areaOk =
+        !unitArea ||
+        bAreas.length === 0 ||
+        bAreas.some((a) => unitArea.includes(a) || a.includes(unitArea))
+      const typeOk =
+        !unitType ||
+        bTypes.length === 0 ||
+        bTypes.some((t) => unitType.includes(t) || t.includes(unitType))
+
+      return cashOk && (areaOk || typeOk)
+    })
+
+    matchedBuyersCountMap[unit.id] = matchingBuyers.length
+  })
+
   const hasSells = sells.length > 0
   const hasBuys = buys.length > 0
 
-  const isSellerView =
-    resolvedParams.view === 'seller'
-      ? true
-      : resolvedParams.view === 'buyer'
-        ? false
+  const initialView: 'seller' | 'buyer' =
+    resolvedParams.view === 'buyer'
+      ? 'buyer'
+      : resolvedParams.view === 'seller'
+        ? 'seller'
         : hasSells
-  const isBuyerView =
-    resolvedParams.view === 'buyer' ? true : !isSellerView && hasBuys
+          ? 'seller'
+          : 'buyer'
 
   const deletionRequested = Boolean(profile.deletion_requested)
 
@@ -118,44 +146,15 @@ export default async function AccountPage({
       dir="rtl"
       className="min-h-screen bg-[#f5f6f8] py-8 pb-24 text-[#0a1122] sm:py-12"
     >
-      {/* شريط التبديل في حال كان لدى العميل وحدات للبيع وطلب شراء في نفس الوقت */}
-      {hasSells && hasBuys && (
-        <div className="mx-auto mb-6 flex max-w-[680px] justify-center gap-2 px-4">
-          <Link
-            href="/account?view=seller"
-            className={`rounded-xl px-5 py-2 text-xs font-bold transition ${
-              isSellerView
-                ? 'bg-[#0b6954] text-white shadow-xs'
-                : 'bg-white text-gray-600 hover:bg-gray-100'
-            }`}
-          >
-            لوحة البائع ({sells.length})
-          </Link>
-          <Link
-            href="/account?view=buyer"
-            className={`rounded-xl px-5 py-2 text-xs font-bold transition ${
-              isBuyerView
-                ? 'bg-[#0b6954] text-white shadow-xs'
-                : 'bg-white text-gray-600 hover:bg-gray-100'
-            }`}
-          >
-            لوحة المشتري
-          </Link>
-        </div>
-      )}
-
-      {isSellerView && hasSells ? (
-        <SellerDashboard
+      {hasSells || hasBuys ? (
+        <AccountViewSwitcher
+          initialView={initialView}
           sells={sells}
+          buys={buys}
+          activeMarketUnits={(activeMarketUnits as SellerUnitItem[]) || []}
           initialSelectedUnitId={resolvedParams.unitId}
           offersCountMap={offersCountMap}
-          waitingBuyersCount={4510 + (allBuys?.length || 0)}
-          deletionRequested={deletionRequested}
-        />
-      ) : isBuyerView && hasBuys ? (
-        <BuyerDashboard
-          buyReq={buys[0]}
-          marketUnits={(activeMarketUnits as SellerUnitItem[]) || []}
+          matchedBuyersCountMap={matchedBuyersCountMap}
           deletionRequested={deletionRequested}
         />
       ) : (

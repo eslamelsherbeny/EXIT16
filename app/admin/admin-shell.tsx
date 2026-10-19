@@ -11,6 +11,7 @@ import {
   ExternalLink,
   FileText,
   LayoutDashboard,
+  LogOut,
   Menu,
   Settings,
   ShieldCheck,
@@ -117,6 +118,16 @@ export default function AdminShell({
     return pathname?.startsWith(href)
   }
 
+  // دالة تسجيل الخروج المباشر
+  const handleLogout = async () => {
+    try {
+      // استدعاء ملف API وهمي أو دالة مسح الكوكيز لو أردت، أو استخدم الطريقة المبسطة:
+      document.cookie = "user_session=; path=/; max-age=0;"
+      document.cookie = "session_hint=; path=/; max-age=0;"
+      window.location.replace("/")
+    } catch {}
+  }
+
   const currentSection =
     ADMIN_NAV_LINKS.find((item) => isActive(item.href))?.label || "لوحة الإدارة"
 
@@ -166,7 +177,6 @@ export default function AdminShell({
         </div>
 
         <div className="p-4">
-          {/* رابط حسابي (توجيه للبروفايل) */}
           <Link
             href="/admin/profile"
             className="mb-2 flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs font-bold text-white/85 transition hover:bg-white/10 hover:text-white"
@@ -175,13 +185,26 @@ export default function AdminShell({
             <User className="size-3.5 text-emerald-400" />
           </Link>
 
-          <Link
+          {/* فتح الموقع في تاب جديد */}
+          <a
             href="/"
-            className="mb-3 flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs font-bold text-white/80 transition hover:bg-white/10 hover:text-white"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mb-2 flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs font-bold text-white/80 transition hover:bg-white/10 hover:text-white"
           >
             <span>معاينة الموقع العام</span>
             <ExternalLink className="size-3.5 text-emerald-400" />
-          </Link>
+          </a>
+
+          {/* زر تسجيل الخروج الأحمر */}
+          <button
+            onClick={handleLogout}
+            type="button"
+            className="mb-3 flex w-full items-center justify-between rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-xs font-bold text-red-400 transition hover:bg-red-500/20 hover:text-red-300"
+          >
+            <span>تسجيل الخروج</span>
+            <LogOut className="size-3.5" />
+          </button>
 
           <div className="rounded-2xl bg-gradient-to-br from-[#105C50] to-[#083d34] p-4 text-xs leading-6 text-white/90 shadow-md">
             <div className="flex items-center gap-1.5 font-bold text-white">
@@ -195,7 +218,7 @@ export default function AdminShell({
         </div>
       </aside>
 
-      {/* ==================== 2. القائمة الجانبية المنزلقة للموبايل (تفتح من زر الهيدر ☰) ==================== */}
+      {/* ==================== 2. القائمة الجانبية المنزلقة للموبايل ==================== */}
       {drawerOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div
@@ -222,7 +245,6 @@ export default function AdminShell({
                   type="button"
                   onClick={() => setDrawerOpen(false)}
                   className="flex size-8 items-center justify-center rounded-lg bg-white/10 text-white/80 hover:bg-white/20 hover:text-white"
-                  aria-label="إغلاق القائمة"
                 >
                   <X className="size-4" />
                 </button>
@@ -267,7 +289,6 @@ export default function AdminShell({
             </div>
 
             <div className="space-y-2 border-t border-white/10 p-4">
-              {/* رابط حسابي (توجيه للبروفايل) */}
               <Link
                 href="/admin/profile"
                 onClick={() => setDrawerOpen(false)}
@@ -276,14 +297,28 @@ export default function AdminShell({
                 <span>حسابي</span>
                 <User className="size-3.5 text-emerald-400" />
               </Link>
-              <Link
+              
+              {/* فتح الموقع في تاب جديد */}
+              <a
                 href="/"
+                target="_blank"
+                rel="noopener noreferrer"
                 onClick={() => setDrawerOpen(false)}
                 className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-xs font-bold text-white/85 transition hover:bg-white/10"
               >
                 <span>معاينة الموقع العام</span>
                 <ExternalLink className="size-3.5 text-emerald-400" />
-              </Link>
+              </a>
+
+              {/* زر تسجيل الخروج للموبايل */}
+              <button
+                onClick={handleLogout}
+                type="button"
+                className="flex w-full items-center justify-between rounded-xl border border-red-500/20 bg-red-500/10 px-3.5 py-2.5 text-xs font-bold text-red-400 transition hover:bg-red-500/20 hover:text-red-300"
+              >
+                <span>تسجيل الخروج</span>
+                <LogOut className="size-3.5" />
+              </button>
             </div>
           </aside>
         </div>
@@ -292,13 +327,11 @@ export default function AdminShell({
       {/* ==================== 3. الهيدر العلوي المدمج ==================== */}
       <div className="lg:mr-72">
         <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-2 border-b border-gray-200/80 bg-white/95 px-3.5 backdrop-blur-md sm:h-20 sm:px-6 lg:px-8">
-          {/* اليمين: زر القائمة ☰ + اسم القسم + أهلاً بالاسم الأول فقط */}
           <div className="flex min-w-0 items-center gap-2.5">
             <button
               type="button"
               onClick={() => setDrawerOpen(true)}
               className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-gray-50/80 text-[#0a1122] transition hover:bg-gray-100 active:scale-95 lg:hidden"
-              aria-label="فتح قائمة الإدارة"
             >
               <Menu className="size-5" />
             </button>
@@ -308,12 +341,11 @@ export default function AdminShell({
                 {currentSection}
               </p>
               <h1 className="truncate text-sm font-extrabold text-[#0a1122] sm:text-lg">
-                أهلاً، {firstName}
+                أهلاً، {firstName} 👋
               </h1>
             </div>
           </div>
 
-          {/* اليسار: زر حسابي (بدون أيقونة) + جرس الإشعارات */}
           <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
             <Link
               href="/admin/profile"
@@ -322,13 +354,11 @@ export default function AdminShell({
               <span>حسابي</span>
             </Link>
 
-            {/* جرس الإشعارات التفاعلي */}
             <div className="relative" ref={notifRef}>
               <button
                 type="button"
                 onClick={() => setNotifOpen((prev) => !prev)}
                 className="relative flex size-9 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700 transition hover:bg-gray-50 sm:size-10"
-                aria-label="الإشعارات"
               >
                 <Bell className="size-4" />
                 {notifications.length > 0 && (
@@ -338,7 +368,6 @@ export default function AdminShell({
                 )}
               </button>
 
-              {/* القائمة المنسدلة للإشعارات */}
               {notifOpen && (
                 <div className="fixed left-3 right-3 top-[68px] z-50 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl sm:absolute sm:left-0 sm:right-auto sm:top-12 sm:w-80">
                   <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50/80 px-4 py-3">

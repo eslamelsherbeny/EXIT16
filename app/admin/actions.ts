@@ -2,7 +2,7 @@
 
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
-import { randomBytes, scryptSync } from "node:crypto"
+import { createHash, timingSafeEqual, randomBytes, scryptSync } from "node:crypto"
 import { revalidatePath } from "next/cache"
 import nodemailer from "nodemailer"
 
@@ -58,6 +58,38 @@ function hashPassword(password: string) {
   return `scrypt$${salt}$${derived}`
 }
 
+function verifyPassword(password: string, stored: string | null) {
+  if (!stored) return false
+  const cleanStored = stored.trim()
+  const cleanPass = password.trim()
+
+  try {
+    if (cleanStored.startsWith('scrypt$')) {
+      const [, salt, expected] = cleanStored.split('$')
+      if (!salt || !expected) return false
+      const actual1 = scryptSync(password, salt, 64).toString('hex')
+      if (actual1.length === expected.length && timingSafeEqual(Buffer.from(actual1), Buffer.from(expected))) {
+        return true
+      }
+      const actual2 = scryptSync(cleanPass, salt, 64).toString('hex')
+      return actual2.length === expected.length && timingSafeEqual(Buffer.from(actual2), Buffer.from(expected))
+    }
+
+    const sha1 = createHash('sha256').update(password).digest('hex')
+    if (sha1.length === cleanStored.length && timingSafeEqual(Buffer.from(sha1), Buffer.from(cleanStored))) {
+      return true
+    }
+    const sha2 = createHash('sha256').update(cleanPass).digest('hex')
+    if (sha2.length === cleanStored.length && timingSafeEqual(Buffer.from(sha2), Buffer.from(cleanStored))) {
+      return true
+    }
+
+    return cleanStored === password || cleanStored === cleanPass
+  } catch {
+    return false
+  }
+}
+
 function revalidateAdminAll() {
   revalidatePath("/admin", "layout")
   revalidatePath("/admin")
@@ -66,6 +98,7 @@ function revalidateAdminAll() {
   revalidatePath("/admin/users")
   revalidatePath("/admin/investors")
   revalidatePath("/admin/settings")
+  revalidatePath("/admin/profile")
   revalidatePath("/account")
   revalidatePath("/opportunities")
 }
@@ -327,7 +360,7 @@ export async function deleteUserByAdminAction(userId: string) {
 }
 
 // ==========================================
-// 5. تحديث الملف الشخصي للأدمن (الاسم، الإيميل، الهاتف، كلمة المرور)
+// 5. تحديث الملف الشخصي للأدمن (مع التحقق من كلمة المرور القديمة)
 // ==========================================
 export async function updateAdminProfileAction(formData: FormData) {
   const cookieStore = await cookies()
@@ -339,7 +372,9 @@ export async function updateAdminProfileAction(formData: FormData) {
   const name = ((formData.get("name") as string) || "").trim()
   const email = ((formData.get("email") as string) || "").trim().toLowerCase()
   const rawPhone = ((formData.get("phone") as string) || "").trim()
+  const currentPassword = ((formData.get("currentPassword") as string) || "").trim()
   const newPassword = ((formData.get("newPassword") as string) || "").trim()
+  const confirmNewPassword = ((formData.get("confirmNewPassword") as string) || "").trim()
 
   if (!name || !email || !rawPhone) {
     return { success: false, error: "الاسم والبريد الإلكتروني ورقم الهاتف حقول مطلوبة." }
@@ -354,17 +389,29 @@ export async function updateAdminProfileAction(formData: FormData) {
     phone: formattedPhone,
   }
 
+  const supabase = await getSupabase()
+
+  // تأمين تغيير كلمة المرور
   if (newPassword) {
     if (newPassword.length < 8) {
-      return {
-        success: false,
-        error: "كلمة المرور الجديدة يجب أن تكون 8 أحرف على الأقل.",
-      }
+      return { success: false, error: "كلمة المرور الجديدة يجب أن تكون 8 أحرف على الأقل." }
     }
+    if (newPassword !== confirmNewPassword) {
+      return { success: false, error: "كلمتا المرور الجديدتان غير متطابقتين." }
+    }
+    if (!currentPassword) {
+      return { success: false, error: "يرجى إدخال كلمة المرور الحالية لتتمكن من تغييرها." }
+    }
+
+    // جلب الباسورد القديم للتحقق من هوية صاحب الحساب
+    const { data: user } = await supabase.from("users").select("password_hash").eq("id", sessionId).single()
+    if (!user || !verifyPassword(currentPassword, user.password_hash)) {
+      return { success: false, error: "كلمة المرور الحالية التي أدخلتها غير صحيحة." }
+    }
+
     updateData.password_hash = hashPassword(newPassword)
   }
 
-  const supabase = await getSupabase()
   const { error } = await supabase
     .from("users")
     .update(updateData)

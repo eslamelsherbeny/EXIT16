@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation"
 import {
   AlertTriangle,
   CheckCircle2,
+  Eye,
+  EyeOff,
   Loader2,
   Lock,
   Save,
@@ -53,10 +55,23 @@ export default function ProfileClient({
     isError?: boolean
   } | null>(null)
   const [pending, startTransition] = useTransition()
+  
+  // حالة إظهار أو إخفاء كلمات المرور
+  const [showPasswords, setShowPasswords] = useState(false)
 
   function handleProfileSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const fd = new FormData(e.currentTarget)
+    
+    // التحقق المبدئي في الواجهة لتطابق كلمتي المرور
+    const newPassword = fd.get("newPassword") as string
+    const confirmPassword = fd.get("confirmNewPassword") as string
+    
+    if (newPassword && newPassword !== confirmPassword) {
+      setNotice({ text: "كلمتا المرور الجديدتان غير متطابقتين.", isError: true })
+      return
+    }
+
     setConfirmModal({ formData: fd })
   }
 
@@ -80,6 +95,13 @@ export default function ProfileClient({
         }
       } finally {
         setConfirmModal(null)
+        // تفريغ حقول الباسورد بعد الحفظ الناجح
+        const form = document.getElementById("profile-form") as HTMLFormElement
+        if (form) {
+          ;(form.elements.namedItem("currentPassword") as HTMLInputElement).value = ""
+          ;(form.elements.namedItem("newPassword") as HTMLInputElement).value = ""
+          ;(form.elements.namedItem("confirmNewPassword") as HTMLInputElement).value = ""
+        }
       }
     })
   }
@@ -124,15 +146,15 @@ export default function ProfileClient({
         </div>
       )}
 
-      <form onSubmit={handleProfileSubmit} className="space-y-5">
+      <form id="profile-form" onSubmit={handleProfileSubmit} className="space-y-5">
         <Card className="rounded-2xl border-gray-200/80 bg-white shadow-sm">
           <CardHeader className="border-b border-gray-100">
             <CardTitle className="flex items-center gap-2 text-base font-extrabold">
               <UserCog className="size-4 text-[#105C50]" />
-              <span>بيانات الحساب</span>
+              <span>البيانات الأساسية</span>
             </CardTitle>
             <CardDescription className="text-xs">
-              قم بتحديث اسمك وبريدك ورقم هاتفك أو تغيير كلمة المرور.
+              قم بتحديث اسمك وبريدك ورقم هاتفك.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 pt-5 text-xs">
@@ -175,21 +197,70 @@ export default function ProfileClient({
                   className="h-10 w-full rounded-xl border border-gray-200 px-3.5 text-left text-xs font-bold focus:border-[#105C50] focus:outline-none"
                 />
               </div>
+            </div>
 
-              <div>
-                <label className="mb-1.5 flex items-center gap-1 font-bold text-[#0a1122]">
-                  <Lock className="size-3.5 text-gray-400" />
-                  <span>كلمة مرور جديدة (اختياري)</span>
-                </label>
-                <input
-                  name="newPassword"
-                  type="password"
-                  dir="ltr"
-                  minLength={8}
-                  placeholder="اتركها فارغة إذا لا تريد تغييرها"
-                  className="h-10 w-full rounded-xl border border-gray-200 px-3.5 text-left text-xs focus:border-[#105C50] focus:outline-none"
-                />
+            {/* قسم تعديل كلمة المرور المستقل */}
+            <div className="mt-8 rounded-xl border border-gray-100 bg-gray-50/50 p-4 sm:p-5">
+              <div className="mb-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Lock className="size-4 text-[#105C50]" />
+                  <h3 className="text-sm font-extrabold text-[#0a1122]">
+                    تغيير كلمة المرور (اختياري)
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPasswords(!showPasswords)}
+                  className="flex items-center gap-1.5 text-[11px] font-bold text-gray-500 hover:text-[#0a1122]"
+                >
+                  {showPasswords ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                  <span>{showPasswords ? "إخفاء" : "إظهار"} الحروف</span>
+                </button>
               </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div>
+                  <label className="mb-1.5 block text-[11px] font-bold text-gray-600">
+                    كلمة المرور الحالية
+                  </label>
+                  <input
+                    name="currentPassword"
+                    type={showPasswords ? "text" : "password"}
+                    dir="ltr"
+                    placeholder="••••••••"
+                    className="h-10 w-full rounded-xl border border-gray-200 px-3.5 text-left text-xs focus:border-[#105C50] focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-[11px] font-bold text-[#0a1122]">
+                    كلمة المرور الجديدة
+                  </label>
+                  <input
+                    name="newPassword"
+                    type={showPasswords ? "text" : "password"}
+                    dir="ltr"
+                    minLength={8}
+                    placeholder="8 أحرف على الأقل"
+                    className="h-10 w-full rounded-xl border border-gray-200 px-3.5 text-left text-xs focus:border-[#105C50] focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-[11px] font-bold text-[#0a1122]">
+                    تأكيد كلمة المرور الجديدة
+                  </label>
+                  <input
+                    name="confirmNewPassword"
+                    type={showPasswords ? "text" : "password"}
+                    dir="ltr"
+                    minLength={8}
+                    placeholder="أعد إدخال كلمة المرور"
+                    className="h-10 w-full rounded-xl border border-gray-200 px-3.5 text-left text-xs focus:border-[#105C50] focus:outline-none"
+                  />
+                </div>
+              </div>
+              <p className="mt-3 text-[10px] text-gray-400">
+                اترك هذه الحقول فارغة تماماً إذا كنت لا ترغب في تغيير كلمة مرورك الحالية.
+              </p>
             </div>
 
             {(adminProfile.personalSellCount > 0 ||
@@ -247,10 +318,10 @@ export default function ProfileClient({
             <>
               <DialogHeader className="text-right">
                 <DialogTitle className="text-sm font-extrabold text-[#0a1122] sm:text-base">
-                  تأكيد تحديث بيانات الأدمن
+                  تأكيد تحديث بيانات حسابك
                 </DialogTitle>
                 <DialogDescription className="text-right text-xs leading-relaxed text-gray-600">
-                  هل أنت متأكد من تحديث بيانات حسابك الإداري؟
+                  هل أنت متأكد من حفظ التعديلات الجديدة على ملفك الشخصي؟
                 </DialogDescription>
               </DialogHeader>
 

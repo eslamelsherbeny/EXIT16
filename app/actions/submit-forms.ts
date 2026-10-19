@@ -503,6 +503,9 @@ export async function processSellerStep2Action(payload: {
     // =====================================================
     // الحالة 3: الوضع الافتراضي (إدخال الاسم + الموبايل + الإيميل + الباسورد)
     // =====================================================
+    // =====================================================
+    // الحالة 3: الوضع الافتراضي (تسجيل بيانات جديدة)
+    // =====================================================
     const cleanName = (payload.name || '').trim()
     const cleanEmail = normalizeEmail(payload.email || '')
     const formattedPhone = formatPrimaryPhone(payload.phone || '')
@@ -520,7 +523,7 @@ export async function processSellerStep2Action(payload: {
       supabase
         .from('users')
         .select('id, name, phone, email, password_hash')
-        .ilike('email', cleanEmail)
+        .ilike('email', `%${cleanEmail}%`)
         .limit(1),
       supabase
         .from('users')
@@ -532,7 +535,7 @@ export async function processSellerStep2Action(payload: {
     const emailUser = emailMatches?.[0] || null
     const phoneUser = phoneMatches?.[0] || null
 
-    // أ) إذا كان الإيميل مسجلاً بالفعل
+    // أ) إذا كان الإيميل مسجلاً بالفعل -> نحفظ الطلب ونرسل الإيميل ونظهر شاشة "الإيميل ده عنده حساب بالفعل" دائماً
     if (emailUser) {
       const unitId = await upsertDraftUnit(emailUser.id, {
         name: cleanName || emailUser.name,
@@ -541,7 +544,7 @@ export async function processSellerStep2Action(payload: {
       })
       const orderRef = generateOrderRef(unitId)
 
-      // إرسال الإيميل الذي يحتوي على اللينك المباشر كما في الصورة الثانية تماماً
+      // إرسال الإيميل الفوري بالرابط السحري المباشر (الصورة 2)
       await sendOrderConfirmationMagicEmail(
         emailUser.id,
         unitId,
@@ -549,21 +552,7 @@ export async function processSellerStep2Action(payload: {
         emailUser.email
       )
 
-      // لو كتب كلمة السر الصحيحة لحسابه القديم بالصدفة، يدخل فوراً للخطوة 3
-      if (verifyPassword(password, emailUser.password_hash)) {
-        await setUserSession(emailUser.id)
-        return {
-          status: 'ok',
-          userId: emailUser.id,
-          unitId,
-          orderRef,
-          userName: emailUser.name,
-          userEmail: emailUser.email,
-          userPhone: emailUser.phone,
-        }
-      }
-
-      // لو كلمة السر مختلفة، نظهر شاشة "الإيميل ده عنده حساب بالفعل" (الصورة 1)
+      // إرجاع حالة وجود الإيميل دائماً لإظهار شاشة إدخال كلمة السر (الصورة 1)
       return {
         status: 'email_exists_need_password',
         userId: emailUser.id,
@@ -583,7 +572,6 @@ export async function processSellerStep2Action(payload: {
       })
       const orderRef = generateOrderRef(unitId)
 
-      // إرسال إيميل تأكيد الطلب على الإيميل الأصلي المسجل على الرقم
       if (phoneUser.email) {
         await sendOrderConfirmationMagicEmail(
           phoneUser.id,
@@ -647,8 +635,7 @@ export async function processSellerStep2Action(payload: {
       userName: createdUser.name,
       userEmail: createdUser.email,
       userPhone: createdUser.phone,
-    }
-  } catch (e) {
+    } } catch (e) {
     console.error('processSellerStep2Action error:', e)
     return { status: 'error', error: 'حدث خطأ غير متوقع.' }
   }

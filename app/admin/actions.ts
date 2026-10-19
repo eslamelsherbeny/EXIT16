@@ -64,23 +64,35 @@ function verifyPassword(password: string, stored: string | null) {
   const cleanPass = password.trim()
 
   try {
-    if (cleanStored.startsWith('scrypt$')) {
-      const [, salt, expected] = cleanStored.split('$')
+    if (cleanStored.startsWith("scrypt$")) {
+      const [, salt, expected] = cleanStored.split("$")
       if (!salt || !expected) return false
-      const actual1 = scryptSync(password, salt, 64).toString('hex')
-      if (actual1.length === expected.length && timingSafeEqual(Buffer.from(actual1), Buffer.from(expected))) {
+      const actual1 = scryptSync(password, salt, 64).toString("hex")
+      if (
+        actual1.length === expected.length &&
+        timingSafeEqual(Buffer.from(actual1), Buffer.from(expected))
+      ) {
         return true
       }
-      const actual2 = scryptSync(cleanPass, salt, 64).toString('hex')
-      return actual2.length === expected.length && timingSafeEqual(Buffer.from(actual2), Buffer.from(expected))
+      const actual2 = scryptSync(cleanPass, salt, 64).toString("hex")
+      return (
+        actual2.length === expected.length &&
+        timingSafeEqual(Buffer.from(actual2), Buffer.from(expected))
+      )
     }
 
-    const sha1 = createHash('sha256').update(password).digest('hex')
-    if (sha1.length === cleanStored.length && timingSafeEqual(Buffer.from(sha1), Buffer.from(cleanStored))) {
+    const sha1 = createHash("sha256").update(password).digest("hex")
+    if (
+      sha1.length === cleanStored.length &&
+      timingSafeEqual(Buffer.from(sha1), Buffer.from(cleanStored))
+    ) {
       return true
     }
-    const sha2 = createHash('sha256').update(cleanPass).digest('hex')
-    if (sha2.length === cleanStored.length && timingSafeEqual(Buffer.from(sha2), Buffer.from(cleanStored))) {
+    const sha2 = createHash("sha256").update(cleanPass).digest("hex")
+    if (
+      sha2.length === cleanStored.length &&
+      timingSafeEqual(Buffer.from(sha2), Buffer.from(cleanStored))
+    ) {
       return true
     }
 
@@ -91,6 +103,7 @@ function verifyPassword(password: string, stored: string | null) {
 }
 
 function revalidateAdminAll() {
+  revalidatePath("/", "layout")
   revalidatePath("/admin", "layout")
   revalidatePath("/admin")
   revalidatePath("/admin/properties")
@@ -104,7 +117,7 @@ function revalidateAdminAll() {
 }
 
 // ==========================================
-// 1. التحكم في حالات طلبات البيع (العقارات)
+// 1. التحكم في حالات طلبات البيع (العقارات) + إشعار البائع والمشترين المطابقين
 // ==========================================
 export async function updatePropertyStatusAction(
   propertyId: string,
@@ -115,7 +128,9 @@ export async function updatePropertyStatusAction(
 
   const { data: prop } = await supabase
     .from("sell_requests")
-    .select("id, project_name, name, email")
+    .select(
+      "id, user_id, project_name, area, unit_type, paid_amount, contract_price, name, email"
+    )
     .eq("id", propertyId)
     .maybeSingle()
 
@@ -143,6 +158,109 @@ export async function updatePropertyStatusAction(
     }
   }
 
+  // أ) إرسال إشعار فوري للبائع صاحب الوحدة في جرس الإشعارات
+  if (prop?.user_id) {
+    const sellerNotifMap: Record<
+      string,
+      { title: string; message: string; type: string }
+    > = {
+      active: {
+        title: "تم نشر وحدتك في السوق 🎉",
+        message: `تمت الموافقة على وحدتك في (${prop.project_name || "مشروعك"}) وهي الآن معروضة أمام المشترين.`,
+        type: "status_update",
+      },
+      offer_received: {
+        title: "لديك عرض شراء جديد! 💰",
+        message: `يوجد مشتري جاد مهتم بوحدتك في (${prop.project_name || "مشروعك"}). تابع التفاصيل من حسابك.`,
+        type: "new_offer",
+      },
+      transferring: {
+        title: "بدء إجراءات نقل التعاقد 📄",
+        message: `وحدتك في (${prop.project_name || "مشروعك"}) دخلت مرحلة مراجعة المستندات ونقل الملكية.`,
+        type: "status_update",
+      },
+      sold: {
+        title: "مبروك! تمت عملية البيع بنجاح 🏆",
+        message: `تم إتمام بيع وحدتك ونقل التعاقد في (${prop.project_name || "مشروعك"}) بنجاح.`,
+        type: "status_update",
+      },
+      rejected: {
+        title: "ملاحظة بخصوص طلب وحدتك ⚠️",
+        message: reason
+          ? `يرجى مراجعة وحدتك: ${reason}`
+          : `يرجى مراجعة بيانات وحدتك في (${prop.project_name || "مشروعك"}) لإعادة النشر.`,
+        type: "status_update",
+      },
+    }
+
+    const sellerNotif = sellerNotifMap[status]
+    if (sellerNotif) {
+      try {
+        await supabase.from("notifications").insert({
+          user_id: prop.user_id,
+          title: sellerNotif.title,
+          message: sellerNotif.message,
+          type: sellerNotif.type,
+          link: `/account?view=seller&unitId=${prop.id}`,
+          is_read: false,
+        })
+      } catch {}
+    }
+  }
+
+  // ب) محرك المطابقة الذكي: إذا تم نشر الوحدة (active)، نرسل إشعاراً للمشترين المطابقين في الميزانية أو المنطقة!
+  if (status === "active" && prop) {
+    try {
+      const unitCash = Number(prop.paid_amount || 0)
+      const unitArea = String(prop.area || "").trim()
+
+      const { data: buyers } = await supabase
+        .from("buy_requests")
+        .select("user_id, available_cash, budget, preferred_areas")
+        .not("user_id", "is", null)
+
+      const matchedBuyerIds = new Set<string>()
+
+      ;(buyers || []).forEach((b: any) => {
+        if (!b.user_id || b.user_id === prop.user_id) return
+        const buyerMaxCash = Number(b.available_cash || b.budget || 0)
+        const areas: string[] = Array.isArray(b.preferred_areas)
+          ? b.preferred_areas
+          : []
+
+        const cashMatches =
+          buyerMaxCash === 0 ||
+          unitCash === 0 ||
+          unitCash <= buyerMaxCash * 1.25
+        const areaMatches =
+          areas.length === 0 ||
+          !unitArea ||
+          areas.some((a) => unitArea.includes(a) || a.includes(unitArea))
+
+        if (cashMatches && areaMatches) {
+          matchedBuyerIds.add(b.user_id)
+        }
+      })
+
+      if (matchedBuyerIds.size > 0) {
+        const cashFormatted = unitCash.toLocaleString("en-US")
+        const buyerNotifs = Array.from(matchedBuyerIds).map((buyerUserId) => ({
+          user_id: buyerUserId,
+          title: `فرصة جديدة تطابق طلبك في ${unitArea || "السوق"} 🎯`,
+          message: `نزلت وحدة (${prop.project_name || prop.unit_type || "سكنية"}) بمطلوب كاش ${cashFormatted} ج.م بدون أوفر.`,
+          type: "property_match",
+          link: `/opportunities/${prop.id}`,
+          is_read: false,
+        }))
+
+        await supabase.from("notifications").insert(buyerNotifs)
+      }
+    } catch (e) {
+      console.error("Smart Match Notification Error:", e)
+    }
+  }
+
+  // ج) إرسال البريد الإلكتروني للبائع
   if (prop?.email) {
     const statusMessages: Record<string, { subject: string; body: string }> = {
       active: {
@@ -196,13 +314,20 @@ export async function deletePropertyAction(propertyId: string) {
 }
 
 // ==========================================
-// 2. التحكم في حالات طلبات الشراء (المشترين)
+// 2. التحكم في حالات طلبات الشراء (المشترين) + إرسال إشعار للمشتري
 // ==========================================
 export async function updateBuyerLeadStatusAction(
   leadId: string,
   status: string
 ) {
   const supabase = await getSupabase()
+
+  const { data: lead } = await supabase
+    .from("buy_requests")
+    .select("id, user_id, name")
+    .eq("id", leadId)
+    .maybeSingle()
+
   const { error } = await supabase
     .from("buy_requests")
     .update({ status })
@@ -212,6 +337,26 @@ export async function updateBuyerLeadStatusAction(
     return {
       success: false,
       error: "تأكد من إضافة عمود status في جدول buy_requests.",
+    }
+  }
+
+  if (lead?.user_id) {
+    const buyerStatusText: Record<string, string> = {
+      contacted: "قام فريق المبيعات بمراجعة طلبك وجاري التواصل معك.",
+      qualified: "تم تجهيز قائمة بالفرص العقارية المطابقة لميزانيتك في حسابك.",
+      closed: "مبروك! تم إتمام تعاقدك بنجاح عبر منصة دارك.",
+    }
+    if (buyerStatusText[status]) {
+      try {
+        await supabase.from("notifications").insert({
+          user_id: lead.user_id,
+          title: "تحديث بخصوص طلب الشراء الخاص بك 🌟",
+          message: buyerStatusText[status],
+          type: "status_update",
+          link: "/account?view=buyer",
+          is_read: false,
+        })
+      } catch {}
     }
   }
 
@@ -360,9 +505,6 @@ export async function deleteUserByAdminAction(userId: string) {
 }
 
 // ==========================================
-// 5. تحديث الملف الشخصي للأدمن (مع التحقق من كلمة المرور القديمة)
-// ==========================================
-// ==========================================
 // 5. تحديث بيانات البروفايل (مع التحقق من الباسورد ودورة توثيق الإيميل)
 // ==========================================
 export async function updateAdminProfileDataAction(formData: FormData) {
@@ -375,18 +517,29 @@ export async function updateAdminProfileDataAction(formData: FormData) {
   const name = ((formData.get("name") as string) || "").trim()
   const email = ((formData.get("email") as string) || "").trim().toLowerCase()
   const rawPhone = ((formData.get("phone") as string) || "").trim()
-  const currentPassword = ((formData.get("currentPassword") as string) || "").trim()
+  const currentPassword = (
+    (formData.get("currentPassword") as string) || ""
+  ).trim()
 
   if (!name || !email || !rawPhone || !currentPassword) {
-    return { success: false, error: "الرجاء إكمال جميع الحقول وإدخال كلمة المرور للمصادقة." }
+    return {
+      success: false,
+      error: "الرجاء إكمال جميع الحقول وإدخال كلمة المرور للمصادقة.",
+    }
   }
 
   const supabase = await getSupabase()
 
-  // 1. المصادقة: التأكد من صحة الباسورد الحالي
-  const { data: user } = await supabase.from("users").select("password_hash, email").eq("id", sessionId).single()
+  const { data: user } = await supabase
+    .from("users")
+    .select("password_hash, email")
+    .eq("id", sessionId)
+    .single()
   if (!user || !verifyPassword(currentPassword, user.password_hash)) {
-    return { success: false, error: "كلمة المرور الحالية التي أدخلتها للمصادقة غير صحيحة." }
+    return {
+      success: false,
+      error: "كلمة المرور الحالية التي أدخلتها للمصادقة غير صحيحة.",
+    }
   }
 
   const stripped = rawPhone.replace(/^\+?20/, "").replace(/^0+/, "")
@@ -399,20 +552,21 @@ export async function updateAdminProfileDataAction(formData: FormData) {
 
   let successMessage = "تم تحديث بياناتك بنجاح."
 
-  // 2. دورة توثيق الإيميل إذا تم تغييره
   if (email !== user.email) {
     updateData.email = email
-    updateData.is_verified = false // تحويل الحساب لغير موثق
-    
-    const verifyToken = randomBytes(24).toString('hex')
+    updateData.is_verified = false
+
+    const verifyToken = randomBytes(24).toString("hex")
     updateData.otp_code = verifyToken
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://next-js-rtl-platform-structure.vercel.app'
+    const siteUrl =
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      "https://next-js-rtl-platform-structure.vercel.app"
     const verifyLink = `${siteUrl}/login?verified=1&email=${encodeURIComponent(email)}&token=${verifyToken}`
 
     await sendAdminEmail({
       to: email,
-      subject: 'دارك — تأكيد البريد الإلكتروني الجديد',
+      subject: "دارك — تأكيد البريد الإلكتروني الجديد",
       html: `<div dir="rtl" style="font-family: Arial, sans-serif; text-align: right; line-height: 1.6;">
               <h2 style="color: #101A2B;">مرحباً ${name}،</h2>
               <p>لقد قمت بتغيير بريدك الإلكتروني في منصة دارك. يرجى تأكيد هذا البريد بالضغط على الرابط أدناه لاستعادة توثيق حسابك:</p>
@@ -424,13 +578,20 @@ export async function updateAdminProfileDataAction(formData: FormData) {
              </div>`,
     })
 
-    successMessage = "تم تحديث البيانات. يرجى فحص بريدك الجديد لتأكيده وتوثيق الحساب."
+    successMessage =
+      "تم تحديث البيانات. يرجى فحص بريدك الجديد لتأكيده وتوثيق الحساب."
   }
 
-  const { error } = await supabase.from("users").update(updateData).eq("id", sessionId)
+  const { error } = await supabase
+    .from("users")
+    .update(updateData)
+    .eq("id", sessionId)
 
   if (error) {
-    return { success: false, error: "تعذر التحديث، قد يكون الإيميل أو الهاتف مستخدماً لحساب آخر." }
+    return {
+      success: false,
+      error: "تعذر التحديث، قد يكون الإيميل أو الهاتف مستخدماً لحساب آخر.",
+    }
   }
 
   if (formData.get("clearAdminRequests") === "1") {
@@ -450,30 +611,43 @@ export async function changeAdminPasswordAction(formData: FormData) {
   const sessionId = cookieStore.get("user_session")?.value
   if (!sessionId) return { success: false, error: "انتهت الجلسة." }
 
-  const currentPassword = ((formData.get("currentPassword") as string) || "").trim()
+  const currentPassword = (
+    (formData.get("currentPassword") as string) || ""
+  ).trim()
   const newPassword = ((formData.get("newPassword") as string) || "").trim()
 
   if (!currentPassword || !newPassword || newPassword.length < 8) {
-    return { success: false, error: "يرجى كتابة الباسورد الحالي والجديد (8 أحرف على الأقل)." }
+    return {
+      success: false,
+      error: "يرجى كتابة الباسورد الحالي والجديد (8 أحرف على الأقل).",
+    }
   }
 
   const supabase = await getSupabase()
-  const { data: user } = await supabase.from("users").select("password_hash").eq("id", sessionId).single()
-  
+  const { data: user } = await supabase
+    .from("users")
+    .select("password_hash")
+    .eq("id", sessionId)
+    .single()
+
   if (!user || !verifyPassword(currentPassword, user.password_hash)) {
     return { success: false, error: "كلمة المرور الحالية غير صحيحة." }
   }
 
   const newHash = hashPassword(newPassword)
-  const { error } = await supabase.from("users").update({ password_hash: newHash }).eq("id", sessionId)
+  const { error } = await supabase
+    .from("users")
+    .update({ password_hash: newHash })
+    .eq("id", sessionId)
 
   if (error) return { success: false, error: "تعذر تغيير كلمة المرور." }
 
   revalidateAdminAll()
   return { success: true }
 }
+
 // ==========================================
-// 6. حفظ إعدادات الموقع العامة وحالة الصيانة
+// 7. حفظ إعدادات الموقع العامة وحالة الصيانة
 // ==========================================
 export async function saveSiteSettingsAction(formData: FormData) {
   const cookieStore = await cookies()
@@ -481,16 +655,21 @@ export async function saveSiteSettingsAction(formData: FormData) {
 
   const settingsPayload = {
     siteName: ((formData.get("siteName") as string) || "دارك").trim(),
-    whatsappNumber: ((formData.get("whatsappNumber") as string) || "+201018595959").trim(),
-    supportEmail: ((formData.get("supportEmail") as string) || "support@darak.com").trim(),
-    buyerCommission: ((formData.get("buyerCommission") as string) || "1.25").trim(),
+    whatsappNumber: (
+      (formData.get("whatsappNumber") as string) || "+201018595959"
+    ).trim(),
+    supportEmail: (
+      (formData.get("supportEmail") as string) || "support@darak.com"
+    ).trim(),
+    buyerCommission: (
+      (formData.get("buyerCommission") as string) || "1.25"
+    ).trim(),
     maintenanceMode: formData.get("maintenanceMode") === "on",
     allowNewSells: formData.get("allowNewSells") === "on",
     allowNewBuys: formData.get("allowNewBuys") === "on",
     emailNotifications: formData.get("emailNotifications") === "on",
   }
 
-  // حفظ الإعدادات في الكوكيز وفي قاعدة البيانات إن وجد جدول site_settings
   cookieStore.set("darak_site_settings", JSON.stringify(settingsPayload), {
     path: "/",
     maxAge: 60 * 60 * 24 * 365,

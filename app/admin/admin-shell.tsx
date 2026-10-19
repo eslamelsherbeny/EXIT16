@@ -1,11 +1,12 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useTransition } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
   Bell,
   Building2,
+  CheckCheck,
   CheckCircle2,
   Clock,
   ExternalLink,
@@ -20,6 +21,10 @@ import {
   WalletCards,
   X,
 } from "lucide-react"
+import {
+  markAllNotificationsAsReadAction,
+  markNotificationAsReadAction,
+} from "@/app/actions/notification-actions"
 
 export type AdminNotificationItem = {
   id: string
@@ -27,6 +32,7 @@ export type AdminNotificationItem = {
   subtitle: string
   href: string
   type: "property" | "lead" | "investor"
+  isRead?: boolean
   createdAt: string
 }
 
@@ -82,20 +88,34 @@ export default function AdminShell({
   adminName,
   adminRole,
   notifications = [],
+  initialUnreadCount = 0,
   children,
 }: {
   adminName: string
   adminRole: string
   notifications?: AdminNotificationItem[]
+  initialUnreadCount?: number
   children: React.ReactNode
 }) {
   const pathname = usePathname()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
+  const [localNotifs, setLocalNotifs] = useState<AdminNotificationItem[]>(notifications)
+  const [unreadCount, setUnreadCount] = useState<number>(initialUnreadCount)
+  const [, startTransition] = useTransition()
   const notifRef = useRef<HTMLDivElement>(null)
 
   // استخراج الاسم الأول فقط لعرضه في الهيدر بدون قطع
   const firstName = adminName.trim().split(/\s+/)[0] || "مدير"
+
+  useEffect(() => {
+    setLocalNotifs(notifications)
+    const computedUnread =
+      initialUnreadCount > 0
+        ? initialUnreadCount
+        : notifications.filter((n) => !n.isRead).length
+    setUnreadCount(computedUnread)
+  }, [notifications, initialUnreadCount])
 
   useEffect(() => {
     setDrawerOpen(false)
@@ -121,11 +141,36 @@ export default function AdminShell({
   // دالة تسجيل الخروج المباشر
   const handleLogout = async () => {
     try {
-      // استدعاء ملف API وهمي أو دالة مسح الكوكيز لو أردت، أو استخدم الطريقة المبسطة:
       document.cookie = "user_session=; path=/; max-age=0;"
       document.cookie = "session_hint=; path=/; max-age=0;"
       window.location.replace("/")
     } catch {}
+  }
+
+  // فتح الجرس وتصفير العداد الأحمر فوراً وتحديث قاعدة البيانات
+  const handleToggleNotifications = () => {
+    const nextOpen = !notifOpen
+    setNotifOpen(nextOpen)
+
+    if (nextOpen && unreadCount > 0) {
+      setUnreadCount(0)
+      setLocalNotifs((prev) => prev.map((n) => ({ ...n, isRead: true })))
+      startTransition(async () => {
+        await markAllNotificationsAsReadAction()
+      })
+    }
+  }
+
+  // عند الضغط على إشعار بعينه
+  const handleNotificationClick = (id: string) => {
+    setNotifOpen(false)
+    setLocalNotifs((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, isRead: true } : item))
+    )
+    setUnreadCount((prev) => Math.max(0, prev - 1))
+    startTransition(async () => {
+      await markNotificationAsReadAction(id)
+    })
   }
 
   const currentSection =
@@ -297,7 +342,7 @@ export default function AdminShell({
                 <span>حسابي</span>
                 <User className="size-3.5 text-emerald-400" />
               </Link>
-              
+
               {/* فتح الموقع في تاب جديد */}
               <a
                 href="/"
@@ -357,13 +402,17 @@ export default function AdminShell({
             <div className="relative" ref={notifRef}>
               <button
                 type="button"
-                onClick={() => setNotifOpen((prev) => !prev)}
+                onClick={handleToggleNotifications}
                 className="relative flex size-9 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700 transition hover:bg-gray-50 sm:size-10"
+                aria-label="الإشعارات"
               >
                 <Bell className="size-4" />
-                {notifications.length > 0 && (
-                  <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-extrabold text-white">
-                    {notifications.length > 9 ? "+9" : notifications.length}
+                {unreadCount > 0 && (
+                  <span
+                    dir="ltr"
+                    className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-extrabold text-white"
+                  >
+                    {unreadCount > 9 ? "+9" : unreadCount}
                   </span>
                 )}
               </button>
@@ -371,8 +420,11 @@ export default function AdminShell({
               {notifOpen && (
                 <div className="fixed left-3 right-3 top-[68px] z-50 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl sm:absolute sm:left-0 sm:right-auto sm:top-12 sm:w-80">
                   <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50/80 px-4 py-3">
-                    <span className="text-xs font-extrabold text-[#0a1122]">
-                      التنبيهات والطلبات الجديدة ({notifications.length})
+                    <span className="flex items-center gap-1.5 text-xs font-extrabold text-[#0a1122]">
+                      <span>التنبيهات والطلبات</span>
+                      <span className="rounded-full bg-gray-200/80 px-2 py-0.5 text-[10px] text-gray-700">
+                        {localNotifs.length}
+                      </span>
                     </span>
                     <button
                       type="button"
@@ -384,23 +436,25 @@ export default function AdminShell({
                   </div>
 
                   <div className="max-h-80 divide-y divide-gray-100 overflow-y-auto">
-                    {notifications.length === 0 ? (
+                    {localNotifs.length === 0 ? (
                       <div className="flex flex-col items-center justify-center px-4 py-8 text-center">
                         <CheckCircle2 className="mb-2 size-8 text-emerald-500" />
                         <p className="text-xs font-bold text-[#0a1122]">
-                          لا توجد طلبات معلقة حالياً
+                          لا توجد إشعارات حالياً
                         </p>
                         <p className="mt-0.5 text-[11px] text-gray-400">
                           تمت مراجعة كافة العقارات والطلبات الجديدة.
                         </p>
                       </div>
                     ) : (
-                      notifications.map((item) => (
+                      localNotifs.map((item) => (
                         <Link
                           key={item.id}
                           href={item.href}
-                          onClick={() => setNotifOpen(false)}
-                          className="flex items-start gap-3 px-4 py-3 text-right transition hover:bg-gray-50"
+                          onClick={() => handleNotificationClick(item.id)}
+                          className={`flex items-start gap-3 px-4 py-3 text-right transition hover:bg-gray-50 ${
+                            !item.isRead ? "bg-emerald-50/40" : "bg-white"
+                          }`}
                         >
                           <span
                             className={`mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-xl text-xs font-bold ${
@@ -420,7 +474,11 @@ export default function AdminShell({
                             )}
                           </span>
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-xs font-extrabold text-[#0a1122]">
+                            <p
+                              className={`truncate text-xs text-[#0a1122] ${
+                                !item.isRead ? "font-extrabold" : "font-bold"
+                              }`}
+                            >
                               {item.title}
                             </p>
                             <p className="mt-0.5 truncate text-[11px] text-gray-500">
@@ -428,9 +486,14 @@ export default function AdminShell({
                             </p>
                             <p className="mt-1 flex items-center gap-1 text-[10px] text-gray-400">
                               <Clock className="size-3" />
-                              <span>{item.createdAt}</span>
+                              <span dir="ltr">{item.createdAt}</span>
                             </p>
                           </div>
+                          {!item.isRead ? (
+                            <span className="mt-2 size-2 shrink-0 rounded-full bg-red-500" />
+                          ) : (
+                            <CheckCheck className="mt-1.5 size-3.5 shrink-0 text-emerald-600/60" />
+                          )}
                         </Link>
                       ))
                     )}

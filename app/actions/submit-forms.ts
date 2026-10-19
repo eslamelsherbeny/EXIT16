@@ -17,7 +17,15 @@ async function getSupabase() {
   )
 }
 
-async function sendNotificationEmail({ to, subject, html }: { to: string; subject: string; html: string }) {
+async function sendNotificationEmail({
+  to,
+  subject,
+  html,
+}: {
+  to: string
+  subject: string
+  html: string
+}) {
   const user = process.env.EMAIL_USER?.trim()
   const pass = process.env.EMAIL_PASS?.replace(/\s+/g, '')
 
@@ -68,7 +76,9 @@ function integer(formData: FormData, key: string, fallback = 0) {
 }
 
 function list(formData: FormData, key: string) {
-  return formData.getAll(key).filter((value): value is string => typeof value === 'string' && value.length > 0)
+  return formData
+    .getAll(key)
+    .filter((value): value is string => typeof value === 'string' && value.length > 0)
 }
 
 function normalizeEmail(email: string) {
@@ -126,10 +136,16 @@ function verifyPassword(password: string, stored: string | null) {
       const [, salt, expected] = stored.split('$')
       if (!salt || !expected) return false
       const actual = scryptSync(password, salt, 64).toString('hex')
-      return actual.length === expected.length && timingSafeEqual(Buffer.from(actual), Buffer.from(expected))
+      return (
+        actual.length === expected.length &&
+        timingSafeEqual(Buffer.from(actual), Buffer.from(expected))
+      )
     }
     const actual = createHash('sha256').update(password).digest('hex')
-    return actual.length === stored.length && timingSafeEqual(Buffer.from(actual), Buffer.from(stored))
+    return (
+      actual.length === stored.length &&
+      timingSafeEqual(Buffer.from(actual), Buffer.from(stored))
+    )
   } catch {
     return false
   }
@@ -144,23 +160,31 @@ async function establishUser(
   const phoneVariants = getPhoneVariants(input.phone)
 
   if (!formattedPhone || !cleanEmail || !input.password || input.password.length < 8) {
-    return { userId: null, error: 'اكتب الاسم ورقم الموبايل والإيميل وكلمة سر لا تقل عن ٨ حروف.' }
+    return {
+      userId: null,
+      error: 'اكتب الاسم ورقم الموبايل والإيميل وكلمة سر لا تقل عن ٨ حروف.',
+    }
   }
 
   const hash = hashPassword(input.password)
 
-  // فحص الإيميل والهاتف بشكل منفصل لتحديد أي منهما مسجل مسبقاً بدقة
   const [{ data: emailMatches }, { data: phoneMatches }] = await Promise.all([
-    supabase.from('users').select('id, name, phone, email, password_hash').ilike('email', cleanEmail).limit(1),
-    supabase.from('users').select('id, name, phone, email, password_hash').in('phone', phoneVariants).limit(1),
+    supabase
+      .from('users')
+      .select('id, name, phone, email, password_hash')
+      .ilike('email', cleanEmail)
+      .limit(1),
+    supabase
+      .from('users')
+      .select('id, name, phone, email, password_hash')
+      .in('phone', phoneVariants)
+      .limit(1),
   ])
 
   const emailUser = emailMatches?.[0] || null
   const phoneUser = phoneMatches?.[0] || null
 
-  // إذا كان هناك حساب مسجل بالفعل
   if (emailUser || phoneUser) {
-    // إذا كان الإيميل لحساب والرقم لحساب آخر مختلف تماماً
     if (emailUser && phoneUser && emailUser.id !== phoneUser.id) {
       if (verifyPassword(input.password, emailUser.password_hash)) {
         await setUserSession(emailUser.id)
@@ -172,33 +196,35 @@ async function establishUser(
       }
       return {
         userId: null,
-        error: 'رقم الموبايل والبريد الإلكتروني مسجلان بحسابات سابقة. يرجى إدخال كلمة السر الصحيحة أو تغيير الرقم والإيميل معاً.',
+        error:
+          'رقم الموبايل والبريد الإلكتروني مسجلان بحسابات سابقة. يرجى إدخال كلمة السر الصحيحة أو تغيير الرقم والإيميل معاً.',
       }
     }
 
     const existing = emailUser || phoneUser!
 
-    // التحقق من كلمة السر للحساب الموجود
     if (!verifyPassword(input.password, existing.password_hash)) {
       if (emailUser && !phoneUser) {
         return {
           userId: null,
-          error: 'هذا البريد الإلكتروني مسجل بالفعل بحساب آخر. يرجى تغيير البريد الإلكتروني أو كتابة كلمة السر الصحيحة الخاصة به.',
+          error:
+            'هذا البريد الإلكتروني مسجل بالفعل بحساب آخر. يرجى تغيير البريد الإلكتروني أو كتابة كلمة السر الصحيحة الخاصة به.',
         }
       }
       if (phoneUser && !emailUser) {
         return {
           userId: null,
-          error: 'رقم الموبايل هذا مسجل بالفعل بحساب آخر. يرجى تغيير رقم الموبايل أو كتابة كلمة السر الصحيحة الخاصة به.',
+          error:
+            'رقم الموبايل هذا مسجل بالفعل بحساب آخر. يرجى تغيير رقم الموبايل أو كتابة كلمة السر الصحيحة الخاصة به.',
         }
       }
       return {
         userId: null,
-        error: 'رقم الموبايل والإيميل مسجلان بالفعل. يرجى كتابة كلمة السر الصحيحة للحساب أو تغيير الرقم والإيميل معاً.',
+        error:
+          'رقم الموبايل والإيميل مسجلان بالفعل. يرجى كتابة كلمة السر الصحيحة للحساب أو تغيير الرقم والإيميل معاً.',
       }
     }
 
-    // تحديث آمن لاسم المستخدم بدون التسبب في تعارض Unique Constraint
     const updates: Record<string, string> = { name: input.name }
     if (!existing.password_hash?.startsWith('scrypt$')) {
       updates.password_hash = hash
@@ -208,7 +234,6 @@ async function establishUser(
     return { userId: existing.id, error: null }
   }
 
-  // إنشاء مستخدم جديد تماماً
   const { data: created, error } = await supabase
     .from('users')
     .insert({
@@ -222,7 +247,10 @@ async function establishUser(
 
   if (error || !created) {
     console.error('Establish User Insert Error:', error)
-    return { userId: null, error: 'تعذر إنشاء الحساب. يرجى التأكد من عدم استخدام الرقم أو الإيميل سابقاً.' }
+    return {
+      userId: null,
+      error: 'تعذر إنشاء الحساب. يرجى التأكد من عدم استخدام الرقم أو الإيميل سابقاً.',
+    }
   }
 
   await setUserSession(created.id)
@@ -271,7 +299,12 @@ export async function submitSellRequest(formData: FormData): Promise<SubmitResul
     const phone = payload.phone
     const email = payload.email ?? ''
 
-    const account = await establishUser(supabase, { name: payload.name, phone, email, password })
+    const account = await establishUser(supabase, {
+      name: payload.name,
+      phone,
+      email,
+      password,
+    })
     if (account.error || !account.userId) {
       return { success: false, error: account.error ?? 'تعذر إنشاء الحساب.' }
     }
@@ -284,6 +317,28 @@ export async function submitSellRequest(formData: FormData): Promise<SubmitResul
     if (error) {
       return { success: false, error: 'تعذر حفظ الطلب. حاول مرة أخرى.' }
     }
+
+    // 1. إشعار فوري للأدمن في لوحة الإدارة + إشعار للبائع في حسابه
+    try {
+      await supabase.from('notifications').insert([
+        {
+          user_id: null, // للأدمن
+          title: `عقار بانتظار المراجعة: ${projectName || 'وحدة جديدة'}`,
+          message: `البائع: ${payload.name} · ${payload.area || '—'}`,
+          type: 'property',
+          link: '/admin/properties',
+          is_read: false,
+        },
+        {
+          user_id: account.userId, // للبائع
+          title: 'استلمنا طلب عرض وحدتك بنجاح 🏠',
+          message: `جاري مراجعة بيانات وحدتك في (${projectName || 'مشروعك'}) من قِبل الإدارة لنشرها.`,
+          type: 'status_update',
+          link: '/account?view=seller',
+          is_read: false,
+        },
+      ])
+    } catch {}
 
     if (email) {
       await sendNotificationEmail({
@@ -298,9 +353,13 @@ export async function submitSellRequest(formData: FormData): Promise<SubmitResul
     }
 
     revalidatePath('/account', 'page')
+    revalidatePath('/admin', 'layout')
     return { success: true }
   } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : 'تعذر إرسال الطلب' }
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'تعذر إرسال الطلب',
+    }
   }
 }
 
@@ -319,7 +378,9 @@ export type BuyRequestPayload = {
   password: string
 }
 
-export async function submitBuyRequest(input: BuyRequestPayload | FormData): Promise<SubmitResult> {
+export async function submitBuyRequest(
+  input: BuyRequestPayload | FormData
+): Promise<SubmitResult> {
   try {
     const supabase = await getSupabase()
 
@@ -378,6 +439,32 @@ export async function submitBuyRequest(input: BuyRequestPayload | FormData): Pro
       return { success: false, error: 'تعذر حفظ الطلب. حاول مرة أخرى.' }
     }
 
+    // إشعار فوري للأدمن + إشعار للمشتري في جرس الإشعارات
+    try {
+      const cashFormatted = Number(
+        cleanPayload.available_cash || cleanPayload.budget || 0
+      ).toLocaleString('en-US')
+
+      await supabase.from('notifications').insert([
+        {
+          user_id: null, // للأدمن
+          title: `طلب شراء جديد: ${payload.name}`,
+          message: `الكاش المتاح: ${cashFormatted} ج.م`,
+          type: 'lead',
+          link: '/admin/leads',
+          is_read: false,
+        },
+        {
+          user_id: account.userId, // للمشتري
+          title: 'تم تفعيل رادار الفرص العقارية لحسابك 🎯',
+          message: `تم حفظ ميزانيتك (${cashFormatted} ج.م)، وسنرسل لك إشعاراً فور نزول أي وحدة مطابقة.`,
+          type: 'property_match',
+          link: '/account?view=buyer',
+          is_read: false,
+        },
+      ])
+    } catch {}
+
     if (email) {
       await sendNotificationEmail({
         to: email,
@@ -390,9 +477,13 @@ export async function submitBuyRequest(input: BuyRequestPayload | FormData): Pro
     }
 
     revalidatePath('/account', 'page')
+    revalidatePath('/admin', 'layout')
     return { success: true }
   } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : 'تعذر إرسال الطلب' }
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'تعذر إرسال الطلب',
+    }
   }
 }
 
@@ -400,7 +491,8 @@ export async function saveSellProgress(formData: FormData): Promise<SubmitResult
   try {
     const supabase = await getSupabase()
     const sessionId = (await cookies()).get('user_session')?.value
-    if (!sessionId) return { success: false, error: 'انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى.' }
+    if (!sessionId)
+      return { success: false, error: 'انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى.' }
 
     const payload = {
       developer_name: text(formData, 'developer_name') || null,
@@ -469,8 +561,23 @@ export async function submitInvestorLead(formData: FormData): Promise<SubmitResu
       return { success: false, error: 'تعذر إرسال بيانات المستثمرين. حاول مرة أخرى.' }
     }
 
+    try {
+      await supabase.from('notifications').insert({
+        user_id: null,
+        title: `طلب مستثمر جديد: ${payload.name}`,
+        message: `المبلغ: ${payload.investment_range || 'غير محدد'}`,
+        type: 'investor',
+        link: '/admin/investors',
+        is_read: false,
+      })
+    } catch {}
+
+    revalidatePath('/admin', 'layout')
     return { success: true }
   } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : 'تعذر إرسال الطلب' }
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'تعذر إرسال الطلب',
+    }
   }
 }

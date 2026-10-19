@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, useTransition, useEffect } from 'react'
+import { useMemo, useState, useTransition } from 'react'
 import Link from 'next/link'
 import {
   ArrowDown,
@@ -114,13 +114,11 @@ export function BuyerDashboard({
   marketUnits: SellerUnitItem[]
   deletionRequested?: boolean
 }) {
+  // التبديل بين شاشة الفرص وشاشة "عدّل ميزانيتك" (الصورة 39)
   const [isEditingBudget, setIsEditingBudget] = useState(false)
   const [savedToast, setSavedToast] = useState(false)
   const [isPending, startTransition] = useTransition()
-  
-  // حالات الـ Pagination للقسمين (المنطقة المفضلة والمناطق الأخرى)
-  const [visiblePreferredCount, setVisiblePreferredCount] = useState(20)
-  const [visibleOtherCount, setVisibleOtherCount] = useState(6)
+  const [visibleCount, setVisibleCount] = useState(20)
 
   // بيانات الميزانية القابلة للتعديل
   const [bCash, setBCash] = useState<number>(
@@ -155,7 +153,7 @@ export function BuyerDashboard({
     buyReq?.notify_featured ?? true
   )
 
-  // حالات الفلاتر في صفحة الفرص
+  // حالات الفلاتر في صفحة الفرص (الصور 31 - 37)
   const [activePills, setActivePills] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [filterPanelOpen, setFilterPanelOpen] = useState(false)
@@ -171,26 +169,6 @@ export function BuyerDashboard({
   const [delYearFilter, setDelYearFilter] = useState('الكل')
   const [conYearFilter, setConYearFilter] = useState('الكل')
   const [minRoomsFilter, setMinRoomsFilter] = useState('الكل')
-
-  // إعادة ضبط العداد عند تغيير الفلاتر
-  useEffect(() => {
-    setVisiblePreferredCount(20)
-    setVisibleOtherCount(6)
-  }, [
-    searchQuery,
-    areaFilter,
-    onlyNegotiable,
-    selectedTypes,
-    delStatusFilter,
-    delYearFilter,
-    conYearFilter,
-    minRoomsFilter,
-    maxCashFilter,
-    maxInstFilter,
-    maxContractFilter,
-    activePills,
-    sortBy,
-  ])
 
   const togglePill = (pill: string) => {
     setActivePills((prev) =>
@@ -219,6 +197,7 @@ export function BuyerDashboard({
     setMinRoomsFilter('الكل')
   }
 
+  // تجهيز الوحدات من الداتابيز مع حساب شارات التطابق لكل وحدة
   const mappedUnits = useMemo(() => {
     const buyerMaxMonthly = calcMonthlyInstallment(bInstallment, bPlan)
 
@@ -247,6 +226,7 @@ export function BuyerDashboard({
       const unitArea = u.area || 'التجمع الخامس'
       const unitType = u.unit_type || 'شقة'
 
+      // حساب شارات التطابق الخضراء التي تظهر أسفل الكارت (الصور 32 و 33)
       const matchTags: string[] = []
       const isCashMatch = bCash === 0 || paid <= bCash * 1.15
       const isInstMatch =
@@ -295,6 +275,7 @@ export function BuyerDashboard({
     })
   }, [marketUnits, bCash, bInstallment, bPlan, bAreas, bTypes])
 
+  // تطبيق الفلاتر
   const filteredUnits = useMemo(() => {
     const maxCashVal = Number(maxCashFilter.replace(/,/g, ''))
     const maxInstVal = Number(maxInstFilter.replace(/,/g, ''))
@@ -339,6 +320,7 @@ export function BuyerDashboard({
       if (maxInstVal > 0 && item.monthlyInst > maxInstVal) return false
       if (maxConVal > 0 && item.contractNum > maxConVal) return false
 
+      // فلاتر الأزرار السريعة (فلتر بطلبك)
       if (activePills.includes('منطقتك') && !item.isAreaMatch) return false
       if (activePills.includes('الكاش المتاح') && !item.isCashMatch)
         return false
@@ -444,7 +426,7 @@ export function BuyerDashboard({
     })
   }
 
-  // ==================== الشاشة الفرعية: "عدّل ميزانيتك" ====================
+  // ==================== الشاشة الفرعية: "عدّل ميزانيتك" (الصورة 39) ====================
   if (isEditingBudget) {
     return (
       <div className="mx-auto max-w-[660px] px-4 py-4 sm:px-6">
@@ -699,6 +681,7 @@ export function BuyerDashboard({
             </button>
           </div>
 
+          {/* كارت إعدادات الإشعارات كما في الصورة 39 */}
           <div className="rounded-[22px] border border-gray-200/80 bg-white p-6 text-right shadow-xs sm:p-7">
             <h3 className="text-sm font-black text-[#0a1122]">الإشعارات</h3>
             <div className="mt-4 space-y-4">
@@ -757,16 +740,11 @@ export function BuyerDashboard({
     )
   }
 
-  // ==================== الشاشة الرئيسية للمشتري: "فرص تناسب ميزانيتك" ====================
+  // ==================== الشاشة الرئيسية للمشتري: "فرص تناسب ميزانيتك" (الصور 31 - 37) ====================
   return (
     <div className="mx-auto max-w-[1020px] px-3 sm:px-6">
+      {/* شريط علوي لأزرار الحساب (لأن صفحة المشتري طويلة كما طلبت) */}
       
-      {/* شريط الأزرار العلوي للوصول السريع لحسابي وتسجيل الخروج */}
-      <AccountActionLinks
-        unitsCount={0}
-        initialDeletionRequested={deletionRequested}
-        position="top"
-      />
 
       {savedToast && (
         <div className="mb-4 rounded-xl bg-[#eff9f5] p-3 text-center text-xs font-bold text-[#0b6954]">
@@ -774,7 +752,7 @@ export function BuyerDashboard({
         </div>
       )}
 
-      {/* الهيدر */}
+      {/* الهيدر: فرص تناسب ميزانيتك + عروضي + عدّل ميزانيتك */}
       <header className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-xl font-extrabold text-[#0a1122] sm:text-2xl">
           فرص تناسب ميزانيتك
@@ -913,7 +891,7 @@ export function BuyerDashboard({
           </div>
         </div>
 
-        {/* شارات الفلاتر النشطة */}
+        {/* شارات الفلاتر النشطة كما في الصورة 36 */}
         {activeFiltersCount > 0 && (
           <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-2.5">
             {onlyNegotiable && (
@@ -959,7 +937,7 @@ export function BuyerDashboard({
         )}
       </section>
 
-      {/* لوحة الفلترة المتقدمة (تظهر عند فتح "فلترة") */}
+      {/* لوحة الفلترة المتقدمة الكاملة (الصور 34 و 35) */}
       {filterPanelOpen && (
         <section className="mt-3 rounded-[20px] border border-gray-200/80 bg-white p-5 text-right shadow-xs sm:p-7">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -1173,7 +1151,7 @@ export function BuyerDashboard({
         </section>
       )}
 
-      {/* ==================== عرض نتائج البحث أو رسالة الفراغ ==================== */}
+      {/* عرض النتائج أو رسالة "مفيش وحدات مطابقة" (الصورة 36) */}
       {filteredUnits.length === 0 ? (
         <div className="mt-6 rounded-[20px] border border-gray-200/80 bg-white p-10 text-center shadow-2xs">
           <p className="text-sm font-bold text-gray-600">
@@ -1189,7 +1167,6 @@ export function BuyerDashboard({
         </div>
       ) : (
         <>
-          {/* قسم الوحدات في المنطقة المطلوبة + الـ Pagination الخاصة بها */}
           {unitsInPreferredArea.length > 0 && (
             <section className="mt-7">
               <h2 className="mb-4 text-right text-sm font-extrabold text-[#0a1122] sm:text-base">
@@ -1199,68 +1176,38 @@ export function BuyerDashboard({
                 </span>
               </h2>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {unitsInPreferredArea.slice(0, visiblePreferredCount).map((u) => (
+                {unitsInPreferredArea.map((u) => (
                   <BuyerUnitCard key={u.id} unit={u} />
                 ))}
               </div>
-
-              {unitsInPreferredArea.length > visiblePreferredCount && (
-                <div className="mt-8 flex justify-center">
-                  <button
-                    type="button"
-                    onClick={() => setVisiblePreferredCount((prev) => prev + 20)}
-                    className="rounded-full border border-gray-200 bg-white px-7 py-2.5 text-xs font-bold text-[#0a1122] shadow-2xs transition hover:border-[#0b6954] hover:bg-gray-50 active:scale-95"
-                  >
-                    اعرض {Math.min(20, unitsInPreferredArea.length - visiblePreferredCount)} فرصة كمان ({unitsInPreferredArea.length - visiblePreferredCount} متبقية)
-                  </button>
-                </div>
-              )}
             </section>
           )}
 
-          {/* قسم الفرص في مناطق أخرى + الـ Pagination الخاصة بها */}
           {unitsInOtherAreas.length > 0 && (
-            <section className="mt-10 border-t border-gray-200/60 pt-8">
+            <section className="mt-10">
               <div className="mb-4 flex items-center justify-start gap-1.5 text-right">
                 <Star className="size-4 fill-amber-400 text-amber-500" />
                 <h2 className="text-sm font-extrabold text-[#0a1122] sm:text-base">
-                  فرص مميزة مناسبة لميزانيتك في مناطق تانية
+                  فرص مميزة مناسبة ليك في مناطق تانية ({unitsInOtherAreas.length})
                 </h2>
-                <span className="font-normal text-gray-400 text-sm">
-                  ({unitsInOtherAreas.length})
-                </span>
               </div>
-              
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {unitsInOtherAreas.slice(0, visibleOtherCount).map((u) => (
+                {unitsInOtherAreas.map((u) => (
                   <BuyerUnitCard key={u.id} unit={u} />
                 ))}
               </div>
-
-              {unitsInOtherAreas.length > visibleOtherCount && (
-                <div className="mt-8 flex justify-center">
-                  <button
-                    type="button"
-                    onClick={() => setVisibleOtherCount((prev) => prev + 20)}
-                    className="rounded-full border border-gray-200 bg-white px-7 py-2.5 text-xs font-bold text-[#0a1122] shadow-2xs transition hover:border-[#0b6954] hover:bg-gray-50 active:scale-95"
-                  >
-                    شوف مناطق تانية كمان ({unitsInOtherAreas.length - visibleOtherCount} متبقية)
-                  </button>
-                </div>
-              )}
             </section>
           )}
         </>
       )}
+      
 
-      {/* شريط الأزرار في الأسفل لتسهيل الوصول */}
-      <div className="mt-12 border-t border-gray-200 pt-6">
-        <AccountActionLinks
-          unitsCount={0}
-          initialDeletionRequested={deletionRequested}
-          position="bottom"
-        />
-      </div>
+      {/* شريط أزرار الحساب في الأسفل أيضاً */}
+      <AccountActionLinks
+        unitsCount={0}
+        initialDeletionRequested={deletionRequested}
+        position="bottom"
+      />
     </div>
   )
 }

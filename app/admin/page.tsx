@@ -171,7 +171,7 @@ export default async function AdminPage() {
         </div>
       </div>
 
-      {/* بطاقات الإحصائيات (KPIs) - تصميم احترافي جديد */}
+      {/* بطاقات الإحصائيات (KPIs) - تصميم احترافي جديد ومربع */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         {kpis.map(({ label, value, suffix, note, icon: Icon, href, highlight }) => (
           <Link
@@ -186,43 +186,42 @@ export default async function AdminPage() {
                   : "border-gray-200/80 bg-white shadow-sm hover:border-[#105C50]/60 hover:shadow-md"
               }`}
             >
-              <CardContent className="flex h-full flex-col justify-between gap-4 p-4 sm:p-5">
+              <CardContent className="flex h-full flex-col justify-between p-4 sm:p-5">
                 
-                {/* 1. الأيقونة والنص في صف واحد (محاذاة لليمين) */}
+                {/* 1. الأيقونة في اليمين وبجانبها النص */}
                 <div className="flex items-center gap-2.5">
                   <span
-                    className={`flex size-8 shrink-0 items-center justify-center rounded-xl transition-colors sm:size-9 ${
+                    className={`flex size-8 shrink-0 items-center justify-center rounded-lg transition-colors sm:size-10 ${
                       highlight
                         ? "bg-[#105C50] text-white"
                         : "bg-[#105C50]/10 text-[#105C50] group-hover:bg-[#105C50] group-hover:text-white"
                     }`}
                   >
-                    <Icon className="size-4 sm:size-4.5" />
+                    <Icon className="size-4 sm:size-5" />
                   </span>
-                  <p className="text-[11px] font-bold text-gray-600 transition-colors group-hover:text-[#105C50] sm:text-xs">
+                  <p className="text-[11px] font-bold text-gray-500 transition-colors group-hover:text-[#105C50] sm:text-xs">
                     {label}
                   </p>
                 </div>
 
-                {/* 2. الرقم الكبير والعملة (محاذاة لليمين مع وضع العملة في اليسار) */}
-                <div className="mt-1 flex items-baseline gap-1.5">
-                  <span
-                    dir="ltr"
-                    className="text-2xl font-black tracking-tight text-[#0a1122] sm:text-3xl"
-                  >
-                    {value}
-                  </span>
-                  {suffix && (
-                    <span className="text-[10px] font-extrabold text-gray-400 sm:text-[11px]">
-                      {suffix}
+                {/* 2. الرقم الكبير في المنتصف، والعملة على الشمال */}
+                <div className="flex flex-1 items-center justify-center py-4">
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-3xl font-black tracking-tight text-[#0a1122] sm:text-4xl">
+                      {value}
                     </span>
-                  )}
+                    {suffix && (
+                      <span className="text-[11px] font-extrabold text-gray-400 sm:text-xs">
+                        {suffix}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
-                {/* 3. الملاحظة السفلية */}
-                <div className="mt-1">
+                {/* 3. الملاحظة السفلية محاذاة لليمين عادي */}
+                <div className="text-right">
                   <p
-                    className={`text-[10px] font-semibold sm:text-[11px] ${
+                    className={`text-[10px] font-semibold sm:text-xs ${
                       highlight ? "text-[#105C50]" : "text-gray-500"
                     }`}
                   >
@@ -237,7 +236,7 @@ export default async function AdminPage() {
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-5 sm:mt-7 lg:grid-cols-3">
-        {/* أحدث طلبات البائعين (العقارات) */}
+        {/* أحدث طلبات البائعين (العقارات) - كل صف أو كارت يفتح صفحة العقارات عند الضغط عليه */}
         <Card className="border-gray-200/80 bg-white shadow-sm lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between border-b border-gray-100 p-4 sm:p-6">
             <div>

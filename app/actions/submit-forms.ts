@@ -2,7 +2,7 @@
 
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
-import { createHash, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
+import { createHash, createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
 import nodemailer from 'nodemailer'
 
@@ -44,7 +44,7 @@ async function sendNotificationEmail({
     })
 
     await transporter.sendMail({
-      from: `"دارك للعقارات" <${user}>`,
+      from: `"عقار إكزت - Aqar Exit" <${user}>`,
       to: to.trim(),
       subject,
       html,
@@ -99,7 +99,69 @@ function formatPrimaryPhone(rawPhone: string) {
   return `+20${stripped}`
 }
 
-export type SubmitResult = { success: boolean; error?: string }
+function generateOrderRef(id?: string) {
+  if (id) {
+    const clean = id.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()
+    if (clean.length >= 6) return `AE-${clean.slice(0, 6)}`
+  }
+  return `AE-${randomBytes(3).toString('hex').toUpperCase()}`
+}
+
+function createMagicToken(userId: string, unitId: string, expiresAt: number) {
+  const secret =
+    process.env.EMAIL_PASS ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    'darak-secret-key'
+  const payload = `${userId}:${unitId}:${expiresAt}`
+  const sig = createHmac('sha256', secret).update(payload).digest('hex')
+  return Buffer.from(`${payload}:${sig}`).toString('base64url')
+}
+
+export async function verifyMagicTokenAction(token: string) {
+  try {
+    const decoded = Buffer.from(token, 'base64url').toString('utf8')
+    const [userId, unitId, expiresStr, sig] = decoded.split(':')
+    const expiresAt = Number(expiresStr)
+    if (!userId || !expiresAt || Date.now() > expiresAt) {
+      return { valid: false, error: 'الرابط منتهي الصلاحية.' }
+    }
+
+    const secret =
+      process.env.EMAIL_PASS ||
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+      'darak-secret-key'
+    const expectedSig = createHmac('sha256', secret)
+      .update(`${userId}:${unitId}:${expiresAt}`)
+      .digest('hex')
+
+    if (sig !== expectedSig) return { valid: false, error: 'رابط غير صالح.' }
+
+    const supabase = await getSupabase()
+    const { data: unit } = await supabase
+      .from('sell_requests')
+      .select('*')
+      .eq('id', unitId)
+      .maybeSingle()
+
+    await setUserSession(userId)
+
+    return {
+      valid: true,
+      userId,
+      unitId,
+      unit,
+    }
+  } catch {
+    return { valid: false, error: 'تعذر التحقق من الرابط.' }
+  }
+}
+
+export type SubmitResult = {
+  success: boolean
+  error?: string
+  unitId?: string
+  orderRef?: string
+}
 
 async function setUserSession(userId: string) {
   const cookieStore = await cookies()
@@ -131,139 +193,696 @@ function hashPassword(password: string) {
 
 function verifyPassword(password: string, stored: string | null) {
   if (!stored) return false
+  const cleanStored = stored.trim()
+  const cleanPass = password.trim()
   try {
-    if (stored.startsWith('scrypt$')) {
-      const [, salt, expected] = stored.split('$')
+    if (cleanStored.startsWith('scrypt$')) {
+      const [, salt, expected] = cleanStored.split('$')
       if (!salt || !expected) return false
-      const actual = scryptSync(password, salt, 64).toString('hex')
+      const actual1 = scryptSync(password, salt, 64).toString('hex')
+      if (
+        actual1.length === expected.length &&
+        timingSafeEqual(Buffer.from(actual1), Buffer.from(expected))
+      ) {
+        return true
+      }
+      const actual2 = scryptSync(cleanPass, salt, 64).toString('hex')
       return (
-        actual.length === expected.length &&
-        timingSafeEqual(Buffer.from(actual), Buffer.from(expected))
+        actual2.length === expected.length &&
+        timingSafeEqual(Buffer.from(actual2), Buffer.from(expected))
       )
     }
     const actual = createHash('sha256').update(password).digest('hex')
-    return (
-      actual.length === stored.length &&
-      timingSafeEqual(Buffer.from(actual), Buffer.from(stored))
-    )
+    if (
+      actual.length === cleanStored.length &&
+      timingSafeEqual(Buffer.from(actual), Buffer.from(cleanStored))
+    ) {
+      return true
+    }
+    return cleanStored === password || cleanStored === cleanPass
   } catch {
     return false
   }
 }
 
-async function establishUser(
-  supabase: Awaited<ReturnType<typeof getSupabase>>,
-  input: { name: string; phone: string; email: string; password: string }
-) {
-  const cleanEmail = normalizeEmail(input.email)
-  const formattedPhone = formatPrimaryPhone(input.phone)
-  const phoneVariants = getPhoneVariants(input.phone)
+// ==========================================
+// أ) جلب بيانات المستخدم المسجل حالياً لخيار "كمّل بحسابك الحالي"
+// ==========================================
+export async function getCurrentSellerProfileAction() {
+  try {
+    const cookieStore = await cookies()
+    const sessionId = cookieStore.get('user_session')?.value
+    if (!sessionId) return { isLoggedIn: false, user: null }
 
-  if (!formattedPhone || !cleanEmail || !input.password || input.password.length < 8) {
-    return {
-      userId: null,
-      error: 'اكتب الاسم ورقم الموبايل والإيميل وكلمة سر لا تقل عن ٨ حروف.',
-    }
+    const supabase = await getSupabase()
+    const { data: user } = await supabase
+      .from('users')
+      .select('id, name, email, phone')
+      .eq('id', sessionId)
+      .maybeSingle()
+
+    if (!user) return { isLoggedIn: false, user: null }
+    return { isLoggedIn: true, user }
+  } catch {
+    return { isLoggedIn: false, user: null }
   }
+}
 
-  const hash = hashPassword(input.password)
+// ==========================================
+// ب) الدالة الذكية للخطوة الثانية (تتعامل مع كل حالات الحسابات وتنشئ الطلب المبدئي)
+// ==========================================
+export type Step2AuthResponse = {
+  status:
+    | 'ok'
+    | 'email_exists_need_password'
+    | 'phone_exists_different_email'
+    | 'error'
+  userId?: string
+  unitId?: string
+  orderRef?: string
+  userName?: string
+  userEmail?: string
+  userPhone?: string
+  error?: string
+}
 
-  const [{ data: emailMatches }, { data: phoneMatches }] = await Promise.all([
-    supabase
-      .from('users')
-      .select('id, name, phone, email, password_hash')
-      .ilike('email', cleanEmail)
-      .limit(1),
-    supabase
-      .from('users')
-      .select('id, name, phone, email, password_hash')
-      .in('phone', phoneVariants)
-      .limit(1),
-  ])
+export async function processSellerStep2Action(payload: {
+  mode: 'session' | 'login' | 'register'
+  developer: string
+  project: string
+  contractPrice: number
+  paidAmount: number
+  marketPrice?: number
+  name?: string
+  phone?: string
+  email?: string
+  password?: string
+  loginIdentifier?: string
+  existingUnitId?: string
+}): Promise<Step2AuthResponse> {
+  try {
+    const supabase = await getSupabase()
+    const siteUrl =
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      'https://next-js-rtl-platform-structure.vercel.app'
 
-  const emailUser = emailMatches?.[0] || null
-  const phoneUser = phoneMatches?.[0] || null
+    // دالة داخلية لحفظ أو تحديث الوحدة المبدئية في قاعدة البيانات فور انتهاء الخطوة 2
+    async function upsertDraftUnit(
+      userId: string,
+      contact: { name: string; phone: string; email: string }
+    ) {
+      const unitData: Record<string, any> = {
+        user_id: userId,
+        developer_name: payload.developer || null,
+        project_name: payload.project || null,
+        contract_price: Number(payload.contractPrice) || 0,
+        paid_amount: Number(payload.paidAmount) || 0,
+        market_price:
+          Number(payload.marketPrice) || Number(payload.contractPrice) || 0,
+        name: contact.name || 'مالك الوحدة',
+        phone: contact.phone,
+        email: contact.email || null,
+        is_original_owner: true,
+        status: 'pending',
+      }
 
-  if (emailUser || phoneUser) {
-    if (emailUser && phoneUser && emailUser.id !== phoneUser.id) {
-      if (verifyPassword(input.password, emailUser.password_hash)) {
+      if (payload.existingUnitId) {
+        await supabase
+          .from('sell_requests')
+          .update(unitData)
+          .eq('id', payload.existingUnitId)
+        return payload.existingUnitId
+      }
+
+      const { data: inserted } = await supabase
+        .from('sell_requests')
+        .insert(unitData)
+        .select('id')
+        .single()
+
+      const newUnitId = inserted?.id ? String(inserted.id) : ''
+
+      // إرسال إشعار للإدارة وللبائع
+      try {
+        await supabase.from('notifications').insert([
+          {
+            user_id: null,
+            title: `عقار جديد بانتظار استكمال البيانات: ${payload.project || 'وحدة سكنية'}`,
+            message: `المالك: ${contact.name} · المدفوع: ${Number(payload.paidAmount || 0).toLocaleString('en-US')} ج.م`,
+            type: 'property',
+            link: '/admin/properties',
+            is_read: false,
+          },
+          {
+            user_id: userId,
+            title: 'تم تسجيل طلب عرض وحدتك بنجاح 🏠',
+            message: `استلمنا البيانات الأساسية لوحدتك في (${payload.project || 'مشروعك'}). يمكنك استكمال باقي التفاصيل في أي وقت.`,
+            type: 'status_update',
+            link: '/account?view=seller',
+            is_read: false,
+          },
+        ])
+      } catch {}
+
+      return newUnitId
+    }
+
+    // إرسال إيميل تأكيد الطلب مع الرابط السحري للعودة للخطوة 3 مباشرة بدون باسورد
+    async function sendOrderConfirmationMagicEmail(
+      userId: string,
+      unitId: string,
+      userName: string,
+      userEmail: string
+    ) {
+      if (!userEmail || !unitId) return
+      const orderRef = generateOrderRef(unitId)
+      const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000 // صالح لمدة 7 أيام
+      const magicToken = createMagicToken(userId, unitId, expiresAt)
+      const magicLink = `${siteUrl}/sell?magic=${encodeURIComponent(magicToken)}`
+      const paidFormatted = Number(payload.paidAmount || 0).toLocaleString('en-US')
+
+      await sendNotificationEmail({
+        to: userEmail,
+        subject: `وصلنا طلبك ${orderRef} — عقار إكزت`,
+        html: `<div dir="rtl" style="font-family: Arial, sans-serif; text-align: right; line-height: 1.8; color: #0a1122;">
+                <p style="font-size: 16px;">أهلاً <strong>${userName}</strong>،</p>
+                <p>وصلنا طلبك — رقم الطلب: <strong>${orderRef}</strong>.</p>
+                <p>للتأكيد: المبلغ اللي هتستلمه عند إتمام التنازل هو <strong>${paidFormatted} ج.م</strong> — اللي دفعته بالظبط، بدون أي أوفر.</p>
+                <p>كمّل بيانات وحدتك من اللينك ده — مش محتاج كلمة سر ولا تسجيل دخول:</p>
+                <p style="margin: 18px 0;">
+                  <a href="${magicLink}" style="color: #0b6954; font-weight: bold; word-break: break-all;">${magicLink}</a>
+                </p>
+                <p>ضفنا الطلب ده على الوحدة اللي عندك عندنا، فمفيش أي بيانات ضاعت.</p>
+                <p>محتاج حاجة؟ كلمنا واتساب: <a href="https://wa.me/201018595959">https://wa.me/201018595959</a></p>
+               </div>`,
+      }).catch(() => {})
+    }
+
+    // =====================================================
+    // الحالة 1: العميل اختار "كمّل بحسابي المسجل حالياً"
+    // =====================================================
+    if (payload.mode === 'session') {
+      const cookieStore = await cookies()
+      const sessionId = cookieStore.get('user_session')?.value
+      if (!sessionId) {
+        return { status: 'error', error: 'انتهت الجلسة، يرجى تسجيل الدخول.' }
+      }
+
+      const { data: currentUser } = await supabase
+        .from('users')
+        .select('id, name, email, phone')
+        .eq('id', sessionId)
+        .maybeSingle()
+
+      if (!currentUser) {
+        return { status: 'error', error: 'لم يتم العثور على بيانات الحساب.' }
+      }
+
+      const unitId = await upsertDraftUnit(currentUser.id, {
+        name: currentUser.name || 'مالك الوحدة',
+        phone: currentUser.phone || '',
+        email: currentUser.email || '',
+      })
+
+      const orderRef = generateOrderRef(unitId)
+      if (currentUser.email) {
+        sendOrderConfirmationMagicEmail(
+          currentUser.id,
+          unitId,
+          currentUser.name || 'عميلنا العزيز',
+          currentUser.email
+        )
+      }
+
+      return {
+        status: 'ok',
+        userId: currentUser.id,
+        unitId,
+        orderRef,
+        userName: currentUser.name,
+        userEmail: currentUser.email,
+        userPhone: currentUser.phone,
+      }
+    }
+
+    // =====================================================
+    // الحالة 2: العميل اختار تبويب "عندي حساب بالفعل" (تسجيل دخول مباشر)
+    // =====================================================
+    if (payload.mode === 'login') {
+      const rawIdentifier = (payload.loginIdentifier || '').trim()
+      const password = payload.password || ''
+
+      if (!rawIdentifier || !password) {
+        return {
+          status: 'error',
+          error: 'يرجى إدخال البريد الإلكتروني/الموبايل وكلمة السر.',
+        }
+      }
+
+      let candidates: any[] = []
+      if (rawIdentifier.includes('@')) {
+        const { data } = await supabase
+          .from('users')
+          .select('id, name, email, phone, password_hash')
+          .ilike('email', normalizeEmail(rawIdentifier))
+        candidates = data || []
+      } else {
+        const variants = getPhoneVariants(rawIdentifier)
+        const { data } = await supabase
+          .from('users')
+          .select('id, name, email, phone, password_hash')
+          .in('phone', variants)
+        candidates = data || []
+      }
+
+      if (candidates.length === 0) {
+        return {
+          status: 'error',
+          error: 'هذا الحساب غير مسجل لدينا. اختر "بيانات جديدة" لإنشاء حسابك.',
+        }
+      }
+
+      const matched = candidates.find((u) =>
+        verifyPassword(password, u.password_hash)
+      )
+      if (!matched) {
+        return {
+          status: 'error',
+          error: 'كلمة السر غير صحيحة. جرب مرة أخرى أو اضغط على نسيت كلمة السر.',
+        }
+      }
+
+      await setUserSession(matched.id)
+      const unitId = await upsertDraftUnit(matched.id, {
+        name: matched.name || 'مالك الوحدة',
+        phone: matched.phone || '',
+        email: matched.email || '',
+      })
+
+      const orderRef = generateOrderRef(unitId)
+      if (matched.email) {
+        sendOrderConfirmationMagicEmail(
+          matched.id,
+          unitId,
+          matched.name || 'عميلنا العزيز',
+          matched.email
+        )
+      }
+
+      return {
+        status: 'ok',
+        userId: matched.id,
+        unitId,
+        orderRef,
+        userName: matched.name,
+        userEmail: matched.email,
+        userPhone: matched.phone,
+      }
+    }
+
+    // =====================================================
+    // الحالة 3: الوضع الافتراضي (إدخال الاسم + الموبايل + الإيميل + الباسورد)
+    // =====================================================
+    const cleanName = (payload.name || '').trim()
+    const cleanEmail = normalizeEmail(payload.email || '')
+    const formattedPhone = formatPrimaryPhone(payload.phone || '')
+    const phoneVariants = getPhoneVariants(payload.phone || '')
+    const password = payload.password || ''
+
+    if (!cleanName || !cleanEmail || !formattedPhone || password.length < 8) {
+      return {
+        status: 'error',
+        error: 'يرجى إكمال كافة الحقول وكلمة سر 8 حروف على الأقل.',
+      }
+    }
+
+    const [{ data: emailMatches }, { data: phoneMatches }] = await Promise.all([
+      supabase
+        .from('users')
+        .select('id, name, phone, email, password_hash')
+        .ilike('email', cleanEmail)
+        .limit(1),
+      supabase
+        .from('users')
+        .select('id, name, phone, email, password_hash')
+        .in('phone', phoneVariants)
+        .limit(1),
+    ])
+
+    const emailUser = emailMatches?.[0] || null
+    const phoneUser = phoneMatches?.[0] || null
+
+    // أ) إذا كان الإيميل مسجلاً بالفعل
+    if (emailUser) {
+      const unitId = await upsertDraftUnit(emailUser.id, {
+        name: cleanName || emailUser.name,
+        phone: emailUser.phone || formattedPhone,
+        email: emailUser.email,
+      })
+      const orderRef = generateOrderRef(unitId)
+
+      // إرسال الإيميل الذي يحتوي على اللينك المباشر كما في الصورة الثانية تماماً
+      await sendOrderConfirmationMagicEmail(
+        emailUser.id,
+        unitId,
+        cleanName || emailUser.name || 'عميلنا العزيز',
+        emailUser.email
+      )
+
+      // لو كتب كلمة السر الصحيحة لحسابه القديم بالصدفة، يدخل فوراً للخطوة 3
+      if (verifyPassword(password, emailUser.password_hash)) {
         await setUserSession(emailUser.id)
-        return { userId: emailUser.id, error: null }
-      }
-      if (verifyPassword(input.password, phoneUser.password_hash)) {
-        await setUserSession(phoneUser.id)
-        return { userId: phoneUser.id, error: null }
-      }
-      return {
-        userId: null,
-        error:
-          'رقم الموبايل والبريد الإلكتروني مسجلان بحسابات سابقة. يرجى إدخال كلمة السر الصحيحة أو تغيير الرقم والإيميل معاً.',
-      }
-    }
-
-    const existing = emailUser || phoneUser!
-
-    if (!verifyPassword(input.password, existing.password_hash)) {
-      if (emailUser && !phoneUser) {
         return {
-          userId: null,
-          error:
-            'هذا البريد الإلكتروني مسجل بالفعل بحساب آخر. يرجى تغيير البريد الإلكتروني أو كتابة كلمة السر الصحيحة الخاصة به.',
+          status: 'ok',
+          userId: emailUser.id,
+          unitId,
+          orderRef,
+          userName: emailUser.name,
+          userEmail: emailUser.email,
+          userPhone: emailUser.phone,
         }
       }
-      if (phoneUser && !emailUser) {
-        return {
-          userId: null,
-          error:
-            'رقم الموبايل هذا مسجل بالفعل بحساب آخر. يرجى تغيير رقم الموبايل أو كتابة كلمة السر الصحيحة الخاصة به.',
-        }
-      }
+
+      // لو كلمة السر مختلفة، نظهر شاشة "الإيميل ده عنده حساب بالفعل" (الصورة 1)
       return {
-        userId: null,
-        error:
-          'رقم الموبايل والإيميل مسجلان بالفعل. يرجى كتابة كلمة السر الصحيحة للحساب أو تغيير الرقم والإيميل معاً.',
+        status: 'email_exists_need_password',
+        userId: emailUser.id,
+        unitId,
+        orderRef,
+        userEmail: emailUser.email,
+        userName: emailUser.name,
       }
     }
 
-    const updates: Record<string, string> = { name: input.name }
-    if (!existing.password_hash?.startsWith('scrypt$')) {
-      updates.password_hash = hash
-    }
-    await supabase.from('users').update(updates).eq('id', existing.id)
-    await setUserSession(existing.id)
-    return { userId: existing.id, error: null }
-  }
+    // ب) إذا كان رقم الموبايل مسجلاً بالفعل ولكن بإيميل مختلف! (الصورة 3 و 4)
+    if (phoneUser && !emailUser) {
+      const unitId = await upsertDraftUnit(phoneUser.id, {
+        name: cleanName || phoneUser.name,
+        phone: phoneUser.phone,
+        email: phoneUser.email,
+      })
+      const orderRef = generateOrderRef(unitId)
 
-  const { data: created, error } = await supabase
-    .from('users')
-    .insert({
-      name: input.name,
+      // إرسال إيميل تأكيد الطلب على الإيميل الأصلي المسجل على الرقم
+      if (phoneUser.email) {
+        await sendOrderConfirmationMagicEmail(
+          phoneUser.id,
+          unitId,
+          cleanName || phoneUser.name || 'عميلنا العزيز',
+          phoneUser.email
+        )
+      }
+
+      return {
+        status: 'phone_exists_different_email',
+        userId: phoneUser.id,
+        unitId,
+        orderRef,
+        userEmail: phoneUser.email,
+        userPhone: phoneUser.phone,
+      }
+    }
+
+    // ج) مستخدم جديد تماماً -> إنشاء الحساب + حفظ الوحدة المبدئية + الدخول للخطوة 3 فوراً
+    const hash = hashPassword(password)
+    const { data: createdUser, error: createErr } = await supabase
+      .from('users')
+      .insert({
+        name: cleanName,
+        phone: formattedPhone,
+        email: cleanEmail,
+        password_hash: hash,
+        status: 'active',
+      })
+      .select('id, name, email, phone')
+      .single()
+
+    if (createErr || !createdUser) {
+      return {
+        status: 'error',
+        error: 'تعذر إنشاء الحساب حالياً، يرجى المحاولة مرة أخرى.',
+      }
+    }
+
+    await setUserSession(createdUser.id)
+    const unitId = await upsertDraftUnit(createdUser.id, {
+      name: cleanName,
       phone: formattedPhone,
       email: cleanEmail,
-      password_hash: hash,
     })
-    .select('id')
-    .single()
+    const orderRef = generateOrderRef(unitId)
 
-  if (error || !created) {
-    console.error('Establish User Insert Error:', error)
+    await sendOrderConfirmationMagicEmail(
+      createdUser.id,
+      unitId,
+      cleanName,
+      cleanEmail
+    )
+
     return {
-      userId: null,
-      error: 'تعذر إنشاء الحساب. يرجى التأكد من عدم استخدام الرقم أو الإيميل سابقاً.',
+      status: 'ok',
+      userId: createdUser.id,
+      unitId,
+      orderRef,
+      userName: createdUser.name,
+      userEmail: createdUser.email,
+      userPhone: createdUser.phone,
     }
+  } catch (e) {
+    console.error('processSellerStep2Action error:', e)
+    return { status: 'error', error: 'حدث خطأ غير متوقع.' }
   }
+}
 
-  await setUserSession(created.id)
-  return { userId: created.id, error: null }
+// ==========================================
+// ج) التحقق من كلمة السر في شاشة "الإيميل ده عنده حساب بالفعل" (الصورة 1)
+// ==========================================
+export async function verifyExistingEmailPasswordAction(payload: {
+  email: string
+  password: string
+}) {
+  try {
+    const supabase = await getSupabase()
+    const cleanEmail = normalizeEmail(payload.email)
+    const { data: users } = await supabase
+      .from('users')
+      .select('id, name, email, phone, password_hash')
+      .ilike('email', cleanEmail)
+
+    const matched = (users || []).find((u) =>
+      verifyPassword(payload.password, u.password_hash)
+    )
+
+    if (!matched) {
+      return {
+        success: false,
+        error: 'كلمة السر غير صحيحة. جرب تاني أو اضغط على نسيت كلمة السر؟',
+      }
+    }
+
+    await setUserSession(matched.id)
+    return {
+      success: true,
+      user: {
+        id: matched.id,
+        name: matched.name,
+        email: matched.email,
+        phone: matched.phone,
+      },
+    }
+  } catch {
+    return { success: false, error: 'حدث خطأ أثناء تسجيل الدخول.' }
+  }
+}
+
+// ==========================================
+// د) إرسال لينك استرجاع/تعيين كلمة السر على الإيميل المسجل (الصورة 3 و 4 و 6)
+// ==========================================
+export async function sendSellerRecoveryLinkAction(payload: {
+  userId?: string
+  email?: string
+  unitId?: string
+}) {
+  try {
+    const supabase = await getSupabase()
+    let targetUser: any = null
+
+    if (payload.userId) {
+      const { data } = await supabase
+        .from('users')
+        .select('id, name, email')
+        .eq('id', payload.userId)
+        .maybeSingle()
+      targetUser = data
+    } else if (payload.email) {
+      const { data } = await supabase
+        .from('users')
+        .select('id, name, email')
+        .ilike('email', normalizeEmail(payload.email))
+        .limit(1)
+      targetUser = data?.[0]
+    }
+
+    if (!targetUser || !targetUser.email) {
+      return { success: false, error: 'لم يتم العثور على بريد إلكتروني مسجل.' }
+    }
+
+    const siteUrl =
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      'https://next-js-rtl-platform-structure.vercel.app'
+    const expiresAt = Date.now() + 60 * 60 * 1000 // صالح لمدة ساعة
+    const tokenHash = createMagicToken(
+      targetUser.id,
+      payload.unitId || '',
+      expiresAt
+    )
+
+    const nextUrl = payload.unitId
+      ? `/sell?magic=${encodeURIComponent(tokenHash)}`
+      : '/account'
+    const resetLink = `${siteUrl}/set-password?token_hash=${encodeURIComponent(tokenHash)}&next=${encodeURIComponent(nextUrl)}`
+
+    await sendNotificationEmail({
+      to: targetUser.email,
+      subject: 'استرجاع كلمة السر — عقار إكزت',
+      html: `<div dir="rtl" style="font-family: Arial, sans-serif; text-align: right; line-height: 1.8; color: #0a1122;">
+              <p>اختار كلمة سر جديدة لحسابك من هنا (الرابط صالح لمدة محدودة):</p>
+              <p style="margin: 18px 0;">
+                <a href="${resetLink}" style="color: #0b6954; font-weight: bold; word-break: break-all;">${resetLink}</a>
+              </p>
+              <p style="color: #64748b; font-size: 13px;">لو مش انت اللي طلبت ده، تجاهل الرسالة دي.</p>
+             </div>`,
+    })
+
+    return { success: true }
+  } catch {
+    return { success: false, error: 'تعذر إرسال الرابط حالياً.' }
+  }
+}
+
+// ==========================================
+// هـ) تعيين كلمة السر الجديدة من صفحة /set-password (الصورة 7: فعّل حسابك)
+// ==========================================
+export async function setNewPasswordFromTokenAction(payload: {
+  tokenHash: string
+  newPassword: string
+}) {
+  try {
+    if (!payload.newPassword || payload.newPassword.length < 8) {
+      return {
+        success: false,
+        error: 'كلمة السر يجب أن تكون 8 حروف على الأقل.',
+      }
+    }
+
+    const verify = await verifyMagicTokenAction(payload.tokenHash)
+    if (!verify.valid || !verify.userId) {
+      return {
+        success: false,
+        error: verify.error || 'الرابط غير صالح أو منتهي الصلاحية.',
+      }
+    }
+
+    const supabase = await getSupabase()
+    const newHash = hashPassword(payload.newPassword)
+
+    const { error } = await supabase
+      .from('users')
+      .update({ password_hash: newHash, is_verified: true, status: 'active' })
+      .eq('id', verify.userId)
+
+    if (error) {
+      return { success: false, error: 'تعذر تحديث كلمة السر.' }
+    }
+
+    await setUserSession(verify.userId)
+
+    return {
+      success: true,
+      unitId: verify.unitId,
+    }
+  } catch {
+    return { success: false, error: 'حدث خطأ غير متوقع.' }
+  }
+}
+
+// ==========================================
+// و) حفظ التقدم وإرسال الطلب النهائي
+// ==========================================
+export async function saveSellProgress(formData: FormData): Promise<SubmitResult> {
+  try {
+    const supabase = await getSupabase()
+    const sessionId = (await cookies()).get('user_session')?.value
+    const unitId = text(formData, 'unit_id')
+
+    if (!sessionId && !unitId) {
+      return {
+        success: false,
+        error: 'انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى.',
+      }
+    }
+
+    const payload: Record<string, any> = {
+      developer_name: text(formData, 'developer_name') || null,
+      project_name: text(formData, 'project_name') || null,
+      area: text(formData, 'area') || null,
+      unit_type: text(formData, 'unit_type') || null,
+      size: number(formData, 'size'),
+      rooms: number(formData, 'rooms'),
+      bathrooms: number(formData, 'bathrooms'),
+      finishing: text(formData, 'finishing') || null,
+      delivery_status: text(formData, 'delivery_status') || null,
+      description: text(formData, 'description') || null,
+      contract_price: number(formData, 'contract_price'),
+      paid_amount: number(formData, 'paid_amount'),
+      market_price: number(formData, 'market_price'),
+      installment_amount: number(formData, 'installment_amount'),
+      installment_frequency: text(formData, 'installment_frequency') || null,
+      contract_year: integer(formData, 'contract_year'),
+      images: list(formData, 'image'),
+    }
+
+    let targetUnitId = unitId
+
+    if (!targetUnitId && sessionId) {
+      const { data: existing } = await supabase
+        .from('sell_requests')
+        .select('id')
+        .eq('user_id', sessionId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      targetUnitId = existing?.id ? String(existing.id) : ''
+    }
+
+    if (!targetUnitId) {
+      return { success: false, error: 'لم يتم العثور على طلب البيع الحالي.' }
+    }
+
+    const { error } = await supabase
+      .from('sell_requests')
+      .update(payload)
+      .eq('id', targetUnitId)
+
+    revalidatePath('/account', 'page')
+    return error
+      ? { success: false, error: 'تعذر حفظ التقدم.' }
+      : { success: true, unitId: targetUnitId }
+  } catch {
+    return { success: false, error: 'تعذر حفظ التقدم.' }
+  }
 }
 
 export async function submitSellRequest(formData: FormData): Promise<SubmitResult> {
   try {
     const supabase = await getSupabase()
-    const password = text(formData, 'password')
+    const cookieStore = await cookies()
+    const sessionId = cookieStore.get('user_session')?.value
+    const existingUnitId = text(formData, 'unit_id')
     const projectName = text(formData, 'project_name')
 
-    const payload = {
+    const payload: Record<string, any> = {
       project_name: projectName || null,
       developer_name: text(formData, 'developer_name') || null,
       area: text(formData, 'area') || null,
@@ -294,67 +913,52 @@ export async function submitSellRequest(formData: FormData): Promise<SubmitResul
       email: normalizeEmail(text(formData, 'email')) || null,
       is_original_owner: formData.get('is_original_owner') === 'on',
       images: list(formData, 'image'),
+      status: 'pending',
     }
 
-    const phone = payload.phone
-    const email = payload.email ?? ''
+    // إذا تم إنشاء الوحدة مسبقاً في الخطوة 2، نقوم بتحديثها بكل التفاصيل والصور
+    if (existingUnitId) {
+      const { error } = await supabase
+        .from('sell_requests')
+        .update(payload)
+        .eq('id', existingUnitId)
 
-    const account = await establishUser(supabase, {
-      name: payload.name,
-      phone,
-      email,
-      password,
-    })
-    if (account.error || !account.userId) {
-      return { success: false, error: account.error ?? 'تعذر إنشاء الحساب.' }
+      if (error) {
+        return { success: false, error: 'تعذر حفظ بيانات الوحدة النهائية.' }
+      }
+
+      revalidatePath('/account', 'page')
+      revalidatePath('/admin', 'layout')
+      return {
+        success: true,
+        unitId: existingUnitId,
+        orderRef: generateOrderRef(existingUnitId),
+      }
     }
 
-    const { error } = await supabase.from('sell_requests').insert({
-      ...payload,
-      user_id: account.userId,
-    })
+    // احتياطي إذا لم يكن هناك existingUnitId
+    const targetUserId = sessionId || null
+    const { data: inserted, error } = await supabase
+      .from('sell_requests')
+      .insert({
+        ...payload,
+        user_id: targetUserId,
+      })
+      .select('id')
+      .single()
 
-    if (error) {
+    if (error || !inserted) {
       return { success: false, error: 'تعذر حفظ الطلب. حاول مرة أخرى.' }
     }
 
-    // 1. إشعار فوري للأدمن في لوحة الإدارة + إشعار للبائع في حسابه
-    try {
-      await supabase.from('notifications').insert([
-        {
-          user_id: null, // للأدمن
-          title: `عقار بانتظار المراجعة: ${projectName || 'وحدة جديدة'}`,
-          message: `البائع: ${payload.name} · ${payload.area || '—'}`,
-          type: 'property',
-          link: '/admin/properties',
-          is_read: false,
-        },
-        {
-          user_id: account.userId, // للبائع
-          title: 'استلمنا طلب عرض وحدتك بنجاح 🏠',
-          message: `جاري مراجعة بيانات وحدتك في (${projectName || 'مشروعك'}) من قِبل الإدارة لنشرها.`,
-          type: 'status_update',
-          link: '/account?view=seller',
-          is_read: false,
-        },
-      ])
-    } catch {}
-
-    if (email) {
-      await sendNotificationEmail({
-        to: email,
-        subject: 'تم استلام طلب عرض وحدتك بنجاح - دارك',
-        html: `<div dir="rtl" style="font-family: Arial, sans-serif; text-align: right; line-height: 1.6;">
-                <h2 style="color: #101A2B;">أهلاً بك يا ${payload.name} 🏠</h2>
-                <p>تم استلام بيانات وحدتك في مشروع <strong>${projectName || 'وحدتك العقارية'}</strong> بنجاح.</p>
-                <p>يمكنك متابعة حالة وحدتك واستكمال الصور من داخل حسابك في منصة دارك.</p>
-               </div>`,
-      })
-    }
-
+    const finalId = String(inserted.id)
     revalidatePath('/account', 'page')
     revalidatePath('/admin', 'layout')
-    return { success: true }
+    return {
+      success: true,
+      unitId: finalId,
+      orderRef: generateOrderRef(finalId),
+    }
   } catch (error) {
     return {
       success: false,
@@ -415,65 +1019,46 @@ export async function submitBuyRequest(
             password: input.password.trim(),
           }
 
-    const phone = payload.phone
-    const email = payload.email ?? ''
+    const cookieStore = await cookies()
+    let userId = cookieStore.get('user_session')?.value || null
 
-    const account = await establishUser(supabase, {
-      name: payload.name,
-      phone,
-      email,
-      password: payload.password,
-    })
-    if (account.error || !account.userId) {
-      return { success: false, error: account.error ?? 'تعذر إنشاء الحساب.' }
+    if (!userId) {
+      const hash = hashPassword(payload.password || '12345678')
+      const { data: existingUser } = await supabase
+        .from('users')
+        .select('id')
+        .or(`email.ilike.${payload.email},phone.eq.${payload.phone}`)
+        .limit(1)
+        .maybeSingle()
+
+      if (existingUser) {
+        userId = existingUser.id
+      } else {
+        const { data: created } = await supabase
+          .from('users')
+          .insert({
+            name: payload.name,
+            phone: payload.phone,
+            email: payload.email,
+            password_hash: hash,
+          })
+          .select('id')
+          .single()
+        userId = created?.id || null
+      }
+
+      if (userId) await setUserSession(userId)
     }
 
     const { password, ...cleanPayload } = payload
 
     const { error } = await supabase.from('buy_requests').insert({
       ...cleanPayload,
-      user_id: account.userId,
+      user_id: userId,
     })
 
     if (error) {
       return { success: false, error: 'تعذر حفظ الطلب. حاول مرة أخرى.' }
-    }
-
-    // إشعار فوري للأدمن + إشعار للمشتري في جرس الإشعارات
-    try {
-      const cashFormatted = Number(
-        cleanPayload.available_cash || cleanPayload.budget || 0
-      ).toLocaleString('en-US')
-
-      await supabase.from('notifications').insert([
-        {
-          user_id: null, // للأدمن
-          title: `طلب شراء جديد: ${payload.name}`,
-          message: `الكاش المتاح: ${cashFormatted} ج.م`,
-          type: 'lead',
-          link: '/admin/leads',
-          is_read: false,
-        },
-        {
-          user_id: account.userId, // للمشتري
-          title: 'تم تفعيل رادار الفرص العقارية لحسابك 🎯',
-          message: `تم حفظ ميزانيتك (${cashFormatted} ج.م)، وسنرسل لك إشعاراً فور نزول أي وحدة مطابقة.`,
-          type: 'property_match',
-          link: '/account?view=buyer',
-          is_read: false,
-        },
-      ])
-    } catch {}
-
-    if (email) {
-      await sendNotificationEmail({
-        to: email,
-        subject: 'تم تسجيل طلب الشراء وميزانيتك بنجاح - دارك',
-        html: `<div dir="rtl" style="font-family: Arial, sans-serif; text-align: right; line-height: 1.6;">
-                <h2 style="color: #101A2B;">أهلاً بك يا ${payload.name} 🌟</h2>
-                <p>تم تسجيل طلب الشراء الخاص بك بنجاح، وتم تجهيز الفرص العقارية المطابقة لميزانيتك في حسابك.</p>
-               </div>`,
-      })
     }
 
     revalidatePath('/account', 'page')
@@ -484,58 +1069,6 @@ export async function submitBuyRequest(
       success: false,
       error: error instanceof Error ? error.message : 'تعذر إرسال الطلب',
     }
-  }
-}
-
-export async function saveSellProgress(formData: FormData): Promise<SubmitResult> {
-  try {
-    const supabase = await getSupabase()
-    const sessionId = (await cookies()).get('user_session')?.value
-    if (!sessionId)
-      return { success: false, error: 'انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى.' }
-
-    const payload = {
-      developer_name: text(formData, 'developer_name') || null,
-      project_name: text(formData, 'project_name') || null,
-      area: text(formData, 'area') || null,
-      unit_type: text(formData, 'unit_type') || null,
-      size: number(formData, 'size'),
-      rooms: number(formData, 'rooms'),
-      bathrooms: number(formData, 'bathrooms'),
-      finishing: text(formData, 'finishing') || null,
-      delivery_status: text(formData, 'delivery_status') || null,
-      description: text(formData, 'description') || null,
-      contract_price: number(formData, 'contract_price'),
-      paid_amount: number(formData, 'paid_amount'),
-      market_price: number(formData, 'market_price'),
-      installment_amount: number(formData, 'installment_amount'),
-      installment_frequency: text(formData, 'installment_frequency') || null,
-      contract_year: integer(formData, 'contract_year'),
-      images: list(formData, 'image'),
-      user_id: sessionId,
-    }
-
-    const { data: existing } = await supabase
-      .from('sell_requests')
-      .select('id')
-      .eq('user_id', sessionId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-
-    if (!existing) return { success: false, error: 'لم يتم العثور على طلب البيع الحالي.' }
-
-    const { error } = await supabase
-      .from('sell_requests')
-      .update(payload)
-      .eq('id', existing.id)
-      .eq('user_id', sessionId)
-
-    revalidatePath('/account', 'page')
-
-    return error ? { success: false, error: 'تعذر حفظ التقدم.' } : { success: true }
-  } catch {
-    return { success: false, error: 'تعذر حفظ التقدم.' }
   }
 }
 
@@ -560,17 +1093,6 @@ export async function submitInvestorLead(formData: FormData): Promise<SubmitResu
     if (error) {
       return { success: false, error: 'تعذر إرسال بيانات المستثمرين. حاول مرة أخرى.' }
     }
-
-    try {
-      await supabase.from('notifications').insert({
-        user_id: null,
-        title: `طلب مستثمر جديد: ${payload.name}`,
-        message: `المبلغ: ${payload.investment_range || 'غير محدد'}`,
-        type: 'investor',
-        link: '/admin/investors',
-        is_read: false,
-      })
-    } catch {}
 
     revalidatePath('/admin', 'layout')
     return { success: true }

@@ -1,21 +1,32 @@
 "use client"
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useTransition } from 'react'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { createBrowserClient } from '@supabase/ssr'
 import {
   Bell,
   Building2,
-  ChevronLeft,
+  CheckCircle2,
+  Clock,
+  ExternalLink,
+  FileText,
+  Home,
   Menu,
   ShieldCheck,
   Smartphone,
   Sparkles,
   User,
+  WalletCards,
   X,
+  Zap,
 } from 'lucide-react'
 import * as authActions from '@/app/actions/auth-actions'
+import {
+  getUserNotificationsAction,
+  markAllNotificationsAsReadAction,
+  markNotificationAsReadAction,
+} from '@/app/actions/notification-actions'
 import ar from '@/dictionaries/ar.json'
 import en from '@/dictionaries/en.json'
 
@@ -23,29 +34,14 @@ type Dictionary = typeof ar
 
 const links = [
   { href: '/sell', key: 'sell' as const, fallback: 'بيع وحدتك', enFallback: 'Sell Unit' },
-  {
-    href: '/opportunities',
-    key: 'opportunities' as const,
-    fallback: 'الفرص المتاحة',
-    enFallback: 'Opportunities',
-  },
+  { href: '/opportunities', key: 'opportunities' as const, fallback: 'الفرص المتاحة', enFallback: 'Opportunities' },
   { href: '/story', key: 'story' as const, fallback: 'قصتنا', enFallback: 'Our Story' },
-  {
-    href: '/how-it-works',
-    key: 'howItWorks' as const,
-    fallback: 'إزاي بنشتغل',
-    enFallback: 'How It Works',
-  },
+  { href: '/how-it-works', key: 'howItWorks' as const, fallback: 'إزاي بنشتغل', enFallback: 'How It Works' },
   { href: '/contact', key: 'contact' as const, fallback: 'كلمنا', enFallback: 'Contact Us' },
-  {
-    href: '/investors',
-    key: 'investors' as const,
-    fallback: 'للمستثمرين',
-    enFallback: 'Investors',
-  },
+  { href: '/investors', key: 'investors' as const, fallback: 'للمستثمرين', enFallback: 'Investors' },
 ]
 
-// ==================== 1. اللوجو المطابق 100% ====================
+// ==================== 1. اللوجو ====================
 export function Logo({ inverse = false }: { inverse?: boolean }) {
   return (
     <Link
@@ -133,9 +129,14 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
   const [isAdmin, setIsAdmin] = useState(false)
   const [userName, setUserName] = useState<string | null>(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [notificationsOpen, setNotificationsOpen] = useState(false)
-  const notifRef = useRef<HTMLDivElement>(null)
 
+  // حالات الإشعارات الحقيقية المرتبطة بقاعدة البيانات
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const [notifsList, setNotifsList] = useState<any[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
+  const [, startTransition] = useTransition()
+
+  const notifRef = useRef<HTMLDivElement>(null)
   const pathname = usePathname()
   const labels = language === 'en' ? en : dictionary
 
@@ -146,7 +147,7 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
     document.documentElement.dir = language === 'en' ? 'ltr' : 'rtl'
   }, [language])
 
-  // التحقق من جلسة المستخدم وصلاحية الأدمن (Role) من الداتابيز عند كل تنقل
+  // التحقق من الجلسة وجلب إشعارات المستخدم الحقيقية
   useEffect(() => {
     let isMounted = true
 
@@ -160,7 +161,6 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
       }
 
       try {
-        // 1. الفحص الدقيق عبر الـ Server Action إذا كانت مضافة في auth-actions.ts
         const actionFn = (authActions as any).getSessionUserAction
         if (typeof actionFn === 'function') {
           const sessionData = await actionFn()
@@ -168,32 +168,17 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
             setHasSession(Boolean(sessionData.isLoggedIn))
             setIsAdmin(Boolean(sessionData.isAdmin))
             setUserName(sessionData.name || null)
-            return
           }
         }
 
-        // 2. فحص احتياطي مباشر من Supabase لو المستخدم مسجل دخول وعدل الـ role في الداتابيز
-        if (hintExists && process.env.NEXT_PUBLIC_SUPABASE_URL) {
-          const supabase = createBrowserClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-          )
-          const { data: adminUsers } = await supabase
-            .from('users')
-            .select('id, name, role')
-            .in('role', ['admin', 'moderator', 'ADMIN', 'MODERATOR'])
-            .limit(1)
-
-          if (isMounted && adminUsers && adminUsers.length > 0) {
-            setIsAdmin(true)
-            setUserName(adminUsers[0].name || null)
-          }
-        } else if (isMounted && !hintExists) {
-          setIsAdmin(false)
-          setUserName(null)
+        // سحب إشعارات العميل أو الأدمن الحقيقية من الداتابيز
+        const notifRes = await getUserNotificationsAction()
+        if (isMounted && notifRes.success) {
+          setNotifsList(notifRes.notifications)
+          setUnreadCount(notifRes.unreadCount)
         }
       } catch (err) {
-        console.error('Session check error:', err)
+        console.error('Session/Notif check error:', err)
       }
     }
 
@@ -220,6 +205,32 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
+
+  // فتح الجرس وتصفير النقطة الحمراء وتحديث قاعدة البيانات
+  const handleToggleNotifications = () => {
+    const nextState = !notificationsOpen
+    setNotificationsOpen(nextState)
+
+    if (nextState && unreadCount > 0) {
+      setUnreadCount(0)
+      setNotifsList((prev) => prev.map((n) => ({ ...n, is_read: true })))
+      startTransition(async () => {
+        await markAllNotificationsAsReadAction()
+      })
+    }
+  }
+
+  // عند الضغط على إشعار محدد
+  const handleSingleNotifClick = (id: string) => {
+    setNotificationsOpen(false)
+    setNotifsList((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, is_read: true } : n))
+    )
+    setUnreadCount((prev) => Math.max(0, prev - 1))
+    startTransition(async () => {
+      await markNotificationAsReadAction(id)
+    })
+  }
 
   return (
     <header
@@ -267,7 +278,6 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
             {language === 'ar' ? 'English' : 'العربية'}
           </button>
 
-          {/* زر لوحة الإدارة — يظهر تلقائياً إذا كان المستخدم أدمن أو مشرف في الداتابيز */}
           {isAdmin && (
             <Link
               href="/admin"
@@ -301,23 +311,30 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
             {language === 'en' ? 'Want to Buy' : 'عايز تشتري'}
           </Link>
 
-          {/* جرس الإشعارات التفاعلي */}
+          {/* جرس الإشعارات الحقيقي للديسكتوب */}
           <div className="relative" ref={notifRef}>
             <button
               type="button"
-              onClick={() => setNotificationsOpen((prev) => !prev)}
+              onClick={handleToggleNotifications}
               aria-label="الإشعارات"
               className="relative mx-0.5 flex size-10 items-center justify-center rounded-full text-[#334155] transition-colors hover:bg-gray-100"
             >
               <Bell className="size-[19px] stroke-[1.8]" />
-              <span className="absolute right-2 top-2 size-2 rounded-full bg-[#0b6954]" />
+              {unreadCount > 0 && (
+                <span
+                  dir="ltr"
+                  className="absolute right-1.5 top-1.5 flex size-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-extrabold text-white"
+                >
+                  {unreadCount > 9 ? '+9' : unreadCount}
+                </span>
+              )}
             </button>
 
             {notificationsOpen && (
               <div className="absolute left-0 top-12 z-50 w-80 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl">
                 <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50/70 px-4 py-3">
                   <span className="text-xs font-extrabold text-[#0a1122]">
-                    الإشعارات والتنبيهات
+                    الإشعارات والتنبيهات ({notifsList.length})
                   </span>
                   {userName && (
                     <span className="text-[11px] font-bold text-[#0b6954]">
@@ -326,49 +343,49 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
                   )}
                 </div>
 
-                <div className="divide-y divide-gray-100 text-right text-xs">
-                  {isAdmin && (
-                    <Link
-                      href="/admin/properties"
-                      className="flex items-start gap-3 bg-emerald-50/60 p-3.5 transition hover:bg-emerald-50"
-                    >
-                      <ShieldCheck className="mt-0.5 size-4 shrink-0 text-[#0b6954]" />
-                      <div>
-                        <p className="font-bold text-[#0a1122]">لوحة تحكم الإدارة</p>
-                        <p className="mt-0.5 text-[11px] text-gray-500">
-                          راجع طلبات البائعين والمشترين واعتمد الفرص الجديدة.
-                        </p>
-                      </div>
-                    </Link>
+                <div className="max-h-80 divide-y divide-gray-100 overflow-y-auto text-right text-xs">
+                  {notifsList.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center px-4 py-8 text-center">
+                      <CheckCircle2 className="mb-2 size-8 text-emerald-500" />
+                      <p className="text-xs font-bold text-[#0a1122]">لا توجد إشعارات حالياً</p>
+                    </div>
+                  ) : (
+                    notifsList.map((item) => (
+                      <Link
+                        key={item.id}
+                        href={item.link || '/account'}
+                        onClick={() => handleSingleNotifClick(item.id)}
+                        className={`flex items-start gap-3 p-3.5 transition hover:bg-gray-50 ${
+                          !item.is_read ? 'bg-emerald-50/40' : 'bg-white'
+                        }`}
+                      >
+                        <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-xl bg-teal-100 text-[#0b6954] font-bold">
+                          {item.type === 'property' || item.type === 'property_match' ? (
+                            <Building2 className="size-4" />
+                          ) : item.type === 'lead' ? (
+                            <FileText className="size-4" />
+                          ) : (
+                            <WalletCards className="size-4" />
+                          )}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className={`truncate text-xs text-[#0a1122] ${!item.is_read ? 'font-extrabold' : 'font-bold'}`}>
+                            {item.title}
+                          </p>
+                          <p className="mt-0.5 truncate text-[11px] text-gray-500">{item.message}</p>
+                          <p className="mt-1 flex items-center gap-1 text-[10px] text-gray-400">
+                            <Clock className="size-3" />
+                            <span dir="ltr">
+                              {item.created_at ? new Date(item.created_at).toLocaleDateString('ar-EG') : 'الآن'}
+                            </span>
+                          </p>
+                        </div>
+                        {!item.is_read && (
+                          <span className="mt-2 size-2 shrink-0 rounded-full bg-red-500" />
+                        )}
+                      </Link>
+                    ))
                   )}
-
-                  <Link
-                    href="/opportunities"
-                    className="flex items-start gap-3 p-3.5 transition hover:bg-gray-50"
-                  >
-                    <Building2 className="mt-0.5 size-4 shrink-0 text-[#0b6954]" />
-                    <div>
-                      <p className="font-bold text-[#0a1122]">فرص تنازل جديدة متاحة</p>
-                      <p className="mt-0.5 text-[11px] text-gray-500">
-                        تصفح أحدث الوحدات المعتمدة بدون أوفر في السوق الآن.
-                      </p>
-                    </div>
-                  </Link>
-
-                  <Link
-                    href={hasSession ? '/account' : '/login'}
-                    className="flex items-start gap-3 p-3.5 transition hover:bg-gray-50"
-                  >
-                    <Sparkles className="mt-0.5 size-4 shrink-0 text-amber-500" />
-                    <div>
-                      <p className="font-bold text-[#0a1122]">
-                        {hasSession ? 'متابعة حالة طلباتك' : 'سجّل دخولك لمتابعة وحدتك'}
-                      </p>
-                      <p className="mt-0.5 text-[11px] text-gray-500">
-                        تابع خطوات بيع وحدتك أو الفرص المطابقة لميزانيتك.
-                      </p>
-                    </div>
-                  </Link>
                 </div>
               </div>
             )}
@@ -382,22 +399,90 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
           </Link>
         </div>
 
-        {/* اليسار (موبايل): زر لوحة الإدارة المصغر (إن وجد) + زر عايز تبيع + القائمة */}
-        <div className="flex items-center gap-2 lg:hidden">
-          {isAdmin && (
-            <Link
-              href="/admin"
-              aria-label="لوحة الإدارة"
-              className="inline-flex h-[42px] items-center justify-center gap-1 rounded-[11px] bg-[#0a1122] px-3 text-[12px] font-bold text-white"
+        {/* اليسار (موبايل): جرس الإشعارات الحقيقي + زر عايز تبيع + القائمة */}
+        <div className="flex items-center gap-1.5 lg:hidden">
+          
+          {/* جرس الإشعارات للموبايل (تم تعديل الـ Menu لتفتح في منتصف الشاشة بشكل صحيح) */}
+          <div className="relative" ref={notifRef}>
+            <button
+              type="button"
+              onClick={handleToggleNotifications}
+              aria-label="الإشعارات"
+              className="relative flex size-9 items-center justify-center rounded-full text-[#334155] transition-colors hover:bg-gray-100"
             >
-              <ShieldCheck className="size-4 text-[#2ee59d]" />
-              <span>الإدارة</span>
-            </Link>
-          )}
+              <Bell className="size-[18px] stroke-[1.8]" />
+              {unreadCount > 0 && (
+                <span
+                  dir="ltr"
+                  className="absolute right-1 top-1 flex size-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-extrabold text-white"
+                >
+                  {unreadCount > 9 ? '+9' : unreadCount}
+                </span>
+              )}
+            </button>
+
+            {notificationsOpen && (
+              <div className="fixed left-3 right-3 top-[74px] z-50 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl">
+                <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50/70 px-4 py-3">
+                  <span className="text-xs font-extrabold text-[#0a1122]">
+                    الإشعارات والتنبيهات ({notifsList.length})
+                  </span>
+                  <button type="button" onClick={() => setNotificationsOpen(false)} className="rounded-lg p-1 text-gray-400">
+                    <X className="size-4" />
+                  </button>
+                </div>
+
+                <div className="max-h-80 divide-y divide-gray-100 overflow-y-auto text-right text-xs">
+                  {notifsList.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center px-4 py-8 text-center">
+                      <CheckCircle2 className="mb-2 size-8 text-emerald-500" />
+                      <p className="text-xs font-bold text-[#0a1122]">لا توجد إشعارات حالياً</p>
+                    </div>
+                  ) : (
+                    notifsList.map((item) => (
+                      <Link
+                        key={item.id}
+                        href={item.link || '/account'}
+                        onClick={() => handleSingleNotifClick(item.id)}
+                        className={`flex items-start gap-3 p-3.5 transition hover:bg-gray-50 ${
+                          !item.is_read ? 'bg-emerald-50/40' : 'bg-white'
+                        }`}
+                      >
+                        <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-xl bg-teal-100 text-[#0b6954] font-bold">
+                          {item.type === 'property' || item.type === 'property_match' ? (
+                            <Building2 className="size-4" />
+                          ) : item.type === 'lead' ? (
+                            <FileText className="size-4" />
+                          ) : (
+                            <WalletCards className="size-4" />
+                          )}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className={`truncate text-xs text-[#0a1122] ${!item.is_read ? 'font-extrabold' : 'font-bold'}`}>
+                            {item.title}
+                          </p>
+                          <p className="mt-0.5 truncate text-[11px] text-gray-500">{item.message}</p>
+                          <p className="mt-1 flex items-center gap-1 text-[10px] text-gray-400">
+                            <Clock className="size-3" />
+                            <span dir="ltr">
+                              {item.created_at ? new Date(item.created_at).toLocaleDateString('ar-EG') : 'الآن'}
+                            </span>
+                          </p>
+                        </div>
+                        {!item.is_read && (
+                          <span className="mt-2 size-2 shrink-0 rounded-full bg-red-500" />
+                        )}
+                      </Link>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
 
           <Link
             href="/sell"
-            className="inline-flex h-[42px] items-center justify-center whitespace-nowrap rounded-[11px] bg-[#0b6954] px-4 text-[13px] font-semibold text-white transition-colors hover:bg-[#085443]"
+            className="inline-flex h-[40px] items-center justify-center whitespace-nowrap rounded-[10px] bg-[#0b6954] px-3.5 text-[12px] font-semibold text-white transition-colors hover:bg-[#085443]"
           >
             {language === 'en' ? 'Sell' : 'عايز تبيع'}
           </Link>
@@ -406,7 +491,7 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
             type="button"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label="القائمة"
-            className="flex size-10 items-center justify-center text-[#0a1122] focus:outline-none"
+            className="flex size-9 items-center justify-center text-[#0a1122] focus:outline-none"
           >
             {mobileMenuOpen ? (
               <X className="size-6 stroke-[2]" />
@@ -455,7 +540,6 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
           <hr className="my-6 border-gray-200/80" />
 
           <div className="flex flex-col gap-3.5">
-            {/* خيار لوحة الإدارة في منيو الموبايل — يظهر للأدمن */}
             {isAdmin && (
               <Link
                 href="/admin"
@@ -510,10 +594,6 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
   )
 }
 
-export function LegacyNavbar({ dictionary = ar }: { dictionary?: Dictionary }) {
-  return <Navbar dictionary={dictionary} />
-}
-
 // ==================== 3. الفوتر المنظم (Footer) للموبايل والديسكتوب ====================
 export function Footer({ dictionary = ar }: { dictionary?: Dictionary }) {
   const platformLinks = [
@@ -530,10 +610,7 @@ export function Footer({ dictionary = ar }: { dictionary?: Dictionary }) {
     { label: dictionary.footer?.work || 'إزاي بنشتغل', href: '/how-it-works' },
     { label: dictionary.footer?.reports || 'التقارير والمؤشرات', href: '/reports' },
     { label: 'للمطورين', href: '/developers' },
-    {
-      label: dictionary.footer?.investorRelations || 'علاقات المستثمرين',
-      href: '/investors',
-    },
+    { label: dictionary.footer?.investorRelations || 'علاقات المستثمرين', href: '/investors' },
     { label: dictionary.footer?.faq || 'الأسئلة الشائعة', href: '/faq' },
     { label: 'كلمنا', href: '/contact' },
   ]
@@ -547,198 +624,83 @@ export function Footer({ dictionary = ar }: { dictionary?: Dictionary }) {
   return (
     <footer className="bg-[#0a1122] text-white" dir="rtl">
       <div className="mx-auto max-w-[1140px] px-5 pt-14 pb-12 sm:px-6 lg:pt-20">
-        
-        {/* الهيكل المنظم: أعمدة متجاوبة تماماً مع صور الهاتف */}
         <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-[1.45fr_1fr_1fr_1fr] lg:gap-12">
-          
-          {/* العمود الأول: اللوجو + الوصف + التواصل + تحميل التطبيق */}
           <div className="text-right">
             <Logo inverse />
-
             <p className="mt-5 max-w-sm text-xs leading-[1.9] text-gray-300/85 sm:text-[13px]">
               {dictionary.footer?.description ||
                 'منصة التنازل عن وحدات التقسيط بدون أوفر — البايع يسترجع فلوسه كاش، والمشتري ياخد سعر التعاقد القديم، وإحنا بنسهّل الإجراءات خطوة بخطوة'}
             </p>
-
             <div className="mt-5 flex flex-col items-start gap-2 text-xs text-gray-300 sm:text-[13px]">
-              <a
-                href={`tel:${dictionary.footer?.phone || '+201018595959'}`}
-                dir="ltr"
-                className="transition-colors hover:text-[#2ee59d]"
-              >
+              <a href={`tel:${dictionary.footer?.phone || '+201018595959'}`} dir="ltr" className="transition-colors hover:text-[#2ee59d]">
                 {dictionary.footer?.phone || '+201018595959'}
               </a>
-              <a
-                href="https://wa.me/201018595959"
-                target="_blank"
-                rel="noreferrer"
-                className="transition-colors hover:text-[#2ee59d]"
-              >
+              <a href="https://wa.me/201018595959" target="_blank" rel="noreferrer" className="transition-colors hover:text-[#2ee59d]">
                 تواصل مباشر عبر واتساب
               </a>
-              <a
-                href={`mailto:${dictionary.footer?.email || 'info@aqarexit.com'}`}
-                className="transition-colors hover:text-[#2ee59d]"
-              >
+              <a href={`mailto:${dictionary.footer?.email || 'info@aqarexit.com'}`} className="transition-colors hover:text-[#2ee59d]">
                 {dictionary.footer?.email || 'info@aqarexit.com'}
               </a>
             </div>
-
-            <div className="mt-6" id="app-banner">
-              <p className="text-xs font-semibold text-gray-400">
-                {dictionary.footer?.appLabel || 'حمّل التطبيق'}
-              </p>
-              <div className="mt-3 flex flex-wrap items-center justify-start gap-2.5">
-                <Link
-                  href="/opportunities"
-                  className="flex items-center gap-2.5 rounded-xl border border-white/15 bg-black px-4 py-2 text-white transition hover:border-[#2ee59d]/50 hover:bg-white/5"
-                >
-                  <div className="text-right">
-                    <span className="block text-[8px] text-gray-400">حمّله من</span>
-                    <span className="block text-xs font-bold leading-tight">App Store</span>
-                  </div>
-                  <svg className="size-5 fill-current" viewBox="0 0 24 24">
-                    <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.33c.64-.78 1.08-1.86.96-2.94-.93.04-2.06.62-2.72 1.4-.58.68-1.1 1.79-.96 2.84 1.04.08 2.08-.52 2.72-1.3z" />
-                  </svg>
-                </Link>
-
-                <Link
-                  href="/opportunities"
-                  className="flex items-center gap-2.5 rounded-xl border border-white/15 bg-black px-4 py-2 text-white transition hover:border-[#2ee59d]/50 hover:bg-white/5"
-                >
-                  <div className="text-right">
-                    <span className="block text-[8px] text-gray-400">متوفر على</span>
-                    <span className="block text-xs font-bold leading-tight">Google Play</span>
-                  </div>
-                  <svg className="size-5" viewBox="0 0 24 24">
-                    <path
-                      fill="#4285F4"
-                      d="M3.61 1.814L13.793 12 3.61 22.186a1.96 1.96 0 0 1-.61-1.42V3.234c0-.55.23-1.05.61-1.42z"
-                    />
-                    <path
-                      fill="#34A853"
-                      d="M17.22 8.573L13.793 12 3.61 1.814c.42-.4.99-.53 1.56-.21l12.05 6.97z"
-                    />
-                    <path
-                      fill="#FBBC05"
-                      d="M20.635 10.548c.98.57.98 1.98 0 2.55l-3.415 1.975L13.793 12l3.427-3.427 3.415 1.975z"
-                    />
-                    <path
-                      fill="#EA4335"
-                      d="M17.22 15.427L5.17 22.396c-.57.32-1.14.19-1.56-.21L13.793 12l3.427 3.427z"
-                    />
-                  </svg>
-                </Link>
-              </div>
-            </div>
           </div>
 
-          {/* العمود الثاني: المنصة */}
           <div className="text-right">
-            <h3 className="text-xs font-bold text-gray-400">
-              {dictionary.footer?.platform || 'المنصة'}
-            </h3>
+            <h3 className="text-xs font-bold text-gray-400">{dictionary.footer?.platform || 'المنصة'}</h3>
             <ul className="mt-4 flex flex-col gap-3 text-xs text-gray-200 sm:text-[13px]">
               {platformLinks.map((item) => (
                 <li key={item.label}>
-                  <Link href={item.href} className="transition-colors hover:text-[#2ee59d]">
-                    {item.label}
-                  </Link>
+                  <Link href={item.href} className="transition-colors hover:text-[#2ee59d]">{item.label}</Link>
                 </li>
               ))}
             </ul>
           </div>
 
-          {/* العمود الثالث: الشركة */}
           <div className="text-right">
-            <h3 className="text-xs font-bold text-gray-400">
-              {dictionary.footer?.company || 'الشركة'}
-            </h3>
+            <h3 className="text-xs font-bold text-gray-400">{dictionary.footer?.company || 'الشركة'}</h3>
             <ul className="mt-4 flex flex-col gap-3 text-xs text-gray-200 sm:text-[13px]">
               {companyLinks.map((item) => (
                 <li key={item.label}>
-                  <Link href={item.href} className="transition-colors hover:text-[#2ee59d]">
-                    {item.label}
-                  </Link>
+                  <Link href={item.href} className="transition-colors hover:text-[#2ee59d]">{item.label}</Link>
                 </li>
               ))}
             </ul>
           </div>
 
-          {/* العمود الرابع: قانوني */}
           <div className="text-right">
-            <h3 className="text-xs font-bold text-gray-400">
-              {dictionary.footer?.legal || 'قانوني'}
-            </h3>
+            <h3 className="text-xs font-bold text-gray-400">{dictionary.footer?.legal || 'قانوني'}</h3>
             <ul className="mt-4 flex flex-col gap-3 text-xs text-gray-200 sm:text-[13px]">
               {legalLinks.map((item) => (
                 <li key={item.label}>
-                  <Link href={item.href} className="transition-colors hover:text-[#2ee59d]">
-                    {item.label}
-                  </Link>
+                  <Link href={item.href} className="transition-colors hover:text-[#2ee59d]">{item.label}</Link>
                 </li>
               ))}
             </ul>
           </div>
-
         </div>
 
-        {/* القسم السفلي للفوتر (الدولة وإخلاء المسؤولية وحقوق النشر) */}
         <div className="mt-12 border-t border-white/10 pt-8 text-right text-xs text-gray-400">
           <div>
             <span className="block text-[11px] text-gray-400">الدولة</span>
             <div className="mt-2.5 flex flex-wrap items-center justify-start gap-4 text-xs">
-              <Link href="/opportunities" className="font-bold text-white hover:text-[#2ee59d]">
-                مصر
-              </Link>
-              <span className="inline-flex items-center gap-1.5 text-gray-400">
-                السعودية
-                <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] text-gray-300">
-                  قريبًا
-                </span>
-              </span>
-              <span className="inline-flex items-center gap-1.5 text-gray-400">
-                الإمارات
-                <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] text-gray-300">
-                  قريبًا
-                </span>
-              </span>
+              <Link href="/opportunities" className="font-bold text-white hover:text-[#2ee59d]">مصر</Link>
+              <span className="inline-flex items-center gap-1.5 text-gray-400">السعودية <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] text-gray-300">قريبًا</span></span>
+              <span className="inline-flex items-center gap-1.5 text-gray-400">الإمارات <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] text-gray-300">قريبًا</span></span>
             </div>
           </div>
-
           <p className="mt-5 text-[11px] leading-relaxed text-gray-400/90 sm:text-xs">
-            {dictionary.footer?.disclaimer ||
-              'الأرقام والتقديرات المعروضة على المنصة استرشادية وتعتمد على بنود كل عقد على حدة، ولا تعتبر استشارة قانونية أو وعدًا بنتيجة محددة. المراجعة النهائية بتتم على عقدك الفعلي مع فريقنا ومستشارين قانونيين مؤهلين.'}
+            {dictionary.footer?.disclaimer || 'الأرقام والتقديرات المعروضة على المنصة استرشادية وتعتمد على بنود كل عقد على حدة، ولا تعتبر استشارة قانونية أو وعدًا بنتيجة محددة.'}
           </p>
-
           <div className="mt-6 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
             <div className="space-y-1 text-right">
-              <p className="text-[11px] text-gray-400">
-                {dictionary.footer?.copyright || '© 2026 عقار إكزت. جميع الحقوق محفوظة.'}
-              </p>
-              <p className="text-[11px] text-gray-500">
-                {dictionary.footer?.powered ||
-                  'Powered by Aqara for Real Estate and Ammar Group LLC'}
-              </p>
+              <p className="text-[11px] text-gray-400">{dictionary.footer?.copyright || '© 2026 عقار إكزت. جميع الحقوق محفوظة.'}</p>
+              <p className="text-[11px] text-gray-500">{dictionary.footer?.powered || 'Powered by Aqara for Real Estate and Ammar Group LLC'}</p>
             </div>
-
             <div className="flex items-center gap-4">
-              <Link
-                href="/opportunities"
-                className="text-xs text-gray-400 transition-colors hover:text-white"
-              >
-                الفرص المتاحة
-              </Link>
-              <Link
-                href="/"
-                className="text-xs text-gray-400 transition-colors hover:text-white"
-              >
-                الرئيسية
-              </Link>
+              <Link href="/opportunities" className="text-xs text-gray-400 transition-colors hover:text-white">الفرص المتاحة</Link>
+              <Link href="/" className="text-xs text-gray-400 transition-colors hover:text-white">الرئيسية</Link>
             </div>
           </div>
         </div>
-
       </div>
     </footer>
   )

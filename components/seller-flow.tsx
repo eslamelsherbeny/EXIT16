@@ -60,22 +60,28 @@ export function SellerFlow() {
     phone: string
   } | null>(null)
 
-  useEffect(() => {
+ useEffect(() => {
     async function initFlow() {
+      const profileRes = await getCurrentSellerProfileAction()
+      if (profileRes.isLoggedIn && profileRes.user) {
+        setLoggedUser(profileRes.user)
+      }
+
       if (typeof window !== 'undefined') {
         const params = new URLSearchParams(window.location.search)
         const magicToken = params.get('magic')
+        const editUnitId = params.get('editUnitId') || params.get('resume')
+        const isNewUnit = params.get('new') === '1'
+        const targetStep = Number(params.get('step')) || 3
 
+        // 1. إذا دخل عبر الرابط السحري من الإيميل
         if (magicToken) {
           const res = await verifyMagicTokenAction(magicToken)
           if (res.valid && res.unit) {
             const u = res.unit
             setUnitId(String(u.id))
             setOrderRef(
-              `AE-${String(u.id)
-                .replace(/[^a-zA-Z0-9]/g, '')
-                .slice(0, 6)
-                .toUpperCase()}`
+              `AE-${String(u.id).replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase()}`
             )
             setForm((prev) => ({
               ...prev,
@@ -83,11 +89,22 @@ export function SellerFlow() {
               developerDetails: u.developer_name || '',
               project: u.project_name || '',
               projectDetails: u.project_name || '',
+              location: u.area || '',
+              areaSize: String(u.size || ''),
+              garden: String(u.garden_size || ''),
+              rooms: String(u.rooms || ''),
+              bathrooms: String(u.bathrooms || ''),
+              floor: String(u.floor_number ?? ''),
+              description: u.description || '',
               contractPrice: String(u.contract_price || ''),
               contractPrice2: String(u.contract_price || ''),
               paidAmount: String(u.paid_amount || ''),
               paidAmount2: String(u.paid_amount || ''),
               marketPrice: String(u.market_price || u.contract_price || ''),
+              installment: String(u.installment_amount || ''),
+              remainingYears: String(u.years_left ?? ''),
+              discountAmount: String(u.discount_amount || ''),
+              overdueCount: String(u.overdue_installments || ''),
               name: u.name || '',
               phone: u.phone || '',
               email: u.email || '',
@@ -99,17 +116,87 @@ export function SellerFlow() {
             return
           }
         }
-      }
 
-      const profileRes = await getCurrentSellerProfileAction()
-      if (profileRes.isLoggedIn && profileRes.user) {
-        setLoggedUser(profileRes.user)
+        // 2. إذا ضغط البائع على "كمّل بيانات الوحدة" أو "بيانات وحدتك" أو "أضف الصور" من حسابه
+        if (editUnitId) {
+          const supabase = createClient()
+          const { data: u } = await supabase
+            .from('sell_requests')
+            .select('*')
+            .eq('id', editUnitId)
+            .maybeSingle()
+
+          if (u) {
+            setUnitId(String(u.id))
+            setOrderRef(
+              `AE-${String(u.id).replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase()}`
+            )
+            setForm((prev) => ({
+              ...prev,
+              developer: u.developer_name || '',
+              developerDetails: u.developer_name || '',
+              project: u.project_name || '',
+              projectDetails: u.project_name || '',
+              location: u.area || '',
+              areaSize: u.size ? String(u.size) : '',
+              garden: u.garden_size ? String(u.garden_size) : '',
+              rooms: u.rooms ? String(u.rooms) : '',
+              bathrooms: u.bathrooms ? String(u.bathrooms) : '',
+              floor: u.floor_number !== null && u.floor_number !== undefined ? String(u.floor_number) : '',
+              description: u.description || '',
+              contractPrice: u.contract_price ? String(u.contract_price) : '',
+              contractPrice2: u.contract_price ? String(u.contract_price) : '',
+              paidAmount: u.paid_amount ? String(u.paid_amount) : '',
+              paidAmount2: u.paid_amount ? String(u.paid_amount) : '',
+              marketPrice: u.market_price ? String(u.market_price) : '',
+              installment: u.installment_amount ? String(u.installment_amount) : '',
+              remainingYears: u.years_left !== null && u.years_left !== undefined ? String(u.years_left) : '',
+              discountAmount: u.discount_amount ? String(u.discount_amount) : '',
+              overdueCount: u.overdue_installments ? String(u.overdue_installments) : '',
+              name: u.name || profileRes.user?.name || '',
+              phone: u.phone || profileRes.user?.phone || '',
+              email: u.email || profileRes.user?.email || '',
+              owner: 'yes',
+              confirmed: 'yes',
+            }))
+            setSelected({
+              type: u.unit_type ? [u.unit_type] : [],
+              finishing: u.finishing ? [u.finishing] : [],
+              delivery: u.delivery_status ? [u.delivery_status] : [],
+              features: Array.isArray(u.features) ? u.features : [],
+              year: u.contract_year ? [String(u.contract_year)] : [],
+              frequency: u.installment_frequency ? [u.installment_frequency] : [],
+              annualInstallment: [u.has_annual_installment ? 'yes' : 'no'],
+              discountOffer: [u.willing_to_discount ? 'yes' : 'no'],
+              overdueInstallments: [u.has_overdue_installments ? 'yes' : 'no'],
+            })
+            if (Array.isArray(u.images)) {
+              setImages(u.images)
+            }
+            setIsMagicResume(true)
+            setStep(targetStep)
+            return
+          }
+        }
+
+        // 3. إذا ضغط البائع المسجل دخول على "+ ضيف وحدة تانية" (يدخل مباشرة على تفاصيل الوحدة بدون إعادة تسجيل حساب)
+        if (isNewUnit && profileRes.isLoggedIn && profileRes.user) {
+          setForm((prev) => ({
+            ...prev,
+            name: profileRes.user?.name || '',
+            phone: profileRes.user?.phone || '',
+            email: profileRes.user?.email || '',
+            owner: 'yes',
+            confirmed: 'yes',
+          }))
+          setIsMagicResume(true)
+          setStep(3)
+        }
       }
     }
 
     initFlow()
   }, [])
-
   const update = (key: string, value: string) => {
     setForm((current) => ({ ...current, [key]: value }))
     setErrors((current) => ({ ...current, [key]: '' }))

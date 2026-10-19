@@ -39,7 +39,7 @@ const ADMIN_NAV_LINKS = [
   },
   {
     href: "/admin/properties",
-    label: "إدارة العقارات",
+    label: "طلبات البيع",
     shortLabel: "العقارات",
     icon: Building2,
   },

@@ -7,7 +7,6 @@ import {
   ArrowLeft,
   Bell,
   Building2,
-  CheckCheck,
   CheckCircle2,
   Clock,
   ExternalLink,
@@ -526,13 +525,13 @@ export default function AdminShell({
 
                           <div className="min-w-0 flex-1">
                             <p
-                              className={`text-xs leading-snug text-[#0a1122] break-words whitespace-normal ${
+                              className={`text-xs leading-snug text-[#0a1122] ${
                                 !item.isRead ? "font-extrabold" : "font-bold"
                               }`}
                             >
                               {item.title}
                             </p>
-                            <p className="mt-1 text-[11.5px] leading-relaxed text-gray-600 break-words whitespace-normal">
+                            <p className="mt-1 text-[11.5px] leading-relaxed text-gray-600 break-words">
                               {item.subtitle}
                             </p>
                             <div className="mt-2 flex items-center justify-between">

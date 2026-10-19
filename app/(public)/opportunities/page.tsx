@@ -10,6 +10,7 @@ import {
   CheckSquare,
   ChevronDown,
   Heart,
+  Home,
   ListFilter,
   Search,
   ShieldCheck,
@@ -256,33 +257,35 @@ function PropertyCard({ property }: { property: Property }) {
 
         <div className="p-2.5 pb-2 text-right sm:p-5 sm:pb-3">
           <Link href={`/opportunities/${property.id}`}>
-            <h3 className="line-clamp-1 min-h-[20px] text-[13px] font-extrabold leading-snug text-[#0a1122] transition-colors group-hover:text-[#0b6954] sm:line-clamp-2 sm:min-h-[44px] sm:text-[16px]">
+            <h3 className="line-clamp-1 min-h-[20px] text-[13px] font-bold leading-snug text-[#0a1122] transition-colors group-hover:text-[#0b6954] sm:line-clamp-2 sm:min-h-[44px] sm:text-[18px]">
               {property.project}
             </h3>
           </Link>
 
-          <p className="mt-0.5 line-clamp-1 text-[10px] text-gray-500 sm:mt-1 sm:text-xs">
+          <p className="mt-0.5 line-clamp-1 text-[10px] font-normal text-[#64748b] sm:mt-1 sm:text-[13px]">
             {property.developer}
           </p>
 
           <div className="mt-0.5 text-left sm:mt-1">
-            <span className="font-mono text-[9px] text-gray-400 sm:text-[11px]">
+            <span className="font-mono text-[9px] text-[#94a3b8] sm:text-[11.5px]">
               {property.code}
             </span>
           </div>
 
-          <p className="mt-1.5 line-clamp-1 text-[10px] font-extrabold text-[#0a1122] sm:mt-2 sm:text-xs">
+          <p className="mt-1.5 line-clamp-1 text-[10px] font-semibold text-[#1e293b] sm:mt-2 sm:text-[13px]">
             {property.type} · {property.rooms} غرف · {property.baths} حمام · {property.size} م²
           </p>
 
           <div className="mt-2.5 sm:mt-4">
-            <p className="text-[10px] text-gray-400 sm:text-[11px]">المطلوب كاش دلوقتي</p>
-            <p className="mt-0.5 text-[15px] font-extrabold tracking-tight text-[#0a1122] tabular-nums sm:text-[22px]">
+            <p className="text-[10px] font-normal text-[#64748b] sm:text-[12px]">
+              المطلوب كاش دلوقتي
+            </p>
+            <p className="mt-0.5 text-[15px] font-bold tracking-tight text-[#0a1122] tabular-nums sm:text-[24px]">
               {property.cash}{' '}
-              <span className="text-[11px] font-bold sm:text-sm">ج.م</span>
+              <span className="text-[11px] font-semibold sm:text-[15px]">ج.م</span>
             </p>
             {property.negotiable && (
-              <div className="mt-0.5 flex items-center justify-start gap-1 text-[10px] font-bold text-[#d97706] sm:mt-1 sm:text-[11px]">
+              <div className="mt-0.5 flex items-center justify-start gap-1 text-[10px] font-semibold text-[#b45309] sm:mt-1 sm:text-[11.5px]">
                 <span>↓</span>
                 <span>قابل للتفاوض</span>
               </div>
@@ -291,21 +294,21 @@ function PropertyCard({ property }: { property: Property }) {
 
           {property.gain && (
             <div className="mt-2.5 sm:mt-3.5">
-              <div className="rounded-lg border border-[#c8eedd] bg-[#ecfbf3] p-2 text-right sm:rounded-xl sm:p-3">
-                <p className="text-[10px] font-bold text-[#0b6954] sm:text-[11px]">
+              <div className="rounded-lg bg-[#eff9f5] p-2 text-right sm:rounded-[14px] sm:px-4 sm:py-3.5">
+                <p className="text-[10px] font-semibold text-[#0c7758] sm:text-[11.5px]">
                   مكسبك عن سعر السوق
                 </p>
                 <p
                   dir="ltr"
-                  className="mt-0.5 text-right text-[13px] font-extrabold text-[#0b6954] tabular-nums sm:text-lg"
+                  className="mt-0.5 text-right text-[13px] font-bold text-[#097a58] tabular-nums sm:text-[18px]"
                 >
                   {property.gain} ج.م
                 </p>
-                <p className="mt-0.5 text-[8.5px] leading-snug text-[#0b6954]/85 sm:text-[10px]">
+                <p className="mt-0.5 text-[8.5px] font-normal leading-snug text-[#2b8a6e] sm:text-[11px]">
                   سعر السوق اليوم: {property.marketPrice} ج.م · بعد خصم عمولتنا 1.25%
                 </p>
               </div>
-              <p className="mt-1 hidden text-[10px] text-gray-400 sm:block">
+              <p className="mt-1.5 hidden text-[10.5px] font-normal text-[#94a3b8] sm:block">
                 سعر السوق من صاحب الوحدة ومسؤوليته — مش تقييم من عقار إكزت.
               </p>
             </div>
@@ -314,22 +317,22 @@ function PropertyCard({ property }: { property: Property }) {
       </div>
 
       <div className="px-2.5 pb-2.5 pt-1 sm:px-5 sm:pb-5 sm:pt-2">
-        <div className="space-y-1.5 border-t border-gray-100 pt-2 text-[10px] sm:space-y-2 sm:pt-3 sm:text-xs">
+        <div className="space-y-1.5 border-t border-[#f1f5f9] pt-2 text-[10px] sm:space-y-2 sm:pt-3 sm:text-[12.5px]">
           <div className="flex items-center justify-between gap-1">
-            <span className="shrink-0 text-gray-400">المتبقي للمطور</span>
-            <strong className="truncate font-bold text-[#0a1122] tabular-nums">
+            <span className="shrink-0 font-normal text-[#64748b]">المتبقي للمطور</span>
+            <strong className="truncate font-semibold text-[#0a1122] tabular-nums">
               {property.remaining} ج.م
             </strong>
           </div>
           <div className="flex items-center justify-between gap-1">
-            <span className="shrink-0 text-gray-400">القسط</span>
-            <strong className="truncate font-bold text-[#0a1122] tabular-nums">
+            <span className="shrink-0 font-normal text-[#64748b]">القسط</span>
+            <strong className="truncate font-semibold text-[#0a1122] tabular-nums">
               {property.installment} ج.م · {property.installmentFreq}
             </strong>
           </div>
           <div className="flex items-center justify-between gap-1">
-            <span className="shrink-0 text-gray-400">الاستلام</span>
-            <strong className="font-bold text-[#0a1122] tabular-nums">
+            <span className="shrink-0 font-normal text-[#64748b]">الاستلام</span>
+            <strong className="font-semibold text-[#0a1122] tabular-nums">
               {property.delivery}
             </strong>
           </div>
@@ -337,7 +340,7 @@ function PropertyCard({ property }: { property: Property }) {
 
         <Link
           href={`/opportunities/${property.id}`}
-          className="mt-3 flex h-8 w-full items-center justify-center rounded-[8px] bg-[#0a1122] text-[11px] font-bold text-white transition-colors hover:bg-[#16223f] sm:mt-4 sm:h-10 sm:rounded-[10px] sm:text-xs"
+          className="mt-3 flex h-8 w-full items-center justify-center rounded-[8px] bg-[#0a1122] text-[11px] font-semibold text-white transition-colors hover:bg-[#16223f] sm:mt-4 sm:h-[42px] sm:rounded-[11px] sm:text-[13.5px]"
         >
           تفاصيل
         </Link>
@@ -352,7 +355,6 @@ export default function OpportunitiesPage() {
   const [totalInPlatform, setTotalInPlatform] = useState<number>(0)
   const [loading, setLoading] = useState<boolean>(true)
 
-  // حالة الـ Pagination (تبدأ بـ 48 وتزيد 48 في كل ضغطة على الموبايل والكمبيوتر)
   const [visibleLimit, setVisibleLimit] = useState<number>(PAGE_SIZE)
 
   const [filtersOpen, setFiltersOpen] = useState(false)
@@ -371,7 +373,6 @@ export default function OpportunitiesPage() {
   const [contractYear, setContractYear] = useState('الكل')
   const [minRooms, setMinRooms] = useState('الكل')
 
-  // قراءة قيمة ?show= من الرابط عند فتح الصفحة (مثلاً ?show=144)
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search)
@@ -401,7 +402,8 @@ export default function OpportunitiesPage() {
             .limit(5000),
           supabase
             .from('sell_requests')
-            .select('id', { count: 'exact', head: true }),
+            .select('id', { count: 'exact', head: true })
+            .neq('status', 'rejected'),
         ])
 
         if (!error && data) {
@@ -419,7 +421,6 @@ export default function OpportunitiesPage() {
     loadApprovedProperties()
   }, [])
 
-  // إعادة ضبط الـ Pagination إلى 48 عند تغيير أي فلتر أو بحث
   useEffect(() => {
     setVisibleLimit(PAGE_SIZE)
     if (typeof window !== 'undefined') {
@@ -469,7 +470,6 @@ export default function OpportunitiesPage() {
     setVisibleLimit(PAGE_SIZE)
   }
 
-  // دالة تحميل 48 وحدة إضافية تحت الوحدات المعروضة حالياً + تحديث الرابط (?show=96, ?show=144)
   const handleLoadMore = () => {
     setVisibleLimit((prev) => {
       const nextLimit = prev + PAGE_SIZE
@@ -622,7 +622,6 @@ export default function OpportunitiesPage() {
     }
   }, [totalMarketSum])
 
-  // الوحدات المعروضة حالياً (تبدأ بـ 48 وتزيد 48 مع كل ضغطة)
   const displayedProperties = useMemo(() => {
     return visibleProperties.slice(0, visibleLimit)
   }, [visibleProperties, visibleLimit])
@@ -644,61 +643,63 @@ export default function OpportunitiesPage() {
           </p>
         </div>
 
-        {/* ==================== 2. صندوق الإحصائيات (محاذاة الأرقام على نفس الخط تماماً) ==================== */}
+        {/* ==================== 2. صندوق الإحصائيات (تحت بعضه على الموبايل ومحاذي لليمين تماماً مثل الصورة الأصلية) ==================== */}
         <section className="mt-6 sm:mt-8">
-          <div className="grid grid-cols-2 divide-x divide-x-reverse divide-gray-200/80 overflow-hidden rounded-[16px] border border-gray-200/70 border-t-[3px] border-t-[#0b6954] bg-white shadow-sm sm:rounded-[20px]">
-            {/* الوحدات على المنصة */}
-            <div className="flex flex-col justify-between p-4 text-right sm:p-10">
-              <div className="flex min-h-[22px] items-center justify-start">
-                <p className="text-[11px] font-bold text-gray-500 sm:text-xs">
+          <div className="grid grid-cols-1 divide-y divide-gray-200/80 overflow-hidden rounded-[20px] border border-gray-200/70 border-t-[3px] border-t-[#0b6954] bg-white shadow-sm md:grid-cols-2 md:divide-y-0 md:divide-x md:divide-x-reverse">
+            
+            {/* الإحصائية الأولى: الوحدات على المنصة */}
+            <div className="flex flex-col justify-between p-6 text-right sm:p-10">
+              <div className="flex items-center justify-start">
+                <p className="text-xs font-bold text-gray-500 sm:text-sm">
                   الوحدات على المنصة
                 </p>
               </div>
 
-              <div className="mt-2 flex items-baseline justify-start gap-1.5 sm:mt-3 sm:gap-2">
-                <span className="text-2xl font-extrabold leading-none tracking-tight text-[#0a1122] tabular-nums sm:text-5xl">
+              <div className="mt-3 flex items-baseline justify-start gap-2">
+                <span className="text-4xl font-extrabold leading-none tracking-tight text-[#0a1122] tabular-nums sm:text-5xl">
                   {totalUnitsCount.toLocaleString('en-US')}
                 </span>
-                <span className="text-xs font-medium text-gray-500 sm:text-lg">
+                <span className="text-base font-medium text-gray-500 sm:text-lg">
                   وحدة
                 </span>
               </div>
 
               <div>
-                <div className="mt-3 h-[1px] w-8 bg-teal-600/40 sm:mt-4 sm:w-10" />
-                <p className="mt-2 text-[10px] leading-snug text-gray-400 sm:mt-3 sm:text-xs">
+                <div className="mt-4 h-[1px] w-12 bg-teal-600/40" />
+                <p className="mt-3 text-xs leading-snug text-gray-400">
                   منشورة في السوق، وتحت المراجعة
                 </p>
               </div>
             </div>
 
-            {/* قيمة الوحدات في السوق */}
-            <div className="flex flex-col justify-between p-4 text-right sm:p-10">
-              <div className="flex min-h-[22px] items-center justify-start gap-1 sm:gap-2">
-                <p className="truncate text-[10.5px] font-bold text-gray-500 sm:text-xs">
+            {/* الإحصائية الثانية: قيمة الوحدات في السوق */}
+            <div className="flex flex-col justify-between p-6 text-right sm:p-10">
+              <div className="flex items-center justify-start gap-2">
+                <p className="text-xs font-bold text-gray-500 sm:text-sm">
                   قيمة الوحدات في السوق
                 </p>
-                <span className="shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-[8.5px] font-semibold text-gray-500 sm:text-[10px]">
+                <span className="shrink-0 rounded-full bg-gray-100 px-2.5 py-0.5 text-[10px] font-semibold text-gray-500">
                   تقديري
                 </span>
               </div>
 
-              <div className="mt-2 flex items-baseline justify-start gap-1.5 sm:mt-3 sm:gap-2">
-                <span className="text-2xl font-extrabold leading-none tracking-tight text-[#0a1122] tabular-nums sm:text-5xl">
+              <div className="mt-3 flex items-baseline justify-start gap-2">
+                <span className="text-4xl font-extrabold leading-none tracking-tight text-[#0a1122] tabular-nums sm:text-5xl">
                   {formattedMarketTotal.value}
                 </span>
-                <span className="text-xs font-medium text-gray-500 sm:text-lg">
+                <span className="text-base font-medium text-gray-500 sm:text-lg">
                   {formattedMarketTotal.unit}
                 </span>
               </div>
 
               <div>
-                <div className="mt-3 h-[1px] w-8 bg-teal-600/40 sm:mt-4 sm:w-10" />
-                <p className="mt-2 text-[10px] leading-snug text-gray-400 sm:mt-3 sm:text-xs">
+                <div className="mt-4 h-[1px] w-12 bg-teal-600/40" />
+                <p className="mt-3 text-xs leading-snug text-gray-400">
                   بسعر السوق الحالي للوحدة
                 </p>
               </div>
             </div>
+
           </div>
         </section>
 
@@ -1098,7 +1099,7 @@ export default function OpportunitiesPage() {
           </section>
         )}
 
-        {/* ==================== 5. شبكة الكروت (عمودين للموبايل، و3 أعمدة للكمبيوتر) + الـ Pagination ==================== */}
+        {/* ==================== 5. شبكة الكروت + الـ Pagination ==================== */}
         <section className="mt-6 sm:mt-8">
           <div className="mb-4 flex items-center justify-start gap-1.5 text-right sm:mb-5">
             <Star className="size-4 fill-amber-400 text-amber-500" />
@@ -1146,7 +1147,7 @@ export default function OpportunitiesPage() {
             </div>
           )}
 
-          {/* زر الـ Pagination لعرض 48 وحدة إضافية تحت الوحدات الحالية على الموبايل والكمبيوتر */}
+          {/* زر الـ Pagination */}
           {remainingCount > 0 && (
             <div className="mt-8 flex justify-center sm:mt-10">
               <button
@@ -1165,79 +1166,114 @@ export default function OpportunitiesPage() {
         <section className="relative mt-12 overflow-hidden rounded-[20px] bg-[#0a1122] px-5 py-10 text-white shadow-xl sm:mt-14 sm:rounded-[24px] sm:px-12 sm:py-16">
           <div className="pointer-events-none absolute left-10 top-1/2 size-80 -translate-y-1/2 rounded-full bg-teal-500/10 blur-[110px]" />
 
-          <div className="relative mr-0 ml-auto max-w-lg text-right">
-            <span className="inline-block rounded-full border border-teal-500/30 bg-teal-500/10 px-3.5 py-1 text-[10px] font-bold text-[#2ee59d] sm:text-[11px]">
-              التطبيق نزل رسميًا
-            </span>
-            <h2 className="mt-3 text-2xl font-extrabold text-white sm:mt-4 sm:text-3xl md:text-4xl">
-              السوق كله في جيبك
-            </h2>
-            <p className="mt-2.5 text-xs leading-[1.9] text-gray-300/85 sm:mt-3 sm:text-sm">
-              أول ما وحدة تنزل السوق، الإشعار يوصلك في ثانيتها — من غير ما تفضل داخل تشوف في جديد ولا لأ.
-            </p>
+          <div className="relative grid grid-cols-1 items-center gap-10 md:grid-cols-[1.15fr_0.85fr]">
+            <div className="text-right">
+              <span className="inline-block rounded-full border border-teal-500/30 bg-teal-500/10 px-3.5 py-1 text-[10px] font-bold text-[#2ee59d] sm:text-[11px]">
+                التطبيق نزل رسميًا
+              </span>
+              <h2 className="mt-3 text-2xl font-extrabold text-white sm:mt-4 sm:text-3xl md:text-4xl">
+                السوق كله في جيبك
+              </h2>
+              <p className="mt-2.5 max-w-lg text-xs leading-[1.9] text-gray-300/85 sm:mt-3 sm:text-sm">
+                أول ما وحدة تنزل السوق، الإشعار يوصلك في ثانيتها — من غير ما تفضل داخل تشوف في جديد ولا لأ.
+              </p>
 
-            <ul className="mt-5 space-y-3 sm:mt-6 sm:space-y-3.5">
-              <li className="flex items-center gap-2.5 text-xs font-medium text-gray-200 sm:gap-3 sm:text-[13px]">
-                <span className="flex size-7 shrink-0 items-center justify-center rounded-full border border-teal-500/20 bg-teal-500/10 text-[#2ee59d]">
-                  <Bell className="size-3.5" />
-                </span>
-                <span>إشعار لحظة نزول وحدة جديدة تطابق طلبك</span>
-              </li>
-              <li className="flex items-center gap-2.5 text-xs font-medium text-gray-200 sm:gap-3 sm:text-[13px]">
-                <span className="flex size-7 shrink-0 items-center justify-center rounded-full border border-teal-500/20 bg-teal-500/10 text-[#2ee59d]">
-                  <Zap className="size-3.5" />
-                </span>
-                <span>تصفح أسرع ومن غير تسجيل دخول كل مرة</span>
-              </li>
-              <li className="flex items-center gap-2.5 text-xs font-medium text-gray-200 sm:gap-3 sm:text-[13px]">
-                <span className="flex size-7 shrink-0 items-center justify-center rounded-full border border-teal-500/20 bg-teal-500/10 text-[#2ee59d]">
-                  <CheckSquare className="size-3.5" />
-                </span>
-                <span>تابع وحدتك أو طلبك خطوة بخطوة</span>
-              </li>
-            </ul>
+              <ul className="mt-5 space-y-3 sm:mt-6 sm:space-y-3.5">
+                <li className="flex items-center gap-2.5 text-xs font-medium text-gray-200 sm:gap-3 sm:text-[13px]">
+                  <span className="flex size-7 shrink-0 items-center justify-center rounded-full border border-teal-500/20 bg-teal-500/10 text-[#2ee59d]">
+                    <Bell className="size-3.5" />
+                  </span>
+                  <span>إشعار لحظة نزول وحدة جديدة تطابق طلبك</span>
+                </li>
+                <li className="flex items-center gap-2.5 text-xs font-medium text-gray-200 sm:gap-3 sm:text-[13px]">
+                  <span className="flex size-7 shrink-0 items-center justify-center rounded-full border border-teal-500/20 bg-teal-500/10 text-[#2ee59d]">
+                    <Zap className="size-3.5" />
+                  </span>
+                  <span>تصفح أسرع ومن غير تسجيل دخول كل مرة</span>
+                </li>
+                <li className="flex items-center gap-2.5 text-xs font-medium text-gray-200 sm:gap-3 sm:text-[13px]">
+                  <span className="flex size-7 shrink-0 items-center justify-center rounded-full border border-teal-500/20 bg-teal-500/10 text-[#2ee59d]">
+                    <CheckSquare className="size-3.5" />
+                  </span>
+                  <span>تابع وحدتك أو طلبك خطوة بخطوة</span>
+                </li>
+              </ul>
 
-            <div className="mt-7 flex flex-wrap items-center justify-start gap-2.5 sm:mt-8 sm:gap-3">
-              <a
-                href="#app-store"
-                className="flex items-center gap-2.5 rounded-xl border border-white/15 bg-black px-4 py-2 text-white transition hover:bg-white/5"
-              >
-                <div className="text-right">
-                  <span className="block text-[8px] text-gray-400">حمّله من</span>
-                  <span className="block text-xs font-bold leading-tight">App Store</span>
+              <div className="mt-7 flex flex-wrap items-center justify-start gap-2.5 sm:mt-8 sm:gap-3">
+                <a
+                  href="#app-store"
+                  className="flex items-center gap-2.5 rounded-xl border border-white/15 bg-black px-4 py-2 text-white transition hover:bg-white/5"
+                >
+                  <div className="text-right">
+                    <span className="block text-[8px] text-gray-400">حمّله من</span>
+                    <span className="block text-xs font-bold leading-tight">App Store</span>
+                  </div>
+                  <svg className="size-5 fill-current" viewBox="0 0 24 24">
+                    <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.33c.64-.78 1.08-1.86.96-2.94-.93.04-2.06.62-2.72 1.4-.58.68-1.1 1.79-.96 2.84 1.04.08 2.08-.52 2.72-1.3z" />
+                  </svg>
+                </a>
+
+                <a
+                  href="#google-play"
+                  className="flex items-center gap-2.5 rounded-xl border border-white/15 bg-black px-4 py-2 text-white transition hover:bg-white/5"
+                >
+                  <div className="text-right">
+                    <span className="block text-[8px] text-gray-400">متوفر على</span>
+                    <span className="block text-xs font-bold leading-tight">Google Play</span>
+                  </div>
+                  <svg className="size-5" viewBox="0 0 24 24">
+                    <path
+                      fill="#4285F4"
+                      d="M3.61 1.814L13.793 12 3.61 22.186a1.96 1.96 0 0 1-.61-1.42V3.234c0-.55.23-1.05.61-1.42z"
+                    />
+                    <path
+                      fill="#34A853"
+                      d="M17.22 8.573L13.793 12 3.61 1.814c.42-.4.99-.53 1.56-.21l12.05 6.97z"
+                    />
+                    <path
+                      fill="#FBBC05"
+                      d="M20.635 10.548c.98.57.98 1.98 0 2.55l-3.415 1.975L13.793 12l3.427-3.427 3.415 1.975z"
+                    />
+                    <path
+                      fill="#EA4335"
+                      d="M17.22 15.427L5.17 22.396c-.57.32-1.14.19-1.56-.21L13.793 12l3.427 3.427z"
+                    />
+                  </svg>
+                </a>
+              </div>
+            </div>
+
+            <div className="hidden justify-center md:flex">
+              <div className="w-[270px] -rotate-3 rounded-[40px] border-[6px] border-[#1c283c] bg-[#0b1323] p-4 shadow-2xl transition-transform duration-300 hover:rotate-0 sm:w-[300px]">
+                <div className="mx-auto mb-4 h-4 w-24 rounded-full bg-black" />
+                <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-[#131f33] p-3.5 text-right shadow-md">
+                  <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-teal-500/15 text-[#2ee59d]">
+                    <Home className="size-4" />
+                  </span>
+                  <div className="mr-2.5 flex-1">
+                    <p className="text-[11px] font-bold text-white">وحدة جديدة نزلت دلوقتي</p>
+                    <p className="mt-0.5 text-[9px] text-gray-400">
+                      3 غرف • التجمع الخامس • مطابقة لطلبك
+                    </p>
+                  </div>
                 </div>
-                <svg className="size-5 fill-current" viewBox="0 0 24 24">
-                  <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.33c.64-.78 1.08-1.86.96-2.94-.93.04-2.06.62-2.72 1.4-.58.68-1.1 1.79-.96 2.84 1.04.08 2.08-.52 2.72-1.3z" />
-                </svg>
-              </a>
-
-              <a
-                href="#google-play"
-                className="flex items-center gap-2.5 rounded-xl border border-white/15 bg-black px-4 py-2 text-white transition hover:bg-white/5"
-              >
-                <div className="text-right">
-                  <span className="block text-[8px] text-gray-400">متوفر على</span>
-                  <span className="block text-xs font-bold leading-tight">Google Play</span>
+                <div className="mt-3 rounded-2xl border border-white/5 bg-[#101b2d] p-3">
+                  <div className="h-20 w-full rounded-xl bg-gradient-to-b from-teal-900/35 to-teal-950/15" />
+                  <div className="mt-3 h-2.5 w-3/4 rounded-full bg-white/10" />
+                  <div className="mt-2 h-2 w-1/2 rounded-full bg-white/5" />
+                  <div className="mt-3 flex justify-end">
+                    <div className="h-4 w-14 rounded-md bg-teal-500/20" />
+                  </div>
                 </div>
-                <svg className="size-5" viewBox="0 0 24 24">
-                  <path
-                    fill="#4285F4"
-                    d="M3.61 1.814L13.793 12 3.61 22.186a1.96 1.96 0 0 1-.61-1.42V3.234c0-.55.23-1.05.61-1.42z"
-                  />
-                  <path
-                    fill="#34A853"
-                    d="M17.22 8.573L13.793 12 3.61 1.814c.42-.4.99-.53 1.56-.21l12.05 6.97z"
-                  />
-                  <path
-                    fill="#FBBC05"
-                    d="M20.635 10.548c.98.57.98 1.98 0 2.55l-3.415 1.975L13.793 12l3.427-3.427 3.415 1.975z"
-                  />
-                  <path
-                    fill="#EA4335"
-                    d="M17.22 15.427L5.17 22.396c-.57.32-1.14.19-1.56-.21L13.793 12l3.427 3.427z"
-                  />
-                </svg>
-              </a>
+                <div className="mt-3 rounded-2xl border border-white/5 bg-[#101b2d] p-3">
+                  <div className="h-20 w-full rounded-xl bg-gradient-to-b from-[#17263c] to-[#101b2d]" />
+                  <div className="mt-3 h-2.5 w-2/3 rounded-full bg-white/10" />
+                  <div className="mt-2 h-2 w-2/5 rounded-full bg-white/5" />
+                  <div className="mt-3 flex justify-end">
+                    <div className="h-4 w-14 rounded-md bg-teal-500/20" />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </section>

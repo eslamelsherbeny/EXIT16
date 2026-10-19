@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useRef, useTransition } from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import {
+  ArrowLeft,
   Bell,
   Building2,
-  CheckCheck,
   CheckCircle2,
   Clock,
   ExternalLink,
@@ -16,12 +16,15 @@ import {
   Menu,
   Settings,
   ShieldCheck,
+  Trash2,
   User,
   Users,
   WalletCards,
   X,
 } from "lucide-react"
 import {
+  clearAllNotificationsAction,
+  deleteNotificationAction,
   markAllNotificationsAsReadAction,
   markNotificationAsReadAction,
 } from "@/app/actions/notification-actions"
@@ -75,7 +78,6 @@ const ADMIN_NAV_LINKS = [
   },
 ]
 
-// العناصر الـ 5 في الشريط السفلي للموبايل
 const MOBILE_BOTTOM_LINKS = [
   ADMIN_NAV_LINKS[0],
   ADMIN_NAV_LINKS[1],
@@ -97,15 +99,16 @@ export default function AdminShell({
   initialUnreadCount?: number
   children: React.ReactNode
 }) {
+  const router = useRouter()
   const pathname = usePathname()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
-  const [localNotifs, setLocalNotifs] = useState<AdminNotificationItem[]>(notifications)
+  const [localNotifs, setLocalNotifs] =
+    useState<AdminNotificationItem[]>(notifications)
   const [unreadCount, setUnreadCount] = useState<number>(initialUnreadCount)
   const [, startTransition] = useTransition()
   const notifRef = useRef<HTMLDivElement>(null)
 
-  // استخراج الاسم الأول فقط لعرضه في الهيدر بدون قطع
   const firstName = adminName.trim().split(/\s+/)[0] || "مدير"
 
   useEffect(() => {
@@ -122,7 +125,6 @@ export default function AdminShell({
     setNotifOpen(false)
   }, [pathname])
 
-  // إغلاق قائمة الإشعارات عند الضغط خارجها
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
@@ -138,7 +140,6 @@ export default function AdminShell({
     return pathname?.startsWith(href)
   }
 
-  // دالة تسجيل الخروج المباشر
   const handleLogout = async () => {
     try {
       document.cookie = "user_session=; path=/; max-age=0;"
@@ -147,7 +148,7 @@ export default function AdminShell({
     } catch {}
   }
 
-  // فتح الجرس وتصفير العداد الأحمر فوراً وتحديث قاعدة البيانات
+  // فتح الجرس وتصفير العداد الأحمر فوراً
   const handleToggleNotifications = () => {
     const nextOpen = !notifOpen
     setNotifOpen(nextOpen)
@@ -156,20 +157,50 @@ export default function AdminShell({
       setUnreadCount(0)
       setLocalNotifs((prev) => prev.map((n) => ({ ...n, isRead: true })))
       startTransition(async () => {
-        await markAllNotificationsAsReadAction()
+        await markAllNotificationsAsReadAction("admin")
       })
     }
   }
 
-  // عند الضغط على إشعار بعينه
-  const handleNotificationClick = (id: string) => {
+  // عند الضغط على إشعار للانتقال لصفحة الطلب
+  const handleNotificationClick = (item: AdminNotificationItem) => {
     setNotifOpen(false)
     setLocalNotifs((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, isRead: true } : item))
+      prev.map((n) => (n.id === item.id ? { ...n, isRead: true } : n))
     )
     setUnreadCount((prev) => Math.max(0, prev - 1))
+
     startTransition(async () => {
-      await markNotificationAsReadAction(id)
+      await markNotificationAsReadAction(item.id)
+    })
+
+    router.push(item.href || "/admin/properties")
+  }
+
+  // حذف إشعار واحد من قائمة الأدمن
+  const handleDeleteNotification = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation()
+    e.preventDefault()
+
+    const target = localNotifs.find((n) => n.id === id)
+    if (target && !target.isRead) {
+      setUnreadCount((prev) => Math.max(0, prev - 1))
+    }
+    setLocalNotifs((prev) => prev.filter((n) => n.id !== id))
+
+    startTransition(async () => {
+      await deleteNotificationAction(id)
+    })
+  }
+
+  // مسح كل إشعارات الأدمن
+  const handleClearAll = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setLocalNotifs([])
+    setUnreadCount(0)
+
+    startTransition(async () => {
+      await clearAllNotificationsAction("admin")
     })
   }
 
@@ -230,7 +261,6 @@ export default function AdminShell({
             <User className="size-3.5 text-emerald-400" />
           </Link>
 
-          {/* فتح الموقع في تاب جديد */}
           <a
             href="/"
             target="_blank"
@@ -241,7 +271,6 @@ export default function AdminShell({
             <ExternalLink className="size-3.5 text-emerald-400" />
           </a>
 
-          {/* زر تسجيل الخروج الأحمر */}
           <button
             onClick={handleLogout}
             type="button"
@@ -343,7 +372,6 @@ export default function AdminShell({
                 <User className="size-3.5 text-emerald-400" />
               </Link>
 
-              {/* فتح الموقع في تاب جديد */}
               <a
                 href="/"
                 target="_blank"
@@ -355,7 +383,6 @@ export default function AdminShell({
                 <ExternalLink className="size-3.5 text-emerald-400" />
               </a>
 
-              {/* زر تسجيل الخروج للموبايل */}
               <button
                 onClick={handleLogout}
                 type="button"
@@ -418,26 +445,44 @@ export default function AdminShell({
               </button>
 
               {notifOpen && (
-                <div className="fixed left-3 right-3 top-[68px] z-50 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl sm:absolute sm:left-0 sm:right-auto sm:top-12 sm:w-80">
-                  <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50/80 px-4 py-3">
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className="fixed left-3 right-3 top-[68px] z-50 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl sm:absolute sm:left-0 sm:right-auto sm:top-12 sm:w-96"
+                >
+                  <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50/90 px-4 py-3">
                     <span className="flex items-center gap-1.5 text-xs font-extrabold text-[#0a1122]">
                       <span>التنبيهات والطلبات</span>
-                      <span className="rounded-full bg-gray-200/80 px-2 py-0.5 text-[10px] text-gray-700">
+                      <span
+                        dir="ltr"
+                        className="rounded-full bg-[#105C50]/10 px-2 py-0.5 text-[10px] font-extrabold text-[#105C50]"
+                      >
                         {localNotifs.length}
                       </span>
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => setNotifOpen(false)}
-                      className="rounded-lg p-1 text-gray-400 hover:bg-gray-200/60 hover:text-gray-700"
-                    >
-                      <X className="size-3.5" />
-                    </button>
+
+                    <div className="flex items-center gap-2">
+                      {localNotifs.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={handleClearAll}
+                          className="rounded-lg px-2 py-1 text-[11px] font-bold text-red-600 transition hover:bg-red-50"
+                        >
+                          مسح الكل
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setNotifOpen(false)}
+                        className="rounded-lg p-1 text-gray-400 hover:bg-gray-200/60 hover:text-gray-700"
+                      >
+                        <X className="size-3.5" />
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="max-h-80 divide-y divide-gray-100 overflow-y-auto">
+                  <div className="max-h-[65vh] divide-y divide-gray-100 overflow-y-auto sm:max-h-96">
                     {localNotifs.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center px-4 py-8 text-center">
+                      <div className="flex flex-col items-center justify-center px-4 py-10 text-center">
                         <CheckCircle2 className="mb-2 size-8 text-emerald-500" />
                         <p className="text-xs font-bold text-[#0a1122]">
                           لا توجد إشعارات حالياً
@@ -448,16 +493,20 @@ export default function AdminShell({
                       </div>
                     ) : (
                       localNotifs.map((item) => (
-                        <Link
+                        <div
                           key={item.id}
-                          href={item.href}
-                          onClick={() => handleNotificationClick(item.id)}
-                          className={`flex items-start gap-3 px-4 py-3 text-right transition hover:bg-gray-50 ${
+                          onClick={() => handleNotificationClick(item)}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleNotificationClick(item)
+                          }}
+                          className={`group flex cursor-pointer items-start gap-3 p-4 text-right transition hover:bg-gray-50 active:bg-gray-100 ${
                             !item.isRead ? "bg-emerald-50/40" : "bg-white"
                           }`}
                         >
                           <span
-                            className={`mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-xl text-xs font-bold ${
+                            className={`mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl text-xs font-bold ${
                               item.type === "property"
                                 ? "bg-amber-100 text-amber-800"
                                 : item.type === "lead"
@@ -473,40 +522,57 @@ export default function AdminShell({
                               <WalletCards className="size-4" />
                             )}
                           </span>
+
                           <div className="min-w-0 flex-1">
                             <p
-                              className={`truncate text-xs text-[#0a1122] ${
+                              className={`text-xs leading-snug text-[#0a1122] ${
                                 !item.isRead ? "font-extrabold" : "font-bold"
                               }`}
                             >
                               {item.title}
                             </p>
-                            <p className="mt-0.5 truncate text-[11px] text-gray-500">
+                            <p className="mt-1 text-[11.5px] leading-relaxed text-gray-600 break-words">
                               {item.subtitle}
                             </p>
-                            <p className="mt-1 flex items-center gap-1 text-[10px] text-gray-400">
-                              <Clock className="size-3" />
-                              <span dir="ltr">{item.createdAt}</span>
-                            </p>
+                            <div className="mt-2 flex items-center justify-between">
+                              <span className="flex items-center gap-1 text-[10px] text-gray-400">
+                                <Clock className="size-3" />
+                                <span dir="ltr">{item.createdAt}</span>
+                              </span>
+                              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#105C50] group-hover:underline">
+                                <span>مراجعة الطلب</span>
+                                <ArrowLeft className="size-3" />
+                              </span>
+                            </div>
                           </div>
-                          {!item.isRead ? (
-                            <span className="mt-2 size-2 shrink-0 rounded-full bg-red-500" />
-                          ) : (
-                            <CheckCheck className="mt-1.5 size-3.5 shrink-0 text-emerald-600/60" />
-                          )}
-                        </Link>
+
+                          <button
+                            type="button"
+                            onClick={(e) =>
+                              handleDeleteNotification(e, item.id)
+                            }
+                            title="حذف الإشعار"
+                            aria-label="حذف الإشعار"
+                            className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-600"
+                          >
+                            <Trash2 className="size-3.5" />
+                          </button>
+                        </div>
                       ))
                     )}
                   </div>
 
                   <div className="border-t border-gray-100 bg-gray-50/50 p-2 text-center">
-                    <Link
-                      href="/admin/properties"
-                      onClick={() => setNotifOpen(false)}
-                      className="block rounded-lg py-1.5 text-[11px] font-bold text-[#105C50] hover:bg-emerald-50"
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNotifOpen(false)
+                        router.push("/admin/properties")
+                      }}
+                      className="w-full rounded-lg py-1.5 text-[11px] font-bold text-[#105C50] hover:bg-emerald-50"
                     >
                       عرض كل العقارات والطلبات
-                    </Link>
+                    </button>
                   </div>
                 </div>
               )}

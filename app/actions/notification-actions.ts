@@ -26,7 +26,9 @@ export type NotificationType =
   | "system"
 
 // 1. جلب الإشعارات بناءً على السياق (قبعة العميل أم قبعة الإدارة)
-export async function getUserNotificationsAction(context: "client" | "admin" = "client") {
+export async function getUserNotificationsAction(
+  context: "client" | "admin" = "client"
+) {
   try {
     const cookieStore = await cookies()
     const sessionId = cookieStore.get("user_session")?.value
@@ -43,7 +45,9 @@ export async function getUserNotificationsAction(context: "client" | "admin" = "
       .eq("id", sessionId)
       .maybeSingle()
 
-    const role = String(user?.role || "user").replace(/[\r\n\s]+/g, "").toLowerCase()
+    const role = String(user?.role || "user")
+      .replace(/[\r\n\s]+/g, "")
+      .toLowerCase()
     const isAdmin = role === "admin" || role === "moderator"
 
     let query = supabase
@@ -52,12 +56,9 @@ export async function getUserNotificationsAction(context: "client" | "admin" = "
       .order("created_at", { ascending: false })
       .limit(25)
 
-    // الذكاء هنا: فصل الإشعارات
     if (context === "admin" && isAdmin) {
-      // إذا كان في لوحة الإدارة، اجلب إشعارات النظام الموجهة للإدارة فقط
       query = query.is("user_id", null)
     } else {
-      // إذا كان في الموقع الأساسي، اجلب إشعاراته الشخصية المربوطة بحسابه فقط
       query = query.eq("user_id", sessionId)
     }
 
@@ -91,6 +92,7 @@ export async function markNotificationAsReadAction(notificationId: string) {
       .update({ is_read: true })
       .eq("id", notificationId)
 
+    revalidatePath("/", "layout")
     revalidatePath("/admin", "layout")
     revalidatePath("/account", "layout")
     return { success: true }
@@ -99,8 +101,10 @@ export async function markNotificationAsReadAction(notificationId: string) {
   }
 }
 
-// 3. تعليم جميع الإشعارات كمقروءة بضغطة واحدة مع احترام السياق
-export async function markAllNotificationsAsReadAction(context: "client" | "admin" = "client") {
+// 3. تعليم جميع الإشعارات كمقروءة بضغطة واحدة
+export async function markAllNotificationsAsReadAction(
+  context: "client" | "admin" = "client"
+) {
   try {
     const cookieStore = await cookies()
     const sessionId = cookieStore.get("user_session")?.value
@@ -114,18 +118,18 @@ export async function markAllNotificationsAsReadAction(context: "client" | "admi
       .eq("id", sessionId)
       .maybeSingle()
 
-    const role = String(user?.role || "user").replace(/[\r\n\s]+/g, "").toLowerCase()
+    const role = String(user?.role || "user")
+      .replace(/[\r\n\s]+/g, "")
+      .toLowerCase()
     const isAdmin = role === "admin" || role === "moderator"
 
     if (context === "admin" && isAdmin) {
-      // مسح النقطة الحمراء من إشعارات الإدارة
       await supabase
         .from("notifications")
         .update({ is_read: true })
         .is("user_id", null)
         .eq("is_read", false)
     } else {
-      // مسح النقطة الحمراء من الإشعارات الشخصية للعميل
       await supabase
         .from("notifications")
         .update({ is_read: true })
@@ -133,6 +137,7 @@ export async function markAllNotificationsAsReadAction(context: "client" | "admi
         .eq("is_read", false)
     }
 
+    revalidatePath("/", "layout")
     revalidatePath("/admin", "layout")
     revalidatePath("/account", "layout")
     return { success: true }
@@ -141,7 +146,59 @@ export async function markAllNotificationsAsReadAction(context: "client" | "admi
   }
 }
 
-// 4. إنشاء إشعار جديد في قاعدة البيانات
+// 4. حذف إشعار واحد نهائياً من القائمة
+export async function deleteNotificationAction(notificationId: string) {
+  try {
+    if (!notificationId) return { success: false }
+    const supabase = await getSupabase()
+
+    await supabase.from("notifications").delete().eq("id", notificationId)
+
+    revalidatePath("/", "layout")
+    revalidatePath("/admin", "layout")
+    return { success: true }
+  } catch {
+    return { success: false }
+  }
+}
+
+// 5. مسح كل الإشعارات نهائياً بحسب السياق (العميل أو الأدمن)
+export async function clearAllNotificationsAction(
+  context: "client" | "admin" = "client"
+) {
+  try {
+    const cookieStore = await cookies()
+    const sessionId = cookieStore.get("user_session")?.value
+    if (!sessionId) return { success: false }
+
+    const supabase = await getSupabase()
+
+    const { data: user } = await supabase
+      .from("users")
+      .select("role")
+      .eq("id", sessionId)
+      .maybeSingle()
+
+    const role = String(user?.role || "user")
+      .replace(/[\r\n\s]+/g, "")
+      .toLowerCase()
+    const isAdmin = role === "admin" || role === "moderator"
+
+    if (context === "admin" && isAdmin) {
+      await supabase.from("notifications").delete().is("user_id", null)
+    } else {
+      await supabase.from("notifications").delete().eq("user_id", sessionId)
+    }
+
+    revalidatePath("/", "layout")
+    revalidatePath("/admin", "layout")
+    return { success: true }
+  } catch {
+    return { success: false }
+  }
+}
+
+// 6. إنشاء إشعار جديد في قاعدة البيانات
 export async function createNotification(payload: {
   userId?: string | null
   title: string

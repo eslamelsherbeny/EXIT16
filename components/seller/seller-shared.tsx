@@ -1,8 +1,129 @@
 'use client'
 
+import { useEffect, useRef, useState } from 'react'
+import { Check, ChevronDown, Globe } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+
+export type PlatformCountryOption = {
+  code: 'EG' | 'RU' | 'GE' | 'AE' | string
+  nameAr: string
+  nameEn: string
+  flag: string
+  currencySymbol: string
+  phoneCode: string
+}
+
+export const PLATFORM_COUNTRIES: PlatformCountryOption[] = [
+  {
+    code: 'EG',
+    nameAr: 'مصر',
+    nameEn: 'Egypt',
+    flag: '🇪🇬',
+    currencySymbol: 'ج.م',
+    phoneCode: '20',
+  },
+  {
+    code: 'RU',
+    nameAr: 'روسيا',
+    nameEn: 'Russia',
+    flag: '🇷🇺',
+    currencySymbol: '₽',
+    phoneCode: '7',
+  },
+  {
+    code: 'GE',
+    nameAr: 'جورجيا',
+    nameEn: 'Georgia',
+    flag: '🇬🇪',
+    currencySymbol: '$',
+    phoneCode: '995',
+  },
+  {
+    code: 'AE',
+    nameAr: 'الإمارات',
+    nameEn: 'UAE',
+    flag: '🇦🇪',
+    currencySymbol: 'د.إ',
+    phoneCode: '971',
+  },
+]
+
+export const ALL_RESIDENCE_COUNTRIES: PlatformCountryOption[] = [
+  ...PLATFORM_COUNTRIES,
+  {
+    code: 'SA',
+    nameAr: 'السعودية',
+    nameEn: 'Saudi Arabia',
+    flag: '🇸🇦',
+    currencySymbol: 'ر.س',
+    phoneCode: '966',
+  },
+  {
+    code: 'KW',
+    nameAr: 'الكويت',
+    nameEn: 'Kuwait',
+    flag: '🇰🇼',
+    currencySymbol: 'د.ك',
+    phoneCode: '965',
+  },
+  {
+    code: 'QA',
+    nameAr: 'قطر',
+    nameEn: 'Qatar',
+    flag: '🇶🇦',
+    currencySymbol: 'ر.ق',
+    phoneCode: '974',
+  },
+  {
+    code: 'BH',
+    nameAr: 'البحرين',
+    nameEn: 'Bahrain',
+    flag: '🇧🇭',
+    currencySymbol: 'د.ب',
+    phoneCode: '973',
+  },
+  {
+    code: 'OM',
+    nameAr: 'عمان',
+    nameEn: 'Oman',
+    flag: '🇴🇲',
+    currencySymbol: 'ر.ع',
+    phoneCode: '968',
+  },
+  {
+    code: 'JO',
+    nameAr: 'الأردن',
+    nameEn: 'Jordan',
+    flag: '🇯🇴',
+    currencySymbol: 'د.أ',
+    phoneCode: '962',
+  },
+  {
+    code: 'US',
+    nameAr: 'أمريكا / كندا',
+    nameEn: 'USA / Canada',
+    flag: '🇺🇸',
+    currencySymbol: '$',
+    phoneCode: '1',
+  },
+  {
+    code: 'GB',
+    nameAr: 'بريطانيا',
+    nameEn: 'UK',
+    flag: '🇬🇧',
+    currencySymbol: '£',
+    phoneCode: '44',
+  },
+]
+
+export function getCurrencyByCountry(countryCode?: string) {
+  const found = PLATFORM_COUNTRIES.find(
+    (c) => c.code === (countryCode || 'EG').toUpperCase()
+  )
+  return found?.currencySymbol || 'ج.م'
+}
 
 export const unitTypes = [
   'شقة',
@@ -33,43 +154,87 @@ export const features = [
 ]
 export const years = ['2026', '2025', '2024', '2023', '2022', '2021', '2020', '2019']
 
-export const areasCatalog = [
-  [
-    'القاهرة الجديدة والتجمع',
+export const areasCatalogByCountry: Record<
+  string,
+  ReadonlyArray< readonly [string, ReadonlyArray<string>] >
+> = {
+  EG: [
     [
-      'التجمع الخامس',
-      'التجمع الأول',
-      'التجمع الثالث',
-      'القاهرة الجديدة',
-      'الرحاب',
-      'مدينتي',
-      'المستقبل سيتي',
-      'الشروق',
+      'القاهرة الجديدة والتجمع',
+      [
+        'التجمع الخامس',
+        'التجمع الأول',
+        'التجمع الثالث',
+        'القاهرة الجديدة',
+        'الرحاب',
+        'مدينتي',
+        'المستقبل سيتي',
+        'الشروق',
+      ],
+    ],
+    [
+      'الشيخ زايد وأكتوبر',
+      ['الشيخ زايد', 'زايد الجديدة', '6 أكتوبر', 'حدائق أكتوبر'],
+    ],
+    [
+      'العاصمة والساحل وأخرى',
+      [
+        'العاصمة الإدارية',
+        'الساحل الشمالي',
+        'العين السخنة',
+        'رأس الحكمة',
+        'الجونة',
+        'منطقتي مش في القائمة',
+      ],
     ],
   ],
-  [
-    'الشيخ زايد وأكتوبر',
-    ['الشيخ زايد', 'زايد الجديدة', '6 أكتوبر', 'حدائق أكتوبر'],
-  ],
-  [
-    'العاصمة والساحل وأخرى',
+  RU: [
     [
-      'العاصمة الإدارية',
-      'الساحل الشمالي',
-      'العين السخنة',
-      'رأس الحكمة',
-      'منطقتي مش في القائمة',
+      'موسكو وسانت بطرسبرغ',
+      ['موسكو (Moscow)', 'سانت بطرسبرغ (St. Petersburg)', 'موسكو أوبلاست'],
+    ],
+    [
+      'مدن روسية أخرى',
+      ['سوتشي (Sochi)', 'كازان (Kazan)', 'إيكاترينبرغ', 'منطقتي مش في القائمة'],
     ],
   ],
-] as const
+  GE: [
+    [
+      'مدن جورجيا الرئيسية',
+      [
+        'تبليسي (Tbilisi)',
+        'باتومي (Batumi)',
+        'كوتايسي (Kutaisi)',
+        'غوداوري (Gudauri)',
+        'بورجومي (Borjomi)',
+        'منطقتي مش في القائمة',
+      ],
+    ],
+  ],
+  AE: [
+    [
+      'الإمارات الرئيسية',
+      [
+        'دبي (Dubai)',
+        'أبوظبي (Abu Dhabi)',
+        'الشارقة (Sharjah)',
+        'رأس الخيمة (Ras Al Khaimah)',
+        'عجمان (Ajman)',
+        'منطقتي مش في القائمة',
+      ],
+    ],
+  ],
+}
 
-export function formatAmount(value?: string) {
+export const areasCatalog = areasCatalogByCountry.EG
+
+export function formatAmount(value?: string, currencySymbol = 'ج.م') {
   const amount = Number((value ?? '').replace(/,/g, ''))
   if (!amount) return ''
   if (amount >= 1_000_000)
-    return `${(amount / 1_000_000).toFixed(2).replace(/\.00$/, '')} مليون ج.م`
-  if (amount >= 1_000) return `${Math.round(amount / 1_000)} ألف ج.م`
-  return `${amount.toLocaleString('en-US')} ج.م`
+    return `${(amount / 1_000_000).toFixed(2).replace(/\.00$/, '')} مليون ${currencySymbol}`
+  if (amount >= 1_000) return `${Math.round(amount / 1_000)} ألف ${currencySymbol}`
+  return `${amount.toLocaleString('en-US')} ${currencySymbol}`
 }
 
 export function RequiredLabel({ children }: { children: string }) {
@@ -84,6 +249,150 @@ export function RequiredLabel({ children }: { children: string }) {
         children
       )}
     </>
+  )
+}
+
+// ==================== مكوّن اختيار الدولة الذكي (بحث بأول حرف + قائمة منسدلة) ====================
+export function SearchableCountryField({
+  label = 'الدولة *',
+  value,
+  onChange,
+  options = PLATFORM_COUNTRIES,
+  helper,
+  error,
+}: {
+  label?: string
+  value?: string
+  onChange: (countryCode: string) => void
+  options?: PlatformCountryOption[]
+  helper?: string
+  error?: string
+}) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const wrapperRef = useRef<HTMLDivElement>(null)
+
+  const selectedObj =
+    options.find((c) => c.code === (value || 'EG').toUpperCase()) || options[0]
+
+  useEffect(() => {
+    function handleOutside(e: MouseEvent) {
+      if (
+        wrapperRef.current &&
+        !wrapperRef.current.contains(e.target as Node)
+      ) {
+        setOpen(false)
+        setQuery('')
+      }
+    }
+    document.addEventListener('mousedown', handleOutside)
+    return () => document.removeEventListener('mousedown', handleOutside)
+  }, [])
+
+  const filteredOptions = options.filter((c) => {
+    const q = query.trim().toLowerCase()
+    if (!q) return true
+    return (
+      c.nameAr.toLowerCase().includes(q) ||
+      c.nameEn.toLowerCase().includes(q) ||
+      c.code.toLowerCase().includes(q)
+    )
+  })
+
+  return (
+    <div ref={wrapperRef} className="relative flex flex-col gap-2">
+      <Label className="text-right">
+        <RequiredLabel>{label}</RequiredLabel>
+      </Label>
+
+      <div className="relative">
+        <Input
+          type="text"
+          dir="rtl"
+          value={
+            open
+              ? query
+              : `${selectedObj.flag}  ${selectedObj.nameAr} (${selectedObj.nameEn})`
+          }
+          placeholder="اكتب أول حرف من اسم الدولة أو اختر من القائمة..."
+          onFocus={() => {
+            setOpen(true)
+            setQuery('')
+          }}
+          onChange={(e) => {
+            setQuery(e.target.value)
+            setOpen(true)
+          }}
+          className={`h-12 cursor-pointer rounded-xl pr-4 pl-10 text-right font-bold text-[#0a1122] ${
+            error ? 'border-red-500 bg-red-50/20' : 'border-slate-200 bg-white'
+          }`}
+        />
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(!open)
+            setQuery('')
+          }}
+          className="absolute top-1/2 left-3 -translate-y-1/2 text-slate-400 hover:text-[#0b6954]"
+        >
+          <ChevronDown className="size-4" />
+        </button>
+      </div>
+
+      {open && (
+        <div className="absolute top-[78px] z-30 max-h-60 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
+          {filteredOptions.length === 0 ? (
+            <p className="py-3 text-center text-xs text-slate-400">
+              لا توجد دولة مطابقة للبحث
+            </p>
+          ) : (
+            filteredOptions.map((c) => {
+              const isSelected = c.code === selectedObj.code
+              return (
+                <button
+                  key={c.code}
+                  type="button"
+                  onClick={() => {
+                    onChange(c.code)
+                    setOpen(false)
+                    setQuery('')
+                  }}
+                  className={`flex w-full items-center justify-between rounded-lg px-3.5 py-2.5 text-right text-sm transition ${
+                    isSelected
+                      ? 'bg-[#eff9f5] font-bold text-[#0b6954]'
+                      : 'text-[#0a1122] hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-lg leading-none">{c.flag}</span>
+                    <span>{c.nameAr}</span>
+                    <span className="text-xs text-slate-400">({c.nameEn})</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs font-bold text-slate-400">
+                      {c.code}
+                    </span>
+                    {isSelected && <Check className="size-4 text-[#0b6954]" />}
+                  </div>
+                </button>
+              )
+            })
+          )}
+        </div>
+      )}
+
+      {error && (
+        <p className="mt-1 text-right text-xs font-semibold text-red-600">
+          {error}
+        </p>
+      )}
+      {helper && (
+        <span className="flex items-center gap-1 text-right text-xs font-semibold text-teal-700">
+          <Globe className="size-3.5 shrink-0" />
+          <span>{helper}</span>
+        </span>
+      )}
+    </div>
   )
 }
 
@@ -174,12 +483,14 @@ export function MoneyField({
   update,
   helper,
   error,
+  currencySymbol = 'ج.م',
 }: {
   label: string
   value?: string
   update: (value: string) => void
   helper?: string
   error?: string
+  currencySymbol?: string
 }) {
   return (
     <div className="flex flex-col gap-2">
@@ -202,7 +513,7 @@ export function MoneyField({
           }`}
         />
         <span className="absolute top-3 right-3 text-sm text-slate-500">
-          ج.م
+          {currencySymbol}
         </span>
       </div>
       {error && (
@@ -211,7 +522,7 @@ export function MoneyField({
         </p>
       )}
       <span className="text-right text-xs font-semibold leading-6 text-teal-700">
-        {formatAmount(value) || helper || ''}
+        {formatAmount(value, currencySymbol) || helper || ''}
       </span>
     </div>
   )

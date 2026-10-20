@@ -20,7 +20,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { TurnstileBox } from '@/components/funnel-shell'
 import { CountrySelector } from '@/components/country-selector'
-import { Field } from './seller-shared'
+import {
+  ALL_RESIDENCE_COUNTRIES,
+  Field,
+  SearchableCountryField,
+} from './seller-shared'
 
 export function ContactStep({
   form,
@@ -112,6 +116,7 @@ export function ContactStep({
 
     if (authTab === 'register') {
       if (!form.name?.trim()) nextErrors.name = 'هذا الحقل مطلوب'
+      if (!form.userCountry) nextErrors.userCountry = 'يرجى اختيار دولتك'
       if (!/^[0-9٠-٩]{7,15}$/.test((form.phone ?? '').replace(/[\s-]/g, '')))
         nextErrors.phone = 'رقم الموبايل غير صحيح'
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email ?? ''))
@@ -140,6 +145,8 @@ export function ContactStep({
 
       const res = await processSellerStep2Action({
         mode: authTab,
+        unitCountry: form.unitCountry || 'EG',
+        userCountry: form.userCountry || form.unitCountry || 'EG',
         developer: form.developer || '',
         project: form.project || '',
         contractPrice:
@@ -252,7 +259,6 @@ export function ContactStep({
     }
   }
 
-  // 1. شاشة "الإيميل ده عنده حساب بالفعل"
   if (conflictState?.type === 'email_exists') {
     return (
       <div className="rounded-2xl border border-slate-200 bg-white p-5 text-right sm:p-7">
@@ -333,7 +339,6 @@ export function ContactStep({
     )
   }
 
-  // 2. شاشة "الرقم ده عندنا عليه حساب بالفعل"
   if (conflictState?.type === 'phone_exists') {
     return (
       <div className="rounded-2xl border border-slate-200 bg-white p-5 text-right sm:p-7">
@@ -396,7 +401,6 @@ export function ContactStep({
     )
   }
 
-  // 3. الشاشة الأساسية للخطوة الثانية
   return (
     <div className="flex flex-col gap-6">
       <div className="grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 bg-slate-50/80 p-1.5 sm:flex">
@@ -482,6 +486,22 @@ export function ContactStep({
             value={form.name}
             update={(value) => update('name', value)}
           />
+
+          {/* اختيار الدولة الخاصة بصاحب الحساب (بحث بأول حرف أو اختيار سريع) */}
+          <SearchableCountryField
+            label="أنت من دولة إيه؟ (بلد الإقامة) *"
+            value={form.userCountry || form.unitCountry || 'EG'}
+            options={ALL_RESIDENCE_COUNTRIES}
+            error={errors.userCountry}
+            onChange={(code) => {
+              update('userCountry', code)
+              const found = ALL_RESIDENCE_COUNTRIES.find((c) => c.code === code)
+              if (found?.phoneCode) {
+                update('countryCode', found.phoneCode)
+              }
+            }}
+          />
+
           <div className="flex flex-col gap-2">
             <Label htmlFor="phone" className="text-right">
               رقم موبايلك *

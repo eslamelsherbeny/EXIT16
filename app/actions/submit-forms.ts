@@ -95,6 +95,7 @@ function getPhoneVariants(rawPhone: string) {
 function formatPrimaryPhone(rawPhone: string) {
   const digits = (rawPhone || '').replace(/\s+/g, '').replace(/[^0-9+]/g, '')
   if (!digits) return ''
+  if (digits.startsWith('+') && !digits.startsWith('+20')) return digits
   const stripped = digits.replace(/^\+?20/, '').replace(/^0+/, '')
   return `+20${stripped}`
 }
@@ -225,9 +226,6 @@ function verifyPassword(password: string, stored: string | null) {
   }
 }
 
-// ==========================================
-// أ) جلب بيانات المستخدم المسجل حالياً لخيار "كمّل بحسابك الحالي"
-// ==========================================
 export async function getCurrentSellerProfileAction() {
   try {
     const cookieStore = await cookies()
@@ -237,7 +235,7 @@ export async function getCurrentSellerProfileAction() {
     const supabase = await getSupabase()
     const { data: user } = await supabase
       .from('users')
-      .select('id, name, email, phone')
+      .select('id, name, email, phone, country')
       .eq('id', sessionId)
       .maybeSingle()
 
@@ -248,9 +246,6 @@ export async function getCurrentSellerProfileAction() {
   }
 }
 
-// ==========================================
-// ب) الدالة الذكية للخطوة الثانية (تتعامل مع كل حالات الحسابات وتنشئ الطلب المبدئي)
-// ==========================================
 export type Step2AuthResponse = {
   status:
     | 'ok'
@@ -268,6 +263,8 @@ export type Step2AuthResponse = {
 
 export async function processSellerStep2Action(payload: {
   mode: 'session' | 'login' | 'register'
+  unitCountry?: string
+  userCountry?: string
   developer: string
   project: string
   contractPrice: number
@@ -286,13 +283,22 @@ export async function processSellerStep2Action(payload: {
       process.env.NEXT_PUBLIC_SITE_URL ||
       'https://next-js-rtl-platform-structure.vercel.app'
 
-    // دالة داخلية لحفظ أو تحديث الوحدة المبدئية في قاعدة البيانات فور انتهاء الخطوة 2
+    const unitCountryCode = (payload.unitCountry || 'EG').trim().toUpperCase()
+    const userCountryCode = (
+      payload.userCountry ||
+      payload.unitCountry ||
+      'EG'
+    )
+      .trim()
+      .toUpperCase()
+
     async function upsertDraftUnit(
       userId: string,
       contact: { name: string; phone: string; email: string }
     ) {
       const unitData: Record<string, any> = {
         user_id: userId,
+        country: unitCountryCode,
         developer_name: payload.developer || null,
         project_name: payload.project || null,
         contract_price: Number(payload.contractPrice) || 0,
@@ -322,13 +328,12 @@ export async function processSellerStep2Action(payload: {
 
       const newUnitId = inserted?.id ? String(inserted.id) : ''
 
-      // إرسال إشعار للإدارة وللبائع
       try {
         await supabase.from('notifications').insert([
           {
             user_id: null,
-            title: `عقار جديد بانتظار استكمال البيانات: ${payload.project || 'وحدة سكنية'}`,
-            message: `المالك: ${contact.name} · المدفوع: ${Number(payload.paidAmount || 0).toLocaleString('en-US')} ج.م`,
+            title: `عقار جديد بانتظار استكمال البيانات (${unitCountryCode}): ${payload.project || 'وحدة سكنية'}`,
+            message: `المالك: ${contact.name} · المدفوع: ${Number(payload.paidAmount || 0).toLocaleString('en-US')}`,
             type: 'property',
             link: '/admin/properties',
             is_read: false,
@@ -347,7 +352,6 @@ export async function processSellerStep2Action(payload: {
       return newUnitId
     }
 
-    // إرسال إيميل تأكيد الطلب مع الرابط السحري للعودة للخطوة 3 مباشرة بدون باسورد
     async function sendOrderConfirmationMagicEmail(
       userId: string,
       unitId: string,
@@ -356,7 +360,7 @@ export async function processSellerStep2Action(payload: {
     ) {
       if (!userEmail || !unitId) return
       const orderRef = generateOrderRef(unitId)
-      const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000 // صالح لمدة 7 أيام
+      const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000
       const magicToken = createMagicToken(userId, unitId, expiresAt)
       const magicLink = `${siteUrl}/sell?magic=${encodeURIComponent(magicToken)}`
       const paidFormatted = Number(payload.paidAmount || 0).toLocaleString('en-US')
@@ -367,7 +371,7 @@ export async function processSellerStep2Action(payload: {
         html: `<div dir="rtl" style="font-family: Arial, sans-serif; text-align: right; line-height: 1.8; color: #0a1122;">
                 <p style="font-size: 16px;">أهلاً <strong>${userName}</strong>،</p>
                 <p>وصلنا طلبك — رقم الطلب: <strong>${orderRef}</strong>.</p>
-                <p>للتأكيد: المبلغ اللي هتستلمه عند إتمام التنازل هو <strong>${paidFormatted} ج.م</strong> — اللي دفعته بالظبط، بدون أي أوفر.</p>
+                <p>للتأكيد: المبلغ اللي هتستلمه عند إتمام التنازل هو <strong>${paidFormatted}</strong> — اللي دفعته بالظبط، بدون أي أوفر.</p>
                 <p>كمّل بيانات وحدتك من اللينك ده — مش محتاج كلمة سر ولا تسجيل دخول:</p>
                 <p style="margin: 18px 0;">
                   <a href="${magicLink}" style="color: #0b6954; font-weight: bold; word-break: break-all;">${magicLink}</a>
@@ -378,9 +382,6 @@ export async function processSellerStep2Action(payload: {
       }).catch(() => {})
     }
 
-    // =====================================================
-    // الحالة 1: العميل اختار "كمّل بحسابي المسجل حالياً"
-    // =====================================================
     if (payload.mode === 'session') {
       const cookieStore = await cookies()
       const sessionId = cookieStore.get('user_session')?.value
@@ -425,9 +426,6 @@ export async function processSellerStep2Action(payload: {
       }
     }
 
-    // =====================================================
-    // الحالة 2: العميل اختار تبويب "عندي حساب بالفعل" (تسجيل دخول مباشر)
-    // =====================================================
     if (payload.mode === 'login') {
       const rawIdentifier = (payload.loginIdentifier || '').trim()
       const password = payload.password || ''
@@ -500,12 +498,6 @@ export async function processSellerStep2Action(payload: {
       }
     }
 
-    // =====================================================
-    // الحالة 3: الوضع الافتراضي (إدخال الاسم + الموبايل + الإيميل + الباسورد)
-    // =====================================================
-    // =====================================================
-    // الحالة 3: الوضع الافتراضي (تسجيل بيانات جديدة)
-    // =====================================================
     const cleanName = (payload.name || '').trim()
     const cleanEmail = normalizeEmail(payload.email || '')
     const formattedPhone = formatPrimaryPhone(payload.phone || '')
@@ -535,7 +527,6 @@ export async function processSellerStep2Action(payload: {
     const emailUser = emailMatches?.[0] || null
     const phoneUser = phoneMatches?.[0] || null
 
-    // أ) إذا كان الإيميل مسجلاً بالفعل -> نحفظ الطلب ونرسل الإيميل ونظهر شاشة "الإيميل ده عنده حساب بالفعل" دائماً
     if (emailUser) {
       const unitId = await upsertDraftUnit(emailUser.id, {
         name: cleanName || emailUser.name,
@@ -544,7 +535,6 @@ export async function processSellerStep2Action(payload: {
       })
       const orderRef = generateOrderRef(unitId)
 
-      // إرسال الإيميل الفوري بالرابط السحري المباشر (الصورة 2)
       await sendOrderConfirmationMagicEmail(
         emailUser.id,
         unitId,
@@ -552,7 +542,6 @@ export async function processSellerStep2Action(payload: {
         emailUser.email
       )
 
-      // إرجاع حالة وجود الإيميل دائماً لإظهار شاشة إدخال كلمة السر (الصورة 1)
       return {
         status: 'email_exists_need_password',
         userId: emailUser.id,
@@ -563,7 +552,6 @@ export async function processSellerStep2Action(payload: {
       }
     }
 
-    // ب) إذا كان رقم الموبايل مسجلاً بالفعل ولكن بإيميل مختلف! (الصورة 3 و 4)
     if (phoneUser && !emailUser) {
       const unitId = await upsertDraftUnit(phoneUser.id, {
         name: cleanName || phoneUser.name,
@@ -591,7 +579,6 @@ export async function processSellerStep2Action(payload: {
       }
     }
 
-    // ج) مستخدم جديد تماماً -> إنشاء الحساب + حفظ الوحدة المبدئية + الدخول للخطوة 3 فوراً
     const hash = hashPassword(password)
     const { data: createdUser, error: createErr } = await supabase
       .from('users')
@@ -600,6 +587,7 @@ export async function processSellerStep2Action(payload: {
         phone: formattedPhone,
         email: cleanEmail,
         password_hash: hash,
+        country: userCountryCode,
         status: 'active',
       })
       .select('id, name, email, phone')
@@ -635,15 +623,13 @@ export async function processSellerStep2Action(payload: {
       userName: createdUser.name,
       userEmail: createdUser.email,
       userPhone: createdUser.phone,
-    } } catch (e) {
+    }
+  } catch (e) {
     console.error('processSellerStep2Action error:', e)
     return { status: 'error', error: 'حدث خطأ غير متوقع.' }
   }
 }
 
-// ==========================================
-// ج) التحقق من كلمة السر في شاشة "الإيميل ده عنده حساب بالفعل" (الصورة 1)
-// ==========================================
 export async function verifyExistingEmailPasswordAction(payload: {
   email: string
   password: string
@@ -682,9 +668,6 @@ export async function verifyExistingEmailPasswordAction(payload: {
   }
 }
 
-// ==========================================
-// د) إرسال لينك استرجاع/تعيين كلمة السر على الإيميل المسجل (الصورة 3 و 4 و 6)
-// ==========================================
 export async function sendSellerRecoveryLinkAction(payload: {
   userId?: string
   email?: string
@@ -717,7 +700,7 @@ export async function sendSellerRecoveryLinkAction(payload: {
     const siteUrl =
       process.env.NEXT_PUBLIC_SITE_URL ||
       'https://next-js-rtl-platform-structure.vercel.app'
-    const expiresAt = Date.now() + 60 * 60 * 1000 // صالح لمدة ساعة
+    const expiresAt = Date.now() + 60 * 60 * 1000
     const tokenHash = createMagicToken(
       targetUser.id,
       payload.unitId || '',
@@ -747,9 +730,6 @@ export async function sendSellerRecoveryLinkAction(payload: {
   }
 }
 
-// ==========================================
-// هـ) تعيين كلمة السر الجديدة من صفحة /set-password (الصورة 7: فعّل حسابك)
-// ==========================================
 export async function setNewPasswordFromTokenAction(payload: {
   tokenHash: string
   newPassword: string
@@ -793,9 +773,6 @@ export async function setNewPasswordFromTokenAction(payload: {
   }
 }
 
-// ==========================================
-// و) حفظ التقدم وإرسال الطلب النهائي
-// ==========================================
 export async function saveSellProgress(formData: FormData): Promise<SubmitResult> {
   try {
     const supabase = await getSupabase()
@@ -810,6 +787,7 @@ export async function saveSellProgress(formData: FormData): Promise<SubmitResult
     }
 
     const payload: Record<string, any> = {
+      country: text(formData, 'country') || 'EG',
       developer_name: text(formData, 'developer_name') || null,
       project_name: text(formData, 'project_name') || null,
       area: text(formData, 'area') || null,
@@ -868,8 +846,10 @@ export async function submitSellRequest(formData: FormData): Promise<SubmitResul
     const sessionId = cookieStore.get('user_session')?.value
     const existingUnitId = text(formData, 'unit_id')
     const projectName = text(formData, 'project_name')
+    const unitCountry = (text(formData, 'country') || 'EG').toUpperCase()
 
     const payload: Record<string, any> = {
+      country: unitCountry,
       project_name: projectName || null,
       developer_name: text(formData, 'developer_name') || null,
       area: text(formData, 'area') || null,
@@ -900,11 +880,10 @@ export async function submitSellRequest(formData: FormData): Promise<SubmitResul
       email: normalizeEmail(text(formData, 'email')) || null,
       is_original_owner: formData.get('is_original_owner') === 'on',
       images: list(formData, 'image'),
-      status: 'pending', // تعود للمراجعة دائماً عند التعديل لضمان رقابة الإدارة
+      status: 'pending',
     }
 
     if (existingUnitId) {
-      // فحص هل الوحدة كانت منشورة أو متوقفة سابقاً لتمييزها للأدمن كـ "معدلة من المالك"
       const { data: prevUnit } = await supabase
         .from('sell_requests')
         .select('status, size, area')
@@ -912,7 +891,10 @@ export async function submitSellRequest(formData: FormData): Promise<SubmitResul
         .maybeSingle()
 
       const wasPreviouslySubmitted = Boolean(
-        prevUnit?.area || prevUnit?.size || prevUnit?.status === 'active' || prevUnit?.status === 'paused_by_seller'
+        prevUnit?.area ||
+          prevUnit?.size ||
+          prevUnit?.status === 'active' ||
+          prevUnit?.status === 'paused_by_seller'
       )
 
       if (wasPreviouslySubmitted) {
@@ -929,13 +911,12 @@ export async function submitSellRequest(formData: FormData): Promise<SubmitResul
         return { success: false, error: 'تعذر حفظ بيانات الوحدة النهائية.' }
       }
 
-      // إرسال إشعار للإدارة بأن المالك عدّل بيانات وحدته أو أكملها
       try {
         await supabase.from('notifications').insert({
           user_id: null,
           title: wasPreviouslySubmitted
-            ? `🔄 تعديل بيانات وحدة من المالك: ${projectName || 'وحدة'}`
-            : `✅ استكمال بيانات وحدة: ${projectName || 'وحدة'}`,
+            ? `🔄 تعديل بيانات وحدة (${unitCountry}) من المالك: ${projectName || 'وحدة'}`
+            : `✅ استكمال بيانات وحدة (${unitCountry}): ${projectName || 'وحدة'}`,
           message: `قام البائع (${payload.name || 'المالك'}) بتحديث بيانات وصور الوحدة في (${payload.area || '—'}) وبانتظار مراجعتك.`,
           type: 'property',
           link: '/admin/properties',
@@ -972,7 +953,7 @@ export async function submitSellRequest(formData: FormData): Promise<SubmitResul
     try {
       await supabase.from('notifications').insert({
         user_id: null,
-        title: `عقار جديد بانتظار المراجعة: ${projectName || 'وحدة جديدة'}`,
+        title: `عقار جديد بانتظار المراجعة (${unitCountry}): ${projectName || 'وحدة جديدة'}`,
         message: `البائع: ${payload.name} · ${payload.area || '—'}`,
         type: 'property',
         link: '/admin/properties',
@@ -996,6 +977,8 @@ export async function submitSellRequest(formData: FormData): Promise<SubmitResul
 }
 
 export type BuyRequestPayload = {
+  country?: string
+  userCountry?: string
   available_cash: number
   max_installment: number
   payment_plan: string
@@ -1012,6 +995,8 @@ export type BuyRequestPayload = {
 
 export async function processBuyerStep3Action(payload: {
   mode: 'session' | 'login' | 'register'
+  country?: string
+  userCountry?: string
   available_cash: number
   max_installment: number
   payment_plan: string
@@ -1032,7 +1017,15 @@ export async function processBuyerStep3Action(payload: {
       process.env.NEXT_PUBLIC_SITE_URL ||
       'https://next-js-rtl-platform-structure.vercel.app'
 
-    // دالة داخلية لحفظ طلب الشراء وإرسال الإشعارات
+    const targetCountry = (payload.country || 'EG').trim().toUpperCase()
+    const buyerResidenceCountry = (
+      payload.userCountry ||
+      payload.country ||
+      'EG'
+    )
+      .trim()
+      .toUpperCase()
+
     async function insertBuyRequestRecord(
       userId: string,
       contact: { name: string; phone: string; email: string }
@@ -1041,6 +1034,7 @@ export async function processBuyerStep3Action(payload: {
         .from('buy_requests')
         .insert({
           user_id: userId,
+          country: targetCountry,
           available_cash: Number(payload.available_cash) || 0,
           max_installment: Number(payload.max_installment) || 0,
           payment_plan: payload.payment_plan || 'شهري',
@@ -1065,13 +1059,12 @@ export async function processBuyerStep3Action(payload: {
         payload.available_cash || payload.budget || 0
       ).toLocaleString('en-US')
 
-      // إشعار فوري للأدمن وللمشتري
       try {
         await supabase.from('notifications').insert([
           {
             user_id: null,
-            title: `طلب شراء جديد: ${contact.name || 'مشتري'}`,
-            message: `الكاش المتاح: ${cashFormatted} ج.م · المناطق: ${(payload.preferred_areas || []).slice(0, 2).join('، ')}`,
+            title: `طلب شراء جديد (${targetCountry}): ${contact.name || 'مشتري'}`,
+            message: `الكاش المتاح: ${cashFormatted} · المناطق: ${(payload.preferred_areas || []).slice(0, 2).join('، ')}`,
             type: 'lead',
             link: '/admin/leads',
             is_read: false,
@@ -1079,7 +1072,7 @@ export async function processBuyerStep3Action(payload: {
           {
             user_id: userId,
             title: 'تم تفعيل رادار الفرص العقارية لحسابك 🎯',
-            message: `تم حفظ ميزانيتك (${cashFormatted} ج.م)، وسنرسل لك إشعاراً فور نزول أي وحدة مطابقة.`,
+            message: `تم حفظ ميزانيتك (${cashFormatted})، وسنرسل لك إشعاراً فور نزول أي وحدة مطابقة.`,
             type: 'property_match',
             link: '/account?view=buyer',
             is_read: false,
@@ -1087,7 +1080,6 @@ export async function processBuyerStep3Action(payload: {
         ])
       } catch {}
 
-      // إرسال إيميل تأكيد طلب الشراء
       if (contact.email) {
         const orderRef = generateOrderRef(reqId)
         sendNotificationEmail({
@@ -1096,12 +1088,11 @@ export async function processBuyerStep3Action(payload: {
           html: `<div dir="rtl" style="font-family: Arial, sans-serif; text-align: right; line-height: 1.8; color: #0a1122;">
                   <p style="font-size: 16px;">أهلاً <strong>${contact.name}</strong>،</p>
                   <p>وصلنا طلب الشراء الخاص بك — رقم الطلب: <strong>${orderRef}</strong>.</p>
-                  <p>الكاش المتاح المسجل: <strong>${cashFormatted} ج.م</strong>.</p>
+                  <p>الكاش المتاح المسجل: <strong>${cashFormatted}</strong>.</p>
                   <p>تقدر تتابع الفرص المطابقة لميزانيتك مباشرة من حسابك على المنصة:</p>
                   <p style="margin: 18px 0;">
                     <a href="${siteUrl}/account?view=buyer" style="color: #0b6954; font-weight: bold;">${siteUrl}/account?view=buyer</a>
                   </p>
-                  <p>محتاج حاجة؟ كلمنا واتساب: <a href="https://wa.me/201018595959">https://wa.me/201018595959</a></p>
                  </div>`,
         }).catch(() => {})
       }
@@ -1109,9 +1100,6 @@ export async function processBuyerStep3Action(payload: {
       return reqId
     }
 
-    // =====================================================
-    // الحالة 1: المشتري مسجل دخول واختار "كمّل بحسابي الحالي"
-    // =====================================================
     if (payload.mode === 'session') {
       const cookieStore = await cookies()
       const sessionId = cookieStore.get('user_session')?.value
@@ -1146,9 +1134,6 @@ export async function processBuyerStep3Action(payload: {
       }
     }
 
-    // =====================================================
-    // الحالة 2: المشتري اختار تبويب "عندي حساب بالفعل"
-    // =====================================================
     if (payload.mode === 'login') {
       const rawIdentifier = (payload.loginIdentifier || '').trim()
       const password = payload.password || ''
@@ -1211,9 +1196,6 @@ export async function processBuyerStep3Action(payload: {
       }
     }
 
-    // =====================================================
-    // الحالة 3: الوضع الافتراضي (تسجيل بيانات جديدة)
-    // =====================================================
     const cleanName = (payload.name || '').trim()
     const cleanEmail = normalizeEmail(payload.email || '')
     const formattedPhone = formatPrimaryPhone(payload.phone || '')
@@ -1243,7 +1225,6 @@ export async function processBuyerStep3Action(payload: {
     const emailUser = emailMatches?.[0] || null
     const phoneUser = phoneMatches?.[0] || null
 
-    // أ) إذا كان الإيميل مسجلاً بالفعل -> نحفظ طلب الشراء لحسابه ونظهر شاشة "الإيميل ده عنده حساب بالفعل"
     if (emailUser) {
       const reqId = await insertBuyRequestRecord(emailUser.id, {
         name: cleanName || emailUser.name,
@@ -1262,7 +1243,6 @@ export async function processBuyerStep3Action(payload: {
       }
     }
 
-    // ب) إذا كان رقم الموبايل مسجلاً بالفعل ولكن بإيميل مختلف -> نحفظ الطلب ونظهر شاشة "الرقم ده عندنا عليه حساب بالفعل"
     if (phoneUser && !emailUser) {
       const reqId = await insertBuyRequestRecord(phoneUser.id, {
         name: cleanName || phoneUser.name,
@@ -1281,7 +1261,6 @@ export async function processBuyerStep3Action(payload: {
       }
     }
 
-    // ج) مشتري جديد تماماً -> ننشئ الحساب ونحفظ الطلب وندخله على حسابه فوراً
     const hash = hashPassword(password)
     const { data: createdUser, error: createErr } = await supabase
       .from('users')
@@ -1290,6 +1269,7 @@ export async function processBuyerStep3Action(payload: {
         phone: formattedPhone,
         email: cleanEmail,
         password_hash: hash,
+        country: buyerResidenceCountry,
         status: 'active',
       })
       .select('id, name, email, phone')
@@ -1340,6 +1320,7 @@ export async function submitBuyRequest(
   }
   return { success: false, error: 'طريقة إرسال غير مدعومة.' }
 }
+
 export async function submitInvestorLead(formData: FormData): Promise<SubmitResult> {
   try {
     const supabase = await getSupabase()

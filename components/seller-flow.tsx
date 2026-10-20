@@ -10,6 +10,7 @@ import {
 } from '@/app/actions/submit-forms'
 import { requestUnitPromotionAction } from '@/app/actions/account-actions'
 import { createClient } from '@/lib/supabase/client'
+import { getActiveCountryFromCookie } from '@/components/site-shell'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -22,15 +23,18 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   Actions,
-  areasCatalog,
+  areasCatalogByCountry,
   deliveries,
   features,
   Field,
   finishings,
   formatAmount,
+  getCurrencyByCountry,
   MoneyField,
   Pills,
+  PLATFORM_COUNTRIES,
   RequiredLabel,
+  SearchableCountryField,
   ToggleSection,
   unitTypes,
   years,
@@ -50,7 +54,11 @@ export function SellerFlow() {
   const [unitId, setUnitId] = useState<string>('')
   const [orderRef, setOrderRef] = useState<string>('AE-X5QUKE')
 
-  const [form, setForm] = useState<Record<string, string>>({ countryCode: '20' })
+  const [form, setForm] = useState<Record<string, string>>({
+    countryCode: '20',
+    unitCountry: 'EG',
+    userCountry: 'EG',
+  })
   const [selected, setSelected] = useState<Record<string, string[]>>({})
   const [images, setImages] = useState<string[]>([])
   const [uploading, setUploading] = useState(false)
@@ -69,6 +77,13 @@ export function SellerFlow() {
 
   useEffect(() => {
     async function initFlow() {
+      const activeCookieCountry = getActiveCountryFromCookie().code
+      setForm((prev) => ({
+        ...prev,
+        unitCountry: prev.unitCountry || activeCookieCountry,
+        userCountry: prev.userCountry || activeCookieCountry,
+      }))
+
       const profileRes = await getCurrentSellerProfileAction()
       if (profileRes.isLoggedIn && profileRes.user) {
         setLoggedUser(profileRes.user)
@@ -91,6 +106,7 @@ export function SellerFlow() {
             )
             setForm((prev) => ({
               ...prev,
+              unitCountry: u.country || activeCookieCountry,
               developer: u.developer_name || '',
               developerDetails: u.developer_name || '',
               project: u.project_name || '',
@@ -138,6 +154,7 @@ export function SellerFlow() {
             )
             setForm((prev) => ({
               ...prev,
+              unitCountry: u.country || activeCookieCountry,
               developer: u.developer_name || '',
               developerDetails: u.developer_name || '',
               project: u.project_name || '',
@@ -199,6 +216,7 @@ export function SellerFlow() {
         if (isNewUnit && profileRes.isLoggedIn && profileRes.user) {
           setForm((prev) => ({
             ...prev,
+            unitCountry: activeCookieCountry,
             name: profileRes.user?.name || '',
             phone: profileRes.user?.phone || '',
             email: profileRes.user?.email || '',
@@ -248,6 +266,7 @@ export function SellerFlow() {
     const nextErrors: Record<string, string> = {}
 
     if (step === 1) {
+      if (!form.unitCountry) nextErrors.unitCountry = 'يرجى اختيار دولة الوحدة'
       if (!form.developer) nextErrors.developer = 'هذا الحقل مطلوب'
       if (!form.project) nextErrors.project = 'هذا الحقل مطلوب'
       if (!form.contractPrice) nextErrors.contractPrice = 'هذا الحقل مطلوب'
@@ -260,6 +279,7 @@ export function SellerFlow() {
     }
 
     if (step === 3) {
+      if (!form.unitCountry) nextErrors.unitCountry = 'يرجى اختيار دولة الوحدة'
       if (!form.developerDetails && !form.developer)
         nextErrors.developerDetails = 'هذا الحقل مطلوب'
       if (!form.projectDetails && !form.project)
@@ -328,6 +348,7 @@ export function SellerFlow() {
       if (value) data.set(key, value)
     }
     if (unitId) put('unit_id', unitId)
+    put('country', form.unitCountry || 'EG')
     put('developer_name', form.developerDetails || form.developer)
     put('project_name', form.projectDetails || form.project)
     put('area', form.location)
@@ -367,6 +388,7 @@ export function SellerFlow() {
     }
 
     if (unitId) setValue('unit_id', unitId)
+    setValue('country', form.unitCountry || 'EG')
     setValue('developer_name', form.developerDetails || form.developer)
     setValue('project_name', form.projectDetails || form.project)
     setValue('area', form.location)
@@ -616,8 +638,20 @@ function BasicStep({
   go: (step: number) => void
   errors: Record<string, string>
 }) {
+  const currency = getCurrencyByCountry(form.unitCountry)
+
   return (
     <div className="flex flex-col gap-6">
+      {/* اختيار دولة الوحدة العقارية بالبحث السريع أو الاختيار */}
+      <SearchableCountryField
+        label="الوحدة دي في دولة إيه؟ *"
+        value={form.unitCountry || 'EG'}
+        options={PLATFORM_COUNTRIES}
+        error={errors.unitCountry}
+        helper="اختار الدولة أو اكتب أول حرف منها لتظهر لك"
+        onChange={(code) => update('unitCountry', code)}
+      />
+
       <Field
         error={errors.developer}
         label="اسم المطور *"
@@ -636,18 +670,20 @@ function BasicStep({
         error={errors.contractPrice}
         label="إجمالي سعر الوحدة في العقد *"
         value={form.contractPrice}
+        currencySymbol={currency}
         update={(value) => update('contractPrice', value)}
       />
       <MoneyField
         error={errors.paidAmount}
         label="إجمالي اللي دفعته لحد النهارده *"
         value={form.paidAmount}
+        currencySymbol={currency}
         update={(value) => update('paidAmount', value)}
       />
       <div className="rounded-xl bg-sky-50 p-4 text-sm font-semibold text-sky-700">
         المبلغ اللي هتستلمه:{' '}
-        {Number(form.paidAmount || 0).toLocaleString('en-US')} ج.م — اللي دفعته
-        بالظبط، بدون أي أوفر أو زيادة.
+        {Number(form.paidAmount || 0).toLocaleString('en-US')} {currency} — اللي
+        دفعته بالظبط، بدون أي أوفر أو زيادة.
       </div>
       <div>
         <label
@@ -680,7 +716,7 @@ function BasicStep({
         type="number"
         helper={
           form.currentDeveloperPrice
-            ? formatAmount(form.currentDeveloperPrice)
+            ? formatAmount(form.currentDeveloperPrice, currency)
             : 'بنستخدمه نحسب للمشتري هيوفر كام — لو مش متأكد سيبه فاضي وإحنا هنتحقق'
         }
         value={form.currentDeveloperPrice}
@@ -711,7 +747,10 @@ function DetailsStep({
 }) {
   const [areaOpen, setAreaOpen] = useState(false)
   const query = form.location ?? ''
-  const groups = areasCatalog
+  const activeCatalog =
+    areasCatalogByCountry[form.unitCountry || 'EG'] || areasCatalogByCountry.EG
+
+  const groups = activeCatalog
     .map(
       ([title, items]) =>
         [title, items.filter((item) => item.includes(query))] as const
@@ -720,6 +759,18 @@ function DetailsStep({
 
   return (
     <div className="flex flex-col gap-6">
+      {/* إمكانية تأكيد أو تغيير دولة الوحدة في خطوة التفاصيل أيضاً */}
+      <SearchableCountryField
+        label="دولة الوحدة العقارية *"
+        value={form.unitCountry || 'EG'}
+        options={PLATFORM_COUNTRIES}
+        error={errors.unitCountry}
+        onChange={(code) => {
+          update('unitCountry', code)
+          update('location', '')
+        }}
+      />
+
       <div className="grid gap-5 sm:grid-cols-2">
         <Field
           error={errors.developerDetails}
@@ -738,12 +789,12 @@ function DetailsStep({
       </div>
       <div className="relative">
         <Label htmlFor="location" className="mb-2 block text-right">
-          المنطقة / الموقع *
+          المنطقة / المدينة *
         </Label>
         <Input
           id="location"
           dir="rtl"
-          placeholder="دوّر على المنطقة..."
+          placeholder="دوّر على المنطقة أو اكتب اسمها..."
           value={query}
           onFocus={() => setAreaOpen(true)}
           onChange={(event) => {
@@ -759,7 +810,7 @@ function DetailsStep({
             {errors.location}
           </p>
         )}
-        {areaOpen && (
+        {areaOpen && groups.length > 0 && (
           <div className="absolute z-20 mt-2 max-h-72 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
             {groups.map(([title, items]) => (
               <div key={title}>
@@ -930,6 +981,7 @@ function PricingStep({
 }) {
   const yes = (group: string) => selected[group]?.[0] === 'yes'
   const setAnswer = (group: string, value: string) => toggle(group, value)
+  const currency = getCurrencyByCountry(form.unitCountry)
 
   return (
     <div className="flex flex-col gap-6">
@@ -937,6 +989,7 @@ function PricingStep({
         error={errors.contractPrice}
         label="إجمالي سعر الوحدة في العقد *"
         value={form.contractPrice2 ?? form.contractPrice}
+        currencySymbol={currency}
         update={(value) => update('contractPrice', value)}
       />
       <fieldset className="flex flex-col gap-3">
@@ -954,12 +1007,14 @@ function PricingStep({
         error={errors.paidAmount}
         label="إجمالي اللي دفعته لحد النهارده *"
         value={form.paidAmount2 ?? form.paidAmount}
+        currencySymbol={currency}
         update={(value) => update('paidAmount', value)}
       />
       <MoneyField
         error={errors.marketPrice}
         label="سعر الوحدة دلوقتي في السوق (تقديري) *"
         value={form.marketPrice}
+        currencySymbol={currency}
         update={(value) => update('marketPrice', value)}
       />
       <div className="grid gap-5 sm:grid-cols-2">
@@ -967,6 +1022,7 @@ function PricingStep({
           error={errors.installment}
           label="قيمة القسط *"
           value={form.installment}
+          currencySymbol={currency}
           update={(value) => update('installment', value)}
         />
         <fieldset className="flex flex-col gap-3">
@@ -1000,6 +1056,7 @@ function PricingStep({
         <MoneyField
           label="قيمة القسط السنوي *"
           value={form.annualInstallmentAmount}
+          currencySymbol={currency}
           update={(value) => update('annualInstallmentAmount', value)}
         />
       )}
@@ -1014,6 +1071,7 @@ function PricingStep({
         <MoneyField
           label="أكتر مبلغ مستعد تتنازل عنه *"
           value={form.discountAmount}
+          currencySymbol={currency}
           update={(value) => update('discountAmount', value)}
         />
       )}
@@ -1036,6 +1094,7 @@ function PricingStep({
           <MoneyField
             label="إجمالي المبلغ المتأخر *"
             value={form.overdueTotal}
+            currencySymbol={currency}
             update={(value) => update('overdueTotal', value)}
           />
         </div>
@@ -1208,6 +1267,11 @@ function ReviewStep({
   const [copiedCode, setCopiedCode] = useState(false)
   const [promoPending, startPromoTransition] = useTransition()
 
+  const currency = getCurrencyByCountry(form.unitCountry)
+  const countryObj =
+    PLATFORM_COUNTRIES.find((c) => c.code === (form.unitCountry || 'EG')) ||
+    PLATFORM_COUNTRIES[0]
+
   const handleSelectPackage = (pkg: {
     days: 7 | 14 | 30
     price: number
@@ -1215,7 +1279,6 @@ function ReviewStep({
   }) => {
     setSelectedPromo(pkg.days)
     if (!unitId) {
-      // في حال لم يكن هناك unitId، نولد كود فوري فوري للعرض
       setFawryCode(String(Math.floor(1000000000 + Math.random() * 9000000000)))
       return
     }
@@ -1231,7 +1294,6 @@ function ReviewStep({
     })
   }
 
-  // شاشة النجاح النهائية المطابقة 100% للصورة المرفقة
   if (submitted)
     return (
       <div className="flex flex-col items-center py-4 sm:py-6">
@@ -1249,7 +1311,6 @@ function ReviewStep({
           رقم طلبك: <strong className="font-mono">{orderRef}</strong>
         </span>
 
-        {/* الصندوق الأخضر الاختياري لباقات الترويج والتمييز (7 / 14 / 30 يوم) */}
         <div className="mt-6 w-full rounded-[20px] border border-[#aae3cb] bg-[#effaf5] p-5 text-right sm:p-6">
           <div className="flex items-center justify-start gap-1 text-xs font-extrabold text-[#0b6954]">
             <Star className="size-3.5 fill-amber-400 text-amber-500" />
@@ -1279,7 +1340,6 @@ function ReviewStep({
             </li>
           </ul>
 
-          {/* الباقات الثلاث */}
           <div className="mt-4 grid grid-cols-3 gap-2.5 sm:gap-3">
             {PROMO_PACKAGES.map((pkg) => {
               const isSelected = selectedPromo === pkg.days
@@ -1341,18 +1401,8 @@ function ReviewStep({
                   <span>{copiedCode ? 'تم النسخ ✓' : 'نسخ الكود'}</span>
                 </button>
               </div>
-              <p className="mt-2 text-[11px] leading-relaxed text-gray-500">
-                ادفعه من تطبيق <strong>myFawry</strong> (ادفع فاتورة ← Fawaterak
-                / فواتيرك ← اكتب الكود) أو من أي فرع أو ماكينة فوري.
-              </p>
             </div>
-          ) : (
-            <div className="mt-3 rounded-xl bg-white p-3.5 text-[11px] leading-relaxed text-gray-600">
-              لو اخترت فوري، هيطلعلك كود من ١٠ أرقام — ادفعه من تطبيق myFawry
-              (ادفع فاتورة ← Fawaterak / فواتيرك ← اكتب الكود) أو من أي فرع أو
-              مكينة فوري.
-            </div>
-          )}
+          ) : null}
         </div>
 
         <Link
@@ -1361,14 +1411,11 @@ function ReviewStep({
         >
           روح لحسابك
         </Link>
-
-        <p className="mt-2.5 text-center text-[11px] text-gray-400">
-          تقدر ترجع تعدّل بيانات وحدتك في أي وقت من حسابك.
-        </p>
       </div>
     )
 
   const rows = [
+    ['الدولة', `${countryObj.flag} ${countryObj.nameAr}`],
     [
       'المطور / المشروع',
       `${form.developerDetails || form.developer || '—'} · ${
@@ -1386,13 +1433,13 @@ function ReviewStep({
       'إجمالي سعر الوحدة في العقد',
       `${Number(
         form.contractPrice2 || form.contractPrice || 0
-      ).toLocaleString('en-US')} ج.م`,
+      ).toLocaleString('en-US')} ${currency}`,
     ],
     [
       'إجمالي اللي دفعته لحد النهارده',
       `${Number(form.paidAmount2 || form.paidAmount || 0).toLocaleString(
         'en-US'
-      )} ج.م`,
+      )} ${currency}`,
     ],
   ]
 

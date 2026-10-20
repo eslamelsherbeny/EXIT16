@@ -255,14 +255,15 @@ export async function loginAction(formData: FormData): Promise<AuthResult & { re
   }
 }
 // ==========================================
-// 4. إنشاء حساب جديد + إرسال رابط التوثيق المباشر
+// 4. إنشاء حساب جديد + حفظ دولة المستخدم + إرسال رابط التوثيق المباشر
 // ==========================================
 
 export async function registerAction(formData: FormData): Promise<AuthResult> {
-  const name = ((formData.get('name') as string) || '').trim()
+  const name = ((formData.get('name') as string) || (formData.get('full-name') as string) || '').trim()
   const rawEmail = (formData.get('email') as string) || ''
   const rawPhone = (formData.get('phone') as string) || ''
   const password = (formData.get('password') as string) || ''
+  const country = (((formData.get('country') as string) || 'EG').trim()).toUpperCase()
 
   const email = normalizeEmail(rawEmail)
   const formattedPhone = formatPrimaryPhone(rawPhone)
@@ -296,6 +297,7 @@ export async function registerAction(formData: FormData): Promise<AuthResult> {
       email,
       phone: formattedPhone,
       password_hash: hash,
+      country,
     })
     .select('id')
     .single()
@@ -307,7 +309,7 @@ export async function registerAction(formData: FormData): Promise<AuthResult> {
   try {
     await supabase
       .from('users')
-      .update({ otp_code: verifyToken, is_verified: false, status: 'active' })
+      .update({ otp_code: verifyToken, is_verified: false, status: 'active', country })
       .eq('id', newUser.id)
   } catch {}
 

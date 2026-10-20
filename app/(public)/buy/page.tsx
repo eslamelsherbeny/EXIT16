@@ -25,6 +25,13 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { TurnstileBox } from '@/components/funnel-shell'
 import { CountrySelector } from '@/components/country-selector'
+import { getActiveCountryFromCookie } from '@/components/site-shell'
+import {
+  ALL_RESIDENCE_COUNTRIES,
+  getCurrencyByCountry,
+  PLATFORM_COUNTRIES,
+  SearchableCountryField,
+} from '@/components/seller/seller-shared'
 
 const benefits = [
   'كل فرصة بأرقام كاملة: المطلوب كاش، الأقساط المتبقية، ومواعيدها',
@@ -49,30 +56,56 @@ const unitTypes = [
   'أرض',
 ]
 
-const areas = [
-  'التجمع الخامس',
-  'التجمع الأول',
-  'الشيخ زايد',
-  'زايد الجديدة',
-  '6 أكتوبر',
-  'العاصمة الإدارية',
-  'الرحاب',
-  'مدينتي',
-  'المستقبل سيتي',
-  'الساحل الشمالي',
-  'الشروق',
-]
+const areasByCountry: Record<string, string[]> = {
+  EG: [
+    'التجمع الخامس',
+    'التجمع الأول',
+    'الشيخ زايد',
+    'زايد الجديدة',
+    '6 أكتوبر',
+    'العاصمة الإدارية',
+    'الرحاب',
+    'مدينتي',
+    'المستقبل سيتي',
+    'الساحل الشمالي',
+    'رأس الحكمة',
+    'الشروق',
+  ],
+  RU: [
+    'موسكو (Moscow)',
+    'سانت بطرسبرغ (St. Petersburg)',
+    'سوتشي (Sochi)',
+    'كازان (Kazan)',
+  ],
+  GE: [
+    'تبليسي (Tbilisi)',
+    'باتومي (Batumi)',
+    'كوتايسي (Kutaisi)',
+    'غوداوري (Gudauri)',
+  ],
+  AE: [
+    'دبي (Dubai)',
+    'أبوظبي (Abu Dhabi)',
+    'الشارقة (Sharjah)',
+    'رأس الخيمة (Ras Al Khaimah)',
+    'عجمان (Ajman)',
+  ],
+}
 
 const paymentPlans = ['شهري', 'ربع سنوي (كل 3 شهور)', 'نصف سنوي', 'سنوي']
 const deliveryStatuses = ['جاهزة للاستلام', 'تحت الإنشاء']
 
 type FormState = BuyRequestPayload & {
+  country: string
+  userCountry: string
   password: string
   loginIdentifier?: string
   loginPassword?: string
 }
 
 const initial: FormState = {
+  country: 'EG',
+  userCountry: 'EG',
   available_cash: 0,
   max_installment: 0,
   payment_plan: 'شهري',
@@ -89,12 +122,13 @@ const initial: FormState = {
   loginPassword: '',
 }
 
-function formatAmount(value: number) {
+function formatAmount(value: number, currencySymbol = 'ج.م') {
   if (!value) return ''
   if (value >= 1_000_000)
-    return `${(value / 1_000_000).toFixed(2).replace(/\.00$/, '')} مليون ج.م`
-  if (value >= 1_000) return `${Math.round(value / 1_000)} ألف ج.م`
-  return `${value.toLocaleString('en-US')} ج.م`
+    return `${(value / 1_000_000).toFixed(2).replace(/\.00$/, '')} مليون ${currencySymbol}`
+  if (value >= 1_000)
+    return `${Math.round(value / 1_000)} ألف ${currencySymbol}`
+  return `${value.toLocaleString('en-US')} ${currencySymbol}`
 }
 
 export default function BuyersPage() {
@@ -109,7 +143,6 @@ export default function BuyersPage() {
   const [error, setError] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
 
-  // حالة المستخدم المسجل حالياً
   const [loggedUser, setLoggedUser] = useState<{
     id: string
     name: string
@@ -121,7 +154,6 @@ export default function BuyersPage() {
     'register'
   )
 
-  // حالات التكرار في الخطوة 3 (نفس شاشات الموقع الأصلي)
   const [conflictState, setConflictState] = useState<
     | null
     | {
@@ -138,6 +170,13 @@ export default function BuyersPage() {
   >(null)
 
   useEffect(() => {
+    const activeCountry = getActiveCountryFromCookie().code
+    setData((prev) => ({
+      ...prev,
+      country: activeCountry,
+      userCountry: activeCountry,
+    }))
+
     async function checkCurrentSession() {
       const res = await getCurrentSellerProfileAction()
       if (res.isLoggedIn && res.user) {
@@ -163,6 +202,7 @@ export default function BuyersPage() {
 
   const nextFromOne = () => {
     const nextErrors: Record<string, string> = {}
+    if (!data.country) nextErrors.country = 'يرجى اختيار الدولة'
     if (!data.available_cash) nextErrors.available_cash = 'هذا الحقل مطلوب'
     if (!data.max_installment) nextErrors.max_installment = 'هذا الحقل مطلوب'
     if (!data.payment_plan)
@@ -214,6 +254,7 @@ export default function BuyersPage() {
 
     if (authTab === 'register') {
       if (!data.name.trim()) nextErrors.name = 'هذا الحقل مطلوب'
+      if (!data.userCountry) nextErrors.userCountry = 'يرجى اختيار دولتك'
       if (
         !data.phone.trim() ||
         !/^[0-9٠-٩]{7,15}$/.test(data.phone.replace(/[\s-]/g, ''))
@@ -245,6 +286,8 @@ export default function BuyersPage() {
 
       const res = await processBuyerStep3Action({
         mode: authTab,
+        country: data.country || 'EG',
+        userCountry: data.userCountry || data.country || 'EG',
         available_cash: Number(data.available_cash) || 0,
         max_installment: Number(data.max_installment) || 0,
         payment_plan: data.payment_plan,
@@ -256,8 +299,7 @@ export default function BuyersPage() {
         name: data.name.trim(),
         phone: fullPhone,
         email: data.email.trim(),
-        password:
-          authTab === 'login' ? data.loginPassword : data.password,
+        password: authTab === 'login' ? data.loginPassword : data.password,
         loginIdentifier: data.loginIdentifier,
       })
 
@@ -410,7 +452,6 @@ export default function BuyersPage() {
             </div>
           )}
 
-          {/* نخفي أزرار الخطوة السفلية لو كانت شاشة التكرار مفتوحة لأن لها أزرارها الخاصة */}
           {!(step === 3 && conflictState) && (
             <div className="mt-7 flex gap-3">
               {step > 1 && (
@@ -456,18 +497,6 @@ export default function BuyersPage() {
             </div>
           )}
         </div>
-
-        {step <= 2 && (
-          <div className="mt-6 flex items-center justify-between rounded-2xl bg-[#0f172a] px-5 py-4 text-sm text-white">
-            <span>كلمنا على واتساب وقولنا بتدور على إيه</span>
-            <a
-              href="https://wa.me/201018595959"
-              className="rounded-full bg-green-500 px-4 py-2 font-bold transition hover:bg-green-600"
-            >
-              سجّل اهتمامك دلوقتي
-            </a>
-          </div>
-        )}
       </div>
     </main>
   )
@@ -494,12 +523,14 @@ function Money({
   onChange,
   helper,
   error,
+  currencySymbol = 'ج.م',
 }: {
   label: string
   value: number
   onChange: (value: number) => void
   helper?: string
   error?: string
+  currencySymbol?: string
 }) {
   return (
     <div>
@@ -520,7 +551,7 @@ function Money({
           }`}
         />
         <span className="absolute top-3 right-3 text-xs text-slate-500">
-          ج.م
+          {currencySymbol}
         </span>
       </div>
       {error && (
@@ -529,7 +560,7 @@ function Money({
         </p>
       )}
       <p className="mt-2 min-h-4 text-right text-xs font-semibold text-teal-700">
-        {formatAmount(value)}
+        {formatAmount(value, currencySymbol)}
       </p>
       {helper && <p className="text-right text-xs text-slate-500">{helper}</p>}
     </div>
@@ -545,12 +576,28 @@ function StepOne({
   update: <K extends keyof FormState>(key: K, value: FormState[K]) => void
   errors?: Record<string, string>
 }) {
+  const currency = getCurrencyByCountry(data.country)
+
   return (
     <div className="flex flex-col gap-6">
+      {/* اختيار الدولة التي يبحث فيها المشتري عن عقار */}
+      <SearchableCountryField
+        label="بتدوّر على وحدة في دولة إيه؟ *"
+        value={data.country || 'EG'}
+        options={PLATFORM_COUNTRIES}
+        error={errors?.country}
+        helper="اكتب أول حرف من اسم الدولة أو اختر من القائمة"
+        onChange={(code) => {
+          update('country', code)
+          update('preferred_areas', [])
+        }}
+      />
+
       <Money
         error={errors?.available_cash}
         label="الكاش المتاح معاك دلوقتي *"
         value={data.available_cash}
+        currencySymbol={currency}
         onChange={(value) => update('available_cash', value)}
         helper="المبلغ اللي تقدر تدفعه فورًا لصاحب الوحدة"
       />
@@ -558,6 +605,7 @@ function StepOne({
         error={errors?.max_installment}
         label="أقصى قسط يريحك *"
         value={data.max_installment}
+        currencySymbol={currency}
         onChange={(value) => update('max_installment', value)}
       />
       <fieldset>
@@ -600,6 +648,7 @@ function StepOne({
         error={errors?.budget}
         label="سعر التعاقد المستهدف (الميزانية) *"
         value={data.budget}
+        currencySymbol={currency}
         onChange={(value) => update('budget', value)}
         helper="أقصى سعر تعاقد مناسب لميزانيتك"
       />
@@ -627,11 +676,23 @@ function StepTwo({
   setShowAreas: (value: boolean) => void
   addArea: (value?: string) => void
 }) {
-  const filtered = areas
-    .filter((area) => area.includes(areaInput.trim()))
+  const countryAreas = areasByCountry[data.country || 'EG'] || areasByCountry.EG
+  const filtered = countryAreas
+    .filter((area) => area.toLowerCase().includes(areaInput.trim().toLowerCase()))
     .slice(0, 8)
+
   return (
     <div className="flex flex-col gap-6">
+      <SearchableCountryField
+        label="الدولة المطلوب الشراء فيها *"
+        value={data.country || 'EG'}
+        options={PLATFORM_COUNTRIES}
+        onChange={(code) => {
+          update('country', code)
+          update('preferred_areas', [])
+        }}
+      />
+
       <fieldset>
         <legend className="mb-1 text-right text-sm font-bold">
           <RequiredLabel>نوع الوحدة اللي بتدوّر عليها *</RequiredLabel>
@@ -689,9 +750,6 @@ function StepTwo({
           className="mt-2 h-12 w-full max-w-[150px] text-center text-lg"
           placeholder="غرفة"
         />
-        <p className="mt-2 text-right text-xs text-slate-500">
-          سيبها فاضية لو مش فارقة معاك
-        </p>
       </div>
       <fieldset>
         <legend className="mb-3 text-right text-sm font-bold">
@@ -723,15 +781,10 @@ function StepTwo({
             </label>
           ))}
         </div>
-        {errors?.delivery_status && (
-          <p className="mt-1.5 text-right text-xs font-semibold text-red-600">
-            {errors.delivery_status}
-          </p>
-        )}
       </fieldset>
       <div>
         <Label htmlFor="areas" className="block text-right">
-          <RequiredLabel>المناطق أو الكمبوندات اللي تهمك *</RequiredLabel>
+          <RequiredLabel>المناطق أو المدن اللي تهمك *</RequiredLabel>
         </Label>
         <div
           className={`relative mt-2 ${
@@ -778,12 +831,13 @@ function StepTwo({
               if (event.key === 'Enter') {
                 event.preventDefault()
                 if (filtered[0]) addArea(filtered[0])
+                else if (areaInput.trim()) addArea(areaInput.trim())
               }
             }}
             placeholder={
               data.preferred_areas.length
                 ? 'ضيف منطقة تانية...'
-                : 'دوّر على المنطقة...'
+                : 'دوّر على المنطقة أو اكتب اسمها...'
             }
             className="h-12 rounded-xl text-right"
           />
@@ -807,9 +861,6 @@ function StepTwo({
             {errors.preferred_areas}
           </p>
         )}
-        <p className="mt-2 text-right text-xs text-slate-500">
-          مثال: الشيخ زايد، أكتوبر، زايد الجديدة
-        </p>
       </div>
       <TurnstileBox />
     </div>
@@ -908,7 +959,6 @@ function StepThree({
     }
   }
 
-  // 1. شاشة "الإيميل ده عنده حساب بالفعل"
   if (conflictState?.type === 'email_exists') {
     return (
       <div className="rounded-2xl border border-slate-200 bg-white p-5 text-right sm:p-7">
@@ -993,7 +1043,6 @@ function StepThree({
     )
   }
 
-  // 2. شاشة "الرقم ده عندنا عليه حساب بالفعل"
   if (conflictState?.type === 'phone_exists') {
     return (
       <div className="rounded-2xl border border-slate-200 bg-white p-5 text-right sm:p-7">
@@ -1008,12 +1057,6 @@ function StepThree({
           ). عشان منعملش لك حساب تاني على نفس الرقم، ادخل على حسابك القديم —
           هنبعتلك لينك على الإيميل المسجّل على الرقم ده.
         </p>
-
-        {stepError && (
-          <p className="mt-3 text-right text-xs font-bold text-red-600">
-            {stepError}
-          </p>
-        )}
 
         {!recoveryLinkSent ? (
           <div className="mt-5">
@@ -1056,7 +1099,6 @@ function StepThree({
     )
   }
 
-  // 3. الشاشة الأساسية للخطوة الثالثة
   return (
     <div className="flex flex-col gap-5">
       <div className="grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 bg-slate-50/80 p-1.5 sm:flex">
@@ -1141,6 +1183,22 @@ function StepThree({
             value={data.name}
             onChange={(value) => update('name', value)}
           />
+
+          {/* اختيار دولة إقامة المشتري عند تسجيل حساب جديد */}
+          <SearchableCountryField
+            label="أنت من دولة إيه؟ (بلد الإقامة) *"
+            value={data.userCountry || data.country || 'EG'}
+            options={ALL_RESIDENCE_COUNTRIES}
+            error={errors?.userCountry}
+            onChange={(code) => {
+              update('userCountry', code)
+              const found = ALL_RESIDENCE_COUNTRIES.find((c) => c.code === code)
+              if (found?.phoneCode) {
+                setCountryCode(found.phoneCode)
+              }
+            }}
+          />
+
           <div>
             <Label className="block text-right">
               <RequiredLabel>رقم موبايلك *</RequiredLabel>

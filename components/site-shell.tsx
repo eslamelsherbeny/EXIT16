@@ -34,6 +34,23 @@ import en from '@/dictionaries/en.json'
 
 type Dictionary = typeof ar
 
+// ==================== إعدادات اللغات الـ 4 ====================
+export type LanguageCode = 'ar' | 'en' | 'ru' | 'ka'
+
+export type LanguageConfig = {
+  code: LanguageCode
+  label: string
+  nativeName: string
+  dir: 'rtl' | 'ltr'
+}
+
+export const SUPPORTED_LANGUAGES: Record<LanguageCode, LanguageConfig> = {
+  ar: { code: 'ar', label: 'العربية', nativeName: 'العربية', dir: 'rtl' },
+  en: { code: 'en', label: 'الإنجليزية', nativeName: 'English', dir: 'ltr' },
+  ru: { code: 'ru', label: 'الروسية', nativeName: 'Русский', dir: 'ltr' },
+  ka: { code: 'ka', label: 'الجورجية', nativeName: 'ქართული', dir: 'ltr' },
+}
+
 // ==================== إعدادات الدول الـ 4 ====================
 export type CountryCode = 'EG' | 'RU' | 'GE' | 'AE'
 
@@ -132,12 +149,12 @@ export function Logo({ inverse = false }: { inverse?: boolean }) {
       aria-label="Aqar Exit"
     >
       <svg
-        width="102"
-        height="48"
+        width="96"
+        height="44"
         viewBox="0 0 116 54"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
-        className="h-[42px] w-auto"
+        className="h-[38px] w-auto sm:h-[40px]"
       >
         <path
           d="M5 30L17.5 5.5C18.2 4.1 19.8 4.1 20.5 5.5L33 30"
@@ -203,12 +220,13 @@ export function Logo({ inverse = false }: { inverse?: boolean }) {
   )
 }
 
-// ==================== 2. الهيدر (Navbar) ====================
+// ==================== 2. الهيدر الاحترافي (Navbar) ====================
 export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
   const router = useRouter()
   const pathname = usePathname()
 
-  const [language, setLanguage] = useState<'ar' | 'en'>('ar')
+  const [language, setLanguage] = useState<LanguageCode>('ar')
+  const [langMenuOpen, setLangMenuOpen] = useState(false)
   const [country, setCountry] = useState<CountryCode>('EG')
   const [countryMenuOpen, setCountryMenuOpen] = useState(false)
   const [hasSession, setHasSession] = useState(false)
@@ -225,9 +243,12 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
   const notifRefMobile = useRef<HTMLDivElement>(null)
   const countryRefDesktop = useRef<HTMLDivElement>(null)
   const countryRefMobile = useRef<HTMLDivElement>(null)
-  const labels = language === 'en' ? en : dictionary
+  const langRefDesktop = useRef<HTMLDivElement>(null)
 
-  // قراءة الدولة المحفوظة أو التعرف التلقائي المبدئي من المتصفح في أول زيارة فقط
+  const isEnglishLike = language !== 'ar'
+  const labels = isEnglishLike ? en : dictionary
+
+  // قراءة الدولة واللغة المحفوظة
   useEffect(() => {
     const hasCookie = document.cookie
       .split('; ')
@@ -249,6 +270,14 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
       }
     }
 
+    const localeMatch = document.cookie
+      .split('; ')
+      .find((row) => row.startsWith('locale='))
+    const savedLang = localeMatch?.split('=')[1]?.trim() as LanguageCode | undefined
+    if (savedLang && SUPPORTED_LANGUAGES[savedLang]) {
+      setLanguage(savedLang)
+    }
+
     const syncCountry = () => {
       setCountry(getActiveCountryFromCookie().code)
     }
@@ -264,11 +293,13 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
     router.refresh()
   }
 
-  useEffect(() => {
-    document.cookie = `locale=${language}; path=/; max-age=31536000`
-    document.documentElement.lang = language
-    document.documentElement.dir = language === 'en' ? 'ltr' : 'rtl'
-  }, [language])
+  const handleSelectLanguage = (code: LanguageCode) => {
+    setLanguage(code)
+    setLangMenuOpen(false)
+    document.cookie = `locale=${code}; path=/; max-age=31536000; SameSite=Lax`
+    document.documentElement.lang = code
+    document.documentElement.dir = SUPPORTED_LANGUAGES[code].dir
+  }
 
   useEffect(() => {
     let isMounted = true
@@ -306,6 +337,7 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
     setMobileMenuOpen(false)
     setNotificationsOpen(false)
     setCountryMenuOpen(false)
+    setLangMenuOpen(false)
   }, [pathname])
 
   useEffect(() => {
@@ -315,12 +347,16 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
       const insideMobileNotif = notifRefMobile.current?.contains(target)
       const insideDesktopCountry = countryRefDesktop.current?.contains(target)
       const insideMobileCountry = countryRefMobile.current?.contains(target)
+      const insideDesktopLang = langRefDesktop.current?.contains(target)
 
       if (!insideDesktopNotif && !insideMobileNotif) {
         setNotificationsOpen(false)
       }
       if (!insideDesktopCountry && !insideMobileCountry) {
         setCountryMenuOpen(false)
+      }
+      if (!insideDesktopLang) {
+        setLangMenuOpen(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -331,6 +367,7 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
     const nextState = !notificationsOpen
     setNotificationsOpen(nextState)
     setCountryMenuOpen(false)
+    setLangMenuOpen(false)
 
     if (nextState && unreadCount > 0) {
       setUnreadCount(0)
@@ -342,8 +379,7 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
   }
 
   const handleSingleNotifClick = (item: any) => {
-    const targetUrl =
-      item.link && item.link !== '/' ? item.link : '/account'
+    const targetUrl = item.link && item.link !== '/' ? item.link : '/account'
 
     setNotificationsOpen(false)
     setNotifsList((prev) =>
@@ -385,14 +421,14 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
 
   const currentCountryCfg = SUPPORTED_COUNTRIES[country] || SUPPORTED_COUNTRIES.EG
 
-  // القائمة المنسدلة للدول (تظهر اسم الدولة بلغة الموقع + العلم + الكود بدون أي عملة)
+  // القائمة المنسدلة للدول
   const renderCountryDropdownMenu = () => (
     <div
       onClick={(e) => e.stopPropagation()}
-      className="absolute left-0 top-11 z-50 w-44 overflow-hidden rounded-2xl border border-gray-200 bg-white p-1.5 shadow-xl"
+      className="absolute left-0 top-10 z-50 w-40 overflow-hidden rounded-xl border border-gray-200/90 bg-white p-1 shadow-lg"
     >
-      <p className="px-2.5 py-1.5 text-right text-[10px] font-bold text-gray-400">
-        {language === 'en' ? 'Select Country:' : 'اختر الدولة:'}
+      <p className="px-2.5 py-1 text-right text-[10px] font-bold text-gray-400">
+        {isEnglishLike ? 'Country' : 'الدولة'}
       </p>
       {(Object.values(SUPPORTED_COUNTRIES) as CountryConfig[]).map((c) => {
         const active = c.code === country
@@ -401,22 +437,44 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
             key={c.code}
             type="button"
             onClick={() => handleSelectCountry(c.code)}
-            className={`flex w-full items-center justify-between rounded-xl px-2.5 py-2 text-right text-xs font-bold transition ${
+            className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-right text-xs font-semibold transition ${
               active
-                ? 'bg-[#eff9f5] text-[#0b6954]'
+                ? 'bg-[#eff9f5] font-bold text-[#0b6954]'
                 : 'text-[#0a1122] hover:bg-gray-50'
             }`}
           >
             <div className="flex items-center gap-2">
-              <span className="text-base leading-none">{c.flag}</span>
-              <span>{language === 'en' ? c.nameEn : c.nameAr}</span>
+              <span className="text-sm leading-none">{c.flag}</span>
+              <span>{isEnglishLike ? c.nameEn : c.nameAr}</span>
             </div>
-            <div className="flex items-center gap-1">
-              <span className="font-mono text-[10px] font-extrabold text-gray-400">
-                {c.code}
-              </span>
-              {active && <Check className="size-3.5 text-[#0b6954]" />}
-            </div>
+            {active && <Check className="size-3.5 text-[#0b6954]" />}
+          </button>
+        )
+      })}
+    </div>
+  )
+
+  // القائمة المنسدلة للغات الـ 4 (العربية، الإنجليزية، الروسية، الجورجية)
+  const renderLanguageDropdownMenu = () => (
+    <div
+      onClick={(e) => e.stopPropagation()}
+      className="absolute left-0 top-10 z-50 w-36 overflow-hidden rounded-xl border border-gray-200/90 bg-white p-1 shadow-lg"
+    >
+      {(Object.values(SUPPORTED_LANGUAGES) as LanguageConfig[]).map((lang) => {
+        const active = lang.code === language
+        return (
+          <button
+            key={lang.code}
+            type="button"
+            onClick={() => handleSelectLanguage(lang.code)}
+            className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs font-semibold transition ${
+              active
+                ? 'bg-[#eff9f5] font-bold text-[#0b6954]'
+                : 'text-[#0a1122] hover:bg-gray-50'
+            }`}
+          >
+            <span>{lang.nativeName}</span>
+            {active && <Check className="size-3.5 text-[#0b6954]" />}
           </button>
         )
       })}
@@ -428,8 +486,8 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
       onClick={(e) => e.stopPropagation()}
       className={
         isMobile
-          ? 'fixed left-3 right-3 top-[76px] z-50 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl'
-          : 'absolute left-0 top-12 z-50 w-96 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl'
+          ? 'fixed left-3 right-3 top-[68px] z-50 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl'
+          : 'absolute left-0 top-11 z-50 w-96 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl'
       }
     >
       <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50/90 px-4 py-3">
@@ -564,14 +622,14 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
   return (
     <header
       dir="rtl"
-      className="sticky top-0 z-50 border-b border-gray-200/80 bg-white/95 backdrop-blur-md"
+      className="sticky top-0 z-50 border-b border-gray-200/75 bg-white/95 backdrop-blur-md"
     >
-      <div className="mx-auto flex h-[72px] max-w-[1180px] items-center justify-between gap-4 px-4 sm:px-6">
-        {/* اليمين: اللوجو والروابط متقاربة وملمومة مثل الموقع الأصلي */}
-        <div className="flex items-center gap-5 xl:gap-7">
+      <div className="mx-auto flex h-[66px] max-w-[1160px] items-center justify-between gap-4 px-4 sm:px-6">
+        {/* ==================== القسم الأيمن: اللوجو + التابات بمسافات مريحة ==================== */}
+        <div className="flex items-center gap-7 xl:gap-9">
           <Logo />
           <nav
-            className="hidden items-center gap-3.5 lg:flex xl:gap-4"
+            className="hidden items-center gap-4 lg:flex xl:gap-5"
             aria-label={labels.navbar?.menuTitle || 'القائمة الرئيسية'}
           >
             {links.map((link) => {
@@ -581,13 +639,13 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`whitespace-nowrap text-[13.5px] transition-colors hover:text-[#0b6954] ${
+                  className={`whitespace-nowrap text-[13px] transition-colors hover:text-[#0b6954] ${
                     isActive
-                      ? 'font-bold text-[#0b6954]'
+                      ? 'font-bold text-[#0a1122]'
                       : 'font-normal text-[#4b5563]'
                   }`}
                 >
-                  {language === 'en'
+                  {isEnglishLike
                     ? labels.navbar?.[link.key] || link.enFallback
                     : labels.navbar?.[link.key] || link.fallback}
                 </Link>
@@ -596,65 +654,74 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
           </nav>
         </div>
 
-        {/* اليسار (ديسكتوب): زر الدولة (علم + رمز فقط) + زر اللغة الواضح + أزرار الحساب + لوحة الإدارة في أقصى اليسار */}
+        {/* ==================== القسم الأيسر (ديسكتوب): مرتب ونظيف جداً مثل الموقع الأصلي ==================== */}
         <div className="hidden shrink-0 items-center gap-2 lg:flex">
-          {/* 1. زر الدولة المنسدل (العلم + الرمز فقط مثل 🇪🇬 EG) */}
+          {/* 1. أيقونة الدولة: مربعة وصغيرة وأنيقة */}
           <div className="relative" ref={countryRefDesktop}>
             <button
               type="button"
               onClick={() => {
                 setCountryMenuOpen(!countryMenuOpen)
+                setLangMenuOpen(false)
                 setNotificationsOpen(false)
               }}
-              dir="ltr"
-              className="inline-flex h-[38px] items-center gap-1.5 rounded-xl border border-gray-200 bg-gray-50/70 px-2.5 text-xs font-extrabold text-[#0a1122] transition hover:border-[#0b6954] hover:bg-white"
-              title="تغيير الدولة"
+              className="flex size-[32px] items-center justify-center rounded-[8px] border border-gray-200/90 bg-gray-50/70 text-[15px] leading-none transition hover:border-[#0b6954] hover:bg-white"
+              title={`الدولة: ${currentCountryCfg.nameAr}`}
+              aria-label="تغيير الدولة"
             >
-              <span className="text-sm leading-none">
-                {currentCountryCfg.flag}
-              </span>
-              <span className="font-mono text-[11.5px] tracking-wide">
-                {currentCountryCfg.code}
-              </span>
-              <ChevronDown className="size-3 text-gray-400" />
+              {currentCountryCfg.flag}
             </button>
 
             {countryMenuOpen && renderCountryDropdownMenu()}
           </div>
 
-          {/* 2. زر تغيير اللغة الواضح بأيقونة الكرة الأرضية */}
-          <button
-            type="button"
-            onClick={() => setLanguage(language === 'ar' ? 'en' : 'ar')}
-            className="inline-flex h-[38px] items-center gap-1.5 rounded-xl border border-transparent px-2.5 text-[13px] font-semibold text-[#1e293b] transition-colors hover:border-gray-200 hover:bg-gray-50 hover:text-[#0b6954]"
-            title="تغيير اللغة / Change Language"
-          >
-            <Globe className="size-3.5 text-gray-500" />
-            <span>{language === 'ar' ? 'English' : 'العربية'}</span>
-          </button>
+          {/* 2. زر اللغة: نصي نظيف مثل الموقع الأصلي ويفتح قائمة الـ 4 لغات */}
+          <div className="relative" ref={langRefDesktop}>
+            <button
+              type="button"
+              onClick={() => {
+                setLangMenuOpen(!langMenuOpen)
+                setCountryMenuOpen(false)
+                setNotificationsOpen(false)
+              }}
+              dir="ltr"
+              className="inline-flex h-[32px] items-center gap-1 rounded-lg px-2 text-[12.5px] font-medium text-[#4b5563] transition-colors hover:bg-gray-100/80 hover:text-[#0a1122]"
+              title="تغيير اللغة / Language"
+            >
+              <span>
+                {language === 'ar'
+                  ? 'English'
+                  : SUPPORTED_LANGUAGES[language].nativeName}
+              </span>
+              <ChevronDown className="size-3 text-gray-400" />
+            </button>
+
+            {langMenuOpen && renderLanguageDropdownMenu()}
+          </div>
+
+          {/* فاصل بصري خفيف جداً */}
+          <span className="mx-0.5 h-4 w-[1px] bg-gray-200/80" />
 
           {/* 3. زر حسابي */}
           <Link
             href={hasSession ? '/account' : '/login'}
-            className="inline-flex h-[40px] items-center justify-center whitespace-nowrap rounded-[11px] border border-[#e2e8f0] bg-white px-3.5 text-[13.5px] font-semibold text-[#0f172a] transition-colors hover:bg-gray-50"
+            className="inline-flex h-[36px] items-center justify-center whitespace-nowrap rounded-[9px] border border-gray-200/95 bg-white px-3.5 text-[12.5px] font-bold text-[#0a1122] transition-colors hover:bg-gray-50"
           >
-            <span>
-              {hasSession
-                ? language === 'en'
-                  ? 'My Account'
-                  : 'حسابي'
-                : language === 'en'
-                  ? 'Login'
-                  : labels.navbar?.login || 'حسابي'}
-            </span>
+            {hasSession
+              ? isEnglishLike
+                ? 'My Account'
+                : 'حسابي'
+              : isEnglishLike
+                ? 'Login'
+                : labels.navbar?.login || 'حسابي'}
           </Link>
 
           {/* 4. زر عايز تشتري */}
           <Link
             href="/buy"
-            className="inline-flex h-[40px] items-center justify-center whitespace-nowrap rounded-[11px] border border-[#e2e8f0] bg-white px-3.5 text-[13.5px] font-semibold text-[#0f172a] transition-colors hover:bg-gray-50"
+            className="inline-flex h-[36px] items-center justify-center whitespace-nowrap rounded-[9px] border border-gray-200/95 bg-white px-3.5 text-[12.5px] font-bold text-[#0a1122] transition-colors hover:bg-gray-50"
           >
-            {language === 'en' ? 'Want to Buy' : 'عايز تشتري'}
+            {isEnglishLike ? 'Want to Buy' : 'عايز تشتري'}
           </Link>
 
           {/* 5. جرس الإشعارات */}
@@ -664,13 +731,13 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
                 type="button"
                 onClick={handleToggleNotifications}
                 aria-label="الإشعارات"
-                className="relative flex size-9 items-center justify-center rounded-xl text-[#334155] transition-colors hover:bg-gray-100"
+                className="relative flex size-[34px] items-center justify-center rounded-lg text-[#334155] transition-colors hover:bg-gray-100"
               >
-                <Bell className="size-[18px] stroke-[1.8]" />
+                <Bell className="size-[17px] stroke-[1.8]" />
                 {unreadCount > 0 && (
                   <span
                     dir="ltr"
-                    className="absolute right-1 top-1 flex size-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-extrabold text-white"
+                    className="absolute right-1 top-1 flex size-3.5 items-center justify-center rounded-full bg-red-500 text-[8.5px] font-extrabold text-white"
                   >
                     {unreadCount > 9 ? '+9' : unreadCount}
                   </span>
@@ -684,44 +751,38 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
           {/* 6. زر عايز تبيع */}
           <Link
             href="/sell"
-            className="inline-flex h-[40px] items-center justify-center whitespace-nowrap rounded-[11px] bg-[#0b6954] px-4 text-[13.5px] font-semibold text-white transition-colors hover:bg-[#085443]"
+            className="inline-flex h-[36px] items-center justify-center whitespace-nowrap rounded-[9px] bg-[#0b6954] px-4 text-[12.5px] font-bold text-white transition-colors hover:bg-[#085443]"
           >
-            {language === 'en' ? 'Want to Sell' : 'عايز تبيع'}
+            {isEnglishLike ? 'Want to Sell' : 'عايز تبيع'}
           </Link>
 
-          {/* 7. زر لوحة الإدارة في أقصى اليسار */}
+          {/* 7. زر لوحة الإدارة في أقصى اليسار بحجم متناسق */}
           {isAdmin && (
             <Link
               href="/admin"
-              className="inline-flex h-[40px] items-center justify-center gap-1.5 whitespace-nowrap rounded-[11px] bg-[#0a1122] px-3 text-[12.5px] font-bold text-white shadow-xs transition-colors hover:bg-[#16223f]"
+              className="inline-flex h-[36px] items-center justify-center gap-1 whitespace-nowrap rounded-[9px] bg-[#0a1122] px-3 text-[12px] font-bold text-white transition-colors hover:bg-[#16223f]"
               title="لوحة الإدارة"
             >
-              <ShieldCheck className="size-4 text-[#2ee59d]" />
-              <span>{language === 'en' ? 'Admin' : 'لوحة الإدارة'}</span>
+              <ShieldCheck className="size-3.5 text-[#2ee59d]" />
+              <span>{isEnglishLike ? 'Admin' : 'لوحة الإدارة'}</span>
             </Link>
           )}
         </div>
 
-        {/* اليسار (موبايل): قائمة منسدلة للدولة (علم + رمز فقط) + إشعارات أو عايز تبيع + زر القائمة المربع */}
+        {/* ==================== القسم الأيسر (موبايل) ==================== */}
         <div className="flex items-center gap-1.5 lg:hidden">
-          {/* زر الدولة للموبايل (يفتح قائمة منسدلة مباشرة تحته) */}
+          {/* أيقونة الدولة المربعة الصغيرة للموبايل */}
           <div className="relative" ref={countryRefMobile}>
             <button
               type="button"
-              dir="ltr"
               onClick={() => {
                 setCountryMenuOpen(!countryMenuOpen)
                 setNotificationsOpen(false)
               }}
-              className="inline-flex h-[38px] items-center gap-1 rounded-xl border border-gray-200/90 bg-gray-50 px-2.5 text-xs font-extrabold text-[#0a1122]"
+              className="flex size-[34px] items-center justify-center rounded-[8px] border border-gray-200/90 bg-gray-50 text-[15px] leading-none"
+              aria-label="تغيير الدولة"
             >
-              <span className="text-sm leading-none">
-                {currentCountryCfg.flag}
-              </span>
-              <span className="font-mono text-[11px]">
-                {currentCountryCfg.code}
-              </span>
-              <ChevronDown className="size-3 text-gray-400" />
+              {currentCountryCfg.flag}
             </button>
 
             {countryMenuOpen && renderCountryDropdownMenu()}
@@ -733,13 +794,13 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
                 type="button"
                 onClick={handleToggleNotifications}
                 aria-label="الإشعارات"
-                className="relative flex size-[38px] items-center justify-center rounded-xl border border-gray-200/80 bg-white text-[#334155] shadow-xs transition-colors hover:bg-gray-50"
+                className="relative flex size-[34px] items-center justify-center rounded-[8px] border border-gray-200/80 bg-white text-[#334155]"
               >
-                <Bell className="size-[18px] stroke-[2]" />
+                <Bell className="size-[17px] stroke-[2]" />
                 {unreadCount > 0 && (
                   <span
                     dir="ltr"
-                    className="absolute -top-1 -right-1 flex size-[18px] items-center justify-center rounded-full border-2 border-white bg-red-500 text-[9px] font-extrabold text-white"
+                    className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full border border-white bg-red-500 text-[8.5px] font-extrabold text-white"
                   >
                     {unreadCount > 9 ? '+9' : unreadCount}
                   </span>
@@ -751,13 +812,13 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
           ) : (
             <Link
               href="/sell"
-              className="inline-flex h-[38px] items-center justify-center whitespace-nowrap rounded-xl bg-[#0b6954] px-3.5 text-[12px] font-semibold text-white transition-colors hover:bg-[#085443]"
+              className="inline-flex h-[34px] items-center justify-center whitespace-nowrap rounded-[8px] bg-[#0b6954] px-3 text-[12px] font-bold text-white transition-colors hover:bg-[#085443]"
             >
-              {language === 'en' ? 'Sell' : 'عايز تبيع'}
+              {isEnglishLike ? 'Sell' : 'عايز تبيع'}
             </Link>
           )}
 
-          {/* زر القائمة المربع بحواف ناعمة */}
+          {/* زر القائمة المربع للموبايل */}
           <button
             type="button"
             onClick={() => {
@@ -766,29 +827,29 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
               setNotificationsOpen(false)
             }}
             aria-label="القائمة"
-            className="flex size-[38px] items-center justify-center rounded-xl border border-gray-200/80 bg-gray-50 text-[#0a1122] shadow-xs focus:outline-none"
+            className="flex size-[34px] items-center justify-center rounded-[8px] border border-gray-200/80 bg-gray-50 text-[#0a1122] focus:outline-none"
           >
             {mobileMenuOpen ? (
-              <X className="size-5 stroke-[2]" />
+              <X className="size-4 stroke-[2]" />
             ) : (
-              <Menu className="size-5 stroke-[2]" />
+              <Menu className="size-4 stroke-[2]" />
             )}
           </button>
         </div>
       </div>
 
-      {/* قائمة الموبايل المنسدلة (تمت إزالة اختيار الدولة منها وبقي اختيار اللغة واضحاً) */}
+      {/* ==================== قائمة الموبايل المنسدلة ==================== */}
       {mobileMenuOpen && (
-        <div className="fixed inset-x-0 top-[72px] bottom-0 z-50 h-[calc(100vh-72px)] overflow-y-auto border-t border-gray-100 bg-white px-6 pt-5 pb-12 lg:hidden">
-          <nav className="flex flex-col gap-4 text-right">
+        <div className="fixed inset-x-0 top-[66px] bottom-0 z-50 h-[calc(100vh-66px)] overflow-y-auto border-t border-gray-100 bg-white px-6 pt-5 pb-12 lg:hidden">
+          <nav className="flex flex-col gap-3.5 text-right">
             <Link
               href="/"
               onClick={() => setMobileMenuOpen(false)}
-              className={`text-[17px] font-medium transition-colors ${
+              className={`text-[16px] font-medium transition-colors ${
                 pathname === '/' ? 'font-bold text-[#0b6954]' : 'text-[#0a1122]'
               }`}
             >
-              {language === 'en' ? 'Home' : 'الرئيسية'}
+              {isEnglishLike ? 'Home' : 'الرئيسية'}
             </Link>
             {links.map((link) => {
               const isActive =
@@ -798,11 +859,11 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
                   key={link.href}
                   href={link.href}
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`text-[17px] font-medium transition-colors ${
+                  className={`text-[16px] font-medium transition-colors ${
                     isActive ? 'font-bold text-[#0b6954]' : 'text-[#0a1122]'
                   }`}
                 >
-                  {language === 'en'
+                  {isEnglishLike
                     ? labels.navbar?.[link.key] || link.enFallback
                     : labels.navbar?.[link.key] || link.fallback}
                 </Link>
@@ -812,35 +873,35 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
 
           <hr className="my-5 border-gray-200/80" />
 
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2.5">
             {isAdmin && (
               <Link
                 href="/admin"
                 onClick={() => setMobileMenuOpen(false)}
-                className="flex h-[50px] w-full items-center justify-center gap-2 rounded-xl bg-[#0a1122] text-[15px] font-bold text-white shadow-sm transition-colors hover:bg-[#16223f]"
+                className="flex h-[46px] w-full items-center justify-center gap-2 rounded-xl bg-[#0a1122] text-[14px] font-bold text-white shadow-xs transition-colors hover:bg-[#16223f]"
               >
-                <ShieldCheck className="size-5 text-[#2ee59d]" />
-                <span>الدخول إلى لوحة الإدارة</span>
+                <ShieldCheck className="size-4 text-[#2ee59d]" />
+                <span>لوحة الإدارة</span>
               </Link>
             )}
             <Link
               href="/sell"
               onClick={() => setMobileMenuOpen(false)}
-              className="flex h-[48px] w-full items-center justify-center rounded-xl bg-[#0b6954] text-[15px] font-bold text-white transition-colors hover:bg-[#085443]"
+              className="flex h-[46px] w-full items-center justify-center rounded-xl bg-[#0b6954] text-[14px] font-bold text-white transition-colors hover:bg-[#085443]"
             >
-              {language === 'en' ? 'Want to Sell' : 'عايز تبيع'}
+              {isEnglishLike ? 'Want to Sell' : 'عايز تبيع'}
             </Link>
             <Link
               href="/buy"
               onClick={() => setMobileMenuOpen(false)}
-              className="flex h-[48px] w-full items-center justify-center rounded-xl border border-[#e2e8f0] bg-white text-[15px] font-semibold text-[#0a1122] transition-colors hover:bg-gray-50"
+              className="flex h-[46px] w-full items-center justify-center rounded-xl border border-[#e2e8f0] bg-white text-[14px] font-semibold text-[#0a1122] transition-colors hover:bg-gray-50"
             >
-              {language === 'en' ? 'Want to Buy' : 'عايز تشتري'}
+              {isEnglishLike ? 'Want to Buy' : 'عايز تشتري'}
             </Link>
             <Link
               href={hasSession ? '/account' : '/login'}
               onClick={() => setMobileMenuOpen(false)}
-              className="flex h-[48px] w-full items-center justify-center gap-2 rounded-xl border border-[#e2e8f0] bg-gray-50 text-[15px] font-bold text-[#1d3557] transition-colors hover:bg-gray-100"
+              className="flex h-[46px] w-full items-center justify-center gap-2 rounded-xl border border-[#e2e8f0] bg-gray-50 text-[14px] font-bold text-[#1d3557] transition-colors hover:bg-gray-100"
             >
               <User className="size-4" />
               <span>
@@ -850,47 +911,38 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
             <Link
               href="/opportunities#app-banner"
               onClick={() => setMobileMenuOpen(false)}
-              className="flex h-[48px] w-full items-center justify-center gap-2 rounded-xl border border-[#99cec3] bg-[#eff8f6] text-[15px] font-semibold text-[#0b6954] transition-colors hover:bg-[#e2f3ef]"
+              className="flex h-[46px] w-full items-center justify-center gap-2 rounded-xl border border-[#99cec3] bg-[#eff8f6] text-[14px] font-semibold text-[#0b6954] transition-colors hover:bg-[#e2f3ef]"
             >
               <Smartphone className="size-4 stroke-[2.2]" />
-              <span>{language === 'en' ? 'Get the App' : 'حمّل التطبيق'}</span>
+              <span>{isEnglishLike ? 'Get the App' : 'حمّل التطبيق'}</span>
             </Link>
 
-            {/* مبدل اللغة الواضح داخل قائمة الموبايل */}
+            {/* اللغات الـ 4 داخل قائمة الموبايل */}
             <div className="mt-2 rounded-2xl border border-gray-200 bg-gray-50/70 p-3">
               <p className="mb-2 flex items-center justify-center gap-1.5 text-xs font-bold text-gray-500">
                 <Globe className="size-3.5 text-[#0b6954]" />
                 <span>اللغة / Language</span>
               </p>
               <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setLanguage('ar')
-                    setMobileMenuOpen(false)
-                  }}
-                  className={`rounded-xl py-2 text-xs font-extrabold transition ${
-                    language === 'ar'
-                      ? 'bg-[#0b6954] text-white shadow-2xs'
-                      : 'bg-white text-gray-700 border border-gray-200'
-                  }`}
-                >
-                  العربية
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setLanguage('en')
-                    setMobileMenuOpen(false)
-                  }}
-                  className={`rounded-xl py-2 text-xs font-extrabold transition ${
-                    language === 'en'
-                      ? 'bg-[#0b6954] text-white shadow-2xs'
-                      : 'bg-white text-gray-700 border border-gray-200'
-                  }`}
-                >
-                  English
-                </button>
+                {(Object.values(SUPPORTED_LANGUAGES) as LanguageConfig[]).map(
+                  (lang) => (
+                    <button
+                      key={lang.code}
+                      type="button"
+                      onClick={() => {
+                        handleSelectLanguage(lang.code)
+                        setMobileMenuOpen(false)
+                      }}
+                      className={`rounded-xl py-2 text-xs font-extrabold transition ${
+                        language === lang.code
+                          ? 'bg-[#0b6954] text-white shadow-2xs'
+                          : 'border border-gray-200 bg-white text-gray-700'
+                      }`}
+                    >
+                      {lang.nativeName}
+                    </button>
+                  )
+                )}
               </div>
             </div>
           </div>

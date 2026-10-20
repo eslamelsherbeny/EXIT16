@@ -575,84 +575,79 @@ export default function PropertiesTable({
 
   return (
     <div>
-      {/* 1. شريط العنوان والدول المدمج */}
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200/80 bg-white px-4 py-3 shadow-2xs">
-        <div className="flex items-center gap-2">
-          <h2 className="text-base font-extrabold text-[#0a1122] sm:text-lg">
-            {isPromotionsPage
-              ? `طلبات الإعلان والتمييز (${promoRequestsList.length})`
-              : `طلبات البيع (${countryProperties.length - deletedBySellerList.length})`}
-          </h2>
-        </div>
+      {/* 1. شريط العنوان وتوضيح الدولة المعروضة */}
+      {(() => {
+        const activeCountryObj =
+          ADMIN_COUNTRIES.find((c) => c.code === countryFilter) ||
+          ADMIN_COUNTRIES[0]
+        const activeCount =
+          countryProperties.length - deletedBySellerList.length
 
-        <div className="flex flex-wrap items-center gap-1.5">
-          {ADMIN_COUNTRIES.map((c) => {
-            const isSelected = c.code === countryFilter
-            const countInC =
-              c.code === "ALL"
-                ? properties.filter((p) => p.status !== "deleted_by_seller")
-                    .length
-                : properties.filter(
-                    (p) =>
-                      p.status !== "deleted_by_seller" &&
-                      getPropertyCountryCode(p) === c.code
-                  ).length
+        return (
+          <div className="mb-4 rounded-xl border border-gray-200/85 bg-white p-4 shadow-2xs">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Globe className="size-4 text-[#105C50]" />
+                  <h2 className="text-sm font-extrabold text-[#0a1122] sm:text-base">
+                    {isPromotionsPage
+                      ? countryFilter === "ALL"
+                        ? `طلبات الإعلان والتمييز في كل الدول 🌍 (${promoRequestsList.length})`
+                        : `طلبات الإعلان والتمييز في ${activeCountryObj.label} ${activeCountryObj.flag} (${promoRequestsList.length})`
+                      : countryFilter === "ALL"
+                        ? `طلبات البيع — الوحدات المتاحة في كل الدول 🌍 (${activeCount})`
+                        : `طلبات البيع — الوحدات المتاحة في ${activeCountryObj.label} ${activeCountryObj.flag} (${activeCount})`}
+                  </h2>
+                </div>
+                <p className="mt-1 text-[11px] text-gray-500">
+                  اختر الدولة من الأزرار لعرض وفلترة الوحدات الموجودة فيها فقط:
+                </p>
+              </div>
 
-            return (
-              <button
-                key={c.code}
-                type="button"
-                onClick={() => setCountryFilter(c.code)}
-                className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold transition ${
-                  isSelected
-                    ? "bg-[#105C50] text-white"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-              >
-                <span>{c.flag}</span>
-                <span>{c.label}</span>
-                <span
-                  className={`rounded-full px-1.5 py-0.2 text-[10px] ${
-                    isSelected
-                      ? "bg-white/20 text-white"
-                      : "bg-white text-gray-600"
-                  }`}
-                >
-                  {countInC}
-                </span>
-              </button>
-            )
-          })}
-        </div>
-      </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {ADMIN_COUNTRIES.map((c) => {
+                  const isSelected = c.code === countryFilter
+                  const countInC =
+                    c.code === "ALL"
+                      ? properties.filter(
+                          (p) => p.status !== "deleted_by_seller"
+                        ).length
+                      : properties.filter(
+                          (p) =>
+                            p.status !== "deleted_by_seller" &&
+                            getPropertyCountryCode(p) === c.code
+                        ).length
 
-      {notice && (
-        <div
-          role="status"
-          className={`mb-4 flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-xs font-bold shadow-2xs ${
-            notice.isError
-              ? "border-red-200 bg-red-50 text-red-700"
-              : "border-emerald-200 bg-emerald-50 text-emerald-800"
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            {notice.isError ? (
-              <AlertTriangle className="size-4 shrink-0 text-red-600" />
-            ) : (
-              <CheckCircle2 className="size-4 shrink-0 text-emerald-600" />
-            )}
-            <span>{notice.text}</span>
+                  return (
+                    <button
+                      key={c.code}
+                      type="button"
+                      onClick={() => setCountryFilter(c.code)}
+                      className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                        isSelected
+                          ? "bg-[#105C50] text-white shadow-2xs"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
+                    >
+                      <span>{c.flag}</span>
+                      <span>{c.label}</span>
+                      <span
+                        className={`rounded-full px-1.5 py-0.2 text-[10px] ${
+                          isSelected
+                            ? "bg-white/20 text-white"
+                            : "bg-white text-gray-600"
+                        }`}
+                      >
+                        {countInC}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setNotice(null)}
-            className="rounded-lg p-1 opacity-70 hover:bg-black/5"
-          >
-            <X className="size-4" />
-          </button>
-        </div>
-      )}
-
+        )
+      })()}
       {/* 2. شريط البحث والتبويبات الموحد */}
       <div className="mb-4 flex flex-col gap-3 rounded-xl border border-gray-200/80 bg-white p-3 shadow-2xs sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="relative w-full sm:max-w-xs sm:flex-1">

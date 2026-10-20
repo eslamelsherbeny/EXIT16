@@ -141,16 +141,19 @@ export default async function AdminPage({
 
   const kpis = [
     {
-      label: `العقارات (${currentCountryObj.label})`,
+      label:
+        selectedCountry === "ALL"
+          ? "إجمالي الوحدات (كل الدول)"
+          : `الوحدات في ${currentCountryObj.label}`,
       value: properties.length.toLocaleString("en-US"),
-      note: `${activeProperties.length.toLocaleString("en-US")} منشور حالياً`,
+      note: `${activeProperties.length.toLocaleString("en-US")} وحدة منشورة بالسوق حالياً`,
       icon: Building2,
       href: `/admin/properties${countryQuery}`,
     },
     {
       label: "بانتظار المراجعة",
       value: pendingProperties.length.toLocaleString("en-US"),
-      note: pendingProperties.length > 0 ? "تحتاج مراجعة" : "مكتملة",
+      note: pendingProperties.length > 0 ? "وحدات جديدة تحتاج مراجعتك" : "تمت مراجعة الكل",
       icon: Clock3,
       href: `/admin/properties?tab=pending${countryAmp}`,
       highlight: pendingProperties.length > 0,
@@ -162,8 +165,8 @@ export default async function AdminPage({
       ).toLocaleString("en-US"),
       note:
         pendingAdRequests.length > 0
-          ? `${pendingAdRequests.length} بانتظار التفعيل`
-          : `${activeFeaturedUnits.length} مميزة نشطة`,
+          ? `${pendingAdRequests.length} طلب جديد بانتظار التفعيل`
+          : `${activeFeaturedUnits.length} وحدة مميزة نشطة`,
       icon: Star,
       href: `/admin/promotions${countryQuery}`,
       highlight: pendingAdRequests.length > 0,
@@ -171,7 +174,7 @@ export default async function AdminPage({
     {
       label: "حاجزي الوحدات 🔥",
       value: unitSpecificLeads.length.toLocaleString("en-US"),
-      note: `من إجمالي ${leads.length.toLocaleString("en-US")} مشتري`,
+      note: `من إجمالي ${leads.length.toLocaleString("en-US")} طلب شراء مسجل`,
       icon: Flame,
       href: `/admin/leads?type=unit_leads${countryAmp}`,
       highlight: unitSpecificLeads.length > 0,
@@ -180,67 +183,62 @@ export default async function AdminPage({
 
   return (
     <div className="mx-auto max-w-7xl">
-      {/* شريط الدول والأزرار السريعة المدمج */}
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200/80 bg-white px-4 py-3 shadow-2xs">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <Globe className="ml-1 size-4 text-[#105C50]" />
-          {ADMIN_COUNTRIES.map((c) => {
-            const isSelected = c.code === selectedCountry
-            const countInCountry =
-              c.code === "ALL"
-                ? allProperties.length
-                : allProperties.filter(
-                    (p: any) =>
-                      (p.country_code || p.country || "EG").toUpperCase() ===
-                      c.code
-                  ).length
+      {/* شريط الدول التوضيحي البسيط */}
+      <div className="mb-5 rounded-xl border border-gray-200/85 bg-white p-4 shadow-2xs">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2 text-xs font-extrabold text-[#0a1122] sm:text-sm">
+              <Globe className="size-4 text-[#105C50]" />
+              <span>
+                {selectedCountry === "ALL"
+                  ? "المعروض الآن: الوحدات والطلبات في كل الدول 🌍"
+                  : `المعروض الآن: الوحدات والطلبات المتاحة في ${currentCountryObj.label} ${currentCountryObj.flag}`}
+              </span>
+            </div>
+            <p className="mt-1 text-[11px] text-gray-500">
+              اضغط على أي دولة لعرض الوحدات وطلبات المشترين الخاصة بها فقط:
+            </p>
+          </div>
 
-            return (
-              <Link
-                key={c.code}
-                href={
-                  c.code === "ALL" ? "/admin" : `/admin?country=${c.code}`
-                }
-                className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold transition ${
-                  isSelected
-                    ? "bg-[#105C50] text-white"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-              >
-                <span>{c.flag}</span>
-                <span>{c.label}</span>
-                <span
-                  className={`rounded-full px-1.5 text-[10px] ${
+          <div className="flex flex-wrap items-center gap-1.5">
+            {ADMIN_COUNTRIES.map((c) => {
+              const isSelected = c.code === selectedCountry
+              const countInCountry =
+                c.code === "ALL"
+                  ? allProperties.length
+                  : allProperties.filter(
+                      (p: any) =>
+                        (p.country_code || p.country || "EG").toUpperCase() ===
+                        c.code
+                    ).length
+
+              return (
+                <Link
+                  key={c.code}
+                  href={
+                    c.code === "ALL" ? "/admin" : `/admin?country=${c.code}`
+                  }
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
                     isSelected
-                      ? "bg-white/20 text-white"
-                      : "bg-white text-gray-600"
+                      ? "bg-[#105C50] text-white shadow-2xs"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                   }`}
                 >
-                  {countInCountry}
-                </span>
-              </Link>
-            )
-          })}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <Link
-            href={`/admin/leads?type=unit_leads${countryAmp}`}
-            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-orange-600 px-3 text-xs font-bold text-white transition hover:bg-orange-700"
-          >
-            <Flame className="size-3.5 fill-white" />
-            <span>حاجزي الوحدات ({unitSpecificLeads.length})</span>
-          </Link>
-
-          <Link
-            href={`/admin/promotions${countryQuery}`}
-            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-amber-500 px-3 text-xs font-bold text-white transition hover:bg-amber-600"
-          >
-            <Star className="size-3.5 fill-white" />
-            <span>
-              الإعلانات ({pendingAdRequests.length + activeFeaturedUnits.length})
-            </span>
-          </Link>
+                  <span>{c.flag}</span>
+                  <span>{c.label}</span>
+                  <span
+                    className={`rounded-full px-1.5 text-[10px] ${
+                      isSelected
+                        ? "bg-white/20 text-white"
+                        : "bg-white text-gray-600"
+                    }`}
+                  >
+                    {countInCountry}
+                  </span>
+                </Link>
+              )
+            })}
+          </div>
         </div>
       </div>
 
@@ -319,14 +317,16 @@ export default async function AdminPage({
       <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-3">
         <Card className="border-gray-200/80 bg-white shadow-2xs lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between border-b border-gray-100 px-4 py-3.5 sm:px-5">
-            <CardTitle className="text-sm font-extrabold text-[#0a1122]">
-              أحدث طلبات البيع ({currentCountryObj.label})
-            </CardTitle>
+            <div>
+              <CardTitle className="text-sm font-extrabold text-[#0a1122]">
+                أحدث الوحدات المعروضة للبيع ({currentCountryObj.label})
+              </CardTitle>
+            </div>
             <Link
               href="/admin/properties"
               className="flex items-center gap-1 text-xs font-bold text-[#105C50] hover:underline"
             >
-              الكل <ArrowLeft className="size-3.5" />
+              عرض الكل <ArrowLeft className="size-3.5" />
             </Link>
           </CardHeader>
 
@@ -334,7 +334,7 @@ export default async function AdminPage({
             <div className="space-y-2">
               {properties.length === 0 ? (
                 <div className="py-6 text-center text-xs text-gray-400">
-                  لا توجد وحدات حالياً.
+                  لا توجد وحدات مسجلة في ({currentCountryObj.label}) حالياً.
                 </div>
               ) : (
                 properties.slice(0, 6).map((prop) => {
@@ -377,7 +377,7 @@ export default async function AdminPage({
         <Card className="border-gray-200/80 bg-white shadow-2xs">
           <CardHeader className="flex flex-row items-center justify-between border-b border-gray-100 px-4 py-3.5 sm:px-5">
             <CardTitle className="text-sm font-extrabold text-[#0a1122]">
-              أحدث المشترين
+              أحدث طلبات المشترين ({currentCountryObj.label})
             </CardTitle>
             <Link
               href="/admin/leads"
@@ -389,7 +389,7 @@ export default async function AdminPage({
           <CardContent className="space-y-2 p-3">
             {leads.length === 0 ? (
               <div className="py-6 text-center text-xs text-gray-400">
-                لا توجد طلبات شراء حالياً.
+                لا توجد طلبات شراء في ({currentCountryObj.label}) حالياً.
               </div>
             ) : (
               leads.slice(0, 5).map((lead) => {

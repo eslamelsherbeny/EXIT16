@@ -64,3 +64,77 @@
   .text-balance { text-wrap: balance; }
   .bg-grid { background-image: linear-gradient(to left, rgb(35 72 62 / 0.05) 1px, transparent 1px), linear-gradient(to bottom, rgb(35 72 62 / 0.05) 1px, transparent 1px); background-size: 32px 32px; }
 }
+/* ==========================================================================
+   نظام التصميم المركزي (Design System Tokens) - المتعارف عليه في Tailwind/Next.js
+   تغيير أي لون أو مقاس هنا يُسمّع في كامل الموقع فوراً
+   ========================================================================== */
+:root {
+  /* 1. ألوان الهوية الأساسية (مطابقة 100% لتصميم الموقع الحالي) */
+  --brand-navy: #0a1122;          /* الكحلي الداكن للهيدر والهيرو والأزرار الداكنة */
+  --brand-navy-hover: #16223f;    /* درجة الكحلي عند الوقوف بالماوس */
+  --brand-navy-text: #0a1128;     /* لون العناوين والنصوص الأساسية */
+  
+  --brand-primary: #007a5a;       /* الأخضر الأساسي للبراند والأزرار */
+  --brand-primary-hover: #006248; /* الأخضر عند الوقوف بالماوس */
+  --brand-primary-dark: #0d6e52;  /* أخضر زر الهيرو */
+  --brand-primary-light: #eaf8f2; /* الخلفية الخضراء الفاتحة */
+  
+  --brand-accent: #2ee59d;        /* الأخضر المضيء للشارات والـ Badges */
+  --brand-surface: #f5f6f8;       /* لون الخلفية الرمادي الفاتح للأقسام */
+  --brand-danger: #d9383a;        /* اللون الأحمر لبطاقات الخسارة */
+
+  /* 2. المقاسات والحواف القياسية */
+  --container-max-width: 1060px;
+  --hero-max-width: 1280px;
+  --radius-card: 20px;
+  --radius-button: 10px;
+}
+
+/* كلاسات مساعدة قياسية للعناوين والحاويات لسهولة التحكم في الأحجام من مكان واحد */
+.layout-container {
+  margin-inline: auto;
+  max-width: var(--container-max-width);
+  padding-inline: 1rem;
+}
+@media (min-width: 640px) {
+  .layout-container {
+    padding-inline: 1.5rem;
+  }
+}
+@media (min-width: 1024px) {
+  .layout-container {
+    padding-inline: 2rem;
+  }
+}
+
+.heading-hero {
+  font-size: 30px;
+  font-weight: 900;
+  line-height: 1.32;
+  letter-spacing: -0.025em;
+}
+@media (min-width: 640px) {
+  .heading-hero { font-size: 40px; }
+}
+@media (min-width: 768px) {
+  .heading-hero { font-size: 44px; }
+}
+@media (min-width: 1024px) {
+  .heading-hero {
+    font-size: 48px;
+    line-height: 1.28;
+  }
+}
+
+.heading-section {
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1.4;
+  color: var(--brand-navy-text);
+}
+@media (min-width: 640px) {
+  .heading-section { font-size: 1.875rem; }
+}
+@media (min-width: 768px) {
+  .heading-section { font-size: 34px; }
+}

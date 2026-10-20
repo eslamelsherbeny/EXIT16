@@ -20,11 +20,16 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { TurnstileBox } from '@/components/funnel-shell'
 import { CountrySelector } from '@/components/country-selector'
+import arDict from '@/dictionaries/ar.json'
 import {
   ALL_RESIDENCE_COUNTRIES,
   Field,
   SearchableCountryField,
 } from './seller-shared'
+
+const t = arDict.sell.contactStep
+const v = arDict.sell.validation
+const sharedT = arDict.sell.shared
 
 export function ContactStep({
   form,
@@ -111,23 +116,23 @@ export function ContactStep({
     const nextErrors: Record<string, string> = {}
 
     if (form.owner !== 'yes') {
-      nextErrors.owner = 'هذا الحقل مطلوب، يرجى وضع علامة صح للمتابعة'
+      nextErrors.owner = v.confirmRequired
     }
 
     if (authTab === 'register') {
-      if (!form.name?.trim()) nextErrors.name = 'هذا الحقل مطلوب'
-      if (!form.userCountry) nextErrors.userCountry = 'يرجى اختيار دولتك'
+      if (!form.name?.trim()) nextErrors.name = v.required
+      if (!form.userCountry) nextErrors.userCountry = v.selectResidenceCountry
       if (!/^[0-9٠-٩]{7,15}$/.test((form.phone ?? '').replace(/[\s-]/g, '')))
-        nextErrors.phone = 'رقم الموبايل غير صحيح'
+        nextErrors.phone = v.invalidPhone
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email ?? ''))
-        nextErrors.email = 'الإيميل غير صحيح أو يحتوي على مسافات'
+        nextErrors.email = v.invalidEmail
       if ((form.password?.length ?? 0) < 8)
-        nextErrors.password = 'كلمة السر يجب أن تكون 8 حروف على الأقل'
+        nextErrors.password = v.shortPassword
     } else if (authTab === 'login') {
       if (!form.loginIdentifier?.trim())
-        nextErrors.loginIdentifier = 'يرجى كتابة الإيميل أو رقم الموبايل'
+        nextErrors.loginIdentifier = v.loginIdRequired
       if (!form.loginPassword?.trim())
-        nextErrors.loginPassword = 'يرجى كتابة كلمة السر'
+        nextErrors.loginPassword = v.loginPassRequired
     }
 
     if (Object.keys(nextErrors).length > 0) {
@@ -143,7 +148,7 @@ export function ContactStep({
         ? `+${form.countryCode ?? '20'}${form.phone.replace(/^0+/, '')}`
         : ''
 
-      const res = await processSellerStep2Action({
+      const res = await (processSellerStep2Action as any)({
         mode: authTab,
         unitCountry: form.unitCountry || 'EG',
         userCountry: form.userCountry || form.unitCountry || 'EG',
@@ -201,7 +206,7 @@ export function ContactStep({
         return
       }
 
-      setStepError(res.error || 'تعذر حفظ البيانات، يرجى المحاولة مرة أخرى.')
+      setStepError(res.error || v.submitFailed)
     } finally {
       setIsLoading(false)
     }
@@ -210,7 +215,7 @@ export function ContactStep({
   const handleVerifyExistingEmail = async () => {
     if (!conflictState || conflictState.type !== 'email_exists') return
     if (!existingPass.trim()) {
-      setStepError('يرجى إدخال كلمة السر الخاصة بحسابك.')
+      setStepError(v.loginPassRequired)
       return
     }
     setIsLoading(true)
@@ -221,7 +226,7 @@ export function ContactStep({
         password: existingPass,
       })
       if (!res.success || !res.user) {
-        setStepError(res.error || 'كلمة السر غير صحيحة.')
+        setStepError(res.error || v.loginPassRequired)
         return
       }
       proceedToStep3({
@@ -252,7 +257,7 @@ export function ContactStep({
       if (res.success) {
         setRecoveryLinkSent(true)
       } else {
-        setStepError(res.error || 'تعذر إرسال الرابط حالياً.')
+        setStepError(res.error || v.submitFailed)
       }
     } finally {
       setIsLoading(false)
@@ -262,21 +267,20 @@ export function ContactStep({
   if (conflictState?.type === 'email_exists') {
     return (
       <div className="rounded-2xl border border-slate-200 bg-white p-5 text-right sm:p-7">
-        <h3 className="text-xl font-extrabold text-[#0a1122]">
-          الإيميل ده عنده حساب بالفعل
+        <h3 className="text-xl font-extrabold text-[var(--brand-navy,#0a1122)]">
+          {t.emailExistsTitle}
         </h3>
         <p className="mt-2 text-sm leading-7 text-slate-600">
-          طلبك اتسجّل وفريقنا هيشوفه. عشان تدخل على حسابك دلوقتي، اكتب كلمة السر
-          بتاعت{' '}
-          <span className="font-semibold text-[#0a1122]">
+          {t.emailExistsDesc}{' '}
+          <span className="font-semibold text-[var(--brand-navy,#0a1122)]">
             {conflictState.email}
           </span>
           .
         </p>
 
         <div className="mt-5">
-          <Label className="mb-2 block text-right text-sm font-bold text-[#0a1122]">
-            كلمة السر بتاعتك
+          <Label className="mb-2 block text-right text-sm font-bold text-[var(--brand-navy,#0a1122)]">
+            {t.yourPasswordLabel}
           </Label>
           <div className="relative">
             <Input
@@ -291,7 +295,7 @@ export function ContactStep({
               onClick={() => setShowExistingPass(!showExistingPass)}
               className="absolute top-1/2 left-3.5 -translate-y-1/2 text-xs font-bold text-[#1e3a8a] hover:underline"
             >
-              {showExistingPass ? 'إخفاء' : 'إظهار'}
+              {showExistingPass ? t.hidePass : t.showPass}
             </button>
           </div>
         </div>
@@ -303,9 +307,8 @@ export function ContactStep({
         )}
 
         {recoveryLinkSent && (
-          <p className="mt-3 text-right text-xs font-bold text-[#0b6954]">
-            بعتنا رابط تعيين كلمة سر جديدة على إيميلك. لو مالقتهوش خلال دقيقة، بص
-            في السبام.
+          <p className="mt-3 text-right text-xs font-bold text-[var(--brand-primary,#007a5a)]">
+            {t.recoverySentNote}
           </p>
         )}
 
@@ -313,9 +316,9 @@ export function ContactStep({
           type="button"
           disabled={isLoading}
           onClick={handleVerifyExistingEmail}
-          className="mt-5 h-12 w-full rounded-xl bg-[#0b6954] text-sm font-bold text-white hover:bg-[#095443]"
+          className="mt-5 h-12 w-full rounded-xl bg-[var(--brand-primary,#007a5a)] text-sm font-bold text-white hover:bg-[var(--brand-primary-hover,#006248)]"
         >
-          {isLoading ? 'جاري الدخول...' : 'ادخل على حسابك'}
+          {isLoading ? t.loggingInBtn : t.loginToAccountBtn}
         </Button>
 
         <div className="mt-4 flex items-center justify-between">
@@ -324,7 +327,7 @@ export function ContactStep({
             onClick={() => setConflictState(null)}
             className="text-xs font-semibold text-slate-500 hover:text-slate-800"
           >
-            ← تعديل البيانات
+            {t.editDataBtn}
           </button>
           <button
             type="button"
@@ -332,7 +335,7 @@ export function ContactStep({
             onClick={handleSendRecoveryEmail}
             className="text-xs font-bold text-[#1e3a8a] hover:underline"
           >
-            نسيت كلمة السر؟
+            {t.forgotPassBtn}
           </button>
         </div>
       </div>
@@ -342,16 +345,15 @@ export function ContactStep({
   if (conflictState?.type === 'phone_exists') {
     return (
       <div className="rounded-2xl border border-slate-200 bg-white p-5 text-right sm:p-7">
-        <h3 className="text-xl font-extrabold text-[#0a1122]">
-          الرقم ده عندنا عليه حساب بالفعل
+        <h3 className="text-xl font-extrabold text-[var(--brand-navy,#0a1122)]">
+          {t.phoneExistsTitle}
         </h3>
         <p className="mt-2 text-sm leading-7 text-slate-600">
-          طلبك اتسجّل وفريقنا هيشوفه (رقم الطلب:{' '}
-          <strong className="font-mono text-[#0a1122]">
+          {t.phoneExistsDesc1}{' '}
+          <strong className="font-mono text-[var(--brand-navy,#0a1122)]">
             {conflictState.orderRef}
           </strong>
-          ). عشان منعملش لك حساب تاني على نفس الرقم، ادخل على حسابك القديم —
-          هنبعتلك لينك على الإيميل المسجّل على الرقم ده.
+          {t.phoneExistsDesc2}
         </p>
 
         {stepError && (
@@ -366,15 +368,14 @@ export function ContactStep({
               type="button"
               disabled={isLoading}
               onClick={handleSendRecoveryEmail}
-              className="h-11 rounded-xl bg-[#0b6954] px-6 text-sm font-bold text-white hover:bg-[#095443]"
+              className="h-11 rounded-xl bg-[var(--brand-primary,#007a5a)] px-6 text-sm font-bold text-white hover:bg-[var(--brand-primary-hover,#006248)]"
             >
-              {isLoading ? 'جاري الإرسال...' : 'ابعتلي لينك على الإيميل المسجّل'}
+              {isLoading ? t.sendingLinkBtn : t.sendRecoveryBtn}
             </Button>
           </div>
         ) : (
-          <p className="mt-5 text-sm font-bold text-[#0b6954]">
-            بعتنا اللينك على الإيميل المسجّل على الرقم ده. لو مالقتهوش خلال
-            دقيقة، بصّ في السبام.
+          <p className="mt-5 text-sm font-bold text-[var(--brand-primary,#007a5a)]">
+            {t.phoneRecoverySentNote}
           </p>
         )}
 
@@ -384,7 +385,7 @@ export function ContactStep({
             onClick={() => setConflictState(null)}
             className="text-xs font-semibold text-slate-500 hover:text-slate-800"
           >
-            ← استخدام رقم آخر
+            {t.useAnotherPhoneBtn}
           </button>
           <button
             type="button"
@@ -394,7 +395,7 @@ export function ContactStep({
             }}
             className="text-xs font-bold text-[#1e3a8a] hover:underline"
           >
-            أو ادخل من صفحة الدخول
+            {t.orLoginPageBtn}
           </button>
         </div>
       </div>
@@ -410,12 +411,14 @@ export function ContactStep({
             onClick={() => setAuthTab('session')}
             className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-bold transition sm:text-sm ${
               authTab === 'session'
-                ? 'bg-[#0b6954] text-white shadow-xs'
+                ? 'bg-[var(--brand-primary,#007a5a)] text-white shadow-xs'
                 : 'text-slate-600 hover:bg-white'
             }`}
           >
             <CheckCircle2 className="size-4" />
-            <span>حسابي الحالي ({loggedUser.name.split(' ')[0]})</span>
+            <span>
+              {t.tabCurrentSession} ({loggedUser.name.split(' ')[0]})
+            </span>
           </button>
         )}
 
@@ -424,12 +427,12 @@ export function ContactStep({
           onClick={() => setAuthTab('register')}
           className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-bold transition sm:text-sm ${
             authTab === 'register'
-              ? 'bg-[#11192d] text-white shadow-xs'
+              ? 'bg-[var(--brand-navy,#0a1122)] text-white shadow-xs'
               : 'text-slate-600 hover:bg-white'
           }`}
         >
           <UserPlus className="size-4" />
-          <span>تسجيل بيانات جديدة</span>
+          <span>{t.tabNewRegister}</span>
         </button>
 
         <button
@@ -437,39 +440,41 @@ export function ContactStep({
           onClick={() => setAuthTab('login')}
           className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-bold transition sm:text-sm ${
             authTab === 'login'
-              ? 'bg-[#11192d] text-white shadow-xs'
+              ? 'bg-[var(--brand-navy,#0a1122)] text-white shadow-xs'
               : 'text-slate-600 hover:bg-white'
           }`}
         >
           <LogIn className="size-4" />
-          <span>عندي حساب بالفعل</span>
+          <span>{t.tabExistingLogin}</span>
         </button>
       </div>
 
       {authTab === 'session' && loggedUser && (
-        <div className="rounded-2xl border border-[#0b6954]/30 bg-[#f0fdf9] p-5 text-right">
+        <div className="rounded-2xl border border-[var(--brand-primary,#007a5a)]/30 bg-[var(--brand-primary-light,#eaf8f2)] p-5 text-right">
           <div className="flex items-center justify-between">
-            <span className="rounded-full bg-[#0b6954]/10 px-3 py-1 text-xs font-bold text-[#0b6954]">
-              متصل الآن
+            <span className="rounded-full bg-[var(--brand-primary,#007a5a)]/10 px-3 py-1 text-xs font-bold text-[var(--brand-primary,#007a5a)]">
+              {t.connectedBadge}
             </span>
-            <p className="text-sm font-extrabold text-[#0a1122]">
-              أهلاً بك يا {loggedUser.name}
+            <p className="text-sm font-extrabold text-[var(--brand-navy,#0a1122)]">
+              {t.welcomeUser} {loggedUser.name}
             </p>
           </div>
           <p className="mt-2 text-xs leading-relaxed text-slate-600">
-            سيتم ربط هذه الوحدة بحسابك الحالي تلقائياً وسحب بيانات التواصل
-            الخاصة بك دون الحاجة لإعادة كتابتها:
+            {t.sessionAutoLinkDesc}
           </p>
           <div className="mt-3 grid grid-cols-1 gap-2 rounded-xl bg-white p-3.5 text-xs sm:grid-cols-2">
             <div>
-              <span className="text-slate-400">رقم الموبايل: </span>
-              <strong dir="ltr" className="font-mono text-[#0a1122]">
+              <span className="text-slate-400">{t.phoneLabelShort} </span>
+              <strong
+                dir="ltr"
+                className="font-mono text-[var(--brand-navy,#0a1122)]"
+              >
                 {loggedUser.phone}
               </strong>
             </div>
             <div>
-              <span className="text-slate-400">البريد الإلكتروني: </span>
-              <strong dir="ltr" className="text-[#0a1122]">
+              <span className="text-slate-400">{t.emailLabelShort} </span>
+              <strong dir="ltr" className="text-[var(--brand-navy,#0a1122)]">
                 {loggedUser.email}
               </strong>
             </div>
@@ -481,15 +486,14 @@ export function ContactStep({
         <>
           <Field
             error={errors.name}
-            label="اسمك *"
+            label={t.nameLabel}
             id="name"
             value={form.name}
             update={(value) => update('name', value)}
           />
 
-          {/* اختيار الدولة الخاصة بصاحب الحساب (بحث بأول حرف أو اختيار سريع) */}
           <SearchableCountryField
-            label="أنت من دولة إيه؟ (بلد الإقامة) *"
+            label={sharedT.residenceCountryLabel}
             value={form.userCountry || form.unitCountry || 'EG'}
             options={ALL_RESIDENCE_COUNTRIES}
             error={errors.userCountry}
@@ -504,7 +508,7 @@ export function ContactStep({
 
           <div className="flex flex-col gap-2">
             <Label htmlFor="phone" className="text-right">
-              رقم موبايلك *
+              {t.phoneLabel}
             </Label>
             <div dir="ltr" className="flex items-center gap-2">
               <CountrySelector
@@ -529,20 +533,22 @@ export function ContactStep({
               </p>
             )}
             <span className="text-right text-xs text-slate-500">
-              هنتكلم عليه واتساب أو مكالمة — من غير إزعاج
+              {t.phoneHelper}
             </span>
           </div>
+
           <Field
             error={errors.email}
-            label="إيميلك *"
+            label={t.emailLabel}
             id="email"
             type="email"
             value={form.email}
             update={(value) => update('email', value)}
           />
+
           <div className="flex flex-col gap-2">
             <Label htmlFor="password" className="text-right">
-              اختار كلمة سر لحسابك <span className="mr-1 text-red-500">*</span>
+              {t.passwordLabel} <span className="mr-1 text-red-500">*</span>
             </Label>
             <div className="relative w-full">
               <Input
@@ -558,9 +564,9 @@ export function ContactStep({
               />
               <button
                 type="button"
-                aria-label={showPassword ? 'إخفاء كلمة السر' : 'إظهار كلمة السر'}
+                aria-label={showPassword ? t.hidePass : t.showPass}
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute top-1/2 right-3 -translate-y-1/2 text-slate-500 hover:text-[#0c513f]"
+                className="absolute top-1/2 right-3 -translate-y-1/2 text-slate-500 hover:text-[var(--brand-primary,#007a5a)]"
               >
                 {showPassword ? (
                   <EyeOff className="size-4" />
@@ -575,7 +581,7 @@ export function ContactStep({
               </p>
             )}
             <span className="text-right text-xs font-semibold leading-6 text-teal-700">
-              8 حروف على الأقل — هتدخل بيها على حسابك بعد كده
+              {t.passwordHelper}
             </span>
           </div>
         </>
@@ -584,19 +590,18 @@ export function ContactStep({
       {authTab === 'login' && (
         <div className="flex flex-col gap-5 rounded-2xl border border-slate-200 bg-slate-50/50 p-5">
           <p className="text-right text-xs font-semibold text-slate-600">
-            ادخل بحسابك المسجل في عقار إكزت وهنسحب اسمك ورقمك تلقائياً ونكمل
-            تفاصيل الوحدة علطول:
+            {t.loginBoxDesc}
           </p>
           <Field
             error={errors.loginIdentifier}
-            label="البريد الإلكتروني أو رقم الموبايل *"
+            label={t.loginIdLabel}
             id="loginIdentifier"
             value={form.loginIdentifier}
             update={(value) => update('loginIdentifier', value)}
           />
           <div className="flex flex-col gap-2">
             <Label htmlFor="loginPassword" className="text-right">
-              كلمة السر *
+              {t.loginPassLabel}
             </Label>
             <div className="relative w-full">
               <Input
@@ -614,7 +619,7 @@ export function ContactStep({
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute top-1/2 right-3 -translate-y-1/2 text-slate-500 hover:text-[#0c513f]"
+                className="absolute top-1/2 right-3 -translate-y-1/2 text-slate-500 hover:text-[var(--brand-primary,#007a5a)]"
               >
                 {showPassword ? (
                   <EyeOff className="size-4" />
@@ -646,8 +651,7 @@ export function ContactStep({
             checked={form.owner === 'yes'}
             onCheckedChange={(checked) => update('owner', checked ? 'yes' : '')}
           />
-          أقر إني مالك الوحدة الأصلي، ولست وسيطًا عقاريًا، وأي مخالفة تلغي عرض
-          الوحدة أو حذفها نهائيًا.
+          {t.ownerDeclaration}
         </label>
         {errors.owner && (
           <p className="mt-1.5 text-right text-xs font-semibold text-red-600">
@@ -669,7 +673,7 @@ export function ContactStep({
           className="order-first h-12 rounded-xl"
           onClick={() => go(1)}
         >
-          ارجع
+          {sharedT.backBtn}
         </Button>
         <Button
           type="button"
@@ -680,12 +684,12 @@ export function ContactStep({
           {isLoading ? (
             <span className="inline-flex items-center gap-2">
               <Loader2 className="size-4 animate-spin" />
-              جاري الحفظ والمتابعة...
+              {t.savingBtn}
             </span>
           ) : authTab === 'session' ? (
-            'كمّل الطلب بحسابي الحالي'
+            t.continueWithSessionBtn
           ) : (
-            'إرسال للمراجعة والمتابعة'
+            t.submitStep2Btn
           )}
         </Button>
       </div>

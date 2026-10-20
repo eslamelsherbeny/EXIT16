@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import {
   ArrowDown,
@@ -9,6 +9,7 @@ import {
   Check,
   CheckSquare,
   ChevronDown,
+  Globe,
   Heart,
   Home,
   ListFilter,
@@ -22,9 +23,46 @@ import {
 const PAGE_SIZE = 48
 const FAVORITES_STORAGE_KEY = 'darak_favorites'
 
+type CountryCode = 'ALL' | 'EG' | 'AE' | 'RU' | 'GE'
+
+const COUNTRY_OPTIONS: Array<{
+  code: CountryCode
+  nameAr: string
+  nameEn: string
+  flag: string
+}> = [
+  { code: 'ALL', nameAr: 'كل الدول', nameEn: 'All Countries', flag: '🌍' },
+  { code: 'EG', nameAr: 'مصر', nameEn: 'Egypt', flag: '🇪🇬' },
+  { code: 'AE', nameAr: 'الإمارات', nameEn: 'UAE', flag: '🇦🇪' },
+  { code: 'RU', nameAr: 'روسيا', nameEn: 'Russia', flag: '🇷🇺' },
+  { code: 'GE', nameAr: 'جورجيا', nameEn: 'Georgia', flag: '🇬🇪' },
+]
+
+function normalizeAr(s: string) {
+  return (s || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[أإآ]/g, 'ا')
+    .replace(/ة/g, 'ه')
+}
+
+function getActiveHeaderCountry(): CountryCode {
+  if (typeof document !== 'undefined') {
+    const match = document.cookie
+      .split('; ')
+      .find((row) => row.startsWith('darak_country='))
+    const code = match?.split('=')[1]?.trim() as CountryCode | undefined
+    if (code && COUNTRY_OPTIONS.some((c) => c.code === code)) {
+      return code
+    }
+  }
+  return 'EG'
+}
+
 type Property = {
   id: string
   code: string
+  country: 'EG' | 'AE' | 'RU' | 'GE'
   project: string
   developer: string
   area: string
@@ -67,6 +105,35 @@ function calcMonthlyEquivalent(amount: number, freq: string): number {
   return amount
 }
 
+function inferCountryFromRow(row: any): 'EG' | 'AE' | 'RU' | 'GE' {
+  const raw = String(row.country || '')
+    .trim()
+    .toUpperCase()
+  if (raw === 'EG' || raw === 'AE' || raw === 'RU' || raw === 'GE') return raw
+
+  const area = String(row.area || '')
+  if (
+    area.includes('دبي') ||
+    area.includes('أبوظبي') ||
+    area.includes('الشارقة') ||
+    area.includes('الإمارات')
+  )
+    return 'AE'
+  if (
+    area.includes('موسكو') ||
+    area.includes('سوتشي') ||
+    area.includes('روسيا')
+  )
+    return 'RU'
+  if (
+    area.includes('تبليسي') ||
+    area.includes('باتومي') ||
+    area.includes('جورجيا')
+  )
+    return 'GE'
+  return 'EG'
+}
+
 function mapDbRowToProperty(row: any): Property {
   const paid = Number(row.paid_amount) || 0
   const discount = row.willing_to_discount ? Number(row.discount_amount) || 0 : 0
@@ -83,7 +150,10 @@ function mapDbRowToProperty(row: any): Property {
 
   if (marketPriceNum > 0 && marketPriceNum > contractPrice) {
     const commission = Math.round(marketPriceNum * 0.0125)
-    gainNum = Math.max(0, marketPriceNum - (contractPrice - discount) - commission)
+    gainNum = Math.max(
+      0,
+      marketPriceNum - (contractPrice - discount) - commission
+    )
     if (gainNum > 0) {
       gainStr = `+ ${gainNum.toLocaleString('en-US')}`
       marketPriceStr = marketPriceNum.toLocaleString('en-US')
@@ -96,7 +166,9 @@ function mapDbRowToProperty(row: any): Property {
     rawDelStatus.includes('فوري') ||
     rawDelStatus.includes('مستلم')
 
-  const deliveryStatus: 'جاهزة' | 'تحت الإنشاء' = isReady ? 'جاهزة' : 'تحت الإنشاء'
+  const deliveryStatus: 'جاهزة' | 'تحت الإنشاء' = isReady
+    ? 'جاهزة'
+    : 'تحت الإنشاء'
 
   const yearMatch = rawDelStatus.match(/20\d{2}/)
   const deliveryYearStr = yearMatch
@@ -124,7 +196,6 @@ function mapDbRowToProperty(row: any): Property {
       ? row.images[0]
       : DEFAULT_FALLBACK_IMAGE
 
-  // فحص هل الوحدة مشتركة في باقة التمييز وسارية المفعول حالياً
   const isFeaturedActive =
     Boolean(row.is_featured) &&
     (!row.featured_until || new Date(row.featured_until) > new Date())
@@ -132,6 +203,7 @@ function mapDbRowToProperty(row: any): Property {
   return {
     id: String(row.id),
     code,
+    country: inferCountryFromRow(row),
     project: row.project_name || 'وحدة سكنية معتمدة',
     developer: devName,
     area,
@@ -177,7 +249,6 @@ const unitTypes = [
 ]
 
 const deliveryStatuses = ['الكل', 'جاهزة', 'تحت الإنشاء']
-
 const deliveryYears = [
   'الكل',
   'حتى 2026',
@@ -187,7 +258,6 @@ const deliveryYears = [
   'حتى 2030',
   'حتى 2031',
 ]
-
 const contractYears = [
   'الكل',
   '2025 أو أقدم',
@@ -197,9 +267,7 @@ const contractYears = [
   '2021 أو أقدم',
   '2020 أو أقدم',
 ]
-
 const roomOptions = ['الكل', '+1', '+2', '+3', '+4', '+5']
-
 const sorts = [
   'الأنسب لي 🎯',
   'الأحدث',
@@ -214,7 +282,6 @@ const sorts = [
   'الأكثر زيارة',
 ]
 
-// ==================== مكون بطاقة الوحدة (مربوط بالمفضلة وبنجمة التمييز الحقيقية) ====================
 function PropertyCard({
   property,
   liked,
@@ -369,7 +436,6 @@ function PropertyCard({
   )
 }
 
-// ==================== الصفحة الرئيسية للفرص المتاحة ====================
 export default function OpportunitiesPage() {
   const [dbProperties, setDbProperties] = useState<Property[]>([])
   const [totalInPlatform, setTotalInPlatform] = useState<number>(0)
@@ -382,7 +448,13 @@ export default function OpportunitiesPage() {
   const [negotiable, setNegotiable] = useState(false)
   const [sort, setSort] = useState('الأحدث')
 
-  // حالات الفلترة
+  // حالة الدولة المفلتر عليها (تتزامن تلقائياً مع الدولة المختارة في الهيدر ويمكن تغييرها من الفلاتر)
+  const [selectedCountry, setSelectedCountry] = useState<CountryCode>('EG')
+  const [countrySearch, setCountrySearch] = useState('')
+  const [countryDropdownOpen, setCountryDropdownOpen] = useState(false)
+  const countryFilterRef = useRef<HTMLDivElement>(null)
+
+  // حالات الفلترة الأخرى
   const [search, setSearch] = useState('')
   const [areaQuery, setAreaQuery] = useState('')
   const [maxCash, setMaxCash] = useState('')
@@ -394,7 +466,30 @@ export default function OpportunitiesPage() {
   const [contractYear, setContractYear] = useState('الكل')
   const [minRooms, setMinRooms] = useState('الكل')
 
-  // تحميل المفضلة المحفوظة
+  // قراءة الدولة المختارة في الهيدر + الاستماع لأي تغيير فيها
+  useEffect(() => {
+    setSelectedCountry(getActiveHeaderCountry())
+    const syncWithHeader = () => {
+      setSelectedCountry(getActiveHeaderCountry())
+    }
+    window.addEventListener('country-changed', syncWithHeader)
+    return () => window.removeEventListener('country-changed', syncWithHeader)
+  }, [])
+
+  useEffect(() => {
+    function handleOutside(e: MouseEvent) {
+      if (
+        countryFilterRef.current &&
+        !countryFilterRef.current.contains(e.target as Node)
+      ) {
+        setCountryDropdownOpen(false)
+        setCountrySearch('')
+      }
+    }
+    document.addEventListener('mousedown', handleOutside)
+    return () => document.removeEventListener('mousedown', handleOutside)
+  }, [])
+
   useEffect(() => {
     try {
       const stored = localStorage.getItem(FAVORITES_STORAGE_KEY)
@@ -429,7 +524,6 @@ export default function OpportunitiesPage() {
     }
   }, [])
 
-  // جلب العقارات الحقيقية من قاعدة البيانات
   useEffect(() => {
     async function loadApprovedProperties() {
       setLoading(true)
@@ -478,6 +572,7 @@ export default function OpportunitiesPage() {
       }
     }
   }, [
+    selectedCountry,
     search,
     areaQuery,
     negotiable,
@@ -514,6 +609,7 @@ export default function OpportunitiesPage() {
     setContractYear('الكل')
     setMinRooms('الكل')
     setNegotiable(false)
+    setSelectedCountry(getActiveHeaderCountry())
     setVisibleLimit(PAGE_SIZE)
   }
 
@@ -561,6 +657,10 @@ export default function OpportunitiesPage() {
     const cleanMaxContract = Number(String(maxContractPrice).replace(/,/g, ''))
 
     const filtered = allProperties.filter((item) => {
+      if (selectedCountry !== 'ALL' && item.country !== selectedCountry) {
+        return false
+      }
+
       const haystack = `${item.project} ${item.developer} ${item.area} ${item.code} ${item.type}`.toLowerCase()
 
       if (search.trim() && !haystack.includes(search.trim().toLowerCase())) {
@@ -610,7 +710,6 @@ export default function OpportunitiesPage() {
       return true
     })
 
-    // ترتيب النتائج: الوحدات المميزة (Featured ⭐) تظهر في المقدمة دائماً في البحث وفي الوضع الافتراضي
     return [...filtered].sort((a, b) => {
       if (sort === 'الأقل كاش') return a.cashNum - b.cashNum
       if (sort === 'أقل قسط') return a.monthlyInstallmentNum - b.monthlyInstallmentNum
@@ -620,7 +719,6 @@ export default function OpportunitiesPage() {
         if (a.deliveryStatus === b.deliveryStatus) return a.cashNum - b.cashNum
         return a.deliveryStatus === 'جاهزة' ? -1 : 1
       }
-      // في الوضع الافتراضي أو الفرص المميزة أو البحث: الوحدات المدفوعة المميزة أولاً
       if (a.featured !== b.featured) {
         return a.featured ? -1 : 1
       }
@@ -631,6 +729,7 @@ export default function OpportunitiesPage() {
     })
   }, [
     allProperties,
+    selectedCountry,
     search,
     areaQuery,
     negotiable,
@@ -645,15 +744,28 @@ export default function OpportunitiesPage() {
     sort,
   ])
 
-  const totalUnitsCount = totalInPlatform || allProperties.length
+  const activeCountryObj =
+    COUNTRY_OPTIONS.find((c) => c.code === selectedCountry) || COUNTRY_OPTIONS[1]
+
+  const filteredCountryDropdownOptions = COUNTRY_OPTIONS.filter((c) => {
+    if (!countrySearch.trim()) return true
+    const q = normalizeAr(countrySearch)
+    return (
+      normalizeAr(c.nameAr).includes(q) ||
+      c.nameEn.toLowerCase().includes(q) ||
+      c.code.toLowerCase().includes(q)
+    )
+  })
+
+  const totalUnitsCount = visibleProperties.length || totalInPlatform
   const availableUnitsCount = visibleProperties.length
 
   const totalMarketSum = useMemo(() => {
-    return allProperties.reduce(
+    return visibleProperties.reduce(
       (sum, item) => sum + (item.marketPriceNum || item.contractPriceNum || item.cashNum),
       0
     )
-  }, [allProperties])
+  }, [visibleProperties])
 
   const formattedMarketTotal = useMemo(() => {
     if (totalMarketSum >= 1_000_000_000) {
@@ -685,14 +797,24 @@ export default function OpportunitiesPage() {
     <main dir="rtl" className="min-h-screen bg-[#f5f6f8] py-8 text-[#0a1122] sm:py-14">
       <div className="mx-auto max-w-[1060px] px-3 sm:px-6 lg:px-8">
         
-        {/* ==================== 1. الهيدر العلوي للصفحة ==================== */}
-        <div className="text-right">
-          <h1 className="text-xl font-extrabold tracking-tight text-[#0a1122] sm:text-3xl md:text-[36px]">
-            الفرص المتاحة — وحدات تنازل بدون أوفر
-          </h1>
-          <p className="mt-2 text-xs leading-relaxed text-gray-500 sm:mt-3 sm:text-sm md:text-base">
-            كل فرصة هنا اتراجع عقدها وإيصالاتها ورصيدها المتبقي قبل ما تظهر. مفيش أوفر، ومفيش أرقام على كلام حد.
-          </p>
+        {/* ==================== 1. الهيدر العلوي للصفحة (يعرض الدولة المختارة) ==================== */}
+        <div className="flex flex-wrap items-start justify-between gap-4 text-right">
+          <div>
+            <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[#0b6954]/20 bg-[#eff9f5] px-3.5 py-1 text-xs font-extrabold text-[#0b6954]">
+              <span>{activeCountryObj.flag}</span>
+              <span>
+                {selectedCountry === 'ALL'
+                  ? 'معروض الآن: كل الدول'
+                  : `معروض الآن: عقارات ${activeCountryObj.nameAr}`}
+              </span>
+            </div>
+            <h1 className="text-xl font-extrabold tracking-tight text-[#0a1122] sm:text-3xl md:text-[36px]">
+              الفرص المتاحة — وحدات تنازل بدون أوفر
+            </h1>
+            <p className="mt-2 text-xs leading-relaxed text-gray-500 sm:mt-3 sm:text-sm md:text-base">
+              كل فرصة هنا اتراجع عقدها وإيصالاتها ورصيدها المتبقي قبل ما تظهر. مفيش أوفر، ومفيش أرقام على كلام حد.
+            </p>
+          </div>
         </div>
 
         {/* ==================== 2. صندوق الإحصائيات ==================== */}
@@ -702,13 +824,13 @@ export default function OpportunitiesPage() {
             <div className="flex flex-col justify-between p-6 text-right sm:p-10">
               <div className="flex items-center justify-start">
                 <p className="text-xs font-bold text-gray-500 sm:text-sm">
-                  الوحدات على المنصة
+                  الوحدات المتاحة ({activeCountryObj.nameAr})
                 </p>
               </div>
 
               <div className="mt-3 flex items-baseline justify-start gap-2">
                 <span className="text-4xl font-extrabold leading-none tracking-tight text-[#0a1122] tabular-nums sm:text-5xl">
-                  {totalUnitsCount.toLocaleString('en-US')}
+                  {availableUnitsCount.toLocaleString('en-US')}
                 </span>
                 <span className="text-base font-medium text-gray-500 sm:text-lg">
                   وحدة
@@ -745,7 +867,7 @@ export default function OpportunitiesPage() {
               <div>
                 <div className="mt-4 h-[1px] w-12 bg-teal-600/40" />
                 <p className="mt-3 text-xs leading-snug text-gray-400">
-                  بسعر السوق الحالي للوحدة
+                  بسعر السوق الحالي للوحدات المعروضة
                 </p>
               </div>
             </div>
@@ -753,8 +875,34 @@ export default function OpportunitiesPage() {
           </div>
         </section>
 
-        {/* ==================== 3. شريط البحث والفلترة ==================== */}
+        {/* ==================== 3. شريط البحث والفلترة + فلتر الدولة السريع ==================== */}
         <section className="mt-6 rounded-[16px] border border-gray-200/80 bg-white p-3.5 shadow-sm sm:mt-8 sm:rounded-[20px] sm:p-5">
+          {/* شريط أزرار الدول السريع لتغيير الدولة بضغطة واحدة */}
+          <div className="mb-3.5 flex flex-wrap items-center gap-1.5 border-b border-gray-100 pb-3">
+            <span className="ml-1 inline-flex items-center gap-1 text-xs font-extrabold text-[#0a1122]">
+              <Globe className="size-3.5 text-[#0b6954]" />
+              <span>الدولة:</span>
+            </span>
+            {COUNTRY_OPTIONS.map((c) => {
+              const active = selectedCountry === c.code
+              return (
+                <button
+                  key={c.code}
+                  type="button"
+                  onClick={() => setSelectedCountry(c.code)}
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold transition ${
+                    active
+                      ? 'border-[#0b6954] bg-[#0b6954] text-white shadow-2xs'
+                      : 'border-gray-200 bg-gray-50/70 text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <span>{c.flag}</span>
+                  <span>{c.nameAr}</span>
+                </button>
+              )
+            })}
+          </div>
+
           <div className="relative">
             <Search className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
             <input
@@ -778,7 +926,7 @@ export default function OpportunitiesPage() {
                 }`}
               >
                 <ListFilter className="size-3.5 sm:size-4" />
-                <span>فلترة</span>
+                <span>فلترة متقدمة</span>
                 {activeFilterCount > 0 && (
                   <span className="flex size-4 items-center justify-center rounded-full bg-[#0b6954] text-[10px] font-bold text-white sm:size-5">
                     {activeFilterCount}
@@ -889,46 +1037,6 @@ export default function OpportunitiesPage() {
                   <X className="size-3" />
                 </button>
               ))}
-              {deliveryStatus !== 'الكل' && (
-                <button
-                  type="button"
-                  onClick={() => setDeliveryStatus('الكل')}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-[#e6f4f1] px-3 py-1 text-[11px] font-bold text-[#0b6954] sm:text-xs"
-                >
-                  <span>{deliveryStatus}</span>
-                  <X className="size-3" />
-                </button>
-              )}
-              {deliveryYear !== 'الكل' && (
-                <button
-                  type="button"
-                  onClick={() => setDeliveryYear('الكل')}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-[#e6f4f1] px-3 py-1 text-[11px] font-bold text-[#0b6954] sm:text-xs"
-                >
-                  <span>{deliveryYear}</span>
-                  <X className="size-3" />
-                </button>
-              )}
-              {contractYear !== 'الكل' && (
-                <button
-                  type="button"
-                  onClick={() => setContractYear('الكل')}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-[#e6f4f1] px-3 py-1 text-[11px] font-bold text-[#0b6954] sm:text-xs"
-                >
-                  <span>{contractYear}</span>
-                  <X className="size-3" />
-                </button>
-              )}
-              {minRooms !== 'الكل' && (
-                <button
-                  type="button"
-                  onClick={() => setMinRooms('الكل')}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-[#e6f4f1] px-3 py-1 text-[11px] font-bold text-[#0b6954] sm:text-xs"
-                >
-                  <span dir="ltr">{minRooms} غرف</span>
-                  <X className="size-3" />
-                </button>
-              )}
               <button
                 type="button"
                 onClick={clearAll}
@@ -940,10 +1048,68 @@ export default function OpportunitiesPage() {
           )}
         </section>
 
-        {/* ==================== 4. لوحة الفلترة المتقدمة ==================== */}
+        {/* ==================== 4. لوحة الفلترة المتقدمة (تشمل فلتر الدولة بالبحث بالحرف الأول) ==================== */}
         {filtersOpen && (
           <section className="mt-3 rounded-[16px] border border-gray-200/80 bg-white p-4 shadow-sm sm:rounded-[20px] sm:p-7">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-5">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-4 md:gap-5">
+              {/* حقل البحث واختيار الدولة داخل الفلتر */}
+              <div ref={countryFilterRef} className="relative text-right">
+                <label className="mb-1.5 block text-xs font-bold text-[#0a1122]">
+                  الدولة
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={
+                      countryDropdownOpen
+                        ? countrySearch
+                        : `${activeCountryObj.flag} ${activeCountryObj.nameAr}`
+                    }
+                    placeholder="اكتب أول حرف من الدولة..."
+                    onFocus={() => {
+                      setCountryDropdownOpen(true)
+                      setCountrySearch('')
+                    }}
+                    onChange={(e) => {
+                      setCountrySearch(e.target.value)
+                      setCountryDropdownOpen(true)
+                    }}
+                    className="h-10 w-full cursor-pointer rounded-xl border border-gray-200 bg-white pr-3.5 pl-8 text-xs font-bold text-[#0a1122] focus:border-[#0b6954] focus:outline-none sm:h-11"
+                  />
+                  <ChevronDown className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
+                </div>
+
+                {countryDropdownOpen && (
+                  <div className="absolute top-[68px] z-30 w-full overflow-hidden rounded-xl border border-gray-200 bg-white p-1 shadow-xl">
+                    {filteredCountryDropdownOptions.map((c) => {
+                      const active = c.code === selectedCountry
+                      return (
+                        <button
+                          key={c.code}
+                          type="button"
+                          onClick={() => {
+                            setSelectedCountry(c.code)
+                            setCountryDropdownOpen(false)
+                            setCountrySearch('')
+                          }}
+                          className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-right text-xs font-bold transition ${
+                            active
+                              ? 'bg-[#eff9f5] text-[#0b6954]'
+                              : 'text-[#0a1122] hover:bg-gray-50'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span>{c.flag}</span>
+                            <span>{c.nameAr}</span>
+                          </div>
+                          {active && <Check className="size-3.5 text-[#0b6954]" />}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+
               <div className="text-right">
                 <label className="mb-1.5 block text-xs font-bold text-[#0a1122]">المناطق</label>
                 <input
@@ -970,9 +1136,6 @@ export default function OpportunitiesPage() {
                     ج.م
                   </span>
                 </div>
-                <p className="mt-1 text-[10px] text-gray-400">
-                  أهم رقم — ده اللي هتدفعه عند النقل
-                </p>
               </div>
 
               <div className="text-right">
@@ -990,9 +1153,6 @@ export default function OpportunitiesPage() {
                     ج.م
                   </span>
                 </div>
-                <p className="mt-1 text-[10px] text-gray-400">
-                  الأقساط الربع/نص سنوية بنحسبها بما يعادلها شهريًا
-                </p>
               </div>
             </div>
 
@@ -1151,11 +1311,23 @@ export default function OpportunitiesPage() {
 
         {/* ==================== 5. شبكة الكروت + الـ Pagination ==================== */}
         <section className="mt-6 sm:mt-8">
-          <div className="mb-4 flex items-center justify-start gap-1.5 text-right sm:mb-5">
-            <Star className="size-4 fill-amber-400 text-amber-500" />
-            <h2 className="text-base font-extrabold text-[#0a1122] sm:text-lg">
-              فرص مميزة ({visibleProperties.length})
-            </h2>
+          <div className="mb-4 flex items-center justify-between gap-2 text-right sm:mb-5">
+            <div className="flex items-center gap-1.5">
+              <Star className="size-4 fill-amber-400 text-amber-500" />
+              <h2 className="text-base font-extrabold text-[#0a1122] sm:text-lg">
+                فرص مميزة في {activeCountryObj.nameAr} ({visibleProperties.length})
+              </h2>
+            </div>
+
+            {selectedCountry !== 'ALL' && (
+              <button
+                type="button"
+                onClick={() => setSelectedCountry('ALL')}
+                className="text-xs font-bold text-[#0b6954] hover:underline"
+              >
+                عرض كل الدول 🌍
+              </button>
+            )}
           </div>
 
           {loading ? (
@@ -1186,23 +1358,31 @@ export default function OpportunitiesPage() {
           ) : (
             <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-12 text-center">
               <p className="text-sm font-bold text-gray-600">
-                {allProperties.length === 0
-                  ? 'لا توجد وحدات منشورة حالياً في السوق.'
-                  : 'لا توجد وحدات مطابقة لشروط البحث الحالية.'}
+                لا توجد وحدات مطابقة حالياً في ({activeCountryObj.nameAr}).
               </p>
-              {activeFilterCount > 0 || search ? (
-                <button
-                  type="button"
-                  onClick={clearAll}
-                  className="mt-3 rounded-xl bg-[#0b6954] px-5 py-2 text-xs font-bold text-white hover:bg-[#095443]"
-                >
-                  إعادة ضبط الفلاتر
-                </button>
-              ) : null}
+              <div className="mt-4 flex flex-wrap justify-center gap-2.5">
+                {selectedCountry !== 'ALL' && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCountry('ALL')}
+                    className="rounded-xl bg-[#0b6954] px-5 py-2 text-xs font-bold text-white hover:bg-[#095443]"
+                  >
+                    عرض الوحدات في كل الدول 🌍
+                  </button>
+                )}
+                {(activeFilterCount > 0 || search) && (
+                  <button
+                    type="button"
+                    onClick={clearAll}
+                    className="rounded-xl border border-gray-200 bg-white px-5 py-2 text-xs font-bold text-[#0a1122] hover:bg-gray-50"
+                  >
+                    إعادة ضبط الفلاتر
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
-          {/* زر الـ Pagination */}
           {remainingCount > 0 && (
             <div className="mt-8 flex justify-center sm:mt-10">
               <button
@@ -1253,49 +1433,6 @@ export default function OpportunitiesPage() {
                   <span>تابع وحدتك أو طلبك خطوة بخطوة</span>
                 </li>
               </ul>
-
-              <div className="mt-7 flex flex-wrap items-center justify-start gap-2.5 sm:mt-8 sm:gap-3">
-                <a
-                  href="#app-store"
-                  className="flex items-center gap-2.5 rounded-xl border border-white/15 bg-black px-4 py-2 text-white transition hover:bg-white/5"
-                >
-                  <div className="text-right">
-                    <span className="block text-[8px] text-gray-400">حمّله من</span>
-                    <span className="block text-xs font-bold leading-tight">App Store</span>
-                  </div>
-                  <svg className="size-5 fill-current" viewBox="0 0 24 24">
-                    <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.33c.64-.78 1.08-1.86.96-2.94-.93.04-2.06.62-2.72 1.4-.58.68-1.1 1.79-.96 2.84 1.04.08 2.08-.52 2.72-1.3z" />
-                  </svg>
-                </a>
-
-                <a
-                  href="#google-play"
-                  className="flex items-center gap-2.5 rounded-xl border border-white/15 bg-black px-4 py-2 text-white transition hover:bg-white/5"
-                >
-                  <div className="text-right">
-                    <span className="block text-[8px] text-gray-400">متوفر على</span>
-                    <span className="block text-xs font-bold leading-tight">Google Play</span>
-                  </div>
-                  <svg className="size-5" viewBox="0 0 24 24">
-                    <path
-                      fill="#4285F4"
-                      d="M3.61 1.814L13.793 12 3.61 22.186a1.96 1.96 0 0 1-.61-1.42V3.234c0-.55.23-1.05.61-1.42z"
-                    />
-                    <path
-                      fill="#34A853"
-                      d="M17.22 8.573L13.793 12 3.61 1.814c.42-.4.99-.53 1.56-.21l12.05 6.97z"
-                    />
-                    <path
-                      fill="#FBBC05"
-                      d="M20.635 10.548c.98.57.98 1.98 0 2.55l-3.415 1.975L13.793 12l3.427-3.427 3.415 1.975z"
-                    />
-                    <path
-                      fill="#EA4335"
-                      d="M17.22 15.427L5.17 22.396c-.57.32-1.14.19-1.56-.21L13.793 12l3.427 3.427z"
-                    />
-                  </svg>
-                </a>
-              </div>
             </div>
 
             <div className="hidden justify-center md:flex">
@@ -1316,17 +1453,6 @@ export default function OpportunitiesPage() {
                   <div className="h-20 w-full rounded-xl bg-gradient-to-b from-teal-900/35 to-teal-950/15" />
                   <div className="mt-3 h-2.5 w-3/4 rounded-full bg-white/10" />
                   <div className="mt-2 h-2 w-1/2 rounded-full bg-white/5" />
-                  <div className="mt-3 flex justify-end">
-                    <div className="h-4 w-14 rounded-md bg-teal-500/20" />
-                  </div>
-                </div>
-                <div className="mt-3 rounded-2xl border border-white/5 bg-[#101b2d] p-3">
-                  <div className="h-20 w-full rounded-xl bg-gradient-to-b from-[#17263c] to-[#101b2d]" />
-                  <div className="mt-3 h-2.5 w-2/3 rounded-full bg-white/10" />
-                  <div className="mt-2 h-2 w-2/5 rounded-full bg-white/5" />
-                  <div className="mt-3 flex justify-end">
-                    <div className="h-4 w-14 rounded-md bg-teal-500/20" />
-                  </div>
                 </div>
               </div>
             </div>
@@ -1349,7 +1475,7 @@ export default function OpportunitiesPage() {
                   الفرص بتظهر هنا بعد التحقق الكامل — مش قبله
                 </h3>
                 <p className="mt-2.5 text-xs leading-[1.9] text-gray-500 sm:mt-3 sm:text-[13px]">
-                  إحنا ما بننشرش أي وحدة قبل ما نراجع عقدها وإيصالات سدادها ونأكد رصيدها وشروط التنازل. أول الفرص المتحققة هتظهر هنا قريبًا. سجّل قدرتك الشرائية دلوقتي — واللي يناسبك هيوصلك قبل ما ينزل هنا أصلًا: المشترين المسجلين بيشوفوا الفرص الأول.
+                  إحنا ما بننشرش أي وحدة قبل ما نراجع عقدها وإيصالات سدادها ونأكد رصيدها وشروط التنازل.
                 </p>
               </div>
 
@@ -1382,10 +1508,6 @@ export default function OpportunitiesPage() {
                 <li className="flex items-start gap-2">
                   <Check className="mt-0.5 size-4 shrink-0 text-[#0b6954]" />
                   <span>فرق السعر عن سعر السوق الحالي — مكسبك من أول يوم</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <Check className="mt-0.5 size-4 shrink-0 text-[#0b6954]" />
-                  <span>حالة التحقق: المستندات، تأكيد المطور، وجاهزية التنازل</span>
                 </li>
               </ul>
             </div>

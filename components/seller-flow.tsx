@@ -1,7 +1,16 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
-import { Check, Copy, ImagePlus, Loader2, Star, UserRound } from 'lucide-react'
+import { useEffect, useRef, useState, useTransition } from 'react'
+import {
+  Check,
+  ChevronDown,
+  Copy,
+  Globe,
+  ImagePlus,
+  Loader2,
+  Star,
+  UserRound,
+} from 'lucide-react'
 import {
   getCurrentSellerProfileAction,
   saveSellProgress,
@@ -10,7 +19,6 @@ import {
 } from '@/app/actions/submit-forms'
 import { requestUnitPromotionAction } from '@/app/actions/account-actions'
 import { createClient } from '@/lib/supabase/client'
-import { getActiveCountryFromCookie } from '@/components/site-shell'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -23,23 +31,281 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   Actions,
-  areasCatalogByCountry,
   deliveries,
   features,
   Field,
   finishings,
   formatAmount,
-  getCurrencyByCountry,
   MoneyField,
   Pills,
-  PLATFORM_COUNTRIES,
   RequiredLabel,
-  SearchableCountryField,
   ToggleSection,
   unitTypes,
   years,
 } from './seller/seller-shared'
 import { ContactStep } from './seller/seller-contact-step'
+
+export type PlatformCountryCode = 'EG' | 'AE' | 'RU' | 'GE'
+
+export const PLATFORM_COUNTRIES: Array<{
+  code: PlatformCountryCode
+  nameAr: string
+  nameEn: string
+  flag: string
+  currency: string
+  areas: Array<[string, string[]]>
+}> = [
+  {
+    code: 'EG',
+    nameAr: 'مصر',
+    nameEn: 'Egypt',
+    flag: '🇪🇬',
+    currency: 'ج.م',
+    areas: [
+      [
+        'القاهرة الجديدة والتجمع',
+        [
+          'التجمع الخامس',
+          'التجمع الأول',
+          'التجمع الثالث',
+          'القاهرة الجديدة',
+          'الرحاب',
+          'مدينتي',
+          'المستقبل سيتي',
+          'الشروق',
+        ],
+      ],
+      [
+        'الشيخ زايد وأكتوبر',
+        ['الشيخ زايد', 'زايد الجديدة', '6 أكتوبر', 'حدائق أكتوبر'],
+      ],
+      [
+        'العاصمة والساحل وأخرى',
+        [
+          'العاصمة الإدارية',
+          'الساحل الشمالي',
+          'العين السخنة',
+          'رأس الحكمة',
+          'منطقتي مش في القائمة',
+        ],
+      ],
+    ],
+  },
+  {
+    code: 'AE',
+    nameAr: 'الإمارات',
+    nameEn: 'UAE',
+    flag: '🇦🇪',
+    currency: 'د.إ',
+    areas: [
+      [
+        'دبي',
+        [
+          'داون تاون دبي',
+          'دبي مارينا',
+          'بيزنس باي',
+          'نخلة جميرا',
+          'قرية جميرا الدائرية JVC',
+          'دبي هيلز',
+        ],
+      ],
+      [
+        'أبوظبي والشارقة',
+        ['جزيرة ياس', 'جزيرة السعديات', 'جزيرة الريم', 'الشارقة - الجادة'],
+      ],
+    ],
+  },
+  {
+    code: 'RU',
+    nameAr: 'روسيا',
+    nameEn: 'Russia',
+    flag: '🇷🇺',
+    currency: '₽',
+    areas: [
+      [
+        'موسكو وسانت بطرسبرغ',
+        [
+          'وسط موسكو',
+          'موسكو سيتي',
+          'سانت بطرسبرغ',
+          'سوتشي',
+          'كازان',
+          'منطقة أخرى',
+        ],
+      ],
+    ],
+  },
+  {
+    code: 'GE',
+    nameAr: 'جورجيا',
+    nameEn: 'Georgia',
+    flag: '🇬🇪',
+    currency: '$',
+    areas: [
+      [
+        'تبليسي وباتومي',
+        [
+          'تبليسي - سابورتالو',
+          'تبليسي - فاكي',
+          'باتومي - البوليفارد الجديد',
+          'باتومي - وسط المدينة',
+          'كوتايسي',
+        ],
+      ],
+    ],
+  },
+]
+
+function normalizeArabicText(str: string) {
+  return (str || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[أإآ]/g, 'ا')
+    .replace(/ة/g, 'ه')
+}
+
+function getHeaderCookieCountry(): PlatformCountryCode {
+  if (typeof document !== 'undefined') {
+    const match = document.cookie
+      .split('; ')
+      .find((row) => row.startsWith('darak_country='))
+    const code = match?.split('=')[1]?.trim() as PlatformCountryCode | undefined
+    if (code && PLATFORM_COUNTRIES.some((c) => c.code === code)) {
+      return code
+    }
+  }
+  return 'EG'
+}
+
+// مكوّن اختيار الدولة الذكي بالبحث بالحرف الأول أو الاختيار من القائمة المنسدلة
+export function SearchableCountryPicker({
+  value,
+  onChange,
+  label = 'دولة الوحدة العقارية *',
+  error,
+}: {
+  value: string
+  onChange: (code: PlatformCountryCode) => void
+  label?: string
+  error?: string
+}) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const wrapperRef = useRef<HTMLDivElement>(null)
+
+  const selectedObj =
+    PLATFORM_COUNTRIES.find((c) => c.code === value) || PLATFORM_COUNTRIES[0]
+
+  useEffect(() => {
+    function handleOutside(e: MouseEvent) {
+      if (
+        wrapperRef.current &&
+        !wrapperRef.current.contains(e.target as Node)
+      ) {
+        setOpen(false)
+        setQuery('')
+      }
+    }
+    document.addEventListener('mousedown', handleOutside)
+    return () => document.removeEventListener('mousedown', handleOutside)
+  }, [])
+
+  const filteredCountries = PLATFORM_COUNTRIES.filter((c) => {
+    if (!query.trim()) return true
+    const q = normalizeArabicText(query)
+    return (
+      normalizeArabicText(c.nameAr).includes(q) ||
+      c.nameEn.toLowerCase().includes(q) ||
+      c.code.toLowerCase().includes(q)
+    )
+  })
+
+  return (
+    <div ref={wrapperRef} className="relative flex flex-col gap-2">
+      <Label className="text-right">
+        <RequiredLabel>{label}</RequiredLabel>
+      </Label>
+
+      <div className="relative">
+        <Input
+          type="text"
+          dir="rtl"
+          value={open ? query : `${selectedObj.flag}  ${selectedObj.nameAr}`}
+          placeholder="اكتب أول حرف أو اختار الدولة (مصر، الإمارات، روسيا، جورجيا)..."
+          onFocus={() => {
+            setOpen(true)
+            setQuery('')
+          }}
+          onChange={(e) => {
+            setQuery(e.target.value)
+            setOpen(true)
+          }}
+          className={`h-12 cursor-pointer rounded-xl pr-4 pl-10 text-right font-bold text-[#0a1122] ${
+            error ? 'border-red-500 bg-red-50/20' : 'border-slate-200 bg-white'
+          }`}
+        />
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(!open)
+            setQuery('')
+          }}
+          className="absolute top-1/2 left-3 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+        >
+          <ChevronDown className="size-4" />
+        </button>
+      </div>
+
+      {error && (
+        <p className="mt-1 text-right text-xs font-semibold text-red-600">
+          {error}
+        </p>
+      )}
+
+      {open && (
+        <div className="absolute top-[78px] z-30 w-full overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
+          {filteredCountries.length === 0 ? (
+            <p className="py-3 text-center text-xs text-slate-400">
+              لا توجد دولة مطابقة للبحث
+            </p>
+          ) : (
+            filteredCountries.map((c) => {
+              const isSelected = c.code === selectedObj.code
+              return (
+                <button
+                  key={c.code}
+                  type="button"
+                  onClick={() => {
+                    onChange(c.code)
+                    setOpen(false)
+                    setQuery('')
+                  }}
+                  className={`flex w-full items-center justify-between rounded-lg px-3.5 py-2.5 text-right text-sm transition ${
+                    isSelected
+                      ? 'bg-[#eff9f5] font-bold text-[#0b6954]'
+                      : 'text-[#0a1122] hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-lg leading-none">{c.flag}</span>
+                    <span>{c.nameAr}</span>
+                    <span className="text-xs text-slate-400">({c.nameEn})</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs text-slate-400">
+                      {c.code}
+                    </span>
+                    {isSelected && <Check className="size-4 text-[#0b6954]" />}
+                  </div>
+                </button>
+              )
+            })
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
 
 const PROMO_PACKAGES: Array<{ days: 7 | 14 | 30; price: number; label: string }> = [
   { days: 7, price: 1199, label: '7 أيام' },
@@ -57,7 +323,6 @@ export function SellerFlow() {
   const [form, setForm] = useState<Record<string, string>>({
     countryCode: '20',
     unitCountry: 'EG',
-    userCountry: 'EG',
   })
   const [selected, setSelected] = useState<Record<string, string[]>>({})
   const [images, setImages] = useState<string[]>([])
@@ -76,14 +341,13 @@ export function SellerFlow() {
   } | null>(null)
 
   useEffect(() => {
-    async function initFlow() {
-      const activeCookieCountry = getActiveCountryFromCookie().code
-      setForm((prev) => ({
-        ...prev,
-        unitCountry: prev.unitCountry || activeCookieCountry,
-        userCountry: prev.userCountry || activeCookieCountry,
-      }))
+    const activeCookieCountry = getHeaderCookieCountry()
+    setForm((prev) => ({
+      ...prev,
+      unitCountry: prev.unitCountry || activeCookieCountry,
+    }))
 
+    async function initFlow() {
       const profileRes = await getCurrentSellerProfileAction()
       if (profileRes.isLoggedIn && profileRes.user) {
         setLoggedUser(profileRes.user)
@@ -266,7 +530,7 @@ export function SellerFlow() {
     const nextErrors: Record<string, string> = {}
 
     if (step === 1) {
-      if (!form.unitCountry) nextErrors.unitCountry = 'يرجى اختيار دولة الوحدة'
+      if (!form.unitCountry) nextErrors.unitCountry = 'يرجى اختيار الدولة'
       if (!form.developer) nextErrors.developer = 'هذا الحقل مطلوب'
       if (!form.project) nextErrors.project = 'هذا الحقل مطلوب'
       if (!form.contractPrice) nextErrors.contractPrice = 'هذا الحقل مطلوب'
@@ -279,7 +543,7 @@ export function SellerFlow() {
     }
 
     if (step === 3) {
-      if (!form.unitCountry) nextErrors.unitCountry = 'يرجى اختيار دولة الوحدة'
+      if (!form.unitCountry) nextErrors.unitCountry = 'يرجى اختيار الدولة'
       if (!form.developerDetails && !form.developer)
         nextErrors.developerDetails = 'هذا الحقل مطلوب'
       if (!form.projectDetails && !form.project)
@@ -638,20 +902,14 @@ function BasicStep({
   go: (step: number) => void
   errors: Record<string, string>
 }) {
-  const currency = getCurrencyByCountry(form.unitCountry)
-
   return (
     <div className="flex flex-col gap-6">
-      {/* اختيار دولة الوحدة العقارية بالبحث السريع أو الاختيار */}
-      <SearchableCountryField
-        label="الوحدة دي في دولة إيه؟ *"
+      <SearchableCountryPicker
         value={form.unitCountry || 'EG'}
-        options={PLATFORM_COUNTRIES}
-        error={errors.unitCountry}
-        helper="اختار الدولة أو اكتب أول حرف منها لتظهر لك"
         onChange={(code) => update('unitCountry', code)}
+        label="الدولة الموجود بها العقار *"
+        error={errors.unitCountry}
       />
-
       <Field
         error={errors.developer}
         label="اسم المطور *"
@@ -670,20 +928,18 @@ function BasicStep({
         error={errors.contractPrice}
         label="إجمالي سعر الوحدة في العقد *"
         value={form.contractPrice}
-        currencySymbol={currency}
         update={(value) => update('contractPrice', value)}
       />
       <MoneyField
         error={errors.paidAmount}
         label="إجمالي اللي دفعته لحد النهارده *"
         value={form.paidAmount}
-        currencySymbol={currency}
         update={(value) => update('paidAmount', value)}
       />
       <div className="rounded-xl bg-sky-50 p-4 text-sm font-semibold text-sky-700">
         المبلغ اللي هتستلمه:{' '}
-        {Number(form.paidAmount || 0).toLocaleString('en-US')} {currency} — اللي
-        دفعته بالظبط، بدون أي أوفر أو زيادة.
+        {Number(form.paidAmount || 0).toLocaleString('en-US')} ج.م — اللي دفعته
+        بالظبط، بدون أي أوفر أو زيادة.
       </div>
       <div>
         <label
@@ -716,7 +972,7 @@ function BasicStep({
         type="number"
         helper={
           form.currentDeveloperPrice
-            ? formatAmount(form.currentDeveloperPrice, currency)
+            ? formatAmount(form.currentDeveloperPrice)
             : 'بنستخدمه نحسب للمشتري هيوفر كام — لو مش متأكد سيبه فاضي وإحنا هنتحقق'
         }
         value={form.currentDeveloperPrice}
@@ -747,28 +1003,33 @@ function DetailsStep({
 }) {
   const [areaOpen, setAreaOpen] = useState(false)
   const query = form.location ?? ''
-  const activeCatalog =
-    areasCatalogByCountry[form.unitCountry || 'EG'] || areasCatalogByCountry.EG
 
-  const groups = activeCatalog
+  const countryConfig =
+    PLATFORM_COUNTRIES.find((c) => c.code === (form.unitCountry || 'EG')) ||
+    PLATFORM_COUNTRIES[0]
+
+  const groups = countryConfig.areas
     .map(
       ([title, items]) =>
-        [title, items.filter((item) => item.includes(query))] as const
+        [
+          title,
+          items.filter((item) =>
+            normalizeArabicText(item).includes(normalizeArabicText(query))
+          ),
+        ] as const
     )
     .filter(([, items]) => items.length)
 
   return (
     <div className="flex flex-col gap-6">
-      {/* إمكانية تأكيد أو تغيير دولة الوحدة في خطوة التفاصيل أيضاً */}
-      <SearchableCountryField
-        label="دولة الوحدة العقارية *"
+      <SearchableCountryPicker
         value={form.unitCountry || 'EG'}
-        options={PLATFORM_COUNTRIES}
-        error={errors.unitCountry}
         onChange={(code) => {
           update('unitCountry', code)
           update('location', '')
         }}
+        label="الدولة الموجود بها العقار *"
+        error={errors.unitCountry}
       />
 
       <div className="grid gap-5 sm:grid-cols-2">
@@ -787,14 +1048,15 @@ function DetailsStep({
           update={(value) => update('projectDetails', value)}
         />
       </div>
+
       <div className="relative">
         <Label htmlFor="location" className="mb-2 block text-right">
-          المنطقة / المدينة *
+          المنطقة / الموقع في {countryConfig.nameAr} *
         </Label>
         <Input
           id="location"
           dir="rtl"
-          placeholder="دوّر على المنطقة أو اكتب اسمها..."
+          placeholder={`دوّر على المنطقة في ${countryConfig.nameAr}...`}
           value={query}
           onFocus={() => setAreaOpen(true)}
           onChange={(event) => {
@@ -835,6 +1097,7 @@ function DetailsStep({
           </div>
         )}
       </div>
+
       <fieldset className="flex flex-col gap-3">
         <legend className="text-right font-bold">
           <RequiredLabel>نوع الوحدة *</RequiredLabel>
@@ -981,7 +1244,6 @@ function PricingStep({
 }) {
   const yes = (group: string) => selected[group]?.[0] === 'yes'
   const setAnswer = (group: string, value: string) => toggle(group, value)
-  const currency = getCurrencyByCountry(form.unitCountry)
 
   return (
     <div className="flex flex-col gap-6">
@@ -989,7 +1251,6 @@ function PricingStep({
         error={errors.contractPrice}
         label="إجمالي سعر الوحدة في العقد *"
         value={form.contractPrice2 ?? form.contractPrice}
-        currencySymbol={currency}
         update={(value) => update('contractPrice', value)}
       />
       <fieldset className="flex flex-col gap-3">
@@ -1007,14 +1268,12 @@ function PricingStep({
         error={errors.paidAmount}
         label="إجمالي اللي دفعته لحد النهارده *"
         value={form.paidAmount2 ?? form.paidAmount}
-        currencySymbol={currency}
         update={(value) => update('paidAmount', value)}
       />
       <MoneyField
         error={errors.marketPrice}
         label="سعر الوحدة دلوقتي في السوق (تقديري) *"
         value={form.marketPrice}
-        currencySymbol={currency}
         update={(value) => update('marketPrice', value)}
       />
       <div className="grid gap-5 sm:grid-cols-2">
@@ -1022,7 +1281,6 @@ function PricingStep({
           error={errors.installment}
           label="قيمة القسط *"
           value={form.installment}
-          currencySymbol={currency}
           update={(value) => update('installment', value)}
         />
         <fieldset className="flex flex-col gap-3">
@@ -1056,7 +1314,6 @@ function PricingStep({
         <MoneyField
           label="قيمة القسط السنوي *"
           value={form.annualInstallmentAmount}
-          currencySymbol={currency}
           update={(value) => update('annualInstallmentAmount', value)}
         />
       )}
@@ -1071,7 +1328,6 @@ function PricingStep({
         <MoneyField
           label="أكتر مبلغ مستعد تتنازل عنه *"
           value={form.discountAmount}
-          currencySymbol={currency}
           update={(value) => update('discountAmount', value)}
         />
       )}
@@ -1094,7 +1350,6 @@ function PricingStep({
           <MoneyField
             label="إجمالي المبلغ المتأخر *"
             value={form.overdueTotal}
-            currencySymbol={currency}
             update={(value) => update('overdueTotal', value)}
           />
         </div>
@@ -1267,11 +1522,6 @@ function ReviewStep({
   const [copiedCode, setCopiedCode] = useState(false)
   const [promoPending, startPromoTransition] = useTransition()
 
-  const currency = getCurrencyByCountry(form.unitCountry)
-  const countryObj =
-    PLATFORM_COUNTRIES.find((c) => c.code === (form.unitCountry || 'EG')) ||
-    PLATFORM_COUNTRIES[0]
-
   const handleSelectPackage = (pkg: {
     days: 7 | 14 | 30
     price: number
@@ -1293,6 +1543,10 @@ function ReviewStep({
       }
     })
   }
+
+  const countryObj =
+    PLATFORM_COUNTRIES.find((c) => c.code === (form.unitCountry || 'EG')) ||
+    PLATFORM_COUNTRIES[0]
 
   if (submitted)
     return (
@@ -1401,8 +1655,18 @@ function ReviewStep({
                   <span>{copiedCode ? 'تم النسخ ✓' : 'نسخ الكود'}</span>
                 </button>
               </div>
+              <p className="mt-2 text-[11px] leading-relaxed text-gray-500">
+                ادفعه من تطبيق <strong>myFawry</strong> (ادفع فاتورة ← Fawaterak
+                / فواتيرك ← اكتب الكود) أو من أي فرع أو ماكينة فوري.
+              </p>
             </div>
-          ) : null}
+          ) : (
+            <div className="mt-3 rounded-xl bg-white p-3.5 text-[11px] leading-relaxed text-gray-600">
+              لو اخترت فوري، هيطلعلك كود من ١٠ أرقام — ادفعه من تطبيق myFawry
+              (ادفع فاتورة ← Fawaterak / فواتيرك ← اكتب الكود) أو من أي فرع أو
+              مكينة فوري.
+            </div>
+          )}
         </div>
 
         <Link
@@ -1411,6 +1675,10 @@ function ReviewStep({
         >
           روح لحسابك
         </Link>
+
+        <p className="mt-2.5 text-center text-[11px] text-gray-400">
+          تقدر ترجع تعدّل بيانات وحدتك في أي وقت من حسابك.
+        </p>
       </div>
     )
 
@@ -1433,13 +1701,13 @@ function ReviewStep({
       'إجمالي سعر الوحدة في العقد',
       `${Number(
         form.contractPrice2 || form.contractPrice || 0
-      ).toLocaleString('en-US')} ${currency}`,
+      ).toLocaleString('en-US')} ج.م`,
     ],
     [
       'إجمالي اللي دفعته لحد النهارده',
       `${Number(form.paidAmount2 || form.paidAmount || 0).toLocaleString(
         'en-US'
-      )} ${currency}`,
+      )} ج.م`,
     ],
   ]
 

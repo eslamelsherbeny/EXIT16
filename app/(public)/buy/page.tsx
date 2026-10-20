@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   getCurrentSellerProfileAction,
@@ -12,6 +12,7 @@ import {
 import {
   Check,
   CheckCircle2,
+  ChevronDown,
   Eye,
   EyeOff,
   Loader2,
@@ -25,13 +26,213 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { TurnstileBox } from '@/components/funnel-shell'
 import { CountrySelector } from '@/components/country-selector'
-import { getActiveCountryFromCookie } from '@/components/site-shell'
-import {
-  ALL_RESIDENCE_COUNTRIES,
-  getCurrencyByCountry,
-  PLATFORM_COUNTRIES,
-  SearchableCountryField,
-} from '@/components/seller/seller-shared'
+
+type PlatformCountryCode = 'EG' | 'AE' | 'RU' | 'GE'
+
+const BUYER_COUNTRIES: Array<{
+  code: PlatformCountryCode
+  nameAr: string
+  nameEn: string
+  flag: string
+  areas: string[]
+}> = [
+  {
+    code: 'EG',
+    nameAr: 'مصر',
+    nameEn: 'Egypt',
+    flag: '🇪🇬',
+    areas: [
+      'التجمع الخامس',
+      'التجمع الأول',
+      'الشيخ زايد',
+      'زايد الجديدة',
+      '6 أكتوبر',
+      'العاصمة الإدارية',
+      'الرحاب',
+      'مدينتي',
+      'المستقبل سيتي',
+      'الساحل الشمالي',
+      'رأس الحكمة',
+      'الشروق',
+    ],
+  },
+  {
+    code: 'AE',
+    nameAr: 'الإمارات',
+    nameEn: 'UAE',
+    flag: '🇦🇪',
+    areas: [
+      'داون تاون دبي',
+      'دبي مارينا',
+      'بيزنس باي',
+      'نخلة جميرا',
+      'قرية جميرا الدائرية JVC',
+      'جزيرة ياس - أبوظبي',
+      'جزيرة السعديات - أبوظبي',
+      'الشارقة - الجادة',
+    ],
+  },
+  {
+    code: 'RU',
+    nameAr: 'روسيا',
+    nameEn: 'Russia',
+    flag: '🇷🇺',
+    areas: [
+      'وسط موسكو',
+      'موسكو سيتي',
+      'سانت بطرسبرغ',
+      'سوتشي',
+      'كازان',
+    ],
+  },
+  {
+    code: 'GE',
+    nameAr: 'جورجيا',
+    nameEn: 'Georgia',
+    flag: '🇬🇪',
+    areas: [
+      'تبليسي - سابورتالو',
+      'تبليسي - فاكي',
+      'باتومي - البوليفارد الجديد',
+      'باتومي - وسط المدينة',
+      'كوتايسي',
+    ],
+  },
+]
+
+function normalizeAr(str: string) {
+  return (str || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[أإآ]/g, 'ا')
+    .replace(/ة/g, 'ه')
+}
+
+function getHeaderCountry(): PlatformCountryCode {
+  if (typeof document !== 'undefined') {
+    const match = document.cookie
+      .split('; ')
+      .find((row) => row.startsWith('darak_country='))
+    const code = match?.split('=')[1]?.trim() as PlatformCountryCode | undefined
+    if (code && BUYER_COUNTRIES.some((c) => c.code === code)) return code
+  }
+  return 'EG'
+}
+
+function BuyerCountryCombobox({
+  value,
+  onChange,
+  label = 'الدولة اللي بتدوّر فيها على الوحدة *',
+}: {
+  value: PlatformCountryCode
+  onChange: (code: PlatformCountryCode) => void
+  label?: string
+}) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const ref = useRef<HTMLDivElement>(null)
+
+  const selected =
+    BUYER_COUNTRIES.find((c) => c.code === value) || BUYER_COUNTRIES[0]
+
+  useEffect(() => {
+    function handleOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false)
+        setQuery('')
+      }
+    }
+    document.addEventListener('mousedown', handleOutside)
+    return () => document.removeEventListener('mousedown', handleOutside)
+  }, [])
+
+  const filtered = BUYER_COUNTRIES.filter((c) => {
+    if (!query.trim()) return true
+    const q = normalizeAr(query)
+    return (
+      normalizeAr(c.nameAr).includes(q) ||
+      c.nameEn.toLowerCase().includes(q) ||
+      c.code.toLowerCase().includes(q)
+    )
+  })
+
+  return (
+    <div ref={ref} className="relative">
+      <Label className="block text-right">
+        <RequiredLabel>{label}</RequiredLabel>
+      </Label>
+      <div className="relative mt-2">
+        <Input
+          type="text"
+          dir="rtl"
+          value={open ? query : `${selected.flag}  ${selected.nameAr}`}
+          placeholder="اكتب أول حرف أو اختار الدولة..."
+          onFocus={() => {
+            setOpen(true)
+            setQuery('')
+          }}
+          onChange={(e) => {
+            setQuery(e.target.value)
+            setOpen(true)
+          }}
+          className="h-12 cursor-pointer rounded-xl border-slate-200 bg-white pr-4 pl-10 text-right font-bold text-[#0a1122]"
+        />
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(!open)
+            setQuery('')
+          }}
+          className="absolute top-1/2 left-3 -translate-y-1/2 text-slate-400"
+        >
+          <ChevronDown className="size-4" />
+        </button>
+      </div>
+
+      {open && (
+        <div className="absolute z-30 mt-1.5 w-full overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
+          {filtered.length === 0 ? (
+            <p className="py-3 text-center text-xs text-slate-400">
+              لا توجد دولة مطابقة
+            </p>
+          ) : (
+            filtered.map((c) => {
+              const active = c.code === selected.code
+              return (
+                <button
+                  key={c.code}
+                  type="button"
+                  onClick={() => {
+                    onChange(c.code)
+                    setOpen(false)
+                    setQuery('')
+                  }}
+                  className={`flex w-full items-center justify-between rounded-lg px-3.5 py-2.5 text-right text-sm transition ${
+                    active
+                      ? 'bg-[#eff9f5] font-bold text-[#0b6954]'
+                      : 'text-[#0a1122] hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-lg">{c.flag}</span>
+                    <span>{c.nameAr}</span>
+                    <span className="text-xs text-slate-400">({c.nameEn})</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs text-slate-400">
+                      {c.code}
+                    </span>
+                    {active && <Check className="size-4 text-[#0b6954]" />}
+                  </div>
+                </button>
+              )
+            })
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
 
 const benefits = [
   'كل فرصة بأرقام كاملة: المطلوب كاش، الأقساط المتبقية، ومواعيدها',
@@ -56,48 +257,11 @@ const unitTypes = [
   'أرض',
 ]
 
-const areasByCountry: Record<string, string[]> = {
-  EG: [
-    'التجمع الخامس',
-    'التجمع الأول',
-    'الشيخ زايد',
-    'زايد الجديدة',
-    '6 أكتوبر',
-    'العاصمة الإدارية',
-    'الرحاب',
-    'مدينتي',
-    'المستقبل سيتي',
-    'الساحل الشمالي',
-    'رأس الحكمة',
-    'الشروق',
-  ],
-  RU: [
-    'موسكو (Moscow)',
-    'سانت بطرسبرغ (St. Petersburg)',
-    'سوتشي (Sochi)',
-    'كازان (Kazan)',
-  ],
-  GE: [
-    'تبليسي (Tbilisi)',
-    'باتومي (Batumi)',
-    'كوتايسي (Kutaisi)',
-    'غوداوري (Gudauri)',
-  ],
-  AE: [
-    'دبي (Dubai)',
-    'أبوظبي (Abu Dhabi)',
-    'الشارقة (Sharjah)',
-    'رأس الخيمة (Ras Al Khaimah)',
-    'عجمان (Ajman)',
-  ],
-}
-
 const paymentPlans = ['شهري', 'ربع سنوي (كل 3 شهور)', 'نصف سنوي', 'سنوي']
 const deliveryStatuses = ['جاهزة للاستلام', 'تحت الإنشاء']
 
 type FormState = BuyRequestPayload & {
-  country: string
-  userCountry: string
+  country: PlatformCountryCode
   password: string
   loginIdentifier?: string
   loginPassword?: string
@@ -105,7 +269,6 @@ type FormState = BuyRequestPayload & {
 
 const initial: FormState = {
   country: 'EG',
-  userCountry: 'EG',
   available_cash: 0,
   max_installment: 0,
   payment_plan: 'شهري',
@@ -122,13 +285,12 @@ const initial: FormState = {
   loginPassword: '',
 }
 
-function formatAmount(value: number, currencySymbol = 'ج.م') {
+function formatAmount(value: number) {
   if (!value) return ''
   if (value >= 1_000_000)
-    return `${(value / 1_000_000).toFixed(2).replace(/\.00$/, '')} مليون ${currencySymbol}`
-  if (value >= 1_000)
-    return `${Math.round(value / 1_000)} ألف ${currencySymbol}`
-  return `${value.toLocaleString('en-US')} ${currencySymbol}`
+    return `${(value / 1_000_000).toFixed(2).replace(/\.00$/, '')} مليون ج.م`
+  if (value >= 1_000) return `${Math.round(value / 1_000)} ألف ج.م`
+  return `${value.toLocaleString('en-US')} ج.م`
 }
 
 export default function BuyersPage() {
@@ -170,12 +332,8 @@ export default function BuyersPage() {
   >(null)
 
   useEffect(() => {
-    const activeCountry = getActiveCountryFromCookie().code
-    setData((prev) => ({
-      ...prev,
-      country: activeCountry,
-      userCountry: activeCountry,
-    }))
+    const activeCookieCountry = getHeaderCountry()
+    setData((prev) => ({ ...prev, country: activeCookieCountry }))
 
     async function checkCurrentSession() {
       const res = await getCurrentSellerProfileAction()
@@ -202,7 +360,6 @@ export default function BuyersPage() {
 
   const nextFromOne = () => {
     const nextErrors: Record<string, string> = {}
-    if (!data.country) nextErrors.country = 'يرجى اختيار الدولة'
     if (!data.available_cash) nextErrors.available_cash = 'هذا الحقل مطلوب'
     if (!data.max_installment) nextErrors.max_installment = 'هذا الحقل مطلوب'
     if (!data.payment_plan)
@@ -254,7 +411,6 @@ export default function BuyersPage() {
 
     if (authTab === 'register') {
       if (!data.name.trim()) nextErrors.name = 'هذا الحقل مطلوب'
-      if (!data.userCountry) nextErrors.userCountry = 'يرجى اختيار دولتك'
       if (
         !data.phone.trim() ||
         !/^[0-9٠-٩]{7,15}$/.test(data.phone.replace(/[\s-]/g, ''))
@@ -287,7 +443,6 @@ export default function BuyersPage() {
       const res = await processBuyerStep3Action({
         mode: authTab,
         country: data.country || 'EG',
-        userCountry: data.userCountry || data.country || 'EG',
         available_cash: Number(data.available_cash) || 0,
         max_installment: Number(data.max_installment) || 0,
         payment_plan: data.payment_plan,
@@ -299,7 +454,8 @@ export default function BuyersPage() {
         name: data.name.trim(),
         phone: fullPhone,
         email: data.email.trim(),
-        password: authTab === 'login' ? data.loginPassword : data.password,
+        password:
+          authTab === 'login' ? data.loginPassword : data.password,
         loginIdentifier: data.loginIdentifier,
       })
 
@@ -497,6 +653,18 @@ export default function BuyersPage() {
             </div>
           )}
         </div>
+
+        {step <= 2 && (
+          <div className="mt-6 flex items-center justify-between rounded-2xl bg-[#0f172a] px-5 py-4 text-sm text-white">
+            <span>كلمنا على واتساب وقولنا بتدور على إيه</span>
+            <a
+              href="https://wa.me/201018595959"
+              className="rounded-full bg-green-500 px-4 py-2 font-bold transition hover:bg-green-600"
+            >
+              سجّل اهتمامك دلوقتي
+            </a>
+          </div>
+        )}
       </div>
     </main>
   )
@@ -523,14 +691,12 @@ function Money({
   onChange,
   helper,
   error,
-  currencySymbol = 'ج.م',
 }: {
   label: string
   value: number
   onChange: (value: number) => void
   helper?: string
   error?: string
-  currencySymbol?: string
 }) {
   return (
     <div>
@@ -551,7 +717,7 @@ function Money({
           }`}
         />
         <span className="absolute top-3 right-3 text-xs text-slate-500">
-          {currencySymbol}
+          ج.م
         </span>
       </div>
       {error && (
@@ -560,7 +726,7 @@ function Money({
         </p>
       )}
       <p className="mt-2 min-h-4 text-right text-xs font-semibold text-teal-700">
-        {formatAmount(value, currencySymbol)}
+        {formatAmount(value)}
       </p>
       {helper && <p className="text-right text-xs text-slate-500">{helper}</p>}
     </div>
@@ -576,28 +742,20 @@ function StepOne({
   update: <K extends keyof FormState>(key: K, value: FormState[K]) => void
   errors?: Record<string, string>
 }) {
-  const currency = getCurrencyByCountry(data.country)
-
   return (
     <div className="flex flex-col gap-6">
-      {/* اختيار الدولة التي يبحث فيها المشتري عن عقار */}
-      <SearchableCountryField
-        label="بتدوّر على وحدة في دولة إيه؟ *"
-        value={data.country || 'EG'}
-        options={PLATFORM_COUNTRIES}
-        error={errors?.country}
-        helper="اكتب أول حرف من اسم الدولة أو اختر من القائمة"
+      <BuyerCountryCombobox
+        value={data.country}
         onChange={(code) => {
           update('country', code)
           update('preferred_areas', [])
         }}
+        label="الدولة اللي بتدوّر فيها على الوحدة *"
       />
-
       <Money
         error={errors?.available_cash}
         label="الكاش المتاح معاك دلوقتي *"
         value={data.available_cash}
-        currencySymbol={currency}
         onChange={(value) => update('available_cash', value)}
         helper="المبلغ اللي تقدر تدفعه فورًا لصاحب الوحدة"
       />
@@ -605,7 +763,6 @@ function StepOne({
         error={errors?.max_installment}
         label="أقصى قسط يريحك *"
         value={data.max_installment}
-        currencySymbol={currency}
         onChange={(value) => update('max_installment', value)}
       />
       <fieldset>
@@ -648,7 +805,6 @@ function StepOne({
         error={errors?.budget}
         label="سعر التعاقد المستهدف (الميزانية) *"
         value={data.budget}
-        currencySymbol={currency}
         onChange={(value) => update('budget', value)}
         helper="أقصى سعر تعاقد مناسب لميزانيتك"
       />
@@ -676,21 +832,22 @@ function StepTwo({
   setShowAreas: (value: boolean) => void
   addArea: (value?: string) => void
 }) {
-  const countryAreas = areasByCountry[data.country || 'EG'] || areasByCountry.EG
-  const filtered = countryAreas
-    .filter((area) => area.toLowerCase().includes(areaInput.trim().toLowerCase()))
+  const countryObj =
+    BUYER_COUNTRIES.find((c) => c.code === data.country) || BUYER_COUNTRIES[0]
+
+  const filtered = countryObj.areas
+    .filter((area) => normalizeAr(area).includes(normalizeAr(areaInput)))
     .slice(0, 8)
 
   return (
     <div className="flex flex-col gap-6">
-      <SearchableCountryField
-        label="الدولة المطلوب الشراء فيها *"
-        value={data.country || 'EG'}
-        options={PLATFORM_COUNTRIES}
+      <BuyerCountryCombobox
+        value={data.country}
         onChange={(code) => {
           update('country', code)
           update('preferred_areas', [])
         }}
+        label="الدولة المطلوبة *"
       />
 
       <fieldset>
@@ -750,6 +907,9 @@ function StepTwo({
           className="mt-2 h-12 w-full max-w-[150px] text-center text-lg"
           placeholder="غرفة"
         />
+        <p className="mt-2 text-right text-xs text-slate-500">
+          سيبها فاضية لو مش فارقة معاك
+        </p>
       </div>
       <fieldset>
         <legend className="mb-3 text-right text-sm font-bold">
@@ -781,10 +941,15 @@ function StepTwo({
             </label>
           ))}
         </div>
+        {errors?.delivery_status && (
+          <p className="mt-1.5 text-right text-xs font-semibold text-red-600">
+            {errors.delivery_status}
+          </p>
+        )}
       </fieldset>
       <div>
         <Label htmlFor="areas" className="block text-right">
-          <RequiredLabel>المناطق أو المدن اللي تهمك *</RequiredLabel>
+          <RequiredLabel>{`المناطق أو الكمبوندات في ${countryObj.nameAr} *`}</RequiredLabel>
         </Label>
         <div
           className={`relative mt-2 ${
@@ -837,7 +1002,7 @@ function StepTwo({
             placeholder={
               data.preferred_areas.length
                 ? 'ضيف منطقة تانية...'
-                : 'دوّر على المنطقة أو اكتب اسمها...'
+                : `دوّر على المنطقة في ${countryObj.nameAr}...`
             }
             className="h-12 rounded-xl text-right"
           />
@@ -1058,6 +1223,12 @@ function StepThree({
           هنبعتلك لينك على الإيميل المسجّل على الرقم ده.
         </p>
 
+        {stepError && (
+          <p className="mt-3 text-right text-xs font-bold text-red-600">
+            {stepError}
+          </p>
+        )}
+
         {!recoveryLinkSent ? (
           <div className="mt-5">
             <Button
@@ -1184,19 +1355,10 @@ function StepThree({
             onChange={(value) => update('name', value)}
           />
 
-          {/* اختيار دولة إقامة المشتري عند تسجيل حساب جديد */}
-          <SearchableCountryField
-            label="أنت من دولة إيه؟ (بلد الإقامة) *"
-            value={data.userCountry || data.country || 'EG'}
-            options={ALL_RESIDENCE_COUNTRIES}
-            error={errors?.userCountry}
-            onChange={(code) => {
-              update('userCountry', code)
-              const found = ALL_RESIDENCE_COUNTRIES.find((c) => c.code === code)
-              if (found?.phoneCode) {
-                setCountryCode(found.phoneCode)
-              }
-            }}
+          <BuyerCountryCombobox
+            value={data.country}
+            onChange={(code) => update('country', code)}
+            label="دولتك / محل الإقامة *"
           />
 
           <div>

@@ -6,12 +6,16 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { saveUnitDocumentAction } from '@/app/actions/account-actions'
 import { Loader2 } from 'lucide-react'
+import arDict from '@/dictionaries/ar.json'
+
+const t = arDict.accountPages.documents
+const tCommon = arDict.accountPages.common
 
 const DOCUMENT_SECTIONS = [
-  { key: 'contract' as const, title: 'عقد الوحدة' },
-  { key: 'receipts' as const, title: 'إيصالات السداد' },
-  { key: 'statement' as const, title: 'آخر كشف حساب من المطور' },
-  { key: 'national_id' as const, title: 'بطاقة الرقم القومي' },
+  { key: 'contract' as const, title: t.sections.contract },
+  { key: 'receipts' as const, title: t.sections.receipts },
+  { key: 'statement' as const, title: t.sections.statement },
+  { key: 'national_id' as const, title: t.sections.national_id },
 ]
 
 export default function AccountDocumentsPage() {
@@ -84,7 +88,7 @@ export default function AccountDocumentsPage() {
 
       if (res.success && res.documents) {
         setDocs(res.documents)
-        setMessage('تم رفع المستند بنجاح وهو الآن قيد المراجعة ✓')
+        setMessage(t.uploadSuccess)
       }
     } finally {
       setUploadingKey(null)
@@ -94,26 +98,27 @@ export default function AccountDocumentsPage() {
   return (
     <main
       dir="rtl"
-      className="min-h-screen bg-[#f5f6f8] px-4 py-12 pb-24 text-[#0a1122]"
+      className="min-h-screen bg-[var(--brand-surface,#f5f6f8)] px-4 py-12 pb-24 text-[var(--brand-navy,#0a1122)]"
     >
       <div className="mx-auto max-w-[660px]">
         <header className="mb-8 text-right">
-          <h1 className="text-2xl font-black text-[#0a1122]">مستندات حالتك</h1>
+          <h1 className="text-2xl font-black text-[var(--brand-navy,#0a1122)]">
+            {t.title}
+          </h1>
           <p className="mt-1.5 text-xs text-slate-500 sm:text-sm">
-            ارفع صور واضحة أو PDF — كل مستند بيتراجع من فريقنا وبنعلّم عليه لما
-            يتقبل
+            {t.subtitle}
           </p>
         </header>
 
         {message && (
-          <div className="mb-6 rounded-xl bg-[#eff9f5] p-3.5 text-center text-xs font-bold text-[#0b6954]">
+          <div className="mb-6 rounded-xl bg-[var(--brand-primary-light,#eaf8f2)] p-3.5 text-center text-xs font-bold text-[var(--brand-primary,#007a5a)]">
             {message}
           </div>
         )}
 
         {loading ? (
           <div className="rounded-2xl bg-white p-10 text-center text-xs font-bold text-gray-500">
-            جاري تحميل المستندات...
+            {t.loading}
           </div>
         ) : (
           <div className="space-y-4">
@@ -127,18 +132,18 @@ export default function AccountDocumentsPage() {
                   className="rounded-[18px] border border-gray-200/80 bg-white p-5 shadow-2xs sm:p-6"
                 >
                   <div className="flex items-center justify-between gap-4">
-                    <h2 className="text-sm font-extrabold text-[#0a1122] sm:text-base">
+                    <h2 className="text-sm font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-base">
                       {sec.title}
                     </h2>
 
-                    <label className="inline-flex h-10 cursor-pointer items-center justify-center rounded-xl bg-[#0b6954] px-5 text-xs font-bold text-white transition hover:bg-[#095443]">
+                    <label className="inline-flex h-10 cursor-pointer items-center justify-center rounded-xl bg-[var(--brand-primary,#007a5a)] px-5 text-xs font-bold text-white transition hover:bg-[var(--brand-primary-hover,#006248)]">
                       {isUploading ? (
                         <span className="inline-flex items-center gap-1.5">
                           <Loader2 className="size-3.5 animate-spin" />
-                          جاري الرفع...
+                          {t.uploading}
                         </span>
                       ) : (
-                        'ارفع الملف'
+                        t.uploadBtn
                       )}
                       <input
                         type="file"
@@ -156,8 +161,8 @@ export default function AccountDocumentsPage() {
                     <div className="mt-4 flex items-center justify-between rounded-xl bg-[#f8f9fb] px-4 py-2.5 text-xs">
                       <span className="rounded-full bg-[#e0f2fe] px-3 py-1 text-[11px] font-bold text-[#0369a1]">
                         {docInfo.status === 'approved'
-                          ? 'تم القبول ✓'
-                          : 'وصل — قيد المراجعة'}
+                          ? t.statusApproved
+                          : t.statusPending}
                       </span>
                       <span
                         dir="ltr"
@@ -169,7 +174,7 @@ export default function AccountDocumentsPage() {
                     </div>
                   ) : (
                     <p className="mt-3 text-right text-xs text-gray-400">
-                      مفيش ملفات مرفوعة في القسم ده
+                      {t.emptySection}
                     </p>
                   )}
                 </div>
@@ -181,9 +186,9 @@ export default function AccountDocumentsPage() {
         <div className="mt-8 text-center">
           <Link
             href={unitId ? `/account?view=seller&unitId=${unitId}` : '/account'}
-            className="text-xs font-bold text-[#0b6954] hover:underline"
+            className="text-xs font-bold text-[var(--brand-primary,#007a5a)] hover:underline"
           >
-            رجوع لحسابي
+            {tCommon.backToAccount}
           </Link>
         </div>
       </div>

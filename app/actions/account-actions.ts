@@ -697,6 +697,7 @@ export async function requestUnitPromotionAction(payload: {
 }
 
 // 11. إلغاء طلب الإعلان أو إيقاف التمييز الساري بواسطة البائع في أي وقت
+// 11. إلغاء وحذف طلب الإعلان أو إيقاف التمييز الساري بواسطة البائع في أي وقت
 export async function cancelUnitPromotionBySellerAction(unitId: string) {
   try {
     const cookieStore = await cookies()
@@ -717,11 +718,15 @@ export async function cancelUnitPromotionBySellerAction(unitId: string) {
     const wasActive = Boolean(unit.is_featured)
     const adRef = unit.featured_fawry_code || ''
 
+    // تصفير جميع حقول التمييز حتى يختفي الطلب تماماً من حساب البائع
     const { error } = await supabase
       .from('sell_requests')
       .update({
         is_featured: false,
-        featured_status: 'cancelled_by_seller',
+        featured_status: 'none',
+        featured_fawry_code: null,
+        featured_days: 0,
+        featured_price: 0,
         featured_until: null,
       })
       .eq('id', unitId)
@@ -734,7 +739,7 @@ export async function cancelUnitPromotionBySellerAction(unitId: string) {
         title: wasActive
           ? `⏹ أوقف البائع اشتراك تمييز وحدته (${adRef})`
           : `✕ ألغى البائع طلب إعلان وحدته (${adRef})`,
-        message: `قام المالك (${unit.name || 'البائع'}) بإلغاء التمييز لوحدته في (${unit.project_name || 'مشروعه'}).`,
+        message: `قام المالك (${unit.name || 'البائع'}) بحذف وإلغاء طلب التمييز لوحدته في (${unit.project_name || 'مشروعه'}).`,
         type: 'property',
         link: '/admin/properties',
         is_read: false,

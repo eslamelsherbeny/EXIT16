@@ -94,20 +94,38 @@ const fairStandards = [
 ]
 
 export default async function HomePage() {
-  // جلب الإحصائيات الحقيقية من قاعدة البيانات (الوحدات المنشورة في السوق وتحت المراجعة)
   let realUnitCount = 0
   let totalMarketValue = 0
+  let activeCountryCode = 'EG'
+
+  const currencyMap: Record<string, string> = {
+    EG: 'ج.م',
+    RU: '₽',
+    GE: '$',
+    AE: 'د.إ',
+  }
 
   try {
+    const cookieStore = await cookies()
+    activeCountryCode =
+      cookieStore.get('darak_country')?.value?.trim() || 'EG'
+
     const supabase = await getSupabase()
     const { data: units } = await supabase
       .from('sell_requests')
-      .select('status, market_price, contract_price, paid_amount')
+      .select('status, country_code, market_price, contract_price, paid_amount')
       .neq('status', 'rejected')
+      .neq('status', 'deleted_by_seller')
 
     if (units && units.length > 0) {
-      realUnitCount = units.length
-      totalMarketValue = units.reduce((sum, u) => {
+      // فلترة الوحدات حسب الدولة المختارة حالياً (مصر تشمل الوحدات القديمة التي ليس لها country_code)
+      const countryUnits = units.filter((u: any) => {
+        const uCountry = u.country_code || 'EG'
+        return uCountry === activeCountryCode
+      })
+
+      realUnitCount = countryUnits.length
+      totalMarketValue = countryUnits.reduce((sum, u) => {
         const unitVal =
           Number(u.market_price) ||
           Number(u.contract_price) ||
@@ -120,23 +138,23 @@ export default async function HomePage() {
     console.error('Error fetching real stats on HomePage:', err)
   }
 
-  // تنسيق القيمة السوقية الإجمالية بشكل ذكي ودقيق (مليار / مليون / ج.م)
+  const currencySymbol = currencyMap[activeCountryCode] || 'ج.م'
   let formattedValue = '0'
-  let valueUnitLabel = 'ج.م'
+  let valueUnitLabel = currencySymbol
 
   if (totalMarketValue >= 1_000_000_000) {
     formattedValue = (totalMarketValue / 1_000_000_000).toLocaleString('en-US', {
       maximumFractionDigits: 2,
     })
-    valueUnitLabel = 'مليار ج.م'
+    valueUnitLabel = `مليار ${currencySymbol}`
   } else if (totalMarketValue >= 1_000_000) {
     formattedValue = (totalMarketValue / 1_000_000).toLocaleString('en-US', {
       maximumFractionDigits: 1,
     })
-    valueUnitLabel = 'مليون ج.م'
+    valueUnitLabel = `مليون ${currencySymbol}`
   } else {
     formattedValue = totalMarketValue.toLocaleString('en-US')
-    valueUnitLabel = 'ج.م'
+    valueUnitLabel = currencySymbol
   }
 
   return (

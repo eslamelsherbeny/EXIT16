@@ -664,6 +664,9 @@ export async function saveSiteSettingsAction(formData: FormData) {
     buyerCommission: (
       (formData.get("buyerCommission") as string) || "1.25"
     ).trim(),
+    promo7Price: ((formData.get("promo7Price") as string) || "1199").trim(),
+    promo14Price: ((formData.get("promo14Price") as string) || "1999").trim(),
+    promo30Price: ((formData.get("promo30Price") as string) || "2799").trim(),
     maintenanceMode: formData.get("maintenanceMode") === "on",
     allowNewSells: formData.get("allowNewSells") === "on",
     allowNewBuys: formData.get("allowNewBuys") === "on",
@@ -675,6 +678,7 @@ export async function saveSiteSettingsAction(formData: FormData) {
     maxAge: 60 * 60 * 24 * 365,
     sameSite: "lax",
     secure: isProd,
+    httpOnly: false, // لكي تقرأها لوحة البائع وتحدث أسعار الباقات فوراً
   })
 
   try {
@@ -689,7 +693,6 @@ export async function saveSiteSettingsAction(formData: FormData) {
   revalidateAdminAll()
   return { success: true }
 }
-
 // ==========================================
 // 8. تفعيل أو إلغاء تمييز العقار (Featured Unit ⭐) بواسطة الأدمن
 // ==========================================

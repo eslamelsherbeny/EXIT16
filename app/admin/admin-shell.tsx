@@ -13,6 +13,7 @@ import {
   FileText,
   LayoutDashboard,
   LogOut,
+  Star,
   Menu,
   Settings,
   ShieldCheck,
@@ -51,6 +52,12 @@ const ADMIN_NAV_LINKS = [
     label: "طلبات البيع",
     shortLabel: "العقارات",
     icon: Building2,
+  },
+  {
+    href: "/admin/properties?tab=featured",
+    label: "طلبات الإعلان ⭐",
+    shortLabel: "الإعلانات ⭐",
+    icon: Star,
   },
   {
     href: "/admin/leads",

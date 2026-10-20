@@ -9,10 +9,10 @@ import {
   Building2,
   Check,
   CheckCircle2,
-  CheckSquare,
+  ChevronDown,
   Clock,
   FileText,
-  Home,
+  Globe,
   Menu,
   ShieldCheck,
   Smartphone,
@@ -20,9 +20,7 @@ import {
   User,
   WalletCards,
   X,
-  Zap,
 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import * as authActions from '@/app/actions/auth-actions'
 import {
   clearAllNotificationsAction,
@@ -35,6 +33,80 @@ import ar from '@/dictionaries/ar.json'
 import en from '@/dictionaries/en.json'
 
 type Dictionary = typeof ar
+
+// ==================== إعدادات الدول والعملات وأسعار الباقات الافتراضية ====================
+export type CountryCode = 'EG' | 'RU' | 'GE' | 'AE'
+
+export type CountryConfig = {
+  code: CountryCode
+  nameAr: string
+  nameEn: string
+  flag: string
+  currencyCode: string
+  currencySymbol: string
+  phoneCode: string
+  defaultPackages: {
+    days7: number
+    days14: number
+    days30: number
+  }
+}
+
+export const SUPPORTED_COUNTRIES: Record<CountryCode, CountryConfig> = {
+  EG: {
+    code: 'EG',
+    nameAr: 'مصر',
+    nameEn: 'Egypt',
+    flag: '🇪🇬',
+    currencyCode: 'EGP',
+    currencySymbol: 'ج.م',
+    phoneCode: '+20',
+    defaultPackages: { days7: 1199, days14: 1999, days30: 2799 },
+  },
+  RU: {
+    code: 'RU',
+    nameAr: 'روسيا',
+    nameEn: 'Russia',
+    flag: '🇷🇺',
+    currencyCode: 'RUB',
+    currencySymbol: '₽',
+    phoneCode: '+7',
+    defaultPackages: { days7: 2500, days14: 4200, days30: 5900 },
+  },
+  GE: {
+    code: 'GE',
+    nameAr: 'جورجيا',
+    nameEn: 'Georgia',
+    flag: '🇬🇪',
+    currencyCode: 'USD',
+    currencySymbol: '$',
+    phoneCode: '+995',
+    defaultPackages: { days7: 29, days14: 49, days30: 69 },
+  },
+  AE: {
+    code: 'AE',
+    nameAr: 'الإمارات',
+    nameEn: 'UAE',
+    flag: '🇦🇪',
+    currencyCode: 'AED',
+    currencySymbol: 'د.إ',
+    phoneCode: '+971',
+    defaultPackages: { days7: 99, days14: 179, days30: 249 },
+  },
+}
+
+export function getActiveCountryFromCookie(): CountryConfig {
+  if (typeof document !== 'undefined') {
+    const match = document.cookie
+      .split('; ')
+      .find((row) => row.startsWith('darak_country='))
+    const code = match?.split('=')[1]?.trim() as CountryCode | undefined
+    if (code && SUPPORTED_COUNTRIES[code]) {
+      return SUPPORTED_COUNTRIES[code]
+    }
+  }
+  return SUPPORTED_COUNTRIES.EG
+}
 
 const links = [
   { href: '/sell', key: 'sell' as const, fallback: 'بيع وحدتك', enFallback: 'Sell Unit' },
@@ -132,6 +204,8 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
   const pathname = usePathname()
 
   const [language, setLanguage] = useState<'ar' | 'en'>('ar')
+  const [country, setCountry] = useState<CountryCode>('EG')
+  const [countryMenuOpen, setCountryMenuOpen] = useState(false)
   const [hasSession, setHasSession] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
   const [userName, setUserName] = useState<string | null>(null)
@@ -145,7 +219,27 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
 
   const notifRefDesktop = useRef<HTMLDivElement>(null)
   const notifRefMobile = useRef<HTMLDivElement>(null)
+  const countryRefDesktop = useRef<HTMLDivElement>(null)
   const labels = language === 'en' ? en : dictionary
+
+  useEffect(() => {
+    const savedCountry = getActiveCountryFromCookie().code
+    setCountry(savedCountry)
+
+    const syncCountry = () => {
+      setCountry(getActiveCountryFromCookie().code)
+    }
+    window.addEventListener('country-changed', syncCountry)
+    return () => window.removeEventListener('country-changed', syncCountry)
+  }, [])
+
+  const handleSelectCountry = (code: CountryCode) => {
+    setCountry(code)
+    setCountryMenuOpen(false)
+    document.cookie = `darak_country=${code}; path=/; max-age=31536000; SameSite=Lax`
+    window.dispatchEvent(new Event('country-changed'))
+    router.refresh()
+  }
 
   useEffect(() => {
     document.cookie = `locale=${language}; path=/; max-age=31536000`
@@ -189,23 +283,26 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
   useEffect(() => {
     setMobileMenuOpen(false)
     setNotificationsOpen(false)
+    setCountryMenuOpen(false)
   }, [pathname])
 
-  // إغلاق قائمة الإشعارات فقط إذا كان الضغط خارج كل من جرس الديسكتوب وجرس الموبايل
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       const target = e.target as Node
       const insideDesktop = notifRefDesktop.current?.contains(target)
       const insideMobile = notifRefMobile.current?.contains(target)
+      const insideCountry = countryRefDesktop.current?.contains(target)
       if (!insideDesktop && !insideMobile) {
         setNotificationsOpen(false)
+      }
+      if (!insideCountry) {
+        setCountryMenuOpen(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // فتح الجرس وتصفير العداد الأحمر
   const handleToggleNotifications = () => {
     const nextState = !notificationsOpen
     setNotificationsOpen(nextState)
@@ -219,7 +316,6 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
     }
   }
 
-  // الضغط على الإشعار للانتقال الفوري إلى الصفحة الخاصة به
   const handleSingleNotifClick = (item: any) => {
     const targetUrl =
       item.link && item.link !== '/' ? item.link : '/account'
@@ -237,7 +333,6 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
     router.push(targetUrl)
   }
 
-  // حذف إشعار واحد من القائمة
   const handleDeleteNotification = (e: React.MouseEvent, id: string) => {
     e.stopPropagation()
     e.preventDefault()
@@ -253,7 +348,6 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
     })
   }
 
-  // مسح كل الإشعارات
   const handleClearAllNotifications = (e: React.MouseEvent) => {
     e.stopPropagation()
     setNotifsList([])
@@ -264,7 +358,8 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
     })
   }
 
-  // مكوّن قائمة الإشعارات الموحد للموبايل والديسكتوب
+  const currentCountryCfg = SUPPORTED_COUNTRIES[country] || SUPPORTED_COUNTRIES.EG
+
   const renderNotificationsDropdown = (isMobile = false) => (
     <div
       onClick={(e) => e.stopPropagation()}
@@ -274,7 +369,6 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
           : 'absolute left-0 top-12 z-50 w-96 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl'
       }
     >
-      {/* الهيدر العلوي للقائمة */}
       <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50/90 px-4 py-3">
         <div className="flex items-center gap-2">
           <span className="text-xs font-extrabold text-[#0a1122]">
@@ -309,7 +403,6 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
         </div>
       </div>
 
-      {/* قائمة العناصر */}
       <div className="max-h-[65vh] divide-y divide-gray-100 overflow-y-auto text-right sm:max-h-96">
         {notifsList.length === 0 ? (
           <div className="flex flex-col items-center justify-center px-4 py-10 text-center">
@@ -335,7 +428,6 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
                 !item.is_read ? 'bg-emerald-50/50' : 'bg-white'
               }`}
             >
-              {/* أيقونة الإشعار */}
               <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-teal-100/80 text-[#0b6954]">
                 {item.type === 'property' || item.type === 'property_match' ? (
                   <Building2 className="size-4" />
@@ -348,7 +440,6 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
                 )}
               </span>
 
-              {/* محتوى الإشعار بالكامل بدون قطع */}
               <div className="min-w-0 flex-1">
                 <p
                   className={`text-xs leading-snug text-[#0a1122] ${
@@ -378,7 +469,6 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
                 </div>
               </div>
 
-              {/* زر حذف الإشعار الفردي */}
               <button
                 type="button"
                 onClick={(e) => handleDeleteNotification(e, item.id)}
@@ -393,7 +483,6 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
         )}
       </div>
 
-      {/* الفوتر السفلي لقائمة الإشعارات */}
       <div className="border-t border-gray-100 bg-gray-50/70 p-2 text-center">
         <button
           type="button"
@@ -416,7 +505,7 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
     >
       <div className="mx-auto flex h-[74px] max-w-[1140px] items-center justify-between px-4 sm:px-6">
         {/* اليمين: اللوجو والتابز */}
-        <div className="flex items-center gap-8 xl:gap-12">
+        <div className="flex items-center gap-6 xl:gap-10">
           <Logo />
           <nav
             className="hidden items-center gap-5 lg:flex"
@@ -444,12 +533,71 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
           </nav>
         </div>
 
-        {/* اليسار (ديسكتوب) */}
-        <div className="hidden shrink-0 items-center gap-2.5 lg:flex">
+        {/* اليسار (ديسكتوب): مبدل الدولة والعملة + اللغة + الأزرار */}
+        <div className="hidden shrink-0 items-center gap-2 lg:flex">
+          {/* مبدل الدولة والعملة */}
+          <div className="relative" ref={countryRefDesktop}>
+            <button
+              type="button"
+              onClick={() => setCountryMenuOpen(!countryMenuOpen)}
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-gray-200 bg-gray-50/80 px-3 text-xs font-bold text-[#0a1122] transition hover:border-[#0b6954] hover:bg-white"
+              title="اختر الدولة والعملة"
+            >
+              <span>{currentCountryCfg.flag}</span>
+              <span>
+                {language === 'en'
+                  ? currentCountryCfg.nameEn
+                  : currentCountryCfg.nameAr}
+              </span>
+              <span className="rounded bg-white px-1.5 py-0.5 text-[10px] font-extrabold text-[#0b6954]">
+                {currentCountryCfg.currencySymbol}
+              </span>
+              <ChevronDown className="size-3.5 text-gray-400" />
+            </button>
+
+            {countryMenuOpen && (
+              <div className="absolute left-0 top-11 z-50 w-52 overflow-hidden rounded-2xl border border-gray-200 bg-white p-1.5 shadow-xl">
+                <p className="px-3 py-1.5 text-right text-[10px] font-bold text-gray-400">
+                  اختر سوق العقارات والعملة:
+                </p>
+                {(Object.values(SUPPORTED_COUNTRIES) as CountryConfig[]).map(
+                  (c) => {
+                    const active = c.code === country
+                    return (
+                      <button
+                        key={c.code}
+                        type="button"
+                        onClick={() => handleSelectCountry(c.code)}
+                        className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-right text-xs font-bold transition ${
+                          active
+                            ? 'bg-[#eff9f5] text-[#0b6954]'
+                            : 'text-[#0a1122] hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-base">{c.flag}</span>
+                          <span>
+                            {language === 'en' ? c.nameEn : c.nameAr}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-600">
+                            {c.currencySymbol}
+                          </span>
+                          {active && <Check className="size-3.5 text-[#0b6954]" />}
+                        </div>
+                      </button>
+                    )
+                  }
+                )}
+              </div>
+            )}
+          </div>
+
           <button
             type="button"
             onClick={() => setLanguage(language === 'ar' ? 'en' : 'ar')}
-            className="ml-1 rounded-lg px-2 py-1 text-[13px] font-medium text-[#1e293b] transition-colors hover:bg-gray-100 hover:text-[#0b6954]"
+            className="rounded-lg px-2 py-1 text-[13px] font-medium text-[#1e293b] transition-colors hover:bg-gray-100 hover:text-[#0b6954]"
           >
             {language === 'ar' ? 'English' : 'العربية'}
           </button>
@@ -457,7 +605,7 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
           {isAdmin && (
             <Link
               href="/admin"
-              className="inline-flex h-[44px] items-center justify-center gap-1.5 whitespace-nowrap rounded-[11px] bg-[#0a1122] px-4 text-[13px] font-bold text-white shadow-xs transition-colors hover:bg-[#16223f]"
+              className="inline-flex h-[42px] items-center justify-center gap-1.5 whitespace-nowrap rounded-[11px] bg-[#0a1122] px-3.5 text-[13px] font-bold text-white shadow-xs transition-colors hover:bg-[#16223f]"
             >
               <ShieldCheck className="size-4 text-[#2ee59d]" />
               <span>{language === 'en' ? 'Admin Panel' : 'لوحة الإدارة'}</span>
@@ -466,7 +614,7 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
 
           <Link
             href={hasSession ? '/account' : '/login'}
-            className="inline-flex h-[44px] items-center justify-center gap-1.5 whitespace-nowrap rounded-[11px] border border-[#e2e8f0] bg-white px-4 text-[14px] font-semibold text-[#0f172a] transition-colors hover:bg-gray-50"
+            className="inline-flex h-[42px] items-center justify-center gap-1.5 whitespace-nowrap rounded-[11px] border border-[#e2e8f0] bg-white px-3.5 text-[14px] font-semibold text-[#0f172a] transition-colors hover:bg-gray-50"
           >
             <User className="size-4 text-gray-500" />
             <span>
@@ -482,12 +630,11 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
 
           <Link
             href="/buy"
-            className="inline-flex h-[44px] items-center justify-center whitespace-nowrap rounded-[11px] border border-[#e2e8f0] bg-white px-4 text-[14px] font-semibold text-[#0f172a] transition-colors hover:bg-gray-50"
+            className="inline-flex h-[42px] items-center justify-center whitespace-nowrap rounded-[11px] border border-[#e2e8f0] bg-white px-3.5 text-[14px] font-semibold text-[#0f172a] transition-colors hover:bg-gray-50"
           >
             {language === 'en' ? 'Want to Buy' : 'عايز تشتري'}
           </Link>
 
-          {/* جرس الإشعارات للديسكتوب */}
           {hasSession && (
             <div className="relative" ref={notifRefDesktop}>
               <button
@@ -513,21 +660,34 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
 
           <Link
             href="/sell"
-            className="inline-flex h-[44px] items-center justify-center whitespace-nowrap rounded-[11px] bg-[#0b6954] px-5 text-[14px] font-semibold text-white transition-colors hover:bg-[#085443]"
+            className="inline-flex h-[42px] items-center justify-center whitespace-nowrap rounded-[11px] bg-[#0b6954] px-4 text-[14px] font-semibold text-white transition-colors hover:bg-[#085443]"
           >
             {language === 'en' ? 'Want to Sell' : 'عايز تبيع'}
           </Link>
         </div>
 
-        {/* اليسار (موبايل): جرس الإشعارات + زر عايز تبيع + زر القائمة (بدون زر الإدارة) */}
-        <div className="flex items-center gap-2 lg:hidden">
-          {hasSession && (
+        {/* اليسار (موبايل) - تم التعديل لإخفاء عايز تبيع للمستخدم المسجل وجعل الأزرار مربعة بحواف ناعمة */}
+        <div className="flex items-center gap-1.5 lg:hidden">
+          {/* زر الدولة السريع للموبايل (مربع بحواف ناعمة) */}
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(true)}
+            className="inline-flex h-[38px] items-center gap-1 rounded-xl border border-gray-200 bg-gray-50 px-2.5 text-xs font-bold text-[#0a1122]"
+          >
+            <span>{currentCountryCfg.flag}</span>
+            <span className="text-[10px] text-[#0b6954]">
+              {currentCountryCfg.currencySymbol}
+            </span>
+          </button>
+
+          {hasSession ? (
+            // للمستخدم المسجل: إشعارات + زر القائمة فقط (بدون عايز تبيع)
             <div className="relative" ref={notifRefMobile}>
               <button
                 type="button"
                 onClick={handleToggleNotifications}
                 aria-label="الإشعارات"
-                className="relative flex size-[40px] items-center justify-center rounded-xl border border-gray-200/80 bg-white text-[#334155] shadow-xs transition-colors hover:bg-gray-50"
+                className="relative flex size-[38px] items-center justify-center rounded-xl border border-gray-200/80 bg-white text-[#334155] shadow-xs transition-colors hover:bg-gray-50"
               >
                 <Bell className="size-[18px] stroke-[2]" />
                 {unreadCount > 0 && (
@@ -542,20 +702,22 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
 
               {notificationsOpen && renderNotificationsDropdown(true)}
             </div>
+          ) : (
+            // للمستخدم غير المسجل (ضيف): زر عايز تبيع فقط
+            <Link
+              href="/sell"
+              className="inline-flex h-[38px] items-center justify-center whitespace-nowrap rounded-[10px] bg-[#0b6954] px-3.5 text-[12px] font-semibold text-white transition-colors hover:bg-[#085443]"
+            >
+              {language === 'en' ? 'Sell' : 'عايز تبيع'}
+            </Link>
           )}
 
-          <Link
-            href="/sell"
-            className="inline-flex h-[40px] items-center justify-center whitespace-nowrap rounded-[10px] bg-[#0b6954] px-4 text-[13px] font-semibold text-white transition-colors hover:bg-[#085443]"
-          >
-            {language === 'en' ? 'Sell' : 'عايز تبيع'}
-          </Link>
-
+          {/* زر القائمة المنسدلة (مربع بحواف ناعمة) */}
           <button
             type="button"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label="القائمة"
-            className="flex size-[40px] items-center justify-center rounded-xl border border-gray-200/80 bg-gray-50 text-[#0a1122] shadow-xs focus:outline-none"
+            className="flex size-[38px] items-center justify-center rounded-xl border border-gray-200/80 bg-gray-50 text-[#0a1122] shadow-xs focus:outline-none"
           >
             {mobileMenuOpen ? (
               <X className="size-5 stroke-[2]" />
@@ -568,7 +730,45 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
 
       {/* قائمة الموبايل المنسدلة */}
       {mobileMenuOpen && (
-        <div className="fixed inset-x-0 top-[74px] bottom-0 z-50 h-[calc(100vh-74px)] overflow-y-auto border-t border-gray-100 bg-white px-6 pt-6 pb-12 lg:hidden">
+        <div className="fixed inset-x-0 top-[74px] bottom-0 z-50 h-[calc(100vh-74px)] overflow-y-auto border-t border-gray-100 bg-white px-6 pt-5 pb-12 lg:hidden">
+          {/* اختيار الدولة والعملة في الموبايل */}
+          <div className="mb-5 rounded-2xl border border-gray-200 bg-gray-50/70 p-3.5 text-right">
+            <p className="mb-2 flex items-center gap-1.5 text-xs font-extrabold text-[#0a1122]">
+              <Globe className="size-3.5 text-[#0b6954]" />
+              <span>اختر الدولة والعملة:</span>
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {(Object.values(SUPPORTED_COUNTRIES) as CountryConfig[]).map(
+                (c) => {
+                  const active = c.code === country
+                  return (
+                    <button
+                      key={c.code}
+                      type="button"
+                      onClick={() => {
+                        handleSelectCountry(c.code)
+                        setMobileMenuOpen(false)
+                      }}
+                      className={`flex items-center justify-between rounded-xl border px-3 py-2 text-xs font-bold transition ${
+                        active
+                          ? 'border-[#0b6954] bg-[#eff9f5] text-[#0b6954]'
+                          : 'border-gray-200 bg-white text-[#0a1122]'
+                      }`}
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <span>{c.flag}</span>
+                        <span>{c.nameAr}</span>
+                      </span>
+                      <span className="text-[10px] opacity-80">
+                        {c.currencySymbol}
+                      </span>
+                    </button>
+                  )
+                }
+              )}
+            </div>
+          </div>
+
           <nav className="flex flex-col gap-4 text-right">
             <Link
               href="/"
@@ -662,12 +862,29 @@ export function LegacyNavbar({ dictionary = ar }: { dictionary?: Dictionary }) {
 
 // ==================== 3. الفوتر المنظم (Footer) ====================
 export function Footer({ dictionary = ar }: { dictionary?: Dictionary }) {
+  const router = useRouter()
+  const [activeCountry, setActiveCountry] = useState<CountryCode>('EG')
+
+  useEffect(() => {
+    setActiveCountry(getActiveCountryFromCookie().code)
+    const sync = () => setActiveCountry(getActiveCountryFromCookie().code)
+    window.addEventListener('country-changed', sync)
+    return () => window.removeEventListener('country-changed', sync)
+  }, [])
+
+  const selectFooterCountry = (code: CountryCode) => {
+    setActiveCountry(code)
+    document.cookie = `darak_country=${code}; path=/; max-age=31536000; SameSite=Lax`
+    window.dispatchEvent(new Event('country-changed'))
+    router.refresh()
+  }
+
   const platformLinks = [
     { label: 'الفرص المتاحة', href: '/opportunities' },
     { label: dictionary.footer?.forSellers || 'للبايعين (بيع وحدتك)', href: '/sell' },
     { label: dictionary.footer?.forBuyers || 'للمشترين (اطلب وحدة)', href: '/buy' },
     { label: dictionary.footer?.calculator || 'حاسبة الخروج', href: '/calculator' },
-    { label: dictionary.footer?.favorite || 'المفضلة', href: '/favorites' },
+    { label: dictionary.footer?.favorite || 'المفضلة', href: '/account/favorites' },
     { label: 'حسابي', href: '/account' },
   ]
 
@@ -776,30 +993,40 @@ export function Footer({ dictionary = ar }: { dictionary?: Dictionary }) {
             </ul>
           </div>
         </div>
+
+        {/* شريط الدول التفاعلي في الفوتر */}
         <div className="mt-12 border-t border-white/10 pt-8 text-right text-xs text-gray-400">
           <div>
-            <span className="block text-[11px] text-gray-400">الدولة</span>
-            <div className="mt-2.5 flex flex-wrap items-center justify-start gap-4 text-xs">
-              <Link
-                href="/opportunities"
-                className="font-bold text-white hover:text-[#2ee59d]"
-              >
-                مصر
-              </Link>
-              <span className="inline-flex items-center gap-1.5 text-gray-400">
-                السعودية{' '}
-                <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] text-gray-300">
-                  قريبًا
-                </span>
-              </span>
-              <span className="inline-flex items-center gap-1.5 text-gray-400">
-                الإمارات{' '}
-                <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] text-gray-300">
-                  قريبًا
-                </span>
-              </span>
+            <span className="block text-[11px] text-gray-400">
+              اختر الدولة / السوق العقاري:
+            </span>
+            <div className="mt-2.5 flex flex-wrap items-center justify-start gap-3 text-xs">
+              {(Object.values(SUPPORTED_COUNTRIES) as CountryConfig[]).map(
+                (c) => {
+                  const isCurrent = c.code === activeCountry
+                  return (
+                    <button
+                      key={c.code}
+                      type="button"
+                      onClick={() => selectFooterCountry(c.code)}
+                      className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 font-bold transition ${
+                        isCurrent
+                          ? 'bg-[#0b6954] text-white'
+                          : 'bg-white/5 text-gray-300 hover:bg-white/10 hover:text-white'
+                      }`}
+                    >
+                      <span>{c.flag}</span>
+                      <span>{c.nameAr}</span>
+                      <span className="text-[10px] opacity-75">
+                        ({c.currencySymbol})
+                      </span>
+                    </button>
+                  )
+                }
+              )}
             </div>
           </div>
+
           <p className="mt-5 text-[11px] leading-relaxed text-gray-400/90 sm:text-xs">
             {dictionary.footer?.disclaimer ||
               'الأرقام والتقديرات المعروضة على المنصة استرشادية وتعتمد على بنود كل عقد على حدة، ولا تعتبر استشارة قانونية أو وعدًا بنتيجة محددة. المراجعة النهائية بتتم على عقدك الفعلي مع فريقنا ومستشارين قانونيين مؤهلين.'}
@@ -836,7 +1063,6 @@ export function Footer({ dictionary = ar }: { dictionary?: Dictionary }) {
   )
 }
 
-// ==================== 4. التخطيط العام (PublicLayout) ====================
 export function PublicLayout({ children }: { children: React.ReactNode }) {
   return (
     <>

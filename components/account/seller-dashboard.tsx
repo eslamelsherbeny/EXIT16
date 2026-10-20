@@ -1,16 +1,19 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
   AlertCircle,
   Building2,
   Check,
   ChevronDown,
   Copy,
+  EyeOff,
   FileCheck2,
   Loader2,
   MessageCircle,
+  MousePointerClick,
   PauseCircle,
   PlayCircle,
   ShieldAlert,
@@ -26,6 +29,11 @@ import {
   requestUnitPromotionAction,
   toggleSellerUnitStatusAction,
 } from '@/app/actions/account-actions'
+import {
+  getActiveCountryFromCookie,
+  SUPPORTED_COUNTRIES,
+  type CountryCode,
+} from '@/components/site-shell'
 import {
   Dialog,
   DialogContent,
@@ -62,6 +70,8 @@ export type SellerUnitItem = {
   admin_note: string | null
   images: string[] | null
   documents: Record<string, any> | null
+  country_code?: string | null
+  currency_code?: string | null
   is_featured?: boolean | null
   featured_days?: number | null
   featured_price?: number | null
@@ -69,16 +79,6 @@ export type SellerUnitItem = {
   featured_fawry_code?: string | null
   featured_until?: string | null
   created_at: string | null
-}
-
-const PROMO_PACKAGES: Array<{ days: 7 | 14 | 30; price: number; label: string }> = [
-  { days: 7, price: 1199, label: '7 أيام' },
-  { days: 14, price: 1999, label: '14 أيام' },
-  { days: 30, price: 2799, label: '30 أيام' },
-]
-
-function money(value: number | null | undefined) {
-  return `${Number(value || 0).toLocaleString('en-US')} ج.م`
 }
 
 function calculateUnitCompletion(unit: SellerUnitItem) {
@@ -242,23 +242,104 @@ export function SellerDashboard({
   matchedBuyersCountMap?: Record<string, number>
   deletionRequested?: boolean
 }) {
+  const router = useRouter()
+
+  // حالة محلية فورية (Optimistic State) لكي يسمّع إلغاء التمييز أو التعديل في نفس اللحظة
+  const [localSells, setLocalSells] = useState<SellerUnitItem[]>(sells)
+  useEffect(() => {
+    setLocalSells(sells)
+  }, [sells])
+
   const [selectedId, setSelectedId] = useState<string>(
     initialSelectedUnitId && sells.some((s) => s.id === initialSelectedUnitId)
       ? initialSelectedUnitId
       : sells[0]?.id || ''
   )
   const [showAllUnitsList, setShowAllUnitsList] = useState(false)
+
+  // حالة إخفاء/إظهار صندوق الإعلان (تكون false عند فتح الصفحة ليظهر بحجمه الكامل، ويمكن للمستخدم إخفاؤه أو فتحه بزر)
+  const [isPromoCollapsed, setIsPromoCollapsed] = useState(false)
+
   const [confirmModal, setConfirmModal] = useState<ConfirmModalState>(null)
-  const [selectedPromoDays, setSelectedPromoDays] = useState<7 | 14 | 30 | null>(
-    null
-  )
-  const [generatedAdRef, setGeneratedAdRef] = useState<string | null>(null)
   const [copiedAdRef, setCopiedAdRef] = useState(false)
   const [actionMessage, setActionMessage] = useState('')
   const [isPending, startTransition] = useTransition()
 
-  const activeUnit = sells.find((s) => s.id === selectedId) || sells[0]
+  // قراءة الدولة والعملة وأسعار الباقات التي حددها الأدمن في الإعدادات
+  const [countryCode, setCountryCode] = useState<CountryCode>('EG')
+  const [adminPromoPrices, setAdminPromoPrices] = useState<{
+    days7: number
+    days14: number
+    days30: number
+  } | null>(null)
+
+  useEffect(() => {
+    const syncCountryAndSettings = () => {
+      const activeC = getActiveCountryFromCookie()
+      setCountryCode(activeC.code)
+
+      // فحص هل الأدمن حفظ أسعار مخصصة في كوكي إعدادات الموقع
+      try {
+        const match = document.cookie
+          .split('; ')
+          .find((r) => r.startsWith('darak_site_settings='))
+        if (match) {
+          const parsed = JSON.parse(decodeURIComponent(match.split('=')[1]))
+          if (
+            activeC.code === 'EG' &&
+            (parsed.promo7Price || parsed.promo14Price || parsed.promo30Price)
+          ) {
+            setAdminPromoPrices({
+              days7: Number(parsed.promo7Price) || activeC.defaultPackages.days7,
+              days14:
+                Number(parsed.promo14Price) || activeC.defaultPackages.days14,
+              days30:
+                Number(parsed.promo30Price) || activeC.defaultPackages.days30,
+            })
+            return
+          }
+        }
+      } catch {}
+      setAdminPromoPrices(null)
+    }
+
+    syncCountryAndSettings()
+    window.addEventListener('country-changed', syncCountryAndSettings)
+    return () =>
+      window.removeEventListener('country-changed', syncCountryAndSettings)
+  }, [])
+
+  const activeUnit =
+    localSells.find((s) => s.id === selectedId) || localSells[0]
   if (!activeUnit) return null
+
+  // تحديد عملة وأسعار باقات التمييز حسب دولة العقار نفسه (أو الدولة المختارة)
+  const unitCountryCode =
+    (activeUnit.country_code as CountryCode) &&
+    SUPPORTED_COUNTRIES[activeUnit.country_code as CountryCode]
+      ? (activeUnit.country_code as CountryCode)
+      : countryCode
+  const unitCountryCfg =
+    SUPPORTED_COUNTRIES[unitCountryCode] || SUPPORTED_COUNTRIES.EG
+  const currencySymbol = unitCountryCfg.currencySymbol
+
+  const pkgPrices =
+    unitCountryCode === 'EG' && adminPromoPrices
+      ? adminPromoPrices
+      : unitCountryCfg.defaultPackages
+
+  const dynamicPackages: Array<{
+    days: 7 | 14 | 30
+    price: number
+    label: string
+  }> = [
+    { days: 7, price: pkgPrices.days7, label: '7 أيام' },
+    { days: 14, price: pkgPrices.days14, label: '14 أيام' },
+    { days: 30, price: pkgPrices.days30, label: '30 أيام' },
+  ]
+
+  const money = (value: number | null | undefined) =>
+    `${Number(value || 0).toLocaleString('en-US')} ${currencySymbol}`
 
   const comp = calculateUnitCompletion(activeUnit)
   const isComplete = comp.percentage === 100
@@ -279,8 +360,11 @@ export function SellerDashboard({
     ? `/sell?editUnitId=${activeUnit.id}&step=5`
     : `/sell?editUnitId=${activeUnit.id}&step=3`
 
+  // فحص حالة التمييز الحالية للوحدة
   const isCurrentlyFeatured =
     Boolean(activeUnit.is_featured) &&
+    activeUnit.featured_status !== 'cancelled_by_seller' &&
+    activeUnit.featured_status !== 'none' &&
     (!activeUnit.featured_until ||
       new Date(activeUnit.featured_until) > new Date())
 
@@ -299,14 +383,16 @@ export function SellerDashboard({
       : activeUnit.featured_days || 0
 
   const currentAdRef =
-    generatedAdRef || activeUnit.featured_fawry_code || null
+    isCurrentlyFeatured || isPendingPromo
+      ? activeUnit.featured_fawry_code ||
+        `AD-${activeUnit.id.slice(0, 6).toUpperCase()}`
+      : null
 
-  const activePromoDays =
-    selectedPromoDays || (activeUnit.featured_days as 7 | 14 | 30) || 14
+  const activePromoDays = (activeUnit.featured_days as 7 | 14 | 30) || 14
   const activePromoPrice =
-    PROMO_PACKAGES.find((p) => p.days === activePromoDays)?.price ||
+    dynamicPackages.find((p) => p.days === activePromoDays)?.price ||
     activeUnit.featured_price ||
-    1999
+    pkgPrices.days14
 
   const executeConfirmedAction = () => {
     if (!confirmModal) return
@@ -321,46 +407,99 @@ export function SellerDashboard({
         })
         setConfirmModal(null)
         if (res.success) {
+          setLocalSells((prev) =>
+            prev.map((u) =>
+              u.id === activeUnit.id
+                ? {
+                    ...u,
+                    status:
+                      nextAction === 'pause' ? 'paused_by_seller' : 'pending',
+                  }
+                : u
+            )
+          )
           setActionMessage(
             nextAction === 'pause'
               ? 'تم إيقاف عرض الوحدة مؤقتاً وإخفاؤها من السوق.'
               : 'تم إرسال طلب إعادة عرض الوحدة للإدارة للمراجعة والنشر ✓'
           )
+          router.refresh()
         }
       } else if (confirmModal.type === 'delete') {
         const res = await deleteUnitBySellerAction(activeUnit.id)
         setConfirmModal(null)
         if (res.success) {
-          const remaining = sells.filter((s) => s.id !== activeUnit.id)
+          const remaining = localSells.filter((s) => s.id !== activeUnit.id)
+          setLocalSells(remaining)
           if (remaining[0]) setSelectedId(remaining[0].id)
+          router.refresh()
         }
       } else if (confirmModal.type === 'promote') {
+        const pkg = confirmModal.pkg
         const res = await requestUnitPromotionAction({
           unitId: activeUnit.id,
-          days: confirmModal.pkg.days,
-          price: confirmModal.pkg.price,
+          days: pkg.days,
+          price: pkg.price,
         })
         setConfirmModal(null)
-        if (res.success && res.fawryCode) {
-          setGeneratedAdRef(res.fawryCode)
-          setSelectedPromoDays(confirmModal.pkg.days)
-          setActionMessage(
-            `تم تسجيل طلب تمييز الوحدة (${confirmModal.pkg.label}) — رقم طلب الإعلان: ${res.fawryCode} ⭐`
+        if (res.success) {
+          const code =
+            res.fawryCode || `AD-${activeUnit.id.slice(0, 6).toUpperCase()}`
+          // تحديث فوري على الشاشة
+          setLocalSells((prev) =>
+            prev.map((u) =>
+              u.id === activeUnit.id
+                ? {
+                    ...u,
+                    featured_days: pkg.days,
+                    featured_price: pkg.price,
+                    featured_status: 'pending_payment',
+                    featured_fawry_code: code,
+                  }
+                : u
+            )
           )
+          setActionMessage(
+            `✓ تم تسجيل طلب تمييز الوحدة (${pkg.label}) بنجاح — رقم طلب الإعلان: ${code}`
+          )
+          router.refresh()
+        } else {
+          setActionMessage(res.error || 'تعذر تسجيل طلب التمييز.')
         }
       } else if (confirmModal.type === 'cancel_promo') {
         const res = await cancelUnitPromotionBySellerAction(activeUnit.id)
         setConfirmModal(null)
         if (res.success) {
-          setGeneratedAdRef(null)
-          setSelectedPromoDays(null)
-          setActionMessage('تم إلغاء طلب الإعلان / إيقاف تمييز الوحدة بنجاح.')
+          // مسح طلب التمييز فوراً من الشاشة بدون انتظار
+          setLocalSells((prev) =>
+            prev.map((u) =>
+              u.id === activeUnit.id
+                ? {
+                    ...u,
+                    is_featured: false,
+                    featured_status: 'none',
+                    featured_fawry_code: null,
+                    featured_days: 0,
+                    featured_price: 0,
+                    featured_until: null,
+                  }
+                : u
+            )
+          )
+          setActionMessage(
+            '✓ تم حذف وإلغاء طلب تمييز الوحدة بنجاح، وعادت للعرض المجاني.'
+          )
+          router.refresh()
+        } else {
+          setActionMessage(res.error || 'تعذر إلغاء طلب التمييز.')
         }
       }
     })
   }
 
-  const visibleUnitsInList = showAllUnitsList ? sells : sells.slice(0, 2)
+  const visibleUnitsInList = showAllUnitsList
+    ? localSells
+    : localSells.slice(0, 2)
 
   return (
     <div className="mx-auto max-w-[680px] px-4 sm:px-6">
@@ -373,7 +512,8 @@ export function SellerDashboard({
             </span>
             <div>
               <p className="text-[11px] font-bold text-gray-400">
-                الوحدة المفتوحة أمامك الآن:
+                الوحدة المفتوحة أمامك الآن ({unitCountryCfg.flag}{' '}
+                {unitCountryCfg.nameAr}):
               </p>
               <h1 className="text-base font-extrabold text-[#0a1122] sm:text-xl">
                 {activeUnit.project_name || 'وحدتك العقارية'}{' '}
@@ -394,23 +534,22 @@ export function SellerDashboard({
           </span>
         </div>
 
-        {sells.length > 1 && (
+        {localSells.length > 1 && (
           <div className="mt-3.5 border-t border-gray-100 pt-3">
             <label className="mb-1.5 block text-[11px] font-extrabold text-[#0b6954]">
-              لديك ({sells.length}) وحدات مسجلة — اختر الوحدة التي تريد متابعتها:
+              لديك ({localSells.length}) وحدات مسجلة — اختر الوحدة التي تريد
+              متابعتها:
             </label>
             <div className="relative">
               <select
                 value={activeUnit.id}
                 onChange={(e) => {
                   setSelectedId(e.target.value)
-                  setGeneratedAdRef(null)
-                  setSelectedPromoDays(null)
                   setActionMessage('')
                 }}
                 className="h-11 w-full appearance-none rounded-xl border border-gray-200 bg-gray-50/80 pr-3.5 pl-9 text-xs font-extrabold text-[#0a1122] focus:border-[#0b6954] focus:bg-white focus:outline-none sm:text-sm"
               >
-                {sells.map((u, idx) => {
+                {localSells.map((u, idx) => {
                   const uComp = calculateUnitCompletion(u)
                   const uMeta = getSellerTimelineAndStatus(
                     u,
@@ -557,159 +696,197 @@ export function SellerDashboard({
         </div>
       </section>
 
-      {/* ==================== 4. صندوق الترويج والتمييز (برقم طلب الإعلان + واتساب + تعديل أو إلغاء الباقة) ==================== */}
-      <section className="mt-6 rounded-[20px] border border-[#aae3cb] bg-[#effaf5] p-5 text-right shadow-xs sm:p-7">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="inline-flex items-center gap-1 text-xs font-extrabold text-[#0b6954]">
-            <Star className="size-3.5 fill-amber-400 text-amber-500" />
-            <span>اختياري — الترويج والتمييز</span>
-          </span>
-
-          {isCurrentlyFeatured && (
-            <span className="rounded-full bg-amber-100 px-3 py-1 text-[11px] font-extrabold text-amber-800">
-              ⭐ وحدتك مميزة حالياً (متبقي {remainingFeaturedDays} يوم)
+      {/* ==================== 4. صندوق الترويج والتمييز (قابل للإخفاء والإظهار + باقات واضحة للضغط) ==================== */}
+      {isPromoCollapsed ? (
+        <div className="mt-6 flex items-center justify-between rounded-2xl border border-[#aae3cb] bg-[#effaf5] px-4 py-3.5 shadow-2xs">
+          <div className="flex items-center gap-2 text-right">
+            <Star className="size-4 shrink-0 fill-amber-400 text-amber-500" />
+            <span className="text-xs font-extrabold text-[#0a1122]">
+              عايز وحدتك تبقى أول اللي المشتري يشوفه وتتباع أسرع؟
             </span>
-          )}
-
-          {isPendingPromo && (
-            <span className="rounded-full bg-blue-100 px-3 py-1 text-[11px] font-extrabold text-blue-800">
-              ⏳ طلب تمييز بانتظار التفعيل ({activePromoDays} أيام)
-            </span>
-          )}
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsPromoCollapsed(false)}
+            className="shrink-0 rounded-xl bg-[#0b6954] px-3.5 py-2 text-xs font-extrabold text-white transition hover:bg-[#095443]"
+          >
+            اعرض باقات التمييز ⭐
+          </button>
         </div>
+      ) : (
+        <section className="mt-6 rounded-[20px] border border-[#aae3cb] bg-[#effaf5] p-5 text-right shadow-xs sm:p-7">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1 text-xs font-extrabold text-[#0b6954] shadow-2xs">
+                <Star className="size-3.5 fill-amber-400 text-amber-500" />
+                <span>إعلان اختياري — تمييز الوحدة</span>
+              </span>
 
-        <h3 className="mt-1.5 text-base font-extrabold text-[#0a1122] sm:text-lg">
-          عايز وحدتك تبقى أول اللي المشتري يشوفه؟
-        </h3>
-
-        <ul className="mt-3 space-y-2 text-xs font-medium text-[#1e3a34]">
-          <li className="flex items-center gap-2">
-            <Check className="size-3.5 shrink-0 text-[#0b6954]" />
-            <span>ظهور في «فرص مميزة» في أول السوق وفي أول نتائج البحث</span>
-          </li>
-          <li className="flex items-center gap-2">
-            <Check className="size-3.5 shrink-0 text-[#0b6954]" />
-            <span>
-              شارة{' '}
-              <Star className="inline size-3 fill-amber-400 text-amber-500" />{' '}
-              مميزة على كارت وحدتك تجذب المشترين الجادين
-            </span>
-          </li>
-          <li className="flex items-center gap-2">
-            <Check className="size-3.5 shrink-0 text-[#0b6954]" />
-            <span>تقرير أسبوعي بأرقام حقيقية لعدد المشاهدات والعروض</span>
-          </li>
-        </ul>
-
-        {/* الباقات الثلاث (يمكنه اختيار باقة أو تغيير باقته الحالية بضغطة واحدة) */}
-        <p className="mt-4 mb-2 text-[11px] font-extrabold text-[#0b6954]">
-          {isCurrentlyFeatured || isPendingPromo
-            ? 'يمكنك الضغط على أي باقة أخرى لتغيير أو تجديد اشتراكك:'
-            : 'اختر الباقة المناسبة لوحدتك:'}
-        </p>
-        <div className="grid grid-cols-3 gap-2.5 sm:gap-3.5">
-          {PROMO_PACKAGES.map((pkg) => {
-            const isSelected =
-              (isCurrentlyFeatured || isPendingPromo || generatedAdRef) &&
-              activePromoDays === pkg.days
-            return (
-              <button
-                key={pkg.days}
-                type="button"
-                disabled={isPending}
-                onClick={() => {
-                  setConfirmModal({ type: 'promote', pkg })
-                }}
-                className={`flex flex-col items-center justify-center rounded-2xl border bg-white p-3.5 text-center transition hover:shadow-md sm:p-4 ${
-                  isSelected
-                    ? 'border-[#0b6954] ring-2 ring-[#0b6954]/25'
-                    : 'border-gray-200/90 hover:border-[#0b6954]/50'
-                }`}
-              >
-                <span className="text-xs font-extrabold text-[#0a1122] sm:text-sm">
-                  {pkg.label}
+              {isCurrentlyFeatured && (
+                <span className="rounded-full bg-amber-100 px-3 py-1 text-[11px] font-extrabold text-amber-800">
+                  ⭐ وحدتك مميزة حالياً (متبقي {remainingFeaturedDays} يوم)
                 </span>
-                <span className="mt-1 text-xs font-extrabold text-[#0b6954] tabular-nums sm:text-sm">
-                  {pkg.price.toLocaleString('en-US')} ج.م
-                </span>
-                {isSelected && (
-                  <span className="mt-1 rounded-full bg-[#eff9f5] px-2 py-0.5 text-[9px] font-extrabold text-[#0b6954]">
-                    باقتك المختارة ✓
-                  </span>
-                )}
-              </button>
-            )
-          })}
-        </div>
-
-        <p className="mt-4 text-[11px] leading-relaxed text-[#2b584d]">
-          نشر وحدتك مجاني بالكامل وهيفضل مجاني — ده اختياري بس لو عايز ظهور
-          أكتر، والأيام بتتحسب من لحظة التفعيل والنشر في السوق.
-        </p>
-
-        {/* صندوق رقم طلب الإعلان + زر واتساب + زر إلغاء الاشتراك */}
-        {(currentAdRef || isCurrentlyFeatured || isPendingPromo) && (
-          <div className="mt-4 rounded-xl border border-[#0b6954]/30 bg-white p-4 text-right shadow-2xs">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <p className="text-xs font-extrabold text-[#0a1122]">
-                  رقم طلب الإعلان المميز لوحدتك (باقة {activePromoDays} أيام):
-                </p>
-                <p className="mt-1 font-mono text-lg font-black tracking-wider text-[#0b6954]">
-                  {currentAdRef ||
-                    `AD-${activeUnit.id.slice(0, 6).toUpperCase()}`}
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  const codeToCopy =
-                    currentAdRef ||
-                    `AD-${activeUnit.id.slice(0, 6).toUpperCase()}`
-                  navigator.clipboard?.writeText(codeToCopy)
-                  setCopiedAdRef(true)
-                  setTimeout(() => setCopiedAdRef(false), 2000)
-                }}
-                className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-gray-200 bg-gray-50 px-3 text-xs font-bold text-[#0a1122] hover:bg-gray-100"
-              >
-                <Copy className="size-3.5" />
-                <span>{copiedAdRef ? 'تم النسخ ✓' : 'نسخ رقم الطلب'}</span>
-              </button>
-            </div>
-
-            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3">
-              {!isCurrentlyFeatured && (
-                <a
-                  href={`https://wa.me/201018595959?text=${encodeURIComponent(
-                    `أهلاً إدارة منصة دارك، أرغب في تفعيل باقة تمييز (${activePromoDays} أيام - ${activePromoPrice.toLocaleString('en-US')} ج.م) لوحدتي في مشروع (${activeUnit.project_name || 'وحدتي'}) — رقم طلب الإعلان: ${currentAdRef || `AD-${activeUnit.id.slice(0, 6).toUpperCase()}`}`
-                  )}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 text-xs font-extrabold text-white shadow-2xs transition hover:opacity-95"
-                >
-                  <MessageCircle className="size-4" />
-                  <span>تواصل واتساب لتأكيد وتفعيل الإعلان</span>
-                </a>
               )}
 
-              <button
-                type="button"
-                disabled={isPending}
-                onClick={() => setConfirmModal({ type: 'cancel_promo' })}
-                className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-red-50/70 px-3.5 text-xs font-bold text-red-600 transition hover:bg-red-100"
-              >
-                <XCircle className="size-3.5" />
-                <span>
-                  {isCurrentlyFeatured
-                    ? 'إيقاف اشتراك التمييز'
-                    : 'إلغاء طلب الإعلان'}
+              {isPendingPromo && (
+                <span className="rounded-full bg-blue-100 px-3 py-1 text-[11px] font-extrabold text-blue-800">
+                  ⏳ طلب تمييز بانتظار التفعيل ({activePromoDays} أيام)
                 </span>
-              </button>
+              )}
             </div>
+
+            {/* زر إخفاء الإعلان من الصفحة */}
+            <button
+              type="button"
+              onClick={() => setIsPromoCollapsed(true)}
+              className="inline-flex items-center gap-1 rounded-lg bg-white/80 px-2.5 py-1 text-[11px] font-bold text-gray-500 transition hover:bg-white hover:text-gray-800"
+              title="إخفاء هذا الإعلان الآن"
+            >
+              <EyeOff className="size-3.5" />
+              <span>إخفاء الإعلان</span>
+            </button>
           </div>
-        )}
-      </section>
+
+          <h3 className="mt-3 text-base font-extrabold text-[#0a1122] sm:text-lg">
+            عايز وحدتك تبقى أول اللي المشتري يشوفه؟
+          </h3>
+
+          <ul className="mt-2.5 space-y-2 text-xs font-medium text-[#1e3a34]">
+            <li className="flex items-center gap-2">
+              <Check className="size-3.5 shrink-0 text-[#0b6954]" />
+              <span>ظهور في «فرص مميزة» في أول السوق وفي أول نتائج البحث</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <Check className="size-3.5 shrink-0 text-[#0b6954]" />
+              <span>
+                شارة{' '}
+                <Star className="inline size-3 fill-amber-400 text-amber-500" />{' '}
+                مميزة على كارت وحدتك تجذب المشترين الجادين
+              </span>
+            </li>
+            <li className="flex items-center gap-2">
+              <Check className="size-3.5 shrink-0 text-[#0b6954]" />
+              <span>تقرير أسبوعي بأرقام حقيقية لعدد المشاهدات والعروض</span>
+            </li>
+          </ul>
+
+          {/* توجيه صريح وواضح أن البطاقات التالية قابلة للضغط والاختيار */}
+          <div className="mt-5 mb-2.5 flex items-center gap-1.5 text-xs font-extrabold text-[#0b6954]">
+            <MousePointerClick className="size-4 animate-bounce" />
+            <span>
+              {isCurrentlyFeatured || isPendingPromo
+                ? 'اضغط على أي باقة بالأسفل لو حابب تغيّر باقتك الحالية:'
+                : 'اضغط على الباقة اللي تناسبك بالأسفل للاشتراك وتفعيل التمييز:'}
+            </span>
+          </div>
+
+          {/* الباقات الثلاث كأزرار تفاعلية واضحة جداً */}
+          <div className="grid grid-cols-3 gap-2.5 sm:gap-3.5">
+            {dynamicPackages.map((pkg) => {
+              const isSelected =
+                (isCurrentlyFeatured || isPendingPromo) &&
+                activePromoDays === pkg.days
+              return (
+                <button
+                  key={pkg.days}
+                  type="button"
+                  disabled={isPending}
+                  onClick={() => {
+                    setConfirmModal({ type: 'promote', pkg })
+                  }}
+                  className={`group flex cursor-pointer flex-col items-center justify-between rounded-2xl border bg-white p-3 text-center transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-95 sm:p-4 ${
+                    isSelected
+                      ? 'border-[#0b6954] ring-2 ring-[#0b6954]/25'
+                      : 'border-gray-200 hover:border-[#0b6954]'
+                  }`}
+                >
+                  <span className="text-xs font-extrabold text-[#0a1122] sm:text-sm">
+                    {pkg.label}
+                  </span>
+                  <span className="my-1.5 text-xs font-black text-[#0b6954] tabular-nums sm:text-base">
+                    {pkg.price.toLocaleString('en-US')} {currencySymbol}
+                  </span>
+                  <span
+                    className={`w-full rounded-lg py-1 text-[10px] font-extrabold transition sm:text-[11px] ${
+                      isSelected
+                        ? 'bg-[#0b6954] text-white'
+                        : 'bg-[#eff9f5] text-[#0b6954] group-hover:bg-[#0b6954] group-hover:text-white'
+                    }`}
+                  >
+                    {isSelected ? 'باقتك الحالية ✓' : 'اضغط للاختيار'}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+
+          <p className="mt-4 text-[11px] leading-relaxed text-[#2b584d]">
+            نشر وحدتك مجاني بالكامل وهيفضل مجاني — ده اختياري بس لو عايز ظهور
+            أكتر، والأيام بتتحسب من لحظة التفعيل والنشر في السوق.
+          </p>
+
+          {/* صندوق رقم طلب الإعلان + زر واتساب + زر إلغاء وحذف الطلب */}
+          {(isCurrentlyFeatured || isPendingPromo) && currentAdRef && (
+            <div className="mt-4 rounded-xl border border-[#0b6954]/30 bg-white p-4 text-right shadow-2xs">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="text-xs font-extrabold text-[#0a1122]">
+                    رقم طلب الإعلان المميز لوحدتك (باقة {activePromoDays} أيام —{' '}
+                    {activePromoPrice.toLocaleString('en-US')} {currencySymbol}
+                    ):
+                  </p>
+                  <p className="mt-1 font-mono text-lg font-black tracking-wider text-[#0b6954]">
+                    {currentAdRef}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard?.writeText(currentAdRef)
+                    setCopiedAdRef(true)
+                    setTimeout(() => setCopiedAdRef(false), 2000)
+                  }}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-gray-200 bg-gray-50 px-3 text-xs font-bold text-[#0a1122] hover:bg-gray-100"
+                >
+                  <Copy className="size-3.5" />
+                  <span>{copiedAdRef ? 'تم النسخ ✓' : 'نسخ رقم الطلب'}</span>
+                </button>
+              </div>
+
+              <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3">
+                {!isCurrentlyFeatured && (
+                  <a
+                    href={`https://wa.me/201018595959?text=${encodeURIComponent(
+                      `أهلاً إدارة منصة دارك، أرغب في تفعيل باقة تمييز (${activePromoDays} أيام - ${activePromoPrice.toLocaleString('en-US')} ${currencySymbol}) لوحدتي في مشروع (${activeUnit.project_name || 'وحدتي'}) — رقم طلب الإعلان: ${currentAdRef}`
+                    )}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 text-xs font-extrabold text-white shadow-2xs transition hover:opacity-95"
+                  >
+                    <MessageCircle className="size-4" />
+                    <span>تواصل واتساب لتأكيد وتفعيل الإعلان</span>
+                  </a>
+                )}
+
+                <button
+                  type="button"
+                  disabled={isPending}
+                  onClick={() => setConfirmModal({ type: 'cancel_promo' })}
+                  className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3.5 text-xs font-extrabold text-red-600 transition hover:bg-red-100"
+                >
+                  <XCircle className="size-3.5" />
+                  <span>
+                    {isCurrentlyFeatured
+                      ? 'إيقاف وإلغاء اشتراك التمييز'
+                      : 'حذف وإلغاء طلب الإعلان'}
+                  </span>
+                </button>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
 
       {/* 5. كارت السعر والمدفوع */}
       <section className="mt-6 grid grid-cols-2 gap-4 rounded-[18px] border border-gray-200/80 bg-white p-5 text-right shadow-2xs sm:p-6">
@@ -800,7 +977,7 @@ export function SellerDashboard({
       <section className="mt-8">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-extrabold text-[#0a1122] sm:text-base">
-            وحداتي المسجلة ({sells.length})
+            وحداتي المسجلة ({localSells.length})
           </h2>
           <Link
             href="/sell?new=1"
@@ -823,8 +1000,6 @@ export function SellerDashboard({
                 key={item.id}
                 onClick={() => {
                   setSelectedId(item.id)
-                  setGeneratedAdRef(null)
-                  setSelectedPromoDays(null)
                   setActionMessage('')
                   window.scrollTo({ top: 0, behavior: 'smooth' })
                 }}
@@ -881,7 +1056,7 @@ export function SellerDashboard({
           })}
         </div>
 
-        {sells.length > 2 && (
+        {localSells.length > 2 && (
           <div className="mt-3 text-center">
             <button
               type="button"
@@ -890,16 +1065,16 @@ export function SellerDashboard({
             >
               {showAllUnitsList
                 ? 'عرض آخر وحدتين فقط ↑'
-                : `عرض كل وحداتي (${sells.length} وحدات) ↓`}
+                : `عرض كل وحداتي (${localSells.length} وحدات) ↓`}
             </button>
           </div>
         )}
       </section>
 
-      {/* 8. أزرار الحساب في الأسفل متوسطة */}
+      {/* 8. أزرار الحساب في الأسفل متوسطة بدون زر تسجيل الخروج */}
       <div className="mt-8 flex justify-center border-t border-gray-200/80 pt-6 [&>*]:justify-center [&_div]:justify-center [&_form]:hidden">
         <AccountActionLinks
-          unitsCount={sells.length}
+          unitsCount={localSells.length}
           initialDeletionRequested={deletionRequested}
           position="bottom"
         />
@@ -948,7 +1123,7 @@ export function SellerDashboard({
                     {confirmModal.type === 'promote' &&
                       `تأكيد باقة التمييز (${confirmModal.pkg.label})`}
                     {confirmModal.type === 'cancel_promo' &&
-                      'تأكيد إلغاء طلب الإعلان / التمييز'}
+                      'تأكيد حذف وإلغاء طلب التمييز'}
                   </DialogTitle>
                 </div>
 
@@ -990,15 +1165,16 @@ export function SellerDashboard({
                       </strong>{' '}
                       بتكلفة{' '}
                       <strong className="text-[#0b6954]">
-                        {confirmModal.pkg.price.toLocaleString('en-US')} ج.م
+                        {confirmModal.pkg.price.toLocaleString('en-US')}{' '}
+                        {currencySymbol}
                       </strong>{' '}
                       وإصدار رقم طلب الإعلان للتواصل مع الإدارة وتفعيله.
                     </>
                   )}
                   {confirmModal.type === 'cancel_promo' && (
                     <>
-                      هل أنت متأكد من إلغاء طلب الإعلان وإيقاف ميزة النجمة
-                      الذهبية لوحدة{' '}
+                      هل أنت متأكد من حذف طلب الإعلان وإيقاف ميزة النجمة الذهبية
+                      لوحدة{' '}
                       <strong className="text-red-600">
                         "{activeUnit.project_name || 'وحدتك'}"
                       </strong>

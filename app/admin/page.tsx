@@ -7,6 +7,8 @@ import {
   CircleDollarSign,
   Clock3,
   MessageCircle,
+  Sparkles,
+  Star,
   Users,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
@@ -69,6 +71,7 @@ export default async function AdminPage() {
     supabase
       .from("sell_requests")
       .select("*")
+      .neq("status", "deleted_by_seller")
       .order("created_at", { ascending: false }),
     supabase
       .from("buy_requests")
@@ -95,14 +98,18 @@ export default async function AdminPage() {
   const activeProperties = properties.filter((p) => p.status === "active")
   const soldProperties = properties.filter((p) => p.status === "sold")
 
-  // حساب العمولات المحققة فعلياً من العقارات المباعة فقط (1.25%)
+  // حساب طلبات الإعلان والوحدات المميزة
+  const pendingAdRequests = properties.filter(
+    (p) => !p.is_featured && p.featured_status === "pending_payment"
+  )
+  const activeFeaturedUnits = properties.filter((p) => p.is_featured)
+
   const soldPortfolioValue = soldProperties.reduce(
     (sum, p) => sum + (Number(p.contract_price) || Number(p.paid_amount) || 0),
     0
   )
   const realizedCommission = Math.round(soldPortfolioValue * 0.0125)
 
-  // تم فصل القيمة عن العملة (suffix) لسهولة التحكم في تصميمهم
   const kpis = [
     {
       label: "إجمالي العقارات",
@@ -118,8 +125,22 @@ export default async function AdminPage() {
       suffix: "",
       note: pendingProperties.length > 0 ? "تحتاج مراجعتك" : "تمت مراجعة الكل",
       icon: Clock3,
-      href: "/admin/properties",
+      href: "/admin/properties?tab=pending",
       highlight: pendingProperties.length > 0,
+    },
+    {
+      label: "طلبات الإعلانات ⭐",
+      value: (
+        pendingAdRequests.length + activeFeaturedUnits.length
+      ).toLocaleString("en-US"),
+      suffix: "",
+      note:
+        pendingAdRequests.length > 0
+          ? `${pendingAdRequests.length} طلب بانتظار التفعيل`
+          : `${activeFeaturedUnits.length} وحدة مميزة نشطة`,
+      icon: Star,
+      href: "/admin/properties?tab=featured",
+      highlight: pendingAdRequests.length > 0,
     },
     {
       label: "طلبات المشترين",
@@ -129,31 +150,32 @@ export default async function AdminPage() {
       icon: Users,
       href: "/admin/leads",
     },
-    {
-      label: "العمولات المحققة",
-      value: realizedCommission.toLocaleString("en-US"),
-      suffix: "ج.م",
-      note: `${soldProperties.length.toLocaleString("en-US")} وحدة مباعة · ${investors.length.toLocaleString("en-US")} مستثمر`,
-      icon: CircleDollarSign,
-      href: "/admin/investors",
-    },
   ]
 
   return (
     <div className="mx-auto max-w-7xl">
-      {/* الهيدر العلوي للصفحة */}
       <div className="mb-6 flex flex-col justify-between gap-3 sm:mb-8 sm:flex-row sm:items-end">
         <div>
           <p className="text-xs font-extrabold text-[#105C50]">نظرة عامة حية</p>
           <h2 className="mt-1 text-xl font-extrabold text-[#0a1122] sm:text-3xl">
-            مركز الادارة
+            مركز الإدارة
           </h2>
           <p className="mt-1 text-xs text-gray-500 sm:text-sm">
-            إحصائيات حقيقية مباشرة من قاعدة البيانات لمتابعة حركة البائعين والمشترين.
+            إحصائيات حقيقية مباشرة من قاعدة البيانات لمتابعة حركة البائعين والمشترين وطلبات الإعلانات.
           </p>
         </div>
 
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-2.5">
+          <Link
+            href="/admin/properties?tab=featured"
+            className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl bg-amber-500 px-3 text-xs font-extrabold text-white shadow-sm transition hover:bg-amber-600 sm:px-4"
+          >
+            <Star className="size-4 shrink-0 fill-white" />
+            <span>
+              طلبات الإعلان (
+              {pendingAdRequests.length + activeFeaturedUnits.length})
+            </span>
+          </Link>
           <Link
             href="/admin/properties"
             className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl bg-[#105C50] px-3 text-xs font-bold text-white shadow-sm transition hover:bg-[#0c483f] sm:px-4"
@@ -161,82 +183,102 @@ export default async function AdminPage() {
             <Building2 className="size-4 shrink-0" />
             <span>العقارات ({properties.length.toLocaleString("en-US")})</span>
           </Link>
-          <Link
-            href="/admin/users"
-            className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-[#0a1122] shadow-sm transition hover:bg-gray-50 sm:px-4"
-          >
-            <Users className="size-4 shrink-0" />
-            <span>الفريق والصلاحيات</span>
-          </Link>
         </div>
       </div>
 
-      {/* بطاقات الإحصائيات (KPIs) - تصميم احترافي جديد ومربع */}
+      {/* بطاقات الإحصائيات (KPIs) */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-        {kpis.map(({ label, value, suffix, note, icon: Icon, href, highlight }) => (
-          <Link
-            key={label}
-            href={href}
-            className="group block cursor-pointer transition-all hover:-translate-y-1"
-          >
-            <Card
-              className={`h-full overflow-hidden transition-all duration-300 ${
-                highlight
-                  ? "border-[#105C50]/40 bg-gradient-to-br from-[#eff8f6] to-white shadow-sm hover:border-[#105C50] hover:shadow-md"
-                  : "border-gray-200/80 bg-white shadow-sm hover:border-[#105C50]/60 hover:shadow-md"
-              }`}
+        {kpis.map(
+          ({ label, value, suffix, note, icon: Icon, href, highlight }) => (
+            <Link
+              key={label}
+              href={href}
+              className="group block cursor-pointer transition-all hover:-translate-y-1"
             >
-              <CardContent className="flex h-full flex-col justify-between p-4 sm:p-5">
-                
-                {/* 1. الأيقونة في اليمين وبجانبها النص */}
-                <div className="flex items-center gap-2.5">
-                  <span
-                    className={`flex size-8 shrink-0 items-center justify-center rounded-lg transition-colors sm:size-10 ${
-                      highlight
-                        ? "bg-[#105C50] text-white"
-                        : "bg-[#105C50]/10 text-[#105C50] group-hover:bg-[#105C50] group-hover:text-white"
-                    }`}
-                  >
-                    <Icon className="size-4 sm:size-5" />
-                  </span>
-                  <p className="text-[11px] font-bold text-gray-500 transition-colors group-hover:text-[#105C50] sm:text-xs">
-                    {label}
-                  </p>
-                </div>
-
-                {/* 2. الرقم الكبير في المنتصف، والعملة على الشمال */}
-                <div className="flex flex-1 items-center justify-center py-4">
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="text-3xl font-black tracking-tight text-[#0a1122] sm:text-4xl">
-                      {value}
+              <Card
+                className={`h-full overflow-hidden transition-all duration-300 ${
+                  highlight
+                    ? "border-[#105C50]/40 bg-gradient-to-br from-[#eff8f6] to-white shadow-sm hover:border-[#105C50] hover:shadow-md"
+                    : "border-gray-200/80 bg-white shadow-sm hover:border-[#105C50]/60 hover:shadow-md"
+                }`}
+              >
+                <CardContent className="flex h-full flex-col justify-between p-4 sm:p-5">
+                  <div className="flex items-center gap-2.5">
+                    <span
+                      className={`flex size-8 shrink-0 items-center justify-center rounded-lg transition-colors sm:size-10 ${
+                        highlight
+                          ? "bg-[#105C50] text-white"
+                          : "bg-[#105C50]/10 text-[#105C50] group-hover:bg-[#105C50] group-hover:text-white"
+                      }`}
+                    >
+                      <Icon className="size-4 sm:size-5" />
                     </span>
-                    {suffix && (
-                      <span className="text-[11px] font-extrabold text-gray-400 sm:text-xs">
-                        {suffix}
-                      </span>
-                    )}
+                    <p className="text-[11px] font-bold text-gray-500 transition-colors group-hover:text-[#105C50] sm:text-xs">
+                      {label}
+                    </p>
                   </div>
-                </div>
 
-                {/* 3. الملاحظة السفلية محاذاة لليمين عادي */}
-                <div className="text-right">
-                  <p
-                    className={`text-[10px] font-semibold sm:text-xs ${
-                      highlight ? "text-[#105C50]" : "text-gray-500"
-                    }`}
-                  >
-                    {note}
-                  </p>
-                </div>
+                  <div className="flex flex-1 items-center justify-center py-4">
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="text-3xl font-black tracking-tight text-[#0a1122] sm:text-4xl">
+                        {value}
+                      </span>
+                      {suffix && (
+                        <span className="text-[11px] font-extrabold text-gray-400 sm:text-xs">
+                          {suffix}
+                        </span>
+                      )}
+                    </div>
+                  </div>
 
-              </CardContent>
-            </Card>
-          </Link>
-        ))}
+                  <div className="text-right">
+                    <p
+                      className={`text-[10px] font-semibold sm:text-xs ${
+                        highlight ? "text-[#105C50]" : "text-gray-500"
+                      }`}
+                    >
+                      {note}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          )
+        )}
       </div>
 
+      {/* شريط تنبيه فوري إذا كان هناك طلبات إعلانات بانتظار التفعيل */}
+      {pendingAdRequests.length > 0 && (
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 shadow-xs">
+          <div className="flex items-center gap-3">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white">
+              <Sparkles className="size-5" />
+            </span>
+            <div>
+              <h3 className="text-xs font-extrabold text-amber-950 sm:text-sm">
+                لديك ({pendingAdRequests.length}) طلب إعلان وتمييز وحدة بانتظار التفعيل!
+              </h3>
+              <p className="mt-0.5 text-[11px] text-amber-800">
+                أكواد الطلبات الحالية:{" "}
+                <strong className="font-mono">
+                  {pendingAdRequests
+                    .map((p) => p.featured_fawry_code || "AD")
+                    .join(" ، ")}
+                </strong>
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/admin/properties?tab=featured"
+            className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-amber-600 px-4 text-xs font-extrabold text-white hover:bg-amber-700"
+          >
+            <span>مراجعة وتفعيل الإعلانات</span>
+            <ArrowLeft className="size-3.5" />
+          </Link>
+        </div>
+      )}
+
       <div className="mt-6 grid grid-cols-1 gap-5 sm:mt-7 lg:grid-cols-3">
-        {/* أحدث طلبات البائعين (العقارات) - كل صف أو كارت يفتح صفحة العقارات عند الضغط عليه */}
         <Card className="border-gray-200/80 bg-white shadow-sm lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between border-b border-gray-100 p-4 sm:p-6">
             <div>
@@ -256,7 +298,6 @@ export default async function AdminPage() {
           </CardHeader>
 
           <CardContent className="p-0">
-            {/* عرض الموبايل */}
             <div className="divide-y divide-gray-100 md:hidden">
               {properties.length === 0 ? (
                 <div className="p-8 text-center text-xs text-gray-400">
@@ -269,7 +310,7 @@ export default async function AdminPage() {
                   return (
                     <Link
                       key={prop.id}
-                      href="/admin/properties"
+                      href={`/admin/properties?unitId=${prop.id}`}
                       className="block p-3.5 transition hover:bg-gray-50"
                     >
                       <div className="flex items-start justify-between gap-2">
@@ -304,7 +345,6 @@ export default async function AdminPage() {
               )}
             </div>
 
-            {/* عرض الكمبيوتر */}
             <div className="hidden overflow-x-auto md:block">
               <table className="w-full text-right text-xs sm:text-sm">
                 <thead className="bg-gray-50 text-xs text-gray-500">
@@ -337,7 +377,7 @@ export default async function AdminPage() {
                         >
                           <td className="px-5 py-4">
                             <Link
-                              href="/admin/properties"
+                              href={`/admin/properties?unitId=${prop.id}`}
                               className="block font-bold text-[#0a1122] hover:text-[#105C50]"
                             >
                               {prop.project_name || "وحدة سكنية"}
@@ -370,7 +410,7 @@ export default async function AdminPage() {
                               : "—"}
                           </td>
                           <td className="px-5 py-4">
-                            <Link href="/admin/properties">
+                            <Link href={`/admin/properties?unitId=${prop.id}`}>
                               <Badge className={st.className}>{st.label}</Badge>
                             </Link>
                           </td>
@@ -384,7 +424,6 @@ export default async function AdminPage() {
           </CardContent>
         </Card>
 
-        {/* قائمة أحدث طلبات الشراء */}
         <Card className="border-gray-200/80 bg-white shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between border-b border-gray-100 p-4 sm:p-6">
             <div>

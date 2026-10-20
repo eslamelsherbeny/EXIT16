@@ -43,6 +43,9 @@ type SiteSettings = {
   allowNewSells: boolean
   allowNewBuys: boolean
   emailNotifications: boolean
+  promo7Price?: string
+  promo14Price?: string
+  promo30Price?: string
 }
 
 export default function SettingsClient({
@@ -239,6 +242,50 @@ export default function SettingsClient({
                     className="h-10 w-full rounded-xl border border-gray-200 px-3.5 text-xs font-bold focus:border-[#105C50] focus:outline-none"
                   />
                 </div>
+
+                {/* ==================== الكود المُضاف هنا ==================== */}
+                <div className="border-t border-gray-100 pt-4">
+                  <p className="mb-2.5 text-xs font-extrabold text-[#105C50]">
+                    ⭐ أسعار باقات تمييز الوحدات (تظهر في صفحة البائع):
+                  </p>
+                  <div className="grid grid-cols-3 gap-2.5">
+                    <div>
+                      <label className="mb-1 block text-[11px] font-bold text-[#0a1122]">
+                        باقة 7 أيام
+                      </label>
+                      <input
+                        name="promo7Price"
+                        type="number"
+                        defaultValue={(initialSettings as any).promo7Price || "1199"}
+                        className="h-10 w-full rounded-xl border border-gray-200 px-3 text-xs font-bold focus:border-[#105C50] focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-[11px] font-bold text-[#0a1122]">
+                        باقة 14 يوم
+                      </label>
+                      <input
+                        name="promo14Price"
+                        type="number"
+                        defaultValue={(initialSettings as any).promo14Price || "1999"}
+                        className="h-10 w-full rounded-xl border border-gray-200 px-3 text-xs font-bold focus:border-[#105C50] focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-[11px] font-bold text-[#0a1122]">
+                        باقة 30 يوم
+                      </label>
+                      <input
+                        name="promo30Price"
+                        type="number"
+                        defaultValue={(initialSettings as any).promo30Price || "2799"}
+                        className="h-10 w-full rounded-xl border border-gray-200 px-3 text-xs font-bold focus:border-[#105C50] focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+                {/* ========================================================== */}
+                
               </CardContent>
             </Card>
 

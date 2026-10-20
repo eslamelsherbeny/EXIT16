@@ -69,18 +69,20 @@ export default async function AccountPage({
       .from('sell_requests')
       .select('*')
       .in('status', ['active', 'approved', 'published'])
+      .order('is_featured', { ascending: false })
       .order('created_at', { ascending: false }),
     supabase.from('property_offers').select('property_id'),
   ])
 
+  // استبعاد الوحدات التي حذفها البائع من حسابه (deleted_by_seller)
   const sells = ((allSells as SellerUnitItem[]) || []).filter(
-  (s: any) =>
-    s.status !== 'deleted_by_seller' &&
-    (s.user_id === profile.id ||
-      (cleanEmail &&
-        String(s.email || '').trim().toLowerCase() === cleanEmail) ||
-      (cleanPhone && String(s.phone || '').trim() === cleanPhone))
-)
+    (s: any) =>
+      s.status !== 'deleted_by_seller' &&
+      (s.user_id === profile.id ||
+        (cleanEmail &&
+          String(s.email || '').trim().toLowerCase() === cleanEmail) ||
+        (cleanPhone && String(s.phone || '').trim() === cleanPhone))
+  )
 
   const buys = ((allBuys as BuyerRequestItem[]) || []).filter(
     (b: any) =>
@@ -97,7 +99,6 @@ export default async function AccountPage({
     }
   })
 
-  // حساب عدد المشترين الحقيقيين المطابقين لكل وحدة من وحدات البائع
   const matchedBuyersCountMap: Record<string, number> = {}
   const buyersList = (allBuys as any[]) || []
 
@@ -133,11 +134,12 @@ export default async function AccountPage({
   const hasSells = sells.length > 0
   const hasBuys = buys.length > 0
 
+  // تحديد الواجهة الذكية بحيث لا تفتح لوحة فارغة أبداً
   const initialView: 'seller' | 'buyer' =
-    resolvedParams.view === 'buyer'
-      ? 'buyer'
-      : resolvedParams.view === 'seller'
-        ? 'seller'
+    resolvedParams.view === 'seller' && hasSells
+      ? 'seller'
+      : resolvedParams.view === 'buyer' && hasBuys
+        ? 'buyer'
         : hasSells
           ? 'seller'
           : 'buyer'
@@ -149,7 +151,7 @@ export default async function AccountPage({
       dir="rtl"
       className="min-h-screen bg-[#f5f6f8] py-6 pb-24 text-[#0a1122] sm:py-10"
     >
-      {/* شريط علوي موحد ونظيف للبائع والمشتري (المفضلة + تسجيل الخروج فقط) */}
+      {/* الشريط العلوي الموحد: المفضلة + تسجيل الخروج */}
       <div className="mx-auto mb-5 flex max-w-[1020px] items-center justify-between px-3 sm:px-6">
         <Link
           href="/account/favorites"
@@ -208,7 +210,8 @@ export default async function AccountPage({
             </div>
           </section>
 
-          <div className="mt-8 flex justify-center [&>*]:justify-center [&_div]:justify-center">
+          {/* بياناتي وحذف الحساب فقط في المنتصف بدون تكرار زر تسجيل الخروج */}
+          <div className="mt-8 flex justify-center [&>*]:justify-center [&_div]:justify-center [&_form]:hidden">
             <AccountActionLinks
               unitsCount={0}
               initialDeletionRequested={deletionRequested}

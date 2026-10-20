@@ -15,6 +15,19 @@ export default async function PropertiesPage() {
     }
   )
 
+  // الحذف التلقائي (Auto-Purge) للوحدات التي حذفها المالك ومضى عليها أكثر من 7 أيام
+  try {
+    const sevenDaysAgo = new Date(
+      Date.now() - 7 * 24 * 60 * 60 * 1000
+    ).toISOString()
+
+    await supabase
+      .from("sell_requests")
+      .delete()
+      .eq("status", "deleted_by_seller")
+      .lt("last_seller_edit_at", sevenDaysAgo)
+  } catch {}
+
   const { data, error } = await supabase
     .from("sell_requests")
     .select("*")

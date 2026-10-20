@@ -10,6 +10,7 @@ import {
   Copy,
   FileCheck2,
   Loader2,
+  MessageCircle,
   PauseCircle,
   PlayCircle,
   ShieldAlert,
@@ -17,8 +18,10 @@ import {
   Star,
   Trash2,
   UploadCloud,
+  XCircle,
 } from 'lucide-react'
 import {
+  cancelUnitPromotionBySellerAction,
   deleteUnitBySellerAction,
   requestUnitPromotionAction,
   toggleSellerUnitStatusAction,
@@ -223,6 +226,7 @@ type ConfirmModalState =
   | { type: 'resume' }
   | { type: 'delete' }
   | { type: 'promote'; pkg: { days: 7 | 14 | 30; price: number; label: string } }
+  | { type: 'cancel_promo' }
   | null
 
 export function SellerDashboard({
@@ -248,10 +252,8 @@ export function SellerDashboard({
   const [selectedPromoDays, setSelectedPromoDays] = useState<7 | 14 | 30 | null>(
     null
   )
-  const [generatedFawryCode, setGeneratedFawryCode] = useState<string | null>(
-    null
-  )
-  const [copiedFawry, setCopiedFawry] = useState(false)
+  const [generatedAdRef, setGeneratedAdRef] = useState<string | null>(null)
+  const [copiedAdRef, setCopiedAdRef] = useState(false)
   const [actionMessage, setActionMessage] = useState('')
   const [isPending, startTransition] = useTransition()
 
@@ -277,11 +279,13 @@ export function SellerDashboard({
     ? `/sell?editUnitId=${activeUnit.id}&step=5`
     : `/sell?editUnitId=${activeUnit.id}&step=3`
 
-  // حساب الأيام المتبقية في حال كانت الوحدة مميزة حالياً
   const isCurrentlyFeatured =
     Boolean(activeUnit.is_featured) &&
     (!activeUnit.featured_until ||
       new Date(activeUnit.featured_until) > new Date())
+
+  const isPendingPromo =
+    !isCurrentlyFeatured && activeUnit.featured_status === 'pending_payment'
 
   const remainingFeaturedDays =
     isCurrentlyFeatured && activeUnit.featured_until
@@ -294,10 +298,16 @@ export function SellerDashboard({
         )
       : activeUnit.featured_days || 0
 
-  const currentFawryCode =
-    generatedFawryCode || activeUnit.featured_fawry_code || null
+  const currentAdRef =
+    generatedAdRef || activeUnit.featured_fawry_code || null
 
-  // تنفيذ الإجراء بعد التأكيد من النافذة
+  const activePromoDays =
+    selectedPromoDays || (activeUnit.featured_days as 7 | 14 | 30) || 14
+  const activePromoPrice =
+    PROMO_PACKAGES.find((p) => p.days === activePromoDays)?.price ||
+    activeUnit.featured_price ||
+    1999
+
   const executeConfirmedAction = () => {
     if (!confirmModal) return
     setActionMessage('')
@@ -332,21 +342,29 @@ export function SellerDashboard({
         })
         setConfirmModal(null)
         if (res.success && res.fawryCode) {
-          setGeneratedFawryCode(res.fawryCode)
+          setGeneratedAdRef(res.fawryCode)
+          setSelectedPromoDays(confirmModal.pkg.days)
           setActionMessage(
-            `تم إصدار كود الدفع لباقة التمييز (${confirmModal.pkg.label}) بنجاح ⭐`
+            `تم تسجيل طلب تمييز الوحدة (${confirmModal.pkg.label}) — رقم طلب الإعلان: ${res.fawryCode} ⭐`
           )
+        }
+      } else if (confirmModal.type === 'cancel_promo') {
+        const res = await cancelUnitPromotionBySellerAction(activeUnit.id)
+        setConfirmModal(null)
+        if (res.success) {
+          setGeneratedAdRef(null)
+          setSelectedPromoDays(null)
+          setActionMessage('تم إلغاء طلب الإعلان / إيقاف تمييز الوحدة بنجاح.')
         }
       }
     })
   }
 
-  // عرض آخر وحدتين فقط في القائمة لتجنب طول الصفحة
   const visibleUnitsInList = showAllUnitsList ? sells : sells.slice(0, 2)
 
   return (
     <div className="mx-auto max-w-[680px] px-4 sm:px-6">
-      {/* ==================== 1. شريط اختيار الوحدة الواضح جداً ==================== */}
+      {/* 1. شريط اختيار الوحدة الواضح */}
       <section className="mb-5 rounded-[18px] border border-gray-200/90 bg-white p-4 text-right shadow-2xs sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
@@ -360,13 +378,15 @@ export function SellerDashboard({
               <h1 className="text-base font-extrabold text-[#0a1122] sm:text-xl">
                 {activeUnit.project_name || 'وحدتك العقارية'}{' '}
                 <span className="text-xs font-normal text-gray-500 sm:text-sm">
-                  · {activeUnit.developer_name || activeUnit.area || 'القاهرة الجديدة'}
+                  ·{' '}
+                  {activeUnit.developer_name ||
+                    activeUnit.area ||
+                    'القاهرة الجديدة'}
                 </span>
               </h1>
             </div>
           </div>
 
-          {/* شارة حالة الوحدة في السوق بدون أي التباس */}
           <span
             className={`rounded-full px-3 py-1 text-[11px] font-extrabold ${meta.marketBadgeCls}`}
           >
@@ -374,7 +394,6 @@ export function SellerDashboard({
           </span>
         </div>
 
-        {/* قائمة منسدلة سريعة لو كان البائع مسجلاً أكثر من وحدة */}
         {sells.length > 1 && (
           <div className="mt-3.5 border-t border-gray-100 pt-3">
             <label className="mb-1.5 block text-[11px] font-extrabold text-[#0b6954]">
@@ -385,7 +404,8 @@ export function SellerDashboard({
                 value={activeUnit.id}
                 onChange={(e) => {
                   setSelectedId(e.target.value)
-                  setGeneratedFawryCode(null)
+                  setGeneratedAdRef(null)
+                  setSelectedPromoDays(null)
                   setActionMessage('')
                 }}
                 className="h-11 w-full appearance-none rounded-xl border border-gray-200 bg-gray-50/80 pr-3.5 pl-9 text-xs font-extrabold text-[#0a1122] focus:border-[#0b6954] focus:bg-white focus:outline-none sm:text-sm"
@@ -416,9 +436,11 @@ export function SellerDashboard({
         </div>
       )}
 
-      {/* ==================== 2. الكارت العلوي للخطوة الجاية وأزرار التحكم (مع تأكيد لكل زر) ==================== */}
+      {/* 2. الكارت العلوي للخطوة الجاية */}
       <section className="rounded-[20px] border border-[#0b6954]/25 bg-white p-5 text-right shadow-xs sm:p-7">
-        <p className="text-xs font-bold text-[#0b6954]">الخطوة الجاية لهذه الوحدة</p>
+        <p className="text-xs font-bold text-[#0b6954]">
+          الخطوة الجاية لهذه الوحدة
+        </p>
         <h2 className="mt-1.5 text-base font-extrabold text-[#0a1122] sm:text-[19px]">
           {meta.headline}
         </h2>
@@ -443,7 +465,6 @@ export function SellerDashboard({
             {!comp.hasImages ? 'أضف الصور' : 'كمّل / عدّل بيانات الوحدة'}
           </Link>
 
-          {/* زر إيقاف العرض مؤقتاً أو إعادة عرضه (يفتح نافذة تأكيد) */}
           {meta.code !== 'sold' && (
             <button
               type="button"
@@ -473,7 +494,6 @@ export function SellerDashboard({
             </button>
           )}
 
-          {/* زر حذف الوحدة (يفتح نافذة تأكيد) */}
           <button
             type="button"
             disabled={isPending}
@@ -486,7 +506,6 @@ export function SellerDashboard({
           </button>
         </div>
 
-        {/* شريط نسبة الاكتمال */}
         {!isComplete && (
           <div className="mt-6">
             <div className="mb-2 flex items-center justify-between text-xs">
@@ -503,23 +522,9 @@ export function SellerDashboard({
                 style={{ width: `${comp.percentage}%` }}
               />
             </div>
-
-            {comp.missingTags.length > 0 && (
-              <div className="mt-2.5 flex flex-wrap gap-1.5">
-                {comp.missingTags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="rounded-full bg-amber-50 px-3 py-0.5 text-[11px] font-bold text-amber-700"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            )}
           </div>
         )}
 
-        {/* شريط العدد الحقيقي للمشترين المطابقين */}
         <div className="mt-4 rounded-xl bg-[#eff9f5] px-4 py-3 text-right text-xs font-bold text-[#0b6954]">
           {realMatchedBuyersCount > 0 ? (
             <>
@@ -539,7 +544,7 @@ export function SellerDashboard({
         </div>
       </section>
 
-      {/* ==================== 3. شريط التسلسل الزمني للوحدة المختارة (مباشرة تحت حالتها) ==================== */}
+      {/* 3. شريط التسلسل الزمني */}
       <section className="mt-6 rounded-[20px] border border-gray-200/80 bg-white p-5 shadow-2xs sm:p-6">
         <h3 className="mb-4 text-right text-xs font-extrabold text-gray-500">
           مراحل طلب الوحدة ({activeUnit.project_name || 'وحدتك'}):
@@ -552,17 +557,23 @@ export function SellerDashboard({
         </div>
       </section>
 
-      {/* ==================== 4. صندوق الترويج والتمييز (⭐ عايز وحدتك تبقى أول اللي المشتري يشوفه؟) ==================== */}
+      {/* ==================== 4. صندوق الترويج والتمييز (برقم طلب الإعلان + واتساب + تعديل أو إلغاء الباقة) ==================== */}
       <section className="mt-6 rounded-[20px] border border-[#aae3cb] bg-[#effaf5] p-5 text-right shadow-xs sm:p-7">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="inline-flex items-center gap-1 text-xs font-extrabold text-[#0b6954]">
             <Star className="size-3.5 fill-amber-400 text-amber-500" />
-            <span>اختياري</span>
+            <span>اختياري — الترويج والتمييز</span>
           </span>
 
           {isCurrentlyFeatured && (
             <span className="rounded-full bg-amber-100 px-3 py-1 text-[11px] font-extrabold text-amber-800">
               ⭐ وحدتك مميزة حالياً (متبقي {remainingFeaturedDays} يوم)
+            </span>
+          )}
+
+          {isPendingPromo && (
+            <span className="rounded-full bg-blue-100 px-3 py-1 text-[11px] font-extrabold text-blue-800">
+              ⏳ طلب تمييز بانتظار التفعيل ({activePromoDays} أيام)
             </span>
           )}
         </div>
@@ -579,7 +590,8 @@ export function SellerDashboard({
           <li className="flex items-center gap-2">
             <Check className="size-3.5 shrink-0 text-[#0b6954]" />
             <span>
-              شارة <Star className="inline size-3 fill-amber-400 text-amber-500" />{' '}
+              شارة{' '}
+              <Star className="inline size-3 fill-amber-400 text-amber-500" />{' '}
               مميزة على كارت وحدتك تجذب المشترين الجادين
             </span>
           </li>
@@ -589,24 +601,28 @@ export function SellerDashboard({
           </li>
         </ul>
 
-        {/* الباقات الثلاث (7 أيام / 14 يوم / 30 يوم) */}
-        <div className="mt-5 grid grid-cols-3 gap-2.5 sm:gap-3.5">
+        {/* الباقات الثلاث (يمكنه اختيار باقة أو تغيير باقته الحالية بضغطة واحدة) */}
+        <p className="mt-4 mb-2 text-[11px] font-extrabold text-[#0b6954]">
+          {isCurrentlyFeatured || isPendingPromo
+            ? 'يمكنك الضغط على أي باقة أخرى لتغيير أو تجديد اشتراكك:'
+            : 'اختر الباقة المناسبة لوحدتك:'}
+        </p>
+        <div className="grid grid-cols-3 gap-2.5 sm:gap-3.5">
           {PROMO_PACKAGES.map((pkg) => {
             const isSelected =
-              selectedPromoDays === pkg.days ||
-              (!selectedPromoDays && activeUnit.featured_days === pkg.days)
+              (isCurrentlyFeatured || isPendingPromo || generatedAdRef) &&
+              activePromoDays === pkg.days
             return (
               <button
                 key={pkg.days}
                 type="button"
                 disabled={isPending}
                 onClick={() => {
-                  setSelectedPromoDays(pkg.days)
                   setConfirmModal({ type: 'promote', pkg })
                 }}
                 className={`flex flex-col items-center justify-center rounded-2xl border bg-white p-3.5 text-center transition hover:shadow-md sm:p-4 ${
                   isSelected
-                    ? 'border-[#0b6954] ring-2 ring-[#0b6954]/20'
+                    ? 'border-[#0b6954] ring-2 ring-[#0b6954]/25'
                     : 'border-gray-200/90 hover:border-[#0b6954]/50'
                 }`}
               >
@@ -616,6 +632,11 @@ export function SellerDashboard({
                 <span className="mt-1 text-xs font-extrabold text-[#0b6954] tabular-nums sm:text-sm">
                   {pkg.price.toLocaleString('en-US')} ج.م
                 </span>
+                {isSelected && (
+                  <span className="mt-1 rounded-full bg-[#eff9f5] px-2 py-0.5 text-[9px] font-extrabold text-[#0b6954]">
+                    باقتك المختارة ✓
+                  </span>
+                )}
               </button>
             )
           })}
@@ -623,52 +644,74 @@ export function SellerDashboard({
 
         <p className="mt-4 text-[11px] leading-relaxed text-[#2b584d]">
           نشر وحدتك مجاني بالكامل وهيفضل مجاني — ده اختياري بس لو عايز ظهور
-          أكتر. بتدفع دلوقتي، والترويج يشتغل أول ما نراجع وحدتك وننزلها السوق،
-          والأيام بتتحسب من لحظة التفعيل.
+          أكتر، والأيام بتتحسب من لحظة التفعيل والنشر في السوق.
         </p>
 
-        {/* عرض كود الدفع الفوري (10 أرقام) في حال اختار باقة */}
-        {currentFawryCode ? (
+        {/* صندوق رقم طلب الإعلان + زر واتساب + زر إلغاء الاشتراك */}
+        {(currentAdRef || isCurrentlyFeatured || isPendingPromo) && (
           <div className="mt-4 rounded-xl border border-[#0b6954]/30 bg-white p-4 text-right shadow-2xs">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <p className="text-xs font-extrabold text-[#0a1122]">
-                  كود الدفع الفوري الخاص بوحدتك (باقة{' '}
-                  {activeUnit.featured_days || selectedPromoDays || 7} أيام):
+                  رقم طلب الإعلان المميز لوحدتك (باقة {activePromoDays} أيام):
                 </p>
                 <p className="mt-1 font-mono text-lg font-black tracking-wider text-[#0b6954]">
-                  {currentFawryCode}
+                  {currentAdRef ||
+                    `AD-${activeUnit.id.slice(0, 6).toUpperCase()}`}
                 </p>
               </div>
+
               <button
                 type="button"
                 onClick={() => {
-                  navigator.clipboard?.writeText(currentFawryCode)
-                  setCopiedFawry(true)
-                  setTimeout(() => setCopiedFawry(false), 2000)
+                  const codeToCopy =
+                    currentAdRef ||
+                    `AD-${activeUnit.id.slice(0, 6).toUpperCase()}`
+                  navigator.clipboard?.writeText(codeToCopy)
+                  setCopiedAdRef(true)
+                  setTimeout(() => setCopiedAdRef(false), 2000)
                 }}
                 className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-gray-200 bg-gray-50 px-3 text-xs font-bold text-[#0a1122] hover:bg-gray-100"
               >
                 <Copy className="size-3.5" />
-                <span>{copiedFawry ? 'تم نسخ الكود ✓' : 'نسخ الكود'}</span>
+                <span>{copiedAdRef ? 'تم النسخ ✓' : 'نسخ رقم الطلب'}</span>
               </button>
             </div>
-            <p className="mt-2 text-[11px] leading-relaxed text-gray-500">
-              ادفعه من تطبيق <strong>myFawry</strong> (ادفع فاتورة ← Fawaterak /
-              فواتيرك ← اكتب الكود) أو من أي فرع أو ماكينة فوري، وسيتم تفعيل
-              النجمة الذهبية لوحدتك تلقائياً.
-            </p>
-          </div>
-        ) : (
-          <div className="mt-3 rounded-xl bg-white/80 p-3 text-[11px] leading-relaxed text-gray-600">
-            لو اخترت باقة، هيطلعلك كود من 10 أرقام — ادفعه من تطبيق myFawry
-            (ادفع فاتورة ← Fawaterak / فواتيرك ← اكتب الكود) أو من أي فرع أو
-            ماكينة فوري.
+
+            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3">
+              {!isCurrentlyFeatured && (
+                <a
+                  href={`https://wa.me/201018595959?text=${encodeURIComponent(
+                    `أهلاً إدارة منصة دارك، أرغب في تفعيل باقة تمييز (${activePromoDays} أيام - ${activePromoPrice.toLocaleString('en-US')} ج.م) لوحدتي في مشروع (${activeUnit.project_name || 'وحدتي'}) — رقم طلب الإعلان: ${currentAdRef || `AD-${activeUnit.id.slice(0, 6).toUpperCase()}`}`
+                  )}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 text-xs font-extrabold text-white shadow-2xs transition hover:opacity-95"
+                >
+                  <MessageCircle className="size-4" />
+                  <span>تواصل واتساب لتأكيد وتفعيل الإعلان</span>
+                </a>
+              )}
+
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() => setConfirmModal({ type: 'cancel_promo' })}
+                className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-red-50/70 px-3.5 text-xs font-bold text-red-600 transition hover:bg-red-100"
+              >
+                <XCircle className="size-3.5" />
+                <span>
+                  {isCurrentlyFeatured
+                    ? 'إيقاف اشتراك التمييز'
+                    : 'إلغاء طلب الإعلان'}
+                </span>
+              </button>
+            </div>
           </div>
         )}
       </section>
 
-      {/* ==================== 5. كارت السعر والمدفوع ==================== */}
+      {/* 5. كارت السعر والمدفوع */}
       <section className="mt-6 grid grid-cols-2 gap-4 rounded-[18px] border border-gray-200/80 bg-white p-5 text-right shadow-2xs sm:p-6">
         <div>
           <p className="text-[11px] text-gray-400">سعر الوحدة في العقد</p>
@@ -686,7 +729,7 @@ export function SellerDashboard({
         </div>
       </section>
 
-      {/* ==================== 6. الكروت الثلاثة السفلية + المستندات ==================== */}
+      {/* 6. الكروت الثلاثة السفلية + المستندات */}
       <section className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Link
           href={`/sell?editUnitId=${activeUnit.id}&step=3`}
@@ -723,7 +766,6 @@ export function SellerDashboard({
         </a>
       </section>
 
-      {/* كارت رفع المستندات */}
       <div className="mt-4 flex flex-col justify-between gap-3 rounded-[16px] border border-dashed border-[#0b6954]/40 bg-[#eff9f5]/60 p-4 sm:flex-row sm:items-center">
         <div className="flex items-center gap-3 text-right">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#0b6954]/10 text-[#0b6954]">
@@ -754,7 +796,7 @@ export function SellerDashboard({
         </Link>
       </div>
 
-      {/* ==================== 7. قائمة وحداتي المختصرة (تعرض آخر وحدتين فقط + زر عرض الكل) ==================== */}
+      {/* 7. قائمة وحداتي المختصرة */}
       <section className="mt-8">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-extrabold text-[#0a1122] sm:text-base">
@@ -781,7 +823,8 @@ export function SellerDashboard({
                 key={item.id}
                 onClick={() => {
                   setSelectedId(item.id)
-                  setGeneratedFawryCode(null)
+                  setGeneratedAdRef(null)
+                  setSelectedPromoDays(null)
                   setActionMessage('')
                   window.scrollTo({ top: 0, behavior: 'smooth' })
                 }}
@@ -853,8 +896,8 @@ export function SellerDashboard({
         )}
       </section>
 
-      {/* ==================== 8. أزرار الحساب في الأسفل متوسطة ==================== */}
-      <div className="mt-8 flex justify-center border-t border-gray-200/80 pt-6 [&>*]:justify-center [&_div]:justify-center">
+      {/* 8. أزرار الحساب في الأسفل متوسطة */}
+      <div className="mt-8 flex justify-center border-t border-gray-200/80 pt-6 [&>*]:justify-center [&_div]:justify-center [&_form]:hidden">
         <AccountActionLinks
           unitsCount={sells.length}
           initialDeletionRequested={deletionRequested}
@@ -862,7 +905,7 @@ export function SellerDashboard({
         />
       </div>
 
-      {/* ==================== 9. نافذة التأكيد الموحدة لجميع أزرار لوحة البائع ==================== */}
+      {/* 9. نافذة التأكيد الموحدة لجميع أزرار لوحة البائع */}
       <Dialog
         open={Boolean(confirmModal)}
         onOpenChange={(open) => {
@@ -879,7 +922,8 @@ export function SellerDashboard({
                 <div className="mb-2 flex items-center gap-2.5">
                   <span
                     className={`flex size-9 shrink-0 items-center justify-center rounded-full ${
-                      confirmModal.type === 'delete'
+                      confirmModal.type === 'delete' ||
+                      confirmModal.type === 'cancel_promo'
                         ? 'bg-red-100 text-red-600'
                         : confirmModal.type === 'pause'
                           ? 'bg-amber-100 text-amber-700'
@@ -895,11 +939,16 @@ export function SellerDashboard({
                     )}
                   </span>
                   <DialogTitle className="text-sm font-extrabold text-[#0a1122] sm:text-base">
-                    {confirmModal.type === 'pause' && 'تأكيد إيقاف عرض الوحدة مؤقتاً'}
-                    {confirmModal.type === 'resume' && 'تأكيد إعادة عرض الوحدة في السوق'}
-                    {confirmModal.type === 'delete' && 'تأكيد حذف الوحدة نهائياً'}
+                    {confirmModal.type === 'pause' &&
+                      'تأكيد إيقاف عرض الوحدة مؤقتاً'}
+                    {confirmModal.type === 'resume' &&
+                      'تأكيد إعادة عرض الوحدة في السوق'}
+                    {confirmModal.type === 'delete' &&
+                      'تأكيد حذف الوحدة نهائياً'}
                     {confirmModal.type === 'promote' &&
                       `تأكيد باقة التمييز (${confirmModal.pkg.label})`}
+                    {confirmModal.type === 'cancel_promo' &&
+                      'تأكيد إلغاء طلب الإعلان / التمييز'}
                   </DialogTitle>
                 </div>
 
@@ -910,7 +959,8 @@ export function SellerDashboard({
                       <strong className="text-[#0a1122]">
                         "{activeUnit.project_name || 'وحدتك'}"
                       </strong>{' '}
-                      مؤقتاً؟ ستختفي الوحدة من صفحة الفرص العامة ولن يراها المشترون حتى تعيد تفعيلها.
+                      مؤقتاً؟ ستختفي الوحدة من صفحة الفرص العامة ولن يراها
+                      المشترون حتى تعيد تفعيلها.
                     </>
                   )}
                   {confirmModal.type === 'resume' && (
@@ -919,7 +969,8 @@ export function SellerDashboard({
                       <strong className="text-[#0a1122]">
                         "{activeUnit.project_name || 'وحدتك'}"
                       </strong>{' '}
-                      في السوق؟ سيقوم فريق الإدارة بمراجعتها ونشرها أمام المشترين.
+                      في السوق؟ سيقوم فريق الإدارة بمراجعتها ونشرها أمام
+                      المشترين.
                     </>
                   )}
                   {confirmModal.type === 'delete' && (
@@ -928,20 +979,30 @@ export function SellerDashboard({
                       <strong className="text-red-600">
                         "{activeUnit.project_name || 'وحدتك'}"
                       </strong>{' '}
-                      نهائياً من حسابك؟ لا يمكن التراجع عن هذا الإجراء.
+                      من حسابك؟
                     </>
                   )}
                   {confirmModal.type === 'promote' && (
                     <>
-                      سيتم إصدار كود دفع فوري بقيمة{' '}
-                      <strong className="text-[#0b6954]">
-                        {confirmModal.pkg.price.toLocaleString('en-US')} ج.م
-                      </strong>{' '}
-                      لتمييز وحدتك لمدة{' '}
+                      سيتم تسجيل طلب تمييز لوحدتك لمدة{' '}
                       <strong className="text-[#0a1122]">
                         {confirmModal.pkg.label}
                       </strong>{' '}
-                      بشارة النجمة الذهبية وظهورها في أول الفرص والبحث.
+                      بتكلفة{' '}
+                      <strong className="text-[#0b6954]">
+                        {confirmModal.pkg.price.toLocaleString('en-US')} ج.م
+                      </strong>{' '}
+                      وإصدار رقم طلب الإعلان للتواصل مع الإدارة وتفعيله.
+                    </>
+                  )}
+                  {confirmModal.type === 'cancel_promo' && (
+                    <>
+                      هل أنت متأكد من إلغاء طلب الإعلان وإيقاف ميزة النجمة
+                      الذهبية لوحدة{' '}
+                      <strong className="text-red-600">
+                        "{activeUnit.project_name || 'وحدتك'}"
+                      </strong>
+                      ؟ ستظل وحدتك معروضة بشكل مجاني عادي.
                     </>
                   )}
                 </DialogDescription>
@@ -955,14 +1016,15 @@ export function SellerDashboard({
                   onClick={() => setConfirmModal(null)}
                   className="h-9 flex-1 rounded-xl text-xs font-bold"
                 >
-                  إلغاء
+                  تراجع
                 </Button>
                 <Button
                   type="button"
                   disabled={isPending}
                   onClick={executeConfirmedAction}
                   className={`h-9 flex-1 rounded-xl text-xs font-bold text-white ${
-                    confirmModal.type === 'delete'
+                    confirmModal.type === 'delete' ||
+                    confirmModal.type === 'cancel_promo'
                       ? 'bg-red-600 hover:bg-red-700'
                       : confirmModal.type === 'pause'
                         ? 'bg-amber-600 hover:bg-amber-700'

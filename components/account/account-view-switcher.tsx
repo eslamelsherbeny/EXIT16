@@ -1,9 +1,11 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { Loader2 } from 'lucide-react'
 import { SellerDashboard, type SellerUnitItem } from './seller-dashboard'
 import { BuyerDashboard, type BuyerRequestItem } from './buyer-dashboard'
+import { AccountActionLinks } from './delete-account-modal'
 
 export function AccountViewSwitcher({
   initialView,
@@ -86,7 +88,7 @@ export function AccountViewSwitcher({
           <Loader2 className="size-6 animate-spin" />
           <span>جاري فتح اللوحة...</span>
         </div>
-      ) : currentView === 'seller' ? (
+      ) : currentView === 'seller' && sells.length > 0 ? (
         <SellerDashboard
           sells={sells}
           initialSelectedUnitId={initialSelectedUnitId}
@@ -94,12 +96,56 @@ export function AccountViewSwitcher({
           matchedBuyersCountMap={matchedBuyersCountMap}
           deletionRequested={deletionRequested}
         />
-      ) : (
+      ) : currentView === 'buyer' && buys.length > 0 ? (
         <BuyerDashboard
           buyReq={mainBuyerRequest}
           marketUnits={activeMarketUnits}
           deletionRequested={deletionRequested}
         />
+      ) : (
+        <div className="mx-auto max-w-[680px] px-4 sm:px-6">
+          <section className="rounded-[20px] border border-gray-200/80 bg-white p-8 text-center shadow-xs sm:p-12">
+            <h2 className="text-lg font-extrabold text-[#0a1122] sm:text-xl">
+              ليس لديك وحدات مسجلة في هذا القسم حالياً
+            </h2>
+            <p className="mx-auto mt-2.5 max-w-md text-xs leading-relaxed text-gray-500 sm:text-sm">
+              يمكنك إضافة وحدة جديدة للبيع بدون أوفر أو استعراض الفرص المطابقة
+              لميزانيتك.
+            </p>
+            <div className="mt-7 flex flex-wrap justify-center gap-3">
+              <Link
+                href="/sell?new=1"
+                className="rounded-xl bg-[#0b6954] px-7 py-2.5 text-xs font-bold text-white transition hover:bg-[#095443] sm:text-sm"
+              >
+                عايز أبيع وحدتي
+              </Link>
+              {buys.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => handleSwitch('buyer')}
+                  className="rounded-xl bg-[#0a1122] px-7 py-2.5 text-xs font-bold text-white transition hover:bg-[#16223f] sm:text-sm"
+                >
+                  افتح لوحة المشتري
+                </button>
+              ) : (
+                <Link
+                  href="/buy"
+                  className="rounded-xl bg-[#0a1122] px-7 py-2.5 text-xs font-bold text-white transition hover:bg-[#16223f] sm:text-sm"
+                >
+                  عايز أشتري وحدة
+                </Link>
+              )}
+            </div>
+          </section>
+
+          <div className="mt-8 flex justify-center [&>*]:justify-center [&_div]:justify-center [&_form]:hidden">
+            <AccountActionLinks
+              unitsCount={sells.length}
+              initialDeletionRequested={deletionRequested}
+              position="bottom"
+            />
+          </div>
+        </div>
       )}
     </div>
   )

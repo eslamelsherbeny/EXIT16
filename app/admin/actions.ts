@@ -758,3 +758,21 @@ export async function managePropertyPromotionAction(
   revalidateAdminAll()
   return { success: true }
 }
+
+// ==========================================
+// 9. مسح جميع الوحدات المحذوفة بواسطة الملاك دفعة واحدة (زر مسح الكل)
+// ==========================================
+export async function purgeSellerDeletedPropertiesAction() {
+  const supabase = await getSupabase()
+  const { error } = await supabase
+    .from("sell_requests")
+    .delete()
+    .eq("status", "deleted_by_seller")
+
+  if (error) {
+    return { success: false, error: "تعذر مسح الوحدات المحذوفة." }
+  }
+
+  revalidateAdminAll()
+  return { success: true }
+}

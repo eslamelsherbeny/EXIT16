@@ -1487,7 +1487,7 @@ export function BuyerDashboard({
       )}
 
       {/* شريط أزرار الحساب في الأسفل متوسّط في منتصف الشاشة للموبايل والكمبيوتر */}
-      <div className="mt-10 flex justify-center border-t border-gray-200/80 pt-6 [&>*]:justify-center [&_div]:justify-center">
+      <div className="mt-10 flex justify-center border-t border-gray-200/80 pt-6 [&>*]:justify-center [&_div]:justify-center [&_form]:hidden">
         <AccountActionLinks
           unitsCount={0}
           initialDeletionRequested={deletionRequested}

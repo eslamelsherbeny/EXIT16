@@ -443,24 +443,46 @@ export async function deleteUnitBySellerAction(unitId: string) {
     const supabase = await getSupabase()
     const { data: unit } = await supabase
       .from('sell_requests')
-      .select('id, project_name, name')
+      .select('id, project_name, area, name, status')
       .eq('id', unitId)
       .maybeSingle()
 
+    const nowIso = new Date().toISOString()
+
+    // محاولة التحديث الكامل مع حفظ تاريخ الحذف للحذف التلقائي بعد 7 أيام
     const { error } = await supabase
       .from('sell_requests')
-      .delete()
+      .update({
+        previous_status: unit?.status || 'pending',
+        status: 'deleted_by_seller',
+        submission_type: 'deleted_by_seller',
+        last_seller_edit_at: nowIso,
+        admin_note: `حذفها المالك بتاريخ ${new Date().toLocaleDateString('ar-EG')}`,
+      })
       .eq('id', unitId)
 
-    if (error) return { success: false, error: 'تعذر حذف الوحدة.' }
+    // Fallback في حال لم يتم تشغيل سكريبت الأعمدة الإضافية بعد
+    if (error) {
+      const { error: fallbackErr } = await supabase
+        .from('sell_requests')
+        .update({
+          status: 'deleted_by_seller',
+          admin_note: `حذفها المالك بتاريخ ${new Date().toLocaleDateString('ar-EG')}`,
+        })
+        .eq('id', unitId)
+
+      if (fallbackErr) {
+        return { success: false, error: 'تعذر حذف الوحدة حالياً.' }
+      }
+    }
 
     try {
       await supabase.from('notifications').insert({
         user_id: null,
         title: `🗑 حذف البائع وحدة: ${unit?.project_name || 'وحدة'}`,
-        message: `قام المالك (${unit?.name || 'البائع'}) بحذف وحدته من حسابه.`,
+        message: `قام المالك (${unit?.name || 'البائع'}) بحذف وحدته في (${unit?.area || '—'}) — اضغط لمراجعتها في قسم المحذوفات.`,
         type: 'property',
-        link: '/admin/properties',
+        link: `/admin/properties?tab=deleted&unitId=${unitId}`,
         is_read: false,
       })
     } catch {}
@@ -473,7 +495,6 @@ export async function deleteUnitBySellerAction(unitId: string) {
     return { success: false, error: 'حدث خطأ أثناء الحذف.' }
   }
 }
-
 // 8. حفظ مستند مرفوع للوحدة
 export async function saveUnitDocumentAction(payload: {
   unitId: string
@@ -608,32 +629,36 @@ export async function requestUnitPromotionAction(payload: {
   price: number
 }) {
   try {
-    const cookieStore = await cookies()
-    const sessionId = cookieStore.get('user_session')?.value
-    if (!sessionId) return { success: false, error: 'يرجى تسجيل الدخول.' }
-
     const supabase = await getSupabase()
     const { data: unit } = await supabase
       .from('sell_requests')
-      .select('id, project_name, name, status')
+      .select(
+        'id, project_name, area, name, phone, status, featured_fawry_code, featured_status'
+      )
       .eq('id', payload.unitId)
       .maybeSingle()
 
     if (!unit) return { success: false, error: 'الوحدة غير موجودة.' }
 
-    // توليد كود دفع فوري مكون من 10 أرقام
-    const fawryCode = String(
-      Math.floor(1000000000 + Math.random() * 9000000000)
-    )
+    const cleanIdPart = String(unit.id)
+      .replace(/[^a-zA-Z0-9]/g, '')
+      .slice(0, 4)
+      .toUpperCase()
+    const randomSuffix = Math.floor(10 + Math.random() * 90)
+    const adOrderRef =
+      unit.featured_fawry_code && unit.featured_fawry_code.startsWith('AD-')
+        ? unit.featured_fawry_code
+        : `AD-${cleanIdPart}${randomSuffix}`
 
-    // إذا كانت الوحدة منشورة بالفعل نفعّل التاريخ أو نضعها بانتظار الدفع والتفعيل
+    const isChangingPackage = unit.featured_status === 'pending_payment'
+
     const { error } = await supabase
       .from('sell_requests')
       .update({
         featured_days: payload.days,
         featured_price: payload.price,
         featured_status: 'pending_payment',
-        featured_fawry_code: fawryCode,
+        featured_fawry_code: adOrderRef,
       })
       .eq('id', payload.unitId)
 
@@ -647,10 +672,12 @@ export async function requestUnitPromotionAction(payload: {
     try {
       await supabase.from('notifications').insert({
         user_id: null,
-        title: `⭐ طلب تمييز وحدة (${payload.days} يوم): ${unit.project_name || 'وحدة'}`,
-        message: `المالك: ${unit.name || 'البائع'} · الباقة: ${payload.days} يوم (${payload.price.toLocaleString('en-US')} ج.م) · كود فوري: ${fawryCode}`,
+        title: isChangingPackage
+          ? `🔄 تعديل باقة إعلان (${payload.days} يوم) — كود: ${adOrderRef}`
+          : `📢 طلب إعلان وتمييز جديد (${payload.days} يوم) — كود: ${adOrderRef}`,
+        message: `المالك: ${unit.name || 'البائع'} (${unit.phone || ''}) · الوحدة: ${unit.project_name || 'وحدة'} · اضغط لتفعيل التمييز فوراً.`,
         type: 'property',
-        link: '/admin/properties',
+        link: `/admin/properties?tab=featured&unitId=${payload.unitId}&action=promote`,
         is_read: false,
       })
     } catch {}
@@ -660,11 +687,65 @@ export async function requestUnitPromotionAction(payload: {
     revalidatePath('/admin/properties')
     return {
       success: true,
-      fawryCode,
+      fawryCode: adOrderRef,
       days: payload.days,
       price: payload.price,
     }
   } catch {
-    return { success: false, error: 'حدث خطأ أثناء تسجيل طلب التمييز.' }
+    return { success: false, error: 'حدث خطأ أثناء تسجيل طلب الإعلان.' }
+  }
+}
+
+// 11. إلغاء طلب الإعلان أو إيقاف التمييز الساري بواسطة البائع في أي وقت
+export async function cancelUnitPromotionBySellerAction(unitId: string) {
+  try {
+    const cookieStore = await cookies()
+    const sessionId = cookieStore.get('user_session')?.value
+    if (!sessionId) return { success: false, error: 'يرجى تسجيل الدخول.' }
+
+    const supabase = await getSupabase()
+    const { data: unit } = await supabase
+      .from('sell_requests')
+      .select(
+        'id, project_name, name, is_featured, featured_fawry_code, featured_status'
+      )
+      .eq('id', unitId)
+      .maybeSingle()
+
+    if (!unit) return { success: false, error: 'الوحدة غير موجودة.' }
+
+    const wasActive = Boolean(unit.is_featured)
+    const adRef = unit.featured_fawry_code || ''
+
+    const { error } = await supabase
+      .from('sell_requests')
+      .update({
+        is_featured: false,
+        featured_status: 'cancelled_by_seller',
+        featured_until: null,
+      })
+      .eq('id', unitId)
+
+    if (error) return { success: false, error: 'تعذر إلغاء طلب التمييز.' }
+
+    try {
+      await supabase.from('notifications').insert({
+        user_id: null,
+        title: wasActive
+          ? `⏹ أوقف البائع اشتراك تمييز وحدته (${adRef})`
+          : `✕ ألغى البائع طلب إعلان وحدته (${adRef})`,
+        message: `قام المالك (${unit.name || 'البائع'}) بإلغاء التمييز لوحدته في (${unit.project_name || 'مشروعه'}).`,
+        type: 'property',
+        link: '/admin/properties',
+        is_read: false,
+      })
+    } catch {}
+
+    revalidatePath('/account')
+    revalidatePath('/opportunities')
+    revalidatePath('/admin/properties')
+    return { success: true }
+  } catch {
+    return { success: false, error: 'حدث خطأ غير متوقع.' }
   }
 }

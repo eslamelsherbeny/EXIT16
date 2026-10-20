@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useTransition } from "react"
-import { useRouter } from "next/navigation"
+import { useEffect, useState, useTransition } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import {
   AlertTriangle,
   Building2,
@@ -15,6 +15,7 @@ import {
   PauseCircle,
   Phone,
   RefreshCw,
+  RotateCcw,
   Search,
   ShieldAlert,
   Sparkles,
@@ -44,6 +45,7 @@ import { Textarea } from "@/components/ui/textarea"
 import {
   deletePropertyAction,
   managePropertyPromotionAction,
+  purgeSellerDeletedPropertiesAction,
   updatePropertyStatusAction,
 } from "../actions"
 
@@ -159,6 +161,14 @@ function getUploadedDocsList(docs: Record<string, any> | null | undefined) {
     }))
 }
 
+function getRemainingDaysBeforePurge(lastEditIso?: string | null) {
+  if (!lastEditIso) return 7
+  const deletedTime = new Date(lastEditIso).getTime()
+  const purgeTime = deletedTime + 7 * 24 * 60 * 60 * 1000
+  const diffDays = Math.ceil((purgeTime - Date.now()) / (1000 * 60 * 60 * 24))
+  return Math.max(1, Math.min(7, diffDays))
+}
+
 type ConfirmPropertyAction =
   | {
       type: "status"
@@ -168,6 +178,10 @@ type ConfirmPropertyAction =
   | {
       type: "delete"
       property: SellRequest
+    }
+  | {
+      type: "purge_all_deleted"
+      count: number
     }
   | {
       type: "promote"
@@ -182,8 +196,13 @@ export default function PropertiesTable({
   properties: SellRequest[]
 }) {
   const router = useRouter()
+  const searchParams = useSearchParams()
+
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
+  const [highlightedUnitId, setHighlightedUnitId] = useState<string | null>(
+    null
+  )
   const [detailsProperty, setDetailsProperty] = useState<SellRequest | null>(
     null
   )
@@ -191,12 +210,54 @@ export default function PropertiesTable({
     useState<ConfirmPropertyAction | null>(null)
   const [activePropertyId, setActivePropertyId] = useState<string | null>(null)
   const [reason, setReason] = useState("")
-  const [promoDaysInput, setPromoDaysInput] = useState<number>(14)
   const [notice, setNotice] = useState<{
     text: string
     isError?: boolean
   } | null>(null)
   const [pending, startTransition] = useTransition()
+
+  // قراءة الرابط القادم من الإشعارات لفتح التبويب والوحدة ونافذة التمييز مباشرة
+  useEffect(() => {
+    const tabParam = searchParams.get("tab")
+    const unitIdParam = searchParams.get("unitId")
+    const actionParam = searchParams.get("action")
+
+    if (tabParam) {
+      setStatusFilter(tabParam)
+    }
+
+    if (unitIdParam) {
+      setHighlightedUnitId(unitIdParam)
+      const targetProp = properties.find((p) => p.id === unitIdParam)
+
+      if (targetProp) {
+        if (!tabParam) {
+          if (targetProp.status === "deleted_by_seller") {
+            setStatusFilter("deleted")
+          } else if (
+            targetProp.featured_status === "pending_payment" ||
+            targetProp.is_featured
+          ) {
+            setStatusFilter("featured")
+          }
+        }
+
+        if (actionParam === "promote") {
+          setConfirmAction({
+            type: "promote",
+            property: targetProp,
+            promoAction: "activate",
+            days: targetProp.featured_days || 14,
+          })
+        }
+
+        setTimeout(() => {
+          const el = document.getElementById(`prop-row-${unitIdParam}`)
+          el?.scrollIntoView({ behavior: "smooth", block: "center" })
+        }, 250)
+      }
+    }
+  }, [searchParams, properties])
 
   function closeConfirmModal() {
     if (pending) return
@@ -207,6 +268,29 @@ export default function PropertiesTable({
   function executeConfirmedAction() {
     if (!confirmAction) return
     setNotice(null)
+
+    if (confirmAction.type === "purge_all_deleted") {
+      startTransition(async () => {
+        try {
+          const res = await purgeSellerDeletedPropertiesAction()
+          if (res.success) {
+            setNotice({
+              text: "تم مسح جميع الوحدات المحذوفة من قاعدة البيانات نهائياً ✓",
+            })
+            router.refresh()
+          } else {
+            setNotice({
+              text: res.error || "تعذر مسح الوحدات المحذوفة.",
+              isError: true,
+            })
+          }
+        } finally {
+          setConfirmAction(null)
+        }
+      })
+      return
+    }
+
     const target = confirmAction.property
     setActivePropertyId(target.id)
 
@@ -234,7 +318,7 @@ export default function PropertiesTable({
           const res = await deletePropertyAction(target.id)
           if (res.success) {
             setNotice({
-              text: `تم حذف وحدة "${target.project_name || target.name}" نهائياً من قاعدة البيانات.`,
+              text: `تم مسح وحدة "${target.project_name || target.name}" نهائياً من قاعدة البيانات.`,
             })
             router.refresh()
           } else {
@@ -272,22 +356,27 @@ export default function PropertiesTable({
     })
   }
 
+  // إحصائيات التبويبات السريعة
+  const deletedBySellerList = properties.filter(
+    (p) => p.status === "deleted_by_seller"
+  )
+  const promoRequestsList = properties.filter(
+    (p) =>
+      p.status !== "deleted_by_seller" &&
+      (p.featured_status === "pending_payment" || p.is_featured)
+  )
+  const sellerActionsList = properties.filter(
+    (p) =>
+      p.status === "paused_by_seller" ||
+      (p.status === "pending" &&
+        (p.submission_type === "edited_by_seller" ||
+          p.submission_type === "resumed_by_seller"))
+  )
+
   const filtered = properties.filter((p) => {
     const currentStatus = p.status || "pending"
-    if (statusFilter === "seller_actions") {
-      const isSellerAction =
-        currentStatus === "paused_by_seller" ||
-        currentStatus === "deleted_by_seller" ||
-        p.submission_type === "edited_by_seller" ||
-        p.submission_type === "resumed_by_seller"
-      if (!isSellerAction) return false
-    } else if (statusFilter === "featured") {
-      if (!p.is_featured && p.featured_status !== "pending_payment")
-        return false
-    } else if (statusFilter !== "all" && currentStatus !== statusFilter) {
-      return false
-    }
 
+    // إذا كان هناك بحث نصي (مثل رقم طلب الإعلان AD-XXXX)، نبحث في كل العقارات
     if (search.trim()) {
       const q = search.toLowerCase()
       const textMatch =
@@ -296,10 +385,34 @@ export default function PropertiesTable({
           .includes(q)
       if (!textMatch) return false
     }
+
+    if (statusFilter === "deleted") {
+      return currentStatus === "deleted_by_seller"
+    }
+
+    // إخفاء المحذوفات من باقي التبويبات العادية حتى تكون مفصولة تماماً
+    if (currentStatus === "deleted_by_seller") return false
+
+    if (statusFilter === "seller_actions") {
+      return (
+        currentStatus === "paused_by_seller" ||
+        p.submission_type === "edited_by_seller" ||
+        p.submission_type === "resumed_by_seller"
+      )
+    }
+
+    if (statusFilter === "featured") {
+      return Boolean(p.is_featured || p.featured_status === "pending_payment")
+    }
+
+    if (statusFilter !== "all" && currentStatus !== statusFilter) {
+      return false
+    }
+
     return true
   })
 
-  // عرض الشارات الخاصة بتعديلات البائع والمستندات والتمييز
+  // شارات تفاعلية قابلة للضغط
   function renderSellerActivityBadges(property: SellRequest) {
     const docs = getUploadedDocsList(property.documents)
     const isFeaturedActive =
@@ -311,18 +424,26 @@ export default function PropertiesTable({
       <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
         {property.submission_type === "edited_by_seller" &&
           property.status === "pending" && (
-            <span className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-extrabold text-blue-800">
+            <button
+              type="button"
+              onClick={() => setDetailsProperty(property)}
+              className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-extrabold text-blue-800 hover:bg-blue-100"
+            >
               <RefreshCw className="size-2.5" />
-              <span>معدّلة من المالك</span>
-            </span>
+              <span>✏️ معدّلة من المالك (اضغط للمراجعة)</span>
+            </button>
           )}
 
         {property.submission_type === "resumed_by_seller" &&
           property.status === "pending" && (
-            <span className="inline-flex items-center gap-1 rounded-md border border-purple-200 bg-purple-50 px-2 py-0.5 text-[10px] font-extrabold text-purple-800">
+            <button
+              type="button"
+              onClick={() => setDetailsProperty(property)}
+              className="inline-flex items-center gap-1 rounded-md border border-purple-200 bg-purple-50 px-2 py-0.5 text-[10px] font-extrabold text-purple-800 hover:bg-purple-100"
+            >
               <RefreshCw className="size-2.5" />
-              <span>معاد عرضها من المالك</span>
-            </span>
+              <span>🔄 معاد عرضها من المالك</span>
+            </button>
           )}
 
         {property.status === "paused_by_seller" && (
@@ -335,33 +456,65 @@ export default function PropertiesTable({
         {property.status === "deleted_by_seller" && (
           <span className="inline-flex items-center gap-1 rounded-md border border-red-300 bg-red-100 px-2 py-0.5 text-[10px] font-extrabold text-red-800">
             <Trash2 className="size-2.5" />
-            <span>حذفها المالك من حسابه (محفوظة للأدمن)</span>
+            <span>
+              حذفها المالك · تُمسح تلقائياً خلال{" "}
+              {getRemainingDaysBeforePurge(property.last_seller_edit_at)} أيام
+            </span>
           </span>
         )}
 
         {docs.length > 0 && (
-          <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-extrabold text-[#105C50]">
+          <button
+            type="button"
+            onClick={() => setDetailsProperty(property)}
+            className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-extrabold text-[#105C50] hover:bg-emerald-100"
+          >
             <FileCheck2 className="size-2.5" />
-            <span>{docs.length} مستند مرفوع</span>
-          </span>
+            <span>📄 {docs.length} مستند مرفوع (معاينة)</span>
+          </button>
         )}
 
         {isFeaturedActive && (
-          <span className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-extrabold text-amber-900">
+          <button
+            type="button"
+            onClick={() =>
+              setConfirmAction({
+                type: "promote",
+                property,
+                promoAction: "cancel",
+                days: property.featured_days || 14,
+              })
+            }
+            className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-100 px-2.5 py-0.5 text-[10px] font-extrabold text-amber-900 hover:bg-amber-200"
+          >
             <Star className="size-2.5 fill-amber-500 text-amber-600" />
-            <span>مميزة ({property.featured_days || 14} يوم)</span>
-          </span>
+            <span>
+              مميزة نشطة ({property.featured_days || 14} يوم) ·{" "}
+              {property.featured_fawry_code || ""}
+            </span>
+          </button>
         )}
 
         {!isFeaturedActive &&
           property.featured_status === "pending_payment" && (
-            <span className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-extrabold text-amber-800">
-              <Sparkles className="size-2.5 text-amber-600" />
+            <button
+              type="button"
+              onClick={() =>
+                setConfirmAction({
+                  type: "promote",
+                  property,
+                  promoAction: "activate",
+                  days: property.featured_days || 14,
+                })
+              }
+              className="inline-flex animate-pulse items-center gap-1 rounded-md border border-amber-400 bg-amber-100 px-2.5 py-1 text-[10px] font-extrabold text-amber-950 shadow-2xs hover:bg-amber-200"
+            >
+              <Sparkles className="size-3 text-amber-700" />
               <span>
-                طلب تمييز ({property.featured_days} يوم) · فوري:{" "}
-                {property.featured_fawry_code}
+                📢 طلب تمييز ({property.featured_days || 14} يوم) · كود:{" "}
+                {property.featured_fawry_code || "AD"} — اضغط هنا للتفعيل ⭐
               </span>
-            </span>
+            </button>
           )}
       </div>
     )
@@ -374,10 +527,11 @@ export default function PropertiesTable({
         <div>
           <p className="text-xs font-extrabold text-[#105C50]">إدارة المخزون</p>
           <h2 className="mt-1 text-xl font-extrabold text-[#0a1122] sm:text-3xl">
-            إدارة عقارات البائعين ({properties.length})
+            إدارة عقارات البائعين (
+            {properties.length - deletedBySellerList.length})
           </h2>
           <p className="mt-1 text-xs text-gray-500 sm:text-sm">
-            تحكم في حالة كل وحدة، راجع المستندات والتعديلات، وفعّل باقات التمييز (⭐).
+            اضغط على شارة التمييز أو المستندات لأي وحدة لفتح نافذة التحكم الخاصة بها فوراً.
           </p>
         </div>
       </div>
@@ -418,7 +572,7 @@ export default function PropertiesTable({
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="ابحث باسم المشروع، المنطقة، البائع، الهاتف، أو كود فوري..."
+            placeholder="ابحث برقم طلب الإعلان (AD-xxxx)، اسم المشروع، المنطقة، أو هاتف البائع..."
             className="h-10 w-full rounded-xl border border-gray-200 pr-10 pl-4 text-xs focus:border-[#105C50] focus:outline-none"
           />
         </div>
@@ -428,11 +582,21 @@ export default function PropertiesTable({
             { id: "all", label: "الكل" },
             { id: "pending", label: "بانتظار المراجعة" },
             { id: "active", label: "معروضة بالسوق" },
-            { id: "featured", label: "⭐ المميزة وطلبات الترويج" },
-            { id: "seller_actions", label: "🔄 معدلة / متوقفة / محذوفة من المالك" },
+            {
+              id: "featured",
+              label: `⭐ طلبات الإعلان والتمييز (${promoRequestsList.length})`,
+            },
+            {
+              id: "seller_actions",
+              label: `🔄 معدلة / متوقفة (${sellerActionsList.length})`,
+            },
             { id: "offer_received", label: "عليها عرض" },
             { id: "sold", label: "مباعة" },
             { id: "rejected", label: "مرفوضة" },
+            {
+              id: "deleted",
+              label: `🗑 محذوفة من المالك (${deletedBySellerList.length})`,
+            },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -440,8 +604,12 @@ export default function PropertiesTable({
               onClick={() => setStatusFilter(tab.id)}
               className={`rounded-xl px-3 py-1.5 text-[11px] font-bold transition sm:py-2 sm:text-xs ${
                 statusFilter === tab.id
-                  ? "bg-[#105C50] text-white shadow-xs"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  ? tab.id === "deleted"
+                    ? "bg-red-600 text-white shadow-xs"
+                    : "bg-[#105C50] text-white shadow-xs"
+                  : tab.id === "deleted" && deletedBySellerList.length > 0
+                    ? "bg-red-50 text-red-700 hover:bg-red-100"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
             >
               {tab.label}
@@ -450,11 +618,40 @@ export default function PropertiesTable({
         </div>
       </div>
 
+      {/* شريط خاص يظهر داخل تبويب "محذوفة من المالك" مع زر مسح الكل */}
+      {statusFilter === "deleted" && deletedBySellerList.length > 0 && (
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-200 bg-red-50/80 p-4 text-xs text-red-900">
+          <div>
+            <p className="font-extrabold">
+              🗑 سلة الوحدات المحذوفة بواسطة الملاك ({deletedBySellerList.length}{" "}
+              وحدة)
+            </p>
+            <p className="mt-0.5 text-[11px] text-red-700">
+              تُحفظ الوحدات هنا مؤقتاً لمدة 7 أيام لتتمكن من معرفة من حذف وحدته، ثم تُحذف تلقائياً من قاعدة البيانات.
+            </p>
+          </div>
+          <Button
+            size="sm"
+            disabled={pending}
+            onClick={() =>
+              setConfirmAction({
+                type: "purge_all_deleted",
+                count: deletedBySellerList.length,
+              })
+            }
+            className="h-9 rounded-xl bg-red-600 px-4 text-xs font-extrabold text-white hover:bg-red-700"
+          >
+            <Trash2 className="ml-1.5 size-3.5" />
+            مسح الكل نهائياً ({deletedBySellerList.length})
+          </Button>
+        </div>
+      )}
+
       {/* ==================== 1. عرض الموبايل ==================== */}
       <div className="space-y-3.5 md:hidden">
         {filtered.length === 0 ? (
           <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center text-xs text-gray-400">
-            لا توجد عقارات مطابقة للبحث الحالي.
+            لا توجد عقارات في هذا القسم حالياً.
           </div>
         ) : (
           filtered.map((property) => {
@@ -467,18 +664,22 @@ export default function PropertiesTable({
               Boolean(property.is_featured) &&
               (!property.featured_until ||
                 new Date(property.featured_until) > new Date())
+            const isHighlighted = highlightedUnitId === property.id
 
             return (
               <div
+                id={`prop-row-${property.id}`}
                 key={property.id}
                 className={`relative overflow-hidden rounded-2xl border bg-white p-4 shadow-xs transition ${
                   isCardLoading
                     ? "border-[#105C50] opacity-75"
-                    : currentSt === "deleted_by_seller"
-                      ? "border-red-300 bg-red-50/20"
-                      : isFeaturedActive
-                        ? "border-amber-300 ring-1 ring-amber-200/50"
-                        : "border-gray-200/90"
+                    : isHighlighted
+                      ? "border-[#105C50] ring-2 ring-[#105C50]/30"
+                      : currentSt === "deleted_by_seller"
+                        ? "border-red-300 bg-red-50/20"
+                        : isFeaturedActive
+                          ? "border-amber-300 ring-1 ring-amber-200/50"
+                          : "border-gray-200/90"
                 }`}
               >
                 {isCardLoading && (
@@ -561,33 +762,6 @@ export default function PropertiesTable({
                   </div>
                 </div>
 
-                <div className="mt-3">
-                  <label className="mb-1 block text-[11px] font-bold text-gray-500">
-                    تغيير مرحلة الطلب:
-                  </label>
-                  <select
-                    disabled={pending}
-                    value={currentSt}
-                    onChange={(e) => {
-                      const nextSt = e.target.value
-                      if (nextSt !== currentSt) {
-                        setConfirmAction({
-                          type: "status",
-                          property,
-                          newStatus: nextSt,
-                        })
-                      }
-                    }}
-                    className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-[#0a1122] focus:border-[#105C50] focus:outline-none"
-                  >
-                    {SELLER_STATUS_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
                 <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-gray-100 pt-3">
                   <Button
                     size="sm"
@@ -596,47 +770,47 @@ export default function PropertiesTable({
                     onClick={() => setDetailsProperty(property)}
                   >
                     <Eye className="ml-1 size-3.5" />
-                    التفاصيل والمستندات
+                    التفاصيل
                   </Button>
 
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={pending}
-                    onClick={() => {
-                      setPromoDaysInput(property.featured_days || 14)
-                      setConfirmAction({
-                        type: "promote",
-                        property,
-                        promoAction: isFeaturedActive ? "cancel" : "activate",
-                        days: property.featured_days || 14,
-                      })
-                    }}
-                    className={`h-9 rounded-xl px-3 text-xs font-bold ${
-                      isFeaturedActive
-                        ? "border-amber-300 bg-amber-100 text-amber-900"
-                        : "border-amber-200 bg-amber-50/70 text-amber-800"
-                    }`}
-                  >
-                    <Star className="ml-1 size-3.5 fill-amber-400 text-amber-500" />
-                    {isFeaturedActive ? "إلغاء التمييز" : "تمييز ⭐"}
-                  </Button>
-
-                  {currentSt !== "active" && (
+                  {currentSt === "deleted_by_seller" ? (
                     <Button
                       size="sm"
+                      variant="outline"
                       disabled={pending}
-                      className="h-9 flex-1 rounded-xl bg-[#105C50] text-xs font-bold text-white hover:bg-[#0c483f]"
                       onClick={() =>
                         setConfirmAction({
                           type: "status",
                           property,
-                          newStatus: "active",
+                          newStatus: "pending",
                         })
                       }
+                      className="h-9 flex-1 rounded-xl border-emerald-200 bg-emerald-50 text-xs font-bold text-[#105C50]"
                     >
-                      <Check className="ml-1 size-3.5" />
-                      نشر
+                      <RotateCcw className="ml-1 size-3.5" />
+                      استرجاع الوحدة
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={pending}
+                      onClick={() =>
+                        setConfirmAction({
+                          type: "promote",
+                          property,
+                          promoAction: isFeaturedActive ? "cancel" : "activate",
+                          days: property.featured_days || 14,
+                        })
+                      }
+                      className={`h-9 rounded-xl px-3 text-xs font-bold ${
+                        isFeaturedActive
+                          ? "border-amber-300 bg-amber-100 text-amber-900"
+                          : "border-amber-200 bg-amber-50/70 text-amber-800"
+                      }`}
+                    >
+                      <Star className="ml-1 size-3.5 fill-amber-400 text-amber-500" />
+                      {isFeaturedActive ? "إلغاء التمييز" : "تمييز ⭐"}
                     </Button>
                   )}
 
@@ -678,7 +852,7 @@ export default function PropertiesTable({
             قائمة الوحدات ({filtered.length})
           </CardTitle>
           <CardDescription className="text-xs">
-            تظهر هنا شارات تعديل البائع، إيقاف العرض، أو حذف المالك للوحدة، مع إمكانية مراجعة المستندات وتفعيل التمييز (⭐).
+            اضغط على شارة طلب التمييز (📢) أو المستندات (📄) لفتح نافذتها مباشرة.
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
@@ -686,11 +860,13 @@ export default function PropertiesTable({
             <table className="w-full text-right text-xs sm:text-sm">
               <thead className="bg-gray-50 text-xs text-gray-500">
                 <tr>
-                  <th className="px-4 py-4 font-bold">المشروع / الوحدة وحركة المالك</th>
+                  <th className="px-4 py-4 font-bold">
+                    المشروع / الوحدة وحركة المالك
+                  </th>
                   <th className="px-4 py-4 font-bold">المطلوب كاش (المدفوع)</th>
                   <th className="px-4 py-4 font-bold">سعر العقد / السوق</th>
                   <th className="px-4 py-4 font-bold">بيانات البائع</th>
-                  <th className="px-4 py-4 font-bold">حالة الطلب (تحكم مباشر)</th>
+                  <th className="px-4 py-4 font-bold">حالة الطلب</th>
                   <th className="px-4 py-4 font-bold">إجراءات سريعة والتمييز</th>
                 </tr>
               </thead>
@@ -701,7 +877,7 @@ export default function PropertiesTable({
                       colSpan={6}
                       className="px-5 py-10 text-center text-sm text-gray-400"
                     >
-                      لا توجد عقارات مطابقة للبحث الحالي.
+                      لا توجد عقارات في هذا القسم حالياً.
                     </td>
                   </tr>
                 ) : (
@@ -717,18 +893,22 @@ export default function PropertiesTable({
                       Boolean(property.is_featured) &&
                       (!property.featured_until ||
                         new Date(property.featured_until) > new Date())
+                    const isHighlighted = highlightedUnitId === property.id
 
                     return (
                       <tr
+                        id={`prop-row-${property.id}`}
                         key={property.id}
                         className={`border-t border-gray-100 transition-colors ${
                           isRowLoading
                             ? "bg-emerald-50/40 opacity-70"
-                            : currentSt === "deleted_by_seller"
-                              ? "bg-red-50/30 hover:bg-red-50/50"
-                              : isFeaturedActive
-                                ? "bg-amber-50/20 hover:bg-amber-50/40"
-                                : "hover:bg-gray-50/50"
+                            : isHighlighted
+                              ? "bg-emerald-50/70 ring-2 ring-[#105C50]/30"
+                              : currentSt === "deleted_by_seller"
+                                ? "bg-red-50/30 hover:bg-red-50/50"
+                                : isFeaturedActive
+                                  ? "bg-amber-50/20 hover:bg-amber-50/40"
+                                  : "hover:bg-gray-50/50"
                         }`}
                       >
                         <td className="px-4 py-4">
@@ -842,67 +1022,69 @@ export default function PropertiesTable({
                               التفاصيل
                             </Button>
 
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={pending}
-                              onClick={() => {
-                                setPromoDaysInput(property.featured_days || 14)
-                                setConfirmAction({
-                                  type: "promote",
-                                  property,
-                                  promoAction: isFeaturedActive
-                                    ? "cancel"
-                                    : "activate",
-                                  days: property.featured_days || 14,
-                                })
-                              }}
-                              className={`h-8 text-xs font-bold ${
-                                isFeaturedActive
-                                  ? "border-amber-300 bg-amber-100 text-amber-900 hover:bg-amber-200"
-                                  : "border-amber-200 bg-amber-50/70 text-amber-800 hover:bg-amber-100"
-                              }`}
-                              title="تفعيل أو إلغاء ظهور النجمة الذهبية في أول السوق"
-                            >
-                              <Star className="ml-1 size-3.5 fill-amber-400 text-amber-500" />
-                              {isFeaturedActive ? "إلغاء التمييز" : "تمييز ⭐"}
-                            </Button>
-
-                            {currentSt !== "active" && (
-                              <Button
-                                size="sm"
-                                disabled={pending}
-                                className="h-8 bg-[#105C50] text-xs font-bold text-white hover:bg-[#0c483f]"
-                                onClick={() =>
-                                  setConfirmAction({
-                                    type: "status",
-                                    property,
-                                    newStatus: "active",
-                                  })
-                                }
-                              >
-                                <Check className="ml-1 size-3.5" />
-                                نشر
-                              </Button>
-                            )}
-
-                            {currentSt !== "rejected" && (
+                            {currentSt === "deleted_by_seller" ? (
                               <Button
                                 size="sm"
                                 variant="outline"
                                 disabled={pending}
-                                className="h-8 text-xs font-bold text-red-600 hover:bg-red-50"
                                 onClick={() =>
                                   setConfirmAction({
                                     type: "status",
                                     property,
-                                    newStatus: "rejected",
+                                    newStatus: "pending",
                                   })
                                 }
+                                className="h-8 border-emerald-200 bg-emerald-50 text-xs font-bold text-[#105C50] hover:bg-emerald-100"
                               >
-                                <X className="ml-1 size-3.5" />
-                                رفض
+                                <RotateCcw className="ml-1 size-3.5" />
+                                استرجاع
                               </Button>
+                            ) : (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={pending}
+                                  onClick={() =>
+                                    setConfirmAction({
+                                      type: "promote",
+                                      property,
+                                      promoAction: isFeaturedActive
+                                        ? "cancel"
+                                        : "activate",
+                                      days: property.featured_days || 14,
+                                    })
+                                  }
+                                  className={`h-8 text-xs font-bold ${
+                                    isFeaturedActive
+                                      ? "border-amber-300 bg-amber-100 text-amber-900 hover:bg-amber-200"
+                                      : "border-amber-200 bg-amber-50/70 text-amber-800 hover:bg-amber-100"
+                                  }`}
+                                >
+                                  <Star className="ml-1 size-3.5 fill-amber-400 text-amber-500" />
+                                  {isFeaturedActive
+                                    ? "إلغاء التمييز"
+                                    : "تمييز ⭐"}
+                                </Button>
+
+                                {currentSt !== "active" && (
+                                  <Button
+                                    size="sm"
+                                    disabled={pending}
+                                    className="h-8 bg-[#105C50] text-xs font-bold text-white hover:bg-[#0c483f]"
+                                    onClick={() =>
+                                      setConfirmAction({
+                                        type: "status",
+                                        property,
+                                        newStatus: "active",
+                                      })
+                                    }
+                                  >
+                                    <Check className="ml-1 size-3.5" />
+                                    نشر
+                                  </Button>
+                                )}
+                              </>
                             )}
 
                             <a
@@ -924,7 +1106,7 @@ export default function PropertiesTable({
                                   property,
                                 })
                               }
-                              className="inline-flex h-8 items-center justify-center rounded-md border border-gray-200 px-2 text-gray-400 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                              className="inline-flex h-8 items-center justify-center rounded-md border border-red-200 bg-red-50/60 px-2 text-red-600 transition hover:bg-red-100 disabled:opacity-50"
                               title="حذف نهائي من قاعدة البيانات"
                             >
                               <Trash2 className="size-3.5" />
@@ -941,7 +1123,7 @@ export default function PropertiesTable({
         </CardContent>
       </Card>
 
-      {/* ==================== 3. نافذة التأكيد الملمومة ==================== */}
+      {/* ==================== 3. نافذة التأكيد الموحدة ==================== */}
       <Dialog
         open={Boolean(confirmAction)}
         onOpenChange={(open) => {
@@ -959,6 +1141,7 @@ export default function PropertiesTable({
                   <span
                     className={`flex size-9 shrink-0 items-center justify-center rounded-full ${
                       confirmAction.type === "delete" ||
+                      confirmAction.type === "purge_all_deleted" ||
                       (confirmAction.type === "status" &&
                         confirmAction.newStatus === "rejected")
                         ? "bg-red-100 text-red-600"
@@ -967,7 +1150,8 @@ export default function PropertiesTable({
                           : "bg-emerald-100 text-[#105C50]"
                     }`}
                   >
-                    {confirmAction.type === "delete" ? (
+                    {confirmAction.type === "delete" ||
+                    confirmAction.type === "purge_all_deleted" ? (
                       <Trash2 className="size-4" />
                     ) : confirmAction.type === "promote" ? (
                       <Star className="size-4 fill-amber-400 text-amber-600" />
@@ -976,32 +1160,41 @@ export default function PropertiesTable({
                     )}
                   </span>
                   <DialogTitle className="text-sm font-extrabold text-[#0a1122] sm:text-base">
-                    {confirmAction.type === "delete"
-                      ? "تأكيد الحذف النهائي من الداتابيز"
-                      : confirmAction.type === "promote"
-                        ? confirmAction.promoAction === "activate"
-                          ? "تفعيل تمييز الوحدة (⭐)"
-                          : "إلغاء تمييز الوحدة"
-                        : confirmAction.newStatus === "active"
-                          ? "تأكيد نشر العقار في السوق"
-                          : confirmAction.newStatus === "rejected"
-                            ? "تأكيد رفض العقار"
-                            : "تأكيد تغيير حالة العقار"}
+                    {confirmAction.type === "purge_all_deleted" &&
+                      "مسح كل الوحدات المحذوفة نهائياً"}
+                    {confirmAction.type === "delete" &&
+                      "تأكيد الحذف النهائي من الداتابيز"}
+                    {confirmAction.type === "promote" &&
+                      (confirmAction.promoAction === "activate"
+                        ? "تفعيل تمييز الوحدة (⭐)"
+                        : "إلغاء تمييز الوحدة")}
+                    {confirmAction.type === "status" &&
+                      (confirmAction.newStatus === "active"
+                        ? "تأكيد نشر العقار في السوق"
+                        : confirmAction.newStatus === "rejected"
+                          ? "تأكيد رفض العقار"
+                          : "تأكيد تغيير حالة العقار")}
                   </DialogTitle>
                 </div>
 
                 <DialogDescription className="text-right text-xs leading-relaxed text-gray-600">
+                  {confirmAction.type === "purge_all_deleted" && (
+                    <>
+                      هل أنت متأكد من مسح جميع الوحدات المحذوفة بواسطة الملاك وعددها{" "}
+                      <strong className="text-red-600">
+                        ({confirmAction.count} وحدات)
+                      </strong>{" "}
+                      نهائياً من قاعدة البيانات؟
+                    </>
+                  )}
+
                   {confirmAction.type === "status" && (
                     <>
                       هل تريد تغيير حالة وحدة{" "}
                       <strong className="text-[#0a1122]">
                         "{confirmAction.property.project_name || "البائع"}"
                       </strong>{" "}
-                      الخاصة بـ ({confirmAction.property.name}) من{" "}
-                      <span className="font-bold">
-                        ({getStatusLabel(confirmAction.property.status)})
-                      </span>{" "}
-                      إلى{" "}
+                      الخاصة بـ ({confirmAction.property.name}) إلى{" "}
                       <span className="font-bold text-[#105C50]">
                         ({getStatusLabel(confirmAction.newStatus)})
                       </span>
@@ -1029,6 +1222,9 @@ export default function PropertiesTable({
                         <strong className="text-[#0a1122]">
                           "{confirmAction.property.project_name || "البائع"}"
                         </strong>{" "}
+                        {confirmAction.property.featured_fawry_code
+                          ? `(رقم طلب الإعلان: ${confirmAction.property.featured_fawry_code})`
+                          : ""}{" "}
                         لتظهر بشارة النجمة الذهبية (⭐) في أول صفحة الفرص والبحث:
                       </>
                     ) : (
@@ -1050,13 +1246,12 @@ export default function PropertiesTable({
                       <button
                         key={d}
                         type="button"
-                        onClick={() => {
-                          setPromoDaysInput(d)
+                        onClick={() =>
                           setConfirmAction({
                             ...confirmAction,
                             days: d,
                           })
-                        }}
+                        }
                         className={`rounded-xl border py-2 text-xs font-extrabold transition ${
                           confirmAction.days === d
                             ? "border-[#105C50] bg-[#eff9f5] text-[#105C50]"
@@ -1097,6 +1292,7 @@ export default function PropertiesTable({
                   onClick={executeConfirmedAction}
                   className={`h-9 flex-1 rounded-xl text-xs font-bold text-white sm:flex-none ${
                     confirmAction.type === "delete" ||
+                    confirmAction.type === "purge_all_deleted" ||
                     (confirmAction.type === "status" &&
                       confirmAction.newStatus === "rejected")
                       ? "bg-red-600 hover:bg-red-700"
@@ -1106,7 +1302,7 @@ export default function PropertiesTable({
                   {pending ? (
                     <span className="flex items-center justify-center gap-1.5">
                       <Loader2 className="size-3.5 animate-spin" />
-                      جاري الحفظ...
+                      جاري التنفيذ...
                     </span>
                   ) : (
                     "تأكيد التنفيذ"
@@ -1118,7 +1314,7 @@ export default function PropertiesTable({
         </DialogContent>
       </Dialog>
 
-      {/* ==================== 4. نافذة عرض تفاصيل الوحدة والمستندات المرفوعة ==================== */}
+      {/* ==================== 4. نافذة عرض تفاصيل الوحدة والمستندات ==================== */}
       <Dialog
         open={Boolean(detailsProperty)}
         onOpenChange={(open) => !open && setDetailsProperty(null)}
@@ -1218,7 +1414,6 @@ export default function PropertiesTable({
                 </div>
               </div>
 
-              {/* قسم معاينة المستندات المرفوعة من المالك */}
               {(() => {
                 const uploadedDocs = getUploadedDocsList(
                   detailsProperty.documents
@@ -1265,12 +1460,6 @@ export default function PropertiesTable({
                 )
               })()}
 
-              {detailsProperty.description && (
-                <div className="mt-2 rounded-xl border border-gray-200 p-3 text-right text-xs leading-relaxed text-gray-600">
-                  <strong>وصف البائع:</strong> {detailsProperty.description}
-                </div>
-              )}
-
               <DialogFooter className="mt-4 flex flex-row items-center justify-end gap-2">
                 <Button
                   variant="outline"
@@ -1278,6 +1467,23 @@ export default function PropertiesTable({
                   className="h-9 flex-1 rounded-xl text-xs font-bold sm:flex-none"
                 >
                   إغلاق
+                </Button>
+                <Button
+                  disabled={pending}
+                  className="h-9 flex-1 rounded-xl bg-amber-500 text-xs font-bold text-white hover:bg-amber-600 sm:flex-none"
+                  onClick={() => {
+                    const target = detailsProperty
+                    setDetailsProperty(null)
+                    setConfirmAction({
+                      type: "promote",
+                      property: target,
+                      promoAction: "activate",
+                      days: target.featured_days || 14,
+                    })
+                  }}
+                >
+                  <Star className="ml-1 size-3.5 fill-white" />
+                  تفعيل التمييز (⭐)
                 </Button>
                 {detailsProperty.status !== "active" && (
                   <Button

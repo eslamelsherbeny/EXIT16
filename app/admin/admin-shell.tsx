@@ -298,9 +298,6 @@ export default function AdminShell({
               <ShieldCheck className="size-4" />
               <span>مركز التحكم الذكي</span>
             </div>
-            <p className="mt-1 text-white/75">
-              جميع التعديلات على العقارات والطلبات تسمّع فوراً في حسابات العملاء.
-            </p>
           </div>
         </div>
       </aside>

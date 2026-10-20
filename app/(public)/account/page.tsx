@@ -8,6 +8,7 @@ import type { SellerUnitItem } from '@/components/account/seller-dashboard'
 import type { BuyerRequestItem } from '@/components/account/buyer-dashboard'
 import { AccountActionLinks } from '@/components/account/delete-account-modal'
 import { AccountViewSwitcher } from '@/components/account/account-view-switcher'
+import arDict from '@/dictionaries/ar.json'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -48,6 +49,9 @@ export default async function AccountPage({
     redirect('/login')
   }
 
+  const tCommon = arDict.accountPages.common
+  const tMain = arDict.accountPages.main
+
   const cleanEmail = (profile.email || '').trim().toLowerCase()
   const cleanPhone = (profile.phone || '').trim()
 
@@ -74,7 +78,6 @@ export default async function AccountPage({
     supabase.from('property_offers').select('property_id'),
   ])
 
-  // استبعاد الوحدات التي حذفها البائع من حسابه (deleted_by_seller)
   const sells = ((allSells as SellerUnitItem[]) || []).filter(
     (s: any) =>
       s.status !== 'deleted_by_seller' &&
@@ -134,7 +137,6 @@ export default async function AccountPage({
   const hasSells = sells.length > 0
   const hasBuys = buys.length > 0
 
-  // تحديد الواجهة الذكية بحيث لا تفتح لوحة فارغة أبداً
   const initialView: 'seller' | 'buyer' =
     resolvedParams.view === 'seller' && hasSells
       ? 'seller'
@@ -149,16 +151,15 @@ export default async function AccountPage({
   return (
     <main
       dir="rtl"
-      className="min-h-screen bg-[#f5f6f8] py-6 pb-24 text-[#0a1122] sm:py-10"
+      className="min-h-screen bg-[var(--brand-surface,#f5f6f8)] py-6 pb-24 text-[var(--brand-navy,#0a1122)] sm:py-10"
     >
-      {/* الشريط العلوي الموحد: المفضلة + تسجيل الخروج */}
       <div className="mx-auto mb-5 flex max-w-[1020px] items-center justify-between px-3 sm:px-6">
         <Link
           href="/account/favorites"
-          className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3.5 text-xs font-extrabold text-[#0a1122] shadow-2xs transition hover:border-red-200 hover:bg-red-50/40"
+          className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3.5 text-xs font-extrabold text-[var(--brand-navy,#0a1122)] shadow-2xs transition hover:border-red-200 hover:bg-red-50/40"
         >
           <Heart className="size-3.5 fill-red-500 text-red-500" />
-          <span>المفضلة</span>
+          <span>{tCommon.favorites}</span>
         </Link>
 
         <form action={logoutAccountAction}>
@@ -166,7 +167,7 @@ export default async function AccountPage({
             type="submit"
             className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3.5 text-xs font-bold text-gray-600 shadow-2xs transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
           >
-            <span>تسجيل الخروج</span>
+            <span>{tCommon.logout}</span>
             <LogOut className="size-3.5" />
           </button>
         </form>
@@ -186,31 +187,30 @@ export default async function AccountPage({
       ) : (
         <div className="mx-auto max-w-[680px] px-4 sm:px-6">
           <section className="rounded-[20px] border border-gray-200/80 bg-white p-8 text-center shadow-xs sm:p-12">
-            <h2 className="text-lg font-extrabold text-[#0a1122] sm:text-xl">
-              أهلاً يا {profile.name?.split(' ')[0] || 'صاحب الحساب'} — ليس لديك
-              أي طلبات حالياً
+            <h2 className="text-lg font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-xl">
+              {tMain.emptyWelcomePrefix}{' '}
+              {profile.name?.split(' ')[0] || tMain.emptyWelcomeFallbackName}{' '}
+              {tMain.emptyWelcomeSuffix}
             </h2>
             <p className="mx-auto mt-2.5 max-w-md text-xs leading-relaxed text-gray-500 sm:text-sm">
-              ابدأ الآن بعرض وحدتك للتنازل بدون أوفر واسترداد ما دفعته كاش، أو
-              سجل ميزانيتك كمشتري لتصلك الفرص المناسبة.
+              {tMain.emptyDesc}
             </p>
             <div className="mt-7 flex flex-wrap justify-center gap-3">
               <Link
                 href="/sell?new=1"
-                className="rounded-xl bg-[#0b6954] px-7 py-2.5 text-xs font-bold text-white transition hover:bg-[#095443] sm:text-sm"
+                className="rounded-xl bg-[var(--brand-primary,#007a5a)] px-7 py-2.5 text-xs font-bold text-white transition hover:bg-[var(--brand-primary-hover,#006248)] sm:text-sm"
               >
-                عايز أبيع وحدتي
+                {tMain.sellCta}
               </Link>
               <Link
                 href="/buy"
-                className="rounded-xl bg-[#0a1122] px-7 py-2.5 text-xs font-bold text-white transition hover:bg-[#16223f] sm:text-sm"
+                className="rounded-xl bg-[var(--brand-navy,#0a1122)] px-7 py-2.5 text-xs font-bold text-white transition hover:bg-[var(--brand-navy-hover,#16223f)] sm:text-sm"
               >
-                عايز أشتري وحدة
+                {tMain.buyCta}
               </Link>
             </div>
           </section>
 
-          {/* بياناتي وحذف الحساب فقط في المنتصف بدون تكرار زر تسجيل الخروج */}
           <div className="mt-8 flex justify-center [&>*]:justify-center [&_div]:justify-center [&_form]:hidden">
             <AccountActionLinks
               unitsCount={0}

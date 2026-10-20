@@ -5,14 +5,24 @@ import { Check, ChevronDown, Globe } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import arDict from '@/dictionaries/ar.json'
+
+const t = arDict.sell.shared
+
+export type PlatformCountryCode = 'EG' | 'RU' | 'GE' | 'AE'
 
 export type PlatformCountryOption = {
-  code: 'EG' | 'RU' | 'GE' | 'AE' | string
+  code: PlatformCountryCode | string
   nameAr: string
   nameEn: string
   flag: string
   currencySymbol: string
   phoneCode: string
+  defaultPackages?: {
+    days7: number
+    days14: number
+    days30: number
+  }
 }
 
 export const PLATFORM_COUNTRIES: PlatformCountryOption[] = [
@@ -23,6 +33,7 @@ export const PLATFORM_COUNTRIES: PlatformCountryOption[] = [
     flag: '🇪🇬',
     currencySymbol: 'ج.م',
     phoneCode: '20',
+    defaultPackages: { days7: 1199, days14: 1999, days30: 2799 },
   },
   {
     code: 'RU',
@@ -31,6 +42,7 @@ export const PLATFORM_COUNTRIES: PlatformCountryOption[] = [
     flag: '🇷🇺',
     currencySymbol: '₽',
     phoneCode: '7',
+    defaultPackages: { days7: 2500, days14: 4200, days30: 5900 },
   },
   {
     code: 'GE',
@@ -39,6 +51,7 @@ export const PLATFORM_COUNTRIES: PlatformCountryOption[] = [
     flag: '🇬🇪',
     currencySymbol: '$',
     phoneCode: '995',
+    defaultPackages: { days7: 29, days14: 49, days30: 69 },
   },
   {
     code: 'AE',
@@ -47,6 +60,7 @@ export const PLATFORM_COUNTRIES: PlatformCountryOption[] = [
     flag: '🇦🇪',
     currencySymbol: 'د.إ',
     phoneCode: '971',
+    defaultPackages: { days7: 99, days14: 179, days30: 249 },
   },
 ]
 
@@ -118,11 +132,37 @@ export const ALL_RESIDENCE_COUNTRIES: PlatformCountryOption[] = [
   },
 ]
 
-export function getCurrencyByCountry(countryCode?: string) {
-  const found = PLATFORM_COUNTRIES.find(
-    (c) => c.code === (countryCode || 'EG').toUpperCase()
+export function normalizeArabicText(str: string) {
+  return (str || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[أإآ]/g, 'ا')
+    .replace(/ة/g, 'ه')
+}
+
+export function getHeaderCookieCountry(): PlatformCountryCode {
+  if (typeof document !== 'undefined') {
+    const match = document.cookie
+      .split('; ')
+      .find((row) => row.startsWith('darak_country='))
+    const code = match?.split('=')[1]?.trim() as PlatformCountryCode | undefined
+    if (code && PLATFORM_COUNTRIES.some((c) => c.code === code)) {
+      return code
+    }
+  }
+  return 'EG'
+}
+
+export function getCountryConfig(countryCode?: string): PlatformCountryOption {
+  return (
+    PLATFORM_COUNTRIES.find(
+      (c) => c.code === (countryCode || 'EG').toUpperCase()
+    ) || PLATFORM_COUNTRIES[0]
   )
-  return found?.currencySymbol || 'ج.م'
+}
+
+export function getCurrencyByCountry(countryCode?: string) {
+  return getCountryConfig(countryCode).currencySymbol
 }
 
 export const unitTypes = [
@@ -140,7 +180,12 @@ export const unitTypes = [
   'أرض',
 ]
 
-export const finishings = ['تشطيب كامل', 'نص تشطيب', 'على الطوب', 'متشطبة بالفرش']
+export const finishings = [
+  'تشطيب كامل',
+  'نص تشطيب',
+  'على الطوب',
+  'متشطبة بالفرش',
+]
 export const deliveries = ['جاهزة للاستلام', 'تحت الإنشاء']
 export const features = [
   'حمام سباحة',
@@ -152,11 +197,20 @@ export const features = [
   'مصعد',
   'قريبة من الخدمات',
 ]
-export const years = ['2026', '2025', '2024', '2023', '2022', '2021', '2020', '2019']
+export const years = [
+  '2026',
+  '2025',
+  '2024',
+  '2023',
+  '2022',
+  '2021',
+  '2020',
+  '2019',
+]
 
 export const areasCatalogByCountry: Record<
   string,
-  ReadonlyArray< readonly [string, ReadonlyArray<string>] >
+  ReadonlyArray<readonly [string, ReadonlyArray<string>]>
 > = {
   EG: [
     [
@@ -188,38 +242,51 @@ export const areasCatalogByCountry: Record<
       ],
     ],
   ],
-  RU: [
+  AE: [
     [
-      'موسكو وسانت بطرسبرغ',
-      ['موسكو (Moscow)', 'سانت بطرسبرغ (St. Petersburg)', 'موسكو أوبلاست'],
-    ],
-    [
-      'مدن روسية أخرى',
-      ['سوتشي (Sochi)', 'كازان (Kazan)', 'إيكاترينبرغ', 'منطقتي مش في القائمة'],
-    ],
-  ],
-  GE: [
-    [
-      'مدن جورجيا الرئيسية',
+      'دبي',
       [
-        'تبليسي (Tbilisi)',
-        'باتومي (Batumi)',
-        'كوتايسي (Kutaisi)',
-        'غوداوري (Gudauri)',
-        'بورجومي (Borjomi)',
+        'داون تاون دبي',
+        'دبي مارينا',
+        'بيزنس باي',
+        'نخلة جميرا',
+        'قرية جميرا الدائرية JVC',
+        'دبي هيلز',
+      ],
+    ],
+    [
+      'أبوظبي والشارقة',
+      [
+        'جزيرة ياس',
+        'جزيرة السعديات',
+        'جزيرة الريم',
+        'الشارقة - الجادة',
         'منطقتي مش في القائمة',
       ],
     ],
   ],
-  AE: [
+  RU: [
     [
-      'الإمارات الرئيسية',
+      'موسكو وسانت بطرسبرغ',
       [
-        'دبي (Dubai)',
-        'أبوظبي (Abu Dhabi)',
-        'الشارقة (Sharjah)',
-        'رأس الخيمة (Ras Al Khaimah)',
-        'عجمان (Ajman)',
+        'وسط موسكو',
+        'موسكو سيتي',
+        'سانت بطرسبرغ',
+        'سوتشي',
+        'كازان',
+        'منطقة أخرى',
+      ],
+    ],
+  ],
+  GE: [
+    [
+      'تبليسي وباتومي',
+      [
+        'تبليسي - سابورتالو',
+        'تبليسي - فاكي',
+        'باتومي - البوليفارد الجديد',
+        'باتومي - وسط المدينة',
+        'كوتايسي',
         'منطقتي مش في القائمة',
       ],
     ],
@@ -232,8 +299,9 @@ export function formatAmount(value?: string, currencySymbol = 'ج.م') {
   const amount = Number((value ?? '').replace(/,/g, ''))
   if (!amount) return ''
   if (amount >= 1_000_000)
-    return `${(amount / 1_000_000).toFixed(2).replace(/\.00$/, '')} مليون ${currencySymbol}`
-  if (amount >= 1_000) return `${Math.round(amount / 1_000)} ألف ${currencySymbol}`
+    return `${(amount / 1_000_000).toFixed(2).replace(/\.00$/, '')} ${t.million} ${currencySymbol}`
+  if (amount >= 1_000)
+    return `${Math.round(amount / 1_000)} ${t.thousand} ${currencySymbol}`
   return `${amount.toLocaleString('en-US')} ${currencySymbol}`
 }
 
@@ -252,9 +320,8 @@ export function RequiredLabel({ children }: { children: string }) {
   )
 }
 
-// ==================== مكوّن اختيار الدولة الذكي (بحث بأول حرف + قائمة منسدلة) ====================
 export function SearchableCountryField({
-  label = 'الدولة *',
+  label = t.countryLabel,
   value,
   onChange,
   options = PLATFORM_COUNTRIES,
@@ -290,10 +357,10 @@ export function SearchableCountryField({
   }, [])
 
   const filteredOptions = options.filter((c) => {
-    const q = query.trim().toLowerCase()
+    const q = normalizeArabicText(query)
     if (!q) return true
     return (
-      c.nameAr.toLowerCase().includes(q) ||
+      normalizeArabicText(c.nameAr).includes(q) ||
       c.nameEn.toLowerCase().includes(q) ||
       c.code.toLowerCase().includes(q)
     )
@@ -314,7 +381,7 @@ export function SearchableCountryField({
               ? query
               : `${selectedObj.flag}  ${selectedObj.nameAr} (${selectedObj.nameEn})`
           }
-          placeholder="اكتب أول حرف من اسم الدولة أو اختر من القائمة..."
+          placeholder={t.countryPlaceholder}
           onFocus={() => {
             setOpen(true)
             setQuery('')
@@ -323,7 +390,7 @@ export function SearchableCountryField({
             setQuery(e.target.value)
             setOpen(true)
           }}
-          className={`h-12 cursor-pointer rounded-xl pr-4 pl-10 text-right font-bold text-[#0a1122] ${
+          className={`h-12 cursor-pointer rounded-xl pr-4 pl-10 text-right font-bold text-[var(--brand-navy,#0a1122)] ${
             error ? 'border-red-500 bg-red-50/20' : 'border-slate-200 bg-white'
           }`}
         />
@@ -333,7 +400,7 @@ export function SearchableCountryField({
             setOpen(!open)
             setQuery('')
           }}
-          className="absolute top-1/2 left-3 -translate-y-1/2 text-slate-400 hover:text-[#0b6954]"
+          className="absolute top-1/2 left-3 -translate-y-1/2 text-slate-400 hover:text-[var(--brand-primary,#007a5a)]"
         >
           <ChevronDown className="size-4" />
         </button>
@@ -343,7 +410,7 @@ export function SearchableCountryField({
         <div className="absolute top-[78px] z-30 max-h-60 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
           {filteredOptions.length === 0 ? (
             <p className="py-3 text-center text-xs text-slate-400">
-              لا توجد دولة مطابقة للبحث
+              {t.noCountryMatch}
             </p>
           ) : (
             filteredOptions.map((c) => {
@@ -359,8 +426,8 @@ export function SearchableCountryField({
                   }}
                   className={`flex w-full items-center justify-between rounded-lg px-3.5 py-2.5 text-right text-sm transition ${
                     isSelected
-                      ? 'bg-[#eff9f5] font-bold text-[#0b6954]'
-                      : 'text-[#0a1122] hover:bg-slate-50'
+                      ? 'bg-[var(--brand-primary-light,#eaf8f2)] font-bold text-[var(--brand-primary,#007a5a)]'
+                      : 'text-[var(--brand-navy,#0a1122)] hover:bg-slate-50'
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
@@ -372,7 +439,9 @@ export function SearchableCountryField({
                     <span className="font-mono text-xs font-bold text-slate-400">
                       {c.code}
                     </span>
-                    {isSelected && <Check className="size-4 text-[#0b6954]" />}
+                    {isSelected && (
+                      <Check className="size-4 text-[var(--brand-primary,#007a5a)]" />
+                    )}
                   </div>
                 </button>
               )
@@ -555,7 +624,7 @@ export function Pills({
             onClick={() => onToggle(item)}
             className={`rounded-xl border px-4 py-2 text-sm transition ${
               selected.includes(item)
-                ? 'border-[#0c513f] bg-[#f0fdf9] font-bold text-[#0c513f]'
+                ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary-light,#eaf8f2)] font-bold text-[var(--brand-primary,#007a5a)]'
                 : 'border-slate-200 bg-white hover:border-teal-500'
             }`}
           >
@@ -601,21 +670,21 @@ export function ToggleSection({
           type="button"
           variant={active === 'yes' ? 'default' : 'outline'}
           className={`min-w-[80px] rounded-xl border px-5 py-2 text-sm font-semibold ${
-            active === 'yes' ? 'bg-[#11192d] text-white' : ''
+            active === 'yes' ? 'bg-[var(--brand-navy,#0a1122)] text-white' : ''
           }`}
           onClick={() => toggle(group, 'yes')}
         >
-          أيوه
+          {t.yes}
         </Button>
         <Button
           type="button"
           variant={active === 'no' ? 'default' : 'outline'}
           className={`min-w-[80px] rounded-xl border px-5 py-2 text-sm font-semibold ${
-            active === 'no' ? 'bg-[#11192d] text-white' : ''
+            active === 'no' ? 'bg-[var(--brand-navy,#0a1122)] text-white' : ''
           }`}
           onClick={() => toggle(group, 'no')}
         >
-          لأ
+          {t.no}
         </Button>
       </div>
       {error && (
@@ -631,7 +700,7 @@ export function Actions({
   go,
   next,
   back = true,
-  label = 'كمّل',
+  label = t.nextBtn,
 }: {
   go: (step: number) => void
   next: number
@@ -647,12 +716,12 @@ export function Actions({
           className="h-12 rounded-xl"
           onClick={() => go(next - 2)}
         >
-          ارجع
+          {t.backBtn}
         </Button>
       )}
       <Button
         type="button"
-        className={`h-12 rounded-xl bg-[#11192d] hover:bg-[#1b2742] ${
+        className={`h-12 rounded-xl bg-[var(--brand-navy,#0a1122)] hover:bg-[var(--brand-navy-hover,#16223f)] ${
           !back ? 'w-full' : 'flex-1'
         }`}
         onClick={() => go(next)}

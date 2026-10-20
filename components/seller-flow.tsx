@@ -231,7 +231,7 @@ export function SearchableCountryPicker({
           type="text"
           dir="rtl"
           value={open ? query : `${selectedObj.flag}  ${selectedObj.nameAr}`}
-          placeholder="اكتب أول حرف أو اختار الدولة (مصر، الإمارات، روسيا، جورجيا)..."
+          placeholder="اكتب أواختار الدولة"
           onFocus={() => {
             setOpen(true)
             setQuery('')

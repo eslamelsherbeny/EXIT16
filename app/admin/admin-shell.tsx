@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useTransition } from "react"
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import {
   ArrowLeft,
   Bell,
@@ -13,10 +13,10 @@ import {
   FileText,
   LayoutDashboard,
   LogOut,
-  Star,
   Menu,
   Settings,
   ShieldCheck,
+  Star,
   Trash2,
   User,
   Users,
@@ -90,7 +90,7 @@ const MOBILE_BOTTOM_LINKS = [
   ADMIN_NAV_LINKS[1],
   ADMIN_NAV_LINKS[2],
   ADMIN_NAV_LINKS[3],
-  ADMIN_NAV_LINKS[5],
+  ADMIN_NAV_LINKS[6],
 ]
 
 export default function AdminShell({
@@ -108,6 +108,9 @@ export default function AdminShell({
 }) {
   const router = useRouter()
   const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const currentTab = searchParams?.get("tab")
+
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
   const [localNotifs, setLocalNotifs] =
@@ -130,7 +133,7 @@ export default function AdminShell({
   useEffect(() => {
     setDrawerOpen(false)
     setNotifOpen(false)
-  }, [pathname])
+  }, [pathname, currentTab])
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -142,8 +145,15 @@ export default function AdminShell({
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [])
 
+  // تمييز دقيق بين رابط "طلبات البيع" ورابط "طلبات الإعلان ⭐"
   const isActive = (href: string) => {
     if (href === "/admin") return pathname === "/admin"
+    if (href === "/admin/properties?tab=featured") {
+      return pathname === "/admin/properties" && currentTab === "featured"
+    }
+    if (href === "/admin/properties") {
+      return pathname === "/admin/properties" && currentTab !== "featured"
+    }
     return pathname?.startsWith(href)
   }
 
@@ -155,7 +165,6 @@ export default function AdminShell({
     } catch {}
   }
 
-  // فتح الجرس وتصفير العداد الأحمر فوراً
   const handleToggleNotifications = () => {
     const nextOpen = !notifOpen
     setNotifOpen(nextOpen)
@@ -169,7 +178,6 @@ export default function AdminShell({
     }
   }
 
-  // عند الضغط على إشعار للانتقال لصفحة الطلب
   const handleNotificationClick = (item: AdminNotificationItem) => {
     setNotifOpen(false)
     setLocalNotifs((prev) =>
@@ -184,7 +192,6 @@ export default function AdminShell({
     router.push(item.href || "/admin/properties")
   }
 
-  // حذف إشعار واحد من قائمة الأدمن
   const handleDeleteNotification = (e: React.MouseEvent, id: string) => {
     e.stopPropagation()
     e.preventDefault()
@@ -200,7 +207,6 @@ export default function AdminShell({
     })
   }
 
-  // مسح كل إشعارات الأدمن
   const handleClearAll = (e: React.MouseEvent) => {
     e.stopPropagation()
     setLocalNotifs([])
@@ -219,7 +225,7 @@ export default function AdminShell({
       dir="rtl"
       className="min-h-screen bg-[#f5f6f8] pb-20 text-[#0a1122] lg:pb-0"
     >
-      {/* ==================== 1. القائمة الجانبية الثابتة للكمبيوتر ==================== */}
+      {/* 1. القائمة الجانبية الثابتة للكمبيوتر */}
       <aside className="fixed inset-y-0 right-0 z-30 hidden w-72 border-l border-white/10 bg-[#0a1122] text-white lg:flex lg:flex-col lg:justify-between">
         <div>
           <div className="flex h-20 items-center gap-3 border-b border-white/10 px-7 text-xl font-extrabold">
@@ -299,7 +305,7 @@ export default function AdminShell({
         </div>
       </aside>
 
-      {/* ==================== 2. القائمة الجانبية المنزلقة للموبايل ==================== */}
+      {/* 2. القائمة الجانبية المنزلقة للموبايل */}
       {drawerOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div
@@ -403,7 +409,7 @@ export default function AdminShell({
         </div>
       )}
 
-      {/* ==================== 3. الهيدر العلوي المدمج ==================== */}
+      {/* 3. الهيدر العلوي المدمج */}
       <div className="lg:mr-72">
         <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-2 border-b border-gray-200/80 bg-white/95 px-3.5 backdrop-blur-md sm:h-20 sm:px-6 lg:px-8">
           <div className="flex min-w-0 items-center gap-2.5">
@@ -587,11 +593,10 @@ export default function AdminShell({
           </div>
         </header>
 
-        {/* محتوى الصفحات */}
         <main className="p-3.5 sm:p-6 lg:p-8">{children}</main>
       </div>
 
-      {/* ==================== 4. الشريط السفلي للموبايل ==================== */}
+      {/* 4. الشريط السفلي للموبايل */}
       <nav
         aria-label="التنقل السريع للموبايل"
         className="fixed inset-x-0 bottom-0 z-30 flex h-16 items-center justify-around border-t border-gray-200/90 bg-white/95 px-1 shadow-[0_-4px_16px_rgba(0,0,0,0.04)] backdrop-blur-md lg:hidden"

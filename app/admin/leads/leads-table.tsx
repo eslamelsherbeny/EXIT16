@@ -1,17 +1,15 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useEffect, useState, useTransition } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import {
   AlertTriangle,
   Building2,
   Calendar,
   CheckCircle2,
-  Clock,
-  ExternalLink,
   Flame,
-  HelpCircle,
+  Globe,
   Loader2,
   MapPin,
   MessageCircle,
@@ -54,9 +52,19 @@ export type BuyerLead = {
   min_rooms?: number | null
   delivery_status?: string | null
   preferred_areas: string[] | string | null
+  country_code?: string | null
+  currency_code?: string | null
   status?: string | null
   created_at: string
 }
+
+const ADMIN_COUNTRIES = [
+  { code: "ALL", label: "كل الدول", flag: "🌍", currency: "ج.م" },
+  { code: "EG", label: "مصر", flag: "🇪🇬", currency: "ج.م" },
+  { code: "RU", label: "روسيا", flag: "🇷🇺", currency: "₽" },
+  { code: "GE", label: "جورجيا", flag: "🇬🇪", currency: "$" },
+  { code: "AE", label: "الإمارات", flag: "🇦🇪", currency: "د.إ" },
+]
 
 const LEAD_STATUSES = [
   { value: "new", label: "طلب جديد", badge: "bg-blue-100 text-blue-800" },
@@ -71,7 +79,11 @@ function getLeadStatusLabel(status: string | null | undefined) {
   return LEAD_STATUSES.find((s) => s.value === st)?.label || st
 }
 
-// دالة ذكية لتحليل الطلب ومعرفة هل هو "حاجز وحدة محددة (Hot Lead)" أم "مشتري عام"
+function getLeadCurrency(countryCode?: string | null) {
+  const c = ADMIN_COUNTRIES.find((x) => x.code === (countryCode || "EG"))
+  return c ? c.currency : "ج.م"
+}
+
 function parseLeadDetails(lead: BuyerLead) {
   const areasRaw = Array.isArray(lead.preferred_areas)
     ? lead.preferred_areas.join("، ")
@@ -83,11 +95,9 @@ function parseLeadDetails(lead: BuyerLead) {
     areasRaw.includes("U-") ||
     planRaw.includes("مهتم بوحدة")
 
-  // استخراج كود الوحدة إن وجد (مثل U-13158)
   const codeMatch = `${areasRaw} ${planRaw}`.match(/U-[A-Z0-9]+/i)
   const unitCode = codeMatch ? codeMatch[0] : null
 
-  // استخراج مدى الجاهزية
   let readinessBadge: { text: string; className: string } | null = null
   if (planRaw.includes("خلال أسبوع")) {
     readinessBadge = {
@@ -106,7 +116,6 @@ function parseLeadDetails(lead: BuyerLead) {
     }
   }
 
-  // استخراج أسئلة أو ملاحظات العميل إن وجدت
   let customerNotes = ""
   if (planRaw.includes("أسئلة العميل:")) {
     customerNotes = planRaw.split("أسئلة العميل:")[1]?.trim() || ""
@@ -138,13 +147,39 @@ type ConfirmLeadAction =
 
 export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
   const router = useRouter()
+  const searchParams = useSearchParams()
+
+  const [countryFilter, setCountryFilter] = useState<string>("ALL")
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
-  const [leadTypeFilter, setLeadTypeFilter] = useState<"all" | "unit_leads" | "general">("all")
-  const [confirmAction, setConfirmAction] = useState<ConfirmLeadAction | null>(null)
+  const [leadTypeFilter, setLeadTypeFilter] = useState<
+    "all" | "unit_leads" | "general"
+  >("all")
+  const [confirmAction, setConfirmAction] = useState<ConfirmLeadAction | null>(
+    null
+  )
   const [activeLeadId, setActiveLeadId] = useState<string | null>(null)
-  const [notice, setNotice] = useState<{ text: string; isError?: boolean } | null>(null)
+  const [notice, setNotice] = useState<{
+    text: string
+    isError?: boolean
+  } | null>(null)
   const [pending, startTransition] = useTransition()
+
+  // فتح تبويب حاجزي الوحدات أو الدولة تلقائياً عند القدوم من الصفحة الرئيسية للأدمن
+  useEffect(() => {
+    const typeParam = searchParams.get("type")
+    const countryParam = searchParams.get("country")
+
+    if (typeParam === "unit_leads" || typeParam === "general") {
+      setLeadTypeFilter(typeParam)
+    } else {
+      setLeadTypeFilter("all")
+    }
+
+    if (countryParam) {
+      setCountryFilter(countryParam.toUpperCase())
+    }
+  }, [searchParams])
 
   function closeConfirmModal() {
     if (pending) return
@@ -197,11 +232,17 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
     })
   }
 
-  // حساب أعداد حاجزي الوحدات المباشرة مقابل المشترين العامين
-  const unitLeadsCount = leads.filter((l) => parseLeadDetails(l).isUnitLead).length
-  const generalLeadsCount = leads.length - unitLeadsCount
+  const countryLeads =
+    countryFilter === "ALL"
+      ? leads
+      : leads.filter((l) => (l.country_code || "EG") === countryFilter)
 
-  const filtered = leads.filter((l) => {
+  const unitLeadsCount = countryLeads.filter(
+    (l) => parseLeadDetails(l).isUnitLead
+  ).length
+  const generalLeadsCount = countryLeads.length - unitLeadsCount
+
+  const filtered = countryLeads.filter((l) => {
     const parsed = parseLeadDetails(l)
     if (leadTypeFilter === "unit_leads" && !parsed.isUnitLead) return false
     if (leadTypeFilter === "general" && parsed.isUnitLead) return false
@@ -223,14 +264,60 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
 
   return (
     <div>
+      {/* 1. شريط تقسيم الدول العلوي */}
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-200/90 bg-white p-3 shadow-2xs sm:p-4">
+        <div className="flex items-center gap-2 text-xs font-extrabold text-[#0a1122] sm:text-sm">
+          <Globe className="size-4 text-[#105C50]" />
+          <span>سوق المشترين المعروض:</span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+          {ADMIN_COUNTRIES.map((c) => {
+            const isSelected = c.code === countryFilter
+            const countInC =
+              c.code === "ALL"
+                ? leads.length
+                : leads.filter((l) => (l.country_code || "EG") === c.code)
+                    .length
+
+            return (
+              <button
+                key={c.code}
+                type="button"
+                onClick={() => setCountryFilter(c.code)}
+                className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-extrabold transition ${
+                  isSelected
+                    ? "bg-[#105C50] text-white shadow-xs"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                <span>{c.flag}</span>
+                <span>{c.label}</span>
+                <span
+                  className={`rounded-full px-1.5 py-0.5 text-[10px] ${
+                    isSelected
+                      ? "bg-white/20 text-white"
+                      : "bg-white text-gray-600"
+                  }`}
+                >
+                  {countInC}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
       {/* الهيدر العلوي */}
       <div className="mb-5">
-        <p className="text-xs font-extrabold text-[#105C50]">إدارة المشترين والحجوزات</p>
+        <p className="text-xs font-extrabold text-[#105C50]">
+          إدارة المشترين والحجوزات
+        </p>
         <h2 className="mt-1 text-xl font-extrabold text-[#0a1122] sm:text-3xl">
-          طلبات الشراء وحجز الوحدات ({leads.length})
+          طلبات الشراء وحجز الوحدات ({countryLeads.length})
         </h2>
         <p className="mt-1 text-xs text-gray-500 sm:text-sm">
-          ميزنا لك العملاء المهتمين بوحدة محددة (🔥 Hot Leads) بشارة خاصة لتعطيهم الأولوية القصوى في الاتصال.
+          ميزنا لك العملاء المهتمين بوحدة محددة (🔥 حاجزي الوحدات) بشارة خاصة لتعطيهم الأولوية القصوى في الاتصال.
         </p>
       </div>
 
@@ -245,7 +332,7 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
               : "text-gray-600 hover:bg-gray-100"
           }`}
         >
-          كل الطلبات ({leads.length})
+          كل الطلبات ({countryLeads.length})
         </button>
 
         <button
@@ -274,7 +361,6 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
         </button>
       </div>
 
-      {/* شريط الإشعارات */}
       {notice && (
         <div
           role="status"
@@ -344,7 +430,7 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
         </div>
       </div>
 
-      {/* ==================== 1. عرض الموبايل (كروت مخصصة تبرز حاجزي الوحدات) ==================== */}
+      {/* 1. عرض الموبايل */}
       <div className="space-y-3.5 md:hidden">
         {filtered.length === 0 ? (
           <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center text-xs text-gray-400">
@@ -362,8 +448,8 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
               : "—"
             const isCardLoading = pending && activeLeadId === lead.id
             const firstLetter = lead.name.trim().charAt(0) || "م"
+            const leadCur = getLeadCurrency(lead.country_code)
 
-            // رسالة واتساب مخصصة حسب نوع العميل
             const waText = parsed.isUnitLead
               ? `أهلاً أستاذ ${lead.name}، معك مسؤول الحالة من منصة دارك العقارية بخصوص اهتمامك بحجز وحدة (${parsed.cleanTargetUnit}). أنا جاهز لتوضيح كافة التفاصيل وترتيب إجراءات المعاينة والتنازل.`
               : `أهلاً أستاذ ${lead.name}، معك فريق مستشاري منصة دارك العقارية بخصوص طلب الشراء الخاص بك في منطقة (${parsed.cleanTargetUnit}). لدينا فرص ممتازة بدون أوفر تناسب ميزانيتك.`
@@ -388,7 +474,6 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
                   </div>
                 )}
 
-                {/* شريط علوي بارز لو كان العميل حاجز وحدة محددة */}
                 {parsed.isUnitLead && (
                   <div className="-mx-4 -mt-4 mb-3 flex items-center justify-between border-b border-orange-200/80 bg-orange-50/90 px-4 py-2 text-[11px] font-extrabold text-orange-900">
                     <span className="flex items-center gap-1.5">
@@ -433,7 +518,6 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
                   </Badge>
                 </div>
 
-                {/* شارة مدى الجاهزية */}
                 {parsed.readinessBadge && (
                   <div className="mt-2.5">
                     <span
@@ -444,20 +528,21 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
                   </div>
                 )}
 
-                {/* الصندوق المالي */}
                 <div className="mt-3 grid grid-cols-2 gap-2.5 rounded-xl border border-gray-100 bg-gray-50/80 p-3 text-xs">
                   <div>
                     <span className="flex items-center gap-1 text-[10px] text-gray-400">
                       <Wallet className="size-3 text-[#105C50]" />
                       <span>
-                        {parsed.isUnitLead ? "كاش الوحدة المطلوبة" : "الكاش المتاح"}
+                        {parsed.isUnitLead
+                          ? "كاش الوحدة المطلوبة"
+                          : "الكاش المتاح"}
                       </span>
                     </span>
                     <strong className="mt-0.5 block text-sm font-extrabold text-[#105C50]">
                       {Number(
                         lead.available_cash || lead.budget || 0
                       ).toLocaleString("en-US")}{" "}
-                      ج.م
+                      {leadCur}
                     </strong>
                   </div>
 
@@ -466,13 +551,14 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
                       {parsed.isUnitLead ? "قسط الوحدة" : "أقصى قسط شهري"}
                     </span>
                     <strong className="mt-0.5 block text-sm font-extrabold text-[#0a1122]">
-                      {Number(lead.max_installment || 0).toLocaleString("en-US")}{" "}
-                      ج.م
+                      {Number(lead.max_installment || 0).toLocaleString(
+                        "en-US"
+                      )}{" "}
+                      {leadCur}
                     </strong>
                   </div>
                 </div>
 
-                {/* تفاصيل الوحدة أو المنطقة المطلوبة */}
                 <div className="mt-2.5 space-y-1.5 rounded-xl bg-gray-50 p-3 text-xs">
                   <div className="flex items-start justify-between gap-2">
                     <span className="flex shrink-0 items-center gap-1 text-gray-400">
@@ -498,7 +584,9 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
 
                   {parsed.customerNotes && (
                     <div className="mt-2 rounded-lg border border-amber-200/80 bg-amber-50/70 p-2.5 text-[11px] text-amber-900">
-                      <span className="font-extrabold">أسئلة العميل قبل المكالمة: </span>
+                      <span className="font-extrabold">
+                        أسئلة العميل قبل المكالمة:{" "}
+                      </span>
                       <span>{parsed.customerNotes}</span>
                     </div>
                   )}
@@ -514,7 +602,6 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
                   </div>
                 </div>
 
-                {/* تغيير حالة المتابعة */}
                 <div className="mt-3">
                   <label className="mb-1 block text-[11px] font-bold text-gray-500">
                     حالة متابعة المشتري:
@@ -542,7 +629,6 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
                   </select>
                 </div>
 
-                {/* أزرار الإجراءات السفلية */}
                 <div className="mt-3 flex items-center gap-2 border-t border-gray-100 pt-3">
                   <a
                     href={`https://wa.me/${String(lead.phone).replace(/\D/g, "")}?text=${encodeURIComponent(waText)}`}
@@ -586,7 +672,7 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
         )}
       </div>
 
-      {/* ==================== 2. عرض الكمبيوتر (الجدول الاحترافي الكامل) ==================== */}
+      {/* 2. عرض الكمبيوتر */}
       <Card className="hidden border-gray-200/80 bg-white shadow-sm md:block">
         <CardHeader className="border-b border-gray-100">
           <CardTitle className="text-base font-extrabold">
@@ -603,7 +689,9 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
                 <tr>
                   <th className="px-5 py-4 font-bold">اسم المشتري ونوع الطلب</th>
                   <th className="px-5 py-4 font-bold">القدرة المالية / الكاش</th>
-                  <th className="px-5 py-4 font-bold">الوحدة المطلوبة / المنطقة والجاهزية</th>
+                  <th className="px-5 py-4 font-bold">
+                    الوحدة المطلوبة / المنطقة والجاهزية
+                  </th>
                   <th className="px-5 py-4 font-bold">تاريخ الطلب</th>
                   <th className="px-5 py-4 font-bold">حالة المتابعة</th>
                   <th className="px-5 py-4 font-bold">الإجراء</th>
@@ -630,6 +718,7 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
                       ? lead.unit_types.join("، ")
                       : "—"
                     const isRowLoading = pending && activeLeadId === lead.id
+                    const leadCur = getLeadCurrency(lead.country_code)
 
                     const waText = parsed.isUnitLead
                       ? `أهلاً أستاذ ${lead.name}، معك مسؤول الحالة من منصة دارك العقارية بخصوص اهتمامك بحجز وحدة (${parsed.cleanTargetUnit}). أنا جاهز لتوضيح كافة التفاصيل وترتيب إجراءات المعاينة والتنازل.`
@@ -685,14 +774,14 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
                             {Number(
                               lead.available_cash || lead.budget || 0
                             ).toLocaleString("en-US")}{" "}
-                            ج.م
+                            {leadCur}
                           </div>
                           <div className="mt-1 text-xs text-gray-500">
                             القسط:{" "}
                             {Number(lead.max_installment || 0).toLocaleString(
                               "en-US"
                             )}{" "}
-                            ج.م
+                            {leadCur}
                           </div>
                         </td>
 
@@ -715,13 +804,16 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
                           </div>
                           {parsed.customerNotes && (
                             <div className="mt-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[11px] text-amber-900">
-                              <strong>سؤال العميل:</strong> {parsed.customerNotes}
+                              <strong>سؤال العميل:</strong>{" "}
+                              {parsed.customerNotes}
                             </div>
                           )}
                         </td>
 
                         <td className="px-5 py-4 text-xs text-gray-500">
-                          {new Date(lead.created_at).toLocaleDateString("ar-EG")}
+                          {new Date(lead.created_at).toLocaleDateString(
+                            "ar-EG"
+                          )}
                         </td>
 
                         <td className="px-5 py-4">
@@ -791,7 +883,7 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
         </CardContent>
       </Card>
 
-      {/* ==================== 3. نافذة التأكيد الملمومة ==================== */}
+      {/* 3. نافذة التأكيد */}
       <Dialog
         open={Boolean(confirmAction)}
         onOpenChange={(open) => {
@@ -833,10 +925,6 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
                       <strong className="text-[#0a1122]">
                         "{confirmAction.lead.name}"
                       </strong>{" "}
-                      من{" "}
-                      <span className="font-bold">
-                        ({getLeadStatusLabel(confirmAction.lead.status)})
-                      </span>{" "}
                       إلى{" "}
                       <span className="font-bold text-[#105C50]">
                         ({getLeadStatusLabel(confirmAction.newStatus)})
@@ -849,7 +937,7 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
                       <strong className="text-red-600">
                         "{confirmAction.lead.name}"
                       </strong>{" "}
-                      نهائياً؟ لا يمكن التراجع عن هذا الإجراء.
+                      نهائياً؟
                     </>
                   )}
                 </DialogDescription>

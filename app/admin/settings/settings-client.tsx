@@ -13,6 +13,7 @@ import {
   Save,
   ShieldCheck,
   Smartphone,
+  Star,
   X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -39,14 +40,30 @@ type SiteSettings = {
   whatsappNumber: string
   supportEmail: string
   buyerCommission: string
+  promo7Price?: string
+  promo14Price?: string
+  promo30Price?: string
+  promo_RU_7?: string
+  promo_RU_14?: string
+  promo_RU_30?: string
+  promo_GE_7?: string
+  promo_GE_14?: string
+  promo_GE_30?: string
+  promo_AE_7?: string
+  promo_AE_14?: string
+  promo_AE_30?: string
   maintenanceMode: boolean
   allowNewSells: boolean
   allowNewBuys: boolean
   emailNotifications: boolean
-  promo7Price?: string
-  promo14Price?: string
-  promo30Price?: string
 }
+
+const PRICING_COUNTRIES = [
+  { code: "EG", name: "مصر", flag: "🇪🇬", currency: "ج.م" },
+  { code: "RU", name: "روسيا", flag: "🇷🇺", currency: "₽ روبل" },
+  { code: "GE", name: "جورجيا", flag: "🇬🇪", currency: "$ دولار" },
+  { code: "AE", name: "الإمارات", flag: "🇦🇪", currency: "د.إ درهم" },
+] as const
 
 export default function SettingsClient({
   initialTab,
@@ -61,6 +78,10 @@ export default function SettingsClient({
 }) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<"general" | "system">(initialTab)
+  const [selectedPricingCountry, setSelectedPricingCountry] = useState<
+    "EG" | "RU" | "GE" | "AE"
+  >("EG")
+
   const [maintenanceMode, setMaintenanceMode] = useState(
     initialSettings.maintenanceMode
   )
@@ -96,7 +117,7 @@ export default function SettingsClient({
         const res = await saveSiteSettingsAction(confirmModal.formData)
         if (res.success) {
           setNotice({
-            text: "تم حفظ إعدادات الموقع وحالة التشغيل بنجاح.",
+            text: "تم حفظ إعدادات الموقع وأسعار باقات التمييز لجميع الدول بنجاح ✓",
           })
           router.refresh()
         } else {
@@ -118,10 +139,10 @@ export default function SettingsClient({
           التحكم المركزي
         </p>
         <h2 className="mt-1 text-xl font-extrabold text-[#0a1122] sm:text-3xl">
-          إعدادات الموقع
+          إعدادات الموقع وأسعار الباقات الدولية
         </h2>
         <p className="mt-1 text-xs text-gray-500 sm:text-sm">
-          تحكم في أرقام التواصل، نسبة العمولة، وضع الصيانة، وحالة النظام.
+          تحكم في أرقام التواصل، نسبة العمولة، وأسعار باقات تمييز الوحدات لكل دولة بعملتها.
         </p>
       </div>
 
@@ -136,7 +157,7 @@ export default function SettingsClient({
           }`}
         >
           <Globe className="size-4 shrink-0" />
-          <span>إعدادات الموقع</span>
+          <span>إعدادات الموقع والباقات</span>
         </button>
 
         <button
@@ -186,10 +207,10 @@ export default function SettingsClient({
               <CardHeader className="border-b border-gray-100">
                 <CardTitle className="flex items-center gap-2 text-base font-extrabold">
                   <Smartphone className="size-4 text-[#105C50]" />
-                  <span>بيانات التواصل والعمولة</span>
+                  <span>بيانات التواصل والعمولة وأسعار الإعلانات</span>
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  تظهر هذه الأرقام للعملاء في أزرار واتساب وبطاقة مسؤول الحالة.
+                  تظهر هذه الأرقام والأسعار للعملاء حسب الدولة المختارة.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4 pt-5 text-xs">
@@ -243,49 +264,219 @@ export default function SettingsClient({
                   />
                 </div>
 
-                {/* ==================== الكود المُضاف هنا ==================== */}
-                <div className="border-t border-gray-100 pt-4">
-                  <p className="mb-2.5 text-xs font-extrabold text-[#105C50]">
-                    ⭐ أسعار باقات تمييز الوحدات (تظهر في صفحة البائع):
-                  </p>
-                  <div className="grid grid-cols-3 gap-2.5">
-                    <div>
-                      <label className="mb-1 block text-[11px] font-bold text-[#0a1122]">
-                        باقة 7 أيام
-                      </label>
-                      <input
-                        name="promo7Price"
-                        type="number"
-                        defaultValue={(initialSettings as any).promo7Price || "1199"}
-                        className="h-10 w-full rounded-xl border border-gray-200 px-3 text-xs font-bold focus:border-[#105C50] focus:outline-none"
-                      />
+                {/* قسم أسعار باقات التمييز مقسماً حسب الدول */}
+                <div className="rounded-2xl border border-amber-200/80 bg-amber-50/40 p-3.5 pt-3">
+                  <div className="mb-2.5 flex items-center gap-1.5 text-xs font-extrabold text-[#0a1122]">
+                    <Star className="size-4 fill-amber-400 text-amber-500" />
+                    <span>أسعار باقات تمييز الوحدات (حسب كل دولة وعملتها):</span>
+                  </div>
+
+                  {/* تبويبات اختيار الدولة لتعديل أسعار باقاتها */}
+                  <div className="mb-3 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+                    {PRICING_COUNTRIES.map((c) => {
+                      const active = selectedPricingCountry === c.code
+                      return (
+                        <button
+                          key={c.code}
+                          type="button"
+                          onClick={() => setSelectedPricingCountry(c.code)}
+                          className={`flex items-center justify-center gap-1 rounded-xl border py-2 text-[11px] font-extrabold transition ${
+                            active
+                              ? "border-[#105C50] bg-[#105C50] text-white shadow-2xs"
+                              : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                          }`}
+                        >
+                          <span>{c.flag}</span>
+                          <span>{c.name}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  {/* حقول مصر (ج.م) */}
+                  <div
+                    className={
+                      selectedPricingCountry === "EG" ? "block" : "hidden"
+                    }
+                  >
+                    <p className="mb-2 text-[11px] font-bold text-[#105C50]">
+                      🇪🇬 أسعار باقات سوق مصر (بالجنيه المصري ج.م):
+                    </p>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="mb-1 block text-[10px] font-bold text-gray-600">
+                          7 أيام (ج.م)
+                        </label>
+                        <input
+                          name="promo7Price"
+                          type="number"
+                          defaultValue={initialSettings.promo7Price || "1199"}
+                          className="h-9 w-full rounded-xl border border-gray-200 bg-white px-2.5 text-xs font-bold"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[10px] font-bold text-gray-600">
+                          14 يوم (ج.م)
+                        </label>
+                        <input
+                          name="promo14Price"
+                          type="number"
+                          defaultValue={initialSettings.promo14Price || "1999"}
+                          className="h-9 w-full rounded-xl border border-gray-200 bg-white px-2.5 text-xs font-bold"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[10px] font-bold text-gray-600">
+                          30 يوم (ج.م)
+                        </label>
+                        <input
+                          name="promo30Price"
+                          type="number"
+                          defaultValue={initialSettings.promo30Price || "2799"}
+                          className="h-9 w-full rounded-xl border border-gray-200 bg-white px-2.5 text-xs font-bold"
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <label className="mb-1 block text-[11px] font-bold text-[#0a1122]">
-                        باقة 14 يوم
-                      </label>
-                      <input
-                        name="promo14Price"
-                        type="number"
-                        defaultValue={(initialSettings as any).promo14Price || "1999"}
-                        className="h-10 w-full rounded-xl border border-gray-200 px-3 text-xs font-bold focus:border-[#105C50] focus:outline-none"
-                      />
+                  </div>
+
+                  {/* حقول روسيا (₽ روبل) */}
+                  <div
+                    className={
+                      selectedPricingCountry === "RU" ? "block" : "hidden"
+                    }
+                  >
+                    <p className="mb-2 text-[11px] font-bold text-[#105C50]">
+                      🇷🇺 أسعار باقات سوق روسيا (بالروبل الروسي ₽):
+                    </p>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="mb-1 block text-[10px] font-bold text-gray-600">
+                          7 أيام (₽)
+                        </label>
+                        <input
+                          name="promo_RU_7"
+                          type="number"
+                          defaultValue={initialSettings.promo_RU_7 || "2500"}
+                          className="h-9 w-full rounded-xl border border-gray-200 bg-white px-2.5 text-xs font-bold"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[10px] font-bold text-gray-600">
+                          14 يوم (₽)
+                        </label>
+                        <input
+                          name="promo_RU_14"
+                          type="number"
+                          defaultValue={initialSettings.promo_RU_14 || "4200"}
+                          className="h-9 w-full rounded-xl border border-gray-200 bg-white px-2.5 text-xs font-bold"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[10px] font-bold text-gray-600">
+                          30 يوم (₽)
+                        </label>
+                        <input
+                          name="promo_RU_30"
+                          type="number"
+                          defaultValue={initialSettings.promo_RU_30 || "5900"}
+                          className="h-9 w-full rounded-xl border border-gray-200 bg-white px-2.5 text-xs font-bold"
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <label className="mb-1 block text-[11px] font-bold text-[#0a1122]">
-                        باقة 30 يوم
-                      </label>
-                      <input
-                        name="promo30Price"
-                        type="number"
-                        defaultValue={(initialSettings as any).promo30Price || "2799"}
-                        className="h-10 w-full rounded-xl border border-gray-200 px-3 text-xs font-bold focus:border-[#105C50] focus:outline-none"
-                      />
+                  </div>
+
+                  {/* حقول جورجيا ($ دولار) */}
+                  <div
+                    className={
+                      selectedPricingCountry === "GE" ? "block" : "hidden"
+                    }
+                  >
+                    <p className="mb-2 text-[11px] font-bold text-[#105C50]">
+                      🇬🇪 أسعار باقات سوق جورجيا (بالدولار $):
+                    </p>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="mb-1 block text-[10px] font-bold text-gray-600">
+                          7 أيام ($)
+                        </label>
+                        <input
+                          name="promo_GE_7"
+                          type="number"
+                          defaultValue={initialSettings.promo_GE_7 || "29"}
+                          className="h-9 w-full rounded-xl border border-gray-200 bg-white px-2.5 text-xs font-bold"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[10px] font-bold text-gray-600">
+                          14 يوم ($)
+                        </label>
+                        <input
+                          name="promo_GE_14"
+                          type="number"
+                          defaultValue={initialSettings.promo_GE_14 || "49"}
+                          className="h-9 w-full rounded-xl border border-gray-200 bg-white px-2.5 text-xs font-bold"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[10px] font-bold text-gray-600">
+                          30 يوم ($)
+                        </label>
+                        <input
+                          name="promo_GE_30"
+                          type="number"
+                          defaultValue={initialSettings.promo_GE_30 || "69"}
+                          className="h-9 w-full rounded-xl border border-gray-200 bg-white px-2.5 text-xs font-bold"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* حقول الإمارات (د.إ درهم) */}
+                  <div
+                    className={
+                      selectedPricingCountry === "AE" ? "block" : "hidden"
+                    }
+                  >
+                    <p className="mb-2 text-[11px] font-bold text-[#105C50]">
+                      🇦🇪 أسعار باقات سوق الإمارات (بالدرهم د.إ):
+                    </p>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="mb-1 block text-[10px] font-bold text-gray-600">
+                          7 أيام (د.إ)
+                        </label>
+                        <input
+                          name="promo_AE_7"
+                          type="number"
+                          defaultValue={initialSettings.promo_AE_7 || "99"}
+                          className="h-9 w-full rounded-xl border border-gray-200 bg-white px-2.5 text-xs font-bold"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[10px] font-bold text-gray-600">
+                          14 يوم (د.إ)
+                        </label>
+                        <input
+                          name="promo_AE_14"
+                          type="number"
+                          defaultValue={initialSettings.promo_AE_14 || "179"}
+                          className="h-9 w-full rounded-xl border border-gray-200 bg-white px-2.5 text-xs font-bold"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[10px] font-bold text-gray-600">
+                          30 يوم (د.إ)
+                        </label>
+                        <input
+                          name="promo_AE_30"
+                          type="number"
+                          defaultValue={initialSettings.promo_AE_30 || "249"}
+                          className="h-9 w-full rounded-xl border border-gray-200 bg-white px-2.5 text-xs font-bold"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
-                {/* ========================================================== */}
-                
               </CardContent>
             </Card>
 
@@ -388,7 +579,7 @@ export default function SettingsClient({
               className="h-11 w-full rounded-xl bg-[#105C50] px-8 text-xs font-extrabold text-white shadow-sm hover:bg-[#0c483f] sm:w-auto"
             >
               <Save className="ml-2 size-4" />
-              حفظ إعدادات الموقع
+              حفظ إعدادات الموقع وأسعار الباقات
             </Button>
           </div>
         </form>
@@ -495,10 +686,10 @@ export default function SettingsClient({
             <>
               <DialogHeader className="text-right">
                 <DialogTitle className="text-sm font-extrabold text-[#0a1122] sm:text-base">
-                  تأكيد حفظ إعدادات الموقع
+                  تأكيد حفظ إعدادات الموقع والأسعار
                 </DialogTitle>
                 <DialogDescription className="text-right text-xs leading-relaxed text-gray-600">
-                  هل أنت متأكد من حفظ التعديلات الجديدة على إعدادات المنصة وحالة التشغيل؟
+                  هل أنت متأكد من حفظ التعديلات الجديدة على إعدادات المنصة وأسعار باقات التمييز الدولية؟
                 </DialogDescription>
               </DialogHeader>
 

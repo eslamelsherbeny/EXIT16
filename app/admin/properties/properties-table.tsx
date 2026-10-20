@@ -10,6 +10,7 @@ import {
   ExternalLink,
   Eye,
   FileCheck2,
+  Globe,
   Loader2,
   MessageCircle,
   PauseCircle,
@@ -72,6 +73,8 @@ export type SellRequest = {
   description?: string | null
   images?: string[] | null
   documents?: Record<string, any> | null
+  country_code?: string | null
+  currency_code?: string | null
   submission_type?: string | null
   last_seller_edit_at?: string | null
   is_featured?: boolean | null
@@ -87,6 +90,14 @@ export type SellRequest = {
   admin_note?: string | null
   created_at: string
 }
+
+const ADMIN_COUNTRIES = [
+  { code: "ALL", label: "كل الدول", flag: "🌍", currency: "ج.م" },
+  { code: "EG", label: "مصر", flag: "🇪🇬", currency: "ج.م" },
+  { code: "RU", label: "روسيا", flag: "🇷🇺", currency: "₽" },
+  { code: "GE", label: "جورجيا", flag: "🇬🇪", currency: "$" },
+  { code: "AE", label: "الإمارات", flag: "🇦🇪", currency: "د.إ" },
+]
 
 const SELLER_STATUS_OPTIONS = [
   {
@@ -148,6 +159,11 @@ function getStatusLabel(status: string | null | undefined) {
   return SELLER_STATUS_OPTIONS.find((s) => s.value === st)?.label || st
 }
 
+function getUnitCurrency(countryCode?: string | null) {
+  const c = ADMIN_COUNTRIES.find((x) => x.code === (countryCode || "EG"))
+  return c ? c.currency : "ج.م"
+}
+
 function getUploadedDocsList(docs: Record<string, any> | null | undefined) {
   if (!docs || typeof docs !== "object") return []
   return Object.entries(docs)
@@ -198,8 +214,13 @@ export default function PropertiesTable({
   const router = useRouter()
   const searchParams = useSearchParams()
 
+  const [countryFilter, setCountryFilter] = useState<string>("ALL")
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
+  const [featuredSubTab, setFeaturedSubTab] = useState<
+    "all_featured" | "pending_payment" | "active_featured" | "search_all_units"
+  >("all_featured")
+
   const [highlightedUnitId, setHighlightedUnitId] = useState<string | null>(
     null
   )
@@ -216,14 +237,21 @@ export default function PropertiesTable({
   } | null>(null)
   const [pending, startTransition] = useTransition()
 
-  // قراءة الرابط القادم من الإشعارات لفتح التبويب والوحدة ونافذة التمييز مباشرة
+  // مزامنة فورية ودقيقة مع تغير الرابط في القائمة الجانبية (بين طلبات البيع وطلبات الإعلان ⭐)
   useEffect(() => {
     const tabParam = searchParams.get("tab")
+    const countryParam = searchParams.get("country")
     const unitIdParam = searchParams.get("unitId")
     const actionParam = searchParams.get("action")
 
+    if (countryParam) {
+      setCountryFilter(countryParam.toUpperCase())
+    }
+
     if (tabParam) {
       setStatusFilter(tabParam)
+    } else if (!unitIdParam) {
+      setStatusFilter("all")
     }
 
     if (unitIdParam) {
@@ -356,16 +384,31 @@ export default function PropertiesTable({
     })
   }
 
-  // إحصائيات التبويبات السريعة
-  const deletedBySellerList = properties.filter(
+  // 1. فلترة حسب الدولة أولاً
+  const countryProperties =
+    countryFilter === "ALL"
+      ? properties
+      : properties.filter((p) => (p.country_code || "EG") === countryFilter)
+
+  // 2. إحصائيات التبويبات داخل الدولة المختارة
+  const deletedBySellerList = countryProperties.filter(
     (p) => p.status === "deleted_by_seller"
   )
-  const promoRequestsList = properties.filter(
+  const pendingPromoList = countryProperties.filter(
+    (p) =>
+      p.status !== "deleted_by_seller" &&
+      !p.is_featured &&
+      p.featured_status === "pending_payment"
+  )
+  const activePromoList = countryProperties.filter(
+    (p) => p.status !== "deleted_by_seller" && Boolean(p.is_featured)
+  )
+  const promoRequestsList = countryProperties.filter(
     (p) =>
       p.status !== "deleted_by_seller" &&
       (p.featured_status === "pending_payment" || p.is_featured)
   )
-  const sellerActionsList = properties.filter(
+  const sellerActionsList = countryProperties.filter(
     (p) =>
       p.status === "paused_by_seller" ||
       (p.status === "pending" &&
@@ -373,25 +416,44 @@ export default function PropertiesTable({
           p.submission_type === "resumed_by_seller"))
   )
 
-  const filtered = properties.filter((p) => {
+  const filtered = countryProperties.filter((p) => {
     const currentStatus = p.status || "pending"
+    const unitShortCode = p.id.slice(0, 8).toUpperCase()
+    const orderRefCode = `AE-${p.id
+      .replace(/[^a-zA-Z0-9]/g, "")
+      .slice(0, 6)
+      .toUpperCase()}`
 
-    // إذا كان هناك بحث نصي (مثل رقم طلب الإعلان AD-XXXX)، نبحث في كل العقارات
+    // البحث الذكي (يشمل رقم طلب الإعلان AD-XXXX، كود الوحدة #802BCFC2، كود AE-XXXX، الاسم، والهاتف)
     if (search.trim()) {
-      const q = search.toLowerCase()
+      const q = search.trim().toLowerCase()
       const textMatch =
-        `${p.id} ${p.project_name || ""} ${p.area || ""} ${p.name || ""} ${p.phone || ""} ${p.featured_fawry_code || ""}`
+        `${p.id} ${unitShortCode} ${orderRefCode} ${p.project_name || ""} ${p.area || ""} ${p.name || ""} ${p.phone || ""} ${p.featured_fawry_code || ""}`
           .toLowerCase()
           .includes(q)
       if (!textMatch) return false
+      // إذا كان الأدمن يكتب كود وحدة في شريط البحث داخل قسم الإعلانات، نعرض له الوحدة فوراً ليتمكن من تمييزها!
+      if (statusFilter === "featured") return currentStatus !== "deleted_by_seller"
     }
 
     if (statusFilter === "deleted") {
       return currentStatus === "deleted_by_seller"
     }
 
-    // إخفاء المحذوفات من باقي التبويبات العادية حتى تكون مفصولة تماماً
     if (currentStatus === "deleted_by_seller") return false
+
+    if (statusFilter === "featured") {
+      if (featuredSubTab === "pending_payment") {
+        return !p.is_featured && p.featured_status === "pending_payment"
+      }
+      if (featuredSubTab === "active_featured") {
+        return Boolean(p.is_featured)
+      }
+      if (featuredSubTab === "search_all_units") {
+        return true
+      }
+      return Boolean(p.is_featured || p.featured_status === "pending_payment")
+    }
 
     if (statusFilter === "seller_actions") {
       return (
@@ -401,10 +463,6 @@ export default function PropertiesTable({
       )
     }
 
-    if (statusFilter === "featured") {
-      return Boolean(p.is_featured || p.featured_status === "pending_payment")
-    }
-
     if (statusFilter !== "all" && currentStatus !== statusFilter) {
       return false
     }
@@ -412,7 +470,6 @@ export default function PropertiesTable({
     return true
   })
 
-  // شارات تفاعلية قابلة للضغط
   function renderSellerActivityBadges(property: SellRequest) {
     const docs = getUploadedDocsList(property.documents)
     const isFeaturedActive =
@@ -430,7 +487,7 @@ export default function PropertiesTable({
               className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-extrabold text-blue-800 hover:bg-blue-100"
             >
               <RefreshCw className="size-2.5" />
-              <span>✏️ معدّلة من المالك (اضغط للمراجعة)</span>
+              <span>✏️ معدّلة من المالك</span>
             </button>
           )}
 
@@ -470,7 +527,7 @@ export default function PropertiesTable({
             className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-extrabold text-[#105C50] hover:bg-emerald-100"
           >
             <FileCheck2 className="size-2.5" />
-            <span>📄 {docs.length} مستند مرفوع (معاينة)</span>
+            <span>📄 {docs.length} مستند مرفوع</span>
           </button>
         )}
 
@@ -489,8 +546,10 @@ export default function PropertiesTable({
           >
             <Star className="size-2.5 fill-amber-500 text-amber-600" />
             <span>
-              مميزة نشطة ({property.featured_days || 14} يوم) ·{" "}
-              {property.featured_fawry_code || ""}
+              مميزة نشطة ({property.featured_days || 14} يوم){" "}
+              {property.featured_fawry_code
+                ? `· كود: ${property.featured_fawry_code}`
+                : ""}
             </span>
           </button>
         )}
@@ -522,21 +581,134 @@ export default function PropertiesTable({
 
   return (
     <div>
-      {/* الهيدر العلوي */}
-      <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-xs font-extrabold text-[#105C50]">إدارة المخزون</p>
-          <h2 className="mt-1 text-xl font-extrabold text-[#0a1122] sm:text-3xl">
-            إدارة عقارات البائعين (
-            {properties.length - deletedBySellerList.length})
-          </h2>
-          <p className="mt-1 text-xs text-gray-500 sm:text-sm">
-            اضغط على شارة التمييز أو المستندات لأي وحدة لفتح نافذة التحكم الخاصة بها فوراً.
-          </p>
+      {/* 1. شريط تقسيم الدول العلوي */}
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-200/90 bg-white p-3 shadow-2xs sm:p-4">
+        <div className="flex items-center gap-2 text-xs font-extrabold text-[#0a1122] sm:text-sm">
+          <Globe className="size-4 text-[#105C50]" />
+          <span>سوق العقارات المعروض:</span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+          {ADMIN_COUNTRIES.map((c) => {
+            const isSelected = c.code === countryFilter
+            const countInC =
+              c.code === "ALL"
+                ? properties.filter((p) => p.status !== "deleted_by_seller")
+                    .length
+                : properties.filter(
+                    (p) =>
+                      p.status !== "deleted_by_seller" &&
+                      (p.country_code || "EG") === c.code
+                  ).length
+
+            return (
+              <button
+                key={c.code}
+                type="button"
+                onClick={() => setCountryFilter(c.code)}
+                className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-extrabold transition ${
+                  isSelected
+                    ? "bg-[#105C50] text-white shadow-xs"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                <span>{c.flag}</span>
+                <span>{c.label}</span>
+                <span
+                  className={`rounded-full px-1.5 py-0.5 text-[10px] ${
+                    isSelected
+                      ? "bg-white/20 text-white"
+                      : "bg-white text-gray-600"
+                  }`}
+                >
+                  {countInC}
+                </span>
+              </button>
+            )
+          })}
         </div>
       </div>
 
-      {/* إشعار واضح بعد كل عملية */}
+      {/* 2. الهيدر الديناميكي (يتحول لمركز طلبات الإعلان عند فتح طلبات الإعلان ⭐) */}
+      {statusFilter === "featured" ? (
+        <div className="mb-5 rounded-2xl border border-amber-300 bg-gradient-to-l from-amber-50/90 via-white to-amber-50/40 p-5 shadow-xs">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-extrabold text-amber-900">
+                <Star className="size-3.5 fill-amber-500 text-amber-600" />
+                <span>قسم الإعلانات والوحدات المميزة</span>
+              </span>
+              <h2 className="mt-2 text-xl font-extrabold text-[#0a1122] sm:text-2xl">
+                مركز إدارة طلبات الإعلان والتمييز ({promoRequestsList.length})
+              </h2>
+              <p className="mt-1 text-xs text-gray-600">
+                اكتب رقم طلب الإعلان (مثال: <strong>AD-XXXX</strong>) أو كود الوحدة (مثال: <strong>802BCFC2</strong>) في صندوق البحث بالأسفل لتفعيل أو إلغاء التمييز فوراً.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setFeaturedSubTab("all_featured")}
+                className={`rounded-xl px-3.5 py-2 text-xs font-extrabold transition ${
+                  featuredSubTab === "all_featured"
+                    ? "bg-[#0a1122] text-white"
+                    : "bg-white text-gray-700 border border-gray-200"
+                }`}
+              >
+                الكل ({promoRequestsList.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setFeaturedSubTab("pending_payment")}
+                className={`rounded-xl px-3.5 py-2 text-xs font-extrabold transition ${
+                  featuredSubTab === "pending_payment"
+                    ? "bg-amber-600 text-white"
+                    : "bg-amber-100/80 text-amber-900 hover:bg-amber-200"
+                }`}
+              >
+                ⏳ طلبات بانتظار التفعيل ({pendingPromoList.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setFeaturedSubTab("active_featured")}
+                className={`rounded-xl px-3.5 py-2 text-xs font-extrabold transition ${
+                  featuredSubTab === "active_featured"
+                    ? "bg-[#105C50] text-white"
+                    : "bg-emerald-50 text-[#105C50] hover:bg-emerald-100"
+                }`}
+              >
+                ⭐ مميزة نشطة ({activePromoList.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setFeaturedSubTab("search_all_units")}
+                className={`rounded-xl px-3.5 py-2 text-xs font-extrabold transition ${
+                  featuredSubTab === "search_all_units"
+                    ? "bg-blue-700 text-white"
+                    : "bg-blue-50 text-blue-800 hover:bg-blue-100"
+                }`}
+              >
+                🔍 عرض كل الوحدات لتمييز وحدة يدوياً
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="text-xs font-extrabold text-[#105C50]">إدارة المخزون</p>
+            <h2 className="mt-1 text-xl font-extrabold text-[#0a1122] sm:text-3xl">
+              إدارة عقارات البائعين (
+              {countryProperties.length - deletedBySellerList.length})
+            </h2>
+            <p className="mt-1 text-xs text-gray-500 sm:text-sm">
+              اضغط على شارة التمييز أو المستندات لأي وحدة لفتح نافذة التحكم الخاصة بها فوراً.
+            </p>
+          </div>
+        </div>
+      )}
+
       {notice && (
         <div
           role="status"
@@ -566,14 +738,18 @@ export default function PropertiesTable({
 
       {/* شريط البحث والفلترة السريعة */}
       <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-gray-200/80 bg-white p-3.5 shadow-sm sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:p-4">
-        <div className="relative w-full sm:min-w-[260px] sm:flex-1">
+        <div className="relative w-full sm:min-w-[280px] sm:flex-1">
           <Search className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="ابحث برقم طلب الإعلان (AD-xxxx)، اسم المشروع، المنطقة، أو هاتف البائع..."
-            className="h-10 w-full rounded-xl border border-gray-200 pr-10 pl-4 text-xs focus:border-[#105C50] focus:outline-none"
+            placeholder="اكتب رقم طلب الإعلان (AD-xxxx) أو كود الوحدة (802BCFC2) أو اسم/هاتف البائع..."
+            className={`h-11 w-full rounded-xl border pr-10 pl-4 text-xs font-bold focus:outline-none ${
+              statusFilter === "featured"
+                ? "border-amber-300 bg-amber-50/30 focus:border-amber-500"
+                : "border-gray-200 focus:border-[#105C50]"
+            }`}
           />
         </div>
 
@@ -601,12 +777,20 @@ export default function PropertiesTable({
             <button
               key={tab.id}
               type="button"
-              onClick={() => setStatusFilter(tab.id)}
+              onClick={() => {
+                setStatusFilter(tab.id)
+                const url = new URL(window.location.href)
+                if (tab.id === "all") url.searchParams.delete("tab")
+                else url.searchParams.set("tab", tab.id)
+                window.history.replaceState({}, "", url.toString())
+              }}
               className={`rounded-xl px-3 py-1.5 text-[11px] font-bold transition sm:py-2 sm:text-xs ${
                 statusFilter === tab.id
                   ? tab.id === "deleted"
                     ? "bg-red-600 text-white shadow-xs"
-                    : "bg-[#105C50] text-white shadow-xs"
+                    : tab.id === "featured"
+                      ? "bg-amber-500 text-white shadow-xs"
+                      : "bg-[#105C50] text-white shadow-xs"
                   : tab.id === "deleted" && deletedBySellerList.length > 0
                     ? "bg-red-50 text-red-700 hover:bg-red-100"
                     : "bg-gray-100 text-gray-600 hover:bg-gray-200"
@@ -650,8 +834,19 @@ export default function PropertiesTable({
       {/* ==================== 1. عرض الموبايل ==================== */}
       <div className="space-y-3.5 md:hidden">
         {filtered.length === 0 ? (
-          <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center text-xs text-gray-400">
-            لا توجد عقارات في هذا القسم حالياً.
+          <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center text-xs text-gray-500">
+            {statusFilter === "featured" ? (
+              <div>
+                <p className="font-extrabold text-[#0a1122]">
+                  لا توجد طلبات إعلان في هذا الفلتر حالياً.
+                </p>
+                <p className="mt-1 text-[11px] text-gray-400">
+                  يمكنك كتابة كود أي وحدة في مربع البحث بالأعلى أو الضغط على زر «عرض كل الوحدات لتمييز وحدة يدوياً».
+                </p>
+              </div>
+            ) : (
+              "لا توجد عقارات في هذا القسم حالياً."
+            )}
           </div>
         ) : (
           filtered.map((property) => {
@@ -665,6 +860,7 @@ export default function PropertiesTable({
               (!property.featured_until ||
                 new Date(property.featured_until) > new Date())
             const isHighlighted = highlightedUnitId === property.id
+            const unitCur = getUnitCurrency(property.country_code)
 
             return (
               <div
@@ -723,7 +919,7 @@ export default function PropertiesTable({
                     </span>
                     <strong className="mt-0.5 block text-sm font-extrabold text-[#105C50]">
                       {property.paid_amount
-                        ? `${Number(property.paid_amount).toLocaleString("en-US")} ج.م`
+                        ? `${Number(property.paid_amount).toLocaleString("en-US")} ${unitCur}`
                         : "—"}
                     </strong>
                   </div>
@@ -733,7 +929,7 @@ export default function PropertiesTable({
                       <span className="text-gray-400">العقد: </span>
                       <strong className="text-[#0a1122]">
                         {property.contract_price
-                          ? `${Number(property.contract_price).toLocaleString("en-US")}`
+                          ? `${Number(property.contract_price).toLocaleString("en-US")} ${unitCur}`
                           : "—"}
                       </strong>
                     </div>
@@ -741,7 +937,7 @@ export default function PropertiesTable({
                       <span className="text-gray-400">السوق: </span>
                       <strong className="text-gray-700">
                         {property.market_price
-                          ? `${Number(property.market_price).toLocaleString("en-US")}`
+                          ? `${Number(property.market_price).toLocaleString("en-US")} ${unitCur}`
                           : "—"}
                       </strong>
                     </div>
@@ -806,11 +1002,11 @@ export default function PropertiesTable({
                       className={`h-9 rounded-xl px-3 text-xs font-bold ${
                         isFeaturedActive
                           ? "border-amber-300 bg-amber-100 text-amber-900"
-                          : "border-amber-200 bg-amber-50/70 text-amber-800"
+                          : "border-amber-300 bg-amber-500 text-white hover:bg-amber-600"
                       }`}
                     >
-                      <Star className="ml-1 size-3.5 fill-amber-400 text-amber-500" />
-                      {isFeaturedActive ? "إلغاء التمييز" : "تمييز ⭐"}
+                      <Star className="ml-1 size-3.5 fill-current" />
+                      {isFeaturedActive ? "إلغاء التمييز" : "تفعيل التمييز ⭐"}
                     </Button>
                   )}
 
@@ -852,7 +1048,7 @@ export default function PropertiesTable({
             قائمة الوحدات ({filtered.length})
           </CardTitle>
           <CardDescription className="text-xs">
-            اضغط على شارة طلب التمييز (📢) أو المستندات (📄) لفتح نافذتها مباشرة.
+            اضغط على زر «تفعيل التمييز ⭐» أو شارة طلب الإعلان (📢) لتحديد باقة الـ 7 أو 14 أو 30 يوماً.
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
@@ -861,7 +1057,7 @@ export default function PropertiesTable({
               <thead className="bg-gray-50 text-xs text-gray-500">
                 <tr>
                   <th className="px-4 py-4 font-bold">
-                    المشروع / الوحدة وحركة المالك
+                    المشروع / كود الوحدة وطلب الإعلان
                   </th>
                   <th className="px-4 py-4 font-bold">المطلوب كاش (المدفوع)</th>
                   <th className="px-4 py-4 font-bold">سعر العقد / السوق</th>
@@ -875,9 +1071,20 @@ export default function PropertiesTable({
                   <tr>
                     <td
                       colSpan={6}
-                      className="px-5 py-10 text-center text-sm text-gray-400"
+                      className="px-5 py-10 text-center text-sm text-gray-500"
                     >
-                      لا توجد عقارات في هذا القسم حالياً.
+                      {statusFilter === "featured" ? (
+                        <div className="space-y-2">
+                          <p className="font-extrabold text-[#0a1122]">
+                            لا توجد طلبات إعلان في هذا الفلتر حالياً.
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            لتفعيل التمييز لأي وحدة، اكتب كود الوحدة أو اسم صاحبها في مربع البحث بالأعلى أو اضغط على زر «عرض كل الوحدات لتمييز وحدة يدوياً».
+                          </p>
+                        </div>
+                      ) : (
+                        "لا توجد عقارات في هذا القسم حالياً."
+                      )}
                     </td>
                   </tr>
                 ) : (
@@ -894,6 +1101,7 @@ export default function PropertiesTable({
                       (!property.featured_until ||
                         new Date(property.featured_until) > new Date())
                     const isHighlighted = highlightedUnitId === property.id
+                    const unitCur = getUnitCurrency(property.country_code)
 
                     return (
                       <tr
@@ -928,8 +1136,11 @@ export default function PropertiesTable({
                             {property.unit_type || "شقة"}{" "}
                             {property.size ? `· ${property.size}م²` : ""}
                           </div>
-                          <div className="mt-0.5 text-[10px] text-gray-400">
-                            كود: {property.id.slice(0, 8).toUpperCase()}
+                          <div className="mt-0.5 font-mono text-[10px] text-gray-400">
+                            كود الوحدة: {property.id.slice(0, 8).toUpperCase()}
+                            {property.featured_fawry_code
+                              ? ` · كود الإعلان: ${property.featured_fawry_code}`
+                              : ""}
                           </div>
                           {renderSellerActivityBadges(property)}
                         </td>
@@ -937,7 +1148,7 @@ export default function PropertiesTable({
                         <td className="px-4 py-4">
                           <div className="font-extrabold text-[#105C50]">
                             {property.paid_amount
-                              ? `${Number(property.paid_amount).toLocaleString("en-US")} ج.م`
+                              ? `${Number(property.paid_amount).toLocaleString("en-US")} ${unitCur}`
                               : "—"}
                           </div>
                           {property.willing_to_discount && (
@@ -952,14 +1163,14 @@ export default function PropertiesTable({
                             العقد:{" "}
                             <strong>
                               {property.contract_price
-                                ? `${Number(property.contract_price).toLocaleString("en-US")} ج.م`
+                                ? `${Number(property.contract_price).toLocaleString("en-US")} ${unitCur}`
                                 : "—"}
                             </strong>
                           </div>
                           <div className="mt-1 text-gray-500">
                             السوق:{" "}
                             {property.market_price
-                              ? `${Number(property.market_price).toLocaleString("en-US")} ج.م`
+                              ? `${Number(property.market_price).toLocaleString("en-US")} ${unitCur}`
                               : "—"}
                           </div>
                         </td>
@@ -1058,13 +1269,13 @@ export default function PropertiesTable({
                                   className={`h-8 text-xs font-bold ${
                                     isFeaturedActive
                                       ? "border-amber-300 bg-amber-100 text-amber-900 hover:bg-amber-200"
-                                      : "border-amber-200 bg-amber-50/70 text-amber-800 hover:bg-amber-100"
+                                      : "border-amber-300 bg-amber-500 text-white hover:bg-amber-600"
                                   }`}
                                 >
-                                  <Star className="ml-1 size-3.5 fill-amber-400 text-amber-500" />
+                                  <Star className="ml-1 size-3.5 fill-current" />
                                   {isFeaturedActive
                                     ? "إلغاء التمييز"
-                                    : "تمييز ⭐"}
+                                    : "تفعيل التمييز ⭐"}
                                 </Button>
 
                                 {currentSt !== "active" && (
@@ -1224,7 +1435,7 @@ export default function PropertiesTable({
                         </strong>{" "}
                         {confirmAction.property.featured_fawry_code
                           ? `(رقم طلب الإعلان: ${confirmAction.property.featured_fawry_code})`
-                          : ""}{" "}
+                          : `(كود الوحدة: ${confirmAction.property.id.slice(0, 8).toUpperCase()})`}{" "}
                         لتظهر بشارة النجمة الذهبية (⭐) في أول صفحة الفرص والبحث:
                       </>
                     ) : (
@@ -1376,7 +1587,7 @@ export default function PropertiesTable({
                     {Number(detailsProperty.contract_price || 0).toLocaleString(
                       "en-US"
                     )}{" "}
-                    ج.م
+                    {getUnitCurrency(detailsProperty.country_code)}
                   </strong>
                 </div>
                 <div>
@@ -1387,7 +1598,7 @@ export default function PropertiesTable({
                     {Number(detailsProperty.paid_amount || 0).toLocaleString(
                       "en-US"
                     )}{" "}
-                    ج.م
+                    {getUnitCurrency(detailsProperty.country_code)}
                   </strong>
                 </div>
                 <div>
@@ -1398,7 +1609,7 @@ export default function PropertiesTable({
                     {Number(detailsProperty.market_price || 0).toLocaleString(
                       "en-US"
                     )}{" "}
-                    ج.م
+                    {getUnitCurrency(detailsProperty.country_code)}
                   </strong>
                 </div>
                 <div>
@@ -1409,7 +1620,8 @@ export default function PropertiesTable({
                     {Number(
                       detailsProperty.installment_amount || 0
                     ).toLocaleString("en-US")}{" "}
-                    ج.م ({detailsProperty.years_left || 0} سنوات)
+                    {getUnitCurrency(detailsProperty.country_code)} (
+                    {detailsProperty.years_left || 0} سنوات)
                   </strong>
                 </div>
               </div>

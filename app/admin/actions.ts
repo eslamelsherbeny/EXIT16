@@ -655,18 +655,21 @@ export async function saveSiteSettingsAction(formData: FormData) {
 
   const settingsPayload = {
     siteName: ((formData.get("siteName") as string) || "دارك").trim(),
-    whatsappNumber: (
-      (formData.get("whatsappNumber") as string) || "+201018595959"
-    ).trim(),
-    supportEmail: (
-      (formData.get("supportEmail") as string) || "support@darak.com"
-    ).trim(),
-    buyerCommission: (
-      (formData.get("buyerCommission") as string) || "1.25"
-    ).trim(),
+    whatsappNumber: ((formData.get("whatsappNumber") as string) || "+201018595959").trim(),
+    supportEmail: ((formData.get("supportEmail") as string) || "support@darak.com").trim(),
+    buyerCommission: ((formData.get("buyerCommission") as string) || "1.25").trim(),
     promo7Price: ((formData.get("promo7Price") as string) || "1199").trim(),
     promo14Price: ((formData.get("promo14Price") as string) || "1999").trim(),
     promo30Price: ((formData.get("promo30Price") as string) || "2799").trim(),
+    promo_RU_7: ((formData.get("promo_RU_7") as string) || "2500").trim(),
+    promo_RU_14: ((formData.get("promo_RU_14") as string) || "4200").trim(),
+    promo_RU_30: ((formData.get("promo_RU_30") as string) || "5900").trim(),
+    promo_GE_7: ((formData.get("promo_GE_7") as string) || "29").trim(),
+    promo_GE_14: ((formData.get("promo_GE_14") as string) || "49").trim(),
+    promo_GE_30: ((formData.get("promo_GE_30") as string) || "69").trim(),
+    promo_AE_7: ((formData.get("promo_AE_7") as string) || "99").trim(),
+    promo_AE_14: ((formData.get("promo_AE_14") as string) || "179").trim(),
+    promo_AE_30: ((formData.get("promo_AE_30") as string) || "249").trim(),
     maintenanceMode: formData.get("maintenanceMode") === "on",
     allowNewSells: formData.get("allowNewSells") === "on",
     allowNewBuys: formData.get("allowNewBuys") === "on",
@@ -678,7 +681,7 @@ export async function saveSiteSettingsAction(formData: FormData) {
     maxAge: 60 * 60 * 24 * 365,
     sameSite: "lax",
     secure: isProd,
-    httpOnly: false, // لكي تقرأها لوحة البائع وتحدث أسعار الباقات فوراً
+    httpOnly: false,
   })
 
   try {

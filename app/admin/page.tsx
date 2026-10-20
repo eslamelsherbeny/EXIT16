@@ -4,8 +4,9 @@ import { createServerClient } from "@supabase/ssr"
 import {
   ArrowLeft,
   Building2,
-  CircleDollarSign,
   Clock3,
+  Flame,
+  Globe,
   MessageCircle,
   Sparkles,
   Star,
@@ -22,6 +23,14 @@ import {
 
 export const dynamic = "force-dynamic"
 export const revalidate = 0
+
+const ADMIN_COUNTRIES = [
+  { code: "ALL", label: "كل الدول", flag: "🌍", currency: "ج.م" },
+  { code: "EG", label: "مصر", flag: "🇪🇬", currency: "ج.م" },
+  { code: "RU", label: "روسيا", flag: "🇷🇺", currency: "₽" },
+  { code: "GE", label: "جورجيا", flag: "🇬🇪", currency: "$" },
+  { code: "AE", label: "الإمارات", flag: "🇦🇪", currency: "د.إ" },
+]
 
 async function getSupabase() {
   const cookieStore = await cookies()
@@ -59,44 +68,59 @@ const statusMap: Record<string, { label: string; className: string }> = {
   rejected: { label: "مرفوضة", className: "bg-red-100 text-red-800" },
 }
 
-export default async function AdminPage() {
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ country?: string }>
+}) {
+  const resolvedParams = searchParams ? await searchParams : {}
+  const selectedCountry = (resolvedParams.country || "ALL").toUpperCase()
+  const currentCountryObj =
+    ADMIN_COUNTRIES.find((c) => c.code === selectedCountry) ||
+    ADMIN_COUNTRIES[0]
+
   const supabase = await getSupabase()
 
-  const [
-    { data: propertiesData },
-    { data: leadsData },
-    { data: usersData },
-    { data: investorsData },
-  ] = await Promise.all([
-    supabase
-      .from("sell_requests")
-      .select("*")
-      .neq("status", "deleted_by_seller")
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("buy_requests")
-      .select("*")
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("users")
-      .select("id, name, email, phone, created_at")
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("investor_leads")
-      .select("id, name, investment_range, created_at")
-      .order("created_at", { ascending: false }),
-  ])
+  const [{ data: propertiesData }, { data: leadsData }, { data: usersData }] =
+    await Promise.all([
+      supabase
+        .from("sell_requests")
+        .select("*")
+        .neq("status", "deleted_by_seller")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("buy_requests")
+        .select("*")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("users")
+        .select("id, name, email, phone, created_at")
+        .order("created_at", { ascending: false }),
+    ])
 
-  const properties = propertiesData || []
-  const leads = leadsData || []
+  const allProperties = propertiesData || []
+  const allLeads = leadsData || []
   const users = usersData || []
-  const investors = investorsData || []
+
+  // فلترة العقارات والطلبات حسب الدولة المختارة في لوحة الأدمن
+  const properties =
+    selectedCountry === "ALL"
+      ? allProperties
+      : allProperties.filter(
+          (p: any) => (p.country_code || "EG") === selectedCountry
+        )
+
+  const leads =
+    selectedCountry === "ALL"
+      ? allLeads
+      : allLeads.filter(
+          (l: any) => (l.country_code || "EG") === selectedCountry
+        )
 
   const pendingProperties = properties.filter(
     (p) => !p.status || p.status === "pending" || p.status === "under_review"
   )
   const activeProperties = properties.filter((p) => p.status === "active")
-  const soldProperties = properties.filter((p) => p.status === "sold")
 
   // حساب طلبات الإعلان والوحدات المميزة
   const pendingAdRequests = properties.filter(
@@ -104,20 +128,30 @@ export default async function AdminPage() {
   )
   const activeFeaturedUnits = properties.filter((p) => p.is_featured)
 
-  const soldPortfolioValue = soldProperties.reduce(
-    (sum, p) => sum + (Number(p.contract_price) || Number(p.paid_amount) || 0),
-    0
-  )
-  const realizedCommission = Math.round(soldPortfolioValue * 0.0125)
+  // حساب العملاء المهتمين بوحدة محددة (🔥 حاجزي الوحدات)
+  const unitSpecificLeads = leads.filter((l: any) => {
+    const areasStr = Array.isArray(l.preferred_areas)
+      ? l.preferred_areas.join(" ")
+      : String(l.preferred_areas || "")
+    const planStr = String(l.payment_plan || "")
+    return (
+      areasStr.includes("🎯") ||
+      areasStr.includes("U-") ||
+      planStr.includes("مهتم بوحدة")
+    )
+  })
+
+  const countryQuery =
+    selectedCountry !== "ALL" ? `&country=${selectedCountry}` : ""
 
   const kpis = [
     {
-      label: "إجمالي العقارات",
+      label: `إجمالي العقارات (${currentCountryObj.label})`,
       value: properties.length.toLocaleString("en-US"),
       suffix: "",
       note: `${activeProperties.length.toLocaleString("en-US")} منشور حالياً`,
       icon: Building2,
-      href: "/admin/properties",
+      href: `/admin/properties${selectedCountry !== "ALL" ? `?country=${selectedCountry}` : ""}`,
     },
     {
       label: "بانتظار المراجعة",
@@ -125,7 +159,7 @@ export default async function AdminPage() {
       suffix: "",
       note: pendingProperties.length > 0 ? "تحتاج مراجعتك" : "تمت مراجعة الكل",
       icon: Clock3,
-      href: "/admin/properties?tab=pending",
+      href: `/admin/properties?tab=pending${countryQuery}`,
       highlight: pendingProperties.length > 0,
     },
     {
@@ -136,39 +170,98 @@ export default async function AdminPage() {
       suffix: "",
       note:
         pendingAdRequests.length > 0
-          ? `${pendingAdRequests.length} طلب بانتظار التفعيل`
+          ? `${pendingAdRequests.length} طلب جديد بانتظار التفعيل`
           : `${activeFeaturedUnits.length} وحدة مميزة نشطة`,
       icon: Star,
-      href: "/admin/properties?tab=featured",
+      href: `/admin/properties?tab=featured${countryQuery}`,
       highlight: pendingAdRequests.length > 0,
     },
     {
-      label: "طلبات المشترين",
-      value: leads.length.toLocaleString("en-US"),
+      label: "حاجزي الوحدات 🔥",
+      value: unitSpecificLeads.length.toLocaleString("en-US"),
       suffix: "",
-      note: `${users.length.toLocaleString("en-US")} حساب مسجل`,
-      icon: Users,
-      href: "/admin/leads",
+      note: `من إجمالي ${leads.length.toLocaleString("en-US")} طلب شراء`,
+      icon: Flame,
+      href: `/admin/leads?type=unit_leads${countryQuery}`,
+      highlight: unitSpecificLeads.length > 0,
     },
   ]
 
   return (
     <div className="mx-auto max-w-7xl">
+      {/* شريط تقسيم الدول العلوي في لوحة الأدمن */}
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-200/90 bg-white p-3 shadow-2xs sm:p-4">
+        <div className="flex items-center gap-2 text-xs font-extrabold text-[#0a1122] sm:text-sm">
+          <Globe className="size-4 text-[#105C50]" />
+          <span>اختر سوق الدولة لعرض بياناته وطلباته:</span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+          {ADMIN_COUNTRIES.map((c) => {
+            const isSelected = c.code === selectedCountry
+            const countInCountry =
+              c.code === "ALL"
+                ? allProperties.length
+                : allProperties.filter(
+                    (p: any) => (p.country_code || "EG") === c.code
+                  ).length
+
+            return (
+              <Link
+                key={c.code}
+                href={
+                  c.code === "ALL" ? "/admin" : `/admin?country=${c.code}`
+                }
+                className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-extrabold transition ${
+                  isSelected
+                    ? "bg-[#105C50] text-white shadow-xs"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                <span>{c.flag}</span>
+                <span>{c.label}</span>
+                <span
+                  className={`rounded-full px-1.5 py-0.5 text-[10px] ${
+                    isSelected
+                      ? "bg-white/20 text-white"
+                      : "bg-white text-gray-600"
+                  }`}
+                >
+                  {countInCountry}
+                </span>
+              </Link>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* الهيدر العلوي والأزرار السريعة */}
       <div className="mb-6 flex flex-col justify-between gap-3 sm:mb-8 sm:flex-row sm:items-end">
         <div>
-          <p className="text-xs font-extrabold text-[#105C50]">نظرة عامة حية</p>
+          <p className="text-xs font-extrabold text-[#105C50]">
+            نظرة عامة حية — {currentCountryObj.flag} {currentCountryObj.label}
+          </p>
           <h2 className="mt-1 text-xl font-extrabold text-[#0a1122] sm:text-3xl">
             مركز الإدارة
           </h2>
           <p className="mt-1 text-xs text-gray-500 sm:text-sm">
-            إحصائيات حقيقية مباشرة من قاعدة البيانات لمتابعة حركة البائعين والمشترين وطلبات الإعلانات.
+            إحصائيات حقيقية مباشرة من قاعدة البيانات لمتابعة حركة البائعين، حاجزي الوحدات، وطلبات الإعلانات.
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-2.5">
+        {/* الأزرار السريعة: حاجزي الوحدات 🔥 + طلبات الإعلان ⭐ + العقارات */}
+        <div className="flex flex-wrap items-center gap-2">
           <Link
-            href="/admin/properties?tab=featured"
-            className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl bg-amber-500 px-3 text-xs font-extrabold text-white shadow-sm transition hover:bg-amber-600 sm:px-4"
+            href={`/admin/leads?type=unit_leads${countryQuery}`}
+            className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl bg-orange-600 px-3.5 text-xs font-extrabold text-white shadow-sm transition hover:bg-orange-700"
+          >
+            <Flame className="size-4 shrink-0 fill-white" />
+            <span>حاجزي الوحدات ({unitSpecificLeads.length})</span>
+          </Link>
+
+          <Link
+            href={`/admin/properties?tab=featured${countryQuery}`}
+            className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl bg-amber-500 px-3.5 text-xs font-extrabold text-white shadow-sm transition hover:bg-amber-600"
           >
             <Star className="size-4 shrink-0 fill-white" />
             <span>
@@ -176,9 +269,10 @@ export default async function AdminPage() {
               {pendingAdRequests.length + activeFeaturedUnits.length})
             </span>
           </Link>
+
           <Link
-            href="/admin/properties"
-            className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl bg-[#105C50] px-3 text-xs font-bold text-white shadow-sm transition hover:bg-[#0c483f] sm:px-4"
+            href={`/admin/properties${selectedCountry !== "ALL" ? `?country=${selectedCountry}` : ""}`}
+            className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl bg-[#105C50] px-3.5 text-xs font-bold text-white shadow-sm transition hover:bg-[#0c483f]"
           >
             <Building2 className="size-4 shrink-0" />
             <span>العقارات ({properties.length.toLocaleString("en-US")})</span>
@@ -259,7 +353,7 @@ export default async function AdminPage() {
                 لديك ({pendingAdRequests.length}) طلب إعلان وتمييز وحدة بانتظار التفعيل!
               </h3>
               <p className="mt-0.5 text-[11px] text-amber-800">
-                أكواد الطلبات الحالية:{" "}
+                أرقام طلبات الإعلان الحالية:{" "}
                 <strong className="font-mono">
                   {pendingAdRequests
                     .map((p) => p.featured_fawry_code || "AD")
@@ -269,10 +363,10 @@ export default async function AdminPage() {
             </div>
           </div>
           <Link
-            href="/admin/properties?tab=featured"
+            href={`/admin/properties?tab=featured${countryQuery}`}
             className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-amber-600 px-4 text-xs font-extrabold text-white hover:bg-amber-700"
           >
-            <span>مراجعة وتفعيل الإعلانات</span>
+            <span>فتح صفحة طلبات الإعلان وتفعيلها</span>
             <ArrowLeft className="size-3.5" />
           </Link>
         </div>
@@ -283,7 +377,7 @@ export default async function AdminPage() {
           <CardHeader className="flex flex-row items-center justify-between border-b border-gray-100 p-4 sm:p-6">
             <div>
               <CardTitle className="text-sm font-extrabold text-[#0a1122] sm:text-base">
-                أحدث طلبات البائعين (العقارات)
+                أحدث طلبات البائعين ({currentCountryObj.label})
               </CardTitle>
               <CardDescription className="mt-0.5 text-[11px] sm:text-xs">
                 اضغط على أي وحدة للانتقال لإدارتها ومراجعتها.
@@ -301,7 +395,7 @@ export default async function AdminPage() {
             <div className="divide-y divide-gray-100 md:hidden">
               {properties.length === 0 ? (
                 <div className="p-8 text-center text-xs text-gray-400">
-                  لا توجد وحدات مضافة حتى الآن.
+                  لا توجد وحدات مضافة في هذا السوق حتى الآن.
                 </div>
               ) : (
                 properties.slice(0, 6).map((prop) => {
@@ -330,7 +424,7 @@ export default async function AdminPage() {
                       <div className="mt-2.5 flex items-center justify-between text-xs">
                         <span className="font-extrabold text-[#105C50]">
                           {prop.paid_amount
-                            ? `${Number(prop.paid_amount).toLocaleString("en-US")} ج.م`
+                            ? `${Number(prop.paid_amount).toLocaleString("en-US")} ${currentCountryObj.currency}`
                             : "—"}
                         </span>
                         <div className="flex items-center gap-2 text-[11px] text-gray-500">
@@ -363,7 +457,7 @@ export default async function AdminPage() {
                         colSpan={5}
                         className="px-5 py-8 text-center text-xs text-gray-400"
                       >
-                        لا توجد وحدات مضافة حتى الآن.
+                        لا توجد وحدات مضافة في هذا السوق حتى الآن.
                       </td>
                     </tr>
                   ) : (
@@ -399,7 +493,7 @@ export default async function AdminPage() {
                           </td>
                           <td className="px-5 py-4 font-extrabold text-[#105C50]">
                             {prop.paid_amount
-                              ? `${Number(prop.paid_amount).toLocaleString("en-US")} ج.م`
+                              ? `${Number(prop.paid_amount).toLocaleString("en-US")} ${currentCountryObj.currency}`
                               : "—"}
                           </td>
                           <td className="px-5 py-4 text-xs text-gray-500">
@@ -428,10 +522,10 @@ export default async function AdminPage() {
           <CardHeader className="flex flex-row items-center justify-between border-b border-gray-100 p-4 sm:p-6">
             <div>
               <CardTitle className="text-sm font-extrabold text-[#0a1122] sm:text-base">
-                أحدث المشترين
+                أحدث المشترين وحاجزي الوحدات
               </CardTitle>
               <CardDescription className="mt-0.5 text-[11px] sm:text-xs">
-                عملاء سجلوا ميزانيتهم مؤخراً.
+                اضغط على زر حاجزي الوحدات بالأعلى لعرض المهتمين بوحدة محددة فقط.
               </CardDescription>
             </div>
             <Link
@@ -444,44 +538,64 @@ export default async function AdminPage() {
           <CardContent className="divide-y divide-gray-100 p-0">
             {leads.length === 0 ? (
               <div className="p-8 text-center text-xs text-gray-400">
-                لا توجد طلبات شراء حتى الآن.
+                لا توجد طلبات شراء في هذا السوق حتى الآن.
               </div>
             ) : (
-              leads.slice(0, 5).map((lead) => (
-                <div
-                  key={lead.id}
-                  className="flex items-center justify-between p-3.5 hover:bg-gray-50/60 sm:p-4"
-                >
-                  <Link href="/admin/leads" className="min-w-0 flex-1">
-                    <p className="text-xs font-extrabold text-[#0a1122] hover:text-[#105C50]">
-                      {lead.name}
-                    </p>
-                    <p className="mt-0.5 text-[11px] text-gray-500">
-                      كاش:{" "}
-                      <strong className="text-[#105C50]">
-                        {Number(
-                          lead.available_cash || lead.budget || 0
-                        ).toLocaleString("en-US")}{" "}
-                        ج.م
-                      </strong>
-                    </p>
-                    <p className="mt-0.5 truncate text-[10px] text-gray-400">
-                      {Array.isArray(lead.preferred_areas)
-                        ? lead.preferred_areas.join("، ")
-                        : lead.preferred_areas || "جميع المناطق"}
-                    </p>
-                  </Link>
-                  <a
-                    href={`https://wa.me/${String(lead.phone || "").replace(/\D/g, "")}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mr-2 inline-flex h-8 shrink-0 items-center gap-1 rounded-lg bg-[#25D366] px-3 text-[11px] font-bold text-white transition hover:opacity-90"
+              leads.slice(0, 5).map((lead) => {
+                const areasText = Array.isArray(lead.preferred_areas)
+                  ? lead.preferred_areas.join("، ")
+                  : lead.preferred_areas || "جميع المناطق"
+                const isUnitSpecific =
+                  areasText.includes("🎯") || areasText.includes("U-")
+
+                return (
+                  <div
+                    key={lead.id}
+                    className="flex items-center justify-between p-3.5 hover:bg-gray-50/60 sm:p-4"
                   >
-                    <MessageCircle className="size-3.5" />
-                    <span>تواصل</span>
-                  </a>
-                </div>
-              ))
+                    <Link
+                      href={
+                        isUnitSpecific
+                          ? "/admin/leads?type=unit_leads"
+                          : "/admin/leads"
+                      }
+                      className="min-w-0 flex-1"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-xs font-extrabold text-[#0a1122] hover:text-[#105C50]">
+                          {lead.name}
+                        </p>
+                        {isUnitSpecific && (
+                          <span className="rounded bg-orange-100 px-1.5 py-0.5 text-[9px] font-extrabold text-orange-800">
+                            🔥 حجز وحدة
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-0.5 text-[11px] text-gray-500">
+                        كاش:{" "}
+                        <strong className="text-[#105C50]">
+                          {Number(
+                            lead.available_cash || lead.budget || 0
+                          ).toLocaleString("en-US")}{" "}
+                          {currentCountryObj.currency}
+                        </strong>
+                      </p>
+                      <p className="mt-0.5 truncate text-[10px] text-gray-400">
+                        {areasText}
+                      </p>
+                    </Link>
+                    <a
+                      href={`https://wa.me/${String(lead.phone || "").replace(/\D/g, "")}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mr-2 inline-flex h-8 shrink-0 items-center gap-1 rounded-lg bg-[#25D366] px-3 text-[11px] font-bold text-white transition hover:opacity-90"
+                    >
+                      <MessageCircle className="size-3.5" />
+                      <span>تواصل</span>
+                    </a>
+                  </div>
+                )
+              })
             )}
           </CardContent>
         </Card>

@@ -8,6 +8,10 @@ import {
   updateEmailInfoAction,
   updatePersonalInfoAction,
 } from '@/app/actions/account-actions'
+import arDict from '@/dictionaries/ar.json'
+
+const t = arDict.accountPages.details
+const tCommon = arDict.accountPages.common
 
 export default function AccountDetailsPage() {
   const [name, setName] = useState('')
@@ -51,12 +55,12 @@ export default function AccountDetailsPage() {
       if (res.success) {
         setPersonalMsg({
           type: 'success',
-          text: res.message || 'تم حفظ الاسم ورقم الموبايل بنجاح ✓',
+          text: res.message || t.personalSaveSuccess,
         })
       } else {
         setPersonalMsg({
           type: 'error',
-          text: res.error || 'تعذر حفظ التعديلات.',
+          text: res.error || t.personalSaveError,
         })
       }
     })
@@ -70,12 +74,12 @@ export default function AccountDetailsPage() {
       if (res.success) {
         setEmailMsg({
           type: 'success',
-          text: res.message || 'تم تغيير الإيميل بنجاح ✓',
+          text: res.message || t.emailSaveSuccess,
         })
       } else {
         setEmailMsg({
           type: 'error',
-          text: res.error || 'تعذر تغيير الإيميل.',
+          text: res.error || t.emailSaveError,
         })
       }
     })
@@ -84,31 +88,28 @@ export default function AccountDetailsPage() {
   return (
     <main
       dir="rtl"
-      className="min-h-screen bg-[#f5f6f8] pb-24 text-[#0a1128]"
+      className="min-h-screen bg-[var(--brand-surface,#f5f6f8)] pb-24 text-[var(--brand-navy-text,#0a1128)]"
     >
       <div className="mx-auto max-w-[640px] px-4 py-10 sm:px-6 md:py-16">
         <header className="mb-8 text-right">
-          <h1 className="text-[28px] font-black tracking-tight text-[#0a1128]">
-            بياناتي
+          <h1 className="text-[28px] font-black tracking-tight text-[var(--brand-navy-text,#0a1128)]">
+            {t.title}
           </h1>
-          <p className="mt-1 text-[13px] text-slate-500">
-            غيّر اسمك أو رقمك أو إيميلك في أي وقت.
-          </p>
+          <p className="mt-1 text-[13px] text-slate-500">{t.subtitle}</p>
         </header>
 
         {loading ? (
           <div className="rounded-2xl bg-white p-8 text-center text-xs font-bold text-gray-500">
-            جاري تحميل بياناتك...
+            {t.loading}
           </div>
         ) : (
           <div className="flex flex-col gap-6">
-            {/* الكارت الأول: الاسم ورقم الموبايل */}
             <section className="rounded-[20px] border border-gray-200/80 bg-white p-6 shadow-2xs sm:p-8">
-              <h2 className="text-right text-[16px] font-black text-[#0a1128]">
-                الاسم ورقم الموبايل
+              <h2 className="text-right text-[16px] font-black text-[var(--brand-navy-text,#0a1128)]">
+                {t.personalCardTitle}
               </h2>
               <p className="mt-1 text-right text-[11.5px] text-slate-500">
-                الرقم ده اللي بنكلّمك عليه وبنبعتلك عليه واتساب — خليه صح.
+                {t.personalCardSub}
               </p>
 
               <form
@@ -118,9 +119,9 @@ export default function AccountDetailsPage() {
                 <div>
                   <label
                     htmlFor="name"
-                    className="mb-2 block text-right text-[13px] font-bold text-[#0a1128]"
+                    className="mb-2 block text-right text-[13px] font-bold text-[var(--brand-navy-text,#0a1128)]"
                   >
-                    الاسم
+                    {t.nameLabel}
                   </label>
                   <input
                     id="name"
@@ -129,16 +130,16 @@ export default function AccountDetailsPage() {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     required
-                    className="h-11 w-full rounded-[10px] border border-gray-200 bg-white px-4 text-[13px] font-semibold text-[#0a1128] transition focus:border-[#0b6954] focus:outline-none"
+                    className="h-11 w-full rounded-[10px] border border-gray-200 bg-white px-4 text-[13px] font-semibold text-[var(--brand-navy-text,#0a1128)] transition focus:border-[var(--brand-primary,#007a5a)] focus:outline-none"
                   />
                 </div>
 
                 <div>
                   <label
                     htmlFor="phone"
-                    className="mb-2 block text-right text-[13px] font-bold text-[#0a1128]"
+                    className="mb-2 block text-right text-[13px] font-bold text-[var(--brand-navy-text,#0a1128)]"
                   >
-                    رقم الموبايل
+                    {t.phoneLabel}
                   </label>
                   <div className="flex flex-row-reverse items-center gap-2">
                     <input
@@ -148,11 +149,11 @@ export default function AccountDetailsPage() {
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                       required
-                      className="h-11 w-full rounded-[10px] border border-gray-200 bg-white px-4 text-left text-[13px] font-semibold text-[#0a1128] transition focus:border-[#0b6954] focus:outline-none"
+                      className="h-11 w-full rounded-[10px] border border-gray-200 bg-white px-4 text-left text-[13px] font-semibold text-[var(--brand-navy-text,#0a1128)] transition focus:border-[var(--brand-primary,#007a5a)] focus:outline-none"
                     />
-                    <div className="flex h-11 shrink-0 items-center justify-center gap-2 rounded-[10px] border border-gray-200 bg-white px-3 text-[13px] font-semibold text-[#0a1128]">
+                    <div className="flex h-11 shrink-0 items-center justify-center gap-2 rounded-[10px] border border-gray-200 bg-white px-3 text-[13px] font-semibold text-[var(--brand-navy-text,#0a1128)]">
                       <ChevronDown className="size-3.5 text-gray-500" />
-                      <span>مصر +20</span>
+                      <span>{t.countryCodeLabel}</span>
                       <span className="text-sm">🇪🇬</span>
                     </div>
                   </div>
@@ -162,7 +163,7 @@ export default function AccountDetailsPage() {
                   <div
                     className={`flex items-center gap-2 rounded-xl p-3 text-xs font-bold ${
                       personalMsg.type === 'success'
-                        ? 'bg-[#eff9f5] text-[#0b6954]'
+                        ? 'bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]'
                         : 'bg-red-50 text-red-600'
                     }`}
                   >
@@ -177,21 +178,20 @@ export default function AccountDetailsPage() {
                   <button
                     type="submit"
                     disabled={pendingPersonal}
-                    className="h-[42px] min-w-[90px] rounded-[10px] bg-[#0a1122] px-5 text-[13px] font-bold text-white shadow-2xs transition hover:bg-[#16223f]"
+                    className="h-[42px] min-w-[90px] rounded-[10px] bg-[var(--brand-navy,#0a1122)] px-5 text-[13px] font-bold text-white shadow-2xs transition hover:bg-[var(--brand-navy-hover,#16223f)]"
                   >
-                    {pendingPersonal ? 'جاري الحفظ...' : 'احفظ'}
+                    {pendingPersonal ? t.savingBtn : t.saveBtn}
                   </button>
                 </div>
               </form>
             </section>
 
-            {/* الكارت الثاني: الإيميل */}
             <section className="rounded-[20px] border border-gray-200/80 bg-white p-6 shadow-2xs sm:p-8">
-              <h2 className="text-right text-[16px] font-black text-[#0a1128]">
-                الإيميل
+              <h2 className="text-right text-[16px] font-black text-[var(--brand-navy-text,#0a1128)]">
+                {t.emailCardTitle}
               </h2>
               <p className="mt-1 text-right text-[11.5px] text-slate-500">
-                ده الإيميل اللي بتدخل بيه على حسابك.
+                {t.emailCardSub}
               </p>
 
               <form
@@ -201,9 +201,9 @@ export default function AccountDetailsPage() {
                 <div>
                   <label
                     htmlFor="email"
-                    className="mb-2 block text-right text-[13px] font-bold text-[#0a1128]"
+                    className="mb-2 block text-right text-[13px] font-bold text-[var(--brand-navy-text,#0a1128)]"
                   >
-                    الإيميل
+                    {t.emailLabel}
                   </label>
                   <input
                     id="email"
@@ -212,7 +212,7 @@ export default function AccountDetailsPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    className="h-11 w-full rounded-[10px] border border-gray-200 bg-white px-4 text-left text-[13px] font-semibold text-[#0a1128] transition focus:border-[#0b6954] focus:outline-none"
+                    className="h-11 w-full rounded-[10px] border border-gray-200 bg-white px-4 text-left text-[13px] font-semibold text-[var(--brand-navy-text,#0a1128)] transition focus:border-[var(--brand-primary,#007a5a)] focus:outline-none"
                   />
                 </div>
 
@@ -220,7 +220,7 @@ export default function AccountDetailsPage() {
                   <div
                     className={`flex items-center gap-2 rounded-xl p-3 text-xs font-bold ${
                       emailMsg.type === 'success'
-                        ? 'bg-[#eff9f5] text-[#0b6954]'
+                        ? 'bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]'
                         : 'bg-red-50 text-red-600'
                     }`}
                   >
@@ -235,9 +235,9 @@ export default function AccountDetailsPage() {
                   <button
                     type="submit"
                     disabled={pendingEmail}
-                    className="flex h-[42px] items-center justify-center rounded-[10px] border border-gray-200 bg-white px-5 text-[13px] font-bold text-[#0a1128] shadow-2xs transition hover:bg-gray-50"
+                    className="flex h-[42px] items-center justify-center rounded-[10px] border border-gray-200 bg-white px-5 text-[13px] font-bold text-[var(--brand-navy-text,#0a1128)] shadow-2xs transition hover:bg-gray-50"
                   >
-                    {pendingEmail ? 'جاري التحديث...' : 'غيّر الإيميل'}
+                    {pendingEmail ? t.updatingBtn : t.changeEmailBtn}
                   </button>
                 </div>
               </form>
@@ -248,9 +248,9 @@ export default function AccountDetailsPage() {
         <div className="mt-8 flex justify-start">
           <Link
             href="/account"
-            className="text-[13px] font-bold text-[#0b6954] transition hover:underline"
+            className="text-[13px] font-bold text-[var(--brand-primary,#007a5a)] transition hover:underline"
           >
-            رجوع
+            {tCommon.backShort}
           </Link>
         </div>
       </div>

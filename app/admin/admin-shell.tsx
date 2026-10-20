@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useTransition } from "react"
 import Link from "next/link"
-import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import {
   ArrowLeft,
   Bell,
@@ -15,7 +15,6 @@ import {
   LogOut,
   Menu,
   Settings,
-  ShieldCheck,
   Star,
   Trash2,
   User,
@@ -54,9 +53,9 @@ const ADMIN_NAV_LINKS = [
     icon: Building2,
   },
   {
-    href: "/admin/properties?tab=featured",
+    href: "/admin/promotions",
     label: "طلبات الإعلان ⭐",
-    shortLabel: "الإعلانات ⭐",
+    shortLabel: "الإعلانات",
     icon: Star,
   },
   {
@@ -85,11 +84,12 @@ const ADMIN_NAV_LINKS = [
   },
 ]
 
+// شريط الموبايل السفلي: الرئيسية، العقارات، المشترين، المستخدمين، الإعدادات
 const MOBILE_BOTTOM_LINKS = [
   ADMIN_NAV_LINKS[0],
   ADMIN_NAV_LINKS[1],
-  ADMIN_NAV_LINKS[2],
   ADMIN_NAV_LINKS[3],
+  ADMIN_NAV_LINKS[4],
   ADMIN_NAV_LINKS[6],
 ]
 
@@ -108,8 +108,6 @@ export default function AdminShell({
 }) {
   const router = useRouter()
   const pathname = usePathname()
-  const searchParams = useSearchParams()
-  const currentTab = searchParams?.get("tab")
 
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
@@ -133,7 +131,7 @@ export default function AdminShell({
   useEffect(() => {
     setDrawerOpen(false)
     setNotifOpen(false)
-  }, [pathname, currentTab])
+  }, [pathname])
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -145,15 +143,8 @@ export default function AdminShell({
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [])
 
-  // تمييز دقيق بين رابط "طلبات البيع" ورابط "طلبات الإعلان ⭐"
   const isActive = (href: string) => {
     if (href === "/admin") return pathname === "/admin"
-    if (href === "/admin/properties?tab=featured") {
-      return pathname === "/admin/properties" && currentTab === "featured"
-    }
-    if (href === "/admin/properties") {
-      return pathname === "/admin/properties" && currentTab !== "featured"
-    }
     return pathname?.startsWith(href)
   }
 
@@ -189,7 +180,11 @@ export default function AdminShell({
       await markNotificationAsReadAction(item.id)
     })
 
-    router.push(item.href || "/admin/properties")
+    const targetHref = item.href?.includes("tab=featured")
+      ? item.href.replace("/admin/properties?tab=featured", "/admin/promotions?")
+      : item.href || "/admin/properties"
+
+    router.push(targetHref)
   }
 
   const handleDeleteNotification = (e: React.MouseEvent, id: string) => {
@@ -223,33 +218,33 @@ export default function AdminShell({
   return (
     <div
       dir="rtl"
-      className="min-h-screen bg-[#f5f6f8] pb-20 text-[#0a1122] lg:pb-0"
+      className="min-h-screen bg-[#f4f6f8] pb-20 text-[#0a1122] lg:pb-0"
     >
       {/* 1. القائمة الجانبية الثابتة للكمبيوتر */}
-      <aside className="fixed inset-y-0 right-0 z-30 hidden w-72 border-l border-white/10 bg-[#0a1122] text-white lg:flex lg:flex-col lg:justify-between">
+      <aside className="fixed inset-y-0 right-0 z-30 hidden w-64 border-l border-white/10 bg-[#0a1122] text-white lg:flex lg:flex-col lg:justify-between">
         <div>
-          <div className="flex h-20 items-center gap-3 border-b border-white/10 px-7 text-xl font-extrabold">
-            <span className="flex size-10 items-center justify-center rounded-xl bg-[#105C50] text-white shadow-sm">
-              <Building2 className="size-5" />
+          <div className="flex h-16 items-center gap-2.5 border-b border-white/10 px-6 text-lg font-extrabold">
+            <span className="flex size-8 items-center justify-center rounded-lg bg-[#105C50] text-white">
+              <Building2 className="size-4" />
             </span>
             <span>
               دارك<span className="text-emerald-400">.</span>
             </span>
-            <span className="mr-auto rounded-full bg-emerald-500/20 px-2.5 py-1 text-[10px] font-bold text-emerald-300">
+            <span className="mr-auto rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
               {adminRole}
             </span>
           </div>
 
-          <nav aria-label="التنقل الإداري" className="flex flex-col gap-1.5 p-4">
+          <nav aria-label="التنقل الإداري" className="flex flex-col gap-1 p-3.5">
             {ADMIN_NAV_LINKS.map(({ href, label, icon: Icon }) => {
               const active = isActive(href)
               return (
                 <Link
                   key={href}
                   href={href}
-                  className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition-all ${
+                  className={`flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-xs font-bold transition-all ${
                     active
-                      ? "bg-[#105C50] text-white shadow-sm"
+                      ? "bg-[#105C50] text-white shadow-xs"
                       : "text-white/70 hover:bg-white/10 hover:text-white"
                   }`}
                 >
@@ -265,10 +260,10 @@ export default function AdminShell({
           </nav>
         </div>
 
-        <div className="p-4">
+        <div className="space-y-1.5 border-t border-white/10 p-3.5">
           <Link
             href="/admin/profile"
-            className="mb-2 flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs font-bold text-white/85 transition hover:bg-white/10 hover:text-white"
+            className="flex items-center justify-between rounded-xl bg-white/5 px-3.5 py-2.5 text-xs font-bold text-white/85 transition hover:bg-white/10 hover:text-white"
           >
             <span>حسابي</span>
             <User className="size-3.5 text-emerald-400" />
@@ -278,27 +273,20 @@ export default function AdminShell({
             href="/"
             target="_blank"
             rel="noopener noreferrer"
-            className="mb-2 flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs font-bold text-white/80 transition hover:bg-white/10 hover:text-white"
+            className="flex items-center justify-between rounded-xl bg-white/5 px-3.5 py-2.5 text-xs font-bold text-white/80 transition hover:bg-white/10 hover:text-white"
           >
-            <span>معاينة الموقع العام</span>
+            <span>الموقع العام</span>
             <ExternalLink className="size-3.5 text-emerald-400" />
           </a>
 
           <button
             onClick={handleLogout}
             type="button"
-            className="mb-3 flex w-full items-center justify-between rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-xs font-bold text-red-400 transition hover:bg-red-500/20 hover:text-red-300"
+            className="flex w-full items-center justify-between rounded-xl bg-red-500/10 px-3.5 py-2.5 text-xs font-bold text-red-400 transition hover:bg-red-500/20 hover:text-red-300"
           >
             <span>تسجيل الخروج</span>
             <LogOut className="size-3.5" />
           </button>
-
-          <div className="rounded-2xl bg-gradient-to-br from-[#105C50] to-[#083d34] p-4 text-xs leading-6 text-white/90 shadow-md">
-            <div className="flex items-center gap-1.5 font-bold text-white">
-              <ShieldCheck className="size-4" />
-              <span>مركز التحكم الذكي</span>
-            </div>
-          </div>
         </div>
       </aside>
 
@@ -310,18 +298,15 @@ export default function AdminShell({
             onClick={() => setDrawerOpen(false)}
           />
 
-          <aside className="fixed inset-y-0 right-0 z-50 flex w-[280px] max-w-[82vw] flex-col justify-between bg-[#0a1122] text-white shadow-2xl">
+          <aside className="fixed inset-y-0 right-0 z-50 flex w-[265px] max-w-[80vw] flex-col justify-between bg-[#0a1122] text-white shadow-2xl">
             <div>
-              <div className="flex h-16 items-center justify-between border-b border-white/10 px-5">
-                <div className="flex items-center gap-2.5 text-lg font-extrabold">
-                  <span className="flex size-9 items-center justify-center rounded-xl bg-[#105C50] text-white">
+              <div className="flex h-14 items-center justify-between border-b border-white/10 px-4">
+                <div className="flex items-center gap-2 text-base font-extrabold">
+                  <span className="flex size-8 items-center justify-center rounded-lg bg-[#105C50] text-white">
                     <Building2 className="size-4" />
                   </span>
                   <span>
                     دارك<span className="text-emerald-400">.</span>
-                  </span>
-                  <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[9px] font-bold text-emerald-300">
-                    {adminRole}
                   </span>
                 </div>
 
@@ -334,13 +319,6 @@ export default function AdminShell({
                 </button>
               </div>
 
-              <div className="mx-4 mt-4 rounded-xl border border-white/10 bg-white/5 p-3.5">
-                <p className="text-xs font-extrabold text-white">{adminName}</p>
-                <p className="mt-0.5 text-[10px] text-emerald-400">
-                  مدير النظام · صلاحية كاملة
-                </p>
-              </div>
-
               <nav className="mt-3 flex flex-col gap-1 px-3">
                 {ADMIN_NAV_LINKS.map(({ href, label, icon: Icon }) => {
                   const active = isActive(href)
@@ -349,13 +327,13 @@ export default function AdminShell({
                       key={href}
                       href={href}
                       onClick={() => setDrawerOpen(false)}
-                      className={`flex items-center justify-between rounded-xl px-3.5 py-3 text-xs font-bold transition-all ${
+                      className={`flex items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-bold transition-all ${
                         active
-                          ? "bg-[#105C50] text-white shadow-sm"
+                          ? "bg-[#105C50] text-white shadow-xs"
                           : "text-white/75 hover:bg-white/10 hover:text-white"
                       }`}
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2.5">
                         <Icon
                           className={`size-4 ${
                             active ? "text-white" : "text-emerald-400"
@@ -364,7 +342,7 @@ export default function AdminShell({
                         <span>{label}</span>
                       </div>
                       {active && (
-                        <span className="size-2 rounded-full bg-emerald-300" />
+                        <span className="size-1.5 rounded-full bg-emerald-300" />
                       )}
                     </Link>
                   )
@@ -372,11 +350,11 @@ export default function AdminShell({
               </nav>
             </div>
 
-            <div className="space-y-2 border-t border-white/10 p-4">
+            <div className="space-y-1.5 border-t border-white/10 p-3.5">
               <Link
                 href="/admin/profile"
                 onClick={() => setDrawerOpen(false)}
-                className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-xs font-bold text-white/85 transition hover:bg-white/10"
+                className="flex items-center justify-between rounded-xl bg-white/5 px-3.5 py-2 text-xs font-bold text-white/85"
               >
                 <span>حسابي</span>
                 <User className="size-3.5 text-emerald-400" />
@@ -387,16 +365,16 @@ export default function AdminShell({
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => setDrawerOpen(false)}
-                className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-xs font-bold text-white/85 transition hover:bg-white/10"
+                className="flex items-center justify-between rounded-xl bg-white/5 px-3.5 py-2 text-xs font-bold text-white/85"
               >
-                <span>معاينة الموقع العام</span>
+                <span>الموقع العام</span>
                 <ExternalLink className="size-3.5 text-emerald-400" />
               </a>
 
               <button
                 onClick={handleLogout}
                 type="button"
-                className="flex w-full items-center justify-between rounded-xl border border-red-500/20 bg-red-500/10 px-3.5 py-2.5 text-xs font-bold text-red-400 transition hover:bg-red-500/20 hover:text-red-300"
+                className="flex w-full items-center justify-between rounded-xl bg-red-500/10 px-3.5 py-2 text-xs font-bold text-red-400"
               >
                 <span>تسجيل الخروج</span>
                 <LogOut className="size-3.5" />
@@ -406,32 +384,33 @@ export default function AdminShell({
         </div>
       )}
 
-      {/* 3. الهيدر العلوي المدمج */}
-      <div className="lg:mr-72">
-        <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-2 border-b border-gray-200/80 bg-white/95 px-3.5 backdrop-blur-md sm:h-20 sm:px-6 lg:px-8">
+      {/* 3. الهيدر العلوي الرشيق */}
+      <div className="lg:mr-64">
+        <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-2 border-b border-gray-200/80 bg-white/95 px-3.5 backdrop-blur-md sm:h-16 sm:px-6">
           <div className="flex min-w-0 items-center gap-2.5">
             <button
               type="button"
               onClick={() => setDrawerOpen(true)}
-              className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-gray-50/80 text-[#0a1122] transition hover:bg-gray-100 active:scale-95 lg:hidden"
+              className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-[#0a1122] transition hover:bg-gray-100 lg:hidden"
             >
-              <Menu className="size-5" />
+              <Menu className="size-4" />
             </button>
 
-            <div className="min-w-0">
-              <p className="truncate text-[10px] font-extrabold text-[#105C50] sm:text-xs">
+            <div className="flex items-center gap-2">
+              <h1 className="truncate text-sm font-extrabold text-[#0a1122] sm:text-base">
                 {currentSection}
-              </p>
-              <h1 className="truncate text-sm font-extrabold text-[#0a1122] sm:text-lg">
-                أهلاً، {firstName}
               </h1>
+              <span className="hidden text-xs text-gray-300 sm:inline">|</span>
+              <span className="hidden text-xs font-semibold text-gray-500 sm:inline">
+                أهلاً، {firstName}
+              </span>
             </div>
           </div>
 
-          <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
+          <div className="flex shrink-0 items-center gap-2">
             <Link
               href="/admin/profile"
-              className="inline-flex h-9 items-center justify-center rounded-xl border border-gray-200 bg-gray-50 px-4 text-xs font-bold text-[#0a1122] transition hover:border-[#105C50] hover:bg-white sm:h-10 sm:px-5"
+              className="inline-flex h-8 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 px-3 text-xs font-bold text-[#0a1122] transition hover:border-[#105C50] hover:bg-white sm:h-9 sm:px-4"
             >
               <span>حسابي</span>
             </Link>
@@ -440,7 +419,7 @@ export default function AdminShell({
               <button
                 type="button"
                 onClick={handleToggleNotifications}
-                className="relative flex size-9 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700 transition hover:bg-gray-50 sm:size-10"
+                className="relative flex size-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 transition hover:bg-gray-50 sm:size-9"
                 aria-label="الإشعارات"
               >
                 <Bell className="size-4" />
@@ -457,11 +436,11 @@ export default function AdminShell({
               {notifOpen && (
                 <div
                   onClick={(e) => e.stopPropagation()}
-                  className="fixed left-3 right-3 top-[68px] z-50 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl sm:absolute sm:left-0 sm:right-auto sm:top-12 sm:w-96"
+                  className="fixed left-3 right-3 top-[60px] z-50 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl sm:absolute sm:left-0 sm:right-auto sm:top-11 sm:w-96"
                 >
-                  <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50/90 px-4 py-3">
+                  <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50/90 px-4 py-2.5">
                     <span className="flex items-center gap-1.5 text-xs font-extrabold text-[#0a1122]">
-                      <span>التنبيهات والطلبات</span>
+                      <span>الإشعارات</span>
                       <span
                         dir="ltr"
                         className="rounded-full bg-[#105C50]/10 px-2 py-0.5 text-[10px] font-extrabold text-[#105C50]"
@@ -490,15 +469,12 @@ export default function AdminShell({
                     </div>
                   </div>
 
-                  <div className="max-h-[65vh] divide-y divide-gray-100 overflow-y-auto sm:max-h-96">
+                  <div className="max-h-[60vh] divide-y divide-gray-100 overflow-y-auto sm:max-h-96">
                     {localNotifs.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center px-4 py-10 text-center">
-                        <CheckCircle2 className="mb-2 size-8 text-emerald-500" />
+                      <div className="flex flex-col items-center justify-center px-4 py-8 text-center">
+                        <CheckCircle2 className="mb-1.5 size-7 text-emerald-500" />
                         <p className="text-xs font-bold text-[#0a1122]">
-                          لا توجد إشعارات حالياً
-                        </p>
-                        <p className="mt-0.5 text-[11px] text-gray-400">
-                          تمت مراجعة كافة العقارات والطلبات الجديدة.
+                          لا توجد إشعارات جديدة
                         </p>
                       </div>
                     ) : (
@@ -511,12 +487,12 @@ export default function AdminShell({
                           onKeyDown={(e) => {
                             if (e.key === "Enter") handleNotificationClick(item)
                           }}
-                          className={`group flex cursor-pointer items-start gap-3 p-4 text-right transition hover:bg-gray-50 active:bg-gray-100 ${
+                          className={`group flex cursor-pointer items-start gap-3 p-3.5 text-right transition hover:bg-gray-50 ${
                             !item.isRead ? "bg-emerald-50/40" : "bg-white"
                           }`}
                         >
                           <span
-                            className={`mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl text-xs font-bold ${
+                            className={`mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                               item.type === "property"
                                 ? "bg-amber-100 text-amber-800"
                                 : item.type === "lead"
@@ -541,16 +517,16 @@ export default function AdminShell({
                             >
                               {item.title}
                             </p>
-                            <p className="mt-1 text-[11.5px] leading-relaxed text-gray-600 break-words">
+                            <p className="mt-0.5 text-[11px] leading-relaxed text-gray-600 break-words">
                               {item.subtitle}
                             </p>
-                            <div className="mt-2 flex items-center justify-between">
+                            <div className="mt-1.5 flex items-center justify-between">
                               <span className="flex items-center gap-1 text-[10px] text-gray-400">
                                 <Clock className="size-3" />
                                 <span dir="ltr">{item.createdAt}</span>
                               </span>
-                              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#105C50] group-hover:underline">
-                                <span>مراجعة الطلب</span>
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#105C50] group-hover:underline">
+                                <span>عرض</span>
                                 <ArrowLeft className="size-3" />
                               </span>
                             </div>
@@ -562,8 +538,7 @@ export default function AdminShell({
                               handleDeleteNotification(e, item.id)
                             }
                             title="حذف الإشعار"
-                            aria-label="حذف الإشعار"
-                            className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-600"
+                            className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md text-gray-400 transition hover:bg-red-50 hover:text-red-600"
                           >
                             <Trash2 className="size-3.5" />
                           </button>
@@ -571,32 +546,19 @@ export default function AdminShell({
                       ))
                     )}
                   </div>
-
-                  <div className="border-t border-gray-100 bg-gray-50/50 p-2 text-center">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setNotifOpen(false)
-                        router.push("/admin/properties")
-                      }}
-                      className="w-full rounded-lg py-1.5 text-[11px] font-bold text-[#105C50] hover:bg-emerald-50"
-                    >
-                      عرض كل العقارات والطلبات
-                    </button>
-                  </div>
                 </div>
               )}
             </div>
           </div>
         </header>
 
-        <main className="p-3.5 sm:p-6 lg:p-8">{children}</main>
+        <main className="p-3.5 sm:p-5 lg:p-6">{children}</main>
       </div>
 
       {/* 4. الشريط السفلي للموبايل */}
       <nav
         aria-label="التنقل السريع للموبايل"
-        className="fixed inset-x-0 bottom-0 z-30 flex h-16 items-center justify-around border-t border-gray-200/90 bg-white/95 px-1 shadow-[0_-4px_16px_rgba(0,0,0,0.04)] backdrop-blur-md lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-30 flex h-15 items-center justify-around border-t border-gray-200/90 bg-white/95 px-1 shadow-[0_-4px_16px_rgba(0,0,0,0.04)] backdrop-blur-md lg:hidden"
       >
         {MOBILE_BOTTOM_LINKS.map(({ href, shortLabel, icon: Icon }) => {
           const active = isActive(href)
@@ -604,12 +566,12 @@ export default function AdminShell({
             <Link
               key={href}
               href={href}
-              className={`flex flex-1 flex-col items-center justify-center gap-1 py-1.5 text-[10px] font-bold transition ${
+              className={`flex flex-1 flex-col items-center justify-center gap-0.5 py-1 text-[10px] font-bold transition ${
                 active ? "text-[#105C50]" : "text-gray-400 hover:text-[#0a1122]"
               }`}
             >
               <span
-                className={`flex h-7 w-11 items-center justify-center rounded-full transition ${
+                className={`flex h-6 w-10 items-center justify-center rounded-full transition ${
                   active ? "bg-[#105C50]/12 text-[#105C50]" : ""
                 }`}
               >

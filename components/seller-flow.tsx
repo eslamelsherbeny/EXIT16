@@ -1,16 +1,7 @@
 'use client'
 
-import { useEffect, useRef, useState, useTransition } from 'react'
-import {
-  Check,
-  ChevronDown,
-  Copy,
-  Globe,
-  ImagePlus,
-  Loader2,
-  Star,
-  UserRound,
-} from 'lucide-react'
+import { useEffect, useState, useTransition } from 'react'
+import { Check, Copy, ImagePlus, Loader2, Star, UserRound } from 'lucide-react'
 import {
   getCurrentSellerProfileAction,
   saveSellProgress,
@@ -29,289 +20,30 @@ import { Textarea } from '@/components/ui/textarea'
 import { TurnstileBox } from '@/components/funnel-shell'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import arDict from '@/dictionaries/ar.json'
 import {
   Actions,
+  areasCatalogByCountry,
   deliveries,
   features,
   Field,
   finishings,
   formatAmount,
+  getCountryConfig,
+  getHeaderCookieCountry,
   MoneyField,
+  normalizeArabicText,
   Pills,
+  PLATFORM_COUNTRIES,
   RequiredLabel,
+  SearchableCountryField,
   ToggleSection,
   unitTypes,
   years,
 } from './seller/seller-shared'
 import { ContactStep } from './seller/seller-contact-step'
 
-export type PlatformCountryCode = 'EG' | 'AE' | 'RU' | 'GE'
-
-export const PLATFORM_COUNTRIES: Array<{
-  code: PlatformCountryCode
-  nameAr: string
-  nameEn: string
-  flag: string
-  currency: string
-  areas: Array<[string, string[]]>
-}> = [
-  {
-    code: 'EG',
-    nameAr: 'مصر',
-    nameEn: 'Egypt',
-    flag: '🇪🇬',
-    currency: 'ج.م',
-    areas: [
-      [
-        'القاهرة الجديدة والتجمع',
-        [
-          'التجمع الخامس',
-          'التجمع الأول',
-          'التجمع الثالث',
-          'القاهرة الجديدة',
-          'الرحاب',
-          'مدينتي',
-          'المستقبل سيتي',
-          'الشروق',
-        ],
-      ],
-      [
-        'الشيخ زايد وأكتوبر',
-        ['الشيخ زايد', 'زايد الجديدة', '6 أكتوبر', 'حدائق أكتوبر'],
-      ],
-      [
-        'العاصمة والساحل وأخرى',
-        [
-          'العاصمة الإدارية',
-          'الساحل الشمالي',
-          'العين السخنة',
-          'رأس الحكمة',
-          'منطقتي مش في القائمة',
-        ],
-      ],
-    ],
-  },
-  {
-    code: 'AE',
-    nameAr: 'الإمارات',
-    nameEn: 'UAE',
-    flag: '🇦🇪',
-    currency: 'د.إ',
-    areas: [
-      [
-        'دبي',
-        [
-          'داون تاون دبي',
-          'دبي مارينا',
-          'بيزنس باي',
-          'نخلة جميرا',
-          'قرية جميرا الدائرية JVC',
-          'دبي هيلز',
-        ],
-      ],
-      [
-        'أبوظبي والشارقة',
-        ['جزيرة ياس', 'جزيرة السعديات', 'جزيرة الريم', 'الشارقة - الجادة'],
-      ],
-    ],
-  },
-  {
-    code: 'RU',
-    nameAr: 'روسيا',
-    nameEn: 'Russia',
-    flag: '🇷🇺',
-    currency: '₽',
-    areas: [
-      [
-        'موسكو وسانت بطرسبرغ',
-        [
-          'وسط موسكو',
-          'موسكو سيتي',
-          'سانت بطرسبرغ',
-          'سوتشي',
-          'كازان',
-          'منطقة أخرى',
-        ],
-      ],
-    ],
-  },
-  {
-    code: 'GE',
-    nameAr: 'جورجيا',
-    nameEn: 'Georgia',
-    flag: '🇬🇪',
-    currency: '$',
-    areas: [
-      [
-        'تبليسي وباتومي',
-        [
-          'تبليسي - سابورتالو',
-          'تبليسي - فاكي',
-          'باتومي - البوليفارد الجديد',
-          'باتومي - وسط المدينة',
-          'كوتايسي',
-        ],
-      ],
-    ],
-  },
-]
-
-function normalizeArabicText(str: string) {
-  return (str || '')
-    .trim()
-    .toLowerCase()
-    .replace(/[أإآ]/g, 'ا')
-    .replace(/ة/g, 'ه')
-}
-
-function getHeaderCookieCountry(): PlatformCountryCode {
-  if (typeof document !== 'undefined') {
-    const match = document.cookie
-      .split('; ')
-      .find((row) => row.startsWith('darak_country='))
-    const code = match?.split('=')[1]?.trim() as PlatformCountryCode | undefined
-    if (code && PLATFORM_COUNTRIES.some((c) => c.code === code)) {
-      return code
-    }
-  }
-  return 'EG'
-}
-
-// مكوّن اختيار الدولة الذكي بالبحث بالحرف الأول أو الاختيار من القائمة المنسدلة
-export function SearchableCountryPicker({
-  value,
-  onChange,
-  label = 'دولة الوحدة العقارية *',
-  error,
-}: {
-  value: string
-  onChange: (code: PlatformCountryCode) => void
-  label?: string
-  error?: string
-}) {
-  const [open, setOpen] = useState(false)
-  const [query, setQuery] = useState('')
-  const wrapperRef = useRef<HTMLDivElement>(null)
-
-  const selectedObj =
-    PLATFORM_COUNTRIES.find((c) => c.code === value) || PLATFORM_COUNTRIES[0]
-
-  useEffect(() => {
-    function handleOutside(e: MouseEvent) {
-      if (
-        wrapperRef.current &&
-        !wrapperRef.current.contains(e.target as Node)
-      ) {
-        setOpen(false)
-        setQuery('')
-      }
-    }
-    document.addEventListener('mousedown', handleOutside)
-    return () => document.removeEventListener('mousedown', handleOutside)
-  }, [])
-
-  const filteredCountries = PLATFORM_COUNTRIES.filter((c) => {
-    if (!query.trim()) return true
-    const q = normalizeArabicText(query)
-    return (
-      normalizeArabicText(c.nameAr).includes(q) ||
-      c.nameEn.toLowerCase().includes(q) ||
-      c.code.toLowerCase().includes(q)
-    )
-  })
-
-  return (
-    <div ref={wrapperRef} className="relative flex flex-col gap-2">
-      <Label className="text-right">
-        <RequiredLabel>{label}</RequiredLabel>
-      </Label>
-
-      <div className="relative">
-        <Input
-          type="text"
-          dir="rtl"
-          value={open ? query : `${selectedObj.flag}  ${selectedObj.nameAr}`}
-          placeholder="اكتب أواختار الدولة"
-          onFocus={() => {
-            setOpen(true)
-            setQuery('')
-          }}
-          onChange={(e) => {
-            setQuery(e.target.value)
-            setOpen(true)
-          }}
-          className={`h-12 cursor-pointer rounded-xl pr-4 pl-10 text-right font-bold text-[#0a1122] ${
-            error ? 'border-red-500 bg-red-50/20' : 'border-slate-200 bg-white'
-          }`}
-        />
-        <button
-          type="button"
-          onClick={() => {
-            setOpen(!open)
-            setQuery('')
-          }}
-          className="absolute top-1/2 left-3 -translate-y-1/2 text-slate-400 hover:text-slate-700"
-        >
-          <ChevronDown className="size-4" />
-        </button>
-      </div>
-
-      {error && (
-        <p className="mt-1 text-right text-xs font-semibold text-red-600">
-          {error}
-        </p>
-      )}
-
-      {open && (
-        <div className="absolute top-[78px] z-30 w-full overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
-          {filteredCountries.length === 0 ? (
-            <p className="py-3 text-center text-xs text-slate-400">
-              لا توجد دولة مطابقة للبحث
-            </p>
-          ) : (
-            filteredCountries.map((c) => {
-              const isSelected = c.code === selectedObj.code
-              return (
-                <button
-                  key={c.code}
-                  type="button"
-                  onClick={() => {
-                    onChange(c.code)
-                    setOpen(false)
-                    setQuery('')
-                  }}
-                  className={`flex w-full items-center justify-between rounded-lg px-3.5 py-2.5 text-right text-sm transition ${
-                    isSelected
-                      ? 'bg-[#eff9f5] font-bold text-[#0b6954]'
-                      : 'text-[#0a1122] hover:bg-slate-50'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <span className="text-lg leading-none">{c.flag}</span>
-                    <span>{c.nameAr}</span>
-                    <span className="text-xs text-slate-400">({c.nameEn})</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs text-slate-400">
-                      {c.code}
-                    </span>
-                    {isSelected && <Check className="size-4 text-[#0b6954]" />}
-                  </div>
-                </button>
-              )
-            })
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
-const PROMO_PACKAGES: Array<{ days: 7 | 14 | 30; price: number; label: string }> = [
-  { days: 7, price: 1199, label: '7 أيام' },
-  { days: 14, price: 1999, label: '14 أيام' },
-  { days: 30, price: 2799, label: '30 أيام' },
-]
+const s = arDict.sell
 
 export function SellerFlow() {
   const router = useRouter()
@@ -370,7 +102,7 @@ export function SellerFlow() {
             )
             setForm((prev) => ({
               ...prev,
-              unitCountry: u.country || activeCookieCountry,
+              unitCountry: u.country_code || u.country || activeCookieCountry,
               developer: u.developer_name || '',
               developerDetails: u.developer_name || '',
               project: u.project_name || '',
@@ -418,7 +150,7 @@ export function SellerFlow() {
             )
             setForm((prev) => ({
               ...prev,
-              unitCountry: u.country || activeCookieCountry,
+              unitCountry: u.country_code || u.country || activeCookieCountry,
               developer: u.developer_name || '',
               developerDetails: u.developer_name || '',
               project: u.project_name || '',
@@ -530,56 +262,53 @@ export function SellerFlow() {
     const nextErrors: Record<string, string> = {}
 
     if (step === 1) {
-      if (!form.unitCountry) nextErrors.unitCountry = 'يرجى اختيار الدولة'
-      if (!form.developer) nextErrors.developer = 'هذا الحقل مطلوب'
-      if (!form.project) nextErrors.project = 'هذا الحقل مطلوب'
-      if (!form.contractPrice) nextErrors.contractPrice = 'هذا الحقل مطلوب'
-      if (!form.paidAmount) nextErrors.paidAmount = 'هذا الحقل مطلوب'
+      if (!form.unitCountry) nextErrors.unitCountry = s.validation.selectCountry
+      if (!form.developer) nextErrors.developer = s.validation.required
+      if (!form.project) nextErrors.project = s.validation.required
+      if (!form.contractPrice) nextErrors.contractPrice = s.validation.required
+      if (!form.paidAmount) nextErrors.paidAmount = s.validation.required
       if (form.confirmed !== 'yes')
-        nextErrors.confirmed = 'هذا الحقل مطلوب، يرجى وضع علامة صح للمتابعة'
+        nextErrors.confirmed = s.validation.confirmRequired
       if (amount('paidAmount') > amount('contractPrice'))
-        nextErrors.paidAmount =
-          'المبلغ لا يمكن أن يتخطى إجمالي سعر الوحدة في العقد'
+        nextErrors.paidAmount = s.validation.paidExceedsContract
     }
 
     if (step === 3) {
-      if (!form.unitCountry) nextErrors.unitCountry = 'يرجى اختيار الدولة'
+      if (!form.unitCountry) nextErrors.unitCountry = s.validation.selectCountry
       if (!form.developerDetails && !form.developer)
-        nextErrors.developerDetails = 'هذا الحقل مطلوب'
+        nextErrors.developerDetails = s.validation.required
       if (!form.projectDetails && !form.project)
-        nextErrors.projectDetails = 'هذا الحقل مطلوب'
-      if (!form.location) nextErrors.location = 'هذا الحقل مطلوب'
-      if (!selected.type?.[0]) nextErrors.type = 'هذا الحقل مطلوب'
-      if (!form.areaSize) nextErrors.areaSize = 'هذا الحقل مطلوب'
-      if (!form.rooms) nextErrors.rooms = 'هذا الحقل مطلوب'
-      if (!form.bathrooms) nextErrors.bathrooms = 'هذا الحقل مطلوب'
-      if (selected.type?.[0] === 'شقة' && !form.floor)
-        nextErrors.floor = 'هذا الحقل مطلوب'
-      if (!selected.finishing?.[0]) nextErrors.finishing = 'هذا الحقل مطلوب'
-      if (!selected.delivery?.[0]) nextErrors.delivery = 'هذا الحقل مطلوب'
-      if (!form.description) nextErrors.description = 'هذا الحقل مطلوب'
+        nextErrors.projectDetails = s.validation.required
+      if (!form.location) nextErrors.location = s.validation.required
+      if (!selected.type?.[0]) nextErrors.type = s.validation.required
+      if (!form.areaSize) nextErrors.areaSize = s.validation.required
+      if (!form.rooms) nextErrors.rooms = s.validation.required
+      if (!form.bathrooms) nextErrors.bathrooms = s.validation.required
+      if (selected.type?.[0] === unitTypes[0] && !form.floor)
+        nextErrors.floor = s.validation.required
+      if (!selected.finishing?.[0]) nextErrors.finishing = s.validation.required
+      if (!selected.delivery?.[0]) nextErrors.delivery = s.validation.required
+      if (!form.description) nextErrors.description = s.validation.required
     }
 
     if (step === 4) {
-      if (!form.contractPrice) nextErrors.contractPrice = 'هذا الحقل مطلوب'
-      if (!selected.year?.[0]) nextErrors.year = 'هذا الحقل مطلوب'
-      if (!form.paidAmount) nextErrors.paidAmount = 'هذا الحقل مطلوب'
-      if (!form.marketPrice) nextErrors.marketPrice = 'هذا الحقل مطلوب'
-      if (!form.installment) nextErrors.installment = 'هذا الحقل مطلوب'
+      if (!form.contractPrice) nextErrors.contractPrice = s.validation.required
+      if (!selected.year?.[0]) nextErrors.year = s.validation.required
+      if (!form.paidAmount) nextErrors.paidAmount = s.validation.required
+      if (!form.marketPrice) nextErrors.marketPrice = s.validation.required
+      if (!form.installment) nextErrors.installment = s.validation.required
       if (!selected.frequency?.[0])
-        nextErrors.frequency = 'هذا الحقل مطلوب، يرجى اختيار دورية القسط'
+        nextErrors.frequency = s.validation.selectFrequency
       if (!selected.annualInstallment?.[0])
-        nextErrors.annualInstallment = 'يرجى اختيار أيوه أو لأ'
+        nextErrors.annualInstallment = s.validation.selectYesNo
       if (!selected.discountOffer?.[0])
-        nextErrors.discountOffer = 'يرجى اختيار أيوه أو لأ'
+        nextErrors.discountOffer = s.validation.selectYesNo
       if (!selected.overdueInstallments?.[0])
-        nextErrors.overdueInstallments = 'يرجى اختيار أيوه أو لأ'
+        nextErrors.overdueInstallments = s.validation.selectYesNo
       if (amount('paidAmount') > amount('contractPrice'))
-        nextErrors.paidAmount =
-          'المبلغ لا يمكن أن يتخطى إجمالي سعر الوحدة في العقد'
+        nextErrors.paidAmount = s.validation.paidExceedsContract
       if (amount('installment') > amount('contractPrice'))
-        nextErrors.installment =
-          'المبلغ لا يمكن أن يتخطى إجمالي سعر الوحدة في العقد'
+        nextErrors.installment = s.validation.paidExceedsContract
     }
 
     if (Object.keys(nextErrors).length > 0) {
@@ -635,7 +364,7 @@ export function SellerFlow() {
     if (result.success) {
       router.push('/account')
     } else {
-      setError(result.error ?? 'تعذر حفظ التقدم.')
+      setError(result.error ?? s.validation.saveFailed)
     }
   }
 
@@ -678,7 +407,7 @@ export function SellerFlow() {
     setToggle('has_overdue_installments', 'overdueInstallments')
     setValue('discount_amount', form.discountAmount)
     setValue('overdue_installments', form.overdueCount)
-    setValue('name', form.name || loggedUser?.name || 'مقدم طلب بيع')
+    setValue('name', form.name || loggedUser?.name || '')
     setValue(
       'phone',
       form.phone
@@ -701,7 +430,7 @@ export function SellerFlow() {
         if (result.orderRef) setOrderRef(result.orderRef)
         setSubmitted(true)
       } else {
-        setError(result.error ?? 'تعذر إرسال الطلب')
+        setError(result.error ?? s.validation.submitFailed)
       }
     })
   }
@@ -712,20 +441,16 @@ export function SellerFlow() {
   return (
     <main
       dir="rtl"
-      className="min-h-screen bg-[#f5f7f8] px-3 py-8 text-[#111827] sm:px-5 md:py-12"
+      className="min-h-screen bg-[var(--brand-surface,#f5f6f8)] px-3 py-8 text-[var(--brand-navy-text,#0a1128)] sm:px-5 md:py-12"
     >
       <div className="mx-auto max-w-3xl">
         {!submitted && (
           <header className="mb-7 text-center">
             <h1 className="text-3xl font-black tracking-tight text-[#123c35] sm:text-4xl">
-              {isMagicResume
-                ? 'كمّل بيانات وحدتك'
-                : 'عايز تخرج من تعاقدك؟ خليها بحساب'}
+              {isMagicResume ? s.header.resumeTitle : s.header.mainTitle}
             </h1>
             <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-slate-600">
-              {isMagicResume
-                ? 'مش محتاج كلمة سر — كمّل الناقص وإحنا ننشر وحدتك للمشترين. بيتحفظ تلقائياً وتقدر ترجع من نفس اللينك.'
-                : 'قبل أي خطوة، لازم تعرف موقفك بالظبط: خصم الإلغاء، جدول الاسترداد، وقيمة اللي ممكن ترجعه. ده بالظبط اللي بيعمله تقرير الخروج — مجانًا، ومفيش أي عمولة عليك كـ بائع من خلالنا.'}
+              {isMagicResume ? s.header.resumeDesc : s.header.mainDesc}
             </p>
           </header>
         )}
@@ -733,12 +458,7 @@ export function SellerFlow() {
         {step <= 2 && !isMagicResume && !submitted && (
           <>
             <div className="mb-4 grid gap-3">
-              {[
-                'مراجعة حقيقية لعقدك ومستنداتك — مش حسبة تقريبية',
-                'مقارنة موثقة: الإلغاء مقابل نقل التعاقد',
-                'توصية واضحة بأفضل طريق — حقك لو كان الاستثمار',
-                'مجانًا تمامًا: مفيش عمولة على البائع — المشتري هو اللي بيدفع 1.25%',
-              ].map((item, index) => (
+              {s.header.highlights.map((item, index) => (
                 <div
                   key={item}
                   className={`flex items-center gap-3 rounded-xl border bg-white px-5 py-3 text-sm ${
@@ -753,7 +473,7 @@ export function SellerFlow() {
               ))}
             </div>
             <div className="mb-7 rounded-xl border border-slate-500 bg-transparent px-5 py-4 text-center text-sm font-semibold">
-              مُلّاك بس: بنتعامل مع صاحب الوحدة مباشرة — مش بنقبل طلبات من سماسرة.
+              {s.header.ownersOnlyBanner}
             </div>
           </>
         )}
@@ -763,12 +483,9 @@ export function SellerFlow() {
             {!submitted && (
               <div className="mb-6 rounded-2xl border border-slate-600 px-4 py-4 text-center text-sm leading-7">
                 <div className="mb-1 flex items-center justify-center gap-2 font-bold">
-                  <UserRound className="size-4" /> بنتعامل مع مالك الوحدة نفسه بس
+                  <UserRound className="size-4" /> {s.header.ownersOnlyCardTitle}
                 </div>
-                الطلبات اللي بتيجي من سماسرة أو وسطاء بنستبعدها، وأي وحدة يتبيّن
-                إنها من وسيط بترفض أو بتتحذف نهائيًا. سبب المنصة الأساسي إن المشتري
-                ياخد سعر التعاقد القديم من غير أوفر — ووجود وسيط بيضيف هامش وبيلغي
-                الفكرة كلها.
+                {s.header.ownersOnlyCardDesc}
               </div>
             )}
 
@@ -787,23 +504,15 @@ export function SellerFlow() {
                   ))}
                 </div>
                 <Badge className="shrink-0 rounded-full bg-slate-100 text-slate-700">
-                  خطوة {currentDisplayStep} من {totalStepsCount}
+                  {s.header.stepWord} {currentDisplayStep} {s.header.ofWord}{' '}
+                  {totalStepsCount}
                 </Badge>
               </div>
             )}
 
             {!submitted && (
               <h2 className="mb-6 text-2xl font-black text-[#102238]">
-                {
-                  [
-                    'بيانات الوحدة',
-                    'بيانات التواصل',
-                    'تفاصيل الوحدة',
-                    'السعر والأقساط',
-                    'صور الوحدة',
-                    'مراجعة وإرسال',
-                  ][step - 1]
-                }
+                {s.header.stepTitles[step - 1]}
               </h2>
             )}
 
@@ -876,13 +585,13 @@ export function SellerFlow() {
         </Card>
 
         {step <= 2 && !submitted && (
-          <div className="mt-5 flex items-center justify-between gap-4 rounded-2xl bg-[#0f172a] px-5 py-4 text-sm text-white">
-            <span>ابعتلنا على واتساب وهنرد عليك في أسرع وقت</span>
+          <div className="mt-5 flex items-center justify-between gap-4 rounded-2xl bg-[var(--brand-navy,#0a1122)] px-5 py-4 text-sm text-white">
+            <span>{s.header.whatsappBarText}</span>
             <a
               href="https://wa.me/201018595959"
               className="rounded-full bg-green-500 px-4 py-2 font-bold text-white"
             >
-              اطلب تقرير الخروج المجاني
+              {s.header.whatsappBarBtn}
             </a>
           </div>
         )}
@@ -902,44 +611,51 @@ function BasicStep({
   go: (step: number) => void
   errors: Record<string, string>
 }) {
+  const t = s.basicStep
+  const countryCfg = getCountryConfig(form.unitCountry)
+  const currency = countryCfg.currencySymbol
+
   return (
     <div className="flex flex-col gap-6">
-      <SearchableCountryPicker
+      <SearchableCountryField
         value={form.unitCountry || 'EG'}
         onChange={(code) => update('unitCountry', code)}
-        label="الدولة الموجود بها العقار *"
+        label={s.shared.unitCountryLabel}
+        options={PLATFORM_COUNTRIES}
         error={errors.unitCountry}
       />
       <Field
         error={errors.developer}
-        label="اسم المطور *"
+        label={t.developer}
         id="developer"
         value={form.developer}
         update={(value) => update('developer', value)}
       />
       <Field
         error={errors.project}
-        label="اسم المشروع / الكمبوند *"
+        label={t.project}
         id="project"
         value={form.project}
         update={(value) => update('project', value)}
       />
       <MoneyField
         error={errors.contractPrice}
-        label="إجمالي سعر الوحدة في العقد *"
+        label={t.contractPrice}
         value={form.contractPrice}
+        currencySymbol={currency}
         update={(value) => update('contractPrice', value)}
       />
       <MoneyField
         error={errors.paidAmount}
-        label="إجمالي اللي دفعته لحد النهارده *"
+        label={t.paidAmount}
         value={form.paidAmount}
+        currencySymbol={currency}
         update={(value) => update('paidAmount', value)}
       />
       <div className="rounded-xl bg-sky-50 p-4 text-sm font-semibold text-sky-700">
-        المبلغ اللي هتستلمه:{' '}
-        {Number(form.paidAmount || 0).toLocaleString('en-US')} ج.م — اللي دفعته
-        بالظبط، بدون أي أوفر أو زيادة.
+        {t.receiveBoxPrefix}{' '}
+        {Number(form.paidAmount || 0).toLocaleString('en-US')} {currency}{' '}
+        {t.receiveBoxSuffix}
       </div>
       <div>
         <label
@@ -957,8 +673,7 @@ function BasicStep({
               update('confirmed', checked ? 'yes' : '')
             }
           />
-          أؤكد إني فاهم إن المبلغ اللي هتستلمه هو اللي دفعته بالظبط — بدون أي
-          أوفر أو زيادة.
+          {t.confirmLabel}
         </label>
         {errors.confirmed && (
           <p className="mt-1.5 text-right text-xs font-semibold text-red-600">
@@ -967,13 +682,13 @@ function BasicStep({
         )}
       </div>
       <Field
-        label="سعر نفس الوحدة من المطور النهارده (لو تعرفه)"
+        label={t.currentDevPrice}
         id="currentDeveloperPrice"
         type="number"
         helper={
           form.currentDeveloperPrice
-            ? formatAmount(form.currentDeveloperPrice)
-            : 'بنستخدمه نحسب للمشتري هيوفر كام — لو مش متأكد سيبه فاضي وإحنا هنتحقق'
+            ? formatAmount(form.currentDeveloperPrice, currency)
+            : t.currentDevPriceHelper
         }
         value={form.currentDeveloperPrice}
         update={(value) => update('currentDeveloperPrice', value)}
@@ -1001,14 +716,16 @@ function DetailsStep({
   errors: Record<string, string>
   onSave: () => void
 }) {
+  const t = s.detailsStep
   const [areaOpen, setAreaOpen] = useState(false)
   const query = form.location ?? ''
 
-  const countryConfig =
-    PLATFORM_COUNTRIES.find((c) => c.code === (form.unitCountry || 'EG')) ||
-    PLATFORM_COUNTRIES[0]
+  const countryCode = (form.unitCountry || 'EG').toUpperCase()
+  const countryConfig = getCountryConfig(countryCode)
+  const rawAreas =
+    areasCatalogByCountry[countryCode] || areasCatalogByCountry.EG
 
-  const groups = countryConfig.areas
+  const groups = rawAreas
     .map(
       ([title, items]) =>
         [
@@ -1022,27 +739,28 @@ function DetailsStep({
 
   return (
     <div className="flex flex-col gap-6">
-      <SearchableCountryPicker
+      <SearchableCountryField
         value={form.unitCountry || 'EG'}
         onChange={(code) => {
           update('unitCountry', code)
           update('location', '')
         }}
-        label="الدولة الموجود بها العقار *"
+        label={s.shared.unitCountryLabel}
+        options={PLATFORM_COUNTRIES}
         error={errors.unitCountry}
       />
 
       <div className="grid gap-5 sm:grid-cols-2">
         <Field
           error={errors.developerDetails}
-          label="اسم المطور *"
+          label={s.basicStep.developer}
           id="developerDetails"
           value={form.developerDetails ?? form.developer}
           update={(value) => update('developerDetails', value)}
         />
         <Field
           error={errors.projectDetails}
-          label="اسم المشروع / الكمبوند *"
+          label={s.basicStep.project}
           id="projectDetails"
           value={form.projectDetails ?? form.project}
           update={(value) => update('projectDetails', value)}
@@ -1051,12 +769,12 @@ function DetailsStep({
 
       <div className="relative">
         <Label htmlFor="location" className="mb-2 block text-right">
-          المنطقة / الموقع في {countryConfig.nameAr} *
+          {t.locationLabelPrefix} {countryConfig.nameAr} *
         </Label>
         <Input
           id="location"
           dir="rtl"
-          placeholder={`دوّر على المنطقة في ${countryConfig.nameAr}...`}
+          placeholder={`${t.locationPlaceholderPrefix} ${countryConfig.nameAr}...`}
           value={query}
           onFocus={() => setAreaOpen(true)}
           onChange={(event) => {
@@ -1100,7 +818,7 @@ function DetailsStep({
 
       <fieldset className="flex flex-col gap-3">
         <legend className="text-right font-bold">
-          <RequiredLabel>نوع الوحدة *</RequiredLabel>
+          <RequiredLabel>{t.unitTypeLabel}</RequiredLabel>
         </legend>
         <Pills
           error={errors.type}
@@ -1109,17 +827,18 @@ function DetailsStep({
           onToggle={(value) => toggle('type', value)}
         />
       </fieldset>
+
       <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
         <Field
           error={errors.areaSize}
-          label="المساحة (م٢) *"
+          label={t.areaSizeLabel}
           id="areaSize"
           type="number"
           value={form.areaSize}
           update={(value) => update('areaSize', value)}
         />
         <Field
-          label="الجاردن (م٢)"
+          label={t.gardenLabel}
           id="garden"
           type="number"
           value={form.garden}
@@ -1127,7 +846,7 @@ function DetailsStep({
         />
         <Field
           error={errors.rooms}
-          label="غرف *"
+          label={t.roomsLabel}
           id="rooms"
           type="number"
           value={form.rooms}
@@ -1135,27 +854,29 @@ function DetailsStep({
         />
         <Field
           error={errors.bathrooms}
-          label="حمامات *"
+          label={t.bathroomsLabel}
           id="bathrooms"
           type="number"
           value={form.bathrooms}
           update={(value) => update('bathrooms', value)}
         />
       </div>
-      {selected.type?.[0] === 'شقة' && (
+
+      {selected.type?.[0] === unitTypes[0] && (
         <Field
           error={errors.floor}
-          label="الدور *"
+          label={t.floorLabel}
           id="floor"
           type="number"
-          helper="الأرضي = 0"
+          helper={t.floorHelper}
           value={form.floor}
           update={(value) => update('floor', value)}
         />
       )}
+
       <fieldset className="flex flex-col gap-3">
         <legend className="text-right font-bold">
-          <RequiredLabel>التشطيب *</RequiredLabel>
+          <RequiredLabel>{t.finishingLabel}</RequiredLabel>
         </legend>
         <Pills
           error={errors.finishing}
@@ -1164,9 +885,10 @@ function DetailsStep({
           onToggle={(value) => toggle('finishing', value)}
         />
       </fieldset>
+
       <fieldset className="flex flex-col gap-3">
         <legend className="text-right font-bold">
-          <RequiredLabel>حالة الاستلام *</RequiredLabel>
+          <RequiredLabel>{t.deliveryLabel}</RequiredLabel>
         </legend>
         <Pills
           error={errors.delivery}
@@ -1175,8 +897,9 @@ function DetailsStep({
           onToggle={(value) => toggle('delivery', value)}
         />
       </fieldset>
+
       <fieldset className="flex flex-col gap-3">
-        <legend className="text-right font-bold">المميزات</legend>
+        <legend className="text-right font-bold">{t.featuresLabel}</legend>
         <Pills
           items={features}
           selected={selected.features ?? []}
@@ -1184,9 +907,10 @@ function DetailsStep({
           multi
         />
       </fieldset>
+
       <div className="flex flex-col gap-2">
         <Label htmlFor="description" className="text-right">
-          <RequiredLabel>وصف مختصر للوحدة *</RequiredLabel>
+          <RequiredLabel>{t.descriptionLabel}</RequiredLabel>
         </Label>
         <Textarea
           id="description"
@@ -1203,13 +927,14 @@ function DetailsStep({
           </p>
         )}
       </div>
+
       <div className="flex gap-3">
         <Button
           type="button"
-          className="h-12 flex-1 rounded-xl bg-[#11192d]"
+          className="h-12 flex-1 rounded-xl bg-[var(--brand-navy,#0a1122)]"
           onClick={() => go(4)}
         >
-          كمّل
+          {s.shared.nextBtn}
         </Button>
       </div>
       <div className="mt-4 flex w-full justify-center">
@@ -1218,7 +943,7 @@ function DetailsStep({
           className="text-center text-sm font-bold text-blue-800 hover:underline"
           onClick={onSave}
         >
-          احفظ وكمل بعدين
+          {s.shared.saveLaterBtn}
         </button>
       </div>
     </div>
@@ -1242,20 +967,23 @@ function PricingStep({
   errors: Record<string, string>
   onSave: () => void
 }) {
+  const t = s.pricingStep
   const yes = (group: string) => selected[group]?.[0] === 'yes'
   const setAnswer = (group: string, value: string) => toggle(group, value)
+  const currency = getCountryConfig(form.unitCountry).currencySymbol
 
   return (
     <div className="flex flex-col gap-6">
       <MoneyField
         error={errors.contractPrice}
-        label="إجمالي سعر الوحدة في العقد *"
+        label={s.basicStep.contractPrice}
         value={form.contractPrice2 ?? form.contractPrice}
+        currencySymbol={currency}
         update={(value) => update('contractPrice', value)}
       />
       <fieldset className="flex flex-col gap-3">
         <legend className="text-right font-bold">
-          <RequiredLabel>سنة التعاقد *</RequiredLabel>
+          <RequiredLabel>{t.contractYearLabel}</RequiredLabel>
         </legend>
         <Pills
           error={errors.year}
@@ -1266,74 +994,79 @@ function PricingStep({
       </fieldset>
       <MoneyField
         error={errors.paidAmount}
-        label="إجمالي اللي دفعته لحد النهارده *"
+        label={s.basicStep.paidAmount}
         value={form.paidAmount2 ?? form.paidAmount}
+        currencySymbol={currency}
         update={(value) => update('paidAmount', value)}
       />
       <MoneyField
         error={errors.marketPrice}
-        label="سعر الوحدة دلوقتي في السوق (تقديري) *"
+        label={t.marketPriceLabel}
         value={form.marketPrice}
+        currencySymbol={currency}
         update={(value) => update('marketPrice', value)}
       />
       <div className="grid gap-5 sm:grid-cols-2">
         <MoneyField
           error={errors.installment}
-          label="قيمة القسط *"
+          label={t.installmentLabel}
           value={form.installment}
+          currencySymbol={currency}
           update={(value) => update('installment', value)}
         />
         <fieldset className="flex flex-col gap-3">
           <legend className="text-right font-bold">
-            <RequiredLabel>دورية القسط *</RequiredLabel>
+            <RequiredLabel>{t.frequencyLabel}</RequiredLabel>
           </legend>
           <Pills
             error={errors.frequency}
-            items={['شهري', 'ربع سنوي', 'نصف سنوي', 'سنوي']}
+            items={t.frequencies}
             selected={selected.frequency ?? []}
             onToggle={(value) => toggle('frequency', value)}
           />
         </fieldset>
       </div>
       <Field
-        label="فاضل كام سنة تقسيط؟ (اختياري)"
+        label={t.remainingYearsLabel}
         id="remainingYears"
         type="number"
-        helper="لو التقسيط خلص، اكتب صفر"
+        helper={t.remainingYearsHelper}
         value={form.remainingYears}
         update={(value) => update('remainingYears', value)}
       />
       <ToggleSection
         error={errors.annualInstallment}
-        title="في قسط سنوي؟ *"
+        title={t.annualInstallmentQuestion}
         group="annualInstallment"
         selected={selected}
         toggle={setAnswer}
       />
       {yes('annualInstallment') && (
         <MoneyField
-          label="قيمة القسط السنوي *"
+          label={t.annualInstallmentAmountLabel}
           value={form.annualInstallmentAmount}
+          currencySymbol={currency}
           update={(value) => update('annualInstallmentAmount', value)}
         />
       )}
       <ToggleSection
         error={errors.discountOffer}
-        title="مستعد تنزل عن جزء من اللي دفعته عشان تبيع أسرع؟ *"
+        title={t.discountQuestion}
         group="discountOffer"
         selected={selected}
         toggle={setAnswer}
       />
       {yes('discountOffer') && (
         <MoneyField
-          label="أكتر مبلغ مستعد تتنازل عنه *"
+          label={t.discountAmountLabel}
           value={form.discountAmount}
+          currencySymbol={currency}
           update={(value) => update('discountAmount', value)}
         />
       )}
       <ToggleSection
         error={errors.overdueInstallments}
-        title="عليك أقساط متأخرة للمطور؟ *"
+        title={t.overdueQuestion}
         group="overdueInstallments"
         selected={selected}
         toggle={setAnswer}
@@ -1341,15 +1074,16 @@ function PricingStep({
       {yes('overdueInstallments') && (
         <div className="flex flex-col gap-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
           <Field
-            label="كام قسط متأخر؟ *"
+            label={t.overdueCountLabel}
             id="overdueCount"
             type="number"
             value={form.overdueCount}
             update={(value) => update('overdueCount', value)}
           />
           <MoneyField
-            label="إجمالي المبلغ المتأخر *"
+            label={t.overdueTotalLabel}
             value={form.overdueTotal}
+            currencySymbol={currency}
             update={(value) => update('overdueTotal', value)}
           />
         </div>
@@ -1361,14 +1095,14 @@ function PricingStep({
           className="h-12 rounded-xl"
           onClick={() => go(3)}
         >
-          ارجع
+          {s.shared.backBtn}
         </Button>
         <Button
           type="button"
-          className="h-12 flex-1 rounded-xl bg-[#11192d]"
+          className="h-12 flex-1 rounded-xl bg-[var(--brand-navy,#0a1122)]"
           onClick={() => go(5)}
         >
-          كمّل
+          {s.shared.nextBtn}
         </Button>
       </div>
       <div className="mt-4 flex w-full justify-center">
@@ -1377,7 +1111,7 @@ function PricingStep({
           className="text-center text-sm font-bold text-blue-800 hover:underline"
           onClick={onSave}
         >
-          احفظ وكمل بعدين
+          {s.shared.saveLaterBtn}
         </button>
       </div>
     </div>
@@ -1399,6 +1133,7 @@ function PhotosStep({
   setUploading: (value: boolean) => void
   onSave: () => void
 }) {
+  const t = s.photosStep
   const upload = async (files: FileList | null) => {
     if (!files?.length) return
     setUploading(true)
@@ -1420,14 +1155,13 @@ function PhotosStep({
     setImages([...images, ...uploaded])
     setUploading(false)
   }
+
   return (
     <div className="flex flex-col gap-5">
       <label className="flex min-h-48 cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-slate-300 text-center transition hover:bg-slate-50">
         <ImagePlus className="size-8 text-slate-500" />
-        <p className="font-bold">أضف صور الوحدة</p>
-        <p className="text-sm text-slate-500">
-          صورة واحدة على الأقل تكفي للنشر — وحتى 10 صور
-        </p>
+        <p className="font-bold">{t.uploadTitle}</p>
+        <p className="text-sm text-slate-500">{t.uploadSub}</p>
         <input
           type="file"
           accept="image/*"
@@ -1438,7 +1172,7 @@ function PhotosStep({
       </label>
       {uploading && (
         <p className="text-right text-sm font-semibold text-teal-700">
-          جاري رفع الصور...
+          {t.uploadingText}
         </p>
       )}
       {images.length > 0 && (
@@ -1469,14 +1203,14 @@ function PhotosStep({
           className="h-12 rounded-xl"
           onClick={() => go(4)}
         >
-          ارجع
+          {s.shared.backBtn}
         </Button>
         <Button
           type="button"
-          className="h-12 flex-1 rounded-xl bg-[#11192d]"
+          className="h-12 flex-1 rounded-xl bg-[var(--brand-navy,#0a1122)]"
           onClick={() => go(6)}
         >
-          كمّل
+          {s.shared.nextBtn}
         </Button>
       </div>
       <div className="mt-4 flex w-full justify-center">
@@ -1485,7 +1219,7 @@ function PhotosStep({
           className="text-center text-sm font-bold text-blue-800 hover:underline"
           onClick={onSave}
         >
-          احفظ وكمل بعدين
+          {s.shared.saveLaterBtn}
         </button>
       </div>
     </div>
@@ -1517,10 +1251,29 @@ function ReviewStep({
   orderRef: string
   unitId: string
 }) {
+  const t = s.reviewStep
   const [selectedPromo, setSelectedPromo] = useState<7 | 14 | 30 | null>(null)
   const [fawryCode, setFawryCode] = useState<string | null>(null)
   const [copiedCode, setCopiedCode] = useState(false)
   const [promoPending, startPromoTransition] = useTransition()
+
+  const countryObj = getCountryConfig(form.unitCountry)
+  const currency = countryObj.currencySymbol
+  const pkgPrices = countryObj.defaultPackages || {
+    days7: 1199,
+    days14: 1999,
+    days30: 2799,
+  }
+
+  const dynamicPackages: Array<{
+    days: 7 | 14 | 30
+    price: number
+    label: string
+  }> = [
+    { days: 7, price: pkgPrices.days7, label: `7 ${t.daysWord}` },
+    { days: 14, price: pkgPrices.days14, label: `14 ${t.daysWord}` },
+    { days: 30, price: pkgPrices.days30, label: `30 ${t.daysWord}` },
+  ]
 
   const handleSelectPackage = (pkg: {
     days: 7 | 14 | 30
@@ -1529,7 +1282,7 @@ function ReviewStep({
   }) => {
     setSelectedPromo(pkg.days)
     if (!unitId) {
-      setFawryCode(String(Math.floor(1000000000 + Math.random() * 9000000000)))
+      setFawryCode(`AD-${Math.floor(100000 + Math.random() * 900000)}`)
       return
     }
     startPromoTransition(async () => {
@@ -1544,58 +1297,54 @@ function ReviewStep({
     })
   }
 
-  const countryObj =
-    PLATFORM_COUNTRIES.find((c) => c.code === (form.unitCountry || 'EG')) ||
-    PLATFORM_COUNTRIES[0]
-
   if (submitted)
     return (
       <div className="flex flex-col items-center py-4 sm:py-6">
         <div className="flex size-12 items-center justify-center rounded-xl bg-emerald-500 text-2xl text-white shadow-xs">
           ✓
         </div>
-        <h2 className="mt-4 text-center text-xl font-extrabold text-[#0a1122] sm:text-2xl">
-          تم! وصلتنا بيانات وحدتك
+        <h2 className="mt-4 text-center text-xl font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-2xl">
+          {t.successTitle}
         </h2>
         <p className="mt-1.5 text-center text-xs text-slate-500 sm:text-sm">
-          فريقنا بيراجعها وينشرها في السوق قدام المشترين.
+          {t.successSubtitle}
         </p>
 
         <span className="mt-3.5 rounded-full bg-slate-100 px-4 py-1.5 text-xs font-bold text-slate-700">
-          رقم طلبك: <strong className="font-mono">{orderRef}</strong>
+          {t.orderRefLabel} <strong className="font-mono">{orderRef}</strong>
         </span>
 
         <div className="mt-6 w-full rounded-[20px] border border-[#aae3cb] bg-[#effaf5] p-5 text-right sm:p-6">
-          <div className="flex items-center justify-start gap-1 text-xs font-extrabold text-[#0b6954]">
+          <div className="flex items-center justify-start gap-1 text-xs font-extrabold text-[var(--brand-primary,#007a5a)]">
             <Star className="size-3.5 fill-amber-400 text-amber-500" />
-            <span>اختياري</span>
+            <span>{t.optionalBadge}</span>
           </div>
 
-          <h3 className="mt-1 text-base font-extrabold text-[#0a1122] sm:text-lg">
-            عايز وحدتك تبقى أول اللي المشتري يشوفه؟
+          <h3 className="mt-1 text-base font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-lg">
+            {t.promoTitle}
           </h3>
 
           <ul className="mt-3 space-y-2 text-xs font-medium text-[#1e3a34]">
             <li className="flex items-center gap-2">
-              <Check className="size-3.5 shrink-0 text-[#0b6954]" />
-              <span>ظهور في «فرص مميزة» في أول السوق</span>
+              <Check className="size-3.5 shrink-0 text-[var(--brand-primary,#007a5a)]" />
+              <span>{t.promoPoint1}</span>
             </li>
             <li className="flex items-center gap-2">
-              <Check className="size-3.5 shrink-0 text-[#0b6954]" />
+              <Check className="size-3.5 shrink-0 text-[var(--brand-primary,#007a5a)]" />
               <span>
-                شارة{' '}
+                {t.promoPoint2Prefix}{' '}
                 <Star className="inline size-3 fill-amber-400 text-amber-500" />{' '}
-                مميزة على كارت وحدتك
+                {t.promoPoint2Suffix}
               </span>
             </li>
             <li className="flex items-center gap-2">
-              <Check className="size-3.5 shrink-0 text-[#0b6954]" />
-              <span>تقرير أسبوعي بأرقام حقيقية</span>
+              <Check className="size-3.5 shrink-0 text-[var(--brand-primary,#007a5a)]" />
+              <span>{t.promoPoint3}</span>
             </li>
           </ul>
 
           <div className="mt-4 grid grid-cols-3 gap-2.5 sm:gap-3">
-            {PROMO_PACKAGES.map((pkg) => {
+            {dynamicPackages.map((pkg) => {
               const isSelected = selectedPromo === pkg.days
               return (
                 <button
@@ -1605,15 +1354,15 @@ function ReviewStep({
                   onClick={() => handleSelectPackage(pkg)}
                   className={`flex flex-col items-center justify-center rounded-2xl border bg-white p-3.5 text-center transition hover:shadow-md sm:p-4 ${
                     isSelected
-                      ? 'border-[#0b6954] ring-2 ring-[#0b6954]/20'
-                      : 'border-gray-200/90 hover:border-[#0b6954]/50'
+                      ? 'border-[var(--brand-primary,#007a5a)] ring-2 ring-[var(--brand-primary,#007a5a)]/20'
+                      : 'border-gray-200/90 hover:border-[var(--brand-primary,#007a5a)]/50'
                   }`}
                 >
-                  <span className="text-xs font-extrabold text-[#0a1122] sm:text-sm">
+                  <span className="text-xs font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-sm">
                     {pkg.label}
                   </span>
-                  <span className="mt-1 text-xs font-extrabold text-[#0b6954] tabular-nums sm:text-sm">
-                    {pkg.price.toLocaleString('en-US')} ج.م
+                  <span className="mt-1 text-xs font-extrabold text-[var(--brand-primary,#007a5a)] tabular-nums sm:text-sm">
+                    {pkg.price.toLocaleString('en-US')} {currency}
                   </span>
                 </button>
               )
@@ -1621,24 +1370,22 @@ function ReviewStep({
           </div>
 
           <p className="mt-4 text-[11px] leading-relaxed text-[#2b584d]">
-            نشر وحدتك مجاني بالكامل وهيفضل مجاني — ده اختياري بس لو عايز ظهور
-            أكتر. بتدفع دلوقتي، والترويج يشتغل أول ما نراجع وحدتك وننزلها السوق،
-            والأيام بتتحسب من لحظة التفعيل.
+            {t.promoFreeNote}
           </p>
 
           {promoPending ? (
-            <div className="mt-3 flex items-center justify-center gap-2 rounded-xl bg-white p-3.5 text-xs font-bold text-[#0b6954]">
+            <div className="mt-3 flex items-center justify-center gap-2 rounded-xl bg-white p-3.5 text-xs font-bold text-[var(--brand-primary,#007a5a)]">
               <Loader2 className="size-4 animate-spin" />
-              <span>جاري إصدار كود الدفع الفوري...</span>
+              <span>{t.issuingCode}</span>
             </div>
           ) : fawryCode ? (
-            <div className="mt-3 rounded-xl border border-[#0b6954]/30 bg-white p-4 text-right shadow-2xs">
+            <div className="mt-3 rounded-xl border border-[var(--brand-primary,#007a5a)]/30 bg-white p-4 text-right shadow-2xs">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <p className="text-xs font-extrabold text-[#0a1122]">
-                    كود فوري الخاص بطلبك (باقة {selectedPromo} أيام):
+                  <p className="text-xs font-extrabold text-[var(--brand-navy,#0a1122)]">
+                    {t.adOrderCodeLabel} ({selectedPromo} {t.daysWord}):
                   </p>
-                  <p className="mt-1 font-mono text-lg font-black tracking-wider text-[#0b6954]">
+                  <p className="mt-1 font-mono text-lg font-black tracking-wider text-[var(--brand-primary,#007a5a)]">
                     {fawryCode}
                   </p>
                 </div>
@@ -1649,65 +1396,62 @@ function ReviewStep({
                     setCopiedCode(true)
                     setTimeout(() => setCopiedCode(false), 2000)
                   }}
-                  className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-gray-200 bg-gray-50 px-3 text-xs font-bold text-[#0a1122] hover:bg-gray-100"
+                  className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-gray-200 bg-gray-50 px-3 text-xs font-bold text-[var(--brand-navy,#0a1122)] hover:bg-gray-100"
                 >
                   <Copy className="size-3.5" />
-                  <span>{copiedCode ? 'تم النسخ ✓' : 'نسخ الكود'}</span>
+                  <span>{copiedCode ? t.copiedBtn : t.copyCodeBtn}</span>
                 </button>
               </div>
               <p className="mt-2 text-[11px] leading-relaxed text-gray-500">
-                ادفعه من تطبيق <strong>myFawry</strong> (ادفع فاتورة ← Fawaterak
-                / فواتيرك ← اكتب الكود) أو من أي فرع أو ماكينة فوري.
+                {t.adCodeInstruction}
               </p>
             </div>
           ) : (
             <div className="mt-3 rounded-xl bg-white p-3.5 text-[11px] leading-relaxed text-gray-600">
-              لو اخترت فوري، هيطلعلك كود من ١٠ أرقام — ادفعه من تطبيق myFawry
-              (ادفع فاتورة ← Fawaterak / فواتيرك ← اكتب الكود) أو من أي فرع أو
-              مكينة فوري.
+              {t.selectPackageHint}
             </div>
           )}
         </div>
 
         <Link
           href="/account"
-          className="mt-6 inline-flex h-11 items-center justify-center rounded-xl bg-[#0b6954] px-7 text-xs font-extrabold text-white shadow-sm transition hover:bg-[#095443] sm:text-sm"
+          className="mt-6 inline-flex h-11 items-center justify-center rounded-xl bg-[var(--brand-primary,#007a5a)] px-7 text-xs font-extrabold text-white shadow-sm transition hover:bg-[var(--brand-primary-hover,#006248)] sm:text-sm"
         >
-          روح لحسابك
+          {t.goToAccountBtn}
         </Link>
 
         <p className="mt-2.5 text-center text-[11px] text-gray-400">
-          تقدر ترجع تعدّل بيانات وحدتك في أي وقت من حسابك.
+          {t.editAnytimeNote}
         </p>
       </div>
     )
 
   const rows = [
-    ['الدولة', `${countryObj.flag} ${countryObj.nameAr}`],
+    [t.rowCountry, `${countryObj.flag} ${countryObj.nameAr}`],
     [
-      'المطور / المشروع',
+      t.rowDevProject,
       `${form.developerDetails || form.developer || '—'} · ${
         form.projectDetails || form.project || '—'
       }`,
     ],
-    ['المنطقة', form.location || '—'],
-    ['النوع', selected.type?.join('، ') || '—'],
-    ['المساحة', `${form.areaSize || '—'} م٢`],
-    ['غرف/حمامات', `${form.rooms || '—'} / ${form.bathrooms || '—'}`],
-    ['التشطيب', selected.finishing?.join('، ') || '—'],
-    ['حالة الاستلام', selected.delivery?.join('، ') || '—'],
-    ['الصور', String(imagesLength)],
+    [t.rowArea, form.location || '—'],
+    [t.rowType, selected.type?.join('، ') || '—'],
+    [t.rowSize, `${form.areaSize || '—'} ${t.sqmUnit}`],
+    [t.rowRoomsBath, `${form.rooms || '—'} / ${form.bathrooms || '—'}`],
+    [t.rowFinishing, selected.finishing?.join('، ') || '—'],
+    [t.rowDelivery, selected.delivery?.join('، ') || '—'],
+    [t.rowPhotos, String(imagesLength)],
     [
-      'إجمالي سعر الوحدة في العقد',
+      t.rowContractPrice,
       `${Number(
         form.contractPrice2 || form.contractPrice || 0
-      ).toLocaleString('en-US')} ج.م`,
+      ).toLocaleString('en-US')} ${currency}`,
     ],
     [
-      'إجمالي اللي دفعته لحد النهارده',
+      t.rowPaidAmount,
       `${Number(form.paidAmount2 || form.paidAmount || 0).toLocaleString(
         'en-US'
-      )} ج.م`,
+      )} ${currency}`,
     ],
   ]
 
@@ -1733,7 +1477,7 @@ function ReviewStep({
           className="h-12 rounded-xl"
           onClick={() => go(5)}
         >
-          ارجع
+          {s.shared.backBtn}
         </Button>
         <Button
           type="button"
@@ -1741,7 +1485,7 @@ function ReviewStep({
           className="h-12 flex-1 rounded-xl bg-teal-700 font-bold"
           onClick={submit}
         >
-          {pending ? 'جاري الإرسال...' : 'إرسال للمراجعة'}
+          {pending ? t.submittingBtn : t.submitFinalBtn}
         </Button>
       </div>
       <div className="mt-4 flex w-full justify-center">
@@ -1750,7 +1494,7 @@ function ReviewStep({
           className="text-center text-sm font-bold text-blue-800 hover:underline"
           onClick={onSave}
         >
-          احفظ وكمل بعدين
+          {s.shared.saveLaterBtn}
         </button>
       </div>
     </div>

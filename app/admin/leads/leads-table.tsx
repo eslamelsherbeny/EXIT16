@@ -316,9 +316,7 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
         <h2 className="mt-1 text-xl font-extrabold text-[#0a1122] sm:text-3xl">
           طلبات الشراء وحجز الوحدات ({countryLeads.length})
         </h2>
-        <p className="mt-1 text-xs text-gray-500 sm:text-sm">
-          ميزنا لك العملاء المهتمين بوحدة محددة (🔥 حاجزي الوحدات) بشارة خاصة لتعطيهم الأولوية القصوى في الاتصال.
-        </p>
+        
       </div>
 
       {/* شريط التبديل السريع بين (حاجزي الوحدات المحددة) و (طلبات الشراء العامة) */}
@@ -478,7 +476,7 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
                   <div className="-mx-4 -mt-4 mb-3 flex items-center justify-between border-b border-orange-200/80 bg-orange-50/90 px-4 py-2 text-[11px] font-extrabold text-orange-900">
                     <span className="flex items-center gap-1.5">
                       <Flame className="size-3.5 fill-orange-500 text-orange-600" />
-                      <span>حجز وحدة محددة (أولوية قصوى)</span>
+                      <span>حجز وحدة محددة `(أولوية `)</span>
                     </span>
                     {parsed.unitCode && (
                       <span className="rounded bg-white px-2 py-0.5 font-mono text-[10px] font-bold text-orange-800 shadow-2xs">

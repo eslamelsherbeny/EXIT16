@@ -12,8 +12,9 @@ import { revalidatePath } from "next/cache"
 import nodemailer from "nodemailer"
 import {
   createSignedSessionToken,
+  extractUserIdFromCookie,
   parseAndVerifySessionCookie,
-} from "@/app/actions/auth-actions"
+} from "@/lib/session-security"
 
 export type StaffRoleCode = "admin" | "moderator" | "sales"
 
@@ -37,19 +38,16 @@ function sanitizeText(val: unknown, maxLen = 500): string {
     .slice(0, maxLen)
 }
 
-// ==========================================
-// حارس الأمان المركزي لكل عمليات الإدارة (RBAC + Session Fingerprint)
-// ==========================================
 async function requireAdminAuth(
   allowedRoles: StaffRoleCode[] = ["admin", "moderator", "sales"]
 ) {
   const cookieStore = await cookies()
   const rawSession = cookieStore.get("user_session")?.value
-  if (!rawSession) {
+  const candidateUserId = extractUserIdFromCookie(rawSession)
+  if (!rawSession || !candidateUserId) {
     throw new Error("غير مصرح: يرجى تسجيل الدخول بحساب الإدارة.")
   }
 
-  const candidateUserId = rawSession.split(".")[0]
   const supabase = await getSupabase()
 
   const { data: user } = await supabase
@@ -191,9 +189,6 @@ function revalidateAdminAll() {
   revalidatePath("/opportunities")
 }
 
-// ==========================================
-// 1. التحكم في حالات طلبات البيع (مسموح لـ admin + moderator + sales)
-// ==========================================
 export async function updatePropertyStatusAction(
   propertyId: string,
   status: string,
@@ -411,9 +406,6 @@ export async function deletePropertyAction(propertyId: string) {
   }
 }
 
-// ==========================================
-// 2. التحكم في حالات طلبات الشراء (مسموح لـ admin + moderator + sales)
-// ==========================================
 export async function updateBuyerLeadStatusAction(
   leadId: string,
   status: string
@@ -492,9 +484,6 @@ export async function deleteBuyerLeadAction(leadId: string) {
   }
 }
 
-// ==========================================
-// 3. التحكم في حالات طلبات المستثمرين
-// ==========================================
 export async function updateInvestorStatusAction(
   investorId: string,
   status: string
@@ -551,9 +540,6 @@ export async function deleteInvestorAction(investorId: string) {
   }
 }
 
-// ==========================================
-// 4. إدارة المستخدمين والصلاحيات (مقصورة على Admin الرئيسي فقط)
-// ==========================================
 export async function updateUserRoleAndStatusAction(
   userId: string,
   role: string,
@@ -662,9 +648,6 @@ export async function deleteUserByAdminAction(userId: string) {
   }
 }
 
-// ==========================================
-// 5. تحديث بيانات البروفايل للإدارة
-// ==========================================
 export async function updateAdminProfileDataAction(formData: FormData) {
   try {
     const { supabase, adminUser } = await requireAdminAuth([
@@ -759,9 +742,6 @@ export async function updateAdminProfileDataAction(formData: FormData) {
   }
 }
 
-// ==========================================
-// 6. تغيير كلمة المرور للأدمن
-// ==========================================
 export async function changeAdminPasswordAction(formData: FormData) {
   try {
     const { supabase, adminUser } = await requireAdminAuth([
@@ -813,9 +793,6 @@ export async function changeAdminPasswordAction(formData: FormData) {
   }
 }
 
-// ==========================================
-// 7. حفظ إعدادات الموقع العامة (Admin فقط)
-// ==========================================
 export async function saveSiteSettingsAction(formData: FormData) {
   try {
     const { supabase } = await requireAdminAuth(["admin"])
@@ -883,9 +860,6 @@ export async function saveSiteSettingsAction(formData: FormData) {
   }
 }
 
-// ==========================================
-// 8. تفعيل أو إلغاء تمييز العقار (Admin + Moderator)
-// ==========================================
 export async function managePropertyPromotionAction(
   propertyId: string,
   action: "activate" | "cancel",
@@ -959,9 +933,6 @@ export async function managePropertyPromotionAction(
   }
 }
 
-// ==========================================
-// 9. مسح جميع الوحدات المحذوفة دفعة واحدة (Admin فقط)
-// ==========================================
 export async function purgeSellerDeletedPropertiesAction() {
   try {
     const { supabase } = await requireAdminAuth(["admin"])

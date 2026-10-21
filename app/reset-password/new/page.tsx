@@ -6,6 +6,11 @@ import Link from 'next/link'
 import { Eye, EyeOff } from 'lucide-react'
 import { AuthCard, AuthLayout } from '@/components/auth-layout'
 import { resetPasswordAction } from '@/app/actions/auth-actions'
+import arDict from '@/dictionaries/ar.json'
+
+const t = arDict.authPages.newPassword
+const regT = arDict.authPages.register
+const c = arDict.authPages.common
 
 function NewPasswordContent() {
   const router = useRouter()
@@ -27,7 +32,7 @@ function NewPasswordContent() {
     const confirmPassword = formData.get('confirmPassword') as string
 
     if (password !== confirmPassword) {
-      setError('كلمتا السر غير متطابقتين.')
+      setError(regT.passwordsMismatchError)
       return
     }
 
@@ -37,7 +42,7 @@ function NewPasswordContent() {
         setSuccess(true)
         setTimeout(() => router.push('/login'), 2000)
       } else {
-        setError(result.error || 'تعذر تغيير كلمة السر.')
+        setError(result.error || t.genericError)
       }
     })
   }
@@ -46,13 +51,17 @@ function NewPasswordContent() {
     <AuthLayout>
       <AuthCard>
         <div className="text-center">
-          <h1 className="text-3xl font-bold tracking-tight">كلمة سر جديدة</h1>
-          <p className="mt-3 text-sm leading-6 text-muted-foreground">أدخل كلمة السر الجديدة لحسابك</p>
+          <h1 className="text-3xl font-extrabold tracking-tight text-[var(--brand-navy,#0a1122)]">
+            {t.title}
+          </h1>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            {t.subtitle}
+          </p>
         </div>
 
         {success ? (
           <div className="mt-8 rounded-xl bg-emerald-50 p-4 text-center text-sm font-bold text-emerald-700">
-            تم تغيير كلمة السر بنجاح! جاري تحويلك لتسجيل الدخول...
+            {t.successBanner}
           </div>
         ) : (
           <>
@@ -64,8 +73,11 @@ function NewPasswordContent() {
 
             <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-5">
               <div>
-                <label htmlFor="password" className="mb-2 block text-xs font-bold text-foreground">
-                  كلمة السر الجديدة
+                <label
+                  htmlFor="password"
+                  className="mb-2 block text-xs font-bold text-foreground"
+                >
+                  {t.newPasswordLabel}
                 </label>
                 <div className="relative">
                   <input
@@ -75,25 +87,32 @@ function NewPasswordContent() {
                     dir="ltr"
                     required
                     minLength={8}
-                    className={`h-12 w-full rounded-xl border border-input bg-background pl-4 pr-11 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary ${
+                    className={`h-12 w-full rounded-xl border border-input bg-background pr-11 pl-4 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary,#007a5a)] ${
                       showPassword ? 'tracking-normal' : 'tracking-widest'
                     }`}
-                    placeholder="8 أحرف على الأقل"
+                    placeholder={regT.passwordPlaceholder}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword((prev) => !prev)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground transition hover:text-foreground"
-                    aria-label={showPassword ? 'إخفاء كلمة السر' : 'إظهار كلمة السر'}
+                    className="absolute top-1/2 right-3.5 -translate-y-1/2 text-muted-foreground transition hover:text-foreground"
+                    aria-label={showPassword ? c.hidePassAria : c.showPassAria}
                   >
-                    {showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
+                    {showPassword ? (
+                      <EyeOff className="size-5" />
+                    ) : (
+                      <Eye className="size-5" />
+                    )}
                   </button>
                 </div>
               </div>
 
               <div>
-                <label htmlFor="confirmPassword" className="mb-2 block text-xs font-bold text-foreground">
-                  تأكيد كلمة السر
+                <label
+                  htmlFor="confirmPassword"
+                  className="mb-2 block text-xs font-bold text-foreground"
+                >
+                  {t.confirmPasswordLabel}
                 </label>
                 <div className="relative">
                   <input
@@ -103,18 +122,24 @@ function NewPasswordContent() {
                     dir="ltr"
                     required
                     minLength={8}
-                    className={`h-12 w-full rounded-xl border border-input bg-background pl-4 pr-11 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary ${
+                    className={`h-12 w-full rounded-xl border border-input bg-background pr-11 pl-4 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary,#007a5a)] ${
                       showConfirmPassword ? 'tracking-normal' : 'tracking-widest'
                     }`}
-                    placeholder="أعد إدخال كلمة السر"
+                    placeholder={regT.confirmPasswordPlaceholder}
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword((prev) => !prev)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground transition hover:text-foreground"
-                    aria-label={showConfirmPassword ? 'إخفاء كلمة السر' : 'إظهار كلمة السر'}
+                    className="absolute top-1/2 right-3.5 -translate-y-1/2 text-muted-foreground transition hover:text-foreground"
+                    aria-label={
+                      showConfirmPassword ? c.hidePassAria : c.showPassAria
+                    }
                   >
-                    {showConfirmPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
+                    {showConfirmPassword ? (
+                      <EyeOff className="size-5" />
+                    ) : (
+                      <Eye className="size-5" />
+                    )}
                   </button>
                 </div>
               </div>
@@ -122,17 +147,20 @@ function NewPasswordContent() {
               <button
                 type="submit"
                 disabled={pending}
-                className="h-12 rounded-lg bg-primary px-5 text-sm font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+                className="h-12 rounded-xl bg-[var(--brand-primary,#007a5a)] px-5 text-sm font-bold text-white transition hover:bg-[var(--brand-primary-hover,#006248)] disabled:opacity-50"
               >
-                {pending ? 'جاري الحفظ...' : 'حفظ كلمة السر الجديدة'}
+                {pending ? t.savingBtn : t.saveBtn}
               </button>
             </form>
           </>
         )}
 
         <p className="mt-7 text-center text-sm text-muted-foreground">
-          <Link href="/login" className="font-bold text-primary hover:underline">
-            رجوع لتسجيل الدخول
+          <Link
+            href="/login"
+            className="font-bold text-[var(--brand-primary,#007a5a)] hover:underline"
+          >
+            {c.backToLogin}
           </Link>
         </p>
       </AuthCard>

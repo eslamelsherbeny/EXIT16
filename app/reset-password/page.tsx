@@ -5,6 +5,10 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { AuthCard, AuthLayout } from '@/components/auth-layout'
 import { forgotPasswordAction } from '@/app/actions/auth-actions'
+import arDict from '@/dictionaries/ar.json'
+
+const t = arDict.authPages.resetRequest
+const c = arDict.authPages.common
 
 export default function ResetPasswordPage() {
   const router = useRouter()
@@ -21,9 +25,11 @@ export default function ResetPasswordPage() {
     startTransition(async () => {
       const result = await forgotPasswordAction(formData)
       if (result.success) {
-        router.push(`/reset-password/verify?email=${encodeURIComponent(cleanEmail)}`)
+        router.push(
+          `/reset-password/verify?email=${encodeURIComponent(cleanEmail)}`
+        )
       } else {
-        setError(result.error || 'حدث خطأ ما، يرجى المحاولة لاحقاً.')
+        setError(result.error || t.genericError)
       }
     })
   }
@@ -32,9 +38,11 @@ export default function ResetPasswordPage() {
     <AuthLayout>
       <AuthCard>
         <div className="text-center">
-          <h1 className="text-3xl font-bold tracking-tight">استرجاع كلمة السر</h1>
+          <h1 className="text-3xl font-extrabold tracking-tight text-[var(--brand-navy,#0a1122)]">
+            {t.title}
+          </h1>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            اكتب بريدك الإلكتروني وهنبعتلك كود الاسترجاع
+            {t.subtitle}
           </p>
         </div>
 
@@ -46,8 +54,11 @@ export default function ResetPasswordPage() {
 
         <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-5">
           <div>
-            <label htmlFor="email" className="mb-2 block text-xs font-bold text-foreground">
-              بريدك الإلكتروني
+            <label
+              htmlFor="email"
+              className="mb-2 block text-xs font-bold text-foreground"
+            >
+              {t.emailLabel}
             </label>
             <input
               id="email"
@@ -55,7 +66,7 @@ export default function ResetPasswordPage() {
               type="email"
               dir="ltr"
               required
-              className="h-12 w-full rounded-xl border border-input bg-background px-4 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary"
+              className="h-12 w-full rounded-xl border border-input bg-background px-4 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary,#007a5a)]"
               placeholder="name@example.com"
             />
           </div>
@@ -63,15 +74,18 @@ export default function ResetPasswordPage() {
           <button
             type="submit"
             disabled={pending}
-            className="h-12 rounded-lg bg-primary px-5 text-sm font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+            className="h-12 rounded-xl bg-[var(--brand-primary,#007a5a)] px-5 text-sm font-bold text-white transition hover:bg-[var(--brand-primary-hover,#006248)] disabled:opacity-50"
           >
-            {pending ? 'جاري الإرسال...' : 'ابعت كود الاسترجاع'}
+            {pending ? t.sendingBtn : t.sendOtpBtn}
           </button>
         </form>
 
         <p className="mt-7 text-center text-sm text-muted-foreground">
-          <Link href="/login" className="font-bold text-primary hover:underline">
-            رجوع لتسجيل الدخول
+          <Link
+            href="/login"
+            className="font-bold text-[var(--brand-primary,#007a5a)] hover:underline"
+          >
+            {c.backToLogin}
           </Link>
         </p>
       </AuthCard>

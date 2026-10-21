@@ -5,7 +5,7 @@ import {
   ArrowLeft,
   Building2,
   Clock3,
-  FileText,
+  Flame,
   Globe,
   MessageCircle,
   Sparkles,
@@ -52,7 +52,7 @@ export default async function AdminPage({
 }) {
   // سحب الترجمة مباشرة من ملفات الـ JSON عبر النظام المركزي
   const { dict, locale, dir } = await getServerI18n()
-  const t = dict.admin.dashboard as Record<string, any>
+  const t = dict.admin.dashboard
 
   const adminCountries = [
     { code: "ALL", label: t.countries.ALL, flag: "🌍" },
@@ -163,11 +163,11 @@ export default async function AdminPage({
       highlight: pendingAdRequests.length > 0,
     },
     {
-      label: t.totalBuyerLeads || dict.admin.shell.nav.leads,
-      value: leads.length.toLocaleString("en-US"),
-      note: `${t.includingBookers || "منهم"} (${unitSpecificLeads.length.toLocaleString("en-US")}) ${t.unitBookersWord || t.unitBookers}`,
-      icon: FileText,
-      href: `/admin/leads${countryQuery}`,
+      label: t.unitBookers,
+      value: unitSpecificLeads.length.toLocaleString("en-US"),
+      note: `${t.outOfTotal} ${leads.length.toLocaleString("en-US")} ${t.buyRequestsWord}`,
+      icon: Flame,
+      href: `/admin/leads?type=unit_leads${countryAmp}`,
       highlight: unitSpecificLeads.length > 0,
     },
   ]
@@ -230,7 +230,6 @@ export default async function AdminPage({
         </div>
       </div>
 
-      {/* بطاقات الإحصائيات بالأرقام المتوسطة */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         {kpis.map(({ label, value, note, icon: Icon, href, highlight }) => (
           <Link
@@ -263,13 +262,13 @@ export default async function AdminPage({
 
                 <div
                   dir="ltr"
-                  className="my-3 text-center text-2xl font-black text-[#0a1122] tabular-nums sm:text-3xl"
+                  className="my-3 text-start text-2xl font-black text-[#0a1122] tabular-nums sm:text-3xl"
                 >
                   {value}
                 </div>
 
                 <p
-                  className={`text-center text-[11px] font-semibold ${
+                  className={`text-[11px] font-semibold ${
                     highlight ? "text-[#105C50]" : "text-gray-400"
                   }`}
                 >
@@ -329,8 +328,7 @@ export default async function AdminPage({
                 </div>
               ) : (
                 properties.slice(0, 6).map((prop) => {
-                  const stKey = (prop.status ||
-                    "pending") as keyof typeof t.statuses
+                  const stKey = (prop.status || "pending") as keyof typeof t.statuses
                   const stLabel = t.statuses[stKey] || t.statuses.pending
                   const stCls =
                     STATUS_BADGE_CLASSES[prop.status || "pending"] ||

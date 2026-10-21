@@ -7,7 +7,9 @@ import {
   ArrowLeft,
   Bell,
   Building2,
+  Check,
   CheckCircle2,
+  ChevronDown,
   Clock,
   ExternalLink,
   FileText,
@@ -70,6 +72,7 @@ export default function AdminShell({
 
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
+  const [langMenuOpen, setLangMenuOpen] = useState(false)
   const [localNotifs, setLocalNotifs] =
     useState<AdminNotificationItem[]>(notifications)
   const [unreadCount, setUnreadCount] = useState<number>(initialUnreadCount)
@@ -77,6 +80,7 @@ export default function AdminShell({
   const [, startTransition] = useTransition()
 
   const notifRef = useRef<HTMLDivElement>(null)
+  const langRef = useRef<HTMLDivElement>(null)
 
   const firstName = adminName.trim().split(/\s+/)[0] || "Admin"
 
@@ -150,6 +154,7 @@ export default function AdminShell({
   useEffect(() => {
     setDrawerOpen(false)
     setNotifOpen(false)
+    setLangMenuOpen(false)
   }, [pathname])
 
   useEffect(() => {
@@ -157,6 +162,9 @@ export default function AdminShell({
       const target = e.target as Node
       if (notifRef.current && !notifRef.current.contains(target)) {
         setNotifOpen(false)
+      }
+      if (langRef.current && !langRef.current.contains(target)) {
+        setLangMenuOpen(false)
       }
     }
     document.addEventListener("mousedown", handleClickOutside)
@@ -169,8 +177,12 @@ export default function AdminShell({
   }
 
   const handleSelectLanguage = (code: LocaleCode) => {
-    if (code === locale) return
+    if (code === locale) {
+      setLangMenuOpen(false)
+      return
+    }
     const targetLang = SUPPORTED_LANGUAGES[code]
+    setLangMenuOpen(false)
     document.cookie = `locale=${code}; path=/; max-age=31536000; SameSite=Lax`
     document.documentElement.lang = code
     document.documentElement.dir = targetLang.dir
@@ -191,6 +203,7 @@ export default function AdminShell({
   const handleToggleNotifications = () => {
     const nextOpen = !notifOpen
     setNotifOpen(nextOpen)
+    setLangMenuOpen(false)
 
     if (nextOpen && unreadCount > 0) {
       setUnreadCount(0)
@@ -298,20 +311,13 @@ export default function AdminShell({
         </div>
 
         <div className="space-y-1.5 border-t border-white/10 p-3.5">
-          {/* قسم تغيير اللغة الواضح في القائمة الجانبية للكمبيوتر */}
-          <div className="mb-2 rounded-xl bg-white/5 p-2.5">
-            <div className="mb-2 flex items-center justify-between px-1 text-[11px] font-bold text-white/75">
-              <span className="flex items-center gap-1.5">
-                {isSwitchingLang ? (
-                  <Loader2 className="size-3.5 animate-spin text-emerald-400" />
-                ) : (
-                  <Globe className="size-3.5 text-emerald-400" />
-                )}
+          <div className="mb-2 rounded-xl bg-white/5 p-2">
+            <div className="mb-1.5 flex items-center justify-between px-1 text-[10px] font-bold text-white/60">
+              <span className="flex items-center gap-1">
+                <Globe className="size-3 text-emerald-400" />
                 <span>{t.languageLabel}</span>
               </span>
-              <span className="text-[10px] text-emerald-300">
-                {SUPPORTED_LANGUAGES[locale].nativeName}
-              </span>
+              <span>{SUPPORTED_LANGUAGES[locale].nativeName}</span>
             </div>
             <div className="grid grid-cols-4 gap-1">
               {(Object.values(SUPPORTED_LANGUAGES) as LanguageConfig[]).map(
@@ -321,9 +327,9 @@ export default function AdminShell({
                     type="button"
                     disabled={isSwitchingLang}
                     onClick={() => handleSelectLanguage(lang.code)}
-                    className={`rounded-lg py-1.5 text-[10px] font-extrabold transition ${
+                    className={`rounded-lg py-1 text-[10px] font-extrabold transition ${
                       locale === lang.code
-                        ? "bg-[#105C50] text-white shadow-2xs"
+                        ? "bg-[#105C50] text-white"
                         : "bg-white/5 text-white/70 hover:bg-white/15 hover:text-white"
                     }`}
                   >
@@ -429,39 +435,26 @@ export default function AdminShell({
             </div>
 
             <div className="space-y-1.5 border-t border-white/10 p-3.5">
-              {/* قسم تغيير اللغة في قائمة الموبايل مع العنوان وأيقونة الكرة الأرضية */}
-              <div className="mb-2 rounded-xl bg-white/5 p-2.5">
-                <div className="mb-2 flex items-center justify-between px-1 text-[11px] font-bold text-white/75">
-                  <span className="flex items-center gap-1.5">
-                    <Globe className="size-3.5 text-emerald-400" />
-                    <span>{t.languageLabel}</span>
-                  </span>
-                  <span className="text-[10px] text-emerald-300">
-                    {SUPPORTED_LANGUAGES[locale].nativeName}
-                  </span>
-                </div>
-                <div className="grid grid-cols-4 gap-1">
-                  {(Object.values(SUPPORTED_LANGUAGES) as LanguageConfig[]).map(
-                    (lang) => (
-                      <button
-                        key={lang.code}
-                        type="button"
-                        disabled={isSwitchingLang}
-                        onClick={() => {
-                          handleSelectLanguage(lang.code)
-                          setDrawerOpen(false)
-                        }}
-                        className={`rounded-lg py-1.5 text-[10px] font-extrabold transition ${
-                          locale === lang.code
-                            ? "bg-[#105C50] text-white shadow-2xs"
-                            : "bg-white/5 text-white/70 hover:bg-white/15 hover:text-white"
-                        }`}
-                      >
-                        {lang.shortCode}
-                      </button>
-                    )
-                  )}
-                </div>
+              <div className="mb-2 grid grid-cols-4 gap-1 rounded-xl bg-white/5 p-1.5">
+                {(Object.values(SUPPORTED_LANGUAGES) as LanguageConfig[]).map(
+                  (lang) => (
+                    <button
+                      key={lang.code}
+                      type="button"
+                      onClick={() => {
+                        handleSelectLanguage(lang.code)
+                        setDrawerOpen(false)
+                      }}
+                      className={`rounded-lg py-1.5 text-[10px] font-extrabold ${
+                        locale === lang.code
+                          ? "bg-[#105C50] text-white"
+                          : "text-white/70"
+                      }`}
+                    >
+                      {lang.shortCode}
+                    </button>
+                  )
+                )}
               </div>
 
               <Link
@@ -497,7 +490,7 @@ export default function AdminShell({
         </div>
       )}
 
-      {/* 3. الهيدر العلوي النظيف (بدون زر اللغة لمنع الزحام) */}
+      {/* 3. الهيدر العلوي */}
       <div className={isRtl ? "lg:mr-64" : "lg:ml-64"}>
         <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-2 border-b border-gray-200/80 bg-white/95 px-3.5 backdrop-blur-md sm:h-16 sm:px-6">
           <div className="flex min-w-0 items-center gap-2.5">
@@ -524,6 +517,60 @@ export default function AdminShell({
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
+            {/* زر تغيير اللغة */}
+            <div className="relative" ref={langRef}>
+              <button
+                type="button"
+                disabled={isSwitchingLang}
+                onClick={() => {
+                  setLangMenuOpen(!langMenuOpen)
+                  setNotifOpen(false)
+                }}
+                dir="ltr"
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-2.5 text-xs font-bold text-[#0a1122] transition hover:border-[#105C50] hover:bg-white sm:h-9 sm:px-3"
+              >
+                {isSwitchingLang ? (
+                  <Loader2 className="size-3.5 animate-spin text-[#105C50]" />
+                ) : (
+                  <Globe className="size-3.5 text-[#105C50]" />
+                )}
+                <span>{SUPPORTED_LANGUAGES[locale].nativeName}</span>
+                <ChevronDown className="size-3 text-gray-400" />
+              </button>
+
+              {langMenuOpen && (
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className={`absolute top-11 z-50 w-36 overflow-hidden rounded-xl border border-gray-200 bg-white p-1.5 shadow-xl ${
+                    isRtl ? "left-0" : "right-0"
+                  }`}
+                >
+                  {(Object.values(SUPPORTED_LANGUAGES) as LanguageConfig[]).map(
+                    (lang) => {
+                      const active = lang.code === locale
+                      return (
+                        <button
+                          key={lang.code}
+                          type="button"
+                          onClick={() => handleSelectLanguage(lang.code)}
+                          className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-xs font-semibold transition ${
+                            active
+                              ? "bg-[#eff9f5] font-bold text-[#105C50]"
+                              : "text-[#0a1122] hover:bg-gray-50"
+                          }`}
+                        >
+                          <span>{lang.nativeName}</span>
+                          {active && (
+                            <Check className="size-3.5 text-[#105C50]" />
+                          )}
+                        </button>
+                      )
+                    }
+                  )}
+                </div>
+              )}
+            </div>
+
             <Link
               href="/admin/profile"
               className="inline-flex h-8 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 px-3 text-xs font-bold text-[#0a1122] transition hover:border-[#105C50] hover:bg-white sm:h-9 sm:px-4"

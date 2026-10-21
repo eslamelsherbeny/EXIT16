@@ -3,7 +3,7 @@
 import { useState, useTransition, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { ChevronDown, Eye, EyeOff, Check } from 'lucide-react'
-import { AuthCard, AuthLayout } from '@/components/auth-layout'
+import { AuthCard, AuthLayout, TurnstileBox } from '@/components/auth-layout'
 import { registerAction } from '@/app/actions/auth-actions'
 import {
   ALL_RESIDENCE_COUNTRIES,
@@ -128,6 +128,7 @@ export default function RegisterPage() {
                 id="name"
                 name="name"
                 type="text"
+                maxLength={120}
                 required
                 className="h-12 w-full rounded-xl border border-input bg-background px-4 text-start text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary,#007a5a)]"
                 placeholder={t.namePlaceholder}
@@ -291,6 +292,7 @@ export default function RegisterPage() {
                   id="phone"
                   type="tel"
                   dir="ltr"
+                  maxLength={20}
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(e.target.value)}
                   required
@@ -312,6 +314,7 @@ export default function RegisterPage() {
                 name="email"
                 type="email"
                 dir="ltr"
+                maxLength={160}
                 required
                 className="h-12 w-full rounded-xl border border-input bg-background px-4 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary,#007a5a)]"
                 placeholder="name@example.com"
@@ -333,6 +336,7 @@ export default function RegisterPage() {
                   dir="ltr"
                   required
                   minLength={8}
+                  maxLength={128}
                   className={`h-12 w-full rounded-xl border border-input bg-background pr-11 pl-4 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary,#007a5a)] ${
                     showPassword ? 'tracking-normal' : 'tracking-widest'
                   }`}
@@ -368,6 +372,7 @@ export default function RegisterPage() {
                   dir="ltr"
                   required
                   minLength={8}
+                  maxLength={128}
                   className={`h-12 w-full rounded-xl border border-input bg-background pr-11 pl-4 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary,#007a5a)] ${
                     showConfirmPassword ? 'tracking-normal' : 'tracking-widest'
                   }`}
@@ -390,10 +395,12 @@ export default function RegisterPage() {
               </div>
             </div>
 
+            <TurnstileBox />
+
             <button
               type="submit"
               disabled={pending}
-              className="mt-2 h-12 rounded-xl bg-[var(--brand-primary,#007a5a)] px-5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[var(--brand-primary-hover,#006248)] disabled:opacity-50"
+              className="mt-1 h-12 rounded-xl bg-[var(--brand-primary,#007a5a)] px-5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[var(--brand-primary-hover,#006248)] disabled:opacity-50"
             >
               {pending ? t.submittingBtn : t.submitBtn}
             </button>

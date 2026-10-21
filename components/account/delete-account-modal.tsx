@@ -7,9 +7,7 @@ import {
   logoutAccountAction,
   requestAccountDeletionAction,
 } from '@/app/actions/account-actions'
-import arDict from '@/dictionaries/ar.json'
-
-const t = arDict.accountComponents.deleteModal
+import { useTranslation } from '@/lib/i18n'
 
 export function AccountActionLinks({
   unitsCount = 0,
@@ -20,6 +18,9 @@ export function AccountActionLinks({
   initialDeletionRequested?: boolean
   position?: 'top' | 'bottom'
 }) {
+  const { t: dict, dir } = useTranslation()
+  const t = dict.accountComponents.deleteModal
+
   const [modalOpen, setModalOpen] = useState(false)
   const [deletionRequested, setDeletionRequested] = useState(
     initialDeletionRequested
@@ -29,7 +30,11 @@ export function AccountActionLinks({
   const [error, setError] = useState('')
   const [isPending, startTransition] = useTransition()
 
-  const isConfirmReady = confirmWord.trim() === t.confirmWordTarget
+  const isConfirmReady =
+    confirmWord.trim().toLowerCase() ===
+      (t.confirmWordTarget || 'حذف').trim().toLowerCase() ||
+    confirmWord.trim() === 'حذف' ||
+    confirmWord.trim().toLowerCase() === 'delete'
 
   const handleRequestDeletion = () => {
     if (!isConfirmReady) return
@@ -58,6 +63,7 @@ export function AccountActionLinks({
   return (
     <>
       <div
+        dir={dir}
         className={`flex flex-wrap items-center gap-3 text-xs font-bold ${
           position === 'bottom'
             ? 'mt-10 justify-start border-t border-gray-200/80 pt-6'
@@ -91,13 +97,13 @@ export function AccountActionLinks({
 
       {modalOpen && (
         <div
-          dir="rtl"
+          dir={dir}
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4 backdrop-blur-2xs"
           onClick={() => setModalOpen(false)}
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-[440px] rounded-[22px] bg-white p-6 text-right shadow-2xl sm:p-7"
+            className="w-full max-w-[440px] rounded-[22px] bg-white p-6 text-start shadow-2xl sm:p-7"
           >
             {!deletionRequested ? (
               <>

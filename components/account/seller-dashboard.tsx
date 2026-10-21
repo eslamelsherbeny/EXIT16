@@ -7,7 +7,6 @@ import {
   AlertCircle,
   Building2,
   Check,
-  ChevronDown,
   Copy,
   EyeOff,
   FileCheck2,
@@ -16,6 +15,7 @@ import {
   MousePointerClick,
   PauseCircle,
   PlayCircle,
+  Plus,
   ShieldAlert,
   Sparkles,
   Star,
@@ -44,6 +44,9 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { AccountActionLinks } from './delete-account-modal'
+import arDict from '@/dictionaries/ar.json'
+
+const t = arDict.accountComponents.seller
 
 export type SellerUnitItem = {
   id: string
@@ -112,9 +115,9 @@ function calculateUnitCompletion(unit: SellerUnitItem) {
     : Math.min(94, Math.round((completedCount / total) * 100))
 
   const missingTags: string[] = []
-  if (!hasImages) missingTags.push('الصور')
+  if (!hasImages) missingTags.push(t.missingPhotosTag)
   if (!unit.area || !unit.unit_type || !unit.size)
-    missingTags.push('تفاصيل الوحدة')
+    missingTags.push(t.missingDetailsTag)
 
   return {
     completedCount: hasImages ? 18 : Math.min(17, Math.max(16, completedCount)),
@@ -135,88 +138,74 @@ function getSellerTimelineAndStatus(unit: SellerUnitItem, isComplete: boolean) {
       return {
         code: 'active',
         stepIndex: 4,
-        marketBadge: '🟢 منشورة في السوق',
-        marketBadgeCls: 'bg-emerald-100 text-[#0b6954]',
-        unitSubtext: 'منشورة في السوق أمام المشترين',
-        headline: 'وحدتك معتمدة ومنشورة الآن أمام المشترين في السوق 🎉',
+        marketBadge: t.statusActiveBadge,
+        marketBadgeCls: 'bg-emerald-100 text-[var(--brand-primary,#007a5a)]',
+        headline: t.statusActiveHeadline,
       }
     case 'paused_by_seller':
       return {
         code: 'paused_by_seller',
         stepIndex: 2,
-        marketBadge: '⏸ متوقفة مؤقتاً بواسطتك',
+        marketBadge: t.statusPausedBadge,
         marketBadgeCls: 'bg-amber-100 text-amber-800',
-        unitSubtext: 'متوقفة مؤقتاً بواسطتك (غير ظاهرة بالسوق)',
-        headline: 'أوقفت عرض هذه الوحدة مؤقتاً — يمكنك إعادة عرضها في أي وقت',
+        headline: t.statusPausedHeadline,
       }
     case 'paused_deletion':
       return {
         code: 'paused_deletion',
         stepIndex: 2,
-        marketBadge: 'مخفية مؤقتاً',
+        marketBadge: t.statusPausedDeletionBadge,
         marketBadgeCls: 'bg-gray-100 text-gray-600',
-        unitSubtext: 'مخفية بسبب طلب حذف الحساب',
-        headline: 'الوحدة مخفية حالياً من السوق بسبب طلب حذف الحساب',
+        headline: t.statusPausedDeletionHeadline,
       }
     case 'offer_received':
       return {
         code: 'offer_received',
         stepIndex: 5,
-        marketBadge: '💰 عليها عرض شراء',
+        marketBadge: t.statusOfferBadge,
         marketBadgeCls: 'bg-purple-100 text-purple-800',
-        unitSubtext: 'عندك عرض شراء جاد',
-        headline: 'لديك عرض شراء جاد على وحدتك! 💰',
+        headline: t.statusOfferHeadline,
       }
     case 'transferring':
       return {
         code: 'transferring',
         stepIndex: 6,
-        marketBadge: '📄 مرحلة نقل التعاقد',
+        marketBadge: t.statusTransferBadge,
         marketBadgeCls: 'bg-blue-100 text-blue-800',
-        unitSubtext: 'نقل التعاقد (بنراجع المستندات)',
-        headline: 'وحدتك في مرحلة مراجعة المستندات ونقل التعاقد 📄',
+        headline: t.statusTransferHeadline,
       }
     case 'sold':
       return {
         code: 'sold',
         stepIndex: 8,
-        marketBadge: '🏆 تم البيع',
+        marketBadge: t.statusSoldBadge,
         marketBadgeCls: 'bg-teal-700 text-white',
-        unitSubtext: 'تمت عملية البيع بنجاح',
-        headline: 'مبروك! تمت عملية بيع وحدتك ونقل التعاقد بنجاح 🏆',
+        headline: t.statusSoldHeadline,
       }
     case 'rejected':
       return {
         code: 'rejected',
         stepIndex: 1,
-        marketBadge: '⚠️ تحتاج تعديل بيانات',
+        marketBadge: t.statusRejectedBadge,
         marketBadgeCls: 'bg-red-100 text-red-700',
-        unitSubtext: 'تحتاج لمراجعة وتعديل البيانات',
-        headline: 'يرجى مراجعة وتحديث بيانات وحدتك لإعادة النشر',
+        headline: t.statusRejectedHeadline,
       }
     default:
       if (!isComplete) {
         return {
           code: 'incomplete',
           stepIndex: 1,
-          marketBadge: '📝 بانتظار استكمال الصور',
+          marketBadge: t.statusIncompleteBadge,
           marketBadgeCls: 'bg-amber-100 text-amber-800',
-          unitSubtext: 'غير منشورة بعد — بانتظار استكمال الصور',
-          headline: 'فاضل الصور بس — ضيف صورة واحدة على الأقل وننشر وحدتك',
+          headline: t.statusIncompleteHeadline,
         }
       }
       return {
         code: 'pending_review',
         stepIndex: 2,
-        marketBadge: '⏳ قيد مراجعة الإدارة',
+        marketBadge: t.statusPendingBadge,
         marketBadgeCls: 'bg-amber-50 text-amber-800 border border-amber-200',
-        unitSubtext:
-          unit.submission_type === 'resumed_by_seller'
-            ? 'معاد عرضها — قيد مراجعة الإدارة (غير منشورة بعد)'
-            : unit.submission_type === 'edited_by_seller'
-              ? 'معدّلة — قيد مراجعة الإدارة (غير منشورة بعد)'
-              : 'قيد المراجعة — لم تُنشر في السوق بعد',
-        headline: 'بياناتك وصلت! فريقنا بيراجع الوحدة وينشرها في السوق قريب',
+        headline: t.statusPendingHeadline,
       }
   }
 }
@@ -244,7 +233,6 @@ export function SellerDashboard({
 }) {
   const router = useRouter()
 
-  // حالة محلية فورية (Optimistic State) لكي يسمّع إلغاء التمييز أو التعديل في نفس اللحظة
   const [localSells, setLocalSells] = useState<SellerUnitItem[]>(sells)
   useEffect(() => {
     setLocalSells(sells)
@@ -255,17 +243,13 @@ export function SellerDashboard({
       ? initialSelectedUnitId
       : sells[0]?.id || ''
   )
-  const [showAllUnitsList, setShowAllUnitsList] = useState(false)
 
-  // حالة إخفاء/إظهار صندوق الإعلان (تكون false عند فتح الصفحة ليظهر بحجمه الكامل، ويمكن للمستخدم إخفاؤه أو فتحه بزر)
   const [isPromoCollapsed, setIsPromoCollapsed] = useState(false)
-
   const [confirmModal, setConfirmModal] = useState<ConfirmModalState>(null)
   const [copiedAdRef, setCopiedAdRef] = useState(false)
   const [actionMessage, setActionMessage] = useState('')
   const [isPending, startTransition] = useTransition()
 
-  // قراءة الدولة والعملة وأسعار الباقات التي حددها الأدمن في الإعدادات
   const [countryCode, setCountryCode] = useState<CountryCode>('EG')
   const [adminPromoPrices, setAdminPromoPrices] = useState<{
     days7: number
@@ -278,7 +262,6 @@ export function SellerDashboard({
       const activeC = getActiveCountryFromCookie()
       setCountryCode(activeC.code)
 
-      // فحص هل الأدمن حفظ أسعار مخصصة في كوكي إعدادات الموقع
       try {
         const match = document.cookie
           .split('; ')
@@ -313,7 +296,6 @@ export function SellerDashboard({
     localSells.find((s) => s.id === selectedId) || localSells[0]
   if (!activeUnit) return null
 
-  // تحديد عملة وأسعار باقات التمييز حسب دولة العقار نفسه (أو الدولة المختارة)
   const unitCountryCode =
     (activeUnit.country_code as CountryCode) &&
     SUPPORTED_COUNTRIES[activeUnit.country_code as CountryCode]
@@ -333,9 +315,9 @@ export function SellerDashboard({
     price: number
     label: string
   }> = [
-    { days: 7, price: pkgPrices.days7, label: '7 أيام' },
-    { days: 14, price: pkgPrices.days14, label: '14 أيام' },
-    { days: 30, price: pkgPrices.days30, label: '30 أيام' },
+    { days: 7, price: pkgPrices.days7, label: `7 ${t.daysWord}` },
+    { days: 14, price: pkgPrices.days14, label: `14 ${t.daysWord}` },
+    { days: 30, price: pkgPrices.days30, label: `30 ${t.daysWord}` },
   ]
 
   const money = (value: number | null | undefined) =>
@@ -360,7 +342,6 @@ export function SellerDashboard({
     ? `/sell?editUnitId=${activeUnit.id}&step=5`
     : `/sell?editUnitId=${activeUnit.id}&step=3`
 
-  // فحص حالة التمييز الحالية للوحدة
   const isCurrentlyFeatured =
     Boolean(activeUnit.is_featured) &&
     activeUnit.featured_status !== 'cancelled_by_seller' &&
@@ -419,9 +400,7 @@ export function SellerDashboard({
             )
           )
           setActionMessage(
-            nextAction === 'pause'
-              ? 'تم إيقاف عرض الوحدة مؤقتاً وإخفاؤها من السوق.'
-              : 'تم إرسال طلب إعادة عرض الوحدة للإدارة للمراجعة والنشر ✓'
+            nextAction === 'pause' ? t.msgPausedSuccess : t.msgResumedSuccess
           )
           router.refresh()
         }
@@ -445,7 +424,6 @@ export function SellerDashboard({
         if (res.success) {
           const code =
             res.fawryCode || `AD-${activeUnit.id.slice(0, 6).toUpperCase()}`
-          // تحديث فوري على الشاشة
           setLocalSells((prev) =>
             prev.map((u) =>
               u.id === activeUnit.id
@@ -459,18 +437,15 @@ export function SellerDashboard({
                 : u
             )
           )
-          setActionMessage(
-            `✓ تم تسجيل طلب تمييز الوحدة (${pkg.label}) بنجاح — رقم طلب الإعلان: ${code}`
-          )
+          setActionMessage(`${t.msgPromoSuccessPrefix} ${code}`)
           router.refresh()
         } else {
-          setActionMessage(res.error || 'تعذر تسجيل طلب التمييز.')
+          setActionMessage(res.error || t.msgPromoError)
         }
       } else if (confirmModal.type === 'cancel_promo') {
         const res = await cancelUnitPromotionBySellerAction(activeUnit.id)
         setConfirmModal(null)
         if (res.success) {
-          // مسح طلب التمييز فوراً من الشاشة بدون انتظار
           setLocalSells((prev) =>
             prev.map((u) =>
               u.id === activeUnit.id
@@ -486,47 +461,122 @@ export function SellerDashboard({
                 : u
             )
           )
-          setActionMessage(
-            '✓ تم حذف وإلغاء طلب تمييز الوحدة بنجاح، وعادت للعرض المجاني.'
-          )
+          setActionMessage(t.msgPromoCancelled)
           router.refresh()
         } else {
-          setActionMessage(res.error || 'تعذر إلغاء طلب التمييز.')
+          setActionMessage(res.error || t.msgPromoCancelError)
         }
       }
     })
   }
 
-  const visibleUnitsInList = showAllUnitsList
-    ? localSells
-    : localSells.slice(0, 2)
-
   return (
     <div className="mx-auto max-w-[680px] px-4 sm:px-6">
-      {/* 1. شريط اختيار الوحدة الواضح */}
-      <section className="mb-5 rounded-[18px] border border-gray-200/90 bg-white p-4 text-right shadow-2xs sm:p-5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
+      {/* ==================== 1. الهيدر العلوي: وحداتي المسجلة + زر "+ ضيف وحدة تانية" + كروت التبديل السلسة ==================== */}
+      <section className="mb-5 rounded-[20px] border border-gray-200/90 bg-white p-4 text-right shadow-2xs sm:p-5">
+        <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <span className="flex size-8 items-center justify-center rounded-xl bg-[#eff9f5] text-[#0b6954]">
+            <span className="flex size-8 items-center justify-center rounded-xl bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]">
               <Building2 className="size-4" />
             </span>
-            <div>
-              <p className="text-[11px] font-bold text-gray-400">
-                الوحدة المفتوحة أمامك الآن ({unitCountryCfg.flag}{' '}
-                {unitCountryCfg.nameAr}):
-              </p>
-              <h1 className="text-base font-extrabold text-[#0a1122] sm:text-xl">
-                {activeUnit.project_name || 'وحدتك العقارية'}{' '}
-                <span className="text-xs font-normal text-gray-500 sm:text-sm">
-                  ·{' '}
-                  {activeUnit.developer_name ||
-                    activeUnit.area ||
-                    'القاهرة الجديدة'}
-                </span>
-              </h1>
-            </div>
+            <h1 className="text-sm font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-base">
+              {t.myUnitsHeader} ({localSells.length})
+            </h1>
           </div>
 
+          <Link
+            href="/sell?new=1"
+            className="inline-flex h-9 items-center justify-center gap-1 rounded-xl bg-[var(--brand-navy,#0a1122)] px-3.5 text-xs font-bold text-white shadow-2xs transition hover:bg-[var(--brand-navy-hover,#16223f)]"
+          >
+            <Plus className="size-3.5" />
+            <span>{t.addUnitBtn.replace('+ ', '')}</span>
+          </Link>
+        </div>
+
+        {/* كروت الوحدات المتتالية للتبديل السريع على الموبايل والكمبيوتر بدون قوائم منسدلة بدائية */}
+        <div className="mt-3.5 flex flex-col gap-2">
+          {localSells.map((item, idx) => {
+            const itemComp = calculateUnitCompletion(item)
+            const itemMeta = getSellerTimelineAndStatus(
+              item,
+              itemComp.percentage === 100
+            )
+            const isSelected = item.id === activeUnit.id
+            const itemCountryCfg =
+              SUPPORTED_COUNTRIES[
+                (item.country_code as CountryCode) || 'EG'
+              ] || SUPPORTED_COUNTRIES.EG
+
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => {
+                  setSelectedId(item.id)
+                  setActionMessage('')
+                }}
+                className={`flex w-full items-center justify-between gap-3 rounded-2xl border px-3.5 py-3 text-right transition ${
+                  isSelected
+                    ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary-light,#eaf8f2)]/60 ring-2 ring-[var(--brand-primary,#007a5a)]/15'
+                    : 'border-gray-200/80 bg-gray-50/60 hover:border-gray-300 hover:bg-white'
+                }`}
+              >
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <span
+                    className={`flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-extrabold ${
+                      isSelected
+                        ? 'bg-[var(--brand-primary,#007a5a)] text-white'
+                        : 'bg-gray-200 text-gray-600'
+                    }`}
+                  >
+                    {idx + 1}
+                  </span>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="text-xs leading-none">
+                        {itemCountryCfg.flag}
+                      </span>
+                      <span className="truncate text-xs font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-sm">
+                        {item.project_name || t.defaultProjectName}
+                      </span>
+                      <span className="text-[11px] text-gray-500">
+                        · {item.area || t.defaultAreaName}
+                      </span>
+                      {item.is_featured && (
+                        <span className="inline-flex items-center gap-0.5 rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">
+                          <Star className="size-2.5 fill-amber-400 text-amber-500" />
+                          {t.featuredShortBadge}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex shrink-0 items-center gap-2">
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-[10px] font-extrabold ${itemMeta.marketBadgeCls}`}
+                  >
+                    {itemMeta.marketBadge}
+                  </span>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      </section>
+
+      {actionMessage && (
+        <div className="mb-4 rounded-xl border border-emerald-200 bg-[var(--brand-primary-light,#eaf8f2)] p-3.5 text-center text-xs font-bold text-[var(--brand-primary,#007a5a)]">
+          {actionMessage}
+        </div>
+      )}
+
+      {/* ==================== 2. الكارت العلوي المنظم: الخطوة الجاية + شريط النسبة المئوية (%) + أزرار التحكم ==================== */}
+      <section className="rounded-[20px] border border-gray-200/90 bg-white p-5 text-right shadow-xs sm:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="text-xs font-bold text-[var(--brand-primary,#007a5a)]">
+            {t.nextStepLabel}
+          </span>
           <span
             className={`rounded-full px-3 py-1 text-[11px] font-extrabold ${meta.marketBadgeCls}`}
           >
@@ -534,74 +584,61 @@ export function SellerDashboard({
           </span>
         </div>
 
-        {localSells.length > 1 && (
-          <div className="mt-3.5 border-t border-gray-100 pt-3">
-            <label className="mb-1.5 block text-[11px] font-extrabold text-[#0b6954]">
-              لديك ({localSells.length}) وحدات مسجلة — اختر الوحدة التي تريد
-              متابعتها:
-            </label>
-            <div className="relative">
-              <select
-                value={activeUnit.id}
-                onChange={(e) => {
-                  setSelectedId(e.target.value)
-                  setActionMessage('')
-                }}
-                className="h-11 w-full appearance-none rounded-xl border border-gray-200 bg-gray-50/80 pr-3.5 pl-9 text-xs font-extrabold text-[#0a1122] focus:border-[#0b6954] focus:bg-white focus:outline-none sm:text-sm"
-              >
-                {localSells.map((u, idx) => {
-                  const uComp = calculateUnitCompletion(u)
-                  const uMeta = getSellerTimelineAndStatus(
-                    u,
-                    uComp.percentage === 100
-                  )
-                  return (
-                    <option key={u.id} value={u.id}>
-                      {idx + 1}. {u.project_name || 'وحدة سكنية'} (
-                      {u.area || 'القاهرة الجديدة'}) — [{uMeta.marketBadge}]
-                    </option>
-                  )
-                })}
-              </select>
-              <ChevronDown className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-gray-500" />
-            </div>
-          </div>
-        )}
-      </section>
-
-      {actionMessage && (
-        <div className="mb-4 rounded-xl border border-emerald-200 bg-[#eff9f5] p-3.5 text-center text-xs font-bold text-[#0b6954]">
-          {actionMessage}
-        </div>
-      )}
-
-      {/* 2. الكارت العلوي للخطوة الجاية */}
-      <section className="rounded-[20px] border border-[#0b6954]/25 bg-white p-5 text-right shadow-xs sm:p-7">
-        <p className="text-xs font-bold text-[#0b6954]">
-          الخطوة الجاية لهذه الوحدة
-        </p>
-        <h2 className="mt-1.5 text-base font-extrabold text-[#0a1122] sm:text-[19px]">
+        <h2 className="mt-2 text-base font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-lg">
           {meta.headline}
         </h2>
+
+        {/* شريط النسبة المئوية لاكتمال بيانات الوحدة (يظهر دائماً بوضوح) */}
+        <div className="mt-4 rounded-xl border border-gray-100 bg-gray-50/80 p-3.5">
+          <div className="mb-2 flex items-center justify-between text-xs">
+            <span className="font-bold text-gray-600">{t.completionLabel}</span>
+            <strong
+              dir="ltr"
+              className="font-extrabold text-[var(--brand-primary,#007a5a)]"
+            >
+              {comp.percentage}%
+            </strong>
+          </div>
+          <div className="h-2.5 w-full overflow-hidden rounded-full bg-gray-200">
+            <div
+              className="h-full rounded-full bg-[var(--brand-primary,#007a5a)] transition-all duration-500"
+              style={{ width: `${comp.percentage}%` }}
+            />
+          </div>
+
+          {comp.missingTags.length > 0 && (
+            <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+              {comp.missingTags.map((tag) => (
+                <span
+                  key={tag}
+                  className="rounded-lg bg-amber-100/80 px-2.5 py-0.5 text-[10.5px] font-bold text-amber-800"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
 
         {activeUnit.admin_note && (
           <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 p-3.5 text-xs text-amber-900">
             <AlertCircle className="mt-0.5 size-4 shrink-0 text-amber-600" />
             <div>
               <strong className="block font-extrabold">
-                حالة المراجعة / ملاحظة الإدارة:
+                {t.adminNoteLabel}
               </strong>
               <p className="mt-0.5 leading-relaxed">{activeUnit.admin_note}</p>
             </div>
           </div>
         )}
 
+        {/* أزرار إجراءات الوحدة */}
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <Link
             href={editUnitHref}
-            className="inline-flex h-10 items-center justify-center rounded-xl bg-[#0b6954] px-5 text-xs font-bold text-white transition hover:bg-[#095443] sm:h-11 sm:px-6"
+            className="inline-flex h-10 flex-1 items-center justify-center rounded-xl bg-[var(--brand-primary,#007a5a)] px-4 text-xs font-bold text-white transition hover:bg-[var(--brand-primary-hover,#006248)] sm:flex-none sm:px-6"
           >
-            {!comp.hasImages ? 'أضف الصور' : 'كمّل / عدّل بيانات الوحدة'}
+            {!comp.hasImages ? t.addPhotosBtn : t.editDataBtn}
           </Link>
 
           {meta.code !== 'sold' && (
@@ -613,21 +650,21 @@ export function SellerDashboard({
                   type: isPausedBySeller ? 'resume' : 'pause',
                 })
               }
-              className={`inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border px-3.5 text-xs font-bold transition sm:h-11 sm:px-4 ${
+              className={`inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border px-3.5 text-xs font-bold transition ${
                 isPausedBySeller
-                  ? 'border-[#0b6954] bg-[#eff9f5] text-[#0b6954] hover:bg-[#e0f3ec]'
+                  ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]'
                   : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
               }`}
             >
               {isPausedBySeller ? (
                 <>
                   <PlayCircle className="size-4" />
-                  <span>إعادة عرض الوحدة</span>
+                  <span>{t.resumeBtn}</span>
                 </>
               ) : (
                 <>
                   <PauseCircle className="size-4 text-amber-600" />
-                  <span>إيقاف العرض مؤقتاً</span>
+                  <span>{t.pauseBtn}</span>
                 </>
               )}
             </button>
@@ -637,56 +674,113 @@ export function SellerDashboard({
             type="button"
             disabled={isPending}
             onClick={() => setConfirmModal({ type: 'delete' })}
-            className="inline-flex h-10 items-center justify-center gap-1 rounded-xl border border-red-100 bg-red-50/50 px-3.5 text-xs font-bold text-red-600 transition hover:bg-red-100 sm:h-11"
-            title="حذف هذه الوحدة"
+            className="inline-flex h-10 items-center justify-center gap-1 rounded-xl border border-red-100 bg-red-50/50 px-3.5 text-xs font-bold text-red-600 transition hover:bg-red-100"
           >
             <Trash2 className="size-3.5" />
-            <span>حذف الوحدة</span>
+            <span>{t.deleteBtn}</span>
           </button>
         </div>
 
-        {!isComplete && (
-          <div className="mt-6">
-            <div className="mb-2 flex items-center justify-between text-xs">
-              <span className="font-bold text-gray-600">
-                اكتمال بيانات وحدتك
-              </span>
-              <strong dir="ltr" className="font-extrabold text-[#0a1122]">
-                {comp.percentage}%
-              </strong>
-            </div>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
-              <div
-                className="h-full rounded-full bg-[#0b6954] transition-all duration-300"
-                style={{ width: `${comp.percentage}%` }}
-              />
-            </div>
-          </div>
-        )}
-
-        <div className="mt-4 rounded-xl bg-[#eff9f5] px-4 py-3 text-right text-xs font-bold text-[#0b6954]">
+        {/* سطر رادار المشترين المختصر */}
+        <div className="mt-4 rounded-xl bg-[var(--brand-primary-light,#eaf8f2)] px-3.5 py-2.5 text-right text-[11.5px] font-bold text-[var(--brand-primary,#007a5a)]">
           {realMatchedBuyersCount > 0 ? (
             <>
-              فيه {realMatchedBuyersCount.toLocaleString('en-US')} مشترين
-              مسجلين حالياً في قاعدة البيانات مستنيين وحدة بنفس مواصفات وميزانية
-              وحدتك{' '}
+              {t.matchedBuyersPrefix}{' '}
+              {realMatchedBuyersCount.toLocaleString('en-US')}{' '}
+              {t.matchedBuyersMiddle}{' '}
               {!isComplete
-                ? '— كمّل بياناتها وشوفهم'
-                : '— فريقنا يرشح وحدتك لهم'}
+                ? t.matchedBuyersIncomplete
+                : t.matchedBuyersComplete}
             </>
           ) : (
             <>
-              بمجرد اعتماد وحدتك، سيقوم رادار المنصة بترشيحها تلقائياً لأي مشتري
-              يسجل ميزانية مطابقة لمنطقتك ({activeUnit.area || 'منطقتك'})
+              {t.radarNotePrefix} ({activeUnit.area || t.defaultAreaName})
             </>
           )}
         </div>
       </section>
 
-      {/* 3. شريط التسلسل الزمني */}
-      <section className="mt-6 rounded-[20px] border border-gray-200/80 bg-white p-5 shadow-2xs sm:p-6">
+      {/* ==================== 3. كارت السعر والمدفوع ==================== */}
+      <section className="mt-4 grid grid-cols-2 gap-4 rounded-[18px] border border-gray-200/80 bg-white p-5 text-right shadow-2xs">
+        <div>
+          <p className="text-[11px] text-gray-400">{t.contractPriceLabel}</p>
+          <strong className="mt-1 block text-lg font-extrabold text-[var(--brand-navy,#0a1122)] tabular-nums sm:text-xl">
+            {money(activeUnit.contract_price)}
+          </strong>
+        </div>
+        <div>
+          <p className="text-[11px] text-gray-400">{t.paidAmountLabel}</p>
+          <strong className="mt-1 block text-lg font-extrabold text-[var(--brand-primary,#007a5a)] tabular-nums sm:text-xl">
+            {money(activeUnit.paid_amount)}
+          </strong>
+        </div>
+      </section>
+
+      {/* ==================== 4. شبكة الكروت الـ 4 الموحدة (بيانات الوحدة + المستندات مرة واحدة فقط + العروض + مسؤول الحالة) ==================== */}
+      <section className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <Link
+          href={`/sell?editUnitId=${activeUnit.id}&step=3`}
+          className="flex flex-col justify-between rounded-[16px] border border-gray-200/80 bg-white p-4 text-right shadow-2xs transition hover:border-[var(--brand-primary,#007a5a)]"
+        >
+          <p className="text-xs font-extrabold text-[var(--brand-navy,#0a1122)]">
+            {t.cardUnitData}
+          </p>
+          <p className="mt-1.5 text-[11px] font-bold text-[var(--brand-primary,#007a5a)]">
+            {comp.completedCount}/{comp.total} {t.cardUnitDataSub}
+          </p>
+        </Link>
+
+        {/* زر المستندات الوحيد في الصفحة (نظيف وغير مكرر) */}
+        <Link
+          href={`/account/documents?unitId=${activeUnit.id}`}
+          className="flex flex-col justify-between rounded-[16px] border border-gray-200/80 bg-white p-4 text-right shadow-2xs transition hover:border-[var(--brand-primary,#007a5a)]"
+        >
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-extrabold text-[var(--brand-navy,#0a1122)]">
+              {t.cardDocuments}
+            </p>
+            {uploadedDocsCount > 0 ? (
+              <FileCheck2 className="size-3.5 text-[var(--brand-primary,#007a5a)]" />
+            ) : (
+              <UploadCloud className="size-3.5 text-gray-400" />
+            )}
+          </div>
+          <p className="mt-1.5 text-[11px] font-semibold text-gray-500">
+            {uploadedDocsCount > 0
+              ? `${uploadedDocsCount}/4 ${t.cardDocumentsUploaded}`
+              : t.cardDocumentsEmpty}
+          </p>
+        </Link>
+
+        <Link
+          href={`/account/offers?unitId=${activeUnit.id}`}
+          className="flex flex-col justify-between rounded-[16px] border border-gray-200/80 bg-white p-4 text-right shadow-2xs transition hover:border-[var(--brand-primary,#007a5a)]"
+        >
+          <p className="text-xs font-extrabold text-[var(--brand-navy,#0a1122)]">
+            {t.cardOffers}
+          </p>
+          <p className="mt-1.5 text-[11px] font-semibold text-gray-500">
+            {unitOffersCount > 0 || meta.code === 'offer_received'
+              ? `${unitOffersCount || 1} ${t.cardOffersAvailable}`
+              : t.cardOffersEmpty}
+          </p>
+        </Link>
+
+        <a
+          href="https://wa.me/201018595959"
+          target="_blank"
+          rel="noreferrer"
+          className="flex flex-col justify-between rounded-[16px] bg-[var(--brand-navy,#0a1122)] p-4 text-right text-white shadow-2xs transition hover:bg-[var(--brand-navy-hover,#16223f)]"
+        >
+          <p className="text-xs font-extrabold text-white">{t.cardSupport}</p>
+          <p className="mt-1.5 text-[11px] text-gray-300">{t.cardSupportSub}</p>
+        </a>
+      </section>
+
+      {/* ==================== 5. شريط التسلسل الزمني لمراحل الطلب ==================== */}
+      <section className="mt-5 rounded-[20px] border border-gray-200/80 bg-white p-5 shadow-2xs sm:p-6">
         <h3 className="mb-4 text-right text-xs font-extrabold text-gray-500">
-          مراحل طلب الوحدة ({activeUnit.project_name || 'وحدتك'}):
+          {t.timelineTitle} ({activeUnit.project_name || t.defaultProjectName}):
         </h3>
         <div className="pr-1">
           <Timeline
@@ -696,382 +790,27 @@ export function SellerDashboard({
         </div>
       </section>
 
-      {/* ==================== 4. صندوق الترويج والتمييز (قابل للإخفاء والإظهار + باقات واضحة للضغط) ==================== */}
-      {isPromoCollapsed ? (
-        <div className="mt-6 flex items-center justify-between rounded-2xl border border-[#aae3cb] bg-[#effaf5] px-4 py-3.5 shadow-2xs">
-          <div className="flex items-center gap-2 text-right">
-            <Star className="size-4 shrink-0 fill-amber-400 text-amber-500" />
-            <span className="text-xs font-extrabold text-[#0a1122]">
-              عايز وحدتك تبقى أول اللي المشتري يشوفه وتتباع أسرع؟
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setIsPromoCollapsed(false)}
-            className="shrink-0 rounded-xl bg-[#0b6954] px-3.5 py-2 text-xs font-extrabold text-white transition hover:bg-[#095443]"
-          >
-            اعرض باقات التمييز ⭐
-          </button>
-        </div>
-      ) : (
-        <section className="mt-6 rounded-[20px] border border-[#aae3cb] bg-[#effaf5] p-5 text-right shadow-xs sm:p-7">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1 text-xs font-extrabold text-[#0b6954] shadow-2xs">
-                <Star className="size-3.5 fill-amber-400 text-amber-500" />
-                <span>إعلان اختياري — تمييز الوحدة</span>
-              </span>
+      {/* ==================== 6. صندوق الترويج والتمييز (مفصول كجزء مستقل نظيف) ==================== */}
+      <SellerPromoSection
+        activeUnit={activeUnit}
+        isPromoCollapsed={isPromoCollapsed}
+        setIsPromoCollapsed={setIsPromoCollapsed}
+        isCurrentlyFeatured={isCurrentlyFeatured}
+        isPendingPromo={isPendingPromo}
+        remainingFeaturedDays={remainingFeaturedDays}
+        activePromoDays={activePromoDays}
+        activePromoPrice={activePromoPrice}
+        currentAdRef={currentAdRef}
+        copiedAdRef={copiedAdRef}
+        setCopiedAdRef={setCopiedAdRef}
+        dynamicPackages={dynamicPackages}
+        currencySymbol={currencySymbol}
+        isPending={isPending}
+        onSelectPackage={(pkg) => setConfirmModal({ type: 'promote', pkg })}
+        onCancelPromo={() => setConfirmModal({ type: 'cancel_promo' })}
+      />
 
-              {isCurrentlyFeatured && (
-                <span className="rounded-full bg-amber-100 px-3 py-1 text-[11px] font-extrabold text-amber-800">
-                  ⭐ وحدتك مميزة حالياً (متبقي {remainingFeaturedDays} يوم)
-                </span>
-              )}
-
-              {isPendingPromo && (
-                <span className="rounded-full bg-blue-100 px-3 py-1 text-[11px] font-extrabold text-blue-800">
-                  ⏳ طلب تمييز بانتظار التفعيل ({activePromoDays} أيام)
-                </span>
-              )}
-            </div>
-
-            {/* زر إخفاء الإعلان من الصفحة */}
-            <button
-              type="button"
-              onClick={() => setIsPromoCollapsed(true)}
-              className="inline-flex items-center gap-1 rounded-lg bg-white/80 px-2.5 py-1 text-[11px] font-bold text-gray-500 transition hover:bg-white hover:text-gray-800"
-              title="إخفاء هذا الإعلان الآن"
-            >
-              <EyeOff className="size-3.5" />
-              <span>إخفاء الإعلان</span>
-            </button>
-          </div>
-
-          <h3 className="mt-3 text-base font-extrabold text-[#0a1122] sm:text-lg">
-            عايز وحدتك تبقى أول اللي المشتري يشوفه؟
-          </h3>
-
-          <ul className="mt-2.5 space-y-2 text-xs font-medium text-[#1e3a34]">
-            <li className="flex items-center gap-2">
-              <Check className="size-3.5 shrink-0 text-[#0b6954]" />
-              <span>ظهور في «فرص مميزة» في أول السوق وفي أول نتائج البحث</span>
-            </li>
-            <li className="flex items-center gap-2">
-              <Check className="size-3.5 shrink-0 text-[#0b6954]" />
-              <span>
-                شارة{' '}
-                <Star className="inline size-3 fill-amber-400 text-amber-500" />{' '}
-                مميزة على كارت وحدتك تجذب المشترين الجادين
-              </span>
-            </li>
-            <li className="flex items-center gap-2">
-              <Check className="size-3.5 shrink-0 text-[#0b6954]" />
-              <span>تقرير أسبوعي بأرقام حقيقية لعدد المشاهدات والعروض</span>
-            </li>
-          </ul>
-
-          {/* توجيه صريح وواضح أن البطاقات التالية قابلة للضغط والاختيار */}
-          <div className="mt-5 mb-2.5 flex items-center gap-1.5 text-xs font-extrabold text-[#0b6954]">
-            <MousePointerClick className="size-4 animate-bounce" />
-            <span>
-              {isCurrentlyFeatured || isPendingPromo
-                ? 'اضغط على أي باقة بالأسفل لو حابب تغيّر باقتك الحالية:'
-                : 'اضغط على الباقة اللي تناسبك بالأسفل للاشتراك وتفعيل التمييز:'}
-            </span>
-          </div>
-
-          {/* الباقات الثلاث كأزرار تفاعلية واضحة جداً */}
-          <div className="grid grid-cols-3 gap-2.5 sm:gap-3.5">
-            {dynamicPackages.map((pkg) => {
-              const isSelected =
-                (isCurrentlyFeatured || isPendingPromo) &&
-                activePromoDays === pkg.days
-              return (
-                <button
-                  key={pkg.days}
-                  type="button"
-                  disabled={isPending}
-                  onClick={() => {
-                    setConfirmModal({ type: 'promote', pkg })
-                  }}
-                  className={`group flex cursor-pointer flex-col items-center justify-between rounded-2xl border bg-white p-3 text-center transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-95 sm:p-4 ${
-                    isSelected
-                      ? 'border-[#0b6954] ring-2 ring-[#0b6954]/25'
-                      : 'border-gray-200 hover:border-[#0b6954]'
-                  }`}
-                >
-                  <span className="text-xs font-extrabold text-[#0a1122] sm:text-sm">
-                    {pkg.label}
-                  </span>
-                  <span className="my-1.5 text-xs font-black text-[#0b6954] tabular-nums sm:text-base">
-                    {pkg.price.toLocaleString('en-US')} {currencySymbol}
-                  </span>
-                  <span
-                    className={`w-full rounded-lg py-1 text-[10px] font-extrabold transition sm:text-[11px] ${
-                      isSelected
-                        ? 'bg-[#0b6954] text-white'
-                        : 'bg-[#eff9f5] text-[#0b6954] group-hover:bg-[#0b6954] group-hover:text-white'
-                    }`}
-                  >
-                    {isSelected ? 'باقتك الحالية ✓' : 'اضغط للاختيار'}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-
-          <p className="mt-4 text-[11px] leading-relaxed text-[#2b584d]">
-            نشر وحدتك مجاني بالكامل وهيفضل مجاني — ده اختياري بس لو عايز ظهور
-            أكتر، والأيام بتتحسب من لحظة التفعيل والنشر في السوق.
-          </p>
-
-          {/* صندوق رقم طلب الإعلان + زر واتساب + زر إلغاء وحذف الطلب */}
-          {(isCurrentlyFeatured || isPendingPromo) && currentAdRef && (
-            <div className="mt-4 rounded-xl border border-[#0b6954]/30 bg-white p-4 text-right shadow-2xs">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <p className="text-xs font-extrabold text-[#0a1122]">
-                    رقم طلب الإعلان المميز لوحدتك (باقة {activePromoDays} أيام —{' '}
-                    {activePromoPrice.toLocaleString('en-US')} {currencySymbol}
-                    ):
-                  </p>
-                  <p className="mt-1 font-mono text-lg font-black tracking-wider text-[#0b6954]">
-                    {currentAdRef}
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    navigator.clipboard?.writeText(currentAdRef)
-                    setCopiedAdRef(true)
-                    setTimeout(() => setCopiedAdRef(false), 2000)
-                  }}
-                  className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-gray-200 bg-gray-50 px-3 text-xs font-bold text-[#0a1122] hover:bg-gray-100"
-                >
-                  <Copy className="size-3.5" />
-                  <span>{copiedAdRef ? 'تم النسخ ✓' : 'نسخ رقم الطلب'}</span>
-                </button>
-              </div>
-
-              <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3">
-                {!isCurrentlyFeatured && (
-                  <a
-                    href={`https://wa.me/201018595959?text=${encodeURIComponent(
-                      `أهلاً إدارة منصة دارك، أرغب في تفعيل باقة تمييز (${activePromoDays} أيام - ${activePromoPrice.toLocaleString('en-US')} ${currencySymbol}) لوحدتي في مشروع (${activeUnit.project_name || 'وحدتي'}) — رقم طلب الإعلان: ${currentAdRef}`
-                    )}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 text-xs font-extrabold text-white shadow-2xs transition hover:opacity-95"
-                  >
-                    <MessageCircle className="size-4" />
-                    <span>تواصل واتساب لتأكيد وتفعيل الإعلان</span>
-                  </a>
-                )}
-
-                <button
-                  type="button"
-                  disabled={isPending}
-                  onClick={() => setConfirmModal({ type: 'cancel_promo' })}
-                  className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3.5 text-xs font-extrabold text-red-600 transition hover:bg-red-100"
-                >
-                  <XCircle className="size-3.5" />
-                  <span>
-                    {isCurrentlyFeatured
-                      ? 'إيقاف وإلغاء اشتراك التمييز'
-                      : 'حذف وإلغاء طلب الإعلان'}
-                  </span>
-                </button>
-              </div>
-            </div>
-          )}
-        </section>
-      )}
-
-      {/* 5. كارت السعر والمدفوع */}
-      <section className="mt-6 grid grid-cols-2 gap-4 rounded-[18px] border border-gray-200/80 bg-white p-5 text-right shadow-2xs sm:p-6">
-        <div>
-          <p className="text-[11px] text-gray-400">سعر الوحدة في العقد</p>
-          <strong className="mt-1 block text-lg font-extrabold text-[#0a1122] tabular-nums sm:text-xl">
-            {money(activeUnit.contract_price)}
-          </strong>
-        </div>
-        <div>
-          <p className="text-[11px] text-gray-400">
-            اللي دفعته (هدف الاسترداد)
-          </p>
-          <strong className="mt-1 block text-lg font-extrabold text-[#0b6954] tabular-nums sm:text-xl">
-            {money(activeUnit.paid_amount)}
-          </strong>
-        </div>
-      </section>
-
-      {/* 6. الكروت الثلاثة السفلية + المستندات */}
-      <section className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <Link
-          href={`/sell?editUnitId=${activeUnit.id}&step=3`}
-          className="flex flex-col justify-center rounded-[16px] border border-gray-200/80 bg-white p-4 text-right shadow-2xs transition hover:border-[#0b6954]"
-        >
-          <p className="text-xs font-extrabold text-[#0a1122]">بيانات وحدتك</p>
-          <p className="mt-1 text-[11px] text-gray-400">
-            {comp.completedCount}/{comp.total} مكتملة
-          </p>
-        </Link>
-
-        <Link
-          href={`/account/offers?unitId=${activeUnit.id}`}
-          className="flex flex-col justify-center rounded-[16px] border border-gray-200/80 bg-white p-4 text-right shadow-2xs transition hover:border-[#0b6954]"
-        >
-          <p className="text-xs font-extrabold text-[#0a1122]">العروض</p>
-          <p className="mt-1 text-[11px] text-gray-400">
-            {unitOffersCount > 0 || meta.code === 'offer_received'
-              ? `لديك ${unitOffersCount || 1} عرض متاح 💰`
-              : 'لسه مفيش'}
-          </p>
-        </Link>
-
-        <a
-          href="https://wa.me/201018595959"
-          target="_blank"
-          rel="noreferrer"
-          className="flex flex-col justify-center rounded-[16px] bg-[#0a1122] p-4 text-right text-white shadow-2xs transition hover:bg-[#16223f]"
-        >
-          <p className="text-xs font-extrabold text-white">مسؤول حالتك</p>
-          <p className="mt-1 text-[11px] text-gray-300">
-            كلمنا على واتساب في أي وقت
-          </p>
-        </a>
-      </section>
-
-      <div className="mt-4 flex flex-col justify-between gap-3 rounded-[16px] border border-dashed border-[#0b6954]/40 bg-[#eff9f5]/60 p-4 sm:flex-row sm:items-center">
-        <div className="flex items-center gap-3 text-right">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#0b6954]/10 text-[#0b6954]">
-            {uploadedDocsCount > 0 ? (
-              <FileCheck2 className="size-4" />
-            ) : (
-              <UploadCloud className="size-4" />
-            )}
-          </span>
-          <div>
-            <p className="text-xs font-extrabold text-[#0a1122]">
-              مستندات الوحدة (العقد، الإيصالات، كشف الحساب)
-            </p>
-            <p className="mt-0.5 text-[11px] text-slate-500">
-              {uploadedDocsCount > 0
-                ? `تم رفع ${uploadedDocsCount} من 4 مستندات لهذه الوحدة`
-                : 'ارفع مستنداتك لتسريع مراجعة العقد وإجراءات النقل'}
-            </p>
-          </div>
-        </div>
-        <Link
-          href={`/account/documents?unitId=${activeUnit.id}`}
-          className="inline-flex h-9 shrink-0 items-center justify-center rounded-xl bg-white px-4 text-xs font-bold text-[#0b6954] shadow-2xs ring-1 ring-[#0b6954]/20 transition hover:bg-[#0b6954] hover:text-white"
-        >
-          {uploadedDocsCount > 0
-            ? `مستنداتك (${uploadedDocsCount} ✓)`
-            : 'ارفع المستندات'}
-        </Link>
-      </div>
-
-      {/* 7. قائمة وحداتي المختصرة */}
-      <section className="mt-8">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-extrabold text-[#0a1122] sm:text-base">
-            وحداتي المسجلة ({localSells.length})
-          </h2>
-          <Link
-            href="/sell?new=1"
-            className="inline-flex h-9 items-center justify-center rounded-xl bg-[#0a1122] px-4 text-xs font-bold text-white transition hover:bg-[#16223f]"
-          >
-            + ضيف وحدة تانية
-          </Link>
-        </div>
-
-        <div className="mt-3 flex flex-col gap-2.5">
-          {visibleUnitsInList.map((item) => {
-            const itemComp = calculateUnitCompletion(item)
-            const itemComplete = itemComp.percentage === 100
-            const itemMeta = getSellerTimelineAndStatus(item, itemComplete)
-            const isSelected = item.id === activeUnit.id
-            const itemMatchedBuyers = matchedBuyersCountMap[item.id] ?? 0
-
-            return (
-              <div
-                key={item.id}
-                onClick={() => {
-                  setSelectedId(item.id)
-                  setActionMessage('')
-                  window.scrollTo({ top: 0, behavior: 'smooth' })
-                }}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') setSelectedId(item.id)
-                }}
-                className={`flex cursor-pointer items-center justify-between rounded-[16px] border bg-white px-4 py-3.5 text-right transition sm:px-5 sm:py-4 ${
-                  isSelected
-                    ? 'border-[#0b6954] ring-2 ring-[#0b6954]/15'
-                    : 'border-gray-200/80 hover:border-gray-300'
-                }`}
-              >
-                <div>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <p className="text-xs font-extrabold text-[#0a1122] sm:text-sm">
-                      {item.project_name || 'وحدة سكنية'}{' '}
-                      <span className="font-normal text-gray-500">
-                        · {item.area || 'القاهرة الجديدة'}
-                      </span>
-                    </p>
-                    {isSelected && (
-                      <span className="rounded-md bg-[#0a1122] px-2 py-0.5 text-[10px] font-bold text-white">
-                        مفتوحة أمامك ✓
-                      </span>
-                    )}
-                    {item.is_featured && (
-                      <span className="inline-flex items-center gap-0.5 rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
-                        <Star className="size-2.5 fill-amber-400 text-amber-500" />
-                        مميزة
-                      </span>
-                    )}
-                    {itemMatchedBuyers > 0 && (
-                      <span className="rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700">
-                        {itemMatchedBuyers} مشتري مطابق
-                      </span>
-                    )}
-                  </div>
-                  <p className="mt-1 text-[11px] text-gray-500">
-                    {itemMeta.unitSubtext}
-                  </p>
-                </div>
-
-                <div className="flex shrink-0 items-center gap-2">
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${itemMeta.marketBadgeCls}`}
-                  >
-                    {itemMeta.marketBadge}
-                  </span>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-
-        {localSells.length > 2 && (
-          <div className="mt-3 text-center">
-            <button
-              type="button"
-              onClick={() => setShowAllUnitsList((prev) => !prev)}
-              className="text-xs font-extrabold text-[#0b6954] hover:underline"
-            >
-              {showAllUnitsList
-                ? 'عرض آخر وحدتين فقط ↑'
-                : `عرض كل وحداتي (${localSells.length} وحدات) ↓`}
-            </button>
-          </div>
-        )}
-      </section>
-
-      {/* 8. أزرار الحساب في الأسفل متوسطة بدون زر تسجيل الخروج */}
+      {/* ==================== 7. روابط الحساب السفلية (بياناتي + حذف الحساب) ==================== */}
       <div className="mt-8 flex justify-center border-t border-gray-200/80 pt-6 [&>*]:justify-center [&_div]:justify-center [&_form]:hidden">
         <AccountActionLinks
           unitsCount={localSells.length}
@@ -1080,7 +819,7 @@ export function SellerDashboard({
         />
       </div>
 
-      {/* 9. نافذة التأكيد الموحدة لجميع أزرار لوحة البائع */}
+      {/* ==================== 8. نافذة التأكيد الموحدة ==================== */}
       <Dialog
         open={Boolean(confirmModal)}
         onOpenChange={(open) => {
@@ -1102,7 +841,7 @@ export function SellerDashboard({
                         ? 'bg-red-100 text-red-600'
                         : confirmModal.type === 'pause'
                           ? 'bg-amber-100 text-amber-700'
-                          : 'bg-emerald-100 text-[#0b6954]'
+                          : 'bg-emerald-100 text-[var(--brand-primary,#007a5a)]'
                     }`}
                   >
                     {confirmModal.type === 'delete' ? (
@@ -1113,74 +852,37 @@ export function SellerDashboard({
                       <ShieldAlert className="size-4" />
                     )}
                   </span>
-                  <DialogTitle className="text-sm font-extrabold text-[#0a1122] sm:text-base">
-                    {confirmModal.type === 'pause' &&
-                      'تأكيد إيقاف عرض الوحدة مؤقتاً'}
-                    {confirmModal.type === 'resume' &&
-                      'تأكيد إعادة عرض الوحدة في السوق'}
-                    {confirmModal.type === 'delete' &&
-                      'تأكيد حذف الوحدة نهائياً'}
+                  <DialogTitle className="text-sm font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-base">
+                    {confirmModal.type === 'pause' && t.modalPauseTitle}
+                    {confirmModal.type === 'resume' && t.modalResumeTitle}
+                    {confirmModal.type === 'delete' && t.modalDeleteTitle}
                     {confirmModal.type === 'promote' &&
-                      `تأكيد باقة التمييز (${confirmModal.pkg.label})`}
+                      `${t.modalPromoteTitle} (${confirmModal.pkg.label})`}
                     {confirmModal.type === 'cancel_promo' &&
-                      'تأكيد حذف وإلغاء طلب التمييز'}
+                      t.modalCancelPromoTitle}
                   </DialogTitle>
                 </div>
 
                 <DialogDescription className="text-right text-xs leading-relaxed text-gray-600">
-                  {confirmModal.type === 'pause' && (
-                    <>
-                      هل تريد إيقاف عرض وحدة{' '}
-                      <strong className="text-[#0a1122]">
-                        "{activeUnit.project_name || 'وحدتك'}"
-                      </strong>{' '}
-                      مؤقتاً؟ ستختفي الوحدة من صفحة الفرص العامة ولن يراها
-                      المشترون حتى تعيد تفعيلها.
-                    </>
-                  )}
-                  {confirmModal.type === 'resume' && (
-                    <>
-                      هل تريد إعادة عرض وحدة{' '}
-                      <strong className="text-[#0a1122]">
-                        "{activeUnit.project_name || 'وحدتك'}"
-                      </strong>{' '}
-                      في السوق؟ سيقوم فريق الإدارة بمراجعتها ونشرها أمام
-                      المشترين.
-                    </>
-                  )}
-                  {confirmModal.type === 'delete' && (
-                    <>
-                      هل أنت متأكد من حذف وحدة{' '}
-                      <strong className="text-red-600">
-                        "{activeUnit.project_name || 'وحدتك'}"
-                      </strong>{' '}
-                      من حسابك؟
-                    </>
-                  )}
+                  {confirmModal.type === 'pause' && t.modalPauseDesc}
+                  {confirmModal.type === 'resume' && t.modalResumeDesc}
+                  {confirmModal.type === 'delete' && t.modalDeleteDesc}
                   {confirmModal.type === 'promote' && (
                     <>
-                      سيتم تسجيل طلب تمييز لوحدتك لمدة{' '}
-                      <strong className="text-[#0a1122]">
+                      {t.modalPromoteDescPrefix}{' '}
+                      <strong className="text-[var(--brand-navy,#0a1122)]">
                         {confirmModal.pkg.label}
                       </strong>{' '}
-                      بتكلفة{' '}
-                      <strong className="text-[#0b6954]">
+                      {t.modalPromoteDescMiddle}{' '}
+                      <strong className="text-[var(--brand-primary,#007a5a)]">
                         {confirmModal.pkg.price.toLocaleString('en-US')}{' '}
                         {currencySymbol}
                       </strong>{' '}
-                      وإصدار رقم طلب الإعلان للتواصل مع الإدارة وتفعيله.
+                      {t.modalPromoteDescSuffix}
                     </>
                   )}
-                  {confirmModal.type === 'cancel_promo' && (
-                    <>
-                      هل أنت متأكد من حذف طلب الإعلان وإيقاف ميزة النجمة الذهبية
-                      لوحدة{' '}
-                      <strong className="text-red-600">
-                        "{activeUnit.project_name || 'وحدتك'}"
-                      </strong>
-                      ؟ ستظل وحدتك معروضة بشكل مجاني عادي.
-                    </>
-                  )}
+                  {confirmModal.type === 'cancel_promo' &&
+                    t.modalCancelPromoDesc}
                 </DialogDescription>
               </DialogHeader>
 
@@ -1192,7 +894,7 @@ export function SellerDashboard({
                   onClick={() => setConfirmModal(null)}
                   className="h-9 flex-1 rounded-xl text-xs font-bold"
                 >
-                  تراجع
+                  {t.modalBackBtn}
                 </Button>
                 <Button
                   type="button"
@@ -1204,16 +906,16 @@ export function SellerDashboard({
                       ? 'bg-red-600 hover:bg-red-700'
                       : confirmModal.type === 'pause'
                         ? 'bg-amber-600 hover:bg-amber-700'
-                        : 'bg-[#0b6954] hover:bg-[#095443]'
+                        : 'bg-[var(--brand-primary,#007a5a)] hover:bg-[var(--brand-primary-hover,#006248)]'
                   }`}
                 >
                   {isPending ? (
                     <span className="flex items-center justify-center gap-1.5">
                       <Loader2 className="size-3.5 animate-spin" />
-                      جاري التنفيذ...
+                      {t.modalProcessingBtn}
                     </span>
                   ) : (
-                    'نعم، تأكيد'
+                    t.modalConfirmBtn
                   )}
                 </Button>
               </DialogFooter>
@@ -1225,6 +927,228 @@ export function SellerDashboard({
   )
 }
 
+function SellerPromoSection({
+  activeUnit,
+  isPromoCollapsed,
+  setIsPromoCollapsed,
+  isCurrentlyFeatured,
+  isPendingPromo,
+  remainingFeaturedDays,
+  activePromoDays,
+  activePromoPrice,
+  currentAdRef,
+  copiedAdRef,
+  setCopiedAdRef,
+  dynamicPackages,
+  currencySymbol,
+  isPending,
+  onSelectPackage,
+  onCancelPromo,
+}: {
+  activeUnit: SellerUnitItem
+  isPromoCollapsed: boolean
+  setIsPromoCollapsed: (v: boolean) => void
+  isCurrentlyFeatured: boolean
+  isPendingPromo: boolean
+  remainingFeaturedDays: number
+  activePromoDays: 7 | 14 | 30
+  activePromoPrice: number
+  currentAdRef: string | null
+  copiedAdRef: boolean
+  setCopiedAdRef: (v: boolean) => void
+  dynamicPackages: Array<{ days: 7 | 14 | 30; price: number; label: string }>
+  currencySymbol: string
+  isPending: boolean
+  onSelectPackage: (pkg: {
+    days: 7 | 14 | 30
+    price: number
+    label: string
+  }) => void
+  onCancelPromo: () => void
+}) {
+  if (isPromoCollapsed) {
+    return (
+      <div className="mt-5 flex items-center justify-between rounded-2xl border border-[#aae3cb] bg-[#effaf5] px-4 py-3.5 shadow-2xs">
+        <div className="flex items-center gap-2 text-right">
+          <Star className="size-4 shrink-0 fill-amber-400 text-amber-500" />
+          <span className="text-xs font-extrabold text-[var(--brand-navy,#0a1122)]">
+            {t.promoCollapsedTitle}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={() => setIsPromoCollapsed(false)}
+          className="shrink-0 rounded-xl bg-[var(--brand-primary,#007a5a)] px-3.5 py-2 text-xs font-extrabold text-white transition hover:bg-[var(--brand-primary-hover,#006248)]"
+        >
+          {t.promoCollapsedBtn}
+        </button>
+      </div>
+    )
+  }
+
+  const whatsappMessage = `${t.whatsappPromoMsgPrefix} (${activePromoDays} ${t.daysWord} - ${activePromoPrice.toLocaleString('en-US')} ${currencySymbol}) ${t.whatsappPromoMsgMiddle} (${activeUnit.project_name || t.defaultProjectName}) — ${t.whatsappPromoMsgRef} ${currentAdRef}`
+
+  return (
+    <section className="mt-5 rounded-[20px] border border-[#aae3cb] bg-[#effaf5] p-5 text-right shadow-xs sm:p-6">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1 text-xs font-extrabold text-[var(--brand-primary,#007a5a)] shadow-2xs">
+            <Star className="size-3.5 fill-amber-400 text-amber-500" />
+            <span>{t.promoOptionalBadge}</span>
+          </span>
+
+          {isCurrentlyFeatured && (
+            <span className="rounded-full bg-amber-100 px-3 py-1 text-[11px] font-extrabold text-amber-800">
+              {t.promoActiveBadgePrefix} {remainingFeaturedDays} {t.dayWord})
+            </span>
+          )}
+
+          {isPendingPromo && (
+            <span className="rounded-full bg-blue-100 px-3 py-1 text-[11px] font-extrabold text-blue-800">
+              {t.promoPendingBadgePrefix} ({activePromoDays} {t.daysWord})
+            </span>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setIsPromoCollapsed(true)}
+          className="inline-flex items-center gap-1 rounded-lg bg-white/80 px-2.5 py-1 text-[11px] font-bold text-gray-500 transition hover:bg-white hover:text-gray-800"
+        >
+          <EyeOff className="size-3.5" />
+          <span>{t.hidePromoBtn}</span>
+        </button>
+      </div>
+
+      <h3 className="mt-3 text-base font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-lg">
+        {t.promoMainTitle}
+      </h3>
+
+      <ul className="mt-2.5 space-y-2 text-xs font-medium text-[#1e3a34]">
+        <li className="flex items-center gap-2">
+          <Check className="size-3.5 shrink-0 text-[var(--brand-primary,#007a5a)]" />
+          <span>{t.promoPoint1}</span>
+        </li>
+        <li className="flex items-center gap-2">
+          <Check className="size-3.5 shrink-0 text-[var(--brand-primary,#007a5a)]" />
+          <span>{t.promoPoint2}</span>
+        </li>
+        <li className="flex items-center gap-2">
+          <Check className="size-3.5 shrink-0 text-[var(--brand-primary,#007a5a)]" />
+          <span>{t.promoPoint3}</span>
+        </li>
+      </ul>
+
+      <div className="mt-4 mb-2.5 flex items-center gap-1.5 text-xs font-extrabold text-[var(--brand-primary,#007a5a)]">
+        <MousePointerClick className="size-4" />
+        <span>
+          {isCurrentlyFeatured || isPendingPromo
+            ? t.promoClickHintActive
+            : t.promoClickHintNew}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2.5 sm:gap-3.5">
+        {dynamicPackages.map((pkg) => {
+          const isSelected =
+            (isCurrentlyFeatured || isPendingPromo) &&
+            activePromoDays === pkg.days
+          return (
+            <button
+              key={pkg.days}
+              type="button"
+              disabled={isPending}
+              onClick={() => onSelectPackage(pkg)}
+              className={`group flex cursor-pointer flex-col items-center justify-between rounded-2xl border bg-white p-3 text-center transition-all hover:shadow-md sm:p-4 ${
+                isSelected
+                  ? 'border-[var(--brand-primary,#007a5a)] ring-2 ring-[var(--brand-primary,#007a5a)]/25'
+                  : 'border-gray-200 hover:border-[var(--brand-primary,#007a5a)]'
+              }`}
+            >
+              <span className="text-xs font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-sm">
+                {pkg.label}
+              </span>
+              <span className="my-1.5 text-xs font-black text-[var(--brand-primary,#007a5a)] tabular-nums sm:text-base">
+                {pkg.price.toLocaleString('en-US')} {currencySymbol}
+              </span>
+              <span
+                className={`w-full rounded-lg py-1 text-[10px] font-extrabold transition sm:text-[11px] ${
+                  isSelected
+                    ? 'bg-[var(--brand-primary,#007a5a)] text-white'
+                    : 'bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)] group-hover:bg-[var(--brand-primary,#007a5a)] group-hover:text-white'
+                }`}
+              >
+                {isSelected ? t.currentPkgBtn : t.choosePkgBtn}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+
+      <p className="mt-3.5 text-[11px] leading-relaxed text-[#2b584d]">
+        {t.promoFreeNote}
+      </p>
+
+      {(isCurrentlyFeatured || isPendingPromo) && currentAdRef && (
+        <div className="mt-4 rounded-xl border border-[var(--brand-primary,#007a5a)]/30 bg-white p-4 text-right shadow-2xs">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-xs font-extrabold text-[var(--brand-navy,#0a1122)]">
+                {t.adOrderCodeTitle} ({activePromoDays} {t.daysWord} —{' '}
+                {activePromoPrice.toLocaleString('en-US')} {currencySymbol}):
+              </p>
+              <p className="mt-1 font-mono text-lg font-black tracking-wider text-[var(--brand-primary,#007a5a)]">
+                {currentAdRef}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard?.writeText(currentAdRef)
+                setCopiedAdRef(true)
+                setTimeout(() => setCopiedAdRef(false), 2000)
+              }}
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-gray-200 bg-gray-50 px-3 text-xs font-bold text-[var(--brand-navy,#0a1122)] hover:bg-gray-100"
+            >
+              <Copy className="size-3.5" />
+              <span>{copiedAdRef ? t.copiedBtn : t.copyRefBtn}</span>
+            </button>
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3">
+            {!isCurrentlyFeatured && (
+              <a
+                href={`https://wa.me/201018595959?text=${encodeURIComponent(whatsappMessage)}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 text-xs font-extrabold text-white shadow-2xs transition hover:opacity-95"
+              >
+                <MessageCircle className="size-4" />
+                <span>{t.whatsappActivateBtn}</span>
+              </a>
+            )}
+
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={onCancelPromo}
+              className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3.5 text-xs font-extrabold text-red-600 transition hover:bg-red-100"
+            >
+              <XCircle className="size-3.5" />
+              <span>
+                {isCurrentlyFeatured
+                  ? t.cancelActivePromoBtn
+                  : t.cancelPendingPromoBtn}
+              </span>
+            </button>
+          </div>
+        </div>
+      )}
+    </section>
+  )
+}
+
 function Timeline({
   currentStepIndex,
   isRejected,
@@ -1232,16 +1156,7 @@ function Timeline({
   currentStepIndex: number
   isRejected?: boolean
 }) {
-  const stepTitles = [
-    'بدأنا طلبك',
-    'بيانات وحدتك وصورها',
-    'بنراجع وننشر وحدتك',
-    'معروضة في السوق',
-    'بندور على المشتري المناسب',
-    'عندك عرض',
-    'نقل التعاقد (بنراجع المستندات)',
-    'تمت العملية',
-  ]
+  const stepTitles = t.timelineSteps
 
   return (
     <ol className="relative flex flex-col items-start">
@@ -1262,18 +1177,20 @@ function Timeline({
             {!isLast && (
               <span
                 className={`absolute top-6 right-[11px] h-full w-[1.5px] ${
-                  status === 'done' ? 'bg-[#0b6954]' : 'bg-gray-200'
+                  status === 'done'
+                    ? 'bg-[var(--brand-primary,#007a5a)]'
+                    : 'bg-gray-200'
                 }`}
               />
             )}
             <span
               className={`relative z-10 flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
                 status === 'done'
-                  ? 'bg-[#0b6954] text-white'
+                  ? 'bg-[var(--brand-primary,#007a5a)] text-white'
                   : status === 'current'
                     ? isRejected
                       ? 'bg-red-600 text-white'
-                      : 'bg-[#0a1122] text-white'
+                      : 'bg-[var(--brand-navy,#0a1122)] text-white'
                     : 'bg-gray-100 text-gray-400'
               }`}
             >
@@ -1288,7 +1205,7 @@ function Timeline({
                 status === 'current'
                   ? isRejected
                     ? 'font-extrabold text-red-600'
-                    : 'font-extrabold text-[#0a1122]'
+                    : 'font-extrabold text-[var(--brand-navy,#0a1122)]'
                   : status === 'done'
                     ? 'font-medium text-gray-600'
                     : 'font-normal text-gray-400'

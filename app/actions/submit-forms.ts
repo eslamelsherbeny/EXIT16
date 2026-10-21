@@ -1346,47 +1346,67 @@ export async function submitInvestorLead(formData: FormData) {
       return { success: false, error: 'يرجى إدخال الاسم ورقم الهاتف.' }
     }
 
-    const fullPayload: Record<string, any> = {
+    const finalRange =
+      investment_range ||
+      (exact_amount > 0 ? `$${exact_amount.toLocaleString('en-US')}` : '')
+    const finalSectors =
+      sectors.length > 0 ? sectors : [investor_type].filter(Boolean)
+
+    const leadPayload: Record<string, any> = {
       name,
       phone,
-      email,
-      company,
+      email: email || null,
+      company: company || null,
       country,
-      investor_type,
-      years_experience,
-      investment_range:
-        investment_range ||
-        (exact_amount > 0 ? `$${exact_amount.toLocaleString('en-US')}` : ''),
+      investor_type: investor_type || null,
+      years_experience: years_experience || null,
+      preferred_sectors: finalSectors,
+      investment_range: finalRange,
       exact_amount,
-      preferred_structure,
-      holding_period,
-      participation_level,
-      target_roi,
-      sectors: sectors.length > 0 ? sectors : [investor_type].filter(Boolean),
+      preferred_structure: preferred_structure || null,
+      holding_period: holding_period || null,
+      participation_level: participation_level || null,
+      target_roi: target_roi || null,
       signature_name,
-      notes,
+      notes: notes || null,
       status: 'new',
     }
 
-    let { error } = await supabase.from('investor_requests').insert(fullPayload)
+    // 1. الحفظ في جدول investor_leads الذي تقرأ منه لوحة الأدمن
+    let { error } = await supabase.from('investor_leads').insert(leadPayload)
 
-    // Fallback آمن في حال لم يتم تشغيل سكريبت الأعمدة الإضافية بعد
+    // Fallback في حال كان الجدول بدون الأعمدة الإضافية
     if (error) {
-      const basicPayload = {
+      const basicLead = {
         name,
         phone,
-        email,
+        email: email || null,
+        investor_type: investor_type || null,
+        preferred_sectors: finalSectors,
+        investment_range: finalRange,
+        preferred_structure: preferred_structure || null,
+        participation_level: participation_level || null,
+        status: 'new',
+      }
+      const retry = await supabase.from('investor_leads').insert(basicLead)
+      error = retry.error
+    }
+
+    // 2. الحفظ أيضاً في investor_requests إن وجد لضمان عدم ضياع أي سجل
+    if (error) {
+      const fallbackTable = await supabase.from('investor_requests').insert({
+        name,
+        phone,
+        email: email || null,
         investor_type,
-        years_experience,
-        investment_range: fullPayload.investment_range,
+        investment_range: finalRange,
         preferred_structure,
         participation_level,
         target_roi,
         signature_name,
         status: 'new',
-      }
-      const retry = await supabase.from('investor_requests').insert(basicPayload)
-      error = retry.error
+      })
+      error = fallbackTable.error
     }
 
     if (error) {
@@ -1397,17 +1417,20 @@ export async function submitInvestorLead(formData: FormData) {
       }
     }
 
-    // إرسال إشعار فوري للأدمن في لوحة الإدارة
+    // 3. إرسال إشعار فوري للأدمن (user_id: null لكي يظهر في جرس الهيدر للأدمن)
     try {
       await supabase.from('notifications').insert({
-        recipient_role: 'admin',
-        title: `💼 طلب مستثمر جديد: ${name}`,
-        message: `سجل المستثمر (${name}) إبداء اهتمام بنطاق استثمار (${fullPayload.investment_range || 'غير محدد'}) — اضغط للمراجعة والتواصل.`,
+        user_id: null,
+        type: 'investor',
+        title: `💼 طلب مستثمر جديد (${country}): ${name}`,
+        message: `${investor_type || 'مستثمر'} · نطاق الاستثمار: ${finalRange || 'غير محدد'}`,
         link: '/admin/investors',
         is_read: false,
       })
     } catch {}
 
+    revalidatePath('/admin/investors')
+    revalidatePath('/admin', 'layout')
     return { success: true }
   } catch (err) {
     console.error('Unexpected error in submitInvestorLead:', err)

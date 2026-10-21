@@ -3,12 +3,12 @@
 import { Moon, Sun } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
-import arDict from '@/dictionaries/ar.json'
-
-const c = arDict.authPages.common
+import { useTranslation } from '@/lib/i18n'
 
 export function ThemeToggle({ className = '' }: { className?: string }) {
   const { resolvedTheme, setTheme } = useTheme()
+  const { t: dict } = useTranslation()
+  const c = dict.authPages.common
   const dark = resolvedTheme === 'dark'
 
   return (

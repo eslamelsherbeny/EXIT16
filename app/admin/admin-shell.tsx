@@ -7,11 +7,15 @@ import {
   ArrowLeft,
   Bell,
   Building2,
+  Check,
   CheckCircle2,
+  ChevronDown,
   Clock,
   ExternalLink,
   FileText,
+  Globe,
   LayoutDashboard,
+  Loader2,
   LogOut,
   Menu,
   Settings,
@@ -28,6 +32,10 @@ import {
   markAllNotificationsAsReadAction,
   markNotificationAsReadAction,
 } from "@/app/actions/notification-actions"
+import { SUPPORTED_LANGUAGES, type LanguageConfig } from "@/components/site-shell"
+import { useTranslation, type LocaleCode } from "@/lib/i18n"
+
+export type StaffRole = "ADMIN" | "MODERATOR" | "SALES"
 
 export type AdminNotificationItem = {
   id: string
@@ -39,59 +47,176 @@ export type AdminNotificationItem = {
   createdAt: string
 }
 
-const ADMIN_NAV_LINKS = [
+const SHELL_I18N: Record<
+  LocaleCode,
   {
-    href: "/admin",
-    label: "الرئيسية",
-    shortLabel: "الرئيسية",
-    icon: LayoutDashboard,
+    brand: string
+    adminPanel: string
+    welcome: string
+    myProfile: string
+    publicSite: string
+    logout: string
+    notifications: string
+    clearAll: string
+    noNotifications: string
+    view: string
+    deleteNotif: string
+    languageLabel: string
+    roles: Record<StaffRole, string>
+    nav: {
+      dashboard: string
+      properties: string
+      propertiesShort: string
+      promotions: string
+      promotionsShort: string
+      leads: string
+      leadsShort: string
+      users: string
+      usersShort: string
+      investors: string
+      investorsShort: string
+      settings: string
+      settingsShort: string
+    }
+  }
+> = {
+  ar: {
+    brand: "دارك",
+    adminPanel: "لوحة الإدارة",
+    welcome: "أهلاً،",
+    myProfile: "حسابي",
+    publicSite: "الموقع العام",
+    logout: "تسجيل الخروج",
+    notifications: "الإشعارات",
+    clearAll: "مسح الكل",
+    noNotifications: "لا توجد إشعارات جديدة",
+    view: "عرض",
+    deleteNotif: "حذف الإشعار",
+    languageLabel: "اللغة",
+    roles: {
+      ADMIN: "مدير نظام",
+      MODERATOR: "مشرف عقارات",
+      SALES: "مبيعات وتواصل",
+    },
+    nav: {
+      dashboard: "الرئيسية",
+      properties: "طلبات البيع",
+      propertiesShort: "العقارات",
+      promotions: "طلبات الإعلان ⭐",
+      promotionsShort: "الإعلانات",
+      leads: "طلبات الشراء",
+      leadsShort: "المشترين",
+      users: "المستخدمين والصلاحيات",
+      usersShort: "المستخدمين",
+      investors: "المستثمرين",
+      investorsShort: "المستثمرين",
+      settings: "إعدادات الموقع",
+      settingsShort: "الإعدادات",
+    },
   },
-  {
-    href: "/admin/properties",
-    label: "طلبات البيع",
-    shortLabel: "العقارات",
-    icon: Building2,
+  en: {
+    brand: "Darak",
+    adminPanel: "Admin Panel",
+    welcome: "Hi,",
+    myProfile: "My Profile",
+    publicSite: "Public Site",
+    logout: "Log Out",
+    notifications: "Notifications",
+    clearAll: "Clear All",
+    noNotifications: "No new notifications",
+    view: "View",
+    deleteNotif: "Delete notification",
+    languageLabel: "Language",
+    roles: {
+      ADMIN: "Super Admin",
+      MODERATOR: "Moderator",
+      SALES: "Sales Agent",
+    },
+    nav: {
+      dashboard: "Dashboard",
+      properties: "Sell Requests",
+      propertiesShort: "Properties",
+      promotions: "Featured Ads ⭐",
+      promotionsShort: "Promos",
+      leads: "Buyer Leads",
+      leadsShort: "Buyers",
+      users: "Users & Roles",
+      usersShort: "Users",
+      investors: "Investors",
+      investorsShort: "Investors",
+      settings: "Site Settings",
+      settingsShort: "Settings",
+    },
   },
-  {
-    href: "/admin/promotions",
-    label: "طلبات الإعلان ⭐",
-    shortLabel: "الإعلانات",
-    icon: Star,
+  ru: {
+    brand: "Darak",
+    adminPanel: "Панель управления",
+    welcome: "Привет,",
+    myProfile: "Профиль",
+    publicSite: "Сайт",
+    logout: "Выйти",
+    notifications: "Уведомления",
+    clearAll: "Очистить",
+    noNotifications: "Нет новых уведомлений",
+    view: "Открыть",
+    deleteNotif: "Удалить",
+    languageLabel: "Язык",
+    roles: {
+      ADMIN: "Админ",
+      MODERATOR: "Модератор",
+      SALES: "Отдел продаж",
+    },
+    nav: {
+      dashboard: "Главная",
+      properties: "Объекты",
+      propertiesShort: "Объекты",
+      promotions: "Промо ⭐",
+      promotionsShort: "Промо",
+      leads: "Покупатели",
+      leadsShort: "Заявки",
+      users: "Пользователи и роли",
+      usersShort: "Роли",
+      investors: "Инвесторы",
+      investorsShort: "Инвесторы",
+      settings: "Настройки",
+      settingsShort: "Настройки",
+    },
   },
-  {
-    href: "/admin/leads",
-    label: "طلبات الشراء",
-    shortLabel: "المشترين",
-    icon: FileText,
+  ka: {
+    brand: "Darak",
+    adminPanel: "ადმინ პანელი",
+    welcome: "გამარჯობა,",
+    myProfile: "პროფილი",
+    publicSite: "საიტი",
+    logout: "გასვლა",
+    notifications: "შეტყობინებები",
+    clearAll: "გასუფთავება",
+    noNotifications: "ახალი შეტყობინებები არ არის",
+    view: "ნახვა",
+    deleteNotif: "წაშლა",
+    languageLabel: "ენა",
+    roles: {
+      ADMIN: "ადმინი",
+      MODERATOR: "მოდერატორი",
+      SALES: "გაყიდვები",
+    },
+    nav: {
+      dashboard: "მთავარი",
+      properties: "ობიექტები",
+      propertiesShort: "ობიექტები",
+      promotions: "რეკლამა ⭐",
+      promotionsShort: "რეკლამა",
+      leads: "მყიდველები",
+      leadsShort: "მყიდველები",
+      users: "მომხმარებლები",
+      usersShort: "როლები",
+      investors: "ინვესტორები",
+      investorsShort: "ინვესტ.",
+      settings: "პარამეტრები",
+      settingsShort: "პარამ.",
+    },
   },
-  {
-    href: "/admin/users",
-    label: "المستخدمين والصلاحيات",
-    shortLabel: "المستخدمين",
-    icon: Users,
-  },
-  {
-    href: "/admin/investors",
-    label: "المستثمرين",
-    shortLabel: "المستثمرين",
-    icon: WalletCards,
-  },
-  {
-    href: "/admin/settings",
-    label: "إعدادات الموقع",
-    shortLabel: "الإعدادات",
-    icon: Settings,
-  },
-]
-
-// شريط الموبايل السفلي: الرئيسية، العقارات، المشترين، المستخدمين، الإعدادات
-const MOBILE_BOTTOM_LINKS = [
-  ADMIN_NAV_LINKS[0],
-  ADMIN_NAV_LINKS[1],
-  ADMIN_NAV_LINKS[3],
-  ADMIN_NAV_LINKS[4],
-  ADMIN_NAV_LINKS[6],
-]
+}
 
 export default function AdminShell({
   adminName,
@@ -101,23 +226,88 @@ export default function AdminShell({
   children,
 }: {
   adminName: string
-  adminRole: string
+  adminRole: StaffRole
   notifications?: AdminNotificationItem[]
   initialUnreadCount?: number
   children: React.ReactNode
 }) {
   const router = useRouter()
   const pathname = usePathname()
+  const { locale, dir, isRtl } = useTranslation()
+  const t = SHELL_I18N[locale] || SHELL_I18N.ar
 
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
+  const [langMenuOpen, setLangMenuOpen] = useState(false)
   const [localNotifs, setLocalNotifs] =
     useState<AdminNotificationItem[]>(notifications)
   const [unreadCount, setUnreadCount] = useState<number>(initialUnreadCount)
+  const [isSwitchingLang, startLangTransition] = useTransition()
   const [, startTransition] = useTransition()
-  const notifRef = useRef<HTMLDivElement>(null)
 
-  const firstName = adminName.trim().split(/\s+/)[0] || "مدير"
+  const notifRef = useRef<HTMLDivElement>(null)
+  const langRef = useRef<HTMLDivElement>(null)
+
+  const firstName = adminName.trim().split(/\s+/)[0] || "Admin"
+
+  // تحديد الروابط المسموحة لكل دور وظيفي
+  const allNavLinks = [
+    {
+      href: "/admin",
+      label: t.nav.dashboard,
+      shortLabel: t.nav.dashboard,
+      icon: LayoutDashboard,
+      allowed: ["ADMIN", "MODERATOR", "SALES"] as StaffRole[],
+    },
+    {
+      href: "/admin/properties",
+      label: t.nav.properties,
+      shortLabel: t.nav.propertiesShort,
+      icon: Building2,
+      allowed: ["ADMIN", "MODERATOR", "SALES"] as StaffRole[],
+    },
+    {
+      href: "/admin/promotions",
+      label: t.nav.promotions,
+      shortLabel: t.nav.promotionsShort,
+      icon: Star,
+      allowed: ["ADMIN", "MODERATOR"] as StaffRole[],
+    },
+    {
+      href: "/admin/leads",
+      label: t.nav.leads,
+      shortLabel: t.nav.leadsShort,
+      icon: FileText,
+      allowed: ["ADMIN", "MODERATOR", "SALES"] as StaffRole[],
+    },
+    {
+      href: "/admin/users",
+      label: t.nav.users,
+      shortLabel: t.nav.usersShort,
+      icon: Users,
+      allowed: ["ADMIN"] as StaffRole[],
+    },
+    {
+      href: "/admin/investors",
+      label: t.nav.investors,
+      shortLabel: t.nav.investorsShort,
+      icon: WalletCards,
+      allowed: ["ADMIN", "MODERATOR"] as StaffRole[],
+    },
+    {
+      href: "/admin/settings",
+      label: t.nav.settings,
+      shortLabel: t.nav.settingsShort,
+      icon: Settings,
+      allowed: ["ADMIN"] as StaffRole[],
+    },
+  ]
+
+  const visibleNavLinks = allNavLinks.filter((item) =>
+    item.allowed.includes(adminRole)
+  )
+
+  const mobileBottomLinks = visibleNavLinks.slice(0, 5)
 
   useEffect(() => {
     setLocalNotifs(notifications)
@@ -131,12 +321,17 @@ export default function AdminShell({
   useEffect(() => {
     setDrawerOpen(false)
     setNotifOpen(false)
+    setLangMenuOpen(false)
   }, [pathname])
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+      const target = e.target as Node
+      if (notifRef.current && !notifRef.current.contains(target)) {
         setNotifOpen(false)
+      }
+      if (langRef.current && !langRef.current.contains(target)) {
+        setLangMenuOpen(false)
       }
     }
     document.addEventListener("mousedown", handleClickOutside)
@@ -146,6 +341,22 @@ export default function AdminShell({
   const isActive = (href: string) => {
     if (href === "/admin") return pathname === "/admin"
     return pathname?.startsWith(href)
+  }
+
+  const handleSelectLanguage = (code: LocaleCode) => {
+    if (code === locale) {
+      setLangMenuOpen(false)
+      return
+    }
+    const targetLang = SUPPORTED_LANGUAGES[code]
+    setLangMenuOpen(false)
+    document.cookie = `locale=${code}; path=/; max-age=31536000; SameSite=Lax`
+    document.documentElement.lang = code
+    document.documentElement.dir = targetLang.dir
+    window.dispatchEvent(new Event("language-changed"))
+    startLangTransition(() => {
+      router.refresh()
+    })
   }
 
   const handleLogout = async () => {
@@ -159,6 +370,7 @@ export default function AdminShell({
   const handleToggleNotifications = () => {
     const nextOpen = !notifOpen
     setNotifOpen(nextOpen)
+    setLangMenuOpen(false)
 
     if (nextOpen && unreadCount > 0) {
       setUnreadCount(0)
@@ -213,30 +425,35 @@ export default function AdminShell({
   }
 
   const currentSection =
-    ADMIN_NAV_LINKS.find((item) => isActive(item.href))?.label || "لوحة الإدارة"
+    visibleNavLinks.find((item) => isActive(item.href))?.label || t.adminPanel
 
   return (
     <div
-      dir="rtl"
+      dir={dir}
       className="min-h-screen bg-[#f4f6f8] pb-20 text-[#0a1122] lg:pb-0"
     >
       {/* 1. القائمة الجانبية الثابتة للكمبيوتر */}
-      <aside className="fixed inset-y-0 right-0 z-30 hidden w-64 border-l border-white/10 bg-[#0a1122] text-white lg:flex lg:flex-col lg:justify-between">
+      <aside
+        className={`fixed inset-y-0 z-30 hidden w-64 border-white/10 bg-[#0a1122] text-white lg:flex lg:flex-col lg:justify-between ${
+          isRtl ? "right-0 border-l" : "left-0 border-r"
+        }`}
+      >
         <div>
           <div className="flex h-16 items-center gap-2.5 border-b border-white/10 px-6 text-lg font-extrabold">
             <span className="flex size-8 items-center justify-center rounded-lg bg-[#105C50] text-white">
               <Building2 className="size-4" />
             </span>
             <span>
-              دارك<span className="text-emerald-400">.</span>
+              {t.brand}
+              <span className="text-emerald-400">.</span>
             </span>
-            <span className="mr-auto rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
-              {adminRole}
+            <span className="ms-auto rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[10px] font-bold text-emerald-300">
+              {t.roles[adminRole]}
             </span>
           </div>
 
-          <nav aria-label="التنقل الإداري" className="flex flex-col gap-1 p-3.5">
-            {ADMIN_NAV_LINKS.map(({ href, label, icon: Icon }) => {
+          <nav className="flex flex-col gap-1 p-3.5">
+            {visibleNavLinks.map(({ href, label, icon: Icon }) => {
               const active = isActive(href)
               return (
                 <Link
@@ -261,11 +478,41 @@ export default function AdminShell({
         </div>
 
         <div className="space-y-1.5 border-t border-white/10 p-3.5">
+          {/* أزرار تغيير اللغة السريعة داخل القائمة الجانبية */}
+          <div className="mb-2 rounded-xl bg-white/5 p-2">
+            <div className="mb-1.5 flex items-center justify-between px-1 text-[10px] font-bold text-white/60">
+              <span className="flex items-center gap-1">
+                <Globe className="size-3 text-emerald-400" />
+                <span>{t.languageLabel}</span>
+              </span>
+              <span>{SUPPORTED_LANGUAGES[locale].nativeName}</span>
+            </div>
+            <div className="grid grid-cols-4 gap-1">
+              {(Object.values(SUPPORTED_LANGUAGES) as LanguageConfig[]).map(
+                (lang) => (
+                  <button
+                    key={lang.code}
+                    type="button"
+                    disabled={isSwitchingLang}
+                    onClick={() => handleSelectLanguage(lang.code)}
+                    className={`rounded-lg py-1 text-[10px] font-extrabold transition ${
+                      locale === lang.code
+                        ? "bg-[#105C50] text-white"
+                        : "bg-white/5 text-white/70 hover:bg-white/15 hover:text-white"
+                    }`}
+                  >
+                    {lang.shortCode}
+                  </button>
+                )
+              )}
+            </div>
+          </div>
+
           <Link
             href="/admin/profile"
             className="flex items-center justify-between rounded-xl bg-white/5 px-3.5 py-2.5 text-xs font-bold text-white/85 transition hover:bg-white/10 hover:text-white"
           >
-            <span>حسابي</span>
+            <span>{t.myProfile}</span>
             <User className="size-3.5 text-emerald-400" />
           </Link>
 
@@ -275,7 +522,7 @@ export default function AdminShell({
             rel="noopener noreferrer"
             className="flex items-center justify-between rounded-xl bg-white/5 px-3.5 py-2.5 text-xs font-bold text-white/80 transition hover:bg-white/10 hover:text-white"
           >
-            <span>الموقع العام</span>
+            <span>{t.publicSite}</span>
             <ExternalLink className="size-3.5 text-emerald-400" />
           </a>
 
@@ -284,7 +531,7 @@ export default function AdminShell({
             type="button"
             className="flex w-full items-center justify-between rounded-xl bg-red-500/10 px-3.5 py-2.5 text-xs font-bold text-red-400 transition hover:bg-red-500/20 hover:text-red-300"
           >
-            <span>تسجيل الخروج</span>
+            <span>{t.logout}</span>
             <LogOut className="size-3.5" />
           </button>
         </div>
@@ -298,7 +545,11 @@ export default function AdminShell({
             onClick={() => setDrawerOpen(false)}
           />
 
-          <aside className="fixed inset-y-0 right-0 z-50 flex w-[265px] max-w-[80vw] flex-col justify-between bg-[#0a1122] text-white shadow-2xl">
+          <aside
+            className={`fixed inset-y-0 z-50 flex w-[265px] max-w-[80vw] flex-col justify-between bg-[#0a1122] text-white shadow-2xl ${
+              isRtl ? "right-0" : "left-0"
+            }`}
+          >
             <div>
               <div className="flex h-14 items-center justify-between border-b border-white/10 px-4">
                 <div className="flex items-center gap-2 text-base font-extrabold">
@@ -306,7 +557,8 @@ export default function AdminShell({
                     <Building2 className="size-4" />
                   </span>
                   <span>
-                    دارك<span className="text-emerald-400">.</span>
+                    {t.brand}
+                    <span className="text-emerald-400">.</span>
                   </span>
                 </div>
 
@@ -320,7 +572,7 @@ export default function AdminShell({
               </div>
 
               <nav className="mt-3 flex flex-col gap-1 px-3">
-                {ADMIN_NAV_LINKS.map(({ href, label, icon: Icon }) => {
+                {visibleNavLinks.map(({ href, label, icon: Icon }) => {
                   const active = isActive(href)
                   return (
                     <Link
@@ -351,12 +603,34 @@ export default function AdminShell({
             </div>
 
             <div className="space-y-1.5 border-t border-white/10 p-3.5">
+              <div className="mb-2 grid grid-cols-4 gap-1 rounded-xl bg-white/5 p-1.5">
+                {(Object.values(SUPPORTED_LANGUAGES) as LanguageConfig[]).map(
+                  (lang) => (
+                    <button
+                      key={lang.code}
+                      type="button"
+                      onClick={() => {
+                        handleSelectLanguage(lang.code)
+                        setDrawerOpen(false)
+                      }}
+                      className={`rounded-lg py-1.5 text-[10px] font-extrabold ${
+                        locale === lang.code
+                          ? "bg-[#105C50] text-white"
+                          : "text-white/70"
+                      }`}
+                    >
+                      {lang.shortCode}
+                    </button>
+                  )
+                )}
+              </div>
+
               <Link
                 href="/admin/profile"
                 onClick={() => setDrawerOpen(false)}
                 className="flex items-center justify-between rounded-xl bg-white/5 px-3.5 py-2 text-xs font-bold text-white/85"
               >
-                <span>حسابي</span>
+                <span>{t.myProfile}</span>
                 <User className="size-3.5 text-emerald-400" />
               </Link>
 
@@ -367,7 +641,7 @@ export default function AdminShell({
                 onClick={() => setDrawerOpen(false)}
                 className="flex items-center justify-between rounded-xl bg-white/5 px-3.5 py-2 text-xs font-bold text-white/85"
               >
-                <span>الموقع العام</span>
+                <span>{t.publicSite}</span>
                 <ExternalLink className="size-3.5 text-emerald-400" />
               </a>
 
@@ -376,7 +650,7 @@ export default function AdminShell({
                 type="button"
                 className="flex w-full items-center justify-between rounded-xl bg-red-500/10 px-3.5 py-2 text-xs font-bold text-red-400"
               >
-                <span>تسجيل الخروج</span>
+                <span>{t.logout}</span>
                 <LogOut className="size-3.5" />
               </button>
             </div>
@@ -384,8 +658,8 @@ export default function AdminShell({
         </div>
       )}
 
-      {/* 3. الهيدر العلوي الرشيق */}
-      <div className="lg:mr-64">
+      {/* 3. الهيدر العلوي الرشيق (يضم زر اللغة + حسابي + جرس الإشعارات) */}
+      <div className={isRtl ? "lg:mr-64" : "lg:ml-64"}>
         <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-2 border-b border-gray-200/80 bg-white/95 px-3.5 backdrop-blur-md sm:h-16 sm:px-6">
           <div className="flex min-w-0 items-center gap-2.5">
             <button
@@ -402,17 +676,74 @@ export default function AdminShell({
               </h1>
               <span className="hidden text-xs text-gray-300 sm:inline">|</span>
               <span className="hidden text-xs font-semibold text-gray-500 sm:inline">
-                أهلاً، {firstName}
+                {t.welcome} {firstName}
+              </span>
+              <span className="hidden rounded-full bg-[#105C50]/10 px-2.5 py-0.5 text-[10px] font-extrabold text-[#105C50] md:inline-block">
+                {t.roles[adminRole]}
               </span>
             </div>
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
+            {/* زر تغيير اللغة في الهيدر العلوي للوحة الأدمن */}
+            <div className="relative" ref={langRef}>
+              <button
+                type="button"
+                disabled={isSwitchingLang}
+                onClick={() => {
+                  setLangMenuOpen(!langMenuOpen)
+                  setNotifOpen(false)
+                }}
+                dir="ltr"
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-2.5 text-xs font-bold text-[#0a1122] transition hover:border-[#105C50] hover:bg-white sm:h-9 sm:px-3"
+              >
+                {isSwitchingLang ? (
+                  <Loader2 className="size-3.5 animate-spin text-[#105C50]" />
+                ) : (
+                  <Globe className="size-3.5 text-[#105C50]" />
+                )}
+                <span>{SUPPORTED_LANGUAGES[locale].nativeName}</span>
+                <ChevronDown className="size-3 text-gray-400" />
+              </button>
+
+              {langMenuOpen && (
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className={`absolute top-11 z-50 w-36 overflow-hidden rounded-xl border border-gray-200 bg-white p-1.5 shadow-xl ${
+                    isRtl ? "left-0" : "right-0"
+                  }`}
+                >
+                  {(Object.values(SUPPORTED_LANGUAGES) as LanguageConfig[]).map(
+                    (lang) => {
+                      const active = lang.code === locale
+                      return (
+                        <button
+                          key={lang.code}
+                          type="button"
+                          onClick={() => handleSelectLanguage(lang.code)}
+                          className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-xs font-semibold transition ${
+                            active
+                              ? "bg-[#eff9f5] font-bold text-[#105C50]"
+                              : "text-[#0a1122] hover:bg-gray-50"
+                          }`}
+                        >
+                          <span>{lang.nativeName}</span>
+                          {active && (
+                            <Check className="size-3.5 text-[#105C50]" />
+                          )}
+                        </button>
+                      )
+                    }
+                  )}
+                </div>
+              )}
+            </div>
+
             <Link
               href="/admin/profile"
               className="inline-flex h-8 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 px-3 text-xs font-bold text-[#0a1122] transition hover:border-[#105C50] hover:bg-white sm:h-9 sm:px-4"
             >
-              <span>حسابي</span>
+              <span>{t.myProfile}</span>
             </Link>
 
             <div className="relative" ref={notifRef}>
@@ -420,7 +751,7 @@ export default function AdminShell({
                 type="button"
                 onClick={handleToggleNotifications}
                 className="relative flex size-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 transition hover:bg-gray-50 sm:size-9"
-                aria-label="الإشعارات"
+                aria-label={t.notifications}
               >
                 <Bell className="size-4" />
                 {unreadCount > 0 && (
@@ -436,11 +767,15 @@ export default function AdminShell({
               {notifOpen && (
                 <div
                   onClick={(e) => e.stopPropagation()}
-                  className="fixed left-3 right-3 top-[60px] z-50 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl sm:absolute sm:left-0 sm:right-auto sm:top-11 sm:w-96"
+                  className={`fixed right-3 left-3 top-[60px] z-50 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl sm:absolute sm:top-11 sm:w-96 ${
+                    isRtl
+                      ? "sm:right-auto sm:left-0"
+                      : "sm:right-0 sm:left-auto"
+                  }`}
                 >
                   <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50/90 px-4 py-2.5">
                     <span className="flex items-center gap-1.5 text-xs font-extrabold text-[#0a1122]">
-                      <span>الإشعارات</span>
+                      <span>{t.notifications}</span>
                       <span
                         dir="ltr"
                         className="rounded-full bg-[#105C50]/10 px-2 py-0.5 text-[10px] font-extrabold text-[#105C50]"
@@ -456,7 +791,7 @@ export default function AdminShell({
                           onClick={handleClearAll}
                           className="rounded-lg px-2 py-1 text-[11px] font-bold text-red-600 transition hover:bg-red-50"
                         >
-                          مسح الكل
+                          {t.clearAll}
                         </button>
                       )}
                       <button
@@ -474,7 +809,7 @@ export default function AdminShell({
                       <div className="flex flex-col items-center justify-center px-4 py-8 text-center">
                         <CheckCircle2 className="mb-1.5 size-7 text-emerald-500" />
                         <p className="text-xs font-bold text-[#0a1122]">
-                          لا توجد إشعارات جديدة
+                          {t.noNotifications}
                         </p>
                       </div>
                     ) : (
@@ -487,7 +822,7 @@ export default function AdminShell({
                           onKeyDown={(e) => {
                             if (e.key === "Enter") handleNotificationClick(item)
                           }}
-                          className={`group flex cursor-pointer items-start gap-3 p-3.5 text-right transition hover:bg-gray-50 ${
+                          className={`group flex cursor-pointer items-start gap-3 p-3.5 text-start transition hover:bg-gray-50 ${
                             !item.isRead ? "bg-emerald-50/40" : "bg-white"
                           }`}
                         >
@@ -526,8 +861,8 @@ export default function AdminShell({
                                 <span dir="ltr">{item.createdAt}</span>
                               </span>
                               <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#105C50] group-hover:underline">
-                                <span>عرض</span>
-                                <ArrowLeft className="size-3" />
+                                <span>{t.view}</span>
+                                <ArrowLeft className="size-3 rtl:rotate-0 ltr:rotate-180" />
                               </span>
                             </div>
                           </div>
@@ -537,7 +872,7 @@ export default function AdminShell({
                             onClick={(e) =>
                               handleDeleteNotification(e, item.id)
                             }
-                            title="حذف الإشعار"
+                            title={t.deleteNotif}
                             className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md text-gray-400 transition hover:bg-red-50 hover:text-red-600"
                           >
                             <Trash2 className="size-3.5" />
@@ -556,11 +891,8 @@ export default function AdminShell({
       </div>
 
       {/* 4. الشريط السفلي للموبايل */}
-      <nav
-        aria-label="التنقل السريع للموبايل"
-        className="fixed inset-x-0 bottom-0 z-30 flex h-15 items-center justify-around border-t border-gray-200/90 bg-white/95 px-1 shadow-[0_-4px_16px_rgba(0,0,0,0.04)] backdrop-blur-md lg:hidden"
-      >
-        {MOBILE_BOTTOM_LINKS.map(({ href, shortLabel, icon: Icon }) => {
+      <nav className="fixed inset-x-0 bottom-0 z-30 flex h-15 items-center justify-around border-t border-gray-200/90 bg-white/95 px-1 shadow-[0_-4px_16px_rgba(0,0,0,0.04)] backdrop-blur-md lg:hidden">
+        {mobileBottomLinks.map(({ href, shortLabel, icon: Icon }) => {
           const active = isActive(href)
           return (
             <Link

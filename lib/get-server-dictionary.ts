@@ -4,7 +4,7 @@ import {
   getCurrencySymbol,
   normalizeCountry,
   normalizeLocale,
-} from './i18n'
+} from './i18n-config'
 
 export async function getServerI18n() {
   const cookieStore = await cookies()

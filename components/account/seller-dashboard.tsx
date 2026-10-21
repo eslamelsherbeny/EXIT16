@@ -1,12 +1,14 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useEffect, useMemo, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   AlertCircle,
   Building2,
   Check,
+  ChevronDown,
+  ChevronUp,
   Copy,
   EyeOff,
   FileCheck2,
@@ -16,6 +18,7 @@ import {
   PauseCircle,
   PlayCircle,
   Plus,
+  Search,
   ShieldAlert,
   Sparkles,
   Star,
@@ -44,9 +47,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { AccountActionLinks } from './delete-account-modal'
-import arDict from '@/dictionaries/ar.json'
-
-const t = arDict.accountComponents.seller
+import { getCurrencySymbol, useTranslation } from '@/lib/i18n'
 
 export type SellerUnitItem = {
   id: string
@@ -73,6 +74,7 @@ export type SellerUnitItem = {
   admin_note: string | null
   images: string[] | null
   documents: Record<string, any> | null
+  country?: string | null
   country_code?: string | null
   currency_code?: string | null
   is_featured?: boolean | null
@@ -84,7 +86,9 @@ export type SellerUnitItem = {
   created_at: string | null
 }
 
-function calculateUnitCompletion(unit: SellerUnitItem) {
+const INITIAL_VISIBLE_UNITS = 3
+
+function calculateUnitCompletion(unit: SellerUnitItem, t: any) {
   const checks = [
     Boolean(unit.developer_name),
     Boolean(unit.project_name),
@@ -128,7 +132,11 @@ function calculateUnitCompletion(unit: SellerUnitItem) {
   }
 }
 
-function getSellerTimelineAndStatus(unit: SellerUnitItem, isComplete: boolean) {
+function getSellerTimelineAndStatus(
+  unit: SellerUnitItem,
+  isComplete: boolean,
+  t: any
+) {
   const clean = (unit.status || 'pending').trim().toLowerCase()
 
   switch (clean) {
@@ -232,6 +240,8 @@ export function SellerDashboard({
   deletionRequested?: boolean
 }) {
   const router = useRouter()
+  const { t: dict, locale, dir } = useTranslation()
+  const t = dict.accountComponents.seller
 
   const [localSells, setLocalSells] = useState<SellerUnitItem[]>(sells)
   useEffect(() => {
@@ -243,6 +253,10 @@ export function SellerDashboard({
       ? initialSelectedUnitId
       : sells[0]?.id || ''
   )
+
+  // حالات التحكم الذكي في قائمة الوحدات الكبيرة (3 وحدات افتراضياً + توسيع/طي + بحث)
+  const [isUnitsExpanded, setIsUnitsExpanded] = useState(false)
+  const [unitSearchQuery, setUnitSearchQuery] = useState('')
 
   const [isPromoCollapsed, setIsPromoCollapsed] = useState(false)
   const [confirmModal, setConfirmModal] = useState<ConfirmModalState>(null)
@@ -294,16 +308,51 @@ export function SellerDashboard({
 
   const activeUnit =
     localSells.find((s) => s.id === selectedId) || localSells[0]
+
+  // ترتيب الوحدات بحيث تكون الوحدة المختارة حالياً هي رقم 1 دائماً، يليها باقي الوحدات
+  const orderedUnits = useMemo(() => {
+    if (!activeUnit) return localSells
+    const others = localSells.filter((u) => u.id !== activeUnit.id)
+    return [activeUnit, ...others]
+  }, [localSells, activeUnit])
+
+  // فلترة الوحدات عند البحث داخل القائمة الموسعة
+  const filteredOrderedUnits = useMemo(() => {
+    if (!unitSearchQuery.trim()) return orderedUnits
+    const q = unitSearchQuery.trim().toLowerCase()
+    return orderedUnits.filter((u) =>
+      `${u.project_name || ''} ${u.area || ''} ${u.developer_name || ''} ${u.unit_type || ''}`
+        .toLowerCase()
+        .includes(q)
+    )
+  }, [orderedUnits, unitSearchQuery])
+
+  const displayedUnits = isUnitsExpanded
+    ? filteredOrderedUnits
+    : orderedUnits.slice(0, INITIAL_VISIBLE_UNITS)
+
+  const hiddenUnitsCount = Math.max(
+    0,
+    orderedUnits.length - INITIAL_VISIBLE_UNITS
+  )
+
   if (!activeUnit) return null
 
-  const unitCountryCode =
-    (activeUnit.country_code as CountryCode) &&
-    SUPPORTED_COUNTRIES[activeUnit.country_code as CountryCode]
-      ? (activeUnit.country_code as CountryCode)
-      : countryCode
+  const rawUnitCountry = (
+    activeUnit.country_code ||
+    activeUnit.country ||
+    countryCode
+  )
+    .trim()
+    .toUpperCase() as CountryCode
+  const unitCountryCode = SUPPORTED_COUNTRIES[rawUnitCountry]
+    ? rawUnitCountry
+    : countryCode
   const unitCountryCfg =
     SUPPORTED_COUNTRIES[unitCountryCode] || SUPPORTED_COUNTRIES.EG
-  const currencySymbol = unitCountryCfg.currencySymbol
+
+  // عملة ديناميكية حسب دولة الوحدة ولغة العرض الحالية
+  const currencySymbol = getCurrencySymbol(unitCountryCode, locale)
 
   const pkgPrices =
     unitCountryCode === 'EG' && adminPromoPrices
@@ -323,9 +372,9 @@ export function SellerDashboard({
   const money = (value: number | null | undefined) =>
     `${Number(value || 0).toLocaleString('en-US')} ${currencySymbol}`
 
-  const comp = calculateUnitCompletion(activeUnit)
+  const comp = calculateUnitCompletion(activeUnit, t)
   const isComplete = comp.percentage === 100
-  const meta = getSellerTimelineAndStatus(activeUnit, isComplete)
+  const meta = getSellerTimelineAndStatus(activeUnit, isComplete, t)
   const isPausedBySeller = meta.code === 'paused_by_seller'
 
   const realMatchedBuyersCount = matchedBuyersCountMap[activeUnit.id] ?? 0
@@ -471,9 +520,9 @@ export function SellerDashboard({
   }
 
   return (
-    <div className="mx-auto max-w-[680px] px-4 sm:px-6">
-      {/* ==================== 1. الهيدر العلوي: وحداتي المسجلة + زر "+ ضيف وحدة تانية" + كروت التبديل السلسة ==================== */}
-      <section className="mb-5 rounded-[20px] border border-gray-200/90 bg-white p-4 text-right shadow-2xs sm:p-5">
+    <div dir={dir} className="mx-auto max-w-[680px] px-4 sm:px-6">
+      {/* ==================== 1. الهيدر العلوي: نظام الـ 3 وحدات الذكي مع التوسيع والطي التلقائي ==================== */}
+      <section className="mb-5 rounded-[20px] border border-gray-200/90 bg-white p-4 text-start shadow-2xs sm:p-5">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <span className="flex size-8 items-center justify-center rounded-xl bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]">
@@ -493,19 +542,53 @@ export function SellerDashboard({
           </Link>
         </div>
 
-        {/* كروت الوحدات المتتالية للتبديل السريع على الموبايل والكمبيوتر بدون قوائم منسدلة بدائية */}
-        <div className="mt-3.5 flex flex-col gap-2">
-          {localSells.map((item, idx) => {
-            const itemComp = calculateUnitCompletion(item)
+        {/* شريط بحث فوري يظهر فقط عند فتح القائمة لو كان لدى البائع أكثر من 5 وحدات */}
+        {isUnitsExpanded && localSells.length > 5 && (
+          <div className="relative mt-3">
+            <Search className="pointer-events-none absolute top-1/2 right-3 size-3.5 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={unitSearchQuery}
+              onChange={(e) => setUnitSearchQuery(e.target.value)}
+              placeholder={
+                locale === 'ar'
+                  ? 'ابحث في وحداتك باسم المشروع أو المنطقة...'
+                  : locale === 'ru'
+                    ? 'Поиск по вашим объектам...'
+                    : locale === 'ka'
+                      ? 'მოძებნეთ თქვენს ობიექტებში...'
+                      : 'Search your units by project or area...'
+              }
+              className="h-9 w-full rounded-xl border border-gray-200 bg-gray-50/70 pr-9 pl-3 text-xs font-semibold text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:bg-white focus:outline-none"
+            />
+          </div>
+        )}
+
+        {/* قائمة الوحدات: تعرض 3 افتراضياً، وعند التوسيع تصبح قابلة للتمرير السلس */}
+        <div
+          className={`mt-3.5 flex flex-col gap-2 ${
+            isUnitsExpanded && localSells.length > 5
+              ? 'max-h-[340px] overflow-y-auto pr-0.5'
+              : ''
+          }`}
+        >
+          {displayedUnits.map((item, idx) => {
+            const itemComp = calculateUnitCompletion(item, t)
             const itemMeta = getSellerTimelineAndStatus(
               item,
-              itemComp.percentage === 100
+              itemComp.percentage === 100,
+              t
             )
             const isSelected = item.id === activeUnit.id
+            const itemRawC = (
+              item.country_code ||
+              item.country ||
+              'EG'
+            )
+              .trim()
+              .toUpperCase() as CountryCode
             const itemCountryCfg =
-              SUPPORTED_COUNTRIES[
-                (item.country_code as CountryCode) || 'EG'
-              ] || SUPPORTED_COUNTRIES.EG
+              SUPPORTED_COUNTRIES[itemRawC] || SUPPORTED_COUNTRIES.EG
 
             return (
               <button
@@ -514,8 +597,11 @@ export function SellerDashboard({
                 onClick={() => {
                   setSelectedId(item.id)
                   setActionMessage('')
+                  // بمجرد اختيار أي وحدة، تصعد للأول وتنغلق القائمة تلقائياً لترجع 3 وحدات فقط!
+                  setIsUnitsExpanded(false)
+                  setUnitSearchQuery('')
                 }}
-                className={`flex w-full items-center justify-between gap-3 rounded-2xl border px-3.5 py-3 text-right transition ${
+                className={`flex w-full items-center justify-between gap-3 rounded-2xl border px-3.5 py-3 text-start transition ${
                   isSelected
                     ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary-light,#eaf8f2)]/60 ring-2 ring-[var(--brand-primary,#007a5a)]/15'
                     : 'border-gray-200/80 bg-gray-50/60 hover:border-gray-300 hover:bg-white'
@@ -542,6 +628,11 @@ export function SellerDashboard({
                       <span className="text-[11px] text-gray-500">
                         · {item.area || t.defaultAreaName}
                       </span>
+                      {isSelected && (
+                        <span className="rounded-md bg-[var(--brand-navy,#0a1122)] px-1.5 py-0.5 text-[9.5px] font-bold text-white">
+                          {t.activeNowBadge} ✓
+                        </span>
+                      )}
                       {item.is_featured && (
                         <span className="inline-flex items-center gap-0.5 rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">
                           <Star className="size-2.5 fill-amber-400 text-amber-500" />
@@ -563,6 +654,48 @@ export function SellerDashboard({
             )
           })}
         </div>
+
+        {/* زر عرض المزيد / تقليل المعروض إلى 3 وحدات */}
+        {localSells.length > INITIAL_VISIBLE_UNITS && (
+          <div className="mt-3 border-t border-gray-100 pt-2.5 text-center">
+            <button
+              type="button"
+              onClick={() => {
+                setIsUnitsExpanded((prev) => !prev)
+                setUnitSearchQuery('')
+              }}
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-gray-50 px-4 py-1.5 text-xs font-extrabold text-[var(--brand-primary,#007a5a)] transition hover:bg-[var(--brand-primary-light,#eaf8f2)]"
+            >
+              {isUnitsExpanded ? (
+                <>
+                  <span>
+                    {locale === 'ar'
+                      ? 'عرض 3 وحدات فقط'
+                      : locale === 'ru'
+                        ? 'Показать только 3 объекта'
+                        : locale === 'ka'
+                          ? 'მხოლოდ 3 ობიექტის ჩვენება'
+                          : 'Show only 3 units'}
+                  </span>
+                  <ChevronUp className="size-3.5" />
+                </>
+              ) : (
+                <>
+                  <span>
+                    {locale === 'ar'
+                      ? `عرض باقي وحداتي (+${hiddenUnitsCount} وحدة أخرى)`
+                      : locale === 'ru'
+                        ? `Показать остальные объекты (+${hiddenUnitsCount})`
+                        : locale === 'ka'
+                          ? `ყველა ობიექტის ნახვა (+${hiddenUnitsCount})`
+                          : `Show remaining units (+${hiddenUnitsCount} more)`}
+                  </span>
+                  <ChevronDown className="size-3.5" />
+                </>
+              )}
+            </button>
+          </div>
+        )}
       </section>
 
       {actionMessage && (
@@ -572,7 +705,7 @@ export function SellerDashboard({
       )}
 
       {/* ==================== 2. الكارت العلوي المنظم: الخطوة الجاية + شريط النسبة المئوية (%) + أزرار التحكم ==================== */}
-      <section className="rounded-[20px] border border-gray-200/90 bg-white p-5 text-right shadow-xs sm:p-6">
+      <section className="rounded-[20px] border border-gray-200/90 bg-white p-5 text-start shadow-xs sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="text-xs font-bold text-[var(--brand-primary,#007a5a)]">
             {t.nextStepLabel}
@@ -588,7 +721,6 @@ export function SellerDashboard({
           {meta.headline}
         </h2>
 
-        {/* شريط النسبة المئوية لاكتمال بيانات الوحدة (يظهر دائماً بوضوح) */}
         <div className="mt-4 rounded-xl border border-gray-100 bg-gray-50/80 p-3.5">
           <div className="mb-2 flex items-center justify-between text-xs">
             <span className="font-bold text-gray-600">{t.completionLabel}</span>
@@ -632,7 +764,6 @@ export function SellerDashboard({
           </div>
         )}
 
-        {/* أزرار إجراءات الوحدة */}
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <Link
             href={editUnitHref}
@@ -681,8 +812,7 @@ export function SellerDashboard({
           </button>
         </div>
 
-        {/* سطر رادار المشترين المختصر */}
-        <div className="mt-4 rounded-xl bg-[var(--brand-primary-light,#eaf8f2)] px-3.5 py-2.5 text-right text-[11.5px] font-bold text-[var(--brand-primary,#007a5a)]">
+        <div className="mt-4 rounded-xl bg-[var(--brand-primary-light,#eaf8f2)] px-3.5 py-2.5 text-start text-[11.5px] font-bold text-[var(--brand-primary,#007a5a)]">
           {realMatchedBuyersCount > 0 ? (
             <>
               {t.matchedBuyersPrefix}{' '}
@@ -701,7 +831,7 @@ export function SellerDashboard({
       </section>
 
       {/* ==================== 3. كارت السعر والمدفوع ==================== */}
-      <section className="mt-4 grid grid-cols-2 gap-4 rounded-[18px] border border-gray-200/80 bg-white p-5 text-right shadow-2xs">
+      <section className="mt-4 grid grid-cols-2 gap-4 rounded-[18px] border border-gray-200/80 bg-white p-5 text-start shadow-2xs">
         <div>
           <p className="text-[11px] text-gray-400">{t.contractPriceLabel}</p>
           <strong className="mt-1 block text-lg font-extrabold text-[var(--brand-navy,#0a1122)] tabular-nums sm:text-xl">
@@ -716,11 +846,11 @@ export function SellerDashboard({
         </div>
       </section>
 
-      {/* ==================== 4. شبكة الكروت الـ 4 الموحدة (بيانات الوحدة + المستندات مرة واحدة فقط + العروض + مسؤول الحالة) ==================== */}
+      {/* ==================== 4. شبكة الكروت الـ 4 الموحدة ==================== */}
       <section className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Link
           href={`/sell?editUnitId=${activeUnit.id}&step=3`}
-          className="flex flex-col justify-between rounded-[16px] border border-gray-200/80 bg-white p-4 text-right shadow-2xs transition hover:border-[var(--brand-primary,#007a5a)]"
+          className="flex flex-col justify-between rounded-[16px] border border-gray-200/80 bg-white p-4 text-start shadow-2xs transition hover:border-[var(--brand-primary,#007a5a)]"
         >
           <p className="text-xs font-extrabold text-[var(--brand-navy,#0a1122)]">
             {t.cardUnitData}
@@ -730,10 +860,9 @@ export function SellerDashboard({
           </p>
         </Link>
 
-        {/* زر المستندات الوحيد في الصفحة (نظيف وغير مكرر) */}
         <Link
           href={`/account/documents?unitId=${activeUnit.id}`}
-          className="flex flex-col justify-between rounded-[16px] border border-gray-200/80 bg-white p-4 text-right shadow-2xs transition hover:border-[var(--brand-primary,#007a5a)]"
+          className="flex flex-col justify-between rounded-[16px] border border-gray-200/80 bg-white p-4 text-start shadow-2xs transition hover:border-[var(--brand-primary,#007a5a)]"
         >
           <div className="flex items-center justify-between">
             <p className="text-xs font-extrabold text-[var(--brand-navy,#0a1122)]">
@@ -754,7 +883,7 @@ export function SellerDashboard({
 
         <Link
           href={`/account/offers?unitId=${activeUnit.id}`}
-          className="flex flex-col justify-between rounded-[16px] border border-gray-200/80 bg-white p-4 text-right shadow-2xs transition hover:border-[var(--brand-primary,#007a5a)]"
+          className="flex flex-col justify-between rounded-[16px] border border-gray-200/80 bg-white p-4 text-start shadow-2xs transition hover:border-[var(--brand-primary,#007a5a)]"
         >
           <p className="text-xs font-extrabold text-[var(--brand-navy,#0a1122)]">
             {t.cardOffers}
@@ -770,7 +899,7 @@ export function SellerDashboard({
           href="https://wa.me/201018595959"
           target="_blank"
           rel="noreferrer"
-          className="flex flex-col justify-between rounded-[16px] bg-[var(--brand-navy,#0a1122)] p-4 text-right text-white shadow-2xs transition hover:bg-[var(--brand-navy-hover,#16223f)]"
+          className="flex flex-col justify-between rounded-[16px] bg-[var(--brand-navy,#0a1122)] p-4 text-start text-white shadow-2xs transition hover:bg-[var(--brand-navy-hover,#16223f)]"
         >
           <p className="text-xs font-extrabold text-white">{t.cardSupport}</p>
           <p className="mt-1.5 text-[11px] text-gray-300">{t.cardSupportSub}</p>
@@ -779,19 +908,21 @@ export function SellerDashboard({
 
       {/* ==================== 5. شريط التسلسل الزمني لمراحل الطلب ==================== */}
       <section className="mt-5 rounded-[20px] border border-gray-200/80 bg-white p-5 shadow-2xs sm:p-6">
-        <h3 className="mb-4 text-right text-xs font-extrabold text-gray-500">
+        <h3 className="mb-4 text-start text-xs font-extrabold text-gray-500">
           {t.timelineTitle} ({activeUnit.project_name || t.defaultProjectName}):
         </h3>
-        <div className="pr-1">
+        <div className="ps-1">
           <Timeline
             currentStepIndex={meta.stepIndex}
             isRejected={meta.code === 'rejected'}
+            stepTitles={t.timelineSteps}
           />
         </div>
       </section>
 
-      {/* ==================== 6. صندوق الترويج والتمييز (مفصول كجزء مستقل نظيف) ==================== */}
+      {/* ==================== 6. صندوق الترويج والتمييز ==================== */}
       <SellerPromoSection
+        t={t}
         activeUnit={activeUnit}
         isPromoCollapsed={isPromoCollapsed}
         setIsPromoCollapsed={setIsPromoCollapsed}
@@ -810,7 +941,7 @@ export function SellerDashboard({
         onCancelPromo={() => setConfirmModal({ type: 'cancel_promo' })}
       />
 
-      {/* ==================== 7. روابط الحساب السفلية (بياناتي + حذف الحساب) ==================== */}
+      {/* ==================== 7. روابط الحساب السفلية ==================== */}
       <div className="mt-8 flex justify-center border-t border-gray-200/80 pt-6 [&>*]:justify-center [&_div]:justify-center [&_form]:hidden">
         <AccountActionLinks
           unitsCount={localSells.length}
@@ -827,12 +958,12 @@ export function SellerDashboard({
         }}
       >
         <DialogContent
-          dir="rtl"
+          dir={dir}
           className="w-[90vw] max-w-[360px] rounded-2xl p-5 sm:max-w-[400px]"
         >
           {confirmModal && (
             <>
-              <DialogHeader className="text-right">
+              <DialogHeader className="text-start">
                 <div className="mb-2 flex items-center gap-2.5">
                   <span
                     className={`flex size-9 shrink-0 items-center justify-center rounded-full ${
@@ -863,7 +994,7 @@ export function SellerDashboard({
                   </DialogTitle>
                 </div>
 
-                <DialogDescription className="text-right text-xs leading-relaxed text-gray-600">
+                <DialogDescription className="text-start text-xs leading-relaxed text-gray-600">
                   {confirmModal.type === 'pause' && t.modalPauseDesc}
                   {confirmModal.type === 'resume' && t.modalResumeDesc}
                   {confirmModal.type === 'delete' && t.modalDeleteDesc}
@@ -928,6 +1059,7 @@ export function SellerDashboard({
 }
 
 function SellerPromoSection({
+  t,
   activeUnit,
   isPromoCollapsed,
   setIsPromoCollapsed,
@@ -945,6 +1077,7 @@ function SellerPromoSection({
   onSelectPackage,
   onCancelPromo,
 }: {
+  t: any
   activeUnit: SellerUnitItem
   isPromoCollapsed: boolean
   setIsPromoCollapsed: (v: boolean) => void
@@ -969,7 +1102,7 @@ function SellerPromoSection({
   if (isPromoCollapsed) {
     return (
       <div className="mt-5 flex items-center justify-between rounded-2xl border border-[#aae3cb] bg-[#effaf5] px-4 py-3.5 shadow-2xs">
-        <div className="flex items-center gap-2 text-right">
+        <div className="flex items-center gap-2 text-start">
           <Star className="size-4 shrink-0 fill-amber-400 text-amber-500" />
           <span className="text-xs font-extrabold text-[var(--brand-navy,#0a1122)]">
             {t.promoCollapsedTitle}
@@ -989,7 +1122,7 @@ function SellerPromoSection({
   const whatsappMessage = `${t.whatsappPromoMsgPrefix} (${activePromoDays} ${t.daysWord} - ${activePromoPrice.toLocaleString('en-US')} ${currencySymbol}) ${t.whatsappPromoMsgMiddle} (${activeUnit.project_name || t.defaultProjectName}) — ${t.whatsappPromoMsgRef} ${currentAdRef}`
 
   return (
-    <section className="mt-5 rounded-[20px] border border-[#aae3cb] bg-[#effaf5] p-5 text-right shadow-xs sm:p-6">
+    <section className="mt-5 rounded-[20px] border border-[#aae3cb] bg-[#effaf5] p-5 text-start shadow-xs sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1 text-xs font-extrabold text-[var(--brand-primary,#007a5a)] shadow-2xs">
@@ -1090,7 +1223,7 @@ function SellerPromoSection({
       </p>
 
       {(isCurrentlyFeatured || isPendingPromo) && currentAdRef && (
-        <div className="mt-4 rounded-xl border border-[var(--brand-primary,#007a5a)]/30 bg-white p-4 text-right shadow-2xs">
+        <div className="mt-4 rounded-xl border border-[var(--brand-primary,#007a5a)]/30 bg-white p-4 text-start shadow-2xs">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <p className="text-xs font-extrabold text-[var(--brand-navy,#0a1122)]">
@@ -1152,12 +1285,12 @@ function SellerPromoSection({
 function Timeline({
   currentStepIndex,
   isRejected,
+  stepTitles,
 }: {
   currentStepIndex: number
   isRejected?: boolean
+  stepTitles: string[]
 }) {
-  const stepTitles = t.timelineSteps
-
   return (
     <ol className="relative flex flex-col items-start">
       {stepTitles.map((title, index) => {
@@ -1176,7 +1309,7 @@ function Timeline({
           >
             {!isLast && (
               <span
-                className={`absolute top-6 right-[11px] h-full w-[1.5px] ${
+                className={`absolute top-6 start-[11px] h-full w-[1.5px] ${
                   status === 'done'
                     ? 'bg-[var(--brand-primary,#007a5a)]'
                     : 'bg-gray-200'

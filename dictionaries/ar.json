@@ -1417,18 +1417,46 @@
     "notFoundDesc": "ممكن تكون الصفحة اتمسحت أو الرابط اتكتب غلط.",
     "notFoundBtn": "الفرص المتاحة"
   },
-  "admin": {
+ "admin": {
     "accessDenied": {
       "title": "غير مصرح لك بالدخول",
       "desc": "هذه اللوحة مخصصة لفريق الإدارة والمبيعات فقط. حسابك الحالي لا يمتلك صلاحيات إدارية:",
       "staffLoginBtn": "دخول بحساب الإدارة",
       "backHomeBtn": "العودة للرئيسية"
     },
-    "accessDenied": {
-      "title": "غير مصرح لك بالدخول",
-      "desc": "هذه الصفحة مخصصة لفريق الإدارة والمشرفين فقط. الحساب الحالي:",
-      "staffLoginBtn": "دخول بحساب موظف",
-      "backHomeBtn": "العودة للرئيسية"
+    "shell": {
+      "brand": "دارك",
+      "adminPanel": "لوحة الإدارة",
+      "welcome": "أهلاً،",
+      "myProfile": "حسابي",
+      "publicSite": "الموقع العام",
+      "logout": "تسجيل الخروج",
+      "notifications": "الإشعارات",
+      "clearAll": "مسح الكل",
+      "noNotifications": "لا توجد إشعارات جديدة",
+      "view": "عرض",
+      "deleteNotif": "حذف الإشعار",
+      "languageLabel": "اللغة",
+      "roles": {
+        "ADMIN": "مدير نظام",
+        "MODERATOR": "مشرف عقارات",
+        "SALES": "مبيعات وتواصل"
+      },
+      "nav": {
+        "dashboard": "الرئيسية",
+        "properties": "طلبات البيع",
+        "propertiesShort": "العقارات",
+        "promotions": "طلبات الإعلان ⭐",
+        "promotionsShort": "الإعلانات",
+        "leads": "طلبات الشراء",
+        "leadsShort": "المشترين",
+        "users": "المستخدمين والصلاحيات",
+        "usersShort": "المستخدمين",
+        "investors": "المستثمرين",
+        "investorsShort": "المستثمرين",
+        "settings": "إعدادات الموقع",
+        "settingsShort": "الإعدادات"
+      }
     },
     "dashboard": {
       "countries": {
@@ -1659,84 +1687,6 @@
       "passUpdateError": "كلمة المرور الحالية غير صحيحة.",
       "unexpectedError": "حدث خطأ غير متوقع."
     },
-    "shell": {
-      "brand": "دارك",
-      "adminPanel": "لوحة الإدارة",
-      "welcome": "أهلاً،",
-      "myProfile": "حسابي",
-      "publicSite": "الموقع العام",
-      "logout": "تسجيل الخروج",
-      "notifications": "الإشعارات",
-      "clearAll": "مسح الكل",
-      "noNotifications": "لا توجد إشعارات جديدة",
-      "view": "عرض",
-      "deleteNotif": "حذف الإشعار",
-      "languageLabel": "اللغة",
-      "roles": {
-        "ADMIN": "مدير نظام",
-        "MODERATOR": "مشرف عقارات",
-        "SALES": "مبيعات وتواصل"
-      },
-      "nav": {
-        "dashboard": "الرئيسية",
-        "properties": "طلبات البيع",
-        "propertiesShort": "العقارات",
-        "promotions": "طلبات الإعلان ⭐",
-        "promotionsShort": "الإعلانات",
-        "leads": "طلبات الشراء",
-        "leadsShort": "المشترين",
-        "users": "المستخدمين والصلاحيات",
-        "usersShort": "المستخدمين",
-        "investors": "المستثمرين",
-        "investorsShort": "المستثمرين",
-        "settings": "إعدادات الموقع",
-        "settingsShort": "الإعدادات"
-      }
-    },
-    "dashboard": {
-      "countries": {
-        "ALL": "كل الدول",
-        "EG": "مصر",
-        "RU": "روسيا",
-        "GE": "جورجيا",
-        "AE": "الإمارات"
-      },
-      "showingAll": "المعروض الآن: الوحدات والطلبات في كل الدول 🌍",
-      "showingCountry": "المعروض الآن: الوحدات والطلبات المتاحة في",
-      "filterHint": "اضغط على أي دولة لعرض الوحدات وطلبات المشترين الخاصة بها فقط:",
-      "totalUnitsAll": "إجمالي الوحدات (كل الدول)",
-      "unitsIn": "الوحدات في",
-      "publishedNote": "وحدة منشورة بالسوق حالياً",
-      "pendingReview": "بانتظار المراجعة",
-      "pendingNeedAction": "وحدات جديدة تحتاج مراجعتك",
-      "allReviewed": "تمت مراجعة الكل",
-      "adRequests": "طلبات الإعلان ⭐",
-      "adPendingNote": "طلب جديد بانتظار التفعيل",
-      "adActiveNote": "وحدة مميزة نشطة",
-      "unitBookers": "حاجزي الوحدات 🔥",
-      "outOfTotal": "من إجمالي",
-      "buyRequestsWord": "طلب شراء مسجل",
-      "adAlertPrefix": "طلب إعلان بانتظار التفعيل:",
-      "openAdRequests": "فتح طلبات الإعلان",
-      "latestProperties": "أحدث الوحدات المعروضة للبيع",
-      "viewAll": "عرض الكل",
-      "noProperties": "لا توجد وحدات مسجلة في هذا القسم حالياً.",
-      "defaultUnit": "وحدة سكنية",
-      "latestLeads": "أحدث طلبات المشترين",
-      "allShort": "الكل",
-      "noLeads": "لا توجد طلبات شراء في هذا القسم حالياً.",
-      "allAreas": "جميع المناطق",
-      "unitBookBadge": "🔥 حجز وحدة",
-      "statuses": {
-        "pending": "بانتظار المراجعة",
-        "under_review": "جاري المراجعة",
-        "active": "معروضة بالسوق",
-        "offer_received": "عليها عرض",
-        "transferring": "نقل التعاقد",
-        "sold": "تم البيع",
-        "rejected": "مرفوضة"
-      }
-    },
     "usersPage": {
       "eyebrow": "المجتمع والصلاحيات (RBAC)",
       "title": "المستخدمين وفريق الإدارة",
@@ -1809,6 +1759,7 @@
       }
     },
     "investorsAdmin": {
+      "loadError": "تعذر تحميل طلبات المستثمرين.",
       "eyebrow": "الشراكات الاستراتيجية",
       "title": "طلبات المستثمرين",
       "subtitle": "حوّل طلبات الاستثمار إلى شراكات حقيقية وتابع حالة كل مستثمر.",
@@ -1828,6 +1779,8 @@
       "changeStatusLabel": "تغيير حالة المستثمر:",
       "contactedBtn": "تم التواصل",
       "meetingBtn": "اجتماع",
+      "whatsappTitle": "تواصل عبر واتساب",
+      "deleteTitle": "حذف الطلب",
       "allOrdersTitle": "كل الطلبات",
       "allOrdersDesc": "تواصل مع المستثمرين وحدد مواعيد الاجتماعات مباشرة مع تأكيد قبل أي تعديل.",
       "colInvestor": "المستثمر",
@@ -1838,20 +1791,26 @@
       "colActions": "الإجراء",
       "confirmDeleteTitle": "تأكيد حذف طلب المستثمر",
       "confirmStatusTitle": "تأكيد تحديث حالة المستثمر",
+      "confirmStatusDescPrefix": "هل تريد تغيير حالة المستثمر",
+      "fromWord": "من",
+      "toWord": "إلى",
+      "confirmDeleteDescPrefix": "هل أنت متأكد من حذف طلب المستثمر",
+      "confirmDeleteDescSuffix": "نهائياً؟ لا يمكن التراجع عن هذا الإجراء.",
       "cancelBtn": "إلغاء",
       "confirmBtn": "تأكيد التنفيذ",
       "savingBtn": "جاري الحفظ...",
       "statusUpdatedSuccess": "تم تحديث حالة المستثمر بنجاح.",
+      "statusUpdateError": "تعذر تحديث حالة المستثمر.",
       "deletedSuccess": "تم حذف طلب المستثمر نهائياً.",
+      "deleteError": "تعذر حذف طلب المستثمر.",
       "statuses": {
         "new": "جديد",
         "contacted": "تم التواصل",
         "meeting": "تم تحديد اجتماع",
         "partner": "شريك معتمد"
       }
-    }
-  },
-  "propertiesAdmin": {
+    },
+    "propertiesAdmin": {
       "loadError": "تعذر تحميل طلبات البائعين من قاعدة البيانات.",
       "countries": {
         "ALL": "كل الدول",
@@ -1983,57 +1942,5 @@
         "promoActivated": "⭐ تم تفعيل تمييز الوحدة بنجاح.",
         "promoCancelled": "تم إلغاء تمييز الوحدة."
       }
-    },
-  "investorsAdmin": {
-      "loadError": "تعذر تحميل طلبات المستثمرين.",
-      "eyebrow": "الشراكات الاستراتيجية",
-      "title": "طلبات المستثمرين",
-      "subtitle": "حوّل طلبات الاستثمار إلى شراكات حقيقية وتابع حالة كل مستثمر.",
-      "searchPlaceholder": "ابحث باسم المستثمر، رقم الهاتف، الشركة، أو القطاع...",
-      "allFilter": "الكل",
-      "emptyText": "لا توجد طلبات مستثمرين مطابقة.",
-      "updatingText": "جاري تحديث الحالة...",
-      "defaultType": "مستثمر عقاري",
-      "targetAmount": "المبلغ المستهدف",
-      "targetRoi": "العائد المستهدف",
-      "notSpecified": "غير محدد",
-      "sectors": "القطاعات:",
-      "phone": "الهاتف:",
-      "email": "البريد:",
-      "date": "التاريخ:",
-      "notes": "تفاصيل إضافية:",
-      "changeStatusLabel": "تغيير حالة المستثمر:",
-      "contactedBtn": "تم التواصل",
-      "meetingBtn": "اجتماع",
-      "whatsappTitle": "تواصل عبر واتساب",
-      "deleteTitle": "حذف الطلب",
-      "allOrdersTitle": "كل الطلبات",
-      "allOrdersDesc": "تواصل مع المستثمرين وحدد مواعيد الاجتماعات مباشرة مع تأكيد قبل أي تعديل.",
-      "colInvestor": "المستثمر",
-      "colContact": "التواصل",
-      "colSectors": "فئة الاستثمار والقطاعات",
-      "colAmount": "المبلغ المستهدف",
-      "colStatus": "الحالة",
-      "colActions": "الإجراء",
-      "confirmDeleteTitle": "تأكيد حذف طلب المستثمر",
-      "confirmStatusTitle": "تأكيد تحديث حالة المستثمر",
-      "confirmStatusDescPrefix": "هل تريد تغيير حالة المستثمر",
-      "fromWord": "من",
-      "toWord": "إلى",
-      "confirmDeleteDescPrefix": "هل أنت متأكد من حذف طلب المستثمر",
-      "confirmDeleteDescSuffix": "نهائياً؟ لا يمكن التراجع عن هذا الإجراء.",
-      "cancelBtn": "إلغاء",
-      "confirmBtn": "تأكيد التنفيذ",
-      "savingBtn": "جاري الحفظ...",
-      "statusUpdatedSuccess": "تم تحديث حالة المستثمر بنجاح.",
-      "statusUpdateError": "تعذر تحديث حالة المستثمر.",
-      "deletedSuccess": "تم حذف طلب المستثمر نهائياً.",
-      "deleteError": "تعذر حذف طلب المستثمر.",
-      "statuses": {
-        "new": "جديد",
-        "contacted": "تم التواصل",
-        "meeting": "تم تحديد اجتماع",
-        "partner": "شريك معتمد"
-      }
     }
-}
+  }}

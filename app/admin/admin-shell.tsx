@@ -32,7 +32,10 @@ import {
   markAllNotificationsAsReadAction,
   markNotificationAsReadAction,
 } from "@/app/actions/notification-actions"
-import { SUPPORTED_LANGUAGES, type LanguageConfig } from "@/components/site-shell"
+import {
+  SUPPORTED_LANGUAGES,
+  type LanguageConfig,
+} from "@/components/site-shell"
 import { useTranslation, type LocaleCode } from "@/lib/i18n"
 
 export type StaffRole = "ADMIN" | "MODERATOR" | "SALES"
@@ -45,177 +48,6 @@ export type AdminNotificationItem = {
   type: "property" | "lead" | "investor"
   isRead?: boolean
   createdAt: string
-}
-
-const SHELL_I18N: Record<
-  LocaleCode,
-  {
-    brand: string
-    adminPanel: string
-    welcome: string
-    myProfile: string
-    publicSite: string
-    logout: string
-    notifications: string
-    clearAll: string
-    noNotifications: string
-    view: string
-    deleteNotif: string
-    languageLabel: string
-    roles: Record<StaffRole, string>
-    nav: {
-      dashboard: string
-      properties: string
-      propertiesShort: string
-      promotions: string
-      promotionsShort: string
-      leads: string
-      leadsShort: string
-      users: string
-      usersShort: string
-      investors: string
-      investorsShort: string
-      settings: string
-      settingsShort: string
-    }
-  }
-> = {
-  ar: {
-    brand: "دارك",
-    adminPanel: "لوحة الإدارة",
-    welcome: "أهلاً،",
-    myProfile: "حسابي",
-    publicSite: "الموقع العام",
-    logout: "تسجيل الخروج",
-    notifications: "الإشعارات",
-    clearAll: "مسح الكل",
-    noNotifications: "لا توجد إشعارات جديدة",
-    view: "عرض",
-    deleteNotif: "حذف الإشعار",
-    languageLabel: "اللغة",
-    roles: {
-      ADMIN: "مدير نظام",
-      MODERATOR: "مشرف عقارات",
-      SALES: "مبيعات وتواصل",
-    },
-    nav: {
-      dashboard: "الرئيسية",
-      properties: "طلبات البيع",
-      propertiesShort: "العقارات",
-      promotions: "طلبات الإعلان ⭐",
-      promotionsShort: "الإعلانات",
-      leads: "طلبات الشراء",
-      leadsShort: "المشترين",
-      users: "المستخدمين والصلاحيات",
-      usersShort: "المستخدمين",
-      investors: "المستثمرين",
-      investorsShort: "المستثمرين",
-      settings: "إعدادات الموقع",
-      settingsShort: "الإعدادات",
-    },
-  },
-  en: {
-    brand: "Darak",
-    adminPanel: "Admin Panel",
-    welcome: "Hi,",
-    myProfile: "My Profile",
-    publicSite: "Public Site",
-    logout: "Log Out",
-    notifications: "Notifications",
-    clearAll: "Clear All",
-    noNotifications: "No new notifications",
-    view: "View",
-    deleteNotif: "Delete notification",
-    languageLabel: "Language",
-    roles: {
-      ADMIN: "Super Admin",
-      MODERATOR: "Moderator",
-      SALES: "Sales Agent",
-    },
-    nav: {
-      dashboard: "Dashboard",
-      properties: "Sell Requests",
-      propertiesShort: "Properties",
-      promotions: "Featured Ads ⭐",
-      promotionsShort: "Promos",
-      leads: "Buyer Leads",
-      leadsShort: "Buyers",
-      users: "Users & Roles",
-      usersShort: "Users",
-      investors: "Investors",
-      investorsShort: "Investors",
-      settings: "Site Settings",
-      settingsShort: "Settings",
-    },
-  },
-  ru: {
-    brand: "Darak",
-    adminPanel: "Панель управления",
-    welcome: "Привет,",
-    myProfile: "Профиль",
-    publicSite: "Сайт",
-    logout: "Выйти",
-    notifications: "Уведомления",
-    clearAll: "Очистить",
-    noNotifications: "Нет новых уведомлений",
-    view: "Открыть",
-    deleteNotif: "Удалить",
-    languageLabel: "Язык",
-    roles: {
-      ADMIN: "Админ",
-      MODERATOR: "Модератор",
-      SALES: "Отдел продаж",
-    },
-    nav: {
-      dashboard: "Главная",
-      properties: "Объекты",
-      propertiesShort: "Объекты",
-      promotions: "Промо ⭐",
-      promotionsShort: "Промо",
-      leads: "Покупатели",
-      leadsShort: "Заявки",
-      users: "Пользователи и роли",
-      usersShort: "Роли",
-      investors: "Инвесторы",
-      investorsShort: "Инвесторы",
-      settings: "Настройки",
-      settingsShort: "Настройки",
-    },
-  },
-  ka: {
-    brand: "Darak",
-    adminPanel: "ადმინ პანელი",
-    welcome: "გამარჯობა,",
-    myProfile: "პროფილი",
-    publicSite: "საიტი",
-    logout: "გასვლა",
-    notifications: "შეტყობინებები",
-    clearAll: "გასუფთავება",
-    noNotifications: "ახალი შეტყობინებები არ არის",
-    view: "ნახვა",
-    deleteNotif: "წაშლა",
-    languageLabel: "ენა",
-    roles: {
-      ADMIN: "ადმინი",
-      MODERATOR: "მოდერატორი",
-      SALES: "გაყიდვები",
-    },
-    nav: {
-      dashboard: "მთავარი",
-      properties: "ობიექტები",
-      propertiesShort: "ობიექტები",
-      promotions: "რეკლამა ⭐",
-      promotionsShort: "რეკლამა",
-      leads: "მყიდველები",
-      leadsShort: "მყიდველები",
-      users: "მომხმარებლები",
-      usersShort: "როლები",
-      investors: "ინვესტორები",
-      investorsShort: "ინვესტ.",
-      settings: "პარამეტრები",
-      settingsShort: "პარამ.",
-    },
-  },
 }
 
 export default function AdminShell({
@@ -233,8 +65,10 @@ export default function AdminShell({
 }) {
   const router = useRouter()
   const pathname = usePathname()
-  const { locale, dir, isRtl } = useTranslation()
-  const t = SHELL_I18N[locale] || SHELL_I18N.ar
+
+  // سحب الترجمة مباشرة من النظام المركزي (ملفات الـ JSON)
+  const { t: dict, locale, dir, isRtl } = useTranslation()
+  const t = dict.admin.shell
 
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
@@ -250,7 +84,6 @@ export default function AdminShell({
 
   const firstName = adminName.trim().split(/\s+/)[0] || "Admin"
 
-  // تحديد الروابط المسموحة لكل دور وظيفي
   const allNavLinks = [
     {
       href: "/admin",
@@ -478,7 +311,6 @@ export default function AdminShell({
         </div>
 
         <div className="space-y-1.5 border-t border-white/10 p-3.5">
-          {/* أزرار تغيير اللغة السريعة داخل القائمة الجانبية */}
           <div className="mb-2 rounded-xl bg-white/5 p-2">
             <div className="mb-1.5 flex items-center justify-between px-1 text-[10px] font-bold text-white/60">
               <span className="flex items-center gap-1">
@@ -658,7 +490,7 @@ export default function AdminShell({
         </div>
       )}
 
-      {/* 3. الهيدر العلوي الرشيق (يضم زر اللغة + حسابي + جرس الإشعارات) */}
+      {/* 3. الهيدر العلوي */}
       <div className={isRtl ? "lg:mr-64" : "lg:ml-64"}>
         <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-2 border-b border-gray-200/80 bg-white/95 px-3.5 backdrop-blur-md sm:h-16 sm:px-6">
           <div className="flex min-w-0 items-center gap-2.5">
@@ -685,7 +517,7 @@ export default function AdminShell({
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
-            {/* زر تغيير اللغة في الهيدر العلوي للوحة الأدمن */}
+            {/* زر تغيير اللغة */}
             <div className="relative" ref={langRef}>
               <button
                 type="button"

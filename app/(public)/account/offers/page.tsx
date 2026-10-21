@@ -4,13 +4,14 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
-import arDict from '@/dictionaries/ar.json'
-
-const t = arDict.accountPages.offers
-const tCommon = arDict.accountPages.common
+import { useTranslation } from '@/lib/i18n'
 
 export default function OffersPage() {
   const router = useRouter()
+  const { t: dict, dir } = useTranslation()
+  const t = dict.accountPages.offers
+  const tCommon = dict.accountPages.common
+
   const [loading, setLoading] = useState(true)
   const [userRole, setUserRole] = useState<'seller' | 'buyer' | null>(null)
 
@@ -54,7 +55,10 @@ export default function OffersPage() {
 
   if (loading)
     return (
-      <div className="flex h-screen items-center justify-center bg-[var(--brand-surface,#f5f6f8)]">
+      <div
+        dir={dir}
+        className="flex h-screen items-center justify-center bg-[var(--brand-surface,#f5f6f8)]"
+      >
         <div className="font-bold text-[var(--brand-primary,#007a5a)]">
           {t.loading}
         </div>
@@ -64,7 +68,7 @@ export default function OffersPage() {
   if (userRole === 'seller') {
     return (
       <main
-        dir="rtl"
+        dir={dir}
         className="min-h-screen bg-[var(--brand-surface,#f5f6f8)] text-[var(--brand-navy-text,#0a1128)]"
       >
         <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:py-16">
@@ -98,7 +102,7 @@ export default function OffersPage() {
   if (userRole === 'buyer') {
     return (
       <main
-        dir="rtl"
+        dir={dir}
         className="min-h-screen bg-[var(--brand-surface,#f5f6f8)] text-[var(--brand-navy-text,#0a1128)]"
       >
         <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6">

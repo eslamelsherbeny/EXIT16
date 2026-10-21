@@ -6,9 +6,7 @@ import { Loader2 } from 'lucide-react'
 import { SellerDashboard, type SellerUnitItem } from './seller-dashboard'
 import { BuyerDashboard, type BuyerRequestItem } from './buyer-dashboard'
 import { AccountActionLinks } from './delete-account-modal'
-import arDict from '@/dictionaries/ar.json'
-
-const t = arDict.accountComponents.switcher
+import { useTranslation } from '@/lib/i18n'
 
 export function AccountViewSwitcher({
   initialView,
@@ -29,6 +27,9 @@ export function AccountViewSwitcher({
   matchedBuyersCountMap: Record<string, number>
   deletionRequested: boolean
 }) {
+  const { t: dict, dir } = useTranslation()
+  const t = dict.accountComponents.switcher
+
   const [currentView, setCurrentView] = useState<'seller' | 'buyer'>(
     initialView
   )
@@ -57,7 +58,7 @@ export function AccountViewSwitcher({
   }
 
   return (
-    <div>
+    <div dir={dir}>
       {sells.length > 0 && buys.length > 0 && (
         <div className="mx-auto mb-6 flex max-w-[680px] justify-center gap-2 px-4">
           <button

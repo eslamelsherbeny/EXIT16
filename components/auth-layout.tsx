@@ -1,11 +1,12 @@
 'use client'
 
+import { useEffect, useRef, useState } from 'react'
+import Script from 'next/script'
 import { Navbar } from '@/components/site-shell'
 import { useTranslation } from '@/lib/i18n'
 
 export function AuthLayout({ children }: { children: React.ReactNode }) {
   const { dir } = useTranslation()
-
   return (
     <div className="min-h-screen bg-[var(--brand-surface,#f5f6f8)]" dir={dir}>
       <Navbar />
@@ -32,20 +33,81 @@ export function AuthCard({
   )
 }
 
-export function TurnstileBox() {
-  const { t: dict, dir } = useTranslation()
-  const c = dict.authPages.common
+export function TurnstileBox({
+  onTokenChange,
+}: {
+  onTokenChange?: (token: string) => void
+}) {
+  const { t: dict } = useTranslation()
+  const t = dict.authPages.common
+  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ''
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [token, setToken] = useState<string>(siteKey ? '' : 'dev-bypass-token')
+
+  useEffect(() => {
+    if (!siteKey) {
+      onTokenChange?.('dev-bypass-token')
+      return
+    }
+
+    let widgetId: string | undefined
+    const renderWidget = () => {
+      if (
+        typeof window !== 'undefined' &&
+        (window as any).turnstile &&
+        containerRef.current &&
+        !containerRef.current.hasChildNodes()
+      ) {
+        widgetId = (window as any).turnstile.render(containerRef.current, {
+          sitekey: siteKey,
+          theme: 'light',
+          callback: (tk: string) => {
+            setToken(tk)
+            onTokenChange?.(tk)
+          },
+          'expired-callback': () => {
+            setToken('')
+            onTokenChange?.('')
+          },
+        })
+      }
+    }
+
+    renderWidget()
+    const timer = setInterval(renderWidget, 500)
+    return () => {
+      clearInterval(timer)
+      if (widgetId && typeof window !== 'undefined' && (window as any).turnstile) {
+        try {
+          ;(window as any).turnstile.remove(widgetId)
+        } catch {}
+      }
+    }
+  }, [siteKey, onTokenChange])
+
+  if (siteKey) {
+    return (
+      <div className="my-1 flex flex-col items-center justify-center">
+        <Script
+          src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
+          strategy="afterInteractive"
+        />
+        <div ref={containerRef} className="min-h-[65px]" />
+        <input type="hidden" name="cf_turnstile_response" value={token} />
+      </div>
+    )
+  }
 
   return (
     <div
-      dir={dir}
       className="flex min-h-[60px] items-center gap-3 rounded-xl border border-[#d9d9dc] bg-[#fafafa] px-4 text-xs text-muted-foreground"
       aria-label="Cloudflare Turnstile"
     >
+      <input type="hidden" name="cf_turnstile_response" value="dev-bypass-token" />
       <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white">
         ✓
       </span>
-      <span className="font-semibold">{c.turnstileText}</span>
+      <span className="font-semibold">{t.turnstileText}</span>
       <span className="ms-auto text-left font-sans text-[10px] leading-3 text-[#8b8b91]">
         CLOUDFLARE
         <br />

@@ -30,18 +30,15 @@ import {
   markAllNotificationsAsReadAction,
   markNotificationAsReadAction,
 } from '@/app/actions/notification-actions'
-
-import ar from '@/dictionaries/ar.json'
-import en from '@/dictionaries/en.json'
-import ru from '@/dictionaries/ru.json'
-import ka from '@/dictionaries/ka.json'
-
-const dictionaries: Record<string, any> = { ar, en, ru, ka }
-
-type Dictionary = typeof ar
+import {
+  useTranslation,
+  type CountryCode,
+  type LocaleCode,
+  type Dictionary,
+} from '@/lib/i18n'
 
 // ==================== إعدادات اللغات الـ 4 ====================
-export type LanguageCode = 'ar' | 'en' | 'ru' | 'ka'
+export type LanguageCode = LocaleCode
 
 export type LanguageConfig = {
   code: LanguageCode
@@ -59,7 +56,7 @@ export const SUPPORTED_LANGUAGES: Record<LanguageCode, LanguageConfig> = {
 }
 
 // ==================== إعدادات الدول الـ 4 ====================
-export type CountryCode = 'EG' | 'RU' | 'GE' | 'AE'
+export type { CountryCode }
 
 export type CountryConfig = {
   code: CountryCode
@@ -127,20 +124,6 @@ export const SUPPORTED_COUNTRIES: Record<CountryCode, CountryConfig> = {
     phoneCode: '+971',
     defaultPackages: { days7: 99, days14: 179, days30: 249 },
   },
-}
-
-// دالة موحدة لإرجاع رمز العملة الصحيح حسب الدولة ولغة العرض الحالية
-export function getLocalizedCurrencyLabel(
-  countryCode?: string | null,
-  locale?: string | null
-): string {
-  const cCode = (countryCode || 'EG').trim().toUpperCase() as CountryCode
-  const cfg = SUPPORTED_COUNTRIES[cCode] || SUPPORTED_COUNTRIES.EG
-  const isArabic = !locale || locale === 'ar'
-
-  if (cCode === 'EG') return isArabic ? 'ج.م' : 'EGP'
-  if (cCode === 'AE') return isArabic ? 'د.إ' : 'AED'
-  return cfg.currencySymbol
 }
 
 export function getActiveCountryFromCookie(): CountryConfig {
@@ -254,13 +237,14 @@ export function Logo({ inverse = false }: { inverse?: boolean }) {
 }
 
 // ==================== 2. الهيدر (Navbar) ====================
-export function Navbar({ dictionary: _d = ar }: { dictionary?: Dictionary }) {
+export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
   const router = useRouter()
   const pathname = usePathname()
 
-  const [language, setLanguage] = useState<LanguageCode>('ar')
+  // سحب اللغة والدولة والقاموس مباشرة من النظام المركزي بسطر واحد!
+  const { t: labels, locale: language, country, dir } = useTranslation()
+
   const [langMenuOpen, setLangMenuOpen] = useState(false)
-  const [country, setCountry] = useState<CountryCode>('EG')
   const [countryMenuOpen, setCountryMenuOpen] = useState(false)
   const [hasSession, setHasSession] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
@@ -282,70 +266,18 @@ export function Navbar({ dictionary: _d = ar }: { dictionary?: Dictionary }) {
   const countryRefMobile = useRef<HTMLDivElement>(null)
   const langRefDesktop = useRef<HTMLDivElement>(null)
 
-  const labels = dictionaries[language] || dictionaries['ar']
-
   useEffect(() => {
     if (!isSwitchingLocale) {
       setSwitchingLabel(null)
     }
   }, [isSwitchingLocale])
 
-  useEffect(() => {
-    const hasCookie = document.cookie
-      .split('; ')
-      .some((row) => row.startsWith('darak_country='))
-
-    if (hasCookie) {
-      setCountry(getActiveCountryFromCookie().code)
-    } else {
-      try {
-        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''
-        let detected: CountryCode = 'EG'
-        if (tz.includes('Moscow') || tz.includes('Europe/')) detected = 'RU'
-        if (tz.includes('Tbilisi')) detected = 'GE'
-        if (tz.includes('Dubai')) detected = 'AE'
-        setCountry(detected)
-        document.cookie = `darak_country=${detected}; path=/; max-age=31536000; SameSite=Lax`
-      } catch {
-        setCountry('EG')
-      }
-    }
-
-    const localeMatch = document.cookie
-      .split('; ')
-      .find((row) => row.startsWith('locale='))
-    const savedLang = localeMatch?.split('=')[1]?.trim() as LanguageCode | undefined
-    if (savedLang && SUPPORTED_LANGUAGES[savedLang]) {
-      setLanguage(savedLang)
-      document.documentElement.lang = savedLang
-      document.documentElement.dir = SUPPORTED_LANGUAGES[savedLang].dir
-    }
-
-    const syncCountry = () => {
-      setCountry(getActiveCountryFromCookie().code)
-    }
-    const syncLang = () => {
-      const lm = document.cookie.split('; ').find((row) => row.startsWith('locale='))
-      const l = lm?.split('=')[1]?.trim() as LanguageCode | undefined
-      if (l && SUPPORTED_LANGUAGES[l]) setLanguage(l)
-    }
-
-    window.addEventListener('country-changed', syncCountry)
-    window.addEventListener('language-changed', syncLang)
-    return () => {
-      window.removeEventListener('country-changed', syncCountry)
-      window.removeEventListener('language-changed', syncLang)
-    }
-  }, [])
-
-  // تغيير الدولة فقط (مستقل تماماً عن اللغة) مع إظهار Loading خفيف
   const handleSelectCountry = (code: CountryCode) => {
     if (code === country) {
       setCountryMenuOpen(false)
       return
     }
     const targetCfg = SUPPORTED_COUNTRIES[code]
-    setCountry(code)
     setCountryMenuOpen(false)
     setSwitchingLabel(`${targetCfg.flag} ${getCountryName(targetCfg, language)}...`)
     document.cookie = `darak_country=${code}; path=/; max-age=31536000; SameSite=Lax`
@@ -355,14 +287,12 @@ export function Navbar({ dictionary: _d = ar }: { dictionary?: Dictionary }) {
     })
   }
 
-  // تغيير اللغة فقط (مستقل تماماً عن الدولة) مع إظهار Loading خفيف
   const handleSelectLanguage = (code: LanguageCode) => {
     if (code === language) {
       setLangMenuOpen(false)
       return
     }
     const targetLang = SUPPORTED_LANGUAGES[code]
-    setLanguage(code)
     setLangMenuOpen(false)
     setSwitchingLabel(`${targetLang.nativeName}...`)
     document.cookie = `locale=${code}; path=/; max-age=31536000; SameSite=Lax`
@@ -720,10 +650,10 @@ export function Navbar({ dictionary: _d = ar }: { dictionary?: Dictionary }) {
 
   return (
     <header
-      dir={SUPPORTED_LANGUAGES[language].dir}
+      dir={dir}
       className="sticky top-0 z-50 border-b border-gray-200/75 bg-white/95 backdrop-blur-md"
     >
-      {/* شريط ومؤشر التحميل الفوري عند تبديل اللغة أو الدولة */}
+      {/* مؤشر التحميل عند تبديل اللغة أو الدولة */}
       {isSwitchingLocale && (
         <>
           <div className="absolute inset-x-0 top-0 h-[3px] overflow-hidden bg-emerald-100">
@@ -740,7 +670,6 @@ export function Navbar({ dictionary: _d = ar }: { dictionary?: Dictionary }) {
       )}
 
       <div className="mx-auto flex h-[68px] max-w-[1160px] items-center justify-between gap-3 px-4 sm:px-6">
-        {/* ==================== القسم الأول: اللوجو + التابات ==================== */}
         <div className="flex items-center gap-8 xl:gap-11">
           <Logo />
           <nav
@@ -767,9 +696,8 @@ export function Navbar({ dictionary: _d = ar }: { dictionary?: Dictionary }) {
           </nav>
         </div>
 
-        {/* ==================== القسم الثاني (ديسكتوب) ==================== */}
         <div className="hidden shrink-0 items-center gap-1.5 lg:flex xl:gap-2">
-          {/* 1. زر الدولة (العلم + أول حرفين من الدولة) */}
+          {/* 1. زر الدولة */}
           <div className="relative" ref={countryRefDesktop}>
             <button
               type="button"
@@ -795,7 +723,7 @@ export function Navbar({ dictionary: _d = ar }: { dictionary?: Dictionary }) {
             {countryMenuOpen && renderCountryDropdownMenu()}
           </div>
 
-          {/* 2. زر اللغة النصي النظيف */}
+          {/* 2. زر اللغة */}
           <div className="relative" ref={langRefDesktop}>
             <button
               type="button"
@@ -824,9 +752,7 @@ export function Navbar({ dictionary: _d = ar }: { dictionary?: Dictionary }) {
             href={hasSession ? '/account' : '/login'}
             className="inline-flex h-[38px] items-center justify-center whitespace-nowrap rounded-[10px] border border-[#e2e8f0] bg-white px-3.5 text-[13px] font-bold text-[#0a1122] transition-colors hover:bg-gray-50"
           >
-            {hasSession
-              ? labels.navbar?.login || 'حسابي'
-              : labels.navbar?.login || 'تسجيل الدخول'}
+            {labels.navbar?.login || 'حسابي'}
           </Link>
 
           {/* 4. زر عايز تشتري */}
@@ -1097,41 +1023,18 @@ export function Navbar({ dictionary: _d = ar }: { dictionary?: Dictionary }) {
   )
 }
 
-export function LegacyNavbar({ dictionary = ar }: { dictionary?: Dictionary }) {
+export function LegacyNavbar({ dictionary }: { dictionary?: Dictionary }) {
   return <Navbar dictionary={dictionary} />
 }
 
 // ==================== 3. الفوتر المنظم (Footer) ====================
-export function Footer({ dictionary: _d = ar }: { dictionary?: Dictionary }) {
+export function Footer({ dictionary: _unused }: { dictionary?: Dictionary }) {
   const router = useRouter()
-  const [activeCountry, setActiveCountry] = useState<CountryCode>('EG')
-  const [language, setLanguage] = useState<LanguageCode>('ar')
+  const { t: labels, locale: language, country: activeCountry, dir } = useTranslation()
   const [isSwitching, startTransition] = useTransition()
-
-  const labels = dictionaries[language] || dictionaries['ar']
-
-  useEffect(() => {
-    setActiveCountry(getActiveCountryFromCookie().code)
-    const syncCountry = () => setActiveCountry(getActiveCountryFromCookie().code)
-    window.addEventListener('country-changed', syncCountry)
-
-    const syncLang = () => {
-      const lm = document.cookie.split('; ').find((row) => row.startsWith('locale='))
-      const l = lm?.split('=')[1]?.trim() as LanguageCode | undefined
-      if (l && SUPPORTED_LANGUAGES[l]) setLanguage(l)
-    }
-    syncLang()
-    window.addEventListener('language-changed', syncLang)
-
-    return () => {
-      window.removeEventListener('country-changed', syncCountry)
-      window.removeEventListener('language-changed', syncLang)
-    }
-  }, [])
 
   const selectFooterCountry = (code: CountryCode) => {
     if (code === activeCountry) return
-    setActiveCountry(code)
     document.cookie = `darak_country=${code}; path=/; max-age=31536000; SameSite=Lax`
     window.dispatchEvent(new Event('country-changed'))
     startTransition(() => {
@@ -1178,14 +1081,13 @@ export function Footer({ dictionary: _d = ar }: { dictionary?: Dictionary }) {
   ]
 
   return (
-    <footer className="bg-[#0a1122] text-white" dir={SUPPORTED_LANGUAGES[language].dir}>
+    <footer className="bg-[#0a1122] text-white" dir={dir}>
       <div className="mx-auto max-w-[1140px] px-5 pt-14 pb-12 sm:px-6 lg:pt-20">
         <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-[1.45fr_1fr_1fr_1fr] lg:gap-12">
           <div className="text-start">
             <Logo inverse />
             <p className="mt-5 max-w-sm text-xs leading-[1.9] text-gray-300/85 sm:text-[13px]">
-              {labels.footer?.description ||
-                'منصة التنازل عن وحدات التقسيط بدون أوفر — البايع يسترجع فلوسه كاش، والمشتري ياخد سعر التعاقد القديم، وإحنا بنسهّل الإجراءات خطوة بخطوة'}
+              {labels.footer?.description}
             </p>
             <div className="mt-5 flex flex-col items-start gap-2 text-xs text-gray-300 sm:text-[13px]">
               <a

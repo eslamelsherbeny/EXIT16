@@ -1416,7 +1416,7 @@
     "notFoundTitle": "Sorry, the property or page you are looking for was not found",
     "notFoundDesc": "The page may have been removed or the link was typed incorrectly.",
     "notFoundBtn": "Available Opportunities"
-  }
+  },
   "admin": {
     "accessDenied": {
       "title": "Access Denied",

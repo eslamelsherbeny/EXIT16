@@ -11,10 +11,11 @@ import {
 } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
 import nodemailer from 'nodemailer'
-
-// ==========================================
-// 1. إعدادات الـ Supabase و الـ Email و الحماية
-// ==========================================
+import {
+  createSignedSessionToken,
+  extractUserIdFromCookie,
+  parseAndVerifySessionCookie,
+} from '@/lib/session-security'
 
 async function getSupabase() {
   const cookieStore = await cookies()
@@ -36,7 +37,6 @@ function getSessionSecret() {
   )
 }
 
-// تنظيف وتقليم المدخلات لمنع حقن الاسكريبتات (XSS) أو ملء مساحة الداتابيز (Payload Overflow)
 function sanitizeInput(val: unknown, maxLength = 250): string {
   if (typeof val !== 'string') return ''
   return val
@@ -47,7 +47,6 @@ function sanitizeInput(val: unknown, maxLength = 250): string {
     .slice(0, maxLength)
 }
 
-// التحقق من Cloudflare Turnstile على السيرفر (يعمل تلقائياً عند وضع TURNSTILE_SECRET_KEY)
 async function verifyTurnstileOnServer(token?: string | null): Promise<boolean> {
   const secretKey = process.env.TURNSTILE_SECRET_KEY?.trim()
   if (!secretKey) return true
@@ -111,62 +110,6 @@ async function sendEmail({
   }
 }
 
-// ==========================================
-// 2. نظام الجلسات المشفرة ببصمة كلمة المرور (Session Fingerprinting)
-// ==========================================
-// إذا غيّر المستخدم باسورده من جهاز، تصبح بصمة الباسورد في الجهاز الآخر لاغية فوراً!
-
-function getPasswordFingerprint(passwordHash: string | null | undefined) {
-  return createHash('sha256')
-    .update(String(passwordHash || 'no-pass'))
-    .digest('hex')
-    .slice(0, 12)
-}
-
-export  async function createSignedSessionToken(
-  userId: string,
-  passwordHash: string | null | undefined
-) {
-  const pwdFp = getPasswordFingerprint(passwordHash)
-  const payload = `${userId}.${pwdFp}`
-  const sig = createHmac('sha256', getSessionSecret())
-    .update(payload)
-    .digest('hex')
-    .slice(0, 24)
-  return `${payload}.${sig}`
-}
-
-export async function parseAndVerifySessionCookie(
-  rawCookie: string | undefined,
-  currentDbPasswordHash: string | null | undefined
-): { valid: boolean; userId: string | null } {
-  if (!rawCookie) return { valid: false, userId: null }
-
-  const parts = rawCookie.split('.')
-  if (parts.length === 3) {
-    const [userId, cookiePwdFp, sig] = parts
-    const expectedSig = createHmac('sha256', getSessionSecret())
-      .update(`${userId}.${cookiePwdFp}`)
-      .digest('hex')
-      .slice(0, 24)
-
-    if (sig !== expectedSig) {
-      return { valid: false, userId: null }
-    }
-
-    const dbPwdFp = getPasswordFingerprint(currentDbPasswordHash)
-    if (cookiePwdFp !== dbPwdFp) {
-      // الباسورد تغير في الداتابيز! نرفض الجلسة القديمة فوراً
-      return { valid: false, userId: null }
-    }
-
-    return { valid: true, userId }
-  }
-
-  // دعم انتقالي للكوكي القديمة إذا لم يتغير الباسورد
-  return { valid: true, userId: rawCookie }
-}
-
 async function setUserSession(
   userId: string,
   passwordHash?: string | null
@@ -189,10 +132,6 @@ async function setUserSession(
     secure: isProd,
   })
 }
-
-// ==========================================
-// 3. دوال المساعدة والتنسيق والتشفير
-// ==========================================
 
 function generateOTP() {
   return Math.floor(100000 + Math.random() * 900000).toString()
@@ -319,10 +258,6 @@ function verifySignedOtpToken(
 
 export type AuthResult = { success: boolean; error?: string }
 
-// ==========================================
-// 4. تسجيل الدخول الذكي (للعملاء وللإدارة مع فحص الصلاحية)
-// ==========================================
-
 export async function loginAction(
   formData: FormData
 ): Promise<AuthResult & { redirectTo?: string }> {
@@ -400,10 +335,12 @@ export async function loginAction(
   const cleanRole = String(matchedUser.role || 'user')
     .replace(/[\r\n\s]+/g, '')
     .toLowerCase()
-  const isAdminOrMod = cleanRole === 'admin' || cleanRole === 'moderator'
+  const isStaff =
+    cleanRole === 'admin' ||
+    cleanRole === 'moderator' ||
+    cleanRole === 'sales'
 
-  // إذا كان يحاول الدخول للوحة الأدمن وهو ليس أدمن ولا مشرف، نمنعه برسالة واضحة
-  if (nextUrl.startsWith('/admin') && !isAdminOrMod) {
+  if (nextUrl.startsWith('/admin') && !isStaff) {
     return {
       success: false,
       error:
@@ -424,22 +361,15 @@ export async function loginAction(
     }).catch(() => {})
   }
 
+  // التوجه للرئيسية أو الصفحة المطلوبة بشكل طبيعي دون إجبار المستخدم على الذهاب للوحة الأدمن إلا إذا طلبها
   const targetRedirect =
-    nextUrl && nextUrl.startsWith('/')
-      ? nextUrl
-      : isAdminOrMod
-        ? '/admin'
-        : '/'
+    nextUrl && nextUrl.startsWith('/') ? nextUrl : '/account'
 
   return {
     success: true,
     redirectTo: targetRedirect,
   }
 }
-
-// ==========================================
-// 5. إنشاء حساب جديد + فحص الحماية + توقيع الجلسة
-// ==========================================
 
 export async function registerAction(formData: FormData): Promise<AuthResult> {
   const turnstileToken = formData.get('cf_turnstile_response') as string | null
@@ -553,10 +483,6 @@ export async function registerAction(formData: FormData): Promise<AuthResult> {
   return { success: true }
 }
 
-// ==========================================
-// 6. استرجاع كلمة المرور
-// ==========================================
-
 export async function forgotPasswordAction(
   formData: FormData
 ): Promise<AuthResult> {
@@ -620,10 +546,6 @@ export async function forgotPasswordAction(
 
   return { success: true }
 }
-
-// ==========================================
-// 7. التحقق من الـ OTP وتحديث كلمة السر (يبطل الجلسات المفتوحة في أي هاتف آخر فوراً!)
-// ==========================================
 
 export async function verifyOtpAction(
   email: string,
@@ -722,16 +644,11 @@ export async function resetPasswordAction(
 
   const cookieStore = await cookies()
   cookieStore.delete('reset_otp_session')
-  // حذف الجلسة الحالية ليدخل بالباسورد الجديد، وأي تليفون تاني ستبطل جلسته تلقائياً لأن بصمة الباسورد تغيرت
   cookieStore.delete('user_session')
   cookieStore.delete('session_hint')
 
   return { success: true }
 }
-
-// ==========================================
-// 8. توثيق الحساب وفحص الجلسة الحالية (مع التحقق من بصمة الباسورد وحالة الحساب)
-// ==========================================
 
 export async function verifyAccountAction(
   email: string,
@@ -764,11 +681,8 @@ export async function getSessionUserAction() {
   try {
     const cookieStore = await cookies()
     const rawSession = cookieStore.get('user_session')?.value
-    if (!rawSession)
-      return { isLoggedIn: false, isAdmin: false, name: null, role: null }
-
-    const candidateUserId = rawSession.split('.')[0]
-    if (!candidateUserId)
+    const candidateUserId = extractUserIdFromCookie(rawSession)
+    if (!rawSession || !candidateUserId)
       return { isLoggedIn: false, isAdmin: false, name: null, role: null }
 
     const supabase = await getSupabase()
@@ -781,7 +695,6 @@ export async function getSessionUserAction() {
     if (!user)
       return { isLoggedIn: false, isAdmin: false, name: null, role: null }
 
-    // فحص هل الباسورد تغير من جهاز آخر أو الحساب تم إيقافه
     const check = parseAndVerifySessionCookie(rawSession, user.password_hash)
     const status = String(user.status || 'active').trim().toLowerCase()
 
@@ -794,7 +707,8 @@ export async function getSessionUserAction() {
     const role = String(user.role || 'user')
       .replace(/[\r\n\s]+/g, '')
       .toLowerCase()
-    const isAdmin = role === 'admin' || role === 'moderator'
+    const isAdmin =
+      role === 'admin' || role === 'moderator' || role === 'sales'
 
     return {
       isLoggedIn: true,

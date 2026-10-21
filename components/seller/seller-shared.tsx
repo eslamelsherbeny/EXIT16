@@ -5,9 +5,12 @@ import { Check, ChevronDown, Globe } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import arDict from '@/dictionaries/ar.json'
-
-const t = arDict.sell.shared
+import {
+  DICTIONARIES,
+  getCurrencySymbol,
+  useTranslation,
+  type LocaleCode,
+} from '@/lib/i18n'
 
 export type PlatformCountryCode = 'EG' | 'RU' | 'GE' | 'AE'
 
@@ -15,6 +18,8 @@ export type PlatformCountryOption = {
   code: PlatformCountryCode | string
   nameAr: string
   nameEn: string
+  nameRu?: string
+  nameKa?: string
   flag: string
   currencySymbol: string
   phoneCode: string
@@ -30,6 +35,8 @@ export const PLATFORM_COUNTRIES: PlatformCountryOption[] = [
     code: 'EG',
     nameAr: 'مصر',
     nameEn: 'Egypt',
+    nameRu: 'Египет',
+    nameKa: 'ეგვიპტე',
     flag: '🇪🇬',
     currencySymbol: 'ج.م',
     phoneCode: '20',
@@ -39,6 +46,8 @@ export const PLATFORM_COUNTRIES: PlatformCountryOption[] = [
     code: 'RU',
     nameAr: 'روسيا',
     nameEn: 'Russia',
+    nameRu: 'Россия',
+    nameKa: 'რუსეთი',
     flag: '🇷🇺',
     currencySymbol: '₽',
     phoneCode: '7',
@@ -48,6 +57,8 @@ export const PLATFORM_COUNTRIES: PlatformCountryOption[] = [
     code: 'GE',
     nameAr: 'جورجيا',
     nameEn: 'Georgia',
+    nameRu: 'Грузия',
+    nameKa: 'საქართველო',
     flag: '🇬🇪',
     currencySymbol: '$',
     phoneCode: '995',
@@ -57,6 +68,8 @@ export const PLATFORM_COUNTRIES: PlatformCountryOption[] = [
     code: 'AE',
     nameAr: 'الإمارات',
     nameEn: 'UAE',
+    nameRu: 'ОАЭ',
+    nameKa: 'საამიროები',
     flag: '🇦🇪',
     currencySymbol: 'د.إ',
     phoneCode: '971',
@@ -132,6 +145,16 @@ export const ALL_RESIDENCE_COUNTRIES: PlatformCountryOption[] = [
   },
 ]
 
+export function getLocalizedCountryName(
+  country: PlatformCountryOption,
+  locale: LocaleCode = 'ar'
+): string {
+  if (locale === 'ar') return country.nameAr
+  if (locale === 'ru') return country.nameRu || country.nameEn
+  if (locale === 'ka') return country.nameKa || country.nameEn
+  return country.nameEn
+}
+
 export function normalizeArabicText(str: string) {
   return (str || '')
     .trim()
@@ -161,8 +184,11 @@ export function getCountryConfig(countryCode?: string): PlatformCountryOption {
   )
 }
 
-export function getCurrencyByCountry(countryCode?: string) {
-  return getCountryConfig(countryCode).currencySymbol
+export function getCurrencyByCountry(
+  countryCode?: string,
+  locale?: LocaleCode
+) {
+  return getCurrencySymbol(countryCode || 'EG', locale)
 }
 
 export const unitTypes = [
@@ -295,13 +321,18 @@ export const areasCatalogByCountry: Record<
 
 export const areasCatalog = areasCatalogByCountry.EG
 
-export function formatAmount(value?: string, currencySymbol = 'ج.م') {
+export function formatAmount(
+  value?: string,
+  currencySymbol = 'ج.م',
+  locale: LocaleCode = 'ar'
+) {
   const amount = Number((value ?? '').replace(/,/g, ''))
   if (!amount) return ''
+  const sharedDict = DICTIONARIES[locale]?.sell?.shared || DICTIONARIES.ar.sell.shared
   if (amount >= 1_000_000)
-    return `${(amount / 1_000_000).toFixed(2).replace(/\.00$/, '')} ${t.million} ${currencySymbol}`
+    return `${(amount / 1_000_000).toFixed(2).replace(/\.00$/, '')} ${sharedDict.million} ${currencySymbol}`
   if (amount >= 1_000)
-    return `${Math.round(amount / 1_000)} ${t.thousand} ${currencySymbol}`
+    return `${Math.round(amount / 1_000)} ${sharedDict.thousand} ${currencySymbol}`
   return `${amount.toLocaleString('en-US')} ${currencySymbol}`
 }
 
@@ -311,7 +342,7 @@ export function RequiredLabel({ children }: { children: string }) {
     <>
       {required ? (
         <>
-          {children.slice(0, -2)} <span className="mr-1 text-red-500">*</span>
+          {children.slice(0, -2)} <span className="ms-1 text-red-500">*</span>
         </>
       ) : (
         children
@@ -321,7 +352,7 @@ export function RequiredLabel({ children }: { children: string }) {
 }
 
 export function SearchableCountryField({
-  label = t.countryLabel,
+  label,
   value,
   onChange,
   options = PLATFORM_COUNTRIES,
@@ -335,6 +366,10 @@ export function SearchableCountryField({
   helper?: string
   error?: string
 }) {
+  const { t: dict, locale, dir } = useTranslation()
+  const t = dict.sell.shared
+  const resolvedLabel = label || t.countryLabel
+
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const wrapperRef = useRef<HTMLDivElement>(null)
@@ -362,24 +397,28 @@ export function SearchableCountryField({
     return (
       normalizeArabicText(c.nameAr).includes(q) ||
       c.nameEn.toLowerCase().includes(q) ||
+      (c.nameRu && c.nameRu.toLowerCase().includes(q)) ||
+      (c.nameKa && c.nameKa.toLowerCase().includes(q)) ||
       c.code.toLowerCase().includes(q)
     )
   })
 
+  const displayCountryName = getLocalizedCountryName(selectedObj, locale)
+
   return (
     <div ref={wrapperRef} className="relative flex flex-col gap-2">
-      <Label className="text-right">
-        <RequiredLabel>{label}</RequiredLabel>
+      <Label className="text-start">
+        <RequiredLabel>{resolvedLabel}</RequiredLabel>
       </Label>
 
       <div className="relative">
         <Input
           type="text"
-          dir="rtl"
+          dir={dir}
           value={
             open
               ? query
-              : `${selectedObj.flag}  ${selectedObj.nameAr} (${selectedObj.nameEn})`
+              : `${selectedObj.flag}  ${displayCountryName} (${selectedObj.code})`
           }
           placeholder={t.countryPlaceholder}
           onFocus={() => {
@@ -390,7 +429,7 @@ export function SearchableCountryField({
             setQuery(e.target.value)
             setOpen(true)
           }}
-          className={`h-12 cursor-pointer rounded-xl pr-4 pl-10 text-right font-bold text-[var(--brand-navy,#0a1122)] ${
+          className={`h-12 cursor-pointer rounded-xl px-4 text-start font-bold text-[var(--brand-navy,#0a1122)] ${
             error ? 'border-red-500 bg-red-50/20' : 'border-slate-200 bg-white'
           }`}
         />
@@ -400,7 +439,7 @@ export function SearchableCountryField({
             setOpen(!open)
             setQuery('')
           }}
-          className="absolute top-1/2 left-3 -translate-y-1/2 text-slate-400 hover:text-[var(--brand-primary,#007a5a)]"
+          className="absolute top-1/2 end-3 -translate-y-1/2 text-slate-400 hover:text-[var(--brand-primary,#007a5a)]"
         >
           <ChevronDown className="size-4" />
         </button>
@@ -415,6 +454,7 @@ export function SearchableCountryField({
           ) : (
             filteredOptions.map((c) => {
               const isSelected = c.code === selectedObj.code
+              const cName = getLocalizedCountryName(c, locale)
               return (
                 <button
                   key={c.code}
@@ -424,7 +464,7 @@ export function SearchableCountryField({
                     setOpen(false)
                     setQuery('')
                   }}
-                  className={`flex w-full items-center justify-between rounded-lg px-3.5 py-2.5 text-right text-sm transition ${
+                  className={`flex w-full items-center justify-between rounded-lg px-3.5 py-2.5 text-start text-sm transition ${
                     isSelected
                       ? 'bg-[var(--brand-primary-light,#eaf8f2)] font-bold text-[var(--brand-primary,#007a5a)]'
                       : 'text-[var(--brand-navy,#0a1122)] hover:bg-slate-50'
@@ -432,8 +472,12 @@ export function SearchableCountryField({
                 >
                   <div className="flex items-center gap-2.5">
                     <span className="text-lg leading-none">{c.flag}</span>
-                    <span>{c.nameAr}</span>
-                    <span className="text-xs text-slate-400">({c.nameEn})</span>
+                    <span>{cName}</span>
+                    {locale === 'ar' && (
+                      <span className="text-xs text-slate-400">
+                        ({c.nameEn})
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="font-mono text-xs font-bold text-slate-400">
@@ -451,12 +495,12 @@ export function SearchableCountryField({
       )}
 
       {error && (
-        <p className="mt-1 text-right text-xs font-semibold text-red-600">
+        <p className="mt-1 text-start text-xs font-semibold text-red-600">
           {error}
         </p>
       )}
       {helper && (
-        <span className="flex items-center gap-1 text-right text-xs font-semibold text-teal-700">
+        <span className="flex items-center gap-1 text-start text-xs font-semibold text-teal-700">
           <Globe className="size-3.5 shrink-0" />
           <span>{helper}</span>
         </span>
@@ -484,14 +528,7 @@ export function Field({
   update: (value: string) => void
   error?: string
 }) {
-  const arabic = [
-    'developer',
-    'project',
-    'developerDetails',
-    'projectDetails',
-    'name',
-    'location',
-  ].includes(id)
+  const { dir } = useTranslation()
   const compact = [
     'areaSize',
     'garden',
@@ -500,23 +537,19 @@ export function Field({
     'floor',
     'remainingYears',
   ].includes(id)
+  const isLtrField =
+    compact || type === 'number' || id === 'email' || id === 'password'
 
   return (
     <div className="flex flex-col gap-2">
-      <Label htmlFor={id} className={arabic ? 'text-right' : undefined}>
+      <Label htmlFor={id} className="text-start">
         <RequiredLabel>{label}</RequiredLabel>
       </Label>
       <Input
         id={id}
         name={id}
         type={type}
-        dir={
-          compact || type === 'number' || id === 'email' || id === 'password'
-            ? 'ltr'
-            : arabic
-              ? 'rtl'
-              : undefined
-        }
+        dir={isLtrField ? 'ltr' : dir}
         placeholder={placeholder}
         value={value ?? ''}
         onChange={(event) => update(event.target.value)}
@@ -525,20 +558,18 @@ export function Field({
         } ${
           compact
             ? 'max-w-[150px] self-start text-center font-semibold'
-            : type === 'number' || id === 'email' || id === 'password'
+            : isLtrField
               ? 'text-left'
-              : arabic
-                ? 'text-right'
-                : ''
+              : 'text-start'
         }`}
       />
       {error && (
-        <p className="mt-1.5 text-right text-xs font-semibold text-red-600">
+        <p className="mt-1.5 text-start text-xs font-semibold text-red-600">
           {error}
         </p>
       )}
       {helper && (
-        <span className="text-right text-xs font-semibold leading-6 text-teal-700">
+        <span className="text-start text-xs font-semibold leading-6 text-teal-700">
           {helper}
         </span>
       )}
@@ -552,7 +583,7 @@ export function MoneyField({
   update,
   helper,
   error,
-  currencySymbol = 'ج.م',
+  currencySymbol,
 }: {
   label: string
   value?: string
@@ -561,9 +592,12 @@ export function MoneyField({
   error?: string
   currencySymbol?: string
 }) {
+  const { locale, currency: defaultCurrency } = useTranslation()
+  const activeCurr = currencySymbol || defaultCurrency
+
   return (
     <div className="flex flex-col gap-2">
-      <Label className="text-right">
+      <Label className="text-start">
         <RequiredLabel>{label}</RequiredLabel>
       </Label>
       <div className="relative">
@@ -577,21 +611,21 @@ export function MoneyField({
           onChange={(event) =>
             update(event.target.value.replace(/[^0-9]/g, ''))
           }
-          className={`h-12 rounded-xl pr-4 pl-12 text-left ${
+          className={`h-12 rounded-xl pr-14 pl-4 text-left ${
             error ? 'border-red-500 bg-red-50/20' : 'border-slate-200'
           }`}
         />
-        <span className="absolute top-3 right-3 text-sm text-slate-500">
-          {currencySymbol}
+        <span className="pointer-events-none absolute top-3 right-3 text-sm font-semibold text-slate-500">
+          {activeCurr}
         </span>
       </div>
       {error && (
-        <p className="mt-1.5 text-right text-xs font-semibold text-red-600">
+        <p className="mt-1.5 text-start text-xs font-semibold text-red-600">
           {error}
         </p>
       )}
-      <span className="text-right text-xs font-semibold leading-6 text-teal-700">
-        {formatAmount(value, currencySymbol) || helper || ''}
+      <span className="text-start text-xs font-semibold leading-6 text-teal-700">
+        {formatAmount(value, activeCurr, locale) || helper || ''}
       </span>
     </div>
   )
@@ -634,7 +668,7 @@ export function Pills({
         ))}
       </div>
       {error && (
-        <p className="mt-1.5 text-right text-xs font-semibold text-red-600">
+        <p className="mt-1.5 text-start text-xs font-semibold text-red-600">
           {error}
         </p>
       )}
@@ -655,7 +689,10 @@ export function ToggleSection({
   toggle: (group: string, value: string) => void
   error?: string
 }) {
+  const { t: dict } = useTranslation()
+  const t = dict.sell.shared
   const active = selected[group]?.[0]
+
   return (
     <section
       className={`rounded-2xl border p-5 ${
@@ -664,7 +701,7 @@ export function ToggleSection({
           : 'border-slate-200 bg-slate-50'
       }`}
     >
-      <h3 className="mb-3 text-right font-bold">{title}</h3>
+      <h3 className="mb-3 text-start font-bold">{title}</h3>
       <div className="flex justify-start gap-2">
         <Button
           type="button"
@@ -688,7 +725,7 @@ export function ToggleSection({
         </Button>
       </div>
       {error && (
-        <p className="mt-2.5 text-right text-xs font-semibold text-red-600">
+        <p className="mt-2.5 text-start text-xs font-semibold text-red-600">
           {error}
         </p>
       )}
@@ -700,15 +737,19 @@ export function Actions({
   go,
   next,
   back = true,
-  label = t.nextBtn,
+  label,
 }: {
   go: (step: number) => void
   next: number
   back?: boolean
   label?: string
 }) {
+  const { t: dict, dir } = useTranslation()
+  const t = dict.sell.shared
+  const btnLabel = label || t.nextBtn
+
   return (
-    <div dir="rtl" className="mt-5 flex gap-3">
+    <div dir={dir} className="mt-5 flex gap-3">
       {back && (
         <Button
           type="button"
@@ -726,7 +767,7 @@ export function Actions({
         }`}
         onClick={() => go(next)}
       >
-        {label}
+        {btnLabel}
       </Button>
     </div>
   )

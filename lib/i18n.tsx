@@ -1,57 +1,19 @@
 "use client"
 
 import React, { createContext, useContext, useEffect, useState } from 'react'
-import ar from '@/dictionaries/ar.json'
-import en from '@/dictionaries/en.json'
-import ru from '@/dictionaries/ru.json'
-import ka from '@/dictionaries/ka.json'
+import {
+  type LocaleCode,
+  type CountryCode,
+  type Dictionary,
+  DICTIONARIES,
+  normalizeLocale,
+  normalizeCountry,
+  getCurrencySymbol
+} from './i18n-config'
 
-export type LocaleCode = 'ar' | 'en' | 'ru' | 'ka'
-export type CountryCode = 'EG' | 'RU' | 'GE' | 'AE'
-export type Dictionary = typeof ar
-
-// المكان الوحيد في الموقع الذي يستورد ملفات الترجمة
-export const DICTIONARIES: Record<LocaleCode, Dictionary> = {
-  ar,
-  en: en as unknown as Dictionary,
-  ru: ru as unknown as Dictionary,
-  ka: ka as unknown as Dictionary,
-}
-
-export function normalizeLocale(val?: string | null): LocaleCode {
-  const clean = (val || 'ar').trim().toLowerCase()
-  if (clean === 'en' || clean === 'ru' || clean === 'ka') return clean
-  return 'ar'
-}
-
-export function normalizeCountry(val?: string | null): CountryCode {
-  const clean = (val || 'EG').trim().toUpperCase()
-  if (clean === 'RU' || clean === 'GE' || clean === 'AE') return clean
-  return 'EG'
-}
-
-// دالة ذكية وموحدة للعملة حسب الدولة ولغة العرض الحالية
-export function getCurrencySymbol(
-  country?: string | null,
-  locale?: string | null
-): string {
-  const c = normalizeCountry(country)
-  const l = normalizeLocale(locale)
-  const isArabic = l === 'ar'
-
-  switch (c) {
-    case 'EG':
-      return isArabic ? 'ج.م' : 'EGP'
-    case 'AE':
-      return isArabic ? 'د.إ' : 'AED'
-    case 'RU':
-      return '₽'
-    case 'GE':
-      return '$'
-    default:
-      return isArabic ? 'ج.م' : 'EGP'
-  }
-}
+// إعادة التصدير (Re-export) حتى لا تتعطل الصفحات الأخرى التي تستورد من هنا
+export type { LocaleCode, CountryCode, Dictionary }
+export { DICTIONARIES, normalizeLocale, normalizeCountry, getCurrencySymbol }
 
 type I18nContextType = {
   locale: LocaleCode
@@ -67,7 +29,7 @@ const I18nContext = createContext<I18nContextType>({
   country: 'EG',
   dir: 'rtl',
   isRtl: true,
-  t: ar,
+  t: DICTIONARIES.ar,
   currency: 'ج.م',
 })
 
@@ -93,9 +55,9 @@ export function LanguageProvider({
 
   useEffect(() => {
     const syncFromCookies = () => {
-      const cookies = document.cookie.split('; ')
-      const langRow = cookies.find((r) => r.startsWith('locale='))
-      const countryRow = cookies.find((r) => r.startsWith('darak_country='))
+      const cookiesArr = document.cookie.split('; ')
+      const langRow = cookiesArr.find((r) => r.startsWith('locale='))
+      const countryRow = cookiesArr.find((r) => r.startsWith('darak_country='))
 
       if (langRow) setLocale(normalizeLocale(langRow.split('=')[1]))
       if (countryRow) setCountry(normalizeCountry(countryRow.split('=')[1]))
@@ -110,7 +72,7 @@ export function LanguageProvider({
   }, [])
 
   const dir = locale === 'ar' ? 'rtl' : 'ltr'
-  const t = DICTIONARIES[locale] || ar
+  const t = DICTIONARIES[locale] || DICTIONARIES.ar
   const currency = getCurrencySymbol(country, locale)
 
   return (
@@ -129,7 +91,6 @@ export function LanguageProvider({
   )
 }
 
-// الـ Hook الذي ستستخدمه في أي Client Component بسطر واحد فقط
 export function useTranslation() {
   return useContext(I18nContext)
 }

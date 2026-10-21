@@ -21,7 +21,6 @@ export default async function AdminLayout({
   const cookieStore = await cookies()
   const rawSession = cookieStore.get("user_session")?.value
 
-  // 1. منع الدخول من المتصفح الخفي أو بدون تسجيل دخول
   if (!rawSession) {
     redirect("/login?next=/admin")
   }
@@ -46,7 +45,6 @@ export default async function AdminLayout({
     redirect("/login?next=/admin")
   }
 
-  // 2. فحص بصمة الباسورد (إذا تغير الباسورد من جهاز آخر يخرج فوراً)
   const sessionCheck = parseAndVerifySessionCookie(
     rawSession,
     user.password_hash
@@ -68,9 +66,9 @@ export default async function AdminLayout({
       cleanRole === "sales") &&
     cleanStatus !== "suspended"
 
-  const { locale, dir } = await getServerI18n()
+  const { dict, dir } = await getServerI18n()
+  const t = dict.admin?.accessDenied
 
-  // 3. إذا كان الحساب لعميل عادي وليس من فريق الإدارة
   if (!isAuthorizedStaff) {
     return (
       <main
@@ -82,14 +80,15 @@ export default async function AdminLayout({
             <ShieldAlert className="size-8" />
           </span>
           <h1 className="mt-5 text-2xl font-extrabold text-white">
-            {locale === "ar" ? "غير مصرح لك بالدخول" : "Access Denied"}
+            {t?.title}
           </h1>
           <p className="mt-2.5 text-xs leading-relaxed text-gray-300 sm:text-sm">
-            {locale === "ar"
-              ? "هذه اللوحة مخصصة لفريق الإدارة والمبيعات فقط. حسابك الحالي لا يمتلك صلاحيات إدارية:"
-              : "This panel is restricted to staff members only. Your current account does not have staff permissions:"}
+            {t?.desc}
             <br />
-            <span dir="ltr" className="mt-1 inline-block font-mono text-emerald-300">
+            <span
+              dir="ltr"
+              className="mt-1 inline-block font-mono text-emerald-300"
+            >
               {user.email}
             </span>
           </p>
@@ -99,16 +98,14 @@ export default async function AdminLayout({
               className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#007a5a] px-5 text-xs font-bold text-white transition hover:bg-[#006248]"
             >
               <LogIn className="size-4" />
-              <span>
-                {locale === "ar" ? "دخول بحساب الإدارة" : "Staff Login"}
-              </span>
+              <span>{t?.staffLoginBtn}</span>
             </Link>
             <Link
               href="/"
               className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 px-5 text-xs font-bold text-white transition hover:bg-white/10"
             >
               <Home className="size-4" />
-              <span>{locale === "ar" ? "العودة للرئيسية" : "Back to Home"}</span>
+              <span>{t?.backHomeBtn}</span>
             </Link>
           </div>
         </div>

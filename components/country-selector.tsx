@@ -29,7 +29,7 @@ export function CountrySelector({
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
-        className="flex h-11 w-[132px] items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-semibold text-[var(--brand-navy,#0a1122)]"
+        className="flex h-11 w-[126px] items-center justify-between gap-1 rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-semibold text-[var(--brand-navy,#0a1122)] sm:w-[134px]"
       >
         <span>{selected.flag}</span>
         <span className="truncate">{getCountryName(selected)}</span>
@@ -39,9 +39,9 @@ export function CountrySelector({
       {open && (
         <div
           dir={dir}
-          className="absolute top-12 left-0 z-30 max-h-64 w-64 overflow-y-auto rounded-xl border border-slate-200 bg-white p-2 text-start shadow-xl"
+          className="absolute top-12 left-0 z-40 max-h-60 w-60 max-w-[calc(100vw-2.5rem)] overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 text-start shadow-xl"
         >
-          <p className="px-3 py-2 text-xs font-black text-slate-500">
+          <p className="px-2.5 py-1.5 text-[11px] font-black text-slate-400">
             {c.popularCountriesHeader}
           </p>
           {ALL_RESIDENCE_COUNTRIES.map((item) => (
@@ -52,13 +52,13 @@ export function CountrySelector({
                 onChange(item.phoneCode)
                 setOpen(false)
               }}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-sm hover:bg-[var(--brand-primary-light,#eaf8f2)]"
+              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-start text-xs hover:bg-[var(--brand-primary-light,#eaf8f2)] sm:text-sm"
             >
               <span>{item.flag}</span>
-              <span className="flex-1 font-medium text-[var(--brand-navy,#0a1122)]">
+              <span className="flex-1 truncate font-medium text-[var(--brand-navy,#0a1122)]">
                 {getCountryName(item)}
               </span>
-              <span dir="ltr" className="text-xs text-slate-500">
+              <span dir="ltr" className="text-[11px] font-bold text-slate-500">
                 +{item.phoneCode}
               </span>
             </button>

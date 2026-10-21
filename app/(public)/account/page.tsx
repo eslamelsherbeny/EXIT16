@@ -2,13 +2,13 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { createServerClient } from '@supabase/ssr'
 import Link from 'next/link'
-import { Heart, LogOut } from 'lucide-react'
-import { logoutAccountAction } from '@/app/actions/account-actions'
 import type { SellerUnitItem } from '@/components/account/seller-dashboard'
 import type { BuyerRequestItem } from '@/components/account/buyer-dashboard'
 import { AccountActionLinks } from '@/components/account/delete-account-modal'
 import { AccountViewSwitcher } from '@/components/account/account-view-switcher'
+import { AccountTopBar } from '@/components/account/account-top-bar'
 import { getServerI18n } from '@/lib/get-server-dictionary'
+import { extractUserIdFromCookie } from '@/lib/session-security'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -31,7 +31,8 @@ export default async function AccountPage({
 }) {
   const resolvedParams = searchParams ? await searchParams : {}
   const cookieStore = await cookies()
-  const sessionId = cookieStore.get('user_session')?.value
+  const rawSession = cookieStore.get('user_session')?.value
+  const sessionId = extractUserIdFromCookie(rawSession)
 
   if (!sessionId) {
     redirect('/login')
@@ -49,9 +50,7 @@ export default async function AccountPage({
     redirect('/login')
   }
 
-  // جلب اللغة والقاموس واتجاه الصفحة من النظام المركزي
   const { dict, dir } = await getServerI18n()
-  const tCommon = dict.accountPages.common
   const tMain = dict.accountPages.main
 
   const cleanEmail = (profile.email || '').trim().toLowerCase()
@@ -155,25 +154,7 @@ export default async function AccountPage({
       dir={dir}
       className="min-h-screen bg-[var(--brand-surface,#f5f6f8)] py-6 pb-24 text-[var(--brand-navy,#0a1122)] sm:py-10"
     >
-      <div className="mx-auto mb-5 flex max-w-[1020px] items-center justify-between px-3 sm:px-6">
-        <Link
-          href="/account/favorites"
-          className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3.5 text-xs font-extrabold text-[var(--brand-navy,#0a1122)] shadow-2xs transition hover:border-red-200 hover:bg-red-50/40"
-        >
-          <Heart className="size-3.5 fill-red-500 text-red-500" />
-          <span>{tCommon.favorites}</span>
-        </Link>
-
-        <form action={logoutAccountAction}>
-          <button
-            type="submit"
-            className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3.5 text-xs font-bold text-gray-600 shadow-2xs transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
-          >
-            <span>{tCommon.logout}</span>
-            <LogOut className="size-3.5" />
-          </button>
-        </form>
-      </div>
+      <AccountTopBar />
 
       {hasSells || hasBuys ? (
         <AccountViewSwitcher

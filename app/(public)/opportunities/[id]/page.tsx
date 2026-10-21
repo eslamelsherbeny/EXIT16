@@ -13,22 +13,23 @@ import {
   Share2,
   Star,
 } from 'lucide-react'
-import { getCurrencyByCountry } from '@/components/seller/seller-shared'
 import { inferCountryFromRow } from '@/components/opportunities/opportunities-shared'
 import {
   UnitGalleryWithLightbox,
   UnitInterestForm,
 } from '@/components/opportunities/unit-interest-form'
-import arDict from '@/dictionaries/ar.json'
+import { getCurrencySymbol, useTranslation } from '@/lib/i18n'
 
 const FALLBACK_UNIT_IMAGE =
   'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=85'
 const FAVORITES_STORAGE_KEY = 'darak_favorites'
 
-const t = arDict.unitDetailsPage
-const c = arDict.opportunitiesPage.card
-
 export default function PropertyDetailsPage() {
+  const { t: dict, locale, dir } = useTranslation()
+  const t = dict.unitDetailsPage
+  const c = dict.opportunitiesPage.card
+  const filtersT = dict.opportunitiesPage.filters
+
   const params = useParams()
   const rawId = Array.isArray(params?.id)
     ? params.id[0]
@@ -38,7 +39,7 @@ export default function PropertyDetailsPage() {
   const [copied, setCopied] = useState(false)
 
   const [unitRow, setUnitRow] = useState<any | null>(null)
-  const [similarDbUnits, setSimilarDbUnits] = useState<any[]>([])
+  const [rawSimilarRows, setRawSimilarRows] = useState<any[]>([])
   const [sameProjectCount, setSameProjectCount] = useState<number>(0)
   const [loading, setLoading] = useState(true)
   const [currentUserId] = useState<string | null>(null)
@@ -113,44 +114,7 @@ export default function PropertyDetailsPage() {
           .limit(6)
 
         if (otherUnits && otherUnits.length > 0) {
-          const mappedSimilar = otherUnits.map((u) => {
-            const uCountry = inferCountryFromRow(u)
-            const uCurrency = getCurrencyByCountry(uCountry)
-            const paid = Number(u.paid_amount) || 0
-            const disc = u.willing_to_discount
-              ? Number(u.discount_amount) || 0
-              : 0
-            const reqCash = Math.max(0, paid - disc)
-            const yearMatch = String(u.delivery_status || '').match(/20\d{2}/)
-            const delivYear = yearMatch
-              ? yearMatch[0]
-              : String(u.delivery_status || '').includes(
-                    arDict.opportunitiesPage.filters.deliveryStatuses[1]
-                  )
-                ? arDict.opportunitiesPage.filters.deliveryStatuses[1]
-                : String(new Date().getFullYear() + (Number(u.years_left) || 2))
-
-            const isFeat =
-              Boolean(u.is_featured) &&
-              (!u.featured_until || new Date(u.featured_until) > new Date())
-
-            return {
-              id: u.id,
-              name: u.project_name || c.defaultProject,
-              area: u.area || c.defaultArea,
-              specs: `${u.unit_type || c.defaultType} · ${u.rooms || 3} ${c.roomsWord} · ${
-                u.size || 150
-              } ${c.sqmUnit} · ${t.similarSection.deliveryPrefix} ${delivYear}`,
-              cash: reqCash.toLocaleString('en-US'),
-              currency: uCurrency,
-              featured: isFeat,
-              image:
-                Array.isArray(u.images) && u.images.length > 0 && u.images[0]
-                  ? u.images[0]
-                  : FALLBACK_UNIT_IMAGE,
-            }
-          })
-          setSimilarDbUnits(mappedSimilar)
+          setRawSimilarRows(otherUnits)
         }
       } catch (err) {
         console.error('Error loading unit details:', err)
@@ -162,12 +126,49 @@ export default function PropertyDetailsPage() {
     fetchPropertyDetails()
   }, [rawId])
 
+  const similarDbUnits = useMemo(() => {
+    return rawSimilarRows.map((u) => {
+      const uCountry = inferCountryFromRow(u)
+      const uCurrency = getCurrencySymbol(uCountry, locale)
+      const paid = Number(u.paid_amount) || 0
+      const disc = u.willing_to_discount ? Number(u.discount_amount) || 0 : 0
+      const reqCash = Math.max(0, paid - disc)
+      const rawDel = String(u.delivery_status || '')
+      const yearMatch = rawDel.match(/20\d{2}/)
+      const delivYear = yearMatch
+        ? yearMatch[0]
+        : rawDel.includes('جاهز') || rawDel.includes(filtersT.deliveryStatuses[1])
+          ? filtersT.deliveryStatuses[1]
+          : String(new Date().getFullYear() + (Number(u.years_left) || 2))
+
+      const isFeat =
+        Boolean(u.is_featured) &&
+        (!u.featured_until || new Date(u.featured_until) > new Date())
+
+      return {
+        id: u.id,
+        name: u.project_name || c.defaultProject,
+        area: u.area || c.defaultArea,
+        specs: `${u.unit_type || c.defaultType} · ${u.rooms || 3} ${c.roomsWord} · ${
+          u.size || 150
+        } ${c.sqmUnit} · ${t.similarSection.deliveryPrefix} ${delivYear}`,
+        cash: reqCash.toLocaleString('en-US'),
+        currency: uCurrency,
+        featured: isFeat,
+        image:
+          Array.isArray(u.images) && u.images.length > 0 && u.images[0]
+            ? u.images[0]
+            : FALLBACK_UNIT_IMAGE,
+      }
+    })
+  }, [rawSimilarRows, locale, c, t, filtersT])
+
   const computedUnit = useMemo(() => {
     if (!unitRow) return null
 
     const row = unitRow
     const country = inferCountryFromRow(row)
-    const currency = getCurrencyByCountry(country)
+    const currency = getCurrencySymbol(country, locale)
 
     const projectName = row.project_name || c.defaultProject
     const areaName = row.area || c.defaultArea
@@ -229,9 +230,8 @@ export default function PropertyDetailsPage() {
     const yearMatch = String(deliveryStatus).match(/20\d{2}/)
     const deliveryYear = yearMatch
       ? yearMatch[0]
-      : String(deliveryStatus).includes(
-            arDict.opportunitiesPage.filters.deliveryStatuses[1]
-          )
+      : String(deliveryStatus).includes('جاهز') ||
+          String(deliveryStatus).includes(filtersT.deliveryStatuses[1])
         ? t.specs.readyForDelivery
         : yearsLeft > 0
           ? String(new Date().getFullYear() + Math.min(yearsLeft, 6))
@@ -259,7 +259,10 @@ export default function PropertyDetailsPage() {
       { label: t.specs.size, value: size > 0 ? `${size} ${c.sqmUnit}` : '—' },
       { label: t.specs.floor, value: floor },
       { label: t.specs.rooms, value: rooms > 0 ? String(rooms) : '—' },
-      { label: t.specs.bathrooms, value: bathrooms > 0 ? String(bathrooms) : '—' },
+      {
+        label: t.specs.bathrooms,
+        value: bathrooms > 0 ? String(bathrooms) : '—',
+      },
       { label: t.specs.finishing, value: finishing },
       { label: t.specs.status, value: deliveryStatus },
       { label: t.specs.contractYear, value: String(contractYear) },
@@ -306,7 +309,7 @@ export default function PropertyDetailsPage() {
       commission,
       totalRequiredNow,
     }
-  }, [unitRow])
+  }, [unitRow, locale, c, t, filtersT])
 
   const copyUnitCode = () => {
     if (!computedUnit) return
@@ -318,7 +321,7 @@ export default function PropertyDetailsPage() {
   if (loading) {
     return (
       <main
-        dir="rtl"
+        dir={dir}
         className="min-h-screen bg-[var(--brand-surface,#f5f6f8)] py-10 text-[var(--brand-navy,#0a1122)]"
       >
         <div className="mx-auto w-full max-w-[780px] px-4 sm:px-6">
@@ -333,7 +336,7 @@ export default function PropertyDetailsPage() {
   if (!computedUnit) {
     return (
       <main
-        dir="rtl"
+        dir={dir}
         className="min-h-screen bg-[var(--brand-surface,#f5f6f8)] py-10 text-[var(--brand-navy,#0a1122)]"
       >
         <div className="mx-auto w-full max-w-[780px] px-4 sm:px-6">
@@ -358,7 +361,7 @@ export default function PropertyDetailsPage() {
 
   return (
     <main
-      dir="rtl"
+      dir={dir}
       className="min-h-screen bg-[var(--brand-surface,#f5f6f8)] py-6 text-[var(--brand-navy,#0a1122)] sm:py-10"
     >
       <div className="mx-auto w-full max-w-[780px] px-4 sm:px-6">
@@ -368,14 +371,14 @@ export default function PropertyDetailsPage() {
             href="/opportunities"
             className="inline-flex items-center gap-1 text-xs font-medium text-gray-500 transition-colors hover:text-[var(--brand-primary,#007a5a)]"
           >
-            <ChevronRight className="size-3.5" />
+            <ChevronRight className="size-3.5 rtl:rotate-0 ltr:rotate-180" />
             <span>{t.backToOpportunities}</span>
           </Link>
         </div>
 
         {/* 2. هيدر الوحدة */}
         <header className="mt-4 flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
-          <div className="text-right">
+          <div className="text-start">
             <h1 className="text-2xl font-extrabold tracking-tight text-[var(--brand-navy,#0a1122)] sm:text-3xl">
               {computedUnit.projectName}
             </h1>
@@ -445,7 +448,7 @@ export default function PropertyDetailsPage() {
 
         {/* 4. مواصفات الوحدة */}
         <section className="mt-4 rounded-[18px] border border-gray-200/80 bg-white p-5 shadow-sm sm:p-6">
-          <div className="grid grid-cols-2 gap-x-4 gap-y-6 text-right sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-6 text-start sm:grid-cols-4">
             {computedUnit.specs.map((spec) => (
               <div key={spec.label}>
                 <span className="block text-[11px] text-gray-400">
@@ -460,7 +463,7 @@ export default function PropertyDetailsPage() {
         </section>
 
         {/* 5. المميزات والوصف */}
-        <section className="mt-4 rounded-[18px] border border-gray-200/80 bg-white p-5 text-right shadow-sm sm:p-6">
+        <section className="mt-4 rounded-[18px] border border-gray-200/80 bg-white p-5 text-start shadow-sm sm:p-6">
           {computedUnit.tags.length > 0 && (
             <div className="mb-4 flex flex-wrap gap-2">
               {computedUnit.tags.map((tag) => (
@@ -481,12 +484,14 @@ export default function PropertyDetailsPage() {
         </section>
 
         {/* 6. البطاقة المالية الرئيسية */}
-        <section className="mt-4 rounded-[18px] border border-[#b8e6d5] bg-white p-5 text-right shadow-sm sm:p-6">
+        <section className="mt-4 rounded-[18px] border border-[#b8e6d5] bg-white p-5 text-start shadow-sm sm:p-6">
           <p className="text-xs font-bold text-gray-500">
             {fin.requiredCashNow}
           </p>
-          <p className="mt-1 text-3xl font-extrabold tracking-tight text-[var(--brand-navy,#0a1122)] tabular-nums sm:text-[34px]">
-            {computedUnit.requiredCash.toLocaleString('en-US')}{' '}
+          <p className="mt-1 flex items-baseline gap-1.5 text-3xl font-extrabold tracking-tight text-[var(--brand-navy,#0a1122)] tabular-nums sm:text-[34px]">
+            <span dir="ltr">
+              {computedUnit.requiredCash.toLocaleString('en-US')}
+            </span>
             <span className="text-lg font-bold">{computedUnit.currency}</span>
           </p>
           <p className="mt-1 text-xs font-bold text-[var(--brand-primary,#007a5a)]">
@@ -494,14 +499,16 @@ export default function PropertyDetailsPage() {
           </p>
 
           {computedUnit.willingToDiscount && (
-            <div className="mt-4 rounded-xl border border-amber-200 bg-[#fffbeb] px-4 py-3 text-right">
+            <div className="mt-4 rounded-xl border border-amber-200 bg-[#fffbeb] px-4 py-3 text-start">
               <p className="text-xs font-extrabold text-[#b45309]">
                 {fin.negotiableTitle}
               </p>
               <p className="mt-1 text-[11px] leading-relaxed text-[#92400e]">
                 {fin.negotiableDescPrefix} {computedUnit.discountPercentage}%{' '}
                 {fin.negotiableDescMiddle}{' '}
-                {computedUnit.discountAmount.toLocaleString('en-US')}{' '}
+                <span dir="ltr">
+                  {computedUnit.discountAmount.toLocaleString('en-US')}
+                </span>{' '}
                 {computedUnit.currency}
                 {fin.negotiableDescSuffix}
               </p>
@@ -509,7 +516,7 @@ export default function PropertyDetailsPage() {
           )}
 
           {computedUnit.marketGain > 0 && (
-            <div className="mt-3 rounded-xl border border-[#c8eedd] bg-[#ecfbf3] px-4 py-3 text-right">
+            <div className="mt-3 rounded-xl border border-[#c8eedd] bg-[#ecfbf3] px-4 py-3 text-start">
               <p className="text-xs font-extrabold text-[var(--brand-primary,#007a5a)]">
                 {fin.gainPrefix}{' '}
                 <span dir="ltr">
@@ -519,7 +526,9 @@ export default function PropertyDetailsPage() {
               </p>
               <p className="mt-1 text-[11px] text-[var(--brand-primary,#007a5a)]/85">
                 {fin.marketPriceTodayPrefix}{' '}
-                {computedUnit.marketPrice.toLocaleString('en-US')}{' '}
+                <span dir="ltr">
+                  {computedUnit.marketPrice.toLocaleString('en-US')}
+                </span>{' '}
                 {computedUnit.currency} {fin.afterCommissionSuffix}
               </p>
             </div>
@@ -536,7 +545,9 @@ export default function PropertyDetailsPage() {
             <div className="flex items-center justify-between px-5 py-3.5">
               <span className="text-gray-500">{fin.remainingToDev}</span>
               <strong className="font-extrabold text-[var(--brand-navy,#0a1122)]">
-                {computedUnit.remainingToDeveloper.toLocaleString('en-US')}{' '}
+                <span dir="ltr">
+                  {computedUnit.remainingToDeveloper.toLocaleString('en-US')}
+                </span>{' '}
                 {computedUnit.currency}
               </strong>
             </div>
@@ -544,7 +555,9 @@ export default function PropertyDetailsPage() {
             <div className="flex items-center justify-between px-5 py-3.5">
               <span className="text-gray-500">{fin.installment}</span>
               <strong className="font-extrabold text-[var(--brand-navy,#0a1122)]">
-                {computedUnit.installmentAmount.toLocaleString('en-US')}{' '}
+                <span dir="ltr">
+                  {computedUnit.installmentAmount.toLocaleString('en-US')}
+                </span>{' '}
                 {computedUnit.currency} · {computedUnit.installmentFreq}
               </strong>
             </div>
@@ -569,11 +582,13 @@ export default function PropertyDetailsPage() {
               <div className="flex items-center justify-between">
                 <span className="text-gray-500">{fin.commissionLabel}</span>
                 <strong className="font-extrabold text-[var(--brand-navy,#0a1122)]">
-                  {computedUnit.commission.toLocaleString('en-US')}{' '}
+                  <span dir="ltr">
+                    {computedUnit.commission.toLocaleString('en-US')}
+                  </span>{' '}
                   {computedUnit.currency}
                 </strong>
               </div>
-              <p className="mt-1 text-right text-[10px] text-gray-400">
+              <p className="mt-1 text-start text-[10px] text-gray-400">
                 {fin.commissionSub}
               </p>
             </div>
@@ -583,7 +598,9 @@ export default function PropertyDetailsPage() {
                 {fin.totalRequiredNow}
               </span>
               <strong className="text-sm font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-base">
-                {computedUnit.totalRequiredNow.toLocaleString('en-US')}{' '}
+                <span dir="ltr">
+                  {computedUnit.totalRequiredNow.toLocaleString('en-US')}
+                </span>{' '}
                 {computedUnit.currency}
               </strong>
             </div>
@@ -593,7 +610,7 @@ export default function PropertyDetailsPage() {
         {/* 8. شريط الوحدات الأخرى في نفس المنطقة */}
         {sameProjectCount > 0 && (
           <section className="mt-4 flex items-center justify-between rounded-[16px] border border-gray-200/80 bg-white px-5 py-4 shadow-sm">
-            <div className="flex items-center gap-3 text-right">
+            <div className="flex items-center gap-3 text-start">
               <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]">
                 <Building2 className="size-4" />
               </span>
@@ -620,7 +637,7 @@ export default function PropertyDetailsPage() {
         {/* 9. قسم فرص مميزة مشابهة */}
         {similarDbUnits.length > 0 && (
           <section className="mt-8">
-            <div className="flex flex-wrap items-baseline justify-between gap-2 text-right">
+            <div className="flex flex-wrap items-baseline justify-between gap-2 text-start">
               <h2 className="text-base font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-lg">
                 {t.similarSection.title}
               </h2>
@@ -651,7 +668,7 @@ export default function PropertyDetailsPage() {
                       )}
                     </div>
 
-                    <div className="p-3 text-right">
+                    <div className="p-3 text-start">
                       <h3 className="line-clamp-1 min-h-[18px] text-xs font-extrabold text-[var(--brand-navy,#0a1122)] group-hover:text-[var(--brand-primary,#007a5a)] sm:text-[13px]">
                         {item.name}
                       </h3>
@@ -662,16 +679,16 @@ export default function PropertyDetailsPage() {
                         {item.specs}
                       </p>
                       <p className="mt-2 text-[11px] font-extrabold text-[var(--brand-navy,#0a1122)] tabular-nums">
-                        {t.similarSection.requiredCashPrefix} {item.cash}{' '}
-                        {item.currency}
+                        {t.similarSection.requiredCashPrefix}{' '}
+                        <span dir="ltr">{item.cash}</span> {item.currency}
                       </p>
                     </div>
                   </div>
 
-                  <div className="px-3 pt-1 pb-3 text-right">
+                  <div className="px-3 pt-1 pb-3 text-start">
                     <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[var(--brand-primary,#007a5a)]">
                       <span>{t.similarSection.viewDetailsBtn}</span>
-                      <span>←</span>
+                      <span className="rtl:rotate-0 ltr:rotate-180">←</span>
                     </span>
                   </div>
                 </Link>

@@ -16,6 +16,120 @@ import {
   extractUserIdFromCookie,
   parseAndVerifySessionCookie,
 } from '@/lib/session-security'
+import { normalizeLocale, type LocaleCode } from '@/lib/i18n-config'
+
+const AUTH_MESSAGES: Record<LocaleCode, Record<string, string>> = {
+  ar: {
+    turnstile: 'يرجى إتمام التحقق الأمني (Cloudflare) والمحاولة مرة أخرى.',
+    missingLogin: 'يرجى إدخال البريد الإلكتروني/الهاتف وكلمة المرور.',
+    notRegistered:
+      'هذا البريد الإلكتروني أو رقم الموبايل غير مسجل لدينا. يمكنك إنشاء حساب جديد.',
+    wrongPassword:
+      'كلمة السر غير صحيحة. جرب مرة أخرى أو اضغط على "نسيت كلمة السر؟".',
+    suspended: 'تم إيقاف هذا الحساب مؤقتاً من قِبل إدارة المنصة.',
+    noAdminAccess:
+      'هذا الحساب لا يمتلك صلاحيات الإدارة. يرجى تسجيل الدخول بحساب مدير النظام.',
+    fillAllRegister: 'يرجى ملء جميع الحقول وكلمة سر لا تقل عن 8 أحرف.',
+    emailExists: 'هذا البريد الإلكتروني مسجل بالفعل. يرجى تسجيل الدخول.',
+    phoneExists: 'رقم الموبايل هذا مسجل بالفعل. يرجى تسجيل الدخول.',
+    registerFailed: 'تعذر إنشاء الحساب، يرجى المحاولة لاحقاً.',
+    enterEmail: 'يرجى إدخال البريد الإلكتروني.',
+    emailNotFound: 'هذا البريد الإلكتروني غير مسجل لدينا.',
+    emailSendFailed: 'تعذر إرسال البريد الإلكتروني حالياً.',
+    enterValidOtp: 'يرجى إدخال الكود بشكل صحيح.',
+    otpExpired: 'الكود منتهي الصلاحية، يرجى طلب كود جديد.',
+    invalidOtp: 'كود التحقق غير صحيح.',
+    shortPassword: 'كلمة السر يجب أن تكون 8 أحرف على الأقل.',
+    updatePassFailed: 'تعذر تحديث كلمة المرور في قاعدة البيانات.',
+    invalidLink: 'رابط غير صالح.',
+    accountNotFound: 'الحساب غير موجود.',
+  },
+  en: {
+    turnstile: 'Please complete the security check (Cloudflare) and try again.',
+    missingLogin: 'Please enter your email/phone and password.',
+    notRegistered:
+      'This email or phone number is not registered. You can create a new account.',
+    wrongPassword:
+      'Incorrect password. Please try again or click "Forgot password?".',
+    suspended: 'This account has been temporarily suspended by administration.',
+    noAdminAccess:
+      'This account does not have admin privileges. Please sign in with an Admin account.',
+    fillAllRegister:
+      'Please fill in all fields and use a password of at least 8 characters.',
+    emailExists: 'This email is already registered. Please sign in.',
+    phoneExists: 'This phone number is already registered. Please sign in.',
+    registerFailed: 'Could not create account, please try again later.',
+    enterEmail: 'Please enter your email address.',
+    emailNotFound: 'This email address is not registered with us.',
+    emailSendFailed: 'Could not send email at the moment.',
+    enterValidOtp: 'Please enter a valid verification code.',
+    otpExpired: 'Verification code has expired, please request a new one.',
+    invalidOtp: 'Incorrect verification code.',
+    shortPassword: 'Password must be at least 8 characters long.',
+    updatePassFailed: 'Could not update password in the database.',
+    invalidLink: 'Invalid link.',
+    accountNotFound: 'Account not found.',
+  },
+  ru: {
+    turnstile:
+      'Пожалуйста, пройдите проверку безопасности (Cloudflare) и попробуйте снова.',
+    missingLogin: 'Пожалуйста, введите email/телефон и пароль.',
+    notRegistered:
+      'Этот email или телефон не зарегистрирован. Вы можете создать новый аккаунт.',
+    wrongPassword:
+      'Неверный пароль. Попробуйте снова или нажмите «Забыли пароль?».',
+    suspended: 'Этот аккаунт временно приостановлен администрацией.',
+    noAdminAccess:
+      'У этого аккаунта нет прав администратора. Войдите под аккаунтом администратора.',
+    fillAllRegister:
+      'Заполните все поля (пароль должен содержать минимум 8 символов).',
+    emailExists: 'Этот email уже зарегистрирован. Пожалуйста, войдите.',
+    phoneExists: 'Этот номер телефона уже зарегистрирован. Пожалуйста, войдите.',
+    registerFailed: 'Не удалось создать аккаунт, попробуйте позже.',
+    enterEmail: 'Пожалуйста, введите ваш email.',
+    emailNotFound: 'Этот email не зарегистрирован в системе.',
+    emailSendFailed: 'Не удалось отправить письмо в данный момент.',
+    enterValidOtp: 'Пожалуйста, введите корректный код подтверждения.',
+    otpExpired: 'Срок действия кода истек, запросите новый код.',
+    invalidOtp: 'Неверный код подтверждения.',
+    shortPassword: 'Пароль должен содержать минимум 8 символов.',
+    updatePassFailed: 'Не удалось обновить пароль в базе данных.',
+    invalidLink: 'Недействительная ссылка.',
+    accountNotFound: 'Аккаунт не найден.',
+  },
+  ka: {
+    turnstile: 'გთხოვთ გაიაროთ უსაფრთხოების შემოწმება (Cloudflare).',
+    missingLogin: 'გთხოვთ შეიყვანოთ ელ.ფოსტა/ტელეფონი და პაროლი.',
+    notRegistered:
+      'ეს ელ.ფოსტა ან ნომერი არ არის რეგისტრირებული. შეგიძლიათ შექმნათ ახალი ანგარიში.',
+    wrongPassword:
+      'პაროლი არასწორია. სცადეთ თავიდან ან დააჭირეთ „დაგავიწყდათ პაროლი?“.',
+    suspended: 'ეს ანგარიში დროებით შეჩერებულია ადმინისტრაციის მიერ.',
+    noAdminAccess:
+      'ამ ანგარიშს არ აქვს ადმინისტრატორის უფლებები. გთხოვთ შეხვიდეთ ადმინის ანგარიშით.',
+    fillAllRegister:
+      'შეავსეთ ყველა ველი (პაროლი უნდა შეიცავდეს მინიმუმ 8 სიმბოლოს).',
+    emailExists: 'ეს ელ.ფოსტა უკვე რეგისტრირებულია. გთხოვთ შეხვიდეთ.',
+    phoneExists: 'ეს ნომერი უკვე რეგისტრირებულია. გთხოვთ შეხვიდეთ.',
+    registerFailed: 'ანგარიშის შექმნა ვერ მოხერხდა, სცადეთ მოგვიანებით.',
+    enterEmail: 'გთხოვთ შეიყვანოთ ელ.ფოსტა.',
+    emailNotFound: 'ეს ელ.ფოსტა არ არის რეგისტრირებული.',
+    emailSendFailed: 'წერილის გაგზავნა ვერ მოხერხდა.',
+    enterValidOtp: 'გთხოვთ შეიყვანოთ სწორი კოდი.',
+    otpExpired: 'კოდის ვადა გავიდა, გთხოვთ მოითხოვოთ ახალი.',
+    invalidOtp: 'დადასტურების კოდი არასწორია.',
+    shortPassword: 'პაროლი უნდა შეიცავდეს მინიმუმ 8 სიმბოლოს.',
+    updatePassFailed: 'პაროლის განახლება ვერ მოხერხდა.',
+    invalidLink: 'არასწორი ბმული.',
+    accountNotFound: 'ანგარიში ვერ მოიძებნა.',
+  },
+}
+
+async function getActionMsg() {
+  const cookieStore = await cookies()
+  const locale = normalizeLocale(cookieStore.get('locale')?.value)
+  return AUTH_MESSAGES[locale] || AUTH_MESSAGES.ar
+}
 
 async function getSupabase() {
   const cookieStore = await cookies()
@@ -98,7 +212,7 @@ async function sendEmail({
     })
 
     await transporter.sendMail({
-      from: `"دارك للعقارات" <${user}>`,
+      from: `"Aqar Exit - عقار إكزت" <${user}>`,
       to: to.trim(),
       subject,
       html,
@@ -261,12 +375,13 @@ export type AuthResult = { success: boolean; error?: string }
 export async function loginAction(
   formData: FormData
 ): Promise<AuthResult & { redirectTo?: string }> {
+  const msg = await getActionMsg()
   const turnstileToken = formData.get('cf_turnstile_response') as string | null
   const isHuman = await verifyTurnstileOnServer(turnstileToken)
   if (!isHuman) {
     return {
       success: false,
-      error: 'يرجى إتمام التحقق الأمني (Cloudflare) والمحاولة مرة أخرى.',
+      error: msg.turnstile,
     }
   }
 
@@ -277,7 +392,7 @@ export async function loginAction(
   if (!rawInput || !password) {
     return {
       success: false,
-      error: 'يرجى إدخال البريد الإلكتروني/الهاتف وكلمة المرور.',
+      error: msg.missingLogin,
     }
   }
 
@@ -305,8 +420,7 @@ export async function loginAction(
   if (candidates.length === 0) {
     return {
       success: false,
-      error:
-        'هذا البريد الإلكتروني أو رقم الموبايل غير مسجل لدينا. يمكنك إنشاء حساب جديد.',
+      error: msg.notRegistered,
     }
   }
 
@@ -317,8 +431,7 @@ export async function loginAction(
   if (!matchedUser) {
     return {
       success: false,
-      error:
-        'كلمة السر غير مطابقة لهذا الحساب. اضغط على "نسيت كلمة السر؟" لتعيين كلمة جديدة.',
+      error: msg.wrongPassword,
     }
   }
 
@@ -328,7 +441,7 @@ export async function loginAction(
   if (cleanStatus === 'suspended') {
     return {
       success: false,
-      error: 'تم إيقاف هذا الحساب مؤقتاً من قِبل إدارة المنصة.',
+      error: msg.suspended,
     }
   }
 
@@ -343,8 +456,7 @@ export async function loginAction(
   if (nextUrl.startsWith('/admin') && !isStaff) {
     return {
       success: false,
-      error:
-        'هذا الحساب لا يمتلك صلاحيات الإدارة. يرجى تسجيل الدخول بحساب مدير النظام (Admin).',
+      error: msg.noAdminAccess,
     }
   }
 
@@ -361,7 +473,6 @@ export async function loginAction(
     }).catch(() => {})
   }
 
-  // التوجه للرئيسية أو الصفحة المطلوبة بشكل طبيعي دون إجبار المستخدم على الذهاب للوحة الأدمن إلا إذا طلبها
   const targetRedirect =
     nextUrl && nextUrl.startsWith('/') ? nextUrl : '/account'
 
@@ -372,12 +483,13 @@ export async function loginAction(
 }
 
 export async function registerAction(formData: FormData): Promise<AuthResult> {
+  const msg = await getActionMsg()
   const turnstileToken = formData.get('cf_turnstile_response') as string | null
   const isHuman = await verifyTurnstileOnServer(turnstileToken)
   if (!isHuman) {
     return {
       success: false,
-      error: 'يرجى إتمام التحقق الأمني (Cloudflare) والمحاولة مرة أخرى.',
+      error: msg.turnstile,
     }
   }
 
@@ -396,7 +508,7 @@ export async function registerAction(formData: FormData): Promise<AuthResult> {
   if (!name || !email || !formattedPhone || !password || password.length < 8) {
     return {
       success: false,
-      error: 'يرجى ملء جميع الحقول وكلمة سر لا تقل عن 8 أحرف.',
+      error: msg.fillAllRegister,
     }
   }
 
@@ -411,13 +523,13 @@ export async function registerAction(formData: FormData): Promise<AuthResult> {
   if ((existingEmails?.length || 0) > 0) {
     return {
       success: false,
-      error: 'هذا البريد الإلكتروني مسجل بالفعل. يرجى تسجيل الدخول.',
+      error: msg.emailExists,
     }
   }
   if ((existingPhones?.length || 0) > 0) {
     return {
       success: false,
-      error: 'رقم الموبايل هذا مسجل بالفعل. يرجى تسجيل الدخول.',
+      error: msg.phoneExists,
     }
   }
 
@@ -441,7 +553,7 @@ export async function registerAction(formData: FormData): Promise<AuthResult> {
   if (error || !newUser) {
     return {
       success: false,
-      error: 'تعذر إنشاء الحساب، يرجى المحاولة لاحقاً.',
+      error: msg.registerFailed,
     }
   }
 
@@ -486,10 +598,11 @@ export async function registerAction(formData: FormData): Promise<AuthResult> {
 export async function forgotPasswordAction(
   formData: FormData
 ): Promise<AuthResult> {
+  const msg = await getActionMsg()
   const email = normalizeEmail(String(formData.get('email') || ''))
 
   if (!email) {
-    return { success: false, error: 'يرجى إدخال البريد الإلكتروني.' }
+    return { success: false, error: msg.enterEmail }
   }
 
   const supabase = await getSupabase()
@@ -502,7 +615,7 @@ export async function forgotPasswordAction(
 
   const user = users?.[0]
   if (!user) {
-    return { success: false, error: 'هذا البريد الإلكتروني غير مسجل لدينا.' }
+    return { success: false, error: msg.emailNotFound }
   }
 
   const otp = generateOTP()
@@ -541,7 +654,7 @@ export async function forgotPasswordAction(
   })
 
   if (!emailSent) {
-    return { success: false, error: 'تعذر إرسال البريد الإلكتروني حالياً.' }
+    return { success: false, error: msg.emailSendFailed }
   }
 
   return { success: true }
@@ -551,11 +664,12 @@ export async function verifyOtpAction(
   email: string,
   otp: string
 ): Promise<AuthResult> {
+  const msg = await getActionMsg()
   const cleanEmail = normalizeEmail(email)
   const cleanOtp = sanitizeInput(otp, 10)
 
   if (!cleanEmail || !cleanOtp) {
-    return { success: false, error: 'يرجى إدخال الكود بشكل صحيح.' }
+    return { success: false, error: msg.enterValidOtp }
   }
 
   const supabase = await getSupabase()
@@ -570,7 +684,7 @@ export async function verifyOtpAction(
   if (!user) {
     return {
       success: false,
-      error: 'لم يتم العثور على حساب بهذا البريد الإلكتروني.',
+      error: msg.emailNotFound,
     }
   }
 
@@ -581,7 +695,7 @@ export async function verifyOtpAction(
   if (cookieCheck.expired) {
     return {
       success: false,
-      error: 'الكود منتهي الصلاحية، يرجى طلب كود جديد.',
+      error: msg.otpExpired,
     }
   }
 
@@ -591,13 +705,13 @@ export async function verifyOtpAction(
     if (user.otp_expiry && new Date(user.otp_expiry) < new Date()) {
       return {
         success: false,
-        error: 'الكود منتهي الصلاحية، يرجى طلب كود جديد.',
+        error: msg.otpExpired,
       }
     }
     return { success: true }
   }
 
-  return { success: false, error: 'كود التحقق غير صحيح.' }
+  return { success: false, error: msg.invalidOtp }
 }
 
 export async function resetPasswordAction(
@@ -605,6 +719,7 @@ export async function resetPasswordAction(
   otp: string,
   newPassword: string
 ): Promise<AuthResult> {
+  const msg = await getActionMsg()
   const cleanEmail = normalizeEmail(email)
   const cleanOtp = sanitizeInput(otp, 10)
   const cleanPass = String(newPassword || '').slice(0, 128)
@@ -612,7 +727,7 @@ export async function resetPasswordAction(
   if (!cleanPass || cleanPass.length < 8) {
     return {
       success: false,
-      error: 'كلمة السر يجب أن تكون 8 أحرف على الأقل.',
+      error: msg.shortPassword,
     }
   }
 
@@ -631,7 +746,7 @@ export async function resetPasswordAction(
   if (error || !updatedRows || updatedRows.length === 0) {
     return {
       success: false,
-      error: 'تعذر تحديث كلمة المرور في قاعدة البيانات.',
+      error: msg.updatePassFailed,
     }
   }
 
@@ -654,8 +769,9 @@ export async function verifyAccountAction(
   email: string,
   token?: string
 ): Promise<AuthResult> {
+  const msg = await getActionMsg()
   const cleanEmail = normalizeEmail(email)
-  if (!cleanEmail) return { success: false, error: 'رابط غير صالح.' }
+  if (!cleanEmail) return { success: false, error: msg.invalidLink }
 
   const supabase = await getSupabase()
   const { data: users } = await supabase
@@ -666,7 +782,7 @@ export async function verifyAccountAction(
     .limit(1)
 
   const user = users?.[0]
-  if (!user) return { success: false, error: 'الحساب غير موجود.' }
+  if (!user) return { success: false, error: msg.accountNotFound }
 
   await supabase
     .from('users')

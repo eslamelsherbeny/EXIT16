@@ -126,84 +126,6 @@ export const SUPPORTED_COUNTRIES: Record<CountryCode, CountryConfig> = {
   },
 }
 
-// مكون أعلام SVG حقيقية يضمن ظهور العلم الملون على الويندوز والموبايل وكل المتصفحات
-export function CountryFlag({
-  code,
-  className = 'h-3.5 w-5',
-}: {
-  code: CountryCode | string
-  className?: string
-}) {
-  const cleanCode = (code || 'EG').toUpperCase()
-
-  if (cleanCode === 'EG') {
-    return (
-      <svg
-        viewBox="0 0 30 20"
-        className={`${className} shrink-0 overflow-hidden rounded-[3px] border border-black/10 shadow-2xs`}
-        aria-hidden="true"
-      >
-        <rect width="30" height="20" fill="#fff" />
-        <rect width="30" height="6.67" y="0" fill="#ce1126" />
-        <rect width="30" height="6.67" y="13.33" fill="#000" />
-        <path
-          d="M13.6 7.8h2.8l.4 4.2h-3.6z"
-          fill="#c09300"
-        />
-      </svg>
-    )
-  }
-
-  if (cleanCode === 'RU') {
-    return (
-      <svg
-        viewBox="0 0 30 20"
-        className={`${className} shrink-0 overflow-hidden rounded-[3px] border border-black/10 shadow-2xs`}
-        aria-hidden="true"
-      >
-        <rect width="30" height="6.67" y="0" fill="#fff" />
-        <rect width="30" height="6.67" y="6.67" fill="#0039a6" />
-        <rect width="30" height="6.67" y="13.33" fill="#d52b1e" />
-      </svg>
-    )
-  }
-
-  if (cleanCode === 'GE') {
-    return (
-      <svg
-        viewBox="0 0 30 20"
-        className={`${className} shrink-0 overflow-hidden rounded-[3px] border border-black/10 shadow-2xs`}
-        aria-hidden="true"
-      >
-        <rect width="30" height="20" fill="#fff" />
-        <rect width="30" height="4" y="8" fill="#ff0000" />
-        <rect width="4" height="20" x="13" fill="#ff0000" />
-        <path
-          d="M5.5 2.5h2v3h-2zM4.5 3.5h4v1h-4zM22.5 2.5h2v3h-2zM21.5 3.5h4v1h-4zM5.5 14.5h2v3h-2zM4.5 15.5h4v1h-4zM22.5 14.5h2v3h-2zM21.5 15.5h4v1h-4z"
-          fill="#ff0000"
-        />
-      </svg>
-    )
-  }
-
-  if (cleanCode === 'AE') {
-    return (
-      <svg
-        viewBox="0 0 30 20"
-        className={`${className} shrink-0 overflow-hidden rounded-[3px] border border-black/10 shadow-2xs`}
-        aria-hidden="true"
-      >
-        <rect width="30" height="6.67" y="0" fill="#00732f" />
-        <rect width="30" height="6.67" y="6.67" fill="#fff" />
-        <rect width="30" height="6.67" y="13.33" fill="#000" />
-        <rect width="8" height="20" x="0" fill="#ff0000" />
-      </svg>
-    )
-  }
-
-  return null
-}
-
 export function getActiveCountryFromCookie(): CountryConfig {
   if (typeof document !== 'undefined') {
     const match = document.cookie
@@ -319,6 +241,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
   const router = useRouter()
   const pathname = usePathname()
 
+  // سحب اللغة والدولة والقاموس مباشرة من النظام المركزي بسطر واحد!
   const { t: labels, locale: language, country, dir } = useTranslation()
 
   const [langMenuOpen, setLangMenuOpen] = useState(false)
@@ -327,9 +250,11 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
   const [isAdmin, setIsAdmin] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
+  // حالة التحميل المرئية عند تبديل اللغة أو الدولة
   const [isSwitchingLocale, startSwitchTransition] = useTransition()
   const [switchingLabel, setSwitchingLabel] = useState<string | null>(null)
 
+  // حالات الإشعارات
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [notifsList, setNotifsList] = useState<any[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
@@ -354,7 +279,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
     }
     const targetCfg = SUPPORTED_COUNTRIES[code]
     setCountryMenuOpen(false)
-    setSwitchingLabel(`${getCountryName(targetCfg, language)}...`)
+    setSwitchingLabel(`${targetCfg.flag} ${getCountryName(targetCfg, language)}...`)
     document.cookie = `darak_country=${code}; path=/; max-age=31536000; SameSite=Lax`
     window.dispatchEvent(new Event('country-changed'))
     startSwitchTransition(() => {
@@ -502,7 +427,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
   const renderCountryDropdownMenu = () => (
     <div
       onClick={(e) => e.stopPropagation()}
-      className="absolute left-0 top-11 z-50 w-48 overflow-hidden rounded-xl border border-gray-200/90 bg-white p-1.5 shadow-xl"
+      className="absolute left-0 top-10 z-50 w-44 overflow-hidden rounded-xl border border-gray-200/90 bg-white p-1.5 shadow-xl"
     >
       <p className="px-2.5 py-1 text-start text-[10px] font-bold text-gray-400">
         {language === 'ar'
@@ -520,18 +445,18 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
             key={c.code}
             type="button"
             onClick={() => handleSelectCountry(c.code)}
-            className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-start text-xs font-bold transition ${
+            className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-start text-xs font-semibold transition ${
               active
-                ? 'bg-[#eff9f5] text-[#0b6954]'
+                ? 'bg-[#eff9f5] font-bold text-[#0b6954]'
                 : 'text-[#0a1122] hover:bg-gray-50'
             }`}
           >
-            <div className="flex items-center gap-2.5">
-              <CountryFlag code={c.code} className="h-3.5 w-5" />
+            <div className="flex items-center gap-2">
+              <span className="text-sm leading-none">{c.flag}</span>
               <span>{getCountryName(c, language)}</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="text-[11px] font-extrabold text-gray-400">
+              <span className="font-mono text-[10px] font-bold text-gray-400">
                 {c.code}
               </span>
               {active && <Check className="size-3.5 text-[#0b6954]" />}
@@ -545,7 +470,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
   const renderLanguageDropdownMenu = () => (
     <div
       onClick={(e) => e.stopPropagation()}
-      className="absolute left-0 top-11 z-50 w-36 overflow-hidden rounded-xl border border-gray-200/90 bg-white p-1.5 shadow-xl"
+      className="absolute left-0 top-10 z-50 w-36 overflow-hidden rounded-xl border border-gray-200/90 bg-white p-1.5 shadow-xl"
     >
       {(Object.values(SUPPORTED_LANGUAGES) as LanguageConfig[]).map((lang) => {
         const active = lang.code === language
@@ -554,9 +479,9 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
             key={lang.code}
             type="button"
             onClick={() => handleSelectLanguage(lang.code)}
-            className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-xs font-bold transition ${
+            className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-xs font-semibold transition ${
               active
-                ? 'bg-[#eff9f5] text-[#0b6954]'
+                ? 'bg-[#eff9f5] font-bold text-[#0b6954]'
                 : 'text-[#0a1122] hover:bg-gray-50'
             }`}
           >
@@ -748,7 +673,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
         <div className="flex items-center gap-8 xl:gap-11">
           <Logo />
           <nav
-            className="hidden items-center gap-5 lg:flex xl:gap-6"
+            className="hidden items-center gap-4 lg:flex xl:gap-5"
             aria-label={labels.navbar?.menuTitle || 'القائمة الرئيسية'}
           >
             {links.map((link) => {
@@ -758,10 +683,10 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`whitespace-nowrap text-[14.5px] font-bold transition-colors hover:text-[#0b6954] ${
+                  className={`whitespace-nowrap text-[14px] transition-colors hover:text-[#0b6954] xl:text-[14.5px] ${
                     isActive
-                      ? 'text-[#0b6954]'
-                      : 'text-[#0a1122]'
+                      ? 'font-bold text-[#0b6954]'
+                      : 'font-semibold text-[#273142]'
                   }`}
                 >
                   {labels.navbar?.[link.key] || link.fallback}
@@ -771,8 +696,8 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
           </nav>
         </div>
 
-        <div className="hidden shrink-0 items-center gap-2 lg:flex">
-          {/* 1. زر الدولة (مع علم SVG ملون واضح وخط Cairo العريض) */}
+        <div className="hidden shrink-0 items-center gap-1.5 lg:flex xl:gap-2">
+          {/* 1. زر الدولة */}
           <div className="relative" ref={countryRefDesktop}>
             <button
               type="button"
@@ -783,13 +708,16 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
                 setNotificationsOpen(false)
               }}
               dir="ltr"
-              className="inline-flex h-[38px] items-center justify-center gap-2 rounded-[10px] border border-[#e2e8f0] bg-white px-3 text-[13px] font-extrabold text-[#0a1122] transition hover:border-[#0b6954] hover:bg-gray-50 disabled:opacity-60"
+              className="inline-flex h-[34px] items-center justify-center gap-1 rounded-[8px] border border-gray-200/90 bg-gray-50/70 px-2 text-xs font-bold text-[#0a1122] transition hover:border-[#0b6954] hover:bg-white disabled:opacity-60"
               title={`Country: ${getCountryName(currentCountryCfg, language)}`}
               aria-label="تغيير الدولة"
             >
-              <CountryFlag code={currentCountryCfg.code} className="h-3.5 w-5" />
-              <span>{currentCountryCfg.code}</span>
-              <ChevronDown className="size-3.5 text-gray-400" />
+              <span className="text-[14px] leading-none">
+                {currentCountryCfg.flag}
+              </span>
+              <span className="font-mono text-[11px] font-extrabold tracking-tight text-[#1e293b]">
+                {currentCountryCfg.code}
+              </span>
             </button>
 
             {countryMenuOpen && renderCountryDropdownMenu()}
@@ -806,16 +734,14 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
                 setNotificationsOpen(false)
               }}
               dir="ltr"
-              className="inline-flex h-[38px] items-center gap-1.5 rounded-[10px] border border-[#e2e8f0] bg-white px-3 text-[13px] font-bold text-[#0a1122] transition-colors hover:border-[#0b6954] hover:bg-gray-50 disabled:opacity-60"
+              className="inline-flex h-[34px] items-center gap-1 rounded-lg px-2 text-[13px] font-semibold text-[#334155] transition-colors hover:bg-gray-100/80 hover:text-[#0a1122] disabled:opacity-60"
               title={labels.navbar?.languageLabel || 'تغيير اللغة'}
             >
               {isSwitchingLocale ? (
                 <Loader2 className="size-3.5 animate-spin text-[#0b6954]" />
-              ) : (
-                <Globe className="size-3.5 text-[#0b6954]" />
-              )}
+              ) : null}
               <span>{SUPPORTED_LANGUAGES[language].nativeName}</span>
-              <ChevronDown className="size-3.5 text-gray-400" />
+              <ChevronDown className="size-3 text-gray-400" />
             </button>
 
             {langMenuOpen && renderLanguageDropdownMenu()}
@@ -844,9 +770,9 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
                 type="button"
                 onClick={handleToggleNotifications}
                 aria-label={language === 'ar' ? 'الإشعارات' : 'Notifications'}
-                className="relative flex size-[38px] items-center justify-center rounded-[10px] border border-[#e2e8f0] bg-white text-[#0a1122] transition-colors hover:bg-gray-50"
+                className="relative flex size-[36px] items-center justify-center rounded-lg text-[#334155] transition-colors hover:bg-gray-100"
               >
-                <Bell className="size-[17px] stroke-[2]" />
+                <Bell className="size-[17px] stroke-[1.9]" />
                 {unreadCount > 0 && (
                   <span
                     dir="ltr"
@@ -873,7 +799,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
           {isAdmin && (
             <Link
               href="/admin"
-              className="inline-flex h-[38px] items-center justify-center gap-1 whitespace-nowrap rounded-[10px] bg-[#0a1122] px-3 text-[12px] font-bold text-white transition-colors hover:bg-[#16223f]"
+              className="inline-flex h-[38px] items-center justify-center gap-1 whitespace-nowrap rounded-[10px] bg-[#0a1122] px-2.5 text-[12px] font-bold text-white transition-colors hover:bg-[#16223f]"
               title="لوحة الإدارة"
             >
               <ShieldCheck className="size-3.5 shrink-0 text-[#2ee59d]" />
@@ -901,11 +827,15 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
                 setCountryMenuOpen(!countryMenuOpen)
                 setNotificationsOpen(false)
               }}
-              className="inline-flex h-[34px] items-center justify-center gap-1.5 rounded-[8px] border border-gray-200/90 bg-white px-2.5 text-xs font-extrabold text-[#0a1122]"
+              className="inline-flex h-[34px] items-center justify-center gap-1 rounded-[8px] border border-gray-200/90 bg-gray-50 px-2 text-xs font-bold text-[#0a1122]"
               aria-label="تغيير الدولة"
             >
-              <CountryFlag code={currentCountryCfg.code} className="h-3 w-4" />
-              <span>{currentCountryCfg.code}</span>
+              <span className="text-[14px] leading-none">
+                {currentCountryCfg.flag}
+              </span>
+              <span className="font-mono text-[10.5px] font-extrabold">
+                {currentCountryCfg.code}
+              </span>
             </button>
 
             {countryMenuOpen && renderCountryDropdownMenu()}
@@ -1001,8 +931,8 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
             <Link
               href="/"
               onClick={() => setMobileMenuOpen(false)}
-              className={`rounded-lg px-2 py-1 text-[15.5px] font-bold transition-colors ${
-                pathname === '/' ? 'text-[#0b6954]' : 'text-[#0a1122]'
+              className={`rounded-lg px-2 py-1 text-[15.5px] font-semibold transition-colors ${
+                pathname === '/' ? 'font-bold text-[#0b6954]' : 'text-[#0a1122]'
               }`}
             >
               {language === 'ar'
@@ -1021,8 +951,8 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
                   key={link.href}
                   href={link.href}
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`rounded-lg px-2 py-1 text-[15.5px] font-bold transition-colors ${
-                    isActive ? 'text-[#0b6954]' : 'text-[#0a1122]'
+                  className={`rounded-lg px-2 py-1 text-[15.5px] font-semibold transition-colors ${
+                    isActive ? 'font-bold text-[#0b6954]' : 'text-[#0a1122]'
                   }`}
                 >
                   {labels.navbar?.[link.key] || link.fallback}
@@ -1257,13 +1187,13 @@ export function Footer({ dictionary: _unused }: { dictionary?: Dictionary }) {
                       type="button"
                       disabled={isSwitching}
                       onClick={() => selectFooterCountry(c.code)}
-                      className={`inline-flex items-center gap-2 rounded-xl px-3 py-1.5 font-bold transition ${
+                      className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 font-bold transition ${
                         isCurrent
                           ? 'bg-[#0b6954] text-white'
                           : 'bg-white/5 text-gray-300 hover:bg-white/10 hover:text-white'
                       }`}
                     >
-                      <CountryFlag code={c.code} className="h-3.5 w-5" />
+                      <span>{c.flag}</span>
                       <span>{getCountryName(c, language)}</span>
                     </button>
                   )

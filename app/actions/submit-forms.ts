@@ -2,10 +2,123 @@
 
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
-import { createHash, createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
+import {
+  createHash,
+  createHmac,
+  randomBytes,
+  scryptSync,
+  timingSafeEqual,
+} from 'node:crypto'
 import { revalidatePath } from 'next/cache'
 import nodemailer from 'nodemailer'
-import { extractUserIdFromCookie } from '@/lib/session-security'
+import {
+  createSignedSessionToken,
+  extractUserIdFromCookie,
+} from '@/lib/session-security'
+import { normalizeLocale, type LocaleCode } from '@/lib/i18n-config'
+
+const FORM_MESSAGES: Record<LocaleCode, Record<string, string>> = {
+  ar: {
+    expiredLink: 'الرابط منتهي الصلاحية.',
+    invalidLink: 'رابط غير صالح.',
+    verifyFailed: 'تعذر التحقق من الرابط.',
+    sessionExpired: 'انتهت الجلسة، يرجى تسجيل الدخول.',
+    accountNotFound: 'لم يتم العثور على بيانات الحساب.',
+    enterLogin: 'يرجى إدخال البريد الإلكتروني/الموبايل وكلمة السر.',
+    notRegistered:
+      'هذا الحساب غير مسجل لدينا. اختر "تسجيل بيانات جديدة" لإنشاء حسابك.',
+    wrongPassword:
+      'كلمة السر غير صحيحة. جرب مرة أخرى أو اضغط على نسيت كلمة السر.',
+    fillAll: 'يرجى إكمال كافة الحقول وكلمة سر 8 حروف على الأقل.',
+    createAccountFailed: 'تعذر إنشاء الحساب حالياً، يرجى المحاولة مرة أخرى.',
+    unexpected: 'حدث خطأ غير متوقع.',
+    emailNotFound: 'لم يتم العثور على بريد إلكتروني مسجل.',
+    sendLinkFailed: 'تعذر إرسال الرابط حالياً.',
+    shortPassword: 'كلمة السر يجب أن تكون 8 حروف على الأقل.',
+    updatePassFailed: 'تعذر تحديث كلمة السر.',
+    saveProgressFailed: 'تعذر حفظ التقدم.',
+    submitUnitFailed: 'تعذر حفظ الطلب. حاول مرة أخرى.',
+    enterNamePhone: 'يرجى إدخال الاسم ورقم الهاتف.',
+    investorFailed: 'تعذر إرسال بيانات المستثمر حالياً، يرجى المحاولة مرة أخرى.',
+  },
+  en: {
+    expiredLink: 'This link has expired.',
+    invalidLink: 'Invalid link.',
+    verifyFailed: 'Could not verify link.',
+    sessionExpired: 'Session expired, please sign in.',
+    accountNotFound: 'Account details not found.',
+    enterLogin: 'Please enter your email/phone and password.',
+    notRegistered:
+      'This account is not registered. Choose "Register New Details" to create an account.',
+    wrongPassword:
+      'Incorrect password. Please try again or click Forgot Password.',
+    fillAll:
+      'Please complete all fields and use a password of at least 8 characters.',
+    createAccountFailed: 'Could not create account right now, please try again.',
+    unexpected: 'An unexpected error occurred.',
+    emailNotFound: 'No registered email address found.',
+    sendLinkFailed: 'Could not send link right now.',
+    shortPassword: 'Password must be at least 8 characters.',
+    updatePassFailed: 'Could not update password.',
+    saveProgressFailed: 'Could not save progress.',
+    submitUnitFailed: 'Could not submit request. Please try again.',
+    enterNamePhone: 'Please enter your name and phone number.',
+    investorFailed: 'Could not submit investor request, please try again.',
+  },
+  ru: {
+    expiredLink: 'Срок действия ссылки истек.',
+    invalidLink: 'Недействительная ссылка.',
+    verifyFailed: 'Не удалось проверить ссылку.',
+    sessionExpired: 'Сессия истекла, пожалуйста, войдите.',
+    accountNotFound: 'Данные аккаунта не найдены.',
+    enterLogin: 'Введите email/телефон и пароль.',
+    notRegistered:
+      'Этот аккаунт не зарегистрирован. Выберите «Новая регистрация».',
+    wrongPassword:
+      'Неверный пароль. Попробуйте снова или нажмите «Забыли пароль?».',
+    fillAll: 'Заполните все поля и укажите пароль (минимум 8 символов).',
+    createAccountFailed: 'Не удалось создать аккаунт, попробуйте еще раз.',
+    unexpected: 'Произошла непредвиденная ошибка.',
+    emailNotFound: 'Зарегистрированный email не найден.',
+    sendLinkFailed: 'Не удалось отправить ссылку.',
+    shortPassword: 'Пароль должен содержать минимум 8 символов.',
+    updatePassFailed: 'Не удалось обновить пароль.',
+    saveProgressFailed: 'Не удалось сохранить прогресс.',
+    submitUnitFailed: 'Не удалось сохранить заявку. Попробуйте снова.',
+    enterNamePhone: 'Пожалуйста, укажите имя и телефон.',
+    investorFailed: 'Не удалось отправить анкету инвестора.',
+  },
+  ka: {
+    expiredLink: 'ბმულის ვადა გავიდა.',
+    invalidLink: 'არასწორი ბმული.',
+    verifyFailed: 'ბმულის შემოწმება ვერ მოხერხდა.',
+    sessionExpired: 'სესიის ვადა გავიდა, გთხოვთ შეხვიდეთ.',
+    accountNotFound: 'ანგარიშის მონაცემები ვერ მოიძებნა.',
+    enterLogin: 'შეიყვანეთ ელ.ფოსტა/ტელეფონი და პაროლი.',
+    notRegistered:
+      'ეს ანგარიში არ არის რეგისტრირებული. აირჩიეთ „ახალი მონაცემები“.',
+    wrongPassword:
+      'პაროლი არასწორია. სცადეთ თავიდან ან აღადგინეთ პაროლი.',
+    fillAll: 'შეავსეთ ყველა ველი და პაროლი (მინიმუმ 8 სიმბოლო).',
+    createAccountFailed: 'ანგარიშის შექმნა ვერ მოხერხდა, სცადეთ თავიდან.',
+    unexpected: 'დაფიქსირდა შეცდომა.',
+    emailNotFound: 'რეგისტრირებული ელ.ფოსტა ვერ მოიძებნა.',
+    sendLinkFailed: 'ბმულის გაგზავნა ვერ მოხერხდა.',
+    shortPassword: 'პაროლი უნდა შეიცავდეს მინიმუმ 8 სიმბოლოს.',
+    updatePassFailed: 'პაროლის განახლება ვერ მოხერხდა.',
+    saveProgressFailed: 'შენახვა ვერ მოხერხდა.',
+    submitUnitFailed: 'განაცხადის გაგზავნა ვერ მოხერხდა.',
+    enterNamePhone: 'გთხოვთ შეიყვანოთ სახელი და ტელეფონი.',
+    investorFailed: 'ინვესტორის განაცხადის გაგზავნა ვერ მოხერხდა.',
+  },
+}
+
+async function getFormMsg() {
+  const cookieStore = await cookies()
+  const locale = normalizeLocale(cookieStore.get('locale')?.value)
+  return FORM_MESSAGES[locale] || FORM_MESSAGES.ar
+}
+
 async function getSupabase() {
   const cookieStore = await cookies()
   return createServerClient(
@@ -78,7 +191,9 @@ function integer(formData: FormData, key: string, fallback = 0) {
 function list(formData: FormData, key: string) {
   return formData
     .getAll(key)
-    .filter((value): value is string => typeof value === 'string' && value.length > 0)
+    .filter(
+      (value): value is string => typeof value === 'string' && value.length > 0
+    )
 }
 
 function normalizeEmail(email: string) {
@@ -119,12 +234,13 @@ function createMagicToken(userId: string, unitId: string, expiresAt: number) {
 }
 
 export async function verifyMagicTokenAction(token: string) {
+  const msg = await getFormMsg()
   try {
     const decoded = Buffer.from(token, 'base64url').toString('utf8')
     const [userId, unitId, expiresStr, sig] = decoded.split(':')
     const expiresAt = Number(expiresStr)
     if (!userId || !expiresAt || Date.now() > expiresAt) {
-      return { valid: false, error: 'الرابط منتهي الصلاحية.' }
+      return { valid: false, error: msg.expiredLink }
     }
 
     const secret =
@@ -135,7 +251,7 @@ export async function verifyMagicTokenAction(token: string) {
       .update(`${userId}:${unitId}:${expiresAt}`)
       .digest('hex')
 
-    if (sig !== expectedSig) return { valid: false, error: 'رابط غير صالح.' }
+    if (sig !== expectedSig) return { valid: false, error: msg.invalidLink }
 
     const supabase = await getSupabase()
     const { data: unit } = await supabase
@@ -144,7 +260,13 @@ export async function verifyMagicTokenAction(token: string) {
       .eq('id', unitId)
       .maybeSingle()
 
-    await setUserSession(userId)
+    const { data: userRow } = await supabase
+      .from('users')
+      .select('password_hash')
+      .eq('id', userId)
+      .maybeSingle()
+
+    await setUserSession(userId, userRow?.password_hash)
 
     return {
       valid: true,
@@ -153,7 +275,7 @@ export async function verifyMagicTokenAction(token: string) {
       unit,
     }
   } catch {
-    return { valid: false, error: 'تعذر التحقق من الرابط.' }
+    return { valid: false, error: msg.verifyFailed }
   }
 }
 
@@ -164,14 +286,18 @@ export type SubmitResult = {
   orderRef?: string
 }
 
-async function setUserSession(userId: string) {
+async function setUserSession(
+  userId: string,
+  passwordHash?: string | null
+) {
   const cookieStore = await cookies()
   cookieStore.delete('user_session')
   cookieStore.delete('session_hint')
 
   const isProd = process.env.NODE_ENV === 'production'
+  const token = createSignedSessionToken(userId, passwordHash)
 
-  cookieStore.set('user_session', userId, {
+  cookieStore.set('user_session', token, {
     path: '/',
     maxAge: 60 * 60 * 24 * 30,
     sameSite: 'lax',
@@ -229,7 +355,9 @@ function verifyPassword(password: string, stored: string | null) {
 export async function getCurrentSellerProfileAction() {
   try {
     const cookieStore = await cookies()
-    const sessionId = cookieStore.get('user_session')?.value
+    const sessionId = extractUserIdFromCookie(
+      cookieStore.get('user_session')?.value
+    )
     if (!sessionId) return { isLoggedIn: false, user: null }
 
     const supabase = await getSupabase()
@@ -277,6 +405,7 @@ export async function processSellerStep2Action(payload: {
   loginIdentifier?: string
   existingUnitId?: string
 }): Promise<Step2AuthResponse> {
+  const msg = await getFormMsg()
   try {
     const supabase = await getSupabase()
     const siteUrl =
@@ -363,7 +492,9 @@ export async function processSellerStep2Action(payload: {
       const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000
       const magicToken = createMagicToken(userId, unitId, expiresAt)
       const magicLink = `${siteUrl}/sell?magic=${encodeURIComponent(magicToken)}`
-      const paidFormatted = Number(payload.paidAmount || 0).toLocaleString('en-US')
+      const paidFormatted = Number(payload.paidAmount || 0).toLocaleString(
+        'en-US'
+      )
 
       await sendNotificationEmail({
         to: userEmail,
@@ -376,17 +507,17 @@ export async function processSellerStep2Action(payload: {
                 <p style="margin: 18px 0;">
                   <a href="${magicLink}" style="color: #0b6954; font-weight: bold; word-break: break-all;">${magicLink}</a>
                 </p>
-                <p>ضفنا الطلب ده على الوحدة اللي عندك عندنا، فمفيش أي بيانات ضاعت.</p>
-                <p>محتاج حاجة؟ كلمنا واتساب: <a href="https://wa.me/201018595959">https://wa.me/201018595959</a></p>
                </div>`,
       }).catch(() => {})
     }
 
     if (payload.mode === 'session') {
       const cookieStore = await cookies()
-      const sessionId = cookieStore.get('user_session')?.value
+      const sessionId = extractUserIdFromCookie(
+        cookieStore.get('user_session')?.value
+      )
       if (!sessionId) {
-        return { status: 'error', error: 'انتهت الجلسة، يرجى تسجيل الدخول.' }
+        return { status: 'error', error: msg.sessionExpired }
       }
 
       const { data: currentUser } = await supabase
@@ -396,7 +527,7 @@ export async function processSellerStep2Action(payload: {
         .maybeSingle()
 
       if (!currentUser) {
-        return { status: 'error', error: 'لم يتم العثور على بيانات الحساب.' }
+        return { status: 'error', error: msg.accountNotFound }
       }
 
       const unitId = await upsertDraftUnit(currentUser.id, {
@@ -433,7 +564,7 @@ export async function processSellerStep2Action(payload: {
       if (!rawIdentifier || !password) {
         return {
           status: 'error',
-          error: 'يرجى إدخال البريد الإلكتروني/الموبايل وكلمة السر.',
+          error: msg.enterLogin,
         }
       }
 
@@ -456,7 +587,7 @@ export async function processSellerStep2Action(payload: {
       if (candidates.length === 0) {
         return {
           status: 'error',
-          error: 'هذا الحساب غير مسجل لدينا. اختر "بيانات جديدة" لإنشاء حسابك.',
+          error: msg.notRegistered,
         }
       }
 
@@ -466,11 +597,11 @@ export async function processSellerStep2Action(payload: {
       if (!matched) {
         return {
           status: 'error',
-          error: 'كلمة السر غير صحيحة. جرب مرة أخرى أو اضغط على نسيت كلمة السر.',
+          error: msg.wrongPassword,
         }
       }
 
-      await setUserSession(matched.id)
+      await setUserSession(matched.id, matched.password_hash)
       const unitId = await upsertDraftUnit(matched.id, {
         name: matched.name || 'مالك الوحدة',
         phone: matched.phone || '',
@@ -507,7 +638,7 @@ export async function processSellerStep2Action(payload: {
     if (!cleanName || !cleanEmail || !formattedPhone || password.length < 8) {
       return {
         status: 'error',
-        error: 'يرجى إكمال كافة الحقول وكلمة سر 8 حروف على الأقل.',
+        error: msg.fillAll,
       }
     }
 
@@ -596,11 +727,11 @@ export async function processSellerStep2Action(payload: {
     if (createErr || !createdUser) {
       return {
         status: 'error',
-        error: 'تعذر إنشاء الحساب حالياً، يرجى المحاولة مرة أخرى.',
+        error: msg.createAccountFailed,
       }
     }
 
-    await setUserSession(createdUser.id)
+    await setUserSession(createdUser.id, hash)
     const unitId = await upsertDraftUnit(createdUser.id, {
       name: cleanName,
       phone: formattedPhone,
@@ -626,7 +757,7 @@ export async function processSellerStep2Action(payload: {
     }
   } catch (e) {
     console.error('processSellerStep2Action error:', e)
-    return { status: 'error', error: 'حدث خطأ غير متوقع.' }
+    return { status: 'error', error: msg.unexpected }
   }
 }
 
@@ -634,6 +765,7 @@ export async function verifyExistingEmailPasswordAction(payload: {
   email: string
   password: string
 }) {
+  const msg = await getFormMsg()
   try {
     const supabase = await getSupabase()
     const cleanEmail = normalizeEmail(payload.email)
@@ -649,11 +781,11 @@ export async function verifyExistingEmailPasswordAction(payload: {
     if (!matched) {
       return {
         success: false,
-        error: 'كلمة السر غير صحيحة. جرب تاني أو اضغط على نسيت كلمة السر؟',
+        error: msg.wrongPassword,
       }
     }
 
-    await setUserSession(matched.id)
+    await setUserSession(matched.id, matched.password_hash)
     return {
       success: true,
       user: {
@@ -664,7 +796,7 @@ export async function verifyExistingEmailPasswordAction(payload: {
       },
     }
   } catch {
-    return { success: false, error: 'حدث خطأ أثناء تسجيل الدخول.' }
+    return { success: false, error: msg.unexpected }
   }
 }
 
@@ -673,6 +805,7 @@ export async function sendSellerRecoveryLinkAction(payload: {
   email?: string
   unitId?: string
 }) {
+  const msg = await getFormMsg()
   try {
     const supabase = await getSupabase()
     let targetUser: any = null
@@ -694,7 +827,7 @@ export async function sendSellerRecoveryLinkAction(payload: {
     }
 
     if (!targetUser || !targetUser.email) {
-      return { success: false, error: 'لم يتم العثور على بريد إلكتروني مسجل.' }
+      return { success: false, error: msg.emailNotFound }
     }
 
     const siteUrl =
@@ -720,13 +853,12 @@ export async function sendSellerRecoveryLinkAction(payload: {
               <p style="margin: 18px 0;">
                 <a href="${resetLink}" style="color: #0b6954; font-weight: bold; word-break: break-all;">${resetLink}</a>
               </p>
-              <p style="color: #64748b; font-size: 13px;">لو مش انت اللي طلبت ده، تجاهل الرسالة دي.</p>
              </div>`,
     })
 
     return { success: true }
   } catch {
-    return { success: false, error: 'تعذر إرسال الرابط حالياً.' }
+    return { success: false, error: msg.sendLinkFailed }
   }
 }
 
@@ -734,11 +866,12 @@ export async function setNewPasswordFromTokenAction(payload: {
   tokenHash: string
   newPassword: string
 }) {
+  const msg = await getFormMsg()
   try {
     if (!payload.newPassword || payload.newPassword.length < 8) {
       return {
         success: false,
-        error: 'كلمة السر يجب أن تكون 8 حروف على الأقل.',
+        error: msg.shortPassword,
       }
     }
 
@@ -746,7 +879,7 @@ export async function setNewPasswordFromTokenAction(payload: {
     if (!verify.valid || !verify.userId) {
       return {
         success: false,
-        error: verify.error || 'الرابط غير صالح أو منتهي الصلاحية.',
+        error: verify.error || msg.expiredLink,
       }
     }
 
@@ -759,30 +892,35 @@ export async function setNewPasswordFromTokenAction(payload: {
       .eq('id', verify.userId)
 
     if (error) {
-      return { success: false, error: 'تعذر تحديث كلمة السر.' }
+      return { success: false, error: msg.updatePassFailed }
     }
 
-    await setUserSession(verify.userId)
+    await setUserSession(verify.userId, newHash)
 
     return {
       success: true,
       unitId: verify.unitId,
     }
   } catch {
-    return { success: false, error: 'حدث خطأ غير متوقع.' }
+    return { success: false, error: msg.unexpected }
   }
 }
 
-export async function saveSellProgress(formData: FormData): Promise<SubmitResult> {
+export async function saveSellProgress(
+  formData: FormData
+): Promise<SubmitResult> {
+  const msg = await getFormMsg()
   try {
     const supabase = await getSupabase()
-    const sessionId = (await cookies()).get('user_session')?.value
+    const sessionId = extractUserIdFromCookie(
+      (await cookies()).get('user_session')?.value
+    )
     const unitId = text(formData, 'unit_id')
 
     if (!sessionId && !unitId) {
       return {
         success: false,
-        error: 'انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى.',
+        error: msg.sessionExpired,
       }
     }
 
@@ -822,7 +960,7 @@ export async function saveSellProgress(formData: FormData): Promise<SubmitResult
     }
 
     if (!targetUnitId) {
-      return { success: false, error: 'لم يتم العثور على طلب البيع الحالي.' }
+      return { success: false, error: msg.saveProgressFailed }
     }
 
     const { error } = await supabase
@@ -832,18 +970,23 @@ export async function saveSellProgress(formData: FormData): Promise<SubmitResult
 
     revalidatePath('/account', 'page')
     return error
-      ? { success: false, error: 'تعذر حفظ التقدم.' }
+      ? { success: false, error: msg.saveProgressFailed }
       : { success: true, unitId: targetUnitId }
   } catch {
-    return { success: false, error: 'تعذر حفظ التقدم.' }
+    return { success: false, error: msg.saveProgressFailed }
   }
 }
 
-export async function submitSellRequest(formData: FormData): Promise<SubmitResult> {
+export async function submitSellRequest(
+  formData: FormData
+): Promise<SubmitResult> {
+  const msg = await getFormMsg()
   try {
     const supabase = await getSupabase()
     const cookieStore = await cookies()
-    const sessionId = cookieStore.get('user_session')?.value
+    const sessionId = extractUserIdFromCookie(
+      cookieStore.get('user_session')?.value
+    )
     const existingUnitId = text(formData, 'unit_id')
     const projectName = text(formData, 'project_name')
     const unitCountry = (text(formData, 'country') || 'EG').toUpperCase()
@@ -873,7 +1016,8 @@ export async function submitSellRequest(formData: FormData): Promise<SubmitResul
       has_annual_installment: formData.get('has_annual_installment') === 'on',
       willing_to_discount: formData.get('willing_to_discount') === 'on',
       discount_amount: number(formData, 'discount_amount'),
-      has_overdue_installments: formData.get('has_overdue_installments') === 'on',
+      has_overdue_installments:
+        formData.get('has_overdue_installments') === 'on',
       overdue_installments: number(formData, 'overdue_installments'),
       name: text(formData, 'name'),
       phone: formatPrimaryPhone(text(formData, 'phone')),
@@ -908,7 +1052,7 @@ export async function submitSellRequest(formData: FormData): Promise<SubmitResul
         .eq('id', existingUnitId)
 
       if (error) {
-        return { success: false, error: 'تعذر حفظ بيانات الوحدة النهائية.' }
+        return { success: false, error: msg.submitUnitFailed }
       }
 
       try {
@@ -946,7 +1090,7 @@ export async function submitSellRequest(formData: FormData): Promise<SubmitResul
       .single()
 
     if (error || !inserted) {
-      return { success: false, error: 'تعذر حفظ الطلب. حاول مرة أخرى.' }
+      return { success: false, error: msg.submitUnitFailed }
     }
 
     const finalId = String(inserted.id)
@@ -968,10 +1112,10 @@ export async function submitSellRequest(formData: FormData): Promise<SubmitResul
       unitId: finalId,
       orderRef: generateOrderRef(finalId),
     }
-  } catch (error) {
+  } catch {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'تعذر إرسال الطلب',
+      error: msg.submitUnitFailed,
     }
   }
 }
@@ -1011,6 +1155,7 @@ export async function processBuyerStep3Action(payload: {
   password?: string
   loginIdentifier?: string
 }): Promise<Step2AuthResponse> {
+  const msg = await getFormMsg()
   try {
     const supabase = await getSupabase()
     const siteUrl =
@@ -1102,9 +1247,11 @@ export async function processBuyerStep3Action(payload: {
 
     if (payload.mode === 'session') {
       const cookieStore = await cookies()
-      const sessionId = cookieStore.get('user_session')?.value
+      const sessionId = extractUserIdFromCookie(
+        cookieStore.get('user_session')?.value
+      )
       if (!sessionId) {
-        return { status: 'error', error: 'انتهت الجلسة، يرجى تسجيل الدخول.' }
+        return { status: 'error', error: msg.sessionExpired }
       }
 
       const { data: currentUser } = await supabase
@@ -1114,7 +1261,7 @@ export async function processBuyerStep3Action(payload: {
         .maybeSingle()
 
       if (!currentUser) {
-        return { status: 'error', error: 'لم يتم العثور على بيانات الحساب.' }
+        return { status: 'error', error: msg.accountNotFound }
       }
 
       const reqId = await insertBuyRequestRecord(currentUser.id, {
@@ -1141,7 +1288,7 @@ export async function processBuyerStep3Action(payload: {
       if (!rawIdentifier || !password) {
         return {
           status: 'error',
-          error: 'يرجى إدخال البريد الإلكتروني/الموبايل وكلمة السر.',
+          error: msg.enterLogin,
         }
       }
 
@@ -1164,7 +1311,7 @@ export async function processBuyerStep3Action(payload: {
       if (candidates.length === 0) {
         return {
           status: 'error',
-          error: 'هذا الحساب غير مسجل لدينا. اختر "بيانات جديدة" لإنشاء حسابك.',
+          error: msg.notRegistered,
         }
       }
 
@@ -1174,11 +1321,11 @@ export async function processBuyerStep3Action(payload: {
       if (!matched) {
         return {
           status: 'error',
-          error: 'كلمة السر غير صحيحة. جرب مرة أخرى أو اضغط على نسيت كلمة السر.',
+          error: msg.wrongPassword,
         }
       }
 
-      await setUserSession(matched.id)
+      await setUserSession(matched.id, matched.password_hash)
       const reqId = await insertBuyRequestRecord(matched.id, {
         name: matched.name || 'مشتري',
         phone: matched.phone || '',
@@ -1205,7 +1352,7 @@ export async function processBuyerStep3Action(payload: {
     if (!cleanName || !cleanEmail || !formattedPhone || password.length < 8) {
       return {
         status: 'error',
-        error: 'يرجى إكمال كافة الحقول وكلمة سر 8 حروف على الأقل.',
+        error: msg.fillAll,
       }
     }
 
@@ -1278,11 +1425,11 @@ export async function processBuyerStep3Action(payload: {
     if (createErr || !createdUser) {
       return {
         status: 'error',
-        error: 'تعذر إنشاء الحساب حالياً، يرجى المحاولة مرة أخرى.',
+        error: msg.createAccountFailed,
       }
     }
 
-    await setUserSession(createdUser.id)
+    await setUserSession(createdUser.id, hash)
     const reqId = await insertBuyRequestRecord(createdUser.id, {
       name: cleanName,
       phone: formattedPhone,
@@ -1300,13 +1447,14 @@ export async function processBuyerStep3Action(payload: {
     }
   } catch (e) {
     console.error('processBuyerStep3Action error:', e)
-    return { status: 'error', error: 'حدث خطأ غير متوقع.' }
+    return { status: 'error', error: msg.unexpected }
   }
 }
 
 export async function submitBuyRequest(
   input: BuyRequestPayload | FormData
 ): Promise<SubmitResult> {
+  const msg = await getFormMsg()
   if (!(input instanceof FormData)) {
     const res = await processBuyerStep3Action({
       mode: 'register',
@@ -1315,13 +1463,14 @@ export async function submitBuyRequest(
     if (res.status === 'ok') return { success: true, orderRef: res.orderRef }
     return {
       success: false,
-      error: res.error || 'هذا الحساب مسجل بالفعل، يرجى تسجيل الدخول.',
+      error: res.error || msg.unexpected,
     }
   }
-  return { success: false, error: 'طريقة إرسال غير مدعومة.' }
+  return { success: false, error: msg.unexpected }
 }
 
 export async function submitInvestorLead(formData: FormData) {
+  const msg = await getFormMsg()
   try {
     const supabase = await getSupabase()
 
@@ -1331,19 +1480,27 @@ export async function submitInvestorLead(formData: FormData) {
     const company = String(formData.get('company') || '').trim()
     const country = String(formData.get('country') || 'EG').trim()
     const investor_type = String(formData.get('investor_type') || '').trim()
-    const years_experience = String(formData.get('years_experience') || '').trim()
-    const investment_range = String(formData.get('investment_range') || '').trim()
+    const years_experience = String(
+      formData.get('years_experience') || ''
+    ).trim()
+    const investment_range = String(
+      formData.get('investment_range') || ''
+    ).trim()
     const exact_amount = Number(formData.get('exact_amount') || 0)
-    const preferred_structure = String(formData.get('preferred_structure') || '').trim()
+    const preferred_structure = String(
+      formData.get('preferred_structure') || ''
+    ).trim()
     const holding_period = String(formData.get('holding_period') || '').trim()
-    const participation_level = String(formData.get('participation_level') || '').trim()
+    const participation_level = String(
+      formData.get('participation_level') || ''
+    ).trim()
     const target_roi = String(formData.get('target_roi') || '').trim()
     const signature_name = String(formData.get('signature_name') || name).trim()
     const notes = String(formData.get('notes') || '').trim()
     const sectors = formData.getAll('sectors').map(String).filter(Boolean)
 
     if (!name || !phone) {
-      return { success: false, error: 'يرجى إدخال الاسم ورقم الهاتف.' }
+      return { success: false, error: msg.enterNamePhone }
     }
 
     const finalRange =
@@ -1372,10 +1529,8 @@ export async function submitInvestorLead(formData: FormData) {
       status: 'new',
     }
 
-    // 1. الحفظ في جدول investor_leads الذي تقرأ منه لوحة الأدمن
     let { error } = await supabase.from('investor_leads').insert(leadPayload)
 
-    // Fallback في حال كان الجدول بدون الأعمدة الإضافية
     if (error) {
       const basicLead = {
         name,
@@ -1392,7 +1547,6 @@ export async function submitInvestorLead(formData: FormData) {
       error = retry.error
     }
 
-    // 2. الحفظ أيضاً في investor_requests إن وجد لضمان عدم ضياع أي سجل
     if (error) {
       const fallbackTable = await supabase.from('investor_requests').insert({
         name,
@@ -1413,11 +1567,10 @@ export async function submitInvestorLead(formData: FormData) {
       console.error('Error inserting investor lead:', error)
       return {
         success: false,
-        error: 'تعذر إرسال بيانات المستثمر حالياً، يرجى المحاولة مرة أخرى.',
+        error: msg.investorFailed,
       }
     }
 
-    // 3. إرسال إشعار فوري للأدمن (user_id: null لكي يظهر في جرس الهيدر للأدمن)
     try {
       await supabase.from('notifications').insert({
         user_id: null,
@@ -1436,7 +1589,7 @@ export async function submitInvestorLead(formData: FormData) {
     console.error('Unexpected error in submitInvestorLead:', err)
     return {
       success: false,
-      error: 'تعذر إرسال طلب المستثمر. حاول مرة أخرى.',
+      error: msg.investorFailed,
     }
   }
 }

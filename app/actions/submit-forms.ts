@@ -5,7 +5,7 @@ import { cookies } from 'next/headers'
 import { createHash, createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
 import nodemailer from 'nodemailer'
-
+import { extractUserIdFromCookie } from '@/lib/session-security'
 async function getSupabase() {
   const cookieStore = await cookies()
   return createServerClient(

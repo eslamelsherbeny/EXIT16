@@ -1321,34 +1321,99 @@ export async function submitBuyRequest(
   return { success: false, error: 'طريقة إرسال غير مدعومة.' }
 }
 
-export async function submitInvestorLead(formData: FormData): Promise<SubmitResult> {
+export async function submitInvestorLead(formData: FormData) {
   try {
     const supabase = await getSupabase()
-    const payload = {
-      investor_type: text(formData, 'investor_type') || null,
-      years_experience: number(formData, 'years_experience'),
-      preferred_sectors: list(formData, 'preferred_sector'),
-      investment_range: text(formData, 'investment_range') || null,
-      preferred_structure: text(formData, 'preferred_structure') || null,
-      participation_level: text(formData, 'participation_level') || null,
-      target_roi: number(formData, 'target_roi'),
-      name: text(formData, 'name'),
-      phone: formatPrimaryPhone(text(formData, 'phone')),
-      email: normalizeEmail(text(formData, 'email')),
-      signature_name: text(formData, 'signature_name') || null,
+
+    const name = String(formData.get('name') || '').trim()
+    const phone = String(formData.get('phone') || '').trim()
+    const email = String(formData.get('email') || '').trim()
+    const company = String(formData.get('company') || '').trim()
+    const country = String(formData.get('country') || 'EG').trim()
+    const investor_type = String(formData.get('investor_type') || '').trim()
+    const years_experience = String(formData.get('years_experience') || '').trim()
+    const investment_range = String(formData.get('investment_range') || '').trim()
+    const exact_amount = Number(formData.get('exact_amount') || 0)
+    const preferred_structure = String(formData.get('preferred_structure') || '').trim()
+    const holding_period = String(formData.get('holding_period') || '').trim()
+    const participation_level = String(formData.get('participation_level') || '').trim()
+    const target_roi = String(formData.get('target_roi') || '').trim()
+    const signature_name = String(formData.get('signature_name') || name).trim()
+    const notes = String(formData.get('notes') || '').trim()
+    const sectors = formData.getAll('sectors').map(String).filter(Boolean)
+
+    if (!name || !phone) {
+      return { success: false, error: 'يرجى إدخال الاسم ورقم الهاتف.' }
     }
 
-    const { error } = await supabase.from('investor_leads').insert(payload)
+    const fullPayload: Record<string, any> = {
+      name,
+      phone,
+      email,
+      company,
+      country,
+      investor_type,
+      years_experience,
+      investment_range:
+        investment_range ||
+        (exact_amount > 0 ? `$${exact_amount.toLocaleString('en-US')}` : ''),
+      exact_amount,
+      preferred_structure,
+      holding_period,
+      participation_level,
+      target_roi,
+      sectors: sectors.length > 0 ? sectors : [investor_type].filter(Boolean),
+      signature_name,
+      notes,
+      status: 'new',
+    }
+
+    let { error } = await supabase.from('investor_requests').insert(fullPayload)
+
+    // Fallback آمن في حال لم يتم تشغيل سكريبت الأعمدة الإضافية بعد
     if (error) {
-      return { success: false, error: 'تعذر إرسال بيانات المستثمرين. حاول مرة أخرى.' }
+      const basicPayload = {
+        name,
+        phone,
+        email,
+        investor_type,
+        years_experience,
+        investment_range: fullPayload.investment_range,
+        preferred_structure,
+        participation_level,
+        target_roi,
+        signature_name,
+        status: 'new',
+      }
+      const retry = await supabase.from('investor_requests').insert(basicPayload)
+      error = retry.error
     }
 
-    revalidatePath('/admin', 'layout')
+    if (error) {
+      console.error('Error inserting investor lead:', error)
+      return {
+        success: false,
+        error: 'تعذر إرسال بيانات المستثمر حالياً، يرجى المحاولة مرة أخرى.',
+      }
+    }
+
+    // إرسال إشعار فوري للأدمن في لوحة الإدارة
+    try {
+      await supabase.from('notifications').insert({
+        recipient_role: 'admin',
+        title: `💼 طلب مستثمر جديد: ${name}`,
+        message: `سجل المستثمر (${name}) إبداء اهتمام بنطاق استثمار (${fullPayload.investment_range || 'غير محدد'}) — اضغط للمراجعة والتواصل.`,
+        link: '/admin/investors',
+        is_read: false,
+      })
+    } catch {}
+
     return { success: true }
-  } catch (error) {
+  } catch (err) {
+    console.error('Unexpected error in submitInvestorLead:', err)
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'تعذر إرسال الطلب',
+      error: 'تعذر إرسال طلب المستثمر. حاول مرة أخرى.',
     }
   }
 }

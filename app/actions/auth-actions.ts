@@ -123,7 +123,7 @@ function getPasswordFingerprint(passwordHash: string | null | undefined) {
     .slice(0, 12)
 }
 
-export function createSignedSessionToken(
+export  async function createSignedSessionToken(
   userId: string,
   passwordHash: string | null | undefined
 ) {
@@ -136,7 +136,7 @@ export function createSignedSessionToken(
   return `${payload}.${sig}`
 }
 
-export function parseAndVerifySessionCookie(
+export async function parseAndVerifySessionCookie(
   rawCookie: string | undefined,
   currentDbPasswordHash: string | null | undefined
 ): { valid: boolean; userId: string | null } {

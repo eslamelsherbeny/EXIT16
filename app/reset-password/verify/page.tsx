@@ -4,7 +4,13 @@ import { Suspense, useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { AuthCard, AuthLayout } from '@/components/auth-layout'
-import { forgotPasswordAction, verifyOtpAction } from '@/app/actions/auth-actions'
+import {
+  forgotPasswordAction,
+  verifyOtpAction,
+} from '@/app/actions/auth-actions'
+import arDict from '@/dictionaries/ar.json'
+
+const t = arDict.authPages.verifyOtp
 
 function VerifyOtpContent() {
   const router = useRouter()
@@ -26,9 +32,11 @@ function VerifyOtpContent() {
     startTransition(async () => {
       const result = await verifyOtpAction(email, otp)
       if (result.success) {
-        router.push(`/reset-password/new?email=${encodeURIComponent(email)}&otp=${encodeURIComponent(otp)}`)
+        router.push(
+          `/reset-password/new?email=${encodeURIComponent(email)}&otp=${encodeURIComponent(otp)}`
+        )
       } else {
-        setError(result.error || 'الكود غير صحيح.')
+        setError(result.error || t.invalidOtpError)
       }
     })
   }
@@ -43,9 +51,9 @@ function VerifyOtpContent() {
     startResendTransition(async () => {
       const result = await forgotPasswordAction(fd)
       if (result.success) {
-        setResentMessage('تم إرسال كود جديد إلى بريدك الإلكتروني بنجاح.')
+        setResentMessage(t.resentSuccess)
       } else {
-        setError(result.error || 'تعذر إعادة إرسال الكود.')
+        setError(result.error || t.resendError)
       }
     })
   }
@@ -54,10 +62,14 @@ function VerifyOtpContent() {
     <AuthLayout>
       <AuthCard>
         <div className="text-center">
-          <h1 className="text-3xl font-bold tracking-tight">إدخال كود التحقق</h1>
+          <h1 className="text-3xl font-extrabold tracking-tight text-[var(--brand-navy,#0a1122)]">
+            {t.title}
+          </h1>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            أدخل الكود المكون من 6 أرقام الذي أرسلناه إلى{' '}
-            <span className="font-bold text-foreground">{email || 'بريدك الإلكتروني'}</span>
+            {t.subtitlePrefix}{' '}
+            <span className="font-bold text-foreground">
+              {email || t.emailFallback}
+            </span>
           </p>
         </div>
 
@@ -75,8 +87,11 @@ function VerifyOtpContent() {
 
         <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-5">
           <div>
-            <label htmlFor="otp" className="mb-2 block text-xs font-bold text-foreground">
-              كود التحقق (OTP)
+            <label
+              htmlFor="otp"
+              className="mb-2 block text-xs font-bold text-foreground"
+            >
+              {t.otpLabel}
             </label>
             <input
               id="otp"
@@ -86,7 +101,7 @@ function VerifyOtpContent() {
               dir="ltr"
               maxLength={6}
               required
-              className="h-12 w-full rounded-xl border border-input bg-background px-4 text-center text-lg font-bold tracking-widest focus:outline-none focus:ring-2 focus:ring-primary"
+              className="h-12 w-full rounded-xl border border-input bg-background px-4 text-center text-lg font-bold tracking-widest focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary,#007a5a)]"
               placeholder="123456"
             />
           </div>
@@ -94,9 +109,9 @@ function VerifyOtpContent() {
           <button
             type="submit"
             disabled={pending}
-            className="h-12 rounded-lg bg-primary px-5 text-sm font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+            className="h-12 rounded-xl bg-[var(--brand-primary,#007a5a)] px-5 text-sm font-bold text-white transition hover:bg-[var(--brand-primary-hover,#006248)] disabled:opacity-50"
           >
-            {pending ? 'جاري التحقق...' : 'تأكيد الكود'}
+            {pending ? t.verifyingBtn : t.verifyBtn}
           </button>
         </form>
 
@@ -105,12 +120,15 @@ function VerifyOtpContent() {
             type="button"
             onClick={handleResend}
             disabled={resending}
-            className="font-bold text-primary hover:underline disabled:opacity-50"
+            className="font-bold text-[var(--brand-primary,#007a5a)] hover:underline disabled:opacity-50"
           >
-            {resending ? 'جاري إعادة الإرسال...' : 'إعادة إرسال الكود'}
+            {resending ? t.resendingBtn : t.resendBtn}
           </button>
-          <Link href="/reset-password" className="text-xs text-muted-foreground hover:underline">
-            تغيير البريد الإلكتروني
+          <Link
+            href="/reset-password"
+            className="text-xs text-muted-foreground hover:underline"
+          >
+            {t.changeEmailLink}
           </Link>
         </div>
       </AuthCard>

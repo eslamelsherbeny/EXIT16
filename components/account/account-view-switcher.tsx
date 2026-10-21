@@ -6,6 +6,9 @@ import { Loader2 } from 'lucide-react'
 import { SellerDashboard, type SellerUnitItem } from './seller-dashboard'
 import { BuyerDashboard, type BuyerRequestItem } from './buyer-dashboard'
 import { AccountActionLinks } from './delete-account-modal'
+import arDict from '@/dictionaries/ar.json'
+
+const t = arDict.accountComponents.switcher
 
 export function AccountViewSwitcher({
   initialView,
@@ -36,7 +39,7 @@ export function AccountViewSwitcher({
       const areasStr = Array.isArray(b.preferred_areas)
         ? b.preferred_areas.join(' ')
         : String(b.preferred_areas || '')
-      return !areasStr.includes('🎯') && !areasStr.includes('حجز وحدة')
+      return !areasStr.includes('🎯')
     }) ||
     buys[0] ||
     null
@@ -62,11 +65,13 @@ export function AccountViewSwitcher({
             onClick={() => handleSwitch('seller')}
             className={`inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-xs font-bold transition ${
               currentView === 'seller'
-                ? 'bg-[#0b6954] text-white shadow-xs'
+                ? 'bg-[var(--brand-primary,#007a5a)] text-white shadow-xs'
                 : 'bg-white text-gray-600 hover:bg-gray-100'
             }`}
           >
-            <span>لوحة البائع ({sells.length})</span>
+            <span>
+              {t.sellerTab} ({sells.length})
+            </span>
           </button>
 
           <button
@@ -74,19 +79,19 @@ export function AccountViewSwitcher({
             onClick={() => handleSwitch('buyer')}
             className={`inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-xs font-bold transition ${
               currentView === 'buyer'
-                ? 'bg-[#0b6954] text-white shadow-xs'
+                ? 'bg-[var(--brand-primary,#007a5a)] text-white shadow-xs'
                 : 'bg-white text-gray-600 hover:bg-gray-100'
             }`}
           >
-            <span>لوحة المشتري</span>
+            <span>{t.buyerTab}</span>
           </button>
         </div>
       )}
 
       {switching ? (
-        <div className="flex min-h-[40vh] flex-col items-center justify-center gap-2 text-xs font-bold text-[#0b6954]">
+        <div className="flex min-h-[40vh] flex-col items-center justify-center gap-2 text-xs font-bold text-[var(--brand-primary,#007a5a)]">
           <Loader2 className="size-6 animate-spin" />
-          <span>جاري فتح اللوحة...</span>
+          <span>{t.loading}</span>
         </div>
       ) : currentView === 'seller' && sells.length > 0 ? (
         <SellerDashboard
@@ -105,34 +110,33 @@ export function AccountViewSwitcher({
       ) : (
         <div className="mx-auto max-w-[680px] px-4 sm:px-6">
           <section className="rounded-[20px] border border-gray-200/80 bg-white p-8 text-center shadow-xs sm:p-12">
-            <h2 className="text-lg font-extrabold text-[#0a1122] sm:text-xl">
-              ليس لديك وحدات مسجلة في هذا القسم حالياً
+            <h2 className="text-lg font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-xl">
+              {t.emptyTitle}
             </h2>
             <p className="mx-auto mt-2.5 max-w-md text-xs leading-relaxed text-gray-500 sm:text-sm">
-              يمكنك إضافة وحدة جديدة للبيع بدون أوفر أو استعراض الفرص المطابقة
-              لميزانيتك.
+              {t.emptyDesc}
             </p>
             <div className="mt-7 flex flex-wrap justify-center gap-3">
               <Link
                 href="/sell?new=1"
-                className="rounded-xl bg-[#0b6954] px-7 py-2.5 text-xs font-bold text-white transition hover:bg-[#095443] sm:text-sm"
+                className="rounded-xl bg-[var(--brand-primary,#007a5a)] px-7 py-2.5 text-xs font-bold text-white transition hover:bg-[var(--brand-primary-hover,#006248)] sm:text-sm"
               >
-                عايز أبيع وحدتي
+                {t.sellCta}
               </Link>
               {buys.length > 0 ? (
                 <button
                   type="button"
                   onClick={() => handleSwitch('buyer')}
-                  className="rounded-xl bg-[#0a1122] px-7 py-2.5 text-xs font-bold text-white transition hover:bg-[#16223f] sm:text-sm"
+                  className="rounded-xl bg-[var(--brand-navy,#0a1122)] px-7 py-2.5 text-xs font-bold text-white transition hover:bg-[var(--brand-navy-hover,#16223f)] sm:text-sm"
                 >
-                  افتح لوحة المشتري
+                  {t.openBuyerCta}
                 </button>
               ) : (
                 <Link
                   href="/buy"
-                  className="rounded-xl bg-[#0a1122] px-7 py-2.5 text-xs font-bold text-white transition hover:bg-[#16223f] sm:text-sm"
+                  className="rounded-xl bg-[var(--brand-navy,#0a1122)] px-7 py-2.5 text-xs font-bold text-white transition hover:bg-[var(--brand-navy-hover,#16223f)] sm:text-sm"
                 >
-                  عايز أشتري وحدة
+                  {t.buyCta}
                 </Link>
               )}
             </div>

@@ -10,11 +10,23 @@ import {
   Zap,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+
+// استيراد ملفات الترجمة الأربعة
 import arDict from '@/dictionaries/ar.json'
 import enDict from '@/dictionaries/en.json'
+import ruDict from '@/dictionaries/ru.json'
+import kaDict from '@/dictionaries/ka.json'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+
+// تجميع القواميس في كائن واحد لسهولة الاستدعاء
+const dictionaries: Record<string, any> = {
+  ar: arDict,
+  en: enDict,
+  ru: ruDict,
+  ka: kaDict,
+}
 
 // خريطة العملات المركزية لكل دولة
 const COUNTRY_CURRENCIES: Record<string, string> = {
@@ -74,10 +86,10 @@ export default async function HomePage() {
     console.error('Error fetching real stats on HomePage:', err)
   }
 
-  // اختيار القاموس حسب اللغة الحالية مع الاعتماد على arDict كاحتياطي آمن
-  const dict: any = activeLocale === 'en' ? enDict : arDict
-  const t = dict?.home || arDict.home
-  const isRtl = activeLocale !== 'en'
+  // اختيار القاموس الديناميكي بناءً على اللغة المحددة
+  const dict = dictionaries[activeLocale] || arDict
+  const t = dict.home || arDict.home
+  const isRtl = activeLocale === 'ar'
 
   // تنسيق العملة والقيمة السوقية الإجمالية حسب الدولة المختارة
   const currencySymbol = COUNTRY_CURRENCIES[activeCountryCode] || 'ج.م'
@@ -110,8 +122,8 @@ export default async function HomePage() {
     >
       {/* ==================== 1. قسم الهيرو (Hero Section) ==================== */}
       <section className="relative flex min-h-[720px] items-center overflow-hidden bg-[var(--brand-navy,#0a1122)] text-white lg:min-h-[780px]">
-        <div className="pointer-events-none absolute -left-32 -bottom-40 size-[28rem] rounded-full bg-teal-500/10 blur-[120px] sm:size-[38rem]" />
-        <div className="pointer-events-none absolute right-[15%] -top-32 size-[24rem] rounded-full bg-blue-500/10 blur-[120px] sm:size-[32rem]" />
+        <div className="pointer-events-none absolute -bottom-40 -left-32 size-[28rem] rounded-full bg-teal-500/10 blur-[120px] sm:size-[38rem]" />
+        <div className="pointer-events-none absolute -top-32 right-[15%] size-[24rem] rounded-full bg-blue-500/10 blur-[120px] sm:size-[32rem]" />
 
         <div className="relative mx-auto grid w-full max-w-[1280px] grid-cols-1 items-center gap-12 px-4 py-12 sm:px-6 md:py-16 lg:grid-cols-[1.15fr_0.85fr] lg:gap-16 lg:px-10 lg:py-20">
           {/* العمود الأول: النصوص والأزرار */}
@@ -473,7 +485,7 @@ export default async function HomePage() {
                     <p className="text-xs text-gray-400">
                       {t?.example?.lossDurationLabel}
                     </p>
-                    <p className="mt-1 text-lg font-extrabold text-[#b45309] sm:text-xl">
+                    <p className="mt-1 text-sm font-bold text-gray-200 sm:text-base">
                       {t?.example?.lossDurationValue}
                     </p>
                   </div>
@@ -752,7 +764,7 @@ export default async function HomePage() {
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <div className="flex flex-col justify-between rounded-[20px] border border-gray-200/80 bg-white p-6 text-start shadow-sm sm:p-9">
               <div>
-                <h3 className="text-xl font-extrabold text-[var(--brand-navy-text,#0a1128)] sm:text-2xl">
+                <h3 className="text-xl font-extrabold text-[var(--brand-navy-text,#0a1122)] sm:text-2xl">
                   {t?.bottomCta?.sellerTitle}
                 </h3>
                 <p className="mt-3 text-xs leading-relaxed text-gray-500 sm:text-sm">
@@ -771,7 +783,7 @@ export default async function HomePage() {
 
             <div className="flex flex-col justify-between rounded-[20px] border border-gray-200/80 bg-white p-6 text-start shadow-sm sm:p-9">
               <div>
-                <h3 className="text-xl font-extrabold text-[var(--brand-navy-text,#0a1128)] sm:text-2xl">
+                <h3 className="text-xl font-extrabold text-[var(--brand-navy-text,#0a1122)] sm:text-2xl">
                   {t?.bottomCta?.buyerTitle}
                 </h3>
                 <p className="mt-3 text-xs leading-relaxed text-gray-500 sm:text-sm">

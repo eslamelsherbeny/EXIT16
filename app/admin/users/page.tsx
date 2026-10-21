@@ -1,4 +1,5 @@
 import { cookies } from "next/headers"
+import { redirect } from "next/navigation"
 import { createServerClient } from "@supabase/ssr"
 import UsersClientTable, { type AdminUserRow } from "./users-table"
 
@@ -7,6 +8,9 @@ export const revalidate = 0
 
 export default async function UsersPage() {
   const cookieStore = await cookies()
+  const rawSession = cookieStore.get("user_session")?.value
+  const candidateId = rawSession?.split(".")[0]
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -14,6 +18,20 @@ export default async function UsersPage() {
       cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} },
     }
   )
+
+  if (candidateId) {
+    const { data: currentStaff } = await supabase
+      .from("users")
+      .select("role")
+      .eq("id", candidateId)
+      .maybeSingle()
+
+    const role = String(currentStaff?.role || "user").trim().toLowerCase()
+    // إذا كان مشرفاً أو مبيعات وحاول فتح رابط المستخدمين مباشرة، نحوله لصفحة الطلبات
+    if (role !== "admin") {
+      redirect("/admin/leads")
+    }
+  }
 
   const [{ data: usersData }, { data: sellsData }, { data: buysData }] =
     await Promise.all([
@@ -37,7 +55,7 @@ export default async function UsersPage() {
 
   const rows: AdminUserRow[] = (usersData || []).map((u) => ({
     id: u.id,
-    name: u.name || "بدون اسم",
+    name: u.name || "—",
     email: u.email || "—",
     phone: u.phone || "—",
     role: u.role || "user",

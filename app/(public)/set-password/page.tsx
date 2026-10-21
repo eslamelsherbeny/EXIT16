@@ -6,15 +6,16 @@ import { setNewPasswordFromTokenAction } from '@/app/actions/submit-forms'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import arDict from '@/dictionaries/ar.json'
-
-const t = arDict.authPages.setPassword
+import { useTranslation } from '@/lib/i18n'
 
 function SetPasswordContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const tokenHash = searchParams.get('token_hash') || ''
   const nextUrl = searchParams.get('next') || '/account'
+
+  const { t: dict, dir } = useTranslation()
+  const t = dict.authPages.setPassword
 
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -55,10 +56,10 @@ function SetPasswordContent() {
 
   return (
     <main
-      dir="rtl"
+      dir={dir}
       className="flex min-h-[75vh] items-center justify-center bg-[var(--brand-surface,#f5f6f8)] px-4 py-12 text-[var(--brand-navy,#0a1122)]"
     >
-      <div className="w-full max-w-md rounded-2xl bg-white p-6 text-right shadow-sm sm:p-8">
+      <div className="w-full max-w-md rounded-2xl bg-white p-6 text-start shadow-sm sm:p-8">
         <h1 className="text-2xl font-black text-[var(--brand-navy,#0a1122)] sm:text-3xl">
           {t.title}
         </h1>
@@ -68,7 +69,7 @@ function SetPasswordContent() {
 
         <form onSubmit={handleSubmit} className="mt-7 space-y-5">
           <div className="space-y-2">
-            <Label className="block text-right text-sm font-bold text-[var(--brand-navy,#0a1122)]">
+            <Label className="block text-start text-sm font-bold text-[var(--brand-navy,#0a1122)]">
               {t.passwordLabel}
             </Label>
             <Input
@@ -83,7 +84,7 @@ function SetPasswordContent() {
           </div>
 
           <div className="space-y-2">
-            <Label className="block text-right text-sm font-bold text-[var(--brand-navy,#0a1122)]">
+            <Label className="block text-start text-sm font-bold text-[var(--brand-navy,#0a1122)]">
               {t.confirmLabel}
             </Label>
             <Input

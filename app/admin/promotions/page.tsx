@@ -1,5 +1,6 @@
 import { cookies } from "next/headers"
 import { createServerClient } from "@supabase/ssr"
+import { getServerI18n } from "@/lib/get-server-dictionary"
 import PropertiesTable, {
   type SellRequest,
 } from "../properties/properties-table"
@@ -8,6 +9,7 @@ export const dynamic = "force-dynamic"
 export const revalidate = 0
 
 export default async function AdminPromotionsPage() {
+  const { dict, dir } = await getServerI18n()
   const cookieStore = await cookies()
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -28,9 +30,9 @@ export default async function AdminPromotionsPage() {
 
   if (error) {
     return (
-      <div className="mx-auto max-w-7xl">
+      <div dir={dir} className="mx-auto max-w-7xl">
         <div className="rounded-xl border border-red-200 bg-red-50 p-5 text-xs font-bold text-red-700">
-          تعذر تحميل بيانات الإعلانات.
+          {dict.admin?.promotions?.loadError || "تعذر تحميل بيانات الإعلانات."}
         </div>
       </div>
     )

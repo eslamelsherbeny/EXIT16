@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from 'react'
 import Link from 'next/link'
 import {
   ArrowDown,
+  ArrowLeft,
   ArrowRight,
   ChevronDown,
   ChevronLeft,
@@ -28,14 +29,11 @@ import {
 import { Button } from '@/components/ui/button'
 import {
   formatAmount,
-  getCurrencyByCountry,
   unitTypes as sharedUnitTypes,
 } from '@/components/seller/seller-shared'
 import { AccountActionLinks } from './delete-account-modal'
 import type { SellerUnitItem } from './seller-dashboard'
-import arDict from '@/dictionaries/ar.json'
-
-const t = arDict.accountComponents.buyer
+import { getCurrencySymbol, useTranslation } from '@/lib/i18n'
 
 export type BuyerRequestItem = {
   id: string
@@ -59,15 +57,27 @@ const OTHER_AREAS_PREVIEW_SIZE = 6
 function calcMonthlyInstallment(amount: number, freq: string | null) {
   if (!amount) return 0
   const f = (freq || '').trim()
-  if (f.includes('ربع')) return Math.round(amount / 3)
-  if (f.includes('نصف') || f.includes('نص')) return Math.round(amount / 6)
-  if (f.includes('سنوي') && !f.includes('نصف') && !f.includes('ربع'))
+  if (f.includes('ربع') || f.toLowerCase().includes('quarter'))
+    return Math.round(amount / 3)
+  if (
+    f.includes('نصف') ||
+    f.includes('نص') ||
+    f.toLowerCase().includes('semi')
+  )
+    return Math.round(amount / 6)
+  if (
+    (f.includes('سنوي') && !f.includes('نصف') && !f.includes('ربع')) ||
+    f.toLowerCase().includes('annual')
+  )
     return Math.round(amount / 12)
   return amount
 }
 
-function extractCleanAreas(areas: string[] | null | undefined): string[] {
-  if (!Array.isArray(areas) || areas.length === 0) return [t.popularAreas[0]]
+function extractCleanAreas(
+  areas: string[] | null | undefined,
+  fallbackArea: string
+): string[] {
+  if (!Array.isArray(areas) || areas.length === 0) return [fallbackArea]
   const cleaned = areas
     .map((a) => {
       if (a.includes(' - ')) {
@@ -81,7 +91,7 @@ function extractCleanAreas(areas: string[] | null | undefined): string[] {
     })
     .filter(Boolean)
 
-  return cleaned.length > 0 ? Array.from(new Set(cleaned)) : [t.popularAreas[0]]
+  return cleaned.length > 0 ? Array.from(new Set(cleaned)) : [fallbackArea]
 }
 
 export function BuyerDashboard({
@@ -93,6 +103,9 @@ export function BuyerDashboard({
   marketUnits: SellerUnitItem[]
   deletionRequested?: boolean
 }) {
+  const { t: dict, locale, country, dir, isRtl, currency } = useTranslation()
+  const t = dict.accountComponents.buyer
+
   const [isEditingBudget, setIsEditingBudget] = useState(false)
   const [confirmSaveOpen, setConfirmSaveOpen] = useState(false)
   const [savedToast, setSavedToast] = useState(false)
@@ -148,7 +161,7 @@ export function BuyerDashboard({
     buyReq?.delivery_status || t.deliveryPreferences[0]
   )
   const [bAreas, setBAreas] = useState<string[]>(() =>
-    extractCleanAreas(buyReq?.preferred_areas)
+    extractCleanAreas(buyReq?.preferred_areas, t.popularAreas[0])
   )
   const [newAreaInput, setNewAreaInput] = useState('')
   const [notifyExact, setNotifyExact] = useState<boolean>(
@@ -257,7 +270,10 @@ export function BuyerDashboard({
       )
 
       const rawDel = String(u.delivery_status || '')
-      const isReady = rawDel.includes(t.deliveryStatuses[1])
+      const isReady =
+        rawDel.includes('جاهز') ||
+        rawDel.includes('فوري') ||
+        rawDel.includes(t.deliveryStatuses[1])
       const deliveryStatus = isReady
         ? t.deliveryStatuses[1]
         : t.deliveryStatuses[2]
@@ -266,7 +282,10 @@ export function BuyerDashboard({
 
       const unitArea = u.area || t.popularAreas[0]
       const unitType = u.unit_type || sharedUnitTypes[0]
-      const currency = getCurrencyByCountry(u.country_code || 'EG')
+      const unitCurrency = getCurrencySymbol(
+        u.country_code || u.country || country,
+        locale
+      )
 
       const matchTags: string[] = []
       const isCashMatch = bCash === 0 || paid <= bCash * 1.15
@@ -300,7 +319,7 @@ export function BuyerDashboard({
         marketStr: market.toLocaleString('en-US'),
         gainNum: gainVal,
         gainStr: gainVal > 0 ? `+ ${gainVal.toLocaleString('en-US')}` : '',
-        currency,
+        currency: unitCurrency,
         monthlyInst: unitMonthly,
         negotiable: Boolean(u.willing_to_discount),
         deliveryStatus,
@@ -315,7 +334,7 @@ export function BuyerDashboard({
         isTypeMatch,
       }
     })
-  }, [marketUnits, bCash, bInstallment, bPlan, bAreas, bTypes])
+  }, [marketUnits, bCash, bInstallment, bPlan, bAreas, bTypes, country, locale, t])
 
   const filteredUnits = useMemo(() => {
     const maxCashVal = Number(maxCashFilter.replace(/,/g, ''))
@@ -414,6 +433,7 @@ export function BuyerDashboard({
     bBudget,
     bRooms,
     bDelivery,
+    t,
   ])
 
   const activeFiltersCount = useMemo(() => {
@@ -440,6 +460,7 @@ export function BuyerDashboard({
     delYearFilter,
     conYearFilter,
     minRoomsFilter,
+    t,
   ])
 
   const unitsInPreferredArea = filteredUnits.filter((u) => u.isAreaMatch)
@@ -479,14 +500,18 @@ export function BuyerDashboard({
 
   if (isEditingBudget) {
     return (
-      <div className="mx-auto max-w-[660px] px-4 py-4 sm:px-6">
+      <div dir={dir} className="mx-auto max-w-[660px] px-4 py-4 sm:px-6">
         <div className="mb-5 flex items-center justify-start">
           <button
             type="button"
             onClick={() => setIsEditingBudget(false)}
             className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-extrabold text-[var(--brand-navy,#0a1122)] shadow-2xs transition hover:border-[var(--brand-primary,#007a5a)] hover:text-[var(--brand-primary,#007a5a)]"
           >
-            <ArrowRight className="size-4" />
+            {isRtl ? (
+              <ArrowRight className="size-4" />
+            ) : (
+              <ArrowLeft className="size-4" />
+            )}
             <span>{t.backToOpportunitiesBtn}</span>
           </button>
         </div>
@@ -501,7 +526,7 @@ export function BuyerDashboard({
         </header>
 
         <form onSubmit={handleFormSubmit} className="space-y-6">
-          <div className="space-y-6 rounded-[22px] border border-gray-200/80 bg-white p-6 text-right shadow-xs sm:p-8">
+          <div className="space-y-6 rounded-[22px] border border-gray-200/80 bg-white p-6 text-start shadow-xs sm:p-8">
             <div>
               <label className="mb-2 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
                 {t.availableCashLabel} <span className="text-red-500">*</span>
@@ -519,7 +544,7 @@ export function BuyerDashboard({
                 />
               </div>
               <p className="mt-1.5 text-xs font-bold text-[var(--brand-primary,#007a5a)]">
-                {formatAmount(String(bCash))}
+                {bCash.toLocaleString('en-US')} {currency}
               </p>
               <p className="mt-0.5 text-[11px] text-gray-400">
                 {t.availableCashHelper}
@@ -547,7 +572,7 @@ export function BuyerDashboard({
                 />
               </div>
               <p className="mt-1.5 text-xs font-bold text-[var(--brand-primary,#007a5a)]">
-                {formatAmount(String(bInstallment))}
+                {bInstallment.toLocaleString('en-US')} {currency}
               </p>
             </div>
 
@@ -596,7 +621,7 @@ export function BuyerDashboard({
                 />
               </div>
               <p className="mt-1.5 text-xs font-bold text-[var(--brand-primary,#007a5a)]">
-                {formatAmount(String(bBudget))}
+                {bBudget.toLocaleString('en-US')} {currency}
               </p>
               <p className="mt-0.5 text-[11px] text-gray-400">
                 {t.targetBudgetHelper}
@@ -753,7 +778,7 @@ export function BuyerDashboard({
             </button>
           </div>
 
-          <div className="rounded-[22px] border border-gray-200/80 bg-white p-6 text-right shadow-xs sm:p-7">
+          <div className="rounded-[22px] border border-gray-200/80 bg-white p-6 text-start shadow-xs sm:p-7">
             <h3 className="text-sm font-black text-[var(--brand-navy,#0a1122)]">
               {t.notificationsTitle}
             </h3>
@@ -815,10 +840,10 @@ export function BuyerDashboard({
 
         <Dialog open={confirmSaveOpen} onOpenChange={setConfirmSaveOpen}>
           <DialogContent
-            dir="rtl"
+            dir={dir}
             className="w-[90vw] max-w-[360px] rounded-2xl p-5 sm:max-w-[400px]"
           >
-            <DialogHeader className="text-right">
+            <DialogHeader className="text-start">
               <div className="mb-2 flex items-center gap-2.5">
                 <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-[var(--brand-primary,#007a5a)]">
                   <ShieldAlert className="size-4" />
@@ -827,7 +852,7 @@ export function BuyerDashboard({
                   {t.confirmModalTitle}
                 </DialogTitle>
               </div>
-              <DialogDescription className="text-right text-xs leading-relaxed text-gray-600">
+              <DialogDescription className="text-start text-xs leading-relaxed text-gray-600">
                 {t.confirmModalDesc}{' '}
                 <strong className="text-[var(--brand-primary,#007a5a)]">
                   ({bAreas.join('، ')})
@@ -869,7 +894,7 @@ export function BuyerDashboard({
   }
 
   return (
-    <div className="mx-auto max-w-[1020px] px-3 sm:px-6">
+    <div dir={dir} className="mx-auto max-w-[1020px] px-3 sm:px-6">
       {savedToast && (
         <div className="mb-4 rounded-xl bg-[var(--brand-primary-light,#eaf8f2)] p-3 text-center text-xs font-bold text-[var(--brand-primary,#007a5a)]">
           {t.savedToastMsg}
@@ -897,26 +922,26 @@ export function BuyerDashboard({
         </div>
       </header>
 
-      <section className="mt-4 rounded-[14px] border border-gray-200/80 bg-white px-5 py-3.5 text-right shadow-2xs">
+      <section className="mt-4 rounded-[14px] border border-gray-200/80 bg-white px-5 py-3.5 text-start shadow-2xs">
         <div className="flex flex-wrap items-center justify-start gap-x-6 gap-y-2 text-xs">
           <div>
             <span className="text-gray-400">{t.summaryCashLabel} </span>
             <strong className="font-extrabold text-[var(--brand-navy,#0a1122)] tabular-nums">
-              {formatAmount(String(bCash))}
+              {bCash.toLocaleString('en-US')} {currency}
             </strong>
           </div>
           <div>
             <span className="text-gray-400">{t.summaryInstLabel} </span>
             <strong className="font-extrabold text-[var(--brand-navy,#0a1122)] tabular-nums">
-              {formatAmount(String(bInstallment))}
+              {bInstallment.toLocaleString('en-US')} {currency}
             </strong>
           </div>
         </div>
       </section>
 
-      <section className="mt-4 text-right">
+      <section className="mt-4 text-start">
         <div className="flex flex-wrap items-center justify-start gap-2">
-          <span className="ml-1 text-xs font-extrabold text-[var(--brand-navy,#0a1122)]">
+          <span className="me-1 text-xs font-extrabold text-[var(--brand-navy,#0a1122)]">
             {t.filterByRequestLabel}
           </span>
           {t.filterPills.map((pill) => {
@@ -1048,7 +1073,7 @@ export function BuyerDashboard({
             <button
               type="button"
               onClick={clearAllFilters}
-              className="mr-1 text-[11px] text-gray-500 underline hover:text-[var(--brand-navy,#0a1122)]"
+              className="ms-1 text-[11px] text-gray-500 underline hover:text-[var(--brand-navy,#0a1122)]"
             >
               {t.clearAllBtn}
             </button>
@@ -1057,7 +1082,7 @@ export function BuyerDashboard({
       </section>
 
       {filterPanelOpen && (
-        <section className="mt-3 rounded-[20px] border border-gray-200/80 bg-white p-5 text-right shadow-xs sm:p-7">
+        <section className="mt-3 rounded-[20px] border border-gray-200/80 bg-white p-5 text-start shadow-xs sm:p-7">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <div>
               <label className="mb-1.5 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
@@ -1126,110 +1151,6 @@ export function BuyerDashboard({
             </div>
           </div>
 
-          <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-3">
-            <div>
-              <p className="mb-2 text-xs font-bold text-[var(--brand-navy,#0a1122)]">
-                {t.deliveryLabel}
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {t.deliveryStatuses.map((st) => (
-                  <button
-                    key={st}
-                    type="button"
-                    onClick={() => setDelStatusFilter(st)}
-                    className={`rounded-full border px-3.5 py-1.5 text-xs font-medium ${
-                      delStatusFilter === st
-                        ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary,#007a5a)] text-white'
-                        : 'border-gray-200 bg-white text-gray-600'
-                    }`}
-                  >
-                    {st}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <p className="mb-2 text-xs font-bold text-[var(--brand-navy,#0a1122)]">
-                {t.advDeliveryYearLabel}
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {t.deliveryYears.map((yr) => (
-                  <button
-                    key={yr}
-                    type="button"
-                    onClick={() => setDelYearFilter(yr)}
-                    className={`rounded-full border px-3 py-1.5 text-xs font-medium ${
-                      delYearFilter === yr
-                        ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary,#007a5a)] text-white'
-                        : 'border-gray-200 bg-white text-gray-600'
-                    }`}
-                  >
-                    {yr}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <p className="mb-2 text-xs font-bold text-[var(--brand-navy,#0a1122)]">
-                {t.advContractYearLabel}
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {t.contractYears.map((yr) => (
-                  <button
-                    key={yr}
-                    type="button"
-                    onClick={() => setConYearFilter(yr)}
-                    className={`rounded-full border px-3 py-1.5 text-xs font-medium ${
-                      conYearFilter === yr
-                        ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary,#007a5a)] text-white'
-                        : 'border-gray-200 bg-white text-gray-600'
-                    }`}
-                  >
-                    {yr}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
-            <div>
-              <p className="mb-2 text-xs font-bold text-[var(--brand-navy,#0a1122)]">
-                {t.minRoomsLabel}
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {t.roomOptions.map((rm) => (
-                  <button
-                    key={rm}
-                    type="button"
-                    onClick={() => setMinRoomsFilter(rm)}
-                    className={`rounded-full border px-3.5 py-1.5 text-xs font-medium ${
-                      minRoomsFilter === rm
-                        ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary,#007a5a)] text-white'
-                        : 'border-gray-200 bg-white text-gray-600'
-                    }`}
-                  >
-                    <span dir="ltr">{rm}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
-                {t.advMaxContractLabel}
-              </label>
-              <input
-                type="number"
-                value={maxContractFilter}
-                onChange={(e) => setMaxContractFilter(e.target.value)}
-                className="h-11 w-full max-w-sm rounded-xl border border-gray-200 px-3.5 text-xs"
-              />
-            </div>
-          </div>
-
           <div className="mt-6 flex items-center justify-between border-t border-gray-100 pt-4">
             <div className="flex items-center gap-3">
               <button
@@ -1275,7 +1196,7 @@ export function BuyerDashboard({
         <>
           {unitsInPreferredArea.length > 0 && (
             <section className="mt-7">
-              <h2 className="mb-4 text-right text-sm font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-base">
+              <h2 className="mb-4 text-start text-sm font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-base">
                 {t.preferredSectionTitle} ({bAreas.join('، ')}){' '}
                 <span className="font-normal text-gray-400">
                   ({unitsInPreferredArea.length})
@@ -1285,6 +1206,7 @@ export function BuyerDashboard({
                 {unitsInPreferredArea.slice(0, visibleCount).map((u) => (
                   <BuyerUnitCard
                     key={u.id}
+                    t={t}
                     unit={u}
                     isLiked={favoriteIds.includes(String(u.id))}
                     onToggleLike={() => toggleFavorite(u.id)}
@@ -1318,7 +1240,7 @@ export function BuyerDashboard({
           {unitsInOtherAreas.length > 0 && (
             <section className="mt-10 border-t border-gray-200/70 pt-8">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center justify-start gap-1.5 text-right">
+                <div className="flex items-center justify-start gap-1.5 text-start">
                   <Star className="size-4 fill-amber-400 text-amber-500" />
                   <h2 className="text-sm font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-base">
                     {t.otherAreasSectionTitle} ({unitsInOtherAreas.length})
@@ -1348,6 +1270,7 @@ export function BuyerDashboard({
                 ).map((u) => (
                   <BuyerUnitCard
                     key={u.id}
+                    t={t}
                     unit={u}
                     isLiked={favoriteIds.includes(String(u.id))}
                     onToggleLike={() => toggleFavorite(u.id)}
@@ -1371,10 +1294,12 @@ export function BuyerDashboard({
 }
 
 function BuyerUnitCard({
+  t,
   unit,
   isLiked,
   onToggleLike,
 }: {
+  t: any
   unit: any
   isLiked: boolean
   onToggleLike: () => void
@@ -1418,7 +1343,7 @@ function BuyerUnitCard({
 
         <Link
           href={`/opportunities/${unit.id}`}
-          className="block p-3.5 text-right sm:p-5"
+          className="block p-3.5 text-start sm:p-5"
         >
           <h3 className="line-clamp-1 min-h-[20px] text-xs font-bold leading-snug text-[var(--brand-navy,#0a1122)] group-hover:text-[var(--brand-primary,#007a5a)] sm:line-clamp-2 sm:min-h-[44px] sm:text-[16px]">
             {unit.title}
@@ -1440,10 +1365,10 @@ function BuyerUnitCard({
           </div>
 
           {unit.gainStr && (
-            <div className="mt-2.5 rounded-xl bg-[var(--brand-primary-light,#eaf8f2)] px-2.5 py-2 text-right sm:mt-3 sm:px-3 sm:py-2.5">
+            <div className="mt-2.5 rounded-xl bg-[var(--brand-primary-light,#eaf8f2)] px-2.5 py-2 text-start sm:mt-3 sm:px-3 sm:py-2.5">
               <p
                 dir="ltr"
-                className="text-right text-xs font-bold text-[var(--brand-primary,#007a5a)] tabular-nums sm:text-sm"
+                className="text-start text-xs font-bold text-[var(--brand-primary,#007a5a)] tabular-nums sm:text-sm"
               >
                 {unit.gainStr} {unit.currency}
               </p>

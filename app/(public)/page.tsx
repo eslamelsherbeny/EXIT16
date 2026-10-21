@@ -10,38 +10,10 @@ import {
   Zap,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-
-import arDict from '@/dictionaries/ar.json'
-import enDict from '@/dictionaries/en.json'
-import ruDict from '@/dictionaries/ru.json'
-import kaDict from '@/dictionaries/ka.json'
+import { getServerI18n } from '@/lib/get-server-dictionary'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
-
-const dictionaries: Record<string, any> = {
-  ar: arDict,
-  en: enDict,
-  ru: ruDict,
-  ka: kaDict,
-}
-
-// دالة ذكية لعرض رمز العملة المناسب حسب الدولة ولغة المتصفح الحالية
-function getHomeCurrencySymbol(countryCode: string, locale: string): string {
-  const isArabic = locale === 'ar'
-  switch (countryCode) {
-    case 'EG':
-      return isArabic ? 'ج.م' : 'EGP'
-    case 'AE':
-      return isArabic ? 'د.إ' : 'AED'
-    case 'RU':
-      return '₽'
-    case 'GE':
-      return '$'
-    default:
-      return isArabic ? 'ج.م' : 'EGP'
-  }
-}
 
 async function getSupabase() {
   const cookieStore = await cookies()
@@ -55,17 +27,15 @@ async function getSupabase() {
 }
 
 export default async function HomePage() {
+  // سطر واحد يجلب اللغة، الدولة، اتجاه الصفحة، القاموس، ورمز العملة الصحيح!
+  const { dict, country: activeCountryCode, dir, currency: currencySymbol } =
+    await getServerI18n()
+  const t = dict.home
+
   let realUnitCount = 0
   let totalMarketValue = 0
-  let activeCountryCode = 'EG'
-  let activeLocale = 'ar'
 
   try {
-    const cookieStore = await cookies()
-    activeCountryCode =
-      cookieStore.get('darak_country')?.value?.trim().toUpperCase() || 'EG'
-    activeLocale = cookieStore.get('locale')?.value?.trim() || 'ar'
-
     const supabase = await getSupabase()
     const { data: units } = await supabase
       .from('sell_requests')
@@ -93,12 +63,6 @@ export default async function HomePage() {
     console.error('Error fetching real stats on HomePage:', err)
   }
 
-  const dict = dictionaries[activeLocale] || arDict
-  const t = dict.home || arDict.home
-  const isRtl = activeLocale === 'ar'
-
-  // العملة الآن تتحدث تلقائياً حسب اللغة والدولة (ج.م بالعربي، و EGP بالإنجليزي/الروسي/الجورجي)
-  const currencySymbol = getHomeCurrencySymbol(activeCountryCode, activeLocale)
   let formattedValue = '0'
   let valueUnitLabel = currencySymbol
 
@@ -117,13 +81,13 @@ export default async function HomePage() {
     valueUnitLabel = currencySymbol
   }
 
-  const comparisonRows = t?.comparison?.rows || arDict.home.comparison.rows
-  const workSteps = t?.steps?.items || arDict.home.steps.items
-  const fairStandards = t?.standards?.items || arDict.home.standards.items
+  const comparisonRows = t?.comparison?.rows || []
+  const workSteps = t?.steps?.items || []
+  const fairStandards = t?.standards?.items || []
 
   return (
     <div
-      dir={isRtl ? 'rtl' : 'ltr'}
+      dir={dir}
       className="min-h-screen overflow-x-hidden bg-[var(--brand-surface,#f5f6f8)] text-[var(--brand-navy-text,#0a1128)]"
     >
       {/* ==================== 1. قسم الهيرو (Hero Section) ==================== */}

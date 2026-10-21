@@ -20,16 +20,12 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { TurnstileBox } from '@/components/funnel-shell'
 import { CountrySelector } from '@/components/country-selector'
-import arDict from '@/dictionaries/ar.json'
+import { useTranslation } from '@/lib/i18n'
 import {
   ALL_RESIDENCE_COUNTRIES,
   Field,
   SearchableCountryField,
 } from './seller-shared'
-
-const t = arDict.sell.contactStep
-const v = arDict.sell.validation
-const sharedT = arDict.sell.shared
 
 export function ContactStep({
   form,
@@ -56,6 +52,11 @@ export function ContactStep({
   setUnitId: (id: string) => void
   setOrderRef: (ref: string) => void
 }) {
+  const { t: dict, dir } = useTranslation()
+  const t = dict.sell.contactStep
+  const v = dict.sell.validation
+  const sharedT = dict.sell.shared
+
   const [authTab, setAuthTab] = useState<'session' | 'register' | 'login'>(
     loggedUser ? 'session' : 'register'
   )
@@ -266,7 +267,7 @@ export function ContactStep({
 
   if (conflictState?.type === 'email_exists') {
     return (
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 text-right sm:p-7">
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 text-start sm:p-7">
         <h3 className="text-xl font-extrabold text-[var(--brand-navy,#0a1122)]">
           {t.emailExistsTitle}
         </h3>
@@ -279,7 +280,7 @@ export function ContactStep({
         </p>
 
         <div className="mt-5">
-          <Label className="mb-2 block text-right text-sm font-bold text-[var(--brand-navy,#0a1122)]">
+          <Label className="mb-2 block text-start text-sm font-bold text-[var(--brand-navy,#0a1122)]">
             {t.yourPasswordLabel}
           </Label>
           <div className="relative">
@@ -301,13 +302,13 @@ export function ContactStep({
         </div>
 
         {stepError && (
-          <p className="mt-3 text-right text-xs font-bold text-red-600">
+          <p className="mt-3 text-start text-xs font-bold text-red-600">
             {stepError}
           </p>
         )}
 
         {recoveryLinkSent && (
-          <p className="mt-3 text-right text-xs font-bold text-[var(--brand-primary,#007a5a)]">
+          <p className="mt-3 text-start text-xs font-bold text-[var(--brand-primary,#007a5a)]">
             {t.recoverySentNote}
           </p>
         )}
@@ -344,7 +345,7 @@ export function ContactStep({
 
   if (conflictState?.type === 'phone_exists') {
     return (
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 text-right sm:p-7">
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 text-start sm:p-7">
         <h3 className="text-xl font-extrabold text-[var(--brand-navy,#0a1122)]">
           {t.phoneExistsTitle}
         </h3>
@@ -357,7 +358,7 @@ export function ContactStep({
         </p>
 
         {stepError && (
-          <p className="mt-3 text-right text-xs font-bold text-red-600">
+          <p className="mt-3 text-start text-xs font-bold text-red-600">
             {stepError}
           </p>
         )}
@@ -450,7 +451,7 @@ export function ContactStep({
       </div>
 
       {authTab === 'session' && loggedUser && (
-        <div className="rounded-2xl border border-[var(--brand-primary,#007a5a)]/30 bg-[var(--brand-primary-light,#eaf8f2)] p-5 text-right">
+        <div className="rounded-2xl border border-[var(--brand-primary,#007a5a)]/30 bg-[var(--brand-primary-light,#eaf8f2)] p-5 text-start">
           <div className="flex items-center justify-between">
             <span className="rounded-full bg-[var(--brand-primary,#007a5a)]/10 px-3 py-1 text-xs font-bold text-[var(--brand-primary,#007a5a)]">
               {t.connectedBadge}
@@ -507,7 +508,7 @@ export function ContactStep({
           />
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor="phone" className="text-right">
+            <Label htmlFor="phone" className="text-start">
               {t.phoneLabel}
             </Label>
             <div dir="ltr" className="flex items-center gap-2">
@@ -528,11 +529,11 @@ export function ContactStep({
               />
             </div>
             {errors.phone && (
-              <p className="mt-1.5 text-right text-xs font-semibold text-red-600">
+              <p className="mt-1.5 text-start text-xs font-semibold text-red-600">
                 {errors.phone}
               </p>
             )}
-            <span className="text-right text-xs text-slate-500">
+            <span className="text-start text-xs text-slate-500">
               {t.phoneHelper}
             </span>
           </div>
@@ -547,8 +548,8 @@ export function ContactStep({
           />
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor="password" className="text-right">
-              {t.passwordLabel} <span className="mr-1 text-red-500">*</span>
+            <Label htmlFor="password" className="text-start">
+              {t.passwordLabel} <span className="ms-1 text-red-500">*</span>
             </Label>
             <div className="relative w-full">
               <Input
@@ -576,11 +577,11 @@ export function ContactStep({
               </button>
             </div>
             {errors.password && (
-              <p className="mt-1.5 text-right text-xs font-semibold text-red-600">
+              <p className="mt-1.5 text-start text-xs font-semibold text-red-600">
                 {errors.password}
               </p>
             )}
-            <span className="text-right text-xs font-semibold leading-6 text-teal-700">
+            <span className="text-start text-xs font-semibold leading-6 text-teal-700">
               {t.passwordHelper}
             </span>
           </div>
@@ -589,7 +590,7 @@ export function ContactStep({
 
       {authTab === 'login' && (
         <div className="flex flex-col gap-5 rounded-2xl border border-slate-200 bg-slate-50/50 p-5">
-          <p className="text-right text-xs font-semibold text-slate-600">
+          <p className="text-start text-xs font-semibold text-slate-600">
             {t.loginBoxDesc}
           </p>
           <Field
@@ -600,7 +601,7 @@ export function ContactStep({
             update={(value) => update('loginIdentifier', value)}
           />
           <div className="flex flex-col gap-2">
-            <Label htmlFor="loginPassword" className="text-right">
+            <Label htmlFor="loginPassword" className="text-start">
               {t.loginPassLabel}
             </Label>
             <div className="relative w-full">
@@ -629,7 +630,7 @@ export function ContactStep({
               </button>
             </div>
             {errors.loginPassword && (
-              <p className="mt-1.5 text-right text-xs font-semibold text-red-600">
+              <p className="mt-1.5 text-start text-xs font-semibold text-red-600">
                 {errors.loginPassword}
               </p>
             )}
@@ -641,8 +642,8 @@ export function ContactStep({
 
       <div>
         <label
-          dir="rtl"
-          className={`flex cursor-pointer items-center gap-3 rounded-xl border p-4 text-right text-sm leading-7 ${
+          dir={dir}
+          className={`flex cursor-pointer items-center gap-3 rounded-xl border p-4 text-start text-sm leading-7 ${
             errors.owner ? 'border-red-500 bg-red-50/30' : 'border-slate-200'
           }`}
         >
@@ -654,7 +655,7 @@ export function ContactStep({
           {t.ownerDeclaration}
         </label>
         {errors.owner && (
-          <p className="mt-1.5 text-right text-xs font-semibold text-red-600">
+          <p className="mt-1.5 text-start text-xs font-semibold text-red-600">
             {errors.owner}
           </p>
         )}

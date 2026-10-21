@@ -54,145 +54,6 @@ export type AdminUserRow = {
   buyCount: number
 }
 
-const USERS_I18N = {
-  ar: {
-    eyebrow: "المجتمع والصلاحيات (RBAC)",
-    title: "المستخدمين وفريق الإدارة",
-    subtitle:
-      "عيّن مديرين، مشرفي عقارات، أو مسؤولي مبيعات (لرؤية أرقام العملاء والتواصل فقط) وفق الأدوار القياسية.",
-    addBtn: "إضافة عضو إدارة / مستخدم",
-    rolesGuideTitle: "دليل صلاحيات الأدوار في النظام:",
-    rolesGuide: [
-      {
-        role: "مدير نظام (Admin)",
-        desc: "صلاحية كاملة: إدارة المستخدمين، الإعدادات، الأسعار، العقارات، المشترين، المستثمرين، والحذف النهائي.",
-      },
-      {
-        role: "مشرف عقارات (Moderator)",
-        desc: "مراجعة وتوثيق العقارات، تفعيل الإعلانات، متابعة المشترين والمستثمرين (بدون إعدادات أو صلاحيات أو حذف).",
-      },
-      {
-        role: "مبيعات وتواصل (Sales)",
-        desc: "يرى فقط طلبات المشترين وطلبات البيع وأرقام هواتفهم للتواصل عبر واتساب وتحديث حالة المتابعة.",
-      },
-    ],
-    searchPlaceholder: "ابحث بالاسم، البريد الإلكتروني، أو رقم الموبايل...",
-    tabAll: "الكل",
-    tabStaff: "فريق الإدارة",
-    tabSellers: "البائعين",
-    tabBuyers: "المشترين",
-    emptyText: "لا توجد حسابات مطابقة للبحث.",
-    updatingText: "جاري تنفيذ التعديل...",
-    sellerBadge: "بائع",
-    unitWord: "وحدة",
-    buyerBadge: "مشتري",
-    reqWord: "طلب",
-    registeredAcc: "حساب مسجل",
-    activeBadge: "نشط",
-    suspendedBadge: "موقوف",
-    emailLabel: "البريد:",
-    phoneLabel: "الهاتف:",
-    joinedLabel: "الانضمام:",
-    roleSelectLabel: "الدور الوظيفي (يطلب تأكيد):",
-    activateBtn: "تفعيل الحساب",
-    suspendBtn: "إيقاف مؤقت",
-    deleteBtn: "حذف",
-    tableTitle: "قائمة الحسابات المسجلة",
-    tableDesc: "أي تعديل في الدور الوظيفي أو حالة الحساب يطلب منك التأكيد أولاً.",
-    colUser: "الاسم والبيانات",
-    colActivity: "نشاط العميل",
-    colRole: "الدور والصلاحية (Role)",
-    colJoined: "تاريخ الانضمام",
-    colStatus: "الحالة",
-    colAction: "الإجراء",
-    confirmRoleTitle: "تأكيد تغيير صلاحية الحساب",
-    confirmActivateTitle: "تأكيد تفعيل الحساب",
-    confirmSuspendTitle: "تأكيد إيقاف الحساب مؤقتاً",
-    confirmDeleteTitle: "تأكيد حذف الحساب نهائياً",
-    cancelBtn: "إلغاء",
-    confirmBtn: "نعم، تأكيد التنفيذ",
-    addModalTitle: "إضافة عضو إدارة أو مستخدم جديد",
-    addModalDesc: "اختر الدور الوظيفي المناسب ليتم ضبط الصلاحيات تلقائياً.",
-    fullNameLabel: "الاسم الكامل",
-    passwordLabel: "كلمة المرور (8 أحرف على الأقل)",
-    createNowBtn: "إنشاء الحساب الآن",
-    roles: {
-      admin: "مدير نظام (Admin - صلاحية كاملة)",
-      moderator: "مشرف عقارات (Moderator - مراجعة وإعلانات)",
-      sales: "مسؤول مبيعات (Sales - أرقام العملاء والمتابعة فقط)",
-      user: "عميل عادي (بائع / مشتري)",
-    },
-  },
-  en: {
-    eyebrow: "Community & RBAC Permissions",
-    title: "Users & Staff Team",
-    subtitle:
-      "Assign Super Admins, Property Moderators, or Sales Agents (client phone & leads access only).",
-    addBtn: "Add Staff / User",
-    rolesGuideTitle: "System Role Permissions Guide:",
-    rolesGuide: [
-      {
-        role: "Super Admin (admin)",
-        desc: "Full access: Users, Settings, Promo Pricing, Properties, Leads, Investors, and Permanent Delete.",
-      },
-      {
-        role: "Moderator (moderator)",
-        desc: "Review properties, activate promos, manage buyer leads & investors (No settings, users, or delete).",
-      },
-      {
-        role: "Sales Agent (sales)",
-        desc: "Access ONLY to Buyer Leads & Sell Requests to view client phones and update follow-up status.",
-      },
-    ],
-    searchPlaceholder: "Search by name, email, or phone number...",
-    tabAll: "All",
-    tabStaff: "Staff Team",
-    tabSellers: "Sellers",
-    tabBuyers: "Buyers",
-    emptyText: "No matching accounts found.",
-    updatingText: "Applying changes...",
-    sellerBadge: "Seller",
-    unitWord: "units",
-    buyerBadge: "Buyer",
-    reqWord: "leads",
-    registeredAcc: "Registered",
-    activeBadge: "Active",
-    suspendedBadge: "Suspended",
-    emailLabel: "Email:",
-    phoneLabel: "Phone:",
-    joinedLabel: "Joined:",
-    roleSelectLabel: "Role (requires confirmation):",
-    activateBtn: "Activate",
-    suspendBtn: "Suspend",
-    deleteBtn: "Delete",
-    tableTitle: "Registered Accounts",
-    tableDesc: "Any change to user role or status requires confirmation before saving.",
-    colUser: "User Info",
-    colActivity: "Activity",
-    colRole: "Role & Permission",
-    colJoined: "Joined Date",
-    colStatus: "Status",
-    colAction: "Actions",
-    confirmRoleTitle: "Confirm Role Change",
-    confirmActivateTitle: "Confirm Account Activation",
-    confirmSuspendTitle: "Confirm Account Suspension",
-    confirmDeleteTitle: "Confirm Permanent Deletion",
-    cancelBtn: "Cancel",
-    confirmBtn: "Confirm",
-    addModalTitle: "Add Staff Member or User",
-    addModalDesc: "Select the appropriate role to automatically configure permissions.",
-    fullNameLabel: "Full Name",
-    passwordLabel: "Password (min 8 chars)",
-    createNowBtn: "Create Account",
-    roles: {
-      admin: "Super Admin (Full Access)",
-      moderator: "Moderator (Properties & Promos)",
-      sales: "Sales Agent (Client Leads & Phones Only)",
-      user: "Client (Seller / Buyer)",
-    },
-  },
-}
-
 type ConfirmActionState =
   | {
       type: "role"
@@ -211,8 +72,9 @@ type ConfirmActionState =
 
 export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
   const router = useRouter()
-  const { locale, dir } = useTranslation()
-  const t = locale === "ar" ? USERS_I18N.ar : USERS_I18N.en
+  // سحب الترجمة مباشرة من النظام المركزي (ملفات الـ JSON)
+  const { t: dict, dir } = useTranslation()
+  const t = dict.admin.usersPage
 
   const roleOptions = [
     { value: "admin", label: t.roles.admin },
@@ -253,10 +115,7 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
           )
           if (res.success) {
             setNotice({
-              text:
-                locale === "ar"
-                  ? `تم تغيير صلاحية "${targetUser.name}" إلى (${getRoleLabel(confirmState.newRole)}) بنجاح.`
-                  : `Updated "${targetUser.name}" role to (${getRoleLabel(confirmState.newRole)}).`,
+              text: `${t.roleUpdatedSuccess} (${targetUser.name} → ${getRoleLabel(confirmState.newRole)})`,
             })
             router.refresh()
           } else {
@@ -270,10 +129,7 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
           )
           if (res.success) {
             setNotice({
-              text:
-                locale === "ar"
-                  ? `تم تحديث حالة حساب "${targetUser.name}" بنجاح.`
-                  : `Updated "${targetUser.name}" account status.`,
+              text: `${t.statusUpdatedSuccess} (${targetUser.name})`,
             })
             router.refresh()
           } else {
@@ -283,10 +139,7 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
           const res = await deleteUserByAdminAction(targetUser.id)
           if (res.success) {
             setNotice({
-              text:
-                locale === "ar"
-                  ? `تم حذف حساب "${targetUser.name}" نهائياً.`
-                  : `Deleted "${targetUser.name}" account.`,
+              text: `${t.userDeletedSuccess} (${targetUser.name})`,
             })
             router.refresh()
           } else {
@@ -307,12 +160,7 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
     startTransition(async () => {
       const res = await createAdminOrUserAction(fd)
       if (res.success) {
-        setNotice({
-          text:
-            locale === "ar"
-              ? "تم إنشاء الحساب الجديد وتفعيل صلاحياته بنجاح."
-              : "Account created successfully.",
-        })
+        setNotice({ text: t.userCreatedSuccess })
         setOpenAddModal(false)
         router.refresh()
       } else {
@@ -358,7 +206,6 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
         </Button>
       </div>
 
-      {/* بطاقة توضيح صلاحيات الأدوار القياسية للأدمن */}
       <div className="mb-5 rounded-2xl border border-[#105C50]/20 bg-[#eff8f6] p-4">
         <div className="mb-2 flex items-center gap-1.5 text-xs font-extrabold text-[#105C50]">
           <Info className="size-4 shrink-0" />
@@ -407,7 +254,6 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
         </div>
       )}
 
-      {/* شريط البحث والفلترة */}
       <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-gray-200/80 bg-white p-3.5 shadow-sm sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:p-4">
         <div className="relative w-full sm:min-w-[250px] sm:flex-1">
           <Search className="pointer-events-none absolute top-1/2 end-3.5 size-4 -translate-y-1/2 text-gray-400" />
@@ -739,7 +585,10 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                           </select>
                         </td>
 
-                        <td dir="ltr" className="px-5 py-4 text-start text-xs text-gray-500">
+                        <td
+                          dir="ltr"
+                          className="px-5 py-4 text-start text-xs text-gray-500"
+                        >
                           {new Date(user.created_at).toLocaleDateString("en-GB")}
                         </td>
 
@@ -808,7 +657,7 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
         </CardContent>
       </Card>
 
-      {/* نافذة التأكيد الموحدة */}
+      {/* نافذة التأكيد */}
       <Dialog
         open={Boolean(confirmState)}
         onOpenChange={(open) => {

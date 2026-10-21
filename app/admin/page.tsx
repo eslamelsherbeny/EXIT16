@@ -22,221 +22,9 @@ import {
   getServerI18n,
   getCurrencySymbol,
 } from "@/lib/get-server-dictionary"
-import type { LocaleCode } from "@/lib/i18n"
 
 export const dynamic = "force-dynamic"
 export const revalidate = 0
-
-const DASHBOARD_I18N: Record<
-  LocaleCode,
-  {
-    countries: Record<string, string>
-    showingAll: string
-    showingCountry: string
-    filterHint: string
-    totalUnitsAll: string
-    unitsIn: string
-    publishedNote: string
-    pendingReview: string
-    pendingNeedAction: string
-    allReviewed: string
-    adRequests: string
-    adPendingNote: string
-    adActiveNote: string
-    unitBookers: string
-    outOfTotal: string
-    buyRequestsWord: string
-    adAlertPrefix: string
-    openAdRequests: string
-    latestProperties: string
-    viewAll: string
-    noProperties: string
-    defaultUnit: string
-    latestLeads: string
-    allShort: string
-    noLeads: string
-    allAreas: string
-    unitBookBadge: string
-    statuses: Record<string, string>
-  }
-> = {
-  ar: {
-    countries: {
-      ALL: "كل الدول",
-      EG: "مصر",
-      RU: "روسيا",
-      GE: "جورجيا",
-      AE: "الإمارات",
-    },
-    showingAll: "المعروض الآن: الوحدات والطلبات في كل الدول 🌍",
-    showingCountry: "المعروض الآن: الوحدات والطلبات المتاحة في",
-    filterHint: "اضغط على أي دولة لعرض الوحدات وطلبات المشترين الخاصة بها فقط:",
-    totalUnitsAll: "إجمالي الوحدات (كل الدول)",
-    unitsIn: "الوحدات في",
-    publishedNote: "وحدة منشورة بالسوق حالياً",
-    pendingReview: "بانتظار المراجعة",
-    pendingNeedAction: "وحدات جديدة تحتاج مراجعتك",
-    allReviewed: "تمت مراجعة الكل",
-    adRequests: "طلبات الإعلان ⭐",
-    adPendingNote: "طلب جديد بانتظار التفعيل",
-    adActiveNote: "وحدة مميزة نشطة",
-    unitBookers: "حاجزي الوحدات 🔥",
-    outOfTotal: "من إجمالي",
-    buyRequestsWord: "طلب شراء مسجل",
-    adAlertPrefix: "طلب إعلان بانتظار التفعيل:",
-    openAdRequests: "فتح طلبات الإعلان",
-    latestProperties: "أحدث الوحدات المعروضة للبيع",
-    viewAll: "عرض الكل",
-    noProperties: "لا توجد وحدات مسجلة في هذا القسم حالياً.",
-    defaultUnit: "وحدة سكنية",
-    latestLeads: "أحدث طلبات المشترين",
-    allShort: "الكل",
-    noLeads: "لا توجد طلبات شراء في هذا القسم حالياً.",
-    allAreas: "جميع المناطق",
-    unitBookBadge: "🔥 حجز وحدة",
-    statuses: {
-      pending: "بانتظار المراجعة",
-      under_review: "جاري المراجعة",
-      active: "معروضة بالسوق",
-      offer_received: "عليها عرض",
-      transferring: "نقل التعاقد",
-      sold: "تم البيع",
-      rejected: "مرفوضة",
-    },
-  },
-  en: {
-    countries: {
-      ALL: "All Countries",
-      EG: "Egypt",
-      RU: "Russia",
-      GE: "Georgia",
-      AE: "UAE",
-    },
-    showingAll: "Currently showing: Units & leads in All Countries 🌍",
-    showingCountry: "Currently showing: Units & leads in",
-    filterHint: "Click any country to filter units and buyer leads:",
-    totalUnitsAll: "Total Units (All Countries)",
-    unitsIn: "Units in",
-    publishedNote: "units currently active in market",
-    pendingReview: "Pending Review",
-    pendingNeedAction: "New units awaiting your review",
-    allReviewed: "All caught up",
-    adRequests: "Featured Ads ⭐",
-    adPendingNote: "new request awaiting activation",
-    adActiveNote: "active featured units",
-    unitBookers: "Unit Bookings 🔥",
-    outOfTotal: "Out of",
-    buyRequestsWord: "registered buyer leads",
-    adAlertPrefix: "ad request(s) awaiting activation:",
-    openAdRequests: "Open Ad Requests",
-    latestProperties: "Latest Sell Requests",
-    viewAll: "View All",
-    noProperties: "No units registered in this country yet.",
-    defaultUnit: "Residential Unit",
-    latestLeads: "Latest Buyer Leads",
-    allShort: "All",
-    noLeads: "No buyer leads in this country yet.",
-    allAreas: "All Areas",
-    unitBookBadge: "🔥 Unit Booking",
-    statuses: {
-      pending: "Pending Review",
-      under_review: "Under Review",
-      active: "Published",
-      offer_received: "Offer Received",
-      transferring: "Transferring",
-      sold: "Sold",
-      rejected: "Rejected",
-    },
-  },
-  ru: {
-    countries: {
-      ALL: "Все страны",
-      EG: "Египет",
-      RU: "Россия",
-      GE: "Грузия",
-      AE: "ОАЭ",
-    },
-    showingAll: "Показано: Объекты и заявки во всех странах 🌍",
-    showingCountry: "Показано: Объекты и заявки в",
-    filterHint: "Выберите страну для фильтрации объектов и заявок:",
-    totalUnitsAll: "Всего объектов (Все страны)",
-    unitsIn: "Объекты в",
-    publishedNote: "опубликовано на рынке",
-    pendingReview: "На проверке",
-    pendingNeedAction: "Новые объекты ждут проверки",
-    allReviewed: "Все проверено",
-    adRequests: "Промо-заявки ⭐",
-    adPendingNote: "ожидает активации",
-    adActiveNote: "активных промо-объектов",
-    unitBookers: "Бронирования 🔥",
-    outOfTotal: "Из",
-    buyRequestsWord: "заявок на покупку",
-    adAlertPrefix: "промо-заявок ожидают активации:",
-    openAdRequests: "Открыть промо",
-    latestProperties: "Последние объекты на продажу",
-    viewAll: "Все",
-    noProperties: "В этой стране пока нет объектов.",
-    defaultUnit: "Жилой объект",
-    latestLeads: "Последние заявки покупателей",
-    allShort: "Все",
-    noLeads: "В этой стране пока нет заявок.",
-    allAreas: "Все районы",
-    unitBookBadge: "🔥 Бронь объекта",
-    statuses: {
-      pending: "Ожидает",
-      under_review: "На проверке",
-      active: "Активно",
-      offer_received: "Есть оффер",
-      transferring: "Переоформление",
-      sold: "Продано",
-      rejected: "Отклонено",
-    },
-  },
-  ka: {
-    countries: {
-      ALL: "ყველა ქვეყანა",
-      EG: "ეგვიპტე",
-      RU: "რუსეთი",
-      GE: "საქართველო",
-      AE: "საამიროები",
-    },
-    showingAll: "ნაჩვენებია: ყველა ქვეყნის ობიექტები 🌍",
-    showingCountry: "ნაჩვენებია: ობიექტები და მოთხოვნები —",
-    filterHint: "აირჩიეთ ქვეყანა ობიექტების გასაფილტრად:",
-    totalUnitsAll: "სულ ობიექტები",
-    unitsIn: "ობიექტები —",
-    publishedNote: "აქტიური ობიექტი ბაზარზე",
-    pendingReview: "განხილვაშია",
-    pendingNeedAction: "ახალი ობიექტები ელოდება შემოწმებას",
-    allReviewed: "ყველა შემოწმებულია",
-    adRequests: "რეკლამის მოთხოვნები ⭐",
-    adPendingNote: "ელოდება გააქტიურებას",
-    adActiveNote: "აქტიური VIP ობიექტი",
-    unitBookers: "დაჯავშნები 🔥",
-    outOfTotal: "სულ",
-    buyRequestsWord: "მყიდველის მოთხოვნიდან",
-    adAlertPrefix: "რეკლამის მოთხოვნა ელოდება გააქტიურებას:",
-    openAdRequests: "გახსნა",
-    latestProperties: "ბოლო გასაყიდი ობიექტები",
-    viewAll: "ყველა",
-    noProperties: "ამ განყოფილებაში ობიექტები არ არის.",
-    defaultUnit: "საცხოვრებელი ერთეული",
-    latestLeads: "მყიდველების ბოლო მოთხოვნები",
-    allShort: "ყველა",
-    noLeads: "მოთხოვნები არ მოიძებნა.",
-    allAreas: "ყველა უბანი",
-    unitBookBadge: "🔥 ჯავშანი",
-    statuses: {
-      pending: "მოლოდინში",
-      under_review: "მოწმდება",
-      active: "აქტიური",
-      offer_received: "შეთავაზება",
-      transferring: "გადაფორმება",
-      sold: "გაყიდულია",
-      rejected: "უარყოფილია",
-    },
-  },
-}
 
 const STATUS_BADGE_CLASSES: Record<string, string> = {
   pending: "bg-amber-100 text-amber-800",
@@ -264,8 +52,9 @@ export default async function AdminPage({
 }: {
   searchParams?: Promise<{ country?: string }>
 }) {
-  const { locale, dir } = await getServerI18n()
-  const t = DASHBOARD_I18N[locale] || DASHBOARD_I18N.ar
+  // سحب الترجمة مباشرة من ملفات الـ JSON عبر النظام المركزي
+  const { dict, locale, dir } = await getServerI18n()
+  const t = dict.admin.dashboard
 
   const adminCountries = [
     { code: "ALL", label: t.countries.ALL, flag: "🌍" },
@@ -387,7 +176,6 @@ export default async function AdminPage({
 
   return (
     <div dir={dir} className="mx-auto max-w-7xl text-start">
-      {/* شريط الدول */}
       <div className="mb-5 rounded-xl border border-gray-200/85 bg-white p-4 shadow-2xs">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -444,7 +232,6 @@ export default async function AdminPage({
         </div>
       </div>
 
-      {/* بطاقات الإحصائيات (KPIs) */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         {kpis.map(({ label, value, note, icon: Icon, href, highlight }) => (
           <Link
@@ -518,7 +305,6 @@ export default async function AdminPage({
         </div>
       )}
 
-      {/* الجداول السفلية */}
       <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-3">
         <Card className="border-gray-200/80 bg-white shadow-2xs lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between border-b border-gray-100 px-4 py-3.5 sm:px-5">
@@ -544,10 +330,11 @@ export default async function AdminPage({
                 </div>
               ) : (
                 properties.slice(0, 6).map((prop) => {
-                  const stKey = prop.status || "pending"
+                  const stKey = (prop.status || "pending") as keyof typeof t.statuses
                   const stLabel = t.statuses[stKey] || t.statuses.pending
                   const stCls =
-                    STATUS_BADGE_CLASSES[stKey] || STATUS_BADGE_CLASSES.pending
+                    STATUS_BADGE_CLASSES[prop.status || "pending"] ||
+                    STATUS_BADGE_CLASSES.pending
                   const propCurrency = getCurrencySymbol(
                     prop.country_code || prop.country || "EG",
                     locale

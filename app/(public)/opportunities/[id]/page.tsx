@@ -2,54 +2,47 @@
 
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import {
   Building2,
   Check,
-  ChevronLeft,
   ChevronRight,
   Copy,
   Heart,
   Share2,
   Star,
-  X,
-  ZoomIn,
 } from 'lucide-react'
+import { getCurrencyByCountry } from '@/components/seller/seller-shared'
+import { inferCountryFromRow } from '@/components/opportunities/opportunities-shared'
+import {
+  UnitGalleryWithLightbox,
+  UnitInterestForm,
+} from '@/components/opportunities/unit-interest-form'
+import arDict from '@/dictionaries/ar.json'
 
 const FALLBACK_UNIT_IMAGE =
   'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=85'
 const FAVORITES_STORAGE_KEY = 'darak_favorites'
 
+const t = arDict.unitDetailsPage
+const c = arDict.opportunitiesPage.card
+
 export default function PropertyDetailsPage() {
   const params = useParams()
-  const rawId = Array.isArray(params?.id) ? params.id[0] : (params?.id as string) || ''
+  const rawId = Array.isArray(params?.id)
+    ? params.id[0]
+    : (params?.id as string) || ''
 
-  const scrollContainerRef = useRef<HTMLDivElement>(null)
-  const [scrollProgress, setScrollProgress] = useState(0)
-  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
   const [liked, setLiked] = useState(false)
   const [copied, setCopied] = useState(false)
-  const [readiness, setReadiness] = useState<'week' | 'month' | 'info'>('info')
-  const [agreedToCommission, setAgreedToCommission] = useState(false)
 
-  // حالات البيانات الحقيقية من Supabase
   const [unitRow, setUnitRow] = useState<any | null>(null)
   const [similarDbUnits, setSimilarDbUnits] = useState<any[]>([])
   const [sameProjectCount, setSameProjectCount] = useState<number>(0)
   const [loading, setLoading] = useState(true)
+  const [currentUserId] = useState<string | null>(null)
 
-  // بيانات نموذج اهتمام المشتري بالوحدة
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
-  const [buyerName, setBuyerName] = useState('')
-  const [buyerPhone, setBuyerPhone] = useState('')
-  const [countryCode, setCountryCode] = useState('+20')
-  const [buyerNotes, setBuyerNotes] = useState('')
-  const [submittingOffer, setSubmittingOffer] = useState(false)
-  const [offerSubmitted, setOfferSubmitted] = useState(false)
-  const [offerError, setOfferError] = useState('')
-
-  // قراءة حالة المفضلة لهذه الوحدة
   useEffect(() => {
     if (!rawId) return
     try {
@@ -111,7 +104,7 @@ export default function PropertyDetailsPage() {
         const { data: otherUnits } = await supabase
           .from('sell_requests')
           .select(
-            'id, project_name, area, unit_type, rooms, size, years_left, delivery_status, paid_amount, discount_amount, willing_to_discount, images, is_featured, featured_until'
+            'id, project_name, area, country, country_code, unit_type, rooms, size, years_left, delivery_status, paid_amount, discount_amount, willing_to_discount, images, is_featured, featured_until'
           )
           .in('status', ['active', 'offer_received', 'transferring'])
           .neq('id', rawId)
@@ -121,14 +114,20 @@ export default function PropertyDetailsPage() {
 
         if (otherUnits && otherUnits.length > 0) {
           const mappedSimilar = otherUnits.map((u) => {
+            const uCountry = inferCountryFromRow(u)
+            const uCurrency = getCurrencyByCountry(uCountry)
             const paid = Number(u.paid_amount) || 0
-            const disc = u.willing_to_discount ? Number(u.discount_amount) || 0 : 0
+            const disc = u.willing_to_discount
+              ? Number(u.discount_amount) || 0
+              : 0
             const reqCash = Math.max(0, paid - disc)
             const yearMatch = String(u.delivery_status || '').match(/20\d{2}/)
             const delivYear = yearMatch
               ? yearMatch[0]
-              : String(u.delivery_status || '').includes('جاهز')
-                ? 'جاهزة'
+              : String(u.delivery_status || '').includes(
+                    arDict.opportunitiesPage.filters.deliveryStatuses[1]
+                  )
+                ? arDict.opportunitiesPage.filters.deliveryStatuses[1]
                 : String(new Date().getFullYear() + (Number(u.years_left) || 2))
 
             const isFeat =
@@ -137,12 +136,13 @@ export default function PropertyDetailsPage() {
 
             return {
               id: u.id,
-              name: u.project_name || 'وحدة معتمدة',
-              area: u.area || 'القاهرة الجديدة',
-              specs: `${u.unit_type || 'شقة'} · ${u.rooms || 3} غرف · ${
+              name: u.project_name || c.defaultProject,
+              area: u.area || c.defaultArea,
+              specs: `${u.unit_type || c.defaultType} · ${u.rooms || 3} ${c.roomsWord} · ${
                 u.size || 150
-              } م² · استلام ${delivYear}`,
+              } ${c.sqmUnit} · ${t.similarSection.deliveryPrefix} ${delivYear}`,
               cash: reqCash.toLocaleString('en-US'),
+              currency: uCurrency,
               featured: isFeat,
               image:
                 Array.isArray(u.images) && u.images.length > 0 && u.images[0]
@@ -166,8 +166,11 @@ export default function PropertyDetailsPage() {
     if (!unitRow) return null
 
     const row = unitRow
-    const projectName = row.project_name || 'وحدة سكنية'
-    const areaName = row.area || 'القاهرة الجديدة'
+    const country = inferCountryFromRow(row)
+    const currency = getCurrencyByCountry(country)
+
+    const projectName = row.project_name || c.defaultProject
+    const areaName = row.area || c.defaultArea
     const developerName = row.developer_name || ''
     const subtitle = developerName ? `${developerName} · ${areaName}` : areaName
 
@@ -178,20 +181,21 @@ export default function PropertyDetailsPage() {
       .slice(0, 5)
       .toUpperCase()
     const code =
-      row.code || `U-${numericId.length >= 4 ? numericId : fallbackId || '1001'}`
+      row.code ||
+      `U-${numericId.length >= 4 ? numericId : fallbackId || '1001'}`
 
-    const unitType = row.unit_type || 'شقة'
+    const unitType = row.unit_type || c.defaultType
     const size = Number(row.size) || 0
     const floor =
       row.floor_number !== null &&
       row.floor_number !== undefined &&
       Number(row.floor_number) > 0
         ? String(row.floor_number)
-        : 'متكرر'
+        : t.specs.typicalFloor
     const rooms = Number(row.rooms) || 0
     const bathrooms = Number(row.bathrooms) || 0
-    const finishing = row.finishing || 'نصف تشطيب'
-    const deliveryStatus = row.delivery_status || 'تحت الإنشاء'
+    const finishing = row.finishing || t.specs.defaultFinishing
+    const deliveryStatus = row.delivery_status || t.specs.defaultStatus
     const contractYear = Number(row.contract_year) || 2024
 
     const paidAmount = Number(row.paid_amount) || 0
@@ -203,7 +207,7 @@ export default function PropertyDetailsPage() {
     const remainingToDeveloper = Math.max(0, contractPrice - paidAmount)
     const marketPrice = Number(row.market_price) || 0
     const installmentAmount = Number(row.installment_amount) || 0
-    const installmentFreq = row.installment_frequency || 'ربع سنوي'
+    const installmentFreq = row.installment_frequency || c.defaultFreq
     const yearsLeft = Number(row.years_left) || 0
 
     const pricePerMeter =
@@ -211,7 +215,10 @@ export default function PropertyDetailsPage() {
     const commission = Math.round(contractPrice * 0.0125)
     const marketGain =
       marketPrice > contractPrice
-        ? Math.max(0, marketPrice - (contractPrice - discountAmount) - commission)
+        ? Math.max(
+            0,
+            marketPrice - (contractPrice - discountAmount) - commission
+          )
         : 0
     const totalRequiredNow = requiredCash + commission
     const discountPercentage =
@@ -222,11 +229,13 @@ export default function PropertyDetailsPage() {
     const yearMatch = String(deliveryStatus).match(/20\d{2}/)
     const deliveryYear = yearMatch
       ? yearMatch[0]
-      : String(deliveryStatus).includes('جاهز')
-        ? 'جاهزة للاستلام'
+      : String(deliveryStatus).includes(
+            arDict.opportunitiesPage.filters.deliveryStatuses[1]
+          )
+        ? t.specs.readyForDelivery
         : yearsLeft > 0
           ? String(new Date().getFullYear() + Math.min(yearsLeft, 6))
-          : 'قريباً'
+          : t.specs.soon
 
     const validUrls = Array.isArray(row.images)
       ? row.images.filter((img: string) => Boolean(img && img.trim()))
@@ -236,40 +245,35 @@ export default function PropertyDetailsPage() {
       validUrls.length > 0
         ? validUrls.map((url: string, index: number) => ({
             url,
-            caption: `${projectName} — صورة ${index + 1}`,
+            caption: `${projectName} — ${t.photoWord} ${index + 1}`,
           }))
         : [
             {
               url: FALLBACK_UNIT_IMAGE,
-              caption: `${projectName} — صورة توضيحية`,
+              caption: `${projectName} — ${t.samplePhotoWord}`,
             },
           ]
 
     const specs = [
-      { label: 'النوع', value: unitType },
-      { label: 'المساحة', value: size > 0 ? `${size} م²` : '—' },
-      { label: 'الدور', value: floor },
-      { label: 'غرف', value: rooms > 0 ? String(rooms) : '—' },
-      { label: 'حمامات', value: bathrooms > 0 ? String(bathrooms) : '—' },
-      { label: 'التشطيب', value: finishing },
-      { label: 'حالة البناء', value: deliveryStatus },
-      { label: 'سنة التعاقد', value: String(contractYear) },
+      { label: t.specs.type, value: unitType },
+      { label: t.specs.size, value: size > 0 ? `${size} ${c.sqmUnit}` : '—' },
+      { label: t.specs.floor, value: floor },
+      { label: t.specs.rooms, value: rooms > 0 ? String(rooms) : '—' },
+      { label: t.specs.bathrooms, value: bathrooms > 0 ? String(bathrooms) : '—' },
+      { label: t.specs.finishing, value: finishing },
+      { label: t.specs.status, value: deliveryStatus },
+      { label: t.specs.contractYear, value: String(contractYear) },
       {
-        label: 'سعر المتر بالتعاقد',
+        label: t.specs.pricePerMeter,
         value:
           pricePerMeter > 0
-            ? `${pricePerMeter.toLocaleString('en-US')} ج.م`
+            ? `${pricePerMeter.toLocaleString('en-US')} ${currency}`
             : '—',
       },
     ]
 
     const tags: string[] = Array.isArray(row.features) ? row.features : []
-
-    const descriptionText =
-      row.description ||
-      `${unitType} ${rooms > 0 ? `${rooms} غرف ` : ''}في مشروع ${projectName} (${subtitle})${
-        size > 0 ? `، بمساحة ${size} م²` : ''
-      }. التشطيب ${finishing}، وحالة الوحدة ${deliveryStatus}. معروضة للتنازل المباشر بدون أوفر.`
+    const descriptionText = row.description || `${projectName} — ${subtitle}`
 
     const isFeaturedActive =
       Boolean(row.is_featured) &&
@@ -280,6 +284,8 @@ export default function PropertyDetailsPage() {
       areaName,
       subtitle,
       code,
+      unitType,
+      currency,
       featured: isFeaturedActive,
       gallery: unitGallery,
       specs,
@@ -302,36 +308,6 @@ export default function PropertyDetailsPage() {
     }
   }, [unitRow])
 
-  const handleScroll = () => {
-    const el = scrollContainerRef.current
-    if (!el) return
-    const maxScroll = el.scrollWidth - el.clientWidth
-    if (maxScroll <= 0) {
-      setScrollProgress(0)
-      return
-    }
-    const currentScroll = Math.abs(el.scrollLeft)
-    setScrollProgress(
-      Math.min(100, Math.max(0, (currentScroll / maxScroll) * 100))
-    )
-  }
-
-  const scrollByAmount = (direction: 'next' | 'prev') => {
-    const el = scrollContainerRef.current
-    if (!el) return
-    const amount = direction === 'next' ? -360 : 360
-    el.scrollBy({ left: amount, behavior: 'smooth' })
-  }
-
-  const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = Number(e.target.value)
-    setScrollProgress(value)
-    const el = scrollContainerRef.current
-    if (!el) return
-    const maxScroll = el.scrollWidth - el.clientWidth
-    el.scrollLeft = -((value / 100) * maxScroll)
-  }
-
   const copyUnitCode = () => {
     if (!computedUnit) return
     navigator.clipboard?.writeText(computedUnit.code)
@@ -339,70 +315,15 @@ export default function PropertyDetailsPage() {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const handleInterestSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    if (!computedUnit) return
-    setOfferError('')
-    setSubmittingOffer(true)
-
-    try {
-      const supabase = createBrowserClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      )
-
-      const cleanPhone = `${countryCode}${buyerPhone.replace(/^0+/, '').trim()}`
-      const readinessLabel =
-        readiness === 'week'
-          ? 'جاهز للتنفيذ خلال أسبوع'
-          : readiness === 'month'
-            ? 'جاهز خلال شهر لـ 3 شهور'
-            : 'يجمع معلومات ويقارن'
-
-      const insertPayload: Record<string, any> = {
-        name: buyerName.trim(),
-        phone: cleanPhone,
-        available_cash: computedUnit.requiredCash,
-        budget: computedUnit.totalRequiredNow,
-        max_installment: computedUnit.installmentAmount,
-        payment_plan: `مهتم بوحدة محددة (${computedUnit.code}) · ${readinessLabel}${
-          buyerNotes ? ` · أسئلة العميل: ${buyerNotes}` : ''
-        }`,
-        preferred_areas: [
-          `🎯 مهتم بوحدة: ${computedUnit.projectName} (${computedUnit.code}) - ${computedUnit.areaName}`,
-        ],
-        unit_types: [computedUnit.specs[0]?.value || 'شقة'],
-        delivery_status: computedUnit.deliveryYear,
-      }
-
-      if (currentUserId) {
-        insertPayload.user_id = currentUserId
-      }
-
-      const { error } = await supabase.from('buy_requests').insert(insertPayload)
-
-      if (error) {
-        console.error('Insert interest error:', error)
-        setOfferError('تعذر تسجيل الطلب حالياً، يرجى المحاولة مرة أخرى.')
-      } else {
-        setOfferSubmitted(true)
-      }
-    } catch {
-      setOfferError('حدث خطأ غير متوقع، يرجى المحاولة مرة أخرى.')
-    } finally {
-      setSubmittingOffer(false)
-    }
-  }
-
   if (loading) {
     return (
       <main
         dir="rtl"
-        className="min-h-screen bg-[#f5f6f8] py-10 text-[#0a1122]"
+        className="min-h-screen bg-[var(--brand-surface,#f5f6f8)] py-10 text-[var(--brand-navy,#0a1122)]"
       >
         <div className="mx-auto w-full max-w-[780px] px-4 sm:px-6">
           <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center text-sm font-bold text-gray-500 shadow-xs">
-            جاري تحميل البيانات الحقيقية للوحدة...
+            {t.loading}
           </div>
         </div>
       </main>
@@ -413,21 +334,19 @@ export default function PropertyDetailsPage() {
     return (
       <main
         dir="rtl"
-        className="min-h-screen bg-[#f5f6f8] py-10 text-[#0a1122]"
+        className="min-h-screen bg-[var(--brand-surface,#f5f6f8)] py-10 text-[var(--brand-navy,#0a1122)]"
       >
         <div className="mx-auto w-full max-w-[780px] px-4 sm:px-6">
           <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center shadow-xs">
-            <h1 className="text-lg font-extrabold text-[#0a1122]">
-              هذه الوحدة غير متاحة حالياً
+            <h1 className="text-lg font-extrabold text-[var(--brand-navy,#0a1122)]">
+              {t.notFoundTitle}
             </h1>
-            <p className="mt-2 text-xs text-gray-500">
-              ربما تم بيع هذه الوحدة أو إزالتها من العرض.
-            </p>
+            <p className="mt-2 text-xs text-gray-500">{t.notFoundDesc}</p>
             <Link
               href="/opportunities"
-              className="mt-5 inline-flex h-10 items-center justify-center rounded-xl bg-[#0b6954] px-6 text-xs font-bold text-white hover:bg-[#095443]"
+              className="mt-5 inline-flex h-10 items-center justify-center rounded-xl bg-[var(--brand-primary,#007a5a)] px-6 text-xs font-bold text-white hover:bg-[var(--brand-primary-hover,#006248)]"
             >
-              تصفح الفرص المتاحة
+              {t.browseOpportunitiesBtn}
             </Link>
           </div>
         </div>
@@ -435,24 +354,29 @@ export default function PropertyDetailsPage() {
     )
   }
 
+  const fin = t.financials
+
   return (
-    <main dir="rtl" className="min-h-screen bg-[#f5f6f8] py-6 text-[#0a1122] sm:py-10">
+    <main
+      dir="rtl"
+      className="min-h-screen bg-[var(--brand-surface,#f5f6f8)] py-6 text-[var(--brand-navy,#0a1122)] sm:py-10"
+    >
       <div className="mx-auto w-full max-w-[780px] px-4 sm:px-6">
-        {/* ==================== 1. رابط الرجوع العلوي ==================== */}
+        {/* 1. رابط الرجوع */}
         <div className="flex items-center justify-start">
           <Link
             href="/opportunities"
-            className="inline-flex items-center gap-1 text-xs font-medium text-gray-500 transition-colors hover:text-[#0b6954]"
+            className="inline-flex items-center gap-1 text-xs font-medium text-gray-500 transition-colors hover:text-[var(--brand-primary,#007a5a)]"
           >
             <ChevronRight className="size-3.5" />
-            <span>رجوع للفرص</span>
+            <span>{t.backToOpportunities}</span>
           </Link>
         </div>
 
-        {/* ==================== 2. هيدر الوحدة (العنوان والشارات) ==================== */}
+        {/* 2. هيدر الوحدة */}
         <header className="mt-4 flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
           <div className="text-right">
-            <h1 className="text-2xl font-extrabold tracking-tight text-[#0a1122] sm:text-3xl">
+            <h1 className="text-2xl font-extrabold tracking-tight text-[var(--brand-navy,#0a1122)] sm:text-3xl">
               {computedUnit.projectName}
             </h1>
             <p className="mt-1 text-xs text-gray-500 sm:text-sm">
@@ -461,41 +385,41 @@ export default function PropertyDetailsPage() {
             <button
               type="button"
               onClick={copyUnitCode}
-              title="نسخ كود الوحدة"
-              className="mt-2.5 inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2.5 py-1 font-mono text-[11px] text-gray-500 transition hover:border-gray-300 hover:text-[#0a1122]"
+              title={t.copyCodeTitle}
+              className="mt-2.5 inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2.5 py-1 font-mono text-[11px] text-gray-500 transition hover:border-gray-300 hover:text-[var(--brand-navy,#0a1122)]"
             >
               <span>{computedUnit.code}</span>
               <Copy className="size-3 text-gray-400" />
               {copied && (
-                <span className="font-sans text-[10px] text-[#0b6954]">
-                  تم النسخ
+                <span className="font-sans text-[10px] text-[var(--brand-primary,#007a5a)]">
+                  {t.copiedText}
                 </span>
               )}
             </button>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full bg-[#e6f4f9] px-3 py-1 text-[11px] font-bold text-[#0b6954]">
-              متحقق بالمستندات
+            <span className="rounded-full bg-[#e6f4f9] px-3 py-1 text-[11px] font-bold text-[var(--brand-primary,#007a5a)]">
+              {t.verifiedBadge}
             </span>
             {computedUnit.featured && (
               <span className="inline-flex items-center gap-1 rounded-full border border-amber-200/60 bg-amber-50 px-3 py-1 text-[11px] font-bold text-amber-700">
                 <Star className="size-3 fill-amber-400 text-amber-500" />
-                <span>مميزة</span>
+                <span>{t.featuredBadge}</span>
               </span>
             )}
             <button
               type="button"
               onClick={() =>
                 navigator.share?.({
-                  title: `${computedUnit.projectName} - دارك`,
+                  title: `${computedUnit.projectName}`,
                   url: window.location.href,
                 })
               }
               className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 text-xs font-bold text-gray-700 transition hover:bg-gray-50"
             >
               <Share2 className="size-3.5 text-gray-500" />
-              <span>مشاركة</span>
+              <span>{t.shareBtn}</span>
             </button>
             <button
               type="button"
@@ -511,86 +435,15 @@ export default function PropertyDetailsPage() {
                   liked ? 'fill-current text-red-500' : 'text-gray-500'
                 }`}
               />
-              <span>{liked ? 'في المفضلة' : 'أضف للمفضلة'}</span>
+              <span>{liked ? t.inFavoritesBtn : t.addToFavoritesBtn}</span>
             </button>
           </div>
         </header>
 
-        {/* ==================== 3. معرض الصور الحقيقية للوحدة ==================== */}
-        <section className="mt-5">
-          <div
-            ref={scrollContainerRef}
-            onScroll={handleScroll}
-            className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 pt-1 scrollbar-thin scrollbar-track-gray-200 scrollbar-thumb-gray-400"
-            style={{ scrollbarWidth: 'thin' }}
-          >
-            {computedUnit.gallery.map((item: { url: string; caption: string }, idx: number) => (
-              <div
-                key={`${item.url}-${idx}`}
-                onClick={() => setLightboxIndex(idx)}
-                className={`group relative shrink-0 cursor-pointer snap-center overflow-hidden rounded-[18px] bg-gray-200 ${
-                  computedUnit.gallery.length === 1
-                    ? 'h-[250px] w-full sm:h-[360px]'
-                    : idx === 0
-                      ? 'h-[230px] w-[85%] sm:h-[310px] sm:w-[460px]'
-                      : 'h-[230px] w-[70%] sm:h-[310px] sm:w-[300px]'
-                }`}
-              >
-                <img
-                  src={item.url}
-                  alt={item.caption}
-                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                />
-                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent opacity-80 transition-opacity group-hover:opacity-100" />
+        {/* 3. معرض الصور والـ Lightbox */}
+        <UnitGalleryWithLightbox gallery={computedUnit.gallery} />
 
-                <span
-                  className={`pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full bg-black/65 px-3.5 py-1 text-[11px] font-medium text-white backdrop-blur-sm transition-opacity ${
-                    idx === 0 ? 'inline-flex' : 'hidden group-hover:inline-flex'
-                  }`}
-                >
-                  <ZoomIn className="size-3.5" />
-                  <span>اضغط لتكبير الصورة</span>
-                </span>
-              </div>
-            ))}
-          </div>
-
-          {computedUnit.gallery.length > 1 && (
-            <div className="mt-2 flex items-center gap-2 px-1">
-              <button
-                type="button"
-                onClick={() => scrollByAmount('prev')}
-                aria-label="الصورة السابقة"
-                className="flex size-5 items-center justify-center rounded text-gray-500 hover:bg-gray-200 hover:text-[#0a1122]"
-              >
-                <ChevronRight className="size-3.5" />
-              </button>
-
-              <div className="relative flex flex-1 items-center">
-                <input
-                  type="range"
-                  min={0}
-                  max={100}
-                  value={scrollProgress}
-                  onChange={handleSliderChange}
-                  aria-label="شريط تحريك الصور"
-                  className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-gray-200 accent-gray-500"
-                />
-              </div>
-
-              <button
-                type="button"
-                onClick={() => scrollByAmount('next')}
-                aria-label="الصورة التالية"
-                className="flex size-5 items-center justify-center rounded text-gray-500 hover:bg-gray-200 hover:text-[#0a1122]"
-              >
-                <ChevronLeft className="size-3.5" />
-              </button>
-            </div>
-          )}
-        </section>
-
-        {/* ==================== 4. بطاقة مواصفات الوحدة ==================== */}
+        {/* 4. مواصفات الوحدة */}
         <section className="mt-4 rounded-[18px] border border-gray-200/80 bg-white p-5 shadow-sm sm:p-6">
           <div className="grid grid-cols-2 gap-x-4 gap-y-6 text-right sm:grid-cols-4">
             {computedUnit.specs.map((spec) => (
@@ -598,7 +451,7 @@ export default function PropertyDetailsPage() {
                 <span className="block text-[11px] text-gray-400">
                   {spec.label}
                 </span>
-                <strong className="mt-1 block text-xs font-extrabold text-[#0a1122] sm:text-sm">
+                <strong className="mt-1 block text-xs font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-sm">
                   {spec.value}
                 </strong>
               </div>
@@ -606,7 +459,7 @@ export default function PropertyDetailsPage() {
           </div>
         </section>
 
-        {/* ==================== 5. بطاقة المميزات والوصف ==================== */}
+        {/* 5. المميزات والوصف */}
         <section className="mt-4 rounded-[18px] border border-gray-200/80 bg-white p-5 text-right shadow-sm sm:p-6">
           {computedUnit.tags.length > 0 && (
             <div className="mb-4 flex flex-wrap gap-2">
@@ -615,7 +468,7 @@ export default function PropertyDetailsPage() {
                   key={tag}
                   className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50/80 px-3 py-1 text-[11px] font-semibold text-gray-700"
                 >
-                  <Check className="size-3 text-[#0b6954]" />
+                  <Check className="size-3 text-[var(--brand-primary,#007a5a)]" />
                   <span>{tag}</span>
                 </span>
               ))}
@@ -627,151 +480,152 @@ export default function PropertyDetailsPage() {
           </p>
         </section>
 
-        {/* ==================== 6. البطاقة المالية الرئيسية ==================== */}
+        {/* 6. البطاقة المالية الرئيسية */}
         <section className="mt-4 rounded-[18px] border border-[#b8e6d5] bg-white p-5 text-right shadow-sm sm:p-6">
-          <p className="text-xs font-bold text-gray-500">المطلوب كاش دلوقتي</p>
-          <p className="mt-1 text-3xl font-extrabold tracking-tight text-[#0a1122] tabular-nums sm:text-[34px]">
-            {computedUnit.requiredCash.toLocaleString('en-US')}{' '}
-            <span className="text-lg font-bold">ج.م</span>
+          <p className="text-xs font-bold text-gray-500">
+            {fin.requiredCashNow}
           </p>
-          <p className="mt-1 text-xs font-bold text-[#0b6954]">
-            ده نفس المبلغ اللي دفعه صاحب الوحدة — من غير أوفر
+          <p className="mt-1 text-3xl font-extrabold tracking-tight text-[var(--brand-navy,#0a1122)] tabular-nums sm:text-[34px]">
+            {computedUnit.requiredCash.toLocaleString('en-US')}{' '}
+            <span className="text-lg font-bold">{computedUnit.currency}</span>
+          </p>
+          <p className="mt-1 text-xs font-bold text-[var(--brand-primary,#007a5a)]">
+            {fin.noOverNote}
           </p>
 
           {computedUnit.willingToDiscount && (
             <div className="mt-4 rounded-xl border border-amber-200 bg-[#fffbeb] px-4 py-3 text-right">
               <p className="text-xs font-extrabold text-[#b45309]">
-                ↓ قابل للتفاوض
+                {fin.negotiableTitle}
               </p>
               <p className="mt-1 text-[11px] leading-relaxed text-[#92400e]">
-                البائع مستعد يتفاوض في حدود {computedUnit.discountPercentage}% من
-                المدفوع (حوالي{' '}
-                {computedUnit.discountAmount.toLocaleString('en-US')} ج.م) لسرعة
-                التنفيذ.
+                {fin.negotiableDescPrefix} {computedUnit.discountPercentage}%{' '}
+                {fin.negotiableDescMiddle}{' '}
+                {computedUnit.discountAmount.toLocaleString('en-US')}{' '}
+                {computedUnit.currency}
+                {fin.negotiableDescSuffix}
               </p>
             </div>
           )}
 
           {computedUnit.marketGain > 0 && (
             <div className="mt-3 rounded-xl border border-[#c8eedd] bg-[#ecfbf3] px-4 py-3 text-right">
-              <p className="text-xs font-extrabold text-[#0b6954]">
-                مكسبك عن سعر السوق الحالي:{' '}
+              <p className="text-xs font-extrabold text-[var(--brand-primary,#007a5a)]">
+                {fin.gainPrefix}{' '}
                 <span dir="ltr">
                   + {computedUnit.marketGain.toLocaleString('en-US')}
                 </span>{' '}
-                ج.م
+                {computedUnit.currency}
               </p>
-              <p className="mt-1 text-[11px] text-[#0b6954]/85">
-                سعر السوق اليوم:{' '}
-                {computedUnit.marketPrice.toLocaleString('en-US')} ج.م · بعد خصم
-                عمولتنا 1.25%
+              <p className="mt-1 text-[11px] text-[var(--brand-primary,#007a5a)]/85">
+                {fin.marketPriceTodayPrefix}{' '}
+                {computedUnit.marketPrice.toLocaleString('en-US')}{' '}
+                {computedUnit.currency} {fin.afterCommissionSuffix}
               </p>
             </div>
           )}
 
           <p className="mt-3 text-[10px] text-gray-400">
-            سعر السوق ده تقدير صاحب الوحدة وعلى مسؤوليته — مش تقييم رسمي من
-            المنصة.
+            {fin.marketDisclaimer}
           </p>
         </section>
 
-        {/* ==================== 7. جدول تفصيل الأقساط والمطلوب ==================== */}
+        {/* 7. جدول تفصيل الأقساط والمطلوب */}
         <section className="mt-4 overflow-hidden rounded-[18px] border border-gray-200/80 bg-white shadow-sm">
           <div className="divide-y divide-gray-100 text-xs sm:text-[13px]">
             <div className="flex items-center justify-between px-5 py-3.5">
-              <span className="text-gray-500">
-                المتبقي للمطور (هتكمّله أقساط)
-              </span>
-              <strong className="font-extrabold text-[#0a1122]">
-                {computedUnit.remainingToDeveloper.toLocaleString('en-US')} ج.م
+              <span className="text-gray-500">{fin.remainingToDev}</span>
+              <strong className="font-extrabold text-[var(--brand-navy,#0a1122)]">
+                {computedUnit.remainingToDeveloper.toLocaleString('en-US')}{' '}
+                {computedUnit.currency}
               </strong>
             </div>
 
             <div className="flex items-center justify-between px-5 py-3.5">
-              <span className="text-gray-500">القسط</span>
-              <strong className="font-extrabold text-[#0a1122]">
-                {computedUnit.installmentAmount.toLocaleString('en-US')} ج.م ·{' '}
-                {computedUnit.installmentFreq}
+              <span className="text-gray-500">{fin.installment}</span>
+              <strong className="font-extrabold text-[var(--brand-navy,#0a1122)]">
+                {computedUnit.installmentAmount.toLocaleString('en-US')}{' '}
+                {computedUnit.currency} · {computedUnit.installmentFreq}
               </strong>
             </div>
 
             <div className="flex items-center justify-between px-5 py-3.5">
-              <span className="text-gray-500">باقي على الأقساط تقريبًا</span>
-              <strong className="font-extrabold text-[#0a1122]">
+              <span className="text-gray-500">{fin.remainingYearsLabel}</span>
+              <strong className="font-extrabold text-[var(--brand-navy,#0a1122)]">
                 {computedUnit.yearsLeft > 0
-                  ? `${computedUnit.yearsLeft} سنة`
-                  : 'خالصة الأقساط'}
+                  ? `${computedUnit.yearsLeft} ${fin.yearWord}`
+                  : fin.fullyPaid}
               </strong>
             </div>
 
             <div className="flex items-center justify-between px-5 py-3.5">
-              <span className="text-gray-500">الاستلام</span>
-              <strong className="font-extrabold text-[#0a1122]">
+              <span className="text-gray-500">{fin.delivery}</span>
+              <strong className="font-extrabold text-[var(--brand-navy,#0a1122)]">
                 {computedUnit.deliveryYear}
               </strong>
             </div>
 
             <div className="px-5 py-3.5">
               <div className="flex items-center justify-between">
-                <span className="text-gray-500">
-                  عمولة المنصة على المشتري (1.25% من إجمالي التعاقد)
-                </span>
-                <strong className="font-extrabold text-[#0a1122]">
-                  {computedUnit.commission.toLocaleString('en-US')} ج.م
+                <span className="text-gray-500">{fin.commissionLabel}</span>
+                <strong className="font-extrabold text-[var(--brand-navy,#0a1122)]">
+                  {computedUnit.commission.toLocaleString('en-US')}{' '}
+                  {computedUnit.currency}
                 </strong>
               </div>
               <p className="mt-1 text-right text-[10px] text-gray-400">
-                بتدفع بس عند إتمام التنازل — للبايع مجانًا تمامًا، مفيش عمولة
-                عليه
+                {fin.commissionSub}
               </p>
             </div>
 
             <div className="flex items-center justify-between bg-[#f1f5f9] px-5 py-4">
-              <span className="font-extrabold text-[#0a1122]">
-                إجمالي المطلوب منك دلوقتي
+              <span className="font-extrabold text-[var(--brand-navy,#0a1122)]">
+                {fin.totalRequiredNow}
               </span>
-              <strong className="text-sm font-extrabold text-[#0a1122] sm:text-base">
-                {computedUnit.totalRequiredNow.toLocaleString('en-US')} ج.م
+              <strong className="text-sm font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-base">
+                {computedUnit.totalRequiredNow.toLocaleString('en-US')}{' '}
+                {computedUnit.currency}
               </strong>
             </div>
           </div>
         </section>
 
-        {/* ==================== 8. شريط الوحدات الأخرى في نفس المنطقة ==================== */}
+        {/* 8. شريط الوحدات الأخرى في نفس المنطقة */}
         {sameProjectCount > 0 && (
           <section className="mt-4 flex items-center justify-between rounded-[16px] border border-gray-200/80 bg-white px-5 py-4 shadow-sm">
             <div className="flex items-center gap-3 text-right">
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#e6f4f1] text-[#0b6954]">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]">
                 <Building2 className="size-4" />
               </span>
               <div>
-                <p className="text-xs font-extrabold text-[#0a1122] sm:text-[13px]">
-                  في {sameProjectCount} وحدة تانية في {computedUnit.areaName}
+                <p className="text-xs font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-[13px]">
+                  {t.sameAreaBanner.prefix} {sameProjectCount}{' '}
+                  {t.sameAreaBanner.middle} {computedUnit.areaName}
                 </p>
                 <p className="mt-0.5 text-[11px] text-gray-400">
-                  بأسعار كاش ومساحات متنوعة بدون أوفر
+                  {t.sameAreaBanner.sub}
                 </p>
               </div>
             </div>
 
             <Link
               href="/opportunities"
-              className="shrink-0 text-xs font-bold text-[#0b6954] hover:underline"
+              className="shrink-0 text-xs font-bold text-[var(--brand-primary,#007a5a)] hover:underline"
             >
-              شوفهم كلهم
+              {t.sameAreaBanner.viewAllBtn}
             </Link>
           </section>
         )}
 
-        {/* ==================== 9. قسم فرص مميزة مشابهة (3 أعمدة على الكمبيوتر وعمودين على الموبايل) ==================== */}
+        {/* 9. قسم فرص مميزة مشابهة */}
         {similarDbUnits.length > 0 && (
           <section className="mt-8">
             <div className="flex flex-wrap items-baseline justify-between gap-2 text-right">
-              <h2 className="text-base font-extrabold text-[#0a1122] sm:text-lg">
-                فرص مميزة مشابهة
+              <h2 className="text-base font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-lg">
+                {t.similarSection.title}
               </h2>
               <span className="text-[11px] text-gray-400">
-                وحدات حقيقية أخرى معروضة للتنازل بدون أوفر
+                {t.similarSection.subtitle}
               </span>
             </div>
 
@@ -790,15 +644,15 @@ export default function PropertyDetailsPage() {
                         className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                       />
                       {item.featured && (
-                        <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-0.5 text-[9px] font-bold text-amber-700 shadow-sm">
+                        <span className="absolute top-2 left-2 inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-0.5 text-[9px] font-bold text-amber-700 shadow-sm">
                           <Star className="size-2.5 fill-amber-400 text-amber-500" />
-                          <span>مميزة</span>
+                          <span>{t.featuredBadge}</span>
                         </span>
                       )}
                     </div>
 
                     <div className="p-3 text-right">
-                      <h3 className="line-clamp-1 min-h-[18px] text-xs font-extrabold text-[#0a1122] group-hover:text-[#0b6954] sm:text-[13px]">
+                      <h3 className="line-clamp-1 min-h-[18px] text-xs font-extrabold text-[var(--brand-navy,#0a1122)] group-hover:text-[var(--brand-primary,#007a5a)] sm:text-[13px]">
                         {item.name}
                       </h3>
                       <p className="mt-0.5 line-clamp-1 text-[10px] text-gray-400">
@@ -807,15 +661,16 @@ export default function PropertyDetailsPage() {
                       <p className="mt-1.5 line-clamp-1 text-[10px] text-gray-500">
                         {item.specs}
                       </p>
-                      <p className="mt-2 text-[11px] font-extrabold text-[#0a1122] tabular-nums">
-                        المطلوب كاش: {item.cash} ج.م
+                      <p className="mt-2 text-[11px] font-extrabold text-[var(--brand-navy,#0a1122)] tabular-nums">
+                        {t.similarSection.requiredCashPrefix} {item.cash}{' '}
+                        {item.currency}
                       </p>
                     </div>
                   </div>
 
-                  <div className="px-3 pb-3 pt-1 text-right">
-                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#0b6954]">
-                      <span>شوف التفاصيل</span>
+                  <div className="px-3 pt-1 pb-3 text-right">
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[var(--brand-primary,#007a5a)]">
+                      <span>{t.similarSection.viewDetailsBtn}</span>
                       <span>←</span>
                     </span>
                   </div>
@@ -825,310 +680,19 @@ export default function PropertyDetailsPage() {
           </section>
         )}
 
-        {/* ==================== 10. نموذج الحجز الفعلي للوحدة ==================== */}
-        <section className="mt-8 rounded-[20px] border border-gray-200/90 bg-white p-5 text-right shadow-sm sm:p-8">
-          <h2 className="text-lg font-extrabold text-[#0a1122] sm:text-xl">
-            عايز تلحق تحجز الفرصة دي؟
-          </h2>
-          <p className="mt-1.5 text-xs leading-relaxed text-gray-500">
-            سجّل بياناتك دلوقتي — مسؤول حالة هيتواصل معاك بتفاصيل الوحدة (
-            {computedUnit.code}) وإجراءات التنازل.
-          </p>
-
-          {offerSubmitted ? (
-            <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-6 text-center">
-              <p className="text-sm font-extrabold text-emerald-800">
-                تم تسجيل اهتمامك بالوحدة ({computedUnit.projectName}) بنجاح! 🎉
-              </p>
-              <p className="mt-1.5 text-xs text-emerald-700">
-                تم إرسال طلبك لقسم المشترين في الإدارة مع تحديد كود هذه الوحدة،
-                وسيتواصل معك مسؤول الحالة عبر الواتساب والمكالمات في أقرب وقت.
-              </p>
-            </div>
-          ) : (
-            <form onSubmit={handleInterestSubmit} className="mt-6 space-y-5">
-              {offerError && (
-                <div className="rounded-xl bg-red-50 p-3 text-center text-xs font-bold text-red-600">
-                  {offerError}
-                </div>
-              )}
-
-              <div>
-                <label className="mb-2 block text-xs font-bold text-[#0a1122]">
-                  الاسم
-                </label>
-                <input
-                  type="text"
-                  value={buyerName}
-                  onChange={(e) => setBuyerName(e.target.value)}
-                  placeholder="اكتب اسمك الكامل"
-                  required
-                  className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-xs text-[#0a1122] focus:border-[#0b6954] focus:outline-none sm:text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-xs font-bold text-[#0a1122]">
-                  رقم الواتساب
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="tel"
-                    dir="ltr"
-                    value={buyerPhone}
-                    onChange={(e) => setBuyerPhone(e.target.value)}
-                    placeholder="01xxxxxxxxx"
-                    required
-                    className="h-11 flex-1 rounded-xl border border-gray-200 bg-white px-4 text-right text-xs font-medium text-[#0a1122] focus:border-[#0b6954] focus:outline-none sm:text-sm"
-                  />
-                  <div className="relative">
-                    <select
-                      value={countryCode}
-                      onChange={(e) => setCountryCode(e.target.value)}
-                      className="h-11 appearance-none rounded-xl border border-gray-200 bg-white pr-3 pl-7 text-xs font-bold text-[#0a1122] focus:border-[#0b6954] focus:outline-none"
-                    >
-                      <option value="+20">🇪🇬 مصر +20</option>
-                      <option value="+966">🇸🇦 السعودية +966</option>
-                      <option value="+971">🇦🇪 الإمارات +971</option>
-                    </select>
-                    <ChevronLeft className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 -rotate-90 text-gray-400" />
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="mb-2 block text-xs font-bold text-[#0a1122]">
-                  إيه الأسئلة أو التفاصيل اللي تحب نوضحهالك في المكالمة؟
-                </label>
-                <textarea
-                  rows={3}
-                  value={buyerNotes}
-                  onChange={(e) => setBuyerNotes(e.target.value)}
-                  placeholder="اختياري..."
-                  className="w-full rounded-xl border border-gray-200 bg-white p-3.5 text-xs text-[#0a1122] placeholder:text-gray-400 focus:border-[#0b6954] focus:outline-none sm:text-sm"
-                />
-                <p className="mt-1 text-[10px] text-gray-400">
-                  أهم النقط اللي تهمك تعرفها عشان نجهزلك كل الإجابات قبل ما
-                  نكلمك.
-                </p>
-              </div>
-
-              <fieldset>
-                <legend className="mb-2.5 text-xs font-bold text-[#0a1122]">
-                  إنت جاهز للتنفيذ في قد إيه؟
-                </legend>
-                <div className="space-y-2.5">
-                  <label
-                    onClick={() => setReadiness('week')}
-                    className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3.5 text-xs transition ${
-                      readiness === 'week'
-                        ? 'border-[#0b6954] bg-[#eff8f6] font-bold text-[#0a1122]'
-                        : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="readiness"
-                      checked={readiness === 'week'}
-                      onChange={() => setReadiness('week')}
-                      className="size-4 accent-[#0b6954]"
-                    />
-                    <span>
-                      معايا الكاش وجاهز أنفّذ خلال أسبوع لو الورق سليم
-                    </span>
-                  </label>
-
-                  <label
-                    onClick={() => setReadiness('month')}
-                    className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3.5 text-xs transition ${
-                      readiness === 'month'
-                        ? 'border-[#0b6954] bg-[#eff8f6] font-bold text-[#0a1122]'
-                        : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="readiness"
-                      checked={readiness === 'month'}
-                      onChange={() => setReadiness('month')}
-                      className="size-4 accent-[#0b6954]"
-                    />
-                    <span>جاهز خلال شهر لـ 3 شهور</span>
-                  </label>
-
-                  <label
-                    onClick={() => setReadiness('info')}
-                    className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3.5 text-xs transition ${
-                      readiness === 'info'
-                        ? 'border-[#0b6954] bg-[#eff8f6] font-bold text-[#0a1122]'
-                        : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="readiness"
-                      checked={readiness === 'info'}
-                      onChange={() => setReadiness('info')}
-                      className="size-4 accent-[#0b6954]"
-                    />
-                    <span>لسه بجمع معلومات وبقارن</span>
-                  </label>
-                </div>
-                <p className="mt-1.5 text-[10px] text-gray-400">
-                  عشان نرتّب معاك الإجراءات والخطوات في الوقت المناسب ليك.
-                </p>
-              </fieldset>
-
-              <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-gray-200 bg-gray-50/70 p-3.5 text-xs leading-relaxed text-gray-700">
-                <input
-                  type="checkbox"
-                  checked={agreedToCommission}
-                  onChange={(e) => setAgreedToCommission(e.target.checked)}
-                  required
-                  className="mt-0.5 size-4 rounded accent-[#0b6954]"
-                />
-                <span>
-                  أوافق على عمولة المنصة للمشتري (1.25% من إجمالي سعر التعاقد)
-                  وتُدفع عند إتمام التنازل فقط.
-                </span>
-              </label>
-
-              <div className="flex justify-center">
-                <div className="flex h-14 w-full max-w-[300px] items-center justify-between rounded-lg border border-gray-200 bg-[#fafafa] px-4">
-                  <div className="flex items-center gap-2.5">
-                    <span className="flex size-5 items-center justify-center rounded-full bg-[#10b981] text-white">
-                      <Check className="size-3.5 stroke-[3]" />
-                    </span>
-                    <span className="text-xs font-bold text-gray-700">
-                      تحقق ناجح!
-                    </span>
-                  </div>
-                  <div className="text-left">
-                    <span className="block font-sans text-[10px] font-extrabold tracking-tight text-gray-600">
-                      CLOUDFLARE
-                    </span>
-                    <span className="block font-sans text-[8px] text-gray-400">
-                      Turnstile
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={submittingOffer}
-                className="h-12 w-full rounded-xl bg-[#0b6954] text-sm font-bold text-white shadow-sm transition hover:bg-[#095443] disabled:opacity-50"
-              >
-                {submittingOffer
-                  ? 'جاري تسجيل اهتمامك...'
-                  : 'أكّد اهتمامي بالوحدة'}
-              </button>
-
-              <p className="text-center text-[10px] text-gray-400">
-                بياناتك في أمان — مش بنشاركها مع أي طرف.
-              </p>
-            </form>
-          )}
-        </section>
+        {/* 10. نموذج الحجز الفعلي للوحدة */}
+        <UnitInterestForm
+          unitCode={computedUnit.code}
+          projectName={computedUnit.projectName}
+          areaName={computedUnit.areaName}
+          unitType={computedUnit.unitType}
+          deliveryYear={computedUnit.deliveryYear}
+          requiredCash={computedUnit.requiredCash}
+          totalRequiredNow={computedUnit.totalRequiredNow}
+          installmentAmount={computedUnit.installmentAmount}
+          currentUserId={currentUserId}
+        />
       </div>
-
-      {/* ==================== نافذة تكبير الصور (Lightbox Modal) ==================== */}
-      {lightboxIndex !== null && (
-        <div
-          className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/90 p-4 backdrop-blur-sm"
-          onClick={() => setLightboxIndex(null)}
-        >
-          <div
-            className="mb-4 flex w-full max-w-4xl items-center justify-between text-white"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              type="button"
-              onClick={() => setLightboxIndex(null)}
-              className="flex size-10 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20"
-              aria-label="إغلاق"
-            >
-              <X className="size-5" />
-            </button>
-            <span className="text-xs font-bold">
-              {lightboxIndex + 1} / {computedUnit.gallery.length} —{' '}
-              {computedUnit.gallery[lightboxIndex]?.caption}
-            </span>
-          </div>
-
-          <div
-            className="relative flex w-full max-w-4xl items-center justify-center"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {computedUnit.gallery.length > 1 && (
-              <button
-                type="button"
-                onClick={() =>
-                  setLightboxIndex((prev) =>
-                    prev !== null
-                      ? (prev - 1 + computedUnit.gallery.length) %
-                        computedUnit.gallery.length
-                      : 0
-                  )
-                }
-                className="absolute right-2 z-10 flex size-10 items-center justify-center rounded-full bg-black/60 text-white transition hover:bg-black/80 sm:right-4 sm:size-12"
-                aria-label="السابق"
-              >
-                <ChevronRight className="size-6" />
-              </button>
-            )}
-
-            <img
-              src={computedUnit.gallery[lightboxIndex]?.url}
-              alt={computedUnit.gallery[lightboxIndex]?.caption}
-              className="max-h-[75vh] w-auto max-w-full rounded-2xl object-contain shadow-2xl"
-            />
-
-            {computedUnit.gallery.length > 1 && (
-              <button
-                type="button"
-                onClick={() =>
-                  setLightboxIndex((prev) =>
-                    prev !== null ? (prev + 1) % computedUnit.gallery.length : 0
-                  )
-                }
-                className="absolute left-2 z-10 flex size-10 items-center justify-center rounded-full bg-black/60 text-white transition hover:bg-black/80 sm:left-4 sm:size-12"
-                aria-label="التالي"
-              >
-                <ChevronLeft className="size-6" />
-              </button>
-            )}
-          </div>
-
-          {computedUnit.gallery.length > 1 && (
-            <div
-              className="mt-5 flex max-w-full gap-2 overflow-x-auto pb-2"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {computedUnit.gallery.map(
-                (img: { url: string; caption: string }, idx: number) => (
-                  <button
-                    key={`${img.url}-${idx}`}
-                    type="button"
-                    onClick={() => setLightboxIndex(idx)}
-                    className={`h-14 w-20 shrink-0 overflow-hidden rounded-lg border-2 transition ${
-                      lightboxIndex === idx
-                        ? 'scale-105 border-[#2ee59d]'
-                        : 'border-transparent opacity-50 hover:opacity-80'
-                    }`}
-                  >
-                    <img
-                      src={img.url}
-                      alt=""
-                      className="h-full w-full object-cover"
-                    />
-                  </button>
-                )
-              )}
-            </div>
-          )}
-        </div>
-      )}
     </main>
   )
 }

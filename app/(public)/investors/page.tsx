@@ -1,53 +1,663 @@
-"use client"
+'use client'
 
-import { useState, useTransition } from "react"
-import { submitInvestorLead } from "@/app/actions/submit-forms"
-import { Check, ChevronLeft, ChevronRight } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
+import { useState, useTransition } from 'react'
+import { submitInvestorLead } from '@/app/actions/submit-forms'
+import { Check, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
+import { CountrySelector } from '@/components/country-selector'
+import { TurnstileBox } from '@/components/auth-layout'
+import {
+  ALL_RESIDENCE_COUNTRIES,
+  SearchableCountryField,
+} from '@/components/seller/seller-shared'
+import arDict from '@/dictionaries/ar.json'
+
+const t = arDict.investorsPage
+const f = arDict.investorsPage.form
 
 type Answers = Record<string, string | boolean>
 
-const steps = ["بياناتك", "خبرتك ودوافعك", "القيمة والتمويل", "الأفق والإدارة", "التوقعات والتوقيت", "الإقرار والتوقيع"]
-const investorTypes = ["مستثمر فردي", "مستثمر ملائكي", "رأس مال جريء", "مؤسسة استثمارية", "شركة عائلية", "أخرى"]
-const ranges = ["50,000–100,000 دولار أمريكي", "100,000–250,000 دولار أمريكي", "250,000–500,000 دولار أمريكي", "500,000–1,000,000 دولار أمريكي", "أكثر من 1,000,000 دولار أمريكي"]
-const structures = ["حصة ملكية", "أداة قابلة للتحويل", "SAFE", "سند قابل للتحويل", "شراكة مباشرة"]
-const holdPeriods = ["1–2 سنة", "3–5 سنوات", "5–10 سنوات", "طويل الأجل"]
-const participation = ["مالي فقط", "استراتيجي", "عضو مجلس إدارة", "تشغيلي"]
-const returns = ["أقل من 10%", "10–15%", "15–20%", "20–30%", "أكثر من 30%"]
-
-function Field({ label, children, optional = false }: { label: string; children: React.ReactNode; optional?: boolean }) {
-  return <label className="flex flex-col gap-2 text-right text-sm font-semibold text-[#142038]"><span>{label} {!optional && <b className="text-destructive">*</b>} {optional && <small className="font-normal text-muted-foreground">اختياري</small>}</span>{children}</label>
+function Field({
+  label,
+  children,
+  optional = false,
+}: {
+  label: string
+  children: React.ReactNode
+  optional?: boolean
+}) {
+  return (
+    <label className="flex flex-col gap-2 text-right text-sm font-semibold text-[var(--brand-navy,#0a1122)]">
+      <span>
+        {label} {!optional && <b className="text-red-500">*</b>}{' '}
+        {optional && (
+          <small className="font-normal text-slate-400">
+            ({f.optionalWord})
+          </small>
+        )}
+      </span>
+      {children}
+    </label>
+  )
 }
 
-function Choice({ label, name, value, answers, setAnswers }: { label: string; name: string; value: string; answers: Answers; setAnswers: (key: string, value: string | boolean) => void }) {
-  const checked = answers[name] === value
-  return <button type="button" onClick={() => setAnswers(name, value)} className={`flex items-center justify-between rounded-lg border px-3 py-2 text-xs transition-colors ${checked ? "border-primary bg-primary/5 text-primary" : "border-border bg-white text-muted-foreground"}`}><span>{label}</span><span className={`flex size-4 items-center justify-center rounded-sm border ${checked ? "border-primary bg-primary text-primary-foreground" : "border-input"}`}>{checked && <Check />}</span></button>
+function MultiChoice({
+  label,
+  selected,
+  onToggle,
+}: {
+  label: string
+  selected: boolean
+  onToggle: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className={`flex items-center justify-between rounded-xl border px-3.5 py-2.5 text-xs font-semibold transition-colors ${
+        selected
+          ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]'
+          : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+      }`}
+    >
+      <span>{label}</span>
+      <span
+        className={`flex size-4 items-center justify-center rounded-sm border ${
+          selected
+            ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary,#007a5a)] text-white'
+            : 'border-slate-300'
+        }`}
+      >
+        {selected && <Check className="size-3" />}
+      </span>
+    </button>
+  )
 }
 
 export default function InvestorsPage() {
   const [step, setStep] = useState(1)
-  const [answers, setAnswers] = useState<Answers>({})
+  const [answers, setAnswers] = useState<Answers>({ country: 'EG' })
+  const [phoneCode, setPhoneCode] = useState('20')
+  const [selectedSectors, setSelectedSectors] = useState<string[]>([])
+  const [selectedNeededInfo, setSelectedNeededInfo] = useState<string[]>([])
   const [submitted, setSubmitted] = useState(false)
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState('')
-  const submit = () => { const formData = new FormData(); formData.set('name', String(answers.name ?? '')); formData.set('phone', String(answers.phone ?? '')); formData.set('email', String(answers.email ?? '')); formData.set('investor_type', String(answers.investorType ?? '')); formData.set('years_experience', String(answers.years ?? '')); formData.set('investment_range', String(answers.range ?? '')); formData.set('preferred_structure', String(answers.structure ?? '')); formData.set('participation_level', String(answers.participation ?? '')); formData.set('target_roi', String(answers.return ?? '')); formData.set('signature_name', String(answers.signature ?? '')); setError(''); startTransition(async () => { const result = await submitInvestorLead(formData); if (result.success) setSubmitted(true); else setError(result.error ?? 'تعذر إرسال الطلب') }) }
-  const update = (key: string, value: string | boolean) => setAnswers((current) => ({ ...current, [key]: value }))
-  const select = (name: string, options: string[], placeholder: string) => <Select value={String(answers[name] ?? "")} onValueChange={(value) => update(name, value ?? "")}><SelectTrigger className="h-11 w-full rounded-lg bg-white"><SelectValue placeholder={placeholder} /></SelectTrigger><SelectContent>{options.map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}</SelectContent></Select>
-  const textarea = (name: string, placeholder: string) => <Textarea value={String(answers[name] ?? "")} onChange={(event) => update(name, event.target.value)} placeholder={placeholder} className="min-h-28 resize-y rounded-lg bg-white" />
 
-  const renderStep = () => {
-    if (step === 1) return <div className="flex flex-col gap-6"><h3 className="border-b pb-3 text-lg font-bold">بيانات المستثمر</h3><Field label="الاسم الكامل"><Input value={String(answers.name ?? "")} onChange={(e) => update("name", e.target.value)} placeholder="محمود أحمد" /></Field><Field label="اسم الشركة / الجهة الاستثمارية" optional><Input value={String(answers.company ?? "")} onChange={(e) => update("company", e.target.value)} /></Field><Field label="الدولة والمدينة"><Input value={String(answers.location ?? "")} onChange={(e) => update("location", e.target.value)} placeholder="مصر، القاهرة" /></Field><Field label="الجنسية" optional><Input value={String(answers.nationality ?? "")} onChange={(e) => update("nationality", e.target.value)} /></Field><Field label="البريد الإلكتروني"><Input type="email" value={String(answers.email ?? "")} onChange={(e) => update("email", e.target.value)} placeholder="name@example.com" /></Field><Field label="رقم الهاتف"><Input value={String(answers.phone ?? "")} onChange={(e) => update("phone", e.target.value)} placeholder="011 000 0000" /></Field><Field label="المسمى الوظيفي" optional><Input value={String(answers.role ?? "")} onChange={(e) => update("role", e.target.value)} /></Field><Field label="الموقع الإلكتروني / LinkedIn" optional><Input value={String(answers.linkedin ?? "")} onChange={(e) => update("linkedin", e.target.value)} /></Field><Field label="طبيعة المستثمر">{select("investorType", investorTypes, "اختر طبيعة المستثمر")}</Field></div>
-    if (step === 2) return <div className="flex flex-col gap-6"><h3 className="border-b pb-3 text-lg font-bold">الخبرة المهنية والاستثمارية</h3><Field label="ما هي خبرتك الاستثمارية والمهنية؟" optional>{textarea("experience", "اكتب نبذة عن خبرتك...")}</Field><Field label="سنوات الخبرة"><Input value={String(answers.years ?? "")} onChange={(e) => update("years", e.target.value)} placeholder="أقل من 3 سنوات" /></Field><Field label="ما المجالات التي تمتلك فيها خبرة؟"><div className="grid grid-cols-2 gap-2">{["العقارات", "التكنولوجيا", "التجارة الإلكترونية", "إدارة الشركات", "التمويل", "التسويق", "التطوير العقاري", "أخرى"].map((item) => <Choice key={item} label={item} name="field" value={item} answers={answers} setAnswers={update} />)}</div></Field><Field label="هل سبق لك الاستثمار في شركات ناشئة أو منصات رقمية؟">{select("startup", ["نعم", "لا"], "اختر إجابة")}</Field><Field label="إذا كانت الإجابة نعم، يرجى تقديم أمثلة مختصرة" optional>{textarea("examples", "اكتب أمثلة...")}</Field><Field label="ما الدافع الرئيسي وراء اهتمامك بالاستثمار في عقار إكزت؟">{textarea("motivation", "اكتب دوافعك...")}</Field><Field label="ما الذي جذبك إلى نموذج عقار إكزت؟" optional>{textarea("attraction", "اكتب إجابتك...")}</Field><Field label="ما أكبر فرصة تراها في المشروع؟" optional>{textarea("opportunity", "اكتب إجابتك...")}</Field></div>
-    if (step === 3) return <div className="flex flex-col gap-6"><h3 className="border-b pb-3 text-lg font-bold">القيمة والتمويل وهيكل الاستثمار</h3><Field label="ما القيمة الاستراتيجية التي تستطيع إضافتها؟" optional>{textarea("value", "اكتب القيمة التي يمكنك تقديمها...")}</Field><Field label="نطاق الاستثمار التقديري">{select("range", ranges, "اختر نطاق الاستثمار")}</Field><Field label="المبلغ المحدد بالدولار الأمريكي"><Input type="number" value={String(answers.amount ?? "")} onChange={(e) => update("amount", e.target.value)} placeholder="500000" /></Field><Field label="المب��غ الممكن تقديمه بالعملة المصرية" optional><Input value={String(answers.localAmount ?? "")} onChange={(e) => update("localAmount", e.target.value)} /></Field><Field label="تفضيل هيكل الاستثمار">{select("structure", structures, "اختر هيكل الاستثمار")}</Field><Field label="النسبة المتوقعة للملكية (%)" optional><Input type="number" value={String(answers.ownership ?? "")} onChange={(e) => update("ownership", e.target.value)} placeholder="%" /></Field><Field label="هل تفضل أن يكون الاستثمار مباشرًا أم عبر صندوق؟">{select("vehicle", ["استثمار مباشر", "صندوق استثماري"], "اختر الطريقة")}</Field></div>
-    if (step === 4) return <div className="flex flex-col gap-6"><h3 className="border-b pb-3 text-lg font-bold">الأفق الزمني والإدارة</h3><Field label="مدة الاحتفاظ">{select("holding", holdPeriods, "اختر مدة الاحتفاظ")}</Field><Field label="مستوى المشاركة في الإدارة">{select("participation", participation, "اختر مستوى المشاركة")}</Field><Field label="هل ترغب في المشاركة في اتخاذ القرارات الاستراتيجية؟">{select("strategic", ["نعم", "لا"], "اختر إجابة")}</Field><Field label="أسئلة المستثمر" optional>{textarea("questions", "ما الأسئلة التي ترغب في طرحها؟")}</Field><Field label="ما المعلومات الإضافية التي تحتاجها؟" optional><div className="grid grid-cols-2 gap-2">{["نموذج الأعمال", "البيانات المالية", "خطة التسويق", "التوقعات المالية", "هيكل الملكية", "بيانات العملاء", "السوق والمنافسين", "الوثائق القانونية", "أخرى"].map((item) => <Choice key={item} label={item} name="information" value={item} answers={answers} setAnswers={update} />)}</div></Field></div>
-    if (step === 5) return <div className="flex flex-col gap-6"><h3 className="border-b pb-3 text-lg font-bold">التوقعات والتوقيت</h3><Field label="ما توقعاتك للعائد السنوي المستهدف؟">{select("return", returns, "اختر العائد السنوي")}</Field><Field label="ما تقييمك لأهمية فرصة الاستثمار؟">{select("importance", ["مهم جدًا", "مهم", "متوسط", "منخفض"], "اختر التقييم")}</Field><Field label="ما أكبر مخاطرة تراها؟" optional>{textarea("risk", "اكتب وجهة نظرك...")}</Field><Field label="ما الذي يمكن أن يجعل قرارك الاستثماري أكثر اطمئنانًا؟" optional>{textarea("confidence", "اكتب إجابتك...")}</Field><Field label="في حال توافق المؤشرات الأولية بين الطرفين، ما الخطوة التالية؟">{select("next", ["اجتماع مع الإدارة", "مراجعة المستندات", "بدء إجراءات الاستثمار"], "اختر الخطوة")}</Field><Field label="الموعد المناسب للتواصل" optional><Input value={String(answers.contactTime ?? "")} onChange={(e) => update("contactTime", e.target.value)} placeholder="اختر موعدًا مناسبًا" /></Field></div>
-    return <div className="flex flex-col gap-6"><h3 className="border-b pb-3 text-lg font-bold">الإقرار والتوقيع</h3><div className="rounded-xl bg-muted/60 p-5 text-sm leading-8 text-muted-foreground">أقر بأن المعلومات التي قدمتها في هذا النموذج صحيحة ودقيقة، وأن هذا النموذج يمثل إبداء اهتمام أوليًا ولا يمثل التزامًا نهائيًا بالاستثمار. أوافق على مشاركة البيانات اللازمة لمراجعة الطلب والتواصل معي، وأفهم أن أي استثمار يخضع للموافقة النهائية والوثائق القانونية.</div><label className="flex items-center gap-3 rounded-lg border p-4 text-sm font-semibold"><Checkbox checked={Boolean(answers.agreement)} onCheckedChange={(checked) => update("agreement", Boolean(checked))} /> قرأت الإقرار أعلاه وأوافق عليه.</label><Field label="الاسم كتوقيع"><Input value={String(answers.signature ?? "")} onChange={(e) => update("signature", e.target.value)} placeholder="اكتب اسمك الكامل" /></Field><p className="text-center text-xs text-muted-foreground">سيتم تسجيل التاريخ تلقائيًا عند الإرسال.</p><Button type="button" disabled={pending} onClick={submit} className="h-12 w-full">{pending ? 'جاري الإرسال...' : 'إرسال للمراجعة'}</Button><div className="mx-auto flex h-16 w-64 items-center justify-center gap-3 border bg-white text-xs text-muted-foreground">Verify you are human <span className="font-bold">CLOUDFLARE</span></div>{submitted && <p className="rounded-lg bg-primary/10 p-3 text-center text-sm text-primary">تم استلام إبداء اهتمامك، وسيتواصل معك فريقنا قريبًا.</p>}{error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-center text-sm text-red-700">{error}</p>}</div>
+  const update = (key: string, value: string | boolean) => {
+    setError('')
+    setAnswers((current) => ({ ...current, [key]: value }))
   }
 
-  return <div dir="rtl" className="bg-[#f5f6f8] text-[#142038]"><section className="bg-white px-5 py-20 text-center"><span className="text-sm font-semibold text-primary">علاقات المستثمرين</span><h1 className="mt-4 text-4xl font-bold md:text-5xl">استثمر في عقار إكزت</h1><p className="mx-auto mt-4 max-w-2xl leading-8 text-muted-foreground">منصة تخرج البائع بكامل ما دفعه، وتدخل المشتري بسعر التعاقد القديم — بدون أوفر. نفتح باب الاستثمار لشركاء يضيفون رأس مال وخبرة.</p><div className="mt-7 flex flex-wrap justify-center gap-3"><Button onClick={() => document.getElementById("investor-form")?.scrollIntoView({ behavior: "smooth" })}>قدّم إبداء اهتمامك</Button><span className="rounded-full bg-muted px-5 py-3 text-sm text-muted-foreground">الحد الأدنى للاستثمار 50,000 دولار أمريكي أو ما يعادله</span></div></section><main className="mx-auto grid max-w-6xl gap-8 px-5 py-12 lg:grid-cols-[1.25fr_0.85fr] lg:px-8"><aside className="order-2 flex flex-col gap-8 lg:order-2"><section><h2 className="text-xl font-bold">لماذا عقار إكزت؟</h2><ul className="mt-5 flex flex-col gap-4 text-sm leading-7 text-muted-foreground">{["سوق التنازل عن وحدات التقسيط في مصر ضخم ومن غير منصة منظمة", "نموذج خفيف الأصول: عم��لة عند نجاح النقل، ولا نحتفظ بمخزون عقاري", "توسع خليجي جاهز على نفس المنصة والبيانات – السعودية والإمارات على الخريطة"].map((item) => <li key={item} className="flex gap-3"><span className="mt-3 size-2 shrink-0 rounded-full bg-primary" />{item}</li>)}</ul></section><section><h2 className="text-xl font-bold">كيف تسير الأمور</h2><div className="mt-5 flex flex-col gap-5">{[["إبداء اهتمام", "املأ النموذج التالي في دقائق، لا يمثل أي التزام."], ["اتفاقية عدم إفصاح ومواد استثمارية", "بعد التوقيع نشارك العرض التفصيلي والأرقام."], ["لقاء مع المؤسس", "نناقش الهيكل والتقييم والخطوة التالية مباشرة."]].map(([title, text], index) => <div key={title} className="flex gap-4"><span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#142038] text-sm font-bold text-white">{index + 1}</span><div><h3 className="font-bold">{title}</h3><p className="mt-1 text-sm text-muted-foreground">{text}</p></div></div>)}</div></section><p className="rounded-full border bg-white px-5 py-3 text-center text-sm text-muted-foreground">سري — لمناقشات استثمارية أولية</p></aside><section id="investor-form" className="order-1 rounded-2xl border bg-white p-6 shadow-sm md:p-9 lg:order-1"><div className="flex items-center justify-between"><div><h2 className="text-2xl font-bold">نموذج المستثمر</h2><p className="mt-2 text-sm text-muted-foreground">الأسئلة تُحفظ في استبيان المستثمر، إجاباتك تحفظ في منتصف الطريق تلقائيًا.</p></div><span className="rounded-full bg-muted px-3 py-2 text-xs font-semibold">الخطوة {step} من 6</span></div><div className="mt-7 flex gap-1.5">{steps.map((item, index) => <span key={item} title={item} className={`h-1 flex-1 rounded-full ${index < step ? "bg-primary" : "bg-muted"}`} />)}</div><div className="mt-8">{renderStep()}</div><div className="mt-8 flex items-center justify-between border-t pt-6"><Button variant="outline" onClick={() => setStep((current) => Math.max(1, current - 1))} disabled={step === 1}><ChevronRight data-icon="inline-start" />رجوع</Button>{step < 6 ? <Button onClick={() => setStep((current) => Math.min(6, current + 1))}>التالي<ChevronLeft data-icon="inline-end" /></Button> : <Button onClick={() => setSubmitted(true)} disabled={!answers.agreement || !answers.signature}>إرسال إبداء الاهتمام</Button>}</div><p className="mt-5 text-center text-xs text-muted-foreground">بياناتك تظل سرية وآمنة ولا تُشارك خارج فريق الإدارة.</p></section></main></div>
-}
+  const toggleSector = (item: string) => {
+    setSelectedSectors((prev) =>
+      prev.includes(item) ? prev.filter((x) => x !== item) : [...prev, item]
+    )
+  }
 
+  const toggleNeededInfo = (item: string) => {
+    setSelectedNeededInfo((prev) =>
+      prev.includes(item) ? prev.filter((x) => x !== item) : [...prev, item]
+    )
+  }
+
+  const handleNextStep = () => {
+    setError('')
+    if (step === 1) {
+      if (
+        !String(answers.name || '').trim() ||
+        !String(answers.phone || '').trim() ||
+        !String(answers.email || '').trim() ||
+        !String(answers.investorType || '').trim()
+      ) {
+        setError(f.validationRequired)
+        return
+      }
+    }
+    if (step === 3) {
+      if (!String(answers.range || '').trim()) {
+        setError(f.validationRequired)
+        return
+      }
+    }
+    setStep((current) => Math.min(6, current + 1))
+  }
+
+  const submit = () => {
+    setError('')
+    if (!answers.agreement || !String(answers.signature || '').trim()) {
+      setError(f.validationAgree)
+      return
+    }
+
+    const rawPhone = String(answers.phone ?? '').trim().replace(/^0+/, '')
+    const fullPhone = rawPhone ? `+${phoneCode.replace('+', '')}${rawPhone}` : ''
+
+    const compiledNotes = [
+      answers.company ? `الشركة: ${answers.company}` : '',
+      answers.role ? `المسمى: ${answers.role}` : '',
+      answers.motivation ? `الدافع: ${answers.motivation}` : '',
+      answers.value ? `القيمة المضافة: ${answers.value}` : '',
+      answers.questions ? `أسئلة: ${answers.questions}` : '',
+      answers.contactTime ? `موعد التواصل: ${answers.contactTime}` : '',
+    ]
+      .filter(Boolean)
+      .join(' | ')
+
+    const formData = new FormData()
+    formData.set('name', String(answers.name ?? ''))
+    formData.set('phone', fullPhone)
+    formData.set('email', String(answers.email ?? ''))
+    formData.set('company', String(answers.company ?? ''))
+    formData.set('country', String(answers.country ?? 'EG'))
+    formData.set('investor_type', String(answers.investorType ?? ''))
+    formData.set('years_experience', String(answers.years ?? ''))
+    formData.set('investment_range', String(answers.range ?? ''))
+    formData.set('exact_amount', String(answers.amount ?? '0'))
+    formData.set('preferred_structure', String(answers.structure ?? ''))
+    formData.set('holding_period', String(answers.holding ?? ''))
+    formData.set('participation_level', String(answers.participation ?? ''))
+    formData.set('target_roi', String(answers.return ?? ''))
+    formData.set('signature_name', String(answers.signature ?? ''))
+    formData.set('notes', compiledNotes)
+    selectedSectors.forEach((sec) => formData.append('sectors', sec))
+
+    startTransition(async () => {
+      const result = await submitInvestorLead(formData)
+      if (result.success) {
+        setSubmitted(true)
+      } else {
+        setError(result.error ?? f.validationRequired)
+      }
+    })
+  }
+
+  const renderSelect = (
+    name: string,
+    options: string[],
+    placeholder = '—'
+  ) => (
+    <Select
+      value={String(answers[name] ?? '')}
+      onValueChange={(value) => update(name, value ?? '')}
+    >
+      <SelectTrigger className="h-11 w-full rounded-xl bg-white">
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((option) => (
+          <SelectItem key={option} value={option}>
+            {option}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )
+
+  const renderTextarea = (name: string, placeholder = '') => (
+    <Textarea
+      value={String(answers[name] ?? '')}
+      onChange={(event) => update(name, event.target.value)}
+      placeholder={placeholder}
+      className="min-h-24 resize-y rounded-xl bg-white"
+    />
+  )
+
+  const renderStepContent = () => {
+    if (step === 1) {
+      return (
+        <div className="flex flex-col gap-5">
+          <h3 className="border-b pb-3 text-lg font-extrabold">
+            {f.s1Title}
+          </h3>
+          <Field label={f.s1Name}>
+            <Input
+              value={String(answers.name ?? '')}
+              onChange={(e) => update('name', e.target.value)}
+              placeholder={f.s1NamePlaceholder}
+              className="h-11 rounded-xl"
+            />
+          </Field>
+
+          <Field label={f.s1Company} optional>
+            <Input
+              value={String(answers.company ?? '')}
+              onChange={(e) => update('company', e.target.value)}
+              className="h-11 rounded-xl"
+            />
+          </Field>
+
+          <SearchableCountryField
+            label={`${f.s1Country} *`}
+            value={String(answers.country || 'EG')}
+            options={ALL_RESIDENCE_COUNTRIES}
+            onChange={(code) => {
+              update('country', code)
+              const found = ALL_RESIDENCE_COUNTRIES.find((c) => c.code === code)
+              if (found?.phoneCode) setPhoneCode(found.phoneCode)
+            }}
+          />
+
+          <Field label={f.s1Nationality} optional>
+            <Input
+              value={String(answers.nationality ?? '')}
+              onChange={(e) => update('nationality', e.target.value)}
+              className="h-11 rounded-xl"
+            />
+          </Field>
+
+          <Field label={f.s1Email}>
+            <Input
+              type="email"
+              dir="ltr"
+              value={String(answers.email ?? '')}
+              onChange={(e) => update('email', e.target.value)}
+              placeholder="name@example.com"
+              className="h-11 rounded-xl text-left"
+            />
+          </Field>
+
+          <Field label={f.s1Phone}>
+            <div dir="ltr" className="flex items-center gap-2">
+              <CountrySelector value={phoneCode} onChange={setPhoneCode} />
+              <Input
+                type="tel"
+                dir="ltr"
+                value={String(answers.phone ?? '')}
+                onChange={(e) => update('phone', e.target.value)}
+                placeholder="10xxxxxxx"
+                className="h-11 flex-1 rounded-xl text-left"
+              />
+            </div>
+          </Field>
+
+          <Field label={f.s1Role} optional>
+            <Input
+              value={String(answers.role ?? '')}
+              onChange={(e) => update('role', e.target.value)}
+              className="h-11 rounded-xl"
+            />
+          </Field>
+
+          <Field label={f.s1Linkedin} optional>
+            <Input
+              dir="ltr"
+              value={String(answers.linkedin ?? '')}
+              onChange={(e) => update('linkedin', e.target.value)}
+              className="h-11 rounded-xl text-left"
+            />
+          </Field>
+
+          <Field label={f.s1Type}>
+            {renderSelect('investorType', f.investorTypes, f.s1TypePlaceholder)}
+          </Field>
+        </div>
+      )
+    }
+
+    if (step === 2) {
+      return (
+        <div className="flex flex-col gap-5">
+          <h3 className="border-b pb-3 text-lg font-extrabold">{f.s2Title}</h3>
+          <Field label={f.s2ExpBio} optional>
+            {renderTextarea('experience', f.s2ExpBioPlaceholder)}
+          </Field>
+          <Field label={f.s2Years}>
+            <Input
+              value={String(answers.years ?? '')}
+              onChange={(e) => update('years', e.target.value)}
+              placeholder={f.s2YearsPlaceholder}
+              className="h-11 rounded-xl"
+            />
+          </Field>
+          <Field label={f.s2Sectors}>
+            <div className="grid grid-cols-2 gap-2">
+              {f.fieldsOfExp.map((item) => (
+                <MultiChoice
+                  key={item}
+                  label={item}
+                  selected={selectedSectors.includes(item)}
+                  onToggle={() => toggleSector(item)}
+                />
+              ))}
+            </div>
+          </Field>
+          <Field label={f.s2StartupQ}>
+            {renderSelect('startup', f.yesNo)}
+          </Field>
+          <Field label={f.s2Examples} optional>
+            {renderTextarea('examples')}
+          </Field>
+          <Field label={f.s2Motivation} optional>
+            {renderTextarea('motivation')}
+          </Field>
+          <Field label={f.s2Attraction} optional>
+            {renderTextarea('attraction')}
+          </Field>
+          <Field label={f.s2Opportunity} optional>
+            {renderTextarea('opportunity')}
+          </Field>
+        </div>
+      )
+    }
+
+    if (step === 3) {
+      return (
+        <div className="flex flex-col gap-5">
+          <h3 className="border-b pb-3 text-lg font-extrabold">{f.s3Title}</h3>
+          <Field label={f.s3AddedValue} optional>
+            {renderTextarea('value')}
+          </Field>
+          <Field label={f.s3Range}>
+            {renderSelect('range', f.ranges, f.s3RangePlaceholder)}
+          </Field>
+          <Field label={f.s3ExactUsd} optional>
+            <Input
+              type="number"
+              dir="ltr"
+              value={String(answers.amount ?? '')}
+              onChange={(e) => update('amount', e.target.value)}
+              placeholder="100000"
+              className="h-11 rounded-xl text-left"
+            />
+          </Field>
+          <Field label={f.s3LocalAmount} optional>
+            <Input
+              value={String(answers.localAmount ?? '')}
+              onChange={(e) => update('localAmount', e.target.value)}
+              className="h-11 rounded-xl"
+            />
+          </Field>
+          <Field label={f.s3Structure}>
+            {renderSelect('structure', f.structures, f.s3StructurePlaceholder)}
+          </Field>
+          <Field label={f.s3Ownership} optional>
+            <Input
+              type="number"
+              dir="ltr"
+              value={String(answers.ownership ?? '')}
+              onChange={(e) => update('ownership', e.target.value)}
+              placeholder="%"
+              className="h-11 rounded-xl text-left"
+            />
+          </Field>
+          <Field label={f.s3Vehicle} optional>
+            {renderSelect('vehicle', f.vehicles)}
+          </Field>
+        </div>
+      )
+    }
+
+    if (step === 4) {
+      return (
+        <div className="flex flex-col gap-5">
+          <h3 className="border-b pb-3 text-lg font-extrabold">{f.s4Title}</h3>
+          <Field label={f.s4Hold}>
+            {renderSelect('holding', f.holdPeriods)}
+          </Field>
+          <Field label={f.s4Participation}>
+            {renderSelect('participation', f.participation)}
+          </Field>
+          <Field label={f.s4StrategicQ}>
+            {renderSelect('strategic', f.yesNo)}
+          </Field>
+          <Field label={f.s4Questions} optional>
+            {renderTextarea('questions')}
+          </Field>
+          <Field label={f.s4NeededInfo} optional>
+            <div className="grid grid-cols-2 gap-2">
+              {f.neededInfo.map((item) => (
+                <MultiChoice
+                  key={item}
+                  label={item}
+                  selected={selectedNeededInfo.includes(item)}
+                  onToggle={() => toggleNeededInfo(item)}
+                />
+              ))}
+            </div>
+          </Field>
+        </div>
+      )
+    }
+
+    if (step === 5) {
+      return (
+        <div className="flex flex-col gap-5">
+          <h3 className="border-b pb-3 text-lg font-extrabold">{f.s5Title}</h3>
+          <Field label={f.s5Return}>
+            {renderSelect('return', f.returns)}
+          </Field>
+          <Field label={f.s5Importance} optional>
+            {renderSelect('importance', f.importanceLevels)}
+          </Field>
+          <Field label={f.s5Risk} optional>
+            {renderTextarea('risk')}
+          </Field>
+          <Field label={f.s5Confidence} optional>
+            {renderTextarea('confidence')}
+          </Field>
+          <Field label={f.s5NextStep} optional>
+            {renderSelect('next', f.nextStepsList)}
+          </Field>
+          <Field label={f.s5ContactTime} optional>
+            <Input
+              value={String(answers.contactTime ?? '')}
+              onChange={(e) => update('contactTime', e.target.value)}
+              className="h-11 rounded-xl"
+            />
+          </Field>
+        </div>
+      )
+    }
+
+    return (
+      <div className="flex flex-col gap-5">
+        <h3 className="border-b pb-3 text-lg font-extrabold">{f.s6Title}</h3>
+        <div className="rounded-xl bg-slate-50 p-5 text-sm leading-8 text-slate-600">
+          {f.s6Declaration}
+        </div>
+        <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 p-4 text-sm font-semibold">
+          <Checkbox
+            checked={Boolean(answers.agreement)}
+            onCheckedChange={(checked) => update('agreement', Boolean(checked))}
+          />
+          <span>{f.s6AgreeCheckbox}</span>
+        </label>
+        <Field label={f.s6SignatureLabel}>
+          <Input
+            value={String(answers.signature ?? '')}
+            onChange={(e) => update('signature', e.target.value)}
+            placeholder={f.s6SignaturePlaceholder}
+            className="h-11 rounded-xl"
+          />
+        </Field>
+        <p className="text-center text-xs text-slate-400">{f.s6AutoDateNote}</p>
+        <TurnstileBox />
+      </div>
+    )
+  }
+
+  return (
+    <div
+      dir="rtl"
+      className="min-h-screen bg-[var(--brand-surface,#f5f6f8)] text-[var(--brand-navy,#0a1122)]"
+    >
+      <section className="bg-white px-5 py-16 text-center sm:py-20">
+        <span className="text-sm font-bold text-[var(--brand-primary,#007a5a)]">
+          {t.hero.eyebrow}
+        </span>
+        <h1 className="mt-4 text-3xl font-extrabold sm:text-4xl md:text-5xl">
+          {t.hero.title}
+        </h1>
+        <p className="mx-auto mt-4 max-w-2xl text-sm leading-8 text-slate-500 sm:text-base">
+          {t.hero.subtitle}
+        </p>
+        <div className="mt-7 flex flex-wrap justify-center gap-3">
+          <Button
+            className="h-11 rounded-xl bg-[var(--brand-primary,#007a5a)] px-6 font-bold text-white hover:bg-[var(--brand-primary-hover,#006248)]"
+            onClick={() =>
+              document
+                .getElementById('investor-form')
+                ?.scrollIntoView({ behavior: 'smooth' })
+            }
+          >
+            {t.hero.ctaBtn}
+          </Button>
+          <span className="inline-flex items-center rounded-full bg-slate-100 px-5 py-2.5 text-xs font-semibold text-slate-600 sm:text-sm">
+            {t.hero.minTicketBadge}
+          </span>
+        </div>
+      </section>
+
+      <main className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:px-6 lg:grid-cols-[1.25fr_0.85fr] lg:px-8">
+        <aside className="order-2 flex flex-col gap-8">
+          <section className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-2xs">
+            <h2 className="text-xl font-extrabold">{t.sidebar.whyTitle}</h2>
+            <ul className="mt-4 flex flex-col gap-3.5 text-sm leading-7 text-slate-600">
+              {t.sidebar.whyPoints.map((item) => (
+                <li key={item} className="flex gap-3">
+                  <span className="mt-2.5 size-2 shrink-0 rounded-full bg-[var(--brand-primary,#007a5a)]" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <section className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-2xs">
+            <h2 className="text-xl font-extrabold">{t.sidebar.processTitle}</h2>
+            <div className="mt-5 flex flex-col gap-5">
+              {t.sidebar.processSteps.map(([title, text], index) => (
+                <div key={title} className="flex gap-4">
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[var(--brand-navy,#0a1122)] text-sm font-bold text-white">
+                    {index + 1}
+                  </span>
+                  <div>
+                    <h3 className="font-bold">{title}</h3>
+                    <p className="mt-1 text-xs leading-relaxed text-slate-500 sm:text-sm">
+                      {text}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <p className="rounded-full border border-slate-200 bg-white px-5 py-3 text-center text-xs font-bold text-slate-500 sm:text-sm">
+            {t.sidebar.confidentialBadge}
+          </p>
+        </aside>
+
+        <section
+          id="investor-form"
+          className="order-1 rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm sm:p-8"
+        >
+          {submitted ? (
+            <div className="py-12 text-center">
+              <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-[var(--brand-primary-light,#eaf8f2)] text-2xl font-bold text-[var(--brand-primary,#007a5a)]">
+                ✓
+              </div>
+              <h2 className="mt-4 text-2xl font-extrabold text-[var(--brand-navy,#0a1122)]">
+                {f.successTitle}
+              </h2>
+              <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-slate-600">
+                {f.successDesc}
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <h2 className="text-xl font-extrabold sm:text-2xl">
+                    {f.mainTitle}
+                  </h2>
+                  <p className="mt-1 text-xs text-slate-500 sm:text-sm">
+                    {f.mainSubtitle}
+                  </p>
+                </div>
+                <span className="shrink-0 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold">
+                  {f.stepWord} {step} {f.ofWord} 6
+                </span>
+              </div>
+
+              <div className="mt-5 flex gap-1.5">
+                {f.steps.map((item, index) => (
+                  <span
+                    key={item}
+                    title={item}
+                    className={`h-1.5 flex-1 rounded-full ${
+                      index < step
+                        ? 'bg-[var(--brand-primary,#007a5a)]'
+                        : 'bg-slate-200'
+                    }`}
+                  />
+                ))}
+              </div>
+
+              {error && (
+                <div className="mt-5 rounded-xl bg-red-50 p-3 text-center text-xs font-bold text-red-600">
+                  {error}
+                </div>
+              )}
+
+              <div className="mt-7">{renderStepContent()}</div>
+
+              <div className="mt-8 flex items-center justify-between gap-3 border-t border-slate-100 pt-6">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-11 rounded-xl px-5 font-bold"
+                  onClick={() => setStep((current) => Math.max(1, current - 1))}
+                  disabled={step === 1 || pending}
+                >
+                  <ChevronRight className="ml-1 size-4" />
+                  {f.backBtn}
+                </Button>
+
+                {step < 6 ? (
+                  <Button
+                    type="button"
+                    className="h-11 rounded-xl bg-[var(--brand-navy,#0a1122)] px-6 font-bold text-white hover:bg-[var(--brand-navy-hover,#16223f)]"
+                    onClick={handleNextStep}
+                  >
+                    {f.nextBtn}
+                    <ChevronLeft className="mr-1 size-4" />
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    disabled={pending}
+                    onClick={submit}
+                    className="h-11 flex-1 rounded-xl bg-[var(--brand-primary,#007a5a)] px-6 font-bold text-white hover:bg-[var(--brand-primary-hover,#006248)]"
+                  >
+                    {pending ? (
+                      <span className="inline-flex items-center gap-2">
+                        <Loader2 className="size-4 animate-spin" />
+                        {f.submittingBtn}
+                      </span>
+                    ) : (
+                      f.submitBtn
+                    )}
+                  </Button>
+                )}
+              </div>
+
+              <p className="mt-5 text-center text-xs text-slate-400">
+                {f.privacyNote}
+              </p>
+            </>
+          )}
+        </section>
+      </main>
+    </div>
+  )
+}

@@ -4,7 +4,6 @@ import { useEffect, useState, useTransition } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import {
   AlertTriangle,
-  Building2,
   Check,
   CheckCircle2,
   ExternalLink,
@@ -37,6 +36,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
+import { getCurrencySymbol, useTranslation } from "@/lib/i18n"
 import {
   deletePropertyAction,
   managePropertyPromotionAction,
@@ -86,96 +86,8 @@ export type SellRequest = {
   created_at: string
 }
 
-const ADMIN_COUNTRIES = [
-  { code: "ALL", label: "كل الدول", flag: "🌍", currency: "ج.م" },
-  { code: "EG", label: "مصر", flag: "🇪🇬", currency: "ج.م" },
-  { code: "RU", label: "روسيا", flag: "🇷🇺", currency: "₽" },
-  { code: "GE", label: "جورجيا", flag: "🇬🇪", currency: "$" },
-  { code: "AE", label: "الإمارات", flag: "🇦🇪", currency: "د.إ" },
-]
-
-const SELLER_STATUS_OPTIONS = [
-  {
-    value: "pending",
-    label: "١. في انتظار المراجعة",
-    badge: "bg-amber-100 text-amber-800",
-  },
-  {
-    value: "under_review",
-    label: "٢. جاري مراجعة المستندات",
-    badge: "bg-blue-100 text-blue-800",
-  },
-  {
-    value: "active",
-    label: "٣. معتمد ومعروض بالسوق",
-    badge: "bg-emerald-100 text-emerald-800",
-  },
-  {
-    value: "offer_received",
-    label: "٤. يوجد عرض شراء",
-    badge: "bg-purple-100 text-purple-800",
-  },
-  {
-    value: "transferring",
-    label: "٥. مرحلة نقل التعاقد",
-    badge: "bg-indigo-100 text-indigo-800",
-  },
-  {
-    value: "sold",
-    label: "٦. تمت عملية البيع",
-    badge: "bg-teal-700 text-white",
-  },
-  {
-    value: "paused_by_seller",
-    label: "⏸ متوقفة من المالك",
-    badge: "bg-orange-100 text-orange-800",
-  },
-  {
-    value: "deleted_by_seller",
-    label: "🗑 محذوفة من المالك",
-    badge: "bg-red-100 text-red-800 border border-red-300",
-  },
-  {
-    value: "rejected",
-    label: "٧. مرفوض",
-    badge: "bg-red-100 text-red-800",
-  },
-]
-
-const DOC_LABELS: Record<string, string> = {
-  contract: "عقد الوحدة الابتدائي",
-  receipts: "إيصالات السداد",
-  statement: "كشف حساب المطور",
-  national_id: "البطاقة الشخصية للمالك",
-}
-
 function getPropertyCountryCode(p: SellRequest) {
   return (p.country_code || p.country || "EG").toUpperCase()
-}
-
-function getStatusLabel(status: string | null | undefined) {
-  const st = status || "pending"
-  return SELLER_STATUS_OPTIONS.find((s) => s.value === st)?.label || st
-}
-
-function getUnitCurrency(countryCode?: string | null) {
-  const c = ADMIN_COUNTRIES.find(
-    (x) => x.code === (countryCode || "EG").toUpperCase()
-  )
-  return c ? c.currency : "ج.م"
-}
-
-function getUploadedDocsList(docs: Record<string, any> | null | undefined) {
-  if (!docs || typeof docs !== "object") return []
-  return Object.entries(docs)
-    .filter(([, val]) => val && typeof val === "object" && val.url)
-    .map(([key, val]) => ({
-      key,
-      label: DOC_LABELS[key] || key,
-      url: String(val.url),
-      name: String(val.name || "مستند"),
-      uploadedAt: String(val.uploaded_at || ""),
-    }))
 }
 
 function getRemainingDaysBeforePurge(lastEditIso?: string | null) {
@@ -217,6 +129,95 @@ export default function PropertiesTable({
   const router = useRouter()
   const searchParams = useSearchParams()
   const isPromotionsPage = mode === "promotions"
+
+  // سحب الترجمة والاتجاه واللغة من المحرك المركزي مباشرة
+  const { t: dict, locale, dir } = useTranslation()
+  const t = dict.admin.propertiesAdmin
+
+  const adminCountries = [
+    { code: "ALL", label: t.countries.ALL, flag: "🌍" },
+    { code: "EG", label: t.countries.EG, flag: "🇪🇬" },
+    { code: "RU", label: t.countries.RU, flag: "🇷🇺" },
+    { code: "GE", label: t.countries.GE, flag: "🇬🇪" },
+    { code: "AE", label: t.countries.AE, flag: "🇦🇪" },
+  ]
+
+  const sellerStatusOptions = [
+    {
+      value: "pending",
+      label: t.statuses.pending,
+      badge: "bg-amber-100 text-amber-800",
+    },
+    {
+      value: "under_review",
+      label: t.statuses.under_review,
+      badge: "bg-blue-100 text-blue-800",
+    },
+    {
+      value: "active",
+      label: t.statuses.active,
+      badge: "bg-emerald-100 text-emerald-800",
+    },
+    {
+      value: "offer_received",
+      label: t.statuses.offer_received,
+      badge: "bg-purple-100 text-purple-800",
+    },
+    {
+      value: "transferring",
+      label: t.statuses.transferring,
+      badge: "bg-indigo-100 text-indigo-800",
+    },
+    {
+      value: "sold",
+      label: t.statuses.sold,
+      badge: "bg-teal-700 text-white",
+    },
+    {
+      value: "paused_by_seller",
+      label: t.statuses.paused_by_seller,
+      badge: "bg-orange-100 text-orange-800",
+    },
+    {
+      value: "deleted_by_seller",
+      label: t.statuses.deleted_by_seller,
+      badge: "bg-red-100 text-red-800 border border-red-300",
+    },
+    {
+      value: "rejected",
+      label: t.statuses.rejected,
+      badge: "bg-red-100 text-red-800",
+    },
+  ]
+
+  const docLabels: Record<string, string> = {
+    contract: t.docs.contract,
+    receipts: t.docs.receipts,
+    statement: t.docs.statement,
+    national_id: t.docs.national_id,
+  }
+
+  function getStatusLabel(status: string | null | undefined) {
+    const st = status || "pending"
+    return sellerStatusOptions.find((s) => s.value === st)?.label || st
+  }
+
+  function getUnitCurrency(countryCode?: string | null) {
+    return getCurrencySymbol(countryCode || "EG", locale)
+  }
+
+  function getUploadedDocsList(docs: Record<string, any> | null | undefined) {
+    if (!docs || typeof docs !== "object") return []
+    return Object.entries(docs)
+      .filter(([, val]) => val && typeof val === "object" && val.url)
+      .map(([key, val]) => ({
+        key,
+        label: docLabels[key] || key,
+        url: String(val.url),
+        name: String(val.name || t.docs.fallbackName),
+        uploadedAt: String(val.uploaded_at || ""),
+      }))
+  }
 
   const [countryFilter, setCountryFilter] = useState<string>("ALL")
   const [search, setSearch] = useState("")
@@ -297,12 +298,12 @@ export default function PropertiesTable({
           const res = await purgeSellerDeletedPropertiesAction()
           if (res.success) {
             setNotice({
-              text: "تم مسح جميع الوحدات المحذوفة نهائياً ✓",
+              text: t.notices.purgedSuccess,
             })
             router.refresh()
           } else {
             setNotice({
-              text: res.error || "تعذر مسح الوحدات المحذوفة.",
+              text: res.error || "Error",
               isError: true,
             })
           }
@@ -327,12 +328,12 @@ export default function PropertiesTable({
           if (res.success) {
             const stLabel = getStatusLabel(confirmAction.newStatus)
             setNotice({
-              text: `تم تحديث حالة "${target.project_name || target.name}" إلى (${stLabel}).`,
+              text: `${t.notices.statusUpdated} ("${target.project_name || target.name}" → ${stLabel})`,
             })
             router.refresh()
           } else {
             setNotice({
-              text: res.error || "حدث خطأ أثناء تحديث الحالة.",
+              text: res.error || "Error",
               isError: true,
             })
           }
@@ -340,12 +341,12 @@ export default function PropertiesTable({
           const res = await deletePropertyAction(target.id)
           if (res.success) {
             setNotice({
-              text: `تم حذف وحدة "${target.project_name || target.name}" نهائياً.`,
+              text: `${t.notices.deletedSuccess} ("${target.project_name || target.name}")`,
             })
             router.refresh()
           } else {
             setNotice({
-              text: res.error || "تعذر حذف الوحدة.",
+              text: res.error || "Error",
               isError: true,
             })
           }
@@ -359,13 +360,13 @@ export default function PropertiesTable({
             setNotice({
               text:
                 confirmAction.promoAction === "activate"
-                  ? `⭐ تم تفعيل تمييز "${target.project_name || target.name}" (${confirmAction.days} يوم)`
-                  : `تم إلغاء تمييز "${target.project_name || target.name}".`,
+                  ? `${t.notices.promoActivated} ("${target.project_name || target.name}" - ${confirmAction.days} ${t.badges.dayWord})`
+                  : `${t.notices.promoCancelled} ("${target.project_name || target.name}")`,
             })
             router.refresh()
           } else {
             setNotice({
-              text: res.error || "تعذر تحديث التمييز.",
+              text: res.error || "Error",
               isError: true,
             })
           }
@@ -428,7 +429,6 @@ export default function PropertiesTable({
       if (isPromotionsPage) return currentStatus !== "deleted_by_seller"
     }
 
-    // فلترة صفحة طلبات الإعلان المستقلة
     if (isPromotionsPage) {
       if (currentStatus === "deleted_by_seller") return false
       if (promoTab === "pending_payment") {
@@ -443,7 +443,6 @@ export default function PropertiesTable({
       return Boolean(p.is_featured || p.featured_status === "pending_payment")
     }
 
-    // فلترة صفحة طلبات البيع العادية
     if (statusFilter === "deleted") {
       return currentStatus === "deleted_by_seller"
     }
@@ -482,7 +481,7 @@ export default function PropertiesTable({
               className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-800 hover:bg-blue-100"
             >
               <RefreshCw className="size-2.5" />
-              <span>معدّلة من المالك</span>
+              <span>{t.badges.editedBySeller}</span>
             </button>
           )}
 
@@ -494,14 +493,14 @@ export default function PropertiesTable({
               className="inline-flex items-center gap-1 rounded-md border border-purple-200 bg-purple-50 px-2 py-0.5 text-[10px] font-bold text-purple-800 hover:bg-purple-100"
             >
               <RefreshCw className="size-2.5" />
-              <span>معاد عرضها</span>
+              <span>{t.badges.resumedBySeller}</span>
             </button>
           )}
 
         {property.status === "paused_by_seller" && (
           <span className="inline-flex items-center gap-1 rounded-md border border-orange-200 bg-orange-50 px-2 py-0.5 text-[10px] font-bold text-orange-800">
             <PauseCircle className="size-2.5" />
-            <span>متوقفة من المالك</span>
+            <span>{t.badges.pausedBySeller}</span>
           </span>
         )}
 
@@ -509,7 +508,9 @@ export default function PropertiesTable({
           <span className="inline-flex items-center gap-1 rounded-md border border-red-300 bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-800">
             <Trash2 className="size-2.5" />
             <span>
-              حذفها المالك ({getRemainingDaysBeforePurge(property.last_seller_edit_at)} أيام)
+              {t.badges.deletedBySellerPrefix} (
+              {getRemainingDaysBeforePurge(property.last_seller_edit_at)}{" "}
+              {t.badges.daysWord})
             </span>
           </span>
         )}
@@ -521,7 +522,9 @@ export default function PropertiesTable({
             className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-[#105C50] hover:bg-emerald-100"
           >
             <FileCheck2 className="size-2.5" />
-            <span>{docs.length} مستند</span>
+            <span>
+              {docs.length} {t.badges.docWord}
+            </span>
           </button>
         )}
 
@@ -540,7 +543,8 @@ export default function PropertiesTable({
           >
             <Star className="size-2.5 fill-amber-500 text-amber-600" />
             <span>
-              مميزة ({property.featured_days || 14} يوم)
+              {t.badges.featuredPrefix} ({property.featured_days || 14}{" "}
+              {t.badges.dayWord})
               {property.featured_fawry_code
                 ? ` · ${property.featured_fawry_code}`
                 : ""}
@@ -564,8 +568,8 @@ export default function PropertiesTable({
             >
               <Sparkles className="size-2.5 text-amber-700" />
               <span>
-                طلب تمييز ({property.featured_days || 14} يوم) ·{" "}
-                {property.featured_fawry_code || "AD"}
+                {t.badges.promoReqPrefix} ({property.featured_days || 14}{" "}
+                {t.badges.dayWord}) · {property.featured_fawry_code || "AD"}
               </span>
             </button>
           )}
@@ -574,12 +578,40 @@ export default function PropertiesTable({
   }
 
   return (
-    <div>
+    <div dir={dir} className="text-start">
+      {/* شريط الإشعار بعد تنفيذ أي عملية */}
+      {notice && (
+        <div
+          role="status"
+          className={`mb-4 flex items-center justify-between gap-3 rounded-xl border p-3.5 text-xs font-bold shadow-xs sm:text-sm ${
+            notice.isError
+              ? "border-red-200 bg-red-50 text-red-700"
+              : "border-emerald-200 bg-emerald-50 text-emerald-800"
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            {notice.isError ? (
+              <AlertTriangle className="size-4 shrink-0 text-red-600" />
+            ) : (
+              <CheckCircle2 className="size-4 shrink-0 text-emerald-600" />
+            )}
+            <span>{notice.text}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setNotice(null)}
+            className="rounded-lg p-1 opacity-70 hover:bg-black/5 hover:opacity-100"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+      )}
+
       {/* 1. شريط العنوان وتوضيح الدولة المعروضة */}
       {(() => {
         const activeCountryObj =
-          ADMIN_COUNTRIES.find((c) => c.code === countryFilter) ||
-          ADMIN_COUNTRIES[0]
+          adminCountries.find((c) => c.code === countryFilter) ||
+          adminCountries[0]
         const activeCount =
           countryProperties.length - deletedBySellerList.length
 
@@ -592,20 +624,20 @@ export default function PropertiesTable({
                   <h2 className="text-sm font-extrabold text-[#0a1122] sm:text-base">
                     {isPromotionsPage
                       ? countryFilter === "ALL"
-                        ? `طلبات الإعلان والتمييز في كل الدول 🌍 (${promoRequestsList.length})`
-                        : `طلبات الإعلان والتمييز في ${activeCountryObj.label} ${activeCountryObj.flag} (${promoRequestsList.length})`
+                        ? `${t.header.promoAllTitle} (${promoRequestsList.length})`
+                        : `${t.header.promoCountryTitle} ${activeCountryObj.label} ${activeCountryObj.flag} (${promoRequestsList.length})`
                       : countryFilter === "ALL"
-                        ? `طلبات البيع — الوحدات المتاحة في كل الدول 🌍 (${activeCount})`
-                        : `طلبات البيع — الوحدات المتاحة في ${activeCountryObj.label} ${activeCountryObj.flag} (${activeCount})`}
+                        ? `${t.header.sellAllTitle} (${activeCount})`
+                        : `${t.header.sellCountryTitle} ${activeCountryObj.label} ${activeCountryObj.flag} (${activeCount})`}
                   </h2>
                 </div>
                 <p className="mt-1 text-[11px] text-gray-500">
-                  اختر الدولة من الأزرار لعرض وفلترة الوحدات الموجودة فيها فقط:
+                  {t.header.filterHint}
                 </p>
               </div>
 
               <div className="flex flex-wrap items-center gap-1.5">
-                {ADMIN_COUNTRIES.map((c) => {
+                {adminCountries.map((c) => {
                   const isSelected = c.code === countryFilter
                   const countInC =
                     c.code === "ALL"
@@ -648,20 +680,21 @@ export default function PropertiesTable({
           </div>
         )
       })()}
+
       {/* 2. شريط البحث والتبويبات الموحد */}
       <div className="mb-4 flex flex-col gap-3 rounded-xl border border-gray-200/80 bg-white p-3 shadow-2xs sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="relative w-full sm:max-w-xs sm:flex-1">
-          <Search className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
+          <Search className="pointer-events-none absolute top-1/2 end-3 size-4 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={
               isPromotionsPage
-                ? "بحث بكود الإعلان (AD-xxxx) أو اسم البائع..."
-                : "بحث بالمشروع، الكود، أو اسم/هاتف البائع..."
+                ? t.filters.promoSearchPlaceholder
+                : t.filters.sellSearchPlaceholder
             }
-            className="h-9 w-full rounded-lg border border-gray-200 pr-9 pl-3 text-xs font-semibold focus:border-[#105C50] focus:outline-none"
+            className="h-9 w-full rounded-lg border border-gray-200 ps-3 pe-9 text-xs font-semibold focus:border-[#105C50] focus:outline-none"
           />
         </div>
 
@@ -671,51 +704,51 @@ export default function PropertiesTable({
               {[
                 {
                   id: "all_promo" as const,
-                  label: `الكل (${promoRequestsList.length})`,
+                  label: `${t.filters.allTab} (${promoRequestsList.length})`,
                 },
                 {
                   id: "pending_payment" as const,
-                  label: `بانتظار التفعيل (${pendingPromoList.length})`,
+                  label: `${t.filters.pendingActivationTab} (${pendingPromoList.length})`,
                 },
                 {
                   id: "active_featured" as const,
-                  label: `مميزة نشطة (${activePromoList.length})`,
+                  label: `${t.filters.activeFeaturedTab} (${activePromoList.length})`,
                 },
                 {
                   id: "all_units" as const,
-                  label: "تمييز وحدة يدوياً",
+                  label: t.filters.manualPromoteTab,
                 },
-              ].map((t) => (
+              ].map((tab) => (
                 <button
-                  key={t.id}
+                  key={tab.id}
                   type="button"
-                  onClick={() => setPromoTab(t.id)}
+                  onClick={() => setPromoTab(tab.id)}
                   className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-                    promoTab === t.id
+                    promoTab === tab.id
                       ? "bg-[#105C50] text-white"
                       : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                   }`}
                 >
-                  {t.label}
+                  {tab.label}
                 </button>
               ))}
             </>
           ) : (
             <>
               {[
-                { id: "all", label: "الكل" },
-                { id: "pending", label: "بانتظار المراجعة" },
-                { id: "active", label: "معروضة بالسوق" },
+                { id: "all", label: t.filters.allTab },
+                { id: "pending", label: t.filters.pendingReviewTab },
+                { id: "active", label: t.filters.activeMarketTab },
                 {
                   id: "seller_actions",
-                  label: `معدلة / متوقفة (${sellerActionsList.length})`,
+                  label: `${t.filters.editedPausedTab} (${sellerActionsList.length})`,
                 },
-                { id: "offer_received", label: "عليها عرض" },
-                { id: "sold", label: "مباعة" },
-                { id: "rejected", label: "مرفوضة" },
+                { id: "offer_received", label: t.filters.offerReceivedTab },
+                { id: "sold", label: t.filters.soldTab },
+                { id: "rejected", label: t.filters.rejectedTab },
                 {
                   id: "deleted",
-                  label: `محذوفة (${deletedBySellerList.length})`,
+                  label: `${t.filters.deletedTab} (${deletedBySellerList.length})`,
                 },
               ].map((tab) => (
                 <button
@@ -745,7 +778,7 @@ export default function PropertiesTable({
         deletedBySellerList.length > 0 && (
           <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50/80 px-4 py-2.5 text-xs text-red-900">
             <span className="font-bold">
-              الوحدات المحذوفة بواسطة الملاك ({deletedBySellerList.length})
+              {t.filters.deletedBannerTitle} ({deletedBySellerList.length})
             </span>
             <Button
               size="sm"
@@ -758,8 +791,8 @@ export default function PropertiesTable({
               }
               className="h-8 rounded-lg bg-red-600 px-3 text-xs font-bold text-white hover:bg-red-700"
             >
-              <Trash2 className="ml-1 size-3.5" />
-              مسح الكل
+              <Trash2 className="me-1 size-3.5" />
+              {t.filters.purgeAllBtn}
             </Button>
           </div>
         )}
@@ -768,14 +801,14 @@ export default function PropertiesTable({
       <div className="space-y-3 md:hidden">
         {filtered.length === 0 ? (
           <div className="rounded-xl border border-gray-200 bg-white p-8 text-center text-xs text-gray-500">
-            لا توجد وحدات مطابقة حالياً.
+            {t.table.emptyText}
           </div>
         ) : (
           filtered.map((property) => {
             const currentSt = property.status || "pending"
             const stObj =
-              SELLER_STATUS_OPTIONS.find((s) => s.value === currentSt) ||
-              SELLER_STATUS_OPTIONS[0]
+              sellerStatusOptions.find((s) => s.value === currentSt) ||
+              sellerStatusOptions[0]
             const isCardLoading = pending && activePropertyId === property.id
             const isFeaturedActive =
               Boolean(property.is_featured) &&
@@ -804,7 +837,7 @@ export default function PropertiesTable({
                   <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/65 backdrop-blur-[1px]">
                     <div className="flex items-center gap-2 rounded-full bg-[#0a1122] px-3.5 py-1.5 text-xs font-bold text-white shadow-md">
                       <Loader2 className="size-3.5 animate-spin text-emerald-400" />
-                      <span>جاري التحديث...</span>
+                      <span>{t.table.updatingText}</span>
                     </div>
                   </div>
                 )}
@@ -812,11 +845,14 @@ export default function PropertiesTable({
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <h3 className="text-xs font-extrabold text-[#0a1122] sm:text-sm">
-                      {property.project_name || "مشروع غير محدد"}
+                      {property.project_name || t.table.unspecifiedProject}
                     </h3>
                     <p className="mt-0.5 text-[11px] text-gray-500">
-                      {property.area || "—"} · {property.unit_type || "شقة"}{" "}
-                      {property.size ? `· ${property.size} م²` : ""}
+                      {property.area || "—"} ·{" "}
+                      {property.unit_type || t.table.defaultUnitType}{" "}
+                      {property.size
+                        ? `· ${property.size} ${t.table.sqmUnit}`
+                        : ""}
                     </p>
                     <span className="mt-0.5 inline-block font-mono text-[10px] text-gray-400">
                       #{property.id.slice(0, 8).toUpperCase()}
@@ -832,30 +868,61 @@ export default function PropertiesTable({
                 <div className="mt-2.5 grid grid-cols-2 gap-2 rounded-lg border border-gray-100 bg-gray-50/80 p-2.5 text-xs">
                   <div>
                     <span className="block text-[10px] text-gray-400">
-                      المطلوب كاش
+                      {t.table.colCash}
                     </span>
                     <strong className="mt-0.5 block text-xs font-extrabold text-[#105C50]">
-                      {property.paid_amount
-                        ? `${Number(property.paid_amount).toLocaleString("en-US")} ${unitCur}`
-                        : "—"}
+                      {property.paid_amount ? (
+                        <>
+                          <span dir="ltr">
+                            {Number(property.paid_amount).toLocaleString(
+                              "en-US"
+                            )}
+                          </span>{" "}
+                          {unitCur}
+                        </>
+                      ) : (
+                        "—"
+                      )}
                     </strong>
                   </div>
 
-                  <div className="border-r border-gray-200/70 pr-2 text-[11px]">
+                  <div className="border-s border-gray-200/70 ps-2 text-[11px]">
                     <div>
-                      <span className="text-gray-400">العقد: </span>
+                      <span className="text-gray-400">
+                        {t.table.contractShort}{" "}
+                      </span>
                       <strong className="text-[#0a1122]">
-                        {property.contract_price
-                          ? `${Number(property.contract_price).toLocaleString("en-US")} ${unitCur}`
-                          : "—"}
+                        {property.contract_price ? (
+                          <>
+                            <span dir="ltr">
+                              {Number(property.contract_price).toLocaleString(
+                                "en-US"
+                              )}
+                            </span>{" "}
+                            {unitCur}
+                          </>
+                        ) : (
+                          "—"
+                        )}
                       </strong>
                     </div>
                     <div className="mt-0.5">
-                      <span className="text-gray-400">السوق: </span>
+                      <span className="text-gray-400">
+                        {t.table.marketShort}{" "}
+                      </span>
                       <strong className="text-gray-700">
-                        {property.market_price
-                          ? `${Number(property.market_price).toLocaleString("en-US")} ${unitCur}`
-                          : "—"}
+                        {property.market_price ? (
+                          <>
+                            <span dir="ltr">
+                              {Number(property.market_price).toLocaleString(
+                                "en-US"
+                              )}
+                            </span>{" "}
+                            {unitCur}
+                          </>
+                        ) : (
+                          "—"
+                        )}
                       </strong>
                     </div>
                   </div>
@@ -891,7 +958,7 @@ export default function PropertiesTable({
                     }}
                     className="h-8 w-full rounded-lg border border-gray-200 bg-gray-50/70 px-2 text-xs font-bold text-[#0a1122] focus:border-[#105C50] focus:outline-none"
                   >
-                    {SELLER_STATUS_OPTIONS.map((opt) => (
+                    {sellerStatusOptions.map((opt) => (
                       <option key={opt.value} value={opt.value}>
                         {opt.label}
                       </option>
@@ -914,8 +981,8 @@ export default function PropertiesTable({
                       }
                       className="h-8 flex-1 rounded-lg border-emerald-200 bg-emerald-50 text-xs font-bold text-[#105C50]"
                     >
-                      <RotateCcw className="ml-1 size-3" />
-                      استرجاع
+                      <RotateCcw className="me-1 size-3" />
+                      {t.actions.restoreBtn}
                     </Button>
                   ) : currentSt !== "active" ? (
                     <Button
@@ -930,8 +997,8 @@ export default function PropertiesTable({
                       }
                       className="h-8 flex-1 rounded-lg bg-[#105C50] text-xs font-bold text-white hover:bg-[#0c483f]"
                     >
-                      <Check className="ml-1 size-3" />
-                      نشر بالسوق
+                      <Check className="me-1 size-3" />
+                      {t.actions.publishMarketBtn}
                     </Button>
                   ) : (
                     <Button
@@ -947,8 +1014,8 @@ export default function PropertiesTable({
                       }
                       className="h-8 flex-1 rounded-lg border-orange-300 bg-orange-50 text-xs font-bold text-orange-800 hover:bg-orange-100"
                     >
-                      <EyeOff className="ml-1 size-3" />
-                      إلغاء النشر
+                      <EyeOff className="me-1 size-3" />
+                      {t.actions.unpublishBtn}
                     </Button>
                   )}
 
@@ -958,8 +1025,8 @@ export default function PropertiesTable({
                     className="h-8 flex-1 rounded-lg text-xs font-bold"
                     onClick={() => setDetailsProperty(property)}
                   >
-                    <Eye className="ml-1 size-3" />
-                    التفاصيل
+                    <Eye className="me-1 size-3" />
+                    {t.actions.detailsBtn}
                   </Button>
                 </div>
 
@@ -983,8 +1050,10 @@ export default function PropertiesTable({
                           : "border-amber-300 bg-amber-500 text-white hover:bg-amber-600"
                       }`}
                     >
-                      <Star className="ml-1 size-3 fill-current" />
-                      {isFeaturedActive ? "إلغاء التمييز" : "تمييز ⭐"}
+                      <Star className="me-1 size-3 fill-current" />
+                      {isFeaturedActive
+                        ? t.actions.cancelPromoBtn
+                        : t.actions.promoteStarBtn}
                     </Button>
                   )}
 
@@ -1017,17 +1086,17 @@ export default function PropertiesTable({
         )}
       </div>
 
-      {/* ==================== 2. عرض الكمبيوتر (صفوف منفصلة ومريحة للعين) ==================== */}
+      {/* ==================== 2. عرض الكمبيوتر ==================== */}
       <div className="hidden overflow-x-auto md:block">
-        <table className="w-full border-separate border-spacing-y-2.5 text-right text-xs">
+        <table className="w-full border-separate border-spacing-y-2.5 text-start text-xs">
           <thead>
             <tr className="text-[11px] font-extrabold text-gray-500">
-              <th className="px-4 py-2">المشروع / الوحدة</th>
-              <th className="px-4 py-2">المطلوب كاش</th>
-              <th className="px-4 py-2">العقد / السوق</th>
-              <th className="px-4 py-2">بيانات العميل</th>
-              <th className="px-4 py-2">مرحلة الطلب</th>
-              <th className="px-4 py-2">الإجراءات</th>
+              <th className="px-4 py-2">{t.table.colProject}</th>
+              <th className="px-4 py-2">{t.table.colCash}</th>
+              <th className="px-4 py-2">{t.table.colContractMarket}</th>
+              <th className="px-4 py-2">{t.table.colClient}</th>
+              <th className="px-4 py-2">{t.table.colStage}</th>
+              <th className="px-4 py-2">{t.table.colActions}</th>
             </tr>
           </thead>
           <tbody>
@@ -1037,15 +1106,15 @@ export default function PropertiesTable({
                   colSpan={6}
                   className="rounded-xl border border-gray-200 bg-white px-5 py-8 text-center text-xs text-gray-500"
                 >
-                  لا توجد عقارات مطابقة حالياً.
+                  {t.table.emptyText}
                 </td>
               </tr>
             ) : (
               filtered.map((property) => {
                 const currentSt = property.status || "pending"
                 const stObj =
-                  SELLER_STATUS_OPTIONS.find((s) => s.value === currentSt) ||
-                  SELLER_STATUS_OPTIONS[0]
+                  sellerStatusOptions.find((s) => s.value === currentSt) ||
+                  sellerStatusOptions[0]
                 const isRowLoading =
                   pending && activePropertyId === property.id
                 const isFeaturedActive =
@@ -1058,10 +1127,10 @@ export default function PropertiesTable({
                 )
 
                 const cellBorderCls = isHighlighted
-                  ? "border-y-2 border-[#105C50] first:border-r-2 last:border-l-2 bg-emerald-50/40"
+                  ? "border-y-2 border-[#105C50] first:border-s-2 last:border-e-2 bg-emerald-50/40"
                   : isFeaturedActive
-                    ? "border-y border-amber-300 first:border-r last:border-l bg-amber-50/15"
-                    : "border-y border-gray-200/90 first:border-r last:border-l bg-white hover:bg-gray-50/60"
+                    ? "border-y border-amber-300 first:border-s last:border-e bg-amber-50/15"
+                    : "border-y border-gray-200/90 first:border-s last:border-e bg-white hover:bg-gray-50/60"
 
                 return (
                   <tr
@@ -1072,74 +1141,108 @@ export default function PropertiesTable({
                     }`}
                   >
                     <td
-                      className={`rounded-r-xl px-4 py-3.5 align-middle ${cellBorderCls}`}
+                      className={`rounded-s-xl px-4 py-3.5 align-middle ${cellBorderCls}`}
                     >
                       <div className="flex items-center gap-2 font-extrabold text-[#0a1122]">
                         <span className="text-[13px]">
-                          {property.project_name || "مشروع غير محدد"}
+                          {property.project_name || t.table.unspecifiedProject}
                         </span>
                         {isRowLoading && (
                           <Loader2 className="size-3.5 animate-spin text-[#105C50]" />
                         )}
                       </div>
                       <div className="mt-0.5 text-[11px] text-gray-500">
-                        {property.area || "—"} · {property.unit_type || "شقة"}{" "}
-                        {property.size ? `· ${property.size}م²` : ""}
+                        {property.area || "—"} ·{" "}
+                        {property.unit_type || t.table.defaultUnitType}{" "}
+                        {property.size
+                          ? `· ${property.size}${t.table.sqmUnit}`
+                          : ""}
                       </div>
                       <div className="mt-0.5 font-mono text-[10px] text-gray-400">
                         #{property.id.slice(0, 8).toUpperCase()}
                         {property.featured_fawry_code
-                          ? ` · كود الإعلان: ${property.featured_fawry_code}`
+                          ? ` · ${t.badges.adCodeLabel} ${property.featured_fawry_code}`
                           : ""}
                       </div>
                       {renderSellerActivityBadges(property)}
                     </td>
 
                     <td
-                      className={`border-r border-r-gray-100 px-4 py-3.5 align-middle ${cellBorderCls}`}
+                      className={`border-s border-s-gray-100 px-4 py-3.5 align-middle ${cellBorderCls}`}
                     >
                       <div className="text-[13px] font-extrabold text-[#105C50] tabular-nums">
-                        {property.paid_amount
-                          ? `${Number(property.paid_amount).toLocaleString("en-US")} ${unitCur}`
-                          : "—"}
+                        {property.paid_amount ? (
+                          <>
+                            <span dir="ltr">
+                              {Number(property.paid_amount).toLocaleString(
+                                "en-US"
+                              )}
+                            </span>{" "}
+                            {unitCur}
+                          </>
+                        ) : (
+                          "—"
+                        )}
                       </div>
                       {property.willing_to_discount && (
                         <span className="mt-1 inline-block rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">
-                          قابل للتفاوض
+                          {t.badges.negotiable}
                         </span>
                       )}
                     </td>
 
                     <td
-                      className={`border-r border-r-gray-100 px-4 py-3.5 align-middle text-[11.5px] ${cellBorderCls}`}
+                      className={`border-s border-s-gray-100 px-4 py-3.5 align-middle text-[11.5px] ${cellBorderCls}`}
                     >
                       <div>
-                        <span className="text-gray-400">العقد: </span>
+                        <span className="text-gray-400">
+                          {t.table.contractShort}{" "}
+                        </span>
                         <strong className="text-[#0a1122] tabular-nums">
-                          {property.contract_price
-                            ? `${Number(property.contract_price).toLocaleString("en-US")} ${unitCur}`
-                            : "—"}
+                          {property.contract_price ? (
+                            <>
+                              <span dir="ltr">
+                                {Number(
+                                  property.contract_price
+                                ).toLocaleString("en-US")}
+                              </span>{" "}
+                              {unitCur}
+                            </>
+                          ) : (
+                            "—"
+                          )}
                         </strong>
                       </div>
                       <div className="mt-1 text-gray-500">
-                        <span className="text-gray-400">السوق: </span>
+                        <span className="text-gray-400">
+                          {t.table.marketShort}{" "}
+                        </span>
                         <span className="tabular-nums">
-                          {property.market_price
-                            ? `${Number(property.market_price).toLocaleString("en-US")} ${unitCur}`
-                            : "—"}
+                          {property.market_price ? (
+                            <>
+                              <span dir="ltr">
+                                {Number(property.market_price).toLocaleString(
+                                  "en-US"
+                                )}
+                              </span>{" "}
+                              {unitCur}
+                            </>
+                          ) : (
+                            "—"
+                          )}
                         </span>
                       </div>
                     </td>
 
                     <td
-                      className={`border-r border-r-gray-100 px-4 py-3.5 align-middle ${cellBorderCls}`}
+                      className={`border-s border-s-gray-100 px-4 py-3.5 align-middle ${cellBorderCls}`}
                     >
                       <div className="text-xs font-extrabold text-[#0a1122]">
                         {property.name}
                       </div>
                       <div
                         dir="ltr"
-                        className="mt-0.5 text-right font-mono text-[11px] font-semibold text-gray-600"
+                        className="mt-0.5 text-start font-mono text-[11px] font-semibold text-gray-600"
                       >
                         {property.phone}
                       </div>
@@ -1151,7 +1254,7 @@ export default function PropertiesTable({
                     </td>
 
                     <td
-                      className={`border-r border-r-gray-100 px-4 py-3.5 align-middle ${cellBorderCls}`}
+                      className={`border-s border-s-gray-100 px-4 py-3.5 align-middle ${cellBorderCls}`}
                     >
                       <div className="flex flex-col gap-1.5">
                         <Badge className={`w-fit text-[10px] ${stObj.badge}`}>
@@ -1172,7 +1275,7 @@ export default function PropertiesTable({
                           }}
                           className="h-8 rounded-lg border border-gray-200 bg-gray-50/70 px-2 text-[11px] font-bold text-[#0a1122] focus:border-[#105C50] focus:bg-white focus:outline-none"
                         >
-                          {SELLER_STATUS_OPTIONS.map((opt) => (
+                          {sellerStatusOptions.map((opt) => (
                             <option key={opt.value} value={opt.value}>
                               {opt.label}
                             </option>
@@ -1182,7 +1285,7 @@ export default function PropertiesTable({
                     </td>
 
                     <td
-                      className={`rounded-l-xl border-r border-r-gray-100 px-4 py-3.5 align-middle ${cellBorderCls}`}
+                      className={`rounded-e-xl border-s border-s-gray-100 px-4 py-3.5 align-middle ${cellBorderCls}`}
                     >
                       <div className="flex flex-wrap items-center gap-1.5">
                         {currentSt === "deleted_by_seller" ? (
@@ -1199,8 +1302,8 @@ export default function PropertiesTable({
                             }
                             className="h-8 border-emerald-200 bg-emerald-50 px-2.5 text-[11px] font-bold text-[#105C50]"
                           >
-                            <RotateCcw className="ml-1 size-3" />
-                            استرجاع
+                            <RotateCcw className="me-1 size-3" />
+                            {t.actions.restoreBtn}
                           </Button>
                         ) : (
                           <>
@@ -1217,8 +1320,8 @@ export default function PropertiesTable({
                                   })
                                 }
                               >
-                                <Check className="ml-1 size-3" />
-                                نشر
+                                <Check className="me-1 size-3" />
+                                {t.actions.publishShortBtn}
                               </Button>
                             ) : (
                               <Button
@@ -1234,8 +1337,8 @@ export default function PropertiesTable({
                                   })
                                 }
                               >
-                                <EyeOff className="ml-1 size-3" />
-                                إلغاء النشر
+                                <EyeOff className="me-1 size-3" />
+                                {t.actions.unpublishBtn}
                               </Button>
                             )}
 
@@ -1259,8 +1362,10 @@ export default function PropertiesTable({
                                   : "border-amber-300 bg-amber-500 text-white hover:bg-amber-600"
                               }`}
                             >
-                              <Star className="ml-1 size-3 fill-current" />
-                              {isFeaturedActive ? "إلغاء التمييز" : "تمييز ⭐"}
+                              <Star className="me-1 size-3 fill-current" />
+                              {isFeaturedActive
+                                ? t.actions.cancelPromoBtn
+                                : t.actions.promoteStarBtn}
                             </Button>
                           </>
                         )}
@@ -1271,8 +1376,8 @@ export default function PropertiesTable({
                           className="h-8 px-2.5 text-[11px] font-bold"
                           onClick={() => setDetailsProperty(property)}
                         >
-                          <Eye className="ml-1 size-3" />
-                          التفاصيل
+                          <Eye className="me-1 size-3" />
+                          {t.actions.detailsBtn}
                         </Button>
 
                         <a
@@ -1280,7 +1385,6 @@ export default function PropertiesTable({
                           target="_blank"
                           rel="noreferrer"
                           className="inline-flex h-8 items-center justify-center rounded-md bg-[#25D366] px-2 text-white hover:opacity-90"
-                          title="واتساب"
                         >
                           <MessageCircle className="size-3.5" />
                         </a>
@@ -1295,7 +1399,6 @@ export default function PropertiesTable({
                             })
                           }
                           className="inline-flex h-8 items-center justify-center rounded-md border border-red-200 bg-red-50 px-2 text-red-600 transition hover:bg-red-100"
-                          title="حذف نهائي"
                         >
                           <Trash2 className="size-3.5" />
                         </button>
@@ -1317,12 +1420,12 @@ export default function PropertiesTable({
         }}
       >
         <DialogContent
-          dir="rtl"
-          className="w-[90vw] max-w-[360px] rounded-2xl p-5 sm:max-w-[390px]"
+          dir={dir}
+          className="w-[90vw] max-w-[360px] rounded-2xl p-5 text-start sm:max-w-[390px]"
         >
           {confirmAction && (
             <>
-              <DialogHeader className="text-right">
+              <DialogHeader className="text-start">
                 <div className="mb-1.5 flex items-center gap-2">
                   <span
                     className={`flex size-8 shrink-0 items-center justify-center rounded-full ${
@@ -1347,36 +1450,36 @@ export default function PropertiesTable({
                   </span>
                   <DialogTitle className="text-sm font-extrabold text-[#0a1122]">
                     {confirmAction.type === "purge_all_deleted" &&
-                      "مسح الوحدات المحذوفة"}
-                    {confirmAction.type === "delete" && "تأكيد الحذف النهائي"}
+                      t.modals.purgeTitle}
+                    {confirmAction.type === "delete" && t.modals.deleteTitle}
                     {confirmAction.type === "promote" &&
                       (confirmAction.promoAction === "activate"
-                        ? "تفعيل تمييز الوحدة ⭐"
-                        : "إلغاء تمييز الوحدة")}
+                        ? t.modals.activatePromoTitle
+                        : t.modals.cancelPromoTitle)}
                     {confirmAction.type === "status" &&
                       (confirmAction.newStatus === "active"
-                        ? "تأكيد نشر الوحدة"
+                        ? t.modals.publishConfirmTitle
                         : confirmAction.newStatus === "pending"
-                          ? "تأكيد إلغاء النشر"
-                          : "تأكيد تحديث المرحلة")}
+                          ? t.modals.unpublishConfirmTitle
+                          : t.modals.stageConfirmTitle)}
                   </DialogTitle>
                 </div>
 
-                <DialogDescription className="text-right text-xs leading-relaxed text-gray-600">
+                <DialogDescription className="text-start text-xs leading-relaxed text-gray-600">
                   {confirmAction.type === "purge_all_deleted" && (
                     <>
-                      مسح جميع الوحدات المحذوفة ({confirmAction.count} وحدات)
-                      نهائياً من قاعدة البيانات؟
+                      {t.modals.purgeDescPrefix} ({confirmAction.count}){" "}
+                      {t.modals.purgeDescSuffix}
                     </>
                   )}
 
                   {confirmAction.type === "status" && (
                     <>
-                      تحديث وحدة{" "}
+                      {t.modals.updateUnitPrefix}{" "}
                       <strong className="text-[#0a1122]">
-                        "{confirmAction.property.project_name || "البائع"}"
+                        "{confirmAction.property.project_name || confirmAction.property.name}"
                       </strong>{" "}
-                      إلى{" "}
+                      {t.modals.toWord}{" "}
                       <span className="font-bold text-[#105C50]">
                         ({getStatusLabel(confirmAction.newStatus)})
                       </span>
@@ -1386,31 +1489,31 @@ export default function PropertiesTable({
 
                   {confirmAction.type === "delete" && (
                     <>
-                      حذف وحدة{" "}
+                      {t.modals.deleteDescPrefix}{" "}
                       <strong className="text-red-600">
                         "
                         {confirmAction.property.project_name ||
                           confirmAction.property.name}
                         "
                       </strong>{" "}
-                      نهائياً؟
+                      {t.modals.deleteDescSuffix}
                     </>
                   )}
 
                   {confirmAction.type === "promote" &&
                     (confirmAction.promoAction === "activate" ? (
                       <>
-                        اختر مدة تمييز وحدة{" "}
+                        {t.modals.selectPromoDuration}{" "}
                         <strong className="text-[#0a1122]">
-                          "{confirmAction.property.project_name || "البائع"}"
+                          "{confirmAction.property.project_name || confirmAction.property.name}"
                         </strong>
                         :
                       </>
                     ) : (
                       <>
-                        إلغاء تمييز وحدة{" "}
+                        {t.modals.confirmCancelPromo}{" "}
                         <strong className="text-[#0a1122]">
-                          "{confirmAction.property.project_name || "البائع"}"
+                          "{confirmAction.property.project_name || confirmAction.property.name}"
                         </strong>
                         ؟
                       </>
@@ -1437,7 +1540,7 @@ export default function PropertiesTable({
                             : "border-gray-200 bg-white text-gray-600"
                         }`}
                       >
-                        {d} يوم
+                        {d} {t.badges.dayWord}
                       </button>
                     ))}
                   </div>
@@ -1449,7 +1552,7 @@ export default function PropertiesTable({
                     <Textarea
                       value={reason}
                       onChange={(event) => setReason(event.target.value)}
-                      placeholder="سبب الرفض أو ملاحظة للبائع (اختياري)..."
+                      placeholder={t.modals.rejectReasonPlaceholder}
                       className="min-h-[65px] rounded-xl text-xs"
                     />
                   </div>
@@ -1463,7 +1566,7 @@ export default function PropertiesTable({
                   onClick={closeConfirmModal}
                   className="h-9 flex-1 rounded-xl text-xs font-bold sm:flex-none"
                 >
-                  إلغاء
+                  {t.actions.cancelBtn}
                 </Button>
                 <Button
                   type="button"
@@ -1481,10 +1584,10 @@ export default function PropertiesTable({
                   {pending ? (
                     <span className="flex items-center justify-center gap-1.5">
                       <Loader2 className="size-3.5 animate-spin" />
-                      جاري التنفيذ...
+                      {t.actions.executingBtn}
                     </span>
                   ) : (
-                    "تأكيد"
+                    t.actions.confirmBtn
                   )}
                 </Button>
               </DialogFooter>
@@ -1499,18 +1602,18 @@ export default function PropertiesTable({
         onOpenChange={(open) => !open && setDetailsProperty(null)}
       >
         <DialogContent
-          dir="rtl"
-          className="max-h-[88vh] w-[92vw] max-w-[460px] overflow-y-auto rounded-2xl p-5 sm:max-w-lg"
+          dir={dir}
+          className="max-h-[88vh] w-[92vw] max-w-[460px] overflow-y-auto rounded-2xl p-5 text-start sm:max-w-lg"
         >
           {detailsProperty && (
             <>
-              <DialogHeader className="text-right">
+              <DialogHeader className="text-start">
                 <DialogTitle className="text-sm font-extrabold sm:text-base">
-                  {detailsProperty.project_name || "وحدة عقارية"} —{" "}
-                  {detailsProperty.name}
+                  {detailsProperty.project_name || t.modals.detailsFallbackTitle}{" "}
+                  — {detailsProperty.name}
                 </DialogTitle>
                 <DialogDescription className="sr-only">
-                  تفاصيل الوحدة
+                  {t.actions.detailsBtn}
                 </DialogDescription>
               </DialogHeader>
 
@@ -1518,7 +1621,7 @@ export default function PropertiesTable({
 
               <div className="mt-2.5 rounded-xl border border-gray-200 bg-gray-50/70 p-2.5">
                 <label className="mb-1 block text-[11px] font-bold text-gray-500">
-                  مرحلة الطلب:
+                  {t.table.colStage}:
                 </label>
                 <select
                   disabled={pending}
@@ -1535,7 +1638,7 @@ export default function PropertiesTable({
                   }}
                   className="h-8 w-full rounded-lg border border-gray-200 bg-white px-2 text-xs font-bold text-[#0a1122]"
                 >
-                  {SELLER_STATUS_OPTIONS.map((opt) => (
+                  {sellerStatusOptions.map((opt) => (
                     <option key={opt.value} value={opt.value}>
                       {opt.label}
                     </option>
@@ -1545,77 +1648,89 @@ export default function PropertiesTable({
 
               <div className="mt-2.5 grid grid-cols-2 gap-2.5 rounded-xl bg-gray-50 p-3 text-xs">
                 <div>
-                  <span className="block text-[10px] text-gray-400">المنطقة</span>
+                  <span className="block text-[10px] text-gray-400">
+                    {t.modals.areaLabel}
+                  </span>
                   <strong className="text-[#0a1122]">
                     {detailsProperty.area || "—"}
                   </strong>
                 </div>
                 <div>
-                  <span className="block text-[10px] text-gray-400">المطور</span>
+                  <span className="block text-[10px] text-gray-400">
+                    {t.modals.developerLabel}
+                  </span>
                   <strong className="text-[#0a1122]">
                     {detailsProperty.developer_name || "—"}
                   </strong>
                 </div>
                 <div>
                   <span className="block text-[10px] text-gray-400">
-                    النوع والمساحة
+                    {t.modals.typeSizeLabel}
                   </span>
                   <strong className="text-[#0a1122]">
                     {detailsProperty.unit_type || "—"} (
-                    {detailsProperty.size || 0} م²)
+                    {detailsProperty.size || 0} {t.table.sqmUnit})
                   </strong>
                 </div>
                 <div>
                   <span className="block text-[10px] text-gray-400">
-                    الغرف / الحمامات
+                    {t.modals.roomsBathLabel}
                   </span>
                   <strong className="text-[#0a1122]">
-                    {detailsProperty.rooms || 0} غرف ·{" "}
-                    {detailsProperty.bathrooms || 0} حمام
+                    {detailsProperty.rooms || 0} {t.modals.roomsWord} ·{" "}
+                    {detailsProperty.bathrooms || 0} {t.modals.bathWord}
                   </strong>
                 </div>
                 <div>
                   <span className="block text-[10px] text-gray-400">
-                    سعر العقد
+                    {t.modals.contractPriceLabel}
                   </span>
                   <strong className="text-[#0a1122]">
-                    {Number(detailsProperty.contract_price || 0).toLocaleString(
-                      "en-US"
-                    )}{" "}
+                    <span dir="ltr">
+                      {Number(
+                        detailsProperty.contract_price || 0
+                      ).toLocaleString("en-US")}
+                    </span>{" "}
                     {getUnitCurrency(getPropertyCountryCode(detailsProperty))}
                   </strong>
                 </div>
                 <div>
                   <span className="block text-[10px] text-gray-400">
-                    المطلوب كاش
+                    {t.table.colCash}
                   </span>
                   <strong className="text-[#105C50]">
-                    {Number(detailsProperty.paid_amount || 0).toLocaleString(
-                      "en-US"
-                    )}{" "}
+                    <span dir="ltr">
+                      {Number(detailsProperty.paid_amount || 0).toLocaleString(
+                        "en-US"
+                      )}
+                    </span>{" "}
                     {getUnitCurrency(getPropertyCountryCode(detailsProperty))}
                   </strong>
                 </div>
                 <div>
                   <span className="block text-[10px] text-gray-400">
-                    سعر السوق
+                    {t.modals.marketPriceLabel}
                   </span>
                   <strong className="text-[#0a1122]">
-                    {Number(detailsProperty.market_price || 0).toLocaleString(
-                      "en-US"
-                    )}{" "}
+                    <span dir="ltr">
+                      {Number(detailsProperty.market_price || 0).toLocaleString(
+                        "en-US"
+                      )}
+                    </span>{" "}
                     {getUnitCurrency(getPropertyCountryCode(detailsProperty))}
                   </strong>
                 </div>
                 <div>
                   <span className="block text-[10px] text-gray-400">
-                    القسط والمدة
+                    {t.modals.installmentYearsLabel}
                   </span>
                   <strong className="text-[#0a1122]">
-                    {Number(
-                      detailsProperty.installment_amount || 0
-                    ).toLocaleString("en-US")}{" "}
-                    ({detailsProperty.years_left || 0} سنوات)
+                    <span dir="ltr">
+                      {Number(
+                        detailsProperty.installment_amount || 0
+                      ).toLocaleString("en-US")}
+                    </span>{" "}
+                    ({detailsProperty.years_left || 0} {t.modals.yearsWord})
                   </strong>
                 </div>
               </div>
@@ -1625,13 +1740,13 @@ export default function PropertiesTable({
                   detailsProperty.documents
                 )
                 return (
-                  <div className="mt-2.5 rounded-xl border border-gray-200 p-3 text-right text-xs">
+                  <div className="mt-2.5 rounded-xl border border-gray-200 p-3 text-start text-xs">
                     <p className="mb-2 font-extrabold text-[#0a1122]">
-                      المستندات المرفوعة ({uploadedDocs.length}/4):
+                      {t.modals.uploadedDocsTitle} ({uploadedDocs.length}/4):
                     </p>
                     {uploadedDocs.length === 0 ? (
                       <p className="text-[11px] text-gray-400">
-                        لا توجد مستندات مرفوعة.
+                        {t.modals.noDocsUploaded}
                       </p>
                     ) : (
                       <div className="space-y-1.5">
@@ -1649,7 +1764,7 @@ export default function PropertiesTable({
                               rel="noreferrer"
                               className="inline-flex items-center gap-1 rounded-md bg-[#105C50] px-2.5 py-1 text-[10px] font-bold text-white"
                             >
-                              <span>فتح</span>
+                              <span>{t.actions.openDocBtn}</span>
                               <ExternalLink className="size-3" />
                             </a>
                           </div>
@@ -1666,7 +1781,7 @@ export default function PropertiesTable({
                   onClick={() => setDetailsProperty(null)}
                   className="h-8 rounded-lg text-xs font-bold"
                 >
-                  إغلاق
+                  {t.actions.closeBtn}
                 </Button>
 
                 {detailsProperty.status !== "active" ? (
@@ -1683,8 +1798,8 @@ export default function PropertiesTable({
                       })
                     }}
                   >
-                    <Check className="ml-1 size-3.5" />
-                    نشر الوحدة
+                    <Check className="me-1 size-3.5" />
+                    {t.actions.publishMarketBtn}
                   </Button>
                 ) : (
                   <Button
@@ -1701,8 +1816,8 @@ export default function PropertiesTable({
                       })
                     }}
                   >
-                    <EyeOff className="ml-1 size-3.5" />
-                    إلغاء النشر
+                    <EyeOff className="me-1 size-3.5" />
+                    {t.actions.unpublishBtn}
                   </Button>
                 )}
 
@@ -1719,8 +1834,8 @@ export default function PropertiesTable({
                     })
                   }}
                 >
-                  <Trash2 className="ml-1 size-3.5" />
-                  حذف
+                  <Trash2 className="me-1 size-3.5" />
+                  {t.actions.deleteBtn}
                 </Button>
               </DialogFooter>
             </>

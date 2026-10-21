@@ -46,7 +46,7 @@ function LoginContent() {
       const result = await loginAction(formData)
 
       if (result.success) {
-        window.location.replace(result.redirectTo || '/')
+        window.location.replace(result.redirectTo || '/account')
         return
       } else {
         setError(result.error || t.invalidCredentialsError)
@@ -58,6 +58,15 @@ function LoginContent() {
     }
   }
 
+  const adminBannerText =
+    locale === 'ar'
+      ? 'يرجى تسجيل الدخول بحساب الإدارة للمتابعة'
+      : locale === 'ru'
+        ? 'Войдите под аккаунтом администратора для продолжения'
+        : locale === 'ka'
+          ? 'გთხოვთ შეხვიდეთ ადმინისტრატორის ანგარიშით'
+          : 'Please sign in with an Admin account to continue'
+
   return (
     <AuthLayout>
       <AuthCard>
@@ -65,11 +74,7 @@ function LoginContent() {
           {isAdminRedirect && (
             <div className="mb-4 flex items-center justify-center gap-2 rounded-xl border border-[#007a5a]/25 bg-[#eaf8f2] px-3.5 py-2.5 text-xs font-extrabold text-[#007a5a]">
               <ShieldCheck className="size-4 shrink-0" />
-              <span>
-                {locale === 'ar'
-                  ? 'يرجى تسجيل الدخول بحساب الإدارة للمتابعة'
-                  : 'Please sign in with an Admin account to continue'}
-              </span>
+              <span>{adminBannerText}</span>
             </div>
           )}
 

@@ -15,6 +15,7 @@ import {
   deliveries,
   getCountryConfig,
   getHeaderCookieCountry,
+  getLocalizedCountryName,
   MoneyField,
   normalizeArabicText,
   Pills,
@@ -29,33 +30,33 @@ import {
   type BuyerConflictState,
   type BuyerFormState,
 } from '@/components/buyer/buyer-contact-step'
-import arDict from '@/dictionaries/ar.json'
-
-const b = arDict.buy
-
-const initialFormState: BuyerFormState = {
-  country: 'EG',
-  residenceCountry: 'EG',
-  available_cash: 0,
-  max_installment: 0,
-  payment_plan: b.stepOne.paymentPlans[0],
-  budget: 0,
-  unit_types: [unitTypes[0]],
-  min_rooms: 0,
-  delivery_status: deliveries[0],
-  preferred_areas: [],
-  name: '',
-  phone: '',
-  email: '',
-  password: '',
-  loginIdentifier: '',
-  loginPassword: '',
-}
+import { getCurrencySymbol, useTranslation } from '@/lib/i18n'
 
 export default function BuyersPage() {
   const router = useRouter()
+  const { t: dict, dir } = useTranslation()
+  const b = dict.buy
+
   const [step, setStep] = useState<1 | 2 | 3>(1)
-  const [data, setData] = useState<BuyerFormState>(initialFormState)
+  const [data, setData] = useState<BuyerFormState>(() => ({
+    country: 'EG',
+    residenceCountry: 'EG',
+    available_cash: 0,
+    max_installment: 0,
+    payment_plan: b.stepOne.paymentPlans[0] || 'شهري',
+    budget: 0,
+    unit_types: [unitTypes[0]],
+    min_rooms: 0,
+    delivery_status: deliveries[0],
+    preferred_areas: [],
+    name: '',
+    phone: '',
+    email: '',
+    password: '',
+    loginIdentifier: '',
+    loginPassword: '',
+  }))
+
   const [areaInput, setAreaInput] = useState('')
   const [countryCode, setCountryCode] = useState('20')
   const [showAreas, setShowAreas] = useState(false)
@@ -243,7 +244,7 @@ export default function BuyersPage() {
 
   return (
     <main
-      dir="rtl"
+      dir={dir}
       className="min-h-screen bg-[var(--brand-surface,#f5f6f8)] px-4 py-12 text-[var(--brand-navy-text,#0a1128)] sm:px-6 lg:py-16"
     >
       <div className="mx-auto max-w-3xl">
@@ -275,7 +276,7 @@ export default function BuyersPage() {
                 </div>
               ))}
             </div>
-            <div className="mt-8 rounded-2xl border border-slate-500 bg-white p-5 shadow-sm">
+            <div className="mt-8 rounded-2xl border border-slate-500 bg-white p-5 text-start shadow-sm">
               <div className="flex items-center gap-2 text-sm font-bold">
                 <UserRound className="size-4" />
                 {b.header.directBuyerTitle}
@@ -428,8 +429,9 @@ function BuyerStepOne({
   ) => void
   errors?: Record<string, string>
 }) {
-  const t = b.stepOne
-  const currency = getCountryConfig(data.country).currencySymbol
+  const { t: dict, locale } = useTranslation()
+  const t = dict.buy.stepOne
+  const currency = getCurrencySymbol(data.country, locale)
 
   return (
     <div className="flex flex-col gap-6">
@@ -461,7 +463,7 @@ function BuyerStepOne({
       />
 
       <fieldset>
-        <legend className="mb-3 text-right text-sm font-bold">
+        <legend className="mb-3 text-start text-sm font-bold">
           <RequiredLabel>{t.paymentPlanLabel}</RequiredLabel>
         </legend>
         <div
@@ -491,7 +493,7 @@ function BuyerStepOne({
           ))}
         </div>
         {errors?.payment_plan && (
-          <p className="mt-1.5 text-right text-xs font-semibold text-red-600">
+          <p className="mt-1.5 text-start text-xs font-semibold text-red-600">
             {errors.payment_plan}
           </p>
         )}
@@ -533,8 +535,10 @@ function BuyerStepTwo({
   setShowAreas: (value: boolean) => void
   addArea: (value?: string) => void
 }) {
-  const t = b.stepTwo
+  const { t: dict, locale, dir } = useTranslation()
+  const t = dict.buy.stepTwo
   const countryObj = getCountryConfig(data.country)
+  const localizedCountryName = getLocalizedCountryName(countryObj, locale)
   const rawCatalog =
     areasCatalogByCountry[countryObj.code] || areasCatalogByCountry.EG
 
@@ -558,10 +562,10 @@ function BuyerStepTwo({
       />
 
       <fieldset>
-        <legend className="mb-1 text-right text-sm font-bold">
+        <legend className="mb-1 text-start text-sm font-bold">
           <RequiredLabel>{t.unitTypeLabel}</RequiredLabel>
         </legend>
-        <p className="mb-3 text-right text-xs text-slate-500">
+        <p className="mb-3 text-start text-xs text-slate-500">
           {t.unitTypeHelper}
         </p>
         <Pills
@@ -581,13 +585,14 @@ function BuyerStepTwo({
       </fieldset>
 
       <div>
-        <Label htmlFor="rooms" className="block text-right">
+        <Label htmlFor="rooms" className="block text-start">
           {t.minRoomsLabel}
         </Label>
         <Input
           id="rooms"
           type="number"
           min="0"
+          dir="ltr"
           value={data.min_rooms || ''}
           onChange={(event) =>
             update('min_rooms', Number(event.target.value) || 0)
@@ -595,13 +600,13 @@ function BuyerStepTwo({
           className="mt-2 h-12 w-full max-w-[150px] text-center text-lg"
           placeholder={t.minRoomsPlaceholder}
         />
-        <p className="mt-2 text-right text-xs text-slate-500">
+        <p className="mt-2 text-start text-xs text-slate-500">
           {t.minRoomsHelper}
         </p>
       </div>
 
       <fieldset>
-        <legend className="mb-3 text-right text-sm font-bold">
+        <legend className="mb-3 text-start text-sm font-bold">
           <RequiredLabel>{t.deliveryStatusLabel}</RequiredLabel>
         </legend>
         <div
@@ -631,15 +636,15 @@ function BuyerStepTwo({
           ))}
         </div>
         {errors?.delivery_status && (
-          <p className="mt-1.5 text-right text-xs font-semibold text-red-600">
+          <p className="mt-1.5 text-start text-xs font-semibold text-red-600">
             {errors.delivery_status}
           </p>
         )}
       </fieldset>
 
       <div>
-        <Label htmlFor="areas" className="block text-right">
-          <RequiredLabel>{`${t.areasLabelPrefix} ${countryObj.nameAr} *`}</RequiredLabel>
+        <Label htmlFor="areas" className="block text-start">
+          <RequiredLabel>{`${t.areasLabelPrefix} ${localizedCountryName} *`}</RequiredLabel>
         </Label>
         <div
           className={`relative mt-2 ${
@@ -665,7 +670,7 @@ function BuyerStepTwo({
                         data.preferred_areas.filter((item) => item !== area)
                       )
                     }
-                    className="mr-1 hover:text-red-300"
+                    className="ms-1 hover:text-red-300"
                   >
                     <X className="size-3" />
                   </button>
@@ -675,7 +680,7 @@ function BuyerStepTwo({
           )}
           <Input
             id="areas"
-            dir="rtl"
+            dir={dir}
             value={areaInput}
             onFocus={() => setShowAreas(true)}
             onChange={(event) => {
@@ -692,9 +697,9 @@ function BuyerStepTwo({
             placeholder={
               data.preferred_areas.length
                 ? t.addAnotherAreaPlaceholder
-                : `${t.searchAreaPlaceholderPrefix} ${countryObj.nameAr}...`
+                : `${t.searchAreaPlaceholderPrefix} ${localizedCountryName}...`
             }
-            className="h-12 rounded-xl text-right"
+            className="h-12 rounded-xl text-start"
           />
           {showAreas && filtered.length > 0 && (
             <div className="absolute z-10 mt-2 max-h-52 w-full overflow-auto rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
@@ -703,7 +708,7 @@ function BuyerStepTwo({
                   type="button"
                   key={area}
                   onClick={() => addArea(area)}
-                  className="block w-full rounded-lg px-3 py-2 text-right text-sm hover:bg-emerald-50"
+                  className="block w-full rounded-lg px-3 py-2 text-start text-sm hover:bg-emerald-50"
                 >
                   {area}
                 </button>
@@ -712,7 +717,7 @@ function BuyerStepTwo({
           )}
         </div>
         {errors?.preferred_areas && (
-          <p className="mt-1.5 text-right text-xs font-semibold text-red-600">
+          <p className="mt-1.5 text-start text-xs font-semibold text-red-600">
             {errors.preferred_areas}
           </p>
         )}

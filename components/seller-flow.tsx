@@ -20,7 +20,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { TurnstileBox } from '@/components/funnel-shell'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import arDict from '@/dictionaries/ar.json'
+import { getCurrencySymbol, useTranslation } from '@/lib/i18n'
 import {
   Actions,
   areasCatalogByCountry,
@@ -31,6 +31,7 @@ import {
   formatAmount,
   getCountryConfig,
   getHeaderCookieCountry,
+  getLocalizedCountryName,
   MoneyField,
   normalizeArabicText,
   Pills,
@@ -43,10 +44,11 @@ import {
 } from './seller/seller-shared'
 import { ContactStep } from './seller/seller-contact-step'
 
-const s = arDict.sell
-
 export function SellerFlow() {
   const router = useRouter()
+  const { t: dict, dir } = useTranslation()
+  const s = dict.sell
+
   const [step, setStep] = useState(1)
   const [isMagicResume, setIsMagicResume] = useState(false)
   const [unitId, setUnitId] = useState<string>('')
@@ -440,7 +442,7 @@ export function SellerFlow() {
 
   return (
     <main
-      dir="rtl"
+      dir={dir}
       className="min-h-screen bg-[var(--brand-surface,#f5f6f8)] px-3 py-8 text-[var(--brand-navy-text,#0a1128)] sm:px-5 md:py-12"
     >
       <div className="mx-auto max-w-3xl">
@@ -611,9 +613,10 @@ function BasicStep({
   go: (step: number) => void
   errors: Record<string, string>
 }) {
+  const { t: dict, locale, dir } = useTranslation()
+  const s = dict.sell
   const t = s.basicStep
-  const countryCfg = getCountryConfig(form.unitCountry)
-  const currency = countryCfg.currencySymbol
+  const currency = getCurrencySymbol(form.unitCountry || 'EG', locale)
 
   return (
     <div className="flex flex-col gap-6">
@@ -654,13 +657,15 @@ function BasicStep({
       />
       <div className="rounded-xl bg-sky-50 p-4 text-sm font-semibold text-sky-700">
         {t.receiveBoxPrefix}{' '}
-        {Number(form.paidAmount || 0).toLocaleString('en-US')} {currency}{' '}
-        {t.receiveBoxSuffix}
+        <span dir="ltr">
+          {Number(form.paidAmount || 0).toLocaleString('en-US')}
+        </span>{' '}
+        {currency} {t.receiveBoxSuffix}
       </div>
       <div>
         <label
-          dir="rtl"
-          className={`flex cursor-pointer items-center gap-3 rounded-xl border p-4 text-right text-sm leading-7 ${
+          dir={dir}
+          className={`flex cursor-pointer items-center gap-3 rounded-xl border p-4 text-start text-sm leading-7 ${
             errors.confirmed
               ? 'border-red-500 bg-red-50/30'
               : 'border-slate-200'
@@ -676,7 +681,7 @@ function BasicStep({
           {t.confirmLabel}
         </label>
         {errors.confirmed && (
-          <p className="mt-1.5 text-right text-xs font-semibold text-red-600">
+          <p className="mt-1.5 text-start text-xs font-semibold text-red-600">
             {errors.confirmed}
           </p>
         )}
@@ -687,7 +692,7 @@ function BasicStep({
         type="number"
         helper={
           form.currentDeveloperPrice
-            ? formatAmount(form.currentDeveloperPrice, currency)
+            ? formatAmount(form.currentDeveloperPrice, currency, locale)
             : t.currentDevPriceHelper
         }
         value={form.currentDeveloperPrice}
@@ -716,12 +721,17 @@ function DetailsStep({
   errors: Record<string, string>
   onSave: () => void
 }) {
+  const { t: dict, locale, dir } = useTranslation()
+  const s = dict.sell
   const t = s.detailsStep
+
   const [areaOpen, setAreaOpen] = useState(false)
   const query = form.location ?? ''
 
   const countryCode = (form.unitCountry || 'EG').toUpperCase()
   const countryConfig = getCountryConfig(countryCode)
+  const localizedCountryName = getLocalizedCountryName(countryConfig, locale)
+
   const rawAreas =
     areasCatalogByCountry[countryCode] || areasCatalogByCountry.EG
 
@@ -768,25 +778,25 @@ function DetailsStep({
       </div>
 
       <div className="relative">
-        <Label htmlFor="location" className="mb-2 block text-right">
-          {t.locationLabelPrefix} {countryConfig.nameAr} *
+        <Label htmlFor="location" className="mb-2 block text-start">
+          {t.locationLabelPrefix} {localizedCountryName} *
         </Label>
         <Input
           id="location"
-          dir="rtl"
-          placeholder={`${t.locationPlaceholderPrefix} ${countryConfig.nameAr}...`}
+          dir={dir}
+          placeholder={`${t.locationPlaceholderPrefix} ${localizedCountryName}...`}
           value={query}
           onFocus={() => setAreaOpen(true)}
           onChange={(event) => {
             update('location', event.target.value)
             setAreaOpen(true)
           }}
-          className={`h-12 rounded-xl text-right ${
+          className={`h-12 rounded-xl text-start ${
             errors.location ? 'border-red-500 bg-red-50/20' : ''
           }`}
         />
         {errors.location && (
-          <p className="mt-1.5 text-right text-xs font-semibold text-red-600">
+          <p className="mt-1.5 text-start text-xs font-semibold text-red-600">
             {errors.location}
           </p>
         )}
@@ -794,14 +804,14 @@ function DetailsStep({
           <div className="absolute z-20 mt-2 max-h-72 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
             {groups.map(([title, items]) => (
               <div key={title}>
-                <p className="px-3 py-2 text-right text-xs font-black text-slate-500">
+                <p className="px-3 py-2 text-start text-xs font-black text-slate-500">
                   {title}
                 </p>
                 {items.map((item) => (
                   <button
                     type="button"
                     key={item}
-                    className="block w-full rounded-lg px-3 py-2 text-right text-sm hover:bg-emerald-50"
+                    className="block w-full rounded-lg px-3 py-2 text-start text-sm hover:bg-emerald-50"
                     onClick={() => {
                       update('location', item)
                       setAreaOpen(false)
@@ -817,7 +827,7 @@ function DetailsStep({
       </div>
 
       <fieldset className="flex flex-col gap-3">
-        <legend className="text-right font-bold">
+        <legend className="text-start font-bold">
           <RequiredLabel>{t.unitTypeLabel}</RequiredLabel>
         </legend>
         <Pills
@@ -875,7 +885,7 @@ function DetailsStep({
       )}
 
       <fieldset className="flex flex-col gap-3">
-        <legend className="text-right font-bold">
+        <legend className="text-start font-bold">
           <RequiredLabel>{t.finishingLabel}</RequiredLabel>
         </legend>
         <Pills
@@ -887,7 +897,7 @@ function DetailsStep({
       </fieldset>
 
       <fieldset className="flex flex-col gap-3">
-        <legend className="text-right font-bold">
+        <legend className="text-start font-bold">
           <RequiredLabel>{t.deliveryLabel}</RequiredLabel>
         </legend>
         <Pills
@@ -899,7 +909,7 @@ function DetailsStep({
       </fieldset>
 
       <fieldset className="flex flex-col gap-3">
-        <legend className="text-right font-bold">{t.featuresLabel}</legend>
+        <legend className="text-start font-bold">{t.featuresLabel}</legend>
         <Pills
           items={features}
           selected={selected.features ?? []}
@@ -909,20 +919,20 @@ function DetailsStep({
       </fieldset>
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="description" className="text-right">
+        <Label htmlFor="description" className="text-start">
           <RequiredLabel>{t.descriptionLabel}</RequiredLabel>
         </Label>
         <Textarea
           id="description"
-          dir="rtl"
+          dir={dir}
           value={form.description ?? ''}
           onChange={(event) => update('description', event.target.value)}
-          className={`min-h-32 rounded-xl text-right ${
+          className={`min-h-32 rounded-xl text-start ${
             errors.description ? 'border-red-500 bg-red-50/20' : ''
           }`}
         />
         {errors.description && (
-          <p className="mt-1.5 text-right text-xs font-semibold text-red-600">
+          <p className="mt-1.5 text-start text-xs font-semibold text-red-600">
             {errors.description}
           </p>
         )}
@@ -967,10 +977,12 @@ function PricingStep({
   errors: Record<string, string>
   onSave: () => void
 }) {
+  const { t: dict, locale } = useTranslation()
+  const s = dict.sell
   const t = s.pricingStep
   const yes = (group: string) => selected[group]?.[0] === 'yes'
   const setAnswer = (group: string, value: string) => toggle(group, value)
-  const currency = getCountryConfig(form.unitCountry).currencySymbol
+  const currency = getCurrencySymbol(form.unitCountry || 'EG', locale)
 
   return (
     <div className="flex flex-col gap-6">
@@ -982,7 +994,7 @@ function PricingStep({
         update={(value) => update('contractPrice', value)}
       />
       <fieldset className="flex flex-col gap-3">
-        <legend className="text-right font-bold">
+        <legend className="text-start font-bold">
           <RequiredLabel>{t.contractYearLabel}</RequiredLabel>
         </legend>
         <Pills
@@ -1015,7 +1027,7 @@ function PricingStep({
           update={(value) => update('installment', value)}
         />
         <fieldset className="flex flex-col gap-3">
-          <legend className="text-right font-bold">
+          <legend className="text-start font-bold">
             <RequiredLabel>{t.frequencyLabel}</RequiredLabel>
           </legend>
           <Pills
@@ -1133,7 +1145,10 @@ function PhotosStep({
   setUploading: (value: boolean) => void
   onSave: () => void
 }) {
+  const { t: dict } = useTranslation()
+  const s = dict.sell
   const t = s.photosStep
+
   const upload = async (files: FileList | null) => {
     if (!files?.length) return
     setUploading(true)
@@ -1171,7 +1186,7 @@ function PhotosStep({
         />
       </label>
       {uploading && (
-        <p className="text-right text-sm font-semibold text-teal-700">
+        <p className="text-start text-sm font-semibold text-teal-700">
           {t.uploadingText}
         </p>
       )}
@@ -1251,14 +1266,18 @@ function ReviewStep({
   orderRef: string
   unitId: string
 }) {
+  const { t: dict, locale } = useTranslation()
+  const s = dict.sell
   const t = s.reviewStep
+
   const [selectedPromo, setSelectedPromo] = useState<7 | 14 | 30 | null>(null)
   const [fawryCode, setFawryCode] = useState<string | null>(null)
   const [copiedCode, setCopiedCode] = useState(false)
   const [promoPending, startPromoTransition] = useTransition()
 
   const countryObj = getCountryConfig(form.unitCountry)
-  const currency = countryObj.currencySymbol
+  const localizedCountryName = getLocalizedCountryName(countryObj, locale)
+  const currency = getCurrencySymbol(form.unitCountry || 'EG', locale)
   const pkgPrices = countryObj.defaultPackages || {
     days7: 1199,
     days14: 1999,
@@ -1314,7 +1333,7 @@ function ReviewStep({
           {t.orderRefLabel} <strong className="font-mono">{orderRef}</strong>
         </span>
 
-        <div className="mt-6 w-full rounded-[20px] border border-[#aae3cb] bg-[#effaf5] p-5 text-right sm:p-6">
+        <div className="mt-6 w-full rounded-[20px] border border-[#aae3cb] bg-[#effaf5] p-5 text-start sm:p-6">
           <div className="flex items-center justify-start gap-1 text-xs font-extrabold text-[var(--brand-primary,#007a5a)]">
             <Star className="size-3.5 fill-amber-400 text-amber-500" />
             <span>{t.optionalBadge}</span>
@@ -1362,7 +1381,8 @@ function ReviewStep({
                     {pkg.label}
                   </span>
                   <span className="mt-1 text-xs font-extrabold text-[var(--brand-primary,#007a5a)] tabular-nums sm:text-sm">
-                    {pkg.price.toLocaleString('en-US')} {currency}
+                    <span dir="ltr">{pkg.price.toLocaleString('en-US')}</span>{' '}
+                    {currency}
                   </span>
                 </button>
               )
@@ -1379,7 +1399,7 @@ function ReviewStep({
               <span>{t.issuingCode}</span>
             </div>
           ) : fawryCode ? (
-            <div className="mt-3 rounded-xl border border-[var(--brand-primary,#007a5a)]/30 bg-white p-4 text-right shadow-2xs">
+            <div className="mt-3 rounded-xl border border-[var(--brand-primary,#007a5a)]/30 bg-white p-4 text-start shadow-2xs">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <p className="text-xs font-extrabold text-[var(--brand-navy,#0a1122)]">
@@ -1427,7 +1447,7 @@ function ReviewStep({
     )
 
   const rows = [
-    [t.rowCountry, `${countryObj.flag} ${countryObj.nameAr}`],
+    [t.rowCountry, `${countryObj.flag} ${localizedCountryName}`],
     [
       t.rowDevProject,
       `${form.developerDetails || form.developer || '—'} · ${
@@ -1460,8 +1480,8 @@ function ReviewStep({
       <div className="divide-y divide-slate-200 rounded-xl border border-slate-200 px-4">
         {rows.map(([label, value]) => (
           <div key={label} className="grid grid-cols-2 gap-4 py-3 text-sm">
-            <span className="text-right text-slate-500">{label}</span>
-            <strong className="text-left">{value}</strong>
+            <span className="text-start text-slate-500">{label}</span>
+            <strong className="text-end">{value}</strong>
           </div>
         ))}
       </div>

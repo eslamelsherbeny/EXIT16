@@ -7,6 +7,9 @@ import {
   logoutAccountAction,
   requestAccountDeletionAction,
 } from '@/app/actions/account-actions'
+import arDict from '@/dictionaries/ar.json'
+
+const t = arDict.accountComponents.deleteModal
 
 export function AccountActionLinks({
   unitsCount = 0,
@@ -26,7 +29,7 @@ export function AccountActionLinks({
   const [error, setError] = useState('')
   const [isPending, startTransition] = useTransition()
 
-  const isConfirmReady = confirmWord.trim() === 'حذف'
+  const isConfirmReady = confirmWord.trim() === t.confirmWordTarget
 
   const handleRequestDeletion = () => {
     if (!isConfirmReady) return
@@ -36,7 +39,7 @@ export function AccountActionLinks({
       if (res.success) {
         setDeletionRequested(true)
       } else {
-        setError(res.error || 'تعذر إرسال الطلب')
+        setError(res.error || t.errorFallback)
       }
     })
   }
@@ -63,9 +66,9 @@ export function AccountActionLinks({
       >
         <Link
           href="/account/details"
-          className="inline-flex h-9 items-center justify-center rounded-xl border border-gray-200 bg-white px-4 text-xs font-bold text-[#0a1122] shadow-2xs transition hover:bg-gray-50"
+          className="inline-flex h-9 items-center justify-center rounded-xl border border-gray-200 bg-white px-4 text-xs font-bold text-[var(--brand-navy,#0a1122)] shadow-2xs transition hover:bg-gray-50"
         >
-          بياناتي
+          {t.myDetailsBtn}
         </Link>
 
         <button
@@ -73,20 +76,19 @@ export function AccountActionLinks({
           onClick={() => setModalOpen(true)}
           className="px-2 py-1.5 text-xs font-bold text-red-600 transition hover:text-red-700 hover:underline"
         >
-          {deletionRequested ? 'طلب الحذف قيد المراجعة' : 'حذف الحساب'}
+          {deletionRequested ? t.deletePendingBtn : t.deleteAccountBtn}
         </button>
 
         <form action={logoutAccountAction}>
           <button
             type="submit"
-            className="inline-flex h-9 items-center justify-center rounded-xl border border-gray-200 bg-white px-4 text-xs font-bold text-[#0a1122] shadow-2xs transition hover:bg-gray-50"
+            className="inline-flex h-9 items-center justify-center rounded-xl border border-gray-200 bg-white px-4 text-xs font-bold text-[var(--brand-navy,#0a1122)] shadow-2xs transition hover:bg-gray-50"
           >
-            تسجيل الخروج
+            {t.logoutBtn}
           </button>
         </form>
       </div>
 
-      {/* نافذة حذف الحساب المطابقة للصور 43 و 44 و 45 */}
       {modalOpen && (
         <div
           dir="rtl"
@@ -99,41 +101,40 @@ export function AccountActionLinks({
           >
             {!deletionRequested ? (
               <>
-                <h3 className="text-xl font-black text-[#0a1122]">
-                  حذف الحساب
+                <h3 className="text-xl font-black text-[var(--brand-navy,#0a1122)]">
+                  {t.modalTitle}
                 </h3>
                 <p className="mt-3 text-xs leading-relaxed text-slate-600 sm:text-[13px]">
-                  هنسجّل طلب بحذف حسابك، والفريق هيراجعه. وحداتك هتتشال من السوق
-                  فوراً.
+                  {t.modalDesc1}
                 </p>
                 {unitsCount > 0 && (
                   <p className="mt-2 text-xs leading-relaxed text-slate-600 sm:text-[13px]">
-                    لما الطلب يتقبل هيتم حذف {unitsCount} وحدة سجلتها بالكامل،
-                    بالصور والمستندات — والخطوة دي مش بترجع.
+                    {t.modalUnitsWarnPrefix} {unitsCount}{' '}
+                    {t.modalUnitsWarnSuffix}
                   </p>
                 )}
 
                 <div className="mt-5">
-                  <label className="mb-1.5 block text-xs font-bold text-[#0a1122]">
-                    ليه حابب تمشي؟ (اختياري)
+                  <label className="mb-1.5 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
+                    {t.reasonLabel}
                   </label>
                   <input
                     type="text"
                     value={reason}
                     onChange={(e) => setReason(e.target.value)}
-                    className="h-11 w-full rounded-xl border border-gray-200 px-3.5 text-xs font-semibold text-[#0a1122] focus:border-[#0b6954] focus:outline-none"
+                    className="h-11 w-full rounded-xl border border-gray-200 px-3.5 text-xs font-semibold text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none"
                   />
                 </div>
 
                 <div className="mt-4">
-                  <label className="mb-1.5 block text-xs font-bold text-[#0a1122]">
-                    اكتب «حذف» للتأكيد
+                  <label className="mb-1.5 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
+                    {t.confirmInputLabel}
                   </label>
                   <input
                     type="text"
                     value={confirmWord}
                     onChange={(e) => setConfirmWord(e.target.value)}
-                    className="h-11 w-full rounded-xl border border-gray-200 px-3.5 text-xs font-semibold text-[#0a1122] focus:border-[#0b6954] focus:outline-none"
+                    className="h-11 w-full rounded-xl border border-gray-200 px-3.5 text-xs font-semibold text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none"
                   />
                 </div>
 
@@ -148,38 +149,37 @@ export function AccountActionLinks({
                     onClick={handleRequestDeletion}
                     className={`h-11 flex-1 rounded-xl text-xs font-bold text-white transition ${
                       isConfirmReady
-                        ? 'bg-[#dc2626] hover:bg-red-700'
+                        ? 'bg-[var(--brand-danger,#d9383a)] hover:bg-red-700'
                         : 'cursor-not-allowed bg-[#f49797]'
                     }`}
                   >
-                    {isPending ? 'جاري الإرسال...' : 'ابعت طلب الحذف'}
+                    {isPending ? t.sendingBtn : t.submitDeleteBtn}
                   </button>
                   <button
                     type="button"
                     onClick={() => setModalOpen(false)}
-                    className="h-11 rounded-xl border border-gray-200 bg-white px-5 text-xs font-bold text-[#0a1122] hover:bg-gray-50"
+                    className="h-11 rounded-xl border border-gray-200 bg-white px-5 text-xs font-bold text-[var(--brand-navy,#0a1122)] hover:bg-gray-50"
                   >
-                    رجوع
+                    {t.backBtn}
                   </button>
                 </div>
               </>
             ) : (
-              /* المرحلة الثانية بعد إرسال طلب الحذف (الصورة 45) */
               <>
-                <h3 className="text-xl font-black text-[#0a1122]">
-                  طلب حذف الحساب
+                <h3 className="text-xl font-black text-[var(--brand-navy,#0a1122)]">
+                  {t.pendingTitle}
                 </h3>
-                <p className="mt-3 text-xs font-extrabold text-[#0a1122] sm:text-[13px]">
-                  استلمنا طلبك وهو تحت المراجعة.
+                <p className="mt-3 text-xs font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-[13px]">
+                  {t.pendingBold}
                 </p>
                 <p className="mt-2.5 text-xs leading-relaxed text-slate-600 sm:text-[13px]">
-                  وحداتك اتشالت من السوق دلوقتي، فمحدش هيشوفها أو يسأل عنها.
+                  {t.pendingLine1}
                 </p>
                 <p className="mt-1.5 text-xs leading-relaxed text-slate-600 sm:text-[13px]">
-                  لو مرجعناش خلال 30 يوم، الحساب هيتحذف تلقائياً.
+                  {t.pendingLine2}
                 </p>
                 <p className="mt-1.5 text-xs leading-relaxed text-slate-600 sm:text-[13px]">
-                  غيّرت رأيك؟ الغِ الطلب وهترجع وحداتك للسوق زي ما كانت.
+                  {t.pendingLine3}
                 </p>
 
                 <div className="mt-6 flex items-center gap-3">
@@ -187,16 +187,16 @@ export function AccountActionLinks({
                     type="button"
                     disabled={isPending}
                     onClick={handleCancelDeletion}
-                    className="h-11 flex-1 rounded-xl bg-[#0b6954] text-xs font-bold text-white transition hover:bg-[#095443]"
+                    className="h-11 flex-1 rounded-xl bg-[var(--brand-primary,#007a5a)] text-xs font-bold text-white transition hover:bg-[var(--brand-primary-hover,#006248)]"
                   >
-                    {isPending ? 'جاري الإلغاء...' : 'الغِ الطلب'}
+                    {isPending ? t.cancellingBtn : t.cancelRequestBtn}
                   </button>
                   <button
                     type="button"
                     onClick={() => setModalOpen(false)}
-                    className="h-11 rounded-xl border border-gray-200 bg-white px-5 text-xs font-bold text-[#0a1122] hover:bg-gray-50"
+                    className="h-11 rounded-xl border border-gray-200 bg-white px-5 text-xs font-bold text-[var(--brand-navy,#0a1122)] hover:bg-gray-50"
                   >
-                    رجوع
+                    {t.backBtn}
                   </button>
                 </div>
               </>

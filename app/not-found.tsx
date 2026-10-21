@@ -1,13 +1,14 @@
 import Link from 'next/link'
 import { Home } from 'lucide-react'
-import arDict from '@/dictionaries/ar.json'
+import { getServerI18n } from '@/lib/get-server-dictionary'
 
-const t = arDict.systemPages
+export default async function NotFound() {
+  const { dict, dir } = await getServerI18n()
+  const t = dict.systemPages
 
-export default function NotFound() {
   return (
     <main
-      dir="rtl"
+      dir={dir}
       className="flex min-h-[calc(100vh-5rem)] items-center justify-center bg-[var(--brand-navy,#0a1122)] px-6 py-20 text-center text-white"
     >
       <div className="flex max-w-xl flex-col items-center">

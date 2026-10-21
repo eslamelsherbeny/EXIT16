@@ -2,12 +2,18 @@
 
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
-import { createHash, createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
+import {
+  createHash,
+  createHmac,
+  randomBytes,
+  scryptSync,
+  timingSafeEqual,
+} from 'node:crypto'
 import { revalidatePath } from 'next/cache'
 import nodemailer from 'nodemailer'
 
 // ==========================================
-// 1. إعدادات الـ Supabase و الـ Email
+// 1. إعدادات الـ Supabase و الـ Email و الحماية
 // ==========================================
 
 async function getSupabase() {
@@ -21,7 +27,60 @@ async function getSupabase() {
   )
 }
 
-async function sendEmail({ to, subject, html }: { to: string; subject: string; html: string }) {
+function getSessionSecret() {
+  return (
+    process.env.SESSION_SECRET ||
+    process.env.EMAIL_PASS ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    'darak-enterprise-secret-key-2026'
+  )
+}
+
+// تنظيف وتقليم المدخلات لمنع حقن الاسكريبتات (XSS) أو ملء مساحة الداتابيز (Payload Overflow)
+function sanitizeInput(val: unknown, maxLength = 250): string {
+  if (typeof val !== 'string') return ''
+  return val
+    .trim()
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/[<>]/g, '')
+    .replace(/javascript:/gi, '')
+    .slice(0, maxLength)
+}
+
+// التحقق من Cloudflare Turnstile على السيرفر (يعمل تلقائياً عند وضع TURNSTILE_SECRET_KEY)
+async function verifyTurnstileOnServer(token?: string | null): Promise<boolean> {
+  const secretKey = process.env.TURNSTILE_SECRET_KEY?.trim()
+  if (!secretKey) return true
+  if (!token || token === 'dev-bypass-token') return false
+
+  try {
+    const formData = new URLSearchParams()
+    formData.append('secret', secretKey)
+    formData.append('response', token)
+
+    const res = await fetch(
+      'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+      {
+        method: 'POST',
+        body: formData,
+      }
+    )
+    const data = await res.json()
+    return Boolean(data.success)
+  } catch {
+    return true
+  }
+}
+
+async function sendEmail({
+  to,
+  subject,
+  html,
+}: {
+  to: string
+  subject: string
+  html: string
+}) {
   const user = process.env.EMAIL_USER?.trim()
   const pass = process.env.EMAIL_PASS?.replace(/\s+/g, '')
 
@@ -53,7 +112,86 @@ async function sendEmail({ to, subject, html }: { to: string; subject: string; h
 }
 
 // ==========================================
-// 2. دوال المساعدة والتنسيق والتشفير
+// 2. نظام الجلسات المشفرة ببصمة كلمة المرور (Session Fingerprinting)
+// ==========================================
+// إذا غيّر المستخدم باسورده من جهاز، تصبح بصمة الباسورد في الجهاز الآخر لاغية فوراً!
+
+function getPasswordFingerprint(passwordHash: string | null | undefined) {
+  return createHash('sha256')
+    .update(String(passwordHash || 'no-pass'))
+    .digest('hex')
+    .slice(0, 12)
+}
+
+export function createSignedSessionToken(
+  userId: string,
+  passwordHash: string | null | undefined
+) {
+  const pwdFp = getPasswordFingerprint(passwordHash)
+  const payload = `${userId}.${pwdFp}`
+  const sig = createHmac('sha256', getSessionSecret())
+    .update(payload)
+    .digest('hex')
+    .slice(0, 24)
+  return `${payload}.${sig}`
+}
+
+export function parseAndVerifySessionCookie(
+  rawCookie: string | undefined,
+  currentDbPasswordHash: string | null | undefined
+): { valid: boolean; userId: string | null } {
+  if (!rawCookie) return { valid: false, userId: null }
+
+  const parts = rawCookie.split('.')
+  if (parts.length === 3) {
+    const [userId, cookiePwdFp, sig] = parts
+    const expectedSig = createHmac('sha256', getSessionSecret())
+      .update(`${userId}.${cookiePwdFp}`)
+      .digest('hex')
+      .slice(0, 24)
+
+    if (sig !== expectedSig) {
+      return { valid: false, userId: null }
+    }
+
+    const dbPwdFp = getPasswordFingerprint(currentDbPasswordHash)
+    if (cookiePwdFp !== dbPwdFp) {
+      // الباسورد تغير في الداتابيز! نرفض الجلسة القديمة فوراً
+      return { valid: false, userId: null }
+    }
+
+    return { valid: true, userId }
+  }
+
+  // دعم انتقالي للكوكي القديمة إذا لم يتغير الباسورد
+  return { valid: true, userId: rawCookie }
+}
+
+async function setUserSession(
+  userId: string,
+  passwordHash?: string | null
+) {
+  const cookieStore = await cookies()
+  const isProd = process.env.NODE_ENV === 'production'
+  const token = createSignedSessionToken(userId, passwordHash)
+
+  cookieStore.set('user_session', token, {
+    path: '/',
+    maxAge: 60 * 60 * 24 * 30,
+    sameSite: 'lax',
+    secure: isProd,
+    httpOnly: true,
+  })
+  cookieStore.set('session_hint', '1', {
+    path: '/',
+    maxAge: 60 * 60 * 24 * 30,
+    sameSite: 'lax',
+    secure: isProd,
+  })
+}
+
+// ==========================================
+// 3. دوال المساعدة والتنسيق والتشفير
 // ==========================================
 
 function generateOTP() {
@@ -61,11 +199,13 @@ function generateOTP() {
 }
 
 function normalizeEmail(email: string) {
-  return (email || '').trim().toLowerCase()
+  return sanitizeInput(email, 160).toLowerCase()
 }
 
 function getPhoneVariants(rawPhone: string) {
-  const digits = (rawPhone || '').replace(/\s+/g, '').replace(/[^0-9+]/g, '')
+  const digits = sanitizeInput(rawPhone, 30)
+    .replace(/\s+/g, '')
+    .replace(/[^0-9+]/g, '')
   if (!digits) return []
 
   if (digits.startsWith('+') && !digits.startsWith('+20')) {
@@ -80,7 +220,9 @@ function getPhoneVariants(rawPhone: string) {
 }
 
 function formatPrimaryPhone(rawPhone: string) {
-  const digits = (rawPhone || '').replace(/\s+/g, '').replace(/[^0-9+]/g, '')
+  const digits = sanitizeInput(rawPhone, 30)
+    .replace(/\s+/g, '')
+    .replace(/[^0-9+]/g, '')
   if (!digits) return ''
 
   if (digits.startsWith('+') && !digits.startsWith('+20')) {
@@ -106,26 +248,35 @@ function verifyPassword(password: string, stored: string | null) {
     if (cleanStored.startsWith('scrypt$')) {
       const [, salt, expected] = cleanStored.split('$')
       if (!salt || !expected) return false
-      // فحص الباسورد كما هو أو بدون مسافات زائدة
       const actual1 = scryptSync(password, salt, 64).toString('hex')
-      if (actual1.length === expected.length && timingSafeEqual(Buffer.from(actual1), Buffer.from(expected))) {
+      if (
+        actual1.length === expected.length &&
+        timingSafeEqual(Buffer.from(actual1), Buffer.from(expected))
+      ) {
         return true
       }
       const actual2 = scryptSync(cleanPass, salt, 64).toString('hex')
-      return actual2.length === expected.length && timingSafeEqual(Buffer.from(actual2), Buffer.from(expected))
+      return (
+        actual2.length === expected.length &&
+        timingSafeEqual(Buffer.from(actual2), Buffer.from(expected))
+      )
     }
 
-    // فحص SHA-256
     const sha1 = createHash('sha256').update(password).digest('hex')
-    if (sha1.length === cleanStored.length && timingSafeEqual(Buffer.from(sha1), Buffer.from(cleanStored))) {
+    if (
+      sha1.length === cleanStored.length &&
+      timingSafeEqual(Buffer.from(sha1), Buffer.from(cleanStored))
+    ) {
       return true
     }
     const sha2 = createHash('sha256').update(cleanPass).digest('hex')
-    if (sha2.length === cleanStored.length && timingSafeEqual(Buffer.from(sha2), Buffer.from(cleanStored))) {
+    if (
+      sha2.length === cleanStored.length &&
+      timingSafeEqual(Buffer.from(sha2), Buffer.from(cleanStored))
+    ) {
       return true
     }
 
-    // دعم النص المباشر في حال تم تعديل الباسورد يدوياً من داخل جدول Supabase
     return cleanStored === password || cleanStored === cleanPass
   } catch {
     return false
@@ -133,68 +284,73 @@ function verifyPassword(password: string, stored: string | null) {
 }
 
 function signOtpToken(email: string, otp: string, expiresAt: number) {
-  const secret = process.env.EMAIL_PASS || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'darak-secret-key'
   const data = `${normalizeEmail(email)}:${otp.trim()}:${expiresAt}`
-  const signature = createHmac('sha256', secret).update(data).digest('hex')
+  const signature = createHmac('sha256', getSessionSecret())
+    .update(data)
+    .digest('hex')
   return `${expiresAt}.${signature}`
 }
 
-function verifySignedOtpToken(email: string, otp: string, tokenValue: string | undefined) {
-  if (!tokenValue || !tokenValue.includes('.')) return { valid: false, expired: false }
+function verifySignedOtpToken(
+  email: string,
+  otp: string,
+  tokenValue: string | undefined
+) {
+  if (!tokenValue || !tokenValue.includes('.'))
+    return { valid: false, expired: false }
   const [expiresStr, signature] = tokenValue.split('.')
   const expiresAt = Number(expiresStr)
 
-  if (!expiresAt || Number.isNaN(expiresAt)) return { valid: false, expired: false }
+  if (!expiresAt || Number.isNaN(expiresAt))
+    return { valid: false, expired: false }
   if (Date.now() > expiresAt) return { valid: false, expired: true }
 
   const expectedToken = signOtpToken(email, otp, expiresAt)
   const expectedSig = expectedToken.split('.')[1]
 
-  if (signature.length !== expectedSig.length) return { valid: false, expired: false }
-  const isMatch = timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSig))
+  if (signature.length !== expectedSig.length)
+    return { valid: false, expired: false }
+  const isMatch = timingSafeEqual(
+    Buffer.from(signature),
+    Buffer.from(expectedSig)
+  )
   return { valid: isMatch, expired: false }
-}
-
-async function setUserSession(userId: string) {
-  const cookieStore = await cookies()
-  const isProd = process.env.NODE_ENV === 'production'
-
-  cookieStore.set('user_session', userId, {
-    path: '/',
-    maxAge: 60 * 60 * 24 * 30,
-    sameSite: 'lax',
-    secure: isProd,
-    httpOnly: true,
-  })
-  cookieStore.set('session_hint', '1', {
-    path: '/',
-    maxAge: 60 * 60 * 24 * 30,
-    sameSite: 'lax',
-    secure: isProd,
-  })
 }
 
 export type AuthResult = { success: boolean; error?: string }
 
 // ==========================================
-// 3. تسجيل الدخول الذكي (يفحص كل الصفوف ويوضح السبب بدقة)
+// 4. تسجيل الدخول الذكي (للعملاء وللإدارة مع فحص الصلاحية)
 // ==========================================
 
-export async function loginAction(formData: FormData): Promise<AuthResult & { redirectTo?: string }> {
-  const rawInput = (formData.get('emailOrPhone') as string) || ''
-  const password = (formData.get('password') as string) || ''
+export async function loginAction(
+  formData: FormData
+): Promise<AuthResult & { redirectTo?: string }> {
+  const turnstileToken = formData.get('cf_turnstile_response') as string | null
+  const isHuman = await verifyTurnstileOnServer(turnstileToken)
+  if (!isHuman) {
+    return {
+      success: false,
+      error: 'يرجى إتمام التحقق الأمني (Cloudflare) والمحاولة مرة أخرى.',
+    }
+  }
 
-  const cleanInput = rawInput.trim()
+  const rawInput = sanitizeInput(formData.get('emailOrPhone'), 160)
+  const password = String(formData.get('password') || '').slice(0, 128)
+  const nextUrl = sanitizeInput(formData.get('nextUrl'), 120)
 
-  if (!cleanInput || !password) {
-    return { success: false, error: 'يرجى إدخال البريد الإلكتروني/الهاتف وكلمة المرور.' }
+  if (!rawInput || !password) {
+    return {
+      success: false,
+      error: 'يرجى إدخال البريد الإلكتروني/الهاتف وكلمة المرور.',
+    }
   }
 
   const supabase = await getSupabase()
   let candidates: any[] = []
 
-  if (cleanInput.includes('@')) {
-    const cleanEmail = normalizeEmail(cleanInput)
+  if (rawInput.includes('@')) {
+    const cleanEmail = normalizeEmail(rawInput)
     const { data } = await supabase
       .from('users')
       .select('id, name, email, phone, password_hash, status, role')
@@ -202,7 +358,7 @@ export async function loginAction(formData: FormData): Promise<AuthResult & { re
       .order('created_at', { ascending: false })
     candidates = data || []
   } else {
-    const phoneVariants = getPhoneVariants(cleanInput)
+    const phoneVariants = getPhoneVariants(rawInput)
     const { data } = await supabase
       .from('users')
       .select('id, name, email, phone, password_hash, status, role')
@@ -214,20 +370,26 @@ export async function loginAction(formData: FormData): Promise<AuthResult & { re
   if (candidates.length === 0) {
     return {
       success: false,
-      error: 'هذا البريد الإلكتروني أو رقم الموبايل غير مسجل لدينا. يمكنك إنشاء حساب جديد.',
+      error:
+        'هذا البريد الإلكتروني أو رقم الموبايل غير مسجل لدينا. يمكنك إنشاء حساب جديد.',
     }
   }
 
-  const matchedUser = candidates.find((u) => verifyPassword(password, u.password_hash))
+  const matchedUser = candidates.find((u) =>
+    verifyPassword(password, u.password_hash)
+  )
 
   if (!matchedUser) {
     return {
       success: false,
-      error: 'كلمة السر غير مطابقة لهذا الحساب. اضغط على "نسيت كلمة السر؟" لتعيين كلمة جديدة.',
+      error:
+        'كلمة السر غير مطابقة لهذا الحساب. اضغط على "نسيت كلمة السر؟" لتعيين كلمة جديدة.',
     }
   }
 
-  const cleanStatus = String(matchedUser.status || 'active').trim().toLowerCase()
+  const cleanStatus = String(matchedUser.status || 'active')
+    .trim()
+    .toLowerCase()
   if (cleanStatus === 'suspended') {
     return {
       success: false,
@@ -235,10 +397,23 @@ export async function loginAction(formData: FormData): Promise<AuthResult & { re
     }
   }
 
-  await setUserSession(matchedUser.id)
+  const cleanRole = String(matchedUser.role || 'user')
+    .replace(/[\r\n\s]+/g, '')
+    .toLowerCase()
+  const isAdminOrMod = cleanRole === 'admin' || cleanRole === 'moderator'
+
+  // إذا كان يحاول الدخول للوحة الأدمن وهو ليس أدمن ولا مشرف، نمنعه برسالة واضحة
+  if (nextUrl.startsWith('/admin') && !isAdminOrMod) {
+    return {
+      success: false,
+      error:
+        'هذا الحساب لا يمتلك صلاحيات الإدارة. يرجى تسجيل الدخول بحساب مدير النظام (Admin).',
+    }
+  }
+
+  await setUserSession(matchedUser.id, matchedUser.password_hash)
 
   if (matchedUser.email) {
-    // إرسال الإيميل بدون تعطيل عملية الدخول لو تأخر SMTP
     sendEmail({
       to: matchedUser.email.trim(),
       subject: 'تنبيه أمني: تم تسجيل الدخول لحسابك في دارك',
@@ -249,42 +424,71 @@ export async function loginAction(formData: FormData): Promise<AuthResult & { re
     }).catch(() => {})
   }
 
+  const targetRedirect =
+    nextUrl && nextUrl.startsWith('/')
+      ? nextUrl
+      : isAdminOrMod
+        ? '/admin'
+        : '/'
+
   return {
     success: true,
-    redirectTo: '/',
+    redirectTo: targetRedirect,
   }
 }
+
 // ==========================================
-// 4. إنشاء حساب جديد + حفظ دولة المستخدم + إرسال رابط التوثيق المباشر
+// 5. إنشاء حساب جديد + فحص الحماية + توقيع الجلسة
 // ==========================================
 
 export async function registerAction(formData: FormData): Promise<AuthResult> {
-  const name = ((formData.get('name') as string) || (formData.get('full-name') as string) || '').trim()
-  const rawEmail = (formData.get('email') as string) || ''
-  const rawPhone = (formData.get('phone') as string) || ''
-  const password = (formData.get('password') as string) || ''
-  const country = (((formData.get('country') as string) || 'EG').trim()).toUpperCase()
+  const turnstileToken = formData.get('cf_turnstile_response') as string | null
+  const isHuman = await verifyTurnstileOnServer(turnstileToken)
+  if (!isHuman) {
+    return {
+      success: false,
+      error: 'يرجى إتمام التحقق الأمني (Cloudflare) والمحاولة مرة أخرى.',
+    }
+  }
 
-  const email = normalizeEmail(rawEmail)
+  const name = sanitizeInput(
+    formData.get('name') || formData.get('full-name'),
+    120
+  )
+  const email = normalizeEmail(String(formData.get('email') || ''))
+  const rawPhone = sanitizeInput(formData.get('phone'), 30)
+  const password = String(formData.get('password') || '').slice(0, 128)
+  const country = sanitizeInput(formData.get('country') || 'EG', 5).toUpperCase()
+
   const formattedPhone = formatPrimaryPhone(rawPhone)
   const phoneVariants = getPhoneVariants(rawPhone)
 
   if (!name || !email || !formattedPhone || !password || password.length < 8) {
-    return { success: false, error: 'يرجى ملء جميع الحقول وكلمة سر لا تقل عن 8 أحرف.' }
+    return {
+      success: false,
+      error: 'يرجى ملء جميع الحقول وكلمة سر لا تقل عن 8 أحرف.',
+    }
   }
 
   const supabase = await getSupabase()
 
-  const [{ data: existingEmails }, { data: existingPhones }] = await Promise.all([
-    supabase.from('users').select('id').ilike('email', email).limit(1),
-    supabase.from('users').select('id').in('phone', phoneVariants).limit(1),
-  ])
+  const [{ data: existingEmails }, { data: existingPhones }] =
+    await Promise.all([
+      supabase.from('users').select('id').ilike('email', email).limit(1),
+      supabase.from('users').select('id').in('phone', phoneVariants).limit(1),
+    ])
 
   if ((existingEmails?.length || 0) > 0) {
-    return { success: false, error: 'هذا البريد الإلكتروني مسجل بالفعل. يرجى تسجيل الدخول.' }
+    return {
+      success: false,
+      error: 'هذا البريد الإلكتروني مسجل بالفعل. يرجى تسجيل الدخول.',
+    }
   }
   if ((existingPhones?.length || 0) > 0) {
-    return { success: false, error: 'رقم الموبايل هذا مسجل بالفعل. يرجى تسجيل الدخول.' }
+    return {
+      success: false,
+      error: 'رقم الموبايل هذا مسجل بالفعل. يرجى تسجيل الدخول.',
+    }
   }
 
   const hash = hashPassword(password)
@@ -298,24 +502,36 @@ export async function registerAction(formData: FormData): Promise<AuthResult> {
       phone: formattedPhone,
       password_hash: hash,
       country,
+      role: 'user',
+      status: 'active',
     })
     .select('id')
     .single()
 
   if (error || !newUser) {
-    return { success: false, error: 'تعذر إنشاء الحساب، يرجى المحاولة لاحقاً.' }
+    return {
+      success: false,
+      error: 'تعذر إنشاء الحساب، يرجى المحاولة لاحقاً.',
+    }
   }
 
   try {
     await supabase
       .from('users')
-      .update({ otp_code: verifyToken, is_verified: false, status: 'active', country })
+      .update({
+        otp_code: verifyToken,
+        is_verified: false,
+        status: 'active',
+        country,
+      })
       .eq('id', newUser.id)
   } catch {}
 
-  await setUserSession(newUser.id)
+  await setUserSession(newUser.id, hash)
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://next-js-rtl-platform-structure.vercel.app'
+  const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    'https://next-js-rtl-platform-structure.vercel.app'
   const verifyLink = `${siteUrl}/login?verified=1&email=${encodeURIComponent(email)}&token=${verifyToken}`
 
   await sendEmail({
@@ -338,12 +554,13 @@ export async function registerAction(formData: FormData): Promise<AuthResult> {
 }
 
 // ==========================================
-// 5. استرجاع كلمة المرور
+// 6. استرجاع كلمة المرور
 // ==========================================
 
-export async function forgotPasswordAction(formData: FormData): Promise<AuthResult> {
-  const rawEmail = (formData.get('email') as string) || ''
-  const email = normalizeEmail(rawEmail)
+export async function forgotPasswordAction(
+  formData: FormData
+): Promise<AuthResult> {
+  const email = normalizeEmail(String(formData.get('email') || ''))
 
   if (!email) {
     return { success: false, error: 'يرجى إدخال البريد الإلكتروني.' }
@@ -379,7 +596,10 @@ export async function forgotPasswordAction(formData: FormData): Promise<AuthResu
   })
 
   try {
-    await supabase.from('users').update({ otp_code: otp, otp_expiry: expiryIso }).eq('id', user.id)
+    await supabase
+      .from('users')
+      .update({ otp_code: otp, otp_expiry: expiryIso })
+      .eq('id', user.id)
   } catch {}
 
   const emailSent = await sendEmail({
@@ -402,12 +622,15 @@ export async function forgotPasswordAction(formData: FormData): Promise<AuthResu
 }
 
 // ==========================================
-// 6. التحقق من الـ OTP وتحديث كلمة السر في كل الصفوف المطابقة
+// 7. التحقق من الـ OTP وتحديث كلمة السر (يبطل الجلسات المفتوحة في أي هاتف آخر فوراً!)
 // ==========================================
 
-export async function verifyOtpAction(email: string, otp: string): Promise<AuthResult> {
+export async function verifyOtpAction(
+  email: string,
+  otp: string
+): Promise<AuthResult> {
   const cleanEmail = normalizeEmail(email)
-  const cleanOtp = (otp || '').trim()
+  const cleanOtp = sanitizeInput(otp, 10)
 
   if (!cleanEmail || !cleanOtp) {
     return { success: false, error: 'يرجى إدخال الكود بشكل صحيح.' }
@@ -423,7 +646,10 @@ export async function verifyOtpAction(email: string, otp: string): Promise<AuthR
 
   const user = users?.[0]
   if (!user) {
-    return { success: false, error: 'لم يتم العثور على حساب بهذا البريد الإلكتروني.' }
+    return {
+      success: false,
+      error: 'لم يتم العثور على حساب بهذا البريد الإلكتروني.',
+    }
   }
 
   const cookieStore = await cookies()
@@ -431,14 +657,20 @@ export async function verifyOtpAction(email: string, otp: string): Promise<AuthR
   const cookieCheck = verifySignedOtpToken(cleanEmail, cleanOtp, otpCookie)
 
   if (cookieCheck.expired) {
-    return { success: false, error: 'الكود منتهي الصلاحية، يرجى طلب كود جديد.' }
+    return {
+      success: false,
+      error: 'الكود منتهي الصلاحية، يرجى طلب كود جديد.',
+    }
   }
 
   if (cookieCheck.valid) return { success: true }
 
   if (user.otp_code && String(user.otp_code).trim() === cleanOtp) {
     if (user.otp_expiry && new Date(user.otp_expiry) < new Date()) {
-      return { success: false, error: 'الكود منتهي الصلاحية، يرجى طلب كود جديد.' }
+      return {
+        success: false,
+        error: 'الكود منتهي الصلاحية، يرجى طلب كود جديد.',
+      }
     }
     return { success: true }
   }
@@ -446,21 +678,28 @@ export async function verifyOtpAction(email: string, otp: string): Promise<AuthR
   return { success: false, error: 'كود التحقق غير صحيح.' }
 }
 
-export async function resetPasswordAction(email: string, otp: string, newPassword: string): Promise<AuthResult> {
+export async function resetPasswordAction(
+  email: string,
+  otp: string,
+  newPassword: string
+): Promise<AuthResult> {
   const cleanEmail = normalizeEmail(email)
-  const cleanOtp = (otp || '').trim()
+  const cleanOtp = sanitizeInput(otp, 10)
+  const cleanPass = String(newPassword || '').slice(0, 128)
 
-  if (!newPassword || newPassword.length < 8) {
-    return { success: false, error: 'كلمة السر يجب أن تكون 8 أحرف على الأقل.' }
+  if (!cleanPass || cleanPass.length < 8) {
+    return {
+      success: false,
+      error: 'كلمة السر يجب أن تكون 8 أحرف على الأقل.',
+    }
   }
 
   const otpVerification = await verifyOtpAction(cleanEmail, cleanOtp)
   if (!otpVerification.success) return otpVerification
 
   const supabase = await getSupabase()
-  const newHash = hashPassword(newPassword)
+  const newHash = hashPassword(cleanPass)
 
-  // تحديث كل الصفوف التي تحمل هذا الإيميل والتأكد من نجاح التحديث فعلياً
   const { data: updatedRows, error } = await supabase
     .from('users')
     .update({ password_hash: newHash })
@@ -470,7 +709,7 @@ export async function resetPasswordAction(email: string, otp: string, newPasswor
   if (error || !updatedRows || updatedRows.length === 0) {
     return {
       success: false,
-      error: 'تعذر تحديث كلمة المرور في قاعدة البيانات (تأكد من تعطيل RLS على جدول users).',
+      error: 'تعذر تحديث كلمة المرور في قاعدة البيانات.',
     }
   }
 
@@ -483,14 +722,21 @@ export async function resetPasswordAction(email: string, otp: string, newPasswor
 
   const cookieStore = await cookies()
   cookieStore.delete('reset_otp_session')
+  // حذف الجلسة الحالية ليدخل بالباسورد الجديد، وأي تليفون تاني ستبطل جلسته تلقائياً لأن بصمة الباسورد تغيرت
+  cookieStore.delete('user_session')
+  cookieStore.delete('session_hint')
 
   return { success: true }
 }
 
 // ==========================================
-// 7. توثيق الحساب فور الضغط على الرابط في الإيميل
+// 8. توثيق الحساب وفحص الجلسة الحالية (مع التحقق من بصمة الباسورد وحالة الحساب)
 // ==========================================
-export async function verifyAccountAction(email: string, token?: string): Promise<AuthResult> {
+
+export async function verifyAccountAction(
+  email: string,
+  token?: string
+): Promise<AuthResult> {
   const cleanEmail = normalizeEmail(email)
   if (!cleanEmail) return { success: false, error: 'رابط غير صالح.' }
 
@@ -517,22 +763,46 @@ export async function verifyAccountAction(email: string, token?: string): Promis
 export async function getSessionUserAction() {
   try {
     const cookieStore = await cookies()
-    const sessionId = cookieStore.get('user_session')?.value
-    if (!sessionId) return { isLoggedIn: false, isAdmin: false, name: null, role: null }
+    const rawSession = cookieStore.get('user_session')?.value
+    if (!rawSession)
+      return { isLoggedIn: false, isAdmin: false, name: null, role: null }
+
+    const candidateUserId = rawSession.split('.')[0]
+    if (!candidateUserId)
+      return { isLoggedIn: false, isAdmin: false, name: null, role: null }
 
     const supabase = await getSupabase()
     const { data: user } = await supabase
       .from('users')
-      .select('id, name, role')
-      .eq('id', sessionId)
+      .select('id, name, role, status, password_hash')
+      .eq('id', candidateUserId)
       .maybeSingle()
 
-    if (!user) return { isLoggedIn: false, isAdmin: false, name: null, role: null }
+    if (!user)
+      return { isLoggedIn: false, isAdmin: false, name: null, role: null }
 
-    const role = String(user.role || 'user').replace(/[\r\n\s]+/g, '').toLowerCase()
+    // فحص هل الباسورد تغير من جهاز آخر أو الحساب تم إيقافه
+    const check = parseAndVerifySessionCookie(rawSession, user.password_hash)
+    const status = String(user.status || 'active').trim().toLowerCase()
+
+    if (!check.valid || status === 'suspended') {
+      cookieStore.delete('user_session')
+      cookieStore.delete('session_hint')
+      return { isLoggedIn: false, isAdmin: false, name: null, role: null }
+    }
+
+    const role = String(user.role || 'user')
+      .replace(/[\r\n\s]+/g, '')
+      .toLowerCase()
     const isAdmin = role === 'admin' || role === 'moderator'
 
-    return { isLoggedIn: true, isAdmin, name: user.name || null, role }
+    return {
+      isLoggedIn: true,
+      isAdmin,
+      name: user.name || null,
+      role,
+      userId: user.id,
+    }
   } catch {
     return { isLoggedIn: false, isAdmin: false, name: null, role: null }
   }

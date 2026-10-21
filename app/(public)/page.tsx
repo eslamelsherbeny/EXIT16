@@ -11,7 +11,6 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
-// استيراد ملفات الترجمة الأربعة
 import arDict from '@/dictionaries/ar.json'
 import enDict from '@/dictionaries/en.json'
 import ruDict from '@/dictionaries/ru.json'
@@ -20,7 +19,6 @@ import kaDict from '@/dictionaries/ka.json'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-// تجميع القواميس في كائن واحد لسهولة الاستدعاء
 const dictionaries: Record<string, any> = {
   ar: arDict,
   en: enDict,
@@ -28,12 +26,21 @@ const dictionaries: Record<string, any> = {
   ka: kaDict,
 }
 
-// خريطة العملات المركزية لكل دولة
-const COUNTRY_CURRENCIES: Record<string, string> = {
-  EG: 'ج.م',
-  RU: '₽',
-  GE: '$',
-  AE: 'د.إ',
+// دالة ذكية لعرض رمز العملة المناسب حسب الدولة ولغة المتصفح الحالية
+function getHomeCurrencySymbol(countryCode: string, locale: string): string {
+  const isArabic = locale === 'ar'
+  switch (countryCode) {
+    case 'EG':
+      return isArabic ? 'ج.م' : 'EGP'
+    case 'AE':
+      return isArabic ? 'د.إ' : 'AED'
+    case 'RU':
+      return '₽'
+    case 'GE':
+      return '$'
+    default:
+      return isArabic ? 'ج.م' : 'EGP'
+  }
 }
 
 async function getSupabase() {
@@ -86,13 +93,12 @@ export default async function HomePage() {
     console.error('Error fetching real stats on HomePage:', err)
   }
 
-  // اختيار القاموس الديناميكي بناءً على اللغة المحددة
   const dict = dictionaries[activeLocale] || arDict
   const t = dict.home || arDict.home
   const isRtl = activeLocale === 'ar'
 
-  // تنسيق العملة والقيمة السوقية الإجمالية حسب الدولة المختارة
-  const currencySymbol = COUNTRY_CURRENCIES[activeCountryCode] || 'ج.م'
+  // العملة الآن تتحدث تلقائياً حسب اللغة والدولة (ج.م بالعربي، و EGP بالإنجليزي/الروسي/الجورجي)
+  const currencySymbol = getHomeCurrencySymbol(activeCountryCode, activeLocale)
   let formattedValue = '0'
   let valueUnitLabel = currencySymbol
 
@@ -126,7 +132,6 @@ export default async function HomePage() {
         <div className="pointer-events-none absolute -top-32 right-[15%] size-[24rem] rounded-full bg-blue-500/10 blur-[120px] sm:size-[32rem]" />
 
         <div className="relative mx-auto grid w-full max-w-[1280px] grid-cols-1 items-center gap-12 px-4 py-12 sm:px-6 md:py-16 lg:grid-cols-[1.15fr_0.85fr] lg:gap-16 lg:px-10 lg:py-20">
-          {/* العمود الأول: النصوص والأزرار */}
           <div className="text-start">
             <span className="mb-6 inline-block rounded-full border border-white/10 bg-[#132230] px-4 py-1.5 text-[11px] font-semibold text-[#2dd4a8] sm:text-xs">
               {t?.hero?.badge}
@@ -171,7 +176,6 @@ export default async function HomePage() {
 
           {/* العمود الثاني: بطاقات المقارنة */}
           <div className="relative mx-auto flex w-full max-w-[440px] flex-col items-center gap-4">
-            {/* البطاقة العلوية (الداكنة) */}
             <div className="w-full rounded-[20px] border border-white/10 bg-[#162032]/90 p-5 text-white shadow-xl backdrop-blur-sm sm:p-6">
               <div className="flex items-center justify-start gap-3">
                 <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-[#3a1d2b] text-xs font-bold text-[#ff5a65]">
@@ -187,11 +191,9 @@ export default async function HomePage() {
                   <p className="text-[11px] text-gray-400 sm:text-xs">
                     {t?.hero?.lossCardLabel}
                   </p>
-                  <strong
-                    dir="ltr"
-                    className="mt-1 block text-xl font-extrabold text-[#ff5a65] tabular-nums sm:text-[26px]"
-                  >
-                    - {t?.hero?.lossCardAmount} {currencySymbol}
+                  <strong className="mt-1 flex items-baseline gap-1.5 text-xl font-extrabold text-[#ff5a65] tabular-nums sm:text-[26px]">
+                    <span dir="ltr">- {t?.hero?.lossCardAmount}</span>
+                    <span>{currencySymbol}</span>
                   </strong>
                 </div>
                 <div className="shrink-0 text-end">
@@ -209,12 +211,10 @@ export default async function HomePage() {
               </div>
             </div>
 
-            {/* شارة VS */}
             <div className="z-20 -my-6 flex size-9 items-center justify-center rounded-full border border-white/15 bg-[var(--brand-navy,#0a1122)] text-[11px] font-bold uppercase text-gray-300 shadow-md">
               vs
             </div>
 
-            {/* البطاقة السفلية (البيضاء) */}
             <div className="w-full rounded-[20px] bg-white p-5 text-[var(--brand-navy-text,#0a1128)] shadow-2xl sm:p-6">
               <div className="flex items-center justify-start gap-3">
                 <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-[#d8f3e5] text-xs font-bold text-[#0f7a58]">
@@ -229,9 +229,9 @@ export default async function HomePage() {
                 <p className="text-[11px] text-gray-500 sm:text-xs">
                   {t?.hero?.winCardLabel}
                 </p>
-                <strong className="mt-1 block text-2xl font-extrabold text-[var(--brand-primary,#007a5a)] tabular-nums sm:text-[32px]">
-                  <span dir="ltr">{t?.hero?.winCardAmount}</span>{' '}
-                  {currencySymbol}
+                <strong className="mt-1 flex items-baseline gap-1.5 text-2xl font-extrabold text-[var(--brand-primary,#007a5a)] tabular-nums sm:text-[32px]">
+                  <span dir="ltr">{t?.hero?.winCardAmount}</span>
+                  <span>{currencySymbol}</span>
                 </strong>
                 <p className="mt-1 text-xs font-bold text-[var(--brand-navy-text,#0a1128)]">
                   {t?.hero?.winCardSub}
@@ -301,7 +301,6 @@ export default async function HomePage() {
         </div>
 
         <div className="mt-10 grid grid-cols-1 gap-6 lg:grid-cols-2">
-          {/* بطاقة البايع */}
           <div className="flex flex-col justify-between rounded-[22px] border border-gray-200/80 bg-white p-6 text-start shadow-sm sm:p-9">
             <div>
               <span className="inline-block rounded-full bg-[#e6f4f1] px-3.5 py-1 text-xs font-bold text-[var(--brand-primary,#007a5a)]">
@@ -344,7 +343,6 @@ export default async function HomePage() {
             </div>
           </div>
 
-          {/* بطاقة المشتري */}
           <div className="flex flex-col justify-between rounded-[22px] bg-gradient-to-br from-[#0a1122] via-[#0d1b2a] to-[#0c262e] p-6 text-start text-white shadow-lg sm:p-9">
             <div>
               <span className="inline-block rounded-full border border-teal-500/20 bg-teal-500/10 px-3.5 py-1 text-xs font-bold text-[var(--brand-accent,#2ee59d)]">
@@ -447,7 +445,6 @@ export default async function HomePage() {
           </div>
 
           <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2">
-            {/* البطاقة الأولى: لو رجّع الوحدة للمطور */}
             <div className="flex flex-col justify-between rounded-[20px] border border-gray-200/80 bg-white p-6 text-start shadow-sm sm:p-8">
               <div>
                 <div className="flex items-center justify-start gap-3">
@@ -463,11 +460,9 @@ export default async function HomePage() {
                   <p className="text-xs text-gray-400">
                     {t?.example?.lossDiscountLabel}
                   </p>
-                  <p
-                    dir="ltr"
-                    className="mt-1.5 text-start text-2xl font-extrabold text-[var(--brand-danger,#d9383a)] tabular-nums sm:text-3xl"
-                  >
-                    - {t?.example?.lossDiscountAmount} {currencySymbol}
+                  <p className="mt-1.5 flex items-baseline gap-1.5 text-2xl font-extrabold text-[var(--brand-danger,#d9383a)] tabular-nums sm:text-3xl">
+                    <span dir="ltr">- {t?.example?.lossDiscountAmount}</span>
+                    <span>{currencySymbol}</span>
                   </p>
                 </div>
 
@@ -476,16 +471,16 @@ export default async function HomePage() {
                     <p className="text-xs text-gray-400">
                       {t?.example?.lossReturnLabel}
                     </p>
-                    <p className="mt-1 text-lg font-extrabold text-[var(--brand-navy-text,#0a1128)] tabular-nums sm:text-xl">
-                      <span dir="ltr">{t?.example?.lossReturnAmount}</span>{' '}
-                      {currencySymbol}
+                    <p className="mt-1 flex items-baseline gap-1 text-lg font-extrabold text-[var(--brand-navy-text,#0a1128)] tabular-nums sm:text-xl">
+                      <span dir="ltr">{t?.example?.lossReturnAmount}</span>
+                      <span>{currencySymbol}</span>
                     </p>
                   </div>
                   <div className="text-end">
                     <p className="text-xs text-gray-400">
                       {t?.example?.lossDurationLabel}
                     </p>
-                    <p className="mt-1 text-sm font-bold text-gray-200 sm:text-base">
+                    <p className="mt-1 text-lg font-extrabold text-[#b45309] sm:text-xl">
                       {t?.example?.lossDurationValue}
                     </p>
                   </div>
@@ -497,7 +492,6 @@ export default async function HomePage() {
               </div>
             </div>
 
-            {/* البطاقة الثانية: لو نقل تعاقده عن طريق عقار إكزت */}
             <div className="flex flex-col justify-between rounded-[20px] border-2 border-[#a7e3cb] bg-white p-6 text-start shadow-sm sm:p-8">
               <div>
                 <div className="flex items-center justify-start gap-3">
@@ -513,9 +507,9 @@ export default async function HomePage() {
                   <p className="text-xs text-gray-400">
                     {t?.example?.winReturnLabel}
                   </p>
-                  <p className="mt-1.5 text-2xl font-extrabold text-[var(--brand-primary,#007a5a)] tabular-nums sm:text-3xl">
-                    <span dir="ltr">{t?.example?.winReturnAmount}</span>{' '}
-                    {currencySymbol}
+                  <p className="mt-1.5 flex items-baseline gap-1.5 text-2xl font-extrabold text-[var(--brand-primary,#007a5a)] tabular-nums sm:text-3xl">
+                    <span dir="ltr">{t?.example?.winReturnAmount}</span>
+                    <span>{currencySymbol}</span>
                   </p>
                   <p className="mt-1 text-xs font-bold text-[var(--brand-navy-text,#0a1128)]">
                     {t?.example?.winReturnSub}

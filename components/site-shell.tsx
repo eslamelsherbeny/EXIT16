@@ -37,7 +37,6 @@ import {
   type Dictionary,
 } from '@/lib/i18n'
 
-// ==================== إعدادات اللغات الـ 4 ====================
 export type LanguageCode = LocaleCode
 
 export type LanguageConfig = {
@@ -55,7 +54,6 @@ export const SUPPORTED_LANGUAGES: Record<LanguageCode, LanguageConfig> = {
   ka: { code: 'ka', label: 'الجورجية', nativeName: 'ქართული', shortCode: 'KA', dir: 'ltr' },
 }
 
-// ==================== إعدادات الدول الـ 4 ====================
 export type { CountryCode }
 
 export type CountryConfig = {
@@ -155,7 +153,6 @@ const links = [
   { href: '/investors', key: 'investors' as const, fallback: 'للمستثمرين' },
 ]
 
-// ==================== 1. اللوجو ====================
 export function Logo({ inverse = false }: { inverse?: boolean }) {
   return (
     <Link
@@ -236,12 +233,10 @@ export function Logo({ inverse = false }: { inverse?: boolean }) {
   )
 }
 
-// ==================== 2. الهيدر (Navbar) ====================
 export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
   const router = useRouter()
   const pathname = usePathname()
 
-  // سحب اللغة والدولة والقاموس مباشرة من النظام المركزي بسطر واحد!
   const { t: labels, locale: language, country, dir } = useTranslation()
 
   const [langMenuOpen, setLangMenuOpen] = useState(false)
@@ -250,11 +245,9 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
   const [isAdmin, setIsAdmin] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
-  // حالة التحميل المرئية عند تبديل اللغة أو الدولة
   const [isSwitchingLocale, startSwitchTransition] = useTransition()
   const [switchingLabel, setSwitchingLabel] = useState<string | null>(null)
 
-  // حالات الإشعارات
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [notifsList, setNotifsList] = useState<any[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
@@ -427,7 +420,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
   const renderCountryDropdownMenu = () => (
     <div
       onClick={(e) => e.stopPropagation()}
-      className="absolute left-0 top-10 z-50 w-44 overflow-hidden rounded-xl border border-gray-200/90 bg-white p-1.5 shadow-xl"
+      className="absolute end-0 top-10 z-50 w-44 max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-xl border border-gray-200/90 bg-white p-1.5 shadow-xl"
     >
       <p className="px-2.5 py-1 text-start text-[10px] font-bold text-gray-400">
         {language === 'ar'
@@ -470,7 +463,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
   const renderLanguageDropdownMenu = () => (
     <div
       onClick={(e) => e.stopPropagation()}
-      className="absolute left-0 top-10 z-50 w-36 overflow-hidden rounded-xl border border-gray-200/90 bg-white p-1.5 shadow-xl"
+      className="absolute end-0 top-10 z-50 w-36 max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-xl border border-gray-200/90 bg-white p-1.5 shadow-xl"
     >
       {(Object.values(SUPPORTED_LANGUAGES) as LanguageConfig[]).map((lang) => {
         const active = lang.code === language
@@ -499,7 +492,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
       className={
         isMobile
           ? 'fixed left-3 right-3 top-[68px] z-50 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl'
-          : 'absolute left-0 top-11 z-50 w-96 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl'
+          : 'absolute end-0 top-11 z-50 w-96 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl'
       }
     >
       <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50/90 px-4 py-3">
@@ -653,7 +646,6 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
       dir={dir}
       className="sticky top-0 z-50 border-b border-gray-200/75 bg-white/95 backdrop-blur-md"
     >
-      {/* مؤشر التحميل عند تبديل اللغة أو الدولة */}
       {isSwitchingLocale && (
         <>
           <div className="absolute inset-x-0 top-0 h-[3px] overflow-hidden bg-emerald-100">
@@ -697,7 +689,6 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
         </div>
 
         <div className="hidden shrink-0 items-center gap-1.5 lg:flex xl:gap-2">
-          {/* 1. زر الدولة */}
           <div className="relative" ref={countryRefDesktop}>
             <button
               type="button"
@@ -723,7 +714,6 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
             {countryMenuOpen && renderCountryDropdownMenu()}
           </div>
 
-          {/* 2. زر اللغة */}
           <div className="relative" ref={langRefDesktop}>
             <button
               type="button"
@@ -747,7 +737,6 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
             {langMenuOpen && renderLanguageDropdownMenu()}
           </div>
 
-          {/* 3. زر حسابي */}
           <Link
             href={hasSession ? '/account' : '/login'}
             className="inline-flex h-[38px] items-center justify-center whitespace-nowrap rounded-[10px] border border-[#e2e8f0] bg-white px-3.5 text-[13px] font-bold text-[#0a1122] transition-colors hover:bg-gray-50"
@@ -755,7 +744,6 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
             {labels.navbar?.login || 'حسابي'}
           </Link>
 
-          {/* 4. زر عايز تشتري */}
           <Link
             href="/buy"
             className="inline-flex h-[38px] items-center justify-center whitespace-nowrap rounded-[10px] border border-[#e2e8f0] bg-white px-3.5 text-[13px] font-bold text-[#0a1122] transition-colors hover:bg-gray-50"
@@ -763,7 +751,6 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
             {labels.navbar?.buy || 'عايز تشتري'}
           </Link>
 
-          {/* 5. جرس الإشعارات */}
           {hasSession && (
             <div className="relative" ref={notifRefDesktop}>
               <button
@@ -787,7 +774,6 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
             </div>
           )}
 
-          {/* 6. زر عايز تبيع */}
           <Link
             href="/sell"
             className="inline-flex h-[38px] items-center justify-center whitespace-nowrap rounded-[10px] bg-[#0b6954] px-4 text-[13px] font-bold text-white transition-colors hover:bg-[#085443]"
@@ -795,7 +781,6 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
             {labels.navbar?.sellCta || 'عايز تبيع'}
           </Link>
 
-          {/* 7. زر لوحة الإدارة */}
           {isAdmin && (
             <Link
               href="/admin"
@@ -1027,7 +1012,6 @@ export function LegacyNavbar({ dictionary }: { dictionary?: Dictionary }) {
   return <Navbar dictionary={dictionary} />
 }
 
-// ==================== 3. الفوتر المنظم (Footer) ====================
 export function Footer({ dictionary: _unused }: { dictionary?: Dictionary }) {
   const router = useRouter()
   const { t: labels, locale: language, country: activeCountry, dir } = useTranslation()

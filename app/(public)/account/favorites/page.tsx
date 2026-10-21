@@ -3,15 +3,17 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createBrowserClient } from '@supabase/ssr'
-import { ArrowRight, Heart } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Heart } from 'lucide-react'
 import { SharedUnitCard } from '@/components/shared/unit-card'
-import arDict from '@/dictionaries/ar.json'
+import { useTranslation } from '@/lib/i18n'
 
 const FAVORITES_STORAGE_KEY = 'darak_favorites'
-const t = arDict.accountPages.favorites
-const tCommon = arDict.accountPages.common
 
 export default function AccountFavoritesPage() {
+  const { t: dict, dir, isRtl } = useTranslation()
+  const t = dict.accountPages.favorites
+  const tCommon = dict.accountPages.common
+
   const [favoriteIds, setFavoriteIds] = useState<string[]>([])
   const [units, setUnits] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -64,7 +66,7 @@ export default function AccountFavoritesPage() {
 
   return (
     <main
-      dir="rtl"
+      dir={dir}
       className="min-h-screen bg-[var(--brand-surface,#f5f6f8)] py-8 pb-20 text-[var(--brand-navy,#0a1122)] sm:py-12"
     >
       <div className="mx-auto max-w-[980px] px-4 sm:px-6">
@@ -73,7 +75,11 @@ export default function AccountFavoritesPage() {
             href="/account"
             className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-xs font-extrabold text-[var(--brand-navy,#0a1122)] shadow-2xs transition hover:border-[var(--brand-primary,#007a5a)] hover:text-[var(--brand-primary,#007a5a)]"
           >
-            <ArrowRight className="size-4" />
+            {isRtl ? (
+              <ArrowRight className="size-4" />
+            ) : (
+              <ArrowLeft className="size-4" />
+            )}
             <span>{tCommon.backToAccount}</span>
           </Link>
 
@@ -85,7 +91,7 @@ export default function AccountFavoritesPage() {
           </Link>
         </div>
 
-        <header className="mb-6 text-right">
+        <header className="mb-6 text-start">
           <div className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1 text-xs font-bold text-red-600">
             <Heart className="size-3.5 fill-current" />
             <span>{t.badge}</span>

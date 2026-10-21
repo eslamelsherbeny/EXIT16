@@ -1,7 +1,7 @@
 import Link from 'next/link'
-import arDict from '@/dictionaries/ar.json'
+import { getServerI18n } from '@/lib/get-server-dictionary'
 
-const t = arDict.publicPages.howItWorks
+export const dynamic = 'force-dynamic'
 
 function JourneyCard({
   title,
@@ -15,17 +15,17 @@ function JourneyCard({
   href: string
 }) {
   return (
-    <section className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-7 shadow-sm md:p-8">
+    <section className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-7 text-start shadow-sm md:p-8">
       <div>
         <h2 className="text-xl font-extrabold text-[var(--brand-navy,#0a1122)]">
           {title}
         </h2>
         <div className="mt-7 flex flex-col gap-6">
           {steps.map(([stepTitle, description], index) => (
-            <div key={stepTitle} className="relative flex gap-4 text-right">
+            <div key={stepTitle} className="relative flex gap-4 text-start">
               {index < steps.length - 1 && (
                 <span
-                  className="absolute top-9 right-[15px] h-[calc(100%+1.5rem)] w-px bg-slate-200"
+                  className="absolute top-9 start-[15px] h-[calc(100%+1.5rem)] w-px bg-slate-200"
                   aria-hidden="true"
                 />
               )}
@@ -57,10 +57,13 @@ function JourneyCard({
   )
 }
 
-export default function HowItWorksPage() {
+export default async function HowItWorksPage() {
+  const { dict, dir } = await getServerI18n()
+  const t = dict.publicPages.howItWorks
+
   return (
     <div
-      dir="rtl"
+      dir={dir}
       className="min-h-screen bg-[var(--brand-surface,#f5f6f8)] text-[var(--brand-navy-text,#0a1128)]"
     >
       <div className="layout-container py-14 lg:py-20">
@@ -88,7 +91,7 @@ export default function HowItWorksPage() {
           />
         </div>
 
-        <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-7 shadow-sm md:p-8">
+        <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-7 text-start shadow-sm md:p-8">
           <h2 className="text-xl font-extrabold sm:text-2xl">
             {t.commissionTitle}
           </h2>

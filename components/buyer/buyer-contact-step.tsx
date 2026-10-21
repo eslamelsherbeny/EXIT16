@@ -25,9 +25,7 @@ import {
   SearchableCountryField,
   type PlatformCountryCode,
 } from '@/components/seller/seller-shared'
-import arDict from '@/dictionaries/ar.json'
-
-const t = arDict.buy.stepThree
+import { useTranslation } from '@/lib/i18n'
 
 export type BuyerFormState = BuyRequestPayload & {
   country: PlatformCountryCode
@@ -83,6 +81,9 @@ export function BuyerContactStep({
   setConflictState: (val: BuyerConflictState) => void
   onSuccessRedirect: () => void
 }) {
+  const { t: dict } = useTranslation()
+  const t = dict.buy.stepThree
+
   const [existingPass, setExistingPass] = useState('')
   const [showExistingPass, setShowExistingPass] = useState(false)
   const [recoveryLinkSent, setRecoveryLinkSent] = useState(false)
@@ -136,7 +137,7 @@ export function BuyerContactStep({
 
   if (conflictState?.type === 'email_exists') {
     return (
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 text-right sm:p-7">
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 text-start sm:p-7">
         <h3 className="text-xl font-extrabold text-[var(--brand-navy,#0a1122)]">
           {t.emailExistsTitle}
         </h3>
@@ -153,7 +154,7 @@ export function BuyerContactStep({
         </p>
 
         <div className="mt-5">
-          <Label className="mb-2 block text-right text-sm font-bold text-[var(--brand-navy,#0a1122)]">
+          <Label className="mb-2 block text-start text-sm font-bold text-[var(--brand-navy,#0a1122)]">
             {t.yourPasswordLabel}
           </Label>
           <div className="relative">
@@ -175,13 +176,13 @@ export function BuyerContactStep({
         </div>
 
         {stepError && (
-          <p className="mt-3 text-right text-xs font-bold text-red-600">
+          <p className="mt-3 text-start text-xs font-bold text-red-600">
             {stepError}
           </p>
         )}
 
         {recoveryLinkSent && (
-          <p className="mt-3 text-right text-xs font-bold text-[var(--brand-primary,#007a5a)]">
+          <p className="mt-3 text-start text-xs font-bold text-[var(--brand-primary,#007a5a)]">
             {t.recoverySentNote}
           </p>
         )}
@@ -218,7 +219,7 @@ export function BuyerContactStep({
 
   if (conflictState?.type === 'phone_exists') {
     return (
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 text-right sm:p-7">
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 text-start sm:p-7">
         <h3 className="text-xl font-extrabold text-[var(--brand-navy,#0a1122)]">
           {t.phoneExistsTitle}
         </h3>
@@ -231,7 +232,7 @@ export function BuyerContactStep({
         </p>
 
         {stepError && (
-          <p className="mt-3 text-right text-xs font-bold text-red-600">
+          <p className="mt-3 text-start text-xs font-bold text-red-600">
             {stepError}
           </p>
         )}
@@ -324,7 +325,7 @@ export function BuyerContactStep({
       </div>
 
       {authTab === 'session' && loggedUser && (
-        <div className="rounded-2xl border border-[var(--brand-primary,#007a5a)]/30 bg-[var(--brand-primary-light,#eaf8f2)] p-5 text-right">
+        <div className="rounded-2xl border border-[var(--brand-primary,#007a5a)]/30 bg-[var(--brand-primary-light,#eaf8f2)] p-5 text-start">
           <div className="flex items-center justify-between">
             <span className="rounded-full bg-[var(--brand-primary,#007a5a)]/10 px-3 py-1 text-xs font-bold text-[var(--brand-primary,#007a5a)]">
               {t.connectedBadge}
@@ -380,7 +381,7 @@ export function BuyerContactStep({
           />
 
           <div>
-            <Label className="block text-right">
+            <Label className="block text-start">
               <RequiredLabel>{t.phoneLabel}</RequiredLabel>
             </Label>
             <div dir="ltr" className="mt-2 flex items-center gap-2">
@@ -399,11 +400,11 @@ export function BuyerContactStep({
               />
             </div>
             {errors?.phone && (
-              <p className="mt-1.5 text-right text-xs font-semibold text-red-600">
+              <p className="mt-1.5 text-start text-xs font-semibold text-red-600">
                 {errors.phone}
               </p>
             )}
-            <p className="mt-2 text-right text-xs text-slate-500">
+            <p className="mt-2 text-start text-xs text-slate-500">
               {t.phoneHelper}
             </p>
           </div>
@@ -418,7 +419,7 @@ export function BuyerContactStep({
           />
 
           <div>
-            <Label className="block text-right">
+            <Label className="block text-start">
               <RequiredLabel>{t.passwordLabel}</RequiredLabel>
             </Label>
             <div className="relative mt-2">
@@ -446,11 +447,11 @@ export function BuyerContactStep({
               </button>
             </div>
             {errors?.password && (
-              <p className="mt-1.5 text-right text-xs font-semibold text-red-600">
+              <p className="mt-1.5 text-start text-xs font-semibold text-red-600">
                 {errors.password}
               </p>
             )}
-            <p className="mt-2 text-right text-xs text-slate-500">
+            <p className="mt-2 text-start text-xs text-slate-500">
               {t.passwordHelper}
             </p>
           </div>
@@ -459,7 +460,7 @@ export function BuyerContactStep({
 
       {authTab === 'login' && (
         <div className="flex flex-col gap-5 rounded-2xl border border-slate-200 bg-slate-50/50 p-5">
-          <p className="text-right text-xs font-semibold text-slate-600">
+          <p className="text-start text-xs font-semibold text-slate-600">
             {t.loginBoxDesc}
           </p>
           <Field
@@ -470,7 +471,7 @@ export function BuyerContactStep({
             update={(value) => update('loginIdentifier', value)}
           />
           <div>
-            <Label className="block text-right">
+            <Label className="block text-start">
               <RequiredLabel>{t.loginPassLabel}</RequiredLabel>
             </Label>
             <div className="relative mt-2">
@@ -500,7 +501,7 @@ export function BuyerContactStep({
               </button>
             </div>
             {errors?.loginPassword && (
-              <p className="mt-1.5 text-right text-xs font-semibold text-red-600">
+              <p className="mt-1.5 text-start text-xs font-semibold text-red-600">
                 {errors.loginPassword}
               </p>
             )}

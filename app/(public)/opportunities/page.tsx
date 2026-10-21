@@ -13,51 +13,44 @@ import {
   X,
 } from 'lucide-react'
 import {
-  getCurrencyByCountry,
   normalizeArabicText,
   unitTypes,
 } from '@/components/seller/seller-shared'
 import {
-  COUNTRY_FILTER_OPTIONS,
+  getCountryFilterOptions,
   mapDbRowToProperty,
   OpportunitiesBottomSections,
   OpportunityCard,
   type MappedProperty,
   type OpportunityCountryCode,
 } from '@/components/opportunities/opportunities-shared'
-import arDict from '@/dictionaries/ar.json'
+import { getCurrencySymbol, useTranslation } from '@/lib/i18n'
 
 const PAGE_SIZE = 48
 const FAVORITES_STORAGE_KEY = 'darak_favorites'
-const t = arDict.opportunitiesPage
-
-function getActiveHeaderCountry(): OpportunityCountryCode {
-  if (typeof document !== 'undefined') {
-    const match = document.cookie
-      .split('; ')
-      .find((row) => row.startsWith('darak_country='))
-    const code = match?.split('=')[1]?.trim() as
-      | OpportunityCountryCode
-      | undefined
-    if (code && COUNTRY_FILTER_OPTIONS.some((c) => c.code === code)) {
-      return code
-    }
-  }
-  return 'EG'
-}
 
 export default function OpportunitiesPage() {
-  const [dbProperties, setDbProperties] = useState<MappedProperty[]>([])
+  const {
+    t: dict,
+    locale,
+    country: headerCountry,
+    dir,
+  } = useTranslation()
+  const t = dict.opportunitiesPage
+
+  const countryOptions = useMemo(() => getCountryFilterOptions(t), [t])
+
+  const [rawDbRows, setRawDbRows] = useState<any[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [favoriteIds, setFavoriteIds] = useState<string[]>([])
   const [visibleLimit, setVisibleLimit] = useState<number>(PAGE_SIZE)
 
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [negotiable, setNegotiable] = useState(false)
-  const [sort, setSort] = useState(t.filters.sorts[1])
+  const [sortIdx, setSortIdx] = useState<number>(1)
 
   const [selectedCountry, setSelectedCountry] =
-    useState<OpportunityCountryCode>('EG')
+    useState<OpportunityCountryCode>(headerCountry)
   const [countrySearch, setCountrySearch] = useState('')
   const [countryDropdownOpen, setCountryDropdownOpen] = useState(false)
   const countryFilterRef = useRef<HTMLDivElement>(null)
@@ -68,21 +61,15 @@ export default function OpportunitiesPage() {
   const [maxInstallment, setMaxInstallment] = useState('')
   const [maxContractPrice, setMaxContractPrice] = useState('')
   const [selectedTypes, setSelectedTypes] = useState<string[]>([])
-  const [deliveryStatus, setDeliveryStatus] = useState(
-    t.filters.deliveryStatuses[0]
-  )
-  const [deliveryYear, setDeliveryYear] = useState(t.filters.deliveryYears[0])
-  const [contractYear, setContractYear] = useState(t.filters.contractYears[0])
-  const [minRooms, setMinRooms] = useState(t.filters.roomOptions[0])
+  const [deliveryStatusIdx, setDeliveryStatusIdx] = useState<number>(0)
+  const [deliveryYearIdx, setDeliveryYearIdx] = useState<number>(0)
+  const [contractYearIdx, setContractYearIdx] = useState<number>(0)
+  const [minRoomsIdx, setMinRoomsIdx] = useState<number>(0)
 
+  // تزامن الدولة المختارة في الفلتر مع تغيير الدولة من الهيدر
   useEffect(() => {
-    setSelectedCountry(getActiveHeaderCountry())
-    const syncWithHeader = () => {
-      setSelectedCountry(getActiveHeaderCountry())
-    }
-    window.addEventListener('country-changed', syncWithHeader)
-    return () => window.removeEventListener('country-changed', syncWithHeader)
-  }, [])
+    setSelectedCountry(headerCountry)
+  }, [headerCountry])
 
   useEffect(() => {
     function handleOutside(e: MouseEvent) {
@@ -140,7 +127,7 @@ export default function OpportunitiesPage() {
           .limit(5000)
 
         if (!error && data) {
-          setDbProperties(data.map(mapDbRowToProperty))
+          setRawDbRows(data)
         }
       } catch (err) {
         console.error('Failed to load approved properties:', err)
@@ -152,6 +139,11 @@ export default function OpportunitiesPage() {
     loadApprovedProperties()
   }, [])
 
+  // تحويل الوحدات ديناميكياً عند تغير اللغة أو البيانات
+  const dbProperties: MappedProperty[] = useMemo(() => {
+    return rawDbRows.map((row) => mapDbRowToProperty(row, locale, t))
+  }, [rawDbRows, locale, t])
+
   useEffect(() => {
     setVisibleLimit(PAGE_SIZE)
   }, [
@@ -160,14 +152,14 @@ export default function OpportunitiesPage() {
     areaQuery,
     negotiable,
     selectedTypes,
-    deliveryStatus,
-    deliveryYear,
-    contractYear,
-    minRooms,
+    deliveryStatusIdx,
+    deliveryYearIdx,
+    contractYearIdx,
+    minRoomsIdx,
     maxCash,
     maxInstallment,
     maxContractPrice,
-    sort,
+    sortIdx,
   ])
 
   const toggleType = (type: string) => {
@@ -185,12 +177,12 @@ export default function OpportunitiesPage() {
     setMaxInstallment('')
     setMaxContractPrice('')
     setSelectedTypes([])
-    setDeliveryStatus(t.filters.deliveryStatuses[0])
-    setDeliveryYear(t.filters.deliveryYears[0])
-    setContractYear(t.filters.contractYears[0])
-    setMinRooms(t.filters.roomOptions[0])
+    setDeliveryStatusIdx(0)
+    setDeliveryYearIdx(0)
+    setContractYearIdx(0)
+    setMinRoomsIdx(0)
     setNegotiable(false)
-    setSelectedCountry(getActiveHeaderCountry())
+    setSelectedCountry(headerCountry)
     setVisibleLimit(PAGE_SIZE)
   }
 
@@ -202,10 +194,10 @@ export default function OpportunitiesPage() {
     if (maxInstallment.trim()) count++
     if (maxContractPrice.trim()) count++
     if (selectedTypes.length > 0) count += selectedTypes.length
-    if (deliveryStatus !== t.filters.deliveryStatuses[0]) count++
-    if (deliveryYear !== t.filters.deliveryYears[0]) count++
-    if (contractYear !== t.filters.contractYears[0]) count++
-    if (minRooms !== t.filters.roomOptions[0]) count++
+    if (deliveryStatusIdx !== 0) count++
+    if (deliveryYearIdx !== 0) count++
+    if (contractYearIdx !== 0) count++
+    if (minRoomsIdx !== 0) count++
     return count
   }, [
     negotiable,
@@ -214,10 +206,10 @@ export default function OpportunitiesPage() {
     maxInstallment,
     maxContractPrice,
     selectedTypes,
-    deliveryStatus,
-    deliveryYear,
-    contractYear,
-    minRooms,
+    deliveryStatusIdx,
+    deliveryYearIdx,
+    contractYearIdx,
+    minRoomsIdx,
   ])
 
   const visibleProperties = useMemo(() => {
@@ -247,25 +239,25 @@ export default function OpportunitiesPage() {
       if (negotiable && !item.negotiable) return false
       if (selectedTypes.length > 0 && !selectedTypes.includes(item.type))
         return false
-      if (
-        deliveryStatus !== t.filters.deliveryStatuses[0] &&
-        item.deliveryStatus !== deliveryStatus
-      ) {
-        return false
-      }
 
-      if (deliveryYear !== t.filters.deliveryYears[0]) {
-        const targetYear = Number(deliveryYear.replace(/[^0-9]/g, ''))
+      if (deliveryStatusIdx === 1 && !item.isReady) return false
+      if (deliveryStatusIdx === 2 && item.isReady) return false
+
+      if (deliveryYearIdx > 0) {
+        const yrStr = t.filters.deliveryYears[deliveryYearIdx] || ''
+        const targetYear = Number(yrStr.replace(/[^0-9]/g, ''))
         if (targetYear && Number(item.delivery) > targetYear) return false
       }
 
-      if (contractYear !== t.filters.contractYears[0]) {
-        const targetConYear = Number(contractYear.replace(/[^0-9]/g, ''))
+      if (contractYearIdx > 0) {
+        const yrStr = t.filters.contractYears[contractYearIdx] || ''
+        const targetConYear = Number(yrStr.replace(/[^0-9]/g, ''))
         if (targetConYear && item.contractYear > targetConYear) return false
       }
 
-      if (minRooms !== t.filters.roomOptions[0]) {
-        const targetRooms = Number(minRooms.replace('+', ''))
+      if (minRoomsIdx > 0) {
+        const rmStr = t.filters.roomOptions[minRoomsIdx] || ''
+        const targetRooms = Number(rmStr.replace('+', ''))
         if (item.rooms < targetRooms) return false
       }
 
@@ -285,20 +277,19 @@ export default function OpportunitiesPage() {
     })
 
     return [...filtered].sort((a, b) => {
-      if (sort === t.filters.sorts[3]) return a.cashNum - b.cashNum
-      if (sort === t.filters.sorts[4])
+      if (sortIdx === 3) return a.cashNum - b.cashNum
+      if (sortIdx === 4)
         return a.monthlyInstallmentNum - b.monthlyInstallmentNum
-      if (sort === t.filters.sorts[5]) return b.gainNum - a.gainNum
-      if (sort === t.filters.sorts[6])
-        return Number(a.delivery) - Number(b.delivery)
-      if (sort === t.filters.sorts[7]) {
-        if (a.deliveryStatus === b.deliveryStatus) return a.cashNum - b.cashNum
-        return a.deliveryStatus === t.filters.deliveryStatuses[1] ? -1 : 1
+      if (sortIdx === 5) return b.gainNum - a.gainNum
+      if (sortIdx === 6) return Number(a.delivery) - Number(b.delivery)
+      if (sortIdx === 7) {
+        if (a.isReady === b.isReady) return a.cashNum - b.cashNum
+        return a.isReady ? -1 : 1
       }
       if (a.featured !== b.featured) {
         return a.featured ? -1 : 1
       }
-      if (sort === t.filters.sorts[2] || sort === t.filters.sorts[0]) {
+      if (sortIdx === 2 || sortIdx === 0) {
         return b.gainNum - a.gainNum
       }
       return 0
@@ -310,28 +301,30 @@ export default function OpportunitiesPage() {
     areaQuery,
     negotiable,
     selectedTypes,
-    deliveryStatus,
-    deliveryYear,
-    contractYear,
-    minRooms,
+    deliveryStatusIdx,
+    deliveryYearIdx,
+    contractYearIdx,
+    minRoomsIdx,
     maxCash,
     maxInstallment,
     maxContractPrice,
-    sort,
+    sortIdx,
+    t,
   ])
 
   const activeCountryObj =
-    COUNTRY_FILTER_OPTIONS.find((c) => c.code === selectedCountry) ||
-    COUNTRY_FILTER_OPTIONS[1]
+    countryOptions.find((c) => c.code === selectedCountry) || countryOptions[1]
 
   const activeCurrency =
-    selectedCountry === 'ALL' ? 'ج.م' : getCurrencyByCountry(selectedCountry)
+    selectedCountry === 'ALL'
+      ? getCurrencySymbol(headerCountry, locale)
+      : getCurrencySymbol(selectedCountry, locale)
 
-  const filteredCountryDropdownOptions = COUNTRY_FILTER_OPTIONS.filter((c) => {
+  const filteredCountryDropdownOptions = countryOptions.filter((c) => {
     if (!countrySearch.trim()) return true
     const q = normalizeArabicText(countrySearch)
     return (
-      normalizeArabicText(c.nameAr).includes(q) ||
+      normalizeArabicText(c.name).includes(q) ||
       c.nameEn.toLowerCase().includes(q) ||
       c.code.toLowerCase().includes(q)
     )
@@ -364,7 +357,7 @@ export default function OpportunitiesPage() {
       value: totalMarketSum.toLocaleString('en-US'),
       unit: activeCurrency,
     }
-  }, [totalMarketSum, activeCurrency])
+  }, [totalMarketSum, activeCurrency, t])
 
   const displayedProperties = useMemo(() => {
     return visibleProperties.slice(0, visibleLimit)
@@ -378,19 +371,19 @@ export default function OpportunitiesPage() {
 
   return (
     <main
-      dir="rtl"
+      dir={dir}
       className="min-h-screen bg-[var(--brand-surface,#f5f6f8)] py-8 text-[var(--brand-navy,#0a1122)] sm:py-14"
     >
       <div className="layout-container">
         {/* 1. الهيدر العلوي */}
-        <div className="flex flex-wrap items-start justify-between gap-4 text-right">
+        <div className="flex flex-wrap items-start justify-between gap-4 text-start">
           <div>
             <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[var(--brand-primary,#007a5a)]/20 bg-[var(--brand-primary-light,#eaf8f2)] px-3.5 py-1 text-xs font-extrabold text-[var(--brand-primary,#007a5a)]">
               <span>{activeCountryObj.flag}</span>
               <span>
                 {selectedCountry === 'ALL'
                   ? t.header.showingAll
-                  : `${t.header.showingCountryPrefix} ${activeCountryObj.nameAr}`}
+                  : `${t.header.showingCountryPrefix} ${activeCountryObj.name}`}
               </span>
             </div>
             <h1 className="text-xl font-extrabold tracking-tight text-[var(--brand-navy,#0a1122)] sm:text-3xl md:text-[36px]">
@@ -405,13 +398,16 @@ export default function OpportunitiesPage() {
         {/* 2. صندوق الإحصائيات */}
         <section className="mt-6 sm:mt-8">
           <div className="grid grid-cols-1 divide-y divide-gray-200/80 overflow-hidden rounded-[20px] border border-gray-200/70 border-t-[3px] border-t-[var(--brand-primary,#007a5a)] bg-white shadow-sm md:grid-cols-2 md:divide-x md:divide-y-0 md:divide-x-reverse">
-            <div className="flex flex-col justify-between p-6 text-right sm:p-10">
+            <div className="flex flex-col justify-between p-6 text-start sm:p-10">
               <p className="text-xs font-bold text-gray-500 sm:text-sm">
-                {t.stats.availableUnitsTitle} ({activeCountryObj.nameAr})
+                {t.stats.availableUnitsTitle} ({activeCountryObj.name})
               </p>
 
               <div className="mt-3 flex items-baseline justify-start gap-2">
-                <span className="text-4xl font-extrabold leading-none tracking-tight text-[var(--brand-navy,#0a1122)] tabular-nums sm:text-5xl">
+                <span
+                  dir="ltr"
+                  className="text-4xl font-extrabold leading-none tracking-tight text-[var(--brand-navy,#0a1122)] tabular-nums sm:text-5xl"
+                >
                   {availableUnitsCount.toLocaleString('en-US')}
                 </span>
                 <span className="text-base font-medium text-gray-500 sm:text-lg">
@@ -427,7 +423,7 @@ export default function OpportunitiesPage() {
               </div>
             </div>
 
-            <div className="flex flex-col justify-between p-6 text-right sm:p-10">
+            <div className="flex flex-col justify-between p-6 text-start sm:p-10">
               <div className="flex items-center justify-start gap-2">
                 <p className="text-xs font-bold text-gray-500 sm:text-sm">
                   {t.stats.marketValueTitle}
@@ -438,7 +434,10 @@ export default function OpportunitiesPage() {
               </div>
 
               <div className="mt-3 flex items-baseline justify-start gap-2">
-                <span className="text-4xl font-extrabold leading-none tracking-tight text-[var(--brand-navy,#0a1122)] tabular-nums sm:text-5xl">
+                <span
+                  dir="ltr"
+                  className="text-4xl font-extrabold leading-none tracking-tight text-[var(--brand-navy,#0a1122)] tabular-nums sm:text-5xl"
+                >
                   {formattedMarketTotal.value}
                 </span>
                 <span className="text-base font-medium text-gray-500 sm:text-lg">
@@ -459,11 +458,11 @@ export default function OpportunitiesPage() {
         {/* 3. شريط البحث والفلترة */}
         <section className="mt-6 rounded-[16px] border border-gray-200/80 bg-white p-3.5 shadow-sm sm:mt-8 sm:rounded-[20px] sm:p-5">
           <div className="mb-3.5 flex flex-wrap items-center gap-1.5 border-b border-gray-100 pb-3">
-            <span className="ml-1 inline-flex items-center gap-1 text-xs font-extrabold text-[var(--brand-navy,#0a1122)]">
+            <span className="me-1 inline-flex items-center gap-1 text-xs font-extrabold text-[var(--brand-navy,#0a1122)]">
               <Globe className="size-3.5 text-[var(--brand-primary,#007a5a)]" />
               <span>{t.filters.countryLabel}</span>
             </span>
-            {COUNTRY_FILTER_OPTIONS.map((c) => {
+            {countryOptions.map((c) => {
               const active = selectedCountry === c.code
               return (
                 <button
@@ -477,7 +476,7 @@ export default function OpportunitiesPage() {
                   }`}
                 >
                   <span>{c.flag}</span>
-                  <span>{c.nameAr}</span>
+                  <span>{c.name}</span>
                 </button>
               )
             })}
@@ -543,12 +542,12 @@ export default function OpportunitiesPage() {
               <div className="relative">
                 <select
                   id="sort-select"
-                  value={sort}
-                  onChange={(e) => setSort(e.target.value)}
+                  value={sortIdx}
+                  onChange={(e) => setSortIdx(Number(e.target.value))}
                   className="h-9 min-w-[120px] appearance-none rounded-xl border border-gray-200 bg-white pr-3 pl-7 text-[11px] font-bold text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:h-10 sm:min-w-[155px] sm:text-xs"
                 >
-                  {t.filters.sorts.map((item) => (
-                    <option key={item} value={item}>
+                  {t.filters.sorts.map((item, idx) => (
+                    <option key={item} value={idx}>
                       {item}
                     </option>
                   ))}
@@ -635,7 +634,7 @@ export default function OpportunitiesPage() {
               <button
                 type="button"
                 onClick={clearAll}
-                className="mr-1 text-[11px] text-gray-400 underline hover:text-gray-600 sm:text-xs"
+                className="ms-1 text-[11px] text-gray-400 underline hover:text-gray-600 sm:text-xs"
               >
                 {t.filters.clearAllBtn}
               </button>
@@ -647,7 +646,7 @@ export default function OpportunitiesPage() {
         {filtersOpen && (
           <section className="mt-3 rounded-[16px] border border-gray-200/80 bg-white p-4 shadow-sm sm:rounded-[20px] sm:p-7">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-4 md:gap-5">
-              <div ref={countryFilterRef} className="relative text-right">
+              <div ref={countryFilterRef} className="relative text-start">
                 <label className="mb-1.5 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
                   {t.filters.countryLabel.replace(':', '')}
                 </label>
@@ -657,7 +656,7 @@ export default function OpportunitiesPage() {
                     value={
                       countryDropdownOpen
                         ? countrySearch
-                        : `${activeCountryObj.flag} ${activeCountryObj.nameAr}`
+                        : `${activeCountryObj.flag} ${activeCountryObj.name}`
                     }
                     placeholder={t.filters.countryInputPlaceholder}
                     onFocus={() => {
@@ -686,7 +685,7 @@ export default function OpportunitiesPage() {
                             setCountryDropdownOpen(false)
                             setCountrySearch('')
                           }}
-                          className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-right text-xs font-bold transition ${
+                          className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-start text-xs font-bold transition ${
                             active
                               ? 'bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]'
                               : 'text-[var(--brand-navy,#0a1122)] hover:bg-gray-50'
@@ -694,7 +693,7 @@ export default function OpportunitiesPage() {
                         >
                           <div className="flex items-center gap-2">
                             <span>{c.flag}</span>
-                            <span>{c.nameAr}</span>
+                            <span>{c.name}</span>
                           </div>
                           {active && (
                             <Check className="size-3.5 text-[var(--brand-primary,#007a5a)]" />
@@ -706,7 +705,7 @@ export default function OpportunitiesPage() {
                 )}
               </div>
 
-              <div className="text-right">
+              <div className="text-start">
                 <label className="mb-1.5 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
                   {t.filters.areasLabel}
                 </label>
@@ -719,7 +718,7 @@ export default function OpportunitiesPage() {
                 />
               </div>
 
-              <div className="text-right">
+              <div className="text-start">
                 <label className="mb-1.5 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
                   {t.filters.maxCashLabel}
                 </label>
@@ -728,7 +727,7 @@ export default function OpportunitiesPage() {
                     type="number"
                     value={maxCash}
                     onChange={(e) => setMaxCash(e.target.value)}
-                    className="h-10 w-full rounded-xl border border-gray-200 pr-3.5 pl-10 text-xs text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:h-11"
+                    className="h-10 w-full rounded-xl border border-gray-200 pr-3.5 pl-12 text-xs text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:h-11"
                   />
                   <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-xs text-gray-400">
                     {activeCurrency}
@@ -736,7 +735,7 @@ export default function OpportunitiesPage() {
                 </div>
               </div>
 
-              <div className="text-right">
+              <div className="text-start">
                 <label className="mb-1.5 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
                   {t.filters.maxInstLabel}
                 </label>
@@ -745,7 +744,7 @@ export default function OpportunitiesPage() {
                     type="number"
                     value={maxInstallment}
                     onChange={(e) => setMaxInstallment(e.target.value)}
-                    className="h-10 w-full rounded-xl border border-gray-200 pr-3.5 pl-10 text-xs text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:h-11"
+                    className="h-10 w-full rounded-xl border border-gray-200 pr-3.5 pl-12 text-xs text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:h-11"
                   />
                   <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-xs text-gray-400">
                     {activeCurrency}
@@ -754,7 +753,7 @@ export default function OpportunitiesPage() {
               </div>
             </div>
 
-            <div className="mt-5 text-right">
+            <div className="mt-5 text-start">
               <p className="mb-2 text-xs font-bold text-[var(--brand-navy,#0a1122)]">
                 {t.filters.unitTypeLabel}
               </p>
@@ -780,18 +779,18 @@ export default function OpportunitiesPage() {
             </div>
 
             <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-3">
-              <div className="text-right">
+              <div className="text-start">
                 <p className="mb-2 text-xs font-bold text-[var(--brand-navy,#0a1122)]">
                   {t.filters.deliveryLabel}
                 </p>
                 <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                  {t.filters.deliveryStatuses.map((status) => (
+                  {t.filters.deliveryStatuses.map((status, idx) => (
                     <button
                       key={status}
                       type="button"
-                      onClick={() => setDeliveryStatus(status)}
+                      onClick={() => setDeliveryStatusIdx(idx)}
                       className={`rounded-full border px-3 py-1 text-[11px] font-medium transition-colors sm:px-4 sm:py-1.5 sm:text-xs ${
-                        deliveryStatus === status
+                        deliveryStatusIdx === idx
                           ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary,#007a5a)] text-white'
                           : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
                       }`}
@@ -802,18 +801,18 @@ export default function OpportunitiesPage() {
                 </div>
               </div>
 
-              <div className="text-right">
+              <div className="text-start">
                 <p className="mb-2 text-xs font-bold text-[var(--brand-navy,#0a1122)]">
                   {t.filters.deliveryYearLabel}
                 </p>
                 <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                  {t.filters.deliveryYears.map((yr) => (
+                  {t.filters.deliveryYears.map((yr, idx) => (
                     <button
                       key={yr}
                       type="button"
-                      onClick={() => setDeliveryYear(yr)}
+                      onClick={() => setDeliveryYearIdx(idx)}
                       className={`rounded-full border px-3 py-1 text-[11px] font-medium transition-colors sm:px-3.5 sm:py-1.5 sm:text-xs ${
-                        deliveryYear === yr
+                        deliveryYearIdx === idx
                           ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary,#007a5a)] text-white'
                           : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
                       }`}
@@ -824,18 +823,18 @@ export default function OpportunitiesPage() {
                 </div>
               </div>
 
-              <div className="text-right">
+              <div className="text-start">
                 <p className="mb-2 text-xs font-bold text-[var(--brand-navy,#0a1122)]">
                   {t.filters.contractYearLabel}
                 </p>
                 <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                  {t.filters.contractYears.map((yr) => (
+                  {t.filters.contractYears.map((yr, idx) => (
                     <button
                       key={yr}
                       type="button"
-                      onClick={() => setContractYear(yr)}
+                      onClick={() => setContractYearIdx(idx)}
                       className={`rounded-full border px-3 py-1 text-[11px] font-medium transition-colors sm:px-3.5 sm:py-1.5 sm:text-xs ${
-                        contractYear === yr
+                        contractYearIdx === idx
                           ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary,#007a5a)] text-white'
                           : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
                       }`}
@@ -848,18 +847,18 @@ export default function OpportunitiesPage() {
             </div>
 
             <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
-              <div className="text-right">
+              <div className="text-start">
                 <p className="mb-2 text-xs font-bold text-[var(--brand-navy,#0a1122)]">
                   {t.filters.minRoomsLabel}
                 </p>
                 <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                  {t.filters.roomOptions.map((rm) => (
+                  {t.filters.roomOptions.map((rm, idx) => (
                     <button
                       key={rm}
                       type="button"
-                      onClick={() => setMinRooms(rm)}
+                      onClick={() => setMinRoomsIdx(idx)}
                       className={`rounded-full border px-3 py-1 text-[11px] font-medium transition-colors sm:px-3.5 sm:py-1.5 sm:text-xs ${
-                        minRooms === rm
+                        minRoomsIdx === idx
                           ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary,#007a5a)] text-white'
                           : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
                       }`}
@@ -870,7 +869,7 @@ export default function OpportunitiesPage() {
                 </div>
               </div>
 
-              <div className="text-right">
+              <div className="text-start">
                 <label className="mb-1.5 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
                   {t.filters.maxContractPriceLabel}
                 </label>
@@ -879,7 +878,7 @@ export default function OpportunitiesPage() {
                     type="number"
                     value={maxContractPrice}
                     onChange={(e) => setMaxContractPrice(e.target.value)}
-                    className="h-10 w-full rounded-xl border border-gray-200 pr-3.5 pl-10 text-xs text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:h-11"
+                    className="h-10 w-full rounded-xl border border-gray-200 pr-3.5 pl-12 text-xs text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:h-11"
                   />
                   <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-xs text-gray-400">
                     {activeCurrency}
@@ -919,11 +918,11 @@ export default function OpportunitiesPage() {
 
         {/* 5. شبكة الكروت */}
         <section className="mt-6 sm:mt-8">
-          <div className="mb-4 flex items-center justify-between gap-2 text-right sm:mb-5">
+          <div className="mb-4 flex items-center justify-between gap-2 text-start sm:mb-5">
             <div className="flex items-center gap-1.5">
               <Star className="size-4 fill-amber-400 text-amber-500" />
               <h2 className="text-base font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-lg">
-                {t.grid.featuredTitlePrefix} {activeCountryObj.nameAr} (
+                {t.grid.featuredTitlePrefix} {activeCountryObj.name} (
                 {visibleProperties.length})
               </h2>
             </div>
@@ -967,7 +966,7 @@ export default function OpportunitiesPage() {
           ) : (
             <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-12 text-center">
               <p className="text-sm font-bold text-gray-600">
-                {t.grid.emptyInCountryPrefix} ({activeCountryObj.nameAr}).
+                {t.grid.emptyInCountryPrefix} ({activeCountryObj.name}).
               </p>
               <div className="mt-4 flex flex-wrap justify-center gap-2.5">
                 {selectedCountry !== 'ALL' && (

@@ -5,27 +5,14 @@ import Link from 'next/link'
 import { ChevronDown, Eye, EyeOff, Check } from 'lucide-react'
 import { AuthCard, AuthLayout } from '@/components/auth-layout'
 import { registerAction } from '@/app/actions/auth-actions'
+import {
+  ALL_RESIDENCE_COUNTRIES,
+  normalizeArabicText,
+} from '@/components/seller/seller-shared'
+import arDict from '@/dictionaries/ar.json'
 
-const COUNTRIES = [
-  { iso: 'EG', code: '+20', flag: '🇪🇬', name: 'مصر', nameEn: 'Egypt' },
-  { iso: 'AE', code: '+971', flag: '🇦🇪', name: 'الإمارات', nameEn: 'UAE' },
-  { iso: 'RU', code: '+7', flag: '🇷🇺', name: 'روسيا', nameEn: 'Russia' },
-  { iso: 'GE', code: '+995', flag: '🇬🇪', name: 'جورجيا', nameEn: 'Georgia' },
-  { iso: 'SA', code: '+966', flag: '🇸🇦', name: 'السعودية', nameEn: 'Saudi Arabia' },
-  { iso: 'KW', code: '+965', flag: '🇰🇼', name: 'الكويت', nameEn: 'Kuwait' },
-  { iso: 'QA', code: '+974', flag: '🇶🇦', name: 'قطر', nameEn: 'Qatar' },
-  { iso: 'BH', code: '+973', flag: '🇧🇭', name: 'البحرين', nameEn: 'Bahrain' },
-  { iso: 'OM', code: '+968', flag: '🇴🇲', name: 'عمان', nameEn: 'Oman' },
-  { iso: 'JO', code: '+962', flag: '🇯🇴', name: 'الأردن', nameEn: 'Jordan' },
-]
-
-function normalizeArText(s: string) {
-  return (s || '')
-    .trim()
-    .toLowerCase()
-    .replace(/[أإآ]/g, 'ا')
-    .replace(/ة/g, 'ه')
-}
+const t = arDict.authPages.register
+const c = arDict.authPages.common
 
 export default function RegisterPage() {
   const [error, setError] = useState('')
@@ -33,13 +20,11 @@ export default function RegisterPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [pending, startTransition] = useTransition()
 
-  // حالة الدولة المختارة للحساب + البحث بالحرف الأول
   const [userCountryIso, setUserCountryIso] = useState('EG')
   const [countrySearch, setCountrySearch] = useState('')
   const [countrySelectOpen, setCountrySelectOpen] = useState(false)
   const countrySelectRef = useRef<HTMLDivElement>(null)
 
-  // حالات خاصة برقم الموبايل والقائمة المنسدلة
   const [countryCode, setCountryCode] = useState('+20')
   const [phoneNumber, setPhoneNumber] = useState('')
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
@@ -66,17 +51,19 @@ export default function RegisterPage() {
   }, [])
 
   const selectedPhoneCountry =
-    COUNTRIES.find((c) => c.code === countryCode) || COUNTRIES[0]
+    ALL_RESIDENCE_COUNTRIES.find((item) => `+${item.phoneCode}` === countryCode) ||
+    ALL_RESIDENCE_COUNTRIES[0]
   const selectedUserCountry =
-    COUNTRIES.find((c) => c.iso === userCountryIso) || COUNTRIES[0]
+    ALL_RESIDENCE_COUNTRIES.find((item) => item.code === userCountryIso) ||
+    ALL_RESIDENCE_COUNTRIES[0]
 
-  const filteredCountries = COUNTRIES.filter((c) => {
+  const filteredCountries = ALL_RESIDENCE_COUNTRIES.filter((item) => {
     if (!countrySearch.trim()) return true
-    const q = normalizeArText(countrySearch)
+    const q = normalizeArabicText(countrySearch)
     return (
-      normalizeArText(c.name).includes(q) ||
-      c.nameEn.toLowerCase().includes(q) ||
-      c.iso.toLowerCase().includes(q)
+      normalizeArabicText(item.nameAr).includes(q) ||
+      item.nameEn.toLowerCase().includes(q) ||
+      item.code.toLowerCase().includes(q)
     )
   })
 
@@ -93,7 +80,7 @@ export default function RegisterPage() {
     const confirmPassword = formData.get('confirmPassword') as string
 
     if (password !== confirmPassword) {
-      setError('كلمتا السر غير متطابقتين.')
+      setError(t.passwordsMismatchError)
       return
     }
 
@@ -102,7 +89,7 @@ export default function RegisterPage() {
       if (result.success) {
         window.location.href = '/'
       } else {
-        setError(result.error || 'حدث خطأ أثناء إنشاء الحساب.')
+        setError(result.error || t.genericError)
       }
     })
   }
@@ -111,10 +98,10 @@ export default function RegisterPage() {
     <AuthLayout>
       <AuthCard>
         <div className="text-center">
-          <h1 className="text-3xl font-bold tracking-tight">إنشاء حساب</h1>
-          <p className="mt-3 text-sm text-muted-foreground">
-            ابدأ رحلتك العقارية مع دارك
-          </p>
+          <h1 className="text-3xl font-extrabold tracking-tight text-[var(--brand-navy,#0a1122)]">
+            {t.title}
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">{t.subtitle}</p>
         </div>
 
         {error && (
@@ -129,22 +116,21 @@ export default function RegisterPage() {
               htmlFor="name"
               className="mb-2 block text-xs font-bold text-foreground"
             >
-              الاسم
+              {t.nameLabel}
             </label>
             <input
               id="name"
               name="name"
               type="text"
               required
-              className="h-12 w-full rounded-xl border border-input bg-background px-4 text-right text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#105C50]"
-              placeholder="الاسم الكامل"
+              className="h-12 w-full rounded-xl border border-input bg-background px-4 text-right text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary,#007a5a)]"
+              placeholder={t.namePlaceholder}
             />
           </div>
 
-          {/* حقل اختيار الدولة بالبحث السريع بالحرف الأول */}
           <div ref={countrySelectRef} className="relative">
             <label className="mb-2 block text-xs font-bold text-foreground">
-              الدولة / محل الإقامة
+              {t.countryLabel}
             </label>
             <div className="relative">
               <input
@@ -153,9 +139,9 @@ export default function RegisterPage() {
                 value={
                   countrySelectOpen
                     ? countrySearch
-                    : `${selectedUserCountry.flag}  ${selectedUserCountry.name}`
+                    : `${selectedUserCountry.flag}  ${selectedUserCountry.nameAr}`
                 }
-                placeholder="اكتب أول حرف من اسم الدولة (مصر، الإمارات، روسيا، جورجيا)..."
+                placeholder={t.countryPlaceholder}
                 onFocus={() => {
                   setCountrySelectOpen(true)
                   setCountrySearch('')
@@ -164,7 +150,7 @@ export default function RegisterPage() {
                   setCountrySearch(e.target.value)
                   setCountrySelectOpen(true)
                 }}
-                className="h-12 w-full cursor-pointer rounded-xl border border-input bg-background pr-4 pl-10 text-right text-sm font-bold focus:outline-none focus:ring-2 focus:ring-[#105C50]"
+                className="h-12 w-full cursor-pointer rounded-xl border border-input bg-background pr-4 pl-10 text-right text-sm font-bold focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary,#007a5a)]"
               />
               <button
                 type="button"
@@ -182,41 +168,43 @@ export default function RegisterPage() {
               <div className="absolute top-[76px] z-50 max-h-56 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white p-1.5 shadow-xl">
                 {filteredCountries.length === 0 ? (
                   <p className="py-3 text-center text-xs text-gray-400">
-                    لا توجد دولة مطابقة للبحث
+                    {c.noCountryMatch}
                   </p>
                 ) : (
-                  filteredCountries.map((c) => (
+                  filteredCountries.map((item) => (
                     <button
-                      key={c.iso}
+                      key={item.code}
                       type="button"
                       onClick={() => {
-                        setUserCountryIso(c.iso)
-                        setCountryCode(c.code)
+                        setUserCountryIso(item.code)
+                        setCountryCode(`+${item.phoneCode}`)
                         setCountrySelectOpen(false)
                         setCountrySearch('')
                       }}
                       className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-right transition-colors hover:bg-gray-50 ${
-                        userCountryIso === c.iso ? 'bg-[#eff8f6]' : ''
+                        userCountryIso === item.code
+                          ? 'bg-[var(--brand-primary-light,#eaf8f2)]'
+                          : ''
                       }`}
                     >
                       <div className="flex items-center gap-2.5">
-                        <span className="text-lg">{c.flag}</span>
+                        <span className="text-lg">{item.flag}</span>
                         <span
                           className={`text-sm ${
-                            userCountryIso === c.iso
-                              ? 'font-bold text-[#105C50]'
+                            userCountryIso === item.code
+                              ? 'font-bold text-[var(--brand-primary,#007a5a)]'
                               : 'font-medium text-gray-700'
                           }`}
                         >
-                          {c.name}
+                          {item.nameAr}
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="font-mono text-xs text-gray-400">
-                          {c.iso}
+                          {item.code}
                         </span>
-                        {userCountryIso === c.iso && (
-                          <Check className="size-3.5 text-[#105C50]" />
+                        {userCountryIso === item.code && (
+                          <Check className="size-3.5 text-[var(--brand-primary,#007a5a)]" />
                         )}
                       </div>
                     </button>
@@ -231,7 +219,7 @@ export default function RegisterPage() {
               htmlFor="phone"
               className="mb-2 block text-xs font-bold text-foreground"
             >
-              رقم الموبايل
+              {t.phoneLabel}
             </label>
             <div className="relative flex gap-2">
               <input
@@ -241,7 +229,7 @@ export default function RegisterPage() {
                 value={phoneNumber}
                 onChange={(e) => setPhoneNumber(e.target.value)}
                 required
-                className="h-12 flex-1 rounded-xl border border-input bg-background px-4 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#105C50]"
+                className="h-12 flex-1 rounded-xl border border-input bg-background px-4 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary,#007a5a)]"
                 placeholder="1xxxxxxxxx"
               />
 
@@ -253,54 +241,48 @@ export default function RegisterPage() {
                 <button
                   type="button"
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  className="flex h-12 w-full items-center justify-between rounded-xl border border-input bg-background px-3 text-sm font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-[#105C50]"
+                  className="flex h-12 w-full items-center justify-between rounded-xl border border-input bg-background px-3 text-sm font-bold text-foreground"
                 >
                   <span className="flex items-center gap-1.5">
                     <span className="text-lg">{selectedPhoneCountry.flag}</span>
-                    <span dir="ltr">{selectedPhoneCountry.code}</span>
+                    <span dir="ltr">+{selectedPhoneCountry.phoneCode}</span>
                   </span>
                   <ChevronDown className="size-4 text-muted-foreground" />
                 </button>
 
                 {isDropdownOpen && (
                   <div className="absolute top-[54px] right-0 z-50 max-h-56 w-[220px] overflow-y-auto rounded-xl border border-gray-200 bg-white p-1.5 shadow-xl">
-                    {COUNTRIES.map((c) => (
-                      <button
-                        key={c.code + c.name}
-                        type="button"
-                        onClick={() => {
-                          setCountryCode(c.code)
-                          setIsDropdownOpen(false)
-                        }}
-                        className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-right transition-colors hover:bg-gray-50 ${
-                          countryCode === c.code ? 'bg-[#eff8f6]' : ''
-                        }`}
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <span className="text-lg">{c.flag}</span>
-                          <span
-                            className={`text-sm ${
-                              countryCode === c.code
-                                ? 'font-bold text-[#105C50]'
-                                : 'font-medium text-gray-700'
-                            }`}
-                          >
-                            {c.name}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
+                    {ALL_RESIDENCE_COUNTRIES.map((item) => {
+                      const codeStr = `+${item.phoneCode}`
+                      return (
+                        <button
+                          key={item.code}
+                          type="button"
+                          onClick={() => {
+                            setCountryCode(codeStr)
+                            setIsDropdownOpen(false)
+                          }}
+                          className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-right transition-colors hover:bg-gray-50 ${
+                            countryCode === codeStr
+                              ? 'bg-[var(--brand-primary-light,#eaf8f2)]'
+                              : ''
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <span className="text-lg">{item.flag}</span>
+                            <span className="text-sm font-medium text-gray-700">
+                              {item.nameAr}
+                            </span>
+                          </div>
                           <span
                             dir="ltr"
                             className="text-[11px] font-bold text-gray-500"
                           >
-                            {c.code}
+                            {codeStr}
                           </span>
-                          {countryCode === c.code && (
-                            <Check className="size-3.5 text-[#105C50]" />
-                          )}
-                        </div>
-                      </button>
-                    ))}
+                        </button>
+                      )
+                    })}
                   </div>
                 )}
               </div>
@@ -312,7 +294,7 @@ export default function RegisterPage() {
               htmlFor="email"
               className="mb-2 block text-xs font-bold text-foreground"
             >
-              البريد الإلكتروني
+              {t.emailLabel}
             </label>
             <input
               id="email"
@@ -320,7 +302,7 @@ export default function RegisterPage() {
               type="email"
               dir="ltr"
               required
-              className="h-12 w-full rounded-xl border border-input bg-background px-4 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#105C50]"
+              className="h-12 w-full rounded-xl border border-input bg-background px-4 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary,#007a5a)]"
               placeholder="name@example.com"
             />
           </div>
@@ -330,7 +312,7 @@ export default function RegisterPage() {
               htmlFor="password"
               className="mb-2 block text-xs font-bold text-foreground"
             >
-              كلمة السر
+              {t.passwordLabel}
             </label>
             <div className="relative">
               <input
@@ -340,16 +322,16 @@ export default function RegisterPage() {
                 dir="ltr"
                 required
                 minLength={8}
-                className={`h-12 w-full rounded-xl border border-input bg-background pr-11 pl-4 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#105C50] ${
+                className={`h-12 w-full rounded-xl border border-input bg-background pr-11 pl-4 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary,#007a5a)] ${
                   showPassword ? 'tracking-normal' : 'tracking-widest'
                 }`}
-                placeholder="8 أحرف على الأقل"
+                placeholder={t.passwordPlaceholder}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword((prev) => !prev)}
                 className="absolute top-1/2 right-3.5 -translate-y-1/2 text-muted-foreground transition hover:text-foreground"
-                aria-label={showPassword ? 'إخفاء كلمة السر' : 'إظهار كلمة السر'}
+                aria-label={showPassword ? c.hidePassAria : c.showPassAria}
               >
                 {showPassword ? (
                   <EyeOff className="size-5" />
@@ -365,7 +347,7 @@ export default function RegisterPage() {
               htmlFor="confirmPassword"
               className="mb-2 block text-xs font-bold text-foreground"
             >
-              تأكيد كلمة السر
+              {t.confirmPasswordLabel}
             </label>
             <div className="relative">
               <input
@@ -375,17 +357,17 @@ export default function RegisterPage() {
                 dir="ltr"
                 required
                 minLength={8}
-                className={`h-12 w-full rounded-xl border border-input bg-background pr-11 pl-4 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#105C50] ${
+                className={`h-12 w-full rounded-xl border border-input bg-background pr-11 pl-4 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary,#007a5a)] ${
                   showConfirmPassword ? 'tracking-normal' : 'tracking-widest'
                 }`}
-                placeholder="أعد إدخال كلمة السر"
+                placeholder={t.confirmPasswordPlaceholder}
               />
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword((prev) => !prev)}
                 className="absolute top-1/2 right-3.5 -translate-y-1/2 text-muted-foreground transition hover:text-foreground"
                 aria-label={
-                  showConfirmPassword ? 'إخفاء كلمة السر' : 'إظهار كلمة السر'
+                  showConfirmPassword ? c.hidePassAria : c.showPassAria
                 }
               >
                 {showConfirmPassword ? (
@@ -400,23 +382,23 @@ export default function RegisterPage() {
           <button
             type="submit"
             disabled={pending}
-            className="mt-2 h-12 rounded-xl bg-[#105C50] px-5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#0c483f] disabled:opacity-50"
+            className="mt-2 h-12 rounded-xl bg-[var(--brand-primary,#007a5a)] px-5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[var(--brand-primary-hover,#006248)] disabled:opacity-50"
           >
-            {pending ? 'جاري إنشاء الحساب...' : 'إنشاء حساب'}
+            {pending ? t.submittingBtn : t.submitBtn}
           </button>
         </form>
 
         <p className="mt-4 text-center text-[11px] leading-5 text-muted-foreground">
-          بإنشاء حساب، أنت توافق على شروط الاستخدام وسياسة الخصوصية.
+          {t.termsNote}
         </p>
 
         <p className="mt-6 text-center text-sm text-muted-foreground">
-          عندك حساب؟{' '}
+          {t.haveAccountText}{' '}
           <Link
             href="/login"
-            className="font-bold text-[#105C50] hover:underline"
+            className="font-bold text-[var(--brand-primary,#007a5a)] hover:underline"
           >
-            ادخل من هنا
+            {t.loginHereLink}
           </Link>
         </p>
       </AuthCard>

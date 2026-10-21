@@ -6,6 +6,92 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import nodemailer from 'nodemailer'
 import { extractUserIdFromCookie } from '@/lib/session-security'
+import { normalizeLocale, type LocaleCode } from '@/lib/i18n-config'
+
+const ACCOUNT_MESSAGES: Record<LocaleCode, Record<string, string>> = {
+  ar: {
+    sessionExpired: 'انتهت الجلسة، يرجى تسجيل الدخول.',
+    invalidNamePhone: 'يرجى إدخال اسم صحيح ورقم موبايل صحيح.',
+    phoneConflict: 'رقم الموبايل هذا مسجل بالفعل لحساب آخر.',
+    updateFailed: 'تعذر تحديث البيانات حالياً.',
+    personalSaved: 'تم حفظ وتحديث اسمك ورقم موبايلك بنجاح ✓',
+    unexpected: 'حدث خطأ غير متوقع.',
+    invalidEmail: 'يرجى كتابة بريد إلكتروني صحيح.',
+    emailConflict: 'هذا البريد الإلكتروني مسجل بالفعل لحساب آخر.',
+    emailSavedPrefix: 'تم تغيير بريدك الإلكتروني بنجاح إلى',
+    unitNotFound: 'الوحدة غير موجودة.',
+    pauseFailed: 'تعذر إيقاف عرض الوحدة.',
+    resumeFailed: 'تعذر إعادة عرض الوحدة.',
+    deleteFailed: 'تعذر حذف الوحدة حالياً.',
+    docSaveFailed: 'تعذر حفظ المستند.',
+    prefSaveFailed: 'تعذر حفظ التفضيلات.',
+    promoFailed: 'حدث خطأ أثناء تسجيل طلب الإعلان.',
+    cancelPromoFailed: 'تعذر إلغاء طلب التمييز.',
+  },
+  en: {
+    sessionExpired: 'Session expired, please sign in.',
+    invalidNamePhone: 'Please enter a valid name and phone number.',
+    phoneConflict: 'This phone number is already linked to another account.',
+    updateFailed: 'Could not update details right now.',
+    personalSaved: 'Your name and phone number have been saved ✓',
+    unexpected: 'An unexpected error occurred.',
+    invalidEmail: 'Please enter a valid email address.',
+    emailConflict: 'This email is already linked to another account.',
+    emailSavedPrefix: 'Your email has been updated to',
+    unitNotFound: 'Unit not found.',
+    pauseFailed: 'Could not pause unit listing.',
+    resumeFailed: 'Could not resume unit listing.',
+    deleteFailed: 'Could not delete unit right now.',
+    docSaveFailed: 'Could not save document.',
+    prefSaveFailed: 'Could not save preferences.',
+    promoFailed: 'Error registering promotion request.',
+    cancelPromoFailed: 'Could not cancel promotion request.',
+  },
+  ru: {
+    sessionExpired: 'Сессия истекла, пожалуйста, войдите снова.',
+    invalidNamePhone: 'Введите корректное имя и номер телефона.',
+    phoneConflict: 'Этот номер телефона уже привязан к другому аккаунту.',
+    updateFailed: 'Не удалось обновить данные.',
+    personalSaved: 'Ваше имя и номер телефона успешно сохранены ✓',
+    unexpected: 'Произошла непредвиденная ошибка.',
+    invalidEmail: 'Введите корректный email.',
+    emailConflict: 'Этот email уже используется другим аккаунтом.',
+    emailSavedPrefix: 'Ваш email успешно изменен на',
+    unitNotFound: 'Объект не найден.',
+    pauseFailed: 'Не удалось приостановить показ объекта.',
+    resumeFailed: 'Не удалось возобновить показ объекта.',
+    deleteFailed: 'Не удалось удалить объект.',
+    docSaveFailed: 'Не удалось сохранить документ.',
+    prefSaveFailed: 'Не удалось сохранить настройки.',
+    promoFailed: 'Ошибка при создании заявки на продвижение.',
+    cancelPromoFailed: 'Не удалось отменить продвижение.',
+  },
+  ka: {
+    sessionExpired: 'სესიის ვადა გავიდა, გთხოვთ შეხვიდეთ თავიდან.',
+    invalidNamePhone: 'შეიყვანეთ სწორი სახელი და ტელეფონის ნომერი.',
+    phoneConflict: 'ეს ნომერი უკვე რეგისტრირებულია სხვა ანგარიშზე.',
+    updateFailed: 'მონაცემების განახლება ვერ მოხერხდა.',
+    personalSaved: 'სახელი და ტელეფონის ნომერი წარმატებით შეინახა ✓',
+    unexpected: 'დაფიქსირდა შეცდომა.',
+    invalidEmail: 'შეიყვანეთ სწორი ელ.ფოსტა.',
+    emailConflict: 'ეს ელ.ფოსტა უკვე გამოიყენება სხვა ანგარიშზე.',
+    emailSavedPrefix: 'თქვენი ელ.ფოსტა შეიცვალა:',
+    unitNotFound: 'ობიექტი ვერ მოიძებნა.',
+    pauseFailed: 'ჩვენების შეჩერება ვერ მოხერხდა.',
+    resumeFailed: 'ჩვენების აღდგენა ვერ მოხერხდა.',
+    deleteFailed: 'ობიექტის წაშლა ვერ მოხერხდა.',
+    docSaveFailed: 'დოკუმენტის შენახვა ვერ მოხერხდა.',
+    prefSaveFailed: 'პარამეტრების შენახვა ვერ მოხერხდა.',
+    promoFailed: 'VIP მოთხოვნის შენახვა ვერ მოხერხდა.',
+    cancelPromoFailed: 'VIP მოთხოვნის გაუქმება ვერ მოხერხდა.',
+  },
+}
+
+async function getAccMsg() {
+  const cookieStore = await cookies()
+  const locale = normalizeLocale(cookieStore.get('locale')?.value)
+  return ACCOUNT_MESSAGES[locale] || ACCOUNT_MESSAGES.ar
+}
 
 async function getSupabase() {
   const cookieStore = await cookies()
@@ -56,11 +142,11 @@ async function sendAccountEmail({
 function formatPrimaryPhone(rawPhone: string) {
   const digits = (rawPhone || '').replace(/\s+/g, '').replace(/[^0-9+]/g, '')
   if (!digits) return ''
+  if (digits.startsWith('+') && !digits.startsWith('+20')) return digits
   const stripped = digits.replace(/^\+?20/, '').replace(/^0+/, '')
   return `+20${stripped}`
 }
 
-// 1. تسجيل الخروج
 export async function logoutAccountAction() {
   const cookieStore = await cookies()
   cookieStore.delete('user_session')
@@ -68,24 +154,25 @@ export async function logoutAccountAction() {
   redirect('/login')
 }
 
-// 2. تحديث الاسم ورقم الموبايل
 export async function updatePersonalInfoAction(payload: {
   name: string
   phone: string
 }) {
+  const msg = await getAccMsg()
   try {
     const cookieStore = await cookies()
-    const sessionId = cookieStore.get('user_session')?.value
-    if (!sessionId)
-      return { success: false, error: 'انتهت الجلسة، يرجى تسجيل الدخول.' }
+    const sessionId = extractUserIdFromCookie(
+      cookieStore.get('user_session')?.value
+    )
+    if (!sessionId) return { success: false, error: msg.sessionExpired }
 
     const cleanName = (payload.name || '').trim()
     const formattedPhone = formatPrimaryPhone(payload.phone)
 
-    if (!cleanName || !formattedPhone || formattedPhone.length < 11) {
+    if (!cleanName || !formattedPhone || formattedPhone.length < 10) {
       return {
         success: false,
-        error: 'يرجى إدخال اسم صحيح ورقم موبايل مكون من 11 رقم.',
+        error: msg.invalidNamePhone,
       }
     }
 
@@ -101,7 +188,7 @@ export async function updatePersonalInfoAction(payload: {
     if (conflictPhone && conflictPhone.length > 0) {
       return {
         success: false,
-        error: 'رقم الموبايل هذا مسجل بالفعل لحساب آخر.',
+        error: msg.phoneConflict,
       }
     }
 
@@ -110,7 +197,7 @@ export async function updatePersonalInfoAction(payload: {
       .update({ name: cleanName, phone: formattedPhone })
       .eq('id', sessionId)
 
-    if (error) return { success: false, error: 'تعذر تحديث البيانات حالياً.' }
+    if (error) return { success: false, error: msg.updateFailed }
 
     await Promise.all([
       supabase
@@ -127,24 +214,25 @@ export async function updatePersonalInfoAction(payload: {
     revalidatePath('/account/details')
     return {
       success: true,
-      message: 'تم حفظ وتحديث اسمك ورقم موبايلك بنجاح ✓',
+      message: msg.personalSaved,
     }
   } catch {
-    return { success: false, error: 'حدث خطأ غير متوقع.' }
+    return { success: false, error: msg.unexpected }
   }
 }
 
-// 3. تحديث البريد الإلكتروني
 export async function updateEmailInfoAction(payload: { email: string }) {
+  const msg = await getAccMsg()
   try {
     const cookieStore = await cookies()
-    const sessionId = cookieStore.get('user_session')?.value
-    if (!sessionId)
-      return { success: false, error: 'انتهت الجلسة، يرجى تسجيل الدخول.' }
+    const sessionId = extractUserIdFromCookie(
+      cookieStore.get('user_session')?.value
+    )
+    if (!sessionId) return { success: false, error: msg.sessionExpired }
 
     const cleanEmail = (payload.email || '').trim().toLowerCase()
     if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
-      return { success: false, error: 'يرجى كتابة بريد إلكتروني صحيح.' }
+      return { success: false, error: msg.invalidEmail }
     }
 
     const supabase = await getSupabase()
@@ -159,7 +247,7 @@ export async function updateEmailInfoAction(payload: { email: string }) {
     if (conflictEmail && conflictEmail.length > 0) {
       return {
         success: false,
-        error: 'هذا البريد الإلكتروني مسجل بالفعل لحساب آخر.',
+        error: msg.emailConflict,
       }
     }
 
@@ -177,7 +265,7 @@ export async function updateEmailInfoAction(payload: { email: string }) {
     if (error) {
       return {
         success: false,
-        error: 'تعذر تغيير الإيميل، يرجى المحاولة مرة أخرى.',
+        error: msg.updateFailed,
       }
     }
 
@@ -205,21 +293,23 @@ export async function updateEmailInfoAction(payload: { email: string }) {
     revalidatePath('/account/details')
     return {
       success: true,
-      message: `تم تغيير بريدك الإلكتروني بنجاح إلى ${cleanEmail} ✓`,
+      message: `${msg.emailSavedPrefix} ${cleanEmail} ✓`,
     }
   } catch {
-    return { success: false, error: 'حدث خطأ غير متوقع.' }
+    return { success: false, error: msg.unexpected }
   }
 }
 
-// 4. طلب حذف الحساب (يحفظ الحالة السابقة لكل وحدة ويرسل إيميل الصورة 47 بالظبط)
 export async function requestAccountDeletionAction(payload: {
   reason?: string
 }) {
+  const msg = await getAccMsg()
   try {
     const cookieStore = await cookies()
-    const sessionId = cookieStore.get('user_session')?.value
-    if (!sessionId) return { success: false, error: 'يرجى تسجيل الدخول.' }
+    const sessionId = extractUserIdFromCookie(
+      cookieStore.get('user_session')?.value
+    )
+    if (!sessionId) return { success: false, error: msg.sessionExpired }
 
     const supabase = await getSupabase()
     const { data: user } = await supabase
@@ -228,14 +318,13 @@ export async function requestAccountDeletionAction(payload: {
       .eq('id', sessionId)
       .maybeSingle()
 
-    if (!user) return { success: false, error: 'الحساب غير موجود.' }
+    if (!user) return { success: false, error: msg.sessionExpired }
 
     const siteUrl =
       process.env.NEXT_PUBLIC_SITE_URL ||
       'https://next-js-rtl-platform-structure.vercel.app'
     const nowIso = new Date().toISOString()
 
-    // جلب وحدات العميل لحفظ حالتها الأصلية قبل إخفائها
     const { data: userUnits } = await supabase
       .from('sell_requests')
       .select('id, status')
@@ -281,7 +370,6 @@ export async function requestAccountDeletionAction(payload: {
       })
     } catch {}
 
-    // إرسال الإيميل المطابق 100% للصورة 47
     if (user.email) {
       sendAccountEmail({
         to: user.email,
@@ -304,15 +392,16 @@ export async function requestAccountDeletionAction(payload: {
     revalidatePath('/admin/users')
     return { success: true }
   } catch {
-    return { success: false, error: 'تعذر تسجيل طلب الحذف.' }
+    return { success: false, error: msg.unexpected }
   }
 }
 
-// 5. إلغاء طلب حذف الحساب (يرجع كل وحدة لحالتها السابقة بالظبط زي ما كانت!)
 export async function cancelAccountDeletionAction() {
   try {
     const cookieStore = await cookies()
-    const sessionId = cookieStore.get('user_session')?.value
+    const sessionId = extractUserIdFromCookie(
+      cookieStore.get('user_session')?.value
+    )
     if (!sessionId) return { success: false }
 
     const supabase = await getSupabase()
@@ -327,7 +416,6 @@ export async function cancelAccountDeletionAction() {
       })
       .eq('id', sessionId)
 
-    // استرجاع كل وحدة إلى حالتها الأصلية المحفوظة في previous_status
     const { data: pausedUnits } = await supabase
       .from('sell_requests')
       .select('id, previous_status')
@@ -357,15 +445,17 @@ export async function cancelAccountDeletionAction() {
   }
 }
 
-// 6. إيقاف عرض الوحدة مؤقتاً أو إعادة عرضها في السوق بواسطة صاحب الوحدة
 export async function toggleSellerUnitStatusAction(payload: {
   unitId: string
   action: 'pause' | 'resume'
 }) {
+  const msg = await getAccMsg()
   try {
     const cookieStore = await cookies()
-    const sessionId = cookieStore.get('user_session')?.value
-    if (!sessionId) return { success: false, error: 'يرجى تسجيل الدخول.' }
+    const sessionId = extractUserIdFromCookie(
+      cookieStore.get('user_session')?.value
+    )
+    if (!sessionId) return { success: false, error: msg.sessionExpired }
 
     const supabase = await getSupabase()
     const { data: unit } = await supabase
@@ -374,10 +464,9 @@ export async function toggleSellerUnitStatusAction(payload: {
       .eq('id', payload.unitId)
       .maybeSingle()
 
-    if (!unit) return { success: false, error: 'الوحدة غير موجودة.' }
+    if (!unit) return { success: false, error: msg.unitNotFound }
 
     if (payload.action === 'pause') {
-      // إيقاف العرض مؤقتاً بواسطة البائع
       const { error } = await supabase
         .from('sell_requests')
         .update({
@@ -387,7 +476,7 @@ export async function toggleSellerUnitStatusAction(payload: {
         })
         .eq('id', payload.unitId)
 
-      if (error) return { success: false, error: 'تعذر إيقاف عرض الوحدة.' }
+      if (error) return { success: false, error: msg.pauseFailed }
 
       try {
         await supabase.from('notifications').insert({
@@ -400,18 +489,18 @@ export async function toggleSellerUnitStatusAction(payload: {
         })
       } catch {}
     } else {
-      // إعادة عرض الوحدة -> تعود للمراجعة (pending) مع علامة للأدمن أنها "معاد عرضها من المالك"
       const { error } = await supabase
         .from('sell_requests')
         .update({
           status: 'pending',
           submission_type: 'resumed_by_seller',
           last_seller_edit_at: new Date().toISOString(),
-          admin_note: 'أعاد المالك عرض هذه الوحدة بعد إيقافها — بانتظار مراجعة الإدارة',
+          admin_note:
+            'أعاد المالك عرض هذه الوحدة بعد إيقافها — بانتظار مراجعة الإدارة',
         })
         .eq('id', payload.unitId)
 
-      if (error) return { success: false, error: 'تعذر إعادة عرض الوحدة.' }
+      if (error) return { success: false, error: msg.resumeFailed }
 
       try {
         await supabase.from('notifications').insert({
@@ -430,16 +519,18 @@ export async function toggleSellerUnitStatusAction(payload: {
     revalidatePath('/admin/properties')
     return { success: true }
   } catch {
-    return { success: false, error: 'حدث خطأ غير متوقع.' }
+    return { success: false, error: msg.unexpected }
   }
 }
 
-// 7. حذف وحدة معينة نهائياً بواسطة البائع
 export async function deleteUnitBySellerAction(unitId: string) {
+  const msg = await getAccMsg()
   try {
     const cookieStore = await cookies()
-    const sessionId = cookieStore.get('user_session')?.value
-    if (!sessionId) return { success: false, error: 'يرجى تسجيل الدخول.' }
+    const sessionId = extractUserIdFromCookie(
+      cookieStore.get('user_session')?.value
+    )
+    if (!sessionId) return { success: false, error: msg.sessionExpired }
 
     const supabase = await getSupabase()
     const { data: unit } = await supabase
@@ -450,7 +541,6 @@ export async function deleteUnitBySellerAction(unitId: string) {
 
     const nowIso = new Date().toISOString()
 
-    // محاولة التحديث الكامل مع حفظ تاريخ الحذف للحذف التلقائي بعد 7 أيام
     const { error } = await supabase
       .from('sell_requests')
       .update({
@@ -462,7 +552,6 @@ export async function deleteUnitBySellerAction(unitId: string) {
       })
       .eq('id', unitId)
 
-    // Fallback في حال لم يتم تشغيل سكريبت الأعمدة الإضافية بعد
     if (error) {
       const { error: fallbackErr } = await supabase
         .from('sell_requests')
@@ -473,7 +562,7 @@ export async function deleteUnitBySellerAction(unitId: string) {
         .eq('id', unitId)
 
       if (fallbackErr) {
-        return { success: false, error: 'تعذر حذف الوحدة حالياً.' }
+        return { success: false, error: msg.deleteFailed }
       }
     }
 
@@ -493,20 +582,23 @@ export async function deleteUnitBySellerAction(unitId: string) {
     revalidatePath('/admin/properties')
     return { success: true }
   } catch {
-    return { success: false, error: 'حدث خطأ أثناء الحذف.' }
+    return { success: false, error: msg.deleteFailed }
   }
 }
-// 8. حفظ مستند مرفوع للوحدة
+
 export async function saveUnitDocumentAction(payload: {
   unitId: string
   docKey: 'contract' | 'receipts' | 'statement' | 'national_id'
   fileUrl: string
   fileName: string
 }) {
+  const msg = await getAccMsg()
   try {
     const cookieStore = await cookies()
-    const sessionId = cookieStore.get('user_session')?.value
-    if (!sessionId) return { success: false, error: 'يرجى تسجيل الدخول.' }
+    const sessionId = extractUserIdFromCookie(
+      cookieStore.get('user_session')?.value
+    )
+    if (!sessionId) return { success: false, error: msg.sessionExpired }
 
     const supabase = await getSupabase()
     const { data: unit } = await supabase
@@ -515,7 +607,7 @@ export async function saveUnitDocumentAction(payload: {
       .eq('id', payload.unitId)
       .maybeSingle()
 
-    if (!unit) return { success: false, error: 'لم يتم العثور على الوحدة.' }
+    if (!unit) return { success: false, error: msg.unitNotFound }
 
     const currentDocs =
       unit.documents && typeof unit.documents === 'object' ? unit.documents : {}
@@ -538,7 +630,7 @@ export async function saveUnitDocumentAction(payload: {
     if (error) {
       return {
         success: false,
-        error: 'تأكد من تشغيل أمر إضافة عمود documents في قاعدة البيانات.',
+        error: msg.docSaveFailed,
       }
     }
 
@@ -557,11 +649,10 @@ export async function saveUnitDocumentAction(payload: {
     revalidatePath('/account/documents')
     return { success: true, documents: updatedDocs }
   } catch {
-    return { success: false, error: 'تعذر حفظ المستند.' }
+    return { success: false, error: msg.docSaveFailed }
   }
 }
 
-// 9. تحديث ميزانية وتفضيلات المشتري
 export async function updateBuyerPreferencesAction(payload: {
   buyRequestId?: string
   available_cash: number
@@ -575,10 +666,13 @@ export async function updateBuyerPreferencesAction(payload: {
   notify_exact_match: boolean
   notify_featured: boolean
 }) {
+  const msg = await getAccMsg()
   try {
     const cookieStore = await cookies()
-    const sessionId = cookieStore.get('user_session')?.value
-    if (!sessionId) return { success: false, error: 'يرجى تسجيل الدخول.' }
+    const sessionId = extractUserIdFromCookie(
+      cookieStore.get('user_session')?.value
+    )
+    if (!sessionId) return { success: false, error: msg.sessionExpired }
 
     const supabase = await getSupabase()
 
@@ -619,16 +713,16 @@ export async function updateBuyerPreferencesAction(payload: {
     revalidatePath('/account')
     return { success: true }
   } catch {
-    return { success: false, error: 'تعذر حفظ التفضيلات.' }
+    return { success: false, error: msg.prefSaveFailed }
   }
 }
 
-// 10. طلب ترقية وتمييز الوحدة (باقات 7 / 14 / 30 يوم + كود فوري 10 أرقام)
 export async function requestUnitPromotionAction(payload: {
   unitId: string
   days: 7 | 14 | 30
   price: number
 }) {
+  const msg = await getAccMsg()
   try {
     const supabase = await getSupabase()
     const { data: unit } = await supabase
@@ -639,7 +733,7 @@ export async function requestUnitPromotionAction(payload: {
       .eq('id', payload.unitId)
       .maybeSingle()
 
-    if (!unit) return { success: false, error: 'الوحدة غير موجودة.' }
+    if (!unit) return { success: false, error: msg.unitNotFound }
 
     const cleanIdPart = String(unit.id)
       .replace(/[^a-zA-Z0-9]/g, '')
@@ -666,7 +760,7 @@ export async function requestUnitPromotionAction(payload: {
     if (error) {
       return {
         success: false,
-        error: 'تأكد من تشغيل سكريبت إضافة أعمدة التمييز في قاعدة البيانات.',
+        error: msg.promoFailed,
       }
     }
 
@@ -693,17 +787,18 @@ export async function requestUnitPromotionAction(payload: {
       price: payload.price,
     }
   } catch {
-    return { success: false, error: 'حدث خطأ أثناء تسجيل طلب الإعلان.' }
+    return { success: false, error: msg.promoFailed }
   }
 }
 
-// 11. إلغاء طلب الإعلان أو إيقاف التمييز الساري بواسطة البائع في أي وقت
-// 11. إلغاء وحذف طلب الإعلان أو إيقاف التمييز الساري بواسطة البائع في أي وقت
 export async function cancelUnitPromotionBySellerAction(unitId: string) {
+  const msg = await getAccMsg()
   try {
     const cookieStore = await cookies()
-    const sessionId = cookieStore.get('user_session')?.value
-    if (!sessionId) return { success: false, error: 'يرجى تسجيل الدخول.' }
+    const sessionId = extractUserIdFromCookie(
+      cookieStore.get('user_session')?.value
+    )
+    if (!sessionId) return { success: false, error: msg.sessionExpired }
 
     const supabase = await getSupabase()
     const { data: unit } = await supabase
@@ -714,12 +809,11 @@ export async function cancelUnitPromotionBySellerAction(unitId: string) {
       .eq('id', unitId)
       .maybeSingle()
 
-    if (!unit) return { success: false, error: 'الوحدة غير موجودة.' }
+    if (!unit) return { success: false, error: msg.unitNotFound }
 
     const wasActive = Boolean(unit.is_featured)
     const adRef = unit.featured_fawry_code || ''
 
-    // تصفير جميع حقول التمييز حتى يختفي الطلب تماماً من حساب البائع
     const { error } = await supabase
       .from('sell_requests')
       .update({
@@ -732,7 +826,7 @@ export async function cancelUnitPromotionBySellerAction(unitId: string) {
       })
       .eq('id', unitId)
 
-    if (error) return { success: false, error: 'تعذر إلغاء طلب التمييز.' }
+    if (error) return { success: false, error: msg.cancelPromoFailed }
 
     try {
       await supabase.from('notifications').insert({
@@ -752,6 +846,6 @@ export async function cancelUnitPromotionBySellerAction(unitId: string) {
     revalidatePath('/admin/properties')
     return { success: true }
   } catch {
-    return { success: false, error: 'حدث خطأ غير متوقع.' }
+    return { success: false, error: msg.unexpected }
   }
 }

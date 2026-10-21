@@ -6,6 +6,10 @@ import { useSearchParams } from 'next/navigation'
 import { Eye, EyeOff } from 'lucide-react'
 import { AuthCard, AuthLayout } from '@/components/auth-layout'
 import { loginAction, verifyAccountAction } from '@/app/actions/auth-actions'
+import arDict from '@/dictionaries/ar.json'
+
+const t = arDict.authPages.login
+const c = arDict.authPages.common
 
 function LoginContent() {
   const searchParams = useSearchParams()
@@ -36,15 +40,14 @@ function LoginContent() {
       const result = await loginAction(formData)
 
       if (result.success) {
-        // تحويل إجباري مباشر مع تحديث كامل لحالة الموقع والهيدر
         window.location.replace((result as any).redirectTo || '/')
         return
       } else {
-        setError(result.error || 'بيانات الدخول غير صحيحة، يرجى المحاولة مرة أخرى.')
+        setError(result.error || t.invalidCredentialsError)
         setPending(false)
       }
     } catch {
-      setError('حدث خطأ أثناء الاتصال، يرجى المحاولة مرة أخرى.')
+      setError(t.connectionError)
       setPending(false)
     }
   }
@@ -53,13 +56,15 @@ function LoginContent() {
     <AuthLayout>
       <AuthCard>
         <div className="text-center">
-          <h1 className="text-3xl font-bold tracking-tight">تسجيل الدخول</h1>
-          <p className="mt-3 text-sm text-muted-foreground">أهلاً بيك تاني في دارك</p>
+          <h1 className="text-3xl font-extrabold tracking-tight text-[var(--brand-navy,#0a1122)]">
+            {t.title}
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">{t.subtitle}</p>
         </div>
 
         {verifiedSuccess && !error && (
           <div className="mt-4 rounded-xl bg-emerald-50 p-3 text-center text-xs font-bold text-emerald-700">
-            تم تأكيد وتوثيق حسابك بنجاح! يمكنك تسجيل الدخول الآن.
+            {t.verifiedBanner}
           </div>
         )}
 
@@ -71,8 +76,11 @@ function LoginContent() {
 
         <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
           <div>
-            <label htmlFor="emailOrPhone" className="mb-2 block text-xs font-bold text-foreground">
-              البريد الإلكتروني أو رقم الموبايل
+            <label
+              htmlFor="emailOrPhone"
+              className="mb-2 block text-xs font-bold text-foreground"
+            >
+              {t.identifierLabel}
             </label>
             <input
               id="emailOrPhone"
@@ -81,18 +89,24 @@ function LoginContent() {
               dir="ltr"
               defaultValue={defaultEmail}
               required
-              className="h-12 w-full rounded-xl border border-input bg-background px-4 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary"
-              placeholder="name@example.com أو 01xxxxxxxxx"
+              className="h-12 w-full rounded-xl border border-input bg-background px-4 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary,#007a5a)]"
+              placeholder={t.identifierPlaceholder}
             />
           </div>
 
           <div>
             <div className="mb-2 flex items-center justify-between">
-              <label htmlFor="password" className="text-xs font-bold text-foreground">
-                كلمة السر
+              <label
+                htmlFor="password"
+                className="text-xs font-bold text-foreground"
+              >
+                {t.passwordLabel}
               </label>
-              <Link href="/reset-password" className="text-xs font-bold text-primary hover:underline">
-                نسيت كلمة السر؟
+              <Link
+                href="/reset-password"
+                className="text-xs font-bold text-[var(--brand-primary,#007a5a)] hover:underline"
+              >
+                {t.forgotPassLink}
               </Link>
             </div>
             <div className="relative">
@@ -102,7 +116,7 @@ function LoginContent() {
                 type={showPassword ? 'text' : 'password'}
                 dir="ltr"
                 required
-                className={`h-12 w-full rounded-xl border border-input bg-background pl-4 pr-11 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary ${
+                className={`h-12 w-full rounded-xl border border-input bg-background pr-11 pl-4 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary,#007a5a)] ${
                   showPassword ? 'tracking-normal' : 'tracking-widest'
                 }`}
                 placeholder="••••••••"
@@ -110,10 +124,14 @@ function LoginContent() {
               <button
                 type="button"
                 onClick={() => setShowPassword((prev) => !prev)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground transition hover:text-foreground"
-                aria-label={showPassword ? 'إخفاء كلمة السر' : 'إظهار كلمة السر'}
+                className="absolute top-1/2 right-3.5 -translate-y-1/2 text-muted-foreground transition hover:text-foreground"
+                aria-label={showPassword ? c.hidePassAria : c.showPassAria}
               >
-                {showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
+                {showPassword ? (
+                  <EyeOff className="size-5" />
+                ) : (
+                  <Eye className="size-5" />
+                )}
               </button>
             </div>
           </div>
@@ -121,16 +139,19 @@ function LoginContent() {
           <button
             type="submit"
             disabled={pending}
-            className="mt-2 h-12 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+            className="mt-2 h-12 rounded-xl bg-[var(--brand-primary,#007a5a)] px-5 text-sm font-bold text-white transition hover:bg-[var(--brand-primary-hover,#006248)] disabled:opacity-50"
           >
-            {pending ? 'جاري تسجيل الدخول...' : 'تسجيل الدخول'}
+            {pending ? t.submittingBtn : t.submitBtn}
           </button>
         </form>
 
         <p className="mt-7 text-center text-sm text-muted-foreground">
-          معندكش حساب؟{' '}
-          <Link href="/register" className="font-bold text-primary hover:underline">
-            سجل دلوقتي
+          {t.noAccountText}{' '}
+          <Link
+            href="/register"
+            className="font-bold text-[var(--brand-primary,#007a5a)] hover:underline"
+          >
+            {t.registerNowLink}
           </Link>
         </p>
       </AuthCard>

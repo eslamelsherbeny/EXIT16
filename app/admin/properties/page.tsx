@@ -1,5 +1,6 @@
 import { cookies } from "next/headers"
 import { createServerClient } from "@supabase/ssr"
+import { getServerI18n } from "@/lib/get-server-dictionary"
 import PropertiesTable, { type SellRequest } from "./properties-table"
 
 export const dynamic = "force-dynamic"
@@ -7,6 +8,9 @@ export const revalidate = 0
 
 export default async function PropertiesPage() {
   const cookieStore = await cookies()
+  const { dict, dir } = await getServerI18n()
+  const t = dict.admin?.propertiesAdmin
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -37,9 +41,9 @@ export default async function PropertiesPage() {
 
   if (error) {
     return (
-      <div className="mx-auto max-w-7xl">
+      <div dir={dir} className="mx-auto max-w-7xl text-start">
         <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-sm font-bold text-red-700">
-          تعذر تحميل طلبات البائعين من قاعدة البيانات.
+          {t?.loadError || "تعذر تحميل طلبات البائعين من قاعدة البيانات."}
         </div>
       </div>
     )

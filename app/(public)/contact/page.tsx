@@ -7,12 +7,14 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { CountrySelector } from '@/components/country-selector'
 import { TurnstileBox } from '@/components/auth-layout'
-import arDict from '@/dictionaries/ar.json'
+import { useTranslation } from '@/lib/i18n'
 
-const t = arDict.publicPages.contact
 const required = <span className="text-red-500">*</span>
 
 export default function ContactPage() {
+  const { t: dict, dir } = useTranslation()
+  const t = dict.publicPages.contact
+
   const [message, setMessage] = useState('')
   const [countryCode, setCountryCode] = useState('20')
   const [sent, setSent] = useState(false)
@@ -23,7 +25,7 @@ export default function ContactPage() {
   }
 
   return (
-    <div dir="rtl" className="min-h-screen bg-white">
+    <div dir={dir} className="min-h-screen bg-white">
       <section className="mx-auto max-w-7xl px-5 pt-14 pb-12 text-center lg:px-8 lg:pt-16">
         <p className="text-sm font-bold text-[var(--brand-primary,#007a5a)]">
           {t.eyebrow}
@@ -39,7 +41,7 @@ export default function ContactPage() {
       <section className="bg-[var(--brand-surface,#f5f6f8)] py-14 sm:py-16">
         <div className="mx-auto grid max-w-6xl gap-8 px-5 lg:grid-cols-12 lg:px-8">
           <aside className="order-1 lg:col-span-4">
-            <h2 className="mb-4 text-center text-lg font-extrabold text-[var(--brand-navy,#0a1122)] lg:text-right">
+            <h2 className="mb-4 text-center text-lg font-extrabold text-[var(--brand-navy,#0a1122)] lg:text-start">
               {t.channelsTitle}
             </h2>
             <div className="flex flex-col gap-4">
@@ -66,7 +68,7 @@ export default function ContactPage() {
             </p>
           </aside>
 
-          <div className="order-2 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8 lg:col-span-8">
+          <div className="order-2 rounded-2xl border border-slate-200 bg-white p-6 text-start shadow-sm sm:p-8 lg:col-span-8">
             <h2 className="text-2xl font-extrabold text-[var(--brand-navy,#0a1122)]">
               {t.formTitle}
             </h2>
@@ -128,13 +130,13 @@ export default function ContactPage() {
                 >
                   <div className="relative">
                     <select className="h-11 w-full appearance-none rounded-lg border border-slate-200 bg-white px-4 text-sm text-slate-700 outline-none focus:border-[var(--brand-primary,#007a5a)]">
-                      {t.subjects.map((sub) => (
+                      {t.subjects.map((sub: string) => (
                         <option key={sub} value={sub}>
                           {sub}
                         </option>
                       ))}
                     </select>
-                    <ChevronDown className="pointer-events-none absolute top-3 left-4 size-4 text-slate-400" />
+                    <ChevronDown className="pointer-events-none absolute top-3 end-4 size-4 text-slate-400" />
                   </div>
                 </Field>
 
@@ -153,7 +155,7 @@ export default function ContactPage() {
                     onChange={(event) => setMessage(event.target.value)}
                     placeholder={t.messagePlaceholder}
                   />
-                  <div className="text-left text-xs text-slate-400">
+                  <div className="text-end text-xs text-slate-400">
                     {message.length} / 4000
                   </div>
                 </Field>
@@ -207,12 +209,15 @@ function Info({
 }) {
   return (
     <div className="flex items-center gap-4 rounded-2xl bg-white p-5 shadow-sm">
-      <span className="order-2 flex size-11 shrink-0 items-center justify-center rounded-full bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]">
+      <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]">
         {icon}
       </span>
-      <div className="order-1 flex-1 text-right">
+      <div className="flex-1 text-start">
         <p className="text-xs text-slate-400">{title}</p>
-        <p dir="ltr" className="mt-1 text-right font-bold text-[var(--brand-navy,#0a1122)]">
+        <p
+          dir="ltr"
+          className="mt-1 text-start font-bold text-[var(--brand-navy,#0a1122)]"
+        >
           {value}
         </p>
         {detail && <p className="mt-1 text-xs text-slate-500">{detail}</p>}

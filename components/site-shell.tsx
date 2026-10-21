@@ -29,8 +29,13 @@ import {
   markAllNotificationsAsReadAction,
   markNotificationAsReadAction,
 } from '@/app/actions/notification-actions'
+
 import ar from '@/dictionaries/ar.json'
 import en from '@/dictionaries/en.json'
+import ru from '@/dictionaries/ru.json'
+import ka from '@/dictionaries/ka.json'
+
+const dictionaries: Record<string, any> = { ar, en, ru, ka }
 
 type Dictionary = typeof ar
 
@@ -60,6 +65,7 @@ export type CountryConfig = {
   nameAr: string
   nameEn: string
   nameRu: string
+  nameKa: string
   flag: string
   currencyCode: string
   currencySymbol: string
@@ -77,6 +83,7 @@ export const SUPPORTED_COUNTRIES: Record<CountryCode, CountryConfig> = {
     nameAr: 'مصر',
     nameEn: 'Egypt',
     nameRu: 'Египет',
+    nameKa: 'ეგვიპტე',
     flag: '🇪🇬',
     currencyCode: 'EGP',
     currencySymbol: 'ج.م',
@@ -88,6 +95,7 @@ export const SUPPORTED_COUNTRIES: Record<CountryCode, CountryConfig> = {
     nameAr: 'روسيا',
     nameEn: 'Russia',
     nameRu: 'Россия',
+    nameKa: 'რუსეთი',
     flag: '🇷🇺',
     currencyCode: 'RUB',
     currencySymbol: '₽',
@@ -99,6 +107,7 @@ export const SUPPORTED_COUNTRIES: Record<CountryCode, CountryConfig> = {
     nameAr: 'جورجيا',
     nameEn: 'Georgia',
     nameRu: 'Грузия',
+    nameKa: 'საქართველო',
     flag: '🇬🇪',
     currencyCode: 'USD',
     currencySymbol: '$',
@@ -110,6 +119,7 @@ export const SUPPORTED_COUNTRIES: Record<CountryCode, CountryConfig> = {
     nameAr: 'الإمارات',
     nameEn: 'UAE',
     nameRu: 'ОАЭ',
+    nameKa: 'საამიროები',
     flag: '🇦🇪',
     currencyCode: 'AED',
     currencySymbol: 'د.إ',
@@ -131,13 +141,20 @@ export function getActiveCountryFromCookie(): CountryConfig {
   return SUPPORTED_COUNTRIES.EG
 }
 
+function getCountryName(c: CountryConfig, lang: LanguageCode) {
+  if (lang === 'ar') return c.nameAr
+  if (lang === 'ru') return c.nameRu
+  if (lang === 'ka') return c.nameKa
+  return c.nameEn
+}
+
 const links = [
-  { href: '/sell', key: 'sell' as const, fallback: 'بيع وحدتك', enFallback: 'Sell Unit' },
-  { href: '/opportunities', key: 'opportunities' as const, fallback: 'الفرص المتاحة', enFallback: 'Opportunities' },
-  { href: '/story', key: 'story' as const, fallback: 'قصتنا', enFallback: 'Our Story' },
-  { href: '/how-it-works', key: 'howItWorks' as const, fallback: 'إزاي بنشتغل', enFallback: 'How It Works' },
-  { href: '/contact', key: 'contact' as const, fallback: 'كلمنا', enFallback: 'Contact Us' },
-  { href: '/investors', key: 'investors' as const, fallback: 'للمستثمرين', enFallback: 'Investors' },
+  { href: '/sell', key: 'sell' as const, fallback: 'بيع وحدتك' },
+  { href: '/opportunities', key: 'opportunities' as const, fallback: 'الفرص المتاحة' },
+  { href: '/story', key: 'story' as const, fallback: 'قصتنا' },
+  { href: '/how-it-works', key: 'howItWorks' as const, fallback: 'إزاي بنشتغل' },
+  { href: '/contact', key: 'contact' as const, fallback: 'كلمنا' },
+  { href: '/investors', key: 'investors' as const, fallback: 'للمستثمرين' },
 ]
 
 // ==================== 1. اللوجو ====================
@@ -221,8 +238,8 @@ export function Logo({ inverse = false }: { inverse?: boolean }) {
   )
 }
 
-// ==================== 2. الهيدر الاحترافي المطابق للموقع الأصلي ====================
-export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
+// ==================== 2. الهيدر (Navbar) ====================
+export function Navbar({ dictionary: _d = ar }: { dictionary?: Dictionary }) {
   const router = useRouter()
   const pathname = usePathname()
 
@@ -246,8 +263,8 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
   const countryRefMobile = useRef<HTMLDivElement>(null)
   const langRefDesktop = useRef<HTMLDivElement>(null)
 
-  const isEnglishLike = language !== 'ar'
-  const labels = isEnglishLike ? en : dictionary
+  // جلب الترجمة للغة الحالية
+  const labels = dictionaries[language] || dictionaries['ar']
 
   useEffect(() => {
     const hasCookie = document.cookie
@@ -281,8 +298,18 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
     const syncCountry = () => {
       setCountry(getActiveCountryFromCookie().code)
     }
+    const syncLang = () => {
+      const lm = document.cookie.split('; ').find((row) => row.startsWith('locale='))
+      const l = lm?.split('=')[1]?.trim() as LanguageCode | undefined
+      if (l && SUPPORTED_LANGUAGES[l]) setLanguage(l)
+    }
+
     window.addEventListener('country-changed', syncCountry)
-    return () => window.removeEventListener('country-changed', syncCountry)
+    window.addEventListener('language-changed', syncLang)
+    return () => {
+      window.removeEventListener('country-changed', syncCountry)
+      window.removeEventListener('language-changed', syncLang)
+    }
   }, [])
 
   const handleSelectCountry = (code: CountryCode) => {
@@ -299,6 +326,8 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
     document.cookie = `locale=${code}; path=/; max-age=31536000; SameSite=Lax`
     document.documentElement.lang = code
     document.documentElement.dir = SUPPORTED_LANGUAGES[code].dir
+    window.dispatchEvent(new Event('language-changed'))
+    router.refresh()
   }
 
   useEffect(() => {
@@ -428,7 +457,7 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
       className="absolute left-0 top-10 z-50 w-44 overflow-hidden rounded-xl border border-gray-200/90 bg-white p-1.5 shadow-xl"
     >
       <p className="px-2.5 py-1 text-right text-[10px] font-bold text-gray-400">
-        {isEnglishLike ? 'Select Country' : 'اختر الدولة'}
+        {language === 'ar' ? 'اختر الدولة' : language === 'ru' ? 'Выберите страну' : language === 'ka' ? 'აირჩიეთ ქვეყანა' : 'Select Country'}
       </p>
       {(Object.values(SUPPORTED_COUNTRIES) as CountryConfig[]).map((c) => {
         const active = c.code === country
@@ -445,7 +474,7 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
           >
             <div className="flex items-center gap-2">
               <span className="text-sm leading-none">{c.flag}</span>
-              <span>{isEnglishLike ? c.nameEn : c.nameAr}</span>
+              <span>{getCountryName(c, language)}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="font-mono text-[10px] font-bold text-gray-400">
@@ -498,7 +527,7 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
       <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50/90 px-4 py-3">
         <div className="flex items-center gap-2">
           <span className="text-xs font-extrabold text-[#0a1122]">
-            إشعاراتي
+            {language === 'ar' ? 'الإشعارات' : language === 'ru' ? 'Уведомления' : language === 'ka' ? 'შეტყობინებები' : 'Notifications'}
           </span>
           <span
             dir="ltr"
@@ -515,7 +544,7 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
               onClick={handleClearAllNotifications}
               className="rounded-lg px-2 py-1 text-[11px] font-bold text-red-600 transition hover:bg-red-50"
             >
-              مسح الكل
+              {language === 'ar' ? 'مسح الكل' : language === 'ru' ? 'Очистить все' : language === 'ka' ? 'ყველაფრის წაშლა' : 'Clear All'}
             </button>
           )}
           <button
@@ -534,10 +563,7 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
           <div className="flex flex-col items-center justify-center px-4 py-10 text-center">
             <CheckCircle2 className="mb-2.5 size-9 text-emerald-500" />
             <p className="text-xs font-extrabold text-[#0a1122]">
-              لا توجد إشعارات حالياً
-            </p>
-            <p className="mt-1 text-[11px] text-gray-400">
-              سنرسل لك تنبيهاً فور وجود أي تحديث على وحدتك أو طلبك.
+               {language === 'ar' ? 'لا توجد إشعارات حالياً' : language === 'ru' ? 'Нет уведомлений' : language === 'ka' ? 'შეტყობინებები არ არის' : 'No notifications yet'}
             </p>
           </div>
         ) : (
@@ -589,7 +615,7 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
                   </span>
 
                   <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#0b6954] group-hover:underline">
-                    <span>عرض التفاصيل</span>
+                    <span>{labels.accountPages?.common?.viewDetails || 'عرض التفاصيل'}</span>
                     <ArrowLeft className="size-3" />
                   </span>
                 </div>
@@ -618,7 +644,7 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
           }}
           className="w-full rounded-xl py-2 text-xs font-extrabold text-[#0b6954] transition hover:bg-emerald-50"
         >
-          الذهاب إلى حسابي الشخصي
+           {labels.accountPages?.common?.backToAccount || 'الذهاب إلى حسابي'}
         </button>
       </div>
     </div>
@@ -626,11 +652,11 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
 
   return (
     <header
-      dir="rtl"
+      dir={SUPPORTED_LANGUAGES[language].dir}
       className="sticky top-0 z-50 border-b border-gray-200/75 bg-white/95 backdrop-blur-md"
     >
       <div className="mx-auto flex h-[68px] max-w-[1160px] items-center justify-between gap-3 px-4 sm:px-6">
-        {/* ==================== القسم الأيمن: اللوجو + التابات بمسافة مريحة وسمك خط واضح مثل الأصلي ==================== */}
+        {/* ==================== القسم الأول: اللوجو + التابات بمسافة مريحة وسمك خط واضح ==================== */}
         <div className="flex items-center gap-8 xl:gap-11">
           <Logo />
           <nav
@@ -650,16 +676,14 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
                       : 'font-semibold text-[#273142]'
                   }`}
                 >
-                  {isEnglishLike
-                    ? labels.navbar?.[link.key] || link.enFallback
-                    : labels.navbar?.[link.key] || link.fallback}
+                  {labels.navbar?.[link.key] || link.fallback}
                 </Link>
               )
             })}
           </nav>
         </div>
 
-        {/* ==================== القسم الأيسر (ديسكتوب): متناسق وبدون أي زحام حتى في وضع الأدمن ==================== */}
+        {/* ==================== القسم الثاني (ديسكتوب): متناسق وبدون أي زحام ==================== */}
         <div className="hidden shrink-0 items-center gap-1.5 lg:flex xl:gap-2">
           {/* 1. زر الدولة المربع المدمج (العلم + أول حرفين من الدولة) */}
           <div className="relative" ref={countryRefDesktop}>
@@ -672,7 +696,7 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
               }}
               dir="ltr"
               className="inline-flex h-[34px] items-center justify-center gap-1 rounded-[8px] border border-gray-200/90 bg-gray-50/70 px-2 text-xs font-bold text-[#0a1122] transition hover:border-[#0b6954] hover:bg-white"
-              title={`الدولة: ${currentCountryCfg.nameAr}`}
+              title={`الدولة: ${getCountryName(currentCountryCfg, language)}`}
               aria-label="تغيير الدولة"
             >
               <span className="text-[14px] leading-none">
@@ -686,7 +710,7 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
             {countryMenuOpen && renderCountryDropdownMenu()}
           </div>
 
-          {/* 2. زر اللغة النصي النظيف (يفتح قائمة اللغات الـ 4) */}
+          {/* 2. زر اللغة النصي النظيف (يفتح قائمة اللغات הـ 4) */}
           <div className="relative" ref={langRefDesktop}>
             <button
               type="button"
@@ -697,12 +721,10 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
               }}
               dir="ltr"
               className="inline-flex h-[34px] items-center gap-0.5 rounded-lg px-2 text-[13px] font-semibold text-[#334155] transition-colors hover:bg-gray-100/80 hover:text-[#0a1122]"
-              title="تغيير اللغة / Language"
+              title={labels.navbar?.languageLabel || "تغيير اللغة"}
             >
               <span>
-                {language === 'ar'
-                  ? 'English'
-                  : SUPPORTED_LANGUAGES[language].nativeName}
+                {SUPPORTED_LANGUAGES[language].nativeName}
               </span>
               <ChevronDown className="size-3 text-gray-400" />
             </button>
@@ -716,12 +738,8 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
             className="inline-flex h-[38px] items-center justify-center whitespace-nowrap rounded-[10px] border border-[#e2e8f0] bg-white px-3.5 text-[13px] font-bold text-[#0a1122] transition-colors hover:bg-gray-50"
           >
             {hasSession
-              ? isEnglishLike
-                ? 'My Account'
-                : 'حسابي'
-              : isEnglishLike
-                ? 'Login'
-                : labels.navbar?.login || 'حسابي'}
+                ? labels.navbar?.login || 'حسابي'
+                : labels.navbar?.login || 'تسجيل الدخول'}
           </Link>
 
           {/* 4. زر عايز تشتري */}
@@ -729,7 +747,7 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
             href="/buy"
             className="inline-flex h-[38px] items-center justify-center whitespace-nowrap rounded-[10px] border border-[#e2e8f0] bg-white px-3.5 text-[13px] font-bold text-[#0a1122] transition-colors hover:bg-gray-50"
           >
-            {isEnglishLike ? 'Want to Buy' : 'عايز تشتري'}
+            {labels.navbar?.buy || 'عايز تشتري'}
           </Link>
 
           {/* 5. جرس الإشعارات */}
@@ -738,7 +756,7 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
               <button
                 type="button"
                 onClick={handleToggleNotifications}
-                aria-label="الإشعارات"
+                aria-label={language === 'ar' ? 'الإشعارات' : 'Notifications'}
                 className="relative flex size-[36px] items-center justify-center rounded-lg text-[#334155] transition-colors hover:bg-gray-100"
               >
                 <Bell className="size-[17px] stroke-[1.9]" />
@@ -761,10 +779,10 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
             href="/sell"
             className="inline-flex h-[38px] items-center justify-center whitespace-nowrap rounded-[10px] bg-[#0b6954] px-4 text-[13px] font-bold text-white transition-colors hover:bg-[#085443]"
           >
-            {isEnglishLike ? 'Want to Sell' : 'عايز تبيع'}
+            {labels.navbar?.sellCta || 'عايز تبيع'}
           </Link>
 
-          {/* 7. زر لوحة الإدارة: مدمج ورشيق لعدم زحام الهيدر */}
+          {/* 7. زر لوحة الإدارة */}
           {isAdmin && (
             <Link
               href="/admin"
@@ -772,7 +790,7 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
               title="لوحة الإدارة"
             >
               <ShieldCheck className="size-3.5 shrink-0 text-[#2ee59d]" />
-              <span>{isEnglishLike ? 'Admin' : 'الإدارة'}</span>
+              <span>{language === 'ar' ? 'الإدارة' : language === 'ru' ? 'Админ' : language === 'ka' ? 'ადმინ.' : 'Admin'}</span>
             </Link>
           )}
         </div>
@@ -828,7 +846,7 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
               href="/sell"
               className="inline-flex h-[34px] items-center justify-center whitespace-nowrap rounded-[8px] bg-[#0b6954] px-3 text-[12px] font-bold text-white transition-colors hover:bg-[#085443]"
             >
-              {isEnglishLike ? 'Sell' : 'عايز تبيع'}
+              {labels.navbar?.sellCta || 'عايز تبيع'}
             </Link>
           )}
 
@@ -860,7 +878,7 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
             <div className="mb-1.5 flex items-center justify-between px-1 text-[11px] font-bold text-gray-500">
               <span className="inline-flex items-center gap-1">
                 <Globe className="size-3.5 text-[#0b6954]" />
-                <span>اللغة / Language</span>
+                <span>{labels.navbar?.languageLabel || 'اللغة / Language'}</span>
               </span>
               <span className="text-[10px] text-gray-400">
                 {SUPPORTED_LANGUAGES[language].nativeName}
@@ -889,7 +907,7 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
             </div>
           </div>
 
-          <nav className="flex flex-col gap-3 text-right">
+          <nav className="flex flex-col gap-3">
             <Link
               href="/"
               onClick={() => setMobileMenuOpen(false)}
@@ -897,7 +915,7 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
                 pathname === '/' ? 'font-bold text-[#0b6954]' : 'text-[#0a1122]'
               }`}
             >
-              {isEnglishLike ? 'Home' : 'الرئيسية'}
+              {language === 'ar' ? 'الرئيسية' : language === 'ru' ? 'Главная' : language === 'ka' ? 'მთავარი' : 'Home'}
             </Link>
             {links.map((link) => {
               const isActive =
@@ -911,9 +929,7 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
                     isActive ? 'font-bold text-[#0b6954]' : 'text-[#0a1122]'
                   }`}
                 >
-                  {isEnglishLike
-                    ? labels.navbar?.[link.key] || link.enFallback
-                    : labels.navbar?.[link.key] || link.fallback}
+                  {labels.navbar?.[link.key] || link.fallback}
                 </Link>
               )
             })}
@@ -929,7 +945,7 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
                 className="flex h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-[#0a1122] text-[13.5px] font-bold text-white shadow-xs transition-colors hover:bg-[#16223f]"
               >
                 <ShieldCheck className="size-4 text-[#2ee59d]" />
-                <span>لوحة الإدارة</span>
+                <span>{language === 'ar' ? 'لوحة الإدارة' : language === 'ru' ? 'Панель администратора' : language === 'ka' ? 'ადმინისტრატორის პანელი' : 'Admin Panel'}</span>
               </Link>
             )}
             <Link
@@ -937,14 +953,14 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
               onClick={() => setMobileMenuOpen(false)}
               className="flex h-[44px] w-full items-center justify-center rounded-xl bg-[#0b6954] text-[13.5px] font-bold text-white transition-colors hover:bg-[#085443]"
             >
-              {isEnglishLike ? 'Want to Sell' : 'عايز تبيع'}
+              {labels.navbar?.sellCta || 'عايز تبيع'}
             </Link>
             <Link
               href="/buy"
               onClick={() => setMobileMenuOpen(false)}
               className="flex h-[44px] w-full items-center justify-center rounded-xl border border-[#e2e8f0] bg-white text-[13.5px] font-bold text-[#0a1122] transition-colors hover:bg-gray-50"
             >
-              {isEnglishLike ? 'Want to Buy' : 'عايز تشتري'}
+              {labels.navbar?.buy || 'عايز تشتري'}
             </Link>
             <Link
               href={hasSession ? '/account' : '/login'}
@@ -953,7 +969,7 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
             >
               <User className="size-4" />
               <span>
-                {hasSession ? 'حسابي الشخصي' : 'تسجيل الدخول / إنشاء حساب'}
+                {hasSession ? labels.navbar?.login || 'حسابي الشخصي' : labels.authPages?.login?.title || 'تسجيل الدخول / إنشاء حساب'}
               </span>
             </Link>
             <Link
@@ -962,7 +978,7 @@ export function Navbar({ dictionary = ar }: { dictionary?: Dictionary }) {
               className="flex h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-[#99cec3] bg-[#eff8f6] text-[13.5px] font-bold text-[#0b6954] transition-colors hover:bg-[#e2f3ef]"
             >
               <Smartphone className="size-4 stroke-[2.2]" />
-              <span>{isEnglishLike ? 'Get the App' : 'حمّل التطبيق'}</span>
+              <span>{labels.footer?.appLabel || 'حمّل التطبيق'}</span>
             </Link>
           </div>
         </div>
@@ -976,15 +992,30 @@ export function LegacyNavbar({ dictionary = ar }: { dictionary?: Dictionary }) {
 }
 
 // ==================== 3. الفوتر المنظم (Footer) ====================
-export function Footer({ dictionary = ar }: { dictionary?: Dictionary }) {
+export function Footer({ dictionary: _d = ar }: { dictionary?: Dictionary }) {
   const router = useRouter()
   const [activeCountry, setActiveCountry] = useState<CountryCode>('EG')
+  const [language, setLanguage] = useState<LanguageCode>('ar')
+
+  const labels = dictionaries[language] || dictionaries['ar']
 
   useEffect(() => {
     setActiveCountry(getActiveCountryFromCookie().code)
-    const sync = () => setActiveCountry(getActiveCountryFromCookie().code)
-    window.addEventListener('country-changed', sync)
-    return () => window.removeEventListener('country-changed', sync)
+    const syncCountry = () => setActiveCountry(getActiveCountryFromCookie().code)
+    window.addEventListener('country-changed', syncCountry)
+
+    const syncLang = () => {
+      const lm = document.cookie.split('; ').find((row) => row.startsWith('locale='))
+      const l = lm?.split('=')[1]?.trim() as LanguageCode | undefined
+      if (l && SUPPORTED_LANGUAGES[l]) setLanguage(l)
+    }
+    syncLang() // initial sync
+    window.addEventListener('language-changed', syncLang)
+
+    return () => {
+      window.removeEventListener('country-changed', syncCountry)
+      window.removeEventListener('language-changed', syncLang)
+    }
   }, [])
 
   const selectFooterCountry = (code: CountryCode) => {
@@ -995,50 +1026,50 @@ export function Footer({ dictionary = ar }: { dictionary?: Dictionary }) {
   }
 
   const platformLinks = [
-    { label: 'الفرص المتاحة', href: '/opportunities' },
-    { label: dictionary.footer?.forSellers || 'للبايعين (بيع وحدتك)', href: '/sell' },
-    { label: dictionary.footer?.forBuyers || 'للمشترين (اطلب وحدة)', href: '/buy' },
-    { label: dictionary.footer?.calculator || 'حاسبة الخروج', href: '/calculator' },
-    { label: dictionary.footer?.favorite || 'المفضلة', href: '/account/favorites' },
-    { label: 'حسابي', href: '/account' },
+    { label: labels.navbar?.opportunities || 'الفرص المتاحة', href: '/opportunities' },
+    { label: labels.footer?.forSellers || 'للبايعين (بيع وحدتك)', href: '/sell' },
+    { label: labels.footer?.forBuyers || 'للمشترين (اطلب وحدة)', href: '/buy' },
+    { label: labels.footer?.calculator || 'حاسبة الخروج', href: '/calculator' },
+    { label: labels.footer?.favorite || 'المفضلة', href: '/account/favorites' },
+    { label: labels.navbar?.login || 'حسابي', href: '/account' },
   ]
 
   const companyLinks = [
-    { label: dictionary.footer?.about || 'قصتنا', href: '/story' },
-    { label: dictionary.footer?.work || 'إزاي بنشتغل', href: '/how-it-works' },
-    { label: dictionary.footer?.reports || 'التقارير والمؤشرات', href: '/reports' },
-    { label: 'للمطورين', href: '/developers' },
+    { label: labels.footer?.about || 'قصتنا', href: '/story' },
+    { label: labels.footer?.work || 'إزاي بنشتغل', href: '/how-it-works' },
+    { label: labels.footer?.reports || 'التقارير والمؤشرات', href: '/reports' },
+    { label: labels.navbar?.investors || 'للمطورين', href: '/developers' },
     {
-      label: dictionary.footer?.investorRelations || 'علاقات المستثمرين',
+      label: labels.footer?.investorRelations || 'علاقات المستثمرين',
       href: '/investors',
     },
-    { label: dictionary.footer?.faq || 'الأسئلة الشائعة', href: '/faq' },
-    { label: 'كلمنا', href: '/contact' },
+    { label: labels.footer?.faq || 'الأسئلة الشائعة', href: '/faq' },
+    { label: labels.navbar?.contact || 'كلمنا', href: '/contact' },
   ]
 
   const legalLinks = [
-    { label: dictionary.footer?.privacy || 'سياسة الخصوصية', href: '/privacy' },
-    { label: dictionary.footer?.terms || 'الشروط والأحكام', href: '/terms' },
-    { label: 'لوحة الإدارة', href: '/admin' },
+    { label: labels.footer?.privacy || 'سياسة الخصوصية', href: '/privacy' },
+    { label: labels.footer?.terms || 'الشروط والأحكام', href: '/terms' },
+    { label: language === 'ar' ? 'لوحة الإدارة' : language === 'ru' ? 'Панель администратора' : language === 'ka' ? 'ადმინისტრატორის პანელი' : 'Admin Panel', href: '/admin' },
   ]
 
   return (
-    <footer className="bg-[#0a1122] text-white" dir="rtl">
+    <footer className="bg-[#0a1122] text-white" dir={SUPPORTED_LANGUAGES[language].dir}>
       <div className="mx-auto max-w-[1140px] px-5 pt-14 pb-12 sm:px-6 lg:pt-20">
         <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-[1.45fr_1fr_1fr_1fr] lg:gap-12">
-          <div className="text-right">
+          <div className={SUPPORTED_LANGUAGES[language].dir === 'rtl' ? 'text-right' : 'text-left'}>
             <Logo inverse />
             <p className="mt-5 max-w-sm text-xs leading-[1.9] text-gray-300/85 sm:text-[13px]">
-              {dictionary.footer?.description ||
+              {labels.footer?.description ||
                 'منصة التنازل عن وحدات التقسيط بدون أوفر — البايع يسترجع فلوسه كاش، والمشتري ياخد سعر التعاقد القديم، وإحنا بنسهّل الإجراءات خطوة بخطوة'}
             </p>
             <div className="mt-5 flex flex-col items-start gap-2 text-xs text-gray-300 sm:text-[13px]">
               <a
-                href={`tel:${dictionary.footer?.phone || '+201018595959'}`}
+                href={`tel:${labels.footer?.phone || '+201018595959'}`}
                 dir="ltr"
                 className="transition-colors hover:text-[#2ee59d]"
               >
-                {dictionary.footer?.phone || '+201018595959'}
+                {labels.footer?.phone || '+201018595959'}
               </a>
               <a
                 href="https://wa.me/201018595959"
@@ -1046,19 +1077,19 @@ export function Footer({ dictionary = ar }: { dictionary?: Dictionary }) {
                 rel="noreferrer"
                 className="transition-colors hover:text-[#2ee59d]"
               >
-                تواصل مباشر عبر واتساب
+                {labels.publicPages?.contact?.whatsappTitle || 'تواصل مباشر عبر واتساب'}
               </a>
               <a
-                href={`mailto:${dictionary.footer?.email || 'info@aqarexit.com'}`}
+                href={`mailto:${labels.footer?.email || 'info@aqarexit.com'}`}
                 className="transition-colors hover:text-[#2ee59d]"
               >
-                {dictionary.footer?.email || 'info@aqarexit.com'}
+                {labels.footer?.email || 'info@aqarexit.com'}
               </a>
             </div>
           </div>
-          <div className="text-right">
+          <div className={SUPPORTED_LANGUAGES[language].dir === 'rtl' ? 'text-right' : 'text-left'}>
             <h3 className="text-xs font-bold text-gray-400">
-              {dictionary.footer?.platform || 'المنصة'}
+              {labels.footer?.platform || 'المنصة'}
             </h3>
             <ul className="mt-4 flex flex-col gap-3 text-xs text-gray-200 sm:text-[13px]">
               {platformLinks.map((item) => (
@@ -1073,9 +1104,9 @@ export function Footer({ dictionary = ar }: { dictionary?: Dictionary }) {
               ))}
             </ul>
           </div>
-          <div className="text-right">
+          <div className={SUPPORTED_LANGUAGES[language].dir === 'rtl' ? 'text-right' : 'text-left'}>
             <h3 className="text-xs font-bold text-gray-400">
-              {dictionary.footer?.company || 'الشركة'}
+              {labels.footer?.company || 'الشركة'}
             </h3>
             <ul className="mt-4 flex flex-col gap-3 text-xs text-gray-200 sm:text-[13px]">
               {companyLinks.map((item) => (
@@ -1090,9 +1121,9 @@ export function Footer({ dictionary = ar }: { dictionary?: Dictionary }) {
               ))}
             </ul>
           </div>
-          <div className="text-right">
+          <div className={SUPPORTED_LANGUAGES[language].dir === 'rtl' ? 'text-right' : 'text-left'}>
             <h3 className="text-xs font-bold text-gray-400">
-              {dictionary.footer?.legal || 'قانوني'}
+              {labels.footer?.legal || 'قانوني'}
             </h3>
             <ul className="mt-4 flex flex-col gap-3 text-xs text-gray-200 sm:text-[13px]">
               {legalLinks.map((item) => (
@@ -1109,9 +1140,9 @@ export function Footer({ dictionary = ar }: { dictionary?: Dictionary }) {
           </div>
         </div>
 
-        <div className="mt-12 border-t border-white/10 pt-8 text-right text-xs text-gray-400">
+        <div className={`mt-12 border-t border-white/10 pt-8 text-xs text-gray-400 ${SUPPORTED_LANGUAGES[language].dir === 'rtl' ? 'text-right' : 'text-left'}`}>
           <div>
-            <span className="block text-[11px] text-gray-400">الدولة</span>
+            <span className="block text-[11px] text-gray-400">{language === 'ar' ? 'الدولة' : language === 'ru' ? 'Страна' : language === 'ka' ? 'ქვეყანა' : 'Country'}</span>
             <div className="mt-2.5 flex flex-wrap items-center justify-start gap-3 text-xs">
               {(Object.values(SUPPORTED_COUNTRIES) as CountryConfig[]).map(
                 (c) => {
@@ -1128,7 +1159,7 @@ export function Footer({ dictionary = ar }: { dictionary?: Dictionary }) {
                       }`}
                     >
                       <span>{c.flag}</span>
-                      <span>{c.nameAr}</span>
+                      <span>{getCountryName(c, language)}</span>
                     </button>
                   )
                 }
@@ -1137,17 +1168,17 @@ export function Footer({ dictionary = ar }: { dictionary?: Dictionary }) {
           </div>
 
           <p className="mt-5 text-[11px] leading-relaxed text-gray-400/90 sm:text-xs">
-            {dictionary.footer?.disclaimer ||
+            {labels.footer?.disclaimer ||
               'الأرقام والتقديرات المعروضة على المنصة استرشادية وتعتمد على بنود كل عقد على حدة، ولا تعتبر استشارة قانونية أو وعدًا بنتيجة محددة. المراجعة النهائية بتتم على عقدك الفعلي مع فريقنا ومستشارين قانونيين مؤهلين.'}
           </p>
           <div className="mt-6 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
-            <div className="space-y-1 text-right">
+            <div className={`space-y-1 ${SUPPORTED_LANGUAGES[language].dir === 'rtl' ? 'text-right' : 'text-left'}`}>
               <p className="text-[11px] text-gray-400">
-                {dictionary.footer?.copyright ||
+                {labels.footer?.copyright ||
                   '© 2026 عقار إكزت. جميع الحقوق محفوظة.'}
               </p>
               <p className="text-[11px] text-gray-500">
-                {dictionary.footer?.powered ||
+                {labels.footer?.powered ||
                   'Powered by Aqara for Real Estate and Ammar Group LLC'}
               </p>
             </div>
@@ -1156,13 +1187,13 @@ export function Footer({ dictionary = ar }: { dictionary?: Dictionary }) {
                 href="/opportunities"
                 className="text-xs text-gray-400 transition-colors hover:text-white"
               >
-                الفرص المتاحة
+                {labels.navbar?.opportunities || 'الفرص المتاحة'}
               </Link>
               <Link
                 href="/"
                 className="text-xs text-gray-400 transition-colors hover:text-white"
               >
-                الرئيسية
+                {language === 'ar' ? 'الرئيسية' : language === 'ru' ? 'Главная' : language === 'ka' ? 'მთავარი' : 'Home'}
               </Link>
             </div>
           </div>
@@ -1175,9 +1206,9 @@ export function Footer({ dictionary = ar }: { dictionary?: Dictionary }) {
 export function PublicLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
-      <Navbar dictionary={ar} />
+      <Navbar />
       <main>{children}</main>
-      <Footer dictionary={ar} />
+      <Footer />
     </>
   )
 }

@@ -8,7 +8,7 @@ import type { SellerUnitItem } from '@/components/account/seller-dashboard'
 import type { BuyerRequestItem } from '@/components/account/buyer-dashboard'
 import { AccountActionLinks } from '@/components/account/delete-account-modal'
 import { AccountViewSwitcher } from '@/components/account/account-view-switcher'
-import arDict from '@/dictionaries/ar.json'
+import { getServerI18n } from '@/lib/get-server-dictionary'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -49,8 +49,10 @@ export default async function AccountPage({
     redirect('/login')
   }
 
-  const tCommon = arDict.accountPages.common
-  const tMain = arDict.accountPages.main
+  // جلب اللغة والقاموس واتجاه الصفحة من النظام المركزي
+  const { dict, dir } = await getServerI18n()
+  const tCommon = dict.accountPages.common
+  const tMain = dict.accountPages.main
 
   const cleanEmail = (profile.email || '').trim().toLowerCase()
   const cleanPhone = (profile.phone || '').trim()
@@ -150,7 +152,7 @@ export default async function AccountPage({
 
   return (
     <main
-      dir="rtl"
+      dir={dir}
       className="min-h-screen bg-[var(--brand-surface,#f5f6f8)] py-6 pb-24 text-[var(--brand-navy,#0a1122)] sm:py-10"
     >
       <div className="mx-auto mb-5 flex max-w-[1020px] items-center justify-between px-3 sm:px-6">

@@ -3,7 +3,10 @@ import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { createServerClient } from "@supabase/ssr"
 import { ShieldAlert, LogIn, Home } from "lucide-react"
-import { parseAndVerifySessionCookie } from "@/app/actions/auth-actions"
+import {
+  extractUserIdFromCookie,
+  parseAndVerifySessionCookie,
+} from "@/lib/session-security"
 import { getServerI18n } from "@/lib/get-server-dictionary"
 import AdminShell, {
   type AdminNotificationItem,
@@ -20,12 +23,11 @@ export default async function AdminLayout({
 }) {
   const cookieStore = await cookies()
   const rawSession = cookieStore.get("user_session")?.value
+  const candidateUserId = extractUserIdFromCookie(rawSession)
 
-  if (!rawSession) {
+  if (!rawSession || !candidateUserId) {
     redirect("/login?next=/admin")
   }
-
-  const candidateUserId = rawSession.split(".")[0]
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

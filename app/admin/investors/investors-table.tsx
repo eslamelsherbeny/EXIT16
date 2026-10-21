@@ -37,6 +37,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { useTranslation } from "@/lib/i18n"
 import { deleteInvestorAction, updateInvestorStatusAction } from "../actions"
 
 export type InvestorRow = {
@@ -44,30 +45,22 @@ export type InvestorRow = {
   name: string
   phone: string
   email: string | null
+  company?: string | null
+  country?: string | null
   investor_type: string | null
-  years_experience?: number | null
+  years_experience?: string | number | null
   preferred_sectors: string[] | null
   investment_range: string | null
+  exact_amount?: number | null
   preferred_structure?: string | null
+  holding_period?: string | null
   participation_level?: string | null
-  target_roi?: number | null
+  target_roi?: string | number | null
+  notes?: string | null
   status?: string | null
   created_at: string
 }
 
-const INVESTOR_STATUSES = [
-  { value: "new", label: "جديد", badge: "bg-blue-100 text-blue-800" },
-  { value: "contacted", label: "تم التواصل", badge: "bg-amber-100 text-amber-800" },
-  { value: "meeting", label: "تم تحديد اجتماع", badge: "bg-purple-100 text-purple-800" },
-  { value: "partner", label: "شريك معتمد", badge: "bg-emerald-100 text-emerald-800" },
-]
-
-function getInvestorStatusLabel(status: string | null | undefined) {
-  const st = status || "new"
-  return INVESTOR_STATUSES.find((s) => s.value === st)?.label || st
-}
-
-// نوع العملية المطلوب تأكيدها قبل التنفيذ
 type ConfirmInvestorAction =
   | {
       type: "status"
@@ -85,11 +78,42 @@ export default function InvestorsClientTable({
   investors: InvestorRow[]
 }) {
   const router = useRouter()
+  const { t: dict, dir } = useTranslation()
+  const t = dict.admin.investorsAdmin
+
+  const investorStatuses = [
+    { value: "new", label: t.statuses.new, badge: "bg-blue-100 text-blue-800" },
+    {
+      value: "contacted",
+      label: t.statuses.contacted,
+      badge: "bg-amber-100 text-amber-800",
+    },
+    {
+      value: "meeting",
+      label: t.statuses.meeting,
+      badge: "bg-purple-100 text-purple-800",
+    },
+    {
+      value: "partner",
+      label: t.statuses.partner,
+      badge: "bg-emerald-100 text-emerald-800",
+    },
+  ]
+
+  function getInvestorStatusLabel(status: string | null | undefined) {
+    const st = status || "new"
+    return investorStatuses.find((s) => s.value === st)?.label || st
+  }
+
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
-  const [confirmAction, setConfirmAction] = useState<ConfirmInvestorAction | null>(null)
+  const [confirmAction, setConfirmAction] =
+    useState<ConfirmInvestorAction | null>(null)
   const [activeInvestorId, setActiveInvestorId] = useState<string | null>(null)
-  const [notice, setNotice] = useState<{ text: string; isError?: boolean } | null>(null)
+  const [notice, setNotice] = useState<{
+    text: string
+    isError?: boolean
+  } | null>(null)
   const [pending, startTransition] = useTransition()
 
   function closeConfirmModal() {
@@ -97,7 +121,6 @@ export default function InvestorsClientTable({
     setConfirmAction(null)
   }
 
-  // تنفيذ العملية بعد ضغط الأدمن على زر التأكيد
   function executeConfirmedAction() {
     if (!confirmAction) return
     setNotice(null)
@@ -114,12 +137,12 @@ export default function InvestorsClientTable({
           if (res.success) {
             const stLabel = getInvestorStatusLabel(confirmAction.newStatus)
             setNotice({
-              text: `تم تحديث حالة المستثمر "${target.name}" إلى (${stLabel}) بنجاح.`,
+              text: `${t.statusUpdatedSuccess} ("${target.name}" → ${stLabel})`,
             })
             router.refresh()
           } else {
             setNotice({
-              text: res.error || "تعذر تحديث حالة المستثمر.",
+              text: res.error || t.statusUpdateError,
               isError: true,
             })
           }
@@ -127,12 +150,12 @@ export default function InvestorsClientTable({
           const res = await deleteInvestorAction(target.id)
           if (res.success) {
             setNotice({
-              text: `تم حذف طلب المستثمر "${target.name}" نهائياً.`,
+              text: `${t.deletedSuccess} ("${target.name}")`,
             })
             router.refresh()
           } else {
             setNotice({
-              text: res.error || "تعذر حذف طلب المستثمر.",
+              text: res.error || t.deleteError,
               isError: true,
             })
           }
@@ -151,25 +174,24 @@ export default function InvestorsClientTable({
       const sectors = Array.isArray(inv.preferred_sectors)
         ? inv.preferred_sectors.join(" ")
         : ""
-      const match = `${inv.name} ${inv.phone} ${inv.email || ""} ${inv.investor_type || ""} ${sectors}`
-        .toLowerCase()
-        .includes(search.toLowerCase())
+      const match =
+        `${inv.name} ${inv.phone} ${inv.email || ""} ${inv.company || ""} ${inv.investor_type || ""} ${sectors}`
+          .toLowerCase()
+          .includes(search.toLowerCase())
       if (!match) return false
     }
     return true
   })
 
   return (
-    <div>
+    <div dir={dir} className="text-start">
       {/* الهيدر العلوي */}
       <div className="mb-5">
-        <p className="text-xs font-extrabold text-[#105C50]">الشراكات الاستراتيجية</p>
+        <p className="text-xs font-extrabold text-[#105C50]">{t.eyebrow}</p>
         <h2 className="mt-1 text-xl font-extrabold text-[#0a1122] sm:text-3xl">
-          طلبات المستثمرين ({investors.length})
+          {t.title} ({investors.length})
         </h2>
-        <p className="mt-1 text-xs text-gray-500 sm:text-sm">
-          حوّل طلبات الاستثمار إلى شراكات حقيقية وتابع حالة كل مستثمر.
-        </p>
+        <p className="mt-1 text-xs text-gray-500 sm:text-sm">{t.subtitle}</p>
       </div>
 
       {/* شريط الإشعارات الواضح بعد كل عملية */}
@@ -203,13 +225,13 @@ export default function InvestorsClientTable({
       {/* شريط البحث والفلترة */}
       <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-gray-200/80 bg-white p-3.5 shadow-sm sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:p-4">
         <div className="relative w-full sm:min-w-[250px] sm:flex-1">
-          <Search className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
+          <Search className="pointer-events-none absolute top-1/2 end-3.5 size-4 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="ابحث باسم المستثمر، رقم الهاتف، أو القطاع..."
-            className="h-10 w-full rounded-xl border border-gray-200 pr-10 pl-4 text-xs focus:border-[#105C50] focus:outline-none"
+            placeholder={t.searchPlaceholder}
+            className="h-10 w-full rounded-xl border border-gray-200 ps-4 pe-10 text-xs focus:border-[#105C50] focus:outline-none"
           />
         </div>
 
@@ -223,9 +245,9 @@ export default function InvestorsClientTable({
                 : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >
-            الكل
+            {t.allFilter}
           </button>
-          {INVESTOR_STATUSES.map((st) => (
+          {investorStatuses.map((st) => (
             <button
               key={st.value}
               type="button"
@@ -242,24 +264,24 @@ export default function InvestorsClientTable({
         </div>
       </div>
 
-      {/* ==================== 1. عرض الموبايل (كروت احترافية مريحة بدون تمرير أفقي) ==================== */}
+      {/* ==================== 1. عرض الموبايل ==================== */}
       <div className="space-y-3.5 md:hidden">
         {filtered.length === 0 ? (
           <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center text-xs text-gray-400">
-            لا توجد طلبات مستثمرين مطابقة.
+            {t.emptyText}
           </div>
         ) : (
           filtered.map((investor) => {
             const currentSt = investor.status || "new"
             const stObj =
-              INVESTOR_STATUSES.find((s) => s.value === currentSt) ||
-              INVESTOR_STATUSES[0]
+              investorStatuses.find((s) => s.value === currentSt) ||
+              investorStatuses[0]
             const sectorsText =
               investor.preferred_sectors?.join("، ") ||
               investor.investor_type ||
               "—"
             const isCardLoading = pending && activeInvestorId === investor.id
-            const firstLetter = investor.name.trim().charAt(0) || "م"
+            const firstLetter = investor.name.trim().charAt(0) || "I"
 
             return (
               <div
@@ -270,17 +292,15 @@ export default function InvestorsClientTable({
                     : "border-gray-200/90"
                 }`}
               >
-                {/* طبقة التحميل فوق الكارت أثناء الحفظ */}
                 {isCardLoading && (
                   <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/65 backdrop-blur-[1px]">
                     <div className="flex items-center gap-2 rounded-full bg-[#0a1122] px-4 py-2 text-xs font-bold text-white shadow-md">
                       <Loader2 className="size-4 animate-spin text-emerald-400" />
-                      <span>جاري تحديث الحالة...</span>
+                      <span>{t.updatingText}</span>
                     </div>
                   </div>
                 )}
 
-                {/* الهيدر العلوي للكارت: اسم المستثمر + شارة الحالة */}
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2.5">
                     <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#105C50]/10 text-sm font-extrabold text-[#105C50]">
@@ -291,7 +311,8 @@ export default function InvestorsClientTable({
                         {investor.name}
                       </h3>
                       <p className="mt-0.5 text-[11px] font-medium text-gray-500">
-                        {investor.investor_type || "مستثمر عقاري"}
+                        {investor.investor_type || t.defaultType}
+                        {investor.company ? ` · ${investor.company}` : ""}
                       </p>
                     </div>
                   </div>
@@ -301,37 +322,37 @@ export default function InvestorsClientTable({
                   </Badge>
                 </div>
 
-                {/* الصندوق المالي للمستثمر (المبلغ المستهدف + العائد المستهدف) */}
                 <div className="mt-3 grid grid-cols-2 gap-2.5 rounded-xl border border-gray-100 bg-gray-50/80 p-3 text-xs">
                   <div>
                     <span className="flex items-center gap-1 text-[10px] text-gray-400">
                       <Wallet className="size-3 text-[#105C50]" />
-                      <span>المبلغ المستهدف</span>
+                      <span>{t.targetAmount}</span>
                     </span>
                     <strong className="mt-0.5 block text-sm font-extrabold text-[#105C50]">
                       {investor.investment_range ?? "—"}
                     </strong>
                   </div>
 
-                  <div className="border-r border-gray-200/70 pr-2.5">
+                  <div className="border-s border-gray-200/70 ps-2.5">
                     <span className="flex items-center gap-1 text-[10px] text-gray-400">
                       <TrendingUp className="size-3 text-gray-400" />
-                      <span>العائد المستهدف</span>
+                      <span>{t.targetRoi}</span>
                     </span>
                     <strong className="mt-0.5 block text-sm font-extrabold text-[#0a1122]">
-                      {investor.target_roi ? `${investor.target_roi}%` : "غير محدد"}
+                      {investor.target_roi
+                        ? `${investor.target_roi}`
+                        : t.notSpecified}
                     </strong>
                   </div>
                 </div>
 
-                {/* تفاصيل القطاعات والتواصل */}
                 <div className="mt-2.5 space-y-1.5 rounded-xl bg-gray-50 p-3 text-xs">
                   <div className="flex items-start justify-between gap-2">
                     <span className="flex shrink-0 items-center gap-1 text-gray-400">
                       <Briefcase className="size-3.5" />
-                      <span>القطاعات:</span>
+                      <span>{t.sectors}</span>
                     </span>
-                    <strong className="text-left font-bold text-[#0a1122]">
+                    <strong className="text-end font-bold text-[#0a1122]">
                       {sectorsText}
                     </strong>
                   </div>
@@ -339,7 +360,7 @@ export default function InvestorsClientTable({
                   <div className="flex items-center justify-between gap-2">
                     <span className="flex items-center gap-1 text-gray-400">
                       <Phone className="size-3.5" />
-                      <span>الهاتف:</span>
+                      <span>{t.phone}</span>
                     </span>
                     <span dir="ltr" className="font-semibold text-[#0a1122]">
                       {investor.phone}
@@ -350,29 +371,38 @@ export default function InvestorsClientTable({
                     <div className="flex items-center justify-between gap-2">
                       <span className="flex items-center gap-1 text-gray-400">
                         <Mail className="size-3.5" />
-                        <span>البريد:</span>
+                        <span>{t.email}</span>
                       </span>
-                      <span dir="ltr" className="truncate font-medium text-gray-600">
+                      <span
+                        dir="ltr"
+                        className="truncate font-medium text-gray-600"
+                      >
                         {investor.email}
                       </span>
+                    </div>
+                  )}
+
+                  {investor.notes && (
+                    <div className="border-t border-gray-200/60 pt-1.5 text-[11px] leading-relaxed text-gray-600">
+                      <strong className="text-[#0a1122]">{t.notes} </strong>
+                      {investor.notes}
                     </div>
                   )}
 
                   <div className="flex items-center justify-between gap-2">
                     <span className="flex items-center gap-1 text-gray-400">
                       <Calendar className="size-3.5" />
-                      <span>التاريخ:</span>
+                      <span>{t.date}</span>
                     </span>
-                    <span className="font-medium text-gray-600">
-                      {new Date(investor.created_at).toLocaleDateString("ar-EG")}
+                    <span dir="ltr" className="font-medium text-gray-600">
+                      {new Date(investor.created_at).toLocaleDateString("en-GB")}
                     </span>
                   </div>
                 </div>
 
-                {/* القائمة المنسدلة لتغيير حالة المستثمر مع التأكيد */}
                 <div className="mt-3">
                   <label className="mb-1 block text-[11px] font-bold text-gray-500">
-                    تغيير حالة المستثمر:
+                    {t.changeStatusLabel}
                   </label>
                   <select
                     disabled={pending}
@@ -389,7 +419,7 @@ export default function InvestorsClientTable({
                     }}
                     className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-[#0a1122] focus:border-[#105C50] focus:outline-none"
                   >
-                    {INVESTOR_STATUSES.map((st) => (
+                    {investorStatuses.map((st) => (
                       <option key={st.value} value={st.value}>
                         {st.label}
                       </option>
@@ -397,7 +427,6 @@ export default function InvestorsClientTable({
                   </select>
                 </div>
 
-                {/* أزرار الإجراءات السفلية المريحة للمس */}
                 <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-gray-100 pt-3">
                   <Button
                     size="sm"
@@ -411,8 +440,8 @@ export default function InvestorsClientTable({
                     }
                     className="h-9 flex-1 rounded-xl bg-[#105C50] text-xs font-bold text-white hover:bg-[#0c483f]"
                   >
-                    <PhoneCall className="ml-1 size-3.5" />
-                    تم التواصل
+                    <PhoneCall className="me-1 size-3.5" />
+                    {t.contactedBtn}
                   </Button>
 
                   <Button
@@ -428,8 +457,8 @@ export default function InvestorsClientTable({
                     }
                     className="h-9 flex-1 rounded-xl text-xs font-bold"
                   >
-                    <CalendarPlus className="ml-1 size-3.5" />
-                    اجتماع
+                    <CalendarPlus className="me-1 size-3.5" />
+                    {t.meetingBtn}
                   </Button>
 
                   <a
@@ -437,7 +466,7 @@ export default function InvestorsClientTable({
                     target="_blank"
                     rel="noreferrer"
                     className="inline-flex h-9 items-center justify-center rounded-xl bg-[#25D366] px-3 text-white hover:opacity-90"
-                    title="تواصل عبر واتساب"
+                    title={t.whatsappTitle}
                   >
                     <MessageCircle className="size-4" />
                   </a>
@@ -452,7 +481,7 @@ export default function InvestorsClientTable({
                       })
                     }
                     className="inline-flex h-9 items-center justify-center rounded-xl border border-red-200 bg-red-50/60 px-2.5 text-red-600 transition hover:bg-red-100"
-                    title="حذف الطلب"
+                    title={t.deleteTitle}
                   >
                     <Trash2 className="size-4" />
                   </button>
@@ -463,27 +492,27 @@ export default function InvestorsClientTable({
         )}
       </div>
 
-      {/* ==================== 2. عرض الكمبيوتر (الجدول الكامل) ==================== */}
+      {/* ==================== 2. عرض الكمبيوتر ==================== */}
       <Card className="hidden rounded-xl border-gray-200/80 bg-white shadow-sm md:block">
         <CardHeader className="border-b border-gray-100">
           <CardTitle className="text-base font-extrabold">
-            كل الطلبات ({filtered.length})
+            {t.allOrdersTitle} ({filtered.length})
           </CardTitle>
           <CardDescription className="text-xs">
-            تواصل مع المستثمرين وحدد مواعيد الاجتماعات مباشرة مع تأكيد قبل أي تعديل.
+            {t.allOrdersDesc}
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full text-right text-xs sm:text-sm">
+            <table className="w-full text-start text-xs sm:text-sm">
               <thead className="bg-gray-50 text-xs text-gray-500">
                 <tr>
-                  <th className="px-5 py-4 font-bold">المستثمر</th>
-                  <th className="px-5 py-4 font-bold">التواصل</th>
-                  <th className="px-5 py-4 font-bold">فئة الاستثمار والقطاعات</th>
-                  <th className="px-5 py-4 font-bold">المبلغ المستهدف</th>
-                  <th className="px-5 py-4 font-bold">الحالة</th>
-                  <th className="px-5 py-4 font-bold">الإجراء</th>
+                  <th className="px-5 py-4 font-bold">{t.colInvestor}</th>
+                  <th className="px-5 py-4 font-bold">{t.colContact}</th>
+                  <th className="px-5 py-4 font-bold">{t.colSectors}</th>
+                  <th className="px-5 py-4 font-bold">{t.colAmount}</th>
+                  <th className="px-5 py-4 font-bold">{t.colStatus}</th>
+                  <th className="px-5 py-4 font-bold">{t.colActions}</th>
                 </tr>
               </thead>
               <tbody>
@@ -493,15 +522,15 @@ export default function InvestorsClientTable({
                       colSpan={6}
                       className="px-5 py-10 text-center text-gray-400"
                     >
-                      لا توجد طلبات مستثمرين حتى الآن.
+                      {t.emptyText}
                     </td>
                   </tr>
                 ) : (
                   filtered.map((investor) => {
                     const currentSt = investor.status || "new"
                     const stObj =
-                      INVESTOR_STATUSES.find((s) => s.value === currentSt) ||
-                      INVESTOR_STATUSES[0]
+                      investorStatuses.find((s) => s.value === currentSt) ||
+                      investorStatuses[0]
                     const isRowLoading =
                       pending && activeInvestorId === investor.id
 
@@ -520,19 +549,20 @@ export default function InvestorsClientTable({
                             {isRowLoading && (
                               <span className="inline-flex items-center gap-1 rounded-full bg-[#105C50] px-2 py-0.5 text-[10px] font-bold text-white">
                                 <Loader2 className="size-3 animate-spin" />
-                                جاري الحفظ...
+                                {t.savingBtn}
                               </span>
                             )}
                           </div>
                           <div className="mt-0.5 text-[11px] text-gray-400">
-                            {investor.investor_type || "مستثمر عقاري"}
+                            {investor.investor_type || t.defaultType}
+                            {investor.company ? ` · ${investor.company}` : ""}
                           </div>
                         </td>
 
                         <td className="px-5 py-4">
                           <div
                             dir="ltr"
-                            className="text-right font-semibold text-[#0a1122]"
+                            className="text-start font-semibold text-[#0a1122]"
                           >
                             {investor.phone}
                           </div>
@@ -541,15 +571,20 @@ export default function InvestorsClientTable({
                           </div>
                         </td>
 
-                        <td className="px-5 py-4">
-                          <div>
+                        <td className="max-w-xs px-5 py-4">
+                          <div className="font-semibold text-[#0a1122]">
                             {investor.preferred_sectors?.join("، ") ||
                               investor.investor_type ||
                               "—"}
                           </div>
                           {investor.target_roi ? (
                             <div className="mt-0.5 text-[11px] text-[#105C50]">
-                              العائد المستهدف: {investor.target_roi}%
+                              {t.targetRoi}: {investor.target_roi}
+                            </div>
+                          ) : null}
+                          {investor.notes ? (
+                            <div className="mt-1 line-clamp-2 text-[11px] text-gray-500">
+                              {investor.notes}
                             </div>
                           ) : null}
                         </td>
@@ -578,7 +613,7 @@ export default function InvestorsClientTable({
                               }}
                               className="h-8 rounded-lg border border-gray-200 bg-white px-2 text-xs font-bold text-[#0a1122] focus:border-[#105C50] focus:outline-none disabled:opacity-50"
                             >
-                              {INVESTOR_STATUSES.map((st) => (
+                              {investorStatuses.map((st) => (
                                 <option key={st.value} value={st.value}>
                                   {st.label}
                                 </option>
@@ -601,8 +636,8 @@ export default function InvestorsClientTable({
                               }
                               className="h-8 rounded-lg bg-[#105C50] text-xs font-bold text-white hover:bg-[#0c483f]"
                             >
-                              <PhoneCall className="ml-1 size-3.5" />
-                              تم التواصل
+                              <PhoneCall className="me-1 size-3.5" />
+                              {t.contactedBtn}
                             </Button>
 
                             <Button
@@ -618,8 +653,8 @@ export default function InvestorsClientTable({
                               }
                               className="h-8 rounded-lg text-xs font-bold"
                             >
-                              <CalendarPlus className="ml-1 size-3.5" />
-                              اجتماع
+                              <CalendarPlus className="me-1 size-3.5" />
+                              {t.meetingBtn}
                             </Button>
 
                             <a
@@ -627,7 +662,7 @@ export default function InvestorsClientTable({
                               target="_blank"
                               rel="noreferrer"
                               className="inline-flex h-8 items-center justify-center rounded-lg bg-[#25D366] px-2.5 text-white hover:opacity-90"
-                              title="تواصل واتساب"
+                              title={t.whatsappTitle}
                             >
                               <MessageCircle className="size-3.5" />
                             </a>
@@ -642,7 +677,7 @@ export default function InvestorsClientTable({
                                 })
                               }
                               className="rounded-lg border border-gray-200 p-2 text-gray-400 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
-                              title="حذف"
+                              title={t.deleteTitle}
                             >
                               <Trash2 className="size-3.5" />
                             </button>
@@ -658,7 +693,7 @@ export default function InvestorsClientTable({
         </CardContent>
       </Card>
 
-      {/* ==================== 3. نافذة التأكيد الملمومة والمتناسقة على كل الشاشات ==================== */}
+      {/* ==================== 3. نافذة التأكيد ==================== */}
       <Dialog
         open={Boolean(confirmAction)}
         onOpenChange={(open) => {
@@ -666,12 +701,12 @@ export default function InvestorsClientTable({
         }}
       >
         <DialogContent
-          dir="rtl"
-          className="w-[90vw] max-w-[360px] rounded-2xl p-5 sm:max-w-[400px]"
+          dir={dir}
+          className="w-[90vw] max-w-[360px] rounded-2xl p-5 text-start sm:max-w-[400px]"
         >
           {confirmAction && (
             <>
-              <DialogHeader className="text-right">
+              <DialogHeader className="text-start">
                 <div className="mb-2 flex items-center gap-2.5">
                   <span
                     className={`flex size-9 shrink-0 items-center justify-center rounded-full ${
@@ -688,23 +723,23 @@ export default function InvestorsClientTable({
                   </span>
                   <DialogTitle className="text-sm font-extrabold text-[#0a1122] sm:text-base">
                     {confirmAction.type === "delete"
-                      ? "تأكيد حذف طلب المستثمر"
-                      : "تأكيد تحديث حالة المستثمر"}
+                      ? t.confirmDeleteTitle
+                      : t.confirmStatusTitle}
                   </DialogTitle>
                 </div>
 
-                <DialogDescription className="text-right text-xs leading-relaxed text-gray-600">
+                <DialogDescription className="text-start text-xs leading-relaxed text-gray-600">
                   {confirmAction.type === "status" ? (
                     <>
-                      هل تريد تغيير حالة المستثمر{" "}
+                      {t.confirmStatusDescPrefix}{" "}
                       <strong className="text-[#0a1122]">
                         "{confirmAction.investor.name}"
                       </strong>{" "}
-                      من{" "}
+                      {t.fromWord}{" "}
                       <span className="font-bold">
                         ({getInvestorStatusLabel(confirmAction.investor.status)})
                       </span>{" "}
-                      إلى{" "}
+                      {t.toWord}{" "}
                       <span className="font-bold text-[#105C50]">
                         ({getInvestorStatusLabel(confirmAction.newStatus)})
                       </span>
@@ -712,11 +747,11 @@ export default function InvestorsClientTable({
                     </>
                   ) : (
                     <>
-                      هل أنت متأكد من حذف طلب المستثمر{" "}
+                      {t.confirmDeleteDescPrefix}{" "}
                       <strong className="text-red-600">
                         "{confirmAction.investor.name}"
                       </strong>{" "}
-                      نهائياً؟ لا يمكن التراجع عن هذا الإجراء.
+                      {t.confirmDeleteDescSuffix}
                     </>
                   )}
                 </DialogDescription>
@@ -730,7 +765,7 @@ export default function InvestorsClientTable({
                   onClick={closeConfirmModal}
                   className="h-9 flex-1 rounded-xl text-xs font-bold sm:flex-none"
                 >
-                  إلغاء
+                  {t.cancelBtn}
                 </Button>
                 <Button
                   type="button"
@@ -745,10 +780,10 @@ export default function InvestorsClientTable({
                   {pending ? (
                     <span className="flex items-center justify-center gap-1.5">
                       <Loader2 className="size-3.5 animate-spin" />
-                      جاري الحفظ...
+                      {t.savingBtn}
                     </span>
                   ) : (
-                    "تأكيد التنفيذ"
+                    t.confirmBtn
                   )}
                 </Button>
               </DialogFooter>

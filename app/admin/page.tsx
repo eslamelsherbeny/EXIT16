@@ -18,10 +18,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import {
-  getServerI18n,
-  getCurrencySymbol,
-} from "@/lib/get-server-dictionary"
+import { getServerI18n } from "@/lib/get-server-dictionary"
+import { getCurrencySymbol } from "@/lib/i18n-config"
 
 export const dynamic = "force-dynamic"
 export const revalidate = 0

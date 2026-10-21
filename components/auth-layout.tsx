@@ -1,11 +1,13 @@
-import { Navbar } from '@/components/site-shell'
-import arDict from '@/dictionaries/ar.json'
+'use client'
 
-const t = arDict.authPages.common
+import { Navbar } from '@/components/site-shell'
+import { useTranslation } from '@/lib/i18n'
 
 export function AuthLayout({ children }: { children: React.ReactNode }) {
+  const { dir } = useTranslation()
+
   return (
-    <div className="min-h-screen bg-[var(--brand-surface,#f5f6f8)]" dir="rtl">
+    <div className="min-h-screen bg-[var(--brand-surface,#f5f6f8)]" dir={dir}>
       <Navbar />
       <main className="flex min-h-[calc(100vh-5rem)] items-center justify-center px-5 py-12 sm:px-8">
         {children}
@@ -31,16 +33,20 @@ export function AuthCard({
 }
 
 export function TurnstileBox() {
+  const { t: dict, dir } = useTranslation()
+  const c = dict.authPages.common
+
   return (
     <div
+      dir={dir}
       className="flex min-h-[60px] items-center gap-3 rounded-xl border border-[#d9d9dc] bg-[#fafafa] px-4 text-xs text-muted-foreground"
       aria-label="Cloudflare Turnstile"
     >
-      <span className="flex size-6 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white">
+      <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white">
         ✓
       </span>
-      <span className="font-semibold">{t.turnstileText}</span>
-      <span className="mr-auto text-left font-sans text-[10px] leading-3 text-[#8b8b91]">
+      <span className="font-semibold">{c.turnstileText}</span>
+      <span className="ms-auto text-left font-sans text-[10px] leading-3 text-[#8b8b91]">
         CLOUDFLARE
         <br />
         Turnstile

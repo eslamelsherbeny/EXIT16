@@ -10,16 +10,16 @@ import {
   ZoomIn,
 } from 'lucide-react'
 import { CountrySelector } from '@/components/country-selector'
-import arDict from '@/dictionaries/ar.json'
-
-const t = arDict.unitDetailsPage
-const f = arDict.unitDetailsPage.interestForm
+import { useTranslation } from '@/lib/i18n'
 
 export function UnitGalleryWithLightbox({
   gallery,
 }: {
   gallery: Array<{ url: string; caption: string }>
 }) {
+  const { t: dict, isRtl } = useTranslation()
+  const t = dict.unitDetailsPage
+
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const [scrollProgress, setScrollProgress] = useState(0)
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
@@ -41,7 +41,8 @@ export function UnitGalleryWithLightbox({
   const scrollByAmount = (direction: 'next' | 'prev') => {
     const el = scrollContainerRef.current
     if (!el) return
-    const amount = direction === 'next' ? -360 : 360
+    const factor = isRtl ? -1 : 1
+    const amount = direction === 'next' ? 360 * factor : -360 * factor
     el.scrollBy({ left: amount, behavior: 'smooth' })
   }
 
@@ -51,7 +52,7 @@ export function UnitGalleryWithLightbox({
     const el = scrollContainerRef.current
     if (!el) return
     const maxScroll = el.scrollWidth - el.clientWidth
-    el.scrollLeft = -((value / 100) * maxScroll)
+    el.scrollLeft = (isRtl ? -1 : 1) * ((value / 100) * maxScroll)
   }
 
   return (
@@ -102,7 +103,7 @@ export function UnitGalleryWithLightbox({
               aria-label={t.prevImageAria}
               className="flex size-5 items-center justify-center rounded text-gray-500 hover:bg-gray-200 hover:text-[var(--brand-navy,#0a1122)]"
             >
-              <ChevronRight className="size-3.5" />
+              <ChevronRight className="size-3.5 rtl:rotate-0 ltr:rotate-180" />
             </button>
 
             <div className="relative flex flex-1 items-center">
@@ -123,7 +124,7 @@ export function UnitGalleryWithLightbox({
               aria-label={t.nextImageAria}
               className="flex size-5 items-center justify-center rounded text-gray-500 hover:bg-gray-200 hover:text-[var(--brand-navy,#0a1122)]"
             >
-              <ChevronLeft className="size-3.5" />
+              <ChevronLeft className="size-3.5 rtl:rotate-0 ltr:rotate-180" />
             </button>
           </div>
         )}
@@ -247,6 +248,9 @@ export function UnitInterestForm({
   installmentAmount: number
   currentUserId: string | null
 }) {
+  const { t: dict } = useTranslation()
+  const f = dict.unitDetailsPage.interestForm
+
   const [buyerName, setBuyerName] = useState('')
   const [buyerPhone, setBuyerPhone] = useState('')
   const [countryCode, setCountryCode] = useState('20')
@@ -311,7 +315,7 @@ export function UnitInterestForm({
   }
 
   return (
-    <section className="mt-8 rounded-[20px] border border-gray-200/90 bg-white p-5 text-right shadow-sm sm:p-8">
+    <section className="mt-8 rounded-[20px] border border-gray-200/90 bg-white p-5 text-start shadow-sm sm:p-8">
       <h2 className="text-lg font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-xl">
         {f.title}
       </h2>

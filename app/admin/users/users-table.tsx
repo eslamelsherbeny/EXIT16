@@ -7,6 +7,7 @@ import {
   Ban,
   Calendar,
   CheckCircle2,
+  Info,
   Loader2,
   Mail,
   Phone,
@@ -34,6 +35,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { useTranslation } from "@/lib/i18n"
 import {
   createAdminOrUserAction,
   deleteUserByAdminAction,
@@ -52,17 +54,145 @@ export type AdminUserRow = {
   buyCount: number
 }
 
-const ROLE_OPTIONS = [
-  { value: "admin", label: "مدير نظام (Admin)", badge: "bg-[#0a1122] text-white" },
-  { value: "moderator", label: "مشرف مبيعات (Moderator)", badge: "bg-purple-100 text-purple-800" },
-  { value: "user", label: "عميل (بائع / مشتري)", badge: "bg-gray-100 text-gray-700" },
-]
-
-function getRoleLabel(role: string) {
-  return ROLE_OPTIONS.find((r) => r.value === role)?.label || "عميل"
+const USERS_I18N = {
+  ar: {
+    eyebrow: "المجتمع والصلاحيات (RBAC)",
+    title: "المستخدمين وفريق الإدارة",
+    subtitle:
+      "عيّن مديرين، مشرفي عقارات، أو مسؤولي مبيعات (لرؤية أرقام العملاء والتواصل فقط) وفق الأدوار القياسية.",
+    addBtn: "إضافة عضو إدارة / مستخدم",
+    rolesGuideTitle: "دليل صلاحيات الأدوار في النظام:",
+    rolesGuide: [
+      {
+        role: "مدير نظام (Admin)",
+        desc: "صلاحية كاملة: إدارة المستخدمين، الإعدادات، الأسعار، العقارات، المشترين، المستثمرين، والحذف النهائي.",
+      },
+      {
+        role: "مشرف عقارات (Moderator)",
+        desc: "مراجعة وتوثيق العقارات، تفعيل الإعلانات، متابعة المشترين والمستثمرين (بدون إعدادات أو صلاحيات أو حذف).",
+      },
+      {
+        role: "مبيعات وتواصل (Sales)",
+        desc: "يرى فقط طلبات المشترين وطلبات البيع وأرقام هواتفهم للتواصل عبر واتساب وتحديث حالة المتابعة.",
+      },
+    ],
+    searchPlaceholder: "ابحث بالاسم، البريد الإلكتروني، أو رقم الموبايل...",
+    tabAll: "الكل",
+    tabStaff: "فريق الإدارة",
+    tabSellers: "البائعين",
+    tabBuyers: "المشترين",
+    emptyText: "لا توجد حسابات مطابقة للبحث.",
+    updatingText: "جاري تنفيذ التعديل...",
+    sellerBadge: "بائع",
+    unitWord: "وحدة",
+    buyerBadge: "مشتري",
+    reqWord: "طلب",
+    registeredAcc: "حساب مسجل",
+    activeBadge: "نشط",
+    suspendedBadge: "موقوف",
+    emailLabel: "البريد:",
+    phoneLabel: "الهاتف:",
+    joinedLabel: "الانضمام:",
+    roleSelectLabel: "الدور الوظيفي (يطلب تأكيد):",
+    activateBtn: "تفعيل الحساب",
+    suspendBtn: "إيقاف مؤقت",
+    deleteBtn: "حذف",
+    tableTitle: "قائمة الحسابات المسجلة",
+    tableDesc: "أي تعديل في الدور الوظيفي أو حالة الحساب يطلب منك التأكيد أولاً.",
+    colUser: "الاسم والبيانات",
+    colActivity: "نشاط العميل",
+    colRole: "الدور والصلاحية (Role)",
+    colJoined: "تاريخ الانضمام",
+    colStatus: "الحالة",
+    colAction: "الإجراء",
+    confirmRoleTitle: "تأكيد تغيير صلاحية الحساب",
+    confirmActivateTitle: "تأكيد تفعيل الحساب",
+    confirmSuspendTitle: "تأكيد إيقاف الحساب مؤقتاً",
+    confirmDeleteTitle: "تأكيد حذف الحساب نهائياً",
+    cancelBtn: "إلغاء",
+    confirmBtn: "نعم، تأكيد التنفيذ",
+    addModalTitle: "إضافة عضو إدارة أو مستخدم جديد",
+    addModalDesc: "اختر الدور الوظيفي المناسب ليتم ضبط الصلاحيات تلقائياً.",
+    fullNameLabel: "الاسم الكامل",
+    passwordLabel: "كلمة المرور (8 أحرف على الأقل)",
+    createNowBtn: "إنشاء الحساب الآن",
+    roles: {
+      admin: "مدير نظام (Admin - صلاحية كاملة)",
+      moderator: "مشرف عقارات (Moderator - مراجعة وإعلانات)",
+      sales: "مسؤول مبيعات (Sales - أرقام العملاء والمتابعة فقط)",
+      user: "عميل عادي (بائع / مشتري)",
+    },
+  },
+  en: {
+    eyebrow: "Community & RBAC Permissions",
+    title: "Users & Staff Team",
+    subtitle:
+      "Assign Super Admins, Property Moderators, or Sales Agents (client phone & leads access only).",
+    addBtn: "Add Staff / User",
+    rolesGuideTitle: "System Role Permissions Guide:",
+    rolesGuide: [
+      {
+        role: "Super Admin (admin)",
+        desc: "Full access: Users, Settings, Promo Pricing, Properties, Leads, Investors, and Permanent Delete.",
+      },
+      {
+        role: "Moderator (moderator)",
+        desc: "Review properties, activate promos, manage buyer leads & investors (No settings, users, or delete).",
+      },
+      {
+        role: "Sales Agent (sales)",
+        desc: "Access ONLY to Buyer Leads & Sell Requests to view client phones and update follow-up status.",
+      },
+    ],
+    searchPlaceholder: "Search by name, email, or phone number...",
+    tabAll: "All",
+    tabStaff: "Staff Team",
+    tabSellers: "Sellers",
+    tabBuyers: "Buyers",
+    emptyText: "No matching accounts found.",
+    updatingText: "Applying changes...",
+    sellerBadge: "Seller",
+    unitWord: "units",
+    buyerBadge: "Buyer",
+    reqWord: "leads",
+    registeredAcc: "Registered",
+    activeBadge: "Active",
+    suspendedBadge: "Suspended",
+    emailLabel: "Email:",
+    phoneLabel: "Phone:",
+    joinedLabel: "Joined:",
+    roleSelectLabel: "Role (requires confirmation):",
+    activateBtn: "Activate",
+    suspendBtn: "Suspend",
+    deleteBtn: "Delete",
+    tableTitle: "Registered Accounts",
+    tableDesc: "Any change to user role or status requires confirmation before saving.",
+    colUser: "User Info",
+    colActivity: "Activity",
+    colRole: "Role & Permission",
+    colJoined: "Joined Date",
+    colStatus: "Status",
+    colAction: "Actions",
+    confirmRoleTitle: "Confirm Role Change",
+    confirmActivateTitle: "Confirm Account Activation",
+    confirmSuspendTitle: "Confirm Account Suspension",
+    confirmDeleteTitle: "Confirm Permanent Deletion",
+    cancelBtn: "Cancel",
+    confirmBtn: "Confirm",
+    addModalTitle: "Add Staff Member or User",
+    addModalDesc: "Select the appropriate role to automatically configure permissions.",
+    fullNameLabel: "Full Name",
+    passwordLabel: "Password (min 8 chars)",
+    createNowBtn: "Create Account",
+    roles: {
+      admin: "Super Admin (Full Access)",
+      moderator: "Moderator (Properties & Promos)",
+      sales: "Sales Agent (Client Leads & Phones Only)",
+      user: "Client (Seller / Buyer)",
+    },
+  },
 }
 
-// نوع العملية المطلوب تأكيدها قبل التنفيذ
 type ConfirmActionState =
   | {
       type: "role"
@@ -81,15 +211,32 @@ type ConfirmActionState =
 
 export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
   const router = useRouter()
+  const { locale, dir } = useTranslation()
+  const t = locale === "ar" ? USERS_I18N.ar : USERS_I18N.en
+
+  const roleOptions = [
+    { value: "admin", label: t.roles.admin },
+    { value: "moderator", label: t.roles.moderator },
+    { value: "sales", label: t.roles.sales },
+    { value: "user", label: t.roles.user },
+  ]
+
+  function getRoleLabel(role: string) {
+    return roleOptions.find((r) => r.value === role)?.label || t.roles.user
+  }
+
   const [search, setSearch] = useState("")
   const [roleFilter, setRoleFilter] = useState("all")
   const [openAddModal, setOpenAddModal] = useState(false)
-  const [confirmState, setConfirmState] = useState<ConfirmActionState | null>(null)
+  const [confirmState, setConfirmState] =
+    useState<ConfirmActionState | null>(null)
   const [activeUserId, setActiveUserId] = useState<string | null>(null)
-  const [notice, setNotice] = useState<{ text: string; isError?: boolean } | null>(null)
+  const [notice, setNotice] = useState<{
+    text: string
+    isError?: boolean
+  } | null>(null)
   const [pending, startTransition] = useTransition()
 
-  // تنفيذ العملية بعد ضغط المدير على زر "تأكيد" في النافذة
   function executeConfirmedAction() {
     if (!confirmState) return
     setNotice(null)
@@ -106,11 +253,14 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
           )
           if (res.success) {
             setNotice({
-              text: `تم تغيير صلاحية "${targetUser.name}" إلى (${getRoleLabel(confirmState.newRole)}) بنجاح.`,
+              text:
+                locale === "ar"
+                  ? `تم تغيير صلاحية "${targetUser.name}" إلى (${getRoleLabel(confirmState.newRole)}) بنجاح.`
+                  : `Updated "${targetUser.name}" role to (${getRoleLabel(confirmState.newRole)}).`,
             })
             router.refresh()
           } else {
-            setNotice({ text: res.error || "تعذر تحديث الصلاحية.", isError: true })
+            setNotice({ text: res.error || "Error", isError: true })
           }
         } else if (confirmState.type === "status") {
           const res = await updateUserRoleAndStatusAction(
@@ -119,24 +269,28 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
             confirmState.newStatus
           )
           if (res.success) {
-            const statusText =
-              confirmState.newStatus === "active" ? "تفعيل حساب" : "إيقاف حساب"
             setNotice({
-              text: `تم ${statusText} "${targetUser.name}" بنجاح.`,
+              text:
+                locale === "ar"
+                  ? `تم تحديث حالة حساب "${targetUser.name}" بنجاح.`
+                  : `Updated "${targetUser.name}" account status.`,
             })
             router.refresh()
           } else {
-            setNotice({ text: res.error || "تعذر تحديث حالة الحساب.", isError: true })
+            setNotice({ text: res.error || "Error", isError: true })
           }
         } else if (confirmState.type === "delete") {
           const res = await deleteUserByAdminAction(targetUser.id)
           if (res.success) {
             setNotice({
-              text: `تم حذف حساب "${targetUser.name}" وجميع طلباته نهائياً.`,
+              text:
+                locale === "ar"
+                  ? `تم حذف حساب "${targetUser.name}" نهائياً.`
+                  : `Deleted "${targetUser.name}" account.`,
             })
             router.refresh()
           } else {
-            setNotice({ text: res.error || "تعذر حذف الحساب.", isError: true })
+            setNotice({ text: res.error || "Error", isError: true })
           }
         }
       } finally {
@@ -153,17 +307,25 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
     startTransition(async () => {
       const res = await createAdminOrUserAction(fd)
       if (res.success) {
-        setNotice({ text: "تم إنشاء الحساب الجديد وتفعيل صلاحياته بنجاح." })
+        setNotice({
+          text:
+            locale === "ar"
+              ? "تم إنشاء الحساب الجديد وتفعيل صلاحياته بنجاح."
+              : "Account created successfully.",
+        })
         setOpenAddModal(false)
         router.refresh()
       } else {
-        setNotice({ text: res.error || "تعذر إنشاء الحساب.", isError: true })
+        setNotice({ text: res.error || "Error", isError: true })
       }
     })
   }
 
+  const isStaffMember = (role: string) =>
+    role === "admin" || role === "moderator" || role === "sales"
+
   const filtered = users.filter((u) => {
-    if (roleFilter === "admins" && u.role !== "admin" && u.role !== "moderator") {
+    if (roleFilter === "admins" && !isStaffMember(u.role)) {
       return false
     }
     if (roleFilter === "sellers" && u.sellCount === 0) return false
@@ -177,31 +339,48 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
   })
 
   return (
-    <div>
-      {/* الهيدر العلوي */}
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+    <div dir={dir} className="text-start">
+      <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-xs font-extrabold text-[#105C50]">
-            المجتمع والصلاحيات
-          </p>
+          <p className="text-xs font-extrabold text-[#105C50]">{t.eyebrow}</p>
           <h2 className="mt-1 text-xl font-extrabold text-[#0a1122] sm:text-3xl">
-            المستخدمين وفريق الإدارة ({users.length})
+            {t.title} ({users.length})
           </h2>
-          <p className="mt-1 text-xs text-gray-500 sm:text-sm">
-            عيّن مديرين ومشرفين معك في المنصة، وراجع حسابات البائعين والمشترين.
-          </p>
+          <p className="mt-1 text-xs text-gray-500 sm:text-sm">{t.subtitle}</p>
         </div>
 
         <Button
           onClick={() => setOpenAddModal(true)}
           className="h-10 w-full rounded-xl bg-[#105C50] px-4 text-xs font-bold text-white hover:bg-[#0c483f] sm:w-auto"
         >
-          <UserPlus className="ml-1.5 size-4" />
-          إضافة أدمن / مستخدم جديد
+          <UserPlus className="me-1.5 size-4" />
+          {t.addBtn}
         </Button>
       </div>
 
-      {/* شريط الإشعارات الواضح بعد كل عملية */}
+      {/* بطاقة توضيح صلاحيات الأدوار القياسية للأدمن */}
+      <div className="mb-5 rounded-2xl border border-[#105C50]/20 bg-[#eff8f6] p-4">
+        <div className="mb-2 flex items-center gap-1.5 text-xs font-extrabold text-[#105C50]">
+          <Info className="size-4 shrink-0" />
+          <span>{t.rolesGuideTitle}</span>
+        </div>
+        <div className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
+          {t.rolesGuide.map((item) => (
+            <div
+              key={item.role}
+              className="rounded-xl border border-white/80 bg-white p-3 shadow-2xs"
+            >
+              <p className="text-xs font-extrabold text-[#0a1122]">
+                {item.role}
+              </p>
+              <p className="mt-1 text-[11px] leading-relaxed text-gray-600">
+                {item.desc}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {notice && (
         <div
           className={`mb-5 flex items-center justify-between gap-3 rounded-xl border p-4 text-xs font-bold shadow-xs transition-all sm:text-sm ${
@@ -231,30 +410,30 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
       {/* شريط البحث والفلترة */}
       <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-gray-200/80 bg-white p-3.5 shadow-sm sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:p-4">
         <div className="relative w-full sm:min-w-[250px] sm:flex-1">
-          <Search className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
+          <Search className="pointer-events-none absolute top-1/2 end-3.5 size-4 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="ابحث بالاسم، البريد الإلكتروني، أو رقم الموبايل..."
-            className="h-10 w-full rounded-xl border border-gray-200 pr-10 pl-4 text-xs focus:border-[#105C50] focus:outline-none"
+            placeholder={t.searchPlaceholder}
+            className="h-10 w-full rounded-xl border border-gray-200 ps-4 pe-10 text-xs focus:border-[#105C50] focus:outline-none"
           />
         </div>
 
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
           {[
-            { id: "all", label: `الكل (${users.length})` },
+            { id: "all", label: `${t.tabAll} (${users.length})` },
             {
               id: "admins",
-              label: `الإدارة (${users.filter((u) => u.role === "admin" || u.role === "moderator").length})`,
+              label: `${t.tabStaff} (${users.filter((u) => isStaffMember(u.role)).length})`,
             },
             {
               id: "sellers",
-              label: `البائعين (${users.filter((u) => u.sellCount > 0).length})`,
+              label: `${t.tabSellers} (${users.filter((u) => u.sellCount > 0).length})`,
             },
             {
               id: "buyers",
-              label: `المشترين (${users.filter((u) => u.buyCount > 0).length})`,
+              label: `${t.tabBuyers} (${users.filter((u) => u.buyCount > 0).length})`,
             },
           ].map((tab) => (
             <button
@@ -273,17 +452,17 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
         </div>
       </div>
 
-      {/* ==================== 1. عرض الموبايل والتابلت الصغير (كروت احترافية بدون تمرير أفقي) ==================== */}
+      {/* 1. عرض الموبايل */}
       <div className="space-y-3 md:hidden">
         {filtered.length === 0 ? (
           <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center text-xs text-gray-400">
-            لا توجد حسابات مطابقة للبحث.
+            {t.emptyText}
           </div>
         ) : (
           filtered.map((user) => {
             const isSuspended = user.status === "suspended"
             const isRowLoading = pending && activeUserId === user.id
-            const firstLetter = user.name.trim().charAt(0) || "م"
+            const firstLetter = user.name.trim().charAt(0) || "U"
 
             return (
               <div
@@ -294,17 +473,15 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                     : "border-gray-200/90"
                 }`}
               >
-                {/* طبقة التحميل فوق الكارت لو جاري تعديله */}
                 {isRowLoading && (
                   <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60 backdrop-blur-[1px]">
                     <div className="flex items-center gap-2 rounded-full bg-[#0a1122] px-4 py-2 text-xs font-bold text-white shadow-md">
                       <Loader2 className="size-4 animate-spin text-emerald-400" />
-                      <span>جاري تنفيذ التعديل...</span>
+                      <span>{t.updatingText}</span>
                     </div>
                   </div>
                 )}
 
-                {/* الصف العلوي للكارت: الأفاتار + الاسم + شارة الحالة */}
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-3">
                     <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#105C50]/10 text-sm font-extrabold text-[#105C50]">
@@ -313,24 +490,24 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                     <div>
                       <div className="flex items-center gap-1.5 font-extrabold text-[#0a1122]">
                         <span className="text-sm">{user.name}</span>
-                        {user.role === "admin" && (
+                        {isStaffMember(user.role) && (
                           <ShieldCheck className="size-4 shrink-0 text-[#105C50]" />
                         )}
                       </div>
                       <div className="mt-1 flex flex-wrap items-center gap-1.5">
                         {user.sellCount > 0 && (
                           <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
-                            بائع ({user.sellCount} وحدة)
+                            {t.sellerBadge} ({user.sellCount} {t.unitWord})
                           </span>
                         )}
                         {user.buyCount > 0 && (
                           <span className="rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-800">
-                            مشتري ({user.buyCount} طلب)
+                            {t.buyerBadge} ({user.buyCount} {t.reqWord})
                           </span>
                         )}
                         {user.sellCount === 0 && user.buyCount === 0 && (
                           <span className="text-[11px] text-gray-400">
-                            حساب مسجل
+                            {t.registeredAcc}
                           </span>
                         )}
                       </div>
@@ -345,29 +522,31 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                     }`}
                   >
                     {!isSuspended ? (
-                      <CheckCircle2 className="ml-1 size-3" />
+                      <CheckCircle2 className="me-1 size-3" />
                     ) : (
-                      <Ban className="ml-1 size-3" />
+                      <Ban className="me-1 size-3" />
                     )}
-                    {!isSuspended ? "نشط" : "موقوف"}
+                    {!isSuspended ? t.activeBadge : t.suspendedBadge}
                   </Badge>
                 </div>
 
-                {/* تفاصيل الاتصال وتاريخ الانضمام */}
                 <div className="mt-3.5 grid grid-cols-1 gap-1.5 rounded-xl bg-gray-50 p-3 text-xs text-gray-600">
                   <div className="flex items-center justify-between gap-2">
                     <span className="flex items-center gap-1.5 text-gray-400">
                       <Mail className="size-3.5" />
-                      <span>البريد:</span>
+                      <span>{t.emailLabel}</span>
                     </span>
-                    <span dir="ltr" className="truncate font-medium text-[#0a1122]">
+                    <span
+                      dir="ltr"
+                      className="truncate font-medium text-[#0a1122]"
+                    >
                       {user.email}
                     </span>
                   </div>
                   <div className="flex items-center justify-between gap-2">
                     <span className="flex items-center gap-1.5 text-gray-400">
                       <Phone className="size-3.5" />
-                      <span>الهاتف:</span>
+                      <span>{t.phoneLabel}</span>
                     </span>
                     <span dir="ltr" className="font-medium text-[#0a1122]">
                       {user.phone}
@@ -376,18 +555,17 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                   <div className="flex items-center justify-between gap-2">
                     <span className="flex items-center gap-1.5 text-gray-400">
                       <Calendar className="size-3.5" />
-                      <span>الانضمام:</span>
+                      <span>{t.joinedLabel}</span>
                     </span>
-                    <span className="font-medium text-[#0a1122]">
-                      {new Date(user.created_at).toLocaleDateString("ar-EG")}
+                    <span dir="ltr" className="font-medium text-[#0a1122]">
+                      {new Date(user.created_at).toLocaleDateString("en-GB")}
                     </span>
                   </div>
                 </div>
 
-                {/* التحكم في الصلاحية */}
                 <div className="mt-3">
                   <label className="mb-1 block text-[11px] font-bold text-gray-500">
-                    الصلاحية (تتطلب تأكيد قبل الحفظ):
+                    {t.roleSelectLabel}
                   </label>
                   <select
                     disabled={pending}
@@ -404,7 +582,7 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                     }}
                     className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-[#0a1122] focus:border-[#105C50] focus:outline-none"
                   >
-                    {ROLE_OPTIONS.map((r) => (
+                    {roleOptions.map((r) => (
                       <option key={r.value} value={r.value}>
                         {r.label}
                       </option>
@@ -412,7 +590,6 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                   </select>
                 </div>
 
-                {/* أزرار الإجراءات السفلية المريحة للمس */}
                 <div className="mt-3 flex items-center gap-2 border-t border-gray-100 pt-3">
                   <Button
                     size="sm"
@@ -431,7 +608,7 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                         : "border-amber-200 bg-amber-50/50 text-amber-700 hover:bg-amber-100"
                     }`}
                   >
-                    {isSuspended ? "تفعيل الحساب" : "إيقاف مؤقت"}
+                    {isSuspended ? t.activateBtn : t.suspendBtn}
                   </Button>
 
                   <button
@@ -446,7 +623,7 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                     className="flex h-9 items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-red-50/60 px-3.5 text-xs font-bold text-red-600 transition hover:bg-red-100"
                   >
                     <Trash2 className="size-3.5" />
-                    <span>حذف</span>
+                    <span>{t.deleteBtn}</span>
                   </button>
                 </div>
               </div>
@@ -455,27 +632,25 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
         )}
       </div>
 
-      {/* ==================== 2. عرض الكمبيوتر والتابلت الكبير (الجدول الكامل) ==================== */}
+      {/* 2. عرض الكمبيوتر */}
       <Card className="hidden border-gray-200/80 bg-white shadow-sm md:block">
         <CardHeader className="border-b border-gray-100">
           <CardTitle className="text-base font-extrabold">
-            قائمة الحسابات المسجلة ({filtered.length})
+            {t.tableTitle} ({filtered.length})
           </CardTitle>
-          <CardDescription className="text-xs">
-            أي تعديل في الصلاحية أو حالة الحساب سيطلب منك التأكيد أولاً قبل التنفيذ.
-          </CardDescription>
+          <CardDescription className="text-xs">{t.tableDesc}</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full text-right text-xs sm:text-sm">
+            <table className="w-full text-start text-xs sm:text-sm">
               <thead className="bg-gray-50 text-xs text-gray-500">
                 <tr>
-                  <th className="px-5 py-4 font-bold">الاسم والبيانات</th>
-                  <th className="px-5 py-4 font-bold">نشاط العميل</th>
-                  <th className="px-5 py-4 font-bold">الصلاحية (Role)</th>
-                  <th className="px-5 py-4 font-bold">تاريخ الانضمام</th>
-                  <th className="px-5 py-4 font-bold">الحالة</th>
-                  <th className="px-5 py-4 font-bold">الإجراء</th>
+                  <th className="px-5 py-4 font-bold">{t.colUser}</th>
+                  <th className="px-5 py-4 font-bold">{t.colActivity}</th>
+                  <th className="px-5 py-4 font-bold">{t.colRole}</th>
+                  <th className="px-5 py-4 font-bold">{t.colJoined}</th>
+                  <th className="px-5 py-4 font-bold">{t.colStatus}</th>
+                  <th className="px-5 py-4 font-bold">{t.colAction}</th>
                 </tr>
               </thead>
               <tbody>
@@ -485,7 +660,7 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                       colSpan={6}
                       className="px-5 py-10 text-center text-gray-400"
                     >
-                      لا توجد حسابات مطابقة.
+                      {t.emptyText}
                     </td>
                   </tr>
                 ) : (
@@ -505,14 +680,8 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-2 font-extrabold text-[#0a1122]">
                             <span>{user.name}</span>
-                            {user.role === "admin" && (
+                            {isStaffMember(user.role) && (
                               <ShieldCheck className="size-4 text-[#105C50]" />
-                            )}
-                            {isRowLoading && (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-[#105C50] px-2 py-0.5 text-[10px] font-bold text-white">
-                                <Loader2 className="size-3 animate-spin" />
-                                جاري الحفظ...
-                              </span>
                             )}
                           </div>
                           <div className="mt-0.5 text-xs text-gray-500">
@@ -520,7 +689,7 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                           </div>
                           <div
                             dir="ltr"
-                            className="text-right text-[11px] text-gray-400"
+                            className="text-start text-[11px] text-gray-400"
                           >
                             {user.phone}
                           </div>
@@ -530,17 +699,17 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                           <div className="flex flex-wrap gap-1.5">
                             {user.sellCount > 0 && (
                               <Badge className="bg-emerald-50 text-emerald-800">
-                                بائع ({user.sellCount} وحدة)
+                                {t.sellerBadge} ({user.sellCount} {t.unitWord})
                               </Badge>
                             )}
                             {user.buyCount > 0 && (
                               <Badge className="bg-blue-50 text-blue-800">
-                                مشتري ({user.buyCount} طلب)
+                                {t.buyerBadge} ({user.buyCount} {t.reqWord})
                               </Badge>
                             )}
                             {user.sellCount === 0 && user.buyCount === 0 && (
                               <span className="text-xs text-gray-400">
-                                حساب مسجل
+                                {t.registeredAcc}
                               </span>
                             )}
                           </div>
@@ -562,7 +731,7 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                             }}
                             className="h-9 rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-[#0a1122] focus:border-[#105C50] focus:outline-none disabled:opacity-50"
                           >
-                            {ROLE_OPTIONS.map((r) => (
+                            {roleOptions.map((r) => (
                               <option key={r.value} value={r.value}>
                                 {r.label}
                               </option>
@@ -570,8 +739,8 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                           </select>
                         </td>
 
-                        <td className="px-5 py-4 text-xs text-gray-500">
-                          {new Date(user.created_at).toLocaleDateString("ar-EG")}
+                        <td dir="ltr" className="px-5 py-4 text-start text-xs text-gray-500">
+                          {new Date(user.created_at).toLocaleDateString("en-GB")}
                         </td>
 
                         <td className="px-5 py-4">
@@ -583,11 +752,11 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                             }
                           >
                             {!isSuspended ? (
-                              <CheckCircle2 className="ml-1 size-3.5" />
+                              <CheckCircle2 className="me-1 size-3.5" />
                             ) : (
-                              <Ban className="ml-1 size-3.5" />
+                              <Ban className="me-1 size-3.5" />
                             )}
-                            {!isSuspended ? "نشط" : "موقوف"}
+                            {!isSuspended ? t.activeBadge : t.suspendedBadge}
                           </Badge>
                         </td>
 
@@ -610,7 +779,7 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                                   : "text-amber-700 hover:bg-amber-50"
                               }`}
                             >
-                              {isSuspended ? "تفعيل الحساب" : "إيقاف مؤقت"}
+                              {isSuspended ? t.activateBtn : t.suspendBtn}
                             </Button>
 
                             <button
@@ -623,7 +792,7 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                                 })
                               }
                               className="rounded-lg border border-gray-200 p-2 text-gray-400 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
-                              title="حذف الحساب نهائياً"
+                              title={t.deleteBtn}
                             >
                               <Trash2 className="size-3.5" />
                             </button>
@@ -639,14 +808,14 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
         </CardContent>
       </Card>
 
-      {/* ==================== نافذة التأكيد الموحدة لجميع عمليات المستخدم ==================== */}
+      {/* نافذة التأكيد الموحدة */}
       <Dialog
         open={Boolean(confirmState)}
         onOpenChange={(open) => {
           if (!open && !pending) setConfirmState(null)
         }}
       >
-        <DialogContent dir="rtl" className="max-w-md">
+        <DialogContent dir={dir} className="max-w-md text-start">
           {confirmState && (
             <>
               <DialogHeader>
@@ -668,59 +837,26 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                     )}
                   </span>
                   <DialogTitle className="text-base font-extrabold text-[#0a1122]">
-                    {confirmState.type === "role" && "تأكيد تغيير صلاحية الحساب"}
+                    {confirmState.type === "role" && t.confirmRoleTitle}
                     {confirmState.type === "status" &&
                       (confirmState.newStatus === "active"
-                        ? "تأكيد تفعيل الحساب"
-                        : "تأكيد إيقاف الحساب مؤقتاً")}
-                    {confirmState.type === "delete" && "تأكيد حذف الحساب نهائياً"}
+                        ? t.confirmActivateTitle
+                        : t.confirmSuspendTitle)}
+                    {confirmState.type === "delete" && t.confirmDeleteTitle}
                   </DialogTitle>
                 </div>
 
-                <DialogDescription className="text-right text-xs leading-relaxed text-gray-600">
+                <DialogDescription className="text-start text-xs leading-relaxed text-gray-600">
+                  <strong className="text-[#0a1122]">
+                    "{confirmState.user.name}"
+                  </strong>
                   {confirmState.type === "role" && (
                     <>
-                      هل أنت متأكد من تغيير صلاحية المستخدم{" "}
-                      <strong className="text-[#0a1122]">
-                        "{confirmState.user.name}"
-                      </strong>{" "}
-                      من{" "}
-                      <span className="font-bold">
-                        ({getRoleLabel(confirmState.user.role)})
-                      </span>{" "}
-                      إلى{" "}
+                      {" "}
+                      →{" "}
                       <span className="font-bold text-[#105C50]">
                         ({getRoleLabel(confirmState.newRole)})
                       </span>
-                      ؟
-                    </>
-                  )}
-
-                  {confirmState.type === "status" && (
-                    <>
-                      هل أنت متأكد من{" "}
-                      <strong className="text-[#0a1122]">
-                        {confirmState.newStatus === "active"
-                          ? "إعادة تفعيل"
-                          : "إيقاف"}
-                      </strong>{" "}
-                      حساب المستخدم{" "}
-                      <strong className="text-[#0a1122]">
-                        "{confirmState.user.name}"
-                      </strong>
-                      ؟
-                      {confirmState.newStatus === "suspended" &&
-                        " لن يتمكن هذا المستخدم من تسجيل الدخول لحين إعادة تفعيله."}
-                    </>
-                  )}
-
-                  {confirmState.type === "delete" && (
-                    <>
-                      هل أنت متأكد من حذف حساب{" "}
-                      <strong className="text-red-600">
-                        "{confirmState.user.name}"
-                      </strong>{" "}
-                      وجميع طلبات البيع والشراء المرتبطة به نهائياً؟ لا يمكن التراجع عن هذا الإجراء.
                     </>
                   )}
                 </DialogDescription>
@@ -734,7 +870,7 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                   onClick={() => setConfirmState(null)}
                   className="rounded-xl text-xs font-bold"
                 >
-                  إلغاء التغيير
+                  {t.cancelBtn}
                 </Button>
 
                 <Button
@@ -753,10 +889,10 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                   {pending ? (
                     <span className="flex items-center gap-1.5">
                       <Loader2 className="size-4 animate-spin" />
-                      جاري التنفيذ...
+                      {t.updatingText}
                     </span>
                   ) : (
-                    "نعم، تأكيد التنفيذ"
+                    t.confirmBtn
                   )}
                 </Button>
               </DialogFooter>
@@ -765,80 +901,90 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
         </DialogContent>
       </Dialog>
 
-      {/* ==================== نافذة إضافة أدمن أو مستخدم جديد ==================== */}
+      {/* نافذة إضافة عضو إدارة أو مستخدم جديد */}
       <Dialog open={openAddModal} onOpenChange={setOpenAddModal}>
-        <DialogContent dir="rtl" className="max-w-md">
+        <DialogContent dir={dir} className="max-w-md text-start">
           <DialogHeader>
             <DialogTitle className="font-extrabold">
-              إضافة عضو إدارة أو مستخدم جديد
+              {t.addModalTitle}
             </DialogTitle>
             <DialogDescription className="text-xs">
-              أضف مدير نظام أو مشرف مبيعات جديد ليتمكن من الدخول والمشاركة في الإدارة.
+              {t.addModalDesc}
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleCreateUser} className="mt-2 flex flex-col gap-4">
             <div>
-              <label className="mb-1.5 block text-xs font-bold">الاسم الكامل</label>
+              <label className="mb-1.5 block text-xs font-bold">
+                {t.fullNameLabel}
+              </label>
               <input
                 name="name"
                 required
-                placeholder="مثال: أحمد محمود"
+                maxLength={120}
                 className="h-10 w-full rounded-xl border border-gray-200 px-3 text-xs focus:border-[#105C50] focus:outline-none"
               />
             </div>
 
             <div>
               <label className="mb-1.5 block text-xs font-bold">
-                البريد الإلكتروني
+                {t.emailLabel}
               </label>
               <input
                 name="email"
                 type="email"
                 dir="ltr"
                 required
-                placeholder="admin@darak.com"
-                className="h-10 w-full rounded-xl border border-gray-200 px-3 text-left text-xs focus:border-[#105C50] focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-xs font-bold">رقم الهاتف</label>
-              <input
-                name="phone"
-                type="tel"
-                dir="ltr"
-                required
-                placeholder="010xxxxxxxx"
-                className="h-10 w-full rounded-xl border border-gray-200 px-3 text-left text-xs focus:border-[#105C50] focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-xs font-bold">كلمة المرور</label>
-              <input
-                name="password"
-                type="password"
-                dir="ltr"
-                required
-                minLength={8}
-                placeholder="8 أحرف على الأقل"
+                maxLength={160}
+                placeholder="staff@darak.com"
                 className="h-10 w-full rounded-xl border border-gray-200 px-3 text-left text-xs focus:border-[#105C50] focus:outline-none"
               />
             </div>
 
             <div>
               <label className="mb-1.5 block text-xs font-bold">
-                الصلاحية (الدور)
+                {t.phoneLabel}
+              </label>
+              <input
+                name="phone"
+                type="tel"
+                dir="ltr"
+                required
+                maxLength={25}
+                placeholder="010xxxxxxxx"
+                className="h-10 w-full rounded-xl border border-gray-200 px-3 text-left text-xs focus:border-[#105C50] focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-xs font-bold">
+                {t.passwordLabel}
+              </label>
+              <input
+                name="password"
+                type="password"
+                dir="ltr"
+                required
+                minLength={8}
+                maxLength={128}
+                className="h-10 w-full rounded-xl border border-gray-200 px-3 text-left text-xs focus:border-[#105C50] focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-xs font-bold">
+                {t.colRole}
               </label>
               <select
                 name="role"
-                defaultValue="admin"
+                defaultValue="sales"
                 className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold focus:border-[#105C50] focus:outline-none"
               >
-                <option value="admin">مدير نظام (صلاحية كاملة)</option>
-                <option value="moderator">مشرف مبيعات (متابعة الطلبات)</option>
-                <option value="user">عميل عادي</option>
+                {roleOptions.map((r) => (
+                  <option key={r.value} value={r.value}>
+                    {r.label}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -849,7 +995,7 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                 disabled={pending}
                 onClick={() => setOpenAddModal(false)}
               >
-                إلغاء
+                {t.cancelBtn}
               </Button>
               <Button
                 type="submit"
@@ -859,10 +1005,10 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                 {pending ? (
                   <span className="flex items-center gap-1.5">
                     <Loader2 className="size-4 animate-spin" />
-                    جاري الإنشاء...
+                    {t.updatingText}
                   </span>
                 ) : (
-                  "إنشاء الحساب الآن"
+                  t.createNowBtn
                 )}
               </Button>
             </DialogFooter>

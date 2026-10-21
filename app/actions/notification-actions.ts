@@ -3,7 +3,7 @@
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 import { revalidatePath } from "next/cache"
-
+import { extractUserIdFromCookie } from '@/lib/session-security'
 async function getSupabase() {
   const cookieStore = await cookies()
   return createServerClient(

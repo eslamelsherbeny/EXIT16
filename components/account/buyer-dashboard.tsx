@@ -26,8 +26,16 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import {
+  formatAmount,
+  getCurrencyByCountry,
+  unitTypes as sharedUnitTypes,
+} from '@/components/seller/seller-shared'
 import { AccountActionLinks } from './delete-account-modal'
 import type { SellerUnitItem } from './seller-dashboard'
+import arDict from '@/dictionaries/ar.json'
+
+const t = arDict.accountComponents.buyer
 
 export type BuyerRequestItem = {
   id: string
@@ -44,81 +52,7 @@ export type BuyerRequestItem = {
   notify_featured?: boolean | null
 }
 
-const POPULAR_AREAS = [
-  'التجمع الخامس',
-  'القاهرة الجديدة',
-  'المستقبل سيتي',
-  'العاصمة الإدارية',
-  'الشيخ زايد',
-  '6 أكتوبر',
-  'مدينتي',
-  'الرحاب',
-  'الساحل الشمالي',
-  'رأس الحكمة',
-  'الشروق',
-  'العين السخنة',
-]
-
-const buyerFilterPills = [
-  'منطقتك',
-  'الكاش المتاح',
-  'أقصى قسط',
-  'ميزانيتك',
-  'نوع الوحدة',
-  'عدد الغرف',
-  'الاستلام',
-]
-
-const unitTypesList = [
-  'شقة',
-  'دوبلكس',
-  'بنتهاوس',
-  'تاون هاوس',
-  'توين هاوس',
-  'اي فيلا',
-  'فيلا',
-  'شاليه',
-  'مكتب',
-  'محل',
-  'عيادة',
-  'أرض',
-]
-
-const deliveryStatuses = ['الكل', 'جاهزة', 'تحت الإنشاء']
-const deliveryYears = [
-  'الكل',
-  'حتى 2026',
-  'حتى 2027',
-  'حتى 2028',
-  'حتى 2029',
-  'حتى 2030',
-  'حتى 2031',
-]
-const contractYears = [
-  'الكل',
-  '2025 أو أقدم',
-  '2024 أو أقدم',
-  '2023 أو أقدم',
-  '2022 أو أقدم',
-  '2021 أو أقدم',
-  '2020 أو أقدم',
-]
-const roomOptions = ['الكل', '+1', '+2', '+3', '+4', '+5']
-const sorts = [
-  'الأحدث',
-  'الفرص المميزة ⭐',
-  'الأقل كاش',
-  'أقل قسط',
-  'الأكبر مكسب',
-  'الأقرب للاستلام',
-  'جاهزة للنقل',
-  'الأكثر طلبًا',
-  'الأكثر حفظًا',
-  'الأكثر زيارة',
-]
-
 const FAVORITES_STORAGE_KEY = 'darak_favorites'
-// مضاعفات الرقم 6 لتكتمل الصفوف دائماً على الموبايل (عمودين) والكمبيوتر (3 أعمدة)
 const PREFERRED_PAGE_SIZE = 18
 const OTHER_AREAS_PREVIEW_SIZE = 6
 
@@ -132,17 +66,8 @@ function calcMonthlyInstallment(amount: number, freq: string | null) {
   return amount
 }
 
-function formatMoneyHelper(val: number) {
-  if (!val) return ''
-  if (val >= 1_000_000)
-    return `${(val / 1_000_000).toFixed(2).replace(/\.00$/, '')} مليون ج.م`
-  if (val >= 1_000) return `${Math.round(val / 1_000)} ألف ج.م`
-  return `${val.toLocaleString('en-US')} ج.م`
-}
-
-// تنظيف اسم المنطقة تلقائياً إذا كان الطلب قادماً من نموذج حجز وحدة محددة
 function extractCleanAreas(areas: string[] | null | undefined): string[] {
-  if (!Array.isArray(areas) || areas.length === 0) return ['التجمع الخامس']
+  if (!Array.isArray(areas) || areas.length === 0) return [t.popularAreas[0]]
   const cleaned = areas
     .map((a) => {
       if (a.includes(' - ')) {
@@ -151,14 +76,12 @@ function extractCleanAreas(areas: string[] | null | undefined): string[] {
       }
       return a
         .replace(/🎯/g, '')
-        .replace(/حجز وحدة:/g, '')
-        .replace(/مهتم بوحدة:/g, '')
         .replace(/\(U-[^)]+\)/gi, '')
         .trim()
     })
     .filter(Boolean)
 
-  return cleaned.length > 0 ? Array.from(new Set(cleaned)) : ['التجمع الخامس']
+  return cleaned.length > 0 ? Array.from(new Set(cleaned)) : [t.popularAreas[0]]
 }
 
 export function BuyerDashboard({
@@ -170,17 +93,13 @@ export function BuyerDashboard({
   marketUnits: SellerUnitItem[]
   deletionRequested?: boolean
 }) {
-  // التبديل بين شاشة الفرص وشاشة "عدّل ميزانيتك"
   const [isEditingBudget, setIsEditingBudget] = useState(false)
   const [confirmSaveOpen, setConfirmSaveOpen] = useState(false)
   const [savedToast, setSavedToast] = useState(false)
   const [isPending, startTransition] = useTransition()
 
-  // عرض 18 وحدة في منطقتك (مع Pagination) + 6 وحدات في المناطق الأخرى (مع زر عرض الكل بجانب العنوان)
   const [visibleCount, setVisibleCount] = useState(PREFERRED_PAGE_SIZE)
   const [showAllOtherAreas, setShowAllOtherAreas] = useState(false)
-
-  // المفضلة (القلب)
   const [favoriteIds, setFavoriteIds] = useState<string[]>([])
 
   useEffect(() => {
@@ -207,7 +126,6 @@ export function BuyerDashboard({
     })
   }
 
-  // بيانات الميزانية القابلة للتعديل
   const [bCash, setBCash] = useState<number>(
     Number(buyReq?.available_cash || buyReq?.budget || 3000000)
   )
@@ -215,9 +133,7 @@ export function BuyerDashboard({
     Number(buyReq?.max_installment || 100000)
   )
   const [bPlan, setBPlan] = useState<string>(
-    buyReq?.payment_plan && !buyReq.payment_plan.includes('مهتم')
-      ? buyReq.payment_plan
-      : 'شهري'
+    buyReq?.payment_plan || t.paymentPlans[0]
   )
   const [bBudget, setBBudget] = useState<number>(
     Number(buyReq?.budget || 3500000)
@@ -225,11 +141,11 @@ export function BuyerDashboard({
   const [bTypes, setBTypes] = useState<string[]>(
     Array.isArray(buyReq?.unit_types) && buyReq.unit_types.length > 0
       ? buyReq.unit_types
-      : ['شقة']
+      : [sharedUnitTypes[0]]
   )
   const [bRooms, setBRooms] = useState<number>(Number(buyReq?.min_rooms || 3))
   const [bDelivery, setBDelivery] = useState<string>(
-    buyReq?.delivery_status || 'جاهزة للاستلام'
+    buyReq?.delivery_status || t.deliveryPreferences[0]
   )
   const [bAreas, setBAreas] = useState<string[]>(() =>
     extractCleanAreas(buyReq?.preferred_areas)
@@ -242,22 +158,21 @@ export function BuyerDashboard({
     buyReq?.notify_featured ?? true
   )
 
-  // حالات الفلاتر في صفحة الفرص
   const [activePills, setActivePills] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [filterPanelOpen, setFilterPanelOpen] = useState(false)
   const [onlyNegotiable, setOnlyNegotiable] = useState(false)
-  const [sortBy, setSortBy] = useState('الأحدث')
+  const [sortBy, setSortBy] = useState(t.sorts[0])
 
   const [areaFilter, setAreaFilter] = useState('')
   const [maxCashFilter, setMaxCashFilter] = useState('')
   const [maxInstFilter, setMaxInstFilter] = useState('')
   const [maxContractFilter, setMaxContractFilter] = useState('')
   const [selectedTypes, setSelectedTypes] = useState<string[]>([])
-  const [delStatusFilter, setDelStatusFilter] = useState('الكل')
-  const [delYearFilter, setDelYearFilter] = useState('الكل')
-  const [conYearFilter, setConYearFilter] = useState('الكل')
-  const [minRoomsFilter, setMinRoomsFilter] = useState('الكل')
+  const [delStatusFilter, setDelStatusFilter] = useState(t.deliveryStatuses[0])
+  const [delYearFilter, setDelYearFilter] = useState(t.deliveryYears[0])
+  const [conYearFilter, setConYearFilter] = useState(t.contractYears[0])
+  const [minRoomsFilter, setMinRoomsFilter] = useState(t.roomOptions[0])
 
   useEffect(() => {
     setVisibleCount(PREFERRED_PAGE_SIZE)
@@ -304,9 +219,11 @@ export function BuyerDashboard({
     )
   }
 
-  const toggleFilterType = (t: string) => {
+  const toggleFilterType = (typeVal: string) => {
     setSelectedTypes((prev) =>
-      prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]
+      prev.includes(typeVal)
+        ? prev.filter((x) => x !== typeVal)
+        : [...prev, typeVal]
     )
   }
 
@@ -319,13 +236,12 @@ export function BuyerDashboard({
     setMaxInstFilter('')
     setMaxContractFilter('')
     setSelectedTypes([])
-    setDelStatusFilter('الكل')
-    setDelYearFilter('الكل')
-    setConYearFilter('الكل')
-    setMinRoomsFilter('الكل')
+    setDelStatusFilter(t.deliveryStatuses[0])
+    setDelYearFilter(t.deliveryYears[0])
+    setConYearFilter(t.contractYears[0])
+    setMinRoomsFilter(t.roomOptions[0])
   }
 
-  // تجهيز الوحدات من الداتابيز مع حساب شارات التطابق لكل وحدة
   const mappedUnits = useMemo(() => {
     const buyerMaxMonthly = calcMonthlyInstallment(bInstallment, bPlan)
 
@@ -341,18 +257,16 @@ export function BuyerDashboard({
       )
 
       const rawDel = String(u.delivery_status || '')
-      const isReady =
-        rawDel.includes('جاهز') ||
-        rawDel.includes('فوري') ||
-        rawDel.includes('مستلم')
-      const deliveryStatus: 'جاهزة' | 'تحت الإنشاء' = isReady
-        ? 'جاهزة'
-        : 'تحت الإنشاء'
+      const isReady = rawDel.includes(t.deliveryStatuses[1])
+      const deliveryStatus = isReady
+        ? t.deliveryStatuses[1]
+        : t.deliveryStatuses[2]
       const yearMatch = rawDel.match(/20\d{2}/)
       const deliveryYear = yearMatch ? Number(yearMatch[0]) : 2027
 
-      const unitArea = u.area || 'التجمع الخامس'
-      const unitType = u.unit_type || 'شقة'
+      const unitArea = u.area || t.popularAreas[0]
+      const unitType = u.unit_type || sharedUnitTypes[0]
+      const currency = getCurrencyByCountry(u.country_code || 'EG')
 
       const matchTags: string[] = []
       const isCashMatch = bCash === 0 || paid <= bCash * 1.15
@@ -365,17 +279,17 @@ export function BuyerDashboard({
         bAreas.some((a) => unitArea.includes(a) || a.includes(unitArea))
       const isTypeMatch =
         bTypes.length === 0 ||
-        bTypes.some((t) => unitType.includes(t) || t.includes(unitType))
+        bTypes.some((tp) => unitType.includes(tp) || tp.includes(unitType))
 
-      if (isCashMatch) matchTags.push('الكاش في ميزانيتك')
-      if (isInstMatch) matchTags.push('القسط مناسب')
-      if (isAreaMatch) matchTags.push('في المنطقة اللي عايزها')
-      else if (isTypeMatch) matchTags.push('نفس نوع الوحدة')
+      if (isCashMatch) matchTags.push(t.tagCashMatch)
+      if (isInstMatch) matchTags.push(t.tagInstMatch)
+      if (isAreaMatch) matchTags.push(t.tagAreaMatch)
+      else if (isTypeMatch) matchTags.push(t.tagTypeMatch)
 
       return {
         id: String(u.id),
-        title: u.project_name || 'وحدة سكنية معتمدة',
-        subtitle: `${u.developer_name || 'مطور عقاري'} · ${unitArea} · ${unitType}`,
+        title: u.project_name || t.defaultUnitTitle,
+        subtitle: `${u.developer_name || t.defaultDeveloper} · ${unitArea} · ${unitType}`,
         area: unitArea,
         type: unitType,
         rooms: Number(u.rooms) || 3,
@@ -386,6 +300,7 @@ export function BuyerDashboard({
         marketStr: market.toLocaleString('en-US'),
         gainNum: gainVal,
         gainStr: gainVal > 0 ? `+ ${gainVal.toLocaleString('en-US')}` : '',
+        currency,
         monthlyInst: unitMonthly,
         negotiable: Boolean(u.willing_to_discount),
         deliveryStatus,
@@ -402,7 +317,6 @@ export function BuyerDashboard({
     })
   }, [marketUnits, bCash, bInstallment, bPlan, bAreas, bTypes])
 
-  // تطبيق الفلاتر
   const filteredUnits = useMemo(() => {
     const maxCashVal = Number(maxCashFilter.replace(/,/g, ''))
     const maxInstVal = Number(maxInstFilter.replace(/,/g, ''))
@@ -426,20 +340,20 @@ export function BuyerDashboard({
         return false
       }
       if (
-        delStatusFilter !== 'الكل' &&
+        delStatusFilter !== t.deliveryStatuses[0] &&
         item.deliveryStatus !== delStatusFilter
       ) {
         return false
       }
-      if (delYearFilter !== 'الكل') {
+      if (delYearFilter !== t.deliveryYears[0]) {
         const y = Number(delYearFilter.replace(/[^0-9]/g, ''))
         if (y && item.deliveryYear > y) return false
       }
-      if (conYearFilter !== 'الكل') {
+      if (conYearFilter !== t.contractYears[0]) {
         const y = Number(conYearFilter.replace(/[^0-9]/g, ''))
         if (y && item.contractYear > y) return false
       }
-      if (minRoomsFilter !== 'الكل') {
+      if (minRoomsFilter !== t.roomOptions[0]) {
         const r = Number(minRoomsFilter.replace('+', ''))
         if (item.rooms < r) return false
       }
@@ -447,36 +361,39 @@ export function BuyerDashboard({
       if (maxInstVal > 0 && item.monthlyInst > maxInstVal) return false
       if (maxConVal > 0 && item.contractNum > maxConVal) return false
 
-      // فلاتر الأزرار السريعة (فلتر بطلبك)
-      if (activePills.includes('منطقتك') && !item.isAreaMatch) return false
-      if (activePills.includes('الكاش المتاح') && !item.isCashMatch)
+      if (activePills.includes(t.filterPills[0]) && !item.isAreaMatch)
         return false
-      if (activePills.includes('أقصى قسط') && !item.isInstMatch) return false
+      if (activePills.includes(t.filterPills[1]) && !item.isCashMatch)
+        return false
+      if (activePills.includes(t.filterPills[2]) && !item.isInstMatch)
+        return false
       if (
-        activePills.includes('ميزانيتك') &&
+        activePills.includes(t.filterPills[3]) &&
         bBudget > 0 &&
         item.contractNum > bBudget * 1.15
       )
         return false
-      if (activePills.includes('نوع الوحدة') && !item.isTypeMatch) return false
-      if (activePills.includes('عدد الغرف') && item.rooms < bRooms)
+      if (activePills.includes(t.filterPills[4]) && !item.isTypeMatch)
         return false
-      if (activePills.includes('الاستلام')) {
-        const wantReady = bDelivery.includes('جاهز')
-        if (wantReady && item.deliveryStatus !== 'جاهزة') return false
+      if (activePills.includes(t.filterPills[5]) && item.rooms < bRooms)
+        return false
+      if (activePills.includes(t.filterPills[6])) {
+        const wantReady = bDelivery === t.deliveryPreferences[0]
+        if (wantReady && item.deliveryStatus !== t.deliveryStatuses[1])
+          return false
       }
 
       return true
     })
 
     return [...list].sort((a, b) => {
-      if (sortBy === 'الأقل كاش') return a.cashNum - b.cashNum
-      if (sortBy === 'أقل قسط') return a.monthlyInst - b.monthlyInst
-      if (sortBy === 'الأكبر مكسب' || sortBy === 'الفرص المميزة ⭐')
+      if (sortBy === t.sorts[2]) return a.cashNum - b.cashNum
+      if (sortBy === t.sorts[3]) return a.monthlyInst - b.monthlyInst
+      if (sortBy === t.sorts[4] || sortBy === t.sorts[1])
         return b.gainNum - a.gainNum
-      if (sortBy === 'الأقرب للاستلام') return a.deliveryYear - b.deliveryYear
-      if (sortBy === 'جاهزة للنقل')
-        return a.deliveryStatus === 'جاهزة' ? -1 : 1
+      if (sortBy === t.sorts[5]) return a.deliveryYear - b.deliveryYear
+      if (sortBy === t.sorts[6])
+        return a.deliveryStatus === t.deliveryStatuses[1] ? -1 : 1
       return 0
     })
   }, [
@@ -506,10 +423,10 @@ export function BuyerDashboard({
     if (maxCashFilter.trim()) c++
     if (maxInstFilter.trim()) c++
     if (maxContractFilter.trim()) c++
-    if (delStatusFilter !== 'الكل') c++
-    if (delYearFilter !== 'الكل') c++
-    if (conYearFilter !== 'الكل') c++
-    if (minRoomsFilter !== 'الكل') c++
+    if (delStatusFilter !== t.deliveryStatuses[0]) c++
+    if (delYearFilter !== t.deliveryYears[0]) c++
+    if (conYearFilter !== t.contractYears[0]) c++
+    if (minRoomsFilter !== t.roomOptions[0]) c++
     return c
   }, [
     activePills,
@@ -525,7 +442,6 @@ export function BuyerDashboard({
     minRoomsFilter,
   ])
 
-  // تقسيم الوحدات إلى (وحدات في منطقتك المطلوبة) و (وحدات أخرى مناسبة لميزانيتك)
   const unitsInPreferredArea = filteredUnits.filter((u) => u.isAreaMatch)
   const unitsInOtherAreas = filteredUnits.filter((u) => !u.isAreaMatch)
 
@@ -561,37 +477,34 @@ export function BuyerDashboard({
     })
   }
 
-  // ==================== الشاشة الفرعية: "عدّل ميزانيتك" (بنفس تصميمها الأصلي + زر الرجوع وإضافة المناطق والتأكيد) ====================
   if (isEditingBudget) {
     return (
       <div className="mx-auto max-w-[660px] px-4 py-4 sm:px-6">
-        {/* زر الرجوع في أعلى الشاشة */}
         <div className="mb-5 flex items-center justify-start">
           <button
             type="button"
             onClick={() => setIsEditingBudget(false)}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-extrabold text-[#0a1122] shadow-2xs transition hover:border-[#0b6954] hover:text-[#0b6954]"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-extrabold text-[var(--brand-navy,#0a1122)] shadow-2xs transition hover:border-[var(--brand-primary,#007a5a)] hover:text-[var(--brand-primary,#007a5a)]"
           >
             <ArrowRight className="size-4" />
-            <span>رجوع للفرص</span>
+            <span>{t.backToOpportunitiesBtn}</span>
           </button>
         </div>
 
         <header className="mb-8 text-center">
-          <h1 className="text-2xl font-black text-[#0a1122] sm:text-3xl">
-            قدرتك الشرائية وتفضيلاتك
+          <h1 className="text-2xl font-black text-[var(--brand-navy,#0a1122)] sm:text-3xl">
+            {t.editHeaderTitle}
           </h1>
           <p className="mt-2 text-xs text-slate-500 sm:text-sm">
-            كل ما تدّينا تفاصيل أكتر، كل ما نرشّح لك وحدات أقرب لطلبك.
+            {t.editHeaderSub}
           </p>
         </header>
 
         <form onSubmit={handleFormSubmit} className="space-y-6">
           <div className="space-y-6 rounded-[22px] border border-gray-200/80 bg-white p-6 text-right shadow-xs sm:p-8">
-            {/* الكاش المتاح */}
             <div>
-              <label className="mb-2 block text-xs font-bold text-[#0a1122]">
-                الكاش المتاح دلوقتي <span className="text-red-500">*</span>
+              <label className="mb-2 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
+                {t.availableCashLabel} <span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <input
@@ -602,24 +515,20 @@ export function BuyerDashboard({
                   onChange={(e) =>
                     setBCash(Number(e.target.value.replace(/[^0-9]/g, '')) || 0)
                   }
-                  className="h-12 w-full rounded-xl border border-gray-200 pr-4 pl-12 text-left text-sm font-bold text-[#0a1122] focus:border-[#0b6954] focus:outline-none"
+                  className="h-12 w-full rounded-xl border border-gray-200 pr-4 pl-12 text-left text-sm font-bold text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none"
                 />
-                <span className="absolute top-3.5 right-3.5 text-xs text-gray-400">
-                  ج.م
-                </span>
               </div>
-              <p className="mt-1.5 text-xs font-bold text-[#0b6954]">
-                {formatMoneyHelper(bCash)}
+              <p className="mt-1.5 text-xs font-bold text-[var(--brand-primary,#007a5a)]">
+                {formatAmount(String(bCash))}
               </p>
               <p className="mt-0.5 text-[11px] text-gray-400">
-                المبلغ اللي تقدر تدفعه فوراً لصاحب الوحدة
+                {t.availableCashHelper}
               </p>
             </div>
 
-            {/* أقصى قسط يريحك */}
             <div>
-              <label className="mb-2 block text-xs font-bold text-[#0a1122]">
-                أقصى قسط يريحك <span className="text-red-500">*</span>
+              <label className="mb-2 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
+                {t.maxInstallmentLabel} <span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <input
@@ -634,50 +543,43 @@ export function BuyerDashboard({
                       Number(e.target.value.replace(/[^0-9]/g, '')) || 0
                     )
                   }
-                  className="h-12 w-full rounded-xl border border-gray-200 pr-4 pl-12 text-left text-sm font-bold text-[#0a1122] focus:border-[#0b6954] focus:outline-none"
+                  className="h-12 w-full rounded-xl border border-gray-200 pr-4 pl-12 text-left text-sm font-bold text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none"
                 />
-                <span className="absolute top-3.5 right-3.5 text-xs text-gray-400">
-                  ج.م
-                </span>
               </div>
-              <p className="mt-1.5 text-xs font-bold text-[#0b6954]">
-                {formatMoneyHelper(bInstallment)}
+              <p className="mt-1.5 text-xs font-bold text-[var(--brand-primary,#007a5a)]">
+                {formatAmount(String(bInstallment))}
               </p>
             </div>
 
-            {/* نظام القسط */}
             <div>
-              <label className="mb-2.5 block text-xs font-bold text-[#0a1122]">
-                نظام القسط
+              <label className="mb-2.5 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
+                {t.paymentPlanLabel}
               </label>
               <div className="space-y-2">
-                {['شهري', 'ربع سنوي (كل 3 شهور)', 'نصف سنوي', 'سنوي'].map(
-                  (plan) => (
-                    <label
-                      key={plan}
-                      className={`flex cursor-pointer items-center justify-between rounded-xl border px-4 py-3 text-xs font-bold transition ${
-                        bPlan === plan
-                          ? 'border-[#0b6954] bg-[#eff9f5] text-[#0b6954]'
-                          : 'border-gray-200 bg-white text-gray-700'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        checked={bPlan === plan}
-                        onChange={() => setBPlan(plan)}
-                        className="accent-[#0b6954]"
-                      />
-                      <span>{plan}</span>
-                    </label>
-                  )
-                )}
+                {t.paymentPlans.map((plan) => (
+                  <label
+                    key={plan}
+                    className={`flex cursor-pointer items-center justify-between rounded-xl border px-4 py-3 text-xs font-bold transition ${
+                      bPlan === plan
+                        ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]'
+                        : 'border-gray-200 bg-white text-gray-700'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      checked={bPlan === plan}
+                      onChange={() => setBPlan(plan)}
+                      className="accent-[var(--brand-primary,#007a5a)]"
+                    />
+                    <span>{plan}</span>
+                  </label>
+                ))}
               </div>
             </div>
 
-            {/* سعر التعاقد المستهدف */}
             <div>
-              <label className="mb-2 block text-xs font-bold text-[#0a1122]">
-                سعر التعاقد المستهدف (الميزانية)
+              <label className="mb-2 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
+                {t.targetBudgetLabel}
               </label>
               <div className="relative">
                 <input
@@ -690,56 +592,51 @@ export function BuyerDashboard({
                       Number(e.target.value.replace(/[^0-9]/g, '')) || 0
                     )
                   }
-                  className="h-12 w-full rounded-xl border border-gray-200 pr-4 pl-12 text-left text-sm font-bold text-[#0a1122] focus:border-[#0b6954] focus:outline-none"
+                  className="h-12 w-full rounded-xl border border-gray-200 pr-4 pl-12 text-left text-sm font-bold text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none"
                 />
-                <span className="absolute top-3.5 right-3.5 text-xs text-gray-400">
-                  ج.م
-                </span>
               </div>
-              <p className="mt-1.5 text-xs font-bold text-[#0b6954]">
-                {formatMoneyHelper(bBudget)}
+              <p className="mt-1.5 text-xs font-bold text-[var(--brand-primary,#007a5a)]">
+                {formatAmount(String(bBudget))}
               </p>
               <p className="mt-0.5 text-[11px] text-gray-400">
-                أقصى سعر تعاقد أصلي مستعد توصله — بنرشّح لك في حدوده
+                {t.targetBudgetHelper}
               </p>
             </div>
 
-            {/* نوع الوحدة */}
             <div>
-              <label className="mb-2.5 block text-xs font-bold text-[#0a1122]">
-                نوع الوحدة اللي بتدوّر عليها
+              <label className="mb-2.5 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
+                {t.unitTypeLabel}
               </label>
               <div className="flex flex-wrap gap-2">
-                {unitTypesList.map((t) => {
-                  const active = bTypes.includes(t)
+                {sharedUnitTypes.map((typeItem) => {
+                  const active = bTypes.includes(typeItem)
                   return (
                     <button
-                      key={t}
+                      key={typeItem}
                       type="button"
                       onClick={() =>
                         setBTypes((prev) =>
-                          prev.includes(t)
-                            ? prev.filter((x) => x !== t)
-                            : [...prev, t]
+                          prev.includes(typeItem)
+                            ? prev.filter((x) => x !== typeItem)
+                            : [...prev, typeItem]
                         )
                       }
                       className={`rounded-full border px-3.5 py-1.5 text-xs font-bold transition ${
                         active
-                          ? 'border-[#0b6954] bg-[#eff9f5] text-[#0b6954]'
+                          ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]'
                           : 'border-gray-200 bg-white text-gray-600'
                       }`}
                     >
-                      {active ? `✓ ${t}` : t}
+                      {active ? `✓ ${typeItem}` : typeItem}
                     </button>
                   )
                 })}
               </div>
             </div>
 
-            {/* أقل عدد غرف */}
             <div>
-              <label className="mb-2 block text-xs font-bold text-[#0a1122]">
-                أقل عدد غرف
+              <label className="mb-2 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
+                {t.minRoomsLabel}
               </label>
               <div className="flex items-center gap-2">
                 <input
@@ -748,26 +645,25 @@ export function BuyerDashboard({
                   max={10}
                   value={bRooms}
                   onChange={(e) => setBRooms(Number(e.target.value) || 0)}
-                  className="h-11 w-28 rounded-xl border border-gray-200 text-center text-sm font-bold text-[#0a1122]"
+                  className="h-11 w-28 rounded-xl border border-gray-200 text-center text-sm font-bold text-[var(--brand-navy,#0a1122)]"
                 />
-                <span className="text-xs text-gray-500">غرفة</span>
+                <span className="text-xs text-gray-500">{t.roomWord}</span>
               </div>
             </div>
 
-            {/* الاستلام */}
             <div>
-              <label className="mb-2 block text-xs font-bold text-[#0a1122]">
-                الاستلام
+              <label className="mb-2 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
+                {t.deliveryLabel}
               </label>
               <div className="flex gap-2">
-                {['جاهزة للاستلام', 'تحت الإنشاء'].map((st) => (
+                {t.deliveryPreferences.map((st) => (
                   <button
                     key={st}
                     type="button"
                     onClick={() => setBDelivery(st)}
                     className={`rounded-full border px-4 py-2 text-xs font-bold transition ${
                       bDelivery === st
-                        ? 'border-[#0b6954] bg-[#eff9f5] text-[#0b6954]'
+                        ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]'
                         : 'border-gray-200 bg-white text-gray-600'
                     }`}
                   >
@@ -777,18 +673,16 @@ export function BuyerDashboard({
               </div>
             </div>
 
-            {/* المناطق اللي تهمك (اختيار أو كتابة أكثر من منطقة بسهولة) */}
             <div>
-              <label className="mb-2 block text-xs font-bold text-[#0a1122]">
-                المناطق اللي تهمك (تقدر تضيف أكتر من منطقة)
+              <label className="mb-2 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
+                {t.preferredAreasLabel}
               </label>
 
-              {/* المناطق المختارة */}
               <div className="mb-2.5 flex flex-wrap gap-1.5">
                 {bAreas.map((ar) => (
                   <span
                     key={ar}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-[#eff9f5] px-3 py-1 text-xs font-bold text-[#0b6954]"
+                    className="inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-primary-light,#eaf8f2)] px-3 py-1 text-xs font-bold text-[var(--brand-primary,#007a5a)]"
                   >
                     <span>{ar}</span>
                     {bAreas.length > 1 && (
@@ -805,7 +699,6 @@ export function BuyerDashboard({
                 ))}
               </div>
 
-              {/* حقل الكتابة + زر إضافة */}
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -817,22 +710,21 @@ export function BuyerDashboard({
                       addCustomArea()
                     }
                   }}
-                  placeholder="اكتب اسم منطقة... أو اختار من تحت"
-                  className="h-11 flex-1 rounded-xl border border-gray-200 px-3.5 text-xs focus:border-[#0b6954] focus:outline-none"
+                  placeholder={t.areaInputPlaceholder}
+                  className="h-11 flex-1 rounded-xl border border-gray-200 px-3.5 text-xs focus:border-[var(--brand-primary,#007a5a)] focus:outline-none"
                 />
                 <button
                   type="button"
                   onClick={addCustomArea}
-                  className="inline-flex h-11 shrink-0 items-center gap-1 rounded-xl bg-[#0a1122] px-4 text-xs font-bold text-white transition hover:bg-[#16223f]"
+                  className="inline-flex h-11 shrink-0 items-center gap-1 rounded-xl bg-[var(--brand-navy,#0a1122)] px-4 text-xs font-bold text-white transition hover:bg-[var(--brand-navy-hover,#16223f)]"
                 >
                   <Plus className="size-3.5" />
-                  <span>إضافة</span>
+                  <span>{t.addAreaBtn}</span>
                 </button>
               </div>
 
-              {/* اقتراحات سريعة لأشهر المناطق */}
               <div className="mt-2.5 flex flex-wrap gap-1.5">
-                {POPULAR_AREAS.map((areaName) => {
+                {t.popularAreas.map((areaName) => {
                   const isAdded = bAreas.includes(areaName)
                   return (
                     <button
@@ -841,7 +733,7 @@ export function BuyerDashboard({
                       onClick={() => togglePopularArea(areaName)}
                       className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition ${
                         isAdded
-                          ? 'border-[#0b6954] bg-[#0b6954] text-white'
+                          ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary,#007a5a)] text-white'
                           : 'border-gray-200 bg-gray-50 text-gray-600 hover:border-gray-300'
                       }`}
                     >
@@ -855,30 +747,33 @@ export function BuyerDashboard({
             <button
               type="submit"
               disabled={isPending}
-              className="h-12 w-full rounded-xl bg-[#0b6954] text-sm font-bold text-white transition hover:bg-[#095443]"
+              className="h-12 w-full rounded-xl bg-[var(--brand-primary,#007a5a)] text-sm font-bold text-white transition hover:bg-[var(--brand-primary-hover,#006248)]"
             >
-              {isPending ? 'جاري الحفظ...' : 'احفظ وشوف الفرص'}
+              {isPending ? t.savingBtn : t.saveAndViewBtn}
             </button>
           </div>
 
-          {/* كارت إعدادات الإشعارات الأصلي */}
           <div className="rounded-[22px] border border-gray-200/80 bg-white p-6 text-right shadow-xs sm:p-7">
-            <h3 className="text-sm font-black text-[#0a1122]">الإشعارات</h3>
+            <h3 className="text-sm font-black text-[var(--brand-navy,#0a1122)]">
+              {t.notificationsTitle}
+            </h3>
             <div className="mt-4 space-y-4">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-xs font-bold text-[#0a1122]">
-                    وحدات جديدة مطابقة لطلبك
+                  <p className="text-xs font-bold text-[var(--brand-navy,#0a1122)]">
+                    {t.notifyExactTitle}
                   </p>
                   <p className="mt-0.5 text-[11px] text-gray-400">
-                    نبلغك لما وحدة جديدة تنزل وتناسب طلبك — 3 في اليوم بالكتير.
+                    {t.notifyExactSub}
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setNotifyExact(!notifyExact)}
                   className={`relative h-6 w-11 shrink-0 rounded-full transition ${
-                    notifyExact ? 'bg-[#0b6954]' : 'bg-gray-300'
+                    notifyExact
+                      ? 'bg-[var(--brand-primary,#007a5a)]'
+                      : 'bg-gray-300'
                   }`}
                 >
                   <span
@@ -891,19 +786,20 @@ export function BuyerDashboard({
 
               <div className="flex items-center justify-between gap-4 border-t border-gray-100 pt-4">
                 <div>
-                  <p className="text-xs font-bold text-[#0a1122]">
-                    وحدات مميزة ممكن تناسبك
+                  <p className="text-xs font-bold text-[var(--brand-navy,#0a1122)]">
+                    {t.notifyFeaturedTitle}
                   </p>
                   <p className="mt-0.5 text-[11px] text-gray-400">
-                    إعلانات لوحدات مميزة قريبة من طلبك — مرة في اليوم بالكتير و3
-                    في الأسبوع.
+                    {t.notifyFeaturedSub}
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setNotifyFeatured(!notifyFeatured)}
                   className={`relative h-6 w-11 shrink-0 rounded-full transition ${
-                    notifyFeatured ? 'bg-[#0b6954]' : 'bg-gray-300'
+                    notifyFeatured
+                      ? 'bg-[var(--brand-primary,#007a5a)]'
+                      : 'bg-gray-300'
                   }`}
                 >
                   <span
@@ -917,7 +813,6 @@ export function BuyerDashboard({
           </div>
         </form>
 
-        {/* نافذة التأكيد الملمومة قبل حفظ الميزانية */}
         <Dialog open={confirmSaveOpen} onOpenChange={setConfirmSaveOpen}>
           <DialogContent
             dir="rtl"
@@ -925,16 +820,16 @@ export function BuyerDashboard({
           >
             <DialogHeader className="text-right">
               <div className="mb-2 flex items-center gap-2.5">
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-[#0b6954]">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-[var(--brand-primary,#007a5a)]">
                   <ShieldAlert className="size-4" />
                 </span>
-                <DialogTitle className="text-sm font-extrabold text-[#0a1122] sm:text-base">
-                  تأكيد حفظ التعديلات
+                <DialogTitle className="text-sm font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-base">
+                  {t.confirmModalTitle}
                 </DialogTitle>
               </div>
               <DialogDescription className="text-right text-xs leading-relaxed text-gray-600">
-                هل أنت متأكد من حفظ قدرتك الشرائية ومناطقك المفضلة{' '}
-                <strong className="text-[#0b6954]">
+                {t.confirmModalDesc}{' '}
+                <strong className="text-[var(--brand-primary,#007a5a)]">
                   ({bAreas.join('، ')})
                 </strong>
                 ؟
@@ -949,21 +844,21 @@ export function BuyerDashboard({
                 onClick={() => setConfirmSaveOpen(false)}
                 className="h-9 flex-1 rounded-xl text-xs font-bold"
               >
-                إلغاء
+                {t.cancelBtn}
               </Button>
               <Button
                 type="button"
                 disabled={isPending}
                 onClick={executeSavePreferences}
-                className="h-9 flex-1 rounded-xl bg-[#0b6954] text-xs font-bold text-white hover:bg-[#095443]"
+                className="h-9 flex-1 rounded-xl bg-[var(--brand-primary,#007a5a)] text-xs font-bold text-white hover:bg-[var(--brand-primary-hover,#006248)]"
               >
                 {isPending ? (
                   <span className="flex items-center justify-center gap-1.5">
                     <Loader2 className="size-3.5 animate-spin" />
-                    جاري الحفظ...
+                    {t.savingBtn}
                   </span>
                 ) : (
-                  'تأكيد الحفظ'
+                  t.confirmSaveBtn
                 )}
               </Button>
             </DialogFooter>
@@ -973,62 +868,58 @@ export function BuyerDashboard({
     )
   }
 
-  // ==================== الشاشة الرئيسية للمشتري: "فرص تناسب ميزانيتك" (التصميم الأصلي النظيف) ====================
   return (
     <div className="mx-auto max-w-[1020px] px-3 sm:px-6">
       {savedToast && (
-        <div className="mb-4 rounded-xl bg-[#eff9f5] p-3 text-center text-xs font-bold text-[#0b6954]">
-          ✓ تم تحديث قدرتك الشرائية وتفضيلاتك بنجاح!
+        <div className="mb-4 rounded-xl bg-[var(--brand-primary-light,#eaf8f2)] p-3 text-center text-xs font-bold text-[var(--brand-primary,#007a5a)]">
+          {t.savedToastMsg}
         </div>
       )}
 
-      {/* الهيدر الأصلي: فرص تناسب ميزانيتك + عروضي + عدّل ميزانيتك */}
       <header className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-xl font-extrabold text-[#0a1122] sm:text-2xl">
-          فرص تناسب ميزانيتك
+        <h1 className="text-xl font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-2xl">
+          {t.mainTitle}
         </h1>
         <div className="flex items-center gap-3">
           <Link
             href="/account/offers"
-            className="inline-flex h-10 items-center justify-center rounded-xl border border-gray-200 bg-white px-4 text-xs font-bold text-[#0a1122] shadow-2xs transition hover:bg-gray-50"
+            className="inline-flex h-10 items-center justify-center rounded-xl border border-gray-200 bg-white px-4 text-xs font-bold text-[var(--brand-navy,#0a1122)] shadow-2xs transition hover:bg-gray-50"
           >
-            عروضي
+            {t.myOffersBtn}
           </Link>
           <button
             type="button"
             onClick={() => setIsEditingBudget(true)}
             className="text-xs font-bold text-[#1e3a8a] transition hover:underline"
           >
-            عدّل ميزانيتك
+            {t.editBudgetBtn}
           </button>
         </div>
       </header>
 
-      {/* شريط ملخص الكاش والقسط */}
       <section className="mt-4 rounded-[14px] border border-gray-200/80 bg-white px-5 py-3.5 text-right shadow-2xs">
         <div className="flex flex-wrap items-center justify-start gap-x-6 gap-y-2 text-xs">
           <div>
-            <span className="text-gray-400">الكاش المتاح دلوقتي: </span>
-            <strong className="font-extrabold text-[#0a1122] tabular-nums">
-              {bCash.toLocaleString('en-US')} ج.م
+            <span className="text-gray-400">{t.summaryCashLabel} </span>
+            <strong className="font-extrabold text-[var(--brand-navy,#0a1122)] tabular-nums">
+              {formatAmount(String(bCash))}
             </strong>
           </div>
           <div>
-            <span className="text-gray-400">أقصى قسط يريحك: </span>
-            <strong className="font-extrabold text-[#0a1122] tabular-nums">
-              {bInstallment.toLocaleString('en-US')} ج.م
+            <span className="text-gray-400">{t.summaryInstLabel} </span>
+            <strong className="font-extrabold text-[var(--brand-navy,#0a1122)] tabular-nums">
+              {formatAmount(String(bInstallment))}
             </strong>
           </div>
         </div>
       </section>
 
-      {/* شريط "فلتر بطلبك" التفاعلي (flex-wrap كامل بدون قطع) */}
       <section className="mt-4 text-right">
         <div className="flex flex-wrap items-center justify-start gap-2">
-          <span className="ml-1 text-xs font-extrabold text-[#0a1122]">
-            فلتر بطلبك:
+          <span className="ml-1 text-xs font-extrabold text-[var(--brand-navy,#0a1122)]">
+            {t.filterByRequestLabel}
           </span>
-          {buyerFilterPills.map((pill) => {
+          {t.filterPills.map((pill) => {
             const isSelected = activePills.includes(pill)
             return (
               <button
@@ -1037,8 +928,8 @@ export function BuyerDashboard({
                 onClick={() => togglePill(pill)}
                 className={`rounded-full border px-3.5 py-1.5 text-[11px] font-semibold transition ${
                   isSelected
-                    ? 'border-[#0b6954] bg-[#0b6954] text-white'
-                    : 'border-gray-200 bg-white text-gray-700 hover:border-[#0b6954]'
+                    ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary,#007a5a)] text-white'
+                    : 'border-gray-200 bg-white text-gray-700 hover:border-[var(--brand-primary,#007a5a)]'
                 }`}
               >
                 {pill}
@@ -1046,12 +937,9 @@ export function BuyerDashboard({
             )
           })}
         </div>
-        <p className="mt-2 text-[11px] text-gray-400">
-          مرتّبة بالأنسب لطلبك — اختار أي شرط عشان تشوف اللي يطابقه بالظبط.
-        </p>
+        <p className="mt-2 text-[11px] text-gray-400">{t.filterByRequestSub}</p>
       </section>
 
-      {/* شريط البحث والفلترة المتقدمة والترتيب */}
       <section className="mt-4 rounded-[18px] border border-gray-200/80 bg-white p-3.5 shadow-2xs sm:p-5">
         <div className="relative">
           <Search className="pointer-events-none absolute top-1/2 right-3.5 size-4 -translate-y-1/2 text-gray-400" />
@@ -1059,8 +947,8 @@ export function BuyerDashboard({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="دوّر باسم المشروع أو المنطقة أو كود الوحدة (U-10057)..."
-            className="h-11 w-full rounded-xl border border-gray-200 bg-white pr-10 pl-3 text-xs text-[#0a1122] placeholder:text-gray-400 focus:border-[#0b6954] focus:outline-none sm:text-sm"
+            placeholder={t.searchPlaceholder}
+            className="h-11 w-full rounded-xl border border-gray-200 bg-white pr-10 pl-3 text-xs text-[var(--brand-navy,#0a1122)] placeholder:text-gray-400 focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:text-sm"
           />
         </div>
 
@@ -1071,14 +959,14 @@ export function BuyerDashboard({
               onClick={() => setFilterPanelOpen(!filterPanelOpen)}
               className={`inline-flex h-9 items-center gap-1.5 rounded-xl border px-3.5 text-xs font-bold transition sm:h-10 ${
                 filterPanelOpen || activeFiltersCount > 0
-                  ? 'border-[#0b6954] bg-[#eff8f6] text-[#0b6954]'
-                  : 'border-gray-200 bg-white text-[#0a1122] hover:bg-gray-50'
+                  ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]'
+                  : 'border-gray-200 bg-white text-[var(--brand-navy,#0a1122)] hover:bg-gray-50'
               }`}
             >
               <ListFilter className="size-3.5" />
-              <span>فلترة</span>
+              <span>{t.filterBtn}</span>
               {activeFiltersCount > 0 && (
-                <span className="flex size-5 items-center justify-center rounded-full bg-[#0b6954] text-[10px] font-bold text-white">
+                <span className="flex size-5 items-center justify-center rounded-full bg-[var(--brand-primary,#007a5a)] text-[10px] font-bold text-white">
                   {activeFiltersCount}
                 </span>
               )}
@@ -1090,27 +978,29 @@ export function BuyerDashboard({
               className={`inline-flex h-9 items-center gap-1 rounded-xl border px-3.5 text-xs font-bold transition sm:h-10 ${
                 onlyNegotiable
                   ? 'border-[#d97706] bg-amber-50/70 text-[#b45309]'
-                  : 'border-gray-200 bg-white text-[#0a1122] hover:bg-gray-50'
+                  : 'border-gray-200 bg-white text-[var(--brand-navy,#0a1122)] hover:bg-gray-50'
               }`}
             >
-              <span>قابل للتفاوض</span>
+              <span>{t.negotiableBtn}</span>
               <ArrowDown className="size-3 text-[#d97706]" />
             </button>
 
             <span className="text-[11px] font-medium text-gray-500 sm:text-xs">
-              {filteredUnits.length} وحدة متاحة
+              {filteredUnits.length} {t.availableUnitsWord}
             </span>
           </div>
 
           <div className="flex items-center gap-1.5">
-            <span className="text-[11px] text-gray-400 sm:text-xs">ترتيب</span>
+            <span className="text-[11px] text-gray-400 sm:text-xs">
+              {t.sortByLabel}
+            </span>
             <div className="relative">
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="h-9 min-w-[135px] appearance-none rounded-xl border border-gray-200 bg-white pr-3 pl-7 text-xs font-bold text-[#0a1122] focus:border-[#0b6954] focus:outline-none sm:h-10 sm:min-w-[155px]"
+                className="h-9 min-w-[135px] appearance-none rounded-xl border border-gray-200 bg-white pr-3 pl-7 text-xs font-bold text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:h-10 sm:min-w-[155px]"
               >
-                {sorts.map((s) => (
+                {t.sorts.map((s) => (
                   <option key={s} value={s}>
                     {s}
                   </option>
@@ -1121,16 +1011,15 @@ export function BuyerDashboard({
           </div>
         </div>
 
-        {/* شارات الفلاتر النشطة */}
         {activeFiltersCount > 0 && (
           <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-2.5">
             {onlyNegotiable && (
               <button
                 type="button"
                 onClick={() => setOnlyNegotiable(false)}
-                className="inline-flex items-center gap-1 rounded-full bg-[#eff9f5] px-3 py-1 text-[11px] font-bold text-[#0b6954]"
+                className="inline-flex items-center gap-1 rounded-full bg-[var(--brand-primary-light,#eaf8f2)] px-3 py-1 text-[11px] font-bold text-[var(--brand-primary,#007a5a)]"
               >
-                <span>قابل للتفاوض</span>
+                <span>{t.negotiableBtn}</span>
                 <X className="size-3" />
               </button>
             )}
@@ -1139,107 +1028,98 @@ export function BuyerDashboard({
                 key={p}
                 type="button"
                 onClick={() => togglePill(p)}
-                className="inline-flex items-center gap-1 rounded-full bg-[#eff9f5] px-3 py-1 text-[11px] font-bold text-[#0b6954]"
+                className="inline-flex items-center gap-1 rounded-full bg-[var(--brand-primary-light,#eaf8f2)] px-3 py-1 text-[11px] font-bold text-[var(--brand-primary,#007a5a)]"
               >
                 <span>{p}</span>
                 <X className="size-3" />
               </button>
             ))}
-            {selectedTypes.map((t) => (
+            {selectedTypes.map((tp) => (
               <button
-                key={t}
+                key={tp}
                 type="button"
-                onClick={() => toggleFilterType(t)}
-                className="inline-flex items-center gap-1 rounded-full bg-[#eff9f5] px-3 py-1 text-[11px] font-bold text-[#0b6954]"
+                onClick={() => toggleFilterType(tp)}
+                className="inline-flex items-center gap-1 rounded-full bg-[var(--brand-primary-light,#eaf8f2)] px-3 py-1 text-[11px] font-bold text-[var(--brand-primary,#007a5a)]"
               >
-                <span>{t}</span>
+                <span>{tp}</span>
                 <X className="size-3" />
               </button>
             ))}
             <button
               type="button"
               onClick={clearAllFilters}
-              className="mr-1 text-[11px] text-gray-500 underline hover:text-[#0a1122]"
+              className="mr-1 text-[11px] text-gray-500 underline hover:text-[var(--brand-navy,#0a1122)]"
             >
-              مسح الكل
+              {t.clearAllBtn}
             </button>
           </div>
         )}
       </section>
 
-      {/* لوحة الفلترة المتقدمة الكاملة */}
       {filterPanelOpen && (
         <section className="mt-3 rounded-[20px] border border-gray-200/80 bg-white p-5 text-right shadow-xs sm:p-7">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <div>
-              <label className="mb-1.5 block text-xs font-bold text-[#0a1122]">
-                المناطق
+              <label className="mb-1.5 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
+                {t.advAreasLabel}
               </label>
               <input
                 type="text"
                 value={areaFilter}
                 onChange={(e) => setAreaFilter(e.target.value)}
-                placeholder="دوّر على المنطقة..."
+                placeholder={t.advAreasPlaceholder}
                 className="h-11 w-full rounded-xl border border-gray-200 px-3.5 text-xs"
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-bold text-[#0a1122]">
-                أقصى كاش مطلوب دلوقتي
+              <label className="mb-1.5 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
+                {t.advMaxCashLabel}
               </label>
-              <div className="relative">
-                <input
-                  type="number"
-                  value={maxCashFilter}
-                  onChange={(e) => setMaxCashFilter(e.target.value)}
-                  className="h-11 w-full rounded-xl border border-gray-200 pr-3.5 pl-10 text-xs"
-                />
-                <span className="absolute top-1/2 left-3.5 -translate-y-1/2 text-xs text-gray-400">
-                  ج.م
-                </span>
-              </div>
+              <input
+                type="number"
+                value={maxCashFilter}
+                onChange={(e) => setMaxCashFilter(e.target.value)}
+                className="h-11 w-full rounded-xl border border-gray-200 px-3.5 text-xs"
+              />
               <p className="mt-1 text-[10px] text-gray-400">
-                أهم رقم — ده اللي هتدفعه عند النقل
+                {t.advMaxCashHelper}
               </p>
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-bold text-[#0a1122]">
-                أقصى قسط شهري
+              <label className="mb-1.5 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
+                {t.advMaxInstLabel}
               </label>
-              <div className="relative">
-                <input
-                  type="number"
-                  value={maxInstFilter}
-                  onChange={(e) => setMaxInstFilter(e.target.value)}
-                  className="h-11 w-full rounded-xl border border-gray-200 pr-3.5 pl-10 text-xs"
-                />
-                <span className="absolute top-1/2 left-3.5 -translate-y-1/2 text-xs text-gray-400">
-                  ج.م
-                </span>
-              </div>
+              <input
+                type="number"
+                value={maxInstFilter}
+                onChange={(e) => setMaxInstFilter(e.target.value)}
+                className="h-11 w-full rounded-xl border border-gray-200 px-3.5 text-xs"
+              />
               <p className="mt-1 text-[10px] text-gray-400">
-                الأقساط الربع/نص سنوية بنحسبها بما يعادلها شهرياً
+                {t.advMaxInstHelper}
               </p>
             </div>
           </div>
 
           <div className="mt-5">
-            <p className="mb-2 text-xs font-bold text-[#0a1122]">نوع الوحدة</p>
+            <p className="mb-2 text-xs font-bold text-[var(--brand-navy,#0a1122)]">
+              {t.unitTypeLabel}
+            </p>
             <div className="flex flex-wrap gap-1.5">
-              {unitTypesList.map((t) => {
-                const active = selectedTypes.includes(t)
+              {sharedUnitTypes.map((tp) => {
+                const active = selectedTypes.includes(tp)
                 return (
                   <button
-                    key={t}
+                    key={tp}
                     type="button"
-                    onClick={() => toggleFilterType(t)}
+                    onClick={() => toggleFilterType(tp)}
                     className={`rounded-full border px-3.5 py-1.5 text-xs font-medium ${
                       active
-                        ? 'border-[#0b6954] bg-[#0b6954] text-white'
+                        ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary,#007a5a)] text-white'
                         : 'border-gray-200 bg-white text-gray-600'
                     }`}
                   >
-                    {t}
+                    {tp}
                   </button>
                 )
               })}
@@ -1248,16 +1128,18 @@ export function BuyerDashboard({
 
           <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-3">
             <div>
-              <p className="mb-2 text-xs font-bold text-[#0a1122]">الاستلام</p>
+              <p className="mb-2 text-xs font-bold text-[var(--brand-navy,#0a1122)]">
+                {t.deliveryLabel}
+              </p>
               <div className="flex flex-wrap gap-1.5">
-                {deliveryStatuses.map((st) => (
+                {t.deliveryStatuses.map((st) => (
                   <button
                     key={st}
                     type="button"
                     onClick={() => setDelStatusFilter(st)}
                     className={`rounded-full border px-3.5 py-1.5 text-xs font-medium ${
                       delStatusFilter === st
-                        ? 'border-[#0b6954] bg-[#0b6954] text-white'
+                        ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary,#007a5a)] text-white'
                         : 'border-gray-200 bg-white text-gray-600'
                     }`}
                   >
@@ -1268,18 +1150,18 @@ export function BuyerDashboard({
             </div>
 
             <div>
-              <p className="mb-2 text-xs font-bold text-[#0a1122]">
-                سنة الاستلام
+              <p className="mb-2 text-xs font-bold text-[var(--brand-navy,#0a1122)]">
+                {t.advDeliveryYearLabel}
               </p>
               <div className="flex flex-wrap gap-1.5">
-                {deliveryYears.map((yr) => (
+                {t.deliveryYears.map((yr) => (
                   <button
                     key={yr}
                     type="button"
                     onClick={() => setDelYearFilter(yr)}
                     className={`rounded-full border px-3 py-1.5 text-xs font-medium ${
                       delYearFilter === yr
-                        ? 'border-[#0b6954] bg-[#0b6954] text-white'
+                        ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary,#007a5a)] text-white'
                         : 'border-gray-200 bg-white text-gray-600'
                     }`}
                   >
@@ -1290,18 +1172,18 @@ export function BuyerDashboard({
             </div>
 
             <div>
-              <p className="mb-2 text-xs font-bold text-[#0a1122]">
-                سنة التعاقد
+              <p className="mb-2 text-xs font-bold text-[var(--brand-navy,#0a1122)]">
+                {t.advContractYearLabel}
               </p>
               <div className="flex flex-wrap gap-1.5">
-                {contractYears.map((yr) => (
+                {t.contractYears.map((yr) => (
                   <button
                     key={yr}
                     type="button"
                     onClick={() => setConYearFilter(yr)}
                     className={`rounded-full border px-3 py-1.5 text-xs font-medium ${
                       conYearFilter === yr
-                        ? 'border-[#0b6954] bg-[#0b6954] text-white'
+                        ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary,#007a5a)] text-white'
                         : 'border-gray-200 bg-white text-gray-600'
                     }`}
                   >
@@ -1314,18 +1196,18 @@ export function BuyerDashboard({
 
           <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
             <div>
-              <p className="mb-2 text-xs font-bold text-[#0a1122]">
-                أقل عدد غرف
+              <p className="mb-2 text-xs font-bold text-[var(--brand-navy,#0a1122)]">
+                {t.minRoomsLabel}
               </p>
               <div className="flex flex-wrap gap-1.5">
-                {roomOptions.map((rm) => (
+                {t.roomOptions.map((rm) => (
                   <button
                     key={rm}
                     type="button"
                     onClick={() => setMinRoomsFilter(rm)}
                     className={`rounded-full border px-3.5 py-1.5 text-xs font-medium ${
                       minRoomsFilter === rm
-                        ? 'border-[#0b6954] bg-[#0b6954] text-white'
+                        ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary,#007a5a)] text-white'
                         : 'border-gray-200 bg-white text-gray-600'
                     }`}
                   >
@@ -1336,20 +1218,15 @@ export function BuyerDashboard({
             </div>
 
             <div>
-              <label className="mb-1.5 block text-xs font-bold text-[#0a1122]">
-                أقصى سعر تعاقد
+              <label className="mb-1.5 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
+                {t.advMaxContractLabel}
               </label>
-              <div className="relative max-w-sm">
-                <input
-                  type="number"
-                  value={maxContractFilter}
-                  onChange={(e) => setMaxContractFilter(e.target.value)}
-                  className="h-11 w-full rounded-xl border border-gray-200 pr-3.5 pl-10 text-xs"
-                />
-                <span className="absolute top-1/2 left-3.5 -translate-y-1/2 text-xs text-gray-400">
-                  ج.م
-                </span>
-              </div>
+              <input
+                type="number"
+                value={maxContractFilter}
+                onChange={(e) => setMaxContractFilter(e.target.value)}
+                className="h-11 w-full max-w-sm rounded-xl border border-gray-200 px-3.5 text-xs"
+              />
             </div>
           </div>
 
@@ -1358,16 +1235,16 @@ export function BuyerDashboard({
               <button
                 type="button"
                 onClick={() => setFilterPanelOpen(false)}
-                className="rounded-xl bg-[#0b6954] px-6 py-2 text-xs font-bold text-white"
+                className="rounded-xl bg-[var(--brand-primary,#007a5a)] px-6 py-2 text-xs font-bold text-white"
               >
-                اعرض النتائج
+                {t.showResultsBtn}
               </button>
               <button
                 type="button"
                 onClick={clearAllFilters}
-                className="text-xs font-medium text-gray-500 hover:text-[#0a1122]"
+                className="text-xs font-medium text-gray-500 hover:text-[var(--brand-navy,#0a1122)]"
               >
-                مسح الكل
+                {t.clearAllBtn}
               </button>
             </div>
             <button
@@ -1375,33 +1252,31 @@ export function BuyerDashboard({
               onClick={() => setFilterPanelOpen(false)}
               className="text-xs font-medium text-gray-400 hover:text-gray-700"
             >
-              إخفاء
+              {t.hideBtn}
             </button>
           </div>
         </section>
       )}
 
-      {/* ==================== عرض الفرص المقسم بانتظام ==================== */}
       {filteredUnits.length === 0 ? (
         <div className="mt-6 rounded-[20px] border border-gray-200/80 bg-white p-10 text-center shadow-2xs">
           <p className="text-sm font-bold text-gray-600">
-            مفيش وحدات مطابقة للفلاتر اللي اخترتها.
+            {t.emptyFilteredTitle}
           </p>
           <button
             type="button"
             onClick={clearAllFilters}
-            className="mt-4 rounded-xl bg-[#0b6954] px-6 py-2.5 text-xs font-bold text-white hover:bg-[#095443]"
+            className="mt-4 rounded-xl bg-[var(--brand-primary,#007a5a)] px-6 py-2.5 text-xs font-bold text-white hover:bg-[var(--brand-primary-hover,#006248)]"
           >
-            امسح الفلاتر
+            {t.clearFiltersBtn}
           </button>
         </div>
       ) : (
         <>
-          {/* القسم الأول: الفرص في المنطقة اللي طلبتها (18 وحدة + زر الـ Pagination) */}
           {unitsInPreferredArea.length > 0 && (
             <section className="mt-7">
-              <h2 className="mb-4 text-right text-sm font-extrabold text-[#0a1122] sm:text-base">
-                الفرص في المنطقة اللي طلبتها ({bAreas.join('، ')}){' '}
+              <h2 className="mb-4 text-right text-sm font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-base">
+                {t.preferredSectionTitle} ({bAreas.join('، ')}){' '}
                 <span className="font-normal text-gray-400">
                   ({unitsInPreferredArea.length})
                 </span>
@@ -1417,7 +1292,6 @@ export function BuyerDashboard({
                 ))}
               </div>
 
-              {/* زر الـ Pagination للقسم الأول فقط */}
               {unitsInPreferredArea.length > visibleCount && (
                 <div className="mt-8 flex justify-center">
                   <button
@@ -1425,30 +1299,29 @@ export function BuyerDashboard({
                     onClick={() =>
                       setVisibleCount((prev) => prev + PREFERRED_PAGE_SIZE)
                     }
-                    className="rounded-full border border-gray-200 bg-white px-7 py-2.5 text-xs font-bold text-[#0a1122] shadow-2xs transition hover:border-[#0b6954] hover:bg-gray-50 active:scale-95"
+                    className="rounded-full border border-gray-200 bg-white px-7 py-2.5 text-xs font-bold text-[var(--brand-navy,#0a1122)] shadow-2xs transition hover:border-[var(--brand-primary,#007a5a)] hover:bg-gray-50 active:scale-95"
                   >
-                    اعرض{' '}
+                    {t.showMorePrefix}{' '}
                     {Math.min(
                       PREFERRED_PAGE_SIZE,
                       unitsInPreferredArea.length - visibleCount
                     )}{' '}
-                    فرصة كمان ({unitsInPreferredArea.length - visibleCount}{' '}
-                    متبقية)
+                    {t.showMoreMiddle} (
+                    {unitsInPreferredArea.length - visibleCount}{' '}
+                    {t.remainingWord})
                   </button>
                 </div>
               )}
             </section>
           )}
 
-          {/* القسم الثاني: فرص مميزة مناسبة ليك في مناطق تانية (يعرض 6 وحدات متناسقة + زر عرض الكل بجانب العنوان) */}
           {unitsInOtherAreas.length > 0 && (
             <section className="mt-10 border-t border-gray-200/70 pt-8">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center justify-start gap-1.5 text-right">
                   <Star className="size-4 fill-amber-400 text-amber-500" />
-                  <h2 className="text-sm font-extrabold text-[#0a1122] sm:text-base">
-                    فرص مميزة مناسبة ليك في مناطق تانية (
-                    {unitsInOtherAreas.length})
+                  <h2 className="text-sm font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-base">
+                    {t.otherAreasSectionTitle} ({unitsInOtherAreas.length})
                   </h2>
                 </div>
 
@@ -1456,12 +1329,12 @@ export function BuyerDashboard({
                   <button
                     type="button"
                     onClick={() => setShowAllOtherAreas((prev) => !prev)}
-                    className="inline-flex items-center gap-1 text-xs font-extrabold text-[#0b6954] transition hover:underline"
+                    className="inline-flex items-center gap-1 text-xs font-extrabold text-[var(--brand-primary,#007a5a)] transition hover:underline"
                   >
                     <span>
                       {showAllOtherAreas
-                        ? 'عرض عدد أقل'
-                        : `عرض الكل (${unitsInOtherAreas.length})`}
+                        ? t.showLessBtn
+                        : `${t.showAllBtn} (${unitsInOtherAreas.length})`}
                     </span>
                     <ChevronLeft className="size-3.5" />
                   </button>
@@ -1486,7 +1359,6 @@ export function BuyerDashboard({
         </>
       )}
 
-      {/* شريط أزرار الحساب في الأسفل متوسّط في منتصف الشاشة للموبايل والكمبيوتر */}
       <div className="mt-10 flex justify-center border-t border-gray-200/80 pt-6 [&>*]:justify-center [&_div]:justify-center [&_form]:hidden">
         <AccountActionLinks
           unitsCount={0}
@@ -1511,7 +1383,10 @@ function BuyerUnitCard({
     <div className="group relative flex h-full flex-col justify-between overflow-hidden rounded-[16px] border border-gray-200/85 bg-white shadow-2xs transition hover:shadow-md sm:rounded-[18px]">
       <div>
         <div className="relative h-[130px] w-full overflow-hidden bg-gray-100 sm:h-[175px]">
-          <Link href={`/opportunities/${unit.id}`} className="block h-full w-full">
+          <Link
+            href={`/opportunities/${unit.id}`}
+            className="block h-full w-full"
+          >
             <img
               src={
                 unit.image ||
@@ -1528,7 +1403,7 @@ function BuyerUnitCard({
               e.preventDefault()
               onToggleLike()
             }}
-            aria-label="إضافة للمفضلة"
+            aria-label={t.addToFavoritesAria}
             className={`absolute top-2.5 left-2.5 flex size-7 items-center justify-center rounded-full shadow-md transition sm:size-8 ${
               isLiked
                 ? 'bg-red-500 text-white'
@@ -1545,7 +1420,7 @@ function BuyerUnitCard({
           href={`/opportunities/${unit.id}`}
           className="block p-3.5 text-right sm:p-5"
         >
-          <h3 className="line-clamp-1 min-h-[20px] text-xs font-bold leading-snug text-[#0a1122] group-hover:text-[#0b6954] sm:line-clamp-2 sm:min-h-[44px] sm:text-[16px]">
+          <h3 className="line-clamp-1 min-h-[20px] text-xs font-bold leading-snug text-[var(--brand-navy,#0a1122)] group-hover:text-[var(--brand-primary,#007a5a)] sm:line-clamp-2 sm:min-h-[44px] sm:text-[16px]">
             {unit.title}
           </h3>
           <p className="mt-1 line-clamp-1 text-[10px] text-gray-500 sm:text-xs">
@@ -1554,24 +1429,26 @@ function BuyerUnitCard({
 
           <div className="mt-3 sm:mt-4">
             <p className="text-[10px] text-gray-400 sm:text-[11px]">
-              المطلوب كاش دلوقتي
+              {t.cardRequiredCash}
             </p>
-            <p className="mt-0.5 text-sm font-extrabold tracking-tight text-[#0a1122] tabular-nums sm:text-xl">
+            <p className="mt-0.5 text-sm font-extrabold tracking-tight text-[var(--brand-navy,#0a1122)] tabular-nums sm:text-xl">
               {unit.cashStr}{' '}
-              <span className="text-[10px] font-semibold sm:text-xs">ج.م</span>
+              <span className="text-[10px] font-semibold sm:text-xs">
+                {unit.currency}
+              </span>
             </p>
           </div>
 
           {unit.gainStr && (
-            <div className="mt-2.5 rounded-xl bg-[#eff9f5] px-2.5 py-2 text-right sm:mt-3 sm:px-3 sm:py-2.5">
+            <div className="mt-2.5 rounded-xl bg-[var(--brand-primary-light,#eaf8f2)] px-2.5 py-2 text-right sm:mt-3 sm:px-3 sm:py-2.5">
               <p
                 dir="ltr"
-                className="text-right text-xs font-bold text-[#097a58] tabular-nums sm:text-sm"
+                className="text-right text-xs font-bold text-[var(--brand-primary,#007a5a)] tabular-nums sm:text-sm"
               >
-                {unit.gainStr} ج.م
+                {unit.gainStr} {unit.currency}
               </p>
               <p className="mt-0.5 line-clamp-1 text-[9.5px] text-[#2b8a6e] sm:text-[10.5px]">
-                سعر السوق اليوم: {unit.marketStr} ج.م
+                {t.cardMarketPriceToday} {unit.marketStr} {unit.currency}
               </p>
             </div>
           )}
@@ -1581,7 +1458,7 @@ function BuyerUnitCard({
               {unit.matchTags.map((tag: string) => (
                 <span
                   key={tag}
-                  className="rounded-md bg-[#e3f2ef] px-2 py-0.5 text-[9.5px] font-bold text-[#0b6954] sm:px-2.5 sm:py-1 sm:text-[10px]"
+                  className="rounded-md bg-[#e3f2ef] px-2 py-0.5 text-[9.5px] font-bold text-[var(--brand-primary,#007a5a)] sm:px-2.5 sm:py-1 sm:text-[10px]"
                 >
                   {tag}
                 </span>

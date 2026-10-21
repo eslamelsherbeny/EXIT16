@@ -2,9 +2,7 @@
 
 import { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
-import arDict from '@/dictionaries/ar.json'
-
-const t = arDict.systemPages
+import { useTranslation } from '@/lib/i18n'
 
 export default function Error({
   error,
@@ -13,13 +11,16 @@ export default function Error({
   error: Error & { digest?: string }
   reset: () => void
 }) {
+  const { t: dict, dir } = useTranslation()
+  const t = dict.systemPages
+
   useEffect(() => {
     console.error('App error boundary:', error)
   }, [error])
 
   return (
     <main
-      dir="rtl"
+      dir={dir}
       className="flex min-h-[calc(100vh-5rem)] items-center justify-center bg-[var(--brand-surface,#f5f6f8)] px-6 py-20 text-center"
     >
       <div className="max-w-md rounded-2xl bg-white p-8 shadow-lg">

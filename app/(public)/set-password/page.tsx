@@ -1,13 +1,16 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { Suspense, useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { setNewPasswordFromTokenAction } from '@/app/actions/submit-forms'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import arDict from '@/dictionaries/ar.json'
 
-export default function SetPasswordPage() {
+const t = arDict.authPages.setPassword
+
+function SetPasswordContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const tokenHash = searchParams.get('token_hash') || ''
@@ -23,11 +26,11 @@ export default function SetPasswordPage() {
     setError('')
 
     if (password.length < 8) {
-      setError('كلمة السر يجب أن تكون 8 حروف على الأقل.')
+      setError(t.shortPassError)
       return
     }
     if (password !== confirmPassword) {
-      setError('كلمتا السر غير متطابقتين.')
+      setError(t.mismatchError)
       return
     }
 
@@ -38,7 +41,7 @@ export default function SetPasswordPage() {
       })
 
       if (!res.success) {
-        setError(res.error || 'تعذر تفعيل الحساب.')
+        setError(res.error || t.genericError)
         return
       }
 
@@ -53,18 +56,20 @@ export default function SetPasswordPage() {
   return (
     <main
       dir="rtl"
-      className="flex min-h-[75vh] items-center justify-center bg-[#f5f7f8] px-4 py-12 text-[#0a1122]"
+      className="flex min-h-[75vh] items-center justify-center bg-[var(--brand-surface,#f5f6f8)] px-4 py-12 text-[var(--brand-navy,#0a1122)]"
     >
-      <div className="w-full max-w-md text-right">
-        <h1 className="text-3xl font-black text-[#0a1122]">فعّل حسابك</h1>
+      <div className="w-full max-w-md rounded-2xl bg-white p-6 text-right shadow-sm sm:p-8">
+        <h1 className="text-2xl font-black text-[var(--brand-navy,#0a1122)] sm:text-3xl">
+          {t.title}
+        </h1>
         <p className="mt-2 text-sm leading-relaxed text-slate-600">
-          اختار كلمة سر لحسابك على عقار إكزت — وهتدخل على طلبك على طول.
+          {t.subtitle}
         </p>
 
         <form onSubmit={handleSubmit} className="mt-7 space-y-5">
           <div className="space-y-2">
-            <Label className="block text-right text-sm font-bold text-[#0a1122]">
-              كلمة السر (8 حروف على الأقل)
+            <Label className="block text-right text-sm font-bold text-[var(--brand-navy,#0a1122)]">
+              {t.passwordLabel}
             </Label>
             <Input
               type="password"
@@ -78,8 +83,8 @@ export default function SetPasswordPage() {
           </div>
 
           <div className="space-y-2">
-            <Label className="block text-right text-sm font-bold text-[#0a1122]">
-              اكتبها تاني للتأكيد
+            <Label className="block text-right text-sm font-bold text-[var(--brand-navy,#0a1122)]">
+              {t.confirmLabel}
             </Label>
             <Input
               type="password"
@@ -101,12 +106,20 @@ export default function SetPasswordPage() {
           <Button
             type="submit"
             disabled={pending}
-            className="h-12 w-full rounded-xl bg-[#0a1122] text-sm font-bold text-white hover:bg-[#16223f]"
+            className="h-12 w-full rounded-xl bg-[var(--brand-navy,#0a1122)] text-sm font-bold text-white hover:bg-[var(--brand-navy-hover,#16223f)]"
           >
-            {pending ? 'جاري التفعيل...' : 'فعّل حسابي'}
+            {pending ? t.submittingBtn : t.submitBtn}
           </Button>
         </form>
       </div>
     </main>
+  )
+}
+
+export default function SetPasswordPage() {
+  return (
+    <Suspense fallback={null}>
+      <SetPasswordContent />
+    </Suspense>
   )
 }

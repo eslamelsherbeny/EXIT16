@@ -20,10 +20,8 @@ import {
   ALL_RESIDENCE_COUNTRIES,
   SearchableCountryField,
 } from '@/components/seller/seller-shared'
-import arDict from '@/dictionaries/ar.json'
-
-const t = arDict.investorsPage
-const f = arDict.investorsPage.form
+import { useTranslation } from '@/lib/i18n'
+import { trackFbEvent } from '@/components/facebook-pixel'
 
 type Answers = Record<string, string | boolean>
 
@@ -31,18 +29,25 @@ function Field({
   label,
   children,
   optional = false,
+  optionalText = 'اختياري',
+  dir,
 }: {
   label: string
   children: React.ReactNode
   optional?: boolean
+  optionalText?: string
+  dir?: 'rtl' | 'ltr'
 }) {
   return (
-    <label className="flex flex-col gap-2 text-right text-sm font-semibold text-[var(--brand-navy,#0a1122)]">
+    <label
+      dir={dir}
+      className="flex flex-col gap-2 text-start text-sm font-semibold text-[var(--brand-navy,#0a1122)]"
+    >
       <span>
         {label} {!optional && <b className="text-red-500">*</b>}{' '}
         {optional && (
           <small className="font-normal text-slate-400">
-            ({f.optionalWord})
+            ({optionalText})
           </small>
         )}
       </span>
@@ -85,6 +90,10 @@ function MultiChoice({
 }
 
 export default function InvestorsPage() {
+  const { t: dict, dir } = useTranslation()
+  const t = dict.investorsPage
+  const f = dict.investorsPage.form
+
   const [step, setStep] = useState(1)
   const [answers, setAnswers] = useState<Answers>({ country: 'EG' })
   const [phoneCode, setPhoneCode] = useState('20')
@@ -146,8 +155,16 @@ export default function InvestorsPage() {
     const compiledNotes = [
       answers.company ? `الشركة: ${answers.company}` : '',
       answers.role ? `المسمى: ${answers.role}` : '',
+      answers.nationality ? `الجنسية: ${answers.nationality}` : '',
+      answers.linkedin ? `LinkedIn: ${answers.linkedin}` : '',
+      answers.experience ? `الخبرة: ${answers.experience}` : '',
       answers.motivation ? `الدافع: ${answers.motivation}` : '',
       answers.value ? `القيمة المضافة: ${answers.value}` : '',
+      answers.ownership ? `نسبة الملكية: ${answers.ownership}%` : '',
+      answers.vehicle ? `الطريقة: ${answers.vehicle}` : '',
+      selectedNeededInfo.length > 0
+        ? `معلومات مطلوبة: ${selectedNeededInfo.join('، ')}`
+        : '',
       answers.questions ? `أسئلة: ${answers.questions}` : '',
       answers.contactTime ? `موعد التواصل: ${answers.contactTime}` : '',
     ]
@@ -175,6 +192,12 @@ export default function InvestorsPage() {
     startTransition(async () => {
       const result = await submitInvestorLead(formData)
       if (result.success) {
+        trackFbEvent('Lead', {
+          content_name: 'Investor Application',
+          content_category: String(answers.investorType ?? 'Investor'),
+          value: Number(answers.amount || 50000),
+          currency: 'USD',
+        })
         setSubmitted(true)
       } else {
         setError(result.error ?? f.validationRequired)
@@ -191,7 +214,7 @@ export default function InvestorsPage() {
       value={String(answers[name] ?? '')}
       onValueChange={(value) => update(name, value ?? '')}
     >
-      <SelectTrigger className="h-11 w-full rounded-xl bg-white">
+      <SelectTrigger className="h-11 w-full rounded-xl bg-white text-start">
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>
@@ -209,7 +232,7 @@ export default function InvestorsPage() {
       value={String(answers[name] ?? '')}
       onChange={(event) => update(name, event.target.value)}
       placeholder={placeholder}
-      className="min-h-24 resize-y rounded-xl bg-white"
+      className="min-h-24 resize-y rounded-xl bg-white text-start"
     />
   )
 
@@ -217,23 +240,28 @@ export default function InvestorsPage() {
     if (step === 1) {
       return (
         <div className="flex flex-col gap-5">
-          <h3 className="border-b pb-3 text-lg font-extrabold">
+          <h3 className="border-b pb-3 text-start text-lg font-extrabold">
             {f.s1Title}
           </h3>
-          <Field label={f.s1Name}>
+          <Field label={f.s1Name} optionalText={f.optionalWord} dir={dir}>
             <Input
               value={String(answers.name ?? '')}
               onChange={(e) => update('name', e.target.value)}
               placeholder={f.s1NamePlaceholder}
-              className="h-11 rounded-xl"
+              className="h-11 rounded-xl text-start"
             />
           </Field>
 
-          <Field label={f.s1Company} optional>
+          <Field
+            label={f.s1Company}
+            optional
+            optionalText={f.optionalWord}
+            dir={dir}
+          >
             <Input
               value={String(answers.company ?? '')}
               onChange={(e) => update('company', e.target.value)}
-              className="h-11 rounded-xl"
+              className="h-11 rounded-xl text-start"
             />
           </Field>
 
@@ -248,15 +276,20 @@ export default function InvestorsPage() {
             }}
           />
 
-          <Field label={f.s1Nationality} optional>
+          <Field
+            label={f.s1Nationality}
+            optional
+            optionalText={f.optionalWord}
+            dir={dir}
+          >
             <Input
               value={String(answers.nationality ?? '')}
               onChange={(e) => update('nationality', e.target.value)}
-              className="h-11 rounded-xl"
+              className="h-11 rounded-xl text-start"
             />
           </Field>
 
-          <Field label={f.s1Email}>
+          <Field label={f.s1Email} optionalText={f.optionalWord} dir={dir}>
             <Input
               type="email"
               dir="ltr"
@@ -267,7 +300,7 @@ export default function InvestorsPage() {
             />
           </Field>
 
-          <Field label={f.s1Phone}>
+          <Field label={f.s1Phone} optionalText={f.optionalWord} dir={dir}>
             <div dir="ltr" className="flex items-center gap-2">
               <CountrySelector value={phoneCode} onChange={setPhoneCode} />
               <Input
@@ -281,15 +314,25 @@ export default function InvestorsPage() {
             </div>
           </Field>
 
-          <Field label={f.s1Role} optional>
+          <Field
+            label={f.s1Role}
+            optional
+            optionalText={f.optionalWord}
+            dir={dir}
+          >
             <Input
               value={String(answers.role ?? '')}
               onChange={(e) => update('role', e.target.value)}
-              className="h-11 rounded-xl"
+              className="h-11 rounded-xl text-start"
             />
           </Field>
 
-          <Field label={f.s1Linkedin} optional>
+          <Field
+            label={f.s1Linkedin}
+            optional
+            optionalText={f.optionalWord}
+            dir={dir}
+          >
             <Input
               dir="ltr"
               value={String(answers.linkedin ?? '')}
@@ -298,7 +341,7 @@ export default function InvestorsPage() {
             />
           </Field>
 
-          <Field label={f.s1Type}>
+          <Field label={f.s1Type} optionalText={f.optionalWord} dir={dir}>
             {renderSelect('investorType', f.investorTypes, f.s1TypePlaceholder)}
           </Field>
         </div>
@@ -308,19 +351,26 @@ export default function InvestorsPage() {
     if (step === 2) {
       return (
         <div className="flex flex-col gap-5">
-          <h3 className="border-b pb-3 text-lg font-extrabold">{f.s2Title}</h3>
-          <Field label={f.s2ExpBio} optional>
+          <h3 className="border-b pb-3 text-start text-lg font-extrabold">
+            {f.s2Title}
+          </h3>
+          <Field
+            label={f.s2ExpBio}
+            optional
+            optionalText={f.optionalWord}
+            dir={dir}
+          >
             {renderTextarea('experience', f.s2ExpBioPlaceholder)}
           </Field>
-          <Field label={f.s2Years}>
+          <Field label={f.s2Years} optionalText={f.optionalWord} dir={dir}>
             <Input
               value={String(answers.years ?? '')}
               onChange={(e) => update('years', e.target.value)}
               placeholder={f.s2YearsPlaceholder}
-              className="h-11 rounded-xl"
+              className="h-11 rounded-xl text-start"
             />
           </Field>
-          <Field label={f.s2Sectors}>
+          <Field label={f.s2Sectors} optionalText={f.optionalWord} dir={dir}>
             <div className="grid grid-cols-2 gap-2">
               {f.fieldsOfExp.map((item) => (
                 <MultiChoice
@@ -332,19 +382,39 @@ export default function InvestorsPage() {
               ))}
             </div>
           </Field>
-          <Field label={f.s2StartupQ}>
+          <Field label={f.s2StartupQ} optionalText={f.optionalWord} dir={dir}>
             {renderSelect('startup', f.yesNo)}
           </Field>
-          <Field label={f.s2Examples} optional>
+          <Field
+            label={f.s2Examples}
+            optional
+            optionalText={f.optionalWord}
+            dir={dir}
+          >
             {renderTextarea('examples')}
           </Field>
-          <Field label={f.s2Motivation} optional>
+          <Field
+            label={f.s2Motivation}
+            optional
+            optionalText={f.optionalWord}
+            dir={dir}
+          >
             {renderTextarea('motivation')}
           </Field>
-          <Field label={f.s2Attraction} optional>
+          <Field
+            label={f.s2Attraction}
+            optional
+            optionalText={f.optionalWord}
+            dir={dir}
+          >
             {renderTextarea('attraction')}
           </Field>
-          <Field label={f.s2Opportunity} optional>
+          <Field
+            label={f.s2Opportunity}
+            optional
+            optionalText={f.optionalWord}
+            dir={dir}
+          >
             {renderTextarea('opportunity')}
           </Field>
         </div>
@@ -354,14 +424,26 @@ export default function InvestorsPage() {
     if (step === 3) {
       return (
         <div className="flex flex-col gap-5">
-          <h3 className="border-b pb-3 text-lg font-extrabold">{f.s3Title}</h3>
-          <Field label={f.s3AddedValue} optional>
+          <h3 className="border-b pb-3 text-start text-lg font-extrabold">
+            {f.s3Title}
+          </h3>
+          <Field
+            label={f.s3AddedValue}
+            optional
+            optionalText={f.optionalWord}
+            dir={dir}
+          >
             {renderTextarea('value')}
           </Field>
-          <Field label={f.s3Range}>
+          <Field label={f.s3Range} optionalText={f.optionalWord} dir={dir}>
             {renderSelect('range', f.ranges, f.s3RangePlaceholder)}
           </Field>
-          <Field label={f.s3ExactUsd} optional>
+          <Field
+            label={f.s3ExactUsd}
+            optional
+            optionalText={f.optionalWord}
+            dir={dir}
+          >
             <Input
               type="number"
               dir="ltr"
@@ -371,17 +453,27 @@ export default function InvestorsPage() {
               className="h-11 rounded-xl text-left"
             />
           </Field>
-          <Field label={f.s3LocalAmount} optional>
+          <Field
+            label={f.s3LocalAmount}
+            optional
+            optionalText={f.optionalWord}
+            dir={dir}
+          >
             <Input
               value={String(answers.localAmount ?? '')}
               onChange={(e) => update('localAmount', e.target.value)}
-              className="h-11 rounded-xl"
+              className="h-11 rounded-xl text-start"
             />
           </Field>
-          <Field label={f.s3Structure}>
+          <Field label={f.s3Structure} optionalText={f.optionalWord} dir={dir}>
             {renderSelect('structure', f.structures, f.s3StructurePlaceholder)}
           </Field>
-          <Field label={f.s3Ownership} optional>
+          <Field
+            label={f.s3Ownership}
+            optional
+            optionalText={f.optionalWord}
+            dir={dir}
+          >
             <Input
               type="number"
               dir="ltr"
@@ -391,7 +483,12 @@ export default function InvestorsPage() {
               className="h-11 rounded-xl text-left"
             />
           </Field>
-          <Field label={f.s3Vehicle} optional>
+          <Field
+            label={f.s3Vehicle}
+            optional
+            optionalText={f.optionalWord}
+            dir={dir}
+          >
             {renderSelect('vehicle', f.vehicles)}
           </Field>
         </div>
@@ -401,20 +498,36 @@ export default function InvestorsPage() {
     if (step === 4) {
       return (
         <div className="flex flex-col gap-5">
-          <h3 className="border-b pb-3 text-lg font-extrabold">{f.s4Title}</h3>
-          <Field label={f.s4Hold}>
+          <h3 className="border-b pb-3 text-start text-lg font-extrabold">
+            {f.s4Title}
+          </h3>
+          <Field label={f.s4Hold} optionalText={f.optionalWord} dir={dir}>
             {renderSelect('holding', f.holdPeriods)}
           </Field>
-          <Field label={f.s4Participation}>
+          <Field
+            label={f.s4Participation}
+            optionalText={f.optionalWord}
+            dir={dir}
+          >
             {renderSelect('participation', f.participation)}
           </Field>
-          <Field label={f.s4StrategicQ}>
+          <Field label={f.s4StrategicQ} optionalText={f.optionalWord} dir={dir}>
             {renderSelect('strategic', f.yesNo)}
           </Field>
-          <Field label={f.s4Questions} optional>
+          <Field
+            label={f.s4Questions}
+            optional
+            optionalText={f.optionalWord}
+            dir={dir}
+          >
             {renderTextarea('questions')}
           </Field>
-          <Field label={f.s4NeededInfo} optional>
+          <Field
+            label={f.s4NeededInfo}
+            optional
+            optionalText={f.optionalWord}
+            dir={dir}
+          >
             <div className="grid grid-cols-2 gap-2">
               {f.neededInfo.map((item) => (
                 <MultiChoice
@@ -433,27 +546,54 @@ export default function InvestorsPage() {
     if (step === 5) {
       return (
         <div className="flex flex-col gap-5">
-          <h3 className="border-b pb-3 text-lg font-extrabold">{f.s5Title}</h3>
-          <Field label={f.s5Return}>
+          <h3 className="border-b pb-3 text-start text-lg font-extrabold">
+            {f.s5Title}
+          </h3>
+          <Field label={f.s5Return} optionalText={f.optionalWord} dir={dir}>
             {renderSelect('return', f.returns)}
           </Field>
-          <Field label={f.s5Importance} optional>
+          <Field
+            label={f.s5Importance}
+            optional
+            optionalText={f.optionalWord}
+            dir={dir}
+          >
             {renderSelect('importance', f.importanceLevels)}
           </Field>
-          <Field label={f.s5Risk} optional>
+          <Field
+            label={f.s5Risk}
+            optional
+            optionalText={f.optionalWord}
+            dir={dir}
+          >
             {renderTextarea('risk')}
           </Field>
-          <Field label={f.s5Confidence} optional>
+          <Field
+            label={f.s5Confidence}
+            optional
+            optionalText={f.optionalWord}
+            dir={dir}
+          >
             {renderTextarea('confidence')}
           </Field>
-          <Field label={f.s5NextStep} optional>
+          <Field
+            label={f.s5NextStep}
+            optional
+            optionalText={f.optionalWord}
+            dir={dir}
+          >
             {renderSelect('next', f.nextStepsList)}
           </Field>
-          <Field label={f.s5ContactTime} optional>
+          <Field
+            label={f.s5ContactTime}
+            optional
+            optionalText={f.optionalWord}
+            dir={dir}
+          >
             <Input
               value={String(answers.contactTime ?? '')}
               onChange={(e) => update('contactTime', e.target.value)}
-              className="h-11 rounded-xl"
+              className="h-11 rounded-xl text-start"
             />
           </Field>
         </div>
@@ -462,23 +602,32 @@ export default function InvestorsPage() {
 
     return (
       <div className="flex flex-col gap-5">
-        <h3 className="border-b pb-3 text-lg font-extrabold">{f.s6Title}</h3>
-        <div className="rounded-xl bg-slate-50 p-5 text-sm leading-8 text-slate-600">
+        <h3 className="border-b pb-3 text-start text-lg font-extrabold">
+          {f.s6Title}
+        </h3>
+        <div className="rounded-xl bg-slate-50 p-5 text-start text-sm leading-8 text-slate-600">
           {f.s6Declaration}
         </div>
-        <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 p-4 text-sm font-semibold">
+        <label
+          dir={dir}
+          className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 p-4 text-start text-sm font-semibold"
+        >
           <Checkbox
             checked={Boolean(answers.agreement)}
             onCheckedChange={(checked) => update('agreement', Boolean(checked))}
           />
           <span>{f.s6AgreeCheckbox}</span>
         </label>
-        <Field label={f.s6SignatureLabel}>
+        <Field
+          label={f.s6SignatureLabel}
+          optionalText={f.optionalWord}
+          dir={dir}
+        >
           <Input
             value={String(answers.signature ?? '')}
             onChange={(e) => update('signature', e.target.value)}
             placeholder={f.s6SignaturePlaceholder}
-            className="h-11 rounded-xl"
+            className="h-11 rounded-xl text-start"
           />
         </Field>
         <p className="text-center text-xs text-slate-400">{f.s6AutoDateNote}</p>
@@ -489,7 +638,7 @@ export default function InvestorsPage() {
 
   return (
     <div
-      dir="rtl"
+      dir={dir}
       className="min-h-screen bg-[var(--brand-surface,#f5f6f8)] text-[var(--brand-navy,#0a1122)]"
     >
       <section className="bg-white px-5 py-16 text-center sm:py-20">
@@ -520,7 +669,7 @@ export default function InvestorsPage() {
       </section>
 
       <main className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:px-6 lg:grid-cols-[1.25fr_0.85fr] lg:px-8">
-        <aside className="order-2 flex flex-col gap-8">
+        <aside className="order-2 flex flex-col gap-8 text-start">
           <section className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-2xs">
             <h2 className="text-xl font-extrabold">{t.sidebar.whyTitle}</h2>
             <ul className="mt-4 flex flex-col gap-3.5 text-sm leading-7 text-slate-600">
@@ -559,7 +708,7 @@ export default function InvestorsPage() {
 
         <section
           id="investor-form"
-          className="order-1 rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm sm:p-8"
+          className="order-1 rounded-2xl border border-slate-200/90 bg-white p-5 text-start shadow-sm sm:p-8"
         >
           {submitted ? (
             <div className="py-12 text-center">
@@ -619,7 +768,7 @@ export default function InvestorsPage() {
                   onClick={() => setStep((current) => Math.max(1, current - 1))}
                   disabled={step === 1 || pending}
                 >
-                  <ChevronRight className="ml-1 size-4" />
+                  <ChevronRight className="me-1 size-4 rtl:rotate-0 ltr:rotate-180" />
                   {f.backBtn}
                 </Button>
 
@@ -630,7 +779,7 @@ export default function InvestorsPage() {
                     onClick={handleNextStep}
                   >
                     {f.nextBtn}
-                    <ChevronLeft className="mr-1 size-4" />
+                    <ChevronLeft className="ms-1 size-4 rtl:rotate-0 ltr:rotate-180" />
                   </Button>
                 ) : (
                   <Button

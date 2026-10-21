@@ -6,19 +6,20 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { saveUnitDocumentAction } from '@/app/actions/account-actions'
 import { Loader2 } from 'lucide-react'
-import arDict from '@/dictionaries/ar.json'
-
-const t = arDict.accountPages.documents
-const tCommon = arDict.accountPages.common
-
-const DOCUMENT_SECTIONS = [
-  { key: 'contract' as const, title: t.sections.contract },
-  { key: 'receipts' as const, title: t.sections.receipts },
-  { key: 'statement' as const, title: t.sections.statement },
-  { key: 'national_id' as const, title: t.sections.national_id },
-]
+import { useTranslation } from '@/lib/i18n'
 
 export default function AccountDocumentsPage() {
+  const { t: dict, dir } = useTranslation()
+  const t = dict.accountPages.documents
+  const tCommon = dict.accountPages.common
+
+  const DOCUMENT_SECTIONS = [
+    { key: 'contract' as const, title: t.sections.contract },
+    { key: 'receipts' as const, title: t.sections.receipts },
+    { key: 'statement' as const, title: t.sections.statement },
+    { key: 'national_id' as const, title: t.sections.national_id },
+  ]
+
   const searchParams = useSearchParams()
   const unitIdParam = searchParams.get('unitId')
 
@@ -97,11 +98,11 @@ export default function AccountDocumentsPage() {
 
   return (
     <main
-      dir="rtl"
+      dir={dir}
       className="min-h-screen bg-[var(--brand-surface,#f5f6f8)] px-4 py-12 pb-24 text-[var(--brand-navy,#0a1122)]"
     >
       <div className="mx-auto max-w-[660px]">
-        <header className="mb-8 text-right">
+        <header className="mb-8 text-start">
           <h1 className="text-2xl font-black text-[var(--brand-navy,#0a1122)]">
             {t.title}
           </h1>
@@ -173,7 +174,7 @@ export default function AccountDocumentsPage() {
                       </span>
                     </div>
                   ) : (
-                    <p className="mt-3 text-right text-xs text-gray-400">
+                    <p className="mt-3 text-start text-xs text-gray-400">
                       {t.emptySection}
                     </p>
                   )}

@@ -8,12 +8,13 @@ import {
   updateEmailInfoAction,
   updatePersonalInfoAction,
 } from '@/app/actions/account-actions'
-import arDict from '@/dictionaries/ar.json'
-
-const t = arDict.accountPages.details
-const tCommon = arDict.accountPages.common
+import { useTranslation } from '@/lib/i18n'
 
 export default function AccountDetailsPage() {
+  const { t: dict, dir } = useTranslation()
+  const t = dict.accountPages.details
+  const tCommon = dict.accountPages.common
+
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
@@ -87,11 +88,11 @@ export default function AccountDetailsPage() {
 
   return (
     <main
-      dir="rtl"
+      dir={dir}
       className="min-h-screen bg-[var(--brand-surface,#f5f6f8)] pb-24 text-[var(--brand-navy-text,#0a1128)]"
     >
       <div className="mx-auto max-w-[640px] px-4 py-10 sm:px-6 md:py-16">
-        <header className="mb-8 text-right">
+        <header className="mb-8 text-start">
           <h1 className="text-[28px] font-black tracking-tight text-[var(--brand-navy-text,#0a1128)]">
             {t.title}
           </h1>
@@ -105,10 +106,10 @@ export default function AccountDetailsPage() {
         ) : (
           <div className="flex flex-col gap-6">
             <section className="rounded-[20px] border border-gray-200/80 bg-white p-6 shadow-2xs sm:p-8">
-              <h2 className="text-right text-[16px] font-black text-[var(--brand-navy-text,#0a1128)]">
+              <h2 className="text-start text-[16px] font-black text-[var(--brand-navy-text,#0a1128)]">
                 {t.personalCardTitle}
               </h2>
-              <p className="mt-1 text-right text-[11.5px] text-slate-500">
+              <p className="mt-1 text-start text-[11.5px] text-slate-500">
                 {t.personalCardSub}
               </p>
 
@@ -119,29 +120,34 @@ export default function AccountDetailsPage() {
                 <div>
                   <label
                     htmlFor="name"
-                    className="mb-2 block text-right text-[13px] font-bold text-[var(--brand-navy-text,#0a1128)]"
+                    className="mb-2 block text-start text-[13px] font-bold text-[var(--brand-navy-text,#0a1128)]"
                   >
                     {t.nameLabel}
                   </label>
                   <input
                     id="name"
                     type="text"
-                    dir="rtl"
+                    dir={dir}
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     required
-                    className="h-11 w-full rounded-[10px] border border-gray-200 bg-white px-4 text-[13px] font-semibold text-[var(--brand-navy-text,#0a1128)] transition focus:border-[var(--brand-primary,#007a5a)] focus:outline-none"
+                    className="h-11 w-full rounded-[10px] border border-gray-200 bg-white px-4 text-start text-[13px] font-semibold text-[var(--brand-navy-text,#0a1128)] transition focus:border-[var(--brand-primary,#007a5a)] focus:outline-none"
                   />
                 </div>
 
                 <div>
                   <label
                     htmlFor="phone"
-                    className="mb-2 block text-right text-[13px] font-bold text-[var(--brand-navy-text,#0a1128)]"
+                    className="mb-2 block text-start text-[13px] font-bold text-[var(--brand-navy-text,#0a1128)]"
                   >
                     {t.phoneLabel}
                   </label>
-                  <div className="flex flex-row-reverse items-center gap-2">
+                  <div dir="ltr" className="flex items-center gap-2">
+                    <div className="flex h-11 shrink-0 items-center justify-center gap-2 rounded-[10px] border border-gray-200 bg-white px-3 text-[13px] font-semibold text-[var(--brand-navy-text,#0a1128)]">
+                      <span className="text-sm">🇪🇬</span>
+                      <span>{t.countryCodeLabel}</span>
+                      <ChevronDown className="size-3.5 text-gray-500" />
+                    </div>
                     <input
                       id="phone"
                       type="tel"
@@ -151,11 +157,6 @@ export default function AccountDetailsPage() {
                       required
                       className="h-11 w-full rounded-[10px] border border-gray-200 bg-white px-4 text-left text-[13px] font-semibold text-[var(--brand-navy-text,#0a1128)] transition focus:border-[var(--brand-primary,#007a5a)] focus:outline-none"
                     />
-                    <div className="flex h-11 shrink-0 items-center justify-center gap-2 rounded-[10px] border border-gray-200 bg-white px-3 text-[13px] font-semibold text-[var(--brand-navy-text,#0a1128)]">
-                      <ChevronDown className="size-3.5 text-gray-500" />
-                      <span>{t.countryCodeLabel}</span>
-                      <span className="text-sm">🇪🇬</span>
-                    </div>
                   </div>
                 </div>
 
@@ -174,7 +175,7 @@ export default function AccountDetailsPage() {
                   </div>
                 )}
 
-                <div className="mt-1 flex justify-end">
+                <div className="mt-1 flex justify-start">
                   <button
                     type="submit"
                     disabled={pendingPersonal}
@@ -187,10 +188,10 @@ export default function AccountDetailsPage() {
             </section>
 
             <section className="rounded-[20px] border border-gray-200/80 bg-white p-6 shadow-2xs sm:p-8">
-              <h2 className="text-right text-[16px] font-black text-[var(--brand-navy-text,#0a1128)]">
+              <h2 className="text-start text-[16px] font-black text-[var(--brand-navy-text,#0a1128)]">
                 {t.emailCardTitle}
               </h2>
-              <p className="mt-1 text-right text-[11.5px] text-slate-500">
+              <p className="mt-1 text-start text-[11.5px] text-slate-500">
                 {t.emailCardSub}
               </p>
 
@@ -201,7 +202,7 @@ export default function AccountDetailsPage() {
                 <div>
                   <label
                     htmlFor="email"
-                    className="mb-2 block text-right text-[13px] font-bold text-[var(--brand-navy-text,#0a1128)]"
+                    className="mb-2 block text-start text-[13px] font-bold text-[var(--brand-navy-text,#0a1128)]"
                   >
                     {t.emailLabel}
                   </label>
@@ -231,7 +232,7 @@ export default function AccountDetailsPage() {
                   </div>
                 )}
 
-                <div className="mt-1 flex justify-end">
+                <div className="mt-1 flex justify-start">
                   <button
                     type="submit"
                     disabled={pendingEmail}

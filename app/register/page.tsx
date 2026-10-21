@@ -92,7 +92,7 @@ export default function RegisterPage() {
     startTransition(async () => {
       const result = await registerAction(formData)
       if (result.success) {
-        window.location.href = '/'
+        window.location.href = '/account'
       } else {
         setError(result.error || t.genericError)
       }
@@ -252,7 +252,11 @@ export default function RegisterPage() {
                   </button>
 
                   {isDropdownOpen && (
-                    <div className="absolute top-[54px] left-0 z-50 max-h-56 w-[220px] overflow-y-auto rounded-xl border border-gray-200 bg-white p-1.5 shadow-xl">
+                    <div
+                      className={`absolute top-[54px] z-50 max-h-56 w-[215px] max-w-[calc(100vw-2.5rem)] overflow-y-auto rounded-xl border border-gray-200 bg-white p-1.5 shadow-xl ${
+                        isRtl ? 'right-0' : 'left-0'
+                      }`}
+                    >
                       {ALL_RESIDENCE_COUNTRIES.map((item) => {
                         const codeStr = `+${item.phoneCode}`
                         return (
@@ -263,21 +267,21 @@ export default function RegisterPage() {
                               setCountryCode(codeStr)
                               setIsDropdownOpen(false)
                             }}
-                            className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-start transition-colors hover:bg-gray-50 ${
+                            className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-start transition-colors hover:bg-gray-50 ${
                               countryCode === codeStr
                                 ? 'bg-[var(--brand-primary-light,#eaf8f2)]'
                                 : ''
                             }`}
                           >
-                            <div className="flex items-center gap-2.5">
-                              <span className="text-lg">{item.flag}</span>
-                              <span className="text-sm font-medium text-gray-700">
+                            <div className="flex min-w-0 items-center gap-2">
+                              <span className="text-base">{item.flag}</span>
+                              <span className="truncate text-xs font-medium text-gray-700 sm:text-sm">
                                 {getCountryLabel(item)}
                               </span>
                             </div>
                             <span
                               dir="ltr"
-                              className="text-[11px] font-bold text-gray-500"
+                              className="shrink-0 text-[11px] font-bold text-gray-500"
                             >
                               {codeStr}
                             </span>

@@ -260,7 +260,7 @@ export default function AdminShell({
         <div>
           <div className="flex h-16 items-center gap-2.5 border-b border-white/10 px-6 text-lg font-extrabold">
             <Link
-              href="/"
+             href="/admin"
               className="flex items-center gap-2.5 transition hover:opacity-90"
             >
               <span className="flex size-8 items-center justify-center rounded-lg bg-[#105C50] text-white">
@@ -380,7 +380,7 @@ export default function AdminShell({
             <div>
               <div className="flex h-14 items-center justify-between border-b border-white/10 px-4">
                 <Link
-                  href="/"
+                 href="/admin"
                   onClick={() => setDrawerOpen(false)}
                   className="flex items-center gap-2 text-base font-extrabold transition hover:opacity-90"
                 >
@@ -511,18 +511,7 @@ export default function AdminShell({
               <Menu className="size-4" />
             </button>
 
-            <Link
-              href="/"
-              className="flex shrink-0 items-center gap-1.5 text-base font-black text-[#0a1122] transition hover:text-[#105C50]"
-              title={t.publicSite}
-            >
-              <span>
-                {t.brand}
-                <span className="text-[#105C50]">.</span>
-              </span>
-            </Link>
-
-            <span className="text-xs text-gray-300">|</span>
+           
 
             <div className="flex min-w-0 items-center gap-2">
               <h1 className="truncate text-xs font-extrabold text-[#0a1122] sm:text-sm">

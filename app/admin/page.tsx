@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   Building2,
   Clock3,
+  FileText,
   Flame,
   Globe,
   MessageCircle,
@@ -50,9 +51,8 @@ export default async function AdminPage({
 }: {
   searchParams?: Promise<{ country?: string }>
 }) {
-  // سحب الترجمة مباشرة من ملفات الـ JSON عبر النظام المركزي
   const { dict, locale, dir } = await getServerI18n()
-  const t = dict.admin.dashboard
+  const t = dict.admin.dashboard as Record<string, any>
 
   const adminCountries = [
     { code: "ALL", label: t.countries.ALL, flag: "🌍" },
@@ -111,6 +111,7 @@ export default async function AdminPage({
     (p) => !p.is_featured && p.featured_status === "pending_payment"
   )
   const activeFeaturedUnits = properties.filter((p) => p.is_featured)
+  const totalAdsCount = pendingAdRequests.length + activeFeaturedUnits.length
 
   const unitSpecificLeads = leads.filter((l: any) => {
     const areasStr = Array.isArray(l.preferred_areas)
@@ -129,6 +130,7 @@ export default async function AdminPage({
   const countryAmp =
     selectedCountry !== "ALL" ? `&country=${selectedCountry}` : ""
 
+  // الكروت الـ 4 الأساسية: الوحدات، بانتظار المراجعة، حاجزي الوحدات 🔥، وطلبات الشراء
   const kpis = [
     {
       label:
@@ -150,19 +152,6 @@ export default async function AdminPage({
       highlight: pendingProperties.length > 0,
     },
     {
-      label: t.adRequests,
-      value: (
-        pendingAdRequests.length + activeFeaturedUnits.length
-      ).toLocaleString("en-US"),
-      note:
-        pendingAdRequests.length > 0
-          ? `${pendingAdRequests.length} ${t.adPendingNote}`
-          : `${activeFeaturedUnits.length} ${t.adActiveNote}`,
-      icon: Star,
-      href: `/admin/promotions${countryQuery}`,
-      highlight: pendingAdRequests.length > 0,
-    },
-    {
       label: t.unitBookers,
       value: unitSpecificLeads.length.toLocaleString("en-US"),
       note: `${t.outOfTotal} ${leads.length.toLocaleString("en-US")} ${t.buyRequestsWord}`,
@@ -170,10 +159,18 @@ export default async function AdminPage({
       href: `/admin/leads?type=unit_leads${countryAmp}`,
       highlight: unitSpecificLeads.length > 0,
     },
+    {
+      label: t.totalBuyerLeads || dict.admin.shell.nav.leads,
+      value: leads.length.toLocaleString("en-US"),
+      note: `${t.includingBookers || "منهم"} (${unitSpecificLeads.length.toLocaleString("en-US")}) ${t.unitBookersWord || t.unitBookers}`,
+      icon: FileText,
+      href: `/admin/leads${countryQuery}`,
+    },
   ]
 
   return (
     <div dir={dir} className="mx-auto max-w-7xl text-start">
+      {/* شريط الدول العلوي + زر طلبات الإعلان ⭐ القابل للضغط بالعدد */}
       <div className="mb-5 rounded-xl border border-gray-200/85 bg-white p-4 shadow-2xs">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -226,10 +223,30 @@ export default async function AdminPage({
                 </Link>
               )
             })}
+
+            {/* خيار طلبات الإعلان ⭐ بعدد قابل للضغط في الشريط العلوي */}
+            <Link
+              href={`/admin/promotions${countryQuery}`}
+              className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-extrabold transition ${
+                pendingAdRequests.length > 0
+                  ? "border-amber-400 bg-amber-50 text-amber-900 hover:bg-amber-100"
+                  : "border-amber-200 bg-amber-50/60 text-amber-800 hover:bg-amber-100/80"
+              }`}
+            >
+              <Star className="size-3.5 fill-amber-500 text-amber-600" />
+              <span>{t.adRequests}</span>
+              <span
+                dir="ltr"
+                className="rounded-full bg-amber-500 px-1.5 py-0.2 text-[10px] font-extrabold text-white"
+              >
+                {totalAdsCount}
+              </span>
+            </Link>
           </div>
         </div>
       </div>
 
+      {/* بطاقات الإحصائيات (الأيقونة قبل الكلام + الرقم في المنتصف) */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         {kpis.map(({ label, value, note, icon: Icon, href, highlight }) => (
           <Link
@@ -245,10 +262,8 @@ export default async function AdminPage({
               }`}
             >
               <CardContent className="flex h-full flex-col justify-between p-4">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs font-bold text-gray-500 group-hover:text-[#105C50]">
-                    {label}
-                  </p>
+                {/* الأيقونة أولاً قبل الكلام */}
+                <div className="flex items-center gap-2.5">
                   <span
                     className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${
                       highlight
@@ -258,17 +273,21 @@ export default async function AdminPage({
                   >
                     <Icon className="size-4" />
                   </span>
+                  <p className="text-xs font-extrabold text-gray-600 group-hover:text-[#105C50]">
+                    {label}
+                  </p>
                 </div>
 
+                {/* الرقم في المنتصف */}
                 <div
                   dir="ltr"
-                  className="my-3 text-start text-2xl font-black text-[#0a1122] tabular-nums sm:text-3xl"
+                  className="my-3 text-center text-2xl font-black text-[#0a1122] tabular-nums sm:text-3xl"
                 >
                   {value}
                 </div>
 
                 <p
-                  className={`text-[11px] font-semibold ${
+                  className={`text-center text-[11px] font-semibold ${
                     highlight ? "text-[#105C50]" : "text-gray-400"
                   }`}
                 >
@@ -303,6 +322,7 @@ export default async function AdminPage({
         </div>
       )}
 
+      {/* الجداول السفلية: الضغط على أي بائع أو مشتري يفتح الشخص نفسه مباشرة */}
       <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-3">
         <Card className="border-gray-200/80 bg-white shadow-2xs lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between border-b border-gray-100 px-4 py-3.5 sm:px-5">
@@ -328,7 +348,8 @@ export default async function AdminPage({
                 </div>
               ) : (
                 properties.slice(0, 6).map((prop) => {
-                  const stKey = (prop.status || "pending") as keyof typeof t.statuses
+                  const stKey = (prop.status ||
+                    "pending") as keyof typeof t.statuses
                   const stLabel = t.statuses[stKey] || t.statuses.pending
                   const stCls =
                     STATUS_BADGE_CLASSES[prop.status || "pending"] ||
@@ -416,12 +437,9 @@ export default async function AdminPage({
                     key={lead.id}
                     className="flex items-center justify-between rounded-xl border border-gray-200/80 bg-white px-3.5 py-2.5 transition hover:border-[#105C50]/40"
                   >
+                    {/* توجيه مباشر للشخص نفسه عبر leadId */}
                     <Link
-                      href={
-                        isUnitSpecific
-                          ? "/admin/leads?type=unit_leads"
-                          : "/admin/leads"
-                      }
+                      href={`/admin/leads?leadId=${lead.id}`}
                       className="min-w-0 flex-1"
                     >
                       <div className="flex items-center gap-1.5">

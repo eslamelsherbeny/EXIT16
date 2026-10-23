@@ -32,19 +32,25 @@ export default async function PropertiesPage() {
       .lt("last_seller_edit_at", sevenDaysAgo)
   } catch {}
 
-  const [{ data, error }, { data: leadsData }] = await Promise.all([
-    supabase
-      .from("sell_requests")
-      .select("*")
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("buy_requests")
-      .select("*")
-      .order("created_at", { ascending: false }),
-  ])
+  const [{ data, error }, { data: leadsData }, { data: offersData }] =
+    await Promise.all([
+      supabase
+        .from("sell_requests")
+        .select("*")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("buy_requests")
+        .select("*")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("property_offers")
+        .select("*")
+        .order("updated_at", { ascending: false }),
+    ])
 
   const properties = (data ?? []) as SellRequest[]
   const buyers = (leadsData ?? []) as MatchableBuyer[]
+  const offers = offersData ?? []
 
   if (error) {
     return (
@@ -58,7 +64,11 @@ export default async function PropertiesPage() {
 
   return (
     <div className="mx-auto max-w-7xl">
-      <PropertiesTable properties={properties} buyers={buyers} />
+      <PropertiesTable
+        properties={properties}
+        buyers={buyers}
+        offers={offers}
+      />
     </div>
   )
 }

@@ -11,7 +11,9 @@ import {
   Globe,
   Handshake,
   MessageCircle,
+  RefreshCw,
   Star,
+  Wallet,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -78,7 +80,7 @@ export default async function AdminPage({
 
   const supabase = await getSupabase()
 
-  const [{ data: propertiesData }, { data: leadsData }, { data: acceptedOffersData }] =
+  const [{ data: propertiesData }, { data: leadsData }, { data: allOffersData }] =
     await Promise.all([
       supabase
         .from("sell_requests")
@@ -92,13 +94,14 @@ export default async function AdminPage({
       supabase
         .from("property_offers")
         .select("*")
-        .eq("status", "accepted")
-        .order("updated_at", { ascending: false }),
+        .neq("status", "recommended")
+        .order("updated_at", { ascending: false })
+        .limit(30),
     ])
 
   const allProperties = propertiesData || []
   const allLeads = leadsData || []
-  const allAcceptedOffers = acceptedOffersData || []
+  const allOffers = allOffersData || []
 
   const properties =
     selectedCountry === "ALL"
@@ -119,12 +122,22 @@ export default async function AdminPage({
         )
 
   const propsMap = new Map(properties.map((p: any) => [p.id, p]))
-  const readyDeals = allAcceptedOffers
+
+  const readyDeals = allOffers
+    .filter((o: any) => o.status === "accepted")
     .map((offer: any) => ({
       offer,
       unit: propsMap.get(offer.property_id),
     }))
     .filter((item) => Boolean(item.unit) && item.unit.status !== "sold")
+
+  const liveNegotiationOffers = allOffers
+    .map((offer: any) => ({
+      offer,
+      unit: propsMap.get(offer.property_id),
+    }))
+    .filter((item) => Boolean(item.unit))
+    .slice(0, 8)
 
   const pendingProperties = properties.filter(
     (p) => !p.status || p.status === "pending" || p.status === "under_review"
@@ -368,7 +381,7 @@ export default async function AdminPage({
         </span>
       </Link>
 
-      {/* ==================== 4. غرفة الصفقات المتفق عليها الجاهزة للتنفيذ (Ready-to-Close Deals Room) ==================== */}
+      {/* ==================== 4. غرفة الصفقات المتفق عليها الجاهزة للتنفيذ ==================== */}
       {readyDeals.length > 0 && (
         <div className="mt-4 rounded-2xl border-2 border-[#105C50] bg-gradient-to-br from-[#effaf5] via-white to-[#f4fbf8] p-4 shadow-sm sm:p-5">
           <div className="mb-3.5 flex flex-wrap items-center justify-between gap-2">
@@ -425,7 +438,6 @@ export default async function AdminPage({
                   </div>
 
                   <div className="mt-3 grid grid-cols-2 gap-2.5 text-xs">
-                    {/* بيانات البائع */}
                     <div className="rounded-xl border border-gray-100 bg-gray-50 p-2.5">
                       <span className="block text-[10px] font-bold text-gray-400">
                         {sm.sellerPartyLabel}
@@ -451,7 +463,6 @@ export default async function AdminPage({
                       </a>
                     </div>
 
-                    {/* بيانات المشتري */}
                     <div className="rounded-xl border border-gray-100 bg-gray-50 p-2.5">
                       <span className="block text-[10px] font-bold text-gray-400">
                         {sm.buyerPartyLabel}
@@ -509,7 +520,110 @@ export default async function AdminPage({
         </div>
       )}
 
-      {/* 5. الجداول السفلية */}
+      {/* ==================== 5. رادار حركة العروض الحية والتفاوض (يوضح للأدمن من أرسل عرضاً ومن وافق ومن رفض) ==================== */}
+      {liveNegotiationOffers.length > 0 && (
+        <Card className="mt-4 border-gray-200/85 bg-white shadow-2xs">
+          <CardHeader className="flex flex-row items-center justify-between border-b border-gray-100 px-4 py-3 sm:px-5">
+            <div className="flex items-center gap-2">
+              <Wallet className="size-4 text-[#105C50]" />
+              <CardTitle className="text-xs font-extrabold text-[#0a1122] sm:text-sm">
+                {sm.liveOffersFeedTitle} ({liveNegotiationOffers.length})
+              </CardTitle>
+            </div>
+            <Link
+              href="/admin/properties?tab=offer_received"
+              className="text-xs font-bold text-[#105C50] hover:underline"
+            >
+              {t.viewAll}
+            </Link>
+          </CardHeader>
+          <CardContent className="p-3">
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+              {liveNegotiationOffers.map(({ offer, unit }) => {
+                const uCode = deriveUnitCode(unit.id)
+                const cur = getCurrencySymbol(
+                  unit.country_code || unit.country || "EG",
+                  locale
+                )
+                const st = offer.status
+
+                return (
+                  <div
+                    key={offer.id}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-gray-200/80 bg-gray-50/60 px-3 py-2 text-xs"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="rounded bg-[#0a1122] px-1.5 py-0.5 font-mono text-[9.5px] font-bold text-white">
+                          {uCode}
+                        </span>
+                        <Link
+                          href={`/admin/properties?unitId=${unit.id}`}
+                          className="truncate font-extrabold text-[#0a1122] hover:text-[#105C50]"
+                        >
+                          {unit.project_name || t.defaultUnit}
+                        </Link>
+                        <span className="text-[11px] text-gray-400">←</span>
+                        <span className="truncate font-bold text-[#105C50]">
+                          {offer.buyer_name || "—"}
+                        </span>
+                      </div>
+                      <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-gray-600">
+                        <span>
+                          {sm.agreedCashLabel}:{" "}
+                          <strong dir="ltr" className="text-[#0a1122]">
+                            {Number(offer.offered_cash || 0).toLocaleString(
+                              "en-US"
+                            )}{" "}
+                            {cur}
+                          </strong>
+                        </span>
+                        {offer.counter_cash && (
+                          <span className="font-bold text-purple-800">
+                            (🔄{" "}
+                            <span dir="ltr">
+                              {Number(offer.counter_cash).toLocaleString(
+                                "en-US"
+                              )}
+                            </span>{" "}
+                            {cur})
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      {st === "accepted" && (
+                        <span className="rounded-full bg-emerald-600 px-2.5 py-0.5 text-[10px] font-extrabold text-white">
+                          ✓ {sm.offerAcceptedTag}
+                        </span>
+                      )}
+                      {st === "pending_seller" && (
+                        <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[10px] font-extrabold text-amber-900">
+                          ⏳ {sm.offerPendingTag}
+                        </span>
+                      )}
+                      {st === "counter_offered" && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2.5 py-0.5 text-[10px] font-extrabold text-purple-900">
+                          <RefreshCw className="size-2.5" />
+                          <span>{sm.offerCounterTag}</span>
+                        </span>
+                      )}
+                      {st === "rejected" && (
+                        <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-[10px] font-extrabold text-red-700">
+                          ✕ {sm.offerRejectedTag}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 6. الجداول السفلية */}
       <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-3">
         <Card className="border-gray-200/80 bg-white shadow-2xs lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between border-b border-gray-100 px-4 py-3.5 sm:px-5">

@@ -15,7 +15,10 @@ import {
   extractUserIdFromCookie,
   parseAndVerifySessionCookie,
 } from "@/lib/session-security"
-import { getServerI18n } from "@/lib/get-server-dictionary"
+import {
+  getServerI18n,
+  type GlobalSiteSettings,
+} from "@/lib/get-server-dictionary"
 
 export type StaffRoleCode = "admin" | "moderator" | "sales"
 
@@ -43,6 +46,15 @@ function sanitizeText(val: unknown, maxLen = 500): string {
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
     .replace(/[<>]/g, "")
     .slice(0, maxLen)
+}
+
+// دالة عامة يستدعيها المتصفح لجلب إعدادات الموقع الحقيقية من قاعدة البيانات + حالة الـ Staff
+export async function getPublicSiteRuntimeConfigAction(): Promise<{
+  siteSettings: GlobalSiteSettings
+  isStaff: boolean
+}> {
+  const { siteSettings, isStaff } = await getServerI18n()
+  return { siteSettings, isStaff }
 }
 
 async function requireAdminAuth(
@@ -193,6 +205,11 @@ function revalidateAdminAll() {
   revalidatePath("/admin/profile")
   revalidatePath("/account")
   revalidatePath("/opportunities")
+  revalidatePath("/contact")
+  revalidatePath("/sell")
+  revalidatePath("/buy")
+  revalidatePath("/calculator")
+  revalidatePath("/exit")
 }
 
 export async function updatePropertyStatusAction(
@@ -813,16 +830,15 @@ export async function saveSiteSettingsAction(formData: FormData) {
   try {
     const { supabase } = await requireAdminAuth(["admin"])
     const cookieStore = await cookies()
-    const isProd = process.env.NODE_ENV === "production"
 
-    const settingsPayload = {
+    const settingsPayload: GlobalSiteSettings = {
       siteName: sanitizeText(formData.get("siteName") || "Aqar Exit", 80),
       whatsappNumber: sanitizeText(
         formData.get("whatsappNumber") || "+201018595959",
         30
       ),
       supportEmail: sanitizeText(
-        formData.get("supportEmail") || "support@darak.com",
+        formData.get("supportEmail") || "info@aqarexit.com",
         120
       ),
       buyerCommission: sanitizeText(
@@ -847,19 +863,33 @@ export async function saveSiteSettingsAction(formData: FormData) {
       emailNotifications: formData.get("emailNotifications") === "on",
     }
 
-    cookieStore.set("darak_site_settings", JSON.stringify(settingsPayload), {
-      path: "/",
-      maxAge: 60 * 60 * 24 * 365,
-      sameSite: "lax",
-      secure: isProd,
-      httpOnly: false,
-    })
+    // مسح أي كوكي قديم محلي حتى يقرأ الجميع من قاعدة البيانات المركزية فقط
+    cookieStore.delete("darak_site_settings")
 
+    // 1. الحفظ في جدول site_settings في Supabase
     try {
       await supabase.from("site_settings").upsert({
         id: "global",
         ...settingsPayload,
         updated_at: new Date().toISOString(),
+      })
+    } catch {}
+
+    // 2. الحفظ المضمون في سجل النظام داخل جدول notifications (لضمان عمله 100% حتى لو لم يكن جدول site_settings موجوداً)
+    try {
+      await supabase
+        .from("notifications")
+        .delete()
+        .eq("type", "system")
+        .eq("title", "__GLOBAL_SITE_CONFIG__")
+
+      await supabase.from("notifications").insert({
+        user_id: null,
+        title: "__GLOBAL_SITE_CONFIG__",
+        message: JSON.stringify(settingsPayload),
+        type: "system",
+        link: "/admin/settings",
+        is_read: true,
       })
     } catch {}
 

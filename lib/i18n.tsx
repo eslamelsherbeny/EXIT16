@@ -2,8 +2,9 @@
 
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { Globe, MessageCircle, ShieldCheck, Wrench } from 'lucide-react'
+import { getPublicSiteRuntimeConfigAction } from '@/app/admin/actions'
 import {
   type LocaleCode,
   type CountryCode,
@@ -15,7 +16,6 @@ import {
   getCurrencySymbol,
 } from './i18n-config'
 
-// إعادة التصدير (Re-export) حتى لا تتعطل الصفحات الأخرى التي تستورد من هنا
 export type { LocaleCode, CountryCode, Dictionary }
 export {
   DICTIONARIES,
@@ -25,7 +25,7 @@ export {
   getCurrencySymbol,
 }
 
-type SiteSettingsClient = {
+export type SiteSettingsClient = {
   siteName?: string
   whatsappNumber?: string
   supportEmail?: string
@@ -33,6 +33,7 @@ type SiteSettingsClient = {
   maintenanceMode?: boolean
   allowNewSells?: boolean
   allowNewBuys?: boolean
+  emailNotifications?: boolean
 }
 
 type I18nContextType = {
@@ -43,6 +44,7 @@ type I18nContextType = {
   t: Dictionary
   currency: string
   siteSettings: SiteSettingsClient
+  hasSession: boolean
   isStaff: boolean
 }
 
@@ -54,6 +56,7 @@ const I18nContext = createContext<I18nContextType>({
   t: DICTIONARIES.ar,
   currency: 'ج.م',
   siteSettings: {},
+  hasSession: false,
   isStaff: false,
 })
 
@@ -66,42 +69,31 @@ function readCookieValue(name: string): string | null {
   return decodeURIComponent(row.split('=').slice(1).join('='))
 }
 
-function parseSiteSettingsCookie(): SiteSettingsClient {
-  try {
-    const raw = readCookieValue('darak_site_settings')
-    if (!raw) return {}
-    return JSON.parse(raw)
-  } catch {
-    return {}
-  }
-}
-
-function checkIsStaffFromCookies(): boolean {
-  try {
-    const rawHint = readCookieValue('session_hint')
-    if (!rawHint) return false
-    const parsed = JSON.parse(rawHint)
-    const role = String(parsed?.role || '').toUpperCase()
-    return role === 'ADMIN' || role === 'MODERATOR' || role === 'SALES'
-  } catch {
-    return false
-  }
-}
-
 export function LanguageProvider({
   initialLocale = 'ar',
   initialCountry = 'EG',
+  initialSiteSettings,
+  initialHasSession = false,
+  initialIsStaff = false,
   children,
 }: {
   initialLocale?: LocaleCode
   initialCountry?: CountryCode
+  initialSiteSettings?: SiteSettingsClient
+  initialHasSession?: boolean
+  initialIsStaff?: boolean
   children: React.ReactNode
 }) {
   const pathname = usePathname()
+  const router = useRouter()
+
   const [locale, setLocale] = useState<LocaleCode>(initialLocale)
   const [country, setCountry] = useState<CountryCode>(initialCountry)
-  const [siteSettings, setSiteSettings] = useState<SiteSettingsClient>({})
-  const [isStaff, setIsStaff] = useState<boolean>(false)
+  const [siteSettings, setSiteSettings] = useState<SiteSettingsClient>(
+    initialSiteSettings || {}
+  )
+  const [hasSession, setHasSession] = useState<boolean>(initialHasSession)
+  const [isStaff, setIsStaff] = useState<boolean>(initialIsStaff)
 
   useEffect(() => {
     setLocale(initialLocale)
@@ -112,37 +104,63 @@ export function LanguageProvider({
   }, [initialCountry])
 
   useEffect(() => {
-    const syncFromCookies = () => {
+    if (initialSiteSettings) setSiteSettings(initialSiteSettings)
+  }, [initialSiteSettings])
+
+  useEffect(() => {
+    setHasSession(initialHasSession)
+  }, [initialHasSession])
+
+  useEffect(() => {
+    setIsStaff(initialIsStaff)
+  }, [initialIsStaff])
+
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.cookie = 'darak_site_settings=; path=/; max-age=0'
+    }
+
+    let isMounted = true
+
+    const syncLocaleCookies = () => {
       const langVal = readCookieValue('locale')
       const countryVal =
         readCookieValue('darak_country') || readCookieValue('country')
 
       if (langVal) setLocale(normalizeLocale(langVal))
       if (countryVal) setCountry(normalizeCountry(countryVal))
-
-      setSiteSettings(parseSiteSettingsCookie())
-      setIsStaff(checkIsStaffFromCookies())
     }
 
-    syncFromCookies()
+    const syncServerSettings = async () => {
+      try {
+        const res = await getPublicSiteRuntimeConfigAction()
+        if (isMounted && res) {
+          setSiteSettings(res.siteSettings || {})
+          setIsStaff(Boolean(res.isStaff))
+        }
+      } catch {}
+    }
 
-    window.addEventListener('language-changed', syncFromCookies)
-    window.addEventListener('country-changed', syncFromCookies)
-    window.addEventListener('site-settings-changed', syncFromCookies)
-    window.addEventListener('focus', syncFromCookies)
+    syncLocaleCookies()
+    syncServerSettings()
+
+    window.addEventListener('language-changed', syncLocaleCookies)
+    window.addEventListener('country-changed', syncLocaleCookies)
+    window.addEventListener('site-settings-changed', syncServerSettings)
+    window.addEventListener('focus', syncServerSettings)
 
     return () => {
-      window.removeEventListener('language-changed', syncFromCookies)
-      window.removeEventListener('country-changed', syncFromCookies)
-      window.removeEventListener('site-settings-changed', syncFromCookies)
-      window.removeEventListener('focus', syncFromCookies)
+      isMounted = false
+      window.removeEventListener('language-changed', syncLocaleCookies)
+      window.removeEventListener('country-changed', syncLocaleCookies)
+      window.removeEventListener('site-settings-changed', syncServerSettings)
+      window.removeEventListener('focus', syncServerSettings)
     }
   }, [pathname])
 
   const dir = locale === 'ar' ? 'rtl' : 'ltr'
   const currency = getCurrencySymbol(country, locale)
 
-  // دمج رقم الواتساب والإيميل واسم المنصة من الإعدادات داخل القاموس مباشرة
   const t = useMemo(() => {
     const base = DICTIONARIES[locale] || DICTIONARIES.ar
     const cloned = structuredClone(base) as Dictionary & Record<string, any>
@@ -166,12 +184,27 @@ export function LanguageProvider({
     return cloned
   }, [locale, siteSettings])
 
-  // تحويل أي رابط واتساب عام على الموقع تلقائياً إلى الرقم الجديد المحفوظ في الإعدادات
   useEffect(() => {
     const configuredWaDigits = String(
       siteSettings.whatsappNumber || ''
     ).replace(/\D/g, '')
     if (!configuredWaDigits) return
+
+    const updateAllWhatsAppLinks = () => {
+      const anchors =
+        document.querySelectorAll<HTMLAnchorElement>('a[href*="wa.me/"]')
+      anchors.forEach((a) => {
+        const currentHref = a.getAttribute('href') || ''
+        if (currentHref.includes('201018595959')) {
+          a.setAttribute(
+            'href',
+            currentHref.replace(/201018595959/g, configuredWaDigits)
+          )
+        }
+      })
+    }
+
+    updateAllWhatsAppLinks()
 
     const handleGlobalClick = (e: MouseEvent) => {
       const target = (e.target as HTMLElement)?.closest?.('a')
@@ -180,14 +213,14 @@ export function LanguageProvider({
       if (href.includes('wa.me/201018595959')) {
         target.setAttribute(
           'href',
-          href.replace('201018595959', configuredWaDigits)
+          href.replace(/201018595959/g, configuredWaDigits)
         )
       }
     }
 
     document.addEventListener('click', handleGlobalClick, true)
     return () => document.removeEventListener('click', handleGlobalClick, true)
-  }, [siteSettings.whatsappNumber])
+  }, [siteSettings.whatsappNumber, pathname])
 
   const switchLanguage = (nextLocale: LocaleCode) => {
     const cfg = SUPPORTED_LANGUAGES[nextLocale]
@@ -196,6 +229,7 @@ export function LanguageProvider({
     document.documentElement.dir = cfg.dir
     setLocale(nextLocale)
     window.dispatchEvent(new Event('language-changed'))
+    router.refresh()
   }
 
   const isAuthOrAdminRoute =
@@ -212,11 +246,20 @@ export function LanguageProvider({
     isStaff &&
     !pathname?.startsWith('/admin')
 
-  const maintenanceDict =
-    (t.systemPages as Record<string, any>)?.maintenance || {}
+  const sysPages = (t.systemPages as Record<string, any>) || {}
+  const maintenanceDict = sysPages.maintenance || {
+    badge: t.admin?.settings?.statusCardTitle,
+    title: t.admin?.settings?.maintenanceTitle?.split('(')[0],
+    description: t.admin?.settings?.maintenanceDesc,
+    whatsappBtn: t.publicPages?.contact?.whatsappTitle,
+    staffLoginBtn: t.admin?.accessDenied?.staffLoginBtn,
+    staffBannerText: t.admin?.settings?.maintenanceTitle,
+    staffManageBtn: t.admin?.shell?.nav?.settings,
+  }
+
   const activeWaPhone = String(
     siteSettings.whatsappNumber || t.footer?.phone || '+201018595959'
-  )
+  ).trim()
 
   return (
     <I18nContext.Provider
@@ -228,10 +271,10 @@ export function LanguageProvider({
         t,
         currency,
         siteSettings,
+        hasSession,
         isStaff,
       }}
     >
-      {/* شريط علوي صغير يظهر لك أنت والمشرفين والمبيعات فقط عند تصفح الموقع العام أثناء تفعيل وضع الصيانة */}
       {showStaffMaintenanceBanner && (
         <div
           dir={dir}
@@ -250,32 +293,33 @@ export function LanguageProvider({
         </div>
       )}
 
-      {/* شاشة الصيانة والتحديثات للزوار العاديين فقط */}
       {showMaintenanceWall ? (
         <div
           dir={dir}
           className="flex min-h-screen flex-col items-center justify-center bg-[#0a1122] px-4 py-10 text-center text-white"
         >
-          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-white/5 p-7 shadow-2xl backdrop-blur-md sm:p-9">
-            <div className="mb-6 flex items-center justify-between">
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/20 px-3 py-1 text-[11px] font-extrabold text-amber-300">
-                <Wrench className="size-3.5" />
+          <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur-md sm:p-9">
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4">
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/20 px-3 py-1 text-xs font-extrabold text-amber-300">
+                <Wrench className="size-3.5 shrink-0" />
                 <span>{maintenanceDict.badge}</span>
               </div>
 
-              <div className="flex items-center gap-1 rounded-xl bg-white/10 p-1">
-                {(['ar', 'en', 'ru', 'ka'] as LocaleCode[]).map((code) => (
+              <div className="flex flex-wrap items-center gap-1.5 rounded-xl bg-white/10 p-1">
+                {(Object.values(SUPPORTED_LANGUAGES) as Array<
+                  (typeof SUPPORTED_LANGUAGES)[LocaleCode]
+                >).map((lang) => (
                   <button
-                    key={code}
+                    key={lang.code}
                     type="button"
-                    onClick={() => switchLanguage(code)}
-                    className={`rounded-lg px-2 py-1 text-[10px] font-extrabold transition ${
-                      locale === code
-                        ? 'bg-[#105C50] text-white'
-                        : 'text-white/70 hover:text-white'
+                    onClick={() => switchLanguage(lang.code)}
+                    className={`rounded-lg px-2.5 py-1 text-xs font-bold transition ${
+                      locale === lang.code
+                        ? 'bg-[#105C50] text-white shadow-2xs'
+                        : 'text-white/75 hover:bg-white/10 hover:text-white'
                     }`}
                   >
-                    {SUPPORTED_LANGUAGES[code].shortCode}
+                    {lang.nativeName}
                   </button>
                 ))}
               </div>
@@ -285,7 +329,7 @@ export function LanguageProvider({
               AE
             </div>
 
-            <h1 className="text-2xl font-black text-white sm:text-3xl">
+            <h1 className="text-xl leading-snug font-black text-white sm:text-2xl">
               {maintenanceDict.title}
             </h1>
 

@@ -126,7 +126,7 @@ export const SUPPORTED_COUNTRIES: Record<CountryCode, CountryConfig> = {
   },
 }
 
-// علم SVG صغير وحاد يظهر بوضوح على الكمبيوتر والموبايل بدون تكبير حجم الزر
+// علم SVG صغير وحاد يظهر بوضوح على الكمبيوتر
 export function CountryFlag({
   code,
   className = 'h-3 w-4',
@@ -316,12 +316,20 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
   const router = useRouter()
   const pathname = usePathname()
 
-  const { t: labels, locale: language, country, dir } = useTranslation()
+  // استلام حالة الجلسة وحالة الأدمن من السيرفر فوراً عبر Context لمنع أي ومضة
+  const {
+    t: labels,
+    locale: language,
+    country,
+    dir,
+    hasSession: initialServerHasSession,
+    isStaff: initialServerIsStaff,
+  } = useTranslation()
 
   const [langMenuOpen, setLangMenuOpen] = useState(false)
   const [countryMenuOpen, setCountryMenuOpen] = useState(false)
-  const [hasSession, setHasSession] = useState(false)
-  const [isAdmin, setIsAdmin] = useState(false)
+  const [hasSession, setHasSession] = useState<boolean>(initialServerHasSession)
+  const [isAdmin, setIsAdmin] = useState<boolean>(initialServerIsStaff)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const [isSwitchingLocale, startSwitchTransition] = useTransition()
@@ -337,6 +345,14 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
   const countryRefDesktop = useRef<HTMLDivElement>(null)
   const countryRefMobile = useRef<HTMLDivElement>(null)
   const langRefDesktop = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    setHasSession(initialServerHasSession)
+  }, [initialServerHasSession])
+
+  useEffect(() => {
+    setIsAdmin(initialServerIsStaff)
+  }, [initialServerIsStaff])
 
   useEffect(() => {
     if (!isSwitchingLocale) {
@@ -379,11 +395,6 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
   useEffect(() => {
     let isMounted = true
     async function verifyUserAndRole() {
-      const hintExists = document.cookie
-        .split('; ')
-        .some((cookie) => cookie.startsWith('session_hint='))
-      if (isMounted) setHasSession(hintExists)
-
       try {
         const actionFn = (authActions as any).getSessionUserAction
         if (typeof actionFn === 'function') {
@@ -741,7 +752,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
         </>
       )}
 
-      {/* ارتفاع الهيدر 74px والمسافة بين اللوجو والتابات كبيرة (gap-10 xl:gap-14) مثل الموقع الأصلي تماماً */}
+      {/* ارتفاع الهيدر 74px والمسافة بين اللوجو والتابات كبيرة (gap-10 xl:gap-14) */}
       <div className="mx-auto flex h-[66px] max-w-[1280px] items-center justify-between gap-4 px-4 sm:h-[74px] sm:px-6 lg:px-8">
         <div className="flex items-center gap-9 lg:gap-10 xl:gap-14">
           <Logo />
@@ -769,8 +780,9 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
           </nav>
         </div>
 
+        {/* ==================== القسم الأيسر/الأيمن (كمبيوتر — كما هو تماماً) ==================== */}
         <div className="hidden shrink-0 items-center gap-2 lg:flex xl:gap-2.5">
-          {/* 1. زر الدولة بحجم صغير وأنيق مع علم حقيقي بجانب الرمز */}
+          {/* 1. زر الدولة في الكمبيوتر كما هو */}
           <div className="relative" ref={countryRefDesktop}>
             <button
               type="button"
@@ -817,7 +829,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
             {langMenuOpen && renderLanguageDropdownMenu()}
           </div>
 
-          {/* 3. زر حسابي بحجم بارز وواضح مثل الموقع الأصلي (h-[42px] px-4) */}
+          {/* 3. زر حسابي */}
           <Link
             href={hasSession ? '/account' : '/login'}
             className="inline-flex h-[42px] items-center justify-center whitespace-nowrap rounded-[11px] border border-[#e2e8f0] bg-white px-4 text-[13px] font-bold text-[#0a1122] transition-colors hover:bg-gray-50 xl:px-4.5 xl:text-[13.5px]"
@@ -825,7 +837,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
             {labels.navbar?.login || 'حسابي'}
           </Link>
 
-          {/* 4. زر عايز تشتري بحجم بارز وواضح مثل الموقع الأصلي */}
+          {/* 4. زر عايز تشتري */}
           <Link
             href="/buy"
             className="inline-flex h-[42px] items-center justify-center whitespace-nowrap rounded-[11px] border border-[#e2e8f0] bg-white px-4 text-[13px] font-bold text-[#0a1122] transition-colors hover:bg-gray-50 xl:px-4.5 xl:text-[13.5px]"
@@ -857,7 +869,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
             </div>
           )}
 
-          {/* 6. زر عايز تبيع الأخضر بحجم بارز وواضح مثل الموقع الأصلي */}
+          {/* 6. زر عايز تبيع الأخضر */}
           <Link
             href="/sell"
             className="inline-flex h-[42px] items-center justify-center whitespace-nowrap rounded-[11px] bg-[#0b6954] px-4.5 text-[13px] font-bold text-white transition-colors hover:bg-[#085443] xl:px-5 xl:text-[13.5px]"
@@ -886,7 +898,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
           )}
         </div>
 
-        {/* ==================== القسم الأيسر/الأيمن (موبايل) ==================== */}
+        {/* ==================== القسم الأيسر/الأيمن (موبايل — زر الدولة الرقيق الصغير + بدون ومضة) ==================== */}
         <div className="flex items-center gap-1.5 lg:hidden">
           <div className="relative" ref={countryRefMobile}>
             <button
@@ -897,12 +909,14 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
                 setCountryMenuOpen(!countryMenuOpen)
                 setNotificationsOpen(false)
               }}
-              className="inline-flex h-[34px] items-center justify-center gap-1.5 rounded-[8px] border border-gray-200/90 bg-gray-50 px-2 text-[11px] font-bold text-[#0a1122]"
+              className="inline-flex h-[30px] items-center justify-center gap-1 rounded-full border border-gray-200/80 bg-gray-50/90 px-2 text-[10.5px] font-extrabold text-[#0a1122] shadow-2xs transition active:scale-95"
               aria-label="تغيير الدولة"
             >
-              <CountryFlag code={currentCountryCfg.code} className="h-3 w-4" />
-              <span>{currentCountryCfg.code}</span>
-              <ChevronDown className="size-3 text-gray-400" />
+              <span className="text-[12px] leading-none">
+                {currentCountryCfg.flag}
+              </span>
+              <span className="leading-none">{currentCountryCfg.code}</span>
+              <ChevronDown className="size-2.5 text-gray-400" />
             </button>
 
             {countryMenuOpen && renderCountryDropdownMenu()}
@@ -1097,7 +1111,13 @@ export function LegacyNavbar({ dictionary }: { dictionary?: Dictionary }) {
 // ==================== 3. الفوتر المنظم (Footer) ====================
 export function Footer({ dictionary: _unused }: { dictionary?: Dictionary }) {
   const router = useRouter()
-  const { t: labels, locale: language, country: activeCountry, dir } = useTranslation()
+  const {
+    t: labels,
+    locale: language,
+    country: activeCountry,
+    dir,
+    siteSettings,
+  } = useTranslation()
   const [isSwitching, startTransition] = useTransition()
 
   const selectFooterCountry = (code: CountryCode) => {
@@ -1108,6 +1128,11 @@ export function Footer({ dictionary: _unused }: { dictionary?: Dictionary }) {
       router.refresh()
     })
   }
+
+  const activePhone =
+    siteSettings?.whatsappNumber || labels.footer?.phone || '+201018595959'
+  const activeEmail =
+    siteSettings?.supportEmail || labels.footer?.email || 'info@aqarexit.com'
 
   const platformLinks = [
     { label: labels.navbar?.opportunities || 'الفرص المتاحة', href: '/opportunities' },
@@ -1158,14 +1183,14 @@ export function Footer({ dictionary: _unused }: { dictionary?: Dictionary }) {
             </p>
             <div className="mt-5 flex flex-col items-start gap-2 text-xs text-gray-300 sm:text-[13px]">
               <a
-                href={`tel:${labels.footer?.phone || '+201018595959'}`}
+                href={`tel:${activePhone}`}
                 dir="ltr"
                 className="transition-colors hover:text-[#2ee59d]"
               >
-                {labels.footer?.phone || '+201018595959'}
+                {activePhone}
               </a>
               <a
-                href="https://wa.me/201018595959"
+                href={`https://wa.me/${activePhone.replace(/\D/g, '')}`}
                 target="_blank"
                 rel="noreferrer"
                 className="transition-colors hover:text-[#2ee59d]"
@@ -1173,10 +1198,10 @@ export function Footer({ dictionary: _unused }: { dictionary?: Dictionary }) {
                 {labels.publicPages?.contact?.whatsappTitle || 'WhatsApp'}
               </a>
               <a
-                href={`mailto:${labels.footer?.email || 'info@aqarexit.com'}`}
+                href={`mailto:${activeEmail}`}
                 className="transition-colors hover:text-[#2ee59d]"
               >
-                {labels.footer?.email || 'info@aqarexit.com'}
+                {activeEmail}
               </a>
             </div>
           </div>

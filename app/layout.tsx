@@ -32,12 +32,19 @@ export const viewport: Viewport = {
 export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const { locale, country, dir } = await getServerI18n()
+  const { locale, country, dir, siteSettings, isLoggedIn, isStaff } =
+    await getServerI18n()
 
   return (
     <html lang={locale} dir={dir}>
       <body className={`${cairo.variable} ${cairo.className} antialiased`}>
-        <LanguageProvider initialLocale={locale} initialCountry={country}>
+        <LanguageProvider
+          initialLocale={locale}
+          initialCountry={country}
+          initialSiteSettings={siteSettings}
+          initialHasSession={isLoggedIn}
+          initialIsStaff={isStaff}
+        >
           {children}
         </LanguageProvider>
         <Toaster />

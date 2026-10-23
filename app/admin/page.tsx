@@ -5,11 +5,11 @@ import {
   ArrowLeft,
   Building2,
   Clock3,
+  ExternalLink,
   FileText,
   Flame,
   Globe,
   MessageCircle,
-  Sparkles,
   Star,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
@@ -35,6 +35,12 @@ const STATUS_BADGE_CLASSES: Record<string, string> = {
   rejected: "bg-red-100 text-red-800",
 }
 
+function deriveUnitCode(id: string) {
+  const digits = id.replace(/\D/g, "")
+  const num = digits ? Number(digits.slice(-4)) : 100
+  return `U-${String(num).padStart(5, "0")}`
+}
+
 async function getSupabase() {
   const cookieStore = await cookies()
   return createServerClient(
@@ -53,6 +59,7 @@ export default async function AdminPage({
 }) {
   const { dict, locale, dir } = await getServerI18n()
   const t = dict.admin.dashboard as Record<string, any>
+  const leadsDict = dict.admin.leads as Record<string, any>
 
   const adminCountries = [
     { code: "ALL", label: t.countries.ALL, flag: "🌍" },
@@ -111,7 +118,6 @@ export default async function AdminPage({
     (p) => !p.is_featured && p.featured_status === "pending_payment"
   )
   const activeFeaturedUnits = properties.filter((p) => p.is_featured)
-  const totalAdsCount = pendingAdRequests.length + activeFeaturedUnits.length
 
   const unitSpecificLeads = leads.filter((l: any) => {
     const areasStr = Array.isArray(l.preferred_areas)
@@ -158,10 +164,7 @@ export default async function AdminPage({
     {
       label: t.unitBookers,
       value: unitSpecificLeads.length.toLocaleString("en-US"),
-      note:
-        locale === "ar"
-          ? "طلبات حجز لوحدات محددة"
-          : `${t.outOfTotal} ${leads.length.toLocaleString("en-US")}`,
+      note: t.unitBookersNote || `${t.outOfTotal} ${leads.length.toLocaleString("en-US")}`,
       icon: Flame,
       href: `/admin/leads?type=unit_leads${countryAmp}`,
       highlight: unitSpecificLeads.length > 0,
@@ -169,10 +172,7 @@ export default async function AdminPage({
     {
       label: t.totalBuyerLeads || dict.admin.shell.nav.leads,
       value: leads.length.toLocaleString("en-US"),
-      note:
-        locale === "ar"
-          ? `${generalSearchLeadsCount.toLocaleString("en-US")} طلب بحث عام بالمنصة`
-          : `${generalSearchLeadsCount.toLocaleString("en-US")} general requests`,
+      note: `${generalSearchLeadsCount.toLocaleString("en-US")} ${t.generalRequestsNote}`,
       icon: FileText,
       href: `/admin/leads${countryQuery}`,
     },
@@ -180,7 +180,7 @@ export default async function AdminPage({
 
   return (
     <div dir={dir} className="mx-auto max-w-7xl text-start">
-      {/* 1. شريط فلترة الدول النظيف فقط */}
+      {/* 1. شريط فلترة الدول */}
       <div className="mb-4 rounded-xl border border-gray-200/85 bg-white p-3.5 shadow-2xs sm:p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -237,7 +237,7 @@ export default async function AdminPage({
         </div>
       </div>
 
-      {/* 2. الكروت الأربعة بتصميم متناسق ومقاس أيقونات موحد تماماً */}
+      {/* 2. الكروت الأربعة */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         {kpis.map(({ label, value, note, icon: Icon, href, highlight }) => (
           <Link
@@ -288,12 +288,12 @@ export default async function AdminPage({
         ))}
       </div>
 
-      {/* 3. شريط طلبات الإعلان والتمييز (في مكان مستقل ومنسق للموبايل والكمبيوتر) */}
+      {/* 3. شريط طلبات الإعلان: يوضح عدد الطلبات الجديدة + عدد الوحدات المميزة النشطة بوضوح */}
       <Link
         href={`/admin/promotions${countryQuery}`}
-        className={`mt-3.5 flex items-center justify-between gap-3 rounded-xl border p-3.5 shadow-2xs transition hover:shadow-xs sm:mt-4 sm:px-4 ${
+        className={`mt-3.5 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3.5 shadow-2xs transition hover:shadow-xs sm:mt-4 sm:px-4 ${
           pendingAdRequests.length > 0
-            ? "border-amber-300 bg-gradient-to-l from-amber-50/90 to-white"
+            ? "border-amber-400 bg-gradient-to-l from-amber-50/90 to-white"
             : "border-gray-200/85 bg-white hover:border-amber-300"
         }`}
       >
@@ -312,35 +312,46 @@ export default async function AdminPage({
               <p className="text-xs font-extrabold text-[#0a1122] sm:text-sm">
                 {t.adRequests}
               </p>
+
+              {/* شارة عدد الطلبات الجديدة بانتظار التفعيل */}
               <span
-                dir="ltr"
-                className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-extrabold text-amber-900"
+                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10.5px] font-extrabold ${
+                  pendingAdRequests.length > 0
+                    ? "bg-red-600 text-white shadow-2xs"
+                    : "bg-amber-100 text-amber-900"
+                }`}
               >
-                {totalAdsCount}
+                <span dir="ltr">{pendingAdRequests.length}</span>
+                <span>{t.adPendingNote}</span>
+              </span>
+
+              {/* شارة عدد الوحدات المميزة النشطة حالياً */}
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10.5px] font-bold text-[#105C50]">
+                <span dir="ltr">{activeFeaturedUnits.length}</span>
+                <span>{t.adActiveNote}</span>
               </span>
             </div>
-            <p className="mt-0.5 truncate text-[11px] font-semibold text-gray-500">
-              {pendingAdRequests.length > 0 ? (
-                <span className="text-amber-800">
-                  ({pendingAdRequests.length}) {t.adPendingNote} ·{" "}
+
+            {pendingAdRequests.length > 0 && (
+              <p className="mt-1 truncate text-[11px] font-bold text-amber-900">
+                {t.adAlertPrefix}{" "}
+                <span className="font-mono">
                   {pendingAdRequests
                     .map((p) => p.featured_fawry_code || "AD")
                     .join(" , ")}
                 </span>
-              ) : (
-                `${activeFeaturedUnits.length} ${t.adActiveNote}`
-              )}
-            </p>
+              </p>
+            )}
           </div>
         </div>
 
         <span className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg bg-[#0a1122] px-3 text-[11px] font-bold text-white">
-          <span>{t.viewAll}</span>
+          <span>{t.openAdRequests}</span>
           <ArrowLeft className="size-3 rtl:rotate-0 ltr:rotate-180" />
         </span>
       </Link>
 
-      {/* 4. الجداول السفلية: الضغط يوجه لصفحة الجدول ويمرر تلقائياً لكارت الشخص مع تظليل خفيف */}
+      {/* 4. الجداول السفلية */}
       <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-3">
         <Card className="border-gray-200/80 bg-white shadow-2xs lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between border-b border-gray-100 px-4 py-3.5 sm:px-5">
@@ -376,24 +387,34 @@ export default async function AdminPage({
                     prop.country_code || prop.country || "EG",
                     locale
                   )
+                  const uCode = deriveUnitCode(prop.id)
+
+                  const sellerWaMsg = `${leadsDict.waGeneralPrefix} ${prop.name}، (${prop.project_name || t.defaultUnit} - ${prop.area || ""} - ${uCode}) — ${Number(prop.paid_amount || 0).toLocaleString("en-US")} ${propCurrency}`
 
                   return (
-                    <Link
+                    <div
                       key={prop.id}
-                      href={`/admin/properties?unitId=${prop.id}`}
                       className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-gray-200/80 bg-white px-3.5 py-2.5 transition hover:border-[#105C50]/50 hover:bg-gray-50/70"
                     >
-                      <div className="min-w-[160px] flex-1">
-                        <p className="text-xs font-extrabold text-[#0a1122]">
-                          {prop.project_name || t.defaultUnit}
-                        </p>
+                      <Link
+                        href={`/admin/properties?unitId=${prop.id}`}
+                        className="min-w-[160px] flex-1"
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-xs font-extrabold text-[#0a1122]">
+                            {prop.project_name || t.defaultUnit}
+                          </p>
+                          <span className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[9.5px] font-bold text-gray-600">
+                            {uCode}
+                          </span>
+                        </div>
                         <p className="mt-0.5 text-[11px] text-gray-500">
                           {prop.area || "—"} · {prop.name} (
                           <span dir="ltr">{prop.phone}</span>)
                         </p>
-                      </div>
+                      </Link>
 
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2">
                         <span className="text-xs font-extrabold text-[#105C50] tabular-nums">
                           {prop.paid_amount ? (
                             <>
@@ -411,8 +432,24 @@ export default async function AdminPage({
                         <Badge className={`text-[10px] ${stCls}`}>
                           {stLabel}
                         </Badge>
+                        <Link
+                          href={`/opportunities/${prop.id}`}
+                          target="_blank"
+                          title={t.viewAll}
+                          className="inline-flex size-7 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-[#0a1122] hover:border-[#105C50] hover:text-[#105C50]"
+                        >
+                          <ExternalLink className="size-3.5" />
+                        </Link>
+                        <a
+                          href={`https://wa.me/${String(prop.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(sellerWaMsg)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex size-7 items-center justify-center rounded-lg bg-[#25D366] text-white hover:opacity-90"
+                        >
+                          <MessageCircle className="size-3.5" />
+                        </a>
                       </div>
-                    </Link>
+                    </div>
                   )
                 })
               )}
@@ -449,6 +486,16 @@ export default async function AdminPage({
                   lead.country_code || lead.country || "EG",
                   locale
                 )
+                const cleanTarget = areasText
+                  .replace("🎯 مهتم بوحدة:", "")
+                  .trim()
+                const cashFormatted = Number(
+                  lead.available_cash || lead.budget || 0
+                ).toLocaleString("en-US")
+
+                const buyerWaMsg = isUnitSpecific
+                  ? `${leadsDict.waUnitLeadPrefix} ${lead.name}، ${leadsDict.waUnitLeadMiddle} (${cleanTarget}) — ${leadsDict.cashShort} ${cashFormatted} ${leadCurrency}. ${leadsDict.waUnitLeadSuffix}`
+                  : `${leadsDict.waGeneralPrefix} ${lead.name}، ${leadsDict.waGeneralMiddle} (${cleanTarget || t.allAreas}) — ${leadsDict.cashShort} ${cashFormatted} ${leadCurrency}. ${leadsDict.waGeneralSuffix}`
 
                 return (
                   <div
@@ -470,19 +517,14 @@ export default async function AdminPage({
                         )}
                       </div>
                       <p className="mt-0.5 text-[11px] font-bold text-[#105C50] tabular-nums">
-                        <span dir="ltr">
-                          {Number(
-                            lead.available_cash || lead.budget || 0
-                          ).toLocaleString("en-US")}
-                        </span>{" "}
-                        {leadCurrency}
+                        <span dir="ltr">{cashFormatted}</span> {leadCurrency}
                       </p>
                       <p className="mt-0.5 truncate text-[10px] text-gray-400">
-                        {areasText}
+                        {cleanTarget}
                       </p>
                     </Link>
                     <a
-                      href={`https://wa.me/${String(lead.phone || "").replace(/\D/g, "")}`}
+                      href={`https://wa.me/${String(lead.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(buyerWaMsg)}`}
                       target="_blank"
                       rel="noreferrer"
                       className="ms-2 inline-flex h-8 shrink-0 items-center justify-center rounded-lg bg-[#25D366] px-2.5 text-white hover:opacity-90"

@@ -8,6 +8,8 @@ import {
   Building2,
   Calendar,
   CheckCircle2,
+  ExternalLink,
+  Eye,
   Flame,
   Globe,
   Loader2,
@@ -59,54 +61,59 @@ export type BuyerLead = {
   created_at: string
 }
 
-function parseLeadDetails(lead: BuyerLead) {
-  const areasRaw = Array.isArray(lead.preferred_areas)
-    ? lead.preferred_areas.join("، ")
-    : lead.preferred_areas || ""
-  const planRaw = lead.payment_plan || ""
+export type LinkedUnitSummary = {
+  id: string
+  project_name: string | null
+  area: string | null
+  unit_type: string | null
+  paid_amount: number | null
+  contract_price: number | null
+  installment_amount: number | null
+  name: string
+  phone: string
+  status?: string | null
+  country_code?: string | null
+  country?: string | null
+}
 
-  const isUnitLead =
-    areasRaw.includes("🎯") ||
-    areasRaw.includes("U-") ||
-    planRaw.includes("مهتم بوحدة")
+function deriveShortUnitCode(id: string) {
+  const digits = id.replace(/\D/g, "")
+  const num = digits ? Number(digits.slice(-4)) : 100
+  return `U-${String(num).padStart(5, "0")}`
+}
 
-  const codeMatch = `${areasRaw} ${planRaw}`.match(/U-[A-Z0-9]+/i)
-  const unitCode = codeMatch ? codeMatch[0] : null
+function findMatchingUnitForLead(
+  lead: BuyerLead,
+  unitCode: string | null,
+  cleanTargetUnit: string,
+  units: LinkedUnitSummary[]
+): LinkedUnitSummary | null {
+  if (!units || units.length === 0) return null
 
-  let readinessBadge: { text: string; className: string } | null = null
-  if (planRaw.includes("خلال أسبوع")) {
-    readinessBadge = {
-      text: "⚡ جاهز كاش خلال أسبوع",
-      className: "bg-red-100 text-red-700 border border-red-200",
-    }
-  } else if (planRaw.includes("شهر لـ 3 شهور") || planRaw.includes("خلال شهر")) {
-    readinessBadge = {
-      text: "⏱️ جاهز خلال شهر - 3 شهور",
-      className: "bg-amber-100 text-amber-800 border border-amber-200",
-    }
-  } else if (planRaw.includes("يجمع معلومات")) {
-    readinessBadge = {
-      text: "🔍 يجمع معلومات ويقارن",
-      className: "bg-slate-100 text-slate-700 border border-slate-200",
-    }
+  if (unitCode) {
+    const cleanCode = unitCode.toUpperCase()
+    const byCode = units.find(
+      (u) =>
+        deriveShortUnitCode(u.id).toUpperCase() === cleanCode ||
+        `U-${u.id.slice(0, 5).toUpperCase()}` === cleanCode ||
+        u.id.toUpperCase().startsWith(cleanCode.replace("U-", ""))
+    )
+    if (byCode) return byCode
   }
 
-  let customerNotes = ""
-  if (planRaw.includes("أسئلة العميل:")) {
-    customerNotes = planRaw.split("أسئلة العميل:")[1]?.trim() || ""
-  } else if (planRaw.includes("ملاحظات:")) {
-    customerNotes = planRaw.split("ملاحظات:")[1]?.trim() || ""
-  }
+  const byProjectName = units.find(
+    (u) =>
+      u.project_name &&
+      cleanTargetUnit.includes(u.project_name.trim()) &&
+      (!u.area || cleanTargetUnit.includes(u.area.trim()))
+  )
+  if (byProjectName) return byProjectName
 
-  const cleanTargetUnit = areasRaw.replace("🎯 مهتم بوحدة:", "").trim()
-
-  return {
-    isUnitLead,
-    unitCode,
-    cleanTargetUnit: cleanTargetUnit || "جميع المناطق",
-    readinessBadge,
-    customerNotes,
-  }
+  return (
+    units.find(
+      (u) => u.project_name && cleanTargetUnit.includes(u.project_name.trim())
+    ) || null
+  )
 }
 
 type ConfirmLeadAction =
@@ -120,127 +127,135 @@ type ConfirmLeadAction =
       lead: BuyerLead
     }
 
-export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
+export default function LeadsClientTable({
+  leads,
+  units = [],
+}: {
+  leads: BuyerLead[]
+  units?: LinkedUnitSummary[]
+}) {
   const router = useRouter()
   const searchParams = useSearchParams()
 
   const { t: dict, locale, dir } = useTranslation()
 
-  // حماية كاملة للقاموس لمنع أي خطأ في الـ Runtime إذا كانت بعض المفاتيح غير موجودة
   const adminDict = (dict?.admin as Record<string, any>) || {}
-  const rawLeadsAdmin = adminDict.leadsAdmin || adminDict.leads || {}
+  const t = adminDict.leadsAdmin || {}
+  const leadsPrompts = adminDict.leads || {}
+  const propAdminDict = adminDict.propertiesAdmin || {}
 
-  const t = {
-    loadError: rawLeadsAdmin.loadError || "تعذر تحميل طلبات الشراء.",
-    eyebrow: rawLeadsAdmin.eyebrow || "إدارة المشترين والحجوزات",
-    title: rawLeadsAdmin.title || "طلبات الشراء وحجز الوحدات",
-    searchPlaceholder:
-      rawLeadsAdmin.searchPlaceholder ||
-      "ابحث باسم المشتري، رقم الهاتف، كود الوحدة (U-xxx)، أو المنطقة...",
-    allTab: rawLeadsAdmin.allTab || "الكل",
-    unitLeadsTab: rawLeadsAdmin.unitLeadsTab || "حاجزي الوحدات",
-    generalTab: rawLeadsAdmin.generalTab || "بحث عام",
-    emptyText: rawLeadsAdmin.emptyText || "لا توجد طلبات شراء مطابقة.",
-    updatingText: rawLeadsAdmin.updatingText || "جاري تحديث الطلب...",
-    unitBadge: rawLeadsAdmin.unitBadge || "حجز وحدة",
-    cashLabel: rawLeadsAdmin.cashLabel || "كاش:",
-    installmentLabel: rawLeadsAdmin.installmentLabel || "القسط:",
-    areasLabel: rawLeadsAdmin.areasLabel || "المناطق:",
-    typeDetailsLabel: rawLeadsAdmin.typeDetailsLabel || "النوع والتفاصيل:",
-    customerNotesLabel:
-      rawLeadsAdmin.customerNotesLabel ||
-      rawLeadsAdmin.customerQuestionLabel ||
-      "أسئلة العميل قبل المكالمة:",
-    dateLabel: rawLeadsAdmin.dateLabel || "تاريخ الطلب:",
-    statusLabel: rawLeadsAdmin.statusLabel || "حالة متابعة المشتري:",
-    whatsappBtn: rawLeadsAdmin.whatsappBtn || "واتساب",
-    unitBtn: rawLeadsAdmin.unitBtn || "الوحدة",
-    deleteBtn: rawLeadsAdmin.deleteBtn || "حذف",
-    allOrdersTitle:
-      rawLeadsAdmin.allOrdersTitle ||
-      "قائمة طلبات المشترين وحاجزي الوحدات",
-    allOrdersDesc:
-      rawLeadsAdmin.allOrdersDesc ||
-      "العملاء المميزون بعلامة (🔥 حجز وحدة) هم عملاء طلبوا شراء وحدة محددة بعينها من صفحة الفرص.",
-    colBuyer: rawLeadsAdmin.colBuyer || "اسم المشتري ونوع الطلب",
-    colCash: rawLeadsAdmin.colCash || "القدرة المالية / الكاش",
-    colTarget:
-      rawLeadsAdmin.colTarget || "الوحدة المطلوبة / المنطقة والجاهزية",
-    colDate: rawLeadsAdmin.colDate || "تاريخ الطلب",
-    colStatus: rawLeadsAdmin.colStatus || "حالة المتابعة",
-    colAction: rawLeadsAdmin.colAction || "الإجراء",
-    confirmDeleteTitle:
-      rawLeadsAdmin.confirmDeleteTitle || "تأكيد حذف طلب الشراء",
-    confirmStatusTitle:
-      rawLeadsAdmin.confirmStatusTitle || "تأكيد تحديث حالة المتابعة",
-    cancelBtn: rawLeadsAdmin.cancelBtn || "إلغاء",
-    confirmBtn: rawLeadsAdmin.confirmBtn || "تأكيد التنفيذ",
-    savingBtn: rawLeadsAdmin.savingBtn || "جاري الحفظ...",
-    statusUpdatedSuccess:
-      rawLeadsAdmin.statusUpdatedSuccess ||
-      "تم تحديث حالة متابعة المشتري بنجاح.",
-    statusUpdateError:
-      rawLeadsAdmin.statusUpdateError || "تعذر تحديث حالة الطلب.",
-    deletedSuccess:
-      rawLeadsAdmin.deletedSuccess || "تم حذف طلب الشراء نهائياً.",
-    deleteError: rawLeadsAdmin.deleteError || "تعذر حذف طلب الشراء.",
-    statuses: {
-      new: rawLeadsAdmin.statuses?.new || "طلب جديد",
-      contacted: rawLeadsAdmin.statuses?.contacted || "تم التواصل",
-      matched: rawLeadsAdmin.statuses?.matched || "تم ترشيح / معاينة",
-      closed: rawLeadsAdmin.statuses?.closed || "تم الشراء / التعاقد",
-      archived: rawLeadsAdmin.statuses?.archived || "مؤرشف",
-    },
+  function parseLeadDetails(lead: BuyerLead) {
+    const areasRaw = Array.isArray(lead.preferred_areas)
+      ? lead.preferred_areas.join("، ")
+      : lead.preferred_areas || ""
+    const planRaw = lead.payment_plan || ""
+
+    const isUnitLead =
+      areasRaw.includes("🎯") ||
+      areasRaw.includes("U-") ||
+      planRaw.includes("مهتم بوحدة")
+
+    const codeMatch = `${areasRaw} ${planRaw}`.match(/U-[A-Z0-9]+/i)
+    const unitCode = codeMatch ? codeMatch[0].toUpperCase() : null
+
+    let readinessBadge: { text: string; className: string } | null = null
+    if (planRaw.includes("خلال أسبوع")) {
+      readinessBadge = {
+        text: leadsPrompts.readiness?.week || "",
+        className: "bg-red-100 text-red-700 border border-red-200",
+      }
+    } else if (
+      planRaw.includes("شهر لـ 3 شهور") ||
+      planRaw.includes("خلال شهر")
+    ) {
+      readinessBadge = {
+        text: leadsPrompts.readiness?.month || "",
+        className: "bg-amber-100 text-amber-800 border border-amber-200",
+      }
+    } else if (planRaw.includes("يجمع معلومات")) {
+      readinessBadge = {
+        text: leadsPrompts.readiness?.info || "",
+        className: "bg-slate-100 text-slate-700 border border-slate-200",
+      }
+    }
+
+    let customerNotes = ""
+    if (planRaw.includes("أسئلة العميل:")) {
+      customerNotes = planRaw.split("أسئلة العميل:")[1]?.trim() || ""
+    } else if (planRaw.includes("ملاحظات:")) {
+      customerNotes = planRaw.split("ملاحظات:")[1]?.trim() || ""
+    }
+
+    const cleanTargetUnit =
+      areasRaw.replace("🎯 مهتم بوحدة:", "").trim() ||
+      leadsPrompts.allAreas ||
+      ""
+
+    const matchedUnit = isUnitLead
+      ? findMatchingUnitForLead(lead, unitCode, cleanTargetUnit, units)
+      : null
+
+    return {
+      isUnitLead,
+      unitCode,
+      cleanTargetUnit,
+      readinessBadge,
+      customerNotes,
+      matchedUnit,
+    }
+  }
+
+  function buildWhatsAppMessage(
+    lead: BuyerLead,
+    parsed: ReturnType<typeof parseLeadDetails>,
+    leadCur: string
+  ) {
+    const cashVal = Number(
+      lead.available_cash || lead.budget || 0
+    ).toLocaleString("en-US")
+    const instVal = Number(lead.max_installment || 0).toLocaleString("en-US")
+    const typesStr = Array.isArray(lead.unit_types)
+      ? lead.unit_types.join("، ")
+      : ""
+
+    if (parsed.isUnitLead) {
+      const unitTitle = parsed.matchedUnit
+        ? `${parsed.matchedUnit.project_name || ""} - ${parsed.matchedUnit.area || ""} (${parsed.unitCode || ""})`
+        : parsed.cleanTargetUnit
+      return `${leadsPrompts.waUnitLeadPrefix} ${lead.name}، ${leadsPrompts.waUnitLeadMiddle} (${unitTitle}) — ${t.cashLabel} ${cashVal} ${leadCur} | ${t.installmentLabel} ${instVal} ${leadCur}.${parsed.customerNotes ? ` (${t.customerNotesLabel} ${parsed.customerNotes})` : ""} ${leadsPrompts.waUnitLeadSuffix}`
+    }
+
+    return `${leadsPrompts.waGeneralPrefix} ${lead.name}، ${leadsPrompts.waGeneralMiddle} (${parsed.cleanTargetUnit}) — ${t.cashLabel} ${cashVal} ${leadCur} | ${t.installmentLabel} ${instVal} ${leadCur}${typesStr ? ` | ${typesStr}` : ""}. ${leadsPrompts.waGeneralSuffix}`
   }
 
   const adminCountries = [
-    {
-      code: "ALL",
-      label: adminDict.dashboard?.countries?.ALL || "كل الدول",
-      flag: "🌍",
-    },
-    {
-      code: "EG",
-      label: adminDict.dashboard?.countries?.EG || "مصر",
-      flag: "🇪🇬",
-    },
-    {
-      code: "RU",
-      label: adminDict.dashboard?.countries?.RU || "روسيا",
-      flag: "🇷🇺",
-    },
-    {
-      code: "GE",
-      label: adminDict.dashboard?.countries?.GE || "جورجيا",
-      flag: "🇬🇪",
-    },
-    {
-      code: "AE",
-      label: adminDict.dashboard?.countries?.AE || "الإمارات",
-      flag: "🇦🇪",
-    },
+    { code: "ALL", label: adminDict.dashboard?.countries?.ALL, flag: "🌍" },
+    { code: "EG", label: adminDict.dashboard?.countries?.EG, flag: "🇪🇬" },
+    { code: "RU", label: adminDict.dashboard?.countries?.RU, flag: "🇷🇺" },
+    { code: "GE", label: adminDict.dashboard?.countries?.GE, flag: "🇬🇪" },
+    { code: "AE", label: adminDict.dashboard?.countries?.AE, flag: "🇦🇪" },
   ]
 
   const leadStatuses = [
-    { value: "new", label: t.statuses.new, badge: "bg-blue-100 text-blue-800" },
+    { value: "new", label: t.statuses?.new, badge: "bg-blue-100 text-blue-800" },
     {
       value: "contacted",
-      label: t.statuses.contacted,
+      label: t.statuses?.contacted,
       badge: "bg-amber-100 text-amber-800",
     },
     {
       value: "matched",
-      label: t.statuses.matched,
+      label: t.statuses?.matched,
       badge: "bg-purple-100 text-purple-800",
     },
     {
       value: "closed",
-      label: t.statuses.closed,
+      label: t.statuses?.closed,
       badge: "bg-emerald-100 text-emerald-800",
     },
     {
       value: "archived",
-      label: t.statuses.archived,
+      label: t.statuses?.archived,
       badge: "bg-gray-100 text-gray-600",
     },
   ]
@@ -263,6 +278,7 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
   const [highlightedLeadId, setHighlightedLeadId] = useState<string | null>(
     null
   )
+  const [detailsLead, setDetailsLead] = useState<BuyerLead | null>(null)
   const [confirmAction, setConfirmAction] = useState<ConfirmLeadAction | null>(
     null
   )
@@ -273,7 +289,6 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
   } | null>(null)
   const [pending, startTransition] = useTransition()
 
-  // التمرير السلس وتظليل الكارت بلون خفيف عند القدوم من الصفحة الرئيسية (مطابق لطلبات البيع تماماً)
   useEffect(() => {
     const typeParam = searchParams.get("type")
     const countryParam = searchParams.get("country")
@@ -561,9 +576,7 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
             const firstLetter = lead.name.trim().charAt(0) || "U"
             const leadCur = getLeadCurrency(lead.country_code)
 
-            const waText = parsed.isUnitLead
-              ? `أهلاً أستاذ ${lead.name}، معك مسؤول الحالة من منصة دارك العقارية بخصوص اهتمامك بحجز وحدة (${parsed.cleanTargetUnit}). أنا جاهز لتوضيح كافة التفاصيل وترتيب إجراءات المعاينة والتنازل.`
-              : `أهلاً أستاذ ${lead.name}، معك فريق مستشاري منصة دارك العقارية بخصوص طلب الشراء الخاص بك في منطقة (${parsed.cleanTargetUnit}). لدينا فرص ممتازة بدون أوفر تناسب ميزانيتك.`
+            const waText = buildWhatsAppMessage(lead, parsed, leadCur)
 
             return (
               <div
@@ -740,7 +753,45 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
                   </select>
                 </div>
 
-                <div className="mt-2.5 flex items-center gap-1.5 border-t border-gray-100 pt-2.5">
+                {/* أزرار الإجراءات للموبايل: التفاصيل + معاينة الوحدة بالموقع + الوحدة بالإدارة + واتساب + حذف */}
+                <div className="mt-2.5 flex flex-wrap items-center gap-1.5 border-t border-gray-100 pt-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setDetailsLead(lead)}
+                    className="inline-flex h-8 items-center justify-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 text-xs font-bold text-[#0a1122] hover:bg-gray-50"
+                  >
+                    <Eye className="size-3.5 text-[#105C50]" />
+                    <span>{propAdminDict.actions?.detailsBtn || t.unitBtn}</span>
+                  </button>
+
+                  {parsed.isUnitLead && (
+                    <>
+                      <Link
+                        href={
+                          parsed.matchedUnit
+                            ? `/opportunities/${parsed.matchedUnit.id}`
+                            : `/opportunities?q=${encodeURIComponent(parsed.unitCode || parsed.cleanTargetUnit)}`
+                        }
+                        target="_blank"
+                        className="inline-flex h-8 items-center justify-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 text-xs font-bold text-[#105C50] hover:bg-emerald-100"
+                      >
+                        <ExternalLink className="size-3.5" />
+                        <span>{t.unitBtn}</span>
+                      </Link>
+
+                      <Link
+                        href={
+                          parsed.matchedUnit
+                            ? `/admin/properties?unitId=${parsed.matchedUnit.id}`
+                            : `/admin/properties?q=${encodeURIComponent(parsed.unitCode || "")}`
+                        }
+                        className="inline-flex h-8 items-center justify-center gap-1 rounded-lg border border-gray-200 bg-gray-50 px-2.5 text-xs font-bold text-[#0a1122] hover:bg-gray-100"
+                      >
+                        <Building2 className="size-3.5 text-[#105C50]" />
+                      </Link>
+                    </>
+                  )}
+
                   <a
                     href={`https://wa.me/${String(lead.phone).replace(/\D/g, "")}?text=${encodeURIComponent(waText)}`}
                     target="_blank"
@@ -750,16 +801,6 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
                     <MessageCircle className="size-3.5" />
                     <span>{t.whatsappBtn}</span>
                   </a>
-
-                  {parsed.isUnitLead && (
-                    <Link
-                      href="/admin/properties"
-                      className="inline-flex h-8 items-center justify-center gap-1 rounded-lg border border-gray-200 bg-gray-50 px-3 text-xs font-bold text-[#0a1122] hover:bg-gray-100"
-                    >
-                      <Building2 className="size-3.5 text-[#105C50]" />
-                      <span>{t.unitBtn}</span>
-                    </Link>
-                  )}
 
                   <button
                     type="button"
@@ -829,9 +870,7 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
                     const isHighlighted = highlightedLeadId === lead.id
                     const leadCur = getLeadCurrency(lead.country_code)
 
-                    const waText = parsed.isUnitLead
-                      ? `أهلاً أستاذ ${lead.name}، معك مسؤول الحالة من منصة دارك العقارية بخصوص اهتمامك بحجز وحدة (${parsed.cleanTargetUnit}). أنا جاهز لتوضيح كافة التفاصيل وترتيب إجراءات المعاينة والتنازل.`
-                      : `أهلاً أستاذ ${lead.name}، معك فريق مستشاري منصة دارك العقارية بخصوص طلب الشراء الخاص بك في منطقة (${parsed.cleanTargetUnit}). لدينا فرص ممتازة بدون أوفر تناسب ميزانيتك.`
+                    const waText = buildWhatsAppMessage(lead, parsed, leadCur)
 
                     return (
                       <tr
@@ -965,12 +1004,54 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
                         </td>
 
                         <td className="px-5 py-4">
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {/* زر عرض تفاصيل طلب المشتري بالكامل */}
+                            <button
+                              type="button"
+                              onClick={() => setDetailsLead(lead)}
+                              className="inline-flex h-8 items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 text-xs font-bold text-[#0a1122] transition hover:border-[#105C50] hover:bg-gray-50"
+                            >
+                              <Eye className="size-3.5 text-[#105C50]" />
+                              <span>
+                                {propAdminDict.actions?.detailsBtn || t.unitBtn}
+                              </span>
+                            </button>
+
+                            {/* إذا كان العميل حاجزاً لوحدة محددة، يظهر له زر فتح الوحدة على الموقع العام + زر فتحها في لوحة الأدمن */}
+                            {parsed.isUnitLead && (
+                              <>
+                                <Link
+                                  href={
+                                    parsed.matchedUnit
+                                      ? `/opportunities/${parsed.matchedUnit.id}`
+                                      : `/opportunities?q=${encodeURIComponent(parsed.unitCode || parsed.cleanTargetUnit)}`
+                                  }
+                                  target="_blank"
+                                  className="inline-flex h-8 items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 text-xs font-bold text-[#105C50] transition hover:bg-emerald-100"
+                                >
+                                  <ExternalLink className="size-3.5" />
+                                  <span>{t.unitBtn}</span>
+                                </Link>
+
+                                <Link
+                                  href={
+                                    parsed.matchedUnit
+                                      ? `/admin/properties?unitId=${parsed.matchedUnit.id}`
+                                      : `/admin/properties`
+                                  }
+                                  title={dict.admin?.shell?.nav?.properties}
+                                  className="inline-flex h-8 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 px-2 text-[#0a1122] transition hover:bg-gray-100"
+                                >
+                                  <Building2 className="size-3.5 text-[#105C50]" />
+                                </Link>
+                              </>
+                            )}
+
                             <a
                               href={`https://wa.me/${String(lead.phone).replace(/\D/g, "")}?text=${encodeURIComponent(waText)}`}
                               target="_blank"
                               rel="noreferrer"
-                              className="inline-flex items-center gap-1.5 rounded-lg bg-[#25D366] px-3 py-2 text-xs font-bold text-white transition hover:opacity-90"
+                              className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#25D366] px-3 text-xs font-bold text-white transition hover:opacity-90"
                             >
                               <MessageCircle className="size-3.5" />
                               <span>{t.whatsappBtn}</span>
@@ -985,7 +1066,7 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
                                   lead,
                                 })
                               }
-                              className="rounded-lg border border-gray-200 p-2 text-gray-400 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                              className="inline-flex h-8 items-center justify-center rounded-lg border border-gray-200 px-2 text-gray-400 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
                               title={t.deleteBtn}
                             >
                               <Trash2 className="size-3.5" />
@@ -1002,7 +1083,186 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
         </CardContent>
       </Card>
 
-      {/* 3. نافذة التأكيد */}
+      {/* 3. نافذة تفاصيل طلب الشراء والوحدة المحجوزة */}
+      <Dialog
+        open={Boolean(detailsLead)}
+        onOpenChange={(open) => !open && setDetailsLead(null)}
+      >
+        <DialogContent
+          dir={dir}
+          className="max-h-[88vh] w-[92vw] max-w-[460px] overflow-y-auto rounded-2xl p-5 text-start sm:max-w-lg"
+        >
+          {detailsLead &&
+            (() => {
+              const parsed = parseLeadDetails(detailsLead)
+              const leadCur = getLeadCurrency(detailsLead.country_code)
+              const waText = buildWhatsAppMessage(detailsLead, parsed, leadCur)
+              const typesText = Array.isArray(detailsLead.unit_types)
+                ? detailsLead.unit_types.join("، ")
+                : "—"
+
+              return (
+                <>
+                  <DialogHeader className="text-start">
+                    <div className="flex items-center justify-between gap-2">
+                      <DialogTitle className="text-sm font-extrabold text-[#0a1122] sm:text-base">
+                        {detailsLead.name}
+                      </DialogTitle>
+                      {parsed.isUnitLead && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2.5 py-0.5 text-[10px] font-extrabold text-orange-800">
+                          <Flame className="size-3 fill-orange-500 text-orange-600" />
+                          {t.unitBadge} {parsed.unitCode || ""}
+                        </span>
+                      )}
+                    </div>
+                    <DialogDescription className="text-start text-xs text-gray-500">
+                      <span dir="ltr">{detailsLead.phone}</span>
+                      {detailsLead.email ? ` · ${detailsLead.email}` : ""}
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  {/* إذا كان حاجزاً لوحدة، نعرض بطاقة الوحدة المحجوزة مع زر فتحها بالموقع العام وزر فتحها بالإدارة */}
+                  {parsed.isUnitLead && (
+                    <div className="mt-2 rounded-xl border border-orange-200 bg-orange-50/70 p-3.5 text-xs">
+                      <p className="font-extrabold text-orange-950">
+                        {parsed.cleanTargetUnit}
+                      </p>
+                      {parsed.matchedUnit && (
+                        <p className="mt-1 text-[11px] font-semibold text-orange-800">
+                          {propAdminDict.table?.colClient}:{" "}
+                          {parsed.matchedUnit.name} (
+                          <span dir="ltr">{parsed.matchedUnit.phone}</span>)
+                        </p>
+                      )}
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <Link
+                          href={
+                            parsed.matchedUnit
+                              ? `/opportunities/${parsed.matchedUnit.id}`
+                              : `/opportunities?q=${encodeURIComponent(parsed.unitCode || parsed.cleanTargetUnit)}`
+                          }
+                          target="_blank"
+                          className="inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#105C50] px-3 text-xs font-bold text-white hover:bg-[#0c483f]"
+                        >
+                          <ExternalLink className="size-3.5" />
+                          <span>
+                            {dict.admin?.shell?.publicSite} ({t.unitBtn})
+                          </span>
+                        </Link>
+
+                        {parsed.matchedUnit && (
+                          <Link
+                            href={`/admin/properties?unitId=${parsed.matchedUnit.id}`}
+                            onClick={() => setDetailsLead(null)}
+                            className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 text-xs font-bold text-[#0a1122] hover:bg-gray-50"
+                          >
+                            <Building2 className="size-3.5 text-[#105C50]" />
+                            <span>{dict.admin?.shell?.nav?.properties}</span>
+                          </Link>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="mt-3 grid grid-cols-2 gap-2.5 rounded-xl bg-gray-50 p-3 text-xs">
+                    <div>
+                      <span className="block text-[10px] text-gray-400">
+                        {t.cashLabel}
+                      </span>
+                      <strong className="text-[#105C50]">
+                        <span dir="ltr">
+                          {Number(
+                            detailsLead.available_cash ||
+                              detailsLead.budget ||
+                              0
+                          ).toLocaleString("en-US")}
+                        </span>{" "}
+                        {leadCur}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span className="block text-[10px] text-gray-400">
+                        {t.installmentLabel}
+                      </span>
+                      <strong className="text-[#0a1122]">
+                        <span dir="ltr">
+                          {Number(
+                            detailsLead.max_installment || 0
+                          ).toLocaleString("en-US")}
+                        </span>{" "}
+                        {leadCur}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span className="block text-[10px] text-gray-400">
+                        {t.typeDetailsLabel}
+                      </span>
+                      <strong className="text-[#0a1122]">
+                        {typesText}{" "}
+                        {detailsLead.min_rooms
+                          ? `(+${detailsLead.min_rooms})`
+                          : ""}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span className="block text-[10px] text-gray-400">
+                        {t.dateLabel}
+                      </span>
+                      <strong dir="ltr" className="text-[#0a1122]">
+                        {new Date(detailsLead.created_at).toLocaleDateString(
+                          "en-GB"
+                        )}
+                      </strong>
+                    </div>
+                  </div>
+
+                  {parsed.readinessBadge && (
+                    <div className="mt-2">
+                      <span
+                        className={`inline-block rounded-lg px-3 py-1 text-xs font-bold ${parsed.readinessBadge.className}`}
+                      >
+                        {parsed.readinessBadge.text}
+                      </span>
+                    </div>
+                  )}
+
+                  {parsed.customerNotes && (
+                    <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+                      <strong className="block font-extrabold">
+                        {t.customerNotesLabel}
+                      </strong>
+                      <p className="mt-1">{parsed.customerNotes}</p>
+                    </div>
+                  )}
+
+                  <DialogFooter className="mt-4 flex flex-row items-center justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setDetailsLead(null)}
+                      className="h-9 rounded-xl text-xs font-bold"
+                    >
+                      {propAdminDict.actions?.closeBtn || t.cancelBtn}
+                    </Button>
+                    <a
+                      href={`https://wa.me/${String(detailsLead.phone).replace(/\D/g, "")}?text=${encodeURIComponent(waText)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#25D366] px-4 text-xs font-bold text-white hover:opacity-90"
+                    >
+                      <MessageCircle className="size-4" />
+                      <span>{t.whatsappBtn}</span>
+                    </a>
+                  </DialogFooter>
+                </>
+              )
+            })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* 4. نافذة التأكيد */}
       <Dialog
         open={Boolean(confirmAction)}
         onOpenChange={(open) => {

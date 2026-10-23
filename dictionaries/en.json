@@ -1573,7 +1573,16 @@
     "errorRetryBtn": "Try Again",
     "notFoundTitle": "Sorry, the property or page you are looking for was not found",
     "notFoundDesc": "The page may have been removed or the link was typed incorrectly.",
-    "notFoundBtn": "Available Opportunities"
+    "notFoundBtn": "Available Opportunities",
+    "maintenance": {
+      "badge": "Scheduled Maintenance & Updates",
+      "title": "We Are Currently Updating the Platform to Serve You Better",
+      "description": "The platform is undergoing brief scheduled maintenance and will be back shortly. For urgent requests or inquiries, please reach out to us directly via WhatsApp.",
+      "whatsappBtn": "Contact Us on WhatsApp",
+      "staffLoginBtn": "Staff & Admin Sign In",
+      "staffBannerText": "Maintenance mode is active for visitors — Site is accessible to you as staff",
+      "staffManageBtn": "Manage Maintenance Mode"
+    }
   },
   "serverActions": {
     "auth": {

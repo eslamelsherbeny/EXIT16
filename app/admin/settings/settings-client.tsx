@@ -120,10 +120,11 @@ export default function SettingsClient({
       try {
         const res = await saveSiteSettingsAction(confirmModal.formData)
         if (res.success) {
+          window.dispatchEvent(new Event("site-settings-changed"))
           setNotice({ text: t.savedSuccess })
           router.refresh()
         } else {
-          setNotice({ text: t.savedError, isError: true })
+          setNotice({ text: res.error || t.savedError, isError: true })
         }
       } finally {
         setConfirmModal(null)
@@ -232,7 +233,6 @@ export default function SettingsClient({
                     name="whatsappNumber"
                     dir="ltr"
                     defaultValue={initialSettings.whatsappNumber}
-                    placeholder="+201018595959"
                     className="h-9 w-full rounded-lg border border-gray-200 px-3 text-left text-xs font-bold focus:border-[#105C50] focus:outline-none"
                   />
                 </div>

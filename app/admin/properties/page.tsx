@@ -19,7 +19,6 @@ export default async function PropertiesPage() {
     }
   )
 
-  // الحذف التلقائي (Auto-Purge) للوحدات التي حذفها المالك ومضى عليها أكثر من 7 أيام
   try {
     const sevenDaysAgo = new Date(
       Date.now() - 7 * 24 * 60 * 60 * 1000
@@ -43,7 +42,7 @@ export default async function PropertiesPage() {
     return (
       <div dir={dir} className="mx-auto max-w-7xl text-start">
         <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-sm font-bold text-red-700">
-          {t?.loadError || "تعذر تحميل طلبات البائعين من قاعدة البيانات."}
+          {t?.loadError}
         </div>
       </div>
     )

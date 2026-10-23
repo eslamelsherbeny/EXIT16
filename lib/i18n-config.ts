@@ -5,7 +5,23 @@ import ka from '@/dictionaries/ka.json'
 
 export type LocaleCode = 'ar' | 'en' | 'ru' | 'ka'
 export type CountryCode = 'EG' | 'RU' | 'GE' | 'AE'
+export type PlatformCountryCode = CountryCode
 export type Dictionary = typeof ar
+
+export const SUPPORTED_LANGUAGES: Record<
+  LocaleCode,
+  {
+    code: LocaleCode
+    shortCode: string
+    nativeName: string
+    dir: 'rtl' | 'ltr'
+  }
+> = {
+  ar: { code: 'ar', shortCode: 'ع', nativeName: 'العربية', dir: 'rtl' },
+  en: { code: 'en', shortCode: 'EN', nativeName: 'English', dir: 'ltr' },
+  ru: { code: 'ru', shortCode: 'RU', nativeName: 'Русский', dir: 'ltr' },
+  ka: { code: 'ka', shortCode: 'KA', nativeName: 'ქართული', dir: 'ltr' },
+}
 
 export const DICTIONARIES: Record<LocaleCode, Dictionary> = {
   ar,

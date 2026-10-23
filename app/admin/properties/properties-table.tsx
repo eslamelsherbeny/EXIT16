@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useTransition } from "react"
+import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import {
   AlertTriangle,
@@ -90,6 +91,12 @@ function getPropertyCountryCode(p: SellRequest) {
   return (p.country_code || p.country || "EG").toUpperCase()
 }
 
+function deriveShortUnitCode(id: string) {
+  const digits = id.replace(/\D/g, "")
+  const num = digits ? Number(digits.slice(-4)) : 100
+  return `U-${String(num).padStart(5, "0")}`
+}
+
 function getRemainingDaysBeforePurge(lastEditIso?: string | null) {
   if (!lastEditIso) return 7
   const deletedTime = new Date(lastEditIso).getTime()
@@ -130,9 +137,9 @@ export default function PropertiesTable({
   const searchParams = useSearchParams()
   const isPromotionsPage = mode === "promotions"
 
-  // سحب الترجمة والاتجاه واللغة من المحرك المركزي مباشرة
   const { t: dict, locale, dir } = useTranslation()
   const t = dict.admin.propertiesAdmin
+  const leadsPrompts = dict.admin.leads
 
   const adminCountries = [
     { code: "ALL", label: t.countries.ALL, flag: "🌍" },
@@ -206,6 +213,21 @@ export default function PropertiesTable({
     return getCurrencySymbol(countryCode || "EG", locale)
   }
 
+  function buildSellerWhatsAppMessage(property: SellRequest, unitCur: string) {
+    const uCode = deriveShortUnitCode(property.id)
+    const proj = property.project_name || t.table.unspecifiedProject
+    const area = property.area ? ` - ${property.area}` : ""
+    const cash = Number(property.paid_amount || 0).toLocaleString("en-US")
+    const contract = Number(property.contract_price || 0).toLocaleString(
+      "en-US"
+    )
+    const adPart = property.featured_fawry_code
+      ? ` | ${t.badges.adCodeLabel} ${property.featured_fawry_code}`
+      : ""
+
+    return `${leadsPrompts.waGeneralPrefix} ${property.name}، (${proj}${area} - ${uCode}${adPart}) — ${t.table.colCash}: ${cash} ${unitCur} | ${t.table.contractShort} ${contract} ${unitCur}`
+  }
+
   function getUploadedDocsList(docs: Record<string, any> | null | undefined) {
     if (!docs || typeof docs !== "object") return []
     return Object.entries(docs)
@@ -247,9 +269,14 @@ export default function PropertiesTable({
     const countryParam = searchParams.get("country")
     const unitIdParam = searchParams.get("unitId")
     const actionParam = searchParams.get("action")
+    const qParam = searchParams.get("q")
 
     if (countryParam) {
       setCountryFilter(countryParam.toUpperCase())
+    }
+
+    if (qParam) {
+      setSearch(qParam)
     }
 
     if (!isPromotionsPage && tabParam && tabParam !== "featured") {
@@ -303,7 +330,7 @@ export default function PropertiesTable({
             router.refresh()
           } else {
             setNotice({
-              text: res.error || "Error",
+              text: res.error || t.loadError,
               isError: true,
             })
           }
@@ -333,7 +360,7 @@ export default function PropertiesTable({
             router.refresh()
           } else {
             setNotice({
-              text: res.error || "Error",
+              text: res.error || t.loadError,
               isError: true,
             })
           }
@@ -346,7 +373,7 @@ export default function PropertiesTable({
             router.refresh()
           } else {
             setNotice({
-              text: res.error || "Error",
+              text: res.error || t.loadError,
               isError: true,
             })
           }
@@ -366,7 +393,7 @@ export default function PropertiesTable({
             router.refresh()
           } else {
             setNotice({
-              text: res.error || "Error",
+              text: res.error || t.loadError,
               isError: true,
             })
           }
@@ -414,6 +441,7 @@ export default function PropertiesTable({
   const filtered = countryProperties.filter((p) => {
     const currentStatus = p.status || "pending"
     const unitShortCode = p.id.slice(0, 8).toUpperCase()
+    const uPublicCode = deriveShortUnitCode(p.id)
     const orderRefCode = `AE-${p.id
       .replace(/[^a-zA-Z0-9]/g, "")
       .slice(0, 6)
@@ -422,7 +450,7 @@ export default function PropertiesTable({
     if (search.trim()) {
       const q = search.trim().toLowerCase()
       const textMatch =
-        `${p.id} ${unitShortCode} ${orderRefCode} ${p.project_name || ""} ${p.area || ""} ${p.name || ""} ${p.phone || ""} ${p.featured_fawry_code || ""}`
+        `${p.id} ${unitShortCode} ${uPublicCode} ${orderRefCode} ${p.project_name || ""} ${p.area || ""} ${p.name || ""} ${p.phone || ""} ${p.featured_fawry_code || ""}`
           .toLowerCase()
           .includes(q)
       if (!textMatch) return false
@@ -579,7 +607,6 @@ export default function PropertiesTable({
 
   return (
     <div dir={dir} className="text-start">
-      {/* شريط الإشعار بعد تنفيذ أي عملية */}
       {notice && (
         <div
           role="status"
@@ -607,7 +634,6 @@ export default function PropertiesTable({
         </div>
       )}
 
-      {/* 1. شريط العنوان وتوضيح الدولة المعروضة */}
       {(() => {
         const activeCountryObj =
           adminCountries.find((c) => c.code === countryFilter) ||
@@ -681,7 +707,6 @@ export default function PropertiesTable({
         )
       })()}
 
-      {/* 2. شريط البحث والتبويبات الموحد */}
       <div className="mb-4 flex flex-col gap-3 rounded-xl border border-gray-200/80 bg-white p-3 shadow-2xs sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="relative w-full sm:max-w-xs sm:flex-1">
           <Search className="pointer-events-none absolute top-1/2 end-3 size-4 -translate-y-1/2 text-gray-400" />
@@ -816,6 +841,7 @@ export default function PropertiesTable({
                 new Date(property.featured_until) > new Date())
             const isHighlighted = highlightedUnitId === property.id
             const unitCur = getUnitCurrency(getPropertyCountryCode(property))
+            const waText = buildSellerWhatsAppMessage(property, unitCur)
 
             return (
               <div
@@ -855,7 +881,8 @@ export default function PropertiesTable({
                         : ""}
                     </p>
                     <span className="mt-0.5 inline-block font-mono text-[10px] text-gray-400">
-                      #{property.id.slice(0, 8).toUpperCase()}
+                      {deriveShortUnitCode(property.id)} · #
+                      {property.id.slice(0, 8).toUpperCase()}
                     </span>
                     {renderSellerActivityBadges(property)}
                   </div>
@@ -1028,6 +1055,15 @@ export default function PropertiesTable({
                     <Eye className="me-1 size-3" />
                     {t.actions.detailsBtn}
                   </Button>
+
+                  <Link
+                    href={`/opportunities/${property.id}`}
+                    target="_blank"
+                    title={dict.admin?.shell?.publicSite}
+                    className="inline-flex h-8 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 text-xs font-bold text-[#105C50]"
+                  >
+                    <ExternalLink className="size-3.5" />
+                  </Link>
                 </div>
 
                 <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
@@ -1058,7 +1094,7 @@ export default function PropertiesTable({
                   )}
 
                   <a
-                    href={`https://wa.me/${String(property.phone || "").replace(/\D/g, "")}`}
+                    href={`https://wa.me/${String(property.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(waText)}`}
                     target="_blank"
                     rel="noreferrer"
                     className="inline-flex h-8 items-center justify-center rounded-lg bg-[#25D366] px-2.5 text-xs font-bold text-white"
@@ -1125,6 +1161,7 @@ export default function PropertiesTable({
                 const unitCur = getUnitCurrency(
                   getPropertyCountryCode(property)
                 )
+                const waText = buildSellerWhatsAppMessage(property, unitCur)
 
                 const cellBorderCls = isHighlighted
                   ? "border-y-2 border-[#105C50] first:border-s-2 last:border-e-2 bg-emerald-50/40"
@@ -1159,7 +1196,8 @@ export default function PropertiesTable({
                           : ""}
                       </div>
                       <div className="mt-0.5 font-mono text-[10px] text-gray-400">
-                        #{property.id.slice(0, 8).toUpperCase()}
+                        {deriveShortUnitCode(property.id)} · #
+                        {property.id.slice(0, 8).toUpperCase()}
                         {property.featured_fawry_code
                           ? ` · ${t.badges.adCodeLabel} ${property.featured_fawry_code}`
                           : ""}
@@ -1380,8 +1418,19 @@ export default function PropertiesTable({
                           {t.actions.detailsBtn}
                         </Button>
 
+                        {/* زر فتح صفحة الوحدة بصورها على الموقع العام */}
+                        <Link
+                          href={`/opportunities/${property.id}`}
+                          target="_blank"
+                          title={dict.admin?.shell?.publicSite}
+                          className="inline-flex h-8 items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 px-2 text-[#105C50] transition hover:bg-emerald-100"
+                        >
+                          <ExternalLink className="size-3.5" />
+                        </Link>
+
+                        {/* زر الواتساب مع الرسالة الجاهزة ببيانات الوحدة */}
                         <a
-                          href={`https://wa.me/${String(property.phone || "").replace(/\D/g, "")}`}
+                          href={`https://wa.me/${String(property.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(waText)}`}
                           target="_blank"
                           rel="noreferrer"
                           className="inline-flex h-8 items-center justify-center rounded-md bg-[#25D366] px-2 text-white hover:opacity-90"
@@ -1477,7 +1526,10 @@ export default function PropertiesTable({
                     <>
                       {t.modals.updateUnitPrefix}{" "}
                       <strong className="text-[#0a1122]">
-                        "{confirmAction.property.project_name || confirmAction.property.name}"
+                        "
+                        {confirmAction.property.project_name ||
+                          confirmAction.property.name}
+                        "
                       </strong>{" "}
                       {t.modals.toWord}{" "}
                       <span className="font-bold text-[#105C50]">
@@ -1505,7 +1557,10 @@ export default function PropertiesTable({
                       <>
                         {t.modals.selectPromoDuration}{" "}
                         <strong className="text-[#0a1122]">
-                          "{confirmAction.property.project_name || confirmAction.property.name}"
+                          "
+                          {confirmAction.property.project_name ||
+                            confirmAction.property.name}
+                          "
                         </strong>
                         :
                       </>
@@ -1513,7 +1568,10 @@ export default function PropertiesTable({
                       <>
                         {t.modals.confirmCancelPromo}{" "}
                         <strong className="text-[#0a1122]">
-                          "{confirmAction.property.project_name || confirmAction.property.name}"
+                          "
+                          {confirmAction.property.project_name ||
+                            confirmAction.property.name}
+                          "
                         </strong>
                         ؟
                       </>
@@ -1609,7 +1667,8 @@ export default function PropertiesTable({
             <>
               <DialogHeader className="text-start">
                 <DialogTitle className="text-sm font-extrabold sm:text-base">
-                  {detailsProperty.project_name || t.modals.detailsFallbackTitle}{" "}
+                  {detailsProperty.project_name ||
+                    t.modals.detailsFallbackTitle}{" "}
                   — {detailsProperty.name}
                 </DialogTitle>
                 <DialogDescription className="sr-only">
@@ -1618,6 +1677,32 @@ export default function PropertiesTable({
               </DialogHeader>
 
               {renderSellerActivityBadges(detailsProperty)}
+
+              <div className="mt-2.5 flex items-center gap-2">
+                <Link
+                  href={`/opportunities/${detailsProperty.id}`}
+                  target="_blank"
+                  className="inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-xs font-bold text-[#105C50] hover:bg-emerald-100"
+                >
+                  <ExternalLink className="size-3.5" />
+                  <span>{dict.admin?.shell?.publicSite}</span>
+                </Link>
+
+                <a
+                  href={`https://wa.me/${String(detailsProperty.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(
+                    buildSellerWhatsAppMessage(
+                      detailsProperty,
+                      getUnitCurrency(getPropertyCountryCode(detailsProperty))
+                    )
+                  )}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg bg-[#25D366] px-3 text-xs font-bold text-white hover:opacity-90"
+                >
+                  <MessageCircle className="size-3.5" />
+                  <span>{dict.admin?.leads?.whatsappBtn}</span>
+                </a>
+              </div>
 
               <div className="mt-2.5 rounded-xl border border-gray-200 bg-gray-50/70 p-2.5">
                 <label className="mb-1 block text-[11px] font-bold text-gray-500">

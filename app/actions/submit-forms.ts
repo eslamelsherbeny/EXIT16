@@ -15,108 +15,12 @@ import {
   createSignedSessionToken,
   extractUserIdFromCookie,
 } from '@/lib/session-security'
-import { normalizeLocale, type LocaleCode } from '@/lib/i18n-config'
+import { getServerI18n } from '@/lib/get-server-dictionary'
 
-const FORM_MESSAGES: Record<LocaleCode, Record<string, string>> = {
-  ar: {
-    expiredLink: 'الرابط منتهي الصلاحية.',
-    invalidLink: 'رابط غير صالح.',
-    verifyFailed: 'تعذر التحقق من الرابط.',
-    sessionExpired: 'انتهت الجلسة، يرجى تسجيل الدخول.',
-    accountNotFound: 'لم يتم العثور على بيانات الحساب.',
-    enterLogin: 'يرجى إدخال البريد الإلكتروني/الموبايل وكلمة السر.',
-    notRegistered:
-      'هذا الحساب غير مسجل لدينا. اختر "تسجيل بيانات جديدة" لإنشاء حسابك.',
-    wrongPassword:
-      'كلمة السر غير صحيحة. جرب مرة أخرى أو اضغط على نسيت كلمة السر.',
-    fillAll: 'يرجى إكمال كافة الحقول وكلمة سر 8 حروف على الأقل.',
-    createAccountFailed: 'تعذر إنشاء الحساب حالياً، يرجى المحاولة مرة أخرى.',
-    unexpected: 'حدث خطأ غير متوقع.',
-    emailNotFound: 'لم يتم العثور على بريد إلكتروني مسجل.',
-    sendLinkFailed: 'تعذر إرسال الرابط حالياً.',
-    shortPassword: 'كلمة السر يجب أن تكون 8 حروف على الأقل.',
-    updatePassFailed: 'تعذر تحديث كلمة السر.',
-    saveProgressFailed: 'تعذر حفظ التقدم.',
-    submitUnitFailed: 'تعذر حفظ الطلب. حاول مرة أخرى.',
-    enterNamePhone: 'يرجى إدخال الاسم ورقم الهاتف.',
-    investorFailed: 'تعذر إرسال بيانات المستثمر حالياً، يرجى المحاولة مرة أخرى.',
-  },
-  en: {
-    expiredLink: 'This link has expired.',
-    invalidLink: 'Invalid link.',
-    verifyFailed: 'Could not verify link.',
-    sessionExpired: 'Session expired, please sign in.',
-    accountNotFound: 'Account details not found.',
-    enterLogin: 'Please enter your email/phone and password.',
-    notRegistered:
-      'This account is not registered. Choose "Register New Details" to create an account.',
-    wrongPassword:
-      'Incorrect password. Please try again or click Forgot Password.',
-    fillAll:
-      'Please complete all fields and use a password of at least 8 characters.',
-    createAccountFailed: 'Could not create account right now, please try again.',
-    unexpected: 'An unexpected error occurred.',
-    emailNotFound: 'No registered email address found.',
-    sendLinkFailed: 'Could not send link right now.',
-    shortPassword: 'Password must be at least 8 characters.',
-    updatePassFailed: 'Could not update password.',
-    saveProgressFailed: 'Could not save progress.',
-    submitUnitFailed: 'Could not submit request. Please try again.',
-    enterNamePhone: 'Please enter your name and phone number.',
-    investorFailed: 'Could not submit investor request, please try again.',
-  },
-  ru: {
-    expiredLink: 'Срок действия ссылки истек.',
-    invalidLink: 'Недействительная ссылка.',
-    verifyFailed: 'Не удалось проверить ссылку.',
-    sessionExpired: 'Сессия истекла, пожалуйста, войдите.',
-    accountNotFound: 'Данные аккаунта не найдены.',
-    enterLogin: 'Введите email/телефон и пароль.',
-    notRegistered:
-      'Этот аккаунт не зарегистрирован. Выберите «Новая регистрация».',
-    wrongPassword:
-      'Неверный пароль. Попробуйте снова или нажмите «Забыли пароль?».',
-    fillAll: 'Заполните все поля и укажите пароль (минимум 8 символов).',
-    createAccountFailed: 'Не удалось создать аккаунт, попробуйте еще раз.',
-    unexpected: 'Произошла непредвиденная ошибка.',
-    emailNotFound: 'Зарегистрированный email не найден.',
-    sendLinkFailed: 'Не удалось отправить ссылку.',
-    shortPassword: 'Пароль должен содержать минимум 8 символов.',
-    updatePassFailed: 'Не удалось обновить пароль.',
-    saveProgressFailed: 'Не удалось сохранить прогресс.',
-    submitUnitFailed: 'Не удалось сохранить заявку. Попробуйте снова.',
-    enterNamePhone: 'Пожалуйста, укажите имя и телефон.',
-    investorFailed: 'Не удалось отправить анкету инвестора.',
-  },
-  ka: {
-    expiredLink: 'ბმულის ვადა გავიდა.',
-    invalidLink: 'არასწორი ბმული.',
-    verifyFailed: 'ბმულის შემოწმება ვერ მოხერხდა.',
-    sessionExpired: 'სესიის ვადა გავიდა, გთხოვთ შეხვიდეთ.',
-    accountNotFound: 'ანგარიშის მონაცემები ვერ მოიძებნა.',
-    enterLogin: 'შეიყვანეთ ელ.ფოსტა/ტელეფონი და პაროლი.',
-    notRegistered:
-      'ეს ანგარიში არ არის რეგისტრირებული. აირჩიეთ „ახალი მონაცემები“.',
-    wrongPassword:
-      'პაროლი არასწორია. სცადეთ თავიდან ან აღადგინეთ პაროლი.',
-    fillAll: 'შეავსეთ ყველა ველი და პაროლი (მინიმუმ 8 სიმბოლო).',
-    createAccountFailed: 'ანგარიშის შექმნა ვერ მოხერხდა, სცადეთ თავიდან.',
-    unexpected: 'დაფიქსირდა შეცდომა.',
-    emailNotFound: 'რეგისტრირებული ელ.ფოსტა ვერ მოიძებნა.',
-    sendLinkFailed: 'ბმულის გაგზავნა ვერ მოხერხდა.',
-    shortPassword: 'პაროლი უნდა შეიცავდეს მინიმუმ 8 სიმბოლოს.',
-    updatePassFailed: 'პაროლის განახლება ვერ მოხერხდა.',
-    saveProgressFailed: 'შენახვა ვერ მოხერხდა.',
-    submitUnitFailed: 'განაცხადის გაგზავნა ვერ მოხერხდა.',
-    enterNamePhone: 'გთხოვთ შეიყვანოთ სახელი და ტელეფონი.',
-    investorFailed: 'ინვესტორის განაცხადის გაგზავნა ვერ მოხერხდა.',
-  },
-}
-
-async function getFormMsg() {
-  const cookieStore = await cookies()
-  const locale = normalizeLocale(cookieStore.get('locale')?.value)
-  return FORM_MESSAGES[locale] || FORM_MESSAGES.ar
+async function getFormsDict() {
+  const { dict, dir } = await getServerI18n()
+  const t = (dict as Record<string, any>)?.serverActions?.forms || {}
+  return { t, dir }
 }
 
 async function getSupabase() {
@@ -134,10 +38,12 @@ async function sendNotificationEmail({
   to,
   subject,
   html,
+  senderName,
 }: {
   to: string
   subject: string
   html: string
+  senderName?: string
 }) {
   const user = process.env.EMAIL_USER?.trim()
   const pass = process.env.EMAIL_PASS?.replace(/\s+/g, '')
@@ -157,7 +63,7 @@ async function sendNotificationEmail({
     })
 
     await transporter.sendMail({
-      from: `"عقار إكزت - Aqar Exit" <${user}>`,
+      from: `"${senderName || 'Aqar Exit'}" <${user}>`,
       to: to.trim(),
       subject,
       html,
@@ -234,7 +140,7 @@ function createMagicToken(userId: string, unitId: string, expiresAt: number) {
 }
 
 export async function verifyMagicTokenAction(token: string) {
-  const msg = await getFormMsg()
+  const { t: msg } = await getFormsDict()
   try {
     const decoded = Buffer.from(token, 'base64url').toString('utf8')
     const [userId, unitId, expiresStr, sig] = decoded.split(':')
@@ -405,7 +311,7 @@ export async function processSellerStep2Action(payload: {
   loginIdentifier?: string
   existingUnitId?: string
 }): Promise<Step2AuthResponse> {
-  const msg = await getFormMsg()
+  const { t: msg, dir } = await getFormsDict()
   try {
     const supabase = await getSupabase()
     const siteUrl =
@@ -434,7 +340,7 @@ export async function processSellerStep2Action(payload: {
         paid_amount: Number(payload.paidAmount) || 0,
         market_price:
           Number(payload.marketPrice) || Number(payload.contractPrice) || 0,
-        name: contact.name || 'مالك الوحدة',
+        name: contact.name || msg.unitOwnerFallback,
         phone: contact.phone,
         email: contact.email || null,
         is_original_owner: true,
@@ -461,16 +367,16 @@ export async function processSellerStep2Action(payload: {
         await supabase.from('notifications').insert([
           {
             user_id: null,
-            title: `عقار جديد بانتظار استكمال البيانات (${unitCountryCode}): ${payload.project || 'وحدة سكنية'}`,
-            message: `المالك: ${contact.name} · المدفوع: ${Number(payload.paidAmount || 0).toLocaleString('en-US')}`,
+            title: `${msg.newDraftUnitAdminTitle} (${unitCountryCode}): ${payload.project || msg.unitWord}`,
+            message: `${contact.name} · ${Number(payload.paidAmount || 0).toLocaleString('en-US')}`,
             type: 'property',
             link: '/admin/properties',
             is_read: false,
           },
           {
             user_id: userId,
-            title: 'تم تسجيل طلب عرض وحدتك بنجاح 🏠',
-            message: `استلمنا البيانات الأساسية لوحدتك في (${payload.project || 'مشروعك'}). يمكنك استكمال باقي التفاصيل في أي وقت.`,
+            title: msg.unitSubmittedSellerTitle,
+            message: `${msg.unitSubmittedSellerMsg} (${payload.project || msg.unitWord})`,
             type: 'status_update',
             link: '/account?view=seller',
             is_read: false,
@@ -498,12 +404,13 @@ export async function processSellerStep2Action(payload: {
 
       await sendNotificationEmail({
         to: userEmail,
-        subject: `وصلنا طلبك ${orderRef} — عقار إكزت`,
-        html: `<div dir="rtl" style="font-family: Arial, sans-serif; text-align: right; line-height: 1.8; color: #0a1122;">
-                <p style="font-size: 16px;">أهلاً <strong>${userName}</strong>،</p>
-                <p>وصلنا طلبك — رقم الطلب: <strong>${orderRef}</strong>.</p>
-                <p>للتأكيد: المبلغ اللي هتستلمه عند إتمام التنازل هو <strong>${paidFormatted}</strong> — اللي دفعته بالظبط، بدون أي أوفر.</p>
-                <p>كمّل بيانات وحدتك من اللينك ده — مش محتاج كلمة سر ولا تسجيل دخول:</p>
+        senderName: msg.emailSenderName,
+        subject: `${msg.orderReceivedSubjectPrefix} ${orderRef}`,
+        html: `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.8; color: #0a1122;">
+                <p style="font-size: 16px;">${msg.greetingWord} <strong>${userName}</strong>،</p>
+                <p>${msg.orderRefLabel}: <strong>${orderRef}</strong>.</p>
+                <p>${msg.orderPaidConfirmText}: <strong>${paidFormatted}</strong>.</p>
+                <p>${msg.orderMagicLinkPrompt}:</p>
                 <p style="margin: 18px 0;">
                   <a href="${magicLink}" style="color: #0b6954; font-weight: bold; word-break: break-all;">${magicLink}</a>
                 </p>
@@ -531,7 +438,7 @@ export async function processSellerStep2Action(payload: {
       }
 
       const unitId = await upsertDraftUnit(currentUser.id, {
-        name: currentUser.name || 'مالك الوحدة',
+        name: currentUser.name || msg.unitOwnerFallback,
         phone: currentUser.phone || '',
         email: currentUser.email || '',
       })
@@ -541,7 +448,7 @@ export async function processSellerStep2Action(payload: {
         sendOrderConfirmationMagicEmail(
           currentUser.id,
           unitId,
-          currentUser.name || 'عميلنا العزيز',
+          currentUser.name || msg.unitOwnerFallback,
           currentUser.email
         )
       }
@@ -603,7 +510,7 @@ export async function processSellerStep2Action(payload: {
 
       await setUserSession(matched.id, matched.password_hash)
       const unitId = await upsertDraftUnit(matched.id, {
-        name: matched.name || 'مالك الوحدة',
+        name: matched.name || msg.unitOwnerFallback,
         phone: matched.phone || '',
         email: matched.email || '',
       })
@@ -613,7 +520,7 @@ export async function processSellerStep2Action(payload: {
         sendOrderConfirmationMagicEmail(
           matched.id,
           unitId,
-          matched.name || 'عميلنا العزيز',
+          matched.name || msg.unitOwnerFallback,
           matched.email
         )
       }
@@ -669,7 +576,7 @@ export async function processSellerStep2Action(payload: {
       await sendOrderConfirmationMagicEmail(
         emailUser.id,
         unitId,
-        cleanName || emailUser.name || 'عميلنا العزيز',
+        cleanName || emailUser.name || msg.unitOwnerFallback,
         emailUser.email
       )
 
@@ -695,7 +602,7 @@ export async function processSellerStep2Action(payload: {
         await sendOrderConfirmationMagicEmail(
           phoneUser.id,
           unitId,
-          cleanName || phoneUser.name || 'عميلنا العزيز',
+          cleanName || phoneUser.name || msg.unitOwnerFallback,
           phoneUser.email
         )
       }
@@ -765,7 +672,7 @@ export async function verifyExistingEmailPasswordAction(payload: {
   email: string
   password: string
 }) {
-  const msg = await getFormMsg()
+  const { t: msg } = await getFormsDict()
   try {
     const supabase = await getSupabase()
     const cleanEmail = normalizeEmail(payload.email)
@@ -805,7 +712,7 @@ export async function sendSellerRecoveryLinkAction(payload: {
   email?: string
   unitId?: string
 }) {
-  const msg = await getFormMsg()
+  const { t: msg, dir } = await getFormsDict()
   try {
     const supabase = await getSupabase()
     let targetUser: any = null
@@ -847,9 +754,10 @@ export async function sendSellerRecoveryLinkAction(payload: {
 
     await sendNotificationEmail({
       to: targetUser.email,
-      subject: 'استرجاع كلمة السر — عقار إكزت',
-      html: `<div dir="rtl" style="font-family: Arial, sans-serif; text-align: right; line-height: 1.8; color: #0a1122;">
-              <p>اختار كلمة سر جديدة لحسابك من هنا (الرابط صالح لمدة محدودة):</p>
+      senderName: msg.emailSenderName,
+      subject: msg.recoveryEmailSubject,
+      html: `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.8; color: #0a1122;">
+              <p>${msg.recoveryEmailPrompt}:</p>
               <p style="margin: 18px 0;">
                 <a href="${resetLink}" style="color: #0b6954; font-weight: bold; word-break: break-all;">${resetLink}</a>
               </p>
@@ -866,7 +774,7 @@ export async function setNewPasswordFromTokenAction(payload: {
   tokenHash: string
   newPassword: string
 }) {
-  const msg = await getFormMsg()
+  const { t: msg } = await getFormsDict()
   try {
     if (!payload.newPassword || payload.newPassword.length < 8) {
       return {
@@ -909,7 +817,7 @@ export async function setNewPasswordFromTokenAction(payload: {
 export async function saveSellProgress(
   formData: FormData
 ): Promise<SubmitResult> {
-  const msg = await getFormMsg()
+  const { t: msg } = await getFormsDict()
   try {
     const supabase = await getSupabase()
     const sessionId = extractUserIdFromCookie(
@@ -980,7 +888,7 @@ export async function saveSellProgress(
 export async function submitSellRequest(
   formData: FormData
 ): Promise<SubmitResult> {
-  const msg = await getFormMsg()
+  const { t: msg } = await getFormsDict()
   try {
     const supabase = await getSupabase()
     const cookieStore = await cookies()
@@ -989,7 +897,12 @@ export async function submitSellRequest(
     )
     const existingUnitId = text(formData, 'unit_id')
     const projectName = text(formData, 'project_name')
-    const unitCountry = (text(formData, 'country') || 'EG').toUpperCase()
+    const unitCountry = (
+      text(formData, 'country') ||
+      text(formData, 'country_code') ||
+      'EG'
+    ).toUpperCase()
+    const customSubType = text(formData, 'submission_type') || 'new'
 
     const payload: Record<string, any> = {
       country: unitCountry,
@@ -1008,7 +921,8 @@ export async function submitSellRequest(
       description: text(formData, 'description') || null,
       contract_price: number(formData, 'contract_price'),
       paid_amount: number(formData, 'paid_amount'),
-      market_price: number(formData, 'market_price'),
+      market_price:
+        number(formData, 'market_price') || number(formData, 'contract_price'),
       installment_amount: number(formData, 'installment_amount'),
       years_left: integer(formData, 'years_left'),
       contract_year: integer(formData, 'contract_year'),
@@ -1022,7 +936,7 @@ export async function submitSellRequest(
       name: text(formData, 'name'),
       phone: formatPrimaryPhone(text(formData, 'phone')),
       email: normalizeEmail(text(formData, 'email')) || null,
-      is_original_owner: formData.get('is_original_owner') === 'on',
+      is_original_owner: true,
       images: list(formData, 'image'),
       status: 'pending',
     }
@@ -1059,9 +973,9 @@ export async function submitSellRequest(
         await supabase.from('notifications').insert({
           user_id: null,
           title: wasPreviouslySubmitted
-            ? `🔄 تعديل بيانات وحدة (${unitCountry}) من المالك: ${projectName || 'وحدة'}`
-            : `✅ استكمال بيانات وحدة (${unitCountry}): ${projectName || 'وحدة'}`,
-          message: `قام البائع (${payload.name || 'المالك'}) بتحديث بيانات وصور الوحدة في (${payload.area || '—'}) وبانتظار مراجعتك.`,
+            ? `🔄 ${msg.editedUnitAdminTitle} (${unitCountry}): ${projectName || msg.unitWord}`
+            : `✅ ${msg.completedUnitAdminTitle} (${unitCountry}): ${projectName || msg.unitWord}`,
+          message: `${payload.name || ''} · (${payload.area || '—'})`,
           type: 'property',
           link: '/admin/properties',
           is_read: false,
@@ -1084,7 +998,7 @@ export async function submitSellRequest(
       .insert({
         ...payload,
         user_id: targetUserId,
-        submission_type: 'new',
+        submission_type: customSubType,
       })
       .select('id')
       .single()
@@ -1097,8 +1011,8 @@ export async function submitSellRequest(
     try {
       await supabase.from('notifications').insert({
         user_id: null,
-        title: `عقار جديد بانتظار المراجعة (${unitCountry}): ${projectName || 'وحدة جديدة'}`,
-        message: `البائع: ${payload.name} · ${payload.area || '—'}`,
+        title: `${msg.newUnitReviewAdminTitle} (${unitCountry}): ${projectName || msg.unitWord}`,
+        message: `${payload.name} · ${payload.area || '—'}`,
         type: 'property',
         link: '/admin/properties',
         is_read: false,
@@ -1119,6 +1033,9 @@ export async function submitSellRequest(
     }
   }
 }
+
+export const submitSellRequestAction = submitSellRequest
+export const createSellRequestAction = submitSellRequest
 
 export type BuyRequestPayload = {
   country?: string
@@ -1155,7 +1072,7 @@ export async function processBuyerStep3Action(payload: {
   password?: string
   loginIdentifier?: string
 }): Promise<Step2AuthResponse> {
-  const msg = await getFormMsg()
+  const { t: msg, dir } = await getFormsDict()
   try {
     const supabase = await getSupabase()
     const siteUrl =
@@ -1182,13 +1099,13 @@ export async function processBuyerStep3Action(payload: {
           country: targetCountry,
           available_cash: Number(payload.available_cash) || 0,
           max_installment: Number(payload.max_installment) || 0,
-          payment_plan: payload.payment_plan || 'شهري',
+          payment_plan: payload.payment_plan || msg.defaultMonthly,
           budget: Number(payload.budget) || 0,
           unit_types: payload.unit_types || [],
           min_rooms: Number(payload.min_rooms) || 0,
-          delivery_status: payload.delivery_status || 'جاهزة للاستلام',
+          delivery_status: payload.delivery_status || msg.defaultReady,
           preferred_areas: payload.preferred_areas || [],
-          name: contact.name || 'مشتري',
+          name: contact.name || msg.buyerFallback,
           phone: contact.phone || '',
           email: contact.email || null,
         })
@@ -1208,16 +1125,16 @@ export async function processBuyerStep3Action(payload: {
         await supabase.from('notifications').insert([
           {
             user_id: null,
-            title: `طلب شراء جديد (${targetCountry}): ${contact.name || 'مشتري'}`,
-            message: `الكاش المتاح: ${cashFormatted} · المناطق: ${(payload.preferred_areas || []).slice(0, 2).join('، ')}`,
+            title: `${msg.newBuyRequestAdminTitle} (${targetCountry}): ${contact.name || msg.buyerFallback}`,
+            message: `${cashFormatted} · ${(payload.preferred_areas || []).slice(0, 2).join('، ')}`,
             type: 'lead',
             link: '/admin/leads',
             is_read: false,
           },
           {
             user_id: userId,
-            title: 'تم تفعيل رادار الفرص العقارية لحسابك 🎯',
-            message: `تم حفظ ميزانيتك (${cashFormatted})، وسنرسل لك إشعاراً فور نزول أي وحدة مطابقة.`,
+            title: msg.radarActivatedBuyerTitle,
+            message: `${msg.radarActivatedBuyerMsg} (${cashFormatted})`,
             type: 'property_match',
             link: '/account?view=buyer',
             is_read: false,
@@ -1229,12 +1146,12 @@ export async function processBuyerStep3Action(payload: {
         const orderRef = generateOrderRef(reqId)
         sendNotificationEmail({
           to: contact.email,
-          subject: `وصلنا طلب الشراء ${orderRef} — عقار إكزت`,
-          html: `<div dir="rtl" style="font-family: Arial, sans-serif; text-align: right; line-height: 1.8; color: #0a1122;">
-                  <p style="font-size: 16px;">أهلاً <strong>${contact.name}</strong>،</p>
-                  <p>وصلنا طلب الشراء الخاص بك — رقم الطلب: <strong>${orderRef}</strong>.</p>
-                  <p>الكاش المتاح المسجل: <strong>${cashFormatted}</strong>.</p>
-                  <p>تقدر تتابع الفرص المطابقة لميزانيتك مباشرة من حسابك على المنصة:</p>
+          senderName: msg.emailSenderName,
+          subject: `${msg.buyOrderSubjectPrefix} ${orderRef}`,
+          html: `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.8; color: #0a1122;">
+                  <p style="font-size: 16px;">${msg.greetingWord} <strong>${contact.name}</strong>،</p>
+                  <p>${msg.orderRefLabel}: <strong>${orderRef}</strong>.</p>
+                  <p>${msg.registeredCashLabel}: <strong>${cashFormatted}</strong>.</p>
                   <p style="margin: 18px 0;">
                     <a href="${siteUrl}/account?view=buyer" style="color: #0b6954; font-weight: bold;">${siteUrl}/account?view=buyer</a>
                   </p>
@@ -1265,7 +1182,7 @@ export async function processBuyerStep3Action(payload: {
       }
 
       const reqId = await insertBuyRequestRecord(currentUser.id, {
-        name: currentUser.name || 'مشتري',
+        name: currentUser.name || msg.buyerFallback,
         phone: currentUser.phone || '',
         email: currentUser.email || '',
       })
@@ -1327,7 +1244,7 @@ export async function processBuyerStep3Action(payload: {
 
       await setUserSession(matched.id, matched.password_hash)
       const reqId = await insertBuyRequestRecord(matched.id, {
-        name: matched.name || 'مشتري',
+        name: matched.name || msg.buyerFallback,
         phone: matched.phone || '',
         email: matched.email || '',
       })
@@ -1454,23 +1371,59 @@ export async function processBuyerStep3Action(payload: {
 export async function submitBuyRequest(
   input: BuyRequestPayload | FormData
 ): Promise<SubmitResult> {
-  const msg = await getFormMsg()
-  if (!(input instanceof FormData)) {
+  const { t: msg } = await getFormsDict()
+  if (input instanceof FormData) {
+    let parsedTypes: string[] = []
+    let parsedAreas: string[] = []
+    try {
+      parsedTypes = JSON.parse(text(input, 'unit_types') || '[]')
+    } catch {
+      parsedTypes = list(input, 'unit_types')
+    }
+    try {
+      parsedAreas = JSON.parse(text(input, 'preferred_areas') || '[]')
+    } catch {
+      parsedAreas = list(input, 'preferred_areas')
+    }
+
     const res = await processBuyerStep3Action({
       mode: 'register',
-      ...input,
+      country: text(input, 'country_code') || text(input, 'country') || 'EG',
+      available_cash: number(input, 'available_cash'),
+      max_installment: number(input, 'max_installment'),
+      payment_plan: text(input, 'payment_plan'),
+      budget: number(input, 'budget'),
+      unit_types: parsedTypes,
+      min_rooms: integer(input, 'min_rooms'),
+      delivery_status: text(input, 'delivery_status'),
+      preferred_areas: parsedAreas,
+      name: text(input, 'name'),
+      phone: text(input, 'phone'),
+      email: text(input, 'email'),
+      password: text(input, 'password'),
     })
-    if (res.status === 'ok') return { success: true, orderRef: res.orderRef }
-    return {
-      success: false,
-      error: res.error || msg.unexpected,
+    if (res.status === 'ok' || res.orderRef) {
+      return { success: true, orderRef: res.orderRef }
     }
+    return { success: false, error: res.error || msg.unexpected }
   }
-  return { success: false, error: msg.unexpected }
+
+  const res = await processBuyerStep3Action({
+    mode: 'register',
+    ...input,
+  })
+  if (res.status === 'ok') return { success: true, orderRef: res.orderRef }
+  return {
+    success: false,
+    error: res.error || msg.unexpected,
+  }
 }
 
+export const submitBuyRequestAction = submitBuyRequest
+export const createBuyRequestAction = submitBuyRequest
+
 export async function submitInvestorLead(formData: FormData) {
-  const msg = await getFormMsg()
+  const { t: msg } = await getFormsDict()
   try {
     const supabase = await getSupabase()
 
@@ -1575,8 +1528,8 @@ export async function submitInvestorLead(formData: FormData) {
       await supabase.from('notifications').insert({
         user_id: null,
         type: 'investor',
-        title: `💼 طلب مستثمر جديد (${country}): ${name}`,
-        message: `${investor_type || 'مستثمر'} · نطاق الاستثمار: ${finalRange || 'غير محدد'}`,
+        title: `💼 ${msg.newInvestorAdminTitle} (${country}): ${name}`,
+        message: `${investor_type || msg.investorFallback} · ${finalRange || '—'}`,
         link: '/admin/investors',
         is_read: false,
       })

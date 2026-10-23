@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/utils/supabase/server'
+import { getServerI18n } from '@/lib/get-server-dictionary'
 
 export type ActionResult = { success: boolean; error?: string }
 
@@ -39,11 +40,17 @@ export interface InvestorRequest {
   created_at: string
 }
 
+async function getBasicActionsDict() {
+  const { dict } = await getServerI18n()
+  return (dict as Record<string, any>)?.serverActions?.basic || {}
+}
+
 function text(formData: FormData, key: string) {
   return String(formData.get(key) ?? '').trim()
 }
 
 export async function addProperty(formData: FormData): Promise<ActionResult> {
+  const msg = await getBasicActionsDict()
   const supabase = await createClient()
   const { error } = await supabase.from('properties').insert({
     developer: text(formData, 'developer'),
@@ -53,22 +60,29 @@ export async function addProperty(formData: FormData): Promise<ActionResult> {
     payment_method: text(formData, 'payment-method') || null,
     has_overdue_installments: formData.get('overdue') === 'on',
   })
-  if (error) return { success: false, error: 'تعذر حفظ بيانات الوحدة. حاول مرة أخرى.' }
+  if (error) return { success: false, error: msg.saveUnitError }
   revalidatePath('/opportunities')
   revalidatePath('/dashboard')
   return { success: true }
 }
 
 export async function getProperties() {
+  const msg = await getBasicActionsDict()
   const supabase = await createClient()
-  const { data, error } = await supabase.from('properties').select('*').order('created_at', { ascending: false })
-  if (error) return { data: [], error: 'تعذر تحميل الفرص حالياً.' }
+  const { data, error } = await supabase
+    .from('properties')
+    .select('*')
+    .order('created_at', { ascending: false })
+  if (error) return { data: [], error: msg.loadOpportunitiesError }
   return { data: data ?? [], error: null }
 }
 
 export async function addBuyerPreference(formData: FormData): Promise<ActionResult> {
+  const msg = await getBasicActionsDict()
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   const { error } = await supabase.from('buyer_preferences').insert({
     user_id: user?.id ?? null,
     cash_available: Number(text(formData, 'cash')) || null,
@@ -78,14 +92,17 @@ export async function addBuyerPreference(formData: FormData): Promise<ActionResu
     property_type: text(formData, 'property-type') || null,
     delivery_status: text(formData, 'delivery-status') || null,
   })
-  if (error) return { success: false, error: 'تعذر حفظ تفضيلاتك. حاول مرة أخرى.' }
+  if (error) return { success: false, error: msg.savePreferencesError }
   revalidatePath('/dashboard')
   return { success: true }
 }
 
 export async function addInvestorRequest(formData: FormData): Promise<ActionResult> {
+  const msg = await getBasicActionsDict()
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   const { error } = await supabase.from('investor_requests').insert({
     user_id: user?.id ?? null,
     full_name: text(formData, 'full-name'),
@@ -94,23 +111,29 @@ export async function addInvestorRequest(formData: FormData): Promise<ActionResu
     investment_amount: Number(text(formData, 'investment-amount')) || null,
     experience: text(formData, 'experience') || null,
   })
-  if (error) return { success: false, error: 'تعذر إرسال طلب المستثمر. حاول مرة أخرى.' }
+  if (error) return { success: false, error: msg.saveInvestorError }
   revalidatePath('/investors')
   return { success: true }
 }
 
 export async function register(formData: FormData): Promise<ActionResult> {
+  const msg = await getBasicActionsDict()
   const supabase = await createClient()
-  const { error } = await supabase.auth.signUp({ email: text(formData, 'email'), password: text(formData, 'password'), options: { data: { full_name: text(formData, 'full-name') } } })
-  if (error) return { success: false, error: 'تعذر إنشاء الحساب. تأكد من البيانات وحاول مرة أخرى.' }
+  const { error } = await supabase.auth.signUp({
+    email: text(formData, 'email'),
+    password: text(formData, 'password'),
+    options: { data: { full_name: text(formData, 'full-name') } },
+  })
+  if (error) return { success: false, error: msg.registerError }
   revalidatePath('/', 'layout')
   return { success: true }
 }
 
 export async function login(email: string, password: string): Promise<ActionResult> {
+  const msg = await getBasicActionsDict()
   const supabase = await createClient()
   const { error } = await supabase.auth.signInWithPassword({ email, password })
-  if (error) return { success: false, error: 'البريد الإلكتروني أو كلمة السر غير صحيحة.' }
+  if (error) return { success: false, error: msg.loginError }
   revalidatePath('/', 'layout')
   return { success: true }
 }

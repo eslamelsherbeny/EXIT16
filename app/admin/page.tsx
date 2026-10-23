@@ -125,12 +125,16 @@ export default async function AdminPage({
     )
   })
 
+  const generalSearchLeadsCount = Math.max(
+    0,
+    leads.length - unitSpecificLeads.length
+  )
+
   const countryQuery =
     selectedCountry !== "ALL" ? `?country=${selectedCountry}` : ""
   const countryAmp =
     selectedCountry !== "ALL" ? `&country=${selectedCountry}` : ""
 
-  // الكروت الـ 4 الأساسية: الوحدات، بانتظار المراجعة، حاجزي الوحدات 🔥، وطلبات الشراء
   const kpis = [
     {
       label:
@@ -154,7 +158,10 @@ export default async function AdminPage({
     {
       label: t.unitBookers,
       value: unitSpecificLeads.length.toLocaleString("en-US"),
-      note: `${t.outOfTotal} ${leads.length.toLocaleString("en-US")} ${t.buyRequestsWord}`,
+      note:
+        locale === "ar"
+          ? "طلبات حجز لوحدات محددة"
+          : `${t.outOfTotal} ${leads.length.toLocaleString("en-US")}`,
       icon: Flame,
       href: `/admin/leads?type=unit_leads${countryAmp}`,
       highlight: unitSpecificLeads.length > 0,
@@ -162,7 +169,10 @@ export default async function AdminPage({
     {
       label: t.totalBuyerLeads || dict.admin.shell.nav.leads,
       value: leads.length.toLocaleString("en-US"),
-      note: `${t.includingBookers || "منهم"} (${unitSpecificLeads.length.toLocaleString("en-US")}) ${t.unitBookersWord || t.unitBookers}`,
+      note:
+        locale === "ar"
+          ? `${generalSearchLeadsCount.toLocaleString("en-US")} طلب بحث عام بالمنصة`
+          : `${generalSearchLeadsCount.toLocaleString("en-US")} general requests`,
       icon: FileText,
       href: `/admin/leads${countryQuery}`,
     },
@@ -170,12 +180,12 @@ export default async function AdminPage({
 
   return (
     <div dir={dir} className="mx-auto max-w-7xl text-start">
-      {/* شريط الدول العلوي + زر طلبات الإعلان ⭐ القابل للضغط بالعدد */}
-      <div className="mb-5 rounded-xl border border-gray-200/85 bg-white p-4 shadow-2xs">
+      {/* 1. شريط فلترة الدول النظيف فقط */}
+      <div className="mb-4 rounded-xl border border-gray-200/85 bg-white p-3.5 shadow-2xs sm:p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2 text-xs font-extrabold text-[#0a1122] sm:text-sm">
-              <Globe className="size-4 text-[#105C50]" />
+              <Globe className="size-4 shrink-0 text-[#105C50]" />
               <span>
                 {selectedCountry === "ALL"
                   ? t.showingAll
@@ -223,36 +233,17 @@ export default async function AdminPage({
                 </Link>
               )
             })}
-
-            {/* خيار طلبات الإعلان ⭐ بعدد قابل للضغط في الشريط العلوي */}
-            <Link
-              href={`/admin/promotions${countryQuery}`}
-              className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-extrabold transition ${
-                pendingAdRequests.length > 0
-                  ? "border-amber-400 bg-amber-50 text-amber-900 hover:bg-amber-100"
-                  : "border-amber-200 bg-amber-50/60 text-amber-800 hover:bg-amber-100/80"
-              }`}
-            >
-              <Star className="size-3.5 fill-amber-500 text-amber-600" />
-              <span>{t.adRequests}</span>
-              <span
-                dir="ltr"
-                className="rounded-full bg-amber-500 px-1.5 py-0.2 text-[10px] font-extrabold text-white"
-              >
-                {totalAdsCount}
-              </span>
-            </Link>
           </div>
         </div>
       </div>
 
-      {/* بطاقات الإحصائيات (الأيقونة قبل الكلام + الرقم في المنتصف) */}
+      {/* 2. الكروت الأربعة بتصميم متناسق ومقاس أيقونات موحد تماماً */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         {kpis.map(({ label, value, note, icon: Icon, href, highlight }) => (
           <Link
             key={label}
             href={href}
-            className="group block transition-transform hover:-translate-y-0.5"
+            className="group block h-full transition-transform hover:-translate-y-0.5"
           >
             <Card
               className={`h-full border transition ${
@@ -261,9 +252,8 @@ export default async function AdminPage({
                   : "border-gray-200/80 bg-white hover:border-[#105C50]/50"
               }`}
             >
-              <CardContent className="flex h-full flex-col justify-between p-4">
-                {/* الأيقونة أولاً قبل الكلام */}
-                <div className="flex items-center gap-2.5">
+              <CardContent className="flex h-full flex-col justify-between p-3.5 sm:p-4">
+                <div className="flex items-center gap-2">
                   <span
                     className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${
                       highlight
@@ -271,14 +261,13 @@ export default async function AdminPage({
                         : "bg-[#105C50]/10 text-[#105C50]"
                     }`}
                   >
-                    <Icon className="size-4" />
+                    <Icon className="size-4 shrink-0" />
                   </span>
-                  <p className="text-xs font-extrabold text-gray-600 group-hover:text-[#105C50]">
+                  <p className="line-clamp-2 text-[11.5px] leading-snug font-extrabold text-[#0a1122] group-hover:text-[#105C50] sm:text-xs">
                     {label}
                   </p>
                 </div>
 
-                {/* الرقم في المنتصف */}
                 <div
                   dir="ltr"
                   className="my-3 text-center text-2xl font-black text-[#0a1122] tabular-nums sm:text-3xl"
@@ -287,7 +276,7 @@ export default async function AdminPage({
                 </div>
 
                 <p
-                  className={`text-center text-[11px] font-semibold ${
+                  className={`line-clamp-1 text-center text-[10.5px] font-semibold sm:text-[11px] ${
                     highlight ? "text-[#105C50]" : "text-gray-400"
                   }`}
                 >
@@ -299,30 +288,59 @@ export default async function AdminPage({
         ))}
       </div>
 
-      {pendingAdRequests.length > 0 && (
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3">
-          <div className="flex items-center gap-2.5">
-            <Sparkles className="size-4 shrink-0 text-amber-700" />
-            <p className="text-xs font-bold text-amber-950">
-              ({pendingAdRequests.length}) {t.adAlertPrefix}{" "}
-              <strong className="font-mono">
-                {pendingAdRequests
-                  .map((p) => p.featured_fawry_code || "AD")
-                  .join(" , ")}
-              </strong>
+      {/* 3. شريط طلبات الإعلان والتمييز (في مكان مستقل ومنسق للموبايل والكمبيوتر) */}
+      <Link
+        href={`/admin/promotions${countryQuery}`}
+        className={`mt-3.5 flex items-center justify-between gap-3 rounded-xl border p-3.5 shadow-2xs transition hover:shadow-xs sm:mt-4 sm:px-4 ${
+          pendingAdRequests.length > 0
+            ? "border-amber-300 bg-gradient-to-l from-amber-50/90 to-white"
+            : "border-gray-200/85 bg-white hover:border-amber-300"
+        }`}
+      >
+        <div className="flex min-w-0 items-center gap-3">
+          <span
+            className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${
+              pendingAdRequests.length > 0
+                ? "bg-amber-500 text-white"
+                : "bg-amber-100 text-amber-700"
+            }`}
+          >
+            <Star className="size-4 shrink-0 fill-current" />
+          </span>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-xs font-extrabold text-[#0a1122] sm:text-sm">
+                {t.adRequests}
+              </p>
+              <span
+                dir="ltr"
+                className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-extrabold text-amber-900"
+              >
+                {totalAdsCount}
+              </span>
+            </div>
+            <p className="mt-0.5 truncate text-[11px] font-semibold text-gray-500">
+              {pendingAdRequests.length > 0 ? (
+                <span className="text-amber-800">
+                  ({pendingAdRequests.length}) {t.adPendingNote} ·{" "}
+                  {pendingAdRequests
+                    .map((p) => p.featured_fawry_code || "AD")
+                    .join(" , ")}
+                </span>
+              ) : (
+                `${activeFeaturedUnits.length} ${t.adActiveNote}`
+              )}
             </p>
           </div>
-          <Link
-            href={`/admin/promotions${countryQuery}`}
-            className="inline-flex h-8 items-center gap-1 rounded-lg bg-amber-600 px-3 text-xs font-bold text-white hover:bg-amber-700"
-          >
-            <span>{t.openAdRequests}</span>
-            <ArrowLeft className="size-3 rtl:rotate-0 ltr:rotate-180" />
-          </Link>
         </div>
-      )}
 
-      {/* الجداول السفلية: الضغط على أي بائع أو مشتري يفتح الشخص نفسه مباشرة */}
+        <span className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg bg-[#0a1122] px-3 text-[11px] font-bold text-white">
+          <span>{t.viewAll}</span>
+          <ArrowLeft className="size-3 rtl:rotate-0 ltr:rotate-180" />
+        </span>
+      </Link>
+
+      {/* 4. الجداول السفلية: الضغط يوجه لصفحة الجدول ويمرر تلقائياً لكارت الشخص مع تظليل خفيف */}
       <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-3">
         <Card className="border-gray-200/80 bg-white shadow-2xs lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between border-b border-gray-100 px-4 py-3.5 sm:px-5">
@@ -437,7 +455,6 @@ export default async function AdminPage({
                     key={lead.id}
                     className="flex items-center justify-between rounded-xl border border-gray-200/80 bg-white px-3.5 py-2.5 transition hover:border-[#105C50]/40"
                   >
-                    {/* توجيه مباشر للشخص نفسه عبر leadId */}
                     <Link
                       href={`/admin/leads?leadId=${lead.id}`}
                       className="min-w-0 flex-1"

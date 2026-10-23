@@ -1,766 +1,756 @@
-import Link from 'next/link'
-import { cookies } from 'next/headers'
-import { createServerClient } from '@supabase/ssr'
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import {
-  Bell,
-  Check,
-  CheckSquare,
-  Home,
-  ShieldCheck,
-  Zap,
-} from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { getServerI18n } from '@/lib/get-server-dictionary'
+  getCurrentSellerProfileAction,
+  processBuyerStep3Action,
+} from '@/app/actions/submit-forms'
+import { Check, Loader2, UserRound, X } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { TurnstileBox } from '@/components/funnel-shell'
+import {
+  areasCatalogByCountry,
+  getCountryConfig,
+  getHeaderCookieCountry,
+  getLocalizedCountryName,
+  MoneyField,
+  normalizeArabicText,
+  Pills,
+  PLATFORM_COUNTRIES,
+  RequiredLabel,
+  SearchableCountryField,
+  type PlatformCountryCode,
+} from '@/components/seller/seller-shared'
+import {
+  BuyerContactStep,
+  type BuyerConflictState,
+  type BuyerFormState,
+} from '@/components/buyer/buyer-contact-step'
+import { getCurrencySymbol, useTranslation } from '@/lib/i18n'
 
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
+export default function BuyersPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const { t: dict, dir } = useTranslation()
+  const b = dict.buy
 
-async function getSupabase() {
-  const cookieStore = await cookies()
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} },
+  const localizedUnitTypes: string[] =
+    (dict as Record<string, any>).buyerFunnelPage?.unitTypes || []
+  const localizedDeliveries: string[] =
+    dict.accountComponents?.buyer?.deliveryPreferences || []
+  const waPhone = String(dict.footer?.phone || '+201018595959').replace(
+    /\D/g,
+    ''
+  )
+
+  const initialBudget = Number(
+    (searchParams.get('budget') || '').replace(/,/g, '')
+  )
+
+  const [step, setStep] = useState<1 | 2 | 3>(1)
+  const [data, setData] = useState<BuyerFormState>(() => ({
+    country: 'EG',
+    residenceCountry: 'EG',
+    available_cash: 0,
+    max_installment: 0,
+    payment_plan: b.stepOne.paymentPlans[0] || '',
+    budget: initialBudget > 0 ? initialBudget : 0,
+    unit_types: localizedUnitTypes[0] ? [localizedUnitTypes[0]] : [],
+    min_rooms: 0,
+    delivery_status: localizedDeliveries[0] || '',
+    preferred_areas: [],
+    name: '',
+    phone: '',
+    email: '',
+    password: '',
+    loginIdentifier: '',
+    loginPassword: '',
+  }))
+
+  const [areaInput, setAreaInput] = useState('')
+  const [countryCode, setCountryCode] = useState('20')
+  const [showAreas, setShowAreas] = useState(false)
+  const [passwordVisible, setPasswordVisible] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState('')
+  const [errors, setErrors] = useState<Record<string, string>>({})
+
+  const [loggedUser, setLoggedUser] = useState<{
+    id: string
+    name: string
+    email: string
+    phone: string
+  } | null>(null)
+
+  const [authTab, setAuthTab] = useState<'session' | 'register' | 'login'>(
+    'register'
+  )
+
+  const [conflictState, setConflictState] =
+    useState<BuyerConflictState>(null)
+
+  useEffect(() => {
+    const activeCookieCountry = getHeaderCookieCountry()
+    setData((prev) => ({
+      ...prev,
+      country: activeCookieCountry,
+      residenceCountry: activeCookieCountry,
+      payment_plan: b.stepOne.paymentPlans[0] || prev.payment_plan,
+      unit_types:
+        prev.unit_types.length > 0
+          ? prev.unit_types
+          : localizedUnitTypes[0]
+            ? [localizedUnitTypes[0]]
+            : [],
+      delivery_status: prev.delivery_status || localizedDeliveries[0] || '',
+    }))
+
+    async function checkCurrentSession() {
+      const res = await getCurrentSellerProfileAction()
+      if (res.isLoggedIn && res.user) {
+        setLoggedUser(res.user)
+        setAuthTab('session')
+      }
     }
+    checkCurrentSession()
+  }, [])
+
+  const update = <K extends keyof BuyerFormState>(
+    key: K,
+    value: BuyerFormState[K]
+  ) => {
+    setData((current) => ({ ...current, [key]: value }))
+    setErrors((current) => ({ ...current, [key]: '' }))
+  }
+
+  const addArea = (value = areaInput) => {
+    const clean = value.trim()
+    if (clean && !data.preferred_areas.includes(clean))
+      update('preferred_areas', [...data.preferred_areas, clean])
+    setAreaInput('')
+    setShowAreas(false)
+  }
+
+  const nextFromOne = () => {
+    const nextErrors: Record<string, string> = {}
+    if (!data.available_cash) nextErrors.available_cash = b.validation.required
+    if (!data.max_installment)
+      nextErrors.max_installment = b.validation.required
+    if (!data.payment_plan)
+      nextErrors.payment_plan = b.validation.selectPaymentPlan
+    if (!data.budget) nextErrors.budget = b.validation.required
+    if (data.max_installment > data.budget)
+      nextErrors.max_installment = b.validation.installmentExceedsBudget
+
+    if (Object.keys(nextErrors).length > 0) {
+      setErrors(nextErrors)
+      return
+    }
+    setErrors({})
+    setStep(2)
+  }
+
+  const nextFromTwo = () => {
+    const typedArea = areaInput.trim()
+    const preferredAreas =
+      typedArea && !data.preferred_areas.includes(typedArea)
+        ? [...data.preferred_areas, typedArea]
+        : data.preferred_areas
+    const nextErrors: Record<string, string> = {}
+
+    if (!data.unit_types.length)
+      nextErrors.unit_types = b.validation.selectUnitType
+    if (!data.delivery_status)
+      nextErrors.delivery_status = b.validation.selectDeliveryStatus
+    if (!preferredAreas.length)
+      nextErrors.preferred_areas = b.validation.selectAtLeastOneArea
+
+    if (Object.keys(nextErrors).length > 0) {
+      setErrors(nextErrors)
+      return
+    }
+
+    if (typedArea) update('preferred_areas', preferredAreas)
+    setAreaInput('')
+    setShowAreas(false)
+    setErrors({})
+    setStep(3)
+  }
+
+  const handleFinalSubmit = async () => {
+    setError('')
+    const nextErrors: Record<string, string> = {}
+
+    if (authTab === 'register') {
+      if (!data.name.trim()) nextErrors.name = b.validation.required
+      if (
+        !data.phone.trim() ||
+        !/^[0-9٠-٩]{7,15}$/.test(data.phone.replace(/[\s-]/g, ''))
+      )
+        nextErrors.phone = b.validation.invalidPhone
+      if (!data.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email))
+        nextErrors.email = b.validation.invalidEmail
+      if (data.password.length < 8)
+        nextErrors.password = b.validation.shortPassword
+    } else if (authTab === 'login') {
+      if (!data.loginIdentifier?.trim())
+        nextErrors.loginIdentifier = b.validation.loginIdRequired
+      if (!data.loginPassword?.trim())
+        nextErrors.loginPassword = b.validation.loginPassRequired
+    }
+
+    if (Object.keys(nextErrors).length > 0) {
+      setErrors(nextErrors)
+      return
+    }
+
+    setErrors({})
+    setIsSubmitting(true)
+
+    try {
+      const fullPhone = data.phone.trim()
+        ? `+${countryCode}${data.phone.trim().replace(/^0+/, '')}`
+        : ''
+
+      const res = await processBuyerStep3Action({
+        mode: authTab,
+        country: data.country || 'EG',
+        available_cash: Number(data.available_cash) || 0,
+        max_installment: Number(data.max_installment) || 0,
+        payment_plan: data.payment_plan,
+        budget: Number(data.budget) || 0,
+        unit_types: data.unit_types,
+        min_rooms: Number.parseInt(String(data.min_rooms), 10) || 0,
+        delivery_status: data.delivery_status,
+        preferred_areas: data.preferred_areas,
+        name: data.name.trim(),
+        phone: fullPhone,
+        email: data.email.trim(),
+        password: authTab === 'login' ? data.loginPassword : data.password,
+        loginIdentifier: data.loginIdentifier,
+      })
+
+      if (res.status === 'ok') {
+        router.push('/account?view=buyer')
+        return
+      }
+
+      if (res.status === 'email_exists_need_password') {
+        setConflictState({
+          type: 'email_exists',
+          email: res.userEmail || data.email.trim(),
+          userId: res.userId || '',
+          orderRef: res.orderRef || '',
+        })
+        return
+      }
+
+      if (res.status === 'phone_exists_different_email') {
+        setConflictState({
+          type: 'phone_exists',
+          userId: res.userId || '',
+          orderRef: res.orderRef || '',
+        })
+        return
+      }
+
+      setError(res.error ?? b.validation.submitFailed)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  return (
+    <main
+      dir={dir}
+      className="min-h-screen bg-[var(--brand-surface,#f5f6f8)] px-4 py-12 text-[var(--brand-navy-text,#0a1128)] sm:px-6 lg:py-16"
+    >
+      <div className="mx-auto max-w-3xl">
+        <header className="text-center">
+          <h1 className="text-3xl font-black tracking-tight text-[#0c513f] sm:text-4xl">
+            {b.header.title}
+          </h1>
+          <p className="mx-auto mt-4 max-w-2xl text-sm leading-7 text-slate-600">
+            {b.header.description}
+          </p>
+        </header>
+
+        {step <= 2 && (
+          <>
+            <div className="mt-8 flex flex-col gap-4">
+              {b.header.benefits.map((item, index) => (
+                <div
+                  key={item}
+                  className={`flex items-center gap-3 rounded-xl border px-5 py-3 text-sm ${
+                    index === 3
+                      ? 'border-teal-300 bg-teal-50 font-bold text-teal-700'
+                      : index === 4
+                        ? 'border-slate-500 bg-transparent font-semibold'
+                        : 'border-slate-200 bg-white text-slate-700'
+                  }`}
+                >
+                  <Check className="size-4 shrink-0 text-teal-700" />
+                  {item}
+                </div>
+              ))}
+            </div>
+            <div className="mt-8 rounded-2xl border border-slate-500 bg-white p-5 text-start shadow-sm">
+              <div className="flex items-center gap-2 text-sm font-bold">
+                <UserRound className="size-4" />
+                {b.header.directBuyerTitle}
+              </div>
+              <p className="mt-2 text-xs leading-6 text-slate-600">
+                {b.header.directBuyerDesc}
+              </p>
+            </div>
+          </>
+        )}
+
+        <div className="mt-6 rounded-2xl bg-white p-5 shadow-sm sm:p-7">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-black">
+              {b.header.stepTitles[step - 1]}
+            </h2>
+            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold">
+              {b.header.stepWord} {step} {b.header.ofWord} 3
+            </span>
+          </div>
+
+          <div className="mt-5 flex gap-1.5">
+            {[1, 2, 3].map((item) => (
+              <span
+                key={item}
+                className={`h-1.5 flex-1 rounded-full ${
+                  item <= step
+                    ? 'bg-[var(--brand-primary,#007a5a)]'
+                    : 'bg-slate-200'
+                }`}
+              />
+            ))}
+          </div>
+
+          <div className="mt-7">
+            {step === 1 && (
+              <BuyerStepOne data={data} update={update} errors={errors} />
+            )}
+            {step === 2 && (
+              <BuyerStepTwo
+                data={data}
+                update={update}
+                errors={errors}
+                areaInput={areaInput}
+                setAreaInput={setAreaInput}
+                showAreas={showAreas}
+                setShowAreas={setShowAreas}
+                addArea={addArea}
+                unitTypesList={localizedUnitTypes}
+                deliveriesList={localizedDeliveries}
+              />
+            )}
+            {step === 3 && (
+              <BuyerContactStep
+                data={data}
+                update={update}
+                errors={errors}
+                countryCode={countryCode}
+                setCountryCode={setCountryCode}
+                passwordVisible={passwordVisible}
+                setPasswordVisible={setPasswordVisible}
+                loggedUser={loggedUser}
+                authTab={authTab}
+                setAuthTab={setAuthTab}
+                conflictState={conflictState}
+                setConflictState={setConflictState}
+                onSuccessRedirect={() => router.push('/account?view=buyer')}
+              />
+            )}
+          </div>
+
+          {error && (
+            <div
+              role="alert"
+              className="mt-5 rounded-xl bg-red-50 p-3 text-center text-sm font-bold text-red-700"
+            >
+              {error}
+            </div>
+          )}
+
+          {!(step === 3 && conflictState) && (
+            <div className="mt-7 flex gap-3">
+              {step > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setStep((step - 1) as 1 | 2)}
+                  className="h-12 rounded-xl border border-slate-300 bg-white px-7 font-semibold"
+                >
+                  {b.actions.backBtn}
+                </button>
+              )}
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={
+                  step === 1
+                    ? nextFromOne
+                    : step === 2
+                      ? nextFromTwo
+                      : handleFinalSubmit
+                }
+                className={`h-12 flex-1 rounded-xl px-5 font-bold text-white ${
+                  step === 3
+                    ? 'bg-[var(--brand-primary,#007a5a)] hover:bg-[var(--brand-primary-hover,#006248)]'
+                    : 'bg-[var(--brand-navy,#0a1122)] hover:bg-[var(--brand-navy-hover,#16223f)]'
+                }`}
+              >
+                {isSubmitting ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Loader2 className="size-4 animate-spin" />
+                    {b.actions.savingBtn}
+                  </span>
+                ) : step === 3 ? (
+                  authTab === 'session' ? (
+                    b.actions.confirmWithSessionBtn
+                  ) : (
+                    b.actions.submitBtn
+                  )
+                ) : (
+                  b.actions.nextBtn
+                )}
+              </button>
+            </div>
+          )}
+        </div>
+
+        {step <= 2 && (
+          <div className="mt-6 flex items-center justify-between rounded-2xl bg-[var(--brand-navy,#0a1122)] px-5 py-4 text-sm text-white">
+            <span>{b.header.whatsappBarText}</span>
+            <a
+              href={`https://wa.me/${waPhone}`}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-full bg-green-500 px-4 py-2 font-bold transition hover:bg-green-600"
+            >
+              {b.header.whatsappBarBtn}
+            </a>
+          </div>
+        )}
+      </div>
+    </main>
   )
 }
 
-export default async function HomePage() {
-  // سطر واحد يجلب اللغة، الدولة، اتجاه الصفحة، القاموس، ورمز العملة الصحيح!
-  const { dict, country: activeCountryCode, dir, currency: currencySymbol } =
-    await getServerI18n()
-  const t = dict.home
-
-  let realUnitCount = 0
-  let totalMarketValue = 0
-
-  try {
-    const supabase = await getSupabase()
-    const { data: units } = await supabase
-      .from('sell_requests')
-      .select('status, country_code, market_price, contract_price, paid_amount')
-      .neq('status', 'rejected')
-      .neq('status', 'deleted_by_seller')
-
-    if (units && units.length > 0) {
-      const countryUnits = units.filter((u: any) => {
-        const uCountry = (u.country_code || 'EG').toUpperCase()
-        return uCountry === activeCountryCode
-      })
-
-      realUnitCount = countryUnits.length
-      totalMarketValue = countryUnits.reduce((sum, u) => {
-        const unitVal =
-          Number(u.market_price) ||
-          Number(u.contract_price) ||
-          Number(u.paid_amount) ||
-          0
-        return sum + unitVal
-      }, 0)
-    }
-  } catch (err) {
-    console.error('Error fetching real stats on HomePage:', err)
-  }
-
-  let formattedValue = '0'
-  let valueUnitLabel = currencySymbol
-
-  if (totalMarketValue >= 1_000_000_000) {
-    formattedValue = (totalMarketValue / 1_000_000_000).toLocaleString('en-US', {
-      maximumFractionDigits: 2,
-    })
-    valueUnitLabel = `${t?.stats?.billion || 'مليار'} ${currencySymbol}`
-  } else if (totalMarketValue >= 1_000_000) {
-    formattedValue = (totalMarketValue / 1_000_000).toLocaleString('en-US', {
-      maximumFractionDigits: 1,
-    })
-    valueUnitLabel = `${t?.stats?.million || 'مليون'} ${currencySymbol}`
-  } else {
-    formattedValue = totalMarketValue.toLocaleString('en-US')
-    valueUnitLabel = currencySymbol
-  }
-
-  const comparisonRows = t?.comparison?.rows || []
-  const workSteps = t?.steps?.items || []
-  const fairStandards = t?.standards?.items || []
+function BuyerStepOne({
+  data,
+  update,
+  errors,
+}: {
+  data: BuyerFormState
+  update: <K extends keyof BuyerFormState>(
+    key: K,
+    value: BuyerFormState[K]
+  ) => void
+  errors?: Record<string, string>
+}) {
+  const { t: dict, locale } = useTranslation()
+  const t = dict.buy.stepOne
+  const currency = getCurrencySymbol(data.country, locale)
 
   return (
-    <div
-      dir={dir}
-      className="min-h-screen overflow-x-hidden bg-[var(--brand-surface,#f5f6f8)] text-[var(--brand-navy-text,#0a1128)]"
-    >
-      {/* ==================== 1. قسم الهيرو (Hero Section) ==================== */}
-      <section className="relative flex min-h-[720px] items-center overflow-hidden bg-[var(--brand-navy,#0a1122)] text-white lg:min-h-[780px]">
-        <div className="pointer-events-none absolute -bottom-40 -left-32 size-[28rem] rounded-full bg-teal-500/10 blur-[120px] sm:size-[38rem]" />
-        <div className="pointer-events-none absolute -top-32 right-[15%] size-[24rem] rounded-full bg-blue-500/10 blur-[120px] sm:size-[32rem]" />
+    <div className="flex flex-col gap-6">
+      <SearchableCountryField
+        value={data.country}
+        options={PLATFORM_COUNTRIES}
+        onChange={(code) => {
+          update('country', code as PlatformCountryCode)
+          update('preferred_areas', [])
+        }}
+        label={t.countryLabel}
+      />
 
-        <div className="relative mx-auto grid w-full max-w-[1280px] grid-cols-1 items-center gap-12 px-4 py-12 sm:px-6 md:py-16 lg:grid-cols-[1.15fr_0.85fr] lg:gap-16 lg:px-10 lg:py-20">
-          <div className="text-start">
-            <span className="mb-6 inline-block rounded-full border border-white/10 bg-[#132230] px-4 py-1.5 text-[11px] font-semibold text-[#2dd4a8] sm:text-xs">
-              {t?.hero?.badge}
-            </span>
+      <MoneyField
+        error={errors?.available_cash}
+        label={t.availableCashLabel}
+        value={data.available_cash ? String(data.available_cash) : ''}
+        currencySymbol={currency}
+        helper={t.availableCashHelper}
+        update={(val) => update('available_cash', Number(val) || 0)}
+      />
 
-            <h1 className="heading-hero text-white">
-              {t?.hero?.titleLine1}
-              <br className="hidden sm:inline" /> {t?.hero?.titleLine2}{' '}
-              <span className="text-[#19b394]">
-                {t?.hero?.titleAccentLine1}
-                <br className="hidden sm:inline" /> {t?.hero?.titleAccentLine2}
-              </span>
-            </h1>
+      <MoneyField
+        error={errors?.max_installment}
+        label={t.maxInstallmentLabel}
+        value={data.max_installment ? String(data.max_installment) : ''}
+        currencySymbol={currency}
+        update={(val) => update('max_installment', Number(val) || 0)}
+      />
 
-            <p className="mt-5 max-w-[565px] text-[13.5px] leading-[1.95] text-[#9ba6b8] sm:text-[15px] lg:text-[15.5px]">
-              {t?.hero?.description}
-            </p>
-
-            <div className="mt-7 flex flex-wrap items-center justify-start gap-3.5 sm:mt-8">
-              <Button
-                size="lg"
-                className="h-12 flex-1 rounded-[10px] bg-[var(--brand-primary-dark,#0d6e52)] px-7 text-sm font-bold text-white shadow-sm transition-all hover:bg-[#0a5942] sm:flex-none sm:px-8 sm:text-[15px]"
-                render={<Link href="/sell" />}
-              >
-                {t?.hero?.sellBtn}
-              </Button>
-              <Button
-                size="lg"
-                variant="outline"
-                className="h-12 flex-1 rounded-[10px] border border-white/15 !bg-[#111a2b]/60 px-7 text-sm font-bold text-white transition-all hover:!bg-white/10 hover:text-white sm:flex-none sm:px-8 sm:text-[15px]"
-                render={<Link href="/opportunities" />}
-              >
-                {t?.hero?.buyBtn}
-              </Button>
-            </div>
-
-            <div className="mt-6 flex items-start justify-start gap-2 text-[11px] leading-relaxed text-[#7e8b9f] sm:items-center sm:text-xs">
-              <ShieldCheck className="mt-0.5 size-4 shrink-0 text-[#19b394] sm:mt-0" />
-              <p>{t?.hero?.trustNote}</p>
-            </div>
-          </div>
-
-          {/* العمود الثاني: بطاقات المقارنة */}
-          <div className="relative mx-auto flex w-full max-w-[440px] flex-col items-center gap-4">
-            <div className="w-full rounded-[20px] border border-white/10 bg-[#162032]/90 p-5 text-white shadow-xl backdrop-blur-sm sm:p-6">
-              <div className="flex items-center justify-start gap-3">
-                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-[#3a1d2b] text-xs font-bold text-[#ff5a65]">
-                  ✕
-                </span>
-                <p className="text-sm font-bold text-gray-200">
-                  {t?.hero?.lossCardTitle}
-                </p>
-              </div>
-
-              <div className="mt-5 flex items-end justify-between gap-2">
-                <div className="text-start">
-                  <p className="text-[11px] text-gray-400 sm:text-xs">
-                    {t?.hero?.lossCardLabel}
-                  </p>
-                  <strong className="mt-1 flex items-baseline gap-1.5 text-xl font-extrabold text-[#ff5a65] tabular-nums sm:text-[26px]">
-                    <span dir="ltr">- {t?.hero?.lossCardAmount}</span>
-                    <span>{currencySymbol}</span>
-                  </strong>
-                </div>
-                <div className="shrink-0 text-end">
-                  <p className="text-[11px] text-gray-400 sm:text-xs">
-                    {t?.hero?.lossCardDurationLabel}
-                  </p>
-                  <p className="mt-1 text-sm font-bold text-gray-200 sm:text-base">
-                    {t?.hero?.lossCardDurationValue}
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-5 rounded-xl bg-white/[0.04] px-4 py-2.5 text-center text-[11px] text-gray-400 sm:text-xs">
-                {t?.hero?.lossCardFooter}
-              </div>
-            </div>
-
-            <div className="z-20 -my-6 flex size-9 items-center justify-center rounded-full border border-white/15 bg-[var(--brand-navy,#0a1122)] text-[11px] font-bold uppercase text-gray-300 shadow-md">
-              vs
-            </div>
-
-            <div className="w-full rounded-[20px] bg-white p-5 text-[var(--brand-navy-text,#0a1128)] shadow-2xl sm:p-6">
-              <div className="flex items-center justify-start gap-3">
-                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-[#d8f3e5] text-xs font-bold text-[#0f7a58]">
-                  ✓
-                </span>
-                <p className="text-sm font-bold text-[var(--brand-navy-text,#0a1128)]">
-                  {t?.hero?.winCardTitle}
-                </p>
-              </div>
-
-              <div className="mt-5 text-start">
-                <p className="text-[11px] text-gray-500 sm:text-xs">
-                  {t?.hero?.winCardLabel}
-                </p>
-                <strong className="mt-1 flex items-baseline gap-1.5 text-2xl font-extrabold text-[var(--brand-primary,#007a5a)] tabular-nums sm:text-[32px]">
-                  <span dir="ltr">{t?.hero?.winCardAmount}</span>
-                  <span>{currencySymbol}</span>
-                </strong>
-                <p className="mt-1 text-xs font-bold text-[var(--brand-navy-text,#0a1128)]">
-                  {t?.hero?.winCardSub}
-                </p>
-              </div>
-
-              <div className="mt-5 rounded-xl bg-[#e3f5ec] px-4 py-2.5 text-center text-[11px] font-semibold text-[#0f7a58] sm:text-xs">
-                {t?.hero?.winCardFooter}
-              </div>
-            </div>
-          </div>
+      <fieldset>
+        <legend className="mb-3 text-start text-sm font-bold">
+          <RequiredLabel>{t.paymentPlanLabel}</RequiredLabel>
+        </legend>
+        <div
+          className={`grid gap-2 ${
+            errors?.payment_plan
+              ? 'rounded-xl border border-red-500 bg-red-50/20 p-2.5'
+              : ''
+          }`}
+        >
+          {t.paymentPlans.map((item) => (
+            <label
+              key={item}
+              className={`flex cursor-pointer items-center justify-between rounded-xl border px-4 py-3 text-sm transition ${
+                data.payment_plan === item
+                  ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary-light,#eaf8f2)] font-bold text-[var(--brand-primary,#007a5a)]'
+                  : 'border-slate-200 bg-white hover:border-teal-300'
+              }`}
+            >
+              <span>{item}</span>
+              <input
+                type="radio"
+                checked={data.payment_plan === item}
+                onChange={() => update('payment_plan', item)}
+                className="accent-[var(--brand-primary,#007a5a)]"
+              />
+            </label>
+          ))}
         </div>
-      </section>
-
-      {/* ==================== 2. قسم الإحصائيات الحقيقية من الداتابيز ==================== */}
-      <section className="layout-container pt-10 pb-6">
-        <div className="grid grid-cols-1 divide-y divide-gray-200/80 overflow-hidden rounded-[20px] border border-gray-200/70 border-t-[3px] border-t-[var(--brand-primary,#007a5a)] bg-white shadow-sm md:grid-cols-2 md:divide-y-0 md:divide-x md:divide-x-reverse">
-          <div className="p-7 text-start sm:p-10">
-            <p className="text-xs font-bold text-gray-500">
-              {t?.stats?.unitsTitle}
-            </p>
-            <div className="mt-3 flex items-baseline justify-start gap-2">
-              <span
-                dir="ltr"
-                className="text-4xl font-extrabold tracking-tight text-[var(--brand-navy-text,#0a1128)] tabular-nums sm:text-5xl"
-              >
-                {realUnitCount.toLocaleString('en-US')}
-              </span>
-              <span className="text-base font-medium text-gray-500 sm:text-lg">
-                {t?.stats?.unitWord}
-              </span>
-            </div>
-            <div className="mt-4 h-[1px] w-10 bg-gray-200" />
-            <p className="mt-3 text-xs text-gray-400">{t?.stats?.unitsSub}</p>
-          </div>
-
-          <div className="p-7 text-start sm:p-10">
-            <div className="flex items-center justify-start gap-2">
-              <p className="text-xs font-bold text-gray-500">
-                {t?.stats?.valueTitle}
-              </p>
-            </div>
-            <div className="mt-3 flex items-baseline justify-start gap-2">
-              <span
-                dir="ltr"
-                className="text-4xl font-extrabold tracking-tight text-[var(--brand-navy-text,#0a1128)] tabular-nums sm:text-5xl"
-              >
-                {formattedValue}
-              </span>
-              <span className="text-base font-medium text-gray-500 sm:text-lg">
-                {valueUnitLabel}
-              </span>
-            </div>
-            <div className="mt-4 h-[1px] w-10 bg-gray-200" />
-            <p className="mt-3 text-xs text-gray-400">{t?.stats?.valueSub}</p>
-          </div>
-        </div>
-      </section>
-
-      {/* ==================== 3. قسم الجمهور (البايع والمشتري) ==================== */}
-      <section className="layout-container py-14 md:py-20">
-        <div className="max-w-xl text-start">
-          <h2 className="heading-section">{t?.audience?.title}</h2>
-          <p className="mt-3 text-sm leading-relaxed text-gray-500 sm:text-base">
-            {t?.audience?.subtitle}
+        {errors?.payment_plan && (
+          <p className="mt-1.5 text-start text-xs font-semibold text-red-600">
+            {errors.payment_plan}
           </p>
+        )}
+      </fieldset>
+
+      <MoneyField
+        error={errors?.budget}
+        label={t.budgetLabel}
+        value={data.budget ? String(data.budget) : ''}
+        currencySymbol={currency}
+        helper={t.budgetHelper}
+        update={(val) => update('budget', Number(val) || 0)}
+      />
+
+      <TurnstileBox />
+    </div>
+  )
+}
+
+function BuyerStepTwo({
+  data,
+  update,
+  errors,
+  areaInput,
+  setAreaInput,
+  showAreas,
+  setShowAreas,
+  addArea,
+  unitTypesList,
+  deliveriesList,
+}: {
+  data: BuyerFormState
+  update: <K extends keyof BuyerFormState>(
+    key: K,
+    value: BuyerFormState[K]
+  ) => void
+  errors?: Record<string, string>
+  areaInput: string
+  setAreaInput: (value: string) => void
+  showAreas: boolean
+  setShowAreas: (value: boolean) => void
+  addArea: (value?: string) => void
+  unitTypesList: string[]
+  deliveriesList: string[]
+}) {
+  const { t: dict, locale, dir } = useTranslation()
+  const t = dict.buy.stepTwo
+  const countryObj = getCountryConfig(data.country)
+  const localizedCountryName = getLocalizedCountryName(countryObj, locale)
+  const rawCatalog =
+    areasCatalogByCountry[countryObj.code] || areasCatalogByCountry.EG
+
+  const flatAreas = rawCatalog.flatMap(([, items]) => items)
+  const filtered = flatAreas
+    .filter((area) =>
+      normalizeArabicText(area).includes(normalizeArabicText(areaInput))
+    )
+    .slice(0, 8)
+
+  return (
+    <div className="flex flex-col gap-6">
+      <SearchableCountryField
+        value={data.country}
+        options={PLATFORM_COUNTRIES}
+        onChange={(code) => {
+          update('country', code as PlatformCountryCode)
+          update('preferred_areas', [])
+        }}
+        label={t.countryLabel}
+      />
+
+      <fieldset>
+        <legend className="mb-1 text-start text-sm font-bold">
+          <RequiredLabel>{t.unitTypeLabel}</RequiredLabel>
+        </legend>
+        <p className="mb-3 text-start text-xs text-slate-500">
+          {t.unitTypeHelper}
+        </p>
+        <Pills
+          error={errors?.unit_types}
+          items={unitTypesList}
+          selected={data.unit_types}
+          multi
+          onToggle={(item) =>
+            update(
+              'unit_types',
+              data.unit_types.includes(item)
+                ? data.unit_types.filter((tp) => tp !== item)
+                : [...data.unit_types, item]
+            )
+          }
+        />
+      </fieldset>
+
+      <div>
+        <Label htmlFor="rooms" className="block text-start">
+          {t.minRoomsLabel}
+        </Label>
+        <Input
+          id="rooms"
+          type="number"
+          min="0"
+          dir="ltr"
+          value={data.min_rooms || ''}
+          onChange={(event) =>
+            update('min_rooms', Number(event.target.value) || 0)
+          }
+          className="mt-2 h-12 w-full max-w-[150px] text-center text-lg"
+          placeholder={t.minRoomsPlaceholder}
+        />
+        <p className="mt-2 text-start text-xs text-slate-500">
+          {t.minRoomsHelper}
+        </p>
+      </div>
+
+      <fieldset>
+        <legend className="mb-3 text-start text-sm font-bold">
+          <RequiredLabel>{t.deliveryStatusLabel}</RequiredLabel>
+        </legend>
+        <div
+          className={`grid gap-2 ${
+            errors?.delivery_status
+              ? 'rounded-xl border border-red-500 bg-red-50/20 p-2.5'
+              : ''
+          }`}
+        >
+          {deliveriesList.map((item) => (
+            <label
+              key={item}
+              className={`flex cursor-pointer items-center justify-between rounded-xl border px-4 py-3 text-sm transition ${
+                data.delivery_status === item
+                  ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary-light,#eaf8f2)] font-bold text-[var(--brand-primary,#007a5a)]'
+                  : 'border-slate-200 bg-white hover:border-teal-300'
+              }`}
+            >
+              <span>{item}</span>
+              <input
+                type="radio"
+                checked={data.delivery_status === item}
+                onChange={() => update('delivery_status', item)}
+                className="accent-[var(--brand-primary,#007a5a)]"
+              />
+            </label>
+          ))}
         </div>
-
-        <div className="mt-10 grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <div className="flex flex-col justify-between rounded-[22px] border border-gray-200/80 bg-white p-6 text-start shadow-sm sm:p-9">
-            <div>
-              <span className="inline-block rounded-full bg-[#e6f4f1] px-3.5 py-1 text-xs font-bold text-[var(--brand-primary,#007a5a)]">
-                {t?.audience?.sellerBadge}
-              </span>
-              <h3 className="mt-4 text-xl font-extrabold text-[var(--brand-navy-text,#0a1128)] sm:text-2xl">
-                {t?.audience?.sellerTitle}
-              </h3>
-              <p className="mt-3 text-xs leading-[1.9] text-gray-500 sm:text-sm">
-                {t?.audience?.sellerDesc}
-              </p>
-
-              <ul className="mt-6 space-y-3">
-                <li className="flex items-start gap-2.5 text-xs font-medium text-[var(--brand-navy-text,#0a1128)] sm:text-sm">
-                  <Check className="mt-0.5 size-4 shrink-0 text-[var(--brand-primary,#007a5a)]" />
-                  <span>{t?.audience?.sellerPoint1}</span>
-                </li>
-                <li className="flex items-start gap-2.5 text-xs font-medium text-[var(--brand-navy-text,#0a1128)] sm:text-sm">
-                  <Check className="mt-0.5 size-4 shrink-0 text-[var(--brand-primary,#007a5a)]" />
-                  <span>{t?.audience?.sellerPoint2}</span>
-                </li>
-                <li className="flex items-start gap-2.5 text-xs font-medium text-[var(--brand-navy-text,#0a1128)] sm:text-sm">
-                  <Check className="mt-0.5 size-4 shrink-0 text-[var(--brand-primary,#007a5a)]" />
-                  <span>{t?.audience?.sellerPoint3}</span>
-                </li>
-              </ul>
-
-              <div className="mt-6 rounded-xl border border-[#b8e6d5] bg-[var(--brand-primary-light,#eaf8f2)] px-4 py-3 text-xs font-bold text-[var(--brand-primary,#007a5a)] sm:text-sm">
-                {t?.audience?.sellerFreeNote}
-              </div>
-            </div>
-
-            <div className="mt-7">
-              <Button
-                className="h-11 rounded-[10px] bg-[var(--brand-navy,#0a1122)] px-6 text-xs font-bold text-white hover:bg-[var(--brand-navy-hover,#16223f)] sm:text-sm"
-                render={<Link href="/sell" />}
-              >
-                {t?.audience?.sellerBtn}
-              </Button>
-            </div>
-          </div>
-
-          <div className="flex flex-col justify-between rounded-[22px] bg-gradient-to-br from-[#0a1122] via-[#0d1b2a] to-[#0c262e] p-6 text-start text-white shadow-lg sm:p-9">
-            <div>
-              <span className="inline-block rounded-full border border-teal-500/20 bg-teal-500/10 px-3.5 py-1 text-xs font-bold text-[var(--brand-accent,#2ee59d)]">
-                {t?.audience?.buyerBadge}
-              </span>
-              <h3 className="mt-4 text-xl font-extrabold text-white sm:text-2xl">
-                {t?.audience?.buyerTitle}
-              </h3>
-              <p className="mt-3 text-xs leading-[1.9] text-gray-300/85 sm:text-sm">
-                {t?.audience?.buyerDesc}
-              </p>
-
-              <ul className="mt-6 space-y-3">
-                <li className="flex items-start gap-2.5 text-xs font-medium text-gray-200 sm:text-sm">
-                  <Check className="mt-0.5 size-4 shrink-0 text-[var(--brand-accent,#2ee59d)]" />
-                  <span>{t?.audience?.buyerPoint1}</span>
-                </li>
-                <li className="flex items-start gap-2.5 text-xs font-medium text-gray-200 sm:text-sm">
-                  <Check className="mt-0.5 size-4 shrink-0 text-[var(--brand-accent,#2ee59d)]" />
-                  <span>{t?.audience?.buyerPoint2}</span>
-                </li>
-                <li className="flex items-start gap-2.5 text-xs font-medium text-gray-200 sm:text-sm">
-                  <Check className="mt-0.5 size-4 shrink-0 text-[var(--brand-accent,#2ee59d)]" />
-                  <span>{t?.audience?.buyerPoint3}</span>
-                </li>
-              </ul>
-            </div>
-
-            <div className="mt-8">
-              <Button
-                className="h-11 rounded-[10px] bg-[var(--brand-primary,#007a5a)] px-6 text-xs font-bold text-white hover:bg-[var(--brand-primary-hover,#006248)] sm:text-sm"
-                render={<Link href="/opportunities" />}
-              >
-                {t?.audience?.buyerBtn}
-              </Button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ==================== 4. قسم جدول المقارنة ==================== */}
-      <section className="bg-white py-14 sm:py-20">
-        <div className="layout-container">
-          <div className="text-start">
-            <h2 className="heading-section">{t?.comparison?.title}</h2>
-            <p className="mt-2 text-sm text-gray-500 sm:text-base">
-              {t?.comparison?.subtitle}
-            </p>
-          </div>
-
-          <div className="mt-8 overflow-hidden rounded-[18px] border border-gray-200/90 shadow-sm sm:mt-10">
-            <div className="grid grid-cols-[74px_1fr_1.1fr] text-start text-[11px] font-bold sm:grid-cols-[120px_1fr_1fr] sm:text-xs md:grid-cols-[140px_1fr_1fr] md:text-sm">
-              <div className="flex items-center bg-[#f4f5f7] px-2.5 py-3 text-[10px] font-extrabold text-gray-400 sm:p-4 sm:text-xs">
-                {t?.comparison?.colCriterion}
-              </div>
-              <div className="flex items-center border-r border-gray-200/80 bg-[#f4f5f7] px-2.5 py-3 text-gray-600 sm:p-4">
-                {t?.comparison?.colResale}
-              </div>
-              <div className="flex items-center bg-[var(--brand-navy,#0a1122)] px-2.5 py-3 text-white sm:p-4">
-                {t?.comparison?.colExit}
-              </div>
-            </div>
-
-            {comparisonRows.map((row: any) => (
-              <div
-                key={row.criterion}
-                className="grid grid-cols-[74px_1fr_1.1fr] items-stretch border-t border-gray-200/80 text-start text-[11px] leading-relaxed sm:grid-cols-[120px_1fr_1fr] sm:text-xs md:grid-cols-[140px_1fr_1fr] lg:text-sm"
-              >
-                <div className="flex items-center bg-[#f8f9fa] px-2.5 py-3.5 font-extrabold text-[var(--brand-navy-text,#0a1128)] sm:p-4">
-                  {row.criterion}
-                </div>
-
-                <div className="flex items-start gap-1.5 border-r border-gray-200/80 bg-white px-2.5 py-3.5 text-gray-500 sm:items-center sm:gap-2.5 sm:p-4">
-                  <span className="mt-0.5 shrink-0 font-bold text-red-500 sm:mt-0">
-                    ✕
-                  </span>
-                  <span>{row.resale}</span>
-                </div>
-
-                <div className="flex items-start gap-1.5 bg-[#e3ecec] px-2.5 py-3.5 font-semibold text-[var(--brand-navy-text,#0a1128)] sm:items-center sm:gap-2.5 sm:p-4">
-                  <span className="mt-0.5 shrink-0 font-bold text-[var(--brand-primary,#007a5a)] sm:mt-0">
-                    ✓
-                  </span>
-                  <span>{row.exit}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ==================== 5. قسم مثال بالأرقام ==================== */}
-      <section className="bg-[var(--brand-surface,#f5f6f8)] py-14 sm:py-20">
-        <div className="layout-container">
-          <div className="text-start">
-            <h2 className="heading-section">{t?.example?.title}</h2>
-            <p className="mt-2 text-sm text-gray-500 sm:text-base">
-              {t?.example?.subtitle}
-            </p>
-          </div>
-
-          <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2">
-            <div className="flex flex-col justify-between rounded-[20px] border border-gray-200/80 bg-white p-6 text-start shadow-sm sm:p-8">
-              <div>
-                <div className="flex items-center justify-start gap-3">
-                  <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[#fdecee] text-xs font-bold text-[var(--brand-danger,#d9383a)]">
-                    ✕
-                  </span>
-                  <h3 className="text-base font-extrabold text-[var(--brand-navy-text,#0a1128)]">
-                    {t?.example?.lossTitle}
-                  </h3>
-                </div>
-
-                <div className="mt-6">
-                  <p className="text-xs text-gray-400">
-                    {t?.example?.lossDiscountLabel}
-                  </p>
-                  <p className="mt-1.5 flex items-baseline gap-1.5 text-2xl font-extrabold text-[var(--brand-danger,#d9383a)] tabular-nums sm:text-3xl">
-                    <span dir="ltr">- {t?.example?.lossDiscountAmount}</span>
-                    <span>{currencySymbol}</span>
-                  </p>
-                </div>
-
-                <div className="mt-6 flex items-center justify-between border-t border-gray-100 pt-5">
-                  <div className="text-start">
-                    <p className="text-xs text-gray-400">
-                      {t?.example?.lossReturnLabel}
-                    </p>
-                    <p className="mt-1 flex items-baseline gap-1 text-lg font-extrabold text-[var(--brand-navy-text,#0a1128)] tabular-nums sm:text-xl">
-                      <span dir="ltr">{t?.example?.lossReturnAmount}</span>
-                      <span>{currencySymbol}</span>
-                    </p>
-                  </div>
-                  <div className="text-end">
-                    <p className="text-xs text-gray-400">
-                      {t?.example?.lossDurationLabel}
-                    </p>
-                    <p className="mt-1 text-lg font-extrabold text-[#b45309] sm:text-xl">
-                      {t?.example?.lossDurationValue}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-7 rounded-xl bg-[#fef2f2] px-4 py-3 text-center text-xs font-bold text-[var(--brand-danger,#d9383a)]">
-                {t?.example?.lossFooter}
-              </div>
-            </div>
-
-            <div className="flex flex-col justify-between rounded-[20px] border-2 border-[#a7e3cb] bg-white p-6 text-start shadow-sm sm:p-8">
-              <div>
-                <div className="flex items-center justify-start gap-3">
-                  <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[#e3f7ed] text-xs font-bold text-[var(--brand-primary,#007a5a)]">
-                    ✓
-                  </span>
-                  <h3 className="text-base font-extrabold text-[var(--brand-navy-text,#0a1128)]">
-                    {t?.example?.winTitle}
-                  </h3>
-                </div>
-
-                <div className="mt-6">
-                  <p className="text-xs text-gray-400">
-                    {t?.example?.winReturnLabel}
-                  </p>
-                  <p className="mt-1.5 flex items-baseline gap-1.5 text-2xl font-extrabold text-[var(--brand-primary,#007a5a)] tabular-nums sm:text-3xl">
-                    <span dir="ltr">{t?.example?.winReturnAmount}</span>
-                    <span>{currencySymbol}</span>
-                  </p>
-                  <p className="mt-1 text-xs font-bold text-[var(--brand-navy-text,#0a1128)]">
-                    {t?.example?.winReturnSub}
-                  </p>
-                </div>
-
-                <div className="mt-5 border-t border-gray-100 pt-4">
-                  <p className="text-xs text-gray-400">
-                    {t?.example?.winCommissionLabel}
-                  </p>
-                  <p className="mt-1 text-2xl font-extrabold text-[var(--brand-primary,#007a5a)]">
-                    {t?.example?.winCommissionValue}
-                  </p>
-                  <p className="mt-1 text-xs font-bold text-[var(--brand-navy-text,#0a1128)]">
-                    {t?.example?.winCommissionSub}
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-7 rounded-xl bg-[var(--brand-primary-light,#eaf8f2)] px-4 py-3 text-center text-xs font-bold text-[var(--brand-primary,#007a5a)]">
-                {t?.example?.winFooter}
-              </div>
-            </div>
-          </div>
-
-          <p className="mt-6 text-start text-xs leading-relaxed text-gray-400">
-            {t?.example?.disclaimer}
+        {errors?.delivery_status && (
+          <p className="mt-1.5 text-start text-xs font-semibold text-red-600">
+            {errors.delivery_status}
           </p>
-        </div>
-      </section>
+        )}
+      </fieldset>
 
-      {/* ==================== 6. قسم إزاي بنشتغل؟ ==================== */}
-      <section className="border-t border-gray-200/60 bg-[var(--brand-surface,#f5f6f8)] py-14 sm:py-20">
-        <div className="layout-container">
-          <div className="text-start">
-            <h2 className="heading-section">{t?.steps?.title}</h2>
-            <p className="mt-2 text-sm text-gray-500 sm:text-base">
-              {t?.steps?.subtitle}
-            </p>
-          </div>
-
-          <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            {workSteps.map((step: any, index: number) => (
-              <div
-                key={step.title}
-                className="rounded-[18px] border border-gray-200/70 bg-white p-6 text-start shadow-sm"
-              >
-                <span className="flex size-9 items-center justify-center rounded-full bg-[var(--brand-navy,#0a1122)] text-sm font-bold text-white">
-                  {index + 1}
+      <div>
+        <Label htmlFor="areas" className="block text-start">
+          <RequiredLabel>{`${t.areasLabelPrefix} ${localizedCountryName} *`}</RequiredLabel>
+        </Label>
+        <div
+          className={`relative mt-2 ${
+            errors?.preferred_areas
+              ? 'rounded-xl border border-red-500 bg-red-50/20 p-2.5'
+              : ''
+          }`}
+        >
+          {data.preferred_areas.length > 0 && (
+            <div className="mb-3 flex flex-wrap gap-2">
+              {data.preferred_areas.map((area) => (
+                <span
+                  key={area}
+                  className="inline-flex items-center gap-1 rounded-full bg-[var(--brand-primary,#007a5a)] px-3 py-1 text-xs font-bold text-white"
+                >
+                  {area}
+                  <button
+                    type="button"
+                    aria-label={`${t.removeAreaAria} ${area}`}
+                    onClick={() =>
+                      update(
+                        'preferred_areas',
+                        data.preferred_areas.filter((item) => item !== area)
+                      )
+                    }
+                    className="ms-1 hover:text-red-300"
+                  >
+                    <X className="size-3" />
+                  </button>
                 </span>
-                <h3 className="mt-4 text-base font-extrabold text-[var(--brand-navy-text,#0a1128)]">
-                  {step.title}
-                </h3>
-                <p className="mt-2 text-xs leading-[1.8] text-gray-500">
-                  {step.text}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ==================== 7. قسم معايير الخروج العادل ==================== */}
-      <section className="bg-white py-14 sm:py-20">
-        <div className="layout-container">
-          <div className="text-start">
-            <h2 className="heading-section">{t?.standards?.title}</h2>
-            <p className="mt-2 text-sm text-gray-500 sm:text-base">
-              {t?.standards?.subtitle}
-            </p>
-          </div>
-
-          <div className="mt-12 grid grid-cols-1 gap-x-14 gap-y-8 md:grid-cols-2 md:gap-y-10">
-            {fairStandards.map((item: any) => (
-              <div key={item.title} className="flex items-start gap-4 text-start">
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#f0f4f8] text-[#1e3a8a]">
-                  <ShieldCheck className="size-5" />
-                </span>
-                <div>
-                  <h3 className="text-base font-extrabold text-[var(--brand-navy-text,#0a1128)]">
-                    {item.title}
-                  </h3>
-                  <p className="mt-1.5 text-xs leading-[1.85] text-gray-500 sm:text-sm">
-                    {item.text}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ==================== 8. القسم الداكن المزدوج (اعرف موقفك + التطبيق) ==================== */}
-      <section className="relative overflow-hidden bg-[var(--brand-navy,#0a1122)] py-16 text-white sm:py-24">
-        <div className="pointer-events-none absolute left-1/2 top-10 size-[28rem] -translate-x-1/2 rounded-full bg-teal-500/10 blur-[130px]" />
-        <div className="pointer-events-none absolute left-[15%] bottom-0 size-[30rem] rounded-full bg-teal-500/10 blur-[140px]" />
-
-        <div className="layout-container relative">
-          <div className="mx-auto max-w-xl text-center">
-            <h2 className="text-2xl font-extrabold text-white sm:text-3xl md:text-4xl">
-              {t?.calculatorBanner?.title}
-            </h2>
-            <p className="mt-3 text-xs leading-relaxed text-gray-400 sm:text-sm md:text-base">
-              {t?.calculatorBanner?.subtitle}
-            </p>
-            <div className="mt-7">
-              <Button
-                size="lg"
-                className="h-12 rounded-[10px] bg-[var(--brand-primary,#007a5a)] px-8 text-sm font-bold text-white hover:bg-[var(--brand-primary-hover,#006248)] sm:text-base"
-                render={<Link href="/sell" />}
-              >
-                {t?.calculatorBanner?.btn}
-              </Button>
+              ))}
             </div>
-          </div>
-
-          <div className="mt-20 grid grid-cols-1 items-center gap-12 md:mt-28 md:grid-cols-2 lg:gap-16">
-            <div className="text-start">
-              <span className="inline-block rounded-full border border-teal-500/30 bg-teal-500/10 px-4 py-1 text-xs font-bold text-[var(--brand-accent,#2ee59d)]">
-                {t?.app?.badge}
-              </span>
-              <h2 className="mt-4 text-3xl font-extrabold text-white sm:text-4xl">
-                {t?.app?.title}
-              </h2>
-              <p className="mt-4 max-w-md text-xs leading-[1.9] text-gray-300/85 sm:text-sm md:text-base">
-                {t?.app?.description}
-              </p>
-
-              <ul className="mt-7 space-y-4">
-                <li className="flex items-center gap-3 text-xs font-medium text-gray-200 sm:text-sm">
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full border border-teal-500/20 bg-teal-500/10 text-[var(--brand-accent,#2ee59d)]">
-                    <Bell className="size-4" />
-                  </span>
-                  <span>{t?.app?.point1}</span>
-                </li>
-                <li className="flex items-center gap-3 text-xs font-medium text-gray-200 sm:text-sm">
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full border border-teal-500/20 bg-teal-500/10 text-[var(--brand-accent,#2ee59d)]">
-                    <Zap className="size-4" />
-                  </span>
-                  <span>{t?.app?.point2}</span>
-                </li>
-                <li className="flex items-center gap-3 text-xs font-medium text-gray-200 sm:text-sm">
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full border border-teal-500/20 bg-teal-500/10 text-[var(--brand-accent,#2ee59d)]">
-                    <CheckSquare className="size-4" />
-                  </span>
-                  <span>{t?.app?.point3}</span>
-                </li>
-              </ul>
-
-              <div className="mt-8 flex flex-wrap items-center justify-start gap-3">
-                <a
-                  href="#app-store"
-                  className="flex items-center gap-3 rounded-xl border border-white/15 bg-black px-5 py-2.5 text-white transition hover:bg-white/5"
+          )}
+          <Input
+            id="areas"
+            dir={dir}
+            value={areaInput}
+            onFocus={() => setShowAreas(true)}
+            onChange={(event) => {
+              setAreaInput(event.target.value)
+              setShowAreas(true)
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault()
+                if (filtered[0]) addArea(filtered[0])
+                else if (areaInput.trim()) addArea(areaInput.trim())
+              }
+            }}
+            placeholder={
+              data.preferred_areas.length
+                ? t.addAnotherAreaPlaceholder
+                : `${t.searchAreaPlaceholderPrefix} ${localizedCountryName}...`
+            }
+            className="h-12 rounded-xl text-start"
+          />
+          {showAreas && filtered.length > 0 && (
+            <div className="absolute z-10 mt-2 max-h-52 w-full overflow-auto rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
+              {filtered.map((area) => (
+                <button
+                  type="button"
+                  key={area}
+                  onClick={() => addArea(area)}
+                  className="block w-full rounded-lg px-3 py-2 text-start text-sm hover:bg-emerald-50"
                 >
-                  <div className="text-start">
-                    <span className="block text-[9px] text-gray-400">
-                      {t?.app?.downloadFrom}
-                    </span>
-                    <span className="block text-sm font-bold leading-tight">
-                      App Store
-                    </span>
-                  </div>
-                  <svg className="size-6 fill-current" viewBox="0 0 24 24">
-                    <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.33c.64-.78 1.08-1.86.96-2.94-.93.04-2.06.62-2.72 1.4-.58.68-1.1 1.79-.96 2.84 1.04.08 2.08-.52 2.72-1.3z" />
-                  </svg>
-                </a>
-
-                <a
-                  href="#google-play"
-                  className="flex items-center gap-3 rounded-xl border border-white/15 bg-black px-5 py-2.5 text-white transition hover:bg-white/5"
-                >
-                  <div className="text-start">
-                    <span className="block text-[9px] text-gray-400">
-                      {t?.app?.availableOn}
-                    </span>
-                    <span className="block text-sm font-bold leading-tight">
-                      Google Play
-                    </span>
-                  </div>
-                  <svg className="size-6" viewBox="0 0 24 24">
-                    <path
-                      fill="#4285F4"
-                      d="M3.61 1.814L13.793 12 3.61 22.186a1.96 1.96 0 0 1-.61-1.42V3.234c0-.55.23-1.05.61-1.42z"
-                    />
-                    <path
-                      fill="#34A853"
-                      d="M17.22 8.573L13.793 12 3.61 1.814c.42-.4.99-.53 1.56-.21l12.05 6.97z"
-                    />
-                    <path
-                      fill="#FBBC05"
-                      d="M20.635 10.548c.98.57.98 1.98 0 2.55l-3.415 1.975L13.793 12l3.427-3.427 3.415 1.975z"
-                    />
-                    <path
-                      fill="#EA4335"
-                      d="M17.22 15.427L5.17 22.396c-.57.32-1.14.19-1.56-.21L13.793 12l3.427 3.427z"
-                    />
-                  </svg>
-                </a>
-              </div>
+                  {area}
+                </button>
+              ))}
             </div>
-
-            <div className="hidden justify-center md:flex">
-              <div className="w-[270px] -rotate-3 rounded-[40px] border-[6px] border-[#1c283c] bg-[#0b1323] p-4 shadow-2xl transition-transform duration-300 hover:rotate-0 sm:w-[300px]">
-                <div className="mx-auto mb-4 h-4 w-24 rounded-full bg-black" />
-
-                <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-[#131f33] p-3.5 text-start shadow-md">
-                  <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-teal-500/15 text-[var(--brand-accent,#2ee59d)]">
-                    <Home className="size-4" />
-                  </span>
-                  <div className="mx-2.5 flex-1">
-                    <p className="text-[11px] font-bold text-white">
-                      {t?.app?.mockNotifTitle}
-                    </p>
-                    <p className="mt-0.5 text-[9px] text-gray-400">
-                      {t?.app?.mockNotifSub}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-3 rounded-2xl border border-white/5 bg-[#101b2d] p-3">
-                  <div className="h-20 w-full rounded-xl bg-gradient-to-b from-teal-900/35 to-teal-950/15" />
-                  <div className="mt-3 h-2.5 w-3/4 rounded-full bg-white/10" />
-                  <div className="mt-2 h-2 w-1/2 rounded-full bg-white/5" />
-                  <div className="mt-3 flex justify-end">
-                    <div className="h-4 w-14 rounded-md bg-teal-500/20" />
-                  </div>
-                </div>
-
-                <div className="mt-3 rounded-2xl border border-white/5 bg-[#101b2d] p-3">
-                  <div className="h-20 w-full rounded-xl bg-gradient-to-b from-[#17263c] to-[#101b2d]" />
-                  <div className="mt-3 h-2.5 w-2/3 rounded-full bg-white/10" />
-                  <div className="mt-2 h-2 w-2/5 rounded-full bg-white/5" />
-                  <div className="mt-3 flex justify-end">
-                    <div className="h-4 w-14 rounded-md bg-teal-500/20" />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
-      </section>
-
-      {/* ==================== 9. قسم البطاقتين السفليتين قبل الفوتر ==================== */}
-      <section className="bg-[var(--brand-surface,#f5f6f8)] py-14 sm:py-20">
-        <div className="layout-container">
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <div className="flex flex-col justify-between rounded-[20px] border border-gray-200/80 bg-white p-6 text-start shadow-sm sm:p-9">
-              <div>
-                <h3 className="text-xl font-extrabold text-[var(--brand-navy-text,#0a1122)] sm:text-2xl">
-                  {t?.bottomCta?.sellerTitle}
-                </h3>
-                <p className="mt-3 text-xs leading-relaxed text-gray-500 sm:text-sm">
-                  {t?.bottomCta?.sellerDesc}
-                </p>
-              </div>
-              <div className="mt-7">
-                <Button
-                  className="h-11 rounded-[10px] bg-[var(--brand-navy,#0a1122)] px-6 text-xs font-bold text-white hover:bg-[var(--brand-navy-hover,#16223f)] sm:text-sm"
-                  render={<Link href="/sell" />}
-                >
-                  {t?.bottomCta?.sellerBtn}
-                </Button>
-              </div>
-            </div>
-
-            <div className="flex flex-col justify-between rounded-[20px] border border-gray-200/80 bg-white p-6 text-start shadow-sm sm:p-9">
-              <div>
-                <h3 className="text-xl font-extrabold text-[var(--brand-navy-text,#0a1122)] sm:text-2xl">
-                  {t?.bottomCta?.buyerTitle}
-                </h3>
-                <p className="mt-3 text-xs leading-relaxed text-gray-500 sm:text-sm">
-                  {t?.bottomCta?.buyerDesc}
-                </p>
-              </div>
-              <div className="mt-7">
-                <Button
-                  variant="outline"
-                  className="h-11 rounded-[10px] border border-gray-300 bg-white px-6 text-xs font-bold text-[var(--brand-navy-text,#0a1128)] hover:bg-gray-50 sm:text-sm"
-                  render={<Link href="/buy" />}
-                >
-                  {t?.bottomCta?.buyerBtn}
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+        {errors?.preferred_areas && (
+          <p className="mt-1.5 text-start text-xs font-semibold text-red-600">
+            {errors.preferred_areas}
+          </p>
+        )}
+      </div>
+      <TurnstileBox />
     </div>
   )
 }

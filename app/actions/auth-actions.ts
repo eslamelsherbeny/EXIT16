@@ -16,119 +16,12 @@ import {
   extractUserIdFromCookie,
   parseAndVerifySessionCookie,
 } from '@/lib/session-security'
-import { normalizeLocale, type LocaleCode } from '@/lib/i18n-config'
+import { getServerI18n } from '@/lib/get-server-dictionary'
 
-const AUTH_MESSAGES: Record<LocaleCode, Record<string, string>> = {
-  ar: {
-    turnstile: 'يرجى إتمام التحقق الأمني (Cloudflare) والمحاولة مرة أخرى.',
-    missingLogin: 'يرجى إدخال البريد الإلكتروني/الهاتف وكلمة المرور.',
-    notRegistered:
-      'هذا البريد الإلكتروني أو رقم الموبايل غير مسجل لدينا. يمكنك إنشاء حساب جديد.',
-    wrongPassword:
-      'كلمة السر غير صحيحة. جرب مرة أخرى أو اضغط على "نسيت كلمة السر؟".',
-    suspended: 'تم إيقاف هذا الحساب مؤقتاً من قِبل إدارة المنصة.',
-    noAdminAccess:
-      'هذا الحساب لا يمتلك صلاحيات الإدارة. يرجى تسجيل الدخول بحساب مدير النظام.',
-    fillAllRegister: 'يرجى ملء جميع الحقول وكلمة سر لا تقل عن 8 أحرف.',
-    emailExists: 'هذا البريد الإلكتروني مسجل بالفعل. يرجى تسجيل الدخول.',
-    phoneExists: 'رقم الموبايل هذا مسجل بالفعل. يرجى تسجيل الدخول.',
-    registerFailed: 'تعذر إنشاء الحساب، يرجى المحاولة لاحقاً.',
-    enterEmail: 'يرجى إدخال البريد الإلكتروني.',
-    emailNotFound: 'هذا البريد الإلكتروني غير مسجل لدينا.',
-    emailSendFailed: 'تعذر إرسال البريد الإلكتروني حالياً.',
-    enterValidOtp: 'يرجى إدخال الكود بشكل صحيح.',
-    otpExpired: 'الكود منتهي الصلاحية، يرجى طلب كود جديد.',
-    invalidOtp: 'كود التحقق غير صحيح.',
-    shortPassword: 'كلمة السر يجب أن تكون 8 أحرف على الأقل.',
-    updatePassFailed: 'تعذر تحديث كلمة المرور في قاعدة البيانات.',
-    invalidLink: 'رابط غير صالح.',
-    accountNotFound: 'الحساب غير موجود.',
-  },
-  en: {
-    turnstile: 'Please complete the security check (Cloudflare) and try again.',
-    missingLogin: 'Please enter your email/phone and password.',
-    notRegistered:
-      'This email or phone number is not registered. You can create a new account.',
-    wrongPassword:
-      'Incorrect password. Please try again or click "Forgot password?".',
-    suspended: 'This account has been temporarily suspended by administration.',
-    noAdminAccess:
-      'This account does not have admin privileges. Please sign in with an Admin account.',
-    fillAllRegister:
-      'Please fill in all fields and use a password of at least 8 characters.',
-    emailExists: 'This email is already registered. Please sign in.',
-    phoneExists: 'This phone number is already registered. Please sign in.',
-    registerFailed: 'Could not create account, please try again later.',
-    enterEmail: 'Please enter your email address.',
-    emailNotFound: 'This email address is not registered with us.',
-    emailSendFailed: 'Could not send email at the moment.',
-    enterValidOtp: 'Please enter a valid verification code.',
-    otpExpired: 'Verification code has expired, please request a new one.',
-    invalidOtp: 'Incorrect verification code.',
-    shortPassword: 'Password must be at least 8 characters long.',
-    updatePassFailed: 'Could not update password in the database.',
-    invalidLink: 'Invalid link.',
-    accountNotFound: 'Account not found.',
-  },
-  ru: {
-    turnstile:
-      'Пожалуйста, пройдите проверку безопасности (Cloudflare) и попробуйте снова.',
-    missingLogin: 'Пожалуйста, введите email/телефон и пароль.',
-    notRegistered:
-      'Этот email или телефон не зарегистрирован. Вы можете создать новый аккаунт.',
-    wrongPassword:
-      'Неверный пароль. Попробуйте снова или нажмите «Забыли пароль?».',
-    suspended: 'Этот аккаунт временно приостановлен администрацией.',
-    noAdminAccess:
-      'У этого аккаунта нет прав администратора. Войдите под аккаунтом администратора.',
-    fillAllRegister:
-      'Заполните все поля (пароль должен содержать минимум 8 символов).',
-    emailExists: 'Этот email уже зарегистрирован. Пожалуйста, войдите.',
-    phoneExists: 'Этот номер телефона уже зарегистрирован. Пожалуйста, войдите.',
-    registerFailed: 'Не удалось создать аккаунт, попробуйте позже.',
-    enterEmail: 'Пожалуйста, введите ваш email.',
-    emailNotFound: 'Этот email не зарегистрирован в системе.',
-    emailSendFailed: 'Не удалось отправить письмо в данный момент.',
-    enterValidOtp: 'Пожалуйста, введите корректный код подтверждения.',
-    otpExpired: 'Срок действия кода истек, запросите новый код.',
-    invalidOtp: 'Неверный код подтверждения.',
-    shortPassword: 'Пароль должен содержать минимум 8 символов.',
-    updatePassFailed: 'Не удалось обновить пароль в базе данных.',
-    invalidLink: 'Недействительная ссылка.',
-    accountNotFound: 'Аккаунт не найден.',
-  },
-  ka: {
-    turnstile: 'გთხოვთ გაიაროთ უსაფრთხოების შემოწმება (Cloudflare).',
-    missingLogin: 'გთხოვთ შეიყვანოთ ელ.ფოსტა/ტელეფონი და პაროლი.',
-    notRegistered:
-      'ეს ელ.ფოსტა ან ნომერი არ არის რეგისტრირებული. შეგიძლიათ შექმნათ ახალი ანგარიში.',
-    wrongPassword:
-      'პაროლი არასწორია. სცადეთ თავიდან ან დააჭირეთ „დაგავიწყდათ პაროლი?“.',
-    suspended: 'ეს ანგარიში დროებით შეჩერებულია ადმინისტრაციის მიერ.',
-    noAdminAccess:
-      'ამ ანგარიშს არ აქვს ადმინისტრატორის უფლებები. გთხოვთ შეხვიდეთ ადმინის ანგარიშით.',
-    fillAllRegister:
-      'შეავსეთ ყველა ველი (პაროლი უნდა შეიცავდეს მინიმუმ 8 სიმბოლოს).',
-    emailExists: 'ეს ელ.ფოსტა უკვე რეგისტრირებულია. გთხოვთ შეხვიდეთ.',
-    phoneExists: 'ეს ნომერი უკვე რეგისტრირებულია. გთხოვთ შეხვიდეთ.',
-    registerFailed: 'ანგარიშის შექმნა ვერ მოხერხდა, სცადეთ მოგვიანებით.',
-    enterEmail: 'გთხოვთ შეიყვანოთ ელ.ფოსტა.',
-    emailNotFound: 'ეს ელ.ფოსტა არ არის რეგისტრირებული.',
-    emailSendFailed: 'წერილის გაგზავნა ვერ მოხერხდა.',
-    enterValidOtp: 'გთხოვთ შეიყვანოთ სწორი კოდი.',
-    otpExpired: 'კოდის ვადა გავიდა, გთხოვთ მოითხოვოთ ახალი.',
-    invalidOtp: 'დადასტურების კოდი არასწორია.',
-    shortPassword: 'პაროლი უნდა შეიცავდეს მინიმუმ 8 სიმბოლოს.',
-    updatePassFailed: 'პაროლის განახლება ვერ მოხერხდა.',
-    invalidLink: 'არასწორი ბმული.',
-    accountNotFound: 'ანგარიში ვერ მოიძებნა.',
-  },
-}
-
-async function getActionMsg() {
-  const cookieStore = await cookies()
-  const locale = normalizeLocale(cookieStore.get('locale')?.value)
-  return AUTH_MESSAGES[locale] || AUTH_MESSAGES.ar
+async function getAuthDict() {
+  const { dict, dir } = await getServerI18n()
+  const t = (dict as Record<string, any>)?.serverActions?.auth || {}
+  return { t, dir }
 }
 
 async function getSupabase() {
@@ -189,10 +82,12 @@ async function sendEmail({
   to,
   subject,
   html,
+  senderName,
 }: {
   to: string
   subject: string
   html: string
+  senderName?: string
 }) {
   const user = process.env.EMAIL_USER?.trim()
   const pass = process.env.EMAIL_PASS?.replace(/\s+/g, '')
@@ -212,7 +107,7 @@ async function sendEmail({
     })
 
     await transporter.sendMail({
-      from: `"Aqar Exit - عقار إكزت" <${user}>`,
+      from: `"${senderName || 'Aqar Exit'}" <${user}>`,
       to: to.trim(),
       subject,
       html,
@@ -375,7 +270,7 @@ export type AuthResult = { success: boolean; error?: string }
 export async function loginAction(
   formData: FormData
 ): Promise<AuthResult & { redirectTo?: string }> {
-  const msg = await getActionMsg()
+  const { t: msg, dir } = await getAuthDict()
   const turnstileToken = formData.get('cf_turnstile_response') as string | null
   const isHuman = await verifyTurnstileOnServer(turnstileToken)
   if (!isHuman) {
@@ -465,10 +360,11 @@ export async function loginAction(
   if (matchedUser.email) {
     sendEmail({
       to: matchedUser.email.trim(),
-      subject: 'تنبيه أمني: تم تسجيل الدخول لحسابك في دارك',
-      html: `<div dir="rtl" style="font-family: Arial, sans-serif; text-align: right; line-height: 1.6;">
-              <h2 style="color: #101A2B;">أهلاً بك مجدداً يا ${matchedUser.name || 'مستخدمنا العزيز'} 👋</h2>
-              <p>تم تسجيل الدخول إلى حسابك في <strong>منصة دارك</strong> بنجاح.</p>
+      senderName: msg.emailSenderName,
+      subject: msg.loginEmailSubject,
+      html: `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.6;">
+              <h2 style="color: #101A2B;">${msg.loginEmailGreeting} ${matchedUser.name || msg.dearUser} 👋</h2>
+              <p>${msg.loginEmailBody}</p>
              </div>`,
     }).catch(() => {})
   }
@@ -483,7 +379,7 @@ export async function loginAction(
 }
 
 export async function registerAction(formData: FormData): Promise<AuthResult> {
-  const msg = await getActionMsg()
+  const { t: msg, dir } = await getAuthDict()
   const turnstileToken = formData.get('cf_turnstile_response') as string | null
   const isHuman = await verifyTurnstileOnServer(turnstileToken)
   if (!isHuman) {
@@ -578,13 +474,14 @@ export async function registerAction(formData: FormData): Promise<AuthResult> {
 
   await sendEmail({
     to: email,
-    subject: 'أهلاً بك في منصة دارك — تأكيد حسابك',
-    html: `<div dir="rtl" style="font-family: Arial, sans-serif; text-align: right; line-height: 1.6;">
-            <h2 style="color: #101A2B;">مرحباً بك يا ${name} في عائلة دارك! 🏠</h2>
-            <p>تم إنشاء حسابك بنجاح. لتأكيد بريدك الإلكتروني وتوثيق حسابك رسمياً، اضغط على الزر التالي:</p>
+    senderName: msg.emailSenderName,
+    subject: msg.welcomeEmailSubject,
+    html: `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.6;">
+            <h2 style="color: #101A2B;">${msg.welcomeEmailGreeting} ${name} 🏠</h2>
+            <p>${msg.welcomeEmailBody}</p>
             <div style="margin: 20px 0;">
               <a href="${verifyLink}" style="display: inline-block; background-color: #105C50; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 10px; font-weight: bold;">
-                تأكيد وتوثيق الحساب الآن
+                ${msg.welcomeEmailBtn}
               </a>
             </div>
            </div>`,
@@ -598,7 +495,7 @@ export async function registerAction(formData: FormData): Promise<AuthResult> {
 export async function forgotPasswordAction(
   formData: FormData
 ): Promise<AuthResult> {
-  const msg = await getActionMsg()
+  const { t: msg, dir } = await getAuthDict()
   const email = normalizeEmail(String(formData.get('email') || ''))
 
   if (!email) {
@@ -643,10 +540,11 @@ export async function forgotPasswordAction(
 
   const emailSent = await sendEmail({
     to: user.email || email,
-    subject: 'رمز استرجاع كلمة المرور - دارك',
-    html: `<div dir="rtl" style="font-family: Arial, sans-serif; text-align: right; line-height: 1.6;">
-            <h2 style="color: #101A2B;">أهلاً ${user.name || 'مستخدمنا العزيز'}</h2>
-            <p>استخدم كود التحقق التالي لتعيين كلمة مرور جديدة لحسابك:</p>
+    senderName: msg.emailSenderName,
+    subject: msg.otpEmailSubject,
+    html: `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.6;">
+            <h2 style="color: #101A2B;">${msg.otpEmailGreeting} ${user.name || msg.dearUser}</h2>
+            <p>${msg.otpEmailBody}</p>
             <div style="background: #f4f6f8; padding: 15px; border-radius: 12px; text-align: center; margin: 20px 0;">
               <h1 style="color: #105C50; letter-spacing: 6px; margin: 0; font-size: 32px;">${otp}</h1>
             </div>
@@ -664,7 +562,7 @@ export async function verifyOtpAction(
   email: string,
   otp: string
 ): Promise<AuthResult> {
-  const msg = await getActionMsg()
+  const { t: msg } = await getAuthDict()
   const cleanEmail = normalizeEmail(email)
   const cleanOtp = sanitizeInput(otp, 10)
 
@@ -719,7 +617,7 @@ export async function resetPasswordAction(
   otp: string,
   newPassword: string
 ): Promise<AuthResult> {
-  const msg = await getActionMsg()
+  const { t: msg } = await getAuthDict()
   const cleanEmail = normalizeEmail(email)
   const cleanOtp = sanitizeInput(otp, 10)
   const cleanPass = String(newPassword || '').slice(0, 128)
@@ -769,7 +667,7 @@ export async function verifyAccountAction(
   email: string,
   token?: string
 ): Promise<AuthResult> {
-  const msg = await getActionMsg()
+  const { t: msg } = await getAuthDict()
   const cleanEmail = normalizeEmail(email)
   if (!cleanEmail) return { success: false, error: msg.invalidLink }
 

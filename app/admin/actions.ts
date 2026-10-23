@@ -15,8 +15,15 @@ import {
   extractUserIdFromCookie,
   parseAndVerifySessionCookie,
 } from "@/lib/session-security"
+import { getServerI18n } from "@/lib/get-server-dictionary"
 
 export type StaffRoleCode = "admin" | "moderator" | "sales"
+
+async function getAdminActionsDict() {
+  const { dict, dir } = await getServerI18n()
+  const t = (dict as Record<string, any>)?.serverActions?.admin || {}
+  return { t, dir }
+}
 
 async function getSupabase() {
   const cookieStore = await cookies()
@@ -41,11 +48,12 @@ function sanitizeText(val: unknown, maxLen = 500): string {
 async function requireAdminAuth(
   allowedRoles: StaffRoleCode[] = ["admin", "moderator", "sales"]
 ) {
+  const { t: msg } = await getAdminActionsDict()
   const cookieStore = await cookies()
   const rawSession = cookieStore.get("user_session")?.value
   const candidateUserId = extractUserIdFromCookie(rawSession)
   if (!rawSession || !candidateUserId) {
-    throw new Error("غير مصرح: يرجى تسجيل الدخول بحساب الإدارة.")
+    throw new Error(msg.unauthorizedLogin)
   }
 
   const supabase = await getSupabase()
@@ -57,7 +65,7 @@ async function requireAdminAuth(
     .maybeSingle()
 
   if (!user) {
-    throw new Error("غير مصرح: الحساب غير موجود.")
+    throw new Error(msg.unauthorizedNotFound)
   }
 
   const sessionCheck = parseAndVerifySessionCookie(
@@ -67,14 +75,12 @@ async function requireAdminAuth(
   if (!sessionCheck.valid) {
     cookieStore.delete("user_session")
     cookieStore.delete("session_hint")
-    throw new Error(
-      "انتهت صلاحية الجلسة بسبب تغيير كلمة المرور، يرجى تسجيل الدخول مجدداً."
-    )
+    throw new Error(msg.sessionExpiredPassword)
   }
 
   const cleanStatus = String(user.status || "active").trim().toLowerCase()
   if (cleanStatus === "suspended") {
-    throw new Error("تم إيقاف هذا الحساب الإداري.")
+    throw new Error(msg.adminSuspended)
   }
 
   const cleanRole = String(user.role || "user")
@@ -82,22 +88,22 @@ async function requireAdminAuth(
     .toLowerCase() as StaffRoleCode | "user"
 
   if (!allowedRoles.includes(cleanRole as StaffRoleCode)) {
-    throw new Error(
-      "عذراً، حسابك الحالي لا يمتلك صلاحية لتنفيذ هذا الإجراء."
-    )
+    throw new Error(msg.insufficientRole)
   }
 
-  return { supabase, adminUser: user, role: cleanRole as StaffRoleCode }
+  return { supabase, adminUser: user, role: cleanRole as StaffRoleCode, msg }
 }
 
 async function sendAdminEmail({
   to,
   subject,
   html,
+  senderName,
 }: {
   to: string
   subject: string
   html: string
+  senderName?: string
 }) {
   const user = process.env.EMAIL_USER?.trim()
   const pass = process.env.EMAIL_PASS?.replace(/\s+/g, "")
@@ -113,7 +119,7 @@ async function sendAdminEmail({
     })
 
     await transporter.sendMail({
-      from: `"إدارة منصة دارك" <${user}>`,
+      from: `"${senderName || "Aqar Exit Admin"}" <${user}>`,
       to: to.trim(),
       subject,
       html,
@@ -194,6 +200,7 @@ export async function updatePropertyStatusAction(
   status: string,
   reason?: string
 ) {
+  const { t: msg, dir } = await getAdminActionsDict()
   try {
     const { supabase } = await requireAdminAuth([
       "admin",
@@ -232,10 +239,12 @@ export async function updatePropertyStatusAction(
       if (fallbackError) {
         return {
           success: false,
-          error: "تعذر تحديث حالة العقار في قاعدة البيانات.",
+          error: msg.updatePropertyFailed,
         }
       }
     }
+
+    const projectLabel = prop?.project_name || msg.defaultProjectWord
 
     if (prop?.user_id) {
       const sellerNotifMap: Record<
@@ -243,30 +252,30 @@ export async function updatePropertyStatusAction(
         { title: string; message: string; type: string }
       > = {
         active: {
-          title: "تم نشر وحدتك في السوق 🎉",
-          message: `تمت الموافقة على وحدتك في (${prop.project_name || "مشروعك"}) وهي الآن معروضة أمام المشترين.`,
+          title: msg.notifActiveTitle,
+          message: `${msg.notifActiveMsg} (${projectLabel})`,
           type: "status_update",
         },
         offer_received: {
-          title: "لديك عرض شراء جديد! 💰",
-          message: `يوجد مشتري جاد مهتم بوحدتك في (${prop.project_name || "مشروعك"}). تابع التفاصيل من حسابك.`,
+          title: msg.notifOfferTitle,
+          message: `${msg.notifOfferMsg} (${projectLabel})`,
           type: "new_offer",
         },
         transferring: {
-          title: "بدء إجراءات نقل التعاقد 📄",
-          message: `وحدتك في (${prop.project_name || "مشروعك"}) دخلت مرحلة مراجعة المستندات ونقل الملكية.`,
+          title: msg.notifTransferTitle,
+          message: `${msg.notifTransferMsg} (${projectLabel})`,
           type: "status_update",
         },
         sold: {
-          title: "مبروك! تمت عملية البيع بنجاح 🏆",
-          message: `تم إتمام بيع وحدتك ونقل التعاقد في (${prop.project_name || "مشروعك"}) بنجاح.`,
+          title: msg.notifSoldTitle,
+          message: `${msg.notifSoldMsg} (${projectLabel})`,
           type: "status_update",
         },
         rejected: {
-          title: "ملاحظة بخصوص طلب وحدتك ⚠️",
+          title: msg.notifRejectedTitle,
           message: cleanReason
-            ? `يرجى مراجعة وحدتك: ${cleanReason}`
-            : `يرجى مراجعة بيانات وحدتك في (${prop.project_name || "مشروعك"}) لإعادة النشر.`,
+            ? `${msg.notifRejectedReasonPrefix}: ${cleanReason}`
+            : `${msg.notifRejectedMsg} (${projectLabel})`,
           type: "status_update",
         },
       }
@@ -324,8 +333,8 @@ export async function updatePropertyStatusAction(
           const buyerNotifs = Array.from(matchedBuyerIds).map(
             (buyerUserId) => ({
               user_id: buyerUserId,
-              title: `فرصة جديدة تطابق طلبك في ${unitArea || "السوق"} 🎯`,
-              message: `نزلت وحدة (${prop.project_name || prop.unit_type || "سكنية"}) بمطلوب كاش ${cashFormatted} ج.م بدون أوفر.`,
+              title: `${msg.matchBuyerTitle} ${unitArea} 🎯`,
+              message: `(${projectLabel}) — ${cashFormatted}`,
               type: "property_match",
               link: `/opportunities/${prop.id}`,
               is_read: false,
@@ -343,35 +352,36 @@ export async function updatePropertyStatusAction(
       const statusMessages: Record<string, { subject: string; body: string }> =
         {
           active: {
-            subject: "تمت الموافقة على وحدتك ونشرها في منصة دارك 🎉",
-            body: `يسعدنا إبلاغك بأنه تمت مراجعة واعتماد وحدتك في مشروع <strong>${prop.project_name || "وحدتك"}</strong> وهي الآن معروضة أمام المشترين في السوق.`,
+            subject: msg.emailActiveSubject,
+            body: `${msg.emailActiveBody} <strong>${projectLabel}</strong>.`,
           },
           offer_received: {
-            subject: "لديك عرض شراء جديد على وحدتك في دارك! 💰",
-            body: `تم استلام عرض شراء جاد على وحدتك في مشروع <strong>${prop.project_name || "وحدتك"}</strong>. سيتواصل معك مسؤول حالتك فوراً لإتمام الإجراءات.`,
+            subject: msg.emailOfferSubject,
+            body: `${msg.emailOfferBody} <strong>${projectLabel}</strong>.`,
           },
           transferring: {
-            subject: "بدء إجراءات نقل التعاقد لوحدتك - دارك 📄",
-            body: `وحدتك في مشروع <strong>${prop.project_name || "وحدتك"}</strong> دخلت الآن مرحلة مراجعة المستندات ونقل التعاقد.`,
+            subject: msg.emailTransferSubject,
+            body: `${msg.emailTransferBody} <strong>${projectLabel}</strong>.`,
           },
           sold: {
-            subject: "مبروك! تمت عملية بيع وحدتك بنجاح عبر دارك 🏆",
-            body: `تم إتمام عملية التخارج ونقل التعاقد لوحدتك في مشروع <strong>${prop.project_name || "وحدتك"}</strong> بنجاح.`,
+            subject: msg.emailSoldSubject,
+            body: `${msg.emailSoldBody} <strong>${projectLabel}</strong>.`,
           },
           rejected: {
-            subject: "تحديث بخصوص طلب عرض وحدتك في دارك",
-            body: `نعتذر، لم نتمكن من نشر طلب وحدتك في مشروع <strong>${prop.project_name || "وحدتك"}</strong> حالياً.${cleanReason ? `<br/><strong>السبب:</strong> ${cleanReason}` : ""}`,
+            subject: msg.emailRejectedSubject,
+            body: `${msg.emailRejectedBody} <strong>${projectLabel}</strong>.${cleanReason ? `<br/><strong>${msg.reasonWord}:</strong> ${cleanReason}` : ""}`,
           },
         }
 
-      const msg = statusMessages[status]
-      if (msg) {
+      const emailObj = statusMessages[status]
+      if (emailObj) {
         await sendAdminEmail({
           to: prop.email,
-          subject: msg.subject,
-          html: `<div dir="rtl" style="font-family: Arial, sans-serif; text-align: right; line-height: 1.7;">
-                  <h2 style="color: #101A2B;">أهلاً بك يا ${prop.name || "عميلنا العزيز"}</h2>
-                  <p>${msg.body}</p>
+          senderName: msg.adminSenderName,
+          subject: emailObj.subject,
+          html: `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.7;">
+                  <h2 style="color: #101A2B;">${msg.greetingWord} ${prop.name || msg.dearClient}</h2>
+                  <p>${emailObj.body}</p>
                  </div>`,
         })
       }
@@ -382,26 +392,26 @@ export async function updatePropertyStatusAction(
   } catch (err) {
     return {
       success: false,
-      error:
-        err instanceof Error ? err.message : "غير مصرح بتنفيذ هذا الإجراء.",
+      error: err instanceof Error ? err.message : msg.unauthorizedAction,
     }
   }
 }
 
 export async function deletePropertyAction(propertyId: string) {
+  const { t: msg } = await getAdminActionsDict()
   try {
     const { supabase } = await requireAdminAuth(["admin"])
     const { error } = await supabase
       .from("sell_requests")
       .delete()
       .eq("id", propertyId)
-    if (error) return { success: false, error: "تعذر حذف العقار." }
+    if (error) return { success: false, error: msg.deletePropertyFailed }
     revalidateAdminAll()
     return { success: true }
   } catch (err) {
     return {
       success: false,
-      error: err instanceof Error ? err.message : "غير مصرح بحذف العقارات.",
+      error: err instanceof Error ? err.message : msg.unauthorizedAction,
     }
   }
 }
@@ -410,6 +420,7 @@ export async function updateBuyerLeadStatusAction(
   leadId: string,
   status: string
 ) {
+  const { t: msg } = await getAdminActionsDict()
   try {
     const { supabase } = await requireAdminAuth([
       "admin",
@@ -432,21 +443,21 @@ export async function updateBuyerLeadStatusAction(
     if (error) {
       return {
         success: false,
-        error: "تأكد من إضافة عمود status في جدول buy_requests.",
+        error: msg.updateLeadFailed,
       }
     }
 
     if (lead?.user_id) {
       const buyerStatusText: Record<string, string> = {
-        contacted: "قام فريق المبيعات بمراجعة طلبك وجاري التواصل معك.",
-        qualified: "تم تجهيز قائمة بالفرص العقارية المطابقة لميزانيتك في حسابك.",
-        closed: "مبروك! تم إتمام تعاقدك بنجاح عبر منصة دارك.",
+        contacted: msg.leadContactedNotifMsg,
+        qualified: msg.leadQualifiedNotifMsg,
+        closed: msg.leadClosedNotifMsg,
       }
       if (buyerStatusText[cleanStatus]) {
         try {
           await supabase.from("notifications").insert({
             user_id: lead.user_id,
-            title: "تحديث بخصوص طلب الشراء الخاص بك 🌟",
+            title: msg.leadUpdateNotifTitle,
             message: buyerStatusText[cleanStatus],
             type: "status_update",
             link: "/account?view=buyer",
@@ -461,25 +472,26 @@ export async function updateBuyerLeadStatusAction(
   } catch (err) {
     return {
       success: false,
-      error: err instanceof Error ? err.message : "غير مصرح.",
+      error: err instanceof Error ? err.message : msg.unauthorizedAction,
     }
   }
 }
 
 export async function deleteBuyerLeadAction(leadId: string) {
+  const { t: msg } = await getAdminActionsDict()
   try {
     const { supabase } = await requireAdminAuth(["admin"])
     const { error } = await supabase
       .from("buy_requests")
       .delete()
       .eq("id", leadId)
-    if (error) return { success: false, error: "تعذر حذف طلب الشراء." }
+    if (error) return { success: false, error: msg.deleteLeadFailed }
     revalidateAdminAll()
     return { success: true }
   } catch (err) {
     return {
       success: false,
-      error: err instanceof Error ? err.message : "غير مصرح.",
+      error: err instanceof Error ? err.message : msg.unauthorizedAction,
     }
   }
 }
@@ -488,6 +500,7 @@ export async function updateInvestorStatusAction(
   investorId: string,
   status: string
 ) {
+  const { t: msg } = await getAdminActionsDict()
   try {
     const { supabase } = await requireAdminAuth(["admin", "moderator"])
     const cleanStatus = sanitizeText(status, 40)
@@ -506,7 +519,7 @@ export async function updateInvestorStatusAction(
     if (err1 && err2) {
       return {
         success: false,
-        error: "تعذر تحديث حالة المستثمر في قاعدة البيانات.",
+        error: msg.updateInvestorFailed,
       }
     }
 
@@ -515,12 +528,13 @@ export async function updateInvestorStatusAction(
   } catch (err) {
     return {
       success: false,
-      error: err instanceof Error ? err.message : "غير مصرح.",
+      error: err instanceof Error ? err.message : msg.unauthorizedAction,
     }
   }
 }
 
 export async function deleteInvestorAction(investorId: string) {
+  const { t: msg } = await getAdminActionsDict()
   try {
     const { supabase } = await requireAdminAuth(["admin"])
 
@@ -534,8 +548,7 @@ export async function deleteInvestorAction(investorId: string) {
   } catch (err) {
     return {
       success: false,
-      error:
-        err instanceof Error ? err.message : "غير مصرح بحذف طلب المستثمر.",
+      error: err instanceof Error ? err.message : msg.unauthorizedAction,
     }
   }
 }
@@ -545,6 +558,7 @@ export async function updateUserRoleAndStatusAction(
   role: string,
   status: string
 ) {
+  const { t: msg } = await getAdminActionsDict()
   try {
     const { supabase } = await requireAdminAuth(["admin"])
 
@@ -562,7 +576,7 @@ export async function updateUserRoleAndStatusAction(
     if (error) {
       return {
         success: false,
-        error: "تعذر تحديث الصلاحية في قاعدة البيانات.",
+        error: msg.updateRoleFailed,
       }
     }
 
@@ -571,13 +585,13 @@ export async function updateUserRoleAndStatusAction(
   } catch (err) {
     return {
       success: false,
-      error:
-        err instanceof Error ? err.message : "غير مصرح بتعديل الصلاحيات.",
+      error: err instanceof Error ? err.message : msg.unauthorizedAction,
     }
   }
 }
 
 export async function createAdminOrUserAction(formData: FormData) {
+  const { t: msg } = await getAdminActionsDict()
   try {
     const { supabase } = await requireAdminAuth(["admin"])
 
@@ -590,8 +604,7 @@ export async function createAdminOrUserAction(formData: FormData) {
     if (!name || !email || !rawPhone || password.length < 8) {
       return {
         success: false,
-        error:
-          "يرجى ملء كافة البيانات والتأكد أن كلمة المرور 8 أحرف على الأقل.",
+        error: msg.fillAllUserFields,
       }
     }
 
@@ -611,7 +624,7 @@ export async function createAdminOrUserAction(formData: FormData) {
     if (error) {
       return {
         success: false,
-        error: "البريد الإلكتروني أو رقم الهاتف مسجل مسبقاً.",
+        error: msg.emailOrPhoneTaken,
       }
     }
 
@@ -620,35 +633,36 @@ export async function createAdminOrUserAction(formData: FormData) {
   } catch (err) {
     return {
       success: false,
-      error:
-        err instanceof Error ? err.message : "غير مصرح بإنشاء حسابات إدارية.",
+      error: err instanceof Error ? err.message : msg.unauthorizedAction,
     }
   }
 }
 
 export async function deleteUserByAdminAction(userId: string) {
+  const { t: msg } = await getAdminActionsDict()
   try {
     const { supabase, adminUser } = await requireAdminAuth(["admin"])
     if (userId === adminUser.id) {
-      return { success: false, error: "لا يمكنك حذف حسابك الإداري الحالي." }
+      return { success: false, error: msg.cannotDeleteSelf }
     }
 
     await supabase.from("sell_requests").delete().eq("user_id", userId)
     await supabase.from("buy_requests").delete().eq("user_id", userId)
     const { error } = await supabase.from("users").delete().eq("id", userId)
 
-    if (error) return { success: false, error: "تعذر حذف الحساب." }
+    if (error) return { success: false, error: msg.deleteUserFailed }
     revalidateAdminAll()
     return { success: true }
   } catch (err) {
     return {
       success: false,
-      error: err instanceof Error ? err.message : "غير مصرح بحذف الحسابات.",
+      error: err instanceof Error ? err.message : msg.unauthorizedAction,
     }
   }
 }
 
 export async function updateAdminProfileDataAction(formData: FormData) {
+  const { t: msg, dir } = await getAdminActionsDict()
   try {
     const { supabase, adminUser } = await requireAdminAuth([
       "admin",
@@ -664,14 +678,14 @@ export async function updateAdminProfileDataAction(formData: FormData) {
     if (!name || !email || !rawPhone || !currentPassword) {
       return {
         success: false,
-        error: "الرجاء إكمال جميع الحقول وإدخال كلمة المرور للمصادقة.",
+        error: msg.completeProfileFields,
       }
     }
 
     if (!verifyPassword(currentPassword, adminUser.password_hash)) {
       return {
         success: false,
-        error: "كلمة المرور الحالية التي أدخلتها للمصادقة غير صحيحة.",
+        error: msg.wrongCurrentPassword,
       }
     }
 
@@ -683,7 +697,7 @@ export async function updateAdminProfileDataAction(formData: FormData) {
       phone: formattedPhone,
     }
 
-    let successMessage = "تم تحديث بياناتك بنجاح."
+    let successMessage = msg.profileUpdatedSuccess
 
     if (email !== adminUser.email) {
       updateData.email = email
@@ -699,20 +713,20 @@ export async function updateAdminProfileDataAction(formData: FormData) {
 
       await sendAdminEmail({
         to: email,
-        subject: "دارك — تأكيد البريد الإلكتروني الجديد",
-        html: `<div dir="rtl" style="font-family: Arial, sans-serif; text-align: right; line-height: 1.6;">
-                <h2 style="color: #101A2B;">مرحباً ${name}،</h2>
-                <p>لقد قمت بتغيير بريدك الإلكتروني في منصة دارك. يرجى تأكيد هذا البريد بالضغط على الرابط أدناه لاستعادة توثيق حسابك:</p>
+        senderName: msg.adminSenderName,
+        subject: msg.confirmNewEmailSubject,
+        html: `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.6;">
+                <h2 style="color: #101A2B;">${msg.greetingWord} ${name}،</h2>
+                <p>${msg.confirmNewEmailBody}</p>
                 <div style="margin: 20px 0;">
                   <a href="${verifyLink}" style="display: inline-block; background-color: #105C50; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 10px; font-weight: bold;">
-                    تأكيد البريد الإلكتروني
+                    ${msg.confirmNewEmailBtn}
                   </a>
                 </div>
                </div>`,
       })
 
-      successMessage =
-        "تم تحديث البيانات. يرجى فحص بريدك الجديد لتأكيده وتوثيق الحساب."
+      successMessage = msg.profileUpdatedCheckEmail
     }
 
     const { error } = await supabase
@@ -723,7 +737,7 @@ export async function updateAdminProfileDataAction(formData: FormData) {
     if (error) {
       return {
         success: false,
-        error: "تعذر التحديث، قد يكون الإيميل أو الهاتف مستخدماً لحساب آخر.",
+        error: msg.emailOrPhoneTaken,
       }
     }
 
@@ -737,12 +751,13 @@ export async function updateAdminProfileDataAction(formData: FormData) {
   } catch (err) {
     return {
       success: false,
-      error: err instanceof Error ? err.message : "انتهت الجلسة.",
+      error: err instanceof Error ? err.message : msg.unauthorizedAction,
     }
   }
 }
 
 export async function changeAdminPasswordAction(formData: FormData) {
+  const { t: msg } = await getAdminActionsDict()
   try {
     const { supabase, adminUser } = await requireAdminAuth([
       "admin",
@@ -756,12 +771,12 @@ export async function changeAdminPasswordAction(formData: FormData) {
     if (!currentPassword || !newPassword || newPassword.length < 8) {
       return {
         success: false,
-        error: "يرجى كتابة الباسورد الحالي والجديد (8 أحرف على الأقل).",
+        error: msg.enterCurrentAndNewPass,
       }
     }
 
     if (!verifyPassword(currentPassword, adminUser.password_hash)) {
-      return { success: false, error: "كلمة المرور الحالية غير صحيحة." }
+      return { success: false, error: msg.wrongCurrentPassword }
     }
 
     const newHash = hashPassword(newPassword)
@@ -770,7 +785,7 @@ export async function changeAdminPasswordAction(formData: FormData) {
       .update({ password_hash: newHash })
       .eq("id", adminUser.id)
 
-    if (error) return { success: false, error: "تعذر تغيير كلمة المرور." }
+    if (error) return { success: false, error: msg.changePassFailed }
 
     const cookieStore = await cookies()
     const isProd = process.env.NODE_ENV === "production"
@@ -788,19 +803,20 @@ export async function changeAdminPasswordAction(formData: FormData) {
   } catch (err) {
     return {
       success: false,
-      error: err instanceof Error ? err.message : "انتهت الجلسة.",
+      error: err instanceof Error ? err.message : msg.unauthorizedAction,
     }
   }
 }
 
 export async function saveSiteSettingsAction(formData: FormData) {
+  const { t: msg } = await getAdminActionsDict()
   try {
     const { supabase } = await requireAdminAuth(["admin"])
     const cookieStore = await cookies()
     const isProd = process.env.NODE_ENV === "production"
 
     const settingsPayload = {
-      siteName: sanitizeText(formData.get("siteName") || "دارك", 80),
+      siteName: sanitizeText(formData.get("siteName") || "Aqar Exit", 80),
       whatsappNumber: sanitizeText(
         formData.get("whatsappNumber") || "+201018595959",
         30
@@ -852,10 +868,7 @@ export async function saveSiteSettingsAction(formData: FormData) {
   } catch (err) {
     return {
       success: false,
-      error:
-        err instanceof Error
-          ? err.message
-          : "غير مصرح بتغيير إعدادات الموقع.",
+      error: err instanceof Error ? err.message : msg.unauthorizedAction,
     }
   }
 }
@@ -865,6 +878,7 @@ export async function managePropertyPromotionAction(
   action: "activate" | "cancel",
   days: number = 14
 ) {
+  const { t: msg } = await getAdminActionsDict()
   try {
     const { supabase } = await requireAdminAuth(["admin", "moderator"])
 
@@ -892,7 +906,7 @@ export async function managePropertyPromotionAction(
       if (error) {
         return {
           success: false,
-          error: "تأكد من تشغيل سكريبت إضافة أعمدة التمييز في Supabase.",
+          error: msg.promoColumnsMissing,
         }
       }
 
@@ -900,8 +914,8 @@ export async function managePropertyPromotionAction(
         try {
           await supabase.from("notifications").insert({
             user_id: prop.user_id,
-            title: `⭐ تم تفعيل تمييز وحدتك لمدة ${days} يوم!`,
-            message: `وحدتك في (${prop.project_name || "مشروعك"}) تظهر الآن بشارة النجمة الذهبية في أول صفحة الفرص المتاحة.`,
+            title: `⭐ ${msg.promoActivatedNotifTitle} (${days})`,
+            message: `${msg.promoActivatedNotifMsg} (${prop.project_name || msg.defaultProjectWord})`,
             type: "status_update",
             link: `/account?view=seller&unitId=${prop.id}`,
             is_read: false,
@@ -919,7 +933,7 @@ export async function managePropertyPromotionAction(
         .eq("id", propertyId)
 
       if (error) {
-        return { success: false, error: "تعذر إلغاء التمييز." }
+        return { success: false, error: msg.cancelPromoFailed }
       }
     }
 
@@ -928,12 +942,13 @@ export async function managePropertyPromotionAction(
   } catch (err) {
     return {
       success: false,
-      error: err instanceof Error ? err.message : "غير مصرح.",
+      error: err instanceof Error ? err.message : msg.unauthorizedAction,
     }
   }
 }
 
 export async function purgeSellerDeletedPropertiesAction() {
+  const { t: msg } = await getAdminActionsDict()
   try {
     const { supabase } = await requireAdminAuth(["admin"])
     const { error } = await supabase
@@ -942,7 +957,7 @@ export async function purgeSellerDeletedPropertiesAction() {
       .eq("status", "deleted_by_seller")
 
     if (error) {
-      return { success: false, error: "تعذر مسح الوحدات المحذوفة." }
+      return { success: false, error: msg.purgeDeletedFailed }
     }
 
     revalidateAdminAll()
@@ -950,7 +965,7 @@ export async function purgeSellerDeletedPropertiesAction() {
   } catch (err) {
     return {
       success: false,
-      error: err instanceof Error ? err.message : "غير مصرح.",
+      error: err instanceof Error ? err.message : msg.unauthorizedAction,
     }
   }
 }

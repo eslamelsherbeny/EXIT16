@@ -260,11 +260,11 @@ export default function AdminShell({
         <div>
           <div className="flex h-16 items-center gap-2.5 border-b border-white/10 px-6 text-lg font-extrabold">
             <Link
-             href="/admin"
+              href="/admin"
               className="flex items-center gap-2.5 transition hover:opacity-90"
             >
-              <span className="flex size-8 items-center justify-center rounded-lg bg-[#105C50] text-white">
-                <Building2 className="size-4" />
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#105C50] text-white">
+                <Building2 className="size-4 shrink-0" />
               </span>
               <span>
                 {t.brand}
@@ -290,7 +290,7 @@ export default function AdminShell({
                   }`}
                 >
                   <Icon
-                    className={`size-4 ${
+                    className={`size-4 shrink-0 ${
                       active ? "text-white" : "text-emerald-400"
                     }`}
                   />
@@ -380,12 +380,12 @@ export default function AdminShell({
             <div>
               <div className="flex h-14 items-center justify-between border-b border-white/10 px-4">
                 <Link
-                 href="/admin"
+                  href="/admin"
                   onClick={() => setDrawerOpen(false)}
                   className="flex items-center gap-2 text-base font-extrabold transition hover:opacity-90"
                 >
-                  <span className="flex size-8 items-center justify-center rounded-lg bg-[#105C50] text-white">
-                    <Building2 className="size-4" />
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#105C50] text-white">
+                    <Building2 className="size-4 shrink-0" />
                   </span>
                   <span>
                     {t.brand}
@@ -418,7 +418,7 @@ export default function AdminShell({
                     >
                       <div className="flex items-center gap-2.5">
                         <Icon
-                          className={`size-4 ${
+                          className={`size-4 shrink-0 ${
                             active ? "text-white" : "text-emerald-400"
                           }`}
                         />
@@ -499,7 +499,7 @@ export default function AdminShell({
         </div>
       )}
 
-      {/* 3. الهيدر العلوي (يحتوي على اسم الموقع القابل للضغط للذهاب للصفحة الرئيسية) */}
+      {/* 3. الهيدر العلوي (تم تكبير العنوان للموبايل ليكون واضحاً ومناسباً) */}
       <div className={isRtl ? "lg:mr-64" : "lg:ml-64"}>
         <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-2 border-b border-gray-200/80 bg-white/95 px-3.5 backdrop-blur-md sm:h-16 sm:px-6">
           <div className="flex min-w-0 items-center gap-2.5">
@@ -511,10 +511,8 @@ export default function AdminShell({
               <Menu className="size-4" />
             </button>
 
-           
-
             <div className="flex min-w-0 items-center gap-2">
-              <h1 className="truncate text-xs font-extrabold text-[#0a1122] sm:text-sm">
+              <h1 className="truncate text-[15px] font-extrabold text-[#0a1122] sm:text-base">
                 {currentSection}
               </h1>
               <span className="hidden text-xs text-gray-300 sm:inline">|</span>

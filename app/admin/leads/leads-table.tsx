@@ -17,7 +17,6 @@ import {
   Search,
   ShieldAlert,
   Trash2,
-  UserCheck,
   Wallet,
   X,
 } from "lucide-react"
@@ -126,14 +125,100 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
   const searchParams = useSearchParams()
 
   const { t: dict, locale, dir } = useTranslation()
-  const t = dict.admin.leadsAdmin
+
+  // حماية كاملة للقاموس لمنع أي خطأ في الـ Runtime إذا كانت بعض المفاتيح غير موجودة
+  const adminDict = (dict?.admin as Record<string, any>) || {}
+  const rawLeadsAdmin = adminDict.leadsAdmin || adminDict.leads || {}
+
+  const t = {
+    loadError: rawLeadsAdmin.loadError || "تعذر تحميل طلبات الشراء.",
+    eyebrow: rawLeadsAdmin.eyebrow || "إدارة المشترين والحجوزات",
+    title: rawLeadsAdmin.title || "طلبات الشراء وحجز الوحدات",
+    searchPlaceholder:
+      rawLeadsAdmin.searchPlaceholder ||
+      "ابحث باسم المشتري، رقم الهاتف، كود الوحدة (U-xxx)، أو المنطقة...",
+    allTab: rawLeadsAdmin.allTab || "الكل",
+    unitLeadsTab: rawLeadsAdmin.unitLeadsTab || "حاجزي الوحدات",
+    generalTab: rawLeadsAdmin.generalTab || "بحث عام",
+    emptyText: rawLeadsAdmin.emptyText || "لا توجد طلبات شراء مطابقة.",
+    updatingText: rawLeadsAdmin.updatingText || "جاري تحديث الطلب...",
+    unitBadge: rawLeadsAdmin.unitBadge || "حجز وحدة",
+    cashLabel: rawLeadsAdmin.cashLabel || "كاش:",
+    installmentLabel: rawLeadsAdmin.installmentLabel || "القسط:",
+    areasLabel: rawLeadsAdmin.areasLabel || "المناطق:",
+    typeDetailsLabel: rawLeadsAdmin.typeDetailsLabel || "النوع والتفاصيل:",
+    customerNotesLabel:
+      rawLeadsAdmin.customerNotesLabel ||
+      rawLeadsAdmin.customerQuestionLabel ||
+      "أسئلة العميل قبل المكالمة:",
+    dateLabel: rawLeadsAdmin.dateLabel || "تاريخ الطلب:",
+    statusLabel: rawLeadsAdmin.statusLabel || "حالة متابعة المشتري:",
+    whatsappBtn: rawLeadsAdmin.whatsappBtn || "واتساب",
+    unitBtn: rawLeadsAdmin.unitBtn || "الوحدة",
+    deleteBtn: rawLeadsAdmin.deleteBtn || "حذف",
+    allOrdersTitle:
+      rawLeadsAdmin.allOrdersTitle ||
+      "قائمة طلبات المشترين وحاجزي الوحدات",
+    allOrdersDesc:
+      rawLeadsAdmin.allOrdersDesc ||
+      "العملاء المميزون بعلامة (🔥 حجز وحدة) هم عملاء طلبوا شراء وحدة محددة بعينها من صفحة الفرص.",
+    colBuyer: rawLeadsAdmin.colBuyer || "اسم المشتري ونوع الطلب",
+    colCash: rawLeadsAdmin.colCash || "القدرة المالية / الكاش",
+    colTarget:
+      rawLeadsAdmin.colTarget || "الوحدة المطلوبة / المنطقة والجاهزية",
+    colDate: rawLeadsAdmin.colDate || "تاريخ الطلب",
+    colStatus: rawLeadsAdmin.colStatus || "حالة المتابعة",
+    colAction: rawLeadsAdmin.colAction || "الإجراء",
+    confirmDeleteTitle:
+      rawLeadsAdmin.confirmDeleteTitle || "تأكيد حذف طلب الشراء",
+    confirmStatusTitle:
+      rawLeadsAdmin.confirmStatusTitle || "تأكيد تحديث حالة المتابعة",
+    cancelBtn: rawLeadsAdmin.cancelBtn || "إلغاء",
+    confirmBtn: rawLeadsAdmin.confirmBtn || "تأكيد التنفيذ",
+    savingBtn: rawLeadsAdmin.savingBtn || "جاري الحفظ...",
+    statusUpdatedSuccess:
+      rawLeadsAdmin.statusUpdatedSuccess ||
+      "تم تحديث حالة متابعة المشتري بنجاح.",
+    statusUpdateError:
+      rawLeadsAdmin.statusUpdateError || "تعذر تحديث حالة الطلب.",
+    deletedSuccess:
+      rawLeadsAdmin.deletedSuccess || "تم حذف طلب الشراء نهائياً.",
+    deleteError: rawLeadsAdmin.deleteError || "تعذر حذف طلب الشراء.",
+    statuses: {
+      new: rawLeadsAdmin.statuses?.new || "طلب جديد",
+      contacted: rawLeadsAdmin.statuses?.contacted || "تم التواصل",
+      matched: rawLeadsAdmin.statuses?.matched || "تم ترشيح / معاينة",
+      closed: rawLeadsAdmin.statuses?.closed || "تم الشراء / التعاقد",
+      archived: rawLeadsAdmin.statuses?.archived || "مؤرشف",
+    },
+  }
 
   const adminCountries = [
-    { code: "ALL", label: dict.admin.dashboard.countries.ALL, flag: "🌍" },
-    { code: "EG", label: dict.admin.dashboard.countries.EG, flag: "🇪🇬" },
-    { code: "RU", label: dict.admin.dashboard.countries.RU, flag: "🇷🇺" },
-    { code: "GE", label: dict.admin.dashboard.countries.GE, flag: "🇬🇪" },
-    { code: "AE", label: dict.admin.dashboard.countries.AE, flag: "🇦🇪" },
+    {
+      code: "ALL",
+      label: adminDict.dashboard?.countries?.ALL || "كل الدول",
+      flag: "🌍",
+    },
+    {
+      code: "EG",
+      label: adminDict.dashboard?.countries?.EG || "مصر",
+      flag: "🇪🇬",
+    },
+    {
+      code: "RU",
+      label: adminDict.dashboard?.countries?.RU || "روسيا",
+      flag: "🇷🇺",
+    },
+    {
+      code: "GE",
+      label: adminDict.dashboard?.countries?.GE || "جورجيا",
+      flag: "🇬🇪",
+    },
+    {
+      code: "AE",
+      label: adminDict.dashboard?.countries?.AE || "الإمارات",
+      flag: "🇦🇪",
+    },
   ]
 
   const leadStatuses = [
@@ -175,7 +260,9 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
   const [leadTypeFilter, setLeadTypeFilter] = useState<
     "all" | "unit_leads" | "general"
   >("all")
-  const [focusedLeadId, setFocusedLeadId] = useState<string | null>(null)
+  const [highlightedLeadId, setHighlightedLeadId] = useState<string | null>(
+    null
+  )
   const [confirmAction, setConfirmAction] = useState<ConfirmLeadAction | null>(
     null
   )
@@ -186,15 +273,14 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
   } | null>(null)
   const [pending, startTransition] = useTransition()
 
+  // التمرير السلس وتظليل الكارت بلون خفيف عند القدوم من الصفحة الرئيسية (مطابق لطلبات البيع تماماً)
   useEffect(() => {
     const typeParam = searchParams.get("type")
     const countryParam = searchParams.get("country")
     const leadIdParam = searchParams.get("leadId")
 
-    if (leadIdParam) {
-      setFocusedLeadId(leadIdParam)
-    } else {
-      setFocusedLeadId(null)
+    if (countryParam) {
+      setCountryFilter(countryParam.toUpperCase())
     }
 
     if (typeParam === "unit_leads" || typeParam === "general") {
@@ -203,10 +289,18 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
       setLeadTypeFilter("all")
     }
 
-    if (countryParam) {
-      setCountryFilter(countryParam.toUpperCase())
+    if (leadIdParam) {
+      setHighlightedLeadId(leadIdParam)
+      const targetLead = leads.find((l) => l.id === leadIdParam)
+
+      if (targetLead) {
+        setTimeout(() => {
+          const el = document.getElementById(`lead-row-${leadIdParam}`)
+          el?.scrollIntoView({ behavior: "smooth", block: "center" })
+        }, 250)
+      }
     }
-  }, [searchParams])
+  }, [searchParams, leads])
 
   function closeConfirmModal() {
     if (pending) return
@@ -244,7 +338,6 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
             setNotice({
               text: `${t.deletedSuccess} ("${target.name}")`,
             })
-            if (focusedLeadId === target.id) setFocusedLeadId(null)
             router.refresh()
           } else {
             setNotice({
@@ -270,12 +363,7 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
   ).length
   const generalLeadsCount = countryLeads.length - unitLeadsCount
 
-  // إذا ضغط الأدمن على شخص محدد من الرئيسية، نعرض هذا الشخص وحده مباشرة أمامه
   const filtered = countryLeads.filter((l) => {
-    if (focusedLeadId) {
-      return l.id === focusedLeadId
-    }
-
     const parsed = parseLeadDetails(l)
     if (leadTypeFilter === "unit_leads" && !parsed.isUnitLead) return false
     if (leadTypeFilter === "general" && parsed.isUnitLead) return false
@@ -295,52 +383,16 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
     return true
   })
 
-  const focusedLeadObj = focusedLeadId
-    ? leads.find((l) => l.id === focusedLeadId)
-    : null
-
   return (
     <div dir={dir} className="text-start">
-      {/* شريط تنبيه عند فتح شخص محدد من الصفحة الرئيسية */}
-      {focusedLeadId && (
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-[#105C50] bg-[#eff8f6] p-4 shadow-xs">
-          <div className="flex items-center gap-2.5">
-            <span className="flex size-9 items-center justify-center rounded-xl bg-[#105C50] text-white">
-              <UserCheck className="size-4" />
-            </span>
-            <div>
-              <p className="text-xs font-extrabold text-[#0a1122] sm:text-sm">
-                {focusedLeadObj
-                  ? `${focusedLeadObj.name} (${focusedLeadObj.phone})`
-                  : t.title}
-              </p>
-              <p className="text-[11px] font-semibold text-[#105C50]">
-                {t.eyebrow}
-              </p>
-            </div>
-          </div>
-
-          <Button
-            size="sm"
-            onClick={() => {
-              setFocusedLeadId(null)
-              router.replace("/admin/leads")
-            }}
-            className="h-9 rounded-xl bg-[#0a1122] px-4 text-xs font-bold text-white hover:bg-[#16223f]"
-          >
-            {t.allTab} ({countryLeads.length})
-          </Button>
-        </div>
-      )}
-
       {/* 1. شريط تقسيم الدول العلوي */}
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-200/90 bg-white p-3 shadow-2xs sm:p-4">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200/85 bg-white p-3.5 shadow-2xs sm:p-4">
         <div className="flex items-center gap-2 text-xs font-extrabold text-[#0a1122] sm:text-sm">
-          <Globe className="size-4 text-[#105C50]" />
-          <span>{dict.admin.dashboard.showingAll}</span>
+          <Globe className="size-4 shrink-0 text-[#105C50]" />
+          <span>{adminDict.dashboard?.showingAll || t.title}</span>
         </div>
 
-        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
           {adminCountries.map((c) => {
             const isSelected = c.code === countryFilter
             const countInC =
@@ -353,20 +405,17 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
               <button
                 key={c.code}
                 type="button"
-                onClick={() => {
-                  setFocusedLeadId(null)
-                  setCountryFilter(c.code)
-                }}
-                className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-extrabold transition ${
+                onClick={() => setCountryFilter(c.code)}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
                   isSelected
-                    ? "bg-[#105C50] text-white shadow-xs"
+                    ? "bg-[#105C50] text-white shadow-2xs"
                     : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                 }`}
               >
                 <span>{c.flag}</span>
                 <span>{c.label}</span>
                 <span
-                  className={`rounded-full px-1.5 py-0.5 text-[10px] ${
+                  className={`rounded-full px-1.5 text-[10px] ${
                     isSelected
                       ? "bg-white/20 text-white"
                       : "bg-white text-gray-600"
@@ -380,24 +429,13 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
         </div>
       </div>
 
-      {/* الهيدر العلوي */}
-      <div className="mb-5">
-        <p className="text-xs font-extrabold text-[#105C50]">{t.eyebrow}</p>
-        <h2 className="mt-1 text-xl font-extrabold text-[#0a1122] sm:text-3xl">
-          {t.title} ({filtered.length})
-        </h2>
-      </div>
-
       {/* شريط التبديل السريع */}
-      <div className="mb-4 grid grid-cols-3 gap-2 rounded-2xl border border-gray-200/80 bg-white p-1.5 shadow-xs sm:inline-flex">
+      <div className="mb-4 grid grid-cols-3 gap-2 rounded-xl border border-gray-200/80 bg-white p-1.5 shadow-2xs sm:inline-flex">
         <button
           type="button"
-          onClick={() => {
-            setFocusedLeadId(null)
-            setLeadTypeFilter("all")
-          }}
-          className={`rounded-xl px-3.5 py-2 text-xs font-extrabold transition ${
-            !focusedLeadId && leadTypeFilter === "all"
+          onClick={() => setLeadTypeFilter("all")}
+          className={`rounded-lg px-3.5 py-2 text-xs font-extrabold transition ${
+            leadTypeFilter === "all"
               ? "bg-[#0a1122] text-white"
               : "text-gray-600 hover:bg-gray-100"
           }`}
@@ -407,13 +445,10 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
 
         <button
           type="button"
-          onClick={() => {
-            setFocusedLeadId(null)
-            setLeadTypeFilter("unit_leads")
-          }}
-          className={`flex items-center justify-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-extrabold transition ${
-            !focusedLeadId && leadTypeFilter === "unit_leads"
-              ? "bg-orange-600 text-white shadow-xs"
+          onClick={() => setLeadTypeFilter("unit_leads")}
+          className={`flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-extrabold transition ${
+            leadTypeFilter === "unit_leads"
+              ? "bg-orange-600 text-white shadow-2xs"
               : "bg-orange-50/80 text-orange-800 hover:bg-orange-100"
           }`}
         >
@@ -425,12 +460,9 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
 
         <button
           type="button"
-          onClick={() => {
-            setFocusedLeadId(null)
-            setLeadTypeFilter("general")
-          }}
-          className={`rounded-xl px-3.5 py-2 text-xs font-extrabold transition ${
-            !focusedLeadId && leadTypeFilter === "general"
+          onClick={() => setLeadTypeFilter("general")}
+          className={`rounded-lg px-3.5 py-2 text-xs font-extrabold transition ${
+            leadTypeFilter === "general"
               ? "bg-[#105C50] text-white"
               : "text-gray-600 hover:bg-gray-100"
           }`}
@@ -442,7 +474,7 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
       {notice && (
         <div
           role="status"
-          className={`mb-5 flex items-center justify-between gap-3 rounded-xl border p-3.5 text-xs font-bold shadow-xs sm:p-4 sm:text-sm ${
+          className={`mb-4 flex items-center justify-between gap-3 rounded-xl border p-3.5 text-xs font-bold shadow-xs sm:text-sm ${
             notice.isError
               ? "border-red-200 bg-red-50 text-red-700"
               : "border-emerald-200 bg-emerald-50 text-emerald-800"
@@ -467,31 +499,25 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
       )}
 
       {/* شريط البحث والفلترة */}
-      <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-gray-200/80 bg-white p-3.5 shadow-sm sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:p-4">
-        <div className="relative w-full sm:min-w-[250px] sm:flex-1">
-          <Search className="pointer-events-none absolute top-1/2 end-3.5 size-4 -translate-y-1/2 text-gray-400" />
+      <div className="mb-4 flex flex-col gap-3 rounded-xl border border-gray-200/80 bg-white p-3 shadow-2xs sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <div className="relative w-full sm:max-w-xs sm:flex-1">
+          <Search className="pointer-events-none absolute top-1/2 end-3 size-4 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
             value={search}
-            onChange={(e) => {
-              setFocusedLeadId(null)
-              setSearch(e.target.value)
-            }}
+            onChange={(e) => setSearch(e.target.value)}
             placeholder={t.searchPlaceholder}
-            className="h-10 w-full rounded-xl border border-gray-200 ps-4 pe-10 text-xs focus:border-[#105C50] focus:outline-none"
+            className="h-9 w-full rounded-lg border border-gray-200 ps-3 pe-9 text-xs font-semibold focus:border-[#105C50] focus:outline-none"
           />
         </div>
 
-        <div className="flex flex-wrap gap-1.5 sm:gap-2">
+        <div className="flex flex-wrap gap-1.5">
           <button
             type="button"
-            onClick={() => {
-              setFocusedLeadId(null)
-              setStatusFilter("all")
-            }}
-            className={`rounded-xl px-3 py-1.5 text-[11px] font-bold transition sm:py-2 sm:text-xs ${
+            onClick={() => setStatusFilter("all")}
+            className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
               statusFilter === "all"
-                ? "bg-[#105C50] text-white shadow-xs"
+                ? "bg-[#105C50] text-white"
                 : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >
@@ -501,13 +527,10 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
             <button
               key={st.value}
               type="button"
-              onClick={() => {
-                setFocusedLeadId(null)
-                setStatusFilter(st.value)
-              }}
-              className={`rounded-xl px-3 py-1.5 text-[11px] font-bold transition sm:py-2 sm:text-xs ${
+              onClick={() => setStatusFilter(st.value)}
+              className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
                 statusFilter === st.value
-                  ? "bg-[#105C50] text-white shadow-xs"
+                  ? "bg-[#105C50] text-white"
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
             >
@@ -518,9 +541,9 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
       </div>
 
       {/* 1. عرض الموبايل */}
-      <div className="space-y-3.5 md:hidden">
+      <div className="space-y-3 md:hidden">
         {filtered.length === 0 ? (
-          <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center text-xs text-gray-400">
+          <div className="rounded-xl border border-gray-200 bg-white p-8 text-center text-xs text-gray-400">
             {t.emptyText}
           </div>
         ) : (
@@ -534,6 +557,7 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
               ? lead.unit_types.join("، ")
               : "—"
             const isCardLoading = pending && activeLeadId === lead.id
+            const isHighlighted = highlightedLeadId === lead.id
             const firstLetter = lead.name.trim().charAt(0) || "U"
             const leadCur = getLeadCurrency(lead.country_code)
 
@@ -545,11 +569,11 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
               <div
                 id={`lead-row-${lead.id}`}
                 key={lead.id}
-                className={`relative overflow-hidden rounded-2xl border bg-white p-4 shadow-xs transition ${
+                className={`relative overflow-hidden rounded-xl border bg-white p-3.5 shadow-2xs transition ${
                   isCardLoading
                     ? "border-[#105C50] opacity-75"
-                    : focusedLeadId === lead.id
-                      ? "border-2 border-[#105C50] ring-2 ring-[#105C50]/25"
+                    : isHighlighted
+                      ? "border-[#105C50] bg-emerald-50/20 ring-2 ring-[#105C50]/30"
                       : parsed.isUnitLead
                         ? "border-orange-300 ring-1 ring-orange-200/60"
                         : "border-gray-200/90"
@@ -565,7 +589,7 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
                 )}
 
                 {parsed.isUnitLead && (
-                  <div className="-mx-4 -mt-4 mb-3 flex items-center justify-between border-b border-orange-200/80 bg-orange-50/90 px-4 py-2 text-[11px] font-extrabold text-orange-900">
+                  <div className="-mx-3.5 -mt-3.5 mb-3 flex items-center justify-between border-b border-orange-200/80 bg-orange-50/90 px-3.5 py-2 text-[11px] font-extrabold text-orange-900">
                     <span className="flex items-center gap-1.5">
                       <Flame className="size-3.5 fill-orange-500 text-orange-600" />
                       <span>{t.unitBadge}</span>
@@ -581,7 +605,7 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2.5">
                     <div
-                      className={`flex size-10 shrink-0 items-center justify-center rounded-full text-sm font-extrabold ${
+                      className={`flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-extrabold ${
                         parsed.isUnitLead
                           ? "bg-orange-100 text-orange-800"
                           : "bg-[#105C50]/10 text-[#105C50]"
@@ -590,7 +614,7 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
                       {firstLetter}
                     </div>
                     <div>
-                      <h3 className="text-sm font-extrabold text-[#0a1122]">
+                      <h3 className="text-xs font-extrabold text-[#0a1122] sm:text-sm">
                         {lead.name}
                       </h3>
                       <div
@@ -618,7 +642,7 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
                   </div>
                 )}
 
-                <div className="mt-3 grid grid-cols-2 gap-2.5 rounded-xl border border-gray-100 bg-gray-50/80 p-3 text-xs">
+                <div className="mt-2.5 grid grid-cols-2 gap-2.5 rounded-lg border border-gray-100 bg-gray-50/80 p-2.5 text-xs">
                   <div>
                     <span className="flex items-center gap-1 text-[10px] text-gray-400">
                       <Wallet className="size-3 text-[#105C50]" />
@@ -649,7 +673,7 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
                   </div>
                 </div>
 
-                <div className="mt-2.5 space-y-1.5 rounded-xl bg-gray-50 p-3 text-xs">
+                <div className="mt-2 space-y-1.5 rounded-lg bg-gray-50 p-2.5 text-xs">
                   <div className="flex items-start justify-between gap-2">
                     <span className="flex shrink-0 items-center gap-1 text-gray-400">
                       {parsed.isUnitLead ? (
@@ -673,7 +697,7 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
                   </div>
 
                   {parsed.customerNotes && (
-                    <div className="mt-2 rounded-lg border border-amber-200/80 bg-amber-50/70 p-2.5 text-[11px] text-amber-900">
+                    <div className="mt-1.5 rounded-lg border border-amber-200/80 bg-amber-50/70 p-2 text-[11px] text-amber-900">
                       <span className="font-extrabold">
                         {t.customerNotesLabel}{" "}
                       </span>
@@ -692,10 +716,7 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
                   </div>
                 </div>
 
-                <div className="mt-3">
-                  <label className="mb-1 block text-[11px] font-bold text-gray-500">
-                    {t.statusLabel}
-                  </label>
+                <div className="mt-2.5">
                   <select
                     disabled={pending}
                     value={currentSt}
@@ -709,7 +730,7 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
                         })
                       }
                     }}
-                    className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-[#0a1122] focus:border-[#105C50] focus:outline-none"
+                    className="h-8 w-full rounded-lg border border-gray-200 bg-gray-50/70 px-2 text-xs font-bold text-[#0a1122] focus:border-[#105C50] focus:outline-none"
                   >
                     {leadStatuses.map((st) => (
                       <option key={st.value} value={st.value}>
@@ -719,21 +740,21 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
                   </select>
                 </div>
 
-                <div className="mt-3 flex items-center gap-2 border-t border-gray-100 pt-3">
+                <div className="mt-2.5 flex items-center gap-1.5 border-t border-gray-100 pt-2.5">
                   <a
                     href={`https://wa.me/${String(lead.phone).replace(/\D/g, "")}?text=${encodeURIComponent(waText)}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#25D366] px-3 text-xs font-bold text-white transition hover:opacity-90"
+                    className="inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#25D366] px-3 text-xs font-bold text-white transition hover:opacity-90"
                   >
-                    <MessageCircle className="size-4" />
+                    <MessageCircle className="size-3.5" />
                     <span>{t.whatsappBtn}</span>
                   </a>
 
                   {parsed.isUnitLead && (
                     <Link
                       href="/admin/properties"
-                      className="inline-flex h-9 items-center justify-center gap-1 rounded-xl border border-gray-200 bg-gray-50 px-3 text-xs font-bold text-[#0a1122] hover:bg-gray-100"
+                      className="inline-flex h-8 items-center justify-center gap-1 rounded-lg border border-gray-200 bg-gray-50 px-3 text-xs font-bold text-[#0a1122] hover:bg-gray-100"
                     >
                       <Building2 className="size-3.5 text-[#105C50]" />
                       <span>{t.unitBtn}</span>
@@ -749,7 +770,7 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
                         lead,
                       })
                     }
-                    className="inline-flex h-9 items-center justify-center rounded-xl border border-red-200 bg-red-50/60 px-3 text-xs font-bold text-red-600 transition hover:bg-red-100"
+                    className="inline-flex h-8 items-center justify-center rounded-lg border border-red-200 bg-red-50 px-2.5 text-xs font-bold text-red-600 transition hover:bg-red-100"
                     title={t.deleteBtn}
                   >
                     <Trash2 className="size-3.5" />
@@ -762,7 +783,7 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
       </div>
 
       {/* 2. عرض الكمبيوتر */}
-      <Card className="hidden border-gray-200/80 bg-white shadow-sm md:block">
+      <Card className="hidden border-gray-200/80 bg-white shadow-2xs md:block">
         <CardHeader className="border-b border-gray-100">
           <CardTitle className="text-base font-extrabold">
             {t.allOrdersTitle} ({filtered.length})
@@ -805,6 +826,7 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
                       ? lead.unit_types.join("، ")
                       : "—"
                     const isRowLoading = pending && activeLeadId === lead.id
+                    const isHighlighted = highlightedLeadId === lead.id
                     const leadCur = getLeadCurrency(lead.country_code)
 
                     const waText = parsed.isUnitLead
@@ -818,8 +840,8 @@ export default function LeadsClientTable({ leads }: { leads: BuyerLead[] }) {
                         className={`border-t border-gray-100 transition-colors ${
                           isRowLoading
                             ? "bg-emerald-50/40 opacity-70"
-                            : focusedLeadId === lead.id
-                              ? "bg-emerald-50/60"
+                            : isHighlighted
+                              ? "bg-emerald-50/70 ring-2 ring-inset ring-[#105C50]"
                               : parsed.isUnitLead
                                 ? "bg-orange-50/25 hover:bg-orange-50/50"
                                 : "hover:bg-gray-50/50"

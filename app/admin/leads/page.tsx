@@ -8,6 +8,12 @@ export const revalidate = 0
 
 export default async function LeadsPage() {
   const { dict, dir } = await getServerI18n()
+  const adminDict = (dict?.admin as Record<string, any>) || {}
+  const loadErrorText =
+    adminDict.leadsAdmin?.loadError ||
+    adminDict.leads?.loadError ||
+    "تعذر تحميل طلبات الشراء."
+
   const cookieStore = await cookies()
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -24,9 +30,9 @@ export default async function LeadsPage() {
 
   if (error) {
     return (
-      <div dir={dir} className="mx-auto max-w-7xl">
+      <div dir={dir} className="mx-auto max-w-7xl text-start">
         <div className="rounded-xl border border-red-200 bg-red-50 p-5 text-xs font-bold text-red-700">
-          {dict.admin?.leads?.loadError || "تعذر تحميل طلبات الشراء."}
+          {loadErrorText}
         </div>
       </div>
     )

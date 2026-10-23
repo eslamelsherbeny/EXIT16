@@ -6,91 +6,12 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import nodemailer from 'nodemailer'
 import { extractUserIdFromCookie } from '@/lib/session-security'
-import { normalizeLocale, type LocaleCode } from '@/lib/i18n-config'
+import { getServerI18n } from '@/lib/get-server-dictionary'
 
-const ACCOUNT_MESSAGES: Record<LocaleCode, Record<string, string>> = {
-  ar: {
-    sessionExpired: 'انتهت الجلسة، يرجى تسجيل الدخول.',
-    invalidNamePhone: 'يرجى إدخال اسم صحيح ورقم موبايل صحيح.',
-    phoneConflict: 'رقم الموبايل هذا مسجل بالفعل لحساب آخر.',
-    updateFailed: 'تعذر تحديث البيانات حالياً.',
-    personalSaved: 'تم حفظ وتحديث اسمك ورقم موبايلك بنجاح ✓',
-    unexpected: 'حدث خطأ غير متوقع.',
-    invalidEmail: 'يرجى كتابة بريد إلكتروني صحيح.',
-    emailConflict: 'هذا البريد الإلكتروني مسجل بالفعل لحساب آخر.',
-    emailSavedPrefix: 'تم تغيير بريدك الإلكتروني بنجاح إلى',
-    unitNotFound: 'الوحدة غير موجودة.',
-    pauseFailed: 'تعذر إيقاف عرض الوحدة.',
-    resumeFailed: 'تعذر إعادة عرض الوحدة.',
-    deleteFailed: 'تعذر حذف الوحدة حالياً.',
-    docSaveFailed: 'تعذر حفظ المستند.',
-    prefSaveFailed: 'تعذر حفظ التفضيلات.',
-    promoFailed: 'حدث خطأ أثناء تسجيل طلب الإعلان.',
-    cancelPromoFailed: 'تعذر إلغاء طلب التمييز.',
-  },
-  en: {
-    sessionExpired: 'Session expired, please sign in.',
-    invalidNamePhone: 'Please enter a valid name and phone number.',
-    phoneConflict: 'This phone number is already linked to another account.',
-    updateFailed: 'Could not update details right now.',
-    personalSaved: 'Your name and phone number have been saved ✓',
-    unexpected: 'An unexpected error occurred.',
-    invalidEmail: 'Please enter a valid email address.',
-    emailConflict: 'This email is already linked to another account.',
-    emailSavedPrefix: 'Your email has been updated to',
-    unitNotFound: 'Unit not found.',
-    pauseFailed: 'Could not pause unit listing.',
-    resumeFailed: 'Could not resume unit listing.',
-    deleteFailed: 'Could not delete unit right now.',
-    docSaveFailed: 'Could not save document.',
-    prefSaveFailed: 'Could not save preferences.',
-    promoFailed: 'Error registering promotion request.',
-    cancelPromoFailed: 'Could not cancel promotion request.',
-  },
-  ru: {
-    sessionExpired: 'Сессия истекла, пожалуйста, войдите снова.',
-    invalidNamePhone: 'Введите корректное имя и номер телефона.',
-    phoneConflict: 'Этот номер телефона уже привязан к другому аккаунту.',
-    updateFailed: 'Не удалось обновить данные.',
-    personalSaved: 'Ваше имя и номер телефона успешно сохранены ✓',
-    unexpected: 'Произошла непредвиденная ошибка.',
-    invalidEmail: 'Введите корректный email.',
-    emailConflict: 'Этот email уже используется другим аккаунтом.',
-    emailSavedPrefix: 'Ваш email успешно изменен на',
-    unitNotFound: 'Объект не найден.',
-    pauseFailed: 'Не удалось приостановить показ объекта.',
-    resumeFailed: 'Не удалось возобновить показ объекта.',
-    deleteFailed: 'Не удалось удалить объект.',
-    docSaveFailed: 'Не удалось сохранить документ.',
-    prefSaveFailed: 'Не удалось сохранить настройки.',
-    promoFailed: 'Ошибка при создании заявки на продвижение.',
-    cancelPromoFailed: 'Не удалось отменить продвижение.',
-  },
-  ka: {
-    sessionExpired: 'სესიის ვადა გავიდა, გთხოვთ შეხვიდეთ თავიდან.',
-    invalidNamePhone: 'შეიყვანეთ სწორი სახელი და ტელეფონის ნომერი.',
-    phoneConflict: 'ეს ნომერი უკვე რეგისტრირებულია სხვა ანგარიშზე.',
-    updateFailed: 'მონაცემების განახლება ვერ მოხერხდა.',
-    personalSaved: 'სახელი და ტელეფონის ნომერი წარმატებით შეინახა ✓',
-    unexpected: 'დაფიქსირდა შეცდომა.',
-    invalidEmail: 'შეიყვანეთ სწორი ელ.ფოსტა.',
-    emailConflict: 'ეს ელ.ფოსტა უკვე გამოიყენება სხვა ანგარიშზე.',
-    emailSavedPrefix: 'თქვენი ელ.ფოსტა შეიცვალა:',
-    unitNotFound: 'ობიექტი ვერ მოიძებნა.',
-    pauseFailed: 'ჩვენების შეჩერება ვერ მოხერხდა.',
-    resumeFailed: 'ჩვენების აღდგენა ვერ მოხერხდა.',
-    deleteFailed: 'ობიექტის წაშლა ვერ მოხერხდა.',
-    docSaveFailed: 'დოკუმენტის შენახვა ვერ მოხერხდა.',
-    prefSaveFailed: 'პარამეტრების შენახვა ვერ მოხერხდა.',
-    promoFailed: 'VIP მოთხოვნის შენახვა ვერ მოხერხდა.',
-    cancelPromoFailed: 'VIP მოთხოვნის გაუქმება ვერ მოხერხდა.',
-  },
-}
-
-async function getAccMsg() {
-  const cookieStore = await cookies()
-  const locale = normalizeLocale(cookieStore.get('locale')?.value)
-  return ACCOUNT_MESSAGES[locale] || ACCOUNT_MESSAGES.ar
+async function getAccDict() {
+  const { dict, dir } = await getServerI18n()
+  const t = (dict as Record<string, any>)?.serverActions?.account || {}
+  return { t, dir }
 }
 
 async function getSupabase() {
@@ -108,10 +29,12 @@ async function sendAccountEmail({
   to,
   subject,
   html,
+  senderName,
 }: {
   to: string
   subject: string
   html: string
+  senderName?: string
 }) {
   const user = process.env.EMAIL_USER?.trim()
   const pass = process.env.EMAIL_PASS?.replace(/\s+/g, '')
@@ -127,7 +50,7 @@ async function sendAccountEmail({
     })
 
     await transporter.sendMail({
-      from: `"Aqar Exit - عقار إكزت" <${user}>`,
+      from: `"${senderName || 'Aqar Exit'}" <${user}>`,
       to: to.trim(),
       subject,
       html,
@@ -158,7 +81,7 @@ export async function updatePersonalInfoAction(payload: {
   name: string
   phone: string
 }) {
-  const msg = await getAccMsg()
+  const { t: msg } = await getAccDict()
   try {
     const cookieStore = await cookies()
     const sessionId = extractUserIdFromCookie(
@@ -222,7 +145,7 @@ export async function updatePersonalInfoAction(payload: {
 }
 
 export async function updateEmailInfoAction(payload: { email: string }) {
-  const msg = await getAccMsg()
+  const { t: msg, dir } = await getAccDict()
   try {
     const cookieStore = await cookies()
     const sessionId = extractUserIdFromCookie(
@@ -282,10 +205,11 @@ export async function updateEmailInfoAction(payload: { email: string }) {
 
     sendAccountEmail({
       to: cleanEmail,
-      subject: 'تم تحديث بريدك الإلكتروني — عقار إكزت',
-      html: `<div dir="rtl" style="font-family: Arial, sans-serif; text-align: right; line-height: 1.8; color: #0a1122;">
-              <p>أهلاً <strong>${currentUser?.name || 'عميلنا العزيز'}</strong>،</p>
-              <p>تم تغيير البريد الإلكتروني المرتبط بحسابك في منصة عقار إكزت بنجاح إلى: <strong>${cleanEmail}</strong>.</p>
+      senderName: msg.emailSenderName,
+      subject: msg.emailUpdatedSubject,
+      html: `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.8; color: #0a1122;">
+              <p>${msg.greetingWord} <strong>${currentUser?.name || msg.dearClient}</strong>،</p>
+              <p>${msg.emailUpdatedBody} <strong>${cleanEmail}</strong>.</p>
              </div>`,
     }).catch(() => {})
 
@@ -303,7 +227,7 @@ export async function updateEmailInfoAction(payload: { email: string }) {
 export async function requestAccountDeletionAction(payload: {
   reason?: string
 }) {
-  const msg = await getAccMsg()
+  const { t: msg, dir } = await getAccDict()
   try {
     const cookieStore = await cookies()
     const sessionId = extractUserIdFromCookie(
@@ -353,7 +277,7 @@ export async function requestAccountDeletionAction(payload: {
       .from('users')
       .update({
         deletion_requested: true,
-        deletion_reason: payload.reason || 'بدون سبب محدد',
+        deletion_reason: payload.reason || msg.noSpecificReason,
         deletion_requested_at: nowIso,
         status: 'deletion_pending',
       })
@@ -362,8 +286,8 @@ export async function requestAccountDeletionAction(payload: {
     try {
       await supabase.from('notifications').insert({
         user_id: null,
-        title: `طلب حذف حساب: ${user.name || 'عميل'}`,
-        message: `السبب: ${payload.reason || 'لم يذكر سبب'} · تم إيقاف (${unitsCount}) وحدة مؤقتاً`,
+        title: `${msg.deletionNotifTitle}: ${user.name || msg.dearClient}`,
+        message: `${msg.reasonWord}: ${payload.reason || msg.noSpecificReason} · (${unitsCount})`,
         type: 'admin_alert',
         link: '/admin/users',
         is_read: false,
@@ -373,16 +297,17 @@ export async function requestAccountDeletionAction(payload: {
     if (user.email) {
       sendAccountEmail({
         to: user.email,
-        subject: 'استلمنا طلب حذف حسابك',
-        html: `<div dir="rtl" style="font-family: Arial, sans-serif; text-align: right; line-height: 1.9; color: #0a1122;">
-                <p>استلمنا طلبك بحذف حسابك من عقار إكزت.</p>
+        senderName: msg.emailSenderName,
+        subject: msg.deletionEmailSubject,
+        html: `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.9; color: #0a1122;">
+                <p>${msg.deletionEmailLine1}</p>
                 ${
                   unitsCount > 0
-                    ? `<p>وحداتك (${unitsCount}) اتشالت من السوق دلوقتي حالاً، فمحدش هيقدر يشوفها أو يسأل عنها.</p>`
+                    ? `<p>(${unitsCount}) ${msg.deletionEmailUnitsLine}</p>`
                     : ''
                 }
-                <p>الفريق هيراجع الطلب. لو غيرت رأيك تقدر تلغي الطلب في أي وقت من حسابك — ولو ألغيته هترجع وحداتك للسوق زي ما كانت.</p>
-                <p style="margin-top: 18px;">لو عندك أي سؤال، كلمنا: <a href="${siteUrl}/contact">${siteUrl}/contact</a></p>
+                <p>${msg.deletionEmailLine2}</p>
+                <p style="margin-top: 18px;"><a href="${siteUrl}/contact">${siteUrl}/contact</a></p>
                </div>`,
       }).catch(() => {})
     }
@@ -449,7 +374,7 @@ export async function toggleSellerUnitStatusAction(payload: {
   unitId: string
   action: 'pause' | 'resume'
 }) {
-  const msg = await getAccMsg()
+  const { t: msg } = await getAccDict()
   try {
     const cookieStore = await cookies()
     const sessionId = extractUserIdFromCookie(
@@ -481,8 +406,8 @@ export async function toggleSellerUnitStatusAction(payload: {
       try {
         await supabase.from('notifications').insert({
           user_id: null,
-          title: `⏸ أوقف المالك عرض وحدة: ${unit.project_name || 'وحدة'}`,
-          message: `قام البائع (${unit.name || 'المالك'}) بإيقاف عرض وحدته في ${unit.area || ''} مؤقتاً.`,
+          title: `⏸ ${msg.unitPausedNotifTitle}: ${unit.project_name || msg.unitWord}`,
+          message: `${unit.name || ''} (${unit.area || ''})`,
           type: 'property',
           link: '/admin/properties',
           is_read: false,
@@ -495,8 +420,7 @@ export async function toggleSellerUnitStatusAction(payload: {
           status: 'pending',
           submission_type: 'resumed_by_seller',
           last_seller_edit_at: new Date().toISOString(),
-          admin_note:
-            'أعاد المالك عرض هذه الوحدة بعد إيقافها — بانتظار مراجعة الإدارة',
+          admin_note: msg.resumedAdminNote,
         })
         .eq('id', payload.unitId)
 
@@ -505,8 +429,8 @@ export async function toggleSellerUnitStatusAction(payload: {
       try {
         await supabase.from('notifications').insert({
           user_id: null,
-          title: `🔄 إعادة عرض وحدة للمراجعة: ${unit.project_name || 'وحدة'}`,
-          message: `أعاد البائع (${unit.name || 'المالك'}) تفعيل وحدته في ${unit.area || ''} وبانتظار مراجعتك لنشرها.`,
+          title: `🔄 ${msg.unitResumedNotifTitle}: ${unit.project_name || msg.unitWord}`,
+          message: `${unit.name || ''} (${unit.area || ''})`,
           type: 'property',
           link: '/admin/properties',
           is_read: false,
@@ -524,7 +448,7 @@ export async function toggleSellerUnitStatusAction(payload: {
 }
 
 export async function deleteUnitBySellerAction(unitId: string) {
-  const msg = await getAccMsg()
+  const { t: msg } = await getAccDict()
   try {
     const cookieStore = await cookies()
     const sessionId = extractUserIdFromCookie(
@@ -540,6 +464,7 @@ export async function deleteUnitBySellerAction(unitId: string) {
       .maybeSingle()
 
     const nowIso = new Date().toISOString()
+    const noteText = `${msg.deletedBySellerNote} ${new Date().toLocaleDateString('en-GB')}`
 
     const { error } = await supabase
       .from('sell_requests')
@@ -548,7 +473,7 @@ export async function deleteUnitBySellerAction(unitId: string) {
         status: 'deleted_by_seller',
         submission_type: 'deleted_by_seller',
         last_seller_edit_at: nowIso,
-        admin_note: `حذفها المالك بتاريخ ${new Date().toLocaleDateString('ar-EG')}`,
+        admin_note: noteText,
       })
       .eq('id', unitId)
 
@@ -557,7 +482,7 @@ export async function deleteUnitBySellerAction(unitId: string) {
         .from('sell_requests')
         .update({
           status: 'deleted_by_seller',
-          admin_note: `حذفها المالك بتاريخ ${new Date().toLocaleDateString('ar-EG')}`,
+          admin_note: noteText,
         })
         .eq('id', unitId)
 
@@ -569,8 +494,8 @@ export async function deleteUnitBySellerAction(unitId: string) {
     try {
       await supabase.from('notifications').insert({
         user_id: null,
-        title: `🗑 حذف البائع وحدة: ${unit?.project_name || 'وحدة'}`,
-        message: `قام المالك (${unit?.name || 'البائع'}) بحذف وحدته في (${unit?.area || '—'}) — اضغط لمراجعتها في قسم المحذوفات.`,
+        title: `🗑 ${msg.unitDeletedNotifTitle}: ${unit?.project_name || msg.unitWord}`,
+        message: `${unit?.name || ''} (${unit?.area || '—'})`,
         type: 'property',
         link: `/admin/properties?tab=deleted&unitId=${unitId}`,
         is_read: false,
@@ -592,7 +517,7 @@ export async function saveUnitDocumentAction(payload: {
   fileUrl: string
   fileName: string
 }) {
-  const msg = await getAccMsg()
+  const { t: msg } = await getAccDict()
   try {
     const cookieStore = await cookies()
     const sessionId = extractUserIdFromCookie(
@@ -637,8 +562,8 @@ export async function saveUnitDocumentAction(payload: {
     try {
       await supabase.from('notifications').insert({
         user_id: null,
-        title: `📄 مستند جديد مرفوع لوحدة: ${unit.project_name || 'وحدة'}`,
-        message: `قام ${unit.name || 'البائع'} برفع مستند للمراجعة والتوثيق.`,
+        title: `📄 ${msg.docUploadedNotifTitle}: ${unit.project_name || msg.unitWord}`,
+        message: `${unit.name || ''}`,
         type: 'property',
         link: '/admin/properties',
         is_read: false,
@@ -666,7 +591,7 @@ export async function updateBuyerPreferencesAction(payload: {
   notify_exact_match: boolean
   notify_featured: boolean
 }) {
-  const msg = await getAccMsg()
+  const { t: msg } = await getAccDict()
   try {
     const cookieStore = await cookies()
     const sessionId = extractUserIdFromCookie(
@@ -679,11 +604,11 @@ export async function updateBuyerPreferencesAction(payload: {
     const updateData = {
       available_cash: Number(payload.available_cash) || 0,
       max_installment: Number(payload.max_installment) || 0,
-      payment_plan: payload.payment_plan || 'شهري',
+      payment_plan: payload.payment_plan || msg.defaultMonthly,
       budget: Number(payload.budget) || 0,
       unit_types: payload.unit_types,
       min_rooms: Number(payload.min_rooms) || 0,
-      delivery_status: payload.delivery_status || 'جاهزة للاستلام',
+      delivery_status: payload.delivery_status || msg.defaultReady,
       preferred_areas: payload.preferred_areas,
       notify_exact_match: payload.notify_exact_match,
       notify_featured: payload.notify_featured,
@@ -704,7 +629,7 @@ export async function updateBuyerPreferencesAction(payload: {
       await supabase.from('buy_requests').insert({
         ...updateData,
         user_id: sessionId,
-        name: user?.name || 'مشتري',
+        name: user?.name || msg.buyerWord,
         phone: user?.phone || '',
         email: user?.email || '',
       })
@@ -722,7 +647,7 @@ export async function requestUnitPromotionAction(payload: {
   days: 7 | 14 | 30
   price: number
 }) {
-  const msg = await getAccMsg()
+  const { t: msg } = await getAccDict()
   try {
     const supabase = await getSupabase()
     const { data: unit } = await supabase
@@ -768,9 +693,9 @@ export async function requestUnitPromotionAction(payload: {
       await supabase.from('notifications').insert({
         user_id: null,
         title: isChangingPackage
-          ? `🔄 تعديل باقة إعلان (${payload.days} يوم) — كود: ${adOrderRef}`
-          : `📢 طلب إعلان وتمييز جديد (${payload.days} يوم) — كود: ${adOrderRef}`,
-        message: `المالك: ${unit.name || 'البائع'} (${unit.phone || ''}) · الوحدة: ${unit.project_name || 'وحدة'} · اضغط لتفعيل التمييز فوراً.`,
+          ? `🔄 ${msg.promoUpdateNotifTitle} (${payload.days}) — ${adOrderRef}`
+          : `📢 ${msg.promoNewNotifTitle} (${payload.days}) — ${adOrderRef}`,
+        message: `${unit.name || ''} (${unit.phone || ''}) · ${unit.project_name || msg.unitWord}`,
         type: 'property',
         link: `/admin/properties?tab=featured&unitId=${payload.unitId}&action=promote`,
         is_read: false,
@@ -792,7 +717,7 @@ export async function requestUnitPromotionAction(payload: {
 }
 
 export async function cancelUnitPromotionBySellerAction(unitId: string) {
-  const msg = await getAccMsg()
+  const { t: msg } = await getAccDict()
   try {
     const cookieStore = await cookies()
     const sessionId = extractUserIdFromCookie(
@@ -832,9 +757,9 @@ export async function cancelUnitPromotionBySellerAction(unitId: string) {
       await supabase.from('notifications').insert({
         user_id: null,
         title: wasActive
-          ? `⏹ أوقف البائع اشتراك تمييز وحدته (${adRef})`
-          : `✕ ألغى البائع طلب إعلان وحدته (${adRef})`,
-        message: `قام المالك (${unit.name || 'البائع'}) بحذف وإلغاء طلب التمييز لوحدته في (${unit.project_name || 'مشروعه'}).`,
+          ? `⏹ ${msg.promoStoppedNotifTitle} (${adRef})`
+          : `✕ ${msg.promoCancelledNotifTitle} (${adRef})`,
+        message: `${unit.name || ''} (${unit.project_name || ''})`,
         type: 'property',
         link: '/admin/properties',
         is_read: false,

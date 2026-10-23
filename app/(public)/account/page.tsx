@@ -7,6 +7,7 @@ import type { BuyerRequestItem } from '@/components/account/buyer-dashboard'
 import { AccountActionLinks } from '@/components/account/delete-account-modal'
 import { AccountViewSwitcher } from '@/components/account/account-view-switcher'
 import { AccountTopBar } from '@/components/account/account-top-bar'
+import { ScrollReveal } from '@/components/scroll-reveal'
 import { getServerI18n } from '@/lib/get-server-dictionary'
 import { extractUserIdFromCookie } from '@/lib/session-security'
 import { calculateSmartMatch } from '@/lib/smart-matcher'
@@ -154,40 +155,42 @@ export default async function AccountPage({
           deletionRequested={deletionRequested}
         />
       ) : (
-        <div className="mx-auto max-w-[680px] px-4 sm:px-6">
-          <section className="rounded-[20px] border border-gray-200/80 bg-white p-8 text-center shadow-xs sm:p-12">
-            <h2 className="text-lg font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-xl">
-              {tMain.emptyWelcomePrefix}{' '}
-              {profile.name?.split(' ')[0] || tMain.emptyWelcomeFallbackName}{' '}
-              {tMain.emptyWelcomeSuffix}
-            </h2>
-            <p className="mx-auto mt-2.5 max-w-md text-xs leading-relaxed text-gray-500 sm:text-sm">
-              {tMain.emptyDesc}
-            </p>
-            <div className="mt-7 flex flex-wrap justify-center gap-3">
-              <Link
-                href="/sell?new=1"
-                className="rounded-xl bg-[var(--brand-primary,#007a5a)] px-7 py-2.5 text-xs font-bold text-white transition hover:bg-[var(--brand-primary-hover,#006248)] sm:text-sm"
-              >
-                {tMain.sellCta}
-              </Link>
-              <Link
-                href="/buy"
-                className="rounded-xl bg-[var(--brand-navy,#0a1122)] px-7 py-2.5 text-xs font-bold text-white transition hover:bg-[var(--brand-navy-hover,#16223f)] sm:text-sm"
-              >
-                {tMain.buyCta}
-              </Link>
-            </div>
-          </section>
+        <ScrollReveal>
+          <div className="mx-auto max-w-[680px] px-4 sm:px-6">
+            <section className="rounded-[20px] border border-gray-200/80 bg-white p-8 text-center shadow-xs sm:p-12">
+              <h2 className="text-lg font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-xl">
+                {tMain.emptyWelcomePrefix}{' '}
+                {profile.name?.split(' ')[0] || tMain.emptyWelcomeFallbackName}{' '}
+                {tMain.emptyWelcomeSuffix}
+              </h2>
+              <p className="mx-auto mt-2.5 max-w-md text-xs leading-relaxed text-gray-500 sm:text-sm">
+                {tMain.emptyDesc}
+              </p>
+              <div className="mt-7 flex flex-wrap justify-center gap-3">
+                <Link
+                  href="/sell?new=1"
+                  className="rounded-xl bg-[var(--brand-primary,#007a5a)] px-7 py-2.5 text-xs font-bold text-white transition hover:bg-[var(--brand-primary-hover,#006248)] sm:text-sm"
+                >
+                  {tMain.sellCta}
+                </Link>
+                <Link
+                  href="/buy"
+                  className="rounded-xl bg-[var(--brand-navy,#0a1122)] px-7 py-2.5 text-xs font-bold text-white transition hover:bg-[var(--brand-navy-hover,#16223f)] sm:text-sm"
+                >
+                  {tMain.buyCta}
+                </Link>
+              </div>
+            </section>
 
-          <div className="mt-8 flex justify-center [&>*]:justify-center [&_div]:justify-center [&_form]:hidden">
-            <AccountActionLinks
-              unitsCount={0}
-              initialDeletionRequested={deletionRequested}
-              position="bottom"
-            />
+            <div className="mt-8 flex justify-center [&>*]:justify-center [&_div]:justify-center [&_form]:hidden">
+              <AccountActionLinks
+                unitsCount={0}
+                initialDeletionRequested={deletionRequested}
+                position="bottom"
+              />
+            </div>
           </div>
-        </div>
+        </ScrollReveal>
       )}
     </main>
   )

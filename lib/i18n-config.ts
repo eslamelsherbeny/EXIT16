@@ -37,9 +37,12 @@ export function normalizeLocale(val?: string | null): LocaleCode {
 }
 
 export function normalizeCountry(val?: string | null): CountryCode {
-  const clean = (val || 'EG').trim().toUpperCase()
-  if (clean === 'RU' || clean === 'GE' || clean === 'AE') return clean
-  return 'EG'
+  // تثبيت السوق الحالي على جورجيا (GE) افتراضياً
+  const clean = (val || 'GE').trim().toUpperCase()
+  if (clean === 'EG' || clean === 'RU' || clean === 'GE' || clean === 'AE') {
+    return clean
+  }
+  return 'GE'
 }
 
 export function getCurrencySymbol(

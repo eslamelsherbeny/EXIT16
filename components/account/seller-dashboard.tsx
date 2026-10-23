@@ -33,7 +33,6 @@ import {
   toggleSellerUnitStatusAction,
 } from '@/app/actions/account-actions'
 import {
-  getActiveCountryFromCookie,
   SUPPORTED_COUNTRIES,
   type CountryCode,
 } from '@/components/site-shell'
@@ -46,6 +45,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { ScrollReveal } from '@/components/scroll-reveal'
 import { AccountActionLinks } from './delete-account-modal'
 import { getCurrencySymbol, useTranslation } from '@/lib/i18n'
 
@@ -88,7 +88,13 @@ export type SellerUnitItem = {
 
 const INITIAL_VISIBLE_UNITS = 3
 
-function calculateUnitCompletion(unit: SellerUnitItem, t: any) {
+function calculateUnitCompletion(unit: SellerUnitItem, t: Record<string, any>) {
+  const hasImages = Array.isArray(unit.images) && unit.images.length > 0
+  const uploadedDocsCount = unit.documents
+    ? Object.keys(unit.documents).filter((k) => unit.documents?.[k]?.url).length
+    : 0
+  const hasDocuments = uploadedDocsCount > 0
+
   const checks = [
     Boolean(unit.developer_name),
     Boolean(unit.project_name),
@@ -106,38 +112,43 @@ function calculateUnitCompletion(unit: SellerUnitItem, t: any) {
     Number(unit.installment_amount) >= 0 && unit.installment_amount !== null,
     Boolean(unit.installment_frequency),
     Number(unit.contract_year) > 0,
-    unit.willing_to_discount !== null && unit.willing_to_discount !== undefined,
-    Array.isArray(unit.images) && unit.images.length > 0,
+    hasImages,
+    hasDocuments,
   ]
 
   const total = 18
   const completedCount = checks.filter(Boolean).length
-  const hasImages = Array.isArray(unit.images) && unit.images.length > 0
 
-  const percentage = hasImages
-    ? Math.round((completedCount / total) * 100)
-    : Math.min(94, Math.round((completedCount / total) * 100))
+  // لا تصل النسبة إلى 100% إلا إذا تم رفع الصور + رفع المستندات معاً
+  const rawPct = Math.round((completedCount / total) * 100)
+  const percentage =
+    hasImages && hasDocuments ? Math.max(rawPct, 100) : Math.min(92, rawPct)
 
   const missingTags: string[] = []
   if (!hasImages) missingTags.push(t.missingPhotosTag)
-  if (!unit.area || !unit.unit_type || !unit.size)
+  if (!hasDocuments) missingTags.push(t.missingDocsTag)
+  if (!unit.area || !unit.unit_type || !unit.size) {
     missingTags.push(t.missingDetailsTag)
+  }
 
   return {
-    completedCount: hasImages ? 18 : Math.min(17, Math.max(16, completedCount)),
+    completedCount,
     total,
-    percentage: hasImages && completedCount >= 16 ? 100 : percentage,
+    percentage,
     hasImages,
+    hasDocuments,
+    uploadedDocsCount,
     missingTags,
   }
 }
 
 function getSellerTimelineAndStatus(
   unit: SellerUnitItem,
-  isComplete: boolean,
-  t: any
+  comp: ReturnType<typeof calculateUnitCompletion>,
+  t: Record<string, any>
 ) {
   const clean = (unit.status || 'pending').trim().toLowerCase()
+  const isComplete = comp.hasImages && comp.hasDocuments
 
   switch (clean) {
     case 'active':
@@ -200,12 +211,19 @@ function getSellerTimelineAndStatus(
       }
     default:
       if (!isComplete) {
+        const headlineText =
+          !comp.hasImages && !comp.hasDocuments
+            ? t.statusIncompleteBothHeadline
+            : !comp.hasDocuments
+              ? t.statusIncompleteDocsHeadline
+              : t.statusIncompleteHeadline
+
         return {
           code: 'incomplete',
           stepIndex: 1,
           marketBadge: t.statusIncompleteBadge,
           marketBadgeCls: 'bg-amber-100 text-amber-800',
-          headline: t.statusIncompleteHeadline,
+          headline: headlineText,
         }
       }
       return {
@@ -241,7 +259,7 @@ export function SellerDashboard({
 }) {
   const router = useRouter()
   const { t: dict, locale, dir } = useTranslation()
-  const t = dict.accountComponents.seller
+  const t = dict.accountComponents.seller as Record<string, any>
 
   const [localSells, setLocalSells] = useState<SellerUnitItem[]>(sells)
   useEffect(() => {
@@ -254,7 +272,6 @@ export function SellerDashboard({
       : sells[0]?.id || ''
   )
 
-  // حالات التحكم الذكي في قائمة الوحدات الكبيرة (3 وحدات افتراضياً + توسيع/طي + بحث)
   const [isUnitsExpanded, setIsUnitsExpanded] = useState(false)
   const [unitSearchQuery, setUnitSearchQuery] = useState('')
 
@@ -264,59 +281,15 @@ export function SellerDashboard({
   const [actionMessage, setActionMessage] = useState('')
   const [isPending, startTransition] = useTransition()
 
-  const [countryCode, setCountryCode] = useState<CountryCode>('EG')
-  const [adminPromoPrices, setAdminPromoPrices] = useState<{
-    days7: number
-    days14: number
-    days30: number
-  } | null>(null)
-
-  useEffect(() => {
-    const syncCountryAndSettings = () => {
-      const activeC = getActiveCountryFromCookie()
-      setCountryCode(activeC.code)
-
-      try {
-        const match = document.cookie
-          .split('; ')
-          .find((r) => r.startsWith('darak_site_settings='))
-        if (match) {
-          const parsed = JSON.parse(decodeURIComponent(match.split('=')[1]))
-          if (
-            activeC.code === 'EG' &&
-            (parsed.promo7Price || parsed.promo14Price || parsed.promo30Price)
-          ) {
-            setAdminPromoPrices({
-              days7: Number(parsed.promo7Price) || activeC.defaultPackages.days7,
-              days14:
-                Number(parsed.promo14Price) || activeC.defaultPackages.days14,
-              days30:
-                Number(parsed.promo30Price) || activeC.defaultPackages.days30,
-            })
-            return
-          }
-        }
-      } catch {}
-      setAdminPromoPrices(null)
-    }
-
-    syncCountryAndSettings()
-    window.addEventListener('country-changed', syncCountryAndSettings)
-    return () =>
-      window.removeEventListener('country-changed', syncCountryAndSettings)
-  }, [])
-
   const activeUnit =
     localSells.find((s) => s.id === selectedId) || localSells[0]
 
-  // ترتيب الوحدات بحيث تكون الوحدة المختارة حالياً هي رقم 1 دائماً، يليها باقي الوحدات
   const orderedUnits = useMemo(() => {
     if (!activeUnit) return localSells
     const others = localSells.filter((u) => u.id !== activeUnit.id)
     return [activeUnit, ...others]
   }, [localSells, activeUnit])
 
-  // فلترة الوحدات عند البحث داخل القائمة الموسعة
   const filteredOrderedUnits = useMemo(() => {
     if (!unitSearchQuery.trim()) return orderedUnits
     const q = unitSearchQuery.trim().toLowerCase()
@@ -338,26 +311,10 @@ export function SellerDashboard({
 
   if (!activeUnit) return null
 
-  const rawUnitCountry = (
-    activeUnit.country_code ||
-    activeUnit.country ||
-    countryCode
-  )
-    .trim()
-    .toUpperCase() as CountryCode
-  const unitCountryCode = SUPPORTED_COUNTRIES[rawUnitCountry]
-    ? rawUnitCountry
-    : countryCode
-  const unitCountryCfg =
-    SUPPORTED_COUNTRIES[unitCountryCode] || SUPPORTED_COUNTRIES.EG
-
-  // عملة ديناميكية حسب دولة الوحدة ولغة العرض الحالية
+  const unitCountryCode: CountryCode = 'GE'
+  const unitCountryCfg = SUPPORTED_COUNTRIES.GE
   const currencySymbol = getCurrencySymbol(unitCountryCode, locale)
-
-  const pkgPrices =
-    unitCountryCode === 'EG' && adminPromoPrices
-      ? adminPromoPrices
-      : unitCountryCfg.defaultPackages
+  const pkgPrices = unitCountryCfg.defaultPackages
 
   const dynamicPackages: Array<{
     days: 7 | 14 | 30
@@ -373,18 +330,12 @@ export function SellerDashboard({
     `${Number(value || 0).toLocaleString('en-US')} ${currencySymbol}`
 
   const comp = calculateUnitCompletion(activeUnit, t)
-  const isComplete = comp.percentage === 100
-  const meta = getSellerTimelineAndStatus(activeUnit, isComplete, t)
+  const isComplete = comp.hasImages && comp.hasDocuments
+  const meta = getSellerTimelineAndStatus(activeUnit, comp, t)
   const isPausedBySeller = meta.code === 'paused_by_seller'
 
   const realMatchedBuyersCount = matchedBuyersCountMap[activeUnit.id] ?? 0
-
-  const uploadedDocsCount = activeUnit.documents
-    ? Object.keys(activeUnit.documents).filter(
-        (k) => activeUnit.documents?.[k]?.url
-      ).length
-    : 0
-
+  const uploadedDocsCount = comp.uploadedDocsCount
   const unitOffersCount = offersCountMap[activeUnit.id] || 0
 
   const editUnitHref = !comp.hasImages
@@ -521,182 +472,141 @@ export function SellerDashboard({
 
   return (
     <div dir={dir} className="mx-auto max-w-[680px] px-4 sm:px-6">
-      {/* ==================== 1. الهيدر العلوي: نظام الـ 3 وحدات الذكي مع التوسيع والطي التلقائي ==================== */}
-      <section className="mb-5 rounded-[20px] border border-gray-200/90 bg-white p-4 text-start shadow-2xs sm:p-5">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <span className="flex size-8 items-center justify-center rounded-xl bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]">
-              <Building2 className="size-4" />
-            </span>
-            <h1 className="text-sm font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-base">
-              {t.myUnitsHeader} ({localSells.length})
-            </h1>
+      <ScrollReveal>
+        <section className="mb-5 rounded-[20px] border border-gray-200/90 bg-white p-4 text-start shadow-2xs sm:p-5">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="flex size-8 items-center justify-center rounded-xl bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]">
+                <Building2 className="size-4" />
+              </span>
+              <h1 className="text-sm font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-base">
+                {t.myUnitsHeader} ({localSells.length})
+              </h1>
+            </div>
+
+            <Link
+              href="/sell?new=1"
+              className="inline-flex h-9 items-center justify-center gap-1 rounded-xl bg-[var(--brand-navy,#0a1122)] px-3.5 text-xs font-bold text-white shadow-2xs transition hover:bg-[var(--brand-navy-hover,#16223f)]"
+            >
+              <Plus className="size-3.5" />
+              <span>{t.addUnitBtn.replace('+ ', '')}</span>
+            </Link>
           </div>
 
-          <Link
-            href="/sell?new=1"
-            className="inline-flex h-9 items-center justify-center gap-1 rounded-xl bg-[var(--brand-navy,#0a1122)] px-3.5 text-xs font-bold text-white shadow-2xs transition hover:bg-[var(--brand-navy-hover,#16223f)]"
+          {isUnitsExpanded && localSells.length > 5 && (
+            <div className="relative mt-3">
+              <Search className="pointer-events-none absolute top-1/2 right-3 size-3.5 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={unitSearchQuery}
+                onChange={(e) => setUnitSearchQuery(e.target.value)}
+                placeholder={t.searchMyUnitsPlaceholder}
+                className="h-9 w-full rounded-xl border border-gray-200 bg-gray-50/70 pr-9 pl-3 text-xs font-semibold text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:bg-white focus:outline-none"
+              />
+            </div>
+          )}
+
+          <div
+            className={`mt-3.5 flex flex-col gap-2 ${
+              isUnitsExpanded && localSells.length > 5
+                ? 'max-h-[340px] overflow-y-auto pr-0.5'
+                : ''
+            }`}
           >
-            <Plus className="size-3.5" />
-            <span>{t.addUnitBtn.replace('+ ', '')}</span>
-          </Link>
-        </div>
+            {displayedUnits.map((item, idx) => {
+              const itemComp = calculateUnitCompletion(item, t)
+              const itemMeta = getSellerTimelineAndStatus(item, itemComp, t)
+              const isSelected = item.id === activeUnit.id
 
-        {/* شريط بحث فوري يظهر فقط عند فتح القائمة لو كان لدى البائع أكثر من 5 وحدات */}
-        {isUnitsExpanded && localSells.length > 5 && (
-          <div className="relative mt-3">
-            <Search className="pointer-events-none absolute top-1/2 right-3 size-3.5 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              value={unitSearchQuery}
-              onChange={(e) => setUnitSearchQuery(e.target.value)}
-              placeholder={
-                locale === 'ar'
-                  ? 'ابحث في وحداتك باسم المشروع أو المنطقة...'
-                  : locale === 'ru'
-                    ? 'Поиск по вашим объектам...'
-                    : locale === 'ka'
-                      ? 'მოძებნეთ თქვენს ობიექტებში...'
-                      : 'Search your units by project or area...'
-              }
-              className="h-9 w-full rounded-xl border border-gray-200 bg-gray-50/70 pr-9 pl-3 text-xs font-semibold text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:bg-white focus:outline-none"
-            />
-          </div>
-        )}
-
-        {/* قائمة الوحدات: تعرض 3 افتراضياً، وعند التوسيع تصبح قابلة للتمرير السلس */}
-        <div
-          className={`mt-3.5 flex flex-col gap-2 ${
-            isUnitsExpanded && localSells.length > 5
-              ? 'max-h-[340px] overflow-y-auto pr-0.5'
-              : ''
-          }`}
-        >
-          {displayedUnits.map((item, idx) => {
-            const itemComp = calculateUnitCompletion(item, t)
-            const itemMeta = getSellerTimelineAndStatus(
-              item,
-              itemComp.percentage === 100,
-              t
-            )
-            const isSelected = item.id === activeUnit.id
-            const itemRawC = (
-              item.country_code ||
-              item.country ||
-              'EG'
-            )
-              .trim()
-              .toUpperCase() as CountryCode
-            const itemCountryCfg =
-              SUPPORTED_COUNTRIES[itemRawC] || SUPPORTED_COUNTRIES.EG
-
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => {
-                  setSelectedId(item.id)
-                  setActionMessage('')
-                  // بمجرد اختيار أي وحدة، تصعد للأول وتنغلق القائمة تلقائياً لترجع 3 وحدات فقط!
-                  setIsUnitsExpanded(false)
-                  setUnitSearchQuery('')
-                }}
-                className={`flex w-full items-center justify-between gap-3 rounded-2xl border px-3.5 py-3 text-start transition ${
-                  isSelected
-                    ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary-light,#eaf8f2)]/60 ring-2 ring-[var(--brand-primary,#007a5a)]/15'
-                    : 'border-gray-200/80 bg-gray-50/60 hover:border-gray-300 hover:bg-white'
-                }`}
-              >
-                <div className="flex min-w-0 items-center gap-2.5">
-                  <span
-                    className={`flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-extrabold ${
-                      isSelected
-                        ? 'bg-[var(--brand-primary,#007a5a)] text-white'
-                        : 'bg-gray-200 text-gray-600'
-                    }`}
-                  >
-                    {idx + 1}
-                  </span>
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="text-xs leading-none">
-                        {itemCountryCfg.flag}
-                      </span>
-                      <span className="truncate text-xs font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-sm">
-                        {item.project_name || t.defaultProjectName}
-                      </span>
-                      <span className="text-[11px] text-gray-500">
-                        · {item.area || t.defaultAreaName}
-                      </span>
-                      {isSelected && (
-                        <span className="rounded-md bg-[var(--brand-navy,#0a1122)] px-1.5 py-0.5 text-[9.5px] font-bold text-white">
-                          {t.activeNowBadge} ✓
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedId(item.id)
+                    setActionMessage('')
+                    setIsUnitsExpanded(false)
+                    setUnitSearchQuery('')
+                  }}
+                  className={`flex w-full items-center justify-between gap-3 rounded-2xl border px-3.5 py-3 text-start transition ${
+                    isSelected
+                      ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary-light,#eaf8f2)]/60 ring-2 ring-[var(--brand-primary,#007a5a)]/15'
+                      : 'border-gray-200/80 bg-gray-50/60 hover:border-gray-300 hover:bg-white'
+                  }`}
+                >
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <span
+                      className={`flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-extrabold ${
+                        isSelected
+                          ? 'bg-[var(--brand-primary,#007a5a)] text-white'
+                          : 'bg-gray-200 text-gray-600'
+                      }`}
+                    >
+                      {idx + 1}
+                    </span>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="truncate text-xs font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-sm">
+                          {item.project_name || t.defaultProjectName}
                         </span>
-                      )}
-                      {item.is_featured && (
-                        <span className="inline-flex items-center gap-0.5 rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">
-                          <Star className="size-2.5 fill-amber-400 text-amber-500" />
-                          {t.featuredShortBadge}
+                        <span className="text-[11px] text-gray-500">
+                          · {item.area || t.defaultAreaName}
                         </span>
-                      )}
+                        {isSelected && (
+                          <span className="rounded-md bg-[var(--brand-navy,#0a1122)] px-1.5 py-0.5 text-[9.5px] font-bold text-white">
+                            {t.activeNowBadge} ✓
+                          </span>
+                        )}
+                        {item.is_featured && (
+                          <span className="inline-flex items-center gap-0.5 rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">
+                            <Star className="size-2.5 fill-amber-400 text-amber-500" />
+                            {t.featuredShortBadge}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="flex shrink-0 items-center gap-2">
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-[10px] font-extrabold ${itemMeta.marketBadgeCls}`}
-                  >
-                    {itemMeta.marketBadge}
-                  </span>
-                </div>
-              </button>
-            )
-          })}
-        </div>
-
-        {/* زر عرض المزيد / تقليل المعروض إلى 3 وحدات */}
-        {localSells.length > INITIAL_VISIBLE_UNITS && (
-          <div className="mt-3 border-t border-gray-100 pt-2.5 text-center">
-            <button
-              type="button"
-              onClick={() => {
-                setIsUnitsExpanded((prev) => !prev)
-                setUnitSearchQuery('')
-              }}
-              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-gray-50 px-4 py-1.5 text-xs font-extrabold text-[var(--brand-primary,#007a5a)] transition hover:bg-[var(--brand-primary-light,#eaf8f2)]"
-            >
-              {isUnitsExpanded ? (
-                <>
-                  <span>
-                    {locale === 'ar'
-                      ? 'عرض 3 وحدات فقط'
-                      : locale === 'ru'
-                        ? 'Показать только 3 объекта'
-                        : locale === 'ka'
-                          ? 'მხოლოდ 3 ობიექტის ჩვენება'
-                          : 'Show only 3 units'}
-                  </span>
-                  <ChevronUp className="size-3.5" />
-                </>
-              ) : (
-                <>
-                  <span>
-                    {locale === 'ar'
-                      ? `عرض باقي وحداتي (+${hiddenUnitsCount} وحدة أخرى)`
-                      : locale === 'ru'
-                        ? `Показать остальные объекты (+${hiddenUnitsCount})`
-                        : locale === 'ka'
-                          ? `ყველა ობიექტის ნახვა (+${hiddenUnitsCount})`
-                          : `Show remaining units (+${hiddenUnitsCount} more)`}
-                  </span>
-                  <ChevronDown className="size-3.5" />
-                </>
-              )}
-            </button>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-[10px] font-extrabold ${itemMeta.marketBadgeCls}`}
+                    >
+                      {itemMeta.marketBadge}
+                    </span>
+                  </div>
+                </button>
+              )
+            })}
           </div>
-        )}
-      </section>
+
+          {localSells.length > INITIAL_VISIBLE_UNITS && (
+            <div className="mt-3 border-t border-gray-100 pt-2.5 text-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsUnitsExpanded((prev) => !prev)
+                  setUnitSearchQuery('')
+                }}
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-gray-50 px-4 py-1.5 text-xs font-extrabold text-[var(--brand-primary,#007a5a)] transition hover:bg-[var(--brand-primary-light,#eaf8f2)]"
+              >
+                {isUnitsExpanded ? (
+                  <>
+                    <span>{t.showOnly3UnitsBtn}</span>
+                    <ChevronUp className="size-3.5" />
+                  </>
+                ) : (
+                  <>
+                    <span>
+                      {t.showRemainingUnitsPrefix} (+{hiddenUnitsCount})
+                    </span>
+                    <ChevronDown className="size-3.5" />
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+        </section>
+      </ScrollReveal>
 
       {actionMessage && (
         <div className="mb-4 rounded-xl border border-emerald-200 bg-[var(--brand-primary-light,#eaf8f2)] p-3.5 text-center text-xs font-bold text-[var(--brand-primary,#007a5a)]">
@@ -704,244 +614,270 @@ export function SellerDashboard({
         </div>
       )}
 
-      {/* ==================== 2. الكارت العلوي المنظم: الخطوة الجاية + شريط النسبة المئوية (%) + أزرار التحكم ==================== */}
-      <section className="rounded-[20px] border border-gray-200/90 bg-white p-5 text-start shadow-xs sm:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="text-xs font-bold text-[var(--brand-primary,#007a5a)]">
-            {t.nextStepLabel}
-          </span>
-          <span
-            className={`rounded-full px-3 py-1 text-[11px] font-extrabold ${meta.marketBadgeCls}`}
-          >
-            {meta.marketBadge}
-          </span>
-        </div>
-
-        <h2 className="mt-2 text-base font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-lg">
-          {meta.headline}
-        </h2>
-
-        <div className="mt-4 rounded-xl border border-gray-100 bg-gray-50/80 p-3.5">
-          <div className="mb-2 flex items-center justify-between text-xs">
-            <span className="font-bold text-gray-600">{t.completionLabel}</span>
-            <strong
-              dir="ltr"
-              className="font-extrabold text-[var(--brand-primary,#007a5a)]"
+      {/* ==================== 2. الكارت العلوي: الخطوة الجاية + شرط الصور والمستندات للنشر ==================== */}
+      <ScrollReveal delay={60}>
+        <section className="rounded-[20px] border border-gray-200/90 bg-white p-5 text-start shadow-xs sm:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-xs font-bold text-[var(--brand-primary,#007a5a)]">
+              {t.nextStepLabel}
+            </span>
+            <span
+              className={`rounded-full px-3 py-1 text-[11px] font-extrabold ${meta.marketBadgeCls}`}
             >
-              {comp.percentage}%
-            </strong>
-          </div>
-          <div className="h-2.5 w-full overflow-hidden rounded-full bg-gray-200">
-            <div
-              className="h-full rounded-full bg-[var(--brand-primary,#007a5a)] transition-all duration-500"
-              style={{ width: `${comp.percentage}%` }}
-            />
+              {meta.marketBadge}
+            </span>
           </div>
 
-          {comp.missingTags.length > 0 && (
-            <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-              {comp.missingTags.map((tag) => (
-                <span
-                  key={tag}
-                  className="rounded-lg bg-amber-100/80 px-2.5 py-0.5 text-[10.5px] font-bold text-amber-800"
-                >
-                  {tag}
-                </span>
-              ))}
+          <h2 className="mt-2 text-base font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-lg">
+            {meta.headline}
+          </h2>
+
+          <div className="mt-4 rounded-xl border border-gray-100 bg-gray-50/80 p-3.5">
+            <div className="mb-2 flex items-center justify-between text-xs">
+              <span className="font-bold text-gray-600">
+                {t.completionLabel}
+              </span>
+              <strong
+                dir="ltr"
+                className="font-extrabold text-[var(--brand-primary,#007a5a)]"
+              >
+                {comp.percentage}%
+              </strong>
+            </div>
+            <div className="h-2.5 w-full overflow-hidden rounded-full bg-gray-200">
+              <div
+                className="h-full rounded-full bg-[var(--brand-primary,#007a5a)] transition-all duration-500"
+                style={{ width: `${comp.percentage}%` }}
+              />
+            </div>
+
+            {comp.missingTags.length > 0 && (
+              <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+                {comp.missingTags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="rounded-lg bg-amber-100/80 px-2.5 py-0.5 text-[10.5px] font-bold text-amber-800"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {activeUnit.admin_note && (
+            <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 p-3.5 text-xs text-amber-900">
+              <AlertCircle className="mt-0.5 size-4 shrink-0 text-amber-600" />
+              <div>
+                <strong className="block font-extrabold">
+                  {t.adminNoteLabel}
+                </strong>
+                <p className="mt-0.5 leading-relaxed">
+                  {activeUnit.admin_note}
+                </p>
+              </div>
             </div>
           )}
-        </div>
 
-        {activeUnit.admin_note && (
-          <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 p-3.5 text-xs text-amber-900">
-            <AlertCircle className="mt-0.5 size-4 shrink-0 text-amber-600" />
-            <div>
-              <strong className="block font-extrabold">
-                {t.adminNoteLabel}
-              </strong>
-              <p className="mt-0.5 leading-relaxed">{activeUnit.admin_note}</p>
-            </div>
-          </div>
-        )}
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <Link
+              href={editUnitHref}
+              className="inline-flex h-10 flex-1 items-center justify-center rounded-xl bg-[var(--brand-primary,#007a5a)] px-4 text-xs font-bold text-white transition hover:bg-[var(--brand-primary-hover,#006248)] sm:flex-none sm:px-6"
+            >
+              {!comp.hasImages ? t.addPhotosBtn : t.editDataBtn}
+            </Link>
 
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <Link
-            href={editUnitHref}
-            className="inline-flex h-10 flex-1 items-center justify-center rounded-xl bg-[var(--brand-primary,#007a5a)] px-4 text-xs font-bold text-white transition hover:bg-[var(--brand-primary-hover,#006248)] sm:flex-none sm:px-6"
-          >
-            {!comp.hasImages ? t.addPhotosBtn : t.editDataBtn}
-          </Link>
+            {!comp.hasDocuments && (
+              <Link
+                href={`/account/documents?unitId=${activeUnit.id}`}
+                className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#0a1122] px-4 text-xs font-bold text-white transition hover:bg-[#16223f] sm:flex-none sm:px-5"
+              >
+                <UploadCloud className="size-3.5 text-emerald-300" />
+                <span>{t.uploadDocsBtn}</span>
+              </Link>
+            )}
 
-          {meta.code !== 'sold' && (
+            {meta.code !== 'sold' && (
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() =>
+                  setConfirmModal({
+                    type: isPausedBySeller ? 'resume' : 'pause',
+                  })
+                }
+                className={`inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border px-3.5 text-xs font-bold transition ${
+                  isPausedBySeller
+                    ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]'
+                    : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                {isPausedBySeller ? (
+                  <>
+                    <PlayCircle className="size-4" />
+                    <span>{t.resumeBtn}</span>
+                  </>
+                ) : (
+                  <>
+                    <PauseCircle className="size-4 text-amber-600" />
+                    <span>{t.pauseBtn}</span>
+                  </>
+                )}
+              </button>
+            )}
+
             <button
               type="button"
               disabled={isPending}
-              onClick={() =>
-                setConfirmModal({
-                  type: isPausedBySeller ? 'resume' : 'pause',
-                })
-              }
-              className={`inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border px-3.5 text-xs font-bold transition ${
-                isPausedBySeller
-                  ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]'
-                  : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
-              }`}
+              onClick={() => setConfirmModal({ type: 'delete' })}
+              className="inline-flex h-10 items-center justify-center gap-1 rounded-xl border border-red-100 bg-red-50/50 px-3.5 text-xs font-bold text-red-600 transition hover:bg-red-100"
             >
-              {isPausedBySeller ? (
-                <>
-                  <PlayCircle className="size-4" />
-                  <span>{t.resumeBtn}</span>
-                </>
-              ) : (
-                <>
-                  <PauseCircle className="size-4 text-amber-600" />
-                  <span>{t.pauseBtn}</span>
-                </>
-              )}
+              <Trash2 className="size-3.5" />
+              <span>{t.deleteBtn}</span>
             </button>
-          )}
+          </div>
 
-          <button
-            type="button"
-            disabled={isPending}
-            onClick={() => setConfirmModal({ type: 'delete' })}
-            className="inline-flex h-10 items-center justify-center gap-1 rounded-xl border border-red-100 bg-red-50/50 px-3.5 text-xs font-bold text-red-600 transition hover:bg-red-100"
-          >
-            <Trash2 className="size-3.5" />
-            <span>{t.deleteBtn}</span>
-          </button>
-        </div>
-
-        <div className="mt-4 rounded-xl bg-[var(--brand-primary-light,#eaf8f2)] px-3.5 py-2.5 text-start text-[11.5px] font-bold text-[var(--brand-primary,#007a5a)]">
-          {realMatchedBuyersCount > 0 ? (
-            <>
-              {t.matchedBuyersPrefix}{' '}
-              {realMatchedBuyersCount.toLocaleString('en-US')}{' '}
-              {t.matchedBuyersMiddle}{' '}
-              {!isComplete
-                ? t.matchedBuyersIncomplete
-                : t.matchedBuyersComplete}
-            </>
-          ) : (
-            <>
-              {t.radarNotePrefix} ({activeUnit.area || t.defaultAreaName})
-            </>
-          )}
-        </div>
-      </section>
-
-      {/* ==================== 3. كارت السعر والمدفوع ==================== */}
-      <section className="mt-4 grid grid-cols-2 gap-4 rounded-[18px] border border-gray-200/80 bg-white p-5 text-start shadow-2xs">
-        <div>
-          <p className="text-[11px] text-gray-400">{t.contractPriceLabel}</p>
-          <strong className="mt-1 block text-lg font-extrabold text-[var(--brand-navy,#0a1122)] tabular-nums sm:text-xl">
-            {money(activeUnit.contract_price)}
-          </strong>
-        </div>
-        <div>
-          <p className="text-[11px] text-gray-400">{t.paidAmountLabel}</p>
-          <strong className="mt-1 block text-lg font-extrabold text-[var(--brand-primary,#007a5a)] tabular-nums sm:text-xl">
-            {money(activeUnit.paid_amount)}
-          </strong>
-        </div>
-      </section>
-
-      {/* ==================== 4. شبكة الكروت الـ 4 الموحدة ==================== */}
-      <section className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Link
-          href={`/sell?editUnitId=${activeUnit.id}&step=3`}
-          className="flex flex-col justify-between rounded-[16px] border border-gray-200/80 bg-white p-4 text-start shadow-2xs transition hover:border-[var(--brand-primary,#007a5a)]"
-        >
-          <p className="text-xs font-extrabold text-[var(--brand-navy,#0a1122)]">
-            {t.cardUnitData}
-          </p>
-          <p className="mt-1.5 text-[11px] font-bold text-[var(--brand-primary,#007a5a)]">
-            {comp.completedCount}/{comp.total} {t.cardUnitDataSub}
-          </p>
-        </Link>
-
-        <Link
-          href={`/account/documents?unitId=${activeUnit.id}`}
-          className="flex flex-col justify-between rounded-[16px] border border-gray-200/80 bg-white p-4 text-start shadow-2xs transition hover:border-[var(--brand-primary,#007a5a)]"
-        >
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-extrabold text-[var(--brand-navy,#0a1122)]">
-              {t.cardDocuments}
-            </p>
-            {uploadedDocsCount > 0 ? (
-              <FileCheck2 className="size-3.5 text-[var(--brand-primary,#007a5a)]" />
+          <div className="mt-4 rounded-xl bg-[var(--brand-primary-light,#eaf8f2)] px-3.5 py-2.5 text-start text-[11.5px] font-bold text-[var(--brand-primary,#007a5a)]">
+            {realMatchedBuyersCount > 0 ? (
+              <>
+                {t.matchedBuyersPrefix}{' '}
+                {realMatchedBuyersCount.toLocaleString('en-US')}{' '}
+                {t.matchedBuyersMiddle}{' '}
+                {!isComplete
+                  ? t.matchedBuyersIncomplete
+                  : t.matchedBuyersComplete}
+              </>
             ) : (
-              <UploadCloud className="size-3.5 text-gray-400" />
+              <>
+                {t.radarNotePrefix} ({activeUnit.area || t.defaultAreaName})
+              </>
             )}
           </div>
-          <p className="mt-1.5 text-[11px] font-semibold text-gray-500">
-            {uploadedDocsCount > 0
-              ? `${uploadedDocsCount}/4 ${t.cardDocumentsUploaded}`
-              : t.cardDocumentsEmpty}
-          </p>
-        </Link>
+        </section>
+      </ScrollReveal>
 
-        <Link
-          href={`/account/offers?unitId=${activeUnit.id}`}
-          className="flex flex-col justify-between rounded-[16px] border border-gray-200/80 bg-white p-4 text-start shadow-2xs transition hover:border-[var(--brand-primary,#007a5a)]"
-        >
-          <p className="text-xs font-extrabold text-[var(--brand-navy,#0a1122)]">
-            {t.cardOffers}
-          </p>
-          <p className="mt-1.5 text-[11px] font-semibold text-gray-500">
-            {unitOffersCount > 0 || meta.code === 'offer_received'
-              ? `${unitOffersCount || 1} ${t.cardOffersAvailable}`
-              : t.cardOffersEmpty}
-          </p>
-        </Link>
+      <ScrollReveal delay={100}>
+        <section className="mt-4 grid grid-cols-2 gap-4 rounded-[18px] border border-gray-200/80 bg-white p-5 text-start shadow-2xs">
+          <div>
+            <p className="text-[11px] text-gray-400">{t.contractPriceLabel}</p>
+            <strong className="mt-1 block text-lg font-extrabold text-[var(--brand-navy,#0a1122)] tabular-nums sm:text-xl">
+              {money(activeUnit.contract_price)}
+            </strong>
+          </div>
+          <div>
+            <p className="text-[11px] text-gray-400">{t.paidAmountLabel}</p>
+            <strong className="mt-1 block text-lg font-extrabold text-[var(--brand-primary,#007a5a)] tabular-nums sm:text-xl">
+              {money(activeUnit.paid_amount)}
+            </strong>
+          </div>
+        </section>
 
-        <a
-          href="https://wa.me/201018595959"
-          target="_blank"
-          rel="noreferrer"
-          className="flex flex-col justify-between rounded-[16px] bg-[var(--brand-navy,#0a1122)] p-4 text-start text-white shadow-2xs transition hover:bg-[var(--brand-navy-hover,#16223f)]"
-        >
-          <p className="text-xs font-extrabold text-white">{t.cardSupport}</p>
-          <p className="mt-1.5 text-[11px] text-gray-300">{t.cardSupportSub}</p>
-        </a>
-      </section>
+        <section className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Link
+            href={`/sell?editUnitId=${activeUnit.id}&step=3`}
+            className="flex flex-col justify-between rounded-[16px] border border-gray-200/80 bg-white p-4 text-start shadow-2xs transition hover:border-[var(--brand-primary,#007a5a)]"
+          >
+            <p className="text-xs font-extrabold text-[var(--brand-navy,#0a1122)]">
+              {t.cardUnitData}
+            </p>
+            <p className="mt-1.5 text-[11px] font-bold text-[var(--brand-primary,#007a5a)]">
+              {comp.completedCount}/{comp.total} {t.cardUnitDataSub}
+            </p>
+          </Link>
 
-      {/* ==================== 5. شريط التسلسل الزمني لمراحل الطلب ==================== */}
-      <section className="mt-5 rounded-[20px] border border-gray-200/80 bg-white p-5 shadow-2xs sm:p-6">
-        <h3 className="mb-4 text-start text-xs font-extrabold text-gray-500">
-          {t.timelineTitle} ({activeUnit.project_name || t.defaultProjectName}):
-        </h3>
-        <div className="ps-1">
-          <Timeline
-            currentStepIndex={meta.stepIndex}
-            isRejected={meta.code === 'rejected'}
-            stepTitles={t.timelineSteps}
-          />
-        </div>
-      </section>
+          <Link
+            href={`/account/documents?unitId=${activeUnit.id}`}
+            className={`flex flex-col justify-between rounded-[16px] border bg-white p-4 text-start shadow-2xs transition hover:border-[var(--brand-primary,#007a5a)] ${
+              uploadedDocsCount === 0
+                ? 'border-amber-300 ring-1 ring-amber-200/60'
+                : 'border-gray-200/80'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-extrabold text-[var(--brand-navy,#0a1122)]">
+                {t.cardDocuments}
+              </p>
+              {uploadedDocsCount > 0 ? (
+                <FileCheck2 className="size-3.5 text-[var(--brand-primary,#007a5a)]" />
+              ) : (
+                <UploadCloud className="size-3.5 text-amber-500" />
+              )}
+            </div>
+            <p
+              className={`mt-1.5 text-[11px] font-semibold ${
+                uploadedDocsCount > 0 ? 'text-gray-500' : 'text-amber-700'
+              }`}
+            >
+              {uploadedDocsCount > 0
+                ? `${uploadedDocsCount}/4 ${t.cardDocumentsUploaded}`
+                : t.cardDocumentsEmpty}
+            </p>
+          </Link>
 
-      {/* ==================== 6. صندوق الترويج والتمييز ==================== */}
-      <SellerPromoSection
-        t={t}
-        activeUnit={activeUnit}
-        isPromoCollapsed={isPromoCollapsed}
-        setIsPromoCollapsed={setIsPromoCollapsed}
-        isCurrentlyFeatured={isCurrentlyFeatured}
-        isPendingPromo={isPendingPromo}
-        remainingFeaturedDays={remainingFeaturedDays}
-        activePromoDays={activePromoDays}
-        activePromoPrice={activePromoPrice}
-        currentAdRef={currentAdRef}
-        copiedAdRef={copiedAdRef}
-        setCopiedAdRef={setCopiedAdRef}
-        dynamicPackages={dynamicPackages}
-        currencySymbol={currencySymbol}
-        isPending={isPending}
-        onSelectPackage={(pkg) => setConfirmModal({ type: 'promote', pkg })}
-        onCancelPromo={() => setConfirmModal({ type: 'cancel_promo' })}
-      />
+          <Link
+            href={`/account/offers?unitId=${activeUnit.id}`}
+            className="flex flex-col justify-between rounded-[16px] border border-gray-200/80 bg-white p-4 text-start shadow-2xs transition hover:border-[var(--brand-primary,#007a5a)]"
+          >
+            <p className="text-xs font-extrabold text-[var(--brand-navy,#0a1122)]">
+              {t.cardOffers}
+            </p>
+            <p className="mt-1.5 text-[11px] font-semibold text-gray-500">
+              {unitOffersCount > 0 || meta.code === 'offer_received'
+                ? `${unitOffersCount || 1} ${t.cardOffersAvailable}`
+                : t.cardOffersEmpty}
+            </p>
+          </Link>
 
-      {/* ==================== 7. روابط الحساب السفلية ==================== */}
+          <a
+            href="https://wa.me/201018595959"
+            target="_blank"
+            rel="noreferrer"
+            className="flex flex-col justify-between rounded-[16px] bg-[var(--brand-navy,#0a1122)] p-4 text-start text-white shadow-2xs transition hover:bg-[var(--brand-navy-hover,#16223f)]"
+          >
+            <p className="text-xs font-extrabold text-white">{t.cardSupport}</p>
+            <p className="mt-1.5 text-[11px] text-gray-300">
+              {t.cardSupportSub}
+            </p>
+          </a>
+        </section>
+      </ScrollReveal>
+
+      <ScrollReveal delay={140}>
+        <section className="mt-5 rounded-[20px] border border-gray-200/80 bg-white p-5 shadow-2xs sm:p-6">
+          <h3 className="mb-4 text-start text-xs font-extrabold text-gray-500">
+            {t.timelineTitle} ({activeUnit.project_name || t.defaultProjectName}
+            ):
+          </h3>
+          <div className="ps-1">
+            <Timeline
+              currentStepIndex={meta.stepIndex}
+              isRejected={meta.code === 'rejected'}
+              stepTitles={t.timelineSteps}
+            />
+          </div>
+        </section>
+
+        <SellerPromoSection
+          t={t}
+          activeUnit={activeUnit}
+          isPromoCollapsed={isPromoCollapsed}
+          setIsPromoCollapsed={setIsPromoCollapsed}
+          isCurrentlyFeatured={isCurrentlyFeatured}
+          isPendingPromo={isPendingPromo}
+          remainingFeaturedDays={remainingFeaturedDays}
+          activePromoDays={activePromoDays}
+          activePromoPrice={activePromoPrice}
+          currentAdRef={currentAdRef}
+          copiedAdRef={copiedAdRef}
+          setCopiedAdRef={setCopiedAdRef}
+          dynamicPackages={dynamicPackages}
+          currencySymbol={currencySymbol}
+          isPending={isPending}
+          onSelectPackage={(pkg) => setConfirmModal({ type: 'promote', pkg })}
+          onCancelPromo={() => setConfirmModal({ type: 'cancel_promo' })}
+        />
+      </ScrollReveal>
+
       <div className="mt-8 flex justify-center border-t border-gray-200/80 pt-6 [&>*]:justify-center [&_div]:justify-center [&_form]:hidden">
         <AccountActionLinks
           unitsCount={localSells.length}
@@ -950,7 +886,6 @@ export function SellerDashboard({
         />
       </div>
 
-      {/* ==================== 8. نافذة التأكيد الموحدة ==================== */}
       <Dialog
         open={Boolean(confirmModal)}
         onOpenChange={(open) => {

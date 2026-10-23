@@ -156,15 +156,15 @@ function getPhoneVariants(rawPhone: string) {
     .replace(/[^0-9+]/g, '')
   if (!digits) return []
 
-  if (digits.startsWith('+') && !digits.startsWith('+20')) {
-    const stripped = digits.replace('+', '')
+  if (digits.startsWith('+')) {
+    const stripped = digits.slice(1)
     return Array.from(new Set([digits, stripped, `0${stripped}`]))
   }
 
-  const stripped = digits.replace(/^\+?20/, '').replace(/^0+/, '')
-  const local = `0${stripped}`
-  const intl = `+20${stripped}`
-  return Array.from(new Set([digits, local, intl]))
+  const stripped = digits.replace(/^0+/, '')
+  return Array.from(
+    new Set([digits, `0${stripped}`, `+995${stripped}`, `+20${stripped}`])
+  )
 }
 
 function formatPrimaryPhone(rawPhone: string) {
@@ -173,12 +173,15 @@ function formatPrimaryPhone(rawPhone: string) {
     .replace(/[^0-9+]/g, '')
   if (!digits) return ''
 
-  if (digits.startsWith('+') && !digits.startsWith('+20')) {
+  if (digits.startsWith('+')) {
     return digits
   }
 
-  const stripped = digits.replace(/^\+?20/, '').replace(/^0+/, '')
-  return `+20${stripped}`
+  const stripped = digits.replace(/^0+/, '')
+  if (stripped.startsWith('995') || stripped.startsWith('20')) {
+    return `+${stripped}`
+  }
+  return `+995${stripped}`
 }
 
 function hashPassword(password: string) {
@@ -396,7 +399,7 @@ export async function registerAction(formData: FormData): Promise<AuthResult> {
   const email = normalizeEmail(String(formData.get('email') || ''))
   const rawPhone = sanitizeInput(formData.get('phone'), 30)
   const password = String(formData.get('password') || '').slice(0, 128)
-  const country = sanitizeInput(formData.get('country') || 'EG', 5).toUpperCase()
+  const country = sanitizeInput(formData.get('country') || 'GE', 5).toUpperCase()
 
   const formattedPhone = formatPrimaryPhone(rawPhone)
   const phoneVariants = getPhoneVariants(rawPhone)

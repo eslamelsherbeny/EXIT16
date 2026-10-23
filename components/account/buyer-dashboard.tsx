@@ -28,9 +28,10 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import {
-  formatAmount,
+  GEORGIA_AREAS_CATALOG,
   unitTypes as sharedUnitTypes,
 } from '@/components/seller/seller-shared'
+import { ScrollReveal } from '@/components/scroll-reveal'
 import { AccountActionLinks } from './delete-account-modal'
 import type { SellerUnitItem } from './seller-dashboard'
 import { getCurrencySymbol, useTranslation } from '@/lib/i18n'
@@ -79,8 +80,8 @@ function extractCleanAreas(
 ): string[] {
   if (!Array.isArray(areas) || areas.length === 0) return [fallbackArea]
   const cleaned = areas
-    .map((a) => {
-      if (a.includes(' - ')) {
+    .map((a: string) => {
+      if (a.includes(' - ') && a.includes('🎯')) {
         const parts = a.split(' - ')
         return parts[parts.length - 1].trim()
       }
@@ -103,8 +104,17 @@ export function BuyerDashboard({
   marketUnits: SellerUnitItem[]
   deletionRequested?: boolean
 }) {
-  const { t: dict, locale, country, dir, isRtl, currency } = useTranslation()
+  const { t: dict, locale, dir, isRtl } = useTranslation()
   const t = dict.accountComponents.buyer
+  const currency = getCurrencySymbol('GE', locale)
+
+  const georgiaQuickAreas = useMemo<string[]>(
+    () =>
+      GEORGIA_AREAS_CATALOG.flatMap(
+        ([, items]: [string, string[]]) => items
+      ).slice(0, 8),
+    []
+  )
 
   const [isEditingBudget, setIsEditingBudget] = useState(false)
   const [confirmSaveOpen, setConfirmSaveOpen] = useState(false)
@@ -140,28 +150,28 @@ export function BuyerDashboard({
   }
 
   const [bCash, setBCash] = useState<number>(
-    Number(buyReq?.available_cash || buyReq?.budget || 3000000)
+    Number(buyReq?.available_cash || buyReq?.budget || 35000)
   )
   const [bInstallment, setBInstallment] = useState<number>(
-    Number(buyReq?.max_installment || 100000)
+    Number(buyReq?.max_installment || 1200)
   )
   const [bPlan, setBPlan] = useState<string>(
     buyReq?.payment_plan || t.paymentPlans[0]
   )
   const [bBudget, setBBudget] = useState<number>(
-    Number(buyReq?.budget || 3500000)
+    Number(buyReq?.budget || 85000)
   )
   const [bTypes, setBTypes] = useState<string[]>(
     Array.isArray(buyReq?.unit_types) && buyReq.unit_types.length > 0
       ? buyReq.unit_types
       : [sharedUnitTypes[0]]
   )
-  const [bRooms, setBRooms] = useState<number>(Number(buyReq?.min_rooms || 3))
+  const [bRooms, setBRooms] = useState<number>(Number(buyReq?.min_rooms || 2))
   const [bDelivery, setBDelivery] = useState<string>(
     buyReq?.delivery_status || t.deliveryPreferences[0]
   )
   const [bAreas, setBAreas] = useState<string[]>(() =>
-    extractCleanAreas(buyReq?.preferred_areas, t.popularAreas[0])
+    extractCleanAreas(buyReq?.preferred_areas, georgiaQuickAreas[0])
   )
   const [newAreaInput, setNewAreaInput] = useState('')
   const [notifyExact, setNotifyExact] = useState<boolean>(
@@ -280,12 +290,9 @@ export function BuyerDashboard({
       const yearMatch = rawDel.match(/20\d{2}/)
       const deliveryYear = yearMatch ? Number(yearMatch[0]) : 2027
 
-      const unitArea = u.area || t.popularAreas[0]
+      const unitArea = u.area || georgiaQuickAreas[0]
       const unitType = u.unit_type || sharedUnitTypes[0]
-      const unitCurrency = getCurrencySymbol(
-        u.country_code || u.country || country,
-        locale
-      )
+      const unitCurrency = getCurrencySymbol('GE', locale)
 
       const matchTags: string[] = []
       const isCashMatch = bCash === 0 || paid <= bCash * 1.15
@@ -311,7 +318,7 @@ export function BuyerDashboard({
         subtitle: `${u.developer_name || t.defaultDeveloper} · ${unitArea} · ${unitType}`,
         area: unitArea,
         type: unitType,
-        rooms: Number(u.rooms) || 3,
+        rooms: Number(u.rooms) || 2,
         cashNum: paid,
         cashStr: paid.toLocaleString('en-US'),
         contractNum: contract,
@@ -334,7 +341,17 @@ export function BuyerDashboard({
         isTypeMatch,
       }
     })
-  }, [marketUnits, bCash, bInstallment, bPlan, bAreas, bTypes, country, locale, t])
+  }, [
+    marketUnits,
+    bCash,
+    bInstallment,
+    bPlan,
+    bAreas,
+    bTypes,
+    georgiaQuickAreas,
+    locale,
+    t,
+  ])
 
   const filteredUnits = useMemo(() => {
     const maxCashVal = Number(maxCashFilter.replace(/,/g, ''))
@@ -581,7 +598,7 @@ export function BuyerDashboard({
                 {t.paymentPlanLabel}
               </label>
               <div className="space-y-2">
-                {t.paymentPlans.map((plan) => (
+                {t.paymentPlans.map((plan: string) => (
                   <label
                     key={plan}
                     className={`flex cursor-pointer items-center justify-between rounded-xl border px-4 py-3 text-xs font-bold transition ${
@@ -633,7 +650,7 @@ export function BuyerDashboard({
                 {t.unitTypeLabel}
               </label>
               <div className="flex flex-wrap gap-2">
-                {sharedUnitTypes.map((typeItem) => {
+                {sharedUnitTypes.map((typeItem: string) => {
                   const active = bTypes.includes(typeItem)
                   return (
                     <button
@@ -681,7 +698,7 @@ export function BuyerDashboard({
                 {t.deliveryLabel}
               </label>
               <div className="flex gap-2">
-                {t.deliveryPreferences.map((st) => (
+                {t.deliveryPreferences.map((st: string) => (
                   <button
                     key={st}
                     type="button"
@@ -704,7 +721,7 @@ export function BuyerDashboard({
               </label>
 
               <div className="mb-2.5 flex flex-wrap gap-1.5">
-                {bAreas.map((ar) => (
+                {bAreas.map((ar: string) => (
                   <span
                     key={ar}
                     className="inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-primary-light,#eaf8f2)] px-3 py-1 text-xs font-bold text-[var(--brand-primary,#007a5a)]"
@@ -749,8 +766,9 @@ export function BuyerDashboard({
               </div>
 
               <div className="mt-2.5 flex flex-wrap gap-1.5">
-                {t.popularAreas.map((areaName) => {
+                {georgiaQuickAreas.map((areaName: string) => {
                   const isAdded = bAreas.includes(areaName)
+                  const shortLabel = areaName.split(' (')[0]
                   return (
                     <button
                       key={areaName}
@@ -762,7 +780,7 @@ export function BuyerDashboard({
                           : 'border-gray-200 bg-gray-50 text-gray-600 hover:border-gray-300'
                       }`}
                     >
-                      {isAdded ? `✓ ${areaName}` : `+ ${areaName}`}
+                      {isAdded ? `✓ ${shortLabel}` : `+ ${shortLabel}`}
                     </button>
                   )
                 })}
@@ -776,65 +794,6 @@ export function BuyerDashboard({
             >
               {isPending ? t.savingBtn : t.saveAndViewBtn}
             </button>
-          </div>
-
-          <div className="rounded-[22px] border border-gray-200/80 bg-white p-6 text-start shadow-xs sm:p-7">
-            <h3 className="text-sm font-black text-[var(--brand-navy,#0a1122)]">
-              {t.notificationsTitle}
-            </h3>
-            <div className="mt-4 space-y-4">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-xs font-bold text-[var(--brand-navy,#0a1122)]">
-                    {t.notifyExactTitle}
-                  </p>
-                  <p className="mt-0.5 text-[11px] text-gray-400">
-                    {t.notifyExactSub}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setNotifyExact(!notifyExact)}
-                  className={`relative h-6 w-11 shrink-0 rounded-full transition ${
-                    notifyExact
-                      ? 'bg-[var(--brand-primary,#007a5a)]'
-                      : 'bg-gray-300'
-                  }`}
-                >
-                  <span
-                    className={`block size-5 rounded-full bg-white shadow-xs transition-transform ${
-                      notifyExact ? '-translate-x-5' : '-translate-x-0.5'
-                    }`}
-                  />
-                </button>
-              </div>
-
-              <div className="flex items-center justify-between gap-4 border-t border-gray-100 pt-4">
-                <div>
-                  <p className="text-xs font-bold text-[var(--brand-navy,#0a1122)]">
-                    {t.notifyFeaturedTitle}
-                  </p>
-                  <p className="mt-0.5 text-[11px] text-gray-400">
-                    {t.notifyFeaturedSub}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setNotifyFeatured(!notifyFeatured)}
-                  className={`relative h-6 w-11 shrink-0 rounded-full transition ${
-                    notifyFeatured
-                      ? 'bg-[var(--brand-primary,#007a5a)]'
-                      : 'bg-gray-300'
-                  }`}
-                >
-                  <span
-                    className={`block size-5 rounded-full bg-white shadow-xs transition-transform ${
-                      notifyFeatured ? '-translate-x-5' : '-translate-x-0.5'
-                    }`}
-                  />
-                </button>
-              </div>
-            </div>
           </div>
         </form>
 
@@ -901,283 +860,145 @@ export function BuyerDashboard({
         </div>
       )}
 
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-xl font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-2xl">
-          {t.mainTitle}
-        </h1>
-        <div className="flex items-center gap-3">
-          <Link
-            href="/account/offers"
-            className="inline-flex h-10 items-center justify-center rounded-xl border border-gray-200 bg-white px-4 text-xs font-bold text-[var(--brand-navy,#0a1122)] shadow-2xs transition hover:bg-gray-50"
-          >
-            {t.myOffersBtn}
-          </Link>
-          <button
-            type="button"
-            onClick={() => setIsEditingBudget(true)}
-            className="text-xs font-bold text-[#1e3a8a] transition hover:underline"
-          >
-            {t.editBudgetBtn}
-          </button>
-        </div>
-      </header>
-
-      <section className="mt-4 rounded-[14px] border border-gray-200/80 bg-white px-5 py-3.5 text-start shadow-2xs">
-        <div className="flex flex-wrap items-center justify-start gap-x-6 gap-y-2 text-xs">
-          <div>
-            <span className="text-gray-400">{t.summaryCashLabel} </span>
-            <strong className="font-extrabold text-[var(--brand-navy,#0a1122)] tabular-nums">
-              {bCash.toLocaleString('en-US')} {currency}
-            </strong>
-          </div>
-          <div>
-            <span className="text-gray-400">{t.summaryInstLabel} </span>
-            <strong className="font-extrabold text-[var(--brand-navy,#0a1122)] tabular-nums">
-              {bInstallment.toLocaleString('en-US')} {currency}
-            </strong>
-          </div>
-        </div>
-      </section>
-
-      <section className="mt-4 text-start">
-        <div className="flex flex-wrap items-center justify-start gap-2">
-          <span className="me-1 text-xs font-extrabold text-[var(--brand-navy,#0a1122)]">
-            {t.filterByRequestLabel}
-          </span>
-          {t.filterPills.map((pill) => {
-            const isSelected = activePills.includes(pill)
-            return (
-              <button
-                key={pill}
-                type="button"
-                onClick={() => togglePill(pill)}
-                className={`rounded-full border px-3.5 py-1.5 text-[11px] font-semibold transition ${
-                  isSelected
-                    ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary,#007a5a)] text-white'
-                    : 'border-gray-200 bg-white text-gray-700 hover:border-[var(--brand-primary,#007a5a)]'
-                }`}
-              >
-                {pill}
-              </button>
-            )
-          })}
-        </div>
-        <p className="mt-2 text-[11px] text-gray-400">{t.filterByRequestSub}</p>
-      </section>
-
-      <section className="mt-4 rounded-[18px] border border-gray-200/80 bg-white p-3.5 shadow-2xs sm:p-5">
-        <div className="relative">
-          <Search className="pointer-events-none absolute top-1/2 right-3.5 size-4 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={t.searchPlaceholder}
-            className="h-11 w-full rounded-xl border border-gray-200 bg-white pr-10 pl-3 text-xs text-[var(--brand-navy,#0a1122)] placeholder:text-gray-400 focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:text-sm"
-          />
-        </div>
-
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-2.5">
-          <div className="flex flex-wrap items-center gap-2">
+      <ScrollReveal>
+        <header className="flex flex-wrap items-center justify-between gap-4">
+          <h1 className="text-xl font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-2xl">
+            {t.mainTitle}
+          </h1>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/account/offers"
+              className="inline-flex h-10 items-center justify-center rounded-xl border border-gray-200 bg-white px-4 text-xs font-bold text-[var(--brand-navy,#0a1122)] shadow-2xs transition hover:bg-gray-50"
+            >
+              {t.myOffersBtn}
+            </Link>
             <button
               type="button"
-              onClick={() => setFilterPanelOpen(!filterPanelOpen)}
-              className={`inline-flex h-9 items-center gap-1.5 rounded-xl border px-3.5 text-xs font-bold transition sm:h-10 ${
-                filterPanelOpen || activeFiltersCount > 0
-                  ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]'
-                  : 'border-gray-200 bg-white text-[var(--brand-navy,#0a1122)] hover:bg-gray-50'
-              }`}
+              onClick={() => setIsEditingBudget(true)}
+              className="text-xs font-bold text-[#1e3a8a] transition hover:underline"
             >
-              <ListFilter className="size-3.5" />
-              <span>{t.filterBtn}</span>
-              {activeFiltersCount > 0 && (
-                <span className="flex size-5 items-center justify-center rounded-full bg-[var(--brand-primary,#007a5a)] text-[10px] font-bold text-white">
-                  {activeFiltersCount}
-                </span>
-              )}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setOnlyNegotiable(!onlyNegotiable)}
-              className={`inline-flex h-9 items-center gap-1 rounded-xl border px-3.5 text-xs font-bold transition sm:h-10 ${
-                onlyNegotiable
-                  ? 'border-[#d97706] bg-amber-50/70 text-[#b45309]'
-                  : 'border-gray-200 bg-white text-[var(--brand-navy,#0a1122)] hover:bg-gray-50'
-              }`}
-            >
-              <span>{t.negotiableBtn}</span>
-              <ArrowDown className="size-3 text-[#d97706]" />
-            </button>
-
-            <span className="text-[11px] font-medium text-gray-500 sm:text-xs">
-              {filteredUnits.length} {t.availableUnitsWord}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-1.5">
-            <span className="text-[11px] text-gray-400 sm:text-xs">
-              {t.sortByLabel}
-            </span>
-            <div className="relative">
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="h-9 min-w-[135px] appearance-none rounded-xl border border-gray-200 bg-white pr-3 pl-7 text-xs font-bold text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:h-10 sm:min-w-[155px]"
-              >
-                {t.sorts.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-gray-500" />
-            </div>
-          </div>
-        </div>
-
-        {activeFiltersCount > 0 && (
-          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-2.5">
-            {onlyNegotiable && (
-              <button
-                type="button"
-                onClick={() => setOnlyNegotiable(false)}
-                className="inline-flex items-center gap-1 rounded-full bg-[var(--brand-primary-light,#eaf8f2)] px-3 py-1 text-[11px] font-bold text-[var(--brand-primary,#007a5a)]"
-              >
-                <span>{t.negotiableBtn}</span>
-                <X className="size-3" />
-              </button>
-            )}
-            {activePills.map((p) => (
-              <button
-                key={p}
-                type="button"
-                onClick={() => togglePill(p)}
-                className="inline-flex items-center gap-1 rounded-full bg-[var(--brand-primary-light,#eaf8f2)] px-3 py-1 text-[11px] font-bold text-[var(--brand-primary,#007a5a)]"
-              >
-                <span>{p}</span>
-                <X className="size-3" />
-              </button>
-            ))}
-            {selectedTypes.map((tp) => (
-              <button
-                key={tp}
-                type="button"
-                onClick={() => toggleFilterType(tp)}
-                className="inline-flex items-center gap-1 rounded-full bg-[var(--brand-primary-light,#eaf8f2)] px-3 py-1 text-[11px] font-bold text-[var(--brand-primary,#007a5a)]"
-              >
-                <span>{tp}</span>
-                <X className="size-3" />
-              </button>
-            ))}
-            <button
-              type="button"
-              onClick={clearAllFilters}
-              className="ms-1 text-[11px] text-gray-500 underline hover:text-[var(--brand-navy,#0a1122)]"
-            >
-              {t.clearAllBtn}
+              {t.editBudgetBtn}
             </button>
           </div>
-        )}
-      </section>
+        </header>
 
-      {filterPanelOpen && (
-        <section className="mt-3 rounded-[20px] border border-gray-200/80 bg-white p-5 text-start shadow-xs sm:p-7">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <section className="mt-4 rounded-[14px] border border-gray-200/80 bg-white px-5 py-3.5 text-start shadow-2xs">
+          <div className="flex flex-wrap items-center justify-start gap-x-6 gap-y-2 text-xs">
             <div>
-              <label className="mb-1.5 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
-                {t.advAreasLabel}
-              </label>
-              <input
-                type="text"
-                value={areaFilter}
-                onChange={(e) => setAreaFilter(e.target.value)}
-                placeholder={t.advAreasPlaceholder}
-                className="h-11 w-full rounded-xl border border-gray-200 px-3.5 text-xs"
-              />
+              <span className="text-gray-400">{t.summaryCashLabel} </span>
+              <strong className="font-extrabold text-[var(--brand-navy,#0a1122)] tabular-nums">
+                {bCash.toLocaleString('en-US')} {currency}
+              </strong>
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
-                {t.advMaxCashLabel}
-              </label>
-              <input
-                type="number"
-                value={maxCashFilter}
-                onChange={(e) => setMaxCashFilter(e.target.value)}
-                className="h-11 w-full rounded-xl border border-gray-200 px-3.5 text-xs"
-              />
-              <p className="mt-1 text-[10px] text-gray-400">
-                {t.advMaxCashHelper}
-              </p>
+              <span className="text-gray-400">{t.summaryInstLabel} </span>
+              <strong className="font-extrabold text-[var(--brand-navy,#0a1122)] tabular-nums">
+                {bInstallment.toLocaleString('en-US')} {currency}
+              </strong>
             </div>
-            <div>
-              <label className="mb-1.5 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
-                {t.advMaxInstLabel}
-              </label>
-              <input
-                type="number"
-                value={maxInstFilter}
-                onChange={(e) => setMaxInstFilter(e.target.value)}
-                className="h-11 w-full rounded-xl border border-gray-200 px-3.5 text-xs"
-              />
-              <p className="mt-1 text-[10px] text-gray-400">
-                {t.advMaxInstHelper}
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-5">
-            <p className="mb-2 text-xs font-bold text-[var(--brand-navy,#0a1122)]">
-              {t.unitTypeLabel}
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {sharedUnitTypes.map((tp) => {
-                const active = selectedTypes.includes(tp)
-                return (
-                  <button
-                    key={tp}
-                    type="button"
-                    onClick={() => toggleFilterType(tp)}
-                    className={`rounded-full border px-3.5 py-1.5 text-xs font-medium ${
-                      active
-                        ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary,#007a5a)] text-white'
-                        : 'border-gray-200 bg-white text-gray-600'
-                    }`}
-                  >
-                    {tp}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
-          <div className="mt-6 flex items-center justify-between border-t border-gray-100 pt-4">
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setFilterPanelOpen(false)}
-                className="rounded-xl bg-[var(--brand-primary,#007a5a)] px-6 py-2 text-xs font-bold text-white"
-              >
-                {t.showResultsBtn}
-              </button>
-              <button
-                type="button"
-                onClick={clearAllFilters}
-                className="text-xs font-medium text-gray-500 hover:text-[var(--brand-navy,#0a1122)]"
-              >
-                {t.clearAllBtn}
-              </button>
-            </div>
-            <button
-              type="button"
-              onClick={() => setFilterPanelOpen(false)}
-              className="text-xs font-medium text-gray-400 hover:text-gray-700"
-            >
-              {t.hideBtn}
-            </button>
           </div>
         </section>
-      )}
+
+        <section className="mt-4 text-start">
+          <div className="flex flex-wrap items-center justify-start gap-2">
+            <span className="me-1 text-xs font-extrabold text-[var(--brand-navy,#0a1122)]">
+              {t.filterByRequestLabel}
+            </span>
+            {t.filterPills.map((pill: string) => {
+              const isSelected = activePills.includes(pill)
+              return (
+                <button
+                  key={pill}
+                  type="button"
+                  onClick={() => togglePill(pill)}
+                  className={`rounded-full border px-3.5 py-1.5 text-[11px] font-semibold transition ${
+                    isSelected
+                      ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary,#007a5a)] text-white'
+                      : 'border-gray-200 bg-white text-gray-700 hover:border-[var(--brand-primary,#007a5a)]'
+                  }`}
+                >
+                  {pill}
+                </button>
+              )
+            })}
+          </div>
+          <p className="mt-2 text-[11px] text-gray-400">
+            {t.filterByRequestSub}
+          </p>
+        </section>
+
+        <section className="mt-4 rounded-[18px] border border-gray-200/80 bg-white p-3.5 shadow-2xs sm:p-5">
+          <div className="relative">
+            <Search className="pointer-events-none absolute top-1/2 right-3.5 size-4 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={t.searchPlaceholder}
+              className="h-11 w-full rounded-xl border border-gray-200 bg-white pr-10 pl-3 text-xs text-[var(--brand-navy,#0a1122)] placeholder:text-gray-400 focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:text-sm"
+            />
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setFilterPanelOpen(!filterPanelOpen)}
+                className={`inline-flex h-9 items-center gap-1.5 rounded-xl border px-3.5 text-xs font-bold transition sm:h-10 ${
+                  filterPanelOpen || activeFiltersCount > 0
+                    ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]'
+                    : 'border-gray-200 bg-white text-[var(--brand-navy,#0a1122)] hover:bg-gray-50'
+                }`}
+              >
+                <ListFilter className="size-3.5" />
+                <span>{t.filterBtn}</span>
+                {activeFiltersCount > 0 && (
+                  <span className="flex size-5 items-center justify-center rounded-full bg-[var(--brand-primary,#007a5a)] text-[10px] font-bold text-white">
+                    {activeFiltersCount}
+                  </span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setOnlyNegotiable(!onlyNegotiable)}
+                className={`inline-flex h-9 items-center gap-1 rounded-xl border px-3.5 text-xs font-bold transition sm:h-10 ${
+                  onlyNegotiable
+                    ? 'border-[#d97706] bg-amber-50/70 text-[#b45309]'
+                    : 'border-gray-200 bg-white text-[var(--brand-navy,#0a1122)] hover:bg-gray-50'
+                }`}
+              >
+                <span>{t.negotiableBtn}</span>
+                <ArrowDown className="size-3 text-[#d97706]" />
+              </button>
+
+              <span className="text-[11px] font-medium text-gray-500 sm:text-xs">
+                {filteredUnits.length} {t.availableUnitsWord}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] text-gray-400 sm:text-xs">
+                {t.sortByLabel}
+              </span>
+              <div className="relative">
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="h-9 min-w-[135px] appearance-none rounded-xl border border-gray-200 bg-white pr-3 pl-7 text-xs font-bold text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:h-10 sm:min-w-[155px]"
+                >
+                  {t.sorts.map((s: string) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-gray-500" />
+              </div>
+            </div>
+          </div>
+        </section>
+      </ScrollReveal>
 
       {filteredUnits.length === 0 ? (
         <div className="mt-6 rounded-[20px] border border-gray-200/80 bg-white p-10 text-center shadow-2xs">
@@ -1203,37 +1024,17 @@ export function BuyerDashboard({
                 </span>
               </h2>
               <div className="grid grid-cols-2 items-stretch gap-3 sm:gap-4 lg:grid-cols-3">
-                {unitsInPreferredArea.slice(0, visibleCount).map((u) => (
-                  <BuyerUnitCard
-                    key={u.id}
-                    t={t}
-                    unit={u}
-                    isLiked={favoriteIds.includes(String(u.id))}
-                    onToggleLike={() => toggleFavorite(u.id)}
-                  />
+                {unitsInPreferredArea.slice(0, visibleCount).map((u, idx) => (
+                  <ScrollReveal key={u.id} delay={(idx % 6) * 50}>
+                    <BuyerUnitCard
+                      t={t}
+                      unit={u}
+                      isLiked={favoriteIds.includes(String(u.id))}
+                      onToggleLike={() => toggleFavorite(u.id)}
+                    />
+                  </ScrollReveal>
                 ))}
               </div>
-
-              {unitsInPreferredArea.length > visibleCount && (
-                <div className="mt-8 flex justify-center">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setVisibleCount((prev) => prev + PREFERRED_PAGE_SIZE)
-                    }
-                    className="rounded-full border border-gray-200 bg-white px-7 py-2.5 text-xs font-bold text-[var(--brand-navy,#0a1122)] shadow-2xs transition hover:border-[var(--brand-primary,#007a5a)] hover:bg-gray-50 active:scale-95"
-                  >
-                    {t.showMorePrefix}{' '}
-                    {Math.min(
-                      PREFERRED_PAGE_SIZE,
-                      unitsInPreferredArea.length - visibleCount
-                    )}{' '}
-                    {t.showMoreMiddle} (
-                    {unitsInPreferredArea.length - visibleCount}{' '}
-                    {t.remainingWord})
-                  </button>
-                </div>
-              )}
             </section>
           )}
 
@@ -1267,14 +1068,15 @@ export function BuyerDashboard({
                 {(showAllOtherAreas
                   ? unitsInOtherAreas
                   : unitsInOtherAreas.slice(0, OTHER_AREAS_PREVIEW_SIZE)
-                ).map((u) => (
-                  <BuyerUnitCard
-                    key={u.id}
-                    t={t}
-                    unit={u}
-                    isLiked={favoriteIds.includes(String(u.id))}
-                    onToggleLike={() => toggleFavorite(u.id)}
-                  />
+                ).map((u, idx) => (
+                  <ScrollReveal key={u.id} delay={(idx % 6) * 50}>
+                    <BuyerUnitCard
+                      t={t}
+                      unit={u}
+                      isLiked={favoriteIds.includes(String(u.id))}
+                      onToggleLike={() => toggleFavorite(u.id)}
+                    />
+                  </ScrollReveal>
                 ))}
               </div>
             </section>

@@ -23,35 +23,15 @@ export type OpportunityCountryCode = 'ALL' | 'EG' | 'AE' | 'RU' | 'GE'
 export function getCountryFilterOptions(t: Dictionary['opportunitiesPage']) {
   return [
     {
-      code: 'ALL' as OpportunityCountryCode,
-      name: t?.countries?.ALL || 'All',
-      nameEn: 'All',
-      flag: '🌍',
-    },
-    {
-      code: 'EG' as OpportunityCountryCode,
-      name: t?.countries?.EG || 'Egypt',
-      nameEn: 'Egypt',
-      flag: '🇪🇬',
-    },
-    {
-      code: 'AE' as OpportunityCountryCode,
-      name: t?.countries?.AE || 'UAE',
-      nameEn: 'UAE',
-      flag: '🇦🇪',
-    },
-    {
-      code: 'RU' as OpportunityCountryCode,
-      name: t?.countries?.RU || 'Russia',
-      nameEn: 'Russia',
-      flag: '🇷🇺',
-    },
-    {
       code: 'GE' as OpportunityCountryCode,
       name: t?.countries?.GE || 'Georgia',
       nameEn: 'Georgia',
       flag: '🇬🇪',
     },
+    // باقي الدول محفوظة ككومنت للتوسع المستقبلي
+    // { code: 'EG' as OpportunityCountryCode, name: t?.countries?.EG || 'Egypt', nameEn: 'Egypt', flag: '🇪🇬' },
+    // { code: 'AE' as OpportunityCountryCode, name: t?.countries?.AE || 'UAE', nameEn: 'UAE', flag: '🇦🇪' },
+    // { code: 'RU' as OpportunityCountryCode, name: t?.countries?.RU || 'Russia', nameEn: 'Russia', flag: '🇷🇺' },
   ]
 }
 
@@ -113,29 +93,7 @@ export function inferCountryFromRow(row: any): 'EG' | 'AE' | 'RU' | 'GE' {
     .trim()
     .toUpperCase()
   if (raw === 'EG' || raw === 'AE' || raw === 'RU' || raw === 'GE') return raw
-
-  const area = String(row.area || '')
-  if (
-    area.includes('دبي') ||
-    area.includes('أبوظبي') ||
-    area.includes('الشارقة') ||
-    area.toLowerCase().includes('dubai')
-  )
-    return 'AE'
-  if (
-    area.includes('موسكو') ||
-    area.includes('سوتشي') ||
-    area.toLowerCase().includes('moscow')
-  )
-    return 'RU'
-  if (
-    area.includes('تبليسي') ||
-    area.includes('باتومي') ||
-    area.toLowerCase().includes('tbilisi') ||
-    area.toLowerCase().includes('batumi')
-  )
-    return 'GE'
-  return 'EG'
+  return 'GE'
 }
 
 export function mapDbRowToProperty(

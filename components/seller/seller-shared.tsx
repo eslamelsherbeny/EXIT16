@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Check, ChevronDown, Globe } from 'lucide-react'
+import { Check, ChevronDown, Globe, MapPin, Search, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -32,6 +32,17 @@ export type PlatformCountryOption = {
 
 export const PLATFORM_COUNTRIES: PlatformCountryOption[] = [
   {
+    code: 'GE',
+    nameAr: 'جورجيا',
+    nameEn: 'Georgia',
+    nameRu: 'Грузия',
+    nameKa: 'საქართველო',
+    flag: '🇬🇪',
+    currencySymbol: '$',
+    phoneCode: '995',
+    defaultPackages: { days7: 29, days14: 49, days30: 69 },
+  },
+  {
     code: 'EG',
     nameAr: 'مصر',
     nameEn: 'Egypt',
@@ -52,17 +63,6 @@ export const PLATFORM_COUNTRIES: PlatformCountryOption[] = [
     currencySymbol: '₽',
     phoneCode: '7',
     defaultPackages: { days7: 2500, days14: 4200, days30: 5900 },
-  },
-  {
-    code: 'GE',
-    nameAr: 'جورجيا',
-    nameEn: 'Georgia',
-    nameRu: 'Грузия',
-    nameKa: 'საქართველო',
-    flag: '🇬🇪',
-    currencySymbol: '$',
-    phoneCode: '995',
-    defaultPackages: { days7: 29, days14: 49, days30: 69 },
   },
   {
     code: 'AE',
@@ -128,6 +128,14 @@ export const ALL_RESIDENCE_COUNTRIES: PlatformCountryOption[] = [
     phoneCode: '962',
   },
   {
+    code: 'TR',
+    nameAr: 'تركيا',
+    nameEn: 'Turkey',
+    flag: '🇹🇷',
+    currencySymbol: '₺',
+    phoneCode: '90',
+  },
+  {
     code: 'US',
     nameAr: 'أمريكا / كندا',
     nameEn: 'USA / Canada',
@@ -164,22 +172,13 @@ export function normalizeArabicText(str: string) {
 }
 
 export function getHeaderCookieCountry(): PlatformCountryCode {
-  if (typeof document !== 'undefined') {
-    const match = document.cookie
-      .split('; ')
-      .find((row) => row.startsWith('darak_country='))
-    const code = match?.split('=')[1]?.trim() as PlatformCountryCode | undefined
-    if (code && PLATFORM_COUNTRIES.some((c) => c.code === code)) {
-      return code
-    }
-  }
-  return 'EG'
+  return 'GE'
 }
 
 export function getCountryConfig(countryCode?: string): PlatformCountryOption {
   return (
     PLATFORM_COUNTRIES.find(
-      (c) => c.code === (countryCode || 'EG').toUpperCase()
+      (c) => c.code === (countryCode || 'GE').toUpperCase()
     ) || PLATFORM_COUNTRIES[0]
   )
 }
@@ -188,42 +187,46 @@ export function getCurrencyByCountry(
   countryCode?: string,
   locale?: LocaleCode
 ) {
-  return getCurrencySymbol(countryCode || 'EG', locale)
+  return getCurrencySymbol(countryCode || 'GE', locale)
 }
 
-export const unitTypes = [
+export const unitTypes: string[] = [
   'شقة',
+  'استوديو (Studio)',
   'دوبلكس',
   'بنتهاوس',
   'تاون هاوس',
-  'توين هاوس',
-  'اي فيلا',
-  'فيلا',
-  'شاليه',
-  'مكتب',
-  'محل',
-  'عيادة',
+  'فيلا مستقلة',
+  'شقة فندقية (Aparthotel)',
+  'شاليه جبلي / بحري',
+  'مكتب تجاري',
+  'محل تجاري',
   'أرض',
 ]
 
-export const finishings = [
-  'تشطيب كامل',
-  'نص تشطيب',
-  'على الطوب',
-  'متشطبة بالفرش',
+export const finishings: string[] = [
+  'تشطيب كامل (Turnkey)',
+  'بالفرش والأجهزة (Fully Furnished)',
+  'نصف تشطيب — إطار أبيض (White Frame)',
+  'على الطوب — إطار أسود (Black Frame)',
+  'إطار أخضر (Green Frame)',
 ]
-export const deliveries = ['جاهزة للاستلام', 'تحت الإنشاء']
-export const features = [
+
+export const deliveries: string[] = ['جاهزة للاستلام', 'تحت الإنشاء']
+
+export const features: string[] = [
+  'إطلالة بحرية (Sea View)',
+  'إطلالة جبلية (Mountain View)',
+  'إطلالة بانورامية على المدينة',
   'حمام سباحة',
-  'جاردن خاصة',
-  'رووف',
-  'أمن 24 ساعة',
-  'كلوب هاوس',
-  'جراج',
-  'مصعد',
-  'قريبة من الخدمات',
+  'تدفئة مركزية / أرضية',
+  'أمن واستقبال 24 ساعة',
+  'جراج سيارات تحت الأرض',
+  'شرفة واسعة (Balcony)',
+  'قريبة من المترو والخدمات',
 ]
-export const years = [
+
+export const years: string[] = [
   '2026',
   '2025',
   '2024',
@@ -234,101 +237,115 @@ export const years = [
   '2019',
 ]
 
-export const areasCatalogByCountry: Record<
-  string,
-  ReadonlyArray<readonly [string, ReadonlyArray<string>]>
-> = {
-  EG: [
+export const deliveryFutureYears: string[] = [
+  '2026',
+  '2027',
+  '2028',
+  '2029',
+  '2030',
+  '2031',
+]
+
+export const MONTHS_LIST: Array<{
+  value: string
+  ar: string
+  en: string
+  ru: string
+  ka: string
+}> = [
+  { value: '01', ar: '1 - يناير', en: '01 - Jan', ru: '01 - Янв', ka: '01 - იანვარი' },
+  { value: '02', ar: '2 - فبراير', en: '02 - Feb', ru: '02 - Фев', ka: '02 - თებერვალი' },
+  { value: '03', ar: '3 - مارس', en: '03 - Mar', ru: '03 - Мар', ka: '03 - მარტი' },
+  { value: '04', ar: '4 - أبريل', en: '04 - Apr', ru: '04 - Апр', ka: '04 - აპრილი' },
+  { value: '05', ar: '5 - مايو', en: '05 - May', ru: '05 - Май', ka: '05 - მაისი' },
+  { value: '06', ar: '6 - يونيو', en: '06 - Jun', ru: '06 - Июн', ka: '06 - ივნისი' },
+  { value: '07', ar: '7 - يوليو', en: '07 - Jul', ru: '07 - Июл', ka: '07 - ივლისი' },
+  { value: '08', ar: '8 - أغسطس', en: '08 - Aug', ru: '08 - Авг', ka: '08 - აგვისტო' },
+  { value: '09', ar: '9 - سبتمبر', en: '09 - Sep', ru: '09 - Сен', ka: '09 - სექტემბერი' },
+  { value: '10', ar: '10 - أكتوبر', en: '10 - Oct', ru: '10 - Окт', ka: '10 - ოქტომბერი' },
+  { value: '11', ar: '11 - نوفمبر', en: '11 - Nov', ru: '11 - Ноя', ka: '11 - ნოემბერი' },
+  { value: '12', ar: '12 - ديسمبر', en: '12 - Dec', ru: '12 - Дек', ka: '12 - დეკემბერი' },
+]
+
+// ==================== الدليل الكامل لجميع مدن وأحياء جورجيا ====================
+export const GEORGIA_AREAS_CATALOG: Array<[string, string[]]> = [
+  [
+    'تبليسي — الأحياء الراقية والمركزية (Tbilisi Central)',
     [
-      'القاهرة الجديدة والتجمع',
-      [
-        'التجمع الخامس',
-        'التجمع الأول',
-        'التجمع الثالث',
-        'القاهرة الجديدة',
-        'الرحاب',
-        'مدينتي',
-        'المستقبل سيتي',
-        'الشروق',
-      ],
-    ],
-    [
-      'الشيخ زايد وأكتوبر',
-      ['الشيخ زايد', 'زايد الجديدة', '6 أكتوبر', 'حدائق أكتوبر'],
-    ],
-    [
-      'العاصمة والساحل وأخرى',
-      [
-        'العاصمة الإدارية',
-        'الساحل الشمالي',
-        'العين السخنة',
-        'رأس الحكمة',
-        'الجونة',
-        'منطقتي مش في القائمة',
-      ],
-    ],
-  ],
-  AE: [
-    [
-      'دبي',
-      [
-        'داون تاون دبي',
-        'دبي مارينا',
-        'بيزنس باي',
-        'نخلة جميرا',
-        'قرية جميرا الدائرية JVC',
-        'دبي هيلز',
-      ],
-    ],
-    [
-      'أبوظبي والشارقة',
-      [
-        'جزيرة ياس',
-        'جزيرة السعديات',
-        'جزيرة الريم',
-        'الشارقة - الجادة',
-        'منطقتي مش في القائمة',
-      ],
+      'تبليسي - سابورتالو (Saburtalo / საბურთალო)',
+      'تبليسي - فاكي (Vake / ვაკე)',
+      'تبليسي - فيرا (Vera / ვერა)',
+      'تبليسي - متاتسميندا وروستافيلي (Mtatsminda / მთაწმინდა)',
+      'تبليسي - كرتسانيسي وأورتاتشالا (Krtsanisi - Ortachala / ორთაჭალა)',
+      'تبليسي - تشوغوريتي ومارجانشفيلي (Chugureti - Marjanishvili)',
+      'تبليسي - تبليسي القديمة (Old Tbilisi / ძველი თბილისი)',
+      'تبليسي - باغيبي (Bagebi / ბაგები)',
     ],
   ],
-  RU: [
+  [
+    'تبليسي — الأحياء السكنية والتوسعات الحديثة (Tbilisi Residential)',
     [
-      'موسكو وسانت بطرسبرغ',
-      [
-        'وسط موسكو',
-        'موسكو سيتي',
-        'سانت بطرسبرغ',
-        'سوتشي',
-        'كازان',
-        'منطقة أخرى',
-      ],
+      'تبليسي - ديدي ديغومي (Didi Digomi / დიდი დიღომი)',
+      'تبليسي - ديغومي ماسيف (Digomi Massive / დიღმის მასივი)',
+      'تبليسي - إيساني (Isani / ისანი)',
+      'تبليسي - سامغوري وفاركيتيلي (Samgori - Varketili / ვარკეთილი)',
+      'تبليسي - ديدوبي (Didube / დიდუბე)',
+      'تبليسي - نادزالاديفي (Nadzaladevi / ნაძალადევი)',
+      'تبليسي - غلداني (Gldani / გლდანი)',
+      'تبليسي - أفالاباري (Avlabari / ავლაბარი)',
+      'تبليسي - ليسي ليك (Lisi Lake / ლისის ტბა)',
+      'تبليسي - تاباخميلا وتسكنيتي (Tabakhmela - Tskneti / წყნეთი)',
     ],
   ],
-  GE: [
+  [
+    'باتومي وساحل البحر الأسود (Batumi & Adjara Coast)',
     [
-      'تبليسي وباتومي',
-      [
-        'تبليسي - سابورتالو',
-        'تبليسي - فاكي',
-        'باتومي - البوليفارد الجديد',
-        'باتومي - وسط المدينة',
-        'كوتايسي',
-        'منطقتي مش في القائمة',
-      ],
+      'باتومي - البوليفارد الجديد (New Boulevard / ახალი ბულვარი)',
+      'باتومي - ممر الأبطال شارع شارتافا (Alley of Heroes - Shartava)',
+      'باتومي - باتومي القديمة ووسط المدينة (Old Batumi / ძველი ბათუმი)',
+      'باتومي - روستافيلي والواجهة البحرية (Rustaveli Seafront)',
+      'باتومي - غونيو وكفاريإتي (Gonio - Kvariati / გონიო)',
+      'باتومي - مخينجوري والحديقة النباتية (Makhinjauri / მახინჯაური)',
+      'باتومي - شاكفي (Chakvi / ჩაქვი)',
+      'كوبوليتي (Kobuleti / ქობულეთი)',
+      'ساربي (Sarpi / სარფი)',
+      'أوريكي وشيكفيتيلي (Ureki - Shekvetili / შეკვეთილი)',
     ],
   ],
+  [
+    'مدن ومنتجعات جورجيا الأخرى (Other Georgian Cities & Resorts)',
+    [
+      'كوتايسي (Kutaisi / ქუთაისი)',
+      'روستافي (Rustavi / რუსთავი)',
+      'غوداوري — منتجع التزلج (Gudauri / გუდაური)',
+      'باكورياني — منتجع جبلي (Bakuriani / ბაკურიანი)',
+      'بورجومي (Borjomi / ბორჯომი)',
+      'متسخيتا وساغورامو (Mtskheta - Saguramo / საგურამო)',
+      'تيلافي وكاخيتي (Telavi - Kakheti / თელავი)',
+      'زوغديدي وبوتي (Zugdidi - Poti)',
+      'منطقة أخرى في جورجيا (Other Area in Georgia)',
+    ],
+  ],
+]
+
+export const areasCatalogByCountry: Record<string, Array<[string, string[]]>> = {
+  GE: GEORGIA_AREAS_CATALOG,
+  EG: GEORGIA_AREAS_CATALOG,
+  AE: GEORGIA_AREAS_CATALOG,
+  RU: GEORGIA_AREAS_CATALOG,
 }
 
-export const areasCatalog = areasCatalogByCountry.EG
+export const areasCatalog = GEORGIA_AREAS_CATALOG
 
 export function formatAmount(
   value?: string,
-  currencySymbol = 'ج.م',
+  currencySymbol = '$',
   locale: LocaleCode = 'ar'
 ) {
   const amount = Number((value ?? '').replace(/,/g, ''))
   if (!amount) return ''
-  const sharedDict = DICTIONARIES[locale]?.sell?.shared || DICTIONARIES.ar.sell.shared
+  const sharedDict =
+    DICTIONARIES[locale]?.sell?.shared || DICTIONARIES.ar.sell.shared
   if (amount >= 1_000_000)
     return `${(amount / 1_000_000).toFixed(2).replace(/\.00$/, '')} ${sharedDict.million} ${currencySymbol}`
   if (amount >= 1_000)
@@ -348,6 +365,316 @@ export function RequiredLabel({ children }: { children: string }) {
         children
       )}
     </>
+  )
+}
+
+export function SearchableGeorgiaAreaPicker({
+  label,
+  value,
+  onChange,
+  error,
+  placeholder,
+}: {
+  label: string
+  value: string
+  onChange: (area: string) => void
+  error?: string
+  placeholder?: string
+}) {
+  const { locale, dir } = useTranslation()
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const wrapperRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleOutside(e: MouseEvent) {
+      if (
+        wrapperRef.current &&
+        !wrapperRef.current.contains(e.target as Node)
+      ) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleOutside)
+    return () => document.removeEventListener('mousedown', handleOutside)
+  }, [])
+
+  const allFlatAreas: string[] = GEORGIA_AREAS_CATALOG.flatMap(
+    ([, items]: [string, string[]]) => items
+  )
+  const cleanQ = normalizeArabicText(query)
+
+  const filteredGroups = GEORGIA_AREAS_CATALOG.map(
+    ([groupTitle, items]: [string, string[]]) => {
+      const matched = items.filter((item: string) =>
+        normalizeArabicText(item).includes(cleanQ)
+      )
+      return [groupTitle, matched] as const
+    }
+  ).filter(([, matched]) => matched.length > 0)
+
+  const defaultPlaceholder =
+    placeholder ||
+    (locale === 'ar'
+      ? 'ابحث باسم الحي أو المدينة في جورجيا (مثلاً: سابورتالو، فاكي، باتومي)...'
+      : locale === 'ru'
+        ? 'Поиск района или города Грузии (Сабуртало, Ваке, Батуми)...'
+        : locale === 'ka'
+          ? 'მოძებნეთ უბანი ან ქალაქი (საბურთალო, ვაკე, ბათუმი)...'
+          : 'Search district or city in Georgia (Saburtalo, Vake, Batumi)...')
+
+  return (
+    <div ref={wrapperRef} className="relative flex flex-col gap-2">
+      <Label className="text-start">
+        <RequiredLabel>{label}</RequiredLabel>
+      </Label>
+
+      <div className="relative">
+        <Search className="pointer-events-none absolute top-1/2 start-3.5 size-4 -translate-y-1/2 text-slate-400" />
+        <Input
+          type="text"
+          dir={dir}
+          value={open ? query : value}
+          placeholder={defaultPlaceholder}
+          onFocus={() => {
+            setOpen(true)
+            setQuery('')
+          }}
+          onChange={(e) => {
+            setQuery(e.target.value)
+            setOpen(true)
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              const firstMatch = filteredGroups[0]?.[1]?.[0]
+              if (firstMatch) {
+                onChange(firstMatch)
+                setOpen(false)
+                setQuery('')
+              } else if (query.trim()) {
+                onChange(query.trim())
+                setOpen(false)
+                setQuery('')
+              }
+            }
+          }}
+          className={`h-12 rounded-xl ps-10 pe-10 text-start font-semibold text-[var(--brand-navy,#0a1122)] ${
+            error ? 'border-red-500 bg-red-50/20' : 'border-slate-200 bg-white'
+          }`}
+        />
+        {value && !open ? (
+          <button
+            type="button"
+            onClick={() => {
+              onChange('')
+              setQuery('')
+              setOpen(true)
+            }}
+            className="absolute top-1/2 end-3 -translate-y-1/2 rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-red-500"
+          >
+            <X className="size-4" />
+          </button>
+        ) : (
+          <ChevronDown className="pointer-events-none absolute top-1/2 end-3.5 size-4 -translate-y-1/2 text-slate-400" />
+        )}
+      </div>
+
+      <div className="flex flex-wrap gap-1.5">
+        {allFlatAreas.slice(0, 6).map((quickArea: string) => {
+          const isSelected = value === quickArea
+          const shortLabel = quickArea.split(' (')[0]
+          return (
+            <button
+              key={quickArea}
+              type="button"
+              onClick={() => {
+                onChange(quickArea)
+                setOpen(false)
+                setQuery('')
+              }}
+              className={`rounded-full border px-2.5 py-1 text-[11px] font-bold transition ${
+                isSelected
+                  ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary,#007a5a)] text-white'
+                  : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-teal-400 hover:bg-white'
+              }`}
+            >
+              {isSelected ? `✓ ${shortLabel}` : `+ ${shortLabel}`}
+            </button>
+          )
+        })}
+      </div>
+
+      {open && (
+        <div className="absolute top-[76px] z-30 max-h-64 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+          {filteredGroups.length === 0 ? (
+            <div className="p-3 text-center">
+              <p className="text-xs text-slate-500">
+                {locale === 'ar'
+                  ? 'لم يتم العثور على المنطقة في القائمة — اضغط لإضافتها مباشرة:'
+                  : 'Area not in list — click to use custom area:'}
+              </p>
+              {query.trim() && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onChange(query.trim())
+                    setOpen(false)
+                    setQuery('')
+                  }}
+                  className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-[var(--brand-primary,#007a5a)] px-4 py-2 text-xs font-bold text-white"
+                >
+                  <MapPin className="size-3.5" />
+                  <span>{query.trim()}</span>
+                </button>
+              )}
+            </div>
+          ) : (
+            filteredGroups.map(([groupTitle, items]) => (
+              <div key={groupTitle} className="mb-2 last:mb-0">
+                <p className="sticky top-0 bg-slate-50/95 px-2.5 py-1 text-start text-[11px] font-extrabold text-teal-800 backdrop-blur-xs">
+                  {groupTitle}
+                </p>
+                <div className="mt-1 space-y-0.5">
+                  {items.map((area: string) => {
+                    const isSelected = value === area
+                    return (
+                      <button
+                        key={area}
+                        type="button"
+                        onClick={() => {
+                          onChange(area)
+                          setOpen(false)
+                          setQuery('')
+                        }}
+                        className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-start text-xs font-semibold transition sm:text-sm ${
+                          isSelected
+                            ? 'bg-[var(--brand-primary-light,#eaf8f2)] font-bold text-[var(--brand-primary,#007a5a)]'
+                            : 'text-[var(--brand-navy,#0a1122)] hover:bg-slate-50'
+                        }`}
+                      >
+                        <span>{area}</span>
+                        {isSelected && (
+                          <Check className="size-4 shrink-0 text-[var(--brand-primary,#007a5a)]" />
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {error && (
+        <p className="mt-1 text-start text-xs font-semibold text-red-600">
+          {error}
+        </p>
+      )}
+    </div>
+  )
+}
+
+export function MonthYearSelector({
+  label,
+  monthValue,
+  yearValue,
+  onMonthChange,
+  onYearChange,
+  yearsList = years,
+  error,
+  helper,
+}: {
+  label: string
+  monthValue: string
+  yearValue: string
+  onMonthChange: (m: string) => void
+  onYearChange: (y: string) => void
+  yearsList?: string[]
+  error?: string
+  helper?: string
+}) {
+  const { locale } = useTranslation()
+
+  const monthPlaceholder =
+    locale === 'ar'
+      ? 'الشهر *'
+      : locale === 'ru'
+        ? 'Месяц *'
+        : locale === 'ka'
+          ? 'თვე *'
+          : 'Month *'
+
+  const yearPlaceholder =
+    locale === 'ar'
+      ? 'السنة *'
+      : locale === 'ru'
+        ? 'Год *'
+        : locale === 'ka'
+          ? 'წელი *'
+          : 'Year *'
+
+  return (
+    <div className="flex flex-col gap-2">
+      <Label className="text-start">
+        <RequiredLabel>{label}</RequiredLabel>
+      </Label>
+      <div
+        className={`grid grid-cols-2 gap-3 ${
+          error ? 'rounded-xl border border-red-500 bg-red-50/20 p-2' : ''
+        }`}
+      >
+        <div className="relative">
+          <select
+            value={monthValue || ''}
+            onChange={(e) => onMonthChange(e.target.value)}
+            className="h-12 w-full appearance-none rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-bold text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:text-sm"
+          >
+            <option value="">{monthPlaceholder}</option>
+            {MONTHS_LIST.map((m) => (
+              <option key={m.value} value={m.value}>
+                {locale === 'ar'
+                  ? m.ar
+                  : locale === 'ru'
+                    ? m.ru
+                    : locale === 'ka'
+                      ? m.ka
+                      : m.en}
+              </option>
+            ))}
+          </select>
+          <ChevronDown className="pointer-events-none absolute top-1/2 end-3 size-4 -translate-y-1/2 text-slate-400" />
+        </div>
+
+        <div className="relative">
+          <select
+            value={yearValue || ''}
+            onChange={(e) => onYearChange(e.target.value)}
+            className="h-12 w-full appearance-none rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-bold text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:text-sm"
+          >
+            <option value="">{yearPlaceholder}</option>
+            {yearsList.map((yr: string) => (
+              <option key={yr} value={yr}>
+                {yr}
+              </option>
+            ))}
+          </select>
+          <ChevronDown className="pointer-events-none absolute top-1/2 end-3 size-4 -translate-y-1/2 text-slate-400" />
+        </div>
+      </div>
+
+      {error && (
+        <p className="mt-1 text-start text-xs font-semibold text-red-600">
+          {error}
+        </p>
+      )}
+      {helper && (
+        <span className="text-start text-xs font-semibold text-teal-700">
+          {helper}
+        </span>
+      )}
+    </div>
   )
 }
 
@@ -375,7 +702,7 @@ export function SearchableCountryField({
   const wrapperRef = useRef<HTMLDivElement>(null)
 
   const selectedObj =
-    options.find((c) => c.code === (value || 'EG').toUpperCase()) || options[0]
+    options.find((c) => c.code === (value || 'GE').toUpperCase()) || options[0]
 
   useEffect(() => {
     function handleOutside(e: MouseEvent) {
@@ -473,11 +800,6 @@ export function SearchableCountryField({
                   <div className="flex items-center gap-2.5">
                     <span className="text-lg leading-none">{c.flag}</span>
                     <span>{cName}</span>
-                    {locale === 'ar' && (
-                      <span className="text-xs text-slate-400">
-                        ({c.nameEn})
-                      </span>
-                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="font-mono text-xs font-bold text-slate-400">
@@ -536,6 +858,7 @@ export function Field({
     'bathrooms',
     'floor',
     'remainingYears',
+    'remainingMonths',
   ].includes(id)
   const isLtrField =
     compact || type === 'number' || id === 'email' || id === 'password'
@@ -557,7 +880,7 @@ export function Field({
           error ? 'border-red-500 bg-red-50/20' : 'border-slate-200'
         } ${
           compact
-            ? 'max-w-[150px] self-start text-center font-semibold'
+            ? 'max-w-[180px] self-start text-center font-semibold'
             : isLtrField
               ? 'text-left'
               : 'text-start'
@@ -593,7 +916,7 @@ export function MoneyField({
   currencySymbol?: string
 }) {
   const { locale, currency: defaultCurrency } = useTranslation()
-  const activeCurr = currencySymbol || defaultCurrency
+  const activeCurr = currencySymbol || defaultCurrency || '$'
 
   return (
     <div className="flex flex-col gap-2">
@@ -651,7 +974,7 @@ export function Pills({
       }
     >
       <div className="flex flex-wrap gap-2">
-        {items.map((item) => (
+        {items.map((item: string) => (
           <button
             type="button"
             key={item}
@@ -763,7 +1086,7 @@ export function Actions({
       <Button
         type="button"
         className={`h-12 rounded-xl bg-[var(--brand-navy,#0a1122)] hover:bg-[var(--brand-navy-hover,#16223f)] ${
-          !back ? 'w-full' : 'flex-1'
+           !back ? 'w-full' : 'flex-1'
         }`}
         onClick={() => go(next)}
       >

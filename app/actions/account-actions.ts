@@ -65,9 +65,12 @@ async function sendAccountEmail({
 function formatPrimaryPhone(rawPhone: string) {
   const digits = (rawPhone || '').replace(/\s+/g, '').replace(/[^0-9+]/g, '')
   if (!digits) return ''
-  if (digits.startsWith('+') && !digits.startsWith('+20')) return digits
-  const stripped = digits.replace(/^\+?20/, '').replace(/^0+/, '')
-  return `+20${stripped}`
+  if (digits.startsWith('+')) return digits
+  const stripped = digits.replace(/^0+/, '')
+  if (stripped.startsWith('995') || stripped.startsWith('20')) {
+    return `+${stripped}`
+  }
+  return `+995${stripped}`
 }
 
 export async function logoutAccountAction() {
@@ -92,7 +95,7 @@ export async function updatePersonalInfoAction(payload: {
     const cleanName = (payload.name || '').trim()
     const formattedPhone = formatPrimaryPhone(payload.phone)
 
-    if (!cleanName || !formattedPhone || formattedPhone.length < 10) {
+    if (!cleanName || !formattedPhone || formattedPhone.length < 9) {
       return {
         success: false,
         error: msg.invalidNamePhone,

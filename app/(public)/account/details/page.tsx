@@ -2,12 +2,15 @@
 
 import { useEffect, useState, useTransition } from 'react'
 import Link from 'next/link'
-import { ChevronDown, CheckCircle2 } from 'lucide-react'
+import { CheckCircle2 } from 'lucide-react'
 import { getCurrentSellerProfileAction } from '@/app/actions/submit-forms'
 import {
   updateEmailInfoAction,
   updatePersonalInfoAction,
 } from '@/app/actions/account-actions'
+import { CountrySelector } from '@/components/country-selector'
+import { ScrollReveal } from '@/components/scroll-reveal'
+import { ALL_RESIDENCE_COUNTRIES } from '@/components/seller/seller-shared'
 import { useTranslation } from '@/lib/i18n'
 
 export default function AccountDetailsPage() {
@@ -16,6 +19,7 @@ export default function AccountDetailsPage() {
   const tCommon = dict.accountPages.common
 
   const [name, setName] = useState('')
+  const [countryCode, setCountryCode] = useState('995')
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(true)
@@ -38,10 +42,23 @@ export default function AccountDetailsPage() {
       if (res.isLoggedIn && res.user) {
         setName(res.user.name || '')
         setEmail(res.user.email || '')
-        let rawP = res.user.phone || ''
-        if (rawP.startsWith('+20')) rawP = '0' + rawP.substring(3)
-        else if (rawP.startsWith('20')) rawP = '0' + rawP.substring(2)
-        setPhone(rawP)
+        const rawP = (res.user.phone || '').trim()
+
+        if (rawP.startsWith('+')) {
+          const withoutPlus = rawP.slice(1)
+          const matchedCountry = [...ALL_RESIDENCE_COUNTRIES]
+            .sort((a, b) => b.phoneCode.length - a.phoneCode.length)
+            .find((c) => withoutPlus.startsWith(c.phoneCode))
+
+          if (matchedCountry) {
+            setCountryCode(matchedCountry.phoneCode)
+            setPhone(withoutPlus.slice(matchedCountry.phoneCode.length))
+          } else {
+            setPhone(rawP)
+          }
+        } else {
+          setPhone(rawP)
+        }
       }
       setLoading(false)
     }
@@ -52,7 +69,8 @@ export default function AccountDetailsPage() {
     e.preventDefault()
     setPersonalMsg(null)
     startPersonal(async () => {
-      const res = await updatePersonalInfoAction({ name, phone })
+      const fullPhone = `+${countryCode.replace('+', '')}${phone.trim().replace(/^0+/, '')}`
+      const res = await updatePersonalInfoAction({ name, phone: fullPhone })
       if (res.success) {
         setPersonalMsg({
           type: 'success',
@@ -92,12 +110,14 @@ export default function AccountDetailsPage() {
       className="min-h-screen bg-[var(--brand-surface,#f5f6f8)] pb-24 text-[var(--brand-navy-text,#0a1128)]"
     >
       <div className="mx-auto max-w-[640px] px-4 py-10 sm:px-6 md:py-16">
-        <header className="mb-8 text-start">
-          <h1 className="text-[28px] font-black tracking-tight text-[var(--brand-navy-text,#0a1128)]">
-            {t.title}
-          </h1>
-          <p className="mt-1 text-[13px] text-slate-500">{t.subtitle}</p>
-        </header>
+        <ScrollReveal>
+          <header className="mb-8 text-start">
+            <h1 className="text-[28px] font-black tracking-tight text-[var(--brand-navy-text,#0a1128)]">
+              {t.title}
+            </h1>
+            <p className="mt-1 text-[13px] text-slate-500">{t.subtitle}</p>
+          </header>
+        </ScrollReveal>
 
         {loading ? (
           <div className="rounded-2xl bg-white p-8 text-center text-xs font-bold text-gray-500">
@@ -105,144 +125,147 @@ export default function AccountDetailsPage() {
           </div>
         ) : (
           <div className="flex flex-col gap-6">
-            <section className="rounded-[20px] border border-gray-200/80 bg-white p-6 shadow-2xs sm:p-8">
-              <h2 className="text-start text-[16px] font-black text-[var(--brand-navy-text,#0a1128)]">
-                {t.personalCardTitle}
-              </h2>
-              <p className="mt-1 text-start text-[11.5px] text-slate-500">
-                {t.personalCardSub}
-              </p>
+            <ScrollReveal delay={60}>
+              <section className="rounded-[20px] border border-gray-200/80 bg-white p-6 shadow-2xs sm:p-8">
+                <h2 className="text-start text-[16px] font-black text-[var(--brand-navy-text,#0a1128)]">
+                  {t.personalCardTitle}
+                </h2>
+                <p className="mt-1 text-start text-[11.5px] text-slate-500">
+                  {t.personalCardSub}
+                </p>
 
-              <form
-                onSubmit={handleSavePersonal}
-                className="mt-6 flex flex-col gap-5"
-              >
-                <div>
-                  <label
-                    htmlFor="name"
-                    className="mb-2 block text-start text-[13px] font-bold text-[var(--brand-navy-text,#0a1128)]"
-                  >
-                    {t.nameLabel}
-                  </label>
-                  <input
-                    id="name"
-                    type="text"
-                    dir={dir}
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    required
-                    className="h-11 w-full rounded-[10px] border border-gray-200 bg-white px-4 text-start text-[13px] font-semibold text-[var(--brand-navy-text,#0a1128)] transition focus:border-[var(--brand-primary,#007a5a)] focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="phone"
-                    className="mb-2 block text-start text-[13px] font-bold text-[var(--brand-navy-text,#0a1128)]"
-                  >
-                    {t.phoneLabel}
-                  </label>
-                  <div dir="ltr" className="flex items-center gap-2">
-                    <div className="flex h-11 shrink-0 items-center justify-center gap-2 rounded-[10px] border border-gray-200 bg-white px-3 text-[13px] font-semibold text-[var(--brand-navy-text,#0a1128)]">
-                      <span className="text-sm">🇪🇬</span>
-                      <span>{t.countryCodeLabel}</span>
-                      <ChevronDown className="size-3.5 text-gray-500" />
-                    </div>
+                <form
+                  onSubmit={handleSavePersonal}
+                  className="mt-6 flex flex-col gap-5"
+                >
+                  <div>
+                    <label
+                      htmlFor="name"
+                      className="mb-2 block text-start text-[13px] font-bold text-[var(--brand-navy-text,#0a1128)]"
+                    >
+                      {t.nameLabel}
+                    </label>
                     <input
-                      id="phone"
-                      type="tel"
+                      id="name"
+                      type="text"
+                      dir={dir}
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      required
+                      className="h-11 w-full rounded-[10px] border border-gray-200 bg-white px-4 text-start text-[13px] font-semibold text-[var(--brand-navy-text,#0a1128)] transition focus:border-[var(--brand-primary,#007a5a)] focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="phone"
+                      className="mb-2 block text-start text-[13px] font-bold text-[var(--brand-navy-text,#0a1128)]"
+                    >
+                      {t.phoneLabel}
+                    </label>
+                    <div dir="ltr" className="flex items-center gap-2">
+                      <CountrySelector
+                        value={countryCode}
+                        onChange={setCountryCode}
+                      />
+                      <input
+                        id="phone"
+                        type="tel"
+                        dir="ltr"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        required
+                        className="h-11 w-full rounded-[10px] border border-gray-200 bg-white px-4 text-left text-[13px] font-semibold text-[var(--brand-navy-text,#0a1128)] transition focus:border-[var(--brand-primary,#007a5a)] focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {personalMsg && (
+                    <div
+                      className={`flex items-center gap-2 rounded-xl p-3 text-xs font-bold ${
+                        personalMsg.type === 'success'
+                          ? 'bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]'
+                          : 'bg-red-50 text-red-600'
+                      }`}
+                    >
+                      {personalMsg.type === 'success' && (
+                        <CheckCircle2 className="size-4 shrink-0" />
+                      )}
+                      <span>{personalMsg.text}</span>
+                    </div>
+                  )}
+
+                  <div className="mt-1 flex justify-start">
+                    <button
+                      type="submit"
+                      disabled={pendingPersonal}
+                      className="h-[42px] min-w-[90px] rounded-[10px] bg-[var(--brand-navy,#0a1122)] px-5 text-[13px] font-bold text-white shadow-2xs transition hover:bg-[var(--brand-navy-hover,#16223f)]"
+                    >
+                      {pendingPersonal ? t.savingBtn : t.saveBtn}
+                    </button>
+                  </div>
+                </form>
+              </section>
+            </ScrollReveal>
+
+            <ScrollReveal delay={120}>
+              <section className="rounded-[20px] border border-gray-200/80 bg-white p-6 shadow-2xs sm:p-8">
+                <h2 className="text-start text-[16px] font-black text-[var(--brand-navy-text,#0a1128)]">
+                  {t.emailCardTitle}
+                </h2>
+                <p className="mt-1 text-start text-[11.5px] text-slate-500">
+                  {t.emailCardSub}
+                </p>
+
+                <form
+                  onSubmit={handleSaveEmail}
+                  className="mt-6 flex flex-col gap-5"
+                >
+                  <div>
+                    <label
+                      htmlFor="email"
+                      className="mb-2 block text-start text-[13px] font-bold text-[var(--brand-navy-text,#0a1128)]"
+                    >
+                      {t.emailLabel}
+                    </label>
+                    <input
+                      id="email"
+                      type="email"
                       dir="ltr"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
                       required
                       className="h-11 w-full rounded-[10px] border border-gray-200 bg-white px-4 text-left text-[13px] font-semibold text-[var(--brand-navy-text,#0a1128)] transition focus:border-[var(--brand-primary,#007a5a)] focus:outline-none"
                     />
                   </div>
-                </div>
 
-                {personalMsg && (
-                  <div
-                    className={`flex items-center gap-2 rounded-xl p-3 text-xs font-bold ${
-                      personalMsg.type === 'success'
-                        ? 'bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]'
-                        : 'bg-red-50 text-red-600'
-                    }`}
-                  >
-                    {personalMsg.type === 'success' && (
-                      <CheckCircle2 className="size-4 shrink-0" />
-                    )}
-                    <span>{personalMsg.text}</span>
+                  {emailMsg && (
+                    <div
+                      className={`flex items-center gap-2 rounded-xl p-3 text-xs font-bold ${
+                        emailMsg.type === 'success'
+                          ? 'bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]'
+                          : 'bg-red-50 text-red-600'
+                      }`}
+                    >
+                      {emailMsg.type === 'success' && (
+                        <CheckCircle2 className="size-4 shrink-0" />
+                      )}
+                      <span>{emailMsg.text}</span>
+                    </div>
+                  )}
+
+                  <div className="mt-1 flex justify-start">
+                    <button
+                      type="submit"
+                      disabled={pendingEmail}
+                      className="flex h-[42px] items-center justify-center rounded-[10px] border border-gray-200 bg-white px-5 text-[13px] font-bold text-[var(--brand-navy-text,#0a1128)] shadow-2xs transition hover:bg-gray-50"
+                    >
+                      {pendingEmail ? t.updatingBtn : t.changeEmailBtn}
+                    </button>
                   </div>
-                )}
-
-                <div className="mt-1 flex justify-start">
-                  <button
-                    type="submit"
-                    disabled={pendingPersonal}
-                    className="h-[42px] min-w-[90px] rounded-[10px] bg-[var(--brand-navy,#0a1122)] px-5 text-[13px] font-bold text-white shadow-2xs transition hover:bg-[var(--brand-navy-hover,#16223f)]"
-                  >
-                    {pendingPersonal ? t.savingBtn : t.saveBtn}
-                  </button>
-                </div>
-              </form>
-            </section>
-
-            <section className="rounded-[20px] border border-gray-200/80 bg-white p-6 shadow-2xs sm:p-8">
-              <h2 className="text-start text-[16px] font-black text-[var(--brand-navy-text,#0a1128)]">
-                {t.emailCardTitle}
-              </h2>
-              <p className="mt-1 text-start text-[11.5px] text-slate-500">
-                {t.emailCardSub}
-              </p>
-
-              <form
-                onSubmit={handleSaveEmail}
-                className="mt-6 flex flex-col gap-5"
-              >
-                <div>
-                  <label
-                    htmlFor="email"
-                    className="mb-2 block text-start text-[13px] font-bold text-[var(--brand-navy-text,#0a1128)]"
-                  >
-                    {t.emailLabel}
-                  </label>
-                  <input
-                    id="email"
-                    type="email"
-                    dir="ltr"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="h-11 w-full rounded-[10px] border border-gray-200 bg-white px-4 text-left text-[13px] font-semibold text-[var(--brand-navy-text,#0a1128)] transition focus:border-[var(--brand-primary,#007a5a)] focus:outline-none"
-                  />
-                </div>
-
-                {emailMsg && (
-                  <div
-                    className={`flex items-center gap-2 rounded-xl p-3 text-xs font-bold ${
-                      emailMsg.type === 'success'
-                        ? 'bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]'
-                        : 'bg-red-50 text-red-600'
-                    }`}
-                  >
-                    {emailMsg.type === 'success' && (
-                      <CheckCircle2 className="size-4 shrink-0" />
-                    )}
-                    <span>{emailMsg.text}</span>
-                  </div>
-                )}
-
-                <div className="mt-1 flex justify-start">
-                  <button
-                    type="submit"
-                    disabled={pendingEmail}
-                    className="flex h-[42px] items-center justify-center rounded-[10px] border border-gray-200 bg-white px-5 text-[13px] font-bold text-[var(--brand-navy-text,#0a1128)] shadow-2xs transition hover:bg-gray-50"
-                  >
-                    {pendingEmail ? t.updatingBtn : t.changeEmailBtn}
-                  </button>
-                </div>
-              </form>
-            </section>
+                </form>
+              </section>
+            </ScrollReveal>
           </div>
         )}
 

@@ -109,16 +109,25 @@ function normalizeEmail(email: string) {
 function getPhoneVariants(rawPhone: string) {
   const digits = (rawPhone || '').replace(/\s+/g, '').replace(/[^0-9+]/g, '')
   if (!digits) return []
-  const stripped = digits.replace(/^\+?20/, '').replace(/^0+/, '')
-  return Array.from(new Set([digits, `0${stripped}`, `+20${stripped}`]))
+  if (digits.startsWith('+')) {
+    const noPlus = digits.slice(1)
+    return Array.from(new Set([digits, noPlus, `0${noPlus}`]))
+  }
+  const stripped = digits.replace(/^0+/, '')
+  return Array.from(
+    new Set([digits, `0${stripped}`, `+995${stripped}`, `+20${stripped}`])
+  )
 }
 
 function formatPrimaryPhone(rawPhone: string) {
   const digits = (rawPhone || '').replace(/\s+/g, '').replace(/[^0-9+]/g, '')
   if (!digits) return ''
-  if (digits.startsWith('+') && !digits.startsWith('+20')) return digits
-  const stripped = digits.replace(/^\+?20/, '').replace(/^0+/, '')
-  return `+20${stripped}`
+  if (digits.startsWith('+')) return digits
+  const stripped = digits.replace(/^0+/, '')
+  if (stripped.startsWith('995') || stripped.startsWith('20')) {
+    return `+${stripped}`
+  }
+  return `+995${stripped}`
 }
 
 function generateOrderRef(id?: string) {
@@ -318,11 +327,11 @@ export async function processSellerStep2Action(payload: {
       process.env.NEXT_PUBLIC_SITE_URL ||
       'https://next-js-rtl-platform-structure.vercel.app'
 
-    const unitCountryCode = (payload.unitCountry || 'EG').trim().toUpperCase()
+    const unitCountryCode = (payload.unitCountry || 'GE').trim().toUpperCase()
     const userCountryCode = (
       payload.userCountry ||
       payload.unitCountry ||
-      'EG'
+      'GE'
     )
       .trim()
       .toUpperCase()
@@ -833,7 +842,7 @@ export async function saveSellProgress(
     }
 
     const payload: Record<string, any> = {
-      country: text(formData, 'country') || 'EG',
+      country: text(formData, 'country') || 'GE',
       developer_name: text(formData, 'developer_name') || null,
       project_name: text(formData, 'project_name') || null,
       area: text(formData, 'area') || null,
@@ -850,6 +859,7 @@ export async function saveSellProgress(
       installment_amount: number(formData, 'installment_amount'),
       installment_frequency: text(formData, 'installment_frequency') || null,
       contract_year: integer(formData, 'contract_year'),
+      years_left: integer(formData, 'years_left'),
       images: list(formData, 'image'),
     }
 
@@ -900,7 +910,7 @@ export async function submitSellRequest(
     const unitCountry = (
       text(formData, 'country') ||
       text(formData, 'country_code') ||
-      'EG'
+      'GE'
     ).toUpperCase()
     const customSubType = text(formData, 'submission_type') || 'new'
 
@@ -1079,11 +1089,11 @@ export async function processBuyerStep3Action(payload: {
       process.env.NEXT_PUBLIC_SITE_URL ||
       'https://next-js-rtl-platform-structure.vercel.app'
 
-    const targetCountry = (payload.country || 'EG').trim().toUpperCase()
+    const targetCountry = (payload.country || 'GE').trim().toUpperCase()
     const buyerResidenceCountry = (
       payload.userCountry ||
       payload.country ||
-      'EG'
+      'GE'
     )
       .trim()
       .toUpperCase()
@@ -1388,7 +1398,7 @@ export async function submitBuyRequest(
 
     const res = await processBuyerStep3Action({
       mode: 'register',
-      country: text(input, 'country_code') || text(input, 'country') || 'EG',
+      country: text(input, 'country_code') || text(input, 'country') || 'GE',
       available_cash: number(input, 'available_cash'),
       max_installment: number(input, 'max_installment'),
       payment_plan: text(input, 'payment_plan'),
@@ -1431,7 +1441,7 @@ export async function submitInvestorLead(formData: FormData) {
     const phone = String(formData.get('phone') || '').trim()
     const email = String(formData.get('email') || '').trim()
     const company = String(formData.get('company') || '').trim()
-    const country = String(formData.get('country') || 'EG').trim()
+    const country = String(formData.get('country') || 'GE').trim()
     const investor_type = String(formData.get('investor_type') || '').trim()
     const years_experience = String(
       formData.get('years_experience') || ''

@@ -692,11 +692,16 @@
       "statusApproved": "Approved ✓",
       "statusPending": "Received — Under Review",
       "emptySection": "No files uploaded in this section",
+      "mandatoryPublishTitle": "Uploading documents & passport is required to publish your unit",
+"mandatoryPublishDesc": "Units are only published to buyers after uploading unit photos and verification documents (Contract & Passport copy).",
+      
+      
       "sections": {
-        "contract": "Unit Contract",
-        "receipts": "Payment Receipts",
-        "statement": "Latest Developer Account Statement",
-        "national_id": "National ID / Passport"
+       "contract": "Unit Purchase Contract",
+  "receipts": "Payment Receipts",
+  "statement": "Developer Account Statement",
+  "passport": "Passport Copy",
+  "national_id": "Passport Copy"
       }
     },
     "favorites": {
@@ -808,6 +813,13 @@
       "matchedBuyersIncomplete": "— complete photos so we can recommend it to them",
       "matchedBuyersComplete": "— our team is recommending your unit to them now",
       "radarNotePrefix": "Platform radar automatically recommends your unit to buyers searching in",
+      "missingDocsTag": "Missing documents to publish",
+"uploadDocsBtn": "Upload Documents to Publish",
+"statusIncompleteDocsHeadline": "Please upload your unit documents (Contract & Passport) so we can verify and publish your unit",
+"statusIncompleteBothHeadline": "Please upload unit photos and documents (Contract & Passport) to publish your unit in the market",
+"searchMyUnitsPlaceholder": "Search your units by project or area...",
+"showOnly3UnitsBtn": "Show only 3 units",
+"showRemainingUnitsPrefix": "Show remaining units",
       "timelineTitle": "Unit Request Stages",
       "timelineSteps": [
         "Request Started",

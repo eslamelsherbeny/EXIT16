@@ -302,6 +302,7 @@ export default function AdminShell({
         </div>
 
         <div className="space-y-1.5 border-t border-white/10 p-3.5">
+          {/* قسم اللغات بالاسم الكامل الواضح (العربية / English / Русский / ქართული) */}
           <div className="mb-2 rounded-xl bg-white/5 p-2.5">
             <div className="mb-2 flex items-center justify-between px-1 text-[11px] font-bold text-white/75">
               <span className="flex items-center gap-1.5">
@@ -316,7 +317,7 @@ export default function AdminShell({
                 {SUPPORTED_LANGUAGES[locale].nativeName}
               </span>
             </div>
-            <div className="grid grid-cols-4 gap-1">
+            <div className="grid grid-cols-2 gap-1.5">
               {(Object.values(SUPPORTED_LANGUAGES) as LanguageConfig[]).map(
                 (lang) => (
                   <button
@@ -324,13 +325,13 @@ export default function AdminShell({
                     type="button"
                     disabled={isSwitchingLang}
                     onClick={() => handleSelectLanguage(lang.code)}
-                    className={`rounded-lg py-1.5 text-[10px] font-extrabold transition ${
+                    className={`rounded-lg px-2 py-1.5 text-[11px] font-extrabold transition ${
                       locale === lang.code
                         ? "bg-[#105C50] text-white shadow-2xs"
-                        : "bg-white/5 text-white/70 hover:bg-white/15 hover:text-white"
+                        : "bg-white/5 text-white/75 hover:bg-white/15 hover:text-white"
                     }`}
                   >
-                    {lang.shortCode}
+                    {lang.nativeName}
                   </button>
                 )
               )}
@@ -444,7 +445,7 @@ export default function AdminShell({
                     {SUPPORTED_LANGUAGES[locale].nativeName}
                   </span>
                 </div>
-                <div className="grid grid-cols-4 gap-1">
+                <div className="grid grid-cols-2 gap-1.5">
                   {(Object.values(SUPPORTED_LANGUAGES) as LanguageConfig[]).map(
                     (lang) => (
                       <button
@@ -455,13 +456,13 @@ export default function AdminShell({
                           handleSelectLanguage(lang.code)
                           setDrawerOpen(false)
                         }}
-                        className={`rounded-lg py-1.5 text-[10px] font-extrabold transition ${
+                        className={`rounded-lg px-2 py-1.5 text-[11px] font-extrabold transition ${
                           locale === lang.code
                             ? "bg-[#105C50] text-white shadow-2xs"
-                            : "bg-white/5 text-white/70 hover:bg-white/15 hover:text-white"
+                            : "bg-white/5 text-white/75 hover:bg-white/15 hover:text-white"
                         }`}
                       >
-                        {lang.shortCode}
+                        {lang.nativeName}
                       </button>
                     )
                   )}
@@ -499,7 +500,7 @@ export default function AdminShell({
         </div>
       )}
 
-      {/* 3. الهيدر العلوي (تم تكبير العنوان للموبايل ليكون واضحاً ومناسباً) */}
+      {/* 3. الهيدر العلوي */}
       <div className={isRtl ? "lg:mr-64" : "lg:ml-64"}>
         <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-2 border-b border-gray-200/80 bg-white/95 px-3.5 backdrop-blur-md sm:h-16 sm:px-6">
           <div className="flex min-w-0 items-center gap-2.5">

@@ -692,12 +692,15 @@
       "statusApproved": "تم القبول ✓",
       "statusPending": "وصل — قيد المراجعة",
       "emptySection": "مفيش ملفات مرفوعة في القسم ده",
-      "sections": {
-        "contract": "عقد الوحدة",
-        "receipts": "إيصالات السداد",
-        "statement": "آخر كشف حساب من المطور",
-        "national_id": "بطاقة الرقم القومي"
-      }
+     "mandatoryPublishTitle": "رفع المستندات وجواز السفر ضروري لنشر وحدتك في السوق",
+"mandatoryPublishDesc": "لا يتم عرض أو نشر أي وحدة أمام المشترين إلا بعد رفع صور الوحدة ومستندات الملكية (العقد وصورة جواز السفر) للتحقق منها.",
+"sections": {
+  "contract": "عقد الوحدة الابتدائي أو النهائي",
+  "receipts": "إيصالات السداد",
+  "statement": "كشف حساب المطور (Statement)",
+  "passport": "صورة جواز السفر (Passport)",
+  "national_id": "صورة جواز السفر (Passport)"
+}
     },
     "favorites": {
       "browseAll": "تصفح كل الفرص ←",
@@ -808,6 +811,13 @@
       "matchedBuyersIncomplete": "— كمّل الصور لنرشحها لهم",
       "matchedBuyersComplete": "— فريقنا يرشح وحدتك لهم الآن",
       "radarNotePrefix": "رادار المنصة يرشح وحدتك تلقائياً لأي مشتري يبحث في",
+      "missingDocsTag": "ينقصك رفع المستندات للنشر",
+"uploadDocsBtn": "رفع المستندات للنشر",
+"statusIncompleteDocsHeadline": "يرجى رفع مستندات الوحدة (العقد وجواز السفر) لتتم مراجعتها ونشرها في السوق",
+"statusIncompleteBothHeadline": "يرجى رفع صور الوحدة ومستنداتها (العقد وجواز السفر) لنشر وحدتك في السوق",
+"searchMyUnitsPlaceholder": "ابحث في وحداتك باسم المشروع أو المنطقة...",
+"showOnly3UnitsBtn": "عرض 3 وحدات فقط",
+"showRemainingUnitsPrefix": "عرض باقي وحداتي",
       "timelineTitle": "مراحل طلب الوحدة",
       "timelineSteps": [
         "بدأنا طلبك",

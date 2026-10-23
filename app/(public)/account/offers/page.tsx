@@ -10,7 +10,6 @@ import {
   Building2,
   Check,
   CheckCircle2,
-  Clock,
   ExternalLink,
   Flame,
   Handshake,
@@ -110,19 +109,35 @@ export default function OffersPage() {
     setBuys(res.buys)
     setSellerOffers(res.sellerOffers)
     setBuyerOffers(res.buyerOffers)
-    setSmartRecommendations(res.smartRecommendations)
+
+    // فلترة أي وحدات مكررة بنفس الاسم والمنطقة والسعر في الترشيحات
+    const seenKeys = new Set<string>()
+    const uniqueRecs = res.smartRecommendations.filter((item) => {
+      const signature = `${item.unit.project_name || ''}_${item.unit.area || ''}_${item.unit.paid_amount || 0}_${item.unit.unit_type || ''}`
+      if (!item.recommendedByAdmin && seenKeys.has(signature)) {
+        return false
+      }
+      seenKeys.add(signature)
+      return true
+    })
+
+    setSmartRecommendations(uniqueRecs)
 
     if (filterUnitId && res.sells.some((s) => s.id === filterUnitId)) {
       setRoleView('seller')
     } else if (applyUnitId) {
       setRoleView('buyer')
-      const targetRec = res.smartRecommendations.find(
-        (r) => r.unit.id === applyUnitId
-      )
+      const targetRec =
+        uniqueRecs.find((r) => r.unit.id === applyUnitId) ||
+        res.smartRecommendations.find((r) => r.unit.id === applyUnitId)
       if (targetRec) {
         openBuyerOfferModal(targetRec.unit)
       }
-    } else if (res.sells.length > 0) {
+    } else if (res.sells.length > 0 && res.buys.length === 0) {
+      setRoleView('seller')
+    } else if (res.buys.length > 0 && res.sells.length === 0) {
+      setRoleView('buyer')
+    } else if (res.sellerOffers.length > 0) {
       setRoleView('seller')
     } else {
       setRoleView('buyer')
@@ -146,11 +161,7 @@ export default function OffersPage() {
   function handleSubmitBuyerOffer() {
     if (!offerModalUnit) return
     setFeedback(null)
-    const guard = getUnitPricingGuardrails(offerModalUnit)
-    const finalAmount =
-      offerMode === 'full'
-        ? guard.requiredCash
-        : Number(customOfferCashStr.replace(/,/g, '')) || 0
+    const finalAmount = Number(customOfferCashStr.replace(/,/g, '')) || 0
 
     startTransition(async () => {
       const res = await submitBuyerOfferAction({
@@ -478,7 +489,7 @@ export default function OffersPage() {
                           </span>
                         </div>
 
-                        {/* المستشار المالي الذكي (مقارنة العرض بخسارة الإلغاء مع المطور) */}
+                        {/* المستشار المالي الذكي */}
                         <div className="rounded-2xl border border-sky-200 bg-sky-50/70 p-4">
                           <div className="flex items-center gap-1.5 text-[11px] font-extrabold text-sky-900">
                             <TrendingUp className="size-3.5 text-sky-700" />
@@ -486,7 +497,10 @@ export default function OffersPage() {
                           </div>
                           <p className="mt-1.5 text-[11.5px] leading-relaxed font-semibold text-sky-950">
                             {t.aiAdvisorSavedPrefix}{' '}
-                            <strong dir="ltr" className="font-black text-[#007a5a]">
+                            <strong
+                              dir="ltr"
+                              className="font-black text-[#007a5a]"
+                            >
                               {netSavedVsCancel.toLocaleString('en-US')} {cur}
                             </strong>{' '}
                             {t.aiAdvisorSavedSuffix}
@@ -892,14 +906,14 @@ export default function OffersPage() {
         )}
       </div>
 
-      {/* ==================== نافذة تقديم عرض الشراء المحكوم (للمشتري) ==================== */}
+      {/* ==================== نافذة تقديم عرض الشراء المرن والمحكوم (للمشتري) ==================== */}
       <Dialog
         open={Boolean(offerModalUnit)}
         onOpenChange={(open) => !open && !isPending && setOfferModalUnit(null)}
       >
         <DialogContent
           dir={dir}
-          className="w-[92vw] max-w-[440px] rounded-3xl p-5 text-start sm:p-6"
+          className="w-[92vw] max-w-[450px] rounded-3xl p-5 text-start sm:p-6"
         >
           {offerModalUnit &&
             (() => {
@@ -910,6 +924,11 @@ export default function OffersPage() {
                   country,
                 locale
               )
+              const typedAmount =
+                Number(customOfferCashStr.replace(/,/g, '')) || 0
+              const isFullPrice = typedAmount >= guard.requiredCash
+              const isTooLowFake =
+                typedAmount > 0 && typedAmount < guard.minAllowedOfferCash
 
               return (
                 <>
@@ -924,13 +943,12 @@ export default function OffersPage() {
                   </DialogHeader>
 
                   <div className="mt-3 space-y-4 text-xs">
-                    {/* اختيار السعر: قبول فوري بالسعر الموثق أو تفاوض محكوم (إذا كان البائع يسمح بالتفاوض) */}
-                    <div>
-                      <label className="mb-2 block font-extrabold text-[#0a1122]">
-                        1. {t.selectOfferTypeLabel}
-                      </label>
-
-                      <div className="space-y-2">
+                    {/* 1. حقل كتابة السعر المناسب للمشتري + زر وضع السعر الكامل */}
+                    <div className="rounded-2xl border border-gray-200 bg-gray-50/70 p-4">
+                      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                        <label className="font-extrabold text-[#0a1122]">
+                          1. {t.enterNegotiatedCashLabel} ({cur}):
+                        </label>
                         <button
                           type="button"
                           onClick={() => {
@@ -939,88 +957,60 @@ export default function OffersPage() {
                               guard.requiredCash.toLocaleString('en-US')
                             )
                           }}
-                          className={`flex w-full items-center justify-between rounded-2xl border p-3.5 text-start transition ${
-                            offerMode === 'full'
-                              ? 'border-2 border-[#007a5a] bg-[#eaf8f2]'
-                              : 'border-gray-200 bg-white'
-                          }`}
+                          className="rounded-lg bg-[#007a5a]/10 px-2.5 py-1 text-[10.5px] font-extrabold text-[#007a5a] transition hover:bg-[#007a5a] hover:text-white"
                         >
-                          <div>
-                            <span className="block font-extrabold text-[#0a1122]">
-                              ⚡ {t.fullPriceOptionTitle}
-                            </span>
-                            <span className="mt-0.5 block text-[11px] text-[#007a5a]">
-                              {t.fullPricePriorityHint}
-                            </span>
-                          </div>
-                          <strong
-                            dir="ltr"
-                            className="text-sm font-black text-[#007a5a]"
-                          >
-                            {guard.requiredCash.toLocaleString('en-US')} {cur}
-                          </strong>
+                          {t.fullPriceOptionTitle}:{' '}
+                          <span dir="ltr">
+                            {guard.requiredCash.toLocaleString('en-US')}
+                          </span>
                         </button>
-
-                        {guard.allowNegotiation ? (
-                          <button
-                            type="button"
-                            onClick={() => setOfferMode('negotiate')}
-                            className={`flex w-full items-center justify-between rounded-2xl border p-3.5 text-start transition ${
-                              offerMode === 'negotiate'
-                                ? 'border-2 border-amber-500 bg-amber-50/50'
-                                : 'border-gray-200 bg-white'
-                            }`}
-                          >
-                            <div>
-                              <span className="block font-extrabold text-[#0a1122]">
-                                💬 {t.negotiateOptionTitle}
-                              </span>
-                              <span className="mt-0.5 block text-[11px] text-amber-800">
-                                {t.minAllowedFloorLabel}:{' '}
-                                <strong dir="ltr">
-                                  {guard.minAllowedOfferCash.toLocaleString(
-                                    'en-US'
-                                  )}{' '}
-                                  {cur}
-                                </strong>
-                              </span>
-                            </div>
-                          </button>
-                        ) : (
-                          <p className="rounded-xl bg-gray-50 px-3 py-2 text-[11px] font-semibold text-gray-500">
-                            🔒 {t.nonNegotiableUnitNote}
-                          </p>
-                        )}
                       </div>
 
-                      {offerMode === 'negotiate' && guard.allowNegotiation && (
-                        <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50/60 p-3.5">
-                          <label className="mb-1.5 block font-bold text-[#0a1122]">
-                            {t.enterNegotiatedCashLabel} ({cur}):
-                          </label>
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            dir="ltr"
-                            value={customOfferCashStr}
-                            onChange={(e) => {
-                              const digits = e.target.value.replace(/\D/g, '')
-                              setCustomOfferCashStr(
-                                digits
-                                  ? Number(digits).toLocaleString('en-US')
-                                  : ''
-                              )
-                            }}
-                            className="h-11 w-full rounded-xl border border-amber-300 bg-white px-3.5 text-left text-sm font-black text-[#0a1122]"
-                          />
-                          <p className="mt-1.5 text-[10.5px] leading-relaxed font-semibold text-amber-900">
-                            ⚠️ {t.fomoNegotiationWarning}
-                          </p>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        dir="ltr"
+                        value={customOfferCashStr}
+                        onChange={(e) => {
+                          const digits = e.target.value.replace(/\D/g, '')
+                          const num = Number(digits) || 0
+                          setOfferMode(
+                            num >= guard.requiredCash ? 'full' : 'negotiate'
+                          )
+                          setCustomOfferCashStr(
+                            digits ? num.toLocaleString('en-US') : ''
+                          )
+                        }}
+                        className="h-12 w-full rounded-xl border border-gray-300 bg-white px-4 text-left text-base font-black text-[#0a1122] focus:border-[#007a5a] focus:outline-none"
+                      />
+
+                      {/* المؤشر الذكي الحي لتقييم سعر المشتري */}
+                      {isFullPrice ? (
+                        <div className="mt-2.5 flex items-start gap-2 rounded-xl border border-emerald-200 bg-[#eaf8f2] p-2.5 text-[11px] font-bold text-[#007a5a]">
+                          <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
+                          <span>{t.fullPricePriorityHint}</span>
+                        </div>
+                      ) : isTooLowFake ? (
+                        <div className="mt-2.5 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-2.5 text-[11px] font-bold text-red-700">
+                          <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+                          <span>
+                            {t.errBelowMinFloor}{' '}
+                            <strong dir="ltr">
+                              {guard.minAllowedOfferCash.toLocaleString('en-US')}{' '}
+                              {cur}
+                            </strong>
+                            .
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="mt-2.5 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-[11px] font-bold text-amber-900">
+                          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
+                          <span>{t.fomoNegotiationWarning}</span>
                         </div>
                       )}
                     </div>
 
-                    {/* 2. جاهزية الدفع (أزرار مغلقة لمنع أي شات نصي) */}
+                    {/* 2. جاهزية الدفع */}
                     <div>
                       <label className="mb-2 block font-extrabold text-[#0a1122]">
                         2. {t.buyerReadinessLabel}
@@ -1093,9 +1083,9 @@ export default function OffersPage() {
                     </Button>
                     <Button
                       type="button"
-                      disabled={isPending}
+                      disabled={isPending || isTooLowFake || typedAmount <= 0}
                       onClick={handleSubmitBuyerOffer}
-                      className="h-11 flex-1 rounded-xl bg-[#007a5a] text-xs font-extrabold text-white hover:bg-[#006248]"
+                      className="h-11 flex-1 rounded-xl bg-[#007a5a] text-xs font-extrabold text-white hover:bg-[#006248] disabled:opacity-50"
                     >
                       {isPending ? (
                         <Loader2 className="size-4 animate-spin" />

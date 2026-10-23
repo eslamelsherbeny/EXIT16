@@ -63,6 +63,86 @@ export type SmartMatchResult = {
   }
 }
 
+const DEFAULT_MATCH_TEXTS: Record<
+  string,
+  {
+    cashExact: string
+    cashNegotiableBridge: string
+    cashSlightlyHigher: string
+    instMatch: string
+    instHigher: string
+    areaMatch: string
+    areaDiff: string
+    typeMatch: string
+    typeDiff: string
+    roomsMatch: string
+    roomsDiff: string
+    buyerAskedRooms: string
+    deliveryDiff: string
+  }
+> = {
+  ar: {
+    cashExact: 'الكاش المطلوب في حدود سيولتك المتاحة',
+    cashNegotiableBridge: 'متوافق عبر التفاوض على الكاش',
+    cashSlightlyHigher: 'الكاش المطلوب أعلى قليلاً من سيولتك المحددة',
+    instMatch: 'القسط مناسب لقدرتك الشهرية',
+    instHigher: 'القسط أعلى من القسط المفضل لديك',
+    areaMatch: 'نفس المنطقة المطلوبة',
+    areaDiff: 'منطقة بديلة قريبة',
+    typeMatch: 'نفس نوع الوحدة',
+    typeDiff: 'نوع الوحدة',
+    roomsMatch: 'عدد الغرف مناسب',
+    roomsDiff: 'عدد الغرف',
+    buyerAskedRooms: 'طلبك',
+    deliveryDiff: 'حالة الاستلام',
+  },
+  en: {
+    cashExact: 'Required cash fits your available liquidity',
+    cashNegotiableBridge: 'Matches via cash negotiation',
+    cashSlightlyHigher: 'Required cash is slightly above your specified cash',
+    instMatch: 'Installment fits your monthly capacity',
+    instHigher: 'Installment is higher than your preferred limit',
+    areaMatch: 'Exact preferred area',
+    areaDiff: 'Alternative nearby area',
+    typeMatch: 'Exact unit type',
+    typeDiff: 'Unit type',
+    roomsMatch: 'Bedrooms count matches',
+    roomsDiff: 'Bedrooms',
+    buyerAskedRooms: 'requested',
+    deliveryDiff: 'Delivery status',
+  },
+  ru: {
+    cashExact: 'Требуемый кэш в рамках вашего бюджета',
+    cashNegotiableBridge: 'Подходит с учетом торга',
+    cashSlightlyHigher: 'Требуемый кэш немного выше указанного',
+    instMatch: 'Платеж по рассрочке подходит вам',
+    instHigher: 'Платеж выше желаемого лимита',
+    areaMatch: 'Желаемый район',
+    areaDiff: 'Соседний район',
+    typeMatch: 'Тип объекта совпадает',
+    typeDiff: 'Тип объекта',
+    roomsMatch: 'Количество комнат подходит',
+    roomsDiff: 'Комнат',
+    buyerAskedRooms: 'запрос',
+    deliveryDiff: 'Статус сдачи',
+  },
+  ka: {
+    cashExact: 'ქეში ჯდება თქვენს ბიუჯეტში',
+    cashNegotiableBridge: 'თავსებადია მოლაპარაკებით',
+    cashSlightlyHigher: 'მოთხოვნილი ქეში ოდნავ აღემატება ბიუჯეტს',
+    instMatch: 'განვადება შეესაბამება თქვენს ლიმიტს',
+    instHigher: 'განვადება აღემატება სასურველ ლიმიტს',
+    areaMatch: 'სასურველი უბანი',
+    areaDiff: 'მიმდებარე უბანი',
+    typeMatch: 'ობიექტის ტიპი ემთხვევა',
+    typeDiff: 'ობიექტის ტიპი',
+    roomsMatch: 'ოთახების რაოდენობა ემთხვევა',
+    roomsDiff: 'ოთახები',
+    buyerAskedRooms: 'მოთხოვნა',
+    deliveryDiff: 'ჩაბარების სტატუსი',
+  },
+}
+
 export function toMonthlyEquivalent(
   amount: number | null | undefined,
   freq?: string | null
@@ -100,26 +180,26 @@ export function cleanPreferredAreasList(
 
 export function getUnitPricingGuardrails(unit: MatchableUnit) {
   const requiredCash = Math.max(0, Number(unit.paid_amount) || 0)
-  const allowNegotiation = Boolean(unit.willing_to_discount)
   const rawSellerDiscount = Number(unit.discount_amount) || 0
 
-  if (!allowNegotiation || requiredCash <= 0) {
+  if (requiredCash <= 0) {
     return {
-      requiredCash,
-      allowNegotiation: false,
-      minAllowedOfferCash: requiredCash,
-      maxAllowedOfferCash: requiredCash,
+      requiredCash: 0,
+      allowNegotiation: true,
+      minAllowedOfferCash: 0,
+      maxAllowedOfferCash: 0,
       maxDiscountAmount: 0,
     }
   }
 
-  // إذا حدد البائع مبلغ خصم معين نلتزم به، وإلا فحد التفاوض الأقصى 10% لحماية البائع من بخس السعر
+  // نسمح للمشتري بتقديم عرضه المناسب بشرط ألا يكون رقماً وهمياً (الحد الأدنى المنطقي 75% من المدفوع أو خصم البائع المحدد)
+  const defaultMaxDiscount = Math.round(requiredCash * 0.25)
   const maxDiscountAmount =
-    rawSellerDiscount > 0 && rawSellerDiscount < requiredCash * 0.35
+    rawSellerDiscount > defaultMaxDiscount
       ? rawSellerDiscount
-      : Math.round(requiredCash * 0.1)
+      : defaultMaxDiscount
 
-  const minAllowedOfferCash = Math.max(0, requiredCash - maxDiscountAmount)
+  const minAllowedOfferCash = Math.max(1, requiredCash - maxDiscountAmount)
 
   return {
     requiredCash,
@@ -133,22 +213,28 @@ export function getUnitPricingGuardrails(unit: MatchableUnit) {
 export function calculateSmartMatch(
   unit: MatchableUnit,
   buyer: MatchableBuyer,
-  labels?: {
-    cashExact?: string
-    cashNegotiableBridge?: string
-    cashSlightlyHigher?: string
-    instMatch?: string
-    instHigher?: string
-    areaMatch?: string
-    areaDiff?: string
-    typeMatch?: string
-    typeDiff?: string
-    roomsMatch?: string
-    roomsDiff?: string
-    deliveryMatch?: string
-    deliveryDiff?: string
-  }
+  customLabels?: Record<string, string | undefined>,
+  locale: string = 'ar'
 ): SmartMatchResult {
+  const fb = DEFAULT_MATCH_TEXTS[locale] || DEFAULT_MATCH_TEXTS.ar
+  const L = {
+    cashExact: customLabels?.cashExact || fb.cashExact,
+    cashNegotiableBridge:
+      customLabels?.cashNegotiableBridge || fb.cashNegotiableBridge,
+    cashSlightlyHigher:
+      customLabels?.cashSlightlyHigher || fb.cashSlightlyHigher,
+    instMatch: customLabels?.instMatch || fb.instMatch,
+    instHigher: customLabels?.instHigher || fb.instHigher,
+    areaMatch: customLabels?.areaMatch || fb.areaMatch,
+    areaDiff: customLabels?.areaDiff || fb.areaDiff,
+    typeMatch: customLabels?.typeMatch || fb.typeMatch,
+    typeDiff: customLabels?.typeDiff || fb.typeDiff,
+    roomsMatch: customLabels?.roomsMatch || fb.roomsMatch,
+    roomsDiff: customLabels?.roomsDiff || fb.roomsDiff,
+    buyerAskedRooms: fb.buyerAskedRooms,
+    deliveryDiff: customLabels?.deliveryDiff || fb.deliveryDiff,
+  }
+
   const unitCountry = (unit.country_code || unit.country || 'EG').toUpperCase()
   const buyerCountry = (
     buyer.country_code ||
@@ -185,25 +271,20 @@ export function calculateSmartMatch(
 
   // 1. توافق الكاش والسيولة (40 نقطة)
   if (buyerCash <= 0 || unitCash <= 0) {
-    score += 30
+    score += 32
   } else if (unitCash <= buyerCash) {
     score += 40
-    matches.push(labels?.cashExact || 'cash_match')
-  } else if (
-    guardrails.allowNegotiation &&
-    guardrails.minAllowedOfferCash <= buyerCash
-  ) {
-    score += 35
-    isNegotiableBridge = true
-    matches.push(labels?.cashNegotiableBridge || 'cash_negotiable_bridge')
+    matches.push(L.cashExact)
   } else if (unitCash <= buyerCash * 1.15) {
-    score += 26
-    differences.push(labels?.cashSlightlyHigher || 'cash_slightly_higher')
+    score += 34
+    isNegotiableBridge = true
+    matches.push(L.cashNegotiableBridge)
   } else if (unitCash <= buyerCash * 1.3) {
-    score += 14
-    differences.push(labels?.cashSlightlyHigher || 'cash_higher')
+    score += 22
+    differences.push(L.cashSlightlyHigher)
   } else {
-    differences.push(labels?.cashSlightlyHigher || 'cash_higher')
+    score += 10
+    differences.push(L.cashSlightlyHigher)
   }
 
   // 2. توافق القسط الشهري المعادل (25 نقطة)
@@ -217,17 +298,17 @@ export function calculateSmartMatch(
   )
 
   if (buyerMonthly <= 0 || unitMonthly <= 0) {
-    score += 22
-    matches.push(labels?.instMatch || 'inst_match')
+    score += 23
+    matches.push(L.instMatch)
   } else if (unitMonthly <= buyerMonthly * 1.05) {
     score += 25
-    matches.push(labels?.instMatch || 'inst_match')
+    matches.push(L.instMatch)
   } else if (unitMonthly <= buyerMonthly * 1.25) {
-    score += 15
-    differences.push(labels?.instHigher || 'inst_higher')
+    score += 16
+    differences.push(L.instHigher)
   } else {
-    score += 5
-    differences.push(labels?.instHigher || 'inst_higher')
+    score += 8
+    differences.push(L.instHigher)
   }
 
   // 3. توافق المنطقة (20 نقطة)
@@ -235,7 +316,7 @@ export function calculateSmartMatch(
   const buyerAreas = cleanPreferredAreasList(buyer.preferred_areas)
 
   if (!unitArea || buyerAreas.length === 0) {
-    score += 15
+    score += 16
   } else {
     const areaMatched = buyerAreas.some(
       (a) =>
@@ -244,20 +325,20 @@ export function calculateSmartMatch(
     )
     if (areaMatched) {
       score += 20
-      matches.push(`${labels?.areaMatch || 'area_match'}: ${unitArea}`)
+      matches.push(`${L.areaMatch}: ${unitArea}`)
     } else {
-      score += 6
-      differences.push(`${labels?.areaDiff || 'area_diff'}: ${unitArea}`)
+      score += 9
+      differences.push(`${L.areaDiff}: ${unitArea}`)
     }
   }
 
-  // 4. توافق النوع وعدد الغرف والاستلام (15 نقطة)
+  // 4. توافق النوع وعدد الغرف والاستلام (15 نقطة) — بدون إظهار 0 أو شرطة فارغة أبداً!
   const unitType = String(unit.unit_type || '').trim()
   const buyerTypes = Array.isArray(buyer.unit_types) ? buyer.unit_types : []
 
-  if (
-    !unitType ||
-    buyerTypes.length === 0 ||
+  if (!unitType || buyerTypes.length === 0) {
+    score += 6
+  } else if (
     buyerTypes.some(
       (tp) =>
         unitType.toLowerCase().includes(tp.toLowerCase()) ||
@@ -265,45 +346,49 @@ export function calculateSmartMatch(
     )
   ) {
     score += 6
-    if (unitType)
-      matches.push(`${labels?.typeMatch || 'type_match'}: ${unitType}`)
+    matches.push(`${L.typeMatch}: ${unitType}`)
   } else {
-    differences.push(`${labels?.typeDiff || 'type_diff'}: ${unitType}`)
+    score += 2
+    differences.push(`${L.typeDiff}: ${unitType}`)
   }
 
   const unitRooms = Number(unit.rooms) || 0
   const buyerMinRooms = Number(buyer.min_rooms) || 0
-  if (buyerMinRooms <= 0 || unitRooms >= buyerMinRooms) {
+  if (unitRooms <= 0 || buyerMinRooms <= 0) {
     score += 5
-    if (unitRooms > 0) {
-      matches.push(`${labels?.roomsMatch || 'rooms_match'}: ${unitRooms}`)
-    }
+    if (unitRooms > 0) matches.push(`${L.roomsDiff}: ${unitRooms}`)
+  } else if (unitRooms >= buyerMinRooms) {
+    score += 5
+    matches.push(`${L.roomsDiff}: ${unitRooms}`)
   } else {
+    score += 2
     differences.push(
-      `${labels?.roomsDiff || 'rooms_diff'}: ${unitRooms} (${buyerMinRooms}+)`
+      `${L.roomsDiff}: ${unitRooms} (${L.buyerAskedRooms} ${buyerMinRooms}+)`
     )
   }
 
   const unitDel = String(unit.delivery_status || '').trim()
   const buyerDel = String(buyer.delivery_status || '').trim()
-  const unitIsReady =
-    unitDel.includes('جاهز') ||
-    unitDel.includes('فوري') ||
-    unitDel.toLowerCase().includes('ready')
-  const buyerWantsReady =
-    buyerDel.includes('جاهز') ||
-    buyerDel.includes('فوري') ||
-    buyerDel.toLowerCase().includes('ready')
-
-  if (!buyerDel || buyerDel.includes('الاتنين') || unitIsReady === buyerWantsReady) {
+  if (!unitDel || !buyerDel) {
     score += 4
   } else {
-    differences.push(
-      `${labels?.deliveryDiff || 'delivery_diff'}: ${unitDel || '—'}`
-    )
+    const unitIsReady =
+      unitDel.includes('جاهز') ||
+      unitDel.includes('فوري') ||
+      unitDel.toLowerCase().includes('ready')
+    const buyerWantsReady =
+      buyerDel.includes('جاهز') ||
+      buyerDel.includes('فوري') ||
+      buyerDel.toLowerCase().includes('ready')
+
+    if (buyerDel.includes('الاتنين') || unitIsReady === buyerWantsReady) {
+      score += 4
+    } else {
+      differences.push(`${L.deliveryDiff}: ${unitDel}`)
+    }
   }
 
-  const finalScore = Math.max(15, Math.min(99, Math.round(score)))
+  const finalScore = Math.max(20, Math.min(99, Math.round(score)))
 
   return {
     score: finalScore,

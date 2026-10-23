@@ -117,6 +117,69 @@ function getRemainingDaysBeforePurge(lastEditIso?: string | null) {
   return Math.max(1, Math.min(7, diffDays))
 }
 
+const SM_FALLBACK: Record<string, Record<string, string>> = {
+  ar: {
+    matchedBuyersShort: "مشترين متوافقين",
+    unitMatchedBuyersTitle: "المشترون المتوافقون مع وحدة",
+    sendAllRecsBtn: "إرسال ترشيح للكل",
+    sentAllDoneBtn: "✓ تم الإرسال للكل",
+    sendRecToBuyerBtn: "إرسال الوحدة كترشيح للمشتري",
+    sentRecDoneBtn: "✓ تم إرسال الترشيح للمشتري",
+    createOfficialOfferBtn: "تحويل لعرض شراء رسمي للمالك",
+    sentOfferDoneBtn: "✓ تم إرسال العرض للمالك",
+    sendingNow: "جاري الإرسال...",
+    noMatchesFound: "لا توجد تطابقات تتجاوز 60% حالياً في نفس الدولة.",
+    recSentSuccess: "تم إرسال الوحدة كترشيح في حساب المشتري وإشعاره بنجاح!",
+    bulkRecsSentSuccess: "تم إرسال الوحدة كترشيح لجميع المشترين المتوافقين",
+    officialOfferSentSuccess: "تم تسجيل عرض الشراء الرسمي وإرساله للبائع بنجاح!",
+  },
+  en: {
+    matchedBuyersShort: "Matched Buyers",
+    unitMatchedBuyersTitle: "AI-Matched Buyers for Unit",
+    sendAllRecsBtn: "Recommend to All",
+    sentAllDoneBtn: "✓ Sent to All",
+    sendRecToBuyerBtn: "Send Unit to Buyer's Account",
+    sentRecDoneBtn: "✓ Sent to Buyer",
+    createOfficialOfferBtn: "Create Official Offer to Seller",
+    sentOfferDoneBtn: "✓ Offer Sent to Seller",
+    sendingNow: "Sending...",
+    noMatchesFound: "No matches above 60% found in the same country.",
+    recSentSuccess: "Unit sent as a smart recommendation to the buyer!",
+    bulkRecsSentSuccess: "Unit recommended to all matched buyers",
+    officialOfferSentSuccess: "Official purchase offer sent to seller!",
+  },
+  ru: {
+    matchedBuyersShort: "подходящих покуп.",
+    unitMatchedBuyersTitle: "Подходящие покупатели для объекта",
+    sendAllRecsBtn: "Отправить всем",
+    sentAllDoneBtn: "✓ Отправлено всем",
+    sendRecToBuyerBtn: "Отправить объект покупателю",
+    sentRecDoneBtn: "✓ Отправлено покупателю",
+    createOfficialOfferBtn: "Создать оффер продавцу",
+    sentOfferDoneBtn: "✓ Оффер отправлен",
+    sendingNow: "Отправка...",
+    noMatchesFound: "Совпадений свыше 60% пока нет.",
+    recSentSuccess: "Объект отправлен в рекомендации покупателю!",
+    bulkRecsSentSuccess: "Рекомендация отправлена всем покупателям",
+    officialOfferSentSuccess: "Официальное предложение отправлено продавцу!",
+  },
+  ka: {
+    matchedBuyersShort: "შესაბამისი მყიდველი",
+    unitMatchedBuyersTitle: "შესაბამისი მყიდველები ობიექტისთვის",
+    sendAllRecsBtn: "ყველასთან გაგზავნა",
+    sentAllDoneBtn: "✓ გაიგზავნა ყველასთან",
+    sendRecToBuyerBtn: "ობიექტის გაგზავნა მყიდველთან",
+    sentRecDoneBtn: "✓ გაეგზავნა მყიდველს",
+    createOfficialOfferBtn: "ოფიციალური ოფერი გამყიდველს",
+    sentOfferDoneBtn: "✓ ოფერი გაიგზავნა",
+    sendingNow: "იგზავნება...",
+    noMatchesFound: "60%-ზე მეტი თანხვედრა ვერ მოიძებნა.",
+    recSentSuccess: "ობიექტი გაეგზავნა მყიდველს!",
+    bulkRecsSentSuccess: "გაეგზავნა ყველა შესაბამის მყიდველს",
+    officialOfferSentSuccess: "ოფიციალური შეთავაზება გაეგზავნა გამყიდველს!",
+  },
+}
+
 type ConfirmPropertyAction =
   | {
       type: "status"
@@ -154,35 +217,21 @@ export default function PropertiesTable({
   const { t: dict, locale, dir } = useTranslation()
   const t = dict.admin.propertiesAdmin
   const leadsPrompts = dict.admin.leads
-  const sm = (dict.admin as Record<string, any>).smartMatch || {}
+  const rawSm = (dict.admin as Record<string, any>).smartMatch || {}
+  const fbSm = SM_FALLBACK[locale] || SM_FALLBACK.ar
+  const sm = { ...fbSm, ...rawSm }
   const oDict = (dict.accountPages as Record<string, any>)?.offers || {}
-
-  const matchLabels = {
-    cashExact: oDict.matchCashExact,
-    cashNegotiableBridge: oDict.matchCashBridge,
-    cashSlightlyHigher: oDict.diffCashHigher,
-    instMatch: oDict.matchInst,
-    instHigher: oDict.diffInstHigher,
-    areaMatch: oDict.matchArea,
-    areaDiff: oDict.diffArea,
-    typeMatch: oDict.matchType,
-    typeDiff: oDict.diffType,
-    roomsMatch: oDict.matchRooms,
-    roomsDiff: oDict.diffRooms,
-    deliveryDiff: oDict.diffDelivery,
-  }
 
   function getMatchedBuyersForUnit(unit: SellRequest) {
     if (!buyers || buyers.length === 0) return []
-    const results = buyers
+    return buyers
       .filter((b) => !b.user_id || b.user_id !== unit.user_id)
       .map((buyer) => ({
         buyer,
-        match: calculateSmartMatch(unit, buyer, matchLabels),
+        match: calculateSmartMatch(unit, buyer, undefined, locale),
       }))
       .filter((item) => item.match.score >= 60)
       .sort((a, b) => b.match.score - a.match.score)
-    return results
   }
 
   const adminCountries = [
@@ -300,6 +349,17 @@ export default function PropertiesTable({
   )
   const [smartMatchProperty, setSmartMatchProperty] =
     useState<SellRequest | null>(null)
+
+  // حالات التحميل والتأكيد الفوري لكل زر داخل نافذة التوافق الذكي
+  const [loadingTaskKey, setLoadingTaskKey] = useState<string | null>(null)
+  const [sentRecKeys, setSentRecKeys] = useState<Record<string, boolean>>({})
+  const [sentOfferKeys, setSentOfferKeys] = useState<Record<string, boolean>>(
+    {}
+  )
+  const [sentBulkUnits, setSentBulkUnits] = useState<Record<string, boolean>>(
+    {}
+  )
+
   const [confirmAction, setConfirmAction] =
     useState<ConfirmPropertyAction | null>(null)
   const [activePropertyId, setActivePropertyId] = useState<string | null>(null)
@@ -362,28 +422,42 @@ export default function PropertiesTable({
   }
 
   function handleSendSingleRec(propertyId: string, leadId: string) {
+    const key = `rec_${propertyId}_${leadId}`
+    setLoadingTaskKey(key)
     startTransition(async () => {
-      const res = await adminSendRecommendationAction({ propertyId, leadId })
-      if (res.success) {
-        setNotice({ text: sm.recSentSuccess })
-        router.refresh()
-      } else {
-        setNotice({ text: res.error || t.loadError, isError: true })
+      try {
+        const res = await adminSendRecommendationAction({ propertyId, leadId })
+        if (res.success) {
+          setSentRecKeys((prev) => ({ ...prev, [key]: true }))
+          setNotice({ text: sm.recSentSuccess })
+          router.refresh()
+        } else {
+          setNotice({ text: res.error || t.loadError, isError: true })
+        }
+      } finally {
+        setLoadingTaskKey(null)
       }
     })
   }
 
   function handleSendBulkRecs(propertyId: string) {
+    const key = `bulk_${propertyId}`
+    setLoadingTaskKey(key)
     startTransition(async () => {
-      const res = await adminSendBulkRecommendationsAction({
-        propertyId,
-        minScore: 65,
-      })
-      if (res.success) {
-        setNotice({ text: `${sm.bulkRecsSentSuccess} (${res.sentCount})` })
-        router.refresh()
-      } else {
-        setNotice({ text: res.error || t.loadError, isError: true })
+      try {
+        const res = await adminSendBulkRecommendationsAction({
+          propertyId,
+          minScore: 60,
+        })
+        if (res.success) {
+          setSentBulkUnits((prev) => ({ ...prev, [propertyId]: true }))
+          setNotice({ text: `${sm.bulkRecsSentSuccess} (${res.sentCount})` })
+          router.refresh()
+        } else {
+          setNotice({ text: res.error || t.loadError, isError: true })
+        }
+      } finally {
+        setLoadingTaskKey(null)
       }
     })
   }
@@ -392,6 +466,8 @@ export default function PropertiesTable({
     property: SellRequest,
     buyer: MatchableBuyer
   ) {
+    const key = `offer_${property.id}_${buyer.id}`
+    setLoadingTaskKey(key)
     const offeredCash =
       Math.min(
         Number(property.paid_amount) || 0,
@@ -403,18 +479,22 @@ export default function PropertiesTable({
       0
 
     startTransition(async () => {
-      const res = await adminCreateOfficialOfferAction({
-        propertyId: property.id,
-        leadId: buyer.id,
-        offeredCash,
-        paymentReadiness: "1_week",
-      })
-      if (res.success) {
-        setNotice({ text: sm.officialOfferSentSuccess })
-        setSmartMatchProperty(null)
-        router.refresh()
-      } else {
-        setNotice({ text: res.error || t.loadError, isError: true })
+      try {
+        const res = await adminCreateOfficialOfferAction({
+          propertyId: property.id,
+          leadId: buyer.id,
+          offeredCash,
+          paymentReadiness: "1_week",
+        })
+        if (res.success) {
+          setSentOfferKeys((prev) => ({ ...prev, [key]: true }))
+          setNotice({ text: sm.officialOfferSentSuccess })
+          router.refresh()
+        } else {
+          setNotice({ text: res.error || t.loadError, isError: true })
+        }
+      } finally {
+        setLoadingTaskKey(null)
       }
     })
   }
@@ -611,10 +691,11 @@ export default function PropertiesTable({
           <button
             type="button"
             onClick={() => setSmartMatchProperty(property)}
-            className="inline-flex items-center gap-1 rounded-md border border-teal-300 bg-teal-50 px-2 py-0.5 text-[10px] font-extrabold text-[#105C50] transition hover:bg-teal-100"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-teal-400 bg-teal-50 px-2.5 py-1 text-[10.5px] font-extrabold text-[#105C50] shadow-2xs transition hover:bg-[#105C50] hover:text-white"
           >
+            <span>🎯</span>
             <span>
-              🎯 {matchedBuyers.length} {sm.matchedBuyersShort} ({topScore}%)
+              {matchedBuyers.length} {sm.matchedBuyersShort} ({topScore}%)
             </span>
           </button>
         )}
@@ -1579,14 +1660,14 @@ export default function PropertiesTable({
         </table>
       </div>
 
-      {/* ==================== 3. نافذة التوافق الذكي للمشترين المطابقين للوحدة (AI Smart Matcher Modal) ==================== */}
+      {/* ==================== 3. نافذة التوافق الذكي للمشترين المطابقين للوحدة (واضحة بالكامل مع Loading وعلامة تم الإرسال) ==================== */}
       <Dialog
         open={Boolean(smartMatchProperty)}
         onOpenChange={(open) => !open && setSmartMatchProperty(null)}
       >
         <DialogContent
           dir={dir}
-          className="max-h-[88vh] w-[94vw] max-w-[560px] overflow-y-auto rounded-2xl p-5 text-start sm:max-w-xl"
+          className="max-h-[88vh] w-[94vw] max-w-[580px] overflow-y-auto rounded-2xl p-5 text-start sm:max-w-xl"
         >
           {smartMatchProperty &&
             (() => {
@@ -1594,33 +1675,54 @@ export default function PropertiesTable({
               const unitCur = getUnitCurrency(
                 getPropertyCountryCode(smartMatchProperty)
               )
+              const bulkKey = `bulk_${smartMatchProperty.id}`
+              const isBulkLoading = loadingTaskKey === bulkKey
+              const isBulkDone = Boolean(sentBulkUnits[smartMatchProperty.id])
 
               return (
                 <>
-                  <DialogHeader className="text-start">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
+                  <DialogHeader className="border-b border-gray-100 pb-3 text-start">
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
                       <DialogTitle className="text-sm font-black text-[#0a1122] sm:text-base">
                         🎯 {sm.unitMatchedBuyersTitle}:{" "}
-                        {smartMatchProperty.project_name ||
-                          t.table.unspecifiedProject}
+                        <span className="text-[#105C50]">
+                          {smartMatchProperty.project_name ||
+                            t.table.unspecifiedProject}
+                        </span>
                       </DialogTitle>
+
                       {matchedList.length > 0 && (
                         <Button
                           size="sm"
-                          disabled={pending}
+                          disabled={pending || isBulkDone}
                           onClick={() =>
                             handleSendBulkRecs(smartMatchProperty.id)
                           }
-                          className="h-8 rounded-xl bg-[#105C50] px-3 text-xs font-extrabold text-white hover:bg-[#0c483f]"
+                          className={`h-9 rounded-xl px-3.5 text-xs font-extrabold text-white ${
+                            isBulkDone
+                              ? "bg-emerald-600"
+                              : "bg-[#105C50] hover:bg-[#0c483f]"
+                          }`}
                         >
-                          <Send className="me-1.5 size-3.5" />
-                          <span>
-                            {sm.sendAllRecsBtn} ({matchedList.length})
-                          </span>
+                          {isBulkLoading ? (
+                            <>
+                              <Loader2 className="me-1.5 size-3.5 animate-spin" />
+                              <span>{sm.sendingNow}</span>
+                            </>
+                          ) : isBulkDone ? (
+                            <span>{sm.sentAllDoneBtn}</span>
+                          ) : (
+                            <>
+                              <Send className="me-1.5 size-3.5" />
+                              <span>
+                                {sm.sendAllRecsBtn} ({matchedList.length})
+                              </span>
+                            </>
+                          )}
                         </Button>
                       )}
                     </div>
-                    <DialogDescription className="text-start text-xs text-gray-500">
+                    <DialogDescription className="mt-1 text-start text-xs text-gray-500">
                       {t.table.colCash}:{" "}
                       <strong dir="ltr" className="text-[#105C50]">
                         {Number(
@@ -1644,25 +1746,33 @@ export default function PropertiesTable({
                         ).toLocaleString("en-US")
                         const bWa = `${leadsPrompts.waUnitLeadPrefix} ${buyer.name || ""}، ${leadsPrompts.waUnitLeadMiddle} (${smartMatchProperty.project_name || ""} - ${smartMatchProperty.area || ""}) — ${match.score}%`
 
+                        const recKey = `rec_${smartMatchProperty.id}_${buyer.id}`
+                        const offerKey = `offer_${smartMatchProperty.id}_${buyer.id}`
+                        const isRecLoading = loadingTaskKey === recKey
+                        const isOfferLoading = loadingTaskKey === offerKey
+                        const isRecDone =
+                          Boolean(sentRecKeys[recKey]) || isBulkDone
+                        const isOfferDone = Boolean(sentOfferKeys[offerKey])
+
                         return (
                           <div
                             key={buyer.id}
-                            className="rounded-xl border border-gray-200 bg-gray-50/70 p-3.5 text-xs"
+                            className="rounded-xl border border-gray-200 bg-gray-50/80 p-4 text-xs shadow-2xs"
                           >
                             <div className="flex flex-wrap items-center justify-between gap-2">
                               <div>
-                                <span className="font-extrabold text-[#0a1122]">
+                                <span className="text-sm font-extrabold text-[#0a1122]">
                                   {buyer.name}
                                 </span>
                                 <span
                                   dir="ltr"
-                                  className="ms-2 font-mono text-[11px] text-gray-500"
+                                  className="ms-2 font-mono text-[11px] font-bold text-gray-500"
                                 >
                                   {buyer.phone}
                                 </span>
                               </div>
                               <span
-                                className={`rounded-full px-2.5 py-0.5 text-[11px] font-black ${
+                                className={`rounded-full px-3 py-1 text-[11px] font-black ${
                                   match.score >= 85
                                     ? "bg-[#105C50] text-white"
                                     : "bg-emerald-100 text-[#105C50]"
@@ -1672,17 +1782,17 @@ export default function PropertiesTable({
                               </span>
                             </div>
 
-                            <p className="mt-1 text-[11px] font-bold text-[#105C50]">
-                              {leadsPrompts.cashShort}:{" "}
+                            <p className="mt-1.5 text-xs font-extrabold text-[#105C50]">
+                              {leadsPrompts.cashShort}{" "}
                               <span dir="ltr">{bCash}</span> {unitCur}
                             </p>
 
                             {match.matches.length > 0 && (
-                              <div className="mt-2 flex flex-wrap gap-1">
+                              <div className="mt-2.5 flex flex-wrap gap-1.5">
                                 {match.matches.map((mStr) => (
                                   <span
                                     key={mStr}
-                                    className="rounded bg-emerald-100/80 px-2 py-0.5 text-[10px] font-bold text-[#105C50]"
+                                    className="rounded-lg bg-emerald-100/90 px-2.5 py-1 text-[10.5px] font-bold text-[#105C50]"
                                   >
                                     ✓ {mStr}
                                   </span>
@@ -1691,11 +1801,11 @@ export default function PropertiesTable({
                             )}
 
                             {match.differences.length > 0 && (
-                              <div className="mt-1.5 flex flex-wrap gap-1">
+                              <div className="mt-2 flex flex-wrap gap-1.5">
                                 {match.differences.map((dStr) => (
                                   <span
                                     key={dStr}
-                                    className="rounded bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-900"
+                                    className="rounded-lg border border-amber-200 bg-amber-100/80 px-2.5 py-1 text-[10.5px] font-bold text-amber-900"
                                   >
                                     ⚠️ {dStr}
                                   </span>
@@ -1703,35 +1813,65 @@ export default function PropertiesTable({
                               </div>
                             )}
 
-                            <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-gray-200/80 pt-2.5">
+                            <div className="mt-3.5 flex flex-wrap items-center gap-2 border-t border-gray-200/80 pt-3">
                               <button
                                 type="button"
-                                disabled={pending}
+                                disabled={pending || isRecDone}
                                 onClick={() =>
                                   handleSendSingleRec(
                                     smartMatchProperty.id,
                                     buyer.id
                                   )
                                 }
-                                className="inline-flex h-8 flex-1 items-center justify-center gap-1 rounded-lg bg-[#0a1122] px-2.5 text-[11px] font-bold text-white hover:bg-[#16223f]"
+                                className={`inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-extrabold text-white transition ${
+                                  isRecDone
+                                    ? "bg-emerald-600"
+                                    : "bg-[#0a1122] hover:bg-[#16223f]"
+                                }`}
                               >
-                                <Send className="size-3" />
-                                <span>{sm.sendRecToBuyerBtn}</span>
+                                {isRecLoading ? (
+                                  <>
+                                    <Loader2 className="size-3.5 animate-spin" />
+                                    <span>{sm.sendingNow}</span>
+                                  </>
+                                ) : isRecDone ? (
+                                  <span>{sm.sentRecDoneBtn}</span>
+                                ) : (
+                                  <>
+                                    <Send className="size-3.5 shrink-0" />
+                                    <span>{sm.sendRecToBuyerBtn}</span>
+                                  </>
+                                )}
                               </button>
 
                               <button
                                 type="button"
-                                disabled={pending}
+                                disabled={pending || isOfferDone}
                                 onClick={() =>
                                   handleCreateOfficialOfferFromAdmin(
                                     smartMatchProperty,
                                     buyer
                                   )
                                 }
-                                className="inline-flex h-8 flex-1 items-center justify-center gap-1 rounded-lg bg-[#105C50] px-2.5 text-[11px] font-bold text-white hover:bg-[#0c483f]"
+                                className={`inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-extrabold text-white transition ${
+                                  isOfferDone
+                                    ? "bg-emerald-700"
+                                    : "bg-[#105C50] hover:bg-[#0c483f]"
+                                }`}
                               >
-                                <Wallet className="size-3" />
-                                <span>{sm.createOfficialOfferBtn}</span>
+                                {isOfferLoading ? (
+                                  <>
+                                    <Loader2 className="size-3.5 animate-spin" />
+                                    <span>{sm.sendingNow}</span>
+                                  </>
+                                ) : isOfferDone ? (
+                                  <span>{sm.sentOfferDoneBtn}</span>
+                                ) : (
+                                  <>
+                                    <Wallet className="size-3.5 shrink-0" />
+                                    <span>{sm.createOfficialOfferBtn}</span>
+                                  </>
+                                )}
                               </button>
 
                               <a
@@ -1739,9 +1879,10 @@ export default function PropertiesTable({
                                 href={`https://wa.me/${String(buyer.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(bWa)}`}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="inline-flex h-8 items-center justify-center rounded-lg bg-[#25D366] px-2.5 text-white"
+                                className="inline-flex h-9 items-center justify-center gap-1 rounded-xl bg-[#25D366] px-3 text-xs font-extrabold text-white hover:opacity-90"
                               >
                                 <MessageCircle className="size-3.5" />
+                                <span>{leadsPrompts.whatsappBtn}</span>
                               </a>
                             </div>
                           </div>

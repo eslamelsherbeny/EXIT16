@@ -95,6 +95,69 @@ function deriveShortUnitCode(id: string) {
   return `U-${String(num).padStart(5, "0")}`
 }
 
+const LEAD_SM_FALLBACK: Record<string, Record<string, string>> = {
+  ar: {
+    matchedUnitsShort: "وحدات مطابقة",
+    buyerMatchedUnitsTitle: "الوحدات المطابقة لطلب المشتري",
+    sendAllToBuyerBtn: "إرسال كل الوحدات للمشتري",
+    sentAllToBuyerDone: "✓ تم إرسال الكل للمشتري",
+    sendRecToBuyerBtn: "إرسال الوحدة كترشيح للمشتري",
+    sentRecDoneBtn: "✓ تم إرسال الترشيح",
+    createOfficialOfferBtn: "تحويل لعرض شراء رسمي للمالك",
+    sentOfferDoneBtn: "✓ تم إرسال العرض للمالك",
+    viewUnitBtn: "معاينة الوحدة",
+    sendingNow: "جاري الإرسال...",
+    noMatchesFound: "لا توجد وحدات مطابقة تتجاوز 60% حالياً في نفس الدولة.",
+    recSentSuccess: "تم إرسال الوحدة كترشيح في حساب المشتري بنجاح!",
+    officialOfferSentSuccess: "تم تسجيل عرض الشراء الرسمي وإرساله للمالك بنجاح!",
+  },
+  en: {
+    matchedUnitsShort: "Matched Units",
+    buyerMatchedUnitsTitle: "AI-Matched Units for Buyer",
+    sendAllToBuyerBtn: "Send All Units to Buyer",
+    sentAllToBuyerDone: "✓ Sent All to Buyer",
+    sendRecToBuyerBtn: "Send Unit to Buyer",
+    sentRecDoneBtn: "✓ Sent to Buyer",
+    createOfficialOfferBtn: "Create Official Offer to Seller",
+    sentOfferDoneBtn: "✓ Offer Sent to Seller",
+    viewUnitBtn: "View Unit",
+    sendingNow: "Sending...",
+    noMatchesFound: "No matching units above 60% found.",
+    recSentSuccess: "Unit sent to buyer's recommendations!",
+    officialOfferSentSuccess: "Official offer sent to seller!",
+  },
+  ru: {
+    matchedUnitsShort: "подходящих объ.",
+    buyerMatchedUnitsTitle: "Подходящие объекты для покупателя",
+    sendAllToBuyerBtn: "Отправить все объекты",
+    sentAllToBuyerDone: "✓ Все отправлены",
+    sendRecToBuyerBtn: "Рекомендовать покупателю",
+    sentRecDoneBtn: "✓ Отправлено",
+    createOfficialOfferBtn: "Создать оффер продавцу",
+    sentOfferDoneBtn: "✓ Оффер создан",
+    viewUnitBtn: "Смотреть",
+    sendingNow: "Отправка...",
+    noMatchesFound: "Подходящих объектов свыше 60% пока нет.",
+    recSentSuccess: "Объект отправлен покупателю!",
+    officialOfferSentSuccess: "Официальное предложение отправлено продавцу!",
+  },
+  ka: {
+    matchedUnitsShort: "შესაბამისი ობიექტი",
+    buyerMatchedUnitsTitle: "შესაბამისი ობიექტები მყიდველისთვის",
+    sendAllToBuyerBtn: "ყველას გაგზავნა",
+    sentAllToBuyerDone: "✓ გაიგზავნა ყველა",
+    sendRecToBuyerBtn: "მყიდველისთვის გაგზავნა",
+    sentRecDoneBtn: "✓ გაიგზავნა",
+    createOfficialOfferBtn: "ოფიციალური ოფერი გამყიდველს",
+    sentOfferDoneBtn: "✓ ოფერი შეიქმნა",
+    viewUnitBtn: "ნახვა",
+    sendingNow: "იგზავნება...",
+    noMatchesFound: "შესაბამისი ობიექტები ვერ მოიძებნა.",
+    recSentSuccess: "ობიექტი გაეგზავნა მყიდველს!",
+    officialOfferSentSuccess: "ოფიციალური შეთავაზება გაეგზავნა გამყიდველს!",
+  },
+}
+
 function findMatchingUnitForLead(
   lead: BuyerLead,
   unitCode: string | null,
@@ -156,23 +219,9 @@ export default function LeadsClientTable({
   const t = adminDict.leadsAdmin || {}
   const leadsPrompts = adminDict.leads || {}
   const propAdminDict = adminDict.propertiesAdmin || {}
-  const sm = adminDict.smartMatch || {}
-  const oDict = (dict.accountPages as Record<string, any>)?.offers || {}
-
-  const matchLabels = {
-    cashExact: oDict.matchCashExact,
-    cashNegotiableBridge: oDict.matchCashBridge,
-    cashSlightlyHigher: oDict.diffCashHigher,
-    instMatch: oDict.matchInst,
-    instHigher: oDict.diffInstHigher,
-    areaMatch: oDict.matchArea,
-    areaDiff: oDict.diffArea,
-    typeMatch: oDict.matchType,
-    typeDiff: oDict.diffType,
-    roomsMatch: oDict.matchRooms,
-    roomsDiff: oDict.diffRooms,
-    deliveryDiff: oDict.diffDelivery,
-  }
+  const rawSm = adminDict.smartMatch || {}
+  const fbSm = LEAD_SM_FALLBACK[locale] || LEAD_SM_FALLBACK.ar
+  const sm = { ...fbSm, ...rawSm }
 
   function getMatchedUnitsForLead(lead: BuyerLead) {
     if (!units || units.length === 0) return []
@@ -182,7 +231,7 @@ export default function LeadsClientTable({
     return activeUnits
       .map((u) => ({
         unit: u,
-        match: calculateSmartMatch(u, lead, matchLabels),
+        match: calculateSmartMatch(u, lead, undefined, locale),
       }))
       .filter((item) => item.match.score >= 60)
       .sort((a, b) => b.match.score - a.match.score)
@@ -324,6 +373,16 @@ export default function LeadsClientTable({
   )
   const [detailsLead, setDetailsLead] = useState<BuyerLead | null>(null)
   const [smartMatchLead, setSmartMatchLead] = useState<BuyerLead | null>(null)
+
+  const [loadingTaskKey, setLoadingTaskKey] = useState<string | null>(null)
+  const [sentRecKeys, setSentRecKeys] = useState<Record<string, boolean>>({})
+  const [sentOfferKeys, setSentOfferKeys] = useState<Record<string, boolean>>(
+    {}
+  )
+  const [sentBulkLeads, setSentBulkLeads] = useState<Record<string, boolean>>(
+    {}
+  )
+
   const [confirmAction, setConfirmAction] = useState<ConfirmLeadAction | null>(
     null
   )
@@ -363,13 +422,45 @@ export default function LeadsClientTable({
   }, [searchParams, leads])
 
   function handleSendRecToLead(propertyId: string, leadId: string) {
+    const key = `rec_${propertyId}_${leadId}`
+    setLoadingTaskKey(key)
     startTransition(async () => {
-      const res = await adminSendRecommendationAction({ propertyId, leadId })
-      if (res.success) {
-        setNotice({ text: sm.recSentSuccess })
+      try {
+        const res = await adminSendRecommendationAction({ propertyId, leadId })
+        if (res.success) {
+          setSentRecKeys((prev) => ({ ...prev, [key]: true }))
+          setNotice({ text: sm.recSentSuccess })
+          router.refresh()
+        } else {
+          setNotice({ text: res.error || t.statusUpdateError, isError: true })
+        }
+      } finally {
+        setLoadingTaskKey(null)
+      }
+    })
+  }
+
+  function handleSendAllUnitsToLead(
+    lead: BuyerLead,
+    matchedUnitsList: Array<{ unit: LinkedUnitSummary }>
+  ) {
+    const key = `bulk_lead_${lead.id}`
+    setLoadingTaskKey(key)
+    startTransition(async () => {
+      try {
+        for (const item of matchedUnitsList) {
+          await adminSendRecommendationAction({
+            propertyId: item.unit.id,
+            leadId: lead.id,
+          })
+        }
+        setSentBulkLeads((prev) => ({ ...prev, [lead.id]: true }))
+        setNotice({
+          text: `${sm.recSentSuccess} (${matchedUnitsList.length})`,
+        })
         router.refresh()
-      } else {
-        setNotice({ text: res.error || t.statusUpdateError, isError: true })
+      } finally {
+        setLoadingTaskKey(null)
       }
     })
   }
@@ -378,6 +469,8 @@ export default function LeadsClientTable({
     unit: LinkedUnitSummary,
     lead: BuyerLead
   ) {
+    const key = `offer_${unit.id}_${lead.id}`
+    setLoadingTaskKey(key)
     const offeredCash =
       Math.min(
         Number(unit.paid_amount) || 0,
@@ -389,18 +482,22 @@ export default function LeadsClientTable({
       0
 
     startTransition(async () => {
-      const res = await adminCreateOfficialOfferAction({
-        propertyId: unit.id,
-        leadId: lead.id,
-        offeredCash,
-        paymentReadiness: "1_week",
-      })
-      if (res.success) {
-        setNotice({ text: sm.officialOfferSentSuccess })
-        setSmartMatchLead(null)
-        router.refresh()
-      } else {
-        setNotice({ text: res.error || t.statusUpdateError, isError: true })
+      try {
+        const res = await adminCreateOfficialOfferAction({
+          propertyId: unit.id,
+          leadId: lead.id,
+          offeredCash,
+          paymentReadiness: "1_week",
+        })
+        if (res.success) {
+          setSentOfferKeys((prev) => ({ ...prev, [key]: true }))
+          setNotice({ text: sm.officialOfferSentSuccess })
+          router.refresh()
+        } else {
+          setNotice({ text: res.error || t.statusUpdateError, isError: true })
+        }
+      } finally {
+        setLoadingTaskKey(null)
       }
     })
   }
@@ -740,10 +837,13 @@ export default function LeadsClientTable({
                     <button
                       type="button"
                       onClick={() => setSmartMatchLead(lead)}
-                      className="inline-flex items-center gap-1 rounded-lg border border-teal-300 bg-teal-50 px-2.5 py-1 text-[10.5px] font-extrabold text-[#105C50]"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-teal-400 bg-teal-50 px-2.5 py-1 text-[10.5px] font-extrabold text-[#105C50] shadow-2xs transition hover:bg-[#105C50] hover:text-white"
                     >
-                      🎯 {matchedUnits.length} {sm.matchedUnitsShort} (
-                      {topUnitScore}%)
+                      <span>🎯</span>
+                      <span>
+                        {matchedUnits.length} {sm.matchedUnitsShort} (
+                        {topUnitScore}%)
+                      </span>
                     </button>
                   </div>
                 )}
@@ -1026,10 +1126,13 @@ export default function LeadsClientTable({
                             <button
                               type="button"
                               onClick={() => setSmartMatchLead(lead)}
-                              className="mt-1.5 inline-flex items-center gap-1 rounded-md border border-teal-300 bg-teal-50 px-2 py-0.5 text-[10px] font-extrabold text-[#105C50] transition hover:bg-teal-100"
+                              className="mt-1.5 inline-flex items-center gap-1.5 rounded-lg border border-teal-400 bg-teal-50 px-2.5 py-1 text-[10.5px] font-extrabold text-[#105C50] shadow-2xs transition hover:bg-[#105C50] hover:text-white"
                             >
-                              🎯 {matchedUnits.length} {sm.matchedUnitsShort} (
-                              {topUnitScore}%)
+                              <span>🎯</span>
+                              <span>
+                                {matchedUnits.length} {sm.matchedUnitsShort} (
+                                {topUnitScore}%)
+                              </span>
                             </button>
                           )}
                         </td>
@@ -1197,27 +1300,70 @@ export default function LeadsClientTable({
         </CardContent>
       </Card>
 
-      {/* ==================== 3. نافذة التوافق الذكي للوحدات المطابقة للمشتري ==================== */}
+      {/* ==================== 3. نافذة التوافق الذكي للوحدات المطابقة للمشتري (واضحة بالكامل مع Loading وعلامة تم الإرسال) ==================== */}
       <Dialog
         open={Boolean(smartMatchLead)}
         onOpenChange={(open) => !open && setSmartMatchLead(null)}
       >
         <DialogContent
           dir={dir}
-          className="max-h-[88vh] w-[94vw] max-w-[560px] overflow-y-auto rounded-2xl p-5 text-start sm:max-w-xl"
+          className="max-h-[88vh] w-[94vw] max-w-[580px] overflow-y-auto rounded-2xl p-5 text-start sm:max-w-xl"
         >
           {smartMatchLead &&
             (() => {
               const matchedUnitsList = getMatchedUnitsForLead(smartMatchLead)
               const leadCur = getLeadCurrency(smartMatchLead.country_code)
+              const bulkKey = `bulk_lead_${smartMatchLead.id}`
+              const isBulkLoading = loadingTaskKey === bulkKey
+              const isBulkDone = Boolean(sentBulkLeads[smartMatchLead.id])
 
               return (
                 <>
-                  <DialogHeader className="text-start">
-                    <DialogTitle className="text-sm font-black text-[#0a1122] sm:text-base">
-                      🎯 {sm.buyerMatchedUnitsTitle}: {smartMatchLead.name}
-                    </DialogTitle>
-                    <DialogDescription className="text-start text-xs text-gray-500">
+                  <DialogHeader className="border-b border-gray-100 pb-3 text-start">
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
+                      <DialogTitle className="text-sm font-black text-[#0a1122] sm:text-base">
+                        🎯 {sm.buyerMatchedUnitsTitle}:{" "}
+                        <span className="text-[#105C50]">
+                          {smartMatchLead.name}
+                        </span>
+                      </DialogTitle>
+
+                      {matchedUnitsList.length > 0 && (
+                        <Button
+                          size="sm"
+                          disabled={pending || isBulkDone}
+                          onClick={() =>
+                            handleSendAllUnitsToLead(
+                              smartMatchLead,
+                              matchedUnitsList
+                            )
+                          }
+                          className={`h-9 rounded-xl px-3.5 text-xs font-extrabold text-white ${
+                            isBulkDone
+                              ? "bg-emerald-600"
+                              : "bg-[#105C50] hover:bg-[#0c483f]"
+                          }`}
+                        >
+                          {isBulkLoading ? (
+                            <>
+                              <Loader2 className="me-1.5 size-3.5 animate-spin" />
+                              <span>{sm.sendingNow}</span>
+                            </>
+                          ) : isBulkDone ? (
+                            <span>{sm.sentAllToBuyerDone}</span>
+                          ) : (
+                            <>
+                              <Send className="me-1.5 size-3.5" />
+                              <span>
+                                {sm.sendAllToBuyerBtn} (
+                                {matchedUnitsList.length})
+                              </span>
+                            </>
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                    <DialogDescription className="mt-1 text-start text-xs text-gray-500">
                       {t.cashLabel}{" "}
                       <strong dir="ltr" className="text-[#105C50]">
                         {Number(
@@ -1241,23 +1387,31 @@ export default function LeadsClientTable({
                           unit.paid_amount || 0
                         ).toLocaleString("en-US")
 
+                        const recKey = `rec_${unit.id}_${smartMatchLead.id}`
+                        const offerKey = `offer_${unit.id}_${smartMatchLead.id}`
+                        const isRecLoading = loadingTaskKey === recKey
+                        const isOfferLoading = loadingTaskKey === offerKey
+                        const isRecDone =
+                          Boolean(sentRecKeys[recKey]) || isBulkDone
+                        const isOfferDone = Boolean(sentOfferKeys[offerKey])
+
                         return (
                           <div
                             key={unit.id}
-                            className="rounded-xl border border-gray-200 bg-gray-50/70 p-3.5 text-xs"
+                            className="rounded-xl border border-gray-200 bg-gray-50/80 p-4 text-xs shadow-2xs"
                           >
                             <div className="flex flex-wrap items-center justify-between gap-2">
                               <div>
-                                <span className="font-extrabold text-[#0a1122]">
+                                <span className="text-sm font-extrabold text-[#0a1122]">
                                   {unit.project_name || "—"} ({unit.area || "—"}
                                   )
                                 </span>
-                                <span className="ms-2 font-mono text-[10px] text-gray-500">
+                                <span className="ms-2 font-mono text-[10px] font-bold text-gray-500">
                                   {deriveShortUnitCode(unit.id)}
                                 </span>
                               </div>
                               <span
-                                className={`rounded-full px-2.5 py-0.5 text-[11px] font-black ${
+                                className={`rounded-full px-3 py-1 text-[11px] font-black ${
                                   match.score >= 85
                                     ? "bg-[#105C50] text-white"
                                     : "bg-emerald-100 text-[#105C50]"
@@ -1267,17 +1421,17 @@ export default function LeadsClientTable({
                               </span>
                             </div>
 
-                            <p className="mt-1 text-[11px] font-bold text-[#105C50]">
+                            <p className="mt-1.5 text-xs font-extrabold text-[#105C50]">
                               {t.cashLabel} <span dir="ltr">{uCash}</span>{" "}
                               {leadCur}
                             </p>
 
                             {match.matches.length > 0 && (
-                              <div className="mt-2 flex flex-wrap gap-1">
+                              <div className="mt-2.5 flex flex-wrap gap-1.5">
                                 {match.matches.map((mStr) => (
                                   <span
                                     key={mStr}
-                                    className="rounded bg-emerald-100/80 px-2 py-0.5 text-[10px] font-bold text-[#105C50]"
+                                    className="rounded-lg bg-emerald-100/90 px-2.5 py-1 text-[10.5px] font-bold text-[#105C50]"
                                   >
                                     ✓ {mStr}
                                   </span>
@@ -1286,11 +1440,11 @@ export default function LeadsClientTable({
                             )}
 
                             {match.differences.length > 0 && (
-                              <div className="mt-1.5 flex flex-wrap gap-1">
+                              <div className="mt-2 flex flex-wrap gap-1.5">
                                 {match.differences.map((dStr) => (
                                   <span
                                     key={dStr}
-                                    className="rounded bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-900"
+                                    className="rounded-lg border border-amber-200 bg-amber-100/80 px-2.5 py-1 text-[10.5px] font-bold text-amber-900"
                                   >
                                     ⚠️ {dStr}
                                   </span>
@@ -1298,43 +1452,74 @@ export default function LeadsClientTable({
                               </div>
                             )}
 
-                            <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-gray-200/80 pt-2.5">
+                            <div className="mt-3.5 flex flex-wrap items-center gap-2 border-t border-gray-200/80 pt-3">
                               <button
                                 type="button"
-                                disabled={pending}
+                                disabled={pending || isRecDone}
                                 onClick={() =>
                                   handleSendRecToLead(
                                     unit.id,
                                     smartMatchLead.id
                                   )
                                 }
-                                className="inline-flex h-8 flex-1 items-center justify-center gap-1 rounded-lg bg-[#0a1122] px-2.5 text-[11px] font-bold text-white hover:bg-[#16223f]"
+                                className={`inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-extrabold text-white transition ${
+                                  isRecDone
+                                    ? "bg-emerald-600"
+                                    : "bg-[#0a1122] hover:bg-[#16223f]"
+                                }`}
                               >
-                                <Send className="size-3" />
-                                <span>{sm.sendRecToBuyerBtn}</span>
+                                {isRecLoading ? (
+                                  <>
+                                    <Loader2 className="size-3.5 animate-spin" />
+                                    <span>{sm.sendingNow}</span>
+                                  </>
+                                ) : isRecDone ? (
+                                  <span>{sm.sentRecDoneBtn}</span>
+                                ) : (
+                                  <>
+                                    <Send className="size-3.5 shrink-0" />
+                                    <span>{sm.sendRecToBuyerBtn}</span>
+                                  </>
+                                )}
                               </button>
 
                               <button
                                 type="button"
-                                disabled={pending}
+                                disabled={pending || isOfferDone}
                                 onClick={() =>
                                   handleCreateOfficialOfferForLead(
                                     unit,
                                     smartMatchLead
                                   )
                                 }
-                                className="inline-flex h-8 flex-1 items-center justify-center gap-1 rounded-lg bg-[#105C50] px-2.5 text-[11px] font-bold text-white hover:bg-[#0c483f]"
+                                className={`inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-extrabold text-white transition ${
+                                  isOfferDone
+                                    ? "bg-emerald-700"
+                                    : "bg-[#105C50] hover:bg-[#0c483f]"
+                                }`}
                               >
-                                <Wallet className="size-3" />
-                                <span>{sm.createOfficialOfferBtn}</span>
+                                {isOfferLoading ? (
+                                  <>
+                                    <Loader2 className="size-3.5 animate-spin" />
+                                    <span>{sm.sendingNow}</span>
+                                  </>
+                                ) : isOfferDone ? (
+                                  <span>{sm.sentOfferDoneBtn}</span>
+                                ) : (
+                                  <>
+                                    <Wallet className="size-3.5 shrink-0" />
+                                    <span>{sm.createOfficialOfferBtn}</span>
+                                  </>
+                                )}
                               </button>
 
                               <Link
                                 href={`/opportunities/${unit.id}`}
                                 target="_blank"
-                                className="inline-flex h-8 items-center justify-center rounded-lg border border-gray-200 bg-white px-2.5 text-[#105C50]"
+                                className="inline-flex h-9 items-center justify-center gap-1 rounded-xl border border-gray-300 bg-white px-3 text-xs font-extrabold text-[#105C50] hover:bg-gray-50"
                               >
                                 <ExternalLink className="size-3.5" />
+                                <span>{sm.viewUnitBtn}</span>
                               </Link>
                             </div>
                           </div>

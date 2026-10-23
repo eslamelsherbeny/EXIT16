@@ -3,7 +3,6 @@
 import { useEffect, useState, useTransition } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
-import { BuyerSmartMatchModal } from "@/components/admin/smart-match-dialogs"
 import {
   AlertTriangle,
   Building2,
@@ -207,11 +206,9 @@ type ConfirmLeadAction =
 export default function LeadsClientTable({
   leads,
   units = [],
-  offers = [],
 }: {
   leads: BuyerLead[]
   units?: LinkedUnitSummary[]
-  offers?: any[]
 }) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -1304,13 +1301,237 @@ export default function LeadsClientTable({
       </Card>
 
       {/* ==================== 3. نافذة التوافق الذكي للوحدات المطابقة للمشتري (واضحة بالكامل مع Loading وعلامة تم الإرسال) ==================== */}
-      <BuyerSmartMatchModal
-        lead={smartMatchLead}
-        units={units}
-        offers={offers}
-        onClose={() => setSmartMatchLead(null)}
-        onNotice={(msg) => setNotice(msg)}
-      />
+      <Dialog
+        open={Boolean(smartMatchLead)}
+        onOpenChange={(open) => !open && setSmartMatchLead(null)}
+      >
+        <DialogContent
+          dir={dir}
+          className="max-h-[88vh] w-[94vw] max-w-[580px] overflow-y-auto rounded-2xl p-5 text-start sm:max-w-xl"
+        >
+          {smartMatchLead &&
+            (() => {
+              const matchedUnitsList = getMatchedUnitsForLead(smartMatchLead)
+              const leadCur = getLeadCurrency(smartMatchLead.country_code)
+              const bulkKey = `bulk_lead_${smartMatchLead.id}`
+              const isBulkLoading = loadingTaskKey === bulkKey
+              const isBulkDone = Boolean(sentBulkLeads[smartMatchLead.id])
+
+              return (
+                <>
+                  <DialogHeader className="border-b border-gray-100 pb-3 text-start">
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
+                      <DialogTitle className="text-sm font-black text-[#0a1122] sm:text-base">
+                        🎯 {sm.buyerMatchedUnitsTitle}:{" "}
+                        <span className="text-[#105C50]">
+                          {smartMatchLead.name}
+                        </span>
+                      </DialogTitle>
+
+                      {matchedUnitsList.length > 0 && (
+                        <Button
+                          size="sm"
+                          disabled={pending || isBulkDone}
+                          onClick={() =>
+                            handleSendAllUnitsToLead(
+                              smartMatchLead,
+                              matchedUnitsList
+                            )
+                          }
+                          className={`h-9 rounded-xl px-3.5 text-xs font-extrabold text-white ${
+                            isBulkDone
+                              ? "bg-emerald-600"
+                              : "bg-[#105C50] hover:bg-[#0c483f]"
+                          }`}
+                        >
+                          {isBulkLoading ? (
+                            <>
+                              <Loader2 className="me-1.5 size-3.5 animate-spin" />
+                              <span>{sm.sendingNow}</span>
+                            </>
+                          ) : isBulkDone ? (
+                            <span>{sm.sentAllToBuyerDone}</span>
+                          ) : (
+                            <>
+                              <Send className="me-1.5 size-3.5" />
+                              <span>
+                                {sm.sendAllToBuyerBtn} (
+                                {matchedUnitsList.length})
+                              </span>
+                            </>
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                    <DialogDescription className="mt-1 text-start text-xs text-gray-500">
+                      {t.cashLabel}{" "}
+                      <strong dir="ltr" className="text-[#105C50]">
+                        {Number(
+                          smartMatchLead.available_cash ||
+                            smartMatchLead.budget ||
+                            0
+                        ).toLocaleString("en-US")}{" "}
+                        {leadCur}
+                      </strong>
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <div className="mt-3 space-y-3">
+                    {matchedUnitsList.length === 0 ? (
+                      <p className="py-6 text-center text-xs text-gray-400">
+                        {sm.noMatchesFound}
+                      </p>
+                    ) : (
+                      matchedUnitsList.map(({ unit, match }) => {
+                        const uCash = Number(
+                          unit.paid_amount || 0
+                        ).toLocaleString("en-US")
+
+                        const recKey = `rec_${unit.id}_${smartMatchLead.id}`
+                        const offerKey = `offer_${unit.id}_${smartMatchLead.id}`
+                        const isRecLoading = loadingTaskKey === recKey
+                        const isOfferLoading = loadingTaskKey === offerKey
+                        const isRecDone =
+                          Boolean(sentRecKeys[recKey]) || isBulkDone
+                        const isOfferDone = Boolean(sentOfferKeys[offerKey])
+
+                        return (
+                          <div
+                            key={unit.id}
+                            className="rounded-xl border border-gray-200 bg-gray-50/80 p-4 text-xs shadow-2xs"
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div>
+                                <span className="text-sm font-extrabold text-[#0a1122]">
+                                  {unit.project_name || "—"} ({unit.area || "—"}
+                                  )
+                                </span>
+                                <span className="ms-2 font-mono text-[10px] font-bold text-gray-500">
+                                  {deriveShortUnitCode(unit.id)}
+                                </span>
+                              </div>
+                              <span
+                                className={`rounded-full px-3 py-1 text-[11px] font-black ${
+                                  match.score >= 85
+                                    ? "bg-[#105C50] text-white"
+                                    : "bg-emerald-100 text-[#105C50]"
+                                }`}
+                              >
+                                🎯 {match.score}%
+                              </span>
+                            </div>
+
+                            <p className="mt-1.5 text-xs font-extrabold text-[#105C50]">
+                              {t.cashLabel} <span dir="ltr">{uCash}</span>{" "}
+                              {leadCur}
+                            </p>
+
+                            {match.matches.length > 0 && (
+                              <div className="mt-2.5 flex flex-wrap gap-1.5">
+                                {match.matches.map((mStr) => (
+                                  <span
+                                    key={mStr}
+                                    className="rounded-lg bg-emerald-100/90 px-2.5 py-1 text-[10.5px] font-bold text-[#105C50]"
+                                  >
+                                    ✓ {mStr}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+
+                            {match.differences.length > 0 && (
+                              <div className="mt-2 flex flex-wrap gap-1.5">
+                                {match.differences.map((dStr) => (
+                                  <span
+                                    key={dStr}
+                                    className="rounded-lg border border-amber-200 bg-amber-100/80 px-2.5 py-1 text-[10.5px] font-bold text-amber-900"
+                                  >
+                                    ⚠️ {dStr}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+
+                            <div className="mt-3.5 flex flex-wrap items-center gap-2 border-t border-gray-200/80 pt-3">
+                              <button
+                                type="button"
+                                disabled={pending || isRecDone}
+                                onClick={() =>
+                                  handleSendRecToLead(
+                                    unit.id,
+                                    smartMatchLead.id
+                                  )
+                                }
+                                className={`inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-extrabold text-white transition ${
+                                  isRecDone
+                                    ? "bg-emerald-600"
+                                    : "bg-[#0a1122] hover:bg-[#16223f]"
+                                }`}
+                              >
+                                {isRecLoading ? (
+                                  <>
+                                    <Loader2 className="size-3.5 animate-spin" />
+                                    <span>{sm.sendingNow}</span>
+                                  </>
+                                ) : isRecDone ? (
+                                  <span>{sm.sentRecDoneBtn}</span>
+                                ) : (
+                                  <>
+                                    <Send className="size-3.5 shrink-0" />
+                                    <span>{sm.sendRecToBuyerBtn}</span>
+                                  </>
+                                )}
+                              </button>
+
+                              <button
+                                type="button"
+                                disabled={pending || isOfferDone}
+                                onClick={() =>
+                                  handleCreateOfficialOfferForLead(
+                                    unit,
+                                    smartMatchLead
+                                  )
+                                }
+                                className={`inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-extrabold text-white transition ${
+                                  isOfferDone
+                                    ? "bg-emerald-700"
+                                    : "bg-[#105C50] hover:bg-[#0c483f]"
+                                }`}
+                              >
+                                {isOfferLoading ? (
+                                  <>
+                                    <Loader2 className="size-3.5 animate-spin" />
+                                    <span>{sm.sendingNow}</span>
+                                  </>
+                                ) : isOfferDone ? (
+                                  <span>{sm.sentOfferDoneBtn}</span>
+                                ) : (
+                                  <>
+                                    <Wallet className="size-3.5 shrink-0" />
+                                    <span>{sm.createOfficialOfferBtn}</span>
+                                  </>
+                                )}
+                              </button>
+
+                              <Link
+                                href={`/opportunities/${unit.id}`}
+                                target="_blank"
+                                className="inline-flex h-9 items-center justify-center gap-1 rounded-xl border border-gray-300 bg-white px-3 text-xs font-extrabold text-[#105C50] hover:bg-gray-50"
+                              >
+                                <ExternalLink className="size-3.5" />
+                                <span>{sm.viewUnitBtn}</span>
+                              </Link>
+                            </div>
+                          </div>
+                        )
+                      })
+                    )}
+                  </div>
+                </>
+              )
+            })()}
+        </DialogContent>
+      </Dialog>
 
       {/* 4. نافذة تفاصيل طلب الشراء والوحدة المحجوزة */}
       <Dialog

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import {
   getCurrentSellerProfileAction,
   processBuyerStep3Action,
@@ -12,7 +12,6 @@ import { Label } from '@/components/ui/label'
 import { TurnstileBox } from '@/components/funnel-shell'
 import {
   areasCatalogByCountry,
-  deliveries,
   getCountryConfig,
   getHeaderCookieCountry,
   getLocalizedCountryName,
@@ -22,7 +21,6 @@ import {
   PLATFORM_COUNTRIES,
   RequiredLabel,
   SearchableCountryField,
-  unitTypes,
   type PlatformCountryCode,
 } from '@/components/seller/seller-shared'
 import {
@@ -34,8 +32,22 @@ import { getCurrencySymbol, useTranslation } from '@/lib/i18n'
 
 export default function BuyersPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { t: dict, dir } = useTranslation()
   const b = dict.buy
+
+  const localizedUnitTypes: string[] =
+    (dict as Record<string, any>).buyerFunnelPage?.unitTypes || []
+  const localizedDeliveries: string[] =
+    dict.accountComponents?.buyer?.deliveryPreferences || []
+  const waPhone = String(dict.footer?.phone || '+201018595959').replace(
+    /\D/g,
+    ''
+  )
+
+  const initialBudget = Number(
+    (searchParams.get('budget') || '').replace(/,/g, '')
+  )
 
   const [step, setStep] = useState<1 | 2 | 3>(1)
   const [data, setData] = useState<BuyerFormState>(() => ({
@@ -43,11 +55,11 @@ export default function BuyersPage() {
     residenceCountry: 'EG',
     available_cash: 0,
     max_installment: 0,
-    payment_plan: b.stepOne.paymentPlans[0] || 'شهري',
-    budget: 0,
-    unit_types: [unitTypes[0]],
+    payment_plan: b.stepOne.paymentPlans[0] || '',
+    budget: initialBudget > 0 ? initialBudget : 0,
+    unit_types: localizedUnitTypes[0] ? [localizedUnitTypes[0]] : [],
     min_rooms: 0,
-    delivery_status: deliveries[0],
+    delivery_status: localizedDeliveries[0] || '',
     preferred_areas: [],
     name: '',
     phone: '',
@@ -85,6 +97,14 @@ export default function BuyersPage() {
       ...prev,
       country: activeCookieCountry,
       residenceCountry: activeCookieCountry,
+      payment_plan: b.stepOne.paymentPlans[0] || prev.payment_plan,
+      unit_types:
+        prev.unit_types.length > 0
+          ? prev.unit_types
+          : localizedUnitTypes[0]
+            ? [localizedUnitTypes[0]]
+            : [],
+      delivery_status: prev.delivery_status || localizedDeliveries[0] || '',
     }))
 
     async function checkCurrentSession() {
@@ -222,7 +242,7 @@ export default function BuyersPage() {
           type: 'email_exists',
           email: res.userEmail || data.email.trim(),
           userId: res.userId || '',
-          orderRef: res.orderRef || 'AE-XXXXXX',
+          orderRef: res.orderRef || '',
         })
         return
       }
@@ -231,7 +251,7 @@ export default function BuyersPage() {
         setConflictState({
           type: 'phone_exists',
           userId: res.userId || '',
-          orderRef: res.orderRef || 'AE-XXXXXX',
+          orderRef: res.orderRef || '',
         })
         return
       }
@@ -325,6 +345,8 @@ export default function BuyersPage() {
                 showAreas={showAreas}
                 setShowAreas={setShowAreas}
                 addArea={addArea}
+                unitTypesList={localizedUnitTypes}
+                deliveriesList={localizedDeliveries}
               />
             )}
             {step === 3 && (
@@ -405,7 +427,9 @@ export default function BuyersPage() {
           <div className="mt-6 flex items-center justify-between rounded-2xl bg-[var(--brand-navy,#0a1122)] px-5 py-4 text-sm text-white">
             <span>{b.header.whatsappBarText}</span>
             <a
-              href="https://wa.me/201018595959"
+              href={`https://wa.me/${waPhone}`}
+              target="_blank"
+              rel="noreferrer"
               className="rounded-full bg-green-500 px-4 py-2 font-bold transition hover:bg-green-600"
             >
               {b.header.whatsappBarBtn}
@@ -522,6 +546,8 @@ function BuyerStepTwo({
   showAreas,
   setShowAreas,
   addArea,
+  unitTypesList,
+  deliveriesList,
 }: {
   data: BuyerFormState
   update: <K extends keyof BuyerFormState>(
@@ -534,6 +560,8 @@ function BuyerStepTwo({
   showAreas: boolean
   setShowAreas: (value: boolean) => void
   addArea: (value?: string) => void
+  unitTypesList: string[]
+  deliveriesList: string[]
 }) {
   const { t: dict, locale, dir } = useTranslation()
   const t = dict.buy.stepTwo
@@ -570,7 +598,7 @@ function BuyerStepTwo({
         </p>
         <Pills
           error={errors?.unit_types}
-          items={unitTypes}
+          items={unitTypesList}
           selected={data.unit_types}
           multi
           onToggle={(item) =>
@@ -616,7 +644,7 @@ function BuyerStepTwo({
               : ''
           }`}
         >
-          {deliveries.map((item) => (
+          {deliveriesList.map((item) => (
             <label
               key={item}
               className={`flex cursor-pointer items-center justify-between rounded-xl border px-4 py-3 text-sm transition ${

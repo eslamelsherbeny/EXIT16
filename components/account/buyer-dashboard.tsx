@@ -1304,6 +1304,13 @@ function BuyerUnitCard({
   isLiked: boolean
   onToggleLike: () => void
 }) {
+  const matchCount =
+    (unit.isCashMatch ? 40 : 15) +
+    (unit.isInstMatch ? 25 : 10) +
+    (unit.isAreaMatch ? 20 : 5) +
+    (unit.isTypeMatch ? 12 : 5)
+  const scorePct = Math.min(98, Math.max(60, matchCount))
+
   return (
     <div className="group relative flex h-full flex-col justify-between overflow-hidden rounded-[16px] border border-gray-200/85 bg-white shadow-2xs transition hover:shadow-md sm:rounded-[18px]">
       <div>
@@ -1321,6 +1328,10 @@ function BuyerUnitCard({
               className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
             />
           </Link>
+
+          <span className="absolute top-2.5 right-2.5 rounded-full bg-[#0a1122]/90 px-2.5 py-1 text-[10px] font-black text-emerald-300 shadow-sm backdrop-blur-xs">
+            🎯 {scorePct}%
+          </span>
 
           <button
             type="button"
@@ -1390,6 +1401,15 @@ function BuyerUnitCard({
               ))}
             </div>
           )}
+        </Link>
+      </div>
+
+      <div className="border-t border-gray-100 px-3.5 pb-3.5 pt-2.5 sm:px-5 sm:pb-4">
+        <Link
+          href={`/account/offers?applyUnitId=${unit.id}`}
+          className="inline-flex h-8 w-full items-center justify-center rounded-xl bg-[var(--brand-primary,#007a5a)] px-3 text-[11px] font-extrabold text-white transition hover:bg-[var(--brand-primary-hover,#006248)] sm:h-9 sm:text-xs"
+        >
+          {t.myOffersBtn}
         </Link>
       </div>
     </div>

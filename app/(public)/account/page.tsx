@@ -9,6 +9,7 @@ import { AccountViewSwitcher } from '@/components/account/account-view-switcher'
 import { AccountTopBar } from '@/components/account/account-top-bar'
 import { getServerI18n } from '@/lib/get-server-dictionary'
 import { extractUserIdFromCookie } from '@/lib/session-security'
+import { calculateSmartMatch } from '@/lib/smart-matcher'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -76,7 +77,11 @@ export default async function AccountPage({
       .in('status', ['active', 'approved', 'published'])
       .order('is_featured', { ascending: false })
       .order('created_at', { ascending: false }),
-    supabase.from('property_offers').select('property_id'),
+    supabase
+      .from('property_offers')
+      .select('property_id, status')
+      .neq('status', 'recommended')
+      .neq('status', 'rejected'),
   ])
 
   const sells = ((allSells as SellerUnitItem[]) || []).filter(
@@ -107,29 +112,10 @@ export default async function AccountPage({
   const buyersList = (allBuys as any[]) || []
 
   sells.forEach((unit) => {
-    const unitCash = Number(unit.paid_amount) || 0
-    const unitArea = (unit.area || '').trim()
-    const unitType = (unit.unit_type || '').trim()
-
     const matchingBuyers = buyersList.filter((b) => {
       if (b.user_id && b.user_id === profile.id) return false
-      const bCash = Number(b.available_cash || b.budget || 0)
-      const bAreas: string[] = Array.isArray(b.preferred_areas)
-        ? b.preferred_areas
-        : []
-      const bTypes: string[] = Array.isArray(b.unit_types) ? b.unit_types : []
-
-      const cashOk = bCash === 0 || unitCash === 0 || unitCash <= bCash * 1.25
-      const areaOk =
-        !unitArea ||
-        bAreas.length === 0 ||
-        bAreas.some((a) => unitArea.includes(a) || a.includes(unitArea))
-      const typeOk =
-        !unitType ||
-        bTypes.length === 0 ||
-        bTypes.some((t) => unitType.includes(t) || t.includes(unitType))
-
-      return cashOk && (areaOk || typeOk)
+      const res = calculateSmartMatch(unit, b)
+      return res.score >= 65
     })
 
     matchedBuyersCountMap[unit.id] = matchingBuyers.length

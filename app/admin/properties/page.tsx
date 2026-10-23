@@ -1,6 +1,7 @@
 import { cookies } from "next/headers"
 import { createServerClient } from "@supabase/ssr"
 import { getServerI18n } from "@/lib/get-server-dictionary"
+import type { MatchableBuyer } from "@/lib/smart-matcher"
 import PropertiesTable, { type SellRequest } from "./properties-table"
 
 export const dynamic = "force-dynamic"
@@ -31,12 +32,19 @@ export default async function PropertiesPage() {
       .lt("last_seller_edit_at", sevenDaysAgo)
   } catch {}
 
-  const { data, error } = await supabase
-    .from("sell_requests")
-    .select("*")
-    .order("created_at", { ascending: false })
+  const [{ data, error }, { data: leadsData }] = await Promise.all([
+    supabase
+      .from("sell_requests")
+      .select("*")
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("buy_requests")
+      .select("*")
+      .order("created_at", { ascending: false }),
+  ])
 
   const properties = (data ?? []) as SellRequest[]
+  const buyers = (leadsData ?? []) as MatchableBuyer[]
 
   if (error) {
     return (
@@ -50,7 +58,7 @@ export default async function PropertiesPage() {
 
   return (
     <div className="mx-auto max-w-7xl">
-      <PropertiesTable properties={properties} />
+      <PropertiesTable properties={properties} buyers={buyers} />
     </div>
   )
 }

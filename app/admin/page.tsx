@@ -9,6 +9,7 @@ import {
   FileText,
   Flame,
   Globe,
+  Handshake,
   MessageCircle,
   Star,
 } from "lucide-react"
@@ -60,6 +61,7 @@ export default async function AdminPage({
   const { dict, locale, dir } = await getServerI18n()
   const t = dict.admin.dashboard as Record<string, any>
   const leadsDict = dict.admin.leads as Record<string, any>
+  const sm = (dict.admin as Record<string, any>).smartMatch || {}
 
   const adminCountries = [
     { code: "ALL", label: t.countries.ALL, flag: "🌍" },
@@ -76,20 +78,27 @@ export default async function AdminPage({
 
   const supabase = await getSupabase()
 
-  const [{ data: propertiesData }, { data: leadsData }] = await Promise.all([
-    supabase
-      .from("sell_requests")
-      .select("*")
-      .neq("status", "deleted_by_seller")
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("buy_requests")
-      .select("*")
-      .order("created_at", { ascending: false }),
-  ])
+  const [{ data: propertiesData }, { data: leadsData }, { data: acceptedOffersData }] =
+    await Promise.all([
+      supabase
+        .from("sell_requests")
+        .select("*")
+        .neq("status", "deleted_by_seller")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("buy_requests")
+        .select("*")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("property_offers")
+        .select("*")
+        .eq("status", "accepted")
+        .order("updated_at", { ascending: false }),
+    ])
 
   const allProperties = propertiesData || []
   const allLeads = leadsData || []
+  const allAcceptedOffers = acceptedOffersData || []
 
   const properties =
     selectedCountry === "ALL"
@@ -108,6 +117,14 @@ export default async function AdminPage({
             (l.country_code || l.country || "EG").toUpperCase() ===
             selectedCountry
         )
+
+  const propsMap = new Map(properties.map((p: any) => [p.id, p]))
+  const readyDeals = allAcceptedOffers
+    .map((offer: any) => ({
+      offer,
+      unit: propsMap.get(offer.property_id),
+    }))
+    .filter((item) => Boolean(item.unit) && item.unit.status !== "sold")
 
   const pendingProperties = properties.filter(
     (p) => !p.status || p.status === "pending" || p.status === "under_review"
@@ -164,7 +181,9 @@ export default async function AdminPage({
     {
       label: t.unitBookers,
       value: unitSpecificLeads.length.toLocaleString("en-US"),
-      note: t.unitBookersNote || `${t.outOfTotal} ${leads.length.toLocaleString("en-US")}`,
+      note:
+        t.unitBookersNote ||
+        `${t.outOfTotal} ${leads.length.toLocaleString("en-US")}`,
       icon: Flame,
       href: `/admin/leads?type=unit_leads${countryAmp}`,
       highlight: unitSpecificLeads.length > 0,
@@ -288,7 +307,7 @@ export default async function AdminPage({
         ))}
       </div>
 
-      {/* 3. شريط طلبات الإعلان: يوضح عدد الطلبات الجديدة + عدد الوحدات المميزة النشطة بوضوح */}
+      {/* 3. شريط طلبات الإعلان */}
       <Link
         href={`/admin/promotions${countryQuery}`}
         className={`mt-3.5 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3.5 shadow-2xs transition hover:shadow-xs sm:mt-4 sm:px-4 ${
@@ -313,7 +332,6 @@ export default async function AdminPage({
                 {t.adRequests}
               </p>
 
-              {/* شارة عدد الطلبات الجديدة بانتظار التفعيل */}
               <span
                 className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10.5px] font-extrabold ${
                   pendingAdRequests.length > 0
@@ -325,7 +343,6 @@ export default async function AdminPage({
                 <span>{t.adPendingNote}</span>
               </span>
 
-              {/* شارة عدد الوحدات المميزة النشطة حالياً */}
               <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10.5px] font-bold text-[#105C50]">
                 <span dir="ltr">{activeFeaturedUnits.length}</span>
                 <span>{t.adActiveNote}</span>
@@ -351,7 +368,148 @@ export default async function AdminPage({
         </span>
       </Link>
 
-      {/* 4. الجداول السفلية */}
+      {/* ==================== 4. غرفة الصفقات المتفق عليها الجاهزة للتنفيذ (Ready-to-Close Deals Room) ==================== */}
+      {readyDeals.length > 0 && (
+        <div className="mt-4 rounded-2xl border-2 border-[#105C50] bg-gradient-to-br from-[#effaf5] via-white to-[#f4fbf8] p-4 shadow-sm sm:p-5">
+          <div className="mb-3.5 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="flex size-9 items-center justify-center rounded-xl bg-[#105C50] text-white shadow-xs">
+                <Handshake className="size-5" />
+              </span>
+              <div>
+                <h2 className="text-sm font-black text-[#0a1122] sm:text-base">
+                  🔥 {sm.readyDealsTitle} ({readyDeals.length})
+                </h2>
+                <p className="text-[11px] font-semibold text-[#105C50]">
+                  {sm.readyDealsSubtitle}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            {readyDeals.map(({ offer, unit }) => {
+              const uCode = deriveUnitCode(unit.id)
+              const cur = getCurrencySymbol(
+                unit.country_code || unit.country || "EG",
+                locale
+              )
+              const agreedCash = Number(offer.offered_cash) || 0
+              const commissionBase =
+                Number(unit.contract_price) || agreedCash || 0
+              const platformCommission = Math.round(commissionBase * 0.0125)
+
+              const sellerWa = `${leadsDict.waGeneralPrefix} ${unit.name}، (${unit.project_name || t.defaultUnit} - ${uCode}) — ${sm.agreedCashLabel}: ${agreedCash.toLocaleString("en-US")} ${cur}`
+              const buyerWa = `${leadsDict.waUnitLeadPrefix} ${offer.buyer_name || ""}، (${unit.project_name || t.defaultUnit} - ${uCode}) — ${sm.agreedCashLabel}: ${agreedCash.toLocaleString("en-US")} ${cur}`
+
+              return (
+                <div
+                  key={offer.id}
+                  className="rounded-xl border border-emerald-200 bg-white p-4 shadow-2xs"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 pb-2.5">
+                    <div className="flex items-center gap-1.5">
+                      <span className="rounded bg-[#0a1122] px-2 py-0.5 font-mono text-[10px] font-extrabold text-white">
+                        {uCode}
+                      </span>
+                      <span className="text-xs font-black text-[#0a1122] sm:text-sm">
+                        {unit.project_name || t.defaultUnit} ({unit.area || "—"})
+                      </span>
+                    </div>
+                    <Link
+                      href={`/admin/properties?unitId=${unit.id}`}
+                      className="rounded-lg bg-emerald-100 px-2.5 py-1 text-[10.5px] font-extrabold text-[#105C50] hover:bg-emerald-200"
+                    >
+                      {sm.openDealUnitBtn}
+                    </Link>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-2 gap-2.5 text-xs">
+                    {/* بيانات البائع */}
+                    <div className="rounded-xl border border-gray-100 bg-gray-50 p-2.5">
+                      <span className="block text-[10px] font-bold text-gray-400">
+                        {sm.sellerPartyLabel}
+                      </span>
+                      <strong className="mt-0.5 block truncate font-extrabold text-[#0a1122]">
+                        {unit.name}
+                      </strong>
+                      <span
+                        dir="ltr"
+                        className="mt-0.5 block font-mono text-[11px] text-gray-600"
+                      >
+                        {unit.phone}
+                      </span>
+                      <a
+                        data-admin-client-wa="true"
+                        href={`https://wa.me/${String(unit.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(sellerWa)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-2 inline-flex h-7 w-full items-center justify-center gap-1 rounded-lg bg-[#25D366] px-2 text-[10.5px] font-extrabold text-white"
+                      >
+                        <MessageCircle className="size-3" />
+                        <span>{sm.contactSellerWa}</span>
+                      </a>
+                    </div>
+
+                    {/* بيانات المشتري */}
+                    <div className="rounded-xl border border-gray-100 bg-gray-50 p-2.5">
+                      <span className="block text-[10px] font-bold text-gray-400">
+                        {sm.buyerPartyLabel}
+                      </span>
+                      <strong className="mt-0.5 block truncate font-extrabold text-[#0a1122]">
+                        {offer.buyer_name || "—"}
+                      </strong>
+                      <span
+                        dir="ltr"
+                        className="mt-0.5 block font-mono text-[11px] text-gray-600"
+                      >
+                        {offer.buyer_phone || "—"}
+                      </span>
+                      <a
+                        data-admin-client-wa="true"
+                        href={`https://wa.me/${String(offer.buyer_phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(buyerWa)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-2 inline-flex h-7 w-full items-center justify-center gap-1 rounded-lg bg-[#25D366] px-2 text-[10.5px] font-extrabold text-white"
+                      >
+                        <MessageCircle className="size-3" />
+                        <span>{sm.contactBuyerWa}</span>
+                      </a>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[#effaf5] px-3 py-2 text-xs">
+                    <div>
+                      <span className="text-[10.5px] text-gray-500">
+                        {sm.agreedCashLabel}:{" "}
+                      </span>
+                      <strong
+                        dir="ltr"
+                        className="font-black text-[#105C50] tabular-nums"
+                      >
+                        {agreedCash.toLocaleString("en-US")} {cur}
+                      </strong>
+                    </div>
+                    <div>
+                      <span className="text-[10.5px] text-gray-500">
+                        {sm.commissionDueLabel} (1.25%):{" "}
+                      </span>
+                      <strong
+                        dir="ltr"
+                        className="font-black text-[#0a1122] tabular-nums"
+                      >
+                        {platformCommission.toLocaleString("en-US")} {cur}
+                      </strong>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* 5. الجداول السفلية */}
       <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-3">
         <Card className="border-gray-200/80 bg-white shadow-2xs lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between border-b border-gray-100 px-4 py-3.5 sm:px-5">
@@ -441,6 +599,7 @@ export default async function AdminPage({
                           <ExternalLink className="size-3.5" />
                         </Link>
                         <a
+                          data-admin-client-wa="true"
                           href={`https://wa.me/${String(prop.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(sellerWaMsg)}`}
                           target="_blank"
                           rel="noreferrer"
@@ -524,6 +683,7 @@ export default async function AdminPage({
                       </p>
                     </Link>
                     <a
+                      data-admin-client-wa="true"
                       href={`https://wa.me/${String(lead.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(buyerWaMsg)}`}
                       target="_blank"
                       rel="noreferrer"

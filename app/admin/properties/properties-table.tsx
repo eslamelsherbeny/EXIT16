@@ -19,11 +19,13 @@ import {
   RefreshCw,
   RotateCcw,
   Search,
+  Send,
   ShieldAlert,
   Sparkles,
   Star,
   Trash2,
   User,
+  Wallet,
   X,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
@@ -38,6 +40,15 @@ import {
 } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { getCurrencySymbol, useTranslation } from "@/lib/i18n"
+import {
+  calculateSmartMatch,
+  type MatchableBuyer,
+} from "@/lib/smart-matcher"
+import {
+  adminCreateOfficialOfferAction,
+  adminSendBulkRecommendationsAction,
+  adminSendRecommendationAction,
+} from "@/app/actions/offer-actions"
 import {
   deletePropertyAction,
   managePropertyPromotionAction,
@@ -61,6 +72,7 @@ export type SellRequest = {
   paid_amount?: number | null
   market_price: number | null
   installment_amount?: number | null
+  installment_frequency?: string | null
   years_left?: number | null
   contract_year?: number | null
   willing_to_discount?: boolean | null
@@ -128,9 +140,11 @@ type ConfirmPropertyAction =
 
 export default function PropertiesTable({
   properties,
+  buyers = [],
   mode = "properties",
 }: {
   properties: SellRequest[]
+  buyers?: MatchableBuyer[]
   mode?: "properties" | "promotions"
 }) {
   const router = useRouter()
@@ -140,6 +154,36 @@ export default function PropertiesTable({
   const { t: dict, locale, dir } = useTranslation()
   const t = dict.admin.propertiesAdmin
   const leadsPrompts = dict.admin.leads
+  const sm = (dict.admin as Record<string, any>).smartMatch || {}
+  const oDict = (dict.accountPages as Record<string, any>)?.offers || {}
+
+  const matchLabels = {
+    cashExact: oDict.matchCashExact,
+    cashNegotiableBridge: oDict.matchCashBridge,
+    cashSlightlyHigher: oDict.diffCashHigher,
+    instMatch: oDict.matchInst,
+    instHigher: oDict.diffInstHigher,
+    areaMatch: oDict.matchArea,
+    areaDiff: oDict.diffArea,
+    typeMatch: oDict.matchType,
+    typeDiff: oDict.diffType,
+    roomsMatch: oDict.matchRooms,
+    roomsDiff: oDict.diffRooms,
+    deliveryDiff: oDict.diffDelivery,
+  }
+
+  function getMatchedBuyersForUnit(unit: SellRequest) {
+    if (!buyers || buyers.length === 0) return []
+    const results = buyers
+      .filter((b) => !b.user_id || b.user_id !== unit.user_id)
+      .map((buyer) => ({
+        buyer,
+        match: calculateSmartMatch(unit, buyer, matchLabels),
+      }))
+      .filter((item) => item.match.score >= 60)
+      .sort((a, b) => b.match.score - a.match.score)
+    return results
+  }
 
   const adminCountries = [
     { code: "ALL", label: t.countries.ALL, flag: "🌍" },
@@ -254,6 +298,8 @@ export default function PropertiesTable({
   const [detailsProperty, setDetailsProperty] = useState<SellRequest | null>(
     null
   )
+  const [smartMatchProperty, setSmartMatchProperty] =
+    useState<SellRequest | null>(null)
   const [confirmAction, setConfirmAction] =
     useState<ConfirmPropertyAction | null>(null)
   const [activePropertyId, setActivePropertyId] = useState<string | null>(null)
@@ -313,6 +359,64 @@ export default function PropertiesTable({
     if (pending) return
     setConfirmAction(null)
     setReason("")
+  }
+
+  function handleSendSingleRec(propertyId: string, leadId: string) {
+    startTransition(async () => {
+      const res = await adminSendRecommendationAction({ propertyId, leadId })
+      if (res.success) {
+        setNotice({ text: sm.recSentSuccess })
+        router.refresh()
+      } else {
+        setNotice({ text: res.error || t.loadError, isError: true })
+      }
+    })
+  }
+
+  function handleSendBulkRecs(propertyId: string) {
+    startTransition(async () => {
+      const res = await adminSendBulkRecommendationsAction({
+        propertyId,
+        minScore: 65,
+      })
+      if (res.success) {
+        setNotice({ text: `${sm.bulkRecsSentSuccess} (${res.sentCount})` })
+        router.refresh()
+      } else {
+        setNotice({ text: res.error || t.loadError, isError: true })
+      }
+    })
+  }
+
+  function handleCreateOfficialOfferFromAdmin(
+    property: SellRequest,
+    buyer: MatchableBuyer
+  ) {
+    const offeredCash =
+      Math.min(
+        Number(property.paid_amount) || 0,
+        Number(buyer.available_cash || buyer.budget) ||
+          Number(property.paid_amount) ||
+          0
+      ) ||
+      Number(property.paid_amount) ||
+      0
+
+    startTransition(async () => {
+      const res = await adminCreateOfficialOfferAction({
+        propertyId: property.id,
+        leadId: buyer.id,
+        offeredCash,
+        paymentReadiness: "1_week",
+      })
+      if (res.success) {
+        setNotice({ text: sm.officialOfferSentSuccess })
+        setSmartMatchProperty(null)
+        router.refresh()
+      } else {
+        setNotice({ text: res.error || t.loadError, isError: true })
+      }
+    })
   }
 
   function executeConfirmedAction() {
@@ -498,9 +602,23 @@ export default function PropertiesTable({
       Boolean(property.is_featured) &&
       (!property.featured_until ||
         new Date(property.featured_until) > new Date())
+    const matchedBuyers = getMatchedBuyersForUnit(property)
+    const topScore = matchedBuyers[0]?.match.score || 0
 
     return (
       <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+        {matchedBuyers.length > 0 && property.status !== "deleted_by_seller" && (
+          <button
+            type="button"
+            onClick={() => setSmartMatchProperty(property)}
+            className="inline-flex items-center gap-1 rounded-md border border-teal-300 bg-teal-50 px-2 py-0.5 text-[10px] font-extrabold text-[#105C50] transition hover:bg-teal-100"
+          >
+            <span>
+              🎯 {matchedBuyers.length} {sm.matchedBuyersShort} ({topScore}%)
+            </span>
+          </button>
+        )}
+
         {property.submission_type === "edited_by_seller" &&
           property.status === "pending" && (
             <button
@@ -1094,6 +1212,7 @@ export default function PropertiesTable({
                   )}
 
                   <a
+                    data-admin-client-wa="true"
                     href={`https://wa.me/${String(property.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(waText)}`}
                     target="_blank"
                     rel="noreferrer"
@@ -1418,7 +1537,6 @@ export default function PropertiesTable({
                           {t.actions.detailsBtn}
                         </Button>
 
-                        {/* زر فتح صفحة الوحدة بصورها على الموقع العام */}
                         <Link
                           href={`/opportunities/${property.id}`}
                           target="_blank"
@@ -1428,8 +1546,8 @@ export default function PropertiesTable({
                           <ExternalLink className="size-3.5" />
                         </Link>
 
-                        {/* زر الواتساب مع الرسالة الجاهزة ببيانات الوحدة */}
                         <a
+                          data-admin-client-wa="true"
                           href={`https://wa.me/${String(property.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(waText)}`}
                           target="_blank"
                           rel="noreferrer"
@@ -1461,7 +1579,183 @@ export default function PropertiesTable({
         </table>
       </div>
 
-      {/* ==================== 3. نافذة التأكيد الموحدة ==================== */}
+      {/* ==================== 3. نافذة التوافق الذكي للمشترين المطابقين للوحدة (AI Smart Matcher Modal) ==================== */}
+      <Dialog
+        open={Boolean(smartMatchProperty)}
+        onOpenChange={(open) => !open && setSmartMatchProperty(null)}
+      >
+        <DialogContent
+          dir={dir}
+          className="max-h-[88vh] w-[94vw] max-w-[560px] overflow-y-auto rounded-2xl p-5 text-start sm:max-w-xl"
+        >
+          {smartMatchProperty &&
+            (() => {
+              const matchedList = getMatchedBuyersForUnit(smartMatchProperty)
+              const unitCur = getUnitCurrency(
+                getPropertyCountryCode(smartMatchProperty)
+              )
+
+              return (
+                <>
+                  <DialogHeader className="text-start">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <DialogTitle className="text-sm font-black text-[#0a1122] sm:text-base">
+                        🎯 {sm.unitMatchedBuyersTitle}:{" "}
+                        {smartMatchProperty.project_name ||
+                          t.table.unspecifiedProject}
+                      </DialogTitle>
+                      {matchedList.length > 0 && (
+                        <Button
+                          size="sm"
+                          disabled={pending}
+                          onClick={() =>
+                            handleSendBulkRecs(smartMatchProperty.id)
+                          }
+                          className="h-8 rounded-xl bg-[#105C50] px-3 text-xs font-extrabold text-white hover:bg-[#0c483f]"
+                        >
+                          <Send className="me-1.5 size-3.5" />
+                          <span>
+                            {sm.sendAllRecsBtn} ({matchedList.length})
+                          </span>
+                        </Button>
+                      )}
+                    </div>
+                    <DialogDescription className="text-start text-xs text-gray-500">
+                      {t.table.colCash}:{" "}
+                      <strong dir="ltr" className="text-[#105C50]">
+                        {Number(
+                          smartMatchProperty.paid_amount || 0
+                        ).toLocaleString("en-US")}{" "}
+                        {unitCur}
+                      </strong>{" "}
+                      · {smartMatchProperty.area || "—"}
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <div className="mt-3 space-y-3">
+                    {matchedList.length === 0 ? (
+                      <p className="py-6 text-center text-xs text-gray-400">
+                        {sm.noMatchesFound}
+                      </p>
+                    ) : (
+                      matchedList.map(({ buyer, match }) => {
+                        const bCash = Number(
+                          buyer.available_cash || buyer.budget || 0
+                        ).toLocaleString("en-US")
+                        const bWa = `${leadsPrompts.waUnitLeadPrefix} ${buyer.name || ""}، ${leadsPrompts.waUnitLeadMiddle} (${smartMatchProperty.project_name || ""} - ${smartMatchProperty.area || ""}) — ${match.score}%`
+
+                        return (
+                          <div
+                            key={buyer.id}
+                            className="rounded-xl border border-gray-200 bg-gray-50/70 p-3.5 text-xs"
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div>
+                                <span className="font-extrabold text-[#0a1122]">
+                                  {buyer.name}
+                                </span>
+                                <span
+                                  dir="ltr"
+                                  className="ms-2 font-mono text-[11px] text-gray-500"
+                                >
+                                  {buyer.phone}
+                                </span>
+                              </div>
+                              <span
+                                className={`rounded-full px-2.5 py-0.5 text-[11px] font-black ${
+                                  match.score >= 85
+                                    ? "bg-[#105C50] text-white"
+                                    : "bg-emerald-100 text-[#105C50]"
+                                }`}
+                              >
+                                🎯 {match.score}%
+                              </span>
+                            </div>
+
+                            <p className="mt-1 text-[11px] font-bold text-[#105C50]">
+                              {leadsPrompts.cashShort}:{" "}
+                              <span dir="ltr">{bCash}</span> {unitCur}
+                            </p>
+
+                            {match.matches.length > 0 && (
+                              <div className="mt-2 flex flex-wrap gap-1">
+                                {match.matches.map((mStr) => (
+                                  <span
+                                    key={mStr}
+                                    className="rounded bg-emerald-100/80 px-2 py-0.5 text-[10px] font-bold text-[#105C50]"
+                                  >
+                                    ✓ {mStr}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+
+                            {match.differences.length > 0 && (
+                              <div className="mt-1.5 flex flex-wrap gap-1">
+                                {match.differences.map((dStr) => (
+                                  <span
+                                    key={dStr}
+                                    className="rounded bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-900"
+                                  >
+                                    ⚠️ {dStr}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+
+                            <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-gray-200/80 pt-2.5">
+                              <button
+                                type="button"
+                                disabled={pending}
+                                onClick={() =>
+                                  handleSendSingleRec(
+                                    smartMatchProperty.id,
+                                    buyer.id
+                                  )
+                                }
+                                className="inline-flex h-8 flex-1 items-center justify-center gap-1 rounded-lg bg-[#0a1122] px-2.5 text-[11px] font-bold text-white hover:bg-[#16223f]"
+                              >
+                                <Send className="size-3" />
+                                <span>{sm.sendRecToBuyerBtn}</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                disabled={pending}
+                                onClick={() =>
+                                  handleCreateOfficialOfferFromAdmin(
+                                    smartMatchProperty,
+                                    buyer
+                                  )
+                                }
+                                className="inline-flex h-8 flex-1 items-center justify-center gap-1 rounded-lg bg-[#105C50] px-2.5 text-[11px] font-bold text-white hover:bg-[#0c483f]"
+                              >
+                                <Wallet className="size-3" />
+                                <span>{sm.createOfficialOfferBtn}</span>
+                              </button>
+
+                              <a
+                                data-admin-client-wa="true"
+                                href={`https://wa.me/${String(buyer.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(bWa)}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex h-8 items-center justify-center rounded-lg bg-[#25D366] px-2.5 text-white"
+                              >
+                                <MessageCircle className="size-3.5" />
+                              </a>
+                            </div>
+                          </div>
+                        )
+                      })
+                    )}
+                  </div>
+                </>
+              )
+            })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* ==================== 4. نافذة التأكيد الموحدة ==================== */}
       <Dialog
         open={Boolean(confirmAction)}
         onOpenChange={(open) => {
@@ -1654,7 +1948,7 @@ export default function PropertiesTable({
         </DialogContent>
       </Dialog>
 
-      {/* ==================== 4. نافذة تفاصيل الوحدة والمستندات ==================== */}
+      {/* ==================== 5. نافذة تفاصيل الوحدة والمستندات ==================== */}
       <Dialog
         open={Boolean(detailsProperty)}
         onOpenChange={(open) => !open && setDetailsProperty(null)}
@@ -1689,6 +1983,7 @@ export default function PropertiesTable({
                 </Link>
 
                 <a
+                  data-admin-client-wa="true"
                   href={`https://wa.me/${String(detailsProperty.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(
                     buildSellerWhatsAppMessage(
                       detailsProperty,

@@ -8,7 +8,7 @@ import {
   parseAndVerifySessionCookie,
 } from "@/lib/session-security"
 import { getServerI18n } from "@/lib/get-server-dictionary"
-import { localizeNotificationItem } from "@/app/actions/notification-actions"
+import { localizeNotificationItem } from "@/actions/notification-actions"
 import AdminShell, {
   type AdminNotificationItem,
   type StaffRole,

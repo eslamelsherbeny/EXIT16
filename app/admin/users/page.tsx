@@ -1,6 +1,7 @@
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { createServerClient } from "@supabase/ssr"
+import { extractUserIdFromCookie } from "@/lib/session-security"
 import UsersClientTable, { type AdminUserRow } from "./users-table"
 
 export const dynamic = "force-dynamic"
@@ -9,7 +10,7 @@ export const revalidate = 0
 export default async function UsersPage() {
   const cookieStore = await cookies()
   const rawSession = cookieStore.get("user_session")?.value
-  const candidateId = rawSession?.split(".")[0]
+  const candidateId = extractUserIdFromCookie(rawSession)
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -47,7 +48,7 @@ export default async function UsersPage() {
   const buyCounts: Record<string, number> = {}
 
   ;(sellsData || []).forEach((s) => {
-    if (s.user_id) sellCounts[s.user_id] = (sellCounts[s.user_id] || 0) + 1
+    if (s.user_id) sellCounts[s.user_id] = (sellCounts[s.user_id] || 1)
   })
   ;(buysData || []).forEach((b) => {
     if (b.user_id) buyCounts[b.user_id] = (buyCounts[b.user_id] || 0) + 1
@@ -61,7 +62,7 @@ export default async function UsersPage() {
     role: u.role || "user",
     status: u.status || "active",
     created_at: u.created_at || new Date().toISOString(),
-    sellCount: sellCounts[u.id] || 0,
+    sellCount: (sellsData || []).filter((s) => s.user_id === u.id).length,
     buyCount: buyCounts[u.id] || 0,
   }))
 

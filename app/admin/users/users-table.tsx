@@ -785,7 +785,7 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                 dir="ltr"
                 required
                 maxLength={160}
-                placeholder="staff@darak.com"
+                placeholder="staff@aqarexit.com"
                 className="h-10 w-full rounded-xl border border-gray-200 px-3 text-left text-xs focus:border-[#105C50] focus:outline-none"
               />
             </div>
@@ -800,7 +800,7 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                 dir="ltr"
                 required
                 maxLength={25}
-                placeholder="010xxxxxxxx"
+                placeholder="+9955xxxxxxxx"
                 className="h-10 w-full rounded-xl border border-gray-200 px-3 text-left text-xs focus:border-[#105C50] focus:outline-none"
               />
             </div>
@@ -867,3 +867,10 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
     </div>
   )
 }
+
+/* ============================================================================
+   ARCHIVED EGYPT PLACEHOLDERS (COMMENTED FOR FUTURE REFERENCE)
+   ============================================================================
+   // placeholder="staff@darak.com"
+   // placeholder="010xxxxxxxx"
+============================================================================ */

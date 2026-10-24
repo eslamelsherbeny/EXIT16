@@ -205,6 +205,7 @@ export default function ProfileClient({
                   name="phone"
                   dir="ltr"
                   required
+                  placeholder="+9955xxxxxxxx"
                   defaultValue={adminProfile.phone}
                   className="h-10 w-full rounded-lg border border-gray-200 bg-gray-50/50 px-3.5 text-left text-xs font-bold focus:border-[#105C50] focus:bg-white focus:outline-none"
                 />

@@ -32,7 +32,7 @@ export default async function AdminPromotionsPage() {
     return (
       <div dir={dir} className="mx-auto max-w-7xl">
         <div className="rounded-xl border border-red-200 bg-red-50 p-5 text-xs font-bold text-red-700">
-          {dict.admin?.promotions?.loadError || "تعذر تحميل بيانات الإعلانات."}
+          {dict.admin?.promotions?.loadError || dict.admin?.propertiesAdmin?.loadError}
         </div>
       </div>
     )

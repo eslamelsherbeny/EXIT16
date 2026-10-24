@@ -504,7 +504,11 @@
       "finishingLabel": "კონდიცია *",
       "deliveryLabel": "ჩაბარების სტატუსი *",
       "featuresLabel": "უპირატესობები",
-      "descriptionLabel": "მოკლე აღწერა *"
+      "descriptionLabel": "მოკლე აღწერა *",
+      "georgiaLocationLabel": "უბანი / ქალაქი საქართველოში *",
+"georgiaLocationPlaceholder": "მოძებნეთ ქალაქი ან უბანი (მაგ.: თბილისი, ბათუმი, საბურთალო)...",
+"deliveryDateLabel": "ჩაბარების თარიღი (თვე / წელი) *",
+"deliveryDateHelper": "აირჩიეთ ჩაბარების სავარაუდო ან ფაქტობრივი თვე და წელი"
     },
     "pricingStep": {
       "contractYearLabel": "კონტრაქტის წელი *",
@@ -520,7 +524,10 @@
       "discountAmountLabel": "მაქსიმალური ფასდაკლება *",
       "overdueQuestion": "გაქვთ ვადაგადაცილებული შენატანი? *",
       "overdueCountLabel": "რამდენი შენატანი? *",
-      "overdueTotalLabel": "ვადაგადაცილებული თანხა სულ *"
+      "overdueTotalLabel": "ვადაგადაცილებული თანხა სულ *",
+      "contractMonthYearLabel": "ხელშეკრულების თარიღი (თვე / წელი) *",
+"remainingMonthsLabel": "დარჩენილი განვადების თვეები *",
+"remainingMonthsHelper": "ჩაწერეთ 0, თუ განვადება სრულად დაფარულია"
     },
     "photosStep": {
       "uploadTitle": "ატვირთეთ ფოტოები",
@@ -560,7 +567,14 @@
       "adCodeInstruction": "შეინახეთ კოდი და მოგვწერეთ WhatsApp-ში გასააქტიურებლად.",
       "selectPackageHint": "აირჩიეთ პაკეტი კოდის მისაღებად.",
       "goToAccountBtn": "ჩემს კაბინეტში გადასვლა",
-      "editAnytimeNote": "მონაცემების შეცვლა ნებისმიერ დროს შეგიძლიათ კაბინეტიდან."
+      "editAnytimeNote": "მონაცემების შეცვლა ნებისმიერ დროს შეგიძლიათ კაბინეტიდან.",
+      "rowContractDate": "ხელშეკრულების თარიღი",
+"rowRemainingMonths": "დარჩენილი თვეები",
+"monthsUnit": "თვე",
+"docsPreSubmitNote": "განაცხადის გაგზავნის შემდეგ, გთხოვთ ატვირთოთ ქონების დოკუმენტები და პასპორტის ასლი თქვენი ანგარიშიდან განცხადების გამოსაქვეყნებლად.",
+"docsRequiredBannerTitle": "მნიშვნელოვანი ნაბიჯი ქონების ვერიფიკაციისა და გამოქვეყნებისთვის",
+"docsRequiredBannerDesc": "გთხოვთ ატვირთოთ ქონების დოკუმენტები (ხელშეკრულება, გადახდის ქვითრები და პასპორტის ასლი), რათა ჩვენმა გუნდმა შეძლოს გადამოწმება და გამოქვეყნება.",
+"uploadDocsNowBtn": "დოკუმენტების ატვირთვა ახლავე"
     }
   },
   "accountPages": {

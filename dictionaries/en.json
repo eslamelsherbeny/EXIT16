@@ -504,7 +504,11 @@
       "finishingLabel": "Finishing *",
       "deliveryLabel": "Delivery Status *",
       "featuresLabel": "Features",
-      "descriptionLabel": "Brief Unit Description *"
+      "descriptionLabel": "Brief Unit Description *",
+      "georgiaLocationLabel": "Area / City in Georgia *",
+"georgiaLocationPlaceholder": "Search city or district (e.g., Tbilisi, Batumi, Saburtalo)...",
+"deliveryDateLabel": "Unit Delivery Date (Month / Year) *",
+"deliveryDateHelper": "Select the expected or actual delivery month and year"
     },
     "pricingStep": {
       "contractYearLabel": "Contract Year *",
@@ -520,7 +524,10 @@
       "discountAmountLabel": "Maximum Discount Amount *",
       "overdueQuestion": "Do you have overdue installments with the developer? *",
       "overdueCountLabel": "How many overdue installments? *",
-      "overdueTotalLabel": "Total Overdue Amount *"
+      "overdueTotalLabel": "Total Overdue Amount *",
+      "contractMonthYearLabel": "Contract Date (Month / Year) *",
+"remainingMonthsLabel": "Remaining Installment Months *",
+"remainingMonthsHelper": "Enter 0 if all installments are fully paid"
     },
     "photosStep": {
       "uploadTitle": "Add Unit Photos",
@@ -560,7 +567,14 @@
       "adCodeInstruction": "Keep this order code and contact us via WhatsApp from your account to activate promotion once published.",
       "selectPackageHint": "Click any package above to issue a promotion order code for your unit.",
       "goToAccountBtn": "Go to Your Account",
-      "editAnytimeNote": "You can edit your unit details anytime from your account."
+      "editAnytimeNote": "You can edit your unit details anytime from your account.",
+      "rowContractDate": "Contract Date",
+"rowRemainingMonths": "Remaining Months",
+"monthsUnit": "months",
+"docsPreSubmitNote": "After submitting, please upload the unit documents and passport copy from your account to verify and publish your listing.",
+"docsRequiredBannerTitle": "Important Step to Verify & Publish Your Unit",
+"docsRequiredBannerDesc": "Please upload your unit documents (contract, payment receipts, and passport copy) so our review team can verify and publish your unit to buyers.",
+"uploadDocsNowBtn": "Upload Unit Documents Now"
     }
   },
   "accountPages": {

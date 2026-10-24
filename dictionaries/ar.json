@@ -504,7 +504,11 @@
       "finishingLabel": "التشطيب *",
       "deliveryLabel": "حالة الاستلام *",
       "featuresLabel": "المميزات",
-      "descriptionLabel": "وصف مختصر للوحدة *"
+      "descriptionLabel": "وصف مختصر للوحدة *",
+      "georgiaLocationLabel": "المنطقة / المدينة في جورجيا *",
+"georgiaLocationPlaceholder": "ابحث عن المدينة أو الحي (مثل: تبليسي، باتومي، سابورتالو)...",
+"deliveryDateLabel": "تاريخ استلام الوحدة (الشهر / السنة) *",
+"deliveryDateHelper": "اختر الشهر والسنة المتوقعة أو الفعلية للاستلام"
     },
     "pricingStep": {
       "contractYearLabel": "سنة التعاقد *",
@@ -520,7 +524,10 @@
       "discountAmountLabel": "أكتر مبلغ مستعد تتنازل عنه *",
       "overdueQuestion": "عليك أقساط متأخرة للمطور؟ *",
       "overdueCountLabel": "كام قسط متأخر؟ *",
-      "overdueTotalLabel": "إجمالي المبلغ المتأخر *"
+      "overdueTotalLabel": "إجمالي المبلغ المتأخر *",
+      "contractMonthYearLabel": "تاريخ التعاقد (الشهر / السنة) *",
+"remainingMonthsLabel": "عدد شهور التقسيط المتبقية *",
+"remainingMonthsHelper": "اكتب 0 إذا كانت الوحدة خالصة الأقساط بالكامل"
     },
     "photosStep": {
       "uploadTitle": "أضف صور الوحدة",
@@ -560,7 +567,14 @@
       "adCodeInstruction": "احتفظ برقم الطلب وتواصل معنا عبر واتساب من حسابك لتفعيل التمييز فور نشر الوحدة.",
       "selectPackageHint": "اضغط على أي باقة بالأعلى لإصدار رقم طلب الإعلان المميز الخاص بوحدتك.",
       "goToAccountBtn": "روح لحسابك",
-      "editAnytimeNote": "تقدر ترجع تعدّل بيانات وحدتك في أي وقت من حسابك."
+      "editAnytimeNote": "تقدر ترجع تعدّل بيانات وحدتك في أي وقت من حسابك.",
+      "rowContractDate": "تاريخ التعاقد",
+"rowRemainingMonths": "الشهور المتبقية",
+"monthsUnit": "شهر",
+"docsPreSubmitNote": "بعد إرسال الطلب، يرجى رفع مستندات الوحدة وصورة جواز السفر من حسابك ليتم توثيق ونشر الوحدة.",
+"docsRequiredBannerTitle": "خطوة هامة لتفعيل ونشر وحدتك",
+"docsRequiredBannerDesc": "يرجى رفع مستندات الوحدة (العقد، إيصالات السداد، وصورة جواز السفر) حتى يتمكن فريق المراجعة من توثيق وحدتك ونشرها للمشترين.",
+"uploadDocsNowBtn": "رفع مستندات الوحدة الآن"
     }
   },
   "accountPages": {

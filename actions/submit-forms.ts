@@ -17,6 +17,11 @@ import {
 } from '@/lib/session-security'
 import { getServerI18n } from '@/lib/get-server-dictionary'
 
+const DEFAULT_SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL || 'https://exit-16.vercel.app'
+const ACTIVE_COUNTRY_CODE = 'GE'
+const ACTIVE_CURRENCY_CODE = 'USD'
+
 async function getFormsDict() {
   const { dict, dir } = await getServerI18n()
   const t = (dict as Record<string, any>)?.serverActions?.forms || {}
@@ -138,8 +143,33 @@ function generateOrderRef(id?: string) {
   return `AE-${randomBytes(3).toString('hex').toUpperCase()}`
 }
 
+function parseDeliveryDateFromStatus(rawStatus: string) {
+  const str = String(rawStatus || '')
+  const monthYearMatch = str.match(/(0[1-9]|1[0-2])\/(20\d{2})/)
+  const yearOnlyMatch = str.match(/(20\d{2})/)
+  return {
+    deliveryMonth: monthYearMatch ? monthYearMatch[1] : null,
+    deliveryYear: monthYearMatch
+      ? Number.parseInt(monthYearMatch[2], 10)
+      : yearOnlyMatch
+        ? Number.parseInt(yearOnlyMatch[1], 10)
+        : null,
+  }
+}
+
+function stripExtendedSellColumns(payload: Record<string, any>) {
+  const clone = { ...payload }
+  delete clone.contract_month
+  delete clone.delivery_month
+  delete clone.delivery_year
+  delete clone.annual_installment_amount
+  delete clone.overdue_total_amount
+  return clone
+}
+
 function createMagicToken(userId: string, unitId: string, expiresAt: number) {
   const secret =
+    process.env.SESSION_SECRET ||
     process.env.EMAIL_PASS ||
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
     'darak-secret-key'
@@ -154,11 +184,12 @@ export async function verifyMagicTokenAction(token: string) {
     const decoded = Buffer.from(token, 'base64url').toString('utf8')
     const [userId, unitId, expiresStr, sig] = decoded.split(':')
     const expiresAt = Number(expiresStr)
-    if (!userId || !expiresAt || Date.now() > expiresAt) {
+    if (!userId || !sig || !expiresAt || Date.now() > expiresAt) {
       return { valid: false, error: msg.expiredLink }
     }
 
     const secret =
+      process.env.SESSION_SECRET ||
       process.env.EMAIL_PASS ||
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
       'darak-secret-key'
@@ -166,7 +197,12 @@ export async function verifyMagicTokenAction(token: string) {
       .update(`${userId}:${unitId}:${expiresAt}`)
       .digest('hex')
 
-    if (sig !== expectedSig) return { valid: false, error: msg.invalidLink }
+    if (
+      sig.length !== expectedSig.length ||
+      !timingSafeEqual(Buffer.from(sig), Buffer.from(expectedSig))
+    ) {
+      return { valid: false, error: msg.invalidLink }
+    }
 
     const supabase = await getSupabase()
     const { data: unit } = await supabase
@@ -323,18 +359,10 @@ export async function processSellerStep2Action(payload: {
   const { t: msg, dir } = await getFormsDict()
   try {
     const supabase = await getSupabase()
-    const siteUrl =
-      process.env.NEXT_PUBLIC_SITE_URL ||
-      'https://next-js-rtl-platform-structure.vercel.app'
+    const siteUrl = DEFAULT_SITE_URL
 
-    const unitCountryCode = (payload.unitCountry || 'GE').trim().toUpperCase()
-    const userCountryCode = (
-      payload.userCountry ||
-      payload.unitCountry ||
-      'GE'
-    )
-      .trim()
-      .toUpperCase()
+    const unitCountryCode = ACTIVE_COUNTRY_CODE
+    const userCountryCode = ACTIVE_COUNTRY_CODE
 
     async function upsertDraftUnit(
       userId: string,
@@ -343,6 +371,8 @@ export async function processSellerStep2Action(payload: {
       const unitData: Record<string, any> = {
         user_id: userId,
         country: unitCountryCode,
+        country_code: unitCountryCode,
+        currency_code: ACTIVE_CURRENCY_CODE,
         developer_name: payload.developer || null,
         project_name: payload.project || null,
         contract_price: Number(payload.contractPrice) || 0,
@@ -746,9 +776,7 @@ export async function sendSellerRecoveryLinkAction(payload: {
       return { success: false, error: msg.emailNotFound }
     }
 
-    const siteUrl =
-      process.env.NEXT_PUBLIC_SITE_URL ||
-      'https://next-js-rtl-platform-structure.vercel.app'
+    const siteUrl = DEFAULT_SITE_URL
     const expiresAt = Date.now() + 60 * 60 * 1000
     const tokenHash = createMagicToken(
       targetUser.id,
@@ -841,8 +869,13 @@ export async function saveSellProgress(
       }
     }
 
+    const deliveryStatusRaw = text(formData, 'delivery_status')
+    const parsedDel = parseDeliveryDateFromStatus(deliveryStatusRaw)
+
     const payload: Record<string, any> = {
-      country: text(formData, 'country') || 'GE',
+      country: ACTIVE_COUNTRY_CODE,
+      country_code: ACTIVE_COUNTRY_CODE,
+      currency_code: ACTIVE_CURRENCY_CODE,
       developer_name: text(formData, 'developer_name') || null,
       project_name: text(formData, 'project_name') || null,
       area: text(formData, 'area') || null,
@@ -851,15 +884,22 @@ export async function saveSellProgress(
       rooms: number(formData, 'rooms'),
       bathrooms: number(formData, 'bathrooms'),
       finishing: text(formData, 'finishing') || null,
-      delivery_status: text(formData, 'delivery_status') || null,
+      delivery_status: deliveryStatusRaw || null,
+      delivery_month:
+        text(formData, 'delivery_month') || parsedDel.deliveryMonth,
+      delivery_year:
+        integer(formData, 'delivery_year') || parsedDel.deliveryYear,
       description: text(formData, 'description') || null,
       contract_price: number(formData, 'contract_price'),
       paid_amount: number(formData, 'paid_amount'),
       market_price: number(formData, 'market_price'),
       installment_amount: number(formData, 'installment_amount'),
       installment_frequency: text(formData, 'installment_frequency') || null,
+      contract_month: text(formData, 'contract_month') || null,
       contract_year: integer(formData, 'contract_year'),
       years_left: integer(formData, 'years_left'),
+      annual_installment_amount: number(formData, 'annual_installment_amount'),
+      overdue_total_amount: number(formData, 'overdue_total_amount'),
       images: list(formData, 'image'),
     }
 
@@ -881,10 +921,18 @@ export async function saveSellProgress(
       return { success: false, error: msg.saveProgressFailed }
     }
 
-    const { error } = await supabase
+    let { error } = await supabase
       .from('sell_requests')
       .update(payload)
       .eq('id', targetUnitId)
+
+    if (error) {
+      const fallbackRes = await supabase
+        .from('sell_requests')
+        .update(stripExtendedSellColumns(payload))
+        .eq('id', targetUnitId)
+      error = fallbackRes.error
+    }
 
     revalidatePath('/account', 'page')
     return error
@@ -907,15 +955,16 @@ export async function submitSellRequest(
     )
     const existingUnitId = text(formData, 'unit_id')
     const projectName = text(formData, 'project_name')
-    const unitCountry = (
-      text(formData, 'country') ||
-      text(formData, 'country_code') ||
-      'GE'
-    ).toUpperCase()
+    const unitCountry = ACTIVE_COUNTRY_CODE
     const customSubType = text(formData, 'submission_type') || 'new'
+
+    const deliveryStatusRaw = text(formData, 'delivery_status')
+    const parsedDel = parseDeliveryDateFromStatus(deliveryStatusRaw)
 
     const payload: Record<string, any> = {
       country: unitCountry,
+      country_code: unitCountry,
+      currency_code: ACTIVE_CURRENCY_CODE,
       project_name: projectName || null,
       developer_name: text(formData, 'developer_name') || null,
       area: text(formData, 'area') || null,
@@ -926,7 +975,11 @@ export async function submitSellRequest(
       floor_number: number(formData, 'floor_number'),
       garden_size: number(formData, 'garden_size'),
       finishing: text(formData, 'finishing') || null,
-      delivery_status: text(formData, 'delivery_status') || null,
+      delivery_status: deliveryStatusRaw || null,
+      delivery_month:
+        text(formData, 'delivery_month') || parsedDel.deliveryMonth,
+      delivery_year:
+        integer(formData, 'delivery_year') || parsedDel.deliveryYear,
       features: list(formData, 'feature'),
       description: text(formData, 'description') || null,
       contract_price: number(formData, 'contract_price'),
@@ -935,14 +988,17 @@ export async function submitSellRequest(
         number(formData, 'market_price') || number(formData, 'contract_price'),
       installment_amount: number(formData, 'installment_amount'),
       years_left: integer(formData, 'years_left'),
+      contract_month: text(formData, 'contract_month') || null,
       contract_year: integer(formData, 'contract_year'),
       installment_frequency: text(formData, 'installment_frequency') || null,
       has_annual_installment: formData.get('has_annual_installment') === 'on',
+      annual_installment_amount: number(formData, 'annual_installment_amount'),
       willing_to_discount: formData.get('willing_to_discount') === 'on',
       discount_amount: number(formData, 'discount_amount'),
       has_overdue_installments:
         formData.get('has_overdue_installments') === 'on',
       overdue_installments: number(formData, 'overdue_installments'),
+      overdue_total_amount: number(formData, 'overdue_total_amount'),
       name: text(formData, 'name'),
       phone: formatPrimaryPhone(text(formData, 'phone')),
       email: normalizeEmail(text(formData, 'email')) || null,
@@ -970,10 +1026,18 @@ export async function submitSellRequest(
         payload.last_seller_edit_at = new Date().toISOString()
       }
 
-      const { error } = await supabase
+      let { error } = await supabase
         .from('sell_requests')
         .update(payload)
         .eq('id', existingUnitId)
+
+      if (error) {
+        const fallbackRes = await supabase
+          .from('sell_requests')
+          .update(stripExtendedSellColumns(payload))
+          .eq('id', existingUnitId)
+        error = fallbackRes.error
+      }
 
       if (error) {
         return { success: false, error: msg.submitUnitFailed }
@@ -1003,15 +1067,27 @@ export async function submitSellRequest(
     }
 
     const targetUserId = sessionId || null
-    const { data: inserted, error } = await supabase
+    const insertPayload = {
+      ...payload,
+      user_id: targetUserId,
+      submission_type: customSubType,
+    }
+
+    let { data: inserted, error } = await supabase
       .from('sell_requests')
-      .insert({
-        ...payload,
-        user_id: targetUserId,
-        submission_type: customSubType,
-      })
+      .insert(insertPayload)
       .select('id')
       .single()
+
+    if (error) {
+      const fallbackRes = await supabase
+        .from('sell_requests')
+        .insert(stripExtendedSellColumns(insertPayload))
+        .select('id')
+        .single()
+      inserted = fallbackRes.data
+      error = fallbackRes.error
+    }
 
     if (error || !inserted) {
       return { success: false, error: msg.submitUnitFailed }
@@ -1085,18 +1161,10 @@ export async function processBuyerStep3Action(payload: {
   const { t: msg, dir } = await getFormsDict()
   try {
     const supabase = await getSupabase()
-    const siteUrl =
-      process.env.NEXT_PUBLIC_SITE_URL ||
-      'https://next-js-rtl-platform-structure.vercel.app'
+    const siteUrl = DEFAULT_SITE_URL
 
-    const targetCountry = (payload.country || 'GE').trim().toUpperCase()
-    const buyerResidenceCountry = (
-      payload.userCountry ||
-      payload.country ||
-      'GE'
-    )
-      .trim()
-      .toUpperCase()
+    const targetCountry = ACTIVE_COUNTRY_CODE
+    const buyerResidenceCountry = ACTIVE_COUNTRY_CODE
 
     async function insertBuyRequestRecord(
       userId: string,
@@ -1107,6 +1175,8 @@ export async function processBuyerStep3Action(payload: {
         .insert({
           user_id: userId,
           country: targetCountry,
+          country_code: targetCountry,
+          currency_code: ACTIVE_CURRENCY_CODE,
           available_cash: Number(payload.available_cash) || 0,
           max_installment: Number(payload.max_installment) || 0,
           payment_plan: payload.payment_plan || msg.defaultMonthly,
@@ -1398,7 +1468,7 @@ export async function submitBuyRequest(
 
     const res = await processBuyerStep3Action({
       mode: 'register',
-      country: text(input, 'country_code') || text(input, 'country') || 'GE',
+      country: ACTIVE_COUNTRY_CODE,
       available_cash: number(input, 'available_cash'),
       max_installment: number(input, 'max_installment'),
       payment_plan: text(input, 'payment_plan'),
@@ -1438,10 +1508,10 @@ export async function submitInvestorLead(formData: FormData) {
     const supabase = await getSupabase()
 
     const name = String(formData.get('name') || '').trim()
-    const phone = String(formData.get('phone') || '').trim()
+    const phone = formatPrimaryPhone(String(formData.get('phone') || '').trim())
     const email = String(formData.get('email') || '').trim()
     const company = String(formData.get('company') || '').trim()
-    const country = String(formData.get('country') || 'GE').trim()
+    const country = ACTIVE_COUNTRY_CODE
     const investor_type = String(formData.get('investor_type') || '').trim()
     const years_experience = String(
       formData.get('years_experience') || ''

@@ -11,7 +11,7 @@ import { getServerI18n } from "@/lib/get-server-dictionary"
 import AdminShell, {
   type AdminNotificationItem,
   type StaffRole,
-} from "./admin-shell"
+} from "../../components/layouts/admin-shell"
 
 export const dynamic = "force-dynamic"
 export const revalidate = 0

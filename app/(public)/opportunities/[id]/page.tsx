@@ -13,12 +13,12 @@ import {
   Share2,
   Star,
 } from 'lucide-react'
-import { inferCountryFromRow } from '@/components/opportunities/opportunities-shared'
+import { inferCountryFromRow } from '@/components/features/opportunities/opportunities-shared'
 import {
   UnitGalleryWithLightbox,
   UnitInterestForm,
-} from '@/components/opportunities/unit-interest-form'
-import { ScrollReveal } from '@/components/scroll-reveal'
+} from '@/components/features/opportunities/unit-interest-form'
+import { ScrollReveal } from '@/components/shared/scroll-reveal'
 import { getCurrencySymbol, useTranslation } from '@/lib/i18n'
 
 const FALLBACK_UNIT_IMAGE =

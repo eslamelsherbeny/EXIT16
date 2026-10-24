@@ -10,7 +10,7 @@ import {
   Zap,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { ScrollReveal } from '@/components/scroll-reveal'
+import { ScrollReveal } from '@/components/shared/scroll-reveal'
 import { getServerI18n } from '@/lib/get-server-dictionary'
 
 export const dynamic = 'force-dynamic'

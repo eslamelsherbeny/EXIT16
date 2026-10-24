@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { SellerFlow } from '@/components/seller-flow'
+import { SellerFlow } from '@/components/features/seller/seller-flow'
 import { getServerI18n } from '@/lib/get-server-dictionary'
 
 export async function generateMetadata(): Promise<Metadata> {

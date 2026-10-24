@@ -5,8 +5,8 @@ import { Clock3, Mail, MessageCircle, ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { CountrySelector } from '@/components/country-selector'
-import { TurnstileBox } from '@/components/auth-layout'
+import { CountrySelector } from '@/components/shared/country-selector'
+import { TurnstileBox } from '@/components/layouts/auth-layout'
 import { useTranslation } from '@/lib/i18n'
 
 const required = <span className="text-red-500">*</span>

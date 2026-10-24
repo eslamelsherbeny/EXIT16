@@ -27,7 +27,7 @@ import {
   respondToOfferBySellerAction,
   submitBuyerOfferAction,
   type OfferRecord,
-} from '@/app/actions/offer-actions'
+} from '@/actions/offer-actions'
 import {
   getUnitPricingGuardrails,
   type MatchableBuyer,

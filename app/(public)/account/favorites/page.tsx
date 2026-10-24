@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { createBrowserClient } from '@supabase/ssr'
 import { ArrowLeft, ArrowRight, Heart } from 'lucide-react'
 import { SharedUnitCard } from '@/components/shared/unit-card'
-import { ScrollReveal } from '@/components/scroll-reveal'
+import { ScrollReveal } from '@/components/shared/scroll-reveal'
 import { useTranslation } from '@/lib/i18n'
 
 const FAVORITES_STORAGE_KEY = 'darak_favorites'

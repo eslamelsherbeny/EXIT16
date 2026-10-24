@@ -11,9 +11,9 @@ import {
   User,
 } from "lucide-react"
 import { useTranslation, getCurrencySymbol } from "@/lib/i18n"
-import { SUPPORTED_COUNTRIES, CountryFlag } from "@/components/site-shell"
-import * as submitActions from "@/app/actions/submit-forms"
-import * as authActions from "@/app/actions/auth-actions"
+import { SUPPORTED_COUNTRIES, CountryFlag } from "@/components/layouts/site-shell"
+import * as submitActions from "@/actions/submit-forms"
+import * as authActions from "@/actions/auth-actions"
 
 function formatNumberInput(val: string) {
   const digits = val.replace(/\D/g, "")

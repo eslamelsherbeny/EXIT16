@@ -41,8 +41,8 @@ import {
 } from "@/components/ui/dialog"
 import { getCurrencySymbol, useTranslation } from "@/lib/i18n"
 import { calculateSmartMatch } from "@/lib/smart-matcher"
-import { BuyerSmartMatchModal } from "@/components/admin/smart-match-dialogs"
-import { deleteBuyerLeadAction, updateBuyerLeadStatusAction } from "../actions"
+import { BuyerSmartMatchModal } from "@/components/features/admin/smart-match-dialogs"
+import { deleteBuyerLeadAction, updateBuyerLeadStatusAction } from "../../../actions/admin-actions"
 
 const ACTIVE_ADMIN_COUNTRY = "GE"
 

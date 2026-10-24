@@ -1,4 +1,4 @@
-import { PublicLayout } from '@/components/site-shell'
+import { PublicLayout } from '@/components/layouts/site-shell'
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return <PublicLayout>{children}</PublicLayout>

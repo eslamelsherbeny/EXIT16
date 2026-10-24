@@ -42,13 +42,13 @@ import {
   calculateSmartMatch,
   type MatchableBuyer,
 } from "@/lib/smart-matcher"
-import { UnitSmartMatchModal } from "@/components/admin/smart-match-dialogs"
+import { UnitSmartMatchModal } from "@/components/features/admin/smart-match-dialogs"
 import {
   deletePropertyAction,
   managePropertyPromotionAction,
   purgeSellerDeletedPropertiesAction,
   updatePropertyStatusAction,
-} from "../actions"
+} from "../../../actions/admin-actions"
 
 const ACTIVE_ADMIN_COUNTRY = "GE"
 

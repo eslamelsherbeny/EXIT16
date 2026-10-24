@@ -3,14 +3,14 @@
 import { useEffect, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { CheckCircle2 } from 'lucide-react'
-import { getCurrentSellerProfileAction } from '@/app/actions/submit-forms'
+import { getCurrentSellerProfileAction } from '@/actions/submit-forms'
 import {
   updateEmailInfoAction,
   updatePersonalInfoAction,
-} from '@/app/actions/account-actions'
-import { CountrySelector } from '@/components/country-selector'
-import { ScrollReveal } from '@/components/scroll-reveal'
-import { ALL_RESIDENCE_COUNTRIES } from '@/components/seller/seller-shared'
+} from '@/actions/account-actions'
+import { CountrySelector } from '@/components/shared/country-selector'
+import { ScrollReveal } from '@/components/shared/scroll-reveal'
+import { ALL_RESIDENCE_COUNTRIES } from '@/components/features/seller/seller-shared'
 import { useTranslation } from '@/lib/i18n'
 
 export default function AccountDetailsPage() {

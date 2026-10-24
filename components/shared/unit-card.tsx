@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { Star, Trash2 } from 'lucide-react'
 import arDict from '@/dictionaries/ar.json'
-import { getCurrencyByCountry } from '@/components/seller/seller-shared'
+import { getCurrencyByCountry } from '@/components/features/seller/seller-shared'
 
 const t = arDict.accountPages.common
 

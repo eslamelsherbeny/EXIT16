@@ -4,9 +4,9 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { saveUnitDocumentAction } from '@/app/actions/account-actions'
+import { saveUnitDocumentAction } from '@/actions/account-actions'
 import { CheckCircle2, Loader2, ShieldAlert } from 'lucide-react'
-import { ScrollReveal } from '@/components/scroll-reveal'
+import { ScrollReveal } from '@/components/shared/scroll-reveal'
 import { useTranslation } from '@/lib/i18n'
 
 export default function AccountDocumentsPage() {

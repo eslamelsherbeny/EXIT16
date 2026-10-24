@@ -40,7 +40,7 @@ import {
   createAdminOrUserAction,
   deleteUserByAdminAction,
   updateUserRoleAndStatusAction,
-} from "../actions"
+} from "../../../actions/admin-actions"
 
 export type AdminUserRow = {
   id: string

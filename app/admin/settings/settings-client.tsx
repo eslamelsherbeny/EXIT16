@@ -34,7 +34,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { useTranslation } from "@/lib/i18n"
-import { saveSiteSettingsAction } from "../actions"
+import { saveSiteSettingsAction } from "../../../actions/admin-actions"
 
 type SiteSettings = {
   siteName: string

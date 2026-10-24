@@ -5,11 +5,11 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import {
   getCurrentSellerProfileAction,
   processBuyerStep3Action,
-} from '@/app/actions/submit-forms'
+} from '@/actions/submit-forms'
 import { Check, Loader2, UserRound, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { TurnstileBox } from '@/components/funnel-shell'
+import { TurnstileBox } from '@/components/layouts/funnel-shell'
 import {
   areasCatalogByCountry,
   getCountryConfig,
@@ -22,12 +22,12 @@ import {
   RequiredLabel,
   SearchableCountryField,
   type PlatformCountryCode,
-} from '@/components/seller/seller-shared'
+} from '@/components/features/seller/seller-shared'
 import {
   BuyerContactStep,
   type BuyerConflictState,
   type BuyerFormState,
-} from '@/components/buyer/buyer-contact-step'
+} from '@/components/features/buyer/buyer-contact-step'
 import { getCurrencySymbol, useTranslation } from '@/lib/i18n'
 
 export default function BuyersPage() {

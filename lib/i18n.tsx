@@ -4,7 +4,7 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from '
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { Globe, MessageCircle, ShieldCheck, Wrench } from 'lucide-react'
-import { getPublicSiteRuntimeConfigAction } from '@/app/admin/actions'
+import { getPublicSiteRuntimeConfigAction } from '@/actions/admin-actions'
 import {
   type LocaleCode,
   type CountryCode,

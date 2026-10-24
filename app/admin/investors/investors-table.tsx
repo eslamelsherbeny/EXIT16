@@ -38,7 +38,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { useTranslation } from "@/lib/i18n"
-import { deleteInvestorAction, updateInvestorStatusAction } from "../actions"
+import { deleteInvestorAction, updateInvestorStatusAction } from "../../../actions/admin-actions"
 
 export type InvestorRow = {
   id: string

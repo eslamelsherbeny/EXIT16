@@ -37,7 +37,7 @@ import { useTranslation } from "@/lib/i18n"
 import {
   changeAdminPasswordAction,
   updateAdminProfileDataAction,
-} from "../actions"
+} from "../../../actions/admin-actions"
 
 type AdminProfile = {
   id: string

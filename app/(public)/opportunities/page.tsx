@@ -10,14 +10,14 @@ import {
   Star,
   X,
 } from 'lucide-react'
-import { unitTypes } from '@/components/seller/seller-shared'
+import { unitTypes } from '@/components/features/seller/seller-shared'
 import {
   mapDbRowToProperty,
   OpportunitiesBottomSections,
   OpportunityCard,
   type MappedProperty,
-} from '@/components/opportunities/opportunities-shared'
-import { ScrollReveal } from '@/components/scroll-reveal'
+} from '@/components/features/opportunities/opportunities-shared'
+import { ScrollReveal } from '@/components/shared/scroll-reveal'
 import { getCurrencySymbol, useTranslation } from '@/lib/i18n'
 
 const PAGE_SIZE = 48

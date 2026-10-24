@@ -48,7 +48,19 @@ function sanitizeText(val: unknown, maxLen = 500): string {
     .slice(0, maxLen)
 }
 
-// دالة عامة يستدعيها المتصفح لجلب إعدادات الموقع الحقيقية من قاعدة البيانات + حالة الـ Staff
+function formatPrimaryPhone(rawPhone: string): string {
+  const digits = sanitizeText(rawPhone, 30)
+    .replace(/\s+/g, "")
+    .replace(/[^0-9+]/g, "")
+  if (!digits) return ""
+  if (digits.startsWith("+")) return digits
+  const stripped = digits.replace(/^0+/, "")
+  if (stripped.startsWith("995") || stripped.startsWith("20")) {
+    return `+${stripped}`
+  }
+  return `+995${stripped}`
+}
+
 export async function getPublicSiteRuntimeConfigAction(): Promise<{
   siteSettings: GlobalSiteSettings
   isStaff: boolean
@@ -625,8 +637,7 @@ export async function createAdminOrUserAction(formData: FormData) {
       }
     }
 
-    const stripped = rawPhone.replace(/^\+?20/, "").replace(/^0+/, "")
-    const formattedPhone = `+20${stripped}`
+    const formattedPhone = formatPrimaryPhone(rawPhone)
     const hash = hashPassword(password)
 
     const { error } = await supabase.from("users").insert({
@@ -634,6 +645,7 @@ export async function createAdminOrUserAction(formData: FormData) {
       email,
       phone: formattedPhone,
       password_hash: hash,
+      country: "GE",
       role,
       status: "active",
     })
@@ -706,8 +718,7 @@ export async function updateAdminProfileDataAction(formData: FormData) {
       }
     }
 
-    const stripped = rawPhone.replace(/^\+?20/, "").replace(/^0+/, "")
-    const formattedPhone = `+20${stripped}`
+    const formattedPhone = formatPrimaryPhone(rawPhone)
 
     const updateData: Record<string, any> = {
       name,
@@ -831,6 +842,19 @@ export async function saveSiteSettingsAction(formData: FormData) {
     const { supabase } = await requireAdminAuth(["admin"])
     const cookieStore = await cookies()
 
+    const ge7 = sanitizeText(
+      formData.get("promo_GE_7") || formData.get("promo7Price") || "29",
+      12
+    )
+    const ge14 = sanitizeText(
+      formData.get("promo_GE_14") || formData.get("promo14Price") || "49",
+      12
+    )
+    const ge30 = sanitizeText(
+      formData.get("promo_GE_30") || formData.get("promo30Price") || "69",
+      12
+    )
+
     const settingsPayload: GlobalSiteSettings = {
       siteName: sanitizeText(formData.get("siteName") || "Aqar Exit", 80),
       whatsappNumber: sanitizeText(
@@ -845,15 +869,15 @@ export async function saveSiteSettingsAction(formData: FormData) {
         formData.get("buyerCommission") || "1.25",
         10
       ),
-      promo7Price: sanitizeText(formData.get("promo7Price") || "1199", 12),
-      promo14Price: sanitizeText(formData.get("promo14Price") || "1999", 12),
-      promo30Price: sanitizeText(formData.get("promo30Price") || "2799", 12),
+      promo7Price: ge7,
+      promo14Price: ge14,
+      promo30Price: ge30,
       promo_RU_7: sanitizeText(formData.get("promo_RU_7") || "2500", 12),
       promo_RU_14: sanitizeText(formData.get("promo_RU_14") || "4200", 12),
       promo_RU_30: sanitizeText(formData.get("promo_RU_30") || "5900", 12),
-      promo_GE_7: sanitizeText(formData.get("promo_GE_7") || "29", 12),
-      promo_GE_14: sanitizeText(formData.get("promo_GE_14") || "49", 12),
-      promo_GE_30: sanitizeText(formData.get("promo_GE_30") || "69", 12),
+      promo_GE_7: ge7,
+      promo_GE_14: ge14,
+      promo_GE_30: ge30,
       promo_AE_7: sanitizeText(formData.get("promo_AE_7") || "99", 12),
       promo_AE_14: sanitizeText(formData.get("promo_AE_14") || "179", 12),
       promo_AE_30: sanitizeText(formData.get("promo_AE_30") || "249", 12),
@@ -863,10 +887,8 @@ export async function saveSiteSettingsAction(formData: FormData) {
       emailNotifications: formData.get("emailNotifications") === "on",
     }
 
-    // مسح أي كوكي قديم محلي حتى يقرأ الجميع من قاعدة البيانات المركزية فقط
     cookieStore.delete("darak_site_settings")
 
-    // 1. الحفظ في جدول site_settings في Supabase
     try {
       await supabase.from("site_settings").upsert({
         id: "global",
@@ -875,7 +897,6 @@ export async function saveSiteSettingsAction(formData: FormData) {
       })
     } catch {}
 
-    // 2. الحفظ المضمون في سجل النظام داخل جدول notifications (لضمان عمله 100% حتى لو لم يكن جدول site_settings موجوداً)
     try {
       await supabase
         .from("notifications")
@@ -999,3 +1020,10 @@ export async function purgeSellerDeletedPropertiesAction() {
     }
   }
 }
+
+/* ============================================================================
+   ARCHIVED MULTI-COUNTRY / EGYPT PHONE FORMATTING (COMMENTED FOR REFERENCE)
+   ============================================================================
+   // const stripped = rawPhone.replace(/^\+?20/, "").replace(/^0+/, "")
+   // const formattedPhone = `+20${stripped}`
+============================================================================ */

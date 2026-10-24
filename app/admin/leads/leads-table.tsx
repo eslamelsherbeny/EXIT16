@@ -11,7 +11,6 @@ import {
   ExternalLink,
   Eye,
   Flame,
-  Globe,
   Handshake,
   Loader2,
   MapPin,
@@ -44,6 +43,8 @@ import { getCurrencySymbol, useTranslation } from "@/lib/i18n"
 import { calculateSmartMatch } from "@/lib/smart-matcher"
 import { BuyerSmartMatchModal } from "@/components/admin/smart-match-dialogs"
 import { deleteBuyerLeadAction, updateBuyerLeadStatusAction } from "../actions"
+
+const ACTIVE_ADMIN_COUNTRY = "GE"
 
 export type BuyerLead = {
   id: string
@@ -300,14 +301,6 @@ export default function LeadsClientTable({
     return `${leadsPrompts.waGeneralPrefix} ${lead.name}، ${leadsPrompts.waGeneralMiddle} (${parsed.cleanTargetUnit}) — ${t.cashLabel} ${cashVal} ${leadCur} | ${t.installmentLabel} ${instVal} ${leadCur}${typesStr ? ` | ${typesStr}` : ""}. ${leadsPrompts.waGeneralSuffix}`
   }
 
-  const adminCountries = [
-    { code: "ALL", label: adminDict.dashboard?.countries?.ALL, flag: "🌍" },
-    { code: "EG", label: adminDict.dashboard?.countries?.EG, flag: "🇪🇬" },
-    { code: "RU", label: adminDict.dashboard?.countries?.RU, flag: "🇷🇺" },
-    { code: "GE", label: adminDict.dashboard?.countries?.GE, flag: "🇬🇪" },
-    { code: "AE", label: adminDict.dashboard?.countries?.AE, flag: "🇦🇪" },
-  ]
-
   const leadStatuses = [
     { value: "new", label: t.statuses?.new, badge: "bg-blue-100 text-blue-800" },
     {
@@ -337,11 +330,10 @@ export default function LeadsClientTable({
     return leadStatuses.find((s) => s.value === st)?.label || st
   }
 
-  function getLeadCurrency(countryCode?: string | null) {
-    return getCurrencySymbol(countryCode || "EG", locale)
+  function getLeadCurrency() {
+    return getCurrencySymbol(ACTIVE_ADMIN_COUNTRY, locale)
   }
 
-  const [countryFilter, setCountryFilter] = useState<string>("ALL")
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [leadTypeFilter, setLeadTypeFilter] = useState<
@@ -365,12 +357,7 @@ export default function LeadsClientTable({
 
   useEffect(() => {
     const typeParam = searchParams.get("type")
-    const countryParam = searchParams.get("country")
     const leadIdParam = searchParams.get("leadId")
-
-    if (countryParam) {
-      setCountryFilter(countryParam.toUpperCase())
-    }
 
     if (typeParam === "unit_leads" || typeParam === "general") {
       setLeadTypeFilter(typeParam)
@@ -442,17 +429,10 @@ export default function LeadsClientTable({
     })
   }
 
-  const countryLeads =
-    countryFilter === "ALL"
-      ? leads
-      : leads.filter((l) => (l.country_code || "EG") === countryFilter)
+  const unitLeadsCount = leads.filter((l) => parseLeadDetails(l).isUnitLead).length
+  const generalLeadsCount = leads.length - unitLeadsCount
 
-  const unitLeadsCount = countryLeads.filter(
-    (l) => parseLeadDetails(l).isUnitLead
-  ).length
-  const generalLeadsCount = countryLeads.length - unitLeadsCount
-
-  const filtered = countryLeads.filter((l) => {
+  const filtered = leads.filter((l) => {
     const parsed = parseLeadDetails(l)
     if (leadTypeFilter === "unit_leads" && !parsed.isUnitLead) return false
     if (leadTypeFilter === "general" && parsed.isUnitLead) return false
@@ -474,50 +454,6 @@ export default function LeadsClientTable({
 
   return (
     <div dir={dir} className="text-start">
-      {/* 1. شريط تقسيم الدول العلوي */}
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200/85 bg-white p-3.5 shadow-2xs sm:p-4">
-        <div className="flex items-center gap-2 text-xs font-extrabold text-[#0a1122] sm:text-sm">
-          <Globe className="size-4 shrink-0 text-[#105C50]" />
-          <span>{adminDict.dashboard?.showingAll || t.title}</span>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-1.5">
-          {adminCountries.map((c) => {
-            const isSelected = c.code === countryFilter
-            const countInC =
-              c.code === "ALL"
-                ? leads.length
-                : leads.filter((l) => (l.country_code || "EG") === c.code)
-                    .length
-
-            return (
-              <button
-                key={c.code}
-                type="button"
-                onClick={() => setCountryFilter(c.code)}
-                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-                  isSelected
-                    ? "bg-[#105C50] text-white shadow-2xs"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-              >
-                <span>{c.flag}</span>
-                <span>{c.label}</span>
-                <span
-                  className={`rounded-full px-1.5 text-[10px] ${
-                    isSelected
-                      ? "bg-white/20 text-white"
-                      : "bg-white text-gray-600"
-                  }`}
-                >
-                  {countInC}
-                </span>
-              </button>
-            )
-          })}
-        </div>
-      </div>
-
       {/* شريط التبديل السريع */}
       <div className="mb-4 grid grid-cols-3 gap-2 rounded-xl border border-gray-200/80 bg-white p-1.5 shadow-2xs sm:inline-flex">
         <button
@@ -529,7 +465,7 @@ export default function LeadsClientTable({
               : "text-gray-600 hover:bg-gray-100"
           }`}
         >
-          {t.allTab} ({countryLeads.length})
+          {t.allTab} ({leads.length})
         </button>
 
         <button
@@ -650,7 +586,7 @@ export default function LeadsClientTable({
             const isCardLoading = pending && activeLeadId === lead.id
             const isHighlighted = highlightedLeadId === lead.id
             const firstLetter = lead.name.trim().charAt(0) || "U"
-            const leadCur = getLeadCurrency(lead.country_code)
+            const leadCur = getLeadCurrency()
 
             const waText = buildWhatsAppMessage(lead, parsed, leadCur)
 
@@ -964,7 +900,7 @@ export default function LeadsClientTable({
                       : "—"
                     const isRowLoading = pending && activeLeadId === lead.id
                     const isHighlighted = highlightedLeadId === lead.id
-                    const leadCur = getLeadCurrency(lead.country_code)
+                    const leadCur = getLeadCurrency()
 
                     const waText = buildWhatsAppMessage(lead, parsed, leadCur)
 
@@ -1192,7 +1128,7 @@ export default function LeadsClientTable({
         </CardContent>
       </Card>
 
-      {/* ==================== 3. المكون المفصول للتوافق الذكي للمشتري ==================== */}
+      {/* 3. المكون المفصول للتوافق الذكي للمشتري */}
       <BuyerSmartMatchModal
         lead={smartMatchLead}
         units={units}
@@ -1213,7 +1149,7 @@ export default function LeadsClientTable({
           {detailsLead &&
             (() => {
               const parsed = parseLeadDetails(detailsLead)
-              const leadCur = getLeadCurrency(detailsLead.country_code)
+              const leadCur = getLeadCurrency()
               const waText = buildWhatsAppMessage(detailsLead, parsed, leadCur)
               const typesText = Array.isArray(detailsLead.unit_types)
                 ? detailsLead.unit_types.join("، ")
@@ -1468,3 +1404,20 @@ export default function LeadsClientTable({
     </div>
   )
 }
+
+/* ============================================================================
+   ARCHIVED MULTI-COUNTRY LEADS FILTER BAR (COMMENTED FOR FUTURE REFERENCE)
+   ============================================================================
+   const adminCountries = [
+     { code: "ALL", label: adminDict.dashboard?.countries?.ALL, flag: "🌍" },
+     { code: "EG", label: adminDict.dashboard?.countries?.EG, flag: "🇪🇬" },
+     { code: "RU", label: adminDict.dashboard?.countries?.RU, flag: "🇷🇺" },
+     { code: "GE", label: adminDict.dashboard?.countries?.GE, flag: "🇬🇪" },
+     { code: "AE", label: adminDict.dashboard?.countries?.AE, flag: "🇦🇪" },
+   ]
+   const [countryFilter, setCountryFilter] = useState<string>("ALL")
+   const countryLeads =
+     countryFilter === "ALL"
+       ? leads
+       : leads.filter((l) => (l.country_code || "EG") === countryFilter)
+============================================================================ */

@@ -8,7 +8,6 @@ import {
   ExternalLink,
   FileText,
   Flame,
-  Globe,
   Handshake,
   MessageCircle,
   RefreshCw,
@@ -27,6 +26,8 @@ import { getCurrencySymbol } from "@/lib/i18n-config"
 
 export const dynamic = "force-dynamic"
 export const revalidate = 0
+
+const ACTIVE_ADMIN_COUNTRY = "GE"
 
 const STATUS_BADGE_CLASSES: Record<string, string> = {
   pending: "bg-amber-100 text-amber-800",
@@ -55,28 +56,14 @@ async function getSupabase() {
   )
 }
 
-export default async function AdminPage({
-  searchParams,
-}: {
-  searchParams?: Promise<{ country?: string }>
-}) {
+export default async function AdminPage() {
   const { dict, locale, dir } = await getServerI18n()
   const t = dict.admin.dashboard as Record<string, any>
   const leadsDict = dict.admin.leads as Record<string, any>
   const sm = (dict.admin as Record<string, any>).smartMatch || {}
 
-  const adminCountries = [
-    { code: "ALL", label: t.countries.ALL, flag: "🌍" },
-    { code: "EG", label: t.countries.EG, flag: "🇪🇬" },
-    { code: "RU", label: t.countries.RU, flag: "🇷🇺" },
-    { code: "GE", label: t.countries.GE, flag: "🇬🇪" },
-    { code: "AE", label: t.countries.AE, flag: "🇦🇪" },
-  ]
-
-  const resolvedParams = searchParams ? await searchParams : {}
-  const selectedCountry = (resolvedParams.country || "ALL").toUpperCase()
-  const currentCountryObj =
-    adminCountries.find((c) => c.code === selectedCountry) || adminCountries[0]
+  const georgiaLabel = t.countries?.GE || "Georgia"
+  const georgiaCurrency = getCurrencySymbol(ACTIVE_ADMIN_COUNTRY, locale)
 
   const supabase = await getSupabase()
 
@@ -99,27 +86,9 @@ export default async function AdminPage({
         .limit(30),
     ])
 
-  const allProperties = propertiesData || []
-  const allLeads = leadsData || []
+  const properties = propertiesData || []
+  const leads = leadsData || []
   const allOffers = allOffersData || []
-
-  const properties =
-    selectedCountry === "ALL"
-      ? allProperties
-      : allProperties.filter(
-          (p: any) =>
-            (p.country_code || p.country || "EG").toUpperCase() ===
-            selectedCountry
-        )
-
-  const leads =
-    selectedCountry === "ALL"
-      ? allLeads
-      : allLeads.filter(
-          (l: any) =>
-            (l.country_code || l.country || "EG").toUpperCase() ===
-            selectedCountry
-        )
 
   const propsMap = new Map(properties.map((p: any) => [p.id, p]))
 
@@ -166,21 +135,13 @@ export default async function AdminPage({
     leads.length - unitSpecificLeads.length
   )
 
-  const countryQuery =
-    selectedCountry !== "ALL" ? `?country=${selectedCountry}` : ""
-  const countryAmp =
-    selectedCountry !== "ALL" ? `&country=${selectedCountry}` : ""
-
   const kpis = [
     {
-      label:
-        selectedCountry === "ALL"
-          ? t.totalUnitsAll
-          : `${t.unitsIn} ${currentCountryObj.label}`,
+      label: `${t.unitsIn} ${georgiaLabel}`,
       value: properties.length.toLocaleString("en-US"),
       note: `${activeProperties.length.toLocaleString("en-US")} ${t.publishedNote}`,
       icon: Building2,
-      href: `/admin/properties${countryQuery}`,
+      href: "/admin/properties",
     },
     {
       label: t.pendingReview,
@@ -188,7 +149,7 @@ export default async function AdminPage({
       note:
         pendingProperties.length > 0 ? t.pendingNeedAction : t.allReviewed,
       icon: Clock3,
-      href: `/admin/properties?tab=pending${countryAmp}`,
+      href: "/admin/properties?tab=pending",
       highlight: pendingProperties.length > 0,
     },
     {
@@ -198,7 +159,7 @@ export default async function AdminPage({
         t.unitBookersNote ||
         `${t.outOfTotal} ${leads.length.toLocaleString("en-US")}`,
       icon: Flame,
-      href: `/admin/leads?type=unit_leads${countryAmp}`,
+      href: "/admin/leads?type=unit_leads",
       highlight: unitSpecificLeads.length > 0,
     },
     {
@@ -206,70 +167,13 @@ export default async function AdminPage({
       value: leads.length.toLocaleString("en-US"),
       note: `${generalSearchLeadsCount.toLocaleString("en-US")} ${t.generalRequestsNote}`,
       icon: FileText,
-      href: `/admin/leads${countryQuery}`,
+      href: "/admin/leads",
     },
   ]
 
   return (
     <div dir={dir} className="mx-auto max-w-7xl text-start">
-      {/* 1. شريط فلترة الدول */}
-      <div className="mb-4 rounded-xl border border-gray-200/85 bg-white p-3.5 shadow-2xs sm:p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-extrabold text-[#0a1122] sm:text-sm">
-              <Globe className="size-4 shrink-0 text-[#105C50]" />
-              <span>
-                {selectedCountry === "ALL"
-                  ? t.showingAll
-                  : `${t.showingCountry} ${currentCountryObj.label} ${currentCountryObj.flag}`}
-              </span>
-            </div>
-            <p className="mt-1 text-[11px] text-gray-500">{t.filterHint}</p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-1.5">
-            {adminCountries.map((c) => {
-              const isSelected = c.code === selectedCountry
-              const countInCountry =
-                c.code === "ALL"
-                  ? allProperties.length
-                  : allProperties.filter(
-                      (p: any) =>
-                        (p.country_code || p.country || "EG").toUpperCase() ===
-                        c.code
-                    ).length
-
-              return (
-                <Link
-                  key={c.code}
-                  href={
-                    c.code === "ALL" ? "/admin" : `/admin?country=${c.code}`
-                  }
-                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-                    isSelected
-                      ? "bg-[#105C50] text-white shadow-2xs"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                  }`}
-                >
-                  <span>{c.flag}</span>
-                  <span>{c.label}</span>
-                  <span
-                    className={`rounded-full px-1.5 text-[10px] ${
-                      isSelected
-                        ? "bg-white/20 text-white"
-                        : "bg-white text-gray-600"
-                    }`}
-                  >
-                    {countInCountry}
-                  </span>
-                </Link>
-              )
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* 2. الكروت الأربعة */}
+      {/* الكروت الأربعة */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         {kpis.map(({ label, value, note, icon: Icon, href, highlight }) => (
           <Link
@@ -320,9 +224,9 @@ export default async function AdminPage({
         ))}
       </div>
 
-      {/* 3. شريط طلبات الإعلان */}
+      {/* شريط طلبات الإعلان */}
       <Link
-        href={`/admin/promotions${countryQuery}`}
+        href="/admin/promotions"
         className={`mt-3.5 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3.5 shadow-2xs transition hover:shadow-xs sm:mt-4 sm:px-4 ${
           pendingAdRequests.length > 0
             ? "border-amber-400 bg-gradient-to-l from-amber-50/90 to-white"
@@ -381,7 +285,7 @@ export default async function AdminPage({
         </span>
       </Link>
 
-      {/* ==================== 4. غرفة الصفقات المتفق عليها الجاهزة للتنفيذ ==================== */}
+      {/* غرفة الصفقات المتفق عليها الجاهزة للتنفيذ */}
       {readyDeals.length > 0 && (
         <div className="mt-4 rounded-2xl border-2 border-[#105C50] bg-gradient-to-br from-[#effaf5] via-white to-[#f4fbf8] p-4 shadow-sm sm:p-5">
           <div className="mb-3.5 flex flex-wrap items-center justify-between gap-2">
@@ -403,10 +307,7 @@ export default async function AdminPage({
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {readyDeals.map(({ offer, unit }) => {
               const uCode = deriveUnitCode(unit.id)
-              const cur = getCurrencySymbol(
-                unit.country_code || unit.country || "EG",
-                locale
-              )
+              const cur = georgiaCurrency
               const agreedCash = Number(offer.offered_cash) || 0
               const commissionBase =
                 Number(unit.contract_price) || agreedCash || 0
@@ -520,7 +421,7 @@ export default async function AdminPage({
         </div>
       )}
 
-      {/* ==================== 5. رادار حركة العروض الحية والتفاوض (يوضح للأدمن من أرسل عرضاً ومن وافق ومن رفض) ==================== */}
+      {/* رادار حركة العروض الحية والتفاوض */}
       {liveNegotiationOffers.length > 0 && (
         <Card className="mt-4 border-gray-200/85 bg-white shadow-2xs">
           <CardHeader className="flex flex-row items-center justify-between border-b border-gray-100 px-4 py-3 sm:px-5">
@@ -541,10 +442,7 @@ export default async function AdminPage({
             <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
               {liveNegotiationOffers.map(({ offer, unit }) => {
                 const uCode = deriveUnitCode(unit.id)
-                const cur = getCurrencySymbol(
-                  unit.country_code || unit.country || "EG",
-                  locale
-                )
+                const cur = georgiaCurrency
                 const st = offer.status
 
                 return (
@@ -623,13 +521,13 @@ export default async function AdminPage({
         </Card>
       )}
 
-      {/* 6. الجداول السفلية */}
+      {/* الجداول السفلية */}
       <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-3">
         <Card className="border-gray-200/80 bg-white shadow-2xs lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between border-b border-gray-100 px-4 py-3.5 sm:px-5">
             <div>
               <CardTitle className="text-sm font-extrabold text-[#0a1122]">
-                {t.latestProperties} ({currentCountryObj.label})
+                {t.latestProperties} ({georgiaLabel})
               </CardTitle>
             </div>
             <Link
@@ -655,13 +553,9 @@ export default async function AdminPage({
                   const stCls =
                     STATUS_BADGE_CLASSES[prop.status || "pending"] ||
                     STATUS_BADGE_CLASSES.pending
-                  const propCurrency = getCurrencySymbol(
-                    prop.country_code || prop.country || "EG",
-                    locale
-                  )
                   const uCode = deriveUnitCode(prop.id)
 
-                  const sellerWaMsg = `${leadsDict.waGeneralPrefix} ${prop.name}، (${prop.project_name || t.defaultUnit} - ${prop.area || ""} - ${uCode}) — ${Number(prop.paid_amount || 0).toLocaleString("en-US")} ${propCurrency}`
+                  const sellerWaMsg = `${leadsDict.waGeneralPrefix} ${prop.name}، (${prop.project_name || t.defaultUnit} - ${prop.area || ""} - ${uCode}) — ${Number(prop.paid_amount || 0).toLocaleString("en-US")} ${georgiaCurrency}`
 
                   return (
                     <div
@@ -695,7 +589,7 @@ export default async function AdminPage({
                                   "en-US"
                                 )}
                               </span>{" "}
-                              {propCurrency}
+                              {georgiaCurrency}
                             </>
                           ) : (
                             "—"
@@ -733,7 +627,7 @@ export default async function AdminPage({
         <Card className="border-gray-200/80 bg-white shadow-2xs">
           <CardHeader className="flex flex-row items-center justify-between border-b border-gray-100 px-4 py-3.5 sm:px-5">
             <CardTitle className="text-sm font-extrabold text-[#0a1122]">
-              {t.latestLeads} ({currentCountryObj.label})
+              {t.latestLeads} ({georgiaLabel})
             </CardTitle>
             <Link
               href="/admin/leads"
@@ -755,10 +649,6 @@ export default async function AdminPage({
                   : lead.preferred_areas || t.allAreas
                 const isUnitSpecific =
                   areasText.includes("🎯") || areasText.includes("U-")
-                const leadCurrency = getCurrencySymbol(
-                  lead.country_code || lead.country || "EG",
-                  locale
-                )
                 const cleanTarget = areasText
                   .replace("🎯 مهتم بوحدة:", "")
                   .trim()
@@ -767,8 +657,8 @@ export default async function AdminPage({
                 ).toLocaleString("en-US")
 
                 const buyerWaMsg = isUnitSpecific
-                  ? `${leadsDict.waUnitLeadPrefix} ${lead.name}، ${leadsDict.waUnitLeadMiddle} (${cleanTarget}) — ${leadsDict.cashShort} ${cashFormatted} ${leadCurrency}. ${leadsDict.waUnitLeadSuffix}`
-                  : `${leadsDict.waGeneralPrefix} ${lead.name}، ${leadsDict.waGeneralMiddle} (${cleanTarget || t.allAreas}) — ${leadsDict.cashShort} ${cashFormatted} ${leadCurrency}. ${leadsDict.waGeneralSuffix}`
+                  ? `${leadsDict.waUnitLeadPrefix} ${lead.name}، ${leadsDict.waUnitLeadMiddle} (${cleanTarget}) — ${leadsDict.cashShort} ${cashFormatted} ${georgiaCurrency}. ${leadsDict.waUnitLeadSuffix}`
+                  : `${leadsDict.waGeneralPrefix} ${lead.name}، ${leadsDict.waGeneralMiddle} (${cleanTarget || t.allAreas}) — ${leadsDict.cashShort} ${cashFormatted} ${georgiaCurrency}. ${leadsDict.waGeneralSuffix}`
 
                 return (
                   <div
@@ -790,7 +680,7 @@ export default async function AdminPage({
                         )}
                       </div>
                       <p className="mt-0.5 text-[11px] font-bold text-[#105C50] tabular-nums">
-                        <span dir="ltr">{cashFormatted}</span> {leadCurrency}
+                        <span dir="ltr">{cashFormatted}</span> {georgiaCurrency}
                       </p>
                       <p className="mt-0.5 truncate text-[10px] text-gray-400">
                         {cleanTarget}
@@ -815,3 +705,30 @@ export default async function AdminPage({
     </div>
   )
 }
+
+/* ============================================================================
+   ARCHIVED MULTI-COUNTRY ADMIN FILTER BAR (COMMENTED FOR FUTURE REFERENCE)
+   ============================================================================
+
+  const adminCountries = [
+    { code: "ALL", label: t.countries.ALL, flag: "🌍" },
+    { code: "EG", label: t.countries.EG, flag: "🇪🇬" },
+    { code: "RU", label: t.countries.RU, flag: "🇷🇺" },
+    { code: "GE", label: t.countries.GE, flag: "🇬🇪" },
+    { code: "AE", label: t.countries.AE, flag: "🇦🇪" },
+  ]
+
+  // Multi-Country Filter Bar JSX:
+  // <div className="mb-4 rounded-xl border border-gray-200/85 bg-white p-3.5 shadow-2xs sm:p-4">
+  //   <div className="flex flex-wrap items-center justify-between gap-3">
+  //     <div className="flex flex-wrap items-center gap-1.5">
+  //       {adminCountries.map((c) => (
+  //         <Link key={c.code} href={c.code === "ALL" ? "/admin" : `/admin?country=${c.code}`}>
+  //           {c.flag} {c.label}
+  //         </Link>
+  //       ))}
+  //     </div>
+  //   </div>
+  // </div>
+
+============================================================================ */

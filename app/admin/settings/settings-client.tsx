@@ -74,17 +74,7 @@ export default function SettingsClient({
   const { t: dict, dir } = useTranslation()
   const t = dict.admin.settings
 
-  const pricingCountries = [
-    { code: "EG" as const, name: t.countries.EG, flag: "🇪🇬" },
-    { code: "RU" as const, name: t.countries.RU, flag: "🇷🇺" },
-    { code: "GE" as const, name: t.countries.GE, flag: "🇬🇪" },
-    { code: "AE" as const, name: t.countries.AE, flag: "🇦🇪" },
-  ]
-
   const [activeTab, setActiveTab] = useState<"general" | "system">(initialTab)
-  const [selectedPricingCountry, setSelectedPricingCountry] = useState<
-    "EG" | "RU" | "GE" | "AE"
-  >("EG")
 
   const [maintenanceMode, setMaintenanceMode] = useState(
     initialSettings.maintenanceMode
@@ -263,210 +253,54 @@ export default function SettingsClient({
                   />
                 </div>
 
+                {/* أسعار باقات الترويج في جورجيا ($) */}
                 <div className="rounded-xl border border-amber-200/80 bg-amber-50/40 p-3">
-                  <div className="mb-2 flex items-center gap-1.5 text-xs font-extrabold text-[#0a1122]">
-                    <Star className="size-3.5 fill-amber-400 text-amber-500" />
-                    <span>{t.promoPricesTitle}</span>
+                  <div className="mb-2 flex items-center justify-between gap-1.5 text-xs font-extrabold text-[#0a1122]">
+                    <span className="flex items-center gap-1.5">
+                      <Star className="size-3.5 fill-amber-400 text-amber-500" />
+                      <span>{t.promoPricesTitle}</span>
+                    </span>
+                    <span className="rounded-md bg-[#105C50] px-2 py-0.5 text-[10.5px] font-bold text-white">
+                      🇬🇪 {t.countries.GE} ($)
+                    </span>
                   </div>
 
-                  <div className="mb-2.5 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
-                    {pricingCountries.map((c) => {
-                      const active = selectedPricingCountry === c.code
-                      return (
-                        <button
-                          key={c.code}
-                          type="button"
-                          onClick={() => setSelectedPricingCountry(c.code)}
-                          className={`flex items-center justify-center gap-1 rounded-lg border py-1.5 text-[11px] font-bold transition ${
-                            active
-                              ? "border-[#105C50] bg-[#105C50] text-white"
-                              : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
-                          }`}
-                        >
-                          <span>{c.flag}</span>
-                          <span>{c.name}</span>
-                        </button>
-                      )
-                    })}
-                  </div>
-
-                  <div
-                    className={
-                      selectedPricingCountry === "EG" ? "block" : "hidden"
-                    }
-                  >
-                    <p className="mb-1.5 text-[11px] font-bold text-[#105C50]">
-                      {t.egPackagesTitle}
-                    </p>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <label className="mb-1 block text-[10px] font-bold text-gray-600">
-                          {t.days7}
-                        </label>
-                        <input
-                          name="promo7Price"
-                          type="number"
-                          defaultValue={initialSettings.promo7Price || "1199"}
-                          className="h-8 w-full rounded-lg border border-gray-200 bg-white px-2 text-xs font-bold"
-                        />
-                      </div>
-                      <div>
-                        <label className="mb-1 block text-[10px] font-bold text-gray-600">
-                          {t.days14}
-                        </label>
-                        <input
-                          name="promo14Price"
-                          type="number"
-                          defaultValue={initialSettings.promo14Price || "1999"}
-                          className="h-8 w-full rounded-lg border border-gray-200 bg-white px-2 text-xs font-bold"
-                        />
-                      </div>
-                      <div>
-                        <label className="mb-1 block text-[10px] font-bold text-gray-600">
-                          {t.days30}
-                        </label>
-                        <input
-                          name="promo30Price"
-                          type="number"
-                          defaultValue={initialSettings.promo30Price || "2799"}
-                          className="h-8 w-full rounded-lg border border-gray-200 bg-white px-2 text-xs font-bold"
-                        />
-                      </div>
+                  <p className="mb-2 text-[11px] font-bold text-[#105C50]">
+                    {t.gePackagesTitle}
+                  </p>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="mb-1 block text-[10px] font-bold text-gray-600">
+                        {t.days7}
+                      </label>
+                      <input
+                        name="promo_GE_7"
+                        type="number"
+                        defaultValue={initialSettings.promo_GE_7 || "29"}
+                        className="h-8 w-full rounded-lg border border-gray-200 bg-white px-2 text-xs font-bold"
+                      />
                     </div>
-                  </div>
-
-                  <div
-                    className={
-                      selectedPricingCountry === "RU" ? "block" : "hidden"
-                    }
-                  >
-                    <p className="mb-1.5 text-[11px] font-bold text-[#105C50]">
-                      {t.ruPackagesTitle}
-                    </p>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <label className="mb-1 block text-[10px] font-bold text-gray-600">
-                          {t.days7}
-                        </label>
-                        <input
-                          name="promo_RU_7"
-                          type="number"
-                          defaultValue={initialSettings.promo_RU_7 || "2500"}
-                          className="h-8 w-full rounded-lg border border-gray-200 bg-white px-2 text-xs font-bold"
-                        />
-                      </div>
-                      <div>
-                        <label className="mb-1 block text-[10px] font-bold text-gray-600">
-                          {t.days14}
-                        </label>
-                        <input
-                          name="promo_RU_14"
-                          type="number"
-                          defaultValue={initialSettings.promo_RU_14 || "4200"}
-                          className="h-8 w-full rounded-lg border border-gray-200 bg-white px-2 text-xs font-bold"
-                        />
-                      </div>
-                      <div>
-                        <label className="mb-1 block text-[10px] font-bold text-gray-600">
-                          {t.days30}
-                        </label>
-                        <input
-                          name="promo_RU_30"
-                          type="number"
-                          defaultValue={initialSettings.promo_RU_30 || "5900"}
-                          className="h-8 w-full rounded-lg border border-gray-200 bg-white px-2 text-xs font-bold"
-                        />
-                      </div>
+                    <div>
+                      <label className="mb-1 block text-[10px] font-bold text-gray-600">
+                        {t.days14}
+                      </label>
+                      <input
+                        name="promo_GE_14"
+                        type="number"
+                        defaultValue={initialSettings.promo_GE_14 || "49"}
+                        className="h-8 w-full rounded-lg border border-gray-200 bg-white px-2 text-xs font-bold"
+                      />
                     </div>
-                  </div>
-
-                  <div
-                    className={
-                      selectedPricingCountry === "GE" ? "block" : "hidden"
-                    }
-                  >
-                    <p className="mb-1.5 text-[11px] font-bold text-[#105C50]">
-                      {t.gePackagesTitle}
-                    </p>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <label className="mb-1 block text-[10px] font-bold text-gray-600">
-                          {t.days7}
-                        </label>
-                        <input
-                          name="promo_GE_7"
-                          type="number"
-                          defaultValue={initialSettings.promo_GE_7 || "29"}
-                          className="h-8 w-full rounded-lg border border-gray-200 bg-white px-2 text-xs font-bold"
-                        />
-                      </div>
-                      <div>
-                        <label className="mb-1 block text-[10px] font-bold text-gray-600">
-                          {t.days14}
-                        </label>
-                        <input
-                          name="promo_GE_14"
-                          type="number"
-                          defaultValue={initialSettings.promo_GE_14 || "49"}
-                          className="h-8 w-full rounded-lg border border-gray-200 bg-white px-2 text-xs font-bold"
-                        />
-                      </div>
-                      <div>
-                        <label className="mb-1 block text-[10px] font-bold text-gray-600">
-                          {t.days30}
-                        </label>
-                        <input
-                          name="promo_GE_30"
-                          type="number"
-                          defaultValue={initialSettings.promo_GE_30 || "69"}
-                          className="h-8 w-full rounded-lg border border-gray-200 bg-white px-2 text-xs font-bold"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div
-                    className={
-                      selectedPricingCountry === "AE" ? "block" : "hidden"
-                    }
-                  >
-                    <p className="mb-1.5 text-[11px] font-bold text-[#105C50]">
-                      {t.aePackagesTitle}
-                    </p>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <label className="mb-1 block text-[10px] font-bold text-gray-600">
-                          {t.days7}
-                        </label>
-                        <input
-                          name="promo_AE_7"
-                          type="number"
-                          defaultValue={initialSettings.promo_AE_7 || "99"}
-                          className="h-8 w-full rounded-lg border border-gray-200 bg-white px-2 text-xs font-bold"
-                        />
-                      </div>
-                      <div>
-                        <label className="mb-1 block text-[10px] font-bold text-gray-600">
-                          {t.days14}
-                        </label>
-                        <input
-                          name="promo_AE_14"
-                          type="number"
-                          defaultValue={initialSettings.promo_AE_14 || "179"}
-                          className="h-8 w-full rounded-lg border border-gray-200 bg-white px-2 text-xs font-bold"
-                        />
-                      </div>
-                      <div>
-                        <label className="mb-1 block text-[10px] font-bold text-gray-600">
-                          {t.days30}
-                        </label>
-                        <input
-                          name="promo_AE_30"
-                          type="number"
-                          defaultValue={initialSettings.promo_AE_30 || "249"}
-                          className="h-8 w-full rounded-lg border border-gray-200 bg-white px-2 text-xs font-bold"
-                        />
-                      </div>
+                    <div>
+                      <label className="mb-1 block text-[10px] font-bold text-gray-600">
+                        {t.days30}
+                      </label>
+                      <input
+                        name="promo_GE_30"
+                        type="number"
+                        defaultValue={initialSettings.promo_GE_30 || "69"}
+                        className="h-8 w-full rounded-lg border border-gray-200 bg-white px-2 text-xs font-bold"
+                      />
                     </div>
                   </div>
                 </div>
@@ -715,3 +549,15 @@ export default function SettingsClient({
     </div>
   )
 }
+
+/* ============================================================================
+   ARCHIVED MULTI-COUNTRY PROMO PRICING TABS (COMMENTED FOR FUTURE REFERENCE)
+   ============================================================================
+   const pricingCountries = [
+     { code: "EG" as const, name: t.countries.EG, flag: "🇪🇬" },
+     { code: "RU" as const, name: t.countries.RU, flag: "🇷🇺" },
+     { code: "GE" as const, name: t.countries.GE, flag: "🇬🇪" },
+     { code: "AE" as const, name: t.countries.AE, flag: "🇦🇪" },
+   ]
+   const [selectedPricingCountry, setSelectedPricingCountry] = useState<"EG" | "RU" | "GE" | "AE">("GE")
+============================================================================ */

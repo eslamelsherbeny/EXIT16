@@ -116,13 +116,6 @@ export default function AdminShell({
       allowed: ["ADMIN"] as StaffRole[],
     },
     {
-      href: "/admin/investors",
-      label: t.nav.investors,
-      shortLabel: t.nav.investorsShort,
-      icon: WalletCards,
-      allowed: ["ADMIN", "MODERATOR"] as StaffRole[],
-    },
-    {
       href: "/admin/settings",
       label: t.nav.settings,
       shortLabel: t.nav.settingsShort,
@@ -302,7 +295,6 @@ export default function AdminShell({
         </div>
 
         <div className="space-y-1.5 border-t border-white/10 p-3.5">
-          {/* قسم اللغات بالاسم الكامل الواضح (العربية / English / Русский / ქართული) */}
           <div className="mb-2 rounded-xl bg-white/5 p-2.5">
             <div className="mb-2 flex items-center justify-between px-1 text-[11px] font-bold text-white/75">
               <span className="flex items-center gap-1.5">
@@ -702,3 +694,15 @@ export default function AdminShell({
     </div>
   )
 }
+
+/* ============================================================================
+   ARCHIVED INVESTORS NAV LINK (COMMENTED FOR FUTURE REFERENCE)
+   ============================================================================
+   {
+     href: "/admin/investors",
+     label: t.nav.investors,
+     shortLabel: t.nav.investorsShort,
+     icon: WalletCards,
+     allowed: ["ADMIN", "MODERATOR"] as StaffRole[],
+   },
+============================================================================ */

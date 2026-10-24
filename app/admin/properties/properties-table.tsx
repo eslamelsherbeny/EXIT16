@@ -11,7 +11,6 @@ import {
   Eye,
   EyeOff,
   FileCheck2,
-  Globe,
   Handshake,
   Loader2,
   MessageCircle,
@@ -50,6 +49,8 @@ import {
   purgeSellerDeletedPropertiesAction,
   updatePropertyStatusAction,
 } from "../actions"
+
+const ACTIVE_ADMIN_COUNTRY = "GE"
 
 export type SellRequest = {
   id: string
@@ -92,10 +93,6 @@ export type SellRequest = {
   status?: string | null
   admin_note?: string | null
   created_at: string
-}
-
-function getPropertyCountryCode(p: SellRequest) {
-  return (p.country_code || p.country || "EG").toUpperCase()
 }
 
 function deriveShortUnitCode(id: string) {
@@ -155,14 +152,6 @@ export default function PropertiesTable({
       .sort((a, b) => b.match.score - a.match.score)
   }
 
-  const adminCountries = [
-    { code: "ALL", label: t.countries.ALL, flag: "🌍" },
-    { code: "EG", label: t.countries.EG, flag: "🇪🇬" },
-    { code: "RU", label: t.countries.RU, flag: "🇷🇺" },
-    { code: "GE", label: t.countries.GE, flag: "🇬🇪" },
-    { code: "AE", label: t.countries.AE, flag: "🇦🇪" },
-  ]
-
   const sellerStatusOptions = [
     { value: "pending", label: t.statuses.pending, badge: "bg-amber-100 text-amber-800" },
     { value: "under_review", label: t.statuses.under_review, badge: "bg-blue-100 text-blue-800" },
@@ -175,11 +164,13 @@ export default function PropertiesTable({
     { value: "rejected", label: t.statuses.rejected, badge: "bg-red-100 text-red-800" },
   ]
 
+  const docsDict = t.docs as Record<string, string>
   const docLabels: Record<string, string> = {
-    contract: t.docs.contract,
-    receipts: t.docs.receipts,
-    statement: t.docs.statement,
-    national_id: t.docs.national_id,
+    contract: docsDict.contract,
+    receipts: docsDict.receipts,
+    statement: docsDict.statement,
+    national_id: docsDict.passport || docsDict.national_id,
+    passport: docsDict.passport || docsDict.national_id,
   }
 
   function getStatusLabel(status: string | null | undefined) {
@@ -187,8 +178,8 @@ export default function PropertiesTable({
     return sellerStatusOptions.find((s) => s.value === st)?.label || st
   }
 
-  function getUnitCurrency(countryCode?: string | null) {
-    return getCurrencySymbol(countryCode || "EG", locale)
+  function getUnitCurrency() {
+    return getCurrencySymbol(ACTIVE_ADMIN_COUNTRY, locale)
   }
 
   function buildSellerWhatsAppMessage(property: SellRequest, unitCur: string) {
@@ -217,7 +208,6 @@ export default function PropertiesTable({
       }))
   }
 
-  const [countryFilter, setCountryFilter] = useState<string>("ALL")
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [promoTab, setPromoTab] = useState<
@@ -235,12 +225,10 @@ export default function PropertiesTable({
 
   useEffect(() => {
     const tabParam = searchParams.get("tab")
-    const countryParam = searchParams.get("country")
     const unitIdParam = searchParams.get("unitId")
     const actionParam = searchParams.get("action")
     const qParam = searchParams.get("q")
 
-    if (countryParam) setCountryFilter(countryParam.toUpperCase())
     if (qParam) setSearch(qParam)
     if (!isPromotionsPage && tabParam && tabParam !== "featured") {
       setStatusFilter(tabParam)
@@ -353,29 +341,24 @@ export default function PropertiesTable({
     })
   }
 
-  const countryProperties =
-    countryFilter === "ALL"
-      ? properties
-      : properties.filter((p) => getPropertyCountryCode(p) === countryFilter)
-
-  const deletedBySellerList = countryProperties.filter(
+  const deletedBySellerList = properties.filter(
     (p) => p.status === "deleted_by_seller"
   )
-  const pendingPromoList = countryProperties.filter(
+  const pendingPromoList = properties.filter(
     (p) =>
       p.status !== "deleted_by_seller" &&
       !p.is_featured &&
       p.featured_status === "pending_payment"
   )
-  const activePromoList = countryProperties.filter(
+  const activePromoList = properties.filter(
     (p) => p.status !== "deleted_by_seller" && Boolean(p.is_featured)
   )
-  const promoRequestsList = countryProperties.filter(
+  const promoRequestsList = properties.filter(
     (p) =>
       p.status !== "deleted_by_seller" &&
       (p.featured_status === "pending_payment" || p.is_featured)
   )
-  const sellerActionsList = countryProperties.filter(
+  const sellerActionsList = properties.filter(
     (p) =>
       p.status === "paused_by_seller" ||
       (p.status === "pending" &&
@@ -383,7 +366,7 @@ export default function PropertiesTable({
           p.submission_type === "resumed_by_seller"))
   )
 
-  const filtered = countryProperties.filter((p) => {
+  const filtered = properties.filter((p) => {
     const currentStatus = p.status || "pending"
     const unitShortCode = p.id.slice(0, 8).toUpperCase()
     const uPublicCode = deriveShortUnitCode(p.id)
@@ -433,7 +416,6 @@ export default function PropertiesTable({
     const matchedBuyers = getMatchedBuyersForUnit(property)
     const topScore = matchedBuyers[0]?.match.score || 0
 
-    // العروض الرسمية على هذه الوحدة (لمعرفة هل وافق الطرفان أم بانتظار البائع أم مرفوض)
     const unitOffers = offers.filter(
       (o) => o.property_id === property.id && o.status !== "recommended"
     )
@@ -591,6 +573,9 @@ export default function PropertiesTable({
     )
   }
 
+  const activeCount = properties.length - deletedBySellerList.length
+  const georgiaLabel = t.countries?.GE || "Georgia"
+
   return (
     <div dir={dir} className="text-start">
       {notice && (
@@ -620,78 +605,18 @@ export default function PropertiesTable({
         </div>
       )}
 
-      {(() => {
-        const activeCountryObj =
-          adminCountries.find((c) => c.code === countryFilter) ||
-          adminCountries[0]
-        const activeCount =
-          countryProperties.length - deletedBySellerList.length
-
-        return (
-          <div className="mb-4 rounded-xl border border-gray-200/85 bg-white p-4 shadow-2xs">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <Globe className="size-4 text-[#105C50]" />
-                  <h2 className="text-sm font-extrabold text-[#0a1122] sm:text-base">
-                    {isPromotionsPage
-                      ? countryFilter === "ALL"
-                        ? `${t.header.promoAllTitle} (${promoRequestsList.length})`
-                        : `${t.header.promoCountryTitle} ${activeCountryObj.label} ${activeCountryObj.flag} (${promoRequestsList.length})`
-                      : countryFilter === "ALL"
-                        ? `${t.header.sellAllTitle} (${activeCount})`
-                        : `${t.header.sellCountryTitle} ${activeCountryObj.label} ${activeCountryObj.flag} (${activeCount})`}
-                  </h2>
-                </div>
-                <p className="mt-1 text-[11px] text-gray-500">
-                  {t.header.filterHint}
-                </p>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-1.5">
-                {adminCountries.map((c) => {
-                  const isSelected = c.code === countryFilter
-                  const countInC =
-                    c.code === "ALL"
-                      ? properties.filter(
-                          (p) => p.status !== "deleted_by_seller"
-                        ).length
-                      : properties.filter(
-                          (p) =>
-                            p.status !== "deleted_by_seller" &&
-                            getPropertyCountryCode(p) === c.code
-                        ).length
-
-                  return (
-                    <button
-                      key={c.code}
-                      type="button"
-                      onClick={() => setCountryFilter(c.code)}
-                      className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-                        isSelected
-                          ? "bg-[#105C50] text-white shadow-2xs"
-                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                      }`}
-                    >
-                      <span>{c.flag}</span>
-                      <span>{c.label}</span>
-                      <span
-                        className={`rounded-full px-1.5 py-0.2 text-[10px] ${
-                          isSelected
-                            ? "bg-white/20 text-white"
-                            : "bg-white text-gray-600"
-                        }`}
-                      >
-                        {countInC}
-                      </span>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
+      {/* هيدر الصفحة لفرص جورجيا */}
+      <div className="mb-4 rounded-xl border border-gray-200/85 bg-white p-4 shadow-2xs">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-extrabold text-[#0a1122] sm:text-base">
+              {isPromotionsPage
+                ? `${t.header.promoCountryTitle} ${georgiaLabel} 🇬🇪 (${promoRequestsList.length})`
+                : `${t.header.sellCountryTitle} ${georgiaLabel} 🇬🇪 (${activeCount})`}
+            </h2>
           </div>
-        )
-      })()}
+        </div>
+      </div>
 
       <div className="mb-4 flex flex-col gap-3 rounded-xl border border-gray-200/80 bg-white p-3 shadow-2xs sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="relative w-full sm:max-w-xs sm:flex-1">
@@ -808,7 +733,7 @@ export default function PropertiesTable({
           </div>
         )}
 
-      {/* ==================== 1. عرض الموبايل ==================== */}
+      {/* 1. عرض الموبايل */}
       <div className="space-y-3 md:hidden">
         {filtered.length === 0 ? (
           <div className="rounded-xl border border-gray-200 bg-white p-8 text-center text-xs text-gray-500">
@@ -826,7 +751,7 @@ export default function PropertiesTable({
               (!property.featured_until ||
                 new Date(property.featured_until) > new Date())
             const isHighlighted = highlightedUnitId === property.id
-            const unitCur = getUnitCurrency(getPropertyCountryCode(property))
+            const unitCur = getUnitCurrency()
             const waText = buildSellerWhatsAppMessage(property, unitCur)
 
             return (
@@ -1103,7 +1028,7 @@ export default function PropertiesTable({
         )}
       </div>
 
-      {/* ==================== 2. عرض الكمبيوتر ==================== */}
+      {/* 2. عرض الكمبيوتر */}
       <div className="hidden overflow-x-auto md:block">
         <table className="w-full border-separate border-spacing-y-2.5 text-start text-xs">
           <thead>
@@ -1139,9 +1064,7 @@ export default function PropertiesTable({
                   (!property.featured_until ||
                     new Date(property.featured_until) > new Date())
                 const isHighlighted = highlightedUnitId === property.id
-                const unitCur = getUnitCurrency(
-                  getPropertyCountryCode(property)
-                )
+                const unitCur = getUnitCurrency()
                 const waText = buildSellerWhatsAppMessage(property, unitCur)
 
                 const cellBorderCls = isHighlighted
@@ -1435,7 +1358,7 @@ export default function PropertiesTable({
         </table>
       </div>
 
-      {/* ==================== 3. المكون المفصول للتوافق الذكي ==================== */}
+      {/* 3. المكون المفصول للتوافق الذكي */}
       <UnitSmartMatchModal
         unit={smartMatchProperty}
         buyers={buyers}
@@ -1444,7 +1367,7 @@ export default function PropertiesTable({
         onNotice={(msg) => setNotice(msg)}
       />
 
-      {/* ==================== 4. نافذة التأكيد الموحدة ==================== */}
+      {/* 4. نافذة التأكيد الموحدة */}
       <Dialog
         open={Boolean(confirmAction)}
         onOpenChange={(open) => {
@@ -1624,7 +1547,7 @@ export default function PropertiesTable({
         </DialogContent>
       </Dialog>
 
-      {/* ==================== 5. نافذة تفاصيل الوحدة والمستندات ==================== */}
+      {/* 5. نافذة تفاصيل الوحدة والمستندات */}
       <Dialog
         open={Boolean(detailsProperty)}
         onOpenChange={(open) => !open && setDetailsProperty(null)}
@@ -1662,7 +1585,7 @@ export default function PropertiesTable({
                   href={`https://wa.me/${String(detailsProperty.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(
                     buildSellerWhatsAppMessage(
                       detailsProperty,
-                      getUnitCurrency(getPropertyCountryCode(detailsProperty))
+                      getUnitCurrency()
                     )
                   )}`}
                   target="_blank"
@@ -1699,7 +1622,7 @@ export default function PropertiesTable({
                     <span dir="ltr">
                       {Number(detailsProperty.contract_price || 0).toLocaleString("en-US")}
                     </span>{" "}
-                    {getUnitCurrency(getPropertyCountryCode(detailsProperty))}
+                    {getUnitCurrency()}
                   </strong>
                 </div>
                 <div>
@@ -1710,7 +1633,7 @@ export default function PropertiesTable({
                     <span dir="ltr">
                       {Number(detailsProperty.paid_amount || 0).toLocaleString("en-US")}
                     </span>{" "}
-                    {getUnitCurrency(getPropertyCountryCode(detailsProperty))}
+                    {getUnitCurrency()}
                   </strong>
                 </div>
               </div>
@@ -1759,3 +1682,19 @@ export default function PropertiesTable({
     </div>
   )
 }
+
+/* ============================================================================
+   ARCHIVED MULTI-COUNTRY PROPERTIES FILTER BAR (COMMENTED FOR FUTURE REFERENCE)
+   ============================================================================
+   const adminCountries = [
+     { code: "ALL", label: t.countries.ALL, flag: "🌍" },
+     { code: "EG", label: t.countries.EG, flag: "🇪🇬" },
+     { code: "RU", label: t.countries.RU, flag: "🇷🇺" },
+     { code: "GE", label: t.countries.GE, flag: "🇬🇪" },
+     { code: "AE", label: t.countries.AE, flag: "🇦🇪" },
+   ]
+   const [countryFilter, setCountryFilter] = useState<string>("ALL")
+   function getPropertyCountryCode(p: SellRequest) {
+     return (p.country_code || p.country || "EG").toUpperCase()
+   }
+============================================================================ */

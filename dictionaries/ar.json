@@ -1890,24 +1890,6 @@
       "staffLoginBtn": "دخول بحساب الإدارة",
       "backHomeBtn": "العودة للرئيسية"
     },
-    "shell": {
-      "brand": "دارك",
-      "adminPanel": "لوحة الإدارة",
-      "welcome": "أهلاً،",
-      "myProfile": "حسابي",
-      "publicSite": "الموقع العام",
-      "logout": "تسجيل الخروج",
-      "notifications": "الإشعارات",
-      "clearAll": "مسح الكل",
-      "noNotifications": "لا توجد إشعارات جديدة",
-      "view": "عرض",
-      "deleteNotif": "حذف الإشعار",
-      "languageLabel": "اللغة",
-      "roles": {
-        "ADMIN": "مدير نظام",
-        "MODERATOR": "مشرف عقارات",
-        "SALES": "مبيعات وتواصل"
-      },
      "smartMatch": {
       "readyDealsTitle": "غرفة الصفقات المتفق عليها الجاهزة للتنفيذ",
       "readyDealsSubtitle": "هؤلاء العملاء وافقوا رسمياً على السعر وتم قفل الوحدة لهم — تواصل مع الطرفين لإتمام التنازل وتحصيل العمولة",
@@ -1941,6 +1923,25 @@
       "bulkRecsSentSuccess": "تم إرسال الوحدة كترشيح لجميع المشترين المتوافقين",
       "officialOfferSentSuccess": "تم تسجيل عرض الشراء الرسمي وإرساله للبائع بنجاح!"
     },
+    "shell": {
+      "brand": "دارك",
+      "adminPanel": "لوحة الإدارة",
+      "welcome": "أهلاً،",
+      "myProfile": "حسابي",
+      "publicSite": "الموقع العام",
+      "logout": "تسجيل الخروج",
+      "notifications": "الإشعارات",
+      "clearAll": "مسح الكل",
+      "noNotifications": "لا توجد إشعارات جديدة",
+      "view": "عرض",
+      "deleteNotif": "حذف الإشعار",
+      "languageLabel": "اللغة",
+      "roles": {
+        "ADMIN": "مدير نظام",
+        "MODERATOR": "مشرف عقارات",
+        "SALES": "مبيعات وتواصل"
+      },
+    
       "nav": {
         "dashboard": "الرئيسية",
         "properties": "طلبات البيع",

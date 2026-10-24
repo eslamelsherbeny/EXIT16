@@ -1,7 +1,17 @@
 'use client'
 
 import { useEffect, useState, useTransition } from 'react'
-import { Check, Copy, ImagePlus, Loader2, Star, UserRound } from 'lucide-react'
+import {
+  Check,
+  Copy,
+  FileCheck2,
+  ImagePlus,
+  Loader2,
+  ShieldAlert,
+  Star,
+  UploadCloud,
+  UserRound,
+} from 'lucide-react'
 import {
   getCurrentSellerProfileAction,
   saveSellProgress,
@@ -14,35 +24,36 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { TurnstileBox } from '@/components/funnel-shell'
+import { ScrollReveal } from '@/components/scroll-reveal'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { getCurrencySymbol, useTranslation } from '@/lib/i18n'
 import {
   Actions,
-  areasCatalogByCountry,
   deliveries,
+  deliveryFutureYears,
   features,
   Field,
   finishings,
   formatAmount,
   getCountryConfig,
-  getHeaderCookieCountry,
-  getLocalizedCountryName,
   MoneyField,
-  normalizeArabicText,
+  MonthYearSelector,
   Pills,
-  PLATFORM_COUNTRIES,
   RequiredLabel,
-  SearchableCountryField,
+  SearchableGeorgiaAreaPicker,
   ToggleSection,
   unitTypes,
   years,
 } from './seller/seller-shared'
 import { ContactStep } from './seller/seller-contact-step'
+
+// الدولة المعتمدة حالياً في المنصة
+const ACTIVE_PLATFORM_COUNTRY = 'GE'
+const DEFAULT_PHONE_CODE = '995'
 
 export function SellerFlow() {
   const router = useRouter()
@@ -55,8 +66,13 @@ export function SellerFlow() {
   const [orderRef, setOrderRef] = useState<string>('AE-X5QUKE')
 
   const [form, setForm] = useState<Record<string, string>>({
-    countryCode: '20',
-    unitCountry: 'EG',
+    countryCode: DEFAULT_PHONE_CODE,
+    unitCountry: ACTIVE_PLATFORM_COUNTRY,
+    contractMonth: '',
+    contractYear: '',
+    deliveryMonth: '',
+    deliveryYear: '',
+    remainingMonths: '',
   })
   const [selected, setSelected] = useState<Record<string, string[]>>({})
   const [images, setImages] = useState<string[]>([])
@@ -75,10 +91,9 @@ export function SellerFlow() {
   } | null>(null)
 
   useEffect(() => {
-    const activeCookieCountry = getHeaderCookieCountry()
     setForm((prev) => ({
       ...prev,
-      unitCountry: prev.unitCountry || activeCookieCountry,
+      unitCountry: ACTIVE_PLATFORM_COUNTRY,
     }))
 
     async function initFlow() {
@@ -94,17 +109,34 @@ export function SellerFlow() {
         const isNewUnit = params.get('new') === '1'
         const targetStep = Number(params.get('step')) || 3
 
+        const parseSavedDelivery = (rawStatus?: string | null) => {
+          const str = String(rawStatus || '')
+          const dateMatch = str.match(/(0[1-9]|1[0-2])\/(20\d{2})/)
+          const yearOnlyMatch = str.match(/(20\d{2})/)
+          const baseStatus = str.replace(/\s*\([^)]*\)/g, '').trim()
+          return {
+            baseStatus: baseStatus || deliveries[0],
+            dMonth: dateMatch ? dateMatch[1] : '',
+            dYear: dateMatch
+              ? dateMatch[2]
+              : yearOnlyMatch
+                ? yearOnlyMatch[1]
+                : '',
+          }
+        }
+
         if (magicToken) {
           const res = await verifyMagicTokenAction(magicToken)
           if (res.valid && res.unit) {
             const u = res.unit
+            const parsedDel = parseSavedDelivery(u.delivery_status)
             setUnitId(String(u.id))
             setOrderRef(
               `AE-${String(u.id).replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase()}`
             )
             setForm((prev) => ({
               ...prev,
-              unitCountry: u.country_code || u.country || activeCookieCountry,
+              unitCountry: ACTIVE_PLATFORM_COUNTRY,
               developer: u.developer_name || '',
               developerDetails: u.developer_name || '',
               project: u.project_name || '',
@@ -122,7 +154,10 @@ export function SellerFlow() {
               paidAmount2: String(u.paid_amount || ''),
               marketPrice: String(u.market_price || u.contract_price || ''),
               installment: String(u.installment_amount || ''),
-              remainingYears: String(u.years_left ?? ''),
+              remainingMonths: String(u.years_left ?? ''),
+              contractYear: u.contract_year ? String(u.contract_year) : '',
+              deliveryMonth: parsedDel.dMonth,
+              deliveryYear: parsedDel.dYear,
               discountAmount: String(u.discount_amount || ''),
               overdueCount: String(u.overdue_installments || ''),
               name: u.name || '',
@@ -146,13 +181,14 @@ export function SellerFlow() {
             .maybeSingle()
 
           if (u) {
+            const parsedDel = parseSavedDelivery(u.delivery_status)
             setUnitId(String(u.id))
             setOrderRef(
               `AE-${String(u.id).replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase()}`
             )
             setForm((prev) => ({
               ...prev,
-              unitCountry: u.country_code || u.country || activeCookieCountry,
+              unitCountry: ACTIVE_PLATFORM_COUNTRY,
               developer: u.developer_name || '',
               developerDetails: u.developer_name || '',
               project: u.project_name || '',
@@ -175,11 +211,16 @@ export function SellerFlow() {
               installment: u.installment_amount
                 ? String(u.installment_amount)
                 : '',
-              remainingYears:
+              remainingMonths:
                 u.years_left !== null && u.years_left !== undefined
                   ? String(u.years_left)
                   : '',
-              discountAmount: u.discount_amount ? String(u.discount_amount) : '',
+              contractYear: u.contract_year ? String(u.contract_year) : '',
+              deliveryMonth: parsedDel.dMonth,
+              deliveryYear: parsedDel.dYear,
+              discountAmount: u.discount_amount
+                ? String(u.discount_amount)
+                : '',
               overdueCount: u.overdue_installments
                 ? String(u.overdue_installments)
                 : '',
@@ -192,7 +233,7 @@ export function SellerFlow() {
             setSelected({
               type: u.unit_type ? [u.unit_type] : [],
               finishing: u.finishing ? [u.finishing] : [],
-              delivery: u.delivery_status ? [u.delivery_status] : [],
+              delivery: parsedDel.baseStatus ? [parsedDel.baseStatus] : [],
               features: Array.isArray(u.features) ? u.features : [],
               year: u.contract_year ? [String(u.contract_year)] : [],
               frequency: u.installment_frequency
@@ -214,7 +255,7 @@ export function SellerFlow() {
         if (isNewUnit && profileRes.isLoggedIn && profileRes.user) {
           setForm((prev) => ({
             ...prev,
-            unitCountry: activeCookieCountry,
+            unitCountry: ACTIVE_PLATFORM_COUNTRY,
             name: profileRes.user?.name || '',
             phone: profileRes.user?.phone || '',
             email: profileRes.user?.email || '',
@@ -256,6 +297,15 @@ export function SellerFlow() {
     }))
   }
 
+  const composeDeliveryStatus = () => {
+    const base = selected.delivery?.[0] || ''
+    const dMonth = form.deliveryMonth || ''
+    const dYear = form.deliveryYear || ''
+    if (dMonth && dYear) return `${base} (${dMonth}/${dYear})`
+    if (dYear) return `${base} (${dYear})`
+    return base
+  }
+
   const go = (next: number) => {
     if (next <= step) return setStep(next)
 
@@ -264,7 +314,6 @@ export function SellerFlow() {
     const nextErrors: Record<string, string> = {}
 
     if (step === 1) {
-      if (!form.unitCountry) nextErrors.unitCountry = s.validation.selectCountry
       if (!form.developer) nextErrors.developer = s.validation.required
       if (!form.project) nextErrors.project = s.validation.required
       if (!form.contractPrice) nextErrors.contractPrice = s.validation.required
@@ -276,7 +325,6 @@ export function SellerFlow() {
     }
 
     if (step === 3) {
-      if (!form.unitCountry) nextErrors.unitCountry = s.validation.selectCountry
       if (!form.developerDetails && !form.developer)
         nextErrors.developerDetails = s.validation.required
       if (!form.projectDetails && !form.project)
@@ -290,17 +338,27 @@ export function SellerFlow() {
         nextErrors.floor = s.validation.required
       if (!selected.finishing?.[0]) nextErrors.finishing = s.validation.required
       if (!selected.delivery?.[0]) nextErrors.delivery = s.validation.required
+      if (!form.deliveryMonth || !form.deliveryYear)
+        nextErrors.deliveryDate = s.validation.required
       if (!form.description) nextErrors.description = s.validation.required
     }
 
     if (step === 4) {
+      const resolvedContractYear = form.contractYear || selected.year?.[0] || ''
       if (!form.contractPrice) nextErrors.contractPrice = s.validation.required
-      if (!selected.year?.[0]) nextErrors.year = s.validation.required
+      if (!form.contractMonth || !resolvedContractYear)
+        nextErrors.year = s.validation.required
       if (!form.paidAmount) nextErrors.paidAmount = s.validation.required
       if (!form.marketPrice) nextErrors.marketPrice = s.validation.required
       if (!form.installment) nextErrors.installment = s.validation.required
       if (!selected.frequency?.[0])
         nextErrors.frequency = s.validation.selectFrequency
+      if (
+        form.remainingMonths === undefined ||
+        form.remainingMonths.trim() === ''
+      ) {
+        nextErrors.remainingMonths = s.validation.required
+      }
       if (!selected.annualInstallment?.[0])
         nextErrors.annualInstallment = s.validation.selectYesNo
       if (!selected.discountOffer?.[0])
@@ -340,10 +398,10 @@ export function SellerFlow() {
   const saveProgress = async () => {
     const data = new FormData()
     const put = (key: string, value?: string) => {
-      if (value) data.set(key, value)
+      if (value !== undefined && value !== '') data.set(key, value)
     }
     if (unitId) put('unit_id', unitId)
-    put('country', form.unitCountry || 'EG')
+    put('country', ACTIVE_PLATFORM_COUNTRY)
     put('developer_name', form.developerDetails || form.developer)
     put('project_name', form.projectDetails || form.project)
     put('area', form.location)
@@ -352,14 +410,15 @@ export function SellerFlow() {
     put('rooms', form.rooms)
     put('bathrooms', form.bathrooms)
     put('finishing', selected.finishing?.[0])
-    put('delivery_status', selected.delivery?.[0])
+    put('delivery_status', composeDeliveryStatus())
     put('description', form.description)
     put('contract_price', form.contractPrice2 || form.contractPrice)
     put('paid_amount', form.paidAmount2 || form.paidAmount)
     put('market_price', form.marketPrice)
     put('installment_amount', form.installment)
     put('installment_frequency', selected.frequency?.[0])
-    put('contract_year', selected.year?.[0])
+    put('contract_year', form.contractYear || selected.year?.[0])
+    put('years_left', form.remainingMonths)
     images.forEach((image) => data.append('image', image))
 
     const result = await saveSellProgress(data)
@@ -383,7 +442,7 @@ export function SellerFlow() {
     }
 
     if (unitId) setValue('unit_id', unitId)
-    setValue('country', form.unitCountry || 'EG')
+    setValue('country', ACTIVE_PLATFORM_COUNTRY)
     setValue('developer_name', form.developerDetails || form.developer)
     setValue('project_name', form.projectDetails || form.project)
     setValue('area', form.location)
@@ -393,16 +452,16 @@ export function SellerFlow() {
     setValue('paid_amount', form.paidAmount2 || form.paidAmount)
     setValue('market_price', form.marketPrice)
     setValue('installment_amount', form.installment)
-    setValue('years_left', form.remainingYears)
+    setValue('years_left', form.remainingMonths)
     setValue('garden_size', form.garden)
     setValue('rooms', form.rooms)
     setValue('bathrooms', form.bathrooms)
     setValue('floor_number', form.floor)
     setValue('finishing', selectedValue('finishing'))
-    setValue('delivery_status', selectedValue('delivery'))
+    setValue('delivery_status', composeDeliveryStatus())
     setList('feature', selected.features)
     setValue('description', form.description)
-    setValue('contract_year', selectedValue('year'))
+    setValue('contract_year', form.contractYear || selectedValue('year'))
     setValue('installment_frequency', selectedValue('frequency'))
     setToggle('has_annual_installment', 'annualInstallment')
     setToggle('willing_to_discount', 'discountOffer')
@@ -415,7 +474,7 @@ export function SellerFlow() {
       form.phone
         ? form.phone.startsWith('+')
           ? form.phone
-          : `+${form.countryCode ?? '20'}${form.phone.replace(/^0+/, '')}`
+          : `+${(form.countryCode ?? DEFAULT_PHONE_CODE).replace('+', '')}${form.phone.replace(/^0+/, '')}`
         : loggedUser?.phone || ''
     )
     setValue('email', form.email || loggedUser?.email)
@@ -447,18 +506,20 @@ export function SellerFlow() {
     >
       <div className="mx-auto max-w-3xl">
         {!submitted && (
-          <header className="mb-7 text-center">
-            <h1 className="text-3xl font-black tracking-tight text-[#123c35] sm:text-4xl">
-              {isMagicResume ? s.header.resumeTitle : s.header.mainTitle}
-            </h1>
-            <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-slate-600">
-              {isMagicResume ? s.header.resumeDesc : s.header.mainDesc}
-            </p>
-          </header>
+          <ScrollReveal>
+            <header className="mb-7 text-center">
+              <h1 className="text-3xl font-black tracking-tight text-[#123c35] sm:text-4xl">
+                {isMagicResume ? s.header.resumeTitle : s.header.mainTitle}
+              </h1>
+              <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-slate-600">
+                {isMagicResume ? s.header.resumeDesc : s.header.mainDesc}
+              </p>
+            </header>
+          </ScrollReveal>
         )}
 
         {step <= 2 && !isMagicResume && !submitted && (
-          <>
+          <ScrollReveal delay={70}>
             <div className="mb-4 grid gap-3">
               {s.header.highlights.map((item, index) => (
                 <div
@@ -477,125 +538,136 @@ export function SellerFlow() {
             <div className="mb-7 rounded-xl border border-slate-500 bg-transparent px-5 py-4 text-center text-sm font-semibold">
               {s.header.ownersOnlyBanner}
             </div>
-          </>
+          </ScrollReveal>
         )}
 
-        <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
-          <CardContent className="p-4 sm:p-6 md:p-7">
-            {!submitted && (
-              <div className="mb-6 rounded-2xl border border-slate-600 px-4 py-4 text-center text-sm leading-7">
-                <div className="mb-1 flex items-center justify-center gap-2 font-bold">
-                  <UserRound className="size-4" /> {s.header.ownersOnlyCardTitle}
+        <ScrollReveal delay={120}>
+          <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
+            <CardContent className="p-4 sm:p-6 md:p-7">
+              {!submitted && (
+                <div className="mb-6 rounded-2xl border border-slate-600 px-4 py-4 text-center text-sm leading-7">
+                  <div className="mb-1 flex items-center justify-center gap-2 font-bold">
+                    <UserRound className="size-4" />{' '}
+                    {s.header.ownersOnlyCardTitle}
+                  </div>
+                  {s.header.ownersOnlyCardDesc}
                 </div>
-                {s.header.ownersOnlyCardDesc}
-              </div>
-            )}
+              )}
 
-            {!submitted && (
-              <div className="mb-7 flex items-center gap-4">
-                <div className="flex flex-1 gap-1.5">
-                  {Array.from({ length: totalStepsCount }, (_, index) => (
-                    <span
-                      key={index}
-                      className={`h-1.5 flex-1 rounded-full ${
-                        index < currentDisplayStep
-                          ? 'bg-teal-700'
-                          : 'bg-slate-200'
-                      }`}
-                    />
-                  ))}
+              {!submitted && (
+                <div className="mb-7 flex items-center gap-4">
+                  <div className="flex flex-1 gap-1.5">
+                    {Array.from({ length: totalStepsCount }, (_, index) => (
+                      <span
+                        key={index}
+                        className={`h-1.5 flex-1 rounded-full ${
+                          index < currentDisplayStep
+                            ? 'bg-teal-700'
+                            : 'bg-slate-200'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <Badge className="shrink-0 rounded-full bg-slate-100 text-slate-700">
+                    {s.header.stepWord} {currentDisplayStep} {s.header.ofWord}{' '}
+                    {totalStepsCount}
+                  </Badge>
                 </div>
-                <Badge className="shrink-0 rounded-full bg-slate-100 text-slate-700">
-                  {s.header.stepWord} {currentDisplayStep} {s.header.ofWord}{' '}
-                  {totalStepsCount}
-                </Badge>
-              </div>
-            )}
+              )}
 
-            {!submitted && (
-              <h2 className="mb-6 text-2xl font-black text-[#102238]">
-                {s.header.stepTitles[step - 1]}
-              </h2>
-            )}
+              {!submitted && (
+                <h2 className="mb-6 text-2xl font-black text-[#102238]">
+                  {s.header.stepTitles[step - 1]}
+                </h2>
+              )}
 
-            {step === 1 && (
-              <BasicStep form={form} update={update} go={go} errors={errors} />
-            )}
-            {step === 2 && (
-              <ContactStep
-                form={form}
-                update={update}
-                go={go}
-                errors={errors}
-                setErrors={setErrors}
-                showPassword={showPassword}
-                setShowPassword={setShowPassword}
-                loggedUser={loggedUser}
-                unitId={unitId}
-                setUnitId={setUnitId}
-                setOrderRef={setOrderRef}
-              />
-            )}
-            {step === 3 && (
-              <DetailsStep
-                form={form}
-                update={update}
-                selected={selected}
-                toggle={toggle}
-                go={go}
-                errors={errors}
-                onSave={saveProgress}
-              />
-            )}
-            {step === 4 && (
-              <PricingStep
-                form={form}
-                update={update}
-                selected={selected}
-                toggle={toggle}
-                go={go}
-                errors={errors}
-                onSave={saveProgress}
-              />
-            )}
-            {step === 5 && (
-              <PhotosStep
-                go={go}
-                images={images}
-                setImages={setImages}
-                uploading={uploading}
-                setUploading={setUploading}
-                onSave={saveProgress}
-              />
-            )}
-            {step === 6 && (
-              <ReviewStep
-                form={form}
-                selected={selected}
-                pending={pending}
-                submitted={submitted}
-                error={error}
-                submit={submit}
-                go={go}
-                onSave={saveProgress}
-                imagesLength={images.length}
-                orderRef={orderRef}
-                unitId={unitId}
-              />
-            )}
-          </CardContent>
-        </Card>
+              {step === 1 && (
+                <BasicStep
+                  form={form}
+                  update={update}
+                  go={go}
+                  errors={errors}
+                />
+              )}
+              {step === 2 && (
+                <ContactStep
+                  form={form}
+                  update={update}
+                  go={go}
+                  errors={errors}
+                  setErrors={setErrors}
+                  showPassword={showPassword}
+                  setShowPassword={setShowPassword}
+                  loggedUser={loggedUser}
+                  unitId={unitId}
+                  setUnitId={setUnitId}
+                  setOrderRef={setOrderRef}
+                />
+              )}
+              {step === 3 && (
+                <DetailsStep
+                  form={form}
+                  update={update}
+                  selected={selected}
+                  toggle={toggle}
+                  go={go}
+                  errors={errors}
+                  onSave={saveProgress}
+                />
+              )}
+              {step === 4 && (
+                <PricingStep
+                  form={form}
+                  update={update}
+                  selected={selected}
+                  toggle={toggle}
+                  go={go}
+                  errors={errors}
+                  setErrors={setErrors}
+                  onSave={saveProgress}
+                />
+              )}
+              {step === 5 && (
+                <PhotosStep
+                  go={go}
+                  images={images}
+                  setImages={setImages}
+                  uploading={uploading}
+                  setUploading={setUploading}
+                  onSave={saveProgress}
+                />
+              )}
+              {step === 6 && (
+                <ReviewStep
+                  form={form}
+                  selected={selected}
+                  pending={pending}
+                  submitted={submitted}
+                  error={error}
+                  submit={submit}
+                  go={go}
+                  onSave={saveProgress}
+                  imagesLength={images.length}
+                  orderRef={orderRef}
+                  unitId={unitId}
+                />
+              )}
+            </CardContent>
+          </Card>
+        </ScrollReveal>
 
         {step <= 2 && !submitted && (
-          <div className="mt-5 flex items-center justify-between gap-4 rounded-2xl bg-[var(--brand-navy,#0a1122)] px-5 py-4 text-sm text-white">
-            <span>{s.header.whatsappBarText}</span>
-            <a
-              href="https://wa.me/201018595959"
-              className="rounded-full bg-green-500 px-4 py-2 font-bold text-white"
-            >
-              {s.header.whatsappBarBtn}
-            </a>
-          </div>
+          <ScrollReveal delay={160}>
+            <div className="mt-5 flex items-center justify-between gap-4 rounded-2xl bg-[var(--brand-navy,#0a1122)] px-5 py-4 text-sm text-white">
+              <span>{s.header.whatsappBarText}</span>
+              <a
+                href="https://wa.me/201018595959"
+                className="rounded-full bg-green-500 px-4 py-2 font-bold text-white"
+              >
+                {s.header.whatsappBarBtn}
+              </a>
+            </div>
+          </ScrollReveal>
         )}
       </div>
     </main>
@@ -616,17 +688,10 @@ function BasicStep({
   const { t: dict, locale, dir } = useTranslation()
   const s = dict.sell
   const t = s.basicStep
-  const currency = getCurrencySymbol(form.unitCountry || 'EG', locale)
+  const currency = getCurrencySymbol(ACTIVE_PLATFORM_COUNTRY, locale)
 
   return (
     <div className="flex flex-col gap-6">
-      <SearchableCountryField
-        value={form.unitCountry || 'EG'}
-        onChange={(code) => update('unitCountry', code)}
-        label={s.shared.unitCountryLabel}
-        options={PLATFORM_COUNTRIES}
-        error={errors.unitCountry}
-      />
       <Field
         error={errors.developer}
         label={t.developer}
@@ -721,45 +786,12 @@ function DetailsStep({
   errors: Record<string, string>
   onSave: () => void
 }) {
-  const { t: dict, locale, dir } = useTranslation()
+  const { t: dict, dir } = useTranslation()
   const s = dict.sell
-  const t = s.detailsStep
-
-  const [areaOpen, setAreaOpen] = useState(false)
-  const query = form.location ?? ''
-
-  const countryCode = (form.unitCountry || 'EG').toUpperCase()
-  const countryConfig = getCountryConfig(countryCode)
-  const localizedCountryName = getLocalizedCountryName(countryConfig, locale)
-
-  const rawAreas =
-    areasCatalogByCountry[countryCode] || areasCatalogByCountry.EG
-
-  const groups = rawAreas
-    .map(
-      ([title, items]) =>
-        [
-          title,
-          items.filter((item) =>
-            normalizeArabicText(item).includes(normalizeArabicText(query))
-          ),
-        ] as const
-    )
-    .filter(([, items]) => items.length)
+  const t = s.detailsStep as Record<string, any>
 
   return (
     <div className="flex flex-col gap-6">
-      <SearchableCountryField
-        value={form.unitCountry || 'EG'}
-        onChange={(code) => {
-          update('unitCountry', code)
-          update('location', '')
-        }}
-        label={s.shared.unitCountryLabel}
-        options={PLATFORM_COUNTRIES}
-        error={errors.unitCountry}
-      />
-
       <div className="grid gap-5 sm:grid-cols-2">
         <Field
           error={errors.developerDetails}
@@ -777,54 +809,14 @@ function DetailsStep({
         />
       </div>
 
-      <div className="relative">
-        <Label htmlFor="location" className="mb-2 block text-start">
-          {t.locationLabelPrefix} {localizedCountryName} *
-        </Label>
-        <Input
-          id="location"
-          dir={dir}
-          placeholder={`${t.locationPlaceholderPrefix} ${localizedCountryName}...`}
-          value={query}
-          onFocus={() => setAreaOpen(true)}
-          onChange={(event) => {
-            update('location', event.target.value)
-            setAreaOpen(true)
-          }}
-          className={`h-12 rounded-xl text-start ${
-            errors.location ? 'border-red-500 bg-red-50/20' : ''
-          }`}
-        />
-        {errors.location && (
-          <p className="mt-1.5 text-start text-xs font-semibold text-red-600">
-            {errors.location}
-          </p>
-        )}
-        {areaOpen && groups.length > 0 && (
-          <div className="absolute z-20 mt-2 max-h-72 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
-            {groups.map(([title, items]) => (
-              <div key={title}>
-                <p className="px-3 py-2 text-start text-xs font-black text-slate-500">
-                  {title}
-                </p>
-                {items.map((item) => (
-                  <button
-                    type="button"
-                    key={item}
-                    className="block w-full rounded-lg px-3 py-2 text-start text-sm hover:bg-emerald-50"
-                    onClick={() => {
-                      update('location', item)
-                      setAreaOpen(false)
-                    }}
-                  >
-                    {item}
-                  </button>
-                ))}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      {/* البحث الفوري في جميع المناطق والأحياء بدون سكرول طويل */}
+      <SearchableGeorgiaAreaPicker
+        label={t.georgiaLocationLabel || `${t.locationLabelPrefix} *`}
+        value={form.location ?? ''}
+        onChange={(area) => update('location', area)}
+        error={errors.location}
+        placeholder={t.georgiaLocationPlaceholder}
+      />
 
       <fieldset className="flex flex-col gap-3">
         <legend className="text-start font-bold">
@@ -908,6 +900,18 @@ function DetailsStep({
         />
       </fieldset>
 
+      {/* تاريخ استلام الوحدة (Delivery Date) بالشهر والسنة */}
+      <MonthYearSelector
+        label={t.deliveryDateLabel || `${t.deliveryLabel} (Month / Year) *`}
+        monthValue={form.deliveryMonth || ''}
+        yearValue={form.deliveryYear || ''}
+        yearsList={deliveryFutureYears}
+        error={errors.deliveryDate}
+        helper={t.deliveryDateHelper}
+        onMonthChange={(m) => update('deliveryMonth', m)}
+        onYearChange={(y) => update('deliveryYear', y)}
+      />
+
       <fieldset className="flex flex-col gap-3">
         <legend className="text-start font-bold">{t.featuresLabel}</legend>
         <Pills
@@ -967,6 +971,7 @@ function PricingStep({
   toggle,
   go,
   errors,
+  setErrors,
   onSave,
 }: {
   form: Record<string, string>
@@ -975,14 +980,15 @@ function PricingStep({
   toggle: (group: string, value: string) => void
   go: (step: number) => void
   errors: Record<string, string>
+  setErrors: React.Dispatch<React.SetStateAction<Record<string, string>>>
   onSave: () => void
 }) {
   const { t: dict, locale } = useTranslation()
   const s = dict.sell
-  const t = s.pricingStep
+  const t = s.pricingStep as Record<string, any>
   const yes = (group: string) => selected[group]?.[0] === 'yes'
   const setAnswer = (group: string, value: string) => toggle(group, value)
-  const currency = getCurrencySymbol(form.unitCountry || 'EG', locale)
+  const currency = getCurrencySymbol(ACTIVE_PLATFORM_COUNTRY, locale)
 
   return (
     <div className="flex flex-col gap-6">
@@ -993,17 +999,25 @@ function PricingStep({
         currencySymbol={currency}
         update={(value) => update('contractPrice', value)}
       />
-      <fieldset className="flex flex-col gap-3">
-        <legend className="text-start font-bold">
-          <RequiredLabel>{t.contractYearLabel}</RequiredLabel>
-        </legend>
-        <Pills
-          error={errors.year}
-          items={years}
-          selected={selected.year ?? []}
-          onToggle={(value) => toggle('year', value)}
-        />
-      </fieldset>
+
+      {/* اختيار شهر وسنة التعاقد معاً */}
+      <MonthYearSelector
+        label={t.contractMonthYearLabel || t.contractYearLabel}
+        monthValue={form.contractMonth || ''}
+        yearValue={form.contractYear || selected.year?.[0] || ''}
+        yearsList={years}
+        error={errors.year}
+        onMonthChange={(m) => {
+          update('contractMonth', m)
+          setErrors((curr) => ({ ...curr, year: '' }))
+        }}
+        onYearChange={(y) => {
+          update('contractYear', y)
+          toggle('year', y)
+          setErrors((curr) => ({ ...curr, year: '' }))
+        }}
+      />
+
       <MoneyField
         error={errors.paidAmount}
         label={s.basicStep.paidAmount}
@@ -1011,6 +1025,7 @@ function PricingStep({
         currencySymbol={currency}
         update={(value) => update('paidAmount', value)}
       />
+
       <MoneyField
         error={errors.marketPrice}
         label={t.marketPriceLabel}
@@ -1018,6 +1033,7 @@ function PricingStep({
         currencySymbol={currency}
         update={(value) => update('marketPrice', value)}
       />
+
       <div className="grid gap-5 sm:grid-cols-2">
         <MoneyField
           error={errors.installment}
@@ -1038,14 +1054,18 @@ function PricingStep({
           />
         </fieldset>
       </div>
+
+      {/* المتبقي كام شهر تقسيط (إجباري *) */}
       <Field
-        label={t.remainingYearsLabel}
-        id="remainingYears"
+        error={errors.remainingMonths}
+        label={t.remainingMonthsLabel || `${t.remainingYearsLabel} *`}
+        id="remainingMonths"
         type="number"
-        helper={t.remainingYearsHelper}
-        value={form.remainingYears}
-        update={(value) => update('remainingYears', value)}
+        helper={t.remainingMonthsHelper || t.remainingYearsHelper}
+        value={form.remainingMonths}
+        update={(value) => update('remainingMonths', value)}
       />
+
       <ToggleSection
         error={errors.annualInstallment}
         title={t.annualInstallmentQuestion}
@@ -1061,6 +1081,7 @@ function PricingStep({
           update={(value) => update('annualInstallmentAmount', value)}
         />
       )}
+
       <ToggleSection
         error={errors.discountOffer}
         title={t.discountQuestion}
@@ -1076,6 +1097,7 @@ function PricingStep({
           update={(value) => update('discountAmount', value)}
         />
       )}
+
       <ToggleSection
         error={errors.overdueInstallments}
         title={t.overdueQuestion}
@@ -1100,6 +1122,7 @@ function PricingStep({
           />
         </div>
       )}
+
       <div className="mt-2 flex gap-3">
         <Button
           type="button"
@@ -1268,20 +1291,19 @@ function ReviewStep({
 }) {
   const { t: dict, locale } = useTranslation()
   const s = dict.sell
-  const t = s.reviewStep
+  const t = s.reviewStep as Record<string, any>
 
   const [selectedPromo, setSelectedPromo] = useState<7 | 14 | 30 | null>(null)
   const [fawryCode, setFawryCode] = useState<string | null>(null)
   const [copiedCode, setCopiedCode] = useState(false)
   const [promoPending, startPromoTransition] = useTransition()
 
-  const countryObj = getCountryConfig(form.unitCountry)
-  const localizedCountryName = getLocalizedCountryName(countryObj, locale)
-  const currency = getCurrencySymbol(form.unitCountry || 'EG', locale)
+  const countryObj = getCountryConfig(ACTIVE_PLATFORM_COUNTRY)
+  const currency = getCurrencySymbol(ACTIVE_PLATFORM_COUNTRY, locale)
   const pkgPrices = countryObj.defaultPackages || {
-    days7: 1199,
-    days14: 1999,
-    days30: 2799,
+    days7: 29,
+    days14: 49,
+    days30: 69,
   }
 
   const dynamicPackages: Array<{
@@ -1333,7 +1355,31 @@ function ReviewStep({
           {t.orderRefLabel} <strong className="font-mono">{orderRef}</strong>
         </span>
 
-        <div className="mt-6 w-full rounded-[20px] border border-[#aae3cb] bg-[#effaf5] p-5 text-start sm:p-6">
+        {/* تنبيه وزر مباشر لرفع مستندات الوحدة وجواز السفر لنشر الوحدة */}
+        <div className="mt-5 w-full rounded-2xl border border-amber-200 bg-amber-50 p-4 text-start sm:p-5">
+          <div className="flex items-start gap-3">
+            <ShieldAlert className="mt-0.5 size-5 shrink-0 text-amber-600" />
+            <div className="flex-1 text-xs leading-relaxed text-amber-950">
+              <strong className="block text-sm font-extrabold">
+                {t.docsRequiredBannerTitle}
+              </strong>
+              <p className="mt-1 opacity-90">{t.docsRequiredBannerDesc}</p>
+              <Link
+                href={
+                  unitId
+                    ? `/account/documents?unitId=${unitId}`
+                    : '/account/documents'
+                }
+                className="mt-3 inline-flex h-10 items-center justify-center gap-1.5 rounded-xl bg-[#0a1122] px-5 text-xs font-bold text-white shadow-2xs transition hover:bg-[#16223f]"
+              >
+                <UploadCloud className="size-4 text-emerald-300" />
+                <span>{t.uploadDocsNowBtn}</span>
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-5 w-full rounded-[20px] border border-[#aae3cb] bg-[#effaf5] p-5 text-start sm:p-6">
           <div className="flex items-center justify-start gap-1 text-xs font-extrabold text-[var(--brand-primary,#007a5a)]">
             <Star className="size-3.5 fill-amber-400 text-amber-500" />
             <span>{t.optionalBadge}</span>
@@ -1446,8 +1492,17 @@ function ReviewStep({
       </div>
     )
 
+  const deliveryFormatted =
+    form.deliveryMonth && form.deliveryYear
+      ? `${selected.delivery?.join('، ') || '—'} (${form.deliveryMonth}/${form.deliveryYear})`
+      : selected.delivery?.join('، ') || '—'
+
+  const contractDateFormatted =
+    form.contractMonth && (form.contractYear || selected.year?.[0])
+      ? `${form.contractMonth}/${form.contractYear || selected.year?.[0]}`
+      : form.contractYear || selected.year?.[0] || '—'
+
   const rows = [
-    [t.rowCountry, `${countryObj.flag} ${localizedCountryName}`],
     [
       t.rowDevProject,
       `${form.developerDetails || form.developer || '—'} · ${
@@ -1459,7 +1514,17 @@ function ReviewStep({
     [t.rowSize, `${form.areaSize || '—'} ${t.sqmUnit}`],
     [t.rowRoomsBath, `${form.rooms || '—'} / ${form.bathrooms || '—'}`],
     [t.rowFinishing, selected.finishing?.join('، ') || '—'],
-    [t.rowDelivery, selected.delivery?.join('، ') || '—'],
+    [t.rowDelivery, deliveryFormatted],
+    [
+      t.rowContractDate || s.pricingStep.contractYearLabel,
+      contractDateFormatted,
+    ],
+    [
+      t.rowRemainingMonths || s.pricingStep.remainingYearsLabel,
+      form.remainingMonths
+        ? `${form.remainingMonths} ${t.monthsUnit || ''}`
+        : '0',
+    ],
     [t.rowPhotos, String(imagesLength)],
     [
       t.rowContractPrice,
@@ -1485,6 +1550,12 @@ function ReviewStep({
           </div>
         ))}
       </div>
+
+      <div className="flex items-start gap-2.5 rounded-xl border border-teal-200 bg-teal-50/70 p-3.5 text-start text-xs leading-relaxed text-teal-900">
+        <FileCheck2 className="mt-0.5 size-4 shrink-0 text-teal-700" />
+        <span>{t.docsPreSubmitNote}</span>
+      </div>
+
       {error && (
         <p className="rounded-xl bg-red-50 p-3 text-center text-sm font-bold text-red-700">
           {error}
@@ -1520,3 +1591,33 @@ function ReviewStep({
     </div>
   )
 }
+
+/* ============================================================================
+   ARCHIVED MULTI-COUNTRY SELECTION CODE (COMMENTED FOR FUTURE REFERENCE)
+   ============================================================================
+
+  // 1. Cookie & Country State Initialization:
+  // const activeCookieCountry = getHeaderCookieCountry()
+  // setForm((prev) => ({
+  //   ...prev,
+  //   unitCountry: prev.unitCountry || activeCookieCountry,
+  // }))
+
+  // 2. Step 1 & Step 3 Country Selector Field:
+  // <SearchableCountryField
+  //   value={form.unitCountry || 'EG'}
+  //   onChange={(code) => {
+  //     update('unitCountry', code)
+  //     update('location', '')
+  //   }}
+  //   label={s.shared.unitCountryLabel}
+  //   options={PLATFORM_COUNTRIES}
+  //   error={errors.unitCountry}
+  // />
+
+  // 3. Review Step Country Row:
+  // const countryObj = getCountryConfig(form.unitCountry)
+  // const localizedCountryName = getLocalizedCountryName(countryObj, locale)
+  // [t.rowCountry, `${countryObj.flag} ${localizedCountryName}`]
+
+============================================================================ */

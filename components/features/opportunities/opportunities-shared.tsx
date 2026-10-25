@@ -11,6 +11,7 @@ import {
   Star,
   Zap,
 } from 'lucide-react'
+import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
 import {
   getCurrencySymbol,
   useTranslation,
@@ -28,21 +29,18 @@ export function getCountryFilterOptions(t: Dictionary['opportunitiesPage']) {
       nameEn: 'Georgia',
       flag: '🇬🇪',
     },
-    // باقي الدول محفوظة ككومنت للتوسع المستقبلي
-    // { code: 'EG' as OpportunityCountryCode, name: t?.countries?.EG || 'Egypt', nameEn: 'Egypt', flag: '🇪🇬' },
-    // { code: 'AE' as OpportunityCountryCode, name: t?.countries?.AE || 'UAE', nameEn: 'UAE', flag: '🇦🇪' },
-    // { code: 'RU' as OpportunityCountryCode, name: t?.countries?.RU || 'Russia', nameEn: 'Russia', flag: '🇷🇺' },
   ]
 }
 
 export type MappedProperty = {
   id: string
   code: string
-  country: 'EG' | 'AE' | 'RU' | 'GE'
+  country: 'GE'
   currency: string
   project: string
   developer: string
   area: string
+  rawArea: string
   type: string
   rooms: number
   baths: number
@@ -73,12 +71,27 @@ export const DEFAULT_FALLBACK_IMAGE =
 export function calcMonthlyEquivalent(amount: number, freq: string): number {
   if (!amount) return 0
   const f = (freq || '').trim().toLowerCase()
-  if (f.includes('ربع') || f.includes('quarter') || f.includes('квартал'))
+  if (
+    f.includes('ربع') ||
+    f.includes('quarter') ||
+    f.includes('квартал') ||
+    f.includes('კვარტ')
+  )
     return Math.round(amount / 3)
-  if (f.includes('نصف') || f.includes('نص') || f.includes('semi') || f.includes('пол'))
+  if (
+    f.includes('نصف') ||
+    f.includes('نص') ||
+    f.includes('semi') ||
+    f.includes('пол') ||
+    f.includes('ნახევარ')
+  )
     return Math.round(amount / 6)
   if (
-    (f.includes('سنوي') || f.includes('annual') || f.includes('year') || f.includes('год')) &&
+    (f.includes('سنوي') ||
+      f.includes('annual') ||
+      f.includes('year') ||
+      f.includes('год') ||
+      f.includes('წლიური')) &&
     !f.includes('نصف') &&
     !f.includes('ربع') &&
     !f.includes('semi')
@@ -88,24 +101,18 @@ export function calcMonthlyEquivalent(amount: number, freq: string): number {
   return amount
 }
 
-export function inferCountryFromRow(row: any): 'EG' | 'AE' | 'RU' | 'GE' {
-  const raw = String(row.country_code || row.country || '')
-    .trim()
-    .toUpperCase()
-  if (raw === 'EG' || raw === 'AE' || raw === 'RU' || raw === 'GE') return raw
-  return 'GE'
-}
-
 export function mapDbRowToProperty(
   row: any,
   locale: LocaleCode,
   t: Dictionary['opportunitiesPage']
 ): MappedProperty {
-  const country = inferCountryFromRow(row)
+  const country = 'GE'
   const currency = getCurrencySymbol(country, locale)
 
   const paid = Number(row.paid_amount) || 0
-  const discount = row.willing_to_discount ? Number(row.discount_amount) || 0 : 0
+  const discount = row.willing_to_discount
+    ? Number(row.discount_amount) || 0
+    : 0
   const requiredCash = Math.max(0, paid - discount)
   const contractPrice = Number(row.contract_price) || paid
   const remainingAmount = Math.max(0, contractPrice - paid)
@@ -129,7 +136,7 @@ export function mapDbRowToProperty(
     }
   }
 
-  const rawDelStatus = String(row.delivery_status || '')
+  const rawDelStatus = String(row.delivery_status || '').trim()
   const isReady =
     rawDelStatus.includes('جاهز') ||
     rawDelStatus.includes('فوري') ||
@@ -138,14 +145,15 @@ export function mapDbRowToProperty(
     rawDelStatus.includes(t.filters.deliveryStatuses[1])
 
   const yearMatch = rawDelStatus.match(/20\d{2}/)
-  const deliveryYearStr = yearMatch
-    ? yearMatch[0]
-    : isReady
-      ? '2026'
-      : String(
-          new Date().getFullYear() +
-            Math.max(1, Math.min(Number(row.years_left) || 2, 6))
-        )
+  const monthsParenMatch = rawDelStatus.match(/\(([^)]+)\)/)
+
+  const deliveryDisplayStr = isReady
+    ? t.filters.deliveryStatuses[1]
+    : monthsParenMatch
+      ? monthsParenMatch[1]
+      : yearMatch
+        ? yearMatch[0]
+        : rawDelStatus || t.filters.deliveryStatuses[2]
 
   const numericCode = String(row.id || '')
     .replace(/\D/g, '')
@@ -155,8 +163,13 @@ export function mapDbRowToProperty(
     .toUpperCase()
   const code = `U-${numericCode.length >= 4 ? numericCode : fallbackCode}`
 
-  const area = row.area || t.card.defaultArea
-  const devName = row.developer_name ? `${row.developer_name} · ${area}` : area
+  const rawArea = row.area || ''
+  const localizedArea = rawArea
+    ? getLocalizedGeorgiaAreaName(rawArea, locale)
+    : t.card.defaultArea
+  const devName = row.developer_name
+    ? `${row.developer_name} · ${localizedArea}`
+    : localizedArea
 
   const validImage =
     Array.isArray(row.images) && row.images.length > 0 && row.images[0]
@@ -174,11 +187,12 @@ export function mapDbRowToProperty(
     currency,
     project: row.project_name || t.card.defaultProject,
     developer: devName,
-    area,
+    area: localizedArea,
+    rawArea,
     type: row.unit_type || t.card.defaultType,
-    rooms: Number(row.rooms) || 3,
-    baths: Number(row.bathrooms) || 2,
-    size: Number(row.size) || 140,
+    rooms: Number(row.rooms) || 2,
+    baths: Number(row.bathrooms) || 1,
+    size: Number(row.size) || 75,
     cash: requiredCash.toLocaleString('en-US'),
     cashNum: requiredCash,
     negotiable: Boolean(row.willing_to_discount),
@@ -195,7 +209,7 @@ export function mapDbRowToProperty(
       installmentFreq
     ),
     installmentFreq,
-    delivery: deliveryYearStr,
+    delivery: deliveryDisplayStr,
     isReady,
     contractYear: Number(row.contract_year) || 2024,
     featured: isFeaturedActive,

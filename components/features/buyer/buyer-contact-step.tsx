@@ -19,10 +19,8 @@ import { Label } from '@/components/ui/label'
 import { TurnstileBox } from '@/components/layouts/funnel-shell'
 import { CountrySelector } from '@/components/shared/country-selector'
 import {
-  ALL_RESIDENCE_COUNTRIES,
   Field,
   RequiredLabel,
-  SearchableCountryField,
   type PlatformCountryCode,
 } from '@/components/features/seller/seller-shared'
 import { useTranslation } from '@/lib/i18n'
@@ -367,31 +365,24 @@ export function BuyerContactStep({
             update={(value) => update('name', value)}
           />
 
-          <SearchableCountryField
-            label={t.residenceCountryLabel}
-            value={data.residenceCountry || data.country}
-            options={ALL_RESIDENCE_COUNTRIES}
-            onChange={(code) => {
-              update('residenceCountry', code)
-              const found = ALL_RESIDENCE_COUNTRIES.find((c) => c.code === code)
-              if (found?.phoneCode) {
-                setCountryCode(found.phoneCode)
-              }
-            }}
-          />
-
           <div>
             <Label className="block text-start">
               <RequiredLabel>{t.phoneLabel}</RequiredLabel>
             </Label>
             <div dir="ltr" className="mt-2 flex items-center gap-2">
-              <CountrySelector value={countryCode} onChange={setCountryCode} />
+              <CountrySelector
+                value={countryCode}
+                onChange={(code, iso) => {
+                  setCountryCode(code)
+                  if (iso) update('residenceCountry', iso)
+                }}
+              />
               <Input
                 value={data.phone}
                 onChange={(event) => update('phone', event.target.value)}
                 inputMode="tel"
                 dir="ltr"
-                placeholder="01xx xxx xxxx"
+                placeholder="5xx xx xx xx"
                 className={`h-12 flex-1 rounded-xl px-3 text-left ${
                   errors?.phone
                     ? 'border-red-500 bg-red-50/20'

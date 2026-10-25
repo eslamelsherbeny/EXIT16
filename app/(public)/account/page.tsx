@@ -10,7 +10,10 @@ import { AccountTopBar } from '@/components/features/account/account-top-bar'
 import { ScrollReveal } from '@/components/shared/scroll-reveal'
 import { getServerI18n } from '@/lib/get-server-dictionary'
 import { extractUserIdFromCookie } from '@/lib/session-security'
-import { calculateSmartMatch } from '@/lib/smart-matcher'
+import {
+  calculateSmartMatch,
+  isNonGeorgianLegacyArea,
+} from '@/lib/smart-matcher'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -80,8 +83,7 @@ export default async function AccountPage({
       .order('created_at', { ascending: false }),
     supabase
       .from('property_offers')
-      .select('property_id, status')
-      .neq('status', 'recommended')
+      .select('id, property_id, lead_id, buyer_user_id, seller_user_id, status')
       .neq('status', 'rejected'),
   ])
 
@@ -102,12 +104,42 @@ export default async function AccountPage({
       (cleanPhone && String(b.phone || '').trim() === cleanPhone)
   )
 
+  const georgiaMarketUnits = ((activeMarketUnits as SellerUnitItem[]) || []).filter(
+    (u) => !isNonGeorgianLegacyArea(u.area)
+  )
+
   const offersCountMap: Record<string, number> = {}
   ;(allOffers || []).forEach((o: any) => {
-    if (o.property_id) {
+    if (o.property_id && o.status !== 'recommended') {
       offersCountMap[o.property_id] = (offersCountMap[o.property_id] || 0) + 1
     }
   })
+
+  // حساب عدد العروض والترشيحات المتاحة للمشتري ليظهر على زر "عروضي"
+  const myLeadIds = new Set(buys.map((b) => b.id))
+  const myUnitIds = new Set(sells.map((s) => s.id))
+  const directBuyerOffers = (allOffers || []).filter(
+    (o: any) =>
+      o.buyer_user_id === profile.id ||
+      (o.lead_id && myLeadIds.has(o.lead_id))
+  )
+  const offeredUnitIds = new Set(
+    directBuyerOffers.map((o: any) => String(o.property_id))
+  )
+
+  const mainBuyerReq = buys[0] || null
+  let smartMatchesForBuyerCount = 0
+  if (mainBuyerReq) {
+    georgiaMarketUnits.forEach((u) => {
+      if (myUnitIds.has(u.id) || offeredUnitIds.has(String(u.id))) return
+      const m = calculateSmartMatch(u, mainBuyerReq)
+      if (m.score >= 70) {
+        smartMatchesForBuyerCount++
+      }
+    })
+  }
+  const totalBuyerOffersCount =
+    directBuyerOffers.length + smartMatchesForBuyerCount
 
   const matchedBuyersCountMap: Record<string, number> = {}
   const buyersList = (allBuys as any[]) || []
@@ -145,12 +177,14 @@ export default async function AccountPage({
 
       {hasSells || hasBuys ? (
         <AccountViewSwitcher
+          userName={profile.name || ''}
           initialView={initialView}
           sells={sells}
           buys={buys}
-          activeMarketUnits={(activeMarketUnits as SellerUnitItem[]) || []}
+          activeMarketUnits={georgiaMarketUnits}
           initialSelectedUnitId={resolvedParams.unitId}
           offersCountMap={offersCountMap}
+          buyerOffersCount={totalBuyerOffersCount}
           matchedBuyersCountMap={matchedBuyersCountMap}
           deletionRequested={deletionRequested}
         />

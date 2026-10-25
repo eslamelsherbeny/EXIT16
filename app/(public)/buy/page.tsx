@@ -6,23 +6,21 @@ import {
   getCurrentSellerProfileAction,
   processBuyerStep3Action,
 } from '@/actions/submit-forms'
-import { Check, Loader2, UserRound, X } from 'lucide-react'
+import { AlertCircle, Check, Loader2, UserRound, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { TurnstileBox } from '@/components/layouts/funnel-shell'
 import {
-  areasCatalogByCountry,
-  getCountryConfig,
-  getHeaderCookieCountry,
-  getLocalizedCountryName,
   MoneyField,
-  normalizeArabicText,
   Pills,
-  PLATFORM_COUNTRIES,
   RequiredLabel,
-  SearchableCountryField,
-  type PlatformCountryCode,
+  unitTypes as sharedUnitTypes,
 } from '@/components/features/seller/seller-shared'
+import {
+  GEORGIA_CITIES_AND_DISTRICTS,
+  GeorgiaAreaSelect,
+  getLocalizedGeorgiaAreaName,
+} from '@/components/shared/georgia-areas'
 import {
   BuyerContactStep,
   type BuyerConflictState,
@@ -30,14 +28,40 @@ import {
 } from '@/components/features/buyer/buyer-contact-step'
 import { getCurrencySymbol, useTranslation } from '@/lib/i18n'
 
+const ACTIVE_PLATFORM_COUNTRY = 'GE'
+const DEFAULT_PHONE_CODE = '995'
+
+function StepValidationBanner({
+  missingFields,
+  prefixText,
+}: {
+  missingFields: string[]
+  prefixText: string
+}) {
+  if (!missingFields.length) return null
+  return (
+    <div
+      role="alert"
+      className="mt-5 flex items-start gap-2.5 rounded-xl border border-red-300 bg-red-50/90 p-3.5 text-start text-xs leading-relaxed text-red-800 shadow-2xs"
+    >
+      <AlertCircle className="mt-0.5 size-4 shrink-0 text-red-600" />
+      <div>
+        <strong className="font-extrabold">{prefixText} </strong>
+        <span className="font-bold">{missingFields.join(' ، ')}</span>
+      </div>
+    </div>
+  )
+}
+
 export default function BuyersPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { t: dict, dir } = useTranslation()
   const b = dict.buy
+  const sellVal = (dict.sell?.validation as Record<string, any>) || {}
 
   const localizedUnitTypes: string[] =
-    (dict as Record<string, any>).buyerFunnelPage?.unitTypes || []
+    (dict as Record<string, any>).buyerFunnelPage?.unitTypes || sharedUnitTypes
   const localizedDeliveries: string[] =
     dict.accountComponents?.buyer?.deliveryPreferences || []
   const waPhone = String(dict.footer?.phone || '+201018595959').replace(
@@ -51,8 +75,8 @@ export default function BuyersPage() {
 
   const [step, setStep] = useState<1 | 2 | 3>(1)
   const [data, setData] = useState<BuyerFormState>(() => ({
-    country: 'EG',
-    residenceCountry: 'EG',
+    country: ACTIVE_PLATFORM_COUNTRY,
+    residenceCountry: ACTIVE_PLATFORM_COUNTRY,
     available_cash: 0,
     max_installment: 0,
     payment_plan: b.stepOne.paymentPlans[0] || '',
@@ -69,13 +93,12 @@ export default function BuyersPage() {
     loginPassword: '',
   }))
 
-  const [areaInput, setAreaInput] = useState('')
-  const [countryCode, setCountryCode] = useState('20')
-  const [showAreas, setShowAreas] = useState(false)
+  const [countryCode, setCountryCode] = useState(DEFAULT_PHONE_CODE)
   const [passwordVisible, setPasswordVisible] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [missingFieldsList, setMissingFieldsList] = useState<string[]>([])
 
   const [loggedUser, setLoggedUser] = useState<{
     id: string
@@ -92,11 +115,10 @@ export default function BuyersPage() {
     useState<BuyerConflictState>(null)
 
   useEffect(() => {
-    const activeCookieCountry = getHeaderCookieCountry()
     setData((prev) => ({
       ...prev,
-      country: activeCookieCountry,
-      residenceCountry: activeCookieCountry,
+      country: ACTIVE_PLATFORM_COUNTRY,
+      residenceCountry: ACTIVE_PLATFORM_COUNTRY,
       payment_plan: b.stepOne.paymentPlans[0] || prev.payment_plan,
       unit_types:
         prev.unit_types.length > 0
@@ -117,106 +139,145 @@ export default function BuyersPage() {
     checkCurrentSession()
   }, [])
 
+  const cleanLabel = (raw?: string) =>
+    String(raw || '')
+      .replace(/\*/g, '')
+      .replace(/:/g, '')
+      .trim()
+
   const update = <K extends keyof BuyerFormState>(
     key: K,
     value: BuyerFormState[K]
   ) => {
     setData((current) => ({ ...current, [key]: value }))
     setErrors((current) => ({ ...current, [key]: '' }))
-  }
-
-  const addArea = (value = areaInput) => {
-    const clean = value.trim()
-    if (clean && !data.preferred_areas.includes(clean))
-      update('preferred_areas', [...data.preferred_areas, clean])
-    setAreaInput('')
-    setShowAreas(false)
+    setMissingFieldsList([])
   }
 
   const nextFromOne = () => {
     const nextErrors: Record<string, string> = {}
-    if (!data.available_cash) nextErrors.available_cash = b.validation.required
-    if (!data.max_installment)
+    const missing: string[] = []
+
+    if (!data.available_cash) {
+      nextErrors.available_cash = b.validation.required
+      missing.push(cleanLabel(b.stepOne.availableCashLabel))
+    }
+    if (!data.max_installment) {
       nextErrors.max_installment = b.validation.required
-    if (!data.payment_plan)
+      missing.push(cleanLabel(b.stepOne.maxInstallmentLabel))
+    }
+    if (!data.payment_plan) {
       nextErrors.payment_plan = b.validation.selectPaymentPlan
-    if (!data.budget) nextErrors.budget = b.validation.required
-    if (data.max_installment > data.budget)
+      missing.push(cleanLabel(b.stepOne.paymentPlanLabel))
+    }
+    if (!data.budget) {
+      nextErrors.budget = b.validation.required
+      missing.push(cleanLabel(b.stepOne.budgetLabel))
+    }
+    if (
+      data.budget > 0 &&
+      data.max_installment > 0 &&
+      data.max_installment > data.budget
+    ) {
       nextErrors.max_installment = b.validation.installmentExceedsBudget
+      if (!missing.includes(cleanLabel(b.stepOne.maxInstallmentLabel))) {
+        missing.push(cleanLabel(b.stepOne.maxInstallmentLabel))
+      }
+    }
 
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors)
+      setMissingFieldsList(missing)
       return
     }
     setErrors({})
+    setMissingFieldsList([])
     setStep(2)
   }
 
   const nextFromTwo = () => {
-    const typedArea = areaInput.trim()
-    const preferredAreas =
-      typedArea && !data.preferred_areas.includes(typedArea)
-        ? [...data.preferred_areas, typedArea]
-        : data.preferred_areas
     const nextErrors: Record<string, string> = {}
+    const missing: string[] = []
 
-    if (!data.unit_types.length)
+    if (!data.unit_types.length) {
       nextErrors.unit_types = b.validation.selectUnitType
-    if (!data.delivery_status)
+      missing.push(cleanLabel(b.stepTwo.unitTypeLabel))
+    }
+    if (!data.delivery_status) {
       nextErrors.delivery_status = b.validation.selectDeliveryStatus
-    if (!preferredAreas.length)
+      missing.push(cleanLabel(b.stepTwo.deliveryStatusLabel))
+    }
+    if (!data.preferred_areas.length) {
       nextErrors.preferred_areas = b.validation.selectAtLeastOneArea
+      missing.push(cleanLabel(b.stepTwo.areasLabelPrefix))
+    }
 
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors)
+      setMissingFieldsList(missing)
       return
     }
 
-    if (typedArea) update('preferred_areas', preferredAreas)
-    setAreaInput('')
-    setShowAreas(false)
     setErrors({})
+    setMissingFieldsList([])
     setStep(3)
   }
 
   const handleFinalSubmit = async () => {
     setError('')
     const nextErrors: Record<string, string> = {}
+    const missing: string[] = []
 
     if (authTab === 'register') {
-      if (!data.name.trim()) nextErrors.name = b.validation.required
+      if (!data.name.trim()) {
+        nextErrors.name = b.validation.required
+        missing.push(cleanLabel(b.stepThree.nameLabel))
+      }
       if (
         !data.phone.trim() ||
         !/^[0-9٠-٩]{7,15}$/.test(data.phone.replace(/[\s-]/g, ''))
-      )
+      ) {
         nextErrors.phone = b.validation.invalidPhone
-      if (!data.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email))
+        missing.push(cleanLabel(b.stepThree.phoneLabel))
+      }
+      if (!data.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
         nextErrors.email = b.validation.invalidEmail
-      if (data.password.length < 8)
+        missing.push(cleanLabel(b.stepThree.emailLabel))
+      }
+      if (data.password.length < 8) {
         nextErrors.password = b.validation.shortPassword
+        missing.push(cleanLabel(b.stepThree.passwordLabel))
+      }
     } else if (authTab === 'login') {
-      if (!data.loginIdentifier?.trim())
+      if (!data.loginIdentifier?.trim()) {
         nextErrors.loginIdentifier = b.validation.loginIdRequired
-      if (!data.loginPassword?.trim())
+        missing.push(cleanLabel(b.stepThree.loginIdLabel))
+      }
+      if (!data.loginPassword?.trim()) {
         nextErrors.loginPassword = b.validation.loginPassRequired
+        missing.push(cleanLabel(b.stepThree.loginPassLabel))
+      }
     }
 
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors)
+      setMissingFieldsList(missing)
       return
     }
 
     setErrors({})
+    setMissingFieldsList([])
     setIsSubmitting(true)
 
     try {
       const fullPhone = data.phone.trim()
-        ? `+${countryCode}${data.phone.trim().replace(/^0+/, '')}`
+        ? `+${countryCode.replace('+', '')}${data.phone.trim().replace(/^0+/, '')}`
         : ''
 
       const res = await processBuyerStep3Action({
         mode: authTab,
-        country: data.country || 'EG',
+        country: ACTIVE_PLATFORM_COUNTRY,
+        userCountry: data.residenceCountry || ACTIVE_PLATFORM_COUNTRY,
         available_cash: Number(data.available_cash) || 0,
         max_installment: Number(data.max_installment) || 0,
         payment_plan: data.payment_plan,
@@ -261,6 +322,9 @@ export default function BuyersPage() {
       setIsSubmitting(false)
     }
   }
+
+  const missingPrefix =
+    sellVal.missingBannerPrefix || b.validation.required || ''
 
   return (
     <main
@@ -340,11 +404,6 @@ export default function BuyersPage() {
                 data={data}
                 update={update}
                 errors={errors}
-                areaInput={areaInput}
-                setAreaInput={setAreaInput}
-                showAreas={showAreas}
-                setShowAreas={setShowAreas}
-                addArea={addArea}
                 unitTypesList={localizedUnitTypes}
                 deliveriesList={localizedDeliveries}
               />
@@ -368,6 +427,11 @@ export default function BuyersPage() {
             )}
           </div>
 
+          <StepValidationBanner
+            missingFields={missingFieldsList}
+            prefixText={missingPrefix}
+          />
+
           {error && (
             <div
               role="alert"
@@ -382,8 +446,11 @@ export default function BuyersPage() {
               {step > 1 && (
                 <button
                   type="button"
-                  onClick={() => setStep((step - 1) as 1 | 2)}
-                  className="h-12 rounded-xl border border-slate-300 bg-white px-7 font-semibold"
+                  onClick={() => {
+                    setMissingFieldsList([])
+                    setStep((step - 1) as 1 | 2)
+                  }}
+                  className="h-12 rounded-xl border border-slate-300 bg-white px-7 font-semibold transition hover:bg-slate-50"
                 >
                   {b.actions.backBtn}
                 </button>
@@ -398,7 +465,7 @@ export default function BuyersPage() {
                       ? nextFromTwo
                       : handleFinalSubmit
                 }
-                className={`h-12 flex-1 rounded-xl px-5 font-bold text-white ${
+                className={`h-12 flex-1 rounded-xl px-5 font-bold text-white transition active:scale-[0.98] ${
                   step === 3
                     ? 'bg-[var(--brand-primary,#007a5a)] hover:bg-[var(--brand-primary-hover,#006248)]'
                     : 'bg-[var(--brand-navy,#0a1122)] hover:bg-[var(--brand-navy-hover,#16223f)]'
@@ -455,20 +522,10 @@ function BuyerStepOne({
 }) {
   const { t: dict, locale } = useTranslation()
   const t = dict.buy.stepOne
-  const currency = getCurrencySymbol(data.country, locale)
+  const currency = getCurrencySymbol(ACTIVE_PLATFORM_COUNTRY, locale)
 
   return (
     <div className="flex flex-col gap-6">
-      <SearchableCountryField
-        value={data.country}
-        options={PLATFORM_COUNTRIES}
-        onChange={(code) => {
-          update('country', code as PlatformCountryCode)
-          update('preferred_areas', [])
-        }}
-        label={t.countryLabel}
-      />
-
       <MoneyField
         error={errors?.available_cash}
         label={t.availableCashLabel}
@@ -541,11 +598,6 @@ function BuyerStepTwo({
   data,
   update,
   errors,
-  areaInput,
-  setAreaInput,
-  showAreas,
-  setShowAreas,
-  addArea,
   unitTypesList,
   deliveriesList,
 }: {
@@ -555,40 +607,31 @@ function BuyerStepTwo({
     value: BuyerFormState[K]
   ) => void
   errors?: Record<string, string>
-  areaInput: string
-  setAreaInput: (value: string) => void
-  showAreas: boolean
-  setShowAreas: (value: boolean) => void
-  addArea: (value?: string) => void
   unitTypesList: string[]
   deliveriesList: string[]
 }) {
-  const { t: dict, locale, dir } = useTranslation()
+  const { t: dict, locale } = useTranslation()
   const t = dict.buy.stepTwo
-  const countryObj = getCountryConfig(data.country)
-  const localizedCountryName = getLocalizedCountryName(countryObj, locale)
-  const rawCatalog =
-    areasCatalogByCountry[countryObj.code] || areasCatalogByCountry.EG
+  const sDetails = (dict.sell?.detailsStep as Record<string, any>) || {}
 
-  const flatAreas = rawCatalog.flatMap(([, items]) => items)
-  const filtered = flatAreas
-    .filter((area) =>
-      normalizeArabicText(area).includes(normalizeArabicText(areaInput))
+  const addGeorgiaArea = (areaId: string) => {
+    if (!areaId) return
+    if (!data.preferred_areas.includes(areaId)) {
+      update('preferred_areas', [...data.preferred_areas, areaId])
+    }
+  }
+
+  const removeGeorgiaArea = (areaId: string) => {
+    update(
+      'preferred_areas',
+      data.preferred_areas.filter((item) => item !== areaId)
     )
-    .slice(0, 8)
+  }
+
+  const quickGeorgiaAreas = GEORGIA_CITIES_AND_DISTRICTS.slice(0, 8)
 
   return (
     <div className="flex flex-col gap-6">
-      <SearchableCountryField
-        value={data.country}
-        options={PLATFORM_COUNTRIES}
-        onChange={(code) => {
-          update('country', code as PlatformCountryCode)
-          update('preferred_areas', [])
-        }}
-        label={t.countryLabel}
-      />
-
       <fieldset>
         <legend className="mb-1 text-start text-sm font-bold">
           <RequiredLabel>{t.unitTypeLabel}</RequiredLabel>
@@ -670,86 +713,71 @@ function BuyerStepTwo({
         )}
       </fieldset>
 
+      {/* اختيار المناطق المفضلة في جورجيا من القائمة المنسدلة الموحدة */}
       <div>
-        <Label htmlFor="areas" className="block text-start">
-          <RequiredLabel>{`${t.areasLabelPrefix} ${localizedCountryName} *`}</RequiredLabel>
-        </Label>
-        <div
-          className={`relative mt-2 ${
-            errors?.preferred_areas
-              ? 'rounded-xl border border-red-500 bg-red-50/20 p-2.5'
-              : ''
-          }`}
-        >
-          {data.preferred_areas.length > 0 && (
-            <div className="mb-3 flex flex-wrap gap-2">
-              {data.preferred_areas.map((area) => (
-                <span
-                  key={area}
-                  className="inline-flex items-center gap-1 rounded-full bg-[var(--brand-primary,#007a5a)] px-3 py-1 text-xs font-bold text-white"
-                >
-                  {area}
-                  <button
-                    type="button"
-                    aria-label={`${t.removeAreaAria} ${area}`}
-                    onClick={() =>
-                      update(
-                        'preferred_areas',
-                        data.preferred_areas.filter((item) => item !== area)
-                      )
-                    }
-                    className="ms-1 hover:text-red-300"
-                  >
-                    <X className="size-3" />
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-          <Input
-            id="areas"
-            dir={dir}
-            value={areaInput}
-            onFocus={() => setShowAreas(true)}
-            onChange={(event) => {
-              setAreaInput(event.target.value)
-              setShowAreas(true)
-            }}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                event.preventDefault()
-                if (filtered[0]) addArea(filtered[0])
-                else if (areaInput.trim()) addArea(areaInput.trim())
-              }
-            }}
-            placeholder={
-              data.preferred_areas.length
-                ? t.addAnotherAreaPlaceholder
-                : `${t.searchAreaPlaceholderPrefix} ${localizedCountryName}...`
-            }
-            className="h-12 rounded-xl text-start"
-          />
-          {showAreas && filtered.length > 0 && (
-            <div className="absolute z-10 mt-2 max-h-52 w-full overflow-auto rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
-              {filtered.map((area) => (
+        <GeorgiaAreaSelect
+          label={
+            sDetails.georgiaLocationLabel ||
+            `${t.areasLabelPrefix} *`
+          }
+          value=""
+          onChange={addGeorgiaArea}
+          error={errors?.preferred_areas}
+          placeholder={
+            data.preferred_areas.length > 0
+              ? t.addAnotherAreaPlaceholder
+              : sDetails.georgiaLocationPlaceholder
+          }
+        />
+
+        {data.preferred_areas.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {data.preferred_areas.map((area) => (
+              <span
+                key={area}
+                className="inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-primary,#007a5a)] px-3.5 py-1.5 text-xs font-bold text-white shadow-2xs"
+              >
+                <span>{getLocalizedGeorgiaAreaName(area, locale)}</span>
                 <button
                   type="button"
-                  key={area}
-                  onClick={() => addArea(area)}
-                  className="block w-full rounded-lg px-3 py-2 text-start text-sm hover:bg-emerald-50"
+                  aria-label={`${t.removeAreaAria} ${area}`}
+                  onClick={() => removeGeorgiaArea(area)}
+                  className="ms-0.5 rounded-full p-0.5 hover:bg-black/20"
                 >
-                  {area}
+                  <X className="size-3" />
                 </button>
-              ))}
-            </div>
-          )}
-        </div>
-        {errors?.preferred_areas && (
-          <p className="mt-1.5 text-start text-xs font-semibold text-red-600">
-            {errors.preferred_areas}
-          </p>
+              </span>
+            ))}
+          </div>
         )}
+
+        {/* اختصارات سريعة لأشهر أحياء تبليسي وباتومي */}
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {quickGeorgiaAreas.map((item) => {
+            const isSelected = data.preferred_areas.includes(item.id)
+            const localizedName = getLocalizedGeorgiaAreaName(item.id, locale)
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() =>
+                  isSelected
+                    ? removeGeorgiaArea(item.id)
+                    : addGeorgiaArea(item.id)
+                }
+                className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold transition ${
+                  isSelected
+                    ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]'
+                    : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300'
+                }`}
+              >
+                {isSelected ? `✓ ${localizedName}` : `+ ${localizedName}`}
+              </button>
+            )
+          })}
+        </div>
       </div>
+
       <TurnstileBox />
     </div>
   )

@@ -1,3 +1,9 @@
+import arDict from '@/dictionaries/ar.json'
+import enDict from '@/dictionaries/en.json'
+import ruDict from '@/dictionaries/ru.json'
+import kaDict from '@/dictionaries/ka.json'
+import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
+
 export type MatchableUnit = {
   id: string
   user_id?: string | null
@@ -8,6 +14,7 @@ export type MatchableUnit = {
   size?: number | null
   rooms?: number | null
   bathrooms?: number | null
+  finishing?: string | null
   delivery_status?: string | null
   contract_price?: number | null
   paid_amount?: number | null
@@ -19,6 +26,7 @@ export type MatchableUnit = {
   discount_amount?: number | null
   country?: string | null
   country_code?: string | null
+  currency_code?: string | null
   status?: string | null
   images?: string[] | null
   name?: string | null
@@ -44,12 +52,21 @@ export type MatchableBuyer = {
   status?: string | null
 }
 
+export type AreaProximityRelation =
+  | 'exact'
+  | 'nearby'
+  | 'same_city'
+  | 'far'
+  | 'invalid_country'
+
 export type SmartMatchResult = {
   score: number
   isAutoPilotEligible: boolean
   isNegotiableBridge: boolean
   matches: string[]
   differences: string[]
+  areaRelation: AreaProximityRelation
+  distanceKm: number | null
   pricingGuardrails: {
     requiredCash: number
     allowNegotiation: boolean
@@ -63,84 +80,413 @@ export type SmartMatchResult = {
   }
 }
 
-const DEFAULT_MATCH_TEXTS: Record<
-  string,
+export type GeorgiaRegionCode =
+  | 'tbilisi_metro'
+  | 'batumi_adjara'
+  | 'kutaisi_imereti'
+  | 'mountain_resorts'
+  | 'kakheti_region'
+
+type GeorgiaDistrictNode = {
+  id: string
+  regionCode: GeorgiaRegionCode
+  isCityWide?: boolean
+  keywords: string[]
+}
+
+const GEORGIA_REGION_DISTRICTS: GeorgiaDistrictNode[] = [
+  // 1. إقليم تبليسي الكبرى (Greater Tbilisi Metropolitan Area - كل أحيائها تعتبر قريبة لبعضها داخل نفس المحافظة)
   {
-    cashExact: string
-    cashNegotiableBridge: string
-    cashSlightlyHigher: string
-    instMatch: string
-    instHigher: string
-    areaMatch: string
-    areaDiff: string
-    typeMatch: string
-    typeDiff: string
-    roomsMatch: string
-    roomsDiff: string
-    buyerAskedRooms: string
-    deliveryDiff: string
+    id: 'Tbilisi - Saburtalo',
+    regionCode: 'tbilisi_metro',
+    keywords: ['saburtalo', 'سابورتالو', 'сабуртало', 'საბურთალო'],
+  },
+  {
+    id: 'Tbilisi - Vake',
+    regionCode: 'tbilisi_metro',
+    keywords: ['vake', 'فاكي', 'ваке', 'ვაკე'],
+  },
+  {
+    id: 'Tbilisi - Vera',
+    regionCode: 'tbilisi_metro',
+    keywords: ['vera', 'فيرا', 'вера', 'ვერა'],
+  },
+  {
+    id: 'Tbilisi - Mtatsminda',
+    regionCode: 'tbilisi_metro',
+    keywords: ['mtatsminda', 'متاتسميندا', 'мтацминда', 'მთაწმინდა'],
+  },
+  {
+    id: 'Tbilisi - Old Tbilisi',
+    regionCode: 'tbilisi_metro',
+    keywords: ['old tbilisi', 'تبليسي القديمة', 'старый тбилиси', 'ძველი თბილისი'],
+  },
+  {
+    id: 'Tbilisi - Ortachala',
+    regionCode: 'tbilisi_metro',
+    keywords: ['ortachala', 'أورتاشالا', 'اورتاشالا', 'ортачала', 'ორთაჭალა'],
+  },
+  {
+    id: 'Tbilisi - Krtsanisi',
+    regionCode: 'tbilisi_metro',
+    keywords: ['krtsanisi', 'كرتسانيسي', 'крцаниси', 'კრწანისი'],
+  },
+  {
+    id: 'Tbilisi - Isani',
+    regionCode: 'tbilisi_metro',
+    keywords: ['isani', 'إيساني', 'ايساني', 'исани', 'ისანი'],
+  },
+  {
+    id: 'Tbilisi - Samgori',
+    regionCode: 'tbilisi_metro',
+    keywords: ['samgori', 'سامغوري', 'самгори', 'სამგორი'],
+  },
+  {
+    id: 'Tbilisi - Varketili',
+    regionCode: 'tbilisi_metro',
+    keywords: ['varketili', 'فاركيتيلي', 'варкетили', 'ვარკეთილი'],
+  },
+  {
+    id: 'Tbilisi - Didi Digomi',
+    regionCode: 'tbilisi_metro',
+    keywords: ['didi digomi', 'ديدي ديغومي', 'диди дигоми', 'დიდი დიღომი'],
+  },
+  {
+    id: 'Tbilisi - Digomi Massive',
+    regionCode: 'tbilisi_metro',
+    keywords: ['digomi', 'ديغومي', 'дигом', 'დიღმის'],
+  },
+  {
+    id: 'Tbilisi - Didube',
+    regionCode: 'tbilisi_metro',
+    keywords: ['didube', 'ديدوبي', 'дидубе', 'დიდუბე'],
+  },
+  {
+    id: 'Tbilisi - Chugureti / Marjanishvili',
+    regionCode: 'tbilisi_metro',
+    keywords: [
+      'chugureti',
+      'marjanishvili',
+      'تشوغوريتي',
+      'مارجانيشفيلي',
+      'чугурети',
+      'марджанишвили',
+      'ჩუღურეთი',
+      'მარჯანიშვილი',
+    ],
+  },
+  {
+    id: 'Tbilisi - Nadzaladevi',
+    regionCode: 'tbilisi_metro',
+    keywords: ['nadzaladevi', 'نادزالاديفي', 'надзаладеви', 'ნაძალადევი'],
+  },
+  {
+    id: 'Tbilisi - Gldani',
+    regionCode: 'tbilisi_metro',
+    keywords: ['gldani', 'غلداني', 'глдани', 'გლდანი'],
+  },
+  {
+    id: 'Tbilisi - Avlabari',
+    regionCode: 'tbilisi_metro',
+    keywords: ['avlabari', 'أفلاباري', 'افلاباري', 'авлабари', 'ავლაბარი'],
+  },
+  {
+    id: 'Tbilisi - Lisi Lake',
+    regionCode: 'tbilisi_metro',
+    keywords: ['lisi', 'ليسي', 'лиси', 'ლისის'],
+  },
+  {
+    id: 'Tbilisi - Tbilisi Sea',
+    regionCode: 'tbilisi_metro',
+    keywords: ['tbilisi sea', 'بحر تبليسي', 'тбилисское море', 'თბილისის ზღვა'],
+  },
+  {
+    id: 'Tbilisi - Tabakhmela / Kojori',
+    regionCode: 'tbilisi_metro',
+    keywords: ['tabakhmela', 'kojori', 'تاباخميلا', 'كوجوري', 'табахмела', 'ტაბახმელა'],
+  },
+  {
+    id: 'Mtskheta / Saguramo',
+    regionCode: 'tbilisi_metro',
+    keywords: ['mtskheta', 'saguramo', 'متسخيتا', 'ساجورامو', 'мцхета', 'сагурамо', 'მცხეთა', 'საგურამო'],
+  },
+  {
+    id: 'Rustavi',
+    regionCode: 'tbilisi_metro',
+    keywords: ['rustavi', 'روستافي', 'рустави', 'რუსთავი'],
+  },
+
+  // 2. إقليم باتومي وساحل أدجارا (Batumi & Adjara Coast - كل أحيائها تعتبر قريبة لبعضها داخل نفس المحافظة)
+  {
+    id: 'Batumi - New Boulevard',
+    regionCode: 'batumi_adjara',
+    keywords: ['new boulevard', 'نيو بوليفارد', 'новый бульвар', 'ახალი ბულვარი'],
+  },
+  {
+    id: 'Batumi - Alley of Heroes',
+    regionCode: 'batumi_adjara',
+    keywords: ['alley of heroes', 'ممر الأبطال', 'ممر الابطال', 'аллея героев', 'გმირთა ხეივანი'],
+  },
+  {
+    id: 'Batumi - Old Boulevard / Center',
+    regionCode: 'batumi_adjara',
+    keywords: ['old boulevard', 'البوليفارد القديم', 'وسط المدينة', 'старый бульвар', 'ძველი ბულვარი'],
+  },
+  {
+    id: 'Batumi - Rustaveli Avenue',
+    regionCode: 'batumi_adjara',
+    keywords: ['rustaveli', 'روستافيلي', 'руставели', 'რუსთაველის'],
+  },
+  {
+    id: 'Batumi - Khimshiashvili',
+    regionCode: 'batumi_adjara',
+    keywords: ['khimshiashvili', 'خيمشياشفيلي', 'химшиашвили', 'ხიმშიაშვილი'],
+  },
+  {
+    id: 'Batumi - Bagrationi',
+    regionCode: 'batumi_adjara',
+    keywords: ['bagrationi', 'باغراتيوني', 'багратиони', 'ბაგრატიონი'],
+  },
+  {
+    id: 'Batumi - Airport District',
+    regionCode: 'batumi_adjara',
+    keywords: ['airport', 'منطقة المطار', 'аэропорт', 'აეროპორტის'],
+  },
+  {
+    id: 'Batumi - Gonio / Kvariati',
+    regionCode: 'batumi_adjara',
+    keywords: ['gonio', 'kvariati', 'غونيو', 'كفارياتي', 'гонио', 'გონიო'],
+  },
+  {
+    id: 'Batumi - Makhinjauri',
+    regionCode: 'batumi_adjara',
+    keywords: ['makhinjauri', 'ماخينجاوري', 'махинджаури', 'მახინჯაური'],
+  },
+  {
+    id: 'Batumi - Chakvi / Green Cape',
+    regionCode: 'batumi_adjara',
+    keywords: ['chakvi', 'green cape', 'تشاكفي', 'غرين كيب', 'чакви', 'ჩაქვი'],
+  },
+  {
+    id: 'Kobuleti / Shekvetili',
+    regionCode: 'batumi_adjara',
+    keywords: ['kobuleti', 'shekvetili', 'كوبوليتي', 'شيكفيتيلي', 'кобулети', 'ქობულეთი'],
+  },
+
+  // 3. إقليم كوتايسي (Kutaisi)
+  {
+    id: 'Kutaisi',
+    regionCode: 'kutaisi_imereti',
+    isCityWide: true,
+    keywords: ['kutaisi', 'كوتايسي', 'кутаиси', 'ქუთაისი'],
+  },
+
+  // 4. إقليم المنتجعات الجبلية (Gudauri, Bakuriani, Borjomi)
+  {
+    id: 'Gudauri',
+    regionCode: 'mountain_resorts',
+    keywords: ['gudauri', 'غودوري', 'جوداوري', 'гудаури', 'გუდაური'],
+  },
+  {
+    id: 'Bakuriani',
+    regionCode: 'mountain_resorts',
+    keywords: ['bakuriani', 'باكورياني', 'бакуриани', 'ბაკურიანი'],
+  },
+  {
+    id: 'Borjomi',
+    regionCode: 'mountain_resorts',
+    keywords: ['borjomi', 'بورجومي', 'боржоми', 'ბორჯომი'],
+  },
+
+  // 5. إقليم كاخيتي (Kakheti - Telavi / Kvareli)
+  {
+    id: 'Kakheti - Telavi / Kvareli',
+    regionCode: 'kakheti_region',
+    isCityWide: true,
+    keywords: ['kakheti', 'telavi', 'kvareli', 'كاخيتي', 'تيلافي', 'كفاريلي', 'кахетия', 'კახეთი'],
+  },
+]
+
+// الكلمات الخاصة بالمناطق القديمة خارج جورجيا لاستبعادها نهائياً
+const NON_GEORGIAN_LEGACY_KEYWORDS = [
+  'التجمع',
+  'القاهرة',
+  'زايد',
+  'أكتوبر',
+  'اكتوبر',
+  'العاصمة',
+  'الساحل',
+  'سخنة',
+  'الجونة',
+  'مدينتي',
+  'المستقبل',
+  'الشروق',
+  'العبور',
+  'المعادي',
+  'مصر',
+  'new cairo',
+  'fifth settlement',
+  'sheikh zayed',
+  'october',
+  'north coast',
+  'sokhna',
+  'new capital',
+  'egypt',
+]
+
+export function isNonGeorgianLegacyArea(rawArea?: string | null): boolean {
+  if (!rawArea) return false
+  const lower = String(rawArea).trim().toLowerCase()
+  return NON_GEORGIAN_LEGACY_KEYWORDS.some((kw) => lower.includes(kw))
+}
+
+function resolveGeorgiaDistrict(rawArea?: string | null): {
+  nodeId: string
+  regionCode: GeorgiaRegionCode
+  isGenericCityOnly: boolean
+} | null {
+  if (!rawArea) return null
+  const clean = String(rawArea).trim().toLowerCase()
+  if (!clean || isNonGeorgianLegacyArea(clean)) return null
+
+  for (const d of GEORGIA_REGION_DISTRICTS) {
+    if (
+      d.id.toLowerCase() === clean ||
+      d.keywords.some((kw) => clean.includes(kw.toLowerCase()))
+    ) {
+      return {
+        nodeId: d.id,
+        regionCode: d.regionCode,
+        isGenericCityOnly: Boolean(d.isCityWide),
+      }
+    }
   }
-> = {
-  ar: {
-    cashExact: 'الكاش المطلوب في حدود سيولتك المتاحة',
-    cashNegotiableBridge: 'متوافق عبر التفاوض على الكاش',
-    cashSlightlyHigher: 'الكاش المطلوب أعلى قليلاً من سيولتك المحددة',
-    instMatch: 'القسط مناسب لقدرتك الشهرية',
-    instHigher: 'القسط أعلى من القسط المفضل لديك',
-    areaMatch: 'نفس المنطقة المطلوبة',
-    areaDiff: 'منطقة بديلة قريبة',
-    typeMatch: 'نفس نوع الوحدة',
-    typeDiff: 'نوع الوحدة',
-    roomsMatch: 'عدد الغرف مناسب',
-    roomsDiff: 'عدد الغرف',
-    buyerAskedRooms: 'طلبك',
-    deliveryDiff: 'حالة الاستلام',
-  },
-  en: {
-    cashExact: 'Required cash fits your available liquidity',
-    cashNegotiableBridge: 'Matches via cash negotiation',
-    cashSlightlyHigher: 'Required cash is slightly above your specified cash',
-    instMatch: 'Installment fits your monthly capacity',
-    instHigher: 'Installment is higher than your preferred limit',
-    areaMatch: 'Exact preferred area',
-    areaDiff: 'Alternative nearby area',
-    typeMatch: 'Exact unit type',
-    typeDiff: 'Unit type',
-    roomsMatch: 'Bedrooms count matches',
-    roomsDiff: 'Bedrooms',
-    buyerAskedRooms: 'requested',
-    deliveryDiff: 'Delivery status',
-  },
-  ru: {
-    cashExact: 'Требуемый кэш в рамках вашего бюджета',
-    cashNegotiableBridge: 'Подходит с учетом торга',
-    cashSlightlyHigher: 'Требуемый кэш немного выше указанного',
-    instMatch: 'Платеж по рассрочке подходит вам',
-    instHigher: 'Платеж выше желаемого лимита',
-    areaMatch: 'Желаемый район',
-    areaDiff: 'Соседний район',
-    typeMatch: 'Тип объекта совпадает',
-    typeDiff: 'Тип объекта',
-    roomsMatch: 'Количество комнат подходит',
-    roomsDiff: 'Комнат',
-    buyerAskedRooms: 'запрос',
-    deliveryDiff: 'Статус сдачи',
-  },
-  ka: {
-    cashExact: 'ქეში ჯდება თქვენს ბიუჯეტში',
-    cashNegotiableBridge: 'თავსებადია მოლაპარაკებით',
-    cashSlightlyHigher: 'მოთხოვნილი ქეში ოდნავ აღემატება ბიუჯეტს',
-    instMatch: 'განვადება შეესაბამება თქვენს ლიმიტს',
-    instHigher: 'განვადება აღემატება სასურველ ლიმიტს',
-    areaMatch: 'სასურველი უბანი',
-    areaDiff: 'მიმდებარე უბანი',
-    typeMatch: 'ობიექტის ტიპი ემთხვევა',
-    typeDiff: 'ობიექტის ტიპი',
-    roomsMatch: 'ოთახების რაოდენობა ემთხვევა',
-    roomsDiff: 'ოთახები',
-    buyerAskedRooms: 'მოთხოვნა',
-    deliveryDiff: 'ჩაბარების სტატუსი',
-  },
+
+  // إذا كتب اسم المحافظة/المدينة فقط (مثل "تبليسي" أو "باتومي") بدون تحديد حي معين
+  if (
+    clean.includes('tbilisi') ||
+    clean.includes('تبليسي') ||
+    clean.includes('тбилиси') ||
+    clean.includes('თბილისი')
+  ) {
+    return {
+      nodeId: 'Tbilisi',
+      regionCode: 'tbilisi_metro',
+      isGenericCityOnly: true,
+    }
+  }
+
+  if (
+    clean.includes('batumi') ||
+    clean.includes('باتومي') ||
+    clean.includes('батуми') ||
+    clean.includes('ბათუმი')
+  ) {
+    return {
+      nodeId: 'Batumi',
+      regionCode: 'batumi_adjara',
+      isGenericCityOnly: true,
+    }
+  }
+
+  return null
+}
+
+export function evaluateGeorgiaAreaProximity(
+  unitAreaRaw: string | null | undefined,
+  buyerPreferredAreas: string[] | string | null | undefined
+): {
+  relation: AreaProximityRelation
+  distanceKm: number | null
+  points: number
+} {
+  const unitArea = String(unitAreaRaw || '').trim()
+
+  if (isNonGeorgianLegacyArea(unitArea)) {
+    return { relation: 'invalid_country', distanceKm: null, points: 0 }
+  }
+
+  const buyerAreas = cleanPreferredAreasList(buyerPreferredAreas).filter(
+    (a) => !isNonGeorgianLegacyArea(a)
+  )
+
+  if (!unitArea || buyerAreas.length === 0) {
+    return { relation: 'exact', distanceKm: 0, points: 16 }
+  }
+
+  const unitResolved = resolveGeorgiaDistrict(unitArea)
+  let foundSameCityRegion = false
+
+  for (const bArea of buyerAreas) {
+    // 1. تطابق نصي مباشر في اسم الحي
+    if (
+      unitArea.toLowerCase() === bArea.toLowerCase() ||
+      unitArea.toLowerCase().includes(bArea.toLowerCase()) ||
+      bArea.toLowerCase().includes(unitArea.toLowerCase())
+    ) {
+      return { relation: 'exact', distanceKm: 0, points: 20 }
+    }
+
+    const buyerResolved = resolveGeorgiaDistrict(bArea)
+    if (unitResolved && buyerResolved) {
+      // نفس الحي بالضبط أو المشتري اختار المدينة بالكامل (مثل تبليسي عامةً)
+      if (
+        unitResolved.nodeId === buyerResolved.nodeId ||
+        buyerResolved.isGenericCityOnly
+      ) {
+        return { relation: 'exact', distanceKm: 0, points: 20 }
+      }
+
+      // نفس المحافظة / النطاق الحضري للمدينة (مثل سابورتالو وفاكي وأورتاشالا داخل تبليسي الكبرى)
+      if (unitResolved.regionCode === buyerResolved.regionCode) {
+        foundSameCityRegion = true
+      }
+    }
+  }
+
+  if (foundSameCityRegion) {
+    return { relation: 'same_city', distanceKm: null, points: 16 }
+  }
+
+  // في محافظة أخرى بعيدة (مثلاً الوحدة في باتومي والمشتري يريد تبليسي)
+  return { relation: 'far', distanceKm: null, points: 0 }
+}
+
+function getMatcherDict(locale: string = 'ar') {
+  const dictionaries: Record<string, any> = {
+    ar: arDict,
+    en: enDict,
+    ru: ruDict,
+    ka: kaDict,
+  }
+  const activeDict = dictionaries[locale] || arDict
+  const smDict = activeDict?.smartMatcher || {}
+  const offersDict = activeDict?.accountPages?.offers || {}
+
+  return {
+    cashExact: smDict.cashExact || offersDict.matchCashExact || '',
+    cashNegotiableBridge:
+      smDict.cashNegotiableBridge || offersDict.matchCashBridge || '',
+    cashSlightlyHigher:
+      smDict.cashSlightlyHigher || offersDict.diffCashHigher || '',
+    instMatch: smDict.instMatch || offersDict.matchInst || '',
+    instHigher: smDict.instHigher || offersDict.diffInstHigher || '',
+    areaMatch: smDict.areaMatch || offersDict.matchArea || '',
+    areaSameCity: smDict.areaSameCity || offersDict.matchArea || '',
+    areaDiff: smDict.areaDiff || offersDict.diffArea || '',
+    typeMatch: smDict.typeMatch || offersDict.matchType || '',
+    typeDiff: smDict.typeDiff || offersDict.diffType || '',
+    roomsMatch: smDict.roomsMatch || offersDict.matchRooms || '',
+    roomsDiff: smDict.roomsDiff || offersDict.diffRooms || '',
+    buyerAskedRooms: smDict.buyerAskedRooms || '',
+    deliveryDiff: smDict.deliveryDiff || offersDict.diffDelivery || '',
+    readyKeywords: Array.isArray(smDict.readyKeywords)
+      ? smDict.readyKeywords
+      : ['جاهز', 'فوري', 'مستلم', 'ready', 'сдан', 'готов', 'ჩაბარებული'],
+    bothDeliveryKeywords: Array.isArray(smDict.bothDeliveryKeywords)
+      ? smDict.bothDeliveryKeywords
+      : ['الاتنين', 'كلاهما', 'both', 'any', 'оба', 'ორივე'],
+  }
 }
 
 export function toMonthlyEquivalent(
@@ -149,14 +495,32 @@ export function toMonthlyEquivalent(
 ): number {
   const val = Number(amount) || 0
   if (val <= 0) return 0
-  const f = String(freq || '').trim().toLowerCase()
-  if (f.includes('ربع') || f.includes('quarter')) return Math.round(val / 3)
-  if (f.includes('نصف') || f.includes('نص') || f.includes('semi'))
+  const f = String(freq || '')
+    .trim()
+    .toLowerCase()
+  if (
+    f.includes('ربع') ||
+    f.includes('quarter') ||
+    f.includes('квартал') ||
+    f.includes('კვარტ')
+  ) {
+    return Math.round(val / 3)
+  }
+  if (
+    f.includes('نصف') ||
+    f.includes('نص') ||
+    f.includes('semi') ||
+    f.includes('полгод') ||
+    f.includes('ნახევარ')
+  ) {
     return Math.round(val / 6)
+  }
   if (
     (f.includes('سنوي') && !f.includes('نصف') && !f.includes('ربع')) ||
     f.includes('annual') ||
-    f.includes('year')
+    f.includes('year') ||
+    f.includes('ежегод') ||
+    f.includes('წლიური')
   ) {
     return Math.round(val / 12)
   }
@@ -192,7 +556,6 @@ export function getUnitPricingGuardrails(unit: MatchableUnit) {
     }
   }
 
-  // نسمح للمشتري بتقديم عرضه المناسب بشرط ألا يكون رقماً وهمياً (الحد الأدنى المنطقي 75% من المدفوع أو خصم البائع المحدد)
   const defaultMaxDiscount = Math.round(requiredCash * 0.25)
   const maxDiscountAmount =
     rawSellerDiscount > defaultMaxDiscount
@@ -216,43 +579,46 @@ export function calculateSmartMatch(
   customLabels?: Record<string, string | undefined>,
   locale: string = 'ar'
 ): SmartMatchResult {
-  const fb = DEFAULT_MATCH_TEXTS[locale] || DEFAULT_MATCH_TEXTS.ar
+  const dictLabels = getMatcherDict(locale)
   const L = {
-    cashExact: customLabels?.cashExact || fb.cashExact,
+    cashExact: customLabels?.cashExact || dictLabels.cashExact,
     cashNegotiableBridge:
-      customLabels?.cashNegotiableBridge || fb.cashNegotiableBridge,
+      customLabels?.cashNegotiableBridge || dictLabels.cashNegotiableBridge,
     cashSlightlyHigher:
-      customLabels?.cashSlightlyHigher || fb.cashSlightlyHigher,
-    instMatch: customLabels?.instMatch || fb.instMatch,
-    instHigher: customLabels?.instHigher || fb.instHigher,
-    areaMatch: customLabels?.areaMatch || fb.areaMatch,
-    areaDiff: customLabels?.areaDiff || fb.areaDiff,
-    typeMatch: customLabels?.typeMatch || fb.typeMatch,
-    typeDiff: customLabels?.typeDiff || fb.typeDiff,
-    roomsMatch: customLabels?.roomsMatch || fb.roomsMatch,
-    roomsDiff: customLabels?.roomsDiff || fb.roomsDiff,
-    buyerAskedRooms: fb.buyerAskedRooms,
-    deliveryDiff: customLabels?.deliveryDiff || fb.deliveryDiff,
+      customLabels?.cashSlightlyHigher || dictLabels.cashSlightlyHigher,
+    instMatch: customLabels?.instMatch || dictLabels.instMatch,
+    instHigher: customLabels?.instHigher || dictLabels.instHigher,
+    areaMatch: customLabels?.areaMatch || dictLabels.areaMatch,
+    areaSameCity: customLabels?.areaSameCity || dictLabels.areaSameCity,
+    areaDiff: customLabels?.areaDiff || dictLabels.areaDiff,
+    typeMatch: customLabels?.typeMatch || dictLabels.typeMatch,
+    typeDiff: customLabels?.typeDiff || dictLabels.typeDiff,
+    roomsMatch: customLabels?.roomsMatch || dictLabels.roomsMatch,
+    roomsDiff: customLabels?.roomsDiff || dictLabels.roomsDiff,
+    buyerAskedRooms: dictLabels.buyerAskedRooms,
+    deliveryDiff: customLabels?.deliveryDiff || dictLabels.deliveryDiff,
   }
-
-  const unitCountry = (unit.country_code || unit.country || 'EG').toUpperCase()
-  const buyerCountry = (
-    buyer.country_code ||
-    buyer.country ||
-    'EG'
-  ).toUpperCase()
 
   const guardrails = getUnitPricingGuardrails(unit)
   const contractPrice = Number(unit.contract_price) || guardrails.requiredCash
   const developerPenaltyEstimate = Math.round(contractPrice * 0.125)
 
-  if (unitCountry !== buyerCountry) {
+  const rawUnitArea = String(unit.area || '').trim()
+  const areaEval = evaluateGeorgiaAreaProximity(
+    rawUnitArea,
+    buyer.preferred_areas
+  )
+
+  // استبعاد أي وحدة قديمة مسجلة خارج جورجيا
+  if (areaEval.relation === 'invalid_country') {
     return {
       score: 0,
       isAutoPilotEligible: false,
       isNegotiableBridge: false,
       matches: [],
       differences: [],
+      areaRelation: 'invalid_country',
+      distanceKm: null,
       pricingGuardrails: guardrails,
       financialAdvisor: {
         developerPenaltyEstimate,
@@ -274,17 +640,17 @@ export function calculateSmartMatch(
     score += 32
   } else if (unitCash <= buyerCash) {
     score += 40
-    matches.push(L.cashExact)
+    if (L.cashExact) matches.push(L.cashExact)
   } else if (unitCash <= buyerCash * 1.15) {
     score += 34
     isNegotiableBridge = true
-    matches.push(L.cashNegotiableBridge)
+    if (L.cashNegotiableBridge) matches.push(L.cashNegotiableBridge)
   } else if (unitCash <= buyerCash * 1.3) {
     score += 22
-    differences.push(L.cashSlightlyHigher)
+    if (L.cashSlightlyHigher) differences.push(L.cashSlightlyHigher)
   } else {
     score += 10
-    differences.push(L.cashSlightlyHigher)
+    if (L.cashSlightlyHigher) differences.push(L.cashSlightlyHigher)
   }
 
   // 2. توافق القسط الشهري المعادل (25 نقطة)
@@ -299,40 +665,44 @@ export function calculateSmartMatch(
 
   if (buyerMonthly <= 0 || unitMonthly <= 0) {
     score += 23
-    matches.push(L.instMatch)
+    if (L.instMatch) matches.push(L.instMatch)
   } else if (unitMonthly <= buyerMonthly * 1.05) {
     score += 25
-    matches.push(L.instMatch)
+    if (L.instMatch) matches.push(L.instMatch)
   } else if (unitMonthly <= buyerMonthly * 1.25) {
     score += 16
-    differences.push(L.instHigher)
+    if (L.instHigher) differences.push(L.instHigher)
   } else {
     score += 8
-    differences.push(L.instHigher)
+    if (L.instHigher) differences.push(L.instHigher)
   }
 
-  // 3. توافق المنطقة (20 نقطة)
-  const unitArea = String(unit.area || '').trim()
-  const buyerAreas = cleanPreferredAreasList(buyer.preferred_areas)
+  // 3. توافق المنطقة والمحافظة الجورجية (20 نقطة)
+  const localizedUnitArea = getLocalizedGeorgiaAreaName(rawUnitArea, locale)
 
-  if (!unitArea || buyerAreas.length === 0) {
+  if (areaEval.relation === 'exact') {
+    score += 20
+    if (rawUnitArea && L.areaMatch) {
+      matches.push(`${L.areaMatch}: ${localizedUnitArea}`)
+    }
+  } else if (
+    areaEval.relation === 'same_city' ||
+    areaEval.relation === 'nearby'
+  ) {
+    // في نفس المدينة / المحافظة (مثل أحياء تبليسي الكبرى مع بعضها، أو أحياء باتومي مع بعضها)
     score += 16
+    if (rawUnitArea && L.areaSameCity) {
+      matches.push(`${L.areaSameCity}: ${localizedUnitArea}`)
+    }
   } else {
-    const areaMatched = buyerAreas.some(
-      (a) =>
-        unitArea.toLowerCase().includes(a.toLowerCase()) ||
-        a.toLowerCase().includes(unitArea.toLowerCase())
-    )
-    if (areaMatched) {
-      score += 20
-      matches.push(`${L.areaMatch}: ${unitArea}`)
-    } else {
-      score += 9
-      differences.push(`${L.areaDiff}: ${unitArea}`)
+    // في محافظة أخرى بعيدة (مثلاً باتومي مقابل تبليسي)
+    score += 0
+    if (rawUnitArea && L.areaDiff) {
+      differences.push(`${L.areaDiff}: ${localizedUnitArea}`)
     }
   }
 
-  // 4. توافق النوع وعدد الغرف والاستلام (15 نقطة) — بدون إظهار 0 أو شرطة فارغة أبداً!
+  // 4. توافق النوع وعدد الغرف والاستلام (15 نقطة)
   const unitType = String(unit.unit_type || '').trim()
   const buyerTypes = Array.isArray(buyer.unit_types) ? buyer.unit_types : []
 
@@ -346,25 +716,29 @@ export function calculateSmartMatch(
     )
   ) {
     score += 6
-    matches.push(`${L.typeMatch}: ${unitType}`)
+    if (L.typeMatch) matches.push(`${L.typeMatch}: ${unitType}`)
   } else {
     score += 2
-    differences.push(`${L.typeDiff}: ${unitType}`)
+    if (L.typeDiff) differences.push(`${L.typeDiff}: ${unitType}`)
   }
 
   const unitRooms = Number(unit.rooms) || 0
   const buyerMinRooms = Number(buyer.min_rooms) || 0
   if (unitRooms <= 0 || buyerMinRooms <= 0) {
     score += 5
-    if (unitRooms > 0) matches.push(`${L.roomsDiff}: ${unitRooms}`)
+    if (unitRooms > 0 && L.roomsMatch) {
+      matches.push(`${L.roomsMatch}: ${unitRooms}`)
+    }
   } else if (unitRooms >= buyerMinRooms) {
     score += 5
-    matches.push(`${L.roomsDiff}: ${unitRooms}`)
+    if (L.roomsMatch) matches.push(`${L.roomsMatch}: ${unitRooms}`)
   } else {
     score += 2
-    differences.push(
-      `${L.roomsDiff}: ${unitRooms} (${L.buyerAskedRooms} ${buyerMinRooms}+)`
-    )
+    if (L.roomsDiff) {
+      differences.push(
+        `${L.roomsDiff}: ${unitRooms} (${L.buyerAskedRooms} ${buyerMinRooms}+)`
+      )
+    }
   }
 
   const unitDel = String(unit.delivery_status || '').trim()
@@ -372,30 +746,38 @@ export function calculateSmartMatch(
   if (!unitDel || !buyerDel) {
     score += 4
   } else {
-    const unitIsReady =
-      unitDel.includes('جاهز') ||
-      unitDel.includes('فوري') ||
-      unitDel.toLowerCase().includes('ready')
-    const buyerWantsReady =
-      buyerDel.includes('جاهز') ||
-      buyerDel.includes('فوري') ||
-      buyerDel.toLowerCase().includes('ready')
+    const unitIsReady = dictLabels.readyKeywords.some((kw: string) =>
+      unitDel.toLowerCase().includes(kw.toLowerCase())
+    )
+    const buyerWantsReady = dictLabels.readyKeywords.some((kw: string) =>
+      buyerDel.toLowerCase().includes(kw.toLowerCase())
+    )
+    const buyerAcceptsBoth = dictLabels.bothDeliveryKeywords.some(
+      (kw: string) => buyerDel.toLowerCase().includes(kw.toLowerCase())
+    )
 
-    if (buyerDel.includes('الاتنين') || unitIsReady === buyerWantsReady) {
+    if (buyerAcceptsBoth || unitIsReady === buyerWantsReady) {
       score += 4
-    } else {
+    } else if (L.deliveryDiff) {
       differences.push(`${L.deliveryDiff}: ${unitDel}`)
     }
+  }
+
+  // إذا كانت الوحدة في مدينة/محافظة مختلفة تماماً عن التي طلبها المشتري، لا تتجاوز النتيجة 55% حتى لا تُرشح بالخطأ كمنطقة قريبة
+  if (areaEval.relation === 'far') {
+    score = Math.min(score, 55)
   }
 
   const finalScore = Math.max(20, Math.min(99, Math.round(score)))
 
   return {
     score: finalScore,
-    isAutoPilotEligible: finalScore >= 85,
+    isAutoPilotEligible: finalScore >= 85 && areaEval.relation !== 'far',
     isNegotiableBridge,
     matches,
     differences,
+    areaRelation: areaEval.relation,
+    distanceKm: areaEval.distanceKm,
     pricingGuardrails: guardrails,
     financialAdvisor: {
       developerPenaltyEstimate,

@@ -975,6 +975,16 @@
       "roomWord": "Rooms",
       "deliveryLabel": "Delivery Status",
       "preferredAreasLabel": "Preferred Areas (you can add multiple areas)",
+      "myAccountBadge": "My Account — Buyer Dashboard",
+"radarActiveSubtitle": "Smart Radar matches your budget and preferred areas in Georgia with active units",
+"offersAvailableSub": "offers available",
+"noOffersSub": "Track your offers & matches",
+"matchScorePrefix": "Match",
+"makeOfferCardBtn": "Make an Offer",
+"tagNearbyAreaMatch": "Nearby district in same city",
+"kmUnit": "km",
+"emptyNearbyHint": "No matching units found in your selected district or adjacent districts in the same city.",
+"browseAllMarketBtn": "Browse All Market Units",
       "areaInputPlaceholder": "Type area name... or choose below",
       "addAreaBtn": "Add",
       "savingBtn": "Saving...",
@@ -2523,5 +2533,23 @@
         "promoCancelled": "Unit promotion cancelled."
       }
     }
+  },
+  "smartMatcher": {
+    "cashExact": "Required cash fits your available liquidity",
+    "cashNegotiableBridge": "Matches via cash negotiation",
+    "cashSlightlyHigher": "Required cash is slightly above your specified cash",
+    "instMatch": "Installment fits your monthly capacity",
+    "instHigher": "Installment is higher than your preferred limit",
+    "areaMatch": "Exact preferred area",
+    "areaSameCity": "Nearby district in the same city",
+    "areaDiff": "Located in a different city",
+    "typeMatch": "Exact unit type",
+    "typeDiff": "Unit type",
+    "roomsMatch": "Bedrooms count matches",
+    "roomsDiff": "Bedrooms",
+    "buyerAskedRooms": "requested",
+    "deliveryDiff": "Delivery status",
+    "readyKeywords": ["ready", "immediate", "delivered", "جاهز", "فوري"],
+    "bothDeliveryKeywords": ["both", "any", "الاتنين"]
   }
 }

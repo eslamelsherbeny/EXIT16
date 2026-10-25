@@ -52,6 +52,7 @@ export function UnitSmartMatchModal({
   const router = useRouter()
   const { t: dict, locale, dir } = useTranslation()
   const sm = (dict.admin as Record<string, any>)?.smartMatch || {}
+  const buyerDict = (dict.accountComponents as Record<string, any>)?.buyer || {}
   const leadsPrompts = dict.admin?.leads || {}
   const propTable = dict.admin?.propertiesAdmin?.table || {}
 
@@ -61,10 +62,8 @@ export function UnitSmartMatchModal({
 
   if (!unit) return null
 
-  const unitCur = getCurrencySymbol(
-    unit.country_code || unit.country || "EG",
-    locale
-  )
+  const unitCur = getCurrencySymbol("GE", locale)
+  const matchPrefix = sm.matchScorePrefix || buyerDict.matchScorePrefix || "متوافق"
 
   const matchedList = (buyers || [])
     .filter((b) => !b.user_id || b.user_id !== unit.user_id)
@@ -227,7 +226,7 @@ export function UnitSmartMatchModal({
               const bCash = Number(
                 buyer.available_cash || buyer.budget || 0
               ).toLocaleString("en-US")
-              const bWa = `${leadsPrompts.waUnitLeadPrefix} ${buyer.name || ""}، ${leadsPrompts.waUnitLeadMiddle} (${unit.project_name || ""} - ${unit.area || ""}) — ${match.score}%`
+              const bWa = `${leadsPrompts.waUnitLeadPrefix} ${buyer.name || ""}، ${leadsPrompts.waUnitLeadMiddle} (${unit.project_name || ""} - ${unit.area || ""}) — ${matchPrefix} ${match.score}%`
 
               const recKey = `rec_${unit.id}_${buyer.id}`
               const offKey = `off_${unit.id}_${buyer.id}`
@@ -286,7 +285,7 @@ export function UnitSmartMatchModal({
                             : "bg-emerald-50 text-[#105C50]"
                         }`}
                       >
-                        🎯 {match.score}%
+                        🎯 {matchPrefix} {match.score}%
                       </span>
                     </div>
                   </div>
@@ -403,6 +402,7 @@ export function BuyerSmartMatchModal({
   const router = useRouter()
   const { t: dict, locale, dir } = useTranslation()
   const sm = (dict.admin as Record<string, any>)?.smartMatch || {}
+  const buyerDict = (dict.accountComponents as Record<string, any>)?.buyer || {}
   const tLeads = dict.admin?.leadsAdmin || {}
 
   const [loadingKey, setLoadingKey] = useState<string | null>(null)
@@ -411,7 +411,8 @@ export function BuyerSmartMatchModal({
 
   if (!lead) return null
 
-  const leadCur = getCurrencySymbol(lead.country_code || "EG", locale)
+  const leadCur = getCurrencySymbol("GE", locale)
+  const matchPrefix = sm.matchScorePrefix || buyerDict.matchScorePrefix || "متوافق"
 
   const matchedUnitsList = (units || [])
     .filter(
@@ -632,7 +633,7 @@ export function BuyerSmartMatchModal({
                             : "bg-emerald-50 text-[#105C50]"
                         }`}
                       >
-                        🎯 {match.score}%
+                        🎯 {matchPrefix} {match.score}%
                       </span>
                     </div>
                   </div>

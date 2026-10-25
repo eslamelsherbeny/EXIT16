@@ -970,6 +970,16 @@
       "targetBudgetHelper": "أقصى سعر تعاقد أصلي مستعد توصله — بنرشّح لك في حدوده",
       "unitTypeLabel": "نوع الوحدة اللي بتدوّر عليها",
       "minRoomsLabel": "أقل عدد غرف",
+      "myAccountBadge": "حسابي الشخصي — لوحة المشتري",
+"radarActiveSubtitle": "الرادار الذكي يطابق ميزانيتك ومنطقتك المفضلة في جورجيا مع الوحدات المعروضة للتنازل",
+"offersAvailableSub": "عروض متاحة",
+"noOffersSub": "تابع عروضك وترشيحاتك",
+"matchScorePrefix": "متوافق",
+"makeOfferCardBtn": "تقديم عرض شراء",
+"tagNearbyAreaMatch": "حي قريب في نفس المدينة",
+"kmUnit": "كم",
+"emptyNearbyHint": "لا توجد حالياً وحدات مطابقة في منطقتك المحددة أو الأحياء الملاصقة لها داخل نفس المدينة.",
+"browseAllMarketBtn": "تصفح جميع فرص السوق",
       "roomWord": "غرفة",
       "deliveryLabel": "الاستلام",
       "preferredAreasLabel": "المناطق اللي تهمك (تقدر تضيف أكتر من منطقة)",
@@ -2522,5 +2532,22 @@
         "promoCancelled": "تم إلغاء تمييز الوحدة."
       }
     }
+  },"smartMatcher": {
+    "cashExact": "الكاش المطلوب في حدود سيولتك المتاحة",
+    "cashNegotiableBridge": "متوافق عبر التفاوض على الكاش",
+    "cashSlightlyHigher": "الكاش المطلوب أعلى قليلاً من سيولتك المحددة",
+    "instMatch": "القسط مناسب لقدرتك الشهرية",
+    "instHigher": "القسط أعلى من القسط المفضل لديك",
+    "areaMatch": "نفس المنطقة المطلوبة",
+    "areaSameCity": "حي قريب داخل نفس المدينة",
+    "areaDiff": "في مدينة أخرى غير المطلوبة",
+    "typeMatch": "نفس نوع الوحدة",
+    "typeDiff": "نوع الوحدة",
+    "roomsMatch": "عدد الغرف مناسب",
+    "roomsDiff": "عدد الغرف",
+    "buyerAskedRooms": "طلبك",
+    "deliveryDiff": "حالة الاستلام",
+    "readyKeywords": ["جاهز", "فوري", "مستلم", "ready"],
+    "bothDeliveryKeywords": ["الاتنين", "كلاهما", "both", "any"]
   }
 }

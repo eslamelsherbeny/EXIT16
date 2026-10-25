@@ -3,12 +3,13 @@
 import { useRef, useState } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import {
-  Check,
   ChevronLeft,
   ChevronRight,
+  Loader2,
   X,
   ZoomIn,
 } from 'lucide-react'
+import { TurnstileBox } from '@/components/layouts/funnel-shell'
 import { CountrySelector } from '@/components/shared/country-selector'
 import { useTranslation } from '@/lib/i18n'
 
@@ -253,7 +254,7 @@ export function UnitInterestForm({
 
   const [buyerName, setBuyerName] = useState('')
   const [buyerPhone, setBuyerPhone] = useState('')
-  const [countryCode, setCountryCode] = useState('20')
+  const [countryCode, setCountryCode] = useState('995')
   const [buyerNotes, setBuyerNotes] = useState('')
   const [readiness, setReadiness] = useState<'week' | 'month' | 'info'>('info')
   const [agreedToCommission, setAgreedToCommission] = useState(false)
@@ -272,7 +273,7 @@ export function UnitInterestForm({
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
       )
 
-      const cleanPhone = `+${countryCode.replace('+', '')}${buyerPhone.replace(/^0+/, '').trim()}`
+      const cleanPhone = `+${countryCode.replace('+', '')}${buyerPhone.replace(/^0+/, '').replace(/\D/g, '').trim()}`
       const readinessLabel =
         readiness === 'week'
           ? f.readinessWeek
@@ -281,6 +282,9 @@ export function UnitInterestForm({
             : f.readinessInfo
 
       const insertPayload: Record<string, any> = {
+        country: 'GE',
+        country_code: 'GE',
+        currency_code: 'USD',
         name: buyerName.trim(),
         phone: cleanPhone,
         available_cash: requiredCash,
@@ -305,6 +309,16 @@ export function UnitInterestForm({
       if (error) {
         setOfferError(f.errorSubmit)
       } else {
+        try {
+          await supabase.from('notifications').insert({
+            user_id: null,
+            title: `🎯 ${projectName} (${unitCode})`,
+            message: `${buyerName.trim()} (${cleanPhone})`,
+            type: 'lead',
+            link: '/admin/leads?type=unit_leads',
+            is_read: false,
+          })
+        } catch {}
         setOfferSubmitted(true)
       }
     } catch {
@@ -357,13 +371,17 @@ export function UnitInterestForm({
               {f.whatsappLabel}
             </label>
             <div dir="ltr" className="flex items-center gap-2">
-              <CountrySelector value={countryCode} onChange={setCountryCode} />
+              <CountrySelector
+                value={countryCode}
+                onChange={(code) => setCountryCode(code)}
+                heightClass="h-11"
+              />
               <input
                 type="tel"
                 dir="ltr"
                 value={buyerPhone}
                 onChange={(e) => setBuyerPhone(e.target.value)}
-                placeholder="01xxxxxxxxx"
+                placeholder="5xx xx xx xx"
                 required
                 className="h-11 flex-1 rounded-xl border border-gray-200 bg-white px-4 text-left text-xs font-medium text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:text-sm"
               />
@@ -432,33 +450,21 @@ export function UnitInterestForm({
             <span>{f.commissionAgree}</span>
           </label>
 
-          <div className="flex justify-center">
-            <div className="flex h-14 w-full max-w-[300px] items-center justify-between rounded-lg border border-gray-200 bg-[#fafafa] px-4">
-              <div className="flex items-center gap-2.5">
-                <span className="flex size-5 items-center justify-center rounded-full bg-[#10b981] text-white">
-                  <Check className="size-3.5 stroke-[3]" />
-                </span>
-                <span className="text-xs font-bold text-gray-700">
-                  {f.verifiedSecurity}
-                </span>
-              </div>
-              <div className="text-left">
-                <span className="block font-sans text-[10px] font-extrabold tracking-tight text-gray-600">
-                  CLOUDFLARE
-                </span>
-                <span className="block font-sans text-[8px] text-gray-400">
-                  Turnstile
-                </span>
-              </div>
-            </div>
-          </div>
+          <TurnstileBox />
 
           <button
             type="submit"
             disabled={submittingOffer}
-            className="h-12 w-full rounded-xl bg-[var(--brand-primary,#007a5a)] text-sm font-bold text-white shadow-sm transition hover:bg-[var(--brand-primary-hover,#006248)] disabled:opacity-50"
+            className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[var(--brand-primary,#007a5a)] text-sm font-bold text-white shadow-sm transition active:scale-[0.98] hover:bg-[var(--brand-primary-hover,#006248)] disabled:opacity-50"
           >
-            {submittingOffer ? f.submittingBtn : f.submitBtn}
+            {submittingOffer ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                <span>{f.submittingBtn}</span>
+              </>
+            ) : (
+              <span>{f.submitBtn}</span>
+            )}
           </button>
 
           <p className="text-center text-[10px] text-gray-400">

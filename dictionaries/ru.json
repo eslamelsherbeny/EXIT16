@@ -971,6 +971,16 @@
       "unitTypeLabel": "Искомый тип объекта",
       "minRoomsLabel": "Минимум спален",
       "roomWord": "спален",
+      "myAccountBadge": "Мой кабинет — Панель покупателя",
+"radarActiveSubtitle": "Умный радар подбирает объекты в Грузии под ваш бюджет и выбранный район",
+"offersAvailableSub": "доступно предложений",
+"noOffersSub": "Ваши предложения и подборки",
+"matchScorePrefix": "Совпадение",
+"makeOfferCardBtn": "Предложить цену",
+"tagNearbyAreaMatch": "Соседний район в том же городе",
+"kmUnit": "км",
+"emptyNearbyHint": "В выбранном вами районе или соседних районах этого города пока нет подходящих объектов.",
+"browseAllMarketBtn": "Смотреть все объекты",
       "deliveryLabel": "Статус сдачи",
       "preferredAreasLabel": "Предпочтительные районы (можно добавить несколько)",
       "areaInputPlaceholder": "Введите название района... или выберите ниже",
@@ -2521,5 +2531,23 @@
         "promoCancelled": "VIP-продвижение объекта отменено."
       }
     }
+  },
+  "smartMatcher": {
+    "cashExact": "Требуемый кэш в рамках вашего бюджета",
+    "cashNegotiableBridge": "Подходит с учетом торга",
+    "cashSlightlyHigher": "Требуемый кэш немного выше указанного",
+    "instMatch": "Платеж по рассрочке подходит вам",
+    "instHigher": "Платеж выше желаемого лимита",
+    "areaMatch": "Желаемый район",
+    "areaSameCity": "Соседний район в том же городе",
+    "areaDiff": "В другом городе",
+    "typeMatch": "Тип объекта совпадает",
+    "typeDiff": "Тип объекта",
+    "roomsMatch": "Количество спален подходит",
+    "roomsDiff": "Спальни",
+    "buyerAskedRooms": "запрос",
+    "deliveryDiff": "Статус сдачи",
+    "readyKeywords": ["сдан", "готов", "ready", "جاهز"],
+    "bothDeliveryKeywords": ["оба", "любой", "both", "الاتنين"]
   }
 }

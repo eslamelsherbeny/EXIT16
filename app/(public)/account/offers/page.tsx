@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { createBrowserClient } from '@supabase/ssr'
 import {
   AlertTriangle,
   ArrowLeft,
@@ -33,6 +34,7 @@ import {
   type MatchableBuyer,
   type MatchableUnit,
 } from '@/lib/smart-matcher'
+import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
 import {
   Dialog,
   DialogContent,
@@ -47,9 +49,10 @@ import { getCurrencySymbol, useTranslation } from '@/lib/i18n'
 export default function OffersPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { t: dict, locale, country, dir, isRtl } = useTranslation()
+  const { t: dict, locale, dir, isRtl } = useTranslation()
   const t = dict.accountPages.offers as Record<string, any>
   const tCommon = dict.accountPages.common
+  const cur = getCurrencySymbol('GE', locale)
 
   const filterUnitId = searchParams.get('unitId')
   const applyUnitId = searchParams.get('applyUnitId')
@@ -73,7 +76,6 @@ export default function OffersPage() {
     }>
   >([])
 
-  // نافذة تقديم عرض شراء للمشتري
   const [offerModalUnit, setOfferModalUnit] = useState<MatchableUnit | null>(
     null
   )
@@ -86,7 +88,6 @@ export default function OffersPage() {
     'bank_check' | 'bank_transfer'
   >('bank_check')
 
-  // نافذة العرض المقابل للبائع (Counter-Offer)
   const [counterModalOffer, setCounterModalOffer] = useState<
     (OfferRecord & { unit?: MatchableUnit }) | null
   >(null)
@@ -110,7 +111,6 @@ export default function OffersPage() {
     setSellerOffers(res.sellerOffers)
     setBuyerOffers(res.buyerOffers)
 
-    // فلترة أي وحدات مكررة بنفس الاسم والمنطقة والسعر في الترشيحات
     const seenKeys = new Set<string>()
     const uniqueRecs = res.smartRecommendations.filter((item) => {
       const signature = `${item.unit.project_name || ''}_${item.unit.area || ''}_${item.unit.paid_amount || 0}_${item.unit.unit_type || ''}`
@@ -132,6 +132,21 @@ export default function OffersPage() {
         res.smartRecommendations.find((r) => r.unit.id === applyUnitId)
       if (targetRec) {
         openBuyerOfferModal(targetRec.unit)
+      } else {
+        try {
+          const supabase = createBrowserClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+          )
+          const { data: directUnit } = await supabase
+            .from('sell_requests')
+            .select('*')
+            .eq('id', applyUnitId)
+            .maybeSingle()
+          if (directUnit) {
+            openBuyerOfferModal(directUnit as MatchableUnit)
+          }
+        } catch {}
       }
     } else if (res.sells.length > 0 && res.buys.length === 0) {
       setRoleView('seller')
@@ -285,7 +300,6 @@ export default function OffersPage() {
       className="min-h-screen bg-[var(--brand-surface,#f5f6f8)] py-8 pb-20 text-[var(--brand-navy,#0a1122)] sm:py-12"
     >
       <div className="mx-auto max-w-4xl px-4 sm:px-6">
-        {/* شريط الرجوع والتبديل بين وضع البائع والمشتري */}
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <Link
             href="/account"
@@ -354,7 +368,6 @@ export default function OffersPage() {
           </div>
         )}
 
-        {/* ==================== أولاً: واجهة البائع (العروض المقدمة على وحداتك + المستشار المالي الذكي) ==================== */}
         {roleView === 'seller' ? (
           <div>
             <header className="mb-7 text-start">
@@ -386,10 +399,6 @@ export default function OffersPage() {
               <div className="space-y-4">
                 {displayedSellerOffers.map((offer) => {
                   const u = offer.unit
-                  const cur = getCurrencySymbol(
-                    u?.country_code || u?.country || country,
-                    locale
-                  )
                   const paid = Number(u?.paid_amount || offer.required_cash) || 1
                   const contract = Number(u?.contract_price) || paid
                   const recoveryPct = Math.min(
@@ -427,7 +436,8 @@ export default function OffersPage() {
                             </span>
                           </div>
                           <p className="mt-1.5 text-xs text-gray-500">
-                            {u?.area || '—'} · {u?.unit_type || '—'}
+                            {getLocalizedGeorgiaAreaName(u?.area, locale)} ·{' '}
+                            {u?.unit_type || '—'}
                           </p>
                         </div>
 
@@ -458,7 +468,6 @@ export default function OffersPage() {
                         </div>
                       </div>
 
-                      {/* تفاصيل العرض المالي */}
                       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
                         <div className="rounded-2xl border border-emerald-200 bg-[#eaf8f2] p-4">
                           <span className="block text-[11px] font-bold text-[#007a5a]">
@@ -489,7 +498,6 @@ export default function OffersPage() {
                           </span>
                         </div>
 
-                        {/* المستشار المالي الذكي */}
                         <div className="rounded-2xl border border-sky-200 bg-sky-50/70 p-4">
                           <div className="flex items-center gap-1.5 text-[11px] font-extrabold text-sky-900">
                             <TrendingUp className="size-3.5 text-sky-700" />
@@ -527,7 +535,6 @@ export default function OffersPage() {
                         </div>
                       )}
 
-                      {/* أزرار القرار للبائع */}
                       {offer.status === 'pending_seller' && (
                         <div className="mt-5 flex flex-wrap items-center gap-2.5 border-t border-gray-100 pt-4">
                           <button
@@ -579,7 +586,6 @@ export default function OffersPage() {
             )}
           </div>
         ) : (
-          /* ==================== ثانياً: واجهة المشتري (عروضي النشطة + الترشيحات الذكية بنسبة التوافق %) ==================== */
           <div className="space-y-9">
             <header className="text-start">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100/80 px-3 py-1 text-[11px] font-extrabold text-[#007a5a]">
@@ -594,7 +600,6 @@ export default function OffersPage() {
               </p>
             </header>
 
-            {/* القسم 1: عروض الشراء التي قدمها المشتري وحالتها */}
             {buyerOffers.length > 0 && (
               <section>
                 <h2 className="mb-3.5 text-start text-base font-extrabold text-[#0a1122]">
@@ -603,10 +608,6 @@ export default function OffersPage() {
                 <div className="space-y-3.5">
                   {buyerOffers.map((offer) => {
                     const u = offer.unit
-                    const cur = getCurrencySymbol(
-                      u?.country_code || u?.country || country,
-                      locale
-                    )
 
                     return (
                       <div
@@ -623,7 +624,7 @@ export default function OffersPage() {
                           <div>
                             <h3 className="text-sm font-extrabold text-[#0a1122] sm:text-base">
                               {u?.project_name || t.unitFallback} —{' '}
-                              {u?.area || ''}
+                              {getLocalizedGeorgiaAreaName(u?.area, locale)}
                             </h3>
                             <p className="mt-0.5 text-xs text-gray-500">
                               {t.offeredCashLabel}:{' '}
@@ -728,7 +729,6 @@ export default function OffersPage() {
               </section>
             )}
 
-            {/* القسم 2: الوحدات المرشحة للمشتري بنسبة التوافق المئوية % ونقاط التطابق والاختلاف */}
             <section>
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-base font-extrabold text-[#0a1122] sm:text-lg">
@@ -752,10 +752,6 @@ export default function OffersPage() {
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   {smartRecommendations.map(
                     ({ unit, match, recommendedByAdmin }) => {
-                      const cur = getCurrencySymbol(
-                        unit.country_code || unit.country || country,
-                        locale
-                      )
                       const paid = Number(unit.paid_amount) || 0
                       const contract = Number(unit.contract_price) || paid
                       const market = Number(unit.market_price) || contract
@@ -776,7 +772,6 @@ export default function OffersPage() {
                           }`}
                         >
                           <div>
-                            {/* شريط نسبة التوافق المئوية */}
                             <div className="flex flex-wrap items-center justify-between gap-2">
                               <span
                                 className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-black ${
@@ -805,7 +800,8 @@ export default function OffersPage() {
                               {unit.project_name || t.unitFallback}
                             </h3>
                             <p className="mt-0.5 text-xs text-gray-500">
-                              {unit.developer_name || ''} · {unit.area || ''} ·{' '}
+                              {unit.developer_name || ''} ·{' '}
+                              {getLocalizedGeorgiaAreaName(unit.area, locale)} ·{' '}
                               {unit.unit_type || ''}
                             </p>
 
@@ -837,7 +833,6 @@ export default function OffersPage() {
                               )}
                             </div>
 
-                            {/* نقاط التطابق (بالأخضر ✓) */}
                             {match.matches.length > 0 && (
                               <div className="mt-3">
                                 <p className="mb-1.5 text-[11px] font-extrabold text-[#007a5a]">
@@ -856,7 +851,6 @@ export default function OffersPage() {
                               </div>
                             )}
 
-                            {/* نقاط الاختلاف بشفافية تامة (بالبرتقالي ⚠️) */}
                             {match.differences.length > 0 && (
                               <div className="mt-2.5">
                                 <p className="mb-1.5 text-[11px] font-extrabold text-amber-800">
@@ -876,7 +870,6 @@ export default function OffersPage() {
                             )}
                           </div>
 
-                          {/* أزرار فتح صفحة الوحدة بالصور + تقديم عرض شراء */}
                           <div className="mt-5 flex items-center gap-2 border-t border-gray-100 pt-3.5">
                             <Link
                               href={`/opportunities/${unit.id}`}
@@ -906,7 +899,6 @@ export default function OffersPage() {
         )}
       </div>
 
-      {/* ==================== نافذة تقديم عرض الشراء المرن والمحكوم (للمشتري) ==================== */}
       <Dialog
         open={Boolean(offerModalUnit)}
         onOpenChange={(open) => !open && !isPending && setOfferModalUnit(null)}
@@ -918,12 +910,6 @@ export default function OffersPage() {
           {offerModalUnit &&
             (() => {
               const guard = getUnitPricingGuardrails(offerModalUnit)
-              const cur = getCurrencySymbol(
-                offerModalUnit.country_code ||
-                  offerModalUnit.country ||
-                  country,
-                locale
-              )
               const typedAmount =
                 Number(customOfferCashStr.replace(/,/g, '')) || 0
               const isFullPrice = typedAmount >= guard.requiredCash
@@ -943,7 +929,6 @@ export default function OffersPage() {
                   </DialogHeader>
 
                   <div className="mt-3 space-y-4 text-xs">
-                    {/* 1. حقل كتابة السعر المناسب للمشتري + زر وضع السعر الكامل */}
                     <div className="rounded-2xl border border-gray-200 bg-gray-50/70 p-4">
                       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                         <label className="font-extrabold text-[#0a1122]">
@@ -984,7 +969,6 @@ export default function OffersPage() {
                         className="h-12 w-full rounded-xl border border-gray-300 bg-white px-4 text-left text-base font-black text-[#0a1122] focus:border-[#007a5a] focus:outline-none"
                       />
 
-                      {/* المؤشر الذكي الحي لتقييم سعر المشتري */}
                       {isFullPrice ? (
                         <div className="mt-2.5 flex items-start gap-2 rounded-xl border border-emerald-200 bg-[#eaf8f2] p-2.5 text-[11px] font-bold text-[#007a5a]">
                           <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
@@ -1010,7 +994,6 @@ export default function OffersPage() {
                       )}
                     </div>
 
-                    {/* 2. جاهزية الدفع */}
                     <div>
                       <label className="mb-2 block font-extrabold text-[#0a1122]">
                         2. {t.buyerReadinessLabel}
@@ -1039,7 +1022,6 @@ export default function OffersPage() {
                       </div>
                     </div>
 
-                    {/* 3. طريقة السداد في مقر المطور */}
                     <div>
                       <label className="mb-2 block font-extrabold text-[#0a1122]">
                         3. {t.paymentMethodLabel}
@@ -1100,7 +1082,6 @@ export default function OffersPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ==================== نافذة السعر المقابل للبائع (Counter-Offer) ==================== */}
       <Dialog
         open={Boolean(counterModalOffer)}
         onOpenChange={(open) =>

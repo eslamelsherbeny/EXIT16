@@ -17,8 +17,13 @@ import {
   OpportunityCard,
   type MappedProperty,
 } from '@/components/features/opportunities/opportunities-shared'
+import {
+  GeorgiaAreaSelect,
+  getLocalizedGeorgiaAreaName,
+} from '@/components/shared/georgia-areas'
 import { ScrollReveal } from '@/components/shared/scroll-reveal'
 import { getCurrencySymbol, useTranslation } from '@/lib/i18n'
+import { isNonGeorgianLegacyArea } from '@/lib/smart-matcher'
 
 const PAGE_SIZE = 48
 const FAVORITES_STORAGE_KEY = 'darak_favorites'
@@ -83,13 +88,15 @@ export default function OpportunitiesPage() {
         const { data, error } = await supabase
           .from('sell_requests')
           .select('*')
-          .in('status', ['active', 'offer_received', 'transferring'])
+          .in('status', ['active', 'offer_received'])
           .order('is_featured', { ascending: false })
           .order('created_at', { ascending: false })
           .limit(5000)
 
         if (!error && data) {
-          setRawDbRows(data)
+          setRawDbRows(
+            data.filter((row) => !isNonGeorgianLegacyArea(row.area))
+          )
         }
       } catch (err) {
         console.error('Failed to load approved properties:', err)
@@ -178,14 +185,14 @@ export default function OpportunitiesPage() {
 
     const filtered = dbProperties.filter((item) => {
       const haystack =
-        `${item.project} ${item.developer} ${item.area} ${item.code} ${item.type}`.toLowerCase()
+        `${item.project} ${item.developer} ${item.area} ${item.rawArea} ${item.code} ${item.type}`.toLowerCase()
 
       if (search.trim() && !haystack.includes(search.trim().toLowerCase())) {
         return false
       }
       if (
         areaQuery.trim() &&
-        !`${item.area} ${item.developer} ${item.project}`
+        !`${item.area} ${item.rawArea} ${item.developer} ${item.project}`
           .toLowerCase()
           .includes(areaQuery.trim().toLowerCase())
       ) {
@@ -201,7 +208,8 @@ export default function OpportunitiesPage() {
       if (deliveryYearIdx > 0) {
         const yrStr = t.filters.deliveryYears[deliveryYearIdx] || ''
         const targetYear = Number(yrStr.replace(/[^0-9]/g, ''))
-        if (targetYear && Number(item.delivery) > targetYear) return false
+        const itemYr = Number(String(item.delivery).replace(/[^0-9]/g, ''))
+        if (targetYear && itemYr > 2000 && itemYr > targetYear) return false
       }
 
       if (contractYearIdx > 0) {
@@ -236,7 +244,7 @@ export default function OpportunitiesPage() {
       if (sortIdx === 4)
         return a.monthlyInstallmentNum - b.monthlyInstallmentNum
       if (sortIdx === 5) return b.gainNum - a.gainNum
-      if (sortIdx === 6) return Number(a.delivery) - Number(b.delivery)
+      if (sortIdx === 6) return a.isReady === b.isReady ? 0 : a.isReady ? -1 : 1
       if (sortIdx === 7) {
         if (a.isReady === b.isReady) return a.cashNum - b.cashNum
         return a.isReady ? -1 : 1
@@ -266,7 +274,6 @@ export default function OpportunitiesPage() {
     t,
   ])
 
-  // العملة الأساسية للسوق الحالي (جورجيا = $)
   const activeCurrency = getCurrencySymbol('GE', locale)
   const availableUnitsCount = visibleProperties.length
 
@@ -313,7 +320,6 @@ export default function OpportunitiesPage() {
       className="min-h-screen bg-[var(--brand-surface,#f5f6f8)] py-8 text-[var(--brand-navy,#0a1122)] sm:py-14"
     >
       <div className="layout-container">
-        {/* 1. الهيدر العلوي مع أنيميشن ScrollReveal */}
         <ScrollReveal>
           <div className="text-start">
             <h1 className="text-xl font-extrabold tracking-tight text-[var(--brand-navy,#0a1122)] sm:text-3xl md:text-[36px]">
@@ -325,7 +331,6 @@ export default function OpportunitiesPage() {
           </div>
         </ScrollReveal>
 
-        {/* 2. صندوق الإحصائيات */}
         <ScrollReveal delay={80}>
           <section className="mt-6 sm:mt-8">
             <div className="grid grid-cols-1 divide-y divide-gray-200/80 overflow-hidden rounded-[20px] border border-gray-200/70 border-t-[3px] border-t-[var(--brand-primary,#007a5a)] bg-white shadow-sm md:grid-cols-2 md:divide-x md:divide-y-0 md:divide-x-reverse">
@@ -387,17 +392,16 @@ export default function OpportunitiesPage() {
           </section>
         </ScrollReveal>
 
-        {/* 3. شريط البحث والفلترة */}
         <ScrollReveal delay={140}>
           <section className="mt-6 rounded-[16px] border border-gray-200/80 bg-white p-3.5 shadow-sm sm:mt-8 sm:rounded-[20px] sm:p-5">
             <div className="relative">
-              <Search className="pointer-events-none absolute top-1/2 right-3.5 size-4 -translate-y-1/2 text-gray-400" />
+              <Search className="pointer-events-none absolute top-1/2 end-3.5 size-4 -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={t.filters.searchPlaceholder}
-                className="h-10 w-full rounded-xl border border-gray-200 bg-white pr-10 pl-3 text-xs text-[var(--brand-navy,#0a1122)] placeholder:text-gray-400 focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:h-12 sm:text-sm"
+                className="h-10 w-full rounded-xl border border-gray-200 bg-white ps-3 pe-10 text-xs text-[var(--brand-navy,#0a1122)] placeholder:text-gray-400 focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:h-12 sm:text-sm"
               />
             </div>
 
@@ -484,7 +488,8 @@ export default function OpportunitiesPage() {
                     className="inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-primary-light,#eaf8f2)] px-3 py-1 text-[11px] font-bold text-[var(--brand-primary,#007a5a)] sm:text-xs"
                   >
                     <span>
-                      {t.filters.areaBadgePrefix} {areaQuery}
+                      {t.filters.areaBadgePrefix}{' '}
+                      {getLocalizedGeorgiaAreaName(areaQuery, locale)}
                     </span>
                     <X className="size-3" />
                   </button>
@@ -551,20 +556,15 @@ export default function OpportunitiesPage() {
           </section>
         </ScrollReveal>
 
-        {/* 4. لوحة الفلترة المتقدمة */}
         {filtersOpen && (
           <section className="mt-3 rounded-[16px] border border-gray-200/80 bg-white p-4 shadow-sm sm:rounded-[20px] sm:p-7">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-5">
               <div className="text-start">
-                <label className="mb-1.5 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
-                  {t.filters.areasLabel}
-                </label>
-                <input
-                  type="text"
+                <GeorgiaAreaSelect
+                  label={t.filters.areasLabel}
                   value={areaQuery}
-                  onChange={(e) => setAreaQuery(e.target.value)}
+                  onChange={(val) => setAreaQuery(val)}
                   placeholder={t.filters.areasPlaceholder}
-                  className="h-10 w-full rounded-xl border border-gray-200 px-3.5 text-xs text-[var(--brand-navy,#0a1122)] placeholder:text-gray-400 focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:h-11"
                 />
               </div>
 
@@ -577,7 +577,7 @@ export default function OpportunitiesPage() {
                     type="number"
                     value={maxCash}
                     onChange={(e) => setMaxCash(e.target.value)}
-                    className="h-10 w-full rounded-xl border border-gray-200 pr-3.5 pl-12 text-xs text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:h-11"
+                    className="h-12 w-full rounded-xl border border-gray-200 pr-3.5 pl-12 text-xs text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none"
                   />
                   <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-xs text-gray-400">
                     {activeCurrency}
@@ -594,7 +594,7 @@ export default function OpportunitiesPage() {
                     type="number"
                     value={maxInstallment}
                     onChange={(e) => setMaxInstallment(e.target.value)}
-                    className="h-10 w-full rounded-xl border border-gray-200 pr-3.5 pl-12 text-xs text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:h-11"
+                    className="h-12 w-full rounded-xl border border-gray-200 pr-3.5 pl-12 text-xs text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none"
                   />
                   <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-xs text-gray-400">
                     {activeCurrency}
@@ -766,7 +766,6 @@ export default function OpportunitiesPage() {
           </section>
         )}
 
-        {/* 5. شبكة الكروت مع أنيميشن */}
         <section className="mt-6 sm:mt-8">
           <div className="mb-4 flex items-center justify-between gap-2 text-start sm:mb-5">
             <div className="flex items-center gap-1.5">
@@ -837,7 +836,6 @@ export default function OpportunitiesPage() {
           )}
         </section>
 
-        {/* 6. بانر التطبيق وقسم الثقة السفلي */}
         <ScrollReveal delay={100}>
           <OpportunitiesBottomSections />
         </ScrollReveal>

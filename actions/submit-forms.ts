@@ -120,7 +120,15 @@ function getPhoneVariants(rawPhone: string) {
   }
   const stripped = digits.replace(/^0+/, '')
   return Array.from(
-    new Set([digits, `0${stripped}`, `+995${stripped}`, `+20${stripped}`])
+    new Set([
+      digits,
+      `+${stripped}`,
+      `0${stripped}`,
+      `+995${stripped}`,
+      `+20${stripped}`,
+      `+966${stripped}`,
+      `+971${stripped}`,
+    ])
   )
 }
 
@@ -129,7 +137,12 @@ function formatPrimaryPhone(rawPhone: string) {
   if (!digits) return ''
   if (digits.startsWith('+')) return digits
   const stripped = digits.replace(/^0+/, '')
-  if (stripped.startsWith('995') || stripped.startsWith('20')) {
+  if (
+    stripped.startsWith('995') ||
+    stripped.startsWith('20') ||
+    stripped.startsWith('966') ||
+    stripped.startsWith('971')
+  ) {
     return `+${stripped}`
   }
   return `+995${stripped}`
@@ -147,8 +160,13 @@ function parseDeliveryDateFromStatus(rawStatus: string) {
   const str = String(rawStatus || '')
   const monthYearMatch = str.match(/(0[1-9]|1[0-2])\/(20\d{2})/)
   const yearOnlyMatch = str.match(/(20\d{2})/)
+  const monthsCountMatch = str.match(/\((\d+)\s*/)
   return {
-    deliveryMonth: monthYearMatch ? monthYearMatch[1] : null,
+    deliveryMonth: monthYearMatch
+      ? monthYearMatch[1]
+      : monthsCountMatch
+        ? monthsCountMatch[1]
+        : null,
     deliveryYear: monthYearMatch
       ? Number.parseInt(monthYearMatch[2], 10)
       : yearOnlyMatch
@@ -362,7 +380,9 @@ export async function processSellerStep2Action(payload: {
     const siteUrl = DEFAULT_SITE_URL
 
     const unitCountryCode = ACTIVE_COUNTRY_CODE
-    const userCountryCode = ACTIVE_COUNTRY_CODE
+    const userCountryCode = (payload.userCountry || ACTIVE_COUNTRY_CODE)
+      .trim()
+      .toUpperCase()
 
     async function upsertDraftUnit(
       userId: string,
@@ -592,7 +612,7 @@ export async function processSellerStep2Action(payload: {
       supabase
         .from('users')
         .select('id, name, phone, email, password_hash')
-        .ilike('email', `%${cleanEmail}%`)
+        .ilike('email', cleanEmail)
         .limit(1),
       supabase
         .from('users')
@@ -1182,7 +1202,9 @@ export async function processBuyerStep3Action(payload: {
     const siteUrl = DEFAULT_SITE_URL
 
     const targetCountry = ACTIVE_COUNTRY_CODE
-    const buyerResidenceCountry = ACTIVE_COUNTRY_CODE
+    const buyerResidenceCountry = (payload.userCountry || ACTIVE_COUNTRY_CODE)
+      .trim()
+      .toUpperCase()
 
     async function insertBuyRequestRecord(
       userId: string,
@@ -1312,7 +1334,7 @@ export async function processBuyerStep3Action(payload: {
         const { data } = await supabase
           .from('users')
           .select('id, name, email, phone, password_hash')
-          .ilike('email', `%${normalizeEmail(rawIdentifier)}%`)
+          .ilike('email', normalizeEmail(rawIdentifier))
         candidates = data || []
       } else {
         const variants = getPhoneVariants(rawIdentifier)
@@ -1375,7 +1397,7 @@ export async function processBuyerStep3Action(payload: {
       supabase
         .from('users')
         .select('id, name, phone, email, password_hash')
-        .ilike('email', `%${cleanEmail}%`)
+        .ilike('email', cleanEmail)
         .limit(1),
       supabase
         .from('users')

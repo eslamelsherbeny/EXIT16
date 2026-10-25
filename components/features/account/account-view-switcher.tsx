@@ -9,21 +9,25 @@ import { AccountActionLinks } from './delete-account-modal'
 import { useTranslation } from '@/lib/i18n'
 
 export function AccountViewSwitcher({
+  userName = '',
   initialView,
   sells,
   buys,
   activeMarketUnits,
   initialSelectedUnitId,
   offersCountMap,
+  buyerOffersCount = 0,
   matchedBuyersCountMap,
   deletionRequested,
 }: {
+  userName?: string
   initialView: 'seller' | 'buyer'
   sells: SellerUnitItem[]
   buys: BuyerRequestItem[]
   activeMarketUnits: SellerUnitItem[]
   initialSelectedUnitId?: string
   offersCountMap: Record<string, number>
+  buyerOffersCount?: number
   matchedBuyersCountMap: Record<string, number>
   deletionRequested: boolean
 }) {
@@ -104,8 +108,10 @@ export function AccountViewSwitcher({
         />
       ) : currentView === 'buyer' && buys.length > 0 ? (
         <BuyerDashboard
+          userName={userName}
           buyReq={mainBuyerRequest}
           marketUnits={activeMarketUnits}
+          offersCount={buyerOffersCount}
           deletionRequested={deletionRequested}
         />
       ) : (

@@ -8,13 +8,18 @@ import {
   ArrowRight,
   ChevronDown,
   ChevronLeft,
+  Compass,
   Heart,
   ListFilter,
   Loader2,
-  Plus,
+  MapPin,
+  Radar,
   Search,
   ShieldAlert,
-  Star,
+  SlidersHorizontal,
+  Sparkles,
+  UserCheck,
+  Wallet,
   X,
 } from 'lucide-react'
 import { updateBuyerPreferencesAction } from '@/actions/account-actions'
@@ -27,14 +32,21 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { unitTypes as sharedUnitTypes } from '@/components/features/seller/seller-shared'
 import {
-  GEORGIA_AREAS_CATALOG,
-  unitTypes as sharedUnitTypes,
-} from '@/components/features/seller/seller-shared'
+  GEORGIA_CITIES_AND_DISTRICTS,
+  GeorgiaAreaSelect,
+  getLocalizedGeorgiaAreaName,
+} from '@/components/shared/georgia-areas'
 import { ScrollReveal } from '@/components/shared/scroll-reveal'
 import { AccountActionLinks } from './delete-account-modal'
 import type { SellerUnitItem } from './seller-dashboard'
 import { getCurrencySymbol, useTranslation } from '@/lib/i18n'
+import {
+  calculateSmartMatch,
+  evaluateGeorgiaAreaProximity,
+  isNonGeorgianLegacyArea,
+} from '@/lib/smart-matcher'
 
 export type BuyerRequestItem = {
   id: string
@@ -53,7 +65,7 @@ export type BuyerRequestItem = {
 
 const FAVORITES_STORAGE_KEY = 'darak_favorites'
 const PREFERRED_PAGE_SIZE = 18
-const OTHER_AREAS_PREVIEW_SIZE = 6
+const NEARBY_AREAS_PREVIEW_SIZE = 6
 
 function calcMonthlyInstallment(amount: number, freq: string | null) {
   if (!amount) return 0
@@ -74,11 +86,11 @@ function calcMonthlyInstallment(amount: number, freq: string | null) {
   return amount
 }
 
-function extractCleanAreas(
+function extractCleanGeorgiaAreas(
   areas: string[] | null | undefined,
-  fallbackArea: string
+  fallbackAreaId: string
 ): string[] {
-  if (!Array.isArray(areas) || areas.length === 0) return [fallbackArea]
+  if (!Array.isArray(areas) || areas.length === 0) return [fallbackAreaId]
   const cleaned = areas
     .map((a: string) => {
       if (a.includes(' - ') && a.includes('🎯')) {
@@ -90,29 +102,31 @@ function extractCleanAreas(
         .replace(/\(U-[^)]+\)/gi, '')
         .trim()
     })
-    .filter(Boolean)
+    .filter((a) => Boolean(a) && !isNonGeorgianLegacyArea(a))
 
-  return cleaned.length > 0 ? Array.from(new Set(cleaned)) : [fallbackArea]
+  return cleaned.length > 0 ? Array.from(new Set(cleaned)) : [fallbackAreaId]
 }
 
 export function BuyerDashboard({
+  userName = '',
   buyReq,
   marketUnits,
+  offersCount = 0,
   deletionRequested = false,
 }: {
+  userName?: string
   buyReq: BuyerRequestItem | null
   marketUnits: SellerUnitItem[]
+  offersCount?: number
   deletionRequested?: boolean
 }) {
   const { t: dict, locale, dir, isRtl } = useTranslation()
-  const t = dict.accountComponents.buyer
+  const t = dict.accountComponents.buyer as Record<string, any>
   const currency = getCurrencySymbol('GE', locale)
+  const listSep = dir === 'rtl' ? '، ' : ', '
 
-  const georgiaQuickAreas = useMemo<string[]>(
-    () =>
-      GEORGIA_AREAS_CATALOG.flatMap(
-        ([, items]: [string, string[]]) => items
-      ).slice(0, 8),
+  const georgiaQuickAreas = useMemo(
+    () => GEORGIA_CITIES_AND_DISTRICTS.slice(0, 10),
     []
   )
 
@@ -122,7 +136,7 @@ export function BuyerDashboard({
   const [isPending, startTransition] = useTransition()
 
   const [visibleCount, setVisibleCount] = useState(PREFERRED_PAGE_SIZE)
-  const [showAllOtherAreas, setShowAllOtherAreas] = useState(false)
+  const [showAllNearbyAreas, setShowAllNearbyAreas] = useState(false)
   const [favoriteIds, setFavoriteIds] = useState<string[]>([])
 
   useEffect(() => {
@@ -166,20 +180,18 @@ export function BuyerDashboard({
       ? buyReq.unit_types
       : [sharedUnitTypes[0]]
   )
-  const [bRooms, setBRooms] = useState<number>(Number(buyReq?.min_rooms || 2))
+  const [bRooms, setBRooms] = useState<number>(Number(buyReq?.min_rooms || 1))
   const [bDelivery, setBDelivery] = useState<string>(
     buyReq?.delivery_status || t.deliveryPreferences[0]
   )
   const [bAreas, setBAreas] = useState<string[]>(() =>
-    extractCleanAreas(buyReq?.preferred_areas, georgiaQuickAreas[0])
+    extractCleanGeorgiaAreas(
+      buyReq?.preferred_areas,
+      GEORGIA_CITIES_AND_DISTRICTS[0].id
+    )
   )
-  const [newAreaInput, setNewAreaInput] = useState('')
-  const [notifyExact, setNotifyExact] = useState<boolean>(
-    buyReq?.notify_exact_match ?? true
-  )
-  const [notifyFeatured, setNotifyFeatured] = useState<boolean>(
-    buyReq?.notify_featured ?? true
-  )
+  const [notifyExact] = useState<boolean>(buyReq?.notify_exact_match ?? true)
+  const [notifyFeatured] = useState<boolean>(buyReq?.notify_featured ?? true)
 
   const [activePills, setActivePills] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -199,7 +211,7 @@ export function BuyerDashboard({
 
   useEffect(() => {
     setVisibleCount(PREFERRED_PAGE_SIZE)
-    setShowAllOtherAreas(false)
+    setShowAllNearbyAreas(false)
   }, [
     searchQuery,
     areaFilter,
@@ -216,37 +228,19 @@ export function BuyerDashboard({
     sortBy,
   ])
 
-  const addCustomArea = () => {
-    const parts = newAreaInput
-      .split(/[،,]/)
-      .map((s) => s.trim())
-      .filter(Boolean)
-    if (parts.length === 0) return
-    setBAreas((prev) => Array.from(new Set([...prev, ...parts])))
-    setNewAreaInput('')
-  }
-
-  const togglePopularArea = (areaName: string) => {
+  const togglePopularArea = (areaId: string) => {
     setBAreas((prev) =>
-      prev.includes(areaName)
+      prev.includes(areaId)
         ? prev.length > 1
-          ? prev.filter((x) => x !== areaName)
+          ? prev.filter((x) => x !== areaId)
           : prev
-        : [...prev, areaName]
+        : [...prev, areaId]
     )
   }
 
   const togglePill = (pill: string) => {
     setActivePills((prev) =>
       prev.includes(pill) ? prev.filter((p) => p !== pill) : [...prev, pill]
-    )
-  }
-
-  const toggleFilterType = (typeVal: string) => {
-    setSelectedTypes((prev) =>
-      prev.includes(typeVal)
-        ? prev.filter((x) => x !== typeVal)
-        : [...prev, typeVal]
     )
   }
 
@@ -268,87 +262,132 @@ export function BuyerDashboard({
   const mappedUnits = useMemo(() => {
     const buyerMaxMonthly = calcMonthlyInstallment(bInstallment, bPlan)
 
-    return marketUnits.map((u) => {
-      const paid = Number(u.paid_amount) || 0
-      const contract = Number(u.contract_price) || paid
-      const market = Number(u.market_price) || contract
-      const commission = Math.round(market * 0.0125)
-      const gainVal = Math.max(0, market - contract - commission)
-      const unitMonthly = calcMonthlyInstallment(
-        Number(u.installment_amount) || 0,
-        u.installment_frequency
-      )
+    const virtualBuyer: BuyerRequestItem = {
+      id: buyReq?.id || 'current',
+      available_cash: bCash,
+      max_installment: bInstallment,
+      payment_plan: bPlan,
+      budget: bBudget,
+      unit_types: bTypes,
+      min_rooms: bRooms,
+      delivery_status: bDelivery,
+      preferred_areas: bAreas,
+      status: 'active',
+    }
 
-      const rawDel = String(u.delivery_status || '')
-      const isReady =
-        rawDel.includes('جاهز') ||
-        rawDel.includes('فوري') ||
-        rawDel.includes(t.deliveryStatuses[1])
-      const deliveryStatus = isReady
-        ? t.deliveryStatuses[1]
-        : t.deliveryStatuses[2]
-      const yearMatch = rawDel.match(/20\d{2}/)
-      const deliveryYear = yearMatch ? Number(yearMatch[0]) : 2027
+    return marketUnits
+      .filter((u) => !isNonGeorgianLegacyArea(u.area))
+      .map((u) => {
+        const paid = Number(u.paid_amount) || 0
+        const contract = Number(u.contract_price) || paid
+        const market = Number(u.market_price) || contract
+        const commission = Math.round(market * 0.0125)
+        const gainVal = Math.max(0, market - contract - commission)
+        const unitMonthly = calcMonthlyInstallment(
+          Number(u.installment_amount) || 0,
+          u.installment_frequency
+        )
 
-      const unitArea = u.area || georgiaQuickAreas[0]
-      const unitType = u.unit_type || sharedUnitTypes[0]
-      const unitCurrency = getCurrencySymbol('GE', locale)
+        const rawDel = String(u.delivery_status || '')
+        const isReady =
+          rawDel.includes('جاهز') ||
+          rawDel.includes('فوري') ||
+          rawDel.toLowerCase().includes('ready') ||
+          rawDel.includes(t.deliveryStatuses[1])
+        const deliveryStatus = isReady
+          ? t.deliveryStatuses[1]
+          : t.deliveryStatuses[2]
+        const yearMatch = rawDel.match(/20\d{2}/)
+        const deliveryYear = yearMatch ? Number(yearMatch[0]) : 2027
 
-      const matchTags: string[] = []
-      const isCashMatch = bCash === 0 || paid <= bCash * 1.15
-      const isInstMatch =
-        buyerMaxMonthly === 0 ||
-        unitMonthly === 0 ||
-        unitMonthly <= buyerMaxMonthly * 1.2
-      const isAreaMatch =
-        bAreas.length === 0 ||
-        bAreas.some((a) => unitArea.includes(a) || a.includes(unitArea))
-      const isTypeMatch =
-        bTypes.length === 0 ||
-        bTypes.some((tp) => unitType.includes(tp) || tp.includes(unitType))
+        const rawAreaId = u.area || GEORGIA_CITIES_AND_DISTRICTS[0].id
+        const localizedArea = getLocalizedGeorgiaAreaName(rawAreaId, locale)
+        const unitType = u.unit_type || sharedUnitTypes[0]
+        const unitCurrency = getCurrencySymbol('GE', locale)
 
-      if (isCashMatch) matchTags.push(t.tagCashMatch)
-      if (isInstMatch) matchTags.push(t.tagInstMatch)
-      if (isAreaMatch) matchTags.push(t.tagAreaMatch)
-      else if (isTypeMatch) matchTags.push(t.tagTypeMatch)
+        // التقييم الجغرافي الحقيقي عبر الإحداثيات (GPS Proximity)
+        const geoEval = evaluateGeorgiaAreaProximity(rawAreaId, bAreas)
+        const smartRes = calculateSmartMatch(
+          u,
+          virtualBuyer,
+          undefined,
+          locale
+        )
 
-      return {
-        id: String(u.id),
-        title: u.project_name || t.defaultUnitTitle,
-        subtitle: `${u.developer_name || t.defaultDeveloper} · ${unitArea} · ${unitType}`,
-        area: unitArea,
-        type: unitType,
-        rooms: Number(u.rooms) || 2,
-        cashNum: paid,
-        cashStr: paid.toLocaleString('en-US'),
-        contractNum: contract,
-        marketNum: market,
-        marketStr: market.toLocaleString('en-US'),
-        gainNum: gainVal,
-        gainStr: gainVal > 0 ? `+ ${gainVal.toLocaleString('en-US')}` : '',
-        currency: unitCurrency,
-        monthlyInst: unitMonthly,
-        negotiable: Boolean(u.willing_to_discount),
-        deliveryStatus,
-        deliveryYear,
-        contractYear: Number(u.contract_year) || 2024,
-        image:
-          Array.isArray(u.images) && u.images[0] ? u.images[0] : undefined,
-        matchTags,
-        isAreaMatch,
-        isCashMatch,
-        isInstMatch,
-        isTypeMatch,
-      }
-    })
+        const isExactAreaMatch = geoEval.relation === 'exact'
+        const isNearbyInSameCity =
+          geoEval.relation === 'nearby' || geoEval.relation === 'same_city'
+
+        const isCashMatch = bCash === 0 || paid <= bCash * 1.15
+        const isInstMatch =
+          buyerMaxMonthly === 0 ||
+          unitMonthly === 0 ||
+          unitMonthly <= buyerMaxMonthly * 1.2
+        const isTypeMatch =
+          bTypes.length === 0 ||
+          bTypes.some((tp) => unitType.includes(tp) || tp.includes(unitType))
+
+        const matchTags: string[] = []
+        if (isCashMatch) matchTags.push(t.tagCashMatch)
+        if (isInstMatch) matchTags.push(t.tagInstMatch)
+        if (isExactAreaMatch) {
+          matchTags.push(t.tagAreaMatch)
+        } else if (isNearbyInSameCity) {
+          const kmLabel = geoEval.distanceKm
+            ? ` (${geoEval.distanceKm} ${t.kmUnit || 'كم'})`
+            : ''
+          matchTags.push(
+            `${t.tagNearbyAreaMatch || t.tagAreaMatch}${kmLabel}`
+          )
+        } else if (isTypeMatch) {
+          matchTags.push(t.tagTypeMatch)
+        }
+
+        return {
+          id: String(u.id),
+          title: u.project_name || t.defaultUnitTitle,
+          subtitle: `${u.developer_name || t.defaultDeveloper} · ${localizedArea} · ${unitType}`,
+          area: rawAreaId,
+          localizedArea,
+          type: unitType,
+          rooms: Number(u.rooms) || 2,
+          cashNum: paid,
+          cashStr: paid.toLocaleString('en-US'),
+          contractNum: contract,
+          marketNum: market,
+          marketStr: market.toLocaleString('en-US'),
+          gainNum: gainVal,
+          gainStr: gainVal > 0 ? `+ ${gainVal.toLocaleString('en-US')}` : '',
+          currency: unitCurrency,
+          monthlyInst: unitMonthly,
+          negotiable: Boolean(u.willing_to_discount),
+          deliveryStatus,
+          deliveryYear,
+          contractYear: Number(u.contract_year) || 2024,
+          image:
+            Array.isArray(u.images) && u.images[0] ? u.images[0] : undefined,
+          matchTags,
+          scorePct: smartRes.score,
+          geoRelation: geoEval.relation,
+          distanceKm: geoEval.distanceKm,
+          isAreaMatch: isExactAreaMatch,
+          isNearbyInSameCity,
+          isCashMatch,
+          isInstMatch,
+          isTypeMatch,
+        }
+      })
   }, [
     marketUnits,
+    buyReq?.id,
     bCash,
     bInstallment,
     bPlan,
+    bBudget,
+    bRooms,
+    bDelivery,
     bAreas,
     bTypes,
-    georgiaQuickAreas,
     locale,
     t,
   ])
@@ -361,14 +400,20 @@ export function BuyerDashboard({
     const list = mappedUnits.filter((item) => {
       if (
         searchQuery.trim() &&
-        !`${item.title} ${item.subtitle} ${item.area}`
+        !`${item.title} ${item.subtitle} ${item.localizedArea}`
           .toLowerCase()
           .includes(searchQuery.trim().toLowerCase())
       ) {
         return false
       }
 
-      if (areaFilter.trim() && !item.area.includes(areaFilter.trim())) {
+      if (
+        areaFilter.trim() &&
+        !item.area.toLowerCase().includes(areaFilter.trim().toLowerCase()) &&
+        !item.localizedArea
+          .toLowerCase()
+          .includes(areaFilter.trim().toLowerCase())
+      ) {
         return false
       }
       if (onlyNegotiable && !item.negotiable) return false
@@ -430,7 +475,7 @@ export function BuyerDashboard({
       if (sortBy === t.sorts[5]) return a.deliveryYear - b.deliveryYear
       if (sortBy === t.sorts[6])
         return a.deliveryStatus === t.deliveryStatuses[1] ? -1 : 1
-      return 0
+      return b.scorePct - a.scorePct
     })
   }, [
     mappedUnits,
@@ -480,14 +525,20 @@ export function BuyerDashboard({
     t,
   ])
 
+  // 1. وحدات في نفس المنطقة المطلوبة بالضبط
   const unitsInPreferredArea = filteredUnits.filter((u) => u.isAreaMatch)
-  const unitsInOtherAreas = filteredUnits.filter((u) => !u.isAreaMatch)
+
+  // 2. وحدات في أحياء قريبة فعلياً داخل نفس المدينة فقط (وليس في مدن بعيدة أو دول أخرى!)
+  const unitsInTrulyNearbyAreas = filteredUnits
+    .filter((u) => !u.isAreaMatch && u.isNearbyInSameCity)
+    .sort((a, b) => (a.distanceKm ?? 99) - (b.distanceKm ?? 99))
+
+  const localizedPreferredAreasNames = bAreas.map((a) =>
+    getLocalizedGeorgiaAreaName(a, locale)
+  )
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (newAreaInput.trim()) {
-      addCustomArea()
-    }
     setConfirmSaveOpen(true)
   }
 
@@ -548,18 +599,16 @@ export function BuyerDashboard({
               <label className="mb-2 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
                 {t.availableCashLabel} <span className="text-red-500">*</span>
               </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  dir="ltr"
-                  value={bCash ? bCash.toLocaleString('en-US') : ''}
-                  onChange={(e) =>
-                    setBCash(Number(e.target.value.replace(/[^0-9]/g, '')) || 0)
-                  }
-                  className="h-12 w-full rounded-xl border border-gray-200 pr-4 pl-12 text-left text-sm font-bold text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none"
-                />
-              </div>
+              <input
+                type="text"
+                inputMode="numeric"
+                dir="ltr"
+                value={bCash ? bCash.toLocaleString('en-US') : ''}
+                onChange={(e) =>
+                  setBCash(Number(e.target.value.replace(/[^0-9]/g, '')) || 0)
+                }
+                className="h-12 w-full rounded-xl border border-gray-200 px-4 text-left text-sm font-bold text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none"
+              />
               <p className="mt-1.5 text-xs font-bold text-[var(--brand-primary,#007a5a)]">
                 {bCash.toLocaleString('en-US')} {currency}
               </p>
@@ -572,22 +621,20 @@ export function BuyerDashboard({
               <label className="mb-2 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
                 {t.maxInstallmentLabel} <span className="text-red-500">*</span>
               </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  dir="ltr"
-                  value={
-                    bInstallment ? bInstallment.toLocaleString('en-US') : ''
-                  }
-                  onChange={(e) =>
-                    setBInstallment(
-                      Number(e.target.value.replace(/[^0-9]/g, '')) || 0
-                    )
-                  }
-                  className="h-12 w-full rounded-xl border border-gray-200 pr-4 pl-12 text-left text-sm font-bold text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none"
-                />
-              </div>
+              <input
+                type="text"
+                inputMode="numeric"
+                dir="ltr"
+                value={
+                  bInstallment ? bInstallment.toLocaleString('en-US') : ''
+                }
+                onChange={(e) =>
+                  setBInstallment(
+                    Number(e.target.value.replace(/[^0-9]/g, '')) || 0
+                  )
+                }
+                className="h-12 w-full rounded-xl border border-gray-200 px-4 text-left text-sm font-bold text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none"
+              />
               <p className="mt-1.5 text-xs font-bold text-[var(--brand-primary,#007a5a)]">
                 {bInstallment.toLocaleString('en-US')} {currency}
               </p>
@@ -623,20 +670,18 @@ export function BuyerDashboard({
               <label className="mb-2 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
                 {t.targetBudgetLabel}
               </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  dir="ltr"
-                  value={bBudget ? bBudget.toLocaleString('en-US') : ''}
-                  onChange={(e) =>
-                    setBBudget(
-                      Number(e.target.value.replace(/[^0-9]/g, '')) || 0
-                    )
-                  }
-                  className="h-12 w-full rounded-xl border border-gray-200 pr-4 pl-12 text-left text-sm font-bold text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none"
-                />
-              </div>
+              <input
+                type="text"
+                inputMode="numeric"
+                dir="ltr"
+                value={bBudget ? bBudget.toLocaleString('en-US') : ''}
+                onChange={(e) =>
+                  setBBudget(
+                    Number(e.target.value.replace(/[^0-9]/g, '')) || 0
+                  )
+                }
+                className="h-12 w-full rounded-xl border border-gray-200 px-4 text-left text-sm font-bold text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none"
+              />
               <p className="mt-1.5 text-xs font-bold text-[var(--brand-primary,#007a5a)]">
                 {bBudget.toLocaleString('en-US')} {currency}
               </p>
@@ -697,7 +742,7 @@ export function BuyerDashboard({
               <label className="mb-2 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
                 {t.deliveryLabel}
               </label>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 {t.deliveryPreferences.map((st: string) => (
                   <button
                     key={st}
@@ -715,18 +760,26 @@ export function BuyerDashboard({
               </div>
             </div>
 
+            {/* اختيار المناطق المفضلة في جورجيا من القائمة المنسدلة الموحدة */}
             <div>
-              <label className="mb-2 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
-                {t.preferredAreasLabel}
-              </label>
+              <GeorgiaAreaSelect
+                label={t.preferredAreasLabel}
+                value=""
+                onChange={(selectedAreaId) => {
+                  if (!bAreas.includes(selectedAreaId)) {
+                    setBAreas((prev) => [...prev, selectedAreaId])
+                  }
+                }}
+                placeholder={t.areaInputPlaceholder}
+              />
 
-              <div className="mb-2.5 flex flex-wrap gap-1.5">
+              <div className="mt-3 flex flex-wrap gap-1.5">
                 {bAreas.map((ar: string) => (
                   <span
                     key={ar}
                     className="inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-primary-light,#eaf8f2)] px-3 py-1 text-xs font-bold text-[var(--brand-primary,#007a5a)]"
                   >
-                    <span>{ar}</span>
+                    <span>{getLocalizedGeorgiaAreaName(ar, locale)}</span>
                     {bAreas.length > 1 && (
                       <button
                         type="button"
@@ -741,46 +794,22 @@ export function BuyerDashboard({
                 ))}
               </div>
 
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newAreaInput}
-                  onChange={(e) => setNewAreaInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault()
-                      addCustomArea()
-                    }
-                  }}
-                  placeholder={t.areaInputPlaceholder}
-                  className="h-11 flex-1 rounded-xl border border-gray-200 px-3.5 text-xs focus:border-[var(--brand-primary,#007a5a)] focus:outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={addCustomArea}
-                  className="inline-flex h-11 shrink-0 items-center gap-1 rounded-xl bg-[var(--brand-navy,#0a1122)] px-4 text-xs font-bold text-white transition hover:bg-[var(--brand-navy-hover,#16223f)]"
-                >
-                  <Plus className="size-3.5" />
-                  <span>{t.addAreaBtn}</span>
-                </button>
-              </div>
-
-              <div className="mt-2.5 flex flex-wrap gap-1.5">
-                {georgiaQuickAreas.map((areaName: string) => {
-                  const isAdded = bAreas.includes(areaName)
-                  const shortLabel = areaName.split(' (')[0]
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {georgiaQuickAreas.map((item) => {
+                  const isAdded = bAreas.includes(item.id)
+                  const label = getLocalizedGeorgiaAreaName(item.id, locale)
                   return (
                     <button
-                      key={areaName}
+                      key={item.id}
                       type="button"
-                      onClick={() => togglePopularArea(areaName)}
+                      onClick={() => togglePopularArea(item.id)}
                       className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition ${
                         isAdded
                           ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary,#007a5a)] text-white'
                           : 'border-gray-200 bg-gray-50 text-gray-600 hover:border-gray-300'
                       }`}
                     >
-                      {isAdded ? `✓ ${shortLabel}` : `+ ${shortLabel}`}
+                      {isAdded ? `✓ ${label}` : `+ ${label}`}
                     </button>
                   )
                 })}
@@ -790,7 +819,7 @@ export function BuyerDashboard({
             <button
               type="submit"
               disabled={isPending}
-              className="h-12 w-full rounded-xl bg-[var(--brand-primary,#007a5a)] text-sm font-bold text-white transition hover:bg-[var(--brand-primary-hover,#006248)]"
+              className="h-12 w-full rounded-xl bg-[var(--brand-primary,#007a5a)] text-sm font-bold text-white transition active:scale-[0.98] hover:bg-[var(--brand-primary-hover,#006248)]"
             >
               {isPending ? t.savingBtn : t.saveAndViewBtn}
             </button>
@@ -814,7 +843,7 @@ export function BuyerDashboard({
               <DialogDescription className="text-start text-xs leading-relaxed text-gray-600">
                 {t.confirmModalDesc}{' '}
                 <strong className="text-[var(--brand-primary,#007a5a)]">
-                  ({bAreas.join('، ')})
+                  ({localizedPreferredAreasNames.join(listSep)})
                 </strong>
                 ؟
               </DialogDescription>
@@ -860,40 +889,90 @@ export function BuyerDashboard({
         </div>
       )}
 
+      {/* ==================== 1. بانر هوية الحساب الشخصي للمشتري (لمنع التشابه مع صفحة الفرص العامة) ==================== */}
       <ScrollReveal>
-        <header className="flex flex-wrap items-center justify-between gap-4">
-          <h1 className="text-xl font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-2xl">
-            {t.mainTitle}
-          </h1>
-          <div className="flex items-center gap-3">
-            <Link
-              href="/account/offers"
-              className="inline-flex h-10 items-center justify-center rounded-xl border border-gray-200 bg-white px-4 text-xs font-bold text-[var(--brand-navy,#0a1122)] shadow-2xs transition hover:bg-gray-50"
-            >
-              {t.myOffersBtn}
-            </Link>
-            <button
-              type="button"
-              onClick={() => setIsEditingBudget(true)}
-              className="text-xs font-bold text-[#1e3a8a] transition hover:underline"
-            >
-              {t.editBudgetBtn}
-            </button>
-          </div>
-        </header>
-
-        <section className="mt-4 rounded-[14px] border border-gray-200/80 bg-white px-5 py-3.5 text-start shadow-2xs">
-          <div className="flex flex-wrap items-center justify-start gap-x-6 gap-y-2 text-xs">
+        <section className="rounded-[22px] border border-emerald-200/80 bg-gradient-to-br from-[#0a1122] via-[#10233f] to-[#0d3b33] p-5 text-start text-white shadow-sm sm:p-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <span className="text-gray-400">{t.summaryCashLabel} </span>
-              <strong className="font-extrabold text-[var(--brand-navy,#0a1122)] tabular-nums">
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-3 py-1 text-[11px] font-extrabold text-emerald-300 ring-1 ring-emerald-400/30">
+                <UserCheck className="size-3.5" />
+                <span>
+                  {t.myAccountBadge || 'حسابي الشخصي — لوحة المشتري'}
+                  {userName ? ` · ${userName.split(' ')[0]}` : ''}
+                </span>
+              </div>
+              <h1 className="mt-2.5 text-xl font-black tracking-tight text-white sm:text-2xl">
+                {t.mainTitle}
+              </h1>
+              <p className="mt-1 text-xs leading-relaxed text-slate-300">
+                {t.radarActiveSubtitle ||
+                  'الرادار الذكي يطابق ميزانيتك ومنطقتك المفضلة في جورجيا مع الوحدات المعروضة للتنازل'}
+              </p>
+            </div>
+
+            {/* أزرار عروضي (مع عداد العروض المتاحة) + تعديل طلب الشراء */}
+            <div className="flex flex-wrap items-center gap-2.5">
+              <Link
+                href="/account/offers"
+                className="group relative flex flex-col items-center justify-center rounded-2xl border border-emerald-400/40 bg-white px-4 py-2 text-center shadow-sm transition hover:bg-emerald-50"
+              >
+                <div className="flex items-center gap-1.5">
+                  <Wallet className="size-4 text-[var(--brand-primary,#007a5a)]" />
+                  <span className="text-xs font-black text-[var(--brand-navy,#0a1122)] sm:text-sm">
+                    {t.myOffersBtn}
+                  </span>
+                  <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[var(--brand-primary,#007a5a)] px-1.5 text-[11px] font-black text-white">
+                    {offersCount}
+                  </span>
+                </div>
+                <span className="mt-0.5 text-[10px] font-extrabold text-[var(--brand-primary,#007a5a)]">
+                  {offersCount > 0
+                    ? `${offersCount} ${t.offersAvailableSub || 'عروض متاحة'}`
+                    : t.noOffersSub || 'تابع عروضك وترشيحاتك'}
+                </span>
+              </Link>
+
+              <button
+                type="button"
+                onClick={() => setIsEditingBudget(true)}
+                className="inline-flex h-12 items-center gap-1.5 rounded-2xl border border-white/20 bg-white/10 px-4 text-xs font-extrabold text-white backdrop-blur-xs transition hover:bg-white/20"
+              >
+                <SlidersHorizontal className="size-3.5 text-emerald-300" />
+                <span>{t.editBudgetBtn}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* ملخص طلب الشراء الخاص بالعميل داخل كارت الهوية */}
+          <div className="mt-5 grid grid-cols-2 gap-2.5 rounded-2xl border border-white/10 bg-white/5 p-3.5 text-xs sm:grid-cols-4">
+            <div>
+              <span className="block text-[10.5px] text-slate-300">
+                {t.summaryCashLabel}
+              </span>
+              <strong
+                dir="ltr"
+                className="mt-0.5 block text-sm font-black text-emerald-300 tabular-nums sm:text-base"
+              >
                 {bCash.toLocaleString('en-US')} {currency}
               </strong>
             </div>
             <div>
-              <span className="text-gray-400">{t.summaryInstLabel} </span>
-              <strong className="font-extrabold text-[var(--brand-navy,#0a1122)] tabular-nums">
+              <span className="block text-[10.5px] text-slate-300">
+                {t.summaryInstLabel}
+              </span>
+              <strong
+                dir="ltr"
+                className="mt-0.5 block text-sm font-black text-white tabular-nums sm:text-base"
+              >
                 {bInstallment.toLocaleString('en-US')} {currency}
+              </strong>
+            </div>
+            <div className="col-span-2 sm:col-span-2">
+              <span className="block text-[10.5px] text-slate-300">
+                {t.preferredAreasLabel}
+              </span>
+              <strong className="mt-0.5 block truncate text-xs font-extrabold text-white sm:text-sm">
+                📍 {localizedPreferredAreasNames.join(listSep)}
               </strong>
             </div>
           </div>
@@ -929,13 +1008,13 @@ export function BuyerDashboard({
 
         <section className="mt-4 rounded-[18px] border border-gray-200/80 bg-white p-3.5 shadow-2xs sm:p-5">
           <div className="relative">
-            <Search className="pointer-events-none absolute top-1/2 right-3.5 size-4 -translate-y-1/2 text-gray-400" />
+            <Search className="pointer-events-none absolute top-1/2 end-3.5 size-4 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={t.searchPlaceholder}
-              className="h-11 w-full rounded-xl border border-gray-200 bg-white pr-10 pl-3 text-xs text-[var(--brand-navy,#0a1122)] placeholder:text-gray-400 focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:text-sm"
+              className="h-11 w-full rounded-xl border border-gray-200 bg-white ps-3 pe-10 text-xs text-[var(--brand-navy,#0a1122)] placeholder:text-gray-400 focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:text-sm"
             />
           </div>
 
@@ -973,7 +1052,8 @@ export function BuyerDashboard({
               </button>
 
               <span className="text-[11px] font-medium text-gray-500 sm:text-xs">
-                {filteredUnits.length} {t.availableUnitsWord}
+                {unitsInPreferredArea.length + unitsInTrulyNearbyAreas.length}{' '}
+                {t.availableUnitsWord}
               </span>
             </div>
 
@@ -1000,29 +1080,57 @@ export function BuyerDashboard({
         </section>
       </ScrollReveal>
 
-      {filteredUnits.length === 0 ? (
+      {unitsInPreferredArea.length === 0 &&
+      unitsInTrulyNearbyAreas.length === 0 ? (
         <div className="mt-6 rounded-[20px] border border-gray-200/80 bg-white p-10 text-center shadow-2xs">
-          <p className="text-sm font-bold text-gray-600">
+          <Radar className="mx-auto mb-3 size-9 text-slate-300" />
+          <p className="text-sm font-extrabold text-[var(--brand-navy,#0a1122)]">
             {t.emptyFilteredTitle}
           </p>
-          <button
-            type="button"
-            onClick={clearAllFilters}
-            className="mt-4 rounded-xl bg-[var(--brand-primary,#007a5a)] px-6 py-2.5 text-xs font-bold text-white hover:bg-[var(--brand-primary-hover,#006248)]"
-          >
-            {t.clearFiltersBtn}
-          </button>
+          <p className="mx-auto mt-1 max-w-md text-xs text-slate-500">
+            {t.emptyNearbyHint ||
+              'لا توجد حالياً وحدات مطابقة في منطقتك المحددة أو الأحياء الملاصقة لها. يمكنك تعديل المناطق المفضلة أو تصفح كل الفرص.'}
+          </p>
+          <div className="mt-5 flex flex-wrap justify-center gap-2.5">
+            {activeFiltersCount > 0 && (
+              <button
+                type="button"
+                onClick={clearAllFilters}
+                className="rounded-xl bg-[var(--brand-primary,#007a5a)] px-5 py-2.5 text-xs font-bold text-white hover:bg-[var(--brand-primary-hover,#006248)]"
+              >
+                {t.clearFiltersBtn}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setIsEditingBudget(true)}
+              className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-xs font-bold text-[#0a1122] hover:bg-slate-50"
+            >
+              {t.editBudgetBtn}
+            </button>
+            <Link
+              href="/opportunities"
+              className="rounded-xl bg-[#0a1122] px-5 py-2.5 text-xs font-bold text-white hover:bg-[#16223f]"
+            >
+              {t.browseAllMarketBtn || 'تصفح جميع فرص السوق'}
+            </Link>
+          </div>
         </div>
       ) : (
         <>
+          {/* القسم الأول: وحدات في نفس المنطقة المطلوبة بالضبط */}
           {unitsInPreferredArea.length > 0 && (
             <section className="mt-7">
-              <h2 className="mb-4 text-start text-sm font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-base">
-                {t.preferredSectionTitle} ({bAreas.join('، ')}){' '}
-                <span className="font-normal text-gray-400">
-                  ({unitsInPreferredArea.length})
-                </span>
-              </h2>
+              <div className="mb-4 flex items-center gap-2 text-start">
+                <MapPin className="size-4 text-[var(--brand-primary,#007a5a)]" />
+                <h2 className="text-sm font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-base">
+                  {t.preferredSectionTitle} (
+                  {localizedPreferredAreasNames.join(listSep)}){' '}
+                  <span className="font-normal text-gray-400">
+                    ({unitsInPreferredArea.length})
+                  </span>
+                </h2>
+              </div>
               <div className="grid grid-cols-2 items-stretch gap-3 sm:gap-4 lg:grid-cols-3">
                 {unitsInPreferredArea.slice(0, visibleCount).map((u, idx) => (
                   <ScrollReveal key={u.id} delay={(idx % 6) * 50}>
@@ -1038,26 +1146,27 @@ export function BuyerDashboard({
             </section>
           )}
 
-          {unitsInOtherAreas.length > 0 && (
+          {/* القسم الثاني: وحدات في أحياء قريبة فعلياً داخل نفس المدينة (أقل من 20 كم) */}
+          {unitsInTrulyNearbyAreas.length > 0 && (
             <section className="mt-10 border-t border-gray-200/70 pt-8">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center justify-start gap-1.5 text-start">
-                  <Star className="size-4 fill-amber-400 text-amber-500" />
+                  <Compass className="size-4 text-[var(--brand-primary,#007a5a)]" />
                   <h2 className="text-sm font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-base">
-                    {t.otherAreasSectionTitle} ({unitsInOtherAreas.length})
+                    {t.otherAreasSectionTitle} ({unitsInTrulyNearbyAreas.length})
                   </h2>
                 </div>
 
-                {unitsInOtherAreas.length > OTHER_AREAS_PREVIEW_SIZE && (
+                {unitsInTrulyNearbyAreas.length > NEARBY_AREAS_PREVIEW_SIZE && (
                   <button
                     type="button"
-                    onClick={() => setShowAllOtherAreas((prev) => !prev)}
+                    onClick={() => setShowAllNearbyAreas((prev) => !prev)}
                     className="inline-flex items-center gap-1 text-xs font-extrabold text-[var(--brand-primary,#007a5a)] transition hover:underline"
                   >
                     <span>
-                      {showAllOtherAreas
+                      {showAllNearbyAreas
                         ? t.showLessBtn
-                        : `${t.showAllBtn} (${unitsInOtherAreas.length})`}
+                        : `${t.showAllBtn} (${unitsInTrulyNearbyAreas.length})`}
                     </span>
                     <ChevronLeft className="size-3.5" />
                   </button>
@@ -1065,9 +1174,9 @@ export function BuyerDashboard({
               </div>
 
               <div className="grid grid-cols-2 items-stretch gap-3 sm:gap-4 lg:grid-cols-3">
-                {(showAllOtherAreas
-                  ? unitsInOtherAreas
-                  : unitsInOtherAreas.slice(0, OTHER_AREAS_PREVIEW_SIZE)
+                {(showAllNearbyAreas
+                  ? unitsInTrulyNearbyAreas
+                  : unitsInTrulyNearbyAreas.slice(0, NEARBY_AREAS_PREVIEW_SIZE)
                 ).map((u, idx) => (
                   <ScrollReveal key={u.id} delay={(idx % 6) * 50}>
                     <BuyerUnitCard
@@ -1106,13 +1215,6 @@ function BuyerUnitCard({
   isLiked: boolean
   onToggleLike: () => void
 }) {
-  const matchCount =
-    (unit.isCashMatch ? 40 : 15) +
-    (unit.isInstMatch ? 25 : 10) +
-    (unit.isAreaMatch ? 20 : 5) +
-    (unit.isTypeMatch ? 12 : 5)
-  const scorePct = Math.min(98, Math.max(60, matchCount))
-
   return (
     <div className="group relative flex h-full flex-col justify-between overflow-hidden rounded-[16px] border border-gray-200/85 bg-white shadow-2xs transition hover:shadow-md sm:rounded-[18px]">
       <div>
@@ -1131,8 +1233,10 @@ function BuyerUnitCard({
             />
           </Link>
 
-          <span className="absolute top-2.5 right-2.5 rounded-full bg-[#0a1122]/90 px-2.5 py-1 text-[10px] font-black text-emerald-300 shadow-sm backdrop-blur-xs">
-            🎯 {scorePct}%
+          {/* شارة نسبة التوافق مكتوب بها "متوافق 98%" بوضوح */}
+          <span className="absolute top-2.5 right-2.5 inline-flex items-center gap-1 rounded-full bg-[#0a1122]/90 px-2.5 py-1 text-[10px] font-black text-emerald-300 shadow-sm backdrop-blur-xs">
+            <span>🎯 {t.matchScorePrefix || 'متوافق'}</span>
+            <span dir="ltr">{unit.scorePct}%</span>
           </span>
 
           <button
@@ -1209,9 +1313,10 @@ function BuyerUnitCard({
       <div className="border-t border-gray-100 px-3.5 pb-3.5 pt-2.5 sm:px-5 sm:pb-4">
         <Link
           href={`/account/offers?applyUnitId=${unit.id}`}
-          className="inline-flex h-8 w-full items-center justify-center rounded-xl bg-[var(--brand-primary,#007a5a)] px-3 text-[11px] font-extrabold text-white transition hover:bg-[var(--brand-primary-hover,#006248)] sm:h-9 sm:text-xs"
+          className="inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-xl bg-[var(--brand-primary,#007a5a)] px-3 text-[11px] font-extrabold text-white transition hover:bg-[var(--brand-primary-hover,#006248)] sm:h-9 sm:text-xs"
         >
-          {t.myOffersBtn}
+          <Sparkles className="size-3" />
+          <span>{t.makeOfferCardBtn || t.myOffersBtn}</span>
         </Link>
       </div>
     </div>

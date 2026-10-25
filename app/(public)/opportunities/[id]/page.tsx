@@ -13,13 +13,15 @@ import {
   Share2,
   Star,
 } from 'lucide-react'
-import { inferCountryFromRow } from '@/components/features/opportunities/opportunities-shared'
+import { getCurrentSellerProfileAction } from '@/actions/submit-forms'
 import {
   UnitGalleryWithLightbox,
   UnitInterestForm,
 } from '@/components/features/opportunities/unit-interest-form'
+import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
 import { ScrollReveal } from '@/components/shared/scroll-reveal'
 import { getCurrencySymbol, useTranslation } from '@/lib/i18n'
+import { isNonGeorgianLegacyArea } from '@/lib/smart-matcher'
 
 const FALLBACK_UNIT_IMAGE =
   'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=85'
@@ -30,6 +32,10 @@ export default function PropertyDetailsPage() {
   const t = dict.unitDetailsPage
   const c = dict.opportunitiesPage.card
   const filtersT = dict.opportunitiesPage.filters
+  const monthsWord =
+    (dict.sell?.reviewStep as Record<string, any>)?.monthsUnit ||
+    (t.financials as Record<string, any>)?.monthWord ||
+    t.financials.yearWord
 
   const params = useParams()
   const rawId = Array.isArray(params?.id)
@@ -43,7 +49,15 @@ export default function PropertyDetailsPage() {
   const [rawSimilarRows, setRawSimilarRows] = useState<any[]>([])
   const [sameProjectCount, setSameProjectCount] = useState<number>(0)
   const [loading, setLoading] = useState(true)
-  const [currentUserId] = useState<string | null>(null)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+
+  useEffect(() => {
+    getCurrentSellerProfileAction().then((res) => {
+      if (res.isLoggedIn && res.user?.id) {
+        setCurrentUserId(res.user.id)
+      }
+    })
+  }, [])
 
   useEffect(() => {
     if (!rawId) return
@@ -94,7 +108,7 @@ export default function PropertyDetailsPage() {
               const { count } = await supabase
                 .from('sell_requests')
                 .select('id', { count: 'exact', head: true })
-                .in('status', ['active', 'offer_received', 'transferring'])
+                .in('status', ['active', 'offer_received'])
                 .eq('area', dbUnit.area)
                 .neq('id', rawId)
 
@@ -106,16 +120,20 @@ export default function PropertyDetailsPage() {
         const { data: otherUnits } = await supabase
           .from('sell_requests')
           .select(
-            'id, project_name, area, country, country_code, unit_type, rooms, size, years_left, delivery_status, paid_amount, discount_amount, willing_to_discount, images, is_featured, featured_until'
+            'id, project_name, area, country, country_code, unit_type, rooms, size, years_left, delivery_status, delivery_month, paid_amount, discount_amount, willing_to_discount, images, is_featured, featured_until'
           )
-          .in('status', ['active', 'offer_received', 'transferring'])
+          .in('status', ['active', 'offer_received'])
           .neq('id', rawId)
           .order('is_featured', { ascending: false })
           .order('created_at', { ascending: false })
-          .limit(6)
+          .limit(12)
 
         if (otherUnits && otherUnits.length > 0) {
-          setRawSimilarRows(otherUnits)
+          setRawSimilarRows(
+            otherUnits
+              .filter((u) => !isNonGeorgianLegacyArea(u.area))
+              .slice(0, 6)
+          )
         }
       } catch (err) {
         console.error('Error loading unit details:', err)
@@ -129,30 +147,45 @@ export default function PropertyDetailsPage() {
 
   const similarDbUnits = useMemo(() => {
     return rawSimilarRows.map((u) => {
-      const uCountry = inferCountryFromRow(u)
-      const uCurrency = getCurrencySymbol(uCountry, locale)
+      const uCurrency = getCurrencySymbol('GE', locale)
       const paid = Number(u.paid_amount) || 0
       const disc = u.willing_to_discount ? Number(u.discount_amount) || 0 : 0
       const reqCash = Math.max(0, paid - disc)
-      const rawDel = String(u.delivery_status || '')
+      const rawDel = String(u.delivery_status || '').trim()
+      const isReady =
+        rawDel.includes('جاهز') ||
+        rawDel.includes('فوري') ||
+        rawDel.includes('مستلم') ||
+        rawDel.toLowerCase().includes('ready') ||
+        rawDel.includes(filtersT.deliveryStatuses[1])
+
+      const parenMatch = rawDel.match(/\(([^)]+)\)/)
       const yearMatch = rawDel.match(/20\d{2}/)
-      const delivYear = yearMatch
-        ? yearMatch[0]
-        : rawDel.includes('جاهز') || rawDel.includes(filtersT.deliveryStatuses[1])
-          ? filtersT.deliveryStatuses[1]
-          : String(new Date().getFullYear() + (Number(u.years_left) || 2))
+      const delivDisplay = isReady
+        ? filtersT.deliveryStatuses[1]
+        : parenMatch
+          ? parenMatch[1]
+          : u.delivery_month
+            ? `${u.delivery_month} ${monthsWord}`
+            : yearMatch
+              ? yearMatch[0]
+              : rawDel || filtersT.deliveryStatuses[2]
 
       const isFeat =
         Boolean(u.is_featured) &&
         (!u.featured_until || new Date(u.featured_until) > new Date())
 
+      const localizedArea = u.area
+        ? getLocalizedGeorgiaAreaName(u.area, locale)
+        : c.defaultArea
+
       return {
         id: u.id,
         name: u.project_name || c.defaultProject,
-        area: u.area || c.defaultArea,
-        specs: `${u.unit_type || c.defaultType} · ${u.rooms || 3} ${c.roomsWord} · ${
-          u.size || 150
-        } ${c.sqmUnit} · ${t.similarSection.deliveryPrefix} ${delivYear}`,
+        area: localizedArea,
+        specs: `${u.unit_type || c.defaultType} · ${u.rooms || 2} ${c.roomsWord} · ${
+          u.size || 75
+        } ${c.sqmUnit} · ${t.similarSection.deliveryPrefix} ${delivDisplay}`,
         cash: reqCash.toLocaleString('en-US'),
         currency: uCurrency,
         featured: isFeat,
@@ -162,17 +195,18 @@ export default function PropertyDetailsPage() {
             : FALLBACK_UNIT_IMAGE,
       }
     })
-  }, [rawSimilarRows, locale, c, t, filtersT])
+  }, [rawSimilarRows, locale, c, t, filtersT, monthsWord])
 
   const computedUnit = useMemo(() => {
     if (!unitRow) return null
 
     const row = unitRow
-    const country = inferCountryFromRow(row)
-    const currency = getCurrencySymbol(country, locale)
+    const currency = getCurrencySymbol('GE', locale)
 
     const projectName = row.project_name || c.defaultProject
-    const areaName = row.area || c.defaultArea
+    const areaName = row.area
+      ? getLocalizedGeorgiaAreaName(row.area, locale)
+      : c.defaultArea
     const developerName = row.developer_name || ''
     const subtitle = developerName ? `${developerName} · ${areaName}` : areaName
 
@@ -191,7 +225,7 @@ export default function PropertyDetailsPage() {
     const floor =
       row.floor_number !== null &&
       row.floor_number !== undefined &&
-      Number(row.floor_number) > 0
+      String(row.floor_number).trim() !== ''
         ? String(row.floor_number)
         : t.specs.typicalFloor
     const rooms = Number(row.rooms) || 0
@@ -199,6 +233,9 @@ export default function PropertyDetailsPage() {
     const finishing = row.finishing || t.specs.defaultFinishing
     const deliveryStatus = row.delivery_status || t.specs.defaultStatus
     const contractYear = Number(row.contract_year) || 2024
+    const contractDateFormatted = row.contract_month
+      ? `${row.contract_month}/${contractYear}`
+      : String(contractYear)
 
     const paidAmount = Number(row.paid_amount) || 0
     const contractPrice = Number(row.contract_price) || paidAmount
@@ -210,7 +247,7 @@ export default function PropertyDetailsPage() {
     const marketPrice = Number(row.market_price) || 0
     const installmentAmount = Number(row.installment_amount) || 0
     const installmentFreq = row.installment_frequency || c.defaultFreq
-    const yearsLeft = Number(row.years_left) || 0
+    const remainingInstallmentMonths = Number(row.years_left) || 0
 
     const pricePerMeter =
       size > 0 && contractPrice > 0 ? Math.round(contractPrice / size) : 0
@@ -228,15 +265,26 @@ export default function PropertyDetailsPage() {
         ? Math.max(1, Math.round((discountAmount / paidAmount) * 100))
         : 5
 
-    const yearMatch = String(deliveryStatus).match(/20\d{2}/)
-    const deliveryYear = yearMatch
-      ? yearMatch[0]
-      : String(deliveryStatus).includes('جاهز') ||
-          String(deliveryStatus).includes(filtersT.deliveryStatuses[1])
-        ? t.specs.readyForDelivery
-        : yearsLeft > 0
-          ? String(new Date().getFullYear() + Math.min(yearsLeft, 6))
-          : t.specs.soon
+    const rawDelStr = String(deliveryStatus)
+    const isReadyDelivery =
+      rawDelStr.includes('جاهز') ||
+      rawDelStr.includes('فوري') ||
+      rawDelStr.includes('مستلم') ||
+      rawDelStr.toLowerCase().includes('ready') ||
+      rawDelStr.includes(filtersT.deliveryStatuses[1])
+
+    const parenMatch = rawDelStr.match(/\(([^)]+)\)/)
+    const yearMatch = rawDelStr.match(/20\d{2}/)
+
+    const deliveryDisplay = isReadyDelivery
+      ? t.specs.readyForDelivery
+      : parenMatch
+        ? parenMatch[1]
+        : row.delivery_month
+          ? `${row.delivery_month} ${monthsWord}`
+          : yearMatch
+            ? yearMatch[0]
+            : rawDelStr || t.specs.soon
 
     const validUrls = Array.isArray(row.images)
       ? row.images.filter((img: string) => Boolean(img && img.trim()))
@@ -266,7 +314,7 @@ export default function PropertyDetailsPage() {
       },
       { label: t.specs.finishing, value: finishing },
       { label: t.specs.status, value: deliveryStatus },
-      { label: t.specs.contractYear, value: String(contractYear) },
+      { label: t.specs.contractYear, value: contractDateFormatted },
       {
         label: t.specs.pricePerMeter,
         value:
@@ -305,12 +353,12 @@ export default function PropertyDetailsPage() {
       remainingToDeveloper,
       installmentAmount,
       installmentFreq,
-      yearsLeft,
-      deliveryYear,
+      remainingInstallmentMonths,
+      deliveryYear: deliveryDisplay,
       commission,
       totalRequiredNow,
     }
-  }, [unitRow, locale, c, t, filtersT])
+  }, [unitRow, locale, c, t, filtersT, monthsWord])
 
   const copyUnitCode = () => {
     if (!computedUnit) return
@@ -359,6 +407,9 @@ export default function PropertyDetailsPage() {
   }
 
   const fin = t.financials
+  const remainingMonthsRowLabel =
+    (dict.sell?.reviewStep as Record<string, any>)?.rowRemainingMonths ||
+    fin.remainingYearsLabel
 
   return (
     <main
@@ -562,10 +613,10 @@ export default function PropertyDetailsPage() {
               </div>
 
               <div className="flex items-center justify-between px-5 py-3.5">
-                <span className="text-gray-500">{fin.remainingYearsLabel}</span>
+                <span className="text-gray-500">{remainingMonthsRowLabel}</span>
                 <strong className="font-extrabold text-[var(--brand-navy,#0a1122)]">
-                  {computedUnit.yearsLeft > 0
-                    ? `${computedUnit.yearsLeft} ${fin.yearWord}`
+                  {computedUnit.remainingInstallmentMonths > 0
+                    ? `${computedUnit.remainingInstallmentMonths} ${monthsWord}`
                     : fin.fullyPaid}
                 </strong>
               </div>

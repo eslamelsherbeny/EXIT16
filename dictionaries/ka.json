@@ -974,6 +974,16 @@
       "deliveryLabel": "ჩაბარება",
       "preferredAreasLabel": "სასურველი უბნები",
       "areaInputPlaceholder": "ჩაწერეთ უბანი...",
+      "myAccountBadge": "ჩემი ანგარიში — მყიდველის პანელი",
+"radarActiveSubtitle": "ჭკვიანი რადარი აკავშირებს თქვენს ბიუჯეტსა და უბანს აქტიურ შეთავაზებებთან",
+"offersAvailableSub": "ხელმისაწვდომი შეთავაზება",
+"noOffersSub": "თქვენი შეთავაზებები",
+"matchScorePrefix": "თავსებადი",
+"makeOfferCardBtn": "შეთავაზების გაგზავნა",
+"tagNearbyAreaMatch": "ახლომდებარე უბანი იმავე ქალაქში",
+"kmUnit": "კმ",
+"emptyNearbyHint": "თქვენს მიერ არჩეულ ან მომიჯნავე უბნებში ამჟამად შესაბამისი ქონება ვერ მოიძებნა.",
+"browseAllMarketBtn": "ყველა შეთავაზების ნახვა",
       "addAreaBtn": "დამატება",
       "savingBtn": "ინახება...",
       "saveAndViewBtn": "შენახვა",
@@ -1917,6 +1927,7 @@
       "staffLoginBtn": "თანამშრომლის შესვლა",
       "backHomeBtn": "მთავარზე დაბრუნება"
     },
+    
     "smartMatch": {
       "readyDealsTitle": "Готовые к закрытию согласованные сделки",
       "readyDealsSubtitle": "Обе стороны подтвердили цену и объект забронирован — свяжитесь с ними для оформления переуступки",
@@ -2520,5 +2531,23 @@
         "promoCancelled": "VIP სტატუსი გაუქმდა."
       }
     }
+  },
+  "smartMatcher": {
+    "cashExact": "საჭირო თანხა ჯდება თქვენს ბიუჯეტში",
+    "cashNegotiableBridge": "თავსებადია მოლაპარაკებით",
+    "cashSlightlyHigher": "მოთხოვნილი თანხა ოდნავ აღემატება ბიუჯეტს",
+    "instMatch": "განვადება შეესაბამება თქვენს ლიმიტს",
+    "instHigher": "განვადება აღემატება სასურველ ლიმიტს",
+    "areaMatch": "სასურველი უბანი",
+    "areaSameCity": "ახლომდებარე უბანი იმავე ქალაქში",
+    "areaDiff": "მდებარეობს სხვა ქალაქში",
+    "typeMatch": "ობიექტის ტიპი ემთხვევა",
+    "typeDiff": "ობიექტის ტიპი",
+    "roomsMatch": "საძინებლების რაოდენობა ემთხვევა",
+    "roomsDiff": "საძინებელი",
+    "buyerAskedRooms": "მოთხოვნა",
+    "deliveryDiff": "ჩაბარების სტატუსი",
+    "readyKeywords": ["ჩაბარებული", "მზა", "ready", "جاهز"],
+    "bothDeliveryKeywords": ["ორივე", "ნებისმიერი", "both", "الاتنين"]
   }
 }

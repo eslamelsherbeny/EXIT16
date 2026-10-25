@@ -8,6 +8,9 @@ import nodemailer from 'nodemailer'
 import { extractUserIdFromCookie } from '@/lib/session-security'
 import { getServerI18n } from '@/lib/get-server-dictionary'
 
+const DEFAULT_SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL || 'https://exit-16.vercel.app'
+
 async function getAccDict() {
   const { dict, dir } = await getServerI18n()
   const t = (dict as Record<string, any>)?.serverActions?.account || {}
@@ -23,6 +26,48 @@ async function getSupabase() {
       cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} },
     }
   )
+}
+
+async function verifyUnitOwnership(
+  supabase: any,
+  unitId: string,
+  sessionId: string
+) {
+  const [{ data: unit }, { data: user }] = await Promise.all([
+    supabase
+      .from('sell_requests')
+      .select('*')
+      .eq('id', unitId)
+      .maybeSingle(),
+    supabase
+      .from('users')
+      .select('id, email, phone, role')
+      .eq('id', sessionId)
+      .maybeSingle(),
+  ])
+
+  if (!unit || !user) return null
+
+  const isStaff =
+    user.role === 'admin' ||
+    user.role === 'moderator' ||
+    user.role === 'sales'
+  const isOwnerById = unit.user_id && unit.user_id === user.id
+  const isOwnerByEmail =
+    user.email &&
+    unit.email &&
+    String(user.email).trim().toLowerCase() ===
+      String(unit.email).trim().toLowerCase()
+  const isOwnerByPhone =
+    user.phone &&
+    unit.phone &&
+    String(user.phone).trim() === String(unit.phone).trim()
+
+  if (!isStaff && !isOwnerById && !isOwnerByEmail && !isOwnerByPhone) {
+    return null
+  }
+
+  return unit
 }
 
 async function sendAccountEmail({
@@ -247,9 +292,7 @@ export async function requestAccountDeletionAction(payload: {
 
     if (!user) return { success: false, error: msg.sessionExpired }
 
-    const siteUrl =
-      process.env.NEXT_PUBLIC_SITE_URL ||
-      'https://next-js-rtl-platform-structure.vercel.app'
+    const siteUrl = DEFAULT_SITE_URL
     const nowIso = new Date().toISOString()
 
     const { data: userUnits } = await supabase
@@ -386,11 +429,7 @@ export async function toggleSellerUnitStatusAction(payload: {
     if (!sessionId) return { success: false, error: msg.sessionExpired }
 
     const supabase = await getSupabase()
-    const { data: unit } = await supabase
-      .from('sell_requests')
-      .select('id, project_name, area, name, status')
-      .eq('id', payload.unitId)
-      .maybeSingle()
+    const unit = await verifyUnitOwnership(supabase, payload.unitId, sessionId)
 
     if (!unit) return { success: false, error: msg.unitNotFound }
 
@@ -460,11 +499,8 @@ export async function deleteUnitBySellerAction(unitId: string) {
     if (!sessionId) return { success: false, error: msg.sessionExpired }
 
     const supabase = await getSupabase()
-    const { data: unit } = await supabase
-      .from('sell_requests')
-      .select('id, project_name, area, name, status')
-      .eq('id', unitId)
-      .maybeSingle()
+    const unit = await verifyUnitOwnership(supabase, unitId, sessionId)
+    if (!unit) return { success: false, error: msg.unitNotFound }
 
     const nowIso = new Date().toISOString()
     const noteText = `${msg.deletedBySellerNote} ${new Date().toLocaleDateString('en-GB')}`
@@ -529,11 +565,7 @@ export async function saveUnitDocumentAction(payload: {
     if (!sessionId) return { success: false, error: msg.sessionExpired }
 
     const supabase = await getSupabase()
-    const { data: unit } = await supabase
-      .from('sell_requests')
-      .select('id, project_name, documents, name')
-      .eq('id', payload.unitId)
-      .maybeSingle()
+    const unit = await verifyUnitOwnership(supabase, payload.unitId, sessionId)
 
     if (!unit) return { success: false, error: msg.unitNotFound }
 
@@ -628,6 +660,9 @@ export async function updateBuyerPreferencesAction(payload: {
     const supabase = await getSupabase()
 
     const updateData = {
+      country: 'GE',
+      country_code: 'GE',
+      currency_code: 'USD',
       available_cash: Number(payload.available_cash) || 0,
       max_installment: Number(payload.max_installment) || 0,
       payment_plan: payload.payment_plan || msg.defaultMonthly,
@@ -675,14 +710,14 @@ export async function requestUnitPromotionAction(payload: {
 }) {
   const { t: msg } = await getAccDict()
   try {
+    const cookieStore = await cookies()
+    const sessionId = extractUserIdFromCookie(
+      cookieStore.get('user_session')?.value
+    )
+    if (!sessionId) return { success: false, error: msg.sessionExpired }
+
     const supabase = await getSupabase()
-    const { data: unit } = await supabase
-      .from('sell_requests')
-      .select(
-        'id, project_name, area, name, phone, status, featured_fawry_code, featured_status'
-      )
-      .eq('id', payload.unitId)
-      .maybeSingle()
+    const unit = await verifyUnitOwnership(supabase, payload.unitId, sessionId)
 
     if (!unit) return { success: false, error: msg.unitNotFound }
 
@@ -752,13 +787,7 @@ export async function cancelUnitPromotionBySellerAction(unitId: string) {
     if (!sessionId) return { success: false, error: msg.sessionExpired }
 
     const supabase = await getSupabase()
-    const { data: unit } = await supabase
-      .from('sell_requests')
-      .select(
-        'id, project_name, name, is_featured, featured_fawry_code, featured_status'
-      )
-      .eq('id', unitId)
-      .maybeSingle()
+    const unit = await verifyUnitOwnership(supabase, unitId, sessionId)
 
     if (!unit) return { success: false, error: msg.unitNotFound }
 

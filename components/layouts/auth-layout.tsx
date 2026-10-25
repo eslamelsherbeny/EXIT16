@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Script from 'next/script'
-import { Check, Loader2, ShieldCheck } from 'lucide-react'
+import { Check, Loader2 } from 'lucide-react'
 import { Navbar } from '@/components/layouts/site-shell'
 import { useTranslation } from '@/lib/i18n'
 
@@ -37,22 +37,48 @@ export function AuthCard({
   )
 }
 
+function CloudflareLogoSvg() {
+  return (
+    <svg
+      viewBox="0 0 64 28"
+      className="h-4 w-auto shrink-0"
+      aria-hidden="true"
+      fill="none"
+    >
+      <path
+        d="M44.8 19.6h3.9c2.9 0 5.2-2.2 5.2-5 0-2.6-2-4.8-4.6-5-.6-3.8-4-6.6-8-6.6-3.7 0-6.9 2.4-7.8 5.8-.7-.3-1.5-.4-2.3-.4-3.3 0-6 2.5-6.2 5.7-2.4.4-4.2 2.4-4.2 4.8 0 2.7 2.3 4.7 5.1 4.7h18.9v-4z"
+        fill="#F48120"
+      />
+      <path
+        d="M50.2 11.2c-.3 0-.6 0-.9.1-.5-2.6-2.8-4.5-5.6-4.5-2.6 0-4.8 1.7-5.5 4.1v12.7h12c2.5 0 4.5-1.9 4.5-4.3 0-2.4-2-4.4-4.5-8.1z"
+        fill="#FAAD3F"
+      />
+    </svg>
+  )
+}
+
 export function TurnstileBox({
   onTokenChange,
 }: {
   onTokenChange?: (token: string) => void
 }) {
-  const { t: dict, dir } = useTranslation()
+  const { t: dict, locale, dir } = useTranslation()
   const t = dict.authPages.common
-  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ''
+  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim() || ''
   const containerRef = useRef<HTMLDivElement>(null)
-  const [token, setToken] = useState<string>(siteKey ? '' : 'dev-bypass-token')
-  const [widgetLoaded, setWidgetLoaded] = useState<boolean>(!siteKey)
+
+  const [token, setToken] = useState<string>('')
+  const [status, setStatus] = useState<'verifying' | 'verified'>('verifying')
 
   useEffect(() => {
     if (!siteKey) {
-      onTokenChange?.('dev-bypass-token')
-      return
+      setStatus('verifying')
+      const timer = setTimeout(() => {
+        setToken('dev-bypass-token')
+        setStatus('verified')
+        onTokenChange?.('dev-bypass-token')
+      }, 550)
+      return () => clearTimeout(timer)
     }
 
     let widgetId: string | undefined
@@ -67,22 +93,23 @@ export function TurnstileBox({
           sitekey: siteKey,
           theme: 'light',
           size: 'flexible',
+          language: locale,
           callback: (tk: string) => {
             setToken(tk)
-            setWidgetLoaded(true)
+            setStatus('verified')
             onTokenChange?.(tk)
           },
           'expired-callback': () => {
             setToken('')
+            setStatus('verifying')
             onTokenChange?.('')
           },
         })
-        setWidgetLoaded(true)
       }
     }
 
     renderWidget()
-    const timer = setInterval(renderWidget, 400)
+    const timer = setInterval(renderWidget, 350)
     return () => {
       clearInterval(timer)
       if (
@@ -95,59 +122,71 @@ export function TurnstileBox({
         } catch {}
       }
     }
-  }, [siteKey, onTokenChange])
+  }, [siteKey, locale, onTokenChange])
 
   if (siteKey) {
     return (
-      <div className="my-1.5 flex w-full flex-col items-center justify-center">
+      <div className="my-1 flex w-full flex-col items-center justify-center">
         <Script
           src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
           strategy="afterInteractive"
         />
-        {!widgetLoaded && (
-          <div className="flex h-[65px] w-full max-w-[300px] items-center justify-center gap-2 rounded-xl border border-slate-200/80 bg-[#fafafa] text-xs font-semibold text-slate-500">
-            <Loader2 className="size-4 animate-spin text-[#007a5a]" />
-            <span>{t.turnstileText}</span>
-          </div>
-        )}
         <div
           ref={containerRef}
-          className="flex w-full max-w-full items-center justify-center overflow-hidden [&_iframe]:max-w-full"
+          className="flex min-h-[65px] w-full items-center justify-center overflow-hidden rounded-xl border border-slate-200/90 bg-[#fafafa] [&_iframe]:!w-full [&_iframe]:max-w-full"
         />
-        <input type="hidden" name="cf_turnstile_response" value={token} />
+        <input
+          type="hidden"
+          name="cf_turnstile_response"
+          value={token}
+          required
+        />
       </div>
     )
   }
 
   return (
-    <div className="my-1.5 flex w-full justify-center">
+    <div className="my-1 w-full">
       <div
         dir={dir}
-        className="flex h-[58px] w-full max-w-[300px] items-center justify-between gap-3 rounded-xl border border-slate-200/90 bg-[#fafafa] px-3.5 text-xs shadow-2xs select-none"
+        className="flex h-[64px] w-full items-center justify-between gap-3 rounded-xl border border-slate-200/95 bg-[#fafafa] px-4 shadow-2xs transition-colors select-none"
         aria-label="Cloudflare Turnstile"
       >
         <input
           type="hidden"
           name="cf_turnstile_response"
-          value="dev-bypass-token"
+          value={token || 'dev-bypass-token'}
         />
-        <div className="flex min-w-0 items-center gap-2.5">
-          <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
-            <Check className="size-3.5 stroke-[3]" />
-          </span>
-          <span className="truncate font-bold text-slate-700">
+
+        <div className="flex min-w-0 items-center gap-3">
+          {status === 'verifying' ? (
+            <span className="flex size-6 shrink-0 items-center justify-center rounded-md border border-slate-300 bg-white">
+              <Loader2 className="size-4 animate-spin text-[#007a5a]" />
+            </span>
+          ) : (
+            <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-[#007a5a] text-white shadow-2xs transition-transform duration-200">
+              <Check className="size-3.5 stroke-[3]" />
+            </span>
+          )}
+
+          <span className="truncate text-xs font-bold text-slate-700 sm:text-[13px]">
             {t.turnstileText}
           </span>
         </div>
+
         <div
           dir="ltr"
-          className="shrink-0 text-right font-sans text-[9.5px] leading-tight text-[#8b8b91]"
+          className="flex shrink-0 flex-col items-end justify-center text-right font-sans"
         >
-          <div className="flex items-center justify-end gap-1 font-extrabold text-slate-700">
-            <ShieldCheck className="size-3 text-[#f48120]" />
-            <span>CLOUDFLARE</span>
+          <div className="flex items-center gap-1">
+            <CloudflareLogoSvg />
+            <span className="text-[10px] font-black tracking-tight text-slate-800">
+              CLOUDFLARE
+            </span>
           </div>
-          <span>Turnstile</span>
+          <span className="text-[8.5px] font-medium text-slate-400">
+            Turnstile • Privacy
+          </span>
         </div>
       </div>
     </div>

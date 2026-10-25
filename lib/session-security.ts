@@ -1,6 +1,6 @@
-import { createHash, createHmac } from 'node:crypto'
+import { createHash, createHmac, timingSafeEqual } from 'node:crypto'
 
-function getSessionSecret() {
+function getSessionSecret(): string {
   return (
     process.env.SESSION_SECRET ||
     process.env.EMAIL_PASS ||
@@ -9,7 +9,9 @@ function getSessionSecret() {
   )
 }
 
-export function getPasswordFingerprint(passwordHash: string | null | undefined) {
+export function getPasswordFingerprint(
+  passwordHash: string | null | undefined
+): string {
   return createHash('sha256')
     .update(String(passwordHash || 'no-pass'))
     .digest('hex')
@@ -20,8 +22,9 @@ export function createSignedSessionToken(
   userId: string,
   passwordHash: string | null | undefined
 ): string {
+  const cleanUserId = String(userId || '').trim()
   const pwdFp = getPasswordFingerprint(passwordHash)
-  const payload = `${userId}.${pwdFp}`
+  const payload = `${cleanUserId}.${pwdFp}`
   const sig = createHmac('sha256', getSessionSecret())
     .update(payload)
     .digest('hex')
@@ -29,41 +32,57 @@ export function createSignedSessionToken(
   return `${payload}.${sig}`
 }
 
-// دالة تستخرج الـ ID الصافي للمستخدم سواء كانت الكوكي قديمة أو مشفرة جديدة
-export function extractUserIdFromCookie(rawCookie: string | undefined | null): string | null {
+export function extractUserIdFromCookie(
+  rawCookie: string | undefined | null
+): string | null {
   if (!rawCookie) return null
   const clean = rawCookie.trim()
   if (!clean || clean.includes('[object')) return null
-  return clean.split('.')[0] || null
+  const candidate = clean.split('.')[0]?.trim() || null
+  // التحقق من أن المعرف يتبع صيغة UUID أو نص آمن لمنع أي حقن
+  if (!candidate || candidate.length < 8 || candidate.length > 64) return null
+  return candidate
 }
 
 export function parseAndVerifySessionCookie(
-  rawCookie: string | undefined,
+  rawCookie: string | undefined | null,
   currentDbPasswordHash: string | null | undefined
 ): { valid: boolean; userId: string | null } {
   if (!rawCookie || rawCookie.includes('[object')) {
     return { valid: false, userId: null }
   }
 
-  const parts = rawCookie.split('.')
-  if (parts.length === 3) {
-    const [userId, cookiePwdFp, sig] = parts
-    const expectedSig = createHmac('sha256', getSessionSecret())
-      .update(`${userId}.${cookiePwdFp}`)
-      .digest('hex')
-      .slice(0, 24)
-
-    if (sig !== expectedSig) {
-      return { valid: false, userId: null }
-    }
-
-    const dbPwdFp = getPasswordFingerprint(currentDbPasswordHash)
-    if (cookiePwdFp !== dbPwdFp) {
-      return { valid: false, userId: null }
-    }
-
-    return { valid: true, userId }
+  const parts = rawCookie.trim().split('.')
+  // إغلاق ثغرة التزوير: يجب أن تتكون الكوكي دائماً من 3 أجزاء موقعة (userId.pwdFp.signature)
+  if (parts.length !== 3) {
+    return { valid: false, userId: null }
   }
 
-  return { valid: true, userId: rawCookie }
+  const [userId, cookiePwdFp, sig] = parts
+  if (!userId || !cookiePwdFp || !sig) {
+    return { valid: false, userId: null }
+  }
+
+  const expectedSig = createHmac('sha256', getSessionSecret())
+    .update(`${userId}.${cookiePwdFp}`)
+    .digest('hex')
+    .slice(0, 24)
+
+  try {
+    if (
+      sig.length !== expectedSig.length ||
+      !timingSafeEqual(Buffer.from(sig), Buffer.from(expectedSig))
+    ) {
+      return { valid: false, userId: null }
+    }
+  } catch {
+    return { valid: false, userId: null }
+  }
+
+  const dbPwdFp = getPasswordFingerprint(currentDbPasswordHash)
+  if (cookiePwdFp !== dbPwdFp) {
+    return { valid: false, userId: null }
+  }
+
+  return { valid: true, userId }
 }

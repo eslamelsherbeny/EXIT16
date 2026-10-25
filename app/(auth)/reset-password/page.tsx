@@ -4,7 +4,11 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Loader2 } from 'lucide-react'
-import { AuthCard, AuthLayout } from '@/components/layouts/auth-layout'
+import {
+  AuthCard,
+  AuthLayout,
+  TurnstileBox,
+} from '@/components/layouts/auth-layout'
 import { forgotPasswordAction } from '@/actions/auth-actions'
 import { useTranslation } from '@/lib/i18n'
 
@@ -73,6 +77,8 @@ export default function ResetPasswordPage() {
                 placeholder="name@example.com"
               />
             </div>
+
+            <TurnstileBox />
 
             <button
               type="submit"

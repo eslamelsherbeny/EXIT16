@@ -9,7 +9,10 @@ import { AccountViewSwitcher } from '@/components/features/account/account-view-
 import { AccountTopBar } from '@/components/features/account/account-top-bar'
 import { ScrollReveal } from '@/components/shared/scroll-reveal'
 import { getServerI18n } from '@/lib/get-server-dictionary'
-import { extractUserIdFromCookie } from '@/lib/session-security'
+import {
+  extractUserIdFromCookie,
+  parseAndVerifySessionCookie,
+} from '@/lib/session-security'
 import {
   calculateSmartMatch,
   isNonGeorgianLegacyArea,
@@ -39,7 +42,7 @@ export default async function AccountPage({
   const rawSession = cookieStore.get('user_session')?.value
   const sessionId = extractUserIdFromCookie(rawSession)
 
-  if (!sessionId) {
+  if (!rawSession || !sessionId) {
     redirect('/login')
   }
 
@@ -52,6 +55,17 @@ export default async function AccountPage({
     .maybeSingle()
 
   if (!profile) {
+    redirect('/login')
+  }
+
+  // التحقق الأمني الصارم من التوقيع المشفر للكوكي وعدم إيقاف الحساب
+  const sessionCheck = parseAndVerifySessionCookie(
+    rawSession,
+    profile.password_hash
+  )
+  const userStatus = String(profile.status || 'active').trim().toLowerCase()
+
+  if (!sessionCheck.valid || userStatus === 'suspended') {
     redirect('/login')
   }
 
@@ -70,6 +84,7 @@ export default async function AccountPage({
     supabase
       .from('sell_requests')
       .select('*')
+      .neq('status', 'deleted_by_seller')
       .order('created_at', { ascending: false }),
     supabase
       .from('buy_requests')
@@ -104,9 +119,9 @@ export default async function AccountPage({
       (cleanPhone && String(b.phone || '').trim() === cleanPhone)
   )
 
-  const georgiaMarketUnits = ((activeMarketUnits as SellerUnitItem[]) || []).filter(
-    (u) => !isNonGeorgianLegacyArea(u.area)
-  )
+  const georgiaMarketUnits = (
+    (activeMarketUnits as SellerUnitItem[]) || []
+  ).filter((u) => !isNonGeorgianLegacyArea(u.area))
 
   const offersCountMap: Record<string, number> = {}
   ;(allOffers || []).forEach((o: any) => {
@@ -115,7 +130,6 @@ export default async function AccountPage({
     }
   })
 
-  // حساب عدد العروض والترشيحات المتاحة للمشتري ليظهر على زر "عروضي"
   const myLeadIds = new Set(buys.map((b) => b.id))
   const myUnitIds = new Set(sells.map((s) => s.id))
   const directBuyerOffers = (allOffers || []).filter(

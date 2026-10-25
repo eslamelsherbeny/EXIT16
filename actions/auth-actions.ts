@@ -59,8 +59,14 @@ function sanitizeInput(val: unknown, maxLength = 250): string {
 
 async function verifyTurnstileOnServer(token?: string | null): Promise<boolean> {
   const secretKey = process.env.TURNSTILE_SECRET_KEY?.trim()
-  if (!secretKey) return true
-  if (!token || token === 'dev-bypass-token') return false
+  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim()
+
+  // إذا لم يتم تفعيل مفاتيح Cloudflare في البيئة الحالية، نسمح بالمرور
+  if (!secretKey || !siteKey) return true
+  if (!token) return false
+  if (token === 'dev-bypass-token') {
+    return process.env.NODE_ENV !== 'production'
+  }
 
   try {
     const formData = new URLSearchParams()
@@ -77,7 +83,7 @@ async function verifyTurnstileOnServer(token?: string | null): Promise<boolean> 
     const data = await res.json()
     return Boolean(data.success)
   } catch {
-    return true
+    return false
   }
 }
 
@@ -516,6 +522,14 @@ export async function forgotPasswordAction(
   formData: FormData
 ): Promise<AuthResult> {
   const { t: msg, dir } = await getAuthDict()
+  const turnstileToken = formData.get('cf_turnstile_response') as string | null
+  if (turnstileToken !== null) {
+    const isHuman = await verifyTurnstileOnServer(turnstileToken)
+    if (!isHuman) {
+      return { success: false, error: msg.turnstile }
+    }
+  }
+
   const email = normalizeEmail(String(formData.get('email') || ''))
 
   if (!email) {
@@ -690,7 +704,9 @@ export async function verifyAccountAction(
   const { t: msg } = await getAuthDict()
   const cleanEmail = normalizeEmail(email)
   const cleanToken = sanitizeInput(token, 100)
-  if (!cleanEmail) return { success: false, error: msg.invalidLink }
+  if (!cleanEmail || !cleanToken) {
+    return { success: false, error: msg.invalidLink }
+  }
 
   const supabase = await getSupabase()
   const { data: users } = await supabase
@@ -707,7 +723,8 @@ export async function verifyAccountAction(
     return { success: true }
   }
 
-  if (user.otp_code && cleanToken && String(user.otp_code).trim() !== cleanToken) {
+  // إغلاق ثغرة التوثيق بدون توكن: اشتراط مطابقة التوكن المخزن
+  if (!user.otp_code || String(user.otp_code).trim() !== cleanToken) {
     return { success: false, error: msg.invalidLink }
   }
 

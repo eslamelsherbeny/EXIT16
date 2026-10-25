@@ -10,6 +10,7 @@ import {
   Globe,
   Loader2,
   Mail,
+  Percent,
   Power,
   Save,
   ShieldCheck,
@@ -41,6 +42,8 @@ type SiteSettings = {
   whatsappNumber: string
   supportEmail: string
   buyerCommission: string
+  developerPenaltyMin?: string
+  developerPenaltyMax?: string
   promo7Price?: string
   promo14Price?: string
   promo30Price?: string
@@ -72,7 +75,7 @@ export default function SettingsClient({
 }) {
   const router = useRouter()
   const { t: dict, dir } = useTranslation()
-  const t = dict.admin.settings
+  const t = dict.admin.settings as Record<string, any>
 
   const [activeTab, setActiveTab] = useState<"general" | "system">(initialTab)
 
@@ -240,17 +243,68 @@ export default function SettingsClient({
                   />
                 </div>
 
-                <div>
-                  <label className="mb-1 block font-bold text-[#0a1122]">
-                    {t.commissionLabel}
-                  </label>
-                  <input
-                    name="buyerCommission"
-                    type="number"
-                    step="0.05"
-                    defaultValue={initialSettings.buyerCommission}
-                    className="h-9 w-full rounded-lg border border-gray-200 px-3 text-xs font-bold focus:border-[#105C50] focus:outline-none"
-                  />
+                {/* نسب العمولة وخصم المطور عند فسخ العقد */}
+                <div className="rounded-xl border border-emerald-200/80 bg-emerald-50/40 p-3.5">
+                  <div className="mb-2.5 flex items-center gap-1.5 text-xs font-extrabold text-[#0a1122]">
+                    <Percent className="size-3.5 text-[#105C50]" />
+                    <span>
+                      {t.financialRatesTitle ||
+                        "نسب العمولة وخصم استرجاع المطور (%)"}
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-[11px] font-bold text-[#0a1122]">
+                      {t.commissionLabel}
+                    </label>
+                    <input
+                      name="buyerCommission"
+                      type="number"
+                      step="0.05"
+                      min="0"
+                      max="25"
+                      dir="ltr"
+                      defaultValue={initialSettings.buyerCommission || "1.25"}
+                      className="h-9 w-full rounded-lg border border-gray-200 bg-white px-3 text-left text-xs font-bold focus:border-[#105C50] focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="mb-1 block text-[10.5px] font-bold text-gray-700">
+                        {t.devPenaltyMinLabel || "أقل خصم للمطور عند الفسخ (%)"}
+                      </label>
+                      <input
+                        name="developerPenaltyMin"
+                        type="number"
+                        step="0.5"
+                        min="0"
+                        max="50"
+                        dir="ltr"
+                        defaultValue={
+                          initialSettings.developerPenaltyMin || "10"
+                        }
+                        className="h-8 w-full rounded-lg border border-gray-200 bg-white px-2.5 text-left text-xs font-bold focus:border-[#105C50] focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-[10.5px] font-bold text-gray-700">
+                        {t.devPenaltyMaxLabel || "أقصى خصم للمطور عند الفسخ (%)"}
+                      </label>
+                      <input
+                        name="developerPenaltyMax"
+                        type="number"
+                        step="0.5"
+                        min="0"
+                        max="50"
+                        dir="ltr"
+                        defaultValue={
+                          initialSettings.developerPenaltyMax || "15"
+                        }
+                        className="h-8 w-full rounded-lg border border-gray-200 bg-white px-2.5 text-left text-xs font-bold focus:border-[#105C50] focus:outline-none"
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 {/* أسعار باقات الترويج في جورجيا ($) */}
@@ -549,15 +603,3 @@ export default function SettingsClient({
     </div>
   )
 }
-
-/* ============================================================================
-   ARCHIVED MULTI-COUNTRY PROMO PRICING TABS (COMMENTED FOR FUTURE REFERENCE)
-   ============================================================================
-   const pricingCountries = [
-     { code: "EG" as const, name: t.countries.EG, flag: "🇪🇬" },
-     { code: "RU" as const, name: t.countries.RU, flag: "🇷🇺" },
-     { code: "GE" as const, name: t.countries.GE, flag: "🇬🇪" },
-     { code: "AE" as const, name: t.countries.AE, flag: "🇦🇪" },
-   ]
-   const [selectedPricingCountry, setSelectedPricingCountry] = useState<"EG" | "RU" | "GE" | "AE">("GE")
-============================================================================ */

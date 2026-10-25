@@ -855,7 +855,10 @@ export async function saveSiteSettingsAction(formData: FormData) {
       12
     )
 
-    const settingsPayload: GlobalSiteSettings = {
+    const settingsPayload: GlobalSiteSettings & {
+      developerPenaltyMin?: string
+      developerPenaltyMax?: string
+    } = {
       siteName: sanitizeText(formData.get("siteName") || "Aqar Exit", 80),
       whatsappNumber: sanitizeText(
         formData.get("whatsappNumber") || "+201018595959",
@@ -867,6 +870,14 @@ export async function saveSiteSettingsAction(formData: FormData) {
       ),
       buyerCommission: sanitizeText(
         formData.get("buyerCommission") || "1.25",
+        10
+      ),
+      developerPenaltyMin: sanitizeText(
+        formData.get("developerPenaltyMin") || "10",
+        10
+      ),
+      developerPenaltyMax: sanitizeText(
+        formData.get("developerPenaltyMax") || "15",
         10
       ),
       promo7Price: ge7,
@@ -923,7 +934,6 @@ export async function saveSiteSettingsAction(formData: FormData) {
     }
   }
 }
-
 export async function managePropertyPromotionAction(
   propertyId: string,
   action: "activate" | "cancel",

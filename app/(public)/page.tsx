@@ -1,17 +1,11 @@
 import Link from 'next/link'
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
-import {
-  Bell,
-  Check,
-  CheckSquare,
-  Home,
-  ShieldCheck,
-  Zap,
-} from 'lucide-react'
+import { Check, ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ScrollReveal } from '@/components/shared/scroll-reveal'
 import { getServerI18n } from '@/lib/get-server-dictionary'
+import { isNonGeorgianLegacyArea } from '@/lib/smart-matcher'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -30,8 +24,7 @@ async function getSupabase() {
 const CONTAINER_CLS = 'mx-auto w-full max-w-[1280px] px-4 sm:px-6 lg:px-8'
 
 export default async function HomePage() {
-  const { dict, country: activeCountryCode, dir, currency: currencySymbol } =
-    await getServerI18n()
+  const { dict, dir, currency: currencySymbol } = await getServerI18n()
   const t = dict.home
 
   let realUnitCount = 0
@@ -41,18 +34,16 @@ export default async function HomePage() {
     const supabase = await getSupabase()
     const { data: units } = await supabase
       .from('sell_requests')
-      .select('status, country_code, market_price, contract_price, paid_amount')
-      .neq('status', 'rejected')
-      .neq('status', 'deleted_by_seller')
+      .select('status, area, country_code, market_price, contract_price, paid_amount')
+      .in('status', ['active', 'offer_received'])
 
     if (units && units.length > 0) {
-      const countryUnits = units.filter((u: any) => {
-        const uCountry = (u.country_code || 'EG').toUpperCase()
-        return uCountry === activeCountryCode
-      })
+      const georgiaUnits = units.filter(
+        (u: any) => !isNonGeorgianLegacyArea(u.area)
+      )
 
-      realUnitCount = countryUnits.length
-      totalMarketValue = countryUnits.reduce((sum, u) => {
+      realUnitCount = georgiaUnits.length
+      totalMarketValue = georgiaUnits.reduce((sum, u) => {
         const unitVal =
           Number(u.market_price) ||
           Number(u.contract_price) ||
@@ -72,12 +63,12 @@ export default async function HomePage() {
     formattedValue = (totalMarketValue / 1_000_000_000).toLocaleString('en-US', {
       maximumFractionDigits: 2,
     })
-    valueUnitLabel = `${t?.stats?.billion || 'مليار'} ${currencySymbol}`
+    valueUnitLabel = `${t?.stats?.billion || 'B'} ${currencySymbol}`
   } else if (totalMarketValue >= 1_000_000) {
     formattedValue = (totalMarketValue / 1_000_000).toLocaleString('en-US', {
       maximumFractionDigits: 1,
     })
-    valueUnitLabel = `${t?.stats?.million || 'مليون'} ${currencySymbol}`
+    valueUnitLabel = `${t?.stats?.million || 'M'} ${currencySymbol}`
   } else {
     formattedValue = totalMarketValue.toLocaleString('en-US')
     valueUnitLabel = currencySymbol
@@ -97,8 +88,9 @@ export default async function HomePage() {
         <div className="pointer-events-none absolute -bottom-40 -left-32 size-[28rem] rounded-full bg-teal-500/10 blur-[120px] sm:size-[38rem]" />
         <div className="pointer-events-none absolute -top-32 right-[15%] size-[24rem] rounded-full bg-blue-500/10 blur-[120px] sm:size-[32rem]" />
 
-        {/* نفس الحاوية والـ Padding بالضبط مثل الهيدر */}
-        <div className={`relative ${CONTAINER_CLS} grid grid-cols-1 items-center gap-12 py-12 md:py-16 lg:grid-cols-[1.15fr_0.85fr] lg:gap-16 lg:py-20`}>
+        <div
+          className={`relative ${CONTAINER_CLS} grid grid-cols-1 items-center gap-12 py-12 md:py-16 lg:grid-cols-[1.15fr_0.85fr] lg:gap-16 lg:py-20`}
+        >
           <ScrollReveal className="text-start">
             <span className="mb-6 inline-block rounded-full border border-white/10 bg-[#132230] px-4 py-1.5 text-[11px] font-semibold text-[#2dd4a8] sm:text-xs">
               {t?.hero?.badge}
@@ -141,8 +133,10 @@ export default async function HomePage() {
             </div>
           </ScrollReveal>
 
-          {/* العمود الثاني: بطاقات المقارنة */}
-          <ScrollReveal delay={120} className="relative mx-auto flex w-full max-w-[460px] flex-col items-center gap-4 lg:me-0">
+          <ScrollReveal
+            delay={120}
+            className="relative mx-auto flex w-full max-w-[460px] flex-col items-center gap-4 lg:me-0"
+          >
             <div className="w-full rounded-[20px] border border-white/10 bg-[#162032]/90 p-5 text-white shadow-xl backdrop-blur-sm sm:p-6">
               <div className="flex items-center justify-start gap-3">
                 <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-[#3a1d2b] text-xs font-bold text-[#ff5a65]">
@@ -366,7 +360,10 @@ export default async function HomePage() {
             </p>
           </ScrollReveal>
 
-          <ScrollReveal delay={80} className="mt-8 overflow-hidden rounded-[18px] border border-gray-200/90 shadow-sm sm:mt-10">
+          <ScrollReveal
+            delay={80}
+            className="mt-8 overflow-hidden rounded-[18px] border border-gray-200/90 shadow-sm sm:mt-10"
+          >
             <div className="grid grid-cols-[74px_1fr_1.1fr] text-start text-[11px] font-bold sm:grid-cols-[120px_1fr_1fr] sm:text-xs md:grid-cols-[140px_1fr_1fr] md:text-sm">
               <div className="flex items-center bg-[#f4f5f7] px-2.5 py-3 text-[10px] font-extrabold text-gray-400 sm:p-4 sm:text-xs">
                 {t?.comparison?.colCriterion}
@@ -580,10 +577,9 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ==================== 8. القسم الداكن المزدوج (اعرف موقفك + التطبيق) ==================== */}
-      <section className="relative overflow-hidden bg-[var(--brand-navy,#0a1122)] py-16 text-white sm:py-24">
+      {/* ==================== 8. بانر حاسبة الخروج الآمن ==================== */}
+      <section className="relative overflow-hidden bg-[var(--brand-navy,#0a1122)] py-16 text-white sm:py-20">
         <div className="pointer-events-none absolute left-1/2 top-10 size-[28rem] -translate-x-1/2 rounded-full bg-teal-500/10 blur-[130px]" />
-        <div className="pointer-events-none absolute left-[15%] bottom-0 size-[30rem] rounded-full bg-teal-500/10 blur-[140px]" />
 
         <div className={`relative ${CONTAINER_CLS}`}>
           <ScrollReveal className="mx-auto max-w-xl text-center">
@@ -594,7 +590,6 @@ export default async function HomePage() {
               {t?.calculatorBanner?.subtitle}
             </p>
             <div className="mt-7">
-              {/* يوجه مباشرة لحاسبة الخروج الآمن (/calculator) كما في الموقع الأصلي */}
               <Button
                 size="lg"
                 className="h-12 rounded-[10px] bg-[var(--brand-primary,#007a5a)] px-8 text-sm font-bold text-white hover:bg-[var(--brand-primary-hover,#006248)] sm:text-base"
@@ -604,130 +599,6 @@ export default async function HomePage() {
               </Button>
             </div>
           </ScrollReveal>
-
-          <div className="mt-20 grid grid-cols-1 items-center gap-12 md:mt-28 md:grid-cols-2 lg:gap-16">
-            <ScrollReveal className="text-start">
-              <span className="inline-block rounded-full border border-teal-500/30 bg-teal-500/10 px-4 py-1 text-xs font-bold text-[var(--brand-accent,#2ee59d)]">
-                {t?.app?.badge}
-              </span>
-              <h2 className="mt-4 text-3xl font-extrabold text-white sm:text-4xl">
-                {t?.app?.title}
-              </h2>
-              <p className="mt-4 max-w-md text-xs leading-[1.9] text-gray-300/85 sm:text-sm md:text-base">
-                {t?.app?.description}
-              </p>
-
-              <ul className="mt-7 space-y-4">
-                <li className="flex items-center gap-3 text-xs font-medium text-gray-200 sm:text-sm">
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full border border-teal-500/20 bg-teal-500/10 text-[var(--brand-accent,#2ee59d)]">
-                    <Bell className="size-4" />
-                  </span>
-                  <span>{t?.app?.point1}</span>
-                </li>
-                <li className="flex items-center gap-3 text-xs font-medium text-gray-200 sm:text-sm">
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full border border-teal-500/20 bg-teal-500/10 text-[var(--brand-accent,#2ee59d)]">
-                    <Zap className="size-4" />
-                  </span>
-                  <span>{t?.app?.point2}</span>
-                </li>
-                <li className="flex items-center gap-3 text-xs font-medium text-gray-200 sm:text-sm">
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full border border-teal-500/20 bg-teal-500/10 text-[var(--brand-accent,#2ee59d)]">
-                    <CheckSquare className="size-4" />
-                  </span>
-                  <span>{t?.app?.point3}</span>
-                </li>
-              </ul>
-
-              <div className="mt-8 flex flex-wrap items-center justify-start gap-3">
-                <a
-                  href="#app-store"
-                  className="flex items-center gap-3 rounded-xl border border-white/15 bg-black px-5 py-2.5 text-white transition hover:bg-white/5"
-                >
-                  <div className="text-start">
-                    <span className="block text-[9px] text-gray-400">
-                      {t?.app?.downloadFrom}
-                    </span>
-                    <span className="block text-sm font-bold leading-tight">
-                      App Store
-                    </span>
-                  </div>
-                  <svg className="size-6 fill-current" viewBox="0 0 24 24">
-                    <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.33c.64-.78 1.08-1.86.96-2.94-.93.04-2.06.62-2.72 1.4-.58.68-1.1 1.79-.96 2.84 1.04.08 2.08-.52 2.72-1.3z" />
-                  </svg>
-                </a>
-
-                <a
-                  href="#google-play"
-                  className="flex items-center gap-3 rounded-xl border border-white/15 bg-black px-5 py-2.5 text-white transition hover:bg-white/5"
-                >
-                  <div className="text-start">
-                    <span className="block text-[9px] text-gray-400">
-                      {t?.app?.availableOn}
-                    </span>
-                    <span className="block text-sm font-bold leading-tight">
-                      Google Play
-                    </span>
-                  </div>
-                  <svg className="size-6" viewBox="0 0 24 24">
-                    <path
-                      fill="#4285F4"
-                      d="M3.61 1.814L13.793 12 3.61 22.186a1.96 1.96 0 0 1-.61-1.42V3.234c0-.55.23-1.05.61-1.42z"
-                    />
-                    <path
-                      fill="#34A853"
-                      d="M17.22 8.573L13.793 12 3.61 1.814c.42-.4.99-.53 1.56-.21l12.05 6.97z"
-                    />
-                    <path
-                      fill="#FBBC05"
-                      d="M20.635 10.548c.98.57.98 1.98 0 2.55l-3.415 1.975L13.793 12l3.427-3.427 3.415 1.975z"
-                    />
-                    <path
-                      fill="#EA4335"
-                      d="M17.22 15.427L5.17 22.396c-.57.32-1.14.19-1.56-.21L13.793 12l3.427 3.427z"
-                    />
-                  </svg>
-                </a>
-              </div>
-            </ScrollReveal>
-
-            <ScrollReveal delay={140} className="hidden justify-center md:flex">
-              <div className="w-[270px] -rotate-3 rounded-[40px] border-[6px] border-[#1c283c] bg-[#0b1323] p-4 shadow-2xl transition-transform duration-300 hover:rotate-0 sm:w-[300px]">
-                <div className="mx-auto mb-4 h-4 w-24 rounded-full bg-black" />
-
-                <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-[#131f33] p-3.5 text-start shadow-md">
-                  <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-teal-500/15 text-[var(--brand-accent,#2ee59d)]">
-                    <Home className="size-4" />
-                  </span>
-                  <div className="mx-2.5 flex-1">
-                    <p className="text-[11px] font-bold text-white">
-                      {t?.app?.mockNotifTitle}
-                    </p>
-                    <p className="mt-0.5 text-[9px] text-gray-400">
-                      {t?.app?.mockNotifSub}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-3 rounded-2xl border border-white/5 bg-[#101b2d] p-3">
-                  <div className="h-20 w-full rounded-xl bg-gradient-to-b from-teal-900/35 to-teal-950/15" />
-                  <div className="mt-3 h-2.5 w-3/4 rounded-full bg-white/10" />
-                  <div className="mt-2 h-2 w-1/2 rounded-full bg-white/5" />
-                  <div className="mt-3 flex justify-end">
-                    <div className="h-4 w-14 rounded-md bg-teal-500/20" />
-                  </div>
-                </div>
-
-                <div className="mt-3 rounded-2xl border border-white/5 bg-[#101b2d] p-3">
-                  <div className="h-20 w-full rounded-xl bg-gradient-to-b from-[#17263c] to-[#101b2d]" />
-                  <div className="mt-3 h-2.5 w-2/3 rounded-full bg-white/10" />
-                  <div className="mt-2 h-2 w-2/5 rounded-full bg-white/5" />
-                  <div className="mt-3 flex justify-end">
-                    <div className="h-4 w-14 rounded-md bg-teal-500/20" />
-                  </div>
-                </div>
-              </div>
-            </ScrollReveal>
-          </div>
         </div>
       </section>
 
@@ -783,3 +654,48 @@ export default async function HomePage() {
     </div>
   )
 }
+
+/* ============================================================================
+   ARCHIVED MOBILE APP SHOWCASE SECTION (COMMENTED FOR FUTURE USE WHEN APP IS READY)
+   ============================================================================
+          <div className="mt-20 grid grid-cols-1 items-center gap-12 md:mt-28 md:grid-cols-2 lg:gap-16">
+            <ScrollReveal className="text-start">
+              <span className="inline-block rounded-full border border-teal-500/30 bg-teal-500/10 px-4 py-1 text-xs font-bold text-[var(--brand-accent,#2ee59d)]">
+                {t?.app?.badge}
+              </span>
+              <h2 className="mt-4 text-3xl font-extrabold text-white sm:text-4xl">
+                {t?.app?.title}
+              </h2>
+              <p className="mt-4 max-w-md text-xs leading-[1.9] text-gray-300/85 sm:text-sm md:text-base">
+                {t?.app?.description}
+              </p>
+
+              <ul className="mt-7 space-y-4">
+                <li className="flex items-center gap-3 text-xs font-medium text-gray-200 sm:text-sm">
+                  <span>{t?.app?.point1}</span>
+                </li>
+                <li className="flex items-center gap-3 text-xs font-medium text-gray-200 sm:text-sm">
+                  <span>{t?.app?.point2}</span>
+                </li>
+                <li className="flex items-center gap-3 text-xs font-medium text-gray-200 sm:text-sm">
+                  <span>{t?.app?.point3}</span>
+                </li>
+              </ul>
+
+              <div className="mt-8 flex flex-wrap items-center justify-start gap-3">
+                <a href="#app-store" className="flex items-center gap-3 rounded-xl border border-white/15 bg-black px-5 py-2.5 text-white">
+                  <div className="text-start">
+                    <span className="block text-[9px] text-gray-400">{t?.app?.downloadFrom}</span>
+                    <span className="block text-sm font-bold leading-tight">App Store</span>
+                  </div>
+                </a>
+                <a href="#google-play" className="flex items-center gap-3 rounded-xl border border-white/15 bg-black px-5 py-2.5 text-white">
+                  <div className="text-start">
+                    <span className="block text-[9px] text-gray-400">{t?.app?.availableOn}</span>
+                    <span className="block text-sm font-bold leading-tight">Google Play</span>
+                  </div>
+                </a>
+              </div>
+            </ScrollReveal>
+          </div>
+============================================================================ */

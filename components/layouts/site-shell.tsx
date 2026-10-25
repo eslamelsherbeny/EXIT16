@@ -12,11 +12,9 @@ import {
   ChevronDown,
   Clock,
   FileText,
-  Globe,
   Loader2,
   Menu,
   ShieldCheck,
-  Smartphone,
   Trash2,
   User,
   WalletCards,
@@ -158,7 +156,6 @@ export const SUPPORTED_COUNTRIES: Record<CountryCode, CountryConfig> = {
   },
 }
 
-// أعلام SVG حادة وواضحة للغات والدول على كل الشاشات
 export function CountryFlag({
   code,
   className = 'h-3.5 w-5',
@@ -263,7 +260,6 @@ export function CountryFlag({
   return null
 }
 
-// حالياً المنصة تعمل على جورجيا فقط (وباقي الدول محفوظة للتوسع المستقبلي)
 export function getActiveCountryFromCookie(): CountryConfig {
   return SUPPORTED_COUNTRIES.GE
 }
@@ -282,14 +278,28 @@ function getSoonLabel(lang: LanguageCode) {
   return 'Soon'
 }
 
+function getGuestLoginLabel(lang: LanguageCode, dictNavbar?: Record<string, any>) {
+  if (dictNavbar?.loginGuest) return dictNavbar.loginGuest
+  if (lang === 'ar') return 'دخول'
+  if (lang === 'ru') return 'Войти'
+  if (lang === 'ka') return 'შესვლა'
+  return 'Login'
+}
+
+function getMyAccountLabel(lang: LanguageCode, dictNavbar?: Record<string, any>) {
+  if (dictNavbar?.myAccount) return dictNavbar.myAccount
+  if (lang === 'ar') return 'حسابي'
+  if (lang === 'ru') return 'Кабинет'
+  if (lang === 'ka') return 'ანგარიში'
+  return 'My Account'
+}
+
 const links = [
   { href: '/sell', key: 'sell' as const, fallback: 'بيع وحدتك' },
   { href: '/opportunities', key: 'opportunities' as const, fallback: 'الفرص المتاحة' },
   { href: '/story', key: 'story' as const, fallback: 'قصتنا' },
   { href: '/how-it-works', key: 'howItWorks' as const, fallback: 'إزاي بنشتغل' },
   { href: '/contact', key: 'contact' as const, fallback: 'كلمنا' },
-  // تم إيقاف تاب المستثمرين مؤقتاً (محفوظ ككومنت للتفعيل مستقبلاً بدون أي تأثير على السرعة)
-  // { href: '/investors', key: 'investors' as const, fallback: 'للمستثمرين' },
 ]
 
 export function Logo({ inverse = false }: { inverse?: boolean }) {
@@ -427,6 +437,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
     }
     const targetLang = SUPPORTED_LANGUAGES[code]
     setLangMenuOpen(false)
+    setMobileMenuOpen(false)
     setSwitchingLabel(`${targetLang.nativeName}...`)
     document.cookie = `locale=${code}; path=/; max-age=31536000; SameSite=Lax`
     document.documentElement.lang = code
@@ -547,10 +558,14 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
   const currentLangCfg =
     SUPPORTED_LANGUAGES[language] || SUPPORTED_LANGUAGES.ar
 
+  const desktopAuthBtnLabel = hasSession
+    ? getMyAccountLabel(language, labels.navbar as Record<string, any>)
+    : getGuestLoginLabel(language, labels.navbar as Record<string, any>)
+
   const renderLanguageDropdownMenu = () => (
     <div
       onClick={(e) => e.stopPropagation()}
-      className="absolute end-0 top-10 z-50 w-40 max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-xl border border-gray-200/90 bg-white p-1.5 shadow-xl"
+      className="absolute end-0 top-10 z-[80] w-40 max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-xl border border-gray-200/90 bg-white p-1.5 shadow-2xl"
     >
       {(Object.values(SUPPORTED_LANGUAGES) as LanguageConfig[]).map((lang) => {
         const active = lang.code === language
@@ -581,8 +596,8 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
       onClick={(e) => e.stopPropagation()}
       className={
         isMobile
-          ? 'fixed left-3 right-3 top-[70px] z-50 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl'
-          : 'absolute end-0 top-12 z-50 w-96 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl'
+          ? 'fixed left-3 right-3 top-[70px] z-[80] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl'
+          : 'absolute end-0 top-12 z-[80] w-96 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl'
       }
     >
       <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50/90 px-4 py-3">
@@ -734,7 +749,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
   return (
     <header
       dir={dir}
-      className="sticky top-0 z-50 border-b border-gray-200/75 bg-white/95 backdrop-blur-md"
+      className="sticky top-0 z-[70] border-b border-gray-200/75 bg-white/95 backdrop-blur-md"
     >
       {isSwitchingLocale && (
         <>
@@ -743,7 +758,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
           </div>
           <div
             dir="ltr"
-            className="fixed top-[80px] left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-full bg-[#0a1122]/95 px-4 py-1.5 text-xs font-bold text-white shadow-lg backdrop-blur-xs"
+            className="fixed top-[80px] left-1/2 z-[90] flex -translate-x-1/2 items-center gap-2 rounded-full bg-[#0a1122]/95 px-4 py-1.5 text-xs font-bold text-white shadow-lg backdrop-blur-xs"
           >
             <Loader2 className="size-3.5 animate-spin text-[#2ee59d]" />
             <span>{switchingLabel || 'Updating...'}</span>
@@ -751,7 +766,8 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
         </>
       )}
 
-      <div className="mx-auto flex h-[66px] max-w-[1280px] items-center justify-between gap-4 px-4 sm:h-[74px] sm:px-6 lg:px-8">
+      {/* شريط الهيدر العلوي بـ z-[75] حتى تفتح القوائم المنسدلة للغة والإشعارات فوق منيو الموبايل الجانبية */}
+      <div className="relative z-[75] mx-auto flex h-[66px] max-w-[1280px] items-center justify-between gap-4 px-4 sm:h-[74px] sm:px-6 lg:px-8">
         <div className="flex items-center gap-9 lg:gap-10 xl:gap-14">
           <Logo />
           <nav
@@ -778,7 +794,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
           </nav>
         </div>
 
-        {/* ==================== أزرار الكمبيوتر (العلم + اسم اللغة الكامل بدون زر دولة منفصل) ==================== */}
+        {/* ==================== أزرار الكمبيوتر ==================== */}
         <div className="hidden shrink-0 items-center gap-2 lg:flex xl:gap-2.5">
           <div className="relative" ref={langRefDesktop}>
             <button
@@ -808,7 +824,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
             href={hasSession ? '/account' : '/login'}
             className="inline-flex h-[42px] items-center justify-center whitespace-nowrap rounded-[11px] border border-[#e2e8f0] bg-white px-4 text-[13px] font-bold text-[#0a1122] transition-colors hover:bg-gray-50 xl:px-4.5 xl:text-[13.5px]"
           >
-            {labels.navbar?.login || 'حسابي'}
+            {desktopAuthBtnLabel}
           </Link>
 
           <Link
@@ -868,7 +884,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
           )}
         </div>
 
-        {/* ==================== أزرار الموبايل (كبسولة اللغة: العلم + حرفين AR/EN/RU/KA) ==================== */}
+        {/* ==================== أزرار الموبايل ==================== */}
         <div className="flex items-center gap-1.5 lg:hidden">
           <div className="relative" ref={langRefMobile}>
             <button
@@ -941,9 +957,12 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
         </div>
       </div>
 
-      {/* ==================== قائمة الموبايل الجانبية ==================== */}
+      {/* ==================== قائمة الموبايل الجانبية (z-[60] لتكون أسفل قائمة اللغة العلوية z-[80]) ==================== */}
       {mobileMenuOpen && (
-        <div className="fixed inset-x-0 top-[66px] bottom-0 z-50 h-[calc(100vh-66px)] overflow-y-auto border-t border-gray-100 bg-white px-5 pt-4 pb-12 lg:hidden">
+        <div
+          onClick={() => setLangMenuOpen(false)}
+          className="fixed inset-x-0 top-[66px] bottom-0 z-[60] h-[calc(100vh-66px)] overflow-y-auto border-t border-gray-100 bg-white px-5 pt-4 pb-12 lg:hidden"
+        >
           <nav className="flex flex-col gap-3">
             <Link
               href="/"
@@ -1021,54 +1040,11 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
               <User className="size-4" />
               <span>
                 {hasSession
-                  ? labels.navbar?.login || 'حسابي الشخصي'
-                  : labels.authPages?.login?.title || 'تسجيل الدخول / إنشاء حساب'}
+                  ? getMyAccountLabel(language, labels.navbar as Record<string, any>)
+                  : labels.authPages?.login?.title ||
+                    getGuestLoginLabel(language, labels.navbar as Record<string, any>)}
               </span>
             </Link>
-            <Link
-              href="/opportunities#app-banner"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-[#99cec3] bg-[#eff8f6] text-[13.5px] font-bold text-[#0b6954] transition-colors hover:bg-[#e2f3ef]"
-            >
-              <Smartphone className="size-4 stroke-[2.2]" />
-              <span>{labels.footer?.appLabel || 'حمّل التطبيق'}</span>
-            </Link>
-          </div>
-
-          {/* شريط اختيار اللغة في أسفل القائمة الجانبية للموبايل */}
-          <div className="mt-5 rounded-xl border border-gray-200/80 bg-gray-50/80 p-2.5">
-            <div className="mb-2 flex items-center justify-between px-1 text-[11px] font-bold text-gray-500">
-              <span className="inline-flex items-center gap-1.5">
-                <Globe className="size-3.5 text-[#0b6954]" />
-                <span>{labels.navbar?.languageLabel || 'اللغة / Language'}</span>
-              </span>
-              <span className="text-[10px] text-gray-400">
-                {currentLangCfg.nativeName}
-              </span>
-            </div>
-            <div className="grid grid-cols-2 gap-1.5">
-              {(Object.values(SUPPORTED_LANGUAGES) as LanguageConfig[]).map(
-                (lang) => (
-                  <button
-                    key={lang.code}
-                    type="button"
-                    disabled={isSwitchingLocale}
-                    onClick={() => {
-                      handleSelectLanguage(lang.code)
-                      setMobileMenuOpen(false)
-                    }}
-                    className={`flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-extrabold transition ${
-                      language === lang.code
-                        ? 'bg-[#0b6954] text-white shadow-2xs'
-                        : 'border border-gray-200/80 bg-white text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    <CountryFlag code={lang.flagCode} className="h-3 w-4" />
-                    <span>{lang.nativeName}</span>
-                  </button>
-                )
-              )}
-            </div>
           </div>
         </div>
       )}
@@ -1080,12 +1056,12 @@ export function LegacyNavbar({ dictionary }: { dictionary?: Dictionary }) {
   return <Navbar dictionary={dictionary} />
 }
 
-// ==================== 3. الفوتر المنظم (Footer — جورجيا مفعلة وباقي الدول "قريباً") ====================
 export function Footer({ dictionary: _unused }: { dictionary?: Dictionary }) {
   const {
     t: labels,
     locale: language,
     dir,
+    hasSession,
     siteSettings,
   } = useTranslation()
 
@@ -1100,15 +1076,18 @@ export function Footer({ dictionary: _unused }: { dictionary?: Dictionary }) {
     { label: labels.footer?.forBuyers || 'للمشترين (اطلب وحدة)', href: '/buy' },
     { label: labels.footer?.calculator || 'حاسبة الخروج', href: '/calculator' },
     { label: labels.footer?.favorite || 'المفضلة', href: '/account/favorites' },
-    { label: labels.navbar?.login || 'حسابي', href: '/account' },
+    {
+      label: hasSession
+        ? getMyAccountLabel(language, labels.navbar as Record<string, any>)
+        : getGuestLoginLabel(language, labels.navbar as Record<string, any>),
+      href: hasSession ? '/account' : '/login',
+    },
   ]
 
   const companyLinks = [
     { label: labels.footer?.about || 'قصتنا', href: '/story' },
     { label: labels.footer?.work || 'إزاي بنشتغل', href: '/how-it-works' },
     { label: labels.footer?.reports || 'التقارير والمؤشرات', href: '/reports' },
-    // تم إيقاف رابط علاقات المستثمرين مؤقتاً ككومنت
-    // { label: labels.footer?.investorRelations || 'علاقات المستثمرين', href: '/investors' },
     { label: labels.footer?.faq || 'الأسئلة الشائعة', href: '/faq' },
     { label: labels.navbar?.contact || 'كلمنا', href: '/contact' },
   ]
@@ -1303,3 +1282,15 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
     </>
   )
 }
+
+/* ============================================================================
+   ARCHIVED MOBILE MENU APP DOWNLOAD BUTTON (COMMENTED FOR FUTURE APP RELEASE)
+   ============================================================================
+            <Link
+              href="/opportunities#app-banner"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-[#99cec3] bg-[#eff8f6] text-[13.5px] font-bold text-[#0b6954] transition-colors hover:bg-[#e2f3ef]"
+            >
+              <span>{labels.footer?.appLabel || 'حمّل التطبيق'}</span>
+            </Link>
+============================================================================ */

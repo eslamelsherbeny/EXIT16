@@ -15,30 +15,38 @@ export default async function SettingsPage({
   const initialTab = resolvedParams.tab === "system" ? "system" : "general"
 
   const cookieStore = await cookies()
-  const { dict } = await getServerI18n()
+  const { dict, siteSettings: runtimeSettings } = await getServerI18n()
 
   let savedSettings = {
-    siteName: dict.admin?.shell?.brand || "Aqar Exit",
-    whatsappNumber: dict.footer?.phone || "+201018595959",
+    siteName: runtimeSettings?.siteName || dict.admin?.shell?.brand || "Aqar Exit",
+    whatsappNumber:
+      runtimeSettings?.whatsappNumber || dict.footer?.phone || "+201018595959",
     supportEmail:
-      process.env.EMAIL_USER || dict.footer?.email || "info@aqarexit.com",
-    buyerCommission: "1.25",
-    promo7Price: "1199",
-    promo14Price: "1999",
-    promo30Price: "2799",
-    promo_RU_7: "2500",
-    promo_RU_14: "4200",
-    promo_RU_30: "5900",
-    promo_GE_7: "29",
-    promo_GE_14: "49",
-    promo_GE_30: "69",
-    promo_AE_7: "99",
-    promo_AE_14: "179",
-    promo_AE_30: "249",
-    maintenanceMode: false,
-    allowNewSells: true,
-    allowNewBuys: true,
-    emailNotifications: true,
+      runtimeSettings?.supportEmail ||
+      process.env.EMAIL_USER ||
+      dict.footer?.email ||
+      "info@aqarexit.com",
+    buyerCommission: runtimeSettings?.buyerCommission || "1.25",
+    developerPenaltyMin:
+      (runtimeSettings as Record<string, any>)?.developerPenaltyMin || "10",
+    developerPenaltyMax:
+      (runtimeSettings as Record<string, any>)?.developerPenaltyMax || "15",
+    promo7Price: runtimeSettings?.promo7Price || "29",
+    promo14Price: runtimeSettings?.promo14Price || "49",
+    promo30Price: runtimeSettings?.promo30Price || "69",
+    promo_RU_7: runtimeSettings?.promo_RU_7 || "2500",
+    promo_RU_14: runtimeSettings?.promo_RU_14 || "4200",
+    promo_RU_30: runtimeSettings?.promo_RU_30 || "5900",
+    promo_GE_7: runtimeSettings?.promo_GE_7 || "29",
+    promo_GE_14: runtimeSettings?.promo_GE_14 || "49",
+    promo_GE_30: runtimeSettings?.promo_GE_30 || "69",
+    promo_AE_7: runtimeSettings?.promo_AE_7 || "99",
+    promo_AE_14: runtimeSettings?.promo_AE_14 || "179",
+    promo_AE_30: runtimeSettings?.promo_AE_30 || "249",
+    maintenanceMode: Boolean(runtimeSettings?.maintenanceMode),
+    allowNewSells: runtimeSettings?.allowNewSells ?? true,
+    allowNewBuys: runtimeSettings?.allowNewBuys ?? true,
+    emailNotifications: runtimeSettings?.emailNotifications ?? true,
   }
 
   try {

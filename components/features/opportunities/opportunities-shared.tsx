@@ -389,76 +389,9 @@ export function OpportunityCard({
 export function OpportunitiesBottomSections() {
   const { t: dict } = useTranslation()
   const tr = dict.opportunitiesPage.trustSection
-  const appT = dict.home.app
 
   return (
     <>
-      <section
-        id="app-banner"
-        className="relative mt-12 overflow-hidden rounded-[20px] bg-[var(--brand-navy,#0a1122)] px-5 py-10 text-white shadow-xl sm:mt-14 sm:rounded-[24px] sm:px-12 sm:py-16"
-      >
-        <div className="pointer-events-none absolute top-1/2 left-10 size-80 -translate-y-1/2 rounded-full bg-teal-500/10 blur-[110px]" />
-
-        <div className="relative grid grid-cols-1 items-center gap-10 md:grid-cols-[1.15fr_0.85fr]">
-          <div className="text-start">
-            <span className="inline-block rounded-full border border-teal-500/30 bg-teal-500/10 px-3.5 py-1 text-[10px] font-bold text-[var(--brand-accent,#2ee59d)] sm:text-[11px]">
-              {appT.badge}
-            </span>
-            <h2 className="mt-3 text-2xl font-extrabold text-white sm:mt-4 sm:text-3xl md:text-4xl">
-              {appT.title}
-            </h2>
-            <p className="mt-2.5 max-w-lg text-xs leading-[1.9] text-gray-300/85 sm:mt-3 sm:text-sm">
-              {appT.description}
-            </p>
-
-            <ul className="mt-5 space-y-3 sm:mt-6 sm:space-y-3.5">
-              <li className="flex items-center gap-2.5 text-xs font-medium text-gray-200 sm:gap-3 sm:text-[13px]">
-                <span className="flex size-7 shrink-0 items-center justify-center rounded-full border border-teal-500/20 bg-teal-500/10 text-[var(--brand-accent,#2ee59d)]">
-                  <Bell className="size-3.5" />
-                </span>
-                <span>{appT.point1}</span>
-              </li>
-              <li className="flex items-center gap-2.5 text-xs font-medium text-gray-200 sm:gap-3 sm:text-[13px]">
-                <span className="flex size-7 shrink-0 items-center justify-center rounded-full border border-teal-500/20 bg-teal-500/10 text-[var(--brand-accent,#2ee59d)]">
-                  <Zap className="size-3.5" />
-                </span>
-                <span>{appT.point2}</span>
-              </li>
-              <li className="flex items-center gap-2.5 text-xs font-medium text-gray-200 sm:gap-3 sm:text-[13px]">
-                <span className="flex size-7 shrink-0 items-center justify-center rounded-full border border-teal-500/20 bg-teal-500/10 text-[var(--brand-accent,#2ee59d)]">
-                  <CheckSquare className="size-3.5" />
-                </span>
-                <span>{appT.point3}</span>
-              </li>
-            </ul>
-          </div>
-
-          <div className="hidden justify-center md:flex">
-            <div className="w-[270px] -rotate-3 rounded-[40px] border-[6px] border-[#1c283c] bg-[#0b1323] p-4 shadow-2xl transition-transform duration-300 hover:rotate-0 sm:w-[300px]">
-              <div className="mx-auto mb-4 h-4 w-24 rounded-full bg-black" />
-              <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-[#131f33] p-3.5 text-start shadow-md">
-                <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-teal-500/15 text-[var(--brand-accent,#2ee59d)]">
-                  <Home className="size-4" />
-                </span>
-                <div className="mx-2.5 flex-1">
-                  <p className="text-[11px] font-bold text-white">
-                    {appT.mockNotifTitle}
-                  </p>
-                  <p className="mt-0.5 text-[9px] text-gray-400">
-                    {appT.mockNotifSub}
-                  </p>
-                </div>
-              </div>
-              <div className="mt-3 rounded-2xl border border-white/5 bg-[#101b2d] p-3">
-                <div className="h-20 w-full rounded-xl bg-gradient-to-b from-teal-900/35 to-teal-950/15" />
-                <div className="mt-3 h-2.5 w-3/4 rounded-full bg-white/10" />
-                <div className="mt-2 h-2 w-1/2 rounded-full bg-white/5" />
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       <section className="mt-12 border-t border-gray-200/80 pt-10 sm:mt-14 sm:pt-12">
         <h2 className="text-start text-lg font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-2xl">
           {tr.title}
@@ -513,3 +446,14 @@ export function OpportunitiesBottomSections() {
     </>
   )
 }
+
+/* ============================================================================
+   ARCHIVED APP BANNER FOR OPPORTUNITIES PAGE (COMMENTED FOR FUTURE USE)
+   ============================================================================
+      <section
+        id="app-banner"
+        className="relative mt-12 overflow-hidden rounded-[20px] bg-[var(--brand-navy,#0a1122)] px-5 py-10 text-white shadow-xl sm:mt-14 sm:rounded-[24px] sm:px-12 sm:py-16"
+      >
+        ...
+      </section>
+============================================================================ */

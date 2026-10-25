@@ -16,12 +16,34 @@ function parseNumberInput(val: string) {
 }
 
 export default function CalculatorPage() {
-  const { t: dict, locale, country, dir } = useTranslation()
-  const cur = getCurrencySymbol(country, locale)
+  const { t: dict, locale, dir, siteSettings } = useTranslation()
+  const cur = getCurrencySymbol("GE", locale)
   const t = (dict as Record<string, any>).calculatorPage
 
+  // قراءة نسب الخصم والعمولة ديناميكياً من إعدادات الأدمن
+  const rawMinPenaltyPct = Number(
+    (siteSettings as Record<string, any>)?.developerPenaltyMin
+  )
+  const rawMaxPenaltyPct = Number(
+    (siteSettings as Record<string, any>)?.developerPenaltyMax
+  )
+  const rawCommissionPct = Number(siteSettings?.buyerCommission)
+
+  const minPenaltyPct =
+    Number.isFinite(rawMinPenaltyPct) && rawMinPenaltyPct > 0
+      ? rawMinPenaltyPct
+      : 10
+  const maxPenaltyPct =
+    Number.isFinite(rawMaxPenaltyPct) && rawMaxPenaltyPct >= minPenaltyPct
+      ? rawMaxPenaltyPct
+      : Math.max(minPenaltyPct, 15)
+  const commissionPct =
+    Number.isFinite(rawCommissionPct) && rawCommissionPct >= 0
+      ? rawCommissionPct
+      : 1.25
+
   function getAmountHint(num: number) {
-    if (!num || num < 100000) return null
+    if (!num || num < 10000) return null
     if (num >= 1_000_000) {
       const m = +(num / 1_000_000).toFixed(2)
       return `${m} ${t.millionWord} ${cur}`
@@ -43,18 +65,18 @@ export default function CalculatorPage() {
 
   const contractPrice = parseNumberInput(contractPriceStr)
   const paidAmount = parseNumberInput(paidAmountStr)
-  const yearsPaid = Number(yearsPaidStr) || 3
+  const yearsPaid = Number(yearsPaidStr) || 2
 
   const developerToday = parseNumberInput(developerTodayStr)
   const oldContract = parseNumberInput(oldContractStr)
 
-  const minPenalty = Math.round(contractPrice * 0.1)
-  const maxPenalty = Math.round(contractPrice * 0.15)
+  const minPenalty = Math.round(contractPrice * (minPenaltyPct / 100))
+  const maxPenalty = Math.round(contractPrice * (maxPenaltyPct / 100))
   const minRefund = Math.max(0, paidAmount - maxPenalty)
   const maxRefund = Math.max(0, paidAmount - minPenalty)
 
   const rawDiff = Math.max(0, developerToday - oldContract)
-  const buyerCommission = Math.round(oldContract * 0.0125)
+  const buyerCommission = Math.round(oldContract * (commissionPct / 100))
   const netBuyerGain = Math.max(0, rawDiff - buyerCommission)
 
   const canCalcSeller = contractPrice > 0 && paidAmount > 0
@@ -307,26 +329,53 @@ export default function CalculatorPage() {
                   </div>
 
                   <div className="rounded-[20px] border border-gray-200 bg-white p-5 shadow-2xs">
-                    <h3 className="text-sm font-black text-[#0a1122]">
-                      {t.cancelScenarioTitle}
-                    </h3>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <h3 className="text-sm font-black text-[#0a1122]">
+                        {t.cancelScenarioTitle}
+                      </h3>
+                      <span
+                        dir="ltr"
+                        className="rounded-full bg-red-50 px-2.5 py-0.5 text-[11px] font-extrabold text-[#c81e1e]"
+                      >
+                        {minPenaltyPct === maxPenaltyPct
+                          ? `${minPenaltyPct}%`
+                          : `${minPenaltyPct}% – ${maxPenaltyPct}%`}
+                      </span>
+                    </div>
 
                     <div className="mt-4">
                       <p className="text-xs text-gray-500">
                         {t.expectedPenaltyLabel}
                       </p>
                       <p className="mt-1 text-xl font-black text-[#c81e1e] tabular-nums sm:text-2xl">
-                        <span dir="ltr">
-                          {minPenalty.toLocaleString("en-US")}
-                        </span>{" "}
-                        {cur} –{" "}
-                        <span dir="ltr">
-                          {maxPenalty.toLocaleString("en-US")}
-                        </span>{" "}
-                        {cur}
+                        {minPenalty === maxPenalty ? (
+                          <>
+                            <span dir="ltr">
+                              {maxPenalty.toLocaleString("en-US")}
+                            </span>{" "}
+                            {cur}
+                          </>
+                        ) : (
+                          <>
+                            <span dir="ltr">
+                              {minPenalty.toLocaleString("en-US")}
+                            </span>{" "}
+                            {cur} –{" "}
+                            <span dir="ltr">
+                              {maxPenalty.toLocaleString("en-US")}
+                            </span>{" "}
+                            {cur}
+                          </>
+                        )}
                       </p>
                       <p className="mt-0.5 text-[11px] text-gray-400">
-                        {t.penaltyBasisHint}
+                        {t.penaltyBasisHint} (
+                        <span dir="ltr">
+                          {minPenaltyPct === maxPenaltyPct
+                            ? `${minPenaltyPct}%`
+                            : `${minPenaltyPct}% - ${maxPenaltyPct}%`}
+                        </span>
+                        )
                       </p>
                     </div>
 
@@ -335,14 +384,25 @@ export default function CalculatorPage() {
                         {t.refundedAmountLabel}
                       </p>
                       <p className="mt-1 text-lg font-black text-[#0a1122] tabular-nums sm:text-xl">
-                        <span dir="ltr">
-                          {minRefund.toLocaleString("en-US")}
-                        </span>{" "}
-                        {cur} –{" "}
-                        <span dir="ltr">
-                          {maxRefund.toLocaleString("en-US")}
-                        </span>{" "}
-                        {cur}
+                        {minRefund === maxRefund ? (
+                          <>
+                            <span dir="ltr">
+                              {maxRefund.toLocaleString("en-US")}
+                            </span>{" "}
+                            {cur}
+                          </>
+                        ) : (
+                          <>
+                            <span dir="ltr">
+                              {minRefund.toLocaleString("en-US")}
+                            </span>{" "}
+                            {cur} –{" "}
+                            <span dir="ltr">
+                              {maxRefund.toLocaleString("en-US")}
+                            </span>{" "}
+                            {cur}
+                          </>
+                        )}
                       </p>
                     </div>
 
@@ -391,14 +451,25 @@ export default function CalculatorPage() {
                         {t.netDiffInFavorLabel}
                       </p>
                       <p className="mt-1 text-lg font-black text-[#0b6954] tabular-nums sm:text-xl">
-                        <span dir="ltr">
-                          {minPenalty.toLocaleString("en-US")}
-                        </span>{" "}
-                        {cur} –{" "}
-                        <span dir="ltr">
-                          {maxPenalty.toLocaleString("en-US")}
-                        </span>{" "}
-                        {cur}
+                        {minPenalty === maxPenalty ? (
+                          <>
+                            <span dir="ltr">
+                              {maxPenalty.toLocaleString("en-US")}
+                            </span>{" "}
+                            {cur}
+                          </>
+                        ) : (
+                          <>
+                            <span dir="ltr">
+                              {minPenalty.toLocaleString("en-US")}
+                            </span>{" "}
+                            {cur} –{" "}
+                            <span dir="ltr">
+                              {maxPenalty.toLocaleString("en-US")}
+                            </span>{" "}
+                            {cur}
+                          </>
+                        )}
                       </p>
                     </div>
                   </div>
@@ -430,9 +501,17 @@ export default function CalculatorPage() {
             ) : (
               <div className="space-y-4 text-start">
                 <div className="rounded-[20px] border-2 border-[#a7e3cb] bg-white p-6 shadow-xs">
-                  <p className="text-xs font-bold text-gray-500">
-                    {t.dayOneGainLabel}
-                  </p>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs font-bold text-gray-500">
+                      {t.dayOneGainLabel}
+                    </p>
+                    <span
+                      dir="ltr"
+                      className="rounded-full bg-[#eaf8f2] px-2.5 py-0.5 text-[11px] font-extrabold text-[#0b6954]"
+                    >
+                      {commissionPct}%
+                    </span>
+                  </div>
                   <p className="mt-1.5 text-3xl font-black text-[#0b6954] tabular-nums sm:text-4xl">
                     <span dir="ltr">
                       {netBuyerGain.toLocaleString("en-US")}
@@ -440,7 +519,11 @@ export default function CalculatorPage() {
                     {cur}
                   </p>
                   <p className="mt-1.5 text-xs text-gray-500">
-                    {t.dayOneGainSub}
+                    {t.dayOneGainSub} ({commissionPct}%:{" "}
+                    <span dir="ltr">
+                      {buyerCommission.toLocaleString("en-US")}
+                    </span>{" "}
+                    {cur})
                   </p>
 
                   <hr className="my-5 border-gray-100" />

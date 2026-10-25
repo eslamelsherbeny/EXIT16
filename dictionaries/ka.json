@@ -9,6 +9,8 @@
     "story": "ჩვენ შესახებ",
     "howItWorks": "წესები",
     "contact": "კონტაქტი",
+    "loginGuest": "შესვლა",
+"myAccount": "ანგარიში",
     "investors": "ინვესტორებს",
     "languageLabel": "ენა",
     "login": "კაბინეტი",
@@ -2182,6 +2184,9 @@
       "siteNameLabel": "პლატფორმის სახელი",
       "whatsappLabel": "ოფიციალური WhatsApp ნომერი",
       "supportEmailLabel": "მხარდაჭერის ელ.ფოსტა",
+      "financialRatesTitle": "საკომისიო და დეველოპერის ჯარიმის პროცენტი (%)",
+"devPenaltyMinLabel": "მინ. დეველოპერის ჯარიმა (%)",
+"devPenaltyMaxLabel": "მაქს. დეველოპერის ჯარიმა (%)",
       "commissionLabel": "მყიდველის საკომისიო (%)",
       "promoPricesTitle": "VIP პაკეტების ფასები (ქვეყნების მიხედვით):",
       "countries": {

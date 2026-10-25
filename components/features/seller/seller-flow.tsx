@@ -2,15 +2,21 @@
 
 import { useEffect, useState, useTransition } from 'react'
 import {
+  AlertCircle,
   Check,
   Copy,
+  Eye,
   FileCheck2,
+  FileText,
   ImagePlus,
   Loader2,
+  RefreshCw,
   ShieldAlert,
   Star,
+  Trash2,
   UploadCloud,
   UserRound,
+  X,
 } from 'lucide-react'
 import {
   getCurrentSellerProfileAction,
@@ -18,7 +24,11 @@ import {
   submitSellRequest,
   verifyMagicTokenAction,
 } from '@/actions/submit-forms'
-import { requestUnitPromotionAction } from '@/actions/account-actions'
+import {
+  deleteUnitDocumentAction,
+  requestUnitPromotionAction,
+  saveUnitDocumentAction,
+} from '@/actions/account-actions'
 import { createClient } from '@/lib/supabase/client'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -27,14 +37,16 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { TurnstileBox } from '@/components/layouts/funnel-shell'
+import {
+  GeorgiaAreaSelect,
+  getLocalizedGeorgiaAreaName,
+} from '@/components/shared/georgia-areas'
 import { ScrollReveal } from '@/components/shared/scroll-reveal'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { getCurrencySymbol, useTranslation } from '@/lib/i18n'
 import {
-  Actions,
   deliveries,
-  deliveryFutureYears,
   features,
   Field,
   finishings,
@@ -44,21 +56,57 @@ import {
   MonthYearSelector,
   Pills,
   RequiredLabel,
-  SearchableGeorgiaAreaPicker,
   ToggleSection,
   unitTypes,
   years,
 } from './seller-shared'
 import { ContactStep } from './seller-contact-step'
 
-// الدولة المعتمدة حالياً في المنصة
 const ACTIVE_PLATFORM_COUNTRY = 'GE'
 const DEFAULT_PHONE_CODE = '995'
+
+export type SellerDocKey = 'contract' | 'receipts' | 'statement' | 'passport'
+
+export type UploadedDocEntry = {
+  url: string
+  name: string
+  uploaded_at: string
+  status?: string
+}
+
+function isImageFileUrl(url?: string, name?: string) {
+  const target = `${url || ''} ${name || ''}`.toLowerCase()
+  if (target.includes('.pdf')) return false
+  return /\.(jpg|jpeg|png|webp|gif|bmp|svg|avif)/i.test(target) || Boolean(url)
+}
+
+function StepValidationBanner({
+  missingFields,
+  prefixText,
+}: {
+  missingFields: string[]
+  prefixText: string
+}) {
+  if (!missingFields.length) return null
+  return (
+    <div
+      role="alert"
+      className="flex items-start gap-2.5 rounded-xl border border-red-300 bg-red-50/90 p-3.5 text-start text-xs leading-relaxed text-red-800 shadow-2xs"
+    >
+      <AlertCircle className="mt-0.5 size-4 shrink-0 text-red-600" />
+      <div>
+        <strong className="font-extrabold">{prefixText} </strong>
+        <span className="font-bold">{missingFields.join(' ، ')}</span>
+      </div>
+    </div>
+  )
+}
 
 export function SellerFlow() {
   const router = useRouter()
   const { t: dict, dir } = useTranslation()
   const s = dict.sell
+  const valDict = s.validation as Record<string, any>
 
   const [step, setStep] = useState(1)
   const [isMagicResume, setIsMagicResume] = useState(false)
@@ -70,16 +118,24 @@ export function SellerFlow() {
     unitCountry: ACTIVE_PLATFORM_COUNTRY,
     contractMonth: '',
     contractYear: '',
-    deliveryMonth: '',
-    deliveryYear: '',
+    deliveryRemainingMonths: '',
     remainingMonths: '',
+    annualInstallmentAmount: '',
+    overdueTotal: '',
   })
   const [selected, setSelected] = useState<Record<string, string[]>>({})
   const [images, setImages] = useState<string[]>([])
   const [uploading, setUploading] = useState(false)
+  const [unitDocs, setUnitDocs] = useState<Record<string, UploadedDocEntry>>({})
+  const [uploadingDocKey, setUploadingDocKey] = useState<string | null>(null)
+  const [previewDoc, setPreviewDoc] = useState<{
+    url: string
+    title: string
+  } | null>(null)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [missingFieldsList, setMissingFieldsList] = useState<string[]>([])
   const [showPassword, setShowPassword] = useState(false)
   const [pending, startTransition] = useTransition()
 
@@ -111,63 +167,104 @@ export function SellerFlow() {
 
         const parseSavedDelivery = (rawStatus?: string | null) => {
           const str = String(rawStatus || '')
-          const dateMatch = str.match(/(0[1-9]|1[0-2])\/(20\d{2})/)
-          const yearOnlyMatch = str.match(/(20\d{2})/)
+          const monthsMatch = str.match(/(\d+)\s*(?:months|شهر|мес|თვე)/i) || str.match(/\((\d+)\)/)
           const baseStatus = str.replace(/\s*\([^)]*\)/g, '').trim()
           return {
             baseStatus: baseStatus || deliveries[0],
-            dMonth: dateMatch ? dateMatch[1] : '',
-            dYear: dateMatch
-              ? dateMatch[2]
-              : yearOnlyMatch
-                ? yearOnlyMatch[1]
-                : '',
+            delMonths: monthsMatch ? monthsMatch[1] : '',
           }
+        }
+
+        const hydrateUnitIntoState = (u: any, stepToOpen: number) => {
+          const parsedDel = parseSavedDelivery(u.delivery_status)
+          setUnitId(String(u.id))
+          setOrderRef(
+            `AE-${String(u.id).replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase()}`
+          )
+          setForm((prev) => ({
+            ...prev,
+            unitCountry: ACTIVE_PLATFORM_COUNTRY,
+            developer: u.developer_name || '',
+            developerDetails: u.developer_name || '',
+            project: u.project_name || '',
+            projectDetails: u.project_name || '',
+            location: u.area || '',
+            areaSize: u.size ? String(u.size) : '',
+            garden: u.garden_size ? String(u.garden_size) : '',
+            rooms: u.rooms ? String(u.rooms) : '',
+            bathrooms: u.bathrooms ? String(u.bathrooms) : '',
+            floor:
+              u.floor_number !== null && u.floor_number !== undefined
+                ? String(u.floor_number)
+                : '',
+            description: u.description || '',
+            contractPrice: u.contract_price ? String(u.contract_price) : '',
+            contractPrice2: u.contract_price ? String(u.contract_price) : '',
+            paidAmount: u.paid_amount ? String(u.paid_amount) : '',
+            paidAmount2: u.paid_amount ? String(u.paid_amount) : '',
+            marketPrice:
+              u.market_price || u.contract_price
+                ? String(u.market_price || u.contract_price)
+                : '',
+            installment: u.installment_amount
+              ? String(u.installment_amount)
+              : '',
+            remainingMonths:
+              u.years_left !== null && u.years_left !== undefined
+                ? String(u.years_left)
+                : '',
+            contractMonth: u.contract_month ? String(u.contract_month) : '',
+            contractYear: u.contract_year ? String(u.contract_year) : '',
+            deliveryRemainingMonths: u.delivery_month
+              ? String(u.delivery_month)
+              : parsedDel.delMonths,
+            annualInstallmentAmount: u.annual_installment_amount
+              ? String(u.annual_installment_amount)
+              : '',
+            discountAmount: u.discount_amount ? String(u.discount_amount) : '',
+            overdueCount: u.overdue_installments
+              ? String(u.overdue_installments)
+              : '',
+            overdueTotal: u.overdue_total_amount
+              ? String(u.overdue_total_amount)
+              : '',
+            name: u.name || profileRes.user?.name || '',
+            phone: u.phone || profileRes.user?.phone || '',
+            email: u.email || profileRes.user?.email || '',
+            owner: 'yes',
+            confirmed: 'yes',
+          }))
+          setSelected({
+            type: u.unit_type ? [u.unit_type] : [],
+            finishing: u.finishing ? [u.finishing] : [],
+            delivery: parsedDel.baseStatus ? [parsedDel.baseStatus] : [],
+            features: Array.isArray(u.features) ? u.features : [],
+            year: u.contract_year ? [String(u.contract_year)] : [],
+            frequency: u.installment_frequency
+              ? [u.installment_frequency]
+              : [],
+            annualInstallment: [u.has_annual_installment ? 'yes' : 'no'],
+            discountOffer: [u.willing_to_discount ? 'yes' : 'no'],
+            overdueInstallments: [u.has_overdue_installments ? 'yes' : 'no'],
+          })
+          if (Array.isArray(u.images)) {
+            setImages(u.images)
+          }
+          if (u.documents && typeof u.documents === 'object') {
+            const rawDocs = { ...u.documents }
+            if (rawDocs.national_id && !rawDocs.passport) {
+              rawDocs.passport = rawDocs.national_id
+            }
+            setUnitDocs(rawDocs)
+          }
+          setIsMagicResume(true)
+          setStep(stepToOpen)
         }
 
         if (magicToken) {
           const res = await verifyMagicTokenAction(magicToken)
           if (res.valid && res.unit) {
-            const u = res.unit
-            const parsedDel = parseSavedDelivery(u.delivery_status)
-            setUnitId(String(u.id))
-            setOrderRef(
-              `AE-${String(u.id).replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase()}`
-            )
-            setForm((prev) => ({
-              ...prev,
-              unitCountry: ACTIVE_PLATFORM_COUNTRY,
-              developer: u.developer_name || '',
-              developerDetails: u.developer_name || '',
-              project: u.project_name || '',
-              projectDetails: u.project_name || '',
-              location: u.area || '',
-              areaSize: String(u.size || ''),
-              garden: String(u.garden_size || ''),
-              rooms: String(u.rooms || ''),
-              bathrooms: String(u.bathrooms || ''),
-              floor: String(u.floor_number ?? ''),
-              description: u.description || '',
-              contractPrice: String(u.contract_price || ''),
-              contractPrice2: String(u.contract_price || ''),
-              paidAmount: String(u.paid_amount || ''),
-              paidAmount2: String(u.paid_amount || ''),
-              marketPrice: String(u.market_price || u.contract_price || ''),
-              installment: String(u.installment_amount || ''),
-              remainingMonths: String(u.years_left ?? ''),
-              contractYear: u.contract_year ? String(u.contract_year) : '',
-              deliveryMonth: parsedDel.dMonth,
-              deliveryYear: parsedDel.dYear,
-              discountAmount: String(u.discount_amount || ''),
-              overdueCount: String(u.overdue_installments || ''),
-              name: u.name || '',
-              phone: u.phone || '',
-              email: u.email || '',
-              owner: 'yes',
-              confirmed: 'yes',
-            }))
-            setIsMagicResume(true)
-            setStep(3)
+            hydrateUnitIntoState(res.unit, 3)
             return
           }
         }
@@ -181,73 +278,7 @@ export function SellerFlow() {
             .maybeSingle()
 
           if (u) {
-            const parsedDel = parseSavedDelivery(u.delivery_status)
-            setUnitId(String(u.id))
-            setOrderRef(
-              `AE-${String(u.id).replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase()}`
-            )
-            setForm((prev) => ({
-              ...prev,
-              unitCountry: ACTIVE_PLATFORM_COUNTRY,
-              developer: u.developer_name || '',
-              developerDetails: u.developer_name || '',
-              project: u.project_name || '',
-              projectDetails: u.project_name || '',
-              location: u.area || '',
-              areaSize: u.size ? String(u.size) : '',
-              garden: u.garden_size ? String(u.garden_size) : '',
-              rooms: u.rooms ? String(u.rooms) : '',
-              bathrooms: u.bathrooms ? String(u.bathrooms) : '',
-              floor:
-                u.floor_number !== null && u.floor_number !== undefined
-                  ? String(u.floor_number)
-                  : '',
-              description: u.description || '',
-              contractPrice: u.contract_price ? String(u.contract_price) : '',
-              contractPrice2: u.contract_price ? String(u.contract_price) : '',
-              paidAmount: u.paid_amount ? String(u.paid_amount) : '',
-              paidAmount2: u.paid_amount ? String(u.paid_amount) : '',
-              marketPrice: u.market_price ? String(u.market_price) : '',
-              installment: u.installment_amount
-                ? String(u.installment_amount)
-                : '',
-              remainingMonths:
-                u.years_left !== null && u.years_left !== undefined
-                  ? String(u.years_left)
-                  : '',
-              contractYear: u.contract_year ? String(u.contract_year) : '',
-              deliveryMonth: parsedDel.dMonth,
-              deliveryYear: parsedDel.dYear,
-              discountAmount: u.discount_amount
-                ? String(u.discount_amount)
-                : '',
-              overdueCount: u.overdue_installments
-                ? String(u.overdue_installments)
-                : '',
-              name: u.name || profileRes.user?.name || '',
-              phone: u.phone || profileRes.user?.phone || '',
-              email: u.email || profileRes.user?.email || '',
-              owner: 'yes',
-              confirmed: 'yes',
-            }))
-            setSelected({
-              type: u.unit_type ? [u.unit_type] : [],
-              finishing: u.finishing ? [u.finishing] : [],
-              delivery: parsedDel.baseStatus ? [parsedDel.baseStatus] : [],
-              features: Array.isArray(u.features) ? u.features : [],
-              year: u.contract_year ? [String(u.contract_year)] : [],
-              frequency: u.installment_frequency
-                ? [u.installment_frequency]
-                : [],
-              annualInstallment: [u.has_annual_installment ? 'yes' : 'no'],
-              discountOffer: [u.willing_to_discount ? 'yes' : 'no'],
-              overdueInstallments: [u.has_overdue_installments ? 'yes' : 'no'],
-            })
-            if (Array.isArray(u.images)) {
-              setImages(u.images)
-            }
-            setIsMagicResume(true)
-            setStep(targetStep)
+            hydrateUnitIntoState(u, targetStep)
             return
           }
         }
@@ -262,8 +293,8 @@ export function SellerFlow() {
             owner: 'yes',
             confirmed: 'yes',
           }))
-          setIsMagicResume(true)
-          setStep(3)
+          setIsMagicResume(false)
+          setStep(1)
         }
       }
     }
@@ -274,10 +305,12 @@ export function SellerFlow() {
   const update = (key: string, value: string) => {
     setForm((current) => ({ ...current, [key]: value }))
     setErrors((current) => ({ ...current, [key]: '' }))
+    setMissingFieldsList([])
   }
 
   const toggle = (group: string, value: string) => {
     setErrors((current) => ({ ...current, [group]: '' }))
+    setMissingFieldsList([])
     setSelected((current) => ({
       ...current,
       [group]: [
@@ -297,86 +330,211 @@ export function SellerFlow() {
     }))
   }
 
+  const cleanFieldLabel = (raw?: string) =>
+    String(raw || '')
+      .replace(/\*/g, '')
+      .replace(/:/g, '')
+      .trim()
+
+  const isUnderConstructionDelivery = (val?: string) => {
+    if (!val) return false
+    return val === deliveries[1] || val === deliveries[2]
+  }
+
   const composeDeliveryStatus = () => {
     const base = selected.delivery?.[0] || ''
-    const dMonth = form.deliveryMonth || ''
-    const dYear = form.deliveryYear || ''
-    if (dMonth && dYear) return `${base} (${dMonth}/${dYear})`
-    if (dYear) return `${base} (${dYear})`
+    const delMonths = (form.deliveryRemainingMonths || '').trim()
+    const monthsWord = (s.reviewStep as Record<string, any>)?.monthsUnit || 'شهر'
+    if (isUnderConstructionDelivery(base) && delMonths && Number(delMonths) > 0) {
+      return `${base} (${delMonths} ${monthsWord})`
+    }
     return base
   }
 
   const go = (next: number) => {
-    if (next <= step) return setStep(next)
+    if (next <= step) {
+      setMissingFieldsList([])
+      return setStep(next)
+    }
 
     const amount = (key: string) =>
       Number((form[key] ?? '').replace(/,/g, '')) || 0
     const nextErrors: Record<string, string> = {}
+    const missingNames: string[] = []
+    const tBasic = s.basicStep
+    const tDetails = s.detailsStep as Record<string, any>
+    const tPricing = s.pricingStep as Record<string, any>
 
     if (step === 1) {
-      if (!form.developer) nextErrors.developer = s.validation.required
-      if (!form.project) nextErrors.project = s.validation.required
-      if (!form.contractPrice) nextErrors.contractPrice = s.validation.required
-      if (!form.paidAmount) nextErrors.paidAmount = s.validation.required
-      if (form.confirmed !== 'yes')
+      if (!form.developer) {
+        nextErrors.developer = s.validation.required
+        missingNames.push(cleanFieldLabel(tBasic.developer))
+      }
+      if (!form.project) {
+        nextErrors.project = s.validation.required
+        missingNames.push(cleanFieldLabel(tBasic.project))
+      }
+      if (!form.contractPrice) {
+        nextErrors.contractPrice = s.validation.required
+        missingNames.push(cleanFieldLabel(tBasic.contractPrice))
+      }
+      if (!form.paidAmount) {
+        nextErrors.paidAmount = s.validation.required
+        missingNames.push(cleanFieldLabel(tBasic.paidAmount))
+      }
+      if (form.confirmed !== 'yes') {
         nextErrors.confirmed = s.validation.confirmRequired
-      if (amount('paidAmount') > amount('contractPrice'))
+        missingNames.push(cleanFieldLabel(tBasic.confirmLabel))
+      }
+      if (amount('paidAmount') > amount('contractPrice')) {
         nextErrors.paidAmount = s.validation.paidExceedsContract
+        if (!missingNames.includes(cleanFieldLabel(tBasic.paidAmount))) {
+          missingNames.push(cleanFieldLabel(tBasic.paidAmount))
+        }
+      }
     }
 
     if (step === 3) {
-      if (!form.developerDetails && !form.developer)
-        nextErrors.developerDetails = s.validation.required
-      if (!form.projectDetails && !form.project)
-        nextErrors.projectDetails = s.validation.required
-      if (!form.location) nextErrors.location = s.validation.required
-      if (!selected.type?.[0]) nextErrors.type = s.validation.required
-      if (!form.areaSize) nextErrors.areaSize = s.validation.required
-      if (!form.rooms) nextErrors.rooms = s.validation.required
-      if (!form.bathrooms) nextErrors.bathrooms = s.validation.required
-      if (selected.type?.[0] === unitTypes[0] && !form.floor)
+      if (isMagicResume) {
+        if (!form.developerDetails && !form.developer) {
+          nextErrors.developerDetails = s.validation.required
+          missingNames.push(cleanFieldLabel(tBasic.developer))
+        }
+        if (!form.projectDetails && !form.project) {
+          nextErrors.projectDetails = s.validation.required
+          missingNames.push(cleanFieldLabel(tBasic.project))
+        }
+      }
+      if (!form.location) {
+        nextErrors.location = s.validation.required
+        missingNames.push(
+          cleanFieldLabel(
+            tDetails.georgiaLocationLabel || tDetails.locationLabelPrefix
+          )
+        )
+      }
+      if (!selected.type?.[0]) {
+        nextErrors.type = s.validation.required
+        missingNames.push(cleanFieldLabel(tDetails.unitTypeLabel))
+      }
+      if (!form.areaSize) {
+        nextErrors.areaSize = s.validation.required
+        missingNames.push(cleanFieldLabel(tDetails.areaSizeLabel))
+      }
+      if (!form.rooms) {
+        nextErrors.rooms = s.validation.required
+        missingNames.push(cleanFieldLabel(tDetails.roomsLabel))
+      }
+      if (!form.bathrooms) {
+        nextErrors.bathrooms = s.validation.required
+        missingNames.push(cleanFieldLabel(tDetails.bathroomsLabel))
+      }
+      if (selected.type?.[0] === unitTypes[0] && !form.floor) {
         nextErrors.floor = s.validation.required
-      if (!selected.finishing?.[0]) nextErrors.finishing = s.validation.required
-      if (!selected.delivery?.[0]) nextErrors.delivery = s.validation.required
-      if (!form.deliveryMonth || !form.deliveryYear)
+        missingNames.push(cleanFieldLabel(tDetails.floorLabel))
+      }
+      if (!selected.finishing?.[0]) {
+        nextErrors.finishing = s.validation.required
+        missingNames.push(cleanFieldLabel(tDetails.finishingLabel))
+      }
+      if (!selected.delivery?.[0]) {
+        nextErrors.delivery = s.validation.required
+        missingNames.push(cleanFieldLabel(tDetails.deliveryLabel))
+      } else if (
+        isUnderConstructionDelivery(selected.delivery?.[0]) &&
+        (!form.deliveryRemainingMonths ||
+          form.deliveryRemainingMonths.trim() === '')
+      ) {
         nextErrors.deliveryDate = s.validation.required
-      if (!form.description) nextErrors.description = s.validation.required
+        missingNames.push(
+          cleanFieldLabel(
+            tDetails.deliveryMonthsLabel || tDetails.deliveryDateLabel
+          )
+        )
+      }
+      if (!form.description) {
+        nextErrors.description = s.validation.required
+        missingNames.push(cleanFieldLabel(tDetails.descriptionLabel))
+      }
     }
 
     if (step === 4) {
       const resolvedContractYear = form.contractYear || selected.year?.[0] || ''
-      if (!form.contractPrice) nextErrors.contractPrice = s.validation.required
-      if (!form.contractMonth || !resolvedContractYear)
+      if (isMagicResume && !form.contractPrice) {
+        nextErrors.contractPrice = s.validation.required
+        missingNames.push(cleanFieldLabel(tBasic.contractPrice))
+      }
+      if (!form.contractMonth || !resolvedContractYear) {
         nextErrors.year = s.validation.required
-      if (!form.paidAmount) nextErrors.paidAmount = s.validation.required
-      if (!form.marketPrice) nextErrors.marketPrice = s.validation.required
-      if (!form.installment) nextErrors.installment = s.validation.required
-      if (!selected.frequency?.[0])
+        missingNames.push(
+          cleanFieldLabel(
+            tPricing.contractMonthYearLabel || tPricing.contractYearLabel
+          )
+        )
+      }
+      if (isMagicResume && !form.paidAmount) {
+        nextErrors.paidAmount = s.validation.required
+        missingNames.push(cleanFieldLabel(tBasic.paidAmount))
+      }
+      if (!form.marketPrice && !form.currentDeveloperPrice) {
+        nextErrors.marketPrice = s.validation.required
+        missingNames.push(cleanFieldLabel(tPricing.marketPriceLabel))
+      }
+      if (!form.installment) {
+        nextErrors.installment = s.validation.required
+        missingNames.push(cleanFieldLabel(tPricing.installmentLabel))
+      }
+      if (!selected.frequency?.[0]) {
         nextErrors.frequency = s.validation.selectFrequency
+        missingNames.push(cleanFieldLabel(tPricing.frequencyLabel))
+      }
       if (
         form.remainingMonths === undefined ||
         form.remainingMonths.trim() === ''
       ) {
         nextErrors.remainingMonths = s.validation.required
+        missingNames.push(
+          cleanFieldLabel(
+            tPricing.remainingMonthsLabel || tPricing.remainingYearsLabel
+          )
+        )
       }
-      if (!selected.annualInstallment?.[0])
+      if (!selected.annualInstallment?.[0]) {
         nextErrors.annualInstallment = s.validation.selectYesNo
-      if (!selected.discountOffer?.[0])
+        missingNames.push(cleanFieldLabel(tPricing.annualInstallmentQuestion))
+      }
+      if (!selected.discountOffer?.[0]) {
         nextErrors.discountOffer = s.validation.selectYesNo
-      if (!selected.overdueInstallments?.[0])
+        missingNames.push(cleanFieldLabel(tPricing.discountQuestion))
+      }
+      if (!selected.overdueInstallments?.[0]) {
         nextErrors.overdueInstallments = s.validation.selectYesNo
-      if (amount('paidAmount') > amount('contractPrice'))
+        missingNames.push(cleanFieldLabel(tPricing.overdueQuestion))
+      }
+      if (amount('paidAmount') > amount('contractPrice')) {
         nextErrors.paidAmount = s.validation.paidExceedsContract
-      if (amount('installment') > amount('contractPrice'))
+        if (!missingNames.includes(cleanFieldLabel(tBasic.paidAmount))) {
+          missingNames.push(cleanFieldLabel(tBasic.paidAmount))
+        }
+      }
+      if (amount('installment') > amount('contractPrice')) {
         nextErrors.installment = s.validation.paidExceedsContract
+        if (
+          !missingNames.includes(cleanFieldLabel(tPricing.installmentLabel))
+        ) {
+          missingNames.push(cleanFieldLabel(tPricing.installmentLabel))
+        }
+      }
     }
 
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors)
+      setMissingFieldsList(missingNames)
       return
     }
 
     setErrors({})
+    setMissingFieldsList([])
 
     if (next === 3)
       setForm((current) => ({
@@ -389,10 +547,78 @@ export function SellerFlow() {
         ...current,
         contractPrice2: current.contractPrice,
         paidAmount2: current.paidAmount,
-        marketPrice: current.marketPrice || current.currentDeveloperPrice,
+        marketPrice:
+          current.marketPrice ||
+          current.currentDeveloperPrice ||
+          current.contractPrice,
       }))
 
     setStep(next)
+  }
+
+  const handleUploadUnitDocument = async (
+    docKey: SellerDocKey,
+    files: FileList | null
+  ) => {
+    const file = files?.[0]
+    if (!file) return
+
+    setUploadingDocKey(docKey)
+    try {
+      const supabase = createClient()
+      const cleanName = file.name.replace(/[^a-zA-Z0-9.-]/g, '-')
+      const folderId = unitId || 'draft'
+      const path = `documents/${folderId}/${docKey}-${Date.now()}-${cleanName}`
+
+      const { error: uploadErr } = await supabase.storage
+        .from('unit-images')
+        .upload(path, file, { contentType: file.type, upsert: true })
+
+      let publicUrl = `https://storage.aqarexit.com/${path}`
+      if (!uploadErr) {
+        publicUrl = supabase.storage.from('unit-images').getPublicUrl(path)
+          .data.publicUrl
+      }
+
+      const newEntry: UploadedDocEntry = {
+        url: publicUrl,
+        name: file.name,
+        uploaded_at: new Date().toLocaleDateString('en-GB'),
+        status: 'pending_review',
+      }
+
+      setUnitDocs((prev) => ({
+        ...prev,
+        [docKey]: newEntry,
+      }))
+
+      if (unitId) {
+        await saveUnitDocumentAction({
+          unitId,
+          docKey,
+          fileUrl: publicUrl,
+          fileName: file.name,
+        })
+      }
+    } finally {
+      setUploadingDocKey(null)
+    }
+  }
+
+  const handleRemoveUnitDocument = async (docKey: SellerDocKey) => {
+    setUploadingDocKey(docKey)
+    try {
+      setUnitDocs((prev) => {
+        const clone = { ...prev }
+        delete clone[docKey]
+        return clone
+      })
+      if (unitId) {
+        await deleteUnitDocumentAction({ unitId, docKey })
+      }
+    } finally {
+      setUploadingDocKey(null)
+    }
   }
 
   const saveProgress = async () => {
@@ -411,14 +637,24 @@ export function SellerFlow() {
     put('bathrooms', form.bathrooms)
     put('finishing', selected.finishing?.[0])
     put('delivery_status', composeDeliveryStatus())
+    put('delivery_month', form.deliveryRemainingMonths)
     put('description', form.description)
     put('contract_price', form.contractPrice2 || form.contractPrice)
     put('paid_amount', form.paidAmount2 || form.paidAmount)
-    put('market_price', form.marketPrice)
+    put(
+      'market_price',
+      form.marketPrice || form.currentDeveloperPrice || form.contractPrice
+    )
     put('installment_amount', form.installment)
     put('installment_frequency', selected.frequency?.[0])
+    put('contract_month', form.contractMonth)
     put('contract_year', form.contractYear || selected.year?.[0])
     put('years_left', form.remainingMonths)
+    put('annual_installment_amount', form.annualInstallmentAmount)
+    put('overdue_total_amount', form.overdueTotal)
+    if (Object.keys(unitDocs).length > 0) {
+      put('documents_json', JSON.stringify(unitDocs))
+    }
     images.forEach((image) => data.append('image', image))
 
     const result = await saveSellProgress(data)
@@ -450,7 +686,10 @@ export function SellerFlow() {
     setValue('size', form.areaSize)
     setValue('contract_price', form.contractPrice2 || form.contractPrice)
     setValue('paid_amount', form.paidAmount2 || form.paidAmount)
-    setValue('market_price', form.marketPrice)
+    setValue(
+      'market_price',
+      form.marketPrice || form.currentDeveloperPrice || form.contractPrice
+    )
     setValue('installment_amount', form.installment)
     setValue('years_left', form.remainingMonths)
     setValue('garden_size', form.garden)
@@ -459,15 +698,22 @@ export function SellerFlow() {
     setValue('floor_number', form.floor)
     setValue('finishing', selectedValue('finishing'))
     setValue('delivery_status', composeDeliveryStatus())
+    setValue('delivery_month', form.deliveryRemainingMonths)
     setList('feature', selected.features)
     setValue('description', form.description)
+    setValue('contract_month', form.contractMonth)
     setValue('contract_year', form.contractYear || selectedValue('year'))
     setValue('installment_frequency', selectedValue('frequency'))
     setToggle('has_annual_installment', 'annualInstallment')
+    setValue('annual_installment_amount', form.annualInstallmentAmount)
     setToggle('willing_to_discount', 'discountOffer')
     setToggle('has_overdue_installments', 'overdueInstallments')
     setValue('discount_amount', form.discountAmount)
     setValue('overdue_installments', form.overdueCount)
+    setValue('overdue_total_amount', form.overdueTotal)
+    if (Object.keys(unitDocs).length > 0) {
+      setValue('documents_json', JSON.stringify(unitDocs))
+    }
     setValue('name', form.name || loggedUser?.name || '')
     setValue(
       'phone',
@@ -498,6 +744,12 @@ export function SellerFlow() {
 
   const totalStepsCount = isMagicResume ? 4 : 6
   const currentDisplayStep = isMagicResume ? Math.max(1, step - 2) : step
+  const supportWhatsApp = String(dict.footer?.phone || '+201018595959').replace(
+    /\D/g,
+    ''
+  )
+  const missingBannerPrefix =
+    valDict.missingBannerPrefix || valDict.required || ''
 
   return (
     <main
@@ -587,6 +839,8 @@ export function SellerFlow() {
                   update={update}
                   go={go}
                   errors={errors}
+                  missingFields={missingFieldsList}
+                  missingPrefix={missingBannerPrefix}
                 />
               )}
               {step === 2 && (
@@ -612,6 +866,9 @@ export function SellerFlow() {
                   toggle={toggle}
                   go={go}
                   errors={errors}
+                  showBasicFields={isMagicResume}
+                  missingFields={missingFieldsList}
+                  missingPrefix={missingBannerPrefix}
                   onSave={saveProgress}
                 />
               )}
@@ -624,6 +881,9 @@ export function SellerFlow() {
                   go={go}
                   errors={errors}
                   setErrors={setErrors}
+                  showBasicPriceFields={isMagicResume}
+                  missingFields={missingFieldsList}
+                  missingPrefix={missingBannerPrefix}
                   onSave={saveProgress}
                 />
               )}
@@ -634,6 +894,11 @@ export function SellerFlow() {
                   setImages={setImages}
                   uploading={uploading}
                   setUploading={setUploading}
+                  unitDocs={unitDocs}
+                  uploadingDocKey={uploadingDocKey}
+                  onUploadDoc={handleUploadUnitDocument}
+                  onRemoveDoc={handleRemoveUnitDocument}
+                  onPreviewDoc={(url, title) => setPreviewDoc({ url, title })}
                   onSave={saveProgress}
                 />
               )}
@@ -648,6 +913,7 @@ export function SellerFlow() {
                   go={go}
                   onSave={saveProgress}
                   imagesLength={images.length}
+                  docsCount={Object.keys(unitDocs).length}
                   orderRef={orderRef}
                   unitId={unitId}
                 />
@@ -661,7 +927,9 @@ export function SellerFlow() {
             <div className="mt-5 flex items-center justify-between gap-4 rounded-2xl bg-[var(--brand-navy,#0a1122)] px-5 py-4 text-sm text-white">
               <span>{s.header.whatsappBarText}</span>
               <a
-                href="https://wa.me/201018595959"
+                href={`https://wa.me/${supportWhatsApp}`}
+                target="_blank"
+                rel="noreferrer"
                 className="rounded-full bg-green-500 px-4 py-2 font-bold text-white"
               >
                 {s.header.whatsappBarBtn}
@@ -670,6 +938,39 @@ export function SellerFlow() {
           </ScrollReveal>
         )}
       </div>
+
+      {/* نافذة تكبير الصورة (Lightbox) عند الضغط على الصورة المصغرة */}
+      {previewDoc && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-xs"
+          onClick={() => setPreviewDoc(null)}
+        >
+          <div
+            className="relative max-h-[90vh] max-w-4xl overflow-hidden rounded-2xl bg-white p-2 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2">
+              <span className="text-xs font-extrabold text-[#0a1122]">
+                {previewDoc.title}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPreviewDoc(null)}
+                className="flex size-7 items-center justify-center rounded-full bg-slate-100 text-slate-700 hover:bg-red-100 hover:text-red-600"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+            <div className="mt-2 flex max-h-[80vh] items-center justify-center overflow-auto bg-slate-950/5 p-2">
+              <img
+                src={previewDoc.url}
+                alt={previewDoc.title}
+                className="max-h-[76vh] w-auto max-w-full rounded-lg object-contain"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }
@@ -679,11 +980,15 @@ function BasicStep({
   update,
   go,
   errors,
+  missingFields,
+  missingPrefix,
 }: {
   form: Record<string, string>
   update: (key: string, value: string) => void
   go: (step: number) => void
   errors: Record<string, string>
+  missingFields: string[]
+  missingPrefix: string
 }) {
   const { t: dict, locale, dir } = useTranslation()
   const s = dict.sell
@@ -697,28 +1002,40 @@ function BasicStep({
         label={t.developer}
         id="developer"
         value={form.developer}
-        update={(value) => update('developer', value)}
+        update={(value) => {
+          update('developer', value)
+          update('developerDetails', value)
+        }}
       />
       <Field
         error={errors.project}
         label={t.project}
         id="project"
         value={form.project}
-        update={(value) => update('project', value)}
+        update={(value) => {
+          update('project', value)
+          update('projectDetails', value)
+        }}
       />
       <MoneyField
         error={errors.contractPrice}
         label={t.contractPrice}
         value={form.contractPrice}
         currencySymbol={currency}
-        update={(value) => update('contractPrice', value)}
+        update={(value) => {
+          update('contractPrice', value)
+          update('contractPrice2', value)
+        }}
       />
       <MoneyField
         error={errors.paidAmount}
         label={t.paidAmount}
         value={form.paidAmount}
         currencySymbol={currency}
-        update={(value) => update('paidAmount', value)}
+        update={(value) => {
+          update('paidAmount', value)
+          update('paidAmount2', value)
+        }}
       />
       <div className="rounded-xl bg-sky-50 p-4 text-sm font-semibold text-sky-700">
         {t.receiveBoxPrefix}{' '}
@@ -761,10 +1078,25 @@ function BasicStep({
             : t.currentDevPriceHelper
         }
         value={form.currentDeveloperPrice}
-        update={(value) => update('currentDeveloperPrice', value)}
+        update={(value) => {
+          update('currentDeveloperPrice', value)
+          if (!form.marketPrice) update('marketPrice', value)
+        }}
       />
       <TurnstileBox />
-      <Actions go={go} next={2} back={false} />
+
+      <StepValidationBanner
+        missingFields={missingFields}
+        prefixText={missingPrefix}
+      />
+
+      <Button
+        type="button"
+        className="h-12 w-full rounded-xl bg-[var(--brand-navy,#0a1122)] font-bold transition active:scale-[0.98]"
+        onClick={() => go(2)}
+      >
+        {s.shared.nextBtn}
+      </Button>
     </div>
   )
 }
@@ -776,6 +1108,9 @@ function DetailsStep({
   toggle,
   go,
   errors,
+  showBasicFields,
+  missingFields,
+  missingPrefix,
   onSave,
 }: {
   form: Record<string, string>
@@ -784,33 +1119,49 @@ function DetailsStep({
   toggle: (group: string, value: string) => void
   go: (step: number) => void
   errors: Record<string, string>
+  showBasicFields: boolean
+  missingFields: string[]
+  missingPrefix: string
   onSave: () => void
 }) {
   const { t: dict, dir } = useTranslation()
   const s = dict.sell
   const t = s.detailsStep as Record<string, any>
 
+  const chosenDelivery = selected.delivery?.[0] || ''
+  const needsDeliveryMonths =
+    chosenDelivery === deliveries[1] || chosenDelivery === deliveries[2]
+
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid gap-5 sm:grid-cols-2">
-        <Field
-          error={errors.developerDetails}
-          label={s.basicStep.developer}
-          id="developerDetails"
-          value={form.developerDetails ?? form.developer}
-          update={(value) => update('developerDetails', value)}
-        />
-        <Field
-          error={errors.projectDetails}
-          label={s.basicStep.project}
-          id="projectDetails"
-          value={form.projectDetails ?? form.project}
-          update={(value) => update('projectDetails', value)}
-        />
-      </div>
+      {/* لا نعيد عرض اسم المطور والمشروع إذا أدخلهما البائع للتو في الخطوة 1، بل يظهران فقط عند فتح صفحة تعديل وحدة مسجلة */}
+      {showBasicFields && (
+        <div className="grid gap-5 sm:grid-cols-2">
+          <Field
+            error={errors.developerDetails}
+            label={s.basicStep.developer}
+            id="developerDetails"
+            value={form.developerDetails ?? form.developer}
+            update={(value) => {
+              update('developerDetails', value)
+              update('developer', value)
+            }}
+          />
+          <Field
+            error={errors.projectDetails}
+            label={s.basicStep.project}
+            id="projectDetails"
+            value={form.projectDetails ?? form.project}
+            update={(value) => {
+              update('projectDetails', value)
+              update('project', value)
+            }}
+          />
+        </div>
+      )}
 
-      {/* البحث الفوري في جميع المناطق والأحياء بدون سكرول طويل */}
-      <SearchableGeorgiaAreaPicker
+      {/* القائمة المنسدلة لمناطق جورجيا مع بحث خفيف بالداخل */}
+      <GeorgiaAreaSelect
         label={t.georgiaLocationLabel || `${t.locationLabelPrefix} *`}
         value={form.location ?? ''}
         onChange={(area) => update('location', area)}
@@ -896,21 +1247,27 @@ function DetailsStep({
           error={errors.delivery}
           items={deliveries}
           selected={selected.delivery ?? []}
-          onToggle={(value) => toggle('delivery', value)}
+          onToggle={(value) => {
+            toggle('delivery', value)
+            if (value === deliveries[0]) {
+              update('deliveryRemainingMonths', '0')
+            }
+          }}
         />
       </fieldset>
 
-      {/* تاريخ استلام الوحدة (Delivery Date) بالشهر والسنة */}
-      <MonthYearSelector
-        label={t.deliveryDateLabel || `${t.deliveryLabel} (Month / Year) *`}
-        monthValue={form.deliveryMonth || ''}
-        yearValue={form.deliveryYear || ''}
-        yearsList={deliveryFutureYears}
-        error={errors.deliveryDate}
-        helper={t.deliveryDateHelper}
-        onMonthChange={(m) => update('deliveryMonth', m)}
-        onYearChange={(y) => update('deliveryYear', y)}
-      />
+      {/* معاد استلام الوحدة بالشهور (إذا كانت الوحدة تحت الإنشاء) */}
+      {needsDeliveryMonths && (
+        <Field
+          error={errors.deliveryDate}
+          label={t.deliveryMonthsLabel || t.deliveryDateLabel}
+          id="deliveryRemainingMonths"
+          type="number"
+          helper={t.deliveryMonthsHelper || t.deliveryDateHelper}
+          value={form.deliveryRemainingMonths}
+          update={(value) => update('deliveryRemainingMonths', value)}
+        />
+      )}
 
       <fieldset className="flex flex-col gap-3">
         <legend className="text-start font-bold">{t.featuresLabel}</legend>
@@ -942,10 +1299,15 @@ function DetailsStep({
         )}
       </div>
 
+      <StepValidationBanner
+        missingFields={missingFields}
+        prefixText={missingPrefix}
+      />
+
       <div className="flex gap-3">
         <Button
           type="button"
-          className="h-12 flex-1 rounded-xl bg-[var(--brand-navy,#0a1122)]"
+          className="h-12 flex-1 rounded-xl bg-[var(--brand-navy,#0a1122)] font-bold transition active:scale-[0.98]"
           onClick={() => go(4)}
         >
           {s.shared.nextBtn}
@@ -972,6 +1334,9 @@ function PricingStep({
   go,
   errors,
   setErrors,
+  showBasicPriceFields,
+  missingFields,
+  missingPrefix,
   onSave,
 }: {
   form: Record<string, string>
@@ -981,6 +1346,9 @@ function PricingStep({
   go: (step: number) => void
   errors: Record<string, string>
   setErrors: React.Dispatch<React.SetStateAction<Record<string, string>>>
+  showBasicPriceFields: boolean
+  missingFields: string[]
+  missingPrefix: string
   onSave: () => void
 }) {
   const { t: dict, locale } = useTranslation()
@@ -992,15 +1360,33 @@ function PricingStep({
 
   return (
     <div className="flex flex-col gap-6">
-      <MoneyField
-        error={errors.contractPrice}
-        label={s.basicStep.contractPrice}
-        value={form.contractPrice2 ?? form.contractPrice}
-        currencySymbol={currency}
-        update={(value) => update('contractPrice', value)}
-      />
+      {/* إذا كان في وضع تعديل وحدة مسجلة نعرض له سعر العقد والمدفوع لتعديلهما، أما في التسجيل الجديد فقد كتبهما في الخطوة 1 */}
+      {showBasicPriceFields && (
+        <>
+          <MoneyField
+            error={errors.contractPrice}
+            label={s.basicStep.contractPrice}
+            value={form.contractPrice ?? form.contractPrice2}
+            currencySymbol={currency}
+            update={(value) => {
+              update('contractPrice', value)
+              update('contractPrice2', value)
+            }}
+          />
 
-      {/* اختيار شهر وسنة التعاقد معاً */}
+          <MoneyField
+            error={errors.paidAmount}
+            label={s.basicStep.paidAmount}
+            value={form.paidAmount ?? form.paidAmount2}
+            currencySymbol={currency}
+            update={(value) => {
+              update('paidAmount', value)
+              update('paidAmount2', value)
+            }}
+          />
+        </>
+      )}
+
       <MonthYearSelector
         label={t.contractMonthYearLabel || t.contractYearLabel}
         monthValue={form.contractMonth || ''}
@@ -1018,21 +1404,15 @@ function PricingStep({
         }}
       />
 
-      <MoneyField
-        error={errors.paidAmount}
-        label={s.basicStep.paidAmount}
-        value={form.paidAmount2 ?? form.paidAmount}
-        currencySymbol={currency}
-        update={(value) => update('paidAmount', value)}
-      />
-
-      <MoneyField
-        error={errors.marketPrice}
-        label={t.marketPriceLabel}
-        value={form.marketPrice}
-        currencySymbol={currency}
-        update={(value) => update('marketPrice', value)}
-      />
+      {(!form.currentDeveloperPrice || showBasicPriceFields) && (
+        <MoneyField
+          error={errors.marketPrice}
+          label={t.marketPriceLabel}
+          value={form.marketPrice}
+          currencySymbol={currency}
+          update={(value) => update('marketPrice', value)}
+        />
+      )}
 
       <div className="grid gap-5 sm:grid-cols-2">
         <MoneyField
@@ -1055,7 +1435,6 @@ function PricingStep({
         </fieldset>
       </div>
 
-      {/* المتبقي كام شهر تقسيط (إجباري *) */}
       <Field
         error={errors.remainingMonths}
         label={t.remainingMonthsLabel || `${t.remainingYearsLabel} *`}
@@ -1123,6 +1502,11 @@ function PricingStep({
         </div>
       )}
 
+      <StepValidationBanner
+        missingFields={missingFields}
+        prefixText={missingPrefix}
+      />
+
       <div className="mt-2 flex gap-3">
         <Button
           type="button"
@@ -1134,7 +1518,7 @@ function PricingStep({
         </Button>
         <Button
           type="button"
-          className="h-12 flex-1 rounded-xl bg-[var(--brand-navy,#0a1122)]"
+          className="h-12 flex-1 rounded-xl bg-[var(--brand-navy,#0a1122)] font-bold transition active:scale-[0.98]"
           onClick={() => go(5)}
         >
           {s.shared.nextBtn}
@@ -1159,6 +1543,11 @@ function PhotosStep({
   setImages,
   uploading,
   setUploading,
+  unitDocs,
+  uploadingDocKey,
+  onUploadDoc,
+  onRemoveDoc,
+  onPreviewDoc,
   onSave,
 }: {
   go: (step: number) => void
@@ -1166,11 +1555,28 @@ function PhotosStep({
   setImages: (images: string[]) => void
   uploading: boolean
   setUploading: (value: boolean) => void
+  unitDocs: Record<string, UploadedDocEntry>
+  uploadingDocKey: string | null
+  onUploadDoc: (docKey: SellerDocKey, files: FileList | null) => void
+  onRemoveDoc: (docKey: SellerDocKey) => void
+  onPreviewDoc: (url: string, title: string) => void
   onSave: () => void
 }) {
   const { t: dict } = useTranslation()
   const s = dict.sell
-  const t = s.photosStep
+  const t = s.photosStep as Record<string, any>
+  const docDict = dict.accountPages?.documents as Record<string, any>
+
+  const [showDocsBox, setShowDocsBox] = useState(
+    Object.keys(unitDocs).length > 0
+  )
+
+  const docSections: Array<{ key: SellerDocKey; title: string }> = [
+    { key: 'contract', title: docDict?.sections?.contract },
+    { key: 'receipts', title: docDict?.sections?.receipts },
+    { key: 'statement', title: docDict?.sections?.statement },
+    { key: 'passport', title: docDict?.sections?.passport },
+  ]
 
   const upload = async (files: FileList | null) => {
     if (!files?.length) return
@@ -1194,9 +1600,13 @@ function PhotosStep({
     setUploading(false)
   }
 
+  const uploadedDocsCount = docSections.filter((sec) =>
+    Boolean(unitDocs[sec.key]?.url)
+  ).length
+
   return (
-    <div className="flex flex-col gap-5">
-      <label className="flex min-h-48 cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-slate-300 text-center transition hover:bg-slate-50">
+    <div className="flex flex-col gap-6">
+      <label className="flex min-h-44 cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-slate-300 text-center transition hover:bg-slate-50">
         <ImagePlus className="size-8 text-slate-500" />
         <p className="font-bold">{t.uploadTitle}</p>
         <p className="text-sm text-slate-500">{t.uploadSub}</p>
@@ -1214,13 +1624,18 @@ function PhotosStep({
         </p>
       )}
       {images.length > 0 && (
-        <div className="mt-4 grid w-full grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+        <div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
           {images.map((url, index) => (
             <div
               key={url}
-              className="relative aspect-[4/3] w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-100 shadow-sm"
+              className="group relative aspect-[4/3] w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-100 shadow-sm"
             >
-              <img src={url} alt="" className="h-full w-full object-cover" />
+              <img
+                src={url}
+                alt=""
+                onClick={() => onPreviewDoc(url, t.uploadTitle)}
+                className="h-full w-full cursor-pointer object-cover transition group-hover:scale-105"
+              />
               <button
                 type="button"
                 onClick={() =>
@@ -1234,6 +1649,169 @@ function PhotosStep({
           ))}
         </div>
       )}
+
+      {/* قسم رفع مستندات الوحدة وصورة جواز السفر */}
+      <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-start sm:p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-2.5">
+            <ShieldAlert className="mt-0.5 size-5 shrink-0 text-amber-600" />
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-sm font-extrabold text-[#0a1122] sm:text-base">
+                  {t.optionalDocsBoxTitle}
+                </h3>
+                <span className="rounded-full bg-amber-200/80 px-2.5 py-0.5 text-[10.5px] font-extrabold text-amber-950">
+                  {t.optionalNowBadge}
+                </span>
+              </div>
+              <p className="mt-1 text-xs leading-relaxed text-amber-950/90">
+                {t.optionalDocsBoxDesc}
+              </p>
+            </div>
+          </div>
+
+          <span
+            dir="ltr"
+            className="shrink-0 rounded-full bg-white px-2.5 py-1 text-[11px] font-black text-[#007a5a] shadow-2xs"
+          >
+            {uploadedDocsCount}/4
+          </span>
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => setShowDocsBox(true)}
+            className={`inline-flex h-10 items-center justify-center gap-1.5 rounded-xl px-4 text-xs font-extrabold transition ${
+              showDocsBox
+                ? 'bg-[#007a5a] text-white shadow-xs'
+                : 'bg-[#0a1122] text-white hover:bg-[#16223f]'
+            }`}
+          >
+            <UploadCloud className="size-4 text-emerald-300" />
+            <span>{t.uploadDocsNowBtn}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setShowDocsBox(false)
+              go(6)
+            }}
+            className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-xs font-bold text-slate-700 transition hover:bg-slate-100"
+          >
+            {t.uploadDocsLaterBtn}
+          </button>
+        </div>
+
+        {showDocsBox && (
+          <div className="mt-4 grid grid-cols-1 gap-3 border-t border-amber-200/80 pt-4 sm:grid-cols-2">
+            {docSections.map((sec) => {
+              const entry = unitDocs[sec.key]
+              const isUploadingThis = uploadingDocKey === sec.key
+              const hasDoc = Boolean(entry?.url)
+              const isImg = hasDoc && isImageFileUrl(entry.url, entry.name)
+
+              return (
+                <div
+                  key={sec.key}
+                  className="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-extrabold text-[#0a1122]">
+                      {sec.title}
+                    </span>
+
+                    <div className="flex items-center gap-1.5">
+                      <label className="inline-flex h-8 cursor-pointer items-center justify-center gap-1 rounded-lg bg-[#007a5a] px-3 text-[11px] font-bold text-white transition hover:bg-[#006248]">
+                        {isUploadingThis ? (
+                          <Loader2 className="size-3.5 animate-spin" />
+                        ) : hasDoc ? (
+                          <>
+                            <RefreshCw className="size-3" />
+                            <span>{docDict?.changeFileBtn}</span>
+                          </>
+                        ) : (
+                          <>
+                            <UploadCloud className="size-3" />
+                            <span>{docDict?.uploadBtn}</span>
+                          </>
+                        )}
+                        <input
+                          type="file"
+                          accept="image/*,.pdf"
+                          className="sr-only"
+                          disabled={isUploadingThis}
+                          onChange={(e) => onUploadDoc(sec.key, e.target.files)}
+                        />
+                      </label>
+
+                      {hasDoc && (
+                        <button
+                          type="button"
+                          onClick={() => onRemoveDoc(sec.key)}
+                          className="inline-flex size-8 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-600 hover:bg-red-100"
+                          title={docDict?.removeFileBtn}
+                        >
+                          <Trash2 className="size-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {hasDoc ? (
+                    <div className="mt-3 flex items-center gap-2.5 rounded-lg bg-slate-50 p-2">
+                      {isImg ? (
+                        <button
+                          type="button"
+                          onClick={() => onPreviewDoc(entry.url, sec.title)}
+                          className="group relative size-12 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-white"
+                        >
+                          <img
+                            src={entry.url}
+                            alt={sec.title}
+                            className="h-full w-full object-cover"
+                          />
+                          <span className="absolute inset-0 flex items-center justify-center bg-black/45 opacity-0 transition group-hover:opacity-100">
+                            <Eye className="size-3.5 text-white" />
+                          </span>
+                        </button>
+                      ) : (
+                        <a
+                          href={entry.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex size-12 shrink-0 flex-col items-center justify-center rounded-lg bg-teal-50 text-[10px] font-bold text-teal-800"
+                        >
+                          <FileText className="size-4" />
+                          <span>PDF</span>
+                        </a>
+                      )}
+                      <div className="min-w-0 flex-1 text-start">
+                        <p className="truncate text-[11px] font-bold text-[#0a1122]">
+                          {entry.name}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => onPreviewDoc(entry.url, sec.title)}
+                          className="mt-0.5 text-[10.5px] font-bold text-[#007a5a] hover:underline"
+                        >
+                          {docDict?.viewFullImageBtn}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-[11px] text-slate-400">
+                      {docDict?.emptySection}
+                    </p>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
       <div className="flex gap-3">
         <Button
           type="button"
@@ -1245,7 +1823,7 @@ function PhotosStep({
         </Button>
         <Button
           type="button"
-          className="h-12 flex-1 rounded-xl bg-[var(--brand-navy,#0a1122)]"
+          className="h-12 flex-1 rounded-xl bg-[var(--brand-navy,#0a1122)] font-bold transition active:scale-[0.98]"
           onClick={() => go(6)}
         >
           {s.shared.nextBtn}
@@ -1274,6 +1852,7 @@ function ReviewStep({
   go,
   onSave,
   imagesLength,
+  docsCount,
   orderRef,
   unitId,
 }: {
@@ -1286,12 +1865,14 @@ function ReviewStep({
   go: (step: number) => void
   onSave: () => void
   imagesLength: number
+  docsCount: number
   orderRef: string
   unitId: string
 }) {
-  const { t: dict, locale } = useTranslation()
+  const { t: dict, locale, dir } = useTranslation()
   const s = dict.sell
   const t = s.reviewStep as Record<string, any>
+  const listSep = dir === 'rtl' ? '، ' : ', '
 
   const [selectedPromo, setSelectedPromo] = useState<7 | 14 | 30 | null>(null)
   const [fawryCode, setFawryCode] = useState<string | null>(null)
@@ -1355,7 +1936,6 @@ function ReviewStep({
           {t.orderRefLabel} <strong className="font-mono">{orderRef}</strong>
         </span>
 
-        {/* تنبيه وزر مباشر لرفع مستندات الوحدة وجواز السفر لنشر الوحدة */}
         <div className="mt-5 w-full rounded-2xl border border-amber-200 bg-amber-50 p-4 text-start sm:p-5">
           <div className="flex items-start gap-3">
             <ShieldAlert className="mt-0.5 size-5 shrink-0 text-amber-600" />
@@ -1364,17 +1944,25 @@ function ReviewStep({
                 {t.docsRequiredBannerTitle}
               </strong>
               <p className="mt-1 opacity-90">{t.docsRequiredBannerDesc}</p>
-              <Link
-                href={
-                  unitId
-                    ? `/account/documents?unitId=${unitId}`
-                    : '/account/documents'
-                }
-                className="mt-3 inline-flex h-10 items-center justify-center gap-1.5 rounded-xl bg-[#0a1122] px-5 text-xs font-bold text-white shadow-2xs transition hover:bg-[#16223f]"
-              >
-                <UploadCloud className="size-4 text-emerald-300" />
-                <span>{t.uploadDocsNowBtn}</span>
-              </Link>
+              <div className="mt-3 flex flex-wrap items-center gap-2.5">
+                <Link
+                  href={
+                    unitId
+                      ? `/account/documents?unitId=${unitId}`
+                      : '/account/documents'
+                  }
+                  className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl bg-[#0a1122] px-5 text-xs font-bold text-white shadow-2xs transition hover:bg-[#16223f]"
+                >
+                  <UploadCloud className="size-4 text-emerald-300" />
+                  <span>{t.uploadDocsNowBtn}</span>
+                </Link>
+                <Link
+                  href="/account"
+                  className="inline-flex h-10 items-center justify-center rounded-xl border border-amber-300 bg-white px-4 text-xs font-bold text-amber-950 hover:bg-amber-100/60"
+                >
+                  {s.photosStep?.uploadDocsLaterBtn || t.goToAccountBtn}
+                </Link>
+              </div>
             </div>
           </div>
         </div>
@@ -1492,10 +2080,11 @@ function ReviewStep({
       </div>
     )
 
+  const baseDel = selected.delivery?.join(listSep) || '—'
   const deliveryFormatted =
-    form.deliveryMonth && form.deliveryYear
-      ? `${selected.delivery?.join('، ') || '—'} (${form.deliveryMonth}/${form.deliveryYear})`
-      : selected.delivery?.join('، ') || '—'
+    form.deliveryRemainingMonths && Number(form.deliveryRemainingMonths) > 0
+      ? `${baseDel} (${form.deliveryRemainingMonths} ${t.monthsUnit || ''})`
+      : baseDel
 
   const contractDateFormatted =
     form.contractMonth && (form.contractYear || selected.year?.[0])
@@ -1509,11 +2098,11 @@ function ReviewStep({
         form.projectDetails || form.project || '—'
       }`,
     ],
-    [t.rowArea, form.location || '—'],
-    [t.rowType, selected.type?.join('، ') || '—'],
+    [t.rowArea, getLocalizedGeorgiaAreaName(form.location, locale)],
+    [t.rowType, selected.type?.join(listSep) || '—'],
     [t.rowSize, `${form.areaSize || '—'} ${t.sqmUnit}`],
     [t.rowRoomsBath, `${form.rooms || '—'} / ${form.bathrooms || '—'}`],
-    [t.rowFinishing, selected.finishing?.join('، ') || '—'],
+    [t.rowFinishing, selected.finishing?.join(listSep) || '—'],
     [t.rowDelivery, deliveryFormatted],
     [
       t.rowContractDate || s.pricingStep.contractYearLabel,
@@ -1526,6 +2115,7 @@ function ReviewStep({
         : '0',
     ],
     [t.rowPhotos, String(imagesLength)],
+    [t.rowUploadedDocs || t.docsRequiredBannerTitle, `${docsCount}/4`],
     [
       t.rowContractPrice,
       `${Number(
@@ -1551,9 +2141,18 @@ function ReviewStep({
         ))}
       </div>
 
-      <div className="flex items-start gap-2.5 rounded-xl border border-teal-200 bg-teal-50/70 p-3.5 text-start text-xs leading-relaxed text-teal-900">
-        <FileCheck2 className="mt-0.5 size-4 shrink-0 text-teal-700" />
-        <span>{t.docsPreSubmitNote}</span>
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-teal-200 bg-teal-50/70 p-3.5 text-start text-xs leading-relaxed text-teal-900">
+        <div className="flex items-start gap-2.5">
+          <FileCheck2 className="mt-0.5 size-4 shrink-0 text-teal-700" />
+          <span>{t.docsPreSubmitNote}</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => go(5)}
+          className="shrink-0 rounded-lg bg-teal-700 px-3 py-1.5 text-[11px] font-bold text-white hover:bg-teal-800"
+        >
+          {t.uploadDocsNowBtn}
+        </button>
       </div>
 
       {error && (
@@ -1573,10 +2172,17 @@ function ReviewStep({
         <Button
           type="button"
           disabled={pending || submitted}
-          className="h-12 flex-1 rounded-xl bg-teal-700 font-bold"
+          className="h-12 flex-1 rounded-xl bg-teal-700 font-bold transition active:scale-[0.98]"
           onClick={submit}
         >
-          {pending ? t.submittingBtn : t.submitFinalBtn}
+          {pending ? (
+            <span className="inline-flex items-center gap-2">
+              <Loader2 className="size-4 animate-spin" />
+              <span>{t.submittingBtn}</span>
+            </span>
+          ) : (
+            t.submitFinalBtn
+          )}
         </Button>
       </div>
       <div className="mt-4 flex w-full justify-center">
@@ -1591,33 +2197,3 @@ function ReviewStep({
     </div>
   )
 }
-
-/* ============================================================================
-   ARCHIVED MULTI-COUNTRY SELECTION CODE (COMMENTED FOR FUTURE REFERENCE)
-   ============================================================================
-
-  // 1. Cookie & Country State Initialization:
-  // const activeCookieCountry = getHeaderCookieCountry()
-  // setForm((prev) => ({
-  //   ...prev,
-  //   unitCountry: prev.unitCountry || activeCookieCountry,
-  // }))
-
-  // 2. Step 1 & Step 3 Country Selector Field:
-  // <SearchableCountryField
-  //   value={form.unitCountry || 'EG'}
-  //   onChange={(code) => {
-  //     update('unitCountry', code)
-  //     update('location', '')
-  //   }}
-  //   label={s.shared.unitCountryLabel}
-  //   options={PLATFORM_COUNTRIES}
-  //   error={errors.unitCountry}
-  // />
-
-  // 3. Review Step Country Row:
-  // const countryObj = getCountryConfig(form.unitCountry)
-  // const localizedCountryName = getLocalizedCountryName(countryObj, locale)
-  // [t.rowCountry, `${countryObj.flag} ${localizedCountryName}`]
-
-============================================================================ */

@@ -1,16 +1,19 @@
 'use client'
 
-import { useState, useTransition, useRef, useEffect } from 'react'
+import { useState, useTransition } from 'react'
 import Link from 'next/link'
-import { ChevronDown, Eye, EyeOff } from 'lucide-react'
-import { AuthCard, AuthLayout, TurnstileBox } from '@/components/layouts/auth-layout'
-import { ScrollReveal } from '@/components/shared/scroll-reveal'
+import { Eye, EyeOff, Loader2 } from 'lucide-react'
+import {
+  AuthCard,
+  AuthLayout,
+  TurnstileBox,
+} from '@/components/layouts/auth-layout'
+import { CountrySelector } from '@/components/shared/country-selector'
 import { registerAction } from '@/actions/auth-actions'
-import { ALL_RESIDENCE_COUNTRIES } from '@/components/features/seller/seller-shared'
 import { useTranslation } from '@/lib/i18n'
 
 export default function RegisterPage() {
-  const { t: dict, locale, dir, isRtl } = useTranslation()
+  const { t: dict, dir } = useTranslation()
   const t = dict.authPages.register
   const c = dict.authPages.common
 
@@ -19,47 +22,21 @@ export default function RegisterPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [pending, startTransition] = useTransition()
 
-  // المفتاح الافتراضي لجورجيا (+995) ويمكن للمستخدم تغييره لأي دولة
-  const [countryCode, setCountryCode] = useState('+995')
+  const [phoneCode, setPhoneCode] = useState('995')
+  const [countryIso, setCountryIso] = useState('GE')
   const [phoneNumber, setPhoneNumber] = useState('')
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
-  const dropdownRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setIsDropdownOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
-
-  const selectedPhoneCountry =
-    ALL_RESIDENCE_COUNTRIES.find(
-      (item) => `+${item.phoneCode}` === countryCode
-    ) || ALL_RESIDENCE_COUNTRIES[0]
-
-  const getCountryLabel = (item: (typeof ALL_RESIDENCE_COUNTRIES)[0]) =>
-    locale === 'ar'
-      ? item.nameAr
-      : locale === 'ru'
-        ? item.nameRu || item.nameEn
-        : locale === 'ka'
-          ? item.nameKa || item.nameEn
-          : item.nameEn
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError('')
     const formData = new FormData(e.currentTarget)
 
-    const cleanPhone = phoneNumber.replace(/^0+/, '').trim()
-    formData.set('phone', `${countryCode}${cleanPhone}`)
-    formData.set('country', selectedPhoneCountry.code || 'GE')
+    const cleanPhone = phoneNumber
+      .replace(/^0+/, '')
+      .replace(/\D/g, '')
+      .trim()
+    formData.set('phone', `+${phoneCode.replace('+', '')}${cleanPhone}`)
+    formData.set('country', countryIso || 'GE')
 
     const password = formData.get('password') as string
     const confirmPassword = formData.get('confirmPassword') as string
@@ -81,246 +58,198 @@ export default function RegisterPage() {
 
   return (
     <AuthLayout>
-      <ScrollReveal>
-        <AuthCard>
-          <div dir={dir}>
-            <div className="text-center">
-              <h1 className="text-3xl font-extrabold tracking-tight text-[var(--brand-navy,#0a1122)]">
-                {t.title}
-              </h1>
-              <p className="mt-2 text-sm text-muted-foreground">{t.subtitle}</p>
-            </div>
-
-            {error && (
-              <div className="mt-4 rounded-xl bg-red-50 p-3 text-center text-xs font-bold text-red-600">
-                {error}
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
-              <div>
-                <label
-                  htmlFor="name"
-                  className="mb-2 block text-start text-xs font-bold text-foreground"
-                >
-                  {t.nameLabel}
-                </label>
-                <input
-                  id="name"
-                  name="name"
-                  type="text"
-                  maxLength={120}
-                  required
-                  className="h-12 w-full rounded-xl border border-input bg-background px-4 text-start text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary,#007a5a)]"
-                  placeholder={t.namePlaceholder}
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="phone"
-                  className="mb-2 block text-start text-xs font-bold text-foreground"
-                >
-                  {t.phoneLabel}
-                </label>
-                <div
-                  dir="ltr"
-                  className={`relative flex gap-2 ${isRtl ? 'flex-row-reverse' : 'flex-row'}`}
-                >
-                  <div
-                    className="relative w-[115px] shrink-0"
-                    ref={dropdownRef}
-                    dir="ltr"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                      className="flex h-12 w-full items-center justify-between rounded-xl border border-input bg-background px-3 text-sm font-bold text-foreground"
-                    >
-                      <span className="flex items-center gap-1.5">
-                        <span className="text-lg">
-                          {selectedPhoneCountry.flag}
-                        </span>
-                        <span dir="ltr">+{selectedPhoneCountry.phoneCode}</span>
-                      </span>
-                      <ChevronDown className="size-4 text-muted-foreground" />
-                    </button>
-
-                    {isDropdownOpen && (
-                      <div
-                        className={`absolute top-[54px] z-50 max-h-56 w-[220px] max-w-[calc(100vw-2.5rem)] overflow-y-auto rounded-xl border border-gray-200 bg-white p-1.5 shadow-xl ${
-                          isRtl ? 'right-0' : 'left-0'
-                        }`}
-                      >
-                        {ALL_RESIDENCE_COUNTRIES.map((item) => {
-                          const codeStr = `+${item.phoneCode}`
-                          return (
-                            <button
-                              key={item.code}
-                              type="button"
-                              onClick={() => {
-                                setCountryCode(codeStr)
-                                setIsDropdownOpen(false)
-                              }}
-                              className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-start transition-colors hover:bg-gray-50 ${
-                                countryCode === codeStr
-                                  ? 'bg-[var(--brand-primary-light,#eaf8f2)]'
-                                  : ''
-                              }`}
-                            >
-                              <div className="flex min-w-0 items-center gap-2">
-                                <span className="text-base">{item.flag}</span>
-                                <span className="truncate text-xs font-medium text-gray-700 sm:text-sm">
-                                  {getCountryLabel(item)}
-                                </span>
-                              </div>
-                              <span
-                                dir="ltr"
-                                className="shrink-0 text-[11px] font-bold text-gray-500"
-                              >
-                                {codeStr}
-                              </span>
-                            </button>
-                          )
-                        })}
-                      </div>
-                    )}
-                  </div>
-
-                  <input
-                    id="phone"
-                    type="tel"
-                    dir="ltr"
-                    maxLength={20}
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
-                    required
-                    className="h-12 flex-1 rounded-xl border border-input bg-background px-4 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary,#007a5a)]"
-                    placeholder="5xx xx xx xx"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label
-                  htmlFor="email"
-                  className="mb-2 block text-start text-xs font-bold text-foreground"
-                >
-                  {t.emailLabel}
-                </label>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  dir="ltr"
-                  maxLength={160}
-                  required
-                  className="h-12 w-full rounded-xl border border-input bg-background px-4 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary,#007a5a)]"
-                  placeholder="name@example.com"
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="password"
-                  className="mb-2 block text-start text-xs font-bold text-foreground"
-                >
-                  {t.passwordLabel}
-                </label>
-                <div className="relative">
-                  <input
-                    id="password"
-                    name="password"
-                    type={showPassword ? 'text' : 'password'}
-                    dir="ltr"
-                    required
-                    minLength={8}
-                    maxLength={128}
-                    className={`h-12 w-full rounded-xl border border-input bg-background pr-11 pl-4 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary,#007a5a)] ${
-                      showPassword ? 'tracking-normal' : 'tracking-widest'
-                    }`}
-                    placeholder={t.passwordPlaceholder}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((prev) => !prev)}
-                    className="absolute top-1/2 right-3.5 -translate-y-1/2 text-muted-foreground transition hover:text-foreground"
-                    aria-label={showPassword ? c.hidePassAria : c.showPassAria}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="size-5" />
-                    ) : (
-                      <Eye className="size-5" />
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label
-                  htmlFor="confirmPassword"
-                  className="mb-2 block text-start text-xs font-bold text-foreground"
-                >
-                  {t.confirmPasswordLabel}
-                </label>
-                <div className="relative">
-                  <input
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    dir="ltr"
-                    required
-                    minLength={8}
-                    maxLength={128}
-                    className={`h-12 w-full rounded-xl border border-input bg-background pr-11 pl-4 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary,#007a5a)] ${
-                      showConfirmPassword ? 'tracking-normal' : 'tracking-widest'
-                    }`}
-                    placeholder={t.confirmPasswordPlaceholder}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword((prev) => !prev)}
-                    className="absolute top-1/2 right-3.5 -translate-y-1/2 text-muted-foreground transition hover:text-foreground"
-                    aria-label={
-                      showConfirmPassword ? c.hidePassAria : c.showPassAria
-                    }
-                  >
-                    {showConfirmPassword ? (
-                      <EyeOff className="size-5" />
-                    ) : (
-                      <Eye className="size-5" />
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              <TurnstileBox />
-
-              <button
-                type="submit"
-                disabled={pending}
-                className="mt-1 h-12 rounded-xl bg-[var(--brand-primary,#007a5a)] px-5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[var(--brand-primary-hover,#006248)] disabled:opacity-50"
-              >
-                {pending ? t.submittingBtn : t.submitBtn}
-              </button>
-            </form>
-
-            <p className="mt-4 text-center text-[11px] leading-5 text-muted-foreground">
-              {t.termsNote}
-            </p>
-
-            <p className="mt-6 text-center text-sm text-muted-foreground">
-              {t.haveAccountText}{' '}
-              <Link
-                href="/login"
-                className="font-bold text-[var(--brand-primary,#007a5a)] hover:underline"
-              >
-                {t.loginHereLink}
-              </Link>
+      <AuthCard>
+        <div dir={dir}>
+          <div className="text-center">
+            <h1 className="text-2xl font-extrabold tracking-tight text-[var(--brand-navy,#0a1122)] sm:text-3xl">
+              {t.title}
+            </h1>
+            <p className="mt-2 text-xs text-muted-foreground sm:text-sm">
+              {t.subtitle}
             </p>
           </div>
-        </AuthCard>
-      </ScrollReveal>
+
+          {error && (
+            <div className="mt-4 rounded-xl bg-red-50 p-3 text-center text-xs font-bold text-red-600">
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
+            <div>
+              <label
+                htmlFor="name"
+                className="mb-2 block text-start text-xs font-bold text-foreground"
+              >
+                {t.nameLabel}
+              </label>
+              <input
+                id="name"
+                name="name"
+                type="text"
+                maxLength={120}
+                required
+                className="h-12 w-full rounded-xl border border-input bg-background px-4 text-start text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary,#007a5a)]"
+                placeholder={t.namePlaceholder}
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="phone"
+                className="mb-2 block text-start text-xs font-bold text-foreground"
+              >
+                {t.phoneLabel}
+              </label>
+              <div dir="ltr" className="flex items-center gap-2">
+                <CountrySelector
+                  value={phoneCode}
+                  onChange={(code, iso) => {
+                    setPhoneCode(code)
+                    if (iso) setCountryIso(iso)
+                  }}
+                />
+                <input
+                  id="phone"
+                  type="tel"
+                  inputMode="tel"
+                  dir="ltr"
+                  maxLength={20}
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  required
+                  className="h-12 flex-1 rounded-xl border border-input bg-background px-4 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary,#007a5a)]"
+                  placeholder="5xx xx xx xx"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label
+                htmlFor="email"
+                className="mb-2 block text-start text-xs font-bold text-foreground"
+              >
+                {t.emailLabel}
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                dir="ltr"
+                maxLength={160}
+                required
+                className="h-12 w-full rounded-xl border border-input bg-background px-4 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary,#007a5a)]"
+                placeholder="name@example.com"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="password"
+                className="mb-2 block text-start text-xs font-bold text-foreground"
+              >
+                {t.passwordLabel}
+              </label>
+              <div className="relative">
+                <input
+                  id="password"
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  dir="ltr"
+                  required
+                  minLength={8}
+                  maxLength={128}
+                  className={`h-12 w-full rounded-xl border border-input bg-background pr-11 pl-4 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary,#007a5a)] ${
+                    showPassword ? 'tracking-normal' : 'tracking-widest'
+                  }`}
+                  placeholder={t.passwordPlaceholder}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="absolute top-1/2 right-3.5 -translate-y-1/2 text-muted-foreground transition hover:text-foreground"
+                  aria-label={showPassword ? c.hidePassAria : c.showPassAria}
+                >
+                  {showPassword ? (
+                    <EyeOff className="size-5" />
+                  ) : (
+                    <Eye className="size-5" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label
+                htmlFor="confirmPassword"
+                className="mb-2 block text-start text-xs font-bold text-foreground"
+              >
+                {t.confirmPasswordLabel}
+              </label>
+              <div className="relative">
+                <input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  dir="ltr"
+                  required
+                  minLength={8}
+                  maxLength={128}
+                  className={`h-12 w-full rounded-xl border border-input bg-background pr-11 pl-4 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary,#007a5a)] ${
+                    showConfirmPassword ? 'tracking-normal' : 'tracking-widest'
+                  }`}
+                  placeholder={t.confirmPasswordPlaceholder}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword((prev) => !prev)}
+                  className="absolute top-1/2 right-3.5 -translate-y-1/2 text-muted-foreground transition hover:text-foreground"
+                  aria-label={
+                    showConfirmPassword ? c.hidePassAria : c.showPassAria
+                  }
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff className="size-5" />
+                  ) : (
+                    <Eye className="size-5" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <TurnstileBox />
+
+            <button
+              type="submit"
+              disabled={pending}
+              className="mt-1 inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[var(--brand-primary,#007a5a)] px-5 text-sm font-bold text-white shadow-xs transition active:scale-[0.98] hover:bg-[var(--brand-primary-hover,#006248)] disabled:opacity-60"
+            >
+              {pending ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  <span>{t.submittingBtn}</span>
+                </>
+              ) : (
+                <span>{t.submitBtn}</span>
+              )}
+            </button>
+          </form>
+
+          <p className="mt-4 text-center text-[11px] leading-5 text-muted-foreground">
+            {t.termsNote}
+          </p>
+
+          <p className="mt-6 text-center text-sm text-muted-foreground">
+            {t.haveAccountText}{' '}
+            <Link
+              href="/login"
+              className="font-bold text-[var(--brand-primary,#007a5a)] hover:underline"
+            >
+              {t.loginHereLink}
+            </Link>
+          </p>
+        </div>
+      </AuthCard>
     </AuthLayout>
   )
 }

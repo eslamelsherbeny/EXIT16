@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { Loader2 } from 'lucide-react'
 import { AuthCard, AuthLayout } from '@/components/layouts/auth-layout'
 import { forgotPasswordAction } from '@/actions/auth-actions'
 import { useTranslation } from '@/lib/i18n'
@@ -40,10 +41,10 @@ export default function ResetPasswordPage() {
       <AuthCard>
         <div dir={dir}>
           <div className="text-center">
-            <h1 className="text-3xl font-extrabold tracking-tight text-[var(--brand-navy,#0a1122)]">
+            <h1 className="text-2xl font-extrabold tracking-tight text-[var(--brand-navy,#0a1122)] sm:text-3xl">
               {t.title}
             </h1>
-            <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            <p className="mt-3 text-xs leading-6 text-muted-foreground sm:text-sm">
               {t.subtitle}
             </p>
           </div>
@@ -76,9 +77,16 @@ export default function ResetPasswordPage() {
             <button
               type="submit"
               disabled={pending}
-              className="h-12 rounded-xl bg-[var(--brand-primary,#007a5a)] px-5 text-sm font-bold text-white transition hover:bg-[var(--brand-primary-hover,#006248)] disabled:opacity-50"
+              className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[var(--brand-primary,#007a5a)] px-5 text-sm font-bold text-white transition active:scale-[0.98] hover:bg-[var(--brand-primary-hover,#006248)] disabled:opacity-60"
             >
-              {pending ? t.sendingBtn : t.sendOtpBtn}
+              {pending ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  <span>{t.sendingBtn}</span>
+                </>
+              ) : (
+                <span>{t.sendOtpBtn}</span>
+              )}
             </button>
           </form>
 

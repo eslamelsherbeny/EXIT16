@@ -379,9 +379,9 @@
     "errStep1": "كمّل حقول القدرة الشرائية الأول (الكاش، القسط، والميزانية)",
     "errStep3": "يرجى إكمال بيانات التواصل واختيار كلمة سر من 8 حروف على الأقل"
   },
-  "sell": {
-    "metaTitle": "بيع وحدتك | دارك",
-    "metaDesc": "بيع وحدتك العقارية بأمان وبسعر عادل مع دارك.",
+ "sell": {
+    "metaTitle": "بيع وحدتك | عقار إكزت",
+    "metaDesc": "بيع وحدتك العقارية بأمان وبسعر عادل في جورجيا.",
     "shared": {
       "countryLabel": "الدولة *",
       "unitCountryLabel": "الدولة الموجود بها العقار *",
@@ -398,6 +398,7 @@
     },
     "validation": {
       "required": "هذا الحقل مطلوب",
+      "missingBannerPrefix": "برجاء استكمال البيانات المطلوبة بالأعلى:",
       "selectCountry": "يرجى اختيار الدولة",
       "selectResidenceCountry": "يرجى اختيار دولتك",
       "confirmRequired": "هذا الحقل مطلوب، يرجى وضع علامة صح للمتابعة",
@@ -433,7 +434,7 @@
         "بيانات التواصل",
         "تفاصيل الوحدة",
         "السعر والأقساط",
-        "صور الوحدة",
+        "صور ومستندات الوحدة",
         "مراجعة وإرسال"
       ],
       "whatsappBarText": "ابعتلنا على واتساب وهنرد عليك في أسرع وقت",
@@ -442,8 +443,8 @@
     "basicStep": {
       "developer": "اسم المطور *",
       "project": "اسم المشروع / الكمبوند *",
-      "contractPrice": "إجمالي سعر الوحدة في العقد *",
-      "paidAmount": "إجمالي اللي دفعته لحد النهارده *",
+      "contractPrice": "إجمالي سعر الوحدة في العقد ($) *",
+      "paidAmount": "إجمالي اللي دفعته لحد النهارده ($) *",
       "receiveBoxPrefix": "المبلغ اللي هتستلمه:",
       "receiveBoxSuffix": "— اللي دفعته بالظبط، بدون أي أوفر أو زيادة.",
       "confirmLabel": "أؤكد إني فاهم إن المبلغ اللي هتستلمه هو اللي دفعته بالظبط — بدون أي أوفر أو زيادة.",
@@ -492,8 +493,12 @@
       "orLoginPageBtn": "أو ادخل من صفحة الدخول"
     },
     "detailsStep": {
-      "locationLabelPrefix": "المنطقة / الموقع في",
-      "locationPlaceholderPrefix": "دوّر على المنطقة في",
+      "locationLabelPrefix": "المنطقة / الموقع في جورجيا",
+      "locationPlaceholderPrefix": "اضغط لاختيار المنطقة في جورجيا",
+      "georgiaLocationLabel": "المنطقة / المدينة في جورجيا *",
+      "georgiaLocationPlaceholder": "اضغط لاختيار المدينة أو الحي (تبليسي، باتومي...)...",
+      "georgiaLocationSearchPlaceholder": "ابحث عن المدينة أو الحي...",
+      "noAreaMatch": "لا توجد منطقة مطابقة للبحث",
       "unitTypeLabel": "نوع الوحدة *",
       "areaSizeLabel": "المساحة (م٢) *",
       "gardenLabel": "الجاردن (م٢)",
@@ -503,36 +508,41 @@
       "floorHelper": "الأرضي = 0",
       "finishingLabel": "التشطيب *",
       "deliveryLabel": "حالة الاستلام *",
+      "deliveryMonthsLabel": "فاضل كام شهر على استلام الوحدة؟ (بالشهور) *",
+      "deliveryMonthsHelper": "اكتب عدد الشهور المتبقية حتى استلام الوحدة من المطور",
+      "deliveryDateLabel": "تاريخ استلام الوحدة (بالشهور) *",
+      "deliveryDateHelper": "اكتب عدد الشهور المتبقية على الاستلام",
       "featuresLabel": "المميزات",
-      "descriptionLabel": "وصف مختصر للوحدة *",
-      "georgiaLocationLabel": "المنطقة / المدينة في جورجيا *",
-"georgiaLocationPlaceholder": "ابحث عن المدينة أو الحي (مثل: تبليسي، باتومي، سابورتالو)...",
-"deliveryDateLabel": "تاريخ استلام الوحدة (الشهر / السنة) *",
-"deliveryDateHelper": "اختر الشهر والسنة المتوقعة أو الفعلية للاستلام"
+      "descriptionLabel": "وصف مختصر للوحدة *"
     },
     "pricingStep": {
       "contractYearLabel": "سنة التعاقد *",
-      "marketPriceLabel": "سعر الوحدة دلوقتي في السوق (تقديري) *",
-      "installmentLabel": "قيمة القسط *",
+      "contractMonthYearLabel": "تاريخ التعاقد (الشهر / السنة) *",
+      "marketPriceLabel": "سعر الوحدة دلوقتي في السوق (تقديري $) *",
+      "installmentLabel": "قيمة القسط ($) *",
       "frequencyLabel": "دورية القسط *",
       "frequencies": ["شهري", "ربع سنوي", "نصف سنوي", "سنوي"],
-      "remainingYearsLabel": "فاضل كام سنة تقسيط؟ (اختياري)",
-      "remainingYearsHelper": "لو التقسيط خلص، اكتب صفر",
-      "annualInstallmentQuestion": "في قسط سنوي؟ *",
-      "annualInstallmentAmountLabel": "قيمة القسط السنوي *",
+      "remainingYearsLabel": "عدد شهور التقسيط المتبقية *",
+      "remainingYearsHelper": "لو التقسيط خلص، اكتب 0",
+      "remainingMonthsLabel": "عدد شهور التقسيط المتبقية *",
+      "remainingMonthsHelper": "اكتب 0 إذا كانت الوحدة خالصة الأقساط بالكامل",
+      "annualInstallmentQuestion": "في دفعة / قسط سنوي؟ *",
+      "annualInstallmentAmountLabel": "قيمة القسط السنوي ($) *",
       "discountQuestion": "مستعد تنزل عن جزء من اللي دفعته عشان تبيع أسرع؟ *",
-      "discountAmountLabel": "أكتر مبلغ مستعد تتنازل عنه *",
+      "discountAmountLabel": "أكتر مبلغ مستعد تتنازل عنه ($) *",
       "overdueQuestion": "عليك أقساط متأخرة للمطور؟ *",
       "overdueCountLabel": "كام قسط متأخر؟ *",
-      "overdueTotalLabel": "إجمالي المبلغ المتأخر *",
-      "contractMonthYearLabel": "تاريخ التعاقد (الشهر / السنة) *",
-"remainingMonthsLabel": "عدد شهور التقسيط المتبقية *",
-"remainingMonthsHelper": "اكتب 0 إذا كانت الوحدة خالصة الأقساط بالكامل"
+      "overdueTotalLabel": "إجمالي المبلغ المتأخر ($) *"
     },
     "photosStep": {
       "uploadTitle": "أضف صور الوحدة",
       "uploadSub": "صورة واحدة على الأقل تكفي للنشر — وحتى 10 صور",
-      "uploadingText": "جاري رفع الصور..."
+      "uploadingText": "جاري رفع الصور...",
+      "optionalDocsBoxTitle": "رفع مستندات الوحدة وصورة جواز السفر",
+      "optionalNowBadge": "اختياري الآن · أساسي لنشر الوحدة",
+      "optionalDocsBoxDesc": "رفع المستندات (العقد، إيصالات السداد، كشف الحساب، وصورة جواز السفر) شرط أساسي لتوثيق ونشر وحدتك للمشترين. يمكنك رفعها الآن أو لاحقاً من حسابك.",
+      "uploadDocsNowBtn": "رفع المستندات الآن",
+      "uploadDocsLaterBtn": "رفع المستندات لاحقاً والمتابعة"
     },
     "reviewStep": {
       "rowCountry": "الدولة",
@@ -543,8 +553,12 @@
       "sqmUnit": "م٢",
       "rowRoomsBath": "غرف/حمامات",
       "rowFinishing": "التشطيب",
-      "rowDelivery": "حالة الاستلام",
+      "rowDelivery": "حالة ومعاد الاستلام",
+      "rowContractDate": "تاريخ التعاقد",
+      "rowRemainingMonths": "الشهور المتبقية للتقسيط",
+      "monthsUnit": "شهر",
       "rowPhotos": "الصور",
+      "rowUploadedDocs": "المستندات المرفوعة",
       "rowContractPrice": "إجمالي سعر الوحدة في العقد",
       "rowPaidAmount": "إجمالي اللي دفعته لحد النهارده",
       "submittingBtn": "جاري الإرسال...",
@@ -568,13 +582,10 @@
       "selectPackageHint": "اضغط على أي باقة بالأعلى لإصدار رقم طلب الإعلان المميز الخاص بوحدتك.",
       "goToAccountBtn": "روح لحسابك",
       "editAnytimeNote": "تقدر ترجع تعدّل بيانات وحدتك في أي وقت من حسابك.",
-      "rowContractDate": "تاريخ التعاقد",
-"rowRemainingMonths": "الشهور المتبقية",
-"monthsUnit": "شهر",
-"docsPreSubmitNote": "بعد إرسال الطلب، يرجى رفع مستندات الوحدة وصورة جواز السفر من حسابك ليتم توثيق ونشر الوحدة.",
-"docsRequiredBannerTitle": "خطوة هامة لتفعيل ونشر وحدتك",
-"docsRequiredBannerDesc": "يرجى رفع مستندات الوحدة (العقد، إيصالات السداد، وصورة جواز السفر) حتى يتمكن فريق المراجعة من توثيق وحدتك ونشرها للمشترين.",
-"uploadDocsNowBtn": "رفع مستندات الوحدة الآن"
+      "docsPreSubmitNote": "رفع مستندات الوحدة وصورة جواز السفر شرط أساسي لتوثيق ونشر الوحدة (تقدر ترفعهم الآن أو من حسابك).",
+      "docsRequiredBannerTitle": "خطوة هامة لتفعيل ونشر وحدتك",
+      "docsRequiredBannerDesc": "يرجى رفع مستندات الوحدة (العقد، إيصالات السداد، وصورة جواز السفر) حتى يتمكن فريق المراجعة من توثيق وحدتك ونشرها للمشترين.",
+      "uploadDocsNowBtn": "رفع مستندات الوحدة الآن"
     }
   },
   "accountPages": {
@@ -1399,6 +1410,8 @@
       "allCountriesHeader": "كل الدول",
       "noCountryMatch": "لا توجد دولة مطابقة للبحث",
       "lightThemeAria": "تفعيل الوضع الفاتح",
+      "searchCountryPlaceholder": "ابحث عن الدولة أو الكود (+995)...",
+"noCountryFound": "لا توجد دولة مطابقة",
       "darkThemeAria": "تفعيل الوضع الداكن"
     },
     "login": {
@@ -1409,6 +1422,7 @@
       "identifierPlaceholder": "name@example.com أو 01xxxxxxxxx",
       "passwordLabel": "كلمة السر",
       "forgotPassLink": "نسيت كلمة السر؟",
+      "adminLoginBanner": "يرجى تسجيل الدخول بحساب الإدارة للمتابعة",
       "submittingBtn": "جاري تسجيل الدخول...",
       "submitBtn": "تسجيل الدخول",
       "noAccountText": "معندكش حساب؟",

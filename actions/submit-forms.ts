@@ -869,6 +869,14 @@ export async function saveSellProgress(
       }
     }
 
+    let parsedDocuments: Record<string, any> | undefined = undefined
+    const rawDocsJson = text(formData, 'documents_json')
+    if (rawDocsJson) {
+      try {
+        parsedDocuments = JSON.parse(rawDocsJson)
+      } catch {}
+    }
+
     const deliveryStatusRaw = text(formData, 'delivery_status')
     const parsedDel = parseDeliveryDateFromStatus(deliveryStatusRaw)
 
@@ -901,6 +909,7 @@ export async function saveSellProgress(
       annual_installment_amount: number(formData, 'annual_installment_amount'),
       overdue_total_amount: number(formData, 'overdue_total_amount'),
       images: list(formData, 'image'),
+      ...(parsedDocuments ? { documents: parsedDocuments } : {}),
     }
 
     let targetUnitId = unitId
@@ -958,6 +967,14 @@ export async function submitSellRequest(
     const unitCountry = ACTIVE_COUNTRY_CODE
     const customSubType = text(formData, 'submission_type') || 'new'
 
+    let parsedDocuments: Record<string, any> | undefined = undefined
+    const rawDocsJson = text(formData, 'documents_json')
+    if (rawDocsJson) {
+      try {
+        parsedDocuments = JSON.parse(rawDocsJson)
+      } catch {}
+    }
+
     const deliveryStatusRaw = text(formData, 'delivery_status')
     const parsedDel = parseDeliveryDateFromStatus(deliveryStatusRaw)
 
@@ -1004,6 +1021,7 @@ export async function submitSellRequest(
       email: normalizeEmail(text(formData, 'email')) || null,
       is_original_owner: true,
       images: list(formData, 'image'),
+      ...(parsedDocuments ? { documents: parsedDocuments } : {}),
       status: 'pending',
     }
 

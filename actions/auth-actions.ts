@@ -18,6 +18,9 @@ import {
 } from '@/lib/session-security'
 import { getServerI18n } from '@/lib/get-server-dictionary'
 
+const DEFAULT_SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL || 'https://exit-16.vercel.app'
+
 async function getAuthDict() {
   const { dict, dir } = await getServerI18n()
   const t = (dict as Record<string, any>)?.serverActions?.auth || {}
@@ -163,7 +166,15 @@ function getPhoneVariants(rawPhone: string) {
 
   const stripped = digits.replace(/^0+/, '')
   return Array.from(
-    new Set([digits, `0${stripped}`, `+995${stripped}`, `+20${stripped}`])
+    new Set([
+      digits,
+      `+${stripped}`,
+      `0${stripped}`,
+      `+995${stripped}`,
+      `+20${stripped}`,
+      `+966${stripped}`,
+      `+971${stripped}`,
+    ])
   )
 }
 
@@ -178,7 +189,12 @@ function formatPrimaryPhone(rawPhone: string) {
   }
 
   const stripped = digits.replace(/^0+/, '')
-  if (stripped.startsWith('995') || stripped.startsWith('20')) {
+  if (
+    stripped.startsWith('995') ||
+    stripped.startsWith('20') ||
+    stripped.startsWith('966') ||
+    stripped.startsWith('971')
+  ) {
     return `+${stripped}`
   }
   return `+995${stripped}`
@@ -302,7 +318,7 @@ export async function loginAction(
     const { data } = await supabase
       .from('users')
       .select('id, name, email, phone, password_hash, status, role')
-      .ilike('email', `%${cleanEmail}%`)
+      .ilike('email', cleanEmail)
       .order('created_at', { ascending: false })
     candidates = data || []
   } else {
@@ -372,8 +388,9 @@ export async function loginAction(
     }).catch(() => {})
   }
 
-  const targetRedirect =
-    nextUrl && nextUrl.startsWith('/') ? nextUrl : '/account'
+  const isSafeInternalUrl =
+    nextUrl && nextUrl.startsWith('/') && !nextUrl.startsWith('//')
+  const targetRedirect = isSafeInternalUrl ? nextUrl : '/account'
 
   return {
     success: true,
@@ -470,10 +487,7 @@ export async function registerAction(formData: FormData): Promise<AuthResult> {
 
   await setUserSession(newUser.id, hash)
 
-  const siteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    'https://next-js-rtl-platform-structure.vercel.app'
-  const verifyLink = `${siteUrl}/login?verified=1&email=${encodeURIComponent(email)}&token=${verifyToken}`
+  const verifyLink = `${DEFAULT_SITE_URL}/login?verified=1&email=${encodeURIComponent(email)}&token=${verifyToken}`
 
   await sendEmail({
     to: email,
@@ -509,7 +523,7 @@ export async function forgotPasswordAction(
   const { data: users } = await supabase
     .from('users')
     .select('id, name, email')
-    .ilike('email', `%${email}%`)
+    .ilike('email', email)
     .order('created_at', { ascending: false })
     .limit(1)
 
@@ -577,7 +591,7 @@ export async function verifyOtpAction(
   const { data: users } = await supabase
     .from('users')
     .select('*')
-    .ilike('email', `%${cleanEmail}%`)
+    .ilike('email', cleanEmail)
     .order('created_at', { ascending: false })
     .limit(1)
 
@@ -641,7 +655,7 @@ export async function resetPasswordAction(
   const { data: updatedRows, error } = await supabase
     .from('users')
     .update({ password_hash: newHash })
-    .ilike('email', `%${cleanEmail}%`)
+    .ilike('email', cleanEmail)
     .select('id')
 
   if (error || !updatedRows || updatedRows.length === 0) {
@@ -655,7 +669,7 @@ export async function resetPasswordAction(
     await supabase
       .from('users')
       .update({ otp_code: null, otp_expiry: null, is_verified: true })
-      .ilike('email', `%${cleanEmail}%`)
+      .ilike('email', cleanEmail)
   } catch {}
 
   const cookieStore = await cookies()
@@ -672,18 +686,27 @@ export async function verifyAccountAction(
 ): Promise<AuthResult> {
   const { t: msg } = await getAuthDict()
   const cleanEmail = normalizeEmail(email)
+  const cleanToken = sanitizeInput(token, 100)
   if (!cleanEmail) return { success: false, error: msg.invalidLink }
 
   const supabase = await getSupabase()
   const { data: users } = await supabase
     .from('users')
-    .select('id, otp_code')
-    .ilike('email', `%${cleanEmail}%`)
+    .select('id, otp_code, is_verified')
+    .ilike('email', cleanEmail)
     .order('created_at', { ascending: false })
     .limit(1)
 
   const user = users?.[0]
   if (!user) return { success: false, error: msg.accountNotFound }
+
+  if (user.is_verified) {
+    return { success: true }
+  }
+
+  if (user.otp_code && cleanToken && String(user.otp_code).trim() !== cleanToken) {
+    return { success: false, error: msg.invalidLink }
+  }
 
   await supabase
     .from('users')

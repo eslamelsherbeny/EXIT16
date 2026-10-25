@@ -4,25 +4,42 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { saveUnitDocumentAction } from '@/actions/account-actions'
-import { CheckCircle2, Loader2, ShieldAlert } from 'lucide-react'
+import {
+  deleteUnitDocumentAction,
+  saveUnitDocumentAction,
+} from '@/actions/account-actions'
+import {
+  CheckCircle2,
+  Eye,
+  FileText,
+  Loader2,
+  RefreshCw,
+  ShieldAlert,
+  Trash2,
+  UploadCloud,
+  X,
+} from 'lucide-react'
 import { ScrollReveal } from '@/components/shared/scroll-reveal'
 import { useTranslation } from '@/lib/i18n'
+
+export type DocKeyType = 'contract' | 'receipts' | 'statement' | 'passport'
+
+function isImageUrl(url?: string, name?: string) {
+  const target = `${url || ''} ${name || ''}`.toLowerCase()
+  if (target.includes('.pdf')) return false
+  return /\.(jpg|jpeg|png|webp|gif|bmp|svg|avif)/i.test(target) || Boolean(url)
+}
 
 export default function AccountDocumentsPage() {
   const { t: dict, dir } = useTranslation()
   const t = dict.accountPages.documents as Record<string, any>
   const tCommon = dict.accountPages.common
 
-  const DOCUMENT_SECTIONS = [
-    { key: 'contract' as const, title: t.sections?.contract },
-    { key: 'receipts' as const, title: t.sections?.receipts },
-    { key: 'statement' as const, title: t.sections?.statement },
-    // استخدام مفتاح passport (صورة جواز السفر المعتمدة في جورجيا) مع دعم التوافق مع القاموس الحالي
-    {
-      key: 'national_id' as const,
-      title: t.sections?.passport || t.sections?.national_id,
-    },
+  const DOCUMENT_SECTIONS: Array<{ key: DocKeyType; title: string }> = [
+    { key: 'contract', title: t.sections?.contract },
+    { key: 'receipts', title: t.sections?.receipts },
+    { key: 'statement', title: t.sections?.statement },
+    { key: 'passport', title: t.sections?.passport },
   ]
 
   const searchParams = useSearchParams()
@@ -32,7 +49,12 @@ export default function AccountDocumentsPage() {
   const [docs, setDocs] = useState<Record<string, any>>({})
   const [loading, setLoading] = useState(true)
   const [uploadingKey, setUploadingKey] = useState<string | null>(null)
+  const [deletingKey, setDeletingKey] = useState<string | null>(null)
   const [message, setMessage] = useState('')
+  const [previewDoc, setPreviewDoc] = useState<{
+    url: string
+    title: string
+  } | null>(null)
 
   useEffect(() => {
     async function loadDocs() {
@@ -49,11 +71,14 @@ export default function AccountDocumentsPage() {
       const { data } = await query.limit(1).maybeSingle()
       if (data) {
         setUnitId(String(data.id))
-        setDocs(
+        const rawDocs =
           data.documents && typeof data.documents === 'object'
-            ? data.documents
+            ? { ...data.documents }
             : {}
-        )
+        if (rawDocs.national_id && !rawDocs.passport) {
+          rawDocs.passport = rawDocs.national_id
+        }
+        setDocs(rawDocs)
       }
       setLoading(false)
     }
@@ -61,7 +86,7 @@ export default function AccountDocumentsPage() {
   }, [unitIdParam])
 
   const handleFileUpload = async (
-    docKey: 'contract' | 'receipts' | 'statement' | 'national_id',
+    docKey: DocKeyType,
     files: FileList | null
   ) => {
     const file = files?.[0]
@@ -101,6 +126,22 @@ export default function AccountDocumentsPage() {
     }
   }
 
+  const handleRemoveDocument = async (docKey: DocKeyType) => {
+    if (!unitId) return
+    setDeletingKey(docKey)
+    setMessage('')
+
+    try {
+      const res = await deleteUnitDocumentAction({ unitId, docKey })
+      if (res.success && res.documents) {
+        setDocs(res.documents)
+        setMessage(t.deleteSuccess)
+      }
+    } finally {
+      setDeletingKey(null)
+    }
+  }
+
   const uploadedCount = DOCUMENT_SECTIONS.filter(
     (s) => Boolean(docs[s.key]?.url)
   ).length
@@ -121,15 +162,14 @@ export default function AccountDocumentsPage() {
             </p>
           </header>
 
-          {/* تنبيه إلزامية رفع المستندات وجواز السفر لنشر الوحدة في السوق */}
           <div
             className={`mb-6 flex items-start gap-3 rounded-2xl border p-4 text-start ${
-              uploadedCount > 0
+              uploadedCount === 4
                 ? 'border-emerald-200 bg-[#eaf8f2] text-[#007a5a]'
                 : 'border-amber-200 bg-amber-50 text-amber-900'
             }`}
           >
-            {uploadedCount > 0 ? (
+            {uploadedCount === 4 ? (
               <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-[#007a5a]" />
             ) : (
               <ShieldAlert className="mt-0.5 size-5 shrink-0 text-amber-600" />
@@ -164,50 +204,147 @@ export default function AccountDocumentsPage() {
             {DOCUMENT_SECTIONS.map((sec, idx) => {
               const docInfo = docs[sec.key]
               const isUploading = uploadingKey === sec.key
+              const isDeleting = deletingKey === sec.key
+              const hasFile = Boolean(docInfo?.url)
+              const isImage = hasFile && isImageUrl(docInfo.url, docInfo.name)
 
               return (
                 <ScrollReveal key={sec.key} delay={idx * 60}>
                   <div className="rounded-[18px] border border-gray-200/80 bg-white p-5 shadow-2xs sm:p-6">
-                    <div className="flex items-center justify-between gap-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
                       <h2 className="text-sm font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-base">
                         {sec.title}
                       </h2>
 
-                      <label className="inline-flex h-10 cursor-pointer items-center justify-center rounded-xl bg-[var(--brand-primary,#007a5a)] px-5 text-xs font-bold text-white transition hover:bg-[var(--brand-primary-hover,#006248)]">
-                        {isUploading ? (
-                          <span className="inline-flex items-center gap-1.5">
-                            <Loader2 className="size-3.5 animate-spin" />
-                            {t.uploading}
-                          </span>
-                        ) : (
-                          t.uploadBtn
+                      <div className="flex items-center gap-2">
+                        <label className="inline-flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-[var(--brand-primary,#007a5a)] px-4 text-xs font-bold text-white transition hover:bg-[var(--brand-primary-hover,#006248)]">
+                          {isUploading ? (
+                            <span className="inline-flex items-center gap-1.5">
+                              <Loader2 className="size-3.5 animate-spin" />
+                              {t.uploading}
+                            </span>
+                          ) : hasFile ? (
+                            <span className="inline-flex items-center gap-1.5">
+                              <RefreshCw className="size-3.5" />
+                              {t.changeFileBtn}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5">
+                              <UploadCloud className="size-3.5" />
+                              {t.uploadBtn}
+                            </span>
+                          )}
+                          <input
+                            type="file"
+                            accept="image/*,.pdf"
+                            className="sr-only"
+                            disabled={isUploading || isDeleting}
+                            onChange={(e) =>
+                              handleFileUpload(sec.key, e.target.files)
+                            }
+                          />
+                        </label>
+
+                        {hasFile && (
+                          <button
+                            type="button"
+                            disabled={isDeleting || isUploading}
+                            onClick={() => handleRemoveDocument(sec.key)}
+                            className="inline-flex h-9 items-center justify-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 text-xs font-bold text-red-600 transition hover:bg-red-100 disabled:opacity-50"
+                          >
+                            {isDeleting ? (
+                              <Loader2 className="size-3.5 animate-spin" />
+                            ) : (
+                              <Trash2 className="size-3.5" />
+                            )}
+                            <span>{t.removeFileBtn}</span>
+                          </button>
                         )}
-                        <input
-                          type="file"
-                          accept="image/*,.pdf"
-                          className="sr-only"
-                          disabled={isUploading}
-                          onChange={(e) =>
-                            handleFileUpload(sec.key, e.target.files)
-                          }
-                        />
-                      </label>
+                      </div>
                     </div>
 
-                    {docInfo?.url ? (
-                      <div className="mt-4 flex items-center justify-between rounded-xl bg-[#f8f9fb] px-4 py-2.5 text-xs">
-                        <span className="rounded-full bg-[#e0f2fe] px-3 py-1 text-[11px] font-bold text-[#0369a1]">
-                          {docInfo.status === 'approved'
-                            ? t.statusApproved
-                            : t.statusPending}
-                        </span>
-                        <span
-                          dir="ltr"
-                          className="font-mono text-[11px] text-gray-500"
-                        >
-                          {docInfo.uploaded_at ||
-                            new Date().toLocaleDateString('en-GB')}
-                        </span>
+                    {hasFile ? (
+                      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-[#f8f9fb] p-3 text-xs">
+                        <div className="flex items-center gap-3">
+                          {isImage ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setPreviewDoc({
+                                  url: docInfo.url,
+                                  title: sec.title,
+                                })
+                              }
+                              className="group relative size-16 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs"
+                              title={t.clickToEnlarge}
+                            >
+                              <img
+                                src={docInfo.url}
+                                alt={sec.title}
+                                className="h-full w-full object-cover transition duration-200 group-hover:scale-105"
+                              />
+                              <span className="absolute inset-0 flex items-center justify-center bg-black/45 opacity-0 transition group-hover:opacity-100">
+                                <Eye className="size-4 text-white" />
+                              </span>
+                            </button>
+                          ) : (
+                            <a
+                              href={docInfo.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="flex size-16 shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-teal-200 bg-teal-50 text-[10px] font-extrabold text-teal-800 hover:bg-teal-100"
+                            >
+                              <FileText className="size-5 text-teal-700" />
+                              <span>PDF</span>
+                            </a>
+                          )}
+
+                          <div className="text-start">
+                            <p className="max-w-[200px] truncate font-bold text-[#0a1122] sm:max-w-[280px]">
+                              {docInfo.name || sec.title}
+                            </p>
+                            <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                              <span className="rounded-full bg-[#e0f2fe] px-2.5 py-0.5 text-[10.5px] font-bold text-[#0369a1]">
+                                {docInfo.status === 'approved'
+                                  ? t.statusApproved
+                                  : t.statusPending}
+                              </span>
+                              <span
+                                dir="ltr"
+                                className="font-mono text-[11px] text-gray-500"
+                              >
+                                {docInfo.uploaded_at ||
+                                  new Date().toLocaleDateString('en-GB')}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {isImage ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPreviewDoc({
+                                url: docInfo.url,
+                                title: sec.title,
+                              })
+                            }
+                            className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-bold text-[#0a1122] hover:bg-slate-50"
+                          >
+                            <Eye className="size-3.5 text-[#007a5a]" />
+                            <span>{t.viewFullImageBtn}</span>
+                          </button>
+                        ) : (
+                          <a
+                            href={docInfo.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-bold text-[#0a1122] hover:bg-slate-50"
+                          >
+                            <Eye className="size-3.5 text-[#007a5a]" />
+                            <span>{t.openFileBtn}</span>
+                          </a>
+                        )}
                       </div>
                     ) : (
                       <p className="mt-3 text-start text-xs text-gray-400">
@@ -230,6 +367,39 @@ export default function AccountDocumentsPage() {
           </Link>
         </div>
       </div>
+
+      {/* نافذة عرض الصورة بالحجم الكامل عند الضغط عليها */}
+      {previewDoc && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-xs"
+          onClick={() => setPreviewDoc(null)}
+        >
+          <div
+            className="relative max-h-[90vh] max-w-4xl overflow-hidden rounded-2xl bg-white p-2 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2">
+              <span className="text-xs font-extrabold text-[#0a1122]">
+                {previewDoc.title}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPreviewDoc(null)}
+                className="flex size-7 items-center justify-center rounded-full bg-slate-100 text-slate-700 hover:bg-red-100 hover:text-red-600"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+            <div className="mt-2 flex max-h-[80vh] items-center justify-center overflow-auto bg-slate-950/5 p-2">
+              <img
+                src={previewDoc.url}
+                alt={previewDoc.title}
+                className="max-h-[76vh] w-auto max-w-full rounded-lg object-contain"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }

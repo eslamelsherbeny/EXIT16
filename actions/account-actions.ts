@@ -516,7 +516,7 @@ export async function deleteUnitBySellerAction(unitId: string) {
 
 export async function saveUnitDocumentAction(payload: {
   unitId: string
-  docKey: 'contract' | 'receipts' | 'statement' | 'national_id'
+  docKey: 'contract' | 'receipts' | 'statement' | 'passport' | 'national_id'
   fileUrl: string
   fileName: string
 }) {
@@ -538,21 +538,29 @@ export async function saveUnitDocumentAction(payload: {
     if (!unit) return { success: false, error: msg.unitNotFound }
 
     const currentDocs =
-      unit.documents && typeof unit.documents === 'object' ? unit.documents : {}
+      unit.documents && typeof unit.documents === 'object'
+        ? { ...unit.documents }
+        : {}
 
-    const updatedDocs = {
-      ...currentDocs,
-      [payload.docKey]: {
+    const normalizedKey =
+      payload.docKey === 'national_id' ? 'passport' : payload.docKey
+
+    if (!payload.fileUrl) {
+      delete currentDocs[normalizedKey]
+      if (normalizedKey === 'passport') delete currentDocs.national_id
+    } else {
+      currentDocs[normalizedKey] = {
         url: payload.fileUrl,
         name: payload.fileName,
         uploaded_at: new Date().toLocaleDateString('en-GB'),
         status: 'pending_review',
-      },
+      }
+      if (normalizedKey === 'passport') delete currentDocs.national_id
     }
 
     const { error } = await supabase
       .from('sell_requests')
-      .update({ documents: updatedDocs })
+      .update({ documents: currentDocs })
       .eq('id', payload.unitId)
 
     if (error) {
@@ -562,23 +570,38 @@ export async function saveUnitDocumentAction(payload: {
       }
     }
 
-    try {
-      await supabase.from('notifications').insert({
-        user_id: null,
-        title: `📄 ${msg.docUploadedNotifTitle}: ${unit.project_name || msg.unitWord}`,
-        message: `${unit.name || ''}`,
-        type: 'property',
-        link: '/admin/properties',
-        is_read: false,
-      })
-    } catch {}
+    if (payload.fileUrl) {
+      try {
+        await supabase.from('notifications').insert({
+          user_id: null,
+          title: `📄 ${msg.docUploadedNotifTitle}: ${unit.project_name || msg.unitWord}`,
+          message: `${unit.name || ''}`,
+          type: 'property',
+          link: '/admin/properties',
+          is_read: false,
+        })
+      } catch {}
+    }
 
     revalidatePath('/account')
     revalidatePath('/account/documents')
-    return { success: true, documents: updatedDocs }
+    revalidatePath('/admin/properties')
+    return { success: true, documents: currentDocs }
   } catch {
     return { success: false, error: msg.docSaveFailed }
   }
+}
+
+export async function deleteUnitDocumentAction(payload: {
+  unitId: string
+  docKey: 'contract' | 'receipts' | 'statement' | 'passport' | 'national_id'
+}) {
+  return saveUnitDocumentAction({
+    unitId: payload.unitId,
+    docKey: payload.docKey,
+    fileUrl: '',
+    fileName: '',
+  })
 }
 
 export async function updateBuyerPreferencesAction(payload: {

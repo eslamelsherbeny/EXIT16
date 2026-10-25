@@ -3,7 +3,7 @@
 import { Suspense, useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, Loader2 } from 'lucide-react'
 import { AuthCard, AuthLayout } from '@/components/layouts/auth-layout'
 import { resetPasswordAction } from '@/actions/auth-actions'
 import { useTranslation } from '@/lib/i18n'
@@ -53,10 +53,10 @@ function NewPasswordContent() {
       <AuthCard>
         <div dir={dir}>
           <div className="text-center">
-            <h1 className="text-3xl font-extrabold tracking-tight text-[var(--brand-navy,#0a1122)]">
+            <h1 className="text-2xl font-extrabold tracking-tight text-[var(--brand-navy,#0a1122)] sm:text-3xl">
               {t.title}
             </h1>
-            <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            <p className="mt-3 text-xs leading-6 text-muted-foreground sm:text-sm">
               {t.subtitle}
             </p>
           </div>
@@ -153,9 +153,16 @@ function NewPasswordContent() {
                 <button
                   type="submit"
                   disabled={pending}
-                  className="h-12 rounded-xl bg-[var(--brand-primary,#007a5a)] px-5 text-sm font-bold text-white transition hover:bg-[var(--brand-primary-hover,#006248)] disabled:opacity-50"
+                  className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[var(--brand-primary,#007a5a)] px-5 text-sm font-bold text-white transition active:scale-[0.98] hover:bg-[var(--brand-primary-hover,#006248)] disabled:opacity-60"
                 >
-                  {pending ? t.savingBtn : t.saveBtn}
+                  {pending ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" />
+                      <span>{t.savingBtn}</span>
+                    </>
+                  ) : (
+                    <span>{t.saveBtn}</span>
+                  )}
                 </button>
               </form>
             </>

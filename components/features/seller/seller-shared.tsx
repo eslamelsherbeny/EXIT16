@@ -1,14 +1,20 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Check, ChevronDown, Globe, MapPin, Search, X } from 'lucide-react'
+import { Check, ChevronDown, Globe } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
+  GEORGIA_CITIES_AND_DISTRICTS,
+  GeorgiaAreaSelect,
+  type GeorgiaAreaItem,
+} from '@/components/shared/georgia-areas'
+import {
   DICTIONARIES,
   getCurrencySymbol,
   useTranslation,
+  type Dictionary,
   type LocaleCode,
 } from '@/lib/i18n'
 
@@ -28,6 +34,12 @@ export type PlatformCountryOption = {
     days14: number
     days30: number
   }
+}
+
+export function toEnglishDigits(str: string): string {
+  return String(str || '')
+    .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 1632))
+    .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 1776))
 }
 
 export const PLATFORM_COUNTRIES: PlatformCountryOption[] = [
@@ -83,6 +95,8 @@ export const ALL_RESIDENCE_COUNTRIES: PlatformCountryOption[] = [
     code: 'SA',
     nameAr: 'السعودية',
     nameEn: 'Saudi Arabia',
+    nameRu: 'Саудовская Аравия',
+    nameKa: 'საუდის არაბეთი',
     flag: '🇸🇦',
     currencySymbol: 'ر.س',
     phoneCode: '966',
@@ -91,6 +105,8 @@ export const ALL_RESIDENCE_COUNTRIES: PlatformCountryOption[] = [
     code: 'KW',
     nameAr: 'الكويت',
     nameEn: 'Kuwait',
+    nameRu: 'Кувейт',
+    nameKa: 'ქუვეითი',
     flag: '🇰🇼',
     currencySymbol: 'د.ك',
     phoneCode: '965',
@@ -99,6 +115,8 @@ export const ALL_RESIDENCE_COUNTRIES: PlatformCountryOption[] = [
     code: 'QA',
     nameAr: 'قطر',
     nameEn: 'Qatar',
+    nameRu: 'Катар',
+    nameKa: 'ყატარი',
     flag: '🇶🇦',
     currencySymbol: 'ر.ق',
     phoneCode: '974',
@@ -107,6 +125,8 @@ export const ALL_RESIDENCE_COUNTRIES: PlatformCountryOption[] = [
     code: 'BH',
     nameAr: 'البحرين',
     nameEn: 'Bahrain',
+    nameRu: 'Бахрейн',
+    nameKa: 'ბაჰრეინი',
     flag: '🇧🇭',
     currencySymbol: 'د.ب',
     phoneCode: '973',
@@ -115,6 +135,8 @@ export const ALL_RESIDENCE_COUNTRIES: PlatformCountryOption[] = [
     code: 'OM',
     nameAr: 'عمان',
     nameEn: 'Oman',
+    nameRu: 'Оман',
+    nameKa: 'ომანი',
     flag: '🇴🇲',
     currencySymbol: 'ر.ع',
     phoneCode: '968',
@@ -123,6 +145,8 @@ export const ALL_RESIDENCE_COUNTRIES: PlatformCountryOption[] = [
     code: 'JO',
     nameAr: 'الأردن',
     nameEn: 'Jordan',
+    nameRu: 'Иордания',
+    nameKa: 'იორდანია',
     flag: '🇯🇴',
     currencySymbol: 'د.أ',
     phoneCode: '962',
@@ -131,6 +155,8 @@ export const ALL_RESIDENCE_COUNTRIES: PlatformCountryOption[] = [
     code: 'TR',
     nameAr: 'تركيا',
     nameEn: 'Turkey',
+    nameRu: 'Турция',
+    nameKa: 'თურქეთი',
     flag: '🇹🇷',
     currencySymbol: '₺',
     phoneCode: '90',
@@ -139,6 +165,8 @@ export const ALL_RESIDENCE_COUNTRIES: PlatformCountryOption[] = [
     code: 'US',
     nameAr: 'أمريكا / كندا',
     nameEn: 'USA / Canada',
+    nameRu: 'США / Канада',
+    nameKa: 'აშშ / კანადა',
     flag: '🇺🇸',
     currencySymbol: '$',
     phoneCode: '1',
@@ -147,6 +175,8 @@ export const ALL_RESIDENCE_COUNTRIES: PlatformCountryOption[] = [
     code: 'GB',
     nameAr: 'بريطانيا',
     nameEn: 'UK',
+    nameRu: 'Великобритания',
+    nameKa: 'დიდი ბრიტანეთი',
     flag: '🇬🇧',
     currencySymbol: '£',
     phoneCode: '44',
@@ -157,6 +187,10 @@ export function getLocalizedCountryName(
   country: PlatformCountryOption,
   locale: LocaleCode = 'ar'
 ): string {
+  const dictCountries = (
+    DICTIONARIES[locale]?.admin?.propertiesAdmin as Record<string, any>
+  )?.countries
+  if (dictCountries?.[country.code]) return dictCountries[country.code]
   if (locale === 'ar') return country.nameAr
   if (locale === 'ru') return country.nameRu || country.nameEn
   if (locale === 'ka') return country.nameKa || country.nameEn
@@ -190,41 +224,215 @@ export function getCurrencyByCountry(
   return getCurrencySymbol(countryCode || 'GE', locale)
 }
 
-export const unitTypes: string[] = [
-  'شقة',
-  'استوديو (Studio)',
-  'دوبلكس',
-  'بنتهاوس',
-  'تاون هاوس',
-  'فيلا مستقلة',
-  'شقة فندقية (Aparthotel)',
-  'شاليه جبلي / بحري',
-  'مكتب تجاري',
-  'محل تجاري',
-  'أرض',
-]
+// ==================== قوائم الاختيارات المترجمة للأربع لغات ====================
+const UNIT_TYPES_BY_LOCALE: Record<LocaleCode, string[]> = {
+  ar: [
+    'شقة',
+    'استوديو (Studio)',
+    'دوبلكس',
+    'بنتهاوس',
+    'تاون هاوس',
+    'فيلا مستقلة',
+    'شقة فندقية (Aparthotel)',
+    'شاليه جبلي / بحري',
+    'مكتب تجاري',
+    'محل تجاري',
+    'أرض',
+  ],
+  en: [
+    'Apartment',
+    'Studio',
+    'Duplex',
+    'Penthouse',
+    'Townhouse',
+    'Standalone Villa',
+    'Aparthotel',
+    'Mountain / Sea Chalet',
+    'Commercial Office',
+    'Retail Shop',
+    'Land',
+  ],
+  ru: [
+    'Квартира',
+    'Студия (Studio)',
+    'Дуплекс',
+    'Пентхаус',
+    'Таунхаус',
+    'Отдельная вилла',
+    'Апарт-отель (Aparthotel)',
+    'Горное / Морское шале',
+    'Коммерческий офис',
+    'Торговое помещение',
+    'Земельный участок',
+  ],
+  ka: [
+    'ბინა',
+    'სტუდიო (Studio)',
+    'დუპლექსი',
+    'პენტჰაუსი',
+    'თაუნჰაუსი',
+    'კერძო ვილა',
+    'აპარტ-ოტელი (Aparthotel)',
+    'მთის / ზღვის შალე',
+    'კომერციული ოფისი',
+    'სავაჭრო ფართი',
+    'მიწის ნაკვეთი',
+  ],
+}
 
-export const finishings: string[] = [
-  'تشطيب كامل (Turnkey)',
-  'بالفرش والأجهزة (Fully Furnished)',
-  'نصف تشطيب — إطار أبيض (White Frame)',
-  'على الطوب — إطار أسود (Black Frame)',
-  'إطار أخضر (Green Frame)',
-]
+const FINISHINGS_BY_LOCALE: Record<LocaleCode, string[]> = {
+  ar: [
+    'تشطيب كامل (Turnkey)',
+    'بالفرش والأجهزة (Fully Furnished)',
+    'نصف تشطيب — إطار أبيض (White Frame)',
+    'على الطوب — إطار أسود (Black Frame)',
+    'إطار أخضر (Green Frame)',
+  ],
+  en: [
+    'Turnkey (Full Finishing)',
+    'Fully Furnished & Equipped',
+    'White Frame (Semi-Finished)',
+    'Black Frame (Core & Shell)',
+    'Green Frame',
+  ],
+  ru: [
+    'Под ключ (Turnkey)',
+    'С мебелью и техникой (Fully Furnished)',
+    'Белый каркас (White Frame)',
+    'Черный каркас (Black Frame)',
+    'Зеленый каркас (Green Frame)',
+  ],
+  ka: [
+    'სრული რემონტით (Turnkey)',
+    'ავეჯით და ტექნიკით (Fully Furnished)',
+    'თეთრი კარკასი (White Frame)',
+    'შავი კარკასი (Black Frame)',
+    'მწვანე კარკასი (Green Frame)',
+  ],
+}
 
-export const deliveries: string[] = ['جاهزة للاستلام', 'تحت الإنشاء']
+const DELIVERIES_BY_LOCALE: Record<LocaleCode, string[]> = {
+  ar: ['جاهزة للاستلام', 'تحت الإنشاء'],
+  en: ['Ready to Move', 'Under Construction'],
+  ru: ['Готово к заселению', 'Строится'],
+  ka: ['მზადაა შესასვლელად', 'მშენებარე'],
+}
 
-export const features: string[] = [
-  'إطلالة بحرية (Sea View)',
-  'إطلالة جبلية (Mountain View)',
-  'إطلالة بانورامية على المدينة',
-  'حمام سباحة',
-  'تدفئة مركزية / أرضية',
-  'أمن واستقبال 24 ساعة',
-  'جراج سيارات تحت الأرض',
-  'شرفة واسعة (Balcony)',
-  'قريبة من المترو والخدمات',
-]
+const FEATURES_BY_LOCALE: Record<LocaleCode, string[]> = {
+  ar: [
+    'إطلالة بحرية (Sea View)',
+    'إطلالة جبلية (Mountain View)',
+    'إطلالة بانورامية على المدينة',
+    'حمام سباحة',
+    'تدفئة مركزية / أرضية',
+    'أمن واستقبال 24 ساعة',
+    'جراج سيارات تحت الأرض',
+    'شرفة واسعة (Balcony)',
+    'قريبة من المترو والخدمات',
+  ],
+  en: [
+    'Sea View',
+    'Mountain View',
+    'Panoramic City View',
+    'Swimming Pool',
+    'Central / Underfloor Heating',
+    '24/7 Security & Reception',
+    'Underground Parking',
+    'Spacious Balcony',
+    'Near Metro & Amenities',
+  ],
+  ru: [
+    'Вид на море (Sea View)',
+    'Вид на горы (Mountain View)',
+    'Панорамный вид на город',
+    'Бассейн',
+    'Центральное / Подогрев полов',
+    'Охрана и ресепшн 24/7',
+    'Подземный паркинг',
+    'Просторный балкон',
+    'Рядом с метро и инфраструктурой',
+  ],
+  ka: [
+    'ზღვის ხედი (Sea View)',
+    'მთის ხედი (Mountain View)',
+    'პანორამული ხედი ქალაქზე',
+    'აუზი',
+    'ცენტრალური / იატაკის გათბობა',
+    '24/7 დაცვა და მიმღები',
+    'მიწისქვეშა პარკინგი',
+    'ფართო აივანი (Balcony)',
+    'მეტროსთან და სერვისებთან ახლოს',
+  ],
+}
+
+export function getLocalizedUnitTypes(
+  dict?: Dictionary | Record<string, any>,
+  locale: LocaleCode = 'ar'
+): string[] {
+  const fromDict = (dict?.sell?.detailsStep as Record<string, any>)?.unitTypes
+  if (Array.isArray(fromDict) && fromDict.length > 0) return fromDict
+  return UNIT_TYPES_BY_LOCALE[locale] || UNIT_TYPES_BY_LOCALE.ar
+}
+
+export function getLocalizedFinishings(
+  dict?: Dictionary | Record<string, any>,
+  locale: LocaleCode = 'ar'
+): string[] {
+  const fromDict = (dict?.sell?.detailsStep as Record<string, any>)?.finishings
+  if (Array.isArray(fromDict) && fromDict.length > 0) return fromDict
+  return FINISHINGS_BY_LOCALE[locale] || FINISHINGS_BY_LOCALE.ar
+}
+
+export function getLocalizedDeliveries(
+  dict?: Dictionary | Record<string, any>,
+  locale: LocaleCode = 'ar'
+): string[] {
+  const fromDict = (dict?.sell?.detailsStep as Record<string, any>)?.deliveries
+  if (Array.isArray(fromDict) && fromDict.length > 0) return fromDict
+  const filterStatuses = (
+    dict?.opportunitiesPage?.filters as Record<string, any>
+  )?.deliveryStatuses
+  if (Array.isArray(filterStatuses) && filterStatuses.length >= 3) {
+    return [filterStatuses[1], filterStatuses[2]]
+  }
+  return DELIVERIES_BY_LOCALE[locale] || DELIVERIES_BY_LOCALE.ar
+}
+
+export function getLocalizedFeatures(
+  dict?: Dictionary | Record<string, any>,
+  locale: LocaleCode = 'ar'
+): string[] {
+  const fromDict = (dict?.sell?.detailsStep as Record<string, any>)?.features
+  if (Array.isArray(fromDict) && fromDict.length > 0) return fromDict
+  return FEATURES_BY_LOCALE[locale] || FEATURES_BY_LOCALE.ar
+}
+
+export function isReadyDeliveryOption(val?: string): boolean {
+  if (!val) return false
+  const allReady = [
+    DELIVERIES_BY_LOCALE.ar[0],
+    DELIVERIES_BY_LOCALE.en[0],
+    DELIVERIES_BY_LOCALE.ru[0],
+    DELIVERIES_BY_LOCALE.ka[0],
+  ]
+  return (
+    allReady.includes(val) ||
+    val.includes('جاهز') ||
+    val.toLowerCase().includes('ready') ||
+    val.toLowerCase().includes('готов') ||
+    val.includes('მზად')
+  )
+}
+
+export function isUnderConstructionDeliveryOption(val?: string): boolean {
+  if (!val) return false
+  return !isReadyDeliveryOption(val)
+}
+
+export const unitTypes: string[] = UNIT_TYPES_BY_LOCALE.ar
+export const finishings: string[] = FINISHINGS_BY_LOCALE.ar
+export const deliveries: string[] = DELIVERIES_BY_LOCALE.ar
+export const features: string[] = FEATURES_BY_LOCALE.ar
 
 export const years: string[] = [
   '2026',
@@ -246,87 +454,89 @@ export const deliveryFutureYears: string[] = [
   '2031',
 ]
 
-export const MONTHS_LIST: Array<{
-  value: string
-  ar: string
-  en: string
-  ru: string
-  ka: string
-}> = [
-  { value: '01', ar: '1 - يناير', en: '01 - Jan', ru: '01 - Янв', ka: '01 - იანვარი' },
-  { value: '02', ar: '2 - فبراير', en: '02 - Feb', ru: '02 - Фев', ka: '02 - თებერვალი' },
-  { value: '03', ar: '3 - مارس', en: '03 - Mar', ru: '03 - Мар', ka: '03 - მარტი' },
-  { value: '04', ar: '4 - أبريل', en: '04 - Apr', ru: '04 - Апр', ka: '04 - აპრილი' },
-  { value: '05', ar: '5 - مايو', en: '05 - May', ru: '05 - Май', ka: '05 - მაისი' },
-  { value: '06', ar: '6 - يونيو', en: '06 - Jun', ru: '06 - Июн', ka: '06 - ივნისი' },
-  { value: '07', ar: '7 - يوليو', en: '07 - Jul', ru: '07 - Июл', ka: '07 - ივლისი' },
-  { value: '08', ar: '8 - أغسطس', en: '08 - Aug', ru: '08 - Авг', ka: '08 - აგვისტო' },
-  { value: '09', ar: '9 - سبتمبر', en: '09 - Sep', ru: '09 - Сен', ka: '09 - სექტემბერი' },
-  { value: '10', ar: '10 - أكتوبر', en: '10 - Oct', ru: '10 - Окт', ka: '10 - ოქტომბერი' },
-  { value: '11', ar: '11 - نوفمبر', en: '11 - Nov', ru: '11 - Ноя', ka: '11 - ნოემბერი' },
-  { value: '12', ar: '12 - ديسمبر', en: '12 - Dec', ru: '12 - Дек', ka: '12 - დეკემბერი' },
-]
+export function getLocalizedMonthsList(locale: LocaleCode = 'ar') {
+  const localeMap: Record<LocaleCode, string> = {
+    ar: 'ar-EG',
+    en: 'en-US',
+    ru: 'ru-RU',
+    ka: 'ka-GE',
+  }
+  return Array.from({ length: 12 }, (_, idx) => {
+    const monthNum = String(idx + 1).padStart(2, '0')
+    let monthName = monthNum
+    try {
+      monthName = new Intl.DateTimeFormat(localeMap[locale] || 'en-US', {
+        month: 'short',
+      }).format(new Date(2026, idx, 1))
+    } catch {}
+    return {
+      value: monthNum,
+      label: `${monthNum} - ${monthName}`,
+    }
+  })
+}
 
-// ==================== الدليل الكامل لجميع مدن وأحياء جورجيا ====================
-export const GEORGIA_AREAS_CATALOG: Array<[string, string[]]> = [
-  [
-    'تبليسي — الأحياء الراقية والمركزية (Tbilisi Central)',
-    [
-      'تبليسي - سابورتالو (Saburtalo / საბურთალო)',
-      'تبليسي - فاكي (Vake / ვაკე)',
-      'تبليسي - فيرا (Vera / ვერა)',
-      'تبليسي - متاتسميندا وروستافيلي (Mtatsminda / მთაწმინდა)',
-      'تبليسي - كرتسانيسي وأورتاتشالا (Krtsanisi - Ortachala / ორთაჭალა)',
-      'تبليسي - تشوغوريتي ومارجانشفيلي (Chugureti - Marjanishvili)',
-      'تبليسي - تبليسي القديمة (Old Tbilisi / ძველი თბილისი)',
-      'تبليسي - باغيبي (Bagebi / ბაგები)',
-    ],
-  ],
-  [
-    'تبليسي — الأحياء السكنية والتوسعات الحديثة (Tbilisi Residential)',
-    [
-      'تبليسي - ديدي ديغومي (Didi Digomi / დიდი დიღომი)',
-      'تبليسي - ديغومي ماسيف (Digomi Massive / დიღმის მასივი)',
-      'تبليسي - إيساني (Isani / ისანი)',
-      'تبليسي - سامغوري وفاركيتيلي (Samgori - Varketili / ვარკეთილი)',
-      'تبليسي - ديدوبي (Didube / დიდუბე)',
-      'تبليسي - نادزالاديفي (Nadzaladevi / ნაძალადევი)',
-      'تبليسي - غلداني (Gldani / გლდანი)',
-      'تبليسي - أفالاباري (Avlabari / ავლაბარი)',
-      'تبليسي - ليسي ليك (Lisi Lake / ლისის ტბა)',
-      'تبليسي - تاباخميلا وتسكنيتي (Tabakhmela - Tskneti / წყნეთი)',
-    ],
-  ],
-  [
-    'باتومي وساحل البحر الأسود (Batumi & Adjara Coast)',
-    [
-      'باتومي - البوليفارد الجديد (New Boulevard / ახალი ბულვარი)',
-      'باتومي - ممر الأبطال شارع شارتافا (Alley of Heroes - Shartava)',
-      'باتومي - باتومي القديمة ووسط المدينة (Old Batumi / ძველი ბათუმი)',
-      'باتومي - روستافيلي والواجهة البحرية (Rustaveli Seafront)',
-      'باتومي - غونيو وكفاريإتي (Gonio - Kvariati / გონიო)',
-      'باتومي - مخينجوري والحديقة النباتية (Makhinjauri / მახინჯაური)',
-      'باتومي - شاكفي (Chakvi / ჩაქვი)',
-      'كوبوليتي (Kobuleti / ქობულეთი)',
-      'ساربي (Sarpi / სარფი)',
-      'أوريكي وشيكفيتيلي (Ureki - Shekvetili / შეკვეთილი)',
-    ],
-  ],
-  [
-    'مدن ومنتجعات جورجيا الأخرى (Other Georgian Cities & Resorts)',
-    [
-      'كوتايسي (Kutaisi / ქუთაისი)',
-      'روستافي (Rustavi / რუსთავი)',
-      'غوداوري — منتجع التزلج (Gudauri / გუდაური)',
-      'باكورياني — منتجع جبلي (Bakuriani / ბაკურიანი)',
-      'بورجومي (Borjomi / ბორჯომი)',
-      'متسخيتا وساغورامو (Mtskheta - Saguramo / საგურამო)',
-      'تيلافي وكاخيتي (Telavi - Kakheti / თელავი)',
-      'زوغديدي وبوتي (Zugdidi - Poti)',
-      'منطقة أخرى في جورجيا (Other Area in Georgia)',
-    ],
-  ],
-]
+// ==================== ربط مباشر بـ GEORGIA_CITIES_AND_DISTRICTS من georgia-areas.tsx ====================
+const CITY_GROUP_TITLES: Record<
+  GeorgiaAreaItem['cityCode'],
+  Record<LocaleCode, string>
+> = {
+  tbilisi: {
+    ar: 'تبليسي (Tbilisi)',
+    en: 'Tbilisi',
+    ru: 'Тбилиси',
+    ka: 'თბილისი',
+  },
+  batumi: {
+    ar: 'باتومي وساحل البحر الأسود (Batumi)',
+    en: 'Batumi & Black Sea Coast',
+    ru: 'Батуми и побережье',
+    ka: 'ბათუმი და შავი ზღვის სანაპირო',
+  },
+  kutaisi: {
+    ar: 'كوتايسي (Kutaisi)',
+    en: 'Kutaisi',
+    ru: 'Кутаиси',
+    ka: 'ქუთაისი',
+  },
+  resorts: {
+    ar: 'منتجعات ومدن جورجيا الأخرى',
+    en: 'Other Georgian Cities & Resorts',
+    ru: 'Другие города и курорты Грузии',
+    ka: 'საქართველოს სხვა ქალაქები და კურორტები',
+  },
+}
+
+export function getLocalizedGeorgiaCatalog(
+  locale: LocaleCode = 'ar'
+): Array<[string, string[]]> {
+  const cityCodes: Array<GeorgiaAreaItem['cityCode']> = [
+    'tbilisi',
+    'batumi',
+    'kutaisi',
+    'resorts',
+  ]
+
+  return cityCodes.map((code): [string, string[]] => {
+    const title =
+      CITY_GROUP_TITLES[code][locale] || CITY_GROUP_TITLES[code].en
+    const items = GEORGIA_CITIES_AND_DISTRICTS.filter(
+      (item: GeorgiaAreaItem) => item.cityCode === code
+    ).map((item: GeorgiaAreaItem) =>
+      locale === 'ar'
+        ? item.ar
+        : locale === 'ru'
+          ? item.ru
+          : locale === 'ka'
+            ? item.ka
+            : item.en
+    )
+    return [title, items]
+  })
+}
+
+export const GEORGIA_AREAS_CATALOG: Array<[string, string[]]> =
+  getLocalizedGeorgiaCatalog('ar')
 
 export const areasCatalogByCountry: Record<string, Array<[string, string[]]>> = {
   GE: GEORGIA_AREAS_CATALOG,
@@ -342,7 +552,8 @@ export function formatAmount(
   currencySymbol = '$',
   locale: LocaleCode = 'ar'
 ) {
-  const amount = Number((value ?? '').replace(/,/g, ''))
+  const cleanStr = toEnglishDigits(value ?? '').replace(/,/g, '')
+  const amount = Number(cleanStr)
   if (!amount) return ''
   const sharedDict =
     DICTIONARIES[locale]?.sell?.shared || DICTIONARIES.ar.sell.shared
@@ -381,198 +592,14 @@ export function SearchableGeorgiaAreaPicker({
   error?: string
   placeholder?: string
 }) {
-  const { locale, dir } = useTranslation()
-  const [open, setOpen] = useState(false)
-  const [query, setQuery] = useState('')
-  const wrapperRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    function handleOutside(e: MouseEvent) {
-      if (
-        wrapperRef.current &&
-        !wrapperRef.current.contains(e.target as Node)
-      ) {
-        setOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleOutside)
-    return () => document.removeEventListener('mousedown', handleOutside)
-  }, [])
-
-  const allFlatAreas: string[] = GEORGIA_AREAS_CATALOG.flatMap(
-    ([, items]: [string, string[]]) => items
-  )
-  const cleanQ = normalizeArabicText(query)
-
-  const filteredGroups = GEORGIA_AREAS_CATALOG.map(
-    ([groupTitle, items]: [string, string[]]) => {
-      const matched = items.filter((item: string) =>
-        normalizeArabicText(item).includes(cleanQ)
-      )
-      return [groupTitle, matched] as const
-    }
-  ).filter(([, matched]) => matched.length > 0)
-
-  const defaultPlaceholder =
-    placeholder ||
-    (locale === 'ar'
-      ? 'ابحث باسم الحي أو المدينة في جورجيا (مثلاً: سابورتالو، فاكي، باتومي)...'
-      : locale === 'ru'
-        ? 'Поиск района или города Грузии (Сабуртало, Ваке, Батуми)...'
-        : locale === 'ka'
-          ? 'მოძებნეთ უბანი ან ქალაქი (საბურთალო, ვაკე, ბათუმი)...'
-          : 'Search district or city in Georgia (Saburtalo, Vake, Batumi)...')
-
   return (
-    <div ref={wrapperRef} className="relative flex flex-col gap-2">
-      <Label className="text-start">
-        <RequiredLabel>{label}</RequiredLabel>
-      </Label>
-
-      <div className="relative">
-        <Search className="pointer-events-none absolute top-1/2 start-3.5 size-4 -translate-y-1/2 text-slate-400" />
-        <Input
-          type="text"
-          dir={dir}
-          value={open ? query : value}
-          placeholder={defaultPlaceholder}
-          onFocus={() => {
-            setOpen(true)
-            setQuery('')
-          }}
-          onChange={(e) => {
-            setQuery(e.target.value)
-            setOpen(true)
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault()
-              const firstMatch = filteredGroups[0]?.[1]?.[0]
-              if (firstMatch) {
-                onChange(firstMatch)
-                setOpen(false)
-                setQuery('')
-              } else if (query.trim()) {
-                onChange(query.trim())
-                setOpen(false)
-                setQuery('')
-              }
-            }
-          }}
-          className={`h-12 rounded-xl ps-10 pe-10 text-start font-semibold text-[var(--brand-navy,#0a1122)] ${
-            error ? 'border-red-500 bg-red-50/20' : 'border-slate-200 bg-white'
-          }`}
-        />
-        {value && !open ? (
-          <button
-            type="button"
-            onClick={() => {
-              onChange('')
-              setQuery('')
-              setOpen(true)
-            }}
-            className="absolute top-1/2 end-3 -translate-y-1/2 rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-red-500"
-          >
-            <X className="size-4" />
-          </button>
-        ) : (
-          <ChevronDown className="pointer-events-none absolute top-1/2 end-3.5 size-4 -translate-y-1/2 text-slate-400" />
-        )}
-      </div>
-
-      <div className="flex flex-wrap gap-1.5">
-        {allFlatAreas.slice(0, 6).map((quickArea: string) => {
-          const isSelected = value === quickArea
-          const shortLabel = quickArea.split(' (')[0]
-          return (
-            <button
-              key={quickArea}
-              type="button"
-              onClick={() => {
-                onChange(quickArea)
-                setOpen(false)
-                setQuery('')
-              }}
-              className={`rounded-full border px-2.5 py-1 text-[11px] font-bold transition ${
-                isSelected
-                  ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary,#007a5a)] text-white'
-                  : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-teal-400 hover:bg-white'
-              }`}
-            >
-              {isSelected ? `✓ ${shortLabel}` : `+ ${shortLabel}`}
-            </button>
-          )
-        })}
-      </div>
-
-      {open && (
-        <div className="absolute top-[76px] z-30 max-h-64 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
-          {filteredGroups.length === 0 ? (
-            <div className="p-3 text-center">
-              <p className="text-xs text-slate-500">
-                {locale === 'ar'
-                  ? 'لم يتم العثور على المنطقة في القائمة — اضغط لإضافتها مباشرة:'
-                  : 'Area not in list — click to use custom area:'}
-              </p>
-              {query.trim() && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    onChange(query.trim())
-                    setOpen(false)
-                    setQuery('')
-                  }}
-                  className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-[var(--brand-primary,#007a5a)] px-4 py-2 text-xs font-bold text-white"
-                >
-                  <MapPin className="size-3.5" />
-                  <span>{query.trim()}</span>
-                </button>
-              )}
-            </div>
-          ) : (
-            filteredGroups.map(([groupTitle, items]) => (
-              <div key={groupTitle} className="mb-2 last:mb-0">
-                <p className="sticky top-0 bg-slate-50/95 px-2.5 py-1 text-start text-[11px] font-extrabold text-teal-800 backdrop-blur-xs">
-                  {groupTitle}
-                </p>
-                <div className="mt-1 space-y-0.5">
-                  {items.map((area: string) => {
-                    const isSelected = value === area
-                    return (
-                      <button
-                        key={area}
-                        type="button"
-                        onClick={() => {
-                          onChange(area)
-                          setOpen(false)
-                          setQuery('')
-                        }}
-                        className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-start text-xs font-semibold transition sm:text-sm ${
-                          isSelected
-                            ? 'bg-[var(--brand-primary-light,#eaf8f2)] font-bold text-[var(--brand-primary,#007a5a)]'
-                            : 'text-[var(--brand-navy,#0a1122)] hover:bg-slate-50'
-                        }`}
-                      >
-                        <span>{area}</span>
-                        {isSelected && (
-                          <Check className="size-4 shrink-0 text-[var(--brand-primary,#007a5a)]" />
-                        )}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-
-      {error && (
-        <p className="mt-1 text-start text-xs font-semibold text-red-600">
-          {error}
-        </p>
-      )}
-    </div>
+    <GeorgiaAreaSelect
+      label={label}
+      value={value}
+      onChange={onChange}
+      error={error}
+      placeholder={placeholder}
+    />
   )
 }
 
@@ -595,25 +622,29 @@ export function MonthYearSelector({
   error?: string
   helper?: string
 }) {
-  const { locale } = useTranslation()
+  const { t: dict, locale } = useTranslation()
+  const pricingT = (dict.sell?.pricingStep as Record<string, any>) || {}
+  const monthsOptions = getLocalizedMonthsList(locale)
 
   const monthPlaceholder =
-    locale === 'ar'
+    pricingT.monthPlaceholder ||
+    (locale === 'ar'
       ? 'الشهر *'
       : locale === 'ru'
         ? 'Месяц *'
         : locale === 'ka'
           ? 'თვე *'
-          : 'Month *'
+          : 'Month *')
 
   const yearPlaceholder =
-    locale === 'ar'
+    pricingT.yearPlaceholder ||
+    (locale === 'ar'
       ? 'السنة *'
       : locale === 'ru'
         ? 'Год *'
         : locale === 'ka'
           ? 'წელი *'
-          : 'Year *'
+          : 'Year *')
 
   return (
     <div className="flex flex-col gap-2">
@@ -632,15 +663,9 @@ export function MonthYearSelector({
             className="h-12 w-full appearance-none rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-bold text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:text-sm"
           >
             <option value="">{monthPlaceholder}</option>
-            {MONTHS_LIST.map((m) => (
+            {monthsOptions.map((m) => (
               <option key={m.value} value={m.value}>
-                {locale === 'ar'
-                  ? m.ar
-                  : locale === 'ru'
-                    ? m.ru
-                    : locale === 'ka'
-                      ? m.ka
-                      : m.en}
+                {m.label}
               </option>
             ))}
           </select>
@@ -859,9 +884,11 @@ export function Field({
     'floor',
     'remainingYears',
     'remainingMonths',
+    'deliveryRemainingMonths',
+    'overdueCount',
   ].includes(id)
-  const isLtrField =
-    compact || type === 'number' || id === 'email' || id === 'password'
+  const isNumericField = compact || type === 'number'
+  const isLtrField = isNumericField || id === 'email' || id === 'password'
 
   return (
     <div className="flex flex-col gap-2">
@@ -871,11 +898,20 @@ export function Field({
       <Input
         id={id}
         name={id}
-        type={type}
+        type={isNumericField ? 'text' : type}
+        inputMode={isNumericField ? 'numeric' : undefined}
         dir={isLtrField ? 'ltr' : dir}
         placeholder={placeholder}
         value={value ?? ''}
-        onChange={(event) => update(event.target.value)}
+        onChange={(event) => {
+          const rawVal = event.target.value
+          if (isNumericField) {
+            const normalized = toEnglishDigits(rawVal).replace(/[^0-9.]/g, '')
+            update(normalized)
+          } else {
+            update(rawVal)
+          }
+        }}
         className={`h-12 rounded-xl ${
           error ? 'border-red-500 bg-red-50/20' : 'border-slate-200'
         } ${
@@ -917,6 +953,7 @@ export function MoneyField({
 }) {
   const { locale, currency: defaultCurrency } = useTranslation()
   const activeCurr = currencySymbol || defaultCurrency || '$'
+  const cleanDigits = toEnglishDigits(value || '').replace(/[^0-9]/g, '')
 
   return (
     <div className="flex flex-col gap-2">
@@ -929,12 +966,16 @@ export function MoneyField({
           inputMode="numeric"
           dir="ltr"
           value={
-            value ? Number(value.replace(/,/g, '')).toLocaleString('en-US') : ''
+            cleanDigits ? Number(cleanDigits).toLocaleString('en-US') : ''
           }
-          onChange={(event) =>
-            update(event.target.value.replace(/[^0-9]/g, ''))
-          }
-          className={`h-12 rounded-xl pr-14 pl-4 text-left ${
+          onChange={(event) => {
+            const normalized = toEnglishDigits(event.target.value).replace(
+              /[^0-9]/g,
+              ''
+            )
+            update(normalized)
+          }}
+          className={`h-12 rounded-xl pr-14 pl-4 text-left font-bold ${
             error ? 'border-red-500 bg-red-50/20' : 'border-slate-200'
           }`}
         />
@@ -948,7 +989,7 @@ export function MoneyField({
         </p>
       )}
       <span className="text-start text-xs font-semibold leading-6 text-teal-700">
-        {formatAmount(value, activeCurr, locale) || helper || ''}
+        {formatAmount(cleanDigits, activeCurr, locale) || helper || ''}
       </span>
     </div>
   )
@@ -1086,7 +1127,7 @@ export function Actions({
       <Button
         type="button"
         className={`h-12 rounded-xl bg-[var(--brand-navy,#0a1122)] hover:bg-[var(--brand-navy-hover,#16223f)] ${
-           !back ? 'w-full' : 'flex-1'
+          !back ? 'w-full' : 'flex-1'
         }`}
         onClick={() => go(next)}
       >

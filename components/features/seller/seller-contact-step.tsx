@@ -21,11 +21,7 @@ import { Label } from '@/components/ui/label'
 import { TurnstileBox } from '@/components/layouts/funnel-shell'
 import { CountrySelector } from '@/components/shared/country-selector'
 import { useTranslation } from '@/lib/i18n'
-import {
-  ALL_RESIDENCE_COUNTRIES,
-  Field,
-  SearchableCountryField,
-} from './seller-shared'
+import { Field, toEnglishDigits } from './seller-shared'
 
 export function ContactStep({
   form,
@@ -120,10 +116,14 @@ export function ContactStep({
       nextErrors.owner = v.confirmRequired
     }
 
+    const cleanPhoneDigits = toEnglishDigits(form.phone ?? '').replace(
+      /[\s-]/g,
+      ''
+    )
+
     if (authTab === 'register') {
       if (!form.name?.trim()) nextErrors.name = v.required
-      if (!form.userCountry) nextErrors.userCountry = v.selectResidenceCountry
-      if (!/^[0-9٠-٩]{7,15}$/.test((form.phone ?? '').replace(/[\s-]/g, '')))
+      if (!/^[0-9]{7,15}$/.test(cleanPhoneDigits))
         nextErrors.phone = v.invalidPhone
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email ?? ''))
         nextErrors.email = v.invalidEmail
@@ -145,21 +145,26 @@ export function ContactStep({
     setIsLoading(true)
 
     try {
-      const fullPhone = form.phone
-        ? `+${form.countryCode ?? '20'}${form.phone.replace(/^0+/, '')}`
+      const activePhoneCode = (form.countryCode || '995').replace('+', '')
+      const fullPhone = cleanPhoneDigits
+        ? `+${activePhoneCode}${cleanPhoneDigits.replace(/^0+/, '')}`
         : ''
 
-      const res = await (processSellerStep2Action as any)({
+      const res = await processSellerStep2Action({
         mode: authTab,
-        unitCountry: form.unitCountry || 'EG',
-        userCountry: form.userCountry || form.unitCountry || 'EG',
+        unitCountry: 'GE',
+        userCountry: form.userCountry || 'GE',
         developer: form.developer || '',
         project: form.project || '',
         contractPrice:
-          Number((form.contractPrice || '').replace(/,/g, '')) || 0,
-        paidAmount: Number((form.paidAmount || '').replace(/,/g, '')) || 0,
+          Number(toEnglishDigits(form.contractPrice || '').replace(/,/g, '')) ||
+          0,
+        paidAmount:
+          Number(toEnglishDigits(form.paidAmount || '').replace(/,/g, '')) || 0,
         marketPrice:
-          Number((form.currentDeveloperPrice || '').replace(/,/g, '')) || 0,
+          Number(
+            toEnglishDigits(form.currentDeveloperPrice || '').replace(/,/g, '')
+          ) || 0,
         name: form.name,
         phone: fullPhone,
         email: form.email,
@@ -493,37 +498,29 @@ export function ContactStep({
             update={(value) => update('name', value)}
           />
 
-          <SearchableCountryField
-            label={sharedT.residenceCountryLabel}
-            value={form.userCountry || form.unitCountry || 'EG'}
-            options={ALL_RESIDENCE_COUNTRIES}
-            error={errors.userCountry}
-            onChange={(code) => {
-              update('userCountry', code)
-              const found = ALL_RESIDENCE_COUNTRIES.find((c) => c.code === code)
-              if (found?.phoneCode) {
-                update('countryCode', found.phoneCode)
-              }
-            }}
-          />
-
           <div className="flex flex-col gap-2">
             <Label htmlFor="phone" className="text-start">
               {t.phoneLabel}
             </Label>
             <div dir="ltr" className="flex items-center gap-2">
               <CountrySelector
-                value={form.countryCode ?? '20'}
-                onChange={(value) => update('countryCode', value)}
+                value={form.countryCode ?? '995'}
+                onChange={(code, iso) => {
+                  update('countryCode', code)
+                  if (iso) update('userCountry', iso)
+                }}
               />
               <Input
                 id="phone"
                 dir="ltr"
                 type="tel"
-                placeholder="01xx xxx xxxx"
+                inputMode="tel"
+                placeholder="5xx xx xx xx"
                 value={form.phone ?? ''}
-                onChange={(event) => update('phone', event.target.value)}
-                className={`h-11 flex-1 rounded-xl px-3 text-left ${
+                onChange={(event) =>
+                  update('phone', toEnglishDigits(event.target.value))
+                }
+                className={`h-12 flex-1 rounded-xl px-3 text-left ${
                   errors.phone ? 'border-red-500 bg-red-50/20' : ''
                 }`}
               />

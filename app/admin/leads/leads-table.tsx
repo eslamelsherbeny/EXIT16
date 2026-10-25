@@ -39,10 +39,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { getLocalizedGeorgiaAreaName } from "@/components/shared/georgia-areas"
 import { getCurrencySymbol, useTranslation } from "@/lib/i18n"
 import { calculateSmartMatch } from "@/lib/smart-matcher"
 import { BuyerSmartMatchModal } from "@/components/features/admin/smart-match-dialogs"
-import { deleteBuyerLeadAction, updateBuyerLeadStatusAction } from "../../../actions/admin-actions"
+import {
+  deleteBuyerLeadAction,
+  updateBuyerLeadStatusAction,
+} from "../../../actions/admin-actions"
 
 const ACTIVE_ADMIN_COUNTRY = "GE"
 
@@ -157,6 +161,8 @@ export default function LeadsClientTable({
   const leadsPrompts = adminDict.leads || {}
   const propAdminDict = adminDict.propertiesAdmin || {}
   const sm = adminDict.smartMatch || {}
+  const buyerDict = (dict?.accountComponents as Record<string, any>)?.buyer || {}
+  const matchPrefix = sm.matchScorePrefix || buyerDict.matchScorePrefix || "متوافق"
 
   function getMatchedUnitsForLead(lead: BuyerLead) {
     if (!units || units.length === 0) return []
@@ -218,9 +224,14 @@ export default function LeadsClientTable({
   }
 
   function parseLeadDetails(lead: BuyerLead) {
-    const areasRaw = Array.isArray(lead.preferred_areas)
-      ? lead.preferred_areas.join("، ")
-      : lead.preferred_areas || ""
+    const sep = dir === "rtl" ? "، " : ", "
+    const areasList = Array.isArray(lead.preferred_areas)
+      ? lead.preferred_areas
+      : lead.preferred_areas
+        ? [String(lead.preferred_areas)]
+        : []
+
+    const areasRaw = areasList.join("، ")
     const planRaw = lead.payment_plan || ""
 
     const isUnitLead =
@@ -259,10 +270,15 @@ export default function LeadsClientTable({
       customerNotes = planRaw.split("ملاحظات:")[1]?.trim() || ""
     }
 
+    const localizedAreasStr = isUnitLead
+      ? areasRaw.replace("🎯 مهتم بوحدة:", "").trim()
+      : areasList
+          .map((a) => getLocalizedGeorgiaAreaName(a, locale))
+          .filter(Boolean)
+          .join(sep)
+
     const cleanTargetUnit =
-      areasRaw.replace("🎯 مهتم بوحدة:", "").trim() ||
-      leadsPrompts.allAreas ||
-      ""
+      localizedAreasStr || leadsPrompts.allAreas || ""
 
     const matchedUnit = isUnitLead
       ? findMatchingUnitForLead(lead, unitCode, cleanTargetUnit, units)
@@ -293,7 +309,7 @@ export default function LeadsClientTable({
 
     if (parsed.isUnitLead) {
       const unitTitle = parsed.matchedUnit
-        ? `${parsed.matchedUnit.project_name || ""} - ${parsed.matchedUnit.area || ""} (${parsed.unitCode || ""})`
+        ? `${parsed.matchedUnit.project_name || ""} - ${getLocalizedGeorgiaAreaName(parsed.matchedUnit.area, locale)} (${parsed.unitCode || ""})`
         : parsed.cleanTargetUnit
       return `${leadsPrompts.waUnitLeadPrefix} ${lead.name}، ${leadsPrompts.waUnitLeadMiddle} (${unitTitle}) — ${t.cashLabel} ${cashVal} ${leadCur} | ${t.installmentLabel} ${instVal} ${leadCur}.${parsed.customerNotes ? ` (${t.customerNotesLabel} ${parsed.customerNotes})` : ""} ${leadsPrompts.waUnitLeadSuffix}`
     }
@@ -444,7 +460,7 @@ export default function LeadsClientTable({
       const areas = Array.isArray(l.preferred_areas)
         ? l.preferred_areas.join(" ")
         : l.preferred_areas || ""
-      const match = `${l.name} ${l.phone} ${l.email || ""} ${areas} ${l.payment_plan || ""}`
+      const match = `${l.name} ${l.phone} ${l.email || ""} ${areas} ${parsed.cleanTargetUnit} ${l.payment_plan || ""}`
         .toLowerCase()
         .includes(search.toLowerCase())
       if (!match) return false
@@ -454,7 +470,6 @@ export default function LeadsClientTable({
 
   return (
     <div dir={dir} className="text-start">
-      {/* شريط التبديل السريع */}
       <div className="mb-4 grid grid-cols-3 gap-2 rounded-xl border border-gray-200/80 bg-white p-1.5 shadow-2xs sm:inline-flex">
         <button
           type="button"
@@ -523,7 +538,6 @@ export default function LeadsClientTable({
         </div>
       )}
 
-      {/* شريط البحث والفلترة */}
       <div className="mb-4 flex flex-col gap-3 rounded-xl border border-gray-200/80 bg-white p-3 shadow-2xs sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="relative w-full sm:max-w-xs sm:flex-1">
           <Search className="pointer-events-none absolute top-1/2 end-3 size-4 -translate-y-1/2 text-gray-400" />
@@ -666,8 +680,8 @@ export default function LeadsClientTable({
                     >
                       <span>🎯</span>
                       <span>
-                        {matchedUnits.length} {sm.matchedUnitsShort} (
-                        {topUnitScore}%)
+                        {matchedUnits.length} {sm.matchedUnitsShort} · {matchPrefix}{" "}
+                        {topUnitScore}%
                       </span>
                     </button>
                   </div>
@@ -957,8 +971,8 @@ export default function LeadsClientTable({
                             >
                               <span>🎯</span>
                               <span>
-                                {matchedUnits.length} {sm.matchedUnitsShort} (
-                                {topUnitScore}%)
+                                {matchedUnits.length} {sm.matchedUnitsShort} ·{" "}
+                                {matchPrefix} {topUnitScore}%
                               </span>
                             </button>
                           )}
@@ -1128,7 +1142,6 @@ export default function LeadsClientTable({
         </CardContent>
       </Card>
 
-      {/* 3. المكون المفصول للتوافق الذكي للمشتري */}
       <BuyerSmartMatchModal
         lead={smartMatchLead}
         units={units}
@@ -1137,7 +1150,6 @@ export default function LeadsClientTable({
         onNotice={(msg) => setNotice(msg)}
       />
 
-      {/* 4. نافذة تفاصيل طلب الشراء والوحدة المحجوزة */}
       <Dialog
         open={Boolean(detailsLead)}
         onOpenChange={(open) => !open && setDetailsLead(null)}
@@ -1175,18 +1187,18 @@ export default function LeadsClientTable({
                     </DialogDescription>
                   </DialogHeader>
 
-                  {parsed.isUnitLead && (
-                    <div className="mt-2 rounded-xl border border-orange-200 bg-orange-50/70 p-3.5 text-xs">
-                      <p className="font-extrabold text-orange-950">
-                        {parsed.cleanTargetUnit}
+                  <div className="mt-2 rounded-xl border border-orange-200 bg-orange-50/70 p-3.5 text-xs">
+                    <p className="font-extrabold text-orange-950">
+                      📍 {parsed.cleanTargetUnit}
+                    </p>
+                    {parsed.matchedUnit && (
+                      <p className="mt-1 text-[11px] font-semibold text-orange-800">
+                        {propAdminDict.table?.colClient}:{" "}
+                        {parsed.matchedUnit.name} (
+                        <span dir="ltr">{parsed.matchedUnit.phone}</span>)
                       </p>
-                      {parsed.matchedUnit && (
-                        <p className="mt-1 text-[11px] font-semibold text-orange-800">
-                          {propAdminDict.table?.colClient}:{" "}
-                          {parsed.matchedUnit.name} (
-                          <span dir="ltr">{parsed.matchedUnit.phone}</span>)
-                        </p>
-                      )}
+                    )}
+                    {parsed.isUnitLead && (
                       <div className="mt-3 flex flex-wrap gap-2">
                         <Link
                           href={
@@ -1214,8 +1226,8 @@ export default function LeadsClientTable({
                           </Link>
                         )}
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
 
                   <div className="mt-3 grid grid-cols-2 gap-2.5 rounded-xl bg-gray-50 p-3 text-xs">
                     <div>
@@ -1316,7 +1328,6 @@ export default function LeadsClientTable({
         </DialogContent>
       </Dialog>
 
-      {/* 5. نافذة التأكيد */}
       <Dialog
         open={Boolean(confirmAction)}
         onOpenChange={(open) => {
@@ -1404,20 +1415,3 @@ export default function LeadsClientTable({
     </div>
   )
 }
-
-/* ============================================================================
-   ARCHIVED MULTI-COUNTRY LEADS FILTER BAR (COMMENTED FOR FUTURE REFERENCE)
-   ============================================================================
-   const adminCountries = [
-     { code: "ALL", label: adminDict.dashboard?.countries?.ALL, flag: "🌍" },
-     { code: "EG", label: adminDict.dashboard?.countries?.EG, flag: "🇪🇬" },
-     { code: "RU", label: adminDict.dashboard?.countries?.RU, flag: "🇷🇺" },
-     { code: "GE", label: adminDict.dashboard?.countries?.GE, flag: "🇬🇪" },
-     { code: "AE", label: adminDict.dashboard?.countries?.AE, flag: "🇦🇪" },
-   ]
-   const [countryFilter, setCountryFilter] = useState<string>("ALL")
-   const countryLeads =
-     countryFilter === "ALL"
-       ? leads
-       : leads.filter((l) => (l.country_code || "EG") === countryFilter)
-============================================================================ */

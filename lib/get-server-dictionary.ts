@@ -17,6 +17,8 @@ export type GlobalSiteSettings = {
   whatsappNumber: string
   supportEmail: string
   buyerCommission: string
+  developerPenaltyMin?: string
+  developerPenaltyMax?: string
   promo7Price: string
   promo14Price: string
   promo30Price: string
@@ -40,9 +42,11 @@ export const DEFAULT_SITE_SETTINGS: GlobalSiteSettings = {
   whatsappNumber: '+201018595959',
   supportEmail: 'info@aqarexit.com',
   buyerCommission: '1.25',
-  promo7Price: '1199',
-  promo14Price: '1999',
-  promo30Price: '2799',
+  developerPenaltyMin: '10',
+  developerPenaltyMax: '15',
+  promo7Price: '29',
+  promo14Price: '49',
+  promo30Price: '69',
   promo_RU_7: '2500',
   promo_RU_14: '4200',
   promo_RU_30: '5900',
@@ -56,6 +60,18 @@ export const DEFAULT_SITE_SETTINGS: GlobalSiteSettings = {
   allowNewSells: true,
   allowNewBuys: true,
   emailNotifications: true,
+}
+
+export async function getServerDictionary(
+  localeOverride?: string
+): Promise<Dictionary> {
+  if (localeOverride) {
+    const clean = normalizeLocale(localeOverride)
+    return DICTIONARIES[clean] || DICTIONARIES.ar
+  }
+  const cookieStore = await cookies()
+  const locale = normalizeLocale(cookieStore.get('locale')?.value)
+  return DICTIONARIES[locale] || DICTIONARIES.ar
 }
 
 export async function getServerI18n() {
@@ -73,10 +89,9 @@ export async function getServerI18n() {
   let siteSettings: GlobalSiteSettings = { ...DEFAULT_SITE_SETTINGS }
   const rawSession = cookieStore.get('user_session')?.value
   const candidateUserId = extractUserIdFromCookie(rawSession)
-  const hasHintCookie = Boolean(cookieStore.get('session_hint')?.value)
 
-  // معرفة حالة تسجيل الدخول مبدئياً من الكوكيز لمنع أي ومضة
-  let isLoggedIn = Boolean(rawSession && candidateUserId) || hasHintCookie
+  // لا نعتبر المستخدم مسجلاً للدخول إلا بعد التحقق الفعلي من جلسته في قاعدة البيانات
+  let isLoggedIn = false
   let isStaff = false
 
   try {
@@ -123,7 +138,7 @@ export async function getServerI18n() {
         }
       } catch {}
 
-      // 2. قراءة احتياطية من جدول notifications إذا لم يتم تشغيل سكريبت site_settings بعد
+      // 2. قراءة احتياطية من جدول notifications
       if (!loadedFromDb) {
         try {
           const { data: sysRow } = await supabase
@@ -175,11 +190,7 @@ export async function getServerI18n() {
             ) {
               isStaff = true
             }
-          } else {
-            isLoggedIn = false
           }
-        } else {
-          isLoggedIn = false
         }
       }
     }
@@ -211,6 +222,7 @@ export async function getServerI18n() {
     currency,
     siteSettings,
     isLoggedIn,
+    hasSession: isLoggedIn,
     isStaff,
   }
 }

@@ -392,6 +392,9 @@ export async function loginAction(
     nextUrl && nextUrl.startsWith('/') && !nextUrl.startsWith('//')
   const targetRedirect = isSafeInternalUrl ? nextUrl : '/account'
 
+  revalidatePath('/', 'layout')
+  revalidatePath('/account', 'layout')
+
   return {
     success: true,
     redirectTo: targetRedirect,
@@ -722,8 +725,12 @@ export async function getSessionUserAction() {
     const cookieStore = await cookies()
     const rawSession = cookieStore.get('user_session')?.value
     const candidateUserId = extractUserIdFromCookie(rawSession)
-    if (!rawSession || !candidateUserId)
+
+    if (!rawSession || !candidateUserId) {
+      cookieStore.delete('user_session')
+      cookieStore.delete('session_hint')
       return { isLoggedIn: false, isAdmin: false, name: null, role: null }
+    }
 
     const supabase = await getSupabase()
     const { data: user } = await supabase
@@ -732,8 +739,11 @@ export async function getSessionUserAction() {
       .eq('id', candidateUserId)
       .maybeSingle()
 
-    if (!user)
+    if (!user) {
+      cookieStore.delete('user_session')
+      cookieStore.delete('session_hint')
       return { isLoggedIn: false, isAdmin: false, name: null, role: null }
+    }
 
     const check = parseAndVerifySessionCookie(rawSession, user.password_hash)
     const status = String(user.status || 'active').trim().toLowerCase()

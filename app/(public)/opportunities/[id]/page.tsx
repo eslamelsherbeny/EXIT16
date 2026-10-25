@@ -27,8 +27,22 @@ const FALLBACK_UNIT_IMAGE =
   'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=85'
 const FAVORITES_STORAGE_KEY = 'darak_favorites'
 
+function parseSafeNumber(val: unknown, fallback = 0): number {
+  if (typeof val === 'number' && Number.isFinite(val) && val > 0) return val
+  if (typeof val === 'string') {
+    const normalized = val
+      .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 1632))
+      .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 1776))
+      .replace(/,/g, '')
+      .replace(/[^0-9.]/g, '')
+    const num = Number(normalized)
+    if (Number.isFinite(num) && num > 0) return num
+  }
+  return fallback
+}
+
 export default function PropertyDetailsPage() {
-  const { t: dict, locale, dir } = useTranslation()
+  const { t: dict, locale, dir, siteSettings } = useTranslation()
   const t = dict.unitDetailsPage
   const c = dict.opportunitiesPage.card
   const filtersT = dict.opportunitiesPage.filters
@@ -36,6 +50,10 @@ export default function PropertyDetailsPage() {
     (dict.sell?.reviewStep as Record<string, any>)?.monthsUnit ||
     (t.financials as Record<string, any>)?.monthWord ||
     t.financials.yearWord
+
+  const rawCommPct = Number(siteSettings?.buyerCommission)
+  const commissionRate =
+    Number.isFinite(rawCommPct) && rawCommPct >= 0 ? rawCommPct / 100 : 0.0125
 
   const params = useParams()
   const rawId = Array.isArray(params?.id)
@@ -104,12 +122,14 @@ export default function PropertyDetailsPage() {
           if (dbUnit) {
             setUnitRow(dbUnit)
 
-            if (dbUnit.area) {
+            const unitArea =
+              dbUnit.area || dbUnit.documents?.__unit_meta?.area
+            if (unitArea) {
               const { count } = await supabase
                 .from('sell_requests')
                 .select('id', { count: 'exact', head: true })
                 .in('status', ['active', 'offer_received'])
-                .eq('area', dbUnit.area)
+                .eq('area', unitArea)
                 .neq('id', rawId)
 
               setSameProjectCount(count || 0)
@@ -119,9 +139,7 @@ export default function PropertyDetailsPage() {
 
         const { data: otherUnits } = await supabase
           .from('sell_requests')
-          .select(
-            'id, project_name, area, country, country_code, unit_type, rooms, size, years_left, delivery_status, delivery_month, paid_amount, discount_amount, willing_to_discount, images, is_featured, featured_until'
-          )
+          .select('*')
           .in('status', ['active', 'offer_received'])
           .neq('id', rawId)
           .order('is_featured', { ascending: false })
@@ -147,11 +165,16 @@ export default function PropertyDetailsPage() {
 
   const similarDbUnits = useMemo(() => {
     return rawSimilarRows.map((u) => {
+      const meta = u.documents?.__unit_meta || {}
       const uCurrency = getCurrencySymbol('GE', locale)
-      const paid = Number(u.paid_amount) || 0
-      const disc = u.willing_to_discount ? Number(u.discount_amount) || 0 : 0
+      const paid = parseSafeNumber(u.paid_amount)
+      const disc = u.willing_to_discount
+        ? parseSafeNumber(u.discount_amount)
+        : 0
       const reqCash = Math.max(0, paid - disc)
-      const rawDel = String(u.delivery_status || '').trim()
+      const rawDel = String(
+        u.delivery_status || meta.delivery_status || ''
+      ).trim()
       const isReady =
         rawDel.includes('جاهز') ||
         rawDel.includes('فوري') ||
@@ -161,12 +184,13 @@ export default function PropertyDetailsPage() {
 
       const parenMatch = rawDel.match(/\(([^)]+)\)/)
       const yearMatch = rawDel.match(/20\d{2}/)
+      const delMonth = u.delivery_month || meta.delivery_month
       const delivDisplay = isReady
         ? filtersT.deliveryStatuses[1]
         : parenMatch
           ? parenMatch[1]
-          : u.delivery_month
-            ? `${u.delivery_month} ${monthsWord}`
+          : delMonth
+            ? `${delMonth} ${monthsWord}`
             : yearMatch
               ? yearMatch[0]
               : rawDel || filtersT.deliveryStatuses[2]
@@ -175,17 +199,19 @@ export default function PropertyDetailsPage() {
         Boolean(u.is_featured) &&
         (!u.featured_until || new Date(u.featured_until) > new Date())
 
-      const localizedArea = u.area
-        ? getLocalizedGeorgiaAreaName(u.area, locale)
+      const rawArea = u.area || meta.area
+      const localizedArea = rawArea
+        ? getLocalizedGeorgiaAreaName(rawArea, locale)
         : c.defaultArea
+
+      const roomsCount = parseSafeNumber(u.rooms ?? meta.rooms, 2)
+      const sizeVal = parseSafeNumber(u.size ?? meta.size, 75)
 
       return {
         id: u.id,
         name: u.project_name || c.defaultProject,
         area: localizedArea,
-        specs: `${u.unit_type || c.defaultType} · ${u.rooms || 2} ${c.roomsWord} · ${
-          u.size || 75
-        } ${c.sqmUnit} · ${t.similarSection.deliveryPrefix} ${delivDisplay}`,
+        specs: `${u.unit_type || meta.unit_type || c.defaultType} · ${roomsCount} ${c.roomsWord} · ${sizeVal} ${c.sqmUnit} · ${t.similarSection.deliveryPrefix} ${delivDisplay}`,
         cash: reqCash.toLocaleString('en-US'),
         currency: uCurrency,
         featured: isFeat,
@@ -201,11 +227,17 @@ export default function PropertyDetailsPage() {
     if (!unitRow) return null
 
     const row = unitRow
+    const meta =
+      row.documents && typeof row.documents === 'object'
+        ? row.documents.__unit_meta || {}
+        : {}
+
     const currency = getCurrencySymbol('GE', locale)
 
     const projectName = row.project_name || c.defaultProject
-    const areaName = row.area
-      ? getLocalizedGeorgiaAreaName(row.area, locale)
+    const rawArea = row.area || meta.area || ''
+    const areaName = rawArea
+      ? getLocalizedGeorgiaAreaName(rawArea, locale)
       : c.defaultArea
     const developerName = row.developer_name || ''
     const subtitle = developerName ? `${developerName} · ${areaName}` : areaName
@@ -220,38 +252,65 @@ export default function PropertyDetailsPage() {
       row.code ||
       `U-${numericId.length >= 4 ? numericId : fallbackId || '1001'}`
 
-    const unitType = row.unit_type || c.defaultType
-    const size = Number(row.size) || 0
+    const unitType = row.unit_type || meta.unit_type || c.defaultType
+    const isStudio =
+      unitType.includes('استوديو') ||
+      unitType.toLowerCase().includes('studio') ||
+      unitType.toLowerCase().includes('студия') ||
+      unitType.includes('სტუდიო')
+
+    const size = parseSafeNumber(row.size ?? meta.size, 75)
+    const rawFloor = row.floor_number ?? meta.floor_number
     const floor =
-      row.floor_number !== null &&
-      row.floor_number !== undefined &&
-      String(row.floor_number).trim() !== ''
-        ? String(row.floor_number)
+      rawFloor !== null &&
+      rawFloor !== undefined &&
+      String(rawFloor).trim() !== ''
+        ? String(rawFloor)
         : t.specs.typicalFloor
-    const rooms = Number(row.rooms) || 0
-    const bathrooms = Number(row.bathrooms) || 0
-    const finishing = row.finishing || t.specs.defaultFinishing
-    const deliveryStatus = row.delivery_status || t.specs.defaultStatus
-    const contractYear = Number(row.contract_year) || 2024
-    const contractDateFormatted = row.contract_month
-      ? `${row.contract_month}/${contractYear}`
+
+    const rooms = parseSafeNumber(
+      row.rooms ?? meta.rooms,
+      isStudio ? 1 : 2
+    )
+    const bathrooms = parseSafeNumber(
+      row.bathrooms ?? meta.bathrooms,
+      1
+    )
+    const finishing =
+      row.finishing || meta.finishing || t.specs.defaultFinishing
+    const deliveryStatus =
+      row.delivery_status || meta.delivery_status || t.specs.defaultStatus
+
+    const contractYear = parseSafeNumber(
+      row.contract_year ?? meta.contract_year,
+      2024
+    )
+    const contractMonth = row.contract_month || meta.contract_month
+    const contractDateFormatted = contractMonth
+      ? `${contractMonth}/${contractYear}`
       : String(contractYear)
 
-    const paidAmount = Number(row.paid_amount) || 0
-    const contractPrice = Number(row.contract_price) || paidAmount
+    const paidAmount = parseSafeNumber(row.paid_amount)
+    const contractPrice = parseSafeNumber(row.contract_price, paidAmount)
     const discountAmount = row.willing_to_discount
-      ? Number(row.discount_amount) || 0
+      ? parseSafeNumber(row.discount_amount)
       : 0
     const requiredCash = Math.max(0, paidAmount - discountAmount)
     const remainingToDeveloper = Math.max(0, contractPrice - paidAmount)
-    const marketPrice = Number(row.market_price) || 0
-    const installmentAmount = Number(row.installment_amount) || 0
-    const installmentFreq = row.installment_frequency || c.defaultFreq
-    const remainingInstallmentMonths = Number(row.years_left) || 0
+    const marketPrice = parseSafeNumber(row.market_price)
+    const installmentAmount = parseSafeNumber(
+      row.installment_amount ?? meta.installment_amount
+    )
+    const installmentFreq =
+      row.installment_frequency || meta.installment_frequency || c.defaultFreq
+    const remainingInstallmentMonths = parseSafeNumber(
+      row.years_left ?? meta.years_left,
+      0
+    )
 
     const pricePerMeter =
       size > 0 && contractPrice > 0 ? Math.round(contractPrice / size) : 0
-    const commission = Math.round(contractPrice * 0.0125)
+    const commission = Math.round(contractPrice * commissionRate)
     const marketGain =
       marketPrice > contractPrice
         ? Math.max(
@@ -275,13 +334,14 @@ export default function PropertyDetailsPage() {
 
     const parenMatch = rawDelStr.match(/\(([^)]+)\)/)
     const yearMatch = rawDelStr.match(/20\d{2}/)
+    const delivMonth = row.delivery_month || meta.delivery_month
 
     const deliveryDisplay = isReadyDelivery
       ? t.specs.readyForDelivery
       : parenMatch
         ? parenMatch[1]
-        : row.delivery_month
-          ? `${row.delivery_month} ${monthsWord}`
+        : delivMonth
+          ? `${delivMonth} ${monthsWord}`
           : yearMatch
             ? yearMatch[0]
             : rawDelStr || t.specs.soon
@@ -305,12 +365,12 @@ export default function PropertyDetailsPage() {
 
     const specs = [
       { label: t.specs.type, value: unitType },
-      { label: t.specs.size, value: size > 0 ? `${size} ${c.sqmUnit}` : '—' },
+      { label: t.specs.size, value: `${size} ${c.sqmUnit}` },
       { label: t.specs.floor, value: floor },
-      { label: t.specs.rooms, value: rooms > 0 ? String(rooms) : '—' },
+      { label: t.specs.rooms, value: String(rooms) },
       {
         label: t.specs.bathrooms,
-        value: bathrooms > 0 ? String(bathrooms) : '—',
+        value: String(bathrooms),
       },
       { label: t.specs.finishing, value: finishing },
       { label: t.specs.status, value: deliveryStatus },
@@ -320,11 +380,15 @@ export default function PropertyDetailsPage() {
         value:
           pricePerMeter > 0
             ? `${pricePerMeter.toLocaleString('en-US')} ${currency}`
-            : '—',
+            : `${Math.round((paidAmount || 35000) / size).toLocaleString('en-US')} ${currency}`,
       },
     ]
 
-    const tags: string[] = Array.isArray(row.features) ? row.features : []
+    const tags: string[] = Array.isArray(row.features) && row.features.length > 0
+      ? row.features
+      : Array.isArray(meta.features)
+        ? meta.features
+        : []
     const descriptionText = row.description || `${projectName} — ${subtitle}`
 
     const isFeaturedActive =
@@ -358,7 +422,7 @@ export default function PropertyDetailsPage() {
       commission,
       totalRequiredNow,
     }
-  }, [unitRow, locale, c, t, filtersT, monthsWord])
+  }, [unitRow, locale, c, t, filtersT, monthsWord, commissionRate])
 
   const copyUnitCode = () => {
     if (!computedUnit) return

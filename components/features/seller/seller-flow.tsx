@@ -46,18 +46,21 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { getCurrencySymbol, useTranslation } from '@/lib/i18n'
 import {
-  deliveries,
-  features,
   Field,
-  finishings,
   formatAmount,
   getCountryConfig,
+  getLocalizedDeliveries,
+  getLocalizedFeatures,
+  getLocalizedFinishings,
+  getLocalizedUnitTypes,
+  isReadyDeliveryOption,
+  isUnderConstructionDeliveryOption,
   MoneyField,
   MonthYearSelector,
   Pills,
   RequiredLabel,
+  toEnglishDigits,
   ToggleSection,
-  unitTypes,
   years,
 } from './seller-shared'
 import { ContactStep } from './seller-contact-step'
@@ -104,9 +107,12 @@ function StepValidationBanner({
 
 export function SellerFlow() {
   const router = useRouter()
-  const { t: dict, dir } = useTranslation()
+  const { t: dict, locale, dir } = useTranslation()
   const s = dict.sell
   const valDict = s.validation as Record<string, any>
+
+  const localizedDeliveries = getLocalizedDeliveries(dict, locale)
+  const localizedUnitTypes = getLocalizedUnitTypes(dict, locale)
 
   const [step, setStep] = useState(1)
   const [isMagicResume, setIsMagicResume] = useState(false)
@@ -167,16 +173,25 @@ export function SellerFlow() {
 
         const parseSavedDelivery = (rawStatus?: string | null) => {
           const str = String(rawStatus || '')
-          const monthsMatch = str.match(/(\d+)\s*(?:months|شهر|мес|თვე)/i) || str.match(/\((\d+)\)/)
+          const monthsMatch =
+            str.match(/(\d+)\s*(?:months|شهر|мес|თვე)/i) ||
+            str.match(/\((\d+)\)/)
           const baseStatus = str.replace(/\s*\([^)]*\)/g, '').trim()
           return {
-            baseStatus: baseStatus || deliveries[0],
+            baseStatus: baseStatus || localizedDeliveries[0],
             delMonths: monthsMatch ? monthsMatch[1] : '',
           }
         }
 
         const hydrateUnitIntoState = (u: any, stepToOpen: number) => {
-          const parsedDel = parseSavedDelivery(u.delivery_status)
+          const meta =
+            u.documents && typeof u.documents === 'object'
+              ? u.documents.__unit_meta || {}
+              : {}
+
+          const parsedDel = parseSavedDelivery(
+            u.delivery_status || meta.delivery_status
+          )
           setUnitId(String(u.id))
           setOrderRef(
             `AE-${String(u.id).replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase()}`
@@ -188,15 +203,23 @@ export function SellerFlow() {
             developerDetails: u.developer_name || '',
             project: u.project_name || '',
             projectDetails: u.project_name || '',
-            location: u.area || '',
-            areaSize: u.size ? String(u.size) : '',
-            garden: u.garden_size ? String(u.garden_size) : '',
-            rooms: u.rooms ? String(u.rooms) : '',
-            bathrooms: u.bathrooms ? String(u.bathrooms) : '',
+            location: u.area || meta.area || '',
+            areaSize: u.size || meta.size ? String(u.size || meta.size) : '',
+            garden:
+              u.garden_size || meta.garden_size
+                ? String(u.garden_size || meta.garden_size)
+                : '',
+            rooms: u.rooms || meta.rooms ? String(u.rooms || meta.rooms) : '',
+            bathrooms:
+              u.bathrooms || meta.bathrooms
+                ? String(u.bathrooms || meta.bathrooms)
+                : '',
             floor:
               u.floor_number !== null && u.floor_number !== undefined
                 ? String(u.floor_number)
-                : '',
+                : meta.floor_number
+                  ? String(meta.floor_number)
+                  : '',
             description: u.description || '',
             contractPrice: u.contract_price ? String(u.contract_price) : '',
             contractPrice2: u.contract_price ? String(u.contract_price) : '',
@@ -206,18 +229,28 @@ export function SellerFlow() {
               u.market_price || u.contract_price
                 ? String(u.market_price || u.contract_price)
                 : '',
-            installment: u.installment_amount
-              ? String(u.installment_amount)
-              : '',
+            installment:
+              u.installment_amount || meta.installment_amount
+                ? String(u.installment_amount || meta.installment_amount)
+                : '',
             remainingMonths:
               u.years_left !== null && u.years_left !== undefined
                 ? String(u.years_left)
+                : meta.years_left
+                  ? String(meta.years_left)
+                  : '',
+            contractMonth:
+              u.contract_month || meta.contract_month
+                ? String(u.contract_month || meta.contract_month)
                 : '',
-            contractMonth: u.contract_month ? String(u.contract_month) : '',
-            contractYear: u.contract_year ? String(u.contract_year) : '',
-            deliveryRemainingMonths: u.delivery_month
-              ? String(u.delivery_month)
-              : parsedDel.delMonths,
+            contractYear:
+              u.contract_year || meta.contract_year
+                ? String(u.contract_year || meta.contract_year)
+                : '',
+            deliveryRemainingMonths:
+              u.delivery_month || meta.delivery_month
+                ? String(u.delivery_month || meta.delivery_month)
+                : parsedDel.delMonths,
             annualInstallmentAmount: u.annual_installment_amount
               ? String(u.annual_installment_amount)
               : '',
@@ -235,14 +268,29 @@ export function SellerFlow() {
             confirmed: 'yes',
           }))
           setSelected({
-            type: u.unit_type ? [u.unit_type] : [],
-            finishing: u.finishing ? [u.finishing] : [],
+            type:
+              u.unit_type || meta.unit_type
+                ? [u.unit_type || meta.unit_type]
+                : [],
+            finishing:
+              u.finishing || meta.finishing
+                ? [u.finishing || meta.finishing]
+                : [],
             delivery: parsedDel.baseStatus ? [parsedDel.baseStatus] : [],
-            features: Array.isArray(u.features) ? u.features : [],
-            year: u.contract_year ? [String(u.contract_year)] : [],
-            frequency: u.installment_frequency
-              ? [u.installment_frequency]
-              : [],
+            features:
+              Array.isArray(u.features) && u.features.length > 0
+                ? u.features
+                : Array.isArray(meta.features)
+                  ? meta.features
+                  : [],
+            year:
+              u.contract_year || meta.contract_year
+                ? [String(u.contract_year || meta.contract_year)]
+                : [],
+            frequency:
+              u.installment_frequency || meta.installment_frequency
+                ? [u.installment_frequency || meta.installment_frequency]
+                : [],
             annualInstallment: [u.has_annual_installment ? 'yes' : 'no'],
             discountOffer: [u.willing_to_discount ? 'yes' : 'no'],
             overdueInstallments: [u.has_overdue_installments ? 'yes' : 'no'],
@@ -252,8 +300,10 @@ export function SellerFlow() {
           }
           if (u.documents && typeof u.documents === 'object') {
             const rawDocs = { ...u.documents }
+            delete rawDocs.__unit_meta
             if (rawDocs.national_id && !rawDocs.passport) {
               rawDocs.passport = rawDocs.national_id
+              delete rawDocs.national_id
             }
             setUnitDocs(rawDocs)
           }
@@ -336,16 +386,16 @@ export function SellerFlow() {
       .replace(/:/g, '')
       .trim()
 
-  const isUnderConstructionDelivery = (val?: string) => {
-    if (!val) return false
-    return val === deliveries[1] || val === deliveries[2]
-  }
-
   const composeDeliveryStatus = () => {
     const base = selected.delivery?.[0] || ''
-    const delMonths = (form.deliveryRemainingMonths || '').trim()
-    const monthsWord = (s.reviewStep as Record<string, any>)?.monthsUnit || 'شهر'
-    if (isUnderConstructionDelivery(base) && delMonths && Number(delMonths) > 0) {
+    const delMonths = toEnglishDigits(form.deliveryRemainingMonths || '').trim()
+    const monthsWord =
+      (s.reviewStep as Record<string, any>)?.monthsUnit || 'شهر'
+    if (
+      isUnderConstructionDeliveryOption(base) &&
+      delMonths &&
+      Number(delMonths) > 0
+    ) {
       return `${base} (${delMonths} ${monthsWord})`
     }
     return base
@@ -358,7 +408,7 @@ export function SellerFlow() {
     }
 
     const amount = (key: string) =>
-      Number((form[key] ?? '').replace(/,/g, '')) || 0
+      Number(toEnglishDigits(form[key] ?? '').replace(/,/g, '')) || 0
     const nextErrors: Record<string, string> = {}
     const missingNames: string[] = []
     const tBasic = s.basicStep
@@ -429,7 +479,7 @@ export function SellerFlow() {
         nextErrors.bathrooms = s.validation.required
         missingNames.push(cleanFieldLabel(tDetails.bathroomsLabel))
       }
-      if (selected.type?.[0] === unitTypes[0] && !form.floor) {
+      if (selected.type?.[0] === localizedUnitTypes[0] && !form.floor) {
         nextErrors.floor = s.validation.required
         missingNames.push(cleanFieldLabel(tDetails.floorLabel))
       }
@@ -441,7 +491,7 @@ export function SellerFlow() {
         nextErrors.delivery = s.validation.required
         missingNames.push(cleanFieldLabel(tDetails.deliveryLabel))
       } else if (
-        isUnderConstructionDelivery(selected.delivery?.[0]) &&
+        isUnderConstructionDeliveryOption(selected.delivery?.[0]) &&
         (!form.deliveryRemainingMonths ||
           form.deliveryRemainingMonths.trim() === '')
       ) {
@@ -633,11 +683,14 @@ export function SellerFlow() {
     put('area', form.location)
     put('unit_type', selected.type?.[0])
     put('size', form.areaSize)
+    put('garden_size', form.garden)
     put('rooms', form.rooms)
     put('bathrooms', form.bathrooms)
+    put('floor_number', form.floor)
     put('finishing', selected.finishing?.[0])
     put('delivery_status', composeDeliveryStatus())
     put('delivery_month', form.deliveryRemainingMonths)
+    selected.features?.forEach((f) => data.append('feature', f))
     put('description', form.description)
     put('contract_price', form.contractPrice2 || form.contractPrice)
     put('paid_amount', form.paidAmount2 || form.paidAmount)
@@ -650,7 +703,18 @@ export function SellerFlow() {
     put('contract_month', form.contractMonth)
     put('contract_year', form.contractYear || selected.year?.[0])
     put('years_left', form.remainingMonths)
+    if (selected.annualInstallment?.[0] === 'yes') {
+      data.set('has_annual_installment', 'on')
+    }
     put('annual_installment_amount', form.annualInstallmentAmount)
+    if (selected.discountOffer?.[0] === 'yes') {
+      data.set('willing_to_discount', 'on')
+    }
+    put('discount_amount', form.discountAmount)
+    if (selected.overdueInstallments?.[0] === 'yes') {
+      data.set('has_overdue_installments', 'on')
+    }
+    put('overdue_installments', form.overdueCount)
     put('overdue_total_amount', form.overdueTotal)
     if (Object.keys(unitDocs).length > 0) {
       put('documents_json', JSON.stringify(unitDocs))
@@ -659,6 +723,7 @@ export function SellerFlow() {
 
     const result = await saveSellProgress(data)
     if (result.success) {
+      if (result.unitId) setUnitId(result.unitId)
       router.push('/account')
     } else {
       setError(result.error ?? s.validation.saveFailed)
@@ -715,12 +780,13 @@ export function SellerFlow() {
       setValue('documents_json', JSON.stringify(unitDocs))
     }
     setValue('name', form.name || loggedUser?.name || '')
+    const cleanPhone = toEnglishDigits(form.phone || '').trim()
     setValue(
       'phone',
-      form.phone
-        ? form.phone.startsWith('+')
-          ? form.phone
-          : `+${(form.countryCode ?? DEFAULT_PHONE_CODE).replace('+', '')}${form.phone.replace(/^0+/, '')}`
+      cleanPhone
+        ? cleanPhone.startsWith('+')
+          ? cleanPhone
+          : `+${(form.countryCode ?? DEFAULT_PHONE_CODE).replace('+', '')}${cleanPhone.replace(/^0+/, '')}`
         : loggedUser?.phone || ''
     )
     setValue('email', form.email || loggedUser?.email)
@@ -750,6 +816,10 @@ export function SellerFlow() {
   )
   const missingBannerPrefix =
     valDict.missingBannerPrefix || valDict.required || ''
+
+  const realDocsCount = ['contract', 'receipts', 'statement', 'passport'].filter(
+    (k) => Boolean(unitDocs[k]?.url)
+  ).length
 
   return (
     <main
@@ -913,7 +983,7 @@ export function SellerFlow() {
                   go={go}
                   onSave={saveProgress}
                   imagesLength={images.length}
-                  docsCount={Object.keys(unitDocs).length}
+                  docsCount={realDocsCount}
                   orderRef={orderRef}
                   unitId={unitId}
                 />
@@ -1040,7 +1110,9 @@ function BasicStep({
       <div className="rounded-xl bg-sky-50 p-4 text-sm font-semibold text-sky-700">
         {t.receiveBoxPrefix}{' '}
         <span dir="ltr">
-          {Number(form.paidAmount || 0).toLocaleString('en-US')}
+          {Number(toEnglishDigits(form.paidAmount || '0')).toLocaleString(
+            'en-US'
+          )}
         </span>{' '}
         {currency} {t.receiveBoxSuffix}
       </div>
@@ -1124,17 +1196,20 @@ function DetailsStep({
   missingPrefix: string
   onSave: () => void
 }) {
-  const { t: dict, dir } = useTranslation()
+  const { t: dict, locale, dir } = useTranslation()
   const s = dict.sell
   const t = s.detailsStep as Record<string, any>
 
+  const localizedUnitTypes = getLocalizedUnitTypes(dict, locale)
+  const localizedFinishings = getLocalizedFinishings(dict, locale)
+  const localizedDeliveries = getLocalizedDeliveries(dict, locale)
+  const localizedFeatures = getLocalizedFeatures(dict, locale)
+
   const chosenDelivery = selected.delivery?.[0] || ''
-  const needsDeliveryMonths =
-    chosenDelivery === deliveries[1] || chosenDelivery === deliveries[2]
+  const needsDeliveryMonths = isUnderConstructionDeliveryOption(chosenDelivery)
 
   return (
     <div className="flex flex-col gap-6">
-      {/* لا نعيد عرض اسم المطور والمشروع إذا أدخلهما البائع للتو في الخطوة 1، بل يظهران فقط عند فتح صفحة تعديل وحدة مسجلة */}
       {showBasicFields && (
         <div className="grid gap-5 sm:grid-cols-2">
           <Field
@@ -1160,7 +1235,7 @@ function DetailsStep({
         </div>
       )}
 
-      {/* القائمة المنسدلة لمناطق جورجيا مع بحث خفيف بالداخل */}
+      {/* القائمة المنسدلة الموحدة لمناطق جورجيا من @/components/shared/georgia-areas */}
       <GeorgiaAreaSelect
         label={t.georgiaLocationLabel || `${t.locationLabelPrefix} *`}
         value={form.location ?? ''}
@@ -1175,7 +1250,7 @@ function DetailsStep({
         </legend>
         <Pills
           error={errors.type}
-          items={unitTypes}
+          items={localizedUnitTypes}
           selected={selected.type ?? []}
           onToggle={(value) => toggle('type', value)}
         />
@@ -1215,7 +1290,7 @@ function DetailsStep({
         />
       </div>
 
-      {selected.type?.[0] === unitTypes[0] && (
+      {selected.type?.[0] === localizedUnitTypes[0] && (
         <Field
           error={errors.floor}
           label={t.floorLabel}
@@ -1233,7 +1308,7 @@ function DetailsStep({
         </legend>
         <Pills
           error={errors.finishing}
-          items={finishings}
+          items={localizedFinishings}
           selected={selected.finishing ?? []}
           onToggle={(value) => toggle('finishing', value)}
         />
@@ -1245,18 +1320,17 @@ function DetailsStep({
         </legend>
         <Pills
           error={errors.delivery}
-          items={deliveries}
+          items={localizedDeliveries}
           selected={selected.delivery ?? []}
           onToggle={(value) => {
             toggle('delivery', value)
-            if (value === deliveries[0]) {
+            if (isReadyDeliveryOption(value)) {
               update('deliveryRemainingMonths', '0')
             }
           }}
         />
       </fieldset>
 
-      {/* معاد استلام الوحدة بالشهور (إذا كانت الوحدة تحت الإنشاء) */}
       {needsDeliveryMonths && (
         <Field
           error={errors.deliveryDate}
@@ -1272,7 +1346,7 @@ function DetailsStep({
       <fieldset className="flex flex-col gap-3">
         <legend className="text-start font-bold">{t.featuresLabel}</legend>
         <Pills
-          items={features}
+          items={localizedFeatures}
           selected={selected.features ?? []}
           onToggle={(value) => toggle('features', value)}
           multi
@@ -1360,7 +1434,6 @@ function PricingStep({
 
   return (
     <div className="flex flex-col gap-6">
-      {/* إذا كان في وضع تعديل وحدة مسجلة نعرض له سعر العقد والمدفوع لتعديلهما، أما في التسجيل الجديد فقد كتبهما في الخطوة 1 */}
       {showBasicPriceFields && (
         <>
           <MoneyField
@@ -1567,16 +1640,18 @@ function PhotosStep({
   const t = s.photosStep as Record<string, any>
   const docDict = dict.accountPages?.documents as Record<string, any>
 
-  const [showDocsBox, setShowDocsBox] = useState(
-    Object.keys(unitDocs).length > 0
-  )
-
   const docSections: Array<{ key: SellerDocKey; title: string }> = [
     { key: 'contract', title: docDict?.sections?.contract },
     { key: 'receipts', title: docDict?.sections?.receipts },
     { key: 'statement', title: docDict?.sections?.statement },
     { key: 'passport', title: docDict?.sections?.passport },
   ]
+
+  const uploadedDocsCount = docSections.filter((sec) =>
+    Boolean(unitDocs[sec.key]?.url)
+  ).length
+
+  const [showDocsBox, setShowDocsBox] = useState(uploadedDocsCount > 0)
 
   const upload = async (files: FileList | null) => {
     if (!files?.length) return
@@ -1599,10 +1674,6 @@ function PhotosStep({
     setImages([...images, ...uploaded])
     setUploading(false)
   }
-
-  const uploadedDocsCount = docSections.filter((sec) =>
-    Boolean(unitDocs[sec.key]?.url)
-  ).length
 
   return (
     <div className="flex flex-col gap-6">
@@ -2119,14 +2190,14 @@ function ReviewStep({
     [
       t.rowContractPrice,
       `${Number(
-        form.contractPrice2 || form.contractPrice || 0
+        toEnglishDigits(form.contractPrice2 || form.contractPrice || '0')
       ).toLocaleString('en-US')} ${currency}`,
     ],
     [
       t.rowPaidAmount,
-      `${Number(form.paidAmount2 || form.paidAmount || 0).toLocaleString(
-        'en-US'
-      )} ${currency}`,
+      `${Number(
+        toEnglishDigits(form.paidAmount2 || form.paidAmount || '0')
+      ).toLocaleString('en-US')} ${currency}`,
     ],
   ]
 

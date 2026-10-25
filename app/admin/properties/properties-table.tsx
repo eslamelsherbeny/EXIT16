@@ -37,6 +37,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
+import { getLocalizedGeorgiaAreaName } from "@/components/shared/georgia-areas"
 import { getCurrencySymbol, useTranslation } from "@/lib/i18n"
 import {
   calculateSmartMatch,
@@ -64,12 +65,14 @@ export type SellRequest = {
   bathrooms?: number | null
   finishing?: string | null
   delivery_status?: string | null
+  delivery_month?: string | null
   contract_price?: number | null
   paid_amount?: number | null
   market_price: number | null
   installment_amount?: number | null
   installment_frequency?: string | null
   years_left?: number | null
+  contract_month?: string | null
   contract_year?: number | null
   willing_to_discount?: boolean | null
   discount_amount?: number | null
@@ -139,6 +142,8 @@ export default function PropertiesTable({
   const t = dict.admin.propertiesAdmin
   const leadsPrompts = dict.admin.leads
   const sm = (dict.admin as Record<string, any>).smartMatch || {}
+  const buyerDict = (dict?.accountComponents as Record<string, any>)?.buyer || {}
+  const matchPrefix = sm.matchScorePrefix || buyerDict.matchScorePrefix || "متوافق"
 
   function getMatchedBuyersForUnit(unit: SellRequest) {
     if (!buyers || buyers.length === 0) return []
@@ -185,14 +190,16 @@ export default function PropertiesTable({
   function buildSellerWhatsAppMessage(property: SellRequest, unitCur: string) {
     const uCode = deriveShortUnitCode(property.id)
     const proj = property.project_name || t.table.unspecifiedProject
-    const area = property.area ? ` - ${property.area}` : ""
+    const localizedArea = property.area
+      ? ` - ${getLocalizedGeorgiaAreaName(property.area, locale)}`
+      : ""
     const cash = Number(property.paid_amount || 0).toLocaleString("en-US")
     const contract = Number(property.contract_price || 0).toLocaleString("en-US")
     const adPart = property.featured_fawry_code
       ? ` | ${t.badges.adCodeLabel} ${property.featured_fawry_code}`
       : ""
 
-    return `${leadsPrompts.waGeneralPrefix} ${property.name}، (${proj}${area} - ${uCode}${adPart}) — ${t.table.colCash}: ${cash} ${unitCur} | ${t.table.contractShort} ${contract} ${unitCur}`
+    return `${leadsPrompts.waGeneralPrefix} ${property.name}، (${proj}${localizedArea} - ${uCode}${adPart}) — ${t.table.colCash}: ${cash} ${unitCur} | ${t.table.contractShort} ${contract} ${unitCur}`
   }
 
   function getUploadedDocsList(docs: Record<string, any> | null | undefined) {
@@ -371,11 +378,12 @@ export default function PropertiesTable({
     const unitShortCode = p.id.slice(0, 8).toUpperCase()
     const uPublicCode = deriveShortUnitCode(p.id)
     const orderRefCode = `AE-${p.id.replace(/[^a-zA-Z0-9]/g, "").slice(0, 6).toUpperCase()}`
+    const localizedArea = getLocalizedGeorgiaAreaName(p.area, locale)
 
     if (search.trim()) {
       const q = search.trim().toLowerCase()
       const textMatch =
-        `${p.id} ${unitShortCode} ${uPublicCode} ${orderRefCode} ${p.project_name || ""} ${p.area || ""} ${p.name || ""} ${p.phone || ""} ${p.featured_fawry_code || ""}`
+        `${p.id} ${unitShortCode} ${uPublicCode} ${orderRefCode} ${p.project_name || ""} ${p.area || ""} ${localizedArea} ${p.name || ""} ${p.phone || ""} ${p.featured_fawry_code || ""}`
           .toLowerCase()
           .includes(q)
       if (!textMatch) return false
@@ -437,7 +445,8 @@ export default function PropertiesTable({
           >
             <span>🎯</span>
             <span>
-              {matchedBuyers.length} {sm.matchedBuyersShort} ({topScore}%)
+              {matchedBuyers.length} {sm.matchedBuyersShort} · {matchPrefix}{" "}
+              {topScore}%
             </span>
           </button>
         )}
@@ -605,7 +614,6 @@ export default function PropertiesTable({
         </div>
       )}
 
-      {/* هيدر الصفحة لفرص جورجيا */}
       <div className="mb-4 rounded-xl border border-gray-200/85 bg-white p-4 shadow-2xs">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -753,6 +761,10 @@ export default function PropertiesTable({
             const isHighlighted = highlightedUnitId === property.id
             const unitCur = getUnitCurrency()
             const waText = buildSellerWhatsAppMessage(property, unitCur)
+            const localizedArea = getLocalizedGeorgiaAreaName(
+              property.area,
+              locale
+            )
 
             return (
               <div
@@ -785,7 +797,7 @@ export default function PropertiesTable({
                       {property.project_name || t.table.unspecifiedProject}
                     </h3>
                     <p className="mt-0.5 text-[11px] text-gray-500">
-                      {property.area || "—"} ·{" "}
+                      {localizedArea} ·{" "}
                       {property.unit_type || t.table.defaultUnitType}{" "}
                       {property.size
                         ? `· ${property.size} ${t.table.sqmUnit}`
@@ -1066,6 +1078,10 @@ export default function PropertiesTable({
                 const isHighlighted = highlightedUnitId === property.id
                 const unitCur = getUnitCurrency()
                 const waText = buildSellerWhatsAppMessage(property, unitCur)
+                const localizedArea = getLocalizedGeorgiaAreaName(
+                  property.area,
+                  locale
+                )
 
                 const cellBorderCls = isHighlighted
                   ? "border-y-2 border-[#105C50] first:border-s-2 last:border-e-2 bg-emerald-50/40"
@@ -1093,7 +1109,7 @@ export default function PropertiesTable({
                         )}
                       </div>
                       <div className="mt-0.5 text-[11px] text-gray-500">
-                        {property.area || "—"} ·{" "}
+                        {localizedArea} ·{" "}
                         {property.unit_type || t.table.defaultUnitType}{" "}
                         {property.size
                           ? `· ${property.size}${t.table.sqmUnit}`
@@ -1358,7 +1374,6 @@ export default function PropertiesTable({
         </table>
       </div>
 
-      {/* 3. المكون المفصول للتوافق الذكي */}
       <UnitSmartMatchModal
         unit={smartMatchProperty}
         buyers={buyers}
@@ -1367,7 +1382,6 @@ export default function PropertiesTable({
         onNotice={(msg) => setNotice(msg)}
       />
 
-      {/* 4. نافذة التأكيد الموحدة */}
       <Dialog
         open={Boolean(confirmAction)}
         onOpenChange={(open) => {
@@ -1547,7 +1561,6 @@ export default function PropertiesTable({
         </DialogContent>
       </Dialog>
 
-      {/* 5. نافذة تفاصيل الوحدة والمستندات */}
       <Dialog
         open={Boolean(detailsProperty)}
         onOpenChange={(open) => !open && setDetailsProperty(null)}
@@ -1603,7 +1616,7 @@ export default function PropertiesTable({
                     {t.modals.areaLabel}
                   </span>
                   <strong className="text-[#0a1122]">
-                    {detailsProperty.area || "—"}
+                    {getLocalizedGeorgiaAreaName(detailsProperty.area, locale)}
                   </strong>
                 </div>
                 <div>
@@ -1682,19 +1695,3 @@ export default function PropertiesTable({
     </div>
   )
 }
-
-/* ============================================================================
-   ARCHIVED MULTI-COUNTRY PROPERTIES FILTER BAR (COMMENTED FOR FUTURE REFERENCE)
-   ============================================================================
-   const adminCountries = [
-     { code: "ALL", label: t.countries.ALL, flag: "🌍" },
-     { code: "EG", label: t.countries.EG, flag: "🇪🇬" },
-     { code: "RU", label: t.countries.RU, flag: "🇷🇺" },
-     { code: "GE", label: t.countries.GE, flag: "🇬🇪" },
-     { code: "AE", label: t.countries.AE, flag: "🇦🇪" },
-   ]
-   const [countryFilter, setCountryFilter] = useState<string>("ALL")
-   function getPropertyCountryCode(p: SellRequest) {
-     return (p.country_code || p.country || "EG").toUpperCase()
-   }
-============================================================================ */

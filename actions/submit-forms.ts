@@ -80,20 +80,31 @@ async function sendNotificationEmail({
   }
 }
 
+// تحويل الأرقام العربية والفارسية إلى إنجليزية قبل قراءتها
+function normalizeDigits(str: string): string {
+  return String(str || '')
+    .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 1632))
+    .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 1776))
+}
+
 function text(formData: FormData, key: string) {
   const value = formData.get(key)
   return typeof value === 'string' ? value.trim() : ''
 }
 
 function number(formData: FormData, key: string, fallback = 0) {
-  const rawValue = text(formData, key).replace(/,/g, '')
+  const rawValue = normalizeDigits(text(formData, key))
+    .replace(/,/g, '')
+    .replace(/[^0-9.]/g, '')
   if (!rawValue) return fallback
   const value = Number(rawValue)
   return Number.isFinite(value) && value >= 0 ? value : fallback
 }
 
 function integer(formData: FormData, key: string, fallback = 0) {
-  const rawValue = text(formData, key).replace(/,/g, '')
+  const rawValue = normalizeDigits(text(formData, key))
+    .replace(/,/g, '')
+    .replace(/[^0-9]/g, '')
   if (!rawValue) return fallback
   const value = Number.parseInt(rawValue, 10)
   return Number.isFinite(value) && value >= 0 ? value : fallback
@@ -112,7 +123,9 @@ function normalizeEmail(email: string) {
 }
 
 function getPhoneVariants(rawPhone: string) {
-  const digits = (rawPhone || '').replace(/\s+/g, '').replace(/[^0-9+]/g, '')
+  const digits = normalizeDigits(rawPhone || '')
+    .replace(/\s+/g, '')
+    .replace(/[^0-9+]/g, '')
   if (!digits) return []
   if (digits.startsWith('+')) {
     const noPlus = digits.slice(1)
@@ -133,7 +146,9 @@ function getPhoneVariants(rawPhone: string) {
 }
 
 function formatPrimaryPhone(rawPhone: string) {
-  const digits = (rawPhone || '').replace(/\s+/g, '').replace(/[^0-9+]/g, '')
+  const digits = normalizeDigits(rawPhone || '')
+    .replace(/\s+/g, '')
+    .replace(/[^0-9+]/g, '')
   if (!digits) return ''
   if (digits.startsWith('+')) return digits
   const stripped = digits.replace(/^0+/, '')
@@ -157,7 +172,7 @@ function generateOrderRef(id?: string) {
 }
 
 function parseDeliveryDateFromStatus(rawStatus: string) {
-  const str = String(rawStatus || '')
+  const str = normalizeDigits(String(rawStatus || ''))
   const monthYearMatch = str.match(/(0[1-9]|1[0-2])\/(20\d{2})/)
   const yearOnlyMatch = str.match(/(20\d{2})/)
   const monthsCountMatch = str.match(/\((\d+)\s*/)
@@ -175,6 +190,7 @@ function parseDeliveryDateFromStatus(rawStatus: string) {
   }
 }
 
+// المرحلة 1 من التنقية: إزالة الأعمدة الإضافية الحديثة
 function stripExtendedSellColumns(payload: Record<string, any>) {
   const clone = { ...payload }
   delete clone.contract_month
@@ -182,7 +198,54 @@ function stripExtendedSellColumns(payload: Record<string, any>) {
   delete clone.delivery_year
   delete clone.annual_installment_amount
   delete clone.overdue_total_amount
+  delete clone.currency_code
+  delete clone.floor_number
+  delete clone.garden_size
+  delete clone.has_annual_installment
+  delete clone.has_overdue_installments
+  delete clone.overdue_installments
+  delete clone.submission_type
+  delete clone.last_seller_edit_at
   return clone
+}
+
+// المرحلة 2 من التنقية القصوى: الإبقاء على الأعمدة الأساسية فقط لضمان عدم فشل التحديث أبداً
+function stripToCoreSellColumns(payload: Record<string, any>) {
+  const coreKeys = [
+    'user_id',
+    'project_name',
+    'developer_name',
+    'area',
+    'unit_type',
+    'size',
+    'rooms',
+    'bathrooms',
+    'finishing',
+    'delivery_status',
+    'description',
+    'contract_price',
+    'paid_amount',
+    'market_price',
+    'installment_amount',
+    'installment_frequency',
+    'years_left',
+    'contract_year',
+    'willing_to_discount',
+    'discount_amount',
+    'images',
+    'documents',
+    'name',
+    'phone',
+    'email',
+    'status',
+  ]
+  const clean: Record<string, any> = {}
+  for (const key of coreKeys) {
+    if (payload[key] !== undefined) {
+      clean[key] = payload[key]
+    }
+  }
+  return clean
 }
 
 function createMagicToken(userId: string, unitId: string, expiresAt: number) {
@@ -392,7 +455,6 @@ export async function processSellerStep2Action(payload: {
         user_id: userId,
         country: unitCountryCode,
         country_code: unitCountryCode,
-        currency_code: ACTIVE_CURRENCY_CODE,
         developer_name: payload.developer || null,
         project_name: payload.project || null,
         contract_price: Number(payload.contractPrice) || 0,
@@ -407,18 +469,34 @@ export async function processSellerStep2Action(payload: {
       }
 
       if (payload.existingUnitId) {
-        await supabase
+        const { error: updErr } = await supabase
           .from('sell_requests')
           .update(unitData)
           .eq('id', payload.existingUnitId)
+
+        if (updErr) {
+          await supabase
+            .from('sell_requests')
+            .update(stripToCoreSellColumns(unitData))
+            .eq('id', payload.existingUnitId)
+        }
         return payload.existingUnitId
       }
 
-      const { data: inserted } = await supabase
+      let { data: inserted, error: insErr } = await supabase
         .from('sell_requests')
         .insert(unitData)
         .select('id')
         .single()
+
+      if (insErr || !inserted) {
+        const fallbackIns = await supabase
+          .from('sell_requests')
+          .insert(stripToCoreSellColumns(unitData))
+          .select('id')
+          .single()
+        inserted = fallbackIns.data
+      }
 
       const newUnitId = inserted?.id ? String(inserted.id) : ''
 
@@ -871,6 +949,132 @@ export async function setNewPasswordFromTokenAction(payload: {
   }
 }
 
+function buildUnitPayloadWithMetaBackup(formData: FormData) {
+  let parsedDocuments: Record<string, any> = {}
+  const rawDocsJson = text(formData, 'documents_json')
+  if (rawDocsJson) {
+    try {
+      const parsed = JSON.parse(rawDocsJson)
+      if (parsed && typeof parsed === 'object') {
+        parsedDocuments = { ...parsed }
+      }
+    } catch {}
+  }
+
+  const deliveryStatusRaw = text(formData, 'delivery_status')
+  const parsedDel = parseDeliveryDateFromStatus(deliveryStatusRaw)
+
+  const sizeVal = number(formData, 'size')
+  const roomsVal = number(formData, 'rooms')
+  const bathsVal = number(formData, 'bathrooms')
+  const floorVal = text(formData, 'floor_number')
+  const gardenVal = number(formData, 'garden_size')
+  const finishingVal = text(formData, 'finishing') || null
+  const areaVal = text(formData, 'area') || null
+  const unitTypeVal = text(formData, 'unit_type') || null
+  const contractMonthVal = text(formData, 'contract_month') || null
+  const contractYearVal = integer(formData, 'contract_year')
+  const yearsLeftVal = integer(formData, 'years_left')
+  const instAmountVal = number(formData, 'installment_amount')
+  const instFreqVal = text(formData, 'installment_frequency') || null
+  const featuresList = list(formData, 'feature')
+
+  // حفظ نسخة احتياطية من كافة تفاصيل الوحدة داخل documents.__unit_meta لضمان عدم ضياع أي بيان أبداً
+  parsedDocuments.__unit_meta = {
+    area: areaVal,
+    unit_type: unitTypeVal,
+    size: sizeVal,
+    rooms: roomsVal,
+    bathrooms: bathsVal,
+    floor_number: floorVal || null,
+    garden_size: gardenVal,
+    finishing: finishingVal,
+    delivery_status: deliveryStatusRaw || null,
+    delivery_month: text(formData, 'delivery_month') || parsedDel.deliveryMonth,
+    delivery_year:
+      integer(formData, 'delivery_year') || parsedDel.deliveryYear,
+    contract_month: contractMonthVal,
+    contract_year: contractYearVal,
+    years_left: yearsLeftVal,
+    installment_amount: instAmountVal,
+    installment_frequency: instFreqVal,
+    features: featuresList,
+  }
+
+  const payload: Record<string, any> = {
+    country: ACTIVE_COUNTRY_CODE,
+    country_code: ACTIVE_COUNTRY_CODE,
+    currency_code: ACTIVE_CURRENCY_CODE,
+    developer_name: text(formData, 'developer_name') || null,
+    project_name: text(formData, 'project_name') || null,
+    area: areaVal,
+    unit_type: unitTypeVal,
+    size: sizeVal,
+    rooms: roomsVal,
+    bathrooms: bathsVal,
+    floor_number: floorVal ? integer(formData, 'floor_number') : null,
+    garden_size: gardenVal,
+    finishing: finishingVal,
+    delivery_status: deliveryStatusRaw || null,
+    delivery_month:
+      text(formData, 'delivery_month') || parsedDel.deliveryMonth,
+    delivery_year:
+      integer(formData, 'delivery_year') || parsedDel.deliveryYear,
+    features: featuresList,
+    description: text(formData, 'description') || null,
+    contract_price: number(formData, 'contract_price'),
+    paid_amount: number(formData, 'paid_amount'),
+    market_price:
+      number(formData, 'market_price') || number(formData, 'contract_price'),
+    installment_amount: instAmountVal,
+    installment_frequency: instFreqVal,
+    contract_month: contractMonthVal,
+    contract_year: contractYearVal,
+    years_left: yearsLeftVal,
+    has_annual_installment: formData.get('has_annual_installment') === 'on',
+    annual_installment_amount: number(formData, 'annual_installment_amount'),
+    willing_to_discount: formData.get('willing_to_discount') === 'on',
+    discount_amount: number(formData, 'discount_amount'),
+    has_overdue_installments:
+      formData.get('has_overdue_installments') === 'on',
+    overdue_installments: number(formData, 'overdue_installments'),
+    overdue_total_amount: number(formData, 'overdue_total_amount'),
+    images: list(formData, 'image'),
+    documents: parsedDocuments,
+  }
+
+  return payload
+}
+
+async function resilientUpdateUnit(
+  supabase: any,
+  unitId: string,
+  payload: Record<string, any>
+) {
+  let { error } = await supabase
+    .from('sell_requests')
+    .update(payload)
+    .eq('id', unitId)
+
+  if (error) {
+    const res2 = await supabase
+      .from('sell_requests')
+      .update(stripExtendedSellColumns(payload))
+      .eq('id', unitId)
+    error = res2.error
+  }
+
+  if (error) {
+    const res3 = await supabase
+      .from('sell_requests')
+      .update(stripToCoreSellColumns(payload))
+      .eq('id', unitId)
+    error = res3.error
+  }
+
+  return { error }
+}
+
 export async function saveSellProgress(
   formData: FormData
 ): Promise<SubmitResult> {
@@ -889,48 +1093,7 @@ export async function saveSellProgress(
       }
     }
 
-    let parsedDocuments: Record<string, any> | undefined = undefined
-    const rawDocsJson = text(formData, 'documents_json')
-    if (rawDocsJson) {
-      try {
-        parsedDocuments = JSON.parse(rawDocsJson)
-      } catch {}
-    }
-
-    const deliveryStatusRaw = text(formData, 'delivery_status')
-    const parsedDel = parseDeliveryDateFromStatus(deliveryStatusRaw)
-
-    const payload: Record<string, any> = {
-      country: ACTIVE_COUNTRY_CODE,
-      country_code: ACTIVE_COUNTRY_CODE,
-      currency_code: ACTIVE_CURRENCY_CODE,
-      developer_name: text(formData, 'developer_name') || null,
-      project_name: text(formData, 'project_name') || null,
-      area: text(formData, 'area') || null,
-      unit_type: text(formData, 'unit_type') || null,
-      size: number(formData, 'size'),
-      rooms: number(formData, 'rooms'),
-      bathrooms: number(formData, 'bathrooms'),
-      finishing: text(formData, 'finishing') || null,
-      delivery_status: deliveryStatusRaw || null,
-      delivery_month:
-        text(formData, 'delivery_month') || parsedDel.deliveryMonth,
-      delivery_year:
-        integer(formData, 'delivery_year') || parsedDel.deliveryYear,
-      description: text(formData, 'description') || null,
-      contract_price: number(formData, 'contract_price'),
-      paid_amount: number(formData, 'paid_amount'),
-      market_price: number(formData, 'market_price'),
-      installment_amount: number(formData, 'installment_amount'),
-      installment_frequency: text(formData, 'installment_frequency') || null,
-      contract_month: text(formData, 'contract_month') || null,
-      contract_year: integer(formData, 'contract_year'),
-      years_left: integer(formData, 'years_left'),
-      annual_installment_amount: number(formData, 'annual_installment_amount'),
-      overdue_total_amount: number(formData, 'overdue_total_amount'),
-      images: list(formData, 'image'),
-      ...(parsedDocuments ? { documents: parsedDocuments } : {}),
-    }
+    const payload = buildUnitPayloadWithMetaBackup(formData)
 
     let targetUnitId = unitId
 
@@ -950,20 +1113,15 @@ export async function saveSellProgress(
       return { success: false, error: msg.saveProgressFailed }
     }
 
-    let { error } = await supabase
-      .from('sell_requests')
-      .update(payload)
-      .eq('id', targetUnitId)
-
-    if (error) {
-      const fallbackRes = await supabase
-        .from('sell_requests')
-        .update(stripExtendedSellColumns(payload))
-        .eq('id', targetUnitId)
-      error = fallbackRes.error
-    }
+    const { error } = await resilientUpdateUnit(
+      supabase,
+      targetUnitId,
+      payload
+    )
 
     revalidatePath('/account', 'page')
+    revalidatePath('/opportunities', 'page')
+    revalidatePath(`/opportunities/${targetUnitId}`, 'page')
     return error
       ? { success: false, error: msg.saveProgressFailed }
       : { success: true, unitId: targetUnitId }
@@ -982,75 +1140,48 @@ export async function submitSellRequest(
     const sessionId = extractUserIdFromCookie(
       cookieStore.get('user_session')?.value
     )
-    const existingUnitId = text(formData, 'unit_id')
+    let existingUnitId = text(formData, 'unit_id')
     const projectName = text(formData, 'project_name')
     const unitCountry = ACTIVE_COUNTRY_CODE
     const customSubType = text(formData, 'submission_type') || 'new'
 
-    let parsedDocuments: Record<string, any> | undefined = undefined
-    const rawDocsJson = text(formData, 'documents_json')
-    if (rawDocsJson) {
-      try {
-        parsedDocuments = JSON.parse(rawDocsJson)
-      } catch {}
-    }
+    const payload = buildUnitPayloadWithMetaBackup(formData)
+    payload.name = text(formData, 'name')
+    payload.phone = formatPrimaryPhone(text(formData, 'phone'))
+    payload.email = normalizeEmail(text(formData, 'email')) || null
+    payload.is_original_owner = true
+    payload.status = 'pending'
 
-    const deliveryStatusRaw = text(formData, 'delivery_status')
-    const parsedDel = parseDeliveryDateFromStatus(deliveryStatusRaw)
+    // إذا لم يتم تمرير unit_id ولكن لدى البائع مسودة مفتوحة لنفس المشروع، نحدثها بدلاً من تركها فارغة
+    if (!existingUnitId && sessionId) {
+      const { data: recentDraft } = await supabase
+        .from('sell_requests')
+        .select('id, size, area, project_name')
+        .eq('user_id', sessionId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
 
-    const payload: Record<string, any> = {
-      country: unitCountry,
-      country_code: unitCountry,
-      currency_code: ACTIVE_CURRENCY_CODE,
-      project_name: projectName || null,
-      developer_name: text(formData, 'developer_name') || null,
-      area: text(formData, 'area') || null,
-      unit_type: text(formData, 'unit_type') || null,
-      size: number(formData, 'size'),
-      rooms: number(formData, 'rooms'),
-      bathrooms: number(formData, 'bathrooms'),
-      floor_number: number(formData, 'floor_number'),
-      garden_size: number(formData, 'garden_size'),
-      finishing: text(formData, 'finishing') || null,
-      delivery_status: deliveryStatusRaw || null,
-      delivery_month:
-        text(formData, 'delivery_month') || parsedDel.deliveryMonth,
-      delivery_year:
-        integer(formData, 'delivery_year') || parsedDel.deliveryYear,
-      features: list(formData, 'feature'),
-      description: text(formData, 'description') || null,
-      contract_price: number(formData, 'contract_price'),
-      paid_amount: number(formData, 'paid_amount'),
-      market_price:
-        number(formData, 'market_price') || number(formData, 'contract_price'),
-      installment_amount: number(formData, 'installment_amount'),
-      years_left: integer(formData, 'years_left'),
-      contract_month: text(formData, 'contract_month') || null,
-      contract_year: integer(formData, 'contract_year'),
-      installment_frequency: text(formData, 'installment_frequency') || null,
-      has_annual_installment: formData.get('has_annual_installment') === 'on',
-      annual_installment_amount: number(formData, 'annual_installment_amount'),
-      willing_to_discount: formData.get('willing_to_discount') === 'on',
-      discount_amount: number(formData, 'discount_amount'),
-      has_overdue_installments:
-        formData.get('has_overdue_installments') === 'on',
-      overdue_installments: number(formData, 'overdue_installments'),
-      overdue_total_amount: number(formData, 'overdue_total_amount'),
-      name: text(formData, 'name'),
-      phone: formatPrimaryPhone(text(formData, 'phone')),
-      email: normalizeEmail(text(formData, 'email')) || null,
-      is_original_owner: true,
-      images: list(formData, 'image'),
-      ...(parsedDocuments ? { documents: parsedDocuments } : {}),
-      status: 'pending',
+      if (
+        recentDraft &&
+        !recentDraft.size &&
+        !recentDraft.area &&
+        (!projectName || recentDraft.project_name === projectName)
+      ) {
+        existingUnitId = String(recentDraft.id)
+      }
     }
 
     if (existingUnitId) {
       const { data: prevUnit } = await supabase
         .from('sell_requests')
-        .select('status, size, area')
+        .select('status, size, area, name, phone, email')
         .eq('id', existingUnitId)
         .maybeSingle()
+
+      if (!payload.name && prevUnit?.name) payload.name = prevUnit.name
+      if (!payload.phone && prevUnit?.phone) payload.phone = prevUnit.phone
+      if (!payload.email && prevUnit?.email) payload.email = prevUnit.email
 
       const wasPreviouslySubmitted = Boolean(
         prevUnit?.area ||
@@ -1064,18 +1195,11 @@ export async function submitSellRequest(
         payload.last_seller_edit_at = new Date().toISOString()
       }
 
-      let { error } = await supabase
-        .from('sell_requests')
-        .update(payload)
-        .eq('id', existingUnitId)
-
-      if (error) {
-        const fallbackRes = await supabase
-          .from('sell_requests')
-          .update(stripExtendedSellColumns(payload))
-          .eq('id', existingUnitId)
-        error = fallbackRes.error
-      }
+      const { error } = await resilientUpdateUnit(
+        supabase,
+        existingUnitId,
+        payload
+      )
 
       if (error) {
         return { success: false, error: msg.submitUnitFailed }
@@ -1096,6 +1220,7 @@ export async function submitSellRequest(
 
       revalidatePath('/account', 'page')
       revalidatePath('/opportunities', 'page')
+      revalidatePath(`/opportunities/${existingUnitId}`, 'page')
       revalidatePath('/admin', 'layout')
       return {
         success: true,
@@ -1127,6 +1252,16 @@ export async function submitSellRequest(
       error = fallbackRes.error
     }
 
+    if (error) {
+      const fallbackCore = await supabase
+        .from('sell_requests')
+        .insert(stripToCoreSellColumns(insertPayload))
+        .select('id')
+        .single()
+      inserted = fallbackCore.data
+      error = fallbackCore.error
+    }
+
     if (error || !inserted) {
       return { success: false, error: msg.submitUnitFailed }
     }
@@ -1144,6 +1279,8 @@ export async function submitSellRequest(
     } catch {}
 
     revalidatePath('/account', 'page')
+    revalidatePath('/opportunities', 'page')
+    revalidatePath(`/opportunities/${finalId}`, 'page')
     revalidatePath('/admin', 'layout')
     return {
       success: true,
@@ -1210,25 +1347,26 @@ export async function processBuyerStep3Action(payload: {
       userId: string,
       contact: { name: string; phone: string; email: string }
     ) {
+      const buyRow: Record<string, any> = {
+        user_id: userId,
+        country: targetCountry,
+        country_code: targetCountry,
+        available_cash: Number(payload.available_cash) || 0,
+        max_installment: Number(payload.max_installment) || 0,
+        payment_plan: payload.payment_plan || msg.defaultMonthly,
+        budget: Number(payload.budget) || 0,
+        unit_types: payload.unit_types || [],
+        min_rooms: Number(payload.min_rooms) || 0,
+        delivery_status: payload.delivery_status || msg.defaultReady,
+        preferred_areas: payload.preferred_areas || [],
+        name: contact.name || msg.buyerFallback,
+        phone: contact.phone || '',
+        email: contact.email || null,
+      }
+
       const { data: inserted, error } = await supabase
         .from('buy_requests')
-        .insert({
-          user_id: userId,
-          country: targetCountry,
-          country_code: targetCountry,
-          currency_code: ACTIVE_CURRENCY_CODE,
-          available_cash: Number(payload.available_cash) || 0,
-          max_installment: Number(payload.max_installment) || 0,
-          payment_plan: payload.payment_plan || msg.defaultMonthly,
-          budget: Number(payload.budget) || 0,
-          unit_types: payload.unit_types || [],
-          min_rooms: Number(payload.min_rooms) || 0,
-          delivery_status: payload.delivery_status || msg.defaultReady,
-          preferred_areas: payload.preferred_areas || [],
-          name: contact.name || msg.buyerFallback,
-          phone: contact.phone || '',
-          email: contact.email || null,
-        })
+        .insert(buyRow)
         .select('id')
         .single()
 

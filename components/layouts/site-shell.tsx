@@ -21,6 +21,7 @@ import {
   X,
 } from 'lucide-react'
 import * as authActions from '@/actions/auth-actions'
+import { getCurrentSellerProfileAction } from '@/actions/submit-forms'
 import {
   clearAllNotificationsAction,
   deleteNotificationAction,
@@ -386,21 +387,18 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
   const router = useRouter()
   const pathname = usePathname()
 
-  const {
-    t: labels,
-    locale: language,
-    dir,
-    hasSession: initialServerHasSession,
-    isStaff: initialServerIsStaff,
-  } = useTranslation()
+  const i18nCtx = useTranslation() as Record<string, any>
+  const labels = i18nCtx.t
+  const language: LanguageCode = i18nCtx.locale || 'ar'
+  const dir = i18nCtx.dir || 'rtl'
+  const initialServerLoggedIn = Boolean(
+    i18nCtx.hasSession ?? i18nCtx.isLoggedIn
+  )
+  const initialServerIsStaff = Boolean(i18nCtx.isStaff)
 
   const [langMenuOpen, setLangMenuOpen] = useState(false)
-  const [hasSession, setHasSession] = useState<boolean>(
-    Boolean(initialServerHasSession)
-  )
-  const [isAdmin, setIsAdmin] = useState<boolean>(
-    Boolean(initialServerIsStaff)
-  )
+  const [hasSession, setHasSession] = useState<boolean>(initialServerLoggedIn)
+  const [isAdmin, setIsAdmin] = useState<boolean>(initialServerIsStaff)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const [isSwitchingLocale, startSwitchTransition] = useTransition()
@@ -417,11 +415,11 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
   const langRefMobile = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    setHasSession(Boolean(initialServerHasSession))
-  }, [initialServerHasSession])
+    setHasSession(initialServerLoggedIn)
+  }, [initialServerLoggedIn])
 
   useEffect(() => {
-    setIsAdmin(Boolean(initialServerIsStaff))
+    setIsAdmin(initialServerIsStaff)
   }, [initialServerIsStaff])
 
   useEffect(() => {
@@ -452,18 +450,36 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
     let isMounted = true
     async function verifyUserAndRole() {
       try {
+        let verifiedLoggedIn = false
         const actionFn = (authActions as any).getSessionUserAction
+
         if (typeof actionFn === 'function') {
           const sessionData = await actionFn()
           if (isMounted && sessionData) {
-            setHasSession(Boolean(sessionData.isLoggedIn))
+            verifiedLoggedIn = Boolean(sessionData.isLoggedIn)
+            setHasSession(verifiedLoggedIn)
             setIsAdmin(Boolean(sessionData.isAdmin))
           }
+        } else {
+          const profileRes = await getCurrentSellerProfileAction()
+          if (isMounted) {
+            verifiedLoggedIn = Boolean(
+              profileRes.isLoggedIn && profileRes.user?.id
+            )
+            setHasSession(verifiedLoggedIn)
+          }
         }
-        const notifRes = await getUserNotificationsAction('client')
-        if (isMounted && notifRes.success) {
-          setNotifsList(notifRes.notifications)
-          setUnreadCount(notifRes.unreadCount)
+
+        if (!verifiedLoggedIn && isMounted) {
+          document.cookie = 'session_hint=; path=/; max-age=0; SameSite=Lax'
+        }
+
+        if (verifiedLoggedIn) {
+          const notifRes = await getUserNotificationsAction('client')
+          if (isMounted && notifRes.success) {
+            setNotifsList(notifRes.notifications)
+            setUnreadCount(notifRes.unreadCount)
+          }
         }
       } catch (err) {
         console.error('Session/Notif check error:', err)
@@ -559,8 +575,18 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
     SUPPORTED_LANGUAGES[language] || SUPPORTED_LANGUAGES.ar
 
   const desktopAuthBtnLabel = hasSession
-    ? getMyAccountLabel(language, labels.navbar as Record<string, any>)
-    : getGuestLoginLabel(language, labels.navbar as Record<string, any>)
+    ? getMyAccountLabel(language, labels?.navbar as Record<string, any>)
+    : getGuestLoginLabel(language, labels?.navbar as Record<string, any>)
+
+  const handleAccountOrLoginNavigate = () => {
+    setMobileMenuOpen(false)
+    const targetPath = hasSession ? '/account' : '/login'
+    if (pathname === targetPath) {
+      window.location.reload()
+      return
+    }
+    window.location.href = targetPath
+  }
 
   const renderLanguageDropdownMenu = () => (
     <div
@@ -736,7 +762,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
           type="button"
           onClick={() => {
             setNotificationsOpen(false)
-            router.push('/account')
+            window.location.href = '/account'
           }}
           className="w-full rounded-xl py-2 text-xs font-extrabold text-[#0b6954] transition hover:bg-emerald-50"
         >
@@ -820,12 +846,13 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
             {langMenuOpen && renderLanguageDropdownMenu()}
           </div>
 
-          <Link
-            href={hasSession ? '/account' : '/login'}
+          <button
+            type="button"
+            onClick={handleAccountOrLoginNavigate}
             className="inline-flex h-[42px] items-center justify-center whitespace-nowrap rounded-[11px] border border-[#e2e8f0] bg-white px-4 text-[13px] font-bold text-[#0a1122] transition-colors hover:bg-gray-50 xl:px-4.5 xl:text-[13.5px]"
           >
             {desktopAuthBtnLabel}
-          </Link>
+          </button>
 
           <Link
             href="/buy"
@@ -1032,19 +1059,19 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
             >
               {labels.navbar?.buy || 'عايز تشتري'}
             </Link>
-            <Link
-              href={hasSession ? '/account' : '/login'}
-              onClick={() => setMobileMenuOpen(false)}
+            <button
+              type="button"
+              onClick={handleAccountOrLoginNavigate}
               className="flex h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-[#e2e8f0] bg-gray-50 text-[13.5px] font-bold text-[#1d3557] transition-colors hover:bg-gray-100"
             >
               <User className="size-4" />
               <span>
                 {hasSession
-                  ? getMyAccountLabel(language, labels.navbar as Record<string, any>)
-                  : labels.authPages?.login?.title ||
-                    getGuestLoginLabel(language, labels.navbar as Record<string, any>)}
+                  ? getMyAccountLabel(language, labels?.navbar as Record<string, any>)
+                  : labels?.authPages?.login?.title ||
+                    getGuestLoginLabel(language, labels?.navbar as Record<string, any>)}
               </span>
-            </Link>
+            </button>
           </div>
         </div>
       )}
@@ -1057,13 +1084,12 @@ export function LegacyNavbar({ dictionary }: { dictionary?: Dictionary }) {
 }
 
 export function Footer({ dictionary: _unused }: { dictionary?: Dictionary }) {
-  const {
-    t: labels,
-    locale: language,
-    dir,
-    hasSession,
-    siteSettings,
-  } = useTranslation()
+  const i18nCtx = useTranslation() as Record<string, any>
+  const labels = i18nCtx.t
+  const language: LanguageCode = i18nCtx.locale || 'ar'
+  const dir = i18nCtx.dir || 'rtl'
+  const hasSession = Boolean(i18nCtx.hasSession ?? i18nCtx.isLoggedIn)
+  const siteSettings = i18nCtx.siteSettings
 
   const activePhone =
     siteSettings?.whatsappNumber || labels.footer?.phone || '+201018595959'

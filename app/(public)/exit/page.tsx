@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useEffect, useState, useTransition } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import {
   Check,
@@ -8,12 +8,16 @@ import {
   EyeOff,
   Loader2,
   MessageCircle,
+  TrendingUp,
   User,
 } from "lucide-react"
 import { useTranslation, getCurrencySymbol } from "@/lib/i18n"
-import { SUPPORTED_COUNTRIES, CountryFlag } from "@/components/layouts/site-shell"
-import * as submitActions from "@/actions/submit-forms"
-import * as authActions from "@/actions/auth-actions"
+import { TurnstileBox } from "@/components/layouts/auth-layout"
+import { CountrySelector } from "@/components/shared/country-selector"
+import {
+  getCurrentSellerProfileAction,
+  processSellerStep2Action,
+} from "@/actions/submit-forms"
 
 function formatNumberInput(val: string) {
   const digits = val.replace(/\D/g, "")
@@ -21,19 +25,36 @@ function formatNumberInput(val: string) {
   return Number(digits).toLocaleString("en-US")
 }
 
+function parseNumberInput(val: string) {
+  return Number(val.replace(/,/g, "")) || 0
+}
+
 export default function ExitReportPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { t: dict, locale, country, dir } = useTranslation()
-  const cur = getCurrencySymbol(country, locale)
-  const countryCfg = SUPPORTED_COUNTRIES[country] || SUPPORTED_COUNTRIES.EG
+  const { t: dict, locale, dir, siteSettings } = useTranslation()
+  const cur = getCurrencySymbol("GE", locale)
 
   const t = (dict as Record<string, any>).exitReportPage
+  const calcT = (dict as Record<string, any>).calculatorPage || {}
   const formActionsDict = (dict as Record<string, any>).serverActions?.forms
-  const waPhone = String(dict.footer?.phone || "+201018595959").replace(
-    /\D/g,
-    ""
+  const waPhone = String(
+    siteSettings?.whatsappNumber || dict.footer?.phone || "+201018595959"
+  ).replace(/\D/g, "")
+
+  // قراءة نسب خصم المطور عند الفسخ ديناميكياً من إعدادات الأدمن
+  const rawMinPct = Number(
+    (siteSettings as Record<string, any>)?.developerPenaltyMin
   )
+  const rawMaxPct = Number(
+    (siteSettings as Record<string, any>)?.developerPenaltyMax
+  )
+  const minPenaltyPct =
+    Number.isFinite(rawMinPct) && rawMinPct > 0 ? rawMinPct : 10
+  const maxPenaltyPct =
+    Number.isFinite(rawMaxPct) && rawMaxPct >= minPenaltyPct
+      ? rawMaxPct
+      : Math.max(minPenaltyPct, 15)
 
   const [step, setStep] = useState<1 | 2>(1)
   const [pending, startTransition] = useTransition()
@@ -52,11 +73,35 @@ export default function ExitReportPage() {
       : ""
   )
 
+  const [loggedUser, setLoggedUser] = useState<{
+    id: string
+    name: string
+    email: string
+    phone: string
+  } | null>(null)
+
   const [name, setName] = useState("")
+  const [phoneCode, setPhoneCode] = useState("995")
+  const [countryIso, setCountryIso] = useState("GE")
   const [phone, setPhone] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPass, setShowPass] = useState(false)
+
+  useEffect(() => {
+    getCurrentSellerProfileAction().then((res) => {
+      if (res.isLoggedIn && res.user) {
+        setLoggedUser(res.user)
+        setName(res.user.name || "")
+        setEmail(res.user.email || "")
+      }
+    })
+  }, [])
+
+  const contractNum = parseNumberInput(contractPrice)
+  const paidNum = parseNumberInput(paidAmount)
+  const minPenalty = Math.round(contractNum * (minPenaltyPct / 100))
+  const maxPenalty = Math.round(contractNum * (maxPenaltyPct / 100))
 
   function handleNextStep() {
     setErrorMsg(null)
@@ -77,56 +122,46 @@ export default function ExitReportPage() {
     e.preventDefault()
     setErrorMsg(null)
 
-    if (!name.trim() || !phone.trim() || !email.trim() || password.length < 8) {
-      setErrorMsg(t.errStep2)
-      return
+    if (!loggedUser) {
+      if (
+        !name.trim() ||
+        !phone.trim() ||
+        !email.trim() ||
+        password.length < 8
+      ) {
+        setErrorMsg(t.errStep2)
+        return
+      }
     }
 
     startTransition(async () => {
       try {
-        const regFn =
-          (authActions as any).registerAction ||
-          (authActions as any).registerUserAction ||
-          (authActions as any).signUpAction
-        if (typeof regFn === "function") {
-          const fd = new FormData()
-          fd.set("name", name.trim())
-          fd.set("phone", `${countryCfg.phoneCode}${phone.replace(/^0+/, "")}`)
-          fd.set("email", email.trim())
-          fd.set("password", password)
-          fd.set("country", country)
-          fd.set("role", "SELLER")
-          await regFn(fd).catch(() => {})
+        const cleanPhoneDigits = phone.replace(/^0+/, "").replace(/\D/g, "")
+        const fullPhone = loggedUser
+          ? loggedUser.phone
+          : `+${phoneCode.replace("+", "")}${cleanPhoneDigits}`
+
+        const res = await processSellerStep2Action({
+          mode: loggedUser ? "session" : "register",
+          unitCountry: "GE",
+          userCountry: countryIso || "GE",
+          developer: developerName.trim(),
+          project: projectName.trim(),
+          contractPrice: contractNum,
+          paidAmount: paidNum,
+          marketPrice: contractNum,
+          name: loggedUser ? loggedUser.name : name.trim(),
+          phone: fullPhone,
+          email: loggedUser ? loggedUser.email : email.trim(),
+          password,
+        })
+
+        if (res.status === "ok" || res.unitId) {
+          window.location.href = "/account?view=seller"
+          return
         }
 
-        const submitFn =
-          (submitActions as any).submitSellRequestAction ||
-          (submitActions as any).createSellRequestAction
-
-        const formData = new FormData()
-        formData.set("developer_name", developerName.trim())
-        formData.set("project_name", projectName.trim())
-        formData.set("contract_price", contractPrice.replace(/,/g, ""))
-        formData.set("paid_amount", paidAmount.replace(/,/g, ""))
-        formData.set("name", name.trim())
-        formData.set(
-          "phone",
-          `${countryCfg.phoneCode}${phone.replace(/^0+/, "")}`
-        )
-        formData.set("email", email.trim())
-        formData.set("password", password)
-        formData.set("country_code", country)
-        formData.set("submission_type", "exit_report")
-
-        if (typeof submitFn === "function") {
-          const res = await submitFn(formData)
-          if (res?.error) {
-            setErrorMsg(res.error)
-            return
-          }
-        }
-
-        router.push("/account")
+        setErrorMsg(res.error || formActionsDict?.unexpected)
       } catch (err: any) {
         setErrorMsg(err?.message || formActionsDict?.unexpected)
       }
@@ -168,6 +203,41 @@ export default function ExitReportPage() {
             {t.ownersOnlyBanner}
           </div>
         </div>
+
+        {/* ملخص مالي ذكي حي بناءً على نسبة خصم المطور المحددة في إعدادات الموقع */}
+        {contractNum > 0 && paidNum > 0 && (
+          <div className="mt-5 rounded-2xl border border-emerald-200 bg-gradient-to-br from-[#eaf8f2] to-white p-4 text-start shadow-2xs">
+            <div className="flex items-center justify-between gap-2">
+              <span className="inline-flex items-center gap-1.5 text-xs font-extrabold text-[#0b6954]">
+                <TrendingUp className="size-4" />
+                <span>{calcT.netDiffInFavorLabel || t.point4Highlight}</span>
+              </span>
+              <span
+                dir="ltr"
+                className="rounded-full bg-[#0b6954] px-2.5 py-0.5 text-[10.5px] font-extrabold text-white"
+              >
+                {minPenaltyPct === maxPenaltyPct
+                  ? `${minPenaltyPct}%`
+                  : `${minPenaltyPct}% – ${maxPenaltyPct}%`}
+              </span>
+            </div>
+            <p className="mt-1.5 text-base font-black text-[#0a1122] tabular-nums sm:text-lg">
+              {minPenalty === maxPenalty ? (
+                <>
+                  <span dir="ltr">{maxPenalty.toLocaleString("en-US")}</span>{" "}
+                  {cur}
+                </>
+              ) : (
+                <>
+                  <span dir="ltr">{minPenalty.toLocaleString("en-US")}</span>{" "}
+                  {cur} –{" "}
+                  <span dir="ltr">{maxPenalty.toLocaleString("en-US")}</span>{" "}
+                  {cur}
+                </>
+              )}
+            </p>
+          </div>
+        )}
 
         <form
           onSubmit={handleSubmitReport}
@@ -279,12 +349,7 @@ export default function ExitReportPage() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50/60 px-4 py-3">
-                <div className="flex items-center gap-2 text-xs font-bold text-[#0b6954]">
-                  <CheckCircle2 className="size-5 fill-[#0b6954] text-white" />
-                  <span>{t.verifiedBadge}</span>
-                </div>
-              </div>
+              <TurnstileBox />
 
               <button
                 type="button"
@@ -296,89 +361,114 @@ export default function ExitReportPage() {
             </div>
           ) : (
             <div className="space-y-4 text-start">
-              <div>
-                <label className="mb-1.5 block text-xs font-extrabold text-[#0a1122]">
-                  {t.nameLabel}
-                </label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="h-12 w-full rounded-xl border border-gray-200 px-3.5 text-sm font-bold focus:border-[#0b6954] focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1.5 block text-xs font-extrabold text-[#0a1122]">
-                  {t.phoneLabel}
-                </label>
-                <div className="flex gap-2" dir="ltr">
-                  <div className="inline-flex h-12 shrink-0 items-center gap-1.5 rounded-xl border border-gray-200 bg-gray-50 px-3 text-xs font-bold text-[#0a1122]">
-                    <CountryFlag code={country} className="h-3.5 w-5" />
-                    <span>{countryCfg.phoneCode}</span>
+              {loggedUser ? (
+                <div className="rounded-2xl border border-[#0b6954]/30 bg-[#eaf8f2] p-4">
+                  <div className="flex items-center gap-2 text-xs font-extrabold text-[#0b6954]">
+                    <CheckCircle2 className="size-4" />
+                    <span>{loggedUser.name}</span>
                   </div>
-                  <input
-                    type="tel"
+                  <p
                     dir="ltr"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder={
-                      dict.publicPages?.contact?.phonePlaceholder || ""
-                    }
-                    className="h-12 flex-1 rounded-xl border border-gray-200 px-3.5 text-sm font-bold focus:border-[#0b6954] focus:outline-none"
-                  />
-                </div>
-                <p className="mt-1 text-[11px] text-gray-400">{t.phoneHint}</p>
-              </div>
-
-              <div>
-                <label className="mb-1.5 block text-xs font-extrabold text-[#0a1122]">
-                  {t.emailLabel}
-                </label>
-                <input
-                  type="email"
-                  dir="ltr"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="h-12 w-full rounded-xl border border-gray-200 px-3.5 text-sm font-bold focus:border-[#0b6954] focus:outline-none"
-                />
-                <p className="mt-1 text-[11px] text-gray-400">{t.emailHint}</p>
-              </div>
-
-              <div>
-                <label className="mb-1.5 block text-xs font-extrabold text-[#0a1122]">
-                  {t.passwordLabel}
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPass ? "text" : "password"}
-                    dir="ltr"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="h-12 w-full rounded-xl border border-gray-200 px-3.5 text-sm font-bold focus:border-[#0b6954] focus:outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPass(!showPass)}
-                    className="absolute top-1/2 start-3 -translate-y-1/2 text-xs font-bold text-[#0a1122]"
+                    className="mt-1 text-start font-mono text-xs text-gray-600"
                   >
-                    {showPass ? (
-                      <EyeOff className="size-4 text-gray-500" />
-                    ) : (
-                      <span>{t.showWord}</span>
-                    )}
-                  </button>
+                    {loggedUser.phone} · {loggedUser.email}
+                  </p>
                 </div>
-                <p className="mt-1 text-[11px] text-gray-400">
-                  {t.passwordHint}
-                </p>
-              </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-extrabold text-[#0a1122]">
+                      {t.nameLabel}
+                    </label>
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="h-12 w-full rounded-xl border border-gray-200 px-3.5 text-sm font-bold focus:border-[#0b6954] focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-xs font-extrabold text-[#0a1122]">
+                      {t.phoneLabel}
+                    </label>
+                    <div className="flex items-center gap-2" dir="ltr">
+                      <CountrySelector
+                        value={phoneCode}
+                        onChange={(code, iso) => {
+                          setPhoneCode(code)
+                          if (iso) setCountryIso(iso)
+                        }}
+                      />
+                      <input
+                        type="tel"
+                        inputMode="tel"
+                        dir="ltr"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        placeholder="5xx xx xx xx"
+                        className="h-12 flex-1 rounded-xl border border-gray-200 px-3.5 text-left text-sm font-bold focus:border-[#0b6954] focus:outline-none"
+                      />
+                    </div>
+                    <p className="mt-1 text-[11px] text-gray-400">
+                      {t.phoneHint}
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-xs font-extrabold text-[#0a1122]">
+                      {t.emailLabel}
+                    </label>
+                    <input
+                      type="email"
+                      dir="ltr"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="h-12 w-full rounded-xl border border-gray-200 px-3.5 text-left text-sm font-bold focus:border-[#0b6954] focus:outline-none"
+                    />
+                    <p className="mt-1 text-[11px] text-gray-400">
+                      {t.emailHint}
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-xs font-extrabold text-[#0a1122]">
+                      {t.passwordLabel}
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showPass ? "text" : "password"}
+                        dir="ltr"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="h-12 w-full rounded-xl border border-gray-200 px-3.5 text-left text-sm font-bold focus:border-[#0b6954] focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPass(!showPass)}
+                        className="absolute top-1/2 right-3 -translate-y-1/2 text-xs font-bold text-[#0a1122]"
+                      >
+                        {showPass ? (
+                          <EyeOff className="size-4 text-gray-500" />
+                        ) : (
+                          <span>{t.showWord}</span>
+                        )}
+                      </button>
+                    </div>
+                    <p className="mt-1 text-[11px] text-gray-400">
+                      {t.passwordHint}
+                    </p>
+                  </div>
+                </>
+              )}
 
               <p className="text-[11px] leading-relaxed text-gray-500">
                 {t.accountConsentNote}
               </p>
 
               <p className="text-[11px] text-gray-400">{t.ownerPledgeNote}</p>
+
+              <TurnstileBox />
 
               <div className="flex items-center gap-2.5 pt-2">
                 <button

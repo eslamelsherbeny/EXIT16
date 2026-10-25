@@ -5,7 +5,8 @@ import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Check, ShieldCheck, UserRound } from 'lucide-react'
+import { ShieldCheck, UserRound } from 'lucide-react'
+import { TurnstileBox as SharedTurnstileBox } from '@/components/layouts/auth-layout'
 import { useTranslation } from '@/lib/i18n'
 
 type FunnelShellProps = {
@@ -116,24 +117,10 @@ export function FormSection({
   )
 }
 
-export function TurnstileBox() {
-  const { t: dict, dir } = useTranslation()
-  const c = dict.authPages.common
-
-  return (
-    <div
-      dir={dir}
-      className="flex min-h-16 items-center gap-3 rounded-lg border border-border bg-[#fafafa] px-4 text-sm text-muted-foreground"
-    >
-      <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white">
-        <Check className="size-3.5 stroke-[3]" />
-      </span>
-      <span className="font-semibold text-slate-700">{c.turnstileText}</span>
-      <span className="ms-auto text-left font-sans text-[10px] leading-4 text-muted-foreground">
-        Cloudflare
-        <br />
-        Turnstile
-      </span>
-    </div>
-  )
+export function TurnstileBox({
+  onTokenChange,
+}: {
+  onTokenChange?: (token: string) => void
+}) {
+  return <SharedTurnstileBox onTokenChange={onTokenChange} />
 }

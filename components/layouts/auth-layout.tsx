@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Script from 'next/script'
-import { Loader2, ShieldCheck } from 'lucide-react'
+import { Check, Loader2, ShieldCheck } from 'lucide-react'
 import { Navbar } from '@/components/layouts/site-shell'
 import { useTranslation } from '@/lib/i18n'
 
@@ -30,7 +30,7 @@ export function AuthCard({
 }) {
   return (
     <section
-      className={`w-full rounded-2xl border border-slate-200/80 bg-white p-6 shadow-[0_14px_45px_rgba(20,20,24,0.06)] sm:p-8 ${className}`}
+      className={`w-full rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_14px_45px_rgba(20,20,24,0.06)] sm:p-8 ${className}`}
     >
       {children}
     </section>
@@ -42,7 +42,7 @@ export function TurnstileBox({
 }: {
   onTokenChange?: (token: string) => void
 }) {
-  const { t: dict } = useTranslation()
+  const { t: dict, dir } = useTranslation()
   const t = dict.authPages.common
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ''
   const containerRef = useRef<HTMLDivElement>(null)
@@ -66,6 +66,7 @@ export function TurnstileBox({
         widgetId = (window as any).turnstile.render(containerRef.current, {
           sitekey: siteKey,
           theme: 'light',
+          size: 'flexible',
           callback: (tk: string) => {
             setToken(tk)
             setWidgetLoaded(true)
@@ -98,20 +99,20 @@ export function TurnstileBox({
 
   if (siteKey) {
     return (
-      <div className="my-1 flex min-h-[65px] w-full flex-col items-center justify-center overflow-hidden rounded-xl border border-slate-200/70 bg-[#fafafa]">
+      <div className="my-1.5 flex w-full flex-col items-center justify-center">
         <Script
           src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
           strategy="afterInteractive"
         />
         {!widgetLoaded && (
-          <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+          <div className="flex h-[65px] w-full max-w-[300px] items-center justify-center gap-2 rounded-xl border border-slate-200/80 bg-[#fafafa] text-xs font-semibold text-slate-500">
             <Loader2 className="size-4 animate-spin text-[#007a5a]" />
             <span>{t.turnstileText}</span>
           </div>
         )}
         <div
           ref={containerRef}
-          className="flex items-center justify-center"
+          className="flex w-full max-w-full items-center justify-center overflow-hidden [&_iframe]:max-w-full"
         />
         <input type="hidden" name="cf_turnstile_response" value={token} />
       </div>
@@ -119,26 +120,36 @@ export function TurnstileBox({
   }
 
   return (
-    <div
-      className="flex h-[62px] w-full items-center gap-3 rounded-xl border border-slate-200 bg-[#fafafa] px-4 text-xs text-muted-foreground"
-      aria-label="Cloudflare Turnstile"
-    >
-      <input
-        type="hidden"
-        name="cf_turnstile_response"
-        value="dev-bypass-token"
-      />
-      <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white">
-        <ShieldCheck className="size-3.5" />
-      </span>
-      <span className=" truncate font-semibold text-slate-700">
-        {t.turnstileText}
-      </span>
-      <span className="ms-auto shrink-0 text-left font-sans text-[10px] leading-3 text-[#8b8b91]">
-        CLOUDFLARE
-        <br />
-        Turnstile
-      </span>
+    <div className="my-1.5 flex w-full justify-center">
+      <div
+        dir={dir}
+        className="flex h-[58px] w-full max-w-[300px] items-center justify-between gap-3 rounded-xl border border-slate-200/90 bg-[#fafafa] px-3.5 text-xs shadow-2xs select-none"
+        aria-label="Cloudflare Turnstile"
+      >
+        <input
+          type="hidden"
+          name="cf_turnstile_response"
+          value="dev-bypass-token"
+        />
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
+            <Check className="size-3.5 stroke-[3]" />
+          </span>
+          <span className="truncate font-bold text-slate-700">
+            {t.turnstileText}
+          </span>
+        </div>
+        <div
+          dir="ltr"
+          className="shrink-0 text-right font-sans text-[9.5px] leading-tight text-[#8b8b91]"
+        >
+          <div className="flex items-center justify-end gap-1 font-extrabold text-slate-700">
+            <ShieldCheck className="size-3 text-[#f48120]" />
+            <span>CLOUDFLARE</span>
+          </div>
+          <span>Turnstile</span>
+        </div>
+      </div>
     </div>
   )
 }

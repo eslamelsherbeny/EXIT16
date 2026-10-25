@@ -8,9 +8,12 @@ import {
   updateEmailInfoAction,
   updatePersonalInfoAction,
 } from '@/actions/account-actions'
-import { CountrySelector } from '@/components/shared/country-selector'
+import {
+  COUNTRY_PHONE_OPTIONS,
+  CountrySelector,
+} from '@/components/shared/country-selector'
 import { ScrollReveal } from '@/components/shared/scroll-reveal'
-import { ALL_RESIDENCE_COUNTRIES } from '@/components/features/seller/seller-shared'
+import { toEnglishDigits } from '@/components/features/seller/seller-shared'
 import { useTranslation } from '@/lib/i18n'
 
 export default function AccountDetailsPage() {
@@ -42,19 +45,19 @@ export default function AccountDetailsPage() {
       if (res.isLoggedIn && res.user) {
         setName(res.user.name || '')
         setEmail(res.user.email || '')
-        const rawP = (res.user.phone || '').trim()
+        const rawP = toEnglishDigits(res.user.phone || '').trim()
 
         if (rawP.startsWith('+')) {
           const withoutPlus = rawP.slice(1)
-          const matchedCountry = [...ALL_RESIDENCE_COUNTRIES]
-            .sort((a, b) => b.phoneCode.length - a.phoneCode.length)
-            .find((c) => withoutPlus.startsWith(c.phoneCode))
+          const matchedCountry = [...COUNTRY_PHONE_OPTIONS]
+            .sort((a, b) => b.code.length - a.code.length)
+            .find((c) => withoutPlus.startsWith(c.code))
 
           if (matchedCountry) {
-            setCountryCode(matchedCountry.phoneCode)
-            setPhone(withoutPlus.slice(matchedCountry.phoneCode.length))
+            setCountryCode(matchedCountry.code)
+            setPhone(withoutPlus.slice(matchedCountry.code.length))
           } else {
-            setPhone(rawP)
+            setPhone(withoutPlus)
           }
         } else {
           setPhone(rawP)
@@ -69,7 +72,11 @@ export default function AccountDetailsPage() {
     e.preventDefault()
     setPersonalMsg(null)
     startPersonal(async () => {
-      const fullPhone = `+${countryCode.replace('+', '')}${phone.trim().replace(/^0+/, '')}`
+      const cleanDigits = toEnglishDigits(phone)
+        .replace(/^0+/, '')
+        .replace(/\D/g, '')
+        .trim()
+      const fullPhone = `+${countryCode.replace('+', '')}${cleanDigits}`
       const res = await updatePersonalInfoAction({ name, phone: fullPhone })
       if (res.success) {
         setPersonalMsg({
@@ -166,14 +173,19 @@ export default function AccountDetailsPage() {
                     <div dir="ltr" className="flex items-center gap-2">
                       <CountrySelector
                         value={countryCode}
-                        onChange={setCountryCode}
+                        onChange={(code) => setCountryCode(code)}
+                        heightClass="h-11"
                       />
                       <input
                         id="phone"
                         type="tel"
+                        inputMode="tel"
                         dir="ltr"
                         value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
+                        onChange={(e) =>
+                          setPhone(toEnglishDigits(e.target.value))
+                        }
+                        placeholder="5xx xx xx xx"
                         required
                         className="h-11 w-full rounded-[10px] border border-gray-200 bg-white px-4 text-left text-[13px] font-semibold text-[var(--brand-navy-text,#0a1128)] transition focus:border-[var(--brand-primary,#007a5a)] focus:outline-none"
                       />

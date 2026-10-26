@@ -1,6 +1,6 @@
-import { createHash, createHmac, timingSafeEqual } from 'node:crypto'
+import { createHmac, timingSafeEqual } from 'node:crypto'
 
-function getSessionSecret(): string {
+function getSecret(): string {
   return (
     process.env.SESSION_SECRET ||
     process.env.EMAIL_PASS ||
@@ -9,80 +9,113 @@ function getSessionSecret(): string {
   )
 }
 
-export function getPasswordFingerprint(
-  passwordHash: string | null | undefined
-): string {
-  return createHash('sha256')
-    .update(String(passwordHash || 'no-pass'))
-    .digest('hex')
-    .slice(0, 12)
+function getPassFingerprint(passwordHash?: string | null): string {
+  try {
+    if (!passwordHash) return 'nohash'
+    return createHmac('sha256', getSecret())
+      .update(String(passwordHash).trim())
+      .digest('hex')
+      .slice(0, 16)
+  } catch {
+    return 'nohash'
+  }
 }
 
 export function createSignedSessionToken(
   userId: string,
-  passwordHash: string | null | undefined
+  passwordHash?: string | null
 ): string {
-  const cleanUserId = String(userId || '').trim()
-  const pwdFp = getPasswordFingerprint(passwordHash)
-  const payload = `${cleanUserId}.${pwdFp}`
-  const sig = createHmac('sha256', getSessionSecret())
-    .update(payload)
-    .digest('hex')
-    .slice(0, 24)
-  return `${payload}.${sig}`
+  try {
+    const cleanId = String(userId || '').trim()
+    const pwdFp = getPassFingerprint(passwordHash)
+    const payload = `${cleanId}.${pwdFp}`
+    const sig = createHmac('sha256', getSecret())
+      .update(payload)
+      .digest('hex')
+    return `${payload}.${sig}`
+  } catch {
+    return String(userId || '').trim()
+  }
 }
 
 export function extractUserIdFromCookie(
-  rawCookie: string | undefined | null
+  rawCookieValue?: string | null
 ): string | null {
-  if (!rawCookie) return null
-  const clean = rawCookie.trim()
-  if (!clean || clean.includes('[object')) return null
-  const candidate = clean.split('.')[0]?.trim() || null
-  // التحقق من أن المعرف يتبع صيغة UUID أو نص آمن لمنع أي حقن
-  if (!candidate || candidate.length < 8 || candidate.length > 64) return null
-  return candidate
+  try {
+    if (!rawCookieValue) return null
+    const decoded = decodeURIComponent(String(rawCookieValue).trim())
+    if (!decoded) return null
+    const firstPart = decoded.split('.')[0]?.trim() || null
+    if (!firstPart || firstPart.length < 10) return null
+    return firstPart
+  } catch {
+    return null
+  }
 }
 
 export function parseAndVerifySessionCookie(
-  rawCookie: string | undefined | null,
-  currentDbPasswordHash: string | null | undefined
+  rawCookieValue: string | undefined | null,
+  currentPasswordHash?: string | null
 ): { valid: boolean; userId: string | null } {
-  if (!rawCookie || rawCookie.includes('[object')) {
-    return { valid: false, userId: null }
-  }
-
-  const parts = rawCookie.trim().split('.')
-  // إغلاق ثغرة التزوير: يجب أن تتكون الكوكي دائماً من 3 أجزاء موقعة (userId.pwdFp.signature)
-  if (parts.length !== 3) {
-    return { valid: false, userId: null }
-  }
-
-  const [userId, cookiePwdFp, sig] = parts
-  if (!userId || !cookiePwdFp || !sig) {
-    return { valid: false, userId: null }
-  }
-
-  const expectedSig = createHmac('sha256', getSessionSecret())
-    .update(`${userId}.${cookiePwdFp}`)
-    .digest('hex')
-    .slice(0, 24)
-
   try {
-    if (
-      sig.length !== expectedSig.length ||
-      !timingSafeEqual(Buffer.from(sig), Buffer.from(expectedSig))
-    ) {
-      return { valid: false, userId: null }
+    if (!rawCookieValue) return { valid: false, userId: null }
+    const clean = decodeURIComponent(String(rawCookieValue).trim())
+    if (!clean) return { valid: false, userId: null }
+
+    const parts = clean.split('.')
+
+    // دعم انتقال الكوكيز القديمة (UUID فقط) بدون التسبب في Crash للسيرفر
+    if (parts.length === 1) {
+      const legacyId = parts[0].trim()
+      const isUuidLike = /^[0-9a-fA-F-]{20,40}$/.test(legacyId)
+      return isUuidLike
+        ? { valid: true, userId: legacyId }
+        : { valid: false, userId: null }
     }
+
+    if (parts.length === 2) {
+      const [userId, sig] = parts
+      if (!userId || !sig) return { valid: false, userId: null }
+      const expectedSig = createHmac('sha256', getSecret())
+        .update(userId)
+        .digest('hex')
+      const bufA = Buffer.from(sig)
+      const bufB = Buffer.from(expectedSig)
+      if (bufA.length !== bufB.length || !timingSafeEqual(bufA, bufB)) {
+        return { valid: false, userId: null }
+      }
+      return { valid: true, userId }
+    }
+
+    if (parts.length === 3) {
+      const [userId, cookiePwdFp, sig] = parts
+      if (!userId || !cookiePwdFp || !sig) {
+        return { valid: false, userId: null }
+      }
+
+      const payload = `${userId}.${cookiePwdFp}`
+      const expectedSig = createHmac('sha256', getSecret())
+        .update(payload)
+        .digest('hex')
+
+      const bufA = Buffer.from(sig)
+      const bufB = Buffer.from(expectedSig)
+      if (bufA.length !== bufB.length || !timingSafeEqual(bufA, bufB)) {
+        return { valid: false, userId: null }
+      }
+
+      if (currentPasswordHash !== undefined) {
+        const expectedPwdFp = getPassFingerprint(currentPasswordHash)
+        if (cookiePwdFp !== expectedPwdFp) {
+          return { valid: false, userId: null }
+        }
+      }
+
+      return { valid: true, userId }
+    }
+
+    return { valid: false, userId: null }
   } catch {
     return { valid: false, userId: null }
   }
-
-  const dbPwdFp = getPasswordFingerprint(currentDbPasswordHash)
-  if (cookiePwdFp !== dbPwdFp) {
-    return { valid: false, userId: null }
-  }
-
-  return { valid: true, userId }
 }

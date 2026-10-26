@@ -543,7 +543,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
       await markNotificationAsReadAction(item.id)
     })
 
-    router.push(targetUrl)
+    window.location.href = targetUrl
   }
 
   const handleDeleteNotification = (e: React.MouseEvent, id: string) => {
@@ -655,7 +655,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
             type="button"
             onClick={() => setNotificationsOpen(false)}
             className="rounded-lg p-1 text-gray-400 transition hover:bg-gray-200/60 hover:text-gray-700"
-            aria-label="إغلاق"
+            aria-label="Close"
           >
             <X className="size-4" />
           </button>
@@ -728,7 +728,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
                     <span>
                       {labels.accountPages?.common?.viewDetails || 'عرض التفاصيل'}
                     </span>
-                    <ArrowLeft className="size-3" />
+                    <ArrowLeft className="size-3 rtl:rotate-0 ltr:rotate-180" />
                   </span>
                 </div>
               </div>
@@ -736,8 +736,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
               <button
                 type="button"
                 onClick={(e) => handleDeleteNotification(e, item.id)}
-                title="حذف الإشعار"
-                aria-label="حذف الإشعار"
+                aria-label="Delete"
                 className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-600"
               >
                 <Trash2 className="size-3.5" />
@@ -748,13 +747,13 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
       </div>
 
       <div className="border-t border-gray-100 bg-gray-50/70 p-2 text-center">
-        <Link
+        <a
           href="/account"
           onClick={() => setNotificationsOpen(false)}
           className="block w-full rounded-xl py-2 text-xs font-extrabold text-[#0b6954] transition hover:bg-emerald-50"
         >
           {labels.accountPages?.common?.backToAccount || 'الذهاب إلى حسابي'}
-        </Link>
+        </a>
       </div>
     </div>
   )
@@ -779,7 +778,6 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
         </>
       )}
 
-      {/* شريط الهيدر العلوي بـ z-[75] حتى تفتح القوائم المنسدلة للغة والإشعارات فوق منيو الموبايل الجانبية */}
       <div className="relative z-[75] mx-auto flex h-[66px] max-w-[1280px] items-center justify-between gap-4 px-4 sm:h-[74px] sm:px-6 lg:px-8">
         <div className="flex items-center gap-9 lg:gap-10 xl:gap-14">
           <Logo />
@@ -833,12 +831,12 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
             {langMenuOpen && renderLanguageDropdownMenu()}
           </div>
 
-          <Link
+          <a
             href={hasSession ? '/account' : '/login'}
             className="inline-flex h-[42px] items-center justify-center whitespace-nowrap rounded-[11px] border border-[#e2e8f0] bg-white px-4 text-[13px] font-bold text-[#0a1122] transition-colors hover:bg-gray-50 xl:px-4.5 xl:text-[13.5px]"
           >
             {desktopAuthBtnLabel}
-          </Link>
+          </a>
 
           <Link
             href="/buy"
@@ -878,7 +876,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
           </Link>
 
           {isAdmin && (
-            <Link
+            <a
               href="/admin"
               className="inline-flex h-[42px] items-center justify-center gap-1 whitespace-nowrap rounded-[11px] bg-[#0a1122] px-3 text-[12px] font-bold text-white transition-colors hover:bg-[#16223f]"
               title="لوحة الإدارة"
@@ -893,7 +891,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
                       ? 'ადმინ.'
                       : 'Admin'}
               </span>
-            </Link>
+            </a>
           )}
         </div>
 
@@ -1014,7 +1012,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
 
           <div className="flex flex-col gap-2.5">
             {isAdmin && (
-              <Link
+              <a
                 href="/admin"
                 onClick={() => setMobileMenuOpen(false)}
                 className="flex h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-[#0a1122] text-[13.5px] font-bold text-white shadow-xs transition-colors hover:bg-[#16223f]"
@@ -1029,7 +1027,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
                         ? 'ადმინისტრატორის პანელი'
                         : 'Admin Panel'}
                 </span>
-              </Link>
+              </a>
             )}
             <Link
               href="/sell"
@@ -1045,7 +1043,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
             >
               {labels.navbar?.buy || 'عايز تشتري'}
             </Link>
-            <Link
+            <a
               href={hasSession ? '/account' : '/login'}
               onClick={() => setMobileMenuOpen(false)}
               className="flex h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-[#e2e8f0] bg-gray-50 text-[13.5px] font-bold text-[#1d3557] transition-colors hover:bg-gray-100"
@@ -1057,7 +1055,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
                   : labels?.authPages?.login?.title ||
                     getGuestLoginLabel(language, labels?.navbar as Record<string, any>)}
               </span>
-            </Link>
+            </a>
           </div>
         </div>
       )}
@@ -1093,6 +1091,7 @@ export function Footer({ dictionary: _unused }: { dictionary?: Dictionary }) {
         ? getMyAccountLabel(language, labels.navbar as Record<string, any>)
         : getGuestLoginLabel(language, labels.navbar as Record<string, any>),
       href: hasSession ? '/account' : '/login',
+      fullReload: true,
     },
   ]
 
@@ -1117,6 +1116,7 @@ export function Footer({ dictionary: _unused }: { dictionary?: Dictionary }) {
               ? 'ადმინისტრატორის პანელი'
               : 'Admin Panel',
       href: '/admin',
+      fullReload: true,
     },
   ]
 
@@ -1162,12 +1162,21 @@ export function Footer({ dictionary: _unused }: { dictionary?: Dictionary }) {
             <ul className="mt-4 flex flex-col gap-3 text-xs text-gray-200 sm:text-[13px]">
               {platformLinks.map((item) => (
                 <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    className="transition-colors hover:text-[#2ee59d]"
-                  >
-                    {item.label}
-                  </Link>
+                  {item.fullReload ? (
+                    <a
+                      href={item.href}
+                      className="transition-colors hover:text-[#2ee59d]"
+                    >
+                      {item.label}
+                    </a>
+                  ) : (
+                    <Link
+                      href={item.href}
+                      className="transition-colors hover:text-[#2ee59d]"
+                    >
+                      {item.label}
+                    </Link>
+                  )}
                 </li>
               ))}
             </ul>
@@ -1196,12 +1205,21 @@ export function Footer({ dictionary: _unused }: { dictionary?: Dictionary }) {
             <ul className="mt-4 flex flex-col gap-3 text-xs text-gray-200 sm:text-[13px]">
               {legalLinks.map((item) => (
                 <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    className="transition-colors hover:text-[#2ee59d]"
-                  >
-                    {item.label}
-                  </Link>
+                  {item.fullReload ? (
+                    <a
+                      href={item.href}
+                      className="transition-colors hover:text-[#2ee59d]"
+                    >
+                      {item.label}
+                    </a>
+                  ) : (
+                    <Link
+                      href={item.href}
+                      className="transition-colors hover:text-[#2ee59d]"
+                    >
+                      {item.label}
+                    </Link>
+                  )}
                 </li>
               ))}
             </ul>

@@ -41,7 +41,7 @@ const STATUS_BADGE_CLASSES: Record<string, string> = {
 }
 
 function deriveUnitCode(id: string) {
-  const digits = id.replace(/\D/g, "")
+  const digits = String(id || "").replace(/\D/g, "")
   const num = digits ? Number(digits.slice(-4)) : 100
   return `U-${String(num).padStart(5, "0")}`
 }
@@ -59,18 +59,23 @@ async function getSupabase() {
 
 export default async function AdminPage() {
   const { dict, locale, dir, siteSettings } = await getServerI18n()
-  const t = dict.admin.dashboard as Record<string, any>
-  const leadsDict = dict.admin.leads as Record<string, any>
-  const sm = (dict.admin as Record<string, any>).smartMatch || {}
+  const t = (dict?.admin?.dashboard as Record<string, any>) || {}
+  const statusesDict = (t.statuses as Record<string, string>) || {}
+  const leadsDict = (dict?.admin?.leads as Record<string, any>) || {}
+  const sm = ((dict?.admin as Record<string, any>)?.smartMatch as Record<string, any>) || {}
 
   const georgiaLabel = t.countries?.GE || "Georgia"
   const georgiaCurrency = getCurrencySymbol(ACTIVE_ADMIN_COUNTRY, locale)
   const commPct = Number(siteSettings?.buyerCommission) || 1.25
 
-  const supabase = await getSupabase()
+  let propertiesData: any[] = []
+  let leadsData: any[] = []
+  let allOffersData: any[] = []
 
-  const [{ data: propertiesData }, { data: leadsData }, { data: allOffersData }] =
-    await Promise.all([
+  try {
+    const supabase = await getSupabase()
+
+    const [propsRes, leadsRes, offersRes] = await Promise.all([
       supabase
         .from("sell_requests")
         .select("*")
@@ -88,7 +93,14 @@ export default async function AdminPage() {
         .limit(30),
     ])
 
-  const properties = (propertiesData || []).map((p: any) => {
+    propertiesData = propsRes.data || []
+    leadsData = leadsRes.data || []
+    allOffersData = offersRes.data || []
+  } catch (err) {
+    console.error("Error loading AdminPage data:", err)
+  }
+
+  const properties = propertiesData.map((p: any) => {
     const meta =
       p.documents && typeof p.documents === "object"
         ? p.documents.__unit_meta || {}
@@ -100,8 +112,8 @@ export default async function AdminPage() {
       size: p.size ?? meta.size ?? null,
     }
   })
-  const leads = leadsData || []
-  const allOffers = allOffersData || []
+  const leads = leadsData
+  const allOffers = allOffersData
 
   const propsMap = new Map(properties.map((p: any) => [p.id, p]))
 
@@ -150,35 +162,37 @@ export default async function AdminPage() {
 
   const kpis = [
     {
-      label: `${t.unitsIn} ${georgiaLabel}`,
+      label: `${t.unitsIn || ""} ${georgiaLabel}`,
       value: properties.length.toLocaleString("en-US"),
-      note: `${activeProperties.length.toLocaleString("en-US")} ${t.publishedNote}`,
+      note: `${activeProperties.length.toLocaleString("en-US")} ${t.publishedNote || ""}`,
       icon: Building2,
       href: "/admin/properties",
     },
     {
-      label: t.pendingReview,
+      label: t.pendingReview || "Pending",
       value: pendingProperties.length.toLocaleString("en-US"),
       note:
-        pendingProperties.length > 0 ? t.pendingNeedAction : t.allReviewed,
+        pendingProperties.length > 0
+          ? t.pendingNeedAction || ""
+          : t.allReviewed || "",
       icon: Clock3,
       href: "/admin/properties?tab=pending",
       highlight: pendingProperties.length > 0,
     },
     {
-      label: t.unitBookers,
+      label: t.unitBookers || "Unit Leads",
       value: unitSpecificLeads.length.toLocaleString("en-US"),
       note:
         t.unitBookersNote ||
-        `${t.outOfTotal} ${leads.length.toLocaleString("en-US")}`,
+        `${t.outOfTotal || ""} ${leads.length.toLocaleString("en-US")}`,
       icon: Flame,
       href: "/admin/leads?type=unit_leads",
       highlight: unitSpecificLeads.length > 0,
     },
     {
-      label: t.totalBuyerLeads || dict.admin.shell.nav.leads,
+      label: t.totalBuyerLeads || dict?.admin?.shell?.nav?.leads || "Leads",
       value: leads.length.toLocaleString("en-US"),
-      note: `${generalSearchLeadsCount.toLocaleString("en-US")} ${t.generalRequestsNote}`,
+      note: `${generalSearchLeadsCount.toLocaleString("en-US")} ${t.generalRequestsNote || ""}`,
       icon: FileText,
       href: "/admin/leads",
     },
@@ -189,7 +203,7 @@ export default async function AdminPage() {
       <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         {kpis.map(({ label, value, note, icon: Icon, href, highlight }) => (
           <Link
-            key={label}
+            key={href}
             href={href}
             className="group block h-full transition-transform hover:-translate-y-0.5"
           >
@@ -326,8 +340,8 @@ export default async function AdminPage() {
               )
               const localizedArea = getLocalizedGeorgiaAreaName(unit.area, locale)
 
-              const sellerWa = `${leadsDict.waGeneralPrefix} ${unit.name}، (${unit.project_name || t.defaultUnit} - ${uCode}) — ${sm.agreedCashLabel}: ${agreedCash.toLocaleString("en-US")} ${cur}`
-              const buyerWa = `${leadsDict.waUnitLeadPrefix} ${offer.buyer_name || ""}، (${unit.project_name || t.defaultUnit} - ${uCode}) — ${sm.agreedCashLabel}: ${agreedCash.toLocaleString("en-US")} ${cur}`
+              const sellerWa = `${leadsDict.waGeneralPrefix || ""} ${unit.name}، (${unit.project_name || t.defaultUnit || ""} - ${uCode}) — ${sm.agreedCashLabel || ""}: ${agreedCash.toLocaleString("en-US")} ${cur}`
+              const buyerWa = `${leadsDict.waUnitLeadPrefix || ""} ${offer.buyer_name || ""}، (${unit.project_name || t.defaultUnit || ""} - ${uCode}) — ${sm.agreedCashLabel || ""}: ${agreedCash.toLocaleString("en-US")} ${cur}`
 
               return (
                 <div
@@ -558,9 +572,9 @@ export default async function AdminPage() {
                 </div>
               ) : (
                 properties.slice(0, 6).map((prop) => {
-                  const stKey = (prop.status ||
-                    "pending") as keyof typeof t.statuses
-                  const stLabel = t.statuses[stKey] || t.statuses.pending
+                  const stKey = prop.status || "pending"
+                  const stLabel =
+                    statusesDict[stKey] || statusesDict.pending || stKey
                   const stCls =
                     STATUS_BADGE_CLASSES[prop.status || "pending"] ||
                     STATUS_BADGE_CLASSES.pending
@@ -570,7 +584,7 @@ export default async function AdminPage() {
                     locale
                   )
 
-                  const sellerWaMsg = `${leadsDict.waGeneralPrefix} ${prop.name}، (${prop.project_name || t.defaultUnit} - ${localizedArea} - ${uCode}) — ${Number(prop.paid_amount || 0).toLocaleString("en-US")} ${georgiaCurrency}`
+                  const sellerWaMsg = `${leadsDict.waGeneralPrefix || ""} ${prop.name}، (${prop.project_name || t.defaultUnit || ""} - ${localizedArea} - ${uCode}) — ${Number(prop.paid_amount || 0).toLocaleString("en-US")} ${georgiaCurrency}`
 
                   return (
                     <div
@@ -677,8 +691,8 @@ export default async function AdminPage() {
                 ).toLocaleString("en-US")
 
                 const buyerWaMsg = isUnitSpecific
-                  ? `${leadsDict.waUnitLeadPrefix} ${lead.name}، ${leadsDict.waUnitLeadMiddle} (${cleanTarget}) — ${leadsDict.cashShort} ${cashFormatted} ${georgiaCurrency}. ${leadsDict.waUnitLeadSuffix}`
-                  : `${leadsDict.waGeneralPrefix} ${lead.name}، ${leadsDict.waGeneralMiddle} (${cleanTarget || t.allAreas}) — ${leadsDict.cashShort} ${cashFormatted} ${georgiaCurrency}. ${leadsDict.waGeneralSuffix}`
+                  ? `${leadsDict.waUnitLeadPrefix || ""} ${lead.name}، ${leadsDict.waUnitLeadMiddle || ""} (${cleanTarget}) — ${leadsDict.cashShort || ""} ${cashFormatted} ${georgiaCurrency}. ${leadsDict.waUnitLeadSuffix || ""}`
+                  : `${leadsDict.waGeneralPrefix || ""} ${lead.name}، ${leadsDict.waGeneralMiddle || ""} (${cleanTarget || t.allAreas || ""}) — ${leadsDict.cashShort || ""} ${cashFormatted} ${georgiaCurrency}. ${leadsDict.waGeneralSuffix || ""}`
 
                 return (
                   <div

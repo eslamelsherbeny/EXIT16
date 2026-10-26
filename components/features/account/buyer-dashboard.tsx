@@ -32,7 +32,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { unitTypes as sharedUnitTypes } from '@/components/features/seller/seller-shared'
+import {
+  getLocalizedUnitTypes,
+  toEnglishDigits,
+} from '@/components/features/seller/seller-shared'
 import {
   GEORGIA_CITIES_AND_DISTRICTS,
   GeorgiaAreaSelect,
@@ -122,8 +125,14 @@ export function BuyerDashboard({
 }) {
   const { t: dict, locale, dir, isRtl } = useTranslation()
   const t = dict.accountComponents.buyer as Record<string, any>
+  const oppFilters = (dict.opportunitiesPage?.filters as Record<string, any>) || {}
   const currency = getCurrencySymbol('GE', locale)
   const listSep = dir === 'rtl' ? '، ' : ', '
+
+  const localizedUnitTypes = useMemo(
+    () => getLocalizedUnitTypes(dict, locale),
+    [dict, locale]
+  )
 
   const georgiaQuickAreas = useMemo(
     () => GEORGIA_CITIES_AND_DISTRICTS.slice(0, 10),
@@ -178,7 +187,7 @@ export function BuyerDashboard({
   const [bTypes, setBTypes] = useState<string[]>(
     Array.isArray(buyReq?.unit_types) && buyReq.unit_types.length > 0
       ? buyReq.unit_types
-      : [sharedUnitTypes[0]]
+      : [localizedUnitTypes[0] || 'Apartment']
   )
   const [bRooms, setBRooms] = useState<number>(Number(buyReq?.min_rooms || 1))
   const [bDelivery, setBDelivery] = useState<string>(
@@ -208,6 +217,14 @@ export function BuyerDashboard({
   const [delYearFilter, setDelYearFilter] = useState(t.deliveryYears[0])
   const [conYearFilter, setConYearFilter] = useState(t.contractYears[0])
   const [minRoomsFilter, setMinRoomsFilter] = useState(t.roomOptions[0])
+
+  useEffect(() => {
+    setDelStatusFilter(t.deliveryStatuses[0])
+    setDelYearFilter(t.deliveryYears[0])
+    setConYearFilter(t.contractYears[0])
+    setMinRoomsFilter(t.roomOptions[0])
+    setSortBy(t.sorts[0])
+  }, [locale, t])
 
   useEffect(() => {
     setVisibleCount(PREFERRED_PAGE_SIZE)
@@ -241,6 +258,12 @@ export function BuyerDashboard({
   const togglePill = (pill: string) => {
     setActivePills((prev) =>
       prev.includes(pill) ? prev.filter((p) => p !== pill) : [...prev, pill]
+    )
+  }
+
+  const toggleFilterType = (tp: string) => {
+    setSelectedTypes((prev) =>
+      prev.includes(tp) ? prev.filter((item) => item !== tp) : [...prev, tp]
     )
   }
 
@@ -302,10 +325,9 @@ export function BuyerDashboard({
 
         const rawAreaId = u.area || GEORGIA_CITIES_AND_DISTRICTS[0].id
         const localizedArea = getLocalizedGeorgiaAreaName(rawAreaId, locale)
-        const unitType = u.unit_type || sharedUnitTypes[0]
+        const unitType = u.unit_type || localizedUnitTypes[0] || 'Apartment'
         const unitCurrency = getCurrencySymbol('GE', locale)
 
-        // التقييم الجغرافي الحقيقي عبر الإحداثيات (GPS Proximity)
         const geoEval = evaluateGeorgiaAreaProximity(rawAreaId, bAreas)
         const smartRes = calculateSmartMatch(
           u,
@@ -325,7 +347,11 @@ export function BuyerDashboard({
           unitMonthly <= buyerMaxMonthly * 1.2
         const isTypeMatch =
           bTypes.length === 0 ||
-          bTypes.some((tp) => unitType.includes(tp) || tp.includes(unitType))
+          bTypes.some(
+            (tp) =>
+              unitType.toLowerCase().includes(tp.toLowerCase()) ||
+              tp.toLowerCase().includes(unitType.toLowerCase())
+          )
 
         const matchTags: string[] = []
         if (isCashMatch) matchTags.push(t.tagCashMatch)
@@ -388,14 +414,17 @@ export function BuyerDashboard({
     bDelivery,
     bAreas,
     bTypes,
+    localizedUnitTypes,
     locale,
     t,
   ])
 
   const filteredUnits = useMemo(() => {
-    const maxCashVal = Number(maxCashFilter.replace(/,/g, ''))
-    const maxInstVal = Number(maxInstFilter.replace(/,/g, ''))
-    const maxConVal = Number(maxContractFilter.replace(/,/g, ''))
+    const maxCashVal = Number(toEnglishDigits(maxCashFilter).replace(/,/g, ''))
+    const maxInstVal = Number(toEnglishDigits(maxInstFilter).replace(/,/g, ''))
+    const maxConVal = Number(
+      toEnglishDigits(maxContractFilter).replace(/,/g, '')
+    )
 
     const list = mappedUnits.filter((item) => {
       if (
@@ -417,7 +446,14 @@ export function BuyerDashboard({
         return false
       }
       if (onlyNegotiable && !item.negotiable) return false
-      if (selectedTypes.length > 0 && !selectedTypes.includes(item.type)) {
+      if (
+        selectedTypes.length > 0 &&
+        !selectedTypes.some(
+          (st) =>
+            item.type.toLowerCase().includes(st.toLowerCase()) ||
+            st.toLowerCase().includes(item.type.toLowerCase())
+        )
+      ) {
         return false
       }
       if (
@@ -525,13 +561,16 @@ export function BuyerDashboard({
     t,
   ])
 
-  // 1. وحدات في نفس المنطقة المطلوبة بالضبط
-  const unitsInPreferredArea = filteredUnits.filter((u) => u.isAreaMatch)
+  // إذا اختار المشتري منطقة معينة من لوحة الفلتر المتقدم، نعرض نتائج تلك المنطقة مباشرة
+  const unitsInPreferredArea = areaFilter.trim()
+    ? filteredUnits
+    : filteredUnits.filter((u) => u.isAreaMatch)
 
-  // 2. وحدات في أحياء قريبة فعلياً داخل نفس المدينة فقط (وليس في مدن بعيدة أو دول أخرى!)
-  const unitsInTrulyNearbyAreas = filteredUnits
-    .filter((u) => !u.isAreaMatch && u.isNearbyInSameCity)
-    .sort((a, b) => (a.distanceKm ?? 99) - (b.distanceKm ?? 99))
+  const unitsInTrulyNearbyAreas = areaFilter.trim()
+    ? []
+    : filteredUnits
+        .filter((u) => !u.isAreaMatch && u.isNearbyInSameCity)
+        .sort((a, b) => (a.distanceKm ?? 99) - (b.distanceKm ?? 99))
 
   const localizedPreferredAreasNames = bAreas.map((a) =>
     getLocalizedGeorgiaAreaName(a, locale)
@@ -605,7 +644,11 @@ export function BuyerDashboard({
                 dir="ltr"
                 value={bCash ? bCash.toLocaleString('en-US') : ''}
                 onChange={(e) =>
-                  setBCash(Number(e.target.value.replace(/[^0-9]/g, '')) || 0)
+                  setBCash(
+                    Number(
+                      toEnglishDigits(e.target.value).replace(/[^0-9]/g, '')
+                    ) || 0
+                  )
                 }
                 className="h-12 w-full rounded-xl border border-gray-200 px-4 text-left text-sm font-bold text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none"
               />
@@ -630,7 +673,9 @@ export function BuyerDashboard({
                 }
                 onChange={(e) =>
                   setBInstallment(
-                    Number(e.target.value.replace(/[^0-9]/g, '')) || 0
+                    Number(
+                      toEnglishDigits(e.target.value).replace(/[^0-9]/g, '')
+                    ) || 0
                   )
                 }
                 className="h-12 w-full rounded-xl border border-gray-200 px-4 text-left text-sm font-bold text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none"
@@ -677,7 +722,9 @@ export function BuyerDashboard({
                 value={bBudget ? bBudget.toLocaleString('en-US') : ''}
                 onChange={(e) =>
                   setBBudget(
-                    Number(e.target.value.replace(/[^0-9]/g, '')) || 0
+                    Number(
+                      toEnglishDigits(e.target.value).replace(/[^0-9]/g, '')
+                    ) || 0
                   )
                 }
                 className="h-12 w-full rounded-xl border border-gray-200 px-4 text-left text-sm font-bold text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none"
@@ -695,7 +742,7 @@ export function BuyerDashboard({
                 {t.unitTypeLabel}
               </label>
               <div className="flex flex-wrap gap-2">
-                {sharedUnitTypes.map((typeItem: string) => {
+                {localizedUnitTypes.map((typeItem: string) => {
                   const active = bTypes.includes(typeItem)
                   return (
                     <button
@@ -760,7 +807,6 @@ export function BuyerDashboard({
               </div>
             </div>
 
-            {/* اختيار المناطق المفضلة في جورجيا من القائمة المنسدلة الموحدة */}
             <div>
               <GeorgiaAreaSelect
                 label={t.preferredAreasLabel}
@@ -889,7 +935,7 @@ export function BuyerDashboard({
         </div>
       )}
 
-      {/* ==================== 1. بانر هوية الحساب الشخصي للمشتري (لمنع التشابه مع صفحة الفرص العامة) ==================== */}
+      {/* ==================== 1. بانر هوية الحساب الشخصي للمشتري ==================== */}
       <ScrollReveal>
         <section className="rounded-[22px] border border-emerald-200/80 bg-gradient-to-br from-[#0a1122] via-[#10233f] to-[#0d3b33] p-5 text-start text-white shadow-sm sm:p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
@@ -910,7 +956,6 @@ export function BuyerDashboard({
               </p>
             </div>
 
-            {/* أزرار عروضي (مع عداد العروض المتاحة) + تعديل طلب الشراء */}
             <div className="flex flex-wrap items-center gap-2.5">
               <Link
                 href="/account/offers"
@@ -943,7 +988,6 @@ export function BuyerDashboard({
             </div>
           </div>
 
-          {/* ملخص طلب الشراء الخاص بالعميل داخل كارت الهوية */}
           <div className="mt-5 grid grid-cols-2 gap-2.5 rounded-2xl border border-white/10 bg-white/5 p-3.5 text-xs sm:grid-cols-4">
             <div>
               <span className="block text-[10.5px] text-slate-300">
@@ -1006,6 +1050,7 @@ export function BuyerDashboard({
           </p>
         </section>
 
+        {/* ==================== 2. شريط البحث وزر الفلتر ==================== */}
         <section className="mt-4 rounded-[18px] border border-gray-200/80 bg-white p-3.5 shadow-2xs sm:p-5">
           <div className="relative">
             <Search className="pointer-events-none absolute top-1/2 end-3.5 size-4 -translate-y-1/2 text-gray-400" />
@@ -1022,7 +1067,8 @@ export function BuyerDashboard({
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={() => setFilterPanelOpen(!filterPanelOpen)}
+                aria-expanded={filterPanelOpen}
+                onClick={() => setFilterPanelOpen((prev) => !prev)}
                 className={`inline-flex h-9 items-center gap-1.5 rounded-xl border px-3.5 text-xs font-bold transition sm:h-10 ${
                   filterPanelOpen || activeFiltersCount > 0
                     ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]'
@@ -1077,7 +1123,334 @@ export function BuyerDashboard({
               </div>
             </div>
           </div>
+
+          {/* شارات الفلاتر المفعلة حالياً */}
+          {activeFiltersCount > 0 && (
+            <div className="mt-3 flex flex-wrap items-center justify-start gap-2 border-t border-gray-100 pt-2.5">
+              {onlyNegotiable && (
+                <button
+                  type="button"
+                  onClick={() => setOnlyNegotiable(false)}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-primary-light,#eaf8f2)] px-3 py-1 text-[11px] font-bold text-[var(--brand-primary,#007a5a)]"
+                >
+                  <span>{t.negotiableBtn}</span>
+                  <X className="size-3" />
+                </button>
+              )}
+              {areaFilter.trim() && (
+                <button
+                  type="button"
+                  onClick={() => setAreaFilter('')}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-primary-light,#eaf8f2)] px-3 py-1 text-[11px] font-bold text-[var(--brand-primary,#007a5a)]"
+                >
+                  <span>
+                    {oppFilters.areaBadgePrefix || '📍'}{' '}
+                    {getLocalizedGeorgiaAreaName(areaFilter, locale)}
+                  </span>
+                  <X className="size-3" />
+                </button>
+              )}
+              {maxCashFilter.trim() && (
+                <button
+                  type="button"
+                  onClick={() => setMaxCashFilter('')}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-primary-light,#eaf8f2)] px-3 py-1 text-[11px] font-bold text-[var(--brand-primary,#007a5a)]"
+                >
+                  <span>
+                    {oppFilters.cashUpToPrefix || '≤'}{' '}
+                    {Number(toEnglishDigits(maxCashFilter)).toLocaleString(
+                      'en-US'
+                    )}{' '}
+                    {currency}
+                  </span>
+                  <X className="size-3" />
+                </button>
+              )}
+              {maxInstFilter.trim() && (
+                <button
+                  type="button"
+                  onClick={() => setMaxInstFilter('')}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-primary-light,#eaf8f2)] px-3 py-1 text-[11px] font-bold text-[var(--brand-primary,#007a5a)]"
+                >
+                  <span>
+                    {oppFilters.instUpToPrefix || '≤'}{' '}
+                    {Number(toEnglishDigits(maxInstFilter)).toLocaleString(
+                      'en-US'
+                    )}{' '}
+                    {currency}
+                  </span>
+                  <X className="size-3" />
+                </button>
+              )}
+              {maxContractFilter.trim() && (
+                <button
+                  type="button"
+                  onClick={() => setMaxContractFilter('')}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-primary-light,#eaf8f2)] px-3 py-1 text-[11px] font-bold text-[var(--brand-primary,#007a5a)]"
+                >
+                  <span>
+                    {oppFilters.contractUpToPrefix || '≤'}{' '}
+                    {Number(toEnglishDigits(maxContractFilter)).toLocaleString(
+                      'en-US'
+                    )}{' '}
+                    {currency}
+                  </span>
+                  <X className="size-3" />
+                </button>
+              )}
+              {selectedTypes.map((tp) => (
+                <button
+                  key={tp}
+                  type="button"
+                  onClick={() => toggleFilterType(tp)}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-primary-light,#eaf8f2)] px-3 py-1 text-[11px] font-bold text-[var(--brand-primary,#007a5a)]"
+                >
+                  <span>{tp}</span>
+                  <X className="size-3" />
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={clearAllFilters}
+                className="ms-1 text-[11px] font-bold text-gray-400 underline hover:text-gray-700"
+              >
+                {t.clearFiltersBtn || oppFilters.clearAllBtn}
+              </button>
+            </div>
+          )}
         </section>
+
+        {/* ==================== 3. لوحة الفلتر المتقدم التي تظهر عند الضغط على زر "فلتر" ==================== */}
+        {filterPanelOpen && (
+          <section className="mt-3 rounded-[18px] border border-gray-200/85 bg-white p-4 text-start shadow-sm sm:p-6">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <div>
+                <GeorgiaAreaSelect
+                  label={oppFilters.areasLabel || t.preferredAreasLabel}
+                  value={areaFilter}
+                  onChange={(val) => setAreaFilter(val)}
+                  placeholder={
+                    oppFilters.areasPlaceholder || t.areaInputPlaceholder
+                  }
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
+                  {oppFilters.maxCashLabel || t.availableCashLabel}
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    dir="ltr"
+                    value={maxCashFilter}
+                    onChange={(e) =>
+                      setMaxCashFilter(
+                        toEnglishDigits(e.target.value).replace(/[^0-9]/g, '')
+                      )
+                    }
+                    className="h-12 w-full rounded-xl border border-gray-200 pr-3.5 pl-12 text-left text-xs font-bold text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none"
+                  />
+                  <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-xs text-gray-400">
+                    {currency}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
+                  {oppFilters.maxInstLabel || t.maxInstallmentLabel}
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    dir="ltr"
+                    value={maxInstFilter}
+                    onChange={(e) =>
+                      setMaxInstFilter(
+                        toEnglishDigits(e.target.value).replace(/[^0-9]/g, '')
+                      )
+                    }
+                    className="h-12 w-full rounded-xl border border-gray-200 pr-3.5 pl-12 text-left text-xs font-bold text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none"
+                  />
+                  <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-xs text-gray-400">
+                    {currency}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5">
+              <p className="mb-2 text-xs font-bold text-[var(--brand-navy,#0a1122)]">
+                {oppFilters.unitTypeLabel || t.unitTypeLabel}
+              </p>
+              <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                {localizedUnitTypes.map((tp: string) => {
+                  const active = selectedTypes.includes(tp)
+                  return (
+                    <button
+                      key={tp}
+                      type="button"
+                      onClick={() => toggleFilterType(tp)}
+                      className={`rounded-full border px-3.5 py-1.5 text-xs font-bold transition ${
+                        active
+                          ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary,#007a5a)] text-white'
+                          : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                      }`}
+                    >
+                      {tp}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-3">
+              <div>
+                <p className="mb-2 text-xs font-bold text-[var(--brand-navy,#0a1122)]">
+                  {oppFilters.deliveryLabel || t.deliveryLabel}
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {t.deliveryStatuses.map((status: string) => (
+                    <button
+                      key={status}
+                      type="button"
+                      onClick={() => setDelStatusFilter(status)}
+                      className={`rounded-full border px-3.5 py-1.5 text-xs font-bold transition ${
+                        delStatusFilter === status
+                          ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary,#007a5a)] text-white'
+                          : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                      }`}
+                    >
+                      {status}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <p className="mb-2 text-xs font-bold text-[var(--brand-navy,#0a1122)]">
+                  {oppFilters.deliveryYearLabel || t.deliveryLabel}
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {t.deliveryYears.map((yr: string) => (
+                    <button
+                      key={yr}
+                      type="button"
+                      onClick={() => setDelYearFilter(yr)}
+                      className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+                        delYearFilter === yr
+                          ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary,#007a5a)] text-white'
+                          : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                      }`}
+                    >
+                      {yr}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <p className="mb-2 text-xs font-bold text-[var(--brand-navy,#0a1122)]">
+                  {oppFilters.contractYearLabel || 'سنة التعاقد'}
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {t.contractYears.map((yr: string) => (
+                    <button
+                      key={yr}
+                      type="button"
+                      onClick={() => setConYearFilter(yr)}
+                      className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+                        conYearFilter === yr
+                          ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary,#007a5a)] text-white'
+                          : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                      }`}
+                    >
+                      {yr}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
+              <div>
+                <p className="mb-2 text-xs font-bold text-[var(--brand-navy,#0a1122)]">
+                  {oppFilters.minRoomsLabel || t.minRoomsLabel}
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {t.roomOptions.map((rm: string) => (
+                    <button
+                      key={rm}
+                      type="button"
+                      onClick={() => setMinRoomsFilter(rm)}
+                      className={`rounded-full border px-3.5 py-1.5 text-xs font-bold transition ${
+                        minRoomsFilter === rm
+                          ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary,#007a5a)] text-white'
+                          : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                      }`}
+                    >
+                      <span dir="ltr">{rm}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
+                  {oppFilters.maxContractPriceLabel || t.targetBudgetLabel}
+                </label>
+                <div className="relative max-w-sm">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    dir="ltr"
+                    value={maxContractFilter}
+                    onChange={(e) =>
+                      setMaxContractFilter(
+                        toEnglishDigits(e.target.value).replace(/[^0-9]/g, '')
+                      )
+                    }
+                    className="h-11 w-full rounded-xl border border-gray-200 pr-3.5 pl-12 text-left text-xs font-bold text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none"
+                  />
+                  <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-xs text-gray-400">
+                    {currency}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 flex items-center justify-between border-t border-gray-100 pt-4">
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setFilterPanelOpen(false)}
+                  className="rounded-xl bg-[var(--brand-primary,#007a5a)] px-5 py-2 text-xs font-bold text-white transition hover:bg-[var(--brand-primary-hover,#006248)]"
+                >
+                  {oppFilters.showResultsBtn || 'عرض النتائج'} (
+                  {unitsInPreferredArea.length + unitsInTrulyNearbyAreas.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={clearAllFilters}
+                  className="text-xs font-bold text-gray-500 hover:text-[var(--brand-navy,#0a1122)]"
+                >
+                  {t.clearFiltersBtn || oppFilters.clearAllBtn}
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setFilterPanelOpen(false)}
+                className="text-xs font-bold text-gray-400 hover:text-gray-700"
+              >
+                {oppFilters.hideBtn || t.cancelBtn}
+              </button>
+            </div>
+          </section>
+        )}
       </ScrollReveal>
 
       {unitsInPreferredArea.length === 0 &&
@@ -1118,14 +1491,14 @@ export function BuyerDashboard({
         </div>
       ) : (
         <>
-          {/* القسم الأول: وحدات في نفس المنطقة المطلوبة بالضبط */}
           {unitsInPreferredArea.length > 0 && (
             <section className="mt-7">
               <div className="mb-4 flex items-center gap-2 text-start">
                 <MapPin className="size-4 text-[var(--brand-primary,#007a5a)]" />
                 <h2 className="text-sm font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-base">
-                  {t.preferredSectionTitle} (
-                  {localizedPreferredAreasNames.join(listSep)}){' '}
+                  {areaFilter.trim()
+                    ? `${oppFilters.areaBadgePrefix || ''} ${getLocalizedGeorgiaAreaName(areaFilter, locale)}`
+                    : `${t.preferredSectionTitle} (${localizedPreferredAreasNames.join(listSep)})`}{' '}
                   <span className="font-normal text-gray-400">
                     ({unitsInPreferredArea.length})
                   </span>
@@ -1146,7 +1519,6 @@ export function BuyerDashboard({
             </section>
           )}
 
-          {/* القسم الثاني: وحدات في أحياء قريبة فعلياً داخل نفس المدينة (أقل من 20 كم) */}
           {unitsInTrulyNearbyAreas.length > 0 && (
             <section className="mt-10 border-t border-gray-200/70 pt-8">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
@@ -1233,7 +1605,6 @@ function BuyerUnitCard({
             />
           </Link>
 
-          {/* شارة نسبة التوافق مكتوب بها "متوافق 98%" بوضوح */}
           <span className="absolute top-2.5 right-2.5 inline-flex items-center gap-1 rounded-full bg-[#0a1122]/90 px-2.5 py-1 text-[10px] font-black text-emerald-300 shadow-sm backdrop-blur-xs">
             <span>🎯 {t.matchScorePrefix || 'متوافق'}</span>
             <span dir="ltr">{unit.scorePct}%</span>

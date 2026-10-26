@@ -10,7 +10,10 @@ import {
   Star,
   X,
 } from 'lucide-react'
-import { getLocalizedUnitTypes } from '@/components/features/seller/seller-shared'
+import {
+  getLocalizedUnitTypes,
+  toEnglishDigits,
+} from '@/components/features/seller/seller-shared'
 import {
   mapDbRowToProperty,
   OpportunitiesBottomSections,
@@ -26,6 +29,10 @@ import { isNonGeorgianLegacyArea } from '@/lib/smart-matcher'
 
 const PAGE_SIZE = 48
 const FAVORITES_STORAGE_KEY = 'darak_favorites'
+
+// الأعمدة العامة الآمنة فقط (بدون name, phone, email, documents لحماية خصوصية الملاك)
+const PUBLIC_SAFE_UNIT_COLUMNS =
+  'id, project_name, developer_name, area, unit_type, size, garden_size, rooms, bathrooms, floor_number, finishing, delivery_status, delivery_month, delivery_year, features, description, contract_price, paid_amount, market_price, installment_amount, installment_frequency, contract_month, contract_year, years_left, willing_to_discount, discount_amount, images, status, is_featured, featured_until, created_at'
 
 export default function OpportunitiesPage() {
   const { t: dict, locale, dir } = useTranslation()
@@ -91,8 +98,8 @@ export default function OpportunitiesPage() {
 
         const { data, error } = await supabase
           .from('sell_requests')
-          .select('*')
-          .in('status', ['active', 'offer_received'])
+          .select(PUBLIC_SAFE_UNIT_COLUMNS)
+          .in('status', ['active', 'approved', 'published', 'offer_received'])
           .order('is_featured', { ascending: false })
           .order('created_at', { ascending: false })
           .limit(5000)
@@ -183,9 +190,13 @@ export default function OpportunitiesPage() {
   ])
 
   const visibleProperties = useMemo(() => {
-    const cleanMaxCash = Number(String(maxCash).replace(/,/g, ''))
-    const cleanMaxInst = Number(String(maxInstallment).replace(/,/g, ''))
-    const cleanMaxContract = Number(String(maxContractPrice).replace(/,/g, ''))
+    const cleanMaxCash = Number(toEnglishDigits(maxCash).replace(/,/g, ''))
+    const cleanMaxInst = Number(
+      toEnglishDigits(maxInstallment).replace(/,/g, '')
+    )
+    const cleanMaxContract = Number(
+      toEnglishDigits(maxContractPrice).replace(/,/g, '')
+    )
 
     const filtered = dbProperties.filter((item) => {
       const haystack =
@@ -509,7 +520,7 @@ export default function OpportunitiesPage() {
                 >
                   <span>
                     {t.filters.cashUpToPrefix}{' '}
-                    {Number(maxCash).toLocaleString('en-US')}
+                    {Number(toEnglishDigits(maxCash)).toLocaleString('en-US')}
                   </span>
                   <X className="size-3" />
                 </button>
@@ -522,7 +533,9 @@ export default function OpportunitiesPage() {
                 >
                   <span>
                     {t.filters.instUpToPrefix}{' '}
-                    {Number(maxInstallment).toLocaleString('en-US')}
+                    {Number(toEnglishDigits(maxInstallment)).toLocaleString(
+                      'en-US'
+                    )}
                   </span>
                   <X className="size-3" />
                 </button>
@@ -535,7 +548,9 @@ export default function OpportunitiesPage() {
                 >
                   <span>
                     {t.filters.contractUpToPrefix}{' '}
-                    {Number(maxContractPrice).toLocaleString('en-US')}
+                    {Number(toEnglishDigits(maxContractPrice)).toLocaleString(
+                      'en-US'
+                    )}
                   </span>
                   <X className="size-3" />
                 </button>
@@ -580,10 +595,16 @@ export default function OpportunitiesPage() {
                 </label>
                 <div className="relative">
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
+                    dir="ltr"
                     value={maxCash}
-                    onChange={(e) => setMaxCash(e.target.value)}
-                    className="h-12 w-full rounded-xl border border-gray-200 pr-3.5 pl-12 text-xs text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none"
+                    onChange={(e) =>
+                      setMaxCash(
+                        toEnglishDigits(e.target.value).replace(/[^0-9]/g, '')
+                      )
+                    }
+                    className="h-12 w-full rounded-xl border border-gray-200 pr-3.5 pl-12 text-left text-xs font-bold text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none"
                   />
                   <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-xs text-gray-400">
                     {activeCurrency}
@@ -597,10 +618,16 @@ export default function OpportunitiesPage() {
                 </label>
                 <div className="relative">
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
+                    dir="ltr"
                     value={maxInstallment}
-                    onChange={(e) => setMaxInstallment(e.target.value)}
-                    className="h-12 w-full rounded-xl border border-gray-200 pr-3.5 pl-12 text-xs text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none"
+                    onChange={(e) =>
+                      setMaxInstallment(
+                        toEnglishDigits(e.target.value).replace(/[^0-9]/g, '')
+                      )
+                    }
+                    className="h-12 w-full rounded-xl border border-gray-200 pr-3.5 pl-12 text-left text-xs font-bold text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none"
                   />
                   <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-xs text-gray-400">
                     {activeCurrency}
@@ -731,10 +758,16 @@ export default function OpportunitiesPage() {
                 </label>
                 <div className="relative max-w-sm">
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
+                    dir="ltr"
                     value={maxContractPrice}
-                    onChange={(e) => setMaxContractPrice(e.target.value)}
-                    className="h-10 w-full rounded-xl border border-gray-200 pr-3.5 pl-12 text-xs text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:h-11"
+                    onChange={(e) =>
+                      setMaxContractPrice(
+                        toEnglishDigits(e.target.value).replace(/[^0-9]/g, '')
+                      )
+                    }
+                    className="h-10 w-full rounded-xl border border-gray-200 pr-3.5 pl-12 text-left text-xs font-bold text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:h-11"
                   />
                   <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-xs text-gray-400">
                     {activeCurrency}

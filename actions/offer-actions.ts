@@ -50,27 +50,75 @@ async function getVerifiedClientSession() {
   return { supabase, user }
 }
 
+/**
+ * تحقق صارم من ملكية الوحدة عبر user_id فقط لمنع أي تلاعب بالعروض
+ */
 function isUnitOwnedByUser(unit: any, user: any): boolean {
-  if (!unit || !user) return false
+  if (!unit || !user?.id) return false
   const role = String(user.role || 'user').trim().toLowerCase()
   if (role === 'admin' || role === 'moderator' || role === 'sales') return true
-  if (unit.user_id && unit.user_id === user.id) return true
-  if (
+
+  if (unit.user_id) {
+    return unit.user_id === user.id
+  }
+
+  // فقط للوحدات القديمة غير المربوطة بـ user_id
+  const byEmail =
     user.email &&
     unit.email &&
     String(user.email).trim().toLowerCase() ===
       String(unit.email).trim().toLowerCase()
-  ) {
-    return true
-  }
-  if (
+  const byPhone =
     user.phone &&
     unit.phone &&
     String(user.phone).trim() === String(unit.phone).trim()
-  ) {
-    return true
+
+  return Boolean(byEmail || byPhone)
+}
+
+/**
+ * تنظيف بيانات الوحدة من أي معلومات شخصية للبائع أو مستندات قبل إرسالها للمشتري
+ */
+function sanitizeUnitForPublicOrBuyer(unit: any): MatchableUnit | undefined {
+  if (!unit) return undefined
+  return {
+    id: String(unit.id),
+    project_name: unit.project_name || null,
+    developer_name: unit.developer_name || null,
+    area: unit.area || unit.documents?.__unit_meta?.area || null,
+    unit_type: unit.unit_type || unit.documents?.__unit_meta?.unit_type || null,
+    size: Number(unit.size ?? unit.documents?.__unit_meta?.size) || 0,
+    rooms: Number(unit.rooms ?? unit.documents?.__unit_meta?.rooms) || 0,
+    bathrooms:
+      Number(unit.bathrooms ?? unit.documents?.__unit_meta?.bathrooms) || 0,
+    finishing:
+      unit.finishing || unit.documents?.__unit_meta?.finishing || null,
+    delivery_status:
+      unit.delivery_status ||
+      unit.documents?.__unit_meta?.delivery_status ||
+      null,
+    contract_price: Number(unit.contract_price) || 0,
+    paid_amount: Number(unit.paid_amount) || 0,
+    market_price: Number(unit.market_price || unit.contract_price) || 0,
+    installment_amount:
+      Number(
+        unit.installment_amount ??
+          unit.documents?.__unit_meta?.installment_amount
+      ) || 0,
+    installment_frequency:
+      unit.installment_frequency ||
+      unit.documents?.__unit_meta?.installment_frequency ||
+      null,
+    years_left:
+      Number(unit.years_left ?? unit.documents?.__unit_meta?.years_left) || 0,
+    willing_to_discount: Boolean(unit.willing_to_discount),
+    discount_amount: Number(unit.discount_amount) || 0,
+    country: 'GE',
+    country_code: 'GE',
+    currency_code: 'USD',
+    status: unit.status || 'active',
+    images: Array.isArray(unit.images) ? unit.images : [],
   }
-  return false
 }
 
 function revalidateAllOfferPaths() {
@@ -133,24 +181,28 @@ export async function getAccountOffersDataAction() {
 
   const { supabase, user: profile } = session
 
-  const cleanEmail = String(profile.email || '')
-    .trim()
-    .toLowerCase()
-  const cleanPhone = String(profile.phone || '').trim()
-
   const [
-    { data: allSellsData },
-    { data: allBuysData },
+    { data: mySellsData },
+    { data: myBuysData },
+    { data: activeMarketData },
     { data: offersData },
   ] = await Promise.all([
     supabase
       .from('sell_requests')
       .select('*')
+      .eq('user_id', profile.id)
       .neq('status', 'deleted_by_seller')
       .order('created_at', { ascending: false }),
     supabase
       .from('buy_requests')
       .select('*')
+      .eq('user_id', profile.id)
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('sell_requests')
+      .select('*')
+      .in('status', ['active', 'approved', 'published', 'offer_received'])
+      .order('is_featured', { ascending: false })
       .order('created_at', { ascending: false }),
     supabase
       .from('property_offers')
@@ -158,34 +210,23 @@ export async function getAccountOffersDataAction() {
       .order('created_at', { ascending: false }),
   ])
 
-  const allUnits = (allSellsData || []) as MatchableUnit[]
-  const allLeads = (allBuysData || []) as MatchableBuyer[]
+  const mySells = ((mySellsData || []) as any[])
+    .map((u) => sanitizeUnitForPublicOrBuyer(u)!)
+    .filter(Boolean)
+  const myBuys = (myBuysData || []) as MatchableBuyer[]
   const allOffers = (offersData || []) as OfferRecord[]
-
-  const mySells = allUnits.filter(
-    (s: any) =>
-      s.user_id === profile.id ||
-      (cleanEmail &&
-        String(s.email || '')
-          .trim()
-          .toLowerCase() === cleanEmail) ||
-      (cleanPhone && String(s.phone || '').trim() === cleanPhone)
-  )
-
-  const myBuys = allLeads.filter(
-    (b: any) =>
-      b.user_id === profile.id ||
-      (cleanEmail &&
-        String(b.email || '')
-          .trim()
-          .toLowerCase() === cleanEmail) ||
-      (cleanPhone && String(b.phone || '').trim() === cleanPhone)
-  )
 
   const myUnitIds = new Set(mySells.map((u) => u.id))
   const myLeadIds = new Set(myBuys.map((b) => b.id))
-  const unitsMap = new Map(allUnits.map((u) => [u.id, u]))
 
+  const allKnownUnitsMap = new Map<string, MatchableUnit>()
+  mySells.forEach((u) => allKnownUnitsMap.set(u.id, u))
+  ;(activeMarketData || []).forEach((u: any) => {
+    const clean = sanitizeUnitForPublicOrBuyer(u)
+    if (clean) allKnownUnitsMap.set(clean.id, clean)
+  })
+
+  // عروض واردة لوحدات البائع (نخفي اسم وهاتف المشتري Zero-Leakage)
   const sellerOffers = allOffers
     .filter(
       (o) =>
@@ -194,11 +235,14 @@ export async function getAccountOffersDataAction() {
     )
     .map((o) => ({
       ...o,
+      buyer_name: null,
+      buyer_phone: null,
       match_reasons: Array.isArray(o.match_reasons) ? o.match_reasons : [],
       diff_reasons: Array.isArray(o.diff_reasons) ? o.diff_reasons : [],
-      unit: unitsMap.get(o.property_id),
+      unit: allKnownUnitsMap.get(o.property_id),
     }))
 
+  // عروض أرسلها المشتري (مع بيانات الوحدة المنظفة بدون هاتف أو مستندات البائع)
   const buyerOffers = allOffers
     .filter(
       (o) =>
@@ -210,7 +254,7 @@ export async function getAccountOffersDataAction() {
       ...o,
       match_reasons: Array.isArray(o.match_reasons) ? o.match_reasons : [],
       diff_reasons: Array.isArray(o.diff_reasons) ? o.diff_reasons : [],
-      unit: unitsMap.get(o.property_id),
+      unit: allKnownUnitsMap.get(o.property_id),
     }))
 
   const activeBuyerReq = myBuys[0] || null
@@ -236,13 +280,18 @@ export async function getAccountOffersDataAction() {
       adminRecOffers.map((o) => [o.property_id, o.id])
     )
 
-    const activeMarketUnits = allUnits.filter(
-      (u) =>
-        u.status === 'active' &&
-        !isNonGeorgianLegacyArea(u.area) &&
-        !myUnitIds.has(u.id) &&
-        !alreadyOfferedUnitIds.has(u.id)
-    )
+    const candidateMarketUnits = ((activeMarketData || []) as any[])
+      .map((u) => sanitizeUnitForPublicOrBuyer(u)!)
+      .filter(
+        (u) =>
+          u &&
+          (u.status === 'active' ||
+            u.status === 'approved' ||
+            u.status === 'published') &&
+          !isNonGeorgianLegacyArea(u.area) &&
+          !myUnitIds.has(u.id) &&
+          !alreadyOfferedUnitIds.has(u.id)
+      )
 
     const matchLabels = {
       cashExact: oDict.matchCashExact,
@@ -259,7 +308,7 @@ export async function getAccountOffersDataAction() {
       deliveryDiff: oDict.diffDelivery,
     }
 
-    activeMarketUnits.forEach((unit) => {
+    candidateMarketUnits.forEach((unit) => {
       const m = calculateSmartMatch(unit, activeBuyerReq, matchLabels, locale)
       const isFromAdmin = adminRecMap.has(unit.id)
 
@@ -328,7 +377,22 @@ export async function submitBuyerOfferAction(payload: {
       return { success: false, error: oDict.errUnitNotFound }
     }
 
-    if (unit.status === 'transferring' || unit.status === 'sold') {
+    // منع المالك من تقديم عرض شراء على وحدته الشخصية
+    if (unit.user_id && unit.user_id === sessionId) {
+      return {
+        success: false,
+        error:
+          locale === 'ar'
+            ? 'لا يمكنك تقديم عرض شراء على وحدتك الخاصة.'
+            : 'You cannot submit an offer on your own unit.',
+      }
+    }
+
+    if (
+      unit.status === 'transferring' ||
+      unit.status === 'sold' ||
+      unit.status === 'deleted_by_seller'
+    ) {
       return { success: false, error: oDict.errUnitAlreadyLocked }
     }
 
@@ -610,17 +674,14 @@ export async function respondToCounterOfferByBuyerAction(payload: {
       .eq('id', payload.offerId)
       .maybeSingle()
 
-    if (!offer) return { success: false, error: oDict.errUnitNotFound }
+    if (!offer || offer.status !== 'counter_offered') {
+      return { success: false, error: oDict.errUnitNotFound }
+    }
 
-    // التحقق أن هذا العرض يخص المشتري المسجل دخوله
+    // التحقق الصارم أن هذا العرض يخص buyer_user_id المسجل دخوله فقط
     const role = String(user.role || 'user').trim().toLowerCase()
     const isStaff = role === 'admin' || role === 'moderator' || role === 'sales'
-    const isBuyerOwner =
-      isStaff ||
-      offer.buyer_user_id === user.id ||
-      (user.phone &&
-        offer.buyer_phone &&
-        String(user.phone).trim() === String(offer.buyer_phone).trim())
+    const isBuyerOwner = isStaff || offer.buyer_user_id === user.id
 
     if (!isBuyerOwner) {
       return { success: false, error: oDict.errLoginRequired }
@@ -632,7 +693,9 @@ export async function respondToCounterOfferByBuyerAction(payload: {
       .eq('id', offer.property_id)
       .maybeSingle()
 
-    if (!unit) return { success: false, error: oDict.errUnitNotFound }
+    if (!unit || unit.status === 'transferring' || unit.status === 'sold') {
+      return { success: false, error: oDict.errUnitAlreadyLocked }
+    }
 
     if (payload.decision === 'accept') {
       const agreedAmount = Number(offer.counter_cash || offer.offered_cash)

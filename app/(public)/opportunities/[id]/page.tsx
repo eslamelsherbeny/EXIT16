@@ -11,6 +11,7 @@ import {
   Copy,
   Heart,
   Share2,
+  ShieldCheck,
   Star,
 } from 'lucide-react'
 import { getCurrentSellerProfileAction } from '@/actions/submit-forms'
@@ -25,6 +26,10 @@ import { isNonGeorgianLegacyArea } from '@/lib/smart-matcher'
 const FALLBACK_UNIT_IMAGE =
   'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=85'
 const FAVORITES_STORAGE_KEY = 'darak_favorites'
+
+// الأعمدة الآمنة فقط بدون name, phone, email أو روابط مستندات الملكية
+const PUBLIC_UNIT_DETAIL_COLUMNS =
+  'id, user_id, project_name, developer_name, area, unit_type, size, garden_size, rooms, bathrooms, floor_number, finishing, delivery_status, delivery_month, delivery_year, features, description, contract_price, paid_amount, market_price, installment_amount, installment_frequency, contract_month, contract_year, years_left, willing_to_discount, discount_amount, images, status, is_featured, featured_until, created_at'
 
 function parseSafeNumber(val: unknown, fallback = 0): number {
   if (typeof val === 'number' && Number.isFinite(val) && val > 0) return val
@@ -41,7 +46,7 @@ function parseSafeNumber(val: unknown, fallback = 0): number {
 }
 
 export default function PropertyDetailsPage() {
-  const { t: dict, locale, dir, siteSettings } = useTranslation()
+  const { t: dict, locale, dir, siteSettings, isStaff } = useTranslation()
   const t = dict.unitDetailsPage
   const c = dict.opportunitiesPage.card
   const filtersT = dict.opportunitiesPage.filters
@@ -67,14 +72,6 @@ export default function PropertyDetailsPage() {
   const [sameProjectCount, setSameProjectCount] = useState<number>(0)
   const [loading, setLoading] = useState(true)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
-
-  useEffect(() => {
-    getCurrentSellerProfileAction().then((res) => {
-      if (res.isLoggedIn && res.user?.id) {
-        setCurrentUserId(res.user.id)
-      }
-    })
-  }, [])
 
   useEffect(() => {
     if (!rawId) return
@@ -106,6 +103,13 @@ export default function PropertyDetailsPage() {
     async function fetchPropertyDetails() {
       setLoading(true)
       try {
+        const profileRes = await getCurrentSellerProfileAction()
+        const loggedId =
+          profileRes.isLoggedIn && profileRes.user?.id
+            ? profileRes.user.id
+            : null
+        setCurrentUserId(loggedId)
+
         const supabase = createBrowserClient(
           process.env.NEXT_PUBLIC_SUPABASE_URL!,
           process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -114,32 +118,52 @@ export default function PropertyDetailsPage() {
         if (rawId) {
           const { data: dbUnit } = await supabase
             .from('sell_requests')
-            .select('*')
+            .select(PUBLIC_UNIT_DETAIL_COLUMNS)
             .eq('id', rawId)
+            .neq('status', 'deleted_by_seller')
             .maybeSingle()
 
           if (dbUnit) {
-            setUnitRow(dbUnit)
+            const isPublicStatus = [
+              'active',
+              'approved',
+              'published',
+              'offer_received',
+            ].includes(String(dbUnit.status || '').toLowerCase())
+            const isOwnerViewing = Boolean(
+              loggedId && dbUnit.user_id && dbUnit.user_id === loggedId
+            )
 
-            const unitArea =
-              dbUnit.area || dbUnit.documents?.__unit_meta?.area
-            if (unitArea) {
-              const { count } = await supabase
-                .from('sell_requests')
-                .select('id', { count: 'exact', head: true })
-                .in('status', ['active', 'offer_received'])
-                .eq('area', unitArea)
-                .neq('id', rawId)
+            // لا نعرض الوحدة للعامة إلا إذا كانت منشورة، أو كان الزائر هو مالكها أو أدمن
+            if (isPublicStatus || isOwnerViewing || isStaff) {
+              setUnitRow(dbUnit)
 
-              setSameProjectCount(count || 0)
+              const unitArea = dbUnit.area
+              if (unitArea) {
+                const { count } = await supabase
+                  .from('sell_requests')
+                  .select('id', { count: 'exact', head: true })
+                  .in('status', [
+                    'active',
+                    'approved',
+                    'published',
+                    'offer_received',
+                  ])
+                  .eq('area', unitArea)
+                  .neq('id', rawId)
+
+                setSameProjectCount(count || 0)
+              }
+            } else {
+              setUnitRow(null)
             }
           }
         }
 
         const { data: otherUnits } = await supabase
           .from('sell_requests')
-          .select('*')
-          .in('status', ['active', 'offer_received'])
+          .select(PUBLIC_UNIT_DETAIL_COLUMNS)
+          .in('status', ['active', 'approved', 'published', 'offer_received'])
           .neq('id', rawId)
           .order('is_featured', { ascending: false })
           .order('created_at', { ascending: false })
@@ -160,16 +184,13 @@ export default function PropertyDetailsPage() {
     }
 
     fetchPropertyDetails()
-  }, [rawId])
+  }, [rawId, isStaff])
 
   const similarDbUnits = useMemo(() => {
     return rawSimilarRows.map((u) => {
-      const meta = u.documents?.__unit_meta || {}
       const uCurrency = getCurrencySymbol('GE', locale)
       const reqCash = parseSafeNumber(u.paid_amount)
-      const rawDel = String(
-        u.delivery_status || meta.delivery_status || ''
-      ).trim()
+      const rawDel = String(u.delivery_status || '').trim()
       const isReady =
         rawDel.includes('جاهز') ||
         rawDel.includes('فوري') ||
@@ -179,7 +200,7 @@ export default function PropertyDetailsPage() {
 
       const parenMatch = rawDel.match(/\(([^)]+)\)/)
       const yearMatch = rawDel.match(/20\d{2}/)
-      const delMonth = u.delivery_month || meta.delivery_month
+      const delMonth = u.delivery_month
       const delivDisplay = isReady
         ? filtersT.deliveryStatuses[1]
         : parenMatch
@@ -194,19 +215,19 @@ export default function PropertyDetailsPage() {
         Boolean(u.is_featured) &&
         (!u.featured_until || new Date(u.featured_until) > new Date())
 
-      const rawArea = u.area || meta.area
+      const rawArea = u.area
       const localizedArea = rawArea
         ? getLocalizedGeorgiaAreaName(rawArea, locale)
         : c.defaultArea
 
-      const roomsCount = parseSafeNumber(u.rooms ?? meta.rooms, 2)
-      const sizeVal = parseSafeNumber(u.size ?? meta.size, 75)
+      const roomsCount = parseSafeNumber(u.rooms, 2)
+      const sizeVal = parseSafeNumber(u.size, 75)
 
       return {
         id: u.id,
         name: u.project_name || c.defaultProject,
         area: localizedArea,
-        specs: `${u.unit_type || meta.unit_type || c.defaultType} · ${roomsCount} ${c.roomsWord} · ${sizeVal} ${c.sqmUnit} · ${t.similarSection.deliveryPrefix} ${delivDisplay}`,
+        specs: `${u.unit_type || c.defaultType} · ${roomsCount} ${c.roomsWord} · ${sizeVal} ${c.sqmUnit} · ${t.similarSection.deliveryPrefix} ${delivDisplay}`,
         cash: reqCash.toLocaleString('en-US'),
         currency: uCurrency,
         featured: isFeat,
@@ -222,15 +243,10 @@ export default function PropertyDetailsPage() {
     if (!unitRow) return null
 
     const row = unitRow
-    const meta =
-      row.documents && typeof row.documents === 'object'
-        ? row.documents.__unit_meta || {}
-        : {}
-
     const currency = getCurrencySymbol('GE', locale)
 
     const projectName = row.project_name || c.defaultProject
-    const rawArea = row.area || meta.area || ''
+    const rawArea = row.area || ''
     const areaName = rawArea
       ? getLocalizedGeorgiaAreaName(rawArea, locale)
       : c.defaultArea
@@ -247,15 +263,15 @@ export default function PropertyDetailsPage() {
       row.code ||
       `U-${numericId.length >= 4 ? numericId : fallbackId || '1001'}`
 
-    const unitType = row.unit_type || meta.unit_type || c.defaultType
+    const unitType = row.unit_type || c.defaultType
     const isStudio =
       unitType.includes('استوديو') ||
       unitType.toLowerCase().includes('studio') ||
       unitType.toLowerCase().includes('студия') ||
       unitType.includes('სტუდიო')
 
-    const size = parseSafeNumber(row.size ?? meta.size, 75)
-    const rawFloor = row.floor_number ?? meta.floor_number
+    const size = parseSafeNumber(row.size, 75)
+    const rawFloor = row.floor_number
     const floor =
       rawFloor !== null &&
       rawFloor !== undefined &&
@@ -263,24 +279,13 @@ export default function PropertyDetailsPage() {
         ? String(rawFloor)
         : t.specs.typicalFloor
 
-    const rooms = parseSafeNumber(
-      row.rooms ?? meta.rooms,
-      isStudio ? 1 : 2
-    )
-    const bathrooms = parseSafeNumber(
-      row.bathrooms ?? meta.bathrooms,
-      1
-    )
-    const finishing =
-      row.finishing || meta.finishing || t.specs.defaultFinishing
-    const deliveryStatus =
-      row.delivery_status || meta.delivery_status || t.specs.defaultStatus
+    const rooms = parseSafeNumber(row.rooms, isStudio ? 1 : 2)
+    const bathrooms = parseSafeNumber(row.bathrooms, 1)
+    const finishing = row.finishing || t.specs.defaultFinishing
+    const deliveryStatus = row.delivery_status || t.specs.defaultStatus
 
-    const contractYear = parseSafeNumber(
-      row.contract_year ?? meta.contract_year,
-      2024
-    )
-    const contractMonth = row.contract_month || meta.contract_month
+    const contractYear = parseSafeNumber(row.contract_year, 2024)
+    const contractMonth = row.contract_month
     const contractDateFormatted = contractMonth
       ? `${contractMonth}/${contractYear}`
       : String(contractYear)
@@ -291,19 +296,12 @@ export default function PropertyDetailsPage() {
       ? parseSafeNumber(row.discount_amount)
       : 0
 
-    // الكاش المطلوب للمالك هو المبلغ المدفوع الموثق، والتفاوض يعرض تحته بوضوح
     const requiredCash = paidAmount
     const remainingToDeveloper = Math.max(0, contractPrice - paidAmount)
     const marketPrice = parseSafeNumber(row.market_price)
-    const installmentAmount = parseSafeNumber(
-      row.installment_amount ?? meta.installment_amount
-    )
-    const installmentFreq =
-      row.installment_frequency || meta.installment_frequency || c.defaultFreq
-    const remainingInstallmentMonths = parseSafeNumber(
-      row.years_left ?? meta.years_left,
-      0
-    )
+    const installmentAmount = parseSafeNumber(row.installment_amount)
+    const installmentFreq = row.installment_frequency || c.defaultFreq
+    const remainingInstallmentMonths = parseSafeNumber(row.years_left, 0)
 
     const pricePerMeter =
       size > 0 && contractPrice > 0 ? Math.round(contractPrice / size) : 0
@@ -328,7 +326,7 @@ export default function PropertyDetailsPage() {
 
     const parenMatch = rawDelStr.match(/\(([^)]+)\)/)
     const yearMatch = rawDelStr.match(/20\d{2}/)
-    const delivMonth = row.delivery_month || meta.delivery_month
+    const delivMonth = row.delivery_month
 
     const deliveryDisplay = isReadyDelivery
       ? t.specs.readyForDelivery
@@ -379,18 +377,20 @@ export default function PropertyDetailsPage() {
     ]
 
     const tags: string[] =
-      Array.isArray(row.features) && row.features.length > 0
-        ? row.features
-        : Array.isArray(meta.features)
-          ? meta.features
-          : []
+      Array.isArray(row.features) && row.features.length > 0 ? row.features : []
     const descriptionText = row.description || `${projectName} — ${subtitle}`
 
     const isFeaturedActive =
       Boolean(row.is_featured) &&
       (!row.featured_until || new Date(row.featured_until) > new Date())
 
+    const isOwner = Boolean(
+      currentUserId && row.user_id && row.user_id === currentUserId
+    )
+
     return {
+      id: String(row.id),
+      isOwner,
       projectName,
       areaName,
       subtitle,
@@ -417,7 +417,7 @@ export default function PropertyDetailsPage() {
       commission,
       totalRequiredNow,
     }
-  }, [unitRow, locale, c, t, filtersT, monthsWord, commissionRate])
+  }, [unitRow, currentUserId, locale, c, t, filtersT, monthsWord, commissionRate])
 
   const copyUnitCode = () => {
     if (!computedUnit) return
@@ -799,17 +799,54 @@ export default function PropertyDetailsPage() {
           </section>
         )}
 
-        <UnitInterestForm
-          unitCode={computedUnit.code}
-          projectName={computedUnit.projectName}
-          areaName={computedUnit.areaName}
-          unitType={computedUnit.unitType}
-          deliveryYear={computedUnit.deliveryYear}
-          requiredCash={computedUnit.requiredCash}
-          totalRequiredNow={computedUnit.totalRequiredNow}
-          installmentAmount={computedUnit.installmentAmount}
-          currentUserId={currentUserId}
-        />
+        {computedUnit.isOwner ? (
+          <section className="mt-8 rounded-[20px] border border-emerald-200 bg-[#eaf8f2] p-6 text-center shadow-xs">
+            <div className="mx-auto mb-2 flex size-10 items-center justify-center rounded-full bg-[#007a5a] text-white">
+              <ShieldCheck className="size-5" />
+            </div>
+            <h3 className="text-base font-extrabold text-[#0a1122]">
+              {locale === 'ar'
+                ? 'هذه وحدتك المعروضة على المنصة'
+                : locale === 'ru'
+                  ? 'Это ваш объект на платформе'
+                  : locale === 'ka'
+                    ? 'ეს თქვენი ობიექტია პლატფორმაზე'
+                    : 'This is your listed unit on the platform'}
+            </h3>
+            <div className="mt-4 flex flex-wrap justify-center gap-3">
+              <Link
+                href={`/account?view=seller&unitId=${computedUnit.id}`}
+                className="inline-flex h-10 items-center justify-center rounded-xl bg-[#007a5a] px-5 text-xs font-extrabold text-white hover:bg-[#006248]"
+              >
+                {locale === 'ar'
+                  ? 'إدارة وحدتي في حسابي'
+                  : locale === 'ru'
+                    ? 'Управление объектом'
+                    : locale === 'ka'
+                      ? 'ობიექტის მართვა'
+                      : 'Manage Unit in My Account'}
+              </Link>
+              <Link
+                href={`/sell?editUnitId=${computedUnit.id}&step=3`}
+                className="inline-flex h-10 items-center justify-center rounded-xl border border-gray-300 bg-white px-5 text-xs font-bold text-[#0a1122] hover:bg-gray-50"
+              >
+                {dict.accountComponents?.seller?.editDataBtn || 'تعديل البيانات'}
+              </Link>
+            </div>
+          </section>
+        ) : (
+          <UnitInterestForm
+            unitCode={computedUnit.code}
+            projectName={computedUnit.projectName}
+            areaName={computedUnit.areaName}
+            unitType={computedUnit.unitType}
+            deliveryYear={computedUnit.deliveryYear}
+            requiredCash={computedUnit.requiredCash}
+            totalRequiredNow={computedUnit.totalRequiredNow}
+            installmentAmount={computedUnit.installmentAmount}
+            currentUserId={currentUserId}
+          />
+        )}
       </div>
     </main>
   )

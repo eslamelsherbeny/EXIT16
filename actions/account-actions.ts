@@ -885,3 +885,98 @@ export async function cancelUnitPromotionBySellerAction(unitId: string) {
     return { success: false, error: msg.unexpected }
   }
 }
+
+/**
+ * دالة سيرفر محصّنة لجلب مستندات الوحدة الخاصة بالمستخدم الموثق فقط (تمنع ثغرة IDOR تماماً)
+ */
+export async function getAuthorizedUnitDocumentsAction(requestedUnitId?: string | null) {
+  try {
+    const session = await getVerifiedSessionUser()
+    if (!session) {
+      return {
+        isLoggedIn: false,
+        authorized: false,
+        unitId: null,
+        projectName: null,
+        documents: {},
+        unitsList: [],
+      }
+    }
+
+    const { supabase, user } = session
+
+    // جلب جميع وحدات هذا البائع فقط عبر user_id
+    const { data: userUnits } = await supabase
+      .from('sell_requests')
+      .select('id, project_name, area, documents, user_id, status')
+      .eq('user_id', user.id)
+      .neq('status', 'deleted_by_seller')
+      .order('created_at', { ascending: false })
+
+    const unitsList = (userUnits || []).map((u: any) => ({
+      id: String(u.id),
+      project_name: u.project_name || '',
+      area: u.area || '',
+    }))
+
+    let targetUnit: any = null
+
+    if (requestedUnitId) {
+      // التحقق الصارم من أن الوحدة المطلوبة يملكها هذا الـ user_id
+      const verified = await verifyUnitOwnership(supabase, requestedUnitId, user)
+      if (!verified) {
+        return {
+          isLoggedIn: true,
+          authorized: false,
+          unitId: null,
+          projectName: null,
+          documents: {},
+          unitsList,
+        }
+      }
+      targetUnit = verified
+    } else {
+      targetUnit = userUnits?.[0] || null
+    }
+
+    if (!targetUnit) {
+      return {
+        isLoggedIn: true,
+        authorized: true,
+        unitId: null,
+        projectName: null,
+        documents: {},
+        unitsList: [],
+      }
+    }
+
+    const rawDocs =
+      targetUnit.documents && typeof targetUnit.documents === 'object'
+        ? { ...targetUnit.documents }
+        : {}
+
+    delete rawDocs.__unit_meta
+    if (rawDocs.national_id && !rawDocs.passport) {
+      rawDocs.passport = rawDocs.national_id
+      delete rawDocs.national_id
+    }
+
+    return {
+      isLoggedIn: true,
+      authorized: true,
+      unitId: String(targetUnit.id),
+      projectName: targetUnit.project_name || null,
+      documents: rawDocs,
+      unitsList,
+    }
+  } catch {
+    return {
+      isLoggedIn: false,
+      authorized: false,
+      unitId: null,
+      projectName: null,
+      documents: {},
+      unitsList: [],
+    }
+  }
+}

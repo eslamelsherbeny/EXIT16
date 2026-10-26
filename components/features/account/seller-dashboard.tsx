@@ -94,6 +94,9 @@ const REAL_DOC_KEYS = ['contract', 'receipts', 'statement', 'passport'] as const
 function getCompletionLabels(locale: LocaleCode) {
   if (locale === 'en') {
     return {
+      awaitingPhotosBadge: 'Awaiting Photos',
+      awaitingDocsBadge: 'Awaiting Documents',
+      awaitingDetailsBadge: 'Awaiting Details',
       missingPhotosTag: 'Missing Unit Photos',
       missingDocsTag: 'Missing Documents',
       missingDetailsTag: 'Missing Unit Details',
@@ -105,10 +108,19 @@ function getCompletionLabels(locale: LocaleCode) {
         'Upload ownership documents so we can verify and publish your unit',
       headlineMissingDetails:
         'Complete unit specifications so we can review and publish your unit',
+      buyersHintMissingBoth:
+        'Complete photos & documents so we can recommend your unit to them.',
+      buyersHintMissingPhotos:
+        'Upload unit photos so we can recommend your unit to them.',
+      buyersHintMissingDocs:
+        'Upload unit documents so we can recommend your unit to them.',
     }
   }
   if (locale === 'ru') {
     return {
+      awaitingPhotosBadge: 'Ожидает фото',
+      awaitingDocsBadge: 'Ожидает документов',
+      awaitingDetailsBadge: 'Ожидает данных',
       missingPhotosTag: 'Не загружены фото',
       missingDocsTag: 'Не загружены документы',
       missingDetailsTag: 'Не заполнены детали',
@@ -120,10 +132,19 @@ function getCompletionLabels(locale: LocaleCode) {
         'Загрузите документы на объект для проверки и публикации',
       headlineMissingDetails:
         'Заполните характеристики объекта для проверки и публикации',
+      buyersHintMissingBoth:
+        'Загрузите фото и документы, чтобы мы предложили им ваш объект.',
+      buyersHintMissingPhotos:
+        'Загрузите фото объекта, чтобы мы предложили его покупателям.',
+      buyersHintMissingDocs:
+        'Загрузите документы, чтобы мы предложили ваш объект покупателям.',
     }
   }
   if (locale === 'ka') {
     return {
+      awaitingPhotosBadge: 'ფოტოების მოლოდინში',
+      awaitingDocsBadge: 'დოკუმენტების მოლოდინში',
+      awaitingDetailsBadge: 'მონაცემების მოლოდინში',
       missingPhotosTag: 'აკლია ფოტოები',
       missingDocsTag: 'აკლია დოკუმენტები',
       missingDetailsTag: 'აკლია დეტალები',
@@ -135,9 +156,18 @@ function getCompletionLabels(locale: LocaleCode) {
         'ატვირთეთ ობიექტის დოკუმენტები შესამოწმებლად და გამოსაქვეყნებლად',
       headlineMissingDetails:
         'შეავსეთ ობიექტის მონაცემები გამოსაქვეყნებლად',
+      buyersHintMissingBoth:
+        'ატვირთეთ ფოტოები და დოკუმენტები, რომ შევთავაზოთ თქვენი ობიექტი.',
+      buyersHintMissingPhotos:
+        'ატვირთეთ ფოტოები, რომ შევთავაზოთ თქვენი ობიექტი მყიდველებს.',
+      buyersHintMissingDocs:
+        'ატვირთეთ დოკუმენტები, რომ შევთავაზოთ თქვენი ობიექტი მყიდველებს.',
     }
   }
   return {
+    awaitingPhotosBadge: 'بانتظار الصور',
+    awaitingDocsBadge: 'بانتظار المستندات',
+    awaitingDetailsBadge: 'بانتظار استكمال البيانات',
     missingPhotosTag: 'فاضل صور الوحدة',
     missingDocsTag: 'فاضل المستندات',
     missingDetailsTag: 'فاضل استكمال بيانات الوحدة',
@@ -149,6 +179,12 @@ function getCompletionLabels(locale: LocaleCode) {
       'فاضل ترفع مستندات الوحدة عشان نراجعها وننشرها للمشترين',
     headlineMissingDetails:
       'فاضل تكمل باقي مواصفات الوحدة عشان نراجعها وننشرها',
+    buyersHintMissingBoth:
+      'كمّل الصور والمستندات عشان نرشح وحدتك ليهم فوراً.',
+    buyersHintMissingPhotos:
+      'كمّل صور الوحدة عشان نرشح وحدتك ليهم فوراً.',
+    buyersHintMissingDocs:
+      'كمّل رفع المستندات عشان نرشح وحدتك ليهم فوراً.',
   }
 }
 
@@ -156,6 +192,11 @@ export type MissingCompletionItem = {
   key: 'photos' | 'docs' | 'details'
   label: string
   href: string
+}
+
+export type StatusBadgeItem = {
+  label: string
+  cls: string
 }
 
 function calculateUnitCompletion(
@@ -168,9 +209,14 @@ function calculateUnitCompletion(
       ? unit.documents.__unit_meta || {}
       : {}
 
+  const rawImages = Array.isArray(unit.images)
+    ? unit.images
+    : Array.isArray(meta.images)
+      ? meta.images
+      : []
+
   const hasImages =
-    Array.isArray(unit.images) &&
-    unit.images.filter((img) => Boolean(img && String(img).trim())).length > 0
+    rawImages.filter((img: any) => Boolean(img && String(img).trim())).length > 0
 
   const docsObj =
     unit.documents && typeof unit.documents === 'object' ? unit.documents : {}
@@ -222,7 +268,7 @@ function calculateUnitCompletion(
   const completedCount =
     completedDataCount + (hasImages ? 1 : 0) + (hasDocuments ? 1 : 0)
 
-  // حساب النسبة المئوية بدقة بحيث تنقص بوضوح إذا لم يرفع الصور (15%) أو لم يرفع المستندات (15%)
+  // حساب النسبة المئوية بدقة: 70% للبيانات + 15% للصور + 15% للمستندات
   const dataScore = Math.round((completedDataCount / 16) * 70)
   const photosScore = hasImages ? 15 : 0
   const docsScore = hasDocuments ? 15 : 0
@@ -280,60 +326,109 @@ function getSellerTimelineAndStatus(
       return {
         code: 'active',
         stepIndex: 4,
-        marketBadge: t.statusActiveBadge,
-        marketBadgeCls: 'bg-emerald-100 text-[var(--brand-primary,#007a5a)]',
+        marketBadges: [
+          {
+            label: t.statusActiveBadge,
+            cls: 'bg-emerald-100 text-[var(--brand-primary,#007a5a)]',
+          },
+        ] as StatusBadgeItem[],
         headline: t.statusActiveHeadline,
       }
     case 'paused_by_seller':
       return {
         code: 'paused_by_seller',
         stepIndex: 2,
-        marketBadge: t.statusPausedBadge,
-        marketBadgeCls: 'bg-amber-100 text-amber-800',
+        marketBadges: [
+          {
+            label: t.statusPausedBadge,
+            cls: 'bg-amber-100 text-amber-800',
+          },
+        ] as StatusBadgeItem[],
         headline: t.statusPausedHeadline,
       }
     case 'paused_deletion':
       return {
         code: 'paused_deletion',
         stepIndex: 2,
-        marketBadge: t.statusPausedDeletionBadge,
-        marketBadgeCls: 'bg-gray-100 text-gray-600',
+        marketBadges: [
+          {
+            label: t.statusPausedDeletionBadge,
+            cls: 'bg-gray-100 text-gray-600',
+          },
+        ] as StatusBadgeItem[],
         headline: t.statusPausedDeletionHeadline,
       }
     case 'offer_received':
       return {
         code: 'offer_received',
         stepIndex: 5,
-        marketBadge: t.statusOfferBadge,
-        marketBadgeCls: 'bg-purple-100 text-purple-800',
+        marketBadges: [
+          {
+            label: t.statusOfferBadge,
+            cls: 'bg-purple-100 text-purple-800',
+          },
+        ] as StatusBadgeItem[],
         headline: t.statusOfferHeadline,
       }
     case 'transferring':
       return {
         code: 'transferring',
         stepIndex: 6,
-        marketBadge: t.statusTransferBadge,
-        marketBadgeCls: 'bg-blue-100 text-blue-800',
+        marketBadges: [
+          {
+            label: t.statusTransferBadge,
+            cls: 'bg-blue-100 text-blue-800',
+          },
+        ] as StatusBadgeItem[],
         headline: t.statusTransferHeadline,
       }
     case 'sold':
       return {
         code: 'sold',
         stepIndex: 8,
-        marketBadge: t.statusSoldBadge,
-        marketBadgeCls: 'bg-teal-700 text-white',
+        marketBadges: [
+          {
+            label: t.statusSoldBadge,
+            cls: 'bg-teal-700 text-white',
+          },
+        ] as StatusBadgeItem[],
         headline: t.statusSoldHeadline,
       }
     case 'rejected':
       return {
         code: 'rejected',
         stepIndex: 1,
-        marketBadge: t.statusRejectedBadge,
-        marketBadgeCls: 'bg-red-100 text-red-700',
+        marketBadges: [
+          {
+            label: t.statusRejectedBadge,
+            cls: 'bg-red-100 text-red-700',
+          },
+        ] as StatusBadgeItem[],
         headline: t.statusRejectedHeadline,
       }
     default:
       if (!isComplete) {
+        const dynamicBadges: StatusBadgeItem[] = []
+
+        if (!comp.hasAllCoreDetails) {
+          dynamicBadges.push({
+            label: comp.cLabels.awaitingDetailsBadge,
+            cls: 'bg-amber-100 text-amber-900 border border-amber-200/80',
+          })
+        }
+        if (!comp.hasImages) {
+          dynamicBadges.push({
+            label: comp.cLabels.awaitingPhotosBadge,
+            cls: 'bg-amber-100 text-amber-900 border border-amber-200/80',
+          })
+        }
+        if (!comp.hasDocuments) {
+          dynamicBadges.push({
+            label: comp.cLabels.awaitingDocsBadge,
+            cls: 'bg-amber-100 text-amber-900 border border-amber-200/80',
+          })
+        }
+
         let headlineText = comp.cLabels.headlineMissingBoth
         if (!comp.hasAllCoreDetails) {
           headlineText = comp.cLabels.headlineMissingDetails
@@ -348,16 +443,19 @@ function getSellerTimelineAndStatus(
         return {
           code: 'incomplete',
           stepIndex: 1,
-          marketBadge: t.statusIncompleteBadge,
-          marketBadgeCls: 'bg-amber-100 text-amber-800',
+          marketBadges: dynamicBadges,
           headline: headlineText,
         }
       }
       return {
         code: 'pending_review',
         stepIndex: 2,
-        marketBadge: t.statusPendingBadge,
-        marketBadgeCls: 'bg-amber-50 text-amber-800 border border-amber-200',
+        marketBadges: [
+          {
+            label: t.statusPendingBadge,
+            cls: 'bg-amber-50 text-amber-800 border border-amber-200',
+          },
+        ] as StatusBadgeItem[],
         headline: t.statusPendingHeadline,
       }
   }
@@ -483,6 +581,13 @@ export function SellerDashboard({
     : !comp.hasImages
       ? `/sell?editUnitId=${activeUnit.id}&step=5`
       : `/sell?editUnitId=${activeUnit.id}&step=3`
+
+  const dynamicMatchedBuyersIncompleteHint =
+    !comp.hasImages && !comp.hasDocuments
+      ? comp.cLabels.buyersHintMissingBoth
+      : !comp.hasImages
+        ? comp.cLabels.buyersHintMissingPhotos
+        : comp.cLabels.buyersHintMissingDocs
 
   const isCurrentlyFeatured =
     Boolean(activeUnit.is_featured) &&
@@ -676,7 +781,7 @@ export function SellerDashboard({
                       setIsUnitsExpanded(false)
                       setUnitSearchQuery('')
                     }}
-                    className={`flex w-full items-center justify-between gap-3 rounded-2xl border px-3.5 py-3 text-start transition ${
+                    className={`flex w-full flex-wrap items-center justify-between gap-2.5 rounded-2xl border px-3.5 py-3 text-start transition ${
                       isSelected
                         ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary-light,#eaf8f2)]/60 ring-2 ring-[var(--brand-primary,#007a5a)]/15'
                         : 'border-gray-200/80 bg-gray-50/60 hover:border-gray-300 hover:bg-white'
@@ -715,12 +820,15 @@ export function SellerDashboard({
                       </div>
                     </div>
 
-                    <div className="flex shrink-0 items-center gap-2">
-                      <span
-                        className={`rounded-full px-2.5 py-1 text-[10px] font-extrabold ${itemMeta.marketBadgeCls}`}
-                      >
-                        {itemMeta.marketBadge}
-                      </span>
+                    <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+                      {itemMeta.marketBadges.map((badge) => (
+                        <span
+                          key={badge.label}
+                          className={`rounded-full px-2.5 py-1 text-[10px] font-extrabold ${badge.cls}`}
+                        >
+                          {badge.label}
+                        </span>
+                      ))}
                     </div>
                   </button>
                 )
@@ -776,11 +884,14 @@ export function SellerDashboard({
                   <h2 className="text-base font-black text-[var(--brand-navy,#0a1122)] sm:text-lg">
                     {activeUnit.project_name || t.defaultProjectName}
                   </h2>
-                  <span
-                    className={`rounded-full px-2.5 py-0.5 text-[10.5px] font-extrabold ${meta.marketBadgeCls}`}
-                  >
-                    {meta.marketBadge}
-                  </span>
+                  {meta.marketBadges.map((badge) => (
+                    <span
+                      key={badge.label}
+                      className={`rounded-full px-2.5 py-0.5 text-[10.5px] font-extrabold ${badge.cls}`}
+                    >
+                      {badge.label}
+                    </span>
+                  ))}
                 </div>
                 <p className="mt-0.5 text-xs text-gray-500">
                   {activeUnitLocalizedArea}
@@ -885,7 +996,7 @@ export function SellerDashboard({
             </div>
           )}
 
-          {/* أزرار التحكم بالوحدة (تعديل / إيقاف مؤقت / حذف) بدون تكرار زر المستندات */}
+          {/* أزرار التحكم بالوحدة (تعديل / إيقاف مؤقت / حذف) */}
           <div className="mt-4 flex flex-wrap items-center gap-2">
             {!comp.hasImages ? (
               <Link
@@ -951,7 +1062,7 @@ export function SellerDashboard({
                 {realMatchedBuyersCount.toLocaleString('en-US')}{' '}
                 {t.matchedBuyersMiddle}{' '}
                 {!isComplete
-                  ? t.matchedBuyersIncomplete
+                  ? dynamicMatchedBuyersIncompleteHint
                   : t.matchedBuyersComplete}
               </>
             ) : (

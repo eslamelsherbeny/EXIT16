@@ -1,19 +1,22 @@
 'use client'
 
 import { Suspense, useEffect, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import {
   deleteUnitDocumentAction,
+  getAuthorizedUnitDocumentsAction,
   saveUnitDocumentAction,
 } from '@/actions/account-actions'
-import { getCurrentSellerProfileAction } from '@/actions/submit-forms'
 import {
+  AlertCircle,
+  Building2,
   CheckCircle2,
   Eye,
   FileText,
   Loader2,
+  Plus,
   RefreshCw,
   ShieldAlert,
   Trash2,
@@ -31,15 +34,25 @@ function isImageUrl(url?: string, name?: string) {
 }
 
 function AccountDocumentsContent() {
+  const router = useRouter()
   const { t: dict, locale, dir } = useTranslation()
   const t = dict.accountPages.documents as Record<string, any>
   const tCommon = dict.accountPages.common
 
   const DOCUMENT_SECTIONS: Array<{ key: DocKeyType; title: string }> = [
-    { key: 'contract', title: t.sections?.contract || 'عقد الوحدة الابتدائي أو النهائي' },
+    {
+      key: 'contract',
+      title: t.sections?.contract || 'عقد الوحدة الابتدائي أو النهائي',
+    },
     { key: 'receipts', title: t.sections?.receipts || 'إيصالات السداد' },
-    { key: 'statement', title: t.sections?.statement || 'كشف حساب المطور (Statement)' },
-    { key: 'passport', title: t.sections?.passport || 'صورة جواز السفر (Passport)' },
+    {
+      key: 'statement',
+      title: t.sections?.statement || 'كشف حساب المطور (Statement)',
+    },
+    {
+      key: 'passport',
+      title: t.sections?.passport || 'صورة جواز السفر (Passport)',
+    },
   ]
 
   const changeFileLabel =
@@ -92,52 +105,59 @@ function AccountDocumentsContent() {
           ? 'დოკუმენტი წაიშალა ✓'
           : 'Document removed ✓')
 
+  const noUnitsLabel =
+    locale === 'ar'
+      ? 'لا توجد وحدات مسجلة في حسابك حالياً لرفع مستنداتها.'
+      : locale === 'ru'
+        ? 'В вашем аккаунте пока нет зарегистрированных объектов.'
+        : locale === 'ka'
+          ? 'თქვენს ანგარიშზე ობიექტები ვერ მოიძებნა.'
+          : 'No registered units found in your account.'
+
   const searchParams = useSearchParams()
   const unitIdParam = searchParams.get('unitId')
 
   const [unitId, setUnitId] = useState<string>(unitIdParam || '')
+  const [projectName, setProjectName] = useState<string>('')
+  const [userUnits, setUserUnits] = useState<
+    Array<{ id: string; project_name: string; area: string }>
+  >([])
   const [docs, setDocs] = useState<Record<string, any>>({})
   const [loading, setLoading] = useState(true)
   const [uploadingKey, setUploadingKey] = useState<string | null>(null)
   const [deletingKey, setDeletingKey] = useState<string | null>(null)
   const [message, setMessage] = useState('')
+  const [errorMsg, setErrorMsg] = useState('')
   const [previewDoc, setPreviewDoc] = useState<{
     url: string
     title: string
   } | null>(null)
 
-  useEffect(() => {
-    async function loadDocs() {
-      const supabase = createClient()
-      const profileRes = await getCurrentSellerProfileAction()
+  async function fetchVerifiedDocs(targetId?: string | null) {
+    setLoading(true)
+    setErrorMsg('')
+    const res = await getAuthorizedUnitDocumentsAction(targetId)
 
-      let query = supabase
-        .from('sell_requests')
-        .select('id, user_id, email, phone, documents')
-        .neq('status', 'deleted_by_seller')
-        .order('created_at', { ascending: false })
-
-      if (unitIdParam) {
-        query = query.eq('id', unitIdParam)
-      } else if (profileRes.isLoggedIn && profileRes.user?.id) {
-        query = query.eq('user_id', profileRes.user.id)
-      }
-
-      const { data } = await query.limit(1).maybeSingle()
-      if (data) {
-        setUnitId(String(data.id))
-        const rawDocs =
-          data.documents && typeof data.documents === 'object'
-            ? { ...data.documents }
-            : {}
-        if (rawDocs.national_id && !rawDocs.passport) {
-          rawDocs.passport = rawDocs.national_id
-        }
-        setDocs(rawDocs)
-      }
-      setLoading(false)
+    if (!res.isLoggedIn) {
+      router.replace('/login?next=/account/documents')
+      return
     }
-    loadDocs()
+
+    if (!res.authorized) {
+      // إذا حاول فتح unitId لا يملكه، نعيده فوراً لصفحة حسابه
+      router.replace('/account')
+      return
+    }
+
+    setUserUnits(res.unitsList || [])
+    setUnitId(res.unitId || '')
+    setProjectName(res.projectName || '')
+    setDocs(res.documents || {})
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    fetchVerifiedDocs(unitIdParam)
   }, [unitIdParam])
 
   const handleFileUpload = async (
@@ -149,6 +169,7 @@ function AccountDocumentsContent() {
 
     setUploadingKey(docKey)
     setMessage('')
+    setErrorMsg('')
 
     try {
       const supabase = createClient()
@@ -159,11 +180,13 @@ function AccountDocumentsContent() {
         .from('unit-images')
         .upload(path, file, { contentType: file.type, upsert: true })
 
-      let publicUrl = `https://storage.aqarexit.com/${path}`
-      if (!uploadErr) {
-        publicUrl = supabase.storage.from('unit-images').getPublicUrl(path)
-          .data.publicUrl
+      if (uploadErr) {
+        setErrorMsg(uploadErr.message)
+        return
       }
+
+      const publicUrl = supabase.storage.from('unit-images').getPublicUrl(path)
+        .data.publicUrl
 
       const res = await saveUnitDocumentAction({
         unitId,
@@ -173,8 +196,12 @@ function AccountDocumentsContent() {
       })
 
       if (res.success && res.documents) {
-        setDocs(res.documents)
+        const cleanDocs = { ...res.documents }
+        delete cleanDocs.__unit_meta
+        setDocs(cleanDocs)
         setMessage(t.uploadSuccess)
+      } else {
+        setErrorMsg(res.error || 'تعذر حفظ المستند')
       }
     } finally {
       setUploadingKey(null)
@@ -185,11 +212,14 @@ function AccountDocumentsContent() {
     if (!unitId) return
     setDeletingKey(docKey)
     setMessage('')
+    setErrorMsg('')
 
     try {
       const res = await deleteUnitDocumentAction({ unitId, docKey })
       if (res.success && res.documents) {
-        setDocs(res.documents)
+        const cleanDocs = { ...res.documents }
+        delete cleanDocs.__unit_meta
+        setDocs(cleanDocs)
         setMessage(deleteSuccessLabel)
       }
     } finally {
@@ -197,8 +227,8 @@ function AccountDocumentsContent() {
     }
   }
 
-  const uploadedCount = DOCUMENT_SECTIONS.filter(
-    (s) => Boolean(docs[s.key]?.url)
+  const uploadedCount = DOCUMENT_SECTIONS.filter((s) =>
+    Boolean(docs[s.key]?.url)
   ).length
 
   return (
@@ -208,12 +238,45 @@ function AccountDocumentsContent() {
     >
       <div className="mx-auto max-w-[660px]">
         <header className="mb-6 text-start">
-          <h1 className="text-2xl font-black text-[var(--brand-navy,#0a1122)]">
-            {t.title}
-          </h1>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h1 className="text-2xl font-black text-[var(--brand-navy,#0a1122)]">
+              {t.title}
+            </h1>
+            {projectName && (
+              <span className="inline-flex items-center gap-1.5 rounded-xl bg-[#0a1122] px-3 py-1 text-xs font-extrabold text-white">
+                <Building2 className="size-3.5 text-emerald-400" />
+                <span>{projectName}</span>
+              </span>
+            )}
+          </div>
           <p className="mt-1.5 text-xs text-slate-500 sm:text-sm">
             {t.subtitle}
           </p>
+
+          {/* إذا كان لدى البائع أكثر من وحدة، نتيح له التبديل بينها بأمان */}
+          {userUnits.length > 1 && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {userUnits.map((u) => {
+                const active = u.id === unitId
+                return (
+                  <button
+                    key={u.id}
+                    type="button"
+                    onClick={() =>
+                      router.replace(`/account/documents?unitId=${u.id}`)
+                    }
+                    className={`rounded-xl border px-3.5 py-1.5 text-xs font-extrabold transition ${
+                      active
+                        ? 'border-[#007a5a] bg-[#eaf8f2] text-[#007a5a]'
+                        : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    {u.project_name || 'وحدة'}
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </header>
 
         <div
@@ -248,9 +311,27 @@ function AccountDocumentsContent() {
           </div>
         )}
 
+        {errorMsg && (
+          <div className="mb-6 flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 p-3.5 text-center text-xs font-bold text-red-600">
+            <AlertCircle className="size-4 shrink-0" />
+            <span>{errorMsg}</span>
+          </div>
+        )}
+
         {loading ? (
           <div className="rounded-2xl bg-white p-10 text-center text-xs font-bold text-gray-500">
             {t.loading}
+          </div>
+        ) : !unitId ? (
+          <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center">
+            <p className="text-sm font-bold text-gray-600">{noUnitsLabel}</p>
+            <Link
+              href="/sell?new=1"
+              className="mt-4 inline-flex h-10 items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] px-5 text-xs font-extrabold text-white"
+            >
+              <Plus className="size-4" />
+              <span>{dict.accountPages.main?.sellCta || 'اعرض وحدتك للبيع'}</span>
+            </Link>
           </div>
         ) : (
           <div className="space-y-4">

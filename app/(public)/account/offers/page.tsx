@@ -34,6 +34,7 @@ import {
   type MatchableBuyer,
   type MatchableUnit,
 } from '@/lib/smart-matcher'
+import { toEnglishDigits } from '@/components/features/seller/seller-shared'
 import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
 import {
   Dialog,
@@ -103,7 +104,7 @@ function OffersContent() {
     setLoading(true)
     const res = await getAccountOffersDataAction()
     if (!res.isLoggedIn) {
-      router.push('/login?next=/account/offers')
+      router.replace('/login?next=/account/offers')
       return
     }
     setSells(res.sells)
@@ -111,8 +112,11 @@ function OffersContent() {
     setSellerOffers(res.sellerOffers)
     setBuyerOffers(res.buyerOffers)
 
+    const myOwnUnitIds = new Set(res.sells.map((s) => String(s.id)))
+
     const seenKeys = new Set<string>()
     const uniqueRecs = res.smartRecommendations.filter((item) => {
+      if (myOwnUnitIds.has(String(item.unit.id))) return false
       const signature = `${item.unit.project_name || ''}_${item.unit.area || ''}_${item.unit.paid_amount || 0}_${item.unit.unit_type || ''}`
       if (!item.recommendedByAdmin && seenKeys.has(signature)) {
         return false
@@ -126,27 +130,33 @@ function OffersContent() {
     if (filterUnitId && res.sells.some((s) => s.id === filterUnitId)) {
       setRoleView('seller')
     } else if (applyUnitId) {
-      setRoleView('buyer')
-      const targetRec =
-        uniqueRecs.find((r) => r.unit.id === applyUnitId) ||
-        res.smartRecommendations.find((r) => r.unit.id === applyUnitId)
-      if (targetRec) {
-        openBuyerOfferModal(targetRec.unit)
+      // منع المشتري من تقديم عرض شراء على وحدته الشخصية
+      if (myOwnUnitIds.has(String(applyUnitId))) {
+        setRoleView('seller')
       } else {
-        try {
-          const supabase = createBrowserClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-          )
-          const { data: directUnit } = await supabase
-            .from('sell_requests')
-            .select('*')
-            .eq('id', applyUnitId)
-            .maybeSingle()
-          if (directUnit) {
-            openBuyerOfferModal(directUnit as MatchableUnit)
-          }
-        } catch {}
+        setRoleView('buyer')
+        const targetRec =
+          uniqueRecs.find((r) => r.unit.id === applyUnitId) ||
+          res.smartRecommendations.find((r) => r.unit.id === applyUnitId)
+        if (targetRec) {
+          openBuyerOfferModal(targetRec.unit)
+        } else {
+          try {
+            const supabase = createBrowserClient(
+              process.env.NEXT_PUBLIC_SUPABASE_URL!,
+              process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+            )
+            const { data: directUnit } = await supabase
+              .from('sell_requests')
+              .select('*')
+              .eq('id', applyUnitId)
+              .in('status', ['active', 'approved', 'published'])
+              .maybeSingle()
+            if (directUnit && !myOwnUnitIds.has(String(directUnit.id))) {
+              openBuyerOfferModal(directUnit as MatchableUnit)
+            }
+          } catch {}
+        }
       }
     } else if (res.sells.length > 0 && res.buys.length === 0) {
       setRoleView('seller')
@@ -176,7 +186,8 @@ function OffersContent() {
   function handleSubmitBuyerOffer() {
     if (!offerModalUnit) return
     setFeedback(null)
-    const finalAmount = Number(customOfferCashStr.replace(/,/g, '')) || 0
+    const finalAmount =
+      Number(toEnglishDigits(customOfferCashStr).replace(/,/g, '')) || 0
 
     startTransition(async () => {
       const res = await submitBuyerOfferAction({
@@ -223,7 +234,8 @@ function OffersContent() {
   function handleSendSellerCounter() {
     if (!counterModalOffer) return
     setFeedback(null)
-    const amount = Number(counterCashStr.replace(/,/g, '')) || 0
+    const amount =
+      Number(toEnglishDigits(counterCashStr).replace(/,/g, '')) || 0
 
     startTransition(async () => {
       const res = await respondToOfferBySellerAction({
@@ -912,7 +924,8 @@ function OffersContent() {
             (() => {
               const guard = getUnitPricingGuardrails(offerModalUnit)
               const typedAmount =
-                Number(customOfferCashStr.replace(/,/g, '')) || 0
+                Number(toEnglishDigits(customOfferCashStr).replace(/,/g, '')) ||
+                0
               const isFullPrice = typedAmount >= guard.requiredCash
               const isTooLowFake =
                 guard.allowNegotiation &&
@@ -934,7 +947,8 @@ function OffersContent() {
                   <div className="mt-3 space-y-4 text-xs">
                     <div className="rounded-2xl border border-gray-200 bg-gray-50/70 p-4">
                       <label className="mb-2.5 block font-extrabold text-[#0a1122]">
-                        1. {t.selectOfferTypeLabel || t.enterNegotiatedCashLabel}:
+                        1.{' '}
+                        {t.selectOfferTypeLabel || t.enterNegotiatedCashLabel}:
                       </label>
 
                       {guard.allowNegotiation ? (
@@ -1006,7 +1020,9 @@ function OffersContent() {
                         value={customOfferCashStr}
                         onChange={(e) => {
                           if (!guard.allowNegotiation) return
-                          const digits = e.target.value.replace(/\D/g, '')
+                          const digits = toEnglishDigits(
+                            e.target.value
+                          ).replace(/\D/g, '')
                           const num = Number(digits) || 0
                           setOfferMode(
                             num >= guard.requiredCash ? 'full' : 'negotiate'
@@ -1162,7 +1178,10 @@ function OffersContent() {
                   dir="ltr"
                   value={counterCashStr}
                   onChange={(e) => {
-                    const digits = e.target.value.replace(/\D/g, '')
+                    const digits = toEnglishDigits(e.target.value).replace(
+                      /\D/g,
+                      ''
+                    )
                     setCounterCashStr(
                       digits ? Number(digits).toLocaleString('en-US') : ''
                     )

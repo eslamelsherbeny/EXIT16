@@ -44,7 +44,7 @@ export default function AccountDetailsPage() {
     async function loadProfile() {
       const res = await getCurrentSellerProfileAction()
       if (!res.isLoggedIn || !res.user) {
-        router.push('/login?next=/account/details')
+        router.replace('/login?next=/account/details')
         return
       }
       setName(res.user.name || '')
@@ -86,6 +86,7 @@ export default function AccountDetailsPage() {
           type: 'success',
           text: res.message || t.personalSaveSuccess,
         })
+        router.refresh()
       } else {
         setPersonalMsg({
           type: 'error',
@@ -105,6 +106,7 @@ export default function AccountDetailsPage() {
           type: 'success',
           text: res.message || t.emailSaveSuccess,
         })
+        router.refresh()
       } else {
         setEmailMsg({
           type: 'error',
@@ -156,6 +158,7 @@ export default function AccountDetailsPage() {
                     id="name"
                     type="text"
                     dir={dir}
+                    maxLength={120}
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     required
@@ -181,6 +184,7 @@ export default function AccountDetailsPage() {
                       type="tel"
                       inputMode="tel"
                       dir="ltr"
+                      maxLength={20}
                       value={phone}
                       onChange={(e) =>
                         setPhone(toEnglishDigits(e.target.value))
@@ -242,6 +246,7 @@ export default function AccountDetailsPage() {
                     id="email"
                     type="email"
                     dir="ltr"
+                    maxLength={160}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required

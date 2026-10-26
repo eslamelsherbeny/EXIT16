@@ -21,7 +21,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { getLocalizedGeorgiaAreaName } from "@/components/shared/georgia-areas"
+import { getLocalizedGeorgiaAreaName } from "@/lib/smart-matcher"
 import { getServerI18n } from "@/lib/get-server-dictionary"
 import { getCurrencySymbol } from "@/lib/i18n-config"
 
@@ -62,7 +62,9 @@ export default async function AdminPage() {
   const t = (dict?.admin?.dashboard as Record<string, any>) || {}
   const statusesDict = (t.statuses as Record<string, string>) || {}
   const leadsDict = (dict?.admin?.leads as Record<string, any>) || {}
-  const sm = ((dict?.admin as Record<string, any>)?.smartMatch as Record<string, any>) || {}
+  const sm =
+    ((dict?.admin as Record<string, any>)?.smartMatch as Record<string, any>) ||
+    {}
 
   const georgiaLabel = t.countries?.GE || "Georgia"
   const georgiaCurrency = getCurrencySymbol(ACTIVE_ADMIN_COUNTRY, locale)

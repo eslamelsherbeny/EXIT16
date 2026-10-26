@@ -1,4 +1,3 @@
-import Link from "next/link"
 import { cookies } from "next/headers"
 import { createServerClient } from "@supabase/ssr"
 import { ShieldAlert, LogIn, Home } from "lucide-react"

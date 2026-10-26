@@ -2,18 +2,20 @@
 
 import { Suspense, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Eye, EyeOff, Loader2, ShieldCheck } from 'lucide-react'
 import {
   AuthCard,
   AuthLayout,
   TurnstileBox,
 } from '@/components/layouts/auth-layout'
+import { toEnglishDigits } from '@/components/features/seller/seller-shared'
 import { loginAction, verifyAccountAction } from '@/actions/auth-actions'
 import { useTranslation } from '@/lib/i18n'
 
 function LoginContent() {
-  const { t: dict, dir } = useTranslation()
+  const router = useRouter()
+  const { t: dict, locale, dir } = useTranslation()
   const t = dict.authPages.login as Record<string, any>
   const c = dict.authPages.common
 
@@ -24,13 +26,22 @@ function LoginContent() {
   const nextUrl = searchParams.get('next') || ''
   const isAdminRedirect = nextUrl.startsWith('/admin')
 
+  const [identifier, setIdentifier] = useState(defaultEmail)
   const [error, setError] = useState('')
   const [verifiedSuccess, setVerifiedSuccess] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [pending, setPending] = useState(false)
 
   useEffect(() => {
-    if (isVerifiedParam && defaultEmail) {
+    if (defaultEmail) setIdentifier(defaultEmail)
+  }, [defaultEmail])
+
+  useEffect(() => {
+    setError('')
+  }, [locale])
+
+  useEffect(() => {
+    if (isVerifiedParam && defaultEmail && verifyToken) {
       verifyAccountAction(defaultEmail, verifyToken).then((res) => {
         if (res.success) setVerifiedSuccess(true)
       })
@@ -44,13 +55,20 @@ function LoginContent() {
 
     try {
       const formData = new FormData(e.currentTarget)
+      const normalizedId = toEnglishDigits(identifier).trim()
+      formData.set('emailOrPhone', normalizedId)
       if (nextUrl) {
         formData.set('nextUrl', nextUrl)
       }
+
       const result = await loginAction(formData)
 
       if (result.success) {
-        window.location.replace(result.redirectTo || '/account')
+        const target = result.redirectTo || (nextUrl ? nextUrl : '/account')
+        router.refresh()
+        setTimeout(() => {
+          window.location.href = target
+        }, 120)
         return
       } else {
         setError(result.error || t.invalidCredentialsError)
@@ -69,7 +87,10 @@ function LoginContent() {
           {isAdminRedirect && (
             <div className="mb-4 flex items-center justify-center gap-2 rounded-xl border border-[#007a5a]/25 bg-[#eaf8f2] px-3.5 py-2.5 text-xs font-extrabold text-[#007a5a]">
               <ShieldCheck className="size-4 shrink-0" />
-              <span>{t.adminLoginBanner || dict.admin?.accessDenied?.staffLoginBtn}</span>
+              <span>
+                {t.adminLoginBanner ||
+                  dict.admin?.accessDenied?.staffLoginBtn}
+              </span>
             </div>
           )}
 
@@ -89,7 +110,10 @@ function LoginContent() {
           )}
 
           {error && (
-            <div className="mt-4 rounded-xl bg-red-50 p-3 text-center text-xs font-bold text-red-600">
+            <div
+              role="alert"
+              className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-center text-xs font-bold text-red-600"
+            >
               {error}
             </div>
           )}
@@ -110,7 +134,10 @@ function LoginContent() {
                 type="text"
                 dir="ltr"
                 maxLength={160}
-                defaultValue={defaultEmail}
+                value={identifier}
+                onChange={(e) =>
+                  setIdentifier(toEnglishDigits(e.target.value))
+                }
                 required
                 className="h-12 w-full rounded-xl border border-input bg-background px-4 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary,#007a5a)]"
                 placeholder={t.identifierPlaceholder}

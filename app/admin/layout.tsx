@@ -7,7 +7,6 @@ import {
   parseAndVerifySessionCookie,
 } from "@/lib/session-security"
 import { getServerI18n } from "@/lib/get-server-dictionary"
-import { localizeNotificationItem } from "@/actions/notification-actions"
 import AdminShell, {
   type AdminNotificationItem,
   type StaffRole,
@@ -253,37 +252,27 @@ export default async function AdminLayout({
       .limit(30)
 
     if (dbNotifs && dbNotifs.length > 0) {
-      notifications = await Promise.all(
-        dbNotifs.map(async (n: any) => {
-          const rawType = String(n.type || "property")
-          const mappedType: "property" | "lead" | "investor" =
-            rawType === "lead" || rawType === "property_match"
-              ? "lead"
-              : rawType === "investor"
-                ? "investor"
-                : "property"
+      notifications = dbNotifs.map((n: any) => {
+        const rawType = String(n.type || "property")
+        const mappedType: "property" | "lead" | "investor" =
+          rawType === "lead" || rawType === "property_match"
+            ? "lead"
+            : rawType === "investor"
+              ? "investor"
+              : "property"
 
-          let titleStr = String(n.title || "")
-          let msgStr = String(n.message || "")
-          try {
-            const localized = await localizeNotificationItem(n, dict)
-            titleStr = localized.title
-            msgStr = localized.message
-          } catch {}
-
-          return {
-            id: String(n.id),
-            title: titleStr,
-            subtitle: msgStr,
-            href: n.link || "/admin/properties",
-            type: mappedType,
-            isRead: Boolean(n.is_read),
-            createdAt: n.created_at
-              ? new Date(n.created_at).toLocaleDateString("en-GB")
-              : "Now",
-          }
-        })
-      )
+        return {
+          id: String(n.id),
+          title: String(n.title || ""),
+          subtitle: String(n.message || ""),
+          href: n.link || "/admin/properties",
+          type: mappedType,
+          isRead: Boolean(n.is_read),
+          createdAt: n.created_at
+            ? new Date(n.created_at).toLocaleDateString("en-GB")
+            : "Now",
+        }
+      })
 
       unreadCount = notifications.filter((n) => !n.isRead).length
     }

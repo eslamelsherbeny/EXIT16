@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, Loader2 } from 'lucide-react'
 import {
   AuthCard,
@@ -9,11 +10,13 @@ import {
   TurnstileBox,
 } from '@/components/layouts/auth-layout'
 import { CountrySelector } from '@/components/shared/country-selector'
+import { toEnglishDigits } from '@/components/features/seller/seller-shared'
 import { registerAction } from '@/actions/auth-actions'
 import { useTranslation } from '@/lib/i18n'
 
 export default function RegisterPage() {
-  const { t: dict, dir } = useTranslation()
+  const router = useRouter()
+  const { t: dict, locale, dir } = useTranslation()
   const t = dict.authPages.register
   const c = dict.authPages.common
 
@@ -26,12 +29,16 @@ export default function RegisterPage() {
   const [countryIso, setCountryIso] = useState('GE')
   const [phoneNumber, setPhoneNumber] = useState('')
 
+  useEffect(() => {
+    setError('')
+  }, [locale])
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError('')
     const formData = new FormData(e.currentTarget)
 
-    const cleanPhone = phoneNumber
+    const cleanPhone = toEnglishDigits(phoneNumber)
       .replace(/^0+/, '')
       .replace(/\D/g, '')
       .trim()
@@ -49,7 +56,10 @@ export default function RegisterPage() {
     startTransition(async () => {
       const result = await registerAction(formData)
       if (result.success) {
-        window.location.href = '/account'
+        router.refresh()
+        setTimeout(() => {
+          window.location.href = '/account'
+        }, 120)
       } else {
         setError(result.error || t.genericError)
       }
@@ -70,7 +80,10 @@ export default function RegisterPage() {
           </div>
 
           {error && (
-            <div className="mt-4 rounded-xl bg-red-50 p-3 text-center text-xs font-bold text-red-600">
+            <div
+              role="alert"
+              className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-center text-xs font-bold text-red-600"
+            >
               {error}
             </div>
           )}
@@ -116,7 +129,9 @@ export default function RegisterPage() {
                   dir="ltr"
                   maxLength={20}
                   value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  onChange={(e) =>
+                    setPhoneNumber(toEnglishDigits(e.target.value))
+                  }
                   required
                   className="h-12 flex-1 rounded-xl border border-input bg-background px-4 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary,#007a5a)]"
                   placeholder="5xx xx xx xx"

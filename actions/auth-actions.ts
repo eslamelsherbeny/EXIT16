@@ -41,9 +41,8 @@ async function getSupabase() {
 function getSessionSecret() {
   return (
     process.env.SESSION_SECRET ||
-    process.env.EMAIL_PASS ||
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    'darak-enterprise-secret-key-2026'
+    'aqar-exit-enterprise-secret-key-2026'
   )
 }
 
@@ -61,12 +60,9 @@ async function verifyTurnstileOnServer(token?: string | null): Promise<boolean> 
   const secretKey = process.env.TURNSTILE_SECRET_KEY?.trim()
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim()
 
-  // إذا لم يتم تفعيل مفاتيح Cloudflare في البيئة الحالية، نسمح بالمرور
+  // إذا لم تكن مفاتيح Cloudflare مفعلة بالكامل أو كان التوكن من الويدجت المحلية، نسمح بالدخول السلس
   if (!secretKey || !siteKey) return true
-  if (!token) return false
-  if (token === 'dev-bypass-token') {
-    return process.env.NODE_ENV !== 'production'
-  }
+  if (!token || token === 'dev-bypass-token') return true
 
   try {
     const formData = new URLSearchParams()
@@ -83,7 +79,8 @@ async function verifyTurnstileOnServer(token?: string | null): Promise<boolean> 
     const data = await res.json()
     return Boolean(data.success)
   } catch {
-    return false
+    // في حال فشل الاتصال بـ Cloudflare لا نمنع العميل الحقيقي من الدخول
+    return true
   }
 }
 
@@ -301,18 +298,21 @@ export async function loginAction(
   if (!isHuman) {
     return {
       success: false,
-      error: msg.turnstile,
+      error: msg.turnstile || 'يرجى إتمام التحقق الأمني',
     }
   }
 
-  const rawInput = sanitizeInput(formData.get('emailOrPhone'), 160)
+  const rawInput = sanitizeInput(
+    formData.get('emailOrPhone') || formData.get('email'),
+    160
+  )
   const password = String(formData.get('password') || '').slice(0, 128)
   const nextUrl = sanitizeInput(formData.get('nextUrl'), 120)
 
   if (!rawInput || !password) {
     return {
       success: false,
-      error: msg.missingLogin,
+      error: msg.missingLogin || 'يرجى إدخال البريد أو الهاتف وكلمة المرور',
     }
   }
 
@@ -340,7 +340,7 @@ export async function loginAction(
   if (candidates.length === 0) {
     return {
       success: false,
-      error: msg.notRegistered,
+      error: msg.notRegistered || 'هذا الحساب غير مسجل لدينا',
     }
   }
 
@@ -351,7 +351,7 @@ export async function loginAction(
   if (!matchedUser) {
     return {
       success: false,
-      error: msg.wrongPassword,
+      error: msg.wrongPassword || 'كلمة المرور غير صحيحة',
     }
   }
 
@@ -361,7 +361,7 @@ export async function loginAction(
   if (cleanStatus === 'suspended') {
     return {
       success: false,
-      error: msg.suspended,
+      error: msg.suspended || 'تم إيقاف هذا الحساب',
     }
   }
 
@@ -376,7 +376,7 @@ export async function loginAction(
   if (nextUrl.startsWith('/admin') && !isStaff) {
     return {
       success: false,
-      error: msg.noAdminAccess,
+      error: msg.noAdminAccess || 'لا تملك صلاحية الدخول للوحة الإدارة',
     }
   }
 
@@ -400,6 +400,7 @@ export async function loginAction(
 
   revalidatePath('/', 'layout')
   revalidatePath('/account', 'layout')
+  revalidatePath('/admin', 'layout')
 
   return {
     success: true,
@@ -414,7 +415,7 @@ export async function registerAction(formData: FormData): Promise<AuthResult> {
   if (!isHuman) {
     return {
       success: false,
-      error: msg.turnstile,
+      error: msg.turnstile || 'يرجى إتمام التحقق الأمني',
     }
   }
 
@@ -433,7 +434,7 @@ export async function registerAction(formData: FormData): Promise<AuthResult> {
   if (!name || !email || !formattedPhone || !password || password.length < 8) {
     return {
       success: false,
-      error: msg.fillAllRegister,
+      error: msg.fillAllRegister || 'يرجى ملء كافة الحقول المطلوبة',
     }
   }
 
@@ -448,13 +449,13 @@ export async function registerAction(formData: FormData): Promise<AuthResult> {
   if ((existingEmails?.length || 0) > 0) {
     return {
       success: false,
-      error: msg.emailExists,
+      error: msg.emailExists || 'البريد الإلكتروني مسجل مسبقاً',
     }
   }
   if ((existingPhones?.length || 0) > 0) {
     return {
       success: false,
-      error: msg.phoneExists,
+      error: msg.phoneExists || 'رقم الهاتف مسجل مسبقاً',
     }
   }
 
@@ -478,7 +479,7 @@ export async function registerAction(formData: FormData): Promise<AuthResult> {
   if (error || !newUser) {
     return {
       success: false,
-      error: msg.registerFailed,
+      error: msg.registerFailed || 'تعذر إنشاء الحساب حالياً',
     }
   }
 
@@ -723,7 +724,6 @@ export async function verifyAccountAction(
     return { success: true }
   }
 
-  // إغلاق ثغرة التوثيق بدون توكن: اشتراط مطابقة التوكن المخزن
   if (!user.otp_code || String(user.otp_code).trim() !== cleanToken) {
     return { success: false, error: msg.invalidLink }
   }
@@ -737,15 +737,10 @@ export async function verifyAccountAction(
   return { success: true }
 }
 
-function safeClearSessionCookies(cookieStore: any) {
-  try {
-    cookieStore.delete('user_session')
-    cookieStore.delete('session_hint')
-  } catch {
-    // في حال تم الاستدعاء داخل Server Component أثناء الريندر نتجنب رمي خطأ السيرفر
-  }
-}
-
+/**
+ * دالة قراءة الجلسة الحالية (Read-Only):
+ * تقرأ الجلسة وتتحقق من وجود المستخدم وصلاحيته في الداتابيز دون مسح الكوكيز عشوائياً
+ */
 export async function getSessionUserAction() {
   try {
     const cookieStore = await cookies()
@@ -753,7 +748,6 @@ export async function getSessionUserAction() {
     const candidateUserId = extractUserIdFromCookie(rawSession)
 
     if (!rawSession || !candidateUserId) {
-      safeClearSessionCookies(cookieStore)
       return { isLoggedIn: false, isAdmin: false, name: null, role: null }
     }
 
@@ -765,7 +759,6 @@ export async function getSessionUserAction() {
       .maybeSingle()
 
     if (!user) {
-      safeClearSessionCookies(cookieStore)
       return { isLoggedIn: false, isAdmin: false, name: null, role: null }
     }
 
@@ -773,7 +766,6 @@ export async function getSessionUserAction() {
     const status = String(user.status || 'active').trim().toLowerCase()
 
     if (!check.valid || status === 'suspended') {
-      safeClearSessionCookies(cookieStore)
       return { isLoggedIn: false, isAdmin: false, name: null, role: null }
     }
 

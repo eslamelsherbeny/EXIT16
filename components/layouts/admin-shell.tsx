@@ -30,6 +30,7 @@ import {
   markAllNotificationsAsReadAction,
   markNotificationAsReadAction,
 } from "@/actions/notification-actions"
+import { logoutAdminAction } from "@/actions/admin-actions"
 import {
   SUPPORTED_LANGUAGES,
   type LanguageConfig,
@@ -174,10 +175,10 @@ export default function AdminShell({
 
   const handleLogout = async () => {
     try {
-      document.cookie = "user_session=; path=/; max-age=0;"
-      document.cookie = "session_hint=; path=/; max-age=0;"
-      window.location.replace("/")
+      await logoutAdminAction()
     } catch {}
+    document.cookie = "session_hint=; path=/; max-age=0;"
+    window.location.replace("/")
   }
 
   const handleToggleNotifications = () => {
@@ -244,7 +245,6 @@ export default function AdminShell({
       dir={dir}
       className="min-h-screen bg-[#f4f6f8] pb-20 text-[#0a1122] lg:pb-0"
     >
-      {/* 1. القائمة الجانبية الثابتة للكمبيوتر */}
       <aside
         className={`fixed inset-y-0 z-30 hidden w-64 border-white/10 bg-[#0a1122] text-white lg:flex lg:flex-col lg:justify-between ${
           isRtl ? "right-0 border-l" : "left-0 border-r"
@@ -357,7 +357,6 @@ export default function AdminShell({
         </div>
       </aside>
 
-      {/* 2. القائمة الجانبية المنزلقة للموبايل */}
       {drawerOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div
@@ -492,7 +491,6 @@ export default function AdminShell({
         </div>
       )}
 
-      {/* 3. الهيدر العلوي */}
       <div className={isRtl ? "lg:mr-64" : "lg:ml-64"}>
         <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-2 border-b border-gray-200/80 bg-white/95 px-3.5 backdrop-blur-md sm:h-16 sm:px-6">
           <div className="flex min-w-0 items-center gap-2.5">
@@ -667,7 +665,6 @@ export default function AdminShell({
         <main className="p-3.5 sm:p-5 lg:p-6">{children}</main>
       </div>
 
-      {/* 4. الشريط السفلي للموبايل */}
       <nav className="fixed inset-x-0 bottom-0 z-30 flex h-15 items-center justify-around border-t border-gray-200/90 bg-white/95 px-1 shadow-[0_-4px_16px_rgba(0,0,0,0.04)] backdrop-blur-md lg:hidden">
         {mobileBottomLinks.map(({ href, shortLabel, icon: Icon }) => {
           const active = isActive(href)
@@ -694,15 +691,3 @@ export default function AdminShell({
     </div>
   )
 }
-
-/* ============================================================================
-   ARCHIVED INVESTORS NAV LINK (COMMENTED FOR FUTURE REFERENCE)
-   ============================================================================
-   {
-     href: "/admin/investors",
-     label: t.nav.investors,
-     shortLabel: t.nav.investorsShort,
-     icon: WalletCards,
-     allowed: ["ADMIN", "MODERATOR"] as StaffRole[],
-   },
-============================================================================ */

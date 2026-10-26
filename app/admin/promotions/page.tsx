@@ -1,3 +1,4 @@
+import { Suspense } from "react"
 import { cookies } from "next/headers"
 import { createServerClient } from "@supabase/ssr"
 import { getServerI18n } from "@/lib/get-server-dictionary"
@@ -26,7 +27,18 @@ export default async function AdminPromotionsPage() {
     .order("is_featured", { ascending: false })
     .order("created_at", { ascending: false })
 
-  const properties = (data ?? []) as SellRequest[]
+  const properties = ((data ?? []) as any[]).map((p) => {
+    const meta =
+      p.documents && typeof p.documents === "object"
+        ? p.documents.__unit_meta || {}
+        : {}
+    return {
+      ...p,
+      area: p.area || meta.area || null,
+      unit_type: p.unit_type || meta.unit_type || null,
+      size: p.size ?? meta.size ?? null,
+    } as SellRequest
+  })
 
   if (error) {
     return (
@@ -40,7 +52,9 @@ export default async function AdminPromotionsPage() {
 
   return (
     <div className="mx-auto max-w-7xl">
-      <PropertiesTable properties={properties} mode="promotions" />
+      <Suspense fallback={null}>
+        <PropertiesTable properties={properties} mode="promotions" />
+      </Suspense>
     </div>
   )
 }

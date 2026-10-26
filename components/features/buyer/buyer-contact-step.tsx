@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   CheckCircle2,
   Eye,
@@ -16,14 +16,15 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { TurnstileBox } from '@/components/layouts/funnel-shell'
+import { TurnstileBox } from '@/components/layouts/auth-layout'
 import { CountrySelector } from '@/components/shared/country-selector'
 import {
   Field,
   RequiredLabel,
+  toEnglishDigits,
   type PlatformCountryCode,
 } from '@/components/features/seller/seller-shared'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation, type LocaleCode } from '@/lib/i18n'
 
 export type BuyerFormState = BuyRequestPayload & {
   country: PlatformCountryCode
@@ -46,6 +47,41 @@ export type BuyerConflictState =
       userId: string
       orderRef: string
     }
+
+const BUYER_STEP3_FALLBACK: Record<LocaleCode, Record<string, string>> = {
+  ar: {
+    enterAccountPassError: 'يرجى إدخال كلمة مرور حسابك للمتابعة',
+    wrongPassError: 'كلمة المرور غير صحيحة',
+    sendLinkError: 'تعذر إرسال الرابط حالياً',
+  },
+  en: {
+    enterAccountPassError: 'Please enter your account password to continue',
+    wrongPassError: 'Incorrect password',
+    sendLinkError: 'Could not send recovery link right now',
+  },
+  ru: {
+    enterAccountPassError: 'Введите пароль от вашего аккаунта для продолжения',
+    wrongPassError: 'Неверный пароль',
+    sendLinkError: 'Не удалось отправить ссылку восстановления',
+  },
+  ka: {
+    enterAccountPassError: 'გთხოვთ შეიყვანოთ ანგარიშის პაროლი გასაგრძელებლად',
+    wrongPassError: 'პაროლი არასწორია',
+    sendLinkError: 'აღდგენის ბმულის გაგზავნა ვერ მოხერხდა',
+  },
+}
+
+function pickMsg(
+  locale: LocaleCode,
+  dictVal: string | undefined,
+  key: string
+): string {
+  const fb =
+    BUYER_STEP3_FALLBACK[locale]?.[key] || BUYER_STEP3_FALLBACK.en[key] || ''
+  if (!dictVal) return fb
+  if (locale !== 'ar' && /[\u0600-\u06FF]/.test(dictVal)) return fb
+  return dictVal
+}
 
 export function BuyerContactStep({
   data,
@@ -79,8 +115,8 @@ export function BuyerContactStep({
   setConflictState: (val: BuyerConflictState) => void
   onSuccessRedirect: () => void
 }) {
-  const { t: dict } = useTranslation()
-  const t = dict.buy.stepThree
+  const { t: dict, locale } = useTranslation()
+  const t = dict.buy.stepThree as Record<string, any>
 
   const [existingPass, setExistingPass] = useState('')
   const [showExistingPass, setShowExistingPass] = useState(false)
@@ -88,10 +124,16 @@ export function BuyerContactStep({
   const [stepError, setStepError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
+  useEffect(() => {
+    setStepError('')
+  }, [locale])
+
   const handleVerifyExistingEmail = async () => {
     if (!conflictState || conflictState.type !== 'email_exists') return
     if (!existingPass.trim()) {
-      setStepError(t.enterAccountPassError)
+      setStepError(
+        pickMsg(locale, t.enterAccountPassError, 'enterAccountPassError')
+      )
       return
     }
     setIsLoading(true)
@@ -102,7 +144,9 @@ export function BuyerContactStep({
         password: existingPass,
       })
       if (!res.success) {
-        setStepError(res.error || t.wrongPassError)
+        setStepError(
+          res.error || pickMsg(locale, t.wrongPassError, 'wrongPassError')
+        )
         return
       }
       onSuccessRedirect()
@@ -126,7 +170,9 @@ export function BuyerContactStep({
       if (res.success) {
         setRecoveryLinkSent(true)
       } else {
-        setStepError(res.error || t.sendLinkError)
+        setStepError(
+          res.error || pickMsg(locale, t.sendLinkError, 'sendLinkError')
+        )
       }
     } finally {
       setIsLoading(false)
@@ -379,7 +425,9 @@ export function BuyerContactStep({
               />
               <Input
                 value={data.phone}
-                onChange={(event) => update('phone', event.target.value)}
+                onChange={(event) =>
+                  update('phone', toEnglishDigits(event.target.value))
+                }
                 inputMode="tel"
                 dir="ltr"
                 placeholder="5xx xx xx xx"

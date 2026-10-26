@@ -70,6 +70,17 @@ export function TurnstileBox({
   const [token, setToken] = useState<string>('')
   const [status, setStatus] = useState<'verifying' | 'verified'>('verifying')
 
+  const turnstileLabel =
+    t?.turnstileText && !(locale !== 'ar' && /[\u0600-\u06FF]/.test(t.turnstileText))
+      ? t.turnstileText
+      : locale === 'ar'
+        ? 'تم التحقق الأمني بنجاح'
+        : locale === 'ru'
+          ? 'Проверка безопасности пройдена'
+          : locale === 'ka'
+            ? 'უსაფრთხოების შემოწმება წარმატებულია'
+            : 'Security verification successful'
+
   useEffect(() => {
     if (!siteKey) {
       setStatus('verifying')
@@ -77,7 +88,7 @@ export function TurnstileBox({
         setToken('dev-bypass-token')
         setStatus('verified')
         onTokenChange?.('dev-bypass-token')
-      }, 550)
+      }, 450)
       return () => clearTimeout(timer)
     }
 
@@ -139,7 +150,6 @@ export function TurnstileBox({
           type="hidden"
           name="cf_turnstile_response"
           value={token}
-          required
         />
       </div>
     )
@@ -170,7 +180,7 @@ export function TurnstileBox({
           )}
 
           <span className="truncate text-xs font-bold text-slate-700 sm:text-[13px]">
-            {t.turnstileText}
+            {turnstileLabel}
           </span>
         </div>
 

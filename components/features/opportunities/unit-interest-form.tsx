@@ -9,8 +9,9 @@ import {
   X,
   ZoomIn,
 } from 'lucide-react'
-import { TurnstileBox } from '@/components/layouts/funnel-shell'
+import { TurnstileBox } from '@/components/layouts/auth-layout'
 import { CountrySelector } from '@/components/shared/country-selector'
+import { toEnglishDigits } from '@/components/features/seller/seller-shared'
 import { useTranslation } from '@/lib/i18n'
 
 export function UnitGalleryWithLightbox({
@@ -265,6 +266,17 @@ export function UnitInterestForm({
   const handleInterestSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setOfferError('')
+
+    const cleanDigits = toEnglishDigits(buyerPhone)
+      .replace(/^0+/, '')
+      .replace(/\D/g, '')
+      .trim()
+
+    if (!buyerName.trim() || cleanDigits.length < 7) {
+      setOfferError(f.errorSubmit)
+      return
+    }
+
     setSubmittingOffer(true)
 
     try {
@@ -273,7 +285,7 @@ export function UnitInterestForm({
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
       )
 
-      const cleanPhone = `+${countryCode.replace('+', '')}${buyerPhone.replace(/^0+/, '').replace(/\D/g, '').trim()}`
+      const cleanPhone = `+${countryCode.replace('+', '')}${cleanDigits}`
       const readinessLabel =
         readiness === 'week'
           ? f.readinessWeek
@@ -285,13 +297,13 @@ export function UnitInterestForm({
         country: 'GE',
         country_code: 'GE',
         currency_code: 'USD',
-        name: buyerName.trim(),
+        name: buyerName.trim().slice(0, 120),
         phone: cleanPhone,
         available_cash: requiredCash,
         budget: totalRequiredNow,
         max_installment: installmentAmount,
         payment_plan: `(${unitCode}) · ${readinessLabel}${
-          buyerNotes ? ` · ${buyerNotes}` : ''
+          buyerNotes.trim() ? ` · ${buyerNotes.trim().slice(0, 300)}` : ''
         }`,
         preferred_areas: [`🎯 ${projectName} (${unitCode}) - ${areaName}`],
         unit_types: [unitType],
@@ -362,6 +374,7 @@ export function UnitInterestForm({
               onChange={(e) => setBuyerName(e.target.value)}
               placeholder={f.namePlaceholder}
               required
+              maxLength={120}
               className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-xs text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:text-sm"
             />
           </div>
@@ -378,11 +391,13 @@ export function UnitInterestForm({
               />
               <input
                 type="tel"
+                inputMode="tel"
                 dir="ltr"
                 value={buyerPhone}
-                onChange={(e) => setBuyerPhone(e.target.value)}
+                onChange={(e) => setBuyerPhone(toEnglishDigits(e.target.value))}
                 placeholder="5xx xx xx xx"
                 required
+                maxLength={20}
                 className="h-11 flex-1 rounded-xl border border-gray-200 bg-white px-4 text-left text-xs font-medium text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:text-sm"
               />
             </div>
@@ -397,6 +412,7 @@ export function UnitInterestForm({
               value={buyerNotes}
               onChange={(e) => setBuyerNotes(e.target.value)}
               placeholder={f.notesPlaceholder}
+              maxLength={350}
               className="w-full rounded-xl border border-gray-200 bg-white p-3.5 text-xs text-[var(--brand-navy,#0a1122)] placeholder:text-gray-400 focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:text-sm"
             />
             <p className="mt-1 text-[10px] text-gray-400">{f.notesHelper}</p>

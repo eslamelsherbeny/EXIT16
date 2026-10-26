@@ -14,6 +14,7 @@ export default function Error({
 }) {
   const { t: dict, dir } = useTranslation()
   const t = dict.systemPages
+  const isDev = process.env.NODE_ENV !== 'production'
 
   useEffect(() => {
     console.error('App error boundary:', error)
@@ -33,7 +34,7 @@ export default function Error({
         </h1>
         <p className="mt-3 text-sm text-slate-500">{t.errorDesc}</p>
 
-        {error?.message && (
+        {isDev && error?.message && (
           <div
             dir="ltr"
             className="mt-4 max-h-28 overflow-auto rounded-xl border border-red-200 bg-red-50 p-3 text-left font-mono text-[11px] text-red-800"

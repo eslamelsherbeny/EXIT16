@@ -95,7 +95,6 @@ type GeorgiaDistrictNode = {
 }
 
 const GEORGIA_REGION_DISTRICTS: GeorgiaDistrictNode[] = [
-  // 1. إقليم تبليسي الكبرى (Greater Tbilisi Metropolitan Area - كل أحيائها تعتبر قريبة لبعضها داخل نفس المحافظة)
   {
     id: 'Tbilisi - Saburtalo',
     regionCode: 'tbilisi_metro',
@@ -215,8 +214,6 @@ const GEORGIA_REGION_DISTRICTS: GeorgiaDistrictNode[] = [
     regionCode: 'tbilisi_metro',
     keywords: ['rustavi', 'روستافي', 'рустави', 'რუსთავი'],
   },
-
-  // 2. إقليم باتومي وساحل أدجارا (Batumi & Adjara Coast - كل أحيائها تعتبر قريبة لبعضها داخل نفس المحافظة)
   {
     id: 'Batumi - New Boulevard',
     regionCode: 'batumi_adjara',
@@ -272,16 +269,12 @@ const GEORGIA_REGION_DISTRICTS: GeorgiaDistrictNode[] = [
     regionCode: 'batumi_adjara',
     keywords: ['kobuleti', 'shekvetili', 'كوبوليتي', 'شيكفيتيلي', 'кобулети', 'ქობულეთი'],
   },
-
-  // 3. إقليم كوتايسي (Kutaisi)
   {
     id: 'Kutaisi',
     regionCode: 'kutaisi_imereti',
     isCityWide: true,
     keywords: ['kutaisi', 'كوتايسي', 'кутаиси', 'ქუთაისი'],
   },
-
-  // 4. إقليم المنتجعات الجبلية (Gudauri, Bakuriani, Borjomi)
   {
     id: 'Gudauri',
     regionCode: 'mountain_resorts',
@@ -297,8 +290,6 @@ const GEORGIA_REGION_DISTRICTS: GeorgiaDistrictNode[] = [
     regionCode: 'mountain_resorts',
     keywords: ['borjomi', 'بورجومي', 'боржоми', 'ბორჯომი'],
   },
-
-  // 5. إقليم كاخيتي (Kakheti - Telavi / Kvareli)
   {
     id: 'Kakheti - Telavi / Kvareli',
     regionCode: 'kakheti_region',
@@ -307,7 +298,6 @@ const GEORGIA_REGION_DISTRICTS: GeorgiaDistrictNode[] = [
   },
 ]
 
-// الكلمات الخاصة بالمناطق القديمة خارج جورجيا لاستبعادها نهائياً
 const NON_GEORGIAN_LEGACY_KEYWORDS = [
   'التجمع',
   'القاهرة',
@@ -362,7 +352,6 @@ function resolveGeorgiaDistrict(rawArea?: string | null): {
     }
   }
 
-  // إذا كتب اسم المحافظة/المدينة فقط (مثل "تبليسي" أو "باتومي") بدون تحديد حي معين
   if (
     clean.includes('tbilisi') ||
     clean.includes('تبليسي') ||
@@ -418,7 +407,6 @@ export function evaluateGeorgiaAreaProximity(
   let foundSameCityRegion = false
 
   for (const bArea of buyerAreas) {
-    // 1. تطابق نصي مباشر في اسم الحي
     if (
       unitArea.toLowerCase() === bArea.toLowerCase() ||
       unitArea.toLowerCase().includes(bArea.toLowerCase()) ||
@@ -429,7 +417,6 @@ export function evaluateGeorgiaAreaProximity(
 
     const buyerResolved = resolveGeorgiaDistrict(bArea)
     if (unitResolved && buyerResolved) {
-      // نفس الحي بالضبط أو المشتري اختار المدينة بالكامل (مثل تبليسي عامةً)
       if (
         unitResolved.nodeId === buyerResolved.nodeId ||
         buyerResolved.isGenericCityOnly
@@ -437,7 +424,6 @@ export function evaluateGeorgiaAreaProximity(
         return { relation: 'exact', distanceKm: 0, points: 20 }
       }
 
-      // نفس المحافظة / النطاق الحضري للمدينة (مثل سابورتالو وفاكي وأورتاشالا داخل تبليسي الكبرى)
       if (unitResolved.regionCode === buyerResolved.regionCode) {
         foundSameCityRegion = true
       }
@@ -448,7 +434,6 @@ export function evaluateGeorgiaAreaProximity(
     return { relation: 'same_city', distanceKm: null, points: 16 }
   }
 
-  // في محافظة أخرى بعيدة (مثلاً الوحدة في باتومي والمشتري يريد تبليسي)
   return { relation: 'far', distanceKm: null, points: 0 }
 }
 
@@ -544,22 +529,35 @@ export function cleanPreferredAreasList(
 
 export function getUnitPricingGuardrails(unit: MatchableUnit) {
   const requiredCash = Math.max(0, Number(unit.paid_amount) || 0)
-  const rawSellerDiscount = Number(unit.discount_amount) || 0
+  const rawSellerDiscount = Math.max(0, Number(unit.discount_amount) || 0)
+  const sellerAllowsDiscount = Boolean(
+    unit.willing_to_discount || rawSellerDiscount > 0
+  )
 
   if (requiredCash <= 0) {
     return {
       requiredCash: 0,
-      allowNegotiation: true,
+      allowNegotiation: false,
       minAllowedOfferCash: 0,
       maxAllowedOfferCash: 0,
       maxDiscountAmount: 0,
     }
   }
 
-  const defaultMaxDiscount = Math.round(requiredCash * 0.25)
+  if (!sellerAllowsDiscount) {
+    return {
+      requiredCash,
+      allowNegotiation: false,
+      minAllowedOfferCash: requiredCash,
+      maxAllowedOfferCash: requiredCash,
+      maxDiscountAmount: 0,
+    }
+  }
+
+  const defaultMaxDiscount = Math.round(requiredCash * 0.2)
   const maxDiscountAmount =
-    rawSellerDiscount > defaultMaxDiscount
-      ? rawSellerDiscount
+    rawSellerDiscount > 0
+      ? Math.min(requiredCash - 1, rawSellerDiscount)
       : defaultMaxDiscount
 
   const minAllowedOfferCash = Math.max(1, requiredCash - maxDiscountAmount)
@@ -609,7 +607,6 @@ export function calculateSmartMatch(
     buyer.preferred_areas
   )
 
-  // استبعاد أي وحدة قديمة مسجلة خارج جورجيا
   if (areaEval.relation === 'invalid_country') {
     return {
       score: 0,
@@ -641,12 +638,18 @@ export function calculateSmartMatch(
   } else if (unitCash <= buyerCash) {
     score += 40
     if (L.cashExact) matches.push(L.cashExact)
-  } else if (unitCash <= buyerCash * 1.15) {
-    score += 34
+  } else if (
+    guardrails.allowNegotiation &&
+    buyerCash >= guardrails.minAllowedOfferCash
+  ) {
+    score += 35
     isNegotiableBridge = true
     if (L.cashNegotiableBridge) matches.push(L.cashNegotiableBridge)
+  } else if (unitCash <= buyerCash * 1.15) {
+    score += 28
+    if (L.cashSlightlyHigher) differences.push(L.cashSlightlyHigher)
   } else if (unitCash <= buyerCash * 1.3) {
-    score += 22
+    score += 20
     if (L.cashSlightlyHigher) differences.push(L.cashSlightlyHigher)
   } else {
     score += 10
@@ -689,13 +692,11 @@ export function calculateSmartMatch(
     areaEval.relation === 'same_city' ||
     areaEval.relation === 'nearby'
   ) {
-    // في نفس المدينة / المحافظة (مثل أحياء تبليسي الكبرى مع بعضها، أو أحياء باتومي مع بعضها)
     score += 16
     if (rawUnitArea && L.areaSameCity) {
       matches.push(`${L.areaSameCity}: ${localizedUnitArea}`)
     }
   } else {
-    // في محافظة أخرى بعيدة (مثلاً باتومي مقابل تبليسي)
     score += 0
     if (rawUnitArea && L.areaDiff) {
       differences.push(`${L.areaDiff}: ${localizedUnitArea}`)
@@ -763,7 +764,6 @@ export function calculateSmartMatch(
     }
   }
 
-  // إذا كانت الوحدة في مدينة/محافظة مختلفة تماماً عن التي طلبها المشتري، لا تتجاوز النتيجة 55% حتى لا تُرشح بالخطأ كمنطقة قريبة
   if (areaEval.relation === 'far') {
     score = Math.min(score, 55)
   }

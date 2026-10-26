@@ -5,7 +5,10 @@ import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import nodemailer from 'nodemailer'
-import { extractUserIdFromCookie } from '@/lib/session-security'
+import {
+  extractUserIdFromCookie,
+  parseAndVerifySessionCookie,
+} from '@/lib/session-security'
 import { getServerI18n } from '@/lib/get-server-dictionary'
 
 const DEFAULT_SITE_URL =
@@ -28,30 +31,52 @@ async function getSupabase() {
   )
 }
 
+// دالة مركزية تتحقق من صحة التوقيع المشفر للجلسة وعدم إيقاف الحساب قبل أي عملية
+async function getVerifiedSessionUser() {
+  const cookieStore = await cookies()
+  const rawSession = cookieStore.get('user_session')?.value
+  const candidateId = extractUserIdFromCookie(rawSession)
+
+  if (!rawSession || !candidateId) return null
+
+  const supabase = await getSupabase()
+  const { data: user } = await supabase
+    .from('users')
+    .select('id, name, email, phone, role, status, password_hash')
+    .eq('id', candidateId)
+    .maybeSingle()
+
+  if (!user) return null
+
+  const check = parseAndVerifySessionCookie(rawSession, user.password_hash)
+  const cleanStatus = String(user.status || 'active').trim().toLowerCase()
+
+  if (!check.valid || cleanStatus === 'suspended') {
+    return null
+  }
+
+  return { supabase, user }
+}
+
 async function verifyUnitOwnership(
   supabase: any,
   unitId: string,
-  sessionId: string
+  user: { id: string; email?: string | null; phone?: string | null; role?: string | null }
 ) {
-  const [{ data: unit }, { data: user }] = await Promise.all([
-    supabase
-      .from('sell_requests')
-      .select('*')
-      .eq('id', unitId)
-      .maybeSingle(),
-    supabase
-      .from('users')
-      .select('id, email, phone, role')
-      .eq('id', sessionId)
-      .maybeSingle(),
-  ])
+  const { data: unit } = await supabase
+    .from('sell_requests')
+    .select('*')
+    .eq('id', unitId)
+    .maybeSingle()
 
   if (!unit || !user) return null
 
+  const cleanRole = String(user.role || 'user').trim().toLowerCase()
   const isStaff =
-    user.role === 'admin' ||
-    user.role === 'moderator' ||
-    user.role === 'sales'
+    cleanRole === 'admin' ||
+    cleanRole === 'moderator' ||
+    cleanRole === 'sales'
+
   const isOwnerById = unit.user_id && unit.user_id === user.id
   const isOwnerByEmail =
     user.email &&
@@ -131,13 +156,11 @@ export async function updatePersonalInfoAction(payload: {
 }) {
   const { t: msg } = await getAccDict()
   try {
-    const cookieStore = await cookies()
-    const sessionId = extractUserIdFromCookie(
-      cookieStore.get('user_session')?.value
-    )
-    if (!sessionId) return { success: false, error: msg.sessionExpired }
+    const session = await getVerifiedSessionUser()
+    if (!session) return { success: false, error: msg.sessionExpired }
+    const { supabase, user } = session
 
-    const cleanName = (payload.name || '').trim()
+    const cleanName = (payload.name || '').trim().slice(0, 120)
     const formattedPhone = formatPrimaryPhone(payload.phone)
 
     if (!cleanName || !formattedPhone || formattedPhone.length < 9) {
@@ -147,13 +170,11 @@ export async function updatePersonalInfoAction(payload: {
       }
     }
 
-    const supabase = await getSupabase()
-
     const { data: conflictPhone } = await supabase
       .from('users')
       .select('id')
       .eq('phone', formattedPhone)
-      .neq('id', sessionId)
+      .neq('id', user.id)
       .limit(1)
 
     if (conflictPhone && conflictPhone.length > 0) {
@@ -166,7 +187,7 @@ export async function updatePersonalInfoAction(payload: {
     const { error } = await supabase
       .from('users')
       .update({ name: cleanName, phone: formattedPhone })
-      .eq('id', sessionId)
+      .eq('id', user.id)
 
     if (error) return { success: false, error: msg.updateFailed }
 
@@ -174,11 +195,11 @@ export async function updatePersonalInfoAction(payload: {
       supabase
         .from('sell_requests')
         .update({ name: cleanName, phone: formattedPhone })
-        .eq('user_id', sessionId),
+        .eq('user_id', user.id),
       supabase
         .from('buy_requests')
         .update({ name: cleanName, phone: formattedPhone })
-        .eq('user_id', sessionId),
+        .eq('user_id', user.id),
     ])
 
     revalidatePath('/account')
@@ -195,24 +216,20 @@ export async function updatePersonalInfoAction(payload: {
 export async function updateEmailInfoAction(payload: { email: string }) {
   const { t: msg, dir } = await getAccDict()
   try {
-    const cookieStore = await cookies()
-    const sessionId = extractUserIdFromCookie(
-      cookieStore.get('user_session')?.value
-    )
-    if (!sessionId) return { success: false, error: msg.sessionExpired }
+    const session = await getVerifiedSessionUser()
+    if (!session) return { success: false, error: msg.sessionExpired }
+    const { supabase, user: currentUser } = session
 
     const cleanEmail = (payload.email || '').trim().toLowerCase()
     if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
       return { success: false, error: msg.invalidEmail }
     }
 
-    const supabase = await getSupabase()
-
     const { data: conflictEmail } = await supabase
       .from('users')
       .select('id')
       .ilike('email', cleanEmail)
-      .neq('id', sessionId)
+      .neq('id', currentUser.id)
       .limit(1)
 
     if (conflictEmail && conflictEmail.length > 0) {
@@ -222,16 +239,10 @@ export async function updateEmailInfoAction(payload: { email: string }) {
       }
     }
 
-    const { data: currentUser } = await supabase
-      .from('users')
-      .select('name, email')
-      .eq('id', sessionId)
-      .maybeSingle()
-
     const { error } = await supabase
       .from('users')
       .update({ email: cleanEmail })
-      .eq('id', sessionId)
+      .eq('id', currentUser.id)
 
     if (error) {
       return {
@@ -244,11 +255,11 @@ export async function updateEmailInfoAction(payload: { email: string }) {
       supabase
         .from('sell_requests')
         .update({ email: cleanEmail })
-        .eq('user_id', sessionId),
+        .eq('user_id', currentUser.id),
       supabase
         .from('buy_requests')
         .update({ email: cleanEmail })
-        .eq('user_id', sessionId),
+        .eq('user_id', currentUser.id),
     ])
 
     sendAccountEmail({
@@ -256,7 +267,7 @@ export async function updateEmailInfoAction(payload: { email: string }) {
       senderName: msg.emailSenderName,
       subject: msg.emailUpdatedSubject,
       html: `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.8; color: #0a1122;">
-              <p>${msg.greetingWord} <strong>${currentUser?.name || msg.dearClient}</strong>،</p>
+              <p>${msg.greetingWord} <strong>${currentUser.name || msg.dearClient}</strong>،</p>
               <p>${msg.emailUpdatedBody} <strong>${cleanEmail}</strong>.</p>
              </div>`,
     }).catch(() => {})
@@ -277,20 +288,9 @@ export async function requestAccountDeletionAction(payload: {
 }) {
   const { t: msg, dir } = await getAccDict()
   try {
-    const cookieStore = await cookies()
-    const sessionId = extractUserIdFromCookie(
-      cookieStore.get('user_session')?.value
-    )
-    if (!sessionId) return { success: false, error: msg.sessionExpired }
-
-    const supabase = await getSupabase()
-    const { data: user } = await supabase
-      .from('users')
-      .select('id, name, email, phone')
-      .eq('id', sessionId)
-      .maybeSingle()
-
-    if (!user) return { success: false, error: msg.sessionExpired }
+    const session = await getVerifiedSessionUser()
+    if (!session) return { success: false, error: msg.sessionExpired }
+    const { supabase, user } = session
 
     const siteUrl = DEFAULT_SITE_URL
     const nowIso = new Date().toISOString()
@@ -298,7 +298,7 @@ export async function requestAccountDeletionAction(payload: {
     const { data: userUnits } = await supabase
       .from('sell_requests')
       .select('id, status')
-      .eq('user_id', sessionId)
+      .eq('user_id', user.id)
 
     const unitsCount = userUnits?.length || 0
 
@@ -327,7 +327,7 @@ export async function requestAccountDeletionAction(payload: {
         deletion_requested_at: nowIso,
         status: 'deletion_pending',
       })
-      .eq('id', sessionId)
+      .eq('id', user.id)
 
     try {
       await supabase.from('notifications').insert({
@@ -369,13 +369,9 @@ export async function requestAccountDeletionAction(payload: {
 
 export async function cancelAccountDeletionAction() {
   try {
-    const cookieStore = await cookies()
-    const sessionId = extractUserIdFromCookie(
-      cookieStore.get('user_session')?.value
-    )
-    if (!sessionId) return { success: false }
-
-    const supabase = await getSupabase()
+    const session = await getVerifiedSessionUser()
+    if (!session) return { success: false }
+    const { supabase, user } = session
 
     await supabase
       .from('users')
@@ -385,12 +381,12 @@ export async function cancelAccountDeletionAction() {
         deletion_requested_at: null,
         status: 'active',
       })
-      .eq('id', sessionId)
+      .eq('id', user.id)
 
     const { data: pausedUnits } = await supabase
       .from('sell_requests')
       .select('id, previous_status')
-      .eq('user_id', sessionId)
+      .eq('user_id', user.id)
       .eq('status', 'paused_deletion')
 
     if (pausedUnits && pausedUnits.length > 0) {
@@ -422,15 +418,11 @@ export async function toggleSellerUnitStatusAction(payload: {
 }) {
   const { t: msg } = await getAccDict()
   try {
-    const cookieStore = await cookies()
-    const sessionId = extractUserIdFromCookie(
-      cookieStore.get('user_session')?.value
-    )
-    if (!sessionId) return { success: false, error: msg.sessionExpired }
+    const session = await getVerifiedSessionUser()
+    if (!session) return { success: false, error: msg.sessionExpired }
+    const { supabase, user } = session
 
-    const supabase = await getSupabase()
-    const unit = await verifyUnitOwnership(supabase, payload.unitId, sessionId)
-
+    const unit = await verifyUnitOwnership(supabase, payload.unitId, user)
     if (!unit) return { success: false, error: msg.unitNotFound }
 
     if (payload.action === 'pause') {
@@ -492,14 +484,11 @@ export async function toggleSellerUnitStatusAction(payload: {
 export async function deleteUnitBySellerAction(unitId: string) {
   const { t: msg } = await getAccDict()
   try {
-    const cookieStore = await cookies()
-    const sessionId = extractUserIdFromCookie(
-      cookieStore.get('user_session')?.value
-    )
-    if (!sessionId) return { success: false, error: msg.sessionExpired }
+    const session = await getVerifiedSessionUser()
+    if (!session) return { success: false, error: msg.sessionExpired }
+    const { supabase, user } = session
 
-    const supabase = await getSupabase()
-    const unit = await verifyUnitOwnership(supabase, unitId, sessionId)
+    const unit = await verifyUnitOwnership(supabase, unitId, user)
     if (!unit) return { success: false, error: msg.unitNotFound }
 
     const nowIso = new Date().toISOString()
@@ -558,15 +547,11 @@ export async function saveUnitDocumentAction(payload: {
 }) {
   const { t: msg } = await getAccDict()
   try {
-    const cookieStore = await cookies()
-    const sessionId = extractUserIdFromCookie(
-      cookieStore.get('user_session')?.value
-    )
-    if (!sessionId) return { success: false, error: msg.sessionExpired }
+    const session = await getVerifiedSessionUser()
+    if (!session) return { success: false, error: msg.sessionExpired }
+    const { supabase, user } = session
 
-    const supabase = await getSupabase()
-    const unit = await verifyUnitOwnership(supabase, payload.unitId, sessionId)
-
+    const unit = await verifyUnitOwnership(supabase, payload.unitId, user)
     if (!unit) return { success: false, error: msg.unitNotFound }
 
     const currentDocs =
@@ -651,13 +636,9 @@ export async function updateBuyerPreferencesAction(payload: {
 }) {
   const { t: msg } = await getAccDict()
   try {
-    const cookieStore = await cookies()
-    const sessionId = extractUserIdFromCookie(
-      cookieStore.get('user_session')?.value
-    )
-    if (!sessionId) return { success: false, error: msg.sessionExpired }
-
-    const supabase = await getSupabase()
+    const session = await getVerifiedSessionUser()
+    if (!session) return { success: false, error: msg.sessionExpired }
+    const { supabase, user } = session
 
     const updateData = {
       country: 'GE',
@@ -676,23 +657,39 @@ export async function updateBuyerPreferencesAction(payload: {
     }
 
     if (payload.buyRequestId) {
-      await supabase
+      // التحقق من ملكية طلب الشراء لمنع ثغرة IDOR
+      const { data: targetLead } = await supabase
         .from('buy_requests')
-        .update(updateData)
+        .select('id, user_id, email, phone')
         .eq('id', payload.buyRequestId)
-    } else {
-      const { data: user } = await supabase
-        .from('users')
-        .select('name, phone, email')
-        .eq('id', sessionId)
         .maybeSingle()
 
+      const isLeadOwner =
+        targetLead &&
+        (targetLead.user_id === user.id ||
+          (user.email &&
+            targetLead.email &&
+            String(targetLead.email).trim().toLowerCase() ===
+              String(user.email).trim().toLowerCase()) ||
+          (user.phone &&
+            targetLead.phone &&
+            String(targetLead.phone).trim() === String(user.phone).trim()))
+
+      if (!isLeadOwner) {
+        return { success: false, error: msg.sessionExpired }
+      }
+
+      await supabase
+        .from('buy_requests')
+        .update({ ...updateData, user_id: user.id })
+        .eq('id', payload.buyRequestId)
+    } else {
       await supabase.from('buy_requests').insert({
         ...updateData,
-        user_id: sessionId,
-        name: user?.name || msg.buyerWord,
-        phone: user?.phone || '',
-        email: user?.email || '',
+        user_id: user.id,
+        name: user.name || msg.buyerWord,
+        phone: user.phone || '',
+        email: user.email || '',
       })
     }
 
@@ -710,15 +707,11 @@ export async function requestUnitPromotionAction(payload: {
 }) {
   const { t: msg } = await getAccDict()
   try {
-    const cookieStore = await cookies()
-    const sessionId = extractUserIdFromCookie(
-      cookieStore.get('user_session')?.value
-    )
-    if (!sessionId) return { success: false, error: msg.sessionExpired }
+    const session = await getVerifiedSessionUser()
+    if (!session) return { success: false, error: msg.sessionExpired }
+    const { supabase, user } = session
 
-    const supabase = await getSupabase()
-    const unit = await verifyUnitOwnership(supabase, payload.unitId, sessionId)
-
+    const unit = await verifyUnitOwnership(supabase, payload.unitId, user)
     if (!unit) return { success: false, error: msg.unitNotFound }
 
     const cleanIdPart = String(unit.id)
@@ -780,15 +773,11 @@ export async function requestUnitPromotionAction(payload: {
 export async function cancelUnitPromotionBySellerAction(unitId: string) {
   const { t: msg } = await getAccDict()
   try {
-    const cookieStore = await cookies()
-    const sessionId = extractUserIdFromCookie(
-      cookieStore.get('user_session')?.value
-    )
-    if (!sessionId) return { success: false, error: msg.sessionExpired }
+    const session = await getVerifiedSessionUser()
+    if (!session) return { success: false, error: msg.sessionExpired }
+    const { supabase, user } = session
 
-    const supabase = await getSupabase()
-    const unit = await verifyUnitOwnership(supabase, unitId, sessionId)
-
+    const unit = await verifyUnitOwnership(supabase, unitId, user)
     if (!unit) return { success: false, error: msg.unitNotFound }
 
     const wasActive = Boolean(unit.is_featured)

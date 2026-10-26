@@ -1,26 +1,42 @@
-import nodemailer from 'nodemailer';
+import nodemailer from 'nodemailer'
 
-export async function sendEmail({ to, subject, html }: { to: string, subject: string, html: string }) {
+export async function sendEmail({
+  to,
+  subject,
+  html,
+  senderName = 'Aqar Exit',
+}: {
+  to: string
+  subject: string
+  html: string
+  senderName?: string
+}) {
+  const user = process.env.EMAIL_USER?.trim()
+  const pass = process.env.EMAIL_PASS?.replace(/\s+/g, '')
+
+  if (!user || !pass || !to) return false
+
   const transporter = nodemailer.createTransport({
-    host: 'smtp.hostinger.com',
+    host: 'smtp.gmail.com',
     port: 465,
     secure: true,
     auth: {
-      user: process.env.EMAIL_USER, // ضيف ده في ملف .env (مثال: info@aqarexit.com)
-      pass: process.env.EMAIL_PASS, // ضيف ده في ملف .env (باسورد الإيميل)
+      user,
+      pass,
     },
-  });
+    tls: { rejectUnauthorized: false },
+  })
 
   try {
     await transporter.sendMail({
-      from: `"دارك للعقارات" <${process.env.EMAIL_USER}>`,
-      to,
+      from: `"${senderName}" <${user}>`,
+      to: to.trim(),
       subject,
       html,
-    });
-    return true;
+    })
+    return true
   } catch (error) {
-    console.error('Error sending email:', error);
-    return false;
+    console.error('Error sending email:', error)
+    return false
   }
 }

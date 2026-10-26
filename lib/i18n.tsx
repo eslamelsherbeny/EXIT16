@@ -50,11 +50,11 @@ type I18nContextType = {
 
 const I18nContext = createContext<I18nContextType>({
   locale: 'ar',
-  country: 'EG',
+  country: 'GE',
   dir: 'rtl',
   isRtl: true,
   t: DICTIONARIES.ar,
-  currency: 'ج.م',
+  currency: '$',
   siteSettings: {},
   hasSession: false,
   isStaff: false,
@@ -71,7 +71,7 @@ function readCookieValue(name: string): string | null {
 
 export function LanguageProvider({
   initialLocale = 'ar',
-  initialCountry = 'EG',
+  initialCountry = 'GE',
   initialSiteSettings,
   initialHasSession = false,
   initialIsStaff = false,
@@ -88,7 +88,7 @@ export function LanguageProvider({
   const router = useRouter()
 
   const [locale, setLocale] = useState<LocaleCode>(initialLocale)
-  const [country, setCountry] = useState<CountryCode>(initialCountry)
+  const [country] = useState<CountryCode>('GE')
   const [siteSettings, setSiteSettings] = useState<SiteSettingsClient>(
     initialSiteSettings || {}
   )
@@ -98,10 +98,6 @@ export function LanguageProvider({
   useEffect(() => {
     setLocale(initialLocale)
   }, [initialLocale])
-
-  useEffect(() => {
-    setCountry(initialCountry)
-  }, [initialCountry])
 
   useEffect(() => {
     if (initialSiteSettings) setSiteSettings(initialSiteSettings)
@@ -118,17 +114,14 @@ export function LanguageProvider({
   useEffect(() => {
     if (typeof document !== 'undefined') {
       document.cookie = 'darak_site_settings=; path=/; max-age=0'
+      document.cookie = 'darak_country=GE; path=/; max-age=31536000; SameSite=Lax'
     }
 
     let isMounted = true
 
     const syncLocaleCookies = () => {
       const langVal = readCookieValue('locale')
-      const countryVal =
-        readCookieValue('darak_country') || readCookieValue('country')
-
       if (langVal) setLocale(normalizeLocale(langVal))
-      if (countryVal) setCountry(normalizeCountry(countryVal))
     }
 
     const syncServerSettings = async () => {
@@ -145,21 +138,19 @@ export function LanguageProvider({
     syncServerSettings()
 
     window.addEventListener('language-changed', syncLocaleCookies)
-    window.addEventListener('country-changed', syncLocaleCookies)
     window.addEventListener('site-settings-changed', syncServerSettings)
     window.addEventListener('focus', syncServerSettings)
 
     return () => {
       isMounted = false
       window.removeEventListener('language-changed', syncLocaleCookies)
-      window.removeEventListener('country-changed', syncLocaleCookies)
       window.removeEventListener('site-settings-changed', syncServerSettings)
       window.removeEventListener('focus', syncServerSettings)
     }
   }, [pathname])
 
   const dir = locale === 'ar' ? 'rtl' : 'ltr'
-  const currency = getCurrencySymbol(country, locale)
+  const currency = getCurrencySymbol('GE', locale)
 
   const t = useMemo(() => {
     const base = DICTIONARIES[locale] || DICTIONARIES.ar
@@ -306,9 +297,11 @@ export function LanguageProvider({
               </div>
 
               <div className="flex flex-wrap items-center gap-1.5 rounded-xl bg-white/10 p-1">
-                {(Object.values(SUPPORTED_LANGUAGES) as Array<
-                  (typeof SUPPORTED_LANGUAGES)[LocaleCode]
-                >).map((lang) => (
+                {(
+                  Object.values(SUPPORTED_LANGUAGES) as Array<
+                    (typeof SUPPORTED_LANGUAGES)[LocaleCode]
+                  >
+                ).map((lang) => (
                   <button
                     key={lang.code}
                     type="button"

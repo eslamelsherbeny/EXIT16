@@ -1,3 +1,4 @@
+import { Suspense } from "react"
 import { cookies } from "next/headers"
 import { createServerClient } from "@supabase/ssr"
 import { getServerI18n } from "@/lib/get-server-dictionary"
@@ -48,13 +49,32 @@ export default async function LeadsPage() {
     )
   }
 
+  const normalizedUnits = ((units ?? []) as any[]).map((u) => {
+    const meta =
+      u.documents && typeof u.documents === "object"
+        ? u.documents.__unit_meta || {}
+        : {}
+    return {
+      ...u,
+      area: u.area || meta.area || null,
+      unit_type: u.unit_type || meta.unit_type || null,
+      rooms: u.rooms ?? meta.rooms ?? null,
+      delivery_status: u.delivery_status || meta.delivery_status || null,
+      installment_amount: u.installment_amount ?? meta.installment_amount ?? null,
+      installment_frequency:
+        u.installment_frequency || meta.installment_frequency || null,
+    } as LinkedUnitSummary
+  })
+
   return (
     <div className="mx-auto max-w-7xl">
-      <LeadsClientTable
-        leads={(leads ?? []) as BuyerLead[]}
-        units={(units ?? []) as LinkedUnitSummary[]}
-        offers={offersData ?? []}
-      />
+      <Suspense fallback={null}>
+        <LeadsClientTable
+          leads={(leads ?? []) as BuyerLead[]}
+          units={normalizedUnits}
+          offers={offersData ?? []}
+        />
+      </Suspense>
     </div>
   )
 }

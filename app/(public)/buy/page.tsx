@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
   getCurrentSellerProfileAction,
@@ -9,12 +9,13 @@ import {
 import { AlertCircle, Check, Loader2, UserRound, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { TurnstileBox } from '@/components/layouts/funnel-shell'
 import {
+  getLocalizedDeliveries,
+  getLocalizedUnitTypes,
   MoneyField,
   Pills,
   RequiredLabel,
-  unitTypes as sharedUnitTypes,
+  toEnglishDigits,
 } from '@/components/features/seller/seller-shared'
 import {
   GEORGIA_CITIES_AND_DISTRICTS,
@@ -26,19 +27,99 @@ import {
   type BuyerConflictState,
   type BuyerFormState,
 } from '@/components/features/buyer/buyer-contact-step'
-import { getCurrencySymbol, useTranslation } from '@/lib/i18n'
+import { getCurrencySymbol, useTranslation, type LocaleCode } from '@/lib/i18n'
 
 const ACTIVE_PLATFORM_COUNTRY = 'GE'
 const DEFAULT_PHONE_CODE = '995'
 
+const BUY_VALIDATION_FALLBACK: Record<LocaleCode, Record<string, string>> = {
+  ar: {
+    required: 'هذا الحقل مطلوب',
+    selectPaymentPlan: 'يرجى اختيار نظام السداد المفضل',
+    installmentExceedsBudget: 'قيمة القسط لا يمكن أن تتجاوز إجمالي الميزانية',
+    selectUnitType: 'يرجى اختيار نوع وحدة واحد على الأقل',
+    selectDeliveryStatus: 'يرجى اختيار حالة الاستلام المفضلة',
+    selectAtLeastOneArea: 'يرجى اختيار منطقة مفضلة واحدة على الأقل',
+    invalidPhone: 'يرجى إدخال رقم هاتف صحيح (7 إلى 15 رقماً)',
+    invalidEmail: 'يرجى إدخال بريد إلكتروني صحيح',
+    shortPassword: 'كلمة المرور يجب ألا تقل عن 8 أحرف',
+    loginIdRequired: 'يرجى إدخال البريد الإلكتروني أو رقم الهاتف',
+    loginPassRequired: 'يرجى إدخال كلمة المرور',
+    missingBannerPrefix: 'يرجى استكمال الحقول المطلوبة التالية:',
+    submitFailed: 'تعذر إرسال الطلب حالياً، يرجى المحاولة مرة أخرى',
+  },
+  en: {
+    required: 'This field is required',
+    selectPaymentPlan: 'Please select a preferred payment plan',
+    installmentExceedsBudget: 'Installment cannot exceed total budget',
+    selectUnitType: 'Please select at least one unit type',
+    selectDeliveryStatus: 'Please select a preferred delivery status',
+    selectAtLeastOneArea: 'Please select at least one preferred area',
+    invalidPhone: 'Please enter a valid phone number (7 to 15 digits)',
+    invalidEmail: 'Please enter a valid email address',
+    shortPassword: 'Password must be at least 8 characters',
+    loginIdRequired: 'Please enter your email or phone number',
+    loginPassRequired: 'Please enter your password',
+    missingBannerPrefix: 'Please complete the following required fields:',
+    submitFailed: 'Could not submit request right now, please try again',
+  },
+  ru: {
+    required: 'Это поле обязательно для заполнения',
+    selectPaymentPlan: 'Выберите предпочтительный план оплаты',
+    installmentExceedsBudget: 'Платеж не может превышать общий бюджет',
+    selectUnitType: 'Выберите хотя бы один тип недвижимости',
+    selectDeliveryStatus: 'Выберите статус готовности объекта',
+    selectAtLeastOneArea: 'Выберите хотя бы один район',
+    invalidPhone: 'Введите корректный номер телефона (от 7 до 15 цифр)',
+    invalidEmail: 'Введите корректный адрес электронной почты',
+    shortPassword: 'Пароль должен содержать не менее 8 символов',
+    loginIdRequired: 'Введите ваш email или номер телефона',
+    loginPassRequired: 'Введите ваш пароль',
+    missingBannerPrefix: 'Пожалуйста, заполните следующие обязательные поля:',
+    submitFailed: 'Не удалось отправить запрос, попробуйте еще раз',
+  },
+  ka: {
+    required: 'ეს ველი სავალდებულოა',
+    selectPaymentPlan: 'აირჩიეთ გადახდის სასურველი გეგმა',
+    installmentExceedsBudget: 'განვადება არ უნდა აღემატებოდეს ბიუჯეტს',
+    selectUnitType: 'აირჩიეთ მინიმუმ ერთი ტიპის ქონება',
+    selectDeliveryStatus: 'აირჩიეთ ჩაბარების სტატუსი',
+    selectAtLeastOneArea: 'აირჩიეთ მინიმუმ ერთი სასურველი უბანი',
+    invalidPhone: 'შეიყვანეთ სწორი ტელეფონის ნომერი (7-15 ციფრი)',
+    invalidEmail: 'შეიყვანეთ სწორი ელ-ფოსტა',
+    shortPassword: 'პაროლი უნდა შედგებოდეს მინიმუმ 8 სიმბოლოსგან',
+    loginIdRequired: 'შეიყვანეთ ელ-ფოსტა ან ტელეფონის ნომერი',
+    loginPassRequired: 'შეიყვანეთ პაროლი',
+    missingBannerPrefix: 'გთხოვთ შეავსოთ შემდეგი სავალდებულო ველები:',
+    submitFailed: 'მოთხოვნის გაგზავნა ვერ მოხერხდა, სცადეთ თავიდან',
+  },
+}
+
+function getBuyValidationMsg(
+  locale: LocaleCode,
+  dictVal: string | undefined,
+  key: string
+): string {
+  const fb =
+    BUY_VALIDATION_FALLBACK[locale]?.[key] ||
+    BUY_VALIDATION_FALLBACK.en[key] ||
+    ''
+  if (!dictVal) return fb
+  if (locale !== 'ar' && /[\u0600-\u06FF]/.test(dictVal)) return fb
+  return dictVal
+}
+
 function StepValidationBanner({
   missingFields,
   prefixText,
+  dir,
 }: {
   missingFields: string[]
   prefixText: string
+  dir: 'rtl' | 'ltr'
 }) {
   if (!missingFields.length) return null
+  const sep = dir === 'rtl' ? ' ، ' : ', '
   return (
     <div
       role="alert"
@@ -47,23 +128,27 @@ function StepValidationBanner({
       <AlertCircle className="mt-0.5 size-4 shrink-0 text-red-600" />
       <div>
         <strong className="font-extrabold">{prefixText} </strong>
-        <span className="font-bold">{missingFields.join(' ، ')}</span>
+        <span className="font-bold">{missingFields.join(sep)}</span>
       </div>
     </div>
   )
 }
 
-export default function BuyersPage() {
+function BuyersPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { t: dict, dir } = useTranslation()
+  const { t: dict, locale, dir } = useTranslation()
   const b = dict.buy
-  const sellVal = (dict.sell?.validation as Record<string, any>) || {}
+  const bVal = (b.validation as Record<string, string>) || {}
+  const sellVal = (dict.sell?.validation as Record<string, string>) || {}
 
   const localizedUnitTypes: string[] =
-    (dict as Record<string, any>).buyerFunnelPage?.unitTypes || sharedUnitTypes
+    (dict as Record<string, any>).buyerFunnelPage?.unitTypes ||
+    getLocalizedUnitTypes(dict, locale)
   const localizedDeliveries: string[] =
-    dict.accountComponents?.buyer?.deliveryPreferences || []
+    dict.accountComponents?.buyer?.deliveryPreferences ||
+    getLocalizedDeliveries(dict, locale)
+
   const waPhone = String(dict.footer?.phone || '+201018595959').replace(
     /\D/g,
     ''
@@ -139,6 +224,13 @@ export default function BuyersPage() {
     checkCurrentSession()
   }, [])
 
+  // تصفير رسائل الخطأ عند تغيير اللغة
+  useEffect(() => {
+    setErrors({})
+    setMissingFieldsList([])
+    setError('')
+  }, [locale])
+
   const cleanLabel = (raw?: string) =>
     String(raw || '')
       .replace(/\*/g, '')
@@ -159,19 +251,31 @@ export default function BuyersPage() {
     const missing: string[] = []
 
     if (!data.available_cash) {
-      nextErrors.available_cash = b.validation.required
+      nextErrors.available_cash = getBuyValidationMsg(
+        locale,
+        bVal.required,
+        'required'
+      )
       missing.push(cleanLabel(b.stepOne.availableCashLabel))
     }
     if (!data.max_installment) {
-      nextErrors.max_installment = b.validation.required
+      nextErrors.max_installment = getBuyValidationMsg(
+        locale,
+        bVal.required,
+        'required'
+      )
       missing.push(cleanLabel(b.stepOne.maxInstallmentLabel))
     }
     if (!data.payment_plan) {
-      nextErrors.payment_plan = b.validation.selectPaymentPlan
+      nextErrors.payment_plan = getBuyValidationMsg(
+        locale,
+        bVal.selectPaymentPlan,
+        'selectPaymentPlan'
+      )
       missing.push(cleanLabel(b.stepOne.paymentPlanLabel))
     }
     if (!data.budget) {
-      nextErrors.budget = b.validation.required
+      nextErrors.budget = getBuyValidationMsg(locale, bVal.required, 'required')
       missing.push(cleanLabel(b.stepOne.budgetLabel))
     }
     if (
@@ -179,7 +283,11 @@ export default function BuyersPage() {
       data.max_installment > 0 &&
       data.max_installment > data.budget
     ) {
-      nextErrors.max_installment = b.validation.installmentExceedsBudget
+      nextErrors.max_installment = getBuyValidationMsg(
+        locale,
+        bVal.installmentExceedsBudget,
+        'installmentExceedsBudget'
+      )
       if (!missing.includes(cleanLabel(b.stepOne.maxInstallmentLabel))) {
         missing.push(cleanLabel(b.stepOne.maxInstallmentLabel))
       }
@@ -200,15 +308,27 @@ export default function BuyersPage() {
     const missing: string[] = []
 
     if (!data.unit_types.length) {
-      nextErrors.unit_types = b.validation.selectUnitType
+      nextErrors.unit_types = getBuyValidationMsg(
+        locale,
+        bVal.selectUnitType,
+        'selectUnitType'
+      )
       missing.push(cleanLabel(b.stepTwo.unitTypeLabel))
     }
     if (!data.delivery_status) {
-      nextErrors.delivery_status = b.validation.selectDeliveryStatus
+      nextErrors.delivery_status = getBuyValidationMsg(
+        locale,
+        bVal.selectDeliveryStatus,
+        'selectDeliveryStatus'
+      )
       missing.push(cleanLabel(b.stepTwo.deliveryStatusLabel))
     }
     if (!data.preferred_areas.length) {
-      nextErrors.preferred_areas = b.validation.selectAtLeastOneArea
+      nextErrors.preferred_areas = getBuyValidationMsg(
+        locale,
+        bVal.selectAtLeastOneArea,
+        'selectAtLeastOneArea'
+      )
       missing.push(cleanLabel(b.stepTwo.areasLabelPrefix))
     }
 
@@ -227,34 +347,55 @@ export default function BuyersPage() {
     setError('')
     const nextErrors: Record<string, string> = {}
     const missing: string[] = []
+    const cleanPhoneDigits = toEnglishDigits(data.phone || '').replace(
+      /[\s-]/g,
+      ''
+    )
 
     if (authTab === 'register') {
       if (!data.name.trim()) {
-        nextErrors.name = b.validation.required
+        nextErrors.name = getBuyValidationMsg(locale, bVal.required, 'required')
         missing.push(cleanLabel(b.stepThree.nameLabel))
       }
-      if (
-        !data.phone.trim() ||
-        !/^[0-9٠-٩]{7,15}$/.test(data.phone.replace(/[\s-]/g, ''))
-      ) {
-        nextErrors.phone = b.validation.invalidPhone
+      if (!cleanPhoneDigits || !/^[0-9]{7,15}$/.test(cleanPhoneDigits)) {
+        nextErrors.phone = getBuyValidationMsg(
+          locale,
+          bVal.invalidPhone,
+          'invalidPhone'
+        )
         missing.push(cleanLabel(b.stepThree.phoneLabel))
       }
       if (!data.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
-        nextErrors.email = b.validation.invalidEmail
+        nextErrors.email = getBuyValidationMsg(
+          locale,
+          bVal.invalidEmail,
+          'invalidEmail'
+        )
         missing.push(cleanLabel(b.stepThree.emailLabel))
       }
       if (data.password.length < 8) {
-        nextErrors.password = b.validation.shortPassword
+        nextErrors.password = getBuyValidationMsg(
+          locale,
+          bVal.shortPassword,
+          'shortPassword'
+        )
         missing.push(cleanLabel(b.stepThree.passwordLabel))
       }
     } else if (authTab === 'login') {
       if (!data.loginIdentifier?.trim()) {
-        nextErrors.loginIdentifier = b.validation.loginIdRequired
+        nextErrors.loginIdentifier = getBuyValidationMsg(
+          locale,
+          bVal.loginIdRequired,
+          'loginIdRequired'
+        )
         missing.push(cleanLabel(b.stepThree.loginIdLabel))
       }
       if (!data.loginPassword?.trim()) {
-        nextErrors.loginPassword = b.validation.loginPassRequired
+        nextErrors.loginPassword = getBuyValidationMsg(
+          locale,
+          bVal.loginPassRequired,
+          'loginPassRequired'
+        )
         missing.push(cleanLabel(b.stepThree.loginPassLabel))
       }
     }
@@ -270,8 +411,8 @@ export default function BuyersPage() {
     setIsSubmitting(true)
 
     try {
-      const fullPhone = data.phone.trim()
-        ? `+${countryCode.replace('+', '')}${data.phone.trim().replace(/^0+/, '')}`
+      const fullPhone = cleanPhoneDigits
+        ? `+${countryCode.replace('+', '')}${cleanPhoneDigits.replace(/^0+/, '')}`
         : ''
 
       const res = await processBuyerStep3Action({
@@ -317,14 +458,20 @@ export default function BuyersPage() {
         return
       }
 
-      setError(res.error ?? b.validation.submitFailed)
+      setError(
+        res.error ??
+          getBuyValidationMsg(locale, bVal.submitFailed, 'submitFailed')
+      )
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  const missingPrefix =
-    sellVal.missingBannerPrefix || b.validation.required || ''
+  const missingPrefix = getBuyValidationMsg(
+    locale,
+    sellVal.missingBannerPrefix,
+    'missingBannerPrefix'
+  )
 
   return (
     <main
@@ -419,7 +566,12 @@ export default function BuyersPage() {
                 setPasswordVisible={setPasswordVisible}
                 loggedUser={loggedUser}
                 authTab={authTab}
-                setAuthTab={setAuthTab}
+                setAuthTab={(tab) => {
+                  setAuthTab(tab)
+                  setErrors({})
+                  setMissingFieldsList([])
+                  setError('')
+                }}
                 conflictState={conflictState}
                 setConflictState={setConflictState}
                 onSuccessRedirect={() => router.push('/account?view=buyer')}
@@ -430,6 +582,7 @@ export default function BuyersPage() {
           <StepValidationBanner
             missingFields={missingFieldsList}
             prefixText={missingPrefix}
+            dir={dir}
           />
 
           {error && (
@@ -448,6 +601,8 @@ export default function BuyersPage() {
                   type="button"
                   onClick={() => {
                     setMissingFieldsList([])
+                    setErrors({})
+                    setError('')
                     setStep((step - 1) as 1 | 2)
                   }}
                   className="h-12 rounded-xl border border-slate-300 bg-white px-7 font-semibold transition hover:bg-slate-50"
@@ -588,8 +743,6 @@ function BuyerStepOne({
         helper={t.budgetHelper}
         update={(val) => update('budget', Number(val) || 0)}
       />
-
-      <TurnstileBox />
     </div>
   )
 }
@@ -713,7 +866,6 @@ function BuyerStepTwo({
         )}
       </fieldset>
 
-      {/* اختيار المناطق المفضلة في جورجيا من القائمة المنسدلة الموحدة */}
       <div>
         <GeorgiaAreaSelect
           label={
@@ -751,7 +903,6 @@ function BuyerStepTwo({
           </div>
         )}
 
-        {/* اختصارات سريعة لأشهر أحياء تبليسي وباتومي */}
         <div className="mt-3 flex flex-wrap gap-1.5">
           {quickGeorgiaAreas.map((item) => {
             const isSelected = data.preferred_areas.includes(item.id)
@@ -777,8 +928,14 @@ function BuyerStepTwo({
           })}
         </div>
       </div>
-
-      <TurnstileBox />
     </div>
+  )
+}
+
+export default function BuyersPage() {
+  return (
+    <Suspense fallback={null}>
+      <BuyersPageContent />
+    </Suspense>
   )
 }

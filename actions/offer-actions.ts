@@ -11,6 +11,7 @@ import { getServerI18n } from '@/lib/get-server-dictionary'
 import {
   calculateSmartMatch,
   getUnitPricingGuardrails,
+  isNonGeorgianLegacyArea,
   type MatchableBuyer,
   type MatchableUnit,
 } from '@/lib/smart-matcher'
@@ -24,6 +25,52 @@ async function getSupabase() {
       cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} },
     }
   )
+}
+
+async function getVerifiedClientSession() {
+  const cookieStore = await cookies()
+  const rawSession = cookieStore.get('user_session')?.value
+  const userId = extractUserIdFromCookie(rawSession)
+  if (!rawSession || !userId) return null
+
+  const supabase = await getSupabase()
+  const { data: user } = await supabase
+    .from('users')
+    .select('id, name, email, phone, role, status, password_hash')
+    .eq('id', userId)
+    .maybeSingle()
+
+  if (!user) return null
+  const check = parseAndVerifySessionCookie(rawSession, user.password_hash)
+  const cleanStatus = String(user.status || 'active').trim().toLowerCase()
+  if (!check.valid || cleanStatus === 'suspended') {
+    return null
+  }
+
+  return { supabase, user }
+}
+
+function isUnitOwnedByUser(unit: any, user: any): boolean {
+  if (!unit || !user) return false
+  const role = String(user.role || 'user').trim().toLowerCase()
+  if (role === 'admin' || role === 'moderator' || role === 'sales') return true
+  if (unit.user_id && unit.user_id === user.id) return true
+  if (
+    user.email &&
+    unit.email &&
+    String(user.email).trim().toLowerCase() ===
+      String(unit.email).trim().toLowerCase()
+  ) {
+    return true
+  }
+  if (
+    user.phone &&
+    unit.phone &&
+    String(user.phone).trim() === String(unit.phone).trim()
+  ) {
+    return true
+  }
+  return false
 }
 
 function revalidateAllOfferPaths() {
@@ -64,14 +111,11 @@ export type OfferRecord = {
 }
 
 export async function getAccountOffersDataAction() {
-  const cookieStore = await cookies()
-  const sessionId = extractUserIdFromCookie(
-    cookieStore.get('user_session')?.value
-  )
-  const { dict } = await getServerI18n()
+  const { dict, locale } = await getServerI18n()
   const oDict = (dict.accountPages as Record<string, any>)?.offers || {}
 
-  if (!sessionId) {
+  const session = await getVerifiedClientSession()
+  if (!session) {
     return {
       isLoggedIn: false,
       sells: [] as MatchableUnit[],
@@ -87,24 +131,7 @@ export async function getAccountOffersDataAction() {
     }
   }
 
-  const supabase = await getSupabase()
-
-  const { data: profile } = await supabase
-    .from('users')
-    .select('id, name, email, phone')
-    .eq('id', sessionId)
-    .maybeSingle()
-
-  if (!profile) {
-    return {
-      isLoggedIn: false,
-      sells: [],
-      buys: [],
-      sellerOffers: [],
-      buyerOffers: [],
-      smartRecommendations: [],
-    }
-  }
+  const { supabase, user: profile } = session
 
   const cleanEmail = String(profile.email || '')
     .trim()
@@ -159,7 +186,6 @@ export async function getAccountOffersDataAction() {
   const myLeadIds = new Set(myBuys.map((b) => b.id))
   const unitsMap = new Map(allUnits.map((u) => [u.id, u]))
 
-  // 1. العروض القادمة للبائع على وحداته (لا نعرض فيها ترشيحات المشتري إلا بعد أن يقدم المشتري عرضاً رسمياً)
   const sellerOffers = allOffers
     .filter(
       (o) =>
@@ -173,7 +199,6 @@ export async function getAccountOffersDataAction() {
       unit: unitsMap.get(o.property_id),
     }))
 
-  // 2. العروض الرسمية التي قدمها المشتري بنفسه أو تم قبولها/التفاوض عليها
   const buyerOffers = allOffers
     .filter(
       (o) =>
@@ -188,7 +213,6 @@ export async function getAccountOffersDataAction() {
       unit: unitsMap.get(o.property_id),
     }))
 
-  // 3. الترشيحات الذكية للمشتري (سواء المرسلة من الأدمن أو المتوافقة تلقائياً >= 85%)
   const activeBuyerReq = myBuys[0] || null
   const smartRecommendations: Array<{
     unit: MatchableUnit
@@ -215,6 +239,7 @@ export async function getAccountOffersDataAction() {
     const activeMarketUnits = allUnits.filter(
       (u) =>
         u.status === 'active' &&
+        !isNonGeorgianLegacyArea(u.area) &&
         !myUnitIds.has(u.id) &&
         !alreadyOfferedUnitIds.has(u.id)
     )
@@ -235,7 +260,7 @@ export async function getAccountOffersDataAction() {
     }
 
     activeMarketUnits.forEach((unit) => {
-      const m = calculateSmartMatch(unit, activeBuyerReq, matchLabels)
+      const m = calculateSmartMatch(unit, activeBuyerReq, matchLabels, locale)
       const isFromAdmin = adminRecMap.has(unit.id)
 
       if (isFromAdmin || m.score >= 70) {
@@ -274,39 +299,30 @@ export async function submitBuyerOfferAction(payload: {
   paymentReadiness: '48h' | '1_week' | '2_weeks'
   paymentMethod: 'bank_check' | 'bank_transfer'
 }) {
-  const { dict } = await getServerI18n()
+  const { dict, locale } = await getServerI18n()
   const oDict = (dict.accountPages as Record<string, any>)?.offers || {}
 
   try {
-    const cookieStore = await cookies()
-    const sessionId = extractUserIdFromCookie(
-      cookieStore.get('user_session')?.value
-    )
-    if (!sessionId) {
+    const session = await getVerifiedClientSession()
+    if (!session) {
       return { success: false, error: oDict.errLoginRequired }
     }
+    const { supabase, user: buyerUser } = session
+    const sessionId = buyerUser.id
 
-    const supabase = await getSupabase()
-
-    const [{ data: buyerUser }, { data: unit }, { data: buyerLeads }] =
-      await Promise.all([
-        supabase
-          .from('users')
-          .select('id, name, phone, email')
-          .eq('id', sessionId)
-          .maybeSingle(),
-        supabase
-          .from('sell_requests')
-          .select('*')
-          .eq('id', payload.propertyId)
-          .maybeSingle(),
-        supabase
-          .from('buy_requests')
-          .select('*')
-          .eq('user_id', sessionId)
-          .order('created_at', { ascending: false })
-          .limit(1),
-      ])
+    const [{ data: unit }, { data: buyerLeads }] = await Promise.all([
+      supabase
+        .from('sell_requests')
+        .select('*')
+        .eq('id', payload.propertyId)
+        .maybeSingle(),
+      supabase
+        .from('buy_requests')
+        .select('*')
+        .eq('user_id', sessionId)
+        .order('created_at', { ascending: false })
+        .limit(1),
+    ])
 
     if (!unit) {
       return { success: false, error: oDict.errUnitNotFound }
@@ -319,7 +335,10 @@ export async function submitBuyerOfferAction(payload: {
     const guardrails = getUnitPricingGuardrails(unit)
     const cleanOfferedCash = Math.round(Number(payload.offeredCash) || 0)
 
-    if (!guardrails.allowNegotiation && cleanOfferedCash < guardrails.requiredCash) {
+    if (
+      !guardrails.allowNegotiation &&
+      cleanOfferedCash < guardrails.requiredCash
+    ) {
       return {
         success: false,
         error: oDict.errFixedPriceOnly,
@@ -343,10 +362,9 @@ export async function submitBuyerOfferAction(payload: {
 
     const activeLead = buyerLeads?.[0] || null
     const matchInfo = activeLead
-      ? calculateSmartMatch(unit, activeLead)
+      ? calculateSmartMatch(unit, activeLead, undefined, locale)
       : { score: 90, matches: [], differences: [] }
 
-    // فحص هل يوجد ترشيح سابق لتحويله إلى عرض رسمي أو إنشاء عرض جديد
     const { data: existingOffer } = await supabase
       .from('property_offers')
       .select('id')
@@ -386,7 +404,6 @@ export async function submitBuyerOfferAction(payload: {
       if (error) return { success: false, error: oDict.errSubmitFailed }
     }
 
-    // تحديث مرحلة الوحدة عند البائع إلى offer_received (الخطوة 6: عندك عرض شراء!)
     if (unit.status === 'active') {
       await supabase
         .from('sell_requests')
@@ -394,7 +411,6 @@ export async function submitBuyerOfferAction(payload: {
         .eq('id', unit.id)
     }
 
-    // إرسال إشعارات فورية للبائع وللأدمن
     const notifsToInsert: any[] = [
       {
         user_id: null,
@@ -437,13 +453,9 @@ export async function respondToOfferBySellerAction(payload: {
   const oDict = (dict.accountPages as Record<string, any>)?.offers || {}
 
   try {
-    const cookieStore = await cookies()
-    const sessionId = extractUserIdFromCookie(
-      cookieStore.get('user_session')?.value
-    )
-    if (!sessionId) return { success: false, error: oDict.errLoginRequired }
-
-    const supabase = await getSupabase()
+    const session = await getVerifiedClientSession()
+    if (!session) return { success: false, error: oDict.errLoginRequired }
+    const { supabase, user } = session
 
     const { data: offer } = await supabase
       .from('property_offers')
@@ -459,10 +471,11 @@ export async function respondToOfferBySellerAction(payload: {
       .eq('id', offer.property_id)
       .maybeSingle()
 
-    if (!unit) return { success: false, error: oDict.errUnitNotFound }
+    if (!unit || !isUnitOwnedByUser(unit, user)) {
+      return { success: false, error: oDict.errLoginRequired }
+    }
 
     if (payload.decision === 'accept') {
-      // 1. قبول العرض
       await supabase
         .from('property_offers')
         .update({
@@ -471,7 +484,6 @@ export async function respondToOfferBySellerAction(payload: {
         })
         .eq('id', offer.id)
 
-      // 2. قفل باقي العروض على نفس الوحدة حتى لا يشتريها شخص آخر
       await supabase
         .from('property_offers')
         .update({ status: 'unit_locked' })
@@ -479,13 +491,11 @@ export async function respondToOfferBySellerAction(payload: {
         .neq('id', offer.id)
         .in('status', ['pending_seller', 'counter_offered', 'recommended'])
 
-      // 3. تحويل حالة الوحدة تلقائياً إلى transferring (تختفي من صفحة الفرص العامة وتنتقل للخطوة 7 في حساب البائع!)
       await supabase
         .from('sell_requests')
         .update({ status: 'transferring' })
         .eq('id', unit.id)
 
-      // 4. تحديث حالة طلب المشتري إلى matched
       if (offer.lead_id) {
         await supabase
           .from('buy_requests')
@@ -493,7 +503,6 @@ export async function respondToOfferBySellerAction(payload: {
           .eq('id', offer.lead_id)
       }
 
-      // 5. إشعار عاجل للأدمن والمبيعات (غرفة إتمام الصفقة) + إشعار للمشتري
       const notifs: any[] = [
         {
           user_id: null,
@@ -560,7 +569,6 @@ export async function respondToOfferBySellerAction(payload: {
         })
         .eq('id', offer.id)
 
-      // إذا لم يتبقَ أي عرض معلق على الوحدة، نعيد حالتها إلى active في السوق
       const { data: remainingOffers } = await supabase
         .from('property_offers')
         .select('id')
@@ -592,7 +600,9 @@ export async function respondToCounterOfferByBuyerAction(payload: {
   const oDict = (dict.accountPages as Record<string, any>)?.offers || {}
 
   try {
-    const supabase = await getSupabase()
+    const session = await getVerifiedClientSession()
+    if (!session) return { success: false, error: oDict.errLoginRequired }
+    const { supabase, user } = session
 
     const { data: offer } = await supabase
       .from('property_offers')
@@ -601,6 +611,20 @@ export async function respondToCounterOfferByBuyerAction(payload: {
       .maybeSingle()
 
     if (!offer) return { success: false, error: oDict.errUnitNotFound }
+
+    // التحقق أن هذا العرض يخص المشتري المسجل دخوله
+    const role = String(user.role || 'user').trim().toLowerCase()
+    const isStaff = role === 'admin' || role === 'moderator' || role === 'sales'
+    const isBuyerOwner =
+      isStaff ||
+      offer.buyer_user_id === user.id ||
+      (user.phone &&
+        offer.buyer_phone &&
+        String(user.phone).trim() === String(offer.buyer_phone).trim())
+
+    if (!isBuyerOwner) {
+      return { success: false, error: oDict.errLoginRequired }
+    }
 
     const { data: unit } = await supabase
       .from('sell_requests')
@@ -683,7 +707,6 @@ export async function respondToCounterOfferByBuyerAction(payload: {
   }
 }
 
-// ==================== عمليات الأدمن والمبيعات للتوافق الذكي ====================
 async function verifyStaffSession() {
   const cookieStore = await cookies()
   const rawSession = cookieStore.get('user_session')?.value
@@ -716,7 +739,7 @@ export async function adminSendRecommendationAction(payload: {
   propertyId: string
   leadId: string
 }) {
-  const { dict } = await getServerI18n()
+  const { dict, locale } = await getServerI18n()
   const oDict = (dict.accountPages as Record<string, any>)?.offers || {}
 
   try {
@@ -739,7 +762,7 @@ export async function adminSendRecommendationAction(payload: {
 
     if (!unit || !lead) return { success: false, error: oDict.errUnitNotFound }
 
-    const match = calculateSmartMatch(unit, lead)
+    const match = calculateSmartMatch(unit, lead, undefined, locale)
 
     const { data: existing } = await supabase
       .from('property_offers')
@@ -792,7 +815,7 @@ export async function adminSendBulkRecommendationsAction(payload: {
   propertyId: string
   minScore?: number
 }) {
-  const { dict } = await getServerI18n()
+  const { dict, locale } = await getServerI18n()
   const oDict = (dict.accountPages as Record<string, any>)?.offers || {}
 
   try {
@@ -818,7 +841,7 @@ export async function adminSendBulkRecommendationsAction(payload: {
     let sentCount = 0
     for (const lead of allLeads) {
       if (lead.user_id && lead.user_id === unit.user_id) continue
-      const m = calculateSmartMatch(unit, lead)
+      const m = calculateSmartMatch(unit, lead, undefined, locale)
       if (m.score >= threshold) {
         await adminSendRecommendationAction({
           propertyId: unit.id,
@@ -841,7 +864,7 @@ export async function adminCreateOfficialOfferAction(payload: {
   offeredCash: number
   paymentReadiness: '48h' | '1_week' | '2_weeks'
 }) {
-  const { dict } = await getServerI18n()
+  const { dict, locale } = await getServerI18n()
   const oDict = (dict.accountPages as Record<string, any>)?.offers || {}
 
   try {
@@ -864,7 +887,7 @@ export async function adminCreateOfficialOfferAction(payload: {
 
     if (!unit || !lead) return { success: false, error: oDict.errUnitNotFound }
 
-    const match = calculateSmartMatch(unit, lead)
+    const match = calculateSmartMatch(unit, lead, undefined, locale)
     const cleanCash =
       Math.round(Number(payload.offeredCash)) || Number(unit.paid_amount) || 0
 

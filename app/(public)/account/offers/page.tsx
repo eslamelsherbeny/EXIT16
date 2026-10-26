@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { Suspense, useEffect, useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createBrowserClient } from '@supabase/ssr'
@@ -46,7 +46,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { getCurrencySymbol, useTranslation } from '@/lib/i18n'
 
-export default function OffersPage() {
+function OffersContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { t: dict, locale, dir, isRtl } = useTranslation()
@@ -899,13 +899,14 @@ export default function OffersPage() {
         )}
       </div>
 
+      {/* نافذة تقديم عرض الشراء من المشتري */}
       <Dialog
         open={Boolean(offerModalUnit)}
         onOpenChange={(open) => !open && !isPending && setOfferModalUnit(null)}
       >
         <DialogContent
           dir={dir}
-          className="w-[92vw] max-w-[450px] rounded-3xl p-5 text-start sm:p-6"
+          className="w-[92vw] max-w-[460px] rounded-3xl p-5 text-start sm:p-6"
         >
           {offerModalUnit &&
             (() => {
@@ -914,7 +915,9 @@ export default function OffersPage() {
                 Number(customOfferCashStr.replace(/,/g, '')) || 0
               const isFullPrice = typedAmount >= guard.requiredCash
               const isTooLowFake =
-                typedAmount > 0 && typedAmount < guard.minAllowedOfferCash
+                guard.allowNegotiation &&
+                typedAmount > 0 &&
+                typedAmount < guard.minAllowedOfferCash
 
               return (
                 <>
@@ -930,33 +933,79 @@ export default function OffersPage() {
 
                   <div className="mt-3 space-y-4 text-xs">
                     <div className="rounded-2xl border border-gray-200 bg-gray-50/70 p-4">
-                      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                        <label className="font-extrabold text-[#0a1122]">
-                          1. {t.enterNegotiatedCashLabel} ({cur}):
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setOfferMode('full')
-                            setCustomOfferCashStr(
-                              guard.requiredCash.toLocaleString('en-US')
-                            )
-                          }}
-                          className="rounded-lg bg-[#007a5a]/10 px-2.5 py-1 text-[10.5px] font-extrabold text-[#007a5a] transition hover:bg-[#007a5a] hover:text-white"
-                        >
-                          {t.fullPriceOptionTitle}:{' '}
-                          <span dir="ltr">
-                            {guard.requiredCash.toLocaleString('en-US')}
-                          </span>
-                        </button>
-                      </div>
+                      <label className="mb-2.5 block font-extrabold text-[#0a1122]">
+                        1. {t.selectOfferTypeLabel || t.enterNegotiatedCashLabel}:
+                      </label>
+
+                      {guard.allowNegotiation ? (
+                        <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOfferMode('full')
+                              setCustomOfferCashStr(
+                                guard.requiredCash.toLocaleString('en-US')
+                              )
+                            }}
+                            className={`rounded-xl border p-2.5 text-start transition ${
+                              offerMode === 'full'
+                                ? 'border-[#007a5a] bg-[#eaf8f2] text-[#007a5a] ring-1 ring-[#007a5a]/25'
+                                : 'border-gray-200 bg-white text-gray-700'
+                            }`}
+                          >
+                            <span className="block text-[11px] font-extrabold">
+                              ✓ {t.fullPriceOptionTitle}
+                            </span>
+                            <strong
+                              dir="ltr"
+                              className="mt-0.5 block text-sm font-black"
+                            >
+                              {guard.requiredCash.toLocaleString('en-US')} {cur}
+                            </strong>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOfferMode('negotiate')
+                              setCustomOfferCashStr(
+                                guard.minAllowedOfferCash.toLocaleString('en-US')
+                              )
+                            }}
+                            className={`rounded-xl border p-2.5 text-start transition ${
+                              offerMode === 'negotiate'
+                                ? 'border-amber-500 bg-amber-50 text-amber-950 ring-1 ring-amber-400/30'
+                                : 'border-gray-200 bg-white text-gray-700'
+                            }`}
+                          >
+                            <span className="block text-[11px] font-extrabold">
+                              💬 {t.negotiateOptionTitle}
+                            </span>
+                            <span className="mt-0.5 block text-[10px] text-gray-500">
+                              {t.minAllowedFloorLabel}:{' '}
+                              <strong dir="ltr">
+                                {guard.minAllowedOfferCash.toLocaleString(
+                                  'en-US'
+                                )}{' '}
+                                {cur}
+                              </strong>
+                            </span>
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="mb-3 rounded-xl border border-emerald-200 bg-[#eaf8f2] p-3 text-[11px] font-bold text-[#007a5a]">
+                          {t.nonNegotiableUnitNote}
+                        </div>
+                      )}
 
                       <input
                         type="text"
                         inputMode="numeric"
                         dir="ltr"
+                        readOnly={!guard.allowNegotiation}
                         value={customOfferCashStr}
                         onChange={(e) => {
+                          if (!guard.allowNegotiation) return
                           const digits = e.target.value.replace(/\D/g, '')
                           const num = Number(digits) || 0
                           setOfferMode(
@@ -966,7 +1015,11 @@ export default function OffersPage() {
                             digits ? num.toLocaleString('en-US') : ''
                           )
                         }}
-                        className="h-12 w-full rounded-xl border border-gray-300 bg-white px-4 text-left text-base font-black text-[#0a1122] focus:border-[#007a5a] focus:outline-none"
+                        className={`h-12 w-full rounded-xl border px-4 text-left text-base font-black text-[#0a1122] focus:outline-none ${
+                          !guard.allowNegotiation
+                            ? 'cursor-not-allowed border-gray-200 bg-gray-100'
+                            : 'border-gray-300 bg-white focus:border-[#007a5a]'
+                        }`}
                       />
 
                       {isFullPrice ? (
@@ -978,12 +1031,11 @@ export default function OffersPage() {
                         <div className="mt-2.5 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-2.5 text-[11px] font-bold text-red-700">
                           <AlertTriangle className="mt-0.5 size-4 shrink-0" />
                           <span>
-                            {t.errBelowMinFloor}{' '}
+                            {t.errBelowMinFloor}:{' '}
                             <strong dir="ltr">
                               {guard.minAllowedOfferCash.toLocaleString('en-US')}{' '}
                               {cur}
                             </strong>
-                            .
                           </span>
                         </div>
                       ) : (
@@ -1147,5 +1199,13 @@ export default function OffersPage() {
         </DialogContent>
       </Dialog>
     </main>
+  )
+}
+
+export default function OffersPage() {
+  return (
+    <Suspense fallback={null}>
+      <OffersContent />
+    </Suspense>
   )
 }

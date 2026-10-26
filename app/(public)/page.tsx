@@ -34,13 +34,16 @@ export default async function HomePage() {
     const supabase = await getSupabase()
     const { data: units } = await supabase
       .from('sell_requests')
-      .select('status, area, country_code, market_price, contract_price, paid_amount')
+      .select(
+        'status, area, documents, country_code, market_price, contract_price, paid_amount'
+      )
       .in('status', ['active', 'offer_received'])
 
     if (units && units.length > 0) {
-      const georgiaUnits = units.filter(
-        (u: any) => !isNonGeorgianLegacyArea(u.area)
-      )
+      const georgiaUnits = units.filter((u: any) => {
+        const areaVal = u.area || u.documents?.__unit_meta?.area
+        return !isNonGeorgianLegacyArea(areaVal)
+      })
 
       realUnitCount = georgiaUnits.length
       totalMarketValue = georgiaUnits.reduce((sum, u) => {
@@ -83,7 +86,6 @@ export default async function HomePage() {
       dir={dir}
       className="min-h-screen overflow-x-hidden bg-[var(--brand-surface,#f5f6f8)] text-[var(--brand-navy-text,#0a1128)]"
     >
-      {/* ==================== 1. قسم الهيرو (Hero Section) ==================== */}
       <section className="relative flex min-h-[700px] items-center overflow-hidden bg-[var(--brand-navy,#0a1122)] text-white lg:min-h-[760px]">
         <div className="pointer-events-none absolute -bottom-40 -left-32 size-[28rem] rounded-full bg-teal-500/10 blur-[120px] sm:size-[38rem]" />
         <div className="pointer-events-none absolute -top-32 right-[15%] size-[24rem] rounded-full bg-blue-500/10 blur-[120px] sm:size-[32rem]" />
@@ -207,7 +209,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ==================== 2. قسم الإحصائيات الحقيقية من الداتابيز ==================== */}
       <section className={`${CONTAINER_CLS} pt-10 pb-6`}>
         <ScrollReveal>
           <div className="grid grid-cols-1 divide-y divide-gray-200/80 overflow-hidden rounded-[20px] border border-gray-200/70 border-t-[3px] border-t-[var(--brand-primary,#007a5a)] bg-white shadow-sm md:grid-cols-2 md:divide-y-0 md:divide-x md:divide-x-reverse">
@@ -254,7 +255,6 @@ export default async function HomePage() {
         </ScrollReveal>
       </section>
 
-      {/* ==================== 3. قسم الجمهور (البايع والمشتري) ==================== */}
       <section className={`${CONTAINER_CLS} py-14 md:py-20`}>
         <ScrollReveal className="max-w-xl text-start">
           <h2 className="heading-section">{t?.audience?.title}</h2>
@@ -350,7 +350,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ==================== 4. قسم جدول المقارنة ==================== */}
       <section className="bg-white py-14 sm:py-20">
         <div className={CONTAINER_CLS}>
           <ScrollReveal className="text-start">
@@ -404,7 +403,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ==================== 5. قسم مثال بالأرقام ==================== */}
       <section className="bg-[var(--brand-surface,#f5f6f8)] py-14 sm:py-20">
         <div className={CONTAINER_CLS}>
           <ScrollReveal className="text-start">
@@ -515,7 +513,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ==================== 6. قسم إزاي بنشتغل؟ ==================== */}
       <section className="border-t border-gray-200/60 bg-[var(--brand-surface,#f5f6f8)] py-14 sm:py-20">
         <div className={CONTAINER_CLS}>
           <ScrollReveal className="text-start">
@@ -545,7 +542,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ==================== 7. قسم معايير الخروج العادل ==================== */}
       <section className="bg-white py-14 sm:py-20">
         <div className={CONTAINER_CLS}>
           <ScrollReveal className="text-start">
@@ -577,7 +573,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ==================== 8. بانر حاسبة الخروج الآمن ==================== */}
       <section className="relative overflow-hidden bg-[var(--brand-navy,#0a1122)] py-16 text-white sm:py-20">
         <div className="pointer-events-none absolute left-1/2 top-10 size-[28rem] -translate-x-1/2 rounded-full bg-teal-500/10 blur-[130px]" />
 
@@ -602,7 +597,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ==================== 9. قسم البطاقتين السفليتين قبل الفوتر ==================== */}
       <section className="bg-[var(--brand-surface,#f5f6f8)] py-14 sm:py-20">
         <div className={CONTAINER_CLS}>
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -654,48 +648,3 @@ export default async function HomePage() {
     </div>
   )
 }
-
-/* ============================================================================
-   ARCHIVED MOBILE APP SHOWCASE SECTION (COMMENTED FOR FUTURE USE WHEN APP IS READY)
-   ============================================================================
-          <div className="mt-20 grid grid-cols-1 items-center gap-12 md:mt-28 md:grid-cols-2 lg:gap-16">
-            <ScrollReveal className="text-start">
-              <span className="inline-block rounded-full border border-teal-500/30 bg-teal-500/10 px-4 py-1 text-xs font-bold text-[var(--brand-accent,#2ee59d)]">
-                {t?.app?.badge}
-              </span>
-              <h2 className="mt-4 text-3xl font-extrabold text-white sm:text-4xl">
-                {t?.app?.title}
-              </h2>
-              <p className="mt-4 max-w-md text-xs leading-[1.9] text-gray-300/85 sm:text-sm md:text-base">
-                {t?.app?.description}
-              </p>
-
-              <ul className="mt-7 space-y-4">
-                <li className="flex items-center gap-3 text-xs font-medium text-gray-200 sm:text-sm">
-                  <span>{t?.app?.point1}</span>
-                </li>
-                <li className="flex items-center gap-3 text-xs font-medium text-gray-200 sm:text-sm">
-                  <span>{t?.app?.point2}</span>
-                </li>
-                <li className="flex items-center gap-3 text-xs font-medium text-gray-200 sm:text-sm">
-                  <span>{t?.app?.point3}</span>
-                </li>
-              </ul>
-
-              <div className="mt-8 flex flex-wrap items-center justify-start gap-3">
-                <a href="#app-store" className="flex items-center gap-3 rounded-xl border border-white/15 bg-black px-5 py-2.5 text-white">
-                  <div className="text-start">
-                    <span className="block text-[9px] text-gray-400">{t?.app?.downloadFrom}</span>
-                    <span className="block text-sm font-bold leading-tight">App Store</span>
-                  </div>
-                </a>
-                <a href="#google-play" className="flex items-center gap-3 rounded-xl border border-white/15 bg-black px-5 py-2.5 text-white">
-                  <div className="text-start">
-                    <span className="block text-[9px] text-gray-400">{t?.app?.availableOn}</span>
-                    <span className="block text-sm font-bold leading-tight">Google Play</span>
-                  </div>
-                </a>
-              </div>
-            </ScrollReveal>
-          </div>
-============================================================================ */

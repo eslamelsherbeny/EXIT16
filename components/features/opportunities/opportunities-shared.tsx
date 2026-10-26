@@ -2,14 +2,10 @@
 
 import Link from 'next/link'
 import {
-  Bell,
   Check,
-  CheckSquare,
   Heart,
-  Home,
   ShieldCheck,
   Star,
-  Zap,
 } from 'lucide-react'
 import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
 import {
@@ -108,40 +104,44 @@ export function mapDbRowToProperty(
 ): MappedProperty {
   const country = 'GE'
   const currency = getCurrencySymbol(country, locale)
+  const meta =
+    row.documents && typeof row.documents === 'object'
+      ? row.documents.__unit_meta || {}
+      : {}
 
   const paid = Number(row.paid_amount) || 0
-  const discount = row.willing_to_discount
-    ? Number(row.discount_amount) || 0
-    : 0
-  const requiredCash = Math.max(0, paid - discount)
+  const requiredCash = Math.max(0, paid)
   const contractPrice = Number(row.contract_price) || paid
   const remainingAmount = Math.max(0, contractPrice - paid)
   const marketPriceNum = Number(row.market_price) || contractPrice
-  const installmentNum = Number(row.installment_amount) || 0
-  const installmentFreq = row.installment_frequency || t.card.defaultFreq
+  const installmentNum =
+    Number(row.installment_amount ?? meta.installment_amount) || 0
+  const installmentFreq =
+    row.installment_frequency || meta.installment_frequency || t.card.defaultFreq
 
   let gainStr: string | undefined = undefined
   let gainNum = 0
   let marketPriceStr: string | undefined = undefined
 
   if (marketPriceNum > 0 && marketPriceNum > contractPrice) {
-    const commission = Math.round(marketPriceNum * 0.0125)
-    gainNum = Math.max(
-      0,
-      marketPriceNum - (contractPrice - discount) - commission
-    )
+    const commission = Math.round(contractPrice * 0.0125)
+    gainNum = Math.max(0, marketPriceNum - contractPrice - commission)
     if (gainNum > 0) {
       gainStr = `+ ${gainNum.toLocaleString('en-US')}`
       marketPriceStr = marketPriceNum.toLocaleString('en-US')
     }
   }
 
-  const rawDelStatus = String(row.delivery_status || '').trim()
+  const rawDelStatus = String(
+    row.delivery_status || meta.delivery_status || ''
+  ).trim()
   const isReady =
     rawDelStatus.includes('جاهز') ||
     rawDelStatus.includes('فوري') ||
     rawDelStatus.includes('مستلم') ||
     rawDelStatus.toLowerCase().includes('ready') ||
+    rawDelStatus.toLowerCase().includes('готов') ||
+    rawDelStatus.includes('მზად') ||
     rawDelStatus.includes(t.filters.deliveryStatuses[1])
 
   const yearMatch = rawDelStatus.match(/20\d{2}/)
@@ -163,7 +163,7 @@ export function mapDbRowToProperty(
     .toUpperCase()
   const code = `U-${numericCode.length >= 4 ? numericCode : fallbackCode}`
 
-  const rawArea = row.area || ''
+  const rawArea = row.area || meta.area || ''
   const localizedArea = rawArea
     ? getLocalizedGeorgiaAreaName(rawArea, locale)
     : t.card.defaultArea
@@ -189,10 +189,10 @@ export function mapDbRowToProperty(
     developer: devName,
     area: localizedArea,
     rawArea,
-    type: row.unit_type || t.card.defaultType,
-    rooms: Number(row.rooms) || 2,
-    baths: Number(row.bathrooms) || 1,
-    size: Number(row.size) || 75,
+    type: row.unit_type || meta.unit_type || t.card.defaultType,
+    rooms: Number(row.rooms ?? meta.rooms) || 2,
+    baths: Number(row.bathrooms ?? meta.bathrooms) || 1,
+    size: Number(row.size ?? meta.size) || 75,
     cash: requiredCash.toLocaleString('en-US'),
     cashNum: requiredCash,
     negotiable: Boolean(row.willing_to_discount),
@@ -211,7 +211,7 @@ export function mapDbRowToProperty(
     installmentFreq,
     delivery: deliveryDisplayStr,
     isReady,
-    contractYear: Number(row.contract_year) || 2024,
+    contractYear: Number(row.contract_year ?? meta.contract_year) || 2024,
     featured: isFeaturedActive,
     image: validImage,
   }
@@ -391,69 +391,56 @@ export function OpportunitiesBottomSections() {
   const tr = dict.opportunitiesPage.trustSection
 
   return (
-    <>
-      <section className="mt-12 border-t border-gray-200/80 pt-10 sm:mt-14 sm:pt-12">
-        <h2 className="text-start text-lg font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-2xl">
-          {tr.title}
-        </h2>
+    <section className="mt-12 border-t border-gray-200/80 pt-10 sm:mt-14 sm:pt-12">
+      <h2 className="text-start text-lg font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-2xl">
+        {tr.title}
+      </h2>
 
-        <div className="mt-5 grid grid-cols-1 gap-4 sm:mt-6 sm:gap-6 md:grid-cols-[1.35fr_1fr]">
-          <div className="flex flex-col justify-between rounded-[18px] border border-gray-200/80 bg-white p-5 text-start shadow-sm sm:rounded-[20px] sm:p-8">
-            <div>
-              <span className="inline-flex size-9 items-center justify-center rounded-xl bg-[#f0f4f8] text-[#1e3a8a] sm:size-10">
-                <ShieldCheck className="size-4 sm:size-5" />
-              </span>
-              <h3 className="mt-3 text-sm font-extrabold text-[var(--brand-navy,#0a1122)] sm:mt-4 sm:text-lg">
-                {tr.card1Title}
-              </h3>
-              <p className="mt-2.5 text-xs leading-[1.9] text-gray-500 sm:mt-3 sm:text-[13px]">
-                {tr.card1Desc}
-              </p>
-            </div>
-
-            <div className="mt-5 sm:mt-6">
-              <Link
-                href="/buy"
-                className="inline-flex h-10 items-center justify-center rounded-[10px] bg-[var(--brand-primary,#007a5a)] px-5 text-xs font-bold text-white transition-colors hover:bg-[var(--brand-primary-hover,#006248)]"
-              >
-                {tr.card1Btn}
-              </Link>
-            </div>
+      <div className="mt-5 grid grid-cols-1 gap-4 sm:mt-6 sm:gap-6 md:grid-cols-[1.35fr_1fr]">
+        <div className="flex flex-col justify-between rounded-[18px] border border-gray-200/80 bg-white p-5 text-start shadow-sm sm:rounded-[20px] sm:p-8">
+          <div>
+            <span className="inline-flex size-9 items-center justify-center rounded-xl bg-[#f0f4f8] text-[#1e3a8a] sm:size-10">
+              <ShieldCheck className="size-4 sm:size-5" />
+            </span>
+            <h3 className="mt-3 text-sm font-extrabold text-[var(--brand-navy,#0a1122)] sm:mt-4 sm:text-lg">
+              {tr.card1Title}
+            </h3>
+            <p className="mt-2.5 text-xs leading-[1.9] text-gray-500 sm:mt-3 sm:text-[13px]">
+              {tr.card1Desc}
+            </p>
           </div>
 
-          <div className="rounded-[18px] border border-gray-200/60 bg-[#f9fafb] p-5 text-start sm:rounded-[20px] sm:p-8">
-            <h3 className="text-sm font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-base">
-              {tr.card2Title}
-            </h3>
-
-            <ul className="mt-4 space-y-3 text-xs leading-relaxed text-gray-600 sm:mt-5 sm:space-y-3.5">
-              <li className="flex items-start gap-2">
-                <Check className="mt-0.5 size-4 shrink-0 text-[var(--brand-primary,#007a5a)]" />
-                <span>{tr.point1}</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <Check className="mt-0.5 size-4 shrink-0 text-[var(--brand-primary,#007a5a)]" />
-                <span>{tr.point2}</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <Check className="mt-0.5 size-4 shrink-0 text-[var(--brand-primary,#007a5a)]" />
-                <span>{tr.point3}</span>
-              </li>
-            </ul>
+          <div className="mt-5 sm:mt-6">
+            <Link
+              href="/buy"
+              className="inline-flex h-10 items-center justify-center rounded-[10px] bg-[var(--brand-primary,#007a5a)] px-5 text-xs font-bold text-white transition-colors hover:bg-[var(--brand-primary-hover,#006248)]"
+            >
+              {tr.card1Btn}
+            </Link>
           </div>
         </div>
-      </section>
-    </>
+
+        <div className="rounded-[18px] border border-gray-200/60 bg-[#f9fafb] p-5 text-start sm:rounded-[20px] sm:p-8">
+          <h3 className="text-sm font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-base">
+            {tr.card2Title}
+          </h3>
+
+          <ul className="mt-4 space-y-3 text-xs leading-relaxed text-gray-600 sm:mt-5 sm:space-y-3.5">
+            <li className="flex items-start gap-2">
+              <Check className="mt-0.5 size-4 shrink-0 text-[var(--brand-primary,#007a5a)]" />
+              <span>{tr.point1}</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <Check className="mt-0.5 size-4 shrink-0 text-[var(--brand-primary,#007a5a)]" />
+              <span>{tr.point2}</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <Check className="mt-0.5 size-4 shrink-0 text-[var(--brand-primary,#007a5a)]" />
+              <span>{tr.point3}</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
   )
 }
-
-/* ============================================================================
-   ARCHIVED APP BANNER FOR OPPORTUNITIES PAGE (COMMENTED FOR FUTURE USE)
-   ============================================================================
-      <section
-        id="app-banner"
-        className="relative mt-12 overflow-hidden rounded-[20px] bg-[var(--brand-navy,#0a1122)] px-5 py-10 text-white shadow-xl sm:mt-14 sm:rounded-[24px] sm:px-12 sm:py-16"
-      >
-        ...
-      </section>
-============================================================================ */

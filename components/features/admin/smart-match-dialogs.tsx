@@ -18,6 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { getLocalizedGeorgiaAreaName } from "@/components/shared/georgia-areas"
 import { getCurrencySymbol, useTranslation } from "@/lib/i18n"
 import {
   calculateSmartMatch,
@@ -64,6 +65,7 @@ export function UnitSmartMatchModal({
 
   const unitCur = getCurrencySymbol("GE", locale)
   const matchPrefix = sm.matchScorePrefix || buyerDict.matchScorePrefix || "متوافق"
+  const localizedUnitArea = getLocalizedGeorgiaAreaName(unit.area, locale)
 
   const matchedList = (buyers || [])
     .filter((b) => !b.user_id || b.user_id !== unit.user_id)
@@ -100,6 +102,8 @@ export function UnitSmartMatchModal({
           setDoneKeys((prev) => ({ ...prev, [k]: true }))
           onNotice?.({ text: sm.recSentSuccess })
           router.refresh()
+        } else if (res.error) {
+          onNotice?.({ text: res.error, isError: true })
         }
       } finally {
         setLoadingKey(null)
@@ -120,6 +124,8 @@ export function UnitSmartMatchModal({
           setDoneKeys((prev) => ({ ...prev, [bulkKey]: true }))
           onNotice?.({ text: `${sm.bulkRecsSentSuccess} (${res.sentCount})` })
           router.refresh()
+        } else if (res.error) {
+          onNotice?.({ text: res.error, isError: true })
         }
       } finally {
         setLoadingKey(null)
@@ -153,6 +159,8 @@ export function UnitSmartMatchModal({
           setDoneKeys((prev) => ({ ...prev, [k]: true }))
           onNotice?.({ text: sm.officialOfferSentSuccess })
           router.refresh()
+        } else if (res.error) {
+          onNotice?.({ text: res.error, isError: true })
         }
       } finally {
         setLoadingKey(null)
@@ -212,7 +220,7 @@ export function UnitSmartMatchModal({
             <strong dir="ltr" className="text-[#105C50]">
               {Number(unit.paid_amount || 0).toLocaleString("en-US")} {unitCur}
             </strong>{" "}
-            · {unit.area || "—"} · {deriveShortUnitCode(unit.id)}
+            · {localizedUnitArea} · {deriveShortUnitCode(unit.id)}
           </DialogDescription>
         </DialogHeader>
 
@@ -226,7 +234,7 @@ export function UnitSmartMatchModal({
               const bCash = Number(
                 buyer.available_cash || buyer.budget || 0
               ).toLocaleString("en-US")
-              const bWa = `${leadsPrompts.waUnitLeadPrefix} ${buyer.name || ""}، ${leadsPrompts.waUnitLeadMiddle} (${unit.project_name || ""} - ${unit.area || ""}) — ${matchPrefix} ${match.score}%`
+              const bWa = `${leadsPrompts.waUnitLeadPrefix} ${buyer.name || ""}، ${leadsPrompts.waUnitLeadMiddle} (${unit.project_name || ""} - ${localizedUnitArea}) — ${matchPrefix} ${match.score}%`
 
               const recKey = `rec_${unit.id}_${buyer.id}`
               const offKey = `off_${unit.id}_${buyer.id}`
@@ -451,6 +459,8 @@ export function BuyerSmartMatchModal({
           setDoneKeys((prev) => ({ ...prev, [k]: true }))
           onNotice?.({ text: sm.recSentSuccess })
           router.refresh()
+        } else if (res.error) {
+          onNotice?.({ text: res.error, isError: true })
         }
       } finally {
         setLoadingKey(null)
@@ -506,6 +516,8 @@ export function BuyerSmartMatchModal({
           setDoneKeys((prev) => ({ ...prev, [k]: true }))
           onNotice?.({ text: sm.officialOfferSentSuccess })
           router.refresh()
+        } else if (res.error) {
+          onNotice?.({ text: res.error, isError: true })
         }
       } finally {
         setLoadingKey(null)
@@ -579,6 +591,7 @@ export function BuyerSmartMatchModal({
               const uCash = Number(unit.paid_amount || 0).toLocaleString(
                 "en-US"
               )
+              const localizedArea = getLocalizedGeorgiaAreaName(unit.area, locale)
               const recKey = `rec_${unit.id}_${lead.id}`
               const offKey = `off_${unit.id}_${lead.id}`
               const isRecDone =
@@ -597,7 +610,7 @@ export function BuyerSmartMatchModal({
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex min-w-0 items-center gap-1.5">
                       <span className="truncate font-extrabold text-[#0a1122]">
-                        {unit.project_name || "—"} ({unit.area || "—"})
+                        {unit.project_name || "—"} ({localizedArea})
                       </span>
                       <span className="font-mono text-[10px] text-gray-400">
                         {deriveShortUnitCode(unit.id)}

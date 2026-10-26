@@ -14,7 +14,6 @@ export type GeorgiaAreaItem = {
 }
 
 export const GEORGIA_CITIES_AND_DISTRICTS: GeorgiaAreaItem[] = [
-  // تبليسي وأحيائها الرئيسية (Tbilisi)
   { id: 'Tbilisi - Saburtalo', cityCode: 'tbilisi', ar: 'تبليسي — سابورتالو (Saburtalo)', en: 'Tbilisi — Saburtalo', ru: 'Тбилиси — Сабуртало', ka: 'თბილისი — საბურთალო' },
   { id: 'Tbilisi - Vake', cityCode: 'tbilisi', ar: 'تبليسي — فاكي (Vake)', en: 'Tbilisi — Vake', ru: 'Тбилиси — Ваке', ka: 'თბილისი — ვაკე' },
   { id: 'Tbilisi - Vera', cityCode: 'tbilisi', ar: 'تبليسي — فيرا (Vera)', en: 'Tbilisi — Vera', ru: 'Тбилиси — Вера', ka: 'თბილისი — ვერა' },
@@ -35,8 +34,6 @@ export const GEORGIA_CITIES_AND_DISTRICTS: GeorgiaAreaItem[] = [
   { id: 'Tbilisi - Lisi Lake', cityCode: 'tbilisi', ar: 'تبليسي — بحيرة ليسي (Lisi Lake)', en: 'Tbilisi — Lisi Lake', ru: 'Тбилиси — Озеро Лиси', ka: 'თბილისი — ლისის ტბა' },
   { id: 'Tbilisi - Tbilisi Sea', cityCode: 'tbilisi', ar: 'تبليسي — بحر تبليسي (Tbilisi Sea)', en: 'Tbilisi — Tbilisi Sea', ru: 'Тбилиси — Тбилисское море', ka: 'თბილისი — თბილისის ზღვა' },
   { id: 'Tbilisi - Tabakhmela / Kojori', cityCode: 'tbilisi', ar: 'تبليسي — تاباخميلا / كوجوري', en: 'Tbilisi — Tabakhmela / Kojori', ru: 'Тбилиси — Табахмела / Коджори', ka: 'თბილისი — ტაბახმელა / კოჯორი' },
-
-  // باتومي وساحل البحر الأسود (Batumi & Adjara)
   { id: 'Batumi - New Boulevard', cityCode: 'batumi', ar: 'باتومي — نيو بوليفارد (New Boulevard)', en: 'Batumi — New Boulevard', ru: 'Батуми — Новый Бульвар', ka: 'ბათუმი — ახალი ბულვარი' },
   { id: 'Batumi - Alley of Heroes', cityCode: 'batumi', ar: 'باتومي — ممر الأبطال (Alley of Heroes)', en: 'Batumi — Alley of Heroes', ru: 'Батуми — Аллея Героев', ka: 'ბათუმი — გმირთა ხეივანი' },
   { id: 'Batumi - Old Boulevard / Center', cityCode: 'batumi', ar: 'باتومي — البوليفارد القديم / وسط المدينة', en: 'Batumi — Old Boulevard / City Center', ru: 'Батуми — Старый Бульвар / Центр', ka: 'ბათუმი — ძველი ბულვარი / ცენტრი' },
@@ -48,8 +45,6 @@ export const GEORGIA_CITIES_AND_DISTRICTS: GeorgiaAreaItem[] = [
   { id: 'Batumi - Makhinjauri', cityCode: 'batumi', ar: 'باتومي — ماخينجاوري (Makhinjauri)', en: 'Batumi — Makhinjauri', ru: 'Батуми — Махинджаури', ka: 'ბათუმი — მახინჯაური' },
   { id: 'Batumi - Chakvi / Green Cape', cityCode: 'batumi', ar: 'باتومي — تشاكفي / غرين كيب (Chakvi)', en: 'Batumi — Chakvi / Mtsvane Kontskhi', ru: 'Батуми — Чакви / Зелёный Мыс', ka: 'ბათუმი — ჩაქვი / მწვანე კონცხი' },
   { id: 'Kobuleti / Shekvetili', cityCode: 'batumi', ar: 'كوبوليتي / شيكفيتيلي (Kobuleti)', en: 'Kobuleti / Shekvetili', ru: 'Кобулети / Шекветили', ka: 'ქობულეთი / შეკვეთილი' },
-
-  // كوتايسي والمدن والمنتجعات السياحية (Kutaisi & Resorts)
   { id: 'Kutaisi', cityCode: 'kutaisi', ar: 'كوتايسي (Kutaisi)', en: 'Kutaisi', ru: 'Кутаиси', ka: 'ქუთაისი' },
   { id: 'Gudauri', cityCode: 'resorts', ar: 'غودوري — منتجع التزلج (Gudauri)', en: 'Gudauri Ski Resort', ru: 'Гудаури', ka: 'გუდაური' },
   { id: 'Bakuriani', cityCode: 'resorts', ar: 'باكورياني (Bakuriani)', en: 'Bakuriani Resort', ru: 'Бакуриани', ka: 'ბაკურიანი' },
@@ -154,8 +149,28 @@ export function GeorgiaAreaSelect({
     ? getItemLabel(selectedObj)
     : value || ''
 
-  const cleanLabel = label.replace(/\s*\*\s*$/, '')
-  const isRequired = label.includes('*')
+  const cleanLabel = (label || '').replace(/\s*\*\s*$/, '')
+  const isRequired = (label || '').includes('*')
+
+  const defaultSelectPlaceholder =
+    tDetails?.georgiaLocationPlaceholder ||
+    (locale === 'ar'
+      ? 'اختر المدينة أو الحي في جورجيا (تبليسي، باتومي...)'
+      : locale === 'ru'
+        ? 'Выберите город или район Грузии (Тбилиси, Батуми...)'
+        : locale === 'ka'
+          ? 'აირჩიეთ ქალაქი ან უბანი (თბილისი, ბათუმი...)'
+          : 'Select City or District in Georgia (Tbilisi, Batumi...)')
+
+  const defaultSearchPlaceholder =
+    tDetails?.georgiaLocationSearchPlaceholder ||
+    (locale === 'ar'
+      ? 'ابحث باسم الحي أو المدينة...'
+      : locale === 'ru'
+        ? 'Поиск района или города...'
+        : locale === 'ka'
+          ? 'მოძებნეთ უბანი ან ქალაქი...'
+          : 'Search district or city...')
 
   return (
     <div className="flex flex-col gap-2" ref={wrapperRef}>
@@ -183,9 +198,7 @@ export function GeorgiaAreaSelect({
           <span className="flex min-w-0 items-center gap-2">
             <MapPin className="size-4 shrink-0 text-[var(--brand-primary,#007a5a)]" />
             <span className="truncate">
-              {displayValue ||
-                placeholder ||
-                tDetails?.georgiaLocationPlaceholder}
+              {displayValue || placeholder || defaultSelectPlaceholder}
             </span>
           </span>
           <ChevronDown
@@ -209,11 +222,7 @@ export function GeorgiaAreaSelect({
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder={
-                    tDetails?.georgiaLocationSearchPlaceholder ||
-                    placeholder ||
-                    ''
-                  }
+                  placeholder={defaultSearchPlaceholder}
                   className="h-9 w-full rounded-xl border border-slate-200 bg-slate-50/80 ps-3 pe-9 text-xs font-semibold text-[#0a1122] focus:border-[#007a5a] focus:bg-white focus:outline-none"
                 />
               </div>

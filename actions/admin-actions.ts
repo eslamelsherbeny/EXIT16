@@ -22,6 +22,9 @@ import {
 
 export type StaffRoleCode = "admin" | "moderator" | "sales"
 
+const DEFAULT_SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL || "https://exit-16.vercel.app"
+
 async function getAdminActionsDict() {
   const { dict, dir } = await getServerI18n()
   const t = (dict as Record<string, any>)?.serverActions?.admin || {}
@@ -55,7 +58,12 @@ function formatPrimaryPhone(rawPhone: string): string {
   if (!digits) return ""
   if (digits.startsWith("+")) return digits
   const stripped = digits.replace(/^0+/, "")
-  if (stripped.startsWith("995") || stripped.startsWith("20")) {
+  if (
+    stripped.startsWith("995") ||
+    stripped.startsWith("20") ||
+    stripped.startsWith("966") ||
+    stripped.startsWith("971")
+  ) {
     return `+${stripped}`
   }
   return `+995${stripped}`
@@ -67,6 +75,14 @@ export async function getPublicSiteRuntimeConfigAction(): Promise<{
 }> {
   const { siteSettings, isStaff } = await getServerI18n()
   return { siteSettings, isStaff }
+}
+
+export async function logoutAdminAction() {
+  const cookieStore = await cookies()
+  cookieStore.delete("user_session")
+  cookieStore.delete("session_hint")
+  revalidatePath("/", "layout")
+  return { success: true }
 }
 
 async function requireAdminAuth(
@@ -210,12 +226,14 @@ function revalidateAdminAll() {
   revalidatePath("/admin", "layout")
   revalidatePath("/admin")
   revalidatePath("/admin/properties")
+  revalidatePath("/admin/promotions")
   revalidatePath("/admin/leads")
   revalidatePath("/admin/users")
-  revalidatePath("/admin/investors")
   revalidatePath("/admin/settings")
   revalidatePath("/admin/profile")
   revalidatePath("/account")
+  revalidatePath("/account/offers")
+  revalidatePath("/account/documents")
   revalidatePath("/opportunities")
   revalidatePath("/contact")
   revalidatePath("/sell")
@@ -242,7 +260,7 @@ export async function updatePropertyStatusAction(
     const { data: prop } = await supabase
       .from("sell_requests")
       .select(
-        "id, user_id, project_name, area, unit_type, paid_amount, contract_price, name, email"
+        "id, user_id, project_name, area, unit_type, paid_amount, contract_price, name, email, documents"
       )
       .eq("id", propertyId)
       .maybeSingle()
@@ -274,6 +292,8 @@ export async function updatePropertyStatusAction(
     }
 
     const projectLabel = prop?.project_name || msg.defaultProjectWord
+    const resolvedArea =
+      prop?.area || prop?.documents?.__unit_meta?.area || ""
 
     if (prop?.user_id) {
       const sellerNotifMap: Record<
@@ -327,7 +347,7 @@ export async function updatePropertyStatusAction(
     if (status === "active" && prop) {
       try {
         const unitCash = Number(prop.paid_amount || 0)
-        const unitArea = String(prop.area || "").trim()
+        const unitArea = String(resolvedArea).trim()
 
         const { data: buyers } = await supabase
           .from("buy_requests")
@@ -430,6 +450,13 @@ export async function deletePropertyAction(propertyId: string) {
   const { t: msg } = await getAdminActionsDict()
   try {
     const { supabase } = await requireAdminAuth(["admin"])
+    try {
+      await supabase
+        .from("property_offers")
+        .delete()
+        .eq("property_id", propertyId)
+    } catch {}
+
     const { error } = await supabase
       .from("sell_requests")
       .delete()
@@ -480,6 +507,7 @@ export async function updateBuyerLeadStatusAction(
       const buyerStatusText: Record<string, string> = {
         contacted: msg.leadContactedNotifMsg,
         qualified: msg.leadQualifiedNotifMsg,
+        matched: msg.leadQualifiedNotifMsg,
         closed: msg.leadClosedNotifMsg,
       }
       if (buyerStatusText[cleanStatus]) {
@@ -510,6 +538,10 @@ export async function deleteBuyerLeadAction(leadId: string) {
   const { t: msg } = await getAdminActionsDict()
   try {
     const { supabase } = await requireAdminAuth(["admin"])
+    try {
+      await supabase.from("property_offers").delete().eq("lead_id", leadId)
+    } catch {}
+
     const { error } = await supabase
       .from("buy_requests")
       .delete()
@@ -589,10 +621,21 @@ export async function updateUserRoleAndStatusAction(
 ) {
   const { t: msg } = await getAdminActionsDict()
   try {
-    const { supabase } = await requireAdminAuth(["admin"])
+    const { supabase, adminUser } = await requireAdminAuth(["admin"])
 
     const cleanRole = sanitizeText(role || "user", 20).toLowerCase()
     const cleanStatus = sanitizeText(status || "active", 20).toLowerCase()
+
+    // حماية الأدمن الحالي من حظر حسابه أو سحب صلاحية الأدمن من نفسه بالخطأ
+    if (
+      userId === adminUser.id &&
+      (cleanRole !== "admin" || cleanStatus === "suspended")
+    ) {
+      return {
+        success: false,
+        error: msg.cannotDeleteSelf || "لا يمكنك سحب صلاحية الإدارة أو إيقاف حسابك الشخصي.",
+      }
+    }
 
     const { error } = await supabase
       .from("users")
@@ -675,6 +718,14 @@ export async function deleteUserByAdminAction(userId: string) {
       return { success: false, error: msg.cannotDeleteSelf }
     }
 
+    try {
+      await supabase
+        .from("property_offers")
+        .delete()
+        .or(`buyer_user_id.eq.${userId},seller_user_id.eq.${userId}`)
+      await supabase.from("notifications").delete().eq("user_id", userId)
+    } catch {}
+
     await supabase.from("sell_requests").delete().eq("user_id", userId)
     await supabase.from("buy_requests").delete().eq("user_id", userId)
     const { error } = await supabase.from("users").delete().eq("id", userId)
@@ -734,10 +785,7 @@ export async function updateAdminProfileDataAction(formData: FormData) {
       const verifyToken = randomBytes(24).toString("hex")
       updateData.otp_code = verifyToken
 
-      const siteUrl =
-        process.env.NEXT_PUBLIC_SITE_URL ||
-        "https://next-js-rtl-platform-structure.vercel.app"
-      const verifyLink = `${siteUrl}/login?verified=1&email=${encodeURIComponent(email)}&token=${verifyToken}`
+      const verifyLink = `${DEFAULT_SITE_URL}/login?verified=1&email=${encodeURIComponent(email)}&token=${verifyToken}`
 
       await sendAdminEmail({
         to: email,
@@ -934,6 +982,7 @@ export async function saveSiteSettingsAction(formData: FormData) {
     }
   }
 }
+
 export async function managePropertyPromotionAction(
   propertyId: string,
   action: "activate" | "cancel",
@@ -1012,6 +1061,21 @@ export async function purgeSellerDeletedPropertiesAction() {
   const { t: msg } = await getAdminActionsDict()
   try {
     const { supabase } = await requireAdminAuth(["admin"])
+    const { data: deletedRows } = await supabase
+      .from("sell_requests")
+      .select("id")
+      .eq("status", "deleted_by_seller")
+
+    const ids = (deletedRows || []).map((r: any) => r.id)
+    if (ids.length > 0) {
+      try {
+        await supabase
+          .from("property_offers")
+          .delete()
+          .in("property_id", ids)
+      } catch {}
+    }
+
     const { error } = await supabase
       .from("sell_requests")
       .delete()
@@ -1030,10 +1094,3 @@ export async function purgeSellerDeletedPropertiesAction() {
     }
   }
 }
-
-/* ============================================================================
-   ARCHIVED MULTI-COUNTRY / EGYPT PHONE FORMATTING (COMMENTED FOR REFERENCE)
-   ============================================================================
-   // const stripped = rawPhone.replace(/^\+?20/, "").replace(/^0+/, "")
-   // const formattedPhone = `+20${stripped}`
-============================================================================ */

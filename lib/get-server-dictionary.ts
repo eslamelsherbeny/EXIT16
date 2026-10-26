@@ -3,8 +3,8 @@ import { createServerClient } from '@supabase/ssr'
 import {
   DICTIONARIES,
   getCurrencySymbol,
-  normalizeCountry,
   normalizeLocale,
+  type CountryCode,
   type Dictionary,
 } from './i18n-config'
 import {
@@ -77,9 +77,8 @@ export async function getServerDictionary(
 export async function getServerI18n() {
   const cookieStore = await cookies()
   const locale = normalizeLocale(cookieStore.get('locale')?.value)
-  const country = normalizeCountry(
-    cookieStore.get('darak_country')?.value || cookieStore.get('country')?.value
-  )
+  // تثبيت الدولة النشطة على جورجيا (GE)
+  const country: CountryCode = 'GE'
   const dir = locale === 'ar' ? ('rtl' as const) : ('ltr' as const)
 
   const baseDict = DICTIONARIES[locale] || DICTIONARIES.ar
@@ -90,7 +89,6 @@ export async function getServerI18n() {
   const rawSession = cookieStore.get('user_session')?.value
   const candidateUserId = extractUserIdFromCookie(rawSession)
 
-  // لا نعتبر المستخدم مسجلاً للدخول إلا بعد التحقق الفعلي من جلسته في قاعدة البيانات
   let isLoggedIn = false
   let isStaff = false
 

@@ -1,3 +1,4 @@
+import { Suspense } from "react"
 import { cookies } from "next/headers"
 import { createServerClient } from "@supabase/ssr"
 import { getServerI18n } from "@/lib/get-server-dictionary"
@@ -48,7 +49,29 @@ export default async function PropertiesPage() {
         .order("updated_at", { ascending: false }),
     ])
 
-  const properties = (data ?? []) as SellRequest[]
+  const properties = ((data ?? []) as any[]).map((p) => {
+    const meta =
+      p.documents && typeof p.documents === "object"
+        ? p.documents.__unit_meta || {}
+        : {}
+    return {
+      ...p,
+      area: p.area || meta.area || null,
+      unit_type: p.unit_type || meta.unit_type || null,
+      size: p.size ?? meta.size ?? null,
+      rooms: p.rooms ?? meta.rooms ?? null,
+      bathrooms: p.bathrooms ?? meta.bathrooms ?? null,
+      finishing: p.finishing || meta.finishing || null,
+      delivery_status: p.delivery_status || meta.delivery_status || null,
+      installment_amount: p.installment_amount ?? meta.installment_amount ?? null,
+      installment_frequency:
+        p.installment_frequency || meta.installment_frequency || null,
+      years_left: p.years_left ?? meta.years_left ?? null,
+      contract_year: p.contract_year ?? meta.contract_year ?? null,
+      contract_month: p.contract_month || meta.contract_month || null,
+    } as SellRequest
+  })
+
   const buyers = (leadsData ?? []) as MatchableBuyer[]
   const offers = offersData ?? []
 
@@ -64,11 +87,13 @@ export default async function PropertiesPage() {
 
   return (
     <div className="mx-auto max-w-7xl">
-      <PropertiesTable
-        properties={properties}
-        buyers={buyers}
-        offers={offers}
-      />
+      <Suspense fallback={null}>
+        <PropertiesTable
+          properties={properties}
+          buyers={buyers}
+          offers={offers}
+        />
+      </Suspense>
     </div>
   )
 }

@@ -2,10 +2,8 @@
 
 import Link from 'next/link'
 import { Star, Trash2 } from 'lucide-react'
-import arDict from '@/dictionaries/ar.json'
-import { getCurrencyByCountry } from '@/components/features/seller/seller-shared'
-
-const t = arDict.accountPages.common
+import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
+import { getCurrencySymbol, useTranslation } from '@/lib/i18n'
 
 export type SharedUnitCardItem = {
   id: string
@@ -19,6 +17,7 @@ export type SharedUnitCardItem = {
   is_featured?: boolean | null
   featured_until?: string | null
   images?: string[] | null
+  documents?: Record<string, any> | null
   country_code?: string | null
   country?: string | null
 }
@@ -35,6 +34,18 @@ export function SharedUnitCard({
   onRemoveFavorite?: (id: string) => void
   removeTooltip?: string
 }) {
+  const { t: dict, locale, dir } = useTranslation()
+  const t = dict.accountPages.common
+
+  const meta =
+    unit.documents && typeof unit.documents === 'object'
+      ? unit.documents.__unit_meta || {}
+      : {}
+
+  const resolvedArea = unit.area || meta.area || ''
+  const resolvedType = unit.unit_type || meta.unit_type || t.defaultUnitType
+  const resolvedRooms = unit.rooms ?? meta.rooms ?? 2
+
   const paid = Number(unit.paid_amount) || 0
   const discount = unit.willing_to_discount
     ? Number(unit.discount_amount) || 0
@@ -50,12 +61,16 @@ export function SharedUnitCard({
       ? unit.images[0]
       : DEFAULT_PROPERTY_IMAGE
 
-  const currency = getCurrencyByCountry(
-    unit.country_code || unit.country || 'EG'
-  )
+  const currency = getCurrencySymbol('GE', locale)
+  const localizedArea = resolvedArea
+    ? getLocalizedGeorgiaAreaName(resolvedArea, locale)
+    : '—'
 
   return (
-    <div className="group flex flex-col justify-between overflow-hidden rounded-[16px] border border-gray-200 bg-white shadow-2xs transition hover:shadow-md">
+    <div
+      dir={dir}
+      className="group flex flex-col justify-between overflow-hidden rounded-[16px] border border-gray-200 bg-white text-start shadow-2xs transition hover:shadow-md"
+    >
       <div>
         <div className="relative h-[125px] w-full overflow-hidden bg-gray-100 sm:h-[175px]">
           <Link
@@ -70,7 +85,7 @@ export function SharedUnitCard({
           </Link>
 
           {isFeaturedActive && (
-            <span className="absolute top-2 right-2 inline-flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-0.5 text-[10px] font-bold text-amber-700 shadow-xs">
+            <span className="absolute top-2 end-2 inline-flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-0.5 text-[10px] font-bold text-amber-700 shadow-xs">
               <Star className="size-3 fill-amber-400 text-amber-500" />
               <span>{t.featuredBadge}</span>
             </span>
@@ -81,7 +96,7 @@ export function SharedUnitCard({
               type="button"
               onClick={() => onRemoveFavorite(unit.id)}
               title={removeTooltip}
-              className="absolute top-2 left-2 flex size-8 items-center justify-center rounded-full bg-white/95 text-red-600 shadow-md transition hover:bg-red-50"
+              className="absolute top-2 start-2 flex size-8 items-center justify-center rounded-full bg-white/95 text-red-600 shadow-md transition hover:bg-red-50"
             >
               <Trash2 className="size-3.5" />
             </button>
@@ -90,20 +105,20 @@ export function SharedUnitCard({
 
         <Link
           href={`/opportunities/${unit.id}`}
-          className="block p-3.5 text-right sm:p-4"
+          className="block p-3.5 text-start sm:p-4"
         >
           <h3 className="line-clamp-1 text-xs font-extrabold text-[var(--brand-navy,#0a1122)] group-hover:text-[var(--brand-primary,#007a5a)] sm:text-sm">
             {unit.project_name || t.defaultUnitTitle}
           </h3>
           <p className="mt-0.5 line-clamp-1 text-[10px] text-gray-400 sm:text-xs">
-            {unit.area || '—'} · {unit.unit_type || t.defaultUnitType} ·{' '}
-            {unit.rooms || 3} {t.roomsWord}
+            {localizedArea} · {resolvedType} · {resolvedRooms} {t.roomsWord}
           </p>
 
           <div className="mt-3">
             <p className="text-[10px] text-gray-400">{t.requiredCashNow}</p>
             <p className="text-sm font-extrabold text-[var(--brand-primary,#007a5a)] tabular-nums sm:text-lg">
-              {requiredCash.toLocaleString('en-US')} {currency}
+              <span dir="ltr">{requiredCash.toLocaleString('en-US')}</span>{' '}
+              {currency}
             </p>
           </div>
         </Link>

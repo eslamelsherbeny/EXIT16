@@ -10,7 +10,7 @@ import {
   Star,
   X,
 } from 'lucide-react'
-import { unitTypes } from '@/components/features/seller/seller-shared'
+import { getLocalizedUnitTypes } from '@/components/features/seller/seller-shared'
 import {
   mapDbRowToProperty,
   OpportunitiesBottomSections,
@@ -21,7 +21,6 @@ import {
   GeorgiaAreaSelect,
   getLocalizedGeorgiaAreaName,
 } from '@/components/shared/georgia-areas'
-import { ScrollReveal } from '@/components/shared/scroll-reveal'
 import { getCurrencySymbol, useTranslation } from '@/lib/i18n'
 import { isNonGeorgianLegacyArea } from '@/lib/smart-matcher'
 
@@ -31,6 +30,11 @@ const FAVORITES_STORAGE_KEY = 'darak_favorites'
 export default function OpportunitiesPage() {
   const { t: dict, locale, dir } = useTranslation()
   const t = dict.opportunitiesPage
+
+  const localizedTypes = useMemo(
+    () => getLocalizedUnitTypes(dict, locale),
+    [dict, locale]
+  )
 
   const [rawDbRows, setRawDbRows] = useState<any[]>([])
   const [loading, setLoading] = useState<boolean>(true)
@@ -199,8 +203,16 @@ export default function OpportunitiesPage() {
         return false
       }
       if (negotiable && !item.negotiable) return false
-      if (selectedTypes.length > 0 && !selectedTypes.includes(item.type))
+      if (
+        selectedTypes.length > 0 &&
+        !selectedTypes.some(
+          (st) =>
+            item.type.toLowerCase().includes(st.toLowerCase()) ||
+            st.toLowerCase().includes(item.type.toLowerCase())
+        )
+      ) {
         return false
+      }
 
       if (deliveryStatusIdx === 1 && !item.isReady) return false
       if (deliveryStatusIdx === 2 && item.isReady) return false
@@ -320,241 +332,235 @@ export default function OpportunitiesPage() {
       className="min-h-screen bg-[var(--brand-surface,#f5f6f8)] py-8 text-[var(--brand-navy,#0a1122)] sm:py-14"
     >
       <div className="layout-container">
-        <ScrollReveal>
-          <div className="text-start">
-            <h1 className="text-xl font-extrabold tracking-tight text-[var(--brand-navy,#0a1122)] sm:text-3xl md:text-[36px]">
-              {t.header.title}
-            </h1>
-            <p className="mt-2 text-xs leading-relaxed text-gray-500 sm:mt-3 sm:text-sm md:text-base">
-              {t.header.subtitle}
-            </p>
-          </div>
-        </ScrollReveal>
+        <div className="text-start">
+          <h1 className="text-xl font-extrabold tracking-tight text-[var(--brand-navy,#0a1122)] sm:text-3xl md:text-[36px]">
+            {t.header.title}
+          </h1>
+          <p className="mt-2 text-xs leading-relaxed text-gray-500 sm:mt-3 sm:text-sm md:text-base">
+            {t.header.subtitle}
+          </p>
+        </div>
 
-        <ScrollReveal delay={80}>
-          <section className="mt-6 sm:mt-8">
-            <div className="grid grid-cols-1 divide-y divide-gray-200/80 overflow-hidden rounded-[20px] border border-gray-200/70 border-t-[3px] border-t-[var(--brand-primary,#007a5a)] bg-white shadow-sm md:grid-cols-2 md:divide-x md:divide-y-0 md:divide-x-reverse">
-              <div className="flex flex-col justify-between p-6 text-start sm:p-10">
-                <p className="text-xs font-bold text-gray-500 sm:text-sm">
-                  {t.stats.availableUnitsTitle}
-                </p>
+        <section className="mt-6 sm:mt-8">
+          <div className="grid grid-cols-1 divide-y divide-gray-200/80 overflow-hidden rounded-[20px] border border-gray-200/70 border-t-[3px] border-t-[var(--brand-primary,#007a5a)] bg-white shadow-sm md:grid-cols-2 md:divide-x md:divide-y-0 md:divide-x-reverse">
+            <div className="flex flex-col justify-between p-6 text-start sm:p-10">
+              <p className="text-xs font-bold text-gray-500 sm:text-sm">
+                {t.stats.availableUnitsTitle}
+              </p>
 
-                <div className="mt-3 flex items-baseline justify-start gap-2">
-                  <span
-                    dir="ltr"
-                    className="text-4xl font-extrabold leading-none tracking-tight text-[var(--brand-navy,#0a1122)] tabular-nums sm:text-5xl"
-                  >
-                    {availableUnitsCount.toLocaleString('en-US')}
-                  </span>
-                  <span className="text-base font-medium text-gray-500 sm:text-lg">
-                    {t.stats.unitWord}
-                  </span>
-                </div>
-
-                <div>
-                  <div className="mt-4 h-[1px] w-12 bg-teal-600/40" />
-                  <p className="mt-3 text-xs leading-snug text-gray-400">
-                    {t.stats.availableUnitsSub}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex flex-col justify-between p-6 text-start sm:p-10">
-                <div className="flex items-center justify-start gap-2">
-                  <p className="text-xs font-bold text-gray-500 sm:text-sm">
-                    {t.stats.marketValueTitle}
-                  </p>
-                  <span className="shrink-0 rounded-full bg-gray-100 px-2.5 py-0.5 text-[10px] font-semibold text-gray-500">
-                    {t.stats.estimatedBadge}
-                  </span>
-                </div>
-
-                <div className="mt-3 flex items-baseline justify-start gap-2">
-                  <span
-                    dir="ltr"
-                    className="text-4xl font-extrabold leading-none tracking-tight text-[var(--brand-navy,#0a1122)] tabular-nums sm:text-5xl"
-                  >
-                    {formattedMarketTotal.value}
-                  </span>
-                  <span className="text-base font-medium text-gray-500 sm:text-lg">
-                    {formattedMarketTotal.unit}
-                  </span>
-                </div>
-
-                <div>
-                  <div className="mt-4 h-[1px] w-12 bg-teal-600/40" />
-                  <p className="mt-3 text-xs leading-snug text-gray-400">
-                    {t.stats.marketValueSub}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </section>
-        </ScrollReveal>
-
-        <ScrollReveal delay={140}>
-          <section className="mt-6 rounded-[16px] border border-gray-200/80 bg-white p-3.5 shadow-sm sm:mt-8 sm:rounded-[20px] sm:p-5">
-            <div className="relative">
-              <Search className="pointer-events-none absolute top-1/2 end-3.5 size-4 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder={t.filters.searchPlaceholder}
-                className="h-10 w-full rounded-xl border border-gray-200 bg-white ps-3 pe-10 text-xs text-[var(--brand-navy,#0a1122)] placeholder:text-gray-400 focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:h-12 sm:text-sm"
-              />
-            </div>
-
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-2.5 sm:mt-3.5">
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setFiltersOpen(!filtersOpen)}
-                  className={`inline-flex h-9 items-center gap-1.5 rounded-xl border px-3 text-xs font-bold transition-colors sm:h-10 sm:px-4 sm:text-[13px] ${
-                    filtersOpen || activeFilterCount > 0
-                      ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]'
-                      : 'border-gray-200 bg-white text-[var(--brand-navy,#0a1122)] hover:bg-gray-50'
-                  }`}
+              <div className="mt-3 flex items-baseline justify-start gap-2">
+                <span
+                  dir="ltr"
+                  className="text-4xl font-extrabold leading-none tracking-tight text-[var(--brand-navy,#0a1122)] tabular-nums sm:text-5xl"
                 >
-                  <ListFilter className="size-3.5 sm:size-4" />
-                  <span>{t.filters.advancedFilterBtn}</span>
-                  {activeFilterCount > 0 && (
-                    <span className="flex size-4 items-center justify-center rounded-full bg-[var(--brand-primary,#007a5a)] text-[10px] font-bold text-white sm:size-5">
-                      {activeFilterCount}
-                    </span>
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setNegotiable(!negotiable)}
-                  className={`inline-flex h-9 items-center gap-1 rounded-xl border px-3 text-xs font-bold transition-colors sm:h-10 sm:px-4 sm:text-[13px] ${
-                    negotiable
-                      ? 'border-[#d97706] bg-amber-50/60 text-[#b45309]'
-                      : 'border-gray-200 bg-white text-[var(--brand-navy,#0a1122)] hover:bg-gray-50'
-                  }`}
-                >
-                  <span>{t.filters.negotiableBtn}</span>
-                  <ArrowDown className="size-3 text-[#d97706] sm:size-3.5" />
-                </button>
-
-                <span className="text-[11px] font-medium text-gray-500 sm:text-xs">
-                  {availableUnitsCount.toLocaleString('en-US')}{' '}
-                  {t.filters.availableUnitCountWord}
+                  {availableUnitsCount.toLocaleString('en-US')}
+                </span>
+                <span className="text-base font-medium text-gray-500 sm:text-lg">
+                  {t.stats.unitWord}
                 </span>
               </div>
 
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                <label
-                  htmlFor="sort-select"
-                  className="text-[11px] text-gray-400 sm:text-xs"
-                >
-                  {t.filters.sortLabel}
-                </label>
-                <div className="relative">
-                  <select
-                    id="sort-select"
-                    value={sortIdx}
-                    onChange={(e) => setSortIdx(Number(e.target.value))}
-                    className="h-9 min-w-[120px] appearance-none rounded-xl border border-gray-200 bg-white pr-3 pl-7 text-[11px] font-bold text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:h-10 sm:min-w-[155px] sm:text-xs"
-                  >
-                    {t.filters.sorts.map((item, idx) => (
-                      <option key={item} value={idx}>
-                        {item}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-gray-500 sm:left-2.5 sm:size-4" />
-                </div>
+              <div>
+                <div className="mt-4 h-[1px] w-12 bg-teal-600/40" />
+                <p className="mt-3 text-xs leading-snug text-gray-400">
+                  {t.stats.availableUnitsSub}
+                </p>
               </div>
             </div>
 
-            {activeFilterCount > 0 && (
-              <div className="mt-3 flex flex-wrap items-center justify-start gap-2 border-t border-gray-100 pt-2.5">
-                {negotiable && (
-                  <button
-                    type="button"
-                    onClick={() => setNegotiable(false)}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-primary-light,#eaf8f2)] px-3 py-1 text-[11px] font-bold text-[var(--brand-primary,#007a5a)] sm:text-xs"
-                  >
-                    <span>{t.filters.negotiableBtn}</span>
-                    <X className="size-3" />
-                  </button>
+            <div className="flex flex-col justify-between p-6 text-start sm:p-10">
+              <div className="flex items-center justify-start gap-2">
+                <p className="text-xs font-bold text-gray-500 sm:text-sm">
+                  {t.stats.marketValueTitle}
+                </p>
+                <span className="shrink-0 rounded-full bg-gray-100 px-2.5 py-0.5 text-[10px] font-semibold text-gray-500">
+                  {t.stats.estimatedBadge}
+                </span>
+              </div>
+
+              <div className="mt-3 flex items-baseline justify-start gap-2">
+                <span
+                  dir="ltr"
+                  className="text-4xl font-extrabold leading-none tracking-tight text-[var(--brand-navy,#0a1122)] tabular-nums sm:text-5xl"
+                >
+                  {formattedMarketTotal.value}
+                </span>
+                <span className="text-base font-medium text-gray-500 sm:text-lg">
+                  {formattedMarketTotal.unit}
+                </span>
+              </div>
+
+              <div>
+                <div className="mt-4 h-[1px] w-12 bg-teal-600/40" />
+                <p className="mt-3 text-xs leading-snug text-gray-400">
+                  {t.stats.marketValueSub}
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="mt-6 rounded-[16px] border border-gray-200/80 bg-white p-3.5 shadow-sm sm:mt-8 sm:rounded-[20px] sm:p-5">
+          <div className="relative">
+            <Search className="pointer-events-none absolute top-1/2 end-3.5 size-4 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={t.filters.searchPlaceholder}
+              className="h-10 w-full rounded-xl border border-gray-200 bg-white ps-3 pe-10 text-xs text-[var(--brand-navy,#0a1122)] placeholder:text-gray-400 focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:h-12 sm:text-sm"
+            />
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2.5 sm:mt-3.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setFiltersOpen(!filtersOpen)}
+                className={`inline-flex h-9 items-center gap-1.5 rounded-xl border px-3 text-xs font-bold transition-colors sm:h-10 sm:px-4 sm:text-[13px] ${
+                  filtersOpen || activeFilterCount > 0
+                    ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]'
+                    : 'border-gray-200 bg-white text-[var(--brand-navy,#0a1122)] hover:bg-gray-50'
+                }`}
+              >
+                <ListFilter className="size-3.5 sm:size-4" />
+                <span>{t.filters.advancedFilterBtn}</span>
+                {activeFilterCount > 0 && (
+                  <span className="flex size-4 items-center justify-center rounded-full bg-[var(--brand-primary,#007a5a)] text-[10px] font-bold text-white sm:size-5">
+                    {activeFilterCount}
+                  </span>
                 )}
-                {areaQuery.trim() && (
-                  <button
-                    type="button"
-                    onClick={() => setAreaQuery('')}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-primary-light,#eaf8f2)] px-3 py-1 text-[11px] font-bold text-[var(--brand-primary,#007a5a)] sm:text-xs"
-                  >
-                    <span>
-                      {t.filters.areaBadgePrefix}{' '}
-                      {getLocalizedGeorgiaAreaName(areaQuery, locale)}
-                    </span>
-                    <X className="size-3" />
-                  </button>
-                )}
-                {maxCash.trim() && (
-                  <button
-                    type="button"
-                    onClick={() => setMaxCash('')}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-primary-light,#eaf8f2)] px-3 py-1 text-[11px] font-bold text-[var(--brand-primary,#007a5a)] sm:text-xs"
-                  >
-                    <span>
-                      {t.filters.cashUpToPrefix}{' '}
-                      {Number(maxCash).toLocaleString('en-US')}
-                    </span>
-                    <X className="size-3" />
-                  </button>
-                )}
-                {maxInstallment.trim() && (
-                  <button
-                    type="button"
-                    onClick={() => setMaxInstallment('')}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-primary-light,#eaf8f2)] px-3 py-1 text-[11px] font-bold text-[var(--brand-primary,#007a5a)] sm:text-xs"
-                  >
-                    <span>
-                      {t.filters.instUpToPrefix}{' '}
-                      {Number(maxInstallment).toLocaleString('en-US')}
-                    </span>
-                    <X className="size-3" />
-                  </button>
-                )}
-                {maxContractPrice.trim() && (
-                  <button
-                    type="button"
-                    onClick={() => setMaxContractPrice('')}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-primary-light,#eaf8f2)] px-3 py-1 text-[11px] font-bold text-[var(--brand-primary,#007a5a)] sm:text-xs"
-                  >
-                    <span>
-                      {t.filters.contractUpToPrefix}{' '}
-                      {Number(maxContractPrice).toLocaleString('en-US')}
-                    </span>
-                    <X className="size-3" />
-                  </button>
-                )}
-                {selectedTypes.map((tp) => (
-                  <button
-                    key={tp}
-                    type="button"
-                    onClick={() => toggleType(tp)}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-primary-light,#eaf8f2)] px-3 py-1 text-[11px] font-bold text-[var(--brand-primary,#007a5a)] sm:text-xs"
-                  >
-                    <span>{tp}</span>
-                    <X className="size-3" />
-                  </button>
-                ))}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setNegotiable(!negotiable)}
+                className={`inline-flex h-9 items-center gap-1 rounded-xl border px-3 text-xs font-bold transition-colors sm:h-10 sm:px-4 sm:text-[13px] ${
+                  negotiable
+                    ? 'border-[#d97706] bg-amber-50/60 text-[#b45309]'
+                    : 'border-gray-200 bg-white text-[var(--brand-navy,#0a1122)] hover:bg-gray-50'
+                }`}
+              >
+                <span>{t.filters.negotiableBtn}</span>
+                <ArrowDown className="size-3 text-[#d97706] sm:size-3.5" />
+              </button>
+
+              <span className="text-[11px] font-medium text-gray-500 sm:text-xs">
+                {availableUnitsCount.toLocaleString('en-US')}{' '}
+                {t.filters.availableUnitCountWord}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <label
+                htmlFor="sort-select"
+                className="text-[11px] text-gray-400 sm:text-xs"
+              >
+                {t.filters.sortLabel}
+              </label>
+              <div className="relative">
+                <select
+                  id="sort-select"
+                  value={sortIdx}
+                  onChange={(e) => setSortIdx(Number(e.target.value))}
+                  className="h-9 min-w-[120px] appearance-none rounded-xl border border-gray-200 bg-white pr-3 pl-7 text-[11px] font-bold text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:h-10 sm:min-w-[155px] sm:text-xs"
+                >
+                  {t.filters.sorts.map((item, idx) => (
+                    <option key={item} value={idx}>
+                      {item}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-gray-500 sm:left-2.5 sm:size-4" />
+              </div>
+            </div>
+          </div>
+
+          {activeFilterCount > 0 && (
+            <div className="mt-3 flex flex-wrap items-center justify-start gap-2 border-t border-gray-100 pt-2.5">
+              {negotiable && (
                 <button
                   type="button"
-                  onClick={clearAll}
-                  className="ms-1 text-[11px] text-gray-400 underline hover:text-gray-600 sm:text-xs"
+                  onClick={() => setNegotiable(false)}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-primary-light,#eaf8f2)] px-3 py-1 text-[11px] font-bold text-[var(--brand-primary,#007a5a)] sm:text-xs"
                 >
-                  {t.filters.clearAllBtn}
+                  <span>{t.filters.negotiableBtn}</span>
+                  <X className="size-3" />
                 </button>
-              </div>
-            )}
-          </section>
-        </ScrollReveal>
+              )}
+              {areaQuery.trim() && (
+                <button
+                  type="button"
+                  onClick={() => setAreaQuery('')}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-primary-light,#eaf8f2)] px-3 py-1 text-[11px] font-bold text-[var(--brand-primary,#007a5a)] sm:text-xs"
+                >
+                  <span>
+                    {t.filters.areaBadgePrefix}{' '}
+                    {getLocalizedGeorgiaAreaName(areaQuery, locale)}
+                  </span>
+                  <X className="size-3" />
+                </button>
+              )}
+              {maxCash.trim() && (
+                <button
+                  type="button"
+                  onClick={() => setMaxCash('')}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-primary-light,#eaf8f2)] px-3 py-1 text-[11px] font-bold text-[var(--brand-primary,#007a5a)] sm:text-xs"
+                >
+                  <span>
+                    {t.filters.cashUpToPrefix}{' '}
+                    {Number(maxCash).toLocaleString('en-US')}
+                  </span>
+                  <X className="size-3" />
+                </button>
+              )}
+              {maxInstallment.trim() && (
+                <button
+                  type="button"
+                  onClick={() => setMaxInstallment('')}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-primary-light,#eaf8f2)] px-3 py-1 text-[11px] font-bold text-[var(--brand-primary,#007a5a)] sm:text-xs"
+                >
+                  <span>
+                    {t.filters.instUpToPrefix}{' '}
+                    {Number(maxInstallment).toLocaleString('en-US')}
+                  </span>
+                  <X className="size-3" />
+                </button>
+              )}
+              {maxContractPrice.trim() && (
+                <button
+                  type="button"
+                  onClick={() => setMaxContractPrice('')}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-primary-light,#eaf8f2)] px-3 py-1 text-[11px] font-bold text-[var(--brand-primary,#007a5a)] sm:text-xs"
+                >
+                  <span>
+                    {t.filters.contractUpToPrefix}{' '}
+                    {Number(maxContractPrice).toLocaleString('en-US')}
+                  </span>
+                  <X className="size-3" />
+                </button>
+              )}
+              {selectedTypes.map((tp) => (
+                <button
+                  key={tp}
+                  type="button"
+                  onClick={() => toggleType(tp)}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-primary-light,#eaf8f2)] px-3 py-1 text-[11px] font-bold text-[var(--brand-primary,#007a5a)] sm:text-xs"
+                >
+                  <span>{tp}</span>
+                  <X className="size-3" />
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={clearAll}
+                className="ms-1 text-[11px] text-gray-400 underline hover:text-gray-600 sm:text-xs"
+              >
+                {t.filters.clearAllBtn}
+              </button>
+            </div>
+          )}
+        </section>
 
         {filtersOpen && (
           <section className="mt-3 rounded-[16px] border border-gray-200/80 bg-white p-4 shadow-sm sm:rounded-[20px] sm:p-7">
@@ -608,7 +614,7 @@ export default function OpportunitiesPage() {
                 {t.filters.unitTypeLabel}
               </p>
               <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                {unitTypes.map((type) => {
+                {localizedTypes.map((type) => {
                   const active = selectedTypes.includes(type)
                   return (
                     <button
@@ -792,14 +798,13 @@ export default function OpportunitiesPage() {
             </div>
           ) : displayedProperties.length > 0 ? (
             <div className="grid grid-cols-2 items-stretch gap-2.5 sm:gap-5 lg:grid-cols-3 lg:gap-6">
-              {displayedProperties.map((property, idx) => (
-                <ScrollReveal key={property.id} delay={(idx % 6) * 50}>
-                  <OpportunityCard
-                    property={property}
-                    liked={favoriteIds.includes(String(property.id))}
-                    onToggleLike={handleToggleFavorite}
-                  />
-                </ScrollReveal>
+              {displayedProperties.map((property) => (
+                <OpportunityCard
+                  key={property.id}
+                  property={property}
+                  liked={favoriteIds.includes(String(property.id))}
+                  onToggleLike={handleToggleFavorite}
+                />
               ))}
             </div>
           ) : (
@@ -836,9 +841,7 @@ export default function OpportunitiesPage() {
           )}
         </section>
 
-        <ScrollReveal delay={100}>
-          <OpportunitiesBottomSections />
-        </ScrollReveal>
+        <OpportunitiesBottomSections />
       </div>
     </main>
   )

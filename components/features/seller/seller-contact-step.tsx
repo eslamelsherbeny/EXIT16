@@ -18,10 +18,72 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { TurnstileBox } from '@/components/layouts/funnel-shell'
+import { TurnstileBox } from '@/components/layouts/auth-layout'
 import { CountrySelector } from '@/components/shared/country-selector'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation, type LocaleCode } from '@/lib/i18n'
 import { Field, toEnglishDigits } from './seller-shared'
+
+const CONTACT_VALIDATION_FALLBACK: Record<
+  LocaleCode,
+  Record<string, string>
+> = {
+  ar: {
+    required: 'هذا الحقل مطلوب',
+    confirmRequired: 'يرجى تأكيد الإقرار للمتابعة',
+    invalidPhone: 'يرجى إدخال رقم هاتف صحيح (7 إلى 15 رقماً)',
+    invalidEmail: 'يرجى إدخال بريد إلكتروني صحيح',
+    shortPassword: 'كلمة المرور يجب ألا تقل عن 8 أحرف',
+    loginIdRequired: 'يرجى إدخال البريد الإلكتروني أو رقم الهاتف',
+    loginPassRequired: 'يرجى إدخال كلمة المرور',
+    submitFailed: 'تعذر حفظ البيانات حالياً، يرجى المحاولة مرة أخرى',
+  },
+  en: {
+    required: 'This field is required',
+    confirmRequired: 'Please confirm the declaration to continue',
+    invalidPhone: 'Please enter a valid phone number (7 to 15 digits)',
+    invalidEmail: 'Please enter a valid email address',
+    shortPassword: 'Password must be at least 8 characters',
+    loginIdRequired: 'Please enter your email or phone number',
+    loginPassRequired: 'Please enter your password',
+    submitFailed: 'Could not save data right now, please try again',
+  },
+  ru: {
+    required: 'Это поле обязательно для заполнения',
+    confirmRequired: 'Пожалуйста, подтвердите согласие для продолжения',
+    invalidPhone: 'Введите корректный номер телефона (от 7 до 15 цифр)',
+    invalidEmail: 'Введите корректный адрес электронной почты',
+    shortPassword: 'Пароль должен содержать не менее 8 символов',
+    loginIdRequired: 'Введите ваш email или номер телефона',
+    loginPassRequired: 'Введите ваш пароль',
+    submitFailed: 'Не удалось сохранить данные, попробуйте еще раз',
+  },
+  ka: {
+    required: 'ეს ველი სავალდებულოა',
+    confirmRequired: 'გთხოვთ დაადასტუროთ განაცხადი გასაგრძელებლად',
+    invalidPhone: 'შეიყვანეთ სწორი ტელეფონის ნომერი (7-15 ციფრი)',
+    invalidEmail: 'შეიყვანეთ სწორი ელ-ფოსტა',
+    shortPassword: 'პაროლი უნდა შედგებოდეს მინიმუმ 8 სიმბოლოსგან',
+    loginIdRequired: 'შეიყვანეთ ელ-ფოსტა ან ტელეფონის ნომერი',
+    loginPassRequired: 'შეიყვანეთ პაროლი',
+    submitFailed: 'მონაცემების შენახვა ვერ მოხერხდა, სცადეთ თავიდან',
+  },
+}
+
+function getMsg(
+  locale: LocaleCode,
+  dictVal: string | undefined,
+  key: string
+): string {
+  const fallback =
+    CONTACT_VALIDATION_FALLBACK[locale]?.[key] ||
+    CONTACT_VALIDATION_FALLBACK.en[key] ||
+    ''
+  if (!dictVal) return fallback
+  if (locale !== 'ar' && /[\u0600-\u06FF]/.test(dictVal)) {
+    return fallback
+  }
+  return dictVal
+}
 
 export function ContactStep({
   form,
@@ -48,9 +110,9 @@ export function ContactStep({
   setUnitId: (id: string) => void
   setOrderRef: (ref: string) => void
 }) {
-  const { t: dict, dir } = useTranslation()
+  const { t: dict, locale, dir } = useTranslation()
   const t = dict.sell.contactStep
-  const v = dict.sell.validation
+  const v = (dict.sell.validation as Record<string, string>) || {}
   const sharedT = dict.sell.shared
 
   const [authTab, setAuthTab] = useState<'session' | 'register' | 'login'>(
@@ -84,6 +146,12 @@ export function ContactStep({
   const [stepError, setStepError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
+  // تصفير رسائل الخطأ عند تغيير اللغة حتى لا تبقى أي رسالة باللغة السابقة
+  useEffect(() => {
+    setErrors({})
+    setStepError('')
+  }, [locale])
+
   const proceedToStep3 = (data: {
     unitId?: string
     orderRef?: string
@@ -113,7 +181,7 @@ export function ContactStep({
     const nextErrors: Record<string, string> = {}
 
     if (form.owner !== 'yes') {
-      nextErrors.owner = v.confirmRequired
+      nextErrors.owner = getMsg(locale, v.confirmRequired, 'confirmRequired')
     }
 
     const cleanPhoneDigits = toEnglishDigits(form.phone ?? '').replace(
@@ -122,18 +190,27 @@ export function ContactStep({
     )
 
     if (authTab === 'register') {
-      if (!form.name?.trim()) nextErrors.name = v.required
+      if (!form.name?.trim())
+        nextErrors.name = getMsg(locale, v.required, 'required')
       if (!/^[0-9]{7,15}$/.test(cleanPhoneDigits))
-        nextErrors.phone = v.invalidPhone
+        nextErrors.phone = getMsg(locale, v.invalidPhone, 'invalidPhone')
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email ?? ''))
-        nextErrors.email = v.invalidEmail
+        nextErrors.email = getMsg(locale, v.invalidEmail, 'invalidEmail')
       if ((form.password?.length ?? 0) < 8)
-        nextErrors.password = v.shortPassword
+        nextErrors.password = getMsg(locale, v.shortPassword, 'shortPassword')
     } else if (authTab === 'login') {
       if (!form.loginIdentifier?.trim())
-        nextErrors.loginIdentifier = v.loginIdRequired
+        nextErrors.loginIdentifier = getMsg(
+          locale,
+          v.loginIdRequired,
+          'loginIdRequired'
+        )
       if (!form.loginPassword?.trim())
-        nextErrors.loginPassword = v.loginPassRequired
+        nextErrors.loginPassword = getMsg(
+          locale,
+          v.loginPassRequired,
+          'loginPassRequired'
+        )
     }
 
     if (Object.keys(nextErrors).length > 0) {
@@ -212,7 +289,9 @@ export function ContactStep({
         return
       }
 
-      setStepError(res.error || v.submitFailed)
+      setStepError(
+        res.error || getMsg(locale, v.submitFailed, 'submitFailed')
+      )
     } finally {
       setIsLoading(false)
     }
@@ -221,7 +300,7 @@ export function ContactStep({
   const handleVerifyExistingEmail = async () => {
     if (!conflictState || conflictState.type !== 'email_exists') return
     if (!existingPass.trim()) {
-      setStepError(v.loginPassRequired)
+      setStepError(getMsg(locale, v.loginPassRequired, 'loginPassRequired'))
       return
     }
     setIsLoading(true)
@@ -232,7 +311,9 @@ export function ContactStep({
         password: existingPass,
       })
       if (!res.success || !res.user) {
-        setStepError(res.error || v.loginPassRequired)
+        setStepError(
+          res.error || getMsg(locale, v.loginPassRequired, 'loginPassRequired')
+        )
         return
       }
       proceedToStep3({
@@ -263,7 +344,9 @@ export function ContactStep({
       if (res.success) {
         setRecoveryLinkSent(true)
       } else {
-        setStepError(res.error || v.submitFailed)
+        setStepError(
+          res.error || getMsg(locale, v.submitFailed, 'submitFailed')
+        )
       }
     } finally {
       setIsLoading(false)
@@ -414,7 +497,11 @@ export function ContactStep({
         {loggedUser && (
           <button
             type="button"
-            onClick={() => setAuthTab('session')}
+            onClick={() => {
+              setAuthTab('session')
+              setErrors({})
+              setStepError('')
+            }}
             className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-bold transition sm:text-sm ${
               authTab === 'session'
                 ? 'bg-[var(--brand-primary,#007a5a)] text-white shadow-xs'
@@ -430,7 +517,11 @@ export function ContactStep({
 
         <button
           type="button"
-          onClick={() => setAuthTab('register')}
+          onClick={() => {
+            setAuthTab('register')
+            setErrors({})
+            setStepError('')
+          }}
           className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-bold transition sm:text-sm ${
             authTab === 'register'
               ? 'bg-[var(--brand-navy,#0a1122)] text-white shadow-xs'
@@ -443,7 +534,11 @@ export function ContactStep({
 
         <button
           type="button"
-          onClick={() => setAuthTab('login')}
+          onClick={() => {
+            setAuthTab('login')
+            setErrors({})
+            setStepError('')
+          }}
           className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-bold transition sm:text-sm ${
             authTab === 'login'
               ? 'bg-[var(--brand-navy,#0a1122)] text-white shadow-xs'

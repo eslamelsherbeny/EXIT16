@@ -36,15 +36,13 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { TurnstileBox } from '@/components/layouts/funnel-shell'
 import {
   GeorgiaAreaSelect,
   getLocalizedGeorgiaAreaName,
 } from '@/components/shared/georgia-areas'
-import { ScrollReveal } from '@/components/shared/scroll-reveal'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { getCurrencySymbol, useTranslation } from '@/lib/i18n'
+import { getCurrencySymbol, useTranslation, type LocaleCode } from '@/lib/i18n'
 import {
   Field,
   formatAmount,
@@ -75,6 +73,123 @@ export type UploadedDocEntry = {
   name: string
   uploaded_at: string
   status?: string
+}
+
+function getSellerExtraLabels(locale: LocaleCode) {
+  if (locale === 'en') {
+    return {
+      georgiaLocationLabel: 'City / District in Georgia *',
+      deliveryMonthsLabel: 'Remaining months until delivery *',
+      deliveryMonthsHelper: 'Enter how many months left until handover',
+      contractMonthYearLabel: 'Contract Date (Month & Year) *',
+      remainingMonthsLabel: 'Remaining installment months *',
+      remainingMonthsHelper: 'If fully paid, enter 0',
+      monthsUnit: 'months',
+      optionalDocsBoxTitle: 'Ownership Documents & Passport',
+      optionalNowBadge: 'Optional now — Required before publishing',
+      optionalDocsBoxDesc:
+        'You can upload your contract and passport now for faster verification, or upload them later from your account.',
+      uploadDocsNowBtn: 'Upload Documents Now',
+      uploadDocsLaterBtn: 'Skip & Upload Later from Account',
+      changeFileBtn: 'Replace',
+      removeFileBtn: 'Remove',
+      viewFullImageBtn: 'Preview',
+      docsRequiredBannerTitle:
+        'Important: Upload your Contract & Passport to publish your unit',
+      docsRequiredBannerDesc:
+        'Units are published to buyers once our team verifies the contract and passport.',
+      docsPreSubmitNote:
+        'Note: Uploading the contract and passport is required before the unit goes live in the market.',
+      rowContractDate: 'Contract Date',
+      rowRemainingMonths: 'Remaining Installments',
+      rowUploadedDocs: 'Uploaded Documents',
+    }
+  }
+  if (locale === 'ru') {
+    return {
+      georgiaLocationLabel: 'Город / Район в Грузии *',
+      deliveryMonthsLabel: 'Сколько месяцев осталось до сдачи *',
+      deliveryMonthsHelper: 'Укажите количество месяцев до завершения строительства',
+      contractMonthYearLabel: 'Дата договора (Месяц и Год) *',
+      remainingMonthsLabel: 'Осталось месяцев рассрочки *',
+      remainingMonthsHelper: 'Если рассрочка выплачена, введите 0',
+      monthsUnit: 'мес.',
+      optionalDocsBoxTitle: 'Документы на недвижимость и Паспорт',
+      optionalNowBadge: 'Сейчас необязательно — нужно для публикации',
+      optionalDocsBoxDesc:
+        'Вы можете загрузить договор и паспорт сейчас для быстрой проверки или позже в личном кабинете.',
+      uploadDocsNowBtn: 'Загрузить документы сейчас',
+      uploadDocsLaterBtn: 'Загрузить позже в кабинете',
+      changeFileBtn: 'Заменить',
+      removeFileBtn: 'Удалить',
+      viewFullImageBtn: 'Просмотр',
+      docsRequiredBannerTitle:
+        'Важно: Загрузите договор и паспорт для публикации объекта',
+      docsRequiredBannerDesc:
+        'Объект публикуется на витрине после проверки договора и паспорта нашей командой.',
+      docsPreSubmitNote:
+        'Примечание: Загрузка договора и паспорта необходима для публикации объекта.',
+      rowContractDate: 'Дата договора',
+      rowRemainingMonths: 'Остаток рассрочки',
+      rowUploadedDocs: 'Документы',
+    }
+  }
+  if (locale === 'ka') {
+    return {
+      georgiaLocationLabel: 'ქალაქი / უბანი საქართველოში *',
+      deliveryMonthsLabel: 'ჩაბარებამდე დარჩენილი თვეები *',
+      deliveryMonthsHelper: 'მიუთითეთ რამდენი თვე დარჩა ჩაბარებამდე',
+      contractMonthYearLabel: 'ხელშეკრულების თარიღი (თვე და წელი) *',
+      remainingMonthsLabel: 'განვადების დარჩენილი თვეები *',
+      remainingMonthsHelper: 'თუ სრულად გადახდილია, ჩაწერეთ 0',
+      monthsUnit: 'თვე',
+      optionalDocsBoxTitle: 'საკუთრების დოკუმენტები და პასპორტი',
+      optionalNowBadge: 'ახლა არასავალდებულო — საჭიროა გამოსაქვეყნებლად',
+      optionalDocsBoxDesc:
+        'შეგიძლიათ ატვირთოთ კონტრაქტი და პასპორტი ახლა ან მოგვიანებით თქვენი ანგარიშიდან.',
+      uploadDocsNowBtn: 'დოკუმენტების ატვირთვა ახლა',
+      uploadDocsLaterBtn: 'მოგვიანებით ატვირთვა',
+      changeFileBtn: 'შეცვლა',
+      removeFileBtn: 'წაშლა',
+      viewFullImageBtn: 'ნახვა',
+      docsRequiredBannerTitle:
+        'მნიშვნელოვანია: ატვირთეთ კონტრაქტი და პასპორტი გამოსაქვეყნებლად',
+      docsRequiredBannerDesc:
+        'ერთეული გამოქვეყნდება დოკუმენტების გადამოწმების შემდეგ.',
+      docsPreSubmitNote:
+        'შენიშვნა: გამოსაქვეყნებლად საჭიროა კონტრაქტისა და პასპორტის ატვირთვა.',
+      rowContractDate: 'ხელშეკრულების თარიღი',
+      rowRemainingMonths: 'დარჩენილი განვადება',
+      rowUploadedDocs: 'დოკუმენტები',
+    }
+  }
+  return {
+    georgiaLocationLabel: 'المدينة / الحي في جورجيا *',
+    deliveryMonthsLabel: 'متبقي كام شهر على الاستلام؟ *',
+    deliveryMonthsHelper: 'اكتب عدد الشهور المتبقية حتى موعد استلام الوحدة',
+    contractMonthYearLabel: 'تاريخ التعاقد (الشهر والسنة) *',
+    remainingMonthsLabel: 'فاضل كام شهر تقسيط؟ *',
+    remainingMonthsHelper: 'لو التقسيط خلص، اكتب صفر',
+    monthsUnit: 'شهر',
+    optionalDocsBoxTitle: 'مستندات الملكية وصورة جواز السفر (Passport)',
+    optionalNowBadge: 'اختياري الآن — ضروري قبل النشر',
+    optionalDocsBoxDesc:
+      'تقدر ترفع العقد وصورة الباسبور دلوقتي عشان نسرّع مراجعة ونشر وحدتك، أو تكمل وترفعهم بعدين من حسابك.',
+    uploadDocsNowBtn: 'ارفع المستندات الآن',
+    uploadDocsLaterBtn: 'تخطي ورفعها لاحقاً من حسابي',
+    changeFileBtn: 'تغيير',
+    removeFileBtn: 'حذف',
+    viewFullImageBtn: 'معاينة',
+    docsRequiredBannerTitle:
+      'خطوة أخيرة لنشر وحدتك: ارفع العقد وصورة جواز السفر',
+    docsRequiredBannerDesc:
+      'لا يتم نشر أي وحدة أمام المشترين إلا بعد التحقق من العقد وصورة جواز السفر لحماية الملكية.',
+    docsPreSubmitNote:
+      'تنبيه: رفع مستندات الوحدة (العقد وصورة جواز السفر) ضروري لاعتماد ونشر الوحدة في السوق.',
+    rowContractDate: 'تاريخ التعاقد',
+    rowRemainingMonths: 'الأقساط المتبقية (بالشهور)',
+    rowUploadedDocs: 'المستندات المرفوعة',
+  }
 }
 
 function isImageFileUrl(url?: string, name?: string) {
@@ -110,6 +225,7 @@ export function SellerFlow() {
   const { t: dict, locale, dir } = useTranslation()
   const s = dict.sell
   const valDict = s.validation as Record<string, any>
+  const extraT = getSellerExtraLabels(locale)
 
   const localizedDeliveries = getLocalizedDeliveries(dict, locale)
   const localizedUnitTypes = getLocalizedUnitTypes(dict, locale)
@@ -390,7 +506,7 @@ export function SellerFlow() {
     const base = selected.delivery?.[0] || ''
     const delMonths = toEnglishDigits(form.deliveryRemainingMonths || '').trim()
     const monthsWord =
-      (s.reviewStep as Record<string, any>)?.monthsUnit || 'شهر'
+      (s.reviewStep as Record<string, any>)?.monthsUnit || extraT.monthsUnit
     if (
       isUnderConstructionDeliveryOption(base) &&
       delMonths &&
@@ -459,7 +575,7 @@ export function SellerFlow() {
         nextErrors.location = s.validation.required
         missingNames.push(
           cleanFieldLabel(
-            tDetails.georgiaLocationLabel || tDetails.locationLabelPrefix
+            tDetails.georgiaLocationLabel || extraT.georgiaLocationLabel
           )
         )
       }
@@ -498,7 +614,7 @@ export function SellerFlow() {
         nextErrors.deliveryDate = s.validation.required
         missingNames.push(
           cleanFieldLabel(
-            tDetails.deliveryMonthsLabel || tDetails.deliveryDateLabel
+            tDetails.deliveryMonthsLabel || extraT.deliveryMonthsLabel
           )
         )
       }
@@ -518,7 +634,7 @@ export function SellerFlow() {
         nextErrors.year = s.validation.required
         missingNames.push(
           cleanFieldLabel(
-            tPricing.contractMonthYearLabel || tPricing.contractYearLabel
+            tPricing.contractMonthYearLabel || extraT.contractMonthYearLabel
           )
         )
       }
@@ -545,7 +661,7 @@ export function SellerFlow() {
         nextErrors.remainingMonths = s.validation.required
         missingNames.push(
           cleanFieldLabel(
-            tPricing.remainingMonthsLabel || tPricing.remainingYearsLabel
+            tPricing.remainingMonthsLabel || extraT.remainingMonthsLabel
           )
         )
       }
@@ -828,20 +944,18 @@ export function SellerFlow() {
     >
       <div className="mx-auto max-w-3xl">
         {!submitted && (
-          <ScrollReveal>
-            <header className="mb-7 text-center">
-              <h1 className="text-3xl font-black tracking-tight text-[#123c35] sm:text-4xl">
-                {isMagicResume ? s.header.resumeTitle : s.header.mainTitle}
-              </h1>
-              <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-slate-600">
-                {isMagicResume ? s.header.resumeDesc : s.header.mainDesc}
-              </p>
-            </header>
-          </ScrollReveal>
+          <header className="mb-7 text-center">
+            <h1 className="text-3xl font-black tracking-tight text-[#123c35] sm:text-4xl">
+              {isMagicResume ? s.header.resumeTitle : s.header.mainTitle}
+            </h1>
+            <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-slate-600">
+              {isMagicResume ? s.header.resumeDesc : s.header.mainDesc}
+            </p>
+          </header>
         )}
 
         {step <= 2 && !isMagicResume && !submitted && (
-          <ScrollReveal delay={70}>
+          <div>
             <div className="mb-4 grid gap-3">
               {s.header.highlights.map((item, index) => (
                 <div
@@ -860,156 +974,155 @@ export function SellerFlow() {
             <div className="mb-7 rounded-xl border border-slate-500 bg-transparent px-5 py-4 text-center text-sm font-semibold">
               {s.header.ownersOnlyBanner}
             </div>
-          </ScrollReveal>
+          </div>
         )}
 
-        <ScrollReveal delay={120}>
-          <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
-            <CardContent className="p-4 sm:p-6 md:p-7">
-              {!submitted && (
-                <div className="mb-6 rounded-2xl border border-slate-600 px-4 py-4 text-center text-sm leading-7">
-                  <div className="mb-1 flex items-center justify-center gap-2 font-bold">
-                    <UserRound className="size-4" />{' '}
-                    {s.header.ownersOnlyCardTitle}
-                  </div>
-                  {s.header.ownersOnlyCardDesc}
+        <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
+          <CardContent className="p-4 sm:p-6 md:p-7">
+            {!submitted && (
+              <div className="mb-6 rounded-2xl border border-slate-600 px-4 py-4 text-center text-sm leading-7">
+                <div className="mb-1 flex items-center justify-center gap-2 font-bold">
+                  <UserRound className="size-4" />{' '}
+                  {s.header.ownersOnlyCardTitle}
                 </div>
-              )}
+                {s.header.ownersOnlyCardDesc}
+              </div>
+            )}
 
-              {!submitted && (
-                <div className="mb-7 flex items-center gap-4">
-                  <div className="flex flex-1 gap-1.5">
-                    {Array.from({ length: totalStepsCount }, (_, index) => (
-                      <span
-                        key={index}
-                        className={`h-1.5 flex-1 rounded-full ${
-                          index < currentDisplayStep
-                            ? 'bg-teal-700'
-                            : 'bg-slate-200'
-                        }`}
-                      />
-                    ))}
-                  </div>
-                  <Badge className="shrink-0 rounded-full bg-slate-100 text-slate-700">
-                    {s.header.stepWord} {currentDisplayStep} {s.header.ofWord}{' '}
-                    {totalStepsCount}
-                  </Badge>
+            {!submitted && (
+              <div className="mb-7 flex items-center gap-4">
+                <div className="flex flex-1 gap-1.5">
+                  {Array.from({ length: totalStepsCount }, (_, index) => (
+                    <span
+                      key={index}
+                      className={`h-1.5 flex-1 rounded-full ${
+                        index < currentDisplayStep
+                          ? 'bg-teal-700'
+                          : 'bg-slate-200'
+                      }`}
+                    />
+                  ))}
                 </div>
-              )}
+                <Badge className="shrink-0 rounded-full bg-slate-100 text-slate-700">
+                  {s.header.stepWord} {currentDisplayStep} {s.header.ofWord}{' '}
+                  {totalStepsCount}
+                </Badge>
+              </div>
+            )}
 
-              {!submitted && (
-                <h2 className="mb-6 text-2xl font-black text-[#102238]">
-                  {s.header.stepTitles[step - 1]}
-                </h2>
-              )}
+            {!submitted && (
+              <h2 className="mb-6 text-2xl font-black text-[#102238]">
+                {s.header.stepTitles[step - 1]}
+              </h2>
+            )}
 
-              {step === 1 && (
-                <BasicStep
-                  form={form}
-                  update={update}
-                  go={go}
-                  errors={errors}
-                  missingFields={missingFieldsList}
-                  missingPrefix={missingBannerPrefix}
-                />
-              )}
-              {step === 2 && (
-                <ContactStep
-                  form={form}
-                  update={update}
-                  go={go}
-                  errors={errors}
-                  setErrors={setErrors}
-                  showPassword={showPassword}
-                  setShowPassword={setShowPassword}
-                  loggedUser={loggedUser}
-                  unitId={unitId}
-                  setUnitId={setUnitId}
-                  setOrderRef={setOrderRef}
-                />
-              )}
-              {step === 3 && (
-                <DetailsStep
-                  form={form}
-                  update={update}
-                  selected={selected}
-                  toggle={toggle}
-                  go={go}
-                  errors={errors}
-                  showBasicFields={isMagicResume}
-                  missingFields={missingFieldsList}
-                  missingPrefix={missingBannerPrefix}
-                  onSave={saveProgress}
-                />
-              )}
-              {step === 4 && (
-                <PricingStep
-                  form={form}
-                  update={update}
-                  selected={selected}
-                  toggle={toggle}
-                  go={go}
-                  errors={errors}
-                  setErrors={setErrors}
-                  showBasicPriceFields={isMagicResume}
-                  missingFields={missingFieldsList}
-                  missingPrefix={missingBannerPrefix}
-                  onSave={saveProgress}
-                />
-              )}
-              {step === 5 && (
-                <PhotosStep
-                  go={go}
-                  images={images}
-                  setImages={setImages}
-                  uploading={uploading}
-                  setUploading={setUploading}
-                  unitDocs={unitDocs}
-                  uploadingDocKey={uploadingDocKey}
-                  onUploadDoc={handleUploadUnitDocument}
-                  onRemoveDoc={handleRemoveUnitDocument}
-                  onPreviewDoc={(url, title) => setPreviewDoc({ url, title })}
-                  onSave={saveProgress}
-                />
-              )}
-              {step === 6 && (
-                <ReviewStep
-                  form={form}
-                  selected={selected}
-                  pending={pending}
-                  submitted={submitted}
-                  error={error}
-                  submit={submit}
-                  go={go}
-                  onSave={saveProgress}
-                  imagesLength={images.length}
-                  docsCount={realDocsCount}
-                  orderRef={orderRef}
-                  unitId={unitId}
-                />
-              )}
-            </CardContent>
-          </Card>
-        </ScrollReveal>
+            {step === 1 && (
+              <BasicStep
+                form={form}
+                update={update}
+                go={go}
+                errors={errors}
+                missingFields={missingFieldsList}
+                missingPrefix={missingBannerPrefix}
+              />
+            )}
+            {step === 2 && (
+              <ContactStep
+                form={form}
+                update={update}
+                go={go}
+                errors={errors}
+                setErrors={setErrors}
+                showPassword={showPassword}
+                setShowPassword={setShowPassword}
+                loggedUser={loggedUser}
+                unitId={unitId}
+                setUnitId={setUnitId}
+                setOrderRef={setOrderRef}
+              />
+            )}
+            {step === 3 && (
+              <DetailsStep
+                form={form}
+                update={update}
+                selected={selected}
+                toggle={toggle}
+                go={go}
+                errors={errors}
+                showBasicFields={isMagicResume}
+                missingFields={missingFieldsList}
+                missingPrefix={missingBannerPrefix}
+                onSave={saveProgress}
+                extraT={extraT}
+              />
+            )}
+            {step === 4 && (
+              <PricingStep
+                form={form}
+                update={update}
+                selected={selected}
+                toggle={toggle}
+                go={go}
+                errors={errors}
+                setErrors={setErrors}
+                showBasicPriceFields={isMagicResume}
+                missingFields={missingFieldsList}
+                missingPrefix={missingBannerPrefix}
+                onSave={saveProgress}
+                extraT={extraT}
+              />
+            )}
+            {step === 5 && (
+              <PhotosStep
+                go={go}
+                images={images}
+                setImages={setImages}
+                uploading={uploading}
+                setUploading={setUploading}
+                unitDocs={unitDocs}
+                uploadingDocKey={uploadingDocKey}
+                onUploadDoc={handleUploadUnitDocument}
+                onRemoveDoc={handleRemoveUnitDocument}
+                onPreviewDoc={(url, title) => setPreviewDoc({ url, title })}
+                onSave={saveProgress}
+                extraT={extraT}
+              />
+            )}
+            {step === 6 && (
+              <ReviewStep
+                form={form}
+                selected={selected}
+                pending={pending}
+                submitted={submitted}
+                error={error}
+                submit={submit}
+                go={go}
+                onSave={saveProgress}
+                imagesLength={images.length}
+                docsCount={realDocsCount}
+                orderRef={orderRef}
+                unitId={unitId}
+                extraT={extraT}
+              />
+            )}
+          </CardContent>
+        </Card>
 
         {step <= 2 && !submitted && (
-          <ScrollReveal delay={160}>
-            <div className="mt-5 flex items-center justify-between gap-4 rounded-2xl bg-[var(--brand-navy,#0a1122)] px-5 py-4 text-sm text-white">
-              <span>{s.header.whatsappBarText}</span>
-              <a
-                href={`https://wa.me/${supportWhatsApp}`}
-                target="_blank"
-                rel="noreferrer"
-                className="rounded-full bg-green-500 px-4 py-2 font-bold text-white"
-              >
-                {s.header.whatsappBarBtn}
-              </a>
-            </div>
-          </ScrollReveal>
+          <div className="mt-5 flex items-center justify-between gap-4 rounded-2xl bg-[var(--brand-navy,#0a1122)] px-5 py-4 text-sm text-white">
+            <span>{s.header.whatsappBarText}</span>
+            <a
+              href={`https://wa.me/${supportWhatsApp}`}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-full bg-green-500 px-4 py-2 font-bold text-white"
+            >
+              {s.header.whatsappBarBtn}
+            </a>
+          </div>
         )}
       </div>
 
-      {/* نافذة تكبير الصورة (Lightbox) عند الضغط على الصورة المصغرة */}
       {previewDoc && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-xs"
@@ -1155,7 +1268,6 @@ function BasicStep({
           if (!form.marketPrice) update('marketPrice', value)
         }}
       />
-      <TurnstileBox />
 
       <StepValidationBanner
         missingFields={missingFields}
@@ -1184,6 +1296,7 @@ function DetailsStep({
   missingFields,
   missingPrefix,
   onSave,
+  extraT,
 }: {
   form: Record<string, string>
   update: (key: string, value: string) => void
@@ -1195,6 +1308,7 @@ function DetailsStep({
   missingFields: string[]
   missingPrefix: string
   onSave: () => void
+  extraT: ReturnType<typeof getSellerExtraLabels>
 }) {
   const { t: dict, locale, dir } = useTranslation()
   const s = dict.sell
@@ -1235,9 +1349,8 @@ function DetailsStep({
         </div>
       )}
 
-      {/* القائمة المنسدلة الموحدة لمناطق جورجيا من @/components/shared/georgia-areas */}
       <GeorgiaAreaSelect
-        label={t.georgiaLocationLabel || `${t.locationLabelPrefix} *`}
+        label={t.georgiaLocationLabel || extraT.georgiaLocationLabel}
         value={form.location ?? ''}
         onChange={(area) => update('location', area)}
         error={errors.location}
@@ -1334,10 +1447,10 @@ function DetailsStep({
       {needsDeliveryMonths && (
         <Field
           error={errors.deliveryDate}
-          label={t.deliveryMonthsLabel || t.deliveryDateLabel}
+          label={t.deliveryMonthsLabel || extraT.deliveryMonthsLabel}
           id="deliveryRemainingMonths"
           type="number"
-          helper={t.deliveryMonthsHelper || t.deliveryDateHelper}
+          helper={t.deliveryMonthsHelper || extraT.deliveryMonthsHelper}
           value={form.deliveryRemainingMonths}
           update={(value) => update('deliveryRemainingMonths', value)}
         />
@@ -1412,6 +1525,7 @@ function PricingStep({
   missingFields,
   missingPrefix,
   onSave,
+  extraT,
 }: {
   form: Record<string, string>
   update: (key: string, value: string) => void
@@ -1424,6 +1538,7 @@ function PricingStep({
   missingFields: string[]
   missingPrefix: string
   onSave: () => void
+  extraT: ReturnType<typeof getSellerExtraLabels>
 }) {
   const { t: dict, locale } = useTranslation()
   const s = dict.sell
@@ -1461,7 +1576,7 @@ function PricingStep({
       )}
 
       <MonthYearSelector
-        label={t.contractMonthYearLabel || t.contractYearLabel}
+        label={t.contractMonthYearLabel || extraT.contractMonthYearLabel}
         monthValue={form.contractMonth || ''}
         yearValue={form.contractYear || selected.year?.[0] || ''}
         yearsList={years}
@@ -1510,10 +1625,10 @@ function PricingStep({
 
       <Field
         error={errors.remainingMonths}
-        label={t.remainingMonthsLabel || `${t.remainingYearsLabel} *`}
+        label={t.remainingMonthsLabel || extraT.remainingMonthsLabel}
         id="remainingMonths"
         type="number"
-        helper={t.remainingMonthsHelper || t.remainingYearsHelper}
+        helper={t.remainingMonthsHelper || extraT.remainingMonthsHelper}
         value={form.remainingMonths}
         update={(value) => update('remainingMonths', value)}
       />
@@ -1622,6 +1737,7 @@ function PhotosStep({
   onRemoveDoc,
   onPreviewDoc,
   onSave,
+  extraT,
 }: {
   go: (step: number) => void
   images: string[]
@@ -1634,6 +1750,7 @@ function PhotosStep({
   onRemoveDoc: (docKey: SellerDocKey) => void
   onPreviewDoc: (url: string, title: string) => void
   onSave: () => void
+  extraT: ReturnType<typeof getSellerExtraLabels>
 }) {
   const { t: dict } = useTranslation()
   const s = dict.sell
@@ -1641,10 +1758,10 @@ function PhotosStep({
   const docDict = dict.accountPages?.documents as Record<string, any>
 
   const docSections: Array<{ key: SellerDocKey; title: string }> = [
-    { key: 'contract', title: docDict?.sections?.contract },
-    { key: 'receipts', title: docDict?.sections?.receipts },
-    { key: 'statement', title: docDict?.sections?.statement },
-    { key: 'passport', title: docDict?.sections?.passport },
+    { key: 'contract', title: docDict?.sections?.contract || 'عقد الوحدة' },
+    { key: 'receipts', title: docDict?.sections?.receipts || 'إيصالات السداد' },
+    { key: 'statement', title: docDict?.sections?.statement || 'كشف الحساب' },
+    { key: 'passport', title: docDict?.sections?.passport || 'جواز السفر (Passport)' },
   ]
 
   const uploadedDocsCount = docSections.filter((sec) =>
@@ -1721,7 +1838,6 @@ function PhotosStep({
         </div>
       )}
 
-      {/* قسم رفع مستندات الوحدة وصورة جواز السفر */}
       <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-start sm:p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-2.5">
@@ -1729,14 +1845,14 @@ function PhotosStep({
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <h3 className="text-sm font-extrabold text-[#0a1122] sm:text-base">
-                  {t.optionalDocsBoxTitle}
+                  {t.optionalDocsBoxTitle || extraT.optionalDocsBoxTitle}
                 </h3>
                 <span className="rounded-full bg-amber-200/80 px-2.5 py-0.5 text-[10.5px] font-extrabold text-amber-950">
-                  {t.optionalNowBadge}
+                  {t.optionalNowBadge || extraT.optionalNowBadge}
                 </span>
               </div>
               <p className="mt-1 text-xs leading-relaxed text-amber-950/90">
-                {t.optionalDocsBoxDesc}
+                {t.optionalDocsBoxDesc || extraT.optionalDocsBoxDesc}
               </p>
             </div>
           </div>
@@ -1760,7 +1876,7 @@ function PhotosStep({
             }`}
           >
             <UploadCloud className="size-4 text-emerald-300" />
-            <span>{t.uploadDocsNowBtn}</span>
+            <span>{t.uploadDocsNowBtn || extraT.uploadDocsNowBtn}</span>
           </button>
 
           <button
@@ -1771,7 +1887,7 @@ function PhotosStep({
             }}
             className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-xs font-bold text-slate-700 transition hover:bg-slate-100"
           >
-            {t.uploadDocsLaterBtn}
+            {t.uploadDocsLaterBtn || extraT.uploadDocsLaterBtn}
           </button>
         </div>
 
@@ -1800,12 +1916,14 @@ function PhotosStep({
                         ) : hasDoc ? (
                           <>
                             <RefreshCw className="size-3" />
-                            <span>{docDict?.changeFileBtn}</span>
+                            <span>
+                              {docDict?.changeFileBtn || extraT.changeFileBtn}
+                            </span>
                           </>
                         ) : (
                           <>
                             <UploadCloud className="size-3" />
-                            <span>{docDict?.uploadBtn}</span>
+                            <span>{docDict?.uploadBtn || 'ارفع الملف'}</span>
                           </>
                         )}
                         <input
@@ -1822,7 +1940,7 @@ function PhotosStep({
                           type="button"
                           onClick={() => onRemoveDoc(sec.key)}
                           className="inline-flex size-8 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-600 hover:bg-red-100"
-                          title={docDict?.removeFileBtn}
+                          title={docDict?.removeFileBtn || extraT.removeFileBtn}
                         >
                           <Trash2 className="size-3.5" />
                         </button>
@@ -1867,7 +1985,7 @@ function PhotosStep({
                           onClick={() => onPreviewDoc(entry.url, sec.title)}
                           className="mt-0.5 text-[10.5px] font-bold text-[#007a5a] hover:underline"
                         >
-                          {docDict?.viewFullImageBtn}
+                          {docDict?.viewFullImageBtn || extraT.viewFullImageBtn}
                         </button>
                       </div>
                     </div>
@@ -1926,6 +2044,7 @@ function ReviewStep({
   docsCount,
   orderRef,
   unitId,
+  extraT,
 }: {
   form: Record<string, string>
   selected: Record<string, string[]>
@@ -1939,6 +2058,7 @@ function ReviewStep({
   docsCount: number
   orderRef: string
   unitId: string
+  extraT: ReturnType<typeof getSellerExtraLabels>
 }) {
   const { t: dict, locale, dir } = useTranslation()
   const s = dict.sell
@@ -2012,9 +2132,11 @@ function ReviewStep({
             <ShieldAlert className="mt-0.5 size-5 shrink-0 text-amber-600" />
             <div className="flex-1 text-xs leading-relaxed text-amber-950">
               <strong className="block text-sm font-extrabold">
-                {t.docsRequiredBannerTitle}
+                {t.docsRequiredBannerTitle || extraT.docsRequiredBannerTitle}
               </strong>
-              <p className="mt-1 opacity-90">{t.docsRequiredBannerDesc}</p>
+              <p className="mt-1 opacity-90">
+                {t.docsRequiredBannerDesc || extraT.docsRequiredBannerDesc}
+              </p>
               <div className="mt-3 flex flex-wrap items-center gap-2.5">
                 <Link
                   href={
@@ -2025,13 +2147,14 @@ function ReviewStep({
                   className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl bg-[#0a1122] px-5 text-xs font-bold text-white shadow-2xs transition hover:bg-[#16223f]"
                 >
                   <UploadCloud className="size-4 text-emerald-300" />
-                  <span>{t.uploadDocsNowBtn}</span>
+                  <span>{t.uploadDocsNowBtn || extraT.uploadDocsNowBtn}</span>
                 </Link>
                 <Link
                   href="/account"
                   className="inline-flex h-10 items-center justify-center rounded-xl border border-amber-300 bg-white px-4 text-xs font-bold text-amber-950 hover:bg-amber-100/60"
                 >
-                  {s.photosStep?.uploadDocsLaterBtn || t.goToAccountBtn}
+                  {(s.photosStep as any)?.uploadDocsLaterBtn ||
+                    extraT.uploadDocsLaterBtn}
                 </Link>
               </div>
             </div>
@@ -2151,10 +2274,11 @@ function ReviewStep({
       </div>
     )
 
+  const monthsUnitLabel = t.monthsUnit || extraT.monthsUnit
   const baseDel = selected.delivery?.join(listSep) || '—'
   const deliveryFormatted =
     form.deliveryRemainingMonths && Number(form.deliveryRemainingMonths) > 0
-      ? `${baseDel} (${form.deliveryRemainingMonths} ${t.monthsUnit || ''})`
+      ? `${baseDel} (${form.deliveryRemainingMonths} ${monthsUnitLabel})`
       : baseDel
 
   const contractDateFormatted =
@@ -2176,17 +2300,17 @@ function ReviewStep({
     [t.rowFinishing, selected.finishing?.join(listSep) || '—'],
     [t.rowDelivery, deliveryFormatted],
     [
-      t.rowContractDate || s.pricingStep.contractYearLabel,
+      t.rowContractDate || extraT.rowContractDate,
       contractDateFormatted,
     ],
     [
-      t.rowRemainingMonths || s.pricingStep.remainingYearsLabel,
+      t.rowRemainingMonths || extraT.rowRemainingMonths,
       form.remainingMonths
-        ? `${form.remainingMonths} ${t.monthsUnit || ''}`
+        ? `${form.remainingMonths} ${monthsUnitLabel}`
         : '0',
     ],
     [t.rowPhotos, String(imagesLength)],
-    [t.rowUploadedDocs || t.docsRequiredBannerTitle, `${docsCount}/4`],
+    [t.rowUploadedDocs || extraT.rowUploadedDocs, `${docsCount}/4`],
     [
       t.rowContractPrice,
       `${Number(
@@ -2215,14 +2339,14 @@ function ReviewStep({
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-teal-200 bg-teal-50/70 p-3.5 text-start text-xs leading-relaxed text-teal-900">
         <div className="flex items-start gap-2.5">
           <FileCheck2 className="mt-0.5 size-4 shrink-0 text-teal-700" />
-          <span>{t.docsPreSubmitNote}</span>
+          <span>{t.docsPreSubmitNote || extraT.docsPreSubmitNote}</span>
         </div>
         <button
           type="button"
           onClick={() => go(5)}
           className="shrink-0 rounded-lg bg-teal-700 px-3 py-1.5 text-[11px] font-bold text-white hover:bg-teal-800"
         >
-          {t.uploadDocsNowBtn}
+          {t.uploadDocsNowBtn || extraT.uploadDocsNowBtn}
         </button>
       </div>
 

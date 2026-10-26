@@ -4,7 +4,7 @@ import ru from '@/dictionaries/ru.json'
 import ka from '@/dictionaries/ka.json'
 
 export type LocaleCode = 'ar' | 'en' | 'ru' | 'ka'
-export type CountryCode = 'EG' | 'RU' | 'GE' | 'AE'
+export type CountryCode = 'GE' | 'EG' | 'RU' | 'AE'
 export type PlatformCountryCode = CountryCode
 export type Dictionary = typeof ar
 
@@ -17,7 +17,7 @@ export const SUPPORTED_LANGUAGES: Record<
     dir: 'rtl' | 'ltr'
   }
 > = {
-  ar: { code: 'ar', shortCode: 'ع', nativeName: 'العربية', dir: 'rtl' },
+  ar: { code: 'ar', shortCode: 'AR', nativeName: 'العربية', dir: 'rtl' },
   en: { code: 'en', shortCode: 'EN', nativeName: 'English', dir: 'ltr' },
   ru: { code: 'ru', shortCode: 'RU', nativeName: 'Русский', dir: 'ltr' },
   ka: { code: 'ka', shortCode: 'KA', nativeName: 'ქართული', dir: 'ltr' },
@@ -37,9 +37,9 @@ export function normalizeLocale(val?: string | null): LocaleCode {
 }
 
 export function normalizeCountry(val?: string | null): CountryCode {
-  // تثبيت السوق الحالي على جورجيا (GE) افتراضياً
+  // الموقع يعمل حالياً في سوق جورجيا (GE) فقط، مع إبقاء الأنواع الأخرى جاهزة للتوسع مستقبلاً
   const clean = (val || 'GE').trim().toUpperCase()
-  if (clean === 'EG' || clean === 'RU' || clean === 'GE' || clean === 'AE') {
+  if (clean === 'GE' || clean === 'EG' || clean === 'RU' || clean === 'AE') {
     return clean
   }
   return 'GE'
@@ -54,15 +54,15 @@ export function getCurrencySymbol(
   const isArabic = l === 'ar'
 
   switch (c) {
+    case 'GE':
+      return '$'
     case 'EG':
       return isArabic ? 'ج.م' : 'EGP'
     case 'AE':
       return isArabic ? 'د.إ' : 'AED'
     case 'RU':
       return '₽'
-    case 'GE':
-      return '$'
     default:
-      return isArabic ? 'ج.م' : 'EGP'
+      return '$'
   }
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -8,6 +8,7 @@ import {
   deleteUnitDocumentAction,
   saveUnitDocumentAction,
 } from '@/actions/account-actions'
+import { getCurrentSellerProfileAction } from '@/actions/submit-forms'
 import {
   CheckCircle2,
   Eye,
@@ -19,7 +20,6 @@ import {
   UploadCloud,
   X,
 } from 'lucide-react'
-import { ScrollReveal } from '@/components/shared/scroll-reveal'
 import { useTranslation } from '@/lib/i18n'
 
 export type DocKeyType = 'contract' | 'receipts' | 'statement' | 'passport'
@@ -30,17 +30,67 @@ function isImageUrl(url?: string, name?: string) {
   return /\.(jpg|jpeg|png|webp|gif|bmp|svg|avif)/i.test(target) || Boolean(url)
 }
 
-export default function AccountDocumentsPage() {
-  const { t: dict, dir } = useTranslation()
+function AccountDocumentsContent() {
+  const { t: dict, locale, dir } = useTranslation()
   const t = dict.accountPages.documents as Record<string, any>
   const tCommon = dict.accountPages.common
 
   const DOCUMENT_SECTIONS: Array<{ key: DocKeyType; title: string }> = [
-    { key: 'contract', title: t.sections?.contract },
-    { key: 'receipts', title: t.sections?.receipts },
-    { key: 'statement', title: t.sections?.statement },
-    { key: 'passport', title: t.sections?.passport },
+    { key: 'contract', title: t.sections?.contract || 'عقد الوحدة الابتدائي أو النهائي' },
+    { key: 'receipts', title: t.sections?.receipts || 'إيصالات السداد' },
+    { key: 'statement', title: t.sections?.statement || 'كشف حساب المطور (Statement)' },
+    { key: 'passport', title: t.sections?.passport || 'صورة جواز السفر (Passport)' },
   ]
+
+  const changeFileLabel =
+    t.changeFileBtn ||
+    (locale === 'ar'
+      ? 'تغيير الملف'
+      : locale === 'ru'
+        ? 'Изменить'
+        : locale === 'ka'
+          ? 'შეცვლა'
+          : 'Replace File')
+
+  const removeFileLabel =
+    t.removeFileBtn ||
+    (locale === 'ar'
+      ? 'حذف'
+      : locale === 'ru'
+        ? 'Удалить'
+        : locale === 'ka'
+          ? 'წაშლა'
+          : 'Remove')
+
+  const viewImageLabel =
+    t.viewFullImageBtn ||
+    (locale === 'ar'
+      ? 'معاينة الصورة'
+      : locale === 'ru'
+        ? 'Просмотр'
+        : locale === 'ka'
+          ? 'ნახვა'
+          : 'View Image')
+
+  const openPdfLabel =
+    t.openFileBtn ||
+    (locale === 'ar'
+      ? 'فتح الملف'
+      : locale === 'ru'
+        ? 'Открыть'
+        : locale === 'ka'
+          ? 'გახსნა'
+          : 'Open PDF')
+
+  const deleteSuccessLabel =
+    t.deleteSuccess ||
+    (locale === 'ar'
+      ? 'تم حذف المستند بنجاح ✓'
+      : locale === 'ru'
+        ? 'Документ удален ✓'
+        : locale === 'ka'
+          ? 'დოკუმენტი წაიშალა ✓'
+          : 'Document removed ✓')
 
   const searchParams = useSearchParams()
   const unitIdParam = searchParams.get('unitId')
@@ -59,13 +109,18 @@ export default function AccountDocumentsPage() {
   useEffect(() => {
     async function loadDocs() {
       const supabase = createClient()
+      const profileRes = await getCurrentSellerProfileAction()
+
       let query = supabase
         .from('sell_requests')
-        .select('id, documents')
+        .select('id, user_id, email, phone, documents')
+        .neq('status', 'deleted_by_seller')
         .order('created_at', { ascending: false })
 
       if (unitIdParam) {
         query = query.eq('id', unitIdParam)
+      } else if (profileRes.isLoggedIn && profileRes.user?.id) {
+        query = query.eq('user_id', profileRes.user.id)
       }
 
       const { data } = await query.limit(1).maybeSingle()
@@ -135,7 +190,7 @@ export default function AccountDocumentsPage() {
       const res = await deleteUnitDocumentAction({ unitId, docKey })
       if (res.success && res.documents) {
         setDocs(res.documents)
-        setMessage(t.deleteSuccess)
+        setMessage(deleteSuccessLabel)
       }
     } finally {
       setDeletingKey(null)
@@ -152,42 +207,40 @@ export default function AccountDocumentsPage() {
       className="min-h-screen bg-[var(--brand-surface,#f5f6f8)] px-4 py-12 pb-24 text-[var(--brand-navy,#0a1122)]"
     >
       <div className="mx-auto max-w-[660px]">
-        <ScrollReveal>
-          <header className="mb-6 text-start">
-            <h1 className="text-2xl font-black text-[var(--brand-navy,#0a1122)]">
-              {t.title}
-            </h1>
-            <p className="mt-1.5 text-xs text-slate-500 sm:text-sm">
-              {t.subtitle}
-            </p>
-          </header>
+        <header className="mb-6 text-start">
+          <h1 className="text-2xl font-black text-[var(--brand-navy,#0a1122)]">
+            {t.title}
+          </h1>
+          <p className="mt-1.5 text-xs text-slate-500 sm:text-sm">
+            {t.subtitle}
+          </p>
+        </header>
 
-          <div
-            className={`mb-6 flex items-start gap-3 rounded-2xl border p-4 text-start ${
-              uploadedCount === 4
-                ? 'border-emerald-200 bg-[#eaf8f2] text-[#007a5a]'
-                : 'border-amber-200 bg-amber-50 text-amber-900'
-            }`}
-          >
-            {uploadedCount === 4 ? (
-              <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-[#007a5a]" />
-            ) : (
-              <ShieldAlert className="mt-0.5 size-5 shrink-0 text-amber-600" />
-            )}
-            <div className="flex-1 text-xs leading-relaxed">
-              <strong className="block font-extrabold">
-                {t.mandatoryPublishTitle}
-              </strong>
-              <p className="mt-0.5 opacity-90">{t.mandatoryPublishDesc}</p>
-            </div>
-            <span
-              dir="ltr"
-              className="shrink-0 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-black shadow-2xs"
-            >
-              {uploadedCount}/4
-            </span>
+        <div
+          className={`mb-6 flex items-start gap-3 rounded-2xl border p-4 text-start ${
+            uploadedCount === 4
+              ? 'border-emerald-200 bg-[#eaf8f2] text-[#007a5a]'
+              : 'border-amber-200 bg-amber-50 text-amber-900'
+          }`}
+        >
+          {uploadedCount === 4 ? (
+            <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-[#007a5a]" />
+          ) : (
+            <ShieldAlert className="mt-0.5 size-5 shrink-0 text-amber-600" />
+          )}
+          <div className="flex-1 text-xs leading-relaxed">
+            <strong className="block font-extrabold">
+              {t.mandatoryPublishTitle}
+            </strong>
+            <p className="mt-0.5 opacity-90">{t.mandatoryPublishDesc}</p>
           </div>
-        </ScrollReveal>
+          <span
+            dir="ltr"
+            className="shrink-0 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-black shadow-2xs"
+          >
+            {uploadedCount}/4
+          </span>
+        </div>
 
         {message && (
           <div className="mb-6 rounded-xl bg-[var(--brand-primary-light,#eaf8f2)] p-3.5 text-center text-xs font-bold text-[var(--brand-primary,#007a5a)]">
@@ -201,7 +254,7 @@ export default function AccountDocumentsPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            {DOCUMENT_SECTIONS.map((sec, idx) => {
+            {DOCUMENT_SECTIONS.map((sec) => {
               const docInfo = docs[sec.key]
               const isUploading = uploadingKey === sec.key
               const isDeleting = deletingKey === sec.key
@@ -209,117 +262,65 @@ export default function AccountDocumentsPage() {
               const isImage = hasFile && isImageUrl(docInfo.url, docInfo.name)
 
               return (
-                <ScrollReveal key={sec.key} delay={idx * 60}>
-                  <div className="rounded-[18px] border border-gray-200/80 bg-white p-5 shadow-2xs sm:p-6">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <h2 className="text-sm font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-base">
-                        {sec.title}
-                      </h2>
+                <div
+                  key={sec.key}
+                  className="rounded-[18px] border border-gray-200/80 bg-white p-5 shadow-2xs sm:p-6"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <h2 className="text-sm font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-base">
+                      {sec.title}
+                    </h2>
 
-                      <div className="flex items-center gap-2">
-                        <label className="inline-flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-[var(--brand-primary,#007a5a)] px-4 text-xs font-bold text-white transition hover:bg-[var(--brand-primary-hover,#006248)]">
-                          {isUploading ? (
-                            <span className="inline-flex items-center gap-1.5">
-                              <Loader2 className="size-3.5 animate-spin" />
-                              {t.uploading}
-                            </span>
-                          ) : hasFile ? (
-                            <span className="inline-flex items-center gap-1.5">
-                              <RefreshCw className="size-3.5" />
-                              {t.changeFileBtn}
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1.5">
-                              <UploadCloud className="size-3.5" />
-                              {t.uploadBtn}
-                            </span>
-                          )}
-                          <input
-                            type="file"
-                            accept="image/*,.pdf"
-                            className="sr-only"
-                            disabled={isUploading || isDeleting}
-                            onChange={(e) =>
-                              handleFileUpload(sec.key, e.target.files)
-                            }
-                          />
-                        </label>
-
-                        {hasFile && (
-                          <button
-                            type="button"
-                            disabled={isDeleting || isUploading}
-                            onClick={() => handleRemoveDocument(sec.key)}
-                            className="inline-flex h-9 items-center justify-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 text-xs font-bold text-red-600 transition hover:bg-red-100 disabled:opacity-50"
-                          >
-                            {isDeleting ? (
-                              <Loader2 className="size-3.5 animate-spin" />
-                            ) : (
-                              <Trash2 className="size-3.5" />
-                            )}
-                            <span>{t.removeFileBtn}</span>
-                          </button>
+                    <div className="flex items-center gap-2">
+                      <label className="inline-flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-[var(--brand-primary,#007a5a)] px-4 text-xs font-bold text-white transition hover:bg-[var(--brand-primary-hover,#006248)]">
+                        {isUploading ? (
+                          <span className="inline-flex items-center gap-1.5">
+                            <Loader2 className="size-3.5 animate-spin" />
+                            {t.uploading}
+                          </span>
+                        ) : hasFile ? (
+                          <span className="inline-flex items-center gap-1.5">
+                            <RefreshCw className="size-3.5" />
+                            {changeFileLabel}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5">
+                            <UploadCloud className="size-3.5" />
+                            {t.uploadBtn}
+                          </span>
                         )}
-                      </div>
-                    </div>
+                        <input
+                          type="file"
+                          accept="image/*,.pdf"
+                          className="sr-only"
+                          disabled={isUploading || isDeleting}
+                          onChange={(e) =>
+                            handleFileUpload(sec.key, e.target.files)
+                          }
+                        />
+                      </label>
 
-                    {hasFile ? (
-                      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-[#f8f9fb] p-3 text-xs">
-                        <div className="flex items-center gap-3">
-                          {isImage ? (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setPreviewDoc({
-                                  url: docInfo.url,
-                                  title: sec.title,
-                                })
-                              }
-                              className="group relative size-16 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs"
-                              title={t.clickToEnlarge}
-                            >
-                              <img
-                                src={docInfo.url}
-                                alt={sec.title}
-                                className="h-full w-full object-cover transition duration-200 group-hover:scale-105"
-                              />
-                              <span className="absolute inset-0 flex items-center justify-center bg-black/45 opacity-0 transition group-hover:opacity-100">
-                                <Eye className="size-4 text-white" />
-                              </span>
-                            </button>
+                      {hasFile && (
+                        <button
+                          type="button"
+                          disabled={isDeleting || isUploading}
+                          onClick={() => handleRemoveDocument(sec.key)}
+                          className="inline-flex h-9 items-center justify-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 text-xs font-bold text-red-600 transition hover:bg-red-100 disabled:opacity-50"
+                        >
+                          {isDeleting ? (
+                            <Loader2 className="size-3.5 animate-spin" />
                           ) : (
-                            <a
-                              href={docInfo.url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="flex size-16 shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-teal-200 bg-teal-50 text-[10px] font-extrabold text-teal-800 hover:bg-teal-100"
-                            >
-                              <FileText className="size-5 text-teal-700" />
-                              <span>PDF</span>
-                            </a>
+                            <Trash2 className="size-3.5" />
                           )}
+                          <span>{removeFileLabel}</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
 
-                          <div className="text-start">
-                            <p className="max-w-[200px] truncate font-bold text-[#0a1122] sm:max-w-[280px]">
-                              {docInfo.name || sec.title}
-                            </p>
-                            <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                              <span className="rounded-full bg-[#e0f2fe] px-2.5 py-0.5 text-[10.5px] font-bold text-[#0369a1]">
-                                {docInfo.status === 'approved'
-                                  ? t.statusApproved
-                                  : t.statusPending}
-                              </span>
-                              <span
-                                dir="ltr"
-                                className="font-mono text-[11px] text-gray-500"
-                              >
-                                {docInfo.uploaded_at ||
-                                  new Date().toLocaleDateString('en-GB')}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
+                  {hasFile ? (
+                    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-[#f8f9fb] p-3 text-xs">
+                      <div className="flex items-center gap-3">
                         {isImage ? (
                           <button
                             type="button"
@@ -329,30 +330,82 @@ export default function AccountDocumentsPage() {
                                 title: sec.title,
                               })
                             }
-                            className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-bold text-[#0a1122] hover:bg-slate-50"
+                            className="group relative size-16 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs"
                           >
-                            <Eye className="size-3.5 text-[#007a5a]" />
-                            <span>{t.viewFullImageBtn}</span>
+                            <img
+                              src={docInfo.url}
+                              alt={sec.title}
+                              className="h-full w-full object-cover transition duration-200 group-hover:scale-105"
+                            />
+                            <span className="absolute inset-0 flex items-center justify-center bg-black/45 opacity-0 transition group-hover:opacity-100">
+                              <Eye className="size-4 text-white" />
+                            </span>
                           </button>
                         ) : (
                           <a
                             href={docInfo.url}
                             target="_blank"
                             rel="noreferrer"
-                            className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-bold text-[#0a1122] hover:bg-slate-50"
+                            className="flex size-16 shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-teal-200 bg-teal-50 text-[10px] font-extrabold text-teal-800 hover:bg-teal-100"
                           >
-                            <Eye className="size-3.5 text-[#007a5a]" />
-                            <span>{t.openFileBtn}</span>
+                            <FileText className="size-5 text-teal-700" />
+                            <span>PDF</span>
                           </a>
                         )}
+
+                        <div className="text-start">
+                          <p className="max-w-[200px] truncate font-bold text-[#0a1122] sm:max-w-[280px]">
+                            {docInfo.name || sec.title}
+                          </p>
+                          <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                            <span className="rounded-full bg-[#e0f2fe] px-2.5 py-0.5 text-[10.5px] font-bold text-[#0369a1]">
+                              {docInfo.status === 'approved'
+                                ? t.statusApproved
+                                : t.statusPending}
+                            </span>
+                            <span
+                              dir="ltr"
+                              className="font-mono text-[11px] text-gray-500"
+                            >
+                              {docInfo.uploaded_at ||
+                                new Date().toLocaleDateString('en-GB')}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                    ) : (
-                      <p className="mt-3 text-start text-xs text-gray-400">
-                        {t.emptySection}
-                      </p>
-                    )}
-                  </div>
-                </ScrollReveal>
+
+                      {isImage ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPreviewDoc({
+                              url: docInfo.url,
+                              title: sec.title,
+                            })
+                          }
+                          className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-bold text-[#0a1122] hover:bg-slate-50"
+                        >
+                          <Eye className="size-3.5 text-[#007a5a]" />
+                          <span>{viewImageLabel}</span>
+                        </button>
+                      ) : (
+                        <a
+                          href={docInfo.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-bold text-[#0a1122] hover:bg-slate-50"
+                        >
+                          <Eye className="size-3.5 text-[#007a5a]" />
+                          <span>{openPdfLabel}</span>
+                        </a>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="mt-3 text-start text-xs text-gray-400">
+                      {t.emptySection}
+                    </p>
+                  )}
+                </div>
               )
             })}
           </div>
@@ -368,7 +421,6 @@ export default function AccountDocumentsPage() {
         </div>
       </div>
 
-      {/* نافذة عرض الصورة بالحجم الكامل عند الضغط عليها */}
       {previewDoc && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-xs"
@@ -401,5 +453,13 @@ export default function AccountDocumentsPage() {
         </div>
       )}
     </main>
+  )
+}
+
+export default function AccountDocumentsPage() {
+  return (
+    <Suspense fallback={null}>
+      <AccountDocumentsContent />
+    </Suspense>
   )
 }

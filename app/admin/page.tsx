@@ -21,6 +21,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { getLocalizedGeorgiaAreaName } from "@/components/shared/georgia-areas"
 import { getServerI18n } from "@/lib/get-server-dictionary"
 import { getCurrencySymbol } from "@/lib/i18n-config"
 
@@ -57,13 +58,14 @@ async function getSupabase() {
 }
 
 export default async function AdminPage() {
-  const { dict, locale, dir } = await getServerI18n()
+  const { dict, locale, dir, siteSettings } = await getServerI18n()
   const t = dict.admin.dashboard as Record<string, any>
   const leadsDict = dict.admin.leads as Record<string, any>
   const sm = (dict.admin as Record<string, any>).smartMatch || {}
 
   const georgiaLabel = t.countries?.GE || "Georgia"
   const georgiaCurrency = getCurrencySymbol(ACTIVE_ADMIN_COUNTRY, locale)
+  const commPct = Number(siteSettings?.buyerCommission) || 1.25
 
   const supabase = await getSupabase()
 
@@ -86,7 +88,18 @@ export default async function AdminPage() {
         .limit(30),
     ])
 
-  const properties = propertiesData || []
+  const properties = (propertiesData || []).map((p: any) => {
+    const meta =
+      p.documents && typeof p.documents === "object"
+        ? p.documents.__unit_meta || {}
+        : {}
+    return {
+      ...p,
+      area: p.area || meta.area || null,
+      unit_type: p.unit_type || meta.unit_type || null,
+      size: p.size ?? meta.size ?? null,
+    }
+  })
   const leads = leadsData || []
   const allOffers = allOffersData || []
 
@@ -173,7 +186,6 @@ export default async function AdminPage() {
 
   return (
     <div dir={dir} className="mx-auto max-w-7xl text-start">
-      {/* الكروت الأربعة */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         {kpis.map(({ label, value, note, icon: Icon, href, highlight }) => (
           <Link
@@ -224,7 +236,6 @@ export default async function AdminPage() {
         ))}
       </div>
 
-      {/* شريط طلبات الإعلان */}
       <Link
         href="/admin/promotions"
         className={`mt-3.5 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3.5 shadow-2xs transition hover:shadow-xs sm:mt-4 sm:px-4 ${
@@ -285,7 +296,6 @@ export default async function AdminPage() {
         </span>
       </Link>
 
-      {/* غرفة الصفقات المتفق عليها الجاهزة للتنفيذ */}
       {readyDeals.length > 0 && (
         <div className="mt-4 rounded-2xl border-2 border-[#105C50] bg-gradient-to-br from-[#effaf5] via-white to-[#f4fbf8] p-4 shadow-sm sm:p-5">
           <div className="mb-3.5 flex flex-wrap items-center justify-between gap-2">
@@ -311,7 +321,10 @@ export default async function AdminPage() {
               const agreedCash = Number(offer.offered_cash) || 0
               const commissionBase =
                 Number(unit.contract_price) || agreedCash || 0
-              const platformCommission = Math.round(commissionBase * 0.0125)
+              const platformCommission = Math.round(
+                commissionBase * (commPct / 100)
+              )
+              const localizedArea = getLocalizedGeorgiaAreaName(unit.area, locale)
 
               const sellerWa = `${leadsDict.waGeneralPrefix} ${unit.name}، (${unit.project_name || t.defaultUnit} - ${uCode}) — ${sm.agreedCashLabel}: ${agreedCash.toLocaleString("en-US")} ${cur}`
               const buyerWa = `${leadsDict.waUnitLeadPrefix} ${offer.buyer_name || ""}، (${unit.project_name || t.defaultUnit} - ${uCode}) — ${sm.agreedCashLabel}: ${agreedCash.toLocaleString("en-US")} ${cur}`
@@ -327,7 +340,7 @@ export default async function AdminPage() {
                         {uCode}
                       </span>
                       <span className="text-xs font-black text-[#0a1122] sm:text-sm">
-                        {unit.project_name || t.defaultUnit} ({unit.area || "—"})
+                        {unit.project_name || t.defaultUnit} ({localizedArea})
                       </span>
                     </div>
                     <Link
@@ -404,7 +417,7 @@ export default async function AdminPage() {
                     </div>
                     <div>
                       <span className="text-[10.5px] text-gray-500">
-                        {sm.commissionDueLabel} (1.25%):{" "}
+                        {sm.commissionDueLabel} ({commPct}%):{" "}
                       </span>
                       <strong
                         dir="ltr"
@@ -421,7 +434,6 @@ export default async function AdminPage() {
         </div>
       )}
 
-      {/* رادار حركة العروض الحية والتفاوض */}
       {liveNegotiationOffers.length > 0 && (
         <Card className="mt-4 border-gray-200/85 bg-white shadow-2xs">
           <CardHeader className="flex flex-row items-center justify-between border-b border-gray-100 px-4 py-3 sm:px-5">
@@ -521,7 +533,6 @@ export default async function AdminPage() {
         </Card>
       )}
 
-      {/* الجداول السفلية */}
       <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-3">
         <Card className="border-gray-200/80 bg-white shadow-2xs lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between border-b border-gray-100 px-4 py-3.5 sm:px-5">
@@ -554,8 +565,12 @@ export default async function AdminPage() {
                     STATUS_BADGE_CLASSES[prop.status || "pending"] ||
                     STATUS_BADGE_CLASSES.pending
                   const uCode = deriveUnitCode(prop.id)
+                  const localizedArea = getLocalizedGeorgiaAreaName(
+                    prop.area,
+                    locale
+                  )
 
-                  const sellerWaMsg = `${leadsDict.waGeneralPrefix} ${prop.name}، (${prop.project_name || t.defaultUnit} - ${prop.area || ""} - ${uCode}) — ${Number(prop.paid_amount || 0).toLocaleString("en-US")} ${georgiaCurrency}`
+                  const sellerWaMsg = `${leadsDict.waGeneralPrefix} ${prop.name}، (${prop.project_name || t.defaultUnit} - ${localizedArea} - ${uCode}) — ${Number(prop.paid_amount || 0).toLocaleString("en-US")} ${georgiaCurrency}`
 
                   return (
                     <div
@@ -575,7 +590,7 @@ export default async function AdminPage() {
                           </span>
                         </div>
                         <p className="mt-0.5 text-[11px] text-gray-500">
-                          {prop.area || "—"} · {prop.name} (
+                          {localizedArea} · {prop.name} (
                           <span dir="ltr">{prop.phone}</span>)
                         </p>
                       </Link>
@@ -644,14 +659,19 @@ export default async function AdminPage() {
               </div>
             ) : (
               leads.slice(0, 5).map((lead) => {
-                const areasText = Array.isArray(lead.preferred_areas)
-                  ? lead.preferred_areas.join("، ")
-                  : lead.preferred_areas || t.allAreas
+                const areasList = Array.isArray(lead.preferred_areas)
+                  ? lead.preferred_areas
+                  : lead.preferred_areas
+                    ? [String(lead.preferred_areas)]
+                    : []
+                const areasRaw = areasList.join("، ")
                 const isUnitSpecific =
-                  areasText.includes("🎯") || areasText.includes("U-")
-                const cleanTarget = areasText
-                  .replace("🎯 مهتم بوحدة:", "")
-                  .trim()
+                  areasRaw.includes("🎯") || areasRaw.includes("U-")
+                const cleanTarget = isUnitSpecific
+                  ? areasRaw.replace("🎯 مهتم بوحدة:", "").trim()
+                  : areasList
+                      .map((a: string) => getLocalizedGeorgiaAreaName(a, locale))
+                      .join("، ") || t.allAreas
                 const cashFormatted = Number(
                   lead.available_cash || lead.budget || 0
                 ).toLocaleString("en-US")
@@ -705,30 +725,3 @@ export default async function AdminPage() {
     </div>
   )
 }
-
-/* ============================================================================
-   ARCHIVED MULTI-COUNTRY ADMIN FILTER BAR (COMMENTED FOR FUTURE REFERENCE)
-   ============================================================================
-
-  const adminCountries = [
-    { code: "ALL", label: t.countries.ALL, flag: "🌍" },
-    { code: "EG", label: t.countries.EG, flag: "🇪🇬" },
-    { code: "RU", label: t.countries.RU, flag: "🇷🇺" },
-    { code: "GE", label: t.countries.GE, flag: "🇬🇪" },
-    { code: "AE", label: t.countries.AE, flag: "🇦🇪" },
-  ]
-
-  // Multi-Country Filter Bar JSX:
-  // <div className="mb-4 rounded-xl border border-gray-200/85 bg-white p-3.5 shadow-2xs sm:p-4">
-  //   <div className="flex flex-wrap items-center justify-between gap-3">
-  //     <div className="flex flex-wrap items-center gap-1.5">
-  //       {adminCountries.map((c) => (
-  //         <Link key={c.code} href={c.code === "ALL" ? "/admin" : `/admin?country=${c.code}`}>
-  //           {c.flag} {c.label}
-  //         </Link>
-  //       ))}
-  //     </div>
-  //   </div>
-  // </div>
-
-============================================================================ */

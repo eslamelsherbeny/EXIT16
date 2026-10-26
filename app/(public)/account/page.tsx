@@ -35,9 +35,15 @@ async function getSupabase() {
 export default async function AccountPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ view?: string; unitId?: string }>
+  searchParams?: Promise<{ view?: string; unitId?: string }> | { view?: string; unitId?: string }
 }) {
-  const resolvedParams = searchParams ? await searchParams : {}
+  let resolvedParams: { view?: string; unitId?: string } = {}
+  try {
+    resolvedParams = searchParams ? await Promise.resolve(searchParams) : {}
+  } catch {
+    resolvedParams = {}
+  }
+
   const cookieStore = await cookies()
   const rawSession = cookieStore.get('user_session')?.value
   const sessionId = extractUserIdFromCookie(rawSession)
@@ -58,7 +64,6 @@ export default async function AccountPage({
     redirect('/login')
   }
 
-  // التحقق الأمني الصارم من التوقيع المشفر للكوكي وعدم إيقاف الحساب
   const sessionCheck = parseAndVerifySessionCookie(
     rawSession,
     profile.password_hash
@@ -69,41 +74,51 @@ export default async function AccountPage({
     redirect('/login')
   }
 
-  const { dict, dir } = await getServerI18n()
+  const { dict, dir, locale } = await getServerI18n()
   const tMain = dict.accountPages.main
 
-  const cleanEmail = (profile.email || '').trim().toLowerCase()
-  const cleanPhone = (profile.phone || '').trim()
+  const cleanEmail = String(profile.email || '').trim().toLowerCase()
+  const cleanPhone = String(profile.phone || '').trim()
 
-  const [
-    { data: allSells },
-    { data: allBuys },
-    { data: activeMarketUnits },
-    { data: allOffers },
-  ] = await Promise.all([
-    supabase
-      .from('sell_requests')
-      .select('*')
-      .neq('status', 'deleted_by_seller')
-      .order('created_at', { ascending: false }),
-    supabase
-      .from('buy_requests')
-      .select('*')
-      .order('created_at', { ascending: false }),
-    supabase
-      .from('sell_requests')
-      .select('*')
-      .in('status', ['active', 'approved', 'published'])
-      .order('is_featured', { ascending: false })
-      .order('created_at', { ascending: false }),
-    supabase
-      .from('property_offers')
-      .select('id, property_id, lead_id, buyer_user_id, seller_user_id, status')
-      .neq('status', 'rejected'),
-  ])
+  let allSells: any[] = []
+  let allBuys: any[] = []
+  let activeMarketUnits: any[] = []
+  let allOffers: any[] = []
 
-  const sells = ((allSells as SellerUnitItem[]) || []).filter(
+  try {
+    const [sellsRes, buysRes, marketRes, offersRes] = await Promise.all([
+      supabase
+        .from('sell_requests')
+        .select('*')
+        .neq('status', 'deleted_by_seller')
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('buy_requests')
+        .select('*')
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('sell_requests')
+        .select('*')
+        .in('status', ['active', 'approved', 'published'])
+        .order('is_featured', { ascending: false })
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('property_offers')
+        .select('id, property_id, lead_id, buyer_user_id, seller_user_id, status')
+        .neq('status', 'rejected'),
+    ])
+
+    allSells = sellsRes.data || []
+    allBuys = buysRes.data || []
+    activeMarketUnits = marketRes.data || []
+    allOffers = offersRes.data || []
+  } catch (dbErr) {
+    console.error('Account page queries error:', dbErr)
+  }
+
+  const sells = (allSells as SellerUnitItem[]).filter(
     (s: any) =>
+      s &&
       s.status !== 'deleted_by_seller' &&
       (s.user_id === profile.id ||
         (cleanEmail &&
@@ -111,31 +126,33 @@ export default async function AccountPage({
         (cleanPhone && String(s.phone || '').trim() === cleanPhone))
   )
 
-  const buys = ((allBuys as BuyerRequestItem[]) || []).filter(
+  const buys = (allBuys as BuyerRequestItem[]).filter(
     (b: any) =>
-      b.user_id === profile.id ||
-      (cleanEmail &&
-        String(b.email || '').trim().toLowerCase() === cleanEmail) ||
-      (cleanPhone && String(b.phone || '').trim() === cleanPhone)
+      b &&
+      (b.user_id === profile.id ||
+        (cleanEmail &&
+          String(b.email || '').trim().toLowerCase() === cleanEmail) ||
+        (cleanPhone && String(b.phone || '').trim() === cleanPhone))
   )
 
-  const georgiaMarketUnits = (
-    (activeMarketUnits as SellerUnitItem[]) || []
-  ).filter((u) => !isNonGeorgianLegacyArea(u.area))
+  const georgiaMarketUnits = (activeMarketUnits as SellerUnitItem[]).filter(
+    (u) => u && !isNonGeorgianLegacyArea(u.area)
+  )
 
   const offersCountMap: Record<string, number> = {}
-  ;(allOffers || []).forEach((o: any) => {
-    if (o.property_id && o.status !== 'recommended') {
+  allOffers.forEach((o: any) => {
+    if (o && o.property_id && o.status !== 'recommended') {
       offersCountMap[o.property_id] = (offersCountMap[o.property_id] || 0) + 1
     }
   })
 
   const myLeadIds = new Set(buys.map((b) => b.id))
   const myUnitIds = new Set(sells.map((s) => s.id))
-  const directBuyerOffers = (allOffers || []).filter(
+  const directBuyerOffers = allOffers.filter(
     (o: any) =>
-      o.buyer_user_id === profile.id ||
-      (o.lead_id && myLeadIds.has(o.lead_id))
+      o &&
+      (o.buyer_user_id === profile.id ||
+        (o.lead_id && myLeadIds.has(o.lead_id)))
   )
   const offeredUnitIds = new Set(
     directBuyerOffers.map((o: any) => String(o.property_id))
@@ -145,27 +162,32 @@ export default async function AccountPage({
   let smartMatchesForBuyerCount = 0
   if (mainBuyerReq) {
     georgiaMarketUnits.forEach((u) => {
-      if (myUnitIds.has(u.id) || offeredUnitIds.has(String(u.id))) return
-      const m = calculateSmartMatch(u, mainBuyerReq)
-      if (m.score >= 70) {
-        smartMatchesForBuyerCount++
-      }
+      try {
+        if (myUnitIds.has(u.id) || offeredUnitIds.has(String(u.id))) return
+        const m = calculateSmartMatch(u, mainBuyerReq, undefined, locale)
+        if (m.score >= 70) {
+          smartMatchesForBuyerCount++
+        }
+      } catch {}
     })
   }
   const totalBuyerOffersCount =
     directBuyerOffers.length + smartMatchesForBuyerCount
 
   const matchedBuyersCountMap: Record<string, number> = {}
-  const buyersList = (allBuys as any[]) || []
+  const buyersList = allBuys || []
 
   sells.forEach((unit) => {
-    const matchingBuyers = buyersList.filter((b) => {
-      if (b.user_id && b.user_id === profile.id) return false
-      const res = calculateSmartMatch(unit, b)
-      return res.score >= 65
-    })
-
-    matchedBuyersCountMap[unit.id] = matchingBuyers.length
+    try {
+      const matchingBuyers = buyersList.filter((b: any) => {
+        if (!b || (b.user_id && b.user_id === profile.id)) return false
+        const res = calculateSmartMatch(unit, b, undefined, locale)
+        return res.score >= 65
+      })
+      matchedBuyersCountMap[unit.id] = matchingBuyers.length
+    } catch {
+      matchedBuyersCountMap[unit.id] = 0
+    }
   })
 
   const hasSells = sells.length > 0

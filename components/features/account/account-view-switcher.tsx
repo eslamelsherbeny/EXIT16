@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { Building2, Compass } from 'lucide-react'
 import { SellerDashboard, type SellerUnitItem } from './seller-dashboard'
 import { BuyerDashboard, type BuyerRequestItem } from './buyer-dashboard'
 import { AccountActionLinks } from './delete-account-modal'
@@ -60,32 +61,36 @@ export function AccountViewSwitcher({
   return (
     <div dir={dir}>
       {sells.length > 0 && buys.length > 0 && (
-        <div className="mx-auto mb-6 flex max-w-[680px] justify-center gap-2 px-4">
-          <button
-            type="button"
-            onClick={() => handleSwitch('seller')}
-            className={`inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-xs font-bold transition ${
-              currentView === 'seller'
-                ? 'bg-[var(--brand-primary,#007a5a)] text-white shadow-xs'
-                : 'bg-white text-gray-600 hover:bg-gray-100'
-            }`}
-          >
-            <span>
-              {t.sellerTab} ({sells.length})
-            </span>
-          </button>
+        <div className="mx-auto mb-6 max-w-[680px] px-4 sm:px-6">
+          <div className="grid grid-cols-2 gap-2 rounded-2xl border border-gray-200/90 bg-white p-1.5 shadow-2xs">
+            <button
+              type="button"
+              onClick={() => handleSwitch('seller')}
+              className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-extrabold transition sm:text-sm ${
+                currentView === 'seller'
+                  ? 'bg-[var(--brand-navy,#0a1122)] text-white shadow-xs'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <Building2 className="size-4 shrink-0" />
+              <span className="truncate">
+                {t.sellerTab} ({sells.length})
+              </span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => handleSwitch('buyer')}
-            className={`inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-xs font-bold transition ${
-              currentView === 'buyer'
-                ? 'bg-[var(--brand-primary,#007a5a)] text-white shadow-xs'
-                : 'bg-white text-gray-600 hover:bg-gray-100'
-            }`}
-          >
-            <span>{t.buyerTab}</span>
-          </button>
+            <button
+              type="button"
+              onClick={() => handleSwitch('buyer')}
+              className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-extrabold transition sm:text-sm ${
+                currentView === 'buyer'
+                  ? 'bg-[var(--brand-primary,#007a5a)] text-white shadow-xs'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <Compass className="size-4 shrink-0" />
+              <span className="truncate">{t.buyerTab}</span>
+            </button>
+          </div>
         </div>
       )}
 

@@ -9,6 +9,7 @@ import {
   ChevronDown,
   ChevronLeft,
   Compass,
+  Handshake,
   Heart,
   ListFilter,
   Loader2,
@@ -17,8 +18,6 @@ import {
   Search,
   ShieldAlert,
   SlidersHorizontal,
-  Sparkles,
-  UserCheck,
   Wallet,
   X,
 } from 'lucide-react'
@@ -44,7 +43,7 @@ import {
 import { ScrollReveal } from '@/components/shared/scroll-reveal'
 import { AccountActionLinks } from './delete-account-modal'
 import type { SellerUnitItem } from './seller-dashboard'
-import { getCurrencySymbol, useTranslation } from '@/lib/i18n'
+import { getCurrencySymbol, useTranslation, type LocaleCode } from '@/lib/i18n'
 import {
   calculateSmartMatch,
   evaluateGeorgiaAreaProximity,
@@ -69,6 +68,59 @@ export type BuyerRequestItem = {
 const FAVORITES_STORAGE_KEY = 'darak_favorites'
 const PREFERRED_PAGE_SIZE = 18
 const NEARBY_AREAS_PREVIEW_SIZE = 6
+
+function getBuyerExtraLabels(locale: LocaleCode) {
+  if (locale === 'en') {
+    return {
+      submitOfferBtn: 'Submit Offer',
+      detailsBtn: 'Details',
+      submittedOffersBtn: 'Submitted Offers',
+      specsSummaryLabel: 'Target Specs',
+      remainingLabel: 'Remaining',
+      installmentShort: 'Installment',
+      negotiableTag: 'Negotiable',
+      sqmUnit: 'm²',
+      roomsWord: 'Rooms',
+    }
+  }
+  if (locale === 'ru') {
+    return {
+      submitOfferBtn: 'Предложить цену',
+      detailsBtn: 'Подробнее',
+      submittedOffersBtn: 'Мои предложения',
+      specsSummaryLabel: 'Параметры',
+      remainingLabel: 'Остаток',
+      installmentShort: 'Взнос',
+      negotiableTag: 'Торг',
+      sqmUnit: 'м²',
+      roomsWord: 'комн.',
+    }
+  }
+  if (locale === 'ka') {
+    return {
+      submitOfferBtn: 'შეთავაზების გაგზავნა',
+      detailsBtn: 'დეტალები',
+      submittedOffersBtn: 'ჩემი შეთავაზებები',
+      specsSummaryLabel: 'პარამეტრები',
+      remainingLabel: 'დარჩენილი',
+      installmentShort: 'განვადება',
+      negotiableTag: 'შეთანხმებით',
+      sqmUnit: 'მ²',
+      roomsWord: 'ოთახი',
+    }
+  }
+  return {
+    submitOfferBtn: 'تقديم عرض شراء',
+    detailsBtn: 'التفاصيل',
+    submittedOffersBtn: 'عروض الشراء والتفاوض',
+    specsSummaryLabel: 'المواصفات المطلوبة',
+    remainingLabel: 'المتبقي للمطور',
+    installmentShort: 'القسط الشهري',
+    negotiableTag: 'قابل للتفاوض',
+    sqmUnit: 'م²',
+    roomsWord: 'غرف',
+  }
+}
 
 function calcMonthlyInstallment(amount: number, freq: string | null) {
   if (!amount) return 0
@@ -111,7 +163,6 @@ function extractCleanGeorgiaAreas(
 }
 
 export function BuyerDashboard({
-  userName = '',
   buyReq,
   marketUnits,
   offersCount = 0,
@@ -125,7 +176,9 @@ export function BuyerDashboard({
 }) {
   const { t: dict, locale, dir, isRtl } = useTranslation()
   const t = dict.accountComponents.buyer as Record<string, any>
-  const oppFilters = (dict.opportunitiesPage?.filters as Record<string, any>) || {}
+  const oppFilters =
+    (dict.opportunitiesPage?.filters as Record<string, any>) || {}
+  const extraLabels = useMemo(() => getBuyerExtraLabels(locale), [locale])
   const currency = getCurrencySymbol('GE', locale)
   const listSep = dir === 'rtl' ? '، ' : ', '
 
@@ -301,17 +354,23 @@ export function BuyerDashboard({
     return marketUnits
       .filter((u) => !isNonGeorgianLegacyArea(u.area))
       .map((u) => {
+        const meta =
+          u.documents && typeof u.documents === 'object'
+            ? u.documents.__unit_meta || {}
+            : {}
+
         const paid = Number(u.paid_amount) || 0
         const contract = Number(u.contract_price) || paid
+        const remaining = Math.max(0, contract - paid)
         const market = Number(u.market_price) || contract
         const commission = Math.round(market * 0.0125)
         const gainVal = Math.max(0, market - contract - commission)
         const unitMonthly = calcMonthlyInstallment(
-          Number(u.installment_amount) || 0,
-          u.installment_frequency
+          Number(u.installment_amount ?? meta.installment_amount) || 0,
+          u.installment_frequency || meta.installment_frequency
         )
 
-        const rawDel = String(u.delivery_status || '')
+        const rawDel = String(u.delivery_status || meta.delivery_status || '')
         const isReady =
           rawDel.includes('جاهز') ||
           rawDel.includes('فوري') ||
@@ -323,10 +382,20 @@ export function BuyerDashboard({
         const yearMatch = rawDel.match(/20\d{2}/)
         const deliveryYear = yearMatch ? Number(yearMatch[0]) : 2027
 
-        const rawAreaId = u.area || GEORGIA_CITIES_AND_DISTRICTS[0].id
+        const rawAreaId =
+          u.area || meta.area || GEORGIA_CITIES_AND_DISTRICTS[0].id
         const localizedArea = getLocalizedGeorgiaAreaName(rawAreaId, locale)
-        const unitType = u.unit_type || localizedUnitTypes[0] || 'Apartment'
+        const unitType =
+          u.unit_type || meta.unit_type || localizedUnitTypes[0] || 'Apartment'
         const unitCurrency = getCurrencySymbol('GE', locale)
+
+        const numericCode = String(u.id || '')
+          .replace(/\D/g, '')
+          .slice(0, 5)
+        const fallbackCode = String(u.id || '')
+          .slice(0, 5)
+          .toUpperCase()
+        const code = `U-${numericCode.length >= 4 ? numericCode : fallbackCode}`
 
         const geoEval = evaluateGeorgiaAreaProximity(rawAreaId, bAreas)
         const smartRes = calculateSmartMatch(
@@ -359,26 +428,25 @@ export function BuyerDashboard({
         if (isExactAreaMatch) {
           matchTags.push(t.tagAreaMatch)
         } else if (isNearbyInSameCity) {
-          const kmLabel = geoEval.distanceKm
-            ? ` (${geoEval.distanceKm} ${t.kmUnit || 'كم'})`
-            : ''
-          matchTags.push(
-            `${t.tagNearbyAreaMatch || t.tagAreaMatch}${kmLabel}`
-          )
+          matchTags.push(t.tagNearbyAreaMatch || t.tagAreaMatch)
         } else if (isTypeMatch) {
           matchTags.push(t.tagTypeMatch)
         }
 
         return {
           id: String(u.id),
+          code,
           title: u.project_name || t.defaultUnitTitle,
-          subtitle: `${u.developer_name || t.defaultDeveloper} · ${localizedArea} · ${unitType}`,
+          developer: u.developer_name || t.defaultDeveloper,
           area: rawAreaId,
           localizedArea,
           type: unitType,
-          rooms: Number(u.rooms) || 2,
+          rooms: Number(u.rooms ?? meta.rooms) || 2,
+          baths: Number(u.bathrooms ?? meta.bathrooms) || 1,
+          size: Number(u.size ?? meta.size) || 75,
           cashNum: paid,
           cashStr: paid.toLocaleString('en-US'),
+          remainingStr: remaining.toLocaleString('en-US'),
           contractNum: contract,
           marketNum: market,
           marketStr: market.toLocaleString('en-US'),
@@ -386,13 +454,14 @@ export function BuyerDashboard({
           gainStr: gainVal > 0 ? `+ ${gainVal.toLocaleString('en-US')}` : '',
           currency: unitCurrency,
           monthlyInst: unitMonthly,
+          monthlyInstStr: unitMonthly.toLocaleString('en-US'),
           negotiable: Boolean(u.willing_to_discount),
           deliveryStatus,
           deliveryYear,
-          contractYear: Number(u.contract_year) || 2024,
+          contractYear: Number(u.contract_year ?? meta.contract_year) || 2024,
           image:
             Array.isArray(u.images) && u.images[0] ? u.images[0] : undefined,
-          matchTags,
+          matchTags: matchTags.slice(0, 3),
           scorePct: smartRes.score,
           geoRelation: geoEval.relation,
           distanceKm: geoEval.distanceKm,
@@ -429,7 +498,7 @@ export function BuyerDashboard({
     const list = mappedUnits.filter((item) => {
       if (
         searchQuery.trim() &&
-        !`${item.title} ${item.subtitle} ${item.localizedArea}`
+        !`${item.title} ${item.developer} ${item.localizedArea} ${item.code}`
           .toLowerCase()
           .includes(searchQuery.trim().toLowerCase())
       ) {
@@ -561,7 +630,6 @@ export function BuyerDashboard({
     t,
   ])
 
-  // إذا اختار المشتري منطقة معينة من لوحة الفلتر المتقدم، نعرض نتائج تلك المنطقة مباشرة
   const unitsInPreferredArea = areaFilter.trim()
     ? filteredUnits
     : filteredUnits.filter((u) => u.isAreaMatch)
@@ -935,93 +1003,96 @@ export function BuyerDashboard({
         </div>
       )}
 
-      {/* ==================== 1. بانر هوية الحساب الشخصي للمشتري ==================== */}
+      {/* ==================== 1. كارت ملخص طلب الشراء والرادار الذكي (منظم وواضح) ==================== */}
       <ScrollReveal>
-        <section className="rounded-[22px] border border-emerald-200/80 bg-gradient-to-br from-[#0a1122] via-[#10233f] to-[#0d3b33] p-5 text-start text-white shadow-sm sm:p-6">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-3 py-1 text-[11px] font-extrabold text-emerald-300 ring-1 ring-emerald-400/30">
-                <UserCheck className="size-3.5" />
-                <span>
-                  {t.myAccountBadge || 'حسابي الشخصي — لوحة المشتري'}
-                  {userName ? ` · ${userName.split(' ')[0]}` : ''}
-                </span>
+        <section className="overflow-hidden rounded-[22px] border border-gray-200/90 border-t-[3px] border-t-[var(--brand-primary,#007a5a)] bg-white p-5 text-start shadow-xs sm:p-6">
+          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-gray-100 pb-4">
+            <div className="flex items-start gap-3">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]">
+                <Radar className="size-5" />
+              </span>
+              <div>
+                <h1 className="text-base font-black text-[var(--brand-navy,#0a1122)] sm:text-xl">
+                  {t.mainTitle}
+                </h1>
+                <p className="mt-0.5 text-xs text-gray-500">
+                  {t.radarActiveSubtitle ||
+                    'الرادار الذكي يطابق ميزانيتك ومنطقتك المفضلة في جورجيا مع الوحدات المعروضة للتنازل'}
+                </p>
               </div>
-              <h1 className="mt-2.5 text-xl font-black tracking-tight text-white sm:text-2xl">
-                {t.mainTitle}
-              </h1>
-              <p className="mt-1 text-xs leading-relaxed text-slate-300">
-                {t.radarActiveSubtitle ||
-                  'الرادار الذكي يطابق ميزانيتك ومنطقتك المفضلة في جورجيا مع الوحدات المعروضة للتنازل'}
-              </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2.5">
-              <Link
-                href="/account/offers"
-                className="group relative flex flex-col items-center justify-center rounded-2xl border border-emerald-400/40 bg-white px-4 py-2 text-center shadow-sm transition hover:bg-emerald-50"
-              >
-                <div className="flex items-center gap-1.5">
-                  <Wallet className="size-4 text-[var(--brand-primary,#007a5a)]" />
-                  <span className="text-xs font-black text-[var(--brand-navy,#0a1122)] sm:text-sm">
-                    {t.myOffersBtn}
-                  </span>
-                  <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[var(--brand-primary,#007a5a)] px-1.5 text-[11px] font-black text-white">
-                    {offersCount}
-                  </span>
-                </div>
-                <span className="mt-0.5 text-[10px] font-extrabold text-[var(--brand-primary,#007a5a)]">
-                  {offersCount > 0
-                    ? `${offersCount} ${t.offersAvailableSub || 'عروض متاحة'}`
-                    : t.noOffersSub || 'تابع عروضك وترشيحاتك'}
-                </span>
-              </Link>
-
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={() => setIsEditingBudget(true)}
-                className="inline-flex h-12 items-center gap-1.5 rounded-2xl border border-white/20 bg-white/10 px-4 text-xs font-extrabold text-white backdrop-blur-xs transition hover:bg-white/20"
+                className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3.5 text-xs font-extrabold text-[var(--brand-navy,#0a1122)] transition hover:border-[var(--brand-primary,#007a5a)] hover:text-[var(--brand-primary,#007a5a)]"
               >
-                <SlidersHorizontal className="size-3.5 text-emerald-300" />
+                <SlidersHorizontal className="size-3.5 text-[var(--brand-primary,#007a5a)]" />
                 <span>{t.editBudgetBtn}</span>
               </button>
+
+              <Link
+                href="/account/offers?role=buyer"
+                className="inline-flex h-10 items-center gap-2 rounded-xl bg-[var(--brand-navy,#0a1122)] px-4 text-xs font-extrabold text-white shadow-2xs transition hover:bg-[var(--brand-navy-hover,#16223f)]"
+              >
+                <Handshake className="size-3.5 text-emerald-400" />
+                <span>{extraLabels.submittedOffersBtn}</span>
+                {offersCount > 0 && (
+                  <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[var(--brand-primary,#007a5a)] px-1.5 text-[11px] font-black text-white">
+                    {offersCount}
+                  </span>
+                )}
+              </Link>
             </div>
           </div>
 
-          <div className="mt-5 grid grid-cols-2 gap-2.5 rounded-2xl border border-white/10 bg-white/5 p-3.5 text-xs sm:grid-cols-4">
-            <div>
-              <span className="block text-[10.5px] text-slate-300">
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="rounded-xl border border-gray-100 bg-[#f8faf9] p-3">
+              <span className="block text-[11px] font-semibold text-gray-500">
                 {t.summaryCashLabel}
               </span>
               <strong
                 dir="ltr"
-                className="mt-0.5 block text-sm font-black text-emerald-300 tabular-nums sm:text-base"
+                className="mt-1 block text-sm font-black text-[var(--brand-primary,#007a5a)] tabular-nums sm:text-base"
               >
                 {bCash.toLocaleString('en-US')} {currency}
               </strong>
             </div>
-            <div>
-              <span className="block text-[10.5px] text-slate-300">
+
+            <div className="rounded-xl border border-gray-100 bg-[#f8faf9] p-3">
+              <span className="block text-[11px] font-semibold text-gray-500">
                 {t.summaryInstLabel}
               </span>
               <strong
                 dir="ltr"
-                className="mt-0.5 block text-sm font-black text-white tabular-nums sm:text-base"
+                className="mt-1 block text-sm font-black text-[var(--brand-navy,#0a1122)] tabular-nums sm:text-base"
               >
                 {bInstallment.toLocaleString('en-US')} {currency}
               </strong>
             </div>
-            <div className="col-span-2 sm:col-span-2">
-              <span className="block text-[10.5px] text-slate-300">
+
+            <div className="rounded-xl border border-gray-100 bg-[#f8faf9] p-3">
+              <span className="block text-[11px] font-semibold text-gray-500">
+                {extraLabels.specsSummaryLabel}
+              </span>
+              <strong className="mt-1 block truncate text-xs font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-sm">
+                {bTypes.join(listSep)} · {bRooms}+ {extraLabels.roomsWord}
+              </strong>
+            </div>
+
+            <div className="rounded-xl border border-gray-100 bg-[#f8faf9] p-3">
+              <span className="block text-[11px] font-semibold text-gray-500">
                 {t.preferredAreasLabel}
               </span>
-              <strong className="mt-0.5 block truncate text-xs font-extrabold text-white sm:text-sm">
+              <strong className="mt-1 block truncate text-xs font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-sm">
                 📍 {localizedPreferredAreasNames.join(listSep)}
               </strong>
             </div>
           </div>
         </section>
 
+        {/* فلاتر سريعة حسب شروط الطلب */}
         <section className="mt-4 text-start">
           <div className="flex flex-wrap items-center justify-start gap-2">
             <span className="me-1 text-xs font-extrabold text-[var(--brand-navy,#0a1122)]">
@@ -1045,9 +1116,6 @@ export function BuyerDashboard({
               )
             })}
           </div>
-          <p className="mt-2 text-[11px] text-gray-400">
-            {t.filterByRequestSub}
-          </p>
         </section>
 
         {/* ==================== 2. شريط البحث وزر الفلتر ==================== */}
@@ -1124,7 +1192,6 @@ export function BuyerDashboard({
             </div>
           </div>
 
-          {/* شارات الفلاتر المفعلة حالياً */}
           {activeFiltersCount > 0 && (
             <div className="mt-3 flex flex-wrap items-center justify-start gap-2 border-t border-gray-100 pt-2.5">
               {onlyNegotiable && (
@@ -1220,7 +1287,7 @@ export function BuyerDashboard({
           )}
         </section>
 
-        {/* ==================== 3. لوحة الفلتر المتقدم التي تظهر عند الضغط على زر "فلتر" ==================== */}
+        {/* ==================== 3. لوحة الفلتر المتقدم ==================== */}
         {filterPanelOpen && (
           <section className="mt-3 rounded-[18px] border border-gray-200/85 bg-white p-4 text-start shadow-sm sm:p-6">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -1504,11 +1571,12 @@ export function BuyerDashboard({
                   </span>
                 </h2>
               </div>
-              <div className="grid grid-cols-2 items-stretch gap-3 sm:gap-4 lg:grid-cols-3">
+              <div className="grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {unitsInPreferredArea.slice(0, visibleCount).map((u, idx) => (
                   <ScrollReveal key={u.id} delay={(idx % 6) * 50}>
                     <BuyerUnitCard
                       t={t}
+                      extraLabels={extraLabels}
                       unit={u}
                       isLiked={favoriteIds.includes(String(u.id))}
                       onToggleLike={() => toggleFavorite(u.id)}
@@ -1545,7 +1613,7 @@ export function BuyerDashboard({
                 )}
               </div>
 
-              <div className="grid grid-cols-2 items-stretch gap-3 sm:gap-4 lg:grid-cols-3">
+              <div className="grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {(showAllNearbyAreas
                   ? unitsInTrulyNearbyAreas
                   : unitsInTrulyNearbyAreas.slice(0, NEARBY_AREAS_PREVIEW_SIZE)
@@ -1553,6 +1621,7 @@ export function BuyerDashboard({
                   <ScrollReveal key={u.id} delay={(idx % 6) * 50}>
                     <BuyerUnitCard
                       t={t}
+                      extraLabels={extraLabels}
                       unit={u}
                       isLiked={favoriteIds.includes(String(u.id))}
                       onToggleLike={() => toggleFavorite(u.id)}
@@ -1578,19 +1647,21 @@ export function BuyerDashboard({
 
 function BuyerUnitCard({
   t,
+  extraLabels,
   unit,
   isLiked,
   onToggleLike,
 }: {
   t: any
+  extraLabels: ReturnType<typeof getBuyerExtraLabels>
   unit: any
   isLiked: boolean
   onToggleLike: () => void
 }) {
   return (
-    <div className="group relative flex h-full flex-col justify-between overflow-hidden rounded-[16px] border border-gray-200/85 bg-white shadow-2xs transition hover:shadow-md sm:rounded-[18px]">
+    <div className="group flex h-full flex-col justify-between overflow-hidden rounded-[18px] border border-gray-200/90 bg-white shadow-2xs transition hover:shadow-md">
       <div>
-        <div className="relative h-[130px] w-full overflow-hidden bg-gray-100 sm:h-[175px]">
+        <div className="relative h-[165px] w-full overflow-hidden bg-gray-100 sm:h-[185px]">
           <Link
             href={`/opportunities/${unit.id}`}
             className="block h-full w-full"
@@ -1605,8 +1676,8 @@ function BuyerUnitCard({
             />
           </Link>
 
-          <span className="absolute top-2.5 right-2.5 inline-flex items-center gap-1 rounded-full bg-[#0a1122]/90 px-2.5 py-1 text-[10px] font-black text-emerald-300 shadow-sm backdrop-blur-xs">
-            <span>🎯 {t.matchScorePrefix || 'متوافق'}</span>
+          <span className="absolute top-3 right-3 inline-flex items-center gap-1 rounded-full bg-[#0a1122]/90 px-3 py-1 text-[11px] font-black text-emerald-300 shadow-sm backdrop-blur-xs">
+            <span>🎯 {t.matchScorePrefix || 'توافق'}</span>
             <span dir="ltr">{unit.scorePct}%</span>
           </span>
 
@@ -1617,77 +1688,136 @@ function BuyerUnitCard({
               onToggleLike()
             }}
             aria-label={t.addToFavoritesAria}
-            className={`absolute top-2.5 left-2.5 flex size-7 items-center justify-center rounded-full shadow-md transition sm:size-8 ${
+            className={`absolute top-3 left-3 flex size-8 items-center justify-center rounded-full shadow-md transition ${
               isLiked
                 ? 'bg-red-500 text-white'
                 : 'bg-white/95 text-gray-600 hover:bg-white'
             }`}
           >
-            <Heart
-              className={`size-3.5 sm:size-4 ${isLiked ? 'fill-current' : ''}`}
-            />
+            <Heart className={`size-4 ${isLiked ? 'fill-current' : ''}`} />
           </button>
+
+          <div className="pointer-events-none absolute inset-x-3 bottom-2.5 flex items-center justify-between gap-2">
+            <span className="rounded-md bg-black/65 px-2 py-0.5 font-mono text-[10px] font-bold text-white backdrop-blur-xs">
+              {unit.code}
+            </span>
+            <span className="rounded-md bg-white/95 px-2.5 py-0.5 text-[10.5px] font-extrabold text-[var(--brand-navy,#0a1122)] shadow-2xs">
+              {unit.deliveryStatus}
+            </span>
+          </div>
         </div>
 
-        <Link
-          href={`/opportunities/${unit.id}`}
-          className="block p-3.5 text-start sm:p-5"
-        >
-          <h3 className="line-clamp-1 min-h-[20px] text-xs font-bold leading-snug text-[var(--brand-navy,#0a1122)] group-hover:text-[var(--brand-primary,#007a5a)] sm:line-clamp-2 sm:min-h-[44px] sm:text-[16px]">
-            {unit.title}
-          </h3>
-          <p className="mt-1 line-clamp-1 text-[10px] text-gray-500 sm:text-xs">
-            {unit.subtitle}
+        <div className="p-4 text-start sm:p-5">
+          <Link href={`/opportunities/${unit.id}`}>
+            <h3 className="line-clamp-1 text-sm font-extrabold text-[var(--brand-navy,#0a1122)] transition-colors group-hover:text-[var(--brand-primary,#007a5a)] sm:text-base">
+              {unit.title}
+            </h3>
+          </Link>
+          <p className="mt-0.5 line-clamp-1 text-xs text-gray-500">
+            {unit.developer} · {unit.localizedArea}
           </p>
 
-          <div className="mt-3 sm:mt-4">
-            <p className="text-[10px] text-gray-400 sm:text-[11px]">
-              {t.cardRequiredCash}
-            </p>
-            <p className="mt-0.5 text-sm font-extrabold tracking-tight text-[var(--brand-navy,#0a1122)] tabular-nums sm:text-xl">
-              {unit.cashStr}{' '}
-              <span className="text-[10px] font-semibold sm:text-xs">
-                {unit.currency}
-              </span>
-            </p>
+          <div className="mt-2.5 inline-flex flex-wrap items-center gap-1.5 rounded-lg bg-gray-100/80 px-2.5 py-1 text-[11px] font-bold text-[#1e293b]">
+            <span>{unit.type}</span>
+            <span>·</span>
+            <span>
+              {unit.rooms} {extraLabels.roomsWord}
+            </span>
+            <span>·</span>
+            <span>
+              {unit.size} {extraLabels.sqmUnit}
+            </span>
+          </div>
+
+          <div className="mt-3.5 rounded-xl border border-gray-100 bg-[#f8faf9] p-3">
+            <div className="flex items-baseline justify-between gap-2">
+              <div>
+                <p className="text-[10.5px] font-semibold text-gray-500">
+                  {t.cardRequiredCash}
+                </p>
+                <p className="mt-0.5 text-base font-black text-[var(--brand-navy,#0a1122)] tabular-nums sm:text-lg">
+                  <span dir="ltr">{unit.cashStr}</span>{' '}
+                  <span className="text-xs font-bold">{unit.currency}</span>
+                </p>
+              </div>
+              {unit.negotiable && (
+                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-extrabold text-amber-800">
+                  ↓ {extraLabels.negotiableTag}
+                </span>
+              )}
+            </div>
+
+            <div className="mt-2.5 grid grid-cols-2 gap-2 border-t border-gray-200/70 pt-2 text-[11px]">
+              <div>
+                <span className="block text-[10px] text-gray-400">
+                  {extraLabels.installmentShort}
+                </span>
+                <strong
+                  dir="ltr"
+                  className="font-extrabold text-[var(--brand-navy,#0a1122)] tabular-nums"
+                >
+                  {unit.monthlyInst > 0
+                    ? `${unit.monthlyInstStr} ${unit.currency}`
+                    : '—'}
+                </strong>
+              </div>
+              <div>
+                <span className="block text-[10px] text-gray-400">
+                  {extraLabels.remainingLabel}
+                </span>
+                <strong
+                  dir="ltr"
+                  className="font-extrabold text-[var(--brand-navy,#0a1122)] tabular-nums"
+                >
+                  {unit.remainingStr} {unit.currency}
+                </strong>
+              </div>
+            </div>
           </div>
 
           {unit.gainStr && (
-            <div className="mt-2.5 rounded-xl bg-[var(--brand-primary-light,#eaf8f2)] px-2.5 py-2 text-start sm:mt-3 sm:px-3 sm:py-2.5">
+            <div className="mt-2.5 rounded-xl bg-[var(--brand-primary-light,#eaf8f2)] px-3 py-2 text-start">
               <p
                 dir="ltr"
-                className="text-start text-xs font-bold text-[var(--brand-primary,#007a5a)] tabular-nums sm:text-sm"
+                className="text-start text-xs font-extrabold text-[var(--brand-primary,#007a5a)] tabular-nums"
               >
                 {unit.gainStr} {unit.currency}
               </p>
-              <p className="mt-0.5 line-clamp-1 text-[9.5px] text-[#2b8a6e] sm:text-[10.5px]">
+              <p className="mt-0.5 line-clamp-1 text-[10px] text-[#2b8a6e]">
                 {t.cardMarketPriceToday} {unit.marketStr} {unit.currency}
               </p>
             </div>
           )}
 
           {unit.matchTags?.length > 0 && (
-            <div className="mt-2.5 flex flex-wrap gap-1.5 sm:mt-3">
+            <div className="mt-2.5 flex flex-wrap gap-1.5">
               {unit.matchTags.map((tag: string) => (
                 <span
                   key={tag}
-                  className="rounded-md bg-[#e3f2ef] px-2 py-0.5 text-[9.5px] font-bold text-[var(--brand-primary,#007a5a)] sm:px-2.5 sm:py-1 sm:text-[10px]"
+                  className="rounded-md bg-[#e3f2ef] px-2 py-0.5 text-[10px] font-bold text-[var(--brand-primary,#007a5a)]"
                 >
-                  {tag}
+                  ✓ {tag}
                 </span>
               ))}
             </div>
           )}
-        </Link>
+        </div>
       </div>
 
-      <div className="border-t border-gray-100 px-3.5 pb-3.5 pt-2.5 sm:px-5 sm:pb-4">
+      <div className="grid grid-cols-2 gap-2 border-t border-gray-100 px-4 py-3 sm:px-5">
         <Link
           href={`/account/offers?applyUnitId=${unit.id}`}
-          className="inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-xl bg-[var(--brand-primary,#007a5a)] px-3 text-[11px] font-extrabold text-white transition hover:bg-[var(--brand-primary-hover,#006248)] sm:h-9 sm:text-xs"
+          className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[var(--brand-primary,#007a5a)] px-3 text-xs font-extrabold text-white transition hover:bg-[var(--brand-primary-hover,#006248)]"
         >
-          <Sparkles className="size-3" />
-          <span>{t.makeOfferCardBtn || t.myOffersBtn}</span>
+          <Wallet className="size-3.5 shrink-0" />
+          <span className="truncate">{extraLabels.submitOfferBtn}</span>
+        </Link>
+
+        <Link
+          href={`/opportunities/${unit.id}`}
+          className="inline-flex h-9 items-center justify-center rounded-xl border border-gray-200 bg-white px-3 text-xs font-extrabold text-[var(--brand-navy,#0a1122)] transition hover:border-gray-300 hover:bg-gray-50"
+        >
+          {extraLabels.detailsBtn}
         </Link>
       </div>
     </div>

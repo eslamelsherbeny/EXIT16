@@ -82,7 +82,6 @@ export default async function AccountPage({
   const cleanEmail = String(profile.email || '').trim().toLowerCase()
   const cleanPhone = String(profile.phone || '').trim()
 
-  // ربط تلقائي لأي طلبات قديمة غير مربوطة بـ user_id كانت مسجلة بنفس بريد أو هاتف المستخدم الموثق
   try {
     if (cleanEmail) {
       await Promise.all([
@@ -167,9 +166,11 @@ export default async function AccountPage({
     (s: any) => s && s.status !== 'deleted_by_seller'
   )
   const buys = (myBuysData as BuyerRequestItem[]).filter(Boolean)
+  const myUnitIds = new Set(sells.map((s) => String(s.id)))
 
+  // استبعاد وحدات المستخدم نفسه من رادار الشراء حتى لا يشتري وحدته
   const georgiaMarketUnits = (activeMarketUnits as SellerUnitItem[]).filter(
-    (u) => u && !isNonGeorgianLegacyArea(u.area)
+    (u) => u && !isNonGeorgianLegacyArea(u.area) && !myUnitIds.has(String(u.id))
   )
 
   const offersCountMap: Record<string, number> = {}
@@ -179,33 +180,15 @@ export default async function AccountPage({
     }
   })
 
+  // عداد عروض المشتري يحسب فقط العروض الحقيقية المقدمة أو المرشحة من الأدمن (بدون تكرار وحدات السوق)
   const myLeadIds = new Set(buys.map((b) => b.id))
-  const myUnitIds = new Set(sells.map((s) => s.id))
   const directBuyerOffers = allOffers.filter(
     (o: any) =>
       o &&
       (o.buyer_user_id === profile.id ||
         (o.lead_id && myLeadIds.has(o.lead_id)))
   )
-  const offeredUnitIds = new Set(
-    directBuyerOffers.map((o: any) => String(o.property_id))
-  )
-
-  const mainBuyerReq = buys[0] || null
-  let smartMatchesForBuyerCount = 0
-  if (mainBuyerReq) {
-    georgiaMarketUnits.forEach((u) => {
-      try {
-        if (myUnitIds.has(u.id) || offeredUnitIds.has(String(u.id))) return
-        const m = calculateSmartMatch(u, mainBuyerReq, undefined, locale)
-        if (m.score >= 70) {
-          smartMatchesForBuyerCount++
-        }
-      } catch {}
-    })
-  }
-  const totalBuyerOffersCount =
-    directBuyerOffers.length + smartMatchesForBuyerCount
+  const totalBuyerOffersCount = directBuyerOffers.length
 
   const matchedBuyersCountMap: Record<string, number> = {}
 
@@ -241,7 +224,7 @@ export default async function AccountPage({
       dir={dir}
       className="min-h-screen bg-[var(--brand-surface,#f5f6f8)] py-6 pb-24 text-[var(--brand-navy,#0a1122)] sm:py-10"
     >
-      <AccountTopBar />
+      <AccountTopBar userName={profile.name || ''} />
 
       {hasSells || hasBuys ? (
         <AccountViewSwitcher

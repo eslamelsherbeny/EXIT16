@@ -11,6 +11,7 @@ import {
   Building2,
   Check,
   CheckCircle2,
+  Compass,
   ExternalLink,
   Flame,
   Handshake,
@@ -57,6 +58,7 @@ function OffersContent() {
 
   const filterUnitId = searchParams.get('unitId')
   const applyUnitId = searchParams.get('applyUnitId')
+  const requestedRole = searchParams.get('role')
 
   const [loading, setLoading] = useState(true)
   const [roleView, setRoleView] = useState<'seller' | 'buyer'>('seller')
@@ -68,7 +70,7 @@ function OffersContent() {
   const [buyerOffers, setBuyerOffers] = useState<
     Array<OfferRecord & { unit?: MatchableUnit }>
   >([])
-  const [smartRecommendations, setSmartRecommendations] = useState<
+  const [adminPinnedRecs, setAdminPinnedRecs] = useState<
     Array<{
       unit: MatchableUnit
       match: any
@@ -114,30 +116,24 @@ function OffersContent() {
 
     const myOwnUnitIds = new Set(res.sells.map((s) => String(s.id)))
 
-    const seenKeys = new Set<string>()
-    const uniqueRecs = res.smartRecommendations.filter((item) => {
-      if (myOwnUnitIds.has(String(item.unit.id))) return false
-      const signature = `${item.unit.project_name || ''}_${item.unit.area || ''}_${item.unit.paid_amount || 0}_${item.unit.unit_type || ''}`
-      if (!item.recommendedByAdmin && seenKeys.has(signature)) {
-        return false
-      }
-      seenKeys.add(signature)
-      return true
-    })
-
-    setSmartRecommendations(uniqueRecs)
+    // نحتفظ فقط بالوحدات المرشحة من الأدمن شخصياً أو الوحدة التي ضغط المشتري عليها لتقديم عرض
+    const pinnedOnly = res.smartRecommendations.filter(
+      (item) =>
+        !myOwnUnitIds.has(String(item.unit.id)) &&
+        (item.recommendedByAdmin || String(item.unit.id) === String(applyUnitId))
+    )
+    setAdminPinnedRecs(pinnedOnly)
 
     if (filterUnitId && res.sells.some((s) => s.id === filterUnitId)) {
       setRoleView('seller')
     } else if (applyUnitId) {
-      // منع المشتري من تقديم عرض شراء على وحدته الشخصية
       if (myOwnUnitIds.has(String(applyUnitId))) {
         setRoleView('seller')
       } else {
         setRoleView('buyer')
-        const targetRec =
-          uniqueRecs.find((r) => r.unit.id === applyUnitId) ||
-          res.smartRecommendations.find((r) => r.unit.id === applyUnitId)
+        const targetRec = res.smartRecommendations.find(
+          (r) => String(r.unit.id) === String(applyUnitId)
+        )
         if (targetRec) {
           openBuyerOfferModal(targetRec.unit)
         } else {
@@ -158,6 +154,10 @@ function OffersContent() {
           } catch {}
         }
       }
+    } else if (requestedRole === 'buyer') {
+      setRoleView('buyer')
+    } else if (requestedRole === 'seller') {
+      setRoleView('seller')
     } else if (res.sells.length > 0 && res.buys.length === 0) {
       setRoleView('seller')
     } else if (res.buys.length > 0 && res.sells.length === 0) {
@@ -314,7 +314,11 @@ function OffersContent() {
       <div className="mx-auto max-w-4xl px-4 sm:px-6">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <Link
-            href="/account"
+            href={
+              roleView === 'buyer'
+                ? '/account?view=buyer'
+                : '/account?view=seller'
+            }
             className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-extrabold text-[#0a1122] shadow-2xs transition hover:border-[#007a5a] hover:text-[#007a5a]"
           >
             {isRtl ? (
@@ -325,7 +329,7 @@ function OffersContent() {
             <span>{tCommon.backToAccount}</span>
           </Link>
 
-          {sells.length > 0 && buys.length > 0 && (
+          {sells.length > 0 && (buys.length > 0 || buyerOffers.length > 0) && (
             <div className="inline-flex rounded-xl border border-gray-200 bg-white p-1 shadow-2xs">
               <button
                 type="button"
@@ -347,8 +351,7 @@ function OffersContent() {
                     : 'text-gray-600 hover:bg-gray-50'
                 }`}
               >
-                {t.buyerTabBtn} (
-                {buyerOffers.length + smartRecommendations.length})
+                {t.buyerTabBtn} ({buyerOffers.length + adminPinnedRecs.length})
               </button>
             </div>
           )}
@@ -598,227 +601,213 @@ function OffersContent() {
             )}
           </div>
         ) : (
-          <div className="space-y-9">
+          <div className="space-y-8">
             <header className="text-start">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100/80 px-3 py-1 text-[11px] font-extrabold text-[#007a5a]">
-                <Sparkles className="size-3.5" />
-                <span>{t.aiMatcherBadge}</span>
+                <Handshake className="size-3.5" />
+                <span>{t.zeroLeakageBadge}</span>
               </span>
               <h1 className="mt-2 text-2xl font-black text-[#0a1122] sm:text-3xl">
-                {t.buyerTitle}
+                {t.mySubmittedOffersTitle}
               </h1>
               <p className="mt-1.5 text-xs leading-relaxed text-gray-500 sm:text-sm">
                 {t.buyerSubtitle}
               </p>
             </header>
 
-            {buyerOffers.length > 0 && (
-              <section>
-                <h2 className="mb-3.5 text-start text-base font-extrabold text-[#0a1122]">
-                  {t.mySubmittedOffersTitle} ({buyerOffers.length})
-                </h2>
-                <div className="space-y-3.5">
-                  {buyerOffers.map((offer) => {
-                    const u = offer.unit
-
-                    return (
-                      <div
-                        key={offer.id}
-                        className={`rounded-[20px] border bg-white p-5 text-start shadow-2xs ${
-                          offer.status === 'accepted'
-                            ? 'border-2 border-[#007a5a] bg-emerald-50/20'
-                            : offer.status === 'counter_offered'
-                              ? 'border-2 border-purple-400 bg-purple-50/15'
-                              : 'border-gray-200/90'
-                        }`}
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div>
-                            <h3 className="text-sm font-extrabold text-[#0a1122] sm:text-base">
-                              {u?.project_name || t.unitFallback} —{' '}
-                              {getLocalizedGeorgiaAreaName(u?.area, locale)}
-                            </h3>
-                            <p className="mt-0.5 text-xs text-gray-500">
-                              {t.offeredCashLabel}:{' '}
-                              <strong
-                                dir="ltr"
-                                className="font-extrabold text-[#007a5a]"
-                              >
-                                {Number(offer.offered_cash).toLocaleString(
-                                  'en-US'
-                                )}
-                              </strong>{' '}
-                              {cur} ·{' '}
-                              {getReadinessLabel(offer.payment_readiness)}
-                            </p>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            {u && (
-                              <Link
-                                href={`/opportunities/${u.id}`}
-                                className="inline-flex h-8 items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 px-3 text-xs font-bold text-[#0a1122] hover:bg-gray-100"
-                              >
-                                <ExternalLink className="size-3.5 text-[#007a5a]" />
-                                <span>{t.viewUnitPageBtn}</span>
-                              </Link>
-                            )}
-
-                            {offer.status === 'pending_seller' && (
-                              <span className="rounded-full bg-amber-100 px-3 py-1 text-[11px] font-extrabold text-amber-800">
-                                {t.statusWaitingSellerBadge}
-                              </span>
-                            )}
-                            {offer.status === 'accepted' && (
-                              <span className="rounded-full bg-[#007a5a] px-3 py-1 text-[11px] font-extrabold text-white">
-                                ✓ {t.statusAcceptedBadge}
-                              </span>
-                            )}
-                            {offer.status === 'unit_locked' && (
-                              <span className="rounded-full bg-gray-200 px-3 py-1 text-[11px] font-bold text-gray-600">
-                                {t.statusLockedOtherBuyer}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        {offer.status === 'accepted' && (
-                          <div className="mt-3.5 rounded-xl border border-[#007a5a]/30 bg-[#eaf8f2] p-3.5 text-xs font-bold text-[#007a5a]">
-                            🎉 {t.dealLockedBannerForBuyer}
-                          </div>
-                        )}
-
-                        {offer.status === 'counter_offered' &&
-                          offer.counter_cash && (
-                            <div className="mt-4 rounded-xl border border-purple-200 bg-purple-50 p-4">
-                              <p className="text-xs font-extrabold text-purple-950">
-                                🔄 {t.sellerCounterReceivedText}:{' '}
-                                <strong
-                                  dir="ltr"
-                                  className="text-base font-black text-[#007a5a]"
-                                >
-                                  {Number(offer.counter_cash).toLocaleString(
-                                    'en-US'
-                                  )}{' '}
-                                  {cur}
-                                </strong>
-                              </p>
-                              <div className="mt-3 flex flex-wrap gap-2">
-                                <button
-                                  type="button"
-                                  disabled={isPending}
-                                  onClick={() =>
-                                    handleBuyerCounterResponse(
-                                      offer.id,
-                                      'accept'
-                                    )
-                                  }
-                                  className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] px-4 text-xs font-extrabold text-white hover:bg-[#006248]"
-                                >
-                                  <Check className="size-4" />
-                                  <span>{t.acceptCounterBtn}</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  disabled={isPending}
-                                  onClick={() =>
-                                    handleBuyerCounterResponse(
-                                      offer.id,
-                                      'reject'
-                                    )
-                                  }
-                                  className="inline-flex h-10 items-center justify-center rounded-xl border border-red-200 bg-white px-4 text-xs font-bold text-red-600 hover:bg-red-50"
-                                >
-                                  {t.rejectOfferBtn}
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                      </div>
-                    )
-                  })}
+            {buyerOffers.length === 0 && adminPinnedRecs.length === 0 ? (
+              <div className="rounded-3xl border border-gray-200 bg-white p-10 text-center shadow-2xs">
+                <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-2xl bg-emerald-50 text-[#007a5a]">
+                  <Wallet className="size-6" />
                 </div>
-              </section>
-            )}
-
-            <section>
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-base font-extrabold text-[#0a1122] sm:text-lg">
-                  🎯 {t.smartRecsTitle} ({smartRecommendations.length})
-                </h2>
-              </div>
-
-              {smartRecommendations.length === 0 ? (
-                <div className="rounded-3xl border border-gray-200 bg-white p-10 text-center shadow-2xs">
-                  <p className="text-sm font-bold text-gray-600">
-                    {t.buyerEmpty}
-                  </p>
+                <p className="text-base font-extrabold text-[#0a1122]">
+                  {locale === 'ar'
+                    ? 'لم تقم بتقديم عروض شراء رسمية بعد'
+                    : locale === 'ru'
+                      ? 'Вы еще не отправляли официальных предложений'
+                      : locale === 'ka'
+                        ? 'თქვენ ჯერ არ გაგიგზავნიათ შეთავაზება'
+                        : 'You have not submitted any official buy offers yet'}
+                </p>
+                <p className="mx-auto mt-1.5 max-w-md text-xs leading-relaxed text-gray-500">
+                  {locale === 'ar'
+                    ? 'تصفح الوحدات المطابقة لطلبك في لوحة المشتري واضغط على زر (تقديم عرض شراء) لبدء التفاوض المباشر.'
+                    : 'Browse matching units in your Buyer Dashboard and click (Submit Offer) to start negotiating.'}
+                </p>
+                <div className="mt-5 flex flex-wrap justify-center gap-3">
+                  <Link
+                    href="/account?view=buyer"
+                    className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] px-6 text-xs font-extrabold text-white transition hover:bg-[#006248]"
+                  >
+                    <Compass className="size-4" />
+                    <span>{tCommon.backToAccount}</span>
+                  </Link>
                   <Link
                     href="/opportunities"
-                    className="mt-4 inline-flex h-10 items-center justify-center rounded-xl bg-[#007a5a] px-6 text-xs font-extrabold text-white"
+                    className="inline-flex h-10 items-center justify-center rounded-xl border border-gray-200 bg-white px-6 text-xs font-extrabold text-[#0a1122] hover:bg-gray-50"
                   >
                     {dict.navbar?.opportunities}
                   </Link>
                 </div>
-              ) : (
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  {smartRecommendations.map(
-                    ({ unit, match, recommendedByAdmin }) => {
-                      const paid = Number(unit.paid_amount) || 0
-                      const contract = Number(unit.contract_price) || paid
-                      const market = Number(unit.market_price) || contract
-                      const instantGain = Math.max(
-                        0,
-                        market - contract - Math.round(market * 0.0125)
-                      )
+              </div>
+            ) : (
+              <>
+                {buyerOffers.length > 0 && (
+                  <section>
+                    <div className="space-y-3.5">
+                      {buyerOffers.map((offer) => {
+                        const u = offer.unit
 
-                      return (
-                        <div
-                          key={unit.id}
-                          className={`flex flex-col justify-between rounded-[22px] border bg-white p-5 text-start shadow-xs transition hover:shadow-md ${
-                            recommendedByAdmin
-                              ? 'border-2 border-amber-400'
-                              : match.score >= 85
-                                ? 'border-2 border-[#007a5a]/50'
-                                : 'border-gray-200/90'
-                          }`}
-                        >
-                          <div>
+                        return (
+                          <div
+                            key={offer.id}
+                            className={`rounded-[20px] border bg-white p-5 text-start shadow-2xs ${
+                              offer.status === 'accepted'
+                                ? 'border-2 border-[#007a5a] bg-emerald-50/20'
+                                : offer.status === 'counter_offered'
+                                  ? 'border-2 border-purple-400 bg-purple-50/15'
+                                  : 'border-gray-200/90'
+                            }`}
+                          >
                             <div className="flex flex-wrap items-center justify-between gap-2">
-                              <span
-                                className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-black ${
-                                  match.score >= 85
-                                    ? 'bg-[#007a5a] text-white'
-                                    : 'bg-emerald-100 text-[#007a5a]'
-                                }`}
-                              >
-                                🎯 {t.matchScoreLabel}: {match.score}%
-                              </span>
+                              <div>
+                                <h3 className="text-sm font-extrabold text-[#0a1122] sm:text-base">
+                                  {u?.project_name || t.unitFallback} —{' '}
+                                  {getLocalizedGeorgiaAreaName(u?.area, locale)}
+                                </h3>
+                                <p className="mt-0.5 text-xs text-gray-500">
+                                  {t.offeredCashLabel}:{' '}
+                                  <strong
+                                    dir="ltr"
+                                    className="font-extrabold text-[#007a5a]"
+                                  >
+                                    {Number(offer.offered_cash).toLocaleString(
+                                      'en-US'
+                                    )}
+                                  </strong>{' '}
+                                  {cur} ·{' '}
+                                  {getReadinessLabel(offer.payment_readiness)}
+                                </p>
+                              </div>
 
-                              {recommendedByAdmin ? (
-                                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-[10.5px] font-extrabold text-amber-900">
-                                  🌟 {t.adminRecommendedBadge}
-                                </span>
-                              ) : (
-                                match.score >= 85 && (
-                                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[10.5px] font-bold text-[#007a5a]">
-                                    🤖 {t.autoPilotMatchBadge}
+                              <div className="flex items-center gap-2">
+                                {u && (
+                                  <Link
+                                    href={`/opportunities/${u.id}`}
+                                    className="inline-flex h-8 items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 px-3 text-xs font-bold text-[#0a1122] hover:bg-gray-100"
+                                  >
+                                    <ExternalLink className="size-3.5 text-[#007a5a]" />
+                                    <span>{t.viewUnitPageBtn}</span>
+                                  </Link>
+                                )}
+
+                                {offer.status === 'pending_seller' && (
+                                  <span className="rounded-full bg-amber-100 px-3 py-1 text-[11px] font-extrabold text-amber-800">
+                                    {t.statusWaitingSellerBadge}
                                   </span>
-                                )
-                              )}
+                                )}
+                                {offer.status === 'accepted' && (
+                                  <span className="rounded-full bg-[#007a5a] px-3 py-1 text-[11px] font-extrabold text-white">
+                                    ✓ {t.statusAcceptedBadge}
+                                  </span>
+                                )}
+                                {offer.status === 'unit_locked' && (
+                                  <span className="rounded-full bg-gray-200 px-3 py-1 text-[11px] font-bold text-gray-600">
+                                    {t.statusLockedOtherBuyer}
+                                  </span>
+                                )}
+                              </div>
                             </div>
 
-                            <h3 className="mt-3 text-base font-extrabold text-[#0a1122]">
-                              {unit.project_name || t.unitFallback}
-                            </h3>
-                            <p className="mt-0.5 text-xs text-gray-500">
-                              {unit.developer_name || ''} ·{' '}
-                              {getLocalizedGeorgiaAreaName(unit.area, locale)} ·{' '}
-                              {unit.unit_type || ''}
-                            </p>
+                            {offer.status === 'accepted' && (
+                              <div className="mt-3.5 rounded-xl border border-[#007a5a]/30 bg-[#eaf8f2] p-3.5 text-xs font-bold text-[#007a5a]">
+                                🎉 {t.dealLockedBannerForBuyer}
+                              </div>
+                            )}
 
-                            <div className="mt-3.5 grid grid-cols-2 gap-2.5 rounded-xl bg-gray-50 p-3 text-xs">
-                              <div>
+                            {offer.status === 'counter_offered' &&
+                              offer.counter_cash && (
+                                <div className="mt-4 rounded-xl border border-purple-200 bg-purple-50 p-4">
+                                  <p className="text-xs font-extrabold text-purple-950">
+                                    🔄 {t.sellerCounterReceivedText}:{' '}
+                                    <strong
+                                      dir="ltr"
+                                      className="text-base font-black text-[#007a5a]"
+                                    >
+                                      {Number(offer.counter_cash).toLocaleString(
+                                        'en-US'
+                                      )}{' '}
+                                      {cur}
+                                    </strong>
+                                  </p>
+                                  <div className="mt-3 flex flex-wrap gap-2">
+                                    <button
+                                      type="button"
+                                      disabled={isPending}
+                                      onClick={() =>
+                                        handleBuyerCounterResponse(
+                                          offer.id,
+                                          'accept'
+                                        )
+                                      }
+                                      className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] px-4 text-xs font-extrabold text-white hover:bg-[#006248]"
+                                    >
+                                      <Check className="size-4" />
+                                      <span>{t.acceptCounterBtn}</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={isPending}
+                                      onClick={() =>
+                                        handleBuyerCounterResponse(
+                                          offer.id,
+                                          'reject'
+                                        )
+                                      }
+                                      className="inline-flex h-10 items-center justify-center rounded-xl border border-red-200 bg-white px-4 text-xs font-bold text-red-600 hover:bg-red-50"
+                                    >
+                                      {t.rejectOfferBtn}
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </section>
+                )}
+
+                {adminPinnedRecs.length > 0 && (
+                  <section>
+                    <h2 className="mb-3.5 text-start text-base font-extrabold text-[#0a1122]">
+                      🌟 {t.adminRecommendedBadge} ({adminPinnedRecs.length})
+                    </h2>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      {adminPinnedRecs.map(({ unit, match }) => {
+                        const paid = Number(unit.paid_amount) || 0
+                        return (
+                          <div
+                            key={unit.id}
+                            className="flex flex-col justify-between rounded-[22px] border-2 border-amber-400 bg-white p-5 text-start shadow-xs"
+                          >
+                            <div>
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="rounded-full bg-[#007a5a] px-3 py-1 text-xs font-black text-white">
+                                  🎯 {t.matchScoreLabel}: {match.score}%
+                                </span>
+                                <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[10.5px] font-extrabold text-amber-900">
+                                  🌟 {t.adminRecommendedBadge}
+                                </span>
+                              </div>
+                              <h3 className="mt-3 text-base font-extrabold text-[#0a1122]">
+                                {unit.project_name || t.unitFallback}
+                              </h3>
+                              <p className="mt-0.5 text-xs text-gray-500">
+                                {getLocalizedGeorgiaAreaName(unit.area, locale)}{' '}
+                                · {unit.unit_type || ''}
+                              </p>
+                              <div className="mt-3 rounded-xl bg-gray-50 p-3 text-xs">
                                 <span className="block text-[10px] text-gray-400">
                                   {t.requiredCashLabel}
                                 </span>
@@ -829,84 +818,33 @@ function OffersContent() {
                                   {cur}
                                 </strong>
                               </div>
-                              {instantGain > 0 && (
-                                <div>
-                                  <span className="block text-[10px] text-gray-400">
-                                    {t.instantBuyerGainLabel}
-                                  </span>
-                                  <strong className="mt-0.5 block text-sm font-black text-[#007a5a] tabular-nums">
-                                    +{' '}
-                                    <span dir="ltr">
-                                      {instantGain.toLocaleString('en-US')}
-                                    </span>{' '}
-                                    {cur}
-                                  </strong>
-                                </div>
-                              )}
                             </div>
 
-                            {match.matches.length > 0 && (
-                              <div className="mt-3">
-                                <p className="mb-1.5 text-[11px] font-extrabold text-[#007a5a]">
-                                  ✓ {t.matchedPointsTitle}:
-                                </p>
-                                <div className="flex flex-wrap gap-1.5">
-                                  {match.matches.map((mItem: string) => (
-                                    <span
-                                      key={mItem}
-                                      className="rounded-lg bg-[#eaf8f2] px-2.5 py-1 text-[10.5px] font-bold text-[#007a5a]"
-                                    >
-                                      ✓ {mItem}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-
-                            {match.differences.length > 0 && (
-                              <div className="mt-2.5">
-                                <p className="mb-1.5 text-[11px] font-extrabold text-amber-800">
-                                  ⚠️ {t.diffPointsTitle}:
-                                </p>
-                                <div className="flex flex-wrap gap-1.5">
-                                  {match.differences.map((dItem: string) => (
-                                    <span
-                                      key={dItem}
-                                      className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10.5px] font-bold text-amber-900"
-                                    >
-                                      ⚠️ {dItem}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
+                            <div className="mt-4 flex items-center gap-2 border-t border-gray-100 pt-3.5">
+                              <Link
+                                href={`/opportunities/${unit.id}`}
+                                className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 text-xs font-extrabold text-[#0a1122] hover:bg-gray-50"
+                              >
+                                <ExternalLink className="size-3.5 text-[#007a5a]" />
+                                <span>{t.viewUnitPageBtn}</span>
+                              </Link>
+                              <button
+                                type="button"
+                                onClick={() => openBuyerOfferModal(unit)}
+                                className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] px-3 text-xs font-extrabold text-white hover:bg-[#006248]"
+                              >
+                                <Wallet className="size-3.5" />
+                                <span>{t.makeOfferBtn}</span>
+                              </button>
+                            </div>
                           </div>
-
-                          <div className="mt-5 flex items-center gap-2 border-t border-gray-100 pt-3.5">
-                            <Link
-                              href={`/opportunities/${unit.id}`}
-                              className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 text-xs font-extrabold text-[#0a1122] transition hover:border-[#007a5a] hover:bg-gray-50"
-                            >
-                              <ExternalLink className="size-3.5 text-[#007a5a]" />
-                              <span>{t.viewUnitPageBtn}</span>
-                            </Link>
-
-                            <button
-                              type="button"
-                              onClick={() => openBuyerOfferModal(unit)}
-                              className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] px-3 text-xs font-extrabold text-white shadow-2xs transition hover:bg-[#006248]"
-                            >
-                              <Wallet className="size-3.5" />
-                              <span>{t.makeOfferBtn}</span>
-                            </button>
-                          </div>
-                        </div>
-                      )
-                    }
-                  )}
-                </div>
-              )}
-            </section>
+                        )
+                      })}
+                    </div>
+                  </section>
+                )}
+              </>
+            )}
           </div>
         )}
       </div>

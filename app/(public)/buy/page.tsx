@@ -37,6 +37,7 @@ const BUY_VALIDATION_FALLBACK: Record<LocaleCode, Record<string, string>> = {
     required: 'هذا الحقل مطلوب',
     selectPaymentPlan: 'يرجى اختيار نظام السداد المفضل',
     installmentExceedsBudget: 'قيمة القسط لا يمكن أن تتجاوز إجمالي الميزانية',
+    cashExceedsBudget: 'إجمالي الميزانية يجب أن يكون مساوياً أو أكبر من الكاش المتاح',
     selectUnitType: 'يرجى اختيار نوع وحدة واحد على الأقل',
     selectDeliveryStatus: 'يرجى اختيار حالة الاستلام المفضلة',
     selectAtLeastOneArea: 'يرجى اختيار منطقة مفضلة واحدة على الأقل',
@@ -52,6 +53,7 @@ const BUY_VALIDATION_FALLBACK: Record<LocaleCode, Record<string, string>> = {
     required: 'This field is required',
     selectPaymentPlan: 'Please select a preferred payment plan',
     installmentExceedsBudget: 'Installment cannot exceed total budget',
+    cashExceedsBudget: 'Total budget must be equal to or greater than available cash',
     selectUnitType: 'Please select at least one unit type',
     selectDeliveryStatus: 'Please select a preferred delivery status',
     selectAtLeastOneArea: 'Please select at least one preferred area',
@@ -67,6 +69,7 @@ const BUY_VALIDATION_FALLBACK: Record<LocaleCode, Record<string, string>> = {
     required: 'Это поле обязательно для заполнения',
     selectPaymentPlan: 'Выберите предпочтительный план оплаты',
     installmentExceedsBudget: 'Платеж не может превышать общий бюджет',
+    cashExceedsBudget: 'Общий бюджет должен быть не меньше суммы наличных',
     selectUnitType: 'Выберите хотя бы один тип недвижимости',
     selectDeliveryStatus: 'Выберите статус готовности объекта',
     selectAtLeastOneArea: 'Выберите хотя бы один район',
@@ -82,6 +85,7 @@ const BUY_VALIDATION_FALLBACK: Record<LocaleCode, Record<string, string>> = {
     required: 'ეს ველი სავალდებულოა',
     selectPaymentPlan: 'აირჩიეთ გადახდის სასურველი გეგმა',
     installmentExceedsBudget: 'განვადება არ უნდა აღემატებოდეს ბიუჯეტს',
+    cashExceedsBudget: 'სრული ბიუჯეტი არ უნდა იყოს ნაღდ თანხაზე ნაკლები',
     selectUnitType: 'აირჩიეთ მინიმუმ ერთი ტიპის ქონება',
     selectDeliveryStatus: 'აირჩიეთ ჩაბარების სტატუსი',
     selectAtLeastOneArea: 'აირჩიეთ მინიმუმ ერთი სასურველი უბანი',
@@ -107,6 +111,20 @@ function getBuyValidationMsg(
   if (!dictVal) return fb
   if (locale !== 'ar' && /[\u0600-\u06FF]/.test(dictVal)) return fb
   return dictVal
+}
+
+function isFullCashPlanOption(plan: string, plansList: string[]): boolean {
+  if (!plan) return false
+  const lastPlan = plansList[plansList.length - 1]
+  if (lastPlan && plan === lastPlan && plansList.length >= 4) return true
+  const lower = plan.toLowerCase()
+  return (
+    lower.includes('كاش') ||
+    lower.includes('cash') ||
+    lower.includes('полная') ||
+    lower.includes('налич') ||
+    lower.includes('სრული')
+  )
 }
 
 function StepValidationBanner({
@@ -155,7 +173,7 @@ function BuyersPageContent() {
   )
 
   const initialBudget = Number(
-    (searchParams.get('budget') || '').replace(/,/g, '')
+    toEnglishDigits(searchParams.get('budget') || '').replace(/,/g, '')
   )
 
   const [step, setStep] = useState<1 | 2 | 3>(1)
@@ -224,7 +242,6 @@ function BuyersPageContent() {
     checkCurrentSession()
   }, [])
 
-  // تصفير رسائل الخطأ عند تغيير اللغة
   useEffect(() => {
     setErrors({})
     setMissingFieldsList([])
@@ -249,8 +266,12 @@ function BuyersPageContent() {
   const nextFromOne = () => {
     const nextErrors: Record<string, string> = {}
     const missing: string[] = []
+    const isFullCash = isFullCashPlanOption(
+      data.payment_plan,
+      b.stepOne.paymentPlans
+    )
 
-    if (!data.available_cash) {
+    if (!data.available_cash || data.available_cash <= 0) {
       nextErrors.available_cash = getBuyValidationMsg(
         locale,
         bVal.required,
@@ -258,14 +279,7 @@ function BuyersPageContent() {
       )
       missing.push(cleanLabel(b.stepOne.availableCashLabel))
     }
-    if (!data.max_installment) {
-      nextErrors.max_installment = getBuyValidationMsg(
-        locale,
-        bVal.required,
-        'required'
-      )
-      missing.push(cleanLabel(b.stepOne.maxInstallmentLabel))
-    }
+
     if (!data.payment_plan) {
       nextErrors.payment_plan = getBuyValidationMsg(
         locale,
@@ -274,14 +288,38 @@ function BuyersPageContent() {
       )
       missing.push(cleanLabel(b.stepOne.paymentPlanLabel))
     }
-    if (!data.budget) {
+
+    if (!isFullCash && (!data.max_installment || data.max_installment <= 0)) {
+      nextErrors.max_installment = getBuyValidationMsg(
+        locale,
+        bVal.required,
+        'required'
+      )
+      missing.push(cleanLabel(b.stepOne.maxInstallmentLabel))
+    }
+
+    const effectiveBudget =
+      isFullCash && !data.budget ? data.available_cash : data.budget
+
+    if (!effectiveBudget || effectiveBudget <= 0) {
       nextErrors.budget = getBuyValidationMsg(locale, bVal.required, 'required')
       missing.push(cleanLabel(b.stepOne.budgetLabel))
+    } else if (data.available_cash > effectiveBudget) {
+      nextErrors.budget = getBuyValidationMsg(
+        locale,
+        bVal.cashExceedsBudget,
+        'cashExceedsBudget'
+      )
+      if (!missing.includes(cleanLabel(b.stepOne.budgetLabel))) {
+        missing.push(cleanLabel(b.stepOne.budgetLabel))
+      }
     }
+
     if (
-      data.budget > 0 &&
+      !isFullCash &&
+      effectiveBudget > 0 &&
       data.max_installment > 0 &&
-      data.max_installment > data.budget
+      data.max_installment > effectiveBudget
     ) {
       nextErrors.max_installment = getBuyValidationMsg(
         locale,
@@ -298,8 +336,14 @@ function BuyersPageContent() {
       setMissingFieldsList(missing)
       return
     }
+
+    if (isFullCash && !data.budget) {
+      update('budget', data.available_cash)
+    }
+
     setErrors({})
     setMissingFieldsList([])
+    window.scrollTo({ top: 0, behavior: 'smooth' })
     setStep(2)
   }
 
@@ -340,6 +384,7 @@ function BuyersPageContent() {
 
     setErrors({})
     setMissingFieldsList([])
+    window.scrollTo({ top: 0, behavior: 'smooth' })
     setStep(3)
   }
 
@@ -422,7 +467,7 @@ function BuyersPageContent() {
         available_cash: Number(data.available_cash) || 0,
         max_installment: Number(data.max_installment) || 0,
         payment_plan: data.payment_plan,
-        budget: Number(data.budget) || 0,
+        budget: Number(data.budget) || Number(data.available_cash) || 0,
         unit_types: data.unit_types,
         min_rooms: Number.parseInt(String(data.min_rooms), 10) || 0,
         delivery_status: data.delivery_status,
@@ -436,6 +481,7 @@ function BuyersPageContent() {
 
       if (res.status === 'ok') {
         router.push('/account?view=buyer')
+        router.refresh()
         return
       }
 
@@ -574,7 +620,10 @@ function BuyersPageContent() {
                 }}
                 conflictState={conflictState}
                 setConflictState={setConflictState}
-                onSuccessRedirect={() => router.push('/account?view=buyer')}
+                onSuccessRedirect={() => {
+                  router.push('/account?view=buyer')
+                  router.refresh()
+                }}
               />
             )}
           </div>
@@ -603,6 +652,7 @@ function BuyersPageContent() {
                     setMissingFieldsList([])
                     setErrors({})
                     setError('')
+                    window.scrollTo({ top: 0, behavior: 'smooth' })
                     setStep((step - 1) as 1 | 2)
                   }}
                   className="h-12 rounded-xl border border-slate-300 bg-white px-7 font-semibold transition hover:bg-slate-50"
@@ -678,6 +728,7 @@ function BuyerStepOne({
   const { t: dict, locale } = useTranslation()
   const t = dict.buy.stepOne
   const currency = getCurrencySymbol(ACTIVE_PLATFORM_COUNTRY, locale)
+  const isFullCash = isFullCashPlanOption(data.payment_plan, t.paymentPlans)
 
   return (
     <div className="flex flex-col gap-6">
@@ -687,15 +738,13 @@ function BuyerStepOne({
         value={data.available_cash ? String(data.available_cash) : ''}
         currencySymbol={currency}
         helper={t.availableCashHelper}
-        update={(val) => update('available_cash', Number(val) || 0)}
-      />
-
-      <MoneyField
-        error={errors?.max_installment}
-        label={t.maxInstallmentLabel}
-        value={data.max_installment ? String(data.max_installment) : ''}
-        currencySymbol={currency}
-        update={(val) => update('max_installment', Number(val) || 0)}
+        update={(val) => {
+          const num = Number(val) || 0
+          update('available_cash', num)
+          if (isFullCash) {
+            update('budget', num)
+          }
+        }}
       />
 
       <fieldset>
@@ -722,7 +771,15 @@ function BuyerStepOne({
               <input
                 type="radio"
                 checked={data.payment_plan === item}
-                onChange={() => update('payment_plan', item)}
+                onChange={() => {
+                  update('payment_plan', item)
+                  if (isFullCashPlanOption(item, t.paymentPlans)) {
+                    update('max_installment', 0)
+                    if (data.available_cash > 0 && !data.budget) {
+                      update('budget', data.available_cash)
+                    }
+                  }
+                }}
                 className="accent-[var(--brand-primary,#007a5a)]"
               />
             </label>
@@ -734,6 +791,16 @@ function BuyerStepOne({
           </p>
         )}
       </fieldset>
+
+      {!isFullCash && (
+        <MoneyField
+          error={errors?.max_installment}
+          label={t.maxInstallmentLabel}
+          value={data.max_installment ? String(data.max_installment) : ''}
+          currencySymbol={currency}
+          update={(val) => update('max_installment', Number(val) || 0)}
+        />
+      )}
 
       <MoneyField
         error={errors?.budget}
@@ -782,6 +849,7 @@ function BuyerStepTwo({
   }
 
   const quickGeorgiaAreas = GEORGIA_CITIES_AND_DISTRICTS.slice(0, 8)
+  const roomQuickOptions = [1, 2, 3, 4]
 
   return (
     <div className="flex flex-col gap-6">
@@ -809,21 +877,44 @@ function BuyerStepTwo({
       </fieldset>
 
       <div>
-        <Label htmlFor="rooms" className="block text-start">
+        <Label htmlFor="rooms" className="block text-start font-bold">
           {t.minRoomsLabel}
         </Label>
-        <Input
-          id="rooms"
-          type="number"
-          min="0"
-          dir="ltr"
-          value={data.min_rooms || ''}
-          onChange={(event) =>
-            update('min_rooms', Number(event.target.value) || 0)
-          }
-          className="mt-2 h-12 w-full max-w-[150px] text-center text-lg"
-          placeholder={t.minRoomsPlaceholder}
-        />
+        <div className="mt-2.5 flex flex-wrap items-center gap-2">
+          {roomQuickOptions.map((rm) => {
+            const active = data.min_rooms === rm
+            return (
+              <button
+                key={rm}
+                type="button"
+                onClick={() => update('min_rooms', active ? 0 : rm)}
+                className={`h-11 min-w-[60px] rounded-xl border px-3.5 text-sm font-extrabold transition ${
+                  active
+                    ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]'
+                    : 'border-slate-200 bg-white text-slate-700 hover:border-teal-400'
+                }`}
+              >
+                <span dir="ltr">+{rm}</span>
+              </button>
+            )
+          })}
+          <Input
+            id="rooms"
+            type="text"
+            inputMode="numeric"
+            dir="ltr"
+            value={data.min_rooms || ''}
+            onChange={(event) => {
+              const clean = toEnglishDigits(event.target.value).replace(
+                /[^0-9]/g,
+                ''
+              )
+              update('min_rooms', Number(clean) || 0)
+            }}
+            className="h-11 w-28 rounded-xl text-center text-base font-bold"
+            placeholder={t.minRoomsPlaceholder}
+          />
+        </div>
         <p className="mt-2 text-start text-xs text-slate-500">
           {t.minRoomsHelper}
         </p>

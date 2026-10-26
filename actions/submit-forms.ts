@@ -49,7 +49,7 @@ const FORMS_MESSAGES_FALLBACK: Record<LocaleCode, Record<string, string>> = {
     orderPaidConfirmText: 'إجمالي المبلغ المدفوع المسجل',
     registeredCashLabel: 'ميزانية الكاش المسجلة',
     orderMagicLinkPrompt: 'يمكنك متابعة واستكمال بيانات وحدتك مباشرة عبر الرابط التالي',
-    sessionExpired: 'انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى.',
+    sessionExpired: 'انتهت الجلسة أو لا تملك صلاحية تعديل هذه الوحدة.',
     enterLogin: 'يرجى إدخال البريد الإلكتروني أو رقم الهاتف وكلمة المرور.',
     notRegistered: 'هذا الحساب غير مسجل لدينا. اختر "تسجيل حساب جديد".',
     wrongPassword: 'كلمة المرور غير صحيحة.',
@@ -93,7 +93,7 @@ const FORMS_MESSAGES_FALLBACK: Record<LocaleCode, Record<string, string>> = {
     orderPaidConfirmText: 'Registered Paid Amount',
     registeredCashLabel: 'Registered Cash Budget',
     orderMagicLinkPrompt: 'You can continue completing your unit details via this link',
-    sessionExpired: 'Your session has expired. Please log in again.',
+    sessionExpired: 'Your session has expired or you do not have permission to edit this unit.',
     enterLogin: 'Please enter your email or phone number and password.',
     notRegistered: 'No account found with these details. Please choose "New Account".',
     wrongPassword: 'Incorrect password.',
@@ -137,7 +137,7 @@ const FORMS_MESSAGES_FALLBACK: Record<LocaleCode, Record<string, string>> = {
     orderPaidConfirmText: 'Зарегистрированная выплаченная сумма',
     registeredCashLabel: 'Зарегистрированный бюджет наличными',
     orderMagicLinkPrompt: 'Вы можете продолжить заполнение данных объекта по ссылке',
-    sessionExpired: 'Сессия истекла. Пожалуйста, войдите снова.',
+    sessionExpired: 'Сессия истекла или у вас нет прав на редактирование этого объекта.',
     enterLogin: 'Введите ваш email или номер телефона и пароль.',
     notRegistered: 'Аккаунт не найден. Выберите «Регистрация».',
     wrongPassword: 'Неверный пароль.',
@@ -181,7 +181,7 @@ const FORMS_MESSAGES_FALLBACK: Record<LocaleCode, Record<string, string>> = {
     orderPaidConfirmText: 'დაფიქსირებული გადახდილი თანხა',
     registeredCashLabel: 'დაფიქსირებული ბიუჯეტი',
     orderMagicLinkPrompt: 'მონაცემების შევსების გასაგრძელებლად გადადით ბმულზე',
-    sessionExpired: 'სესიის ვადა ამოიწურა. გთხოვთ შეხვიდეთ თავიდან.',
+    sessionExpired: 'სესიის ვადა ამოიწურა ან არ გაქვთ რედაქტირების უფლება.',
     enterLogin: 'შეიყვანეთ ელ-ფოსტა ან ტელეფონის ნომერი და პაროლი.',
     notRegistered: 'ანგარიში ვერ მოიძებნა. აირჩიეთ „ახალი რეგისტრაცია“.',
     wrongPassword: 'პაროლი არასწორია.',
@@ -257,11 +257,16 @@ async function getVerifiedSellerSession(supabase: any) {
   return user
 }
 
+/**
+ * تحقق صارم من ملكية الوحدة عبر user_id فقط لمنع أي مستخدم من تعديل وحدة مستخدم آخر
+ */
 async function canModifySellUnit(
   supabase: any,
   unitId: string,
   sessionUser: any
 ): Promise<{ allowed: boolean; unit: any }> {
+  if (!unitId || !sessionUser?.id) return { allowed: false, unit: null }
+
   const { data: unit } = await supabase
     .from('sell_requests')
     .select('*')
@@ -269,24 +274,63 @@ async function canModifySellUnit(
     .maybeSingle()
 
   if (!unit) return { allowed: false, unit: null }
-  if (!sessionUser) return { allowed: false, unit }
 
   const role = String(sessionUser.role || 'user').trim().toLowerCase()
   const isStaff = role === 'admin' || role === 'moderator' || role === 'sales'
-  const byId = unit.user_id && unit.user_id === sessionUser.id
-  const byEmail =
+
+  // إذا كانت الوحدة مربوطة بـ user_id، لا يُسمح بتعديلها إلا لصاحب هذا الـ user_id أو الإدارة
+  if (unit.user_id) {
+    return {
+      allowed: Boolean(isStaff || unit.user_id === sessionUser.id),
+      unit,
+    }
+  }
+
+  // فقط للوحدات القديمة جداً التي ليس لها user_id: إذا طابقت نفس المستخدم الموثق نربطها بـ user_id الخاص به فوراً
+  const emailMatch =
     sessionUser.email &&
     unit.email &&
     String(sessionUser.email).trim().toLowerCase() ===
       String(unit.email).trim().toLowerCase()
-  const byPhone =
+  const phoneMatch =
     sessionUser.phone &&
     unit.phone &&
     String(sessionUser.phone).trim() === String(unit.phone).trim()
 
-  return {
-    allowed: Boolean(isStaff || byId || byEmail || byPhone),
-    unit,
+  if (isStaff || emailMatch || phoneMatch) {
+    if (!unit.user_id && (emailMatch || phoneMatch)) {
+      await supabase
+        .from('sell_requests')
+        .update({ user_id: sessionUser.id })
+        .eq('id', unit.id)
+      unit.user_id = sessionUser.id
+    }
+    return { allowed: true, unit }
+  }
+
+  return { allowed: false, unit: null }
+}
+
+/**
+ * دالة سيرفر آمنة لجلب بيانات الوحدة للتعديل في صفحة /sell بعد التأكد من ملكية الـ user_id
+ */
+export async function getAuthorizedUnitForEditAction(unitId: string) {
+  try {
+    if (!unitId) return { allowed: false, unit: null }
+    const supabase = await getSupabase()
+    const sessionUser = await getVerifiedSellerSession(supabase)
+    if (!sessionUser) return { allowed: false, unit: null }
+
+    const { allowed, unit } = await canModifySellUnit(
+      supabase,
+      unitId,
+      sessionUser
+    )
+    if (!allowed || !unit) return { allowed: false, unit: null }
+
+    return { allowed: true, unit }
+  } catch {
+    return { allowed: false, unit: null }
   }
 }
 
@@ -400,7 +444,7 @@ function formatPrimaryPhone(rawPhone: string) {
     .replace(/\s+/g, '')
     .replace(/[^0-9+]/g, '')
   if (!digits) return ''
-  if (digits.startsWith('+')) return digits
+  if (digits.startsWith('+')) return `+${digits.slice(1).replace(/^0+/, '')}`
   const stripped = digits.replace(/^0+/, '')
   if (
     stripped.startsWith('995') ||
@@ -499,9 +543,8 @@ function stripToCoreSellColumns(payload: Record<string, any>) {
 function createMagicToken(userId: string, unitId: string, expiresAt: number) {
   const secret =
     process.env.SESSION_SECRET ||
-    process.env.EMAIL_PASS ||
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    'darak-enterprise-secret-key-2026'
+    'aqar-exit-enterprise-secret-key-2026'
   const payload = `${userId}:${unitId}:${expiresAt}`
   const sig = createHmac('sha256', secret).update(payload).digest('hex')
   return Buffer.from(`${payload}:${sig}`).toString('base64url')
@@ -519,9 +562,8 @@ export async function verifyMagicTokenAction(token: string) {
 
     const secret =
       process.env.SESSION_SECRET ||
-      process.env.EMAIL_PASS ||
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-      'darak-enterprise-secret-key-2026'
+      'aqar-exit-enterprise-secret-key-2026'
     const expectedSig = createHmac('sha256', secret)
       .update(`${userId}:${unitId}:${expiresAt}`)
       .digest('hex')
@@ -538,6 +580,7 @@ export async function verifyMagicTokenAction(token: string) {
       .from('sell_requests')
       .select('*')
       .eq('id', unitId)
+      .eq('user_id', userId)
       .maybeSingle()
 
     const { data: userRow } = await supabase
@@ -548,6 +591,7 @@ export async function verifyMagicTokenAction(token: string) {
 
     if (
       !userRow ||
+      !unit ||
       String(userRow.status || 'active').trim().toLowerCase() === 'suspended'
     ) {
       return { valid: false, error: msg.invalidLink }
@@ -728,20 +772,19 @@ export async function processSellerStep2Action(payload: {
           .eq('id', payload.existingUnitId)
           .maybeSingle()
 
-        if (
-          existingRow &&
-          (!existingRow.user_id || existingRow.user_id === userId)
-        ) {
+        if (existingRow && existingRow.user_id === userId) {
           const { error: updErr } = await supabase
             .from('sell_requests')
             .update(unitData)
             .eq('id', payload.existingUnitId)
+            .eq('user_id', userId)
 
           if (updErr) {
             await supabase
               .from('sell_requests')
               .update(stripToCoreSellColumns(unitData))
               .eq('id', payload.existingUnitId)
+              .eq('user_id', userId)
           }
           return payload.existingUnitId
         }
@@ -954,52 +997,59 @@ export async function processSellerStep2Action(payload: {
     const phoneUser = phoneMatches?.[0] || null
 
     if (emailUser) {
-      const unitId = await upsertDraftUnit(emailUser.id, {
-        name: cleanName || emailUser.name,
-        phone: emailUser.phone || formattedPhone,
-        email: emailUser.email,
-      })
-      const orderRef = generateOrderRef(unitId)
-
-      await sendOrderConfirmationMagicEmail(
-        emailUser.id,
-        unitId,
-        cleanName || emailUser.name || msg.unitOwnerFallback,
-        emailUser.email
-      )
+      // إذا كان البريد مسجلاً مسبقاً، نتحقق أولاً: لو كلمة المرور التي كتبها مطابقة لحسابه ندخله فوراً!
+      if (verifyPassword(password, emailUser.password_hash)) {
+        await setUserSession(emailUser.id, emailUser.password_hash)
+        const unitId = await upsertDraftUnit(emailUser.id, {
+          name: emailUser.name || cleanName,
+          phone: emailUser.phone || formattedPhone,
+          email: emailUser.email,
+        })
+        return {
+          status: 'ok',
+          userId: emailUser.id,
+          unitId,
+          orderRef: generateOrderRef(unitId),
+          userName: emailUser.name,
+          userEmail: emailUser.email,
+          userPhone: emailUser.phone,
+        }
+      }
 
       return {
         status: 'email_exists_need_password',
         userId: emailUser.id,
-        unitId,
-        orderRef,
+        unitId: '',
+        orderRef: 'AE-VERIFY',
         userEmail: emailUser.email,
         userName: emailUser.name,
       }
     }
 
     if (phoneUser && !emailUser) {
-      const unitId = await upsertDraftUnit(phoneUser.id, {
-        name: cleanName || phoneUser.name,
-        phone: phoneUser.phone,
-        email: phoneUser.email,
-      })
-      const orderRef = generateOrderRef(unitId)
-
-      if (phoneUser.email) {
-        await sendOrderConfirmationMagicEmail(
-          phoneUser.id,
+      if (verifyPassword(password, phoneUser.password_hash)) {
+        await setUserSession(phoneUser.id, phoneUser.password_hash)
+        const unitId = await upsertDraftUnit(phoneUser.id, {
+          name: phoneUser.name || cleanName,
+          phone: phoneUser.phone,
+          email: phoneUser.email,
+        })
+        return {
+          status: 'ok',
+          userId: phoneUser.id,
           unitId,
-          cleanName || phoneUser.name || msg.unitOwnerFallback,
-          phoneUser.email
-        )
+          orderRef: generateOrderRef(unitId),
+          userName: phoneUser.name,
+          userEmail: phoneUser.email,
+          userPhone: phoneUser.phone,
+        }
       }
 
       return {
         status: 'phone_exists_different_email',
         userId: phoneUser.id,
-        unitId,
-        orderRef,
+        unitId: '',
+        orderRef: 'AE-VERIFY',
         userEmail: phoneUser.email,
         userPhone: phoneUser.phone,
       }
@@ -1014,6 +1064,7 @@ export async function processSellerStep2Action(payload: {
         email: cleanEmail,
         password_hash: hash,
         country: userCountryCode,
+        role: 'user',
         status: 'active',
       })
       .select('id, name, email, phone')
@@ -1379,6 +1430,7 @@ export async function saveSellProgress(
       formData,
       existingUnit?.documents
     )
+    payload.user_id = existingUnit?.user_id || sessionUser.id
 
     const { error } = await resilientUpdateUnit(
       supabase,
@@ -1409,7 +1461,14 @@ export async function submitSellRequest(
     const unitCountry = ACTIVE_COUNTRY_CODE
     const customSubType = text(formData, 'submission_type') || 'new'
 
-    if (!existingUnitId && sessionUser) {
+    if (!sessionUser) {
+      return {
+        success: false,
+        error: msg.sessionExpired,
+      }
+    }
+
+    if (!existingUnitId) {
       const { data: recentDraft } = await supabase
         .from('sell_requests')
         .select('id, size, area, project_name')
@@ -1443,11 +1502,17 @@ export async function submitSellRequest(
         formData,
         prevUnit?.documents
       )
-      payload.name = text(formData, 'name') || prevUnit.name
+      payload.user_id = prevUnit.user_id || sessionUser.id
+      payload.name = text(formData, 'name') || prevUnit.name || sessionUser.name
       payload.phone =
-        formatPrimaryPhone(text(formData, 'phone')) || prevUnit.phone
+        formatPrimaryPhone(text(formData, 'phone')) ||
+        prevUnit.phone ||
+        sessionUser.phone
       payload.email =
-        normalizeEmail(text(formData, 'email')) || prevUnit.email || null
+        normalizeEmail(text(formData, 'email')) ||
+        prevUnit.email ||
+        sessionUser.email ||
+        null
       payload.is_original_owner = true
       payload.status = 'pending'
 
@@ -1498,18 +1563,17 @@ export async function submitSellRequest(
     }
 
     const payload = buildUnitPayloadWithMetaBackup(formData, null)
-    payload.name = text(formData, 'name') || sessionUser?.name || ''
+    payload.name = text(formData, 'name') || sessionUser.name || ''
     payload.phone =
-      formatPrimaryPhone(text(formData, 'phone')) || sessionUser?.phone || ''
+      formatPrimaryPhone(text(formData, 'phone')) || sessionUser.phone || ''
     payload.email =
-      normalizeEmail(text(formData, 'email')) || sessionUser?.email || null
+      normalizeEmail(text(formData, 'email')) || sessionUser.email || null
     payload.is_original_owner = true
     payload.status = 'pending'
 
-    const targetUserId = sessionUser?.id || null
     const insertPayload = {
       ...payload,
-      user_id: targetUserId,
+      user_id: sessionUser.id,
       submission_type: customSubType,
     }
 
@@ -1812,36 +1876,54 @@ export async function processBuyerStep3Action(payload: {
     const phoneUser = phoneMatches?.[0] || null
 
     if (emailUser) {
-      const reqId = await insertBuyRequestRecord(emailUser.id, {
-        name: cleanName || emailUser.name,
-        phone: emailUser.phone || formattedPhone,
-        email: emailUser.email,
-      })
-
-      revalidatePath('/admin', 'layout')
+      if (verifyPassword(password, emailUser.password_hash)) {
+        await setUserSession(emailUser.id, emailUser.password_hash)
+        const reqId = await insertBuyRequestRecord(emailUser.id, {
+          name: emailUser.name || cleanName,
+          phone: emailUser.phone || formattedPhone,
+          email: emailUser.email,
+        })
+        revalidatePath('/account', 'page')
+        revalidatePath('/admin', 'layout')
+        return {
+          status: 'ok',
+          userId: emailUser.id,
+          unitId: reqId,
+          orderRef: generateOrderRef(reqId),
+        }
+      }
 
       return {
         status: 'email_exists_need_password',
         userId: emailUser.id,
-        orderRef: generateOrderRef(reqId),
+        orderRef: 'AE-VERIFY',
         userEmail: emailUser.email,
         userName: emailUser.name,
       }
     }
 
     if (phoneUser && !emailUser) {
-      const reqId = await insertBuyRequestRecord(phoneUser.id, {
-        name: cleanName || phoneUser.name,
-        phone: phoneUser.phone,
-        email: phoneUser.email,
-      })
-
-      revalidatePath('/admin', 'layout')
+      if (verifyPassword(password, phoneUser.password_hash)) {
+        await setUserSession(phoneUser.id, phoneUser.password_hash)
+        const reqId = await insertBuyRequestRecord(phoneUser.id, {
+          name: phoneUser.name || cleanName,
+          phone: phoneUser.phone,
+          email: phoneUser.email,
+        })
+        revalidatePath('/account', 'page')
+        revalidatePath('/admin', 'layout')
+        return {
+          status: 'ok',
+          userId: phoneUser.id,
+          unitId: reqId,
+          orderRef: generateOrderRef(reqId),
+        }
+      }
 
       return {
         status: 'phone_exists_different_email',
         userId: phoneUser.id,
-        orderRef: generateOrderRef(reqId),
+        orderRef: 'AE-VERIFY',
         userEmail: phoneUser.email,
         userPhone: phoneUser.phone,
       }
@@ -1856,6 +1938,7 @@ export async function processBuyerStep3Action(payload: {
         email: cleanEmail,
         password_hash: hash,
         country: buyerResidenceCountry,
+        role: 'user',
         status: 'active',
       })
       .select('id, name, email, phone')

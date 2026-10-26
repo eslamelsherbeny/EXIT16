@@ -11,7 +11,7 @@ import {
   ImagePlus,
   Loader2,
   RefreshCw,
-  ShieldAlert,
+  ShieldCheck,
   Star,
   Trash2,
   UploadCloud,
@@ -19,6 +19,7 @@ import {
   X,
 } from 'lucide-react'
 import {
+  getAuthorizedUnitForEditAction,
   getCurrentSellerProfileAction,
   saveSellProgress,
   submitSellRequest,
@@ -36,6 +37,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { TurnstileBox } from '@/components/layouts/auth-layout'
 import {
   GeorgiaAreaSelect,
   getLocalizedGeorgiaAreaName,
@@ -85,24 +87,18 @@ function getSellerExtraLabels(locale: LocaleCode) {
       remainingMonthsLabel: 'Remaining installment months *',
       remainingMonthsHelper: 'If fully paid, enter 0',
       monthsUnit: 'months',
-      optionalDocsBoxTitle: 'Ownership Documents & Passport',
-      optionalNowBadge: 'Optional now — Required before publishing',
-      optionalDocsBoxDesc:
-        'You can upload your contract and passport now for faster verification, or upload them later from your account.',
-      uploadDocsNowBtn: 'Upload Documents Now',
-      uploadDocsLaterBtn: 'Skip & Upload Later from Account',
+      docsStepTitle: 'Ownership Documents & Passport',
+      docsConditionTitle: 'Uploading documents is required to publish your unit',
+      docsConditionDesc:
+        'To protect both buyer and seller, units are published on the marketplace after verifying the contract and passport. If they are not ready right now, you can continue and upload them later from your account.',
+      continueUploadLaterBtn: 'Continue & Upload Later',
+      continueToReviewBtn: 'Next — Review Request',
       changeFileBtn: 'Replace',
       removeFileBtn: 'Remove',
       viewFullImageBtn: 'Preview',
-      docsRequiredBannerTitle:
-        'Important: Upload your Contract & Passport to publish your unit',
-      docsRequiredBannerDesc:
-        'Units are published to buyers once our team verifies the contract and passport.',
-      docsPreSubmitNote:
-        'Note: Uploading the contract and passport is required before the unit goes live in the market.',
+      uploadFileBtn: 'Upload File',
       rowContractDate: 'Contract Date',
       rowRemainingMonths: 'Remaining Installments',
-      rowUploadedDocs: 'Uploaded Documents',
     }
   }
   if (locale === 'ru') {
@@ -114,24 +110,18 @@ function getSellerExtraLabels(locale: LocaleCode) {
       remainingMonthsLabel: 'Осталось месяцев рассрочки *',
       remainingMonthsHelper: 'Если рассрочка выплачена, введите 0',
       monthsUnit: 'мес.',
-      optionalDocsBoxTitle: 'Документы на недвижимость и Паспорт',
-      optionalNowBadge: 'Сейчас необязательно — нужно для публикации',
-      optionalDocsBoxDesc:
-        'Вы можете загрузить договор и паспорт сейчас для быстрой проверки или позже в личном кабинете.',
-      uploadDocsNowBtn: 'Загрузить документы сейчас',
-      uploadDocsLaterBtn: 'Загрузить позже в кабинете',
+      docsStepTitle: 'Документы на недвижимость и Паспорт',
+      docsConditionTitle: 'Загрузка документов обязательна для публикации объекта',
+      docsConditionDesc:
+        'Для защиты сторон объект публикуется на витрине после проверки договора и паспорта. Если документов сейчас нет под рукой, вы можете продолжить и загрузить их позже в личном кабинете.',
+      continueUploadLaterBtn: 'Продолжить и загрузить позже',
+      continueToReviewBtn: 'Далее — Проверка заявки',
       changeFileBtn: 'Заменить',
       removeFileBtn: 'Удалить',
       viewFullImageBtn: 'Просмотр',
-      docsRequiredBannerTitle:
-        'Важно: Загрузите договор и паспорт для публикации объекта',
-      docsRequiredBannerDesc:
-        'Объект публикуется на витрине после проверки договора и паспорта нашей командой.',
-      docsPreSubmitNote:
-        'Примечание: Загрузка договора и паспорта необходима для публикации объекта.',
+      uploadFileBtn: 'Загрузить',
       rowContractDate: 'Дата договора',
       rowRemainingMonths: 'Остаток рассрочки',
-      rowUploadedDocs: 'Документы',
     }
   }
   if (locale === 'ka') {
@@ -143,24 +133,18 @@ function getSellerExtraLabels(locale: LocaleCode) {
       remainingMonthsLabel: 'განვადების დარჩენილი თვეები *',
       remainingMonthsHelper: 'თუ სრულად გადახდილია, ჩაწერეთ 0',
       monthsUnit: 'თვე',
-      optionalDocsBoxTitle: 'საკუთრების დოკუმენტები და პასპორტი',
-      optionalNowBadge: 'ახლა არასავალდებულო — საჭიროა გამოსაქვეყნებლად',
-      optionalDocsBoxDesc:
-        'შეგიძლიათ ატვირთოთ კონტრაქტი და პასპორტი ახლა ან მოგვიანებით თქვენი ანგარიშიდან.',
-      uploadDocsNowBtn: 'დოკუმენტების ატვირთვა ახლა',
-      uploadDocsLaterBtn: 'მოგვიანებით ატვირთვა',
+      docsStepTitle: 'საკუთრების დოკუმენტები და პასპორტი',
+      docsConditionTitle: 'დოკუმენტების ატვირთვა აუცილებელია გამოსაქვეყნებლად',
+      docsConditionDesc:
+        'ობიექტი ქვეყნდება კონტრაქტისა და პასპორტის გადამოწმების შემდეგ. თუ ახლა მზად არ გაქვთ, შეგიძლიათ გააგრძელოთ და მოგვიანებით ატვირთოთ თქვენი ანგარიშიდან.',
+      continueUploadLaterBtn: 'გაგრძელება და მოგვიანებით ატვირთვა',
+      continueToReviewBtn: 'შემდეგი — განაცხადის გადახედვა',
       changeFileBtn: 'შეცვლა',
       removeFileBtn: 'წაშლა',
       viewFullImageBtn: 'ნახვა',
-      docsRequiredBannerTitle:
-        'მნიშვნელოვანია: ატვირთეთ კონტრაქტი და პასპორტი გამოსაქვეყნებლად',
-      docsRequiredBannerDesc:
-        'ერთეული გამოქვეყნდება დოკუმენტების გადამოწმების შემდეგ.',
-      docsPreSubmitNote:
-        'შენიშვნა: გამოსაქვეყნებლად საჭიროა კონტრაქტისა და პასპორტის ატვირთვა.',
+      uploadFileBtn: 'ატვირთვა',
       rowContractDate: 'ხელშეკრულების თარიღი',
       rowRemainingMonths: 'დარჩენილი განვადება',
-      rowUploadedDocs: 'დოკუმენტები',
     }
   }
   return {
@@ -171,24 +155,18 @@ function getSellerExtraLabels(locale: LocaleCode) {
     remainingMonthsLabel: 'فاضل كام شهر تقسيط؟ *',
     remainingMonthsHelper: 'لو التقسيط خلص، اكتب صفر',
     monthsUnit: 'شهر',
-    optionalDocsBoxTitle: 'مستندات الملكية وصورة جواز السفر (Passport)',
-    optionalNowBadge: 'اختياري الآن — ضروري قبل النشر',
-    optionalDocsBoxDesc:
-      'تقدر ترفع العقد وصورة الباسبور دلوقتي عشان نسرّع مراجعة ونشر وحدتك، أو تكمل وترفعهم بعدين من حسابك.',
-    uploadDocsNowBtn: 'ارفع المستندات الآن',
-    uploadDocsLaterBtn: 'تخطي ورفعها لاحقاً من حسابي',
+    docsStepTitle: 'مستندات الملكية وجواز السفر',
+    docsConditionTitle: 'رفع المستندات شرط أساسي لنشر وحدتك على المنصة',
+    docsConditionDesc:
+      'لضمان الجدية وحماية الملكية، يتم نشر الوحدة أمام المشترين بعد مراجعة العقد وصورة جواز السفر. لو المستندات مش جاهزة معاك دلوقتي، تقدر تكمل طلبك عادي وترفعها في أي وقت من صفحة حسابي.',
+    continueUploadLaterBtn: 'كمّل وهرفعها بعدين',
+    continueToReviewBtn: 'التالي — مراجعة الطلب',
     changeFileBtn: 'تغيير',
     removeFileBtn: 'حذف',
     viewFullImageBtn: 'معاينة',
-    docsRequiredBannerTitle:
-      'خطوة أخيرة لنشر وحدتك: ارفع العقد وصورة جواز السفر',
-    docsRequiredBannerDesc:
-      'لا يتم نشر أي وحدة أمام المشترين إلا بعد التحقق من العقد وصورة جواز السفر لحماية الملكية.',
-    docsPreSubmitNote:
-      'تنبيه: رفع مستندات الوحدة (العقد وصورة جواز السفر) ضروري لاعتماد ونشر الوحدة في السوق.',
+    uploadFileBtn: 'ارفع الملف',
     rowContractDate: 'تاريخ التعاقد',
     rowRemainingMonths: 'الأقساط المتبقية (بالشهور)',
-    rowUploadedDocs: 'المستندات المرفوعة',
   }
 }
 
@@ -230,6 +208,8 @@ export function SellerFlow() {
   const localizedDeliveries = getLocalizedDeliveries(dict, locale)
   const localizedUnitTypes = getLocalizedUnitTypes(dict, locale)
 
+  // الخطوات الـ 7:
+  // 1: البيانات الأساسية | 2: بيانات التواصل | 3: تفاصيل الوحدة | 4: الأسعار والأقساط | 5: صور الوحدة | 6: مستندات الملكية | 7: المراجعة والإرسال
   const [step, setStep] = useState(1)
   const [isMagicResume, setIsMagicResume] = useState(false)
   const [unitId, setUnitId] = useState<string>('')
@@ -436,15 +416,13 @@ export function SellerFlow() {
         }
 
         if (editUnitId) {
-          const supabase = createClient()
-          const { data: u } = await supabase
-            .from('sell_requests')
-            .select('*')
-            .eq('id', editUnitId)
-            .maybeSingle()
-
-          if (u) {
-            hydrateUnitIntoState(u, targetStep)
+          // تحقق أمني صارم على السيرفر أن الوحدة مملوكة لنفس user_id قبل السماح بتحميلها للتعديل
+          const authUnitRes = await getAuthorizedUnitForEditAction(editUnitId)
+          if (authUnitRes.allowed && authUnitRes.unit) {
+            hydrateUnitIntoState(authUnitRes.unit, targetStep)
+            return
+          } else {
+            router.replace('/account')
             return
           }
         }
@@ -466,7 +444,7 @@ export function SellerFlow() {
     }
 
     initFlow()
-  }, [])
+  }, [router])
 
   const update = (key: string, value: string) => {
     setForm((current) => ({ ...current, [key]: value }))
@@ -520,6 +498,7 @@ export function SellerFlow() {
   const go = (next: number) => {
     if (next <= step) {
       setMissingFieldsList([])
+      window.scrollTo({ top: 0, behavior: 'smooth' })
       return setStep(next)
     }
 
@@ -719,6 +698,7 @@ export function SellerFlow() {
           current.contractPrice,
       }))
 
+    window.scrollTo({ top: 0, behavior: 'smooth' })
     setStep(next)
   }
 
@@ -740,11 +720,13 @@ export function SellerFlow() {
         .from('unit-images')
         .upload(path, file, { contentType: file.type, upsert: true })
 
-      let publicUrl = `https://storage.aqarexit.com/${path}`
-      if (!uploadErr) {
-        publicUrl = supabase.storage.from('unit-images').getPublicUrl(path)
-          .data.publicUrl
+      if (uploadErr) {
+        setError(uploadErr.message)
+        return
       }
+
+      const publicUrl = supabase.storage.from('unit-images').getPublicUrl(path)
+        .data.publicUrl
 
       const newEntry: UploadedDocEntry = {
         url: publicUrl,
@@ -918,13 +900,26 @@ export function SellerFlow() {
         if (result.unitId) setUnitId(result.unitId)
         if (result.orderRef) setOrderRef(result.orderRef)
         setSubmitted(true)
+        window.scrollTo({ top: 0, behavior: 'smooth' })
       } else {
         setError(result.error ?? s.validation.submitFailed)
       }
     })
   }
 
-  const totalStepsCount = isMagicResume ? 4 : 6
+  // عناوين الـ 7 خطوات بالترتيب (مع خطوة المستندات المستقلة رقم 6)
+  const baseTitles = s.header.stepTitles || []
+  const sevenStepTitles = [
+    baseTitles[0] || 'البيانات الأساسية',
+    baseTitles[1] || 'بيانات التواصل',
+    baseTitles[2] || 'تفاصيل الوحدة',
+    baseTitles[3] || 'الأسعار والأقساط',
+    baseTitles[4] || 'صور الوحدة',
+    extraT.docsStepTitle,
+    baseTitles[5] || 'مراجعة وإرسال الطلب',
+  ]
+
+  const totalStepsCount = isMagicResume ? 5 : 7
   const currentDisplayStep = isMagicResume ? Math.max(1, step - 2) : step
   const supportWhatsApp = String(dict.footer?.phone || '+201018595959').replace(
     /\D/g,
@@ -932,10 +927,6 @@ export function SellerFlow() {
   )
   const missingBannerPrefix =
     valDict.missingBannerPrefix || valDict.required || ''
-
-  const realDocsCount = ['contract', 'receipts', 'statement', 'passport'].filter(
-    (k) => Boolean(unitDocs[k]?.url)
-  ).length
 
   return (
     <main
@@ -1012,7 +1003,7 @@ export function SellerFlow() {
 
             {!submitted && (
               <h2 className="mb-6 text-2xl font-black text-[#102238]">
-                {s.header.stepTitles[step - 1]}
+                {sevenStepTitles[step - 1]}
               </h2>
             )}
 
@@ -1079,6 +1070,13 @@ export function SellerFlow() {
                 setImages={setImages}
                 uploading={uploading}
                 setUploading={setUploading}
+                onPreviewDoc={(url, title) => setPreviewDoc({ url, title })}
+                onSave={saveProgress}
+              />
+            )}
+            {step === 6 && (
+              <DocumentsStep
+                go={go}
                 unitDocs={unitDocs}
                 uploadingDocKey={uploadingDocKey}
                 onUploadDoc={handleUploadUnitDocument}
@@ -1088,7 +1086,7 @@ export function SellerFlow() {
                 extraT={extraT}
               />
             )}
-            {step === 6 && (
+            {step === 7 && (
               <ReviewStep
                 form={form}
                 selected={selected}
@@ -1099,7 +1097,6 @@ export function SellerFlow() {
                 go={go}
                 onSave={saveProgress}
                 imagesLength={images.length}
-                docsCount={realDocsCount}
                 orderRef={orderRef}
                 unitId={unitId}
                 extraT={extraT}
@@ -1268,6 +1265,8 @@ function BasicStep({
           if (!form.marketPrice) update('marketPrice', value)
         }}
       />
+
+      <TurnstileBox />
 
       <StepValidationBanner
         missingFields={missingFields}
@@ -1725,50 +1724,29 @@ function PricingStep({
   )
 }
 
+/**
+ * الخطوة 5: رفع صور الوحدة فقط (مستقلة ونظيفة تماماً بدون أي مستندات)
+ */
 function PhotosStep({
   go,
   images,
   setImages,
   uploading,
   setUploading,
-  unitDocs,
-  uploadingDocKey,
-  onUploadDoc,
-  onRemoveDoc,
   onPreviewDoc,
   onSave,
-  extraT,
 }: {
   go: (step: number) => void
   images: string[]
   setImages: (images: string[]) => void
   uploading: boolean
   setUploading: (value: boolean) => void
-  unitDocs: Record<string, UploadedDocEntry>
-  uploadingDocKey: string | null
-  onUploadDoc: (docKey: SellerDocKey, files: FileList | null) => void
-  onRemoveDoc: (docKey: SellerDocKey) => void
   onPreviewDoc: (url: string, title: string) => void
   onSave: () => void
-  extraT: ReturnType<typeof getSellerExtraLabels>
 }) {
   const { t: dict } = useTranslation()
   const s = dict.sell
   const t = s.photosStep as Record<string, any>
-  const docDict = dict.accountPages?.documents as Record<string, any>
-
-  const docSections: Array<{ key: SellerDocKey; title: string }> = [
-    { key: 'contract', title: docDict?.sections?.contract || 'عقد الوحدة' },
-    { key: 'receipts', title: docDict?.sections?.receipts || 'إيصالات السداد' },
-    { key: 'statement', title: docDict?.sections?.statement || 'كشف الحساب' },
-    { key: 'passport', title: docDict?.sections?.passport || 'جواز السفر (Passport)' },
-  ]
-
-  const uploadedDocsCount = docSections.filter((sec) =>
-    Boolean(unitDocs[sec.key]?.url)
-  ).length
-
-  const [showDocsBox, setShowDocsBox] = useState(uploadedDocsCount > 0)
 
   const upload = async (files: FileList | null) => {
     if (!files?.length) return
@@ -1794,10 +1772,10 @@ function PhotosStep({
 
   return (
     <div className="flex flex-col gap-6">
-      <label className="flex min-h-44 cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-slate-300 text-center transition hover:bg-slate-50">
-        <ImagePlus className="size-8 text-slate-500" />
-        <p className="font-bold">{t.uploadTitle}</p>
-        <p className="text-sm text-slate-500">{t.uploadSub}</p>
+      <label className="flex min-h-48 cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50/40 p-6 text-center transition hover:border-[#007a5a] hover:bg-slate-50">
+        <ImagePlus className="size-9 text-[#007a5a]" />
+        <p className="text-base font-extrabold text-[#0a1122]">{t.uploadTitle}</p>
+        <p className="text-xs text-slate-500 sm:text-sm">{t.uploadSub}</p>
         <input
           type="file"
           accept="image/*"
@@ -1806,11 +1784,14 @@ function PhotosStep({
           onChange={(event) => upload(event.target.files)}
         />
       </label>
+
       {uploading && (
-        <p className="text-start text-sm font-semibold text-teal-700">
-          {t.uploadingText}
-        </p>
+        <div className="flex items-center gap-2 text-start text-sm font-bold text-teal-700">
+          <Loader2 className="size-4 animate-spin" />
+          <span>{t.uploadingText}</span>
+        </div>
       )}
+
       {images.length > 0 && (
         <div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
           {images.map((url, index) => (
@@ -1838,169 +1819,6 @@ function PhotosStep({
         </div>
       )}
 
-      <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-start sm:p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-start gap-2.5">
-            <ShieldAlert className="mt-0.5 size-5 shrink-0 text-amber-600" />
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <h3 className="text-sm font-extrabold text-[#0a1122] sm:text-base">
-                  {t.optionalDocsBoxTitle || extraT.optionalDocsBoxTitle}
-                </h3>
-                <span className="rounded-full bg-amber-200/80 px-2.5 py-0.5 text-[10.5px] font-extrabold text-amber-950">
-                  {t.optionalNowBadge || extraT.optionalNowBadge}
-                </span>
-              </div>
-              <p className="mt-1 text-xs leading-relaxed text-amber-950/90">
-                {t.optionalDocsBoxDesc || extraT.optionalDocsBoxDesc}
-              </p>
-            </div>
-          </div>
-
-          <span
-            dir="ltr"
-            className="shrink-0 rounded-full bg-white px-2.5 py-1 text-[11px] font-black text-[#007a5a] shadow-2xs"
-          >
-            {uploadedDocsCount}/4
-          </span>
-        </div>
-
-        <div className="mt-4 flex flex-wrap items-center gap-2.5">
-          <button
-            type="button"
-            onClick={() => setShowDocsBox(true)}
-            className={`inline-flex h-10 items-center justify-center gap-1.5 rounded-xl px-4 text-xs font-extrabold transition ${
-              showDocsBox
-                ? 'bg-[#007a5a] text-white shadow-xs'
-                : 'bg-[#0a1122] text-white hover:bg-[#16223f]'
-            }`}
-          >
-            <UploadCloud className="size-4 text-emerald-300" />
-            <span>{t.uploadDocsNowBtn || extraT.uploadDocsNowBtn}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setShowDocsBox(false)
-              go(6)
-            }}
-            className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-xs font-bold text-slate-700 transition hover:bg-slate-100"
-          >
-            {t.uploadDocsLaterBtn || extraT.uploadDocsLaterBtn}
-          </button>
-        </div>
-
-        {showDocsBox && (
-          <div className="mt-4 grid grid-cols-1 gap-3 border-t border-amber-200/80 pt-4 sm:grid-cols-2">
-            {docSections.map((sec) => {
-              const entry = unitDocs[sec.key]
-              const isUploadingThis = uploadingDocKey === sec.key
-              const hasDoc = Boolean(entry?.url)
-              const isImg = hasDoc && isImageFileUrl(entry.url, entry.name)
-
-              return (
-                <div
-                  key={sec.key}
-                  className="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-extrabold text-[#0a1122]">
-                      {sec.title}
-                    </span>
-
-                    <div className="flex items-center gap-1.5">
-                      <label className="inline-flex h-8 cursor-pointer items-center justify-center gap-1 rounded-lg bg-[#007a5a] px-3 text-[11px] font-bold text-white transition hover:bg-[#006248]">
-                        {isUploadingThis ? (
-                          <Loader2 className="size-3.5 animate-spin" />
-                        ) : hasDoc ? (
-                          <>
-                            <RefreshCw className="size-3" />
-                            <span>
-                              {docDict?.changeFileBtn || extraT.changeFileBtn}
-                            </span>
-                          </>
-                        ) : (
-                          <>
-                            <UploadCloud className="size-3" />
-                            <span>{docDict?.uploadBtn || 'ارفع الملف'}</span>
-                          </>
-                        )}
-                        <input
-                          type="file"
-                          accept="image/*,.pdf"
-                          className="sr-only"
-                          disabled={isUploadingThis}
-                          onChange={(e) => onUploadDoc(sec.key, e.target.files)}
-                        />
-                      </label>
-
-                      {hasDoc && (
-                        <button
-                          type="button"
-                          onClick={() => onRemoveDoc(sec.key)}
-                          className="inline-flex size-8 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-600 hover:bg-red-100"
-                          title={docDict?.removeFileBtn || extraT.removeFileBtn}
-                        >
-                          <Trash2 className="size-3.5" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {hasDoc ? (
-                    <div className="mt-3 flex items-center gap-2.5 rounded-lg bg-slate-50 p-2">
-                      {isImg ? (
-                        <button
-                          type="button"
-                          onClick={() => onPreviewDoc(entry.url, sec.title)}
-                          className="group relative size-12 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-white"
-                        >
-                          <img
-                            src={entry.url}
-                            alt={sec.title}
-                            className="h-full w-full object-cover"
-                          />
-                          <span className="absolute inset-0 flex items-center justify-center bg-black/45 opacity-0 transition group-hover:opacity-100">
-                            <Eye className="size-3.5 text-white" />
-                          </span>
-                        </button>
-                      ) : (
-                        <a
-                          href={entry.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex size-12 shrink-0 flex-col items-center justify-center rounded-lg bg-teal-50 text-[10px] font-bold text-teal-800"
-                        >
-                          <FileText className="size-4" />
-                          <span>PDF</span>
-                        </a>
-                      )}
-                      <div className="min-w-0 flex-1 text-start">
-                        <p className="truncate text-[11px] font-bold text-[#0a1122]">
-                          {entry.name}
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => onPreviewDoc(entry.url, sec.title)}
-                          className="mt-0.5 text-[10.5px] font-bold text-[#007a5a] hover:underline"
-                        >
-                          {docDict?.viewFullImageBtn || extraT.viewFullImageBtn}
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="mt-2 text-[11px] text-slate-400">
-                      {docDict?.emptySection}
-                    </p>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
-
       <div className="flex gap-3">
         <Button
           type="button"
@@ -2018,7 +1836,8 @@ function PhotosStep({
           {s.shared.nextBtn}
         </Button>
       </div>
-      <div className="mt-4 flex w-full justify-center">
+
+      <div className="mt-2 flex w-full justify-center">
         <button
           type="button"
           className="text-center text-sm font-bold text-blue-800 hover:underline"
@@ -2031,6 +1850,226 @@ function PhotosStep({
   )
 }
 
+/**
+ * الخطوة 6: خطوة مستقلة تماماً لرفع مستندات الملكية وجواز السفر
+ * بدون أزرار تخطي مكررة، والزر الرئيسي نفسه يقول "كمّل وهرفعها بعدين" إذا لم تكتمل المستندات
+ */
+function DocumentsStep({
+  go,
+  unitDocs,
+  uploadingDocKey,
+  onUploadDoc,
+  onRemoveDoc,
+  onPreviewDoc,
+  onSave,
+  extraT,
+}: {
+  go: (step: number) => void
+  unitDocs: Record<string, UploadedDocEntry>
+  uploadingDocKey: string | null
+  onUploadDoc: (docKey: SellerDocKey, files: FileList | null) => void
+  onRemoveDoc: (docKey: SellerDocKey) => void
+  onPreviewDoc: (url: string, title: string) => void
+  onSave: () => void
+  extraT: ReturnType<typeof getSellerExtraLabels>
+}) {
+  const { t: dict } = useTranslation()
+  const s = dict.sell
+  const docDict = dict.accountPages?.documents as Record<string, any>
+
+  const docSections: Array<{ key: SellerDocKey; title: string }> = [
+    { key: 'contract', title: docDict?.sections?.contract || 'عقد الوحدة' },
+    { key: 'receipts', title: docDict?.sections?.receipts || 'إيصالات السداد' },
+    { key: 'statement', title: docDict?.sections?.statement || 'كشف الحساب' },
+    {
+      key: 'passport',
+      title: docDict?.sections?.passport || 'جواز السفر (Passport)',
+    },
+  ]
+
+  const uploadedDocsCount = docSections.filter((sec) =>
+    Boolean(unitDocs[sec.key]?.url)
+  ).length
+
+  const allDocsUploaded = uploadedDocsCount === 4
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="rounded-2xl border border-amber-200 bg-amber-50/80 p-4 text-start sm:p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-2.5">
+            <ShieldCheck className="mt-0.5 size-5 shrink-0 text-[#007a5a]" />
+            <div>
+              <h3 className="text-sm font-extrabold text-[#0a1122] sm:text-base">
+                {extraT.docsConditionTitle}
+              </h3>
+              <p className="mt-1.5 text-xs leading-relaxed text-slate-700 sm:text-[13px]">
+                {extraT.docsConditionDesc}
+              </p>
+            </div>
+          </div>
+
+          <span
+            dir="ltr"
+            className="shrink-0 rounded-full bg-white px-3 py-1 text-xs font-black text-[#007a5a] shadow-2xs"
+          >
+            {uploadedDocsCount}/4
+          </span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+        {docSections.map((sec) => {
+          const entry = unitDocs[sec.key]
+          const isUploadingThis = uploadingDocKey === sec.key
+          const hasDoc = Boolean(entry?.url)
+          const isImg = hasDoc && isImageFileUrl(entry.url, entry.name)
+
+          return (
+            <div
+              key={sec.key}
+              className={`flex flex-col justify-between rounded-2xl border p-4 shadow-2xs transition ${
+                hasDoc
+                  ? 'border-emerald-200 bg-emerald-50/25'
+                  : 'border-slate-200 bg-white'
+              }`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  {hasDoc && (
+                    <FileCheck2 className="size-4 shrink-0 text-[#007a5a]" />
+                  )}
+                  <span className="text-xs font-extrabold text-[#0a1122] sm:text-sm">
+                    {sec.title}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <label className="inline-flex h-8 cursor-pointer items-center justify-center gap-1 rounded-lg bg-[#007a5a] px-3 text-[11px] font-bold text-white transition hover:bg-[#006248]">
+                    {isUploadingThis ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : hasDoc ? (
+                      <>
+                        <RefreshCw className="size-3" />
+                        <span>
+                          {docDict?.changeFileBtn || extraT.changeFileBtn}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <UploadCloud className="size-3.5" />
+                        <span>{docDict?.uploadBtn || extraT.uploadFileBtn}</span>
+                      </>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*,.pdf"
+                      className="sr-only"
+                      disabled={isUploadingThis}
+                      onChange={(e) => onUploadDoc(sec.key, e.target.files)}
+                    />
+                  </label>
+
+                  {hasDoc && (
+                    <button
+                      type="button"
+                      onClick={() => onRemoveDoc(sec.key)}
+                      className="inline-flex size-8 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-600 hover:bg-red-100"
+                      title={docDict?.removeFileBtn || extraT.removeFileBtn}
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {hasDoc ? (
+                <div className="mt-3 flex items-center gap-2.5 rounded-xl bg-white p-2.5 shadow-2xs">
+                  {isImg ? (
+                    <button
+                      type="button"
+                      onClick={() => onPreviewDoc(entry.url, sec.title)}
+                      className="group relative size-12 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-white"
+                    >
+                      <img
+                        src={entry.url}
+                        alt={sec.title}
+                        className="h-full w-full object-cover"
+                      />
+                      <span className="absolute inset-0 flex items-center justify-center bg-black/45 opacity-0 transition group-hover:opacity-100">
+                        <Eye className="size-3.5 text-white" />
+                      </span>
+                    </button>
+                  ) : (
+                    <a
+                      href={entry.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex size-12 shrink-0 flex-col items-center justify-center rounded-lg bg-teal-50 text-[10px] font-bold text-teal-800"
+                    >
+                      <FileText className="size-4" />
+                      <span>PDF</span>
+                    </a>
+                  )}
+                  <div className="min-w-0 flex-1 text-start">
+                    <p className="truncate text-[11px] font-bold text-[#0a1122]">
+                      {entry.name}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => onPreviewDoc(entry.url, sec.title)}
+                      className="mt-0.5 text-[10.5px] font-bold text-[#007a5a] hover:underline"
+                    >
+                      {docDict?.viewFullImageBtn || extraT.viewFullImageBtn}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <p className="mt-2.5 text-[11px] text-slate-400">
+                  {docDict?.emptySection}
+                </p>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="flex gap-3">
+        <Button
+          type="button"
+          variant="outline"
+          className="h-12 rounded-xl"
+          onClick={() => go(5)}
+        >
+          {s.shared.backBtn}
+        </Button>
+        <Button
+          type="button"
+          className="h-12 flex-1 rounded-xl bg-[var(--brand-navy,#0a1122)] font-bold transition active:scale-[0.98]"
+          onClick={() => go(7)}
+        >
+          {allDocsUploaded
+            ? extraT.continueToReviewBtn
+            : extraT.continueUploadLaterBtn}
+        </Button>
+      </div>
+
+      <div className="mt-2 flex w-full justify-center">
+        <button
+          type="button"
+          className="text-center text-sm font-bold text-blue-800 hover:underline"
+          onClick={onSave}
+        >
+          {s.shared.saveLaterBtn}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * الخطوة 7: المراجعة النهائية والإرسال (بدون أي تكرار للكلام عن المستندات)
+ */
 function ReviewStep({
   form,
   selected,
@@ -2041,7 +2080,6 @@ function ReviewStep({
   go,
   onSave,
   imagesLength,
-  docsCount,
   orderRef,
   unitId,
   extraT,
@@ -2055,7 +2093,6 @@ function ReviewStep({
   go: (step: number) => void
   onSave: () => void
   imagesLength: number
-  docsCount: number
   orderRef: string
   unitId: string
   extraT: ReturnType<typeof getSellerExtraLabels>
@@ -2127,41 +2164,7 @@ function ReviewStep({
           {t.orderRefLabel} <strong className="font-mono">{orderRef}</strong>
         </span>
 
-        <div className="mt-5 w-full rounded-2xl border border-amber-200 bg-amber-50 p-4 text-start sm:p-5">
-          <div className="flex items-start gap-3">
-            <ShieldAlert className="mt-0.5 size-5 shrink-0 text-amber-600" />
-            <div className="flex-1 text-xs leading-relaxed text-amber-950">
-              <strong className="block text-sm font-extrabold">
-                {t.docsRequiredBannerTitle || extraT.docsRequiredBannerTitle}
-              </strong>
-              <p className="mt-1 opacity-90">
-                {t.docsRequiredBannerDesc || extraT.docsRequiredBannerDesc}
-              </p>
-              <div className="mt-3 flex flex-wrap items-center gap-2.5">
-                <Link
-                  href={
-                    unitId
-                      ? `/account/documents?unitId=${unitId}`
-                      : '/account/documents'
-                  }
-                  className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl bg-[#0a1122] px-5 text-xs font-bold text-white shadow-2xs transition hover:bg-[#16223f]"
-                >
-                  <UploadCloud className="size-4 text-emerald-300" />
-                  <span>{t.uploadDocsNowBtn || extraT.uploadDocsNowBtn}</span>
-                </Link>
-                <Link
-                  href="/account"
-                  className="inline-flex h-10 items-center justify-center rounded-xl border border-amber-300 bg-white px-4 text-xs font-bold text-amber-950 hover:bg-amber-100/60"
-                >
-                  {(s.photosStep as any)?.uploadDocsLaterBtn ||
-                    extraT.uploadDocsLaterBtn}
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-5 w-full rounded-[20px] border border-[#aae3cb] bg-[#effaf5] p-5 text-start sm:p-6">
+        <div className="mt-6 w-full rounded-[20px] border border-[#aae3cb] bg-[#effaf5] p-5 text-start sm:p-6">
           <div className="flex items-center justify-start gap-1 text-xs font-extrabold text-[var(--brand-primary,#007a5a)]">
             <Star className="size-3.5 fill-amber-400 text-amber-500" />
             <span>{t.optionalBadge}</span>
@@ -2310,7 +2313,6 @@ function ReviewStep({
         : '0',
     ],
     [t.rowPhotos, String(imagesLength)],
-    [t.rowUploadedDocs || extraT.rowUploadedDocs, `${docsCount}/4`],
     [
       t.rowContractPrice,
       `${Number(
@@ -2336,31 +2338,18 @@ function ReviewStep({
         ))}
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-teal-200 bg-teal-50/70 p-3.5 text-start text-xs leading-relaxed text-teal-900">
-        <div className="flex items-start gap-2.5">
-          <FileCheck2 className="mt-0.5 size-4 shrink-0 text-teal-700" />
-          <span>{t.docsPreSubmitNote || extraT.docsPreSubmitNote}</span>
-        </div>
-        <button
-          type="button"
-          onClick={() => go(5)}
-          className="shrink-0 rounded-lg bg-teal-700 px-3 py-1.5 text-[11px] font-bold text-white hover:bg-teal-800"
-        >
-          {t.uploadDocsNowBtn || extraT.uploadDocsNowBtn}
-        </button>
-      </div>
-
       {error && (
         <p className="rounded-xl bg-red-50 p-3 text-center text-sm font-bold text-red-700">
           {error}
         </p>
       )}
+
       <div className="flex gap-3">
         <Button
           type="button"
           variant="outline"
           className="h-12 rounded-xl"
-          onClick={() => go(5)}
+          onClick={() => go(6)}
         >
           {s.shared.backBtn}
         </Button>
@@ -2380,7 +2369,8 @@ function ReviewStep({
           )}
         </Button>
       </div>
-      <div className="mt-4 flex w-full justify-center">
+
+      <div className="mt-2 flex w-full justify-center">
         <button
           type="button"
           className="text-center text-sm font-bold text-blue-800 hover:underline"

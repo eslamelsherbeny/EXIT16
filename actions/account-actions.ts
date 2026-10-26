@@ -31,6 +31,12 @@ async function getSupabase() {
   )
 }
 
+function normalizeDigits(str: string): string {
+  return String(str || '')
+    .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 1632))
+    .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 1776))
+}
+
 // دالة مركزية تتحقق من صحة التوقيع المشفر للجلسة وعدم إيقاف الحساب قبل أي عملية
 async function getVerifiedSessionUser() {
   const cookieStore = await cookies()
@@ -58,18 +64,26 @@ async function getVerifiedSessionUser() {
   return { supabase, user }
 }
 
+// التحقق الصارم من ملكية الوحدة عبر user_id فقط
 async function verifyUnitOwnership(
   supabase: any,
   unitId: string,
-  user: { id: string; email?: string | null; phone?: string | null; role?: string | null }
+  user: {
+    id: string
+    email?: string | null
+    phone?: string | null
+    role?: string | null
+  }
 ) {
+  if (!unitId || !user?.id) return null
+
   const { data: unit } = await supabase
     .from('sell_requests')
     .select('*')
     .eq('id', unitId)
     .maybeSingle()
 
-  if (!unit || !user) return null
+  if (!unit) return null
 
   const cleanRole = String(user.role || 'user').trim().toLowerCase()
   const isStaff =
@@ -77,7 +91,10 @@ async function verifyUnitOwnership(
     cleanRole === 'moderator' ||
     cleanRole === 'sales'
 
-  const isOwnerById = unit.user_id && unit.user_id === user.id
+  if (unit.user_id) {
+    return isStaff || unit.user_id === user.id ? unit : null
+  }
+
   const isOwnerByEmail =
     user.email &&
     unit.email &&
@@ -88,11 +105,18 @@ async function verifyUnitOwnership(
     unit.phone &&
     String(user.phone).trim() === String(unit.phone).trim()
 
-  if (!isStaff && !isOwnerById && !isOwnerByEmail && !isOwnerByPhone) {
-    return null
+  if (isStaff || isOwnerByEmail || isOwnerByPhone) {
+    if (!unit.user_id && (isOwnerByEmail || isOwnerByPhone)) {
+      await supabase
+        .from('sell_requests')
+        .update({ user_id: user.id })
+        .eq('id', unit.id)
+      unit.user_id = user.id
+    }
+    return unit
   }
 
-  return unit
+  return null
 }
 
 async function sendAccountEmail({
@@ -133,11 +157,18 @@ async function sendAccountEmail({
 }
 
 function formatPrimaryPhone(rawPhone: string) {
-  const digits = (rawPhone || '').replace(/\s+/g, '').replace(/[^0-9+]/g, '')
+  const digits = normalizeDigits(rawPhone || '')
+    .replace(/\s+/g, '')
+    .replace(/[^0-9+]/g, '')
   if (!digits) return ''
-  if (digits.startsWith('+')) return digits
+  if (digits.startsWith('+')) return `+${digits.slice(1).replace(/^0+/, '')}`
   const stripped = digits.replace(/^0+/, '')
-  if (stripped.startsWith('995') || stripped.startsWith('20')) {
+  if (
+    stripped.startsWith('995') ||
+    stripped.startsWith('20') ||
+    stripped.startsWith('966') ||
+    stripped.startsWith('971')
+  ) {
     return `+${stripped}`
   }
   return `+995${stripped}`
@@ -315,6 +346,7 @@ export async function requestAccountDeletionAction(payload: {
               status: 'paused_deletion',
             })
             .eq('id', u.id)
+            .eq('user_id', user.id)
         )
       )
     }
@@ -399,6 +431,7 @@ export async function cancelAccountDeletionAction() {
               previous_status: null,
             })
             .eq('id', u.id)
+            .eq('user_id', user.id)
         )
       )
     }
@@ -647,53 +680,87 @@ export async function updateBuyerPreferencesAction(payload: {
       available_cash: Number(payload.available_cash) || 0,
       max_installment: Number(payload.max_installment) || 0,
       payment_plan: payload.payment_plan || msg.defaultMonthly,
-      budget: Number(payload.budget) || 0,
-      unit_types: payload.unit_types,
+      budget: Number(payload.budget) || Number(payload.available_cash) || 0,
+      unit_types: payload.unit_types || [],
       min_rooms: Number(payload.min_rooms) || 0,
       delivery_status: payload.delivery_status || msg.defaultReady,
-      preferred_areas: payload.preferred_areas,
+      preferred_areas: payload.preferred_areas || [],
       notify_exact_match: payload.notify_exact_match,
       notify_featured: payload.notify_featured,
     }
 
     if (payload.buyRequestId) {
-      // التحقق من ملكية طلب الشراء لمنع ثغرة IDOR
       const { data: targetLead } = await supabase
         .from('buy_requests')
         .select('id, user_id, email, phone')
         .eq('id', payload.buyRequestId)
         .maybeSingle()
 
-      const isLeadOwner =
-        targetLead &&
-        (targetLead.user_id === user.id ||
-          (user.email &&
+      if (!targetLead) {
+        return { success: false, error: msg.sessionExpired }
+      }
+
+      // تحقق صارم من ملكية طلب الشراء عبر user_id
+      const isLeadOwner = targetLead.user_id
+        ? targetLead.user_id === user.id
+        : (user.email &&
             targetLead.email &&
             String(targetLead.email).trim().toLowerCase() ===
               String(user.email).trim().toLowerCase()) ||
           (user.phone &&
             targetLead.phone &&
-            String(targetLead.phone).trim() === String(user.phone).trim()))
+            String(targetLead.phone).trim() === String(user.phone).trim())
 
       if (!isLeadOwner) {
         return { success: false, error: msg.sessionExpired }
       }
 
-      await supabase
+      const { error: updErr } = await supabase
         .from('buy_requests')
         .update({ ...updateData, user_id: user.id })
         .eq('id', payload.buyRequestId)
+
+      if (updErr) {
+        // محاولة احتياطية بدون الأعمدة الإضافية في حال لم يتم تشغيل الـ SQL بعد
+        const {
+          currency_code: _c,
+          notify_exact_match: _ne,
+          notify_featured: _nf,
+          ...coreBuyData
+        } = updateData
+        await supabase
+          .from('buy_requests')
+          .update({ ...coreBuyData, user_id: user.id })
+          .eq('id', payload.buyRequestId)
+      }
     } else {
-      await supabase.from('buy_requests').insert({
+      const { error: insErr } = await supabase.from('buy_requests').insert({
         ...updateData,
         user_id: user.id,
         name: user.name || msg.buyerWord,
         phone: user.phone || '',
         email: user.email || '',
       })
+
+      if (insErr) {
+        const {
+          currency_code: _c,
+          notify_exact_match: _ne,
+          notify_featured: _nf,
+          ...coreBuyData
+        } = updateData
+        await supabase.from('buy_requests').insert({
+          ...coreBuyData,
+          user_id: user.id,
+          name: user.name || msg.buyerWord,
+          phone: user.phone || '',
+          email: user.email || '',
+        })
+      }
     }
 
     revalidatePath('/account')
+    revalidatePath('/admin/leads')
     return { success: true }
   } catch {
     return { success: false, error: msg.prefSaveFailed }

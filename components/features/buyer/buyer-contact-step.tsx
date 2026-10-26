@@ -5,10 +5,12 @@ import {
   CheckCircle2,
   Eye,
   EyeOff,
+  Loader2,
   LogIn,
   UserPlus,
 } from 'lucide-react'
 import {
+  processBuyerStep3Action,
   sendSellerRecoveryLinkAction,
   verifyExistingEmailPasswordAction,
   type BuyRequestPayload,
@@ -50,22 +52,22 @@ export type BuyerConflictState =
 
 const BUYER_STEP3_FALLBACK: Record<LocaleCode, Record<string, string>> = {
   ar: {
-    enterAccountPassError: 'يرجى إدخال كلمة مرور حسابك للمتابعة',
+    enterAccountPassError: 'يرجى إدخال كلمة مرور حسابك للمتابعة وحفظ طلبك',
     wrongPassError: 'كلمة المرور غير صحيحة',
     sendLinkError: 'تعذر إرسال الرابط حالياً',
   },
   en: {
-    enterAccountPassError: 'Please enter your account password to continue',
+    enterAccountPassError: 'Please enter your account password to continue and save your request',
     wrongPassError: 'Incorrect password',
     sendLinkError: 'Could not send recovery link right now',
   },
   ru: {
-    enterAccountPassError: 'Введите пароль от вашего аккаунта для продолжения',
+    enterAccountPassError: 'Введите пароль от вашего аккаунта для сохранения заявки',
     wrongPassError: 'Неверный пароль',
     sendLinkError: 'Не удалось отправить ссылку восстановления',
   },
   ka: {
-    enterAccountPassError: 'გთხოვთ შეიყვანოთ ანგარიშის პაროლი გასაგრძელებლად',
+    enterAccountPassError: 'გთხოვთ შეიყვანოთ ანგარიშის პაროლი მოთხოვნის შესანახად',
     wrongPassError: 'პაროლი არასწორია',
     sendLinkError: 'აღდგენის ბმულის გაგზავნა ვერ მოხერხდა',
   },
@@ -143,13 +145,34 @@ export function BuyerContactStep({
         email: conflictState.email,
         password: existingPass,
       })
-      if (!res.success) {
+      if (!res.success || !res.user) {
         setStepError(
           res.error || pickMsg(locale, t.wrongPassError, 'wrongPassError')
         )
         return
       }
-      onSuccessRedirect()
+
+      // بعد نجاح توثيق الجلسة بكلمة المرور، نحفظ طلب الشراء فوراً تحت user_id الموثق
+      const saveRes = await processBuyerStep3Action({
+        mode: 'session',
+        country: 'GE',
+        userCountry: data.residenceCountry || 'GE',
+        available_cash: Number(data.available_cash) || 0,
+        max_installment: Number(data.max_installment) || 0,
+        payment_plan: data.payment_plan,
+        budget: Number(data.budget) || Number(data.available_cash) || 0,
+        unit_types: data.unit_types,
+        min_rooms: Number.parseInt(String(data.min_rooms), 10) || 0,
+        delivery_status: data.delivery_status,
+        preferred_areas: data.preferred_areas,
+      })
+
+      if (saveRes.status === 'ok') {
+        onSuccessRedirect()
+        return
+      }
+
+      setStepError(saveRes.error || pickMsg(locale, t.wrongPassError, 'wrongPassError'))
     } finally {
       setIsLoading(false)
     }
@@ -186,10 +209,6 @@ export function BuyerContactStep({
           {t.emailExistsTitle}
         </h3>
         <p className="mt-2 text-sm leading-7 text-slate-600">
-          {t.emailExistsDesc1}{' '}
-          <strong className="font-mono text-[var(--brand-navy,#0a1122)]">
-            {conflictState.orderRef}
-          </strong>
           {t.emailExistsDesc2}{' '}
           <span className="font-semibold text-[var(--brand-navy,#0a1122)]">
             {conflictState.email}
@@ -237,7 +256,14 @@ export function BuyerContactStep({
           onClick={handleVerifyExistingEmail}
           className="mt-5 h-12 w-full rounded-xl bg-[var(--brand-primary,#007a5a)] text-sm font-bold text-white hover:bg-[var(--brand-primary-hover,#006248)]"
         >
-          {isLoading ? t.loggingInBtn : t.loginToAccountBtn}
+          {isLoading ? (
+            <span className="inline-flex items-center gap-2">
+              <Loader2 className="size-4 animate-spin" />
+              {t.loggingInBtn}
+            </span>
+          ) : (
+            t.loginToAccountBtn
+          )}
         </Button>
 
         <div className="mt-4 flex items-center justify-between">
@@ -268,10 +294,6 @@ export function BuyerContactStep({
           {t.phoneExistsTitle}
         </h3>
         <p className="mt-2 text-sm leading-7 text-slate-600">
-          {t.phoneExistsDesc1}{' '}
-          <strong className="font-mono text-[var(--brand-navy,#0a1122)]">
-            {conflictState.orderRef}
-          </strong>
           {t.phoneExistsDesc2}
         </p>
 

@@ -46,9 +46,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
 import { ScrollReveal } from '@/components/shared/scroll-reveal'
 import { AccountActionLinks } from './delete-account-modal'
-import { getCurrencySymbol, useTranslation } from '@/lib/i18n'
+import { getCurrencySymbol, useTranslation, type LocaleCode } from '@/lib/i18n'
 
 export type SellerUnitItem = {
   id: string
@@ -88,47 +89,166 @@ export type SellerUnitItem = {
 }
 
 const INITIAL_VISIBLE_UNITS = 3
+const REAL_DOC_KEYS = ['contract', 'receipts', 'statement', 'passport'] as const
 
-function calculateUnitCompletion(unit: SellerUnitItem, t: Record<string, any>) {
-  const hasImages = Array.isArray(unit.images) && unit.images.length > 0
-  const uploadedDocsCount = unit.documents
-    ? Object.keys(unit.documents).filter((k) => unit.documents?.[k]?.url).length
-    : 0
+function getCompletionLabels(locale: LocaleCode) {
+  if (locale === 'en') {
+    return {
+      missingPhotosTag: 'Missing Unit Photos',
+      missingDocsTag: 'Missing Documents',
+      missingDetailsTag: 'Missing Unit Details',
+      headlineMissingBoth:
+        'Upload unit photos & ownership documents so we can verify and publish your unit',
+      headlineMissingPhotos:
+        'Upload unit photos so we can review and publish your unit',
+      headlineMissingDocs:
+        'Upload ownership documents so we can verify and publish your unit',
+      headlineMissingDetails:
+        'Complete unit specifications so we can review and publish your unit',
+    }
+  }
+  if (locale === 'ru') {
+    return {
+      missingPhotosTag: 'Не загружены фото',
+      missingDocsTag: 'Не загружены документы',
+      missingDetailsTag: 'Не заполнены детали',
+      headlineMissingBoth:
+        'Загрузите фото и документы объекта для проверки и публикации',
+      headlineMissingPhotos:
+        'Загрузите фотографии объекта для проверки и публикации',
+      headlineMissingDocs:
+        'Загрузите документы на объект для проверки и публикации',
+      headlineMissingDetails:
+        'Заполните характеристики объекта для проверки и публикации',
+    }
+  }
+  if (locale === 'ka') {
+    return {
+      missingPhotosTag: 'აკლია ფოტოები',
+      missingDocsTag: 'აკლია დოკუმენტები',
+      missingDetailsTag: 'აკლია დეტალები',
+      headlineMissingBoth:
+        'ატვირთეთ ფოტოები და დოკუმენტები ობიექტის გამოსაქვეყნებლად',
+      headlineMissingPhotos:
+        'ატვირთეთ ობიექტის ფოტოები შესამოწმებლად და გამოსაქვეყნებლად',
+      headlineMissingDocs:
+        'ატვირთეთ ობიექტის დოკუმენტები შესამოწმებლად და გამოსაქვეყნებლად',
+      headlineMissingDetails:
+        'შეავსეთ ობიექტის მონაცემები გამოსაქვეყნებლად',
+    }
+  }
+  return {
+    missingPhotosTag: 'فاضل صور الوحدة',
+    missingDocsTag: 'فاضل المستندات',
+    missingDetailsTag: 'فاضل استكمال بيانات الوحدة',
+    headlineMissingBoth:
+      'فاضل ترفع صور الوحدة والمستندات عشان نراجعها وننشرها للمشترين',
+    headlineMissingPhotos:
+      'فاضل ترفع صور الوحدة عشان نراجعها وننشرها للمشترين',
+    headlineMissingDocs:
+      'فاضل ترفع مستندات الوحدة عشان نراجعها وننشرها للمشترين',
+    headlineMissingDetails:
+      'فاضل تكمل باقي مواصفات الوحدة عشان نراجعها وننشرها',
+  }
+}
+
+export type MissingCompletionItem = {
+  key: 'photos' | 'docs' | 'details'
+  label: string
+  href: string
+}
+
+function calculateUnitCompletion(
+  unit: SellerUnitItem,
+  locale: LocaleCode
+) {
+  const cLabels = getCompletionLabels(locale)
+  const meta =
+    unit.documents && typeof unit.documents === 'object'
+      ? unit.documents.__unit_meta || {}
+      : {}
+
+  const hasImages =
+    Array.isArray(unit.images) &&
+    unit.images.filter((img) => Boolean(img && String(img).trim())).length > 0
+
+  const docsObj =
+    unit.documents && typeof unit.documents === 'object' ? unit.documents : {}
+  const normalizedDocs: Record<string, any> = { ...docsObj }
+  if (normalizedDocs.national_id && !normalizedDocs.passport) {
+    normalizedDocs.passport = normalizedDocs.national_id
+  }
+
+  const uploadedDocsCount = REAL_DOC_KEYS.filter((k) =>
+    Boolean(normalizedDocs[k]?.url)
+  ).length
   const hasDocuments = uploadedDocsCount > 0
 
-  const checks = [
+  const areaVal = unit.area || meta.area
+  const typeVal = unit.unit_type || meta.unit_type
+  const sizeVal = Number(unit.size ?? meta.size) || 0
+  const roomsVal = Number(unit.rooms ?? meta.rooms) || 0
+  const bathsVal = Number(unit.bathrooms ?? meta.bathrooms) || 0
+  const finishingVal = unit.finishing || meta.finishing
+  const deliveryVal = unit.delivery_status || meta.delivery_status
+  const contractYrVal = Number(unit.contract_year ?? meta.contract_year) || 0
+  const instFreqVal = unit.installment_frequency || meta.installment_frequency
+  const instAmtVal = unit.installment_amount ?? meta.installment_amount
+
+  const dataChecks = [
     Boolean(unit.developer_name),
     Boolean(unit.project_name),
-    Boolean(unit.area),
-    Boolean(unit.unit_type),
-    Number(unit.size) > 0,
-    Number(unit.rooms) > 0,
-    Number(unit.bathrooms) > 0,
-    Boolean(unit.finishing),
-    Boolean(unit.delivery_status),
+    Boolean(areaVal),
+    Boolean(typeVal),
+    sizeVal > 0,
+    roomsVal > 0,
+    bathsVal > 0,
+    Boolean(finishingVal),
+    Boolean(deliveryVal),
     Boolean(unit.description),
     Number(unit.contract_price) > 0,
     Number(unit.paid_amount) > 0,
-    Number(unit.market_price) > 0,
-    Number(unit.installment_amount) >= 0 && unit.installment_amount !== null,
-    Boolean(unit.installment_frequency),
-    Number(unit.contract_year) > 0,
-    hasImages,
-    hasDocuments,
+    Number(unit.market_price || unit.contract_price) > 0,
+    instAmtVal !== null && instAmtVal !== undefined && Number(instAmtVal) >= 0,
+    Boolean(instFreqVal),
+    contractYrVal > 0,
   ]
 
+  const completedDataCount = dataChecks.filter(Boolean).length
+  const hasAllCoreDetails = Boolean(areaVal && typeVal && sizeVal > 0)
+
+  // إجمالي عناصر الاكتمال = 18 (16 بيان ومواصفة + 1 صور + 1 مستندات)
   const total = 18
-  const completedCount = checks.filter(Boolean).length
+  const completedCount =
+    completedDataCount + (hasImages ? 1 : 0) + (hasDocuments ? 1 : 0)
 
-  const rawPct = Math.round((completedCount / total) * 100)
-  const percentage =
-    hasImages && hasDocuments ? Math.max(rawPct, 100) : Math.min(92, rawPct)
+  // حساب النسبة المئوية بدقة بحيث تنقص بوضوح إذا لم يرفع الصور (15%) أو لم يرفع المستندات (15%)
+  const dataScore = Math.round((completedDataCount / 16) * 70)
+  const photosScore = hasImages ? 15 : 0
+  const docsScore = hasDocuments ? 15 : 0
+  const percentage = Math.min(100, dataScore + photosScore + docsScore)
 
-  const missingTags: string[] = []
-  if (!hasImages) missingTags.push(t.missingPhotosTag)
-  if (!hasDocuments) missingTags.push(t.missingDocsTag)
-  if (!unit.area || !unit.unit_type || !unit.size) {
-    missingTags.push(t.missingDetailsTag)
+  const missingItems: MissingCompletionItem[] = []
+  if (!hasAllCoreDetails) {
+    missingItems.push({
+      key: 'details',
+      label: cLabels.missingDetailsTag,
+      href: `/sell?editUnitId=${unit.id}&step=3`,
+    })
+  }
+  if (!hasImages) {
+    missingItems.push({
+      key: 'photos',
+      label: cLabels.missingPhotosTag,
+      href: `/sell?editUnitId=${unit.id}&step=5`,
+    })
+  }
+  if (!hasDocuments) {
+    missingItems.push({
+      key: 'docs',
+      label: cLabels.missingDocsTag,
+      href: `/account/documents?unitId=${unit.id}`,
+    })
   }
 
   return {
@@ -137,8 +257,10 @@ function calculateUnitCompletion(unit: SellerUnitItem, t: Record<string, any>) {
     percentage,
     hasImages,
     hasDocuments,
+    hasAllCoreDetails,
     uploadedDocsCount,
-    missingTags,
+    missingItems,
+    cLabels,
   }
 }
 
@@ -148,7 +270,8 @@ function getSellerTimelineAndStatus(
   t: Record<string, any>
 ) {
   const clean = (unit.status || 'pending').trim().toLowerCase()
-  const isComplete = comp.hasImages && comp.hasDocuments
+  const isComplete =
+    comp.hasAllCoreDetails && comp.hasImages && comp.hasDocuments
 
   switch (clean) {
     case 'active':
@@ -211,12 +334,16 @@ function getSellerTimelineAndStatus(
       }
     default:
       if (!isComplete) {
-        const headlineText =
-          !comp.hasImages && !comp.hasDocuments
-            ? t.statusIncompleteBothHeadline || t.statusIncompleteHeadline
-            : !comp.hasDocuments
-              ? t.statusIncompleteDocsHeadline || t.statusIncompleteHeadline
-              : t.statusIncompleteHeadline
+        let headlineText = comp.cLabels.headlineMissingBoth
+        if (!comp.hasAllCoreDetails) {
+          headlineText = comp.cLabels.headlineMissingDetails
+        } else if (!comp.hasImages && !comp.hasDocuments) {
+          headlineText = comp.cLabels.headlineMissingBoth
+        } else if (!comp.hasImages) {
+          headlineText = comp.cLabels.headlineMissingPhotos
+        } else if (!comp.hasDocuments) {
+          headlineText = comp.cLabels.headlineMissingDocs
+        }
 
         return {
           code: 'incomplete',
@@ -333,8 +460,9 @@ export function SellerDashboard({
   const money = (value: number | null | undefined) =>
     `${Number(value || 0).toLocaleString('en-US')} ${currencySymbol}`
 
-  const comp = calculateUnitCompletion(activeUnit, t)
-  const isComplete = comp.hasImages && comp.hasDocuments
+  const comp = calculateUnitCompletion(activeUnit, locale)
+  const isComplete =
+    comp.hasAllCoreDetails && comp.hasImages && comp.hasDocuments
   const meta = getSellerTimelineAndStatus(activeUnit, comp, t)
   const isPausedBySeller = meta.code === 'paused_by_seller'
 
@@ -342,9 +470,19 @@ export function SellerDashboard({
   const uploadedDocsCount = comp.uploadedDocsCount
   const unitOffersCount = offersCountMap[activeUnit.id] || 0
 
-  const editUnitHref = !comp.hasImages
-    ? `/sell?editUnitId=${activeUnit.id}&step=5`
-    : `/sell?editUnitId=${activeUnit.id}&step=3`
+  const activeUnitRawArea =
+    activeUnit.area || activeUnit.documents?.__unit_meta?.area
+  const activeUnitLocalizedArea = activeUnitRawArea
+    ? getLocalizedGeorgiaAreaName(activeUnitRawArea, locale)
+    : t.defaultAreaName
+  const activeUnitType =
+    activeUnit.unit_type || activeUnit.documents?.__unit_meta?.unit_type
+
+  const editUnitHref = !comp.hasAllCoreDetails
+    ? `/sell?editUnitId=${activeUnit.id}&step=3`
+    : !comp.hasImages
+      ? `/sell?editUnitId=${activeUnit.id}&step=5`
+      : `/sell?editUnitId=${activeUnit.id}&step=3`
 
   const isCurrentlyFeatured =
     Boolean(activeUnit.is_featured) &&
@@ -476,7 +614,6 @@ export function SellerDashboard({
 
   return (
     <div dir={dir} className="mx-auto max-w-[680px] px-4 sm:px-6">
-      {/* 1. يظهر شريط التبديل بين الوحدات فقط لو البائع عنده أكثر من وحدة؛ أما لو وحدة واحدة فيتم دمجها في الكارت الرئيسي لمنع التكرار واللخبطة */}
       {localSells.length > 1 && (
         <ScrollReveal>
           <section className="mb-4 rounded-[20px] border border-gray-200/90 bg-white p-4 text-start shadow-2xs sm:p-5">
@@ -520,9 +657,14 @@ export function SellerDashboard({
               }`}
             >
               {displayedUnits.map((item, idx) => {
-                const itemComp = calculateUnitCompletion(item, t)
+                const itemComp = calculateUnitCompletion(item, locale)
                 const itemMeta = getSellerTimelineAndStatus(item, itemComp, t)
                 const isSelected = item.id === activeUnit.id
+                const itemRawArea =
+                  item.area || item.documents?.__unit_meta?.area
+                const itemAreaName = itemRawArea
+                  ? getLocalizedGeorgiaAreaName(itemRawArea, locale)
+                  : t.defaultAreaName
 
                 return (
                   <button
@@ -556,7 +698,7 @@ export function SellerDashboard({
                             {item.project_name || t.defaultProjectName}
                           </span>
                           <span className="text-[11px] text-gray-500">
-                            · {item.area || t.defaultAreaName}
+                            · {itemAreaName}
                           </span>
                           {isSelected && (
                             <span className="rounded-md bg-[var(--brand-navy,#0a1122)] px-1.5 py-0.5 text-[9.5px] font-bold text-white">
@@ -624,7 +766,6 @@ export function SellerDashboard({
       {/* ==================== الكارت الموحد للوحدة النشطة والخطوة الجاية والأسعار ==================== */}
       <ScrollReveal delay={60}>
         <section className="rounded-[20px] border border-gray-200/90 bg-white p-5 text-start shadow-xs sm:p-6">
-          {/* هيدر الوحدة */}
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 pb-4">
             <div className="flex items-center gap-2.5">
               <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]">
@@ -642,8 +783,8 @@ export function SellerDashboard({
                   </span>
                 </div>
                 <p className="mt-0.5 text-xs text-gray-500">
-                  {activeUnit.area || t.defaultAreaName}
-                  {activeUnit.unit_type ? ` · ${activeUnit.unit_type}` : ''}
+                  {activeUnitLocalizedArea}
+                  {activeUnitType ? ` · ${activeUnitType}` : ''}
                 </p>
               </div>
             </div>
@@ -659,7 +800,7 @@ export function SellerDashboard({
             )}
           </div>
 
-          {/* الخطوة الجاية ونسبة الاكتمال */}
+          {/* الخطوة الجاية ونسبة الاكتمال + شارات (فاضل الصور / فاضل المستندات) */}
           <div className="mt-4">
             <span className="text-xs font-extrabold text-[var(--brand-primary,#007a5a)]">
               {t.nextStepLabel}
@@ -688,21 +829,29 @@ export function SellerDashboard({
               />
             </div>
 
-            {comp.missingTags.length > 0 && (
-              <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-                {comp.missingTags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="rounded-lg bg-amber-100/90 px-2.5 py-0.5 text-[10.5px] font-extrabold text-amber-900"
+            {comp.missingItems.length > 0 && (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {comp.missingItems.map((item) => (
+                  <Link
+                    key={item.key}
+                    href={item.href}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300/80 bg-amber-100/90 px-3 py-1 text-[11px] font-extrabold text-amber-950 transition hover:bg-amber-200/80"
                   >
-                    ⚠️ {tag}
-                  </span>
+                    {item.key === 'photos' ? (
+                      <ImagePlus className="size-3.5 text-amber-800" />
+                    ) : item.key === 'docs' ? (
+                      <UploadCloud className="size-3.5 text-amber-800" />
+                    ) : (
+                      <AlertCircle className="size-3.5 text-amber-800" />
+                    )}
+                    <span>{item.label}</span>
+                  </Link>
                 ))}
               </div>
             )}
           </div>
 
-          {/* ملخص الأسعار مدمج داخل نفس الكارت لمنع تشتت الكروت */}
+          {/* ملخص الأسعار */}
           <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl border border-gray-100 bg-[#f8faf9] p-3.5">
             <div>
               <p className="text-[11px] font-semibold text-gray-500">
@@ -736,7 +885,7 @@ export function SellerDashboard({
             </div>
           )}
 
-          {/* أزرار الإجراءات السريعة (توضيح زر الصور وزر المستندات) */}
+          {/* أزرار التحكم بالوحدة (تعديل / إيقاف مؤقت / حذف) بدون تكرار زر المستندات */}
           <div className="mt-4 flex flex-wrap items-center gap-2">
             {!comp.hasImages ? (
               <Link
@@ -754,26 +903,6 @@ export function SellerDashboard({
                 {t.editDataBtn}
               </Link>
             )}
-
-            <Link
-              href={`/account/documents?unitId=${activeUnit.id}`}
-              className={`inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl px-4 text-xs font-bold transition sm:flex-none sm:px-5 ${
-                !comp.hasDocuments
-                  ? 'bg-[#0a1122] text-white hover:bg-[#16223f]'
-                  : 'border border-gray-200 bg-gray-50 text-[#0a1122] hover:bg-gray-100'
-              }`}
-            >
-              <UploadCloud
-                className={`size-3.5 ${
-                  !comp.hasDocuments ? 'text-emerald-300' : 'text-[#007a5a]'
-                }`}
-              />
-              <span>
-                {!comp.hasDocuments
-                  ? t.uploadDocsBtn
-                  : `${t.cardDocuments} (${uploadedDocsCount}/4)`}
-              </span>
-            </Link>
 
             {meta.code !== 'sold' && (
               <button
@@ -827,7 +956,7 @@ export function SellerDashboard({
               </>
             ) : (
               <>
-                {t.radarNotePrefix} ({activeUnit.area || t.defaultAreaName})
+                {t.radarNotePrefix} ({activeUnitLocalizedArea})
               </>
             )}
           </div>

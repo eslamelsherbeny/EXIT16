@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Loader2 } from 'lucide-react'
 import { SellerDashboard, type SellerUnitItem } from './seller-dashboard'
 import { BuyerDashboard, type BuyerRequestItem } from './buyer-dashboard'
 import { AccountActionLinks } from './delete-account-modal'
@@ -37,7 +36,6 @@ export function AccountViewSwitcher({
   const [currentView, setCurrentView] = useState<'seller' | 'buyer'>(
     initialView
   )
-  const [switching, setSwitching] = useState(false)
 
   const mainBuyerRequest =
     buys.find((b) => {
@@ -51,14 +49,12 @@ export function AccountViewSwitcher({
 
   const handleSwitch = (target: 'seller' | 'buyer') => {
     if (target === currentView) return
-    setSwitching(true)
     setCurrentView(target)
     if (typeof window !== 'undefined') {
       const url = new URL(window.location.href)
       url.searchParams.set('view', target)
       window.history.replaceState({}, '', url.toString())
     }
-    setTimeout(() => setSwitching(false), 180)
   }
 
   return (
@@ -93,12 +89,7 @@ export function AccountViewSwitcher({
         </div>
       )}
 
-      {switching ? (
-        <div className="flex min-h-[40vh] flex-col items-center justify-center gap-2 text-xs font-bold text-[var(--brand-primary,#007a5a)]">
-          <Loader2 className="size-6 animate-spin" />
-          <span>{t.loading}</span>
-        </div>
-      ) : currentView === 'seller' && sells.length > 0 ? (
+      {currentView === 'seller' && sells.length > 0 ? (
         <SellerDashboard
           sells={sells}
           initialSelectedUnitId={initialSelectedUnitId}

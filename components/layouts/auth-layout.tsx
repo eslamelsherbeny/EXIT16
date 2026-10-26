@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Script from 'next/script'
-import { Check, Loader2 } from 'lucide-react'
+import Link from 'next/link'
+import { Check } from 'lucide-react'
 import { Navbar } from '@/components/layouts/site-shell'
 import { useTranslation } from '@/lib/i18n'
 
@@ -37,11 +38,11 @@ export function AuthCard({
   )
 }
 
-function CloudflareLogoSvg() {
+function CloudflareOfficialLogo() {
   return (
     <svg
       viewBox="0 0 64 28"
-      className="h-4 w-auto shrink-0"
+      className="h-[15px] w-auto shrink-0"
       aria-hidden="true"
       fill="none"
     >
@@ -62,24 +63,48 @@ export function TurnstileBox({
 }: {
   onTokenChange?: (token: string) => void
 }) {
-  const { t: dict, locale, dir } = useTranslation()
-  const t = dict.authPages.common
+  const { locale, dir } = useTranslation()
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim() || ''
   const containerRef = useRef<HTMLDivElement>(null)
 
-  const [token, setToken] = useState<string>('')
+  const [token, setToken] = useState<string>(siteKey ? '' : 'dev-bypass-token')
   const [status, setStatus] = useState<'verifying' | 'verified'>('verifying')
 
-  const turnstileLabel =
-    t?.turnstileText && !(locale !== 'ar' && /[\u0600-\u06FF]/.test(t.turnstileText))
-      ? t.turnstileText
-      : locale === 'ar'
-        ? 'تم التحقق الأمني بنجاح'
-        : locale === 'ru'
-          ? 'Проверка безопасности пройдена'
-          : locale === 'ka'
-            ? 'უსაფრთხოების შემოწმება წარმატებულია'
-            : 'Security verification successful'
+  const verifyingText =
+    locale === 'ar'
+      ? 'جاري التحقق...'
+      : locale === 'ru'
+        ? 'Проверка...'
+        : locale === 'ka'
+          ? 'მოწმდება...'
+          : 'Verifying...'
+
+  const verifiedText =
+    locale === 'ar'
+      ? 'تم التحقق بنجاح!'
+      : locale === 'ru'
+        ? 'Успешно!'
+        : locale === 'ka'
+          ? 'წარმატებით!'
+          : 'Success!'
+
+  const privacyText =
+    locale === 'ar'
+      ? 'الخصوصية'
+      : locale === 'ru'
+        ? 'Конфид.'
+        : locale === 'ka'
+          ? 'კონფიდ.'
+          : 'Privacy'
+
+  const termsText =
+    locale === 'ar'
+      ? 'الشروط'
+      : locale === 'ru'
+        ? 'Условия'
+        : locale === 'ka'
+          ? 'პირობები'
+          : 'Terms'
 
   useEffect(() => {
     if (!siteKey) {
@@ -137,14 +162,14 @@ export function TurnstileBox({
 
   if (siteKey) {
     return (
-      <div className="my-1 flex w-full flex-col items-center justify-center">
+      <div className="my-1.5 flex w-full flex-col items-center justify-center">
         <Script
           src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
           strategy="afterInteractive"
         />
         <div
           ref={containerRef}
-          className="flex min-h-[65px] w-full items-center justify-center overflow-hidden rounded-xl border border-slate-200/90 bg-[#fafafa] [&_iframe]:!w-full [&_iframe]:max-w-full"
+          className="flex min-h-[65px] w-full items-center justify-center overflow-hidden [&_iframe]:!w-full [&_iframe]:max-w-full"
         />
         <input
           type="hidden"
@@ -156,10 +181,10 @@ export function TurnstileBox({
   }
 
   return (
-    <div className="my-1 w-full">
+    <div className="my-1.5 w-full">
       <div
         dir={dir}
-        className="flex h-[64px] w-full items-center justify-between gap-3 rounded-xl border border-slate-200/95 bg-[#fafafa] px-4 shadow-2xs transition-colors select-none"
+        className="flex h-[65px] w-full items-center justify-between gap-3 rounded-[10px] border border-[#e0e0e0] bg-[#fafafa] px-4 shadow-[0_1px_2px_rgba(0,0,0,0.03)] select-none"
         aria-label="Cloudflare Turnstile"
       >
         <input
@@ -170,17 +195,17 @@ export function TurnstileBox({
 
         <div className="flex min-w-0 items-center gap-3">
           {status === 'verifying' ? (
-            <span className="flex size-6 shrink-0 items-center justify-center rounded-md border border-slate-300 bg-white">
-              <Loader2 className="size-4 animate-spin text-[#007a5a]" />
+            <span className="relative flex size-6 shrink-0 items-center justify-center">
+              <span className="size-6 animate-spin rounded-full border-[2.5px] border-slate-200 border-t-[#03875b]" />
             </span>
           ) : (
-            <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-[#007a5a] text-white shadow-2xs transition-transform duration-200">
-              <Check className="size-3.5 stroke-[3]" />
+            <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-[#03875b] text-white shadow-2xs animate-in zoom-in-75 duration-200">
+              <Check className="size-4 stroke-[3.2]" />
             </span>
           )}
 
-          <span className="truncate text-xs font-bold text-slate-700 sm:text-[13px]">
-            {turnstileLabel}
+          <span className="truncate text-[13.5px] font-bold text-[#222222]">
+            {status === 'verifying' ? verifyingText : verifiedText}
           </span>
         </div>
 
@@ -189,14 +214,20 @@ export function TurnstileBox({
           className="flex shrink-0 flex-col items-end justify-center text-right font-sans"
         >
           <div className="flex items-center gap-1">
-            <CloudflareLogoSvg />
-            <span className="text-[10px] font-black tracking-tight text-slate-800">
+            <CloudflareOfficialLogo />
+            <span className="text-[10px] font-black tracking-tight text-[#222222]">
               CLOUDFLARE
             </span>
           </div>
-          <span className="text-[8.5px] font-medium text-slate-400">
-            Turnstile • Privacy
-          </span>
+          <div className="mt-0.5 flex items-center gap-1 text-[8.5px] font-medium text-[#767676]">
+            <Link href="/privacy" className="hover:underline">
+              {privacyText}
+            </Link>
+            <span>•</span>
+            <Link href="/terms" className="hover:underline">
+              {termsText}
+            </Link>
+          </div>
         </div>
       </div>
     </div>

@@ -65,10 +65,8 @@ function LoginContent() {
 
       if (result.success) {
         const target = result.redirectTo || (nextUrl ? nextUrl : '/account')
+        router.replace(target)
         router.refresh()
-        setTimeout(() => {
-          window.location.href = target
-        }, 120)
         return
       } else {
         setError(result.error || t.invalidCredentialsError)

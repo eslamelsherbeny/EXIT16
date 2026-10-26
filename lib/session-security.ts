@@ -1,6 +1,6 @@
-import { createHmac, timingSafeEqual } from 'node:crypto'
+import { createHash, createHmac, timingSafeEqual } from 'node:crypto'
 
-function getSecret(): string {
+function getSessionSecret(): string {
   return (
     process.env.SESSION_SECRET ||
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
@@ -9,23 +9,34 @@ function getSecret(): string {
 }
 
 /**
- * إنشاء توكن جلسة موقع رقمياً بـ HMAC-SHA256
- * الصيغة: userId.signature
+ * بصمة مختصرة لكلمة المرور (12 حرفاً) لضمان إبطال الجلسة تلقائياً إذا غيّر المستخدم كلمة مروره
+ */
+export function getPasswordFingerprint(
+  passwordHash: string | null | undefined
+): string {
+  return createHash('sha256')
+    .update(String(passwordHash || 'no-pass').trim())
+    .digest('hex')
+    .slice(0, 12)
+}
+
+/**
+ * إنشاء توكن جلسة موقّع رقمياً بـ HMAC-SHA256
+ * الصيغة الموحدة: userId.pwdFp.signature (3 أجزاء دائماً)
  */
 export function createSignedSessionToken(
   userId: string,
-  _passwordHash?: string | null
+  passwordHash?: string | null
 ): string {
-  const cleanId = String(userId || '').trim()
-  if (!cleanId) return ''
-  try {
-    const sig = createHmac('sha256', getSecret())
-      .update(cleanId)
-      .digest('hex')
-    return `${cleanId}.${sig}`
-  } catch {
-    return cleanId
-  }
+  const cleanUserId = String(userId || '').trim()
+  if (!cleanUserId) return ''
+  const pwdFp = getPasswordFingerprint(passwordHash)
+  const payload = `${cleanUserId}.${pwdFp}`
+  const sig = createHmac('sha256', getSessionSecret())
+    .update(payload)
+    .digest('hex')
+    .slice(0, 24)
+  return `${payload}.${sig}`
 }
 
 /**
@@ -37,57 +48,64 @@ export function extractUserIdFromCookie(
   try {
     if (!rawCookieValue) return null
     const decoded = decodeURIComponent(String(rawCookieValue).trim())
-    if (!decoded) return null
-    const userId = decoded.split('.')[0]?.trim() || null
-    if (!userId || userId.length < 10) return null
-    return userId
+    if (!decoded || decoded.includes('[object')) return null
+    const candidate = decoded.split('.')[0]?.trim() || null
+    if (!candidate || candidate.length < 8 || candidate.length > 64) return null
+    return candidate
   } catch {
     return null
   }
 }
 
 /**
- * التحقق من صحة توقيع الكوكي
- * يدعم الصيغة الحالية (userId.sig) والصيغة الثلاثية السابقة (userId.fp.sig) بدون أي تعارض
+ * التحقق الصارم من صحة توقيع الكوكي ومطابقته لبصمة كلمة المرور الحالية
  */
 export function parseAndVerifySessionCookie(
   rawCookieValue: string | undefined | null,
-  _currentPasswordHash?: string | null
+  currentDbPasswordHash?: string | null
 ): { valid: boolean; userId: string | null } {
   try {
     if (!rawCookieValue) return { valid: false, userId: null }
     const clean = decodeURIComponent(String(rawCookieValue).trim())
-    if (!clean) return { valid: false, userId: null }
+    if (!clean || clean.includes('[object')) {
+      return { valid: false, userId: null }
+    }
 
     const parts = clean.split('.')
     const userId = parts[0]?.trim()
 
-    if (!userId || userId.length < 10) {
+    if (!userId || userId.length < 8 || userId.length > 64) {
       return { valid: false, userId: null }
     }
 
-    // 1. الصيغة القياسية الثنائية: userId.sig
-    if (parts.length === 2) {
-      const sig = parts[1]?.trim()
-      if (!sig) return { valid: false, userId: null }
-      const expectedSig = createHmac('sha256', getSecret())
-        .update(userId)
+    // 1. الصيغة القياسية الثلاثية: userId.pwdFp.sig
+    if (parts.length === 3) {
+      const [, cookiePwdFp, sig] = parts
+      if (!cookiePwdFp || !sig) return { valid: false, userId: null }
+
+      const expectedSig = createHmac('sha256', getSessionSecret())
+        .update(`${userId}.${cookiePwdFp}`)
         .digest('hex')
+        .slice(0, 24)
 
       const bufA = Buffer.from(sig)
       const bufB = Buffer.from(expectedSig)
-      if (bufA.length === bufB.length && timingSafeEqual(bufA, bufB)) {
-        return { valid: true, userId }
+      if (bufA.length !== bufB.length || !timingSafeEqual(bufA, bufB)) {
+        return { valid: false, userId: null }
       }
-      // في حال تغير متغير البيئة بين Local و Production ولكن الـ UUID سليم
-      if (/^[0-9a-fA-F-]{32,36}$/.test(userId)) {
-        return { valid: true, userId }
+
+      if (currentDbPasswordHash !== undefined) {
+        const dbPwdFp = getPasswordFingerprint(currentDbPasswordHash)
+        if (cookiePwdFp !== dbPwdFp) {
+          return { valid: false, userId: null }
+        }
       }
-      return { valid: false, userId: null }
+
+      return { valid: true, userId }
     }
 
-    // 2. توافق مع أي كوكي ثلاثي سابق (userId.fp.sig) أو UUID مباشر
-    if (/^[0-9a-fA-F-]{32,36}$/.test(userId)) {
+    // 2. دعم انتقالي للصيغة الثنائية إن وجدت في متصفح العميل
+    if (parts.length === 2 && /^[0-9a-fA-F-]{32,36}$/.test(userId)) {
       return { valid: true, userId }
     }
 

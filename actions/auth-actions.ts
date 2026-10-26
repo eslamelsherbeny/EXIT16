@@ -46,9 +46,15 @@ function getSessionSecret() {
   )
 }
 
+function normalizeDigits(str: string): string {
+  return String(str || '')
+    .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 1632))
+    .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 1776))
+}
+
 function sanitizeInput(val: unknown, maxLength = 250): string {
   if (typeof val !== 'string') return ''
-  return val
+  return normalizeDigits(val)
     .trim()
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
     .replace(/[<>]/g, '')
@@ -60,7 +66,6 @@ async function verifyTurnstileOnServer(token?: string | null): Promise<boolean> 
   const secretKey = process.env.TURNSTILE_SECRET_KEY?.trim()
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim()
 
-  // إذا لم تكن مفاتيح Cloudflare مفعلة بالكامل أو كان التوكن من الويدجت المحلية، نسمح بالدخول السلس
   if (!secretKey || !siteKey) return true
   if (!token || token === 'dev-bypass-token') return true
 
@@ -79,7 +84,6 @@ async function verifyTurnstileOnServer(token?: string | null): Promise<boolean> 
     const data = await res.json()
     return Boolean(data.success)
   } catch {
-    // في حال فشل الاتصال بـ Cloudflare لا نمنع العميل الحقيقي من الدخول
     return true
   }
 }
@@ -162,23 +166,36 @@ function getPhoneVariants(rawPhone: string) {
     .replace(/[^0-9+]/g, '')
   if (!digits) return []
 
-  if (digits.startsWith('+')) {
-    const stripped = digits.slice(1)
-    return Array.from(new Set([digits, stripped, `0${stripped}`]))
+  const withoutPlus = digits.replace(/^\+/, '')
+  const strippedZero = withoutPlus.replace(/^0+/, '')
+
+  const variants = new Set<string>([
+    digits,
+    withoutPlus,
+    `+${withoutPlus}`,
+    `0${strippedZero}`,
+    `+${strippedZero}`,
+    `+995${strippedZero}`,
+    `+20${strippedZero}`,
+    `+966${strippedZero}`,
+    `+971${strippedZero}`,
+    `+965${strippedZero}`,
+    `+974${strippedZero}`,
+    `+7${strippedZero}`,
+    `+90${strippedZero}`,
+  ])
+
+  // إذا كتب المستخدم الرقم بكود الدولة (مثلاً 995555... أو 2010...) نضيف أيضاً الصيغ بدون الكود
+  for (const code of ['995', '20', '966', '971', '965', '974', '90']) {
+    if (strippedZero.startsWith(code) && strippedZero.length > code.length + 6) {
+      const localPart = strippedZero.slice(code.length).replace(/^0+/, '')
+      variants.add(`+${code}${localPart}`)
+      variants.add(`0${localPart}`)
+      variants.add(localPart)
+    }
   }
 
-  const stripped = digits.replace(/^0+/, '')
-  return Array.from(
-    new Set([
-      digits,
-      `+${stripped}`,
-      `0${stripped}`,
-      `+995${stripped}`,
-      `+20${stripped}`,
-      `+966${stripped}`,
-      `+971${stripped}`,
-    ])
-  )
+  return Array.from(variants).filter(Boolean)
 }
 
 function formatPrimaryPhone(rawPhone: string) {
@@ -188,7 +205,7 @@ function formatPrimaryPhone(rawPhone: string) {
   if (!digits) return ''
 
   if (digits.startsWith('+')) {
-    return digits
+    return `+${digits.slice(1).replace(/^0+/, '')}`
   }
 
   const stripped = digits.replace(/^0+/, '')
@@ -196,7 +213,9 @@ function formatPrimaryPhone(rawPhone: string) {
     stripped.startsWith('995') ||
     stripped.startsWith('20') ||
     stripped.startsWith('966') ||
-    stripped.startsWith('971')
+    stripped.startsWith('971') ||
+    stripped.startsWith('965') ||
+    stripped.startsWith('974')
   ) {
     return `+${stripped}`
   }
@@ -213,41 +232,40 @@ function verifyPassword(password: string, stored: string | null) {
   if (!stored) return false
   const cleanStored = stored.trim()
   const cleanPass = password.trim()
+  const normPass = normalizeDigits(cleanPass)
 
   try {
     if (cleanStored.startsWith('scrypt$')) {
       const [, salt, expected] = cleanStored.split('$')
       if (!salt || !expected) return false
-      const actual1 = scryptSync(password, salt, 64).toString('hex')
+
+      for (const candidate of [password, cleanPass, normPass]) {
+        const actual = scryptSync(candidate, salt, 64).toString('hex')
+        if (
+          actual.length === expected.length &&
+          timingSafeEqual(Buffer.from(actual), Buffer.from(expected))
+        ) {
+          return true
+        }
+      }
+      return false
+    }
+
+    for (const candidate of [password, cleanPass, normPass]) {
+      const sha = createHash('sha256').update(candidate).digest('hex')
       if (
-        actual1.length === expected.length &&
-        timingSafeEqual(Buffer.from(actual1), Buffer.from(expected))
+        sha.length === cleanStored.length &&
+        timingSafeEqual(Buffer.from(sha), Buffer.from(cleanStored))
       ) {
         return true
       }
-      const actual2 = scryptSync(cleanPass, salt, 64).toString('hex')
-      return (
-        actual2.length === expected.length &&
-        timingSafeEqual(Buffer.from(actual2), Buffer.from(expected))
-      )
     }
 
-    const sha1 = createHash('sha256').update(password).digest('hex')
-    if (
-      sha1.length === cleanStored.length &&
-      timingSafeEqual(Buffer.from(sha1), Buffer.from(cleanStored))
-    ) {
-      return true
-    }
-    const sha2 = createHash('sha256').update(cleanPass).digest('hex')
-    if (
-      sha2.length === cleanStored.length &&
-      timingSafeEqual(Buffer.from(sha2), Buffer.from(cleanStored))
-    ) {
-      return true
-    }
-
-    return cleanStored === password || cleanStored === cleanPass
+    return (
+      cleanStored === password ||
+      cleanStored === cleanPass ||
+      cleanStored === normPass
+    )
   } catch {
     return false
   }
@@ -287,11 +305,13 @@ function verifySignedOtpToken(
   return { valid: isMatch, expired: false }
 }
 
-export type AuthResult = { success: boolean; error?: string }
+export type AuthResult = {
+  success: boolean
+  error?: string
+  redirectTo?: string
+}
 
-export async function loginAction(
-  formData: FormData
-): Promise<AuthResult & { redirectTo?: string }> {
+export async function loginAction(formData: FormData): Promise<AuthResult> {
   const { t: msg, dir } = await getAuthDict()
   const turnstileToken = formData.get('cf_turnstile_response') as string | null
   const isHuman = await verifyTurnstileOnServer(turnstileToken)
@@ -335,6 +355,20 @@ export async function loginAction(
       .in('phone', phoneVariants)
       .order('created_at', { ascending: false })
     candidates = data || []
+
+    // بحث إضافي بآخر 8 أرقام من الهاتف لو كان مخزناً بصيغة مختلفة
+    if (candidates.length === 0) {
+      const pureDigits = rawInput.replace(/\D/g, '')
+      if (pureDigits.length >= 8) {
+        const tail = pureDigits.slice(-8)
+        const { data: tailData } = await supabase
+          .from('users')
+          .select('id, name, email, phone, password_hash, status, role')
+          .ilike('phone', `%${tail}`)
+          .limit(5)
+        candidates = tailData || []
+      }
+    }
   }
 
   if (candidates.length === 0) {
@@ -434,7 +468,7 @@ export async function registerAction(formData: FormData): Promise<AuthResult> {
   if (!name || !email || !formattedPhone || !password || password.length < 8) {
     return {
       success: false,
-      error: msg.fillAllRegister || 'يرجى ملء كافة الحقول المطلوبة',
+      error: msg.fillAllRegister || 'يرجى ملء كافة الحقول المطلوبة (كلمة المرور 8 أحرف على الأقل)',
     }
   }
 
@@ -477,9 +511,10 @@ export async function registerAction(formData: FormData): Promise<AuthResult> {
     .single()
 
   if (error || !newUser) {
+    console.error('Register insert error:', error)
     return {
       success: false,
-      error: msg.registerFailed || 'تعذر إنشاء الحساب حالياً',
+      error: msg.registerFailed || 'تعذر إنشاء الحساب حالياً، تأكد من تشغيل سكريبت قاعدة البيانات',
     }
   }
 
@@ -499,7 +534,7 @@ export async function registerAction(formData: FormData): Promise<AuthResult> {
 
   const verifyLink = `${DEFAULT_SITE_URL}/login?verified=1&email=${encodeURIComponent(email)}&token=${verifyToken}`
 
-  await sendEmail({
+  sendEmail({
     to: email,
     senderName: msg.emailSenderName,
     subject: msg.welcomeEmailSubject,
@@ -512,11 +547,14 @@ export async function registerAction(formData: FormData): Promise<AuthResult> {
               </a>
             </div>
            </div>`,
-  })
+  }).catch(() => {})
 
   revalidatePath('/', 'layout')
   revalidatePath('/account', 'layout')
-  return { success: true }
+  return {
+    success: true,
+    redirectTo: '/account',
+  }
 }
 
 export async function forgotPasswordAction(
@@ -737,10 +775,6 @@ export async function verifyAccountAction(
   return { success: true }
 }
 
-/**
- * دالة قراءة الجلسة الحالية (Read-Only):
- * تقرأ الجلسة وتتحقق من وجود المستخدم وصلاحيته في الداتابيز دون مسح الكوكيز عشوائياً
- */
 export async function getSessionUserAction() {
   try {
     const cookieStore = await cookies()

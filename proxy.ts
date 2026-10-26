@@ -2,18 +2,35 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 function isWellFormedSessionToken(rawCookie: string | undefined): boolean {
-  if (!rawCookie || rawCookie.includes('[object')) return false
-  const parts = rawCookie.trim().split('.')
-  if (parts.length !== 3) return false
-  const [userId, pwdFp, sig] = parts
-  return Boolean(
-    userId &&
-      userId.length >= 8 &&
-      pwdFp &&
-      pwdFp.length === 12 &&
-      sig &&
-      sig.length === 24
-  )
+  if (!rawCookie) return false
+  try {
+    const clean = decodeURIComponent(rawCookie.trim())
+    if (!clean || clean.includes('[object')) return false
+    const parts = clean.split('.')
+
+    // الصيغة القياسية الثلاثية: userId.pwdFp.sig
+    if (parts.length === 3) {
+      const [userId, pwdFp, sig] = parts
+      return Boolean(
+        userId &&
+          userId.length >= 8 &&
+          pwdFp &&
+          pwdFp.length === 12 &&
+          sig &&
+          sig.length === 24
+      )
+    }
+
+    // الصيغة الثنائية الانتقالية: userId.sig
+    if (parts.length === 2) {
+      const [userId, sig] = parts
+      return Boolean(userId && userId.length >= 8 && sig && sig.length >= 16)
+    }
+
+    return false
+  } catch {
+    return false
+  }
 }
 
 export function proxy(request: NextRequest) {
@@ -21,7 +38,7 @@ export function proxy(request: NextRequest) {
   const sessionCookie = request.cookies.get('user_session')?.value
   const hasValidFormat = isWellFormedSessionToken(sessionCookie)
 
-  // إذا تم تحويل المستخدم إلى /login بسبب انتهاء الجلسة أو فساد الكوكي، نمسح الكوكي التالفة فوراً
+  // إذا تم تحويل المستخدم إلى /login بسبب انتهاء الجلسة، نمسح الكوكي التالفة
   if (pathname === '/login' && sessionCookie && !hasValidFormat) {
     const res = NextResponse.next()
     res.cookies.delete('user_session')
@@ -62,6 +79,8 @@ export function proxy(request: NextRequest) {
 
   return NextResponse.next()
 }
+
+export default proxy
 
 export const config = {
   matcher: ['/admin/:path*', '/account/:path*', '/login'],

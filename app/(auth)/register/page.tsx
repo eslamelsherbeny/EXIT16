@@ -56,10 +56,8 @@ export default function RegisterPage() {
     startTransition(async () => {
       const result = await registerAction(formData)
       if (result.success) {
+        router.replace(result.redirectTo || '/account')
         router.refresh()
-        setTimeout(() => {
-          window.location.href = '/account'
-        }, 120)
       } else {
         setError(result.error || t.genericError)
       }

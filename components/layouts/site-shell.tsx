@@ -578,16 +578,6 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
     ? getMyAccountLabel(language, labels?.navbar as Record<string, any>)
     : getGuestLoginLabel(language, labels?.navbar as Record<string, any>)
 
-  const handleAccountOrLoginNavigate = () => {
-    setMobileMenuOpen(false)
-    const targetPath = hasSession ? '/account' : '/login'
-    if (pathname === targetPath) {
-      window.location.reload()
-      return
-    }
-    window.location.href = targetPath
-  }
-
   const renderLanguageDropdownMenu = () => (
     <div
       onClick={(e) => e.stopPropagation()}
@@ -758,16 +748,13 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
       </div>
 
       <div className="border-t border-gray-100 bg-gray-50/70 p-2 text-center">
-        <button
-          type="button"
-          onClick={() => {
-            setNotificationsOpen(false)
-            window.location.href = '/account'
-          }}
-          className="w-full rounded-xl py-2 text-xs font-extrabold text-[#0b6954] transition hover:bg-emerald-50"
+        <Link
+          href="/account"
+          onClick={() => setNotificationsOpen(false)}
+          className="block w-full rounded-xl py-2 text-xs font-extrabold text-[#0b6954] transition hover:bg-emerald-50"
         >
           {labels.accountPages?.common?.backToAccount || 'الذهاب إلى حسابي'}
-        </button>
+        </Link>
       </div>
     </div>
   )
@@ -846,13 +833,12 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
             {langMenuOpen && renderLanguageDropdownMenu()}
           </div>
 
-          <button
-            type="button"
-            onClick={handleAccountOrLoginNavigate}
+          <Link
+            href={hasSession ? '/account' : '/login'}
             className="inline-flex h-[42px] items-center justify-center whitespace-nowrap rounded-[11px] border border-[#e2e8f0] bg-white px-4 text-[13px] font-bold text-[#0a1122] transition-colors hover:bg-gray-50 xl:px-4.5 xl:text-[13.5px]"
           >
             {desktopAuthBtnLabel}
-          </button>
+          </Link>
 
           <Link
             href="/buy"
@@ -984,7 +970,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
         </div>
       </div>
 
-      {/* ==================== قائمة الموبايل الجانبية (z-[60] لتكون أسفل قائمة اللغة العلوية z-[80]) ==================== */}
+      {/* ==================== قائمة الموبايل الجانبية ==================== */}
       {mobileMenuOpen && (
         <div
           onClick={() => setLangMenuOpen(false)}
@@ -1059,9 +1045,9 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
             >
               {labels.navbar?.buy || 'عايز تشتري'}
             </Link>
-            <button
-              type="button"
-              onClick={handleAccountOrLoginNavigate}
+            <Link
+              href={hasSession ? '/account' : '/login'}
+              onClick={() => setMobileMenuOpen(false)}
               className="flex h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-[#e2e8f0] bg-gray-50 text-[13.5px] font-bold text-[#1d3557] transition-colors hover:bg-gray-100"
             >
               <User className="size-4" />
@@ -1071,7 +1057,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
                   : labels?.authPages?.login?.title ||
                     getGuestLoginLabel(language, labels?.navbar as Record<string, any>)}
               </span>
-            </button>
+            </Link>
           </div>
         </div>
       )}
@@ -1308,15 +1294,3 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
     </>
   )
 }
-
-/* ============================================================================
-   ARCHIVED MOBILE MENU APP DOWNLOAD BUTTON (COMMENTED FOR FUTURE APP RELEASE)
-   ============================================================================
-            <Link
-              href="/opportunities#app-banner"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-[#99cec3] bg-[#eff8f6] text-[13.5px] font-bold text-[#0b6954] transition-colors hover:bg-[#e2f3ef]"
-            >
-              <span>{labels.footer?.appLabel || 'حمّل التطبيق'}</span>
-            </Link>
-============================================================================ */

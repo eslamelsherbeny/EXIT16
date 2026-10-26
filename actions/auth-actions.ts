@@ -737,6 +737,15 @@ export async function verifyAccountAction(
   return { success: true }
 }
 
+function safeClearSessionCookies(cookieStore: any) {
+  try {
+    cookieStore.delete('user_session')
+    cookieStore.delete('session_hint')
+  } catch {
+    // في حال تم الاستدعاء داخل Server Component أثناء الريندر نتجنب رمي خطأ السيرفر
+  }
+}
+
 export async function getSessionUserAction() {
   try {
     const cookieStore = await cookies()
@@ -744,8 +753,7 @@ export async function getSessionUserAction() {
     const candidateUserId = extractUserIdFromCookie(rawSession)
 
     if (!rawSession || !candidateUserId) {
-      cookieStore.delete('user_session')
-      cookieStore.delete('session_hint')
+      safeClearSessionCookies(cookieStore)
       return { isLoggedIn: false, isAdmin: false, name: null, role: null }
     }
 
@@ -757,8 +765,7 @@ export async function getSessionUserAction() {
       .maybeSingle()
 
     if (!user) {
-      cookieStore.delete('user_session')
-      cookieStore.delete('session_hint')
+      safeClearSessionCookies(cookieStore)
       return { isLoggedIn: false, isAdmin: false, name: null, role: null }
     }
 
@@ -766,8 +773,7 @@ export async function getSessionUserAction() {
     const status = String(user.status || 'active').trim().toLowerCase()
 
     if (!check.valid || status === 'suspended') {
-      cookieStore.delete('user_session')
-      cookieStore.delete('session_hint')
+      safeClearSessionCookies(cookieStore)
       return { isLoggedIn: false, isAdmin: false, name: null, role: null }
     }
 

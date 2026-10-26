@@ -9,7 +9,6 @@ import {
   ChevronDown,
   ChevronLeft,
   Compass,
-  Handshake,
   Heart,
   ListFilter,
   Loader2,
@@ -74,7 +73,6 @@ function getBuyerExtraLabels(locale: LocaleCode) {
     return {
       submitOfferBtn: 'Submit Offer',
       detailsBtn: 'Details',
-      submittedOffersBtn: 'Submitted Offers',
       specsSummaryLabel: 'Target Specs',
       remainingLabel: 'Remaining',
       installmentShort: 'Installment',
@@ -87,7 +85,6 @@ function getBuyerExtraLabels(locale: LocaleCode) {
     return {
       submitOfferBtn: 'Предложить цену',
       detailsBtn: 'Подробнее',
-      submittedOffersBtn: 'Мои предложения',
       specsSummaryLabel: 'Параметры',
       remainingLabel: 'Остаток',
       installmentShort: 'Взнос',
@@ -100,7 +97,6 @@ function getBuyerExtraLabels(locale: LocaleCode) {
     return {
       submitOfferBtn: 'შეთავაზების გაგზავნა',
       detailsBtn: 'დეტალები',
-      submittedOffersBtn: 'ჩემი შეთავაზებები',
       specsSummaryLabel: 'პარამეტრები',
       remainingLabel: 'დარჩენილი',
       installmentShort: 'განვადება',
@@ -112,7 +108,6 @@ function getBuyerExtraLabels(locale: LocaleCode) {
   return {
     submitOfferBtn: 'تقديم عرض شراء',
     detailsBtn: 'التفاصيل',
-    submittedOffersBtn: 'عروض الشراء والتفاوض',
     specsSummaryLabel: 'المواصفات المطلوبة',
     remainingLabel: 'المتبقي للمطور',
     installmentShort: 'القسط الشهري',
@@ -1003,10 +998,10 @@ export function BuyerDashboard({
         </div>
       )}
 
-      {/* ==================== 1. كارت ملخص طلب الشراء والرادار الذكي (منظم وواضح) ==================== */}
+      {/* ==================== 1. كارت ملخص طلب الشراء + زر «عروضي» وبداخله عدد العروض بخط صغير ==================== */}
       <ScrollReveal>
         <section className="overflow-hidden rounded-[22px] border border-gray-200/90 border-t-[3px] border-t-[var(--brand-primary,#007a5a)] bg-white p-5 text-start shadow-xs sm:p-6">
-          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-gray-100 pb-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 pb-4">
             <div className="flex items-start gap-3">
               <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]">
                 <Radar className="size-5" />
@@ -1022,28 +1017,33 @@ export function BuyerDashboard({
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2.5">
+              {/* الزر الوحيد لعروض المشتري: مكتوب فيه «عروضي» وتحته بخط صغير في نفس الزر عدد العروض */}
+              <Link
+                href="/account/offers?role=buyer"
+                className="flex flex-col items-center justify-center rounded-2xl border border-emerald-200 bg-[var(--brand-primary-light,#eaf8f2)]/70 px-4 py-2 text-center shadow-2xs transition hover:border-[var(--brand-primary,#007a5a)] hover:bg-[var(--brand-primary-light,#eaf8f2)]"
+              >
+                <div className="flex items-center gap-1.5">
+                  <Wallet className="size-3.5 text-[var(--brand-primary,#007a5a)]" />
+                  <span className="text-xs font-black text-[var(--brand-navy,#0a1122)] sm:text-sm">
+                    {t.myOffersBtn}
+                  </span>
+                </div>
+                <span className="mt-0.5 text-[10px] font-extrabold text-[var(--brand-primary,#007a5a)]">
+                  {offersCount > 0
+                    ? `${offersCount} ${t.offersAvailableSub || 'عروض متاحة'}`
+                    : t.noOffersSub || 'لا توجد عروض حالياً'}
+                </span>
+              </Link>
+
               <button
                 type="button"
                 onClick={() => setIsEditingBudget(true)}
-                className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3.5 text-xs font-extrabold text-[var(--brand-navy,#0a1122)] transition hover:border-[var(--brand-primary,#007a5a)] hover:text-[var(--brand-primary,#007a5a)]"
+                className="inline-flex h-12 items-center gap-1.5 rounded-2xl border border-gray-200 bg-white px-4 text-xs font-extrabold text-[var(--brand-navy,#0a1122)] transition hover:border-[var(--brand-primary,#007a5a)] hover:text-[var(--brand-primary,#007a5a)]"
               >
                 <SlidersHorizontal className="size-3.5 text-[var(--brand-primary,#007a5a)]" />
                 <span>{t.editBudgetBtn}</span>
               </button>
-
-              <Link
-                href="/account/offers?role=buyer"
-                className="inline-flex h-10 items-center gap-2 rounded-xl bg-[var(--brand-navy,#0a1122)] px-4 text-xs font-extrabold text-white shadow-2xs transition hover:bg-[var(--brand-navy-hover,#16223f)]"
-              >
-                <Handshake className="size-3.5 text-emerald-400" />
-                <span>{extraLabels.submittedOffersBtn}</span>
-                {offersCount > 0 && (
-                  <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[var(--brand-primary,#007a5a)] px-1.5 text-[11px] font-black text-white">
-                    {offersCount}
-                  </span>
-                )}
-              </Link>
             </div>
           </div>
 
@@ -1092,7 +1092,6 @@ export function BuyerDashboard({
           </div>
         </section>
 
-        {/* فلاتر سريعة حسب شروط الطلب */}
         <section className="mt-4 text-start">
           <div className="flex flex-wrap items-center justify-start gap-2">
             <span className="me-1 text-xs font-extrabold text-[var(--brand-navy,#0a1122)]">
@@ -1806,7 +1805,7 @@ function BuyerUnitCard({
 
       <div className="grid grid-cols-2 gap-2 border-t border-gray-100 px-4 py-3 sm:px-5">
         <Link
-          href={`/account/offers?applyUnitId=${unit.id}`}
+          href={`/account/offers?role=buyer&applyUnitId=${unit.id}`}
           className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[var(--brand-primary,#007a5a)] px-3 text-xs font-extrabold text-white transition hover:bg-[var(--brand-primary-hover,#006248)]"
         >
           <Wallet className="size-3.5 shrink-0" />

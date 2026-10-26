@@ -30,7 +30,9 @@ export function AccountTopBar({ userName = '' }: { userName?: string }) {
         >
           <UserCog className="size-3.5 text-[var(--brand-primary,#007a5a)]" />
           <span>
-            {userName ? `${profileBtnLabel} (${userName.split(' ')[0]})` : profileBtnLabel}
+            {userName
+              ? `${profileBtnLabel} (${userName.split(' ')[0]})`
+              : profileBtnLabel}
           </span>
         </Link>
 

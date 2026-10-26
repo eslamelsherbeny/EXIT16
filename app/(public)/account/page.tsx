@@ -168,11 +168,11 @@ export default async function AccountPage({
   const buys = (myBuysData as BuyerRequestItem[]).filter(Boolean)
   const myUnitIds = new Set(sells.map((s) => String(s.id)))
 
-  // استبعاد وحدات المستخدم نفسه من رادار الشراء حتى لا يشتري وحدته
   const georgiaMarketUnits = (activeMarketUnits as SellerUnitItem[]).filter(
     (u) => u && !isNonGeorgianLegacyArea(u.area) && !myUnitIds.has(String(u.id))
   )
 
+  // حساب عروض البائع لكل وحدة على حدة
   const offersCountMap: Record<string, number> = {}
   allOffers.forEach((o: any) => {
     if (o && o.property_id && o.status !== 'recommended') {
@@ -180,15 +180,50 @@ export default async function AccountPage({
     }
   })
 
-  // عداد عروض المشتري يحسب فقط العروض الحقيقية المقدمة أو المرشحة من الأدمن (بدون تكرار وحدات السوق)
+  // حساب عروض المشتري (العروض المقدمة + الترشيحات المطابقة في صفحة عروضي)
   const myLeadIds = new Set(buys.map((b) => b.id))
   const directBuyerOffers = allOffers.filter(
     (o: any) =>
       o &&
+      o.status !== 'recommended' &&
       (o.buyer_user_id === profile.id ||
         (o.lead_id && myLeadIds.has(o.lead_id)))
   )
-  const totalBuyerOffersCount = directBuyerOffers.length
+  const offeredUnitIds = new Set(
+    directBuyerOffers.map((o: any) => String(o.property_id))
+  )
+
+  const mainBuyerReq =
+    buys.find((b) => {
+      const areasStr = Array.isArray(b.preferred_areas)
+        ? b.preferred_areas.join(' ')
+        : String(b.preferred_areas || '')
+      return !areasStr.includes('🎯')
+    }) ||
+    buys[0] ||
+    null
+
+  let smartMatchesForBuyerCount = 0
+  if (mainBuyerReq) {
+    const seenSignatures = new Set<string>()
+    georgiaMarketUnits.forEach((u) => {
+      try {
+        if (myUnitIds.has(String(u.id)) || offeredUnitIds.has(String(u.id)))
+          return
+        const m = calculateSmartMatch(u, mainBuyerReq, undefined, locale)
+        if (m.score >= 70) {
+          const sig = `${u.project_name || ''}_${u.area || ''}_${u.paid_amount || 0}_${u.unit_type || ''}`
+          if (!seenSignatures.has(sig)) {
+            seenSignatures.add(sig)
+            smartMatchesForBuyerCount++
+          }
+        }
+      } catch {}
+    })
+  }
+
+  const totalBuyerOffersCount =
+    directBuyerOffers.length + smartMatchesForBuyerCount
 
   const matchedBuyersCountMap: Record<string, number> = {}
 

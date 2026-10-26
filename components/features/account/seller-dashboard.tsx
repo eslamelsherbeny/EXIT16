@@ -826,7 +826,6 @@ export function SellerDashboard({
             </h3>
           </div>
 
-          {/* شريط الاكتمال + أزرار استكمال الصور والمستندات تحته مباشرة في مكان واحد */}
           <div className="mt-3.5 rounded-xl border border-gray-100 bg-gray-50/80 p-3.5">
             <div className="mb-2 flex items-center justify-between text-xs">
               <span className="font-bold text-gray-600">
@@ -868,7 +867,6 @@ export function SellerDashboard({
             )}
           </div>
 
-          {/* ملخص الأسعار */}
           <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl border border-gray-100 bg-[#f8faf9] p-3.5">
             <div>
               <p className="text-[11px] font-semibold text-gray-500">
@@ -902,7 +900,6 @@ export function SellerDashboard({
             </div>
           )}
 
-          {/* أزرار التحكم بالوحدة (تعديل البيانات / إيقاف مؤقت / حذف) بدون تكرار */}
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <Link
               href={editUnitHref}
@@ -1011,14 +1008,25 @@ export function SellerDashboard({
             </p>
           </Link>
 
+          {/* كارت عروض البائع: يفتح عروض البائع فقط لهذه الوحدة */}
           <Link
-            href={`/account/offers?unitId=${activeUnit.id}`}
-            className="flex flex-col justify-between rounded-[16px] border border-gray-200/80 bg-white p-4 text-start shadow-2xs transition hover:border-[var(--brand-primary,#007a5a)]"
+            href={`/account/offers?role=seller&unitId=${activeUnit.id}`}
+            className={`flex flex-col justify-between rounded-[16px] border bg-white p-4 text-start shadow-2xs transition hover:border-[var(--brand-primary,#007a5a)] ${
+              unitOffersCount > 0 || meta.code === 'offer_received'
+                ? 'border-emerald-300 bg-[#eaf8f2]/40'
+                : 'border-gray-200/80'
+            }`}
           >
             <p className="text-xs font-extrabold text-[var(--brand-navy,#0a1122)]">
               {t.cardOffers}
             </p>
-            <p className="mt-1.5 text-[11px] font-semibold text-gray-500">
+            <p
+              className={`mt-1.5 text-[11px] font-extrabold ${
+                unitOffersCount > 0 || meta.code === 'offer_received'
+                  ? 'text-[var(--brand-primary,#007a5a)]'
+                  : 'font-semibold text-gray-500'
+              }`}
+            >
               {unitOffersCount > 0 || meta.code === 'offer_received'
                 ? `${unitOffersCount || 1} ${t.cardOffersAvailable}`
                 : t.cardOffersEmpty}

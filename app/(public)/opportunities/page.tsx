@@ -30,9 +30,12 @@ import { isNonGeorgianLegacyArea } from '@/lib/smart-matcher'
 const PAGE_SIZE = 48
 const FAVORITES_STORAGE_KEY = 'darak_favorites'
 
-// الأعمدة العامة الآمنة فقط (بدون name, phone, email, documents لحماية خصوصية الملاك)
+// الأعمدة العامة الآمنة فقط (بدون name, phone, email لحماية خصوصية الملاك)
 const PUBLIC_SAFE_UNIT_COLUMNS =
   'id, project_name, developer_name, area, unit_type, size, garden_size, rooms, bathrooms, floor_number, finishing, delivery_status, delivery_month, delivery_year, features, description, contract_price, paid_amount, market_price, installment_amount, installment_frequency, contract_month, contract_year, years_left, willing_to_discount, discount_amount, images, status, is_featured, featured_until, created_at'
+
+const CORE_SAFE_UNIT_COLUMNS =
+  'id, project_name, developer_name, area, unit_type, size, rooms, bathrooms, finishing, delivery_status, description, contract_price, paid_amount, market_price, installment_amount, installment_frequency, contract_year, years_left, willing_to_discount, discount_amount, images, status, created_at'
 
 export default function OpportunitiesPage() {
   const { t: dict, locale, dir } = useTranslation()
@@ -71,6 +74,12 @@ export default function OpportunitiesPage() {
         if (Array.isArray(parsed)) setFavoriteIds(parsed.map(String))
       }
     } catch {}
+
+    try {
+      const urlParams = new URLSearchParams(window.location.search)
+      const qParam = urlParams.get('q')
+      if (qParam) setSearch(qParam)
+    } catch {}
   }, [])
 
   const handleToggleFavorite = (unitId: string) => {
@@ -96,7 +105,7 @@ export default function OpportunitiesPage() {
           process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
         )
 
-        const { data, error } = await supabase
+        const primaryRes = await supabase
           .from('sell_requests')
           .select(PUBLIC_SAFE_UNIT_COLUMNS)
           .in('status', ['active', 'approved', 'published', 'offer_received'])
@@ -104,9 +113,23 @@ export default function OpportunitiesPage() {
           .order('created_at', { ascending: false })
           .limit(5000)
 
-        if (!error && data) {
+        let rows: any[] | null = primaryRes.data as any[] | null
+        let queryError = primaryRes.error
+
+        if (queryError) {
+          const fallbackRes = await supabase
+            .from('sell_requests')
+            .select(CORE_SAFE_UNIT_COLUMNS)
+            .in('status', ['active', 'approved', 'published', 'offer_received'])
+            .order('created_at', { ascending: false })
+            .limit(5000)
+          rows = fallbackRes.data as any[] | null
+          queryError = fallbackRes.error
+        }
+
+        if (!queryError && rows) {
           setRawDbRows(
-            data.filter((row) => !isNonGeorgianLegacyArea(row.area))
+            rows.filter((row: any) => !isNonGeorgianLegacyArea(row.area))
           )
         }
       } catch (err) {

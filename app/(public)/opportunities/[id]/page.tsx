@@ -31,6 +31,9 @@ const FAVORITES_STORAGE_KEY = 'darak_favorites'
 const PUBLIC_UNIT_DETAIL_COLUMNS =
   'id, user_id, project_name, developer_name, area, unit_type, size, garden_size, rooms, bathrooms, floor_number, finishing, delivery_status, delivery_month, delivery_year, features, description, contract_price, paid_amount, market_price, installment_amount, installment_frequency, contract_month, contract_year, years_left, willing_to_discount, discount_amount, images, status, is_featured, featured_until, created_at'
 
+const CORE_UNIT_DETAIL_COLUMNS =
+  'id, user_id, project_name, developer_name, area, unit_type, size, rooms, bathrooms, finishing, delivery_status, description, contract_price, paid_amount, market_price, installment_amount, installment_frequency, contract_year, years_left, willing_to_discount, discount_amount, images, status, created_at'
+
 function parseSafeNumber(val: unknown, fallback = 0): number {
   if (typeof val === 'number' && Number.isFinite(val) && val > 0) return val
   if (typeof val === 'string') {
@@ -116,12 +119,24 @@ export default function PropertyDetailsPage() {
         )
 
         if (rawId) {
-          const { data: dbUnit } = await supabase
+          const primaryUnitRes = await supabase
             .from('sell_requests')
             .select(PUBLIC_UNIT_DETAIL_COLUMNS)
             .eq('id', rawId)
             .neq('status', 'deleted_by_seller')
             .maybeSingle()
+
+          let dbUnit: any = primaryUnitRes.data
+
+          if (primaryUnitRes.error) {
+            const fallbackUnit = await supabase
+              .from('sell_requests')
+              .select(CORE_UNIT_DETAIL_COLUMNS)
+              .eq('id', rawId)
+              .neq('status', 'deleted_by_seller')
+              .maybeSingle()
+            dbUnit = fallbackUnit.data as any
+          }
 
           if (dbUnit) {
             const isPublicStatus = [
@@ -134,7 +149,6 @@ export default function PropertyDetailsPage() {
               loggedId && dbUnit.user_id && dbUnit.user_id === loggedId
             )
 
-            // لا نعرض الوحدة للعامة إلا إذا كانت منشورة، أو كان الزائر هو مالكها أو أدمن
             if (isPublicStatus || isOwnerViewing || isStaff) {
               setUnitRow(dbUnit)
 
@@ -160,7 +174,7 @@ export default function PropertyDetailsPage() {
           }
         }
 
-        const { data: otherUnits } = await supabase
+        const primaryOthersRes = await supabase
           .from('sell_requests')
           .select(PUBLIC_UNIT_DETAIL_COLUMNS)
           .in('status', ['active', 'approved', 'published', 'offer_received'])
@@ -169,10 +183,23 @@ export default function PropertyDetailsPage() {
           .order('created_at', { ascending: false })
           .limit(12)
 
+        let otherUnits: any[] | null = primaryOthersRes.data as any[] | null
+
+        if (primaryOthersRes.error) {
+          const fallbackOthers = await supabase
+            .from('sell_requests')
+            .select(CORE_UNIT_DETAIL_COLUMNS)
+            .in('status', ['active', 'approved', 'published', 'offer_received'])
+            .neq('id', rawId)
+            .order('created_at', { ascending: false })
+            .limit(12)
+          otherUnits = fallbackOthers.data as any[] | null
+        }
+
         if (otherUnits && otherUnits.length > 0) {
           setRawSimilarRows(
             otherUnits
-              .filter((u) => !isNonGeorgianLegacyArea(u.area))
+              .filter((u: any) => !isNonGeorgianLegacyArea(u.area))
               .slice(0, 6)
           )
         }

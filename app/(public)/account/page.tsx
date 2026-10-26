@@ -21,6 +21,16 @@ import {
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
+function deriveUnitCode(id: string) {
+  const numericCode = String(id || '')
+    .replace(/\D/g, '')
+    .slice(0, 5)
+  const fallbackCode = String(id || '')
+    .slice(0, 5)
+    .toUpperCase()
+  return `U-${numericCode.length >= 4 ? numericCode : fallbackCode}`
+}
+
 async function getSupabase() {
   const cookieStore = await cookies()
   return createServerClient(
@@ -135,22 +145,19 @@ export default async function AccountPage({
           .order('created_at', { ascending: false }),
         supabase
           .from('buy_requests')
-          .select(
-            'id, user_id, available_cash, max_installment, payment_plan, budget, unit_types, min_rooms, delivery_status, preferred_areas, status'
-          )
-          .neq('user_id', profile.id),
+          .select('*')
+          .order('created_at', { ascending: false }),
         supabase
           .from('sell_requests')
           .select('*')
-          .in('status', ['active', 'approved', 'published'])
+          .in('status', ['active', 'approved', 'published', 'offer_received'])
           .order('is_featured', { ascending: false })
           .order('created_at', { ascending: false }),
         supabase
           .from('property_offers')
           .select(
             'id, property_id, lead_id, buyer_user_id, seller_user_id, status'
-          )
-          .neq('status', 'rejected'),
+          ),
       ])
 
     mySellsData = mySellsRes.data || []
@@ -172,22 +179,77 @@ export default async function AccountPage({
     (u) => u && !isNonGeorgianLegacyArea(u.area) && !myUnitIds.has(String(u.id))
   )
 
-  // حساب عروض البائع لكل وحدة على حدة
+  // حساب عروض البائع لكل وحدة (العروض المباشرة + المشترين المتوافقين وحاجزي الوحدة)
   const offersCountMap: Record<string, number> = {}
-  allOffers.forEach((o: any) => {
-    if (o && o.property_id && o.status !== 'recommended') {
-      offersCountMap[o.property_id] = (offersCountMap[o.property_id] || 0) + 1
-    }
+  const matchedBuyersCountMap: Record<string, number> = {}
+
+  sells.forEach((unit) => {
+    const unitIdStr = String(unit.id)
+    const uCode = deriveUnitCode(unitIdStr)
+
+    const unitAllOffers = allOffers.filter(
+      (o: any) => o && String(o.property_id) === unitIdStr
+    )
+    const activeDirectOffers = unitAllOffers.filter(
+      (o: any) => o.status !== 'rejected'
+    )
+
+    const coveredLeadIds = new Set(
+      unitAllOffers.map((o: any) => String(o.lead_id || '')).filter(Boolean)
+    )
+    const coveredBuyerUserIds = new Set(
+      unitAllOffers
+        .map((o: any) => String(o.buyer_user_id || ''))
+        .filter(Boolean)
+    )
+
+    let unbridgedMatchingLeadsCount = 0
+    let totalMatchingBuyersCount = 0
+
+    allBuyersForMatch.forEach((b: any) => {
+      if (!b || !b.id) return
+      if (b.user_id && String(b.user_id) === String(profile.id)) return
+
+      try {
+        const areasStr = Array.isArray(b.preferred_areas)
+          ? b.preferred_areas.join(' ')
+          : String(b.preferred_areas || '')
+        const planStr = String(b.payment_plan || '')
+
+        const isDirectUnitBooking =
+          areasStr.includes(uCode) ||
+          planStr.includes(uCode) ||
+          (unit.project_name &&
+            areasStr.includes('🎯') &&
+            areasStr.toLowerCase().includes(unit.project_name.toLowerCase()))
+
+        const res = calculateSmartMatch(unit, b, undefined, locale)
+        if (isDirectUnitBooking || res.score >= 65) {
+          totalMatchingBuyersCount++
+          const isAlreadyInOffers =
+            coveredLeadIds.has(String(b.id)) ||
+            (b.user_id && coveredBuyerUserIds.has(String(b.user_id)))
+          if (!isAlreadyInOffers) {
+            unbridgedMatchingLeadsCount++
+          }
+        }
+      } catch {}
+    })
+
+    matchedBuyersCountMap[unit.id] = totalMatchingBuyersCount
+    offersCountMap[unit.id] =
+      activeDirectOffers.length + unbridgedMatchingLeadsCount
   })
 
   // حساب عروض المشتري (العروض المقدمة + الترشيحات المطابقة في صفحة عروضي)
-  const myLeadIds = new Set(buys.map((b) => b.id))
+  const myLeadIds = new Set(buys.map((b) => String(b.id)))
   const directBuyerOffers = allOffers.filter(
     (o: any) =>
       o &&
       o.status !== 'recommended' &&
-      (o.buyer_user_id === profile.id ||
-        (o.lead_id && myLeadIds.has(o.lead_id)))
+      o.status !== 'rejected' &&
+      (String(o.buyer_user_id || '') === String(profile.id) ||
+        (o.lead_id && myLeadIds.has(String(o.lead_id))))
   )
   const offeredUnitIds = new Set(
     directBuyerOffers.map((o: any) => String(o.property_id))
@@ -224,21 +286,6 @@ export default async function AccountPage({
 
   const totalBuyerOffersCount =
     directBuyerOffers.length + smartMatchesForBuyerCount
-
-  const matchedBuyersCountMap: Record<string, number> = {}
-
-  sells.forEach((unit) => {
-    try {
-      const matchingBuyers = allBuyersForMatch.filter((b: any) => {
-        if (!b || (b.user_id && b.user_id === profile.id)) return false
-        const res = calculateSmartMatch(unit, b, undefined, locale)
-        return res.score >= 65
-      })
-      matchedBuyersCountMap[unit.id] = matchingBuyers.length
-    } catch {
-      matchedBuyersCountMap[unit.id] = 0
-    }
-  })
 
   const hasSells = sells.length > 0
   const hasBuys = buys.length > 0

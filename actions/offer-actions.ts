@@ -50,19 +50,15 @@ async function getVerifiedClientSession() {
   return { supabase, user }
 }
 
-/**
- * تحقق صارم من ملكية الوحدة عبر user_id فقط لمنع أي تلاعب بالعروض
- */
 function isUnitOwnedByUser(unit: any, user: any): boolean {
   if (!unit || !user?.id) return false
   const role = String(user.role || 'user').trim().toLowerCase()
   if (role === 'admin' || role === 'moderator' || role === 'sales') return true
 
   if (unit.user_id) {
-    return unit.user_id === user.id
+    return String(unit.user_id) === String(user.id)
   }
 
-  // فقط للوحدات القديمة غير المربوطة بـ user_id
   const byEmail =
     user.email &&
     unit.email &&
@@ -76,9 +72,16 @@ function isUnitOwnedByUser(unit: any, user: any): boolean {
   return Boolean(byEmail || byPhone)
 }
 
-/**
- * تنظيف بيانات الوحدة من أي معلومات شخصية للبائع أو مستندات قبل إرسالها للمشتري
- */
+function deriveUnitCode(id: string) {
+  const numericCode = String(id || '')
+    .replace(/\D/g, '')
+    .slice(0, 5)
+  const fallbackCode = String(id || '')
+    .slice(0, 5)
+    .toUpperCase()
+  return `U-${numericCode.length >= 4 ? numericCode : fallbackCode}`
+}
+
 function sanitizeUnitForPublicOrBuyer(unit: any): MatchableUnit | undefined {
   if (!unit) return undefined
   return {
@@ -181,9 +184,45 @@ export async function getAccountOffersDataAction() {
 
   const { supabase, user: profile } = session
 
+  const cleanEmail = String(profile.email || '').trim().toLowerCase()
+  const cleanPhone = String(profile.phone || '').trim()
+
+  // ربط تلقائي لأي طلبات بيع أو شراء قديمة مسجلة بنفس إيميل أو هاتف المستخدم
+  try {
+    if (cleanEmail) {
+      await Promise.all([
+        supabase
+          .from('sell_requests')
+          .update({ user_id: profile.id })
+          .is('user_id', null)
+          .ilike('email', cleanEmail),
+        supabase
+          .from('buy_requests')
+          .update({ user_id: profile.id })
+          .is('user_id', null)
+          .ilike('email', cleanEmail),
+      ])
+    }
+    if (cleanPhone) {
+      await Promise.all([
+        supabase
+          .from('sell_requests')
+          .update({ user_id: profile.id })
+          .is('user_id', null)
+          .eq('phone', cleanPhone),
+        supabase
+          .from('buy_requests')
+          .update({ user_id: profile.id })
+          .is('user_id', null)
+          .eq('phone', cleanPhone),
+      ])
+    }
+  } catch {}
+
   const [
     { data: mySellsData },
     { data: myBuysData },
+    { data: allBuyersData },
     { data: activeMarketData },
     { data: offersData },
   ] = await Promise.all([
@@ -197,6 +236,10 @@ export async function getAccountOffersDataAction() {
       .from('buy_requests')
       .select('*')
       .eq('user_id', profile.id)
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('buy_requests')
+      .select('*')
       .order('created_at', { ascending: false }),
     supabase
       .from('sell_requests')
@@ -214,50 +257,172 @@ export async function getAccountOffersDataAction() {
     .map((u) => sanitizeUnitForPublicOrBuyer(u)!)
     .filter(Boolean)
   const myBuys = (myBuysData || []) as MatchableBuyer[]
+  const allBuyers = (allBuyersData || []) as any[]
   const allOffers = (offersData || []) as OfferRecord[]
 
-  const myUnitIds = new Set(mySells.map((u) => u.id))
-  const myLeadIds = new Set(myBuys.map((b) => b.id))
+  const myUnitIds = new Set(mySells.map((u) => String(u.id)))
+  const myLeadIds = new Set(myBuys.map((b) => String(b.id)))
 
   const allKnownUnitsMap = new Map<string, MatchableUnit>()
-  mySells.forEach((u) => allKnownUnitsMap.set(u.id, u))
+  mySells.forEach((u) => allKnownUnitsMap.set(String(u.id), u))
   ;(activeMarketData || []).forEach((u: any) => {
     const clean = sanitizeUnitForPublicOrBuyer(u)
-    if (clean) allKnownUnitsMap.set(clean.id, clean)
+    if (clean) allKnownUnitsMap.set(String(clean.id), clean)
   })
 
-  // عروض واردة لوحدات البائع (نخفي اسم وهاتف المشتري Zero-Leakage)
-  const sellerOffers = allOffers
+  // 1. العروض المباشرة المسجلة في جدول property_offers لوحدات البائع
+  const directSellerOffers = allOffers
     .filter(
       (o) =>
-        (myUnitIds.has(o.property_id) || o.seller_user_id === profile.id) &&
-        o.status !== 'recommended'
+        myUnitIds.has(String(o.property_id)) ||
+        String(o.seller_user_id || '') === String(profile.id)
     )
     .map((o) => ({
       ...o,
+      id: String(o.id),
+      property_id: String(o.property_id),
+      // إذا كان العرض مرشحاً من الإدارة نظهره للبائع كعرض وارد قابل للقبول أو التفاوض
+      status:
+        o.status === 'recommended'
+          ? ('pending_seller' as const)
+          : o.status,
       buyer_name: null,
       buyer_phone: null,
       match_reasons: Array.isArray(o.match_reasons) ? o.match_reasons : [],
       diff_reasons: Array.isArray(o.diff_reasons) ? o.diff_reasons : [],
-      unit: allKnownUnitsMap.get(o.property_id),
+      unit: allKnownUnitsMap.get(String(o.property_id)),
     }))
 
-  // عروض أرسلها المشتري (مع بيانات الوحدة المنظفة بدون هاتف أو مستندات البائع)
+  // 2. دمج المشترين المتوافقين وطلبات حجز الوحدة من جدول buy_requests كعروض للبائع إذا لم يكن لهم سجل سابق في property_offers
+  const bridgedLeadOffers: Array<OfferRecord & { unit?: MatchableUnit }> = []
+
+  const matchLabels = {
+    cashExact: oDict.matchCashExact,
+    cashNegotiableBridge: oDict.matchCashBridge,
+    cashSlightlyHigher: oDict.diffCashHigher,
+    instMatch: oDict.matchInst,
+    instHigher: oDict.diffInstHigher,
+    areaMatch: oDict.matchArea,
+    areaDiff: oDict.diffArea,
+    typeMatch: oDict.matchType,
+    typeDiff: oDict.diffType,
+    roomsMatch: oDict.matchRooms,
+    roomsDiff: oDict.diffRooms,
+    deliveryDiff: oDict.diffDelivery,
+  }
+
+  mySells.forEach((unit) => {
+    const unitIdStr = String(unit.id)
+    const uCode = deriveUnitCode(unitIdStr)
+    const unitPaid = Number(unit.paid_amount) || 0
+
+    // المشترون الذين لديهم بالفعل عرض مسجل في property_offers على هذه الوحدة (حتى لو مرفوض) لا نكررهم
+    const existingOffersForUnit = allOffers.filter(
+      (o) => String(o.property_id) === unitIdStr
+    )
+    const coveredLeadIds = new Set(
+      existingOffersForUnit.map((o) => String(o.lead_id || '')).filter(Boolean)
+    )
+    const coveredBuyerUserIds = new Set(
+      existingOffersForUnit
+        .map((o) => String(o.buyer_user_id || ''))
+        .filter(Boolean)
+    )
+
+    allBuyers.forEach((buyer) => {
+      if (!buyer || !buyer.id) return
+      if (buyer.user_id && String(buyer.user_id) === String(profile.id)) return
+      if (coveredLeadIds.has(String(buyer.id))) return
+      if (buyer.user_id && coveredBuyerUserIds.has(String(buyer.user_id)))
+        return
+
+      const areasStr = Array.isArray(buyer.preferred_areas)
+        ? buyer.preferred_areas.join(' ')
+        : String(buyer.preferred_areas || '')
+      const planStr = String(buyer.payment_plan || '')
+
+      const isDirectUnitBooking =
+        areasStr.includes(uCode) ||
+        planStr.includes(uCode) ||
+        (unit.project_name &&
+          areasStr.includes('🎯') &&
+          areasStr.toLowerCase().includes(unit.project_name.toLowerCase()))
+
+      const smartRes = calculateSmartMatch(unit, buyer, matchLabels, locale)
+
+      if (isDirectUnitBooking || smartRes.score >= 65) {
+        const rawBuyerCash = Number(buyer.available_cash || buyer.budget || 0)
+        const effectiveOfferedCash =
+          unitPaid > 0
+            ? rawBuyerCash > 0
+              ? Math.min(unitPaid, rawBuyerCash)
+              : unitPaid
+            : rawBuyerCash
+
+        const readinessVal: '48h' | '1_week' | '2_weeks' =
+          planStr.includes('48') || planStr.includes('أسبوع') || planStr.includes('week')
+            ? '1_week'
+            : '2_weeks'
+
+        bridgedLeadOffers.push({
+          id: `lead_${buyer.id}_${unitIdStr}`,
+          property_id: unitIdStr,
+          lead_id: String(buyer.id),
+          buyer_user_id: buyer.user_id ? String(buyer.user_id) : null,
+          seller_user_id: String(profile.id),
+          buyer_name: null,
+          buyer_phone: null,
+          offered_cash: effectiveOfferedCash,
+          counter_cash: null,
+          required_cash: unitPaid || effectiveOfferedCash,
+          payment_readiness: readinessVal,
+          payment_method: 'bank_check',
+          match_score: isDirectUnitBooking
+            ? Math.max(95, smartRes.score)
+            : smartRes.score,
+          match_reasons: smartRes.matches,
+          diff_reasons: smartRes.differences,
+          status: 'pending_seller',
+          initiated_by: isDirectUnitBooking ? 'buyer' : 'auto',
+          created_at: buyer.created_at || new Date().toISOString(),
+          unit,
+        })
+      }
+    })
+  })
+
+  const sellerOffers = [
+    ...directSellerOffers.filter((o) => o.status !== 'rejected'),
+    ...bridgedLeadOffers,
+  ].sort((a, b) => b.match_score - a.match_score)
+
+  // 3. عروض المشتري الرسمية
   const buyerOffers = allOffers
     .filter(
       (o) =>
-        (o.buyer_user_id === profile.id ||
-          (o.lead_id && myLeadIds.has(o.lead_id))) &&
+        (String(o.buyer_user_id || '') === String(profile.id) ||
+          (o.lead_id && myLeadIds.has(String(o.lead_id)))) &&
         o.status !== 'recommended'
     )
     .map((o) => ({
       ...o,
+      id: String(o.id),
+      property_id: String(o.property_id),
       match_reasons: Array.isArray(o.match_reasons) ? o.match_reasons : [],
       diff_reasons: Array.isArray(o.diff_reasons) ? o.diff_reasons : [],
-      unit: allKnownUnitsMap.get(o.property_id),
+      unit: allKnownUnitsMap.get(String(o.property_id)),
     }))
 
-  const activeBuyerReq = myBuys[0] || null
+  const activeBuyerReq =
+    myBuys.find((b) => {
+      const areasStr = Array.isArray(b.preferred_areas)
+        ? b.preferred_areas.join(' ')
+        : String(b.preferred_areas || '')
+      return !areasStr.includes('🎯')
+    }) ||
+    myBuys[0] ||
+    null
+
   const smartRecommendations: Array<{
     unit: MatchableUnit
     match: ReturnType<typeof calculateSmartMatch>
@@ -267,17 +432,17 @@ export async function getAccountOffersDataAction() {
 
   if (activeBuyerReq) {
     const alreadyOfferedUnitIds = new Set(
-      buyerOffers.map((bo) => bo.property_id)
+      buyerOffers.map((bo) => String(bo.property_id))
     )
 
     const adminRecOffers = allOffers.filter(
       (o) =>
         o.status === 'recommended' &&
-        (o.buyer_user_id === profile.id ||
-          (o.lead_id && myLeadIds.has(o.lead_id)))
+        (String(o.buyer_user_id || '') === String(profile.id) ||
+          (o.lead_id && myLeadIds.has(String(o.lead_id))))
     )
     const adminRecMap = new Map(
-      adminRecOffers.map((o) => [o.property_id, o.id])
+      adminRecOffers.map((o) => [String(o.property_id), String(o.id)])
     )
 
     const candidateMarketUnits = ((activeMarketData || []) as any[])
@@ -287,37 +452,23 @@ export async function getAccountOffersDataAction() {
           u &&
           (u.status === 'active' ||
             u.status === 'approved' ||
-            u.status === 'published') &&
+            u.status === 'published' ||
+            u.status === 'offer_received') &&
           !isNonGeorgianLegacyArea(u.area) &&
-          !myUnitIds.has(u.id) &&
-          !alreadyOfferedUnitIds.has(u.id)
+          !myUnitIds.has(String(u.id)) &&
+          !alreadyOfferedUnitIds.has(String(u.id))
       )
-
-    const matchLabels = {
-      cashExact: oDict.matchCashExact,
-      cashNegotiableBridge: oDict.matchCashBridge,
-      cashSlightlyHigher: oDict.diffCashHigher,
-      instMatch: oDict.matchInst,
-      instHigher: oDict.diffInstHigher,
-      areaMatch: oDict.matchArea,
-      areaDiff: oDict.diffArea,
-      typeMatch: oDict.matchType,
-      typeDiff: oDict.diffType,
-      roomsMatch: oDict.matchRooms,
-      roomsDiff: oDict.diffRooms,
-      deliveryDiff: oDict.diffDelivery,
-    }
 
     candidateMarketUnits.forEach((unit) => {
       const m = calculateSmartMatch(unit, activeBuyerReq, matchLabels, locale)
-      const isFromAdmin = adminRecMap.has(unit.id)
+      const isFromAdmin = adminRecMap.has(String(unit.id))
 
       if (isFromAdmin || m.score >= 70) {
         smartRecommendations.push({
           unit,
           match: m,
           recommendedByAdmin: isFromAdmin,
-          existingOfferId: adminRecMap.get(unit.id),
+          existingOfferId: adminRecMap.get(String(unit.id)),
         })
       }
     })
@@ -377,8 +528,7 @@ export async function submitBuyerOfferAction(payload: {
       return { success: false, error: oDict.errUnitNotFound }
     }
 
-    // منع المالك من تقديم عرض شراء على وحدته الشخصية
-    if (unit.user_id && unit.user_id === sessionId) {
+    if (unit.user_id && String(unit.user_id) === String(sessionId)) {
       return {
         success: false,
         error:
@@ -492,7 +642,7 @@ export async function submitBuyerOfferAction(payload: {
         title: `💰 ${oDict.sellerNewOfferNotifTitle} (${unit.project_name || ''})`,
         message: `${finalOfferedCash.toLocaleString('en-US')}`,
         type: 'new_offer',
-        link: `/account/offers?unitId=${unit.id}`,
+        link: `/account/offers?role=seller&unitId=${unit.id}`,
         is_read: false,
       })
     }
@@ -513,7 +663,7 @@ export async function respondToOfferBySellerAction(payload: {
   decision: 'accept' | 'counter' | 'reject'
   counterCash?: number
 }) {
-  const { dict } = await getServerI18n()
+  const { dict, locale } = await getServerI18n()
   const oDict = (dict.accountPages as Record<string, any>)?.offers || {}
 
   try {
@@ -521,11 +671,78 @@ export async function respondToOfferBySellerAction(payload: {
     if (!session) return { success: false, error: oDict.errLoginRequired }
     const { supabase, user } = session
 
-    const { data: offer } = await supabase
-      .from('property_offers')
-      .select('*')
-      .eq('id', payload.offerId)
-      .maybeSingle()
+    let offer: any = null
+
+    // إذا كان العرض قادماً من طلب شراء متوافق (lead_BUYERID_UNITID)، نقوم بترقيته وحفظه في جدول property_offers تلقائياً
+    if (String(payload.offerId).startsWith('lead_')) {
+      const parts = String(payload.offerId).split('_')
+      const leadId = parts[1]
+      const unitId = parts.slice(2).join('_')
+
+      const [{ data: unitData }, { data: leadData }] = await Promise.all([
+        supabase
+          .from('sell_requests')
+          .select('*')
+          .eq('id', unitId)
+          .maybeSingle(),
+        supabase
+          .from('buy_requests')
+          .select('*')
+          .eq('id', leadId)
+          .maybeSingle(),
+      ])
+
+      if (!unitData || !leadData || !isUnitOwnedByUser(unitData, user)) {
+        return { success: false, error: oDict.errUnitNotFound }
+      }
+
+      const unitPaid = Number(unitData.paid_amount) || 0
+      const rawBuyerCash = Number(
+        leadData.available_cash || leadData.budget || 0
+      )
+      const offeredCash =
+        unitPaid > 0
+          ? rawBuyerCash > 0
+            ? Math.min(unitPaid, rawBuyerCash)
+            : unitPaid
+          : rawBuyerCash
+
+      const smartRes = calculateSmartMatch(unitData, leadData, undefined, locale)
+
+      const { data: createdOffer, error: createErr } = await supabase
+        .from('property_offers')
+        .insert({
+          property_id: unitData.id,
+          lead_id: leadData.id,
+          buyer_user_id: leadData.user_id || null,
+          seller_user_id: user.id,
+          buyer_name: leadData.name || '',
+          buyer_phone: leadData.phone || '',
+          offered_cash: offeredCash,
+          required_cash: unitPaid || offeredCash,
+          payment_readiness: '1_week',
+          payment_method: 'bank_check',
+          match_score: smartRes.score,
+          match_reasons: smartRes.matches,
+          diff_reasons: smartRes.differences,
+          status: 'pending_seller',
+          initiated_by: 'auto',
+        })
+        .select('*')
+        .single()
+
+      if (createErr || !createdOffer) {
+        return { success: false, error: oDict.errSubmitFailed }
+      }
+      offer = createdOffer
+    } else {
+      const { data: fetchedOffer } = await supabase
+        .from('property_offers')
+        .select('*')
+        .eq('id', payload.offerId)
+        .maybeSingle()
+      offer = fetchedOffer
+    }
 
     if (!offer) return { success: false, error: oDict.errUnitNotFound }
 
@@ -584,7 +801,7 @@ export async function respondToOfferBySellerAction(payload: {
           title: `🎉 ${oDict.buyerOfferAcceptedNotifTitle} (${unit.project_name || ''})`,
           message: oDict.buyerOfferAcceptedNotifMsg,
           type: 'status_update',
-          link: '/account/offers',
+          link: '/account/offers?role=buyer',
           is_read: false,
         })
       }
@@ -619,7 +836,7 @@ export async function respondToOfferBySellerAction(payload: {
             title: `🔄 ${oDict.buyerCounterNotifTitle} (${unit.project_name || ''})`,
             message: `${cleanCounter.toLocaleString('en-US')}`,
             type: 'new_offer',
-            link: '/account/offers',
+            link: '/account/offers?role=buyer',
             is_read: false,
           })
         } catch {}
@@ -678,10 +895,10 @@ export async function respondToCounterOfferByBuyerAction(payload: {
       return { success: false, error: oDict.errUnitNotFound }
     }
 
-    // التحقق الصارم أن هذا العرض يخص buyer_user_id المسجل دخوله فقط
     const role = String(user.role || 'user').trim().toLowerCase()
     const isStaff = role === 'admin' || role === 'moderator' || role === 'sales'
-    const isBuyerOwner = isStaff || offer.buyer_user_id === user.id
+    const isBuyerOwner =
+      isStaff || String(offer.buyer_user_id) === String(user.id)
 
     if (!isBuyerOwner) {
       return { success: false, error: oDict.errLoginRequired }
@@ -745,7 +962,7 @@ export async function respondToCounterOfferByBuyerAction(payload: {
           title: `🎉 ${oDict.sellerCounterAcceptedNotifTitle} (${unit.project_name || ''})`,
           message: `${agreedAmount.toLocaleString('en-US')}`,
           type: 'status_update',
-          link: `/account/offers?unitId=${unit.id}`,
+          link: `/account/offers?role=seller&unitId=${unit.id}`,
           is_read: false,
         })
       }
@@ -861,7 +1078,7 @@ export async function adminSendRecommendationAction(payload: {
           title: `🎯 ${oDict.buyerAdminRecNotifTitle} (${match.score}%)`,
           message: `${unit.project_name || ''} — ${unit.area || ''}`,
           type: 'property_match',
-          link: '/account/offers',
+          link: '/account/offers?role=buyer',
           is_read: false,
         })
       } catch {}
@@ -903,7 +1120,8 @@ export async function adminSendBulkRecommendationsAction(payload: {
 
     let sentCount = 0
     for (const lead of allLeads) {
-      if (lead.user_id && lead.user_id === unit.user_id) continue
+      if (lead.user_id && String(lead.user_id) === String(unit.user_id))
+        continue
       const m = calculateSmartMatch(unit, lead, undefined, locale)
       if (m.score >= threshold) {
         await adminSendRecommendationAction({
@@ -986,7 +1204,7 @@ export async function adminCreateOfficialOfferAction(payload: {
           title: `💰 ${oDict.sellerNewOfferNotifTitle} (${unit.project_name || ''})`,
           message: `${cleanCash.toLocaleString('en-US')}`,
           type: 'new_offer',
-          link: `/account/offers?unitId=${unit.id}`,
+          link: `/account/offers?role=seller&unitId=${unit.id}`,
           is_read: false,
         })
       } catch {}

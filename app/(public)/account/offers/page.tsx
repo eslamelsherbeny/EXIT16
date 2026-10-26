@@ -62,6 +62,10 @@ function OffersContent() {
   const [roleView, setRoleView] = useState<'seller' | 'buyer'>(
     requestedRole === 'seller' || Boolean(filterUnitId) ? 'seller' : 'buyer'
   )
+  const [selectedSellerUnitId, setSelectedSellerUnitId] = useState<string>(
+    filterUnitId || 'ALL'
+  )
+  const [sells, setSells] = useState<MatchableUnit[]>([])
   const [sellerOffers, setSellerOffers] = useState<
     Array<OfferRecord & { unit?: MatchableUnit }>
   >([])
@@ -107,8 +111,21 @@ function OffersContent() {
       router.replace('/login?next=/account/offers')
       return
     }
+    setSells(res.sells)
     setSellerOffers(res.sellerOffers)
     setBuyerOffers(res.buyerOffers)
+
+    // إذا كانت الوحدة المختارة ليس عليها عروض بينما توجد عروض على وحدة أخرى للبائع، نعرض الكل تلقائياً حتى لا تظهر الصفحة فارغة
+    if (filterUnitId) {
+      const hasForTarget = res.sellerOffers.some(
+        (o) => String(o.property_id) === String(filterUnitId)
+      )
+      setSelectedSellerUnitId(
+        hasForTarget || res.sellerOffers.length === 0 ? filterUnitId : 'ALL'
+      )
+    } else {
+      setSelectedSellerUnitId('ALL')
+    }
 
     const myOwnUnitIds = new Set(res.sells.map((s) => String(s.id)))
 
@@ -125,7 +142,6 @@ function OffersContent() {
 
     setSmartRecommendations(uniqueRecs)
 
-    // تحديد وضع الصفحة بصرامة بناءً على اللوحة التي جاء منها المستخدم بدون خلط
     if (requestedRole === 'seller' || Boolean(filterUnitId)) {
       setRoleView('seller')
     } else if (requestedRole === 'buyer' || Boolean(applyUnitId)) {
@@ -297,14 +313,26 @@ function OffersContent() {
     )
   }
 
-  const displayedSellerOffers = filterUnitId
-    ? sellerOffers.filter((o) => o.property_id === filterUnitId)
-    : sellerOffers
+  const displayedSellerOffers =
+    selectedSellerUnitId === 'ALL'
+      ? sellerOffers
+      : sellerOffers.filter(
+          (o) => String(o.property_id) === String(selectedSellerUnitId)
+        )
 
   const backHref =
     roleView === 'seller'
       ? `/account?view=seller${filterUnitId ? `&unitId=${filterUnitId}` : ''}`
       : '/account?view=buyer'
+
+  const allUnitsWord =
+    locale === 'ar'
+      ? 'كل وحداتي'
+      : locale === 'ru'
+        ? 'Все объекты'
+        : locale === 'ka'
+          ? 'ყველა ობიექტი'
+          : 'All Units'
 
   return (
     <main
@@ -312,7 +340,6 @@ function OffersContent() {
       className="min-h-screen bg-[var(--brand-surface,#f5f6f8)] py-8 pb-20 text-[var(--brand-navy,#0a1122)] sm:py-12"
     >
       <div className="mx-auto max-w-4xl px-4 sm:px-6">
-        {/* زر الرجوع يعيد المستخدم مباشرة إلى اللوحة التي جاء منها بدون أي تداخل */}
         <div className="mb-6 flex items-center justify-start">
           <Link
             href={backHref}
@@ -356,17 +383,54 @@ function OffersContent() {
         {roleView === 'seller' ? (
           /* ==================== صفحة عروض البائع فقط ==================== */
           <div>
-            <header className="mb-7 text-start">
+            <header className="mb-6 text-start">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100/80 px-3 py-1 text-[11px] font-extrabold text-[#007a5a]">
                 <ShieldCheck className="size-3.5" />
                 <span>{t.zeroLeakageBadge}</span>
               </span>
               <h1 className="mt-2 text-2xl font-black text-[#0a1122] sm:text-3xl">
-                {t.sellerTitle}
+                {t.sellerTitle} ({displayedSellerOffers.length})
               </h1>
               <p className="mt-1.5 text-xs leading-relaxed text-gray-500 sm:text-sm">
                 {t.sellerSubtitle}
               </p>
+
+              {/* إذا كان لدى البائع أكثر من وحدة، نتيح له فلترة العروض حسب الوحدة بسهولة */}
+              {sells.length > 1 && (
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedSellerUnitId('ALL')}
+                    className={`rounded-xl border px-3.5 py-1.5 text-xs font-extrabold transition ${
+                      selectedSellerUnitId === 'ALL'
+                        ? 'border-[#007a5a] bg-[#007a5a] text-white'
+                        : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    {allUnitsWord} ({sellerOffers.length})
+                  </button>
+                  {sells.map((u) => {
+                    const count = sellerOffers.filter(
+                      (o) => String(o.property_id) === String(u.id)
+                    ).length
+                    const active = String(selectedSellerUnitId) === String(u.id)
+                    return (
+                      <button
+                        key={u.id}
+                        type="button"
+                        onClick={() => setSelectedSellerUnitId(String(u.id))}
+                        className={`rounded-xl border px-3.5 py-1.5 text-xs font-extrabold transition ${
+                          active
+                            ? 'border-[#007a5a] bg-[#007a5a] text-white'
+                            : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        {u.project_name || t.unitFallback} ({count})
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
             </header>
 
             {displayedSellerOffers.length === 0 ? (
@@ -501,6 +565,19 @@ function OffersContent() {
                           </p>
                         </div>
                       </div>
+
+                      {offer.match_reasons.length > 0 && (
+                        <div className="mt-3.5 flex flex-wrap gap-1.5">
+                          {offer.match_reasons.map((reason: string) => (
+                            <span
+                              key={reason}
+                              className="rounded-lg bg-[#eaf8f2] px-2.5 py-1 text-[10.5px] font-bold text-[#007a5a]"
+                            >
+                              ✓ {reason}
+                            </span>
+                          ))}
+                        </div>
+                      )}
 
                       {offer.status === 'counter_offered' &&
                         offer.counter_cash && (
@@ -886,7 +963,6 @@ function OffersContent() {
         )}
       </div>
 
-      {/* نافذة تقديم عرض الشراء من المشتري */}
       <Dialog
         open={Boolean(offerModalUnit)}
         onOpenChange={(open) => !open && !isPending && setOfferModalUnit(null)}

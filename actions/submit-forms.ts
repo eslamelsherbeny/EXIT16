@@ -42,27 +42,25 @@ const FORMS_MESSAGES_FALLBACK: Record<LocaleCode, Record<string, string>> = {
     radarActivatedBuyerTitle: 'تم تفعيل رادار الفرص العقارية لحسابك 🎯',
     radarActivatedBuyerMsg: 'سنقوم بإشعارك فور توفر وحدات مطابقة لميزانيتك',
     emailSenderName: 'Aqar Exit',
-    orderReceivedSubjectPrefix: 'تم استلام طلب عرض وحدتك رقم',
-    buyOrderSubjectPrefix: 'تم تسجيل طلب الشراء الخاص بك رقم',
+    orderReceivedSubjectPrefix: 'تأكيد بريدك الإلكتروني وطلب عرض وحدتك رقم',
+    buyOrderSubjectPrefix: 'تأكيد بريدك الإلكتروني وطلب الشراء رقم',
     greetingWord: 'أهلاً',
     orderRefLabel: 'رقم مرجع الطلب',
     orderPaidConfirmText: 'إجمالي المبلغ المدفوع المسجل',
     registeredCashLabel: 'ميزانية الكاش المسجلة',
     orderMagicLinkPrompt:
-      'يمكنك متابعة واستكمال بيانات وحدتك مباشرة عبر الرابط التالي',
+      'يرجى الضغط على الزر التالي لتأكيد بريدك الإلكتروني ومتابعة طلبك مباشرة على المنصة',
+    confirmEmailBtnText: 'تأكيد البريد الإلكتروني وفتح الموقع ✓',
     sessionExpired: 'انتهت الجلسة أو لا تملك صلاحية تعديل هذه الوحدة.',
     enterLogin: 'يرجى إدخال البريد الإلكتروني أو رقم الهاتف وكلمة المرور.',
     notRegistered: 'هذا الحساب غير مسجل لدينا. اختر "تسجيل حساب جديد".',
     wrongPassword: 'كلمة المرور غير صحيحة.',
-    fillAll:
-      'يرجى استكمال كافة البيانات والتأكد أن كلمة المرور 8 أحرف على الأقل.',
-    createAccountFailed:
-      'تعذر إنشاء الحساب، قد يكون البريد أو الهاتف مسجلاً مسبقاً.',
+    fillAll: 'يرجى استكمال كافة البيانات والتأكد أن كلمة المرور 8 أحرف على الأقل.',
+    createAccountFailed: 'تعذر إنشاء الحساب، قد يكون البريد أو الهاتف مسجلاً مسبقاً.',
     unexpected: 'حدث خطأ غير متوقع، يرجى المحاولة مرة أخرى.',
     emailNotFound: 'لم يتم العثور على بريد إلكتروني مسجل لهذا الحساب.',
     recoveryEmailSubject: 'استعادة الدخول واستكمال طلبك — Aqar Exit',
-    recoveryEmailPrompt:
-      'اضغط على الرابط التالي لتعيين كلمة مرور جديدة والدخول لحسابك',
+    recoveryEmailPrompt: 'اضغط على الرابط التالي لتعيين كلمة مرور جديدة والدخول لحسابك',
     sendLinkFailed: 'تعذر إرسال الرابط حالياً، يرجى المحاولة لاحقاً.',
     shortPassword: 'كلمة المرور يجب أن تكون 8 أحرف على الأقل.',
     updatePassFailed: 'تعذر تحديث كلمة المرور.',
@@ -72,9 +70,6 @@ const FORMS_MESSAGES_FALLBACK: Record<LocaleCode, Record<string, string>> = {
     defaultReady: 'جاهز للاستلام',
     enterNamePhone: 'يرجى إدخال الاسم ورقم الهاتف.',
     investorFailed: 'تعذر إرسال الطلب حالياً.',
-    otpSubjectPrefix: 'كود التأكيد الخاص بك في عقار إكزت هو:',
-    otpInvalid: 'كود التأكيد غير صحيح أو منتهي الصلاحية.',
-    otpSendError: 'تعذر إرسال الكود حالياً، يرجى المحاولة مرة أخرى.',
   },
   en: {
     expiredLink: 'This link has expired or is invalid.',
@@ -85,52 +80,42 @@ const FORMS_MESSAGES_FALLBACK: Record<LocaleCode, Record<string, string>> = {
     unitWord: 'Unit',
     newDraftUnitAdminTitle: 'New Draft Unit',
     unitSubmittedSellerTitle: 'Your initial unit details were received ✓',
-    unitSubmittedSellerMsg:
-      'You can complete your unit details and documents anytime',
+    unitSubmittedSellerMsg: 'You can complete your unit details and documents anytime',
     editedUnitAdminTitle: 'Unit Edited by Seller',
     completedUnitAdminTitle: 'Completed Unit Ready for Review',
     newUnitReviewAdminTitle: 'New Unit for Review',
     newBuyRequestAdminTitle: 'New Buy Request',
     radarActivatedBuyerTitle: 'Smart Opportunity Radar Activated 🎯',
-    radarActivatedBuyerMsg:
-      'We will notify you as soon as matching units are available',
+    radarActivatedBuyerMsg: 'We will notify you as soon as matching units are available',
     emailSenderName: 'Aqar Exit',
-    orderReceivedSubjectPrefix: 'Unit Listing Request Received #',
-    buyOrderSubjectPrefix: 'Your Buy Request is Registered #',
+    orderReceivedSubjectPrefix: 'Confirm Your Email & Unit Listing #',
+    buyOrderSubjectPrefix: 'Confirm Your Email & Buy Request #',
     greetingWord: 'Hello',
     orderRefLabel: 'Order Reference',
     orderPaidConfirmText: 'Registered Paid Amount',
     registeredCashLabel: 'Registered Cash Budget',
     orderMagicLinkPrompt:
-      'You can continue completing your unit details via this link',
-    sessionExpired:
-      'Your session has expired or you do not have permission to edit this unit.',
+      'Please click the button below to confirm your email address and open the platform',
+    confirmEmailBtnText: 'Confirm Email & Open Website ✓',
+    sessionExpired: 'Your session has expired or you do not have permission to edit this unit.',
     enterLogin: 'Please enter your email or phone number and password.',
-    notRegistered:
-      'No account found with these details. Please choose "New Account".',
+    notRegistered: 'No account found with these details. Please choose "New Account".',
     wrongPassword: 'Incorrect password.',
-    fillAll:
-      'Please complete all required fields and use at least 8 characters for password.',
-    createAccountFailed:
-      'Could not create account. Email or phone may already be registered.',
+    fillAll: 'Please complete all required fields and use at least 8 characters for password.',
+    createAccountFailed: 'Could not create account. Email or phone may already be registered.',
     unexpected: 'An unexpected error occurred. Please try again.',
     emailNotFound: 'No registered email address found for this account.',
     recoveryEmailSubject: 'Reset Password & Continue Your Request — Aqar Exit',
-    recoveryEmailPrompt:
-      'Click the link below to set a new password and access your account',
+    recoveryEmailPrompt: 'Click the link below to set a new password and access your account',
     sendLinkFailed: 'Could not send recovery link right now.',
     shortPassword: 'Password must be at least 8 characters.',
     updatePassFailed: 'Could not update password.',
     saveProgressFailed: 'Could not save progress right now.',
-    submitUnitFailed:
-      'Could not submit your unit right now. Please try again.',
+    submitUnitFailed: 'Could not submit your unit right now. Please try again.',
     defaultMonthly: 'Monthly',
     defaultReady: 'Ready to Move',
     enterNamePhone: 'Please enter your name and phone number.',
     investorFailed: 'Could not submit request right now.',
-    otpSubjectPrefix: 'Your Aqar Exit verification code is:',
-    otpInvalid: 'Invalid or expired verification code.',
-    otpSendError: 'Could not send verification code right now.',
   },
   ru: {
     expiredLink: 'Срок действия ссылки истек или она недействительна.',
@@ -141,38 +126,33 @@ const FORMS_MESSAGES_FALLBACK: Record<LocaleCode, Record<string, string>> = {
     unitWord: 'Объект',
     newDraftUnitAdminTitle: 'Новый черновик объекта',
     unitSubmittedSellerTitle: 'Предварительные данные объекта получены ✓',
-    unitSubmittedSellerMsg:
-      'Вы можете дополнить описание и документы в любое время',
+    unitSubmittedSellerMsg: 'Вы можете дополнить описание и документы в любое время',
     editedUnitAdminTitle: 'Объект обновлен продавцом',
     completedUnitAdminTitle: 'Объект заполнен и готов к проверке',
     newUnitReviewAdminTitle: 'Новый объект на проверку',
     newBuyRequestAdminTitle: 'Новая заявка на покупку',
     radarActivatedBuyerTitle: 'Радар выгодных объектов активирован 🎯',
-    radarActivatedBuyerMsg:
-      'Мы уведомим вас при появлении подходящих вариантов',
+    radarActivatedBuyerMsg: 'Мы уведомим вас при появлении подходящих вариантов',
     emailSenderName: 'Aqar Exit',
-    orderReceivedSubjectPrefix: 'Заявка на продажу объекта получена №',
-    buyOrderSubjectPrefix: 'Ваша заявка на покупку зарегистрирована №',
+    orderReceivedSubjectPrefix: 'Подтвердите ваш Email и заявку №',
+    buyOrderSubjectPrefix: 'Подтвердите ваш Email и заявку на покупку №',
     greetingWord: 'Здравствуйте,',
     orderRefLabel: 'Номер заявки',
     orderPaidConfirmText: 'Зарегистрированная выплаченная сумма',
     registeredCashLabel: 'Зарегистрированный бюджет наличными',
     orderMagicLinkPrompt:
-      'Вы можете продолжить заполнение данных объекта по ссылке',
-    sessionExpired:
-      'Сессия истекла или у вас нет прав на редактирование этого объекта.',
+      'Нажмите на кнопку ниже, чтобы подтвердить ваш email и открыть платформу',
+    confirmEmailBtnText: 'Подтвердить Email и открыть сайт ✓',
+    sessionExpired: 'Сессия истекла или у вас нет прав на редактирование этого объекта.',
     enterLogin: 'Введите ваш email или номер телефона и пароль.',
     notRegistered: 'Аккаунт не найден. Выберите «Регистрация».',
     wrongPassword: 'Неверный пароль.',
-    fillAll:
-      'Заполните все обязательные поля (пароль не менее 8 символов).',
-    createAccountFailed:
-      'Не удалось создать аккаунт. Email или телефон уже используется.',
+    fillAll: 'Заполните все обязательные поля (пароль не менее 8 символов).',
+    createAccountFailed: 'Не удалось создать аккаунт. Email или телефон уже используется.',
     unexpected: 'Произошла ошибка. Пожалуйста, попробуйте снова.',
     emailNotFound: 'Для этого аккаунта не найден зарегистрированный email.',
     recoveryEmailSubject: 'Восстановление доступа — Aqar Exit',
-    recoveryEmailPrompt:
-      'Перейдите по ссылке ниже для установки нового пароля',
+    recoveryEmailPrompt: 'Перейдите по ссылке ниже для установки нового пароля',
     sendLinkFailed: 'Не удалось отправить ссылку.',
     shortPassword: 'Пароль должен содержать не менее 8 символов.',
     updatePassFailed: 'Не удалось обновить пароль.',
@@ -182,9 +162,6 @@ const FORMS_MESSAGES_FALLBACK: Record<LocaleCode, Record<string, string>> = {
     defaultReady: 'Готов к заселению',
     enterNamePhone: 'Введите имя и номер телефона.',
     investorFailed: 'Не удалось отправить запрос.',
-    otpSubjectPrefix: 'Ваш код подтверждения Aqar Exit:',
-    otpInvalid: 'Неверный или просроченный код подтверждения.',
-    otpSendError: 'Не удалось отправить код подтверждения.',
   },
   ka: {
     expiredLink: 'ბმულს ვადა გაუვიდა ან არასწორია.',
@@ -195,31 +172,29 @@ const FORMS_MESSAGES_FALLBACK: Record<LocaleCode, Record<string, string>> = {
     unitWord: 'ობიექტი',
     newDraftUnitAdminTitle: 'ახალი ობიექტის მონახაზი',
     unitSubmittedSellerTitle: 'ობიექტის პირველადი მონაცემები მიღებულია ✓',
-    unitSubmittedSellerMsg:
-      'დეტალებისა და დოკუმენტების შევსება ნებისმიერ დროს შეგიძლიათ',
+    unitSubmittedSellerMsg: 'დეტალებისა და დოკუმენტების შევსება ნებისმიერ დროს შეგიძლიათ',
     editedUnitAdminTitle: 'ობიექტი განახლდა გამყიდველის მიერ',
     completedUnitAdminTitle: 'ობიექტი მზადაა შესამოწმებლად',
     newUnitReviewAdminTitle: 'ახალი ობიექტი შესამოწმებლად',
     newBuyRequestAdminTitle: 'ახალი შეძენის მოთხოვნა',
     radarActivatedBuyerTitle: 'შეთავაზებების რადარი გააქტიურებულია 🎯',
-    radarActivatedBuyerMsg:
-      'შეგატყობინებთ შესაბამისი ვარიანტების გამოჩენისთანავე',
+    radarActivatedBuyerMsg: 'შეგატყობინებთ შესაბამისი ვარიანტების გამოჩენისთანავე',
     emailSenderName: 'Aqar Exit',
-    orderReceivedSubjectPrefix: 'განაცხადი მიღებულია #',
-    buyOrderSubjectPrefix: 'შეძენის მოთხოვნა რეგისტრირებულია #',
+    orderReceivedSubjectPrefix: 'დაადასტურეთ თქვენი ელ-ფოსტა და განაცხადი #',
+    buyOrderSubjectPrefix: 'დაადასტურეთ ელ-ფოსტა და შეძენის მოთხოვნა #',
     greetingWord: 'გამარჯობა',
     orderRefLabel: 'განაცხადის ნომერი',
     orderPaidConfirmText: 'დაფიქსირებული გადახდილი თანხა',
     registeredCashLabel: 'დაფიქსირებული ბიუჯეტი',
     orderMagicLinkPrompt:
-      'მონაცემების შევსების გასაგრძელებლად გადადით ბმულზე',
+      'გთხოვთ დააჭიროთ ქვემოთ მოცემულ ღილაკს თქვენი ელ-ფოსტის დასადასტურებლად',
+    confirmEmailBtnText: 'ელ-ფოსტის დადასტურება და საიტის გახსნა ✓',
     sessionExpired: 'სესიის ვადა ამოიწურა ან არ გაქვთ რედაქტირების უფლება.',
     enterLogin: 'შეიყვანეთ ელ-ფოსტა ან ტელეფონის ნომერი და პაროლი.',
     notRegistered: 'ანგარიში ვერ მოიძებნა. აირჩიეთ „ახალი რეგისტრაცია“.',
     wrongPassword: 'პაროლი არასწორია.',
     fillAll: 'გთხოვთ შეავსოთ ყველა ველი (პაროლი მინიმუმ 8 სიმბოლო).',
-    createAccountFailed:
-      'ანგარიშის შექმნა ვერ მოხერხდა. ელ-ფოსტა ან ტელეფონი უკვე რეგისტრირებულია.',
+    createAccountFailed: 'ანგარიშის შექმნა ვერ მოხერხდა. ელ-ფოსტა ან ტელეფონი უკვე რეგისტრირებულია.',
     unexpected: 'მოხდა შეცდომა, გთხოვთ სცადოთ თავიდან.',
     emailNotFound: 'ელ-ფოსტა ვერ მოიძებნა.',
     recoveryEmailSubject: 'პაროლის აღდგენა — Aqar Exit',
@@ -233,9 +208,6 @@ const FORMS_MESSAGES_FALLBACK: Record<LocaleCode, Record<string, string>> = {
     defaultReady: 'ჩაბარებული',
     enterNamePhone: 'შეიყვანეთ სახელი და ტელეფონის ნომერი.',
     investorFailed: 'მოთხოვნის გაგზავნა ვერ მოხერხდა.',
-    otpSubjectPrefix: 'თქვენი Aqar Exit დადასტურების კოდია:',
-    otpInvalid: 'კოდი არასწორია ან ვადა გაუვიდა.',
-    otpSendError: 'კოდის გაგზავნა ვერ მოხერხდა.',
   },
 }
 
@@ -273,14 +245,6 @@ async function getSupabase() {
   )
 }
 
-function getSecret() {
-  return (
-    process.env.SESSION_SECRET ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    'aqar-exit-enterprise-secret-key-2026'
-  )
-}
-
 async function getVerifiedSellerSession(supabase: any) {
   const cookieStore = await cookies()
   const rawSession = cookieStore.get('user_session')?.value
@@ -289,9 +253,7 @@ async function getVerifiedSellerSession(supabase: any) {
 
   const { data: user } = await supabase
     .from('users')
-    .select(
-      'id, name, email, phone, country, role, status, is_verified, password_hash'
-    )
+    .select('id, name, email, phone, country, role, status, password_hash')
     .eq('id', sessionId)
     .maybeSingle()
 
@@ -301,367 +263,6 @@ async function getVerifiedSellerSession(supabase: any) {
   if (!check.valid || status === 'suspended') return null
 
   return user
-}
-
-/**
- * حفظ واسترجاع حالة التوثيق (توثيق البريد وتوثيق الهاتف عبر واتساب)
- * بطريقة متوافقة 100% مع قاعدة البيانات حتى لو لم يكن عمود phone_verified مضافاً في جدول users
- */
-export async function upsertUserVerificationMeta(
-  supabase: any,
-  userId: string,
-  updates: { emailVerified?: boolean; phoneVerified?: boolean }
-) {
-  if (!userId) return
-
-  try {
-    const { data: existingNotif } = await supabase
-      .from('notifications')
-      .select('id, message')
-      .eq('user_id', userId)
-      .eq('title', '__USER_VERIFICATION_META__')
-      .maybeSingle()
-
-    let currentMeta = { emailVerified: false, phoneVerified: false }
-    if (existingNotif?.message) {
-      try {
-        currentMeta = { ...currentMeta, ...JSON.parse(existingNotif.message) }
-      } catch {}
-    }
-
-    const nextMeta = {
-      emailVerified:
-        updates.emailVerified !== undefined
-          ? updates.emailVerified
-          : currentMeta.emailVerified,
-      phoneVerified:
-        updates.phoneVerified !== undefined
-          ? updates.phoneVerified
-          : currentMeta.phoneVerified,
-      updatedAt: new Date().toISOString(),
-    }
-
-    if (existingNotif?.id) {
-      await supabase
-        .from('notifications')
-        .update({ message: JSON.stringify(nextMeta), is_read: true })
-        .eq('id', existingNotif.id)
-    } else {
-      await supabase.from('notifications').insert({
-        user_id: userId,
-        title: '__USER_VERIFICATION_META__',
-        message: JSON.stringify(nextMeta),
-        type: 'system_verification',
-        link: '/account',
-        is_read: true,
-      })
-    }
-  } catch {}
-
-  if (updates.emailVerified) {
-    try {
-      await supabase
-        .from('users')
-        .update({ is_verified: true, otp_code: null })
-        .eq('id', userId)
-    } catch {}
-  }
-
-  if (updates.phoneVerified) {
-    try {
-      await supabase
-        .from('users')
-        .update({ phone_verified: true })
-        .eq('id', userId)
-    } catch {}
-  }
-}
-
-export async function getUsersVerificationMapAction(
-  userIds?: string[]
-): Promise<
-  Record<string, { emailVerified: boolean; phoneVerified: boolean }>
-> {
-  try {
-    const supabase = await getSupabase()
-    const result: Record<
-      string,
-      { emailVerified: boolean; phoneVerified: boolean }
-    > = {}
-
-    let usersQuery = supabase
-      .from('users')
-      .select('id, is_verified')
-    if (userIds && userIds.length > 0) {
-      usersQuery = usersQuery.in('id', userIds)
-    }
-    const { data: usersData } = await usersQuery
-
-    for (const u of usersData || []) {
-      result[u.id] = {
-        emailVerified: Boolean(u.is_verified),
-        phoneVerified: false,
-      }
-    }
-
-    let notifQuery = supabase
-      .from('notifications')
-      .select('user_id, message')
-      .eq('title', '__USER_VERIFICATION_META__')
-    if (userIds && userIds.length > 0) {
-      notifQuery = notifQuery.in('user_id', userIds)
-    }
-    const { data: notifData } = await notifQuery
-
-    for (const n of notifData || []) {
-      if (!n.user_id) continue
-      try {
-        const parsed = JSON.parse(n.message || '{}')
-        const prev = result[n.user_id] || {
-          emailVerified: false,
-          phoneVerified: false,
-        }
-        result[n.user_id] = {
-          emailVerified: Boolean(prev.emailVerified || parsed.emailVerified),
-          phoneVerified: Boolean(prev.phoneVerified || parsed.phoneVerified),
-        }
-      } catch {}
-    }
-
-    return result
-  } catch {
-    return {}
-  }
-}
-
-export async function markUserPhoneVerifiedAction(payload: {
-  userId?: string
-  unitId?: string
-  leadId?: string
-}) {
-  try {
-    const supabase = await getSupabase()
-    let targetUserId = payload.userId || ''
-
-    if (!targetUserId && payload.unitId) {
-      const { data: unit } = await supabase
-        .from('sell_requests')
-        .select('user_id, documents')
-        .eq('id', payload.unitId)
-        .maybeSingle()
-      if (unit?.user_id) targetUserId = String(unit.user_id)
-      if (unit) {
-        const docs =
-          unit.documents && typeof unit.documents === 'object'
-            ? { ...unit.documents }
-            : {}
-        docs.__unit_meta = {
-          ...(docs.__unit_meta || {}),
-          phone_verified: true,
-        }
-        await supabase
-          .from('sell_requests')
-          .update({ documents: docs })
-          .eq('id', payload.unitId)
-      }
-    }
-
-    if (!targetUserId && payload.leadId) {
-      const { data: lead } = await supabase
-        .from('buy_requests')
-        .select('user_id')
-        .eq('id', payload.leadId)
-        .maybeSingle()
-      if (lead?.user_id) targetUserId = String(lead.user_id)
-    }
-
-    if (!targetUserId) {
-      const sessionUser = await getVerifiedSellerSession(supabase)
-      if (sessionUser?.id) targetUserId = String(sessionUser.id)
-    }
-
-    if (targetUserId) {
-      await upsertUserVerificationMeta(supabase, targetUserId, {
-        phoneVerified: true,
-      })
-    }
-
-    revalidatePath('/account', 'page')
-    revalidatePath('/admin/properties', 'page')
-    revalidatePath('/admin/leads', 'page')
-    revalidatePath('/admin/users', 'page')
-    return { success: true, userId: targetUserId }
-  } catch {
-    return { success: false }
-  }
-}
-
-export async function sendSellerReviewOtpAction(payload?: {
-  email?: string
-  unitId?: string
-}) {
-  const { t: msg, dir } = await getFormsDict()
-  try {
-    const supabase = await getSupabase()
-    const sessionUser = await getVerifiedSellerSession(supabase)
-    const targetEmail = normalizeEmail(
-      payload?.email || sessionUser?.email || ''
-    )
-
-    if (!targetEmail) {
-      return { success: false, error: msg.emailNotFound }
-    }
-
-    const otp = Math.floor(100000 + Math.random() * 900000).toString()
-    const expiresAt = Date.now() + 15 * 60 * 1000
-    const expiryIso = new Date(expiresAt).toISOString()
-
-    const cookieStore = await cookies()
-    const isProd = process.env.NODE_ENV === 'production'
-    const sig = createHmac('sha256', getSecret())
-      .update(`${targetEmail}:${otp}:${expiresAt}`)
-      .digest('hex')
-
-    cookieStore.set('sell_verify_otp', `${expiresAt}.${sig}`, {
-      path: '/',
-      maxAge: 15 * 60,
-      sameSite: 'lax',
-      secure: isProd,
-      httpOnly: true,
-    })
-
-    if (sessionUser?.id) {
-      try {
-        await supabase
-          .from('users')
-          .update({ otp_code: otp, otp_expiry: expiryIso })
-          .eq('id', sessionUser.id)
-      } catch {}
-    }
-
-    // وضع الكود في عنوان الرسالة (Subject) كما يظهر للمستخدم في التنبيه الأخضر
-    const sent = await sendNotificationEmail({
-      to: targetEmail,
-      senderName: msg.emailSenderName,
-      subject: `${otp} — ${msg.otpSubjectPrefix} ${otp}`,
-      html: `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.8; color: #0a1122;">
-              <p style="font-size: 15px;">${msg.greetingWord} <strong>${sessionUser?.name || ''}</strong>،</p>
-              <p>${msg.otpSubjectPrefix}</p>
-              <div style="background: #eaf8f2; border: 1px solid #aae3cb; padding: 16px; border-radius: 12px; text-align: center; margin: 18px 0;">
-                <span style="font-family: monospace; font-size: 30px; font-weight: 900; letter-spacing: 6px; color: #007a5a;">${otp}</span>
-              </div>
-             </div>`,
-    })
-
-    if (!sent) {
-      return { success: false, error: msg.otpSendError }
-    }
-
-    return { success: true }
-  } catch {
-    return { success: false, error: msg.otpSendError }
-  }
-}
-
-export async function verifySellerReviewOtpAction(payload: {
-  email?: string
-  otp: string
-  unitId?: string
-}) {
-  const { t: msg } = await getFormsDict()
-  try {
-    const supabase = await getSupabase()
-    const sessionUser = await getVerifiedSellerSession(supabase)
-    const targetEmail = normalizeEmail(
-      payload.email || sessionUser?.email || ''
-    )
-    const cleanOtp = normalizeDigits(payload.otp || '').replace(/\D/g, '')
-
-    if (!targetEmail || cleanOtp.length !== 6) {
-      return { success: false, error: msg.otpInvalid }
-    }
-
-    let isValid = false
-    const cookieStore = await cookies()
-    const rawCookie = cookieStore.get('sell_verify_otp')?.value
-
-    if (rawCookie && rawCookie.includes('.')) {
-      const [expStr, sig] = rawCookie.split('.')
-      const exp = Number(expStr)
-      if (exp && Date.now() <= exp) {
-        const expectedSig = createHmac('sha256', getSecret())
-          .update(`${targetEmail}:${cleanOtp}:${exp}`)
-          .digest('hex')
-        if (
-          sig.length === expectedSig.length &&
-          timingSafeEqual(Buffer.from(sig), Buffer.from(expectedSig))
-        ) {
-          isValid = true
-        }
-      }
-    }
-
-    if (!isValid && sessionUser?.id) {
-      const { data: dbUser } = await supabase
-        .from('users')
-        .select('otp_code, otp_expiry')
-        .eq('id', sessionUser.id)
-        .maybeSingle()
-
-      if (
-        dbUser?.otp_code &&
-        String(dbUser.otp_code).trim() === cleanOtp &&
-        (!dbUser.otp_expiry || new Date(dbUser.otp_expiry) >= new Date())
-      ) {
-        isValid = true
-      }
-    }
-
-    if (!isValid) {
-      return { success: false, error: msg.otpInvalid }
-    }
-
-    cookieStore.delete('sell_verify_otp')
-
-    if (sessionUser?.id) {
-      await upsertUserVerificationMeta(supabase, sessionUser.id, {
-        emailVerified: true,
-      })
-    }
-
-    if (payload.unitId) {
-      try {
-        const { data: unit } = await supabase
-          .from('sell_requests')
-          .select('documents')
-          .eq('id', payload.unitId)
-          .maybeSingle()
-        if (unit) {
-          const docs =
-            unit.documents && typeof unit.documents === 'object'
-              ? { ...unit.documents }
-              : {}
-          docs.__unit_meta = {
-            ...(docs.__unit_meta || {}),
-            email_verified: true,
-          }
-          await supabase
-            .from('sell_requests')
-            .update({ documents: docs })
-            .eq('id', payload.unitId)
-        }
-      } catch {}
-    }
-
-    revalidatePath('/account', 'page')
-    revalidatePath('/admin/properties', 'page')
-    revalidatePath('/admin/leads', 'page')
-    revalidatePath('/admin/users', 'page')
-
-    return { success: true }
-  } catch {
-    return { success: false, error: msg.otpInvalid }
-  }
 }
 
 async function canModifySellUnit(
@@ -940,8 +541,12 @@ function stripToCoreSellColumns(payload: Record<string, any>) {
 }
 
 function createMagicToken(userId: string, unitId: string, expiresAt: number) {
+  const secret =
+    process.env.SESSION_SECRET ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    'aqar-exit-enterprise-secret-key-2026'
   const payload = `${userId}:${unitId}:${expiresAt}`
-  const sig = createHmac('sha256', getSecret()).update(payload).digest('hex')
+  const sig = createHmac('sha256', secret).update(payload).digest('hex')
   return Buffer.from(`${payload}:${sig}`).toString('base64url')
 }
 
@@ -955,7 +560,11 @@ export async function verifyMagicTokenAction(token: string) {
       return { valid: false, error: msg.expiredLink }
     }
 
-    const expectedSig = createHmac('sha256', getSecret())
+    const secret =
+      process.env.SESSION_SECRET ||
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+      'aqar-exit-enterprise-secret-key-2026'
+    const expectedSig = createHmac('sha256', secret)
       .update(`${userId}:${unitId}:${expiresAt}`)
       .digest('hex')
 
@@ -988,10 +597,11 @@ export async function verifyMagicTokenAction(token: string) {
       return { valid: false, error: msg.invalidLink }
     }
 
-    // فتح الرابط المرسل على الإيميل يوثق بريد البائع تلقائياً
-    await upsertUserVerificationMeta(supabase, userId, {
-      emailVerified: true,
-    })
+    // توثيق الإيميل تلقائياً بمجرد ضغط المستخدم على الرابط من الإيميل
+    await supabase
+      .from('users')
+      .update({ is_verified: true })
+      .eq('id', userId)
 
     await setUserSession(userId, userRow?.password_hash)
 
@@ -1084,13 +694,6 @@ export async function getCurrentSellerProfileAction() {
     const supabase = await getSupabase()
     const user = await getVerifiedSellerSession(supabase)
     if (!user) return { isLoggedIn: false, user: null }
-
-    const verMap = await getUsersVerificationMapAction([user.id])
-    const userVer = verMap[user.id] || {
-      emailVerified: Boolean(user.is_verified),
-      phoneVerified: false,
-    }
-
     return {
       isLoggedIn: true,
       user: {
@@ -1099,8 +702,6 @@ export async function getCurrentSellerProfileAction() {
         email: user.email,
         phone: user.phone,
         country: user.country,
-        emailVerified: userVer.emailVerified,
-        phoneVerified: userVer.phoneVerified,
       },
     }
   } catch {
@@ -1244,9 +845,10 @@ export async function processSellerStep2Action(payload: {
     ) {
       if (!userEmail || !unitId) return
       const orderRef = generateOrderRef(unitId)
-      const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000
+      const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000
       const magicToken = createMagicToken(userId, unitId, expiresAt)
-      const magicLink = `${siteUrl}/sell?magic=${encodeURIComponent(magicToken)}`
+      const nextTarget = `/sell?magic=${encodeURIComponent(magicToken)}`
+      const verifyAndOpenLink = `${siteUrl}/api/verify-contact?type=email&token=${encodeURIComponent(magicToken)}&next=${encodeURIComponent(nextTarget)}`
       const paidFormatted = Number(payload.paidAmount || 0).toLocaleString(
         'en-US'
       )
@@ -1255,14 +857,16 @@ export async function processSellerStep2Action(payload: {
         to: userEmail,
         senderName: msg.emailSenderName,
         subject: `${msg.orderReceivedSubjectPrefix} ${orderRef}`,
-        html: `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.8; color: #0a1122;">
+        html: `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.8; color: #0a1122; max-width: 560px; margin: 0 auto;">
                 <p style="font-size: 16px;">${msg.greetingWord} <strong>${userName}</strong>،</p>
                 <p>${msg.orderRefLabel}: <strong>${orderRef}</strong>.</p>
-                <p>${msg.orderPaidConfirmText}: <strong>${paidFormatted}</strong>.</p>
+                <p>${msg.orderPaidConfirmText}: <strong>$${paidFormatted}</strong>.</p>
                 <p>${msg.orderMagicLinkPrompt}:</p>
-                <p style="margin: 18px 0;">
-                  <a href="${magicLink}" style="color: #0b6954; font-weight: bold; word-break: break-all;">${magicLink}</a>
-                </p>
+                <div style="margin: 22px 0;">
+                  <a href="${verifyAndOpenLink}" style="display: inline-block; background-color: #007a5a; color: #ffffff; padding: 12px 24px; border-radius: 10px; font-weight: bold; text-decoration: none;">
+                    ${msg.confirmEmailBtnText}
+                  </a>
+                </div>
                </div>`,
       }).catch(() => {})
     }
@@ -1645,10 +1249,6 @@ export async function setNewPasswordFromTokenAction(payload: {
       return { success: false, error: msg.updatePassFailed }
     }
 
-    await upsertUserVerificationMeta(supabase, verify.userId, {
-      emailVerified: true,
-    })
-
     await setUserSession(verify.userId, newHash)
 
     return {
@@ -1698,7 +1298,6 @@ function buildUnitPayloadWithMetaBackup(
   const featuresList = list(formData, 'feature')
 
   parsedDocuments.__unit_meta = {
-    ...(parsedDocuments.__unit_meta || {}),
     area: areaVal,
     unit_type: unitTypeVal,
     size: sizeVal,
@@ -1956,7 +1555,7 @@ export async function submitSellRequest(
             : `✅ ${msg.completedUnitAdminTitle} (${unitCountry}): ${projectName || msg.unitWord}`,
           message: `${payload.name || ''} · (${payload.area || '—'})`,
           type: 'property',
-          link: `/admin/properties?unitId=${existingUnitId}`,
+          link: '/admin/properties',
           is_read: false,
         })
       } catch {}
@@ -2024,7 +1623,7 @@ export async function submitSellRequest(
         title: `${msg.newUnitReviewAdminTitle} (${unitCountry}): ${projectName || msg.unitWord}`,
         message: `${payload.name} · ${payload.area || '—'}`,
         type: 'property',
-        link: `/admin/properties?unitId=${finalId}`,
+        link: '/admin/properties',
         is_read: false,
       })
     } catch {}
@@ -2137,7 +1736,7 @@ export async function processBuyerStep3Action(payload: {
             title: `${msg.newBuyRequestAdminTitle} (${targetCountry}): ${contact.name || msg.buyerFallback}`,
             message: `${cashFormatted} · ${(payload.preferred_areas || []).slice(0, 2).join('، ')}`,
             type: 'lead',
-            link: `/admin/leads${reqId ? `?leadId=${reqId}` : ''}`,
+            link: '/admin/leads',
             is_read: false,
           },
           {
@@ -2153,17 +1752,24 @@ export async function processBuyerStep3Action(payload: {
 
       if (contact.email) {
         const orderRef = generateOrderRef(reqId)
+        const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000
+        const verifyToken = createMagicToken(userId, reqId, expiresAt)
+        const verifyAndOpenBuyerLink = `${siteUrl}/api/verify-contact?type=email&token=${encodeURIComponent(verifyToken)}&next=${encodeURIComponent('/account?view=buyer')}`
+
         sendNotificationEmail({
           to: contact.email,
           senderName: msg.emailSenderName,
           subject: `${msg.buyOrderSubjectPrefix} ${orderRef}`,
-          html: `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.8; color: #0a1122;">
+          html: `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.8; color: #0a1122; max-width: 560px; margin: 0 auto;">
                   <p style="font-size: 16px;">${msg.greetingWord} <strong>${contact.name}</strong>،</p>
                   <p>${msg.orderRefLabel}: <strong>${orderRef}</strong>.</p>
-                  <p>${msg.registeredCashLabel}: <strong>${cashFormatted}</strong>.</p>
-                  <p style="margin: 18px 0;">
-                    <a href="${siteUrl}/account?view=buyer" style="color: #0b6954; font-weight: bold;">${siteUrl}/account?view=buyer</a>
-                  </p>
+                  <p>${msg.registeredCashLabel}: <strong>$${cashFormatted}</strong>.</p>
+                  <p>${msg.orderMagicLinkPrompt}:</p>
+                  <div style="margin: 22px 0;">
+                    <a href="${verifyAndOpenBuyerLink}" style="display: inline-block; background-color: #007a5a; color: #ffffff; padding: 12px 24px; border-radius: 10px; font-weight: bold; text-decoration: none;">
+                      ${msg.confirmEmailBtnText}
+                    </a>
+                  </div>
                  </div>`,
         }).catch(() => {})
       }

@@ -57,17 +57,20 @@ const BUYER_STEP3_FALLBACK: Record<LocaleCode, Record<string, string>> = {
     sendLinkError: 'تعذر إرسال الرابط حالياً',
   },
   en: {
-    enterAccountPassError: 'Please enter your account password to continue and save your request',
+    enterAccountPassError:
+      'Please enter your account password to continue and save your request',
     wrongPassError: 'Incorrect password',
     sendLinkError: 'Could not send recovery link right now',
   },
   ru: {
-    enterAccountPassError: 'Введите пароль от вашего аккаунта для сохранения заявки',
+    enterAccountPassError:
+      'Введите пароль от вашего аккаунта для сохранения заявки',
     wrongPassError: 'Неверный пароль',
     sendLinkError: 'Не удалось отправить ссылку восстановления',
   },
   ka: {
-    enterAccountPassError: 'გთხოვთ შეიყვანოთ ანგარიშის პაროლი მოთხოვნის შესანახად',
+    enterAccountPassError:
+      'გთხოვთ შეიყვანოთ ანგარიშის პაროლი მოთხოვნის შესანახად',
     wrongPassError: 'პაროლი არასწორია',
     sendLinkError: 'აღდგენის ბმულის გაგზავნა ვერ მოხერხდა',
   },
@@ -115,7 +118,7 @@ export function BuyerContactStep({
   setAuthTab: (tab: 'session' | 'register' | 'login') => void
   conflictState: BuyerConflictState
   setConflictState: (val: BuyerConflictState) => void
-  onSuccessRedirect: () => void
+  onSuccessRedirect: (info?: { reqId?: string; orderRef?: string }) => void
 }) {
   const { t: dict, locale } = useTranslation()
   const t = dict.buy.stepThree as Record<string, any>
@@ -152,7 +155,6 @@ export function BuyerContactStep({
         return
       }
 
-      // بعد نجاح توثيق الجلسة بكلمة المرور، نحفظ طلب الشراء فوراً تحت user_id الموثق
       const saveRes = await processBuyerStep3Action({
         mode: 'session',
         country: 'GE',
@@ -168,11 +170,16 @@ export function BuyerContactStep({
       })
 
       if (saveRes.status === 'ok') {
-        onSuccessRedirect()
+        onSuccessRedirect({
+          reqId: saveRes.unitId,
+          orderRef: saveRes.orderRef,
+        })
         return
       }
 
-      setStepError(saveRes.error || pickMsg(locale, t.wrongPassError, 'wrongPassError'))
+      setStepError(
+        saveRes.error || pickMsg(locale, t.wrongPassError, 'wrongPassError')
+      )
     } finally {
       setIsLoading(false)
     }

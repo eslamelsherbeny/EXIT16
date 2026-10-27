@@ -146,7 +146,6 @@ export function ContactStep({
   const [stepError, setStepError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
-  // تصفير رسائل الخطأ عند تغيير اللغة حتى لا تبقى أي رسالة باللغة السابقة
   useEffect(() => {
     setErrors({})
     setStepError('')

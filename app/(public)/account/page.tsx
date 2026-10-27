@@ -21,14 +21,19 @@ import {
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-function deriveUnitCode(id: string) {
-  const numericCode = String(id || '')
-    .replace(/\D/g, '')
-    .slice(0, 5)
-  const fallbackCode = String(id || '')
-    .slice(0, 5)
-    .toUpperCase()
-  return `U-${numericCode.length >= 4 ? numericCode : fallbackCode}`
+const PENDING_ADMIN_TAG = '__PENDING_ADMIN_VERIFICATION__'
+
+function normalizeOfferStatus(raw: any): string {
+  const rawDiffs = Array.isArray(raw?.diff_reasons) ? raw.diff_reasons : []
+  const hasPendingAdminTag = rawDiffs.includes(PENDING_ADMIN_TAG)
+  if (
+    raw?.status === 'pending_admin' ||
+    (raw?.status === 'recommended' &&
+      (raw?.initiated_by === 'buyer' || hasPendingAdminTag))
+  ) {
+    return 'pending_admin'
+  }
+  return String(raw?.status || 'pending_admin')
 }
 
 async function getSupabase() {
@@ -156,7 +161,7 @@ export default async function AccountPage({
         supabase
           .from('property_offers')
           .select(
-            'id, property_id, lead_id, buyer_user_id, seller_user_id, status'
+            'id, property_id, lead_id, buyer_user_id, seller_user_id, status, initiated_by, diff_reasons'
           ),
       ])
 
@@ -179,78 +184,51 @@ export default async function AccountPage({
     (u) => u && !isNonGeorgianLegacyArea(u.area) && !myUnitIds.has(String(u.id))
   )
 
-  // حساب عروض البائع لكل وحدة (العروض المباشرة + المشترين المتوافقين وحاجزي الوحدة)
   const offersCountMap: Record<string, number> = {}
   const matchedBuyersCountMap: Record<string, number> = {}
 
   sells.forEach((unit) => {
     const unitIdStr = String(unit.id)
-    const uCode = deriveUnitCode(unitIdStr)
 
-    const unitAllOffers = allOffers.filter(
-      (o: any) => o && String(o.property_id) === unitIdStr
-    )
-    const activeDirectOffers = unitAllOffers.filter(
-      (o: any) => o.status !== 'rejected'
-    )
+    // 1. عداد كارت «العروض» للبائع: يحسب فقط العروض الفعلية المعتمدة من الأدمن (لا يحسب pending_admin ولا recommended)
+    const unitApprovedOffers = allOffers.filter((o: any) => {
+      if (!o || String(o.property_id) !== unitIdStr) return false
+      const st = normalizeOfferStatus(o)
+      return (
+        st !== 'recommended' &&
+        st !== 'pending_admin' &&
+        st !== 'rejected'
+      )
+    })
+    offersCountMap[unit.id] = unitApprovedOffers.length
 
-    const coveredLeadIds = new Set(
-      unitAllOffers.map((o: any) => String(o.lead_id || '')).filter(Boolean)
-    )
-    const coveredBuyerUserIds = new Set(
-      unitAllOffers
-        .map((o: any) => String(o.buyer_user_id || ''))
-        .filter(Boolean)
-    )
-
-    let unbridgedMatchingLeadsCount = 0
+    // 2. عداد شريط الرادار الأخضر: يحسب عدد المشترين المتوافقين في نفس المنطقة والميزانية
     let totalMatchingBuyersCount = 0
-
     allBuyersForMatch.forEach((b: any) => {
       if (!b || !b.id) return
       if (b.user_id && String(b.user_id) === String(profile.id)) return
-
       try {
-        const areasStr = Array.isArray(b.preferred_areas)
-          ? b.preferred_areas.join(' ')
-          : String(b.preferred_areas || '')
-        const planStr = String(b.payment_plan || '')
-
-        const isDirectUnitBooking =
-          areasStr.includes(uCode) ||
-          planStr.includes(uCode) ||
-          (unit.project_name &&
-            areasStr.includes('🎯') &&
-            areasStr.toLowerCase().includes(unit.project_name.toLowerCase()))
-
         const res = calculateSmartMatch(unit, b, undefined, locale)
-        if (isDirectUnitBooking || res.score >= 65) {
+        if (res.score >= 65) {
           totalMatchingBuyersCount++
-          const isAlreadyInOffers =
-            coveredLeadIds.has(String(b.id)) ||
-            (b.user_id && coveredBuyerUserIds.has(String(b.user_id)))
-          if (!isAlreadyInOffers) {
-            unbridgedMatchingLeadsCount++
-          }
         }
       } catch {}
     })
-
     matchedBuyersCountMap[unit.id] = totalMatchingBuyersCount
-    offersCountMap[unit.id] =
-      activeDirectOffers.length + unbridgedMatchingLeadsCount
   })
 
-  // حساب عروض المشتري (العروض المقدمة + الترشيحات المطابقة في صفحة عروضي)
+  // حساب عداد زر «عروضي» للمشتري (العروض التي أرسلها + الفرص المرشحة بالرادار)
   const myLeadIds = new Set(buys.map((b) => String(b.id)))
-  const directBuyerOffers = allOffers.filter(
-    (o: any) =>
-      o &&
-      o.status !== 'recommended' &&
-      o.status !== 'rejected' &&
+  const directBuyerOffers = allOffers.filter((o: any) => {
+    if (!o) return false
+    const st = normalizeOfferStatus(o)
+    return (
+      st !== 'recommended' &&
+      st !== 'rejected' &&
       (String(o.buyer_user_id || '') === String(profile.id) ||
         (o.lead_id && myLeadIds.has(String(o.lead_id))))
-  )
+    )
+  })
   const offeredUnitIds = new Set(
     directBuyerOffers.map((o: any) => String(o.property_id))
   )

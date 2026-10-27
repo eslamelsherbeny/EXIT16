@@ -3,12 +3,10 @@
 import { Suspense, useEffect, useMemo, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { createBrowserClient } from '@supabase/ssr'
 import {
   AlertTriangle,
   ArrowLeft,
   ArrowRight,
-  Building2,
   Check,
   CheckCircle2,
   Clock,
@@ -22,18 +20,23 @@ import {
   RotateCcw,
   Search,
   Send,
-  ShieldCheck,
-  User,
   Wallet,
   X,
   XCircle,
 } from 'lucide-react'
 import {
+  adminGetDealsRoomDataAction,
   adminManageOfferLifecycleAction,
-  generateOfferRefCode,
 } from '@/actions/offer-actions'
 import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
 import { getCurrencySymbol, useTranslation } from '@/lib/i18n'
+
+function generateOfferRefCode(offerId: string): string {
+  const clean = String(offerId || '')
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .toUpperCase()
+  return `OF-${clean.slice(0, 6) || '1001'}`
+}
 
 function deriveUnitCode(id: string) {
   const digits = String(id || '').replace(/\D/g, '')
@@ -47,7 +50,7 @@ function AdminDealsContent() {
   const targetOfferId = searchParams.get('offerId')
   const initialTabParam = searchParams.get('tab')
 
-  const { t: dict, locale, dir, isRtl, siteSettings } = useTranslation()
+  const { locale, dir, isRtl, siteSettings } = useTranslation()
   const cur = getCurrencySymbol('GE', locale)
   const commPct = Number(siteSettings?.buyerCommission) || 1.25
 
@@ -75,33 +78,18 @@ function AdminDealsContent() {
   async function loadDeals() {
     setLoading(true)
     try {
-      const supabase = createBrowserClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      )
-
-      const [{ data: offersData }, { data: unitsData }] = await Promise.all([
-        supabase
-          .from('property_offers')
-          .select('*')
-          .neq('status', 'recommended')
-          .order('updated_at', { ascending: false }),
-        supabase
-          .from('sell_requests')
-          .select('*')
-          .neq('status', 'deleted_by_seller'),
-      ])
+      const res = await adminGetDealsRoomDataAction()
 
       const uMap: Record<string, any> = {}
-      ;(unitsData || []).forEach((u: any) => {
+      ;(res.units || []).forEach((u: any) => {
         uMap[String(u.id)] = u
       })
 
       setUnitsMap(uMap)
-      setOffers(offersData || [])
+      setOffers(res.offers || [])
 
-      if (targetOfferId && offersData) {
-        const found = offersData.find(
+      if (targetOfferId && res.offers) {
+        const found = res.offers.find(
           (o: any) => String(o.id) === String(targetOfferId)
         )
         if (found) {
@@ -259,7 +247,6 @@ function AdminDealsContent() {
         </div>
       )}
 
-      {/* شريط الفلترة والبحث */}
       <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-gray-200/85 bg-white p-3.5 shadow-2xs sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="relative w-full sm:max-w-xs sm:flex-1">
           <Search className="pointer-events-none absolute top-1/2 end-3 size-4 -translate-y-1/2 text-gray-400" />
@@ -338,9 +325,12 @@ function AdminDealsContent() {
             const uCode = deriveUnitCode(unit.id)
             const areaName = getLocalizedGeorgiaAreaName(unit.area, locale)
             const offeredCash = Number(offer.offered_cash) || 0
-            const requiredCash = Number(unit.paid_amount || offer.required_cash) || 0
+            const requiredCash =
+              Number(unit.paid_amount || offer.required_cash) || 0
             const contractPrice = Number(unit.contract_price) || requiredCash
-            const commissionAmount = Math.round(contractPrice * (commPct / 100))
+            const commissionAmount = Math.round(
+              contractPrice * (commPct / 100)
+            )
             const isHighlighted = String(targetOfferId) === String(offer.id)
             const isCardBusy = isPending && processingId === offer.id
 
@@ -367,7 +357,6 @@ function AdminDealsContent() {
                   </div>
                 )}
 
-                {/* الهيدر العلوي للعرض */}
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 pb-3.5">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="rounded-lg bg-[#0a1122] px-2.5 py-1 font-mono text-xs font-black text-emerald-300">
@@ -392,7 +381,6 @@ function AdminDealsContent() {
                     </Link>
                   </div>
 
-                  {/* شارة الحالة */}
                   <div>
                     {offer.status === 'pending_admin' && (
                       <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500 px-3.5 py-1 text-xs font-extrabold text-white shadow-2xs">
@@ -442,9 +430,7 @@ function AdminDealsContent() {
                   </div>
                 </div>
 
-                {/* تفاصيل الطرفين (المشتري والبائع) والملخص المالي */}
                 <div className="mt-4 grid grid-cols-1 gap-3.5 md:grid-cols-3">
-                  {/* 1. كارت المشتري */}
                   <div className="rounded-xl border border-gray-200/80 bg-gray-50/70 p-3.5">
                     <span className="block text-[10.5px] font-extrabold text-gray-400">
                       👤 طرف المشتري (مقدم العرض)
@@ -483,7 +469,6 @@ function AdminDealsContent() {
                     )}
                   </div>
 
-                  {/* 2. كارت البائع */}
                   <div className="rounded-xl border border-gray-200/80 bg-gray-50/70 p-3.5">
                     <span className="block text-[10.5px] font-extrabold text-gray-400">
                       🏠 طرف البائع (مالك الوحدة)
@@ -516,7 +501,6 @@ function AdminDealsContent() {
                     )}
                   </div>
 
-                  {/* 3. الملخص المالي والعمولة */}
                   <div className="flex flex-col justify-between rounded-xl border border-emerald-200 bg-[#effaf5] p-3.5">
                     <div>
                       <span className="block text-[10.5px] font-extrabold text-[#105C50]">
@@ -553,7 +537,6 @@ function AdminDealsContent() {
                   </div>
                 </div>
 
-                {/* أزرار التحكم الإدارية حسب مرحلة العرض */}
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-2.5 border-t border-gray-100 pt-3.5">
                   <span className="text-[11px] text-gray-400">
                     تاريخ العرض:{' '}

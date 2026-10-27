@@ -72,14 +72,11 @@ function isUnitOwnedByUser(unit: any, user: any): boolean {
   return Boolean(byEmail || byPhone)
 }
 
-function deriveUnitCode(id: string) {
-  const numericCode = String(id || '')
-    .replace(/\D/g, '')
-    .slice(0, 5)
-  const fallbackCode = String(id || '')
-    .slice(0, 5)
+export function generateOfferRefCode(offerId: string): string {
+  const clean = String(offerId || '')
+    .replace(/[^a-zA-Z0-9]/g, '')
     .toUpperCase()
-  return `U-${numericCode.length >= 4 ? numericCode : fallbackCode}`
+  return `OF-${clean.slice(0, 6) || '1001'}`
 }
 
 function sanitizeUnitForPublicOrBuyer(unit: any): MatchableUnit | undefined {
@@ -131,7 +128,17 @@ function revalidateAllOfferPaths() {
   revalidatePath('/admin')
   revalidatePath('/admin/properties')
   revalidatePath('/admin/leads')
+  revalidatePath('/admin/deals')
 }
+
+export type OfferStatusType =
+  | 'pending_admin'
+  | 'recommended'
+  | 'pending_seller'
+  | 'counter_offered'
+  | 'accepted'
+  | 'rejected'
+  | 'unit_locked'
 
 export type OfferRecord = {
   id: string
@@ -149,13 +156,7 @@ export type OfferRecord = {
   match_score: number
   match_reasons: string[]
   diff_reasons: string[]
-  status:
-    | 'recommended'
-    | 'pending_seller'
-    | 'counter_offered'
-    | 'accepted'
-    | 'rejected'
-    | 'unit_locked'
+  status: OfferStatusType
   initiated_by: 'buyer' | 'admin' | 'auto'
   created_at: string
   updated_at?: string
@@ -187,7 +188,6 @@ export async function getAccountOffersDataAction() {
   const cleanEmail = String(profile.email || '').trim().toLowerCase()
   const cleanPhone = String(profile.phone || '').trim()
 
-  // ربط تلقائي لأي طلبات بيع أو شراء قديمة مسجلة بنفس إيميل أو هاتف المستخدم
   try {
     if (cleanEmail) {
       await Promise.all([
@@ -222,7 +222,6 @@ export async function getAccountOffersDataAction() {
   const [
     { data: mySellsData },
     { data: myBuysData },
-    { data: allBuyersData },
     { data: activeMarketData },
     { data: offersData },
   ] = await Promise.all([
@@ -236,10 +235,6 @@ export async function getAccountOffersDataAction() {
       .from('buy_requests')
       .select('*')
       .eq('user_id', profile.id)
-      .order('created_at', { ascending: false }),
-    supabase
-      .from('buy_requests')
-      .select('*')
       .order('created_at', { ascending: false }),
     supabase
       .from('sell_requests')
@@ -257,7 +252,6 @@ export async function getAccountOffersDataAction() {
     .map((u) => sanitizeUnitForPublicOrBuyer(u)!)
     .filter(Boolean)
   const myBuys = (myBuysData || []) as MatchableBuyer[]
-  const allBuyers = (allBuyersData || []) as any[]
   const allOffers = (offersData || []) as OfferRecord[]
 
   const myUnitIds = new Set(mySells.map((u) => String(u.id)))
@@ -270,133 +264,33 @@ export async function getAccountOffersDataAction() {
     if (clean) allKnownUnitsMap.set(String(clean.id), clean)
   })
 
-  // 1. العروض المباشرة المسجلة في جدول property_offers لوحدات البائع
-  const directSellerOffers = allOffers
+  // 1. عروض البائع: لا تظهر للبائع إلا العروض الحقيقية التي اعتمدها الأدمن (لا تظهر pending_admin ولا recommended ولا عروض وهمية)
+  const sellerOffers = allOffers
     .filter(
       (o) =>
-        myUnitIds.has(String(o.property_id)) ||
-        String(o.seller_user_id || '') === String(profile.id)
+        (myUnitIds.has(String(o.property_id)) ||
+          String(o.seller_user_id || '') === String(profile.id)) &&
+        o.status !== 'recommended' &&
+        o.status !== 'pending_admin' &&
+        o.status !== 'rejected'
     )
     .map((o) => ({
       ...o,
       id: String(o.id),
       property_id: String(o.property_id),
-      // إذا كان العرض مرشحاً من الإدارة نظهره للبائع كعرض وارد قابل للقبول أو التفاوض
-      status:
-        o.status === 'recommended'
-          ? ('pending_seller' as const)
-          : o.status,
       buyer_name: null,
       buyer_phone: null,
       match_reasons: Array.isArray(o.match_reasons) ? o.match_reasons : [],
       diff_reasons: Array.isArray(o.diff_reasons) ? o.diff_reasons : [],
       unit: allKnownUnitsMap.get(String(o.property_id)),
     }))
-
-  // 2. دمج المشترين المتوافقين وطلبات حجز الوحدة من جدول buy_requests كعروض للبائع إذا لم يكن لهم سجل سابق في property_offers
-  const bridgedLeadOffers: Array<OfferRecord & { unit?: MatchableUnit }> = []
-
-  const matchLabels = {
-    cashExact: oDict.matchCashExact,
-    cashNegotiableBridge: oDict.matchCashBridge,
-    cashSlightlyHigher: oDict.diffCashHigher,
-    instMatch: oDict.matchInst,
-    instHigher: oDict.diffInstHigher,
-    areaMatch: oDict.matchArea,
-    areaDiff: oDict.diffArea,
-    typeMatch: oDict.matchType,
-    typeDiff: oDict.diffType,
-    roomsMatch: oDict.matchRooms,
-    roomsDiff: oDict.diffRooms,
-    deliveryDiff: oDict.diffDelivery,
-  }
-
-  mySells.forEach((unit) => {
-    const unitIdStr = String(unit.id)
-    const uCode = deriveUnitCode(unitIdStr)
-    const unitPaid = Number(unit.paid_amount) || 0
-
-    // المشترون الذين لديهم بالفعل عرض مسجل في property_offers على هذه الوحدة (حتى لو مرفوض) لا نكررهم
-    const existingOffersForUnit = allOffers.filter(
-      (o) => String(o.property_id) === unitIdStr
-    )
-    const coveredLeadIds = new Set(
-      existingOffersForUnit.map((o) => String(o.lead_id || '')).filter(Boolean)
-    )
-    const coveredBuyerUserIds = new Set(
-      existingOffersForUnit
-        .map((o) => String(o.buyer_user_id || ''))
-        .filter(Boolean)
-    )
-
-    allBuyers.forEach((buyer) => {
-      if (!buyer || !buyer.id) return
-      if (buyer.user_id && String(buyer.user_id) === String(profile.id)) return
-      if (coveredLeadIds.has(String(buyer.id))) return
-      if (buyer.user_id && coveredBuyerUserIds.has(String(buyer.user_id)))
-        return
-
-      const areasStr = Array.isArray(buyer.preferred_areas)
-        ? buyer.preferred_areas.join(' ')
-        : String(buyer.preferred_areas || '')
-      const planStr = String(buyer.payment_plan || '')
-
-      const isDirectUnitBooking =
-        areasStr.includes(uCode) ||
-        planStr.includes(uCode) ||
-        (unit.project_name &&
-          areasStr.includes('🎯') &&
-          areasStr.toLowerCase().includes(unit.project_name.toLowerCase()))
-
-      const smartRes = calculateSmartMatch(unit, buyer, matchLabels, locale)
-
-      if (isDirectUnitBooking || smartRes.score >= 65) {
-        const rawBuyerCash = Number(buyer.available_cash || buyer.budget || 0)
-        const effectiveOfferedCash =
-          unitPaid > 0
-            ? rawBuyerCash > 0
-              ? Math.min(unitPaid, rawBuyerCash)
-              : unitPaid
-            : rawBuyerCash
-
-        const readinessVal: '48h' | '1_week' | '2_weeks' =
-          planStr.includes('48') || planStr.includes('أسبوع') || planStr.includes('week')
-            ? '1_week'
-            : '2_weeks'
-
-        bridgedLeadOffers.push({
-          id: `lead_${buyer.id}_${unitIdStr}`,
-          property_id: unitIdStr,
-          lead_id: String(buyer.id),
-          buyer_user_id: buyer.user_id ? String(buyer.user_id) : null,
-          seller_user_id: String(profile.id),
-          buyer_name: null,
-          buyer_phone: null,
-          offered_cash: effectiveOfferedCash,
-          counter_cash: null,
-          required_cash: unitPaid || effectiveOfferedCash,
-          payment_readiness: readinessVal,
-          payment_method: 'bank_check',
-          match_score: isDirectUnitBooking
-            ? Math.max(95, smartRes.score)
-            : smartRes.score,
-          match_reasons: smartRes.matches,
-          diff_reasons: smartRes.differences,
-          status: 'pending_seller',
-          initiated_by: isDirectUnitBooking ? 'buyer' : 'auto',
-          created_at: buyer.created_at || new Date().toISOString(),
-          unit,
-        })
-      }
+    .sort((a, b) => {
+      if (a.status === 'accepted' && b.status !== 'accepted') return -1
+      if (b.status === 'accepted' && a.status !== 'accepted') return 1
+      return Number(b.offered_cash) - Number(a.offered_cash)
     })
-  })
 
-  const sellerOffers = [
-    ...directSellerOffers.filter((o) => o.status !== 'rejected'),
-    ...bridgedLeadOffers,
-  ].sort((a, b) => b.match_score - a.match_score)
-
-  // 3. عروض المشتري الرسمية
+  // 2. عروض المشتري الرسمية (تشمل العروض التي قدمها بنفسه حتى لو في انتظار تأكيد الأدمن pending_admin)
   const buyerOffers = allOffers
     .filter(
       (o) =>
@@ -429,6 +323,21 @@ export async function getAccountOffersDataAction() {
     recommendedByAdmin: boolean
     existingOfferId?: string
   }> = []
+
+  const matchLabels = {
+    cashExact: oDict.matchCashExact,
+    cashNegotiableBridge: oDict.matchCashBridge,
+    cashSlightlyHigher: oDict.diffCashHigher,
+    instMatch: oDict.matchInst,
+    instHigher: oDict.diffInstHigher,
+    areaMatch: oDict.matchArea,
+    areaDiff: oDict.diffArea,
+    typeMatch: oDict.matchType,
+    typeDiff: oDict.diffType,
+    roomsMatch: oDict.matchRooms,
+    roomsDiff: oDict.diffRooms,
+    deliveryDiff: oDict.diffDelivery,
+  }
 
   if (activeBuyerReq) {
     const alreadyOfferedUnitIds = new Set(
@@ -493,42 +402,59 @@ export async function getAccountOffersDataAction() {
   }
 }
 
+/**
+ * دالة موحّدة لتقديم عرض شراء على وحدة (من نافذة العروض أو من صفحة تفاصيل الشقة مباشرة للمسجلين والزوار)
+ * كل عرض جديد يدخل بحالة pending_admin ويعيد offerRef ليرسله المشتري عبر واتساب للأدمن لتفعيله
+ */
 export async function submitBuyerOfferAction(payload: {
   propertyId: string
   offeredCash: number
   paymentReadiness: '48h' | '1_week' | '2_weeks'
   paymentMethod: 'bank_check' | 'bank_transfer'
-}) {
+  guestName?: string
+  guestPhone?: string
+  buyerNotes?: string
+}): Promise<{
+  success: boolean
+  error?: string
+  offerId?: string
+  offerRef?: string
+}> {
   const { dict, locale } = await getServerI18n()
   const oDict = (dict.accountPages as Record<string, any>)?.offers || {}
 
   try {
+    const supabase = await getSupabase()
     const session = await getVerifiedClientSession()
-    if (!session) {
-      return { success: false, error: oDict.errLoginRequired }
-    }
-    const { supabase, user: buyerUser } = session
-    const sessionId = buyerUser.id
+    const buyerUser = session?.user || null
+    const sessionId = buyerUser?.id || null
 
-    const [{ data: unit }, { data: buyerLeads }] = await Promise.all([
-      supabase
-        .from('sell_requests')
-        .select('*')
-        .eq('id', payload.propertyId)
-        .maybeSingle(),
-      supabase
-        .from('buy_requests')
-        .select('*')
-        .eq('user_id', sessionId)
-        .order('created_at', { ascending: false })
-        .limit(1),
-    ])
+    const cleanGuestName = String(payload.guestName || '').trim().slice(0, 120)
+    const cleanGuestPhone = String(payload.guestPhone || '')
+      .trim()
+      .replace(/\s+/g, '')
+      .slice(0, 25)
+
+    if (!sessionId && (!cleanGuestName || cleanGuestPhone.length < 7)) {
+      return {
+        success: false,
+        error:
+          oDict.errLoginRequired ||
+          'يرجى إدخال الاسم ورقم الواتساب الصحيح لتسجيل عرضك',
+      }
+    }
+
+    const { data: unit } = await supabase
+      .from('sell_requests')
+      .select('*')
+      .eq('id', payload.propertyId)
+      .maybeSingle()
 
     if (!unit) {
       return { success: false, error: oDict.errUnitNotFound }
     }
 
-    if (unit.user_id && String(unit.user_id) === String(sessionId)) {
+    if (sessionId && unit.user_id && String(unit.user_id) === String(sessionId)) {
       return {
         success: false,
         error:
@@ -538,11 +464,7 @@ export async function submitBuyerOfferAction(payload: {
       }
     }
 
-    if (
-      unit.status === 'transferring' ||
-      unit.status === 'sold' ||
-      unit.status === 'deleted_by_seller'
-    ) {
+    if (unit.status === 'sold' || unit.status === 'deleted_by_seller') {
       return { success: false, error: oDict.errUnitAlreadyLocked }
     }
 
@@ -574,73 +496,138 @@ export async function submitBuyerOfferAction(payload: {
       Math.max(guardrails.minAllowedOfferCash, cleanOfferedCash)
     )
 
-    const activeLead = buyerLeads?.[0] || null
+    const buyerNameFinal = buyerUser?.name || cleanGuestName || 'مشتري'
+    const buyerPhoneFinal = buyerUser?.phone || cleanGuestPhone || ''
+
+    // التأكد من وجود سجل ميزانية للمشتري في buy_requests لتشغيل الرادار الذكي له
+    let activeLead: any = null
+    if (sessionId) {
+      const { data: existingLeads } = await supabase
+        .from('buy_requests')
+        .select('*')
+        .eq('user_id', sessionId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+      activeLead = existingLeads?.[0] || null
+    }
+
+    if (!activeLead && buyerPhoneFinal) {
+      const { data: createdLead } = await supabase
+        .from('buy_requests')
+        .insert({
+          user_id: sessionId,
+          country: 'GE',
+          country_code: 'GE',
+          currency_code: 'USD',
+          name: buyerNameFinal,
+          phone: buyerPhoneFinal,
+          email: buyerUser?.email || null,
+          available_cash: finalOfferedCash,
+          budget: Number(unit.contract_price) || finalOfferedCash,
+          max_installment: Number(unit.installment_amount) || 0,
+          payment_plan: unit.installment_frequency || 'شهري',
+          preferred_areas: [unit.area || 'Tbilisi - Saburtalo'],
+          unit_types: [unit.unit_type || 'شقة'],
+          min_rooms: Number(unit.rooms) || 1,
+          delivery_status: unit.delivery_status || 'جاهز للاستلام',
+          status: 'new',
+        })
+        .select('*')
+        .maybeSingle()
+      activeLead = createdLead
+    }
+
     const matchInfo = activeLead
       ? calculateSmartMatch(unit, activeLead, undefined, locale)
-      : { score: 90, matches: [], differences: [] }
+      : { score: 92, matches: [], differences: [] }
 
-    const { data: existingOffer } = await supabase
-      .from('property_offers')
-      .select('id')
-      .eq('property_id', unit.id)
-      .eq('buyer_user_id', sessionId)
-      .limit(1)
-      .maybeSingle()
+    const reasonsList = [...matchInfo.matches]
+    if (payload.buyerNotes?.trim()) {
+      reasonsList.push(`💬 ${payload.buyerNotes.trim().slice(0, 180)}`)
+    }
+
+    // إذا كان المشتري موثقاً من قبل من الإدارة، يمر العرض مباشرة للبائع، وإلا يدخل بحالة pending_admin لتأكيد الواتساب
+    const isBuyerAlreadyVerified = Boolean(
+      buyerUser &&
+        (buyerUser.role === 'admin' ||
+          buyerUser.role === 'moderator' ||
+          buyerUser.role === 'sales')
+    )
+    const initialOfferStatus: OfferStatusType = isBuyerAlreadyVerified
+      ? 'pending_seller'
+      : 'pending_admin'
+
+    let existingOfferId: string | null = null
+    if (sessionId) {
+      const { data: existingOffer } = await supabase
+        .from('property_offers')
+        .select('id')
+        .eq('property_id', unit.id)
+        .eq('buyer_user_id', sessionId)
+        .limit(1)
+        .maybeSingle()
+      existingOfferId = existingOffer?.id ? String(existingOffer.id) : null
+    }
 
     const offerRow = {
       property_id: unit.id,
       lead_id: activeLead?.id || null,
       buyer_user_id: sessionId,
       seller_user_id: unit.user_id || null,
-      buyer_name: buyerUser?.name || activeLead?.name || '',
-      buyer_phone: buyerUser?.phone || activeLead?.phone || '',
+      buyer_name: buyerNameFinal,
+      buyer_phone: buyerPhoneFinal,
       offered_cash: finalOfferedCash,
       counter_cash: null,
       required_cash: guardrails.requiredCash,
       payment_readiness: payload.paymentReadiness,
       payment_method: payload.paymentMethod,
       match_score: matchInfo.score,
-      match_reasons: matchInfo.matches,
+      match_reasons: reasonsList,
       diff_reasons: matchInfo.differences,
-      status: 'pending_seller',
+      status: initialOfferStatus,
       initiated_by: 'buyer',
       updated_at: new Date().toISOString(),
     }
 
-    if (existingOffer?.id) {
+    let savedOfferId = existingOfferId || ''
+
+    if (existingOfferId) {
       const { error } = await supabase
         .from('property_offers')
         .update(offerRow)
-        .eq('id', existingOffer.id)
+        .eq('id', existingOfferId)
       if (error) return { success: false, error: oDict.errSubmitFailed }
     } else {
-      const { error } = await supabase.from('property_offers').insert(offerRow)
-      if (error) return { success: false, error: oDict.errSubmitFailed }
+      const { data: insertedOffer, error } = await supabase
+        .from('property_offers')
+        .insert(offerRow)
+        .select('id')
+        .single()
+      if (error || !insertedOffer) {
+        return { success: false, error: oDict.errSubmitFailed }
+      }
+      savedOfferId = String(insertedOffer.id)
     }
 
-    if (unit.status === 'active') {
-      await supabase
-        .from('sell_requests')
-        .update({ status: 'offer_received' })
-        .eq('id', unit.id)
-    }
+    const offerRef = generateOfferRefCode(savedOfferId)
 
+    // إرسال إشعار فوري للأدمن برقم العرض ورابط تفعيله في غرفة الصفقات
     const notifsToInsert: any[] = [
       {
         user_id: null,
-        title: `💰 ${oDict.adminNewOfferNotifTitle}: ${unit.project_name || ''}`,
-        message: `${buyerUser?.name || ''} — ${finalOfferedCash.toLocaleString('en-US')}`,
+        title: `🎯 عرض شراء جديد (${offerRef}): ${unit.project_name || ''}`,
+        message: `${buyerNameFinal} (${buyerPhoneFinal}) — $${finalOfferedCash.toLocaleString('en-US')}`,
         type: 'lead',
-        link: `/admin/properties?unitId=${unit.id}`,
+        link: `/admin/deals?offerId=${savedOfferId}`,
         is_read: false,
       },
     ]
 
-    if (unit.user_id) {
+    if (initialOfferStatus === 'pending_seller' && unit.user_id) {
       notifsToInsert.push({
         user_id: unit.user_id,
         title: `💰 ${oDict.sellerNewOfferNotifTitle} (${unit.project_name || ''})`,
-        message: `${finalOfferedCash.toLocaleString('en-US')}`,
+        message: `$${finalOfferedCash.toLocaleString('en-US')}`,
         type: 'new_offer',
         link: `/account/offers?role=seller&unitId=${unit.id}`,
         is_read: false,
@@ -652,7 +639,11 @@ export async function submitBuyerOfferAction(payload: {
     } catch {}
 
     revalidateAllOfferPaths()
-    return { success: true }
+    return {
+      success: true,
+      offerId: savedOfferId,
+      offerRef,
+    }
   } catch {
     return { success: false, error: oDict.errSubmitFailed }
   }
@@ -671,78 +662,11 @@ export async function respondToOfferBySellerAction(payload: {
     if (!session) return { success: false, error: oDict.errLoginRequired }
     const { supabase, user } = session
 
-    let offer: any = null
-
-    // إذا كان العرض قادماً من طلب شراء متوافق (lead_BUYERID_UNITID)، نقوم بترقيته وحفظه في جدول property_offers تلقائياً
-    if (String(payload.offerId).startsWith('lead_')) {
-      const parts = String(payload.offerId).split('_')
-      const leadId = parts[1]
-      const unitId = parts.slice(2).join('_')
-
-      const [{ data: unitData }, { data: leadData }] = await Promise.all([
-        supabase
-          .from('sell_requests')
-          .select('*')
-          .eq('id', unitId)
-          .maybeSingle(),
-        supabase
-          .from('buy_requests')
-          .select('*')
-          .eq('id', leadId)
-          .maybeSingle(),
-      ])
-
-      if (!unitData || !leadData || !isUnitOwnedByUser(unitData, user)) {
-        return { success: false, error: oDict.errUnitNotFound }
-      }
-
-      const unitPaid = Number(unitData.paid_amount) || 0
-      const rawBuyerCash = Number(
-        leadData.available_cash || leadData.budget || 0
-      )
-      const offeredCash =
-        unitPaid > 0
-          ? rawBuyerCash > 0
-            ? Math.min(unitPaid, rawBuyerCash)
-            : unitPaid
-          : rawBuyerCash
-
-      const smartRes = calculateSmartMatch(unitData, leadData, undefined, locale)
-
-      const { data: createdOffer, error: createErr } = await supabase
-        .from('property_offers')
-        .insert({
-          property_id: unitData.id,
-          lead_id: leadData.id,
-          buyer_user_id: leadData.user_id || null,
-          seller_user_id: user.id,
-          buyer_name: leadData.name || '',
-          buyer_phone: leadData.phone || '',
-          offered_cash: offeredCash,
-          required_cash: unitPaid || offeredCash,
-          payment_readiness: '1_week',
-          payment_method: 'bank_check',
-          match_score: smartRes.score,
-          match_reasons: smartRes.matches,
-          diff_reasons: smartRes.differences,
-          status: 'pending_seller',
-          initiated_by: 'auto',
-        })
-        .select('*')
-        .single()
-
-      if (createErr || !createdOffer) {
-        return { success: false, error: oDict.errSubmitFailed }
-      }
-      offer = createdOffer
-    } else {
-      const { data: fetchedOffer } = await supabase
-        .from('property_offers')
-        .select('*')
-        .eq('id', payload.offerId)
-        .maybeSingle()
-      offer = fetchedOffer
-    }
+    const { data: offer } = await supabase
+      .from('property_offers')
+      .select('*')
+      .eq('id', payload.offerId)
+      .maybeSingle()
 
     if (!offer) return { success: false, error: oDict.errUnitNotFound }
 
@@ -757,6 +681,25 @@ export async function respondToOfferBySellerAction(payload: {
     }
 
     if (payload.decision === 'accept') {
+      // منع البائع من قبول أكثر من عرض واحد في نفس الوقت على نفس الوحدة!
+      const { data: alreadyAccepted } = await supabase
+        .from('property_offers')
+        .select('id')
+        .eq('property_id', unit.id)
+        .eq('status', 'accepted')
+        .neq('id', offer.id)
+        .limit(1)
+
+      if (alreadyAccepted && alreadyAccepted.length > 0) {
+        return {
+          success: false,
+          error:
+            locale === 'ar'
+              ? 'لقد وافقت بالفعل على عرض آخر لهذه الوحدة. إذا لم يكتمل التعاقد يمكنك التواصل مع الإدارة لإعادة فتح العروض.'
+              : 'You have already accepted another offer for this unit.',
+        }
+      }
+
       await supabase
         .from('property_offers')
         .update({
@@ -765,16 +708,17 @@ export async function respondToOfferBySellerAction(payload: {
         })
         .eq('id', offer.id)
 
+      // تحويل باقي العروض على هذه الوحدة إلى عروض احتياطية (unit_locked) دون مسحها، مع إبقاء الوحدة offer_received في السوق حتى إتمام البيع الفعلي!
       await supabase
         .from('property_offers')
         .update({ status: 'unit_locked' })
         .eq('property_id', unit.id)
         .neq('id', offer.id)
-        .in('status', ['pending_seller', 'counter_offered', 'recommended'])
+        .in('status', ['pending_seller', 'counter_offered'])
 
       await supabase
         .from('sell_requests')
-        .update({ status: 'transferring' })
+        .update({ status: 'offer_received' })
         .eq('id', unit.id)
 
       if (offer.lead_id) {
@@ -784,13 +728,14 @@ export async function respondToOfferBySellerAction(payload: {
           .eq('id', offer.lead_id)
       }
 
+      const offerRef = generateOfferRefCode(offer.id)
       const notifs: any[] = [
         {
           user_id: null,
-          title: `🔥 ${oDict.adminDealAcceptedNotifTitle}: ${unit.project_name || ''}`,
-          message: `${unit.name} 🤝 ${offer.buyer_name || ''} (${Number(offer.offered_cash).toLocaleString('en-US')})`,
+          title: `🔥 صفقة متفق عليها (${offerRef}): ${unit.project_name || ''}`,
+          message: `وافق البائع (${unit.name}) على عرض المشتري (${offer.buyer_name || ''}) بمبلغ $${Number(offer.offered_cash).toLocaleString('en-US')}`,
           type: 'property',
-          link: `/admin?deal=${offer.id}`,
+          link: `/admin/deals?offerId=${offer.id}`,
           is_read: false,
         },
       ]
@@ -834,7 +779,7 @@ export async function respondToOfferBySellerAction(payload: {
           await supabase.from('notifications').insert({
             user_id: offer.buyer_user_id,
             title: `🔄 ${oDict.buyerCounterNotifTitle} (${unit.project_name || ''})`,
-            message: `${cleanCounter.toLocaleString('en-US')}`,
+            message: `$${cleanCounter.toLocaleString('en-US')}`,
             type: 'new_offer',
             link: '/account/offers?role=buyer',
             is_read: false,
@@ -854,7 +799,7 @@ export async function respondToOfferBySellerAction(payload: {
         .from('property_offers')
         .select('id')
         .eq('property_id', unit.id)
-        .in('status', ['pending_seller', 'counter_offered'])
+        .in('status', ['pending_seller', 'counter_offered', 'accepted'])
 
       if (!remainingOffers || remainingOffers.length === 0) {
         if (unit.status === 'offer_received') {
@@ -910,7 +855,7 @@ export async function respondToCounterOfferByBuyerAction(payload: {
       .eq('id', offer.property_id)
       .maybeSingle()
 
-    if (!unit || unit.status === 'transferring' || unit.status === 'sold') {
+    if (!unit || unit.status === 'sold') {
       return { success: false, error: oDict.errUnitAlreadyLocked }
     }
 
@@ -931,11 +876,11 @@ export async function respondToCounterOfferByBuyerAction(payload: {
         .update({ status: 'unit_locked' })
         .eq('property_id', unit.id)
         .neq('id', offer.id)
-        .in('status', ['pending_seller', 'counter_offered', 'recommended'])
+        .in('status', ['pending_seller', 'counter_offered'])
 
       await supabase
         .from('sell_requests')
-        .update({ status: 'transferring' })
+        .update({ status: 'offer_received' })
         .eq('id', unit.id)
 
       if (offer.lead_id) {
@@ -945,13 +890,14 @@ export async function respondToCounterOfferByBuyerAction(payload: {
           .eq('id', offer.lead_id)
       }
 
+      const offerRef = generateOfferRefCode(offer.id)
       const notifs: any[] = [
         {
           user_id: null,
-          title: `🔥 ${oDict.adminDealAcceptedNotifTitle}: ${unit.project_name || ''}`,
-          message: `${unit.name} 🤝 ${offer.buyer_name || ''} (${agreedAmount.toLocaleString('en-US')})`,
+          title: `🔥 صفقة متفق عليها (${offerRef}): ${unit.project_name || ''}`,
+          message: `${unit.name} 🤝 ${offer.buyer_name || ''} ($${agreedAmount.toLocaleString('en-US')})`,
           type: 'property',
-          link: `/admin?deal=${offer.id}`,
+          link: `/admin/deals?offerId=${offer.id}`,
           is_read: false,
         },
       ]
@@ -960,7 +906,7 @@ export async function respondToCounterOfferByBuyerAction(payload: {
         notifs.push({
           user_id: unit.user_id,
           title: `🎉 ${oDict.sellerCounterAcceptedNotifTitle} (${unit.project_name || ''})`,
-          message: `${agreedAmount.toLocaleString('en-US')}`,
+          message: `$${agreedAmount.toLocaleString('en-US')}`,
           type: 'status_update',
           link: `/account/offers?role=seller&unitId=${unit.id}`,
           is_read: false,
@@ -1013,6 +959,126 @@ async function verifyStaffSession() {
     return null
   }
   return { supabase, user }
+}
+
+/**
+ * دالة الأدمن للتحكم الكامل في العروض والصفقات:
+ * - approve_to_seller: اعتماد العرض بعد تأكيد المشتري على الواتساب وإرساله للبائع
+ * - reopen_unit_offers: إلغاء العرض المقبول (إذا تراجع المشتري) وإعادة فتح العروض الاحتياطية للبائع!
+ * - mark_unit_sold: إغلاق الصفقة نهائياً بعد التنازل وقبض العمولة
+ * - reject_offer: رفض عرض غير جاد
+ */
+export async function adminManageOfferLifecycleAction(payload: {
+  offerId: string
+  action:
+    | 'approve_to_seller'
+    | 'reopen_unit_offers'
+    | 'mark_unit_sold'
+    | 'reject_offer'
+}) {
+  const { dict } = await getServerI18n()
+  const oDict = (dict.accountPages as Record<string, any>)?.offers || {}
+
+  try {
+    const auth = await verifyStaffSession()
+    if (!auth) return { success: false, error: oDict.errLoginRequired }
+    const { supabase } = auth
+
+    const { data: offer } = await supabase
+      .from('property_offers')
+      .select('*')
+      .eq('id', payload.offerId)
+      .maybeSingle()
+
+    if (!offer) return { success: false, error: oDict.errUnitNotFound }
+
+    const { data: unit } = await supabase
+      .from('sell_requests')
+      .select('*')
+      .eq('id', offer.property_id)
+      .maybeSingle()
+
+    if (!unit) return { success: false, error: oDict.errUnitNotFound }
+
+    if (payload.action === 'approve_to_seller') {
+      await supabase
+        .from('property_offers')
+        .update({
+          status: 'pending_seller',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', offer.id)
+
+      if (unit.status === 'active') {
+        await supabase
+          .from('sell_requests')
+          .update({ status: 'offer_received' })
+          .eq('id', unit.id)
+      }
+
+      if (unit.user_id) {
+        try {
+          await supabase.from('notifications').insert({
+            user_id: unit.user_id,
+            title: `💰 ${oDict.sellerNewOfferNotifTitle} (${unit.project_name || ''})`,
+            message: `$${Number(offer.offered_cash).toLocaleString('en-US')}`,
+            type: 'new_offer',
+            link: `/account/offers?role=seller&unitId=${unit.id}`,
+            is_read: false,
+          })
+        } catch {}
+      }
+    } else if (payload.action === 'reopen_unit_offers') {
+      // إذا تراجع المشتري بعد موافقة البائع: نلغي عرض هذا المشتري، ونعيد تفعيل كل العروض الاحتياطية (unit_locked -> pending_seller)
+      await supabase
+        .from('property_offers')
+        .update({
+          status: 'rejected',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', offer.id)
+
+      await supabase
+        .from('property_offers')
+        .update({
+          status: 'pending_seller',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('property_id', unit.id)
+        .eq('status', 'unit_locked')
+
+      await supabase
+        .from('sell_requests')
+        .update({ status: 'active' })
+        .eq('id', unit.id)
+    } else if (payload.action === 'mark_unit_sold') {
+      await supabase
+        .from('property_offers')
+        .update({
+          status: 'accepted',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', offer.id)
+
+      await supabase
+        .from('sell_requests')
+        .update({ status: 'sold' })
+        .eq('id', unit.id)
+    } else if (payload.action === 'reject_offer') {
+      await supabase
+        .from('property_offers')
+        .update({
+          status: 'rejected',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', offer.id)
+    }
+
+    revalidateAllOfferPaths()
+    return { success: true }
+  } catch {
+    return { success: false, error: oDict.errSubmitFailed }
+  }
 }
 
 export async function adminSendRecommendationAction(payload: {
@@ -1202,7 +1268,7 @@ export async function adminCreateOfficialOfferAction(payload: {
         await supabase.from('notifications').insert({
           user_id: unit.user_id,
           title: `💰 ${oDict.sellerNewOfferNotifTitle} (${unit.project_name || ''})`,
-          message: `${cleanCash.toLocaleString('en-US')}`,
+          message: `$${cleanCash.toLocaleString('en-US')}`,
           type: 'new_offer',
           link: `/account/offers?role=seller&unitId=${unit.id}`,
           is_read: false,

@@ -1,1138 +1,1595 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
-import { Check, ChevronDown, Globe } from 'lucide-react'
+import { useEffect, useMemo, useState, useTransition } from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import {
+  AlertCircle,
+  Building2,
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  Copy,
+  EyeOff,
+  FileCheck2,
+  ImagePlus,
+  Loader2,
+  MessageCircle,
+  MousePointerClick,
+  PauseCircle,
+  PlayCircle,
+  Plus,
+  Search,
+  ShieldAlert,
+  Sparkles,
+  Star,
+  Trash2,
+  UploadCloud,
+  XCircle,
+} from 'lucide-react'
+import {
+  cancelUnitPromotionBySellerAction,
+  deleteUnitBySellerAction,
+  requestUnitPromotionAction,
+  toggleSellerUnitStatusAction,
+} from '@/actions/account-actions'
+import {
+  getUserVerificationStatusAction,
+  markUserPhoneVerifiedAction,
+} from '@/actions/auth-actions'
+import {
+  SUPPORTED_COUNTRIES,
+  type CountryCode,
+} from '@/components/layouts/site-shell'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import {
-  GEORGIA_CITIES_AND_DISTRICTS,
-  GeorgiaAreaSelect,
-  type GeorgiaAreaItem,
-} from '@/components/shared/georgia-areas'
-import {
-  DICTIONARIES,
-  getCurrencySymbol,
-  useTranslation,
-  type Dictionary,
-  type LocaleCode,
-} from '@/lib/i18n'
+import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
+import { ScrollReveal } from '@/components/shared/scroll-reveal'
+import { AccountActionLinks } from './delete-account-modal'
+import { getCurrencySymbol, useTranslation, type LocaleCode } from '@/lib/i18n'
 
-export type PlatformCountryCode = 'EG' | 'RU' | 'GE' | 'AE'
-
-export type PlatformCountryOption = {
-  code: PlatformCountryCode | string
-  nameAr: string
-  nameEn: string
-  nameRu?: string
-  nameKa?: string
-  flag: string
-  currencySymbol: string
-  phoneCode: string
-  defaultPackages?: {
-    days7: number
-    days14: number
-    days30: number
-  }
+export type SellerUnitItem = {
+  id: string
+  user_id?: string | null
+  name?: string | null
+  project_name: string | null
+  developer_name: string | null
+  area: string | null
+  unit_type: string | null
+  size: number | null
+  rooms: number | null
+  bathrooms: number | null
+  finishing: string | null
+  delivery_status: string | null
+  description: string | null
+  contract_price: number | null
+  paid_amount: number | null
+  market_price: number | null
+  installment_amount: number | null
+  installment_frequency: string | null
+  contract_year: number | null
+  willing_to_discount: boolean | null
+  has_overdue_installments: boolean | null
+  status: string | null
+  submission_type?: string | null
+  admin_note: string | null
+  images: string[] | null
+  documents: Record<string, any> | null
+  country?: string | null
+  country_code?: string | null
+  currency_code?: string | null
+  is_featured?: boolean | null
+  featured_days?: number | null
+  featured_price?: number | null
+  featured_status?: string | null
+  featured_fawry_code?: string | null
+  featured_until?: string | null
+  created_at: string | null
 }
 
-export function toEnglishDigits(str: string): string {
-  return String(str || '')
-    .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 1632))
-    .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 1776))
-}
+const INITIAL_VISIBLE_UNITS = 3
+const REAL_DOC_KEYS = ['contract', 'receipts', 'statement', 'passport'] as const
 
-export const PLATFORM_COUNTRIES: PlatformCountryOption[] = [
-  {
-    code: 'GE',
-    nameAr: 'جورجيا',
-    nameEn: 'Georgia',
-    nameRu: 'Грузия',
-    nameKa: 'საქართველო',
-    flag: '🇬🇪',
-    currencySymbol: '$',
-    phoneCode: '995',
-    defaultPackages: { days7: 29, days14: 49, days30: 69 },
-  },
-  {
-    code: 'EG',
-    nameAr: 'مصر',
-    nameEn: 'Egypt',
-    nameRu: 'Египет',
-    nameKa: 'ეგვიპტე',
-    flag: '🇪🇬',
-    currencySymbol: 'ج.م',
-    phoneCode: '20',
-    defaultPackages: { days7: 1199, days14: 1999, days30: 2799 },
-  },
-  {
-    code: 'RU',
-    nameAr: 'روسيا',
-    nameEn: 'Russia',
-    nameRu: 'Россия',
-    nameKa: 'რუსეთი',
-    flag: '🇷🇺',
-    currencySymbol: '₽',
-    phoneCode: '7',
-    defaultPackages: { days7: 2500, days14: 4200, days30: 5900 },
-  },
-  {
-    code: 'AE',
-    nameAr: 'الإمارات',
-    nameEn: 'UAE',
-    nameRu: 'ОАЭ',
-    nameKa: 'საამიროები',
-    flag: '🇦🇪',
-    currencySymbol: 'د.إ',
-    phoneCode: '971',
-    defaultPackages: { days7: 99, days14: 179, days30: 249 },
-  },
-]
-
-export const ALL_RESIDENCE_COUNTRIES: PlatformCountryOption[] = [
-  ...PLATFORM_COUNTRIES,
-  {
-    code: 'SA',
-    nameAr: 'السعودية',
-    nameEn: 'Saudi Arabia',
-    nameRu: 'Саудовская Аравия',
-    nameKa: 'საუდის არაბეთი',
-    flag: '🇸🇦',
-    currencySymbol: 'ر.س',
-    phoneCode: '966',
-  },
-  {
-    code: 'KW',
-    nameAr: 'الكويت',
-    nameEn: 'Kuwait',
-    nameRu: 'Кувейт',
-    nameKa: 'ქუვეითი',
-    flag: '🇰🇼',
-    currencySymbol: 'د.ك',
-    phoneCode: '965',
-  },
-  {
-    code: 'QA',
-    nameAr: 'قطر',
-    nameEn: 'Qatar',
-    nameRu: 'Катар',
-    nameKa: 'ყატარი',
-    flag: '🇶🇦',
-    currencySymbol: 'ر.ق',
-    phoneCode: '974',
-  },
-  {
-    code: 'BH',
-    nameAr: 'البحرين',
-    nameEn: 'Bahrain',
-    nameRu: 'Бахрейн',
-    nameKa: 'ბაჰრეინი',
-    flag: '🇧🇭',
-    currencySymbol: 'د.ب',
-    phoneCode: '973',
-  },
-  {
-    code: 'OM',
-    nameAr: 'عمان',
-    nameEn: 'Oman',
-    nameRu: 'Оман',
-    nameKa: 'ომანი',
-    flag: '🇴🇲',
-    currencySymbol: 'ر.ع',
-    phoneCode: '968',
-  },
-  {
-    code: 'JO',
-    nameAr: 'الأردن',
-    nameEn: 'Jordan',
-    nameRu: 'Иордания',
-    nameKa: 'იორდანია',
-    flag: '🇯🇴',
-    currencySymbol: 'د.أ',
-    phoneCode: '962',
-  },
-  {
-    code: 'TR',
-    nameAr: 'تركيا',
-    nameEn: 'Turkey',
-    nameRu: 'Турция',
-    nameKa: 'თურქეთი',
-    flag: '🇹🇷',
-    currencySymbol: '₺',
-    phoneCode: '90',
-  },
-  {
-    code: 'US',
-    nameAr: 'أمريكا / كندا',
-    nameEn: 'USA / Canada',
-    nameRu: 'США / Канада',
-    nameKa: 'აშშ / კანადა',
-    flag: '🇺🇸',
-    currencySymbol: '$',
-    phoneCode: '1',
-  },
-  {
-    code: 'GB',
-    nameAr: 'بريطانيا',
-    nameEn: 'UK',
-    nameRu: 'Великобритания',
-    nameKa: 'დიდი ბრიტანეთი',
-    flag: '🇬🇧',
-    currencySymbol: '£',
-    phoneCode: '44',
-  },
-]
-
-export function getLocalizedCountryName(
-  country: PlatformCountryOption,
-  locale: LocaleCode = 'ar'
-): string {
-  const dictCountries = (
-    DICTIONARIES[locale]?.admin?.propertiesAdmin as Record<string, any>
-  )?.countries
-  if (dictCountries?.[country.code]) return dictCountries[country.code]
-  if (locale === 'ar') return country.nameAr
-  if (locale === 'ru') return country.nameRu || country.nameEn
-  if (locale === 'ka') return country.nameKa || country.nameEn
-  return country.nameEn
-}
-
-export function normalizeArabicText(str: string) {
-  return (str || '')
-    .trim()
-    .toLowerCase()
-    .replace(/[أإآ]/g, 'ا')
-    .replace(/ة/g, 'ه')
-}
-
-export function getHeaderCookieCountry(): PlatformCountryCode {
-  return 'GE'
-}
-
-export function getCountryConfig(countryCode?: string): PlatformCountryOption {
-  return (
-    PLATFORM_COUNTRIES.find(
-      (c) => c.code === (countryCode || 'GE').toUpperCase()
-    ) || PLATFORM_COUNTRIES[0]
-  )
-}
-
-export function getCurrencyByCountry(
-  countryCode?: string,
-  locale?: LocaleCode
-) {
-  return getCurrencySymbol(countryCode || 'GE', locale)
-}
-
-// ==================== قوائم الاختيارات المترجمة للأربع لغات ====================
-const UNIT_TYPES_BY_LOCALE: Record<LocaleCode, string[]> = {
-  ar: [
-    'شقة',
-    'استوديو (Studio)',
-    'دوبلكس',
-    'بنتهاوس',
-    'تاون هاوس',
-    'فيلا مستقلة',
-    'شقة فندقية (Aparthotel)',
-    'شاليه جبلي / بحري',
-    'مكتب تجاري',
-    'محل تجاري',
-    'أرض',
-  ],
-  en: [
-    'Apartment',
-    'Studio',
-    'Duplex',
-    'Penthouse',
-    'Townhouse',
-    'Standalone Villa',
-    'Aparthotel',
-    'Mountain / Sea Chalet',
-    'Commercial Office',
-    'Retail Shop',
-    'Land',
-  ],
-  ru: [
-    'Квартира',
-    'Студия (Studio)',
-    'Дуплекс',
-    'Пентхаус',
-    'Таунхаус',
-    'Отдельная вилла',
-    'Апарт-отель (Aparthotel)',
-    'Горное / Морское шале',
-    'Коммерческий офис',
-    'Торговое помещение',
-    'Земельный участок',
-  ],
-  ka: [
-    'ბინა',
-    'სტუდიო (Studio)',
-    'დუპლექსი',
-    'პენტჰაუსი',
-    'თაუნჰაუსი',
-    'კერძო ვილა',
-    'აპარტ-ოტელი (Aparthotel)',
-    'მთის / ზღვის შალე',
-    'კომერციული ოფისი',
-    'სავაჭრო ფართი',
-    'მიწის ნაკვეთი',
-  ],
-}
-
-const FINISHINGS_BY_LOCALE: Record<LocaleCode, string[]> = {
-  ar: [
-    'تشطيب كامل (Turnkey)',
-    'بالفرش والأجهزة (Fully Furnished)',
-    'نصف تشطيب — إطار أبيض (White Frame)',
-    'على الطوب — إطار أسود (Black Frame)',
-    'إطار أخضر (Green Frame)',
-  ],
-  en: [
-    'Turnkey (Full Finishing)',
-    'Fully Furnished & Equipped',
-    'White Frame (Semi-Finished)',
-    'Black Frame (Core & Shell)',
-    'Green Frame',
-  ],
-  ru: [
-    'Под ключ (Turnkey)',
-    'С мебелью и техникой (Fully Furnished)',
-    'Белый каркас (White Frame)',
-    'Черный каркас (Black Frame)',
-    'Зеленый каркас (Green Frame)',
-  ],
-  ka: [
-    'სრული რემონტით (Turnkey)',
-    'ავეჯით და ტექნიკით (Fully Furnished)',
-    'თეთრი კარკასი (White Frame)',
-    'შავი კარკასი (Black Frame)',
-    'მწვანე კარკასი (Green Frame)',
-  ],
-}
-
-const DELIVERIES_BY_LOCALE: Record<LocaleCode, string[]> = {
-  ar: ['جاهزة للاستلام', 'تحت الإنشاء'],
-  en: ['Ready to Move', 'Under Construction'],
-  ru: ['Готово к заселению', 'Строится'],
-  ka: ['მზადაა შესასვლელად', 'მშენებარე'],
-}
-
-const FEATURES_BY_LOCALE: Record<LocaleCode, string[]> = {
-  ar: [
-    'إطلالة بحرية (Sea View)',
-    'إطلالة جبلية (Mountain View)',
-    'إطلالة بانورامية على المدينة',
-    'حمام سباحة',
-    'تدفئة مركزية / أرضية',
-    'أمن واستقبال 24 ساعة',
-    'جراج سيارات تحت الأرض',
-    'شرفة واسعة (Balcony)',
-    'قريبة من المترو والخدمات',
-  ],
-  en: [
-    'Sea View',
-    'Mountain View',
-    'Panoramic City View',
-    'Swimming Pool',
-    'Central / Underfloor Heating',
-    '24/7 Security & Reception',
-    'Underground Parking',
-    'Spacious Balcony',
-    'Near Metro & Amenities',
-  ],
-  ru: [
-    'Вид на море (Sea View)',
-    'Вид на горы (Mountain View)',
-    'Панорамный вид на город',
-    'Бассейн',
-    'Центральное / Подогрев полов',
-    'Охрана и ресепшн 24/7',
-    'Подземный паркинг',
-    'Просторный балкон',
-    'Рядом с метро и инфраструктурой',
-  ],
-  ka: [
-    'ზღვის ხედი (Sea View)',
-    'მთის ხედი (Mountain View)',
-    'პანორამული ხედი ქალაქზე',
-    'აუზი',
-    'ცენტრალური / იატაკის გათბობა',
-    '24/7 დაცვა და მიმღები',
-    'მიწისქვეშა პარკინგი',
-    'ფართო აივანი (Balcony)',
-    'მეტროსთან და სერვისებთან ახლოს',
-  ],
-}
-
-export function getLocalizedUnitTypes(
-  dict?: Dictionary | Record<string, any>,
-  locale: LocaleCode = 'ar'
-): string[] {
-  const fromDict = (dict?.sell?.detailsStep as Record<string, any>)?.unitTypes
-  if (Array.isArray(fromDict) && fromDict.length > 0) return fromDict
-  return UNIT_TYPES_BY_LOCALE[locale] || UNIT_TYPES_BY_LOCALE.ar
-}
-
-export function getLocalizedFinishings(
-  dict?: Dictionary | Record<string, any>,
-  locale: LocaleCode = 'ar'
-): string[] {
-  const fromDict = (dict?.sell?.detailsStep as Record<string, any>)?.finishings
-  if (Array.isArray(fromDict) && fromDict.length > 0) return fromDict
-  return FINISHINGS_BY_LOCALE[locale] || FINISHINGS_BY_LOCALE.ar
-}
-
-export function getLocalizedDeliveries(
-  dict?: Dictionary | Record<string, any>,
-  locale: LocaleCode = 'ar'
-): string[] {
-  const fromDict = (dict?.sell?.detailsStep as Record<string, any>)?.deliveries
-  if (Array.isArray(fromDict) && fromDict.length > 0) return fromDict
-  const filterStatuses = (
-    dict?.opportunitiesPage?.filters as Record<string, any>
-  )?.deliveryStatuses
-  if (Array.isArray(filterStatuses) && filterStatuses.length >= 3) {
-    return [filterStatuses[1], filterStatuses[2]]
-  }
-  return DELIVERIES_BY_LOCALE[locale] || DELIVERIES_BY_LOCALE.ar
-}
-
-export function getLocalizedFeatures(
-  dict?: Dictionary | Record<string, any>,
-  locale: LocaleCode = 'ar'
-): string[] {
-  const fromDict = (dict?.sell?.detailsStep as Record<string, any>)?.features
-  if (Array.isArray(fromDict) && fromDict.length > 0) return fromDict
-  return FEATURES_BY_LOCALE[locale] || FEATURES_BY_LOCALE.ar
-}
-
-export function isReadyDeliveryOption(val?: string): boolean {
-  if (!val) return false
-  const allReady = [
-    DELIVERIES_BY_LOCALE.ar[0],
-    DELIVERIES_BY_LOCALE.en[0],
-    DELIVERIES_BY_LOCALE.ru[0],
-    DELIVERIES_BY_LOCALE.ka[0],
-  ]
-  return (
-    allReady.includes(val) ||
-    val.includes('جاهز') ||
-    val.toLowerCase().includes('ready') ||
-    val.toLowerCase().includes('готов') ||
-    val.includes('მზად')
-  )
-}
-
-export function isUnderConstructionDeliveryOption(val?: string): boolean {
-  if (!val) return false
-  return !isReadyDeliveryOption(val)
-}
-
-export const unitTypes: string[] = UNIT_TYPES_BY_LOCALE.ar
-export const finishings: string[] = FINISHINGS_BY_LOCALE.ar
-export const deliveries: string[] = DELIVERIES_BY_LOCALE.ar
-export const features: string[] = FEATURES_BY_LOCALE.ar
-
-export const years: string[] = [
-  '2026',
-  '2025',
-  '2024',
-  '2023',
-  '2022',
-  '2021',
-  '2020',
-  '2019',
-]
-
-export const deliveryFutureYears: string[] = [
-  '2026',
-  '2027',
-  '2028',
-  '2029',
-  '2030',
-  '2031',
-]
-
-export function getLocalizedMonthsList(locale: LocaleCode = 'ar') {
-  const localeMap: Record<LocaleCode, string> = {
-    ar: 'ar-EG',
-    en: 'en-US',
-    ru: 'ru-RU',
-    ka: 'ka-GE',
-  }
-  return Array.from({ length: 12 }, (_, idx) => {
-    const monthNum = String(idx + 1).padStart(2, '0')
-    let monthName = monthNum
-    try {
-      monthName = new Intl.DateTimeFormat(localeMap[locale] || 'en-US', {
-        month: 'short',
-      }).format(new Date(2026, idx, 1))
-    } catch {}
+function getCompletionLabels(locale: LocaleCode) {
+  if (locale === 'en') {
     return {
-      value: monthNum,
-      label: `${monthNum} - ${monthName}`,
+      notPublishedYet: 'Not published yet',
+      addPhotosAction: '+ Add Unit Photos',
+      addDocsAction: '+ Add Documents (0/4)',
+      completeDocsAction: (uploaded: number, remaining: number) =>
+        `+ Complete Documents (${uploaded}/4 — ${remaining} left)`,
+      completeDetailsAction: '+ Complete Unit Details',
+      incompleteNextStepHeadline:
+        'Complete the remaining items below (including all 4 documents) so we can verify and publish your unit',
+      fastTrackWaTitle:
+        'Want to speed up reviewing & publishing your unit? Confirm via WhatsApp now',
+      fastTrackWaBtn: 'Confirm Unit & Phone via WhatsApp',
+      fastTrackWaDone: 'Phone & Unit Confirmed via WhatsApp ✓',
     }
-  })
+  }
+  if (locale === 'ru') {
+    return {
+      notPublishedYet: 'Еще не опубликовано',
+      addPhotosAction: '+ Добавить фото',
+      addDocsAction: '+ Добавить документы (0/4)',
+      completeDocsAction: (uploaded: number, remaining: number) =>
+        `+ Догрузить документы (${uploaded}/4 — осталось ${remaining})`,
+      completeDetailsAction: '+ Заполнить детали',
+      incompleteNextStepHeadline:
+        'Завершите недостающие шаги ниже (включая все 4 документа) для проверки и публикации объекта',
+      fastTrackWaTitle:
+        'Хотите ускорить проверку и публикацию объекта? Подтвердите через WhatsApp',
+      fastTrackWaBtn: 'Подтвердить объект через WhatsApp',
+      fastTrackWaDone: 'Подтверждено через WhatsApp ✓',
+    }
+  }
+  if (locale === 'ka') {
+    return {
+      notPublishedYet: 'ჯერ არ გამოქვეყნებულა',
+      addPhotosAction: '+ ფოტოების დამატება',
+      addDocsAction: '+ დოკუმენტების დამატება (0/4)',
+      completeDocsAction: (uploaded: number, remaining: number) =>
+        `+ დოკუმენტების შევსება (${uploaded}/4 — დარჩა ${remaining})`,
+      completeDetailsAction: '+ მონაცემების შევსება',
+      incompleteNextStepHeadline:
+        'შეავსეთ ქვემოთ მოცემული ველები (4-ვე დოკუმენტის ჩათვლით) ობიექტის გამოსაქვეყნებლად',
+      fastTrackWaTitle:
+        'გსურთ დააჩქაროთ ობიექტის გამოქვეყნება? დაადასტურეთ WhatsApp-ით',
+      fastTrackWaBtn: 'ობიექტის დადასტურება WhatsApp-ით',
+      fastTrackWaDone: 'დადასტურებულია WhatsApp-ით ✓',
+    }
+  }
+  return {
+    notPublishedYet: 'غير منشورة بعد',
+    addPhotosAction: '+ إضافة الصور',
+    addDocsAction: '+ إضافة المستندات (0/4)',
+    completeDocsAction: (uploaded: number, remaining: number) =>
+      `+ استكمال المستندات (${uploaded}/4 — متبقي ${remaining})`,
+    completeDetailsAction: '+ استكمال بيانات الوحدة',
+    incompleteNextStepHeadline:
+      'كمّل العناصر المتبقية تحت الشريط (بما فيها الـ 4 مستندات كاملة) عشان نراجع وحدتك وننشرها للمشترين',
+    fastTrackWaTitle:
+      'عايز تسرّع مراجعة ونشر وحدتك؟ دوس على زرار الواتساب وأكّد طلبك ورقمك فوراً',
+    fastTrackWaBtn: 'تأكيد الوحدة وتسريع النشر عبر واتساب',
+    fastTrackWaDone: 'تم تأكيد رقمك وطلبك عبر واتساب ✓',
+  }
 }
 
-// ==================== ربط مباشر بـ GEORGIA_CITIES_AND_DISTRICTS من georgia-areas.tsx ====================
-const CITY_GROUP_TITLES: Record<
-  GeorgiaAreaItem['cityCode'],
-  Record<LocaleCode, string>
-> = {
-  tbilisi: {
-    ar: 'تبليسي (Tbilisi)',
-    en: 'Tbilisi',
-    ru: 'Тбилиси',
-    ka: 'თბილისი',
-  },
-  batumi: {
-    ar: 'باتومي وساحل البحر الأسود (Batumi)',
-    en: 'Batumi & Black Sea Coast',
-    ru: 'Батуми и побережье',
-    ka: 'ბათუმი და შავი ზღვის სანაპირო',
-  },
-  kutaisi: {
-    ar: 'كوتايسي (Kutaisi)',
-    en: 'Kutaisi',
-    ru: 'Кутаиси',
-    ka: 'ქუთაისი',
-  },
-  resorts: {
-    ar: 'منتجعات ومدن جورجيا الأخرى',
-    en: 'Other Georgian Cities & Resorts',
-    ru: 'Другие города и курорты Грузии',
-    ka: 'საქართველოს სხვა ქალაქები და კურორტები',
-  },
+export type MissingCompletionItem = {
+  key: 'photos' | 'docs' | 'details'
+  label: string
+  href: string
 }
 
-export function getLocalizedGeorgiaCatalog(
-  locale: LocaleCode = 'ar'
-): Array<[string, string[]]> {
-  const cityCodes: Array<GeorgiaAreaItem['cityCode']> = [
-    'tbilisi',
-    'batumi',
-    'kutaisi',
-    'resorts',
+export type StatusBadgeItem = {
+  label: string
+  cls: string
+}
+
+function calculateUnitCompletion(
+  unit: SellerUnitItem,
+  locale: LocaleCode
+) {
+  const cLabels = getCompletionLabels(locale)
+  const meta =
+    unit.documents && typeof unit.documents === 'object'
+      ? unit.documents.__unit_meta || {}
+      : {}
+
+  const rawImages = Array.isArray(unit.images)
+    ? unit.images
+    : Array.isArray(meta.images)
+      ? meta.images
+      : []
+
+  const hasImages =
+    rawImages.filter((img: any) => Boolean(img && String(img).trim())).length > 0
+
+  const docsObj =
+    unit.documents && typeof unit.documents === 'object' ? unit.documents : {}
+  const normalizedDocs: Record<string, any> = { ...docsObj }
+  if (normalizedDocs.national_id && !normalizedDocs.passport) {
+    normalizedDocs.passport = normalizedDocs.national_id
+  }
+
+  const uploadedDocsCount = REAL_DOC_KEYS.filter((k) =>
+    Boolean(normalizedDocs[k]?.url)
+  ).length
+  const totalDocsRequired = REAL_DOC_KEYS.length // 4 مستندات
+  const hasAllDocuments = uploadedDocsCount === totalDocsRequired
+  const remainingDocsCount = Math.max(0, totalDocsRequired - uploadedDocsCount)
+
+  const areaVal = unit.area || meta.area
+  const typeVal = unit.unit_type || meta.unit_type
+  const sizeVal = Number(unit.size ?? meta.size) || 0
+  const roomsVal = Number(unit.rooms ?? meta.rooms) || 0
+  const bathsVal = Number(unit.bathrooms ?? meta.bathrooms) || 0
+  const finishingVal = unit.finishing || meta.finishing
+  const deliveryVal = unit.delivery_status || meta.delivery_status
+  const contractYrVal = Number(unit.contract_year ?? meta.contract_year) || 0
+  const instFreqVal = unit.installment_frequency || meta.installment_frequency
+
+  const dataChecks = [
+    Boolean(unit.developer_name),
+    Boolean(unit.project_name),
+    Boolean(areaVal),
+    Boolean(typeVal),
+    sizeVal > 0,
+    roomsVal > 0,
+    bathsVal > 0,
+    Boolean(finishingVal),
+    Boolean(deliveryVal),
+    Boolean(unit.description),
+    Number(unit.contract_price) > 0,
+    Number(unit.paid_amount) > 0,
+    Boolean(instFreqVal && contractYrVal > 0),
   ]
 
-  return cityCodes.map((code): [string, string[]] => {
-    const title =
-      CITY_GROUP_TITLES[code][locale] || CITY_GROUP_TITLES[code].en
-    const items = GEORGIA_CITIES_AND_DISTRICTS.filter(
-      (item: GeorgiaAreaItem) => item.cityCode === code
-    ).map((item: GeorgiaAreaItem) =>
-      locale === 'ar'
-        ? item.ar
-        : locale === 'ru'
-          ? item.ru
-          : locale === 'ka'
-            ? item.ka
-            : item.en
-    )
-    return [title, items]
-  })
+  const completedDataCount = dataChecks.filter(Boolean).length // من 13
+  const hasAllCoreDetails = Boolean(
+    areaVal && typeVal && sizeVal > 0 && completedDataCount === dataChecks.length
+  )
+
+  const total = dataChecks.length + 1 + totalDocsRequired // 18
+  const completedCount =
+    completedDataCount + (hasImages ? 1 : 0) + uploadedDocsCount
+
+  const dataScore = Math.round((completedDataCount / dataChecks.length) * 65)
+  const photosScore = hasImages ? 15 : 0
+  const docsScore = Math.round((uploadedDocsCount / totalDocsRequired) * 20)
+  const percentage = Math.min(100, dataScore + photosScore + docsScore)
+
+  const missingItems: MissingCompletionItem[] = []
+  if (!hasAllCoreDetails) {
+    missingItems.push({
+      key: 'details',
+      label: cLabels.completeDetailsAction,
+      href: `/sell?editUnitId=${unit.id}&step=3`,
+    })
+  }
+  if (!hasImages) {
+    missingItems.push({
+      key: 'photos',
+      label: cLabels.addPhotosAction,
+      href: `/sell?editUnitId=${unit.id}&step=5`,
+    })
+  }
+  if (!hasAllDocuments) {
+    missingItems.push({
+      key: 'docs',
+      label:
+        uploadedDocsCount === 0
+          ? cLabels.addDocsAction
+          : cLabels.completeDocsAction(uploadedDocsCount, remainingDocsCount),
+      href: `/account/documents?unitId=${unit.id}`,
+    })
+  }
+
+  return {
+    completedCount,
+    total,
+    percentage,
+    hasImages,
+    hasAllDocuments,
+    hasAllCoreDetails,
+    uploadedDocsCount,
+    missingItems,
+    cLabels,
+  }
 }
 
-export const GEORGIA_AREAS_CATALOG: Array<[string, string[]]> =
-  getLocalizedGeorgiaCatalog('ar')
-
-export const areasCatalogByCountry: Record<string, Array<[string, string[]]>> = {
-  GE: GEORGIA_AREAS_CATALOG,
-  EG: GEORGIA_AREAS_CATALOG,
-  AE: GEORGIA_AREAS_CATALOG,
-  RU: GEORGIA_AREAS_CATALOG,
-}
-
-export const areasCatalog = GEORGIA_AREAS_CATALOG
-
-export function formatAmount(
-  value?: string,
-  currencySymbol = '$',
-  locale: LocaleCode = 'ar'
+function getSellerTimelineAndStatus(
+  unit: SellerUnitItem,
+  comp: ReturnType<typeof calculateUnitCompletion>,
+  t: Record<string, any>
 ) {
-  const cleanStr = toEnglishDigits(value ?? '').replace(/,/g, '')
-  const amount = Number(cleanStr)
-  if (!amount) return ''
-  const sharedDict =
-    DICTIONARIES[locale]?.sell?.shared || DICTIONARIES.ar.sell.shared
-  if (amount >= 1_000_000)
-    return `${(amount / 1_000_000).toFixed(2).replace(/\.00$/, '')} ${sharedDict.million} ${currencySymbol}`
-  if (amount >= 1_000)
-    return `${Math.round(amount / 1_000)} ${sharedDict.thousand} ${currencySymbol}`
-  return `${amount.toLocaleString('en-US')} ${currencySymbol}`
+  const clean = (unit.status || 'pending').trim().toLowerCase()
+  const isComplete =
+    comp.hasAllCoreDetails && comp.hasImages && comp.hasAllDocuments
+
+  switch (clean) {
+    case 'active':
+    case 'approved':
+    case 'published':
+      return {
+        code: 'active',
+        stepIndex: 4,
+        listBadge: {
+          label: t.statusActiveBadge,
+          cls: 'bg-emerald-100 text-[var(--brand-primary,#007a5a)]',
+        },
+        headerBadge: {
+          label: t.statusActiveBadge,
+          cls: 'bg-emerald-100 text-[var(--brand-primary,#007a5a)]',
+        } as StatusBadgeItem | null,
+        headline: t.statusActiveHeadline,
+      }
+    case 'paused_by_seller':
+      return {
+        code: 'paused_by_seller',
+        stepIndex: 2,
+        listBadge: {
+          label: t.statusPausedBadge,
+          cls: 'bg-amber-100 text-amber-800',
+        },
+        headerBadge: {
+          label: t.statusPausedBadge,
+          cls: 'bg-amber-100 text-amber-800',
+        } as StatusBadgeItem | null,
+        headline: t.statusPausedHeadline,
+      }
+    case 'paused_deletion':
+      return {
+        code: 'paused_deletion',
+        stepIndex: 2,
+        listBadge: {
+          label: t.statusPausedDeletionBadge,
+          cls: 'bg-gray-100 text-gray-600',
+        },
+        headerBadge: {
+          label: t.statusPausedDeletionBadge,
+          cls: 'bg-gray-100 text-gray-600',
+        } as StatusBadgeItem | null,
+        headline: t.statusPausedDeletionHeadline,
+      }
+    case 'offer_received':
+      return {
+        code: 'offer_received',
+        stepIndex: 5,
+        listBadge: {
+          label: t.statusOfferBadge,
+          cls: 'bg-purple-100 text-purple-800',
+        },
+        headerBadge: {
+          label: t.statusOfferBadge,
+          cls: 'bg-purple-100 text-purple-800',
+        } as StatusBadgeItem | null,
+        headline: t.statusOfferHeadline,
+      }
+    case 'transferring':
+      return {
+        code: 'transferring',
+        stepIndex: 6,
+        listBadge: {
+          label: t.statusTransferBadge,
+          cls: 'bg-blue-100 text-blue-800',
+        },
+        headerBadge: {
+          label: t.statusTransferBadge,
+          cls: 'bg-blue-100 text-blue-800',
+        } as StatusBadgeItem | null,
+        headline: t.statusTransferHeadline,
+      }
+    case 'sold':
+      return {
+        code: 'sold',
+        stepIndex: 8,
+        listBadge: {
+          label: t.statusSoldBadge,
+          cls: 'bg-teal-700 text-white',
+        },
+        headerBadge: {
+          label: t.statusSoldBadge,
+          cls: 'bg-teal-700 text-white',
+        } as StatusBadgeItem | null,
+        headline: t.statusSoldHeadline,
+      }
+    case 'rejected':
+      return {
+        code: 'rejected',
+        stepIndex: 1,
+        listBadge: {
+          label: t.statusRejectedBadge,
+          cls: 'bg-red-100 text-red-700',
+        },
+        headerBadge: {
+          label: t.statusRejectedBadge,
+          cls: 'bg-red-100 text-red-700',
+        } as StatusBadgeItem | null,
+        headline: t.statusRejectedHeadline,
+      }
+    default:
+      if (!isComplete) {
+        return {
+          code: 'incomplete',
+          stepIndex: 1,
+          listBadge: {
+            label: `${comp.cLabels.notPublishedYet} · ${comp.percentage}%`,
+            cls: 'bg-slate-100 text-slate-600 border border-slate-200/80',
+          },
+          headerBadge: null,
+          headline: comp.cLabels.incompleteNextStepHeadline,
+        }
+      }
+      return {
+        code: 'pending_review',
+        stepIndex: 2,
+        listBadge: {
+          label: t.statusPendingBadge,
+          cls: 'bg-amber-50 text-amber-800 border border-amber-200',
+        },
+        headerBadge: {
+          label: t.statusPendingBadge,
+          cls: 'bg-amber-50 text-amber-800 border border-amber-200',
+        } as StatusBadgeItem | null,
+        headline: t.statusPendingHeadline,
+      }
+  }
 }
 
-export function RequiredLabel({ children }: { children: string }) {
-  const required = children.endsWith(' *')
+type ConfirmModalState =
+  | { type: 'pause' }
+  | { type: 'resume' }
+  | { type: 'delete' }
+  | { type: 'promote'; pkg: { days: 7 | 14 | 30; price: number; label: string } }
+  | { type: 'cancel_promo' }
+  | null
+
+export function SellerDashboard({
+  sells,
+  initialSelectedUnitId,
+  offersCountMap = {},
+  matchedBuyersCountMap = {},
+  deletionRequested = false,
+}: {
+  sells: SellerUnitItem[]
+  initialSelectedUnitId?: string
+  offersCountMap?: Record<string, number>
+  matchedBuyersCountMap?: Record<string, number>
+  deletionRequested?: boolean
+}) {
+  const router = useRouter()
+  const { t: dict, locale, dir } = useTranslation()
+  const t = dict.accountComponents.seller as Record<string, any>
+
+  const [localSells, setLocalSells] = useState<SellerUnitItem[]>(sells)
+  useEffect(() => {
+    setLocalSells(sells)
+  }, [sells])
+
+  const [selectedId, setSelectedId] = useState<string>(
+    initialSelectedUnitId && sells.some((s) => s.id === initialSelectedUnitId)
+      ? initialSelectedUnitId
+      : sells[0]?.id || ''
+  )
+
+  const [isUnitsExpanded, setIsUnitsExpanded] = useState(false)
+  const [unitSearchQuery, setUnitSearchQuery] = useState('')
+
+  const [isPromoCollapsed, setIsPromoCollapsed] = useState(false)
+  const [confirmModal, setConfirmModal] = useState<ConfirmModalState>(null)
+  const [copiedAdRef, setCopiedAdRef] = useState(false)
+  const [actionMessage, setActionMessage] = useState('')
+  const [isPending, startTransition] = useTransition()
+
+  const [currentUserId, setCurrentUserId] = useState('')
+  const [phoneVerified, setPhoneVerified] = useState(false)
+
+  useEffect(() => {
+    getUserVerificationStatusAction().then((res) => {
+      if (res.isLoggedIn) {
+        setCurrentUserId(res.userId)
+        setPhoneVerified(res.phoneVerified)
+      }
+    })
+  }, [])
+
+  const activeUnit =
+    localSells.find((s) => s.id === selectedId) || localSells[0]
+
+  const orderedUnits = useMemo(() => {
+    if (!activeUnit) return localSells
+    const others = localSells.filter((u) => u.id !== activeUnit.id)
+    return [activeUnit, ...others]
+  }, [localSells, activeUnit])
+
+  const filteredOrderedUnits = useMemo(() => {
+    if (!unitSearchQuery.trim()) return orderedUnits
+    const q = unitSearchQuery.trim().toLowerCase()
+    return orderedUnits.filter((u) =>
+      `${u.project_name || ''} ${u.area || ''} ${u.developer_name || ''} ${u.unit_type || ''}`
+        .toLowerCase()
+        .includes(q)
+    )
+  }, [orderedUnits, unitSearchQuery])
+
+  const displayedUnits = isUnitsExpanded
+    ? filteredOrderedUnits
+    : orderedUnits.slice(0, INITIAL_VISIBLE_UNITS)
+
+  const hiddenUnitsCount = Math.max(
+    0,
+    orderedUnits.length - INITIAL_VISIBLE_UNITS
+  )
+
+  if (!activeUnit) return null
+
+  const unitCountryCode: CountryCode = 'GE'
+  const unitCountryCfg = SUPPORTED_COUNTRIES.GE
+  const currencySymbol = getCurrencySymbol(unitCountryCode, locale)
+  const pkgPrices = unitCountryCfg.defaultPackages
+  const supportWhatsApp = String(dict.footer?.phone || '+201018595959').replace(
+    /\D/g,
+    ''
+  )
+
+  const dynamicPackages: Array<{
+    days: 7 | 14 | 30
+    price: number
+    label: string
+  }> = [
+    { days: 7, price: pkgPrices.days7, label: `7 ${t.daysWord}` },
+    { days: 14, price: pkgPrices.days14, label: `14 ${t.daysWord}` },
+    { days: 30, price: pkgPrices.days30, label: `30 ${t.daysWord}` },
+  ]
+
+  const money = (value: number | null | undefined) =>
+    `${Number(value || 0).toLocaleString('en-US')} ${currencySymbol}`
+
+  const comp = calculateUnitCompletion(activeUnit, locale)
+  const meta = getSellerTimelineAndStatus(activeUnit, comp, t)
+  const isPausedBySeller = meta.code === 'paused_by_seller'
+
+  const realMatchedBuyersCount = matchedBuyersCountMap[activeUnit.id] ?? 0
+  const uploadedDocsCount = comp.uploadedDocsCount
+  const unitOffersCount = offersCountMap[activeUnit.id] || 0
+
+  const activeUnitRawArea =
+    activeUnit.area || activeUnit.documents?.__unit_meta?.area
+  const activeUnitLocalizedArea = activeUnitRawArea
+    ? getLocalizedGeorgiaAreaName(activeUnitRawArea, locale)
+    : t.defaultAreaName
+  const activeUnitType =
+    activeUnit.unit_type || activeUnit.documents?.__unit_meta?.unit_type
+
+  const editUnitHref = `/sell?editUnitId=${activeUnit.id}&step=3`
+
+  const siteOrigin =
+    typeof window !== 'undefined'
+      ? window.location.origin
+      : 'https://exit-16.vercel.app'
+  const unitRef = `AE-${activeUnit.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase()}`
+  const targetSellerUserId = activeUnit.user_id || currentUserId
+  const adminVerifyLink = `${siteOrigin}/admin/properties?verifyPhoneUserId=${encodeURIComponent(targetSellerUserId)}&unitId=${encodeURIComponent(activeUnit.id)}`
+
+  const fastTrackWhatsAppMessage =
+    locale === 'ar'
+      ? `أهلاً إدارة Aqar Exit، أؤكد عرض وحدتي رقم (${unitRef}) في مشروع (${activeUnit.project_name || t.defaultProjectName} - ${activeUnitLocalizedArea}) لتسريع مراجعتها ونشرها على المنصة.\nرابط مراجعة وتوثيق الوحدة في الإدارة:\n${adminVerifyLink}`
+      : `Hello Aqar Exit, I confirm my unit listing (${unitRef}) in (${activeUnit.project_name || t.defaultProjectName} - ${activeUnitLocalizedArea}) to speed up review and publishing.\nAdmin Link:\n${adminVerifyLink}`
+
+  const isCurrentlyFeatured =
+    Boolean(activeUnit.is_featured) &&
+    activeUnit.featured_status !== 'cancelled_by_seller' &&
+    activeUnit.featured_status !== 'none' &&
+    (!activeUnit.featured_until ||
+      new Date(activeUnit.featured_until) > new Date())
+
+  const isPendingPromo =
+    !isCurrentlyFeatured && activeUnit.featured_status === 'pending_payment'
+
+  const remainingFeaturedDays =
+    isCurrentlyFeatured && activeUnit.featured_until
+      ? Math.max(
+          1,
+          Math.ceil(
+            (new Date(activeUnit.featured_until).getTime() - Date.now()) /
+              (1000 * 60 * 60 * 24)
+          )
+        )
+      : activeUnit.featured_days || 0
+
+  const currentAdRef =
+    isCurrentlyFeatured || isPendingPromo
+      ? activeUnit.featured_fawry_code ||
+        `AD-${activeUnit.id.slice(0, 6).toUpperCase()}`
+      : null
+
+  const activePromoDays = (activeUnit.featured_days as 7 | 14 | 30) || 14
+  const activePromoPrice =
+    dynamicPackages.find((p) => p.days === activePromoDays)?.price ||
+    activeUnit.featured_price ||
+    pkgPrices.days14
+
+  const executeConfirmedAction = () => {
+    if (!confirmModal) return
+    setActionMessage('')
+
+    startTransition(async () => {
+      if (confirmModal.type === 'pause' || confirmModal.type === 'resume') {
+        const nextAction = confirmModal.type
+        const res = await toggleSellerUnitStatusAction({
+          unitId: activeUnit.id,
+          action: nextAction,
+        })
+        setConfirmModal(null)
+        if (res.success) {
+          setLocalSells((prev) =>
+            prev.map((u) =>
+              u.id === activeUnit.id
+                ? {
+                    ...u,
+                    status:
+                      nextAction === 'pause' ? 'paused_by_seller' : 'pending',
+                  }
+                : u
+            )
+          )
+          setActionMessage(
+            nextAction === 'pause' ? t.msgPausedSuccess : t.msgResumedSuccess
+          )
+          router.refresh()
+        }
+      } else if (confirmModal.type === 'delete') {
+        const res = await deleteUnitBySellerAction(activeUnit.id)
+        setConfirmModal(null)
+        if (res.success) {
+          const remaining = localSells.filter((s) => s.id !== activeUnit.id)
+          setLocalSells(remaining)
+          if (remaining[0]) setSelectedId(remaining[0].id)
+          router.refresh()
+        }
+      } else if (confirmModal.type === 'promote') {
+        const pkg = confirmModal.pkg
+        const res = await requestUnitPromotionAction({
+          unitId: activeUnit.id,
+          days: pkg.days,
+          price: pkg.price,
+        })
+        setConfirmModal(null)
+        if (res.success) {
+          const code =
+            res.fawryCode || `AD-${activeUnit.id.slice(0, 6).toUpperCase()}`
+          setLocalSells((prev) =>
+            prev.map((u) =>
+              u.id === activeUnit.id
+                ? {
+                    ...u,
+                    featured_days: pkg.days,
+                    featured_price: pkg.price,
+                    featured_status: 'pending_payment',
+                    featured_fawry_code: code,
+                  }
+                : u
+            )
+          )
+          setActionMessage(`${t.msgPromoSuccessPrefix} ${code}`)
+          router.refresh()
+        } else {
+          setActionMessage(res.error || t.msgPromoError)
+        }
+      } else if (confirmModal.type === 'cancel_promo') {
+        const res = await cancelUnitPromotionBySellerAction(activeUnit.id)
+        setConfirmModal(null)
+        if (res.success) {
+          setLocalSells((prev) =>
+            prev.map((u) =>
+              u.id === activeUnit.id
+                ? {
+                    ...u,
+                    is_featured: false,
+                    featured_status: 'none',
+                    featured_fawry_code: null,
+                    featured_days: 0,
+                    featured_price: 0,
+                    featured_until: null,
+                  }
+                : u
+            )
+          )
+          setActionMessage(t.msgPromoCancelled)
+          router.refresh()
+        } else {
+          setActionMessage(res.error || t.msgPromoCancelError)
+        }
+      }
+    })
+  }
+
   return (
-    <>
-      {required ? (
-        <>
-          {children.slice(0, -2)} <span className="ms-1 text-red-500">*</span>
-        </>
-      ) : (
-        children
+    <div dir={dir} className="mx-auto max-w-[680px] px-4 sm:px-6">
+      {localSells.length > 1 && (
+        <ScrollReveal>
+          <section className="mb-4 rounded-[20px] border border-gray-200/90 bg-white p-4 text-start shadow-2xs sm:p-5">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="flex size-8 items-center justify-center rounded-xl bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]">
+                  <Building2 className="size-4" />
+                </span>
+                <h1 className="text-sm font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-base">
+                  {t.myUnitsHeader} ({localSells.length})
+                </h1>
+              </div>
+
+              <Link
+                href="/sell?new=1"
+                className="inline-flex h-9 items-center justify-center gap-1 rounded-xl bg-[var(--brand-navy,#0a1122)] px-3.5 text-xs font-bold text-white shadow-2xs transition hover:bg-[var(--brand-navy-hover,#16223f)]"
+              >
+                <Plus className="size-3.5" />
+                <span>{t.addUnitBtn.replace('+ ', '')}</span>
+              </Link>
+            </div>
+
+            {isUnitsExpanded && localSells.length > 5 && (
+              <div className="relative mt-3">
+                <Search className="pointer-events-none absolute top-1/2 end-3 size-3.5 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  value={unitSearchQuery}
+                  onChange={(e) => setUnitSearchQuery(e.target.value)}
+                  placeholder={t.searchMyUnitsPlaceholder}
+                  className="h-9 w-full rounded-xl border border-gray-200 bg-gray-50/70 ps-3 pe-9 text-xs font-semibold text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:bg-white focus:outline-none"
+                />
+              </div>
+            )}
+
+            <div
+              className={`mt-3.5 flex flex-col gap-2 ${
+                isUnitsExpanded && localSells.length > 5
+                  ? 'max-h-[340px] overflow-y-auto pe-0.5'
+                  : ''
+              }`}
+            >
+              {displayedUnits.map((item, idx) => {
+                const itemComp = calculateUnitCompletion(item, locale)
+                const itemMeta = getSellerTimelineAndStatus(item, itemComp, t)
+                const isSelected = item.id === activeUnit.id
+                const itemRawArea =
+                  item.area || item.documents?.__unit_meta?.area
+                const itemAreaName = itemRawArea
+                  ? getLocalizedGeorgiaAreaName(itemRawArea, locale)
+                  : t.defaultAreaName
+
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedId(item.id)
+                      setActionMessage('')
+                      setIsUnitsExpanded(false)
+                      setUnitSearchQuery('')
+                    }}
+                    className={`flex w-full items-center justify-between gap-2 rounded-2xl border px-3.5 py-2.5 text-start transition ${
+                      isSelected
+                        ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary-light,#eaf8f2)]/60 ring-2 ring-[var(--brand-primary,#007a5a)]/15'
+                        : 'border-gray-200/80 bg-gray-50/60 hover:border-gray-300 hover:bg-white'
+                    }`}
+                  >
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <span
+                        className={`flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-extrabold ${
+                          isSelected
+                            ? 'bg-[var(--brand-primary,#007a5a)] text-white'
+                            : 'bg-gray-200 text-gray-600'
+                        }`}
+                      >
+                        {idx + 1}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="truncate text-xs font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-sm">
+                            {item.project_name || t.defaultProjectName}
+                          </span>
+                          <span className="truncate text-[11px] text-gray-500">
+                            · {itemAreaName}
+                          </span>
+                          {item.is_featured && (
+                            <span className="inline-flex items-center gap-0.5 rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">
+                              <Star className="size-2.5 fill-amber-400 text-amber-500" />
+                              {t.featuredShortBadge}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <span
+                      className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-extrabold ${itemMeta.listBadge.cls}`}
+                    >
+                      {itemMeta.listBadge.label}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+
+            {localSells.length > INITIAL_VISIBLE_UNITS && (
+              <div className="mt-3 border-t border-gray-100 pt-2.5 text-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsUnitsExpanded((prev) => !prev)
+                    setUnitSearchQuery('')
+                  }}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-gray-50 px-4 py-1.5 text-xs font-extrabold text-[var(--brand-primary,#007a5a)] transition hover:bg-[var(--brand-primary-light,#eaf8f2)]"
+                >
+                  {isUnitsExpanded ? (
+                    <>
+                      <span>{t.showOnly3UnitsBtn}</span>
+                      <ChevronUp className="size-3.5" />
+                    </>
+                  ) : (
+                    <>
+                      <span>
+                        {t.showRemainingUnitsPrefix} (+{hiddenUnitsCount})
+                      </span>
+                      <ChevronDown className="size-3.5" />
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+          </section>
+        </ScrollReveal>
       )}
-    </>
-  )
-}
 
-export function SearchableGeorgiaAreaPicker({
-  label,
-  value,
-  onChange,
-  error,
-  placeholder,
-}: {
-  label: string
-  value: string
-  onChange: (area: string) => void
-  error?: string
-  placeholder?: string
-}) {
-  return (
-    <GeorgiaAreaSelect
-      label={label}
-      value={value}
-      onChange={onChange}
-      error={error}
-      placeholder={placeholder}
-    />
-  )
-}
-
-export function MonthYearSelector({
-  label,
-  monthValue,
-  yearValue,
-  onMonthChange,
-  onYearChange,
-  yearsList = years,
-  error,
-  helper,
-}: {
-  label: string
-  monthValue: string
-  yearValue: string
-  onMonthChange: (m: string) => void
-  onYearChange: (y: string) => void
-  yearsList?: string[]
-  error?: string
-  helper?: string
-}) {
-  const { t: dict, locale } = useTranslation()
-  const pricingT = (dict.sell?.pricingStep as Record<string, any>) || {}
-  const monthsOptions = getLocalizedMonthsList(locale)
-
-  const monthPlaceholder =
-    pricingT.monthPlaceholder ||
-    (locale === 'ar'
-      ? 'الشهر *'
-      : locale === 'ru'
-        ? 'Месяц *'
-        : locale === 'ka'
-          ? 'თვე *'
-          : 'Month *')
-
-  const yearPlaceholder =
-    pricingT.yearPlaceholder ||
-    (locale === 'ar'
-      ? 'السنة *'
-      : locale === 'ru'
-        ? 'Год *'
-        : locale === 'ka'
-          ? 'წელი *'
-          : 'Year *')
-
-  return (
-    <div className="flex flex-col gap-2">
-      <Label className="text-start">
-        <RequiredLabel>{label}</RequiredLabel>
-      </Label>
-      <div
-        className={`grid grid-cols-2 gap-3 ${
-          error ? 'rounded-xl border border-red-500 bg-red-50/20 p-2' : ''
-        }`}
-      >
-        <div className="relative">
-          <select
-            value={monthValue || ''}
-            onChange={(e) => onMonthChange(e.target.value)}
-            className="h-12 w-full appearance-none rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-bold text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:text-sm"
-          >
-            <option value="">{monthPlaceholder}</option>
-            {monthsOptions.map((m) => (
-              <option key={m.value} value={m.value}>
-                {m.label}
-              </option>
-            ))}
-          </select>
-          <ChevronDown className="pointer-events-none absolute top-1/2 end-3 size-4 -translate-y-1/2 text-slate-400" />
+      {actionMessage && (
+        <div className="mb-4 rounded-xl border border-emerald-200 bg-[var(--brand-primary-light,#eaf8f2)] p-3.5 text-center text-xs font-bold text-[var(--brand-primary,#007a5a)]">
+          {actionMessage}
         </div>
+      )}
 
-        <div className="relative">
-          <select
-            value={yearValue || ''}
-            onChange={(e) => onYearChange(e.target.value)}
-            className="h-12 w-full appearance-none rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-bold text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:text-sm"
+      <ScrollReveal delay={60}>
+        <section className="rounded-[20px] border border-gray-200/90 bg-white p-5 text-start shadow-xs sm:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 pb-4">
+            <div className="flex items-center gap-2.5">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]">
+                <Building2 className="size-4" />
+              </span>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-base font-black text-[var(--brand-navy,#0a1122)] sm:text-lg">
+                    {activeUnit.project_name || t.defaultProjectName}
+                  </h2>
+                  {meta.headerBadge && (
+                    <span
+                      className={`rounded-full px-2.5 py-0.5 text-[10.5px] font-extrabold ${meta.headerBadge.cls}`}
+                    >
+                      {meta.headerBadge.label}
+                    </span>
+                  )}
+                </div>
+                <p className="mt-0.5 text-xs text-gray-500">
+                  {activeUnitLocalizedArea}
+                  {activeUnitType ? ` · ${activeUnitType}` : ''}
+                </p>
+              </div>
+            </div>
+
+            {localSells.length === 1 && (
+              <Link
+                href="/sell?new=1"
+                className="inline-flex h-9 items-center justify-center gap-1 rounded-xl bg-[var(--brand-navy,#0a1122)] px-3.5 text-xs font-bold text-white shadow-2xs transition hover:bg-[var(--brand-navy-hover,#16223f)]"
+              >
+                <Plus className="size-3.5" />
+                <span>{t.addUnitBtn.replace('+ ', '')}</span>
+              </Link>
+            )}
+          </div>
+
+          <div className="mt-4">
+            <span className="text-xs font-extrabold text-[var(--brand-primary,#007a5a)]">
+              {t.nextStepLabel}
+            </span>
+            <h3 className="mt-1 text-sm font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-base">
+              {meta.headline}
+            </h3>
+          </div>
+
+          <div className="mt-3.5 rounded-xl border border-gray-100 bg-gray-50/80 p-3.5">
+            <div className="mb-2 flex items-center justify-between text-xs">
+              <span className="font-bold text-gray-600">
+                {t.completionLabel} ({comp.completedCount}/{comp.total})
+              </span>
+              <strong
+                dir="ltr"
+                className="font-extrabold text-[var(--brand-primary,#007a5a)]"
+              >
+                {comp.percentage}%
+              </strong>
+            </div>
+            <div className="h-2.5 w-full overflow-hidden rounded-full bg-gray-200">
+              <div
+                className="h-full rounded-full bg-[var(--brand-primary,#007a5a)] transition-all duration-500"
+                style={{ width: `${comp.percentage}%` }}
+              />
+            </div>
+
+            {comp.missingItems.length > 0 && (
+              <div className="mt-3 grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
+                {comp.missingItems.map((item) => (
+                  <Link
+                    key={item.key}
+                    href={item.href}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-extrabold text-amber-950 shadow-2xs transition hover:bg-amber-100"
+                  >
+                    {item.key === 'photos' ? (
+                      <ImagePlus className="size-3.5 shrink-0 text-amber-700" />
+                    ) : item.key === 'docs' ? (
+                      <UploadCloud className="size-3.5 shrink-0 text-amber-700" />
+                    ) : (
+                      <AlertCircle className="size-3.5 shrink-0 text-amber-700" />
+                    )}
+                    <span>{item.label}</span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* صندوق تسريع مراجعة ونشر الوحدة وتأكيد الرقم عبر واتساب */}
+          {meta.code !== 'active' && meta.code !== 'sold' && (
+            <div className="mt-4 flex flex-col justify-between gap-3 rounded-2xl border border-[#25D366]/40 bg-[#f0fdf4] p-3.5 sm:flex-row sm:items-center">
+              <p className="text-xs leading-relaxed font-extrabold text-[#0a1122]">
+                {comp.cLabels.fastTrackWaTitle}
+              </p>
+              <a
+                href={`https://wa.me/${supportWhatsApp}?text=${encodeURIComponent(fastTrackWhatsAppMessage)}`}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => {
+                  setPhoneVerified(true)
+                  markUserPhoneVerifiedAction({
+                    userId: targetSellerUserId,
+                    unitId: activeUnit.id,
+                  }).catch(() => {})
+                }}
+                className="inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-[#25D366] px-4 text-xs font-extrabold text-white shadow-2xs transition hover:opacity-95"
+              >
+                {phoneVerified ? (
+                  <CheckCircle2 className="size-4 shrink-0" />
+                ) : (
+                  <MessageCircle className="size-4 shrink-0" />
+                )}
+                <span>
+                  {phoneVerified
+                    ? comp.cLabels.fastTrackWaDone
+                    : comp.cLabels.fastTrackWaBtn}
+                </span>
+              </a>
+            </div>
+          )}
+
+          <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl border border-gray-100 bg-[#f8faf9] p-3.5">
+            <div>
+              <p className="text-[11px] font-semibold text-gray-500">
+                {t.contractPriceLabel}
+              </p>
+              <strong className="mt-0.5 block text-base font-black text-[var(--brand-navy,#0a1122)] tabular-nums sm:text-lg">
+                {money(activeUnit.contract_price)}
+              </strong>
+            </div>
+            <div className="border-s border-gray-200/80 ps-3">
+              <p className="text-[11px] font-semibold text-gray-500">
+                {t.paidAmountLabel}
+              </p>
+              <strong className="mt-0.5 block text-base font-black text-[var(--brand-primary,#007a5a)] tabular-nums sm:text-lg">
+                {money(activeUnit.paid_amount)}
+              </strong>
+            </div>
+          </div>
+
+          {activeUnit.admin_note && (
+            <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 p-3.5 text-xs text-amber-900">
+              <AlertCircle className="mt-0.5 size-4 shrink-0 text-amber-600" />
+              <div>
+                <strong className="block font-extrabold">
+                  {t.adminNoteLabel}
+                </strong>
+                <p className="mt-0.5 leading-relaxed">
+                  {activeUnit.admin_note}
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <Link
+              href={editUnitHref}
+              className="inline-flex h-10 flex-1 items-center justify-center rounded-xl bg-[var(--brand-primary,#007a5a)] px-4 text-xs font-bold text-white transition hover:bg-[var(--brand-primary-hover,#006248)] sm:flex-none sm:px-5"
+            >
+              {t.editDataBtn}
+            </Link>
+
+            {meta.code !== 'sold' && (
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() =>
+                  setConfirmModal({
+                    type: isPausedBySeller ? 'resume' : 'pause',
+                  })
+                }
+                className={`inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border px-3.5 text-xs font-bold transition ${
+                  isPausedBySeller
+                    ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]'
+                    : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                {isPausedBySeller ? (
+                  <>
+                    <PlayCircle className="size-4" />
+                    <span>{t.resumeBtn}</span>
+                  </>
+                ) : (
+                  <>
+                    <PauseCircle className="size-4 text-amber-600" />
+                    <span>{t.pauseBtn}</span>
+                  </>
+                )}
+              </button>
+            )}
+
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={() => setConfirmModal({ type: 'delete' })}
+              className="inline-flex h-10 items-center justify-center gap-1 rounded-xl border border-red-100 bg-red-50/50 px-3.5 text-xs font-bold text-red-600 transition hover:bg-red-100"
+            >
+              <Trash2 className="size-3.5" />
+              <span>{t.deleteBtn}</span>
+            </button>
+          </div>
+
+          <div className="mt-4 rounded-xl bg-[var(--brand-primary-light,#eaf8f2)] px-3.5 py-2.5 text-start text-[11.5px] font-bold text-[var(--brand-primary,#007a5a)]">
+            {realMatchedBuyersCount > 0 ? (
+              <>
+                🎯 {t.matchedBuyersPrefix}{' '}
+                {realMatchedBuyersCount.toLocaleString('en-US')}{' '}
+                {t.matchedBuyersMiddle} ({activeUnitLocalizedArea})
+              </>
+            ) : (
+              <>
+                {t.radarNotePrefix} ({activeUnitLocalizedArea})
+              </>
+            )}
+          </div>
+        </section>
+      </ScrollReveal>
+
+      <ScrollReveal delay={100}>
+        <section className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Link
+            href={`/sell?editUnitId=${activeUnit.id}&step=3`}
+            className="flex flex-col justify-between rounded-[16px] border border-gray-200/80 bg-white p-4 text-start shadow-2xs transition hover:border-[var(--brand-primary,#007a5a)]"
           >
-            <option value="">{yearPlaceholder}</option>
-            {yearsList.map((yr: string) => (
-              <option key={yr} value={yr}>
-                {yr}
-              </option>
-            ))}
-          </select>
-          <ChevronDown className="pointer-events-none absolute top-1/2 end-3 size-4 -translate-y-1/2 text-slate-400" />
-        </div>
+            <p className="text-xs font-extrabold text-[var(--brand-navy,#0a1122)]">
+              {t.cardUnitData}
+            </p>
+            <p className="mt-1.5 text-[11px] font-bold text-[var(--brand-primary,#007a5a)]">
+              {comp.completedCount}/{comp.total} {t.cardUnitDataSub}
+            </p>
+          </Link>
+
+          <Link
+            href={`/account/documents?unitId=${activeUnit.id}`}
+            className={`flex flex-col justify-between rounded-[16px] border bg-white p-4 text-start shadow-2xs transition hover:border-[var(--brand-primary,#007a5a)] ${
+              uploadedDocsCount < 4
+                ? 'border-amber-300 ring-1 ring-amber-200/60'
+                : 'border-gray-200/80'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-extrabold text-[var(--brand-navy,#0a1122)]">
+                {t.cardDocuments}
+              </p>
+              {uploadedDocsCount === 4 ? (
+                <FileCheck2 className="size-3.5 text-[var(--brand-primary,#007a5a)]" />
+              ) : (
+                <UploadCloud className="size-3.5 text-amber-500" />
+              )}
+            </div>
+            <p
+              className={`mt-1.5 text-[11px] font-semibold ${
+                uploadedDocsCount === 4
+                  ? 'text-[var(--brand-primary,#007a5a)] font-extrabold'
+                  : 'text-amber-700'
+              }`}
+            >
+              {uploadedDocsCount > 0
+                ? `${uploadedDocsCount}/4 ${t.cardDocumentsUploaded}`
+                : t.cardDocumentsEmpty}
+            </p>
+          </Link>
+
+          <Link
+            href={`/account/offers?role=seller&unitId=${activeUnit.id}`}
+            className={`flex flex-col justify-between rounded-[16px] border bg-white p-4 text-start shadow-2xs transition hover:border-[var(--brand-primary,#007a5a)] ${
+              unitOffersCount > 0 || meta.code === 'offer_received'
+                ? 'border-emerald-300 bg-[#eaf8f2]/40'
+                : 'border-gray-200/80'
+            }`}
+          >
+            <p className="text-xs font-extrabold text-[var(--brand-navy,#0a1122)]">
+              {t.cardOffers}
+            </p>
+            <p
+              className={`mt-1.5 text-[11px] font-extrabold ${
+                unitOffersCount > 0 || meta.code === 'offer_received'
+                  ? 'text-[var(--brand-primary,#007a5a)]'
+                  : 'font-semibold text-gray-500'
+              }`}
+            >
+              {unitOffersCount > 0 || meta.code === 'offer_received'
+                ? `${unitOffersCount || 1} ${t.cardOffersAvailable}`
+                : t.cardOffersEmpty}
+            </p>
+          </Link>
+
+          <a
+            href={`https://wa.me/${supportWhatsApp}?text=${encodeURIComponent(fastTrackWhatsAppMessage)}`}
+            target="_blank"
+            rel="noreferrer"
+            onClick={() => {
+              setPhoneVerified(true)
+              markUserPhoneVerifiedAction({
+                userId: targetSellerUserId,
+                unitId: activeUnit.id,
+              }).catch(() => {})
+            }}
+            className="flex flex-col justify-between rounded-[16px] bg-[var(--brand-navy,#0a1122)] p-4 text-start text-white shadow-2xs transition hover:bg-[var(--brand-navy-hover,#16223f)]"
+          >
+            <p className="text-xs font-extrabold text-white">{t.cardSupport}</p>
+            <p className="mt-1.5 text-[11px] text-gray-300">
+              {t.cardSupportSub}
+            </p>
+          </a>
+        </section>
+      </ScrollReveal>
+
+      <ScrollReveal delay={140}>
+        <section className="mt-5 rounded-[20px] border border-gray-200/80 bg-white p-5 shadow-2xs sm:p-6">
+          <h3 className="mb-4 text-start text-xs font-extrabold text-gray-500">
+            {t.timelineTitle} ({activeUnit.project_name || t.defaultProjectName}
+            ):
+          </h3>
+          <div className="ps-1">
+            <Timeline
+              currentStepIndex={meta.stepIndex}
+              isRejected={meta.code === 'rejected'}
+              stepTitles={t.timelineSteps}
+            />
+          </div>
+        </section>
+
+        <SellerPromoSection
+          t={t}
+          activeUnit={activeUnit}
+          supportWhatsApp={supportWhatsApp}
+          isPromoCollapsed={isPromoCollapsed}
+          setIsPromoCollapsed={setIsPromoCollapsed}
+          isCurrentlyFeatured={isCurrentlyFeatured}
+          isPendingPromo={isPendingPromo}
+          remainingFeaturedDays={remainingFeaturedDays}
+          activePromoDays={activePromoDays}
+          activePromoPrice={activePromoPrice}
+          currentAdRef={currentAdRef}
+          copiedAdRef={copiedAdRef}
+          setCopiedAdRef={setCopiedAdRef}
+          dynamicPackages={dynamicPackages}
+          currencySymbol={currencySymbol}
+          isPending={isPending}
+          onSelectPackage={(pkg) => setConfirmModal({ type: 'promote', pkg })}
+          onCancelPromo={() => setConfirmModal({ type: 'cancel_promo' })}
+        />
+      </ScrollReveal>
+
+      <div className="mt-8 flex justify-center border-t border-gray-200/80 pt-6 [&>*]:justify-center [&_div]:justify-center [&_form]:hidden">
+        <AccountActionLinks
+          unitsCount={localSells.length}
+          initialDeletionRequested={deletionRequested}
+          position="bottom"
+        />
       </div>
 
-      {error && (
-        <p className="mt-1 text-start text-xs font-semibold text-red-600">
-          {error}
-        </p>
-      )}
-      {helper && (
-        <span className="text-start text-xs font-semibold text-teal-700">
-          {helper}
-        </span>
-      )}
+      <Dialog
+        open={Boolean(confirmModal)}
+        onOpenChange={(open) => {
+          if (!open && !isPending) setConfirmModal(null)
+        }}
+      >
+        <DialogContent
+          dir={dir}
+          className="w-[90vw] max-w-[360px] rounded-2xl p-5 sm:max-w-[400px]"
+        >
+          {confirmModal && (
+            <>
+              <DialogHeader className="text-start">
+                <div className="mb-2 flex items-center gap-2.5">
+                  <span
+                    className={`flex size-9 shrink-0 items-center justify-center rounded-full ${
+                      confirmModal.type === 'delete' ||
+                      confirmModal.type === 'cancel_promo'
+                        ? 'bg-red-100 text-red-600'
+                        : confirmModal.type === 'pause'
+                          ? 'bg-amber-100 text-amber-700'
+                          : 'bg-emerald-100 text-[var(--brand-primary,#007a5a)]'
+                    }`}
+                  >
+                    {confirmModal.type === 'delete' ? (
+                      <Trash2 className="size-4" />
+                    ) : confirmModal.type === 'promote' ? (
+                      <Sparkles className="size-4" />
+                    ) : (
+                      <ShieldAlert className="size-4" />
+                    )}
+                  </span>
+                  <DialogTitle className="text-sm font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-base">
+                    {confirmModal.type === 'pause' && t.modalPauseTitle}
+                    {confirmModal.type === 'resume' && t.modalResumeTitle}
+                    {confirmModal.type === 'delete' && t.modalDeleteTitle}
+                    {confirmModal.type === 'promote' &&
+                      `${t.modalPromoteTitle} (${confirmModal.pkg.label})`}
+                    {confirmModal.type === 'cancel_promo' &&
+                      t.modalCancelPromoTitle}
+                  </DialogTitle>
+                </div>
+
+                <DialogDescription className="text-start text-xs leading-relaxed text-gray-600">
+                  {confirmModal.type === 'pause' && t.modalPauseDesc}
+                  {confirmModal.type === 'resume' && t.modalResumeDesc}
+                  {confirmModal.type === 'delete' && t.modalDeleteDesc}
+                  {confirmModal.type === 'promote' && (
+                    <>
+                      {t.modalPromoteDescPrefix}{' '}
+                      <strong className="text-[var(--brand-navy,#0a1122)]">
+                        {confirmModal.pkg.label}
+                      </strong>{' '}
+                      {t.modalPromoteDescMiddle}{' '}
+                      <strong className="text-[var(--brand-primary,#007a5a)]">
+                        {confirmModal.pkg.price.toLocaleString('en-US')}{' '}
+                        {currencySymbol}
+                      </strong>{' '}
+                      {t.modalPromoteDescSuffix}
+                    </>
+                  )}
+                  {confirmModal.type === 'cancel_promo' &&
+                    t.modalCancelPromoDesc}
+                </DialogDescription>
+              </DialogHeader>
+
+              <DialogFooter className="mt-4 flex flex-row items-center justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={isPending}
+                  onClick={() => setConfirmModal(null)}
+                  className="h-9 flex-1 rounded-xl text-xs font-bold"
+                >
+                  {t.modalBackBtn}
+                </Button>
+                <Button
+                  type="button"
+                  disabled={isPending}
+                  onClick={executeConfirmedAction}
+                  className={`h-9 flex-1 rounded-xl text-xs font-bold text-white ${
+                    confirmModal.type === 'delete' ||
+                    confirmModal.type === 'cancel_promo'
+                      ? 'bg-red-600 hover:bg-red-700'
+                      : confirmModal.type === 'pause'
+                        ? 'bg-amber-600 hover:bg-amber-700'
+                        : 'bg-[var(--brand-primary,#007a5a)] hover:bg-[var(--brand-primary-hover,#006248)]'
+                  }`}
+                >
+                  {isPending ? (
+                    <span className="flex items-center justify-center gap-1.5">
+                      <Loader2 className="size-3.5 animate-spin" />
+                      {t.modalProcessingBtn}
+                    </span>
+                  ) : (
+                    t.modalConfirmBtn
+                  )}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
 
-export function SearchableCountryField({
-  label,
-  value,
-  onChange,
-  options = PLATFORM_COUNTRIES,
-  helper,
-  error,
+function SellerPromoSection({
+  t,
+  activeUnit,
+  supportWhatsApp,
+  isPromoCollapsed,
+  setIsPromoCollapsed,
+  isCurrentlyFeatured,
+  isPendingPromo,
+  remainingFeaturedDays,
+  activePromoDays,
+  activePromoPrice,
+  currentAdRef,
+  copiedAdRef,
+  setCopiedAdRef,
+  dynamicPackages,
+  currencySymbol,
+  isPending,
+  onSelectPackage,
+  onCancelPromo,
 }: {
-  label?: string
-  value?: string
-  onChange: (countryCode: string) => void
-  options?: PlatformCountryOption[]
-  helper?: string
-  error?: string
+  t: any
+  activeUnit: SellerUnitItem
+  supportWhatsApp: string
+  isPromoCollapsed: boolean
+  setIsPromoCollapsed: (v: boolean) => void
+  isCurrentlyFeatured: boolean
+  isPendingPromo: boolean
+  remainingFeaturedDays: number
+  activePromoDays: 7 | 14 | 30
+  activePromoPrice: number
+  currentAdRef: string | null
+  copiedAdRef: boolean
+  setCopiedAdRef: (v: boolean) => void
+  dynamicPackages: Array<{ days: 7 | 14 | 30; price: number; label: string }>
+  currencySymbol: string
+  isPending: boolean
+  onSelectPackage: (pkg: {
+    days: 7 | 14 | 30
+    price: number
+    label: string
+  }) => void
+  onCancelPromo: () => void
 }) {
-  const { t: dict, locale, dir } = useTranslation()
-  const t = dict.sell.shared
-  const resolvedLabel = label || t.countryLabel
-
-  const [open, setOpen] = useState(false)
-  const [query, setQuery] = useState('')
-  const wrapperRef = useRef<HTMLDivElement>(null)
-
-  const selectedObj =
-    options.find((c) => c.code === (value || 'GE').toUpperCase()) || options[0]
-
-  useEffect(() => {
-    function handleOutside(e: MouseEvent) {
-      if (
-        wrapperRef.current &&
-        !wrapperRef.current.contains(e.target as Node)
-      ) {
-        setOpen(false)
-        setQuery('')
-      }
-    }
-    document.addEventListener('mousedown', handleOutside)
-    return () => document.removeEventListener('mousedown', handleOutside)
-  }, [])
-
-  const filteredOptions = options.filter((c) => {
-    const q = normalizeArabicText(query)
-    if (!q) return true
+  if (isPromoCollapsed) {
     return (
-      normalizeArabicText(c.nameAr).includes(q) ||
-      c.nameEn.toLowerCase().includes(q) ||
-      (c.nameRu && c.nameRu.toLowerCase().includes(q)) ||
-      (c.nameKa && c.nameKa.toLowerCase().includes(q)) ||
-      c.code.toLowerCase().includes(q)
-    )
-  })
-
-  const displayCountryName = getLocalizedCountryName(selectedObj, locale)
-
-  return (
-    <div ref={wrapperRef} className="relative flex flex-col gap-2">
-      <Label className="text-start">
-        <RequiredLabel>{resolvedLabel}</RequiredLabel>
-      </Label>
-
-      <div className="relative">
-        <Input
-          type="text"
-          dir={dir}
-          value={
-            open
-              ? query
-              : `${selectedObj.flag}  ${displayCountryName} (${selectedObj.code})`
-          }
-          placeholder={t.countryPlaceholder}
-          onFocus={() => {
-            setOpen(true)
-            setQuery('')
-          }}
-          onChange={(e) => {
-            setQuery(e.target.value)
-            setOpen(true)
-          }}
-          className={`h-12 cursor-pointer rounded-xl px-4 text-start font-bold text-[var(--brand-navy,#0a1122)] ${
-            error ? 'border-red-500 bg-red-50/20' : 'border-slate-200 bg-white'
-          }`}
-        />
+      <div className="mt-5 flex items-center justify-between rounded-2xl border border-[#aae3cb] bg-[#effaf5] px-4 py-3.5 shadow-2xs">
+        <div className="flex items-center gap-2 text-start">
+          <Star className="size-4 shrink-0 fill-amber-400 text-amber-500" />
+          <span className="text-xs font-extrabold text-[var(--brand-navy,#0a1122)]">
+            {t.promoCollapsedTitle}
+          </span>
+        </div>
         <button
           type="button"
-          onClick={() => {
-            setOpen(!open)
-            setQuery('')
-          }}
-          className="absolute top-1/2 end-3 -translate-y-1/2 text-slate-400 hover:text-[var(--brand-primary,#007a5a)]"
+          onClick={() => setIsPromoCollapsed(false)}
+          className="shrink-0 rounded-xl bg-[var(--brand-primary,#007a5a)] px-3.5 py-2 text-xs font-extrabold text-white transition hover:bg-[var(--brand-primary-hover,#006248)]"
         >
-          <ChevronDown className="size-4" />
+          {t.promoCollapsedBtn}
+        </button>
+      </div>
+    )
+  }
+
+  const whatsappMessage = `${t.whatsappPromoMsgPrefix} (${activePromoDays} ${t.daysWord} - ${activePromoPrice.toLocaleString('en-US')} ${currencySymbol}) ${t.whatsappPromoMsgMiddle} (${activeUnit.project_name || t.defaultProjectName}) — ${t.whatsappPromoMsgRef} ${currentAdRef}`
+
+  return (
+    <section className="mt-5 rounded-[20px] border border-[#aae3cb] bg-[#effaf5] p-5 text-start shadow-xs sm:p-6">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1 text-xs font-extrabold text-[var(--brand-primary,#007a5a)] shadow-2xs">
+            <Star className="size-3.5 fill-amber-400 text-amber-500" />
+            <span>{t.promoOptionalBadge}</span>
+          </span>
+
+          {isCurrentlyFeatured && (
+            <span className="rounded-full bg-amber-100 px-3 py-1 text-[11px] font-extrabold text-amber-800">
+              {t.promoActiveBadgePrefix} {remainingFeaturedDays} {t.dayWord})
+            </span>
+          )}
+
+          {isPendingPromo && (
+            <span className="rounded-full bg-blue-100 px-3 py-1 text-[11px] font-extrabold text-blue-800">
+              {t.promoPendingBadgePrefix} ({activePromoDays} {t.daysWord})
+            </span>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setIsPromoCollapsed(true)}
+          className="inline-flex items-center gap-1 rounded-lg bg-white/80 px-2.5 py-1 text-[11px] font-bold text-gray-500 transition hover:bg-white hover:text-gray-800"
+        >
+          <EyeOff className="size-3.5" />
+          <span>{t.hidePromoBtn}</span>
         </button>
       </div>
 
-      {open && (
-        <div className="absolute top-[78px] z-30 max-h-60 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
-          {filteredOptions.length === 0 ? (
-            <p className="py-3 text-center text-xs text-slate-400">
-              {t.noCountryMatch}
-            </p>
-          ) : (
-            filteredOptions.map((c) => {
-              const isSelected = c.code === selectedObj.code
-              const cName = getLocalizedCountryName(c, locale)
-              return (
-                <button
-                  key={c.code}
-                  type="button"
-                  onClick={() => {
-                    onChange(c.code)
-                    setOpen(false)
-                    setQuery('')
-                  }}
-                  className={`flex w-full items-center justify-between rounded-lg px-3.5 py-2.5 text-start text-sm transition ${
-                    isSelected
-                      ? 'bg-[var(--brand-primary-light,#eaf8f2)] font-bold text-[var(--brand-primary,#007a5a)]'
-                      : 'text-[var(--brand-navy,#0a1122)] hover:bg-slate-50'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <span className="text-lg leading-none">{c.flag}</span>
-                    <span>{cName}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs font-bold text-slate-400">
-                      {c.code}
-                    </span>
-                    {isSelected && (
-                      <Check className="size-4 text-[var(--brand-primary,#007a5a)]" />
-                    )}
-                  </div>
-                </button>
-              )
-            })
-          )}
+      <h3 className="mt-3 text-base font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-lg">
+        {t.promoMainTitle}
+      </h3>
+
+      <ul className="mt-2.5 space-y-2 text-xs font-medium text-[#1e3a34]">
+        <li className="flex items-center gap-2">
+          <Check className="size-3.5 shrink-0 text-[var(--brand-primary,#007a5a)]" />
+          <span>{t.promoPoint1}</span>
+        </li>
+        <li className="flex items-center gap-2">
+          <Check className="size-3.5 shrink-0 text-[var(--brand-primary,#007a5a)]" />
+          <span>{t.promoPoint2}</span>
+        </li>
+        <li className="flex items-center gap-2">
+          <Check className="size-3.5 shrink-0 text-[var(--brand-primary,#007a5a)]" />
+          <span>{t.promoPoint3}</span>
+        </li>
+      </ul>
+
+      <div className="mt-4 mb-2.5 flex items-center gap-1.5 text-xs font-extrabold text-[var(--brand-primary,#007a5a)]">
+        <MousePointerClick className="size-4" />
+        <span>
+          {isCurrentlyFeatured || isPendingPromo
+            ? t.promoClickHintActive
+            : t.promoClickHintNew}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2.5 sm:gap-3.5">
+        {dynamicPackages.map((pkg) => {
+          const isSelected =
+            (isCurrentlyFeatured || isPendingPromo) &&
+            activePromoDays === pkg.days
+          return (
+            <button
+              key={pkg.days}
+              type="button"
+              disabled={isPending}
+              onClick={() => onSelectPackage(pkg)}
+              className={`group flex cursor-pointer flex-col items-center justify-between rounded-2xl border bg-white p-3 text-center transition-all hover:shadow-md sm:p-4 ${
+                isSelected
+                  ? 'border-[var(--brand-primary,#007a5a)] ring-2 ring-[var(--brand-primary,#007a5a)]/25'
+                  : 'border-gray-200 hover:border-[var(--brand-primary,#007a5a)]'
+              }`}
+            >
+              <span className="text-xs font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-sm">
+                {pkg.label}
+              </span>
+              <span className="my-1.5 text-xs font-black text-[var(--brand-primary,#007a5a)] tabular-nums sm:text-base">
+                {pkg.price.toLocaleString('en-US')} {currencySymbol}
+              </span>
+              <span
+                className={`w-full rounded-lg py-1 text-[10px] font-extrabold transition sm:text-[11px] ${
+                  isSelected
+                    ? 'bg-[var(--brand-primary,#007a5a)] text-white'
+                    : 'bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)] group-hover:bg-[var(--brand-primary,#007a5a)] group-hover:text-white'
+                }`}
+              >
+                {isSelected ? t.currentPkgBtn : t.choosePkgBtn}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+
+      <p className="mt-3.5 text-[11px] leading-relaxed text-[#2b584d]">
+        {t.promoFreeNote}
+      </p>
+
+      {(isCurrentlyFeatured || isPendingPromo) && currentAdRef && (
+        <div className="mt-4 rounded-xl border border-[var(--brand-primary,#007a5a)]/30 bg-white p-4 text-start shadow-2xs">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-xs font-extrabold text-[var(--brand-navy,#0a1122)]">
+                {t.adOrderCodeTitle} ({activePromoDays} {t.daysWord} —{' '}
+                {activePromoPrice.toLocaleString('en-US')} {currencySymbol}):
+              </p>
+              <p className="mt-1 font-mono text-lg font-black tracking-wider text-[var(--brand-primary,#007a5a)]">
+                {currentAdRef}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard?.writeText(currentAdRef)
+                setCopiedAdRef(true)
+                setTimeout(() => setCopiedAdRef(false), 2000)
+              }}
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-gray-200 bg-gray-50 px-3 text-xs font-bold text-[var(--brand-navy,#0a1122)] hover:bg-gray-100"
+            >
+              <Copy className="size-3.5" />
+              <span>{copiedAdRef ? t.copiedBtn : t.copyRefBtn}</span>
+            </button>
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3">
+            {!isCurrentlyFeatured && (
+              <a
+                href={`https://wa.me/${supportWhatsApp}?text=${encodeURIComponent(whatsappMessage)}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 text-xs font-extrabold text-white shadow-2xs transition hover:opacity-95"
+              >
+                <MessageCircle className="size-4" />
+                <span>{t.whatsappActivateBtn}</span>
+              </a>
+            )}
+
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={onCancelPromo}
+              className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3.5 text-xs font-extrabold text-red-600 transition hover:bg-red-100"
+            >
+              <XCircle className="size-3.5" />
+              <span>
+                {isCurrentlyFeatured
+                  ? t.cancelActivePromoBtn
+                  : t.cancelPendingPromoBtn}
+              </span>
+            </button>
+          </div>
         </div>
-      )}
-
-      {error && (
-        <p className="mt-1 text-start text-xs font-semibold text-red-600">
-          {error}
-        </p>
-      )}
-      {helper && (
-        <span className="flex items-center gap-1 text-start text-xs font-semibold text-teal-700">
-          <Globe className="size-3.5 shrink-0" />
-          <span>{helper}</span>
-        </span>
-      )}
-    </div>
-  )
-}
-
-export function Field({
-  label,
-  id,
-  type = 'text',
-  helper,
-  placeholder,
-  value,
-  update,
-  error,
-}: {
-  label: string
-  id: string
-  type?: string
-  helper?: string
-  placeholder?: string
-  value?: string
-  update: (value: string) => void
-  error?: string
-}) {
-  const { dir } = useTranslation()
-  const compact = [
-    'areaSize',
-    'garden',
-    'rooms',
-    'bathrooms',
-    'floor',
-    'remainingYears',
-    'remainingMonths',
-    'deliveryRemainingMonths',
-    'overdueCount',
-  ].includes(id)
-  const isNumericField = compact || type === 'number'
-  const isLtrField = isNumericField || id === 'email' || id === 'password'
-
-  return (
-    <div className="flex flex-col gap-2">
-      <Label htmlFor={id} className="text-start">
-        <RequiredLabel>{label}</RequiredLabel>
-      </Label>
-      <Input
-        id={id}
-        name={id}
-        type={isNumericField ? 'text' : type}
-        inputMode={isNumericField ? 'numeric' : undefined}
-        dir={isLtrField ? 'ltr' : dir}
-        placeholder={placeholder}
-        value={value ?? ''}
-        onChange={(event) => {
-          const rawVal = event.target.value
-          if (isNumericField) {
-            const normalized = toEnglishDigits(rawVal).replace(/[^0-9.]/g, '')
-            update(normalized)
-          } else {
-            update(rawVal)
-          }
-        }}
-        className={`h-12 rounded-xl ${
-          error ? 'border-red-500 bg-red-50/20' : 'border-slate-200'
-        } ${
-          compact
-            ? 'max-w-[180px] self-start text-center font-semibold'
-            : isLtrField
-              ? 'text-left'
-              : 'text-start'
-        }`}
-      />
-      {error && (
-        <p className="mt-1.5 text-start text-xs font-semibold text-red-600">
-          {error}
-        </p>
-      )}
-      {helper && (
-        <span className="text-start text-xs font-semibold leading-6 text-teal-700">
-          {helper}
-        </span>
-      )}
-    </div>
-  )
-}
-
-export function MoneyField({
-  label,
-  value,
-  update,
-  helper,
-  error,
-  currencySymbol,
-}: {
-  label: string
-  value?: string
-  update: (value: string) => void
-  helper?: string
-  error?: string
-  currencySymbol?: string
-}) {
-  const { locale, currency: defaultCurrency } = useTranslation()
-  const activeCurr = currencySymbol || defaultCurrency || '$'
-  const cleanDigits = toEnglishDigits(value || '').replace(/[^0-9]/g, '')
-
-  return (
-    <div className="flex flex-col gap-2">
-      <Label className="text-start">
-        <RequiredLabel>{label}</RequiredLabel>
-      </Label>
-      <div className="relative">
-        <Input
-          type="text"
-          inputMode="numeric"
-          dir="ltr"
-          value={
-            cleanDigits ? Number(cleanDigits).toLocaleString('en-US') : ''
-          }
-          onChange={(event) => {
-            const normalized = toEnglishDigits(event.target.value).replace(
-              /[^0-9]/g,
-              ''
-            )
-            update(normalized)
-          }}
-          className={`h-12 rounded-xl pr-14 pl-4 text-left font-bold ${
-            error ? 'border-red-500 bg-red-50/20' : 'border-slate-200'
-          }`}
-        />
-        <span className="pointer-events-none absolute top-3 right-3 text-sm font-semibold text-slate-500">
-          {activeCurr}
-        </span>
-      </div>
-      {error && (
-        <p className="mt-1.5 text-start text-xs font-semibold text-red-600">
-          {error}
-        </p>
-      )}
-      <span className="text-start text-xs font-semibold leading-6 text-teal-700">
-        {formatAmount(cleanDigits, activeCurr, locale) || helper || ''}
-      </span>
-    </div>
-  )
-}
-
-export function Pills({
-  items,
-  selected,
-  onToggle,
-  multi = false,
-  error,
-}: {
-  items: string[]
-  selected: string[]
-  onToggle: (value: string) => void
-  multi?: boolean
-  error?: string
-}) {
-  return (
-    <div
-      className={
-        error ? 'rounded-xl border border-red-500 bg-red-50/20 p-2.5' : ''
-      }
-    >
-      <div className="flex flex-wrap gap-2">
-        {items.map((item: string) => (
-          <button
-            type="button"
-            key={item}
-            onClick={() => onToggle(item)}
-            className={`rounded-xl border px-4 py-2 text-sm transition ${
-              selected.includes(item)
-                ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary-light,#eaf8f2)] font-bold text-[var(--brand-primary,#007a5a)]'
-                : 'border-slate-200 bg-white hover:border-teal-500'
-            }`}
-          >
-            {multi && selected.includes(item) && '✓ '}
-            {item}
-          </button>
-        ))}
-      </div>
-      {error && (
-        <p className="mt-1.5 text-start text-xs font-semibold text-red-600">
-          {error}
-        </p>
-      )}
-    </div>
-  )
-}
-
-export function ToggleSection({
-  title,
-  group,
-  selected,
-  toggle,
-  error,
-}: {
-  title: string
-  group: string
-  selected: Record<string, string[]>
-  toggle: (group: string, value: string) => void
-  error?: string
-}) {
-  const { t: dict } = useTranslation()
-  const t = dict.sell.shared
-  const active = selected[group]?.[0]
-
-  return (
-    <section
-      className={`rounded-2xl border p-5 ${
-        error
-          ? 'border-red-500 bg-red-50/20'
-          : 'border-slate-200 bg-slate-50'
-      }`}
-    >
-      <h3 className="mb-3 text-start font-bold">{title}</h3>
-      <div className="flex justify-start gap-2">
-        <Button
-          type="button"
-          variant={active === 'yes' ? 'default' : 'outline'}
-          className={`min-w-[80px] rounded-xl border px-5 py-2 text-sm font-semibold ${
-            active === 'yes' ? 'bg-[var(--brand-navy,#0a1122)] text-white' : ''
-          }`}
-          onClick={() => toggle(group, 'yes')}
-        >
-          {t.yes}
-        </Button>
-        <Button
-          type="button"
-          variant={active === 'no' ? 'default' : 'outline'}
-          className={`min-w-[80px] rounded-xl border px-5 py-2 text-sm font-semibold ${
-            active === 'no' ? 'bg-[var(--brand-navy,#0a1122)] text-white' : ''
-          }`}
-          onClick={() => toggle(group, 'no')}
-        >
-          {t.no}
-        </Button>
-      </div>
-      {error && (
-        <p className="mt-2.5 text-start text-xs font-semibold text-red-600">
-          {error}
-        </p>
       )}
     </section>
   )
 }
 
-export function Actions({
-  go,
-  next,
-  back = true,
-  label,
+function Timeline({
+  currentStepIndex,
+  isRejected,
+  stepTitles,
 }: {
-  go: (step: number) => void
-  next: number
-  back?: boolean
-  label?: string
+  currentStepIndex: number
+  isRejected?: boolean
+  stepTitles: string[]
 }) {
-  const { t: dict, dir } = useTranslation()
-  const t = dict.sell.shared
-  const btnLabel = label || t.nextBtn
-
   return (
-    <div dir={dir} className="mt-5 flex gap-3">
-      {back && (
-        <Button
-          type="button"
-          variant="outline"
-          className="h-12 rounded-xl"
-          onClick={() => go(next - 2)}
-        >
-          {t.backBtn}
-        </Button>
-      )}
-      <Button
-        type="button"
-        className={`h-12 rounded-xl bg-[var(--brand-navy,#0a1122)] hover:bg-[var(--brand-navy-hover,#16223f)] ${
-          !back ? 'w-full' : 'flex-1'
-        }`}
-        onClick={() => go(next)}
-      >
-        {btnLabel}
-      </Button>
-    </div>
+    <ol className="relative flex flex-col items-start">
+      {stepTitles.map((title, index) => {
+        const isLast = index === stepTitles.length - 1
+        const status: 'done' | 'current' | 'upcoming' =
+          index < currentStepIndex
+            ? 'done'
+            : index === currentStepIndex
+              ? 'current'
+              : 'upcoming'
+
+        return (
+          <li
+            key={title}
+            className="relative flex items-start gap-3.5 pb-5 last:pb-0"
+          >
+            {!isLast && (
+              <span
+                className={`absolute top-6 start-[11px] h-full w-[1.5px] ${
+                  status === 'done'
+                    ? 'bg-[var(--brand-primary,#007a5a)]'
+                    : 'bg-gray-200'
+                }`}
+              />
+            )}
+            <span
+              className={`relative z-10 flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
+                status === 'done'
+                  ? 'bg-[var(--brand-primary,#007a5a)] text-white'
+                  : status === 'current'
+                    ? isRejected
+                      ? 'bg-red-600 text-white'
+                      : 'bg-[var(--brand-navy,#0a1122)] text-white'
+                    : 'bg-gray-100 text-gray-400'
+              }`}
+            >
+              {status === 'done' ? (
+                <Check className="size-3.5 stroke-[2.5]" />
+              ) : (
+                index + 1
+              )}
+            </span>
+            <span
+              className={`pt-0.5 text-xs ${
+                status === 'current'
+                  ? isRejected
+                    ? 'font-extrabold text-red-600'
+                    : 'font-extrabold text-[var(--brand-navy,#0a1122)]'
+                  : status === 'done'
+                    ? 'font-medium text-gray-600'
+                    : 'font-normal text-gray-400'
+              }`}
+            >
+              {title}
+            </span>
+          </li>
+        )
+      })}
+    </ol>
   )
 }

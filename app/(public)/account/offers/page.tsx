@@ -15,6 +15,8 @@ import {
   Flame,
   Handshake,
   Loader2,
+  Lock,
+  MessageCircle,
   RefreshCw,
   ShieldCheck,
   Sparkles,
@@ -37,6 +39,13 @@ import { toEnglishDigits } from '@/components/features/seller/seller-shared'
 import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
 import { getCurrencySymbol, useTranslation } from '@/lib/i18n'
 
+function getOfferRef(id: string) {
+  const clean = String(id || '')
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .toUpperCase()
+  return `OF-${clean.slice(0, 6) || '1001'}`
+}
+
 function OffersContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -44,6 +53,10 @@ function OffersContent() {
   const t = dict.accountPages.offers as Record<string, any>
   const tCommon = dict.accountPages.common
   const cur = getCurrencySymbol('GE', locale)
+  const supportWhatsApp = String(dict.footer?.phone || '+201018595959').replace(
+    /\D/g,
+    ''
+  )
 
   const filterUnitId = searchParams.get('unitId')
   const applyUnitId = searchParams.get('applyUnitId')
@@ -310,6 +323,13 @@ function OffersContent() {
           (o) => String(o.property_id) === String(selectedSellerUnitId)
         )
 
+  // معرفة الوحدات التي قبل البائع عليها عرضاً بالفعل لقفل القبول المتعدد
+  const acceptedPropertyIds = new Set(
+    sellerOffers
+      .filter((o) => o.status === 'accepted')
+      .map((o) => String(o.property_id))
+  )
+
   const backHref =
     roleView === 'seller'
       ? `/account?view=seller${filterUnitId ? `&unitId=${filterUnitId}` : ''}`
@@ -323,6 +343,11 @@ function OffersContent() {
         : locale === 'ka'
           ? 'ყველა ობიექტი'
           : 'All Units'
+
+  const siteOrigin =
+    typeof window !== 'undefined'
+      ? window.location.origin
+      : 'https://exit-16.vercel.app'
 
   return (
     <main
@@ -371,7 +396,6 @@ function OffersContent() {
         )}
 
         {roleView === 'seller' ? (
-          /* ==================== صفحة عروض البائع فقط ==================== */
           <div>
             <header className="mb-6 text-start">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100/80 px-3 py-1 text-[11px] font-extrabold text-[#007a5a]">
@@ -453,6 +477,9 @@ function OffersContent() {
                     0,
                     cancelPenalty - sellerDiscount
                   )
+                  const unitAlreadyHasAcceptedOffer =
+                    acceptedPropertyIds.has(String(offer.property_id)) &&
+                    offer.status !== 'accepted'
 
                   return (
                     <div
@@ -473,6 +500,9 @@ function OffersContent() {
                             <span className="rounded-lg bg-emerald-100 px-2.5 py-1 text-[11px] font-extrabold text-[#007a5a]">
                               🎯 {t.matchScoreLabel}: {offer.match_score}%
                             </span>
+                            <span className="font-mono text-[11px] font-bold text-gray-400">
+                              #{getOfferRef(offer.id)}
+                            </span>
                           </div>
                           <p className="mt-1.5 text-xs text-gray-500">
                             {getLocalizedGeorgiaAreaName(u?.area, locale)} ·{' '}
@@ -487,21 +517,28 @@ function OffersContent() {
                               <span>{t.statusAcceptedBadge}</span>
                             </span>
                           )}
-                          {offer.status === 'pending_seller' && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3.5 py-1.5 text-xs font-extrabold text-amber-900">
-                              <Flame className="size-3.5 fill-amber-500 text-amber-600" />
-                              <span>{t.statusPendingSellerBadge}</span>
+                          {offer.status === 'pending_seller' &&
+                            !unitAlreadyHasAcceptedOffer && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3.5 py-1.5 text-xs font-extrabold text-amber-900">
+                                <Flame className="size-3.5 fill-amber-500 text-amber-600" />
+                                <span>{t.statusPendingSellerBadge}</span>
+                              </span>
+                            )}
+                          {(offer.status === 'unit_locked' ||
+                            unitAlreadyHasAcceptedOffer) && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3.5 py-1.5 text-xs font-extrabold text-slate-700">
+                              <Lock className="size-3.5" />
+                              <span>
+                                {locale === 'ar'
+                                  ? 'عرض احتياطي (قيد الانتظار)'
+                                  : 'Backup Offer'}
+                              </span>
                             </span>
                           )}
                           {offer.status === 'counter_offered' && (
                             <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-3.5 py-1.5 text-xs font-extrabold text-purple-900">
                               <RefreshCw className="size-3.5" />
                               <span>{t.statusCounterSentBadge}</span>
-                            </span>
-                          )}
-                          {offer.status === 'rejected' && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-red-700">
-                              {t.statusRejectedBadge}
                             </span>
                           )}
                         </div>
@@ -587,50 +624,60 @@ function OffersContent() {
                         </div>
                       )}
 
-                      {offer.status === 'pending_seller' && (
-                        <div className="mt-5 flex flex-col gap-2 border-t border-gray-100 pt-4 sm:flex-row sm:flex-wrap sm:items-center">
-                          <button
-                            type="button"
-                            disabled={isPending}
-                            onClick={() =>
-                              handleSellerDecision(offer, 'accept')
-                            }
-                            className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-xl bg-[#007a5a] px-4 py-2.5 text-xs font-extrabold text-white shadow-sm transition hover:bg-[#006248] disabled:opacity-50 sm:text-sm"
-                          >
-                            <Check className="size-4 shrink-0" />
-                            <span>{t.acceptOfferBtn}</span>
-                          </button>
+                      {(offer.status === 'unit_locked' ||
+                        unitAlreadyHasAcceptedOffer) && (
+                        <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-xs font-semibold text-slate-600">
+                          {locale === 'ar'
+                            ? 'لقد وافقت بالفعل على عرض آخر لهذه الوحدة. يظل هذا العرض محفوظاً كعرض احتياطي في حال لم يكتمل التعاقد الأول.'
+                            : 'You already accepted another offer on this unit. This offer is kept as a backup.'}
+                        </div>
+                      )}
 
-                          {Number(offer.offered_cash) < paid && (
+                      {offer.status === 'pending_seller' &&
+                        !unitAlreadyHasAcceptedOffer && (
+                          <div className="mt-5 flex flex-col gap-2 border-t border-gray-100 pt-4 sm:flex-row sm:flex-wrap sm:items-center">
                             <button
                               type="button"
                               disabled={isPending}
-                              onClick={() => {
-                                setCounterModalOffer(offer)
-                                const mid = Math.round(
-                                  (Number(offer.offered_cash) + paid) / 2
-                                )
-                                setCounterCashStr(mid.toLocaleString('en-US'))
-                              }}
-                              className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-xs font-extrabold text-[#0a1122] transition hover:bg-gray-50"
+                              onClick={() =>
+                                handleSellerDecision(offer, 'accept')
+                              }
+                              className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-xl bg-[#007a5a] px-4 py-2.5 text-xs font-extrabold text-white shadow-sm transition hover:bg-[#006248] disabled:opacity-50 sm:text-sm"
                             >
-                              <RefreshCw className="size-3.5 shrink-0 text-[#007a5a]" />
-                              <span>{t.sendCounterBtn}</span>
+                              <Check className="size-4 shrink-0" />
+                              <span>{t.acceptOfferBtn}</span>
                             </button>
-                          )}
 
-                          <button
-                            type="button"
-                            disabled={isPending}
-                            onClick={() =>
-                              handleSellerDecision(offer, 'reject')
-                            }
-                            className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-xs font-bold text-red-600 transition hover:bg-red-100"
-                          >
-                            {t.rejectOfferBtn}
-                          </button>
-                        </div>
-                      )}
+                            {Number(offer.offered_cash) < paid && (
+                              <button
+                                type="button"
+                                disabled={isPending}
+                                onClick={() => {
+                                  setCounterModalOffer(offer)
+                                  const mid = Math.round(
+                                    (Number(offer.offered_cash) + paid) / 2
+                                  )
+                                  setCounterCashStr(mid.toLocaleString('en-US'))
+                                }}
+                                className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-xs font-extrabold text-[#0a1122] transition hover:bg-gray-50"
+                              >
+                                <RefreshCw className="size-3.5 shrink-0 text-[#007a5a]" />
+                                <span>{t.sendCounterBtn}</span>
+                              </button>
+                            )}
+
+                            <button
+                              type="button"
+                              disabled={isPending}
+                              onClick={() =>
+                                handleSellerDecision(offer, 'reject')
+                              }
+                              className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-xs font-bold text-red-600 transition hover:bg-red-100"
+                            >
+                              {t.rejectOfferBtn}
+                            </button>
+                          </div>
+                        )}
                     </div>
                   )
                 })}
@@ -638,7 +685,6 @@ function OffersContent() {
             )}
           </div>
         ) : (
-          /* ==================== صفحة عروض المشتري فقط ==================== */
           <div className="space-y-8">
             <header className="text-start">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100/80 px-3 py-1 text-[11px] font-extrabold text-[#007a5a]">
@@ -661,6 +707,11 @@ function OffersContent() {
                 <div className="space-y-3.5">
                   {buyerOffers.map((offer) => {
                     const u = offer.unit
+                    const refCode = getOfferRef(offer.id)
+                    const waConfirmText =
+                      locale === 'ar'
+                        ? `أهلاً إدارة Aqar Exit، أؤكد جديتي في عرض الشراء رقم (${refCode}) على وحدة (${u?.project_name || ''}) بمبلغ ($${Number(offer.offered_cash).toLocaleString('en-US')}).\nرابط التفعيل:\n${siteOrigin}/admin/deals?offerId=${offer.id}`
+                        : `Hello Aqar Exit, I confirm my offer (${refCode}) on (${u?.project_name || ''}) for ($${Number(offer.offered_cash).toLocaleString('en-US')}).\nLink:\n${siteOrigin}/admin/deals?offerId=${offer.id}`
 
                     return (
                       <div
@@ -675,10 +726,15 @@ function OffersContent() {
                       >
                         <div className="flex flex-wrap items-start justify-between gap-2.5">
                           <div className="min-w-0 flex-1">
-                            <h3 className="text-sm font-extrabold leading-snug text-[#0a1122] sm:text-base">
-                              {u?.project_name || t.unitFallback} —{' '}
-                              {getLocalizedGeorgiaAreaName(u?.area, locale)}
-                            </h3>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h3 className="text-sm font-extrabold leading-snug text-[#0a1122] sm:text-base">
+                                {u?.project_name || t.unitFallback} —{' '}
+                                {getLocalizedGeorgiaAreaName(u?.area, locale)}
+                              </h3>
+                              <span className="font-mono text-[11px] font-bold text-gray-400">
+                                #{refCode}
+                              </span>
+                            </div>
                             <p className="mt-1 text-xs text-gray-500">
                               {t.offeredCashLabel}:{' '}
                               <strong
@@ -705,6 +761,22 @@ function OffersContent() {
                               </Link>
                             )}
 
+                            {offer.status === 'pending_admin' && (
+                              <a
+                                href={`https://wa.me/${supportWhatsApp}?text=${encodeURIComponent(waConfirmText)}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#25D366] px-3 text-xs font-extrabold text-white shadow-2xs hover:opacity-95"
+                              >
+                                <MessageCircle className="size-3.5" />
+                                <span>
+                                  {locale === 'ar'
+                                    ? 'تأكيد العرض عبر واتساب'
+                                    : 'Confirm via WhatsApp'}
+                                </span>
+                              </a>
+                            )}
+
                             {offer.status === 'pending_seller' && (
                               <span className="rounded-full bg-amber-100 px-3 py-1 text-[11px] font-extrabold text-amber-800">
                                 {t.statusWaitingSellerBadge}
@@ -729,7 +801,6 @@ function OffersContent() {
                           </div>
                         )}
 
-                        {/* كارت العرض المضاد للمشتري: أزرار مرنة لا ينقص منها أي حرف على الموبايل */}
                         {offer.status === 'counter_offered' &&
                           offer.counter_cash && (
                             <div className="mt-4 rounded-2xl border border-purple-200 bg-purple-50/90 p-3.5 sm:p-4">
@@ -906,24 +977,6 @@ function OffersContent() {
                                 </div>
                               </div>
                             )}
-
-                            {match.differences.length > 0 && (
-                              <div className="mt-2.5">
-                                <p className="mb-1.5 text-[11px] font-extrabold text-amber-800">
-                                  ⚠️ {t.diffPointsTitle}:
-                                </p>
-                                <div className="flex flex-wrap gap-1.5">
-                                  {match.differences.map((dItem: string) => (
-                                    <span
-                                      key={dItem}
-                                      className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10.5px] font-bold text-amber-900"
-                                    >
-                                      ⚠️ {dItem}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
                           </div>
 
                           <div className="mt-5 grid grid-cols-2 gap-2 border-t border-gray-100 pt-3.5">
@@ -955,7 +1008,7 @@ function OffersContent() {
         )}
       </div>
 
-      {/* ==================== نافذة تقديم عرض الشراء (فوق الهيدر z-[9999] ومتجاوبة 100%) ==================== */}
+      {/* نافذة تقديم عرض الشراء من المشتري */}
       {offerModalUnit &&
         (() => {
           const guard = getUnitPricingGuardrails(offerModalUnit)
@@ -977,7 +1030,6 @@ function OffersContent() {
                 onClick={(e) => e.stopPropagation()}
                 className="relative flex max-h-[90vh] w-full max-w-[460px] flex-col overflow-hidden rounded-[24px] border border-gray-200 bg-white text-start shadow-2xl"
               >
-                {/* هيدر النافذة الثابت والواضح */}
                 <div className="flex items-start justify-between gap-3 border-b border-gray-100 bg-[#f8faf9] px-5 py-4">
                   <div className="min-w-0 flex-1">
                     <span className="inline-flex items-center gap-1 rounded-md bg-[#eaf8f2] px-2 py-0.5 text-[10.5px] font-extrabold text-[#007a5a]">
@@ -1003,7 +1055,6 @@ function OffersContent() {
                   </button>
                 </div>
 
-                {/* جسم النافذة القابل للتمرير بنعومة على الموبايل */}
                 <div className="overflow-y-auto p-4 space-y-4 text-xs sm:p-5">
                   <div className="rounded-2xl border border-gray-200/90 bg-gray-50/70 p-3.5 sm:p-4">
                     <label className="mb-2.5 block text-xs font-extrabold text-[#0a1122]">
@@ -1189,7 +1240,6 @@ function OffersContent() {
                   </div>
                 </div>
 
-                {/* أزرار الإرسال والإلغاء في أسفل النافذة */}
                 <div className="flex items-center gap-2.5 border-t border-gray-100 bg-gray-50/80 px-4 py-3.5 sm:px-5">
                   <button
                     type="button"
@@ -1218,7 +1268,7 @@ function OffersContent() {
           )
         })()}
 
-      {/* ==================== نافذة إرسال العرض المضاد من البائع (z-[9999]) ==================== */}
+      {/* نافذة إرسال العرض المضاد من البائع */}
       {counterModalOffer && (
         <div
           dir={dir}

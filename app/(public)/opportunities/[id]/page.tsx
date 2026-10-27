@@ -9,10 +9,12 @@ import {
   Check,
   ChevronRight,
   Copy,
+  Flame,
   Heart,
   Share2,
   ShieldCheck,
   Star,
+  Wallet,
 } from 'lucide-react'
 import { getCurrentSellerProfileAction } from '@/actions/submit-forms'
 import {
@@ -27,7 +29,6 @@ const FALLBACK_UNIT_IMAGE =
   'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=85'
 const FAVORITES_STORAGE_KEY = 'darak_favorites'
 
-// الأعمدة الآمنة فقط بدون name, phone, email أو روابط مستندات الملكية
 const PUBLIC_UNIT_DETAIL_COLUMNS =
   'id, user_id, project_name, developer_name, area, unit_type, size, garden_size, rooms, bathrooms, floor_number, finishing, delivery_status, delivery_month, delivery_year, features, description, contract_price, paid_amount, market_price, installment_amount, installment_frequency, contract_month, contract_year, years_left, willing_to_discount, discount_amount, images, status, is_featured, featured_until, created_at'
 
@@ -53,6 +54,7 @@ export default function PropertyDetailsPage() {
   const t = dict.unitDetailsPage
   const c = dict.opportunitiesPage.card
   const filtersT = dict.opportunitiesPage.filters
+  const oT = (dict.accountPages?.offers as Record<string, any>) || {}
   const monthsWord =
     (dict.sell?.reviewStep as Record<string, any>)?.monthsUnit ||
     (t.financials as Record<string, any>)?.monthWord ||
@@ -414,10 +416,12 @@ export default function PropertyDetailsPage() {
     const isOwner = Boolean(
       currentUserId && row.user_id && row.user_id === currentUserId
     )
+    const hasActiveOffer = String(row.status || '').toLowerCase() === 'offer_received'
 
     return {
       id: String(row.id),
       isOwner,
+      hasActiveOffer,
       projectName,
       areaName,
       subtitle,
@@ -451,6 +455,11 @@ export default function PropertyDetailsPage() {
     navigator.clipboard?.writeText(computedUnit.code)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  const scrollToOfferSection = () => {
+    const el = document.getElementById('make-offer-section')
+    el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
   if (loading) {
@@ -541,6 +550,16 @@ export default function PropertyDetailsPage() {
             <span className="rounded-full bg-[#e6f4f9] px-3 py-1 text-[11px] font-bold text-[var(--brand-primary,#007a5a)]">
               {t.verifiedBadge}
             </span>
+            {computedUnit.hasActiveOffer && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-[11px] font-extrabold text-orange-800">
+                <Flame className="size-3.5 fill-orange-500 text-orange-600" />
+                <span>
+                  {locale === 'ar'
+                    ? 'عليها عرض نشط (متاح عروض احتياطية)'
+                    : 'Active Offer (Backup Offers Open)'}
+                </span>
+              </span>
+            )}
             {computedUnit.featured && (
               <span className="inline-flex items-center gap-1 rounded-full border border-amber-200/60 bg-amber-50 px-3 py-1 text-[11px] font-bold text-amber-700">
                 <Star className="size-3 fill-amber-400 text-amber-500" />
@@ -617,18 +636,35 @@ export default function PropertyDetailsPage() {
         </section>
 
         <section className="mt-4 rounded-[18px] border border-[#b8e6d5] bg-white p-5 text-start shadow-sm sm:p-6">
-          <p className="text-xs font-bold text-gray-500">
-            {fin.requiredCashNow}
-          </p>
-          <p className="mt-1 flex items-baseline gap-1.5 text-3xl font-extrabold tracking-tight text-[var(--brand-navy,#0a1122)] tabular-nums sm:text-[34px]">
-            <span dir="ltr">
-              {computedUnit.requiredCash.toLocaleString('en-US')}
-            </span>
-            <span className="text-lg font-bold">{computedUnit.currency}</span>
-          </p>
-          <p className="mt-1 text-xs font-bold text-[var(--brand-primary,#007a5a)]">
-            {fin.noOverNote}
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold text-gray-500">
+                {fin.requiredCashNow}
+              </p>
+              <p className="mt-1 flex items-baseline gap-1.5 text-3xl font-extrabold tracking-tight text-[var(--brand-navy,#0a1122)] tabular-nums sm:text-[34px]">
+                <span dir="ltr">
+                  {computedUnit.requiredCash.toLocaleString('en-US')}
+                </span>
+                <span className="text-lg font-bold">
+                  {computedUnit.currency}
+                </span>
+              </p>
+              <p className="mt-1 text-xs font-bold text-[var(--brand-primary,#007a5a)]">
+                {fin.noOverNote}
+              </p>
+            </div>
+
+            {!computedUnit.isOwner && (
+              <button
+                type="button"
+                onClick={scrollToOfferSection}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[var(--brand-primary,#007a5a)] px-5 text-xs font-extrabold text-white shadow-sm transition hover:bg-[var(--brand-primary-hover,#006248)] sm:text-sm"
+              >
+                <Wallet className="size-4" />
+                <span>{oT.makeOfferBtn || t.interestForm.submitBtn}</span>
+              </button>
+            )}
+          </div>
 
           {computedUnit.willingToDiscount && (
             <div className="mt-4 rounded-xl border border-amber-200 bg-[#fffbeb] px-4 py-3 text-start">
@@ -872,6 +908,8 @@ export default function PropertyDetailsPage() {
             totalRequiredNow={computedUnit.totalRequiredNow}
             installmentAmount={computedUnit.installmentAmount}
             currentUserId={currentUserId}
+            willingToDiscount={computedUnit.willingToDiscount}
+            discountAmount={computedUnit.discountAmount}
           />
         )}
       </div>

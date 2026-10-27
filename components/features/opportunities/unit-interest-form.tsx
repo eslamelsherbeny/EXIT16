@@ -1,18 +1,23 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { createBrowserClient } from '@supabase/ssr'
+import { useParams } from 'next/navigation'
+import Link from 'next/link'
 import {
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Loader2,
+  MessageCircle,
+  Wallet,
   X,
   ZoomIn,
 } from 'lucide-react'
+import { submitBuyerOfferAction } from '@/actions/offer-actions'
 import { TurnstileBox } from '@/components/layouts/auth-layout'
 import { CountrySelector } from '@/components/shared/country-selector'
 import { toEnglishDigits } from '@/components/features/seller/seller-shared'
-import { useTranslation } from '@/lib/i18n'
+import { getCurrencySymbol, useTranslation } from '@/lib/i18n'
 
 export function UnitGalleryWithLightbox({
   gallery,
@@ -232,12 +237,12 @@ export function UnitGalleryWithLightbox({
 export function UnitInterestForm({
   unitCode,
   projectName,
-  areaName,
-  unitType,
-  deliveryYear,
+  areaName: _areaName,
+  unitType: _unitType,
+  deliveryYear: _deliveryYear,
   requiredCash,
-  totalRequiredNow,
-  installmentAmount,
+  totalRequiredNow: _totalRequiredNow,
+  installmentAmount: _installmentAmount,
   currentUserId,
 }: {
   unitCode: string
@@ -250,17 +255,40 @@ export function UnitInterestForm({
   installmentAmount: number
   currentUserId: string | null
 }) {
-  const { t: dict } = useTranslation()
-  const f = dict.unitDetailsPage.interestForm
+  const params = useParams()
+  const rawPropertyId = Array.isArray(params?.id)
+    ? params.id[0]
+    : (params?.id as string) || ''
 
+  const { t: dict, locale } = useTranslation()
+  const f = dict.unitDetailsPage.interestForm
+  const oT = (dict.accountPages?.offers as Record<string, any>) || {}
+  const cur = getCurrencySymbol('GE', locale)
+  const supportWhatsApp = String(dict.footer?.phone || '+201018595959').replace(
+    /\D/g,
+    ''
+  )
+
+  const [offeredCashStr, setOfferedCashStr] = useState(
+    requiredCash > 0 ? requiredCash.toLocaleString('en-US') : ''
+  )
   const [buyerName, setBuyerName] = useState('')
   const [buyerPhone, setBuyerPhone] = useState('')
   const [countryCode, setCountryCode] = useState('995')
   const [buyerNotes, setBuyerNotes] = useState('')
-  const [readiness, setReadiness] = useState<'week' | 'month' | 'info'>('info')
+  const [readiness, setReadiness] = useState<'48h' | '1_week' | '2_weeks'>(
+    '48h'
+  )
+  const [paymentMethod, setPaymentMethod] = useState<
+    'bank_check' | 'bank_transfer'
+  >('bank_check')
   const [agreedToCommission, setAgreedToCommission] = useState(false)
   const [submittingOffer, setSubmittingOffer] = useState(false)
-  const [offerSubmitted, setOfferSubmitted] = useState(false)
+  const [submittedOfferData, setSubmittedOfferData] = useState<{
+    offerId: string
+    offerRef: string
+    amount: number
+  } | null>(null)
   const [offerError, setOfferError] = useState('')
 
   const handleInterestSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -272,66 +300,39 @@ export function UnitInterestForm({
       .replace(/\D/g, '')
       .trim()
 
-    if (!buyerName.trim() || cleanDigits.length < 7) {
+    if (!currentUserId && (!buyerName.trim() || cleanDigits.length < 7)) {
       setOfferError(f.errorSubmit)
       return
     }
 
+    const numericCash =
+      Number(toEnglishDigits(offeredCashStr).replace(/,/g, '')) || requiredCash
+
     setSubmittingOffer(true)
 
     try {
-      const supabase = createBrowserClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      )
+      const cleanPhone = cleanDigits
+        ? `+${countryCode.replace('+', '')}${cleanDigits}`
+        : ''
 
-      const cleanPhone = `+${countryCode.replace('+', '')}${cleanDigits}`
-      const readinessLabel =
-        readiness === 'week'
-          ? f.readinessWeek
-          : readiness === 'month'
-            ? f.readinessMonth
-            : f.readinessInfo
+      const res = await submitBuyerOfferAction({
+        propertyId: rawPropertyId,
+        offeredCash: numericCash,
+        paymentReadiness: readiness,
+        paymentMethod,
+        guestName: buyerName.trim(),
+        guestPhone: cleanPhone,
+        buyerNotes: buyerNotes.trim(),
+      })
 
-      const insertPayload: Record<string, any> = {
-        country: 'GE',
-        country_code: 'GE',
-        currency_code: 'USD',
-        name: buyerName.trim().slice(0, 120),
-        phone: cleanPhone,
-        available_cash: requiredCash,
-        budget: totalRequiredNow,
-        max_installment: installmentAmount,
-        payment_plan: `(${unitCode}) · ${readinessLabel}${
-          buyerNotes.trim() ? ` · ${buyerNotes.trim().slice(0, 300)}` : ''
-        }`,
-        preferred_areas: [`🎯 ${projectName} (${unitCode}) - ${areaName}`],
-        unit_types: [unitType],
-        delivery_status: deliveryYear,
-      }
-
-      if (currentUserId) {
-        insertPayload.user_id = currentUserId
-      }
-
-      const { error } = await supabase
-        .from('buy_requests')
-        .insert(insertPayload)
-
-      if (error) {
-        setOfferError(f.errorSubmit)
+      if (!res.success) {
+        setOfferError(res.error || f.errorSubmit)
       } else {
-        try {
-          await supabase.from('notifications').insert({
-            user_id: null,
-            title: `🎯 ${projectName} (${unitCode})`,
-            message: `${buyerName.trim()} (${cleanPhone})`,
-            type: 'lead',
-            link: '/admin/leads?type=unit_leads',
-            is_read: false,
-          })
-        } catch {}
-        setOfferSubmitted(true)
+        setSubmittedOfferData({
+          offerId: res.offerId || '',
+          offerRef: res.offerRef || `OF-${unitCode}`,
+          amount: numericCash,
+        })
       }
     } catch {
       setOfferError(f.errorUnexpected)
@@ -340,21 +341,76 @@ export function UnitInterestForm({
     }
   }
 
+  const siteOrigin =
+    typeof window !== 'undefined'
+      ? window.location.origin
+      : 'https://exit-16.vercel.app'
+
+  const whatsappConfirmMsg = submittedOfferData
+    ? locale === 'ar'
+      ? `أهلاً إدارة Aqar Exit، أؤكد جديتي في عرض الشراء رقم (${submittedOfferData.offerRef}) على وحدة (${projectName} - ${unitCode}) بمبلغ ($${submittedOfferData.amount.toLocaleString('en-US')}).\nرابط تفعيل العرض في الإدارة:\n${siteOrigin}/admin/deals?offerId=${submittedOfferData.offerId}`
+      : `Hello Aqar Exit, I confirm my purchase offer (${submittedOfferData.offerRef}) for unit (${projectName} - ${unitCode}) with amount ($${submittedOfferData.amount.toLocaleString('en-US')}).\nAdmin Deal Link:\n${siteOrigin}/admin/deals?offerId=${submittedOfferData.offerId}`
+    : ''
+
   return (
-    <section className="mt-8 rounded-[20px] border border-gray-200/90 bg-white p-5 text-start shadow-sm sm:p-8">
-      <h2 className="text-lg font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-xl">
-        {f.title}
-      </h2>
+    <section
+      id="make-offer-section"
+      className="mt-8 rounded-[20px] border border-gray-200/90 bg-white p-5 text-start shadow-sm sm:p-8"
+    >
+      <div className="flex items-center gap-2">
+        <span className="flex size-8 items-center justify-center rounded-xl bg-[#eaf8f2] text-[#007a5a]">
+          <Wallet className="size-4" />
+        </span>
+        <h2 className="text-lg font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-xl">
+          {oT.makeOfferBtn || f.title}
+        </h2>
+      </div>
       <p className="mt-1.5 text-xs leading-relaxed text-gray-500">
         {f.subtitlePrefix} ({unitCode}) {f.subtitleSuffix}
       </p>
 
-      {offerSubmitted ? (
-        <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-6 text-center">
-          <p className="text-sm font-extrabold text-emerald-800">
+      {submittedOfferData ? (
+        <div className="mt-6 rounded-2xl border-2 border-[#007a5a] bg-[#eaf8f2]/70 p-6 text-center">
+          <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-full bg-[#007a5a] text-white shadow-sm">
+            <CheckCircle2 className="size-6" />
+          </div>
+          <p className="text-base font-black text-[#0a1122] sm:text-lg">
             {f.successTitlePrefix} ({projectName}) {f.successTitleSuffix}
           </p>
-          <p className="mt-1.5 text-xs text-emerald-700">{f.successDesc}</p>
+          <p className="mt-1 font-mono text-xs font-extrabold text-[#007a5a]">
+            Ref: #{submittedOfferData.offerRef} · $
+            {submittedOfferData.amount.toLocaleString('en-US')}
+          </p>
+          <p className="mx-auto mt-2.5 max-w-md text-xs leading-relaxed font-semibold text-slate-700">
+            {locale === 'ar'
+              ? 'لتسريع إرسال عرضك للمالك مباشرة، اضغط الزر بالأسفل لتأكيد العرض عبر واتساب المنصة:'
+              : 'To fast-track your offer to the owner, click below to confirm via WhatsApp:'}
+          </p>
+
+          <div className="mt-5 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <a
+              href={`https://wa.me/${supportWhatsApp}?text=${encodeURIComponent(whatsappConfirmMsg)}`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] px-6 text-xs font-extrabold text-white shadow-md transition hover:opacity-95 sm:w-auto sm:text-sm"
+            >
+              <MessageCircle className="size-4 shrink-0" />
+              <span>
+                {locale === 'ar'
+                  ? 'تأكيد العرض فوراً عبر واتساب'
+                  : 'Confirm Offer via WhatsApp'}
+              </span>
+            </a>
+
+            {currentUserId && (
+              <Link
+                href="/account/offers?role=buyer"
+                className="inline-flex h-12 w-full items-center justify-center rounded-xl border border-gray-300 bg-white px-5 text-xs font-extrabold text-[#0a1122] hover:bg-gray-50 sm:w-auto"
+              >
+                {locale === 'ar' ? 'متابعة عروضي في حسابي' : 'View My Offers'}
+              </Link>
+            )}
+          </div>
         </div>
       ) : (
         <form onSubmit={handleInterestSubmit} className="mt-6 space-y-5">
@@ -364,42 +420,148 @@ export function UnitInterestForm({
             </div>
           )}
 
-          <div>
-            <label className="mb-2 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
-              {f.nameLabel}
-            </label>
-            <input
-              type="text"
-              value={buyerName}
-              onChange={(e) => setBuyerName(e.target.value)}
-              placeholder={f.namePlaceholder}
-              required
-              maxLength={120}
-              className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-xs text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:text-sm"
-            />
+          {/* مبلغ الكاش المعروض من المشتري */}
+          <div className="rounded-2xl border border-emerald-200/80 bg-[#f8faf9] p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <label className="text-xs font-extrabold text-[#0a1122]">
+                {oT.offeredCashLabel || 'مبلغ الكاش المعروض للمالك'} ({cur})
+              </label>
+              <button
+                type="button"
+                onClick={() =>
+                  setOfferedCashStr(requiredCash.toLocaleString('en-US'))
+                }
+                className="rounded-lg bg-[#eaf8f2] px-2.5 py-1 text-[11px] font-extrabold text-[#007a5a] hover:underline"
+              >
+                {oT.fullPriceOptionTitle || 'السعر المطلوب بالكامل'}:{' '}
+                <span dir="ltr">
+                  {requiredCash.toLocaleString('en-US')} {cur}
+                </span>
+              </button>
+            </div>
+            <div className="relative mt-2">
+              <input
+                type="text"
+                inputMode="numeric"
+                dir="ltr"
+                required
+                value={offeredCashStr}
+                onChange={(e) => {
+                  const digits = toEnglishDigits(e.target.value).replace(
+                    /\D/g,
+                    ''
+                  )
+                  setOfferedCashStr(
+                    digits ? Number(digits).toLocaleString('en-US') : ''
+                  )
+                }}
+                className="h-12 w-full rounded-xl border border-gray-300 bg-white pr-4 pl-12 text-left text-base font-black text-[#0a1122] focus:border-[#007a5a] focus:outline-none"
+              />
+              <span className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-xs font-extrabold text-gray-400">
+                {cur}
+              </span>
+            </div>
           </div>
 
-          <div>
-            <label className="mb-2 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
-              {f.whatsappLabel}
-            </label>
-            <div dir="ltr" className="flex items-center gap-2">
-              <CountrySelector
-                value={countryCode}
-                onChange={(code) => setCountryCode(code)}
-                heightClass="h-11"
-              />
-              <input
-                type="tel"
-                inputMode="tel"
-                dir="ltr"
-                value={buyerPhone}
-                onChange={(e) => setBuyerPhone(toEnglishDigits(e.target.value))}
-                placeholder="5xx xx xx xx"
-                required
-                maxLength={20}
-                className="h-11 flex-1 rounded-xl border border-gray-200 bg-white px-4 text-left text-xs font-medium text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:text-sm"
-              />
+          {!currentUserId && (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
+                  {f.nameLabel}
+                </label>
+                <input
+                  type="text"
+                  value={buyerName}
+                  onChange={(e) => setBuyerName(e.target.value)}
+                  placeholder={f.namePlaceholder}
+                  required
+                  maxLength={120}
+                  className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-xs text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
+                  {f.whatsappLabel}
+                </label>
+                <div dir="ltr" className="flex items-center gap-2">
+                  <CountrySelector
+                    value={countryCode}
+                    onChange={(code) => setCountryCode(code)}
+                    heightClass="h-11"
+                  />
+                  <input
+                    type="tel"
+                    inputMode="tel"
+                    dir="ltr"
+                    value={buyerPhone}
+                    onChange={(e) =>
+                      setBuyerPhone(toEnglishDigits(e.target.value))
+                    }
+                    placeholder="5xx xx xx xx"
+                    required
+                    maxLength={20}
+                    className="h-11 flex-1 rounded-xl border border-gray-200 bg-white px-4 text-left text-xs font-medium text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:text-sm"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-2 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
+                {oT.buyerReadinessLabel || f.readinessLegend}
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {(
+                  [
+                    ['48h', oT.readiness48h || f.readinessWeek],
+                    ['1_week', oT.readiness1Week || f.readinessMonth],
+                    ['2_weeks', oT.readiness2Weeks || f.readinessInfo],
+                  ] as const
+                ).map(([key, label]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setReadiness(key)}
+                    className={`flex min-h-[42px] items-center justify-center rounded-xl border px-2 py-1.5 text-center text-[11px] font-extrabold transition ${
+                      readiness === key
+                        ? 'border-[#007a5a] bg-[#007a5a] text-white'
+                        : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
+                {oT.paymentMethodLabel || 'طريقة الدفع'}
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {(
+                  [
+                    ['bank_check', oT.methodBankCheck || 'شيك بنكي مصدق'],
+                    ['bank_transfer', oT.methodBankTransfer || 'تحويل بنكي'],
+                  ] as const
+                ).map(([key, label]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setPaymentMethod(key)}
+                    className={`flex min-h-[42px] items-center justify-center rounded-xl border px-2.5 py-1.5 text-center text-[11px] font-extrabold transition ${
+                      paymentMethod === key
+                        ? 'border-[#0a1122] bg-[#0a1122] text-white'
+                        : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -408,52 +570,14 @@ export function UnitInterestForm({
               {f.notesLabel}
             </label>
             <textarea
-              rows={3}
+              rows={2}
               value={buyerNotes}
               onChange={(e) => setBuyerNotes(e.target.value)}
               placeholder={f.notesPlaceholder}
               maxLength={350}
               className="w-full rounded-xl border border-gray-200 bg-white p-3.5 text-xs text-[var(--brand-navy,#0a1122)] placeholder:text-gray-400 focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:text-sm"
             />
-            <p className="mt-1 text-[10px] text-gray-400">{f.notesHelper}</p>
           </div>
-
-          <fieldset>
-            <legend className="mb-2.5 text-xs font-bold text-[var(--brand-navy,#0a1122)]">
-              {f.readinessLegend}
-            </legend>
-            <div className="space-y-2.5">
-              {(
-                [
-                  ['week', f.readinessWeek],
-                  ['month', f.readinessMonth],
-                  ['info', f.readinessInfo],
-                ] as const
-              ).map(([key, label]) => (
-                <label
-                  key={key}
-                  onClick={() => setReadiness(key)}
-                  className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3.5 text-xs transition ${
-                    readiness === key
-                      ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary-light,#eaf8f2)] font-bold text-[var(--brand-navy,#0a1122)]'
-                      : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="readiness"
-                    checked={readiness === key}
-                    onChange={() => setReadiness(key)}
-                    className="size-4 accent-[var(--brand-primary,#007a5a)]"
-                  />
-                  <span>{label}</span>
-                </label>
-              ))}
-            </div>
-            <p className="mt-1.5 text-[10px] text-gray-400">
-              {f.readinessHelper}
-            </p>
-          </fieldset>
 
           <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-gray-200 bg-gray-50/70 p-3.5 text-xs leading-relaxed text-gray-700">
             <input
@@ -479,7 +603,7 @@ export function UnitInterestForm({
                 <span>{f.submittingBtn}</span>
               </>
             ) : (
-              <span>{f.submitBtn}</span>
+              <span>{oT.confirmSendOfferBtn || f.submitBtn}</span>
             )}
           </button>
 

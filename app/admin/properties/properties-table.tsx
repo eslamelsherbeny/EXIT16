@@ -202,10 +202,13 @@ export default function PropertiesTable({
     return `${leadsPrompts.waGeneralPrefix} ${property.name}، (${proj}${localizedArea} - ${uCode}${adPart}) — ${t.table.colCash}: ${cash} ${unitCur} | ${t.table.contractShort} ${contract} ${unitCur}`
   }
 
-  function getUploadedDocsList(docs: Record<string, any> | null | undefined) {
+    function getUploadedDocsList(docs: Record<string, any> | null | undefined) {
     if (!docs || typeof docs !== "object") return []
     return Object.entries(docs)
-      .filter(([, val]) => val && typeof val === "object" && val.url)
+      .filter(
+        ([key, val]) =>
+          key !== "__unit_meta" && val && typeof val === "object" && val.url
+      )
       .map(([key, val]) => ({
         key,
         label: docLabels[key] || key,
@@ -214,6 +217,7 @@ export default function PropertiesTable({
         uploadedAt: String(val.uploaded_at || ""),
       }))
   }
+
 
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")

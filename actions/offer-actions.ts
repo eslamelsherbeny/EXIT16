@@ -2,8 +2,10 @@
 
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { randomBytes, scryptSync } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
 import {
+  createSignedSessionToken,
   extractUserIdFromCookie,
   parseAndVerifySessionCookie,
 } from '@/lib/session-security'
@@ -15,6 +17,44 @@ import {
   type MatchableBuyer,
   type MatchableUnit,
 } from '@/lib/smart-matcher'
+
+const PENDING_ADMIN_TAG = '__PENDING_ADMIN_VERIFICATION__'
+
+function makeOfferRefCode(offerId: string): string {
+  const clean = String(offerId || '')
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .toUpperCase()
+  return `OF-${clean.slice(0, 6) || '1001'}`
+}
+
+function hashPassword(password: string) {
+  const salt = randomBytes(16).toString('hex')
+  const derived = scryptSync(password, salt, 64).toString('hex')
+  return `scrypt$${salt}$${derived}`
+}
+
+async function setBuyerSessionCookie(
+  userId: string,
+  passwordHash?: string | null
+) {
+  const cookieStore = await cookies()
+  const isProd = process.env.NODE_ENV === 'production'
+  const token = createSignedSessionToken(userId, passwordHash)
+
+  cookieStore.set('user_session', token, {
+    path: '/',
+    maxAge: 60 * 60 * 24 * 30,
+    sameSite: 'lax',
+    secure: isProd,
+    httpOnly: true,
+  })
+  cookieStore.set('session_hint', '1', {
+    path: '/',
+    maxAge: 60 * 60 * 24 * 30,
+    sameSite: 'lax',
+    secure: isProd,
+  })
+}
 
 async function getSupabase() {
   const cookieStore = await cookies()
@@ -72,11 +112,28 @@ function isUnitOwnedByUser(unit: any, user: any): boolean {
   return Boolean(byEmail || byPhone)
 }
 
-export async function generateOfferRefCode(offerId: string): string {
-  const clean = String(offerId || '')
-    .replace(/[^a-zA-Z0-9]/g, '')
-    .toUpperCase()
-  return `OF-${clean.slice(0, 6) || '1001'}`
+function normalizeOfferRecord(raw: any): OfferRecord {
+  const rawDiffs = Array.isArray(raw.diff_reasons) ? raw.diff_reasons : []
+  const hasPendingAdminTag = rawDiffs.includes(PENDING_ADMIN_TAG)
+  const cleanDiffs = rawDiffs.filter((d: string) => d !== PENDING_ADMIN_TAG)
+
+  let effectiveStatus: OfferStatusType = raw.status || 'pending_admin'
+  if (
+    raw.status === 'pending_admin' ||
+    (raw.status === 'recommended' &&
+      (raw.initiated_by === 'buyer' || hasPendingAdminTag))
+  ) {
+    effectiveStatus = 'pending_admin'
+  }
+
+  return {
+    ...raw,
+    id: String(raw.id),
+    property_id: String(raw.property_id),
+    status: effectiveStatus,
+    match_reasons: Array.isArray(raw.match_reasons) ? raw.match_reasons : [],
+    diff_reasons: cleanDiffs,
+  }
 }
 
 function sanitizeUnitForPublicOrBuyer(unit: any): MatchableUnit | undefined {
@@ -252,7 +309,7 @@ export async function getAccountOffersDataAction() {
     .map((u) => sanitizeUnitForPublicOrBuyer(u)!)
     .filter(Boolean)
   const myBuys = (myBuysData || []) as MatchableBuyer[]
-  const allOffers = (offersData || []) as OfferRecord[]
+  const allOffers = ((offersData || []) as any[]).map(normalizeOfferRecord)
 
   const myUnitIds = new Set(mySells.map((u) => String(u.id)))
   const myLeadIds = new Set(myBuys.map((b) => String(b.id)))
@@ -264,7 +321,7 @@ export async function getAccountOffersDataAction() {
     if (clean) allKnownUnitsMap.set(String(clean.id), clean)
   })
 
-  // 1. عروض البائع: لا تظهر للبائع إلا العروض الحقيقية التي اعتمدها الأدمن (لا تظهر pending_admin ولا recommended ولا عروض وهمية)
+  // 1. عروض البائع: لا تظهر للبائع إلا العروض الحقيقية التي اعتمدها الأدمن (pending_seller / counter_offered / accepted / unit_locked)
   const sellerOffers = allOffers
     .filter(
       (o) =>
@@ -276,12 +333,8 @@ export async function getAccountOffersDataAction() {
     )
     .map((o) => ({
       ...o,
-      id: String(o.id),
-      property_id: String(o.property_id),
       buyer_name: null,
       buyer_phone: null,
-      match_reasons: Array.isArray(o.match_reasons) ? o.match_reasons : [],
-      diff_reasons: Array.isArray(o.diff_reasons) ? o.diff_reasons : [],
       unit: allKnownUnitsMap.get(String(o.property_id)),
     }))
     .sort((a, b) => {
@@ -290,7 +343,7 @@ export async function getAccountOffersDataAction() {
       return Number(b.offered_cash) - Number(a.offered_cash)
     })
 
-  // 2. عروض المشتري الرسمية (تشمل العروض التي قدمها بنفسه حتى لو في انتظار تأكيد الأدمن pending_admin)
+  // 2. عروض المشتري الرسمية
   const buyerOffers = allOffers
     .filter(
       (o) =>
@@ -300,10 +353,6 @@ export async function getAccountOffersDataAction() {
     )
     .map((o) => ({
       ...o,
-      id: String(o.id),
-      property_id: String(o.property_id),
-      match_reasons: Array.isArray(o.match_reasons) ? o.match_reasons : [],
-      diff_reasons: Array.isArray(o.diff_reasons) ? o.diff_reasons : [],
       unit: allKnownUnitsMap.get(String(o.property_id)),
     }))
 
@@ -402,10 +451,6 @@ export async function getAccountOffersDataAction() {
   }
 }
 
-/**
- * دالة موحّدة لتقديم عرض شراء على وحدة (من نافذة العروض أو من صفحة تفاصيل الشقة مباشرة للمسجلين والزوار)
- * كل عرض جديد يدخل بحالة pending_admin ويعيد offerRef ليرسله المشتري عبر واتساب للأدمن لتفعيله
- */
 export async function submitBuyerOfferAction(payload: {
   propertyId: string
   offeredCash: number
@@ -413,6 +458,8 @@ export async function submitBuyerOfferAction(payload: {
   paymentMethod: 'bank_check' | 'bank_transfer'
   guestName?: string
   guestPhone?: string
+  guestEmail?: string
+  guestPassword?: string
   buyerNotes?: string
 }): Promise<{
   success: boolean
@@ -426,14 +473,18 @@ export async function submitBuyerOfferAction(payload: {
   try {
     const supabase = await getSupabase()
     const session = await getVerifiedClientSession()
-    const buyerUser = session?.user || null
-    const sessionId = buyerUser?.id || null
+    let buyerUser = session?.user || null
+    let sessionId = buyerUser?.id || null
 
     const cleanGuestName = String(payload.guestName || '').trim().slice(0, 120)
     const cleanGuestPhone = String(payload.guestPhone || '')
       .trim()
       .replace(/\s+/g, '')
       .slice(0, 25)
+    const cleanGuestEmail = String(payload.guestEmail || '')
+      .trim()
+      .toLowerCase()
+    const cleanGuestPassword = String(payload.guestPassword || '').trim()
 
     if (!sessionId && (!cleanGuestName || cleanGuestPhone.length < 7)) {
       return {
@@ -441,6 +492,50 @@ export async function submitBuyerOfferAction(payload: {
         error:
           oDict.errLoginRequired ||
           'يرجى إدخال الاسم ورقم الواتساب الصحيح لتسجيل عرضك',
+      }
+    }
+
+    // إذا كان زائراً جديداً، ننشئ له حساب مشتري تلقائياً أو نربطه بحسابه الحالي ونسجل دخوله فوراً!
+    if (!sessionId && cleanGuestPhone) {
+      const { data: existingUserByPhone } = await supabase
+        .from('users')
+        .select('id, name, email, phone, role, status, password_hash')
+        .eq('phone', cleanGuestPhone)
+        .limit(1)
+        .maybeSingle()
+
+      if (existingUserByPhone) {
+        buyerUser = existingUserByPhone
+        sessionId = String(existingUserByPhone.id)
+      } else {
+        const autoEmail =
+          cleanGuestEmail ||
+          `buyer.${cleanGuestPhone.replace(/\D/g, '')}@aqarexit.ge`
+        const autoPass =
+          cleanGuestPassword.length >= 8
+            ? cleanGuestPassword
+            : randomBytes(8).toString('hex')
+        const passHash = hashPassword(autoPass)
+
+        const { data: createdUser } = await supabase
+          .from('users')
+          .insert({
+            name: cleanGuestName,
+            phone: cleanGuestPhone,
+            email: autoEmail,
+            password_hash: passHash,
+            country: 'GE',
+            role: 'user',
+            status: 'active',
+          })
+          .select('id, name, email, phone, role, status, password_hash')
+          .maybeSingle()
+
+        if (createdUser) {
+          buyerUser = createdUser
+          sessionId = String(createdUser.id)
+          await setBuyerSessionCookie(sessionId, passHash)
+        }
       }
     }
 
@@ -499,7 +594,6 @@ export async function submitBuyerOfferAction(payload: {
     const buyerNameFinal = buyerUser?.name || cleanGuestName || 'مشتري'
     const buyerPhoneFinal = buyerUser?.phone || cleanGuestPhone || ''
 
-    // التأكد من وجود سجل ميزانية للمشتري في buy_requests لتشغيل الرادار الذكي له
     let activeLead: any = null
     if (sessionId) {
       const { data: existingLeads } = await supabase
@@ -521,7 +615,7 @@ export async function submitBuyerOfferAction(payload: {
           currency_code: 'USD',
           name: buyerNameFinal,
           phone: buyerPhoneFinal,
-          email: buyerUser?.email || null,
+          email: buyerUser?.email || cleanGuestEmail || null,
           available_cash: finalOfferedCash,
           budget: Number(unit.contract_price) || finalOfferedCash,
           max_installment: Number(unit.installment_amount) || 0,
@@ -546,7 +640,6 @@ export async function submitBuyerOfferAction(payload: {
       reasonsList.push(`💬 ${payload.buyerNotes.trim().slice(0, 180)}`)
     }
 
-    // إذا كان المشتري موثقاً من قبل من الإدارة، يمر العرض مباشرة للبائع، وإلا يدخل بحالة pending_admin لتأكيد الواتساب
     const isBuyerAlreadyVerified = Boolean(
       buyerUser &&
         (buyerUser.role === 'admin' ||
@@ -589,29 +682,53 @@ export async function submitBuyerOfferAction(payload: {
       updated_at: new Date().toISOString(),
     }
 
+    // نسخة احتياطية متوافقة مع أي قيد CHECK قديم في قاعدة البيانات
+    const fallbackCompatibleRow = {
+      ...offerRow,
+      status: isBuyerAlreadyVerified ? 'pending_seller' : 'recommended',
+      diff_reasons: isBuyerAlreadyVerified
+        ? matchInfo.differences
+        : [...matchInfo.differences, PENDING_ADMIN_TAG],
+    }
+
     let savedOfferId = existingOfferId || ''
 
     if (existingOfferId) {
-      const { error } = await supabase
+      let { error } = await supabase
         .from('property_offers')
         .update(offerRow)
         .eq('id', existingOfferId)
+      if (error) {
+        const retry = await supabase
+          .from('property_offers')
+          .update(fallbackCompatibleRow)
+          .eq('id', existingOfferId)
+        error = retry.error
+      }
       if (error) return { success: false, error: oDict.errSubmitFailed }
     } else {
-      const { data: insertedOffer, error } = await supabase
+      let { data: insertedOffer, error } = await supabase
         .from('property_offers')
         .insert(offerRow)
         .select('id')
         .single()
+      if (error || !insertedOffer) {
+        const retry = await supabase
+          .from('property_offers')
+          .insert(fallbackCompatibleRow)
+          .select('id')
+          .single()
+        insertedOffer = retry.data
+        error = retry.error
+      }
       if (error || !insertedOffer) {
         return { success: false, error: oDict.errSubmitFailed }
       }
       savedOfferId = String(insertedOffer.id)
     }
 
-    const offerRef = generateOfferRefCode(savedOfferId)
+    const offerRef = makeOfferRefCode(savedOfferId)
 
-    // إرسال إشعار فوري للأدمن برقم العرض ورابط تفعيله في غرفة الصفقات
     const notifsToInsert: any[] = [
       {
         user_id: null,
@@ -681,7 +798,6 @@ export async function respondToOfferBySellerAction(payload: {
     }
 
     if (payload.decision === 'accept') {
-      // منع البائع من قبول أكثر من عرض واحد في نفس الوقت على نفس الوحدة!
       const { data: alreadyAccepted } = await supabase
         .from('property_offers')
         .select('id')
@@ -708,7 +824,6 @@ export async function respondToOfferBySellerAction(payload: {
         })
         .eq('id', offer.id)
 
-      // تحويل باقي العروض على هذه الوحدة إلى عروض احتياطية (unit_locked) دون مسحها، مع إبقاء الوحدة offer_received في السوق حتى إتمام البيع الفعلي!
       await supabase
         .from('property_offers')
         .update({ status: 'unit_locked' })
@@ -728,7 +843,7 @@ export async function respondToOfferBySellerAction(payload: {
           .eq('id', offer.lead_id)
       }
 
-      const offerRef = generateOfferRefCode(offer.id)
+      const offerRef = makeOfferRefCode(offer.id)
       const notifs: any[] = [
         {
           user_id: null,
@@ -890,7 +1005,7 @@ export async function respondToCounterOfferByBuyerAction(payload: {
           .eq('id', offer.lead_id)
       }
 
-      const offerRef = generateOfferRefCode(offer.id)
+      const offerRef = makeOfferRefCode(offer.id)
       const notifs: any[] = [
         {
           user_id: null,
@@ -962,12 +1077,42 @@ async function verifyStaffSession() {
 }
 
 /**
- * دالة الأدمن للتحكم الكامل في العروض والصفقات:
- * - approve_to_seller: اعتماد العرض بعد تأكيد المشتري على الواتساب وإرساله للبائع
- * - reopen_unit_offers: إلغاء العرض المقبول (إذا تراجع المشتري) وإعادة فتح العروض الاحتياطية للبائع!
- * - mark_unit_sold: إغلاق الصفقة نهائياً بعد التنازل وقبض العمولة
- * - reject_offer: رفض عرض غير جاد
+ * دالة سيرفر آمنة لجلب كافة العروض والوحدات لغرفة الصفقات في الأدمن (/admin/deals)
  */
+export async function adminGetDealsRoomDataAction() {
+  try {
+    const auth = await verifyStaffSession()
+    if (!auth) {
+      return { authorized: false, offers: [] as any[], units: [] as any[] }
+    }
+    const { supabase } = auth
+
+    const [{ data: offersData }, { data: unitsData }] = await Promise.all([
+      supabase
+        .from('property_offers')
+        .select('*')
+        .order('updated_at', { ascending: false }),
+      supabase
+        .from('sell_requests')
+        .select('*')
+        .neq('status', 'deleted_by_seller'),
+    ])
+
+    const normalizedOffers = ((offersData || []) as any[])
+      .map(normalizeOfferRecord)
+      .filter((o) => o.status !== 'recommended')
+
+    return {
+      authorized: true,
+      offers: normalizedOffers,
+      units: unitsData || [],
+    }
+  } catch (e) {
+    console.error('adminGetDealsRoomDataAction error:', e)
+    return { authorized: false, offers: [] as any[], units: [] as any[] }
+  }
+}
+
 export async function adminManageOfferLifecycleAction(payload: {
   offerId: string
   action:
@@ -1000,11 +1145,16 @@ export async function adminManageOfferLifecycleAction(payload: {
 
     if (!unit) return { success: false, error: oDict.errUnitNotFound }
 
+    const cleanDiffs = Array.isArray(offer.diff_reasons)
+      ? offer.diff_reasons.filter((d: string) => d !== PENDING_ADMIN_TAG)
+      : []
+
     if (payload.action === 'approve_to_seller') {
       await supabase
         .from('property_offers')
         .update({
           status: 'pending_seller',
+          diff_reasons: cleanDiffs,
           updated_at: new Date().toISOString(),
         })
         .eq('id', offer.id)
@@ -1029,7 +1179,6 @@ export async function adminManageOfferLifecycleAction(payload: {
         } catch {}
       }
     } else if (payload.action === 'reopen_unit_offers') {
-      // إذا تراجع المشتري بعد موافقة البائع: نلغي عرض هذا المشتري، ونعيد تفعيل كل العروض الاحتياطية (unit_locked -> pending_seller)
       await supabase
         .from('property_offers')
         .update({
@@ -1069,6 +1218,7 @@ export async function adminManageOfferLifecycleAction(payload: {
         .from('property_offers')
         .update({
           status: 'rejected',
+          diff_reasons: cleanDiffs,
           updated_at: new Date().toISOString(),
         })
         .eq('id', offer.id)

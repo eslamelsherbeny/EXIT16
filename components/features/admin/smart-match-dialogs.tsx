@@ -64,7 +64,8 @@ export function UnitSmartMatchModal({
   if (!unit) return null
 
   const unitCur = getCurrencySymbol("GE", locale)
-  const matchPrefix = sm.matchScorePrefix || buyerDict.matchScorePrefix || "متوافق"
+  const matchPrefix =
+    sm.matchScorePrefix || buyerDict.matchScorePrefix || "متوافق"
   const localizedUnitArea = getLocalizedGeorgiaAreaName(unit.area, locale)
 
   const matchedList = (buyers || [])
@@ -172,11 +173,11 @@ export function UnitSmartMatchModal({
     <Dialog open={Boolean(unit)} onOpenChange={(o) => !o && onClose()}>
       <DialogContent
         dir={dir}
-        className="max-h-[85vh] w-[94vw] max-w-[520px] overflow-y-auto rounded-2xl p-4 text-start sm:p-5"
+        className="max-h-[88vh] w-[95vw] max-w-[540px] overflow-x-hidden overflow-y-auto rounded-2xl p-4 text-start sm:p-5"
       >
         <DialogHeader className="border-b border-gray-100 pb-3 text-start">
-          <div className="flex flex-wrap items-center justify-between gap-2 pe-6">
-            <DialogTitle className="text-xs font-black text-[#0a1122] sm:text-sm">
+          <div className="flex flex-col gap-2 pe-6 sm:flex-row sm:items-center sm:justify-between">
+            <DialogTitle className="text-xs leading-relaxed font-black text-[#0a1122] sm:text-sm">
               🎯 {sm.unitMatchedBuyersTitle}:{" "}
               <span className="text-[#105C50]">
                 {unit.project_name || propTable.unspecifiedProject}
@@ -188,7 +189,7 @@ export function UnitSmartMatchModal({
                 type="button"
                 disabled={isPending || isBulkDone}
                 onClick={handleSendBulk}
-                className={`inline-flex h-7 items-center gap-1 rounded-lg px-2.5 text-[11px] font-bold text-white transition ${
+                className={`inline-flex h-8 w-fit items-center gap-1.5 rounded-lg px-3 text-[11px] font-bold text-white transition ${
                   isBulkDone
                     ? "bg-emerald-600"
                     : "bg-[#105C50] hover:bg-[#0c483f]"
@@ -196,17 +197,17 @@ export function UnitSmartMatchModal({
               >
                 {loadingKey === bulkKey ? (
                   <>
-                    <Loader2 className="size-3 animate-spin" />
+                    <Loader2 className="size-3.5 animate-spin" />
                     <span>{sm.sendingNow}</span>
                   </>
                 ) : isBulkDone ? (
                   <>
-                    <Check className="size-3" />
+                    <Check className="size-3.5" />
                     <span>{sm.sentAllDoneBtn}</span>
                   </>
                 ) : (
                   <>
-                    <Send className="size-3" />
+                    <Send className="size-3.5" />
                     <span>
                       {sm.sendAllRecsBtn} ({matchedList.length})
                     </span>
@@ -215,7 +216,7 @@ export function UnitSmartMatchModal({
               </button>
             )}
           </div>
-          <DialogDescription className="mt-1 text-start text-[11px] text-gray-500">
+          <DialogDescription className="mt-1 text-start text-[11px] leading-relaxed text-gray-500">
             {propTable.colCash}:{" "}
             <strong dir="ltr" className="text-[#105C50]">
               {Number(unit.paid_amount || 0).toLocaleString("en-US")} {unitCur}
@@ -224,7 +225,7 @@ export function UnitSmartMatchModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="mt-2.5 space-y-2.5">
+        <div className="mt-3 space-y-3">
           {matchedList.length === 0 ? (
             <p className="py-6 text-center text-xs text-gray-400">
               {sm.noMatchesFound}
@@ -249,25 +250,25 @@ export function UnitSmartMatchModal({
               return (
                 <div
                   key={buyer.id}
-                  className="rounded-xl border border-gray-200/90 bg-white p-3 text-xs shadow-2xs"
+                  className="overflow-hidden rounded-xl border border-gray-200/90 bg-white p-3.5 text-xs shadow-2xs"
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <span className="truncate font-extrabold text-[#0a1122]">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-extrabold text-[#0a1122]">
                         {buyer.name}
-                      </span>
-                      <span
+                      </p>
+                      <p
                         dir="ltr"
-                        className="font-mono text-[10.5px] text-gray-500"
+                        className="mt-0.5 text-start font-mono text-[11px] text-gray-500"
                       >
                         {buyer.phone}
-                      </span>
+                      </p>
                     </div>
 
-                    <div className="flex shrink-0 items-center gap-1.5">
+                    <div className="flex flex-wrap items-center gap-1.5">
                       {existingOffer && (
                         <span
-                          className={`rounded-md px-2 py-0.5 text-[9.5px] font-extrabold ${
+                          className={`rounded-md px-2 py-0.5 text-[10px] font-extrabold ${
                             existingOffer.status === "accepted"
                               ? "bg-emerald-600 text-white"
                               : existingOffer.status === "rejected"
@@ -298,7 +299,7 @@ export function UnitSmartMatchModal({
                     </div>
                   </div>
 
-                  <p className="mt-1 text-[11px] font-bold text-[#105C50]">
+                  <p className="mt-2 text-[11px] font-bold text-[#105C50]">
                     {leadsPrompts.cashShort} <span dir="ltr">{bCash}</span>{" "}
                     {unitCur}
                   </p>
@@ -322,27 +323,28 @@ export function UnitSmartMatchModal({
                     ))}
                   </div>
 
-                  <div className="mt-2.5 flex items-center gap-1.5 border-t border-gray-100 pt-2">
+                  {/* أزرار متجاوبة للموبايل والكمبيوتر بدون أي خروج عن الشاشة */}
+                  <div className="mt-3 grid grid-cols-1 gap-1.5 border-t border-gray-100 pt-2.5 sm:grid-cols-3">
                     <button
                       type="button"
                       disabled={isPending || isRecDone}
                       onClick={() => handleSendSingle(buyer.id)}
-                      className={`inline-flex h-7 flex-1 items-center justify-center gap-1 whitespace-nowrap rounded-lg px-2 text-[10.5px] font-bold text-white transition ${
+                      className={`inline-flex min-h-[34px] items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-center text-[11px] font-bold text-white transition ${
                         isRecDone
                           ? "bg-emerald-600"
                           : "bg-[#0a1122] hover:bg-[#16223f]"
                       }`}
                     >
                       {loadingKey === recKey ? (
-                        <Loader2 className="size-3 animate-spin" />
+                        <Loader2 className="size-3.5 animate-spin" />
                       ) : isRecDone ? (
                         <>
-                          <Check className="size-3 shrink-0" />
+                          <Check className="size-3.5 shrink-0" />
                           <span>{sm.sentRecDoneBtn}</span>
                         </>
                       ) : (
                         <>
-                          <Send className="size-3 shrink-0" />
+                          <Send className="size-3.5 shrink-0" />
                           <span>{sm.sendRecToBuyerBtn}</span>
                         </>
                       )}
@@ -352,22 +354,22 @@ export function UnitSmartMatchModal({
                       type="button"
                       disabled={isPending || isOffDone}
                       onClick={() => handleCreateOffer(buyer)}
-                      className={`inline-flex h-7 flex-1 items-center justify-center gap-1 whitespace-nowrap rounded-lg px-2 text-[10.5px] font-bold text-white transition ${
+                      className={`inline-flex min-h-[34px] items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-center text-[11px] font-bold text-white transition ${
                         isOffDone
                           ? "bg-purple-700"
                           : "bg-[#105C50] hover:bg-[#0c483f]"
                       }`}
                     >
                       {loadingKey === offKey ? (
-                        <Loader2 className="size-3 animate-spin" />
+                        <Loader2 className="size-3.5 animate-spin" />
                       ) : isOffDone ? (
                         <>
-                          <Check className="size-3 shrink-0" />
+                          <Check className="size-3.5 shrink-0" />
                           <span>{sm.sentOfferDoneBtn}</span>
                         </>
                       ) : (
                         <>
-                          <Wallet className="size-3 shrink-0" />
+                          <Wallet className="size-3.5 shrink-0" />
                           <span>{sm.createOfficialOfferBtn}</span>
                         </>
                       )}
@@ -378,9 +380,9 @@ export function UnitSmartMatchModal({
                       href={`https://wa.me/${String(buyer.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(bWa)}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex h-7 shrink-0 items-center justify-center gap-1 rounded-lg bg-[#25D366] px-2.5 text-[10.5px] font-bold text-white hover:opacity-90"
+                      className="inline-flex min-h-[34px] items-center justify-center gap-1.5 rounded-lg bg-[#25D366] px-2.5 py-1.5 text-center text-[11px] font-bold text-white hover:opacity-90"
                     >
-                      <MessageCircle className="size-3" />
+                      <MessageCircle className="size-3.5 shrink-0" />
                       <span>{leadsPrompts.whatsappBtn}</span>
                     </a>
                   </div>
@@ -420,11 +422,14 @@ export function BuyerSmartMatchModal({
   if (!lead) return null
 
   const leadCur = getCurrencySymbol("GE", locale)
-  const matchPrefix = sm.matchScorePrefix || buyerDict.matchScorePrefix || "متوافق"
+  const matchPrefix =
+    sm.matchScorePrefix || buyerDict.matchScorePrefix || "متوافق"
 
   const matchedUnitsList = (units || [])
     .filter(
-      (u) => u.status === "active" && (!u.user_id || u.user_id !== lead.user_id)
+      (u) =>
+        (u.status === "active" || u.status === "offer_received") &&
+        (!u.user_id || u.user_id !== lead.user_id)
     )
     .map((unit) => {
       const existingOffer = offers.find(
@@ -529,11 +534,11 @@ export function BuyerSmartMatchModal({
     <Dialog open={Boolean(lead)} onOpenChange={(o) => !o && onClose()}>
       <DialogContent
         dir={dir}
-        className="max-h-[85vh] w-[94vw] max-w-[520px] overflow-y-auto rounded-2xl p-4 text-start sm:p-5"
+        className="max-h-[88vh] w-[95vw] max-w-[540px] overflow-x-hidden overflow-y-auto rounded-2xl p-4 text-start sm:p-5"
       >
         <DialogHeader className="border-b border-gray-100 pb-3 text-start">
-          <div className="flex flex-wrap items-center justify-between gap-2 pe-6">
-            <DialogTitle className="text-xs font-black text-[#0a1122] sm:text-sm">
+          <div className="flex flex-col gap-2 pe-6 sm:flex-row sm:items-center sm:justify-between">
+            <DialogTitle className="text-xs leading-relaxed font-black text-[#0a1122] sm:text-sm">
               🎯 {sm.buyerMatchedUnitsTitle}:{" "}
               <span className="text-[#105C50]">{lead.name}</span>
             </DialogTitle>
@@ -543,7 +548,7 @@ export function BuyerSmartMatchModal({
                 type="button"
                 disabled={isPending || isBulkDone}
                 onClick={handleSendAll}
-                className={`inline-flex h-7 items-center gap-1 rounded-lg px-2.5 text-[11px] font-bold text-white transition ${
+                className={`inline-flex h-8 w-fit items-center gap-1.5 rounded-lg px-3 text-[11px] font-bold text-white transition ${
                   isBulkDone
                     ? "bg-emerald-600"
                     : "bg-[#105C50] hover:bg-[#0c483f]"
@@ -551,17 +556,17 @@ export function BuyerSmartMatchModal({
               >
                 {loadingKey === bulkKey ? (
                   <>
-                    <Loader2 className="size-3 animate-spin" />
+                    <Loader2 className="size-3.5 animate-spin" />
                     <span>{sm.sendingNow}</span>
                   </>
                 ) : isBulkDone ? (
                   <>
-                    <Check className="size-3" />
+                    <Check className="size-3.5" />
                     <span>{sm.sentAllDoneBtn}</span>
                   </>
                 ) : (
                   <>
-                    <Send className="size-3" />
+                    <Send className="size-3.5" />
                     <span>
                       {sm.sendAllRecsBtn} ({matchedUnitsList.length})
                     </span>
@@ -581,7 +586,7 @@ export function BuyerSmartMatchModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="mt-2.5 space-y-2.5">
+        <div className="mt-3 space-y-3">
           {matchedUnitsList.length === 0 ? (
             <p className="py-6 text-center text-xs text-gray-400">
               {sm.noMatchesFound}
@@ -591,7 +596,10 @@ export function BuyerSmartMatchModal({
               const uCash = Number(unit.paid_amount || 0).toLocaleString(
                 "en-US"
               )
-              const localizedArea = getLocalizedGeorgiaAreaName(unit.area, locale)
+              const localizedArea = getLocalizedGeorgiaAreaName(
+                unit.area,
+                locale
+              )
               const recKey = `rec_${unit.id}_${lead.id}`
               const offKey = `off_${unit.id}_${lead.id}`
               const isRecDone =
@@ -605,22 +613,22 @@ export function BuyerSmartMatchModal({
               return (
                 <div
                   key={unit.id}
-                  className="rounded-xl border border-gray-200/90 bg-white p-3 text-xs shadow-2xs"
+                  className="overflow-hidden rounded-xl border border-gray-200/90 bg-white p-3.5 text-xs shadow-2xs"
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex min-w-0 items-center gap-1.5">
-                      <span className="truncate font-extrabold text-[#0a1122]">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-extrabold text-[#0a1122]">
                         {unit.project_name || "—"} ({localizedArea})
-                      </span>
+                      </p>
                       <span className="font-mono text-[10px] text-gray-400">
                         {deriveShortUnitCode(unit.id)}
                       </span>
                     </div>
 
-                    <div className="flex shrink-0 items-center gap-1.5">
+                    <div className="flex flex-wrap items-center gap-1.5">
                       {existingOffer && (
                         <span
-                          className={`rounded-md px-2 py-0.5 text-[9.5px] font-extrabold ${
+                          className={`rounded-md px-2 py-0.5 text-[10px] font-extrabold ${
                             existingOffer.status === "accepted"
                               ? "bg-emerald-600 text-white"
                               : existingOffer.status === "rejected"
@@ -651,7 +659,7 @@ export function BuyerSmartMatchModal({
                     </div>
                   </div>
 
-                  <p className="mt-1 text-[11px] font-bold text-[#105C50]">
+                  <p className="mt-2 text-[11px] font-bold text-[#105C50]">
                     {tLeads.cashLabel} <span dir="ltr">{uCash}</span> {leadCur}
                   </p>
 
@@ -674,27 +682,28 @@ export function BuyerSmartMatchModal({
                     ))}
                   </div>
 
-                  <div className="mt-2.5 flex items-center gap-1.5 border-t border-gray-100 pt-2">
+                  {/* أزرار متجاوبة للموبايل والكمبيوتر بدون أي خروج عن الشاشة */}
+                  <div className="mt-3 grid grid-cols-1 gap-1.5 border-t border-gray-100 pt-2.5 sm:grid-cols-3">
                     <button
                       type="button"
                       disabled={isPending || isRecDone}
                       onClick={() => handleSendSingle(unit.id)}
-                      className={`inline-flex h-7 flex-1 items-center justify-center gap-1 whitespace-nowrap rounded-lg px-2 text-[10.5px] font-bold text-white transition ${
+                      className={`inline-flex min-h-[34px] items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-center text-[11px] font-bold text-white transition ${
                         isRecDone
                           ? "bg-emerald-600"
                           : "bg-[#0a1122] hover:bg-[#16223f]"
                       }`}
                     >
                       {loadingKey === recKey ? (
-                        <Loader2 className="size-3 animate-spin" />
+                        <Loader2 className="size-3.5 animate-spin" />
                       ) : isRecDone ? (
                         <>
-                          <Check className="size-3 shrink-0" />
+                          <Check className="size-3.5 shrink-0" />
                           <span>{sm.sentRecDoneBtn}</span>
                         </>
                       ) : (
                         <>
-                          <Send className="size-3 shrink-0" />
+                          <Send className="size-3.5 shrink-0" />
                           <span>{sm.sendRecToBuyerBtn}</span>
                         </>
                       )}
@@ -704,22 +713,22 @@ export function BuyerSmartMatchModal({
                       type="button"
                       disabled={isPending || isOffDone}
                       onClick={() => handleCreateOffer(unit)}
-                      className={`inline-flex h-7 flex-1 items-center justify-center gap-1 whitespace-nowrap rounded-lg px-2 text-[10.5px] font-bold text-white transition ${
+                      className={`inline-flex min-h-[34px] items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-center text-[11px] font-bold text-white transition ${
                         isOffDone
                           ? "bg-purple-700"
                           : "bg-[#105C50] hover:bg-[#0c483f]"
                       }`}
                     >
                       {loadingKey === offKey ? (
-                        <Loader2 className="size-3 animate-spin" />
+                        <Loader2 className="size-3.5 animate-spin" />
                       ) : isOffDone ? (
                         <>
-                          <Check className="size-3 shrink-0" />
+                          <Check className="size-3.5 shrink-0" />
                           <span>{sm.sentOfferDoneBtn}</span>
                         </>
                       ) : (
                         <>
-                          <Wallet className="size-3 shrink-0" />
+                          <Wallet className="size-3.5 shrink-0" />
                           <span>{sm.createOfficialOfferBtn}</span>
                         </>
                       )}
@@ -728,9 +737,9 @@ export function BuyerSmartMatchModal({
                     <Link
                       href={`/opportunities/${unit.id}`}
                       target="_blank"
-                      className="inline-flex h-7 shrink-0 items-center justify-center gap-1 rounded-lg border border-gray-200 bg-gray-50 px-2 text-[10.5px] font-bold text-[#105C50] hover:bg-gray-100"
+                      className="inline-flex min-h-[34px] items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-center text-[11px] font-bold text-[#105C50] hover:bg-gray-100"
                     >
-                      <ExternalLink className="size-3" />
+                      <ExternalLink className="size-3.5 shrink-0" />
                       <span>{sm.viewUnitBtn}</span>
                     </Link>
                   </div>

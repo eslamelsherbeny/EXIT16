@@ -88,6 +88,11 @@ export default function AdminShell({
       icon: LayoutDashboard,
       allowed: ["ADMIN", "MODERATOR", "SALES"] as StaffRole[],
     },
+    href: "/admin/deals",
+      label: "غرفة الصفقات والعروض",
+      shortLabel: "الصفقات",
+      icon: WalletCards,
+      allowed: ["ADMIN", "MODERATOR", "SALES"] as StaffRole[],
     {
       href: "/admin/properties",
       label: t.nav.properties,

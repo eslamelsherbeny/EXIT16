@@ -7,8 +7,8 @@ import {
   Clock3,
   ExternalLink,
   FileText,
-  Flame,
   Handshake,
+  Lock,
   MessageCircle,
   RefreshCw,
   Send,
@@ -30,6 +30,7 @@ export const dynamic = "force-dynamic"
 export const revalidate = 0
 
 const ACTIVE_ADMIN_COUNTRY = "GE"
+const PENDING_ADMIN_TAG = "__PENDING_ADMIN_VERIFICATION__"
 
 const STATUS_BADGE_CLASSES: Record<string, string> = {
   pending: "bg-amber-100 text-amber-800",
@@ -45,6 +46,27 @@ function deriveUnitCode(id: string) {
   const digits = String(id || "").replace(/\D/g, "")
   const num = digits ? Number(digits.slice(-4)) : 100
   return `U-${String(num).padStart(5, "0")}`
+}
+
+function normalizeDashboardOffer(raw: any) {
+  const rawDiffs = Array.isArray(raw.diff_reasons) ? raw.diff_reasons : []
+  const hasPendingAdminTag = rawDiffs.includes(PENDING_ADMIN_TAG)
+
+  let effectiveStatus = raw.status || "pending_admin"
+  if (
+    raw.status === "pending_admin" ||
+    (raw.status === "recommended" &&
+      (raw.initiated_by === "buyer" || hasPendingAdminTag))
+  ) {
+    effectiveStatus = "pending_admin"
+  }
+
+  return {
+    ...raw,
+    id: String(raw.id),
+    property_id: String(raw.property_id),
+    status: effectiveStatus,
+  }
 }
 
 async function getSupabase() {
@@ -91,9 +113,8 @@ export default async function AdminPage() {
       supabase
         .from("property_offers")
         .select("*")
-        .neq("status", "recommended")
         .order("updated_at", { ascending: false })
-        .limit(40),
+        .limit(60),
     ])
 
     propertiesData = propsRes.data || []
@@ -110,6 +131,7 @@ export default async function AdminPage() {
         : {}
     return {
       ...p,
+      id: String(p.id),
       area: p.area || meta.area || null,
       unit_type: p.unit_type || meta.unit_type || null,
       size: p.size ?? meta.size ?? null,
@@ -117,8 +139,10 @@ export default async function AdminPage() {
   })
   const leads = leadsData
   const allOffers = allOffersData
+    .map(normalizeDashboardOffer)
+    .filter((o: any) => o.status !== "recommended")
 
-  const propsMap = new Map(properties.map((p: any) => [p.id, p]))
+  const propsMap = new Map(properties.map((p: any) => [String(p.id), p]))
 
   const pendingAdminOffersCount = allOffers.filter(
     (o: any) => o.status === "pending_admin"
@@ -128,14 +152,14 @@ export default async function AdminPage() {
     .filter((o: any) => o.status === "accepted")
     .map((offer: any) => ({
       offer,
-      unit: propsMap.get(offer.property_id),
+      unit: propsMap.get(String(offer.property_id)),
     }))
     .filter((item) => Boolean(item.unit) && item.unit.status !== "sold")
 
   const liveNegotiationOffers = allOffers
     .map((offer: any) => ({
       offer,
-      unit: propsMap.get(offer.property_id),
+      unit: propsMap.get(String(offer.property_id)),
     }))
     .filter((item) => Boolean(item.unit))
     .slice(0, 8)
@@ -241,7 +265,6 @@ export default async function AdminPage() {
         ))}
       </div>
 
-      {/* بانر العروض الجديدة التي تنتظر اعتماد الأدمن وتمريرها للبائع */}
       {pendingAdminOffersCount > 0 && (
         <Link
           href="/admin/deals?tab=pending_admin"
@@ -557,6 +580,12 @@ export default async function AdminPage() {
                         <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2.5 py-0.5 text-[10px] font-extrabold text-purple-900">
                           <RefreshCw className="size-2.5" />
                           <span>{sm.offerCounterTag}</span>
+                        </span>
+                      )}
+                      {st === "unit_locked" && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2.5 py-0.5 text-[10px] font-bold text-slate-700">
+                          <Lock className="size-2.5" />
+                          <span>احتياطي</span>
                         </span>
                       )}
                       {st === "rejected" && (

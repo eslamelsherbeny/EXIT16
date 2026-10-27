@@ -11,6 +11,7 @@ import {
   Handshake,
   MessageCircle,
   RefreshCw,
+  Send,
   Star,
   Wallet,
 } from "lucide-react"
@@ -92,7 +93,7 @@ export default async function AdminPage() {
         .select("*")
         .neq("status", "recommended")
         .order("updated_at", { ascending: false })
-        .limit(30),
+        .limit(40),
     ])
 
     propertiesData = propsRes.data || []
@@ -118,6 +119,10 @@ export default async function AdminPage() {
   const allOffers = allOffersData
 
   const propsMap = new Map(properties.map((p: any) => [p.id, p]))
+
+  const pendingAdminOffersCount = allOffers.filter(
+    (o: any) => o.status === "pending_admin"
+  ).length
 
   const readyDeals = allOffers
     .filter((o: any) => o.status === "accepted")
@@ -145,23 +150,6 @@ export default async function AdminPage() {
   )
   const activeFeaturedUnits = properties.filter((p) => p.is_featured)
 
-  const unitSpecificLeads = leads.filter((l: any) => {
-    const areasStr = Array.isArray(l.preferred_areas)
-      ? l.preferred_areas.join(" ")
-      : String(l.preferred_areas || "")
-    const planStr = String(l.payment_plan || "")
-    return (
-      areasStr.includes("🎯") ||
-      areasStr.includes("U-") ||
-      planStr.includes("مهتم بوحدة")
-    )
-  })
-
-  const generalSearchLeadsCount = Math.max(
-    0,
-    leads.length - unitSpecificLeads.length
-  )
-
   const kpis = [
     {
       label: `${t.unitsIn || ""} ${georgiaLabel}`,
@@ -182,19 +170,20 @@ export default async function AdminPage() {
       highlight: pendingProperties.length > 0,
     },
     {
-      label: t.unitBookers || "Unit Leads",
-      value: unitSpecificLeads.length.toLocaleString("en-US"),
+      label: "غرفة العروض والصفقات",
+      value: allOffers.length.toLocaleString("en-US"),
       note:
-        t.unitBookersNote ||
-        `${t.outOfTotal || ""} ${leads.length.toLocaleString("en-US")}`,
-      icon: Flame,
-      href: "/admin/leads?type=unit_leads",
-      highlight: unitSpecificLeads.length > 0,
+        pendingAdminOffersCount > 0
+          ? `${pendingAdminOffersCount} عرض بانتظار موافقتك`
+          : `${readyDeals.length} صفقة جاهزة للتنفيذ`,
+      icon: Handshake,
+      href: "/admin/deals",
+      highlight: pendingAdminOffersCount > 0 || readyDeals.length > 0,
     },
     {
       label: t.totalBuyerLeads || dict?.admin?.shell?.nav?.leads || "Leads",
       value: leads.length.toLocaleString("en-US"),
-      note: `${generalSearchLeadsCount.toLocaleString("en-US")} ${t.generalRequestsNote || ""}`,
+      note: `${leads.length.toLocaleString("en-US")} ${t.generalRequestsNote || ""}`,
       icon: FileText,
       href: "/admin/leads",
     },
@@ -251,6 +240,32 @@ export default async function AdminPage() {
           </Link>
         ))}
       </div>
+
+      {/* بانر العروض الجديدة التي تنتظر اعتماد الأدمن وتمريرها للبائع */}
+      {pendingAdminOffersCount > 0 && (
+        <Link
+          href="/admin/deals?tab=pending_admin"
+          className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-amber-400 bg-amber-50/90 p-4 shadow-xs transition hover:bg-amber-100/70"
+        >
+          <div className="flex items-center gap-3">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white">
+              <Send className="size-5" />
+            </span>
+            <div>
+              <p className="text-xs font-black text-[#0a1122] sm:text-sm">
+                لديك ({pendingAdminOffersCount}) عروض شراء جديدة بانتظار تأكيدك وإرسالها للبائعين
+              </p>
+              <p className="mt-0.5 text-[11px] font-semibold text-amber-900">
+                اضغط هنا لفتح غرفة الصفقات واعتماد العروض المؤكدة عبر واتساب
+              </p>
+            </div>
+          </div>
+          <span className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-[#0a1122] px-4 text-xs font-extrabold text-white">
+            <span>فتح غرفة الصفقات</span>
+            <ArrowLeft className="size-3.5 rtl:rotate-0 ltr:rotate-180" />
+          </span>
+        </Link>
+      )}
 
       <Link
         href="/admin/promotions"
@@ -328,6 +343,12 @@ export default async function AdminPage() {
                 </p>
               </div>
             </div>
+            <Link
+              href="/admin/deals?tab=accepted"
+              className="rounded-xl bg-[#105C50] px-3.5 py-1.5 text-xs font-extrabold text-white hover:bg-[#0c483f]"
+            >
+              إدارة وإغلاق الصفقات
+            </Link>
           </div>
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -360,10 +381,10 @@ export default async function AdminPage() {
                       </span>
                     </div>
                     <Link
-                      href={`/admin/properties?unitId=${unit.id}`}
+                      href={`/admin/deals?offerId=${offer.id}`}
                       className="rounded-lg bg-emerald-100 px-2.5 py-1 text-[10.5px] font-extrabold text-[#105C50] hover:bg-emerald-200"
                     >
-                      {sm.openDealUnitBtn}
+                      فتح في غرفة الصفقات
                     </Link>
                   </div>
 
@@ -460,10 +481,10 @@ export default async function AdminPage() {
               </CardTitle>
             </div>
             <Link
-              href="/admin/properties?tab=offer_received"
+              href="/admin/deals"
               className="text-xs font-bold text-[#105C50] hover:underline"
             >
-              {t.viewAll}
+              فتح غرفة الصفقات الكاملة ←
             </Link>
           </CardHeader>
           <CardContent className="p-3">
@@ -474,21 +495,19 @@ export default async function AdminPage() {
                 const st = offer.status
 
                 return (
-                  <div
+                  <Link
                     key={offer.id}
-                    className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-gray-200/80 bg-gray-50/60 px-3 py-2 text-xs"
+                    href={`/admin/deals?offerId=${offer.id}`}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-gray-200/80 bg-gray-50/60 px-3 py-2 text-xs transition hover:border-[#105C50]/50 hover:bg-white"
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-1.5">
                         <span className="rounded bg-[#0a1122] px-1.5 py-0.5 font-mono text-[9.5px] font-bold text-white">
                           {uCode}
                         </span>
-                        <Link
-                          href={`/admin/properties?unitId=${unit.id}`}
-                          className="truncate font-extrabold text-[#0a1122] hover:text-[#105C50]"
-                        >
+                        <span className="truncate font-extrabold text-[#0a1122]">
                           {unit.project_name || t.defaultUnit}
-                        </Link>
+                        </span>
                         <span className="text-[11px] text-gray-400">←</span>
                         <span className="truncate font-bold text-[#105C50]">
                           {offer.buyer_name || "—"}
@@ -519,6 +538,11 @@ export default async function AdminPage() {
                     </div>
 
                     <div className="flex shrink-0 items-center gap-1.5">
+                      {st === "pending_admin" && (
+                        <span className="rounded-full bg-amber-500 px-2.5 py-0.5 text-[10px] font-extrabold text-white">
+                          بانتظار موافقتك
+                        </span>
+                      )}
                       {st === "accepted" && (
                         <span className="rounded-full bg-emerald-600 px-2.5 py-0.5 text-[10px] font-extrabold text-white">
                           ✓ {sm.offerAcceptedTag}
@@ -541,7 +565,7 @@ export default async function AdminPage() {
                         </span>
                       )}
                     </div>
-                  </div>
+                  </Link>
                 )
               })}
             </div>
@@ -680,21 +704,15 @@ export default async function AdminPage() {
                   : lead.preferred_areas
                     ? [String(lead.preferred_areas)]
                     : []
-                const areasRaw = areasList.join("، ")
-                const isUnitSpecific =
-                  areasRaw.includes("🎯") || areasRaw.includes("U-")
-                const cleanTarget = isUnitSpecific
-                  ? areasRaw.replace("🎯 مهتم بوحدة:", "").trim()
-                  : areasList
-                      .map((a: string) => getLocalizedGeorgiaAreaName(a, locale))
-                      .join("، ") || t.allAreas
+                const cleanTarget =
+                  areasList
+                    .map((a: string) => getLocalizedGeorgiaAreaName(a, locale))
+                    .join("، ") || t.allAreas
                 const cashFormatted = Number(
                   lead.available_cash || lead.budget || 0
                 ).toLocaleString("en-US")
 
-                const buyerWaMsg = isUnitSpecific
-                  ? `${leadsDict.waUnitLeadPrefix || ""} ${lead.name}، ${leadsDict.waUnitLeadMiddle || ""} (${cleanTarget}) — ${leadsDict.cashShort || ""} ${cashFormatted} ${georgiaCurrency}. ${leadsDict.waUnitLeadSuffix || ""}`
-                  : `${leadsDict.waGeneralPrefix || ""} ${lead.name}، ${leadsDict.waGeneralMiddle || ""} (${cleanTarget || t.allAreas || ""}) — ${leadsDict.cashShort || ""} ${cashFormatted} ${georgiaCurrency}. ${leadsDict.waGeneralSuffix || ""}`
+                const buyerWaMsg = `${leadsDict.waGeneralPrefix || ""} ${lead.name}، ${leadsDict.waGeneralMiddle || ""} (${cleanTarget || t.allAreas || ""}) — ${leadsDict.cashShort || ""} ${cashFormatted} ${georgiaCurrency}. ${leadsDict.waGeneralSuffix || ""}`
 
                 return (
                   <div
@@ -705,16 +723,9 @@ export default async function AdminPage() {
                       href={`/admin/leads?leadId=${lead.id}`}
                       className="min-w-0 flex-1"
                     >
-                      <div className="flex items-center gap-1.5">
-                        <p className="text-xs font-extrabold text-[#0a1122]">
-                          {lead.name}
-                        </p>
-                        {isUnitSpecific && (
-                          <span className="rounded bg-orange-100 px-1.5 py-0.5 text-[9px] font-bold text-orange-800">
-                            {t.unitBookBadge}
-                          </span>
-                        )}
-                      </div>
+                      <p className="text-xs font-extrabold text-[#0a1122]">
+                        {lead.name}
+                      </p>
                       <p className="mt-0.5 text-[11px] font-bold text-[#105C50] tabular-nums">
                         <span dir="ltr">{cashFormatted}</span> {georgiaCurrency}
                       </p>

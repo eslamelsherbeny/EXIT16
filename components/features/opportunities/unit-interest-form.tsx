@@ -371,10 +371,11 @@ export function UnitInterestForm({
       ? window.location.origin
       : 'https://exit-16.vercel.app'
 
+  // رابط محايد ذكي لا يكشف مسار /admin للعميل ويوثق الرقم عندما يفتحه الأدمن
   const whatsappConfirmMsg = submittedOfferData
     ? locale === 'ar'
-      ? `أهلاً إدارة Aqar Exit، أؤكد جديتي في عرض الشراء رقم (${submittedOfferData.offerRef}) على وحدة (${projectName} - ${unitCode}) بمبلغ ($${submittedOfferData.amount.toLocaleString('en-US')}).\nرابط تفعيل العرض في الإدارة:\n${siteOrigin}/admin/deals?offerId=${submittedOfferData.offerId}`
-      : `Hello Aqar Exit, I confirm my purchase offer (${submittedOfferData.offerRef}) for unit (${projectName} - ${unitCode}) with amount ($${submittedOfferData.amount.toLocaleString('en-US')}).\nAdmin Deal Link:\n${siteOrigin}/admin/deals?offerId=${submittedOfferData.offerId}`
+      ? `أهلاً إدارة Aqar Exit، أؤكد جديتي في عرض الشراء رقم (${submittedOfferData.offerRef}) على وحدة (${projectName} - ${unitCode}) بمبلغ ($${submittedOfferData.amount.toLocaleString('en-US')}).\nرابط مراجعة وتفعيل العرض:\n${siteOrigin}/api/verify-contact?offerId=${encodeURIComponent(submittedOfferData.offerId)}`
+      : `Hello Aqar Exit, I confirm my purchase offer (${submittedOfferData.offerRef}) for unit (${projectName} - ${unitCode}) with amount ($${submittedOfferData.amount.toLocaleString('en-US')}).\nVerification Link:\n${siteOrigin}/api/verify-contact?offerId=${encodeURIComponent(submittedOfferData.offerId)}`
     : ''
 
   return (

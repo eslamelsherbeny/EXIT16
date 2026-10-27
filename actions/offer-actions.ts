@@ -72,7 +72,7 @@ function isUnitOwnedByUser(unit: any, user: any): boolean {
   return Boolean(byEmail || byPhone)
 }
 
-export function generateOfferRefCode(offerId: string): string {
+export async function generateOfferRefCode(offerId: string): string {
   const clean = String(offerId || '')
     .replace(/[^a-zA-Z0-9]/g, '')
     .toUpperCase()

@@ -22,9 +22,9 @@ const DEFAULT_SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL || 'https://exit-16.vercel.app'
 
 async function getAuthDict() {
-  const { dict, dir } = await getServerI18n()
+  const { dict, dir, locale } = await getServerI18n()
   const t = (dict as Record<string, any>)?.serverActions?.auth || {}
-  return { t, dir }
+  return { t, dir, locale }
 }
 
 async function getSupabase() {
@@ -185,7 +185,6 @@ function getPhoneVariants(rawPhone: string) {
     `+90${strippedZero}`,
   ])
 
-  // إذا كتب المستخدم الرقم بكود الدولة (مثلاً 995555... أو 2010...) نضيف أيضاً الصيغ بدون الكود
   for (const code of ['995', '20', '966', '971', '965', '974', '90']) {
     if (strippedZero.startsWith(code) && strippedZero.length > code.length + 6) {
       const localPart = strippedZero.slice(code.length).replace(/^0+/, '')
@@ -356,7 +355,6 @@ export async function loginAction(formData: FormData): Promise<AuthResult> {
       .order('created_at', { ascending: false })
     candidates = data || []
 
-    // بحث إضافي بآخر 8 أرقام من الهاتف لو كان مخزناً بصيغة مختلفة
     if (candidates.length === 0) {
       const pureDigits = rawInput.replace(/\D/g, '')
       if (pureDigits.length >= 8) {
@@ -468,7 +466,9 @@ export async function registerAction(formData: FormData): Promise<AuthResult> {
   if (!name || !email || !formattedPhone || !password || password.length < 8) {
     return {
       success: false,
-      error: msg.fillAllRegister || 'يرجى ملء كافة الحقول المطلوبة (كلمة المرور 8 أحرف على الأقل)',
+      error:
+        msg.fillAllRegister ||
+        'يرجى ملء كافة الحقول المطلوبة (كلمة المرور 8 أحرف على الأقل)',
     }
   }
 
@@ -514,7 +514,9 @@ export async function registerAction(formData: FormData): Promise<AuthResult> {
     console.error('Register insert error:', error)
     return {
       success: false,
-      error: msg.registerFailed || 'تعذر إنشاء الحساب حالياً، تأكد من تشغيل سكريبت قاعدة البيانات',
+      error:
+        msg.registerFailed ||
+        'تعذر إنشاء الحساب حالياً، تأكد من تشغيل سكريبت قاعدة البيانات',
     }
   }
 
@@ -536,14 +538,16 @@ export async function registerAction(formData: FormData): Promise<AuthResult> {
 
   sendEmail({
     to: email,
-    senderName: msg.emailSenderName,
-    subject: msg.welcomeEmailSubject,
-    html: `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.6;">
-            <h2 style="color: #101A2B;">${msg.welcomeEmailGreeting} ${name} 🏠</h2>
-            <p>${msg.welcomeEmailBody}</p>
-            <div style="margin: 20px 0;">
-              <a href="${verifyLink}" style="display: inline-block; background-color: #105C50; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 10px; font-weight: bold;">
-                ${msg.welcomeEmailBtn}
+    senderName: msg.emailSenderName || 'Aqar Exit',
+    subject:
+      msg.welcomeEmailSubject ||
+      'تأكيد حسابك وبريدك الإلكتروني — Aqar Exit',
+    html: `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.7; color: #0a1122;">
+            <h2 style="color: #101A2B;">${msg.welcomeEmailGreeting || 'أهلاً بك'} ${name} 🏠</h2>
+            <p>${msg.welcomeEmailBody || 'اضغط على الزر التالي لتوثيق بريدك الإلكتروني وتفعيل حسابك بالكامل على منصة Aqar Exit:'}</p>
+            <div style="margin: 22px 0;">
+              <a href="${verifyLink}" style="display: inline-block; background-color: #007a5a; color: #ffffff; padding: 12px 26px; text-decoration: none; border-radius: 10px; font-weight: bold;">
+                ${msg.welcomeEmailBtn || 'تأكيد البريد الإلكتروني الآن ✓'}
               </a>
             </div>
            </div>`,
@@ -614,7 +618,7 @@ export async function forgotPasswordAction(
   const emailSent = await sendEmail({
     to: user.email || email,
     senderName: msg.emailSenderName,
-    subject: msg.otpEmailSubject,
+    subject: `${otp} — ${msg.otpEmailSubject || 'كود التحقق الخاص بك'}`,
     html: `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.6;">
             <h2 style="color: #101A2B;">${msg.otpEmailGreeting} ${user.name || msg.dearUser}</h2>
             <p>${msg.otpEmailBody}</p>
@@ -672,7 +676,11 @@ export async function verifyOtpAction(
 
   if (cookieCheck.valid) return { success: true }
 
-  if (user.otp_code && String(user.otp_code).trim() === cleanOtp) {
+  const storedOtpClean = String(user.otp_code || '')
+    .replace('PHONE_OK|', '')
+    .trim()
+
+  if (storedOtpClean && storedOtpClean === cleanOtp) {
     if (user.otp_expiry && new Date(user.otp_expiry) < new Date()) {
       return {
         success: false,
@@ -762,17 +770,415 @@ export async function verifyAccountAction(
     return { success: true }
   }
 
-  if (!user.otp_code || String(user.otp_code).trim() !== cleanToken) {
+  const rawStored = String(user.otp_code || '')
+    .replace('PHONE_OK|', '')
+    .trim()
+
+  if (!rawStored || rawStored !== cleanToken) {
     return { success: false, error: msg.invalidLink }
   }
 
+  const hadPhoneOk = String(user.otp_code || '').includes('PHONE_OK')
   await supabase
     .from('users')
-    .update({ is_verified: true, otp_code: null, status: 'active' })
+    .update({
+      is_verified: true,
+      otp_code: hadPhoneOk ? 'PHONE_OK' : null,
+      status: 'active',
+    })
     .eq('id', user.id)
 
   revalidatePath('/admin/users')
+  revalidatePath('/admin/properties')
+  revalidatePath('/admin/leads')
+  revalidatePath('/account')
   return { success: true }
+}
+
+/**
+ * إرسال كود OTP من 6 أرقام لتوثيق الإيميل داخل صفحة البيع (/sell) أو صفحة الحساب (/account)
+ * الكود يظهر في عنوان الرسالة (Subject) وفي داخل الرسالة كما في التصميم
+ */
+export async function sendInlineEmailOtpAction(targetEmail?: string): Promise<{
+  success: boolean
+  maskedEmail?: string
+  error?: string
+}> {
+  const { dir, locale } = await getAuthDict()
+  try {
+    const supabase = await getSupabase()
+    const cookieStore = await cookies()
+    const rawSession = cookieStore.get('user_session')?.value
+    const sessionUserId = extractUserIdFromCookie(rawSession)
+
+    let user: any = null
+    if (sessionUserId) {
+      const { data } = await supabase
+        .from('users')
+        .select('id, name, email, otp_code, is_verified')
+        .eq('id', sessionUserId)
+        .maybeSingle()
+      user = data
+    }
+
+    const emailToUse = normalizeEmail(targetEmail || user?.email || '')
+    if (!emailToUse) {
+      return {
+        success: false,
+        error:
+          locale === 'ar'
+            ? 'لم يتم العثور على بريد إلكتروني صالح'
+            : 'No valid email address found',
+      }
+    }
+
+    if (!user) {
+      const { data } = await supabase
+        .from('users')
+        .select('id, name, email, otp_code, is_verified')
+        .ilike('email', emailToUse)
+        .limit(1)
+      user = data?.[0]
+    }
+
+    const otp = generateOTP()
+    const expiresAt = Date.now() + 15 * 60 * 1000
+    const expiryIso = new Date(expiresAt).toISOString()
+
+    const signedToken = signOtpToken(emailToUse, otp, expiresAt)
+    const isProd = process.env.NODE_ENV === 'production'
+
+    cookieStore.set('reset_otp_session', signedToken, {
+      path: '/',
+      maxAge: 15 * 60,
+      sameSite: 'lax',
+      secure: isProd,
+      httpOnly: true,
+    })
+
+    if (user?.id) {
+      const hadPhoneOk = String(user.otp_code || '').includes('PHONE_OK')
+      try {
+        await supabase
+          .from('users')
+          .update({
+            otp_code: hadPhoneOk ? `PHONE_OK|${otp}` : otp,
+            otp_expiry: expiryIso,
+          })
+          .eq('id', user.id)
+      } catch {}
+    }
+
+    const verifyLink = `${DEFAULT_SITE_URL}/login?verified=1&email=${encodeURIComponent(emailToUse)}&token=${otp}`
+
+    const subject =
+      locale === 'ar'
+        ? `كود التأكيد الخاص بك هو ${otp} — Aqar Exit`
+        : `Your verification code is ${otp} — Aqar Exit`
+
+    const html = `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.8; color: #0a1122; max-width: 540px; margin: 0 auto;">
+      <h2 style="color: #0a1122;">${locale === 'ar' ? `أهلاً ${user?.name || ''}` : `Hello ${user?.name || ''}`} 👋</h2>
+      <p>${locale === 'ar' ? 'كود تأكيد بريدك الإلكتروني وطلبك على منصة Aqar Exit هو:' : 'Your verification code on Aqar Exit is:'}</p>
+      <div style="background: #eaf8f2; border: 2px solid #007a5a; padding: 16px; border-radius: 14px; text-align: center; margin: 20px 0;">
+        <h1 style="color: #007a5a; letter-spacing: 8px; margin: 0; font-size: 32px; font-family: monospace;">${otp}</h1>
+      </div>
+      <p style="font-size: 13px; color: #475569;">${locale === 'ar' ? 'أو يمكنك الضغط على الرابط التالي لتوثيق بريدك الإلكتروني فوراً بضغطة واحدة:' : 'Or click the link below to verify your email immediately:'}</p>
+      <p style="margin: 16px 0;">
+        <a href="${verifyLink}" style="display: inline-block; background: #0a1122; color: #ffffff; padding: 10px 22px; border-radius: 10px; text-decoration: none; font-weight: bold; font-size: 13px;">
+          ${locale === 'ar' ? 'توثيق البريد الإلكتروني بضغطة واحدة ✓' : 'Verify Email with 1 Click ✓'}
+        </a>
+      </p>
+    </div>`
+
+    const sent = await sendEmail({
+      to: emailToUse,
+      senderName: 'Aqar Exit',
+      subject,
+      html,
+    })
+
+    if (!sent) {
+      return {
+        success: false,
+        error:
+          locale === 'ar'
+            ? 'تعذر إرسال الكود حالياً، يرجى المحاولة مرة أخرى أو التواصل عبر واتساب'
+            : 'Could not send code right now, please try again',
+      }
+    }
+
+    return {
+      success: true,
+    }
+  } catch {
+    return {
+      success: false,
+      error:
+        locale === 'ar'
+          ? 'حدث خطأ أثناء إرسال الكود'
+          : 'Error sending verification code',
+    }
+  }
+}
+
+/**
+ * التحقق من كود الـ OTP لتوثيق الإيميل فوراً (في خطوة مراجعة البيع أو صفحة الحساب)
+ */
+export async function verifyInlineEmailOtpAction(
+  otp: string,
+  targetEmail?: string
+): Promise<{
+  success: boolean
+  error?: string
+}> {
+  const { locale } = await getAuthDict()
+  try {
+    const cleanOtp = sanitizeInput(otp, 10).replace(/\s+/g, '')
+    if (!cleanOtp || cleanOtp.length < 4) {
+      return {
+        success: false,
+        error:
+          locale === 'ar'
+            ? 'يرجى إدخال الكود المكون من 6 أرقام'
+            : 'Please enter the 6-digit code',
+      }
+    }
+
+    const supabase = await getSupabase()
+    const cookieStore = await cookies()
+    const rawSession = cookieStore.get('user_session')?.value
+    const sessionUserId = extractUserIdFromCookie(rawSession)
+
+    let user: any = null
+    if (sessionUserId) {
+      const { data } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', sessionUserId)
+        .maybeSingle()
+      user = data
+    }
+
+    const emailToUse = normalizeEmail(targetEmail || user?.email || '')
+    if (!user && emailToUse) {
+      const { data } = await supabase
+        .from('users')
+        .select('*')
+        .ilike('email', emailToUse)
+        .limit(1)
+      user = data?.[0]
+    }
+
+    if (!user) {
+      return {
+        success: false,
+        error:
+          locale === 'ar'
+            ? 'لم يتم العثور على الحساب'
+            : 'Account not found',
+      }
+    }
+
+    const checkRes = await verifyOtpAction(user.email || emailToUse, cleanOtp)
+    if (!checkRes.success) {
+      return {
+        success: false,
+        error:
+          locale === 'ar'
+            ? 'الكود غير صحيح أو منتهي الصلاحية'
+            : 'Invalid or expired code',
+      }
+    }
+
+    const hadPhoneOk =
+      Boolean(user.phone_verified) ||
+      String(user.otp_code || '').includes('PHONE_OK')
+
+    const updatePayload: Record<string, any> = {
+      is_verified: true,
+      otp_code: hadPhoneOk ? 'PHONE_OK' : null,
+      otp_expiry: null,
+    }
+
+    await supabase.from('users').update(updatePayload).eq('id', user.id)
+    cookieStore.delete('reset_otp_session')
+
+    revalidatePath('/sell')
+    revalidatePath('/account')
+    revalidatePath('/admin/properties')
+    revalidatePath('/admin/leads')
+    revalidatePath('/admin/users')
+
+    return { success: true }
+  } catch {
+    return {
+      success: false,
+      error:
+        locale === 'ar'
+          ? 'تعذر التحقق من الكود حالياً'
+          : 'Could not verify code right now',
+    }
+  }
+}
+
+/**
+ * توثيق رقم الهاتف (عبر واتساب) للمستخدم الحالي أو لمستخدم محدد
+ */
+export async function markUserPhoneVerifiedAction(payload?: {
+  userId?: string
+  unitId?: string
+}): Promise<{ success: boolean }> {
+  try {
+    const supabase = await getSupabase()
+    const cookieStore = await cookies()
+    const rawSession = cookieStore.get('user_session')?.value
+    const sessionUserId = extractUserIdFromCookie(rawSession)
+
+    const targetUserId = payload?.userId || sessionUserId
+    if (!targetUserId) return { success: false }
+
+    const { data: user } = await supabase
+      .from('users')
+      .select('id, otp_code')
+      .eq('id', targetUserId)
+      .maybeSingle()
+
+    if (user) {
+      const currentOtp = String(user.otp_code || '').trim()
+      const nextOtpCode = currentOtp
+        ? currentOtp.includes('PHONE_OK')
+          ? currentOtp
+          : `PHONE_OK|${currentOtp}`
+        : 'PHONE_OK'
+
+      // نحاول تحديث phone_verified إن وجد العمود، ونحفظ PHONE_OK في otp_code لضمان العمل 100% في كل الأحوال
+      const { error: err1 } = await supabase
+        .from('users')
+        .update({
+          phone_verified: true,
+          otp_code: nextOtpCode,
+        })
+        .eq('id', user.id)
+
+      if (err1) {
+        await supabase
+          .from('users')
+          .update({ otp_code: nextOtpCode })
+          .eq('id', user.id)
+      }
+    }
+
+    // حفظ علامة التوثيق في إشعار نظام داخلي لسهولة القراءة في لوحة الأدمن
+    try {
+      const { data: existingNotif } = await supabase
+        .from('notifications')
+        .select('id')
+        .eq('user_id', targetUserId)
+        .eq('title', '__PHONE_VERIFIED__')
+        .maybeSingle()
+
+      if (!existingNotif) {
+        await supabase.from('notifications').insert({
+          user_id: targetUserId,
+          title: '__PHONE_VERIFIED__',
+          message: 'verified_via_whatsapp',
+          type: 'system',
+          link: '/account',
+          is_read: true,
+        })
+      }
+    } catch {}
+
+    revalidatePath('/sell')
+    revalidatePath('/buy')
+    revalidatePath('/account')
+    revalidatePath('/admin/properties')
+    revalidatePath('/admin/leads')
+    revalidatePath('/admin/users')
+
+    return { success: true }
+  } catch {
+    return { success: false }
+  }
+}
+
+/**
+ * جلب حالة التوثيق (الإيميل + رقم الهاتف) للمستخدم الحالي
+ */
+export async function getUserVerificationStatusAction(): Promise<{
+  isLoggedIn: boolean
+  userId: string
+  email: string
+  phone: string
+  emailVerified: boolean
+  phoneVerified: boolean
+}> {
+  try {
+    const supabase = await getSupabase()
+    const cookieStore = await cookies()
+    const rawSession = cookieStore.get('user_session')?.value
+    const sessionUserId = extractUserIdFromCookie(rawSession)
+
+    if (!rawSession || !sessionUserId) {
+      return {
+        isLoggedIn: false,
+        userId: '',
+        email: '',
+        phone: '',
+        emailVerified: false,
+        phoneVerified: false,
+      }
+    }
+
+    const { data: user } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', sessionUserId)
+      .maybeSingle()
+
+    if (!user) {
+      return {
+        isLoggedIn: false,
+        userId: '',
+        email: '',
+        phone: '',
+        emailVerified: false,
+        phoneVerified: false,
+      }
+    }
+
+    let phoneVerified =
+      Boolean(user.phone_verified) ||
+      String(user.otp_code || '').includes('PHONE_OK')
+
+    if (!phoneVerified) {
+      const { data: notif } = await supabase
+        .from('notifications')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('title', '__PHONE_VERIFIED__')
+        .maybeSingle()
+      if (notif) phoneVerified = true
+    }
+
+    return {
+      isLoggedIn: true,
+      userId: user.id,
+      email: user.email || '',
+      phone: user.phone || '',
+      emailVerified: Boolean(user.is_verified),
+      phoneVerified,
+    }
+  } catch {
+    return {
+      isLoggedIn: false,
+      userId: '',
+      email: '',
+      phone: '',
+      emailVerified: false,
+      phoneVerified: false,
+    }
+  }
 }
 
 export async function getSessionUserAction() {

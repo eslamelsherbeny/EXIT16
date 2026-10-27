@@ -17,6 +17,7 @@ import {
   parseAndVerifySessionCookie,
 } from '@/lib/session-security'
 import { getServerI18n } from '@/lib/get-server-dictionary'
+import { upsertUserVerificationMeta } from '@/lib/form-action-helpers'
 
 const DEFAULT_SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL || 'https://exit-16.vercel.app'
@@ -582,7 +583,7 @@ export async function forgotPasswordAction(
   const supabase = await getSupabase()
   const { data: users } = await supabase
     .from('users')
-    .select('id, name, email')
+    .select('id, name, email, otp_code')
     .ilike('email', email)
     .order('created_at', { ascending: false })
     .limit(1)
@@ -609,9 +610,13 @@ export async function forgotPasswordAction(
   })
 
   try {
+    const hadPhoneOk = String(user.otp_code || '').includes('PHONE_OK')
     await supabase
       .from('users')
-      .update({ otp_code: otp, otp_expiry: expiryIso })
+      .update({
+        otp_code: hadPhoneOk ? `PHONE_OK|${otp}` : otp,
+        otp_expiry: expiryIso,
+      })
       .eq('id', user.id)
   } catch {}
 
@@ -720,7 +725,7 @@ export async function resetPasswordAction(
     .from('users')
     .update({ password_hash: newHash })
     .ilike('email', cleanEmail)
-    .select('id')
+    .select('id, otp_code')
 
   if (error || !updatedRows || updatedRows.length === 0) {
     return {
@@ -729,11 +734,23 @@ export async function resetPasswordAction(
     }
   }
 
+  const targetUser = updatedRows[0]
+  const hadPhoneOk = String(targetUser.otp_code || '').includes('PHONE_OK')
+
+  // توثيق البريد الإلكتروني أوتوماتيكياً لأن المستخدم أكد ملكيته للإيميل عبر كود الاستعادة
   try {
     await supabase
       .from('users')
-      .update({ otp_code: null, otp_expiry: null, is_verified: true })
-      .ilike('email', cleanEmail)
+      .update({
+        otp_code: hadPhoneOk ? 'PHONE_OK' : null,
+        otp_expiry: null,
+        is_verified: true,
+      })
+      .eq('id', targetUser.id)
+
+    await upsertUserVerificationMeta(supabase, targetUser.id, {
+      emailVerified: true,
+    })
   } catch {}
 
   const cookieStore = await cookies()
@@ -788,6 +805,10 @@ export async function verifyAccountAction(
     })
     .eq('id', user.id)
 
+  await upsertUserVerificationMeta(supabase, user.id, {
+    emailVerified: true,
+  })
+
   revalidatePath('/admin/users')
   revalidatePath('/admin/properties')
   revalidatePath('/admin/leads')
@@ -795,10 +816,6 @@ export async function verifyAccountAction(
   return { success: true }
 }
 
-/**
- * إرسال كود OTP من 6 أرقام لتوثيق الإيميل داخل صفحة البيع (/sell) أو صفحة الحساب (/account)
- * الكود يظهر في عنوان الرسالة (Subject) وفي داخل الرسالة كما في التصميم
- */
 export async function sendInlineEmailOtpAction(targetEmail?: string): Promise<{
   success: boolean
   maskedEmail?: string
@@ -921,9 +938,6 @@ export async function sendInlineEmailOtpAction(targetEmail?: string): Promise<{
   }
 }
 
-/**
- * التحقق من كود الـ OTP لتوثيق الإيميل فوراً (في خطوة مراجعة البيع أو صفحة الحساب)
- */
 export async function verifyInlineEmailOtpAction(
   otp: string,
   targetEmail?: string
@@ -1001,6 +1015,9 @@ export async function verifyInlineEmailOtpAction(
     }
 
     await supabase.from('users').update(updatePayload).eq('id', user.id)
+    await upsertUserVerificationMeta(supabase, user.id, {
+      emailVerified: true,
+    })
     cookieStore.delete('reset_otp_session')
 
     revalidatePath('/sell')
@@ -1022,11 +1039,13 @@ export async function verifyInlineEmailOtpAction(
 }
 
 /**
- * توثيق رقم الهاتف (عبر واتساب) للمستخدم الحالي أو لمستخدم محدد
+ * توثيق رقم الهاتف محصور بالأدمن فقط!
+ * لا يُسمح لأي مستخدم عادي بتوثيق رقم هاتفه لنفسه من المتصفح.
  */
 export async function markUserPhoneVerifiedAction(payload?: {
   userId?: string
   unitId?: string
+  leadId?: string
 }): Promise<{ success: boolean }> {
   try {
     const supabase = await getSupabase()
@@ -1034,7 +1053,55 @@ export async function markUserPhoneVerifiedAction(payload?: {
     const rawSession = cookieStore.get('user_session')?.value
     const sessionUserId = extractUserIdFromCookie(rawSession)
 
-    const targetUserId = payload?.userId || sessionUserId
+    if (!rawSession || !sessionUserId) return { success: false }
+
+    // التحقق الصارم أن الذي يستدعي الدالة هو أدمن أو مشرف أو سيلز فقط
+    const { data: caller } = await supabase
+      .from('users')
+      .select('id, role, status, password_hash')
+      .eq('id', sessionUserId)
+      .maybeSingle()
+
+    if (!caller) return { success: false }
+
+    const validSession = parseAndVerifySessionCookie(
+      rawSession,
+      caller.password_hash
+    ).valid
+    const callerRole = String(caller.role || 'user')
+      .trim()
+      .toLowerCase()
+    const isStaff =
+      validSession &&
+      caller.status !== 'suspended' &&
+      (callerRole === 'admin' ||
+        callerRole === 'moderator' ||
+        callerRole === 'sales')
+
+    if (!isStaff) {
+      return { success: false }
+    }
+
+    let targetUserId = payload?.userId || ''
+
+    if (!targetUserId && payload?.unitId) {
+      const { data: unit } = await supabase
+        .from('sell_requests')
+        .select('user_id')
+        .eq('id', payload.unitId)
+        .maybeSingle()
+      if (unit?.user_id) targetUserId = String(unit.user_id)
+    }
+
+    if (!targetUserId && payload?.leadId) {
+      const { data: lead } = await supabase
+        .from('buy_requests')
+        .select('user_id')
+        .eq('id', payload.leadId)
+        .maybeSingle()
+      if (lead?.user_id) targetUserId = String(lead.user_id)
+    }
+
     if (!targetUserId) return { success: false }
 
     const { data: user } = await supabase
@@ -1051,7 +1118,6 @@ export async function markUserPhoneVerifiedAction(payload?: {
           : `PHONE_OK|${currentOtp}`
         : 'PHONE_OK'
 
-      // نحاول تحديث phone_verified إن وجد العمود، ونحفظ PHONE_OK في otp_code لضمان العمل 100% في كل الأحوال
       const { error: err1 } = await supabase
         .from('users')
         .update({
@@ -1068,26 +1134,9 @@ export async function markUserPhoneVerifiedAction(payload?: {
       }
     }
 
-    // حفظ علامة التوثيق في إشعار نظام داخلي لسهولة القراءة في لوحة الأدمن
-    try {
-      const { data: existingNotif } = await supabase
-        .from('notifications')
-        .select('id')
-        .eq('user_id', targetUserId)
-        .eq('title', '__PHONE_VERIFIED__')
-        .maybeSingle()
-
-      if (!existingNotif) {
-        await supabase.from('notifications').insert({
-          user_id: targetUserId,
-          title: '__PHONE_VERIFIED__',
-          message: 'verified_via_whatsapp',
-          type: 'system',
-          link: '/account',
-          is_read: true,
-        })
-      }
-    } catch {}
+    await upsertUserVerificationMeta(supabase, targetUserId, {
+      phoneVerified: true,
+    })
 
     revalidatePath('/sell')
     revalidatePath('/buy')
@@ -1102,9 +1151,6 @@ export async function markUserPhoneVerifiedAction(payload?: {
   }
 }
 
-/**
- * جلب حالة التوثيق (الإيميل + رقم الهاتف) للمستخدم الحالي
- */
 export async function getUserVerificationStatusAction(): Promise<{
   isLoggedIn: boolean
   userId: string
@@ -1147,18 +1193,39 @@ export async function getUserVerificationStatusAction(): Promise<{
       }
     }
 
+    const validSession = parseAndVerifySessionCookie(
+      rawSession,
+      user.password_hash
+    ).valid
+    if (!validSession || user.status === 'suspended') {
+      return {
+        isLoggedIn: false,
+        userId: '',
+        email: '',
+        phone: '',
+        emailVerified: false,
+        phoneVerified: false,
+      }
+    }
+
+    let emailVerified = Boolean(user.is_verified)
     let phoneVerified =
       Boolean(user.phone_verified) ||
       String(user.otp_code || '').includes('PHONE_OK')
 
-    if (!phoneVerified) {
-      const { data: notif } = await supabase
-        .from('notifications')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('title', '__PHONE_VERIFIED__')
-        .maybeSingle()
-      if (notif) phoneVerified = true
+    const { data: metaNotif } = await supabase
+      .from('notifications')
+      .select('message')
+      .eq('user_id', user.id)
+      .eq('title', '__USER_VERIFICATION_META__')
+      .maybeSingle()
+
+    if (metaNotif?.message) {
+      try {
+        const parsed = JSON.parse(metaNotif.message)
+        if (parsed.emailVerified) emailVerified = true
+        if (parsed.phoneVerified) phoneVerified = true
+      } catch {}
     }
 
     return {
@@ -1166,7 +1233,7 @@ export async function getUserVerificationStatusAction(): Promise<{
       userId: user.id,
       email: user.email || '',
       phone: user.phone || '',
-      emailVerified: Boolean(user.is_verified),
+      emailVerified,
       phoneVerified,
     }
   } catch {

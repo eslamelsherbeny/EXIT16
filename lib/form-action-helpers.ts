@@ -305,9 +305,6 @@ export async function setUserSession(
   passwordHash?: string | null
 ) {
   const cookieStore = await cookies()
-  cookieStore.delete('user_session')
-  cookieStore.delete('session_hint')
-
   const isProd = process.env.NODE_ENV === 'production'
   const token = createSignedSessionToken(userId, passwordHash)
 
@@ -515,7 +512,9 @@ export function formatPrimaryPhone(rawPhone: string) {
     stripped.startsWith('995') ||
     stripped.startsWith('20') ||
     stripped.startsWith('966') ||
-    stripped.startsWith('971')
+    stripped.startsWith('971') ||
+    stripped.startsWith('965') ||
+    stripped.startsWith('974')
   ) {
     return `+${stripped}`
   }
@@ -578,4 +577,79 @@ export function verifyPassword(password: string, stored: string | null) {
   } catch {
     return false
   }
+}
+
+export function parseDeliveryDateFromStatus(rawStatus: string) {
+  const str = normalizeDigits(String(rawStatus || ''))
+  const monthYearMatch = str.match(/(0[1-9]|1[0-2])\/(20\d{2})/)
+  const yearOnlyMatch = str.match(/(20\d{2})/)
+  const monthsCountMatch = str.match(/\((\d+)\s*/)
+  return {
+    deliveryMonth: monthYearMatch
+      ? monthYearMatch[1]
+      : monthsCountMatch
+        ? monthsCountMatch[1]
+        : null,
+    deliveryYear: monthYearMatch
+      ? Number.parseInt(monthYearMatch[2], 10)
+      : yearOnlyMatch
+        ? Number.parseInt(yearOnlyMatch[1], 10)
+        : null,
+  }
+}
+
+export function stripExtendedSellColumns(payload: Record<string, any>) {
+  const clone = { ...payload }
+  delete clone.contract_month
+  delete clone.delivery_month
+  delete clone.delivery_year
+  delete clone.annual_installment_amount
+  delete clone.overdue_total_amount
+  delete clone.currency_code
+  delete clone.floor_number
+  delete clone.garden_size
+  delete clone.has_annual_installment
+  delete clone.has_overdue_installments
+  delete clone.overdue_installments
+  delete clone.submission_type
+  delete clone.last_seller_edit_at
+  return clone
+}
+
+export function stripToCoreSellColumns(payload: Record<string, any>) {
+  const coreKeys = [
+    'user_id',
+    'project_name',
+    'developer_name',
+    'area',
+    'unit_type',
+    'size',
+    'rooms',
+    'bathrooms',
+    'finishing',
+    'delivery_status',
+    'description',
+    'contract_price',
+    'paid_amount',
+    'market_price',
+    'installment_amount',
+    'installment_frequency',
+    'years_left',
+    'contract_year',
+    'willing_to_discount',
+    'discount_amount',
+    'images',
+    'documents',
+    'name',
+    'phone',
+    'email',
+    'status',
+  ]
+  const clean: Record<string, any> = {}
+  for (const key of coreKeys) {
+    if (payload[key] !== undefined) {
+      clean[key] = payload[key]
+    }
+  }
+  return clean
 }

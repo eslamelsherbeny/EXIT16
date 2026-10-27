@@ -4,6 +4,7 @@ import { useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import {
+  AlertTriangle,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -244,6 +245,8 @@ export function UnitInterestForm({
   totalRequiredNow: _totalRequiredNow,
   installmentAmount: _installmentAmount,
   currentUserId,
+  willingToDiscount = false,
+  discountAmount = 0,
 }: {
   unitCode: string
   projectName: string
@@ -254,6 +257,8 @@ export function UnitInterestForm({
   totalRequiredNow: number
   installmentAmount: number
   currentUserId: string | null
+  willingToDiscount?: boolean
+  discountAmount?: number
 }) {
   const params = useParams()
   const rawPropertyId = Array.isArray(params?.id)
@@ -269,6 +274,16 @@ export function UnitInterestForm({
     ''
   )
 
+  const allowNegotiation = Boolean(willingToDiscount || discountAmount > 0)
+  const maxDiscount =
+    discountAmount > 0
+      ? Math.min(requiredCash - 1, discountAmount)
+      : Math.round(requiredCash * 0.2)
+  const minAllowedCash = allowNegotiation
+    ? Math.max(1, requiredCash - maxDiscount)
+    : requiredCash
+
+  const [offerMode, setOfferMode] = useState<'full' | 'negotiate'>('full')
   const [offeredCashStr, setOfferedCashStr] = useState(
     requiredCash > 0 ? requiredCash.toLocaleString('en-US') : ''
   )
@@ -291,6 +306,12 @@ export function UnitInterestForm({
   } | null>(null)
   const [offerError, setOfferError] = useState('')
 
+  const numericCash =
+    Number(toEnglishDigits(offeredCashStr).replace(/,/g, '')) || requiredCash
+  const isFullPrice = numericCash >= requiredCash
+  const isBelowMinFloor =
+    allowNegotiation && numericCash > 0 && numericCash < minAllowedCash
+
   const handleInterestSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setOfferError('')
@@ -305,8 +326,12 @@ export function UnitInterestForm({
       return
     }
 
-    const numericCash =
-      Number(toEnglishDigits(offeredCashStr).replace(/,/g, '')) || requiredCash
+    if (isBelowMinFloor) {
+      setOfferError(
+        `${oT.errBelowMinFloor || 'أقل مبلغ مسموح للتفاوض هو'}: ${minAllowedCash.toLocaleString('en-US')} ${cur}`
+      )
+      return
+    }
 
     setSubmittingOffer(true)
 
@@ -402,14 +427,12 @@ export function UnitInterestForm({
               </span>
             </a>
 
-            {currentUserId && (
-              <Link
-                href="/account/offers?role=buyer"
-                className="inline-flex h-12 w-full items-center justify-center rounded-xl border border-gray-300 bg-white px-5 text-xs font-extrabold text-[#0a1122] hover:bg-gray-50 sm:w-auto"
-              >
-                {locale === 'ar' ? 'متابعة عروضي في حسابي' : 'View My Offers'}
-              </Link>
-            )}
+            <Link
+              href="/account/offers?role=buyer"
+              className="inline-flex h-12 w-full items-center justify-center rounded-xl border border-gray-300 bg-white px-5 text-xs font-extrabold text-[#0a1122] hover:bg-gray-50 sm:w-auto"
+            >
+              {locale === 'ar' ? 'متابعة عروضي في حسابي' : 'View My Offers'}
+            </Link>
           </div>
         </div>
       ) : (
@@ -420,47 +443,125 @@ export function UnitInterestForm({
             </div>
           )}
 
-          {/* مبلغ الكاش المعروض من المشتري */}
-          <div className="rounded-2xl border border-emerald-200/80 bg-[#f8faf9] p-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <label className="text-xs font-extrabold text-[#0a1122]">
-                {oT.offeredCashLabel || 'مبلغ الكاش المعروض للمالك'} ({cur})
-              </label>
-              <button
-                type="button"
-                onClick={() =>
-                  setOfferedCashStr(requiredCash.toLocaleString('en-US'))
-                }
-                className="rounded-lg bg-[#eaf8f2] px-2.5 py-1 text-[11px] font-extrabold text-[#007a5a] hover:underline"
-              >
-                {oT.fullPriceOptionTitle || 'السعر المطلوب بالكامل'}:{' '}
-                <span dir="ltr">
-                  {requiredCash.toLocaleString('en-US')} {cur}
-                </span>
-              </button>
-            </div>
-            <div className="relative mt-2">
+          {/* 1. تحديد قيمة الكاش المعروض */}
+          <div className="rounded-2xl border border-gray-200/90 bg-[#f8faf9] p-4">
+            <label className="mb-2.5 block text-xs font-extrabold text-[#0a1122]">
+              1. {oT.selectOfferTypeLabel || 'تحديد قيمة الكاش المعروض للمالك'}:
+            </label>
+
+            {allowNegotiation ? (
+              <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOfferMode('full')
+                    setOfferedCashStr(requiredCash.toLocaleString('en-US'))
+                  }}
+                  className={`flex flex-col justify-between rounded-xl border p-3 text-start transition ${
+                    offerMode === 'full'
+                      ? 'border-2 border-[#007a5a] bg-[#eaf8f2] text-[#007a5a]'
+                      : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <span className="block text-[11px] font-extrabold">
+                    ✓ {oT.fullPriceOptionTitle || 'حجز فوري بالسعر الموثق الكامل'}
+                  </span>
+                  <strong
+                    dir="ltr"
+                    className="mt-1 block text-sm font-black tabular-nums"
+                  >
+                    {requiredCash.toLocaleString('en-US')} {cur}
+                  </strong>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOfferMode('negotiate')
+                    setOfferedCashStr(minAllowedCash.toLocaleString('en-US'))
+                  }}
+                  className={`flex flex-col justify-between rounded-xl border p-3 text-start transition ${
+                    offerMode === 'negotiate'
+                      ? 'border-2 border-amber-500 bg-amber-50 text-amber-950'
+                      : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <span className="block text-[11px] font-extrabold">
+                    💬 {oT.negotiateOptionTitle || 'تقديم عرض كاش عاجل (تفاوض)'}
+                  </span>
+                  <span className="mt-1 block text-[10.5px] text-gray-500">
+                    {oT.minAllowedFloorLabel || 'الحد الأدنى المسموح'}:{' '}
+                    <strong dir="ltr" className="font-extrabold text-[#0a1122]">
+                      {minAllowedCash.toLocaleString('en-US')} {cur}
+                    </strong>
+                  </span>
+                </button>
+              </div>
+            ) : (
+              <div className="mb-3 rounded-xl border border-emerald-200 bg-[#eaf8f2] p-3 text-[11px] font-bold text-[#007a5a]">
+                {oT.nonNegotiableUnitNote ||
+                  'هذه الوحدة معروضة بسعر تنازل نهائي غير قابل للتفاوض'}
+              </div>
+            )}
+
+            <div className="relative">
               <input
                 type="text"
                 inputMode="numeric"
                 dir="ltr"
                 required
+                readOnly={!allowNegotiation}
                 value={offeredCashStr}
                 onChange={(e) => {
+                  if (!allowNegotiation) return
                   const digits = toEnglishDigits(e.target.value).replace(
                     /\D/g,
                     ''
                   )
+                  const num = Number(digits) || 0
+                  setOfferMode(num >= requiredCash ? 'full' : 'negotiate')
                   setOfferedCashStr(
-                    digits ? Number(digits).toLocaleString('en-US') : ''
+                    digits ? num.toLocaleString('en-US') : ''
                   )
                 }}
-                className="h-12 w-full rounded-xl border border-gray-300 bg-white pr-4 pl-12 text-left text-base font-black text-[#0a1122] focus:border-[#007a5a] focus:outline-none"
+                className={`h-12 w-full rounded-xl border pr-4 pl-12 text-left text-base font-black text-[#0a1122] tabular-nums focus:outline-none ${
+                  !allowNegotiation
+                    ? 'cursor-not-allowed border-gray-200 bg-gray-100'
+                    : 'border-gray-300 bg-white focus:border-[#007a5a]'
+                }`}
               />
               <span className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-xs font-extrabold text-gray-400">
                 {cur}
               </span>
             </div>
+
+            {isFullPrice ? (
+              <div className="mt-2.5 flex items-center gap-2 rounded-xl border border-emerald-200 bg-[#eaf8f2] p-2.5 text-[11px] font-bold text-[#007a5a]">
+                <CheckCircle2 className="size-4 shrink-0" />
+                <span>
+                  {oT.fullPricePriorityHint ||
+                    'أولوية أولى للقبول الفوري وقفل الوحدة'}
+                </span>
+              </div>
+            ) : isBelowMinFloor ? (
+              <div className="mt-2.5 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-2.5 text-[11px] font-bold text-red-700">
+                <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+                <span>
+                  {oT.errBelowMinFloor || 'أقل مبلغ مسموح للعرض هو'}:{' '}
+                  <strong dir="ltr">
+                    {minAllowedCash.toLocaleString('en-US')} {cur}
+                  </strong>
+                </span>
+              </div>
+            ) : (
+              <div className="mt-2.5 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-[11px] leading-relaxed font-bold text-amber-900">
+                <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
+                <span>
+                  {oT.fomoNegotiationWarning ||
+                    'العروض بالسعر الكامل لها أولوية القبول الفوري لدى المالك.'}
+                </span>
+              </div>
+            )}
           </div>
 
           {!currentUserId && (
@@ -508,10 +609,11 @@ export function UnitInterestForm({
             </div>
           )}
 
+          {/* 2. جاهزية التنفيذ وطريقة السداد */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-2 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
-                {oT.buyerReadinessLabel || f.readinessLegend}
+                2. {oT.buyerReadinessLabel || f.readinessLegend}
               </label>
               <div className="grid grid-cols-3 gap-2">
                 {(
@@ -539,13 +641,13 @@ export function UnitInterestForm({
 
             <div>
               <label className="mb-2 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
-                {oT.paymentMethodLabel || 'طريقة الدفع'}
+                3. {oT.paymentMethodLabel || 'طريقة السداد في مقر المطور'}
               </label>
               <div className="grid grid-cols-2 gap-2">
                 {(
                   [
-                    ['bank_check', oT.methodBankCheck || 'شيك بنكي مصدق'],
-                    ['bank_transfer', oT.methodBankTransfer || 'تحويل بنكي'],
+                    ['bank_check', oT.methodBankCheck || 'شيك مصرفي مقبول الدفع'],
+                    ['bank_transfer', oT.methodBankTransfer || 'تحويل بنكي فوري'],
                   ] as const
                 ).map(([key, label]) => (
                   <button
@@ -594,7 +696,7 @@ export function UnitInterestForm({
 
           <button
             type="submit"
-            disabled={submittingOffer}
+            disabled={submittingOffer || isBelowMinFloor}
             className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[var(--brand-primary,#007a5a)] text-sm font-bold text-white shadow-sm transition active:scale-[0.98] hover:bg-[var(--brand-primary-hover,#006248)] disabled:opacity-50"
           >
             {submittingOffer ? (

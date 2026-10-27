@@ -80,6 +80,24 @@ export default function AdminShell({
 
   const firstName = adminName.trim().split(/\s+/)[0] || "Admin"
 
+  const dealsNavLabel =
+    locale === "ar"
+      ? "غرفة الصفقات والعروض"
+      : locale === "ru"
+        ? "Сделки и офферы"
+        : locale === "ka"
+          ? "გარიგებები"
+          : "Deals & Offers Room"
+
+  const dealsNavShort =
+    locale === "ar"
+      ? "الصفقات"
+      : locale === "ru"
+        ? "Сделки"
+        : locale === "ka"
+          ? "გარიგებები"
+          : "Deals"
+
   const allNavLinks = [
     {
       href: "/admin",
@@ -87,12 +105,14 @@ export default function AdminShell({
       shortLabel: t.nav.dashboard,
       icon: LayoutDashboard,
       allowed: ["ADMIN", "MODERATOR", "SALES"] as StaffRole[],
-    },{
-    href: "/admin/deals",
-      label: "غرفة الصفقات والعروض",
-      shortLabel: "الصفقات",
+    },
+    {
+      href: "/admin/deals",
+      label: dealsNavLabel,
+      shortLabel: dealsNavShort,
       icon: WalletCards,
-      allowed: ["ADMIN", "MODERATOR", "SALES"] as StaffRole[]},
+      allowed: ["ADMIN", "MODERATOR", "SALES"] as StaffRole[],
+    },
     {
       href: "/admin/properties",
       label: t.nav.properties,
@@ -212,7 +232,9 @@ export default function AdminShell({
 
     const targetHref = item.href?.includes("tab=featured")
       ? item.href.replace("/admin/properties?tab=featured", "/admin/promotions?")
-      : item.href || "/admin/properties"
+      : item.href?.includes("/admin?deal=")
+        ? item.href.replace("/admin?deal=", "/admin/deals?offerId=")
+        : item.href || "/admin/properties"
 
     router.push(targetHref)
   }

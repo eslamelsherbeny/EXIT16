@@ -305,6 +305,9 @@ export async function setUserSession(
   passwordHash?: string | null
 ) {
   const cookieStore = await cookies()
+  cookieStore.delete('user_session')
+  cookieStore.delete('session_hint')
+
   const isProd = process.env.NODE_ENV === 'production'
   const token = createSignedSessionToken(userId, passwordHash)
 

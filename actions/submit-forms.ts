@@ -1,376 +1,64 @@
 'use server'
 
-import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
-import {
-  createHash,
-  createHmac,
-  randomBytes,
-  scryptSync,
-  timingSafeEqual,
-} from 'node:crypto'
+import { createHmac, timingSafeEqual } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
-import nodemailer from 'nodemailer'
 import {
-  createSignedSessionToken,
-  extractUserIdFromCookie,
-  parseAndVerifySessionCookie,
-} from '@/lib/session-security'
-import { getServerI18n } from '@/lib/get-server-dictionary'
-import type { LocaleCode } from '@/lib/i18n-config'
+  ACTIVE_COUNTRY_CODE,
+  ACTIVE_CURRENCY_CODE,
+  createMagicToken,
+  DEFAULT_SITE_URL,
+  formatPrimaryPhone,
+  generateOrderRef,
+  getFormsDict,
+  getPhoneVariants,
+  getSecret,
+  getSupabase,
+  getVerifiedSellerSession,
+  hashPassword,
+  integer,
+  list,
+  normalizeDigits,
+  normalizeEmail,
+  number,
+  parseDeliveryDateFromStatus,
+  sendNotificationEmail,
+  setUserSession,
+  stripExtendedSellColumns,
+  stripToCoreSellColumns,
+  text,
+  upsertUserVerificationMeta,
+  verifyPassword,
+} from '@/lib/form-action-helpers'
+import {
+  processBuyerStep3Action as _processBuyerStep3Action,
+  submitBuyRequest as _submitBuyRequest,
+  submitInvestorLead as _submitInvestorLead,
+  type BuyRequestPayload,
+} from './buyer-investor-actions'
 
-const DEFAULT_SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL || 'https://exit-16.vercel.app'
-const ACTIVE_COUNTRY_CODE = 'GE'
-const ACTIVE_CURRENCY_CODE = 'USD'
+export type { BuyRequestPayload }
 
-const FORMS_MESSAGES_FALLBACK: Record<LocaleCode, Record<string, string>> = {
-  ar: {
-    expiredLink: 'انتهت صلاحية هذا الرابط أو أنه غير صالح.',
-    invalidLink: 'الرابط غير صالح.',
-    verifyFailed: 'تعذر التحقق من الرابط.',
-    unitOwnerFallback: 'مالك وحدة',
-    buyerFallback: 'مشتري',
-    unitWord: 'وحدة',
-    newDraftUnitAdminTitle: 'وحدة جديدة قيد الاستكمال',
-    unitSubmittedSellerTitle: 'تم استلام بيانات وحدتك المبدئية ✓',
-    unitSubmittedSellerMsg: 'يمكنك استكمال تفاصيل وصور ومستندات وحدتك في أي وقت',
-    editedUnitAdminTitle: 'تعديل وحدة من البائع',
-    completedUnitAdminTitle: 'وحدة مكتملة جاهزة للمراجعة',
-    newUnitReviewAdminTitle: 'وحدة جديدة للمراجعة',
-    newBuyRequestAdminTitle: 'طلب شراء جديد',
-    radarActivatedBuyerTitle: 'تم تفعيل رادار الفرص العقارية لحسابك 🎯',
-    radarActivatedBuyerMsg: 'سنقوم بإشعارك فور توفر وحدات مطابقة لميزانيتك',
-    emailSenderName: 'Aqar Exit',
-    orderReceivedSubjectPrefix: 'تم استلام طلب عرض وحدتك رقم',
-    buyOrderSubjectPrefix: 'تم تسجيل طلب الشراء الخاص بك رقم',
-    greetingWord: 'أهلاً',
-    orderRefLabel: 'رقم مرجع الطلب',
-    orderPaidConfirmText: 'إجمالي المبلغ المدفوع المسجل',
-    registeredCashLabel: 'ميزانية الكاش المسجلة',
-    orderMagicLinkPrompt:
-      'اضغط على الرابط التالي لتأكيد بريدك الإلكتروني ومتابعة طلبك مباشرة على الموقع',
-    sessionExpired: 'انتهت الجلسة أو لا تملك صلاحية تعديل هذه الوحدة.',
-    enterLogin: 'يرجى إدخال البريد الإلكتروني أو رقم الهاتف وكلمة المرور.',
-    notRegistered: 'هذا الحساب غير مسجل لدينا. اختر "تسجيل حساب جديد".',
-    wrongPassword: 'كلمة المرور غير صحيحة.',
-    fillAll:
-      'يرجى استكمال كافة البيانات والتأكد أن كلمة المرور 8 أحرف على الأقل.',
-    createAccountFailed:
-      'تعذر إنشاء الحساب، قد يكون البريد أو الهاتف مسجلاً مسبقاً.',
-    unexpected: 'حدث خطأ غير متوقع، يرجى المحاولة مرة أخرى.',
-    emailNotFound: 'لم يتم العثور على بريد إلكتروني مسجل لهذا الحساب.',
-    recoveryEmailSubject: 'استعادة الدخول واستكمال طلبك — Aqar Exit',
-    recoveryEmailPrompt:
-      'اضغط على الرابط التالي لتعيين كلمة مرور جديدة والدخول لحسابك',
-    sendLinkFailed: 'تعذر إرسال الرابط حالياً، يرجى المحاولة لاحقاً.',
-    shortPassword: 'كلمة المرور يجب أن تكون 8 أحرف على الأقل.',
-    updatePassFailed: 'تعذر تحديث كلمة المرور.',
-    saveProgressFailed: 'تعذر حفظ التقدم حالياً.',
-    submitUnitFailed: 'تعذر إرسال طلب البيع حالياً، يرجى المحاولة مرة أخرى.',
-    defaultMonthly: 'شهري',
-    defaultReady: 'جاهز للاستلام',
-    enterNamePhone: 'يرجى إدخال الاسم ورقم الهاتف.',
-    investorFailed: 'تعذر إرسال الطلب حالياً.',
-    otpSubjectPrefix: 'كود التأكيد الخاص بك في عقار إكزت هو:',
-    otpInvalid: 'كود التأكيد غير صحيح أو منتهي الصلاحية.',
-    otpSendError: 'تعذر إرسال الكود حالياً، يرجى المحاولة مرة أخرى.',
-  },
-  en: {
-    expiredLink: 'This link has expired or is invalid.',
-    invalidLink: 'Invalid link.',
-    verifyFailed: 'Could not verify the link.',
-    unitOwnerFallback: 'Unit Owner',
-    buyerFallback: 'Buyer',
-    unitWord: 'Unit',
-    newDraftUnitAdminTitle: 'New Draft Unit',
-    unitSubmittedSellerTitle: 'Your initial unit details were received ✓',
-    unitSubmittedSellerMsg:
-      'You can complete your unit details and documents anytime',
-    editedUnitAdminTitle: 'Unit Edited by Seller',
-    completedUnitAdminTitle: 'Completed Unit Ready for Review',
-    newUnitReviewAdminTitle: 'New Unit for Review',
-    newBuyRequestAdminTitle: 'New Buy Request',
-    radarActivatedBuyerTitle: 'Smart Opportunity Radar Activated 🎯',
-    radarActivatedBuyerMsg:
-      'We will notify you as soon as matching units are available',
-    emailSenderName: 'Aqar Exit',
-    orderReceivedSubjectPrefix: 'Unit Listing Request Received #',
-    buyOrderSubjectPrefix: 'Your Buy Request is Registered #',
-    greetingWord: 'Hello',
-    orderRefLabel: 'Order Reference',
-    orderPaidConfirmText: 'Registered Paid Amount',
-    registeredCashLabel: 'Registered Cash Budget',
-    orderMagicLinkPrompt:
-      'Click the link below to confirm your email and access your request on the website',
-    sessionExpired:
-      'Your session has expired or you do not have permission to edit this unit.',
-    enterLogin: 'Please enter your email or phone number and password.',
-    notRegistered:
-      'No account found with these details. Please choose "New Account".',
-    wrongPassword: 'Incorrect password.',
-    fillAll:
-      'Please complete all required fields and use at least 8 characters for password.',
-    createAccountFailed:
-      'Could not create account. Email or phone may already be registered.',
-    unexpected: 'An unexpected error occurred. Please try again.',
-    emailNotFound: 'No registered email address found for this account.',
-    recoveryEmailSubject: 'Reset Password & Continue Your Request — Aqar Exit',
-    recoveryEmailPrompt:
-      'Click the link below to set a new password and access your account',
-    sendLinkFailed: 'Could not send recovery link right now.',
-    shortPassword: 'Password must be at least 8 characters.',
-    updatePassFailed: 'Could not update password.',
-    saveProgressFailed: 'Could not save progress right now.',
-    submitUnitFailed:
-      'Could not submit your unit right now. Please try again.',
-    defaultMonthly: 'Monthly',
-    defaultReady: 'Ready to Move',
-    enterNamePhone: 'Please enter your name and phone number.',
-    investorFailed: 'Could not submit request right now.',
-    otpSubjectPrefix: 'Your Aqar Exit verification code is:',
-    otpInvalid: 'Invalid or expired verification code.',
-    otpSendError: 'Could not send verification code right now.',
-  },
-  ru: {
-    expiredLink: 'Срок действия ссылки истек или она недействительна.',
-    invalidLink: 'Недействительная ссылка.',
-    verifyFailed: 'Не удалось проверить ссылку.',
-    unitOwnerFallback: 'Владелец',
-    buyerFallback: 'Покупатель',
-    unitWord: 'Объект',
-    newDraftUnitAdminTitle: 'Новый черновик объекта',
-    unitSubmittedSellerTitle: 'Предварительные данные объекта получены ✓',
-    unitSubmittedSellerMsg:
-      'Вы можете дополнить описание и документы в любое время',
-    editedUnitAdminTitle: 'Объект обновлен продавцом',
-    completedUnitAdminTitle: 'Объект заполнен и готов к проверке',
-    newUnitReviewAdminTitle: 'Новый объект на проверку',
-    newBuyRequestAdminTitle: 'Новая заявка на покупку',
-    radarActivatedBuyerTitle: 'Радар выгодных объектов активирован 🎯',
-    radarActivatedBuyerMsg:
-      'Мы уведомим вас при появлении подходящих вариантов',
-    emailSenderName: 'Aqar Exit',
-    orderReceivedSubjectPrefix: 'Заявка на продажу объекта получена №',
-    buyOrderSubjectPrefix: 'Ваша заявка на покупку зарегистрирована №',
-    greetingWord: 'Здравствуйте,',
-    orderRefLabel: 'Номер заявки',
-    orderPaidConfirmText: 'Зарегистрированная выплаченная сумма',
-    registeredCashLabel: 'Зарегистрированный бюджет наличными',
-    orderMagicLinkPrompt:
-      'Перейдите по ссылке ниже для подтверждения email и входа на сайт',
-    sessionExpired:
-      'Сессия истекла или у вас нет прав на редактирование этого объекта.',
-    enterLogin: 'Введите ваш email или номер телефона и пароль.',
-    notRegistered: 'Аккаунт не найден. Выберите «Регистрация».',
-    wrongPassword: 'Неверный пароль.',
-    fillAll:
-      'Заполните все обязательные поля (пароль не менее 8 символов).',
-    createAccountFailed:
-      'Не удалось создать аккаунт. Email или телефон уже используется.',
-    unexpected: 'Произошла ошибка. Пожалуйста, попробуйте снова.',
-    emailNotFound: 'Для этого аккаунта не найден зарегистрированный email.',
-    recoveryEmailSubject: 'Восстановление доступа — Aqar Exit',
-    recoveryEmailPrompt:
-      'Перейдите по ссылке ниже для установки нового пароля',
-    sendLinkFailed: 'Не удалось отправить ссылку.',
-    shortPassword: 'Пароль должен содержать не менее 8 символов.',
-    updatePassFailed: 'Не удалось обновить пароль.',
-    saveProgressFailed: 'Не удалось сохранить черновик.',
-    submitUnitFailed: 'Не удалось отправить заявку. Попробуйте снова.',
-    defaultMonthly: 'Ежемесячно',
-    defaultReady: 'Готов к заселению',
-    enterNamePhone: 'Введите имя и номер телефона.',
-    investorFailed: 'Не удалось отправить запрос.',
-    otpSubjectPrefix: 'Ваш код подтверждения Aqar Exit:',
-    otpInvalid: 'Неверный или просроченный код подтверждения.',
-    otpSendError: 'Не удалось отправить код подтверждения.',
-  },
-  ka: {
-    expiredLink: 'ბმულს ვადა გაუვიდა ან არასწორია.',
-    invalidLink: 'არასწორი ბმული.',
-    verifyFailed: 'ბმულის გადამოწმება ვერ მოხერხდა.',
-    unitOwnerFallback: 'მესაკუთრე',
-    buyerFallback: 'მყიდველი',
-    unitWord: 'ობიექტი',
-    newDraftUnitAdminTitle: 'ახალი ობიექტის მონახაზი',
-    unitSubmittedSellerTitle: 'ობიექტის პირველადი მონაცემები მიღებულია ✓',
-    unitSubmittedSellerMsg:
-      'დეტალებისა და დოკუმენტების შევსება ნებისმიერ დროს შეგიძლიათ',
-    editedUnitAdminTitle: 'ობიექტი განახლდა გამყიდველის მიერ',
-    completedUnitAdminTitle: 'ობიექტი მზადაა შესამოწმებლად',
-    newUnitReviewAdminTitle: 'ახალი ობიექტი შესამოწმებლად',
-    newBuyRequestAdminTitle: 'ახალი შეძენის მოთხოვნა',
-    radarActivatedBuyerTitle: 'შეთავაზებების რადარი გააქტიურებულია 🎯',
-    radarActivatedBuyerMsg:
-      'შეგატყობინებთ შესაბამისი ვარიანტების გამოჩენისთანავე',
-    emailSenderName: 'Aqar Exit',
-    orderReceivedSubjectPrefix: 'განაცხადი მიღებულია #',
-    buyOrderSubjectPrefix: 'შეძენის მოთხოვნა რეგისტრირებულია #',
-    greetingWord: 'გამარჯობა',
-    orderRefLabel: 'განაცხადის ნომერი',
-    orderPaidConfirmText: 'დაფიქსირებული გადახდილი თანხა',
-    registeredCashLabel: 'დაფიქსირებული ბიუჯეტი',
-    orderMagicLinkPrompt:
-      'ელ-ფოსტის დასადასტურებლად და საიტზე შესასვლელად გადადით ბმულზე',
-    sessionExpired: 'სესიის ვადა ამოიწურა ან არ გაქვთ რედაქტირების უფლება.',
-    enterLogin: 'შეიყვანეთ ელ-ფოსტა ან ტელეფონის ნომერი და პაროლი.',
-    notRegistered: 'ანგარიში ვერ მოიძებნა. აირჩიეთ „ახალი რეგისტრაცია“.',
-    wrongPassword: 'პაროლი არასწორია.',
-    fillAll: 'გთხოვთ შეავსოთ ყველა ველი (პაროლი მინიმუმ 8 სიმბოლო).',
-    createAccountFailed:
-      'ანგარიშის შექმნა ვერ მოხერხდა. ელ-ფოსტა ან ტელეფონი უკვე რეგისტრირებულია.',
-    unexpected: 'მოხდა შეცდომა, გთხოვთ სცადოთ თავიდან.',
-    emailNotFound: 'ელ-ფოსტა ვერ მოიძებნა.',
-    recoveryEmailSubject: 'პაროლის აღდგენა — Aqar Exit',
-    recoveryEmailPrompt: 'ახალი პაროლის დასაყენებლად გადადით ბმულზე',
-    sendLinkFailed: 'ბმულის გაგზავნა ვერ მოხერხდა.',
-    shortPassword: 'პაროლი უნდა შედგებოდეს მინიმუმ 8 სიმბოლოსგან.',
-    updatePassFailed: 'პაროლის განახლება ვერ მოხერხდა.',
-    saveProgressFailed: 'მონაცემების შენახვა ვერ მოხერხდა.',
-    submitUnitFailed: 'განაცხადის გაგზავნა ვერ მოხერხდა.',
-    defaultMonthly: 'ყოველთვიური',
-    defaultReady: 'ჩაბარებული',
-    enterNamePhone: 'შეიყვანეთ სახელი და ტელეფონის ნომერი.',
-    investorFailed: 'მოთხოვნის გაგზავნა ვერ მოხერხდა.',
-    otpSubjectPrefix: 'თქვენი Aqar Exit დადასტურების კოდია:',
-    otpInvalid: 'კოდი არასწორია ან ვადა გაუვიდა.',
-    otpSendError: 'კოდის გაგზავნა ვერ მოხერხდა.',
-  },
+export type SubmitResult = {
+  success: boolean
+  error?: string
+  unitId?: string
+  orderRef?: string
 }
 
-async function getFormsDict() {
-  const { dict, locale, dir } = await getServerI18n()
-  const raw =
-    (dict as Record<string, any>)?.serverActions?.forms ||
-    (dict as Record<string, any>)?.serverActions?.submitForms ||
-    {}
-  const fb = FORMS_MESSAGES_FALLBACK[locale] || FORMS_MESSAGES_FALLBACK.en
-  const t: Record<string, string> = { ...fb }
-
-  for (const key of Object.keys(fb)) {
-    const val = raw[key]
-    if (typeof val === 'string' && val.trim()) {
-      if (locale !== 'ar' && /[\u0600-\u06FF]/.test(val)) {
-        t[key] = fb[key]
-      } else {
-        t[key] = val
-      }
-    }
-  }
-
-  return { t, locale, dir }
-}
-
-async function getSupabase() {
-  const cookieStore = await cookies()
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} },
-    }
-  )
-}
-
-function getSecret() {
-  return (
-    process.env.SESSION_SECRET ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    'aqar-exit-enterprise-secret-key-2026'
-  )
-}
-
-async function getVerifiedSellerSession(supabase: any) {
-  const cookieStore = await cookies()
-  const rawSession = cookieStore.get('user_session')?.value
-  const sessionId = extractUserIdFromCookie(rawSession)
-  if (!rawSession || !sessionId) return null
-
-  const { data: user } = await supabase
-    .from('users')
-    .select(
-      'id, name, email, phone, country, role, status, is_verified, password_hash'
-    )
-    .eq('id', sessionId)
-    .maybeSingle()
-
-  if (!user) return null
-  const check = parseAndVerifySessionCookie(rawSession, user.password_hash)
-  const status = String(user.status || 'active').trim().toLowerCase()
-  if (!check.valid || status === 'suspended') return null
-
-  return user
-}
-
-export async function upsertUserVerificationMeta(
-  supabase: any,
-  userId: string,
-  updates: { emailVerified?: boolean; phoneVerified?: boolean }
-) {
-  if (!userId) return
-
-  try {
-    const { data: existingNotif } = await supabase
-      .from('notifications')
-      .select('id, message')
-      .eq('user_id', userId)
-      .eq('title', '__USER_VERIFICATION_META__')
-      .maybeSingle()
-
-    let currentMeta = { emailVerified: false, phoneVerified: false }
-    if (existingNotif?.message) {
-      try {
-        currentMeta = { ...currentMeta, ...JSON.parse(existingNotif.message) }
-      } catch {}
-    }
-
-    const nextMeta = {
-      emailVerified:
-        updates.emailVerified !== undefined
-          ? updates.emailVerified
-          : currentMeta.emailVerified,
-      phoneVerified:
-        updates.phoneVerified !== undefined
-          ? updates.phoneVerified
-          : currentMeta.phoneVerified,
-      updatedAt: new Date().toISOString(),
-    }
-
-    if (existingNotif?.id) {
-      await supabase
-        .from('notifications')
-        .update({ message: JSON.stringify(nextMeta), is_read: true })
-        .eq('id', existingNotif.id)
-    } else {
-      await supabase.from('notifications').insert({
-        user_id: userId,
-        title: '__USER_VERIFICATION_META__',
-        message: JSON.stringify(nextMeta),
-        type: 'system_verification',
-        link: '/account',
-        is_read: true,
-      })
-    }
-  } catch {}
-
-  if (updates.emailVerified) {
-    try {
-      await supabase
-        .from('users')
-        .update({ is_verified: true, otp_code: null })
-        .eq('id', userId)
-    } catch {}
-  }
-
-  if (updates.phoneVerified) {
-    try {
-      await supabase
-        .from('users')
-        .update({ phone_verified: true })
-        .eq('id', userId)
-    } catch {}
-  }
+export type Step2AuthResponse = {
+  status:
+    | 'ok'
+    | 'email_exists_need_password'
+    | 'phone_exists_different_email'
+    | 'error'
+  userId?: string
+  unitId?: string
+  orderRef?: string
+  userName?: string
+  userEmail?: string
+  userPhone?: string
+  error?: string
 }
 
 export async function getUsersVerificationMapAction(
@@ -385,16 +73,32 @@ export async function getUsersVerificationMapAction(
       { emailVerified: boolean; phoneVerified: boolean }
     > = {}
 
-    let usersQuery = supabase.from('users').select('id, is_verified')
+    let usersQuery = supabase
+      .from('users')
+      .select('id, is_verified, phone_verified')
     if (userIds && userIds.length > 0) {
       usersQuery = usersQuery.in('id', userIds)
     }
-    const { data: usersData } = await usersQuery
+    const { data: usersData, error: uErr } = await usersQuery
 
-    for (const u of usersData || []) {
-      result[u.id] = {
-        emailVerified: Boolean(u.is_verified),
-        phoneVerified: false,
+    if (!uErr && usersData) {
+      for (const u of usersData) {
+        result[u.id] = {
+          emailVerified: Boolean(u.is_verified),
+          phoneVerified: Boolean((u as any).phone_verified),
+        }
+      }
+    } else {
+      let fallbackQuery = supabase.from('users').select('id, is_verified')
+      if (userIds && userIds.length > 0) {
+        fallbackQuery = fallbackQuery.in('id', userIds)
+      }
+      const { data: fbUsers } = await fallbackQuery
+      for (const u of fbUsers || []) {
+        result[u.id] = {
+          emailVerified: Boolean(u.is_verified),
+          phoneVerified: false,
+        }
       }
     }
 
@@ -428,6 +132,10 @@ export async function getUsersVerificationMapAction(
   }
 }
 
+/**
+ * توثيق رقم الهاتف أصبح محصوراً بالأدمن فقط (عندما يفتح الأدمن الرابط المرسل له على واتساب أو يضغط زر التوثيق في لوحة الإدارة)
+ * لا يُسمح للمستخدم العادي بتوثيق هاتفه لنفسه بمجرد الضغط على الزر!
+ */
 export async function markUserPhoneVerifiedAction(payload: {
   userId?: string
   unitId?: string
@@ -435,15 +143,34 @@ export async function markUserPhoneVerifiedAction(payload: {
 }) {
   try {
     const supabase = await getSupabase()
+    const currentSessionUser = await getVerifiedSellerSession(supabase)
+
+    if (!currentSessionUser) {
+      return { success: false, error: 'Unauthorized' }
+    }
+
+    const role = String(currentSessionUser.role || 'user')
+      .trim()
+      .toLowerCase()
+    const isStaff =
+      role === 'admin' || role === 'moderator' || role === 'sales'
+
+    // إذا لم يكن المتصل أدمن/موظف، نرفض توثيق الهاتف فوراً!
+    if (!isStaff) {
+      return { success: false, error: 'Only admin can mark phone verified' }
+    }
+
     let targetUserId = payload.userId || ''
 
-    if (!targetUserId && payload.unitId) {
+    if (payload.unitId) {
       const { data: unit } = await supabase
         .from('sell_requests')
         .select('user_id, documents')
         .eq('id', payload.unitId)
         .maybeSingle()
-      if (unit?.user_id) targetUserId = String(unit.user_id)
+      if (!targetUserId && unit?.user_id) {
+        targetUserId = String(unit.user_id)
+      }
       if (unit) {
         const docs =
           unit.documents && typeof unit.documents === 'object'
@@ -467,11 +194,6 @@ export async function markUserPhoneVerifiedAction(payload: {
         .eq('id', payload.leadId)
         .maybeSingle()
       if (lead?.user_id) targetUserId = String(lead.user_id)
-    }
-
-    if (!targetUserId) {
-      const sessionUser = await getVerifiedSellerSession(supabase)
-      if (sessionUser?.id) targetUserId = String(sessionUser.id)
     }
 
     if (targetUserId) {
@@ -726,218 +448,6 @@ export async function getAuthorizedUnitForEditAction(unitId: string) {
   }
 }
 
-async function sendNotificationEmail({
-  to,
-  subject,
-  html,
-  senderName,
-}: {
-  to: string
-  subject: string
-  html: string
-  senderName?: string
-}) {
-  const user = process.env.EMAIL_USER?.trim()
-  const pass = process.env.EMAIL_PASS?.replace(/\s+/g, '')
-
-  if (!user || !pass || !to) return false
-
-  try {
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 465,
-      secure: true,
-      auth: { user, pass },
-      tls: { rejectUnauthorized: false },
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-      socketTimeout: 15000,
-    })
-
-    await transporter.sendMail({
-      from: `"${senderName || 'Aqar Exit'}" <${user}>`,
-      to: to.trim(),
-      subject,
-      html,
-    })
-    return true
-  } catch (error) {
-    console.error('Notification email error:', error)
-    return false
-  }
-}
-
-function normalizeDigits(str: string): string {
-  return String(str || '')
-    .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 1632))
-    .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 1776))
-}
-
-function text(formData: FormData, key: string) {
-  const value = formData.get(key)
-  return typeof value === 'string' ? value.trim() : ''
-}
-
-function number(formData: FormData, key: string, fallback = 0) {
-  const rawValue = normalizeDigits(text(formData, key))
-    .replace(/,/g, '')
-    .replace(/[^0-9.]/g, '')
-  if (!rawValue) return fallback
-  const value = Number(rawValue)
-  return Number.isFinite(value) && value >= 0 ? value : fallback
-}
-
-function integer(formData: FormData, key: string, fallback = 0) {
-  const rawValue = normalizeDigits(text(formData, key))
-    .replace(/,/g, '')
-    .replace(/[^0-9]/g, '')
-  if (!rawValue) return fallback
-  const value = Number.parseInt(rawValue, 10)
-  return Number.isFinite(value) && value >= 0 ? value : fallback
-}
-
-function list(formData: FormData, key: string) {
-  return formData
-    .getAll(key)
-    .filter(
-      (value): value is string => typeof value === 'string' && value.length > 0
-    )
-}
-
-function normalizeEmail(email: string) {
-  return (email || '').trim().toLowerCase()
-}
-
-function getPhoneVariants(rawPhone: string) {
-  const digits = normalizeDigits(rawPhone || '')
-    .replace(/\s+/g, '')
-    .replace(/[^0-9+]/g, '')
-  if (!digits) return []
-  if (digits.startsWith('+')) {
-    const noPlus = digits.slice(1)
-    return Array.from(new Set([digits, noPlus, `0${noPlus}`]))
-  }
-  const stripped = digits.replace(/^0+/, '')
-  return Array.from(
-    new Set([
-      digits,
-      `+${stripped}`,
-      `0${stripped}`,
-      `+995${stripped}`,
-      `+20${stripped}`,
-      `+966${stripped}`,
-      `+971${stripped}`,
-    ])
-  )
-}
-
-function formatPrimaryPhone(rawPhone: string) {
-  const digits = normalizeDigits(rawPhone || '')
-    .replace(/\s+/g, '')
-    .replace(/[^0-9+]/g, '')
-  if (!digits) return ''
-  if (digits.startsWith('+')) return `+${digits.slice(1).replace(/^0+/, '')}`
-  const stripped = digits.replace(/^0+/, '')
-  if (
-    stripped.startsWith('995') ||
-    stripped.startsWith('20') ||
-    stripped.startsWith('966') ||
-    stripped.startsWith('971')
-  ) {
-    return `+${stripped}`
-  }
-  return `+995${stripped}`
-}
-
-function generateOrderRef(id?: string) {
-  if (id) {
-    const clean = id.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()
-    if (clean.length >= 6) return `AE-${clean.slice(0, 6)}`
-  }
-  return `AE-${randomBytes(3).toString('hex').toUpperCase()}`
-}
-
-function parseDeliveryDateFromStatus(rawStatus: string) {
-  const str = normalizeDigits(String(rawStatus || ''))
-  const monthYearMatch = str.match(/(0[1-9]|1[0-2])\/(20\d{2})/)
-  const yearOnlyMatch = str.match(/(20\d{2})/)
-  const monthsCountMatch = str.match(/\((\d+)\s*/)
-  return {
-    deliveryMonth: monthYearMatch
-      ? monthYearMatch[1]
-      : monthsCountMatch
-        ? monthsCountMatch[1]
-        : null,
-    deliveryYear: monthYearMatch
-      ? Number.parseInt(monthYearMatch[2], 10)
-      : yearOnlyMatch
-        ? Number.parseInt(yearOnlyMatch[1], 10)
-        : null,
-  }
-}
-
-function stripExtendedSellColumns(payload: Record<string, any>) {
-  const clone = { ...payload }
-  delete clone.contract_month
-  delete clone.delivery_month
-  delete clone.delivery_year
-  delete clone.annual_installment_amount
-  delete clone.overdue_total_amount
-  delete clone.currency_code
-  delete clone.floor_number
-  delete clone.garden_size
-  delete clone.has_annual_installment
-  delete clone.has_overdue_installments
-  delete clone.overdue_installments
-  delete clone.submission_type
-  delete clone.last_seller_edit_at
-  return clone
-}
-
-function stripToCoreSellColumns(payload: Record<string, any>) {
-  const coreKeys = [
-    'user_id',
-    'project_name',
-    'developer_name',
-    'area',
-    'unit_type',
-    'size',
-    'rooms',
-    'bathrooms',
-    'finishing',
-    'delivery_status',
-    'description',
-    'contract_price',
-    'paid_amount',
-    'market_price',
-    'installment_amount',
-    'installment_frequency',
-    'years_left',
-    'contract_year',
-    'willing_to_discount',
-    'discount_amount',
-    'images',
-    'documents',
-    'name',
-    'phone',
-    'email',
-    'status',
-  ]
-  const clean: Record<string, any> = {}
-  for (const key of coreKeys) {
-    if (payload[key] !== undefined) {
-      clean[key] = payload[key]
-    }
-  }
-  return clean
-}
-
-function createMagicToken(userId: string, unitId: string, expiresAt: number) {
-  const payload = `${userId}:${unitId}:${expiresAt}`
-  const sig = createHmac('sha256', getSecret()).update(payload).digest('hex')
-  return Buffer.from(`${payload}:${sig}`).toString('base64url')
-}
-
 export async function verifyMagicTokenAction(token: string) {
   const { t: msg } = await getFormsDict()
   try {
@@ -981,7 +491,6 @@ export async function verifyMagicTokenAction(token: string) {
       return { valid: false, error: msg.invalidLink }
     }
 
-    // توثيق البريد تلقائياً بمجرد فتح الرابط من الإيميل
     await upsertUserVerificationMeta(supabase, userId, {
       emailVerified: true,
     })
@@ -996,79 +505,6 @@ export async function verifyMagicTokenAction(token: string) {
     }
   } catch {
     return { valid: false, error: msg.verifyFailed }
-  }
-}
-
-export type SubmitResult = {
-  success: boolean
-  error?: string
-  unitId?: string
-  orderRef?: string
-}
-
-async function setUserSession(
-  userId: string,
-  passwordHash?: string | null
-) {
-  const cookieStore = await cookies()
-  cookieStore.delete('user_session')
-  cookieStore.delete('session_hint')
-
-  const isProd = process.env.NODE_ENV === 'production'
-  const token = createSignedSessionToken(userId, passwordHash)
-
-  cookieStore.set('user_session', token, {
-    path: '/',
-    maxAge: 60 * 60 * 24 * 30,
-    sameSite: 'lax',
-    secure: isProd,
-    httpOnly: true,
-  })
-  cookieStore.set('session_hint', '1', {
-    path: '/',
-    maxAge: 60 * 60 * 24 * 30,
-    sameSite: 'lax',
-    secure: isProd,
-  })
-}
-
-function hashPassword(password: string) {
-  const salt = randomBytes(16).toString('hex')
-  const derived = scryptSync(password, salt, 64).toString('hex')
-  return `scrypt$${salt}$${derived}`
-}
-
-function verifyPassword(password: string, stored: string | null) {
-  if (!stored) return false
-  const cleanStored = stored.trim()
-  const cleanPass = password.trim()
-  try {
-    if (cleanStored.startsWith('scrypt$')) {
-      const [, salt, expected] = cleanStored.split('$')
-      if (!salt || !expected) return false
-      const actual1 = scryptSync(password, salt, 64).toString('hex')
-      if (
-        actual1.length === expected.length &&
-        timingSafeEqual(Buffer.from(actual1), Buffer.from(expected))
-      ) {
-        return true
-      }
-      const actual2 = scryptSync(cleanPass, salt, 64).toString('hex')
-      return (
-        actual2.length === expected.length &&
-        timingSafeEqual(Buffer.from(actual2), Buffer.from(expected))
-      )
-    }
-    const actual = createHash('sha256').update(password).digest('hex')
-    if (
-      actual.length === cleanStored.length &&
-      timingSafeEqual(Buffer.from(actual), Buffer.from(cleanStored))
-    ) {
-      return true
-    }
-    return cleanStored === password || cleanStored === cleanPass
-  } catch {
-    return false
   }
 }
 
@@ -1099,21 +535,6 @@ export async function getCurrentSellerProfileAction() {
   } catch {
     return { isLoggedIn: false, user: null }
   }
-}
-
-export type Step2AuthResponse = {
-  status:
-    | 'ok'
-    | 'email_exists_need_password'
-    | 'phone_exists_different_email'
-    | 'error'
-  userId?: string
-  unitId?: string
-  orderRef?: string
-  userName?: string
-  userEmail?: string
-  userPhone?: string
-  error?: string
 }
 
 export async function processSellerStep2Action(payload: {
@@ -1638,6 +1059,7 @@ export async function setNewPasswordFromTokenAction(payload: {
       return { success: false, error: msg.updatePassFailed }
     }
 
+    // بما أنه استلم الرابط على إيميله وعيّن كلمة المرور، يتم توثيق بريده الإلكتروني أوتوماتيكياً
     await upsertUserVerificationMeta(supabase, verify.userId, {
       emailVerified: true,
     })
@@ -2042,509 +1464,19 @@ export async function submitSellRequest(
 export const submitSellRequestAction = submitSellRequest
 export const createSellRequestAction = submitSellRequest
 
-export type BuyRequestPayload = {
-  country?: string
-  userCountry?: string
-  available_cash: number
-  max_installment: number
-  payment_plan: string
-  budget: number
-  unit_types: string[]
-  min_rooms: number
-  delivery_status: string
-  preferred_areas: string[]
-  name: string
-  phone: string
-  email: string
-  password: string
+export async function processBuyerStep3Action(
+  payload: Parameters<typeof _processBuyerStep3Action>[0]
+) {
+  return _processBuyerStep3Action(payload)
 }
 
-export async function processBuyerStep3Action(payload: {
-  mode: 'session' | 'login' | 'register'
-  country?: string
-  userCountry?: string
-  available_cash: number
-  max_installment: number
-  payment_plan: string
-  budget: number
-  unit_types: string[]
-  min_rooms: number
-  delivery_status: string
-  preferred_areas: string[]
-  name?: string
-  phone?: string
-  email?: string
-  password?: string
-  loginIdentifier?: string
-}): Promise<Step2AuthResponse> {
-  const { t: msg, dir } = await getFormsDict()
-  try {
-    const supabase = await getSupabase()
-    const siteUrl = DEFAULT_SITE_URL
-
-    const targetCountry = ACTIVE_COUNTRY_CODE
-    const buyerResidenceCountry = (payload.userCountry || ACTIVE_COUNTRY_CODE)
-      .trim()
-      .toUpperCase()
-
-    async function insertBuyRequestRecord(
-      userId: string,
-      contact: { name: string; phone: string; email: string }
-    ) {
-      const buyRow: Record<string, any> = {
-        user_id: userId,
-        country: targetCountry,
-        country_code: targetCountry,
-        available_cash: Number(payload.available_cash) || 0,
-        max_installment: Number(payload.max_installment) || 0,
-        payment_plan: payload.payment_plan || msg.defaultMonthly,
-        budget: Number(payload.budget) || 0,
-        unit_types: payload.unit_types || [],
-        min_rooms: Number(payload.min_rooms) || 0,
-        delivery_status: payload.delivery_status || msg.defaultReady,
-        preferred_areas: payload.preferred_areas || [],
-        name: contact.name || msg.buyerFallback,
-        phone: contact.phone || '',
-        email: contact.email || null,
-      }
-
-      const { data: inserted, error } = await supabase
-        .from('buy_requests')
-        .insert(buyRow)
-        .select('id')
-        .single()
-
-      if (error) {
-        console.error('Insert Buy Request Error:', error)
-      }
-
-      const reqId = inserted?.id ? String(inserted.id) : ''
-      const cashFormatted = Number(
-        payload.available_cash || payload.budget || 0
-      ).toLocaleString('en-US')
-
-      try {
-        await supabase.from('notifications').insert([
-          {
-            user_id: null,
-            title: `${msg.newBuyRequestAdminTitle} (${targetCountry}): ${contact.name || msg.buyerFallback}`,
-            message: `${cashFormatted} · ${(payload.preferred_areas || []).slice(0, 2).join('، ')}`,
-            type: 'lead',
-            link: `/admin/leads${reqId ? `?leadId=${reqId}` : ''}`,
-            is_read: false,
-          },
-          {
-            user_id: userId,
-            title: msg.radarActivatedBuyerTitle,
-            message: `${msg.radarActivatedBuyerMsg} (${cashFormatted})`,
-            type: 'property_match',
-            link: '/account?view=buyer',
-            is_read: false,
-          },
-        ])
-      } catch {}
-
-      if (contact.email) {
-        const orderRef = generateOrderRef(reqId)
-        const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000
-        const verifyToken = createMagicToken(userId, reqId, expiresAt)
-        const verifyAndOpenBuyerLink = `${siteUrl}/api/verify-contact?type=email&token=${encodeURIComponent(verifyToken)}&next=${encodeURIComponent('/account?view=buyer')}`
-
-        sendNotificationEmail({
-          to: contact.email,
-          senderName: msg.emailSenderName,
-          subject: `${msg.buyOrderSubjectPrefix} ${orderRef}`,
-          html: `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.8; color: #0a1122;">
-                  <p style="font-size: 16px;">${msg.greetingWord} <strong>${contact.name}</strong>،</p>
-                  <p>${msg.orderRefLabel}: <strong>${orderRef}</strong>.</p>
-                  <p>${msg.registeredCashLabel}: <strong>${cashFormatted}</strong>.</p>
-                  <p>${msg.orderMagicLinkPrompt}:</p>
-                  <p style="margin: 18px 0;">
-                    <a href="${verifyAndOpenBuyerLink}" style="color: #0b6954; font-weight: bold; word-break: break-all;">${verifyAndOpenBuyerLink}</a>
-                  </p>
-                 </div>`,
-        }).catch(() => {})
-      }
-
-      return reqId
-    }
-
-    if (payload.mode === 'session') {
-      const currentUser = await getVerifiedSellerSession(supabase)
-      if (!currentUser) {
-        return { status: 'error', error: msg.sessionExpired }
-      }
-
-      const reqId = await insertBuyRequestRecord(currentUser.id, {
-        name: currentUser.name || msg.buyerFallback,
-        phone: currentUser.phone || '',
-        email: currentUser.email || '',
-      })
-
-      revalidatePath('/account', 'page')
-      revalidatePath('/admin', 'layout')
-
-      return {
-        status: 'ok',
-        userId: currentUser.id,
-        unitId: reqId,
-        orderRef: generateOrderRef(reqId),
-      }
-    }
-
-    if (payload.mode === 'login') {
-      const rawIdentifier = (payload.loginIdentifier || '').trim()
-      const password = payload.password || ''
-
-      if (!rawIdentifier || !password) {
-        return {
-          status: 'error',
-          error: msg.enterLogin,
-        }
-      }
-
-      let candidates: any[] = []
-      if (rawIdentifier.includes('@')) {
-        const { data } = await supabase
-          .from('users')
-          .select('id, name, email, phone, password_hash')
-          .ilike('email', normalizeEmail(rawIdentifier))
-        candidates = data || []
-      } else {
-        const variants = getPhoneVariants(rawIdentifier)
-        const { data } = await supabase
-          .from('users')
-          .select('id, name, email, phone, password_hash')
-          .in('phone', variants)
-        candidates = data || []
-      }
-
-      if (candidates.length === 0) {
-        return {
-          status: 'error',
-          error: msg.notRegistered,
-        }
-      }
-
-      const matched = candidates.find((u) =>
-        verifyPassword(password, u.password_hash)
-      )
-      if (!matched) {
-        return {
-          status: 'error',
-          error: msg.wrongPassword,
-        }
-      }
-
-      await setUserSession(matched.id, matched.password_hash)
-      const reqId = await insertBuyRequestRecord(matched.id, {
-        name: matched.name || msg.buyerFallback,
-        phone: matched.phone || '',
-        email: matched.email || '',
-      })
-
-      revalidatePath('/account', 'page')
-      revalidatePath('/admin', 'layout')
-
-      return {
-        status: 'ok',
-        userId: matched.id,
-        unitId: reqId,
-        orderRef: generateOrderRef(reqId),
-      }
-    }
-
-    const cleanName = (payload.name || '').trim()
-    const cleanEmail = normalizeEmail(payload.email || '')
-    const formattedPhone = formatPrimaryPhone(payload.phone || '')
-    const phoneVariants = getPhoneVariants(payload.phone || '')
-    const password = payload.password || ''
-
-    if (!cleanName || !cleanEmail || !formattedPhone || password.length < 8) {
-      return {
-        status: 'error',
-        error: msg.fillAll,
-      }
-    }
-
-    const [{ data: emailMatches }, { data: phoneMatches }] = await Promise.all([
-      supabase
-        .from('users')
-        .select('id, name, phone, email, password_hash')
-        .ilike('email', cleanEmail)
-        .limit(1),
-      supabase
-        .from('users')
-        .select('id, name, phone, email, password_hash')
-        .in('phone', phoneVariants)
-        .limit(1),
-    ])
-
-    const emailUser = emailMatches?.[0] || null
-    const phoneUser = phoneMatches?.[0] || null
-
-    if (emailUser) {
-      if (verifyPassword(password, emailUser.password_hash)) {
-        await setUserSession(emailUser.id, emailUser.password_hash)
-        const reqId = await insertBuyRequestRecord(emailUser.id, {
-          name: emailUser.name || cleanName,
-          phone: emailUser.phone || formattedPhone,
-          email: emailUser.email,
-        })
-        revalidatePath('/account', 'page')
-        revalidatePath('/admin', 'layout')
-        return {
-          status: 'ok',
-          userId: emailUser.id,
-          unitId: reqId,
-          orderRef: generateOrderRef(reqId),
-        }
-      }
-
-      return {
-        status: 'email_exists_need_password',
-        userId: emailUser.id,
-        orderRef: 'AE-VERIFY',
-        userEmail: emailUser.email,
-        userName: emailUser.name,
-      }
-    }
-
-    if (phoneUser && !emailUser) {
-      if (verifyPassword(password, phoneUser.password_hash)) {
-        await setUserSession(phoneUser.id, phoneUser.password_hash)
-        const reqId = await insertBuyRequestRecord(phoneUser.id, {
-          name: phoneUser.name || cleanName,
-          phone: phoneUser.phone,
-          email: phoneUser.email,
-        })
-        revalidatePath('/account', 'page')
-        revalidatePath('/admin', 'layout')
-        return {
-          status: 'ok',
-          userId: phoneUser.id,
-          unitId: reqId,
-          orderRef: generateOrderRef(reqId),
-        }
-      }
-
-      return {
-        status: 'phone_exists_different_email',
-        userId: phoneUser.id,
-        orderRef: 'AE-VERIFY',
-        userEmail: phoneUser.email,
-        userPhone: phoneUser.phone,
-      }
-    }
-
-    const hash = hashPassword(password)
-    const { data: createdUser, error: createErr } = await supabase
-      .from('users')
-      .insert({
-        name: cleanName,
-        phone: formattedPhone,
-        email: cleanEmail,
-        password_hash: hash,
-        country: buyerResidenceCountry,
-        role: 'user',
-        status: 'active',
-        is_verified: false,
-      })
-      .select('id, name, email, phone')
-      .single()
-
-    if (createErr || !createdUser) {
-      return {
-        status: 'error',
-        error: msg.createAccountFailed,
-      }
-    }
-
-    await setUserSession(createdUser.id, hash)
-    const reqId = await insertBuyRequestRecord(createdUser.id, {
-      name: cleanName,
-      phone: formattedPhone,
-      email: cleanEmail,
-    })
-
-    revalidatePath('/account', 'page')
-    revalidatePath('/admin', 'layout')
-
-    return {
-      status: 'ok',
-      userId: createdUser.id,
-      unitId: reqId,
-      orderRef: generateOrderRef(reqId),
-    }
-  } catch (e) {
-    console.error('processBuyerStep3Action error:', e)
-    return { status: 'error', error: msg.unexpected }
-  }
-}
-
-export async function submitBuyRequest(
-  input: BuyRequestPayload | FormData
-): Promise<SubmitResult> {
-  const { t: msg } = await getFormsDict()
-  if (input instanceof FormData) {
-    let parsedTypes: string[] = []
-    let parsedAreas: string[] = []
-    try {
-      parsedTypes = JSON.parse(text(input, 'unit_types') || '[]')
-    } catch {
-      parsedTypes = list(input, 'unit_types')
-    }
-    try {
-      parsedAreas = JSON.parse(text(input, 'preferred_areas') || '[]')
-    } catch {
-      parsedAreas = list(input, 'preferred_areas')
-    }
-
-    const res = await processBuyerStep3Action({
-      mode: 'register',
-      country: ACTIVE_COUNTRY_CODE,
-      available_cash: number(input, 'available_cash'),
-      max_installment: number(input, 'max_installment'),
-      payment_plan: text(input, 'payment_plan'),
-      budget: number(input, 'budget'),
-      unit_types: parsedTypes,
-      min_rooms: integer(input, 'min_rooms'),
-      delivery_status: text(input, 'delivery_status'),
-      preferred_areas: parsedAreas,
-      name: text(input, 'name'),
-      phone: text(input, 'phone'),
-      email: text(input, 'email'),
-      password: text(input, 'password'),
-    })
-    if (res.status === 'ok' || res.orderRef) {
-      return { success: true, orderRef: res.orderRef }
-    }
-    return { success: false, error: res.error || msg.unexpected }
-  }
-
-  const res = await processBuyerStep3Action({
-    mode: 'register',
-    ...input,
-  })
-  if (res.status === 'ok') return { success: true, orderRef: res.orderRef }
-  return {
-    success: false,
-    error: res.error || msg.unexpected,
-  }
+export async function submitBuyRequest(input: BuyRequestPayload | FormData) {
+  return _submitBuyRequest(input)
 }
 
 export const submitBuyRequestAction = submitBuyRequest
 export const createBuyRequestAction = submitBuyRequest
 
 export async function submitInvestorLead(formData: FormData) {
-  const { t: msg } = await getFormsDict()
-  try {
-    const supabase = await getSupabase()
-
-    const name = String(formData.get('name') || '').trim()
-    const phone = formatPrimaryPhone(String(formData.get('phone') || '').trim())
-    const email = String(formData.get('email') || '').trim()
-    const company = String(formData.get('company') || '').trim()
-    const country = ACTIVE_COUNTRY_CODE
-    const investor_type = String(formData.get('investor_type') || '').trim()
-    const years_experience = String(
-      formData.get('years_experience') || ''
-    ).trim()
-    const investment_range = String(
-      formData.get('investment_range') || ''
-    ).trim()
-    const exact_amount = Number(formData.get('exact_amount') || 0)
-    const preferred_structure = String(
-      formData.get('preferred_structure') || ''
-    ).trim()
-    const holding_period = String(formData.get('holding_period') || '').trim()
-    const participation_level = String(
-      formData.get('participation_level') || ''
-    ).trim()
-    const target_roi = String(formData.get('target_roi') || '').trim()
-    const signature_name = String(formData.get('signature_name') || name).trim()
-    const notes = String(formData.get('notes') || '').trim()
-    const sectors = formData.getAll('sectors').map(String).filter(Boolean)
-
-    if (!name || !phone) {
-      return { success: false, error: msg.enterNamePhone }
-    }
-
-    const finalRange =
-      investment_range ||
-      (exact_amount > 0 ? `$${exact_amount.toLocaleString('en-US')}` : '')
-    const finalSectors =
-      sectors.length > 0 ? sectors : [investor_type].filter(Boolean)
-
-    const leadPayload: Record<string, any> = {
-      name,
-      phone,
-      email: email || null,
-      company: company || null,
-      country,
-      investor_type: investor_type || null,
-      years_experience: years_experience || null,
-      preferred_sectors: finalSectors,
-      investment_range: finalRange,
-      exact_amount,
-      preferred_structure: preferred_structure || null,
-      holding_period: holding_period || null,
-      participation_level: participation_level || null,
-      target_roi: target_roi || null,
-      signature_name,
-      notes: notes || null,
-      status: 'new',
-    }
-
-    let { error } = await supabase.from('investor_leads').insert(leadPayload)
-
-    if (error) {
-      const basicLead = {
-        name,
-        phone,
-        email: email || null,
-        investor_type: investor_type || null,
-        preferred_sectors: finalSectors,
-        investment_range: finalRange,
-        preferred_structure: preferred_structure || null,
-        participation_level: participation_level || null,
-        status: 'new',
-      }
-      const retry = await supabase.from('investor_leads').insert(basicLead)
-      error = retry.error
-    }
-
-    if (error) {
-      const fallbackTable = await supabase.from('investor_requests').insert({
-        name,
-        phone,
-        email: email || null,
-        investor_type,
-        investment_range: finalRange,
-        preferred_structure,
-        participation_level,
-        target_roi,
-        signature_name,
-        status: 'new',
-      })
-      error = fallbackTable.error
-    }
-
-    if (error) {
-      console.error('Error inserting investor lead:', error)
-      return {
-        success: false,
-        error: msg.investorFailed,
-      }
-    }
-
-    revalidatePath('/admin', 'layout')
-    return { success: true }
-  } catch (err) {
-    console.error('Unexpected error in submitInvestorLead:', err)
-    return {
-      success: false,
-      error: msg.investorFailed,
-    }
-  }
+  return _submitInvestorLead(formData)
 }

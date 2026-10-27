@@ -6,6 +6,7 @@ import {
   ArrowDown,
   ArrowLeft,
   ArrowRight,
+  CheckCircle2,
   ChevronDown,
   ChevronLeft,
   Compass,
@@ -13,6 +14,7 @@ import {
   ListFilter,
   Loader2,
   MapPin,
+  MessageCircle,
   Radar,
   Search,
   ShieldAlert,
@@ -21,6 +23,10 @@ import {
   X,
 } from 'lucide-react'
 import { updateBuyerPreferencesAction } from '@/actions/account-actions'
+import {
+  getCurrentSellerProfileAction,
+  markUserPhoneVerifiedAction,
+} from '@/actions/submit-forms'
 import {
   Dialog,
   DialogContent,
@@ -51,6 +57,7 @@ import {
 
 export type BuyerRequestItem = {
   id: string
+  user_id?: string | null
   available_cash: number | null
   max_installment: number | null
   payment_plan: string | null
@@ -79,6 +86,10 @@ function getBuyerExtraLabels(locale: LocaleCode) {
       negotiableTag: 'Negotiable',
       sqmUnit: 'm²',
       roomsWord: 'Rooms',
+      fastTrackWaTitle:
+        'Want us to find a matching unit for your budget faster? Confirm your request via WhatsApp',
+      fastTrackWaBtn: 'Speed Up My Request via WhatsApp',
+      fastTrackWaDone: 'Request Confirmed via WhatsApp ✓',
     }
   }
   if (locale === 'ru') {
@@ -91,6 +102,10 @@ function getBuyerExtraLabels(locale: LocaleCode) {
       negotiableTag: 'Торг',
       sqmUnit: 'м²',
       roomsWord: 'комн.',
+      fastTrackWaTitle:
+        'Хотите быстрее подобрать подходящий вариант под ваш бюджет? Напишите нам в WhatsApp',
+      fastTrackWaBtn: 'Ускорить подбор через WhatsApp',
+      fastTrackWaDone: 'Запрос подтвержден в WhatsApp ✓',
     }
   }
   if (locale === 'ka') {
@@ -103,6 +118,10 @@ function getBuyerExtraLabels(locale: LocaleCode) {
       negotiableTag: 'შეთანხმებით',
       sqmUnit: 'მ²',
       roomsWord: 'ოთახი',
+      fastTrackWaTitle:
+        'გსურთ უფრო სწრაფად შეგირჩიოთ შესაბამისი ბინა? დაგვიკავშირდით WhatsApp-ით',
+      fastTrackWaBtn: 'შერჩევის დაჩქარება WhatsApp-ით',
+      fastTrackWaDone: 'დადასტურებულია WhatsApp-ით ✓',
     }
   }
   return {
@@ -114,6 +133,10 @@ function getBuyerExtraLabels(locale: LocaleCode) {
     negotiableTag: 'قابل للتفاوض',
     sqmUnit: 'م²',
     roomsWord: 'غرف',
+    fastTrackWaTitle:
+      'عايز تسرّع نلاقيلك حاجة مناسبة لميزانيتك؟ دوس على زرار الواتساب وتواصل معانا فوراً',
+    fastTrackWaBtn: 'تسريع طلب الشراء عبر واتساب',
+    fastTrackWaDone: 'تم تأكيد طلبك ورقمك عبر واتساب ✓',
   }
 }
 
@@ -176,6 +199,10 @@ export function BuyerDashboard({
   const extraLabels = useMemo(() => getBuyerExtraLabels(locale), [locale])
   const currency = getCurrencySymbol('GE', locale)
   const listSep = dir === 'rtl' ? '، ' : ', '
+  const supportWhatsApp = String(dict.footer?.phone || '+201018595959').replace(
+    /\D/g,
+    ''
+  )
 
   const localizedUnitTypes = useMemo(
     () => getLocalizedUnitTypes(dict, locale),
@@ -195,6 +222,18 @@ export function BuyerDashboard({
   const [visibleCount, setVisibleCount] = useState(PREFERRED_PAGE_SIZE)
   const [showAllNearbyAreas, setShowAllNearbyAreas] = useState(false)
   const [favoriteIds, setFavoriteIds] = useState<string[]>([])
+
+  const [currentUserId, setCurrentUserId] = useState('')
+  const [phoneVerified, setPhoneVerified] = useState(false)
+
+  useEffect(() => {
+    getCurrentSellerProfileAction().then((res) => {
+      if (res.isLoggedIn && res.user) {
+        setCurrentUserId(res.user.id)
+        setPhoneVerified(Boolean(res.user.phoneVerified))
+      }
+    })
+  }, [])
 
   useEffect(() => {
     try {
@@ -639,6 +678,18 @@ export function BuyerDashboard({
     getLocalizedGeorgiaAreaName(a, locale)
   )
 
+  const siteOrigin =
+    typeof window !== 'undefined'
+      ? window.location.origin
+      : 'https://exit-16.vercel.app'
+  const targetBuyerUserId = buyReq?.user_id || currentUserId
+  const adminVerifyLeadLink = `${siteOrigin}/admin/leads?verifyPhoneUserId=${encodeURIComponent(targetBuyerUserId)}&leadId=${encodeURIComponent(buyReq?.id || '')}`
+
+  const buyerFastTrackWaMsg =
+    locale === 'ar'
+      ? `أهلاً إدارة Aqar Exit، أرغب في تسريع ترشيح وحدة مناسبة لطلب الشراء الخاص بي — الكاش المتاح: (${bCash.toLocaleString('en-US')} ${currency}) — المناطق المفضلة: (${localizedPreferredAreasNames.join('، ')}).\nرابط الطلب في الإدارة:\n${adminVerifyLeadLink}`
+      : `Hello Aqar Exit, I want to speed up finding a matching unit for my buy request — Available Cash: (${bCash.toLocaleString('en-US')} ${currency}) — Preferred Areas: (${localizedPreferredAreasNames.join(', ')}).\nAdmin Link:\n${adminVerifyLeadLink}`
+
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setConfirmSaveOpen(true)
@@ -998,19 +1049,19 @@ export function BuyerDashboard({
         </div>
       )}
 
-      {/* ==================== 1. كارت ملخص طلب الشراء + زر «عروضي» وبداخله عدد العروض بخط صغير ==================== */}
+      {/* ==================== 1. كارت ملخص طلب الشراء + زر «عروضي» + زر تسريع الطلب عبر واتساب ==================== */}
       <ScrollReveal>
         <section className="overflow-hidden rounded-[22px] border border-gray-200/90 border-t-[3px] border-t-[var(--brand-primary,#007a5a)] bg-white p-5 text-start shadow-xs sm:p-6">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 pb-4">
+          <div className="flex flex-col gap-3.5 border-b border-gray-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-3">
               <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]">
                 <Radar className="size-5" />
               </span>
-              <div>
+              <div className="min-w-0 flex-1">
                 <h1 className="text-base font-black text-[var(--brand-navy,#0a1122)] sm:text-xl">
                   {t.mainTitle}
                 </h1>
-                <p className="mt-0.5 text-xs text-gray-500">
+                <p className="mt-0.5 text-xs leading-relaxed text-gray-500">
                   {t.radarActiveSubtitle ||
                     'الرادار الذكي يطابق ميزانيتك ومنطقتك المفضلة في جورجيا مع الوحدات المعروضة للتنازل'}
                 </p>
@@ -1018,10 +1069,9 @@ export function BuyerDashboard({
             </div>
 
             <div className="flex flex-wrap items-center gap-2.5">
-              {/* الزر الوحيد لعروض المشتري: مكتوب فيه «عروضي» وتحته بخط صغير في نفس الزر عدد العروض */}
               <Link
                 href="/account/offers?role=buyer"
-                className="flex flex-col items-center justify-center rounded-2xl border border-emerald-200 bg-[var(--brand-primary-light,#eaf8f2)]/70 px-4 py-2 text-center shadow-2xs transition hover:border-[var(--brand-primary,#007a5a)] hover:bg-[var(--brand-primary-light,#eaf8f2)]"
+                className="flex flex-1 flex-col items-center justify-center rounded-2xl border border-emerald-200 bg-[var(--brand-primary-light,#eaf8f2)]/70 px-4 py-2 text-center shadow-2xs transition hover:border-[var(--brand-primary,#007a5a)] hover:bg-[var(--brand-primary-light,#eaf8f2)] sm:flex-none"
               >
                 <div className="flex items-center gap-1.5">
                   <Wallet className="size-3.5 text-[var(--brand-primary,#007a5a)]" />
@@ -1039,7 +1089,7 @@ export function BuyerDashboard({
               <button
                 type="button"
                 onClick={() => setIsEditingBudget(true)}
-                className="inline-flex h-12 items-center gap-1.5 rounded-2xl border border-gray-200 bg-white px-4 text-xs font-extrabold text-[var(--brand-navy,#0a1122)] transition hover:border-[var(--brand-primary,#007a5a)] hover:text-[var(--brand-primary,#007a5a)]"
+                className="inline-flex h-12 flex-1 items-center justify-center gap-1.5 rounded-2xl border border-gray-200 bg-white px-4 text-xs font-extrabold text-[var(--brand-navy,#0a1122)] transition hover:border-[var(--brand-primary,#007a5a)] hover:text-[var(--brand-primary,#007a5a)] sm:flex-none"
               >
                 <SlidersHorizontal className="size-3.5 text-[var(--brand-primary,#007a5a)]" />
                 <span>{t.editBudgetBtn}</span>
@@ -1089,6 +1139,37 @@ export function BuyerDashboard({
                 📍 {localizedPreferredAreasNames.join(listSep)}
               </strong>
             </div>
+          </div>
+
+          {/* شريط تسريع إيجاد وحدة مناسبة للمشتري وتوثيق الرقم عبر واتساب */}
+          <div className="mt-4 flex flex-col justify-between gap-3 rounded-2xl border border-[#25D366]/40 bg-[#f0fdf4] p-3.5 sm:flex-row sm:items-center">
+            <p className="text-xs font-extrabold leading-relaxed text-[#0a1122]">
+              {extraLabels.fastTrackWaTitle}
+            </p>
+            <a
+              href={`https://wa.me/${supportWhatsApp}?text=${encodeURIComponent(buyerFastTrackWaMsg)}`}
+              target="_blank"
+              rel="noreferrer"
+              onClick={() => {
+                setPhoneVerified(true)
+                markUserPhoneVerifiedAction({
+                  userId: targetBuyerUserId,
+                  leadId: buyReq?.id,
+                }).catch(() => {})
+              }}
+              className="inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-[#25D366] px-4 text-xs font-extrabold text-white shadow-2xs transition hover:opacity-95"
+            >
+              {phoneVerified ? (
+                <CheckCircle2 className="size-4 shrink-0" />
+              ) : (
+                <MessageCircle className="size-4 shrink-0" />
+              )}
+              <span>
+                {phoneVerified
+                  ? extraLabels.fastTrackWaDone
+                  : extraLabels.fastTrackWaBtn}
+              </span>
+            </a>
           </div>
         </section>
 
@@ -1560,7 +1641,7 @@ export function BuyerDashboard({
           {unitsInPreferredArea.length > 0 && (
             <section className="mt-7">
               <div className="mb-4 flex items-center gap-2 text-start">
-                <MapPin className="size-4 text-[var(--brand-primary,#007a5a)]" />
+                <MapPin className="size-4 shrink-0 text-[var(--brand-primary,#007a5a)]" />
                 <h2 className="text-sm font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-base">
                   {areaFilter.trim()
                     ? `${oppFilters.areaBadgePrefix || ''} ${getLocalizedGeorgiaAreaName(areaFilter, locale)}`
@@ -1590,7 +1671,7 @@ export function BuyerDashboard({
             <section className="mt-10 border-t border-gray-200/70 pt-8">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center justify-start gap-1.5 text-start">
-                  <Compass className="size-4 text-[var(--brand-primary,#007a5a)]" />
+                  <Compass className="size-4 shrink-0 text-[var(--brand-primary,#007a5a)]" />
                   <h2 className="text-sm font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-base">
                     {t.otherAreasSectionTitle} ({unitsInTrulyNearbyAreas.length})
                   </h2>
@@ -1729,7 +1810,7 @@ function BuyerUnitCard({
           </div>
 
           <div className="mt-3.5 rounded-xl border border-gray-100 bg-[#f8faf9] p-3">
-            <div className="flex items-baseline justify-between gap-2">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
               <div>
                 <p className="text-[10.5px] font-semibold text-gray-500">
                   {t.cardRequiredCash}

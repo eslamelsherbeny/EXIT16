@@ -12,7 +12,6 @@ import {
   Star,
 } from 'lucide-react'
 import {
-  markUserPhoneVerifiedAction,
   sendInlineEmailOtpAction,
   verifyInlineEmailOtpAction,
 } from '@/actions/auth-actions'
@@ -113,11 +112,12 @@ export function ReviewStep({
   )
   const areaName = getLocalizedGeorgiaAreaName(form.location, locale)
 
-  const waVerifyLink = `${siteOrigin}/admin/properties?verifyPhoneUserId=${encodeURIComponent(userId || '')}&unitId=${encodeURIComponent(unitId || '')}`
+  // رابط ذكي محايد لا يكشف مسار /admin للعميل، ويوثق الرقم فقط عندما يفتحه الأدمن
+  const waVerifyLink = `${siteOrigin}/api/verify-contact?u=${encodeURIComponent(userId || '')}&unitId=${encodeURIComponent(unitId || '')}`
   const waConfirmMessage =
     locale === 'ar'
-      ? `أهلاً إدارة Aqar Exit، أنا مالك الوحدة (${form.name || ''}) أؤكد رقم هاتفي وعرض وحدتي رقم (${orderRef}) في مشروع (${projectName} - ${areaName}) — المدفوع: (${paidNum.toLocaleString('en-US')} ${currency}) — إجمالي العقد: (${contractNum.toLocaleString('en-US')} ${currency}).\nرابط مراجعة وتوثيق الوحدة في الإدارة:\n${waVerifyLink}`
-      : `Hello Aqar Exit, I confirm my phone & unit listing (${orderRef}) in (${projectName} - ${areaName}) — Paid: (${paidNum.toLocaleString('en-US')} ${currency}).\nAdmin Verification Link:\n${waVerifyLink}`
+      ? `أهلاً إدارة Aqar Exit، أنا مالك الوحدة (${form.name || ''}) أؤكد رقم هاتفي وعرض وحدتي رقم (${orderRef}) في مشروع (${projectName} - ${areaName}) — المدفوع: (${paidNum.toLocaleString('en-US')} ${currency}) — إجمالي العقد: (${contractNum.toLocaleString('en-US')} ${currency}).\nرابط تأكيد ومراجعة الوحدة:\n${waVerifyLink}`
+      : `Hello Aqar Exit, I confirm my phone & unit listing (${orderRef}) in (${projectName} - ${areaName}) — Paid: (${paidNum.toLocaleString('en-US')} ${currency}).\nVerification Link:\n${waVerifyLink}`
 
   const handleSendOtpCode = async () => {
     setOtpLoading(true)
@@ -148,10 +148,6 @@ export function ReviewStep({
     } finally {
       setOtpLoading(false)
     }
-  }
-
-  const handleWhatsAppSupportClick = () => {
-    markUserPhoneVerifiedAction({ userId, unitId }).catch(() => {})
   }
 
   const handleSelectPackage = (pkg: {
@@ -193,6 +189,7 @@ export function ReviewStep({
           {t.orderRefLabel} <strong className="font-mono">{orderRef}</strong>
         </span>
 
+        {/* زر إرسال رسالة التأكيد عبر واتساب بعد الإرسال (التوثيق يتم فقط عندما يضغط الأدمن على الرابط) */}
         <div className="mt-5 w-full rounded-2xl border-2 border-[#25D366]/40 bg-[#f0fdf4] p-4 text-center">
           <p className="text-xs font-extrabold text-[#0a1122] sm:text-sm">
             {locale === 'ar'
@@ -203,7 +200,6 @@ export function ReviewStep({
             href={`https://wa.me/${supportWhatsApp}?text=${encodeURIComponent(waConfirmMessage)}`}
             target="_blank"
             rel="noreferrer"
-            onClick={handleWhatsAppSupportClick}
             className="mt-3 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] px-6 text-xs font-extrabold text-white shadow-sm transition hover:opacity-95 sm:w-auto sm:text-sm"
           >
             <MessageCircle className="size-4 shrink-0" />
@@ -393,114 +389,115 @@ export function ReviewStep({
         <p className="font-bold text-slate-600">{extraT.savedBadge}</p>
       </div>
 
-      {/* صندوق تأكيد الإيميل بالكود فقط (تم إزالة زر تأكيد الواتساب المكرر من أسفله) */}
-      <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5 text-start">
-        <h3 className="text-sm font-black text-[#0a1122] sm:text-base">
-          {extraT.verifyBoxTitle}
-        </h3>
-        <p className="mt-1.5 text-xs leading-relaxed text-slate-600">
-          {extraT.verifyBoxDescPrefix}{' '}
-          <strong dir="ltr" className="font-mono text-[#0a1122]">
-            {maskedEmail}
-          </strong>{' '}
-          {extraT.verifyBoxDescSuffix}
-        </p>
-
-        <div className="mt-4">
-          {emailVerified ? (
-            <div className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs font-extrabold text-[#007a5a]">
-              <CheckCircle2 className="size-4 shrink-0" />
-              <span>{extraT.emailVerifiedBadge}</span>
-            </div>
-          ) : !otpSent ? (
-            <button
-              type="button"
-              disabled={otpLoading}
-              onClick={handleSendOtpCode}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#0a1122] px-6 text-xs font-extrabold text-white shadow-2xs transition hover:bg-[#16223f] disabled:opacity-60 sm:text-sm"
-            >
-              {otpLoading ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Mail className="size-4" />
-              )}
-              <span>{extraT.sendCodeBtn}</span>
-            </button>
-          ) : (
-            <div className="flex flex-col gap-3.5">
-              <div className="flex flex-wrap items-center gap-2.5">
-                <Input
-                  type="text"
-                  inputMode="numeric"
-                  dir="ltr"
-                  maxLength={6}
-                  value={otpCode}
-                  onChange={(e) =>
-                    setOtpCode(
-                      toEnglishDigits(e.target.value).replace(/[^0-9]/g, '')
-                    )
-                  }
-                  placeholder="# # # # # #"
-                  className="h-11 w-40 rounded-xl border-slate-300 bg-white text-center font-mono text-base font-extrabold tracking-[0.25em]"
-                />
-
-                <button
-                  type="button"
-                  disabled={otpLoading || otpCode.length < 4}
-                  onClick={handleVerifyOtpCode}
-                  className={`inline-flex h-11 items-center justify-center rounded-xl px-5 text-xs font-extrabold text-white transition sm:text-sm ${
-                    otpCode.length >= 6
-                      ? 'bg-[#007a5a] hover:bg-[#006248]'
-                      : 'bg-slate-400'
-                  }`}
-                >
-                  {otpLoading ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    extraT.confirmCodeBtn
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  disabled={otpLoading}
-                  onClick={handleSendOtpCode}
-                  className="px-2 text-xs font-bold text-[#0a1122] underline hover:text-[#007a5a]"
-                >
-                  {extraT.resendCodeBtn}
-                </button>
-              </div>
-
-              <div className="rounded-xl border border-emerald-200 bg-[#effaf5] p-3.5 text-start text-xs leading-relaxed text-[#0c4a3e]">
-                <p className="font-extrabold">
-                  {extraT.codeSentToPrefix}{' '}
-                  <span dir="ltr" className="font-mono">
-                    {maskedEmail}
-                  </span>
-                </p>
-                <p className="mt-1">{extraT.codeSentBody}</p>
-                <p className="mt-2">
-                  {extraT.codeNotReceivedPrefix}{' '}
-                  <a
-                    href={`https://wa.me/${supportWhatsApp}?text=${encodeURIComponent(waConfirmMessage)}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    onClick={handleWhatsAppSupportClick}
-                    className="font-mono font-black underline"
-                  >
-                    {supportWhatsApp}
-                  </a>{' '}
-                  {extraT.codeNotReceivedSuffix}
-                </p>
-              </div>
-            </div>
-          )}
-
-          {otpError && (
-            <p className="mt-2 text-xs font-bold text-red-600">{otpError}</p>
-          )}
+      {/* إذا كان إيميل البائع موثقاً بالفعل، تظهر له شارة التوثيق مباشرة ولا نطالبه بالكود مرة أخرى */}
+      {emailVerified ? (
+        <div className="flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50/80 px-4 py-3.5 text-xs font-extrabold text-[#007a5a]">
+          <CheckCircle2 className="size-4 shrink-0" />
+          <span>{extraT.emailVerifiedBadge}</span>
         </div>
-      </div>
+      ) : (
+        <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5 text-start">
+          <h3 className="text-sm font-black text-[#0a1122] sm:text-base">
+            {extraT.verifyBoxTitle}
+          </h3>
+          <p className="mt-1.5 text-xs leading-relaxed text-slate-600">
+            {extraT.verifyBoxDescPrefix}{' '}
+            <strong dir="ltr" className="font-mono text-[#0a1122]">
+              {maskedEmail}
+            </strong>{' '}
+            {extraT.verifyBoxDescSuffix}
+          </p>
+
+          <div className="mt-4">
+            {!otpSent ? (
+              <button
+                type="button"
+                disabled={otpLoading}
+                onClick={handleSendOtpCode}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#0a1122] px-6 text-xs font-extrabold text-white shadow-2xs transition hover:bg-[#16223f] disabled:opacity-60 sm:text-sm"
+              >
+                {otpLoading ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Mail className="size-4" />
+                )}
+                <span>{extraT.sendCodeBtn}</span>
+              </button>
+            ) : (
+              <div className="flex flex-col gap-3.5">
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    dir="ltr"
+                    maxLength={6}
+                    value={otpCode}
+                    onChange={(e) =>
+                      setOtpCode(
+                        toEnglishDigits(e.target.value).replace(/[^0-9]/g, '')
+                      )
+                    }
+                    placeholder="# # # # # #"
+                    className="h-11 w-40 rounded-xl border-slate-300 bg-white text-center font-mono text-base font-extrabold tracking-[0.25em]"
+                  />
+
+                  <button
+                    type="button"
+                    disabled={otpLoading || otpCode.length < 4}
+                    onClick={handleVerifyOtpCode}
+                    className={`inline-flex h-11 items-center justify-center rounded-xl px-5 text-xs font-extrabold text-white transition sm:text-sm ${
+                      otpCode.length >= 6
+                        ? 'bg-[#007a5a] hover:bg-[#006248]'
+                        : 'bg-slate-400'
+                    }`}
+                  >
+                    {otpLoading ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      extraT.confirmCodeBtn
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={otpLoading}
+                    onClick={handleSendOtpCode}
+                    className="px-2 text-xs font-bold text-[#0a1122] underline hover:text-[#007a5a]"
+                  >
+                    {extraT.resendCodeBtn}
+                  </button>
+                </div>
+
+                <div className="rounded-xl border border-emerald-200 bg-[#effaf5] p-3.5 text-start text-xs leading-relaxed text-[#0c4a3e]">
+                  <p className="font-extrabold">
+                    {extraT.codeSentToPrefix}{' '}
+                    <span dir="ltr" className="font-mono">
+                      {maskedEmail}
+                    </span>
+                  </p>
+                  <p className="mt-1">{extraT.codeSentBody}</p>
+                  <p className="mt-2">
+                    {extraT.codeNotReceivedPrefix}{' '}
+                    <a
+                      href={`https://wa.me/${supportWhatsApp}?text=${encodeURIComponent(waConfirmMessage)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-mono font-black underline"
+                    >
+                      {supportWhatsApp}
+                    </a>{' '}
+                    {extraT.codeNotReceivedSuffix}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {otpError && (
+              <p className="mt-2 text-xs font-bold text-red-600">{otpError}</p>
+            )}
+          </div>
+        </div>
+      )}
 
       {error && (
         <p className="rounded-xl bg-red-50 p-3 text-center text-sm font-bold text-red-700">

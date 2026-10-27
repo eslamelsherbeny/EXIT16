@@ -1,12 +1,21 @@
 'use client'
 
 import { Suspense, useEffect, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import {
   getCurrentSellerProfileAction,
   processBuyerStep3Action,
 } from '@/actions/submit-forms'
-import { AlertCircle, Check, Loader2, UserRound, X } from 'lucide-react'
+import {
+  AlertCircle,
+  Check,
+  CheckCircle2,
+  Loader2,
+  MessageCircle,
+  UserRound,
+  X,
+} from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -37,7 +46,8 @@ const BUY_VALIDATION_FALLBACK: Record<LocaleCode, Record<string, string>> = {
     required: 'هذا الحقل مطلوب',
     selectPaymentPlan: 'يرجى اختيار نظام السداد المفضل',
     installmentExceedsBudget: 'قيمة القسط لا يمكن أن تتجاوز إجمالي الميزانية',
-    cashExceedsBudget: 'إجمالي الميزانية يجب أن يكون مساوياً أو أكبر من الكاش المتاح',
+    cashExceedsBudget:
+      'إجمالي الميزانية يجب أن يكون مساوياً أو أكبر من الكاش المتاح',
     selectUnitType: 'يرجى اختيار نوع وحدة واحد على الأقل',
     selectDeliveryStatus: 'يرجى اختيار حالة الاستلام المفضلة',
     selectAtLeastOneArea: 'يرجى اختيار منطقة مفضلة واحدة على الأقل',
@@ -53,7 +63,8 @@ const BUY_VALIDATION_FALLBACK: Record<LocaleCode, Record<string, string>> = {
     required: 'This field is required',
     selectPaymentPlan: 'Please select a preferred payment plan',
     installmentExceedsBudget: 'Installment cannot exceed total budget',
-    cashExceedsBudget: 'Total budget must be equal to or greater than available cash',
+    cashExceedsBudget:
+      'Total budget must be equal to or greater than available cash',
     selectUnitType: 'Please select at least one unit type',
     selectDeliveryStatus: 'Please select a preferred delivery status',
     selectAtLeastOneArea: 'Please select at least one preferred area',
@@ -153,12 +164,12 @@ function StepValidationBanner({
 }
 
 function BuyersPageContent() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const { t: dict, locale, dir } = useTranslation()
   const b = dict.buy
   const bVal = (b.validation as Record<string, string>) || {}
   const sellVal = (dict.sell?.validation as Record<string, string>) || {}
+  const currency = getCurrencySymbol(ACTIVE_PLATFORM_COUNTRY, locale)
 
   const localizedUnitTypes: string[] =
     (dict as Record<string, any>).buyerFunnelPage?.unitTypes ||
@@ -216,6 +227,16 @@ function BuyersPageContent() {
 
   const [conflictState, setConflictState] =
     useState<BuyerConflictState>(null)
+
+  // حالة شاشة النجاح وتأكيد الواتساب بعد إرسال طلب الشراء
+  const [submittedOrder, setSubmittedOrder] = useState<{
+    reqId: string
+    orderRef: string
+    buyerName: string
+    availableCash: number
+    budget: number
+    areas: string[]
+  } | null>(null)
 
   useEffect(() => {
     setData((prev) => ({
@@ -388,6 +409,28 @@ function BuyersPageContent() {
     setStep(3)
   }
 
+  const showWhatsAppSuccessScreen = (info?: {
+    reqId?: string
+    orderRef?: string
+  }) => {
+    const effectiveName =
+      authTab === 'session' && loggedUser
+        ? loggedUser.name
+        : data.name.trim() || loggedUser?.name || ''
+
+    setSubmittedOrder({
+      reqId: info?.reqId || '',
+      orderRef: info?.orderRef || 'AE-BUY',
+      buyerName: effectiveName,
+      availableCash: Number(data.available_cash) || 0,
+      budget: Number(data.budget) || Number(data.available_cash) || 0,
+      areas: data.preferred_areas.map((a) =>
+        getLocalizedGeorgiaAreaName(a, locale)
+      ),
+    })
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   const handleFinalSubmit = async () => {
     setError('')
     const nextErrors: Record<string, string> = {}
@@ -480,8 +523,10 @@ function BuyersPageContent() {
       })
 
       if (res.status === 'ok') {
-        router.push('/account?view=buyer')
-        router.refresh()
+        showWhatsAppSuccessScreen({
+          reqId: res.unitId,
+          orderRef: res.orderRef,
+        })
         return
       }
 
@@ -518,6 +563,111 @@ function BuyersPageContent() {
     sellVal.missingBannerPrefix,
     'missingBannerPrefix'
   )
+
+  const siteOrigin =
+    typeof window !== 'undefined'
+      ? window.location.origin
+      : 'https://exit-16.vercel.app'
+
+  if (submittedOrder) {
+    const areasText = submittedOrder.areas.join('، ')
+    const waConfirmMessage =
+      locale === 'ar'
+        ? `أهلاً إدارة Aqar Exit، أنا (${submittedOrder.buyerName || 'مشتري'}) أؤكد تسجيل طلب الشراء رقم (${submittedOrder.orderRef}) — الكاش المتاح: ($${submittedOrder.availableCash.toLocaleString('en-US')}) — الميزانية الإجمالية: ($${submittedOrder.budget.toLocaleString('en-US')}) — المناطق المفضلة: (${areasText}).\nرابط الطلب في الإدارة:\n${siteOrigin}/admin/leads${submittedOrder.reqId ? `?leadId=${submittedOrder.reqId}` : ''}`
+        : `Hello Aqar Exit, I confirm my buy request (${submittedOrder.orderRef}) — Cash: ($${submittedOrder.availableCash.toLocaleString('en-US')}) — Budget: ($${submittedOrder.budget.toLocaleString('en-US')}) — Areas: (${areasText}).\nAdmin Link:\n${siteOrigin}/admin/leads${submittedOrder.reqId ? `?leadId=${submittedOrder.reqId}` : ''}`
+
+    return (
+      <main
+        dir={dir}
+        className="min-h-screen bg-[var(--brand-surface,#f5f6f8)] px-4 py-12 text-[var(--brand-navy-text,#0a1128)] sm:px-6 lg:py-16"
+      >
+        <div className="mx-auto max-w-2xl">
+          <section className="rounded-3xl border-2 border-[#007a5a] bg-white p-6 text-center shadow-md sm:p-10">
+            <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-[#eaf8f2] text-[#007a5a] shadow-xs">
+              <CheckCircle2 className="size-9" />
+            </div>
+
+            <span className="inline-block rounded-full bg-[#eaf8f2] px-3.5 py-1 font-mono text-xs font-extrabold text-[#007a5a]">
+              Ref: #{submittedOrder.orderRef}
+            </span>
+
+            <h1 className="mt-3 text-2xl font-black text-[#0a1122] sm:text-3xl">
+              {locale === 'ar'
+                ? 'تم تسجيل طلب الشراء وتفعيل الرادار الذكي بنجاح ✓'
+                : 'Your Buy Request & Smart Radar Are Active ✓'}
+            </h1>
+
+            <p className="mx-auto mt-3 max-w-lg text-xs leading-relaxed font-semibold text-slate-600 sm:text-sm">
+              {locale === 'ar'
+                ? 'لتسريع ترشيح الوحدات الموثقة المتوافقة مع ميزانيتك، اضغط الزر الأخضر بالأسفل لتأكيد طلبك مباشرة عبر واتساب المنصة:'
+                : 'To fast-track verified unit recommendations matching your budget, confirm your request via WhatsApp below:'}
+            </p>
+
+            <div className="mt-5 grid grid-cols-2 gap-3 rounded-2xl border border-gray-100 bg-[#f8faf9] p-4 text-start text-xs sm:grid-cols-3">
+              <div>
+                <span className="block text-[11px] text-gray-400">
+                  {b.stepOne.availableCashLabel}
+                </span>
+                <strong
+                  dir="ltr"
+                  className="mt-1 block text-sm font-black text-[#007a5a] tabular-nums"
+                >
+                  {submittedOrder.availableCash.toLocaleString('en-US')}{' '}
+                  {currency}
+                </strong>
+              </div>
+
+              <div>
+                <span className="block text-[11px] text-gray-400">
+                  {b.stepOne.budgetLabel}
+                </span>
+                <strong
+                  dir="ltr"
+                  className="mt-1 block text-sm font-black text-[#0a1122] tabular-nums"
+                >
+                  {submittedOrder.budget.toLocaleString('en-US')} {currency}
+                </strong>
+              </div>
+
+              <div className="col-span-2 sm:col-span-1">
+                <span className="block text-[11px] text-gray-400">
+                  {b.stepTwo.areasLabelPrefix}
+                </span>
+                <strong className="mt-1 block truncate text-xs font-extrabold text-[#0a1122]">
+                  📍 {areasText}
+                </strong>
+              </div>
+            </div>
+
+            <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
+              <a
+                href={`https://wa.me/${waPhone}?text=${encodeURIComponent(waConfirmMessage)}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] px-6 text-xs font-extrabold text-white shadow-md transition hover:opacity-95 sm:w-auto sm:text-sm"
+              >
+                <MessageCircle className="size-4 shrink-0" />
+                <span>
+                  {locale === 'ar'
+                    ? 'تأكيد طلب الشراء فوراً عبر واتساب'
+                    : 'Confirm Request via WhatsApp'}
+                </span>
+              </a>
+
+              <Link
+                href="/account?view=buyer"
+                className="inline-flex h-12 w-full items-center justify-center rounded-xl bg-[#0a1122] px-6 text-xs font-extrabold text-white transition hover:bg-[#16223f] sm:w-auto sm:text-sm"
+              >
+                {locale === 'ar'
+                  ? 'الدخول لحسابي وتصفح الفرص المطابقة'
+                  : 'Go to My Account & View Matches'}
+              </Link>
+            </div>
+          </section>
+        </div>
+      </main>
+    )
+  }
 
   return (
     <main
@@ -620,9 +770,8 @@ function BuyersPageContent() {
                 }}
                 conflictState={conflictState}
                 setConflictState={setConflictState}
-                onSuccessRedirect={() => {
-                  router.push('/account?view=buyer')
-                  router.refresh()
+                onSuccessRedirect={(info) => {
+                  showWhatsAppSuccessScreen(info)
                 }}
               />
             )}

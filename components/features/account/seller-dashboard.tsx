@@ -96,39 +96,47 @@ function getCompletionLabels(locale: LocaleCode) {
     return {
       notPublishedYet: 'Not published yet',
       addPhotosAction: '+ Add Unit Photos',
-      addDocsAction: '+ Add Documents',
+      addDocsAction: '+ Add Documents (0/4)',
+      completeDocsAction: (uploaded: number, remaining: number) =>
+        `+ Complete Documents (${uploaded}/4 — ${remaining} left)`,
       completeDetailsAction: '+ Complete Unit Details',
       incompleteNextStepHeadline:
-        'Complete the remaining items below so we can review and publish your unit',
+        'Complete the remaining items below (including all 4 documents) so we can verify and publish your unit',
     }
   }
   if (locale === 'ru') {
     return {
       notPublishedYet: 'Еще не опубликовано',
       addPhotosAction: '+ Добавить фото',
-      addDocsAction: '+ Добавить документы',
+      addDocsAction: '+ Добавить документы (0/4)',
+      completeDocsAction: (uploaded: number, remaining: number) =>
+        `+ Догрузить документы (${uploaded}/4 — осталось ${remaining})`,
       completeDetailsAction: '+ Заполнить детали',
       incompleteNextStepHeadline:
-        'Завершите недостающие шаги ниже для проверки и публикации объекта',
+        'Завершите недостающие шаги ниже (включая все 4 документа) для проверки и публикации объекта',
     }
   }
   if (locale === 'ka') {
     return {
       notPublishedYet: 'ჯერ არ გამოქვეყნებულა',
       addPhotosAction: '+ ფოტოების დამატება',
-      addDocsAction: '+ დოკუმენტების დამატება',
+      addDocsAction: '+ დოკუმენტების დამატება (0/4)',
+      completeDocsAction: (uploaded: number, remaining: number) =>
+        `+ დოკუმენტების შევსება (${uploaded}/4 — დარჩა ${remaining})`,
       completeDetailsAction: '+ მონაცემების შევსება',
       incompleteNextStepHeadline:
-        'შეავსეთ ქვემოთ მოცემული ველები ობიექტის შესამოწმებლად და გამოსაქვეყნებლად',
+        'შეავსეთ ქვემოთ მოცემული ველები (4-ვე დოკუმენტის ჩათვლით) ობიექტის გამოსაქვეყნებლად',
     }
   }
   return {
     notPublishedYet: 'غير منشورة بعد',
     addPhotosAction: '+ إضافة الصور',
-    addDocsAction: '+ إضافة المستندات',
+    addDocsAction: '+ إضافة المستندات (0/4)',
+    completeDocsAction: (uploaded: number, remaining: number) =>
+      `+ استكمال المستندات (${uploaded}/4 — متبقي ${remaining})`,
     completeDetailsAction: '+ استكمال بيانات الوحدة',
     incompleteNextStepHeadline:
-      'كمّل العناصر المتبقية تحت الشريط عشان نراجع وحدتك وننشرها للمشترين',
+      'كمّل العناصر المتبقية تحت الشريط (بما فيها الـ 4 مستندات كاملة) عشان نراجع وحدتك وننشرها للمشترين',
   }
 }
 
@@ -169,10 +177,13 @@ function calculateUnitCompletion(
     normalizedDocs.passport = normalizedDocs.national_id
   }
 
+  // حساب عدد المستندات المرفوعة فعلياً من أصل 4 مستندات
   const uploadedDocsCount = REAL_DOC_KEYS.filter((k) =>
     Boolean(normalizedDocs[k]?.url)
   ).length
-  const hasDocuments = uploadedDocsCount > 0
+  const totalDocsRequired = REAL_DOC_KEYS.length // 4 مستندات
+  const hasAllDocuments = uploadedDocsCount === totalDocsRequired
+  const remainingDocsCount = Math.max(0, totalDocsRequired - uploadedDocsCount)
 
   const areaVal = unit.area || meta.area
   const typeVal = unit.unit_type || meta.unit_type
@@ -183,8 +194,8 @@ function calculateUnitCompletion(
   const deliveryVal = unit.delivery_status || meta.delivery_status
   const contractYrVal = Number(unit.contract_year ?? meta.contract_year) || 0
   const instFreqVal = unit.installment_frequency || meta.installment_frequency
-  const instAmtVal = unit.installment_amount ?? meta.installment_amount
 
+  // 13 حقل بيانات أساسي للوحدة + 1 صور + 4 مستندات = 18 عنصراً بالضبط
   const dataChecks = [
     Boolean(unit.developer_name),
     Boolean(unit.project_name),
@@ -198,22 +209,23 @@ function calculateUnitCompletion(
     Boolean(unit.description),
     Number(unit.contract_price) > 0,
     Number(unit.paid_amount) > 0,
-    Number(unit.market_price || unit.contract_price) > 0,
-    instAmtVal !== null && instAmtVal !== undefined && Number(instAmtVal) >= 0,
-    Boolean(instFreqVal),
-    contractYrVal > 0,
+    Boolean(instFreqVal && contractYrVal > 0),
   ]
 
-  const completedDataCount = dataChecks.filter(Boolean).length
-  const hasAllCoreDetails = Boolean(areaVal && typeVal && sizeVal > 0)
+  const completedDataCount = dataChecks.filter(Boolean).length // من 13
+  const hasAllCoreDetails = Boolean(
+    areaVal && typeVal && sizeVal > 0 && completedDataCount === dataChecks.length
+  )
 
-  const total = 18
+  // الإجمالي 18 = 13 بيانات + 1 صور + 4 مستندات (كل مستند يُحسب كعنصر مستقل)
+  const total = dataChecks.length + 1 + totalDocsRequired // 18
   const completedCount =
-    completedDataCount + (hasImages ? 1 : 0) + (hasDocuments ? 1 : 0)
+    completedDataCount + (hasImages ? 1 : 0) + uploadedDocsCount
 
-  const dataScore = Math.round((completedDataCount / 16) * 70)
+  // النسبة المئوية: 65% للبيانات + 15% للصور + 20% للمستندات الـ 4 (5% لكل مستند)
+  const dataScore = Math.round((completedDataCount / dataChecks.length) * 65)
   const photosScore = hasImages ? 15 : 0
-  const docsScore = hasDocuments ? 15 : 0
+  const docsScore = Math.round((uploadedDocsCount / totalDocsRequired) * 20)
   const percentage = Math.min(100, dataScore + photosScore + docsScore)
 
   const missingItems: MissingCompletionItem[] = []
@@ -231,10 +243,13 @@ function calculateUnitCompletion(
       href: `/sell?editUnitId=${unit.id}&step=5`,
     })
   }
-  if (!hasDocuments) {
+  if (!hasAllDocuments) {
     missingItems.push({
       key: 'docs',
-      label: cLabels.addDocsAction,
+      label:
+        uploadedDocsCount === 0
+          ? cLabels.addDocsAction
+          : cLabels.completeDocsAction(uploadedDocsCount, remainingDocsCount),
       href: `/account/documents?unitId=${unit.id}`,
     })
   }
@@ -244,7 +259,7 @@ function calculateUnitCompletion(
     total,
     percentage,
     hasImages,
-    hasDocuments,
+    hasAllDocuments,
     hasAllCoreDetails,
     uploadedDocsCount,
     missingItems,
@@ -258,8 +273,9 @@ function getSellerTimelineAndStatus(
   t: Record<string, any>
 ) {
   const clean = (unit.status || 'pending').trim().toLowerCase()
+  // لا تعتبر الوحدة مكتملة إلا برفع الـ 4 مستندات كاملة + الصور + البيانات
   const isComplete =
-    comp.hasAllCoreDetails && comp.hasImages && comp.hasDocuments
+    comp.hasAllCoreDetails && comp.hasImages && comp.hasAllDocuments
 
   switch (clean) {
     case 'active':
@@ -778,7 +794,6 @@ export function SellerDashboard({
         </div>
       )}
 
-      {/* ==================== الكارت الموحد للوحدة النشطة والخطوة الجاية والأسعار ==================== */}
       <ScrollReveal delay={60}>
         <section className="rounded-[20px] border border-gray-200/90 bg-white p-5 text-start shadow-xs sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 pb-4">
@@ -829,7 +844,7 @@ export function SellerDashboard({
           <div className="mt-3.5 rounded-xl border border-gray-100 bg-gray-50/80 p-3.5">
             <div className="mb-2 flex items-center justify-between text-xs">
               <span className="font-bold text-gray-600">
-                {t.completionLabel}
+                {t.completionLabel} ({comp.completedCount}/{comp.total})
               </span>
               <strong
                 dir="ltr"
@@ -846,7 +861,7 @@ export function SellerDashboard({
             </div>
 
             {comp.missingItems.length > 0 && (
-              <div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+              <div className="mt-3 grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
                 {comp.missingItems.map((item) => (
                   <Link
                     key={item.key}
@@ -982,7 +997,7 @@ export function SellerDashboard({
           <Link
             href={`/account/documents?unitId=${activeUnit.id}`}
             className={`flex flex-col justify-between rounded-[16px] border bg-white p-4 text-start shadow-2xs transition hover:border-[var(--brand-primary,#007a5a)] ${
-              uploadedDocsCount === 0
+              uploadedDocsCount < 4
                 ? 'border-amber-300 ring-1 ring-amber-200/60'
                 : 'border-gray-200/80'
             }`}
@@ -991,7 +1006,7 @@ export function SellerDashboard({
               <p className="text-xs font-extrabold text-[var(--brand-navy,#0a1122)]">
                 {t.cardDocuments}
               </p>
-              {uploadedDocsCount > 0 ? (
+              {uploadedDocsCount === 4 ? (
                 <FileCheck2 className="size-3.5 text-[var(--brand-primary,#007a5a)]" />
               ) : (
                 <UploadCloud className="size-3.5 text-amber-500" />
@@ -999,7 +1014,9 @@ export function SellerDashboard({
             </div>
             <p
               className={`mt-1.5 text-[11px] font-semibold ${
-                uploadedDocsCount > 0 ? 'text-gray-500' : 'text-amber-700'
+                uploadedDocsCount === 4
+                  ? 'text-[var(--brand-primary,#007a5a)] font-extrabold'
+                  : 'text-amber-700'
               }`}
             >
               {uploadedDocsCount > 0
@@ -1008,7 +1025,6 @@ export function SellerDashboard({
             </p>
           </Link>
 
-          {/* كارت عروض البائع: يفتح عروض البائع فقط لهذه الوحدة */}
           <Link
             href={`/account/offers?role=seller&unitId=${activeUnit.id}`}
             className={`flex flex-col justify-between rounded-[16px] border bg-white p-4 text-start shadow-2xs transition hover:border-[var(--brand-primary,#007a5a)] ${
@@ -1047,7 +1063,6 @@ export function SellerDashboard({
         </section>
       </ScrollReveal>
 
-      {/* ==================== مراحل بيع الوحدة (Timeline) + الترويج ==================== */}
       <ScrollReveal delay={140}>
         <section className="mt-5 rounded-[20px] border border-gray-200/80 bg-white p-5 shadow-2xs sm:p-6">
           <h3 className="mb-4 text-start text-xs font-extrabold text-gray-500">

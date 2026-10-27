@@ -35,15 +35,6 @@ import {
 } from '@/lib/smart-matcher'
 import { toEnglishDigits } from '@/components/features/seller/seller-shared'
 import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
 import { getCurrencySymbol, useTranslation } from '@/lib/i18n'
 
 function OffersContent() {
@@ -115,7 +106,6 @@ function OffersContent() {
     setSellerOffers(res.sellerOffers)
     setBuyerOffers(res.buyerOffers)
 
-    // إذا كانت الوحدة المختارة ليس عليها عروض بينما توجد عروض على وحدة أخرى للبائع، نعرض الكل تلقائياً حتى لا تظهر الصفحة فارغة
     if (filterUnitId) {
       const hasForTarget = res.sellerOffers.some(
         (o) => String(o.property_id) === String(filterUnitId)
@@ -337,10 +327,10 @@ function OffersContent() {
   return (
     <main
       dir={dir}
-      className="min-h-screen bg-[var(--brand-surface,#f5f6f8)] py-8 pb-20 text-[var(--brand-navy,#0a1122)] sm:py-12"
+      className="min-h-screen bg-[var(--brand-surface,#f5f6f8)] py-6 pb-20 text-[var(--brand-navy,#0a1122)] sm:py-10"
     >
       <div className="mx-auto max-w-4xl px-4 sm:px-6">
-        <div className="mb-6 flex items-center justify-start">
+        <div className="mb-5 flex items-center justify-start">
           <Link
             href={backHref}
             className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-extrabold text-[#0a1122] shadow-2xs transition hover:border-[#007a5a] hover:text-[#007a5a]"
@@ -388,14 +378,13 @@ function OffersContent() {
                 <ShieldCheck className="size-3.5" />
                 <span>{t.zeroLeakageBadge}</span>
               </span>
-              <h1 className="mt-2 text-2xl font-black text-[#0a1122] sm:text-3xl">
+              <h1 className="mt-2 text-xl font-black text-[#0a1122] sm:text-3xl">
                 {t.sellerTitle} ({displayedSellerOffers.length})
               </h1>
               <p className="mt-1.5 text-xs leading-relaxed text-gray-500 sm:text-sm">
                 {t.sellerSubtitle}
               </p>
 
-              {/* إذا كان لدى البائع أكثر من وحدة، نتيح له فلترة العروض حسب الوحدة بسهولة */}
               {sells.length > 1 && (
                 <div className="mt-4 flex flex-wrap items-center gap-2">
                   <button
@@ -468,7 +457,7 @@ function OffersContent() {
                   return (
                     <div
                       key={offer.id}
-                      className={`rounded-[22px] border bg-white p-5 text-start shadow-xs sm:p-6 ${
+                      className={`rounded-[22px] border bg-white p-4 text-start shadow-xs sm:p-6 ${
                         offer.status === 'accepted'
                           ? 'border-2 border-[#007a5a] bg-emerald-50/20'
                           : 'border-gray-200/90'
@@ -599,16 +588,16 @@ function OffersContent() {
                       )}
 
                       {offer.status === 'pending_seller' && (
-                        <div className="mt-5 flex flex-wrap items-center gap-2.5 border-t border-gray-100 pt-4">
+                        <div className="mt-5 flex flex-col gap-2 border-t border-gray-100 pt-4 sm:flex-row sm:flex-wrap sm:items-center">
                           <button
                             type="button"
                             disabled={isPending}
                             onClick={() =>
                               handleSellerDecision(offer, 'accept')
                             }
-                            className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#007a5a] px-5 text-xs font-extrabold text-white shadow-sm transition hover:bg-[#006248] disabled:opacity-50 sm:text-sm"
+                            className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-xl bg-[#007a5a] px-4 py-2.5 text-xs font-extrabold text-white shadow-sm transition hover:bg-[#006248] disabled:opacity-50 sm:text-sm"
                           >
-                            <Check className="size-4" />
+                            <Check className="size-4 shrink-0" />
                             <span>{t.acceptOfferBtn}</span>
                           </button>
 
@@ -623,9 +612,9 @@ function OffersContent() {
                                 )
                                 setCounterCashStr(mid.toLocaleString('en-US'))
                               }}
-                              className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl border border-gray-300 bg-white px-4 text-xs font-extrabold text-[#0a1122] transition hover:bg-gray-50"
+                              className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-xs font-extrabold text-[#0a1122] transition hover:bg-gray-50"
                             >
-                              <RefreshCw className="size-3.5 text-[#007a5a]" />
+                              <RefreshCw className="size-3.5 shrink-0 text-[#007a5a]" />
                               <span>{t.sendCounterBtn}</span>
                             </button>
                           )}
@@ -636,7 +625,7 @@ function OffersContent() {
                             onClick={() =>
                               handleSellerDecision(offer, 'reject')
                             }
-                            className="inline-flex h-11 items-center justify-center rounded-xl border border-red-200 bg-red-50 px-4 text-xs font-bold text-red-600 transition hover:bg-red-100"
+                            className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-xs font-bold text-red-600 transition hover:bg-red-100"
                           >
                             {t.rejectOfferBtn}
                           </button>
@@ -650,13 +639,13 @@ function OffersContent() {
           </div>
         ) : (
           /* ==================== صفحة عروض المشتري فقط ==================== */
-          <div className="space-y-9">
+          <div className="space-y-8">
             <header className="text-start">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100/80 px-3 py-1 text-[11px] font-extrabold text-[#007a5a]">
                 <Sparkles className="size-3.5" />
                 <span>{t.aiMatcherBadge}</span>
               </span>
-              <h1 className="mt-2 text-2xl font-black text-[#0a1122] sm:text-3xl">
+              <h1 className="mt-2 text-xl font-black text-[#0a1122] sm:text-3xl">
                 {t.buyerTitle}
               </h1>
               <p className="mt-1.5 text-xs leading-relaxed text-gray-500 sm:text-sm">
@@ -676,7 +665,7 @@ function OffersContent() {
                     return (
                       <div
                         key={offer.id}
-                        className={`rounded-[20px] border bg-white p-5 text-start shadow-2xs ${
+                        className={`rounded-[20px] border bg-white p-4 text-start shadow-2xs sm:p-5 ${
                           offer.status === 'accepted'
                             ? 'border-2 border-[#007a5a] bg-emerald-50/20'
                             : offer.status === 'counter_offered'
@@ -684,13 +673,13 @@ function OffersContent() {
                               : 'border-gray-200/90'
                         }`}
                       >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div>
-                            <h3 className="text-sm font-extrabold text-[#0a1122] sm:text-base">
+                        <div className="flex flex-wrap items-start justify-between gap-2.5">
+                          <div className="min-w-0 flex-1">
+                            <h3 className="text-sm font-extrabold leading-snug text-[#0a1122] sm:text-base">
                               {u?.project_name || t.unitFallback} —{' '}
                               {getLocalizedGeorgiaAreaName(u?.area, locale)}
                             </h3>
-                            <p className="mt-0.5 text-xs text-gray-500">
+                            <p className="mt-1 text-xs text-gray-500">
                               {t.offeredCashLabel}:{' '}
                               <strong
                                 dir="ltr"
@@ -705,7 +694,7 @@ function OffersContent() {
                             </p>
                           </div>
 
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             {u && (
                               <Link
                                 href={`/opportunities/${u.id}`}
@@ -740,14 +729,15 @@ function OffersContent() {
                           </div>
                         )}
 
+                        {/* كارت العرض المضاد للمشتري: أزرار مرنة لا ينقص منها أي حرف على الموبايل */}
                         {offer.status === 'counter_offered' &&
                           offer.counter_cash && (
-                            <div className="mt-4 rounded-xl border border-purple-200 bg-purple-50 p-4">
-                              <p className="text-xs font-extrabold text-purple-950">
+                            <div className="mt-4 rounded-2xl border border-purple-200 bg-purple-50/90 p-3.5 sm:p-4">
+                              <p className="text-xs leading-relaxed font-extrabold text-purple-950 sm:text-sm">
                                 🔄 {t.sellerCounterReceivedText}:{' '}
                                 <strong
                                   dir="ltr"
-                                  className="text-base font-black text-[#007a5a]"
+                                  className="inline-block text-sm font-black text-[#007a5a] sm:text-base"
                                 >
                                   {Number(offer.counter_cash).toLocaleString(
                                     'en-US'
@@ -755,7 +745,8 @@ function OffersContent() {
                                   {cur}
                                 </strong>
                               </p>
-                              <div className="mt-3 flex flex-wrap gap-2">
+
+                              <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto]">
                                 <button
                                   type="button"
                                   disabled={isPending}
@@ -765,11 +756,12 @@ function OffersContent() {
                                       'accept'
                                     )
                                   }
-                                  className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] px-4 text-xs font-extrabold text-white hover:bg-[#006248]"
+                                  className="inline-flex min-h-[42px] items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] px-4 py-2 text-center text-xs leading-snug font-extrabold text-white shadow-2xs transition hover:bg-[#006248]"
                                 >
-                                  <Check className="size-4" />
+                                  <Check className="size-4 shrink-0" />
                                   <span>{t.acceptCounterBtn}</span>
                                 </button>
+
                                 <button
                                   type="button"
                                   disabled={isPending}
@@ -779,7 +771,7 @@ function OffersContent() {
                                       'reject'
                                     )
                                   }
-                                  className="inline-flex h-10 items-center justify-center rounded-xl border border-red-200 bg-white px-4 text-xs font-bold text-red-600 hover:bg-red-50"
+                                  className="inline-flex min-h-[42px] items-center justify-center rounded-xl border border-red-200 bg-white px-4 py-2 text-center text-xs font-bold text-red-600 transition hover:bg-red-50"
                                 >
                                   {t.rejectOfferBtn}
                                 </button>
@@ -827,7 +819,7 @@ function OffersContent() {
                       return (
                         <div
                           key={unit.id}
-                          className={`flex flex-col justify-between rounded-[22px] border bg-white p-5 text-start shadow-xs transition hover:shadow-md ${
+                          className={`flex flex-col justify-between rounded-[22px] border bg-white p-4 text-start shadow-xs transition hover:shadow-md sm:p-5 ${
                             recommendedByAdmin
                               ? 'border-2 border-amber-400'
                               : match.score >= 85
@@ -934,21 +926,21 @@ function OffersContent() {
                             )}
                           </div>
 
-                          <div className="mt-5 flex items-center gap-2 border-t border-gray-100 pt-3.5">
+                          <div className="mt-5 grid grid-cols-2 gap-2 border-t border-gray-100 pt-3.5">
                             <Link
                               href={`/opportunities/${unit.id}`}
-                              className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 text-xs font-extrabold text-[#0a1122] transition hover:border-[#007a5a] hover:bg-gray-50"
+                              className="inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-2.5 py-2 text-center text-xs font-extrabold text-[#0a1122] transition hover:border-[#007a5a] hover:bg-gray-50"
                             >
-                              <ExternalLink className="size-3.5 text-[#007a5a]" />
+                              <ExternalLink className="size-3.5 shrink-0 text-[#007a5a]" />
                               <span>{t.viewUnitPageBtn}</span>
                             </Link>
 
                             <button
                               type="button"
                               onClick={() => openBuyerOfferModal(unit)}
-                              className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] px-3 text-xs font-extrabold text-white shadow-2xs transition hover:bg-[#006248]"
+                              className="inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] px-2.5 py-2 text-center text-xs font-extrabold text-white shadow-2xs transition hover:bg-[#006248]"
                             >
-                              <Wallet className="size-3.5" />
+                              <Wallet className="size-3.5 shrink-0" />
                               <span>{t.makeOfferBtn}</span>
                             </button>
                           </div>
@@ -963,106 +955,127 @@ function OffersContent() {
         )}
       </div>
 
-      <Dialog
-        open={Boolean(offerModalUnit)}
-        onOpenChange={(open) => !open && !isPending && setOfferModalUnit(null)}
-      >
-        <DialogContent
-          dir={dir}
-          className="w-[92vw] max-w-[460px] rounded-3xl p-5 text-start sm:p-6"
-        >
-          {offerModalUnit &&
-            (() => {
-              const guard = getUnitPricingGuardrails(offerModalUnit)
-              const typedAmount =
-                Number(toEnglishDigits(customOfferCashStr).replace(/,/g, '')) ||
-                0
-              const isFullPrice = typedAmount >= guard.requiredCash
-              const isTooLowFake =
-                guard.allowNegotiation &&
-                typedAmount > 0 &&
-                typedAmount < guard.minAllowedOfferCash
+      {/* ==================== نافذة تقديم عرض الشراء (فوق الهيدر z-[9999] ومتجاوبة 100%) ==================== */}
+      {offerModalUnit &&
+        (() => {
+          const guard = getUnitPricingGuardrails(offerModalUnit)
+          const typedAmount =
+            Number(toEnglishDigits(customOfferCashStr).replace(/,/g, '')) || 0
+          const isFullPrice = typedAmount >= guard.requiredCash
+          const isTooLowFake =
+            guard.allowNegotiation &&
+            typedAmount > 0 &&
+            typedAmount < guard.minAllowedOfferCash
 
-              return (
-                <>
-                  <DialogHeader className="text-start">
-                    <DialogTitle className="text-base font-black text-[#0a1122]">
-                      {t.modalMakeOfferTitle} —{' '}
+          return (
+            <div
+              dir={dir}
+              onClick={() => !isPending && setOfferModalUnit(null)}
+              className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#0a1122]/75 p-3 backdrop-blur-xs sm:p-4"
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="relative flex max-h-[90vh] w-full max-w-[460px] flex-col overflow-hidden rounded-[24px] border border-gray-200 bg-white text-start shadow-2xl"
+              >
+                {/* هيدر النافذة الثابت والواضح */}
+                <div className="flex items-start justify-between gap-3 border-b border-gray-100 bg-[#f8faf9] px-5 py-4">
+                  <div className="min-w-0 flex-1">
+                    <span className="inline-flex items-center gap-1 rounded-md bg-[#eaf8f2] px-2 py-0.5 text-[10.5px] font-extrabold text-[#007a5a]">
+                      <Wallet className="size-3" />
+                      <span>{t.modalMakeOfferTitle}</span>
+                    </span>
+                    <h3 className="mt-1 truncate text-sm font-black text-[#0a1122] sm:text-base">
                       {offerModalUnit.project_name || t.unitFallback}
-                    </DialogTitle>
-                    <DialogDescription className="text-start text-xs text-gray-500">
+                    </h3>
+                    <p className="mt-0.5 text-[11px] text-gray-500">
                       {t.modalMakeOfferSubtitle}
-                    </DialogDescription>
-                  </DialogHeader>
+                    </p>
+                  </div>
 
-                  <div className="mt-3 space-y-4 text-xs">
-                    <div className="rounded-2xl border border-gray-200 bg-gray-50/70 p-4">
-                      <label className="mb-2.5 block font-extrabold text-[#0a1122]">
-                        1.{' '}
-                        {t.selectOfferTypeLabel || t.enterNegotiatedCashLabel}:
-                      </label>
+                  <button
+                    type="button"
+                    disabled={isPending}
+                    onClick={() => setOfferModalUnit(null)}
+                    aria-label="Close"
+                    className="flex size-8 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 transition hover:bg-gray-100 hover:text-[#0a1122]"
+                  >
+                    <X className="size-4" />
+                  </button>
+                </div>
 
-                      {guard.allowNegotiation ? (
-                        <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setOfferMode('full')
-                              setCustomOfferCashStr(
-                                guard.requiredCash.toLocaleString('en-US')
-                              )
-                            }}
-                            className={`rounded-xl border p-2.5 text-start transition ${
-                              offerMode === 'full'
-                                ? 'border-[#007a5a] bg-[#eaf8f2] text-[#007a5a] ring-1 ring-[#007a5a]/25'
-                                : 'border-gray-200 bg-white text-gray-700'
-                            }`}
+                {/* جسم النافذة القابل للتمرير بنعومة على الموبايل */}
+                <div className="overflow-y-auto p-4 space-y-4 text-xs sm:p-5">
+                  <div className="rounded-2xl border border-gray-200/90 bg-gray-50/70 p-3.5 sm:p-4">
+                    <label className="mb-2.5 block text-xs font-extrabold text-[#0a1122]">
+                      1.{' '}
+                      {t.selectOfferTypeLabel || t.enterNegotiatedCashLabel}:
+                    </label>
+
+                    {guard.allowNegotiation ? (
+                      <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setOfferMode('full')
+                            setCustomOfferCashStr(
+                              guard.requiredCash.toLocaleString('en-US')
+                            )
+                          }}
+                          className={`flex flex-col justify-between rounded-xl border p-3 text-start transition ${
+                            offerMode === 'full'
+                              ? 'border-2 border-[#007a5a] bg-[#eaf8f2] text-[#007a5a]'
+                              : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                          }`}
+                        >
+                          <span className="block text-[11px] leading-snug font-extrabold">
+                            ✓ {t.fullPriceOptionTitle}
+                          </span>
+                          <strong
+                            dir="ltr"
+                            className="mt-1 block text-sm font-black tabular-nums"
                           >
-                            <span className="block text-[11px] font-extrabold">
-                              ✓ {t.fullPriceOptionTitle}
-                            </span>
+                            {guard.requiredCash.toLocaleString('en-US')} {cur}
+                          </strong>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setOfferMode('negotiate')
+                            setCustomOfferCashStr(
+                              guard.minAllowedOfferCash.toLocaleString('en-US')
+                            )
+                          }}
+                          className={`flex flex-col justify-between rounded-xl border p-3 text-start transition ${
+                            offerMode === 'negotiate'
+                              ? 'border-2 border-amber-500 bg-amber-50 text-amber-950'
+                              : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                          }`}
+                        >
+                          <span className="block text-[11px] leading-snug font-extrabold">
+                            💬 {t.negotiateOptionTitle}
+                          </span>
+                          <span className="mt-1 block text-[10.5px] text-gray-500">
+                            {t.minAllowedFloorLabel}:{' '}
                             <strong
                               dir="ltr"
-                              className="mt-0.5 block text-sm font-black"
+                              className="font-extrabold text-[#0a1122]"
                             >
-                              {guard.requiredCash.toLocaleString('en-US')} {cur}
+                              {guard.minAllowedOfferCash.toLocaleString(
+                                'en-US'
+                              )}{' '}
+                              {cur}
                             </strong>
-                          </button>
+                          </span>
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="mb-3 rounded-xl border border-emerald-200 bg-[#eaf8f2] p-3 text-[11px] font-bold text-[#007a5a]">
+                        {t.nonNegotiableUnitNote}
+                      </div>
+                    )}
 
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setOfferMode('negotiate')
-                              setCustomOfferCashStr(
-                                guard.minAllowedOfferCash.toLocaleString('en-US')
-                              )
-                            }}
-                            className={`rounded-xl border p-2.5 text-start transition ${
-                              offerMode === 'negotiate'
-                                ? 'border-amber-500 bg-amber-50 text-amber-950 ring-1 ring-amber-400/30'
-                                : 'border-gray-200 bg-white text-gray-700'
-                            }`}
-                          >
-                            <span className="block text-[11px] font-extrabold">
-                              💬 {t.negotiateOptionTitle}
-                            </span>
-                            <span className="mt-0.5 block text-[10px] text-gray-500">
-                              {t.minAllowedFloorLabel}:{' '}
-                              <strong dir="ltr">
-                                {guard.minAllowedOfferCash.toLocaleString(
-                                  'en-US'
-                                )}{' '}
-                                {cur}
-                              </strong>
-                            </span>
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="mb-3 rounded-xl border border-emerald-200 bg-[#eaf8f2] p-3 text-[11px] font-bold text-[#007a5a]">
-                          {t.nonNegotiableUnitNote}
-                        </div>
-                      )}
-
+                    <div className="relative">
                       <input
                         type="text"
                         inputMode="numeric"
@@ -1082,192 +1095,205 @@ function OffersContent() {
                             digits ? num.toLocaleString('en-US') : ''
                           )
                         }}
-                        className={`h-12 w-full rounded-xl border px-4 text-left text-base font-black text-[#0a1122] focus:outline-none ${
+                        className={`h-12 w-full rounded-xl border pr-4 pl-12 text-left text-base font-black text-[#0a1122] tabular-nums focus:outline-none ${
                           !guard.allowNegotiation
                             ? 'cursor-not-allowed border-gray-200 bg-gray-100'
                             : 'border-gray-300 bg-white focus:border-[#007a5a]'
                         }`}
                       />
-
-                      {isFullPrice ? (
-                        <div className="mt-2.5 flex items-start gap-2 rounded-xl border border-emerald-200 bg-[#eaf8f2] p-2.5 text-[11px] font-bold text-[#007a5a]">
-                          <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
-                          <span>{t.fullPricePriorityHint}</span>
-                        </div>
-                      ) : isTooLowFake ? (
-                        <div className="mt-2.5 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-2.5 text-[11px] font-bold text-red-700">
-                          <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-                          <span>
-                            {t.errBelowMinFloor}:{' '}
-                            <strong dir="ltr">
-                              {guard.minAllowedOfferCash.toLocaleString('en-US')}{' '}
-                              {cur}
-                            </strong>
-                          </span>
-                        </div>
-                      ) : (
-                        <div className="mt-2.5 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-[11px] font-bold text-amber-900">
-                          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
-                          <span>{t.fomoNegotiationWarning}</span>
-                        </div>
-                      )}
+                      <span className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-xs font-extrabold text-gray-400">
+                        {cur}
+                      </span>
                     </div>
 
-                    <div>
-                      <label className="mb-2 block font-extrabold text-[#0a1122]">
-                        2. {t.buyerReadinessLabel}
-                      </label>
-                      <div className="grid grid-cols-3 gap-2">
-                        {(
-                          [
-                            { id: '48h', label: t.readiness48h },
-                            { id: '1_week', label: t.readiness1Week },
-                            { id: '2_weeks', label: t.readiness2Weeks },
-                          ] as const
-                        ).map((opt) => (
-                          <button
-                            key={opt.id}
-                            type="button"
-                            onClick={() => setReadiness(opt.id)}
-                            className={`rounded-xl border px-2.5 py-2.5 text-center text-[11px] font-extrabold transition ${
-                              readiness === opt.id
-                                ? 'border-[#007a5a] bg-[#007a5a] text-white'
-                                : 'border-gray-200 bg-white text-gray-700'
-                            }`}
-                          >
-                            {opt.label}
-                          </button>
-                        ))}
+                    {isFullPrice ? (
+                      <div className="mt-2.5 flex items-center gap-2 rounded-xl border border-emerald-200 bg-[#eaf8f2] p-2.5 text-[11px] font-bold text-[#007a5a]">
+                        <CheckCircle2 className="size-4 shrink-0" />
+                        <span>{t.fullPricePriorityHint}</span>
                       </div>
-                    </div>
+                    ) : isTooLowFake ? (
+                      <div className="mt-2.5 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-2.5 text-[11px] font-bold text-red-700">
+                        <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+                        <span>
+                          {t.errBelowMinFloor}:{' '}
+                          <strong dir="ltr">
+                            {guard.minAllowedOfferCash.toLocaleString('en-US')}{' '}
+                            {cur}
+                          </strong>
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="mt-2.5 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-[11px] leading-relaxed font-bold text-amber-900">
+                        <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
+                        <span>{t.fomoNegotiationWarning}</span>
+                      </div>
+                    )}
+                  </div>
 
-                    <div>
-                      <label className="mb-2 block font-extrabold text-[#0a1122]">
-                        3. {t.paymentMethodLabel}
-                      </label>
-                      <div className="grid grid-cols-2 gap-2">
-                        {(
-                          [
-                            { id: 'bank_check', label: t.methodBankCheck },
-                            {
-                              id: 'bank_transfer',
-                              label: t.methodBankTransfer,
-                            },
-                          ] as const
-                        ).map((m) => (
-                          <button
-                            key={m.id}
-                            type="button"
-                            onClick={() => setPaymentMethod(m.id)}
-                            className={`rounded-xl border px-3 py-2.5 text-center text-[11px] font-extrabold transition ${
-                              paymentMethod === m.id
-                                ? 'border-[#0a1122] bg-[#0a1122] text-white'
-                                : 'border-gray-200 bg-white text-gray-700'
-                            }`}
-                          >
-                            {m.label}
-                          </button>
-                        ))}
-                      </div>
+                  <div>
+                    <label className="mb-2 block text-xs font-extrabold text-[#0a1122]">
+                      2. {t.buyerReadinessLabel}
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {(
+                        [
+                          { id: '48h', label: t.readiness48h },
+                          { id: '1_week', label: t.readiness1Week },
+                          { id: '2_weeks', label: t.readiness2Weeks },
+                        ] as const
+                      ).map((opt) => (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => setReadiness(opt.id)}
+                          className={`flex min-h-[44px] items-center justify-center rounded-xl border px-2 py-2 text-center text-[11px] leading-snug font-extrabold transition ${
+                            readiness === opt.id
+                              ? 'border-[#007a5a] bg-[#007a5a] text-white shadow-2xs'
+                              : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
                     </div>
                   </div>
 
-                  <DialogFooter className="mt-5 flex flex-row items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={isPending}
-                      onClick={() => setOfferModalUnit(null)}
-                      className="h-11 flex-1 rounded-xl text-xs font-bold"
-                    >
-                      {t.cancelBtn}
-                    </Button>
-                    <Button
-                      type="button"
-                      disabled={isPending || isTooLowFake || typedAmount <= 0}
-                      onClick={handleSubmitBuyerOffer}
-                      className="h-11 flex-1 rounded-xl bg-[#007a5a] text-xs font-extrabold text-white hover:bg-[#006248] disabled:opacity-50"
-                    >
-                      {isPending ? (
-                        <Loader2 className="size-4 animate-spin" />
-                      ) : (
-                        t.confirmSendOfferBtn
-                      )}
-                    </Button>
-                  </DialogFooter>
-                </>
-              )
-            })()}
-        </DialogContent>
-      </Dialog>
+                  <div>
+                    <label className="mb-2 block text-xs font-extrabold text-[#0a1122]">
+                      3. {t.paymentMethodLabel}
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {(
+                        [
+                          { id: 'bank_check', label: t.methodBankCheck },
+                          {
+                            id: 'bank_transfer',
+                            label: t.methodBankTransfer,
+                          },
+                        ] as const
+                      ).map((m) => (
+                        <button
+                          key={m.id}
+                          type="button"
+                          onClick={() => setPaymentMethod(m.id)}
+                          className={`flex min-h-[44px] items-center justify-center rounded-xl border px-3 py-2 text-center text-[11px] leading-snug font-extrabold transition ${
+                            paymentMethod === m.id
+                              ? 'border-[#0a1122] bg-[#0a1122] text-white shadow-2xs'
+                              : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          {m.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
 
-      <Dialog
-        open={Boolean(counterModalOffer)}
-        onOpenChange={(open) =>
-          !open && !isPending && setCounterModalOffer(null)
-        }
-      >
-        <DialogContent
-          dir={dir}
-          className="w-[90vw] max-w-[380px] rounded-2xl p-5 text-start"
-        >
-          {counterModalOffer && (
-            <>
-              <DialogHeader className="text-start">
-                <DialogTitle className="text-sm font-extrabold text-[#0a1122]">
-                  🔄 {t.sendCounterBtn}
-                </DialogTitle>
-                <DialogDescription className="text-start text-xs text-gray-500">
-                  {t.counterModalDesc}
-                </DialogDescription>
-              </DialogHeader>
+                {/* أزرار الإرسال والإلغاء في أسفل النافذة */}
+                <div className="flex items-center gap-2.5 border-t border-gray-100 bg-gray-50/80 px-4 py-3.5 sm:px-5">
+                  <button
+                    type="button"
+                    disabled={isPending || isTooLowFake || typedAmount <= 0}
+                    onClick={handleSubmitBuyerOffer}
+                    className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-xl bg-[#007a5a] px-4 py-2.5 text-xs font-extrabold text-white shadow-sm transition hover:bg-[#006248] disabled:opacity-50"
+                  >
+                    {isPending ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <span>{t.confirmSendOfferBtn}</span>
+                    )}
+                  </button>
 
-              <div className="mt-3">
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  dir="ltr"
-                  value={counterCashStr}
-                  onChange={(e) => {
-                    const digits = toEnglishDigits(e.target.value).replace(
-                      /\D/g,
-                      ''
-                    )
-                    setCounterCashStr(
-                      digits ? Number(digits).toLocaleString('en-US') : ''
-                    )
-                  }}
-                  className="h-11 w-full rounded-xl border border-gray-200 px-3.5 text-left text-sm font-black text-[#0a1122]"
-                />
+                  <button
+                    type="button"
+                    disabled={isPending}
+                    onClick={() => setOfferModalUnit(null)}
+                    className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-xs font-extrabold text-gray-700 transition hover:bg-gray-100"
+                  >
+                    {t.cancelBtn}
+                  </button>
+                </div>
               </div>
+            </div>
+          )
+        })()}
 
-              <DialogFooter className="mt-4 flex flex-row gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={isPending}
-                  onClick={() => setCounterModalOffer(null)}
-                  className="h-10 flex-1 rounded-xl text-xs font-bold"
-                >
-                  {t.cancelBtn}
-                </Button>
-                <Button
-                  type="button"
-                  disabled={isPending}
-                  onClick={handleSendSellerCounter}
-                  className="h-10 flex-1 rounded-xl bg-[#007a5a] text-xs font-extrabold text-white"
-                >
-                  {isPending ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    t.sendCounterBtn
-                  )}
-                </Button>
-              </DialogFooter>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* ==================== نافذة إرسال العرض المضاد من البائع (z-[9999]) ==================== */}
+      {counterModalOffer && (
+        <div
+          dir={dir}
+          onClick={() => !isPending && setCounterModalOffer(null)}
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#0a1122]/75 p-4 backdrop-blur-xs"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-[390px] overflow-hidden rounded-[24px] border border-gray-200 bg-white p-5 text-start shadow-2xl"
+          >
+            <div className="flex items-center justify-between gap-2 border-b border-gray-100 pb-3">
+              <h3 className="text-sm font-black text-[#0a1122] sm:text-base">
+                🔄 {t.sendCounterBtn}
+              </h3>
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() => setCounterModalOffer(null)}
+                className="flex size-8 items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:text-[#0a1122]"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+
+            <p className="mt-2.5 text-xs leading-relaxed text-gray-500">
+              {t.counterModalDesc}
+            </p>
+
+            <div className="relative mt-4">
+              <input
+                type="text"
+                inputMode="numeric"
+                dir="ltr"
+                value={counterCashStr}
+                onChange={(e) => {
+                  const digits = toEnglishDigits(e.target.value).replace(
+                    /\D/g,
+                    ''
+                  )
+                  setCounterCashStr(
+                    digits ? Number(digits).toLocaleString('en-US') : ''
+                  )
+                }}
+                className="h-12 w-full rounded-xl border border-gray-300 pr-4 pl-12 text-left text-base font-black text-[#0a1122] focus:border-[#007a5a] focus:outline-none"
+              />
+              <span className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-xs font-bold text-gray-400">
+                {cur}
+              </span>
+            </div>
+
+            <div className="mt-5 flex items-center gap-2">
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={handleSendSellerCounter}
+                className="inline-flex min-h-[42px] flex-1 items-center justify-center rounded-xl bg-[#007a5a] px-4 py-2 text-xs font-extrabold text-white transition hover:bg-[#006248]"
+              >
+                {isPending ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  t.sendCounterBtn
+                )}
+              </button>
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() => setCounterModalOffer(null)}
+                className="inline-flex min-h-[42px] items-center justify-center rounded-xl border border-gray-200 bg-white px-5 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50"
+              >
+                {t.cancelBtn}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }

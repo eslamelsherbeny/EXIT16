@@ -31,6 +31,7 @@ import {
   submitBuyerOfferAction,
   type OfferRecord,
 } from '@/actions/offer-actions'
+import { markUserPhoneVerifiedAction } from '@/actions/submit-forms'
 import {
   getUnitPricingGuardrails,
   type MatchableUnit,
@@ -323,7 +324,6 @@ function OffersContent() {
           (o) => String(o.property_id) === String(selectedSellerUnitId)
         )
 
-  // معرفة الوحدات التي قبل البائع عليها عرضاً بالفعل لقفل القبول المتعدد
   const acceptedPropertyIds = new Set(
     sellerOffers
       .filter((o) => o.status === 'accepted')
@@ -490,11 +490,11 @@ function OffersContent() {
                           : 'border-gray-200/90'
                       }`}
                     >
-                      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-gray-100 pb-4">
-                        <div>
+                      <div className="flex flex-col gap-3 border-b border-gray-100 pb-4 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="inline-flex items-center gap-1 rounded-lg bg-[#0a1122] px-2.5 py-1 text-[11px] font-extrabold text-white">
-                              <Building2 className="size-3.5 text-emerald-400" />
+                              <Building2 className="size-3.5 shrink-0 text-emerald-400" />
                               <span>{u?.project_name || t.unitFallback}</span>
                             </span>
                             <span className="rounded-lg bg-emerald-100 px-2.5 py-1 text-[11px] font-extrabold text-[#007a5a]">
@@ -510,7 +510,7 @@ function OffersContent() {
                           </p>
                         </div>
 
-                        <div>
+                        <div className="shrink-0">
                           {offer.status === 'accepted' && (
                             <span className="inline-flex items-center gap-1 rounded-full bg-[#007a5a] px-3.5 py-1.5 text-xs font-extrabold text-white shadow-2xs">
                               <Handshake className="size-3.5" />
@@ -699,12 +699,13 @@ function OffersContent() {
               </p>
             </header>
 
+            {/* ==================== قسم عروض الشراء التي قدمتها (مُصلح بالكامل للموبايل والديسكتوب) ==================== */}
             {buyerOffers.length > 0 && (
               <section>
                 <h2 className="mb-3.5 text-start text-base font-extrabold text-[#0a1122]">
                   {t.mySubmittedOffersTitle} ({buyerOffers.length})
                 </h2>
-                <div className="space-y-3.5">
+                <div className="space-y-4">
                   {buyerOffers.map((offer) => {
                     const u = offer.unit
                     const refCode = getOfferRef(offer.id)
@@ -716,7 +717,7 @@ function OffersContent() {
                     return (
                       <div
                         key={offer.id}
-                        className={`rounded-[20px] border bg-white p-4 text-start shadow-2xs sm:p-5 ${
+                        className={`rounded-[22px] border bg-white p-4 text-start shadow-2xs transition sm:p-5 ${
                           offer.status === 'accepted'
                             ? 'border-2 border-[#007a5a] bg-emerald-50/20'
                             : offer.status === 'counter_offered'
@@ -724,75 +725,112 @@ function OffersContent() {
                               : 'border-gray-200/90'
                         }`}
                       >
-                        <div className="flex flex-wrap items-start justify-between gap-2.5">
-                          <div className="min-w-0 flex-1">
+                        {/* الصف العلوي: اسم المشروع والمنطقة + شارة حالة العرض */}
+                        <div className="flex flex-col gap-2.5 border-b border-gray-100 pb-3.5 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="w-full min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
-                              <h3 className="text-sm font-extrabold leading-snug text-[#0a1122] sm:text-base">
-                                {u?.project_name || t.unitFallback} —{' '}
-                                {getLocalizedGeorgiaAreaName(u?.area, locale)}
-                              </h3>
-                              <span className="font-mono text-[11px] font-bold text-gray-400">
+                              <span className="inline-flex items-center gap-1 rounded-md bg-gray-100 px-2 py-0.5 font-mono text-[11px] font-extrabold text-gray-600">
                                 #{refCode}
                               </span>
-                            </div>
-                            <p className="mt-1 text-xs text-gray-500">
-                              {t.offeredCashLabel}:{' '}
-                              <strong
-                                dir="ltr"
-                                className="font-extrabold text-[#007a5a]"
-                              >
-                                {Number(offer.offered_cash).toLocaleString(
-                                  'en-US'
-                                )}
-                              </strong>{' '}
-                              {cur} ·{' '}
-                              {getReadinessLabel(offer.payment_readiness)}
-                            </p>
-                          </div>
 
-                          <div className="flex flex-wrap items-center gap-2">
-                            {u && (
-                              <Link
-                                href={`/opportunities/${u.id}`}
-                                className="inline-flex h-8 items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 px-3 text-xs font-bold text-[#0a1122] hover:bg-gray-100"
-                              >
-                                <ExternalLink className="size-3.5 text-[#007a5a]" />
-                                <span>{t.viewUnitPageBtn}</span>
-                              </Link>
-                            )}
-
-                            {offer.status === 'pending_admin' && (
-                              <a
-                                href={`https://wa.me/${supportWhatsApp}?text=${encodeURIComponent(waConfirmText)}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#25D366] px-3 text-xs font-extrabold text-white shadow-2xs hover:opacity-95"
-                              >
-                                <MessageCircle className="size-3.5" />
-                                <span>
-                                  {locale === 'ar'
-                                    ? 'تأكيد العرض عبر واتساب'
-                                    : 'Confirm via WhatsApp'}
+                              {offer.status === 'pending_seller' && (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-0.5 text-[11px] font-extrabold text-amber-800">
+                                  ⏳ {t.statusWaitingSellerBadge}
                                 </span>
-                              </a>
-                            )}
+                              )}
+                              {offer.status === 'pending_admin' && (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-0.5 text-[11px] font-extrabold text-amber-800">
+                                  ⏳{' '}
+                                  {locale === 'ar'
+                                    ? 'قيد مراجعة وتأكيد الإدارة'
+                                    : 'Pending Admin Review'}
+                                </span>
+                              )}
+                              {offer.status === 'accepted' && (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-[#007a5a] px-3 py-0.5 text-[11px] font-extrabold text-white">
+                                  ✓ {t.statusAcceptedBadge}
+                                </span>
+                              )}
+                              {offer.status === 'unit_locked' && (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-gray-200 px-3 py-0.5 text-[11px] font-bold text-gray-600">
+                                  {t.statusLockedOtherBuyer}
+                                </span>
+                              )}
+                              {offer.status === 'counter_offered' && (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-3 py-0.5 text-[11px] font-extrabold text-purple-900">
+                                  🔄 {t.statusCounterSentBadge}
+                                </span>
+                              )}
+                            </div>
 
-                            {offer.status === 'pending_seller' && (
-                              <span className="rounded-full bg-amber-100 px-3 py-1 text-[11px] font-extrabold text-amber-800">
-                                {t.statusWaitingSellerBadge}
-                              </span>
-                            )}
-                            {offer.status === 'accepted' && (
-                              <span className="rounded-full bg-[#007a5a] px-3 py-1 text-[11px] font-extrabold text-white">
-                                ✓ {t.statusAcceptedBadge}
-                              </span>
-                            )}
-                            {offer.status === 'unit_locked' && (
-                              <span className="rounded-full bg-gray-200 px-3 py-1 text-[11px] font-bold text-gray-600">
-                                {t.statusLockedOtherBuyer}
-                              </span>
-                            )}
+                            <h3 className="mt-2 text-sm leading-relaxed font-extrabold text-[#0a1122] sm:text-base">
+                              {u?.project_name || t.unitFallback} —{' '}
+                              {getLocalizedGeorgiaAreaName(u?.area, locale)}
+                            </h3>
                           </div>
+                        </div>
+
+                        {/* الصندوق الأوسط: تفاصيل المبلغ المعروض كاش وجاهزية الدفع */}
+                        <div className="mt-3.5 grid grid-cols-1 gap-2.5 rounded-xl border border-gray-100 bg-[#f8faf9] p-3.5 sm:grid-cols-2">
+                          <div>
+                            <span className="block text-[11px] font-semibold text-gray-500">
+                              {t.offeredCashLabel}
+                            </span>
+                            <strong
+                              dir="ltr"
+                              className="mt-0.5 block text-base font-black text-[#007a5a] tabular-nums sm:text-lg"
+                            >
+                              {Number(offer.offered_cash).toLocaleString(
+                                'en-US'
+                              )}{' '}
+                              {cur}
+                            </strong>
+                          </div>
+
+                          <div className="border-t border-gray-200/70 pt-2 sm:border-s sm:border-t-0 sm:ps-3.5 sm:pt-0">
+                            <span className="block text-[11px] font-semibold text-gray-500">
+                              {t.buyerReadinessLabel}
+                            </span>
+                            <strong className="mt-0.5 block text-xs font-extrabold text-[#0a1122] sm:text-sm">
+                              ⚡ {getReadinessLabel(offer.payment_readiness)} ·{' '}
+                              {getPaymentMethodLabel(offer.payment_method)}
+                            </strong>
+                          </div>
+                        </div>
+
+                        {/* شريط الأزرار السفلي: صفحة الوحدة بالصور + تأكيد العرض عبر واتساب */}
+                        <div className="mt-3.5 flex flex-wrap items-center gap-2">
+                          {u && (
+                            <Link
+                              href={`/opportunities/${u.id}`}
+                              className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3.5 text-xs font-extrabold text-[#0a1122] transition hover:border-[#007a5a] hover:bg-gray-50 sm:flex-none"
+                            >
+                              <ExternalLink className="size-3.5 shrink-0 text-[#007a5a]" />
+                              <span>{t.viewUnitPageBtn}</span>
+                            </Link>
+                          )}
+
+                          {(offer.status === 'pending_admin' ||
+                            offer.status === 'pending_seller') && (
+                            <a
+                              href={`https://wa.me/${supportWhatsApp}?text=${encodeURIComponent(waConfirmText)}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              onClick={() => {
+                                markUserPhoneVerifiedAction({
+                                  leadId: offer.lead_id || undefined,
+                                }).catch(() => {})
+                              }}
+                              className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#25D366] px-3.5 text-xs font-extrabold text-white shadow-2xs transition hover:opacity-95 sm:flex-none"
+                            >
+                              <MessageCircle className="size-3.5 shrink-0" />
+                              <span>
+                                {locale === 'ar'
+                                  ? 'تأكيد وتسريع العرض عبر واتساب'
+                                  : 'Confirm & Speed Up via WhatsApp'}
+                              </span>
+                            </a>
+                          )}
                         </div>
 
                         {offer.status === 'accepted' && (
@@ -1055,7 +1093,7 @@ function OffersContent() {
                   </button>
                 </div>
 
-                <div className="overflow-y-auto p-4 space-y-4 text-xs sm:p-5">
+                <div className="space-y-4 overflow-y-auto p-4 text-xs sm:p-5">
                   <div className="rounded-2xl border border-gray-200/90 bg-gray-50/70 p-3.5 sm:p-4">
                     <label className="mb-2.5 block text-xs font-extrabold text-[#0a1122]">
                       1.{' '}

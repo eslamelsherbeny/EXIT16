@@ -242,6 +242,89 @@ function revalidateAdminAll() {
   revalidatePath("/exit")
 }
 
+/**
+ * توثيق البريد الإلكتروني أو رقم الهاتف لأي بائع أو مشتري من لوحة الأدمن أو عبر رابط الواتساب
+ */
+export async function verifyUserContactByAdminAction(payload: {
+  userId: string
+  type: "email" | "phone" | "both"
+}) {
+  const { t: msg } = await getAdminActionsDict()
+  try {
+    const { supabase } = await requireAdminAuth([
+      "admin",
+      "moderator",
+      "sales",
+    ])
+    if (!payload.userId) {
+      return { success: false, error: msg.unauthorizedAction }
+    }
+
+    const { data: user } = await supabase
+      .from("users")
+      .select("id, otp_code, is_verified")
+      .eq("id", payload.userId)
+      .maybeSingle()
+
+    if (!user) {
+      return { success: false, error: "User not found" }
+    }
+
+    const updates: Record<string, any> = {}
+    if (payload.type === "email" || payload.type === "both") {
+      updates.is_verified = true
+    }
+
+    if (payload.type === "phone" || payload.type === "both") {
+      const currentOtp = String(user.otp_code || "").trim()
+      updates.otp_code = currentOtp.includes("PHONE_OK")
+        ? currentOtp
+        : currentOtp
+          ? `PHONE_OK|${currentOtp}`
+          : "PHONE_OK"
+      updates.phone_verified = true
+
+      try {
+        const { data: existingNotif } = await supabase
+          .from("notifications")
+          .select("id")
+          .eq("user_id", payload.userId)
+          .eq("title", "__PHONE_VERIFIED__")
+          .maybeSingle()
+
+        if (!existingNotif) {
+          await supabase.from("notifications").insert({
+            user_id: payload.userId,
+            title: "__PHONE_VERIFIED__",
+            message: "verified_by_admin",
+            type: "system",
+            link: "/account",
+            is_read: true,
+          })
+        }
+      } catch {}
+    }
+
+    const { error } = await supabase
+      .from("users")
+      .update(updates)
+      .eq("id", payload.userId)
+
+    if (error && updates.phone_verified !== undefined) {
+      delete updates.phone_verified
+      await supabase.from("users").update(updates).eq("id", payload.userId)
+    }
+
+    revalidateAdminAll()
+    return { success: true }
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : msg.unauthorizedAction,
+    }
+  }
+}
+
 export async function updatePropertyStatusAction(
   propertyId: string,
   status: string,
@@ -626,14 +709,15 @@ export async function updateUserRoleAndStatusAction(
     const cleanRole = sanitizeText(role || "user", 20).toLowerCase()
     const cleanStatus = sanitizeText(status || "active", 20).toLowerCase()
 
-    // حماية الأدمن الحالي من حظر حسابه أو سحب صلاحية الأدمن من نفسه بالخطأ
     if (
       userId === adminUser.id &&
       (cleanRole !== "admin" || cleanStatus === "suspended")
     ) {
       return {
         success: false,
-        error: msg.cannotDeleteSelf || "لا يمكنك سحب صلاحية الإدارة أو إيقاف حسابك الشخصي.",
+        error:
+          msg.cannotDeleteSelf ||
+          "لا يمكنك سحب صلاحية الإدارة أو إيقاف حسابك الشخصي.",
       }
     }
 

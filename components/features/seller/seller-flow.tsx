@@ -4,12 +4,15 @@ import { useEffect, useState, useTransition } from 'react'
 import {
   AlertCircle,
   Check,
+  CheckCircle2,
   Copy,
   Eye,
   FileCheck2,
   FileText,
   ImagePlus,
   Loader2,
+  Mail,
+  MessageCircle,
   RefreshCw,
   ShieldCheck,
   Star,
@@ -26,6 +29,12 @@ import {
   verifyMagicTokenAction,
 } from '@/actions/submit-forms'
 import {
+  getUserVerificationStatusAction,
+  markUserPhoneVerifiedAction,
+  sendInlineEmailOtpAction,
+  verifyInlineEmailOtpAction,
+} from '@/actions/auth-actions'
+import {
   deleteUnitDocumentAction,
   requestUnitPromotionAction,
   saveUnitDocumentAction,
@@ -35,6 +44,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { TurnstileBox } from '@/components/layouts/auth-layout'
@@ -77,6 +87,14 @@ export type UploadedDocEntry = {
   status?: string
 }
 
+function maskEmailDisplay(email?: string): string {
+  const clean = String(email || '').trim()
+  if (!clean || !clean.includes('@')) return 'es***@gmail.com'
+  const [local, domain] = clean.split('@')
+  const prefix = local.slice(0, Math.min(2, local.length))
+  return `${prefix}***@${domain}`
+}
+
 function getSellerExtraLabels(locale: LocaleCode) {
   if (locale === 'en') {
     return {
@@ -99,6 +117,27 @@ function getSellerExtraLabels(locale: LocaleCode) {
       uploadFileBtn: 'Upload File',
       rowContractDate: 'Contract Date',
       rowRemainingMonths: 'Remaining Installments',
+      rowFeatures: 'Features',
+      rowMarketPrice: 'Current Market Price',
+      rowInstallment: 'Installment',
+      reviewNoteBeforeSubmit:
+        'Once submitted, our team reviews the unit to publish it on the marketplace. Ownership documents are verified before publishing.',
+      savedBadge: 'Saved ✓',
+      verifyBoxTitle: 'Final Step — Confirm Your Email & Phone',
+      verifyBoxDescPrefix:
+        'To protect the platform from fake accounts, we will send a code to your email',
+      verifyBoxDescSuffix: '— not on WhatsApp. Please check your inbox.',
+      sendCodeBtn: 'Send Me the Code',
+      confirmCodeBtn: 'Confirm',
+      resendCodeBtn: 'Resend',
+      codeSentToPrefix: '✉️ The code was sent to your email',
+      codeSentBody:
+        'Open your email now. The code is written in the email subject. If you do not see it, check Spam or Promotions.',
+      codeNotReceivedPrefix: 'Still not received? Contact us on WhatsApp',
+      codeNotReceivedSuffix: 'and we will help you.',
+      emailVerifiedBadge: 'Email Verified Successfully ✓',
+      waVerifyBtn: 'Confirm Phone & Unit via WhatsApp',
+      waVerifiedBadge: 'WhatsApp Confirmation Opened ✓',
     }
   }
   if (locale === 'ru') {
@@ -122,6 +161,27 @@ function getSellerExtraLabels(locale: LocaleCode) {
       uploadFileBtn: 'Загрузить',
       rowContractDate: 'Дата договора',
       rowRemainingMonths: 'Остаток рассрочки',
+      rowFeatures: 'Особенности',
+      rowMarketPrice: 'Рыночная цена сейчас',
+      rowInstallment: 'Платеж рассрочки',
+      reviewNoteBeforeSubmit:
+        'После отправки наша команда проверит объект и опубликует его на платформе.',
+      savedBadge: 'Сохранено ✓',
+      verifyBoxTitle: 'Последний шаг — Подтвердите ваш Email и Телефон',
+      verifyBoxDescPrefix:
+        'Для защиты платформы от фейковых аккаунтов мы отправим код на ваш email',
+      verifyBoxDescSuffix: '— проверьте вашу почту.',
+      sendCodeBtn: 'Отправить код',
+      confirmCodeBtn: 'Подтвердить',
+      resendCodeBtn: 'Отправить снова',
+      codeSentToPrefix: '✉️ Код отправлен на ваш email',
+      codeSentBody:
+        'Откройте почту. Код указан прямо в теме письма. Если письма нет, проверьте папку Спам или Промоакции.',
+      codeNotReceivedPrefix: 'Не пришел код? Напишите нам в WhatsApp',
+      codeNotReceivedSuffix: 'и мы поможем вам.',
+      emailVerifiedBadge: 'Email успешно подтвержден ✓',
+      waVerifyBtn: 'Подтвердить телефон и объект через WhatsApp',
+      waVerifiedBadge: 'Подтверждение WhatsApp открыто ✓',
     }
   }
   if (locale === 'ka') {
@@ -145,6 +205,27 @@ function getSellerExtraLabels(locale: LocaleCode) {
       uploadFileBtn: 'ატვირთვა',
       rowContractDate: 'ხელშეკრულების თარიღი',
       rowRemainingMonths: 'დარჩენილი განვადება',
+      rowFeatures: 'მახასიათებლები',
+      rowMarketPrice: 'საბაზრო ფასი ახლა',
+      rowInstallment: 'განვადების თანხა',
+      reviewNoteBeforeSubmit:
+        'გაგზავნის შემდეგ ჩვენი გუნდი გადაამოწმებს ობიექტს და გამოაქვეყნებს პლატფორმაზე.',
+      savedBadge: 'შენახულია ✓',
+      verifyBoxTitle: 'ბოლო ნაბიჯი — დაადასტურეთ ელ-ფოსტა და ნომერი',
+      verifyBoxDescPrefix:
+        'პლატფორმის დასაცავად კודს გამოგიგზავნით ელ-ფოსტაზე',
+      verifyBoxDescSuffix: '— შეამოწმეთ თქვენი ელ-ფოსტა.',
+      sendCodeBtn: 'კოდის გაგზავნა',
+      confirmCodeBtn: 'დადასტურება',
+      resendCodeBtn: 'თავიდან გაგზავნა',
+      codeSentToPrefix: '✉️ კოდი გაიგზავნა ელ-ფოსტაზე',
+      codeSentBody:
+        'გახსენით ელ-ფოსტა. კოდი წერია წერილის სათაურში. შეამოწმეთ Spam ან Promotions საქაღალდე.',
+      codeNotReceivedPrefix: 'კოდი არ მოვიდა? მოგვწერეთ WhatsApp-ზე',
+      codeNotReceivedSuffix: 'და დაგეხმარებით.',
+      emailVerifiedBadge: 'ელ-ფოსტა დადასტურებულია ✓',
+      waVerifyBtn: 'ნომრისა და ობიექტის დადასტურება WhatsApp-ით',
+      waVerifiedBadge: 'WhatsApp დადასტურება გახსნილია ✓',
     }
   }
   return {
@@ -167,6 +248,27 @@ function getSellerExtraLabels(locale: LocaleCode) {
     uploadFileBtn: 'ارفع الملف',
     rowContractDate: 'تاريخ التعاقد',
     rowRemainingMonths: 'الأقساط المتبقية (بالشهور)',
+    rowFeatures: 'المميزات',
+    rowMarketPrice: 'سعر السوق دلوقتي',
+    rowInstallment: 'القسط',
+    reviewNoteBeforeSubmit:
+      'أول ما تبعت، فريقنا بيراجع الوحدة وينشرها في السوق. المستندات (العقد والإيصالات) بنطلبها بعدين قبل إتمام البيع — مش قبل النشر.',
+    savedBadge: 'محفوظ ✓',
+    verifyBoxTitle: 'خطوة أخيرة — أكّد رقم موبايلك وإيميلك',
+    verifyBoxDescPrefix:
+      'عشان نحمي المنصة من الحسابات الوهمية، هنبعتلك كود على إيميلك',
+    verifyBoxDescSuffix: '— مش على الواتساب. فجهّز إيميلك.',
+    sendCodeBtn: 'ابعتلي الكود',
+    confirmCodeBtn: 'تأكيد',
+    resendCodeBtn: 'ابعت تاني',
+    codeSentToPrefix: '✉️ الكود اتبعت على إيميلك',
+    codeSentBody:
+      'افتح إيميلك دلوقتي. الكود مكتوب في عنوان الرسالة. لو مش لاقيها، بص في Spam أو Promotions — بتوصل هناك أحيانًا.',
+    codeNotReceivedPrefix: 'لسه موصلش؟ كلمنا على واتساب',
+    codeNotReceivedSuffix: 'وهنكمّل معاك.',
+    emailVerifiedBadge: 'تم توثيق بريدك الإلكتروني بنجاح ✓',
+    waVerifyBtn: 'تأكيد رقم الموبايل والوحدة عبر واتساب',
+    waVerifiedBadge: 'تم تأكيد رقم الموبايل عبر واتساب ✓',
   }
 }
 
@@ -208,8 +310,6 @@ export function SellerFlow() {
   const localizedDeliveries = getLocalizedDeliveries(dict, locale)
   const localizedUnitTypes = getLocalizedUnitTypes(dict, locale)
 
-  // الخطوات الـ 7:
-  // 1: البيانات الأساسية | 2: بيانات التواصل | 3: تفاصيل الوحدة | 4: الأسعار والأقساط | 5: صور الوحدة | 6: مستندات الملكية | 7: المراجعة والإرسال
   const [step, setStep] = useState(1)
   const [isMagicResume, setIsMagicResume] = useState(false)
   const [unitId, setUnitId] = useState<string>('')
@@ -248,6 +348,9 @@ export function SellerFlow() {
     phone: string
   } | null>(null)
 
+  const [emailVerified, setEmailVerified] = useState(false)
+  const [phoneVerified, setPhoneVerified] = useState(false)
+
   useEffect(() => {
     setForm((prev) => ({
       ...prev,
@@ -255,9 +358,17 @@ export function SellerFlow() {
     }))
 
     async function initFlow() {
-      const profileRes = await getCurrentSellerProfileAction()
+      const [profileRes, verStatus] = await Promise.all([
+        getCurrentSellerProfileAction(),
+        getUserVerificationStatusAction(),
+      ])
+
       if (profileRes.isLoggedIn && profileRes.user) {
         setLoggedUser(profileRes.user)
+      }
+      if (verStatus.isLoggedIn) {
+        setEmailVerified(verStatus.emailVerified)
+        setPhoneVerified(verStatus.phoneVerified)
       }
 
       if (typeof window !== 'undefined') {
@@ -416,7 +527,6 @@ export function SellerFlow() {
         }
 
         if (editUnitId) {
-          // تحقق أمني صارم على السيرفر أن الوحدة مملوكة لنفس user_id قبل السماح بتحميلها للتعديل
           const authUnitRes = await getAuthorizedUnitForEditAction(editUnitId)
           if (authUnitRes.allowed && authUnitRes.unit) {
             hydrateUnitIntoState(authUnitRes.unit, targetStep)
@@ -907,7 +1017,6 @@ export function SellerFlow() {
     })
   }
 
-  // عناوين الـ 7 خطوات بالترتيب (مع خطوة المستندات المستقلة رقم 6)
   const baseTitles = s.header.stepTitles || []
   const sevenStepTitles = [
     baseTitles[0] || 'البيانات الأساسية',
@@ -1099,6 +1208,13 @@ export function SellerFlow() {
                 imagesLength={images.length}
                 orderRef={orderRef}
                 unitId={unitId}
+                userId={loggedUser?.id || ''}
+                userEmail={form.email || loggedUser?.email || ''}
+                emailVerified={emailVerified}
+                setEmailVerified={setEmailVerified}
+                phoneVerified={phoneVerified}
+                setPhoneVerified={setPhoneVerified}
+                supportWhatsApp={supportWhatsApp}
                 extraT={extraT}
               />
             )}
@@ -1724,9 +1840,6 @@ function PricingStep({
   )
 }
 
-/**
- * الخطوة 5: رفع صور الوحدة فقط (مستقلة ونظيفة تماماً بدون أي مستندات)
- */
 function PhotosStep({
   go,
   images,
@@ -1850,10 +1963,6 @@ function PhotosStep({
   )
 }
 
-/**
- * الخطوة 6: خطوة مستقلة تماماً لرفع مستندات الملكية وجواز السفر
- * بدون أزرار تخطي مكررة، والزر الرئيسي نفسه يقول "كمّل وهرفعها بعدين" إذا لم تكتمل المستندات
- */
 function DocumentsStep({
   go,
   unitDocs,
@@ -2068,7 +2177,7 @@ function DocumentsStep({
 }
 
 /**
- * الخطوة 7: المراجعة النهائية والإرسال (بدون أي تكرار للكلام عن المستندات)
+ * الخطوة 7: المراجعة النهائية + صندوق تأكيد الإيميل بالكود (نفس شكل الصور المرفقة) + تأكيد الواتساب
  */
 function ReviewStep({
   form,
@@ -2082,6 +2191,13 @@ function ReviewStep({
   imagesLength,
   orderRef,
   unitId,
+  userId,
+  userEmail,
+  emailVerified,
+  setEmailVerified,
+  phoneVerified,
+  setPhoneVerified,
+  supportWhatsApp,
   extraT,
 }: {
   form: Record<string, string>
@@ -2095,6 +2211,13 @@ function ReviewStep({
   imagesLength: number
   orderRef: string
   unitId: string
+  userId: string
+  userEmail: string
+  emailVerified: boolean
+  setEmailVerified: (val: boolean) => void
+  phoneVerified: boolean
+  setPhoneVerified: (val: boolean) => void
+  supportWhatsApp: string
   extraT: ReturnType<typeof getSellerExtraLabels>
 }) {
   const { t: dict, locale, dir } = useTranslation()
@@ -2107,6 +2230,13 @@ function ReviewStep({
   const [copiedCode, setCopiedCode] = useState(false)
   const [promoPending, startPromoTransition] = useTransition()
 
+  // حالات صندوق إرسال وتأكيد الكود على الإيميل (نفس الصور المرفقة بالضبط)
+  const [otpSent, setOtpSent] = useState(false)
+  const [otpCode, setOtpCode] = useState('')
+  const [otpLoading, setOtpLoading] = useState(false)
+  const [otpError, setOtpError] = useState('')
+
+  const maskedEmail = maskEmailDisplay(userEmail)
   const countryObj = getCountryConfig(ACTIVE_PLATFORM_COUNTRY)
   const currency = getCurrencySymbol(ACTIVE_PLATFORM_COUNTRY, locale)
   const pkgPrices = countryObj.defaultPackages || {
@@ -2124,6 +2254,62 @@ function ReviewStep({
     { days: 14, price: pkgPrices.days14, label: `14 ${t.daysWord}` },
     { days: 30, price: pkgPrices.days30, label: `30 ${t.daysWord}` },
   ]
+
+  const siteOrigin =
+    typeof window !== 'undefined'
+      ? window.location.origin
+      : 'https://exit-16.vercel.app'
+
+  const projectName = form.projectDetails || form.project || 'وحدة'
+  const paidNum = Number(
+    toEnglishDigits(form.paidAmount2 || form.paidAmount || '0')
+  )
+  const contractNum = Number(
+    toEnglishDigits(form.contractPrice2 || form.contractPrice || '0')
+  )
+  const areaName = getLocalizedGeorgiaAreaName(form.location, locale)
+
+  const waVerifyLink = `${siteOrigin}/admin/properties?verifyPhoneUserId=${encodeURIComponent(userId || '')}&unitId=${encodeURIComponent(unitId || '')}`
+  const waConfirmMessage =
+    locale === 'ar'
+      ? `أهلاً إدارة Aqar Exit، أنا مالك الوحدة (${form.name || ''}) أؤكد رقم هاتفي وعرض وحدتي رقم (${orderRef}) في مشروع (${projectName} - ${areaName}) — المدفوع: (${paidNum.toLocaleString('en-US')} ${currency}) — إجمالي العقد: (${contractNum.toLocaleString('en-US')} ${currency}).\nرابط مراجعة وتوثيق الوحدة في الإدارة:\n${waVerifyLink}`
+      : `Hello Aqar Exit, I confirm my phone & unit listing (${orderRef}) in (${projectName} - ${areaName}) — Paid: (${paidNum.toLocaleString('en-US')} ${currency}).\nAdmin Verification Link:\n${waVerifyLink}`
+
+  const handleSendOtpCode = async () => {
+    setOtpLoading(true)
+    setOtpError('')
+    try {
+      const res = await sendInlineEmailOtpAction(userEmail)
+      if (res.success) {
+        setOtpSent(true)
+      } else {
+        setOtpError(res.error || 'تعذر إرسال الكود')
+      }
+    } finally {
+      setOtpLoading(false)
+    }
+  }
+
+  const handleVerifyOtpCode = async () => {
+    if (!otpCode.trim()) return
+    setOtpLoading(true)
+    setOtpError('')
+    try {
+      const res = await verifyInlineEmailOtpAction(otpCode, userEmail)
+      if (res.success) {
+        setEmailVerified(true)
+      } else {
+        setOtpError(res.error || 'الكود غير صحيح')
+      }
+    } finally {
+      setOtpLoading(false)
+    }
+  }
+
+  const handleWhatsAppVerifyClick = () => {
+    setPhoneVerified(true)
+    markUserPhoneVerifiedAction({ userId, unitId }).catch(() => {})
+  }
 
   const handleSelectPackage = (pkg: {
     days: 7 | 14 | 30
@@ -2163,6 +2349,25 @@ function ReviewStep({
         <span className="mt-3.5 rounded-full bg-slate-100 px-4 py-1.5 text-xs font-bold text-slate-700">
           {t.orderRefLabel} <strong className="font-mono">{orderRef}</strong>
         </span>
+
+        {/* زر تأكيد الوحدة وتوثيق الرقم عبر واتساب بعد الإرسال */}
+        <div className="mt-5 w-full rounded-2xl border-2 border-[#25D366]/40 bg-[#f0fdf4] p-4 text-center">
+          <p className="text-xs font-extrabold text-[#0a1122] sm:text-sm">
+            {locale === 'ar'
+              ? 'لتسريع مراجعة وحدتك وتوثيق رقم هاتفك بعلامة التوثيق ✓:'
+              : 'To fast-track unit review & verify your phone number ✓:'}
+          </p>
+          <a
+            href={`https://wa.me/${supportWhatsApp}?text=${encodeURIComponent(waConfirmMessage)}`}
+            target="_blank"
+            rel="noreferrer"
+            onClick={handleWhatsAppVerifyClick}
+            className="mt-3 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] px-6 text-xs font-extrabold text-white shadow-sm transition hover:opacity-95 sm:w-auto sm:text-sm"
+          >
+            <MessageCircle className="size-4 shrink-0" />
+            <span>{extraT.waVerifyBtn}</span>
+          </a>
+        </div>
 
         <div className="mt-6 w-full rounded-[20px] border border-[#aae3cb] bg-[#effaf5] p-5 text-start sm:p-6">
           <div className="flex items-center justify-start gap-1 text-xs font-extrabold text-[var(--brand-primary,#007a5a)]">
@@ -2303,14 +2508,8 @@ function ReviewStep({
     [t.rowFinishing, selected.finishing?.join(listSep) || '—'],
     [t.rowDelivery, deliveryFormatted],
     [
-      t.rowContractDate || extraT.rowContractDate,
-      contractDateFormatted,
-    ],
-    [
-      t.rowRemainingMonths || extraT.rowRemainingMonths,
-      form.remainingMonths
-        ? `${form.remainingMonths} ${monthsUnitLabel}`
-        : '0',
+      extraT.rowFeatures,
+      String(selected.features?.length || 0),
     ],
     [t.rowPhotos, String(imagesLength)],
     [
@@ -2325,6 +2524,33 @@ function ReviewStep({
         toEnglishDigits(form.paidAmount2 || form.paidAmount || '0')
       ).toLocaleString('en-US')} ${currency}`,
     ],
+    [
+      extraT.rowMarketPrice,
+      `${Number(
+        toEnglishDigits(
+          form.marketPrice ||
+            form.currentDeveloperPrice ||
+            form.contractPrice ||
+            '0'
+        )
+      ).toLocaleString('en-US')} ${currency}`,
+    ],
+    [
+      extraT.rowInstallment,
+      `${Number(
+        toEnglishDigits(form.installment || '0')
+      ).toLocaleString('en-US')} ${currency}`,
+    ],
+    [
+      t.rowContractDate || extraT.rowContractDate,
+      contractDateFormatted,
+    ],
+    [
+      t.rowRemainingMonths || extraT.rowRemainingMonths,
+      form.remainingMonths
+        ? `${form.remainingMonths} ${monthsUnitLabel}`
+        : '0',
+    ],
   ]
 
   return (
@@ -2336,6 +2562,142 @@ function ReviewStep({
             <strong className="text-end">{value}</strong>
           </div>
         ))}
+      </div>
+
+      {/* الملاحظة النصية وعلامة محفوظ ✓ تماماً مثل الصور المرفقة */}
+      <div className="space-y-1.5 text-start text-xs leading-relaxed text-slate-500">
+        <p>{extraT.reviewNoteBeforeSubmit}</p>
+        <p className="font-bold text-slate-600">{extraT.savedBadge}</p>
+      </div>
+
+      {/* ==================== صندوق تأكيد الإيميل بالكود + تأكيد الواتساب (مطابق للصور المرفقة) ==================== */}
+      <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5 text-start">
+        <h3 className="text-sm font-black text-[#0a1122] sm:text-base">
+          {extraT.verifyBoxTitle}
+        </h3>
+        <p className="mt-1.5 text-xs leading-relaxed text-slate-600">
+          {extraT.verifyBoxDescPrefix}{' '}
+          <strong dir="ltr" className="font-mono text-[#0a1122]">
+            {maskedEmail}
+          </strong>{' '}
+          {extraT.verifyBoxDescSuffix}
+        </p>
+
+        <div className="mt-4">
+          {emailVerified ? (
+            <div className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs font-extrabold text-[#007a5a]">
+              <CheckCircle2 className="size-4 shrink-0" />
+              <span>{extraT.emailVerifiedBadge}</span>
+            </div>
+          ) : !otpSent ? (
+            <button
+              type="button"
+              disabled={otpLoading}
+              onClick={handleSendOtpCode}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#0a1122] px-6 text-xs font-extrabold text-white shadow-2xs transition hover:bg-[#16223f] disabled:opacity-60 sm:text-sm"
+            >
+              {otpLoading ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Mail className="size-4" />
+              )}
+              <span>{extraT.sendCodeBtn}</span>
+            </button>
+          ) : (
+            <div className="flex flex-col gap-3.5">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  dir="ltr"
+                  maxLength={6}
+                  value={otpCode}
+                  onChange={(e) =>
+                    setOtpCode(
+                      toEnglishDigits(e.target.value).replace(/[^0-9]/g, '')
+                    )
+                  }
+                  placeholder="# # # # # #"
+                  className="h-11 w-40 rounded-xl border-slate-300 bg-white text-center font-mono text-base font-extrabold tracking-[0.25em]"
+                />
+
+                <button
+                  type="button"
+                  disabled={otpLoading || otpCode.length < 4}
+                  onClick={handleVerifyOtpCode}
+                  className={`inline-flex h-11 items-center justify-center rounded-xl px-5 text-xs font-extrabold text-white transition sm:text-sm ${
+                    otpCode.length >= 6
+                      ? 'bg-[#007a5a] hover:bg-[#006248]'
+                      : 'bg-slate-400'
+                  }`}
+                >
+                  {otpLoading ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    extraT.confirmCodeBtn
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  disabled={otpLoading}
+                  onClick={handleSendOtpCode}
+                  className="px-2 text-xs font-bold text-[#0a1122] underline hover:text-[#007a5a]"
+                >
+                  {extraT.resendCodeBtn}
+                </button>
+              </div>
+
+              <div className="rounded-xl border border-emerald-200 bg-[#effaf5] p-3.5 text-start text-xs leading-relaxed text-[#0c4a3e]">
+                <p className="font-extrabold">
+                  {extraT.codeSentToPrefix}{' '}
+                  <span dir="ltr" className="font-mono">
+                    {maskedEmail}
+                  </span>
+                </p>
+                <p className="mt-1">{extraT.codeSentBody}</p>
+                <p className="mt-2">
+                  {extraT.codeNotReceivedPrefix}{' '}
+                  <a
+                    href={`https://wa.me/${supportWhatsApp}?text=${encodeURIComponent(waConfirmMessage)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={handleWhatsAppVerifyClick}
+                    className="font-mono font-black underline"
+                  >
+                    {supportWhatsApp}
+                  </a>{' '}
+                  {extraT.codeNotReceivedSuffix}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {otpError && (
+            <p className="mt-2 text-xs font-bold text-red-600">{otpError}</p>
+          )}
+        </div>
+
+        {/* زر تأكيد رقم الهاتف والوحدة عبر واتساب مباشرة داخل نفس الصندوق */}
+        <div className="mt-4 border-t border-slate-200/80 pt-4">
+          {phoneVerified ? (
+            <div className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-extrabold text-[#007a5a]">
+              <CheckCircle2 className="size-4 shrink-0" />
+              <span>{extraT.waVerifiedBadge}</span>
+            </div>
+          ) : (
+            <a
+              href={`https://wa.me/${supportWhatsApp}?text=${encodeURIComponent(waConfirmMessage)}`}
+              target="_blank"
+              rel="noreferrer"
+              onClick={handleWhatsAppVerifyClick}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 text-xs font-extrabold text-white shadow-2xs transition hover:opacity-95"
+            >
+              <MessageCircle className="size-4 shrink-0" />
+              <span>{extraT.waVerifyBtn}</span>
+            </a>
+          )}
+        </div>
       </div>
 
       {error && (

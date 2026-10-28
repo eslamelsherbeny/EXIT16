@@ -1,73 +1,28 @@
 "use server"
 
-import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
-import {
-  createHash,
-  timingSafeEqual,
-  randomBytes,
-  scryptSync,
-} from "node:crypto"
+import { randomBytes } from "node:crypto"
 import { revalidatePath } from "next/cache"
-import nodemailer from "nodemailer"
-import {
-  createSignedSessionToken,
-  extractUserIdFromCookie,
-  parseAndVerifySessionCookie,
-} from "@/lib/session-security"
+import { createSignedSessionToken } from "@/lib/session-security"
 import {
   getServerI18n,
   type GlobalSiteSettings,
 } from "@/lib/get-server-dictionary"
+import { upsertUserVerificationMeta } from "@/lib/form-action-helpers"
+import {
+  DEFAULT_SITE_URL,
+  formatPrimaryPhone,
+  getAdminActionsDict,
+  hashPassword,
+  requireAdminAuth,
+  revalidateAdminAll,
+  sanitizeText,
+  sendSystemEmail,
+  verifyPassword,
+  type StaffRoleCode,
+} from "@/lib/admin-auth-helpers"
 
-export type StaffRoleCode = "admin" | "moderator" | "sales"
-
-const DEFAULT_SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL || "https://exit-16.vercel.app"
-
-async function getAdminActionsDict() {
-  const { dict, dir } = await getServerI18n()
-  const t = (dict as Record<string, any>)?.serverActions?.admin || {}
-  return { t, dir }
-}
-
-async function getSupabase() {
-  const cookieStore = await cookies()
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} },
-    }
-  )
-}
-
-function sanitizeText(val: unknown, maxLen = 500): string {
-  if (typeof val !== "string") return ""
-  return val
-    .trim()
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
-    .replace(/[<>]/g, "")
-    .slice(0, maxLen)
-}
-
-function formatPrimaryPhone(rawPhone: string): string {
-  const digits = sanitizeText(rawPhone, 30)
-    .replace(/\s+/g, "")
-    .replace(/[^0-9+]/g, "")
-  if (!digits) return ""
-  if (digits.startsWith("+")) return digits
-  const stripped = digits.replace(/^0+/, "")
-  if (
-    stripped.startsWith("995") ||
-    stripped.startsWith("20") ||
-    stripped.startsWith("966") ||
-    stripped.startsWith("971")
-  ) {
-    return `+${stripped}`
-  }
-  return `+995${stripped}`
-}
+export type { StaffRoleCode }
 
 export async function getPublicSiteRuntimeConfigAction(): Promise<{
   siteSettings: GlobalSiteSettings
@@ -85,165 +40,9 @@ export async function logoutAdminAction() {
   return { success: true }
 }
 
-async function requireAdminAuth(
-  allowedRoles: StaffRoleCode[] = ["admin", "moderator", "sales"]
-) {
-  const { t: msg } = await getAdminActionsDict()
-  const cookieStore = await cookies()
-  const rawSession = cookieStore.get("user_session")?.value
-  const candidateUserId = extractUserIdFromCookie(rawSession)
-  if (!rawSession || !candidateUserId) {
-    throw new Error(msg.unauthorizedLogin)
-  }
-
-  const supabase = await getSupabase()
-
-  const { data: user } = await supabase
-    .from("users")
-    .select("id, name, email, role, status, password_hash")
-    .eq("id", candidateUserId)
-    .maybeSingle()
-
-  if (!user) {
-    throw new Error(msg.unauthorizedNotFound)
-  }
-
-  const sessionCheck = parseAndVerifySessionCookie(
-    rawSession,
-    user.password_hash
-  )
-  if (!sessionCheck.valid) {
-    cookieStore.delete("user_session")
-    cookieStore.delete("session_hint")
-    throw new Error(msg.sessionExpiredPassword)
-  }
-
-  const cleanStatus = String(user.status || "active").trim().toLowerCase()
-  if (cleanStatus === "suspended") {
-    throw new Error(msg.adminSuspended)
-  }
-
-  const cleanRole = String(user.role || "user")
-    .replace(/[\r\n\s]+/g, "")
-    .toLowerCase() as StaffRoleCode | "user"
-
-  if (!allowedRoles.includes(cleanRole as StaffRoleCode)) {
-    throw new Error(msg.insufficientRole)
-  }
-
-  return { supabase, adminUser: user, role: cleanRole as StaffRoleCode, msg }
-}
-
-async function sendAdminEmail({
-  to,
-  subject,
-  html,
-  senderName,
-}: {
-  to: string
-  subject: string
-  html: string
-  senderName?: string
-}) {
-  const user = process.env.EMAIL_USER?.trim()
-  const pass = process.env.EMAIL_PASS?.replace(/\s+/g, "")
-  if (!user || !pass || !to) return false
-
-  try {
-    const transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 465,
-      secure: true,
-      auth: { user, pass },
-      tls: { rejectUnauthorized: false },
-    })
-
-    await transporter.sendMail({
-      from: `"${senderName || "Aqar Exit Admin"}" <${user}>`,
-      to: to.trim(),
-      subject,
-      html,
-    })
-    return true
-  } catch (e) {
-    console.error("Admin Email Error:", e)
-    return false
-  }
-}
-
-function hashPassword(password: string) {
-  const salt = randomBytes(16).toString("hex")
-  const derived = scryptSync(password, salt, 64).toString("hex")
-  return `scrypt$${salt}$${derived}`
-}
-
-function verifyPassword(password: string, stored: string | null) {
-  if (!stored) return false
-  const cleanStored = stored.trim()
-  const cleanPass = password.trim()
-
-  try {
-    if (cleanStored.startsWith("scrypt$")) {
-      const [, salt, expected] = cleanStored.split("$")
-      if (!salt || !expected) return false
-      const actual1 = scryptSync(password, salt, 64).toString("hex")
-      if (
-        actual1.length === expected.length &&
-        timingSafeEqual(Buffer.from(actual1), Buffer.from(expected))
-      ) {
-        return true
-      }
-      const actual2 = scryptSync(cleanPass, salt, 64).toString("hex")
-      return (
-        actual2.length === expected.length &&
-        timingSafeEqual(Buffer.from(actual2), Buffer.from(expected))
-      )
-    }
-
-    const sha1 = createHash("sha256").update(password).digest("hex")
-    if (
-      sha1.length === cleanStored.length &&
-      timingSafeEqual(Buffer.from(sha1), Buffer.from(cleanStored))
-    ) {
-      return true
-    }
-    const sha2 = createHash("sha256").update(cleanPass).digest("hex")
-    if (
-      sha2.length === cleanStored.length &&
-      timingSafeEqual(Buffer.from(sha2), Buffer.from(cleanStored))
-    ) {
-      return true
-    }
-
-    return cleanStored === password || cleanStored === cleanPass
-  } catch {
-    return false
-  }
-}
-
-function revalidateAdminAll() {
-  revalidatePath("/", "layout")
-  revalidatePath("/admin", "layout")
-  revalidatePath("/admin")
-  revalidatePath("/admin/properties")
-  revalidatePath("/admin/promotions")
-  revalidatePath("/admin/leads")
-  revalidatePath("/admin/users")
-  revalidatePath("/admin/settings")
-  revalidatePath("/admin/profile")
-  revalidatePath("/account")
-  revalidatePath("/account/offers")
-  revalidatePath("/account/documents")
-  revalidatePath("/opportunities")
-  revalidatePath("/contact")
-  revalidatePath("/sell")
-  revalidatePath("/buy")
-  revalidatePath("/calculator")
-  revalidatePath("/exit")
-}
-
 /**
- * توثيق البريد الإلكتروني أو رقم الهاتف لأي بائع أو مشتري من لوحة الأدمن أو عبر رابط الواتساب
+ * توثيق البريد الإلكتروني أو رقم الهاتف لأي بائع أو مشتري من لوحة الأدمن
+ * مترابط بالكامل مع upsertUserVerificationMeta ليظهر التوثيق فوراً في حساب العميل ولوحة الإدارة
  */
 export async function verifyUserContactByAdminAction(payload: {
   userId: string
@@ -267,12 +66,15 @@ export async function verifyUserContactByAdminAction(payload: {
       .maybeSingle()
 
     if (!user) {
-      return { success: false, error: "User not found" }
+      return { success: false, error: msg.unauthorizedNotFound }
     }
 
     const updates: Record<string, any> = {}
+    const metaUpdates: { emailVerified?: boolean; phoneVerified?: boolean } = {}
+
     if (payload.type === "email" || payload.type === "both") {
       updates.is_verified = true
+      metaUpdates.emailVerified = true
     }
 
     if (payload.type === "phone" || payload.type === "both") {
@@ -283,26 +85,7 @@ export async function verifyUserContactByAdminAction(payload: {
           ? `PHONE_OK|${currentOtp}`
           : "PHONE_OK"
       updates.phone_verified = true
-
-      try {
-        const { data: existingNotif } = await supabase
-          .from("notifications")
-          .select("id")
-          .eq("user_id", payload.userId)
-          .eq("title", "__PHONE_VERIFIED__")
-          .maybeSingle()
-
-        if (!existingNotif) {
-          await supabase.from("notifications").insert({
-            user_id: payload.userId,
-            title: "__PHONE_VERIFIED__",
-            message: "verified_by_admin",
-            type: "system",
-            link: "/account",
-            is_read: true,
-          })
-        }
-      } catch {}
+      metaUpdates.phoneVerified = true
     }
 
     const { error } = await supabase
@@ -314,6 +97,8 @@ export async function verifyUserContactByAdminAction(payload: {
       delete updates.phone_verified
       await supabase.from("users").update(updates).eq("id", payload.userId)
     }
+
+    await upsertUserVerificationMeta(supabase, payload.userId, metaUpdates)
 
     revalidateAdminAll()
     return { success: true }
@@ -507,7 +292,7 @@ export async function updatePropertyStatusAction(
 
       const emailObj = statusMessages[status]
       if (emailObj) {
-        await sendAdminEmail({
+        await sendSystemEmail({
           to: prop.email,
           senderName: msg.adminSenderName,
           subject: emailObj.subject,
@@ -715,9 +500,7 @@ export async function updateUserRoleAndStatusAction(
     ) {
       return {
         success: false,
-        error:
-          msg.cannotDeleteSelf ||
-          "لا يمكنك سحب صلاحية الإدارة أو إيقاف حسابك الشخصي.",
+        error: msg.cannotDeleteSelf,
       }
     }
 
@@ -871,7 +654,7 @@ export async function updateAdminProfileDataAction(formData: FormData) {
 
       const verifyLink = `${DEFAULT_SITE_URL}/login?verified=1&email=${encodeURIComponent(email)}&token=${verifyToken}`
 
-      await sendAdminEmail({
+      await sendSystemEmail({
         to: email,
         senderName: msg.adminSenderName,
         subject: msg.confirmNewEmailSubject,

@@ -1,308 +1,32 @@
-'use server'
+"use server"
 
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+import { cookies } from "next/headers"
+import { randomBytes } from "node:crypto"
+import { revalidatePath } from "next/cache"
 import {
-  createHash,
-  createHmac,
-  randomBytes,
-  scryptSync,
-  timingSafeEqual,
-} from 'node:crypto'
-import { revalidatePath } from 'next/cache'
-import nodemailer from 'nodemailer'
-import {
-  createSignedSessionToken,
   extractUserIdFromCookie,
   parseAndVerifySessionCookie,
-} from '@/lib/session-security'
-import { getServerI18n } from '@/lib/get-server-dictionary'
-import { upsertUserVerificationMeta } from '@/lib/form-action-helpers'
-
-const DEFAULT_SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL || 'https://exit-16.vercel.app'
-
-async function getAuthDict() {
-  const { dict, dir, locale } = await getServerI18n()
-  const t = (dict as Record<string, any>)?.serverActions?.auth || {}
-  return { t, dir, locale }
-}
-
-async function getSupabase() {
-  const cookieStore = await cookies()
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} },
-    }
-  )
-}
-
-function getSessionSecret() {
-  return (
-    process.env.SESSION_SECRET ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    'aqar-exit-enterprise-secret-key-2026'
-  )
-}
-
-function normalizeDigits(str: string): string {
-  return String(str || '')
-    .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 1632))
-    .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 1776))
-}
-
-function sanitizeInput(val: unknown, maxLength = 250): string {
-  if (typeof val !== 'string') return ''
-  return normalizeDigits(val)
-    .trim()
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/[<>]/g, '')
-    .replace(/javascript:/gi, '')
-    .slice(0, maxLength)
-}
-
-async function verifyTurnstileOnServer(token?: string | null): Promise<boolean> {
-  const secretKey = process.env.TURNSTILE_SECRET_KEY?.trim()
-  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim()
-
-  if (!secretKey || !siteKey) return true
-  if (!token || token === 'dev-bypass-token') return true
-
-  try {
-    const formData = new URLSearchParams()
-    formData.append('secret', secretKey)
-    formData.append('response', token)
-
-    const res = await fetch(
-      'https://challenges.cloudflare.com/turnstile/v0/siteverify',
-      {
-        method: 'POST',
-        body: formData,
-      }
-    )
-    const data = await res.json()
-    return Boolean(data.success)
-  } catch {
-    return true
-  }
-}
-
-async function sendEmail({
-  to,
-  subject,
-  html,
-  senderName,
-}: {
-  to: string
-  subject: string
-  html: string
-  senderName?: string
-}) {
-  const user = process.env.EMAIL_USER?.trim()
-  const pass = process.env.EMAIL_PASS?.replace(/\s+/g, '')
-
-  if (!user || !pass || !to) return false
-
-  try {
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 465,
-      secure: true,
-      auth: { user, pass },
-      tls: { rejectUnauthorized: false },
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-      socketTimeout: 15000,
-    })
-
-    await transporter.sendMail({
-      from: `"${senderName || 'Aqar Exit'}" <${user}>`,
-      to: to.trim(),
-      subject,
-      html,
-    })
-    return true
-  } catch (error) {
-    console.error('Email sending failed:', error)
-    return false
-  }
-}
-
-async function setUserSession(
-  userId: string,
-  passwordHash?: string | null
-) {
-  const cookieStore = await cookies()
-  const isProd = process.env.NODE_ENV === 'production'
-  const token = createSignedSessionToken(userId, passwordHash)
-
-  cookieStore.set('user_session', token, {
-    path: '/',
-    maxAge: 60 * 60 * 24 * 30,
-    sameSite: 'lax',
-    secure: isProd,
-    httpOnly: true,
-  })
-  cookieStore.set('session_hint', '1', {
-    path: '/',
-    maxAge: 60 * 60 * 24 * 30,
-    sameSite: 'lax',
-    secure: isProd,
-  })
-}
+} from "@/lib/session-security"
+import { upsertUserVerificationMeta } from "@/lib/form-action-helpers"
+import {
+  DEFAULT_SITE_URL,
+  formatPrimaryPhone,
+  getAuthActionsDict,
+  getPhoneVariants,
+  getSupabase,
+  hashPassword,
+  normalizeEmail,
+  sanitizeText,
+  sendSystemEmail,
+  setUserSessionCookie,
+  signOtpToken,
+  verifyPassword,
+  verifySignedOtpToken,
+  verifyTurnstileOnServer,
+} from "@/lib/admin-auth-helpers"
 
 function generateOTP() {
   return Math.floor(100000 + Math.random() * 900000).toString()
-}
-
-function normalizeEmail(email: string) {
-  return sanitizeInput(email, 160).toLowerCase()
-}
-
-function getPhoneVariants(rawPhone: string) {
-  const digits = sanitizeInput(rawPhone, 30)
-    .replace(/\s+/g, '')
-    .replace(/[^0-9+]/g, '')
-  if (!digits) return []
-
-  const withoutPlus = digits.replace(/^\+/, '')
-  const strippedZero = withoutPlus.replace(/^0+/, '')
-
-  const variants = new Set<string>([
-    digits,
-    withoutPlus,
-    `+${withoutPlus}`,
-    `0${strippedZero}`,
-    `+${strippedZero}`,
-    `+995${strippedZero}`,
-    `+20${strippedZero}`,
-    `+966${strippedZero}`,
-    `+971${strippedZero}`,
-    `+965${strippedZero}`,
-    `+974${strippedZero}`,
-    `+7${strippedZero}`,
-    `+90${strippedZero}`,
-  ])
-
-  for (const code of ['995', '20', '966', '971', '965', '974', '90']) {
-    if (strippedZero.startsWith(code) && strippedZero.length > code.length + 6) {
-      const localPart = strippedZero.slice(code.length).replace(/^0+/, '')
-      variants.add(`+${code}${localPart}`)
-      variants.add(`0${localPart}`)
-      variants.add(localPart)
-    }
-  }
-
-  return Array.from(variants).filter(Boolean)
-}
-
-function formatPrimaryPhone(rawPhone: string) {
-  const digits = sanitizeInput(rawPhone, 30)
-    .replace(/\s+/g, '')
-    .replace(/[^0-9+]/g, '')
-  if (!digits) return ''
-
-  if (digits.startsWith('+')) {
-    return `+${digits.slice(1).replace(/^0+/, '')}`
-  }
-
-  const stripped = digits.replace(/^0+/, '')
-  if (
-    stripped.startsWith('995') ||
-    stripped.startsWith('20') ||
-    stripped.startsWith('966') ||
-    stripped.startsWith('971') ||
-    stripped.startsWith('965') ||
-    stripped.startsWith('974')
-  ) {
-    return `+${stripped}`
-  }
-  return `+995${stripped}`
-}
-
-function hashPassword(password: string) {
-  const salt = randomBytes(16).toString('hex')
-  const derived = scryptSync(password, salt, 64).toString('hex')
-  return `scrypt$${salt}$${derived}`
-}
-
-function verifyPassword(password: string, stored: string | null) {
-  if (!stored) return false
-  const cleanStored = stored.trim()
-  const cleanPass = password.trim()
-  const normPass = normalizeDigits(cleanPass)
-
-  try {
-    if (cleanStored.startsWith('scrypt$')) {
-      const [, salt, expected] = cleanStored.split('$')
-      if (!salt || !expected) return false
-
-      for (const candidate of [password, cleanPass, normPass]) {
-        const actual = scryptSync(candidate, salt, 64).toString('hex')
-        if (
-          actual.length === expected.length &&
-          timingSafeEqual(Buffer.from(actual), Buffer.from(expected))
-        ) {
-          return true
-        }
-      }
-      return false
-    }
-
-    for (const candidate of [password, cleanPass, normPass]) {
-      const sha = createHash('sha256').update(candidate).digest('hex')
-      if (
-        sha.length === cleanStored.length &&
-        timingSafeEqual(Buffer.from(sha), Buffer.from(cleanStored))
-      ) {
-        return true
-      }
-    }
-
-    return (
-      cleanStored === password ||
-      cleanStored === cleanPass ||
-      cleanStored === normPass
-    )
-  } catch {
-    return false
-  }
-}
-
-function signOtpToken(email: string, otp: string, expiresAt: number) {
-  const data = `${normalizeEmail(email)}:${otp.trim()}:${expiresAt}`
-  const signature = createHmac('sha256', getSessionSecret())
-    .update(data)
-    .digest('hex')
-  return `${expiresAt}.${signature}`
-}
-
-function verifySignedOtpToken(
-  email: string,
-  otp: string,
-  tokenValue: string | undefined
-) {
-  if (!tokenValue || !tokenValue.includes('.'))
-    return { valid: false, expired: false }
-  const [expiresStr, signature] = tokenValue.split('.')
-  const expiresAt = Number(expiresStr)
-
-  if (!expiresAt || Number.isNaN(expiresAt))
-    return { valid: false, expired: false }
-  if (Date.now() > expiresAt) return { valid: false, expired: true }
-
-  const expectedToken = signOtpToken(email, otp, expiresAt)
-  const expectedSig = expectedToken.split('.')[1]
-
-  if (signature.length !== expectedSig.length)
-    return { valid: false, expired: false }
-  const isMatch = timingSafeEqual(
-    Buffer.from(signature),
-    Buffer.from(expectedSig)
-  )
-  return { valid: isMatch, expired: false }
 }
 
 export type AuthResult = {
@@ -312,58 +36,58 @@ export type AuthResult = {
 }
 
 export async function loginAction(formData: FormData): Promise<AuthResult> {
-  const { t: msg, dir } = await getAuthDict()
-  const turnstileToken = formData.get('cf_turnstile_response') as string | null
+  const { t: msg, dir } = await getAuthActionsDict()
+  const turnstileToken = formData.get("cf_turnstile_response") as string | null
   const isHuman = await verifyTurnstileOnServer(turnstileToken)
   if (!isHuman) {
     return {
       success: false,
-      error: msg.turnstile || 'يرجى إتمام التحقق الأمني',
+      error: msg.turnstile,
     }
   }
 
-  const rawInput = sanitizeInput(
-    formData.get('emailOrPhone') || formData.get('email'),
+  const rawInput = sanitizeText(
+    formData.get("emailOrPhone") || formData.get("email"),
     160
   )
-  const password = String(formData.get('password') || '').slice(0, 128)
-  const nextUrl = sanitizeInput(formData.get('nextUrl'), 120)
+  const password = String(formData.get("password") || "").slice(0, 128)
+  const nextUrl = sanitizeText(formData.get("nextUrl"), 120)
 
   if (!rawInput || !password) {
     return {
       success: false,
-      error: msg.missingLogin || 'يرجى إدخال البريد أو الهاتف وكلمة المرور',
+      error: msg.missingLogin,
     }
   }
 
   const supabase = await getSupabase()
   let candidates: any[] = []
 
-  if (rawInput.includes('@')) {
+  if (rawInput.includes("@")) {
     const cleanEmail = normalizeEmail(rawInput)
     const { data } = await supabase
-      .from('users')
-      .select('id, name, email, phone, password_hash, status, role')
-      .ilike('email', cleanEmail)
-      .order('created_at', { ascending: false })
+      .from("users")
+      .select("id, name, email, phone, password_hash, status, role")
+      .ilike("email", cleanEmail)
+      .order("created_at", { ascending: false })
     candidates = data || []
   } else {
     const phoneVariants = getPhoneVariants(rawInput)
     const { data } = await supabase
-      .from('users')
-      .select('id, name, email, phone, password_hash, status, role')
-      .in('phone', phoneVariants)
-      .order('created_at', { ascending: false })
+      .from("users")
+      .select("id, name, email, phone, password_hash, status, role")
+      .in("phone", phoneVariants)
+      .order("created_at", { ascending: false })
     candidates = data || []
 
     if (candidates.length === 0) {
-      const pureDigits = rawInput.replace(/\D/g, '')
+      const pureDigits = rawInput.replace(/\D/g, "")
       if (pureDigits.length >= 8) {
         const tail = pureDigits.slice(-8)
         const { data: tailData } = await supabase
-          .from('users')
-          .select('id, name, email, phone, password_hash, status, role')
-          .ilike('phone', `%${tail}`)
+          .from("users")
+          .select("id, name, email, phone, password_hash, status, role")
+          .ilike("phone", `%${tail}`)
           .limit(5)
         candidates = tailData || []
       }
@@ -373,7 +97,7 @@ export async function loginAction(formData: FormData): Promise<AuthResult> {
   if (candidates.length === 0) {
     return {
       success: false,
-      error: msg.notRegistered || 'هذا الحساب غير مسجل لدينا',
+      error: msg.notRegistered,
     }
   }
 
@@ -384,39 +108,39 @@ export async function loginAction(formData: FormData): Promise<AuthResult> {
   if (!matchedUser) {
     return {
       success: false,
-      error: msg.wrongPassword || 'كلمة المرور غير صحيحة',
+      error: msg.wrongPassword,
     }
   }
 
-  const cleanStatus = String(matchedUser.status || 'active')
+  const cleanStatus = String(matchedUser.status || "active")
     .trim()
     .toLowerCase()
-  if (cleanStatus === 'suspended') {
+  if (cleanStatus === "suspended") {
     return {
       success: false,
-      error: msg.suspended || 'تم إيقاف هذا الحساب',
+      error: msg.suspended,
     }
   }
 
-  const cleanRole = String(matchedUser.role || 'user')
-    .replace(/[\r\n\s]+/g, '')
+  const cleanRole = String(matchedUser.role || "user")
+    .replace(/[\r\n\s]+/g, "")
     .toLowerCase()
   const isStaff =
-    cleanRole === 'admin' ||
-    cleanRole === 'moderator' ||
-    cleanRole === 'sales'
+    cleanRole === "admin" ||
+    cleanRole === "moderator" ||
+    cleanRole === "sales"
 
-  if (nextUrl.startsWith('/admin') && !isStaff) {
+  if (nextUrl.startsWith("/admin") && !isStaff) {
     return {
       success: false,
-      error: msg.noAdminAccess || 'لا تملك صلاحية الدخول للوحة الإدارة',
+      error: msg.noAdminAccess,
     }
   }
 
-  await setUserSession(matchedUser.id, matchedUser.password_hash)
+  await setUserSessionCookie(matchedUser.id, matchedUser.password_hash)
 
   if (matchedUser.email) {
-    sendEmail({
+    sendSystemEmail({
       to: matchedUser.email.trim(),
       senderName: msg.emailSenderName,
       subject: msg.loginEmailSubject,
@@ -428,12 +152,12 @@ export async function loginAction(formData: FormData): Promise<AuthResult> {
   }
 
   const isSafeInternalUrl =
-    nextUrl && nextUrl.startsWith('/') && !nextUrl.startsWith('//')
-  const targetRedirect = isSafeInternalUrl ? nextUrl : '/account'
+    nextUrl && nextUrl.startsWith("/") && !nextUrl.startsWith("//")
+  const targetRedirect = isSafeInternalUrl ? nextUrl : "/account"
 
-  revalidatePath('/', 'layout')
-  revalidatePath('/account', 'layout')
-  revalidatePath('/admin', 'layout')
+  revalidatePath("/", "layout")
+  revalidatePath("/account", "layout")
+  revalidatePath("/admin", "layout")
 
   return {
     success: true,
@@ -442,24 +166,24 @@ export async function loginAction(formData: FormData): Promise<AuthResult> {
 }
 
 export async function registerAction(formData: FormData): Promise<AuthResult> {
-  const { t: msg, dir } = await getAuthDict()
-  const turnstileToken = formData.get('cf_turnstile_response') as string | null
+  const { t: msg, dir } = await getAuthActionsDict()
+  const turnstileToken = formData.get("cf_turnstile_response") as string | null
   const isHuman = await verifyTurnstileOnServer(turnstileToken)
   if (!isHuman) {
     return {
       success: false,
-      error: msg.turnstile || 'يرجى إتمام التحقق الأمني',
+      error: msg.turnstile,
     }
   }
 
-  const name = sanitizeInput(
-    formData.get('name') || formData.get('full-name'),
+  const name = sanitizeText(
+    formData.get("name") || formData.get("full-name"),
     120
   )
-  const email = normalizeEmail(String(formData.get('email') || ''))
-  const rawPhone = sanitizeInput(formData.get('phone'), 30)
-  const password = String(formData.get('password') || '').slice(0, 128)
-  const country = sanitizeInput(formData.get('country') || 'GE', 5).toUpperCase()
+  const email = normalizeEmail(String(formData.get("email") || ""))
+  const rawPhone = sanitizeText(formData.get("phone"), 30)
+  const password = String(formData.get("password") || "").slice(0, 128)
+  const country = sanitizeText(formData.get("country") || "GE", 5).toUpperCase()
 
   const formattedPhone = formatPrimaryPhone(rawPhone)
   const phoneVariants = getPhoneVariants(rawPhone)
@@ -467,9 +191,7 @@ export async function registerAction(formData: FormData): Promise<AuthResult> {
   if (!name || !email || !formattedPhone || !password || password.length < 8) {
     return {
       success: false,
-      error:
-        msg.fillAllRegister ||
-        'يرجى ملء كافة الحقول المطلوبة (كلمة المرور 8 أحرف على الأقل)',
+      error: msg.fillAllRegister,
     }
   }
 
@@ -477,96 +199,91 @@ export async function registerAction(formData: FormData): Promise<AuthResult> {
 
   const [{ data: existingEmails }, { data: existingPhones }] =
     await Promise.all([
-      supabase.from('users').select('id').ilike('email', email).limit(1),
-      supabase.from('users').select('id').in('phone', phoneVariants).limit(1),
+      supabase.from("users").select("id").ilike("email", email).limit(1),
+      supabase.from("users").select("id").in("phone", phoneVariants).limit(1),
     ])
 
   if ((existingEmails?.length || 0) > 0) {
     return {
       success: false,
-      error: msg.emailExists || 'البريد الإلكتروني مسجل مسبقاً',
+      error: msg.emailExists,
     }
   }
   if ((existingPhones?.length || 0) > 0) {
     return {
       success: false,
-      error: msg.phoneExists || 'رقم الهاتف مسجل مسبقاً',
+      error: msg.phoneExists,
     }
   }
 
   const hash = hashPassword(password)
-  const verifyToken = randomBytes(24).toString('hex')
+  const verifyToken = randomBytes(24).toString("hex")
 
   const { data: newUser, error } = await supabase
-    .from('users')
+    .from("users")
     .insert({
       name,
       email,
       phone: formattedPhone,
       password_hash: hash,
       country,
-      role: 'user',
-      status: 'active',
+      role: "user",
+      status: "active",
     })
-    .select('id')
+    .select("id")
     .single()
 
   if (error || !newUser) {
-    console.error('Register insert error:', error)
     return {
       success: false,
-      error:
-        msg.registerFailed ||
-        'تعذر إنشاء الحساب حالياً، تأكد من تشغيل سكريبت قاعدة البيانات',
+      error: msg.registerFailed,
     }
   }
 
   try {
     await supabase
-      .from('users')
+      .from("users")
       .update({
         otp_code: verifyToken,
         is_verified: false,
-        status: 'active',
+        status: "active",
         country,
       })
-      .eq('id', newUser.id)
+      .eq("id", newUser.id)
   } catch {}
 
-  await setUserSession(newUser.id, hash)
+  await setUserSessionCookie(newUser.id, hash)
 
   const verifyLink = `${DEFAULT_SITE_URL}/login?verified=1&email=${encodeURIComponent(email)}&token=${verifyToken}`
 
-  sendEmail({
+  sendSystemEmail({
     to: email,
-    senderName: msg.emailSenderName || 'Aqar Exit',
-    subject:
-      msg.welcomeEmailSubject ||
-      'تأكيد حسابك وبريدك الإلكتروني — Aqar Exit',
+    senderName: msg.emailSenderName,
+    subject: msg.welcomeEmailSubject,
     html: `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.7; color: #0a1122;">
-            <h2 style="color: #101A2B;">${msg.welcomeEmailGreeting || 'أهلاً بك'} ${name} 🏠</h2>
-            <p>${msg.welcomeEmailBody || 'اضغط على الزر التالي لتوثيق بريدك الإلكتروني وتفعيل حسابك بالكامل على منصة Aqar Exit:'}</p>
+            <h2 style="color: #101A2B;">${msg.welcomeEmailGreeting} ${name} 🏠</h2>
+            <p>${msg.welcomeEmailBody}</p>
             <div style="margin: 22px 0;">
               <a href="${verifyLink}" style="display: inline-block; background-color: #007a5a; color: #ffffff; padding: 12px 26px; text-decoration: none; border-radius: 10px; font-weight: bold;">
-                ${msg.welcomeEmailBtn || 'تأكيد البريد الإلكتروني الآن ✓'}
+                ${msg.welcomeEmailBtn}
               </a>
             </div>
            </div>`,
   }).catch(() => {})
 
-  revalidatePath('/', 'layout')
-  revalidatePath('/account', 'layout')
+  revalidatePath("/", "layout")
+  revalidatePath("/account", "layout")
   return {
     success: true,
-    redirectTo: '/account',
+    redirectTo: "/account",
   }
 }
 
 export async function forgotPasswordAction(
   formData: FormData
 ): Promise<AuthResult> {
-  const { t: msg, dir } = await getAuthDict()
-  const turnstileToken = formData.get('cf_turnstile_response') as string | null
+  const { t: msg, dir } = await getAuthActionsDict()
+  const turnstileToken = formData.get("cf_turnstile_response") as string | null
   if (turnstileToken !== null) {
     const isHuman = await verifyTurnstileOnServer(turnstileToken)
     if (!isHuman) {
@@ -574,7 +291,7 @@ export async function forgotPasswordAction(
     }
   }
 
-  const email = normalizeEmail(String(formData.get('email') || ''))
+  const email = normalizeEmail(String(formData.get("email") || ""))
 
   if (!email) {
     return { success: false, error: msg.enterEmail }
@@ -582,10 +299,10 @@ export async function forgotPasswordAction(
 
   const supabase = await getSupabase()
   const { data: users } = await supabase
-    .from('users')
-    .select('id, name, email, otp_code')
-    .ilike('email', email)
-    .order('created_at', { ascending: false })
+    .from("users")
+    .select("id, name, email, otp_code")
+    .ilike("email", email)
+    .order("created_at", { ascending: false })
     .limit(1)
 
   const user = users?.[0]
@@ -599,31 +316,31 @@ export async function forgotPasswordAction(
 
   const cookieStore = await cookies()
   const signedToken = signOtpToken(email, otp, expiresAt)
-  const isProd = process.env.NODE_ENV === 'production'
+  const isProd = process.env.NODE_ENV === "production"
 
-  cookieStore.set('reset_otp_session', signedToken, {
-    path: '/',
+  cookieStore.set("reset_otp_session", signedToken, {
+    path: "/",
     maxAge: 15 * 60,
-    sameSite: 'lax',
+    sameSite: "lax",
     secure: isProd,
     httpOnly: true,
   })
 
   try {
-    const hadPhoneOk = String(user.otp_code || '').includes('PHONE_OK')
+    const hadPhoneOk = String(user.otp_code || "").includes("PHONE_OK")
     await supabase
-      .from('users')
+      .from("users")
       .update({
         otp_code: hadPhoneOk ? `PHONE_OK|${otp}` : otp,
         otp_expiry: expiryIso,
       })
-      .eq('id', user.id)
+      .eq("id", user.id)
   } catch {}
 
-  const emailSent = await sendEmail({
+  const emailSent = await sendSystemEmail({
     to: user.email || email,
     senderName: msg.emailSenderName,
-    subject: `${otp} — ${msg.otpEmailSubject || 'كود التحقق الخاص بك'}`,
+    subject: `${otp} — ${msg.otpEmailSubject}`,
     html: `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.6;">
             <h2 style="color: #101A2B;">${msg.otpEmailGreeting} ${user.name || msg.dearUser}</h2>
             <p>${msg.otpEmailBody}</p>
@@ -644,9 +361,9 @@ export async function verifyOtpAction(
   email: string,
   otp: string
 ): Promise<AuthResult> {
-  const { t: msg } = await getAuthDict()
+  const { t: msg } = await getAuthActionsDict()
   const cleanEmail = normalizeEmail(email)
-  const cleanOtp = sanitizeInput(otp, 10)
+  const cleanOtp = sanitizeText(otp, 10)
 
   if (!cleanEmail || !cleanOtp) {
     return { success: false, error: msg.enterValidOtp }
@@ -654,10 +371,10 @@ export async function verifyOtpAction(
 
   const supabase = await getSupabase()
   const { data: users } = await supabase
-    .from('users')
-    .select('*')
-    .ilike('email', cleanEmail)
-    .order('created_at', { ascending: false })
+    .from("users")
+    .select("*")
+    .ilike("email", cleanEmail)
+    .order("created_at", { ascending: false })
     .limit(1)
 
   const user = users?.[0]
@@ -669,7 +386,7 @@ export async function verifyOtpAction(
   }
 
   const cookieStore = await cookies()
-  const otpCookie = cookieStore.get('reset_otp_session')?.value
+  const otpCookie = cookieStore.get("reset_otp_session")?.value
   const cookieCheck = verifySignedOtpToken(cleanEmail, cleanOtp, otpCookie)
 
   if (cookieCheck.expired) {
@@ -681,8 +398,8 @@ export async function verifyOtpAction(
 
   if (cookieCheck.valid) return { success: true }
 
-  const storedOtpClean = String(user.otp_code || '')
-    .replace('PHONE_OK|', '')
+  const storedOtpClean = String(user.otp_code || "")
+    .replace("PHONE_OK|", "")
     .trim()
 
   if (storedOtpClean && storedOtpClean === cleanOtp) {
@@ -703,10 +420,10 @@ export async function resetPasswordAction(
   otp: string,
   newPassword: string
 ): Promise<AuthResult> {
-  const { t: msg } = await getAuthDict()
+  const { t: msg } = await getAuthActionsDict()
   const cleanEmail = normalizeEmail(email)
-  const cleanOtp = sanitizeInput(otp, 10)
-  const cleanPass = String(newPassword || '').slice(0, 128)
+  const cleanOtp = sanitizeText(otp, 10)
+  const cleanPass = String(newPassword || "").slice(0, 128)
 
   if (!cleanPass || cleanPass.length < 8) {
     return {
@@ -722,10 +439,10 @@ export async function resetPasswordAction(
   const newHash = hashPassword(cleanPass)
 
   const { data: updatedRows, error } = await supabase
-    .from('users')
+    .from("users")
     .update({ password_hash: newHash })
-    .ilike('email', cleanEmail)
-    .select('id, otp_code')
+    .ilike("email", cleanEmail)
+    .select("id, otp_code")
 
   if (error || !updatedRows || updatedRows.length === 0) {
     return {
@@ -735,18 +452,17 @@ export async function resetPasswordAction(
   }
 
   const targetUser = updatedRows[0]
-  const hadPhoneOk = String(targetUser.otp_code || '').includes('PHONE_OK')
+  const hadPhoneOk = String(targetUser.otp_code || "").includes("PHONE_OK")
 
-  // توثيق البريد الإلكتروني أوتوماتيكياً لأن المستخدم أكد ملكيته للإيميل عبر كود الاستعادة
   try {
     await supabase
-      .from('users')
+      .from("users")
       .update({
-        otp_code: hadPhoneOk ? 'PHONE_OK' : null,
+        otp_code: hadPhoneOk ? "PHONE_OK" : null,
         otp_expiry: null,
         is_verified: true,
       })
-      .eq('id', targetUser.id)
+      .eq("id", targetUser.id)
 
     await upsertUserVerificationMeta(supabase, targetUser.id, {
       emailVerified: true,
@@ -754,9 +470,9 @@ export async function resetPasswordAction(
   } catch {}
 
   const cookieStore = await cookies()
-  cookieStore.delete('reset_otp_session')
-  cookieStore.delete('user_session')
-  cookieStore.delete('session_hint')
+  cookieStore.delete("reset_otp_session")
+  cookieStore.delete("user_session")
+  cookieStore.delete("session_hint")
 
   return { success: true }
 }
@@ -765,19 +481,19 @@ export async function verifyAccountAction(
   email: string,
   token?: string
 ): Promise<AuthResult> {
-  const { t: msg } = await getAuthDict()
+  const { t: msg } = await getAuthActionsDict()
   const cleanEmail = normalizeEmail(email)
-  const cleanToken = sanitizeInput(token, 100)
+  const cleanToken = sanitizeText(token, 100)
   if (!cleanEmail || !cleanToken) {
     return { success: false, error: msg.invalidLink }
   }
 
   const supabase = await getSupabase()
   const { data: users } = await supabase
-    .from('users')
-    .select('id, otp_code, is_verified')
-    .ilike('email', cleanEmail)
-    .order('created_at', { ascending: false })
+    .from("users")
+    .select("id, otp_code, is_verified")
+    .ilike("email", cleanEmail)
+    .order("created_at", { ascending: false })
     .limit(1)
 
   const user = users?.[0]
@@ -787,32 +503,32 @@ export async function verifyAccountAction(
     return { success: true }
   }
 
-  const rawStored = String(user.otp_code || '')
-    .replace('PHONE_OK|', '')
+  const rawStored = String(user.otp_code || "")
+    .replace("PHONE_OK|", "")
     .trim()
 
   if (!rawStored || rawStored !== cleanToken) {
     return { success: false, error: msg.invalidLink }
   }
 
-  const hadPhoneOk = String(user.otp_code || '').includes('PHONE_OK')
+  const hadPhoneOk = String(user.otp_code || "").includes("PHONE_OK")
   await supabase
-    .from('users')
+    .from("users")
     .update({
       is_verified: true,
-      otp_code: hadPhoneOk ? 'PHONE_OK' : null,
-      status: 'active',
+      otp_code: hadPhoneOk ? "PHONE_OK" : null,
+      status: "active",
     })
-    .eq('id', user.id)
+    .eq("id", user.id)
 
   await upsertUserVerificationMeta(supabase, user.id, {
     emailVerified: true,
   })
 
-  revalidatePath('/admin/users')
-  revalidatePath('/admin/properties')
-  revalidatePath('/admin/leads')
-  revalidatePath('/account')
+  revalidatePath("/admin/users")
+  revalidatePath("/admin/properties")
+  revalidatePath("/admin/leads")
+  revalidatePath("/account")
   return { success: true }
 }
 
@@ -821,39 +537,36 @@ export async function sendInlineEmailOtpAction(targetEmail?: string): Promise<{
   maskedEmail?: string
   error?: string
 }> {
-  const { dir, locale } = await getAuthDict()
+  const { t: msg, dir } = await getAuthActionsDict()
   try {
     const supabase = await getSupabase()
     const cookieStore = await cookies()
-    const rawSession = cookieStore.get('user_session')?.value
+    const rawSession = cookieStore.get("user_session")?.value
     const sessionUserId = extractUserIdFromCookie(rawSession)
 
     let user: any = null
     if (sessionUserId) {
       const { data } = await supabase
-        .from('users')
-        .select('id, name, email, otp_code, is_verified')
-        .eq('id', sessionUserId)
+        .from("users")
+        .select("id, name, email, otp_code, is_verified")
+        .eq("id", sessionUserId)
         .maybeSingle()
       user = data
     }
 
-    const emailToUse = normalizeEmail(targetEmail || user?.email || '')
+    const emailToUse = normalizeEmail(targetEmail || user?.email || "")
     if (!emailToUse) {
       return {
         success: false,
-        error:
-          locale === 'ar'
-            ? 'لم يتم العثور على بريد إلكتروني صالح'
-            : 'No valid email address found',
+        error: msg.emailNotFound,
       }
     }
 
     if (!user) {
       const { data } = await supabase
-        .from('users')
-        .select('id, name, email, otp_code, is_verified')
-        .ilike('email', emailToUse)
+        .from("users")
+        .select("id, name, email, otp_code, is_verified")
+        .ilike("email", emailToUse)
         .limit(1)
       user = data?.[0]
     }
@@ -863,53 +576,49 @@ export async function sendInlineEmailOtpAction(targetEmail?: string): Promise<{
     const expiryIso = new Date(expiresAt).toISOString()
 
     const signedToken = signOtpToken(emailToUse, otp, expiresAt)
-    const isProd = process.env.NODE_ENV === 'production'
+    const isProd = process.env.NODE_ENV === "production"
 
-    cookieStore.set('reset_otp_session', signedToken, {
-      path: '/',
+    cookieStore.set("reset_otp_session", signedToken, {
+      path: "/",
       maxAge: 15 * 60,
-      sameSite: 'lax',
+      sameSite: "lax",
       secure: isProd,
       httpOnly: true,
     })
 
     if (user?.id) {
-      const hadPhoneOk = String(user.otp_code || '').includes('PHONE_OK')
+      const hadPhoneOk = String(user.otp_code || "").includes("PHONE_OK")
       try {
         await supabase
-          .from('users')
+          .from("users")
           .update({
             otp_code: hadPhoneOk ? `PHONE_OK|${otp}` : otp,
             otp_expiry: expiryIso,
           })
-          .eq('id', user.id)
+          .eq("id", user.id)
       } catch {}
     }
 
     const verifyLink = `${DEFAULT_SITE_URL}/login?verified=1&email=${encodeURIComponent(emailToUse)}&token=${otp}`
-
-    const subject =
-      locale === 'ar'
-        ? `كود التأكيد الخاص بك هو ${otp} — Aqar Exit`
-        : `Your verification code is ${otp} — Aqar Exit`
+    const subject = `${otp} — ${msg.otpEmailSubject}`
 
     const html = `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.8; color: #0a1122; max-width: 540px; margin: 0 auto;">
-      <h2 style="color: #0a1122;">${locale === 'ar' ? `أهلاً ${user?.name || ''}` : `Hello ${user?.name || ''}`} 👋</h2>
-      <p>${locale === 'ar' ? 'كود تأكيد بريدك الإلكتروني وطلبك على منصة Aqar Exit هو:' : 'Your verification code on Aqar Exit is:'}</p>
+      <h2 style="color: #0a1122;">${msg.otpEmailGreeting} ${user?.name || ""} 👋</h2>
+      <p>${msg.otpEmailBody}</p>
       <div style="background: #eaf8f2; border: 2px solid #007a5a; padding: 16px; border-radius: 14px; text-align: center; margin: 20px 0;">
         <h1 style="color: #007a5a; letter-spacing: 8px; margin: 0; font-size: 32px; font-family: monospace;">${otp}</h1>
       </div>
-      <p style="font-size: 13px; color: #475569;">${locale === 'ar' ? 'أو يمكنك الضغط على الرابط التالي لتوثيق بريدك الإلكتروني فوراً بضغطة واحدة:' : 'Or click the link below to verify your email immediately:'}</p>
+      <p style="font-size: 13px; color: #475569;">${msg.inlineOneClickHint || msg.welcomeEmailBody}</p>
       <p style="margin: 16px 0;">
         <a href="${verifyLink}" style="display: inline-block; background: #0a1122; color: #ffffff; padding: 10px 22px; border-radius: 10px; text-decoration: none; font-weight: bold; font-size: 13px;">
-          ${locale === 'ar' ? 'توثيق البريد الإلكتروني بضغطة واحدة ✓' : 'Verify Email with 1 Click ✓'}
+          ${msg.welcomeEmailBtn}
         </a>
       </p>
     </div>`
 
-    const sent = await sendEmail({
+    const sent = await sendSystemEmail({
       to: emailToUse,
-      senderName: 'Aqar Exit',
+      senderName: msg.emailSenderName,
       subject,
       html,
     })
@@ -917,10 +626,7 @@ export async function sendInlineEmailOtpAction(targetEmail?: string): Promise<{
     if (!sent) {
       return {
         success: false,
-        error:
-          locale === 'ar'
-            ? 'تعذر إرسال الكود حالياً، يرجى المحاولة مرة أخرى أو التواصل عبر واتساب'
-            : 'Could not send code right now, please try again',
+        error: msg.emailSendFailed,
       }
     }
 
@@ -930,10 +636,7 @@ export async function sendInlineEmailOtpAction(targetEmail?: string): Promise<{
   } catch {
     return {
       success: false,
-      error:
-        locale === 'ar'
-          ? 'حدث خطأ أثناء إرسال الكود'
-          : 'Error sending verification code',
+      error: msg.emailSendFailed,
     }
   }
 }
@@ -945,40 +648,37 @@ export async function verifyInlineEmailOtpAction(
   success: boolean
   error?: string
 }> {
-  const { locale } = await getAuthDict()
+  const { t: msg } = await getAuthActionsDict()
   try {
-    const cleanOtp = sanitizeInput(otp, 10).replace(/\s+/g, '')
+    const cleanOtp = sanitizeText(otp, 10).replace(/\s+/g, "")
     if (!cleanOtp || cleanOtp.length < 4) {
       return {
         success: false,
-        error:
-          locale === 'ar'
-            ? 'يرجى إدخال الكود المكون من 6 أرقام'
-            : 'Please enter the 6-digit code',
+        error: msg.enterValidOtp,
       }
     }
 
     const supabase = await getSupabase()
     const cookieStore = await cookies()
-    const rawSession = cookieStore.get('user_session')?.value
+    const rawSession = cookieStore.get("user_session")?.value
     const sessionUserId = extractUserIdFromCookie(rawSession)
 
     let user: any = null
     if (sessionUserId) {
       const { data } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', sessionUserId)
+        .from("users")
+        .select("*")
+        .eq("id", sessionUserId)
         .maybeSingle()
       user = data
     }
 
-    const emailToUse = normalizeEmail(targetEmail || user?.email || '')
+    const emailToUse = normalizeEmail(targetEmail || user?.email || "")
     if (!user && emailToUse) {
       const { data } = await supabase
-        .from('users')
-        .select('*')
-        .ilike('email', emailToUse)
+        .from("users")
+        .select("*")
+        .ilike("email", emailToUse)
         .limit(1)
       user = data?.[0]
     }
@@ -986,10 +686,7 @@ export async function verifyInlineEmailOtpAction(
     if (!user) {
       return {
         success: false,
-        error:
-          locale === 'ar'
-            ? 'لم يتم العثور على الحساب'
-            : 'Account not found',
+        error: msg.accountNotFound,
       }
     }
 
@@ -997,51 +694,41 @@ export async function verifyInlineEmailOtpAction(
     if (!checkRes.success) {
       return {
         success: false,
-        error:
-          locale === 'ar'
-            ? 'الكود غير صحيح أو منتهي الصلاحية'
-            : 'Invalid or expired code',
+        error: msg.invalidOtp,
       }
     }
 
     const hadPhoneOk =
       Boolean(user.phone_verified) ||
-      String(user.otp_code || '').includes('PHONE_OK')
+      String(user.otp_code || "").includes("PHONE_OK")
 
     const updatePayload: Record<string, any> = {
       is_verified: true,
-      otp_code: hadPhoneOk ? 'PHONE_OK' : null,
+      otp_code: hadPhoneOk ? "PHONE_OK" : null,
       otp_expiry: null,
     }
 
-    await supabase.from('users').update(updatePayload).eq('id', user.id)
+    await supabase.from("users").update(updatePayload).eq("id", user.id)
     await upsertUserVerificationMeta(supabase, user.id, {
       emailVerified: true,
     })
-    cookieStore.delete('reset_otp_session')
+    cookieStore.delete("reset_otp_session")
 
-    revalidatePath('/sell')
-    revalidatePath('/account')
-    revalidatePath('/admin/properties')
-    revalidatePath('/admin/leads')
-    revalidatePath('/admin/users')
+    revalidatePath("/sell")
+    revalidatePath("/account")
+    revalidatePath("/admin/properties")
+    revalidatePath("/admin/leads")
+    revalidatePath("/admin/users")
 
     return { success: true }
   } catch {
     return {
       success: false,
-      error:
-        locale === 'ar'
-          ? 'تعذر التحقق من الكود حالياً'
-          : 'Could not verify code right now',
+      error: msg.invalidOtp,
     }
   }
 }
 
-/**
- * توثيق رقم الهاتف محصور بالأدمن فقط!
- * لا يُسمح لأي مستخدم عادي بتوثيق رقم هاتفه لنفسه من المتصفح.
- */
 export async function markUserPhoneVerifiedAction(payload?: {
   userId?: string
   unitId?: string
@@ -1050,16 +737,15 @@ export async function markUserPhoneVerifiedAction(payload?: {
   try {
     const supabase = await getSupabase()
     const cookieStore = await cookies()
-    const rawSession = cookieStore.get('user_session')?.value
+    const rawSession = cookieStore.get("user_session")?.value
     const sessionUserId = extractUserIdFromCookie(rawSession)
 
     if (!rawSession || !sessionUserId) return { success: false }
 
-    // التحقق الصارم أن الذي يستدعي الدالة هو أدمن أو مشرف أو سيلز فقط
     const { data: caller } = await supabase
-      .from('users')
-      .select('id, role, status, password_hash')
-      .eq('id', sessionUserId)
+      .from("users")
+      .select("id, role, status, password_hash")
+      .eq("id", sessionUserId)
       .maybeSingle()
 
     if (!caller) return { success: false }
@@ -1068,36 +754,36 @@ export async function markUserPhoneVerifiedAction(payload?: {
       rawSession,
       caller.password_hash
     ).valid
-    const callerRole = String(caller.role || 'user')
+    const callerRole = String(caller.role || "user")
       .trim()
       .toLowerCase()
     const isStaff =
       validSession &&
-      caller.status !== 'suspended' &&
-      (callerRole === 'admin' ||
-        callerRole === 'moderator' ||
-        callerRole === 'sales')
+      caller.status !== "suspended" &&
+      (callerRole === "admin" ||
+        callerRole === "moderator" ||
+        callerRole === "sales")
 
     if (!isStaff) {
       return { success: false }
     }
 
-    let targetUserId = payload?.userId || ''
+    let targetUserId = payload?.userId || ""
 
     if (!targetUserId && payload?.unitId) {
       const { data: unit } = await supabase
-        .from('sell_requests')
-        .select('user_id')
-        .eq('id', payload.unitId)
+        .from("sell_requests")
+        .select("user_id")
+        .eq("id", payload.unitId)
         .maybeSingle()
       if (unit?.user_id) targetUserId = String(unit.user_id)
     }
 
     if (!targetUserId && payload?.leadId) {
       const { data: lead } = await supabase
-        .from('buy_requests')
-        .select('user_id')
-        .eq('id', payload.leadId)
+        .from("buy_requests")
+        .select("user_id")
+        .eq("id", payload.leadId)
         .maybeSingle()
       if (lead?.user_id) targetUserId = String(lead.user_id)
     }
@@ -1105,32 +791,32 @@ export async function markUserPhoneVerifiedAction(payload?: {
     if (!targetUserId) return { success: false }
 
     const { data: user } = await supabase
-      .from('users')
-      .select('id, otp_code')
-      .eq('id', targetUserId)
+      .from("users")
+      .select("id, otp_code")
+      .eq("id", targetUserId)
       .maybeSingle()
 
     if (user) {
-      const currentOtp = String(user.otp_code || '').trim()
+      const currentOtp = String(user.otp_code || "").trim()
       const nextOtpCode = currentOtp
-        ? currentOtp.includes('PHONE_OK')
+        ? currentOtp.includes("PHONE_OK")
           ? currentOtp
           : `PHONE_OK|${currentOtp}`
-        : 'PHONE_OK'
+        : "PHONE_OK"
 
       const { error: err1 } = await supabase
-        .from('users')
+        .from("users")
         .update({
           phone_verified: true,
           otp_code: nextOtpCode,
         })
-        .eq('id', user.id)
+        .eq("id", user.id)
 
       if (err1) {
         await supabase
-          .from('users')
+          .from("users")
           .update({ otp_code: nextOtpCode })
-          .eq('id', user.id)
+          .eq("id", user.id)
       }
     }
 
@@ -1138,12 +824,12 @@ export async function markUserPhoneVerifiedAction(payload?: {
       phoneVerified: true,
     })
 
-    revalidatePath('/sell')
-    revalidatePath('/buy')
-    revalidatePath('/account')
-    revalidatePath('/admin/properties')
-    revalidatePath('/admin/leads')
-    revalidatePath('/admin/users')
+    revalidatePath("/sell")
+    revalidatePath("/buy")
+    revalidatePath("/account")
+    revalidatePath("/admin/properties")
+    revalidatePath("/admin/leads")
+    revalidatePath("/admin/users")
 
     return { success: true }
   } catch {
@@ -1162,32 +848,32 @@ export async function getUserVerificationStatusAction(): Promise<{
   try {
     const supabase = await getSupabase()
     const cookieStore = await cookies()
-    const rawSession = cookieStore.get('user_session')?.value
+    const rawSession = cookieStore.get("user_session")?.value
     const sessionUserId = extractUserIdFromCookie(rawSession)
 
     if (!rawSession || !sessionUserId) {
       return {
         isLoggedIn: false,
-        userId: '',
-        email: '',
-        phone: '',
+        userId: "",
+        email: "",
+        phone: "",
         emailVerified: false,
         phoneVerified: false,
       }
     }
 
     const { data: user } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', sessionUserId)
+      .from("users")
+      .select("*")
+      .eq("id", sessionUserId)
       .maybeSingle()
 
     if (!user) {
       return {
         isLoggedIn: false,
-        userId: '',
-        email: '',
-        phone: '',
+        userId: "",
+        email: "",
+        phone: "",
         emailVerified: false,
         phoneVerified: false,
       }
@@ -1197,12 +883,12 @@ export async function getUserVerificationStatusAction(): Promise<{
       rawSession,
       user.password_hash
     ).valid
-    if (!validSession || user.status === 'suspended') {
+    if (!validSession || user.status === "suspended") {
       return {
         isLoggedIn: false,
-        userId: '',
-        email: '',
-        phone: '',
+        userId: "",
+        email: "",
+        phone: "",
         emailVerified: false,
         phoneVerified: false,
       }
@@ -1211,13 +897,13 @@ export async function getUserVerificationStatusAction(): Promise<{
     let emailVerified = Boolean(user.is_verified)
     let phoneVerified =
       Boolean(user.phone_verified) ||
-      String(user.otp_code || '').includes('PHONE_OK')
+      String(user.otp_code || "").includes("PHONE_OK")
 
     const { data: metaNotif } = await supabase
-      .from('notifications')
-      .select('message')
-      .eq('user_id', user.id)
-      .eq('title', '__USER_VERIFICATION_META__')
+      .from("notifications")
+      .select("message")
+      .eq("user_id", user.id)
+      .eq("title", "__USER_VERIFICATION_META__")
       .maybeSingle()
 
     if (metaNotif?.message) {
@@ -1231,17 +917,17 @@ export async function getUserVerificationStatusAction(): Promise<{
     return {
       isLoggedIn: true,
       userId: user.id,
-      email: user.email || '',
-      phone: user.phone || '',
+      email: user.email || "",
+      phone: user.phone || "",
       emailVerified,
       phoneVerified,
     }
   } catch {
     return {
       isLoggedIn: false,
-      userId: '',
-      email: '',
-      phone: '',
+      userId: "",
+      email: "",
+      phone: "",
       emailVerified: false,
       phoneVerified: false,
     }
@@ -1251,7 +937,7 @@ export async function getUserVerificationStatusAction(): Promise<{
 export async function getSessionUserAction() {
   try {
     const cookieStore = await cookies()
-    const rawSession = cookieStore.get('user_session')?.value
+    const rawSession = cookieStore.get("user_session")?.value
     const candidateUserId = extractUserIdFromCookie(rawSession)
 
     if (!rawSession || !candidateUserId) {
@@ -1260,9 +946,9 @@ export async function getSessionUserAction() {
 
     const supabase = await getSupabase()
     const { data: user } = await supabase
-      .from('users')
-      .select('id, name, role, status, password_hash')
-      .eq('id', candidateUserId)
+      .from("users")
+      .select("id, name, role, status, password_hash")
+      .eq("id", candidateUserId)
       .maybeSingle()
 
     if (!user) {
@@ -1270,17 +956,17 @@ export async function getSessionUserAction() {
     }
 
     const check = parseAndVerifySessionCookie(rawSession, user.password_hash)
-    const status = String(user.status || 'active').trim().toLowerCase()
+    const status = String(user.status || "active").trim().toLowerCase()
 
-    if (!check.valid || status === 'suspended') {
+    if (!check.valid || status === "suspended") {
       return { isLoggedIn: false, isAdmin: false, name: null, role: null }
     }
 
-    const role = String(user.role || 'user')
-      .replace(/[\r\n\s]+/g, '')
+    const role = String(user.role || "user")
+      .replace(/[\r\n\s]+/g, "")
       .toLowerCase()
     const isAdmin =
-      role === 'admin' || role === 'moderator' || role === 'sales'
+      role === "admin" || role === "moderator" || role === "sales"
 
     return {
       isLoggedIn: true,

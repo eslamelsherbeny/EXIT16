@@ -1,6 +1,7 @@
 import { Suspense } from "react"
 import { cookies } from "next/headers"
 import { createServerClient } from "@supabase/ssr"
+import { getUsersVerificationMapAction } from "@/actions/submit-forms"
 import { getServerI18n } from "@/lib/get-server-dictionary"
 import LeadsClientTable, {
   type BuyerLead,
@@ -49,18 +50,23 @@ export default async function LeadsPage() {
     )
   }
 
+  const leadsList = (leads ?? []) as BuyerLead[]
+  const buyerUserIds = Array.from(
+    new Set(leadsList.map((l) => l.user_id).filter(Boolean) as string[])
+  )
+  const verificationMap = await getUsersVerificationMapAction(buyerUserIds)
+
   const normalizedUnits = ((units ?? []) as any[]).map((u) => {
     const meta =
-      u.documents && typeof u.documents === "object"
-        ? u.documents.__unit_meta || {}
-        : {}
+      u.documents && typeof pMeta(u) === "object" ? pMeta(u) : {}
     return {
       ...u,
       area: u.area || meta.area || null,
       unit_type: u.unit_type || meta.unit_type || null,
       rooms: u.rooms ?? meta.rooms ?? null,
       delivery_status: u.delivery_status || meta.delivery_status || null,
-      installment_amount: u.installment_amount ?? meta.installment_amount ?? null,
+      installment_amount:
+        u.installment_amount ?? meta.installment_amount ?? null,
       installment_frequency:
         u.installment_frequency || meta.installment_frequency || null,
     } as LinkedUnitSummary
@@ -70,11 +76,18 @@ export default async function LeadsPage() {
     <div className="mx-auto max-w-7xl">
       <Suspense fallback={null}>
         <LeadsClientTable
-          leads={(leads ?? []) as BuyerLead[]}
+          leads={leadsList}
           units={normalizedUnits}
           offers={offersData ?? []}
+          verificationMap={verificationMap}
         />
       </Suspense>
     </div>
   )
+}
+
+function pMeta(u: any) {
+  return u?.documents && typeof u.documents === "object"
+    ? u.documents.__unit_meta || {}
+    : {}
 }

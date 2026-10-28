@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   Check,
   CheckCircle2,
+  Clock,
   ExternalLink,
   Eye,
   EyeOff,
@@ -19,7 +20,6 @@ import {
   RefreshCw,
   RotateCcw,
   Search,
-  ShieldAlert,
   Sparkles,
   Star,
   Trash2,
@@ -28,15 +28,6 @@ import {
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { Textarea } from "@/components/ui/textarea"
 import { getLocalizedGeorgiaAreaName } from "@/components/shared/georgia-areas"
 import { getCurrencySymbol, useTranslation } from "@/lib/i18n"
 import {
@@ -49,89 +40,39 @@ import {
   managePropertyPromotionAction,
   purgeSellerDeletedPropertiesAction,
   updatePropertyStatusAction,
+  verifyUserContactByAdminAction,
 } from "../../../actions/admin-actions"
+import {
+  ACTIVE_ADMIN_COUNTRY,
+  buildSellerWhatsAppMessage,
+  deriveShortUnitCode,
+  getRemainingDaysBeforePurge,
+  getUploadedDocsList,
+  isSellerEmailVerified,
+  isSellerPhoneVerified,
+  normalizeOfferStatus,
+  type ConfirmPropertyAction,
+  type SellRequest,
+  type UserVerificationBadgeInfo,
+} from "./properties-helpers"
+import {
+  PropertyConfirmDialog,
+  PropertyDetailsDialog,
+} from "./properties-modals"
 
-const ACTIVE_ADMIN_COUNTRY = "GE"
-
-export type SellRequest = {
-  id: string
-  user_id?: string | null
-  project_name: string | null
-  developer_name?: string | null
-  area: string | null
-  unit_type: string | null
-  size?: number | null
-  rooms?: number | null
-  bathrooms?: number | null
-  finishing?: string | null
-  delivery_status?: string | null
-  delivery_month?: string | null
-  contract_price?: number | null
-  paid_amount?: number | null
-  market_price: number | null
-  installment_amount?: number | null
-  installment_frequency?: string | null
-  years_left?: number | null
-  contract_month?: string | null
-  contract_year?: number | null
-  willing_to_discount?: boolean | null
-  discount_amount?: number | null
-  description?: string | null
-  images?: string[] | null
-  documents?: Record<string, any> | null
-  country?: string | null
-  country_code?: string | null
-  currency_code?: string | null
-  submission_type?: string | null
-  last_seller_edit_at?: string | null
-  is_featured?: boolean | null
-  featured_days?: number | null
-  featured_price?: number | null
-  featured_status?: string | null
-  featured_fawry_code?: string | null
-  featured_until?: string | null
-  name: string
-  phone: string
-  email?: string | null
-  status?: string | null
-  admin_note?: string | null
-  created_at: string
-}
-
-function deriveShortUnitCode(id: string) {
-  const digits = id.replace(/\D/g, "")
-  const num = digits ? Number(digits.slice(-4)) : 100
-  return `U-${String(num).padStart(5, "0")}`
-}
-
-function getRemainingDaysBeforePurge(lastEditIso?: string | null) {
-  if (!lastEditIso) return 7
-  const deletedTime = new Date(lastEditIso).getTime()
-  const purgeTime = deletedTime + 7 * 24 * 60 * 60 * 1000
-  const diffDays = Math.ceil((purgeTime - Date.now()) / (1000 * 60 * 60 * 24))
-  return Math.max(1, Math.min(7, diffDays))
-}
-
-type ConfirmPropertyAction =
-  | { type: "status"; property: SellRequest; newStatus: string }
-  | { type: "delete"; property: SellRequest }
-  | { type: "purge_all_deleted"; count: number }
-  | {
-      type: "promote"
-      property: SellRequest
-      promoAction: "activate" | "cancel"
-      days: number
-    }
+export type { SellRequest, UserVerificationBadgeInfo }
 
 export default function PropertiesTable({
   properties,
   buyers = [],
   offers = [],
+  verificationMap = {},
   mode = "properties",
 }: {
   properties: SellRequest[]
   buyers?: MatchableBuyer[]
   offers?: any[]
+  verificationMap?: Record<string, UserVerificationBadgeInfo>
   mode?: "properties" | "promotions"
 }) {
   const router = useRouter()
@@ -142,8 +83,9 @@ export default function PropertiesTable({
   const t = dict.admin.propertiesAdmin
   const leadsPrompts = dict.admin.leads
   const sm = (dict.admin as Record<string, any>).smartMatch || {}
-  const buyerDict = (dict?.accountComponents as Record<string, any>)?.buyer || {}
-  const matchPrefix = sm.matchScorePrefix || buyerDict.matchScorePrefix || "متوافق"
+  const buyerDict =
+    (dict?.accountComponents as Record<string, any>)?.buyer || {}
+  const matchPrefix = sm.matchScorePrefix || buyerDict.matchScorePrefix || ""
 
   function getMatchedBuyersForUnit(unit: SellRequest) {
     if (!buyers || buyers.length === 0) return []
@@ -158,15 +100,51 @@ export default function PropertiesTable({
   }
 
   const sellerStatusOptions = [
-    { value: "pending", label: t.statuses.pending, badge: "bg-amber-100 text-amber-800" },
-    { value: "under_review", label: t.statuses.under_review, badge: "bg-blue-100 text-blue-800" },
-    { value: "active", label: t.statuses.active, badge: "bg-emerald-100 text-emerald-800" },
-    { value: "offer_received", label: t.statuses.offer_received, badge: "bg-purple-100 text-purple-800" },
-    { value: "transferring", label: t.statuses.transferring, badge: "bg-indigo-100 text-indigo-800" },
-    { value: "sold", label: t.statuses.sold, badge: "bg-teal-700 text-white" },
-    { value: "paused_by_seller", label: t.statuses.paused_by_seller, badge: "bg-orange-100 text-orange-800" },
-    { value: "deleted_by_seller", label: t.statuses.deleted_by_seller, badge: "bg-red-100 text-red-800 border border-red-300" },
-    { value: "rejected", label: t.statuses.rejected, badge: "bg-red-100 text-red-800" },
+    {
+      value: "pending",
+      label: t.statuses.pending,
+      badge: "bg-amber-100 text-amber-800",
+    },
+    {
+      value: "under_review",
+      label: t.statuses.under_review,
+      badge: "bg-blue-100 text-blue-800",
+    },
+    {
+      value: "active",
+      label: t.statuses.active,
+      badge: "bg-emerald-100 text-emerald-800",
+    },
+    {
+      value: "offer_received",
+      label: t.statuses.offer_received,
+      badge: "bg-purple-100 text-purple-800",
+    },
+    {
+      value: "transferring",
+      label: t.statuses.transferring,
+      badge: "bg-indigo-100 text-indigo-800",
+    },
+    {
+      value: "sold",
+      label: t.statuses.sold,
+      badge: "bg-teal-700 text-white",
+    },
+    {
+      value: "paused_by_seller",
+      label: t.statuses.paused_by_seller,
+      badge: "bg-orange-100 text-orange-800",
+    },
+    {
+      value: "deleted_by_seller",
+      label: t.statuses.deleted_by_seller,
+      badge: "bg-red-100 text-red-800 border border-red-300",
+    },
+    {
+      value: "rejected",
+      label: t.statuses.rejected,
+      badge: "bg-red-100 text-red-800",
+    },
   ]
 
   const docsDict = t.docs as Record<string, string>
@@ -187,51 +165,28 @@ export default function PropertiesTable({
     return getCurrencySymbol(ACTIVE_ADMIN_COUNTRY, locale)
   }
 
-  function buildSellerWhatsAppMessage(property: SellRequest, unitCur: string) {
-    const uCode = deriveShortUnitCode(property.id)
-    const proj = property.project_name || t.table.unspecifiedProject
-    const localizedArea = property.area
-      ? ` - ${getLocalizedGeorgiaAreaName(property.area, locale)}`
-      : ""
-    const cash = Number(property.paid_amount || 0).toLocaleString("en-US")
-    const contract = Number(property.contract_price || 0).toLocaleString("en-US")
-    const adPart = property.featured_fawry_code
-      ? ` | ${t.badges.adCodeLabel} ${property.featured_fawry_code}`
-      : ""
-
-    return `${leadsPrompts.waGeneralPrefix} ${property.name}، (${proj}${localizedArea} - ${uCode}${adPart}) — ${t.table.colCash}: ${cash} ${unitCur} | ${t.table.contractShort} ${contract} ${unitCur}`
-  }
-
-    function getUploadedDocsList(docs: Record<string, any> | null | undefined) {
-    if (!docs || typeof docs !== "object") return []
-    return Object.entries(docs)
-      .filter(
-        ([key, val]) =>
-          key !== "__unit_meta" && val && typeof val === "object" && val.url
-      )
-      .map(([key, val]) => ({
-        key,
-        label: docLabels[key] || key,
-        url: String(val.url),
-        name: String(val.name || t.docs.fallbackName),
-        uploadedAt: String(val.uploaded_at || ""),
-      }))
-  }
-
-
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [promoTab, setPromoTab] = useState<
     "all_promo" | "pending_payment" | "active_featured" | "all_units"
   >("all_promo")
 
-  const [highlightedUnitId, setHighlightedUnitId] = useState<string | null>(null)
-  const [detailsProperty, setDetailsProperty] = useState<SellRequest | null>(null)
-  const [smartMatchProperty, setSmartMatchProperty] = useState<SellRequest | null>(null)
-  const [confirmAction, setConfirmAction] = useState<ConfirmPropertyAction | null>(null)
+  const [highlightedUnitId, setHighlightedUnitId] = useState<string | null>(
+    null
+  )
+  const [detailsProperty, setDetailsProperty] = useState<SellRequest | null>(
+    null
+  )
+  const [smartMatchProperty, setSmartMatchProperty] =
+    useState<SellRequest | null>(null)
+  const [confirmAction, setConfirmAction] =
+    useState<ConfirmPropertyAction | null>(null)
   const [activePropertyId, setActivePropertyId] = useState<string | null>(null)
   const [reason, setReason] = useState("")
-  const [notice, setNotice] = useState<{ text: string; isError?: boolean } | null>(null)
+  const [notice, setNotice] = useState<{
+    text: string
+    isError?: boolean
+  } | null>(null)
   const [pending, startTransition] = useTransition()
 
   useEffect(() => {
@@ -273,6 +228,22 @@ export default function PropertiesTable({
     if (pending) return
     setConfirmAction(null)
     setReason("")
+  }
+
+  function handleVerifySellerContact(userId: string) {
+    setNotice(null)
+    startTransition(async () => {
+      const res = await verifyUserContactByAdminAction({
+        userId,
+        type: "both",
+      })
+      if (res.success) {
+        setNotice({ text: t.notices.sellerVerifiedSuccess })
+        router.refresh()
+      } else {
+        setNotice({ text: res.error || t.loadError, isError: true })
+      }
+    })
   }
 
   function executeConfirmedAction() {
@@ -386,10 +357,14 @@ export default function PropertiesTable({
 
     if (search.trim()) {
       const q = search.trim().toLowerCase()
+      const qDigits = q.replace(/\D/g, "")
+      const propPhoneDigits = String(p.phone || "").replace(/\D/g, "")
       const textMatch =
-        `${p.id} ${unitShortCode} ${uPublicCode} ${orderRefCode} ${p.project_name || ""} ${p.area || ""} ${localizedArea} ${p.name || ""} ${p.phone || ""} ${p.featured_fawry_code || ""}`
+        `${p.id} ${unitShortCode} ${uPublicCode} ${orderRefCode} ${p.project_name || ""} ${p.area || ""} ${localizedArea} ${p.name || ""} ${p.phone || ""} ${p.email || ""} ${p.featured_fawry_code || ""}`
           .toLowerCase()
-          .includes(q)
+          .includes(q) ||
+        (qDigits.length >= 5 && propPhoneDigits.includes(qDigits))
+
       if (!textMatch) return false
       if (isPromotionsPage) return currentStatus !== "deleted_by_seller"
     }
@@ -420,7 +395,11 @@ export default function PropertiesTable({
   })
 
   function renderSellerActivityBadges(property: SellRequest) {
-    const docs = getUploadedDocsList(property.documents)
+    const docs = getUploadedDocsList(
+      property.documents,
+      docLabels,
+      t.docs.fallbackName
+    )
     const isFeaturedActive =
       Boolean(property.is_featured) &&
       (!property.featured_until ||
@@ -428,59 +407,84 @@ export default function PropertiesTable({
     const matchedBuyers = getMatchedBuyersForUnit(property)
     const topScore = matchedBuyers[0]?.match.score || 0
 
-    const unitOffers = offers.filter(
-      (o) => o.property_id === property.id && o.status !== "recommended"
+    const normalizedUnitOffers = offers
+      .filter((o) => String(o.property_id) === String(property.id))
+      .map((o) => ({ ...o, status: normalizeOfferStatus(o) }))
+      .filter((o) => o.status !== "recommended")
+
+    const acceptedOffer = normalizedUnitOffers.find(
+      (o) => o.status === "accepted"
     )
-    const acceptedOffer = unitOffers.find((o) => o.status === "accepted")
-    const pendingOffer = unitOffers.find(
+    const pendingAdminOffer = normalizedUnitOffers.find(
+      (o) => o.status === "pending_admin"
+    )
+    const pendingSellerOffer = normalizedUnitOffers.find(
       (o) => o.status === "pending_seller" || o.status === "counter_offered"
     )
-    const rejectedCount = unitOffers.filter(
+    const rejectedCount = normalizedUnitOffers.filter(
       (o) => o.status === "rejected"
     ).length
 
     return (
       <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-        {matchedBuyers.length > 0 && property.status !== "deleted_by_seller" && (
-          <button
-            type="button"
-            onClick={() => setSmartMatchProperty(property)}
-            className="inline-flex items-center gap-1 rounded-md border border-teal-400 bg-teal-50 px-2 py-0.5 text-[10px] font-extrabold text-[#105C50] transition hover:bg-[#105C50] hover:text-white"
-          >
-            <span>🎯</span>
-            <span>
-              {matchedBuyers.length} {sm.matchedBuyersShort} · {matchPrefix}{" "}
-              {topScore}%
-            </span>
-          </button>
-        )}
+        {matchedBuyers.length > 0 &&
+          property.status !== "deleted_by_seller" && (
+            <button
+              type="button"
+              onClick={() => setSmartMatchProperty(property)}
+              className="inline-flex items-center gap-1 rounded-md border border-teal-400 bg-teal-50 px-2 py-0.5 text-[10px] font-extrabold text-[#105C50] transition hover:bg-[#105C50] hover:text-white"
+            >
+              <span>🎯</span>
+              <span>
+                {matchedBuyers.length} {sm.matchedBuyersShort} · {matchPrefix}{" "}
+                {topScore}%
+              </span>
+            </button>
+          )}
 
         {acceptedOffer && (
-          <span className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2 py-0.5 text-[10px] font-extrabold text-white shadow-2xs">
+          <Link
+            href={`/admin/deals?offerId=${acceptedOffer.id}`}
+            className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2 py-0.5 text-[10px] font-extrabold text-white shadow-2xs hover:bg-emerald-700"
+          >
             <Handshake className="size-2.5" />
             <span>
               {sm.offerAcceptedTag}: {acceptedOffer.buyer_name || ""}
             </span>
-          </span>
+          </Link>
         )}
 
-        {!acceptedOffer && pendingOffer && (
-          <button
-            type="button"
-            onClick={() => setSmartMatchProperty(property)}
-            className="inline-flex items-center gap-1 rounded-md border border-purple-300 bg-purple-50 px-2 py-0.5 text-[10px] font-extrabold text-purple-900"
+        {!acceptedOffer && pendingAdminOffer && (
+          <Link
+            href={`/admin/deals?offerId=${pendingAdminOffer.id}`}
+            className="inline-flex items-center gap-1 rounded-md bg-amber-500 px-2 py-0.5 text-[10px] font-extrabold text-white shadow-2xs hover:bg-amber-600"
+          >
+            <Clock className="size-2.5" />
+            <span>
+              {sm.offerPendingAdminTag} ({pendingAdminOffer.buyer_name || ""})
+            </span>
+          </Link>
+        )}
+
+        {!acceptedOffer && !pendingAdminOffer && pendingSellerOffer && (
+          <Link
+            href={`/admin/deals?offerId=${pendingSellerOffer.id}`}
+            className="inline-flex items-center gap-1 rounded-md border border-purple-300 bg-purple-50 px-2 py-0.5 text-[10px] font-extrabold text-purple-900 hover:bg-purple-100"
           >
             <span>
-              💰 {sm.offerPendingTag} ({pendingOffer.buyer_name || ""})
+              💰 {sm.offerPendingTag} ({pendingSellerOffer.buyer_name || ""})
             </span>
-          </button>
+          </Link>
         )}
 
-        {!acceptedOffer && !pendingOffer && rejectedCount > 0 && (
-          <span className="inline-flex items-center gap-1 rounded-md bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-700">
-            ✕ {rejectedCount} {sm.offerRejectedTag}
-          </span>
-        )}
+        {!acceptedOffer &&
+          !pendingAdminOffer &&
+          !pendingSellerOffer &&
+          rejectedCount > 0 && (
+            <span className="inline-flex items-center gap-1 rounded-md bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-700">
+              ✕ {rejectedCount} {sm.offerRejectedTag}
+            </span>
+          )}
 
         {property.submission_type === "edited_by_seller" &&
           property.status === "pending" && (
@@ -532,7 +536,7 @@ export default function PropertiesTable({
           >
             <FileCheck2 className="size-2.5" />
             <span>
-              {docs.length} {t.badges.docWord}
+              {docs.length}/4 {t.badges.docWord}
             </span>
           </button>
         )}
@@ -588,6 +592,7 @@ export default function PropertiesTable({
 
   const activeCount = properties.length - deletedBySellerList.length
   const georgiaLabel = t.countries?.GE || "Georgia"
+  const unitCur = getUnitCurrency()
 
   return (
     <div dir={dir} className="text-start">
@@ -763,12 +768,18 @@ export default function PropertiesTable({
               (!property.featured_until ||
                 new Date(property.featured_until) > new Date())
             const isHighlighted = highlightedUnitId === property.id
-            const unitCur = getUnitCurrency()
-            const waText = buildSellerWhatsAppMessage(property, unitCur)
+            const waText = buildSellerWhatsAppMessage({
+              property,
+              unitCur,
+              locale,
+              t,
+              leadsPrompts,
+            })
             const localizedArea = getLocalizedGeorgiaAreaName(
               property.area,
               locale
             )
+            const phoneOk = isSellerPhoneVerified(property, verificationMap)
 
             return (
               <div
@@ -828,7 +839,9 @@ export default function PropertiesTable({
                       {property.paid_amount ? (
                         <>
                           <span dir="ltr">
-                            {Number(property.paid_amount).toLocaleString("en-US")}
+                            {Number(property.paid_amount).toLocaleString(
+                              "en-US"
+                            )}
                           </span>{" "}
                           {unitCur}
                         </>
@@ -847,7 +860,9 @@ export default function PropertiesTable({
                         {property.contract_price ? (
                           <>
                             <span dir="ltr">
-                              {Number(property.contract_price).toLocaleString("en-US")}
+                              {Number(property.contract_price).toLocaleString(
+                                "en-US"
+                              )}
                             </span>{" "}
                             {unitCur}
                           </>
@@ -864,7 +879,9 @@ export default function PropertiesTable({
                         {property.market_price ? (
                           <>
                             <span dir="ltr">
-                              {Number(property.market_price).toLocaleString("en-US")}
+                              {Number(property.market_price).toLocaleString(
+                                "en-US"
+                              )}
                             </span>{" "}
                             {unitCur}
                           </>
@@ -887,6 +904,9 @@ export default function PropertiesTable({
                   >
                     <Phone className="size-3 text-gray-400" />
                     <span>{property.phone}</span>
+                    {phoneOk && (
+                      <CheckCircle2 className="size-3.5 text-[#105C50]" />
+                    )}
                   </div>
                 </div>
 
@@ -1080,12 +1100,19 @@ export default function PropertiesTable({
                   (!property.featured_until ||
                     new Date(property.featured_until) > new Date())
                 const isHighlighted = highlightedUnitId === property.id
-                const unitCur = getUnitCurrency()
-                const waText = buildSellerWhatsAppMessage(property, unitCur)
+                const waText = buildSellerWhatsAppMessage({
+                  property,
+                  unitCur,
+                  locale,
+                  t,
+                  leadsPrompts,
+                })
                 const localizedArea = getLocalizedGeorgiaAreaName(
                   property.area,
                   locale
                 )
+                const phoneOk = isSellerPhoneVerified(property, verificationMap)
+                const emailOk = isSellerEmailVerified(property, verificationMap)
 
                 const cellBorderCls = isHighlighted
                   ? "border-y-2 border-[#105C50] first:border-s-2 last:border-e-2 bg-emerald-50/40"
@@ -1136,7 +1163,9 @@ export default function PropertiesTable({
                         {property.paid_amount ? (
                           <>
                             <span dir="ltr">
-                              {Number(property.paid_amount).toLocaleString("en-US")}
+                              {Number(property.paid_amount).toLocaleString(
+                                "en-US"
+                              )}
                             </span>{" "}
                             {unitCur}
                           </>
@@ -1162,7 +1191,9 @@ export default function PropertiesTable({
                           {property.contract_price ? (
                             <>
                               <span dir="ltr">
-                                {Number(property.contract_price).toLocaleString("en-US")}
+                                {Number(
+                                  property.contract_price
+                                ).toLocaleString("en-US")}
                               </span>{" "}
                               {unitCur}
                             </>
@@ -1179,7 +1210,9 @@ export default function PropertiesTable({
                           {property.market_price ? (
                             <>
                               <span dir="ltr">
-                                {Number(property.market_price).toLocaleString("en-US")}
+                                {Number(property.market_price).toLocaleString(
+                                  "en-US"
+                                )}
                               </span>{" "}
                               {unitCur}
                             </>
@@ -1198,13 +1231,29 @@ export default function PropertiesTable({
                       </div>
                       <div
                         dir="ltr"
-                        className="mt-0.5 text-start font-mono text-[11px] font-semibold text-gray-600"
+                        className="mt-0.5 flex items-center justify-start gap-1 text-start font-mono text-[11px] font-semibold text-gray-600"
                       >
-                        {property.phone}
+                        <span>{property.phone}</span>
+                        {phoneOk && (
+                          <span
+                            title={t.badges.phoneVerifiedBadge}
+                            className="inline-flex text-[#105C50]"
+                          >
+                            <CheckCircle2 className="size-3.5" />
+                          </span>
+                        )}
                       </div>
                       {property.email && (
-                        <div className="truncate text-[10.5px] text-gray-400">
-                          {property.email}
+                        <div className="flex items-center gap-1 truncate text-[10.5px] text-gray-400">
+                          <span className="truncate">{property.email}</span>
+                          {emailOk && (
+                            <span
+                              title={t.badges.emailVerifiedBadge}
+                              className="inline-flex shrink-0 text-[#105C50]"
+                            >
+                              <CheckCircle2 className="size-3" />
+                            </span>
+                          )}
                         </div>
                       )}
                     </td>
@@ -1386,316 +1435,53 @@ export default function PropertiesTable({
         onNotice={(msg) => setNotice(msg)}
       />
 
-      <Dialog
-        open={Boolean(confirmAction)}
-        onOpenChange={(open) => {
-          if (!open) closeConfirmModal()
-        }}
-      >
-        <DialogContent
-          dir={dir}
-          className="w-[90vw] max-w-[360px] rounded-2xl p-5 text-start sm:max-w-[390px]"
-        >
-          {confirmAction && (
-            <>
-              <DialogHeader className="text-start">
-                <div className="mb-1.5 flex items-center gap-2">
-                  <span
-                    className={`flex size-8 shrink-0 items-center justify-center rounded-full ${
-                      confirmAction.type === "delete" ||
-                      confirmAction.type === "purge_all_deleted" ||
-                      (confirmAction.type === "status" &&
-                        confirmAction.newStatus === "rejected")
-                        ? "bg-red-100 text-red-600"
-                        : confirmAction.type === "promote"
-                          ? "bg-amber-100 text-amber-700"
-                          : "bg-emerald-100 text-[#105C50]"
-                    }`}
-                  >
-                    {confirmAction.type === "delete" ||
-                    confirmAction.type === "purge_all_deleted" ? (
-                      <Trash2 className="size-4" />
-                    ) : confirmAction.type === "promote" ? (
-                      <Star className="size-4 fill-amber-400 text-amber-600" />
-                    ) : (
-                      <ShieldAlert className="size-4" />
-                    )}
-                  </span>
-                  <DialogTitle className="text-sm font-extrabold text-[#0a1122]">
-                    {confirmAction.type === "purge_all_deleted" && t.modals.purgeTitle}
-                    {confirmAction.type === "delete" && t.modals.deleteTitle}
-                    {confirmAction.type === "promote" &&
-                      (confirmAction.promoAction === "activate"
-                        ? t.modals.activatePromoTitle
-                        : t.modals.cancelPromoTitle)}
-                    {confirmAction.type === "status" &&
-                      (confirmAction.newStatus === "active"
-                        ? t.modals.publishConfirmTitle
-                        : confirmAction.newStatus === "pending"
-                          ? t.modals.unpublishConfirmTitle
-                          : t.modals.stageConfirmTitle)}
-                  </DialogTitle>
-                </div>
+      <PropertyConfirmDialog
+        dir={dir}
+        t={t}
+        confirmAction={confirmAction}
+        setConfirmAction={setConfirmAction}
+        reason={reason}
+        setReason={setReason}
+        pending={pending}
+        getStatusLabel={getStatusLabel}
+        onClose={closeConfirmModal}
+        onExecute={executeConfirmedAction}
+      />
 
-                <DialogDescription className="text-start text-xs leading-relaxed text-gray-600">
-                  {confirmAction.type === "purge_all_deleted" && (
-                    <>
-                      {t.modals.purgeDescPrefix} ({confirmAction.count}){" "}
-                      {t.modals.purgeDescSuffix}
-                    </>
-                  )}
-
-                  {confirmAction.type === "status" && (
-                    <>
-                      {t.modals.updateUnitPrefix}{" "}
-                      <strong className="text-[#0a1122]">
-                        "{confirmAction.property.project_name || confirmAction.property.name}"
-                      </strong>{" "}
-                      {t.modals.toWord}{" "}
-                      <span className="font-bold text-[#105C50]">
-                        ({getStatusLabel(confirmAction.newStatus)})
-                      </span>
-                      ؟
-                    </>
-                  )}
-
-                  {confirmAction.type === "delete" && (
-                    <>
-                      {t.modals.deleteDescPrefix}{" "}
-                      <strong className="text-red-600">
-                        "{confirmAction.property.project_name || confirmAction.property.name}"
-                      </strong>{" "}
-                      {t.modals.deleteDescSuffix}
-                    </>
-                  )}
-
-                  {confirmAction.type === "promote" &&
-                    (confirmAction.promoAction === "activate" ? (
-                      <>
-                        {t.modals.selectPromoDuration}{" "}
-                        <strong className="text-[#0a1122]">
-                          "{confirmAction.property.project_name || confirmAction.property.name}"
-                        </strong>
-                        :
-                      </>
-                    ) : (
-                      <>
-                        {t.modals.confirmCancelPromo}{" "}
-                        <strong className="text-[#0a1122]">
-                          "{confirmAction.property.project_name || confirmAction.property.name}"
-                        </strong>
-                        ؟
-                      </>
-                    ))}
-                </DialogDescription>
-              </DialogHeader>
-
-              {confirmAction.type === "promote" &&
-                confirmAction.promoAction === "activate" && (
-                  <div className="mt-3 grid grid-cols-3 gap-2">
-                    {[7, 14, 30].map((d) => (
-                      <button
-                        key={d}
-                        type="button"
-                        onClick={() =>
-                          setConfirmAction({
-                            ...confirmAction,
-                            days: d,
-                          })
-                        }
-                        className={`rounded-xl border py-2 text-xs font-extrabold transition ${
-                          confirmAction.days === d
-                            ? "border-[#105C50] bg-[#eff9f5] text-[#105C50]"
-                            : "border-gray-200 bg-white text-gray-600"
-                        }`}
-                      >
-                        {d} {t.badges.dayWord}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-              {confirmAction.type === "status" &&
-                confirmAction.newStatus === "rejected" && (
-                  <div className="mt-2">
-                    <Textarea
-                      value={reason}
-                      onChange={(event) => setReason(event.target.value)}
-                      placeholder={t.modals.rejectReasonPlaceholder}
-                      className="min-h-[65px] rounded-xl text-xs"
-                    />
-                  </div>
-                )}
-
-              <DialogFooter className="mt-4 flex flex-row items-center justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={pending}
-                  onClick={closeConfirmModal}
-                  className="h-9 flex-1 rounded-xl text-xs font-bold sm:flex-none"
-                >
-                  {t.actions.cancelBtn}
-                </Button>
-                <Button
-                  type="button"
-                  disabled={pending}
-                  onClick={executeConfirmedAction}
-                  className={`h-9 flex-1 rounded-xl text-xs font-bold text-white sm:flex-none ${
-                    confirmAction.type === "delete" ||
-                    confirmAction.type === "purge_all_deleted" ||
-                    (confirmAction.type === "status" &&
-                      confirmAction.newStatus === "rejected")
-                      ? "bg-red-600 hover:bg-red-700"
-                      : "bg-[#105C50] hover:bg-[#0c483f]"
-                  }`}
-                >
-                  {pending ? (
-                    <span className="flex items-center justify-center gap-1.5">
-                      <Loader2 className="size-3.5 animate-spin" />
-                      {t.actions.executingBtn}
-                    </span>
-                  ) : (
-                    t.actions.confirmBtn
-                  )}
-                </Button>
-              </DialogFooter>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={Boolean(detailsProperty)}
-        onOpenChange={(open) => !open && setDetailsProperty(null)}
-      >
-        <DialogContent
-          dir={dir}
-          className="max-h-[88vh] w-[92vw] max-w-[460px] overflow-y-auto rounded-2xl p-5 text-start sm:max-w-lg"
-        >
-          {detailsProperty && (
-            <>
-              <DialogHeader className="text-start">
-                <DialogTitle className="text-sm font-extrabold sm:text-base">
-                  {detailsProperty.project_name || t.modals.detailsFallbackTitle} —{" "}
-                  {detailsProperty.name}
-                </DialogTitle>
-                <DialogDescription className="sr-only">
-                  {t.actions.detailsBtn}
-                </DialogDescription>
-              </DialogHeader>
-
-              {renderSellerActivityBadges(detailsProperty)}
-
-              <div className="mt-2.5 flex items-center gap-2">
-                <Link
-                  href={`/opportunities/${detailsProperty.id}`}
-                  target="_blank"
-                  className="inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-xs font-bold text-[#105C50] hover:bg-emerald-100"
-                >
-                  <ExternalLink className="size-3.5" />
-                  <span>{dict.admin?.shell?.publicSite}</span>
-                </Link>
-
-                <a
-                  data-admin-client-wa="true"
-                  href={`https://wa.me/${String(detailsProperty.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(
-                    buildSellerWhatsAppMessage(
-                      detailsProperty,
-                      getUnitCurrency()
-                    )
-                  )}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg bg-[#25D366] px-3 text-xs font-bold text-white hover:opacity-90"
-                >
-                  <MessageCircle className="size-3.5" />
-                  <span>{dict.admin?.leads?.whatsappBtn}</span>
-                </a>
-              </div>
-
-              <div className="mt-2.5 grid grid-cols-2 gap-2.5 rounded-xl bg-gray-50 p-3 text-xs">
-                <div>
-                  <span className="block text-[10px] text-gray-400">
-                    {t.modals.areaLabel}
-                  </span>
-                  <strong className="text-[#0a1122]">
-                    {getLocalizedGeorgiaAreaName(detailsProperty.area, locale)}
-                  </strong>
-                </div>
-                <div>
-                  <span className="block text-[10px] text-gray-400">
-                    {t.modals.developerLabel}
-                  </span>
-                  <strong className="text-[#0a1122]">
-                    {detailsProperty.developer_name || "—"}
-                  </strong>
-                </div>
-                <div>
-                  <span className="block text-[10px] text-gray-400">
-                    {t.modals.contractPriceLabel}
-                  </span>
-                  <strong className="text-[#0a1122]">
-                    <span dir="ltr">
-                      {Number(detailsProperty.contract_price || 0).toLocaleString("en-US")}
-                    </span>{" "}
-                    {getUnitCurrency()}
-                  </strong>
-                </div>
-                <div>
-                  <span className="block text-[10px] text-gray-400">
-                    {t.table.colCash}
-                  </span>
-                  <strong className="text-[#105C50]">
-                    <span dir="ltr">
-                      {Number(detailsProperty.paid_amount || 0).toLocaleString("en-US")}
-                    </span>{" "}
-                    {getUnitCurrency()}
-                  </strong>
-                </div>
-              </div>
-
-              {(() => {
-                const uploadedDocs = getUploadedDocsList(detailsProperty.documents)
-                return (
-                  <div className="mt-2.5 rounded-xl border border-gray-200 p-3 text-start text-xs">
-                    <p className="mb-2 font-extrabold text-[#0a1122]">
-                      {t.modals.uploadedDocsTitle} ({uploadedDocs.length}/4):
-                    </p>
-                    {uploadedDocs.length === 0 ? (
-                      <p className="text-[11px] text-gray-400">
-                        {t.modals.noDocsUploaded}
-                      </p>
-                    ) : (
-                      <div className="space-y-1.5">
-                        {uploadedDocs.map((doc) => (
-                          <div
-                            key={doc.key}
-                            className="flex items-center justify-between rounded-lg bg-emerald-50/70 px-3 py-1.5"
-                          >
-                            <span className="font-bold text-[#0a1122]">
-                              {doc.label}
-                            </span>
-                            <a
-                              href={doc.url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-1 rounded-md bg-[#105C50] px-2.5 py-1 text-[10px] font-bold text-white"
-                            >
-                              <span>{t.actions.openDocBtn}</span>
-                              <ExternalLink className="size-3" />
-                            </a>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )
-              })()}
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+      <PropertyDetailsDialog
+        dir={dir}
+        locale={locale}
+        t={t}
+        publicSiteLabel={dict.admin?.shell?.publicSite || ""}
+        whatsappBtnLabel={dict.admin?.leads?.whatsappBtn || ""}
+        detailsProperty={detailsProperty}
+        onClose={() => setDetailsProperty(null)}
+        unitCur={unitCur}
+        waMessage={
+          detailsProperty
+            ? buildSellerWhatsAppMessage({
+                property: detailsProperty,
+                unitCur,
+                locale,
+                t,
+                leadsPrompts,
+              })
+            : ""
+        }
+        uploadedDocs={
+          detailsProperty
+            ? getUploadedDocsList(
+                detailsProperty.documents,
+                docLabels,
+                t.docs.fallbackName
+              )
+            : []
+        }
+        verificationMap={verificationMap}
+        onVerifySellerContact={handleVerifySellerContact}
+        pending={pending}
+        renderBadges={renderSellerActivityBadges}
+      />
     </div>
   )
 }

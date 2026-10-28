@@ -183,7 +183,7 @@ export default async function AdminPage() {
       href: "/admin/properties",
     },
     {
-      label: t.pendingReview || "Pending",
+      label: t.pendingReview || "",
       value: pendingProperties.length.toLocaleString("en-US"),
       note:
         pendingProperties.length > 0
@@ -194,18 +194,18 @@ export default async function AdminPage() {
       highlight: pendingProperties.length > 0,
     },
     {
-      label: "غرفة العروض والصفقات",
+      label: t.dealsRoomKpiLabel || sm.dealsRoomTitle || "",
       value: allOffers.length.toLocaleString("en-US"),
       note:
         pendingAdminOffersCount > 0
-          ? `${pendingAdminOffersCount} عرض بانتظار موافقتك`
-          : `${readyDeals.length} صفقة جاهزة للتنفيذ`,
+          ? `${pendingAdminOffersCount} ${t.offersPendingYourApprovalNote || ""}`
+          : `${readyDeals.length} ${t.dealsReadyToCloseNote || ""}`,
       icon: Handshake,
       href: "/admin/deals",
       highlight: pendingAdminOffersCount > 0 || readyDeals.length > 0,
     },
     {
-      label: t.totalBuyerLeads || dict?.admin?.shell?.nav?.leads || "Leads",
+      label: t.totalBuyerLeads || dict?.admin?.shell?.nav?.leads || "",
       value: leads.length.toLocaleString("en-US"),
       note: `${leads.length.toLocaleString("en-US")} ${t.generalRequestsNote || ""}`,
       icon: FileText,
@@ -276,15 +276,16 @@ export default async function AdminPage() {
             </span>
             <div>
               <p className="text-xs font-black text-[#0a1122] sm:text-sm">
-                لديك ({pendingAdminOffersCount}) عروض شراء جديدة بانتظار تأكيدك وإرسالها للبائعين
+                {t.pendingOffersAlertPrefix} ({pendingAdminOffersCount}){" "}
+                {t.pendingOffersAlertSuffix}
               </p>
               <p className="mt-0.5 text-[11px] font-semibold text-amber-900">
-                اضغط هنا لفتح غرفة الصفقات واعتماد العروض المؤكدة عبر واتساب
+                {t.pendingOffersAlertSub}
               </p>
             </div>
           </div>
           <span className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-[#0a1122] px-4 text-xs font-extrabold text-white">
-            <span>فتح غرفة الصفقات</span>
+            <span>{t.openDealsRoomBtn}</span>
             <ArrowLeft className="size-3.5 rtl:rotate-0 ltr:rotate-180" />
           </span>
         </Link>
@@ -370,7 +371,7 @@ export default async function AdminPage() {
               href="/admin/deals?tab=accepted"
               className="rounded-xl bg-[#105C50] px-3.5 py-1.5 text-xs font-extrabold text-white hover:bg-[#0c483f]"
             >
-              إدارة وإغلاق الصفقات
+              {t.manageAndCloseDealsBtn}
             </Link>
           </div>
 
@@ -407,7 +408,7 @@ export default async function AdminPage() {
                       href={`/admin/deals?offerId=${offer.id}`}
                       className="rounded-lg bg-emerald-100 px-2.5 py-1 text-[10.5px] font-extrabold text-[#105C50] hover:bg-emerald-200"
                     >
-                      فتح في غرفة الصفقات
+                      {t.openInDealsRoomBtn}
                     </Link>
                   </div>
 
@@ -505,9 +506,10 @@ export default async function AdminPage() {
             </div>
             <Link
               href="/admin/deals"
-              className="text-xs font-bold text-[#105C50] hover:underline"
+              className="flex items-center gap-1 text-xs font-bold text-[#105C50] hover:underline"
             >
-              فتح غرفة الصفقات الكاملة ←
+              <span>{t.openFullDealsRoomLink}</span>
+              <ArrowLeft className="size-3.5 rtl:rotate-0 ltr:rotate-180" />
             </Link>
           </CardHeader>
           <CardContent className="p-3">
@@ -563,7 +565,7 @@ export default async function AdminPage() {
                     <div className="flex shrink-0 items-center gap-1.5">
                       {st === "pending_admin" && (
                         <span className="rounded-full bg-amber-500 px-2.5 py-0.5 text-[10px] font-extrabold text-white">
-                          بانتظار موافقتك
+                          {sm.offerPendingAdminTag}
                         </span>
                       )}
                       {st === "accepted" && (
@@ -585,7 +587,7 @@ export default async function AdminPage() {
                       {st === "unit_locked" && (
                         <span className="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2.5 py-0.5 text-[10px] font-bold text-slate-700">
                           <Lock className="size-2.5" />
-                          <span>احتياطي</span>
+                          <span>{sm.offerBackupTag}</span>
                         </span>
                       )}
                       {st === "rejected" && (

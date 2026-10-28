@@ -10,6 +10,7 @@ import {
   parseAndVerifySessionCookie,
 } from '@/lib/session-security'
 import { getServerI18n } from '@/lib/get-server-dictionary'
+import { upsertUserVerificationMeta } from '@/lib/form-action-helpers'
 
 const DEFAULT_SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL || 'https://exit-16.vercel.app'
@@ -37,7 +38,6 @@ function normalizeDigits(str: string): string {
     .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 1776))
 }
 
-// دالة مركزية تتحقق من صحة التوقيع المشفر للجلسة وعدم إيقاف الحساب قبل أي عملية
 async function getVerifiedSessionUser() {
   const cookieStore = await cookies()
   const rawSession = cookieStore.get('user_session')?.value
@@ -64,7 +64,6 @@ async function getVerifiedSessionUser() {
   return { supabase, user }
 }
 
-// التحقق الصارم من ملكية الوحدة عبر user_id فقط
 async function verifyUnitOwnership(
   supabase: any,
   unitId: string,
@@ -215,12 +214,22 @@ export async function updatePersonalInfoAction(payload: {
       }
     }
 
+    const isPhoneChanged =
+      String(user.phone || '').trim() !== String(formattedPhone).trim()
+
     const { error } = await supabase
       .from('users')
       .update({ name: cleanName, phone: formattedPhone })
       .eq('id', user.id)
 
     if (error) return { success: false, error: msg.updateFailed }
+
+    // إذا غيّر العميل رقم هاتفه لرقم جديد، نلغي توثيق الهاتف القديم حتى يتوثق الرقم الجديد
+    if (isPhoneChanged) {
+      await upsertUserVerificationMeta(supabase, user.id, {
+        phoneVerified: false,
+      })
+    }
 
     await Promise.all([
       supabase
@@ -270,9 +279,15 @@ export async function updateEmailInfoAction(payload: { email: string }) {
       }
     }
 
+    const isEmailChanged =
+      String(currentUser.email || '').trim().toLowerCase() !== cleanEmail
+
     const { error } = await supabase
       .from('users')
-      .update({ email: cleanEmail })
+      .update({
+        email: cleanEmail,
+        ...(isEmailChanged ? { is_verified: false } : {}),
+      })
       .eq('id', currentUser.id)
 
     if (error) {
@@ -280,6 +295,13 @@ export async function updateEmailInfoAction(payload: { email: string }) {
         success: false,
         error: msg.updateFailed,
       }
+    }
+
+    // إذا غيّر العميل بريده الإلكتروني لبريد جديد، نلغي توثيق البريد السابق حتى يؤكد البريد الجديد
+    if (isEmailChanged) {
+      await upsertUserVerificationMeta(supabase, currentUser.id, {
+        emailVerified: false,
+      })
     }
 
     await Promise.all([
@@ -700,7 +722,6 @@ export async function updateBuyerPreferencesAction(payload: {
         return { success: false, error: msg.sessionExpired }
       }
 
-      // تحقق صارم من ملكية طلب الشراء عبر user_id
       const isLeadOwner = targetLead.user_id
         ? targetLead.user_id === user.id
         : (user.email &&
@@ -721,7 +742,6 @@ export async function updateBuyerPreferencesAction(payload: {
         .eq('id', payload.buyRequestId)
 
       if (updErr) {
-        // محاولة احتياطية بدون الأعمدة الإضافية في حال لم يتم تشغيل الـ SQL بعد
         const {
           currency_code: _c,
           notify_exact_match: _ne,
@@ -886,10 +906,9 @@ export async function cancelUnitPromotionBySellerAction(unitId: string) {
   }
 }
 
-/**
- * دالة سيرفر محصّنة لجلب مستندات الوحدة الخاصة بالمستخدم الموثق فقط (تمنع ثغرة IDOR تماماً)
- */
-export async function getAuthorizedUnitDocumentsAction(requestedUnitId?: string | null) {
+export async function getAuthorizedUnitDocumentsAction(
+  requestedUnitId?: string | null
+) {
   try {
     const session = await getVerifiedSessionUser()
     if (!session) {
@@ -905,7 +924,6 @@ export async function getAuthorizedUnitDocumentsAction(requestedUnitId?: string 
 
     const { supabase, user } = session
 
-    // جلب جميع وحدات هذا البائع فقط عبر user_id
     const { data: userUnits } = await supabase
       .from('sell_requests')
       .select('id, project_name, area, documents, user_id, status')
@@ -922,8 +940,11 @@ export async function getAuthorizedUnitDocumentsAction(requestedUnitId?: string 
     let targetUnit: any = null
 
     if (requestedUnitId) {
-      // التحقق الصارم من أن الوحدة المطلوبة يملكها هذا الـ user_id
-      const verified = await verifyUnitOwnership(supabase, requestedUnitId, user)
+      const verified = await verifyUnitOwnership(
+        supabase,
+        requestedUnitId,
+        user
+      )
       if (!verified) {
         return {
           isLoggedIn: true,

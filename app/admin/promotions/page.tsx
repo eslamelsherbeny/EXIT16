@@ -1,6 +1,7 @@
 import { Suspense } from "react"
 import { cookies } from "next/headers"
 import { createServerClient } from "@supabase/ssr"
+import { getUsersVerificationMapAction } from "@/actions/submit-forms"
 import { getServerI18n } from "@/lib/get-server-dictionary"
 import PropertiesTable, {
   type SellRequest,
@@ -40,11 +41,17 @@ export default async function AdminPromotionsPage() {
     } as SellRequest
   })
 
+  const sellerUserIds = Array.from(
+    new Set(properties.map((p) => p.user_id).filter(Boolean) as string[])
+  )
+  const verificationMap = await getUsersVerificationMapAction(sellerUserIds)
+
   if (error) {
     return (
       <div dir={dir} className="mx-auto max-w-7xl">
         <div className="rounded-xl border border-red-200 bg-red-50 p-5 text-xs font-bold text-red-700">
-          {dict.admin?.promotions?.loadError || dict.admin?.propertiesAdmin?.loadError}
+          {dict.admin?.promotions?.loadError ||
+            dict.admin?.propertiesAdmin?.loadError}
         </div>
       </div>
     )
@@ -53,7 +60,11 @@ export default async function AdminPromotionsPage() {
   return (
     <div className="mx-auto max-w-7xl">
       <Suspense fallback={null}>
-        <PropertiesTable properties={properties} mode="promotions" />
+        <PropertiesTable
+          properties={properties}
+          verificationMap={verificationMap}
+          mode="promotions"
+        />
       </Suspense>
     </div>
   )

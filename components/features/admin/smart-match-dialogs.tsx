@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
   Check,
+  Clock,
   ExternalLink,
   Loader2,
   MessageCircle,
@@ -31,10 +32,25 @@ import {
   adminSendRecommendationAction,
 } from "@/actions/offer-actions"
 
+const PENDING_ADMIN_TAG = "__PENDING_ADMIN_VERIFICATION__"
+
 function deriveShortUnitCode(id: string) {
-  const digits = id.replace(/\D/g, "")
+  const digits = String(id || "").replace(/\D/g, "")
   const num = digits ? Number(digits.slice(-4)) : 100
   return `U-${String(num).padStart(5, "0")}`
+}
+
+function resolveEffectiveOfferStatus(offer: any): string {
+  if (!offer) return ""
+  const diffs = Array.isArray(offer.diff_reasons) ? offer.diff_reasons : []
+  if (
+    offer.status === "pending_admin" ||
+    (offer.status === "recommended" &&
+      (offer.initiated_by === "buyer" || diffs.includes(PENDING_ADMIN_TAG)))
+  ) {
+    return "pending_admin"
+  }
+  return offer.status || "recommended"
 }
 
 export function UnitSmartMatchModal({
@@ -64,8 +80,7 @@ export function UnitSmartMatchModal({
   if (!unit) return null
 
   const unitCur = getCurrencySymbol("GE", locale)
-  const matchPrefix =
-    sm.matchScorePrefix || buyerDict.matchScorePrefix || "متوافق"
+  const matchPrefix = sm.matchScorePrefix || buyerDict.matchScorePrefix || ""
   const localizedUnitArea = getLocalizedGeorgiaAreaName(unit.area, locale)
 
   const matchedList = (buyers || [])
@@ -73,14 +88,16 @@ export function UnitSmartMatchModal({
     .map((buyer) => {
       const existingOffer = offers.find(
         (o) =>
-          o.property_id === unit.id &&
-          (o.lead_id === buyer.id ||
-            (buyer.user_id && o.buyer_user_id === buyer.user_id))
+          String(o.property_id) === String(unit.id) &&
+          (String(o.lead_id) === String(buyer.id) ||
+            (buyer.user_id &&
+              String(o.buyer_user_id) === String(buyer.user_id)))
       )
       return {
         buyer,
         match: calculateSmartMatch(unit, buyer, undefined, locale),
         existingOffer,
+        effectiveStatus: resolveEffectiveOfferStatus(existingOffer),
       }
     })
     .filter((item) => item.match.score >= 60)
@@ -231,164 +248,178 @@ export function UnitSmartMatchModal({
               {sm.noMatchesFound}
             </p>
           ) : (
-            matchedList.map(({ buyer, match, existingOffer }) => {
-              const bCash = Number(
-                buyer.available_cash || buyer.budget || 0
-              ).toLocaleString("en-US")
-              const bWa = `${leadsPrompts.waUnitLeadPrefix} ${buyer.name || ""}، ${leadsPrompts.waUnitLeadMiddle} (${unit.project_name || ""} - ${localizedUnitArea}) — ${matchPrefix} ${match.score}%`
+            matchedList.map(
+              ({ buyer, match, existingOffer, effectiveStatus }) => {
+                const bCash = Number(
+                  buyer.available_cash || buyer.budget || 0
+                ).toLocaleString("en-US")
+                const bWa = `${leadsPrompts.waUnitLeadPrefix} ${buyer.name || ""}، ${leadsPrompts.waUnitLeadMiddle} (${unit.project_name || ""} - ${localizedUnitArea}) — ${matchPrefix} ${match.score}%`
 
-              const recKey = `rec_${unit.id}_${buyer.id}`
-              const offKey = `off_${unit.id}_${buyer.id}`
-              const isRecDone =
-                Boolean(doneKeys[recKey]) ||
-                isBulkDone ||
-                Boolean(existingOffer)
-              const isOffDone =
-                Boolean(doneKeys[offKey]) ||
-                (existingOffer && existingOffer.status !== "recommended")
+                const recKey = `rec_${unit.id}_${buyer.id}`
+                const offKey = `off_${unit.id}_${buyer.id}`
+                const isRecDone =
+                  Boolean(doneKeys[recKey]) ||
+                  isBulkDone ||
+                  Boolean(existingOffer)
+                const isOffDone =
+                  Boolean(doneKeys[offKey]) ||
+                  (Boolean(existingOffer) &&
+                    effectiveStatus !== "recommended" &&
+                    effectiveStatus !== "pending_admin")
 
-              return (
-                <div
-                  key={buyer.id}
-                  className="overflow-hidden rounded-xl border border-gray-200/90 bg-white p-3.5 text-xs shadow-2xs"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-extrabold text-[#0a1122]">
-                        {buyer.name}
-                      </p>
-                      <p
-                        dir="ltr"
-                        className="mt-0.5 text-start font-mono text-[11px] text-gray-500"
-                      >
-                        {buyer.phone}
-                      </p>
-                    </div>
+                return (
+                  <div
+                    key={buyer.id}
+                    className="overflow-hidden rounded-xl border border-gray-200/90 bg-white p-3.5 text-xs shadow-2xs"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-extrabold text-[#0a1122]">
+                          {buyer.name}
+                        </p>
+                        <p
+                          dir="ltr"
+                          className="mt-0.5 text-start font-mono text-[11px] text-gray-500"
+                        >
+                          {buyer.phone}
+                        </p>
+                      </div>
 
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {existingOffer && (
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {existingOffer && (
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-extrabold ${
+                              effectiveStatus === "accepted"
+                                ? "bg-emerald-600 text-white"
+                                : effectiveStatus === "pending_admin"
+                                  ? "bg-amber-500 text-white"
+                                  : effectiveStatus === "rejected"
+                                    ? "bg-red-100 text-red-700"
+                                    : effectiveStatus === "pending_seller" ||
+                                        effectiveStatus === "counter_offered"
+                                      ? "bg-purple-100 text-purple-800"
+                                      : "bg-gray-100 text-gray-700"
+                            }`}
+                          >
+                            {effectiveStatus === "pending_admin" && (
+                              <Clock className="size-2.5" />
+                            )}
+                            <span>
+                              {effectiveStatus === "accepted"
+                                ? sm.offerAcceptedTag
+                                : effectiveStatus === "pending_admin"
+                                  ? sm.offerPendingAdminTag
+                                  : effectiveStatus === "rejected"
+                                    ? sm.offerRejectedTag
+                                    : effectiveStatus === "pending_seller" ||
+                                        effectiveStatus === "counter_offered"
+                                      ? sm.offerPendingTag
+                                      : sm.recSentTag}
+                            </span>
+                          </span>
+                        )}
                         <span
-                          className={`rounded-md px-2 py-0.5 text-[10px] font-extrabold ${
-                            existingOffer.status === "accepted"
-                              ? "bg-emerald-600 text-white"
-                              : existingOffer.status === "rejected"
-                                ? "bg-red-100 text-red-700"
-                                : existingOffer.status === "pending_seller"
-                                  ? "bg-purple-100 text-purple-800"
-                                  : "bg-gray-100 text-gray-700"
+                          className={`rounded-md px-2 py-0.5 text-[10.5px] font-black ${
+                            match.score >= 85
+                              ? "bg-[#105C50] text-white"
+                              : "bg-emerald-50 text-[#105C50]"
                           }`}
                         >
-                          {existingOffer.status === "accepted"
-                            ? sm.offerAcceptedTag
-                            : existingOffer.status === "rejected"
-                              ? sm.offerRejectedTag
-                              : existingOffer.status === "pending_seller"
-                                ? sm.offerPendingTag
-                                : sm.recSentTag}
+                          🎯 {matchPrefix} {match.score}%
                         </span>
-                      )}
-                      <span
-                        className={`rounded-md px-2 py-0.5 text-[10.5px] font-black ${
-                          match.score >= 85
-                            ? "bg-[#105C50] text-white"
-                            : "bg-emerald-50 text-[#105C50]"
+                      </div>
+                    </div>
+
+                    <p className="mt-2 text-[11px] font-bold text-[#105C50]">
+                      {leadsPrompts.cashShort} <span dir="ltr">{bCash}</span>{" "}
+                      {unitCur}
+                    </p>
+
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {match.matches.map((mStr) => (
+                        <span
+                          key={mStr}
+                          className="rounded bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-[#105C50]"
+                        >
+                          ✓ {mStr}
+                        </span>
+                      ))}
+                      {match.differences.map((dStr) => (
+                        <span
+                          key={dStr}
+                          className="rounded bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800"
+                        >
+                          ⚠️ {dStr}
+                        </span>
+                      ))}
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-1 gap-1.5 border-t border-gray-100 pt-2.5 sm:grid-cols-3">
+                      <button
+                        type="button"
+                        disabled={isPending || isRecDone}
+                        onClick={() => handleSendSingle(buyer.id)}
+                        className={`inline-flex min-h-[34px] items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-center text-[11px] font-bold text-white transition ${
+                          isRecDone
+                            ? "bg-emerald-600"
+                            : "bg-[#0a1122] hover:bg-[#16223f]"
                         }`}
                       >
-                        🎯 {matchPrefix} {match.score}%
-                      </span>
+                        {loadingKey === recKey ? (
+                          <Loader2 className="size-3.5 animate-spin" />
+                        ) : isRecDone ? (
+                          <>
+                            <Check className="size-3.5 shrink-0" />
+                            <span>{sm.sentRecDoneBtn}</span>
+                          </>
+                        ) : (
+                          <>
+                            <Send className="size-3.5 shrink-0" />
+                            <span>{sm.sendRecToBuyerBtn}</span>
+                          </>
+                        )}
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={isPending || isOffDone}
+                        onClick={() => handleCreateOffer(buyer)}
+                        className={`inline-flex min-h-[34px] items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-center text-[11px] font-bold text-white transition ${
+                          isOffDone
+                            ? "bg-purple-700"
+                            : "bg-[#105C50] hover:bg-[#0c483f]"
+                        }`}
+                      >
+                        {loadingKey === offKey ? (
+                          <Loader2 className="size-3.5 animate-spin" />
+                        ) : isOffDone ? (
+                          <>
+                            <Check className="size-3.5 shrink-0" />
+                            <span>{sm.sentOfferDoneBtn}</span>
+                          </>
+                        ) : (
+                          <>
+                            <Wallet className="size-3.5 shrink-0" />
+                            <span>{sm.createOfficialOfferBtn}</span>
+                          </>
+                        )}
+                      </button>
+
+                      <a
+                        data-admin-client-wa="true"
+                        href={`https://wa.me/${String(buyer.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(bWa)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex min-h-[34px] items-center justify-center gap-1.5 rounded-lg bg-[#25D366] px-2.5 py-1.5 text-center text-[11px] font-bold text-white hover:opacity-90"
+                      >
+                        <MessageCircle className="size-3.5 shrink-0" />
+                        <span>{leadsPrompts.whatsappBtn}</span>
+                      </a>
                     </div>
                   </div>
-
-                  <p className="mt-2 text-[11px] font-bold text-[#105C50]">
-                    {leadsPrompts.cashShort} <span dir="ltr">{bCash}</span>{" "}
-                    {unitCur}
-                  </p>
-
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {match.matches.map((mStr) => (
-                      <span
-                        key={mStr}
-                        className="rounded bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-[#105C50]"
-                      >
-                        ✓ {mStr}
-                      </span>
-                    ))}
-                    {match.differences.map((dStr) => (
-                      <span
-                        key={dStr}
-                        className="rounded bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800"
-                      >
-                        ⚠️ {dStr}
-                      </span>
-                    ))}
-                  </div>
-
-                  {/* أزرار متجاوبة للموبايل والكمبيوتر بدون أي خروج عن الشاشة */}
-                  <div className="mt-3 grid grid-cols-1 gap-1.5 border-t border-gray-100 pt-2.5 sm:grid-cols-3">
-                    <button
-                      type="button"
-                      disabled={isPending || isRecDone}
-                      onClick={() => handleSendSingle(buyer.id)}
-                      className={`inline-flex min-h-[34px] items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-center text-[11px] font-bold text-white transition ${
-                        isRecDone
-                          ? "bg-emerald-600"
-                          : "bg-[#0a1122] hover:bg-[#16223f]"
-                      }`}
-                    >
-                      {loadingKey === recKey ? (
-                        <Loader2 className="size-3.5 animate-spin" />
-                      ) : isRecDone ? (
-                        <>
-                          <Check className="size-3.5 shrink-0" />
-                          <span>{sm.sentRecDoneBtn}</span>
-                        </>
-                      ) : (
-                        <>
-                          <Send className="size-3.5 shrink-0" />
-                          <span>{sm.sendRecToBuyerBtn}</span>
-                        </>
-                      )}
-                    </button>
-
-                    <button
-                      type="button"
-                      disabled={isPending || isOffDone}
-                      onClick={() => handleCreateOffer(buyer)}
-                      className={`inline-flex min-h-[34px] items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-center text-[11px] font-bold text-white transition ${
-                        isOffDone
-                          ? "bg-purple-700"
-                          : "bg-[#105C50] hover:bg-[#0c483f]"
-                      }`}
-                    >
-                      {loadingKey === offKey ? (
-                        <Loader2 className="size-3.5 animate-spin" />
-                      ) : isOffDone ? (
-                        <>
-                          <Check className="size-3.5 shrink-0" />
-                          <span>{sm.sentOfferDoneBtn}</span>
-                        </>
-                      ) : (
-                        <>
-                          <Wallet className="size-3.5 shrink-0" />
-                          <span>{sm.createOfficialOfferBtn}</span>
-                        </>
-                      )}
-                    </button>
-
-                    <a
-                      data-admin-client-wa="true"
-                      href={`https://wa.me/${String(buyer.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(bWa)}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex min-h-[34px] items-center justify-center gap-1.5 rounded-lg bg-[#25D366] px-2.5 py-1.5 text-center text-[11px] font-bold text-white hover:opacity-90"
-                    >
-                      <MessageCircle className="size-3.5 shrink-0" />
-                      <span>{leadsPrompts.whatsappBtn}</span>
-                    </a>
-                  </div>
-                </div>
-              )
-            })
+                )
+              }
+            )
           )}
         </div>
       </DialogContent>
@@ -422,8 +453,7 @@ export function BuyerSmartMatchModal({
   if (!lead) return null
 
   const leadCur = getCurrencySymbol("GE", locale)
-  const matchPrefix =
-    sm.matchScorePrefix || buyerDict.matchScorePrefix || "متوافق"
+  const matchPrefix = sm.matchScorePrefix || buyerDict.matchScorePrefix || ""
 
   const matchedUnitsList = (units || [])
     .filter(
@@ -434,14 +464,16 @@ export function BuyerSmartMatchModal({
     .map((unit) => {
       const existingOffer = offers.find(
         (o) =>
-          o.property_id === unit.id &&
-          (o.lead_id === lead.id ||
-            (lead.user_id && o.buyer_user_id === lead.user_id))
+          String(o.property_id) === String(unit.id) &&
+          (String(o.lead_id) === String(lead.id) ||
+            (lead.user_id &&
+              String(o.buyer_user_id) === String(lead.user_id)))
       )
       return {
         unit,
         match: calculateSmartMatch(unit, lead, undefined, locale),
         existingOffer,
+        effectiveStatus: resolveEffectiveOfferStatus(existingOffer),
       }
     })
     .filter((item) => item.match.score >= 60)
@@ -592,160 +624,175 @@ export function BuyerSmartMatchModal({
               {sm.noMatchesFound}
             </p>
           ) : (
-            matchedUnitsList.map(({ unit, match, existingOffer }) => {
-              const uCash = Number(unit.paid_amount || 0).toLocaleString(
-                "en-US"
-              )
-              const localizedArea = getLocalizedGeorgiaAreaName(
-                unit.area,
-                locale
-              )
-              const recKey = `rec_${unit.id}_${lead.id}`
-              const offKey = `off_${unit.id}_${lead.id}`
-              const isRecDone =
-                Boolean(doneKeys[recKey]) ||
-                isBulkDone ||
-                Boolean(existingOffer)
-              const isOffDone =
-                Boolean(doneKeys[offKey]) ||
-                (existingOffer && existingOffer.status !== "recommended")
+            matchedUnitsList.map(
+              ({ unit, match, existingOffer, effectiveStatus }) => {
+                const uCash = Number(unit.paid_amount || 0).toLocaleString(
+                  "en-US"
+                )
+                const localizedArea = getLocalizedGeorgiaAreaName(
+                  unit.area,
+                  locale
+                )
+                const recKey = `rec_${unit.id}_${lead.id}`
+                const offKey = `off_${unit.id}_${lead.id}`
+                const isRecDone =
+                  Boolean(doneKeys[recKey]) ||
+                  isBulkDone ||
+                  Boolean(existingOffer)
+                const isOffDone =
+                  Boolean(doneKeys[offKey]) ||
+                  (Boolean(existingOffer) &&
+                    effectiveStatus !== "recommended" &&
+                    effectiveStatus !== "pending_admin")
 
-              return (
-                <div
-                  key={unit.id}
-                  className="overflow-hidden rounded-xl border border-gray-200/90 bg-white p-3.5 text-xs shadow-2xs"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <p className="font-extrabold text-[#0a1122]">
-                        {unit.project_name || "—"} ({localizedArea})
-                      </p>
-                      <span className="font-mono text-[10px] text-gray-400">
-                        {deriveShortUnitCode(unit.id)}
-                      </span>
-                    </div>
+                return (
+                  <div
+                    key={unit.id}
+                    className="overflow-hidden rounded-xl border border-gray-200/90 bg-white p-3.5 text-xs shadow-2xs"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-extrabold text-[#0a1122]">
+                          {unit.project_name || "—"} ({localizedArea})
+                        </p>
+                        <span className="font-mono text-[10px] text-gray-400">
+                          {deriveShortUnitCode(unit.id)}
+                        </span>
+                      </div>
 
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {existingOffer && (
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {existingOffer && (
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-extrabold ${
+                              effectiveStatus === "accepted"
+                                ? "bg-emerald-600 text-white"
+                                : effectiveStatus === "pending_admin"
+                                  ? "bg-amber-500 text-white"
+                                  : effectiveStatus === "rejected"
+                                    ? "bg-red-100 text-red-700"
+                                    : effectiveStatus === "pending_seller" ||
+                                        effectiveStatus === "counter_offered"
+                                      ? "bg-purple-100 text-purple-800"
+                                      : "bg-gray-100 text-gray-700"
+                            }`}
+                          >
+                            {effectiveStatus === "pending_admin" && (
+                              <Clock className="size-2.5" />
+                            )}
+                            <span>
+                              {effectiveStatus === "accepted"
+                                ? sm.offerAcceptedTag
+                                : effectiveStatus === "pending_admin"
+                                  ? sm.offerPendingAdminTag
+                                  : effectiveStatus === "rejected"
+                                    ? sm.offerRejectedTag
+                                    : effectiveStatus === "pending_seller" ||
+                                        effectiveStatus === "counter_offered"
+                                      ? sm.offerPendingTag
+                                      : sm.recSentTag}
+                            </span>
+                          </span>
+                        )}
                         <span
-                          className={`rounded-md px-2 py-0.5 text-[10px] font-extrabold ${
-                            existingOffer.status === "accepted"
-                              ? "bg-emerald-600 text-white"
-                              : existingOffer.status === "rejected"
-                                ? "bg-red-100 text-red-700"
-                                : existingOffer.status === "pending_seller"
-                                  ? "bg-purple-100 text-purple-800"
-                                  : "bg-gray-100 text-gray-700"
+                          className={`rounded-md px-2 py-0.5 text-[10.5px] font-black ${
+                            match.score >= 85
+                              ? "bg-[#105C50] text-white"
+                              : "bg-emerald-50 text-[#105C50]"
                           }`}
                         >
-                          {existingOffer.status === "accepted"
-                            ? sm.offerAcceptedTag
-                            : existingOffer.status === "rejected"
-                              ? sm.offerRejectedTag
-                              : existingOffer.status === "pending_seller"
-                                ? sm.offerPendingTag
-                                : sm.recSentTag}
+                          🎯 {matchPrefix} {match.score}%
                         </span>
-                      )}
-                      <span
-                        className={`rounded-md px-2 py-0.5 text-[10.5px] font-black ${
-                          match.score >= 85
-                            ? "bg-[#105C50] text-white"
-                            : "bg-emerald-50 text-[#105C50]"
+                      </div>
+                    </div>
+
+                    <p className="mt-2 text-[11px] font-bold text-[#105C50]">
+                      {tLeads.cashLabel} <span dir="ltr">{uCash}</span>{" "}
+                      {leadCur}
+                    </p>
+
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {match.matches.map((mStr) => (
+                        <span
+                          key={mStr}
+                          className="rounded bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-[#105C50]"
+                        >
+                          ✓ {mStr}
+                        </span>
+                      ))}
+                      {match.differences.map((dStr) => (
+                        <span
+                          key={dStr}
+                          className="rounded bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800"
+                        >
+                          ⚠️ {dStr}
+                        </span>
+                      ))}
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-1 gap-1.5 border-t border-gray-100 pt-2.5 sm:grid-cols-3">
+                      <button
+                        type="button"
+                        disabled={isPending || isRecDone}
+                        onClick={() => handleSendSingle(unit.id)}
+                        className={`inline-flex min-h-[34px] items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-center text-[11px] font-bold text-white transition ${
+                          isRecDone
+                            ? "bg-emerald-600"
+                            : "bg-[#0a1122] hover:bg-[#16223f]"
                         }`}
                       >
-                        🎯 {matchPrefix} {match.score}%
-                      </span>
+                        {loadingKey === recKey ? (
+                          <Loader2 className="size-3.5 animate-spin" />
+                        ) : isRecDone ? (
+                          <>
+                            <Check className="size-3.5 shrink-0" />
+                            <span>{sm.sentRecDoneBtn}</span>
+                          </>
+                        ) : (
+                          <>
+                            <Send className="size-3.5 shrink-0" />
+                            <span>{sm.sendRecToBuyerBtn}</span>
+                          </>
+                        )}
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={isPending || isOffDone}
+                        onClick={() => handleCreateOffer(unit)}
+                        className={`inline-flex min-h-[34px] items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-center text-[11px] font-bold text-white transition ${
+                          isOffDone
+                            ? "bg-purple-700"
+                            : "bg-[#105C50] hover:bg-[#0c483f]"
+                        }`}
+                      >
+                        {loadingKey === offKey ? (
+                          <Loader2 className="size-3.5 animate-spin" />
+                        ) : isOffDone ? (
+                          <>
+                            <Check className="size-3.5 shrink-0" />
+                            <span>{sm.sentOfferDoneBtn}</span>
+                          </>
+                        ) : (
+                          <>
+                            <Wallet className="size-3.5 shrink-0" />
+                            <span>{sm.createOfficialOfferBtn}</span>
+                          </>
+                        )}
+                      </button>
+
+                      <Link
+                        href={`/opportunities/${unit.id}`}
+                        target="_blank"
+                        className="inline-flex min-h-[34px] items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-center text-[11px] font-bold text-[#105C50] hover:bg-gray-100"
+                      >
+                        <ExternalLink className="size-3.5 shrink-0" />
+                        <span>{sm.viewUnitBtn}</span>
+                      </Link>
                     </div>
                   </div>
-
-                  <p className="mt-2 text-[11px] font-bold text-[#105C50]">
-                    {tLeads.cashLabel} <span dir="ltr">{uCash}</span> {leadCur}
-                  </p>
-
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {match.matches.map((mStr) => (
-                      <span
-                        key={mStr}
-                        className="rounded bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-[#105C50]"
-                      >
-                        ✓ {mStr}
-                      </span>
-                    ))}
-                    {match.differences.map((dStr) => (
-                      <span
-                        key={dStr}
-                        className="rounded bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800"
-                      >
-                        ⚠️ {dStr}
-                      </span>
-                    ))}
-                  </div>
-
-                  {/* أزرار متجاوبة للموبايل والكمبيوتر بدون أي خروج عن الشاشة */}
-                  <div className="mt-3 grid grid-cols-1 gap-1.5 border-t border-gray-100 pt-2.5 sm:grid-cols-3">
-                    <button
-                      type="button"
-                      disabled={isPending || isRecDone}
-                      onClick={() => handleSendSingle(unit.id)}
-                      className={`inline-flex min-h-[34px] items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-center text-[11px] font-bold text-white transition ${
-                        isRecDone
-                          ? "bg-emerald-600"
-                          : "bg-[#0a1122] hover:bg-[#16223f]"
-                      }`}
-                    >
-                      {loadingKey === recKey ? (
-                        <Loader2 className="size-3.5 animate-spin" />
-                      ) : isRecDone ? (
-                        <>
-                          <Check className="size-3.5 shrink-0" />
-                          <span>{sm.sentRecDoneBtn}</span>
-                        </>
-                      ) : (
-                        <>
-                          <Send className="size-3.5 shrink-0" />
-                          <span>{sm.sendRecToBuyerBtn}</span>
-                        </>
-                      )}
-                    </button>
-
-                    <button
-                      type="button"
-                      disabled={isPending || isOffDone}
-                      onClick={() => handleCreateOffer(unit)}
-                      className={`inline-flex min-h-[34px] items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-center text-[11px] font-bold text-white transition ${
-                        isOffDone
-                          ? "bg-purple-700"
-                          : "bg-[#105C50] hover:bg-[#0c483f]"
-                      }`}
-                    >
-                      {loadingKey === offKey ? (
-                        <Loader2 className="size-3.5 animate-spin" />
-                      ) : isOffDone ? (
-                        <>
-                          <Check className="size-3.5 shrink-0" />
-                          <span>{sm.sentOfferDoneBtn}</span>
-                        </>
-                      ) : (
-                        <>
-                          <Wallet className="size-3.5 shrink-0" />
-                          <span>{sm.createOfficialOfferBtn}</span>
-                        </>
-                      )}
-                    </button>
-
-                    <Link
-                      href={`/opportunities/${unit.id}`}
-                      target="_blank"
-                      className="inline-flex min-h-[34px] items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-center text-[11px] font-bold text-[#105C50] hover:bg-gray-100"
-                    >
-                      <ExternalLink className="size-3.5 shrink-0" />
-                      <span>{sm.viewUnitBtn}</span>
-                    </Link>
-                  </div>
-                </div>
-              )
-            })
+                )
+              }
+            )
           )}
         </div>
       </DialogContent>

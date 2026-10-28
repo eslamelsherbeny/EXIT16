@@ -1,6 +1,7 @@
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { createServerClient } from "@supabase/ssr"
+import { getUsersVerificationMapAction } from "@/actions/submit-forms"
 import {
   extractUserIdFromCookie,
   parseAndVerifySessionCookie,
@@ -58,6 +59,9 @@ export default async function UsersPage() {
       supabase.from("buy_requests").select("user_id"),
     ])
 
+  const allUserIds = (usersData || []).map((u: any) => String(u.id))
+  const verificationMap = await getUsersVerificationMapAction(allUserIds)
+
   const sellCounts: Record<string, number> = {}
   const buyCounts: Record<string, number> = {}
 
@@ -68,17 +72,28 @@ export default async function UsersPage() {
     if (b.user_id) buyCounts[b.user_id] = (buyCounts[b.user_id] || 0) + 1
   })
 
-  const rows: AdminUserRow[] = (usersData || []).map((u) => ({
-    id: u.id,
-    name: u.name || "—",
-    email: u.email || "—",
-    phone: u.phone || "—",
-    role: u.role || "user",
-    status: u.status || "active",
-    created_at: u.created_at || new Date().toISOString(),
-    sellCount: sellCounts[u.id] || 0,
-    buyCount: buyCounts[u.id] || 0,
-  }))
+  const rows: AdminUserRow[] = (usersData || []).map((u) => {
+    const vInfo = verificationMap[u.id] || {
+      emailVerified: Boolean(u.is_verified),
+      phoneVerified:
+        Boolean(u.phone_verified) ||
+        String(u.otp_code || "").includes("PHONE_OK"),
+    }
+
+    return {
+      id: u.id,
+      name: u.name || "—",
+      email: u.email || "—",
+      phone: u.phone || "—",
+      role: u.role || "user",
+      status: u.status || "active",
+      created_at: u.created_at || new Date().toISOString(),
+      sellCount: sellCounts[u.id] || 0,
+      buyCount: buyCounts[u.id] || 0,
+      emailVerified: vInfo.emailVerified,
+      phoneVerified: vInfo.phoneVerified,
+    }
+  })
 
   return (
     <div className="mx-auto max-w-7xl">

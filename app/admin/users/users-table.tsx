@@ -12,7 +12,6 @@ import {
   Mail,
   Phone,
   Search,
-  ShieldAlert,
   ShieldCheck,
   Trash2,
   UserPlus,
@@ -27,20 +26,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import { useTranslation } from "@/lib/i18n"
 import {
   createAdminOrUserAction,
   deleteUserByAdminAction,
   updateUserRoleAndStatusAction,
+  verifyUserContactByAdminAction,
 } from "../../../actions/admin-actions"
+import { AddUserDialog, UserConfirmDialog } from "./users-modals"
 
 export type AdminUserRow = {
   id: string
@@ -52,9 +45,11 @@ export type AdminUserRow = {
   created_at: string
   sellCount: number
   buyCount: number
+  emailVerified?: boolean
+  phoneVerified?: boolean
 }
 
-type ConfirmActionState =
+export type ConfirmActionState =
   | {
       type: "role"
       user: AdminUserRow
@@ -72,9 +67,9 @@ type ConfirmActionState =
 
 export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
   const router = useRouter()
-  // سحب الترجمة مباشرة من النظام المركزي (ملفات الـ JSON)
   const { t: dict, dir } = useTranslation()
   const t = dict.admin.usersPage
+  const propBadges = dict.admin?.propertiesAdmin?.badges || {}
 
   const roleOptions = [
     { value: "admin", label: t.roles.admin },
@@ -99,6 +94,29 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
   } | null>(null)
   const [pending, startTransition] = useTransition()
 
+  function handleVerifyUserContact(user: AdminUserRow) {
+    setNotice(null)
+    setActiveUserId(user.id)
+    startTransition(async () => {
+      try {
+        const res = await verifyUserContactByAdminAction({
+          userId: user.id,
+          type: "both",
+        })
+        if (res.success) {
+          setNotice({
+            text: `${dict.admin?.propertiesAdmin?.notices?.sellerVerifiedSuccess || t.statusUpdatedSuccess} (${user.name})`,
+          })
+          router.refresh()
+        } else {
+          setNotice({ text: res.error || t.emptyText, isError: true })
+        }
+      } finally {
+        setActiveUserId(null)
+      }
+    })
+  }
+
   function executeConfirmedAction() {
     if (!confirmState) return
     setNotice(null)
@@ -119,7 +137,7 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
             })
             router.refresh()
           } else {
-            setNotice({ text: res.error || "Error", isError: true })
+            setNotice({ text: res.error || t.emptyText, isError: true })
           }
         } else if (confirmState.type === "status") {
           const res = await updateUserRoleAndStatusAction(
@@ -133,7 +151,7 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
             })
             router.refresh()
           } else {
-            setNotice({ text: res.error || "Error", isError: true })
+            setNotice({ text: res.error || t.emptyText, isError: true })
           }
         } else if (confirmState.type === "delete") {
           const res = await deleteUserByAdminAction(targetUser.id)
@@ -143,7 +161,7 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
             })
             router.refresh()
           } else {
-            setNotice({ text: res.error || "Error", isError: true })
+            setNotice({ text: res.error || t.emptyText, isError: true })
           }
         }
       } finally {
@@ -164,7 +182,7 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
         setOpenAddModal(false)
         router.refresh()
       } else {
-        setNotice({ text: res.error || "Error", isError: true })
+        setNotice({ text: res.error || t.emptyText, isError: true })
       }
     })
   }
@@ -180,8 +198,13 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
     if (roleFilter === "buyers" && u.buyCount === 0) return false
 
     if (search.trim()) {
-      const q = search.toLowerCase()
-      return `${u.name} ${u.email} ${u.phone}`.toLowerCase().includes(q)
+      const q = search.trim().toLowerCase()
+      const qDigits = q.replace(/\D/g, "")
+      const phoneDigits = String(u.phone || "").replace(/\D/g, "")
+      return (
+        `${u.name} ${u.email} ${u.phone}`.toLowerCase().includes(q) ||
+        (qDigits.length >= 5 && phoneDigits.includes(qDigits))
+      )
     }
     return true
   })
@@ -384,9 +407,12 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                     </span>
                     <span
                       dir="ltr"
-                      className="truncate font-medium text-[#0a1122]"
+                      className="flex items-center gap-1 truncate font-medium text-[#0a1122]"
                     >
-                      {user.email}
+                      <span className="truncate">{user.email}</span>
+                      {user.emailVerified && (
+                        <CheckCircle2 className="size-3.5 shrink-0 text-[#105C50]" />
+                      )}
                     </span>
                   </div>
                   <div className="flex items-center justify-between gap-2">
@@ -394,8 +420,14 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                       <Phone className="size-3.5" />
                       <span>{t.phoneLabel}</span>
                     </span>
-                    <span dir="ltr" className="font-medium text-[#0a1122]">
-                      {user.phone}
+                    <span
+                      dir="ltr"
+                      className="flex items-center gap-1 font-medium text-[#0a1122]"
+                    >
+                      <span>{user.phone}</span>
+                      {user.phoneVerified && (
+                        <CheckCircle2 className="size-3.5 shrink-0 text-[#105C50]" />
+                      )}
                     </span>
                   </div>
                   <div className="flex items-center justify-between gap-2">
@@ -436,7 +468,21 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                   </select>
                 </div>
 
-                <div className="mt-3 flex items-center gap-2 border-t border-gray-100 pt-3">
+                <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3">
+                  {(!user.emailVerified || !user.phoneVerified) && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={pending}
+                      onClick={() => handleVerifyUserContact(user)}
+                      className="h-9 flex-1 rounded-xl border-emerald-200 bg-emerald-50 text-xs font-bold text-[#105C50] hover:bg-emerald-100"
+                    >
+                      <CheckCircle2 className="me-1 size-3.5" />
+                      {dict.admin?.propertiesAdmin?.actions?.verifySellerBtn ||
+                        t.activateBtn}
+                    </Button>
+                  )}
+
                   <Button
                     size="sm"
                     variant="outline"
@@ -530,14 +576,30 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                               <ShieldCheck className="size-4 text-[#105C50]" />
                             )}
                           </div>
-                          <div className="mt-0.5 text-xs text-gray-500">
-                            {user.email}
+                          <div className="mt-0.5 flex items-center gap-1 text-xs text-gray-500">
+                            <span>{user.email}</span>
+                            {user.emailVerified && (
+                              <span
+                                title={propBadges.emailVerifiedBadge}
+                                className="inline-flex text-[#105C50]"
+                              >
+                                <CheckCircle2 className="size-3.5" />
+                              </span>
+                            )}
                           </div>
                           <div
                             dir="ltr"
-                            className="text-start text-[11px] text-gray-400"
+                            className="flex items-center justify-start gap-1 text-start text-[11px] text-gray-400"
                           >
-                            {user.phone}
+                            <span>{user.phone}</span>
+                            {user.phoneVerified && (
+                              <span
+                                title={propBadges.phoneVerifiedBadge}
+                                className="inline-flex text-[#105C50]"
+                              >
+                                <CheckCircle2 className="size-3.5" />
+                              </span>
+                            )}
                           </div>
                         </td>
 
@@ -610,7 +672,21 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                         </td>
 
                         <td className="px-5 py-4">
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            {(!user.emailVerified || !user.phoneVerified) && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={pending}
+                                onClick={() => handleVerifyUserContact(user)}
+                                className="h-8 rounded-lg border-emerald-200 bg-emerald-50 text-xs font-bold text-[#105C50] hover:bg-emerald-100"
+                              >
+                                <CheckCircle2 className="me-1 size-3.5" />
+                                {dict.admin?.propertiesAdmin?.actions
+                                  ?.verifySellerBtn || t.activateBtn}
+                              </Button>
+                            )}
+
                             <Button
                               size="sm"
                               variant="outline"
@@ -619,7 +695,9 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                                 setConfirmState({
                                   type: "status",
                                   user,
-                                  newStatus: isSuspended ? "active" : "suspended",
+                                  newStatus: isSuspended
+                                    ? "active"
+                                    : "suspended",
                                 })
                               }
                               className={`h-8 rounded-lg text-xs font-bold ${
@@ -657,220 +735,25 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
         </CardContent>
       </Card>
 
-      {/* نافذة التأكيد */}
-      <Dialog
-        open={Boolean(confirmState)}
-        onOpenChange={(open) => {
-          if (!open && !pending) setConfirmState(null)
-        }}
-      >
-        <DialogContent dir={dir} className="max-w-md text-start">
-          {confirmState && (
-            <>
-              <DialogHeader>
-                <div className="mb-2 flex items-center gap-2.5">
-                  <span
-                    className={`flex size-10 shrink-0 items-center justify-center rounded-full ${
-                      confirmState.type === "delete"
-                        ? "bg-red-100 text-red-600"
-                        : confirmState.type === "status" &&
-                            confirmState.newStatus === "suspended"
-                          ? "bg-amber-100 text-amber-600"
-                          : "bg-emerald-100 text-[#105C50]"
-                    }`}
-                  >
-                    {confirmState.type === "delete" ? (
-                      <Trash2 className="size-5" />
-                    ) : (
-                      <ShieldAlert className="size-5" />
-                    )}
-                  </span>
-                  <DialogTitle className="text-base font-extrabold text-[#0a1122]">
-                    {confirmState.type === "role" && t.confirmRoleTitle}
-                    {confirmState.type === "status" &&
-                      (confirmState.newStatus === "active"
-                        ? t.confirmActivateTitle
-                        : t.confirmSuspendTitle)}
-                    {confirmState.type === "delete" && t.confirmDeleteTitle}
-                  </DialogTitle>
-                </div>
+      <UserConfirmDialog
+        dir={dir}
+        t={t}
+        confirmState={confirmState}
+        pending={pending}
+        getRoleLabel={getRoleLabel}
+        onClose={() => setConfirmState(null)}
+        onExecute={executeConfirmedAction}
+      />
 
-                <DialogDescription className="text-start text-xs leading-relaxed text-gray-600">
-                  <strong className="text-[#0a1122]">
-                    "{confirmState.user.name}"
-                  </strong>
-                  {confirmState.type === "role" && (
-                    <>
-                      {" "}
-                      →{" "}
-                      <span className="font-bold text-[#105C50]">
-                        ({getRoleLabel(confirmState.newRole)})
-                      </span>
-                    </>
-                  )}
-                </DialogDescription>
-              </DialogHeader>
-
-              <DialogFooter className="mt-4 flex-row justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={pending}
-                  onClick={() => setConfirmState(null)}
-                  className="rounded-xl text-xs font-bold"
-                >
-                  {t.cancelBtn}
-                </Button>
-
-                <Button
-                  type="button"
-                  disabled={pending}
-                  onClick={executeConfirmedAction}
-                  className={`rounded-xl text-xs font-bold text-white ${
-                    confirmState.type === "delete"
-                      ? "bg-red-600 hover:bg-red-700"
-                      : confirmState.type === "status" &&
-                          confirmState.newStatus === "suspended"
-                        ? "bg-amber-600 hover:bg-amber-700"
-                        : "bg-[#105C50] hover:bg-[#0c483f]"
-                  }`}
-                >
-                  {pending ? (
-                    <span className="flex items-center gap-1.5">
-                      <Loader2 className="size-4 animate-spin" />
-                      {t.updatingText}
-                    </span>
-                  ) : (
-                    t.confirmBtn
-                  )}
-                </Button>
-              </DialogFooter>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* نافذة إضافة عضو إدارة أو مستخدم جديد */}
-      <Dialog open={openAddModal} onOpenChange={setOpenAddModal}>
-        <DialogContent dir={dir} className="max-w-md text-start">
-          <DialogHeader>
-            <DialogTitle className="font-extrabold">
-              {t.addModalTitle}
-            </DialogTitle>
-            <DialogDescription className="text-xs">
-              {t.addModalDesc}
-            </DialogDescription>
-          </DialogHeader>
-
-          <form onSubmit={handleCreateUser} className="mt-2 flex flex-col gap-4">
-            <div>
-              <label className="mb-1.5 block text-xs font-bold">
-                {t.fullNameLabel}
-              </label>
-              <input
-                name="name"
-                required
-                maxLength={120}
-                className="h-10 w-full rounded-xl border border-gray-200 px-3 text-xs focus:border-[#105C50] focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-xs font-bold">
-                {t.emailLabel}
-              </label>
-              <input
-                name="email"
-                type="email"
-                dir="ltr"
-                required
-                maxLength={160}
-                placeholder="staff@aqarexit.com"
-                className="h-10 w-full rounded-xl border border-gray-200 px-3 text-left text-xs focus:border-[#105C50] focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-xs font-bold">
-                {t.phoneLabel}
-              </label>
-              <input
-                name="phone"
-                type="tel"
-                dir="ltr"
-                required
-                maxLength={25}
-                placeholder="+9955xxxxxxxx"
-                className="h-10 w-full rounded-xl border border-gray-200 px-3 text-left text-xs focus:border-[#105C50] focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-xs font-bold">
-                {t.passwordLabel}
-              </label>
-              <input
-                name="password"
-                type="password"
-                dir="ltr"
-                required
-                minLength={8}
-                maxLength={128}
-                className="h-10 w-full rounded-xl border border-gray-200 px-3 text-left text-xs focus:border-[#105C50] focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-xs font-bold">
-                {t.colRole}
-              </label>
-              <select
-                name="role"
-                defaultValue="sales"
-                className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold focus:border-[#105C50] focus:outline-none"
-              >
-                {roleOptions.map((r) => (
-                  <option key={r.value} value={r.value}>
-                    {r.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <DialogFooter className="mt-2 gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                disabled={pending}
-                onClick={() => setOpenAddModal(false)}
-              >
-                {t.cancelBtn}
-              </Button>
-              <Button
-                type="submit"
-                disabled={pending}
-                className="bg-[#105C50] text-white hover:bg-[#0c483f]"
-              >
-                {pending ? (
-                  <span className="flex items-center gap-1.5">
-                    <Loader2 className="size-4 animate-spin" />
-                    {t.updatingText}
-                  </span>
-                ) : (
-                  t.createNowBtn
-                )}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <AddUserDialog
+        dir={dir}
+        t={t}
+        open={openAddModal}
+        onOpenChange={setOpenAddModal}
+        roleOptions={roleOptions}
+        pending={pending}
+        onSubmit={handleCreateUser}
+      />
     </div>
   )
 }
-
-/* ============================================================================
-   ARCHIVED EGYPT PLACEHOLDERS (COMMENTED FOR FUTURE REFERENCE)
-   ============================================================================
-   // placeholder="staff@darak.com"
-   // placeholder="010xxxxxxxx"
-============================================================================ */

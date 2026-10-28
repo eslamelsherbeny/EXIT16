@@ -3,24 +3,13 @@
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import Link from 'next/link'
 import {
-  ArrowDown,
-  ArrowLeft,
-  ArrowRight,
-  CheckCircle2,
-  ChevronDown,
   ChevronLeft,
   Compass,
-  Heart,
-  ListFilter,
-  Loader2,
   MapPin,
   MessageCircle,
   Radar,
-  Search,
-  ShieldAlert,
   SlidersHorizontal,
   Wallet,
-  X,
 } from 'lucide-react'
 import { updateBuyerPreferencesAction } from '@/actions/account-actions'
 import {
@@ -28,27 +17,19 @@ import {
   markUserPhoneVerifiedAction,
 } from '@/actions/submit-forms'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import {
   getLocalizedUnitTypes,
   toEnglishDigits,
 } from '@/components/features/seller/seller-shared'
 import {
   GEORGIA_CITIES_AND_DISTRICTS,
-  GeorgiaAreaSelect,
   getLocalizedGeorgiaAreaName,
 } from '@/components/shared/georgia-areas'
 import { ScrollReveal } from '@/components/shared/scroll-reveal'
 import { AccountActionLinks } from './delete-account-modal'
 import type { SellerUnitItem } from './seller-dashboard'
-import { getCurrencySymbol, useTranslation, type LocaleCode } from '@/lib/i18n'
+import { BuyerEditPreferencesForm, BuyerUnitCard } from './buyer-unit-card'
+import { BuyerFiltersBar } from './buyer-filters-bar'
+import { getCurrencySymbol, useTranslation } from '@/lib/i18n'
 import {
   calculateSmartMatch,
   evaluateGeorgiaAreaProximity,
@@ -72,73 +53,9 @@ export type BuyerRequestItem = {
 }
 
 const FAVORITES_STORAGE_KEY = 'darak_favorites'
+const BUYER_WA_SENT_STORAGE_KEY = 'aqar_buyer_wa_fasttrack_sent'
 const PREFERRED_PAGE_SIZE = 18
 const NEARBY_AREAS_PREVIEW_SIZE = 6
-
-function getBuyerExtraLabels(locale: LocaleCode) {
-  if (locale === 'en') {
-    return {
-      submitOfferBtn: 'Submit Offer',
-      detailsBtn: 'Details',
-      specsSummaryLabel: 'Target Specs',
-      remainingLabel: 'Remaining',
-      installmentShort: 'Installment',
-      negotiableTag: 'Negotiable',
-      sqmUnit: 'm²',
-      roomsWord: 'Rooms',
-      fastTrackWaTitle:
-        'Want us to find a matching unit for your budget faster? Confirm your request via WhatsApp',
-      fastTrackWaBtn: 'Speed Up My Request via WhatsApp',
-      fastTrackWaDone: 'Request Confirmed via WhatsApp ✓',
-    }
-  }
-  if (locale === 'ru') {
-    return {
-      submitOfferBtn: 'Предложить цену',
-      detailsBtn: 'Подробнее',
-      specsSummaryLabel: 'Параметры',
-      remainingLabel: 'Остаток',
-      installmentShort: 'Взнос',
-      negotiableTag: 'Торг',
-      sqmUnit: 'м²',
-      roomsWord: 'комн.',
-      fastTrackWaTitle:
-        'Хотите быстрее подобрать подходящий вариант под ваш бюджет? Напишите нам в WhatsApp',
-      fastTrackWaBtn: 'Ускорить подбор через WhatsApp',
-      fastTrackWaDone: 'Запрос подтвержден в WhatsApp ✓',
-    }
-  }
-  if (locale === 'ka') {
-    return {
-      submitOfferBtn: 'შეთავაზების გაგზავნა',
-      detailsBtn: 'დეტალები',
-      specsSummaryLabel: 'პარამეტრები',
-      remainingLabel: 'დარჩენილი',
-      installmentShort: 'განვადება',
-      negotiableTag: 'შეთანხმებით',
-      sqmUnit: 'მ²',
-      roomsWord: 'ოთახი',
-      fastTrackWaTitle:
-        'გსურთ უფრო სწრაფად შეგირჩიოთ შესაბამისი ბინა? დაგვიკავშირდით WhatsApp-ით',
-      fastTrackWaBtn: 'შერჩევის დაჩქარება WhatsApp-ით',
-      fastTrackWaDone: 'დადასტურებულია WhatsApp-ით ✓',
-    }
-  }
-  return {
-    submitOfferBtn: 'تقديم عرض شراء',
-    detailsBtn: 'التفاصيل',
-    specsSummaryLabel: 'المواصفات المطلوبة',
-    remainingLabel: 'المتبقي للمطور',
-    installmentShort: 'القسط الشهري',
-    negotiableTag: 'قابل للتفاوض',
-    sqmUnit: 'م²',
-    roomsWord: 'غرف',
-    fastTrackWaTitle:
-      'عايز تسرّع نلاقيلك حاجة مناسبة لميزانيتك؟ دوس على زرار الواتساب وتواصل معانا فوراً',
-    fastTrackWaBtn: 'تسريع طلب الشراء عبر واتساب',
-    fastTrackWaDone: 'تم تأكيد طلبك ورقمك عبر واتساب ✓',
-  }
-}
 
 function calcMonthlyInstallment(amount: number, freq: string | null) {
   if (!amount) return 0
@@ -196,7 +113,6 @@ export function BuyerDashboard({
   const t = dict.accountComponents.buyer as Record<string, any>
   const oppFilters =
     (dict.opportunitiesPage?.filters as Record<string, any>) || {}
-  const extraLabels = useMemo(() => getBuyerExtraLabels(locale), [locale])
   const currency = getCurrencySymbol('GE', locale)
   const listSep = dir === 'rtl' ? '، ' : ', '
   const supportWhatsApp = String(dict.footer?.phone || '+201018595959').replace(
@@ -209,11 +125,6 @@ export function BuyerDashboard({
     [dict, locale]
   )
 
-  const georgiaQuickAreas = useMemo(
-    () => GEORGIA_CITIES_AND_DISTRICTS.slice(0, 10),
-    []
-  )
-
   const [isEditingBudget, setIsEditingBudget] = useState(false)
   const [confirmSaveOpen, setConfirmSaveOpen] = useState(false)
   const [savedToast, setSavedToast] = useState(false)
@@ -224,16 +135,27 @@ export function BuyerDashboard({
   const [favoriteIds, setFavoriteIds] = useState<string[]>([])
 
   const [currentUserId, setCurrentUserId] = useState('')
-  const [phoneVerified, setPhoneVerified] = useState(false)
+  const [waBoxHidden, setWaBoxHidden] = useState(false)
 
   useEffect(() => {
+    try {
+      const sentFlag = localStorage.getItem(
+        `${BUYER_WA_SENT_STORAGE_KEY}_${buyReq?.id || 'default'}`
+      )
+      if (sentFlag === '1') {
+        setWaBoxHidden(true)
+      }
+    } catch {}
+
     getCurrentSellerProfileAction().then((res) => {
       if (res.isLoggedIn && res.user) {
         setCurrentUserId(res.user.id)
-        setPhoneVerified(Boolean(res.user.phoneVerified))
+        if (res.user.phoneVerified) {
+          setWaBoxHidden(true)
+        }
       }
     })
-  }, [])
+  }, [buyReq?.id])
 
   useEffect(() => {
     try {
@@ -274,7 +196,7 @@ export function BuyerDashboard({
   const [bTypes, setBTypes] = useState<string[]>(
     Array.isArray(buyReq?.unit_types) && buyReq.unit_types.length > 0
       ? buyReq.unit_types
-      : [localizedUnitTypes[0] || 'Apartment']
+      : [localizedUnitTypes[0] || '']
   )
   const [bRooms, setBRooms] = useState<number>(Number(buyReq?.min_rooms || 1))
   const [bDelivery, setBDelivery] = useState<string>(
@@ -313,35 +235,6 @@ export function BuyerDashboard({
     setSortBy(t.sorts[0])
   }, [locale, t])
 
-  useEffect(() => {
-    setVisibleCount(PREFERRED_PAGE_SIZE)
-    setShowAllNearbyAreas(false)
-  }, [
-    searchQuery,
-    areaFilter,
-    onlyNegotiable,
-    selectedTypes,
-    delStatusFilter,
-    delYearFilter,
-    conYearFilter,
-    minRoomsFilter,
-    maxCashFilter,
-    maxInstFilter,
-    maxContractFilter,
-    activePills,
-    sortBy,
-  ])
-
-  const togglePopularArea = (areaId: string) => {
-    setBAreas((prev) =>
-      prev.includes(areaId)
-        ? prev.length > 1
-          ? prev.filter((x) => x !== areaId)
-          : prev
-        : [...prev, areaId]
-    )
-  }
-
   const togglePill = (pill: string) => {
     setActivePills((prev) =>
       prev.includes(pill) ? prev.filter((p) => p !== pill) : [...prev, pill]
@@ -371,7 +264,6 @@ export function BuyerDashboard({
 
   const mappedUnits = useMemo(() => {
     const buyerMaxMonthly = calcMonthlyInstallment(bInstallment, bPlan)
-
     const virtualBuyer: BuyerRequestItem = {
       id: buyReq?.id || 'current',
       available_cash: bCash,
@@ -420,7 +312,7 @@ export function BuyerDashboard({
           u.area || meta.area || GEORGIA_CITIES_AND_DISTRICTS[0].id
         const localizedArea = getLocalizedGeorgiaAreaName(rawAreaId, locale)
         const unitType =
-          u.unit_type || meta.unit_type || localizedUnitTypes[0] || 'Apartment'
+          u.unit_type || meta.unit_type || localizedUnitTypes[0] || ''
         const unitCurrency = getCurrencySymbol('GE', locale)
 
         const numericCode = String(u.id || '')
@@ -497,7 +389,6 @@ export function BuyerDashboard({
             Array.isArray(u.images) && u.images[0] ? u.images[0] : undefined,
           matchTags: matchTags.slice(0, 3),
           scorePct: smartRes.score,
-          geoRelation: geoEval.relation,
           distanceKm: geoEval.distanceKm,
           isAreaMatch: isExactAreaMatch,
           isNearbyInSameCity,
@@ -538,7 +429,6 @@ export function BuyerDashboard({
       ) {
         return false
       }
-
       if (
         areaFilter.trim() &&
         !item.area.toLowerCase().includes(areaFilter.trim().toLowerCase()) &&
@@ -602,7 +492,6 @@ export function BuyerDashboard({
         if (wantReady && item.deliveryStatus !== t.deliveryStatuses[1])
           return false
       }
-
       return true
     })
 
@@ -685,14 +574,21 @@ export function BuyerDashboard({
   const targetBuyerUserId = buyReq?.user_id || currentUserId
   const adminVerifyLeadLink = `${siteOrigin}/admin/leads?verifyPhoneUserId=${encodeURIComponent(targetBuyerUserId)}&leadId=${encodeURIComponent(buyReq?.id || '')}`
 
-  const buyerFastTrackWaMsg =
-    locale === 'ar'
-      ? `أهلاً إدارة Aqar Exit، أرغب في تسريع ترشيح وحدة مناسبة لطلب الشراء الخاص بي — الكاش المتاح: (${bCash.toLocaleString('en-US')} ${currency}) — المناطق المفضلة: (${localizedPreferredAreasNames.join('، ')}).\nرابط الطلب في الإدارة:\n${adminVerifyLeadLink}`
-      : `Hello Aqar Exit, I want to speed up finding a matching unit for my buy request — Available Cash: (${bCash.toLocaleString('en-US')} ${currency}) — Preferred Areas: (${localizedPreferredAreasNames.join(', ')}).\nAdmin Link:\n${adminVerifyLeadLink}`
+  const buyerFastTrackWaMsg = `${t.waFastTrackMsgPrefix} (${bCash.toLocaleString('en-US')} ${currency}) — ${t.preferredAreasLabel}: (${localizedPreferredAreasNames.join(listSep)}).\n${adminVerifyLeadLink}`
 
-  const handleFormSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    setConfirmSaveOpen(true)
+  // بمجرد الضغط على زر الواتساب وفتح التطبيق يختفي الصندوق فوراً ويُحفظ ذلك
+  const handleWhatsAppFastTrackClick = () => {
+    setWaBoxHidden(true)
+    try {
+      localStorage.setItem(
+        `${BUYER_WA_SENT_STORAGE_KEY}_${buyReq?.id || 'default'}`,
+        '1'
+      )
+    } catch {}
+    markUserPhoneVerifiedAction({
+      userId: targetBuyerUserId,
+      leadId: buyReq?.id,
+    }).catch(() => {})
   }
 
   const executeSavePreferences = () => {
@@ -721,323 +617,37 @@ export function BuyerDashboard({
 
   if (isEditingBudget) {
     return (
-      <div dir={dir} className="mx-auto max-w-[660px] px-4 py-4 sm:px-6">
-        <div className="mb-5 flex items-center justify-start">
-          <button
-            type="button"
-            onClick={() => setIsEditingBudget(false)}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-extrabold text-[var(--brand-navy,#0a1122)] shadow-2xs transition hover:border-[var(--brand-primary,#007a5a)] hover:text-[var(--brand-primary,#007a5a)]"
-          >
-            {isRtl ? (
-              <ArrowRight className="size-4" />
-            ) : (
-              <ArrowLeft className="size-4" />
-            )}
-            <span>{t.backToOpportunitiesBtn}</span>
-          </button>
-        </div>
-
-        <header className="mb-8 text-center">
-          <h1 className="text-2xl font-black text-[var(--brand-navy,#0a1122)] sm:text-3xl">
-            {t.editHeaderTitle}
-          </h1>
-          <p className="mt-2 text-xs text-slate-500 sm:text-sm">
-            {t.editHeaderSub}
-          </p>
-        </header>
-
-        <form onSubmit={handleFormSubmit} className="space-y-6">
-          <div className="space-y-6 rounded-[22px] border border-gray-200/80 bg-white p-6 text-start shadow-xs sm:p-8">
-            <div>
-              <label className="mb-2 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
-                {t.availableCashLabel} <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                inputMode="numeric"
-                dir="ltr"
-                value={bCash ? bCash.toLocaleString('en-US') : ''}
-                onChange={(e) =>
-                  setBCash(
-                    Number(
-                      toEnglishDigits(e.target.value).replace(/[^0-9]/g, '')
-                    ) || 0
-                  )
-                }
-                className="h-12 w-full rounded-xl border border-gray-200 px-4 text-left text-sm font-bold text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none"
-              />
-              <p className="mt-1.5 text-xs font-bold text-[var(--brand-primary,#007a5a)]">
-                {bCash.toLocaleString('en-US')} {currency}
-              </p>
-              <p className="mt-0.5 text-[11px] text-gray-400">
-                {t.availableCashHelper}
-              </p>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
-                {t.maxInstallmentLabel} <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                inputMode="numeric"
-                dir="ltr"
-                value={
-                  bInstallment ? bInstallment.toLocaleString('en-US') : ''
-                }
-                onChange={(e) =>
-                  setBInstallment(
-                    Number(
-                      toEnglishDigits(e.target.value).replace(/[^0-9]/g, '')
-                    ) || 0
-                  )
-                }
-                className="h-12 w-full rounded-xl border border-gray-200 px-4 text-left text-sm font-bold text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none"
-              />
-              <p className="mt-1.5 text-xs font-bold text-[var(--brand-primary,#007a5a)]">
-                {bInstallment.toLocaleString('en-US')} {currency}
-              </p>
-            </div>
-
-            <div>
-              <label className="mb-2.5 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
-                {t.paymentPlanLabel}
-              </label>
-              <div className="space-y-2">
-                {t.paymentPlans.map((plan: string) => (
-                  <label
-                    key={plan}
-                    className={`flex cursor-pointer items-center justify-between rounded-xl border px-4 py-3 text-xs font-bold transition ${
-                      bPlan === plan
-                        ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]'
-                        : 'border-gray-200 bg-white text-gray-700'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      checked={bPlan === plan}
-                      onChange={() => setBPlan(plan)}
-                      className="accent-[var(--brand-primary,#007a5a)]"
-                    />
-                    <span>{plan}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
-                {t.targetBudgetLabel}
-              </label>
-              <input
-                type="text"
-                inputMode="numeric"
-                dir="ltr"
-                value={bBudget ? bBudget.toLocaleString('en-US') : ''}
-                onChange={(e) =>
-                  setBBudget(
-                    Number(
-                      toEnglishDigits(e.target.value).replace(/[^0-9]/g, '')
-                    ) || 0
-                  )
-                }
-                className="h-12 w-full rounded-xl border border-gray-200 px-4 text-left text-sm font-bold text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none"
-              />
-              <p className="mt-1.5 text-xs font-bold text-[var(--brand-primary,#007a5a)]">
-                {bBudget.toLocaleString('en-US')} {currency}
-              </p>
-              <p className="mt-0.5 text-[11px] text-gray-400">
-                {t.targetBudgetHelper}
-              </p>
-            </div>
-
-            <div>
-              <label className="mb-2.5 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
-                {t.unitTypeLabel}
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {localizedUnitTypes.map((typeItem: string) => {
-                  const active = bTypes.includes(typeItem)
-                  return (
-                    <button
-                      key={typeItem}
-                      type="button"
-                      onClick={() =>
-                        setBTypes((prev) =>
-                          prev.includes(typeItem)
-                            ? prev.filter((x) => x !== typeItem)
-                            : [...prev, typeItem]
-                        )
-                      }
-                      className={`rounded-full border px-3.5 py-1.5 text-xs font-bold transition ${
-                        active
-                          ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]'
-                          : 'border-gray-200 bg-white text-gray-600'
-                      }`}
-                    >
-                      {active ? `✓ ${typeItem}` : typeItem}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
-                {t.minRoomsLabel}
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  min={0}
-                  max={10}
-                  value={bRooms}
-                  onChange={(e) => setBRooms(Number(e.target.value) || 0)}
-                  className="h-11 w-28 rounded-xl border border-gray-200 text-center text-sm font-bold text-[var(--brand-navy,#0a1122)]"
-                />
-                <span className="text-xs text-gray-500">{t.roomWord}</span>
-              </div>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
-                {t.deliveryLabel}
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {t.deliveryPreferences.map((st: string) => (
-                  <button
-                    key={st}
-                    type="button"
-                    onClick={() => setBDelivery(st)}
-                    className={`rounded-full border px-4 py-2 text-xs font-bold transition ${
-                      bDelivery === st
-                        ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]'
-                        : 'border-gray-200 bg-white text-gray-600'
-                    }`}
-                  >
-                    {st}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <GeorgiaAreaSelect
-                label={t.preferredAreasLabel}
-                value=""
-                onChange={(selectedAreaId) => {
-                  if (!bAreas.includes(selectedAreaId)) {
-                    setBAreas((prev) => [...prev, selectedAreaId])
-                  }
-                }}
-                placeholder={t.areaInputPlaceholder}
-              />
-
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {bAreas.map((ar: string) => (
-                  <span
-                    key={ar}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-primary-light,#eaf8f2)] px-3 py-1 text-xs font-bold text-[var(--brand-primary,#007a5a)]"
-                  >
-                    <span>{getLocalizedGeorgiaAreaName(ar, locale)}</span>
-                    {bAreas.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setBAreas((prev) => prev.filter((x) => x !== ar))
-                        }
-                      >
-                        <X className="size-3" />
-                      </button>
-                    )}
-                  </span>
-                ))}
-              </div>
-
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {georgiaQuickAreas.map((item) => {
-                  const isAdded = bAreas.includes(item.id)
-                  const label = getLocalizedGeorgiaAreaName(item.id, locale)
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => togglePopularArea(item.id)}
-                      className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition ${
-                        isAdded
-                          ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary,#007a5a)] text-white'
-                          : 'border-gray-200 bg-gray-50 text-gray-600 hover:border-gray-300'
-                      }`}
-                    >
-                      {isAdded ? `✓ ${label}` : `+ ${label}`}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={isPending}
-              className="h-12 w-full rounded-xl bg-[var(--brand-primary,#007a5a)] text-sm font-bold text-white transition active:scale-[0.98] hover:bg-[var(--brand-primary-hover,#006248)]"
-            >
-              {isPending ? t.savingBtn : t.saveAndViewBtn}
-            </button>
-          </div>
-        </form>
-
-        <Dialog open={confirmSaveOpen} onOpenChange={setConfirmSaveOpen}>
-          <DialogContent
-            dir={dir}
-            className="w-[90vw] max-w-[360px] rounded-2xl p-5 sm:max-w-[400px]"
-          >
-            <DialogHeader className="text-start">
-              <div className="mb-2 flex items-center gap-2.5">
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-[var(--brand-primary,#007a5a)]">
-                  <ShieldAlert className="size-4" />
-                </span>
-                <DialogTitle className="text-sm font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-base">
-                  {t.confirmModalTitle}
-                </DialogTitle>
-              </div>
-              <DialogDescription className="text-start text-xs leading-relaxed text-gray-600">
-                {t.confirmModalDesc}{' '}
-                <strong className="text-[var(--brand-primary,#007a5a)]">
-                  ({localizedPreferredAreasNames.join(listSep)})
-                </strong>
-                ؟
-              </DialogDescription>
-            </DialogHeader>
-
-            <DialogFooter className="mt-4 flex flex-row items-center justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                disabled={isPending}
-                onClick={() => setConfirmSaveOpen(false)}
-                className="h-9 flex-1 rounded-xl text-xs font-bold"
-              >
-                {t.cancelBtn}
-              </Button>
-              <Button
-                type="button"
-                disabled={isPending}
-                onClick={executeSavePreferences}
-                className="h-9 flex-1 rounded-xl bg-[var(--brand-primary,#007a5a)] text-xs font-bold text-white hover:bg-[var(--brand-primary-hover,#006248)]"
-              >
-                {isPending ? (
-                  <span className="flex items-center justify-center gap-1.5">
-                    <Loader2 className="size-3.5 animate-spin" />
-                    {t.savingBtn}
-                  </span>
-                ) : (
-                  t.confirmSaveBtn
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
+      <BuyerEditPreferencesForm
+        t={t}
+        dir={dir}
+        isRtl={isRtl}
+        locale={locale}
+        currency={currency}
+        listSep={listSep}
+        bCash={bCash}
+        setBCash={setBCash}
+        bInstallment={bInstallment}
+        setBInstallment={setBInstallment}
+        bPlan={bPlan}
+        setBPlan={setBPlan}
+        bBudget={bBudget}
+        setBBudget={setBBudget}
+        bTypes={bTypes}
+        setBTypes={setBTypes}
+        bRooms={bRooms}
+        setBRooms={setBRooms}
+        bDelivery={bDelivery}
+        setBDelivery={setBDelivery}
+        bAreas={bAreas}
+        setBAreas={setBAreas}
+        localizedUnitTypes={localizedUnitTypes}
+        localizedPreferredAreasNames={localizedPreferredAreasNames}
+        confirmSaveOpen={confirmSaveOpen}
+        setConfirmSaveOpen={setConfirmSaveOpen}
+        isPending={isPending}
+        onClose={() => setIsEditingBudget(false)}
+        onExecuteSave={executeSavePreferences}
+      />
     )
   }
 
@@ -1049,7 +659,6 @@ export function BuyerDashboard({
         </div>
       )}
 
-      {/* ==================== 1. كارت ملخص طلب الشراء + زر «عروضي» + زر تسريع الطلب عبر واتساب ==================== */}
       <ScrollReveal>
         <section className="overflow-hidden rounded-[22px] border border-gray-200/90 border-t-[3px] border-t-[var(--brand-primary,#007a5a)] bg-white p-5 text-start shadow-xs sm:p-6">
           <div className="flex flex-col gap-3.5 border-b border-gray-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
@@ -1062,8 +671,7 @@ export function BuyerDashboard({
                   {t.mainTitle}
                 </h1>
                 <p className="mt-0.5 text-xs leading-relaxed text-gray-500">
-                  {t.radarActiveSubtitle ||
-                    'الرادار الذكي يطابق ميزانيتك ومنطقتك المفضلة في جورجيا مع الوحدات المعروضة للتنازل'}
+                  {t.radarActiveSubtitle}
                 </p>
               </div>
             </div>
@@ -1081,8 +689,8 @@ export function BuyerDashboard({
                 </div>
                 <span className="mt-0.5 text-[10px] font-extrabold text-[var(--brand-primary,#007a5a)]">
                   {offersCount > 0
-                    ? `${offersCount} ${t.offersAvailableSub || 'عروض متاحة'}`
-                    : t.noOffersSub || 'لا توجد عروض حالياً'}
+                    ? `${offersCount} ${t.offersAvailableSub}`
+                    : t.noOffersSub}
                 </span>
               </Link>
 
@@ -1124,10 +732,10 @@ export function BuyerDashboard({
 
             <div className="rounded-xl border border-gray-100 bg-[#f8faf9] p-3">
               <span className="block text-[11px] font-semibold text-gray-500">
-                {extraLabels.specsSummaryLabel}
+                {t.specsSummaryLabel}
               </span>
               <strong className="mt-1 block truncate text-xs font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-sm">
-                {bTypes.join(listSep)} · {bRooms}+ {extraLabels.roomsWord}
+                {bTypes.join(listSep)} · {bRooms}+ {t.roomsWord}
               </strong>
             </div>
 
@@ -1141,463 +749,65 @@ export function BuyerDashboard({
             </div>
           </div>
 
-          {/* شريط تسريع إيجاد وحدة مناسبة للمشتري وتوثيق الرقم عبر واتساب */}
-          <div className="mt-4 flex flex-col justify-between gap-3 rounded-2xl border border-[#25D366]/40 bg-[#f0fdf4] p-3.5 sm:flex-row sm:items-center">
-            <p className="text-xs font-extrabold leading-relaxed text-[#0a1122]">
-              {extraLabels.fastTrackWaTitle}
-            </p>
-            <a
-              href={`https://wa.me/${supportWhatsApp}?text=${encodeURIComponent(buyerFastTrackWaMsg)}`}
-              target="_blank"
-              rel="noreferrer"
-              onClick={() => {
-                setPhoneVerified(true)
-                markUserPhoneVerifiedAction({
-                  userId: targetBuyerUserId,
-                  leadId: buyReq?.id,
-                }).catch(() => {})
-              }}
-              className="inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-[#25D366] px-4 text-xs font-extrabold text-white shadow-2xs transition hover:opacity-95"
-            >
-              {phoneVerified ? (
-                <CheckCircle2 className="size-4 shrink-0" />
-              ) : (
+          {!waBoxHidden && (
+            <div className="mt-4 flex flex-col justify-between gap-3 rounded-2xl border border-[#25D366]/40 bg-[#f0fdf4] p-3.5 sm:flex-row sm:items-center">
+              <p className="text-xs leading-relaxed font-extrabold text-[#0a1122]">
+                {t.fastTrackWaTitle}
+              </p>
+              <a
+                href={`https://wa.me/${supportWhatsApp}?text=${encodeURIComponent(buyerFastTrackWaMsg)}`}
+                target="_blank"
+                rel="noreferrer"
+                onClick={handleWhatsAppFastTrackClick}
+                className="inline-flex min-h-[42px] shrink-0 items-center justify-center gap-1.5 rounded-xl bg-[#25D366] px-4 py-2 text-xs font-extrabold text-white shadow-2xs transition hover:opacity-95"
+              >
                 <MessageCircle className="size-4 shrink-0" />
-              )}
-              <span>
-                {phoneVerified
-                  ? extraLabels.fastTrackWaDone
-                  : extraLabels.fastTrackWaBtn}
-              </span>
-            </a>
-          </div>
-        </section>
-
-        <section className="mt-4 text-start">
-          <div className="flex flex-wrap items-center justify-start gap-2">
-            <span className="me-1 text-xs font-extrabold text-[var(--brand-navy,#0a1122)]">
-              {t.filterByRequestLabel}
-            </span>
-            {t.filterPills.map((pill: string) => {
-              const isSelected = activePills.includes(pill)
-              return (
-                <button
-                  key={pill}
-                  type="button"
-                  onClick={() => togglePill(pill)}
-                  className={`rounded-full border px-3.5 py-1.5 text-[11px] font-semibold transition ${
-                    isSelected
-                      ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary,#007a5a)] text-white'
-                      : 'border-gray-200 bg-white text-gray-700 hover:border-[var(--brand-primary,#007a5a)]'
-                  }`}
-                >
-                  {pill}
-                </button>
-              )
-            })}
-          </div>
-        </section>
-
-        {/* ==================== 2. شريط البحث وزر الفلتر ==================== */}
-        <section className="mt-4 rounded-[18px] border border-gray-200/80 bg-white p-3.5 shadow-2xs sm:p-5">
-          <div className="relative">
-            <Search className="pointer-events-none absolute top-1/2 end-3.5 size-4 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={t.searchPlaceholder}
-              className="h-11 w-full rounded-xl border border-gray-200 bg-white ps-3 pe-10 text-xs text-[var(--brand-navy,#0a1122)] placeholder:text-gray-400 focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:text-sm"
-            />
-          </div>
-
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-2.5">
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                aria-expanded={filterPanelOpen}
-                onClick={() => setFilterPanelOpen((prev) => !prev)}
-                className={`inline-flex h-9 items-center gap-1.5 rounded-xl border px-3.5 text-xs font-bold transition sm:h-10 ${
-                  filterPanelOpen || activeFiltersCount > 0
-                    ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]'
-                    : 'border-gray-200 bg-white text-[var(--brand-navy,#0a1122)] hover:bg-gray-50'
-                }`}
-              >
-                <ListFilter className="size-3.5" />
-                <span>{t.filterBtn}</span>
-                {activeFiltersCount > 0 && (
-                  <span className="flex size-5 items-center justify-center rounded-full bg-[var(--brand-primary,#007a5a)] text-[10px] font-bold text-white">
-                    {activeFiltersCount}
-                  </span>
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setOnlyNegotiable(!onlyNegotiable)}
-                className={`inline-flex h-9 items-center gap-1 rounded-xl border px-3.5 text-xs font-bold transition sm:h-10 ${
-                  onlyNegotiable
-                    ? 'border-[#d97706] bg-amber-50/70 text-[#b45309]'
-                    : 'border-gray-200 bg-white text-[var(--brand-navy,#0a1122)] hover:bg-gray-50'
-                }`}
-              >
-                <span>{t.negotiableBtn}</span>
-                <ArrowDown className="size-3 text-[#d97706]" />
-              </button>
-
-              <span className="text-[11px] font-medium text-gray-500 sm:text-xs">
-                {unitsInPreferredArea.length + unitsInTrulyNearbyAreas.length}{' '}
-                {t.availableUnitsWord}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px] text-gray-400 sm:text-xs">
-                {t.sortByLabel}
-              </span>
-              <div className="relative">
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  className="h-9 min-w-[135px] appearance-none rounded-xl border border-gray-200 bg-white pr-3 pl-7 text-xs font-bold text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:h-10 sm:min-w-[155px]"
-                >
-                  {t.sorts.map((s: string) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-gray-500" />
-              </div>
-            </div>
-          </div>
-
-          {activeFiltersCount > 0 && (
-            <div className="mt-3 flex flex-wrap items-center justify-start gap-2 border-t border-gray-100 pt-2.5">
-              {onlyNegotiable && (
-                <button
-                  type="button"
-                  onClick={() => setOnlyNegotiable(false)}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-primary-light,#eaf8f2)] px-3 py-1 text-[11px] font-bold text-[var(--brand-primary,#007a5a)]"
-                >
-                  <span>{t.negotiableBtn}</span>
-                  <X className="size-3" />
-                </button>
-              )}
-              {areaFilter.trim() && (
-                <button
-                  type="button"
-                  onClick={() => setAreaFilter('')}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-primary-light,#eaf8f2)] px-3 py-1 text-[11px] font-bold text-[var(--brand-primary,#007a5a)]"
-                >
-                  <span>
-                    {oppFilters.areaBadgePrefix || '📍'}{' '}
-                    {getLocalizedGeorgiaAreaName(areaFilter, locale)}
-                  </span>
-                  <X className="size-3" />
-                </button>
-              )}
-              {maxCashFilter.trim() && (
-                <button
-                  type="button"
-                  onClick={() => setMaxCashFilter('')}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-primary-light,#eaf8f2)] px-3 py-1 text-[11px] font-bold text-[var(--brand-primary,#007a5a)]"
-                >
-                  <span>
-                    {oppFilters.cashUpToPrefix || '≤'}{' '}
-                    {Number(toEnglishDigits(maxCashFilter)).toLocaleString(
-                      'en-US'
-                    )}{' '}
-                    {currency}
-                  </span>
-                  <X className="size-3" />
-                </button>
-              )}
-              {maxInstFilter.trim() && (
-                <button
-                  type="button"
-                  onClick={() => setMaxInstFilter('')}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-primary-light,#eaf8f2)] px-3 py-1 text-[11px] font-bold text-[var(--brand-primary,#007a5a)]"
-                >
-                  <span>
-                    {oppFilters.instUpToPrefix || '≤'}{' '}
-                    {Number(toEnglishDigits(maxInstFilter)).toLocaleString(
-                      'en-US'
-                    )}{' '}
-                    {currency}
-                  </span>
-                  <X className="size-3" />
-                </button>
-              )}
-              {maxContractFilter.trim() && (
-                <button
-                  type="button"
-                  onClick={() => setMaxContractFilter('')}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-primary-light,#eaf8f2)] px-3 py-1 text-[11px] font-bold text-[var(--brand-primary,#007a5a)]"
-                >
-                  <span>
-                    {oppFilters.contractUpToPrefix || '≤'}{' '}
-                    {Number(toEnglishDigits(maxContractFilter)).toLocaleString(
-                      'en-US'
-                    )}{' '}
-                    {currency}
-                  </span>
-                  <X className="size-3" />
-                </button>
-              )}
-              {selectedTypes.map((tp) => (
-                <button
-                  key={tp}
-                  type="button"
-                  onClick={() => toggleFilterType(tp)}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-primary-light,#eaf8f2)] px-3 py-1 text-[11px] font-bold text-[var(--brand-primary,#007a5a)]"
-                >
-                  <span>{tp}</span>
-                  <X className="size-3" />
-                </button>
-              ))}
-              <button
-                type="button"
-                onClick={clearAllFilters}
-                className="ms-1 text-[11px] font-bold text-gray-400 underline hover:text-gray-700"
-              >
-                {t.clearFiltersBtn || oppFilters.clearAllBtn}
-              </button>
+                <span>{t.fastTrackWaBtn}</span>
+              </a>
             </div>
           )}
         </section>
 
-        {/* ==================== 3. لوحة الفلتر المتقدم ==================== */}
-        {filterPanelOpen && (
-          <section className="mt-3 rounded-[18px] border border-gray-200/85 bg-white p-4 text-start shadow-sm sm:p-6">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              <div>
-                <GeorgiaAreaSelect
-                  label={oppFilters.areasLabel || t.preferredAreasLabel}
-                  value={areaFilter}
-                  onChange={(val) => setAreaFilter(val)}
-                  placeholder={
-                    oppFilters.areasPlaceholder || t.areaInputPlaceholder
-                  }
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
-                  {oppFilters.maxCashLabel || t.availableCashLabel}
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    dir="ltr"
-                    value={maxCashFilter}
-                    onChange={(e) =>
-                      setMaxCashFilter(
-                        toEnglishDigits(e.target.value).replace(/[^0-9]/g, '')
-                      )
-                    }
-                    className="h-12 w-full rounded-xl border border-gray-200 pr-3.5 pl-12 text-left text-xs font-bold text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none"
-                  />
-                  <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-xs text-gray-400">
-                    {currency}
-                  </span>
-                </div>
-              </div>
-
-              <div>
-                <label className="mb-2 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
-                  {oppFilters.maxInstLabel || t.maxInstallmentLabel}
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    dir="ltr"
-                    value={maxInstFilter}
-                    onChange={(e) =>
-                      setMaxInstFilter(
-                        toEnglishDigits(e.target.value).replace(/[^0-9]/g, '')
-                      )
-                    }
-                    className="h-12 w-full rounded-xl border border-gray-200 pr-3.5 pl-12 text-left text-xs font-bold text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none"
-                  />
-                  <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-xs text-gray-400">
-                    {currency}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-5">
-              <p className="mb-2 text-xs font-bold text-[var(--brand-navy,#0a1122)]">
-                {oppFilters.unitTypeLabel || t.unitTypeLabel}
-              </p>
-              <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                {localizedUnitTypes.map((tp: string) => {
-                  const active = selectedTypes.includes(tp)
-                  return (
-                    <button
-                      key={tp}
-                      type="button"
-                      onClick={() => toggleFilterType(tp)}
-                      className={`rounded-full border px-3.5 py-1.5 text-xs font-bold transition ${
-                        active
-                          ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary,#007a5a)] text-white'
-                          : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
-                      }`}
-                    >
-                      {tp}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-3">
-              <div>
-                <p className="mb-2 text-xs font-bold text-[var(--brand-navy,#0a1122)]">
-                  {oppFilters.deliveryLabel || t.deliveryLabel}
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {t.deliveryStatuses.map((status: string) => (
-                    <button
-                      key={status}
-                      type="button"
-                      onClick={() => setDelStatusFilter(status)}
-                      className={`rounded-full border px-3.5 py-1.5 text-xs font-bold transition ${
-                        delStatusFilter === status
-                          ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary,#007a5a)] text-white'
-                          : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
-                      }`}
-                    >
-                      {status}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <p className="mb-2 text-xs font-bold text-[var(--brand-navy,#0a1122)]">
-                  {oppFilters.deliveryYearLabel || t.deliveryLabel}
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {t.deliveryYears.map((yr: string) => (
-                    <button
-                      key={yr}
-                      type="button"
-                      onClick={() => setDelYearFilter(yr)}
-                      className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${
-                        delYearFilter === yr
-                          ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary,#007a5a)] text-white'
-                          : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
-                      }`}
-                    >
-                      {yr}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <p className="mb-2 text-xs font-bold text-[var(--brand-navy,#0a1122)]">
-                  {oppFilters.contractYearLabel || 'سنة التعاقد'}
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {t.contractYears.map((yr: string) => (
-                    <button
-                      key={yr}
-                      type="button"
-                      onClick={() => setConYearFilter(yr)}
-                      className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${
-                        conYearFilter === yr
-                          ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary,#007a5a)] text-white'
-                          : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
-                      }`}
-                    >
-                      {yr}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
-              <div>
-                <p className="mb-2 text-xs font-bold text-[var(--brand-navy,#0a1122)]">
-                  {oppFilters.minRoomsLabel || t.minRoomsLabel}
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {t.roomOptions.map((rm: string) => (
-                    <button
-                      key={rm}
-                      type="button"
-                      onClick={() => setMinRoomsFilter(rm)}
-                      className={`rounded-full border px-3.5 py-1.5 text-xs font-bold transition ${
-                        minRoomsFilter === rm
-                          ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary,#007a5a)] text-white'
-                          : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
-                      }`}
-                    >
-                      <span dir="ltr">{rm}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="mb-1.5 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
-                  {oppFilters.maxContractPriceLabel || t.targetBudgetLabel}
-                </label>
-                <div className="relative max-w-sm">
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    dir="ltr"
-                    value={maxContractFilter}
-                    onChange={(e) =>
-                      setMaxContractFilter(
-                        toEnglishDigits(e.target.value).replace(/[^0-9]/g, '')
-                      )
-                    }
-                    className="h-11 w-full rounded-xl border border-gray-200 pr-3.5 pl-12 text-left text-xs font-bold text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none"
-                  />
-                  <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-xs text-gray-400">
-                    {currency}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-6 flex items-center justify-between border-t border-gray-100 pt-4">
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => setFilterPanelOpen(false)}
-                  className="rounded-xl bg-[var(--brand-primary,#007a5a)] px-5 py-2 text-xs font-bold text-white transition hover:bg-[var(--brand-primary-hover,#006248)]"
-                >
-                  {oppFilters.showResultsBtn || 'عرض النتائج'} (
-                  {unitsInPreferredArea.length + unitsInTrulyNearbyAreas.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={clearAllFilters}
-                  className="text-xs font-bold text-gray-500 hover:text-[var(--brand-navy,#0a1122)]"
-                >
-                  {t.clearFiltersBtn || oppFilters.clearAllBtn}
-                </button>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setFilterPanelOpen(false)}
-                className="text-xs font-bold text-gray-400 hover:text-gray-700"
-              >
-                {oppFilters.hideBtn || t.cancelBtn}
-              </button>
-            </div>
-          </section>
-        )}
+        <BuyerFiltersBar
+          t={t}
+          oppFilters={oppFilters}
+          locale={locale}
+          currency={currency}
+          activePills={activePills}
+          togglePill={togglePill}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          filterPanelOpen={filterPanelOpen}
+          setFilterPanelOpen={setFilterPanelOpen}
+          activeFiltersCount={activeFiltersCount}
+          onlyNegotiable={onlyNegotiable}
+          setOnlyNegotiable={setOnlyNegotiable}
+          totalAvailableCount={
+            unitsInPreferredArea.length + unitsInTrulyNearbyAreas.length
+          }
+          sortBy={sortBy}
+          setSortBy={setSortBy}
+          areaFilter={areaFilter}
+          setAreaFilter={setAreaFilter}
+          maxCashFilter={maxCashFilter}
+          setMaxCashFilter={setMaxCashFilter}
+          maxInstFilter={maxInstFilter}
+          setMaxInstFilter={setMaxInstFilter}
+          maxContractFilter={maxContractFilter}
+          setMaxContractFilter={setMaxContractFilter}
+          selectedTypes={selectedTypes}
+          toggleFilterType={toggleFilterType}
+          localizedUnitTypes={localizedUnitTypes}
+          delStatusFilter={delStatusFilter}
+          setDelStatusFilter={setDelStatusFilter}
+          delYearFilter={delYearFilter}
+          setDelYearFilter={setDelYearFilter}
+          conYearFilter={conYearFilter}
+          setConYearFilter={setConYearFilter}
+          minRoomsFilter={minRoomsFilter}
+          setMinRoomsFilter={setMinRoomsFilter}
+          clearAllFilters={clearAllFilters}
+        />
       </ScrollReveal>
 
       {unitsInPreferredArea.length === 0 &&
@@ -1608,8 +818,7 @@ export function BuyerDashboard({
             {t.emptyFilteredTitle}
           </p>
           <p className="mx-auto mt-1 max-w-md text-xs text-slate-500">
-            {t.emptyNearbyHint ||
-              'لا توجد حالياً وحدات مطابقة في منطقتك المحددة أو الأحياء الملاصقة لها. يمكنك تعديل المناطق المفضلة أو تصفح كل الفرص.'}
+            {t.emptyNearbyHint}
           </p>
           <div className="mt-5 flex flex-wrap justify-center gap-2.5">
             {activeFiltersCount > 0 && (
@@ -1632,7 +841,7 @@ export function BuyerDashboard({
               href="/opportunities"
               className="rounded-xl bg-[#0a1122] px-5 py-2.5 text-xs font-bold text-white hover:bg-[#16223f]"
             >
-              {t.browseAllMarketBtn || 'تصفح جميع فرص السوق'}
+              {t.browseAllMarketBtn}
             </Link>
           </div>
         </div>
@@ -1656,7 +865,6 @@ export function BuyerDashboard({
                   <ScrollReveal key={u.id} delay={(idx % 6) * 50}>
                     <BuyerUnitCard
                       t={t}
-                      extraLabels={extraLabels}
                       unit={u}
                       isLiked={favoriteIds.includes(String(u.id))}
                       onToggleLike={() => toggleFavorite(u.id)}
@@ -1701,7 +909,6 @@ export function BuyerDashboard({
                   <ScrollReveal key={u.id} delay={(idx % 6) * 50}>
                     <BuyerUnitCard
                       t={t}
-                      extraLabels={extraLabels}
                       unit={u}
                       isLiked={favoriteIds.includes(String(u.id))}
                       onToggleLike={() => toggleFavorite(u.id)}
@@ -1720,185 +927,6 @@ export function BuyerDashboard({
           initialDeletionRequested={deletionRequested}
           position="bottom"
         />
-      </div>
-    </div>
-  )
-}
-
-function BuyerUnitCard({
-  t,
-  extraLabels,
-  unit,
-  isLiked,
-  onToggleLike,
-}: {
-  t: any
-  extraLabels: ReturnType<typeof getBuyerExtraLabels>
-  unit: any
-  isLiked: boolean
-  onToggleLike: () => void
-}) {
-  return (
-    <div className="group flex h-full flex-col justify-between overflow-hidden rounded-[18px] border border-gray-200/90 bg-white shadow-2xs transition hover:shadow-md">
-      <div>
-        <div className="relative h-[165px] w-full overflow-hidden bg-gray-100 sm:h-[185px]">
-          <Link
-            href={`/opportunities/${unit.id}`}
-            className="block h-full w-full"
-          >
-            <img
-              src={
-                unit.image ||
-                'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80'
-              }
-              alt={unit.title}
-              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-            />
-          </Link>
-
-          <span className="absolute top-3 right-3 inline-flex items-center gap-1 rounded-full bg-[#0a1122]/90 px-3 py-1 text-[11px] font-black text-emerald-300 shadow-sm backdrop-blur-xs">
-            <span>🎯 {t.matchScorePrefix || 'توافق'}</span>
-            <span dir="ltr">{unit.scorePct}%</span>
-          </span>
-
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault()
-              onToggleLike()
-            }}
-            aria-label={t.addToFavoritesAria}
-            className={`absolute top-3 left-3 flex size-8 items-center justify-center rounded-full shadow-md transition ${
-              isLiked
-                ? 'bg-red-500 text-white'
-                : 'bg-white/95 text-gray-600 hover:bg-white'
-            }`}
-          >
-            <Heart className={`size-4 ${isLiked ? 'fill-current' : ''}`} />
-          </button>
-
-          <div className="pointer-events-none absolute inset-x-3 bottom-2.5 flex items-center justify-between gap-2">
-            <span className="rounded-md bg-black/65 px-2 py-0.5 font-mono text-[10px] font-bold text-white backdrop-blur-xs">
-              {unit.code}
-            </span>
-            <span className="rounded-md bg-white/95 px-2.5 py-0.5 text-[10.5px] font-extrabold text-[var(--brand-navy,#0a1122)] shadow-2xs">
-              {unit.deliveryStatus}
-            </span>
-          </div>
-        </div>
-
-        <div className="p-4 text-start sm:p-5">
-          <Link href={`/opportunities/${unit.id}`}>
-            <h3 className="line-clamp-1 text-sm font-extrabold text-[var(--brand-navy,#0a1122)] transition-colors group-hover:text-[var(--brand-primary,#007a5a)] sm:text-base">
-              {unit.title}
-            </h3>
-          </Link>
-          <p className="mt-0.5 line-clamp-1 text-xs text-gray-500">
-            {unit.developer} · {unit.localizedArea}
-          </p>
-
-          <div className="mt-2.5 inline-flex flex-wrap items-center gap-1.5 rounded-lg bg-gray-100/80 px-2.5 py-1 text-[11px] font-bold text-[#1e293b]">
-            <span>{unit.type}</span>
-            <span>·</span>
-            <span>
-              {unit.rooms} {extraLabels.roomsWord}
-            </span>
-            <span>·</span>
-            <span>
-              {unit.size} {extraLabels.sqmUnit}
-            </span>
-          </div>
-
-          <div className="mt-3.5 rounded-xl border border-gray-100 bg-[#f8faf9] p-3">
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <div>
-                <p className="text-[10.5px] font-semibold text-gray-500">
-                  {t.cardRequiredCash}
-                </p>
-                <p className="mt-0.5 text-base font-black text-[var(--brand-navy,#0a1122)] tabular-nums sm:text-lg">
-                  <span dir="ltr">{unit.cashStr}</span>{' '}
-                  <span className="text-xs font-bold">{unit.currency}</span>
-                </p>
-              </div>
-              {unit.negotiable && (
-                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-extrabold text-amber-800">
-                  ↓ {extraLabels.negotiableTag}
-                </span>
-              )}
-            </div>
-
-            <div className="mt-2.5 grid grid-cols-2 gap-2 border-t border-gray-200/70 pt-2 text-[11px]">
-              <div>
-                <span className="block text-[10px] text-gray-400">
-                  {extraLabels.installmentShort}
-                </span>
-                <strong
-                  dir="ltr"
-                  className="font-extrabold text-[var(--brand-navy,#0a1122)] tabular-nums"
-                >
-                  {unit.monthlyInst > 0
-                    ? `${unit.monthlyInstStr} ${unit.currency}`
-                    : '—'}
-                </strong>
-              </div>
-              <div>
-                <span className="block text-[10px] text-gray-400">
-                  {extraLabels.remainingLabel}
-                </span>
-                <strong
-                  dir="ltr"
-                  className="font-extrabold text-[var(--brand-navy,#0a1122)] tabular-nums"
-                >
-                  {unit.remainingStr} {unit.currency}
-                </strong>
-              </div>
-            </div>
-          </div>
-
-          {unit.gainStr && (
-            <div className="mt-2.5 rounded-xl bg-[var(--brand-primary-light,#eaf8f2)] px-3 py-2 text-start">
-              <p
-                dir="ltr"
-                className="text-start text-xs font-extrabold text-[var(--brand-primary,#007a5a)] tabular-nums"
-              >
-                {unit.gainStr} {unit.currency}
-              </p>
-              <p className="mt-0.5 line-clamp-1 text-[10px] text-[#2b8a6e]">
-                {t.cardMarketPriceToday} {unit.marketStr} {unit.currency}
-              </p>
-            </div>
-          )}
-
-          {unit.matchTags?.length > 0 && (
-            <div className="mt-2.5 flex flex-wrap gap-1.5">
-              {unit.matchTags.map((tag: string) => (
-                <span
-                  key={tag}
-                  className="rounded-md bg-[#e3f2ef] px-2 py-0.5 text-[10px] font-bold text-[var(--brand-primary,#007a5a)]"
-                >
-                  ✓ {tag}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2 border-t border-gray-100 px-4 py-3 sm:px-5">
-        <Link
-          href={`/account/offers?role=buyer&applyUnitId=${unit.id}`}
-          className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[var(--brand-primary,#007a5a)] px-3 text-xs font-extrabold text-white transition hover:bg-[var(--brand-primary-hover,#006248)]"
-        >
-          <Wallet className="size-3.5 shrink-0" />
-          <span className="truncate">{extraLabels.submitOfferBtn}</span>
-        </Link>
-
-        <Link
-          href={`/opportunities/${unit.id}`}
-          className="inline-flex h-9 items-center justify-center rounded-xl border border-gray-200 bg-white px-3 text-xs font-extrabold text-[var(--brand-navy,#0a1122)] transition hover:border-gray-300 hover:bg-gray-50"
-        >
-          {extraLabels.detailsBtn}
-        </Link>
       </div>
     </div>
   )

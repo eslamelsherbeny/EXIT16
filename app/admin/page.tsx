@@ -22,6 +22,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import {
+  isSelfDealOffer,
+  sanitizeGeorgiaProjectTitle,
+} from "@/lib/offer-helpers"
 import { getLocalizedGeorgiaAreaName } from "@/lib/smart-matcher"
 import { getServerI18n } from "@/lib/get-server-dictionary"
 import { getCurrencySymbol } from "@/lib/i18n-config"
@@ -46,6 +50,14 @@ function deriveUnitCode(id: string) {
   const digits = String(id || "").replace(/\D/g, "")
   const num = digits ? Number(digits.slice(-4)) : 100
   return `U-${String(num).padStart(5, "0")}`
+}
+
+function cleanAreaDisplay(rawArea: string | null | undefined, locale: string) {
+  const localized = getLocalizedGeorgiaAreaName(rawArea, locale)
+  if (locale === "ar") {
+    return localized.replace(/\s*\([A-Za-z0-9\s/-]+\)\s*$/g, "").trim()
+  }
+  return localized
 }
 
 function normalizeDashboardOffer(raw: any) {
@@ -100,6 +112,15 @@ export default async function AdminPage() {
   try {
     const supabase = await getSupabase()
 
+    // تنظيف ذاتي تلقائي لأي اسم مشروع مصري قديم ("الرحاب") في جورجيا
+    await supabase
+      .from("sell_requests")
+      .update({
+        project_name: "King David Residences",
+        developer_name: "King David",
+      })
+      .ilike("project_name", "%الرحاب%")
+
     const [propsRes, leadsRes, offersRes] = await Promise.all([
       supabase
         .from("sell_requests")
@@ -132,17 +153,30 @@ export default async function AdminPage() {
     return {
       ...p,
       id: String(p.id),
+      project_name: sanitizeGeorgiaProjectTitle(p.project_name),
       area: p.area || meta.area || null,
       unit_type: p.unit_type || meta.unit_type || null,
       size: p.size ?? meta.size ?? null,
     }
   })
+
+  const propsMap = new Map(properties.map((p: any) => [String(p.id), p]))
+
   const leads = leadsData
   const allOffers = allOffersData
     .map(normalizeDashboardOffer)
-    .filter((o: any) => o.status !== "recommended")
+    .filter((o: any) => {
+      if (o.status === "recommended") return false
+      const unit = propsMap.get(String(o.property_id))
+      if (!unit || isSelfDealOffer(o, unit)) return false
+      return true
+    })
 
-  const propsMap = new Map(properties.map((p: any) => [String(p.id), p]))
+  const unitsWithAcceptedOffer = new Set(
+    allOffers
+      .filter((o: any) => o.status === "accepted")
+      .map((o: any) => String(o.property_id))
+  )
 
   const pendingAdminOffersCount = allOffers.filter(
     (o: any) => o.status === "pending_admin"
@@ -157,10 +191,20 @@ export default async function AdminPage() {
     .filter((item) => Boolean(item.unit) && item.unit.status !== "sold")
 
   const liveNegotiationOffers = allOffers
-    .map((offer: any) => ({
-      offer,
-      unit: propsMap.get(String(offer.property_id)),
-    }))
+    .map((offer: any) => {
+      const unit = propsMap.get(String(offer.property_id))
+      let displayStatus = offer.status
+      if (
+        displayStatus === "pending_seller" &&
+        unitsWithAcceptedOffer.has(String(offer.property_id))
+      ) {
+        displayStatus = "unit_locked"
+      }
+      return {
+        offer: { ...offer, status: displayStatus },
+        unit,
+      }
+    })
     .filter((item) => Boolean(item.unit))
     .slice(0, 8)
 
@@ -207,7 +251,7 @@ export default async function AdminPage() {
     {
       label: t.totalBuyerLeads || dict?.admin?.shell?.nav?.leads || "",
       value: leads.length.toLocaleString("en-US"),
-      note: `${leads.length.toLocaleString("en-US")} ${t.generalRequestsNote || ""}`,
+      note: `${leads.length.toLocaleString("en-US")} ${t.buyRequestsWord || t.generalRequestsNote || ""}`,
       icon: FileText,
       href: "/admin/leads",
     },
@@ -385,7 +429,7 @@ export default async function AdminPage() {
               const platformCommission = Math.round(
                 commissionBase * (commPct / 100)
               )
-              const localizedArea = getLocalizedGeorgiaAreaName(unit.area, locale)
+              const localizedArea = cleanAreaDisplay(unit.area, locale)
 
               const sellerWa = `${leadsDict.waGeneralPrefix || ""} ${unit.name}، (${unit.project_name || t.defaultUnit || ""} - ${uCode}) — ${sm.agreedCashLabel || ""}: ${agreedCash.toLocaleString("en-US")} ${cur}`
               const buyerWa = `${leadsDict.waUnitLeadPrefix || ""} ${offer.buyer_name || ""}، (${unit.project_name || t.defaultUnit || ""} - ${uCode}) — ${sm.agreedCashLabel || ""}: ${agreedCash.toLocaleString("en-US")} ${cur}`
@@ -401,7 +445,7 @@ export default async function AdminPage() {
                         {uCode}
                       </span>
                       <span className="text-xs font-black text-[#0a1122] sm:text-sm">
-                        {unit.project_name || t.defaultUnit} ({localizedArea})
+                        {unit.project_name || t.defaultUnit} · {localizedArea}
                       </span>
                     </div>
                     <Link
@@ -570,7 +614,10 @@ export default async function AdminPage() {
                       )}
                       {st === "accepted" && (
                         <span className="rounded-full bg-emerald-600 px-2.5 py-0.5 text-[10px] font-extrabold text-white">
-                          ✓ {sm.offerAcceptedTag}
+                          ✓{" "}
+                          {unit.status === "sold"
+                            ? statusesDict.sold || sm.offerAcceptedTag
+                            : sm.offerAcceptedTag}
                         </span>
                       )}
                       {st === "pending_seller" && (
@@ -636,10 +683,7 @@ export default async function AdminPage() {
                     STATUS_BADGE_CLASSES[prop.status || "pending"] ||
                     STATUS_BADGE_CLASSES.pending
                   const uCode = deriveUnitCode(prop.id)
-                  const localizedArea = getLocalizedGeorgiaAreaName(
-                    prop.area,
-                    locale
-                  )
+                  const localizedArea = cleanAreaDisplay(prop.area, locale)
 
                   const sellerWaMsg = `${leadsDict.waGeneralPrefix || ""} ${prop.name}، (${prop.project_name || t.defaultUnit || ""} - ${localizedArea} - ${uCode}) — ${Number(prop.paid_amount || 0).toLocaleString("en-US")} ${georgiaCurrency}`
 
@@ -737,7 +781,12 @@ export default async function AdminPage() {
                     : []
                 const cleanTarget =
                   areasList
-                    .map((a: string) => getLocalizedGeorgiaAreaName(a, locale))
+                    .map((a: string) =>
+                      cleanAreaDisplay(
+                        a.replace(/الرحاب/g, "King David Residences"),
+                        locale
+                      )
+                    )
                     .join("، ") || t.allAreas
                 const cashFormatted = Number(
                   lead.available_cash || lead.budget || 0

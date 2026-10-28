@@ -3,6 +3,7 @@ import { cookies } from "next/headers"
 import { createServerClient } from "@supabase/ssr"
 import { getUsersVerificationMapAction } from "@/actions/submit-forms"
 import { getServerI18n } from "@/lib/get-server-dictionary"
+import { sanitizeGeorgiaProjectTitle } from "@/lib/offer-helpers"
 import LeadsClientTable, {
   type BuyerLead,
   type LinkedUnitSummary,
@@ -61,6 +62,7 @@ export default async function LeadsPage() {
       u.documents && typeof pMeta(u) === "object" ? pMeta(u) : {}
     return {
       ...u,
+      project_name: sanitizeGeorgiaProjectTitle(u.project_name),
       area: u.area || meta.area || null,
       unit_type: u.unit_type || meta.unit_type || null,
       rooms: u.rooms ?? meta.rooms ?? null,

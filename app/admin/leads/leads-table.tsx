@@ -43,6 +43,7 @@ import {
   buildLeadWhatsAppMessage,
   isBuyerEmailVerified,
   isBuyerPhoneVerified,
+  isSelfOfferForLead,
   normalizeOfferStatus,
   parseLeadDetails,
   type BuyerLead,
@@ -82,11 +83,21 @@ export default function LeadsClientTable({
 
   function getMatchedUnitsForLead(lead: BuyerLead) {
     if (!units || units.length === 0) return []
-    const eligibleUnits = units.filter(
-      (u) =>
-        (u.status === "active" || u.status === "offer_received") &&
-        (!u.user_id || u.user_id !== lead.user_id)
-    )
+    const leadPhoneDigits = String(lead.phone || "").replace(/\D/g, "")
+    const eligibleUnits = units.filter((u) => {
+      if (u.status !== "active" && u.status !== "offer_received") return false
+      if (lead.user_id && u.user_id && String(u.user_id) === String(lead.user_id))
+        return false
+      const uPhoneDigits = String(u.phone || "").replace(/\D/g, "")
+      if (
+        leadPhoneDigits.length >= 8 &&
+        uPhoneDigits.length >= 8 &&
+        leadPhoneDigits.slice(-8) === uPhoneDigits.slice(-8)
+      ) {
+        return false
+      }
+      return true
+    })
     return eligibleUnits
       .map((u) => ({
         unit: u,
@@ -96,16 +107,28 @@ export default function LeadsClientTable({
       .sort((a, b) => b.match.score - a.match.score)
   }
 
-  function renderLeadOfferBadges(lead: BuyerLead) {
+  function renderLeadOfferBadges(
+    lead: BuyerLead,
+    parsed: ReturnType<typeof parseLeadDetails>
+  ) {
     const leadOffers = offers
       .map((o) => ({ ...o, status: normalizeOfferStatus(o) }))
-      .filter(
-        (o) =>
-          o.status !== "recommended" &&
-          (String(o.lead_id || "") === String(lead.id) ||
-            (lead.user_id &&
-              String(o.buyer_user_id || "") === String(lead.user_id)))
-      )
+      .filter((o) => {
+        if (o.status === "recommended") return false
+        if (isSelfOfferForLead(o, units)) return false
+        if (String(o.lead_id || "") === String(lead.id)) return true
+        if (
+          parsed.isUnitLead &&
+          parsed.matchedUnit &&
+          String(o.property_id) === String(parsed.matchedUnit.id) &&
+          lead.user_id &&
+          String(o.buyer_user_id || "") === String(lead.user_id)
+        ) {
+          return true
+        }
+        return false
+      })
+
     if (leadOffers.length === 0) return null
 
     const accepted = leadOffers.find((o) => o.status === "accepted")
@@ -589,7 +612,7 @@ export default function LeadsClientTable({
                   </div>
                 )}
 
-                {renderLeadOfferBadges(lead)}
+                {renderLeadOfferBadges(lead, parsed)}
 
                 {parsed.readinessBadge && (
                   <div className="mt-2.5">
@@ -911,7 +934,7 @@ export default function LeadsClientTable({
                               </span>
                             </button>
                           )}
-                          {renderLeadOfferBadges(lead)}
+                          {renderLeadOfferBadges(lead, parsed)}
                         </td>
 
                         <td className="px-5 py-4">

@@ -13,11 +13,13 @@ import {
   getOfferSupabase,
   getVerifiedClientSession,
   hashOfferPassword,
+  isSelfDealOffer,
   isUnitOwnedByUser,
   makeOfferRefCode,
   normalizeOfferRecord,
   PENDING_ADMIN_TAG,
   revalidateAllOfferPaths,
+  sanitizeGeorgiaProjectTitle,
   sanitizeUnitForPublicOrBuyer,
   setBuyerSessionCookie,
   verifyStaffSession,
@@ -130,14 +132,17 @@ export async function getAccountOffersDataAction() {
   })
 
   const sellerOffers = allOffers
-    .filter(
-      (o) =>
+    .filter((o) => {
+      const unit = allKnownUnitsMap.get(String(o.property_id))
+      if (isSelfDealOffer(o, unit)) return false
+      return (
         (myUnitIds.has(String(o.property_id)) ||
           String(o.seller_user_id || '') === String(profile.id)) &&
         o.status !== 'recommended' &&
         o.status !== 'pending_admin' &&
         o.status !== 'rejected'
-    )
+      )
+    })
     .map((o) => ({
       ...o,
       buyer_name: null,
@@ -151,12 +156,16 @@ export async function getAccountOffersDataAction() {
     })
 
   const buyerOffers = allOffers
-    .filter(
-      (o) =>
+    .filter((o) => {
+      const unit = allKnownUnitsMap.get(String(o.property_id))
+      if (isSelfDealOffer(o, unit)) return false
+      if (myUnitIds.has(String(o.property_id))) return false
+      return (
         (String(o.buyer_user_id || '') === String(profile.id) ||
           (o.lead_id && myLeadIds.has(String(o.lead_id)))) &&
         o.status !== 'recommended'
-    )
+      )
+    })
     .map((o) => ({
       ...o,
       unit: allKnownUnitsMap.get(String(o.property_id)),
@@ -202,6 +211,7 @@ export async function getAccountOffersDataAction() {
     const adminRecOffers = allOffers.filter(
       (o) =>
         o.status === 'recommended' &&
+        !myUnitIds.has(String(o.property_id)) &&
         (String(o.buyer_user_id || '') === String(profile.id) ||
           (o.lead_id && myLeadIds.has(String(o.lead_id))))
     )
@@ -354,10 +364,16 @@ export async function submitBuyerOfferAction(payload: {
       return { success: false, error: oDict.errUnitNotFound }
     }
 
+    const buyerNameFinal =
+      buyerUser?.name || cleanGuestName || formsDict.buyerFallback || ''
+    const buyerPhoneFinal = buyerUser?.phone || cleanGuestPhone || ''
+
     if (
-      sessionId &&
-      unit.user_id &&
-      String(unit.user_id) === String(sessionId)
+      (sessionId && unit.user_id && String(unit.user_id) === String(sessionId)) ||
+      isSelfDealOffer(
+        { buyer_user_id: sessionId, buyer_phone: buyerPhoneFinal },
+        unit
+      )
     ) {
       return {
         success: false,
@@ -396,10 +412,6 @@ export async function submitBuyerOfferAction(payload: {
       guardrails.requiredCash,
       Math.max(guardrails.minAllowedOfferCash, cleanOfferedCash)
     )
-
-    const buyerNameFinal =
-      buyerUser?.name || cleanGuestName || formsDict.buyerFallback || ''
-    const buyerPhoneFinal = buyerUser?.phone || cleanGuestPhone || ''
 
     let activeLead: any = null
     if (sessionId) {
@@ -471,7 +483,6 @@ export async function submitBuyerOfferAction(payload: {
       existingOfferRow = existingOffer || null
     }
 
-    // حماية الصفقة: إذا كان العرض السابق قد تم قبوله بالفعل، لا نسمح بالكتابة فوقه
     if (existingOfferRow?.status === 'accepted') {
       return {
         success: true,
@@ -553,7 +564,7 @@ export async function submitBuyerOfferAction(payload: {
     const notifsToInsert: any[] = [
       {
         user_id: null,
-        title: `🎯 ${oDict.adminNewOfferNotifTitle} (${offerRef}): ${unit.project_name || ''}`,
+        title: `🎯 ${oDict.adminNewOfferNotifTitle} (${offerRef}): ${sanitizeGeorgiaProjectTitle(unit.project_name)}`,
         message: `${buyerNameFinal} (${buyerPhoneFinal}) — $${finalOfferedCash.toLocaleString('en-US')}`,
         type: 'lead',
         link: `/admin/deals?offerId=${savedOfferId}`,
@@ -564,7 +575,7 @@ export async function submitBuyerOfferAction(payload: {
     if (initialOfferStatus === 'pending_seller' && unit.user_id) {
       notifsToInsert.push({
         user_id: unit.user_id,
-        title: `💰 ${oDict.sellerNewOfferNotifTitle} (${unit.project_name || ''})`,
+        title: `💰 ${oDict.sellerNewOfferNotifTitle} (${sanitizeGeorgiaProjectTitle(unit.project_name)})`,
         message: `$${finalOfferedCash.toLocaleString('en-US')}`,
         type: 'new_offer',
         link: `/account/offers?role=seller&unitId=${unit.id}`,
@@ -667,7 +678,7 @@ export async function respondToOfferBySellerAction(payload: {
       const notifs: any[] = [
         {
           user_id: null,
-          title: `🔥 ${oDict.adminDealAcceptedNotifTitle} (${offerRef}): ${unit.project_name || ''}`,
+          title: `🔥 ${oDict.adminDealAcceptedNotifTitle} (${offerRef}): ${sanitizeGeorgiaProjectTitle(unit.project_name)}`,
           message: `${unit.name} 🤝 ${offer.buyer_name || ''} ($${Number(offer.offered_cash).toLocaleString('en-US')})`,
           type: 'property',
           link: `/admin/deals?offerId=${offer.id}`,
@@ -678,7 +689,7 @@ export async function respondToOfferBySellerAction(payload: {
       if (offer.buyer_user_id) {
         notifs.push({
           user_id: offer.buyer_user_id,
-          title: `🎉 ${oDict.buyerOfferAcceptedNotifTitle} (${unit.project_name || ''})`,
+          title: `🎉 ${oDict.buyerOfferAcceptedNotifTitle} (${sanitizeGeorgiaProjectTitle(unit.project_name)})`,
           message: oDict.buyerOfferAcceptedNotifMsg,
           type: 'status_update',
           link: '/account/offers?role=buyer',
@@ -713,7 +724,7 @@ export async function respondToOfferBySellerAction(payload: {
         try {
           await supabase.from('notifications').insert({
             user_id: offer.buyer_user_id,
-            title: `🔄 ${oDict.buyerCounterNotifTitle} (${unit.project_name || ''})`,
+            title: `🔄 ${oDict.buyerCounterNotifTitle} (${sanitizeGeorgiaProjectTitle(unit.project_name)})`,
             message: `$${cleanCounter.toLocaleString('en-US')}`,
             type: 'new_offer',
             link: '/account/offers?role=buyer',
@@ -829,7 +840,7 @@ export async function respondToCounterOfferByBuyerAction(payload: {
       const notifs: any[] = [
         {
           user_id: null,
-          title: `🔥 ${oDict.adminDealAcceptedNotifTitle} (${offerRef}): ${unit.project_name || ''}`,
+          title: `🔥 ${oDict.adminDealAcceptedNotifTitle} (${offerRef}): ${sanitizeGeorgiaProjectTitle(unit.project_name)}`,
           message: `${unit.name} 🤝 ${offer.buyer_name || ''} ($${agreedAmount.toLocaleString('en-US')})`,
           type: 'property',
           link: `/admin/deals?offerId=${offer.id}`,
@@ -840,7 +851,7 @@ export async function respondToCounterOfferByBuyerAction(payload: {
       if (unit.user_id) {
         notifs.push({
           user_id: unit.user_id,
-          title: `🎉 ${oDict.sellerCounterAcceptedNotifTitle} (${unit.project_name || ''})`,
+          title: `🎉 ${oDict.sellerCounterAcceptedNotifTitle} (${sanitizeGeorgiaProjectTitle(unit.project_name)})`,
           message: `$${agreedAmount.toLocaleString('en-US')}`,
           type: 'status_update',
           link: `/account/offers?role=seller&unitId=${unit.id}`,
@@ -887,21 +898,45 @@ export async function adminGetDealsRoomDataAction() {
         .neq('status', 'deleted_by_seller'),
     ])
 
-    const normalizedOffers = ((offersData || []) as any[])
+    const cleanedUnits = ((unitsData || []) as any[]).map((u) => ({
+      ...u,
+      project_name: sanitizeGeorgiaProjectTitle(u.project_name),
+    }))
+    const uMap = new Map(cleanedUnits.map((u) => [String(u.id), u]))
+
+    const selfOfferIdsToDelete: string[] = []
+    const validNormalizedOffers = ((offersData || []) as any[])
       .map(normalizeOfferRecord)
-      .filter((o) => o.status !== 'recommended')
+      .filter((o) => {
+        if (o.status === 'recommended') return false
+        const unit = uMap.get(String(o.property_id))
+        if (!unit) return false
+        if (isSelfDealOffer(o, unit)) {
+          selfOfferIdsToDelete.push(String(o.id))
+          return false
+        }
+        return true
+      })
+
+    if (selfOfferIdsToDelete.length > 0) {
+      try {
+        await supabase
+          .from('property_offers')
+          .delete()
+          .in('id', selfOfferIdsToDelete)
+      } catch {}
+    }
 
     return {
       authorized: true,
-      offers: normalizedOffers,
-      units: unitsData || [],
+      offers: validNormalizedOffers,
+      units: cleanedUnits,
     }
   } catch (e) {
     console.error('adminGetDealsRoomDataAction error:', e)
     return { authorized: false, offers: [] as any[], units: [] as any[] }
   }
 }
-
 export async function adminManageOfferLifecycleAction(payload: {
   offerId: string
   action:
@@ -959,7 +994,7 @@ export async function adminManageOfferLifecycleAction(payload: {
         try {
           await supabase.from('notifications').insert({
             user_id: unit.user_id,
-            title: `💰 ${oDict.sellerNewOfferNotifTitle} (${unit.project_name || ''})`,
+            title: `💰 ${oDict.sellerNewOfferNotifTitle} (${sanitizeGeorgiaProjectTitle(unit.project_name)})`,
             message: `$${Number(offer.offered_cash).toLocaleString('en-US')}`,
             type: 'new_offer',
             link: `/account/offers?role=seller&unitId=${unit.id}`,
@@ -1047,6 +1082,18 @@ export async function adminSendRecommendationAction(payload: {
 
     if (!unit || !lead) return { success: false, error: oDict.errUnitNotFound }
 
+    if (
+      isSelfDealOffer(
+        { buyer_user_id: lead.user_id, buyer_phone: lead.phone },
+        unit
+      )
+    ) {
+      return {
+        success: false,
+        error: oDict.errCannotOfferOwnUnit || oDict.errSubmitFailed,
+      }
+    }
+
     const match = calculateSmartMatch(unit, lead, undefined, locale)
 
     const { data: existing } = await supabase
@@ -1081,7 +1128,7 @@ export async function adminSendRecommendationAction(payload: {
         await supabase.from('notifications').insert({
           user_id: lead.user_id,
           title: `🎯 ${oDict.buyerAdminRecNotifTitle} (${match.score}%)`,
-          message: `${unit.project_name || ''} — ${unit.area || ''}`,
+          message: `${sanitizeGeorgiaProjectTitle(unit.project_name)} — ${unit.area || ''}`,
           type: 'property_match',
           link: '/account/offers?role=buyer',
           is_read: false,
@@ -1125,8 +1172,14 @@ export async function adminSendBulkRecommendationsAction(payload: {
 
     let sentCount = 0
     for (const lead of allLeads) {
-      if (lead.user_id && String(lead.user_id) === String(unit.user_id))
+      if (
+        isSelfDealOffer(
+          { buyer_user_id: lead.user_id, buyer_phone: lead.phone },
+          unit
+        )
+      ) {
         continue
+      }
       const m = calculateSmartMatch(unit, lead, undefined, locale)
       if (m.score >= threshold) {
         await adminSendRecommendationAction({
@@ -1173,6 +1226,18 @@ export async function adminCreateOfficialOfferAction(payload: {
 
     if (!unit || !lead) return { success: false, error: oDict.errUnitNotFound }
 
+    if (
+      isSelfDealOffer(
+        { buyer_user_id: lead.user_id, buyer_phone: lead.phone },
+        unit
+      )
+    ) {
+      return {
+        success: false,
+        error: oDict.errCannotOfferOwnUnit || oDict.errSubmitFailed,
+      }
+    }
+
     const match = calculateSmartMatch(unit, lead, undefined, locale)
     const cleanCash =
       Math.round(Number(payload.offeredCash)) || Number(unit.paid_amount) || 0
@@ -1181,9 +1246,7 @@ export async function adminCreateOfficialOfferAction(payload: {
       .from('property_offers')
       .select('id')
       .eq('property_id', unit.id)
-      .or(
-        `lead_id.eq.${lead.id}${lead.user_id ? `,buyer_user_id.eq.${lead.user_id}` : ''}`
-      )
+      .eq('lead_id', lead.id)
       .limit(1)
       .maybeSingle()
 
@@ -1228,7 +1291,7 @@ export async function adminCreateOfficialOfferAction(payload: {
       try {
         await supabase.from('notifications').insert({
           user_id: unit.user_id,
-          title: `💰 ${oDict.sellerNewOfferNotifTitle} (${unit.project_name || ''})`,
+          title: `💰 ${oDict.sellerNewOfferNotifTitle} (${sanitizeGeorgiaProjectTitle(unit.project_name)})`,
           message: `$${cleanCash.toLocaleString('en-US')}`,
           type: 'new_offer',
           link: `/account/offers?role=seller&unitId=${unit.id}`,

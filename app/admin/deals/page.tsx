@@ -46,6 +46,35 @@ function deriveUnitCode(id: string) {
   return `U-${String(num).padStart(5, '0')}`
 }
 
+function cleanAreaDisplay(rawArea: string | null | undefined, locale: string) {
+  const localized = getLocalizedGeorgiaAreaName(rawArea, locale as any)
+  if (locale === 'ar') {
+    return localized.replace(/\s*\([A-Za-z0-9\s/-]+\)\s*$/g, '').trim()
+  }
+  return localized
+}
+
+function isSelfOfferClient(offer: any, unit: any): boolean {
+  if (!offer || !unit) return false
+  if (
+    offer.buyer_user_id &&
+    unit.user_id &&
+    String(offer.buyer_user_id) === String(unit.user_id)
+  ) {
+    return true
+  }
+  const bPhone = String(offer.buyer_phone || '').replace(/\D/g, '')
+  const sPhone = String(unit.phone || '').replace(/\D/g, '')
+  if (
+    bPhone.length >= 8 &&
+    sPhone.length >= 8 &&
+    bPhone.slice(-8) === sPhone.slice(-8)
+  ) {
+    return true
+  }
+  return false
+}
+
 function normalizeDealOffer(raw: any) {
   const rawDiffs = Array.isArray(raw?.diff_reasons) ? raw.diff_reasons : []
   const hasPendingAdminTag = rawDiffs.includes(PENDING_ADMIN_TAG)
@@ -114,7 +143,12 @@ function AdminDealsContent() {
 
       const normalizedOffers = (res.offers || [])
         .map(normalizeDealOffer)
-        .filter((o: any) => o.status !== 'recommended')
+        .filter((o: any) => {
+          if (o.status === 'recommended') return false
+          const u = uMap[String(o.property_id)]
+          if (!u || isSelfOfferClient(o, u)) return false
+          return true
+        })
 
       setUnitsMap(uMap)
       setOffers(normalizedOffers)
@@ -179,15 +213,23 @@ function AdminDealsContent() {
     return {
       all: offers.length,
       pending_admin: offers.filter((o) => o.status === 'pending_admin').length,
-      accepted: offers.filter((o) => o.status === 'accepted').length,
+      accepted: offers.filter(
+        (o) =>
+          o.status === 'accepted' &&
+          unitsMap[String(o.property_id)]?.status !== 'sold'
+      ).length,
       negotiating: offers.filter(
         (o) => o.status === 'pending_seller' || o.status === 'counter_offered'
       ).length,
       backup_rejected: offers.filter(
-        (o) => o.status === 'unit_locked' || o.status === 'rejected'
+        (o) =>
+          o.status === 'unit_locked' ||
+          o.status === 'rejected' ||
+          (o.status === 'accepted' &&
+            unitsMap[String(o.property_id)]?.status === 'sold')
       ).length,
     }
-  }, [offers])
+  }, [offers, unitsMap])
 
   const filteredOffers = useMemo(() => {
     return offers.filter((o) => {
@@ -196,7 +238,11 @@ function AdminDealsContent() {
 
       if (activeTab === 'pending_admin' && o.status !== 'pending_admin')
         return false
-      if (activeTab === 'accepted' && o.status !== 'accepted') return false
+      if (
+        activeTab === 'accepted' &&
+        (o.status !== 'accepted' || unit.status === 'sold')
+      )
+        return false
       if (
         activeTab === 'negotiating' &&
         o.status !== 'pending_seller' &&
@@ -206,7 +252,8 @@ function AdminDealsContent() {
       if (
         activeTab === 'backup_rejected' &&
         o.status !== 'unit_locked' &&
-        o.status !== 'rejected'
+        o.status !== 'rejected' &&
+        !(o.status === 'accepted' && unit.status === 'sold')
       )
         return false
 
@@ -357,7 +404,7 @@ function AdminDealsContent() {
 
             const offerRef = generateOfferRefCode(offer.id)
             const uCode = deriveUnitCode(unit.id)
-            const areaName = getLocalizedGeorgiaAreaName(unit.area, locale)
+            const areaName = cleanAreaDisplay(unit.area, locale)
             const offeredCash = Number(offer.offered_cash) || 0
             const requiredCash =
               Number(unit.paid_amount || offer.required_cash) || 0
@@ -403,7 +450,7 @@ function AdminDealsContent() {
                       href={`/admin/properties?unitId=${unit.id}`}
                       className="text-sm font-black text-[#0a1122] hover:text-[#105C50] hover:underline sm:text-base"
                     >
-                      {unit.project_name || d.unitFallback} ({areaName})
+                      {unit.project_name || d.unitFallback} · {areaName}
                     </Link>
                     <Link
                       href={`/opportunities/${unit.id}`}

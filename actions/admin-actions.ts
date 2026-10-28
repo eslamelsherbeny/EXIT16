@@ -40,10 +40,6 @@ export async function logoutAdminAction() {
   return { success: true }
 }
 
-/**
- * توثيق البريد الإلكتروني أو رقم الهاتف لأي بائع أو مشتري من لوحة الأدمن
- * مترابط بالكامل مع upsertUserVerificationMeta ليظهر التوثيق فوراً في حساب العميل ولوحة الإدارة
- */
 export async function verifyUserContactByAdminAction(payload: {
   userId: string
   type: "email" | "phone" | "both"

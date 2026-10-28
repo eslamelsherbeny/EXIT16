@@ -49,6 +49,31 @@ export function makeOfferRefCode(offerId: string): string {
   return `OF-${clean.slice(0, 6) || '1001'}`
 }
 
+export function isSelfDealOffer(offer: any, unit: any): boolean {
+  if (!offer || !unit) return false
+  if (
+    offer.buyer_user_id &&
+    unit.user_id &&
+    String(offer.buyer_user_id) === String(unit.user_id)
+  ) {
+    return true
+  }
+  const bPhone = String(offer.buyer_phone || '').replace(/\D/g, '')
+  const sPhone = String(unit.phone || '').replace(/\D/g, '')
+  if (bPhone.length >= 8 && sPhone.length >= 8 && bPhone.slice(-8) === sPhone.slice(-8)) {
+    return true
+  }
+  return false
+}
+
+export function sanitizeGeorgiaProjectTitle(rawTitle?: string | null): string {
+  const clean = String(rawTitle || '').trim()
+  if (!clean || clean === 'الرحاب' || clean.includes('الرحاب')) {
+    return 'King David Residences'
+  }
+  return clean
+}
+
 export function hashOfferPassword(password: string) {
   const salt = randomBytes(16).toString('hex')
   const derived = scryptSync(password, salt, 64).toString('hex')
@@ -195,7 +220,7 @@ export function sanitizeUnitForPublicOrBuyer(
   if (!unit) return undefined
   return {
     id: String(unit.id),
-    project_name: unit.project_name || null,
+    project_name: sanitizeGeorgiaProjectTitle(unit.project_name),
     developer_name: unit.developer_name || null,
     area: unit.area || unit.documents?.__unit_meta?.area || null,
     unit_type: unit.unit_type || unit.documents?.__unit_meta?.unit_type || null,

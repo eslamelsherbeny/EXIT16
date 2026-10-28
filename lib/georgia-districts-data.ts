@@ -23,7 +23,7 @@ export const GEORGIA_REGION_DISTRICTS: GeorgiaDistrictNode[] = [
     id: 'Tbilisi - Saburtalo',
     regionCode: 'tbilisi_metro',
     labels: {
-      ar: 'تبليسي - سابورتالو (Saburtalo)',
+      ar: 'تبليسي - سابورتالو',
       en: 'Tbilisi - Saburtalo',
       ru: 'Тбилиси - Сабуртало',
       ka: 'თბილისი - საბურთალო',
@@ -34,7 +34,7 @@ export const GEORGIA_REGION_DISTRICTS: GeorgiaDistrictNode[] = [
     id: 'Tbilisi - Vake',
     regionCode: 'tbilisi_metro',
     labels: {
-      ar: 'تبليسي - فاكي (Vake)',
+      ar: 'تبليسي - فاكي',
       en: 'Tbilisi - Vake',
       ru: 'Тбилиси - Ваке',
       ka: 'თბილისი - ვაკე',
@@ -45,7 +45,7 @@ export const GEORGIA_REGION_DISTRICTS: GeorgiaDistrictNode[] = [
     id: 'Tbilisi - Vera',
     regionCode: 'tbilisi_metro',
     labels: {
-      ar: 'تبليسي - فيرا (Vera)',
+      ar: 'تبليسي - فيرا',
       en: 'Tbilisi - Vera',
       ru: 'Тбилиси - Вера',
       ka: 'თბილისი - ვერა',
@@ -56,7 +56,7 @@ export const GEORGIA_REGION_DISTRICTS: GeorgiaDistrictNode[] = [
     id: 'Tbilisi - Mtatsminda',
     regionCode: 'tbilisi_metro',
     labels: {
-      ar: 'تبليسي - متاتسميندا (Mtatsminda)',
+      ar: 'تبليسي - متاتسميندا',
       en: 'Tbilisi - Mtatsminda',
       ru: 'Тбилиси - Мтацминда',
       ka: 'თბილისი - მთაწმინდა',
@@ -67,7 +67,7 @@ export const GEORGIA_REGION_DISTRICTS: GeorgiaDistrictNode[] = [
     id: 'Tbilisi - Old Tbilisi',
     regionCode: 'tbilisi_metro',
     labels: {
-      ar: 'تبليسي - تبليسي القديمة (Old Tbilisi)',
+      ar: 'تبليسي القديمة',
       en: 'Tbilisi - Old Tbilisi',
       ru: 'Тбилиси - Старый Тбилиси',
       ka: 'თბილისი - ძველი თბილისი',
@@ -83,7 +83,7 @@ export const GEORGIA_REGION_DISTRICTS: GeorgiaDistrictNode[] = [
     id: 'Tbilisi - Ortachala',
     regionCode: 'tbilisi_metro',
     labels: {
-      ar: 'تبليسي - أورتاشالا (Ortachala)',
+      ar: 'تبليسي - أورتاشالا',
       en: 'Tbilisi - Ortachala',
       ru: 'Тбилиси - Ортачала',
       ka: 'თბილისი - ორთაჭალა',
@@ -94,7 +94,7 @@ export const GEORGIA_REGION_DISTRICTS: GeorgiaDistrictNode[] = [
     id: 'Tbilisi - Krtsanisi',
     regionCode: 'tbilisi_metro',
     labels: {
-      ar: 'تبليسي - كرتسانيسي (Krtsanisi)',
+      ar: 'تبليسي - كرتسانيسي',
       en: 'Tbilisi - Krtsanisi',
       ru: 'Тбилиси - Крцаниси',
       ka: 'თბილისი - კრწანისი',
@@ -105,7 +105,7 @@ export const GEORGIA_REGION_DISTRICTS: GeorgiaDistrictNode[] = [
     id: 'Tbilisi - Isani',
     regionCode: 'tbilisi_metro',
     labels: {
-      ar: 'تبليسي - إيساني (Isani)',
+      ar: 'تبليسي - إيساني',
       en: 'Tbilisi - Isani',
       ru: 'Тбилиси - Исани',
       ka: 'თბილისი - ისანი',
@@ -116,7 +116,7 @@ export const GEORGIA_REGION_DISTRICTS: GeorgiaDistrictNode[] = [
     id: 'Tbilisi - Samgori',
     regionCode: 'tbilisi_metro',
     labels: {
-      ar: 'تبليسي - سامغوري (Samgori)',
+      ar: 'تبليسي - سامغوري',
       en: 'Tbilisi - Samgori',
       ru: 'Тбилиси - Самгори',
       ka: 'თბილისი - სამგორი',
@@ -127,7 +127,7 @@ export const GEORGIA_REGION_DISTRICTS: GeorgiaDistrictNode[] = [
     id: 'Tbilisi - Varketili',
     regionCode: 'tbilisi_metro',
     labels: {
-      ar: 'تبليسي - فاركيتيلي (Varketili)',
+      ar: 'تبليسي - فاركيتيلي',
       en: 'Tbilisi - Varketili',
       ru: 'Тбилиси - Варкетили',
       ka: 'თბილისი - ვარკეთილი',
@@ -138,7 +138,7 @@ export const GEORGIA_REGION_DISTRICTS: GeorgiaDistrictNode[] = [
     id: 'Tbilisi - Didi Digomi',
     regionCode: 'tbilisi_metro',
     labels: {
-      ar: 'تبليسي - ديدي ديغومي (Didi Digomi)',
+      ar: 'تبليسي - ديدي ديغومي',
       en: 'Tbilisi - Didi Digomi',
       ru: 'Тбилиси - Диди Дигоми',
       ka: 'თბილისი - დიდი დიღომი',
@@ -149,7 +149,7 @@ export const GEORGIA_REGION_DISTRICTS: GeorgiaDistrictNode[] = [
     id: 'Tbilisi - Digomi Massive',
     regionCode: 'tbilisi_metro',
     labels: {
-      ar: 'تبليسي - ديغومي ماسيف (Digomi Massive)',
+      ar: 'تبليسي - ديغومي ماسيف',
       en: 'Tbilisi - Digomi Massive',
       ru: 'Тбилиси - Дигомский массив',
       ka: 'თბილისი - დიღმის მასივი',
@@ -160,7 +160,7 @@ export const GEORGIA_REGION_DISTRICTS: GeorgiaDistrictNode[] = [
     id: 'Tbilisi - Didube',
     regionCode: 'tbilisi_metro',
     labels: {
-      ar: 'تبليسي - ديدوبي (Didube)',
+      ar: 'تبليسي - ديدوبي',
       en: 'Tbilisi - Didube',
       ru: 'Тбилиси - Дидубе',
       ka: 'თბილისი - დიდუბე',
@@ -171,7 +171,7 @@ export const GEORGIA_REGION_DISTRICTS: GeorgiaDistrictNode[] = [
     id: 'Tbilisi - Chugureti / Marjanishvili',
     regionCode: 'tbilisi_metro',
     labels: {
-      ar: 'تبليسي - مارجانيشفيلي / تشوغوريتي',
+      ar: 'تبليسي - مارجانيشفيلي',
       en: 'Tbilisi - Chugureti / Marjanishvili',
       ru: 'Тбилиси - Чугурети / Марджанишвили',
       ka: 'თბილისი - ჩუღურეთი / მარჯანიშვილი',
@@ -191,7 +191,7 @@ export const GEORGIA_REGION_DISTRICTS: GeorgiaDistrictNode[] = [
     id: 'Tbilisi - Nadzaladevi',
     regionCode: 'tbilisi_metro',
     labels: {
-      ar: 'تبليسي - نادزالاديفي (Nadzaladevi)',
+      ar: 'تبليسي - نادزالاديفي',
       en: 'Tbilisi - Nadzaladevi',
       ru: 'Тбилиси - Надзаладеви',
       ka: 'თბილისი - ნაძალადევი',
@@ -202,7 +202,7 @@ export const GEORGIA_REGION_DISTRICTS: GeorgiaDistrictNode[] = [
     id: 'Tbilisi - Gldani',
     regionCode: 'tbilisi_metro',
     labels: {
-      ar: 'تبليسي - غلداني (Gldani)',
+      ar: 'تبليسي - غلداني',
       en: 'Tbilisi - Gldani',
       ru: 'Тбилиси - Глдани',
       ka: 'თბილისი - გლდანი',
@@ -213,7 +213,7 @@ export const GEORGIA_REGION_DISTRICTS: GeorgiaDistrictNode[] = [
     id: 'Tbilisi - Avlabari',
     regionCode: 'tbilisi_metro',
     labels: {
-      ar: 'تبليسي - أفلاباري (Avlabari)',
+      ar: 'تبليسي - أفلاباري',
       en: 'Tbilisi - Avlabari',
       ru: 'Тбилиси - Авлабари',
       ka: 'თბილისი - ავლაბარი',
@@ -224,7 +224,7 @@ export const GEORGIA_REGION_DISTRICTS: GeorgiaDistrictNode[] = [
     id: 'Tbilisi - Lisi Lake',
     regionCode: 'tbilisi_metro',
     labels: {
-      ar: 'تبليسي - بحيرة ليسي (Lisi Lake)',
+      ar: 'تبليسي - بحيرة ليسي',
       en: 'Tbilisi - Lisi Lake',
       ru: 'Тбилиси - Озеро Лиси',
       ka: 'თბილისი - ლისის ტბა',
@@ -235,7 +235,7 @@ export const GEORGIA_REGION_DISTRICTS: GeorgiaDistrictNode[] = [
     id: 'Tbilisi - Tbilisi Sea',
     regionCode: 'tbilisi_metro',
     labels: {
-      ar: 'تبليسي - بحر تبليسي (Tbilisi Sea)',
+      ar: 'تبليسي - بحر تبليسي',
       en: 'Tbilisi - Tbilisi Sea',
       ru: 'Тбилиси - Тбилисское море',
       ka: 'თბილისი - თბილისის ზღვა',
@@ -264,7 +264,7 @@ export const GEORGIA_REGION_DISTRICTS: GeorgiaDistrictNode[] = [
     id: 'Mtskheta / Saguramo',
     regionCode: 'tbilisi_metro',
     labels: {
-      ar: 'متسخيتا / ساجورامو (Saguramo)',
+      ar: 'متسخيتا - ساجورامو',
       en: 'Mtskheta / Saguramo',
       ru: 'Мцхета / Сагурамо',
       ka: 'მცხეთა / საგურამო',
@@ -284,7 +284,7 @@ export const GEORGIA_REGION_DISTRICTS: GeorgiaDistrictNode[] = [
     id: 'Rustavi',
     regionCode: 'tbilisi_metro',
     labels: {
-      ar: 'روستافي (Rustavi)',
+      ar: 'روستافي',
       en: 'Rustavi',
       ru: 'Рустави',
       ka: 'რუსთავი',
@@ -295,7 +295,7 @@ export const GEORGIA_REGION_DISTRICTS: GeorgiaDistrictNode[] = [
     id: 'Batumi - New Boulevard',
     regionCode: 'batumi_adjara',
     labels: {
-      ar: 'باتومي - نيو بوليفارد (New Boulevard)',
+      ar: 'باتومي - نيو بوليفارد',
       en: 'Batumi - New Boulevard',
       ru: 'Батуми - Новый Бульвар',
       ka: 'ბათუმი - ახალი ბულვარი',
@@ -311,7 +311,7 @@ export const GEORGIA_REGION_DISTRICTS: GeorgiaDistrictNode[] = [
     id: 'Batumi - Alley of Heroes',
     regionCode: 'batumi_adjara',
     labels: {
-      ar: 'باتومي - ممر الأبطال (Alley of Heroes)',
+      ar: 'باتومي - ممر الأبطال',
       en: 'Batumi - Alley of Heroes',
       ru: 'Батуми - Аллея Героев',
       ka: 'ბათუმი - გმირთა ხეივანი',
@@ -328,7 +328,7 @@ export const GEORGIA_REGION_DISTRICTS: GeorgiaDistrictNode[] = [
     id: 'Batumi - Old Boulevard / Center',
     regionCode: 'batumi_adjara',
     labels: {
-      ar: 'باتومي - البوليفارد القديم / وسط المدينة',
+      ar: 'باتومي - البوليفارد القديم',
       en: 'Batumi - Old Boulevard / Center',
       ru: 'Батуми - Старый Бульвар / Центр',
       ka: 'ბათუმი - ძველი ბულვარი / ცენტრი',
@@ -345,7 +345,7 @@ export const GEORGIA_REGION_DISTRICTS: GeorgiaDistrictNode[] = [
     id: 'Batumi - Rustaveli Avenue',
     regionCode: 'batumi_adjara',
     labels: {
-      ar: 'باتومي - شارع روستافيلي (Rustaveli)',
+      ar: 'باتومي - شارع روستافيلي',
       en: 'Batumi - Rustaveli Avenue',
       ru: 'Батуми - Проспект Руставели',
       ka: 'ბათუმი - რუსთაველის გამზირი',
@@ -356,7 +356,7 @@ export const GEORGIA_REGION_DISTRICTS: GeorgiaDistrictNode[] = [
     id: 'Batumi - Khimshiashvili',
     regionCode: 'batumi_adjara',
     labels: {
-      ar: 'باتومي - خيمشياشفيلي (Khimshiashvili)',
+      ar: 'باتومي - خيمشياشفيلي',
       en: 'Batumi - Khimshiashvili',
       ru: 'Батуми - Химшиашвили',
       ka: 'ბათუმი - ხიმშიაშვილი',
@@ -372,7 +372,7 @@ export const GEORGIA_REGION_DISTRICTS: GeorgiaDistrictNode[] = [
     id: 'Batumi - Bagrationi',
     regionCode: 'batumi_adjara',
     labels: {
-      ar: 'باتومي - باغراتيوني (Bagrationi)',
+      ar: 'باتومي - باغراتيوني',
       en: 'Batumi - Bagrationi',
       ru: 'Батуми - Багратиони',
       ka: 'ბათუმი - ბაგრატიონი',
@@ -383,7 +383,7 @@ export const GEORGIA_REGION_DISTRICTS: GeorgiaDistrictNode[] = [
     id: 'Batumi - Airport District',
     regionCode: 'batumi_adjara',
     labels: {
-      ar: 'باتومي - منطقة المطار (Airport District)',
+      ar: 'باتومي - منطقة المطار',
       en: 'Batumi - Airport District',
       ru: 'Батуми - Район Аэропорта',
       ka: 'ბათუმი - აეროპორტის უბანი',
@@ -394,7 +394,7 @@ export const GEORGIA_REGION_DISTRICTS: GeorgiaDistrictNode[] = [
     id: 'Batumi - Gonio / Kvariati',
     regionCode: 'batumi_adjara',
     labels: {
-      ar: 'باتومي - غونيو / كفارياتي (Gonio)',
+      ar: 'باتومي - غونيو / كفارياتي',
       en: 'Batumi - Gonio / Kvariati',
       ru: 'Батуми - Гонио / Квариати',
       ka: 'ბათუმი - გონიო / კვარიათი',
@@ -405,7 +405,7 @@ export const GEORGIA_REGION_DISTRICTS: GeorgiaDistrictNode[] = [
     id: 'Batumi - Makhinjauri',
     regionCode: 'batumi_adjara',
     labels: {
-      ar: 'باتومي - ماخينجاوري (Makhinjauri)',
+      ar: 'باتومي - ماخينجاوري',
       en: 'Batumi - Makhinjauri',
       ru: 'Батуми - Махинджаури',
       ka: 'ბათუმი - მახინჯაური',
@@ -416,7 +416,7 @@ export const GEORGIA_REGION_DISTRICTS: GeorgiaDistrictNode[] = [
     id: 'Batumi - Chakvi / Green Cape',
     regionCode: 'batumi_adjara',
     labels: {
-      ar: 'باتومي - تشاكفي / غرين كيب (Chakvi)',
+      ar: 'باتومي - تشاكفي / غرين كيب',
       en: 'Batumi - Chakvi / Green Cape',
       ru: 'Батуми - Чакви / Зеленый Мыс',
       ka: 'ბათუმი - ჩაქვი / მწვანე კონცხი',
@@ -427,7 +427,7 @@ export const GEORGIA_REGION_DISTRICTS: GeorgiaDistrictNode[] = [
     id: 'Kobuleti / Shekvetili',
     regionCode: 'batumi_adjara',
     labels: {
-      ar: 'كوبوليتي / شيكفيتيلي (Kobuleti)',
+      ar: 'كوبوليتي - شيكفيتيلي',
       en: 'Kobuleti / Shekvetili',
       ru: 'Кобулети / Шекветили',
       ka: 'ქობულეთი / შეკვეთილი',
@@ -446,7 +446,7 @@ export const GEORGIA_REGION_DISTRICTS: GeorgiaDistrictNode[] = [
     regionCode: 'kutaisi_imereti',
     isCityWide: true,
     labels: {
-      ar: 'كوتايسي (Kutaisi)',
+      ar: 'كوتايسي',
       en: 'Kutaisi',
       ru: 'Кутаиси',
       ka: 'ქუთაისი',
@@ -457,7 +457,7 @@ export const GEORGIA_REGION_DISTRICTS: GeorgiaDistrictNode[] = [
     id: 'Gudauri',
     regionCode: 'mountain_resorts',
     labels: {
-      ar: 'غودوري (Gudauri Resort)',
+      ar: 'منتجع غودوري',
       en: 'Gudauri Resort',
       ru: 'Гудаури',
       ka: 'გუდაური',
@@ -468,7 +468,7 @@ export const GEORGIA_REGION_DISTRICTS: GeorgiaDistrictNode[] = [
     id: 'Bakuriani',
     regionCode: 'mountain_resorts',
     labels: {
-      ar: 'باكورياني (Bakuriani Resort)',
+      ar: 'منتجع باكورياني',
       en: 'Bakuriani Resort',
       ru: 'Бакуриани',
       ka: 'ბაკურიანი',
@@ -479,7 +479,7 @@ export const GEORGIA_REGION_DISTRICTS: GeorgiaDistrictNode[] = [
     id: 'Borjomi',
     regionCode: 'mountain_resorts',
     labels: {
-      ar: 'بورجومي (Borjomi)',
+      ar: 'بورجومي',
       en: 'Borjomi',
       ru: 'Боржоми',
       ka: 'ბორჯომი',
@@ -491,7 +491,7 @@ export const GEORGIA_REGION_DISTRICTS: GeorgiaDistrictNode[] = [
     regionCode: 'kakheti_region',
     isCityWide: true,
     labels: {
-      ar: 'كاخيتي - تيلافي / كفاريلي',
+      ar: 'كاخيتي - تيلافي',
       en: 'Kakheti - Telavi / Kvareli',
       ru: 'Кахетия - Телави / Кварели',
       ka: 'კახეთი - თელავი / ყვარელი',
@@ -520,6 +520,7 @@ export const NON_GEORGIAN_LEGACY_KEYWORDS = [
   'سخنة',
   'الجونة',
   'مدينتي',
+  'الرحاب',
   'المستقبل',
   'الشروق',
   'العبور',

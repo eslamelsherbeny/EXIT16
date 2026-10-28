@@ -67,6 +67,17 @@ export function deriveShortUnitCode(id: string) {
   return `U-${String(num).padStart(5, "0")}`
 }
 
+export function cleanAreaLabel(
+  rawArea: string | null | undefined,
+  locale: LocaleCode
+): string {
+  const localized = getLocalizedGeorgiaAreaName(rawArea, locale)
+  if (locale === "ar") {
+    return localized.replace(/\s*\([A-Za-z0-9\s/-]+\)\s*$/g, "").trim()
+  }
+  return localized
+}
+
 export function normalizeOfferStatus(rawOffer: any): string {
   const rawDiffs = Array.isArray(rawOffer?.diff_reasons)
     ? rawOffer.diff_reasons
@@ -80,6 +91,32 @@ export function normalizeOfferStatus(rawOffer: any): string {
     return "pending_admin"
   }
   return rawOffer?.status || "pending_seller"
+}
+
+export function isSelfOfferForLead(
+  offer: any,
+  units: LinkedUnitSummary[]
+): boolean {
+  if (!offer) return false
+  const unit = units.find((u) => String(u.id) === String(offer.property_id))
+  if (!unit) return false
+  if (
+    offer.buyer_user_id &&
+    unit.user_id &&
+    String(offer.buyer_user_id) === String(unit.user_id)
+  ) {
+    return true
+  }
+  const bPhone = String(offer.buyer_phone || "").replace(/\D/g, "")
+  const sPhone = String(unit.phone || "").replace(/\D/g, "")
+  if (
+    bPhone.length >= 8 &&
+    sPhone.length >= 8 &&
+    bPhone.slice(-8) === sPhone.slice(-8)
+  ) {
+    return true
+  }
+  return false
 }
 
 export function isBuyerPhoneVerified(
@@ -165,18 +202,19 @@ export function parseLeadDetails({
       ? [String(lead.preferred_areas)]
       : []
 
-  const areasRaw = areasList.join("، ")
+  const areasRaw = areasList
+    .join("، ")
+    .replace(/الرحاب/g, "King David Residences")
   const planRaw = lead.payment_plan || ""
 
-  // فحص ما إذا كان المشتري قد قدّم عرضاً مباشراً على وحدة في جدول property_offers
+  // ربط العرض بهذا الطلب تحديداً (lead.id) فقط وعدم تعميم عرض واحد على كل طلبات المستخدم!
   const leadDirectOffers = (offers || [])
     .map((o) => ({ ...o, status: normalizeOfferStatus(o) }))
     .filter(
       (o) =>
         o.status !== "recommended" &&
-        (String(o.lead_id || "") === String(lead.id) ||
-          (lead.user_id &&
-            String(o.buyer_user_id || "") === String(lead.user_id)))
+        !isSelfOfferForLead(o, units) &&
+        String(o.lead_id || "") === String(lead.id)
     )
 
   const latestDirectOffer = leadDirectOffers[0] || null
@@ -186,7 +224,11 @@ export function parseLeadDetails({
     areasRaw.includes("U-") ||
     planRaw.includes("مهتم بوحدة")
 
-  const isUnitLead = isLegacyUnitLead || Boolean(latestDirectOffer)
+  // إذا كان العميل قد اختار أكثر من منطقة في الفورم فهو بحث عام وليس حجز وحدة واحدة
+  const isSingleAreaDirectOffer =
+    Boolean(latestDirectOffer) && areasList.length <= 1
+
+  const isUnitLead = isLegacyUnitLead || isSingleAreaDirectOffer
 
   const codeMatch = `${areasRaw} ${planRaw}`.match(/U-[A-Z0-9]+/i)
   let unitCode = codeMatch ? codeMatch[0].toUpperCase() : null
@@ -238,11 +280,16 @@ export function parseLeadDetails({
   }
 
   const localizedAreasStr = isLegacyUnitLead
-    ? areasRaw.replace("🎯 مهتم بوحدة:", "").trim()
-    : matchedUnit
-      ? `${matchedUnit.project_name || ""} - ${getLocalizedGeorgiaAreaName(matchedUnit.area, locale)}`
+    ? areasRaw
+        .replace("🎯 مهتم بوحدة:", "")
+        .replace(/\s*\([A-Za-z0-9\s/-]+\)\s*$/g, "")
+        .trim()
+    : isSingleAreaDirectOffer && matchedUnit
+      ? `${matchedUnit.project_name || ""} — ${cleanAreaLabel(matchedUnit.area, locale)}`
       : areasList
-          .map((a) => getLocalizedGeorgiaAreaName(a, locale))
+          .map((a) =>
+            cleanAreaLabel(a.replace(/الرحاب/g, "King David Residences"), locale)
+          )
           .filter(Boolean)
           .join(sep)
 
@@ -284,7 +331,7 @@ export function buildLeadWhatsAppMessage({
 
   if (parsed.isUnitLead) {
     const unitTitle = parsed.matchedUnit
-      ? `${parsed.matchedUnit.project_name || ""} - ${getLocalizedGeorgiaAreaName(parsed.matchedUnit.area, locale)} (${parsed.unitCode || ""})`
+      ? `${parsed.matchedUnit.project_name || ""} - ${cleanAreaLabel(parsed.matchedUnit.area, locale)} (${parsed.unitCode || ""})`
       : parsed.cleanTargetUnit
     return `${leadsPrompts.waUnitLeadPrefix} ${lead.name}، ${leadsPrompts.waUnitLeadMiddle} (${unitTitle}) — ${t.cashLabel} ${cashVal} ${leadCur} | ${t.installmentLabel} ${instVal} ${leadCur}.${parsed.customerNotes ? ` (${t.customerNotesLabel} ${parsed.customerNotes})` : ""} ${leadsPrompts.waUnitLeadSuffix}`
   }

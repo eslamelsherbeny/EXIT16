@@ -1774,7 +1774,6 @@
       "otpExpired": "Verification code has expired, please request a new one.",
       "invalidOtp": "Incorrect verification code.",
       "shortPassword": "Password must be at least 8 characters long.",
-      "inlineOneClickHint": "Or click the link below to verify your email immediately with one click:"
       "updatePassFailed": "Could not update password in the database.",
       "invalidLink": "Invalid link.",
       "accountNotFound": "Account not found.",
@@ -2275,8 +2274,6 @@
       "allTab": "All",
       "unitLeadsTab": "Unit Bookers",
       "generalTab": "General Search",
-      "verifyBuyerBtn": "Verify Buyer ✓",
-"buyerVerifiedSuccess": "Buyer contact details verified successfully ✓",
       "emptyText": "No matching buy requests found.",
       "updatingText": "Updating request...",
       "unitBadge": "Unit Booking",
@@ -2474,8 +2471,6 @@
         "dayWord": "days",
         "docWord": "doc(s)",
         "featuredPrefix": "Featured",
-        "phoneVerifiedBadge": "Phone Verified ✓",
-  "emailVerifiedBadge": "Email Verified ✓",
         "promoReqPrefix": "Promo Req",
         "negotiable": "Negotiable",
         "adCodeLabel": "Ad Code:"
@@ -2526,7 +2521,6 @@
         "unpublishBtn": "Unpublish",
         "detailsBtn": "Details",
         "cancelPromoBtn": "Cancel Promo",
-        "verifySellerBtn": "Verify Seller ✓",
         "promoteStarBtn": "Promote ⭐",
         "deleteBtn": "Delete",
         "closeBtn": "Close",
@@ -2571,7 +2565,6 @@
         "statusUpdated": "Unit status updated successfully.",
         "deletedSuccess": "Unit deleted permanently.",
         "promoActivated": "⭐ Unit promotion activated successfully.",
-        "sellerVerifiedSuccess": "Seller contact details verified successfully ✓",
         "promoCancelled": "Unit promotion cancelled."
       }
     }

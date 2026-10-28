@@ -2294,6 +2294,9 @@
       "generalTab": "بحث عام",
       "emptyText": "لا توجد طلبات شراء مطابقة.",
       "updatingText": "جاري تحديث الطلب...",
+      "verifyBuyerBtn": "توثيق المشتري ✓",
+"buyerVerifiedSuccess": "تم توثيق بيانات اتصال المشتري بنجاح ✓",
+
       "unitBadge": "حجز وحدة",
       "cashLabel": "كاش:",
       "installmentLabel": "القسط:",

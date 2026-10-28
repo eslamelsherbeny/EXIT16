@@ -28,7 +28,6 @@ import {
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { getLocalizedGeorgiaAreaName } from "@/components/shared/georgia-areas"
 import { getCurrencySymbol, useTranslation } from "@/lib/i18n"
 import {
   calculateSmartMatch,
@@ -45,9 +44,11 @@ import {
 import {
   ACTIVE_ADMIN_COUNTRY,
   buildSellerWhatsAppMessage,
+  cleanPropertyAreaDisplay,
   deriveShortUnitCode,
   getRemainingDaysBeforePurge,
   getUploadedDocsList,
+  isSelfOfferOnProperty,
   isSellerEmailVerified,
   isSellerPhoneVerified,
   normalizeOfferStatus,
@@ -80,7 +81,9 @@ export default function PropertiesTable({
   const isPromotionsPage = mode === "promotions"
 
   const { t: dict, locale, dir } = useTranslation()
-  const t = dict.admin.propertiesAdmin
+  const t = dict.admin.propertiesAdmin as Record<string, any>
+  const propBadges = (t.badges as Record<string, string>) || {}
+  const propNotices = (t.notices as Record<string, string>) || {}
   const leadsPrompts = dict.admin.leads
   const sm = (dict.admin as Record<string, any>).smartMatch || {}
   const buyerDict =
@@ -89,8 +92,21 @@ export default function PropertiesTable({
 
   function getMatchedBuyersForUnit(unit: SellRequest) {
     if (!buyers || buyers.length === 0) return []
+    const unitPhoneDigits = String(unit.phone || "").replace(/\D/g, "")
     return buyers
-      .filter((b) => !b.user_id || b.user_id !== unit.user_id)
+      .filter((b) => {
+        if (b.user_id && unit.user_id && String(b.user_id) === String(unit.user_id))
+          return false
+        const bPhoneDigits = String(b.phone || "").replace(/\D/g, "")
+        if (
+          bPhoneDigits.length >= 8 &&
+          unitPhoneDigits.length >= 8 &&
+          bPhoneDigits.slice(-8) === unitPhoneDigits.slice(-8)
+        ) {
+          return false
+        }
+        return true
+      })
       .map((buyer) => ({
         buyer,
         match: calculateSmartMatch(unit, buyer, undefined, locale),
@@ -238,7 +254,7 @@ export default function PropertiesTable({
         type: "both",
       })
       if (res.success) {
-        setNotice({ text: t.notices.sellerVerifiedSuccess })
+        setNotice({ text: propNotices.sellerVerifiedSuccess })
         router.refresh()
       } else {
         setNotice({ text: res.error || t.loadError, isError: true })
@@ -255,7 +271,7 @@ export default function PropertiesTable({
         try {
           const res = await purgeSellerDeletedPropertiesAction()
           if (res.success) {
-            setNotice({ text: t.notices.purgedSuccess })
+            setNotice({ text: propNotices.purgedSuccess })
             router.refresh()
           } else {
             setNotice({ text: res.error || t.loadError, isError: true })
@@ -281,7 +297,7 @@ export default function PropertiesTable({
           if (res.success) {
             const stLabel = getStatusLabel(confirmAction.newStatus)
             setNotice({
-              text: `${t.notices.statusUpdated} ("${target.project_name || target.name}" → ${stLabel})`,
+              text: `${propNotices.statusUpdated} ("${target.project_name || target.name}" → ${stLabel})`,
             })
             router.refresh()
           } else {
@@ -291,7 +307,7 @@ export default function PropertiesTable({
           const res = await deletePropertyAction(target.id)
           if (res.success) {
             setNotice({
-              text: `${t.notices.deletedSuccess} ("${target.project_name || target.name}")`,
+              text: `${propNotices.deletedSuccess} ("${target.project_name || target.name}")`,
             })
             router.refresh()
           } else {
@@ -307,8 +323,8 @@ export default function PropertiesTable({
             setNotice({
               text:
                 confirmAction.promoAction === "activate"
-                  ? `${t.notices.promoActivated} ("${target.project_name || target.name}" - ${confirmAction.days} ${t.badges.dayWord})`
-                  : `${t.notices.promoCancelled} ("${target.project_name || target.name}")`,
+                  ? `${propNotices.promoActivated} ("${target.project_name || target.name}" - ${confirmAction.days} ${propBadges.dayWord})`
+                  : `${propNotices.promoCancelled} ("${target.project_name || target.name}")`,
             })
             router.refresh()
           } else {
@@ -353,7 +369,7 @@ export default function PropertiesTable({
     const unitShortCode = p.id.slice(0, 8).toUpperCase()
     const uPublicCode = deriveShortUnitCode(p.id)
     const orderRefCode = `AE-${p.id.replace(/[^a-zA-Z0-9]/g, "").slice(0, 6).toUpperCase()}`
-    const localizedArea = getLocalizedGeorgiaAreaName(p.area, locale)
+    const localizedArea = cleanPropertyAreaDisplay(p.area, locale)
 
     if (search.trim()) {
       const q = search.trim().toLowerCase()
@@ -408,7 +424,11 @@ export default function PropertiesTable({
     const topScore = matchedBuyers[0]?.match.score || 0
 
     const normalizedUnitOffers = offers
-      .filter((o) => String(o.property_id) === String(property.id))
+      .filter(
+        (o) =>
+          String(o.property_id) === String(property.id) &&
+          !isSelfOfferOnProperty(o, property)
+      )
       .map((o) => ({ ...o, status: normalizeOfferStatus(o) }))
       .filter((o) => o.status !== "recommended")
 
@@ -494,7 +514,7 @@ export default function PropertiesTable({
               className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-800 hover:bg-blue-100"
             >
               <RefreshCw className="size-2.5" />
-              <span>{t.badges.editedBySeller}</span>
+              <span>{propBadges.editedBySeller}</span>
             </button>
           )}
 
@@ -506,14 +526,14 @@ export default function PropertiesTable({
               className="inline-flex items-center gap-1 rounded-md border border-purple-200 bg-purple-50 px-2 py-0.5 text-[10px] font-bold text-purple-800 hover:bg-purple-100"
             >
               <RefreshCw className="size-2.5" />
-              <span>{t.badges.resumedBySeller}</span>
+              <span>{propBadges.resumedBySeller}</span>
             </button>
           )}
 
         {property.status === "paused_by_seller" && (
           <span className="inline-flex items-center gap-1 rounded-md border border-orange-200 bg-orange-50 px-2 py-0.5 text-[10px] font-bold text-orange-800">
             <PauseCircle className="size-2.5" />
-            <span>{t.badges.pausedBySeller}</span>
+            <span>{propBadges.pausedBySeller}</span>
           </span>
         )}
 
@@ -521,9 +541,9 @@ export default function PropertiesTable({
           <span className="inline-flex items-center gap-1 rounded-md border border-red-300 bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-800">
             <Trash2 className="size-2.5" />
             <span>
-              {t.badges.deletedBySellerPrefix} (
+              {propBadges.deletedBySellerPrefix} (
               {getRemainingDaysBeforePurge(property.last_seller_edit_at)}{" "}
-              {t.badges.daysWord})
+              {propBadges.daysWord})
             </span>
           </span>
         )}
@@ -536,7 +556,7 @@ export default function PropertiesTable({
           >
             <FileCheck2 className="size-2.5" />
             <span>
-              {docs.length}/4 {t.badges.docWord}
+              {docs.length}/4 {propBadges.docWord}
             </span>
           </button>
         )}
@@ -556,8 +576,8 @@ export default function PropertiesTable({
           >
             <Star className="size-2.5 fill-amber-500 text-amber-600" />
             <span>
-              {t.badges.featuredPrefix} ({property.featured_days || 14}{" "}
-              {t.badges.dayWord})
+              {propBadges.featuredPrefix} ({property.featured_days || 14}{" "}
+              {propBadges.dayWord})
               {property.featured_fawry_code
                 ? ` · ${property.featured_fawry_code}`
                 : ""}
@@ -581,8 +601,8 @@ export default function PropertiesTable({
             >
               <Sparkles className="size-2.5 text-amber-700" />
               <span>
-                {t.badges.promoReqPrefix} ({property.featured_days || 14}{" "}
-                {t.badges.dayWord}) · {property.featured_fawry_code || "AD"}
+                {propBadges.promoReqPrefix} ({property.featured_days || 14}{" "}
+                {propBadges.dayWord}) · {property.featured_fawry_code || "AD"}
               </span>
             </button>
           )}
@@ -775,7 +795,7 @@ export default function PropertiesTable({
               t,
               leadsPrompts,
             })
-            const localizedArea = getLocalizedGeorgiaAreaName(
+            const localizedArea = cleanPropertyAreaDisplay(
               property.area,
               locale
             )
@@ -1107,7 +1127,7 @@ export default function PropertiesTable({
                   t,
                   leadsPrompts,
                 })
-                const localizedArea = getLocalizedGeorgiaAreaName(
+                const localizedArea = cleanPropertyAreaDisplay(
                   property.area,
                   locale
                 )
@@ -1150,7 +1170,7 @@ export default function PropertiesTable({
                         {deriveShortUnitCode(property.id)} · #
                         {property.id.slice(0, 8).toUpperCase()}
                         {property.featured_fawry_code
-                          ? ` · ${t.badges.adCodeLabel} ${property.featured_fawry_code}`
+                          ? ` · ${propBadges.adCodeLabel} ${property.featured_fawry_code}`
                           : ""}
                       </div>
                       {renderSellerActivityBadges(property)}
@@ -1175,7 +1195,7 @@ export default function PropertiesTable({
                       </div>
                       {property.willing_to_discount && (
                         <span className="mt-1 inline-block rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">
-                          {t.badges.negotiable}
+                          {propBadges.negotiable}
                         </span>
                       )}
                     </td>
@@ -1236,7 +1256,7 @@ export default function PropertiesTable({
                         <span>{property.phone}</span>
                         {phoneOk && (
                           <span
-                            title={t.badges.phoneVerifiedBadge}
+                            title={propBadges.phoneVerifiedBadge}
                             className="inline-flex text-[#105C50]"
                           >
                             <CheckCircle2 className="size-3.5" />
@@ -1248,7 +1268,7 @@ export default function PropertiesTable({
                           <span className="truncate">{property.email}</span>
                           {emailOk && (
                             <span
-                              title={t.badges.emailVerifiedBadge}
+                              title={propBadges.emailVerifiedBadge}
                               className="inline-flex shrink-0 text-[#105C50]"
                             >
                               <CheckCircle2 className="size-3" />

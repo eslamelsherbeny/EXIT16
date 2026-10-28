@@ -71,6 +71,41 @@ export function deriveShortUnitCode(id: string) {
   return `U-${String(num).padStart(5, "0")}`
 }
 
+export function cleanPropertyAreaDisplay(
+  rawArea: string | null | undefined,
+  locale: LocaleCode
+): string {
+  const localized = getLocalizedGeorgiaAreaName(rawArea, locale)
+  if (locale === "ar") {
+    return localized.replace(/\s*\([A-Za-z0-9\s/-]+\)\s*$/g, "").trim()
+  }
+  return localized
+}
+
+export function isSelfOfferOnProperty(
+  offer: any,
+  property: SellRequest
+): boolean {
+  if (!offer || !property) return false
+  if (
+    offer.buyer_user_id &&
+    property.user_id &&
+    String(offer.buyer_user_id) === String(property.user_id)
+  ) {
+    return true
+  }
+  const bPhone = String(offer.buyer_phone || "").replace(/\D/g, "")
+  const sPhone = String(property.phone || "").replace(/\D/g, "")
+  if (
+    bPhone.length >= 8 &&
+    sPhone.length >= 8 &&
+    bPhone.slice(-8) === sPhone.slice(-8)
+  ) {
+    return true
+  }
+  return false
+}
+
 export function getRemainingDaysBeforePurge(lastEditIso?: string | null) {
   if (!lastEditIso) return 7
   const deletedTime = new Date(lastEditIso).getTime()
@@ -150,7 +185,7 @@ export function buildSellerWhatsAppMessage({
   const uCode = deriveShortUnitCode(property.id)
   const proj = property.project_name || t.table.unspecifiedProject
   const localizedArea = property.area
-    ? ` - ${getLocalizedGeorgiaAreaName(property.area, locale)}`
+    ? ` - ${cleanPropertyAreaDisplay(property.area, locale)}`
     : ""
   const cash = Number(property.paid_amount || 0).toLocaleString("en-US")
   const contract = Number(property.contract_price || 0).toLocaleString("en-US")

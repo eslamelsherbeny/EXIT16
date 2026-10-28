@@ -21,7 +21,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
-import { getLocalizedGeorgiaAreaName } from "@/components/shared/georgia-areas"
 import type { LocaleCode } from "@/lib/i18n"
 import type {
   ConfirmPropertyAction,
@@ -29,6 +28,7 @@ import type {
   UserVerificationBadgeInfo,
 } from "./properties-helpers"
 import {
+  cleanPropertyAreaDisplay,
   isSellerEmailVerified,
   isSellerPhoneVerified,
 } from "./properties-helpers"
@@ -295,6 +295,9 @@ export function PropertyDetailsDialog({
     ? isSellerEmailVerified(detailsProperty, verificationMap)
     : false
 
+  const propActions = (t.actions as Record<string, string>) || {}
+  const propBadges = (t.badges as Record<string, string>) || {}
+
   return (
     <Dialog
       open={Boolean(detailsProperty)}
@@ -312,7 +315,7 @@ export function PropertyDetailsDialog({
                 — {detailsProperty.name}
               </DialogTitle>
               <DialogDescription className="sr-only">
-                {t.actions.detailsBtn}
+                {propActions.detailsBtn}
               </DialogDescription>
             </DialogHeader>
 
@@ -351,7 +354,7 @@ export function PropertyDetailsDialog({
                     className="inline-flex h-8 items-center justify-center gap-1 rounded-lg bg-[#0a1122] px-3 text-xs font-bold text-white hover:bg-[#16223f] disabled:opacity-50"
                   >
                     <ShieldCheck className="size-3.5 text-emerald-400" />
-                    <span>{t.actions.verifySellerBtn}</span>
+                    <span>{propActions.verifySellerBtn}</span>
                   </button>
                 )}
             </div>
@@ -361,13 +364,13 @@ export function PropertyDetailsDialog({
                 {phoneOk && (
                   <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2.5 py-1 text-[10.5px] font-extrabold text-[#105C50]">
                     <CheckCircle2 className="size-3" />
-                    <span>{t.badges.phoneVerifiedBadge}</span>
+                    <span>{propBadges.phoneVerifiedBadge}</span>
                   </span>
                 )}
                 {emailOk && (
                   <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2.5 py-1 text-[10.5px] font-extrabold text-[#105C50]">
                     <CheckCircle2 className="size-3" />
-                    <span>{t.badges.emailVerifiedBadge}</span>
+                    <span>{propBadges.emailVerifiedBadge}</span>
                   </span>
                 )}
               </div>
@@ -379,7 +382,7 @@ export function PropertyDetailsDialog({
                   {t.modals.areaLabel}
                 </span>
                 <strong className="text-[#0a1122]">
-                  {getLocalizedGeorgiaAreaName(detailsProperty.area, locale)}
+                  {cleanPropertyAreaDisplay(detailsProperty.area, locale)}
                 </strong>
               </div>
               <div>
@@ -442,7 +445,7 @@ export function PropertyDetailsDialog({
                         rel="noreferrer"
                         className="inline-flex items-center gap-1 rounded-md bg-[#105C50] px-2.5 py-1 text-[10px] font-bold text-white"
                       >
-                        <span>{t.actions.openDocBtn}</span>
+                        <span>{propActions.openDocBtn}</span>
                         <ExternalLink className="size-3" />
                       </a>
                     </div>

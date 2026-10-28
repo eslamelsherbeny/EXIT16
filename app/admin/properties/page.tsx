@@ -1,7 +1,9 @@
 import { Suspense } from "react"
 import { cookies } from "next/headers"
 import { createServerClient } from "@supabase/ssr"
+import { getUsersVerificationMapAction } from "@/actions/submit-forms"
 import { getServerI18n } from "@/lib/get-server-dictionary"
+import { sanitizeGeorgiaProjectTitle } from "@/lib/offer-helpers"
 import type { MatchableBuyer } from "@/lib/smart-matcher"
 import PropertiesTable, { type SellRequest } from "./properties-table"
 
@@ -22,15 +24,37 @@ export default async function PropertiesPage() {
   )
 
   try {
+    // تنظيف تلقائي لأي اسم مشروع قديم ("الرحاب")
+    await supabase
+      .from("sell_requests")
+      .update({
+        project_name: "King David Residences",
+        developer_name: "King David",
+      })
+      .ilike("project_name", "%الرحاب%")
+
     const sevenDaysAgo = new Date(
       Date.now() - 7 * 24 * 60 * 60 * 1000
     ).toISOString()
 
-    await supabase
+    const { data: expiredUnits } = await supabase
       .from("sell_requests")
-      .delete()
+      .select("id")
       .eq("status", "deleted_by_seller")
       .lt("last_seller_edit_at", sevenDaysAgo)
+
+    const expiredIds = (expiredUnits || []).map((u: any) => u.id)
+    if (expiredIds.length > 0) {
+      await supabase
+        .from("property_offers")
+        .delete()
+        .in("property_id", expiredIds)
+
+      await supabase
+        .from("sell_requests")
+        .delete()
+        .in("id", expiredIds)
+    }
   } catch {}
 
   const [{ data, error }, { data: leadsData }, { data: offersData }] =
@@ -56,6 +80,7 @@ export default async function PropertiesPage() {
         : {}
     return {
       ...p,
+      project_name: sanitizeGeorgiaProjectTitle(p.project_name),
       area: p.area || meta.area || null,
       unit_type: p.unit_type || meta.unit_type || null,
       size: p.size ?? meta.size ?? null,
@@ -63,7 +88,8 @@ export default async function PropertiesPage() {
       bathrooms: p.bathrooms ?? meta.bathrooms ?? null,
       finishing: p.finishing || meta.finishing || null,
       delivery_status: p.delivery_status || meta.delivery_status || null,
-      installment_amount: p.installment_amount ?? meta.installment_amount ?? null,
+      installment_amount:
+        p.installment_amount ?? meta.installment_amount ?? null,
       installment_frequency:
         p.installment_frequency || meta.installment_frequency || null,
       years_left: p.years_left ?? meta.years_left ?? null,
@@ -71,6 +97,11 @@ export default async function PropertiesPage() {
       contract_month: p.contract_month || meta.contract_month || null,
     } as SellRequest
   })
+
+  const sellerUserIds = Array.from(
+    new Set(properties.map((p) => p.user_id).filter(Boolean) as string[])
+  )
+  const verificationMap = await getUsersVerificationMapAction(sellerUserIds)
 
   const buyers = (leadsData ?? []) as MatchableBuyer[]
   const offers = offersData ?? []
@@ -92,6 +123,7 @@ export default async function PropertiesPage() {
           properties={properties}
           buyers={buyers}
           offers={offers}
+          verificationMap={verificationMap}
         />
       </Suspense>
     </div>

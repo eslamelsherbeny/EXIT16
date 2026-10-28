@@ -1180,6 +1180,7 @@
       "nextBtn": "كمل",
       "savingBtn": "جاري الحفظ...",
       "confirmWithSessionBtn": "تأكيد الطلب بحسابي الحالي",
+      "verifySellerBtn": "توثيق البائع ✓",
       "submitBtn": "إرسال للمراجعة"
     }
   },
@@ -1774,6 +1775,7 @@
       "invalidOtp": "كود التحقق غير صحيح.",
       "shortPassword": "كلمة السر يجب أن تكون 8 أحرف على الأقل.",
       "updatePassFailed": "تعذر تحديث كلمة المرور في قاعدة البيانات.",
+      "inlineOneClickHint": "أو يمكنك الضغط على الرابط التالي لتوثيق بريدك الإلكتروني فوراً بضغطة واحدة:",
       "invalidLink": "رابط غير صالح.",
       "accountNotFound": "الحساب غير موجود.",
       "emailSenderName": "Aqar Exit - عقار إكزت",
@@ -1958,7 +1960,10 @@
       "title": "غير مصرح لك بالدخول",
       "desc": "هذه اللوحة مخصصة لفريق الإدارة والمبيعات فقط. حسابك الحالي لا يمتلك صلاحيات إدارية:",
       "staffLoginBtn": "دخول بحساب الإدارة",
-      "backHomeBtn": "العودة للرئيسية"
+      "backHomeBtn": "العودة للرئيسية",
+      "loginRequiredTitle": "تسجيل دخول الإدارة مطلوب",
+  "loginRequiredDesc": "يرجى تسجيل الدخول بحساب يمتلك صلاحيات الإدارة للمتابعة.",
+  
     },
      "smartMatch": {
       "readyDealsTitle": "غرفة الصفقات المتفق عليها الجاهزة للتنفيذ",
@@ -1976,6 +1981,8 @@
       "unitMatchedBuyersTitle": "المشترون المتوافقون مع",
       "buyerMatchedUnitsTitle": "الوحدات المطابقة للمشتري",
       "sendAllRecsBtn": "ترشيح للكل",
+       "offerPendingAdminTag": "بانتظار موافقتك",
+  "offerBackupTag": "احتياطي",
       "sentAllDoneBtn": "تم الإرسال للكل",
       "sendRecToBuyerBtn": "ترشيح للمشتري",
       "sentRecDoneBtn": "تم الترشيح",
@@ -2001,6 +2008,8 @@
       "publicSite": "الموقع العام",
       "logout": "تسجيل الخروج",
       "notifications": "الإشعارات",
+      "defaultAdminName": "المشرف",
+  "nowLabel": "الآن",
       "clearAll": "مسح الكل",
       "noNotifications": "لا توجد إشعارات جديدة",
       "view": "عرض",
@@ -2045,6 +2054,16 @@
       "pendingReview": "بانتظار المراجعة",
       "pendingNeedAction": "وحدات جديدة تحتاج مراجعتك",
       "allReviewed": "تمت مراجعة الكل",
+      "dealsRoomKpiLabel": "غرفة العروض والصفقات",
+  "offersPendingYourApprovalNote": "عرض بانتظار موافقتك",
+  "dealsReadyToCloseNote": "صفقة جاهزة للتنفيذ",
+  "pendingOffersAlertPrefix": "لديك",
+  "pendingOffersAlertSuffix": "عروض شراء جديدة بانتظار تأكيدك وإرسالها للبائعين",
+  "pendingOffersAlertSub": "اضغط هنا لفتح غرفة الصفقات واعتماد العروض المؤكدة عبر واتساب",
+  "openDealsRoomBtn": "فتح غرفة الصفقات",
+  "manageAndCloseDealsBtn": "إدارة وإغلاق الصفقات",
+  "openInDealsRoomBtn": "فتح في غرفة الصفقات",
+  "openFullDealsRoomLink": "فتح غرفة الصفقات الكاملة",
       "adRequests": "طلبات الإعلان ⭐",
       "adPendingNote": "طلب جديد بانتظار التفعيل",
       "adActiveNote": "وحدة مميزة نشطة",
@@ -2466,6 +2485,8 @@
         "resumedBySeller": "معاد عرضها",
         "pausedBySeller": "متوقفة من المالك",
         "deletedBySellerPrefix": "حذفها المالك",
+        "phoneVerifiedBadge": "الهاتف موثّق ✓",
+  "emailVerifiedBadge": "الإيميل موثّق ✓",
         "daysWord": "أيام",
         "dayWord": "يوم",
         "docWord": "مستند",
@@ -2564,6 +2585,7 @@
         "statusUpdated": "تم تحديث حالة الوحدة بنجاح.",
         "deletedSuccess": "تم حذف الوحدة نهائياً.",
         "promoActivated": "⭐ تم تفعيل تمييز الوحدة بنجاح.",
+        "sellerVerifiedSuccess": "تم توثيق بيانات اتصال البائع بنجاح ✓",
         "promoCancelled": "تم إلغاء تمييز الوحدة."
       }
     }

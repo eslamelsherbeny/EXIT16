@@ -8,6 +8,7 @@ import {
   Building2,
   Calendar,
   CheckCircle2,
+  Clock,
   ExternalLink,
   Eye,
   Flame,
@@ -17,13 +18,11 @@ import {
   MessageCircle,
   Phone,
   Search,
-  ShieldAlert,
   Trash2,
   Wallet,
   X,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
@@ -31,125 +30,40 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { getLocalizedGeorgiaAreaName } from "@/components/shared/georgia-areas"
 import { getCurrencySymbol, useTranslation } from "@/lib/i18n"
 import { calculateSmartMatch } from "@/lib/smart-matcher"
 import { BuyerSmartMatchModal } from "@/components/features/admin/smart-match-dialogs"
 import {
   deleteBuyerLeadAction,
   updateBuyerLeadStatusAction,
+  verifyUserContactByAdminAction,
 } from "../../../actions/admin-actions"
+import {
+  ACTIVE_ADMIN_COUNTRY,
+  buildLeadWhatsAppMessage,
+  isBuyerEmailVerified,
+  isBuyerPhoneVerified,
+  normalizeOfferStatus,
+  parseLeadDetails,
+  type BuyerLead,
+  type ConfirmLeadAction,
+  type LinkedUnitSummary,
+  type UserVerificationBadgeInfo,
+} from "./leads-helpers"
+import { LeadConfirmDialog, LeadDetailsDialog } from "./leads-modals"
 
-const ACTIVE_ADMIN_COUNTRY = "GE"
-
-export type BuyerLead = {
-  id: string
-  user_id?: string | null
-  name: string
-  phone: string
-  email?: string | null
-  available_cash: number | null
-  max_installment: number | null
-  budget: number | null
-  payment_plan?: string | null
-  unit_types?: string[] | null
-  min_rooms?: number | null
-  delivery_status?: string | null
-  preferred_areas: string[] | string | null
-  country_code?: string | null
-  currency_code?: string | null
-  status?: string | null
-  created_at: string
-}
-
-export type LinkedUnitSummary = {
-  id: string
-  user_id?: string | null
-  project_name: string | null
-  area: string | null
-  unit_type: string | null
-  rooms?: number | null
-  delivery_status?: string | null
-  paid_amount: number | null
-  contract_price: number | null
-  installment_amount: number | null
-  installment_frequency?: string | null
-  willing_to_discount?: boolean | null
-  discount_amount?: number | null
-  name: string
-  phone: string
-  status?: string | null
-  country_code?: string | null
-  country?: string | null
-}
-
-function deriveShortUnitCode(id: string) {
-  const digits = id.replace(/\D/g, "")
-  const num = digits ? Number(digits.slice(-4)) : 100
-  return `U-${String(num).padStart(5, "0")}`
-}
-
-function findMatchingUnitForLead(
-  lead: BuyerLead,
-  unitCode: string | null,
-  cleanTargetUnit: string,
-  units: LinkedUnitSummary[]
-): LinkedUnitSummary | null {
-  if (!units || units.length === 0) return null
-
-  if (unitCode) {
-    const cleanCode = unitCode.toUpperCase()
-    const byCode = units.find(
-      (u) =>
-        deriveShortUnitCode(u.id).toUpperCase() === cleanCode ||
-        `U-${u.id.slice(0, 5).toUpperCase()}` === cleanCode ||
-        u.id.toUpperCase().startsWith(cleanCode.replace("U-", ""))
-    )
-    if (byCode) return byCode
-  }
-
-  const byProjectName = units.find(
-    (u) =>
-      u.project_name &&
-      cleanTargetUnit.includes(u.project_name.trim()) &&
-      (!u.area || cleanTargetUnit.includes(u.area.trim()))
-  )
-  if (byProjectName) return byProjectName
-
-  return (
-    units.find(
-      (u) => u.project_name && cleanTargetUnit.includes(u.project_name.trim())
-    ) || null
-  )
-}
-
-type ConfirmLeadAction =
-  | {
-      type: "status"
-      lead: BuyerLead
-      newStatus: string
-    }
-  | {
-      type: "delete"
-      lead: BuyerLead
-    }
+export type { BuyerLead, LinkedUnitSummary, UserVerificationBadgeInfo }
 
 export default function LeadsClientTable({
   leads,
   units = [],
   offers = [],
+  verificationMap = {},
 }: {
   leads: BuyerLead[]
   units?: LinkedUnitSummary[]
   offers?: any[]
+  verificationMap?: Record<string, UserVerificationBadgeInfo>
 }) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -160,16 +74,20 @@ export default function LeadsClientTable({
   const t = adminDict.leadsAdmin || {}
   const leadsPrompts = adminDict.leads || {}
   const propAdminDict = adminDict.propertiesAdmin || {}
+  const dashDict = adminDict.dashboard || {}
   const sm = adminDict.smartMatch || {}
-  const buyerDict = (dict?.accountComponents as Record<string, any>)?.buyer || {}
-  const matchPrefix = sm.matchScorePrefix || buyerDict.matchScorePrefix || "متوافق"
+  const buyerDict =
+    (dict?.accountComponents as Record<string, any>)?.buyer || {}
+  const matchPrefix = sm.matchScorePrefix || buyerDict.matchScorePrefix || ""
 
   function getMatchedUnitsForLead(lead: BuyerLead) {
     if (!units || units.length === 0) return []
-    const activeUnits = units.filter(
-      (u) => u.status === "active" && (!u.user_id || u.user_id !== lead.user_id)
+    const eligibleUnits = units.filter(
+      (u) =>
+        (u.status === "active" || u.status === "offer_received") &&
+        (!u.user_id || u.user_id !== lead.user_id)
     )
-    return activeUnits
+    return eligibleUnits
       .map((u) => ({
         unit: u,
         match: calculateSmartMatch(u, lead, undefined, locale),
@@ -179,15 +97,19 @@ export default function LeadsClientTable({
   }
 
   function renderLeadOfferBadges(lead: BuyerLead) {
-    const leadOffers = offers.filter(
-      (o) =>
-        o.status !== "recommended" &&
-        (o.lead_id === lead.id ||
-          (lead.user_id && o.buyer_user_id === lead.user_id))
-    )
+    const leadOffers = offers
+      .map((o) => ({ ...o, status: normalizeOfferStatus(o) }))
+      .filter(
+        (o) =>
+          o.status !== "recommended" &&
+          (String(o.lead_id || "") === String(lead.id) ||
+            (lead.user_id &&
+              String(o.buyer_user_id || "") === String(lead.user_id)))
+      )
     if (leadOffers.length === 0) return null
 
     const accepted = leadOffers.find((o) => o.status === "accepted")
+    const pendingAdmin = leadOffers.find((o) => o.status === "pending_admin")
     const pendingOffer = leadOffers.find(
       (o) => o.status === "pending_seller" || o.status === "counter_offered"
     )
@@ -198,23 +120,35 @@ export default function LeadsClientTable({
     return (
       <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
         {accepted && (
-          <span className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2 py-0.5 text-[10px] font-extrabold text-white shadow-2xs">
+          <Link
+            href={`/admin/deals?offerId=${accepted.id}`}
+            className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2 py-0.5 text-[10px] font-extrabold text-white shadow-2xs hover:bg-emerald-700"
+          >
             <Handshake className="size-2.5" />
             <span>{sm.offerAcceptedTag}</span>
-          </span>
+          </Link>
         )}
 
-        {!accepted && pendingOffer && (
-          <button
-            type="button"
-            onClick={() => setSmartMatchLead(lead)}
-            className="inline-flex items-center gap-1 rounded-md border border-purple-300 bg-purple-50 px-2 py-0.5 text-[10px] font-extrabold text-purple-900"
+        {!accepted && pendingAdmin && (
+          <Link
+            href={`/admin/deals?offerId=${pendingAdmin.id}`}
+            className="inline-flex items-center gap-1 rounded-md bg-amber-500 px-2 py-0.5 text-[10px] font-extrabold text-white shadow-2xs hover:bg-amber-600"
+          >
+            <Clock className="size-2.5" />
+            <span>{sm.offerPendingAdminTag}</span>
+          </Link>
+        )}
+
+        {!accepted && !pendingAdmin && pendingOffer && (
+          <Link
+            href={`/admin/deals?offerId=${pendingOffer.id}`}
+            className="inline-flex items-center gap-1 rounded-md border border-purple-300 bg-purple-50 px-2 py-0.5 text-[10px] font-extrabold text-purple-900 hover:bg-purple-100"
           >
             <span>💰 {sm.offerPendingTag}</span>
-          </button>
+          </Link>
         )}
 
-        {!accepted && !pendingOffer && rejectedCount > 0 && (
+        {!accepted && !pendingAdmin && !pendingOffer && rejectedCount > 0 && (
           <span className="inline-flex items-center gap-1 rounded-md bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-700">
             ✕ {rejectedCount} {sm.offerRejectedTag}
           </span>
@@ -223,102 +157,12 @@ export default function LeadsClientTable({
     )
   }
 
-  function parseLeadDetails(lead: BuyerLead) {
-    const sep = dir === "rtl" ? "، " : ", "
-    const areasList = Array.isArray(lead.preferred_areas)
-      ? lead.preferred_areas
-      : lead.preferred_areas
-        ? [String(lead.preferred_areas)]
-        : []
-
-    const areasRaw = areasList.join("، ")
-    const planRaw = lead.payment_plan || ""
-
-    const isUnitLead =
-      areasRaw.includes("🎯") ||
-      areasRaw.includes("U-") ||
-      planRaw.includes("مهتم بوحدة")
-
-    const codeMatch = `${areasRaw} ${planRaw}`.match(/U-[A-Z0-9]+/i)
-    const unitCode = codeMatch ? codeMatch[0].toUpperCase() : null
-
-    let readinessBadge: { text: string; className: string } | null = null
-    if (planRaw.includes("خلال أسبوع")) {
-      readinessBadge = {
-        text: leadsPrompts.readiness?.week || "",
-        className: "bg-red-100 text-red-700 border border-red-200",
-      }
-    } else if (
-      planRaw.includes("شهر لـ 3 شهور") ||
-      planRaw.includes("خلال شهر")
-    ) {
-      readinessBadge = {
-        text: leadsPrompts.readiness?.month || "",
-        className: "bg-amber-100 text-amber-800 border border-amber-200",
-      }
-    } else if (planRaw.includes("يجمع معلومات")) {
-      readinessBadge = {
-        text: leadsPrompts.readiness?.info || "",
-        className: "bg-slate-100 text-slate-700 border border-slate-200",
-      }
-    }
-
-    let customerNotes = ""
-    if (planRaw.includes("أسئلة العميل:")) {
-      customerNotes = planRaw.split("أسئلة العميل:")[1]?.trim() || ""
-    } else if (planRaw.includes("ملاحظات:")) {
-      customerNotes = planRaw.split("ملاحظات:")[1]?.trim() || ""
-    }
-
-    const localizedAreasStr = isUnitLead
-      ? areasRaw.replace("🎯 مهتم بوحدة:", "").trim()
-      : areasList
-          .map((a) => getLocalizedGeorgiaAreaName(a, locale))
-          .filter(Boolean)
-          .join(sep)
-
-    const cleanTargetUnit =
-      localizedAreasStr || leadsPrompts.allAreas || ""
-
-    const matchedUnit = isUnitLead
-      ? findMatchingUnitForLead(lead, unitCode, cleanTargetUnit, units)
-      : null
-
-    return {
-      isUnitLead,
-      unitCode,
-      cleanTargetUnit,
-      readinessBadge,
-      customerNotes,
-      matchedUnit,
-    }
-  }
-
-  function buildWhatsAppMessage(
-    lead: BuyerLead,
-    parsed: ReturnType<typeof parseLeadDetails>,
-    leadCur: string
-  ) {
-    const cashVal = Number(
-      lead.available_cash || lead.budget || 0
-    ).toLocaleString("en-US")
-    const instVal = Number(lead.max_installment || 0).toLocaleString("en-US")
-    const typesStr = Array.isArray(lead.unit_types)
-      ? lead.unit_types.join("، ")
-      : ""
-
-    if (parsed.isUnitLead) {
-      const unitTitle = parsed.matchedUnit
-        ? `${parsed.matchedUnit.project_name || ""} - ${getLocalizedGeorgiaAreaName(parsed.matchedUnit.area, locale)} (${parsed.unitCode || ""})`
-        : parsed.cleanTargetUnit
-      return `${leadsPrompts.waUnitLeadPrefix} ${lead.name}، ${leadsPrompts.waUnitLeadMiddle} (${unitTitle}) — ${t.cashLabel} ${cashVal} ${leadCur} | ${t.installmentLabel} ${instVal} ${leadCur}.${parsed.customerNotes ? ` (${t.customerNotesLabel} ${parsed.customerNotes})` : ""} ${leadsPrompts.waUnitLeadSuffix}`
-    }
-
-    return `${leadsPrompts.waGeneralPrefix} ${lead.name}، ${leadsPrompts.waGeneralMiddle} (${parsed.cleanTargetUnit}) — ${t.cashLabel} ${cashVal} ${leadCur} | ${t.installmentLabel} ${instVal} ${leadCur}${typesStr ? ` | ${typesStr}` : ""}. ${leadsPrompts.waGeneralSuffix}`
-  }
-
   const leadStatuses = [
-    { value: "new", label: t.statuses?.new, badge: "bg-blue-100 text-blue-800" },
+    {
+      value: "new",
+      label: t.statuses?.new,
+      badge: "bg-blue-100 text-blue-800",
+    },
     {
       value: "contacted",
       label: t.statuses?.contacted,
@@ -346,9 +190,7 @@ export default function LeadsClientTable({
     return leadStatuses.find((s) => s.value === st)?.label || st
   }
 
-  function getLeadCurrency() {
-    return getCurrencySymbol(ACTIVE_ADMIN_COUNTRY, locale)
-  }
+  const leadCur = getCurrencySymbol(ACTIVE_ADMIN_COUNTRY, locale)
 
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
@@ -399,6 +241,26 @@ export default function LeadsClientTable({
     setConfirmAction(null)
   }
 
+  function handleVerifyBuyerContact(userId: string) {
+    setNotice(null)
+    startTransition(async () => {
+      const res = await verifyUserContactByAdminAction({
+        userId,
+        type: "both",
+      })
+      if (res.success) {
+        setNotice({
+          text:
+            t.buyerVerifiedSuccess ||
+            propAdminDict.notices?.sellerVerifiedSuccess,
+        })
+        router.refresh()
+      } else {
+        setNotice({ text: res.error || t.statusUpdateError, isError: true })
+      }
+    })
+  }
+
   function executeConfirmedAction() {
     if (!confirmAction) return
     setNotice(null)
@@ -445,11 +307,28 @@ export default function LeadsClientTable({
     })
   }
 
-  const unitLeadsCount = leads.filter((l) => parseLeadDetails(l).isUnitLead).length
+  const unitLeadsCount = leads.filter(
+    (l) =>
+      parseLeadDetails({
+        lead: l,
+        units,
+        offers,
+        locale,
+        dir,
+        leadsPrompts,
+      }).isUnitLead
+  ).length
   const generalLeadsCount = leads.length - unitLeadsCount
 
   const filtered = leads.filter((l) => {
-    const parsed = parseLeadDetails(l)
+    const parsed = parseLeadDetails({
+      lead: l,
+      units,
+      offers,
+      locale,
+      dir,
+      leadsPrompts,
+    })
     if (leadTypeFilter === "unit_leads" && !parsed.isUnitLead) return false
     if (leadTypeFilter === "general" && parsed.isUnitLead) return false
 
@@ -457,12 +336,18 @@ export default function LeadsClientTable({
     if (statusFilter !== "all" && st !== statusFilter) return false
 
     if (search.trim()) {
+      const q = search.trim().toLowerCase()
+      const qDigits = q.replace(/\D/g, "")
+      const leadPhoneDigits = String(l.phone || "").replace(/\D/g, "")
       const areas = Array.isArray(l.preferred_areas)
         ? l.preferred_areas.join(" ")
         : l.preferred_areas || ""
-      const match = `${l.name} ${l.phone} ${l.email || ""} ${areas} ${parsed.cleanTargetUnit} ${l.payment_plan || ""}`
-        .toLowerCase()
-        .includes(search.toLowerCase())
+      const match =
+        `${l.name} ${l.phone} ${l.email || ""} ${areas} ${parsed.cleanTargetUnit} ${parsed.unitCode || ""} ${l.payment_plan || ""}`
+          .toLowerCase()
+          .includes(q) ||
+        (qDigits.length >= 5 && leadPhoneDigits.includes(qDigits))
+
       if (!match) return false
     }
     return true
@@ -591,7 +476,14 @@ export default function LeadsClientTable({
             const stObj =
               leadStatuses.find((s) => s.value === currentSt) ||
               leadStatuses[0]
-            const parsed = parseLeadDetails(lead)
+            const parsed = parseLeadDetails({
+              lead,
+              units,
+              offers,
+              locale,
+              dir,
+              leadsPrompts,
+            })
             const matchedUnits = getMatchedUnitsForLead(lead)
             const topUnitScore = matchedUnits[0]?.match.score || 0
             const typesText = Array.isArray(lead.unit_types)
@@ -600,9 +492,16 @@ export default function LeadsClientTable({
             const isCardLoading = pending && activeLeadId === lead.id
             const isHighlighted = highlightedLeadId === lead.id
             const firstLetter = lead.name.trim().charAt(0) || "U"
-            const leadCur = getLeadCurrency()
+            const phoneOk = isBuyerPhoneVerified(lead, verificationMap)
 
-            const waText = buildWhatsAppMessage(lead, parsed, leadCur)
+            const waText = buildLeadWhatsAppMessage({
+              lead,
+              parsed,
+              leadCur,
+              locale,
+              t,
+              leadsPrompts,
+            })
 
             return (
               <div
@@ -662,6 +561,9 @@ export default function LeadsClientTable({
                       >
                         <Phone className="size-3 text-gray-400" />
                         <span>{lead.phone}</span>
+                        {phoneOk && (
+                          <CheckCircle2 className="size-3.5 text-[#105C50]" />
+                        )}
                       </div>
                     </div>
                   </div>
@@ -680,8 +582,8 @@ export default function LeadsClientTable({
                     >
                       <span>🎯</span>
                       <span>
-                        {matchedUnits.length} {sm.matchedUnitsShort} · {matchPrefix}{" "}
-                        {topUnitScore}%
+                        {matchedUnits.length} {sm.matchedUnitsShort} ·{" "}
+                        {matchPrefix} {topUnitScore}%
                       </span>
                     </button>
                   </div>
@@ -906,7 +808,14 @@ export default function LeadsClientTable({
                     const stObj =
                       leadStatuses.find((s) => s.value === currentSt) ||
                       leadStatuses[0]
-                    const parsed = parseLeadDetails(lead)
+                    const parsed = parseLeadDetails({
+                      lead,
+                      units,
+                      offers,
+                      locale,
+                      dir,
+                      leadsPrompts,
+                    })
                     const matchedUnits = getMatchedUnitsForLead(lead)
                     const topUnitScore = matchedUnits[0]?.match.score || 0
                     const typesText = Array.isArray(lead.unit_types)
@@ -914,9 +823,17 @@ export default function LeadsClientTable({
                       : "—"
                     const isRowLoading = pending && activeLeadId === lead.id
                     const isHighlighted = highlightedLeadId === lead.id
-                    const leadCur = getLeadCurrency()
+                    const phoneOk = isBuyerPhoneVerified(lead, verificationMap)
+                    const emailOk = isBuyerEmailVerified(lead, verificationMap)
 
-                    const waText = buildWhatsAppMessage(lead, parsed, leadCur)
+                    const waText = buildLeadWhatsAppMessage({
+                      lead,
+                      parsed,
+                      leadCur,
+                      locale,
+                      t,
+                      leadsPrompts,
+                    })
 
                     return (
                       <tr
@@ -954,13 +871,31 @@ export default function LeadsClientTable({
                           </div>
                           <div
                             dir="ltr"
-                            className="mt-1 text-start text-xs font-semibold text-gray-600"
+                            className="mt-1 flex items-center justify-start gap-1 text-start text-xs font-semibold text-gray-600"
                           >
-                            {lead.phone}
+                            <span>{lead.phone}</span>
+                            {phoneOk && (
+                              <span
+                                title={propAdminDict.badges?.phoneVerifiedBadge}
+                                className="inline-flex text-[#105C50]"
+                              >
+                                <CheckCircle2 className="size-3.5" />
+                              </span>
+                            )}
                           </div>
                           {lead.email && (
-                            <div className="text-[11px] text-gray-400">
-                              {lead.email}
+                            <div className="flex items-center gap-1 text-[11px] text-gray-400">
+                              <span className="truncate">{lead.email}</span>
+                              {emailOk && (
+                                <span
+                                  title={
+                                    propAdminDict.badges?.emailVerifiedBadge
+                                  }
+                                  className="inline-flex shrink-0 text-[#105C50]"
+                                >
+                                  <CheckCircle2 className="size-3" />
+                                </span>
+                              )}
                             </div>
                           )}
                           {matchedUnits.length > 0 && (
@@ -1150,268 +1085,61 @@ export default function LeadsClientTable({
         onNotice={(msg) => setNotice(msg)}
       />
 
-      <Dialog
-        open={Boolean(detailsLead)}
-        onOpenChange={(open) => !open && setDetailsLead(null)}
-      >
-        <DialogContent
-          dir={dir}
-          className="max-h-[88vh] w-[92vw] max-w-[460px] overflow-y-auto rounded-2xl p-5 text-start sm:max-w-lg"
-        >
-          {detailsLead &&
-            (() => {
-              const parsed = parseLeadDetails(detailsLead)
-              const leadCur = getLeadCurrency()
-              const waText = buildWhatsAppMessage(detailsLead, parsed, leadCur)
-              const typesText = Array.isArray(detailsLead.unit_types)
-                ? detailsLead.unit_types.join("، ")
-                : "—"
+      <LeadDetailsDialog
+        dir={dir}
+        t={t}
+        propAdminDict={propAdminDict}
+        publicSiteLabel={dict.admin?.shell?.publicSite || ""}
+        propertiesNavLabel={dict.admin?.shell?.nav?.properties || ""}
+        openInDealsRoomLabel={dashDict.openInDealsRoomBtn || ""}
+        detailsLead={detailsLead}
+        parsed={
+          detailsLead
+            ? parseLeadDetails({
+                lead: detailsLead,
+                units,
+                offers,
+                locale,
+                dir,
+                leadsPrompts,
+              })
+            : null
+        }
+        leadCur={leadCur}
+        waText={
+          detailsLead
+            ? buildLeadWhatsAppMessage({
+                lead: detailsLead,
+                parsed: parseLeadDetails({
+                  lead: detailsLead,
+                  units,
+                  offers,
+                  locale,
+                  dir,
+                  leadsPrompts,
+                }),
+                leadCur,
+                locale,
+                t,
+                leadsPrompts,
+              })
+            : ""
+        }
+        verificationMap={verificationMap}
+        onVerifyBuyerContact={handleVerifyBuyerContact}
+        pending={pending}
+        onClose={() => setDetailsLead(null)}
+      />
 
-              return (
-                <>
-                  <DialogHeader className="text-start">
-                    <div className="flex items-center justify-between gap-2">
-                      <DialogTitle className="text-sm font-extrabold text-[#0a1122] sm:text-base">
-                        {detailsLead.name}
-                      </DialogTitle>
-                      {parsed.isUnitLead && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2.5 py-0.5 text-[10px] font-extrabold text-orange-800">
-                          <Flame className="size-3 fill-orange-500 text-orange-600" />
-                          {t.unitBadge} {parsed.unitCode || ""}
-                        </span>
-                      )}
-                    </div>
-                    <DialogDescription className="text-start text-xs text-gray-500">
-                      <span dir="ltr">{detailsLead.phone}</span>
-                      {detailsLead.email ? ` · ${detailsLead.email}` : ""}
-                    </DialogDescription>
-                  </DialogHeader>
-
-                  <div className="mt-2 rounded-xl border border-orange-200 bg-orange-50/70 p-3.5 text-xs">
-                    <p className="font-extrabold text-orange-950">
-                      📍 {parsed.cleanTargetUnit}
-                    </p>
-                    {parsed.matchedUnit && (
-                      <p className="mt-1 text-[11px] font-semibold text-orange-800">
-                        {propAdminDict.table?.colClient}:{" "}
-                        {parsed.matchedUnit.name} (
-                        <span dir="ltr">{parsed.matchedUnit.phone}</span>)
-                      </p>
-                    )}
-                    {parsed.isUnitLead && (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <Link
-                          href={
-                            parsed.matchedUnit
-                              ? `/opportunities/${parsed.matchedUnit.id}`
-                              : `/opportunities?q=${encodeURIComponent(parsed.unitCode || parsed.cleanTargetUnit)}`
-                          }
-                          target="_blank"
-                          className="inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#105C50] px-3 text-xs font-bold text-white hover:bg-[#0c483f]"
-                        >
-                          <ExternalLink className="size-3.5" />
-                          <span>
-                            {dict.admin?.shell?.publicSite} ({t.unitBtn})
-                          </span>
-                        </Link>
-
-                        {parsed.matchedUnit && (
-                          <Link
-                            href={`/admin/properties?unitId=${parsed.matchedUnit.id}`}
-                            onClick={() => setDetailsLead(null)}
-                            className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 text-xs font-bold text-[#0a1122] hover:bg-gray-50"
-                          >
-                            <Building2 className="size-3.5 text-[#105C50]" />
-                            <span>{dict.admin?.shell?.nav?.properties}</span>
-                          </Link>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="mt-3 grid grid-cols-2 gap-2.5 rounded-xl bg-gray-50 p-3 text-xs">
-                    <div>
-                      <span className="block text-[10px] text-gray-400">
-                        {t.cashLabel}
-                      </span>
-                      <strong className="text-[#105C50]">
-                        <span dir="ltr">
-                          {Number(
-                            detailsLead.available_cash ||
-                              detailsLead.budget ||
-                              0
-                          ).toLocaleString("en-US")}
-                        </span>{" "}
-                        {leadCur}
-                      </strong>
-                    </div>
-
-                    <div>
-                      <span className="block text-[10px] text-gray-400">
-                        {t.installmentLabel}
-                      </span>
-                      <strong className="text-[#0a1122]">
-                        <span dir="ltr">
-                          {Number(
-                            detailsLead.max_installment || 0
-                          ).toLocaleString("en-US")}
-                        </span>{" "}
-                        {leadCur}
-                      </strong>
-                    </div>
-
-                    <div>
-                      <span className="block text-[10px] text-gray-400">
-                        {t.typeDetailsLabel}
-                      </span>
-                      <strong className="text-[#0a1122]">
-                        {typesText}{" "}
-                        {detailsLead.min_rooms
-                          ? `(+${detailsLead.min_rooms})`
-                          : ""}
-                      </strong>
-                    </div>
-
-                    <div>
-                      <span className="block text-[10px] text-gray-400">
-                        {t.dateLabel}
-                      </span>
-                      <strong dir="ltr" className="text-[#0a1122]">
-                        {new Date(detailsLead.created_at).toLocaleDateString(
-                          "en-GB"
-                        )}
-                      </strong>
-                    </div>
-                  </div>
-
-                  {parsed.readinessBadge && (
-                    <div className="mt-2">
-                      <span
-                        className={`inline-block rounded-lg px-3 py-1 text-xs font-bold ${parsed.readinessBadge.className}`}
-                      >
-                        {parsed.readinessBadge.text}
-                      </span>
-                    </div>
-                  )}
-
-                  {parsed.customerNotes && (
-                    <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
-                      <strong className="block font-extrabold">
-                        {t.customerNotesLabel}
-                      </strong>
-                      <p className="mt-1">{parsed.customerNotes}</p>
-                    </div>
-                  )}
-
-                  <DialogFooter className="mt-4 flex flex-row items-center justify-end gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => setDetailsLead(null)}
-                      className="h-9 rounded-xl text-xs font-bold"
-                    >
-                      {propAdminDict.actions?.closeBtn || t.cancelBtn}
-                    </Button>
-                    <a
-                      data-admin-client-wa="true"
-                      href={`https://wa.me/${String(detailsLead.phone).replace(/\D/g, "")}?text=${encodeURIComponent(waText)}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#25D366] px-4 text-xs font-bold text-white hover:opacity-90"
-                    >
-                      <MessageCircle className="size-4" />
-                      <span>{t.whatsappBtn}</span>
-                    </a>
-                  </DialogFooter>
-                </>
-              )
-            })()}
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={Boolean(confirmAction)}
-        onOpenChange={(open) => {
-          if (!open) closeConfirmModal()
-        }}
-      >
-        <DialogContent
-          dir={dir}
-          className="w-[90vw] max-w-[360px] rounded-2xl p-5 text-start sm:max-w-[400px]"
-        >
-          {confirmAction && (
-            <>
-              <DialogHeader className="text-start">
-                <div className="mb-2 flex items-center gap-2.5">
-                  <span
-                    className={`flex size-9 shrink-0 items-center justify-center rounded-full ${
-                      confirmAction.type === "delete"
-                        ? "bg-red-100 text-red-600"
-                        : "bg-emerald-100 text-[#105C50]"
-                    }`}
-                  >
-                    {confirmAction.type === "delete" ? (
-                      <Trash2 className="size-4" />
-                    ) : (
-                      <ShieldAlert className="size-4" />
-                    )}
-                  </span>
-                  <DialogTitle className="text-sm font-extrabold text-[#0a1122] sm:text-base">
-                    {confirmAction.type === "delete"
-                      ? t.confirmDeleteTitle
-                      : t.confirmStatusTitle}
-                  </DialogTitle>
-                </div>
-
-                <DialogDescription className="text-start text-xs leading-relaxed text-gray-600">
-                  <strong className="text-[#0a1122]">
-                    "{confirmAction.lead.name}"
-                  </strong>
-                  {confirmAction.type === "status" && (
-                    <>
-                      {" "}
-                      →{" "}
-                      <span className="font-bold text-[#105C50]">
-                        ({getLeadStatusLabel(confirmAction.newStatus)})
-                      </span>
-                    </>
-                  )}
-                </DialogDescription>
-              </DialogHeader>
-
-              <DialogFooter className="mt-4 flex flex-row items-center justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={pending}
-                  onClick={closeConfirmModal}
-                  className="h-9 flex-1 rounded-xl text-xs font-bold sm:flex-none"
-                >
-                  {t.cancelBtn}
-                </Button>
-                <Button
-                  type="button"
-                  disabled={pending}
-                  onClick={executeConfirmedAction}
-                  className={`h-9 flex-1 rounded-xl text-xs font-bold text-white sm:flex-none ${
-                    confirmAction.type === "delete"
-                      ? "bg-red-600 hover:bg-red-700"
-                      : "bg-[#105C50] hover:bg-[#0c483f]"
-                  }`}
-                >
-                  {pending ? (
-                    <span className="flex items-center justify-center gap-1.5">
-                      <Loader2 className="size-3.5 animate-spin" />
-                      {t.savingBtn}
-                    </span>
-                  ) : (
-                    t.confirmBtn
-                  )}
-                </Button>
-              </DialogFooter>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+      <LeadConfirmDialog
+        dir={dir}
+        t={t}
+        confirmAction={confirmAction}
+        pending={pending}
+        getLeadStatusLabel={getLeadStatusLabel}
+        onClose={closeConfirmModal}
+        onExecute={executeConfirmedAction}
+      />
     </div>
   )
 }

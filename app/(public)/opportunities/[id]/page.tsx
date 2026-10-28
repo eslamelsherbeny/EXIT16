@@ -4,26 +4,21 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
-import {
-  Building2,
-  Check,
-  ChevronRight,
-  Copy,
-  Flame,
-  Heart,
-  Share2,
-  ShieldCheck,
-  Star,
-  Wallet,
-} from 'lucide-react'
+import { Building2, ShieldCheck } from 'lucide-react'
 import { getCurrentSellerProfileAction } from '@/actions/submit-forms'
-import {
-  UnitGalleryWithLightbox,
-  UnitInterestForm,
-} from '@/components/features/opportunities/unit-interest-form'
+import { UnitInterestForm } from '@/components/features/opportunities/unit-interest-form'
 import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
 import { getCurrencySymbol, useTranslation } from '@/lib/i18n'
 import { isNonGeorgianLegacyArea } from '@/lib/smart-matcher'
+
+// استدعاء مكونات الـ UI النظيفة التي أنشأناها
+import {
+  SimilarUnitsSection,
+  UnitDetailsHeader,
+  UnitFinancialsCard,
+  UnitSpecsAndDescription,
+} from '@/components/features/opportunities/unit-details-ui'
+import { UnitLocationInsights } from '@/components/features/opportunities/unit-location-insights'
 
 const FALLBACK_UNIT_IMAGE =
   'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=85'
@@ -305,8 +300,8 @@ export default function PropertyDetailsPage() {
       rawFloor !== null &&
       rawFloor !== undefined &&
       String(rawFloor).trim() !== ''
-        ? String(rawFloor)
-        : t.specs.typicalFloor
+      ? String(rawFloor)
+      : t.specs.typicalFloor
 
     const rooms = parseSafeNumber(row.rooms, isStudio ? 1 : 2)
     const bathrooms = parseSafeNumber(row.bathrooms, 1)
@@ -416,7 +411,8 @@ export default function PropertyDetailsPage() {
     const isOwner = Boolean(
       currentUserId && row.user_id && row.user_id === currentUserId
     )
-    const hasActiveOffer = String(row.status || '').toLowerCase() === 'offer_received'
+    const hasActiveOffer =
+      String(row.status || '').toLowerCase() === 'offer_received'
 
     return {
       id: String(row.id),
@@ -424,6 +420,7 @@ export default function PropertyDetailsPage() {
       hasActiveOffer,
       projectName,
       areaName,
+      rawArea, // تمرير الـ rawArea لاستخدامه في الخريطة
       subtitle,
       code,
       unitType,
@@ -448,7 +445,16 @@ export default function PropertyDetailsPage() {
       commission,
       totalRequiredNow,
     }
-  }, [unitRow, currentUserId, locale, c, t, filtersT, monthsWord, commissionRate])
+  }, [
+    unitRow,
+    currentUserId,
+    locale,
+    c,
+    t,
+    filtersT,
+    monthsWord,
+    commissionRate,
+  ])
 
   const copyUnitCode = () => {
     if (!computedUnit) return
@@ -501,279 +507,40 @@ export default function PropertyDetailsPage() {
     )
   }
 
-  const fin = t.financials
-  const remainingMonthsRowLabel =
-    (dict.sell?.reviewStep as Record<string, any>)?.rowRemainingMonths ||
-    fin.remainingYearsLabel
-
   return (
     <main
       dir={dir}
       className="min-h-screen bg-[var(--brand-surface,#f5f6f8)] py-6 text-[var(--brand-navy,#0a1122)] sm:py-10"
     >
       <div className="mx-auto w-full max-w-[780px] px-4 sm:px-6">
-        <div className="flex items-center justify-start">
-          <Link
-            href="/opportunities"
-            className="inline-flex items-center gap-1 text-xs font-medium text-gray-500 transition-colors hover:text-[var(--brand-primary,#007a5a)]"
-          >
-            <ChevronRight className="size-3.5 rtl:rotate-0 ltr:rotate-180" />
-            <span>{t.backToOpportunities}</span>
-          </Link>
-        </div>
+        
+        {/* 1. Header & Gallery */}
+        <UnitDetailsHeader
+          computedUnit={computedUnit}
+          t={t}
+          liked={liked}
+          onToggleFavorite={handleToggleFavorite}
+          copied={copied}
+          onCopyCode={copyUnitCode}
+        />
 
-        <header className="mt-4 flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
-          <div className="text-start">
-            <h1 className="text-2xl font-extrabold tracking-tight text-[var(--brand-navy,#0a1122)] sm:text-3xl">
-              {computedUnit.projectName}
-            </h1>
-            <p className="mt-1 text-xs text-gray-500 sm:text-sm">
-              {computedUnit.subtitle}
-            </p>
-            <button
-              type="button"
-              onClick={copyUnitCode}
-              title={t.copyCodeTitle}
-              className="mt-2.5 inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2.5 py-1 font-mono text-[11px] text-gray-500 transition hover:border-gray-300 hover:text-[var(--brand-navy,#0a1122)]"
-            >
-              <span>{computedUnit.code}</span>
-              <Copy className="size-3 text-gray-400" />
-              {copied && (
-                <span className="font-sans text-[10px] text-[var(--brand-primary,#007a5a)]">
-                  {t.copiedText}
-                </span>
-              )}
-            </button>
-          </div>
+        {/* 2. Specs & Description */}
+        <UnitSpecsAndDescription computedUnit={computedUnit} />
 
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full bg-[#e6f4f9] px-3 py-1 text-[11px] font-bold text-[var(--brand-primary,#007a5a)]">
-              {t.verifiedBadge}
-            </span>
-            {computedUnit.hasActiveOffer && (
-              <span className="inline-flex items-center gap-1 rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-[11px] font-extrabold text-orange-800">
-                <Flame className="size-3.5 fill-orange-500 text-orange-600" />
-                <span>
-                  {locale === 'ar'
-                    ? 'عليها عرض نشط (متاح عروض احتياطية)'
-                    : 'Active Offer (Backup Offers Open)'}
-                </span>
-              </span>
-            )}
-            {computedUnit.featured && (
-              <span className="inline-flex items-center gap-1 rounded-full border border-amber-200/60 bg-amber-50 px-3 py-1 text-[11px] font-bold text-amber-700">
-                <Star className="size-3 fill-amber-400 text-amber-500" />
-                <span>{t.featuredBadge}</span>
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={() =>
-                navigator.share?.({
-                  title: `${computedUnit.projectName}`,
-                  url: window.location.href,
-                })
-              }
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 text-xs font-bold text-gray-700 transition hover:bg-gray-50"
-            >
-              <Share2 className="size-3.5 text-gray-500" />
-              <span>{t.shareBtn}</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleToggleFavorite}
-              className={`inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-bold transition ${
-                liked
-                  ? 'border-red-200 bg-red-50 text-red-600'
-                  : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              <Heart
-                className={`size-3.5 ${
-                  liked ? 'fill-current text-red-500' : 'text-gray-500'
-                }`}
-              />
-              <span>{liked ? t.inFavoritesBtn : t.addToFavoritesBtn}</span>
-            </button>
-          </div>
-        </header>
+        {/* 3. Financials Card */}
+        <UnitFinancialsCard
+          computedUnit={computedUnit}
+          fin={t.financials}
+          oT={oT}
+          t={t}
+          monthsWord={monthsWord}
+          onMakeOffer={scrollToOfferSection}
+        />
 
-        <UnitGalleryWithLightbox gallery={computedUnit.gallery} />
+        {/* 4. السحر الجديد: الخريطة الـ 3D والأماكن القريبة ومخطط الشمس */}
+        <UnitLocationInsights areaId={computedUnit.rawArea} t={t} />
 
-        <section className="mt-4 rounded-[18px] border border-gray-200/80 bg-white p-5 shadow-sm sm:p-6">
-          <div className="grid grid-cols-2 gap-x-4 gap-y-6 text-start sm:grid-cols-4">
-            {computedUnit.specs.map((spec) => (
-              <div key={spec.label}>
-                <span className="block text-[11px] text-gray-400">
-                  {spec.label}
-                </span>
-                <strong className="mt-1 block text-xs font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-sm">
-                  {spec.value}
-                </strong>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="mt-4 rounded-[18px] border border-gray-200/80 bg-white p-5 text-start shadow-sm sm:p-6">
-          {computedUnit.tags.length > 0 && (
-            <div className="mb-4 flex flex-wrap gap-2">
-              {computedUnit.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50/80 px-3 py-1 text-[11px] font-semibold text-gray-700"
-                >
-                  <Check className="size-3 text-[var(--brand-primary,#007a5a)]" />
-                  <span>{tag}</span>
-                </span>
-              ))}
-            </div>
-          )}
-
-          <p className="text-xs leading-[1.9] text-gray-600 sm:text-[13px]">
-            {computedUnit.descriptionText}
-          </p>
-        </section>
-
-        <section className="mt-4 rounded-[18px] border border-[#b8e6d5] bg-white p-5 text-start shadow-sm sm:p-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-xs font-bold text-gray-500">
-                {fin.requiredCashNow}
-              </p>
-              <p className="mt-1 flex items-baseline gap-1.5 text-3xl font-extrabold tracking-tight text-[var(--brand-navy,#0a1122)] tabular-nums sm:text-[34px]">
-                <span dir="ltr">
-                  {computedUnit.requiredCash.toLocaleString('en-US')}
-                </span>
-                <span className="text-lg font-bold">
-                  {computedUnit.currency}
-                </span>
-              </p>
-              <p className="mt-1 text-xs font-bold text-[var(--brand-primary,#007a5a)]">
-                {fin.noOverNote}
-              </p>
-            </div>
-
-            {!computedUnit.isOwner && (
-              <button
-                type="button"
-                onClick={scrollToOfferSection}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[var(--brand-primary,#007a5a)] px-5 text-xs font-extrabold text-white shadow-sm transition hover:bg-[var(--brand-primary-hover,#006248)] sm:text-sm"
-              >
-                <Wallet className="size-4" />
-                <span>{oT.makeOfferBtn || t.interestForm.submitBtn}</span>
-              </button>
-            )}
-          </div>
-
-          {computedUnit.willingToDiscount && (
-            <div className="mt-4 rounded-xl border border-amber-200 bg-[#fffbeb] px-4 py-3 text-start">
-              <p className="text-xs font-extrabold text-[#b45309]">
-                {fin.negotiableTitle}
-              </p>
-              <p className="mt-1 text-[11px] leading-relaxed text-[#92400e]">
-                {fin.negotiableDescPrefix} {computedUnit.discountPercentage}%{' '}
-                {fin.negotiableDescMiddle}{' '}
-                <span dir="ltr">
-                  {computedUnit.discountAmount.toLocaleString('en-US')}
-                </span>{' '}
-                {computedUnit.currency}
-                {fin.negotiableDescSuffix}
-              </p>
-            </div>
-          )}
-
-          {computedUnit.marketGain > 0 && (
-            <div className="mt-3 rounded-xl border border-[#c8eedd] bg-[#ecfbf3] px-4 py-3 text-start">
-              <p className="text-xs font-extrabold text-[var(--brand-primary,#007a5a)]">
-                {fin.gainPrefix}{' '}
-                <span dir="ltr">
-                  + {computedUnit.marketGain.toLocaleString('en-US')}
-                </span>{' '}
-                {computedUnit.currency}
-              </p>
-              <p className="mt-1 text-[11px] text-[var(--brand-primary,#007a5a)]/85">
-                {fin.marketPriceTodayPrefix}{' '}
-                <span dir="ltr">
-                  {computedUnit.marketPrice.toLocaleString('en-US')}
-                </span>{' '}
-                {computedUnit.currency} {fin.afterCommissionSuffix}
-              </p>
-            </div>
-          )}
-
-          <p className="mt-3 text-[10px] text-gray-400">
-            {fin.marketDisclaimer}
-          </p>
-        </section>
-
-        <section className="mt-4 overflow-hidden rounded-[18px] border border-gray-200/80 bg-white shadow-sm">
-          <div className="divide-y divide-gray-100 text-xs sm:text-[13px]">
-            <div className="flex items-center justify-between px-5 py-3.5">
-              <span className="text-gray-500">{fin.remainingToDev}</span>
-              <strong className="font-extrabold text-[var(--brand-navy,#0a1122)]">
-                <span dir="ltr">
-                  {computedUnit.remainingToDeveloper.toLocaleString('en-US')}
-                </span>{' '}
-                {computedUnit.currency}
-              </strong>
-            </div>
-
-            <div className="flex items-center justify-between px-5 py-3.5">
-              <span className="text-gray-500">{fin.installment}</span>
-              <strong className="font-extrabold text-[var(--brand-navy,#0a1122)]">
-                <span dir="ltr">
-                  {computedUnit.installmentAmount.toLocaleString('en-US')}
-                </span>{' '}
-                {computedUnit.currency} · {computedUnit.installmentFreq}
-              </strong>
-            </div>
-
-            <div className="flex items-center justify-between px-5 py-3.5">
-              <span className="text-gray-500">{remainingMonthsRowLabel}</span>
-              <strong className="font-extrabold text-[var(--brand-navy,#0a1122)]">
-                {computedUnit.remainingInstallmentMonths > 0
-                  ? `${computedUnit.remainingInstallmentMonths} ${monthsWord}`
-                  : fin.fullyPaid}
-              </strong>
-            </div>
-
-            <div className="flex items-center justify-between px-5 py-3.5">
-              <span className="text-gray-500">{fin.delivery}</span>
-              <strong className="font-extrabold text-[var(--brand-navy,#0a1122)]">
-                {computedUnit.deliveryYear}
-              </strong>
-            </div>
-
-            <div className="px-5 py-3.5">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-500">{fin.commissionLabel}</span>
-                <strong className="font-extrabold text-[var(--brand-navy,#0a1122)]">
-                  <span dir="ltr">
-                    {computedUnit.commission.toLocaleString('en-US')}
-                  </span>{' '}
-                  {computedUnit.currency}
-                </strong>
-              </div>
-              <p className="mt-1 text-start text-[10px] text-gray-400">
-                {fin.commissionSub}
-              </p>
-            </div>
-
-            <div className="flex items-center justify-between bg-[#f1f5f9] px-5 py-4">
-              <span className="font-extrabold text-[var(--brand-navy,#0a1122)]">
-                {fin.totalRequiredNow}
-              </span>
-              <strong className="text-sm font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-base">
-                <span dir="ltr">
-                  {computedUnit.totalRequiredNow.toLocaleString('en-US')}
-                </span>{' '}
-                {computedUnit.currency}
-              </strong>
-            </div>
-          </div>
-        </section>
-
+        {/* 5. Same Area Banner (if applicable) */}
         {sameProjectCount > 0 && (
           <section className="mt-4 flex items-center justify-between rounded-[16px] border border-gray-200/80 bg-white px-5 py-4 shadow-sm">
             <div className="flex items-center gap-3 text-start">
@@ -790,7 +557,6 @@ export default function PropertyDetailsPage() {
                 </p>
               </div>
             </div>
-
             <Link
               href="/opportunities"
               className="shrink-0 text-xs font-bold text-[var(--brand-primary,#007a5a)] hover:underline"
@@ -800,68 +566,10 @@ export default function PropertyDetailsPage() {
           </section>
         )}
 
-        {similarDbUnits.length > 0 && (
-          <section className="mt-8">
-            <div className="flex flex-wrap items-baseline justify-between gap-2 text-start">
-              <h2 className="text-base font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-lg">
-                {t.similarSection.title}
-              </h2>
-              <span className="text-[11px] text-gray-400">
-                {t.similarSection.subtitle}
-              </span>
-            </div>
+        {/* 6. Similar Units */}
+        <SimilarUnitsSection similarDbUnits={similarDbUnits} t={t} c={c} />
 
-            <div className="mt-4 grid grid-cols-2 items-stretch gap-3 sm:grid-cols-3 sm:gap-4">
-              {similarDbUnits.map((item) => (
-                <Link
-                  key={item.id}
-                  href={`/opportunities/${item.id}`}
-                  className="group flex h-full flex-col justify-between overflow-hidden rounded-[16px] border border-gray-200/80 bg-white shadow-sm transition hover:shadow-md"
-                >
-                  <div>
-                    <div className="relative h-28 w-full overflow-hidden bg-gray-100 sm:h-36">
-                      <img
-                        src={item.image}
-                        alt={item.name}
-                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      />
-                      {item.featured && (
-                        <span className="absolute top-2 left-2 inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-0.5 text-[9px] font-bold text-amber-700 shadow-sm">
-                          <Star className="size-2.5 fill-amber-400 text-amber-500" />
-                          <span>{t.featuredBadge}</span>
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="p-3 text-start">
-                      <h3 className="line-clamp-1 min-h-[18px] text-xs font-extrabold text-[var(--brand-navy,#0a1122)] group-hover:text-[var(--brand-primary,#007a5a)] sm:text-[13px]">
-                        {item.name}
-                      </h3>
-                      <p className="mt-0.5 line-clamp-1 text-[10px] text-gray-400">
-                        {item.area}
-                      </p>
-                      <p className="mt-1.5 line-clamp-1 text-[10px] text-gray-500">
-                        {item.specs}
-                      </p>
-                      <p className="mt-2 text-[11px] font-extrabold text-[var(--brand-navy,#0a1122)] tabular-nums">
-                        {t.similarSection.requiredCashPrefix}{' '}
-                        <span dir="ltr">{item.cash}</span> {item.currency}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="px-3 pt-1 pb-3 text-start">
-                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[var(--brand-primary,#007a5a)]">
-                      <span>{t.similarSection.viewDetailsBtn}</span>
-                      <span className="rtl:rotate-0 ltr:rotate-180">←</span>
-                    </span>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </section>
-        )}
-
+        {/* 7. Contact / Action Form */}
         {computedUnit.isOwner ? (
           <section className="mt-8 rounded-[20px] border border-emerald-200 bg-[#eaf8f2] p-6 text-center shadow-xs">
             <div className="mx-auto mb-2 flex size-10 items-center justify-center rounded-full bg-[#007a5a] text-white">

@@ -1,8 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import Map, { Marker, type MapRef } from 'react-map-gl/maplibre'
-
+import { useEffect, useMemo, useRef, useState } from 'react'
+import * as maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import * as SunCalc from 'suncalc'
 import {
@@ -93,7 +92,6 @@ const CATEGORY_META: Array<{
   { key: 'bus', labelEn: 'Bus', labelAr: 'محطات حافلات ومواصلات', icon: Bus },
 ]
 
-// بيانات جورجية حقيقية كـ Fallback فوري سريع حتى تكتمل قراءة Overpass API
 function getFallbackPlacesForArea(isBatumi: boolean): PlaceItem[] {
   if (isBatumi) {
     return [
@@ -565,7 +563,7 @@ function SunAndDaylightInteractiveCard({
 }
 
 // ==========================================
-// 3. المكون الرئيسي: Neighborhood Score + 3D Map + What's Nearby + Sun Chart
+// 3. المكون الرئيسي: Neighborhood Score + Native MapLibre 3D Map + What's Nearby + Sun Chart
 // ==========================================
 export function UnitLocationInsights({
   areaId,
@@ -582,9 +580,9 @@ export function UnitLocationInsights({
     .toLowerCase()
     .includes('batumi')
 
-  const mapRef = useRef<MapRef | null>(null)
+  const mapContainerRef = useRef<HTMLDivElement | null>(null)
+  const mapInstanceRef = useRef<any>(null)
   const [is3D, setIs3D] = useState(true)
-  const [mapLoaded, setMapLoaded] = useState(false)
   const [activeCategory, setActiveCategory] =
     useState<NearbyCategoryKey>('all')
   const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>(
@@ -598,53 +596,61 @@ export function UnitLocationInsights({
     aqi: number
   }>({ temp: 18, aqi: 34 })
 
-  // تفعيل وتلوين المباني الـ 3D تلقائياً فور تحميل الخريطة بدون أخطاء Source ID
-  const handleMapLoad = useCallback((event: any) => {
-    const map = event.target
-    setMapLoaded(true)
+  // إنشاء خريطة MapLibre 3D الأصلية مباشرة لضمان عملها 100% على Next.js 16 (Turbopack) و Vercel
+  useEffect(() => {
+    if (!mapContainerRef.current) return
 
-    try {
-      map.resize()
+    const MapConstructor = (maplibregl as any).Map || (maplibregl as any).default?.Map
+    if (!MapConstructor) return
 
-      const style = map.getStyle()
-      const layers = style?.layers || []
-      const sources = style?.sources || {}
+    const map = new MapConstructor({
+      container: mapContainerRef.current,
+      style: 'https://tiles.openfreemap.org/styles/liberty',
+      center: [coords.lng, coords.lat],
+      zoom: 16.4,
+      pitch: 60,
+      bearing: -22,
+      attributionControl: false,
+    })
 
-      // 1. لو الستايل فيه طبقة مباني جاهزة، نلونها باللون البيج المجسم ونرفعها 3D
-      let found3DLayer = false
-      for (const layer of layers) {
-        if (
-          layer.type === 'fill-extrusion' ||
-          (layer['source-layer'] &&
-            String(layer['source-layer']).includes('building'))
-        ) {
+    mapInstanceRef.current = map
+
+    const apply3DBuildings = () => {
+      try {
+        map.resize()
+        const style = map.getStyle()
+        if (!style || !style.layers) return
+
+        const sources = style.sources || {}
+        const vectorSourceId =
+          Object.keys(sources).find((k) => sources[k]?.type === 'vector') ||
+          'openmaptiles'
+
+        // تلوين أي طبقة مباني موجودة باللون البيج الدافئ مثل sivrce.ge
+        let hasExtrusion = false
+        for (const layer of style.layers) {
           if (layer.type === 'fill-extrusion') {
-            found3DLayer = true
-            map.setPaintProperty(layer.id, 'fill-extrusion-color', '#d8c5b4')
-            map.setPaintProperty(layer.id, 'fill-extrusion-opacity', 0.92)
+            hasExtrusion = true
+            map.setPaintProperty(layer.id, 'fill-extrusion-color', '#d6c3b1')
+            map.setPaintProperty(layer.id, 'fill-extrusion-opacity', 0.94)
           }
         }
-      }
 
-      // 2. لو مفيش طبقة fill-extrusion جاهزة، ننشئها على أول Vector Source متاح في الستايل
-      if (!found3DLayer) {
-        const vectorSourceKey = Object.keys(sources).find(
-          (k) => sources[k]?.type === 'vector'
-        )
-        if (vectorSourceKey && !map.getLayer('custom-3d-buildings')) {
+        // إضافة طبقة المباني المجسمة ثلاثية الأبعاد صراحةً لو غير مفعلة
+        if (!hasExtrusion && !map.getLayer('aqar-3d-buildings-extrusion')) {
           map.addLayer({
-            id: 'custom-3d-buildings',
-            source: vectorSourceKey,
+            id: 'aqar-3d-buildings-extrusion',
+            source: vectorSourceId,
             'source-layer': 'building',
             type: 'fill-extrusion',
-            minzoom: 14,
+            minzoom: 13,
             paint: {
-              'fill-extrusion-color': '#d8c5b4',
+              'fill-extrusion-color': '#d6c3b1',
               'fill-extrusion-height': [
                 'coalesce',
                 ['get', 'render_height'],
                 ['get', 'height'],
-                16,
+                18,
               ],
               'fill-extrusion-base': [
                 'coalesce',
@@ -652,28 +658,28 @@ export function UnitLocationInsights({
                 ['get', 'min_height'],
                 0,
               ],
-              'fill-extrusion-opacity': 0.92,
+              'fill-extrusion-opacity': 0.94,
             },
           })
         }
+      } catch (err) {
+        console.warn('Map 3D style apply error:', err)
       }
-    } catch (e) {
-      console.warn('3D layer enhancement skipped:', e)
     }
-  }, [])
 
-  // تحريك الخريطة لو تغيرت إحداثيات المنطقة
-  useEffect(() => {
-    if (mapRef.current && mapLoaded) {
-      mapRef.current.flyTo({
-        center: [coords.lng, coords.lat],
-        zoom: 16.2,
-        pitch: is3D ? 58 : 0,
-        bearing: is3D ? -20 : 0,
-        duration: 800,
-      })
+    map.on('load', apply3DBuildings)
+    map.on('style.load', apply3DBuildings)
+
+    const resizeTimer = setTimeout(() => {
+      map.resize()
+    }, 350)
+
+    return () => {
+      clearTimeout(resizeTimer)
+      map.remove()
+      mapInstanceRef.current = null
     }
-  }, [coords.lat, coords.lng, mapLoaded, is3D])
+  }, [coords.lat, coords.lng])
 
   // جلب الطقس الحي والأماكن القريبة
   useEffect(() => {
@@ -750,9 +756,9 @@ export function UnitLocationInsights({
   const toggle3DPitch = () => {
     const next3D = !is3D
     setIs3D(next3D)
-    mapRef.current?.easeTo({
-      pitch: next3D ? 58 : 0,
-      bearing: next3D ? -20 : 0,
+    mapInstanceRef.current?.easeTo({
+      pitch: next3D ? 60 : 0,
+      bearing: next3D ? -22 : 0,
       duration: 700,
     })
   }
@@ -841,45 +847,32 @@ export function UnitLocationInsights({
           </div>
         </div>
 
-        {/* حاوية الخريطة ثلاثية الأبعاد مع أبعاد صريحة 100% */}
-        <div className="relative h-[360px] w-full overflow-hidden rounded-[18px] border border-gray-200 bg-[#edeae4] sm:h-[430px]">
-         <Map
-            ref={mapRef}
-            initialViewState={{
-              latitude: coords.lat,
-              longitude: coords.lng,
-              zoom: 16.2,
-              pitch: 58,
-              bearing: -20,
-            }}
-            style={{ width: '100%', height: '100%' }}
-            mapStyle="https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json"
-            onLoad={(e) => {
-              const map = e.target;
-              map.resize();
-            }}
-            attributionControl={false}
-          >
-            {/* دبوس الموقع البرتقالي الثلاثي الأبعاد */}
-            <Marker
-              latitude={coords.lat}
-              longitude={coords.lng}
-              anchor="bottom"
-            >
-              <div className="flex flex-col items-center">
-                <div className="flex size-11 items-center justify-center rounded-2xl border-2 border-white bg-[#ea580c] text-white shadow-xl">
-                  <Building2 className="size-5" />
-                </div>
-                <div className="-mt-1 h-3 w-0 border-x-[7px] border-t-[9px] border-x-transparent border-t-[#ea580c]" />
+        {/* حاوية الخريطة ثلاثية الأبعاد */}
+        <div
+          dir="ltr"
+          className="relative h-[360px] w-full overflow-hidden rounded-[18px] border border-gray-200 bg-[#edeae4] sm:h-[430px]"
+        >
+          {/* الـ Div الخاص بـ MapLibre GL الأصلي */}
+          <div
+            ref={mapContainerRef}
+            className="absolute inset-0 h-full w-full"
+          />
+
+          {/* دبوس الموقع البرتقالي الثلاثي الأبعاد في منتصف الخريطة */}
+          <div className="pointer-events-none absolute top-1/2 left-1/2 z-10 -translate-x-1/2 -translate-y-full">
+            <div className="flex flex-col items-center">
+              <div className="flex size-11 items-center justify-center rounded-2xl border-2 border-white bg-[#ea580c] text-white shadow-xl">
+                <Building2 className="size-5" />
               </div>
-            </Marker>
-          </Map>
+              <div className="-mt-1 h-3 w-0 border-x-[7px] border-t-[9px] border-x-transparent border-t-[#ea580c]" />
+            </div>
+          </div>
 
           {/* أزرار التحكم الجانبية على يمين الخريطة مثل sivrce.ge */}
           <div className="absolute top-3 right-3 z-10 flex flex-col gap-1.5">
             <button
               type="button"
-              onClick={() => mapRef.current?.zoomIn()}
+              onClick={() => mapInstanceRef.current?.zoomIn()}
               className="flex size-8 items-center justify-center rounded-lg border border-gray-200 bg-white/95 text-gray-700 shadow-md hover:bg-white"
               title="Zoom in"
             >
@@ -887,7 +880,7 @@ export function UnitLocationInsights({
             </button>
             <button
               type="button"
-              onClick={() => mapRef.current?.zoomOut()}
+              onClick={() => mapInstanceRef.current?.zoomOut()}
               className="flex size-8 items-center justify-center rounded-lg border border-gray-200 bg-white/95 text-gray-700 shadow-md hover:bg-white"
               title="Zoom out"
             >
@@ -908,11 +901,11 @@ export function UnitLocationInsights({
             <button
               type="button"
               onClick={() =>
-                mapRef.current?.flyTo({
+                mapInstanceRef.current?.flyTo({
                   center: [coords.lng, coords.lat],
-                  zoom: 16.2,
-                  pitch: 58,
-                  bearing: -20,
+                  zoom: 16.4,
+                  pitch: 60,
+                  bearing: -22,
                   duration: 600,
                 })
               }
@@ -947,9 +940,10 @@ export function UnitLocationInsights({
                 type="button"
                 onClick={() => {
                   setIs3D(true)
-                  mapRef.current?.easeTo({
-                    zoom: 16.8,
-                    pitch: 62,
+                  mapInstanceRef.current?.easeTo({
+                    center: [coords.lng, coords.lat],
+                    zoom: 17,
+                    pitch: 64,
                     bearing: -28,
                     duration: 800,
                   })

@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
-import Map, { Layer, Marker, type MapRef } from 'react-map-gl/maplibre'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import Map, { Marker, type MapRef } from 'react-map-gl/maplibre'
+
 import 'maplibre-gl/dist/maplibre-gl.css'
 import * as SunCalc from 'suncalc'
 import {
@@ -11,7 +12,6 @@ import {
   CloudSun,
   Compass,
   Dumbbell,
-  ExternalLink,
   Footprints,
   GraduationCap,
   HeartPulse,
@@ -99,7 +99,7 @@ function getFallbackPlacesForArea(isBatumi: boolean): PlaceItem[] {
     return [
       { id: 's1', name: 'Batumi Public School #2', category: 'school', distanceMeters: 540 },
       { id: 's2', name: 'Euro-2000 High School', category: 'school', distanceMeters: 780 },
-      { id: 's3', name: ' Progress International School', category: 'school', distanceMeters: 1150 },
+      { id: 's3', name: 'Progress International School', category: 'school', distanceMeters: 1150 },
       { id: 'k1', name: 'Batumi Kindergarten #14', category: 'kindergarten', distanceMeters: 240 },
       { id: 'p1', name: 'Aversi Pharmacy', category: 'pharmacy', distanceMeters: 180 },
       { id: 'p2', name: 'PSP Pharmacy', category: 'pharmacy', distanceMeters: 410 },
@@ -184,7 +184,7 @@ function formatTravelEstimate(meters: number) {
 }
 
 // ==========================================
-// 2. مكون مخطط الشمس التفاعلي الكامل (Winter / Today / Summer + 4 Window Directions + Interactive Slider)
+// 2. مكون مخطط الشمس التفاعلي الكامل
 // ==========================================
 function SunAndDaylightInteractiveCard({
   lat,
@@ -197,7 +197,7 @@ function SunAndDaylightInteractiveCard({
 }) {
   const isAr = locale === 'ar'
   const [season, setSeason] = useState<'winter' | 'today' | 'summer'>('today')
-  const [sliderRatio, setSliderRatio] = useState(0.5) // 0 = الشروق، 0.5 = ذروة الظهر، 1 = الغروب
+  const [sliderRatio, setSliderRatio] = useState(0.5)
 
   const targetDate = useMemo(() => {
     const now = new Date()
@@ -232,7 +232,6 @@ function SunAndDaylightInteractiveCard({
       Math.round((selectedPos.altitude * 180) / Math.PI)
     )
 
-    // تحديد اتجاه الشمس (East / South-East / South / South-West / West)
     let dirLabel = 'South'
     if (sliderRatio < 0.25) dirLabel = isAr ? 'الشرق (East)' : 'East'
     else if (sliderRatio < 0.42)
@@ -265,7 +264,6 @@ function SunAndDaylightInteractiveCard({
     }
   }, [targetDate, lat, lng, sliderRatio, isAr])
 
-  // إحداثيات منحنى الشمس الفلكي (SVG Quadratic Bezier Curve)
   const startX = 40
   const endX = 560
   const baseY = 155
@@ -304,7 +302,6 @@ function SunAndDaylightInteractiveCard({
           </div>
         </div>
 
-        {/* أزرار التبديل بين الشتاء واليوم والصيف مثل sivrce.ge */}
         <div className="inline-flex rounded-full border border-gray-200 bg-gray-50 p-1 text-xs font-extrabold">
           {(
             [
@@ -329,7 +326,6 @@ function SunAndDaylightInteractiveCard({
         </div>
       </div>
 
-      {/* الكروت الأربعة لاتجاهات النوافذ (North, East, South, West) */}
       <div className="mt-5">
         <p className="mb-2.5 text-xs font-extrabold text-[#0a1122]">
           {isAr
@@ -405,7 +401,6 @@ function SunAndDaylightInteractiveCard({
         </div>
       </div>
 
-      {/* منحنى الشمس البصري التفاعلي (SVG Arc + Gradient + Slider) */}
       <div className="mt-6">
         <svg viewBox="0 0 600 185" className="w-full overflow-visible">
           <defs>
@@ -415,13 +410,11 @@ function SunAndDaylightInteractiveCard({
             </linearGradient>
           </defs>
 
-          {/* المساحة المظللة تحت قوس الشمس */}
           <path
             d={`M ${startX} ${baseY} Q ${controlX} ${controlY} ${endX} ${baseY} Z`}
             fill="url(#sunArcGrad)"
           />
 
-          {/* خط الأفق */}
           <line
             x1="20"
             y1={baseY}
@@ -431,7 +424,6 @@ function SunAndDaylightInteractiveCard({
             strokeWidth="2"
           />
 
-          {/* قوس مسار الشمس البرتقالي */}
           <path
             d={`M ${startX} ${baseY} Q ${controlX} ${controlY} ${endX} ${baseY}`}
             fill="none"
@@ -439,7 +431,6 @@ function SunAndDaylightInteractiveCard({
             strokeWidth="3"
           />
 
-          {/* هالة الشمس */}
           <circle
             cx={sunX}
             cy={sunY}
@@ -447,7 +438,6 @@ function SunAndDaylightInteractiveCard({
             fill="#f97316"
             fillOpacity="0.18"
           />
-          {/* قرص الشمس */}
           <circle
             cx={sunX}
             cy={sunY}
@@ -457,7 +447,6 @@ function SunAndDaylightInteractiveCard({
             strokeWidth="2"
           />
 
-          {/* رموز الاتجاهات E / S / W */}
           <text
             x="140"
             y={baseY + 24}
@@ -490,7 +479,6 @@ function SunAndDaylightInteractiveCard({
           </text>
         </svg>
 
-        {/* شريط تحريك الوقت التفاعلي (Time Slider) */}
         <div className="mx-auto mt-2 max-w-md px-4">
           <input
             type="range"
@@ -502,7 +490,6 @@ function SunAndDaylightInteractiveCard({
           />
         </div>
 
-        {/* صف القراءات الحية (TIME / HEIGHT / DIRECTION + SUNRISE / SOLAR NOON / SUNSET / DAYLIGHT) */}
         <div className="mt-5 grid grid-cols-3 gap-3 border-t border-gray-100 pt-4 text-xs sm:grid-cols-4">
           <div>
             <span className="block text-[10px] font-bold text-gray-400 uppercase">
@@ -578,7 +565,7 @@ function SunAndDaylightInteractiveCard({
 }
 
 // ==========================================
-// 3. المكون الرئيسي: Neighborhood Score + 3D Map + What's Nearby 9-Cards Grid + Sun Chart
+// 3. المكون الرئيسي: Neighborhood Score + 3D Map + What's Nearby + Sun Chart
 // ==========================================
 export function UnitLocationInsights({
   areaId,
@@ -597,6 +584,7 @@ export function UnitLocationInsights({
 
   const mapRef = useRef<MapRef | null>(null)
   const [is3D, setIs3D] = useState(true)
+  const [mapLoaded, setMapLoaded] = useState(false)
   const [activeCategory, setActiveCategory] =
     useState<NearbyCategoryKey>('all')
   const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>(
@@ -610,7 +598,84 @@ export function UnitLocationInsights({
     aqi: number
   }>({ temp: 18, aqi: 34 })
 
-  // جلب الطقس الحي الحقيقي من Open-Meteo (مجاني بدون API Key)
+  // تفعيل وتلوين المباني الـ 3D تلقائياً فور تحميل الخريطة بدون أخطاء Source ID
+  const handleMapLoad = useCallback((event: any) => {
+    const map = event.target
+    setMapLoaded(true)
+
+    try {
+      map.resize()
+
+      const style = map.getStyle()
+      const layers = style?.layers || []
+      const sources = style?.sources || {}
+
+      // 1. لو الستايل فيه طبقة مباني جاهزة، نلونها باللون البيج المجسم ونرفعها 3D
+      let found3DLayer = false
+      for (const layer of layers) {
+        if (
+          layer.type === 'fill-extrusion' ||
+          (layer['source-layer'] &&
+            String(layer['source-layer']).includes('building'))
+        ) {
+          if (layer.type === 'fill-extrusion') {
+            found3DLayer = true
+            map.setPaintProperty(layer.id, 'fill-extrusion-color', '#d8c5b4')
+            map.setPaintProperty(layer.id, 'fill-extrusion-opacity', 0.92)
+          }
+        }
+      }
+
+      // 2. لو مفيش طبقة fill-extrusion جاهزة، ننشئها على أول Vector Source متاح في الستايل
+      if (!found3DLayer) {
+        const vectorSourceKey = Object.keys(sources).find(
+          (k) => sources[k]?.type === 'vector'
+        )
+        if (vectorSourceKey && !map.getLayer('custom-3d-buildings')) {
+          map.addLayer({
+            id: 'custom-3d-buildings',
+            source: vectorSourceKey,
+            'source-layer': 'building',
+            type: 'fill-extrusion',
+            minzoom: 14,
+            paint: {
+              'fill-extrusion-color': '#d8c5b4',
+              'fill-extrusion-height': [
+                'coalesce',
+                ['get', 'render_height'],
+                ['get', 'height'],
+                16,
+              ],
+              'fill-extrusion-base': [
+                'coalesce',
+                ['get', 'render_min_height'],
+                ['get', 'min_height'],
+                0,
+              ],
+              'fill-extrusion-opacity': 0.92,
+            },
+          })
+        }
+      }
+    } catch (e) {
+      console.warn('3D layer enhancement skipped:', e)
+    }
+  }, [])
+
+  // تحريك الخريطة لو تغيرت إحداثيات المنطقة
+  useEffect(() => {
+    if (mapRef.current && mapLoaded) {
+      mapRef.current.flyTo({
+        center: [coords.lng, coords.lat],
+        zoom: 16.2,
+        pitch: is3D ? 58 : 0,
+        bearing: is3D ? -20 : 0,
+        duration: 800,
+      })
+    }
+  }, [coords.lat, coords.lng, mapLoaded, is3D])
+
+  // جلب الطقس الحي والأماكن القريبة
   useEffect(() => {
     setPlaces(getFallbackPlacesForArea(isBatumi))
 
@@ -628,7 +693,6 @@ export function UnitLocationInsights({
       })
       .catch(() => {})
 
-    // جلب الأماكن القريبة الحقيقية من OpenStreetMap Overpass API حول إحداثيات الحي
     const query = `[out:json][timeout:8];(node["amenity"~"school|kindergarten|pharmacy|clinic|hospital|restaurant|cafe|university"](around:1600,${coords.lat},${coords.lng});node["shop"~"supermarket|convenience"](around:1600,${coords.lat},${coords.lng});node["leisure"="fitness_centre"](around:1600,${coords.lat},${coords.lng});node["highway"="bus_stop"](around:1200,${coords.lat},${coords.lng}););out body 60;`
 
     fetch(
@@ -700,7 +764,7 @@ export function UnitLocationInsights({
 
   return (
     <>
-      {/* 1. كارت قابلية المشي والمواصلات (Neighborhood & Mobility Score) مطابق لـ sivrce.ge */}
+      {/* 1. كارت قابلية المشي والمواصلات (Neighborhood & Mobility Score) */}
       <section className="mt-4 rounded-[20px] border border-gray-200/85 bg-white p-5 text-start shadow-2xs sm:p-6">
         <h3 className="text-sm font-black text-[#0a1122] sm:text-base">
           {isAr ? 'تقييم الحي وسهولة التنقل (Neighborhood)' : 'Neighborhood'}
@@ -765,7 +829,6 @@ export function UnitLocationInsights({
             </div>
           </div>
 
-          {/* شارات الطقس الحي وجودة الهواء مثل sivrce.ge */}
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-extrabold text-gray-700 shadow-2xs">
               <CloudSun className="size-3.5 text-sky-500" />
@@ -778,10 +841,11 @@ export function UnitLocationInsights({
           </div>
         </div>
 
-        {/* حاوية الخريطة ثلاثية الأبعاد */}
-        <div className="relative h-[340px] w-full overflow-hidden rounded-[18px] border border-gray-200 bg-[#edeae4] sm:h-[420px]">
+        {/* حاوية الخريطة ثلاثية الأبعاد مع أبعاد صريحة 100% */}
+        <div className="relative h-[360px] w-full overflow-hidden rounded-[18px] border border-gray-200 bg-[#edeae4] sm:h-[430px]">
           <Map
             ref={mapRef}
+           
             initialViewState={{
               latitude: coords.lat,
               longitude: coords.lng,
@@ -789,35 +853,11 @@ export function UnitLocationInsights({
               pitch: 58,
               bearing: -20,
             }}
-            // ستايل Liberty المفتوح الذي يدعم مجسمات المباني 3D بالكامل بدون API Key
+            style={{ width: '100%', height: '100%' }}
             mapStyle="https://tiles.openfreemap.org/styles/liberty"
+            onLoad={handleMapLoad}
             attributionControl={false}
           >
-            {/* طبقة مجسمات المباني ثلاثية الأبعاد باللون البيج الدافئ نفس sivrce.ge */}
-            <Layer
-              id="aqar-3d-buildings"
-              source="openmaptiles"
-              source-layer="building"
-              type="fill-extrusion"
-              minzoom={14}
-              paint={{
-                'fill-extrusion-color': '#d8c5b4',
-                'fill-extrusion-height': [
-                  'coalesce',
-                  ['get', 'render_height'],
-                  ['get', 'height'],
-                  16,
-                ],
-                'fill-extrusion-base': [
-                  'coalesce',
-                  ['get', 'render_min_height'],
-                  ['get', 'min_height'],
-                  0,
-                ],
-                'fill-extrusion-opacity': 0.92,
-              }}
-            />
-
             {/* دبوس الموقع البرتقالي الثلاثي الأبعاد */}
             <Marker
               latitude={coords.lat}
@@ -863,26 +903,26 @@ export function UnitLocationInsights({
             >
               3D
             </button>
-           <button
-  type="button"
-  onClick={() =>
-    mapRef.current?.flyTo({
-      center: [coords.lng, coords.lat],
-      zoom: 16.2,
-      pitch: 58,
-      bearing: -20,
-      duration: 600,
-    })
-  }
-  className="flex size-8 items-center justify-center rounded-lg border border-gray-200 bg-white/95 text-gray-700 shadow-md hover:bg-white"
-  title="Reset view"
->
-  <Compass className="size-4" />
-</button>
+            <button
+              type="button"
+              onClick={() =>
+                mapRef.current?.flyTo({
+                  center: [coords.lng, coords.lat],
+                  zoom: 16.2,
+                  pitch: 58,
+                  bearing: -20,
+                  duration: 600,
+                })
+              }
+              className="flex size-8 items-center justify-center rounded-lg border border-gray-200 bg-white/95 text-gray-700 shadow-md hover:bg-white"
+              title="Reset view"
+            >
+              <Compass className="size-4" />
+            </button>
           </div>
 
           {/* شريط الإحداثيات السفلي وأزرار Directions و Open 3D Map */}
-          <div className=" inset-x-3 bottom-3 z-10 flex flex-wrap items-center justify-between gap-2 pointer-events-none absolute">
+          <div className="pointer-events-none absolute inset-x-3 bottom-3 z-10 flex flex-wrap items-center justify-between gap-2">
             <div className="pointer-events-auto rounded-xl bg-black/65 px-3 py-1.5 text-white backdrop-blur-xs">
               <p className="text-xs font-extrabold">{localizedArea}</p>
               <p dir="ltr" className="font-mono text-[10px] text-gray-300">
@@ -921,7 +961,7 @@ export function UnitLocationInsights({
           </div>
         </div>
 
-        {/* 3. قسم الأماكن القريبة (What's nearby) بشبكة الـ 9 كروت المجمعة مثل sivrce.ge */}
+        {/* 3. قسم الأماكن القريبة (What's nearby) بشبكة الـ 9 كروت المجمعة */}
         <div className="mt-6">
           <h4 className="text-sm font-black text-[#0a1122] sm:text-base">
             {isAr ? "الأماكن والخدمات القريبة (What's nearby)" : "What's nearby"}
@@ -930,7 +970,6 @@ export function UnitLocationInsights({
             Nearest first · walking time · data © OpenStreetMap contributors
           </p>
 
-          {/* أزرار الفلتر العلوية بالعدادات */}
           <div className="mt-3.5 flex flex-wrap gap-1.5">
             <button
               type="button"
@@ -970,7 +1009,6 @@ export function UnitLocationInsights({
             })}
           </div>
 
-          {/* شبكة الـ 9 كروت المجمعة حسب الفئة (Grouped Category Cards) */}
           <div className="mt-4 grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
             {visibleCategories.map((cat) => {
               const catPlaces = places

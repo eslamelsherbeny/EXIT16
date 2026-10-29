@@ -10,6 +10,7 @@ import {
   ExternalLink,
   Loader2,
   MessageCircle,
+  Phone,
   Send,
   Wallet,
 } from "lucide-react"
@@ -111,7 +112,6 @@ export function UnitSmartMatchModal({
   const localizedUnitArea = cleanAreaName(unit.area, locale)
   const unitPhoneDigits = String(unit.phone || "").replace(/\D/g, "")
 
-  // التحقق مما إذا كانت الوحدة عليها عرض مقبول بالفعل
   const unitHasAcceptedOffer = offers.some(
     (o) =>
       String(o.property_id) === String(unit.id) &&
@@ -320,20 +320,34 @@ export function UnitSmartMatchModal({
                     key={buyer.id}
                     className="overflow-hidden rounded-xl border border-gray-200/90 bg-white p-3.5 text-xs shadow-2xs"
                   >
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate font-extrabold text-[#0a1122]">
-                          {buyer.name}
-                        </p>
-                        <p
-                          dir="ltr"
-                          className="mt-0.5 text-start font-mono text-[11px] text-gray-500"
-                        >
-                          {buyer.phone}
-                        </p>
+                    {/* هيدر البطاقة: الاسم والهاتف في سطر كامل واضح على الموبايل والشارات تحته أو بجانبه في الشاشات الأكبر */}
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="w-full sm:w-auto sm:min-w-0 sm:flex-1">
+                        <div className="flex items-center justify-between gap-2 sm:block">
+                          <p className="text-sm font-black break-words text-[#0a1122]">
+                            {buyer.name}
+                          </p>
+                          <p
+                            dir="ltr"
+                            className="inline-flex shrink-0 items-center gap-1 rounded-md bg-gray-100 px-2 py-0.5 font-mono text-[11px] font-bold text-gray-700 sm:mt-1"
+                          >
+                            <Phone className="size-3 text-[#105C50]" />
+                            <span>{buyer.phone}</span>
+                          </p>
+                        </div>
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-1.5">
+                      <div className="flex flex-wrap items-center gap-1.5 sm:justify-end">
+                        <span
+                          className={`rounded-md px-2.5 py-0.5 text-[10.5px] font-black ${
+                            match.score >= AUTO_PUBLISH_THRESHOLD
+                              ? "bg-[#105C50] text-white"
+                              : "bg-amber-100 text-amber-900"
+                          }`}
+                        >
+                          🎯 {matchPrefix} {match.score}%
+                        </span>
+
                         {hasRealOffer ? (
                           <Link
                             href={`/admin/deals?offerId=${existingOffer.id}`}
@@ -376,26 +390,17 @@ export function UnitSmartMatchModal({
                         ) : (
                           <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-800">
                             <span>
-                              {sm.notAutoPublishedTag || "غير منشورة تلقائياً (<80%)"}
+                              {sm.notAutoPublishedTag ||
+                                "غير منشورة تلقائياً (<80%)"}
                             </span>
                           </span>
                         )}
-
-                        <span
-                          className={`rounded-md px-2 py-0.5 text-[10.5px] font-black ${
-                            match.score >= AUTO_PUBLISH_THRESHOLD
-                              ? "bg-[#105C50] text-white"
-                              : "bg-amber-100 text-amber-900"
-                          }`}
-                        >
-                          🎯 {matchPrefix} {match.score}%
-                        </span>
                       </div>
                     </div>
 
-                    <p className="mt-2 text-[11px] font-bold text-[#105C50]">
-                      {leadsPrompts.cashShort} <span dir="ltr">{bCash}</span>{" "}
-                      {unitCur}
+                    <p className="mt-2.5 text-xs font-extrabold text-[#105C50]">
+                      {leadsPrompts.cashShort}{" "}
+                      <span dir="ltr">{bCash}</span> {unitCur}
                     </p>
 
                     <div className="mt-2 flex flex-wrap gap-1">
@@ -423,7 +428,7 @@ export function UnitSmartMatchModal({
                           type="button"
                           disabled={isPending || isManuallyRecommended}
                           onClick={() => handleSendSingle(buyer.id)}
-                          className={`inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-lg px-2.5 text-[11px] font-bold text-white transition ${
+                          className={`inline-flex h-8 flex-1 items-center justify-center gap-1 rounded-lg px-2 text-[11px] font-bold whitespace-nowrap text-white transition ${
                             isManuallyRecommended
                               ? "bg-emerald-600"
                               : "bg-[#0a1122] hover:bg-[#16223f]"
@@ -450,7 +455,7 @@ export function UnitSmartMatchModal({
                           type="button"
                           disabled={isPending || isOffDone}
                           onClick={() => handleCreateOfferOnBehalf(buyer)}
-                          className={`inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-lg px-2.5 text-[11px] font-bold text-white transition ${
+                          className={`inline-flex h-8 flex-1 items-center justify-center gap-1 rounded-lg px-2 text-[11px] font-bold whitespace-nowrap text-white transition ${
                             isOffDone
                               ? "bg-purple-700"
                               : "bg-[#105C50] hover:bg-[#0c483f]"
@@ -477,7 +482,7 @@ export function UnitSmartMatchModal({
                         href={`https://wa.me/${String(buyer.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(bWa)}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#25D366] px-2.5 text-[11px] font-bold text-white hover:opacity-90"
+                        className="inline-flex h-8 flex-1 items-center justify-center gap-1 rounded-lg bg-[#25D366] px-2.5 text-[11px] font-bold whitespace-nowrap text-white hover:opacity-90"
                       >
                         <MessageCircle className="size-3.5 shrink-0" />
                         <span>{leadsPrompts.whatsappBtn}</span>
@@ -737,17 +742,30 @@ export function BuyerSmartMatchModal({
                     key={unit.id}
                     className="overflow-hidden rounded-xl border border-gray-200/90 bg-white p-3.5 text-xs shadow-2xs"
                   >
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <p className="font-extrabold text-[#0a1122]">
-                          {unit.project_name || "—"} · {localizedArea}
-                        </p>
-                        <span className="font-mono text-[10px] text-gray-400">
-                          {deriveShortUnitCode(unit.id)}
-                        </span>
+                    {/* هيدر البطاقة: اسم المشروع والمنطقة في سطر كامل واضح والشارات مرتبة تحته */}
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="w-full sm:w-auto sm:min-w-0 sm:flex-1">
+                        <div className="flex items-center justify-between gap-2 sm:block">
+                          <p className="text-sm font-black break-words text-[#0a1122]">
+                            {unit.project_name || "—"} · {localizedArea}
+                          </p>
+                          <span className="inline-block shrink-0 rounded bg-gray-100 px-2 py-0.5 font-mono text-[10px] font-bold text-gray-600 sm:mt-1">
+                            {deriveShortUnitCode(unit.id)}
+                          </span>
+                        </div>
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-1.5">
+                      <div className="flex flex-wrap items-center gap-1.5 sm:justify-end">
+                        <span
+                          className={`rounded-md px-2.5 py-0.5 text-[10.5px] font-black ${
+                            match.score >= AUTO_PUBLISH_THRESHOLD
+                              ? "bg-[#105C50] text-white"
+                              : "bg-amber-100 text-amber-900"
+                          }`}
+                        >
+                          🎯 {matchPrefix} {match.score}%
+                        </span>
+
                         {hasRealOffer ? (
                           <Link
                             href={`/admin/deals?offerId=${existingOffer.id}`}
@@ -790,26 +808,17 @@ export function BuyerSmartMatchModal({
                         ) : (
                           <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-800">
                             <span>
-                              {sm.notAutoPublishedTag || "غير منشورة تلقائياً (<80%)"}
+                              {sm.notAutoPublishedTag ||
+                                "غير منشورة تلقائياً (<80%)"}
                             </span>
                           </span>
                         )}
-
-                        <span
-                          className={`rounded-md px-2 py-0.5 text-[10.5px] font-black ${
-                            match.score >= AUTO_PUBLISH_THRESHOLD
-                              ? "bg-[#105C50] text-white"
-                              : "bg-amber-100 text-amber-900"
-                          }`}
-                        >
-                          🎯 {matchPrefix} {match.score}%
-                        </span>
                       </div>
                     </div>
 
-                    <p className="mt-2 text-[11px] font-bold text-[#105C50]">
-                      {tLeads.cashLabel} <span dir="ltr">{uCash}</span>{" "}
-                      {leadCur}
+                    <p className="mt-2.5 text-xs font-extrabold text-[#105C50]">
+                      {tLeads.cashLabel}{" "}
+                      <span dir="ltr">{uCash}</span> {leadCur}
                     </p>
 
                     <div className="mt-2 flex flex-wrap gap-1">
@@ -837,7 +846,7 @@ export function BuyerSmartMatchModal({
                           type="button"
                           disabled={isPending || isManuallyRecommended}
                           onClick={() => handleSendSingle(unit.id)}
-                          className={`inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-lg px-2.5 text-[11px] font-bold text-white transition ${
+                          className={`inline-flex h-8 flex-1 items-center justify-center gap-1 rounded-lg px-2 text-[11px] font-bold whitespace-nowrap text-white transition ${
                             isManuallyRecommended
                               ? "bg-emerald-600"
                               : "bg-[#0a1122] hover:bg-[#16223f]"
@@ -864,7 +873,7 @@ export function BuyerSmartMatchModal({
                           type="button"
                           disabled={isPending || isOffDone}
                           onClick={() => handleCreateOfferOnBehalf(unit)}
-                          className={`inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-lg px-2.5 text-[11px] font-bold text-white transition ${
+                          className={`inline-flex h-8 flex-1 items-center justify-center gap-1 rounded-lg px-2 text-[11px] font-bold whitespace-nowrap text-white transition ${
                             isOffDone
                               ? "bg-purple-700"
                               : "bg-[#105C50] hover:bg-[#0c483f]"
@@ -889,7 +898,7 @@ export function BuyerSmartMatchModal({
                       <Link
                         href={`/opportunities/${unit.id}`}
                         target="_blank"
-                        className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-3 text-[11px] font-bold text-[#105C50] hover:bg-gray-100"
+                        className="inline-flex h-8 items-center justify-center gap-1 rounded-lg border border-gray-200 bg-gray-50 px-3 text-[11px] font-bold whitespace-nowrap text-[#105C50] hover:bg-gray-100"
                       >
                         <ExternalLink className="size-3.5 shrink-0" />
                         <span>{sm.viewUnitBtn}</span>

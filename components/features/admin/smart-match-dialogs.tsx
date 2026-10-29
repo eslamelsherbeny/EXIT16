@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
   Check,
+  CheckCircle2,
   Clock,
   ExternalLink,
   Loader2,
@@ -33,11 +34,37 @@ import {
 } from "@/actions/offer-actions"
 
 const PENDING_ADMIN_TAG = "__PENDING_ADMIN_VERIFICATION__"
+const AUTO_PUBLISH_THRESHOLD = 80
 
 function deriveShortUnitCode(id: string) {
   const digits = String(id || "").replace(/\D/g, "")
   const num = digits ? Number(digits.slice(-4)) : 100
   return `U-${String(num).padStart(5, "0")}`
+}
+
+function cleanAreaName(rawArea: string | null | undefined, locale: string) {
+  const localized = getLocalizedGeorgiaAreaName(rawArea, locale as any)
+  if (locale === "ar") {
+    return localized.replace(/\s*\([A-Za-z0-9\s/-]+\)\s*$/g, "").trim()
+  }
+  return localized
+}
+
+/**
+ * تحويل جمل التوافق من صيغة المخاطب للعميل ("سيولتك / قدرتك") إلى صيغة تقرير مختصر للأدمن
+ */
+function formatReasonForAdmin(text: string, locale: string): string {
+  if (locale !== "ar") return text
+  return text
+    .replace("الكاش المطلوب في حدود سيولتك المتاحة", "الكاش مناسب للمشتري")
+    .replace(
+      "الكاش المطلوب أعلى قليلاً من سيولتك المحددة",
+      "الكاش أعلى قليلاً من ميزانيته"
+    )
+    .replace("القسط مناسب لقدرتك الشهرية", "القسط مناسب للمشتري")
+    .replace("القسط أعلى من القسط المفضل لديك", "القسط أعلى من طلب المشتري")
+    .replace("(طلبك ", "(طلبه ")
+    .replace(/\s*\([A-Za-z0-9\s/-]+\)\s*$/g, "")
 }
 
 function resolveEffectiveOfferStatus(offer: any): string {
@@ -81,17 +108,35 @@ export function UnitSmartMatchModal({
 
   const unitCur = getCurrencySymbol("GE", locale)
   const matchPrefix = sm.matchScorePrefix || buyerDict.matchScorePrefix || ""
-  const localizedUnitArea = getLocalizedGeorgiaAreaName(unit.area, locale)
+  const localizedUnitArea = cleanAreaName(unit.area, locale)
+  const unitPhoneDigits = String(unit.phone || "").replace(/\D/g, "")
+
+  // التحقق مما إذا كانت الوحدة عليها عرض مقبول بالفعل
+  const unitHasAcceptedOffer = offers.some(
+    (o) =>
+      String(o.property_id) === String(unit.id) &&
+      resolveEffectiveOfferStatus(o) === "accepted"
+  )
 
   const matchedList = (buyers || [])
-    .filter((b) => !b.user_id || b.user_id !== unit.user_id)
+    .filter((b) => {
+      if (b.user_id && unit.user_id && String(b.user_id) === String(unit.user_id))
+        return false
+      const bPhoneDigits = String(b.phone || "").replace(/\D/g, "")
+      if (
+        bPhoneDigits.length >= 8 &&
+        unitPhoneDigits.length >= 8 &&
+        bPhoneDigits.slice(-8) === unitPhoneDigits.slice(-8)
+      ) {
+        return false
+      }
+      return true
+    })
     .map((buyer) => {
       const existingOffer = offers.find(
         (o) =>
           String(o.property_id) === String(unit.id) &&
-          (String(o.lead_id) === String(buyer.id) ||
-            (buyer.user_id &&
-              String(o.buyer_user_id) === String(buyer.user_id)))
+          String(o.lead_id || "") === String(buyer.id)
       )
       return {
         buyer,
@@ -102,6 +147,13 @@ export function UnitSmartMatchModal({
     })
     .filter((item) => item.match.score >= 60)
     .sort((a, b) => b.match.score - a.match.score)
+
+  const manualCandidates = matchedList.filter(
+    (item) =>
+      item.match.score < AUTO_PUBLISH_THRESHOLD &&
+      !item.existingOffer &&
+      !doneKeys[`rec_${unit.id}_${item.buyer.id}`]
+  )
 
   const bulkKey = `bulk_${unit.id}`
   const isBulkDone = Boolean(doneKeys[bulkKey])
@@ -151,7 +203,7 @@ export function UnitSmartMatchModal({
     })
   }
 
-  function handleCreateOffer(buyer: MatchableBuyer) {
+  function handleCreateOfferOnBehalf(buyer: MatchableBuyer) {
     if (!unit) return
     const k = `off_${unit.id}_${buyer.id}`
     setLoadingKey(k)
@@ -201,7 +253,7 @@ export function UnitSmartMatchModal({
               </span>
             </DialogTitle>
 
-            {matchedList.length > 0 && (
+            {manualCandidates.length > 0 && (
               <button
                 type="button"
                 disabled={isPending || isBulkDone}
@@ -217,16 +269,11 @@ export function UnitSmartMatchModal({
                     <Loader2 className="size-3.5 animate-spin" />
                     <span>{sm.sendingNow}</span>
                   </>
-                ) : isBulkDone ? (
-                  <>
-                    <Check className="size-3.5" />
-                    <span>{sm.sentAllDoneBtn}</span>
-                  </>
                 ) : (
                   <>
                     <Send className="size-3.5" />
                     <span>
-                      {sm.sendAllRecsBtn} ({matchedList.length})
+                      {sm.sendAllRecsBtn} ({manualCandidates.length})
                     </span>
                   </>
                 )}
@@ -257,15 +304,16 @@ export function UnitSmartMatchModal({
 
                 const recKey = `rec_${unit.id}_${buyer.id}`
                 const offKey = `off_${unit.id}_${buyer.id}`
-                const isRecDone =
+                const isAutoPublished = match.score >= AUTO_PUBLISH_THRESHOLD
+                const isManuallyRecommended =
                   Boolean(doneKeys[recKey]) ||
                   isBulkDone ||
                   Boolean(existingOffer)
+                const hasRealOffer =
+                  Boolean(existingOffer) && effectiveStatus !== "recommended"
                 const isOffDone =
                   Boolean(doneKeys[offKey]) ||
-                  (Boolean(existingOffer) &&
-                    effectiveStatus !== "recommended" &&
-                    effectiveStatus !== "pending_admin")
+                  (hasRealOffer && effectiveStatus !== "pending_admin")
 
                 return (
                   <div
@@ -286,8 +334,10 @@ export function UnitSmartMatchModal({
                       </div>
 
                       <div className="flex flex-wrap items-center gap-1.5">
-                        {existingOffer && (
-                          <span
+                        {hasRealOffer ? (
+                          <Link
+                            href={`/admin/deals?offerId=${existingOffer.id}`}
+                            onClick={onClose}
                             className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-extrabold ${
                               effectiveStatus === "accepted"
                                 ? "bg-emerald-600 text-white"
@@ -295,10 +345,7 @@ export function UnitSmartMatchModal({
                                   ? "bg-amber-500 text-white"
                                   : effectiveStatus === "rejected"
                                     ? "bg-red-100 text-red-700"
-                                    : effectiveStatus === "pending_seller" ||
-                                        effectiveStatus === "counter_offered"
-                                      ? "bg-purple-100 text-purple-800"
-                                      : "bg-gray-100 text-gray-700"
+                                    : "bg-purple-100 text-purple-800"
                             }`}
                           >
                             {effectiveStatus === "pending_admin" && (
@@ -311,18 +358,34 @@ export function UnitSmartMatchModal({
                                   ? sm.offerPendingAdminTag
                                   : effectiveStatus === "rejected"
                                     ? sm.offerRejectedTag
-                                    : effectiveStatus === "pending_seller" ||
-                                        effectiveStatus === "counter_offered"
-                                      ? sm.offerPendingTag
-                                      : sm.recSentTag}
+                                    : sm.offerPendingTag}
+                            </span>
+                          </Link>
+                        ) : isAutoPublished ? (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-extrabold text-[#105C50]">
+                            <CheckCircle2 className="size-3" />
+                            <span>
+                              {sm.autoPublishedTag || "منشورة تلقائياً بحسابه"}
+                            </span>
+                          </span>
+                        ) : isManuallyRecommended ? (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-extrabold text-blue-800">
+                            <Check className="size-3" />
+                            <span>{sm.recSentTag}</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                            <span>
+                              {sm.notAutoPublishedTag || "غير منشورة تلقائياً (<80%)"}
                             </span>
                           </span>
                         )}
+
                         <span
                           className={`rounded-md px-2 py-0.5 text-[10.5px] font-black ${
-                            match.score >= 85
+                            match.score >= AUTO_PUBLISH_THRESHOLD
                               ? "bg-[#105C50] text-white"
-                              : "bg-emerald-50 text-[#105C50]"
+                              : "bg-amber-100 text-amber-900"
                           }`}
                         >
                           🎯 {matchPrefix} {match.score}%
@@ -341,7 +404,7 @@ export function UnitSmartMatchModal({
                           key={mStr}
                           className="rounded bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-[#105C50]"
                         >
-                          ✓ {mStr}
+                          ✓ {formatReasonForAdmin(mStr, locale)}
                         </span>
                       ))}
                       {match.differences.map((dStr) => (
@@ -349,68 +412,72 @@ export function UnitSmartMatchModal({
                           key={dStr}
                           className="rounded bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800"
                         >
-                          ⚠️ {dStr}
+                          ⚠️ {formatReasonForAdmin(dStr, locale)}
                         </span>
                       ))}
                     </div>
 
-                    <div className="mt-3 grid grid-cols-1 gap-1.5 border-t border-gray-100 pt-2.5 sm:grid-cols-3">
-                      <button
-                        type="button"
-                        disabled={isPending || isRecDone}
-                        onClick={() => handleSendSingle(buyer.id)}
-                        className={`inline-flex min-h-[34px] items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-center text-[11px] font-bold text-white transition ${
-                          isRecDone
-                            ? "bg-emerald-600"
-                            : "bg-[#0a1122] hover:bg-[#16223f]"
-                        }`}
-                      >
-                        {loadingKey === recKey ? (
-                          <Loader2 className="size-3.5 animate-spin" />
-                        ) : isRecDone ? (
-                          <>
-                            <Check className="size-3.5 shrink-0" />
-                            <span>{sm.sentRecDoneBtn}</span>
-                          </>
-                        ) : (
-                          <>
-                            <Send className="size-3.5 shrink-0" />
-                            <span>{sm.sendRecToBuyerBtn}</span>
-                          </>
-                        )}
-                      </button>
+                    <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-gray-100 pt-2.5">
+                      {!isAutoPublished && !hasRealOffer && (
+                        <button
+                          type="button"
+                          disabled={isPending || isManuallyRecommended}
+                          onClick={() => handleSendSingle(buyer.id)}
+                          className={`inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-lg px-2.5 text-[11px] font-bold text-white transition ${
+                            isManuallyRecommended
+                              ? "bg-emerald-600"
+                              : "bg-[#0a1122] hover:bg-[#16223f]"
+                          }`}
+                        >
+                          {loadingKey === recKey ? (
+                            <Loader2 className="size-3.5 animate-spin" />
+                          ) : isManuallyRecommended ? (
+                            <>
+                              <Check className="size-3.5 shrink-0" />
+                              <span>{sm.sentRecDoneBtn}</span>
+                            </>
+                          ) : (
+                            <>
+                              <Send className="size-3.5 shrink-0" />
+                              <span>{sm.sendRecToBuyerBtn}</span>
+                            </>
+                          )}
+                        </button>
+                      )}
 
-                      <button
-                        type="button"
-                        disabled={isPending || isOffDone}
-                        onClick={() => handleCreateOffer(buyer)}
-                        className={`inline-flex min-h-[34px] items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-center text-[11px] font-bold text-white transition ${
-                          isOffDone
-                            ? "bg-purple-700"
-                            : "bg-[#105C50] hover:bg-[#0c483f]"
-                        }`}
-                      >
-                        {loadingKey === offKey ? (
-                          <Loader2 className="size-3.5 animate-spin" />
-                        ) : isOffDone ? (
-                          <>
-                            <Check className="size-3.5 shrink-0" />
-                            <span>{sm.sentOfferDoneBtn}</span>
-                          </>
-                        ) : (
-                          <>
-                            <Wallet className="size-3.5 shrink-0" />
-                            <span>{sm.createOfficialOfferBtn}</span>
-                          </>
-                        )}
-                      </button>
+                      {(!unitHasAcceptedOffer || isOffDone) && (
+                        <button
+                          type="button"
+                          disabled={isPending || isOffDone}
+                          onClick={() => handleCreateOfferOnBehalf(buyer)}
+                          className={`inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-lg px-2.5 text-[11px] font-bold text-white transition ${
+                            isOffDone
+                              ? "bg-purple-700"
+                              : "bg-[#105C50] hover:bg-[#0c483f]"
+                          }`}
+                        >
+                          {loadingKey === offKey ? (
+                            <Loader2 className="size-3.5 animate-spin" />
+                          ) : isOffDone ? (
+                            <>
+                              <Check className="size-3.5 shrink-0" />
+                              <span>{sm.sentOfferDoneBtn}</span>
+                            </>
+                          ) : (
+                            <>
+                              <Wallet className="size-3.5 shrink-0" />
+                              <span>{sm.createOfficialOfferBtn}</span>
+                            </>
+                          )}
+                        </button>
+                      )}
 
                       <a
                         data-admin-client-wa="true"
                         href={`https://wa.me/${String(buyer.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(bWa)}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex min-h-[34px] items-center justify-center gap-1.5 rounded-lg bg-[#25D366] px-2.5 py-1.5 text-center text-[11px] font-bold text-white hover:opacity-90"
+                        className="inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#25D366] px-2.5 text-[11px] font-bold text-white hover:opacity-90"
                       >
                         <MessageCircle className="size-3.5 shrink-0" />
                         <span>{leadsPrompts.whatsappBtn}</span>
@@ -454,30 +521,51 @@ export function BuyerSmartMatchModal({
 
   const leadCur = getCurrencySymbol("GE", locale)
   const matchPrefix = sm.matchScorePrefix || buyerDict.matchScorePrefix || ""
+  const leadPhoneDigits = String(lead.phone || "").replace(/\D/g, "")
 
   const matchedUnitsList = (units || [])
-    .filter(
-      (u) =>
-        (u.status === "active" || u.status === "offer_received") &&
-        (!u.user_id || u.user_id !== lead.user_id)
-    )
+    .filter((u) => {
+      if (u.status !== "active" && u.status !== "offer_received") return false
+      if (lead.user_id && u.user_id && String(u.user_id) === String(lead.user_id))
+        return false
+      const uPhoneDigits = String(u.phone || "").replace(/\D/g, "")
+      if (
+        leadPhoneDigits.length >= 8 &&
+        uPhoneDigits.length >= 8 &&
+        leadPhoneDigits.slice(-8) === uPhoneDigits.slice(-8)
+      ) {
+        return false
+      }
+      return true
+    })
     .map((unit) => {
       const existingOffer = offers.find(
         (o) =>
           String(o.property_id) === String(unit.id) &&
-          (String(o.lead_id) === String(lead.id) ||
-            (lead.user_id &&
-              String(o.buyer_user_id) === String(lead.user_id)))
+          String(o.lead_id || "") === String(lead.id)
+      )
+      const unitLockedBySomeone = offers.some(
+        (o) =>
+          String(o.property_id) === String(unit.id) &&
+          resolveEffectiveOfferStatus(o) === "accepted"
       )
       return {
         unit,
         match: calculateSmartMatch(unit, lead, undefined, locale),
         existingOffer,
         effectiveStatus: resolveEffectiveOfferStatus(existingOffer),
+        unitLockedBySomeone,
       }
     })
     .filter((item) => item.match.score >= 60)
     .sort((a, b) => b.match.score - a.match.score)
+
+  const manualUnits = matchedUnitsList.filter(
+    (item) =>
+      item.match.score < AUTO_PUBLISH_THRESHOLD &&
+      !item.existingOffer &&
+      !doneKeys[`rec_${item.unit.id}_${lead.id}`]
+  )
 
   const bulkKey = `bulk_lead_${lead.id}`
   const isBulkDone = Boolean(doneKeys[bulkKey])
@@ -505,12 +593,12 @@ export function BuyerSmartMatchModal({
     })
   }
 
-  function handleSendAll() {
+  function handleSendAllManual() {
     if (!lead) return
     setLoadingKey(bulkKey)
     startTransition(async () => {
       try {
-        for (const item of matchedUnitsList) {
+        for (const item of manualUnits) {
           await adminSendRecommendationAction({
             propertyId: item.unit.id,
             leadId: lead.id,
@@ -518,7 +606,7 @@ export function BuyerSmartMatchModal({
         }
         setDoneKeys((prev) => ({ ...prev, [bulkKey]: true }))
         onNotice?.({
-          text: `${sm.recSentSuccess} (${matchedUnitsList.length})`,
+          text: `${sm.recSentSuccess} (${manualUnits.length})`,
         })
         router.refresh()
       } finally {
@@ -527,7 +615,7 @@ export function BuyerSmartMatchModal({
     })
   }
 
-  function handleCreateOffer(unit: MatchableUnit) {
+  function handleCreateOfferOnBehalf(unit: MatchableUnit) {
     if (!lead) return
     const k = `off_${unit.id}_${lead.id}`
     setLoadingKey(k)
@@ -575,11 +663,11 @@ export function BuyerSmartMatchModal({
               <span className="text-[#105C50]">{lead.name}</span>
             </DialogTitle>
 
-            {matchedUnitsList.length > 0 && (
+            {manualUnits.length > 0 && (
               <button
                 type="button"
                 disabled={isPending || isBulkDone}
-                onClick={handleSendAll}
+                onClick={handleSendAllManual}
                 className={`inline-flex h-8 w-fit items-center gap-1.5 rounded-lg px-3 text-[11px] font-bold text-white transition ${
                   isBulkDone
                     ? "bg-emerald-600"
@@ -591,16 +679,11 @@ export function BuyerSmartMatchModal({
                     <Loader2 className="size-3.5 animate-spin" />
                     <span>{sm.sendingNow}</span>
                   </>
-                ) : isBulkDone ? (
-                  <>
-                    <Check className="size-3.5" />
-                    <span>{sm.sentAllDoneBtn}</span>
-                  </>
                 ) : (
                   <>
                     <Send className="size-3.5" />
                     <span>
-                      {sm.sendAllRecsBtn} ({matchedUnitsList.length})
+                      {sm.sendAllRecsBtn} ({manualUnits.length})
                     </span>
                   </>
                 )}
@@ -625,25 +708,29 @@ export function BuyerSmartMatchModal({
             </p>
           ) : (
             matchedUnitsList.map(
-              ({ unit, match, existingOffer, effectiveStatus }) => {
+              ({
+                unit,
+                match,
+                existingOffer,
+                effectiveStatus,
+                unitLockedBySomeone,
+              }) => {
                 const uCash = Number(unit.paid_amount || 0).toLocaleString(
                   "en-US"
                 )
-                const localizedArea = getLocalizedGeorgiaAreaName(
-                  unit.area,
-                  locale
-                )
+                const localizedArea = cleanAreaName(unit.area, locale)
                 const recKey = `rec_${unit.id}_${lead.id}`
                 const offKey = `off_${unit.id}_${lead.id}`
-                const isRecDone =
+                const isAutoPublished = match.score >= AUTO_PUBLISH_THRESHOLD
+                const isManuallyRecommended =
                   Boolean(doneKeys[recKey]) ||
                   isBulkDone ||
                   Boolean(existingOffer)
+                const hasRealOffer =
+                  Boolean(existingOffer) && effectiveStatus !== "recommended"
                 const isOffDone =
                   Boolean(doneKeys[offKey]) ||
-                  (Boolean(existingOffer) &&
-                    effectiveStatus !== "recommended" &&
-                    effectiveStatus !== "pending_admin")
+                  (hasRealOffer && effectiveStatus !== "pending_admin")
 
                 return (
                   <div
@@ -653,7 +740,7 @@ export function BuyerSmartMatchModal({
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         <p className="font-extrabold text-[#0a1122]">
-                          {unit.project_name || "—"} ({localizedArea})
+                          {unit.project_name || "—"} · {localizedArea}
                         </p>
                         <span className="font-mono text-[10px] text-gray-400">
                           {deriveShortUnitCode(unit.id)}
@@ -661,8 +748,10 @@ export function BuyerSmartMatchModal({
                       </div>
 
                       <div className="flex flex-wrap items-center gap-1.5">
-                        {existingOffer && (
-                          <span
+                        {hasRealOffer ? (
+                          <Link
+                            href={`/admin/deals?offerId=${existingOffer.id}`}
+                            onClick={onClose}
                             className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-extrabold ${
                               effectiveStatus === "accepted"
                                 ? "bg-emerald-600 text-white"
@@ -670,10 +759,7 @@ export function BuyerSmartMatchModal({
                                   ? "bg-amber-500 text-white"
                                   : effectiveStatus === "rejected"
                                     ? "bg-red-100 text-red-700"
-                                    : effectiveStatus === "pending_seller" ||
-                                        effectiveStatus === "counter_offered"
-                                      ? "bg-purple-100 text-purple-800"
-                                      : "bg-gray-100 text-gray-700"
+                                    : "bg-purple-100 text-purple-800"
                             }`}
                           >
                             {effectiveStatus === "pending_admin" && (
@@ -686,18 +772,34 @@ export function BuyerSmartMatchModal({
                                   ? sm.offerPendingAdminTag
                                   : effectiveStatus === "rejected"
                                     ? sm.offerRejectedTag
-                                    : effectiveStatus === "pending_seller" ||
-                                        effectiveStatus === "counter_offered"
-                                      ? sm.offerPendingTag
-                                      : sm.recSentTag}
+                                    : sm.offerPendingTag}
+                            </span>
+                          </Link>
+                        ) : isAutoPublished ? (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-extrabold text-[#105C50]">
+                            <CheckCircle2 className="size-3" />
+                            <span>
+                              {sm.autoPublishedTag || "منشورة تلقائياً بحسابه"}
+                            </span>
+                          </span>
+                        ) : isManuallyRecommended ? (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-extrabold text-blue-800">
+                            <Check className="size-3" />
+                            <span>{sm.recSentTag}</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                            <span>
+                              {sm.notAutoPublishedTag || "غير منشورة تلقائياً (<80%)"}
                             </span>
                           </span>
                         )}
+
                         <span
                           className={`rounded-md px-2 py-0.5 text-[10.5px] font-black ${
-                            match.score >= 85
+                            match.score >= AUTO_PUBLISH_THRESHOLD
                               ? "bg-[#105C50] text-white"
-                              : "bg-emerald-50 text-[#105C50]"
+                              : "bg-amber-100 text-amber-900"
                           }`}
                         >
                           🎯 {matchPrefix} {match.score}%
@@ -716,7 +818,7 @@ export function BuyerSmartMatchModal({
                           key={mStr}
                           className="rounded bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-[#105C50]"
                         >
-                          ✓ {mStr}
+                          ✓ {formatReasonForAdmin(mStr, locale)}
                         </span>
                       ))}
                       {match.differences.map((dStr) => (
@@ -724,66 +826,70 @@ export function BuyerSmartMatchModal({
                           key={dStr}
                           className="rounded bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800"
                         >
-                          ⚠️ {dStr}
+                          ⚠️ {formatReasonForAdmin(dStr, locale)}
                         </span>
                       ))}
                     </div>
 
-                    <div className="mt-3 grid grid-cols-1 gap-1.5 border-t border-gray-100 pt-2.5 sm:grid-cols-3">
-                      <button
-                        type="button"
-                        disabled={isPending || isRecDone}
-                        onClick={() => handleSendSingle(unit.id)}
-                        className={`inline-flex min-h-[34px] items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-center text-[11px] font-bold text-white transition ${
-                          isRecDone
-                            ? "bg-emerald-600"
-                            : "bg-[#0a1122] hover:bg-[#16223f]"
-                        }`}
-                      >
-                        {loadingKey === recKey ? (
-                          <Loader2 className="size-3.5 animate-spin" />
-                        ) : isRecDone ? (
-                          <>
-                            <Check className="size-3.5 shrink-0" />
-                            <span>{sm.sentRecDoneBtn}</span>
-                          </>
-                        ) : (
-                          <>
-                            <Send className="size-3.5 shrink-0" />
-                            <span>{sm.sendRecToBuyerBtn}</span>
-                          </>
-                        )}
-                      </button>
+                    <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-gray-100 pt-2.5">
+                      {!isAutoPublished && !hasRealOffer && (
+                        <button
+                          type="button"
+                          disabled={isPending || isManuallyRecommended}
+                          onClick={() => handleSendSingle(unit.id)}
+                          className={`inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-lg px-2.5 text-[11px] font-bold text-white transition ${
+                            isManuallyRecommended
+                              ? "bg-emerald-600"
+                              : "bg-[#0a1122] hover:bg-[#16223f]"
+                          }`}
+                        >
+                          {loadingKey === recKey ? (
+                            <Loader2 className="size-3.5 animate-spin" />
+                          ) : isManuallyRecommended ? (
+                            <>
+                              <Check className="size-3.5 shrink-0" />
+                              <span>{sm.sentRecDoneBtn}</span>
+                            </>
+                          ) : (
+                            <>
+                              <Send className="size-3.5 shrink-0" />
+                              <span>{sm.sendRecToBuyerBtn}</span>
+                            </>
+                          )}
+                        </button>
+                      )}
 
-                      <button
-                        type="button"
-                        disabled={isPending || isOffDone}
-                        onClick={() => handleCreateOffer(unit)}
-                        className={`inline-flex min-h-[34px] items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-center text-[11px] font-bold text-white transition ${
-                          isOffDone
-                            ? "bg-purple-700"
-                            : "bg-[#105C50] hover:bg-[#0c483f]"
-                        }`}
-                      >
-                        {loadingKey === offKey ? (
-                          <Loader2 className="size-3.5 animate-spin" />
-                        ) : isOffDone ? (
-                          <>
-                            <Check className="size-3.5 shrink-0" />
-                            <span>{sm.sentOfferDoneBtn}</span>
-                          </>
-                        ) : (
-                          <>
-                            <Wallet className="size-3.5 shrink-0" />
-                            <span>{sm.createOfficialOfferBtn}</span>
-                          </>
-                        )}
-                      </button>
+                      {(!unitLockedBySomeone || isOffDone) && (
+                        <button
+                          type="button"
+                          disabled={isPending || isOffDone}
+                          onClick={() => handleCreateOfferOnBehalf(unit)}
+                          className={`inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-lg px-2.5 text-[11px] font-bold text-white transition ${
+                            isOffDone
+                              ? "bg-purple-700"
+                              : "bg-[#105C50] hover:bg-[#0c483f]"
+                          }`}
+                        >
+                          {loadingKey === offKey ? (
+                            <Loader2 className="size-3.5 animate-spin" />
+                          ) : isOffDone ? (
+                            <>
+                              <Check className="size-3.5 shrink-0" />
+                              <span>{sm.sentOfferDoneBtn}</span>
+                            </>
+                          ) : (
+                            <>
+                              <Wallet className="size-3.5 shrink-0" />
+                              <span>{sm.createOfficialOfferBtn}</span>
+                            </>
+                          )}
+                        </button>
+                      )}
 
                       <Link
                         href={`/opportunities/${unit.id}`}
                         target="_blank"
-                        className="inline-flex min-h-[34px] items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-center text-[11px] font-bold text-[#105C50] hover:bg-gray-100"
+                        className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-3 text-[11px] font-bold text-[#105C50] hover:bg-gray-100"
                       >
                         <ExternalLink className="size-3.5 shrink-0" />
                         <span>{sm.viewUnitBtn}</span>

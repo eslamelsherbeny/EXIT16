@@ -29,6 +29,8 @@ import {
 
 export type { OfferRecord, OfferStatusType }
 
+const AUTO_PUBLISH_MATCH_THRESHOLD = 80
+
 export async function getAccountOffersDataAction() {
   const { dict, locale } = await getServerI18n()
   const oDict = (dict.accountPages as Record<string, any>)?.offers || {}
@@ -237,7 +239,8 @@ export async function getAccountOffersDataAction() {
       const m = calculateSmartMatch(unit, activeBuyerReq, matchLabels, locale)
       const isFromAdmin = adminRecMap.has(String(unit.id))
 
-      if (isFromAdmin || m.score >= 70) {
+      // قاعدة الـ 80%: الوحدات >= 80% تظهر تلقائياً، والأقل من 80% لا تظهر إلا بترشيح الأدمن
+      if (isFromAdmin || m.score >= AUTO_PUBLISH_MATCH_THRESHOLD) {
         smartRecommendations.push({
           unit,
           match: m,
@@ -937,6 +940,7 @@ export async function adminGetDealsRoomDataAction() {
     return { authorized: false, offers: [] as any[], units: [] as any[] }
   }
 }
+
 export async function adminManageOfferLifecycleAction(payload: {
   offerId: string
   action:
@@ -1155,7 +1159,7 @@ export async function adminSendBulkRecommendationsAction(payload: {
     if (!auth) return { success: false, error: oDict.errLoginRequired }
     const { supabase } = auth
 
-    const threshold = payload.minScore || 65
+    const threshold = payload.minScore || 60
 
     const [{ data: unit }, { data: allLeads }] = await Promise.all([
       supabase
@@ -1181,7 +1185,8 @@ export async function adminSendBulkRecommendationsAction(payload: {
         continue
       }
       const m = calculateSmartMatch(unit, lead, undefined, locale)
-      if (m.score >= threshold) {
+      // نرشح يدوياً فقط لمن هم بين 60% و 79% (لأن >= 80% منشورة لديهم تلقائياً)
+      if (m.score >= threshold && m.score < AUTO_PUBLISH_MATCH_THRESHOLD) {
         await adminSendRecommendationAction({
           propertyId: unit.id,
           leadId: lead.id,
@@ -1238,9 +1243,35 @@ export async function adminCreateOfficialOfferAction(payload: {
       }
     }
 
+    // التحقق من عدم وجود عرض مقبول مسبقاً على نفس الوحدة
+    const { data: lockedCheck } = await supabase
+      .from('property_offers')
+      .select('id')
+      .eq('property_id', unit.id)
+      .eq('status', 'accepted')
+      .limit(1)
+
+    if (lockedCheck && lockedCheck.length > 0) {
+      return {
+        success: false,
+        error: oDict.errUnitAlreadyLocked,
+      }
+    }
+
     const match = calculateSmartMatch(unit, lead, undefined, locale)
     const cleanCash =
       Math.round(Number(payload.offeredCash)) || Number(unit.paid_amount) || 0
+
+    let buyerUserId = lead.user_id || null
+    if (!buyerUserId && lead.phone) {
+      const { data: matchedUser } = await supabase
+        .from('users')
+        .select('id')
+        .eq('phone', String(lead.phone).trim())
+        .limit(1)
+        .maybeSingle()
+      if (matchedUser?.id) buyerUserId = String(matchedUser.id)
+    }
 
     const { data: existingOffer } = await supabase
       .from('property_offers')
@@ -1254,6 +1285,8 @@ export async function adminCreateOfficialOfferAction(payload: {
       await supabase
         .from('property_offers')
         .update({
+          buyer_user_id: buyerUserId,
+          seller_user_id: unit.user_id || null,
           offered_cash: cleanCash,
           status: 'pending_seller',
           diff_reasons: match.differences,
@@ -1264,7 +1297,7 @@ export async function adminCreateOfficialOfferAction(payload: {
       await supabase.from('property_offers').insert({
         property_id: unit.id,
         lead_id: lead.id,
-        buyer_user_id: lead.user_id || null,
+        buyer_user_id: buyerUserId,
         seller_user_id: unit.user_id || null,
         buyer_name: lead.name || '',
         buyer_phone: lead.phone || '',
@@ -1287,16 +1320,31 @@ export async function adminCreateOfficialOfferAction(payload: {
         .eq('id', unit.id)
     }
 
+    const notifs: any[] = []
     if (unit.user_id) {
+      notifs.push({
+        user_id: unit.user_id,
+        title: `💰 ${oDict.sellerNewOfferNotifTitle} (${sanitizeGeorgiaProjectTitle(unit.project_name)})`,
+        message: `$${cleanCash.toLocaleString('en-US')}`,
+        type: 'new_offer',
+        link: `/account/offers?role=seller&unitId=${unit.id}`,
+        is_read: false,
+      })
+    }
+    if (buyerUserId) {
+      notifs.push({
+        user_id: buyerUserId,
+        title: `✅ ${oDict.offerSubmittedSuccess}`,
+        message: `${sanitizeGeorgiaProjectTitle(unit.project_name)} — $${cleanCash.toLocaleString('en-US')}`,
+        type: 'new_offer',
+        link: '/account/offers?role=buyer',
+        is_read: false,
+      })
+    }
+
+    if (notifs.length > 0) {
       try {
-        await supabase.from('notifications').insert({
-          user_id: unit.user_id,
-          title: `💰 ${oDict.sellerNewOfferNotifTitle} (${sanitizeGeorgiaProjectTitle(unit.project_name)})`,
-          message: `$${cleanCash.toLocaleString('en-US')}`,
-          type: 'new_offer',
-          link: `/account/offers?role=seller&unitId=${unit.id}`,
-          is_read: false,
-        })
+        await supabase.from('notifications').insert(notifs)
       } catch {}
     }
 

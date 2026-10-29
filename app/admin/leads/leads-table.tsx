@@ -22,7 +22,6 @@ import {
   Wallet,
   X,
 } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
 import {
   Card,
   CardContent,
@@ -77,9 +76,6 @@ export default function LeadsClientTable({
   const propAdminDict = adminDict.propertiesAdmin || {}
   const dashDict = adminDict.dashboard || {}
   const sm = adminDict.smartMatch || {}
-  const buyerDict =
-    (dict?.accountComponents as Record<string, any>)?.buyer || {}
-  const matchPrefix = sm.matchScorePrefix || buyerDict.matchScorePrefix || ""
 
   function getMatchedUnitsForLead(lead: BuyerLead) {
     if (!units || units.length === 0) return []
@@ -184,27 +180,27 @@ export default function LeadsClientTable({
     {
       value: "new",
       label: t.statuses?.new,
-      badge: "bg-blue-100 text-blue-800",
+      badge: "bg-blue-50 text-blue-900 border-blue-200",
     },
     {
       value: "contacted",
       label: t.statuses?.contacted,
-      badge: "bg-amber-100 text-amber-800",
+      badge: "bg-amber-50 text-amber-900 border-amber-200",
     },
     {
       value: "matched",
       label: t.statuses?.matched,
-      badge: "bg-purple-100 text-purple-800",
+      badge: "bg-purple-50 text-purple-900 border-purple-200",
     },
     {
       value: "closed",
       label: t.statuses?.closed,
-      badge: "bg-emerald-100 text-emerald-800",
+      badge: "bg-emerald-50 text-[#105C50] border-emerald-200",
     },
     {
       value: "archived",
       label: t.statuses?.archived,
-      badge: "bg-gray-100 text-gray-600",
+      badge: "bg-gray-100 text-gray-700 border-gray-200",
     },
   ]
 
@@ -487,7 +483,7 @@ export default function LeadsClientTable({
         </div>
       </div>
 
-      {/* 1. عرض الموبايل */}
+      {/* 1. عرض الموبايل (محافظ عليه بالكامل بدون تكرار شارة الحالة) */}
       <div className="space-y-3 md:hidden">
         {filtered.length === 0 ? (
           <div className="rounded-xl border border-gray-200 bg-white p-8 text-center text-xs text-gray-400">
@@ -508,7 +504,6 @@ export default function LeadsClientTable({
               leadsPrompts,
             })
             const matchedUnits = getMatchedUnitsForLead(lead)
-            const topUnitScore = matchedUnits[0]?.match.score || 0
             const typesText = Array.isArray(lead.unit_types)
               ? lead.unit_types.join("، ")
               : "—"
@@ -590,32 +585,26 @@ export default function LeadsClientTable({
                       </div>
                     </div>
                   </div>
-
-                  <Badge className={`shrink-0 text-[10px] ${stObj.badge}`}>
-                    {stObj.label}
-                  </Badge>
                 </div>
 
-                {matchedUnits.length > 0 && (
-                  <div className="mt-2">
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  {matchedUnits.length > 0 && (
                     <button
                       type="button"
                       onClick={() => setSmartMatchLead(lead)}
-                      className="inline-flex items-center gap-1 rounded-md border border-teal-400 bg-teal-50 px-2 py-0.5 text-[10px] font-extrabold text-[#105C50] transition hover:bg-[#105C50] hover:text-white"
+                      className="inline-flex items-center gap-1 rounded-md border border-teal-300 bg-teal-50/80 px-2 py-0.5 text-[10px] font-extrabold text-[#105C50] transition hover:bg-[#105C50] hover:text-white"
                     >
                       <span>🎯</span>
                       <span>
-                        {matchedUnits.length} {sm.matchedUnitsShort} ·{" "}
-                        {matchPrefix} {topUnitScore}%
+                        {matchedUnits.length} {sm.matchedUnitsShort}
                       </span>
                     </button>
-                  </div>
-                )}
-
-                {renderLeadOfferBadges(lead, parsed)}
+                  )}
+                  {renderLeadOfferBadges(lead, parsed)}
+                </div>
 
                 {parsed.readinessBadge && (
-                  <div className="mt-2.5">
+                  <div className="mt-2">
                     <span
                       className={`inline-block rounded-lg px-2.5 py-1 text-[11px] font-extrabold ${parsed.readinessBadge.className}`}
                     >
@@ -712,10 +701,14 @@ export default function LeadsClientTable({
                         })
                       }
                     }}
-                    className="h-8 w-full rounded-lg border border-gray-200 bg-gray-50/70 px-2 text-xs font-bold text-[#0a1122] focus:border-[#105C50] focus:outline-none"
+                    className={`h-8 w-full rounded-lg border px-2 text-xs font-extrabold focus:outline-none ${stObj.badge}`}
                   >
                     {leadStatuses.map((st) => (
-                      <option key={st.value} value={st.value}>
+                      <option
+                        key={st.value}
+                        value={st.value}
+                        className="bg-white text-[#0a1122]"
+                      >
                         {st.label}
                       </option>
                     ))}
@@ -792,10 +785,10 @@ export default function LeadsClientTable({
         )}
       </div>
 
-      {/* 2. عرض الكمبيوتر */}
+      {/* 2. عرض الكمبيوتر — جدول Enterprise موحد ونظيف بدون تكرار */}
       <Card className="hidden border-gray-200/80 bg-white shadow-2xs md:block">
-        <CardHeader className="border-b border-gray-100">
-          <CardTitle className="text-base font-extrabold">
+        <CardHeader className="border-b border-gray-100 px-5 py-3.5">
+          <CardTitle className="text-sm font-extrabold text-[#0a1122] sm:text-base">
             {t.allOrdersTitle} ({filtered.length})
           </CardTitle>
           <CardDescription className="text-xs">
@@ -804,18 +797,18 @@ export default function LeadsClientTable({
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full text-start text-xs sm:text-sm">
-              <thead className="bg-gray-50 text-xs text-gray-500">
+            <table className="w-full text-start text-xs">
+              <thead className="border-b border-gray-100 bg-gray-50/80 text-[11px] font-extrabold text-gray-500">
                 <tr>
-                  <th className="px-5 py-4 font-bold">{t.colBuyer}</th>
-                  <th className="px-5 py-4 font-bold">{t.colCash}</th>
-                  <th className="px-5 py-4 font-bold">{t.colTarget}</th>
-                  <th className="px-5 py-4 font-bold">{t.colDate}</th>
-                  <th className="px-5 py-4 font-bold">{t.colStatus}</th>
-                  <th className="px-5 py-4 font-bold">{t.colAction}</th>
+                  <th className="px-4 py-3.5">{t.colBuyer}</th>
+                  <th className="px-4 py-3.5">{t.colCash}</th>
+                  <th className="px-4 py-3.5">{t.colTarget}</th>
+                  <th className="px-4 py-3.5">{t.colDate}</th>
+                  <th className="px-4 py-3.5">{t.colStatus}</th>
+                  <th className="px-4 py-3.5">{t.colAction}</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-gray-100">
                 {filtered.length === 0 ? (
                   <tr>
                     <td
@@ -840,7 +833,6 @@ export default function LeadsClientTable({
                       leadsPrompts,
                     })
                     const matchedUnits = getMatchedUnitsForLead(lead)
-                    const topUnitScore = matchedUnits[0]?.match.score || 0
                     const typesText = Array.isArray(lead.unit_types)
                       ? lead.unit_types.join("، ")
                       : "—"
@@ -862,39 +854,36 @@ export default function LeadsClientTable({
                       <tr
                         id={`lead-row-${lead.id}`}
                         key={lead.id}
-                        className={`border-t border-gray-100 transition-colors ${
+                        className={`transition-colors ${
                           isRowLoading
                             ? "bg-emerald-50/40 opacity-70"
                             : isHighlighted
                               ? "bg-emerald-50/70 ring-2 ring-inset ring-[#105C50]"
                               : parsed.isUnitLead
-                                ? "bg-orange-50/25 hover:bg-orange-50/50"
-                                : "hover:bg-gray-50/50"
+                                ? "bg-orange-50/20 hover:bg-orange-50/40"
+                                : "hover:bg-gray-50/60"
                         }`}
                       >
-                        <td className="px-5 py-4">
+                        <td className="max-w-[240px] px-4 py-3.5 align-middle">
                           <div className="flex flex-wrap items-center gap-1.5 font-extrabold text-[#0a1122]">
-                            <span>{lead.name}</span>
+                            <span className="text-[13px]">{lead.name}</span>
                             {parsed.isUnitLead ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2.5 py-0.5 text-[10px] font-extrabold text-orange-800">
+                              <span className="inline-flex items-center gap-1 rounded-md bg-orange-100 px-2 py-0.5 text-[10px] font-extrabold text-orange-800">
                                 <Flame className="size-3 fill-orange-500 text-orange-600" />
                                 {t.unitBadge} {parsed.unitCode || ""}
                               </span>
                             ) : (
-                              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-bold text-gray-600">
+                              <span className="rounded-md bg-gray-100 px-2 py-0.5 text-[10px] font-bold text-gray-600">
                                 {t.generalTab}
                               </span>
                             )}
                             {isRowLoading && (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-[#105C50] px-2 py-0.5 text-[10px] font-bold text-white">
-                                <Loader2 className="size-3 animate-spin" />
-                                {t.savingBtn}
-                              </span>
+                              <Loader2 className="size-3.5 animate-spin text-[#105C50]" />
                             )}
                           </div>
                           <div
                             dir="ltr"
-                            className="mt-1 flex items-center justify-start gap-1 text-start text-xs font-semibold text-gray-600"
+                            className="mt-0.5 flex items-center justify-start gap-1 text-start font-mono text-[11px] font-semibold text-gray-600"
                           >
                             <span>{lead.phone}</span>
                             {phoneOk && (
@@ -907,7 +896,7 @@ export default function LeadsClientTable({
                             )}
                           </div>
                           {lead.email && (
-                            <div className="flex items-center gap-1 text-[11px] text-gray-400">
+                            <div className="mt-0.5 flex items-center gap-1 truncate text-[10.5px] text-gray-400">
                               <span className="truncate">{lead.email}</span>
                               {emailOk && (
                                 <span
@@ -921,24 +910,26 @@ export default function LeadsClientTable({
                               )}
                             </div>
                           )}
-                          {matchedUnits.length > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => setSmartMatchLead(lead)}
-                              className="mt-1.5 inline-flex items-center gap-1 rounded-md border border-teal-400 bg-teal-50 px-2 py-0.5 text-[10px] font-extrabold text-[#105C50] transition hover:bg-[#105C50] hover:text-white"
-                            >
-                              <span>🎯</span>
-                              <span>
-                                {matchedUnits.length} {sm.matchedUnitsShort} ·{" "}
-                                {matchPrefix} {topUnitScore}%
-                              </span>
-                            </button>
-                          )}
+
+                          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                            {matchedUnits.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => setSmartMatchLead(lead)}
+                                className="inline-flex items-center gap-1 rounded-md border border-teal-300 bg-teal-50/80 px-2 py-0.5 text-[10px] font-extrabold text-[#105C50] transition hover:bg-[#105C50] hover:text-white"
+                              >
+                                <span>🎯</span>
+                                <span>
+                                  {matchedUnits.length} {sm.matchedUnitsShort}
+                                </span>
+                              </button>
+                            )}
+                          </div>
                           {renderLeadOfferBadges(lead, parsed)}
                         </td>
 
-                        <td className="px-5 py-4">
-                          <div className="font-extrabold text-[#105C50]">
+                        <td className="px-4 py-3.5 align-middle whitespace-nowrap">
+                          <div className="text-[13px] font-black text-[#105C50] tabular-nums">
                             {t.cashLabel}{" "}
                             <span dir="ltr">
                               {Number(
@@ -947,7 +938,7 @@ export default function LeadsClientTable({
                             </span>{" "}
                             {leadCur}
                           </div>
-                          <div className="mt-1 text-xs text-gray-500">
+                          <div className="mt-1 text-[11px] text-gray-500 tabular-nums">
                             {t.installmentLabel}{" "}
                             <span dir="ltr">
                               {Number(lead.max_installment || 0).toLocaleString(
@@ -958,11 +949,11 @@ export default function LeadsClientTable({
                           </div>
                         </td>
 
-                        <td className="max-w-[300px] px-5 py-4">
+                        <td className="max-w-[280px] px-4 py-3.5 align-middle">
                           <div className="font-extrabold text-[#0a1122]">
                             {parsed.cleanTargetUnit}
                           </div>
-                          <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-gray-500">
+                          <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-gray-500">
                             <span>
                               {typesText}{" "}
                               {lead.min_rooms ? `· +${lead.min_rooms}` : ""}
@@ -985,48 +976,49 @@ export default function LeadsClientTable({
 
                         <td
                           dir="ltr"
-                          className="px-5 py-4 text-start text-xs text-gray-500"
+                          className="px-4 py-3.5 text-start align-middle text-xs text-gray-500 whitespace-nowrap"
                         >
                           {new Date(lead.created_at).toLocaleDateString(
                             "en-GB"
                           )}
                         </td>
 
-                        <td className="px-5 py-4">
-                          <div className="flex flex-col gap-1.5">
-                            <Badge className={`w-fit ${stObj.badge}`}>
-                              {stObj.label}
-                            </Badge>
-                            <select
-                              disabled={pending}
-                              value={currentSt}
-                              onChange={(e) => {
-                                const nextSt = e.target.value
-                                if (nextSt !== currentSt) {
-                                  setConfirmAction({
-                                    type: "status",
-                                    lead,
-                                    newStatus: nextSt,
-                                  })
-                                }
-                              }}
-                              className="h-8 rounded-lg border border-gray-200 bg-white px-2 text-xs font-bold text-[#0a1122] focus:border-[#105C50] focus:outline-none disabled:opacity-50"
-                            >
-                              {leadStatuses.map((st) => (
-                                <option key={st.value} value={st.value}>
-                                  {st.label}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
+                        {/* قائمة حالة واحدة ملونة ونظيفة بدون تكرار الشارة فوقها */}
+                        <td className="px-4 py-3.5 align-middle">
+                          <select
+                            disabled={pending}
+                            value={currentSt}
+                            onChange={(e) => {
+                              const nextSt = e.target.value
+                              if (nextSt !== currentSt) {
+                                setConfirmAction({
+                                  type: "status",
+                                  lead,
+                                  newStatus: nextSt,
+                                })
+                              }
+                            }}
+                            className={`h-8 rounded-lg border px-2.5 text-[11px] font-extrabold transition focus:outline-none ${stObj.badge}`}
+                          >
+                            {leadStatuses.map((st) => (
+                              <option
+                                key={st.value}
+                                value={st.value}
+                                className="bg-white text-[#0a1122]"
+                              >
+                                {st.label}
+                              </option>
+                            ))}
+                          </select>
                         </td>
 
-                        <td className="px-5 py-4">
-                          <div className="flex flex-wrap items-center gap-1.5">
+                        {/* شريط إجراءات أفقي نظيف في سطر واحد */}
+                        <td className="px-4 py-3.5 align-middle whitespace-nowrap">
+                          <div className="flex items-center gap-1.5">
                             <button
                               type="button"
                               onClick={() => setDetailsLead(lead)}
-                              className="inline-flex h-8 items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 text-xs font-bold text-[#0a1122] transition hover:border-[#105C50] hover:bg-gray-50"
+                              className="inline-flex h-8 items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 text-[11px] font-bold text-[#0a1122] transition hover:border-[#105C50] hover:bg-gray-50"
                             >
                               <Eye className="size-3.5 text-[#105C50]" />
                               <span>
@@ -1043,10 +1035,10 @@ export default function LeadsClientTable({
                                       : `/opportunities?q=${encodeURIComponent(parsed.unitCode || parsed.cleanTargetUnit)}`
                                   }
                                   target="_blank"
-                                  className="inline-flex h-8 items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 text-xs font-bold text-[#105C50] transition hover:bg-emerald-100"
+                                  title={t.unitBtn}
+                                  className="inline-flex size-8 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-[#105C50] transition hover:bg-emerald-100"
                                 >
                                   <ExternalLink className="size-3.5" />
-                                  <span>{t.unitBtn}</span>
                                 </Link>
 
                                 <Link
@@ -1056,7 +1048,7 @@ export default function LeadsClientTable({
                                       : `/admin/properties`
                                   }
                                   title={dict.admin?.shell?.nav?.properties}
-                                  className="inline-flex h-8 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 px-2 text-[#0a1122] transition hover:bg-gray-100"
+                                  className="inline-flex size-8 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-[#0a1122] transition hover:bg-gray-100"
                                 >
                                   <Building2 className="size-3.5 text-[#105C50]" />
                                 </Link>
@@ -1068,10 +1060,10 @@ export default function LeadsClientTable({
                               href={`https://wa.me/${String(lead.phone).replace(/\D/g, "")}?text=${encodeURIComponent(waText)}`}
                               target="_blank"
                               rel="noreferrer"
-                              className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#25D366] px-3 text-xs font-bold text-white transition hover:opacity-90"
+                              title={t.whatsappBtn}
+                              className="inline-flex size-8 items-center justify-center rounded-lg bg-[#25D366] text-white transition hover:opacity-90"
                             >
                               <MessageCircle className="size-3.5" />
-                              <span>{t.whatsappBtn}</span>
                             </a>
 
                             <button
@@ -1083,7 +1075,7 @@ export default function LeadsClientTable({
                                   lead,
                                 })
                               }
-                              className="inline-flex h-8 items-center justify-center rounded-lg border border-gray-200 px-2 text-gray-400 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                              className="inline-flex size-8 items-center justify-center rounded-lg border border-gray-200 text-gray-400 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
                               title={t.deleteBtn}
                             >
                               <Trash2 className="size-3.5" />

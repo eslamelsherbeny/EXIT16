@@ -525,7 +525,7 @@ export default function PropertyDetailsPage() {
         />
 
         {/* 2. Specs & Description */}
-        <UnitSpecsAndDescription computedUnit={computedUnit} />
+        <UnitSpecsAndDescription computedUnit={computedUnit} locale={locale} />
 
         {/* 3. Financials Card */}
         <UnitFinancialsCard
@@ -538,7 +538,7 @@ export default function PropertyDetailsPage() {
         />
 
         {/* 4. السحر الجديد: الخريطة الـ 3D والأماكن القريبة ومخطط الشمس */}
-        <UnitLocationInsights areaId={computedUnit.rawArea} t={t} />
+        <UnitLocationInsights areaId={computedUnit.rawArea} t={t} locale={locale} />
 
         {/* 5. Same Area Banner (if applicable) */}
         {sameProjectCount > 0 && (

@@ -843,9 +843,8 @@ export function UnitLocationInsights({
 
         {/* حاوية الخريطة ثلاثية الأبعاد مع أبعاد صريحة 100% */}
         <div className="relative h-[360px] w-full overflow-hidden rounded-[18px] border border-gray-200 bg-[#edeae4] sm:h-[430px]">
-          <Map
+         <Map
             ref={mapRef}
-           
             initialViewState={{
               latitude: coords.lat,
               longitude: coords.lng,
@@ -854,8 +853,11 @@ export function UnitLocationInsights({
               bearing: -20,
             }}
             style={{ width: '100%', height: '100%' }}
-            mapStyle="https://tiles.openfreemap.org/styles/liberty"
-            onLoad={handleMapLoad}
+            mapStyle="https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json"
+            onLoad={(e) => {
+              const map = e.target;
+              map.resize();
+            }}
             attributionControl={false}
           >
             {/* دبوس الموقع البرتقالي الثلاثي الأبعاد */}

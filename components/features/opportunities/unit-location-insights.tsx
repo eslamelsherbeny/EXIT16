@@ -1,8 +1,6 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import * as maplibregl from 'maplibre-gl'
-import 'maplibre-gl/dist/maplibre-gl.css'
 import * as SunCalc from 'suncalc'
 import {
   Baby,
@@ -179,6 +177,40 @@ function formatTravelEstimate(meters: number) {
     return `walk ~${walkMin} min · transit ~${transitMin} min`
   }
   return `walk ~${walkMin} min · transit ~${transitMin} min · drive ~${driveMin} min`
+}
+
+// دالة تحميل MapLibre GL ديناميكياً من CDN لتفادي مشكلة Web Workers في Next.js 16 Turbopack
+function loadMapLibreFromCDN(): Promise<any> {
+  return new Promise((resolve, reject) => {
+    if (typeof window === 'undefined') return reject('SSR')
+    if ((window as any).maplibregl) {
+      return resolve((window as any).maplibregl)
+    }
+
+    if (!document.getElementById('maplibre-gl-css')) {
+      const link = document.createElement('link')
+      link.id = 'maplibre-gl-css'
+      link.rel = 'stylesheet'
+      link.href = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css'
+      document.head.appendChild(link)
+    }
+
+    const existingScript = document.getElementById('maplibre-gl-js')
+    if (existingScript) {
+      existingScript.addEventListener('load', () =>
+        resolve((window as any).maplibregl)
+      )
+      return
+    }
+
+    const script = document.createElement('script')
+    script.id = 'maplibre-gl-js'
+    script.src = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js'
+    script.async = true
+    script.onload = () => resolve((window as any).maplibregl)
+    script.onerror = (err) => reject(err)
+    document.head.appendChild(script)
+  })
 }
 
 // ==========================================
@@ -563,7 +595,7 @@ function SunAndDaylightInteractiveCard({
 }
 
 // ==========================================
-// 3. المكون الرئيسي: Neighborhood Score + Native MapLibre 3D Map + What's Nearby + Sun Chart
+// 3. المكون الرئيسي: Neighborhood Score + 3D Map + What's Nearby + Sun Chart
 // ==========================================
 export function UnitLocationInsights({
   areaId,
@@ -596,88 +628,89 @@ export function UnitLocationInsights({
     aqi: number
   }>({ temp: 18, aqi: 34 })
 
-  // إنشاء خريطة MapLibre 3D الأصلية مباشرة لضمان عملها 100% على Next.js 16 (Turbopack) و Vercel
+  // تشغيل خريطة MapLibre GL 3D مباشرة عبر CDN لضمان عدم تعطل الـ Web Worker في Next.js 16
   useEffect(() => {
-    if (!mapContainerRef.current) return
+    let isMounted = true
+    let map: any = null
 
-    const MapConstructor = (maplibregl as any).Map || (maplibregl as any).default?.Map
-    if (!MapConstructor) return
+    loadMapLibreFromCDN()
+      .then((maplibregl) => {
+        if (!isMounted || !mapContainerRef.current || !maplibregl) return
 
-    const map = new MapConstructor({
-      container: mapContainerRef.current,
-      style: 'https://tiles.openfreemap.org/styles/liberty',
-      center: [coords.lng, coords.lat],
-      zoom: 16.4,
-      pitch: 60,
-      bearing: -22,
-      attributionControl: false,
-    })
+        map = new maplibregl.Map({
+          container: mapContainerRef.current,
+          style: 'https://tiles.openfreemap.org/styles/liberty',
+          center: [coords.lng, coords.lat],
+          zoom: 16.4,
+          pitch: 60,
+          bearing: -22,
+          attributionControl: false,
+        })
 
-    mapInstanceRef.current = map
+        mapInstanceRef.current = map
 
-    const apply3DBuildings = () => {
-      try {
-        map.resize()
-        const style = map.getStyle()
-        if (!style || !style.layers) return
+        const enhance3DBuildings = () => {
+          try {
+            map.resize()
+            const style = map.getStyle()
+            if (!style || !style.layers) return
 
-        const sources = style.sources || {}
-        const vectorSourceId =
-          Object.keys(sources).find((k) => sources[k]?.type === 'vector') ||
-          'openmaptiles'
+            const sources = style.sources || {}
+            const vectorSourceId =
+              Object.keys(sources).find((k) => sources[k]?.type === 'vector') ||
+              'openmaptiles'
 
-        // تلوين أي طبقة مباني موجودة باللون البيج الدافئ مثل sivrce.ge
-        let hasExtrusion = false
-        for (const layer of style.layers) {
-          if (layer.type === 'fill-extrusion') {
-            hasExtrusion = true
-            map.setPaintProperty(layer.id, 'fill-extrusion-color', '#d6c3b1')
-            map.setPaintProperty(layer.id, 'fill-extrusion-opacity', 0.94)
+            let hasExtrusion = false
+            for (const layer of style.layers) {
+              if (layer.type === 'fill-extrusion') {
+                hasExtrusion = true
+                map.setPaintProperty(layer.id, 'fill-extrusion-color', '#d6c3b1')
+                map.setPaintProperty(layer.id, 'fill-extrusion-opacity', 0.94)
+              }
+            }
+
+            if (!hasExtrusion && !map.getLayer('aqar-3d-buildings-extrusion')) {
+              map.addLayer({
+                id: 'aqar-3d-buildings-extrusion',
+                source: vectorSourceId,
+                'source-layer': 'building',
+                type: 'fill-extrusion',
+                minzoom: 13,
+                paint: {
+                  'fill-extrusion-color': '#d6c3b1',
+                  'fill-extrusion-height': [
+                    'coalesce',
+                    ['get', 'render_height'],
+                    ['get', 'height'],
+                    18,
+                  ],
+                  'fill-extrusion-base': [
+                    'coalesce',
+                    ['get', 'render_min_height'],
+                    ['get', 'min_height'],
+                    0,
+                  ],
+                  'fill-extrusion-opacity': 0.94,
+                },
+              })
+            }
+          } catch (e) {
+            console.warn('3D building layer notice:', e)
           }
         }
 
-        // إضافة طبقة المباني المجسمة ثلاثية الأبعاد صراحةً لو غير مفعلة
-        if (!hasExtrusion && !map.getLayer('aqar-3d-buildings-extrusion')) {
-          map.addLayer({
-            id: 'aqar-3d-buildings-extrusion',
-            source: vectorSourceId,
-            'source-layer': 'building',
-            type: 'fill-extrusion',
-            minzoom: 13,
-            paint: {
-              'fill-extrusion-color': '#d6c3b1',
-              'fill-extrusion-height': [
-                'coalesce',
-                ['get', 'render_height'],
-                ['get', 'height'],
-                18,
-              ],
-              'fill-extrusion-base': [
-                'coalesce',
-                ['get', 'render_min_height'],
-                ['get', 'min_height'],
-                0,
-              ],
-              'fill-extrusion-opacity': 0.94,
-            },
-          })
-        }
-      } catch (err) {
-        console.warn('Map 3D style apply error:', err)
-      }
-    }
-
-    map.on('load', apply3DBuildings)
-    map.on('style.load', apply3DBuildings)
-
-    const resizeTimer = setTimeout(() => {
-      map.resize()
-    }, 350)
+        map.on('load', enhance3DBuildings)
+      })
+      .catch((err) => {
+        console.error('Failed to load MapLibre:', err)
+      })
 
     return () => {
-      clearTimeout(resizeTimer)
-      map.remove()
-      mapInstanceRef.current = null
+      isMounted = false
+      if (map) {
+        map.remove()
+        mapInstanceRef.current = null
+      }
     }
   }, [coords.lat, coords.lng])
 
@@ -852,10 +885,11 @@ export function UnitLocationInsights({
           dir="ltr"
           className="relative h-[360px] w-full overflow-hidden rounded-[18px] border border-gray-200 bg-[#edeae4] sm:h-[430px]"
         >
-          {/* الـ Div الخاص بـ MapLibre GL الأصلي */}
+          {/* الـ Div الخاص بـ MapLibre GL */}
           <div
             ref={mapContainerRef}
-            className="absolute inset-0 h-full w-full"
+            style={{ width: '100%', height: '100%' }}
+            className="absolute inset-0"
           />
 
           {/* دبوس الموقع البرتقالي الثلاثي الأبعاد في منتصف الخريطة */}

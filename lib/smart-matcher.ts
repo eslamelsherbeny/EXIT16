@@ -13,15 +13,50 @@ export type { GeorgiaRegionCode }
 export type MatchableUnit = {
   id: string
   user_id?: string | null
+  listing_category?:
+    | 'exit'
+    | 'sale'
+    | 'rent_monthly'
+    | 'rent_daily'
+    | 'pledge'
+    | string
+    | null
+  rent_price?: number | null
+  rent_period?: string | null
   project_name?: string | null
   developer_name?: string | null
   area?: string | null
+  exact_street?: string | null
+  house_number?: string | null
+  cadastral_code?: string | null
   unit_type?: string | null
   size?: number | null
+  kitchen_area?: number | null
+  balcony_area?: number | null
+  loggia_area?: number | null
+  terrace_area?: number | null
+  garden_size?: number | null
   rooms?: number | null
+  bedrooms?: number | null
   bathrooms?: number | null
+  floor_number?: number | string | null
+  total_floors?: number | null
+  max_guests?: number | null
   finishing?: string | null
+  building_status?: string | null
+  building_series?: string | null
+  floor_type?: string | null
+  heating_type?: string | null
+  building_material?: string | null
+  year_built?: number | null
   delivery_status?: string | null
+  features?: string[] | null
+  video_url?: string | null
+  tour_3d_url?: string | null
+  allow_online_viewing?: boolean | null
+  installment_sale_possible?: boolean | null
+  exchange_possible?: boolean | null
+  is_exclusive?: boolean | null
   contract_price?: number | null
   paid_amount?: number | null
   market_price?: number | null
@@ -37,11 +72,13 @@ export type MatchableUnit = {
   images?: string[] | null
   name?: string | null
   phone?: string | null
+  contact_messengers?: string[] | null
 }
 
 export type MatchableBuyer = {
   id: string
   user_id?: string | null
+  target_category?: string | null
   name?: string | null
   phone?: string | null
   email?: string | null
@@ -251,7 +288,7 @@ function getMatcherDict(locale: string = 'ar') {
     areaDiff: smDict.areaDiff || offersDict.diffArea || '',
     typeMatch: smDict.typeMatch || offersDict.matchType || '',
     typeDiff: smDict.typeDiff || offersDict.diffType || '',
-    roomsMatch: smDict.roomsMatch || offersDict.matchRooms || '',
+    roomsMatch: smDict.roomsMatch || offersDict.roomsMatch || '',
     roomsDiff: smDict.roomsDiff || offersDict.diffRooms || '',
     buyerAskedRooms: smDict.buyerAskedRooms || '',
     deliveryDiff: smDict.deliveryDiff || offersDict.diffDelivery || '',
@@ -318,7 +355,10 @@ export function cleanPreferredAreasList(
 }
 
 export function getUnitPricingGuardrails(unit: MatchableUnit) {
-  const requiredCash = Math.max(0, Number(unit.paid_amount) || 0)
+  const requiredCash = Math.max(
+    0,
+    Number(unit.paid_amount || unit.contract_price || unit.rent_price) || 0
+  )
   const rawSellerDiscount = Math.max(0, Number(unit.discount_amount) || 0)
   const sellerAllowsDiscount = Boolean(
     unit.willing_to_discount || rawSellerDiscount > 0
@@ -390,6 +430,25 @@ export function calculateSmartMatch(
   const guardrails = getUnitPricingGuardrails(unit)
   const contractPrice = Number(unit.contract_price) || guardrails.requiredCash
   const developerPenaltyEstimate = Math.round(contractPrice * 0.125)
+
+  // وحدات الإيجار لا تدخل في رادار التنازل التلقائي للمشترين
+  const cat = String(unit.listing_category || 'exit').toLowerCase()
+  if (cat === 'rent_monthly' || cat === 'rent_daily') {
+    return {
+      score: 0,
+      isAutoPilotEligible: false,
+      isNegotiableBridge: false,
+      matches: [],
+      differences: [],
+      areaRelation: 'far',
+      distanceKm: null,
+      pricingGuardrails: guardrails,
+      financialAdvisor: {
+        developerPenaltyEstimate: 0,
+        netSavedAtFullPrice: 0,
+      },
+    }
+  }
 
   const rawUnitArea = String(unit.area || '').trim()
   const areaEval = evaluateGeorgiaAreaProximity(

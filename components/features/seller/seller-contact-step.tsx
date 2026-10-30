@@ -2,11 +2,15 @@
 
 import { useEffect, useState } from 'react'
 import {
+  AlertCircle,
   CheckCircle2,
   Eye,
   EyeOff,
   Loader2,
   LogIn,
+  MessageCircle,
+  Sparkles,
+  UserCheck,
   UserPlus,
 } from 'lucide-react'
 import {
@@ -85,43 +89,67 @@ function getMsg(
   return dictVal
 }
 
-export function ContactStep({
+export function ContactSection({
+  sectionRef,
+  onHover,
+  isRentDeal,
+  loggedUser,
+  onUserAuthenticated,
+  authMode,
+  setAuthMode,
   form,
   update,
-  go,
-  errors,
-  setErrors,
-  showPassword,
-  setShowPassword,
-  loggedUser,
+  selected,
+  toggleMulti,
+  agreedTerms,
+  setAgreedTerms,
+  error,
+  missingFields,
   unitId,
   setUnitId,
   setOrderRef,
 }: {
+  sectionRef: React.RefObject<HTMLElement | null>
+  onHover: () => void
+  isRentDeal: boolean
+  loggedUser: {
+    id: string
+    name: string
+    email: string
+    phone: string
+  } | null
+  onUserAuthenticated?: (u: {
+    id: string
+    name: string
+    email: string
+    phone: string
+  }) => void
+  authMode: 'sivrce_default' | 'session' | 'register' | 'login'
+  setAuthMode: (
+    m: 'sivrce_default' | 'session' | 'register' | 'login'
+  ) => void
   form: Record<string, string>
-  update: (key: string, value: string) => void
-  go: (step: number) => void
-  errors: Record<string, string>
-  setErrors: (errs: Record<string, string>) => void
-  showPassword: boolean
-  setShowPassword: (value: boolean) => void
-  loggedUser: { id: string; name: string; email: string; phone: string } | null
-  unitId: string
-  setUnitId: (id: string) => void
-  setOrderRef: (ref: string) => void
+  update: (k: string, v: string) => void
+  selected: Record<string, string[]>
+  toggleMulti: (g: string, v: string) => void
+  agreedTerms: boolean
+  setAgreedTerms: (val: boolean) => void
+  error: string
+  missingFields: string[]
+  unitId?: string
+  setUnitId?: (id: string) => void
+  setOrderRef?: (ref: string) => void
 }) {
   const { t: dict, locale, dir } = useTranslation()
+  const isAr = locale === 'ar'
   const t = dict.sell.contactStep
   const v = (dict.sell.validation as Record<string, string>) || {}
-  const sharedT = dict.sell.shared
 
-  const [authTab, setAuthTab] = useState<'session' | 'register' | 'login'>(
-    loggedUser ? 'session' : 'register'
-  )
-
-  useEffect(() => {
-    if (loggedUser) setAuthTab('session')
-  }, [loggedUser])
+  const [showPassword, setShowPassword] = useState(false)
+  const [localErrors, setLocalErrors] = useState<Record<string, string>>({})
+  const [stepError, setStepError] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [accountVerifiedMsg, setAccountVerifiedMsg] = useState('')
 
   const [conflictState, setConflictState] = useState<
     | null
@@ -143,52 +171,24 @@ export function ContactStep({
   const [existingPass, setExistingPass] = useState('')
   const [showExistingPass, setShowExistingPass] = useState(false)
   const [recoveryLinkSent, setRecoveryLinkSent] = useState(false)
-  const [stepError, setStepError] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
-    setErrors({})
+    setLocalErrors({})
     setStepError('')
-  }, [locale])
+  }, [locale, authMode])
 
-  const proceedToStep3 = (data: {
-    unitId?: string
-    orderRef?: string
-    name?: string
-    email?: string
-    phone?: string
-  }) => {
-    if (data.unitId) setUnitId(data.unitId)
-    if (data.orderRef) setOrderRef(data.orderRef)
-
-    if (data.name) update('name', data.name)
-    if (data.email) update('email', data.email)
-    if (data.phone) update('phone', data.phone)
-
-    if (!form.developerDetails && form.developer) {
-      update('developerDetails', form.developer)
-    }
-    if (!form.projectDetails && form.project) {
-      update('projectDetails', form.project)
-    }
-
-    go(3)
-  }
-
-  const handleStep2Submit = async () => {
+  // التحقق من الحساب أو تسجيل الدخول المباشر داخل قسم التواصل
+  const handleVerifyOrSwitchAccount = async () => {
     setStepError('')
+    setAccountVerifiedMsg('')
     const nextErrors: Record<string, string> = {}
-
-    if (form.owner !== 'yes') {
-      nextErrors.owner = getMsg(locale, v.confirmRequired, 'confirmRequired')
-    }
 
     const cleanPhoneDigits = toEnglishDigits(form.phone ?? '').replace(
       /[\s-]/g,
       ''
     )
 
-    if (authTab === 'register') {
+    if (authMode === 'register') {
       if (!form.name?.trim())
         nextErrors.name = getMsg(locale, v.required, 'required')
       if (!/^[0-9]{7,15}$/.test(cleanPhoneDigits))
@@ -197,14 +197,14 @@ export function ContactStep({
         nextErrors.email = getMsg(locale, v.invalidEmail, 'invalidEmail')
       if ((form.password?.length ?? 0) < 8)
         nextErrors.password = getMsg(locale, v.shortPassword, 'shortPassword')
-    } else if (authTab === 'login') {
+    } else if (authMode === 'login') {
       if (!form.loginIdentifier?.trim())
         nextErrors.loginIdentifier = getMsg(
           locale,
           v.loginIdRequired,
           'loginIdRequired'
         )
-      if (!form.loginPassword?.trim())
+      if (!form.loginPassword?.trim() && !form.password?.trim())
         nextErrors.loginPassword = getMsg(
           locale,
           v.loginPassRequired,
@@ -213,21 +213,23 @@ export function ContactStep({
     }
 
     if (Object.keys(nextErrors).length > 0) {
-      setErrors(nextErrors)
+      setLocalErrors(nextErrors)
       return
     }
 
-    setErrors({})
+    setLocalErrors({})
     setIsLoading(true)
 
     try {
       const activePhoneCode = (form.countryCode || '995').replace('+', '')
-      const fullPhone = cleanPhoneDigits
-        ? `+${activePhoneCode}${cleanPhoneDigits.replace(/^0+/, '')}`
-        : ''
+      const fullPhone = cleanPhoneDigits.startsWith('+')
+        ? cleanPhoneDigits
+        : cleanPhoneDigits
+          ? `+${activePhoneCode}${cleanPhoneDigits.replace(/^0+/, '')}`
+          : ''
 
       const res = await processSellerStep2Action({
-        mode: authTab,
+        mode: authMode === 'login' ? 'login' : 'register',
         unitCountry: 'GE',
         userCountry: form.userCountry || 'GE',
         developer: form.developer || '',
@@ -238,31 +240,45 @@ export function ContactStep({
         paidAmount:
           Number(toEnglishDigits(form.paidAmount || '').replace(/,/g, '')) || 0,
         marketPrice:
-          Number(
-            toEnglishDigits(form.currentDeveloperPrice || '').replace(/,/g, '')
-          ) || 0,
+          Number(toEnglishDigits(form.marketPrice || '').replace(/,/g, '')) || 0,
         name: form.name,
         phone: fullPhone,
         email: form.email,
-        password: authTab === 'login' ? form.loginPassword : form.password,
+        password:
+          authMode === 'login'
+            ? form.loginPassword || form.password
+            : form.password,
         loginIdentifier: form.loginIdentifier,
         existingUnitId: unitId || undefined,
       })
 
       if (res.status === 'ok') {
-        proceedToStep3({
-          unitId: res.unitId,
-          orderRef: res.orderRef,
-          name: res.userName,
-          email: res.userEmail,
-          phone: res.userPhone,
-        })
+        if (res.unitId && setUnitId) setUnitId(res.unitId)
+        if (res.orderRef && setOrderRef) setOrderRef(res.orderRef)
+        if (res.userName) update('name', res.userName)
+        if (res.userEmail) update('email', res.userEmail)
+        if (res.userPhone) update('phone', res.userPhone)
+
+        if (res.userId && onUserAuthenticated) {
+          onUserAuthenticated({
+            id: res.userId,
+            name: res.userName || form.name,
+            email: res.userEmail || form.email,
+            phone: res.userPhone || fullPhone,
+          })
+        }
+        setAuthMode('sivrce_default')
+        setAccountVerifiedMsg(
+          isAr
+            ? 'تم ربط حسابك بنجاح ✓ يمكنك الآن الضغط على زر النشر (Publish)'
+            : 'Account connected successfully ✓ You can now click Publish'
+        )
         return
       }
 
       if (res.status === 'email_exists_need_password') {
-        if (res.unitId) setUnitId(res.unitId)
-        if (res.orderRef) setOrderRef(res.orderRef)
+        if (res.unitId && setUnitId) setUnitId(res.unitId)
+        if (res.orderRef && setOrderRef) setOrderRef(res.orderRef)
         setRecoveryLinkSent(false)
         setExistingPass('')
         setConflictState({
@@ -276,8 +292,8 @@ export function ContactStep({
       }
 
       if (res.status === 'phone_exists_different_email') {
-        if (res.unitId) setUnitId(res.unitId)
-        if (res.orderRef) setOrderRef(res.orderRef)
+        if (res.unitId && setUnitId) setUnitId(res.unitId)
+        if (res.orderRef && setOrderRef) setOrderRef(res.orderRef)
         setRecoveryLinkSent(false)
         setConflictState({
           type: 'phone_exists',
@@ -315,13 +331,22 @@ export function ContactStep({
         )
         return
       }
-      proceedToStep3({
-        unitId: conflictState.unitId,
-        orderRef: conflictState.orderRef,
-        name: res.user.name,
-        email: res.user.email,
-        phone: res.user.phone,
-      })
+      if (conflictState.unitId && setUnitId) setUnitId(conflictState.unitId)
+      if (conflictState.orderRef && setOrderRef)
+        setOrderRef(conflictState.orderRef)
+      update('name', res.user.name)
+      update('email', res.user.email)
+      update('phone', res.user.phone)
+      if (onUserAuthenticated) {
+        onUserAuthenticated(res.user)
+      }
+      setConflictState(null)
+      setAuthMode('sivrce_default')
+      setAccountVerifiedMsg(
+        isAr
+          ? 'تم تسجيل الدخول وربط حسابك بنجاح ✓'
+          : 'Logged in and linked successfully ✓'
+      )
     } finally {
       setIsLoading(false)
     }
@@ -352,439 +377,570 @@ export function ContactStep({
     }
   }
 
-  if (conflictState?.type === 'email_exists') {
-    return (
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 text-start sm:p-7">
-        <h3 className="text-xl font-extrabold text-[var(--brand-navy,#0a1122)]">
-          {t.emailExistsTitle}
-        </h3>
-        <p className="mt-2 text-sm leading-7 text-slate-600">
-          {t.emailExistsDesc}{' '}
-          <span className="font-semibold text-[var(--brand-navy,#0a1122)]">
-            {conflictState.email}
+  return (
+    <section
+      ref={sectionRef}
+      onMouseEnter={onHover}
+      className="scroll-mt-32 rounded-[24px] border border-slate-200/80 bg-white p-5 shadow-2xs sm:p-7"
+    >
+      {/* الهيدر الرئيسي لقسم Contact مثل sivrce.ge */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h2 className="text-lg font-black text-[#0a1122]">
+            {isAr ? '6. التواصل (Contact)' : 'Contact'}
+          </h2>
+          <p className="mt-1 text-xs text-slate-500">
+            {isRentDeal
+              ? isAr
+                ? 'الاسم ورقم الموبايل — سيتواصل معك المستأجرون هنا. اختر WhatsApp / Viber / Telegram.'
+                : 'Name and mobile — buyers will reach you here. Add WhatsApp / Viber.'
+              : isAr
+                ? 'الاسم ورقم الموبايل — (🔒 في البيع والتنازل يبقى رقمك مخفياً عن الجمهور ويظهر للإدارة فقط لحماية عمولتك).'
+                : 'Name and mobile — (🔒 Kept private for brokered sale & exit deals).'}
+          </p>
+        </div>
+
+        {loggedUser && (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-extrabold text-[#007a5a]">
+            <CheckCircle2 className="size-3.5" />
+            <span>
+              {t.connectedBadge} ({loggedUser.name.split(' ')[0]})
+            </span>
           </span>
-          .
-        </p>
-
-        <div className="mt-5">
-          <Label className="mb-2 block text-start text-sm font-bold text-[var(--brand-navy,#0a1122)]">
-            {t.yourPasswordLabel}
-          </Label>
-          <div className="relative">
-            <Input
-              type={showExistingPass ? 'text' : 'password'}
-              dir="ltr"
-              value={existingPass}
-              onChange={(e) => setExistingPass(e.target.value)}
-              className="h-12 w-full rounded-xl border-slate-200 pr-4 pl-16 text-left"
-            />
-            <button
-              type="button"
-              onClick={() => setShowExistingPass(!showExistingPass)}
-              className="absolute top-1/2 left-3.5 -translate-y-1/2 text-xs font-bold text-[#1e3a8a] hover:underline"
-            >
-              {showExistingPass ? t.hidePass : t.showPass}
-            </button>
-          </div>
-        </div>
-
-        {stepError && (
-          <p className="mt-3 text-start text-xs font-bold text-red-600">
-            {stepError}
-          </p>
         )}
-
-        {recoveryLinkSent && (
-          <p className="mt-3 text-start text-xs font-bold text-[var(--brand-primary,#007a5a)]">
-            {t.recoverySentNote}
-          </p>
-        )}
-
-        <Button
-          type="button"
-          disabled={isLoading}
-          onClick={handleVerifyExistingEmail}
-          className="mt-5 h-12 w-full rounded-xl bg-[var(--brand-primary,#007a5a)] text-sm font-bold text-white hover:bg-[var(--brand-primary-hover,#006248)]"
-        >
-          {isLoading ? t.loggingInBtn : t.loginToAccountBtn}
-        </Button>
-
-        <div className="mt-4 flex items-center justify-between">
-          <button
-            type="button"
-            onClick={() => setConflictState(null)}
-            className="text-xs font-semibold text-slate-500 hover:text-slate-800"
-          >
-            {t.editDataBtn}
-          </button>
-          <button
-            type="button"
-            disabled={isLoading}
-            onClick={handleSendRecoveryEmail}
-            className="text-xs font-bold text-[#1e3a8a] hover:underline"
-          >
-            {t.forgotPassBtn}
-          </button>
-        </div>
       </div>
-    )
-  }
 
-  if (conflictState?.type === 'phone_exists') {
-    return (
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 text-start sm:p-7">
-        <h3 className="text-xl font-extrabold text-[var(--brand-navy,#0a1122)]">
-          {t.phoneExistsTitle}
-        </h3>
-        <p className="mt-2 text-sm leading-7 text-slate-600">
-          {t.phoneExistsDesc1}{' '}
-          <strong className="font-mono text-[var(--brand-navy,#0a1122)]">
-            {conflictState.orderRef}
-          </strong>
-          {t.phoneExistsDesc2}
-        </p>
-
-        {stepError && (
-          <p className="mt-3 text-start text-xs font-bold text-red-600">
-            {stepError}
+      {/* حالة وجود تعارض في الإيميل أو الرقم (نفس اللوجيك القديم) */}
+      {conflictState?.type === 'email_exists' && (
+        <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50/40 p-5 text-start">
+          <h3 className="text-base font-extrabold text-[#0a1122]">
+            {t.emailExistsTitle}
+          </h3>
+          <p className="mt-1.5 text-xs leading-relaxed text-slate-600">
+            {t.emailExistsDesc}{' '}
+            <strong className="font-mono text-[#0a1122]">
+              {conflictState.email}
+            </strong>
           </p>
-        )}
-
-        {!recoveryLinkSent ? (
-          <div className="mt-5">
+          <div className="mt-4">
+            <Label className="mb-1.5 block text-start text-xs font-bold">
+              {t.yourPasswordLabel}
+            </Label>
+            <div className="relative">
+              <Input
+                type={showExistingPass ? 'text' : 'password'}
+                dir="ltr"
+                value={existingPass}
+                onChange={(e) => setExistingPass(e.target.value)}
+                className="h-11 rounded-xl bg-white pr-4 pl-16 text-left"
+              />
+              <button
+                type="button"
+                onClick={() => setShowExistingPass(!showExistingPass)}
+                className="absolute top-1/2 left-3 -translate-y-1/2 text-xs font-bold text-[#2563eb]"
+              >
+                {showExistingPass ? t.hidePass : t.showPass}
+              </button>
+            </div>
+          </div>
+          {stepError && (
+            <p className="mt-2 text-xs font-bold text-red-600">{stepError}</p>
+          )}
+          {recoveryLinkSent && (
+            <p className="mt-2 text-xs font-bold text-[#007a5a]">
+              {t.recoverySentNote}
+            </p>
+          )}
+          <div className="mt-4 flex flex-wrap items-center gap-3">
             <Button
               type="button"
               disabled={isLoading}
-              onClick={handleSendRecoveryEmail}
-              className="h-11 rounded-xl bg-[var(--brand-primary,#007a5a)] px-6 text-sm font-bold text-white hover:bg-[var(--brand-primary-hover,#006248)]"
+              onClick={handleVerifyExistingEmail}
+              className="h-10 rounded-xl bg-[#007a5a] px-5 text-xs font-bold text-white"
             >
-              {isLoading ? t.sendingLinkBtn : t.sendRecoveryBtn}
+              {isLoading ? t.loggingInBtn : t.loginToAccountBtn}
             </Button>
-          </div>
-        ) : (
-          <p className="mt-5 text-sm font-bold text-[var(--brand-primary,#007a5a)]">
-            {t.phoneRecoverySentNote}
-          </p>
-        )}
-
-        <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
-          <button
-            type="button"
-            onClick={() => setConflictState(null)}
-            className="text-xs font-semibold text-slate-500 hover:text-slate-800"
-          >
-            {t.useAnotherPhoneBtn}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setConflictState(null)
-              setAuthTab('login')
-            }}
-            className="text-xs font-bold text-[#1e3a8a] hover:underline"
-          >
-            {t.orLoginPageBtn}
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 bg-slate-50/80 p-1.5 sm:flex">
-        {loggedUser && (
-          <button
-            type="button"
-            onClick={() => {
-              setAuthTab('session')
-              setErrors({})
-              setStepError('')
-            }}
-            className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-bold transition sm:text-sm ${
-              authTab === 'session'
-                ? 'bg-[var(--brand-primary,#007a5a)] text-white shadow-xs'
-                : 'text-slate-600 hover:bg-white'
-            }`}
-          >
-            <CheckCircle2 className="size-4" />
-            <span>
-              {t.tabCurrentSession} ({loggedUser.name.split(' ')[0]})
-            </span>
-          </button>
-        )}
-
-        <button
-          type="button"
-          onClick={() => {
-            setAuthTab('register')
-            setErrors({})
-            setStepError('')
-          }}
-          className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-bold transition sm:text-sm ${
-            authTab === 'register'
-              ? 'bg-[var(--brand-navy,#0a1122)] text-white shadow-xs'
-              : 'text-slate-600 hover:bg-white'
-          }`}
-        >
-          <UserPlus className="size-4" />
-          <span>{t.tabNewRegister}</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            setAuthTab('login')
-            setErrors({})
-            setStepError('')
-          }}
-          className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-bold transition sm:text-sm ${
-            authTab === 'login'
-              ? 'bg-[var(--brand-navy,#0a1122)] text-white shadow-xs'
-              : 'text-slate-600 hover:bg-white'
-          }`}
-        >
-          <LogIn className="size-4" />
-          <span>{t.tabExistingLogin}</span>
-        </button>
-      </div>
-
-      {authTab === 'session' && loggedUser && (
-        <div className="rounded-2xl border border-[var(--brand-primary,#007a5a)]/30 bg-[var(--brand-primary-light,#eaf8f2)] p-5 text-start">
-          <div className="flex items-center justify-between">
-            <span className="rounded-full bg-[var(--brand-primary,#007a5a)]/10 px-3 py-1 text-xs font-bold text-[var(--brand-primary,#007a5a)]">
-              {t.connectedBadge}
-            </span>
-            <p className="text-sm font-extrabold text-[var(--brand-navy,#0a1122)]">
-              {t.welcomeUser} {loggedUser.name}
-            </p>
-          </div>
-          <p className="mt-2 text-xs leading-relaxed text-slate-600">
-            {t.sessionAutoLinkDesc}
-          </p>
-          <div className="mt-3 grid grid-cols-1 gap-2 rounded-xl bg-white p-3.5 text-xs sm:grid-cols-2">
-            <div>
-              <span className="text-slate-400">{t.phoneLabelShort} </span>
-              <strong
-                dir="ltr"
-                className="font-mono text-[var(--brand-navy,#0a1122)]"
-              >
-                {loggedUser.phone}
-              </strong>
-            </div>
-            <div>
-              <span className="text-slate-400">{t.emailLabelShort} </span>
-              <strong dir="ltr" className="text-[var(--brand-navy,#0a1122)]">
-                {loggedUser.email}
-              </strong>
-            </div>
+            <button
+              type="button"
+              onClick={handleSendRecoveryEmail}
+              className="text-xs font-bold text-[#2563eb] hover:underline"
+            >
+              {t.forgotPassBtn}
+            </button>
+            <button
+              type="button"
+              onClick={() => setConflictState(null)}
+              className="text-xs font-semibold text-slate-500 hover:underline"
+            >
+              {t.editDataBtn}
+            </button>
           </div>
         </div>
       )}
 
-      {authTab === 'register' && (
-        <>
-          <Field
-            error={errors.name}
-            label={t.nameLabel}
-            id="name"
-            value={form.name}
-            update={(value) => update('name', value)}
-          />
-
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="phone" className="text-start">
-              {t.phoneLabel}
-            </Label>
-            <div dir="ltr" className="flex items-center gap-2">
-              <CountrySelector
-                value={form.countryCode ?? '995'}
-                onChange={(code, iso) => {
-                  update('countryCode', code)
-                  if (iso) update('userCountry', iso)
-                }}
-              />
-              <Input
-                id="phone"
-                dir="ltr"
-                type="tel"
-                inputMode="tel"
-                placeholder="5xx xx xx xx"
-                value={form.phone ?? ''}
-                onChange={(event) =>
-                  update('phone', toEnglishDigits(event.target.value))
-                }
-                className={`h-12 flex-1 rounded-xl px-3 text-left ${
-                  errors.phone ? 'border-red-500 bg-red-50/20' : ''
-                }`}
-              />
-            </div>
-            {errors.phone && (
-              <p className="mt-1.5 text-start text-xs font-semibold text-red-600">
-                {errors.phone}
-              </p>
-            )}
-            <span className="text-start text-xs text-slate-500">
-              {t.phoneHelper}
-            </span>
-          </div>
-
-          <Field
-            error={errors.email}
-            label={t.emailLabel}
-            id="email"
-            type="email"
-            value={form.email}
-            update={(value) => update('email', value)}
-          />
-
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="password" className="text-start">
-              {t.passwordLabel} <span className="ms-1 text-red-500">*</span>
-            </Label>
-            <div className="relative w-full">
-              <Input
-                id="password"
-                name="password"
-                type={showPassword ? 'text' : 'password'}
-                dir="ltr"
-                value={form.password ?? ''}
-                onChange={(event) => update('password', event.target.value)}
-                className={`h-12 w-full rounded-xl border-slate-200 pr-12 pl-4 text-left ${
-                  errors.password ? 'border-red-500 bg-red-50/20' : ''
-                }`}
-              />
-              <button
+      {conflictState?.type === 'phone_exists' && (
+        <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50/40 p-5 text-start">
+          <h3 className="text-base font-extrabold text-[#0a1122]">
+            {t.phoneExistsTitle}
+          </h3>
+          <p className="mt-1.5 text-xs leading-relaxed text-slate-600">
+            {t.phoneExistsDesc1}{' '}
+            <strong className="font-mono">{conflictState.orderRef}</strong>{' '}
+            {t.phoneExistsDesc2}
+          </p>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            {!recoveryLinkSent ? (
+              <Button
                 type="button"
-                aria-label={showPassword ? t.hidePass : t.showPass}
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute top-1/2 right-3 -translate-y-1/2 text-slate-500 hover:text-[var(--brand-primary,#007a5a)]"
+                disabled={isLoading}
+                onClick={handleSendRecoveryEmail}
+                className="h-10 rounded-xl bg-[#007a5a] px-5 text-xs font-bold text-white"
               >
-                {showPassword ? (
-                  <EyeOff className="size-4" />
-                ) : (
-                  <Eye className="size-4" />
-                )}
-              </button>
-            </div>
-            {errors.password && (
-              <p className="mt-1.5 text-start text-xs font-semibold text-red-600">
-                {errors.password}
+                {isLoading ? t.sendingLinkBtn : t.sendRecoveryBtn}
+              </Button>
+            ) : (
+              <p className="text-xs font-bold text-[#007a5a]">
+                {t.phoneRecoverySentNote}
               </p>
             )}
-            <span className="text-start text-xs font-semibold leading-6 text-teal-700">
-              {t.passwordHelper}
-            </span>
+            <button
+              type="button"
+              onClick={() => setConflictState(null)}
+              className="text-xs font-semibold text-slate-500 hover:underline"
+            >
+              {t.useAnotherPhoneBtn}
+            </button>
           </div>
-        </>
+        </div>
       )}
 
-      {authTab === 'login' && (
-        <div className="flex flex-col gap-5 rounded-2xl border border-slate-200 bg-slate-50/50 p-5">
+      {/* ========================================================= */}
+      {/* 1. الفورم الأساسي النظيف المطابق لموقع sivrce.ge (يظهر أولاً) */}
+      {/* ========================================================= */}
+      {!conflictState &&
+        (authMode === 'sivrce_default' || authMode === 'session') && (
+          <div className="mt-5 space-y-5">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field
+                error={localErrors.name}
+                label={isAr ? 'الاسم (Name *)' : 'Name *'}
+                id="name"
+                placeholder="eslam elsherbeny"
+                value={form.name}
+                update={(v) => update('name', v)}
+              />
+
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="phone" className="text-start">
+                  {isAr ? 'رقم الموبايل (Mobile number *)' : 'Mobile number *'}
+                </Label>
+                <div dir="ltr" className="flex items-center gap-2">
+                  <CountrySelector
+                    value={form.countryCode ?? '995'}
+                    onChange={(code, iso) => {
+                      update('countryCode', code)
+                      if (iso) update('userCountry', iso)
+                    }}
+                  />
+                  <Input
+                    id="phone"
+                    dir="ltr"
+                    type="tel"
+                    inputMode="tel"
+                    placeholder="5XX XX XX XX"
+                    value={form.phone ?? ''}
+                    onChange={(e) =>
+                      update('phone', toEnglishDigits(e.target.value))
+                    }
+                    className={`h-12 flex-1 rounded-xl px-3 text-left font-bold ${
+                      localErrors.phone ? 'border-red-500 bg-red-50/20' : ''
+                    }`}
+                  />
+                </div>
+                {localErrors.phone && (
+                  <p className="text-start text-xs font-semibold text-red-600">
+                    {localErrors.phone}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Messengers on this number (WhatsApp / Viber / Telegram) */}
+            <div>
+              <label className="mb-2 block text-xs font-extrabold text-slate-600">
+                {isAr
+                  ? 'تطبيقات المراسلة على هذا الرقم (Messengers on this number)'
+                  : 'Messengers on this number'}
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { id: 'whatsapp', label: 'WhatsApp' },
+                  { id: 'viber', label: 'Viber' },
+                  { id: 'telegram', label: 'Telegram' },
+                ].map((msgApp) => {
+                  const active = selected.messengers?.includes(msgApp.id)
+                  return (
+                    <button
+                      key={msgApp.id}
+                      type="button"
+                      onClick={() => toggleMulti('messengers', msgApp.id)}
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-xs font-extrabold transition ${
+                        active
+                          ? 'border-[#2563eb] bg-[#2563eb] text-white shadow-2xs'
+                          : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      <MessageCircle className="size-3.5" />
+                      <span>{msgApp.label}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+      {/* ========================================================= */}
+      {/* 2. فورم تسجيل حساب مالك جديد (يظهر عند الضغط على زر حساب جديد) */}
+      {/* ========================================================= */}
+      {!conflictState && authMode === 'register' && (
+        <div className="mt-5 space-y-5 rounded-2xl border border-slate-200 bg-slate-50/60 p-5">
+          <div className="flex items-center justify-between border-b border-slate-200/80 pb-3">
+            <div className="flex items-center gap-2">
+              <UserPlus className="size-4 text-[#007a5a]" />
+              <h3 className="text-sm font-black text-[#0a1122]">
+                {t.tabNewRegister}
+              </h3>
+            </div>
+            <button
+              type="button"
+              onClick={() => setAuthMode('sivrce_default')}
+              className="text-xs font-bold text-slate-500 hover:text-[#0a1122]"
+            >
+              {isAr ? 'العودة للشكل المبسط ✕' : 'Back to simple view ✕'}
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field
+              error={localErrors.name}
+              label={t.nameLabel}
+              id="name"
+              value={form.name}
+              update={(value) => update('name', value)}
+            />
+
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="phone-reg" className="text-start">
+                {t.phoneLabel}
+              </Label>
+              <div dir="ltr" className="flex items-center gap-2">
+                <CountrySelector
+                  value={form.countryCode ?? '995'}
+                  onChange={(code, iso) => {
+                    update('countryCode', code)
+                    if (iso) update('userCountry', iso)
+                  }}
+                />
+                <Input
+                  id="phone-reg"
+                  dir="ltr"
+                  type="tel"
+                  inputMode="tel"
+                  placeholder="5xx xx xx xx"
+                  value={form.phone ?? ''}
+                  onChange={(e) =>
+                    update('phone', toEnglishDigits(e.target.value))
+                  }
+                  className={`h-12 flex-1 rounded-xl bg-white px-3 text-left ${
+                    localErrors.phone ? 'border-red-500 bg-red-50/20' : ''
+                  }`}
+                />
+              </div>
+              {localErrors.phone && (
+                <p className="text-start text-xs font-semibold text-red-600">
+                  {localErrors.phone}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field
+              error={localErrors.email}
+              label={t.emailLabel}
+              id="email"
+              type="email"
+              value={form.email}
+              update={(value) => update('email', value)}
+            />
+
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="password" className="text-start">
+                {t.passwordLabel} <span className="ms-1 text-red-500">*</span>
+              </Label>
+              <div className="relative w-full">
+                <Input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  dir="ltr"
+                  value={form.password ?? ''}
+                  onChange={(e) => update('password', e.target.value)}
+                  className={`h-12 w-full rounded-xl border-slate-200 bg-white pr-12 pl-4 text-left ${
+                    localErrors.password ? 'border-red-500 bg-red-50/20' : ''
+                  }`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute top-1/2 right-3 -translate-y-1/2 text-slate-500 hover:text-[#007a5a]"
+                >
+                  {showPassword ? (
+                    <EyeOff className="size-4" />
+                  ) : (
+                    <Eye className="size-4" />
+                  )}
+                </button>
+              </div>
+              {localErrors.password && (
+                <p className="text-start text-xs font-semibold text-red-600">
+                  {localErrors.password}
+                </p>
+              )}
+              <span className="text-start text-[11px] font-semibold text-teal-700">
+                {t.passwordHelper}
+              </span>
+            </div>
+          </div>
+
+          <TurnstileBox />
+
+          <Button
+            type="button"
+            disabled={isLoading}
+            onClick={handleVerifyOrSwitchAccount}
+            className="h-11 w-full rounded-xl bg-[#007a5a] text-xs font-extrabold text-white hover:bg-[#006248] sm:text-sm"
+          >
+            {isLoading ? (
+              <span className="inline-flex items-center gap-2">
+                <Loader2 className="size-4 animate-spin" />
+                {t.savingBtn}
+              </span>
+            ) : isAr ? (
+              'تأكيد وإنشاء الحساب للمتابعة ✓'
+            ) : (
+              'Create Account & Link Listing ✓'
+            )}
+          </Button>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* 3. فورم تسجيل الدخول بحساب آخر (يظهر عند الضغط على زر تسجيل دخول) */}
+      {/* ========================================================= */}
+      {!conflictState && authMode === 'login' && (
+        <div className="mt-5 space-y-5 rounded-2xl border border-slate-200 bg-slate-50/60 p-5">
+          <div className="flex items-center justify-between border-b border-slate-200/80 pb-3">
+            <div className="flex items-center gap-2">
+              <LogIn className="size-4 text-[#2563eb]" />
+              <h3 className="text-sm font-black text-[#0a1122]">
+                {t.tabExistingLogin}
+              </h3>
+            </div>
+            <button
+              type="button"
+              onClick={() => setAuthMode('sivrce_default')}
+              className="text-xs font-bold text-slate-500 hover:text-[#0a1122]"
+            >
+              {isAr ? 'العودة للشكل المبسط ✕' : 'Back to simple view ✕'}
+            </button>
+          </div>
+
           <p className="text-start text-xs font-semibold text-slate-600">
             {t.loginBoxDesc}
           </p>
-          <Field
-            error={errors.loginIdentifier}
-            label={t.loginIdLabel}
-            id="loginIdentifier"
-            value={form.loginIdentifier}
-            update={(value) => update('loginIdentifier', value)}
-          />
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="loginPassword" className="text-start">
-              {t.loginPassLabel}
-            </Label>
-            <div className="relative w-full">
-              <Input
-                id="loginPassword"
-                type={showPassword ? 'text' : 'password'}
-                dir="ltr"
-                value={form.loginPassword ?? ''}
-                onChange={(event) =>
-                  update('loginPassword', event.target.value)
-                }
-                className={`h-12 w-full rounded-xl border-slate-200 bg-white pr-12 pl-4 text-left ${
-                  errors.loginPassword ? 'border-red-500 bg-red-50/20' : ''
-                }`}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute top-1/2 right-3 -translate-y-1/2 text-slate-500 hover:text-[var(--brand-primary,#007a5a)]"
-              >
-                {showPassword ? (
-                  <EyeOff className="size-4" />
-                ) : (
-                  <Eye className="size-4" />
-                )}
-              </button>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field
+              error={localErrors.loginIdentifier}
+              label={t.loginIdLabel}
+              id="loginIdentifier"
+              value={form.loginIdentifier}
+              update={(value) => update('loginIdentifier', value)}
+            />
+
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="loginPassword" className="text-start">
+                {t.loginPassLabel}
+              </Label>
+              <div className="relative w-full">
+                <Input
+                  id="loginPassword"
+                  type={showPassword ? 'text' : 'password'}
+                  dir="ltr"
+                  value={form.loginPassword ?? form.password ?? ''}
+                  onChange={(e) => {
+                    update('loginPassword', e.target.value)
+                    update('password', e.target.value)
+                  }}
+                  className={`h-12 w-full rounded-xl border-slate-200 bg-white pr-12 pl-4 text-left ${
+                    localErrors.loginPassword
+                      ? 'border-red-500 bg-red-50/20'
+                      : ''
+                  }`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute top-1/2 right-3 -translate-y-1/2 text-slate-500 hover:text-[#007a5a]"
+                >
+                  {showPassword ? (
+                    <EyeOff className="size-4" />
+                  ) : (
+                    <Eye className="size-4" />
+                  )}
+                </button>
+              </div>
+              {localErrors.loginPassword && (
+                <p className="text-start text-xs font-semibold text-red-600">
+                  {localErrors.loginPassword}
+                </p>
+              )}
             </div>
-            {errors.loginPassword && (
-              <p className="mt-1.5 text-start text-xs font-semibold text-red-600">
-                {errors.loginPassword}
-              </p>
+          </div>
+
+          <TurnstileBox />
+
+          <Button
+            type="button"
+            disabled={isLoading}
+            onClick={handleVerifyOrSwitchAccount}
+            className="h-11 w-full rounded-xl bg-[#0a1122] text-xs font-extrabold text-white hover:bg-[#16223f] sm:text-sm"
+          >
+            {isLoading ? (
+              <span className="inline-flex items-center gap-2">
+                <Loader2 className="size-4 animate-spin" />
+                {t.savingBtn}
+              </span>
+            ) : isAr ? (
+              'تسجيل الدخول وربط الإعلان بحسابي ✓'
+            ) : (
+              'Sign In & Link Listing ✓'
+            )}
+          </Button>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* شريط الأزرار السفلي لتغيير نوع الحساب (بنفس حسابي / حساب جديد / دخول بحساب آخر) */}
+      {/* ========================================================= */}
+      <div className="mt-5 rounded-2xl border border-slate-200/90 bg-[#f8fafc] p-3.5">
+        <p className="mb-2.5 text-start text-[11px] font-extrabold text-slate-500">
+          {isAr
+            ? 'خيارات الحساب وربط الإعلان:'
+            : 'Account & listing ownership options:'}
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          {loggedUser && (
+            <button
+              type="button"
+              onClick={() => {
+                setAuthMode('sivrce_default')
+                update('name', loggedUser.name)
+                update('phone', loggedUser.phone)
+                update('email', loggedUser.email)
+              }}
+              className={`inline-flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-extrabold transition ${
+                authMode === 'sivrce_default' || authMode === 'session'
+                  ? 'border-[#007a5a] bg-[#eaf8f2] text-[#007a5a]'
+                  : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <UserCheck className="size-3.5" />
+              <span>
+                {t.tabCurrentSession} ({loggedUser.name.split(' ')[0]})
+              </span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setAuthMode('register')}
+            className={`inline-flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-extrabold transition ${
+              authMode === 'register'
+                ? 'border-[#0a1122] bg-[#0a1122] text-white'
+                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            <UserPlus className="size-3.5" />
+            <span>{t.tabNewRegister}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setAuthMode('login')}
+            className={`inline-flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-extrabold transition ${
+              authMode === 'login'
+                ? 'border-[#0a1122] bg-[#0a1122] text-white'
+                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            <LogIn className="size-3.5" />
+            <span>
+              {loggedUser
+                ? isAr
+                  ? 'تسجيل الدخول بحساب آخر'
+                  : 'Sign in with another account'
+                : t.tabExistingLogin}
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {accountVerifiedMsg && (
+        <div className="mt-4 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-extrabold text-[#007a5a]">
+          <CheckCircle2 className="size-4 shrink-0" />
+          <span>{accountVerifiedMsg}</span>
+        </div>
+      )}
+
+      {/* الموافقة على الشروط وإقرار الملكية مثل sivrce.ge */}
+      <label
+        dir={dir}
+        className="mt-5 flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-start text-xs font-bold text-slate-700"
+      >
+        <Checkbox
+          className="m-0 shrink-0"
+          checked={agreedTerms}
+          onCheckedChange={(checked) => {
+            const isOk = Boolean(checked)
+            setAgreedTerms(isOk)
+            update('owner', isOk ? 'yes' : '')
+            update('confirmed', isOk ? 'yes' : '')
+          }}
+        />
+        <span>
+          {isAr
+            ? `${t.ownerDeclaration} — وأوافق على شروط وأحكام المنصة`
+            : 'I agree to the Aqar Exit terms and conditions & confirm ownership'}
+        </span>
+      </label>
+
+      {(stepError || error || missingFields.length > 0) && (
+        <div className="mt-5 flex items-start gap-2.5 rounded-2xl border border-red-300 bg-red-50 p-4 text-start text-xs text-red-800">
+          <AlertCircle className="mt-0.5 size-4 shrink-0 text-red-600" />
+          <div>
+            <strong className="block font-extrabold">
+              {stepError || error}
+            </strong>
+            {missingFields.length > 0 && (
+              <p className="mt-1 font-bold">{missingFields.join(' ، ')}</p>
             )}
           </div>
         </div>
       )}
-
-      <TurnstileBox />
-
-      <div>
-        <label
-          dir={dir}
-          className={`flex cursor-pointer items-center gap-3 rounded-xl border p-4 text-start text-sm leading-7 ${
-            errors.owner ? 'border-red-500 bg-red-50/30' : 'border-slate-200'
-          }`}
-        >
-          <Checkbox
-            className="m-0 shrink-0"
-            checked={form.owner === 'yes'}
-            onCheckedChange={(checked) => update('owner', checked ? 'yes' : '')}
-          />
-          {t.ownerDeclaration}
-        </label>
-        {errors.owner && (
-          <p className="mt-1.5 text-start text-xs font-semibold text-red-600">
-            {errors.owner}
-          </p>
-        )}
-      </div>
-
-      {stepError && (
-        <p className="rounded-xl bg-red-50 p-3 text-center text-xs font-bold text-red-600">
-          {stepError}
-        </p>
-      )}
-
-      <div className="flex gap-3">
-        <Button
-          type="button"
-          variant="outline"
-          className="order-first h-12 rounded-xl"
-          onClick={() => go(1)}
-        >
-          {sharedT.backBtn}
-        </Button>
-        <Button
-          type="button"
-          disabled={isLoading}
-          className="order-last h-12 flex-1 rounded-xl bg-teal-700 font-bold text-white hover:bg-teal-800"
-          onClick={handleStep2Submit}
-        >
-          {isLoading ? (
-            <span className="inline-flex items-center gap-2">
-              <Loader2 className="size-4 animate-spin" />
-              {t.savingBtn}
-            </span>
-          ) : authTab === 'session' ? (
-            t.continueWithSessionBtn
-          ) : (
-            t.submitStep2Btn
-          )}
-        </Button>
-      </div>
-    </div>
+    </section>
   )
 }
+
+export const ContactStep = ContactSection

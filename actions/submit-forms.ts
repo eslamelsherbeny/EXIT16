@@ -132,10 +132,6 @@ export async function getUsersVerificationMapAction(
   }
 }
 
-/**
- * توثيق رقم الهاتف أصبح محصوراً بالأدمن فقط (عندما يفتح الأدمن الرابط المرسل له على واتساب أو يضغط زر التوثيق في لوحة الإدارة)
- * لا يُسمح للمستخدم العادي بتوثيق هاتفه لنفسه بمجرد الضغط على الزر!
- */
 export async function markUserPhoneVerifiedAction(payload: {
   userId?: string
   unitId?: string
@@ -155,7 +151,6 @@ export async function markUserPhoneVerifiedAction(payload: {
     const isStaff =
       role === 'admin' || role === 'moderator' || role === 'sales'
 
-    // إذا لم يكن المتصل أدمن/موظف، نرفض توثيق الهاتف فوراً!
     if (!isStaff) {
       return { success: false, error: 'Only admin can mark phone verified' }
     }
@@ -539,6 +534,7 @@ export async function getCurrentSellerProfileAction() {
 
 export async function processSellerStep2Action(payload: {
   mode: 'session' | 'login' | 'register'
+  listingCategory?: 'exit' | 'sale' | 'rent_monthly' | 'rent_daily' | 'pledge'
   unitCountry?: string
   userCountry?: string
   developer: string
@@ -546,6 +542,8 @@ export async function processSellerStep2Action(payload: {
   contractPrice: number
   paidAmount: number
   marketPrice?: number
+  rentPrice?: number
+  rentPeriod?: string
   name?: string
   phone?: string
   email?: string
@@ -562,36 +560,66 @@ export async function processSellerStep2Action(payload: {
     const userCountryCode = (payload.userCountry || ACTIVE_COUNTRY_CODE)
       .trim()
       .toUpperCase()
+    const listingCategory = payload.listingCategory || 'exit'
+    const isRent =
+      listingCategory === 'rent_monthly' || listingCategory === 'rent_daily'
 
     async function upsertDraftUnit(
       userId: string,
       contact: { name: string; phone: string; email: string }
     ) {
+      const effectivePaid = isRent
+        ? Number(payload.rentPrice || payload.paidAmount) || 0
+        : Number(payload.paidAmount || payload.contractPrice) || 0
+      const effectiveContract = isRent
+        ? effectivePaid
+        : Number(payload.contractPrice || payload.paidAmount) || 0
+
       const unitData: Record<string, any> = {
         user_id: userId,
         country: unitCountryCode,
         country_code: unitCountryCode,
+        listing_category: listingCategory,
+        rent_price: isRent ? effectivePaid : 0,
+        rent_period:
+          payload.rentPeriod ||
+          (listingCategory === 'rent_daily' ? 'daily' : 'monthly'),
         developer_name: payload.developer || null,
         project_name: payload.project || null,
-        contract_price: Number(payload.contractPrice) || 0,
-        paid_amount: Number(payload.paidAmount) || 0,
-        market_price:
-          Number(payload.marketPrice) || Number(payload.contractPrice) || 0,
+        contract_price: effectiveContract,
+        paid_amount: effectivePaid,
+        market_price: Number(payload.marketPrice) || effectiveContract,
         name: contact.name || msg.unitOwnerFallback,
         phone: contact.phone,
         email: contact.email || null,
         is_original_owner: true,
         status: 'pending',
+        documents: {
+          __unit_meta: {
+            listing_category: listingCategory,
+            rent_price: isRent ? effectivePaid : 0,
+            rent_period:
+              payload.rentPeriod ||
+              (listingCategory === 'rent_daily' ? 'daily' : 'monthly'),
+          },
+        },
       }
 
       if (payload.existingUnitId) {
         const { data: existingRow } = await supabase
           .from('sell_requests')
-          .select('id, user_id')
+          .select('id, user_id, documents')
           .eq('id', payload.existingUnitId)
           .maybeSingle()
 
         if (existingRow && existingRow.user_id === userId) {
+          unitData.documents = {
+            ...(existingRow.documents || {}),
+            __unit_meta: {
+              ...(existingRow.documents?.__unit_meta || {}),
+              ...unitData.documents.__unit_meta,
+            },
+          }
           const { error: updErr } = await supabase
             .from('sell_requests')
             .update(unitData)
@@ -631,7 +659,7 @@ export async function processSellerStep2Action(payload: {
           {
             user_id: null,
             title: `${msg.newDraftUnitAdminTitle} (${unitCountryCode}): ${payload.project || msg.unitWord}`,
-            message: `${contact.name} · ${Number(payload.paidAmount || 0).toLocaleString('en-US')}`,
+            message: `${contact.name} · ${effectivePaid.toLocaleString('en-US')}`,
             type: 'property',
             link: '/admin/properties',
             is_read: false,
@@ -661,9 +689,9 @@ export async function processSellerStep2Action(payload: {
       const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000
       const magicToken = createMagicToken(userId, unitId, expiresAt)
       const magicLink = `${siteUrl}/sell?magic=${encodeURIComponent(magicToken)}`
-      const paidFormatted = Number(payload.paidAmount || 0).toLocaleString(
-        'en-US'
-      )
+      const paidFormatted = Number(
+        payload.paidAmount || payload.rentPrice || payload.contractPrice || 0
+      ).toLocaleString('en-US')
 
       await sendNotificationEmail({
         to: userEmail,
@@ -672,7 +700,7 @@ export async function processSellerStep2Action(payload: {
         html: `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.8; color: #0a1122;">
                 <p style="font-size: 16px;">${msg.greetingWord} <strong>${userName}</strong>،</p>
                 <p>${msg.orderRefLabel}: <strong>${orderRef}</strong>.</p>
-                <p>${msg.orderPaidConfirmText}: <strong>${paidFormatted}</strong>.</p>
+                <p>${msg.orderPaidConfirmText}: <strong>$${paidFormatted}</strong>.</p>
                 <p>${msg.orderMagicLinkPrompt}:</p>
                 <p style="margin: 18px 0;">
                   <a href="${magicLink}" style="color: #0b6954; font-weight: bold; word-break: break-all;">${magicLink}</a>
@@ -1059,7 +1087,6 @@ export async function setNewPasswordFromTokenAction(payload: {
       return { success: false, error: msg.updatePassFailed }
     }
 
-    // بما أنه استلم الرابط على إيميله وعيّن كلمة المرور، يتم توثيق بريده الإلكتروني أوتوماتيكياً
     await upsertUserVerificationMeta(supabase, verify.userId, {
       emailVerified: true,
     })
@@ -1094,16 +1121,61 @@ function buildUnitPayloadWithMetaBackup(
     } catch {}
   }
 
+  const listingCategoryVal =
+    text(formData, 'listing_category') ||
+    parsedDocuments.__unit_meta?.listing_category ||
+    'exit'
+  const isRent =
+    listingCategoryVal === 'rent_monthly' || listingCategoryVal === 'rent_daily'
+  const isDirectSale =
+    listingCategoryVal === 'sale' || listingCategoryVal === 'pledge'
+
   const deliveryStatusRaw = text(formData, 'delivery_status')
   const parsedDel = parseDeliveryDateFromStatus(deliveryStatusRaw)
 
   const sizeVal = number(formData, 'size')
+  const kitchenAreaVal = number(formData, 'kitchen_area')
+  const balconyAreaVal = number(formData, 'balcony_area')
+  const loggiaAreaVal = number(formData, 'loggia_area')
+  const terraceAreaVal = number(formData, 'terrace_area')
+  const gardenVal = number(formData, 'garden_size')
+
   const roomsVal = number(formData, 'rooms')
+  const bedroomsVal =
+    integer(formData, 'bedrooms') || Math.max(1, roomsVal - 1)
   const bathsVal = number(formData, 'bathrooms')
   const floorVal = text(formData, 'floor_number')
-  const gardenVal = number(formData, 'garden_size')
+  const totalFloorsVal = integer(formData, 'total_floors')
+  const maxGuestsVal = integer(formData, 'max_guests')
+
   const finishingVal = text(formData, 'finishing') || null
+  const buildingStatusVal = text(formData, 'building_status') || null
+  const buildingSeriesVal = text(formData, 'building_series') || null
+  const floorTypeVal = text(formData, 'floor_type') || null
+  const heatingTypeVal = text(formData, 'heating_type') || null
+  const buildingMaterialVal = text(formData, 'building_material') || null
+  const yearBuiltVal = integer(formData, 'year_built')
+
   const areaVal = text(formData, 'area') || null
+  const exactStreetVal = text(formData, 'exact_street') || null
+  const houseNumberVal = text(formData, 'house_number') || null
+  const cadastralCodeVal = text(formData, 'cadastral_code') || null
+
+  const videoUrlVal = text(formData, 'video_url') || null
+  const tour3dUrlVal = text(formData, 'tour_3d_url') || null
+  const allowOnlineViewingVal =
+    formData.get('allow_online_viewing') === 'on' ||
+    formData.get('allow_online_viewing') === 'true'
+  const installmentSalePossibleVal =
+    formData.get('installment_sale_possible') === 'on' ||
+    formData.get('installment_sale_possible') === 'true'
+  const exchangePossibleVal =
+    formData.get('exchange_possible') === 'on' ||
+    formData.get('exchange_possible') === 'true'
+  const isExclusiveVal =
+    formData.get('is_exclusive') === 'on' ||
+    formData.get('is_exclusive') === 'true'
+
   const unitTypeVal = text(formData, 'unit_type') || null
   const contractMonthVal = text(formData, 'contract_month') || null
   const contractYearVal = integer(formData, 'contract_year')
@@ -1111,9 +1183,60 @@ function buildUnitPayloadWithMetaBackup(
   const instAmountVal = number(formData, 'installment_amount')
   const instFreqVal = text(formData, 'installment_frequency') || null
   const featuresList = list(formData, 'feature')
+  const messengersList = list(formData, 'contact_messenger')
+
+  const rentPriceVal = number(formData, 'rent_price')
+  const rentPeriodVal =
+    text(formData, 'rent_period') ||
+    (listingCategoryVal === 'rent_daily' ? 'daily' : 'monthly')
+
+  const rawContractPrice = number(formData, 'contract_price')
+  const rawPaidAmount = number(formData, 'paid_amount')
+
+  const effectiveContractPrice = isRent
+    ? rentPriceVal || rawPaidAmount || rawContractPrice
+    : rawContractPrice || rawPaidAmount
+  const effectivePaidAmount = isRent
+    ? rentPriceVal || rawPaidAmount || rawContractPrice
+    : isDirectSale
+      ? rawPaidAmount || rawContractPrice
+      : rawPaidAmount
+
+  const pricePerSqmVal =
+    sizeVal > 0 && effectiveContractPrice > 0
+      ? Math.round(effectiveContractPrice / sizeVal)
+      : number(formData, 'price_per_sqm')
 
   parsedDocuments.__unit_meta = {
     ...(parsedDocuments.__unit_meta || {}),
+    listing_category: listingCategoryVal,
+    rent_price: isRent ? effectivePaidAmount : rentPriceVal,
+    rent_period: rentPeriodVal,
+    price_per_sqm: pricePerSqmVal,
+    exact_street: exactStreetVal,
+    house_number: houseNumberVal,
+    cadastral_code: cadastralCodeVal,
+    building_status: buildingStatusVal,
+    building_series: buildingSeriesVal,
+    floor_type: floorTypeVal,
+    heating_type: heatingTypeVal,
+    building_material: buildingMaterialVal,
+    year_built: yearBuiltVal || null,
+    total_floors: totalFloorsVal || null,
+    bedrooms: bedroomsVal || null,
+    max_guests: maxGuestsVal || null,
+    kitchen_area: kitchenAreaVal,
+    balcony_area: balconyAreaVal,
+    loggia_area: loggiaAreaVal,
+    terrace_area: terraceAreaVal,
+    video_url: videoUrlVal,
+    tour_3d_url: tour3dUrlVal,
+    allow_online_viewing: allowOnlineViewingVal,
+    installment_sale_possible: installmentSalePossibleVal,
+    exchange_possible: exchangePossibleVal,
+    is_exclusive: isExclusiveVal,
+    contact_messengers:
+      messengersList.length > 0 ? messengersList : ['whatsapp'],
     area: areaVal,
     unit_type: unitTypeVal,
     size: sizeVal,
@@ -1137,7 +1260,35 @@ function buildUnitPayloadWithMetaBackup(
   const payload: Record<string, any> = {
     country: ACTIVE_COUNTRY_CODE,
     country_code: ACTIVE_COUNTRY_CODE,
-    currency_code: ACTIVE_CURRENCY_CODE,
+    currency_code: text(formData, 'currency_code') || ACTIVE_CURRENCY_CODE,
+    listing_category: listingCategoryVal,
+    rent_price: isRent ? effectivePaidAmount : rentPriceVal,
+    rent_period: rentPeriodVal,
+    price_per_sqm: pricePerSqmVal,
+    exact_street: exactStreetVal,
+    house_number: houseNumberVal,
+    cadastral_code: cadastralCodeVal,
+    building_status: buildingStatusVal,
+    building_series: buildingSeriesVal,
+    floor_type: floorTypeVal,
+    heating_type: heatingTypeVal,
+    building_material: buildingMaterialVal,
+    year_built: yearBuiltVal || null,
+    total_floors: totalFloorsVal || null,
+    bedrooms: bedroomsVal || null,
+    max_guests: maxGuestsVal || null,
+    kitchen_area: kitchenAreaVal,
+    balcony_area: balconyAreaVal,
+    loggia_area: loggiaAreaVal,
+    terrace_area: terraceAreaVal,
+    video_url: videoUrlVal,
+    tour_3d_url: tour3dUrlVal,
+    allow_online_viewing: allowOnlineViewingVal,
+    installment_sale_possible: installmentSalePossibleVal,
+    exchange_possible: exchangePossibleVal,
+    is_exclusive: isExclusiveVal,
+    contact_messengers:
+      messengersList.length > 0 ? messengersList : ['whatsapp'],
     developer_name: text(formData, 'developer_name') || null,
     project_name: text(formData, 'project_name') || null,
     area: areaVal,
@@ -1155,21 +1306,24 @@ function buildUnitPayloadWithMetaBackup(
       integer(formData, 'delivery_year') || parsedDel.deliveryYear,
     features: featuresList,
     description: text(formData, 'description') || null,
-    contract_price: number(formData, 'contract_price'),
-    paid_amount: number(formData, 'paid_amount'),
+    contract_price: effectiveContractPrice,
+    paid_amount: effectivePaidAmount,
     market_price:
-      number(formData, 'market_price') || number(formData, 'contract_price'),
-    installment_amount: instAmountVal,
-    installment_frequency: instFreqVal,
+      number(formData, 'market_price') || effectiveContractPrice,
+    installment_amount: isRent ? 0 : instAmountVal,
+    installment_frequency: isRent ? null : instFreqVal,
     contract_month: contractMonthVal,
     contract_year: contractYearVal,
-    years_left: yearsLeftVal,
-    has_annual_installment: formData.get('has_annual_installment') === 'on',
+    years_left: isRent ? 0 : yearsLeftVal,
+    has_annual_installment:
+      !isRent && formData.get('has_annual_installment') === 'on',
     annual_installment_amount: number(formData, 'annual_installment_amount'),
-    willing_to_discount: formData.get('willing_to_discount') === 'on',
+    willing_to_discount:
+      formData.get('willing_to_discount') === 'on' ||
+      formData.get('willing_to_discount') === 'true',
     discount_amount: number(formData, 'discount_amount'),
     has_overdue_installments:
-      formData.get('has_overdue_installments') === 'on',
+      !isRent && formData.get('has_overdue_installments') === 'on',
     overdue_installments: number(formData, 'overdue_installments'),
     overdue_total_amount: number(formData, 'overdue_total_amount'),
     images: list(formData, 'image'),

@@ -21,6 +21,108 @@ export const DEFAULT_SITE_URL =
 export const ACTIVE_COUNTRY_CODE = 'GE'
 export const ACTIVE_CURRENCY_CODE = 'USD'
 
+export type ListingCategoryType =
+  | 'exit'
+  | 'sale'
+  | 'rent_monthly'
+  | 'rent_daily'
+  | 'pledge'
+
+// القاموس الموحد للمميزات المقسمة إلى 6 مجموعات (Space, Building, Utilities, Comfort, Views, Extra)
+export const SIVRCE_FEATURE_GROUPS = [
+  {
+    key: 'space',
+    labelEn: 'Space',
+    labelAr: 'المساحات والتقسيم',
+    items: [
+      { id: 'Balcony', labelEn: 'Balcony', labelAr: 'بلكونة (شرفة)' },
+      { id: 'Loggia', labelEn: 'Loggia', labelAr: 'لوجيا (شرفة مغلقة)' },
+      { id: 'Terrace', labelEn: 'Terrace', labelAr: 'تراس مفتوح' },
+      { id: 'Yard', labelEn: 'Yard', labelAr: 'حديقة / فناء خاص' },
+      { id: 'Storage', labelEn: 'Storage', labelAr: 'غرفة تخزين' },
+      { id: 'Cellar', labelEn: 'Cellar', labelAr: 'قبو (بدروم)' },
+      { id: 'Walk-in closet', labelEn: 'Walk-in closet', labelAr: 'غرفة ملابس (Dressing)' },
+      { id: 'Separate kitchen', labelEn: 'Separate kitchen', labelAr: 'مطبخ منفصل' },
+    ],
+  },
+  {
+    key: 'building',
+    labelEn: 'Building',
+    labelAr: 'المبنى والحماية',
+    items: [
+      { id: 'Elevator', labelEn: 'Elevator', labelAr: 'مصعد حديث' },
+      { id: 'Parking', labelEn: 'Parking', labelAr: 'موقف سيارات' },
+      { id: 'Underground parking', labelEn: 'Underground parking', labelAr: 'جراج تحت الأرض' },
+      { id: 'Garage', labelEn: 'Garage', labelAr: 'جراج خاص مغلق' },
+      { id: 'Security', labelEn: 'Security', labelAr: 'أمن وحراسة 24/7' },
+      { id: 'Concierge', labelEn: 'Concierge', labelAr: 'استقبال (كونسيرج)' },
+      { id: 'Intercom', labelEn: 'Intercom', labelAr: 'إنتركم مرئي' },
+      { id: 'Backup generator', labelEn: 'Backup generator', labelAr: 'مولد كهرباء احتياطي' },
+      { id: 'Iron door', labelEn: 'Iron door', labelAr: 'باب مصفح' },
+      { id: 'Double glazing', labelEn: 'Double glazing', labelAr: 'نوافذ زجاج مزدوج عازل' },
+      { id: 'Penthouse', labelEn: 'Penthouse', labelAr: 'بنتهاوس' },
+      { id: 'Step-free access', labelEn: 'Step-free access', labelAr: 'مدخل مهيأ بدون درجات' },
+    ],
+  },
+  {
+    key: 'utilities',
+    labelEn: 'Utilities',
+    labelAr: 'المرافق والأساسيات',
+    items: [
+      { id: 'Underfloor heating', labelEn: 'Underfloor heating', labelAr: 'تدفئة أرضية' },
+      { id: 'Natural gas', labelEn: 'Natural gas', labelAr: 'غاز طبيعي' },
+      { id: 'Hot water', labelEn: 'Hot water', labelAr: 'مياه ساخنة مركزية' },
+      { id: 'Internet', labelEn: 'Internet', labelAr: 'إنترنت فايبر' },
+      { id: 'Cable TV', labelEn: 'Cable TV', labelAr: 'قنوات كابل وتلفاز' },
+    ],
+  },
+  {
+    key: 'comfort',
+    labelEn: 'Comfort',
+    labelAr: 'الراحة والأجهزة',
+    items: [
+      { id: 'Furniture', labelEn: 'Furniture', labelAr: 'مفروش بالكامل' },
+      { id: 'Appliances', labelEn: 'Appliances', labelAr: 'أجهزة كهربائية كاملة' },
+      { id: 'Air conditioning', labelEn: 'Air conditioning', labelAr: 'تكييف هواء' },
+      { id: 'Dishwasher', labelEn: 'Dishwasher', labelAr: 'غسالة أطباق' },
+      { id: 'Washing machine', labelEn: 'Washing machine', labelAr: 'غسالة ملابس' },
+      { id: 'Dryer', labelEn: 'Dryer', labelAr: 'مجفف ملابس' },
+      { id: 'Fireplace', labelEn: 'Fireplace', labelAr: 'مدفأة (Fireplace)' },
+      { id: 'Kitchen', labelEn: 'Kitchen', labelAr: 'مطبخ مجهز' },
+      { id: 'TV', labelEn: 'TV', labelAr: 'شاشة تلفاز ذكية' },
+    ],
+  },
+  {
+    key: 'views',
+    labelEn: 'Views',
+    labelAr: 'الإطلالة والإضاءة',
+    items: [
+      { id: 'Panoramic view', labelEn: 'Panoramic view', labelAr: 'إطلالة بانورامية مفتوحة' },
+      { id: 'Sea view', labelEn: 'Sea view', labelAr: 'إطلالة بحرية' },
+      { id: 'Mountain view', labelEn: 'Mountain view', labelAr: 'إطلالة على الجبال' },
+      { id: 'Yard view', labelEn: 'Yard view', labelAr: 'إطلالة على الحديقة' },
+      { id: 'Street view', labelEn: 'Street view', labelAr: 'إطلالة على الشارع الرئيسي' },
+      { id: 'Beachfront', labelEn: 'Beachfront', labelAr: 'صف أول على البحر' },
+      { id: 'Bright', labelEn: 'Bright', labelAr: 'مشمس ومضيء طبيعياً' },
+      { id: 'Quiet', labelEn: 'Quiet', labelAr: 'منطقة هادئة' },
+    ],
+  },
+  {
+    key: 'extra',
+    labelEn: 'Extra',
+    labelAr: 'مميزات إضافية وفاخرة',
+    items: [
+      { id: 'Pool', labelEn: 'Pool', labelAr: 'حمام سباحة (مسبح)' },
+      { id: 'Jacuzzi', labelEn: 'Jacuzzi', labelAr: 'جاكوزي' },
+      { id: 'Sauna', labelEn: 'Sauna', labelAr: 'ساونا' },
+      { id: 'Gym', labelEn: 'Gym', labelAr: 'صالة جيم رياضية' },
+      { id: 'BBQ grill', labelEn: 'BBQ grill', labelAr: 'منطقة شواء (BBQ)' },
+      { id: 'EV charger', labelEn: 'EV charger', labelAr: 'شاحن سيارات كهربائية' },
+      { id: 'Ski access', labelEn: 'Ski access', labelAr: 'قريب من مسارات التزلج' },
+    ],
+  },
+] as const
+
 const FORMS_MESSAGES_FALLBACK: Record<LocaleCode, Record<string, string>> = {
   ar: {
     expiredLink: 'انتهت صلاحية هذا الرابط أو أنه غير صالح.',
@@ -43,7 +145,7 @@ const FORMS_MESSAGES_FALLBACK: Record<LocaleCode, Record<string, string>> = {
     buyOrderSubjectPrefix: 'تم تسجيل طلب الشراء الخاص بك رقم',
     greetingWord: 'أهلاً',
     orderRefLabel: 'رقم مرجع الطلب',
-    orderPaidConfirmText: 'إجمالي المبلغ المدفوع المسجل',
+    orderPaidConfirmText: 'السعر / المبلغ المسجل',
     registeredCashLabel: 'ميزانية الكاش المسجلة',
     orderMagicLinkPrompt:
       'اضغط على الرابط التالي لتأكيد بريدك الإلكتروني ومتابعة طلبك مباشرة على الموقع',
@@ -64,7 +166,7 @@ const FORMS_MESSAGES_FALLBACK: Record<LocaleCode, Record<string, string>> = {
     shortPassword: 'كلمة المرور يجب أن تكون 8 أحرف على الأقل.',
     updatePassFailed: 'تعذر تحديث كلمة المرور.',
     saveProgressFailed: 'تعذر حفظ التقدم حالياً.',
-    submitUnitFailed: 'تعذر إرسال طلب البيع حالياً، يرجى المحاولة مرة أخرى.',
+    submitUnitFailed: 'تعذر إرسال طلب الإعلان حالياً، يرجى المحاولة مرة أخرى.',
     defaultMonthly: 'شهري',
     defaultReady: 'جاهز للاستلام',
     enterNamePhone: 'يرجى إدخال الاسم ورقم الهاتف.',
@@ -96,7 +198,7 @@ const FORMS_MESSAGES_FALLBACK: Record<LocaleCode, Record<string, string>> = {
     buyOrderSubjectPrefix: 'Your Buy Request is Registered #',
     greetingWord: 'Hello',
     orderRefLabel: 'Order Reference',
-    orderPaidConfirmText: 'Registered Paid Amount',
+    orderPaidConfirmText: 'Registered Price / Amount',
     registeredCashLabel: 'Registered Cash Budget',
     orderMagicLinkPrompt:
       'Click the link below to confirm your email and access your request on the website',
@@ -152,7 +254,7 @@ const FORMS_MESSAGES_FALLBACK: Record<LocaleCode, Record<string, string>> = {
     buyOrderSubjectPrefix: 'Ваша заявка на покупку зарегистрирована №',
     greetingWord: 'Здравствуйте,',
     orderRefLabel: 'Номер заявки',
-    orderPaidConfirmText: 'Зарегистрированная выплаченная сумма',
+    orderPaidConfirmText: 'Зарегистрированная сумма',
     registeredCashLabel: 'Зарегистрированный бюджет наличными',
     orderMagicLinkPrompt:
       'Перейдите по ссылке ниже для подтверждения email и входа на сайт',
@@ -194,7 +296,7 @@ const FORMS_MESSAGES_FALLBACK: Record<LocaleCode, Record<string, string>> = {
     unitSubmittedSellerTitle: 'ობიექტის პირველადი მონაცემები მიღებულია ✓',
     unitSubmittedSellerMsg:
       'დეტალებისა და დოკუმენტების შევსება ნებისმიერ დროს შეგიძლიათ',
-    editedUnitAdminTitle: 'ობიექტი განახლდა გამყიდველის მიერ',
+    editedUnitAdminTitle: 'ობიექტი განახლდა გამყidველის მიერ',
     completedUnitAdminTitle: 'ობიექტი მზადაა შესამოწმებლად',
     newUnitReviewAdminTitle: 'ახალი ობიექტი შესამოწმებლად',
     newBuyRequestAdminTitle: 'ახალი შეძენის მოთხოვნა',
@@ -206,7 +308,7 @@ const FORMS_MESSAGES_FALLBACK: Record<LocaleCode, Record<string, string>> = {
     buyOrderSubjectPrefix: 'შეძენის მოთხოვნა რეგისტრირებულია #',
     greetingWord: 'გამარჯობა',
     orderRefLabel: 'განაცხადის ნომერი',
-    orderPaidConfirmText: 'დაფიქსირებული გადახდილი თანხა',
+    orderPaidConfirmText: 'დაფიქსირებული თანხა',
     registeredCashLabel: 'დაფიქსირებული ბიუჯეტი',
     orderMagicLinkPrompt:
       'ელ-ფოსტის დასადასტურებლად და საიტზე შესასვლელად გადადით ბმულზე',
@@ -616,6 +718,34 @@ export function stripExtendedSellColumns(payload: Record<string, any>) {
   delete clone.overdue_installments
   delete clone.submission_type
   delete clone.last_seller_edit_at
+  // الأعمدة الجديدة في حال لم يشغّل المستخدم الـ SQL بعد (تبقى محفوظة في documents.__unit_meta)
+  delete clone.listing_category
+  delete clone.rent_price
+  delete clone.rent_period
+  delete clone.price_per_sqm
+  delete clone.exact_street
+  delete clone.house_number
+  delete clone.cadastral_code
+  delete clone.building_status
+  delete clone.building_series
+  delete clone.floor_type
+  delete clone.heating_type
+  delete clone.building_material
+  delete clone.year_built
+  delete clone.total_floors
+  delete clone.bedrooms
+  delete clone.max_guests
+  delete clone.kitchen_area
+  delete clone.balcony_area
+  delete clone.loggia_area
+  delete clone.terrace_area
+  delete clone.video_url
+  delete clone.tour_3d_url
+  delete clone.allow_online_viewing
+  delete clone.installment_sale_possible
+  delete clone.exchange_possible
+  delete clone.is_exclusive
+  delete clone.contact_messengers
   return clone
 }
 
@@ -631,6 +761,7 @@ export function stripToCoreSellColumns(payload: Record<string, any>) {
     'bathrooms',
     'finishing',
     'delivery_status',
+    'features',
     'description',
     'contract_price',
     'paid_amount',

@@ -1,7 +1,21 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Check, ChevronDown, Globe } from 'lucide-react'
+import {
+  Building2,
+  Calendar,
+  Check,
+  ChevronDown,
+  Globe,
+  Home,
+  Hotel,
+  KeyRound,
+  Landmark,
+  MapPin,
+  ShieldCheck,
+  Store,
+  Trees,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -19,6 +33,194 @@ import {
 } from '@/lib/i18n'
 
 export type PlatformCountryCode = 'EG' | 'RU' | 'GE' | 'AE'
+
+export type DealCategory =
+  | 'exit'
+  | 'sale'
+  | 'rent_monthly'
+  | 'pledge'
+  | 'rent_daily'
+
+export const DEAL_TYPES: Array<{
+  id: DealCategory
+  titleEn: string
+  titleAr: string
+  subEn: string
+  subAr: string
+  icon: any
+  badgeAr?: string
+  badgeEn?: string
+}> = [
+  {
+    id: 'exit',
+    titleEn: 'Resale & Installment Exit',
+    titleAr: 'تنازل واستكمال أقساط',
+    subEn: 'Recover paid cash · Buyer continues installments',
+    subAr: 'استرد المبلغ المدفوع ويدخل المشتري مكانك بالأقساط',
+    icon: ShieldCheck,
+    badgeAr: 'بعمولة وساطة · رقمك مخفي',
+    badgeEn: 'Brokered · Hidden Number',
+  },
+  {
+    id: 'sale',
+    titleEn: 'For sale',
+    titleAr: 'بيع عقار (For sale)',
+    subEn: 'Sell the property directly',
+    subAr: 'بيع العقار كاش أو دفعات',
+    icon: Home,
+    badgeAr: 'بعمولة وساطة · رقمك مخفي',
+    badgeEn: 'Brokered · Hidden Number',
+  },
+  {
+    id: 'rent_monthly',
+    titleEn: 'For rent',
+    titleAr: 'للإيجار الشهري (For rent)',
+    subEn: 'Long-term, monthly or yearly',
+    subAr: 'إيجار طويل الأمد شهري أو سنوي',
+    icon: KeyRound,
+    badgeAr: 'إعلان مباشر · يظهر رقمك',
+    badgeEn: 'Direct Ad · Public Number',
+  },
+  {
+    id: 'rent_daily',
+    titleEn: 'Daily rent',
+    titleAr: 'إيجار يومي (Daily rent)',
+    subEn: 'Per night, for guests & tourists',
+    subAr: 'بالليلة للسياح والزوار',
+    icon: Calendar,
+    badgeAr: 'إعلان مباشر · يظهر رقمك',
+    badgeEn: 'Direct Ad · Public Number',
+  },
+  {
+    id: 'pledge',
+    titleEn: 'For pledge',
+    titleAr: 'رهن عقاري (For pledge)',
+    subEn: 'Collateral against a loan (Girao)',
+    subAr: 'نظام الرهن الجورجي مقابل مبلغ',
+    icon: Landmark,
+  },
+]
+
+export const PROPERTY_KINDS = [
+  {
+    id: 'Apartment',
+    labelEn: 'Apartment',
+    labelAr: 'شقة (Apartment)',
+    icon: Building2,
+  },
+  {
+    id: 'Private house',
+    labelEn: 'Private house',
+    labelAr: 'منزل مستقل / فيلا',
+    icon: Home,
+  },
+  {
+    id: 'Cottage',
+    labelEn: 'Cottage',
+    labelAr: 'كوخ / شاليه (Cottage)',
+    icon: Trees,
+  },
+  { id: 'Land', labelEn: 'Land', labelAr: 'أرض (Land)', icon: MapPin },
+  {
+    id: 'Commercial',
+    labelEn: 'Commercial',
+    labelAr: 'تجاري / مكتب',
+    icon: Store,
+  },
+  {
+    id: 'Hotel',
+    labelEn: 'Hotel',
+    labelAr: 'فندق / شقة فندقية',
+    icon: Hotel,
+  },
+]
+
+export const CONDITION_OPTIONS = [
+  {
+    id: 'Newly renovated',
+    labelEn: 'Newly renovated',
+    labelAr: 'تشطيب جديد (Newly renovated)',
+  },
+  {
+    id: 'Old renovation',
+    labelEn: 'Old renovation',
+    labelAr: 'تشطيب قديم (Old renovation)',
+  },
+  {
+    id: 'Under renovation',
+    labelEn: 'Under renovation',
+    labelAr: 'قيد التشطيب',
+  },
+  {
+    id: 'Needs renovation',
+    labelEn: 'Needs renovation',
+    labelAr: 'يحتاج تجديد',
+  },
+  {
+    id: 'White frame',
+    labelEn: 'White frame',
+    labelAr: 'إطار أبيض (White frame)',
+  },
+  {
+    id: 'Black frame',
+    labelEn: 'Black frame',
+    labelAr: 'إطار أسود (Black frame)',
+  },
+  {
+    id: 'Green frame',
+    labelEn: 'Green frame',
+    labelAr: 'إطار أخضر (Green frame)',
+  },
+  {
+    id: 'White plus',
+    labelEn: 'White plus',
+    labelAr: 'وايت بلس (White plus)',
+  },
+]
+
+export const BUILDING_SERIES = [
+  'Non-standard',
+  'Leningrad',
+  'Lvov',
+  'Kiev',
+  'Tbilisi yard',
+  'Moscow',
+  'City type',
+  'Czech',
+  'Khrushchev',
+  'Tukhareli',
+  'Vedzisi',
+  'Yugoslav',
+  'Metromsheni',
+  'Kavlashvili',
+  'Other',
+]
+
+export const FLOOR_TYPES = [
+  { id: 'Standard', labelEn: 'Standard', labelAr: 'طابق عادي' },
+  { id: 'Duplex', labelEn: 'Duplex', labelAr: 'دوبلكس (Duplex)' },
+  { id: 'Triplex', labelEn: 'Triplex', labelAr: 'تريبلكس (Triplex)' },
+  { id: 'Attic', labelEn: 'Attic', labelAr: 'روف / علية (Attic)' },
+]
+
+export const HEATING_TYPES = [
+  { id: 'Central', labelEn: 'Central', labelAr: 'تدفئة مركزية (Central)' },
+  { id: 'Own gas boiler', labelEn: 'Own gas boiler', labelAr: 'سخان غاز مستقل' },
+  { id: 'Electric', labelEn: 'Electric', labelAr: 'تدفئة كهربائية' },
+  { id: 'None', labelEn: 'None', labelAr: 'بدون تدفئة' },
+]
+
+export const BUILDING_MATERIALS = [
+  {
+    id: 'Monolithic concrete',
+    labelEn: 'Monolithic concrete',
+    labelAr: 'خرسانة مسلحة (Monolithic)',
+  },
+  { id: 'Brick', labelEn: 'Brick', labelAr: 'طوب (Brick)' },
+  { id: 'Block', labelEn: 'Block', labelAr: 'بلوك (Block)' },
+  { id: 'Panel', labelEn: 'Panel', labelAr: 'بانل (Panel)' },
+  { id: 'Mixed', labelEn: 'Mixed', labelAr: 'مختلط (Mixed)' },
+]
 
 export type PlatformCountryOption = {
   code: PlatformCountryCode | string
@@ -536,12 +738,13 @@ export function getLocalizedGeorgiaCatalog(
 export const GEORGIA_AREAS_CATALOG: Array<[string, string[]]> =
   getLocalizedGeorgiaCatalog('ar')
 
-export const areasCatalogByCountry: Record<string, Array<[string, string[]]>> = {
-  GE: GEORGIA_AREAS_CATALOG,
-  EG: GEORGIA_AREAS_CATALOG,
-  AE: GEORGIA_AREAS_CATALOG,
-  RU: GEORGIA_AREAS_CATALOG,
-}
+export const areasCatalogByCountry: Record<string, Array<[string, string[]]>> =
+  {
+    GE: GEORGIA_AREAS_CATALOG,
+    EG: GEORGIA_AREAS_CATALOG,
+    AE: GEORGIA_AREAS_CATALOG,
+    RU: GEORGIA_AREAS_CATALOG,
+  }
 
 export const areasCatalog = GEORGIA_AREAS_CATALOG
 
@@ -876,17 +1079,30 @@ export function Field({
   const { dir } = useTranslation()
   const compact = [
     'areaSize',
+    'kitchenArea',
+    'balconyArea',
+    'loggiaArea',
+    'terraceArea',
+    'yearBuilt',
     'garden',
     'rooms',
+    'bedrooms',
     'bathrooms',
     'floor',
+    'totalFloors',
+    'maxGuests',
     'remainingYears',
     'remainingMonths',
     'deliveryRemainingMonths',
     'overdueCount',
   ].includes(id)
   const isNumericField = compact || type === 'number'
-  const isLtrField = isNumericField || id === 'email' || id === 'password'
+  const isLtrField =
+    isNumericField ||
+    id === 'email' ||
+    id === 'password' ||
+    id === 'cadastralCode' ||
+    id === 'phone'
 
   return (
     <div className="flex flex-col gap-2">
@@ -914,7 +1130,7 @@ export function Field({
           error ? 'border-red-500 bg-red-50/20' : 'border-slate-200'
         } ${
           compact
-            ? 'max-w-[180px] self-start text-center font-semibold'
+            ? 'font-semibold'
             : isLtrField
               ? 'text-left'
               : 'text-start'

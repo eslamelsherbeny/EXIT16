@@ -23,7 +23,7 @@ import {
   UploadCloud,
   Video,
 } from 'lucide-react'
-import { SIVRCE_FEATURE_GROUPS } from '@/lib/form-action-helpers'
+
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import {
@@ -49,6 +49,7 @@ import {
   MoneyField,
   MonthYearSelector,
   PROPERTY_KINDS,
+  SIVRCE_FEATURE_GROUPS,
   years,
   type DealCategory,
 } from './seller-shared'

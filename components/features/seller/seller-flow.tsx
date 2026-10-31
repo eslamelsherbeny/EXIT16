@@ -22,13 +22,16 @@ import {
   ACTIVE_PLATFORM_COUNTRY,
   DEFAULT_PHONE_CODE,
   getSellerExtraLabels,
+  getSellerFormTranslations,
   type SellerDocKey,
   type UploadedDocEntry,
 } from './seller-i18n'
 import {
+  getOptionLabel,
   PROPERTY_KINDS,
   toEnglishDigits,
   type DealCategory,
+  type LocalizedOptionItem,
 } from './seller-shared'
 import {
   DetailsSection,
@@ -48,6 +51,7 @@ export function SellerFlow() {
   const isAr = locale === 'ar'
   const s = dict.sell
   const extraT = getSellerExtraLabels(locale, dict)
+  const fT = getSellerFormTranslations(locale)
 
   const secTypeRef = useRef<HTMLElement | null>(null)
   const secPhotosRef = useRef<HTMLElement | null>(null)
@@ -55,14 +59,16 @@ export function SellerFlow() {
   const secDetailsRef = useRef<HTMLElement | null>(null)
   const secPriceRef = useRef<HTMLElement | null>(null)
   const secContactRef = useRef<HTMLElement | null>(null)
+  const isManualScrollingRef = useRef(false)
 
   const [activeTab, setActiveTab] = useState<number>(1)
   const [unitId, setUnitId] = useState<string>('')
   const [orderRef, setOrderRef] = useState<string>('AE-1001')
 
-  const [dealCategory, setDealCategory] = useState<DealCategory>('exit')
-  const [propertyKind, setPropertyKind] = useState<string>('Apartment')
-  const [buildingStatus, setBuildingStatus] = useState<string>('Newly built')
+  // جميع الاختيارات تبدأ فارغة تماماً بدون أي تحديد تلقائي
+  const [dealCategory, setDealCategory] = useState<DealCategory | ''>('')
+  const [propertyKind, setPropertyKind] = useState<string>('')
+  const [buildingStatus, setBuildingStatus] = useState<string>('')
   const [priceInputMode, setPriceInputMode] = useState<'total' | 'sqm'>('total')
   const [currencyChoice, setCurrencyChoice] = useState<'USD' | 'GEL' | 'EUR'>(
     'USD'
@@ -74,23 +80,24 @@ export function SellerFlow() {
     userCountry: ACTIVE_PLATFORM_COUNTRY,
     developer: '',
     project: '',
-    location: 'Tbilisi - Saburtalo',
+    location: '',
+    locationDisplay: '',
     exactStreet: '',
     houseNumber: '',
     cadastralCode: '',
-    yearBuilt: '2024',
+    yearBuilt: '',
     areaSize: '',
     kitchenArea: '',
     balconyArea: '',
     loggiaArea: '',
     terraceArea: '',
     garden: '',
-    bedrooms: '2',
-    rooms: '3',
-    bathrooms: '1',
-    floor: '5',
-    totalFloors: '12',
-    maxGuests: '2',
+    bedrooms: '',
+    rooms: '',
+    bathrooms: '',
+    floor: '',
+    totalFloors: '',
+    maxGuests: '',
     deliveryRemainingMonths: '',
     contractPrice: '',
     paidAmount: '',
@@ -118,22 +125,23 @@ export function SellerFlow() {
     confirmed: 'yes',
   })
 
+  // جميع الفلاتر تبدأ فارغة تماماً ليختار المستخدم بنفسه
   const [selected, setSelected] = useState<Record<string, string[]>>({
-    finishing: ['Newly renovated'],
-    buildingSeries: ['Non-standard'],
-    floorType: ['Standard'],
-    heatingType: ['Central'],
-    buildingMaterial: ['Monolithic concrete'],
+    finishing: [],
+    buildingSeries: [],
+    floorType: [],
+    heatingType: [],
+    buildingMaterial: [],
     frequency: ['شهري'],
     annualInstallment: ['no'],
     discountOffer: ['no'],
     overdueInstallments: ['no'],
-    features: ['Balcony', 'Elevator', 'Natural gas', 'Internet'],
-    messengers: ['whatsapp'],
+    features: [],
+    messengers: ['whatsapp', 'viber'],
   })
 
   const [flags, setFlags] = useState({
-    allowOnlineViewing: true,
+    allowOnlineViewing: false,
     installmentSalePossible: false,
     exchangePossible: false,
     isExclusive: false,
@@ -170,7 +178,81 @@ export function SellerFlow() {
   const isExitDeal = dealCategory === 'exit'
   const isRentDeal =
     dealCategory === 'rent_monthly' || dealCategory === 'rent_daily'
-  const isDirectSale = dealCategory === 'sale' || dealCategory === 'pledge'
+  const isDirectSale = dealCategory === 'sale' || !dealCategory
+
+  // دالة اختيار أو إلغاء تحديد نوع العملية عند الضغط مرة ثانية
+  const handleToggleDealCategory = (cat: DealCategory | '') => {
+    if (dealCategory === cat) {
+      setDealCategory('')
+      setPropertyKind('')
+      setBuildingStatus('')
+    } else {
+      setDealCategory(cat)
+    }
+  }
+
+  // دالة اختيار أو إلغاء تحديد نوع العقار عند الضغط مرة ثانية
+  const handleTogglePropertyKind = (kindId: string) => {
+    if (propertyKind === kindId) {
+      setPropertyKind('')
+      setBuildingStatus('')
+    } else {
+      setPropertyKind(kindId)
+      setBuildingStatus('')
+      if (kindId === 'Land') {
+        setActiveTab(2)
+      }
+    }
+  }
+
+  // دالة اختيار أو إلغاء تحديد حالة البناء + نقل التاب العلوي تلقائياً لـ 2 Photos كما في الصورة 9
+  const handleToggleBuildingStatus = (statusId: string) => {
+    if (buildingStatus === statusId) {
+      setBuildingStatus('')
+    } else {
+      setBuildingStatus(statusId)
+      setActiveTab(2)
+    }
+  }
+
+  // تتبع السكرول الذكي (Scroll-Spy) لتنير التابات العلوية بدقة أثناء النزول والصعود
+  useEffect(() => {
+    const handleScrollSpy = () => {
+      if (isManualScrollingRef.current) return
+      const sections: Array<{ id: number; el: HTMLElement | null }> = [
+        { id: 1, el: secTypeRef.current },
+        { id: 2, el: secPhotosRef.current },
+        { id: 3, el: secLocationRef.current },
+        { id: 4, el: secDetailsRef.current },
+        { id: 5, el: secPriceRef.current },
+        { id: 6, el: secContactRef.current },
+      ]
+
+      const viewportLine = window.innerHeight * 0.32
+      let activeId = 1
+
+      for (const sec of sections) {
+        if (!sec.el) continue
+        const rect = sec.el.getBoundingClientRect()
+        if (rect.top <= viewportLine) {
+          activeId = sec.id
+        }
+      }
+
+      // إذا وصل المستخدم لآخر الصفحة نضيء تاب 6 Contact
+      if (
+        window.innerHeight + window.scrollY >=
+        document.documentElement.scrollHeight - 100
+      ) {
+        activeId = 6
+      }
+
+      setActiveTab((prev) => (prev !== activeId ? activeId : prev))
+    }
+
+    window.addEventListener('scroll', handleScrollSpy, { passive: true })
+    return () => window.removeEventListener('scroll', handleScrollSpy)
+  }, [])
 
   useEffect(() => {
     async function init() {
@@ -206,24 +288,25 @@ export function SellerFlow() {
               .slice(0, 6)
               .toUpperCase()}`
           )
-          const savedCat = (u.listing_category ||
-            meta.listing_category ||
-            'exit') as DealCategory
+          const rawCat = u.listing_category || meta.listing_category || 'exit'
+          const savedCat = (rawCat === 'pledge' ? 'sale' : rawCat) as DealCategory
           setDealCategory(savedCat)
           setPropertyKind(u.unit_type || meta.unit_type || 'Apartment')
           setBuildingStatus(
             u.building_status || meta.building_status || 'Newly built'
           )
 
+          const savedArea = u.area || meta.area || 'Tbilisi - Saburtalo'
           setForm((prev) => ({
             ...prev,
             developer: u.developer_name || '',
             project: u.project_name || '',
-            location: u.area || meta.area || 'Tbilisi - Saburtalo',
+            location: savedArea,
+            locationDisplay: getLocalizedGeorgiaAreaName(savedArea, locale),
             exactStreet: u.exact_street || meta.exact_street || '',
             houseNumber: u.house_number || meta.house_number || '',
             cadastralCode: u.cadastral_code || meta.cadastral_code || '',
-            yearBuilt: String(u.year_built || meta.year_built || '2024'),
+            yearBuilt: String(u.year_built || meta.year_built || ''),
             areaSize: u.size || meta.size ? String(u.size || meta.size) : '',
             kitchenArea:
               u.kitchen_area || meta.kitchen_area
@@ -245,15 +328,15 @@ export function SellerFlow() {
               u.garden_size || meta.garden_size
                 ? String(u.garden_size || meta.garden_size)
                 : '',
-            bedrooms: String(u.bedrooms || meta.bedrooms || '2'),
-            rooms: String(u.rooms || meta.rooms || '3'),
-            bathrooms: String(u.bathrooms || meta.bathrooms || '1'),
+            bedrooms: String(u.bedrooms || meta.bedrooms || ''),
+            rooms: String(u.rooms || meta.rooms || ''),
+            bathrooms: String(u.bathrooms || meta.bathrooms || ''),
             floor:
               u.floor_number !== null && u.floor_number !== undefined
                 ? String(u.floor_number)
-                : String(meta.floor_number || '5'),
-            totalFloors: String(u.total_floors || meta.total_floors || '12'),
-            maxGuests: String(u.max_guests || meta.max_guests || '2'),
+                : String(meta.floor_number || ''),
+            totalFloors: String(u.total_floors || meta.total_floors || ''),
+            maxGuests: String(u.max_guests || meta.max_guests || ''),
             description: u.description || '',
             contractPrice: u.contract_price ? String(u.contract_price) : '',
             paidAmount: u.paid_amount ? String(u.paid_amount) : '',
@@ -300,17 +383,23 @@ export function SellerFlow() {
 
           setSelected((prev) => ({
             ...prev,
-            finishing: [u.finishing || meta.finishing || 'Newly renovated'],
-            buildingSeries: [
-              u.building_series || meta.building_series || 'Non-standard',
-            ],
-            floorType: [u.floor_type || meta.floor_type || 'Standard'],
-            heatingType: [u.heating_type || meta.heating_type || 'Central'],
-            buildingMaterial: [
-              u.building_material ||
-                meta.building_material ||
-                'Monolithic concrete',
-            ],
+            finishing: u.finishing || meta.finishing ? [u.finishing || meta.finishing] : [],
+            buildingSeries:
+              u.building_series || meta.building_series
+                ? [u.building_series || meta.building_series]
+                : [],
+            floorType:
+              u.floor_type || meta.floor_type
+                ? [u.floor_type || meta.floor_type]
+                : [],
+            heatingType:
+              u.heating_type || meta.heating_type
+                ? [u.heating_type || meta.heating_type]
+                : [],
+            buildingMaterial:
+              u.building_material || meta.building_material
+                ? [u.building_material || meta.building_material]
+                : [],
             features:
               Array.isArray(u.features) && u.features.length > 0
                 ? u.features
@@ -323,7 +412,7 @@ export function SellerFlow() {
                 ? u.contact_messengers
                 : Array.isArray(meta.contact_messengers)
                   ? meta.contact_messengers
-                  : ['whatsapp'],
+                  : ['whatsapp', 'viber'],
             discountOffer: [u.willing_to_discount ? 'yes' : 'no'],
             annualInstallment: [u.has_annual_installment ? 'yes' : 'no'],
             overdueInstallments: [u.has_overdue_installments ? 'yes' : 'no'],
@@ -349,16 +438,29 @@ export function SellerFlow() {
       }
     }
     init()
-  }, [])
+  }, [locale])
 
+  // إذا ضغط المستخدم على نفس الرقم في الغرف/الحمامات يتم إلغاء تحديده
   const update = (key: string, value: string) => {
     setForm((curr) => ({ ...curr, [key]: value }))
     setError('')
     setMissingFields([])
   }
 
+  // إذا ضغط المستخدم على نفس الخيار مرة ثانية يتم إلغاء تحديده
   const toggleSingle = (group: string, value: string) => {
-    setSelected((curr) => ({ ...curr, [group]: [value] }))
+    setSelected((curr) => {
+      const currentVal = curr[group]?.[0]
+      if (
+        currentVal === value &&
+        ['finishing', 'buildingSeries', 'floorType', 'heatingType', 'buildingMaterial'].includes(
+          group
+        )
+      ) {
+        return { ...curr, [group]: [] }
+      }
+      return { ...curr, [group]: [value] }
+    })
   }
 
   const toggleMulti = (group: string, value: string) => {
@@ -373,60 +475,86 @@ export function SellerFlow() {
     })
   }
 
-  const dynamicStatusOptions = useMemo(() => {
+  const dynamicStatusOptions = useMemo<Array<LocalizedOptionItem<string>>>(() => {
     if (propertyKind === 'Hotel' || propertyKind === 'Commercial') {
       return [
         {
           id: 'Under construction',
-          labelEn: 'Under construction',
+          ar: 'تحت الإنشاء',
+          en: 'Under construction',
+          ru: 'Строится',
+          ka: 'მშენებარე',
           labelAr: 'تحت الإنشاء',
+          labelEn: 'Under construction',
         },
         {
           id: 'Completed',
+          ar: 'مكتمل وجاهز',
+          en: 'Completed',
+          ru: 'Завершен',
+          ka: 'დასრულებული',
+          labelAr: 'مكتمل وجاهز',
           labelEn: 'Completed',
-          labelAr: 'مكتمل وجاهز (Completed)',
         },
       ]
     }
     return [
       {
         id: 'Newly built',
+        ar: 'مبنى حديث',
+        en: 'Newly built',
+        ru: 'Новостройка',
+        ka: 'ახალი აშენებული',
+        labelAr: 'مبنى حديث',
         labelEn: 'Newly built',
-        labelAr: 'مبنى حديث (Newly built)',
       },
       {
         id: 'Old built',
+        ar: 'مبنى قديم',
+        en: 'Old built',
+        ru: 'Старая постройка',
+        ka: 'ძველი აშენებული',
+        labelAr: 'مبنى قديم',
         labelEn: 'Old built',
-        labelAr: 'مبنى قديم (Old built)',
       },
       {
         id: 'Under construction',
+        ar: 'تحت الإنشاء',
+        en: 'Under construction',
+        ru: 'Строится',
+        ka: 'მშენებარე',
+        labelAr: 'تحت الإنشاء',
         labelEn: 'Under construction',
-        labelAr: 'تحت الإنشاء (Under construction)',
       },
     ]
   }, [propertyKind])
 
   const sectionCompletion = useMemo(() => {
-    const s1 = Boolean(dealCategory && propertyKind)
+    const s1 = Boolean(
+      dealCategory &&
+        propertyKind &&
+        (propertyKind === 'Land' || buildingStatus)
+    )
     const s2 = images.length > 0
     const s3 = Boolean(form.location)
-    const s4 = Boolean(form.areaSize && form.rooms)
+    const s4 = Boolean(s1 && form.areaSize && (propertyKind === 'Land' || form.rooms))
     const activePrice = isRentDeal
       ? Number(form.rentPrice)
       : isDirectSale
-        ? Number(form.contractPrice || form.paidAmount)
+        ? Number(form.contractPrice || form.paidAmount || form.pricePerSqm)
         : Number(form.paidAmount)
     const s5 = Boolean(activePrice > 0 && form.description.trim().length >= 10)
     const s6 = Boolean(
       loggedUser?.id || (form.name.trim() && form.phone.trim())
     )
 
-    let strength = 10
-    if (images.length >= 1) strength += 15
+    let strength = 5
+    if (dealCategory) strength += 2
+    if (propertyKind) strength += 2
+    if (images.length >= 1) strength += 16
     if (images.length >= 5) strength += 15
-    if (form.location && (form.exactStreet || form.project)) strength += 15
-    if (form.areaSize && (selected.features?.length || 0) >= 3) strength += 15
+    if (form.location) strength += 15
+    if (form.areaSize) strength += 15
     if (activePrice > 0) strength += 15
     if (form.description.trim().length >= 40) strength += 15
 
@@ -443,54 +571,56 @@ export function SellerFlow() {
   }, [
     dealCategory,
     propertyKind,
+    buildingStatus,
     images.length,
     form.location,
-    form.exactStreet,
-    form.project,
     form.areaSize,
     form.rooms,
     form.rentPrice,
     form.contractPrice,
     form.paidAmount,
+    form.pricePerSqm,
     form.description,
     form.name,
     form.phone,
-    selected.features,
     isRentDeal,
     isDirectSale,
     loggedUser,
   ])
 
   const livePreviewData = useMemo(() => {
-    const localizedArea = getLocalizedGeorgiaAreaName(form.location, locale)
-    const beds = form.bedrooms || '1'
+    const pvT = fT.previewSidebar
+    const localizedArea =
+      form.locationDisplay ||
+      (form.location ? getLocalizedGeorgiaAreaName(form.location, locale) : '')
     const kindObj =
       PROPERTY_KINDS.find((k) => k.id === propertyKind) || PROPERTY_KINDS[0]
-    const dealLabelEn =
-      dealCategory === 'exit'
-        ? 'for resale exit'
-        : dealCategory === 'sale'
-          ? 'for sale'
-          : dealCategory === 'rent_daily'
-            ? 'for daily rent'
-            : dealCategory === 'rent_monthly'
-              ? 'for rent'
-              : 'for pledge'
+    const kindName = getOptionLabel(kindObj, locale)
 
-    const dealLabelAr =
-      dealCategory === 'exit'
-        ? 'للتنازل واستكمال الأقساط'
-        : dealCategory === 'sale'
-          ? 'للبيع'
-          : dealCategory === 'rent_daily'
-            ? 'للإيجار اليومي'
-            : dealCategory === 'rent_monthly'
-              ? 'للإيجار الشهري'
-              : 'للرهن العقاري'
+    const dealActionText =
+      locale === 'ar'
+        ? dealCategory === 'exit'
+          ? 'للتنازل في'
+          : isRentDeal
+            ? 'للإيجار في'
+            : 'للبيع في'
+        : locale === 'ru'
+          ? dealCategory === 'exit'
+            ? 'переуступка в'
+            : isRentDeal
+              ? 'в аренду в'
+              : 'на продажу в'
+          : locale === 'ka'
+            ? isRentDeal
+              ? 'ქირავდება'
+              : 'იყიდება'
+            : dealCategory === 'exit'
+              ? 'for exit in'
+              : isRentDeal
+                ? 'for rent in'
+                : 'for sale in'
 
-    const title = isAr
-      ? `${form.project ? `${form.project} — ` : ''}${kindObj.labelAr.split(' ')[0]} ${propertyKind !== 'Land' ? `${beds} غرف نوم ` : ''}${dealLabelAr} في ${localizedArea}`
-      : `${propertyKind !== 'Land' ? `${beds}-bedroom ` : ''}${kindObj.labelEn} ${dealLabelEn} in ${localizedArea}`
+    const title = `${kindName} ${dealActionText} ${localizedArea || '—'}`
 
     const currSym =
       currencyChoice === 'GEL' ? '₾' : currencyChoice === 'EUR' ? '€' : '$'
@@ -501,69 +631,66 @@ export function SellerFlow() {
       rawPrice = Number(toEnglishDigits(form.paidAmount || '0'))
     else
       rawPrice = Number(
-        toEnglishDigits(form.contractPrice || form.paidAmount || '0')
+        toEnglishDigits(
+          form.contractPrice || form.paidAmount || form.pricePerSqm || '0'
+        )
       )
 
     const priceSuffix =
       dealCategory === 'rent_daily'
-        ? isAr
-          ? ' / يومياً'
-          : ' /day'
+        ? pvT.perDay
         : dealCategory === 'rent_monthly'
-          ? isAr
-            ? ' / شهرياً'
-            : ' /month'
+          ? pvT.perMonth
           : isExitDeal
-            ? isAr
-              ? ' (الكاش المطلوب)'
-              : ' (Cash Required)'
+            ? pvT.cashRequiredSuffix
             : ''
 
     return {
       title,
-      area: localizedArea,
+      area: localizedArea || '—',
       priceDisplay:
         rawPrice > 0
           ? `${currSym}${rawPrice.toLocaleString('en-US')}${priceSuffix}`
-          : isAr
-            ? 'السعر عند الإدخال'
-            : 'Price on request',
+          : pvT.priceOnRequest,
     }
   }, [
+    fT.previewSidebar,
     form.location,
-    form.bedrooms,
-    form.project,
+    form.locationDisplay,
     form.rentPrice,
     form.paidAmount,
     form.contractPrice,
+    form.pricePerSqm,
     propertyKind,
     dealCategory,
     currencyChoice,
-    isAr,
     locale,
     isRentDeal,
     isExitDeal,
   ])
 
   const generateSmartDescription = () => {
-    const areaName = getLocalizedGeorgiaAreaName(form.location, locale)
+    const areaName =
+      form.locationDisplay ||
+      getLocalizedGeorgiaAreaName(form.location || 'Tbilisi - Saburtalo', locale)
     const sizeStr = form.areaSize || '75'
     const roomsStr = form.rooms || '3'
     const bedsStr = form.bedrooms || '2'
     const floorStr = `${form.floor || '5'}/${form.totalFloors || '12'}`
-    const cond = selected.finishing?.[0] || 'Newly renovated'
-    const feats = (selected.features || []).slice(0, 6).join('، ')
+    const condObj =
+      PROPERTY_KINDS.find((k) => k.id === propertyKind) || PROPERTY_KINDS[0]
 
-    if (isAr) {
-      const textAr =
-        dealCategory === 'exit'
-          ? `فرصة استثمارية مميزة للتنازل واستكمال الأقساط في ${form.project || areaName} (${areaName}). الوحدة بمساحة ${sizeStr} م²، تتكون من ${roomsStr} غرف (${bedsStr} غرف نوم) في الطابق ${floorStr}، بحالة تشطيب (${cond}) وحالة مبنى (${buildingStatus}). تتميز بـ: ${feats || 'موقع استراتيجي متكامل الخدمات'}. فرصة ممتازة للاستلام أو الاستثمار بسعر التعاقد الأصلي.`
-          : isRentDeal
-            ? `وحدة فاخرة ومجهزة بالكامل ${dealCategory === 'rent_daily' ? 'للإيجار اليومي السياحي' : 'للإيجار الشهري'} في أرقى مناطق ${areaName}${form.exactStreet ? ` (${form.exactStreet})` : ''}. المساحة ${sizeStr} م²، تضم ${bedsStr} غرف نوم، طابق ${floorStr}، بتشطيب (${cond}) وتدفئة (${selected.heatingType?.[0] || 'Central'}). مجهزة بـ: ${feats}. جاهزة للسكن الفوري.`
-            : `عقار مميز للبيع في ${areaName}${form.project ? ` — مشروع ${form.project}` : ''}. المساحة الإجمالية ${sizeStr} م²، يتكون من ${roomsStr} غرف (${bedsStr} غرف نوم)، طابق ${floorStr}، حالة البناء (${buildingStatus}) والتشطيب (${cond}). يشتمل على: ${feats}. موقع حيوي قريب من كافة الخدمات والمواصلات.`
+    if (locale === 'ar') {
+      const textAr = `عقار مميز (${getOptionLabel(condObj, 'ar')}) في ${areaName}. المساحة الإجمالية ${sizeStr} م²، يتكون من ${roomsStr} غرف (${bedsStr} غرف نوم)، الطابق ${floorStr}. موقع استراتيجي قريب من كافة الخدمات اليومية والمواصلات.`
       update('description', textAr)
+    } else if (locale === 'ru') {
+      const textRu = `${bedsStr}-спальная ${getOptionLabel(condObj, 'ru')} (${sizeStr} м²) в районе ${areaName}. Этаж ${floorStr}. Отличная локация рядом со всей инфраструктурой и транспортом.`
+      update('description', textRu)
+    } else if (locale === 'ka') {
+      const textKa = `${bedsStr}-საძინებლიანი ${getOptionLabel(condObj, 'ka')} (${sizeStr} მ²) ${areaName}-ში. სართული ${floorStr}. საუკეთესო მდებარეობა ყველა საჭირო ინფრასტრუქტურასთან ახლოს.`
+      update('description', textKa)
     } else {
-      const textEn = `${bedsStr}-bedroom ${propertyKind} (${sizeStr} m²) in ${areaName}${form.project ? ` — ${form.project}` : ''}. Located on floor ${floorStr}, ${buildingStatus.toLowerCase()}, condition: ${cond}. Equipped with ${selected.heatingType?.[0] || 'Central'} heating and key features including: ${(selected.features || []).slice(0, 6).join(', ')}. Prime location with easy access to daily amenities and public transport.`
+      const textEn = `${bedsStr}-bedroom ${getOptionLabel(condObj, 'en')} (${sizeStr} m²) in ${areaName}. Located on floor ${floorStr}. Prime location with easy access to daily amenities and public transport.`
       update('description', textEn)
     }
   }
@@ -661,21 +788,26 @@ export function SellerFlow() {
     const targetId = activeUnitId || unitId
     if (targetId) put('unit_id', targetId)
 
+    const effectiveDeal = (dealCategory || 'exit') as DealCategory
+    const effectiveKind = propertyKind || 'Apartment'
+    const effectiveArea = form.location || 'Tbilisi - Saburtalo'
+    const effectiveStatus = buildingStatus || 'Newly built'
+
     put('country', ACTIVE_PLATFORM_COUNTRY)
     put('currency_code', currencyChoice)
-    put('listing_category', dealCategory)
-    put('unit_type', propertyKind)
-    put('building_status', buildingStatus)
+    put('listing_category', effectiveDeal)
+    put('unit_type', effectiveKind)
+    put('building_status', effectiveStatus)
 
     const fallbackProjectTitle =
       form.project.trim() ||
       (form.exactStreet
-        ? `${propertyKind} — ${form.exactStreet}`
-        : `${propertyKind} in ${getLocalizedGeorgiaAreaName(form.location, 'en')}`)
+        ? `${effectiveKind} — ${form.exactStreet}`
+        : `${effectiveKind} in ${getLocalizedGeorgiaAreaName(effectiveArea, 'en')}`)
 
-    put('developer_name', form.developer || buildingStatus)
+    put('developer_name', form.developer || effectiveStatus)
     put('project_name', fallbackProjectTitle)
-    put('area', form.location)
+    put('area', effectiveArea)
     put('exact_street', form.exactStreet)
     put('house_number', form.houseNumber)
     put('cadastral_code', form.cadastralCode)
@@ -688,21 +820,21 @@ export function SellerFlow() {
     put('terrace_area', form.terraceArea)
     put('garden_size', form.garden)
 
-    put('bedrooms', form.bedrooms)
-    put('rooms', form.rooms)
-    put('bathrooms', form.bathrooms)
+    put('bedrooms', form.bedrooms || '1')
+    put('rooms', form.rooms || '1')
+    put('bathrooms', form.bathrooms || '1')
     put('floor_number', form.floor)
     put('total_floors', form.totalFloors)
     put('max_guests', form.maxGuests)
 
-    put('finishing', selected.finishing?.[0])
+    put('finishing', selected.finishing?.[0] || 'Newly renovated')
     put('building_series', selected.buildingSeries?.[0])
     put('floor_type', selected.floorType?.[0])
     put('heating_type', selected.heatingType?.[0])
     put('building_material', selected.buildingMaterial?.[0])
 
     const delStatus =
-      buildingStatus === 'Under construction'
+      effectiveStatus === 'Under construction'
         ? form.deliveryRemainingMonths
           ? `Under Construction (${form.deliveryRemainingMonths} months)`
           : 'Under Construction'
@@ -725,7 +857,7 @@ export function SellerFlow() {
     if (isRentDeal) {
       const rPrice = Number(toEnglishDigits(form.rentPrice || '0'))
       put('rent_price', rPrice)
-      put('rent_period', dealCategory === 'rent_daily' ? 'daily' : 'monthly')
+      put('rent_period', effectiveDeal === 'rent_daily' ? 'daily' : 'monthly')
       put('contract_price', rPrice)
       put('paid_amount', rPrice)
       put('market_price', rPrice)
@@ -817,29 +949,32 @@ export function SellerFlow() {
   const handlePublishListing = () => {
     const missing: string[] = []
 
+    if (!dealCategory || !propertyKind) {
+      missing.push(fT.typeSection.title)
+    }
     if (!form.location) {
-      missing.push(isAr ? 'المدينة / الحي (Location)' : 'City / District')
+      missing.push(fT.locationSection.cityDistrictLabel.replace(' *', ''))
     }
     if (!form.areaSize || Number(toEnglishDigits(form.areaSize)) <= 0) {
-      missing.push(isAr ? 'المساحة بالمتر (Area m²)' : 'Area (m²)')
+      missing.push(fT.detailsSection.areaLabel.replace(' *', ''))
     }
 
     if (isRentDeal) {
       if (!form.rentPrice || Number(toEnglishDigits(form.rentPrice)) <= 0) {
-        missing.push(isAr ? 'سعر الإيجار (Rent price)' : 'Rent price')
+        missing.push(fT.pricingSection.priceLabel.replace(' *', ''))
       }
     } else if (isDirectSale) {
       const hasPrice =
         Number(toEnglishDigits(form.contractPrice || form.paidAmount)) > 0 ||
         Number(toEnglishDigits(form.pricePerSqm)) > 0
       if (!hasPrice) {
-        missing.push(isAr ? 'سعر البيع (Price)' : 'Sale price')
+        missing.push(fT.pricingSection.priceLabel.replace(' *', ''))
       }
     } else {
       if (!form.contractPrice)
-        missing.push(isAr ? 'إجمالي سعر العقد' : 'Total Contract Price')
+        missing.push(fT.pricingSection.contractPriceLabel.replace(' *', ''))
       if (!form.paidAmount)
-        missing.push(isAr ? 'المبلغ المدفوع حتى الآن' : 'Paid Amount')
+        missing.push(fT.pricingSection.paidAmountLabel.replace(' *', ''))
     }
 
     if (!loggedUser) {
@@ -870,9 +1005,7 @@ export function SellerFlow() {
           (!form.password && !form.loginPassword)
         ) {
           missing.push(
-            isAr
-              ? 'بيانات تسجيل الدخول في قسم التواصل'
-              : 'Login credentials in Contact section'
+            isAr ? 'بيانات تسجيل الدخول' : 'Login credentials'
           )
         }
       }
@@ -880,11 +1013,7 @@ export function SellerFlow() {
 
     if (missing.length > 0) {
       setMissingFields(missing)
-      setError(
-        isAr
-          ? 'يرجى استكمال الحقول المطلوبة التالية قبل النشر:'
-          : 'Please complete the following required fields:'
-      )
+      setError(s.validation.missingBannerPrefix)
       return
     }
 
@@ -893,6 +1022,10 @@ export function SellerFlow() {
 
     startTransition(async () => {
       let resolvedUnitId = unitId
+      const effectiveDeal = (dealCategory || 'exit') as DealCategory
+      const effectiveKind = propertyKind || 'Apartment'
+      const effectiveArea = form.location || 'Tbilisi - Saburtalo'
+      const effectiveStatus = buildingStatus || 'Newly built'
 
       if (!loggedUser) {
         const cleanPhone = toEnglishDigits(form.phone || '').trim()
@@ -902,13 +1035,13 @@ export function SellerFlow() {
 
         const step2Res = await processSellerStep2Action({
           mode: authMode === 'login' ? 'login' : 'register',
-          listingCategory: dealCategory,
+          listingCategory: effectiveDeal,
           unitCountry: ACTIVE_PLATFORM_COUNTRY,
           userCountry: form.userCountry || ACTIVE_PLATFORM_COUNTRY,
-          developer: form.developer || buildingStatus,
+          developer: form.developer || effectiveStatus,
           project:
             form.project ||
-            `${propertyKind} in ${getLocalizedGeorgiaAreaName(form.location, 'en')}`,
+            `${effectiveKind} in ${getLocalizedGeorgiaAreaName(effectiveArea, 'en')}`,
           contractPrice:
             Number(
               toEnglishDigits(form.contractPrice || form.rentPrice || '0')
@@ -935,8 +1068,8 @@ export function SellerFlow() {
           setError(
             step2Res.error ||
               (isAr
-                ? 'تعذر التحقق من بيانات الحساب، تأكد من البريد وكلمة المرور'
-                : 'Authentication failed, please check your credentials')
+                ? 'تعذر التحقق من بيانات الحساب'
+                : 'Authentication failed')
           )
           secContactRef.current?.scrollIntoView({ behavior: 'smooth' })
           return
@@ -974,8 +1107,12 @@ export function SellerFlow() {
     idx: number,
     ref: React.RefObject<HTMLElement | null>
   ) => {
+    isManualScrollingRef.current = true
     setActiveTab(idx)
     ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    setTimeout(() => {
+      isManualScrollingRef.current = false
+    }, 850)
   }
 
   const supportWhatsApp = String(dict.footer?.phone || '+201018595959').replace(
@@ -1000,37 +1137,12 @@ export function SellerFlow() {
   }
 
   const navTabs = [
-    { id: 1, labelEn: '1 Type', labelAr: '1 نوع الإعلان', ref: secTypeRef },
-    {
-      id: 2,
-      labelEn: '2 Photos',
-      labelAr: '2 الصور والفيديو',
-      ref: secPhotosRef,
-    },
-    {
-      id: 3,
-      labelEn: '3 Location',
-      labelAr: '3 الموقع والخريطة',
-      ref: secLocationRef,
-    },
-    {
-      id: 4,
-      labelEn: '4 Details',
-      labelAr: '4 المواصفات والمميزات',
-      ref: secDetailsRef,
-    },
-    {
-      id: 5,
-      labelEn: '5 Price & description',
-      labelAr: '5 السعر والوصف',
-      ref: secPriceRef,
-    },
-    {
-      id: 6,
-      labelEn: '6 Contact',
-      labelAr: '6 التواصل والنشر',
-      ref: secContactRef,
-    },
+    { id: 1, label: fT.tabs.type, ref: secTypeRef },
+    { id: 2, label: fT.tabs.photos, ref: secPhotosRef },
+    { id: 3, label: fT.tabs.location, ref: secLocationRef },
+    { id: 4, label: fT.tabs.details, ref: secDetailsRef },
+    { id: 5, label: fT.tabs.price, ref: secPriceRef },
+    { id: 6, label: fT.tabs.contact, ref: secContactRef },
   ]
 
   return (
@@ -1039,41 +1151,49 @@ export function SellerFlow() {
       className="min-h-screen bg-[#f4f6f9] pb-28 pt-6 text-[#0a1122] sm:pt-8"
     >
       <div className="mx-auto max-w-[1180px] px-4 sm:px-6">
-        <header className="mb-5 text-start">
+        <header className="mb-4 text-start">
           <h1 className="text-2xl font-black tracking-tight text-[#0a1122] sm:text-3xl">
-            {isAr ? 'إضافة إعلان عقاري (Add a listing)' : 'Add a listing'}
+            {fT.pageTitle}
           </h1>
           <p className="mt-1 text-xs font-medium text-slate-500 sm:text-sm">
-            {isAr
-              ? 'صفحة واحدة ذكية — اختر نوع العملية (تنازل أقساط، بيع، أو إيجار) واملأ التفاصيل وانشر فوراً.'
-              : 'One page — fill in and publish.'}
+            {fT.pageSubtitle}
           </p>
         </header>
 
-        {/* شريط التابات العلوي الثابت أثناء السكرول */}
-        <div className="sticky top-16 z-30 -mx-4 mb-6 bg-[#f4f6f9]/95 px-4 py-2.5 backdrop-blur-md sm:mx-0 sm:px-0">
+        {/* شريط التابات العلوي المتفاعل مع السكرول وخطوات الإكمال مطابق لـ sivrce.ge */}
+        <div className="sticky top-16 z-30 -mx-4 mb-6 border-b border-slate-200/70 bg-[#f4f6f9]/95 px-4 py-3 backdrop-blur-md sm:mx-0 sm:px-0">
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
             {navTabs.map((tab) => {
               const isDone =
                 sectionCompletion[tab.id as 1 | 2 | 3 | 4 | 5 | 6]
               const isCurrent = activeTab === tab.id
+              const cleanName = tab.label.replace(/^[0-9]+\s*/, '')
+
               return (
                 <button
                   key={tab.id}
                   type="button"
                   onClick={() => scrollToSection(tab.id, tab.ref)}
-                  className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2 text-xs font-extrabold transition shadow-2xs ${
+                  className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-extrabold transition-all duration-200 ${
                     isCurrent
-                      ? 'bg-[#ea580c] text-white shadow-sm'
+                      ? 'bg-gradient-to-r from-[#f97316] to-[#ea580c] text-white shadow-md shadow-orange-500/25'
                       : isDone
-                        ? 'border border-orange-200 bg-orange-50 text-[#ea580c]'
+                        ? 'border border-blue-200/80 bg-blue-50/90 text-[#2563eb]'
                         : 'border border-slate-200/80 bg-white text-slate-600 hover:bg-slate-50'
                   }`}
                 >
-                  {isDone && !isCurrent && (
-                    <Check className="size-3.5 stroke-[3]" />
+                  {isDone ? (
+                    <>
+                      <Check
+                        className={`size-3.5 stroke-[3] ${
+                          isCurrent ? 'text-white' : 'text-[#2563eb]'
+                        }`}
+                      />
+                      <span>{cleanName}</span>
+                    </>
+                  ) : (
+                    <span>{tab.label}</span>
                   )}
-                  <span>{isAr ? tab.labelAr : tab.labelEn}</span>
                 </button>
               )
             })}
@@ -1087,11 +1207,11 @@ export function SellerFlow() {
               sectionRef={secTypeRef}
               onHover={() => setActiveTab(1)}
               dealCategory={dealCategory}
-              setDealCategory={setDealCategory}
+              setDealCategory={handleToggleDealCategory}
               propertyKind={propertyKind}
-              setPropertyKind={setPropertyKind}
+              setPropertyKind={handleTogglePropertyKind}
               buildingStatus={buildingStatus}
-              setBuildingStatus={setBuildingStatus}
+              setBuildingStatus={handleToggleBuildingStatus}
               dynamicStatusOptions={dynamicStatusOptions}
             />
 
@@ -1200,12 +1320,8 @@ export function SellerFlow() {
             <span className="text-emerald-600">✓</span>
             <span>
               {autoSaveTime
-                ? isAr
-                  ? `تم حفظ المسودة الساعة ${autoSaveTime}`
-                  : `Draft saved at ${autoSaveTime}`
-                : isAr
-                  ? `تم إكمال ${sectionCompletion.completedCount}/6 أقسام`
-                  : `Draft saved automatically ${sectionCompletion.completedCount}/6`}
+                ? `${fT.bottomBar.savedAtPrefix} ${autoSaveTime}`
+                : `${fT.bottomBar.autoSavedPrefix} ${sectionCompletion.completedCount}/6`}
             </span>
             {loggedUser && (
               <button
@@ -1213,7 +1329,7 @@ export function SellerFlow() {
                 onClick={handleSaveDraft}
                 className="hidden rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-extrabold text-[#0a1122] hover:bg-slate-100 sm:inline-block"
               >
-                {isAr ? 'حفظ كمسودة' : 'Save draft'}
+                {fT.bottomBar.saveDraftBtn}
               </button>
             )}
           </div>
@@ -1222,15 +1338,15 @@ export function SellerFlow() {
             type="button"
             disabled={pending}
             onClick={handlePublishListing}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#ea580c] to-[#f43f5e] px-8 text-sm font-black text-white shadow-md transition hover:opacity-95 active:scale-[0.98] disabled:opacity-60"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#f97316] to-[#f43f5e] px-8 text-sm font-black text-white shadow-md shadow-orange-500/20 transition hover:opacity-95 active:scale-[0.98] disabled:opacity-60"
           >
             {pending ? (
               <>
                 <Loader2 className="size-4 animate-spin" />
-                <span>{isAr ? 'جاري النشر...' : 'Publishing...'}</span>
+                <span>{fT.bottomBar.publishingBtn}</span>
               </>
             ) : (
-              <span>{isAr ? 'نشر الإعلان (Publish)' : 'Publish'}</span>
+              <span>{fT.bottomBar.publishBtn}</span>
             )}
           </button>
         </div>

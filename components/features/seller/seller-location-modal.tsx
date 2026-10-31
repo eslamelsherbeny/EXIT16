@@ -1,7 +1,15 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronLeft, ChevronDown, Compass, MapPin, Search, X } from 'lucide-react'
+import {
+  ChevronDown,
+  ChevronLeft,
+  Compass,
+  Globe,
+  MapPin,
+  Search,
+  X,
+} from 'lucide-react'
 import { Label } from '@/components/ui/label'
 import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
 import { useTranslation } from '@/lib/i18n'
@@ -191,7 +199,6 @@ export const SIVRCE_SIDEBAR_CITIES = [
   'Vani',
 ]
 
-// أحياء تبليسي
 export const TBILISI_DISTRICT_GROUPS: Array<{
   group: string
   items: Array<{ name: string; areaId: string }>
@@ -316,7 +323,6 @@ export const TBILISI_DISTRICT_GROUPS: Array<{
   },
 ]
 
-// أحياء باتومي
 export const BATUMI_DISTRICTS_LIST: Array<{ name: string; areaId: string }> = [
   { name: 'Adlia', areaId: 'Batumi - Airport District' },
   { name: 'Akhali Bulvari', areaId: 'Batumi - New Boulevard' },
@@ -344,7 +350,6 @@ export const BATUMI_DISTRICTS_LIST: Array<{ name: string; areaId: string }> = [
   { name: 'Sarpi', areaId: 'Batumi - Gonio / Kvariati' },
 ]
 
-// شوارع مخصصة لأهم مدن وبلديات جورجيا لتجنب التحميل البطيء
 export const CITY_PRESET_STREETS: Record<string, string[]> = {
   Akhmeta: [
     '1 Maisis St.',
@@ -455,8 +460,10 @@ export function SivrceLocationModalPicker({
   displayText,
   onSelectLocation,
   error,
+  showEverywhereOption = false,
+  customTrigger,
 }: {
-  label: string
+  label?: string
   value: string
   displayText?: string
   onSelectLocation: (payload: {
@@ -467,8 +474,14 @@ export function SivrceLocationModalPicker({
     lng?: number
   }) => void
   error?: string
+  showEverywhereOption?: boolean
+  customTrigger?: (props: {
+    onClick: () => void
+    resolvedDisplay: string
+  }) => React.ReactNode
 }) {
   const { locale, dir } = useTranslation()
+  const isAr = locale === 'ar'
   const fT = getSellerFormTranslations(locale)
   const mT = fT.locationModal
 
@@ -507,7 +520,6 @@ export function SivrceLocationModalPicker({
     return SIVRCE_SIDEBAR_CITIES.filter((c) => c.toLowerCase().includes(q))
   }, [searchQuery])
 
-  // البحث التلقائي عن الشوارع بمجرد اختيار منطقة غير تبليسي وباتومي
   useEffect(() => {
     if (
       !activeCity ||
@@ -526,7 +538,6 @@ export function SivrceLocationModalPicker({
     }
   }, [activeCity])
 
-  // البحث الحي في خريطة جورجيا عبر OpenStreetMap
   useEffect(() => {
     const q = searchQuery.trim()
     if (q.length < 2) {
@@ -595,7 +606,7 @@ export function SivrceLocationModalPicker({
     setGpsError('')
     if (typeof window === 'undefined' || !('geolocation' in navigator)) {
       setGpsError(
-        locale === 'ar'
+        isAr
           ? 'متصفحك لا يدعم خاصية تحديد الموقع GPS'
           : 'Geolocation is not supported by your browser'
       )
@@ -664,10 +675,10 @@ export function SivrceLocationModalPicker({
         setGpsLoading(false)
         setGpsError(
           err.code === 1
-            ? locale === 'ar'
+            ? isAr
               ? 'يرجى السماح للمتصفح بالوصول إلى موقعك (Allow Location)'
               : 'Please allow location permission in your browser'
-            : locale === 'ar'
+            : isAr
               ? 'تعذر التقاط إشارة GPS'
               : 'Could not detect GPS location'
         )
@@ -734,45 +745,54 @@ export function SivrceLocationModalPicker({
 
   return (
     <div className="flex flex-col gap-2">
-      <Label className="text-start text-xs font-extrabold text-[#0a1122]">
-        <RequiredLabel>{label}</RequiredLabel>
-      </Label>
+      {label ? (
+        <Label className="text-start text-xs font-extrabold text-[#0a1122]">
+          <RequiredLabel>{label}</RequiredLabel>
+        </Label>
+      ) : null}
 
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className={`flex h-12 w-full items-center justify-between rounded-xl border px-4 text-start text-xs font-bold transition sm:text-sm ${
-          !value || error
-            ? 'border-orange-300 bg-white text-slate-400 hover:border-[#ea580c]'
-            : 'border-slate-200 bg-white text-[#0a1122] hover:border-[#2563eb]'
-        }`}
-      >
-        <span className="flex items-center gap-2 truncate">
-          <MapPin
-            className={`size-4 shrink-0 ${
-              value ? 'text-[#2563eb]' : 'text-slate-400'
-            }`}
-          />
-          <span className="truncate">
-            {resolvedDisplay || mT.searchPlaceholder}
+      {customTrigger ? (
+        customTrigger({
+          onClick: () => setOpen(true),
+          resolvedDisplay,
+        })
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className={`flex h-12 w-full items-center justify-between rounded-xl border px-4 text-start text-xs font-bold transition sm:text-sm ${
+            !value || error
+              ? 'border-orange-300 bg-white text-slate-400 hover:border-[#ea580c]'
+              : 'border-slate-200 bg-white text-[#0a1122] hover:border-[#2563eb]'
+          }`}
+        >
+          <span className="flex items-center gap-2 truncate">
+            <MapPin
+              className={`size-4 shrink-0 ${
+                value ? 'text-[#2563eb]' : 'text-slate-400'
+              }`}
+            />
+            <span className="truncate">
+              {resolvedDisplay || mT.searchPlaceholder}
+            </span>
           </span>
-        </span>
-        {value ? (
-          <span
-            onClick={(e) => {
-              e.stopPropagation()
-              onSelectLocation({ areaId: '', displayLabel: '', street: '' })
-              setActiveCity(null)
-              setCheckedSubItem(null)
-            }}
-            className="flex size-6 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-          >
-            <X className="size-3.5" />
-          </span>
-        ) : (
-          <ChevronDown className="size-4 text-slate-400" />
-        )}
-      </button>
+          {value ? (
+            <span
+              onClick={(e) => {
+                e.stopPropagation()
+                onSelectLocation({ areaId: '', displayLabel: '', street: '' })
+                setActiveCity(null)
+                setCheckedSubItem(null)
+              }}
+              className="flex size-6 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+            >
+              <X className="size-3.5" />
+            </span>
+          ) : (
+            <ChevronDown className="size-4 text-slate-400" />
+          )}
+        </button>
+      )}
 
       {open && (
         <div
@@ -784,7 +804,6 @@ export function SivrceLocationModalPicker({
             onClick={(e) => e.stopPropagation()}
             className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-[24px] bg-white shadow-2xl"
           >
-            {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
               <div className="flex items-center gap-2">
                 {activeCity && (
@@ -812,7 +831,6 @@ export function SivrceLocationModalPicker({
               </button>
             </div>
 
-            {/* Modal Sub-Header (Search & Chips) */}
             <div className="border-b border-slate-100 px-6 py-4">
               {activeCity && (
                 <div className="mb-3 flex flex-wrap gap-2">
@@ -859,7 +877,7 @@ export function SivrceLocationModalPicker({
                 <div className="mt-2 max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm">
                   {searchingGeo ? (
                     <p className="py-2 text-center text-xs font-bold text-slate-400">
-                      {locale === 'ar'
+                      {isAr
                         ? 'جاري البحث في خرائط جورجيا...'
                         : 'Searching Georgia maps...'}
                     </p>
@@ -889,35 +907,77 @@ export function SivrceLocationModalPicker({
               )}
             </div>
 
-            {/* Modal Body */}
             {!activeCity ? (
               <div className="flex-1 overflow-y-auto px-6 py-5">
-                <button
-                  type="button"
-                  disabled={gpsLoading}
-                  onClick={handleDetectRealGPS}
-                  className="flex w-full items-center justify-between rounded-2xl border border-slate-100 bg-slate-50/70 p-4 text-start transition hover:border-blue-200 hover:bg-blue-50/30 disabled:opacity-60"
+                <div
+                  className={`grid grid-cols-1 gap-3 ${
+                    showEverywhereOption ? 'sm:grid-cols-2' : ''
+                  }`}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="flex size-9 items-center justify-center rounded-xl bg-white text-[#2563eb] shadow-2xs">
-                      <Compass
-                        className={`size-4 ${gpsLoading ? 'animate-spin' : ''}`}
-                      />
+                  {showEverywhereOption && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onSelectLocation({
+                          areaId: '',
+                          displayLabel: isAr ? 'في كل مكان' : 'Everywhere',
+                        })
+                        setActiveCity(null)
+                        setCheckedSubItem(null)
+                        setOpen(false)
+                      }}
+                      className={`flex w-full items-center justify-between rounded-2xl border p-4 text-start transition ${
+                        !value
+                          ? 'border-[#2563eb] bg-blue-50/25 ring-2 ring-[#2563eb]/15'
+                          : 'border-slate-100 bg-slate-50/70 hover:border-blue-200 hover:bg-blue-50/30'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex size-10 items-center justify-center rounded-xl bg-[#2563eb] text-white shadow-xs">
+                          <Globe className="size-5" />
+                        </div>
+                        <div>
+                          <strong className="block text-xs font-extrabold text-[#0a1122] sm:text-sm">
+                            {isAr ? 'في كل مكان' : 'Everywhere'}
+                          </strong>
+                          <span className="text-[11px] text-slate-400">
+                            {isAr ? 'كل الإعلانات في جورجيا' : 'All listings'}
+                          </span>
+                        </div>
+                      </div>
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    disabled={gpsLoading}
+                    onClick={handleDetectRealGPS}
+                    className="flex w-full items-center justify-between rounded-2xl border border-slate-100 bg-slate-50/70 p-4 text-start transition hover:border-blue-200 hover:bg-blue-50/30 disabled:opacity-60"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex size-10 items-center justify-center rounded-xl bg-white text-[#2563eb] shadow-2xs">
+                        <Compass
+                          className={`size-5 ${
+                            gpsLoading ? 'animate-spin' : ''
+                          }`}
+                        />
+                      </div>
+                      <div>
+                        <strong className="block text-xs font-extrabold text-[#0a1122] sm:text-sm">
+                          {mT.nearbyTitle}
+                        </strong>
+                        <span className="text-[11px] text-slate-400">
+                          {gpsLoading
+                            ? isAr
+                              ? 'جاري تحديد موقعك...'
+                              : 'Detecting location...'
+                            : mT.nearbySub}
+                        </span>
+                      </div>
                     </div>
-                    <div>
-                      <strong className="block text-xs font-extrabold text-[#0a1122] sm:text-sm">
-                        {mT.nearbyTitle}
-                      </strong>
-                      <span className="text-[11px] text-slate-400">
-                        {gpsLoading
-                          ? locale === 'ar'
-                            ? 'جاري تحديد موقعك...'
-                            : 'Detecting location...'
-                          : mT.nearbySub}
-                      </span>
-                    </div>
-                  </div>
-                </button>
+                  </button>
+                </div>
+
                 {gpsError && (
                   <p className="mt-2 rounded-xl bg-red-50 px-3 py-2 text-xs font-bold text-red-600">
                     {gpsError}
@@ -1057,7 +1117,8 @@ export function SivrceLocationModalPicker({
                                     .includes(searchQuery.trim().toLowerCase())
                               )
                               .map((it) => {
-                                const checked = checkedSubItem?.name === it.name
+                                const checked =
+                                  checkedSubItem?.name === it.name
                                 return (
                                   <label
                                     key={it.name}
@@ -1143,7 +1204,11 @@ export function SivrceLocationModalPicker({
                                 setCheckedSubItem(
                                   checked
                                     ? null
-                                    : { name: st, areaId: mappedArea, isStreet: true }
+                                    : {
+                                        name: st,
+                                        areaId: mappedArea,
+                                        isStreet: true,
+                                      }
                                 )
                               }
                               className={`flex cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-bold transition ${
@@ -1168,7 +1233,6 @@ export function SivrceLocationModalPicker({
               </div>
             )}
 
-            {/* Modal Footer */}
             <div className="flex items-center justify-between border-t border-slate-100 bg-white px-6 py-4">
               <button
                 type="button"

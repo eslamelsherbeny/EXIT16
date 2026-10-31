@@ -3,13 +3,9 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import {
-  ArrowLeft,
-  ArrowRight,
   ArrowUpRight,
   Award,
-  Building2,
   CreditCard,
-  MapPin,
   Megaphone,
   Plus,
   Search,
@@ -23,7 +19,7 @@ export function HomeMarketAndBottomSections({
 }: {
   realUnitCount: number
 }) {
-  const { locale, dir } = useTranslation()
+  const { locale } = useTranslation()
   const isAr = locale === 'ar'
   const GEL = '₾'
 
@@ -234,10 +230,10 @@ export function HomeMarketAndBottomSections({
       <section className="mx-auto max-w-[1320px] px-4 py-8 sm:px-6 lg:px-8">
         <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-r from-[#091540] via-[#2b193e] to-[#59213b] p-8 text-end text-white shadow-xl sm:p-12">
           <div className="flex flex-col items-end">
-            <span className="inline-block rounded-full border border-white/20 bg-white/10 px-3.5 py-1 text-[11px] font-extrabold text-orange-200">
+            <span className="inline-block rounded-full border border-white/20 bg-white/10 px-3.5 py-1 text-[11px] font-bold text-orange-200">
               ✦ {isAr ? 'مساحة إعلانية · AQAR DISPLAY' : 'SPONSORED SLOT · DISPLAY'}
             </span>
-            <h2 className="mt-4 text-3xl font-black sm:text-5xl">
+            <h2 className="mt-4 text-3xl font-bold sm:text-5xl">
               {isAr ? 'إعلانك هنا' : 'Your Ad on the Homepage'}
             </h2>
             <p className="mt-2 max-w-xl text-xs leading-relaxed text-white/75 sm:text-sm">
@@ -253,7 +249,7 @@ export function HomeMarketAndBottomSections({
               ].map((pill) => (
                 <span
                   key={pill}
-                  className="rounded-full border border-white/15 bg-white/10 px-3.5 py-1 text-[11px] font-bold text-white/90"
+                  className="rounded-full border border-white/15 bg-white/10 px-3.5 py-1 text-[11px] font-semibold text-white/90"
                 >
                   <span className="me-1 text-[#ff6437]">•</span>
                   {pill}
@@ -262,7 +258,7 @@ export function HomeMarketAndBottomSections({
             </div>
             <Link
               href="/contact"
-              className="mt-6 inline-flex h-11 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-7 text-xs font-black text-white shadow-lg transition hover:opacity-95 sm:text-sm"
+              className="mt-6 inline-flex h-11 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-7 text-xs font-bold text-white shadow-lg transition hover:opacity-95 sm:text-sm"
             >
               <span>{isAr ? 'أعلن هنا ←' : 'Advertise here →'}</span>
             </Link>
@@ -270,36 +266,36 @@ export function HomeMarketAndBottomSections({
         </div>
       </section>
 
-      {/* 2. أين تسكن (Where to live) */}
+      {/* 2. أين تسكن (في التلفون يُسحب يميناً ويساراً باللمس، وفي الكمبيوتر 4 أعمدة) */}
       <section className="mx-auto max-w-[1320px] px-4 py-10 sm:px-6 lg:px-8">
         <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
           <div className="text-start">
-            <span className="inline-block rounded-full bg-blue-50 px-3.5 py-1 text-[11px] font-black text-[#2563eb]">
+            <span className="inline-block rounded-full bg-blue-50 px-3.5 py-1 text-[11px] font-bold text-[#2563eb]">
               ⌖ {isAr ? 'أحياء' : 'NEIGHBORHOODS'}
             </span>
-            <h2 className="mt-2 text-2xl font-black tracking-tight text-[#0f1d40] sm:text-4xl">
+            <h2 className="mt-2 text-2xl font-bold tracking-tight text-[#0f1d40] sm:text-4xl">
               {isAr ? 'أين تسكن' : 'Where to live'}
             </h2>
-            <p className="mt-1 text-xs font-semibold text-slate-500 sm:text-sm">
+            <p className="mt-1 text-xs font-medium text-slate-500 sm:text-sm">
               {isAr
                 ? 'درجات قابلية العيش وأسعار حقيقية للمتر وصور حقيقية — من فاكي إلى باتومي'
                 : 'Livability scores and real average price per m² — from Vake to Batumi'}
             </p>
           </div>
           <Link
-            href="/opportunities"
-            className="text-xs font-extrabold text-[#2563eb] hover:underline sm:text-sm"
+            href="/opportunities?category=exit"
+            className="text-xs font-bold text-[#2563eb] hover:underline sm:text-sm"
           >
             {isAr ? 'كل الأحياء ←' : 'All neighborhoods →'}
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-3 no-scrollbar sm:grid sm:grid-cols-2 lg:grid-cols-4 sm:gap-5 sm:overflow-visible">
           {neighborhoods.map((nb) => (
             <Link
               key={nb.name}
-              href={`/opportunities?area=${encodeURIComponent(nb.areaQuery)}`}
-              className="sivrce-card group overflow-hidden rounded-[22px] border border-slate-200/80 bg-white shadow-xs"
+              href={`/opportunities?category=exit&area=${encodeURIComponent(nb.areaQuery)}`}
+              className="sivrce-card group w-[84vw] max-w-[320px] shrink-0 snap-start overflow-hidden rounded-[22px] border border-slate-200/80 bg-white shadow-xs sm:w-auto sm:max-w-none"
             >
               <div className="relative h-52 w-full overflow-hidden">
                 <img
@@ -310,13 +306,13 @@ export function HomeMarketAndBottomSections({
                 <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-transparent" />
                 <span
                   dir="ltr"
-                  className="absolute top-3.5 end-3.5 rounded-full bg-white/95 px-2.5 py-1 text-xs font-black text-[#0f1d40] shadow-xs"
+                  className="absolute top-3.5 end-3.5 rounded-full bg-white/95 px-2.5 py-1 text-xs font-bold text-[#0f1d40] shadow-xs"
                 >
                   {nb.score}
                 </span>
                 <div className="absolute inset-x-4 bottom-3.5 flex items-end justify-between text-white">
-                  <strong className="text-xl font-black">{nb.name}</strong>
-                  <span className="text-[11px] font-bold text-white/85">
+                  <strong className="text-xl font-bold">{nb.name}</strong>
+                  <span className="text-[11px] font-medium text-white/85">
                     ⌖ {nb.city} · {nb.countNote}
                   </span>
                 </div>
@@ -324,17 +320,17 @@ export function HomeMarketAndBottomSections({
 
               <div className="flex items-center justify-between p-4 text-start">
                 <div>
-                  <span className="block text-[10px] font-extrabold text-slate-400">
+                  <span className="block text-[10px] font-semibold text-slate-400">
                     {isAr ? 'متوسط السعر' : 'AVG. PRICE'}
                   </span>
                   <strong
                     dir="ltr"
-                    className="text-base font-black text-[#2563eb]"
+                    className="text-base font-bold text-[#2563eb]"
                   >
                     {nb.price}
                   </strong>
                 </div>
-                <span className="text-xs font-extrabold text-[#2563eb] group-hover:underline">
+                <span className="text-xs font-bold text-[#2563eb] group-hover:underline">
                   {isAr ? 'عرض الدليل ←' : 'View guide →'}
                 </span>
               </div>
@@ -342,36 +338,36 @@ export function HomeMarketAndBottomSections({
           ))}
         </div>
 
-        {/* 3. شقق قيد الإنشاء (Apartments under construction) */}
+        {/* 3. شقق قيد الإنشاء (في التلفون تُسحب يميناً ويساراً باللمس، وفي الكمبيوتر 3 أعمدة) */}
         <div className="mt-16">
           <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
             <div className="text-start">
-              <span className="inline-block rounded-full bg-blue-50 px-3.5 py-1 text-[11px] font-black text-[#2563eb]">
+              <span className="inline-block rounded-full bg-blue-50 px-3.5 py-1 text-[11px] font-bold text-[#2563eb]">
                 🏗️ {isAr ? 'مشاريع جديدة' : 'NEW PROJECTS'}
               </span>
-              <h2 className="mt-2 text-2xl font-black tracking-tight text-[#0f1d40] sm:text-4xl">
+              <h2 className="mt-2 text-2xl font-bold tracking-tight text-[#0f1d40] sm:text-4xl">
                 {isAr ? 'شقق قيد الإنشاء' : 'Apartments under construction'}
               </h2>
-              <p className="mt-1 text-xs font-semibold text-slate-500 sm:text-sm">
+              <p className="mt-1 text-xs font-medium text-slate-500 sm:text-sm">
                 {isAr
                   ? 'كل المطورين وكل المشاريع — بتقييمات وتصوير ثلاثي الأبعاد'
                   : 'All developers and new builds — with ratings and 3D view'}
               </p>
             </div>
             <Link
-              href="/opportunities?delivery=Under+Construction"
-              className="text-xs font-extrabold text-[#2563eb] hover:underline sm:text-sm"
+              href="/opportunities?category=exit&delivery=Under+Construction"
+              className="text-xs font-bold text-[#2563eb] hover:underline sm:text-sm"
             >
               {isAr ? 'كل المشاريع (1205) ←' : 'All projects (1205) →'}
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+          <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-3 no-scrollbar md:grid md:grid-cols-3 md:gap-5 md:overflow-visible">
             {underConstructionProjects.map((proj) => (
               <Link
                 key={proj.name}
-                href="/opportunities?delivery=Under+Construction"
-                className="sivrce-card overflow-hidden rounded-[22px] border border-slate-200/80 bg-white shadow-xs"
+                href="/opportunities?category=exit&delivery=Under+Construction"
+                className="sivrce-card w-[85vw] max-w-[350px] shrink-0 snap-start overflow-hidden rounded-[22px] border border-slate-200/80 bg-white shadow-xs md:w-auto md:max-w-none"
               >
                 <div className="relative h-60 w-full overflow-hidden">
                   <img
@@ -380,11 +376,11 @@ export function HomeMarketAndBottomSections({
                     className="h-full w-full object-cover"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/15 to-transparent" />
-                  <span className="absolute top-3.5 start-3.5 rounded-full bg-[#0f1d40]/90 px-3 py-1 text-xs font-extrabold text-white">
+                  <span className="absolute top-3.5 start-3.5 rounded-full bg-[#0f1d40]/90 px-3 py-1 text-xs font-bold text-white">
                     {isAr ? `اكتمل ${proj.progress}` : `${proj.progress} built`}
                   </span>
                   <div className="absolute inset-x-4 bottom-4 text-end text-white">
-                    <strong className="block text-xl font-black">
+                    <strong className="block text-xl font-bold">
                       {proj.name}
                     </strong>
                     <span className="text-xs text-white/85">
@@ -393,13 +389,13 @@ export function HomeMarketAndBottomSections({
                   </div>
                 </div>
                 <div className="p-4 text-start sm:p-5">
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-bold text-slate-500">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-semibold text-slate-500">
                     <span>⌖ {proj.address}</span>
                     <span>📅 {proj.handover}</span>
                     <span>🏢 {proj.unitsText}</span>
                   </div>
                   <div className="mt-2.5 flex items-center justify-between">
-                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100 me-4">
+                    <div className="me-4 h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
                       <div
                         className="h-full rounded-full bg-gradient-to-r from-[#2563eb] to-[#7c3aed]"
                         style={{ width: proj.progress }}
@@ -407,7 +403,7 @@ export function HomeMarketAndBottomSections({
                     </div>
                     <strong
                       dir="ltr"
-                      className="text-sm font-black text-[#2563eb]"
+                      className="text-sm font-bold text-[#2563eb]"
                     >
                       {proj.priceSqm}
                     </strong>
@@ -419,7 +415,7 @@ export function HomeMarketAndBottomSections({
         </div>
       </section>
 
-      {/* 4. شريط إعلاني فاتح + الوسطاء + شركات التطوير الرائدة (مطابق للصورة 7 و 8) */}
+      {/* 4. شريط إعلاني فاتح + الوسطاء + شركات التطوير الرائدة */}
       <section className="mx-auto max-w-[1320px] px-4 py-8 sm:px-6 lg:px-8">
         {/* الشريط الإعلاني الأبيض الأفقي */}
         <div className="mb-12 flex flex-col items-center justify-between gap-4 rounded-[24px] border border-slate-200/80 bg-white p-5 shadow-xs sm:flex-row sm:px-8">
@@ -428,10 +424,12 @@ export function HomeMarketAndBottomSections({
               <Megaphone className="size-5" />
             </div>
             <div>
-              <span className="text-[11px] font-extrabold text-[#2563eb]">
-                {isAr ? 'مساحة إعلانية · شبكة عقار إكزت' : 'Ad Space · Aqar Exit Network'}
+              <span className="text-[11px] font-bold text-[#2563eb]">
+                {isAr
+                  ? 'مساحة إعلانية · شبكة عقار إكزت'
+                  : 'Ad Space · Aqar Exit Network'}
               </span>
-              <strong className="block text-base font-black text-[#0f1d40]">
+              <strong className="block text-base font-bold text-[#0f1d40]">
                 {isAr ? 'إعلانك هنا' : 'Your Ad Here'}
               </strong>
               <p className="text-xs text-slate-500">
@@ -444,7 +442,7 @@ export function HomeMarketAndBottomSections({
 
           <Link
             href="/contact"
-            className="inline-flex h-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-6 text-xs font-black text-white shadow-sm transition hover:opacity-95"
+            className="inline-flex h-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-6 text-xs font-bold text-white shadow-sm transition hover:opacity-95"
           >
             {isAr ? 'أعلن هنا ←' : 'Advertise →'}
           </Link>
@@ -453,15 +451,15 @@ export function HomeMarketAndBottomSections({
         {/* الوسطاء أصحاب أكبر عدد من الإعلانات النشطة */}
         <div className="mb-14 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
           <div className="text-start">
-            <span className="inline-block rounded-full bg-blue-50 px-3.5 py-1 text-[11px] font-black text-[#2563eb]">
+            <span className="inline-block rounded-full bg-blue-50 px-3.5 py-1 text-[11px] font-bold text-[#2563eb]">
               👤 {isAr ? 'أفضل الوسطاء' : 'TOP BROKERS'}
             </span>
-            <h2 className="mt-2 text-2xl font-black tracking-tight text-[#0f1d40] sm:text-4xl">
+            <h2 className="mt-2 text-2xl font-bold tracking-tight text-[#0f1d40] sm:text-4xl">
               {isAr
                 ? 'الوسطاء أصحاب أكبر عدد من الإعلانات النشطة'
                 : 'Brokers with the most active listings'}
             </h2>
-            <p className="mt-1 text-xs font-semibold text-slate-500 sm:text-sm">
+            <p className="mt-1 text-xs font-medium text-slate-500 sm:text-sm">
               {isAr
                 ? 'ترتيب حسب المخزون الحي — الأكثر نشاطاً في السوق الآن'
                 : 'Ranked by live inventory — most active on the market right now'}
@@ -470,9 +468,9 @@ export function HomeMarketAndBottomSections({
 
           <Link
             href="/sell"
-            className="inline-flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-3.5 text-xs font-extrabold text-[#0f1d40] shadow-2xs transition hover:border-[#ff6437]"
+            className="inline-flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-3.5 text-xs font-bold text-[#0f1d40] shadow-2xs transition hover:border-[#ff6437]"
           >
-            <span className="rounded-lg bg-orange-50 px-2.5 py-1 font-black text-[#ff6437]">
+            <span className="rounded-lg bg-orange-50 px-2.5 py-1 font-bold text-[#ff6437]">
               #1 #2 #3
             </span>
             <span>
@@ -483,49 +481,49 @@ export function HomeMarketAndBottomSections({
           </Link>
         </div>
 
-        {/* شركات التطوير الرائدة */}
+        {/* شركات التطوير الرائدة (تُسحب أفقياً باللمس في الموبايل، و 5 أعمدة في الكمبيوتر) */}
         <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
           <div className="text-start">
-            <span className="inline-block rounded-full bg-blue-50 px-3.5 py-1 text-[11px] font-black text-[#2563eb]">
+            <span className="inline-block rounded-full bg-blue-50 px-3.5 py-1 text-[11px] font-bold text-[#2563eb]">
               🏢 {isAr ? 'أفضل المطورين' : 'TOP DEVELOPERS'}
             </span>
-            <h2 className="mt-2 text-2xl font-black tracking-tight text-[#0f1d40] sm:text-4xl">
+            <h2 className="mt-2 text-2xl font-bold tracking-tight text-[#0f1d40] sm:text-4xl">
               {isAr ? 'شركات التطوير الرائدة' : 'Leading development companies'}
             </h2>
-            <p className="mt-1 text-xs font-semibold text-slate-500 sm:text-sm">
+            <p className="mt-1 text-xs font-medium text-slate-500 sm:text-sm">
               {isAr
                 ? 'ترتيب حسب الإعلانات النشطة — استعرض المشاريع والعقارات'
                 : 'Ranked by active listings — explore projects and units'}
             </p>
           </div>
           <Link
-            href="/opportunities"
-            className="text-xs font-extrabold text-[#2563eb] hover:underline sm:text-sm"
+            href="/opportunities?category=exit"
+            className="text-xs font-bold text-[#2563eb] hover:underline sm:text-sm"
           >
             {isAr ? 'كل المطورين (1399) ←' : 'All developers (1399) →'}
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-3 no-scrollbar lg:grid lg:grid-cols-5 lg:overflow-visible">
           {topDevelopers.map((dev) => (
             <Link
               key={dev.name}
-              href="/opportunities"
-              className="sivrce-card flex flex-col justify-between rounded-[22px] border border-slate-200/80 bg-white p-5 text-start shadow-2xs"
+              href="/opportunities?category=exit"
+              className="sivrce-card flex w-[235px] shrink-0 snap-start flex-col justify-between rounded-[22px] border border-slate-200/80 bg-white p-5 text-start shadow-2xs lg:w-auto"
             >
               <div className="flex items-start justify-between gap-3">
                 <div
-                  className={`flex size-11 shrink-0 items-center justify-center rounded-xl font-black text-white ${dev.badgeColor}`}
+                  className={`flex size-11 shrink-0 items-center justify-center rounded-xl font-bold text-white ${dev.badgeColor}`}
                 >
                   {dev.code}
                 </div>
-                <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-black text-[#2563eb]">
+                <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-bold text-[#2563eb]">
                   {dev.rank}
                 </span>
               </div>
 
               <div className="mt-4">
-                <strong className="block text-base font-black text-[#0f1d40]">
+                <strong className="block text-base font-bold text-[#0f1d40]">
                   {dev.name}
                 </strong>
                 <span className="mt-0.5 block text-xs text-slate-400">
@@ -534,7 +532,7 @@ export function HomeMarketAndBottomSections({
                 </span>
               </div>
 
-              <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-xs font-extrabold">
+              <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-xs font-bold">
                 <span className="text-slate-500">
                   {dev.activeCount} {isAr ? 'نشطة' : 'active'}
                 </span>
@@ -550,24 +548,24 @@ export function HomeMarketAndBottomSections({
       {/* 5. كل ما يخص العقارات */}
       <section className="mx-auto max-w-[1320px] px-4 py-10 sm:px-6 lg:px-8">
         <div className="mb-8 text-center">
-          <h2 className="text-2xl font-black tracking-tight text-[#0f1d40] sm:text-4xl">
+          <h2 className="text-2xl font-bold tracking-tight text-[#0f1d40] sm:text-4xl">
             {isAr ? 'كل ما يخص العقارات' : 'Everything for real estate'}
           </h2>
-          <p className="mt-2 text-xs font-semibold text-slate-500 sm:text-sm">
+          <p className="mt-2 text-xs font-medium text-slate-500 sm:text-sm">
             {isAr
               ? 'من البحث إلى التوقيع — منظومة كاملة على منصة واحدة'
               : 'From search to closing — everything on one platform'}
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-3 no-scrollbar sm:grid sm:grid-cols-2 lg:grid-cols-3 sm:gap-5 sm:overflow-visible">
           {realEstateTools.map((tool) => {
             const Icon = tool.icon
             return (
               <Link
                 key={tool.title}
                 href={tool.href}
-                className="sivrce-card flex flex-col justify-between rounded-[22px] border border-slate-200/80 bg-white p-6 text-start shadow-2xs"
+                className="sivrce-card flex w-[280px] shrink-0 snap-start flex-col justify-between rounded-[22px] border border-slate-200/80 bg-white p-6 text-start shadow-2xs sm:w-auto"
               >
                 <div>
                   <div
@@ -575,7 +573,7 @@ export function HomeMarketAndBottomSections({
                   >
                     <Icon className="size-5" />
                   </div>
-                  <h3 className="mt-5 text-base font-black text-[#0f1d40] sm:text-lg">
+                  <h3 className="mt-5 text-base font-bold text-[#0f1d40] sm:text-lg">
                     {tool.title}
                   </h3>
                   <p className="mt-2 text-xs leading-relaxed text-slate-500">
@@ -583,7 +581,7 @@ export function HomeMarketAndBottomSections({
                   </p>
                 </div>
 
-                <span className="mt-5 inline-flex items-center gap-1 text-xs font-extrabold text-[#0f1d40]">
+                <span className="mt-5 inline-flex items-center gap-1 text-xs font-bold text-[#0f1d40]">
                   <span>{isAr ? 'استخدم الخدمة' : 'Use the service'}</span>
                   <ArrowUpRight className="size-3.5" />
                 </span>
@@ -592,12 +590,12 @@ export function HomeMarketAndBottomSections({
           })}
         </div>
 
-        <div className="mt-7 flex flex-wrap items-center justify-center gap-2">
+        <div className="mt-7 flex flex-nowrap items-center gap-2 overflow-x-auto pb-2 no-scrollbar sm:flex-wrap sm:justify-center">
           {extraServiceTags.map((tag) => (
             <Link
               key={tag}
               href="/contact"
-              className="rounded-full border border-slate-200/80 bg-white px-4 py-1.5 text-xs font-bold text-slate-600 shadow-2xs transition hover:border-[#ff6437] hover:text-[#ff6437]"
+              className="shrink-0 rounded-full border border-slate-200/80 bg-white px-4 py-1.5 text-xs font-semibold text-slate-600 shadow-2xs transition hover:border-[#ff6437] hover:text-[#ff6437]"
             >
               {tag}
             </Link>
@@ -609,11 +607,11 @@ export function HomeMarketAndBottomSections({
             <div>
               <strong
                 dir="ltr"
-                className="block text-4xl font-black text-[#0f1d40] sm:text-5xl"
+                className="block text-4xl font-bold text-[#0f1d40] sm:text-5xl"
               >
                 {realUnitCount > 0 ? realUnitCount : '1,814'}
               </strong>
-              <span className="mt-1 block text-xs font-bold text-slate-500">
+              <span className="mt-1 block text-xs font-semibold text-slate-500">
                 {isAr
                   ? 'مشاريع مطورين من كل جورجيا'
                   : 'Developer projects across Georgia'}
@@ -628,11 +626,11 @@ export function HomeMarketAndBottomSections({
             <div>
               <strong
                 dir="ltr"
-                className="block text-4xl font-black text-[#0f1d40] sm:text-5xl"
+                className="block text-4xl font-bold text-[#0f1d40] sm:text-5xl"
               >
                 5
               </strong>
-              <span className="mt-1 block text-xs font-bold text-slate-500">
+              <span className="mt-1 block text-xs font-semibold text-slate-500">
                 {isAr
                   ? 'مدن ومناطق مغطاة بالإحصائيات'
                   : 'Cities & regions covered with analytics'}
@@ -645,17 +643,17 @@ export function HomeMarketAndBottomSections({
         </div>
       </section>
 
-      {/* 6. أخبار ونصائح عقارية */}
+      {/* 6. أخبار ونصائح عقارية (تُسحب أفقياً باللمس في الموبايل، و 4 أعمدة في الكمبيوتر) */}
       <section className="mx-auto max-w-[1320px] px-4 py-10 sm:px-6 lg:px-8">
         <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
           <div className="text-start">
-            <span className="inline-block rounded-full bg-blue-50 px-3.5 py-1 text-[11px] font-black text-[#2563eb]">
+            <span className="inline-block rounded-full bg-blue-50 px-3.5 py-1 text-[11px] font-bold text-[#2563eb]">
               📰 {isAr ? 'المدونة والأخبار' : 'BLOG AND NEWS'}
             </span>
-            <h2 className="mt-2 text-2xl font-black tracking-tight text-[#0f1d40] sm:text-4xl">
+            <h2 className="mt-2 text-2xl font-bold tracking-tight text-[#0f1d40] sm:text-4xl">
               {isAr ? 'أخبار ونصائح عقارية' : 'Real estate news and advice'}
             </h2>
-            <p className="mt-1 text-xs font-semibold text-slate-500 sm:text-sm">
+            <p className="mt-1 text-xs font-medium text-slate-500 sm:text-sm">
               {isAr
                 ? 'أحدث المقالات وتحليلات السوق وتوصيات الخبراء'
                 : 'Latest articles, market analysis and expert recommendations'}
@@ -663,18 +661,18 @@ export function HomeMarketAndBottomSections({
           </div>
           <Link
             href="/reports"
-            className="text-xs font-extrabold text-[#2563eb] hover:underline sm:text-sm"
+            className="text-xs font-bold text-[#2563eb] hover:underline sm:text-sm"
           >
             {isAr ? 'كل المقالات ←' : 'All articles →'}
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-3 no-scrollbar sm:grid sm:grid-cols-2 lg:grid-cols-4 sm:gap-5 sm:overflow-visible">
           {blogArticles.map((art) => (
             <Link
               key={art.title}
               href="/reports"
-              className="sivrce-card flex flex-col justify-between rounded-[22px] border border-slate-200/80 bg-white p-4 text-start shadow-2xs"
+              className="sivrce-card flex w-[280px] shrink-0 snap-start flex-col justify-between rounded-[22px] border border-slate-200/80 bg-white p-4 text-start shadow-2xs sm:w-auto"
             >
               <div>
                 <div className="relative h-44 w-full overflow-hidden rounded-2xl">
@@ -683,19 +681,19 @@ export function HomeMarketAndBottomSections({
                     alt={art.title}
                     className="h-full w-full object-cover"
                   />
-                  <span className="absolute top-3 start-3 rounded-full bg-[#2563eb] px-3 py-1 text-[10px] font-extrabold text-white">
+                  <span className="absolute top-3 start-3 rounded-full bg-[#2563eb] px-3 py-1 text-[10px] font-bold text-white">
                     {art.tag}
                   </span>
                 </div>
-                <p className="mt-3 text-[11px] font-semibold text-slate-400">
+                <p className="mt-3 text-[11px] font-medium text-slate-400">
                   {art.date}
                 </p>
-                <h3 className="mt-1.5 text-sm font-extrabold leading-snug text-[#0f1d40]">
+                <h3 className="mt-1.5 text-sm font-bold leading-snug text-[#0f1d40]">
                   {art.title}
                 </h3>
               </div>
 
-              <span className="mt-4 block border-t border-slate-100 pt-3 text-xs font-extrabold text-[#2563eb]">
+              <span className="mt-4 block border-t border-slate-100 pt-3 text-xs font-bold text-[#2563eb]">
                 {isAr ? 'اقرأ المقال ←' : 'Read more →'}
               </span>
             </Link>
@@ -703,14 +701,14 @@ export function HomeMarketAndBottomSections({
         </div>
       </section>
 
-      {/* 7. بانر مساحتك في انتظارك (مطابق للصورة 9) */}
+      {/* 7. بانر مساحتك في انتظارك */}
       <section className="relative overflow-hidden bg-[#0a1338] px-4 py-20 text-center text-white sm:px-6 lg:px-8">
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.035)_1px,transparent_1px)] bg-[size:44px_44px]"
         />
         <div className="relative z-10 mx-auto max-w-3xl">
-          <h2 className="text-4xl font-black tracking-tight sm:text-6xl">
+          <h2 className="text-4xl font-bold tracking-tight sm:text-6xl">
             {isAr ? 'مساحتك في انتظارك' : 'Your space is waiting'}
             <span className="text-[#ff6437]">.</span>
           </h2>
@@ -723,14 +721,14 @@ export function HomeMarketAndBottomSections({
           <div className="mt-8 flex flex-wrap justify-center gap-3.5">
             <Link
               href="/sell"
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-8 text-xs font-black text-white shadow-[0_8px_24px_rgba(255,100,55,0.35)] transition hover:opacity-95 sm:text-sm"
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-8 text-xs font-bold text-white shadow-[0_8px_24px_rgba(255,100,55,0.35)] transition hover:opacity-95 sm:text-sm"
             >
-              <Plus className="size-4 stroke-[3]" />
+              <Plus className="size-4 stroke-[2.5]" />
               <span>{isAr ? 'أضف إعلاناً' : 'Add a listing'}</span>
             </Link>
             <Link
-              href="/opportunities"
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-white/20 bg-white/10 px-8 text-xs font-extrabold text-white transition hover:bg-white/15 sm:text-sm"
+              href="/opportunities?category=exit"
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-white/20 bg-white/10 px-8 text-xs font-bold text-white transition hover:bg-white/15 sm:text-sm"
             >
               <Search className="size-4" />
               <span>{isAr ? 'ابدأ البحث' : 'Start searching'}</span>
@@ -739,16 +737,16 @@ export function HomeMarketAndBottomSections({
         </div>
       </section>
 
-      {/* 8. قسم اشحن رصيدك بأي مبلغ (قبل الفوتر مباشرة كما في الصورة 10) */}
+      {/* 8. قسم اشحن رصيدك بأي مبلغ كاملاً (قبل الفوتر مباشرة) */}
       <section className="mx-auto max-w-[1320px] px-4 py-14 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 items-center gap-10 rounded-[28px] border border-slate-200/90 bg-white p-6 shadow-sm sm:p-10 lg:grid-cols-12">
           <div className="rounded-[24px] border border-slate-200/80 bg-[#f8fafc] p-5 text-start shadow-2xs sm:p-6 lg:col-span-5">
             <div className="flex items-center justify-between">
-              <span className="rounded-full bg-orange-100 px-2.5 py-0.5 text-[11px] font-black text-[#ff6437]">
+              <span className="rounded-full bg-orange-100 px-2.5 py-0.5 text-[11px] font-bold text-[#ff6437]">
                 1:1 ⚡
               </span>
               <div className="text-end">
-                <strong className="block text-xs font-black text-[#0f1d40]">
+                <strong className="block text-xs font-bold text-[#0f1d40]">
                   {isAr ? 'مبالغ سريعة' : 'Quick amounts'}
                 </strong>
                 <span className="text-[10px] text-slate-400">
@@ -784,14 +782,14 @@ export function HomeMarketAndBottomSections({
                     }`}
                   >
                     {item.highlight && (
-                      <span className="absolute -top-2 rounded-full bg-[#ff6437] px-1.5 py-0.2 text-[8px] font-black text-white">
+                      <span className="absolute -top-2 rounded-full bg-[#ff6437] px-1.5 py-0.2 text-[8px] font-bold text-white">
                         ★
                       </span>
                     )}
-                    <strong dir="ltr" className="text-xs font-black sm:text-sm">
+                    <strong dir="ltr" className="text-xs font-bold sm:text-sm">
                       {item.val} {GEL}
                     </strong>
-                    <span className="mt-0.5 text-[9px] font-bold text-slate-400">
+                    <span className="mt-0.5 text-[9px] font-semibold text-slate-400">
                       {item.tag}
                     </span>
                   </button>
@@ -800,11 +798,11 @@ export function HomeMarketAndBottomSections({
             </div>
 
             <div className="mt-4">
-              <span className="mb-1.5 block text-[11px] font-bold text-slate-500">
+              <span className="mb-1.5 block text-[11px] font-semibold text-slate-500">
                 {isAr ? 'مبلغ مخصص' : 'Custom amount'}
               </span>
               <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3.5 py-2">
-                <span className="font-black text-slate-400">{GEL}</span>
+                <span className="font-bold text-slate-400">{GEL}</span>
                 <input
                   type="number"
                   dir="ltr"
@@ -812,17 +810,17 @@ export function HomeMarketAndBottomSections({
                   onChange={(e) =>
                     setTopUpAmount(Math.max(5, Number(e.target.value) || 0))
                   }
-                  className="w-full bg-transparent text-center text-sm font-black text-[#0f1d40] focus:outline-none"
+                  className="w-full bg-transparent text-center text-sm font-bold text-[#0f1d40] focus:outline-none"
                 />
               </div>
             </div>
 
             <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50/50 p-3.5">
-              <strong className="block text-xs font-black text-[#0f1d40]">
+              <strong className="block text-xs font-bold text-[#0f1d40]">
                 {topUpAmount} {GEL}{' '}
                 {isAr ? 'تُضاف لرصيدك فوراً' : 'credited to your balance'}
               </strong>
-              <span className="mt-0.5 block text-[11px] font-bold text-[#2563eb]">
+              <span className="mt-0.5 block text-[11px] font-semibold text-[#2563eb]">
                 {isAr
                   ? `تغطي باقة SUPER VIP لمدة ${Math.max(1, Math.floor(topUpAmount / 10))} يوم · رسوم 0%`
                   : `Covers SUPER VIP for ${Math.max(1, Math.floor(topUpAmount / 10))} days · 0% fee`}
@@ -831,7 +829,7 @@ export function HomeMarketAndBottomSections({
 
             <Link
               href="/sell"
-              className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] text-xs font-black text-white shadow-md transition hover:opacity-95 sm:text-sm"
+              className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] text-xs font-bold text-white shadow-md transition hover:opacity-95 sm:text-sm"
             >
               <CreditCard className="size-4" />
               <span>
@@ -843,10 +841,10 @@ export function HomeMarketAndBottomSections({
           </div>
 
           <div className="text-start lg:col-span-7">
-            <span className="inline-block rounded-full bg-blue-50 px-3.5 py-1 text-xs font-extrabold text-[#2563eb]">
+            <span className="inline-block rounded-full bg-blue-50 px-3.5 py-1 text-xs font-bold text-[#2563eb]">
               ✦ {isAr ? 'رصيد المحفظة والترقية' : 'Wallet & Boost Balance'}
             </span>
-            <h2 className="mt-3 text-2xl font-black leading-tight text-[#0f1d40] sm:text-4xl">
+            <h2 className="mt-3 text-2xl font-bold leading-tight text-[#0f1d40] sm:text-4xl">
               {isAr ? (
                 <>
                   اشحن رصيدك <span className="text-[#2563eb]">بأي مبلغ</span>
@@ -860,13 +858,13 @@ export function HomeMarketAndBottomSections({
             </h2>
             <p className="mt-3 text-xs leading-relaxed text-slate-500 sm:text-sm">
               {isAr
-                ? 'رقِّ إعلاناتك لباقات SUPER VIP و VIP+، وافتح المميزات الفورية. الرصيد لا تنتهي صلاحيته أبداً.'
+                ? 'رقِّ إعلاناتك لباقات SUPER VIP و VIP+، وافتح المميزات الفورية. الرصيد لا تنتهي صلاحيته أبداً.'
                 : 'Promote your listings with SUPER VIP and VIP+ boosts, unlock services or instant features. Balance never expires.'}
             </p>
 
             <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div className="rounded-2xl border border-slate-100 bg-[#f8fafc] p-4">
-                <strong className="block text-xs font-black text-[#0f1d40]">
+                <strong className="block text-xs font-bold text-[#0f1d40]">
                   {isAr ? 'كل وسائل الدفع' : 'All Payment Methods'}
                 </strong>
                 <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
@@ -877,7 +875,7 @@ export function HomeMarketAndBottomSections({
               </div>
 
               <div className="rounded-2xl border border-slate-100 bg-[#f8fafc] p-4">
-                <strong className="block text-xs font-black text-[#0f1d40]">
+                <strong className="block text-xs font-bold text-[#0f1d40]">
                   {isAr ? 'قابل للاسترداد 100%' : '100% Refundable'}
                 </strong>
                 <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
@@ -888,7 +886,7 @@ export function HomeMarketAndBottomSections({
               </div>
 
               <div className="rounded-2xl border border-slate-100 bg-[#f8fafc] p-4">
-                <strong className="block text-xs font-black text-[#0f1d40]">
+                <strong className="block text-xs font-bold text-[#0f1d40]">
                   {isAr ? 'رصيد فوري 1:1' : 'Instant 1:1 Credit'}
                 </strong>
                 <p className="mt-1 text-[11px] leading-relaxed text-slate-500">

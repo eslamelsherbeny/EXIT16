@@ -59,25 +59,25 @@ export function HybridHomeClient({
       name: isAr ? 'ديدي ديغومي' : 'Didi Dighomi',
       price: '2,232 ₾',
       img: SHOWCASE_IMAGES.park,
-      href: '/opportunities?area=Tbilisi+-+Didi+Digomi',
+      href: '/opportunities?category=exit&area=Tbilisi+-+Didi+Digomi',
     },
     {
       name: isAr ? 'ساحل باتومي' : 'Batumi Coast',
       price: '428,498 ₾',
       img: SHOWCASE_IMAGES.coast,
-      href: '/opportunities?area=Batumi+-+New+Boulevard',
+      href: '/opportunities?category=exit&area=Batumi+-+New+Boulevard',
     },
     {
       name: isAr ? 'ديغومي ماسيف' : 'Dighmis Masivi',
       price: '169,614 ₾',
       img: SHOWCASE_IMAGES.project,
-      href: '/opportunities?area=Tbilisi+-+Saburtalo',
+      href: '/opportunities?category=exit&area=Tbilisi+-+Saburtalo',
     },
     {
       name: isAr ? 'فاكي بارك' : 'Vake Park',
       price: '340,000 ₾',
       img: SHOWCASE_IMAGES.villa,
-      href: '/opportunities?area=Tbilisi+-+Vake',
+      href: '/opportunities?category=exit&area=Tbilisi+-+Vake',
     },
   ]
 
@@ -86,19 +86,19 @@ export function HybridHomeClient({
       dir={dir}
       className="min-h-screen overflow-x-hidden bg-[#f6f8fc] text-[#0f1d40]"
     >
-      {/* 1. الهيرو بالتدرج اللوني المتحرك والمباني بدون الخطين المنحنيين */}
-      <HomeHero realUnitCount={realUnitCount} />
+      {/* 1. الهيرو مع تمرير الوحدات ليظهر العدد الفعلي داخل زر البحث */}
+      <HomeHero realUnitCount={realUnitCount} units={displayUnits} />
 
       {/* 2. قسم القصص (مفصول بوضوح عن الهيرو بخلفية بيضاء وحدود ناعمة) */}
-      <section className="border-b border-slate-200/75 bg-white py-6">
+      <section className="border-b border-slate-200/75 bg-white py-5 sm:py-6">
         <div className="mx-auto max-w-[1320px] px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col items-start gap-3">
-            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-400">
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400">
               <span className="text-[#ff6437]">◉</span>
               <span>{isAr ? 'قصص · إعلان' : 'STORIES · SPONSORED'}</span>
             </span>
 
-            <div className="flex items-center gap-6 overflow-x-auto py-1 no-scrollbar">
+            <div className="flex w-full items-center gap-6 overflow-x-auto py-1 no-scrollbar">
               {storiesItems.map((st) => (
                 <Link
                   key={st.name}
@@ -115,12 +115,12 @@ export function HybridHomeClient({
                       <Play className="size-2.5 fill-white" />
                     </span>
                   </div>
-                  <strong className="mt-2.5 block text-xs font-extrabold text-[#0f1d40] group-hover:text-[#ff6437]">
+                  <strong className="mt-2.5 block text-xs font-bold text-[#0f1d40] group-hover:text-[#ff6437]">
                     {st.name}
                   </strong>
                   <span
                     dir="ltr"
-                    className="text-[11px] font-bold text-slate-400"
+                    className="text-[11px] font-semibold text-slate-400"
                   >
                     {st.price}
                   </span>
@@ -131,26 +131,28 @@ export function HybridHomeClient({
         </div>
       </section>
 
-      {/* 3. ماذا تبحث عنه؟ (16 قسماً بالأيقونات الملونة) */}
+      {/* 3. ماذا تبحث عنه؟ (في التلفون: صفين يُسحبان يميناً ويساراً باللمس، وفي الكمبيوتر 8 أعمدة) */}
       <section className="mx-auto max-w-[1320px] px-4 py-10 sm:px-6 lg:px-8">
         <div className="mb-7 text-start">
-          <h2 className="text-2xl font-black tracking-tight text-[#0f1d40] sm:text-4xl">
+          <h2 className="text-2xl font-bold tracking-tight text-[#0f1d40] sm:text-4xl">
             {isAr ? 'ماذا تبحث عنه؟' : 'What are you looking for?'}
           </h2>
-          <p className="mt-1 text-xs font-semibold text-slate-500 sm:text-sm">
+          <p className="mt-1 text-xs font-medium text-slate-500 sm:text-sm">
             {isAr
               ? 'شقق ومنازل واستراحات — بيع، إيجار، إيجار يومي'
               : 'Apartments, houses and cottages — sale, rent, daily'}
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 md:grid-cols-8">
+        <div className="grid auto-cols-[115px] grid-flow-col grid-rows-2 gap-3 overflow-x-auto pb-2 no-scrollbar md:auto-cols-auto md:grid-flow-row md:grid-cols-8 md:grid-rows-2">
           {categoriesGrid.map((cat) => {
             const Icon = cat.icon
+            const targetHref =
+              cat.id === 'exit' ? '/opportunities?category=exit' : '#soon'
             return (
               <Link
                 key={cat.id}
-                href={cat.href}
+                href={targetHref}
                 className="sivrce-card flex min-h-[118px] flex-col items-center justify-center rounded-[22px] border border-slate-200/75 bg-white p-3.5 text-center shadow-2xs"
               >
                 <div
@@ -158,7 +160,7 @@ export function HybridHomeClient({
                 >
                   <Icon className="size-5" />
                 </div>
-                <strong className="text-xs font-extrabold text-[#0f1d40]">
+                <strong className="text-xs font-bold text-[#0f1d40]">
                   {cat.label}
                 </strong>
               </Link>
@@ -167,7 +169,7 @@ export function HybridHomeClient({
         </div>
       </section>
 
-      {/* 4. أول قسم كروت في الأعلى: إعلانات SUPER VIP (كما في الموقع الأصلي تماماً) */}
+      {/* 4. أول قسم كروت في الأعلى: إعلانات SUPER VIP */}
       <HomeCardsCarouselSection
         badgeText="SUPER VIP"
         badgeClass="bg-gradient-to-r from-[#ff6437] to-[#ff4f69] text-white shadow-xs"
@@ -178,6 +180,7 @@ export function HybridHomeClient({
             : 'Top offers first — maximum visibility'
         }
         allLinkText={isAr ? 'كل SUPER VIP ←' : 'All SUPER VIP →'}
+        allLinkHref="/opportunities?category=exit"
         units={displayUnits}
         cardBadgeOverride="SUPER VIP"
         favorites={favorites}
@@ -195,6 +198,7 @@ export function HybridHomeClient({
             : 'Fresh listings — newest first'
         }
         allLinkText={isAr ? 'كل الجديد ←' : 'All new →'}
+        allLinkHref="/opportunities?category=exit"
         units={displayUnits.slice().reverse()}
         cardBadgeOverride={isAr ? 'جديد' : 'NEW'}
         favorites={favorites}
@@ -215,6 +219,7 @@ export function HybridHomeClient({
             : 'Selected properties based on your interests and target budget'
         }
         allLinkText={isAr ? 'عرض الكل ←' : 'View all →'}
+        allLinkHref="/opportunities?category=exit"
         units={displayUnits}
         cardBadgeOverride={
           isAr ? 'ضمن ميزانيتك المحددة' : 'In your target budget'
@@ -223,12 +228,13 @@ export function HybridHomeClient({
         onToggleFav={toggleFav}
       />
 
-      {/* 8. شوهدت مؤخراً (في مكانها الصحيح بالأسفل بعد التوصيات المخصصة) */}
+      {/* 8. شوهدت مؤخراً */}
       <HomeCardsCarouselSection
         badgeText={isAr ? 'شوهدت مؤخراً · 4' : 'RECENTLY VIEWED · 4'}
         badgeClass="bg-indigo-50 text-[#4f46e5]"
         title={isAr ? 'شوهدت مؤخراً' : 'Recently viewed'}
         allLinkText={isAr ? 'عرض الكل ←' : 'View all →'}
+        allLinkHref="/opportunities?category=exit"
         units={displayUnits}
         favorites={favorites}
         onToggleFav={toggleFav}
@@ -239,13 +245,13 @@ export function HybridHomeClient({
         <div className="rounded-[28px] border border-orange-200/60 bg-gradient-to-br from-white via-[#fff9f5] to-[#f4f8ff] p-6 shadow-sm sm:p-10">
           <div className="grid grid-cols-1 items-center gap-8 lg:grid-cols-12">
             <div className="text-start lg:col-span-6">
-              <span className="inline-block rounded-full bg-orange-100 px-3.5 py-1 text-xs font-extrabold text-[#ff6437]">
+              <span className="inline-block rounded-full bg-orange-100 px-3.5 py-1 text-xs font-bold text-[#ff6437]">
                 {t?.hero?.badge ||
                   (isAr
                     ? 'نظام التنازل واستكمال الأقساط'
                     : 'Installment Exit System')}
               </span>
-              <h2 className="mt-3.5 text-2xl font-black leading-snug text-[#0f1d40] sm:text-4xl">
+              <h2 className="mt-3.5 text-2xl font-bold leading-snug text-[#0f1d40] sm:text-4xl">
                 {t?.hero?.titleLine1} {t?.hero?.titleLine2}{' '}
                 <span className="text-[#ff6437]">
                   {t?.hero?.titleAccentLine1} {t?.hero?.titleAccentLine2}
@@ -258,9 +264,9 @@ export function HybridHomeClient({
               <div className="mt-6 flex flex-wrap gap-3">
                 <Link
                   href="/sell"
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-6 text-xs font-black text-white shadow-sm transition hover:opacity-95 sm:text-sm"
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-6 text-xs font-bold text-white shadow-sm transition hover:opacity-95 sm:text-sm"
                 >
-                  <Plus className="size-4 stroke-[3]" />
+                  <Plus className="size-4 stroke-[2.5]" />
                   <span>
                     {t?.hero?.sellBtn ||
                       (isAr ? 'اعرض وحدتك للتنازل' : 'List Unit for Exit')}
@@ -268,7 +274,7 @@ export function HybridHomeClient({
                 </Link>
                 <Link
                   href="/calculator"
-                  className="inline-flex h-11 items-center justify-center rounded-full border border-slate-200 bg-white px-6 text-xs font-extrabold text-[#0f1d40] transition hover:border-[#ff6437] hover:text-[#ff6437] sm:text-sm"
+                  className="inline-flex h-11 items-center justify-center rounded-full border border-slate-200 bg-white px-6 text-xs font-bold text-[#0f1d40] transition hover:border-[#ff6437] hover:text-[#ff6437] sm:text-sm"
                 >
                   {t?.calculatorBanner?.btn ||
                     (isAr ? 'حاسبة الخروج المجانية' : 'Free Exit Calculator')}
@@ -279,10 +285,10 @@ export function HybridHomeClient({
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:col-span-6">
               <div className="rounded-[22px] border border-red-200/80 bg-white p-5 text-start shadow-xs">
                 <div className="flex items-center gap-2.5">
-                  <span className="flex size-7 items-center justify-center rounded-full bg-red-50 text-xs font-black text-red-500">
+                  <span className="flex size-7 items-center justify-center rounded-full bg-red-50 text-xs font-bold text-red-500">
                     ✕
                   </span>
-                  <strong className="text-xs font-extrabold text-[#0f1d40] sm:text-sm">
+                  <strong className="text-xs font-bold text-[#0f1d40] sm:text-sm">
                     {t?.hero?.lossCardTitle}
                   </strong>
                 </div>
@@ -291,21 +297,21 @@ export function HybridHomeClient({
                 </p>
                 <strong
                   dir="ltr"
-                  className="mt-1 block text-2xl font-black text-red-500 sm:text-3xl"
+                  className="mt-1 block text-2xl font-bold text-red-500 sm:text-3xl"
                 >
                   - {t?.hero?.lossCardAmount} {GEL}
                 </strong>
-                <div className="mt-4 rounded-xl bg-red-50/70 p-2.5 text-center text-[11px] font-bold text-red-600">
+                <div className="mt-4 rounded-xl bg-red-50/70 p-2.5 text-center text-[11px] font-semibold text-red-600">
                   {t?.hero?.lossCardFooter}
                 </div>
               </div>
 
               <div className="rounded-[22px] border-2 border-[#007a5a] bg-white p-5 text-start shadow-md">
                 <div className="flex items-center gap-2.5">
-                  <span className="flex size-7 items-center justify-center rounded-full bg-emerald-100 text-xs font-black text-[#007a5a]">
+                  <span className="flex size-7 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-[#007a5a]">
                     ✓
                   </span>
-                  <strong className="text-xs font-extrabold text-[#0f1d40] sm:text-sm">
+                  <strong className="text-xs font-bold text-[#0f1d40] sm:text-sm">
                     {t?.hero?.winCardTitle}
                   </strong>
                 </div>
@@ -314,11 +320,11 @@ export function HybridHomeClient({
                 </p>
                 <strong
                   dir="ltr"
-                  className="mt-1 block text-2xl font-black text-[#007a5a] sm:text-3xl"
+                  className="mt-1 block text-2xl font-bold text-[#007a5a] sm:text-3xl"
                 >
                   {t?.hero?.winCardAmount} {GEL}
                 </strong>
-                <div className="mt-4 rounded-xl bg-[#eaf8f2] p-2.5 text-center text-[11px] font-extrabold text-[#007a5a]">
+                <div className="mt-4 rounded-xl bg-[#eaf8f2] p-2.5 text-center text-[11px] font-bold text-[#007a5a]">
                   {t?.hero?.winCardFooter}
                 </div>
               </div>

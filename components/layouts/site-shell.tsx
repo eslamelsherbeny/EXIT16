@@ -445,8 +445,8 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
     <div onClick={(e) => e.stopPropagation()} className={isMobile ? 'fixed left-3 right-3 top-[76px] z-[110] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl' : 'absolute end-0 top-12 z-[110] w-96 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl'}>
       <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50/90 px-4 py-3">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-extrabold text-[#1e3a8a]">{language === 'ar' ? 'الإشعارات' : 'Notifications'}</span>
-          <span dir="ltr" className="rounded-full bg-[#2563eb]/10 px-2 py-0.5 text-[10px] font-extrabold text-[#2563eb]">{notifsList.length}</span>
+          <span className="text-xs font-bold text-[#1e3a8a]">{language === 'ar' ? 'الإشعارات' : 'Notifications'}</span>
+          <span dir="ltr" className="rounded-full bg-[#2563eb]/10 px-2 py-0.5 text-[10px] font-bold text-[#2563eb]">{notifsList.length}</span>
         </div>
         <div className="flex items-center gap-2">
           {notifsList.length > 0 && (
@@ -464,7 +464,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
         {notifsList.length === 0 ? (
           <div className="flex flex-col items-center justify-center px-4 py-10 text-center">
             <CheckCircle2 className="mb-2.5 size-9 text-emerald-500" />
-            <p className="text-xs font-extrabold text-[#1e3a8a]">
+            <p className="text-xs font-bold text-[#1e3a8a]">
               {language === 'ar' ? 'لا توجد إشعارات حالياً' : 'No notifications yet'}
             </p>
           </div>
@@ -475,7 +475,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
                 {item.type === 'property' || item.type === 'property_match' ? <Building2 className="size-4" /> : item.type === 'lead' ? <FileText className="size-4" /> : item.type === 'investor' ? <WalletCards className="size-4" /> : <Bell className="size-4" />}
               </span>
               <div className="min-w-0 flex-1">
-                <p className={`text-xs leading-snug text-[#1e3a8a] ${!item.is_read ? 'font-extrabold' : 'font-bold'}`}>{item.title}</p>
+                <p className={`text-xs leading-snug text-[#1e3a8a] ${!item.is_read ? 'font-bold' : 'font-semibold'}`}>{item.title}</p>
                 <p className="mt-1 break-words text-[11.5px] leading-relaxed text-gray-600">{item.message}</p>
                 <div className="mt-2 flex items-center justify-between">
                   <span className="inline-flex items-center gap-1 text-[10px] font-medium text-gray-400">
@@ -497,7 +497,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
       </div>
 
       <div className="border-t border-gray-100 bg-gray-50/70 p-2 text-center">
-        <a href="/account" onClick={() => setNotificationsOpen(false)} className="block w-full rounded-xl py-2 text-xs font-extrabold text-[#2563eb] transition hover:bg-blue-50">
+        <a href="/account" onClick={() => setNotificationsOpen(false)} className="block w-full rounded-xl py-2 text-xs font-bold text-[#2563eb] transition hover:bg-blue-50">
           {labels.accountPages?.common?.backToAccount || 'الذهاب إلى حسابي'}
         </a>
       </div>
@@ -526,14 +526,14 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
               const isActive = pathname === item.href
               if (item.isCore) {
                 return (
-                  <Link key={item.href} href={item.href} className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200/90 bg-[#eaf8f2] px-3.5 py-1.5 text-[13px] font-extrabold text-[#007a5a] transition hover:bg-[#d8f3e7]">
+                  <Link key={item.href} href={item.href} className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200/90 bg-[#eaf8f2] px-3.5 py-1.5 text-[13px] font-bold text-[#007a5a] transition hover:bg-[#d8f3e7]">
                     <Flame className="size-3.5 fill-[#ff6437] text-[#ff6437]" />
                     <span>{item.label}</span>
                   </Link>
                 )
               }
               return (
-                <Link key={item.href} href={item.href} className={`whitespace-nowrap rounded-full px-3.5 py-1.5 text-[13px] font-bold transition-colors ${isActive ? 'bg-blue-50 text-[#2563eb]' : 'text-[#334155] hover:bg-slate-100/80 hover:text-[#1e3a8a]'}`}>
+                <Link key={item.href} href={item.href} className={`whitespace-nowrap rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors ${isActive ? 'bg-blue-50 font-bold text-[#2563eb]' : 'text-[#334155] hover:bg-slate-100/80 hover:text-[#1e3a8a]'}`}>
                   {item.label}
                 </Link>
               )
@@ -547,7 +547,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
           </Link>
 
           <div className="relative" ref={langRefDesktop}>
-            <button type="button" disabled={isSwitchingLocale} onClick={() => { setLangMenuOpen(!langMenuOpen); setNotificationsOpen(false) }} dir="ltr" className="inline-flex h-9 items-center gap-1.5 rounded-full border border-slate-200/90 bg-slate-50/80 px-3 text-xs font-extrabold text-[#1e3a8a] transition hover:border-[#2563eb] hover:bg-white">
+            <button type="button" disabled={isSwitchingLocale} onClick={() => { setLangMenuOpen(!langMenuOpen); setNotificationsOpen(false) }} dir="ltr" className="inline-flex h-9 items-center gap-1.5 rounded-full border border-slate-200/90 bg-slate-50/80 px-3 text-xs font-bold text-[#1e3a8a] transition hover:border-[#2563eb] hover:bg-white">
               {isSwitchingLocale ? <Loader2 className="size-3.5 animate-spin text-[#2563eb]" /> : <CountryFlag code={currentLangCfg.flagCode} className="h-3 w-4" />}
               <span>{currentLangCfg.shortCode}</span>
               <ChevronDown className="size-3 text-gray-400" />
@@ -559,27 +559,27 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
             <div className="relative" ref={notifRefDesktop}>
               <button type="button" onClick={handleToggleNotifications} aria-label="Notifications" className="relative flex size-9 items-center justify-center rounded-full text-[#334155] transition hover:bg-slate-100">
                 <Bell className="size-[18px] stroke-[2]" />
-                {unreadCount > 0 && <span dir="ltr" className="absolute right-1 top-1 flex size-3.5 items-center justify-center rounded-full bg-red-500 text-[8.5px] font-extrabold text-white">{unreadCount > 9 ? '+9' : unreadCount}</span>}
+                {unreadCount > 0 && <span dir="ltr" className="absolute right-1 top-1 flex size-3.5 items-center justify-center rounded-full bg-red-500 text-[8.5px] font-bold text-white">{unreadCount > 9 ? '+9' : unreadCount}</span>}
               </button>
               {notificationsOpen && renderNotificationsDropdown(false)}
             </div>
           )}
 
-          <a href={hasSession ? '/account' : '/login'} className="inline-flex h-9.5 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-slate-200 bg-white px-3.5 text-xs font-extrabold text-[#1e3a8a] transition hover:bg-slate-50">
+          <a href={hasSession ? '/account' : '/login'} className="inline-flex h-9.5 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-slate-200 bg-white px-3.5 text-xs font-bold text-[#1e3a8a] transition hover:bg-slate-50">
             <User className="size-3.5 text-slate-500" />
             <span>{desktopAuthBtnLabel}</span>
           </a>
 
-          <Link href="/buy" className="inline-flex h-9.5 items-center justify-center whitespace-nowrap rounded-full border border-slate-200 bg-white px-4 text-xs font-extrabold text-[#1e3a8a] transition hover:border-[#2563eb] hover:text-[#2563eb]">
+          <Link href="/buy" className="inline-flex h-9.5 items-center justify-center whitespace-nowrap rounded-full border border-slate-200 bg-white px-4 text-xs font-bold text-[#1e3a8a] transition hover:border-[#2563eb] hover:text-[#2563eb]">
             {buyUnitBtnLabel}
           </Link>
 
-          <Link href="/sell" className="inline-flex h-9.5 items-center justify-center whitespace-nowrap rounded-full bg-[#007a5a] px-4 text-xs font-extrabold text-white shadow-2xs transition hover:bg-[#006248]">
+          <Link href="/sell" className="inline-flex h-9.5 items-center justify-center whitespace-nowrap rounded-full bg-[#007a5a] px-4 text-xs font-bold text-white shadow-2xs transition hover:bg-[#006248]">
             {sellUnitBtnLabel}
           </Link>
 
-          <Link href="/sell" className="inline-flex h-9.5 items-center justify-center gap-1 whitespace-nowrap rounded-full bg-gradient-to-r from-[#ff7130] to-[#ff4f69] px-4 text-xs font-black text-white shadow-[0_6px_18px_rgba(255,92,75,0.28)] transition hover:opacity-95 active:scale-95">
-            <Plus className="size-3.5 stroke-[3]" />
+          <Link href="/sell" className="inline-flex h-9.5 items-center justify-center gap-1 whitespace-nowrap rounded-full bg-gradient-to-r from-[#ff7130] to-[#ff4f69] px-4 text-xs font-bold text-white shadow-[0_6px_18px_rgba(255,92,75,0.28)] transition hover:opacity-95 active:scale-95">
+            <Plus className="size-3.5 stroke-[2.5]" />
             <span>{addListingLabel}</span>
           </Link>
 
@@ -593,15 +593,15 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
 
         <div className="flex items-center gap-1.5 lg:hidden">
           <div className="relative" ref={langRefMobile}>
-            <button type="button" dir="ltr" disabled={isSwitchingLocale} onClick={() => { setLangMenuOpen(!langMenuOpen); setNotificationsOpen(false) }} className="inline-flex h-8 items-center justify-center gap-1 rounded-full border border-gray-200/90 bg-gray-50/90 px-2.5 text-[11px] font-extrabold text-[#1e3a8a]">
+            <button type="button" dir="ltr" disabled={isSwitchingLocale} onClick={() => { setLangMenuOpen(!langMenuOpen); setNotificationsOpen(false) }} className="inline-flex h-8 items-center justify-center gap-1 rounded-full border border-gray-200/90 bg-gray-50/90 px-2.5 text-[11px] font-bold text-[#1e3a8a]">
               <CountryFlag code={currentLangCfg.flagCode} className="h-3 w-4" />
               <span className="font-mono leading-none">{currentLangCfg.shortCode}</span>
             </button>
             {langMenuOpen && renderLanguageDropdownMenu()}
           </div>
 
-          <Link href="/sell" className="inline-flex h-8 items-center justify-center gap-1 whitespace-nowrap rounded-full bg-gradient-to-r from-[#ff7130] to-[#ff4f69] px-3 text-[11px] font-extrabold text-white shadow-xs">
-            <Plus className="size-3 stroke-[3]" />
+          <Link href="/sell" className="inline-flex h-8 items-center justify-center gap-1 whitespace-nowrap rounded-full bg-gradient-to-r from-[#ff7130] to-[#ff4f69] px-3 text-[11px] font-bold text-white shadow-xs">
+            <Plus className="size-3 stroke-[2.5]" />
             <span>{addListingLabel}</span>
           </Link>
 
@@ -615,7 +615,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
         <div onClick={() => setLangMenuOpen(false)} className="mx-3 mt-2 overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl lg:hidden">
           <nav className="flex flex-col gap-2.5">
             {navItems.map((item) => (
-              <Link key={item.href} href={item.href} onClick={() => setMobileMenuOpen(false)} className={`flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-extrabold transition ${item.isCore ? 'bg-[#eaf8f2] text-[#007a5a]' : 'text-[#1e3a8a] hover:bg-slate-50'}`}>
+              <Link key={item.href} href={item.href} onClick={() => setMobileMenuOpen(false)} className={`flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-bold transition ${item.isCore ? 'bg-[#eaf8f2] text-[#007a5a]' : 'text-[#1e3a8a] hover:bg-slate-50'}`}>
                 <span>{item.label}</span>
                 {item.isCore && <Flame className="size-4 fill-[#ff6437] text-[#ff6437]" />}
               </Link>
@@ -629,17 +629,17 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
                 <span>{language === 'ar' ? 'لوحة الإدارة' : 'Admin Panel'}</span>
               </a>
             )}
-            <Link href="/sell" onClick={() => setMobileMenuOpen(false)} className="flex h-11 w-full items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] text-xs font-extrabold text-white">
+            <Link href="/sell" onClick={() => setMobileMenuOpen(false)} className="flex h-11 w-full items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] text-xs font-bold text-white">
               <span>{sellUnitBtnLabel}</span>
             </Link>
-            <Link href="/sell" onClick={() => setMobileMenuOpen(false)} className="flex h-11 w-full items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-[#ff7130] to-[#ff4f69] text-xs font-extrabold text-white shadow-sm">
-              <Plus className="size-4 stroke-[3]" />
+            <Link href="/sell" onClick={() => setMobileMenuOpen(false)} className="flex h-11 w-full items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-[#ff7130] to-[#ff4f69] text-xs font-bold text-white shadow-sm">
+              <Plus className="size-4 stroke-[2.5]" />
               <span>{addListingLabel}</span>
             </Link>
-            <Link href="/buy" onClick={() => setMobileMenuOpen(false)} className="flex h-11 w-full items-center justify-center rounded-xl border border-[#e2e8f0] bg-white text-xs font-extrabold text-[#1e3a8a]">
+            <Link href="/buy" onClick={() => setMobileMenuOpen(false)} className="flex h-11 w-full items-center justify-center rounded-xl border border-[#e2e8f0] bg-white text-xs font-bold text-[#1e3a8a]">
               {buyUnitBtnLabel}
             </Link>
-            <a href={hasSession ? '/account' : '/login'} onClick={() => setMobileMenuOpen(false)} className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#e2e8f0] bg-gray-50 text-xs font-extrabold text-[#1e3a8a]">
+            <a href={hasSession ? '/account' : '/login'} onClick={() => setMobileMenuOpen(false)} className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#e2e8f0] bg-gray-50 text-xs font-bold text-[#1e3a8a]">
               <User className="size-4" />
               <span>{desktopAuthBtnLabel}</span>
             </a>
@@ -747,7 +747,7 @@ export function Footer({ dictionary: _unused }: { dictionary?: Dictionary }) {
                   <span key={c.code} className={`inline-flex items-center gap-2 rounded-xl px-3 py-1.5 font-bold ${isActiveMarket ? 'bg-[#007a5a] text-white shadow-xs' : 'cursor-default border border-white/10 bg-white/5 text-blue-200/60'}`}>
                     <CountryFlag code={c.code} className="h-3.5 w-5" />
                     <span>{getCountryName(c, language)}</span>
-                    {c.comingSoon && <span className="rounded-md bg-amber-400/15 px-1.5 py-0.5 text-[10px] font-extrabold text-amber-300">{soonText}</span>}
+                    {c.comingSoon && <span className="rounded-md bg-amber-400/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-300">{soonText}</span>}
                   </span>
                 )
               })}

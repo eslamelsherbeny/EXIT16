@@ -20,9 +20,15 @@ import {
 } from 'lucide-react'
 import { SivrceLocationModalPicker } from '@/components/features/seller/seller-location-modal'
 import { useTranslation } from '@/lib/i18n'
-import { cleanPureLocaleText } from './home-data'
+import { cleanPureLocaleText, type HomeUnitCardItem } from './home-data'
 
-export function HomeHero({ realUnitCount }: { realUnitCount: number }) {
+export function HomeHero({
+  realUnitCount,
+  units = [],
+}: {
+  realUnitCount: number
+  units?: HomeUnitCardItem[]
+}) {
   const router = useRouter()
   const { locale, dir } = useTranslation()
   const isAr = locale === 'ar'
@@ -44,6 +50,7 @@ export function HomeHero({ realUnitCount }: { realUnitCount: number }) {
   const [minPrice, setMinPrice] = useState('')
   const [maxPrice, setMaxPrice] = useState('')
   const [quickQuery, setQuickQuery] = useState('')
+  const [comingSoonNotice, setComingSoonNotice] = useState(false)
 
   const filterBarRef = useRef<HTMLDivElement>(null)
 
@@ -130,11 +137,61 @@ export function HomeHero({ realUnitCount }: { realUnitCount: number }) {
     return `${isAr ? 'حتى' : 'Up to'} ${maxPrice} ${GEL}`
   }, [minPrice, maxPrice, isAr])
 
+  // حساب عدد الإعلانات المطابقة لحظياً ليظهر داخل زر البحث (خاص بقسم تنازل وأقساط المربوط حالياً)
+  const matchingCount = useMemo(() => {
+    if (searchMode !== 'exit') return 0
+    const baseList = units.length > 0 ? units : []
+    if (baseList.length === 0) return realUnitCount > 0 ? realUnitCount : 8
+
+    return baseList.filter((u) => {
+      if (
+        whereArea &&
+        !u.area.toLowerCase().includes(whereArea.toLowerCase())
+      ) {
+        return false
+      }
+      if (roomsFilter) {
+        const rNum = Number(roomsFilter.replace('+', ''))
+        if (rNum === 5 ? u.rooms < 5 : u.rooms !== rNum) return false
+      }
+      if (minPrice && u.price < Number(minPrice)) return false
+      if (maxPrice && u.price > Number(maxPrice)) return false
+      if (minArea && u.size < Number(minArea)) return false
+      if (maxArea && u.size > Number(maxArea)) return false
+      if (quickQuery.trim()) {
+        const qLower = quickQuery.trim().toLowerCase()
+        if (
+          !u.title.toLowerCase().includes(qLower) &&
+          !u.area.toLowerCase().includes(qLower)
+        ) {
+          return false
+        }
+      }
+      return true
+    }).length
+  }, [
+    searchMode,
+    units,
+    realUnitCount,
+    whereArea,
+    roomsFilter,
+    minPrice,
+    maxPrice,
+    minArea,
+    maxArea,
+    quickQuery,
+  ])
+
   const handleRunSearch = () => {
-    const params = new URLSearchParams()
-    if (searchMode && searchMode !== 'new_dev') {
-      params.set('category', searchMode)
+    // فقط قسم "تنازل وأقساط" مربوط بالمنتجات حالياً
+    if (searchMode !== 'exit') {
+      setComingSoonNotice(true)
+      setTimeout(() => setComingSoonNotice(false), 3500)
+      return
     }
+
+    const params = new URLSearchParams()
+    params.set('category', 'exit')
     if (propType) params.set('type', propType)
     if (whereArea) params.set('area', whereArea)
     if (roomsFilter) params.set('rooms', roomsFilter.replace('+', ''))
@@ -147,8 +204,8 @@ export function HomeHero({ realUnitCount }: { realUnitCount: number }) {
   }
 
   return (
-    <section className="aqar-animated-hero relative overflow-visible border-b border-slate-200/85 px-3.5 pb-12 pt-8 text-center shadow-[0_6px_24px_rgba(15,29,64,0.04)] sm:px-6 lg:px-10 lg:pb-14 lg:pt-11">
-      {/* التدرج المتحرك والطيور والمباني التي تتحرك ذهاباً وإياباً بنعومة بدون أي خطوط منحنية */}
+    <section className="aqar-animated-hero relative overflow-visible border-b border-slate-200/85 px-3 pb-8 pt-5 text-center shadow-[0_6px_24px_rgba(15,29,64,0.04)] sm:px-6 sm:pb-12 sm:pt-10 lg:px-10">
+      {/* التدرج المتحرك والطيور والمباني الواضحة في التلفون والكمبيوتر */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 overflow-hidden"
@@ -156,10 +213,10 @@ export function HomeHero({ realUnitCount }: { realUnitCount: number }) {
         <div className="aqar-floating-orb-1" />
         <div className="aqar-floating-orb-2" />
 
-        {/* طيور متحركة */}
+        {/* طيور متحركة تظهر في التلفون والكمبيوتر */}
         <svg
           viewBox="0 0 42 20"
-          className="aqar-bird aqar-bird-1 hidden sm:block"
+          className="aqar-bird aqar-bird-1"
           fill="none"
         >
           <path
@@ -172,7 +229,7 @@ export function HomeHero({ realUnitCount }: { realUnitCount: number }) {
         </svg>
         <svg
           viewBox="0 0 42 20"
-          className="aqar-bird aqar-bird-2 hidden sm:block"
+          className="aqar-bird aqar-bird-2"
           fill="none"
         >
           <path
@@ -197,43 +254,77 @@ export function HomeHero({ realUnitCount }: { realUnitCount: number }) {
           />
         </svg>
 
-        {/* الأبراج المعمارية المتحركة ذهاباً وإياباً في الخلفية بدون أي خطوط منحنية */}
+        {/* الأبراج المعمارية المتحركة موزعة على كامل العرض لتظهر بوضوح في شاشة التلفون والكمبيوتر */}
         <svg
           viewBox="0 0 1440 270"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
-          className="absolute bottom-0 left-0 h-44 w-full object-cover opacity-70 sm:h-56"
-          preserveAspectRatio="none"
+          className="absolute bottom-0 left-0 h-52 w-full object-cover opacity-80 sm:h-60"
+          preserveAspectRatio="xMidYMax slice"
         >
-          {/* الطبقة الخلفية للأبراج */}
+          {/* الطبقة الخلفية للأبراج موزعة على كامل الشاشة */}
           <g className="aqar-skyline-wave-2" fill="url(#bgTowersGrad)">
-            <rect x="45" y="110" width="60" height="160" rx="6" />
-            <rect x="130" y="65" width="74" height="205" rx="6" />
-            <rect x="230" y="125" width="56" height="145" rx="6" />
-            <rect x="315" y="80" width="70" height="190" rx="6" />
-            <rect x="1030" y="85" width="68" height="185" rx="6" />
-            <rect x="1125" y="55" width="78" height="215" rx="6" />
-            <rect x="1230" y="115" width="62" height="155" rx="6" />
-            <rect x="1315" y="75" width="72" height="195" rx="6" />
+            <rect x="35" y="105" width="58" height="165" rx="5" />
+            <rect x="115" y="60" width="72" height="210" rx="5" />
+            <rect x="210" y="120" width="56" height="150" rx="5" />
+            <rect x="290" y="75" width="68" height="195" rx="5" />
+            <rect x="380" y="110" width="62" height="160" rx="5" />
+            <rect x="465" y="68" width="74" height="202" rx="5" />
+            <rect x="560" y="115" width="60" height="155" rx="5" />
+            <rect x="640" y="58" width="76" height="212" rx="5" />
+            <rect x="740" y="95" width="66" height="175" rx="5" />
+            <rect x="830" y="65" width="74" height="205" rx="5" />
+            <rect x="925" y="115" width="58" height="155" rx="5" />
+            <rect x="1005" y="80" width="68" height="190" rx="5" />
+            <rect x="1100" y="52" width="78" height="218" rx="5" />
+            <rect x="1205" y="110" width="62" height="160" rx="5" />
+            <rect x="1295" y="70" width="72" height="200" rx="5" />
           </g>
 
           {/* الطبقة الأمامية للأبراج الزجاجية ثلاثية الأبعاد */}
           <g className="aqar-skyline-wave-1">
             <polygon
-              points="85,135 130,110 130,270 85,270"
+              points="85,130 130,105 130,270 85,270"
               fill="url(#fgTowerLeft)"
             />
             <polygon
-              points="130,110 175,135 175,270 130,270"
+              points="130,105 175,130 175,270 130,270"
               fill="url(#fgTowerRight)"
             />
 
             <polygon
-              points="205,80 260,50 260,270 205,270"
+              points="225,78 280,48 280,270 225,270"
               fill="url(#fgTowerLeft)"
             />
             <polygon
-              points="260,50 315,80 315,270 260,270"
+              points="280,48 335,78 335,270 280,270"
+              fill="url(#fgTowerRight)"
+            />
+
+            <polygon
+              points="480,85 535,55 535,270 480,270"
+              fill="url(#fgTowerLeft)"
+            />
+            <polygon
+              points="535,55 590,85 590,270 535,270"
+              fill="url(#fgTowerRight)"
+            />
+
+            <polygon
+              points="660,72 715,42 715,270 660,270"
+              fill="url(#fgTowerLeft)"
+            />
+            <polygon
+              points="715,42 770,72 770,270 715,270"
+              fill="url(#fgTowerRight)"
+            />
+
+            <polygon
+              points="850,88 905,58 905,270 850,270"
+              fill="url(#fgTowerLeft)"
+            />
+            <polygon
+              points="905,58 960,88 960,270 905,270"
               fill="url(#fgTowerRight)"
             />
 
@@ -247,39 +338,40 @@ export function HomeHero({ realUnitCount }: { realUnitCount: number }) {
             />
 
             <polygon
-              points="1255,130 1300,105 1300,270 1255,270"
+              points="1255,125 1300,100 1300,270 1255,270"
               fill="url(#fgTowerLeft)"
             />
             <polygon
-              points="1300,105 1345,130 1345,270 1300,270"
+              points="1300,100 1345,125 1345,270 1300,270"
+              fill="url(#fgTowerRight)"
             />
           </g>
 
           <rect
             x="0"
-            y="195"
+            y="205"
             width="1440"
-            height="75"
+            height="65"
             fill="url(#skylineBottomFade)"
           />
 
           <defs>
             <linearGradient id="bgTowersGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#007a5a" stopOpacity="0.16" />
-              <stop offset="100%" stopColor="#2563eb" stopOpacity="0.03" />
+              <stop offset="0%" stopColor="#007a5a" stopOpacity="0.2" />
+              <stop offset="100%" stopColor="#2563eb" stopOpacity="0.05" />
             </linearGradient>
             <linearGradient id="fgTowerLeft" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#2563eb" stopOpacity="0.28" />
-              <stop offset="100%" stopColor="#ffffff" stopOpacity="0.05" />
+              <stop offset="0%" stopColor="#2563eb" stopOpacity="0.3" />
+              <stop offset="100%" stopColor="#ffffff" stopOpacity="0.06" />
             </linearGradient>
             <linearGradient id="fgTowerRight" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#ff6437" stopOpacity="0.2" />
-              <stop offset="100%" stopColor="#ffffff" stopOpacity="0.04" />
+              <stop offset="0%" stopColor="#ff6437" stopOpacity="0.22" />
+              <stop offset="100%" stopColor="#ffffff" stopOpacity="0.05" />
             </linearGradient>
             <linearGradient
               id="skylineBottomFade"
               x1="720"
-              y1="195"
+              y1="205"
               x2="720"
               y2="270"
               gradientUnits="userSpaceOnUse"
@@ -291,14 +383,14 @@ export function HomeHero({ realUnitCount }: { realUnitCount: number }) {
         </svg>
       </div>
 
-      <div className="relative z-20 mx-auto max-w-[1040px]">
+      <div className="relative z-20 mx-auto max-w-[1000px]">
         {/* شارة الهيرو العلوية */}
         <Link
           href="/sell"
-          className="mx-auto mb-5 inline-flex items-center gap-2 rounded-full border border-white bg-white/95 px-4 py-1.5 text-xs font-extrabold text-[#0f1d40] shadow-xs transition hover:-translate-y-0.5"
+          className="mx-auto mb-3.5 inline-flex max-w-full items-center gap-2 rounded-full border border-white bg-white/95 px-3.5 py-1 text-[11px] font-bold text-[#0f1d40] shadow-xs transition hover:-translate-y-0.5 sm:mb-5 sm:px-4 sm:py-1.5 sm:text-xs"
         >
-          <span className="size-2 animate-pulse rounded-full bg-[#ff6437]" />
-          <span>
+          <span className="size-2 shrink-0 animate-pulse rounded-full bg-[#ff6437]" />
+          <span className="truncate">
             {isAr ? (
               <>
                 منصة العقار الأولى ✦ استرد{' '}
@@ -313,14 +405,14 @@ export function HomeHero({ realUnitCount }: { realUnitCount: number }) {
             )}
           </span>
           {dir === 'rtl' ? (
-            <ArrowLeft className="size-3.5 text-slate-400" />
+            <ArrowLeft className="size-3.5 shrink-0 text-slate-400" />
           ) : (
-            <ArrowRight className="size-3.5 text-slate-400" />
+            <ArrowRight className="size-3.5 shrink-0 text-slate-400" />
           )}
         </Link>
 
-        {/* العنوان الرئيسي */}
-        <h1 className="mx-auto text-4xl font-black leading-[1.1] tracking-tight text-[#0f1d40] sm:text-6xl lg:text-[66px]">
+        {/* العنوان الرئيسي بخط هادئ وأنيق */}
+        <h1 className="mx-auto text-3xl font-extrabold leading-[1.12] tracking-tight text-[#0f1d40] sm:text-5xl lg:text-[64px]">
           {isAr ? (
             <>
               عقارات
@@ -338,14 +430,14 @@ export function HomeHero({ realUnitCount }: { realUnitCount: number }) {
           )}
         </h1>
 
-        <p className="mx-auto mt-3.5 max-w-xl text-xs font-semibold leading-relaxed text-[#475569] sm:text-[15px]">
+        <p className="mx-auto mt-2.5 max-w-xl px-2 text-xs font-medium leading-relaxed text-[#475569] sm:mt-3.5 sm:text-[15px]">
           {isAr
             ? 'شقق ومنازل وشاليهات في جميع أنحاء جورجيا — للتنازل، البيع، أو الإيجار الشهري واليومي مباشرة من المالكين.'
             : 'Apartments, houses and cottages across Georgia — installment exit, buy, rent or daily, directly from owners.'}
         </p>
 
-        {/* التبويبات العلوية */}
-        <div className="mx-auto mt-6 flex w-fit max-w-full flex-wrap items-center justify-center gap-1 rounded-full border border-white bg-white/95 p-1 text-xs font-extrabold shadow-sm">
+        {/* التبويبات العلوية — سطر واحد أفقي يُسحب باللمس في الموبايل بدون أن يأخذ سطرين */}
+        <div className="mx-auto mt-4 flex w-fit max-w-full flex-nowrap items-center gap-1 overflow-x-auto rounded-full border border-white bg-white/95 p-1 text-xs font-bold shadow-sm no-scrollbar sm:mt-6">
           {[
             {
               id: 'exit' as const,
@@ -378,8 +470,11 @@ export function HomeHero({ realUnitCount }: { realUnitCount: number }) {
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => setSearchMode(tab.id)}
-                className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 transition sm:px-5 ${
+                onClick={() => {
+                  setSearchMode(tab.id)
+                  setComingSoonNotice(false)
+                }}
+                className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 transition sm:px-5 ${
                   active
                     ? 'bg-gradient-to-r from-[#ff6437] to-[#ff4f69] text-white shadow-xs'
                     : 'text-[#566383] hover:bg-slate-100 hover:text-[#0f1d40]'
@@ -392,12 +487,12 @@ export function HomeHero({ realUnitCount }: { realUnitCount: number }) {
           })}
         </div>
 
-        {/* شريط البحث الرشيق */}
+        {/* شريط البحث الرشيق ذو الحجم المناسب للموبايل والكمبيوتر */}
         <div
           ref={filterBarRef}
-          className="relative mx-auto mt-3 max-w-[900px] rounded-[24px] border border-white bg-white px-4 py-2.5 text-start shadow-[0_20px_50px_rgba(15,29,64,0.11)]"
+          className="relative mx-auto mt-2.5 max-w-[900px] rounded-[22px] border border-white bg-white px-3 py-2 text-start shadow-[0_20px_50px_rgba(15,29,64,0.11)] sm:mt-3 sm:rounded-[24px] sm:px-4 sm:py-2.5"
         >
-          <div className="grid grid-cols-2 gap-2 border-b border-slate-100 pb-2.5 sm:grid-cols-4 sm:gap-3">
+          <div className="grid grid-cols-2 gap-1.5 border-b border-slate-100 pb-2 sm:grid-cols-4 sm:gap-3 sm:pb-2.5">
             {/* 1. نوع العقار */}
             <div className="relative border-e border-slate-100 pe-2">
               <button
@@ -408,10 +503,10 @@ export function HomeHero({ realUnitCount }: { realUnitCount: number }) {
                 className="flex w-full items-center justify-between gap-1.5 rounded-lg px-1.5 py-0.5 text-start hover:bg-slate-50"
               >
                 <div className="min-w-0 flex-1">
-                  <span className="block text-[10px] font-bold text-slate-400">
+                  <span className="block text-[10px] font-semibold text-slate-400">
                     {isAr ? 'نوع العقار' : 'PROPERTY TYPE'}
                   </span>
-                  <strong className="block truncate text-xs font-extrabold text-[#0f1d40]">
+                  <strong className="block truncate text-xs font-bold text-[#0f1d40]">
                     {selectedTypeObj.label}
                   </strong>
                 </div>
@@ -431,7 +526,7 @@ export function HomeHero({ realUnitCount }: { realUnitCount: number }) {
                           setPropType(opt.id)
                           setOpenPopover(null)
                         }}
-                        className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-extrabold transition ${
+                        className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-bold transition ${
                           active
                             ? 'bg-orange-50 text-[#ff6437]'
                             : 'text-[#0f1d40] hover:bg-slate-50'
@@ -478,10 +573,10 @@ export function HomeHero({ realUnitCount }: { realUnitCount: number }) {
                     className="flex w-full items-center justify-between gap-1.5 rounded-lg px-1.5 py-0.5 text-start hover:bg-slate-50"
                   >
                     <div className="min-w-0 flex-1">
-                      <span className="block text-[10px] font-bold text-slate-400">
+                      <span className="block text-[10px] font-semibold text-slate-400">
                         {isAr ? 'أين' : 'WHERE'}
                       </span>
-                      <strong className="block truncate text-xs font-extrabold text-[#0f1d40]">
+                      <strong className="block truncate text-xs font-bold text-[#0f1d40]">
                         {cleanPureLocaleText(resolvedDisplay, locale) ||
                           (isAr ? 'في كل مكان' : 'Everywhere')}
                       </strong>
@@ -493,7 +588,7 @@ export function HomeHero({ realUnitCount }: { realUnitCount: number }) {
             </div>
 
             {/* 3. الغرف */}
-            <div className="relative border-e border-slate-100 pe-2">
+            <div className="relative border-t border-e border-slate-100 pt-1.5 pe-2 sm:border-t-0 sm:pt-0">
               <button
                 type="button"
                 onClick={() =>
@@ -502,10 +597,10 @@ export function HomeHero({ realUnitCount }: { realUnitCount: number }) {
                 className="flex w-full items-center justify-between gap-1.5 rounded-lg px-1.5 py-0.5 text-start hover:bg-slate-50"
               >
                 <div className="min-w-0 flex-1">
-                  <span className="block text-[10px] font-bold text-slate-400">
+                  <span className="block text-[10px] font-semibold text-slate-400">
                     {isAr ? 'الغرف' : 'ROOMS'}
                   </span>
-                  <strong className="block truncate text-xs font-extrabold text-[#0f1d40]">
+                  <strong className="block truncate text-xs font-bold text-[#0f1d40]">
                     {roomsTriggerLabel}
                   </strong>
                 </div>
@@ -514,7 +609,7 @@ export function HomeHero({ realUnitCount }: { realUnitCount: number }) {
 
               {openPopover === 'rooms' && (
                 <div className="absolute start-0 top-[calc(100%+8px)] z-[80] w-68 rounded-2xl border border-slate-200/90 bg-white p-4 shadow-2xl">
-                  <span className="block text-start text-xs font-extrabold text-slate-500">
+                  <span className="block text-start text-xs font-bold text-slate-500">
                     {isAr ? 'الغرف' : 'Rooms'}
                   </span>
                   <div className="mt-2 flex items-center justify-between gap-1.5">
@@ -525,7 +620,7 @@ export function HomeHero({ realUnitCount }: { realUnitCount: number }) {
                           key={num}
                           type="button"
                           onClick={() => setRoomsFilter(active ? '' : num)}
-                          className={`flex size-9 items-center justify-center rounded-full border text-xs font-black transition ${
+                          className={`flex size-9 items-center justify-center rounded-full border text-xs font-bold transition ${
                             active
                               ? 'border-[#ff6437] bg-[#ff6437] text-white'
                               : 'border-slate-200 bg-slate-50 text-[#0f1d40]'
@@ -537,7 +632,7 @@ export function HomeHero({ realUnitCount }: { realUnitCount: number }) {
                     })}
                   </div>
 
-                  <span className="mt-3.5 block text-start text-xs font-extrabold text-slate-500">
+                  <span className="mt-3.5 block text-start text-xs font-bold text-slate-500">
                     {isAr ? 'المساحة' : 'Area'}
                   </span>
                   <div className="mt-1.5 flex items-center gap-2">
@@ -564,7 +659,7 @@ export function HomeHero({ realUnitCount }: { realUnitCount: number }) {
             </div>
 
             {/* 4. السعر */}
-            <div className="relative">
+            <div className="relative border-t border-slate-100 pt-1.5 sm:border-t-0 sm:pt-0">
               <button
                 type="button"
                 onClick={() =>
@@ -573,10 +668,10 @@ export function HomeHero({ realUnitCount }: { realUnitCount: number }) {
                 className="flex w-full items-center justify-between gap-1.5 rounded-lg px-1.5 py-0.5 text-start hover:bg-slate-50"
               >
                 <div className="min-w-0 flex-1">
-                  <span className="block text-[10px] font-bold text-slate-400">
+                  <span className="block text-[10px] font-semibold text-slate-400">
                     {isAr ? 'السعر' : 'PRICE'}
                   </span>
-                  <strong className="block truncate text-xs font-extrabold text-[#0f1d40]">
+                  <strong className="block truncate text-xs font-bold text-[#0f1d40]">
                     {priceTriggerLabel}
                   </strong>
                 </div>
@@ -609,8 +704,9 @@ export function HomeHero({ realUnitCount }: { realUnitCount: number }) {
             </div>
           </div>
 
-          <div className="mt-2 flex items-center justify-between gap-2">
-            <div className="flex flex-1 items-center gap-2 px-1.5">
+          {/* الصف الثاني: حقل الكتابة + زر البحث البرتقالي المزود بعدد الإعلانات */}
+          <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-1 items-center gap-2 px-1.5 py-0.5">
               <Search className="size-4 shrink-0 text-slate-400" />
               <input
                 type="text"
@@ -621,69 +717,85 @@ export function HomeHero({ realUnitCount }: { realUnitCount: number }) {
                 }}
                 placeholder={
                   isAr
-                    ? 'شقة للبيع في تبليسي أو منزل في باتومي...'
+                    ? 'شقة للتنازل في تبليسي أو منزل في باتومي...'
                     : '2-bedroom apartment in Tbilisi or Batumi...'
                 }
-                className="w-full bg-transparent text-xs font-semibold text-[#0f1d40] placeholder:text-slate-400 focus:outline-none sm:text-[13px]"
+                className="w-full bg-transparent text-xs font-medium text-[#0f1d40] placeholder:text-slate-400 focus:outline-none sm:text-[13px]"
               />
             </div>
 
             <button
               type="button"
               onClick={handleRunSearch}
-              className="inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-7 text-xs font-black text-white shadow-[0_8px_20px_rgba(255,100,55,0.32)] transition hover:opacity-95 active:scale-98 sm:min-w-[180px] sm:text-sm"
+              className="inline-flex h-10 w-full shrink-0 items-center justify-center gap-1.5 rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-7 text-xs font-bold text-white shadow-[0_8px_20px_rgba(255,100,55,0.32)] transition hover:opacity-95 active:scale-98 sm:w-auto sm:min-w-[180px] sm:text-sm"
             >
-              <Search className="size-3.5 stroke-[2.5]" />
-              <span>{isAr ? 'بحث' : 'Search'}</span>
+              <Search className="size-3.5 stroke-[2.2]" />
+              <span>
+                {searchMode === 'exit'
+                  ? isAr
+                    ? `${matchingCount} إعلاناً`
+                    : `${matchingCount} listings`
+                  : isAr
+                    ? 'بحث (قريباً)'
+                    : 'Search (Soon)'}
+              </span>
             </button>
           </div>
+
+          {comingSoonNotice && (
+            <p className="mt-2 rounded-xl bg-orange-50 px-3 py-1.5 text-center text-[11px] font-semibold text-[#ea580c]">
+              {isAr
+                ? 'قسم البيع والإيجار المباشر سيتم تفعيله قريباً — يمكنك حالياً البحث في قسم «تنازل وأقساط».'
+                : 'Direct Sale & Rent sections are launching soon — browse active Installment Exit deals.'}
+            </p>
+          )}
         </div>
 
-        {/* الكلمات السريعة (رائج) */}
-        <div className="mx-auto mt-4 flex max-w-[900px] flex-wrap items-center justify-center gap-1.5 text-xs font-bold">
-          <span className="px-2 py-1 text-slate-600">
+        {/* الكلمات السريعة (رائج) — في سطر واحد يُسحب يميناً ويساراً باللمس في الموبايل */}
+        <div className="mx-auto mt-3.5 flex max-w-[900px] flex-nowrap items-center justify-start gap-1.5 overflow-x-auto px-1 py-1 text-xs font-semibold no-scrollbar sm:flex-wrap sm:justify-center">
+          <span className="shrink-0 px-2 py-1 text-slate-600">
             {isAr ? 'رائج:' : 'Popular:'}
           </span>
           {[
             {
               label: isAr ? 'قرب المترو' : 'Near metro',
-              href: '/opportunities?area=Tbilisi+-+Saburtalo',
+              href: '/opportunities?category=exit&area=Tbilisi+-+Saburtalo',
             },
             {
               label: isAr
-                ? 'شقق يومية في تبليسي'
-                : 'Daily apartments in Tbilisi',
-              href: '/opportunities?category=rent_daily',
+                ? 'شقق في تبليسي'
+                : 'Apartments in Tbilisi',
+              href: '/opportunities?category=exit',
             },
             {
               label: isAr ? 'فاكي' : 'Vake',
-              href: '/opportunities?area=Tbilisi+-+Vake',
+              href: '/opportunities?category=exit&area=Tbilisi+-+Vake',
             },
             {
               label: isAr ? 'سابورتالو' : 'Saburtalo',
-              href: '/opportunities?area=Tbilisi+-+Saburtalo',
+              href: '/opportunities?category=exit&area=Tbilisi+-+Saburtalo',
             },
             {
               label: isAr ? 'متاتسميندا' : 'Mtatsminda',
-              href: '/opportunities?area=Tbilisi+-+Mtatsminda',
+              href: '/opportunities?category=exit&area=Tbilisi+-+Mtatsminda',
             },
             {
               label: isAr ? 'باتومي' : 'Batumi',
-              href: '/opportunities?area=Batumi+-+New+Boulevard',
+              href: '/opportunities?category=exit&area=Batumi+-+New+Boulevard',
             },
             {
               label: isAr ? 'تبليسي القديمة' : 'Old Tbilisi',
-              href: '/opportunities?area=Tbilisi+-+Old+Tbilisi',
+              href: '/opportunities?category=exit&area=Tbilisi+-+Old+Tbilisi',
             },
             {
               label: isAr ? 'ديغومي' : 'Digomi',
-              href: '/opportunities?area=Tbilisi+-+Didi+Digomi',
+              href: '/opportunities?category=exit&area=Tbilisi+-+Didi+Digomi',
             },
           ].map((pill) => (
             <Link
               key={pill.label}
               href={pill.href}
-              className="rounded-full bg-white/95 px-3.5 py-1.5 text-[11px] font-bold text-[#0f1d40] shadow-2xs transition hover:-translate-y-0.5 hover:text-[#ff6437]"
+              className="shrink-0 rounded-full bg-white/95 px-3.5 py-1.5 text-[11px] font-semibold text-[#0f1d40] shadow-2xs transition hover:-translate-y-0.5 hover:text-[#ff6437]"
             >
               {pill.label}
             </Link>
@@ -691,17 +803,17 @@ export function HomeHero({ realUnitCount }: { realUnitCount: number }) {
         </div>
 
         {/* الزران السفليان */}
-        <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
           <Link
-            href="/opportunities"
-            className="rounded-full bg-white/95 px-4 py-1.5 text-xs font-extrabold text-[#0f1d40] shadow-2xs transition hover:bg-white"
+            href="/opportunities?category=exit"
+            className="rounded-full bg-white/95 px-4 py-1.5 text-xs font-bold text-[#0f1d40] shadow-2xs transition hover:bg-white"
           >
             {realUnitCount > 0 ? realUnitCount : '1,814'}{' '}
             {isAr ? 'مشاريع مطورين' : 'Development projects'}
           </Link>
           <Link
             href="/sell"
-            className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-4 py-1.5 text-xs font-extrabold text-white shadow-xs transition hover:opacity-95"
+            className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-4 py-1.5 text-xs font-bold text-white shadow-xs transition hover:opacity-95"
           >
             <Plus className="size-3.5 stroke-[2.5]" />
             <span>{isAr ? 'أضف إعلاناً' : 'Add a listing'}</span>

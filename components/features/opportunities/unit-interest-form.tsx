@@ -268,7 +268,7 @@ export function UnitInterestForm({
   const { t: dict, locale } = useTranslation()
   const f = dict.unitDetailsPage.interestForm
   const oT = (dict.accountPages?.offers as Record<string, any>) || {}
-  const cur = getCurrencySymbol('GE', locale)
+  const cur = '$'
   const supportWhatsApp = String(dict.footer?.phone || '+201018595959').replace(
     /\D/g,
     ''

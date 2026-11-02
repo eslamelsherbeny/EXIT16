@@ -8,10 +8,9 @@ import { Building2, ShieldCheck } from 'lucide-react'
 import { getCurrentSellerProfileAction } from '@/actions/submit-forms'
 import { UnitInterestForm } from '@/components/features/opportunities/unit-interest-form'
 import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
-import { getCurrencySymbol, useTranslation } from '@/lib/i18n'
+import { useTranslation } from '@/lib/i18n'
 import { isNonGeorgianLegacyArea } from '@/lib/smart-matcher'
 
-// استدعاء مكونات الـ UI النظيفة التي أنشأناها
 import {
   SimilarUnitsSection,
   UnitDetailsHeader,
@@ -23,6 +22,7 @@ import { UnitLocationInsights } from '@/components/features/opportunities/unit-l
 const FALLBACK_UNIT_IMAGE =
   'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=85'
 const FAVORITES_STORAGE_KEY = 'darak_favorites'
+const RECENTLY_VIEWED_STORAGE_KEY = 'aqar_recently_viewed'
 
 const PUBLIC_UNIT_DETAIL_COLUMNS =
   'id, user_id, project_name, developer_name, area, unit_type, size, garden_size, rooms, bathrooms, floor_number, finishing, delivery_status, delivery_month, delivery_year, features, description, contract_price, paid_amount, market_price, installment_amount, installment_frequency, contract_month, contract_year, years_left, willing_to_discount, discount_amount, images, status, is_featured, featured_until, created_at'
@@ -79,6 +79,31 @@ export default function PropertyDetailsPage() {
       const stored = localStorage.getItem(FAVORITES_STORAGE_KEY)
       const list: string[] = stored ? JSON.parse(stored) : []
       setLiked(list.includes(String(rawId)))
+
+      // حفظ في شوهدت مؤخراً
+      const recentRaw = localStorage.getItem(RECENTLY_VIEWED_STORAGE_KEY)
+      const recentList: string[] = recentRaw ? JSON.parse(recentRaw) : []
+      const nextRecent = [
+        String(rawId),
+        ...recentList.filter((x) => x !== String(rawId)),
+      ].slice(0, 8)
+      localStorage.setItem(
+        RECENTLY_VIEWED_STORAGE_KEY,
+        JSON.stringify(nextRecent)
+      )
+
+      // زيادة عداد المشاهدات الحقيقي مرة واحدة لكل زائر
+      const viewedKey = `aqar_viewed_unit_${rawId}`
+      if (!localStorage.getItem(viewedKey)) {
+        localStorage.setItem(viewedKey, '1')
+        const supabase = createBrowserClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        )
+        supabase
+          .rpc('increment_unit_views', { target_unit_id: rawId })
+          .then(() => {})
+      }
     } catch {}
   }, [rawId])
 
@@ -212,7 +237,7 @@ export default function PropertyDetailsPage() {
 
   const similarDbUnits = useMemo(() => {
     return rawSimilarRows.map((u) => {
-      const uCurrency = getCurrencySymbol('GE', locale)
+      const uCurrency = '$'
       const reqCash = parseSafeNumber(u.paid_amount)
       const rawDel = String(u.delivery_status || '').trim()
       const isReady =
@@ -267,7 +292,8 @@ export default function PropertyDetailsPage() {
     if (!unitRow) return null
 
     const row = unitRow
-    const currency = getCurrencySymbol('GE', locale)
+    // توحيد العملة إلى الدولار الأمريكي ($)
+    const currency = '$'
 
     const projectName = row.project_name || c.defaultProject
     const rawArea = row.area || ''
@@ -300,8 +326,8 @@ export default function PropertyDetailsPage() {
       rawFloor !== null &&
       rawFloor !== undefined &&
       String(rawFloor).trim() !== ''
-      ? String(rawFloor)
-      : t.specs.typicalFloor
+        ? String(rawFloor)
+        : t.specs.typicalFloor
 
     const rooms = parseSafeNumber(row.rooms, isStudio ? 1 : 2)
     const bathrooms = parseSafeNumber(row.bathrooms, 1)
@@ -420,7 +446,7 @@ export default function PropertyDetailsPage() {
       hasActiveOffer,
       projectName,
       areaName,
-      rawArea, // تمرير الـ rawArea لاستخدامه في الخريطة
+      rawArea,
       subtitle,
       code,
       unitType,
@@ -513,8 +539,6 @@ export default function PropertyDetailsPage() {
       className="min-h-screen bg-[var(--brand-surface,#f5f6f8)] py-6 text-[var(--brand-navy,#0a1122)] sm:py-10"
     >
       <div className="mx-auto w-full max-w-[780px] px-4 sm:px-6">
-        
-        {/* 1. Header & Gallery */}
         <UnitDetailsHeader
           computedUnit={computedUnit}
           t={t}
@@ -524,10 +548,8 @@ export default function PropertyDetailsPage() {
           onCopyCode={copyUnitCode}
         />
 
-        {/* 2. Specs & Description */}
         <UnitSpecsAndDescription computedUnit={computedUnit} locale={locale} />
 
-        {/* 3. Financials Card */}
         <UnitFinancialsCard
           computedUnit={computedUnit}
           fin={t.financials}
@@ -537,10 +559,12 @@ export default function PropertyDetailsPage() {
           onMakeOffer={scrollToOfferSection}
         />
 
-        {/* 4. السحر الجديد: الخريطة الـ 3D والأماكن القريبة ومخطط الشمس */}
-        <UnitLocationInsights areaId={computedUnit.rawArea} t={t} locale={locale} />
+        <UnitLocationInsights
+          areaId={computedUnit.rawArea}
+          t={t}
+          locale={locale}
+        />
 
-        {/* 5. Same Area Banner (if applicable) */}
         {sameProjectCount > 0 && (
           <section className="mt-4 flex items-center justify-between rounded-[16px] border border-gray-200/80 bg-white px-5 py-4 shadow-sm">
             <div className="flex items-center gap-3 text-start">
@@ -566,10 +590,8 @@ export default function PropertyDetailsPage() {
           </section>
         )}
 
-        {/* 6. Similar Units */}
         <SimilarUnitsSection similarDbUnits={similarDbUnits} t={t} c={c} />
 
-        {/* 7. Contact / Action Form */}
         {computedUnit.isOwner ? (
           <section className="mt-8 rounded-[20px] border border-emerald-200 bg-[#eaf8f2] p-6 text-center shadow-xs">
             <div className="mx-auto mb-2 flex size-10 items-center justify-center rounded-full bg-[#007a5a] text-white">
@@ -601,7 +623,8 @@ export default function PropertyDetailsPage() {
                 href={`/sell?editUnitId=${computedUnit.id}&step=3`}
                 className="inline-flex h-10 items-center justify-center rounded-xl border border-gray-300 bg-white px-5 text-xs font-bold text-[#0a1122] hover:bg-gray-50"
               >
-                {dict.accountComponents?.seller?.editDataBtn || 'تعديل البيانات'}
+                {dict.accountComponents?.seller?.editDataBtn ||
+                  'تعديل البيانات'}
               </Link>
             </div>
           </section>

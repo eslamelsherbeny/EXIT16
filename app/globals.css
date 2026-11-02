@@ -127,7 +127,7 @@
 
 .heading-hero {
   font-size: 30px;
-  font-weight: 900;
+  font-weight: 800;
   line-height: 1.32;
   letter-spacing: -0.025em;
 }
@@ -165,9 +165,7 @@
   }
 }
 
-/* ==========================================================================
-   تدرج الهيرو المتحرك ذهاباً وإياباً (Dynamic Flowing Gradient + Moving Skyline)
-   ========================================================================== */
+/* تدرج الهيرو المتحرك */
 .aqar-animated-hero {
   background: linear-gradient(
     -45deg,
@@ -228,88 +226,95 @@
   }
 }
 
-/* حركة المباني في الخلفية رايح جاي وطلوع ونزول بنعومة */
-.aqar-skyline-wave-1 {
-  animation: aqarSkylineSway1 8s ease-in-out infinite alternate;
-}
-.aqar-skyline-wave-2 {
-  animation: aqarSkylineSway2 10s ease-in-out infinite alternate;
-}
-
-@keyframes aqarSkylineSway1 {
-  0% {
-    transform: translateX(-14px) translateY(0px);
-  }
-  100% {
-    transform: translateX(14px) translateY(-6px);
-  }
-}
-
-@keyframes aqarSkylineSway2 {
-  0% {
-    transform: translateX(12px) translateY(-4px);
-  }
-  100% {
-    transform: translateX(-12px) translateY(4px);
-  }
-}
-
-.aqar-bird {
-  position: absolute;
-  width: 32px;
-  height: 15px;
-  pointer-events: none;
-  animation: aqarBirdFly 9s ease-in-out infinite;
-}
-
-.aqar-bird-1 {
-  top: 15%;
-  left: 16%;
-}
-.aqar-bird-2 {
-  top: 22%;
-  right: 20%;
-  width: 26px;
-  animation-delay: -3s;
-}
-.aqar-bird-3 {
-  top: 32%;
-  right: 12%;
-  width: 22px;
-  animation-delay: -6s;
-}
-
-@keyframes aqarBirdFly {
-  0%,
-  100% {
-    transform: translate(0, 0) rotate(-10deg);
-  }
-  50% {
-    transform: translate(44px, -14px) rotate(8deg);
-  }
-}
-
+/* أنيميشن رفع الكروت للأعلى بنعومة */
 .sivrce-card {
-  overflow: hidden;
-  border-radius: 22px;
-  background: #fff;
   transition:
-    transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 0.3s ease,
+    transform 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.34s cubic-bezier(0.22, 1, 0.36, 1),
     border-color 0.3s ease;
 }
 
 .sivrce-card img {
   transition:
-    transform 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
     filter 0.3s ease;
 }
 
 .sivrce-card:hover img {
-  transform: scale(1.04);
+  transform: scale(1.045);
 }
 
 .sivrce-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 18px 36px rgba(15, 29, 64, 0.11);
+  transform: translateY(-7px);
+  box-shadow: 0 20px 40px rgba(15, 29, 64, 0.13);
+}
+
+/* ==========================================================================
+   تلاشي ناعم لحواف شريط الكروت في الكمبيوتر حتى لا يظهر الكارت مقطوعاً بحدة
+   ========================================================================== */
+@media (min-width: 1024px) {
+  .carousel-edge-fade {
+    mask-image: linear-gradient(
+      to right,
+      transparent 0%,
+      black 3.5%,
+      black 96.5%,
+      transparent 100%
+    );
+    -webkit-mask-image: linear-gradient(
+      to right,
+      transparent 0%,
+      black 3.5%,
+      black 96.5%,
+      transparent 100%
+    );
+  }
+}
+
+/* أنيميشن الموجة المضيئة على بانر الإعلان */
+.aqar-wave-banner {
+  position: relative;
+  overflow: hidden;
+}
+
+.aqar-wave-banner::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -120%;
+  width: 90%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.08) 35%,
+    rgba(251, 191, 36, 0.24) 50%,
+    rgba(255, 255, 255, 0.08) 65%,
+    transparent 100%
+  );
+  transform: skewX(-22deg);
+  pointer-events: none;
+  animation: aqarWaveIdle 7s ease-in-out infinite alternate;
+}
+
+.aqar-wave-banner:hover::before {
+  animation: aqarWaveHover 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes aqarWaveIdle {
+  0% {
+    left: -110%;
+  }
+  100% {
+    left: 130%;
+  }
+}
+
+@keyframes aqarWaveHover {
+  0% {
+    left: -95%;
+  }
+  100% {
+    left: 125%;
+  }
 }

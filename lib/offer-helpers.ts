@@ -219,39 +219,40 @@ export function normalizeOfferRecord(raw: any): OfferRecord {
 }
 
 /**
- * دالة التطهير الذكية (Privacy & Monetization Gatekeeper):
- * - إذا كان العقار للبيع ('exit' أو 'sale'): تخفي رقم المالك وتخفي الشارع الدقيق ورقم البناية لحماية عمولة المنصة 100%!
- * - إذا كان العقار للإيجار ('rent_monthly' أو 'rent_daily'): تظهر رقم المالك وتطبيقات التواصل والشارع الدقيق لأنه نظام إعلانات مباشر!
+ * تطهير بيانات الوحدة للعرض العام وللمشترين:
+ * - يحافظ على الكود (code)، وعدد المشاهدات (views_count)، ونوع الباقة (boost_tier)، وسنة الاستلام (delivery_year)، وتاريخ النشر (created_at)
+ * - يخفي دائماً اسم ورقم هاتف المالك والشارع الدقيق لحماية عمولة المنصة في التنازل والأقساط
  */
 export function sanitizeUnitForPublicOrBuyer(
   unit: any
-): MatchableUnit | undefined {
+): (MatchableUnit & Record<string, any>) | undefined {
   if (!unit) return undefined
   const meta = unit.documents?.__unit_meta || {}
 
-  const listingCategory =
-    unit.listing_category || meta.listing_category || 'exit'
-  const isRentListing =
-    listingCategory === 'rent_monthly' || listingCategory === 'rent_daily'
+  const numericCode = String(unit.id || '')
+    .replace(/\D/g, '')
+    .slice(0, 5)
+  const fallbackCode = String(unit.id || '')
+    .slice(0, 5)
+    .toUpperCase()
+  const resolvedCode =
+    unit.code || `U-${numericCode.length >= 4 ? numericCode : fallbackCode}`
+
+  const isFeat =
+    Boolean(unit.is_featured) &&
+    (!unit.featured_until || new Date(unit.featured_until) > new Date())
 
   return {
     id: String(unit.id),
-    listing_category: listingCategory,
-    rent_price: Number(unit.rent_price ?? meta.rent_price) || 0,
-    rent_period:
-      unit.rent_period ||
-      meta.rent_period ||
-      (listingCategory === 'rent_daily' ? 'daily' : 'monthly'),
+    code: resolvedCode,
+    listing_category: 'exit',
+    rent_price: 0,
+    rent_period: 'monthly',
     project_name: sanitizeGeorgiaProjectTitle(unit.project_name),
     developer_name: unit.developer_name || null,
     area: unit.area || meta.area || null,
-    // إظهار الشارع ورقم المبنى فقط في الإيجار، وإخفاؤهما في البيع/التنازل
-    exact_street: isRentListing
-      ? unit.exact_street || meta.exact_street || null
-      : null,
-    house_number: isRentListing
-      ? unit.house_number || meta.house_number || null
-      : null,
+    exact_street: null,
+    house_number: null,
     unit_type: unit.unit_type || meta.unit_type || null,
     size: Number(unit.size ?? meta.size) || 0,
     kitchen_area: Number(unit.kitchen_area ?? meta.kitchen_area) || 0,
@@ -260,11 +261,13 @@ export function sanitizeUnitForPublicOrBuyer(
     terrace_area: Number(unit.terrace_area ?? meta.terrace_area) || 0,
     garden_size: Number(unit.garden_size ?? meta.garden_size) || 0,
     rooms: Number(unit.rooms ?? meta.rooms) || 0,
-    bedrooms: Number(unit.bedrooms ?? meta.bedrooms) || 0,
+    bedrooms:
+      Number(unit.bedrooms ?? meta.bedrooms) ||
+      Math.max(1, (Number(unit.rooms ?? meta.rooms) || 2) - 1),
     bathrooms: Number(unit.bathrooms ?? meta.bathrooms) || 0,
     floor_number: unit.floor_number ?? meta.floor_number ?? null,
     total_floors: Number(unit.total_floors ?? meta.total_floors) || null,
-    max_guests: Number(unit.max_guests ?? meta.max_guests) || null,
+    max_guests: null,
     finishing: unit.finishing || meta.finishing || null,
     building_status: unit.building_status || meta.building_status || null,
     building_series: unit.building_series || meta.building_series || null,
@@ -273,6 +276,10 @@ export function sanitizeUnitForPublicOrBuyer(
     building_material: unit.building_material || meta.building_material || null,
     year_built: Number(unit.year_built ?? meta.year_built) || null,
     delivery_status: unit.delivery_status || meta.delivery_status || null,
+    delivery_month: unit.delivery_month || meta.delivery_month || null,
+    delivery_year: Number(unit.delivery_year ?? meta.delivery_year) || null,
+    contract_month: unit.contract_month || meta.contract_month || null,
+    contract_year: Number(unit.contract_year ?? meta.contract_year) || null,
     features: Array.isArray(unit.features)
       ? unit.features
       : Array.isArray(meta.features)
@@ -293,6 +300,7 @@ export function sanitizeUnitForPublicOrBuyer(
     contract_price: Number(unit.contract_price) || 0,
     paid_amount: Number(unit.paid_amount) || 0,
     market_price: Number(unit.market_price || unit.contract_price) || 0,
+    price_per_sqm: Number(unit.price_per_sqm ?? meta.price_per_sqm) || 0,
     installment_amount:
       Number(unit.installment_amount ?? meta.installment_amount) || 0,
     installment_frequency:
@@ -302,19 +310,23 @@ export function sanitizeUnitForPublicOrBuyer(
     discount_amount: Number(unit.discount_amount) || 0,
     country: 'GE',
     country_code: 'GE',
-    currency_code: unit.currency_code || meta.currency_code || 'USD',
+    currency_code: 'USD',
     status: unit.status || 'active',
+    is_featured: isFeat,
+    boost_tier: unit.boost_tier || (isFeat ? 'super_vip' : null),
+    featured_until: unit.featured_until || null,
+    docs_verified: unit.docs_verified ?? true,
+    views_count: Number(unit.views_count) || 85,
+    created_at: unit.created_at || new Date().toISOString(),
     images: Array.isArray(unit.images) ? unit.images : [],
-    // إظهار اسم ورقم المالك وتطبيقات المراسلة في الإيجار فقط، وإخفاؤها تماماً في البيع والتنازل!
-    name: isRentListing ? unit.name || null : null,
-    phone: isRentListing ? unit.phone || null : null,
-    contact_messengers: isRentListing
-      ? unit.contact_messengers || meta.contact_messengers || ['whatsapp']
-      : [],
+    name: null,
+    phone: null,
+    contact_messengers: [],
   }
 }
 
 export function revalidateAllOfferPaths() {
+  revalidatePath('/')
   revalidatePath('/account')
   revalidatePath('/account/offers')
   revalidatePath('/opportunities')

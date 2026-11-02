@@ -180,6 +180,180 @@ export async function logoutAccountAction() {
   redirect('/login')
 }
 
+/**
+ * زيادة عداد المشاهدات الفعلي للوحدة (يُستدعى عند فتح صفحة تفاصيل الوحدة)
+ */
+export async function incrementUnitViewsAction(unitId: string) {
+  try {
+    if (!unitId || unitId.startsWith('1') || unitId.startsWith('showcase')) {
+      return { success: false }
+    }
+    const supabase = await getSupabase()
+    const { data, error } = await supabase.rpc('increment_unit_views', {
+      target_unit_id: unitId,
+    })
+
+    if (error) {
+      const { data: row } = await supabase
+        .from('sell_requests')
+        .select('views_count')
+        .eq('id', unitId)
+        .maybeSingle()
+      const nextViews = (Number(row?.views_count) || 85) + 1
+      await supabase
+        .from('sell_requests')
+        .update({ views_count: nextViews })
+        .eq('id', unitId)
+      return { success: true, viewsCount: nextViews }
+    }
+
+    return { success: true, viewsCount: Number(data) || 86 }
+  } catch {
+    return { success: false }
+  }
+}
+
+/**
+ * إنشاء طلب ترقية إعلان باللاري الجورجي (₾) من الصفحة الرئيسية أو صفحة الحساب
+ * وحفظه في جدول boost_requests بانتظار مراجعة الدفع وتفعيل الأدمن
+ */
+export async function createBoostRequestAction(payload: {
+  amountGel: number
+  packageTier: 'SUPER VIP' | 'VIP+'
+  durationDays: number
+  paymentMethod: 'card' | 'bank'
+  unitId?: string
+  unitCode?: string
+}) {
+  try {
+    const supabase = await getSupabase()
+    const session = await getVerifiedSessionUser()
+    const userId = session?.user?.id || null
+
+    const cleanAmount = Math.max(5, Math.round(Number(payload.amountGel) || 10))
+    const cleanDays = Math.max(1, Math.round(Number(payload.durationDays) || 1))
+    const cleanTier = payload.packageTier === 'VIP+' ? 'VIP+' : 'SUPER VIP'
+    const dbTierCode = cleanTier === 'VIP+' ? 'vip_plus' : 'super_vip'
+    const cleanCode = String(payload.unitCode || '')
+      .replace('#', '')
+      .trim()
+      .toUpperCase()
+
+    let resolvedUnitId = payload.unitId || null
+    let resolvedUnitCode = cleanCode || null
+    let resolvedProjectName = ''
+
+    // 1. إذا مرر المستخدم unitId أو unitCode نبحث عن الوحدة
+    if (resolvedUnitId) {
+      const { data: uById } = await supabase
+        .from('sell_requests')
+        .select('id, code, project_name')
+        .eq('id', resolvedUnitId)
+        .maybeSingle()
+      if (uById) {
+        resolvedUnitCode = uById.code || resolvedUnitCode
+        resolvedProjectName = uById.project_name || ''
+      }
+    } else if (cleanCode) {
+      const { data: uByCode } = await supabase
+        .from('sell_requests')
+        .select('id, code, project_name')
+        .ilike('code', cleanCode)
+        .limit(1)
+        .maybeSingle()
+      if (uByCode) {
+        resolvedUnitId = String(uByCode.id)
+        resolvedUnitCode = uByCode.code || cleanCode
+        resolvedProjectName = uByCode.project_name || ''
+      }
+    } else if (userId) {
+      // إذا لم يكتب كود الوحدة وكان مسجلاً للدخول، نربط الطلب بآخر وحدة نشطة له
+      const { data: latestUnit } = await supabase
+        .from('sell_requests')
+        .select('id, code, project_name')
+        .eq('user_id', userId)
+        .neq('status', 'deleted_by_seller')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (latestUnit) {
+        resolvedUnitId = String(latestUnit.id)
+        resolvedUnitCode = latestUnit.code || null
+        resolvedProjectName = latestUnit.project_name || ''
+      }
+    }
+
+    // 2. إدراج الطلب في جدول boost_requests
+    const { data: boostRow } = await supabase
+      .from('boost_requests')
+      .insert({
+        user_id: userId,
+        unit_id: resolvedUnitId,
+        unit_code: resolvedUnitCode,
+        amount_gel: cleanAmount,
+        package_tier: cleanTier,
+        duration_days: cleanDays,
+        payment_method: payload.paymentMethod,
+        status: 'pending_admin_approval',
+      })
+      .select('id')
+      .maybeSingle()
+
+    // 3. تحديث حالة الترويج في جدول sell_requests إلى pending_payment لحين تفعيل الأدمن
+    if (resolvedUnitId) {
+      const adRef = `AD-${(resolvedUnitCode || resolvedUnitId).replace(/[^A-Z0-9]/gi, '').slice(0, 6).toUpperCase()}`
+      await supabase
+        .from('sell_requests')
+        .update({
+          featured_days: cleanDays,
+          featured_price: cleanAmount,
+          featured_status: 'pending_payment',
+          featured_fawry_code: adRef,
+          boost_tier: dbTierCode,
+        })
+        .eq('id', resolvedUnitId)
+    }
+
+    // 4. إرسال إشعار للأدمن لمراجعة الدفع وتفعيل الباقة
+    await supabase.from('notifications').insert({
+      user_id: null,
+      role: 'admin',
+      type: 'property',
+      title: `💳 طلب تفعيل باقة ${cleanTier} بقيمة ${cleanAmount} ₾ (${cleanDays} يوم)`,
+      message: `${session?.user?.name || 'عميل'} ${resolvedUnitCode ? `· وحدة (${resolvedUnitCode})` : ''} ${resolvedProjectName ? `· ${resolvedProjectName}` : ''} · الوسيلة: ${payload.paymentMethod === 'card' ? 'بطاقة بنكية' : 'تحويل بنكي'}`,
+      link: resolvedUnitId
+        ? `/admin/properties?tab=featured&unitId=${resolvedUnitId}`
+        : '/admin/promotions',
+      is_read: false,
+    })
+
+    // 5. جلب رابط الدفع من إعدادات الموقع إن وجد
+    const { data: settingsRow } = await supabase
+      .from('site_settings')
+      .select('"boostPaymentUrl"')
+      .eq('id', 'global')
+      .maybeSingle()
+
+    revalidatePath('/account')
+    revalidatePath('/admin/properties')
+    revalidatePath('/admin/promotions')
+
+    return {
+      success: true,
+      boostRequestId: boostRow?.id ? String(boostRow.id) : '',
+      unitId: resolvedUnitId,
+      unitCode: resolvedUnitCode,
+      paymentUrl:
+        (settingsRow as any)?.boostPaymentUrl ||
+        process.env.NEXT_PUBLIC_BOOST_PAYMENT_URL ||
+        '',
+    }
+  } catch (e) {
+    console.error('createBoostRequestAction error:', e)
+    return { success: false }
+  }
+}
+
 export async function updatePersonalInfoAction(payload: {
   name: string
   phone: string
@@ -224,7 +398,6 @@ export async function updatePersonalInfoAction(payload: {
 
     if (error) return { success: false, error: msg.updateFailed }
 
-    // إذا غيّر العميل رقم هاتفه لرقم جديد، نلغي توثيق الهاتف القديم حتى يتوثق الرقم الجديد
     if (isPhoneChanged) {
       await upsertUserVerificationMeta(supabase, user.id, {
         phoneVerified: false,
@@ -297,7 +470,6 @@ export async function updateEmailInfoAction(payload: { email: string }) {
       }
     }
 
-    // إذا غيّر العميل بريده الإلكتروني لبريد جديد، نلغي توثيق البريد السابق حتى يؤكد البريد الجديد
     if (isEmailChanged) {
       await upsertUserVerificationMeta(supabase, currentUser.id, {
         emailVerified: false,
@@ -320,9 +492,9 @@ export async function updateEmailInfoAction(payload: { email: string }) {
       senderName: msg.emailSenderName,
       subject: msg.emailUpdatedSubject,
       html: `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.8; color: #0a1122;">
-              <p>${msg.greetingWord} <strong>${currentUser.name || msg.dearClient}</strong>،</p>
-              <p>${msg.emailUpdatedBody} <strong>${cleanEmail}</strong>.</p>
-             </div>`,
+               <p>${msg.greetingWord} <strong>${currentUser.name || msg.dearClient}</strong>،</p>
+               <p>${msg.emailUpdatedBody} <strong>${cleanEmail}</strong>.</p>
+              </div>`,
     }).catch(() => {})
 
     revalidatePath('/account')
@@ -386,6 +558,7 @@ export async function requestAccountDeletionAction(payload: {
     try {
       await supabase.from('notifications').insert({
         user_id: null,
+        role: 'admin',
         title: `${msg.deletionNotifTitle}: ${user.name || msg.dearClient}`,
         message: `${msg.reasonWord}: ${payload.reason || msg.noSpecificReason} · (${unitsCount})`,
         type: 'admin_alert',
@@ -495,6 +668,7 @@ export async function toggleSellerUnitStatusAction(payload: {
       try {
         await supabase.from('notifications').insert({
           user_id: null,
+          role: 'admin',
           title: `⏸ ${msg.unitPausedNotifTitle}: ${unit.project_name || msg.unitWord}`,
           message: `${unit.name || ''} (${unit.area || ''})`,
           type: 'property',
@@ -518,6 +692,7 @@ export async function toggleSellerUnitStatusAction(payload: {
       try {
         await supabase.from('notifications').insert({
           user_id: null,
+          role: 'admin',
           title: `🔄 ${msg.unitResumedNotifTitle}: ${unit.project_name || msg.unitWord}`,
           message: `${unit.name || ''} (${unit.area || ''})`,
           type: 'property',
@@ -577,6 +752,7 @@ export async function deleteUnitBySellerAction(unitId: string) {
     try {
       await supabase.from('notifications').insert({
         user_id: null,
+        role: 'admin',
         title: `🗑 ${msg.unitDeletedNotifTitle}: ${unit?.project_name || msg.unitWord}`,
         message: `${unit?.name || ''} (${unit?.area || '—'})`,
         type: 'property',
@@ -646,6 +822,7 @@ export async function saveUnitDocumentAction(payload: {
       try {
         await supabase.from('notifications').insert({
           user_id: null,
+          role: 'admin',
           title: `📄 ${msg.docUploadedNotifTitle}: ${unit.project_name || msg.unitWord}`,
           message: `${unit.name || ''}`,
           type: 'property',
@@ -699,6 +876,7 @@ export async function updateBuyerPreferencesAction(payload: {
       country: 'GE',
       country_code: 'GE',
       currency_code: 'USD',
+      target_category: 'exit',
       available_cash: Number(payload.available_cash) || 0,
       max_installment: Number(payload.max_installment) || 0,
       payment_plan: payload.payment_plan || msg.defaultMonthly,
@@ -744,6 +922,7 @@ export async function updateBuyerPreferencesAction(payload: {
       if (updErr) {
         const {
           currency_code: _c,
+          target_category: _tc,
           notify_exact_match: _ne,
           notify_featured: _nf,
           ...coreBuyData
@@ -765,6 +944,7 @@ export async function updateBuyerPreferencesAction(payload: {
       if (insErr) {
         const {
           currency_code: _c,
+          target_category: _tc,
           notify_exact_match: _ne,
           notify_featured: _nf,
           ...coreBuyData
@@ -789,8 +969,9 @@ export async function updateBuyerPreferencesAction(payload: {
 
 export async function requestUnitPromotionAction(payload: {
   unitId: string
-  days: 7 | 14 | 30
+  days: number
   price: number
+  tier?: 'SUPER VIP' | 'VIP+'
 }) {
   const { t: msg } = await getAccDict()
   try {
@@ -811,6 +992,9 @@ export async function requestUnitPromotionAction(payload: {
         ? unit.featured_fawry_code
         : `AD-${cleanIdPart}${randomSuffix}`
 
+    const cleanTier =
+      payload.tier || (payload.price < 10 ? 'VIP+' : 'SUPER VIP')
+    const dbTierCode = cleanTier === 'VIP+' ? 'vip_plus' : 'super_vip'
     const isChangingPackage = unit.featured_status === 'pending_payment'
 
     const { error } = await supabase
@@ -820,6 +1004,7 @@ export async function requestUnitPromotionAction(payload: {
         featured_price: payload.price,
         featured_status: 'pending_payment',
         featured_fawry_code: adOrderRef,
+        boost_tier: dbTierCode,
       })
       .eq('id', payload.unitId)
 
@@ -830,12 +1015,27 @@ export async function requestUnitPromotionAction(payload: {
       }
     }
 
+    // تسجيل الطلب في جدول boost_requests ليظهر للأدمن
+    try {
+      await supabase.from('boost_requests').insert({
+        user_id: user.id,
+        unit_id: unit.id,
+        unit_code: unit.code || adOrderRef,
+        amount_gel: payload.price,
+        package_tier: cleanTier,
+        duration_days: payload.days,
+        payment_method: 'card',
+        status: 'pending_admin_approval',
+      })
+    } catch {}
+
     try {
       await supabase.from('notifications').insert({
         user_id: null,
+        role: 'admin',
         title: isChangingPackage
-          ? `🔄 ${msg.promoUpdateNotifTitle} (${payload.days}) — ${adOrderRef}`
-          : `📢 ${msg.promoNewNotifTitle} (${payload.days}) — ${adOrderRef}`,
+          ? `🔄 ${msg.promoUpdateNotifTitle} (${cleanTier} - ${payload.days}d · ${payload.price} ₾) — ${adOrderRef}`
+          : `📢 ${msg.promoNewNotifTitle} (${cleanTier} - ${payload.days}d · ${payload.price} ₾) — ${adOrderRef}`,
         message: `${unit.name || ''} (${unit.phone || ''}) · ${unit.project_name || msg.unitWord}`,
         type: 'property',
         link: `/admin/properties?tab=featured&unitId=${payload.unitId}&action=promote`,
@@ -846,6 +1046,7 @@ export async function requestUnitPromotionAction(payload: {
     revalidatePath('/account')
     revalidatePath('/opportunities')
     revalidatePath('/admin/properties')
+    revalidatePath('/admin/promotions')
     return {
       success: true,
       fawryCode: adOrderRef,
@@ -874,6 +1075,7 @@ export async function cancelUnitPromotionBySellerAction(unitId: string) {
       .from('sell_requests')
       .update({
         is_featured: false,
+        boost_tier: null,
         featured_status: 'none',
         featured_fawry_code: null,
         featured_days: 0,
@@ -885,8 +1087,15 @@ export async function cancelUnitPromotionBySellerAction(unitId: string) {
     if (error) return { success: false, error: msg.cancelPromoFailed }
 
     try {
+      await supabase
+        .from('boost_requests')
+        .update({ status: 'rejected' })
+        .eq('unit_id', unitId)
+        .eq('status', 'pending_admin_approval')
+
       await supabase.from('notifications').insert({
         user_id: null,
+        role: 'admin',
         title: wasActive
           ? `⏹ ${msg.promoStoppedNotifTitle} (${adRef})`
           : `✕ ${msg.promoCancelledNotifTitle} (${adRef})`,
@@ -897,6 +1106,7 @@ export async function cancelUnitPromotionBySellerAction(unitId: string) {
       })
     } catch {}
 
+    revalidatePath('/')
     revalidatePath('/account')
     revalidatePath('/opportunities')
     revalidatePath('/admin/properties')

@@ -1,15 +1,11 @@
 'use client'
 
 import Link from 'next/link'
-import {
-  Check,
-  Heart,
-  ShieldCheck,
-  Star,
-} from 'lucide-react'
+import { Check, ShieldCheck } from 'lucide-react'
 import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
+import { HomePropertyCard } from '@/components/features/home/home-property-card'
+import { type HomeUnitCardItem } from '@/components/features/home/home-data'
 import {
-  getCurrencySymbol,
   useTranslation,
   type Dictionary,
   type LocaleCode,
@@ -35,12 +31,15 @@ export type MappedProperty = {
   currency: string
   project: string
   developer: string
+  rawDeveloperName?: string
   area: string
   rawArea: string
   type: string
   rooms: number
   baths: number
   size: number
+  floor?: number
+  totalFloors?: number
   cash: string
   cashNum: number
   negotiable: boolean
@@ -50,6 +49,7 @@ export type MappedProperty = {
   marketPriceNum: number
   contractPriceNum: number
   remaining: string
+  remainingNum: number
   installment: string
   installmentNum: number
   monthlyInstallmentNum: number
@@ -58,7 +58,10 @@ export type MappedProperty = {
   isReady: boolean
   contractYear: number
   featured: boolean
+  viewsCount: number
+  createdAt?: string
   image: string
+  images: string[]
 }
 
 export const DEFAULT_FALLBACK_IMAGE =
@@ -103,7 +106,7 @@ export function mapDbRowToProperty(
   t: Dictionary['opportunitiesPage']
 ): MappedProperty {
   const country = 'GE'
-  const currency = getCurrencySymbol(country, locale)
+  const currency = '$'
   const meta =
     row.documents && typeof row.documents === 'object'
       ? row.documents.__unit_meta || {}
@@ -144,16 +147,18 @@ export function mapDbRowToProperty(
     rawDelStatus.includes('მზად') ||
     rawDelStatus.includes(t.filters.deliveryStatuses[1])
 
+  const delivYearNum = Number(row.delivery_year || meta.delivery_year) || 0
   const yearMatch = rawDelStatus.match(/20\d{2}/)
-  const monthsParenMatch = rawDelStatus.match(/\(([^)]+)\)/)
 
-  const deliveryDisplayStr = isReady
-    ? t.filters.deliveryStatuses[1]
-    : monthsParenMatch
-      ? monthsParenMatch[1]
-      : yearMatch
-        ? yearMatch[0]
-        : rawDelStatus || t.filters.deliveryStatuses[2]
+  const deliveryDisplayStr = delivYearNum
+    ? isReady
+      ? `${t.filters.deliveryStatuses[1]} (${delivYearNum})`
+      : String(delivYearNum)
+    : yearMatch
+      ? yearMatch[0]
+      : isReady
+        ? t.filters.deliveryStatuses[1]
+        : rawDelStatus || '2026'
 
   const numericCode = String(row.id || '')
     .replace(/\D/g, '')
@@ -167,18 +172,25 @@ export function mapDbRowToProperty(
   const localizedArea = rawArea
     ? getLocalizedGeorgiaAreaName(rawArea, locale)
     : t.card.defaultArea
-  const devName = row.developer_name
-    ? `${row.developer_name} · ${localizedArea}`
-    : localizedArea
+  const devName = row.developer_name || ''
+
+  const validImages = Array.isArray(row.images)
+    ? row.images.filter((img: string) => Boolean(img && img.trim()))
+    : []
 
   const validImage =
-    Array.isArray(row.images) && row.images.length > 0 && row.images[0]
-      ? row.images[0]
-      : DEFAULT_FALLBACK_IMAGE
+    validImages.length > 0 ? validImages[0] : DEFAULT_FALLBACK_IMAGE
 
   const isFeaturedActive =
     Boolean(row.is_featured) &&
     (!row.featured_until || new Date(row.featured_until) > new Date())
+
+  const floorNum =
+    row.floor_number !== null &&
+    row.floor_number !== undefined &&
+    String(row.floor_number).trim() !== ''
+      ? Number(row.floor_number)
+      : undefined
 
   return {
     id: String(row.id),
@@ -187,12 +199,15 @@ export function mapDbRowToProperty(
     currency,
     project: row.project_name || t.card.defaultProject,
     developer: devName,
+    rawDeveloperName: row.developer_name || '',
     area: localizedArea,
     rawArea,
     type: row.unit_type || meta.unit_type || t.card.defaultType,
     rooms: Number(row.rooms ?? meta.rooms) || 2,
     baths: Number(row.bathrooms ?? meta.bathrooms) || 1,
     size: Number(row.size ?? meta.size) || 75,
+    floor: floorNum,
+    totalFloors: Number(row.total_floors ?? meta.total_floors) || 16,
     cash: requiredCash.toLocaleString('en-US'),
     cashNum: requiredCash,
     negotiable: Boolean(row.willing_to_discount),
@@ -202,6 +217,7 @@ export function mapDbRowToProperty(
     marketPriceNum,
     contractPriceNum: contractPrice,
     remaining: remainingAmount.toLocaleString('en-US'),
+    remainingNum: remainingAmount,
     installment: installmentNum.toLocaleString('en-US'),
     installmentNum,
     monthlyInstallmentNum: calcMonthlyEquivalent(
@@ -213,7 +229,10 @@ export function mapDbRowToProperty(
     isReady,
     contractYear: Number(row.contract_year ?? meta.contract_year) || 2024,
     featured: isFeaturedActive,
+    viewsCount: Number(row.views_count) || 85,
+    createdAt: row.created_at,
     image: validImage,
+    images: validImages.length > 0 ? validImages : [validImage],
   }
 }
 
@@ -226,163 +245,46 @@ export function OpportunityCard({
   liked: boolean
   onToggleLike: (id: string) => void
 }) {
-  const { t: dict } = useTranslation()
-  const c = dict.opportunitiesPage.card
+  const unifiedUnit: HomeUnitCardItem = {
+    id: property.id,
+    code: property.code,
+    title: property.project,
+    developer: property.rawDeveloperName,
+    area: property.rawArea || property.area,
+    unitTypeLabel: property.type,
+    category: 'exit',
+    price: property.cashNum,
+    contractPrice: property.contractPriceNum,
+    marketPrice: property.marketPriceNum,
+    remainingAmount: property.remainingNum,
+    gainAmount: property.gainNum,
+    negotiable: property.negotiable,
+    installmentAmount: property.installmentNum,
+    installmentFreq: property.installmentFreq,
+    deliveryText: property.delivery,
+    size: property.size,
+    rooms: property.rooms,
+    bedrooms: Math.max(1, property.rooms - 1),
+    bathrooms: property.baths,
+    floor: property.floor,
+    totalFloors: property.totalFloors || 16,
+    image: property.image,
+    images: property.images,
+    imagesCount: property.images.length,
+    isFeatured: property.featured,
+    boostTier: property.featured ? 'super_vip' : null,
+    docsVerified: true,
+    viewsCount: property.viewsCount,
+    createdAt: property.createdAt,
+  }
 
   return (
-    <div
-      className={`group flex h-full flex-col justify-between overflow-hidden rounded-[14px] border bg-white shadow-sm transition-all duration-200 hover:shadow-md sm:rounded-[18px] ${
-        property.featured
-          ? 'border-amber-300/80 ring-1 ring-amber-200/50'
-          : 'border-gray-200/90'
-      }`}
-    >
-      <div>
-        <div className="relative h-[125px] w-full overflow-hidden bg-gray-100 sm:h-[180px] md:h-[200px]">
-          <Link
-            href={`/opportunities/${property.id}`}
-            className="block h-full w-full"
-          >
-            <img
-              src={property.image}
-              alt={property.project}
-              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-            />
-          </Link>
-
-          <span className="pointer-events-none absolute top-1.5 right-1.5 rounded-full bg-[#e6f4f9]/95 px-2 py-0.5 text-[9px] font-bold text-[var(--brand-primary,#007a5a)] shadow-sm backdrop-blur-sm sm:top-3 sm:right-3 sm:px-3 sm:py-1 sm:text-[11px]">
-            {c.verifiedBadge}
-          </span>
-
-          <div className="absolute top-1.5 left-1.5 flex items-center sm:top-3 sm:left-3">
-            <div className="flex items-center rounded-full bg-white p-0.5 pr-1.5 pl-0.5 shadow-md sm:pr-2.5 sm:pl-1">
-              {property.featured && (
-                <span title={c.featuredTooltip} className="inline-flex">
-                  <Star className="mx-1 size-3 fill-amber-400 text-amber-500 sm:mx-1.5 sm:size-3.5" />
-                </span>
-              )}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault()
-                  onToggleLike(property.id)
-                }}
-                aria-label={c.addToFavAria}
-                className={`flex size-6 items-center justify-center rounded-full transition-colors sm:size-8 ${
-                  liked
-                    ? 'bg-red-500 text-white'
-                    : 'bg-gray-600/80 text-white hover:bg-gray-700'
-                }`}
-              >
-                <Heart
-                  className={`size-3 sm:size-4 ${liked ? 'fill-current' : ''}`}
-                />
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="p-2.5 pb-2 text-start sm:p-5 sm:pb-3">
-          <Link href={`/opportunities/${property.id}`}>
-            <h3 className="line-clamp-1 min-h-[20px] text-[13px] font-bold leading-snug text-[var(--brand-navy,#0a1122)] transition-colors group-hover:text-[var(--brand-primary,#007a5a)] sm:line-clamp-2 sm:min-h-[44px] sm:text-[18px]">
-              {property.project}
-            </h3>
-          </Link>
-
-          <p className="mt-0.5 line-clamp-1 text-[10px] font-normal text-[#64748b] sm:mt-1 sm:text-[13px]">
-            {property.developer}
-          </p>
-
-          <div className="mt-0.5 text-end sm:mt-1">
-            <span className="font-mono text-[9px] text-[#94a3b8] sm:text-[11.5px]">
-              {property.code}
-            </span>
-          </div>
-
-          <p className="mt-1.5 line-clamp-1 text-[10px] font-semibold text-[#1e293b] sm:mt-2 sm:text-[13px]">
-            {property.type} · {property.rooms} {c.roomsWord} · {property.baths}{' '}
-            {c.bathsWord} · {property.size} {c.sqmUnit}
-          </p>
-
-          <div className="mt-2.5 sm:mt-4">
-            <p className="text-[10px] font-normal text-[#64748b] sm:text-[12px]">
-              {c.requiredCashNow}
-            </p>
-            <p className="mt-0.5 flex items-baseline gap-1 text-[15px] font-bold tracking-tight text-[var(--brand-navy,#0a1122)] tabular-nums sm:text-[24px]">
-              <span dir="ltr">{property.cash}</span>
-              <span className="text-[11px] font-semibold sm:text-[15px]">
-                {property.currency}
-              </span>
-            </p>
-            {property.negotiable && (
-              <div className="mt-0.5 flex items-center justify-start gap-1 text-[10px] font-semibold text-[#b45309] sm:mt-1 sm:text-[11.5px]">
-                <span>↓</span>
-                <span>{c.negotiable}</span>
-              </div>
-            )}
-          </div>
-
-          {property.gain && (
-            <div className="mt-2.5 sm:mt-3.5">
-              <div className="rounded-lg bg-[var(--brand-primary-light,#eaf8f2)] p-2 text-start sm:rounded-[14px] sm:px-4 sm:py-3.5">
-                <p className="text-[10px] font-semibold text-[var(--brand-primary,#007a5a)] sm:text-[11.5px]">
-                  {c.yourGainTitle}
-                </p>
-                <p className="mt-0.5 flex items-baseline gap-1 text-[13px] font-bold text-[var(--brand-primary,#007a5a)] tabular-nums sm:text-[18px]">
-                  <span dir="ltr">{property.gain}</span>
-                  <span>{property.currency}</span>
-                </p>
-                <p className="mt-0.5 text-[8.5px] font-normal leading-snug text-[#2b8a6e] sm:text-[11px]">
-                  {c.marketPriceTodayPrefix}{' '}
-                  <span dir="ltr">{property.marketPrice}</span>{' '}
-                  {property.currency} {c.afterCommissionSuffix}
-                </p>
-              </div>
-              <p className="mt-1.5 hidden text-[10.5px] font-normal text-[#94a3b8] sm:block">
-                {c.marketDisclaimer}
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="px-2.5 pt-1 pb-2.5 sm:px-5 sm:pt-2 sm:pb-5">
-        <div className="space-y-1.5 border-t border-[#f1f5f9] pt-2 text-[10px] sm:space-y-2 sm:pt-3 sm:text-[12.5px]">
-          <div className="flex items-center justify-between gap-1">
-            <span className="shrink-0 font-normal text-[#64748b]">
-              {c.remainingToDev}
-            </span>
-            <strong className="truncate font-semibold text-[var(--brand-navy,#0a1122)] tabular-nums">
-              <span dir="ltr">{property.remaining}</span> {property.currency}
-            </strong>
-          </div>
-          <div className="flex items-center justify-between gap-1">
-            <span className="shrink-0 font-normal text-[#64748b]">
-              {c.installmentLabel}
-            </span>
-            <strong className="truncate font-semibold text-[var(--brand-navy,#0a1122)] tabular-nums">
-              <span dir="ltr">{property.installment}</span> {property.currency} ·{' '}
-              {property.installmentFreq}
-            </strong>
-          </div>
-          <div className="flex items-center justify-between gap-1">
-            <span className="shrink-0 font-normal text-[#64748b]">
-              {c.deliveryLabel}
-            </span>
-            <strong className="font-semibold text-[var(--brand-navy,#0a1122)] tabular-nums">
-              {property.delivery}
-            </strong>
-          </div>
-        </div>
-
-        <Link
-          href={`/opportunities/${property.id}`}
-          className="mt-3 flex h-8 w-full items-center justify-center rounded-[8px] bg-[var(--brand-navy,#0a1122)] text-[11px] font-semibold text-white transition-colors hover:bg-[var(--brand-navy-hover,#16223f)] sm:mt-4 sm:h-[42px] sm:rounded-[11px] sm:text-[13.5px]"
-        >
-          {c.detailsBtn}
-        </Link>
-      </div>
-    </div>
+    <HomePropertyCard
+      unit={unifiedUnit}
+      isFav={liked}
+      onToggleFav={onToggleLike}
+      fullWidthOnGrid={true}
+    />
   )
 }
 
@@ -392,17 +294,17 @@ export function OpportunitiesBottomSections() {
 
   return (
     <section className="mt-12 border-t border-gray-200/80 pt-10 sm:mt-14 sm:pt-12">
-      <h2 className="text-start text-lg font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-2xl">
+      <h2 className="text-start text-lg font-bold text-[#0f1d40] sm:text-2xl">
         {tr.title}
       </h2>
 
       <div className="mt-5 grid grid-cols-1 gap-4 sm:mt-6 sm:gap-6 md:grid-cols-[1.35fr_1fr]">
-        <div className="flex flex-col justify-between rounded-[18px] border border-gray-200/80 bg-white p-5 text-start shadow-sm sm:rounded-[20px] sm:p-8">
+        <div className="sivrce-card flex flex-col justify-between rounded-[20px] border border-gray-200/80 bg-white p-5 text-start shadow-xs sm:p-8">
           <div>
-            <span className="inline-flex size-9 items-center justify-center rounded-xl bg-[#f0f4f8] text-[#1e3a8a] sm:size-10">
+            <span className="inline-flex size-9 items-center justify-center rounded-xl bg-blue-50 text-[#2563eb] sm:size-10">
               <ShieldCheck className="size-4 sm:size-5" />
             </span>
-            <h3 className="mt-3 text-sm font-extrabold text-[var(--brand-navy,#0a1122)] sm:mt-4 sm:text-lg">
+            <h3 className="mt-3 text-sm font-bold text-[#0f1d40] sm:mt-4 sm:text-lg">
               {tr.card1Title}
             </h3>
             <p className="mt-2.5 text-xs leading-[1.9] text-gray-500 sm:mt-3 sm:text-[13px]">
@@ -413,29 +315,29 @@ export function OpportunitiesBottomSections() {
           <div className="mt-5 sm:mt-6">
             <Link
               href="/buy"
-              className="inline-flex h-10 items-center justify-center rounded-[10px] bg-[var(--brand-primary,#007a5a)] px-5 text-xs font-bold text-white transition-colors hover:bg-[var(--brand-primary-hover,#006248)]"
+              className="inline-flex h-10 items-center justify-center rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-6 text-xs font-bold text-white shadow-xs transition hover:opacity-95"
             >
               {tr.card1Btn}
             </Link>
           </div>
         </div>
 
-        <div className="rounded-[18px] border border-gray-200/60 bg-[#f9fafb] p-5 text-start sm:rounded-[20px] sm:p-8">
-          <h3 className="text-sm font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-base">
+        <div className="sivrce-card rounded-[20px] border border-gray-200/60 bg-white p-5 text-start shadow-xs sm:p-8">
+          <h3 className="text-sm font-bold text-[#0f1d40] sm:text-base">
             {tr.card2Title}
           </h3>
 
           <ul className="mt-4 space-y-3 text-xs leading-relaxed text-gray-600 sm:mt-5 sm:space-y-3.5">
             <li className="flex items-start gap-2">
-              <Check className="mt-0.5 size-4 shrink-0 text-[var(--brand-primary,#007a5a)]" />
+              <Check className="mt-0.5 size-4 shrink-0 text-[#007a5a]" />
               <span>{tr.point1}</span>
             </li>
             <li className="flex items-start gap-2">
-              <Check className="mt-0.5 size-4 shrink-0 text-[var(--brand-primary,#007a5a)]" />
+              <Check className="mt-0.5 size-4 shrink-0 text-[#007a5a]" />
               <span>{tr.point2}</span>
             </li>
             <li className="flex items-start gap-2">
-              <Check className="mt-0.5 size-4 shrink-0 text-[var(--brand-primary,#007a5a)]" />
+              <Check className="mt-0.5 size-4 shrink-0 text-[#007a5a]" />
               <span>{tr.point3}</span>
             </li>
           </ul>

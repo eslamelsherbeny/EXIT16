@@ -2,49 +2,81 @@
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Play, Plus } from 'lucide-react'
+import { Check, Plus, ShieldCheck } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { ScrollReveal } from '@/components/shared/scroll-reveal'
 import { useTranslation } from '@/lib/i18n'
 import {
   FALLBACK_SHOWCASE_UNITS,
   getHomeCategoriesGrid,
-  SHOWCASE_IMAGES,
   type HomeUnitCardItem,
 } from './home-data'
-import { HomeHero } from './home-hero'
-import { HomeCardsCarouselSection } from './home-property-card'
+import {
+  HomeCardsCarouselSection,
+  HomeVipPlusSection,
+} from './home-property-card'
 import { Home3DMapSection } from './home-3d-map-section'
-import { HomeMarketAndBottomSections } from './home-market-sections'
+import {
+  LeadingDevelopersSection,
+  SponsoredRightAlignedBanner,
+  TopUpBalanceGelSection,
+} from './home-market-sections'
 
 export type { HomeUnitCardItem }
+
+const CONTAINER_CLS = 'mx-auto w-full max-w-[1280px] px-4 sm:px-6 lg:px-8'
 
 export function HybridHomeClient({
   dbUnits,
   realUnitCount,
+  formattedValue,
+  valueUnitLabel,
 }: {
   dbUnits: HomeUnitCardItem[]
   realUnitCount: number
-  formattedValue?: string
-  valueUnitLabel?: string
+  formattedValue: string
+  valueUnitLabel: string
 }) {
   const { t: dict, locale, dir } = useTranslation()
   const isAr = locale === 'ar'
   const t = dict.home
-  const GEL = '₾'
+  const USD = '$'
 
   const [favorites, setFavorites] = useState<string[]>([])
 
-  // دمج وحدات قاعدة البيانات مع الوحدات الاحتياطية لضمان وجود 8 كروت على الأقل للتقليب السلس
-  const displayUnits = useMemo(() => {
+  const allDisplayUnits = useMemo(() => {
     const combined = [...(dbUnits || []), ...FALLBACK_SHOWCASE_UNITS]
     const seen = new Set<string>()
-    return combined
-      .filter((u) => {
-        if (seen.has(u.id)) return false
-        seen.add(u.id)
-        return true
-      })
-      .slice(0, 8)
+    return combined.filter((u) => {
+      if (seen.has(u.id)) return false
+      seen.add(u.id)
+      return true
+    })
   }, [dbUnits])
+
+  // 1. وحدات SUPER VIP فقط
+  const superVipUnits = useMemo(() => {
+    return allDisplayUnits
+      .filter((u) => u.boostTier === 'super_vip' || u.isFeatured)
+      .map((u) => ({ ...u, boostTier: 'super_vip' as const }))
+  }, [allDisplayUnits])
+
+  // 2. وحدات +VIP فقط (إذا كانت فارغة يختفي قسم +VIP تلقائياً)
+  const vipPlusUnits = useMemo(() => {
+    return allDisplayUnits.filter((u) => u.boostTier === 'vip_plus')
+  }, [allDisplayUnits])
+
+  // 3. الوحدات المضافة حديثاً (بدون شارة VIP للمجاني)
+  const recentlyAddedUnits = useMemo(() => {
+    return allDisplayUnits
+      .slice()
+      .reverse()
+      .map((u) => ({
+        ...u,
+        boostTier: u.boostTier || null,
+        isFeatured: Boolean(u.boostTier),
+      }))
+  }, [allDisplayUnits])
 
   const toggleFav = (id: string) => {
     setFavorites((prev) =>
@@ -53,121 +85,231 @@ export function HybridHomeClient({
   }
 
   const categoriesGrid = getHomeCategoriesGrid(isAr)
-
-  const storiesItems = [
-    {
-      name: isAr ? 'ديدي ديغومي' : 'Didi Dighomi',
-      price: '2,232 ₾',
-      img: SHOWCASE_IMAGES.park,
-      href: '/opportunities?area=Tbilisi+-+Didi+Digomi',
-    },
-    {
-      name: isAr ? 'ساحل باتومي' : 'Batumi Coast',
-      price: '428,498 ₾',
-      img: SHOWCASE_IMAGES.coast,
-      href: '/opportunities?area=Batumi+-+New+Boulevard',
-    },
-    {
-      name: isAr ? 'ديغومي ماسيف' : 'Dighmis Masivi',
-      price: '169,614 ₾',
-      img: SHOWCASE_IMAGES.project,
-      href: '/opportunities?area=Tbilisi+-+Saburtalo',
-    },
-    {
-      name: isAr ? 'فاكي بارك' : 'Vake Park',
-      price: '340,000 ₾',
-      img: SHOWCASE_IMAGES.villa,
-      href: '/opportunities?area=Tbilisi+-+Vake',
-    },
-  ]
+  const comparisonRows = t?.comparison?.rows || []
+  const workSteps = t?.steps?.items || []
+  const fairStandards = t?.standards?.items || []
 
   return (
     <div
       dir={dir}
       className="min-h-screen overflow-x-hidden bg-[#f6f8fc] text-[#0f1d40]"
     >
-      {/* 1. الهيرو بالتدرج اللوني المتحرك والمباني بدون الخطين المنحنيين */}
-      <HomeHero realUnitCount={realUnitCount} />
+      {/* 1. الهيرو المتخصص في التنازل والأقساط */}
+      <section className="aqar-animated-hero relative flex min-h-[640px] items-center overflow-hidden border-b border-slate-200/80 py-10 lg:min-h-[700px] lg:py-16">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 overflow-hidden"
+        >
+          <div className="aqar-floating-orb-1" />
+          <div className="aqar-floating-orb-2" />
+        </div>
 
-      {/* 2. قسم القصص (مفصول بوضوح عن الهيرو بخلفية بيضاء وحدود ناعمة) */}
-      <section className="border-b border-slate-200/75 bg-white py-6">
-        <div className="mx-auto max-w-[1320px] px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col items-start gap-3">
-            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-400">
-              <span className="text-[#ff6437]">◉</span>
-              <span>{isAr ? 'قصص · إعلان' : 'STORIES · SPONSORED'}</span>
+        <div
+          className={`relative z-10 ${CONTAINER_CLS} grid grid-cols-1 items-center gap-10 lg:grid-cols-[1.15fr_0.85fr] lg:gap-14`}
+        >
+          <ScrollReveal className="text-start">
+            <span className="mb-5 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white/95 px-4 py-1.5 text-xs font-bold text-[#007a5a] shadow-2xs">
+              <span className="size-2 animate-pulse rounded-full bg-[#ff6437]" />
+              <span>{t?.hero?.badge}</span>
             </span>
 
-            <div className="flex items-center gap-6 overflow-x-auto py-1 no-scrollbar">
-              {storiesItems.map((st) => (
-                <Link
-                  key={st.name}
-                  href={st.href}
-                  className="group flex shrink-0 flex-col items-center text-center"
-                >
-                  <div className="relative size-20 rounded-full bg-gradient-to-tr from-[#ff6437] to-[#2563eb] p-[2.5px] transition group-hover:scale-105">
-                    <img
-                      src={st.img}
-                      alt={st.name}
-                      className="h-full w-full rounded-full border-2 border-white object-cover"
-                    />
-                    <span className="absolute -bottom-1 left-1/2 flex size-5 -translate-x-1/2 items-center justify-center rounded-full border border-white bg-[#0f1d40] text-white shadow-xs">
-                      <Play className="size-2.5 fill-white" />
-                    </span>
-                  </div>
-                  <strong className="mt-2.5 block text-xs font-extrabold text-[#0f1d40] group-hover:text-[#ff6437]">
-                    {st.name}
+            <h1 className="heading-hero text-[#0f1d40]">
+              {t?.hero?.titleLine1}
+              <br className="hidden sm:inline" /> {t?.hero?.titleLine2}{' '}
+              <span className="bg-gradient-to-r from-[#007a5a] via-[#2563eb] to-[#ff6437] bg-clip-text text-transparent">
+                {t?.hero?.titleAccentLine1}
+                <br className="hidden sm:inline" /> {t?.hero?.titleAccentLine2}
+              </span>
+            </h1>
+
+            <p className="mt-5 max-w-[585px] text-[13.5px] font-medium leading-[1.95] text-[#475569] sm:text-[15px] lg:text-[15.5px]">
+              {t?.hero?.description}
+            </p>
+
+            <div className="mt-7 flex flex-wrap items-center justify-start gap-3.5 sm:mt-8">
+              <Button
+                size="lg"
+                className="h-12 flex-1 rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-7 text-sm font-bold text-white shadow-[0_10px_24px_rgba(255,100,55,0.28)] transition-all hover:scale-[1.02] hover:opacity-95 sm:flex-none sm:px-8 sm:text-[15px]"
+                render={<Link href="/sell" />}
+              >
+                {t?.hero?.sellBtn}
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className="h-12 flex-1 rounded-full border border-slate-200 bg-white px-7 text-sm font-bold text-[#0f1d40] shadow-xs transition-all hover:border-[#2563eb] hover:bg-blue-50/40 hover:text-[#2563eb] sm:flex-none sm:px-8 sm:text-[15px]"
+                render={<Link href="/opportunities" />}
+              >
+                {t?.hero?.buyBtn}
+              </Button>
+            </div>
+
+            <div className="mt-6 flex items-start justify-start gap-2 text-[11px] font-medium leading-relaxed text-slate-500 sm:items-center sm:text-xs">
+              <ShieldCheck className="mt-0.5 size-4 shrink-0 text-[#007a5a] sm:mt-0" />
+              <p>{t?.hero?.trustNote}</p>
+            </div>
+          </ScrollReveal>
+
+          <ScrollReveal
+            delay={120}
+            className="relative mx-auto flex w-full max-w-[460px] flex-col items-center gap-4 lg:me-0"
+          >
+            <div className="w-full rounded-[22px] border border-rose-200/80 bg-white/95 p-5 text-[#0f1d40] shadow-lg backdrop-blur-sm transition hover:-translate-y-0.5 sm:p-6">
+              <div className="flex items-center justify-start gap-3">
+                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-rose-100 text-xs font-bold text-rose-600">
+                  ✕
+                </span>
+                <p className="text-sm font-bold text-[#0f1d40]">
+                  {t?.hero?.lossCardTitle}
+                </p>
+              </div>
+
+              <div className="mt-5 flex items-end justify-between gap-2">
+                <div className="text-start">
+                  <p className="text-[11px] font-medium text-slate-400 sm:text-xs">
+                    {t?.hero?.lossCardLabel}
+                  </p>
+                  <strong className="mt-1 flex items-baseline gap-1.5 text-xl font-bold text-rose-600 tabular-nums sm:text-[26px]">
+                    <span dir="ltr">- {t?.hero?.lossCardAmount}</span>
+                    <span>{USD}</span>
                   </strong>
-                  <span
-                    dir="ltr"
-                    className="text-[11px] font-bold text-slate-400"
-                  >
-                    {st.price}
-                  </span>
-                </Link>
-              ))}
+                </div>
+                <div className="shrink-0 text-end">
+                  <p className="text-[11px] font-medium text-slate-400 sm:text-xs">
+                    {t?.hero?.lossCardDurationLabel}
+                  </p>
+                  <p className="mt-1 text-sm font-bold text-slate-700 sm:text-base">
+                    {t?.hero?.lossCardDurationValue}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-5 rounded-xl bg-rose-50/80 px-4 py-2.5 text-center text-[11px] font-semibold text-rose-600 sm:text-xs">
+                {t?.hero?.lossCardFooter}
+              </div>
+            </div>
+
+            <div className="z-20 -my-6 flex size-9 items-center justify-center rounded-full border-2 border-white bg-gradient-to-r from-[#2563eb] to-[#007a5a] text-[11px] font-bold uppercase text-white shadow-md">
+              vs
+            </div>
+
+            <div className="w-full rounded-[22px] border-2 border-[#007a5a] bg-white p-5 text-[#0f1d40] shadow-2xl transition hover:-translate-y-0.5 sm:p-6">
+              <div className="flex items-center justify-start gap-3">
+                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[#d8f3e5] text-xs font-bold text-[#007a5a]">
+                  ✓
+                </span>
+                <p className="text-sm font-bold text-[#0f1d40]">
+                  {t?.hero?.winCardTitle}
+                </p>
+              </div>
+
+              <div className="mt-5 text-start">
+                <p className="text-[11px] font-medium text-slate-500 sm:text-xs">
+                  {t?.hero?.winCardLabel}
+                </p>
+                <strong className="mt-1 flex items-baseline gap-1.5 text-2xl font-bold text-[#007a5a] tabular-nums sm:text-[32px]">
+                  <span dir="ltr">{t?.hero?.winCardAmount}</span>
+                  <span>{USD}</span>
+                </strong>
+                <p className="mt-1 text-xs font-bold text-[#0f1d40]">
+                  {t?.hero?.winCardSub}
+                </p>
+              </div>
+
+              <div className="mt-5 rounded-xl bg-[#eaf8f2] px-4 py-2.5 text-center text-[11px] font-bold text-[#007a5a] sm:text-xs">
+                {t?.hero?.winCardFooter}
+              </div>
+            </div>
+          </ScrollReveal>
+        </div>
+      </section>
+
+      {/* 2. شريط الإحصائيات الموثقة بالدولار ($) */}
+      <section className={`${CONTAINER_CLS} pt-10 pb-4`}>
+        <ScrollReveal>
+          <div className="grid grid-cols-1 divide-y divide-gray-200/80 overflow-hidden rounded-[22px] border border-gray-200/70 border-t-[3px] border-t-[#007a5a] bg-white shadow-xs md:grid-cols-2 md:divide-x md:divide-y-0 md:divide-x-reverse">
+            <div className="p-7 text-start sm:p-9">
+              <p className="text-xs font-bold text-gray-500">
+                {t?.stats?.unitsTitle}
+              </p>
+              <div className="mt-3 flex items-baseline justify-start gap-2">
+                <span
+                  dir="ltr"
+                  className="text-4xl font-bold tracking-tight text-[#0f1d40] tabular-nums sm:text-5xl"
+                >
+                  {realUnitCount.toLocaleString('en-US')}
+                </span>
+                <span className="text-base font-medium text-gray-500 sm:text-lg">
+                  {t?.stats?.unitWord}
+                </span>
+              </div>
+              <div className="mt-4 h-[1px] w-10 bg-gray-200" />
+              <p className="mt-3 text-xs text-gray-400">{t?.stats?.unitsSub}</p>
+            </div>
+
+            <div className="p-7 text-start sm:p-9">
+              <p className="text-xs font-bold text-gray-500">
+                {t?.stats?.valueTitle}
+              </p>
+              <div className="mt-3 flex items-baseline justify-start gap-2">
+                <span
+                  dir="ltr"
+                  className="text-4xl font-bold tracking-tight text-[#0f1d40] tabular-nums sm:text-5xl"
+                >
+                  {formattedValue}
+                </span>
+                <span className="text-base font-medium text-gray-500 sm:text-lg">
+                  {valueUnitLabel}
+                </span>
+              </div>
+              <div className="mt-4 h-[1px] w-10 bg-gray-200" />
+              <p className="mt-3 text-xs text-gray-400">{t?.stats?.valueSub}</p>
             </div>
           </div>
-        </div>
+        </ScrollReveal>
       </section>
 
-      {/* 3. ماذا تبحث عنه؟ (16 قسماً بالأيقونات الملونة) */}
-      <section className="mx-auto max-w-[1320px] px-4 py-10 sm:px-6 lg:px-8">
-        <div className="mb-7 text-start">
-          <h2 className="text-2xl font-black tracking-tight text-[#0f1d40] sm:text-4xl">
-            {isAr ? 'ماذا تبحث عنه؟' : 'What are you looking for?'}
-          </h2>
-          <p className="mt-1 text-xs font-semibold text-slate-500 sm:text-sm">
-            {isAr
-              ? 'شقق ومنازل واستراحات — بيع، إيجار، إيجار يومي'
-              : 'Apartments, houses and cottages — sale, rent, daily'}
-          </p>
-        </div>
+      {/* 3. ماذا تبحث عنه للتنازل؟ (الصفين القابلين للسحب يميناً ويساراً باللمس) */}
+      <section className={`${CONTAINER_CLS} py-10`}>
+        <ScrollReveal>
+          <div className="mb-6 text-start">
+            <h2 className="text-2xl font-bold tracking-tight text-[#0f1d40] sm:text-3xl">
+              {isAr
+                ? 'ماذا تبحث عنه للتنازل؟'
+                : 'What are you looking for to take over?'}
+            </h2>
+            <p className="mt-1 text-xs font-medium text-slate-500 sm:text-sm">
+              {isAr
+                ? 'اختر نوع الوحدة وتصفح أفضل عروض التنازل واستكمال الأقساط في جورجيا'
+                : 'Choose unit type and explore verified installment exit opportunities'}
+            </p>
+          </div>
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 md:grid-cols-8">
-          {categoriesGrid.map((cat) => {
-            const Icon = cat.icon
-            return (
-              <Link
-                key={cat.id}
-                href={cat.href}
-                className="sivrce-card flex min-h-[118px] flex-col items-center justify-center rounded-[22px] border border-slate-200/75 bg-white p-3.5 text-center shadow-2xs"
-              >
-                <div
-                  className={`mb-3 flex size-11 items-center justify-center rounded-2xl ${cat.color}`}
+          <div className="grid auto-cols-[115px] grid-flow-col grid-rows-2 gap-3 overflow-x-auto pb-2 no-scrollbar md:auto-cols-auto md:grid-flow-row md:grid-cols-8 md:grid-rows-2">
+            {categoriesGrid.map((cat) => {
+              const Icon = cat.icon
+              return (
+                <Link
+                  key={cat.id}
+                  href={cat.href}
+                  className="sivrce-card flex min-h-[116px] flex-col items-center justify-center rounded-[22px] border border-slate-200/75 bg-white p-3.5 text-center shadow-2xs"
                 >
-                  <Icon className="size-5" />
-                </div>
-                <strong className="text-xs font-extrabold text-[#0f1d40]">
-                  {cat.label}
-                </strong>
-              </Link>
-            )
-          })}
-        </div>
+                  <div
+                    className={`mb-2.5 flex size-11 items-center justify-center rounded-2xl ${cat.color}`}
+                  >
+                    <Icon className="size-5" />
+                  </div>
+                  <strong className="text-xs font-bold text-[#0f1d40]">
+                    {cat.label}
+                  </strong>
+                </Link>
+              )
+            })}
+          </div>
+        </ScrollReveal>
       </section>
 
-      {/* 4. أول قسم كروت في الأعلى: إعلانات SUPER VIP (كما في الموقع الأصلي تماماً) */}
+      {/* 4. قسم إعلانات SUPER VIP (بدون كارت "إعلانك هنا" وسطها كما في الصورة 1 و 9) */}
       <HomeCardsCarouselSection
         badgeText="SUPER VIP"
         badgeClass="bg-gradient-to-r from-[#ff6437] to-[#ff4f69] text-white shadow-xs"
@@ -175,160 +317,445 @@ export function HybridHomeClient({
         subtitle={
           isAr
             ? 'أقصى ظهور — أفضل العروض أولاً'
-            : 'Top offers first — maximum visibility'
+            : 'Top exit offers first — maximum visibility'
         }
         allLinkText={isAr ? 'كل SUPER VIP ←' : 'All SUPER VIP →'}
-        units={displayUnits}
-        cardBadgeOverride="SUPER VIP"
+        allLinkHref="/opportunities"
+        units={superVipUnits}
         favorites={favorites}
         onToggleFav={toggleFav}
       />
 
-      {/* 5. أضيفت حديثاً */}
+      {/* 5. قسم إعلانات +VIP المستقل (يظهر فقط لو فيه إعلان +VIP وبجانبه "إعلانك هنا +VIP" كما في الصورة 5 و 6) */}
+      <HomeVipPlusSection
+        vipPlusUnits={vipPlusUnits}
+        favorites={favorites}
+        onToggleFav={toggleFav}
+      />
+
+      {/* 6. قسم أضيفت حديثاً (الكروت العادية لا تأخذ شارة VIP إلا لو كانت مشتركة) */}
       <HomeCardsCarouselSection
-        badgeText={isAr ? 'جديد' : 'NEW'}
-        badgeClass="bg-[#2563eb] text-white"
         title={isAr ? 'أضيفت حديثاً' : 'Recently added'}
         subtitle={
           isAr
             ? 'إعلانات جديدة — الأحدث أولاً'
-            : 'Fresh listings — newest first'
+            : 'Fresh installment exit units — newest first'
         }
         allLinkText={isAr ? 'كل الجديد ←' : 'All new →'}
-        units={displayUnits.slice().reverse()}
-        cardBadgeOverride={isAr ? 'جديد' : 'NEW'}
+        allLinkHref="/opportunities"
+        units={recentlyAddedUnits}
         favorites={favorites}
         onToggleFav={toggleFav}
       />
 
-      {/* 6. الخريطة التفاعلية ثلاثية الأبعاد (بالـ 4 سطور المتحركة بالتتابع والزر الأبيض السفلي) */}
+      {/* 7. بانر الترويج المتوسط بالألوان الجديدة والموجة المتحركة */}
+      <SponsoredRightAlignedBanner />
+
+      {/* 8. خريطة جورجيا ثلاثية الأبعاد 3D (بالثيم الزمردي الجديد والنصوص المتخصصة) */}
       <Home3DMapSection />
 
-      {/* 7. توصيات مخصصة */}
-      <HomeCardsCarouselSection
-        badgeText={isAr ? 'مختار لك' : 'FOR YOU'}
-        badgeClass="bg-blue-50 text-[#2563eb]"
-        title={isAr ? 'توصيات مخصصة' : 'Personalized recommendations'}
-        subtitle={
-          isAr
-            ? 'عقارات مختارة بناءً على اهتماماتك وتاريخ بحثك وميزانيتك'
-            : 'Selected properties based on your interests and target budget'
-        }
-        allLinkText={isAr ? 'عرض الكل ←' : 'View all →'}
-        units={displayUnits}
-        cardBadgeOverride={
-          isAr ? 'ضمن ميزانيتك المحددة' : 'In your target budget'
-        }
-        favorites={favorites}
-        onToggleFav={toggleFav}
-      />
+      {/* 9. لمن هذه المنصة؟ (للبائع وللمشتري) */}
+      <section className={`${CONTAINER_CLS} py-12 md:py-16`}>
+        <ScrollReveal className="max-w-xl text-start">
+          <h2 className="heading-section">{t?.audience?.title}</h2>
+          <p className="mt-2.5 text-sm leading-relaxed text-gray-500 sm:text-base">
+            {t?.audience?.subtitle}
+          </p>
+        </ScrollReveal>
 
-      {/* 8. شوهدت مؤخراً (في مكانها الصحيح بالأسفل بعد التوصيات المخصصة) */}
-      <HomeCardsCarouselSection
-        badgeText={isAr ? 'شوهدت مؤخراً · 4' : 'RECENTLY VIEWED · 4'}
-        badgeClass="bg-indigo-50 text-[#4f46e5]"
-        title={isAr ? 'شوهدت مؤخراً' : 'Recently viewed'}
-        allLinkText={isAr ? 'عرض الكل ←' : 'View all →'}
-        units={displayUnits}
-        favorites={favorites}
-        onToggleFav={toggleFav}
-      />
-
-      {/* 9. قسم ميزة التنازل واستكمال الأقساط (Aqar Exit Advantage) */}
-      <section className="mx-auto max-w-[1320px] px-4 py-10 sm:px-6 lg:px-8">
-        <div className="rounded-[28px] border border-orange-200/60 bg-gradient-to-br from-white via-[#fff9f5] to-[#f4f8ff] p-6 shadow-sm sm:p-10">
-          <div className="grid grid-cols-1 items-center gap-8 lg:grid-cols-12">
-            <div className="text-start lg:col-span-6">
-              <span className="inline-block rounded-full bg-orange-100 px-3.5 py-1 text-xs font-extrabold text-[#ff6437]">
-                {t?.hero?.badge ||
-                  (isAr
-                    ? 'نظام التنازل واستكمال الأقساط'
-                    : 'Installment Exit System')}
-              </span>
-              <h2 className="mt-3.5 text-2xl font-black leading-snug text-[#0f1d40] sm:text-4xl">
-                {t?.hero?.titleLine1} {t?.hero?.titleLine2}{' '}
-                <span className="text-[#ff6437]">
-                  {t?.hero?.titleAccentLine1} {t?.hero?.titleAccentLine2}
+        <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <ScrollReveal delay={60}>
+            <div className="sivrce-card flex h-full flex-col justify-between rounded-[24px] border border-emerald-200/80 bg-white p-6 text-start shadow-xs sm:p-9">
+              <div>
+                <span className="inline-block rounded-full bg-[#e6f4f1] px-3.5 py-1 text-xs font-bold text-[#007a5a]">
+                  {t?.audience?.sellerBadge}
                 </span>
-              </h2>
-              <p className="mt-3 text-xs leading-relaxed text-slate-600 sm:text-sm">
-                {t?.hero?.description}
-              </p>
+                <h3 className="mt-4 text-xl font-bold text-[#0f1d40] sm:text-2xl">
+                  {t?.audience?.sellerTitle}
+                </h3>
+                <p className="mt-3 text-xs leading-[1.9] text-gray-500 sm:text-sm">
+                  {t?.audience?.sellerDesc}
+                </p>
 
-              <div className="mt-6 flex flex-wrap gap-3">
-                <Link
-                  href="/sell"
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-6 text-xs font-black text-white shadow-sm transition hover:opacity-95 sm:text-sm"
+                <ul className="mt-6 space-y-3">
+                  <li className="flex items-start gap-2.5 text-xs font-semibold text-[#0f1d40] sm:text-sm">
+                    <Check className="mt-0.5 size-4 shrink-0 text-[#007a5a]" />
+                    <span>{t?.audience?.sellerPoint1}</span>
+                  </li>
+                  <li className="flex items-start gap-2.5 text-xs font-semibold text-[#0f1d40] sm:text-sm">
+                    <Check className="mt-0.5 size-4 shrink-0 text-[#007a5a]" />
+                    <span>{t?.audience?.sellerPoint2}</span>
+                  </li>
+                  <li className="flex items-start gap-2.5 text-xs font-semibold text-[#0f1d40] sm:text-sm">
+                    <Check className="mt-0.5 size-4 shrink-0 text-[#007a5a]" />
+                    <span>{t?.audience?.sellerPoint3}</span>
+                  </li>
+                </ul>
+
+                <div className="mt-6 rounded-xl border border-[#b8e6d5] bg-[#eaf8f2] px-4 py-3 text-xs font-bold text-[#007a5a] sm:text-sm">
+                  {t?.audience?.sellerFreeNote}
+                </div>
+              </div>
+
+              <div className="mt-7">
+                <Button
+                  className="h-11 rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-7 text-xs font-bold text-white shadow-xs hover:opacity-95 sm:text-sm"
+                  render={<Link href="/sell" />}
                 >
-                  <Plus className="size-4 stroke-[3]" />
-                  <span>
-                    {t?.hero?.sellBtn ||
-                      (isAr ? 'اعرض وحدتك للتنازل' : 'List Unit for Exit')}
-                  </span>
-                </Link>
-                <Link
-                  href="/calculator"
-                  className="inline-flex h-11 items-center justify-center rounded-full border border-slate-200 bg-white px-6 text-xs font-extrabold text-[#0f1d40] transition hover:border-[#ff6437] hover:text-[#ff6437] sm:text-sm"
+                  {t?.audience?.sellerBtn}
+                </Button>
+              </div>
+            </div>
+          </ScrollReveal>
+
+          <ScrollReveal delay={140}>
+            <div className="sivrce-card flex h-full flex-col justify-between rounded-[24px] border border-blue-200/80 bg-gradient-to-br from-white via-[#f4f8ff] to-[#eef6ff] p-6 text-start text-[#0f1d40] shadow-xs sm:p-9">
+              <div>
+                <span className="inline-block rounded-full bg-blue-100 px-3.5 py-1 text-xs font-bold text-[#2563eb]">
+                  {t?.audience?.buyerBadge}
+                </span>
+                <h3 className="mt-4 text-xl font-bold text-[#0f1d40] sm:text-2xl">
+                  {t?.audience?.buyerTitle}
+                </h3>
+                <p className="mt-3 text-xs leading-[1.9] text-slate-600 sm:text-sm">
+                  {t?.audience?.buyerDesc}
+                </p>
+
+                <ul className="mt-6 space-y-3">
+                  <li className="flex items-start gap-2.5 text-xs font-semibold text-[#0f1d40] sm:text-sm">
+                    <Check className="mt-0.5 size-4 shrink-0 text-[#2563eb]" />
+                    <span>{t?.audience?.buyerPoint1}</span>
+                  </li>
+                  <li className="flex items-start gap-2.5 text-xs font-semibold text-[#0f1d40] sm:text-sm">
+                    <Check className="mt-0.5 size-4 shrink-0 text-[#2563eb]" />
+                    <span>{t?.audience?.buyerPoint2}</span>
+                  </li>
+                  <li className="flex items-start gap-2.5 text-xs font-semibold text-[#0f1d40] sm:text-sm">
+                    <Check className="mt-0.5 size-4 shrink-0 text-[#2563eb]" />
+                    <span>{t?.audience?.buyerPoint3}</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="mt-8">
+                <Button
+                  className="h-11 rounded-full bg-[#2563eb] px-7 text-xs font-bold text-white shadow-xs hover:bg-blue-700 sm:text-sm"
+                  render={<Link href="/opportunities" />}
                 >
-                  {t?.calculatorBanner?.btn ||
-                    (isAr ? 'حاسبة الخروج المجانية' : 'Free Exit Calculator')}
-                </Link>
+                  {t?.audience?.buyerBtn}
+                </Button>
+              </div>
+            </div>
+          </ScrollReveal>
+        </div>
+      </section>
+
+      {/* 10. شركات التطوير الرائدة في جورجيا */}
+      <LeadingDevelopersSection realUnitCount={realUnitCount} />
+
+      {/* 11. جدول المقارنة */}
+      <section className="bg-white py-14 sm:py-16">
+        <div className={CONTAINER_CLS}>
+          <ScrollReveal className="text-start">
+            <h2 className="heading-section">{t?.comparison?.title}</h2>
+            <p className="mt-2 text-sm text-gray-500 sm:text-base">
+              {t?.comparison?.subtitle}
+            </p>
+          </ScrollReveal>
+
+          <ScrollReveal
+            delay={80}
+            className="mt-8 overflow-hidden rounded-[22px] border border-gray-200/90 shadow-xs sm:mt-10"
+          >
+            <div className="grid grid-cols-[80px_1fr_1.1fr] text-start text-[11px] font-bold sm:grid-cols-[130px_1fr_1fr] sm:text-xs md:grid-cols-[150px_1fr_1fr] md:text-sm">
+              <div className="flex items-center bg-[#f4f5f7] px-3 py-3.5 text-[10px] font-bold text-gray-500 sm:p-4 sm:text-xs">
+                {t?.comparison?.colCriterion}
+              </div>
+              <div className="flex items-center border-r border-gray-200/80 bg-[#f4f5f7] px-3 py-3.5 text-gray-600 sm:p-4">
+                {t?.comparison?.colResale}
+              </div>
+              <div className="flex items-center bg-[#2563eb] px-3 py-3.5 text-white sm:p-4">
+                {t?.comparison?.colExit}
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:col-span-6">
-              <div className="rounded-[22px] border border-red-200/80 bg-white p-5 text-start shadow-xs">
-                <div className="flex items-center gap-2.5">
-                  <span className="flex size-7 items-center justify-center rounded-full bg-red-50 text-xs font-black text-red-500">
+            {comparisonRows.map((row: any) => (
+              <div
+                key={row.criterion}
+                className="grid grid-cols-[80px_1fr_1.1fr] items-stretch border-t border-gray-200/80 text-start text-[11px] leading-relaxed sm:grid-cols-[130px_1fr_1fr] sm:text-xs md:grid-cols-[150px_1fr_1fr] lg:text-sm"
+              >
+                <div className="flex items-center bg-[#f8f9fa] px-3 py-3.5 font-bold text-[#0f1d40] sm:p-4">
+                  {row.criterion}
+                </div>
+
+                <div className="flex items-start gap-1.5 border-r border-gray-200/80 bg-white px-3 py-3.5 text-gray-500 sm:items-center sm:gap-2.5 sm:p-4">
+                  <span className="mt-0.5 shrink-0 font-bold text-red-500 sm:mt-0">
                     ✕
                   </span>
-                  <strong className="text-xs font-extrabold text-[#0f1d40] sm:text-sm">
-                    {t?.hero?.lossCardTitle}
-                  </strong>
+                  <span>{row.resale}</span>
                 </div>
-                <p className="mt-4 text-xs text-slate-400">
-                  {t?.hero?.lossCardLabel}
-                </p>
-                <strong
-                  dir="ltr"
-                  className="mt-1 block text-2xl font-black text-red-500 sm:text-3xl"
-                >
-                  - {t?.hero?.lossCardAmount} {GEL}
-                </strong>
-                <div className="mt-4 rounded-xl bg-red-50/70 p-2.5 text-center text-[11px] font-bold text-red-600">
-                  {t?.hero?.lossCardFooter}
-                </div>
-              </div>
 
-              <div className="rounded-[22px] border-2 border-[#007a5a] bg-white p-5 text-start shadow-md">
-                <div className="flex items-center gap-2.5">
-                  <span className="flex size-7 items-center justify-center rounded-full bg-emerald-100 text-xs font-black text-[#007a5a]">
+                <div className="flex items-start gap-1.5 bg-[#eaf8f2] px-3 py-3.5 font-semibold text-[#0f1d40] sm:items-center sm:gap-2.5 sm:p-4">
+                  <span className="mt-0.5 shrink-0 font-bold text-[#007a5a] sm:mt-0">
                     ✓
                   </span>
-                  <strong className="text-xs font-extrabold text-[#0f1d40] sm:text-sm">
-                    {t?.hero?.winCardTitle}
-                  </strong>
-                </div>
-                <p className="mt-4 text-xs text-slate-400">
-                  {t?.hero?.winCardLabel}
-                </p>
-                <strong
-                  dir="ltr"
-                  className="mt-1 block text-2xl font-black text-[#007a5a] sm:text-3xl"
-                >
-                  {t?.hero?.winCardAmount} {GEL}
-                </strong>
-                <div className="mt-4 rounded-xl bg-[#eaf8f2] p-2.5 text-center text-[11px] font-extrabold text-[#007a5a]">
-                  {t?.hero?.winCardFooter}
+                  <span>{row.exit}</span>
                 </div>
               </div>
-            </div>
+            ))}
+          </ScrollReveal>
+        </div>
+      </section>
+
+      {/* 12. مثال واقعي بالأرقام بالدولار ($) */}
+      <section className="bg-[#f6f8fc] py-14 sm:py-16">
+        <div className={CONTAINER_CLS}>
+          <ScrollReveal className="text-start">
+            <h2 className="heading-section">{t?.example?.title}</h2>
+            <p className="mt-2 text-sm text-gray-500 sm:text-base">
+              {t?.example?.subtitle}
+            </p>
+          </ScrollReveal>
+
+          <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2">
+            <ScrollReveal delay={60}>
+              <div className="sivrce-card flex h-full flex-col justify-between rounded-[22px] border border-gray-200/80 bg-white p-6 text-start shadow-xs sm:p-8">
+                <div>
+                  <div className="flex items-center justify-start gap-3">
+                    <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[#fdecee] text-xs font-bold text-[#d9383a]">
+                      ✕
+                    </span>
+                    <h3 className="text-base font-bold text-[#0f1d40]">
+                      {t?.example?.lossTitle}
+                    </h3>
+                  </div>
+
+                  <div className="mt-6">
+                    <p className="text-xs text-gray-400">
+                      {t?.example?.lossDiscountLabel}
+                    </p>
+                    <p className="mt-1.5 flex items-baseline gap-1.5 text-2xl font-bold text-[#d9383a] tabular-nums sm:text-3xl">
+                      <span dir="ltr">- {t?.example?.lossDiscountAmount}</span>
+                      <span>{USD}</span>
+                    </p>
+                  </div>
+
+                  <div className="mt-6 flex items-center justify-between border-t border-gray-100 pt-5">
+                    <div className="text-start">
+                      <p className="text-xs text-gray-400">
+                        {t?.example?.lossReturnLabel}
+                      </p>
+                      <p className="mt-1 flex items-baseline gap-1 text-lg font-bold text-[#0f1d40] tabular-nums sm:text-xl">
+                        <span dir="ltr">{t?.example?.lossReturnAmount}</span>
+                        <span>{USD}</span>
+                      </p>
+                    </div>
+                    <div className="text-end">
+                      <p className="text-xs text-gray-400">
+                        {t?.example?.lossDurationLabel}
+                      </p>
+                      <p className="mt-1 text-lg font-bold text-[#b45309] sm:text-xl">
+                        {t?.example?.lossDurationValue}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-7 rounded-xl bg-[#fef2f2] px-4 py-3 text-center text-xs font-bold text-[#d9383a]">
+                  {t?.example?.lossFooter}
+                </div>
+              </div>
+            </ScrollReveal>
+
+            <ScrollReveal delay={140}>
+              <div className="sivrce-card flex h-full flex-col justify-between rounded-[22px] border-2 border-[#a7e3cb] bg-white p-6 text-start shadow-xs sm:p-8">
+                <div>
+                  <div className="flex items-center justify-start gap-3">
+                    <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[#e3f7ed] text-xs font-bold text-[#007a5a]">
+                      ✓
+                    </span>
+                    <h3 className="text-base font-bold text-[#0f1d40]">
+                      {t?.example?.winTitle}
+                    </h3>
+                  </div>
+
+                  <div className="mt-6">
+                    <p className="text-xs text-gray-400">
+                      {t?.example?.winReturnLabel}
+                    </p>
+                    <p className="mt-1.5 flex items-baseline gap-1.5 text-2xl font-bold text-[#007a5a] tabular-nums sm:text-3xl">
+                      <span dir="ltr">{t?.example?.winReturnAmount}</span>
+                      <span>{USD}</span>
+                    </p>
+                    <p className="mt-1 text-xs font-bold text-[#0f1d40]">
+                      {t?.example?.winReturnSub}
+                    </p>
+                  </div>
+
+                  <div className="mt-5 border-t border-gray-100 pt-4">
+                    <p className="text-xs text-gray-400">
+                      {t?.example?.winCommissionLabel}
+                    </p>
+                    <p className="mt-1 text-2xl font-bold text-[#007a5a]">
+                      {t?.example?.winCommissionValue}
+                    </p>
+                    <p className="mt-1 text-xs font-bold text-[#0f1d40]">
+                      {t?.example?.winCommissionSub}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-7 rounded-xl bg-[#eaf8f2] px-4 py-3 text-center text-xs font-bold text-[#007a5a]">
+                  {t?.example?.winFooter}
+                </div>
+              </div>
+            </ScrollReveal>
+          </div>
+
+          <p className="mt-6 text-start text-xs leading-relaxed text-gray-400">
+            {t?.example?.disclaimer}
+          </p>
+        </div>
+      </section>
+
+      {/* 13. إزاي بنشتغل في 5 خطوات */}
+      <section className="border-t border-gray-200/60 bg-[#f6f8fc] py-14 sm:py-16">
+        <div className={CONTAINER_CLS}>
+          <ScrollReveal className="text-start">
+            <h2 className="heading-section">{t?.steps?.title}</h2>
+            <p className="mt-2 text-sm text-gray-500 sm:text-base">
+              {t?.steps?.subtitle}
+            </p>
+          </ScrollReveal>
+
+          <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            {workSteps.map((step: any, index: number) => (
+              <ScrollReveal key={step.title} delay={index * 70}>
+                <div className="sivrce-card h-full rounded-[20px] border border-gray-200/70 bg-white p-6 text-start shadow-2xs">
+                  <span className="flex size-9 items-center justify-center rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] text-sm font-bold text-white shadow-xs">
+                    {index + 1}
+                  </span>
+                  <h3 className="mt-4 text-base font-bold text-[#0f1d40]">
+                    {step.title}
+                  </h3>
+                  <p className="mt-2 text-xs leading-[1.8] text-gray-500">
+                    {step.text}
+                  </p>
+                </div>
+              </ScrollReveal>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* 10. باقي أقسام السوق والمدونة وشحن الرصيد قبل الفوتر مباشرة */}
-      <HomeMarketAndBottomSections realUnitCount={realUnitCount} />
+      {/* 14. معايير الأمان والتوثيق */}
+      <section className="bg-white py-14 sm:py-16">
+        <div className={CONTAINER_CLS}>
+          <ScrollReveal className="text-start">
+            <h2 className="heading-section">{t?.standards?.title}</h2>
+            <p className="mt-2 text-sm text-gray-500 sm:text-base">
+              {t?.standards?.subtitle}
+            </p>
+          </ScrollReveal>
+
+          <div className="mt-10 grid grid-cols-1 gap-x-14 gap-y-8 md:grid-cols-2 md:gap-y-10">
+            {fairStandards.map((item: any, idx: number) => (
+              <ScrollReveal key={item.title} delay={idx * 60}>
+                <div className="flex items-start gap-4 text-start">
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#2563eb]">
+                    <ShieldCheck className="size-5" />
+                  </span>
+                  <div>
+                    <h3 className="text-base font-bold text-[#0f1d40]">
+                      {item.title}
+                    </h3>
+                    <p className="mt-1.5 text-xs leading-[1.85] text-gray-500 sm:text-sm">
+                      {item.text}
+                    </p>
+                  </div>
+                </div>
+              </ScrollReveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* 15. بانر حاسبة الخروج المجانية */}
+      <section className={`${CONTAINER_CLS} pt-12 pb-4`}>
+        <ScrollReveal>
+          <div className="relative overflow-hidden rounded-[28px] border border-blue-200/80 bg-gradient-to-r from-[#eef5ff] via-[#f4fbf7] to-[#fff5f0] p-8 text-center shadow-xs sm:p-12">
+            <h2 className="text-2xl font-bold text-[#0f1d40] sm:text-3xl md:text-4xl">
+              {t?.calculatorBanner?.title}
+            </h2>
+            <p className="mx-auto mt-3 max-w-xl text-xs leading-relaxed text-slate-600 sm:text-sm md:text-base">
+              {t?.calculatorBanner?.subtitle}
+            </p>
+            <div className="mt-7">
+              <Button
+                size="lg"
+                className="h-12 rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-8 text-sm font-bold text-white shadow-md hover:opacity-95 sm:text-base"
+                render={<Link href="/calculator" />}
+              >
+                {t?.calculatorBanner?.btn}
+              </Button>
+            </div>
+          </div>
+        </ScrollReveal>
+      </section>
+
+      {/* 16. قسم شحن الرصيد وباقات الإعلانات (باللاري الجورجي ₾ فقط) */}
+      <TopUpBalanceGelSection />
+
+      {/* 17. كارتا الختام قبل الفوتر */}
+      <section className="bg-[#f6f8fc] pb-16 pt-4 sm:pb-20">
+        <div className={CONTAINER_CLS}>
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <ScrollReveal delay={50}>
+              <div className="sivrce-card flex h-full flex-col justify-between rounded-[22px] border border-gray-200/80 bg-white p-6 text-start shadow-xs sm:p-9">
+                <div>
+                  <h3 className="text-xl font-bold text-[#0f1d40] sm:text-2xl">
+                    {t?.bottomCta?.sellerTitle}
+                  </h3>
+                  <p className="mt-3 text-xs leading-relaxed text-gray-500 sm:text-sm">
+                    {t?.bottomCta?.sellerDesc}
+                  </p>
+                </div>
+                <div className="mt-7">
+                  <Button
+                    className="h-11 rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-7 text-xs font-bold text-white hover:opacity-95 sm:text-sm"
+                    render={<Link href="/sell" />}
+                  >
+                    <Plus className="me-1.5 size-4" />
+                    {t?.bottomCta?.sellerBtn}
+                  </Button>
+                </div>
+              </div>
+            </ScrollReveal>
+
+            <ScrollReveal delay={130}>
+              <div className="sivrce-card flex h-full flex-col justify-between rounded-[22px] border border-gray-200/80 bg-white p-6 text-start shadow-xs sm:p-9">
+                <div>
+                  <h3 className="text-xl font-bold text-[#0f1d40] sm:text-2xl">
+                    {t?.bottomCta?.buyerTitle}
+                  </h3>
+                  <p className="mt-3 text-xs leading-relaxed text-gray-500 sm:text-sm">
+                    {t?.bottomCta?.buyerDesc}
+                  </p>
+                </div>
+                <div className="mt-7">
+                  <Button
+                    variant="outline"
+                    className="h-11 rounded-full border border-slate-300 bg-white px-7 text-xs font-bold text-[#0f1d40] hover:border-[#2563eb] hover:bg-blue-50/40 hover:text-[#2563eb] sm:text-sm"
+                    render={<Link href="/buy" />}
+                  >
+                    {t?.bottomCta?.buyerBtn}
+                  </Button>
+                </div>
+              </div>
+            </ScrollReveal>
+          </div>
+        </div>
+      </section>
     </div>
   )
 }

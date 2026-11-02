@@ -28,7 +28,7 @@ const DEFAULT_FALLBACK_IMG =
 export default async function HomePage() {
   const { dict } = await getServerI18n()
   const t = dict.home
-  const currencySymbol = '₾'
+  const currencySymbol = '$'
 
   let realUnitCount = 0
   let totalMarketValue = 0
@@ -61,32 +61,73 @@ export default async function HomePage() {
 
       for (const u of georgiaUnits.slice(0, 12)) {
         const meta = u.documents?.__unit_meta || {}
-        const catRaw = u.listing_category || meta.listing_category || 'exit'
-        const category = (
-          ['exit', 'sale', 'rent_monthly', 'rent_daily'].includes(catRaw)
-            ? catRaw
-            : 'exit'
-        ) as HomeUnitCardItem['category']
-
         const imgs =
           Array.isArray(u.images) && u.images.length > 0 ? u.images : []
-        const priceVal =
-          category === 'rent_monthly' || category === 'rent_daily'
-            ? Number(u.rent_price || meta.rent_price || u.paid_amount || 0)
-            : Number(u.paid_amount || u.contract_price || 0)
+        const paidVal = Number(u.paid_amount || 0)
+        const contractVal = Number(u.contract_price) || paidVal
+        const marketVal = Number(u.market_price) || contractVal
+        const remainingVal = Math.max(0, contractVal - paidVal)
+        const commission = Math.round(contractVal * 0.0125)
+        const gainVal =
+          marketVal > contractVal
+            ? Math.max(0, marketVal - contractVal - commission)
+            : 0
+
+       
+        const delivYearNum = Number(u.delivery_year || meta.delivery_year) || 0
+        const rawDelStatus = String(
+          u.delivery_status || meta.delivery_status || ''
+        ).trim()
+        const isReady =
+          rawDelStatus.includes('جاهز') ||
+          rawDelStatus.includes('فوري') ||
+          rawDelStatus.includes('مستلم') ||
+          rawDelStatus.toLowerCase().includes('ready')
+        const yearMatch = rawDelStatus.match(/20\d{2}/)
+
+        const deliveryText = delivYearNum
+          ? isReady
+            ? `جاهزة (${delivYearNum})`
+            : String(delivYearNum)
+          : yearMatch
+            ? yearMatch[0]
+            : isReady
+              ? 'جاهزة'
+              : rawDelStatus || '2026'
+
+        const numericCode = String(u.id || '')
+          .replace(/\D/g, '')
+          .slice(0, 5)
+        const fallbackCode = String(u.id || '')
+          .slice(0, 5)
+          .toUpperCase()
+        const code = `U-${numericCode.length >= 4 ? numericCode : fallbackCode}`
+
+        const isFeat =
+          Boolean(u.is_featured) &&
+          (!u.featured_until || new Date(u.featured_until) > new Date())
 
         dbUnits.push({
           id: String(u.id),
+          code,
           title: sanitizeGeorgiaProjectTitle(u.project_name),
+          developer: u.developer_name || '',
           area: u.area || meta.area || 'Tbilisi - Saburtalo',
-          category,
-          price: priceVal,
-          contractPrice: Number(u.contract_price) || priceVal,
+          category: 'exit',
+          price: paidVal,
+          contractPrice: contractVal,
+          marketPrice: marketVal,
+          remainingAmount: remainingVal,
+          gainAmount: gainVal,
+          negotiable: Boolean(u.willing_to_discount),
           installmentAmount:
             Number(u.installment_amount ?? meta.installment_amount) || 0,
+          installmentFreq:
+            u.installment_frequency || meta.installment_frequency || 'شهري',
+          deliveryText,
           size: Number(u.size ?? meta.size) || 65,
           rooms: Number(u.rooms ?? meta.rooms) || 2,
-          bedrooms: Number(u.bedrooms ?? meta.bedrooms) || 1,
+          bedrooms: Math.max(1, (Number(u.rooms ?? meta.rooms) || 2) - 1),
           bathrooms: Number(u.bathrooms ?? meta.bathrooms) || 1,
           floor:
             u.floor_number !== null && u.floor_number !== undefined
@@ -94,8 +135,12 @@ export default async function HomePage() {
               : undefined,
           totalFloors: Number(u.total_floors ?? meta.total_floors) || 16,
           image: imgs[0] || DEFAULT_FALLBACK_IMG,
+          images: imgs.length > 0 ? imgs : undefined,
           imagesCount: Math.max(1, imgs.length),
-          isFeatured: Boolean(u.is_featured),
+          isFeatured: isFeat,
+          boostTier: isFeat ? 'super_vip' : null,
+          docsVerified: true,
+          viewsCount: Number(u.views_count) || 85,
           createdAt: u.created_at,
         })
       }

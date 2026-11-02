@@ -129,8 +129,13 @@ export async function updatePropertyStatusAction(
       .eq("id", propertyId)
       .maybeSingle()
 
+    const cleanStatus = sanitizeText(status, 40)
     const updatePayload: Record<string, any> = {
-      status: sanitizeText(status, 40),
+      status: cleanStatus,
+    }
+    if (cleanStatus === "active") {
+      updatePayload.docs_verified = true
+      updatePayload.approved_at = new Date().toISOString()
     }
     if (cleanReason !== undefined) {
       updatePayload.admin_note = cleanReason
@@ -144,7 +149,7 @@ export async function updatePropertyStatusAction(
     if (error) {
       const { error: fallbackError } = await supabase
         .from("sell_requests")
-        .update({ status: updatePayload.status })
+        .update({ status: cleanStatus })
         .eq("id", propertyId)
 
       if (fallbackError) {
@@ -193,11 +198,12 @@ export async function updatePropertyStatusAction(
         },
       }
 
-      const sellerNotif = sellerNotifMap[status]
+      const sellerNotif = sellerNotifMap[cleanStatus]
       if (sellerNotif) {
         try {
           await supabase.from("notifications").insert({
             user_id: prop.user_id,
+            role: "client",
             title: sellerNotif.title,
             message: sellerNotif.message,
             type: sellerNotif.type,
@@ -208,7 +214,7 @@ export async function updatePropertyStatusAction(
       }
     }
 
-    if (status === "active" && prop) {
+    if (cleanStatus === "active" && prop) {
       try {
         const unitCash = Number(prop.paid_amount || 0)
         const unitArea = String(resolvedArea).trim()
@@ -246,8 +252,9 @@ export async function updatePropertyStatusAction(
           const buyerNotifs = Array.from(matchedBuyerIds).map(
             (buyerUserId) => ({
               user_id: buyerUserId,
+              role: "client",
               title: `${msg.matchBuyerTitle} ${unitArea} 🎯`,
-              message: `(${projectLabel}) — ${cashFormatted}`,
+              message: `(${projectLabel}) — $${cashFormatted}`,
               type: "property_match",
               link: `/opportunities/${prop.id}`,
               is_read: false,
@@ -286,7 +293,7 @@ export async function updatePropertyStatusAction(
           },
         }
 
-      const emailObj = statusMessages[status]
+      const emailObj = statusMessages[cleanStatus]
       if (emailObj) {
         await sendSystemEmail({
           to: prop.email,
@@ -378,6 +385,7 @@ export async function updateBuyerLeadStatusAction(
         try {
           await supabase.from("notifications").insert({
             user_id: lead.user_id,
+            role: "client",
             title: msg.leadUpdateNotifTitle,
             message: buyerStatusText[cleanStatus],
             type: "status_update",
@@ -411,63 +419,6 @@ export async function deleteBuyerLeadAction(leadId: string) {
       .delete()
       .eq("id", leadId)
     if (error) return { success: false, error: msg.deleteLeadFailed }
-    revalidateAdminAll()
-    return { success: true }
-  } catch (err) {
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : msg.unauthorizedAction,
-    }
-  }
-}
-
-export async function updateInvestorStatusAction(
-  investorId: string,
-  status: string
-) {
-  const { t: msg } = await getAdminActionsDict()
-  try {
-    const { supabase } = await requireAdminAuth(["admin", "moderator"])
-    const cleanStatus = sanitizeText(status, 40)
-
-    const [{ error: err1 }, { error: err2 }] = await Promise.all([
-      supabase
-        .from("investor_leads")
-        .update({ status: cleanStatus })
-        .eq("id", investorId),
-      supabase
-        .from("investor_requests")
-        .update({ status: cleanStatus })
-        .eq("id", investorId),
-    ])
-
-    if (err1 && err2) {
-      return {
-        success: false,
-        error: msg.updateInvestorFailed,
-      }
-    }
-
-    revalidateAdminAll()
-    return { success: true }
-  } catch (err) {
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : msg.unauthorizedAction,
-    }
-  }
-}
-
-export async function deleteInvestorAction(investorId: string) {
-  const { t: msg } = await getAdminActionsDict()
-  try {
-    const { supabase } = await requireAdminAuth(["admin"])
-
-    await Promise.all([
-      supabase.from("investor_leads").delete().eq("id", investorId),
-      supabase.from("investor_requests").delete().eq("id", investorId),
-    ])
-
     revalidateAdminAll()
     return { success: true }
   } catch (err) {
@@ -754,22 +705,20 @@ export async function saveSiteSettingsAction(formData: FormData) {
     const cookieStore = await cookies()
 
     const ge7 = sanitizeText(
-      formData.get("promo_GE_7") || formData.get("promo7Price") || "29",
+      formData.get("promo_GE_7") || formData.get("promo7Price") || "20",
       12
     )
     const ge14 = sanitizeText(
-      formData.get("promo_GE_14") || formData.get("promo14Price") || "49",
+      formData.get("promo_GE_14") || formData.get("promo14Price") || "50",
       12
     )
     const ge30 = sanitizeText(
-      formData.get("promo_GE_30") || formData.get("promo30Price") || "69",
+      formData.get("promo_GE_30") || formData.get("promo30Price") || "100",
       12
     )
 
-    const settingsPayload: GlobalSiteSettings & {
-      developerPenaltyMin?: string
-      developerPenaltyMax?: string
-    } = {
+    // تضمين جميع خصائص GlobalSiteSettings بالكامل لتفادي خطأ TypeScript (ts2322)
+    const settingsPayload: GlobalSiteSettings & Record<string, any> = {
       siteName: sanitizeText(formData.get("siteName") || "Aqar Exit", 80),
       whatsappNumber: sanitizeText(
         formData.get("whatsappNumber") || "+201018595959",
@@ -789,6 +738,26 @@ export async function saveSiteSettingsAction(formData: FormData) {
       ),
       developerPenaltyMax: sanitizeText(
         formData.get("developerPenaltyMax") || "15",
+        10
+      ),
+      boostPaymentUrl: sanitizeText(
+        formData.get("boostPaymentUrl") || "",
+        300
+      ),
+      bankIbanGe: sanitizeText(
+        formData.get("bankIbanGe") || "GE00TB0000000000000000",
+        60
+      ),
+      bankNameGe: sanitizeText(
+        formData.get("bankNameGe") || "TBC Bank / Bank of Georgia",
+        80
+      ),
+      vipPlusDailyGel: sanitizeText(
+        formData.get("vipPlusDailyGel") || "5",
+        10
+      ),
+      superVipDailyGel: sanitizeText(
+        formData.get("superVipDailyGel") || "10",
         10
       ),
       promo7Price: ge7,
@@ -828,6 +797,7 @@ export async function saveSiteSettingsAction(formData: FormData) {
 
       await supabase.from("notifications").insert({
         user_id: null,
+        role: "admin",
         title: "__GLOBAL_SITE_CONFIG__",
         message: JSON.stringify(settingsPayload),
         type: "system",
@@ -849,7 +819,8 @@ export async function saveSiteSettingsAction(formData: FormData) {
 export async function managePropertyPromotionAction(
   propertyId: string,
   action: "activate" | "cancel",
-  days: number = 14
+  days: number = 7,
+  tier: "super_vip" | "vip_plus" = "super_vip"
 ) {
   const { t: msg } = await getAdminActionsDict()
   try {
@@ -857,20 +828,22 @@ export async function managePropertyPromotionAction(
 
     const { data: prop } = await supabase
       .from("sell_requests")
-      .select("id, user_id, project_name, name")
+      .select("id, user_id, project_name, name, featured_days")
       .eq("id", propertyId)
       .maybeSingle()
 
     if (action === "activate") {
+      const effectiveDays = Math.max(1, Number(days || prop?.featured_days) || 7)
       const untilDate = new Date(
-        Date.now() + days * 24 * 60 * 60 * 1000
+        Date.now() + effectiveDays * 24 * 60 * 60 * 1000
       ).toISOString()
 
       const { error } = await supabase
         .from("sell_requests")
         .update({
           is_featured: true,
-          featured_days: days,
+          boost_tier: tier,
+          featured_days: effectiveDays,
           featured_status: "active",
           featured_until: untilDate,
         })
@@ -883,11 +856,23 @@ export async function managePropertyPromotionAction(
         }
       }
 
+      try {
+        await supabase
+          .from("boost_requests")
+          .update({
+            status: "approved",
+            approved_at: new Date().toISOString(),
+          })
+          .eq("unit_id", propertyId)
+          .eq("status", "pending_admin_approval")
+      } catch {}
+
       if (prop?.user_id) {
         try {
           await supabase.from("notifications").insert({
             user_id: prop.user_id,
-            title: `⭐ ${msg.promoActivatedNotifTitle} (${days})`,
+            role: "client",
+            title: `⭐ ${msg.promoActivatedNotifTitle} (${tier === "vip_plus" ? "VIP+" : "SUPER VIP"} · ${effectiveDays}d)`,
             message: `${msg.promoActivatedNotifMsg} (${prop.project_name || msg.defaultProjectWord})`,
             type: "status_update",
             link: `/account?view=seller&unitId=${prop.id}`,
@@ -900,6 +885,7 @@ export async function managePropertyPromotionAction(
         .from("sell_requests")
         .update({
           is_featured: false,
+          boost_tier: null,
           featured_status: "none",
           featured_until: null,
         })
@@ -908,6 +894,118 @@ export async function managePropertyPromotionAction(
       if (error) {
         return { success: false, error: msg.cancelPromoFailed }
       }
+    }
+
+    revalidateAdminAll()
+    return { success: true }
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : msg.unauthorizedAction,
+    }
+  }
+}
+
+export async function approveBoostRequestByAdminAction(boostRequestId: string) {
+  const { t: msg } = await getAdminActionsDict()
+  try {
+    const { supabase } = await requireAdminAuth(["admin", "moderator"])
+
+    const { data: reqRow } = await supabase
+      .from("boost_requests")
+      .select("*")
+      .eq("id", boostRequestId)
+      .maybeSingle()
+
+    if (!reqRow) {
+      return { success: false, error: msg.unauthorizedNotFound }
+    }
+
+    const { error: rpcErr } = await supabase.rpc("approve_boost_request", {
+      req_id: boostRequestId,
+    })
+
+    if (rpcErr && reqRow.unit_id) {
+      const tierCode = String(reqRow.package_tier || "")
+        .toUpperCase()
+        .includes("SUPER")
+        ? "super_vip"
+        : "vip_plus"
+      await managePropertyPromotionAction(
+        String(reqRow.unit_id),
+        "activate",
+        Number(reqRow.duration_days) || 1,
+        tierCode
+      )
+    }
+
+    if (reqRow.user_id) {
+      try {
+        await supabase.from("notifications").insert({
+          user_id: reqRow.user_id,
+          role: "client",
+          title: `⭐ تم تأكيد الدفع وتفعيل باقة ${reqRow.package_tier} (${reqRow.duration_days} يوم)`,
+          message: `تمت مراجعة الدفع بقيمة ${reqRow.amount_gel} ₾ وتفعيل تمييز إعلانك بنجاح.`,
+          type: "status_update",
+          link: "/account?view=seller",
+          is_read: false,
+        })
+      } catch {}
+    }
+
+    revalidateAdminAll()
+    return { success: true }
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : msg.unauthorizedAction,
+    }
+  }
+}
+
+export async function rejectBoostRequestByAdminAction(
+  boostRequestId: string,
+  reason?: string
+) {
+  const { t: msg } = await getAdminActionsDict()
+  try {
+    const { supabase } = await requireAdminAuth(["admin", "moderator"])
+
+    const { data: reqRow } = await supabase
+      .from("boost_requests")
+      .select("*")
+      .eq("id", boostRequestId)
+      .maybeSingle()
+
+    await supabase
+      .from("boost_requests")
+      .update({
+        status: "rejected",
+        admin_note: reason || null,
+        rejected_at: new Date().toISOString(),
+      })
+      .eq("id", boostRequestId)
+
+    if (reqRow?.unit_id) {
+      await supabase
+        .from("sell_requests")
+        .update({ featured_status: "none", boost_tier: null })
+        .eq("id", reqRow.unit_id)
+        .eq("is_featured", false)
+    }
+
+    if (reqRow?.user_id) {
+      try {
+        await supabase.from("notifications").insert({
+          user_id: reqRow.user_id,
+          role: "client",
+          title: `تنبيه بخصوص طلب تفعيل باقة ${reqRow.package_tier}`,
+          message: reason || "تعذر التحقق من عملية الدفع، يرجى التواصل مع الدعم.",
+          type: "status_update",
+          link: "/account?view=seller",
+          is_read: false,
+        })
+      } catch {}
     }
 
     revalidateAdminAll()

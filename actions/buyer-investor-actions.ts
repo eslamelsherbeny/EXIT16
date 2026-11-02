@@ -76,10 +76,13 @@ export async function processBuyerStep3Action(payload: {
         user_id: userId,
         country: targetCountry,
         country_code: targetCountry,
+        currency_code: 'USD',
+        target_category: 'exit',
         available_cash: Number(payload.available_cash) || 0,
         max_installment: Number(payload.max_installment) || 0,
         payment_plan: payload.payment_plan || msg.defaultMonthly,
-        budget: Number(payload.budget) || 0,
+        budget:
+          Number(payload.budget) || Number(payload.available_cash) || 0,
         unit_types: payload.unit_types || [],
         min_rooms: Number(payload.min_rooms) || 0,
         delivery_status: payload.delivery_status || msg.defaultReady,
@@ -89,14 +92,24 @@ export async function processBuyerStep3Action(payload: {
         email: contact.email || null,
       }
 
-      const { data: inserted, error } = await supabase
+      let { data: inserted, error } = await supabase
         .from('buy_requests')
         .insert(buyRow)
         .select('id')
         .single()
 
       if (error) {
-        console.error('Insert Buy Request Error:', error)
+        const {
+          currency_code: _cc,
+          target_category: _tc,
+          ...fallbackRow
+        } = buyRow
+        const retry = await supabase
+          .from('buy_requests')
+          .insert(fallbackRow)
+          .select('id')
+          .single()
+        inserted = retry.data
       }
 
       const reqId = inserted?.id ? String(inserted.id) : ''
@@ -108,16 +121,18 @@ export async function processBuyerStep3Action(payload: {
         await supabase.from('notifications').insert([
           {
             user_id: null,
+            role: 'admin',
             title: `${msg.newBuyRequestAdminTitle} (${targetCountry}): ${contact.name || msg.buyerFallback}`,
-            message: `${cashFormatted} · ${(payload.preferred_areas || []).slice(0, 2).join('، ')}`,
+            message: `$${cashFormatted} · ${(payload.preferred_areas || []).slice(0, 2).join('، ')}`,
             type: 'lead',
             link: `/admin/leads${reqId ? `?leadId=${reqId}` : ''}`,
             is_read: false,
           },
           {
             user_id: userId,
+            role: 'client',
             title: msg.radarActivatedBuyerTitle,
-            message: `${msg.radarActivatedBuyerMsg} (${cashFormatted})`,
+            message: `${msg.radarActivatedBuyerMsg} ($${cashFormatted})`,
             type: 'property_match',
             link: '/account?view=buyer',
             is_read: false,
@@ -138,7 +153,7 @@ export async function processBuyerStep3Action(payload: {
           html: `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.8; color: #0a1122;">
                   <p style="font-size: 16px;">${msg.greetingWord} <strong>${contact.name}</strong>،</p>
                   <p>${msg.orderRefLabel}: <strong>${orderRef}</strong>.</p>
-                  <p>${msg.registeredCashLabel}: <strong>${cashFormatted}</strong>.</p>
+                  <p>${msg.registeredCashLabel}: <strong>$${cashFormatted}</strong>.</p>
                   <p>${msg.orderMagicLinkPrompt}:</p>
                   <p style="margin: 18px 0;">
                     <a href="${verifyAndOpenBuyerLink}" style="color: #0b6954; font-weight: bold; word-break: break-all;">${verifyAndOpenBuyerLink}</a>
@@ -414,115 +429,7 @@ export async function submitBuyRequest(
   }
 }
 
-export async function submitInvestorLead(formData: FormData) {
-  const { t: msg } = await getFormsDict()
-  try {
-    const supabase = await getSupabase()
-
-    const name = String(formData.get('name') || '').trim()
-    const phone = formatPrimaryPhone(String(formData.get('phone') || '').trim())
-    const email = String(formData.get('email') || '').trim()
-    const company = String(formData.get('company') || '').trim()
-    const country = ACTIVE_COUNTRY_CODE
-    const investor_type = String(formData.get('investor_type') || '').trim()
-    const years_experience = String(
-      formData.get('years_experience') || ''
-    ).trim()
-    const investment_range = String(
-      formData.get('investment_range') || ''
-    ).trim()
-    const exact_amount = Number(formData.get('exact_amount') || 0)
-    const preferred_structure = String(
-      formData.get('preferred_structure') || ''
-    ).trim()
-    const holding_period = String(formData.get('holding_period') || '').trim()
-    const participation_level = String(
-      formData.get('participation_level') || ''
-    ).trim()
-    const target_roi = String(formData.get('target_roi') || '').trim()
-    const signature_name = String(formData.get('signature_name') || name).trim()
-    const notes = String(formData.get('notes') || '').trim()
-    const sectors = formData.getAll('sectors').map(String).filter(Boolean)
-
-    if (!name || !phone) {
-      return { success: false, error: msg.enterNamePhone }
-    }
-
-    const finalRange =
-      investment_range ||
-      (exact_amount > 0 ? `$${exact_amount.toLocaleString('en-US')}` : '')
-    const finalSectors =
-      sectors.length > 0 ? sectors : [investor_type].filter(Boolean)
-
-    const leadPayload: Record<string, any> = {
-      name,
-      phone,
-      email: email || null,
-      company: company || null,
-      country,
-      investor_type: investor_type || null,
-      years_experience: years_experience || null,
-      preferred_sectors: finalSectors,
-      investment_range: finalRange,
-      exact_amount,
-      preferred_structure: preferred_structure || null,
-      holding_period: holding_period || null,
-      participation_level: participation_level || null,
-      target_roi: target_roi || null,
-      signature_name,
-      notes: notes || null,
-      status: 'new',
-    }
-
-    let { error } = await supabase.from('investor_leads').insert(leadPayload)
-
-    if (error) {
-      const basicLead = {
-        name,
-        phone,
-        email: email || null,
-        investor_type: investor_type || null,
-        preferred_sectors: finalSectors,
-        investment_range: finalRange,
-        preferred_structure: preferred_structure || null,
-        participation_level: participation_level || null,
-        status: 'new',
-      }
-      const retry = await supabase.from('investor_leads').insert(basicLead)
-      error = retry.error
-    }
-
-    if (error) {
-      const fallbackTable = await supabase.from('investor_requests').insert({
-        name,
-        phone,
-        email: email || null,
-        investor_type,
-        investment_range: finalRange,
-        preferred_structure,
-        participation_level,
-        target_roi,
-        signature_name,
-        status: 'new',
-      })
-      error = fallbackTable.error
-    }
-
-    if (error) {
-      console.error('Error inserting investor lead:', error)
-      return {
-        success: false,
-        error: msg.investorFailed,
-      }
-    }
-
-    revalidatePath('/admin', 'layout')
-    return { success: true }
-  } catch (err) {
-    console.error('Unexpected error in submitInvestorLead:', err)
-    return {
-      success: false,
-      error: msg.investorFailed,
-    }
-  }
+// دالة احتياطية فارغة لمنع أي خطأ Import إذا تم استدعاؤها من ملف قديم بعد إلغاء قسم المستثمرين
+export async function submitInvestorLead(_formData: FormData) {
+  return { success: true }
 }

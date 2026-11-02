@@ -101,7 +101,6 @@ export function HomePropertyCard({
           )
         : 0
 
-  // حساب سعر المتر المربع بالدولار ($) ليظهر مقابل شارة "متحقق بالمستندات"
   const sqmPrice =
     unit.size > 0
       ? Math.round(contractPriceVal / unit.size).toLocaleString('en-US')
@@ -148,7 +147,7 @@ export function HomePropertyCard({
 
   return (
     <article
-      className={`sivrce-card group relative flex flex-col justify-between overflow-hidden rounded-[22px] border bg-white shadow-xs ${
+      className={`sivrce-card group relative flex flex-col justify-between overflow-hidden rounded-[20px] border bg-white shadow-xs ${
         fullWidthOnGrid
           ? 'h-full w-full'
           : 'w-[300px] shrink-0 snap-start sm:w-[326px] lg:w-[336px]'
@@ -161,7 +160,7 @@ export function HomePropertyCard({
       }`}
     >
       <div>
-        {/* المعرض العلوي للصور */}
+        {/* المعرض العلوي للصور بنفس الارتفاع الأصلي 205px */}
         <div className="relative h-[205px] w-full overflow-hidden bg-slate-100">
           <Link href={detailHref} className="block h-full w-full">
             <img
@@ -172,14 +171,14 @@ export function HomePropertyCard({
           </Link>
 
           {activeTier === 'super_vip' && (
-            <span className="pointer-events-none absolute top-3.5 start-3.5 z-10 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-3 py-1 text-[10.5px] font-bold text-white shadow-sm">
+            <span className="pointer-events-none absolute top-3 start-3 z-10 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-3 py-1 text-[10.5px] font-bold text-white shadow-sm">
               <Crown className="size-3" />
               <span>SUPER VIP</span>
             </span>
           )}
 
           {activeTier === 'vip_plus' && (
-            <span className="pointer-events-none absolute top-3.5 start-3.5 z-10 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#4f46e5] to-[#7c3aed] px-3 py-1 text-[10.5px] font-bold text-white shadow-sm">
+            <span className="pointer-events-none absolute top-3 start-3 z-10 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#4f46e5] to-[#7c3aed] px-3 py-1 text-[10.5px] font-bold text-white shadow-sm">
               <Flame className="size-3" />
               <span>+VIP</span>
             </span>
@@ -192,7 +191,7 @@ export function HomePropertyCard({
               e.stopPropagation()
               onToggleFav(unit.id)
             }}
-            className="absolute top-3.5 end-3.5 z-20 flex size-8 items-center justify-center rounded-full bg-white/95 text-slate-700 shadow-xs transition hover:scale-110"
+            className="absolute top-3 end-3 z-20 flex size-8 items-center justify-center rounded-full bg-white/95 text-slate-700 shadow-xs transition hover:scale-110"
             aria-label="Favorite"
           >
             <Heart
@@ -236,7 +235,7 @@ export function HomePropertyCard({
             )}
           </button>
 
-          <div className="pointer-events-none absolute inset-x-3 bottom-2.5 z-10 flex items-center justify-between gap-2">
+          <div className="pointer-events-none absolute inset-x-3 bottom-2 z-10 flex items-center justify-between gap-2">
             <div className="flex flex-1 items-center gap-1">
               {gallery.map((_, idx) => (
                 <span
@@ -256,22 +255,22 @@ export function HomePropertyCard({
           </div>
         </div>
 
-        {/* الترتيب العمودي الهادئ والمنظم */}
-        <div className="p-5 pb-3 text-start">
-          {/* 1. اسم المشروع الصافي فقط */}
+        {/* محتوى الكارت مع تقليل المسافات الفارغة الزائدة */}
+        <div className="px-4 pt-3 pb-2 text-start">
+          {/* 1. اسم المشروع */}
           <Link href={detailHref}>
-            <h3 className="line-clamp-1 text-[18px] font-bold leading-snug text-[#0f1d40] transition hover:text-[#2563eb]">
+            <h3 className="line-clamp-1 text-[17px] font-bold leading-tight text-[#0f1d40] transition hover:text-[#2563eb]">
               {projectName}
             </h3>
           </Link>
 
-          {/* 2. اسم المطور والمنطقة تحته */}
-          <p className="mt-1 line-clamp-1 text-xs font-medium text-slate-500">
+          {/* 2. اسم المطور والمنطقة */}
+          <p className="mt-0.5 line-clamp-1 text-xs font-medium text-slate-500">
             {subtitleLine}
           </p>
 
-          {/* 3. على اليمين: شارة "متحقق بالمستندات" | وقصادها على الشمال: سعر المتر المربع */}
-          <div className="mt-2.5 flex items-center justify-between gap-2">
+          {/* 3. شارة التوثيق وسعر المتر المربع */}
+          <div className="mt-2 flex items-center justify-between gap-2">
             <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200/80 bg-[#eaf8f2] px-2.5 py-0.5 text-[10.5px] font-bold text-[#007a5a]">
               <FileCheck2 className="size-3 shrink-0" />
               <span>{isAr ? 'متحقق بالمستندات' : 'Docs Verified'}</span>
@@ -287,7 +286,7 @@ export function HomePropertyCard({
           </div>
 
           {/* 4. المواصفات */}
-          <p className="mt-3 flex flex-wrap items-center gap-1.5 text-xs font-bold text-[#1e293b]">
+          <p className="mt-2 flex flex-wrap items-center gap-1.5 text-xs font-bold text-[#1e293b]">
             <span>
               {unitTypeWord} · {unit.rooms} {isAr ? 'غرف' : 'Rooms'} ·{' '}
               {unit.bathrooms} {isAr ? 'حمام' : 'Bath'} · {unit.size}{' '}
@@ -305,40 +304,45 @@ export function HomePropertyCard({
           </p>
 
           {/* 5. المطلوب كاش دلوقتي */}
-          <div className="mt-4">
-            <p className="text-xs font-medium text-slate-500">
-              {isAr ? 'المطلوب كاش دلوقتي' : 'Required Cash Now'}
-            </p>
-            <strong
-              dir="ltr"
-              className="mt-0.5 block text-2xl font-bold tracking-tight text-[#0f1d40] tabular-nums"
-            >
-              {USD}
-              {unit.price.toLocaleString('en-US')}
-            </strong>
+          <div className="mt-2.5 flex items-baseline justify-between gap-2">
+            <div>
+              <p className="text-[11.5px] font-medium text-slate-500">
+                {isAr ? 'المطلوب كاش دلوقتي' : 'Required Cash Now'}
+              </p>
+              <strong
+                dir="ltr"
+                className="block text-[22px] font-bold leading-tight tracking-tight text-[#0f1d40] tabular-nums"
+              >
+                {USD}
+                {unit.price.toLocaleString('en-US')}
+              </strong>
+            </div>
+
             {unit.negotiable && (
-              <p className="mt-1 flex items-center gap-1 text-[11.5px] font-bold text-[#b45309]">
+              <p className="flex items-center gap-0.5 rounded-lg bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-[#b45309]">
                 <span>↓</span>
                 <span>{isAr ? 'قابل للتفاوض' : 'Negotiable'}</span>
               </p>
             )}
           </div>
 
-          {/* 6. صندوق مكسبك عن سعر السوق */}
+          {/* 6. صندوق مكسبك عن سعر السوق (مضغوط الرأسي مع الحفاظ على كل البيانات) */}
           {gainVal > 0 && (
-            <div className="mt-3.5 rounded-2xl bg-[#eaf8f2] px-4 py-3 text-start">
-              <p className="text-[11.5px] font-bold text-[#007a5a]">
-                {isAr ? 'مكسبك عن سعر السوق' : 'Your Market Gain'}
-              </p>
-              <strong
-                dir="ltr"
-                className="mt-0.5 block text-lg font-bold text-[#007a5a] tabular-nums"
-              >
-                + {USD}
-                {gainVal.toLocaleString('en-US')}
-              </strong>
+            <div className="mt-2 rounded-xl bg-[#eaf8f2] px-3 py-2 text-start">
+              <div className="flex items-baseline justify-between gap-2">
+                <p className="text-[11px] font-bold text-[#007a5a]">
+                  {isAr ? 'مكسبك عن سعر السوق' : 'Your Market Gain'}
+                </p>
+                <strong
+                  dir="ltr"
+                  className="text-base font-bold text-[#007a5a] tabular-nums"
+                >
+                  + {USD}
+                  {gainVal.toLocaleString('en-US')}
+                </strong>
+              </div>
               {marketPriceVal > 0 && (
-                <p className="mt-1 text-[10.5px] font-medium leading-snug text-[#2b8a6e]">
+                <p className="mt-0.5 text-[10px] font-medium leading-tight text-[#2b8a6e]">
                   {isAr
                     ? `سعر السوق اليوم: ${USD}${marketPriceVal.toLocaleString('en-US')} · بعد خصم عمولتنا 1.25%`
                     : `Market price today: ${USD}${marketPriceVal.toLocaleString('en-US')} · after 1.25% fee`}
@@ -349,9 +353,9 @@ export function HomePropertyCard({
         </div>
       </div>
 
-      {/* الجزء السفلي: الـ 3 سطور المالية + زر تفاصيل + شريط المشاهدات والوقت والكود تحته */}
-      <div className="px-5 pt-1 pb-4">
-        <div className="space-y-2 border-t border-slate-100 pt-3.5 text-xs">
+      {/* الجزء السفلي الملموم: الـ 3 سطور المالية + زر تفاصيل + شريط المشاهدات والكود */}
+      <div className="px-4 pt-1 pb-3">
+        <div className="space-y-1.5 border-t border-slate-100 pt-2.5 text-xs">
           <div className="flex items-center justify-between gap-2">
             <span className="font-medium text-slate-500">
               {isAr ? 'المتبقي للمطور' : 'Remaining to Developer'}
@@ -386,13 +390,13 @@ export function HomePropertyCard({
 
         <Link
           href={detailHref}
-          className="mt-4 flex h-10.5 w-full items-center justify-center rounded-xl bg-gradient-to-r from-[#ff6437] to-[#ff4f69] text-xs font-bold text-white shadow-xs transition hover:opacity-95 sm:text-[13.5px]"
+          className="mt-2.5 flex h-9.5 w-full items-center justify-center rounded-xl bg-gradient-to-r from-[#ff6437] to-[#ff4f69] text-xs font-bold text-white shadow-xs transition hover:opacity-95 sm:text-[13px]"
         >
           <span>{isAr ? 'تفاصيل' : 'Details'}</span>
         </Link>
 
-        {/* تحت كلمة تفاصيل: على اليمين عدد المشاهدات ومتى نزلت الوحدة، وعلى الشمال كود الوحدة */}
-        <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2.5 text-[11px] font-medium text-slate-400">
+        {/* شريط المشاهدات والوقت والكود */}
+        <div className="mt-2 flex items-center justify-between border-t border-slate-100 pt-2 text-[10.5px] font-medium text-slate-400">
           <div className="flex items-center gap-3">
             <span
               className="inline-flex items-center gap-1 text-slate-500"
@@ -409,7 +413,7 @@ export function HomePropertyCard({
 
           <span
             dir="ltr"
-            className="font-mono text-[11px] font-semibold text-slate-400"
+            className="font-mono text-[10.5px] font-semibold text-slate-400"
           >
             {displayCode}
           </span>
@@ -604,7 +608,7 @@ export function HomeVipPlusSection({
 
         <Link
           href="#boost-packages-section"
-          className="sivrce-card group flex min-h-[360px] flex-1 flex-col items-center justify-center rounded-[24px] border border-dashed border-indigo-200/90 bg-white p-8 text-center shadow-2xs transition hover:border-[#4f46e5] hover:bg-indigo-50/20"
+          className="sivrce-card group flex min-h-[340px] flex-1 flex-col items-center justify-center rounded-[24px] border border-dashed border-indigo-200/90 bg-white p-8 text-center shadow-2xs transition hover:border-[#4f46e5] hover:bg-indigo-50/20"
         >
           <div className="flex size-14 items-center justify-center rounded-full bg-gradient-to-tr from-[#4f46e5] to-[#6366f1] text-white shadow-[0_10px_25px_rgba(79,70,229,0.35)] transition-transform duration-300 group-hover:scale-110">
             <Flame className="size-6" />

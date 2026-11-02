@@ -20,13 +20,11 @@ import {
   Home,
   Hotel,
   Layers,
-  Map,
   MapPin,
   Megaphone,
   Mountain,
   RotateCcw,
   Search,
-  ShieldCheck,
   SlidersHorizontal,
   Sparkles,
   Star,
@@ -61,16 +59,14 @@ import { isNonGeorgianLegacyArea } from '@/lib/smart-matcher'
 
 const PAGE_SIZE = 48
 const FAVORITES_STORAGE_KEY = 'darak_favorites'
-const RECENTLY_VIEWED_STORAGE_KEY = 'aqar_recently_viewed'
 
-// الأعمدة العامة الآمنة فقط (بدون name, phone, email لحماية خصوصية الملاك)
 // الأعمدة العامة الآمنة شاملة الكود وعدد المشاهدات والباقة الإعلانية والطوابق
 const PUBLIC_SAFE_UNIT_COLUMNS =
   'id, code, project_name, developer_name, area, unit_type, size, garden_size, rooms, bedrooms, bathrooms, floor_number, total_floors, finishing, delivery_status, delivery_month, delivery_year, features, description, contract_price, paid_amount, market_price, price_per_sqm, installment_amount, installment_frequency, contract_month, contract_year, years_left, willing_to_discount, discount_amount, images, status, is_featured, boost_tier, featured_until, docs_verified, views_count, created_at'
 
 const CORE_SAFE_UNIT_COLUMNS =
   'id, project_name, developer_name, area, unit_type, size, rooms, bathrooms, finishing, delivery_status, description, contract_price, paid_amount, market_price, installment_amount, installment_frequency, contract_year, years_left, willing_to_discount, discount_amount, images, status, created_at'
-  
+
 export default function OpportunitiesPage() {
   const { t: dict, locale, dir } = useTranslation()
   const isAr = locale === 'ar'
@@ -85,7 +81,6 @@ export default function OpportunitiesPage() {
   const [rawDbRows, setRawDbRows] = useState<any[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [favoriteIds, setFavoriteIds] = useState<string[]>([])
-  const [recentlyViewedIds, setRecentlyViewedIds] = useState<string[]>([])
   const [visibleLimit, setVisibleLimit] = useState<number>(PAGE_SIZE)
 
   const [viewMode, setViewMode] = useState<'list' | 'map2d' | 'map3d'>('list')
@@ -147,12 +142,6 @@ export default function OpportunitiesPage() {
       if (stored) {
         const parsed = JSON.parse(stored)
         if (Array.isArray(parsed)) setFavoriteIds(parsed.map(String))
-      }
-      const recentStored = localStorage.getItem(RECENTLY_VIEWED_STORAGE_KEY)
-      if (recentStored) {
-        const parsedRecent = JSON.parse(recentStored)
-        if (Array.isArray(parsedRecent))
-          setRecentlyViewedIds(parsedRecent.map(String))
       }
     } catch {}
 
@@ -560,16 +549,6 @@ export default function OpportunitiesPage() {
   )
   const nextBatchCount = Math.min(PAGE_SIZE, remainingCount)
 
-  const recentlyViewedProperties = useMemo(() => {
-    if (recentlyViewedIds.length > 0) {
-      const matched = dbProperties.filter((p) =>
-        recentlyViewedIds.includes(String(p.id))
-      )
-      if (matched.length > 0) return matched.slice(0, 4)
-    }
-    return dbProperties.slice(0, 4)
-  }, [dbProperties, recentlyViewedIds])
-
   const quickCategoryChips = [
     { id: '', label: isAr ? 'كل عروض التنازل' : 'All Exit Deals', icon: Grid2X2 },
     { id: 'Apartment', label: isAr ? 'شقق بالتقسيط' : 'Apartments', icon: Building2 },
@@ -623,7 +602,7 @@ export default function OpportunitiesPage() {
           </p>
         </div>
 
-        {/* شريط البحث والفلاتر المخصص للتنازل والأقساط فقط */}
+        {/* شريط البحث والفلاتر المخصص للتنازل والأقساط */}
         <section className="mt-5 rounded-[22px] border border-slate-200/90 bg-white p-3 shadow-xs sm:p-4">
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex min-w-[230px] flex-1 items-center gap-2 rounded-full bg-slate-100/80 py-1 ps-3.5 pe-1.5">
@@ -1194,7 +1173,7 @@ export default function OpportunitiesPage() {
           </div>
         </section>
 
-        {/* البانر الترويجي لباقات تمييز الإعلانات مع الموجة المتحركة */}
+        {/* البانر الترويجي لباقات تمييز الإعلانات */}
         <div className="aqar-wave-banner mt-5 flex flex-col items-center justify-between gap-4 rounded-[22px] border border-slate-200/80 bg-gradient-to-l from-[#1e1b4b] via-[#172554] to-[#0f172a] p-5 text-white shadow-sm sm:flex-row sm:px-7">
           <div className="relative z-10 flex items-center gap-3.5 text-start">
             <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-white/10 text-[#2ee59d]">
@@ -1228,7 +1207,7 @@ export default function OpportunitiesPage() {
           </Link>
         </div>
 
-        {/* شبكة كروت الفرص المتاحة الأصلية (OpportunityCard) مع أنيميشن الرفع */}
+        {/* شبكة كروت الفرص المتاحة: كارت واحد تحت الآخر على الموبايل (grid-cols-1) */}
         <section className="mt-6 sm:mt-8">
           <div className="mb-4 flex items-center justify-between gap-2 text-start sm:mb-5">
             <div className="flex items-center gap-1.5">
@@ -1240,13 +1219,13 @@ export default function OpportunitiesPage() {
           </div>
 
           {loading ? (
-         <div className="grid grid-cols-1 items-stretch gap-5 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6">
+            <div className="grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6">
               {[1, 2, 3, 4, 5, 6].map((n) => (
                 <div
                   key={n}
-                  className="h-[340px] animate-pulse rounded-[16px] border border-gray-200 bg-white p-4 sm:h-[420px] sm:rounded-[22px]"
+                  className="h-[340px] animate-pulse rounded-[16px] border border-gray-200 bg-white p-4 sm:h-[400px] sm:rounded-[22px]"
                 >
-                  <div className="h-[120px] w-full rounded-xl bg-gray-200 sm:h-[180px]" />
+                  <div className="h-[180px] w-full rounded-xl bg-gray-200" />
                   <div className="mt-4 h-4 w-2/3 rounded bg-gray-200" />
                   <div className="mt-2 h-3 w-1/2 rounded bg-gray-100" />
                   <div className="mt-6 h-6 w-1/3 rounded bg-gray-200" />
@@ -1254,7 +1233,7 @@ export default function OpportunitiesPage() {
               ))}
             </div>
           ) : displayedProperties.length > 0 ? (
-            <div className="grid grid-cols-2 items-stretch gap-2.5 sm:gap-5 lg:grid-cols-3 lg:gap-6">
+            <div className="grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 lg:gap-6">
               {displayedProperties.map((property) => (
                 <OpportunityCard
                   key={property.id}
@@ -1297,45 +1276,6 @@ export default function OpportunitiesPage() {
             </div>
           )}
         </section>
-
-        {/* شريط شوهدت مؤخراً المصغر بالدولار ($) */}
-        {recentlyViewedProperties.length > 0 && (
-          <section className="mt-12 border-t border-slate-200/80 pt-8 text-start">
-            <span className="block text-xs font-bold text-slate-500">
-              {isAr ? 'شوهدت مؤخراً' : 'Recently viewed'}
-            </span>
-            <div className="mt-3 flex gap-3 overflow-x-auto pb-2 no-scrollbar sm:grid sm:grid-cols-2 lg:grid-cols-4">
-              {recentlyViewedProperties.map((item) => (
-                <Link
-                  key={`recent-mini-${item.id}`}
-                  href={`/opportunities/${item.id}`}
-                  className="sivrce-card flex w-[260px] shrink-0 items-center gap-3 rounded-2xl border border-slate-200/80 bg-white p-2.5 shadow-2xs transition hover:border-[#2563eb] sm:w-auto"
-                >
-                  <img
-                    src={item.image}
-                    alt={item.project}
-                    className="size-14 shrink-0 rounded-xl object-cover"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <strong
-                      dir="ltr"
-                      className="block text-xs font-bold text-[#0f1d40]"
-                    >
-                      {activeCurrency}
-                      {item.cash}
-                    </strong>
-                    <p className="truncate text-[11px] font-semibold text-slate-600">
-                      {item.project}
-                    </p>
-                    <span className="block truncate text-[10px] text-slate-400">
-                      {item.area}
-                    </span>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </section>
-        )}
 
         <OpportunitiesBottomSections />
       </div>

@@ -1,5 +1,6 @@
 export type SellerUnitItem = {
   id: string
+  code?: string | null
   user_id?: string | null
   name?: string | null
   project_name: string | null
@@ -29,6 +30,7 @@ export type SellerUnitItem = {
   country_code?: string | null
   currency_code?: string | null
   is_featured?: boolean | null
+  boost_tier?: 'super_vip' | 'vip_plus' | null
   featured_days?: number | null
   featured_price?: number | null
   featured_status?: string | null
@@ -54,7 +56,12 @@ export type ConfirmModalState =
   | { type: 'delete' }
   | {
       type: 'promote'
-      pkg: { days: 7 | 14 | 30; price: number; label: string }
+      pkg: {
+        days: number
+        price: number
+        label: string
+        tier?: 'SUPER VIP' | 'VIP+'
+      }
     }
   | { type: 'cancel_promo' }
   | null
@@ -109,7 +116,6 @@ export function calculateUnitCompletion(
   const contractYrVal = Number(unit.contract_year ?? meta.contract_year) || 0
   const instFreqVal = unit.installment_frequency || meta.installment_frequency
 
-  // 13 حقل بيانات أساسي + 1 صور + 4 مستندات = 18
   const dataChecks = [
     Boolean(unit.developer_name),
     Boolean(unit.project_name),

@@ -6,6 +6,7 @@ export const PENDING_ADMIN_TAG = "__PENDING_ADMIN_VERIFICATION__"
 
 export type SellRequest = {
   id: string
+  code?: string | null
   user_id?: string | null
   project_name: string | null
   developer_name?: string | null
@@ -36,11 +37,13 @@ export type SellRequest = {
   submission_type?: string | null
   last_seller_edit_at?: string | null
   is_featured?: boolean | null
+  boost_tier?: "super_vip" | "vip_plus" | null
   featured_days?: number | null
   featured_price?: number | null
   featured_status?: string | null
   featured_fawry_code?: string | null
   featured_until?: string | null
+  contact_messengers?: string[] | null
   name: string
   phone: string
   email?: string | null
@@ -63,12 +66,18 @@ export type ConfirmPropertyAction =
       property: SellRequest
       promoAction: "activate" | "cancel"
       days: number
+      tier?: "super_vip" | "vip_plus"
     }
 
-export function deriveShortUnitCode(id: string) {
-  const digits = String(id || "").replace(/\D/g, "")
-  const num = digits ? Number(digits.slice(-4)) : 100
-  return `U-${String(num).padStart(5, "0")}`
+export function deriveShortUnitCode(id: string, dbCode?: string | null) {
+  if (dbCode && String(dbCode).trim()) return String(dbCode).trim()
+  const numericCode = String(id || "")
+    .replace(/\D/g, "")
+    .slice(0, 5)
+  const fallbackCode = String(id || "")
+    .slice(0, 5)
+    .toUpperCase()
+  return `U-${numericCode.length >= 4 ? numericCode : fallbackCode}`
 }
 
 export function cleanPropertyAreaDisplay(
@@ -182,7 +191,7 @@ export function buildSellerWhatsAppMessage({
   t: Record<string, any>
   leadsPrompts: Record<string, any>
 }) {
-  const uCode = deriveShortUnitCode(property.id)
+  const uCode = deriveShortUnitCode(property.id, property.code)
   const proj = property.project_name || t.table.unspecifiedProject
   const localizedArea = property.area
     ? ` - ${cleanPropertyAreaDisplay(property.area, locale)}`

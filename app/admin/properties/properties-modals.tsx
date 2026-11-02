@@ -3,7 +3,9 @@
 import Link from "next/link"
 import {
   CheckCircle2,
+  Crown,
   ExternalLink,
+  Flame,
   Loader2,
   MessageCircle,
   ShieldAlert,
@@ -65,7 +67,7 @@ export function PropertyConfirmDialog({
     >
       <DialogContent
         dir={dir}
-        className="w-[90vw] max-w-[360px] rounded-2xl p-5 text-start sm:max-w-[390px]"
+        className="w-[90vw] max-w-[380px] rounded-2xl p-5 text-start sm:max-w-[420px]"
       >
         {confirmAction && (
           <>
@@ -176,26 +178,80 @@ export function PropertyConfirmDialog({
 
             {confirmAction.type === "promote" &&
               confirmAction.promoAction === "activate" && (
-                <div className="mt-3 grid grid-cols-3 gap-2">
-                  {[7, 14, 30].map((d) => (
-                    <button
-                      key={d}
-                      type="button"
-                      onClick={() =>
-                        setConfirmAction({
-                          ...confirmAction,
-                          days: d,
-                        })
-                      }
-                      className={`rounded-xl border py-2 text-xs font-extrabold transition ${
-                        confirmAction.days === d
-                          ? "border-[#105C50] bg-[#eff9f5] text-[#105C50]"
-                          : "border-gray-200 bg-white text-gray-600"
-                      }`}
-                    >
-                      {d} {t.badges.dayWord}
-                    </button>
-                  ))}
+                <div className="mt-3 space-y-3">
+                  {/* اختيار نوع الباقة: SUPER VIP أو +VIP */}
+                  <div className="grid grid-cols-2 gap-2">
+                    {(
+                      [
+                        {
+                          id: "super_vip",
+                          label: "SUPER VIP",
+                          icon: Crown,
+                          activeCls:
+                            "border-[#ff6437] bg-orange-50 text-[#ff6437]",
+                        },
+                        {
+                          id: "vip_plus",
+                          label: "+VIP",
+                          icon: Flame,
+                          activeCls:
+                            "border-[#4f46e5] bg-indigo-50 text-[#4f46e5]",
+                        },
+                      ] as const
+                    ).map((tierOpt) => {
+                      const Icon = tierOpt.icon
+                      const currentTier =
+                        confirmAction.tier ||
+                        (confirmAction.property.boost_tier === "vip_plus"
+                          ? "vip_plus"
+                          : "super_vip")
+                      const isSelected = currentTier === tierOpt.id
+
+                      return (
+                        <button
+                          key={tierOpt.id}
+                          type="button"
+                          onClick={() =>
+                            setConfirmAction({
+                              ...confirmAction,
+                              tier: tierOpt.id,
+                            })
+                          }
+                          className={`flex items-center justify-center gap-1.5 rounded-xl border-2 py-2.5 text-xs font-extrabold transition ${
+                            isSelected
+                              ? tierOpt.activeCls
+                              : "border-gray-200 bg-white text-gray-600"
+                          }`}
+                        >
+                          <Icon className="size-3.5" />
+                          <span>{tierOpt.label}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  {/* اختيار عدد أيام التفعيل */}
+                  <div className="grid grid-cols-4 gap-2">
+                    {[1, 7, 14, 30].map((d) => (
+                      <button
+                        key={d}
+                        type="button"
+                        onClick={() =>
+                          setConfirmAction({
+                            ...confirmAction,
+                            days: d,
+                          })
+                        }
+                        className={`rounded-xl border py-2 text-xs font-extrabold transition ${
+                          confirmAction.days === d
+                            ? "border-[#105C50] bg-[#eff9f5] text-[#105C50]"
+                            : "border-gray-200 bg-white text-gray-600"
+                        }`}
+                      >
+                        {d} {t.badges.dayWord}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
 
@@ -298,6 +354,15 @@ export function PropertyDetailsDialog({
   const propActions = (t.actions as Record<string, string>) || {}
   const propBadges = (t.badges as Record<string, string>) || {}
 
+  const messengers: string[] = detailsProperty
+    ? Array.isArray(detailsProperty.contact_messengers) &&
+      detailsProperty.contact_messengers.length > 0
+      ? detailsProperty.contact_messengers
+      : Array.isArray(detailsProperty.documents?.__unit_meta?.contact_messengers)
+        ? detailsProperty.documents.__unit_meta.contact_messengers
+        : ["whatsapp"]
+    : []
+
   return (
     <Dialog
       open={Boolean(detailsProperty)}
@@ -359,22 +424,28 @@ export function PropertyDetailsDialog({
                 )}
             </div>
 
-            {(phoneOk || emailOk) && (
-              <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                {phoneOk && (
-                  <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2.5 py-1 text-[10.5px] font-extrabold text-[#105C50]">
-                    <CheckCircle2 className="size-3" />
-                    <span>{propBadges.phoneVerifiedBadge}</span>
-                  </span>
-                )}
-                {emailOk && (
-                  <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2.5 py-1 text-[10.5px] font-extrabold text-[#105C50]">
-                    <CheckCircle2 className="size-3" />
-                    <span>{propBadges.emailVerifiedBadge}</span>
-                  </span>
-                )}
-              </div>
-            )}
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              {phoneOk && (
+                <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2.5 py-1 text-[10.5px] font-extrabold text-[#105C50]">
+                  <CheckCircle2 className="size-3" />
+                  <span>{propBadges.phoneVerifiedBadge}</span>
+                </span>
+              )}
+              {emailOk && (
+                <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2.5 py-1 text-[10.5px] font-extrabold text-[#105C50]">
+                  <CheckCircle2 className="size-3" />
+                  <span>{propBadges.emailVerifiedBadge}</span>
+                </span>
+              )}
+              {messengers.map((m) => (
+                <span
+                  key={m}
+                  className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-bold uppercase text-[#2563eb]"
+                >
+                  💬 {m}
+                </span>
+              ))}
+            </div>
 
             <div className="mt-2.5 grid grid-cols-2 gap-2.5 rounded-xl bg-gray-50 p-3 text-xs">
               <div>

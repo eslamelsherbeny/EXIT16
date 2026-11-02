@@ -1,7 +1,12 @@
 import { Suspense } from "react"
 import { cookies } from "next/headers"
+import { redirect } from "next/navigation"
 import { createServerClient } from "@supabase/ssr"
 import { getUsersVerificationMapAction } from "@/actions/submit-forms"
+import {
+  extractUserIdFromCookie,
+  parseAndVerifySessionCookie,
+} from "@/lib/session-security"
 import { getServerI18n } from "@/lib/get-server-dictionary"
 import PropertiesTable, {
   type SellRequest,
@@ -13,6 +18,13 @@ export const revalidate = 0
 export default async function AdminPromotionsPage() {
   const { dict, dir } = await getServerI18n()
   const cookieStore = await cookies()
+  const rawSession = cookieStore.get("user_session")?.value
+  const candidateId = extractUserIdFromCookie(rawSession)
+
+  if (!rawSession || !candidateId) {
+    redirect("/login?next=/admin/promotions")
+  }
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -20,6 +32,29 @@ export default async function AdminPromotionsPage() {
       cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} },
     }
   )
+
+  const { data: currentStaff } = await supabase
+    .from("users")
+    .select("role, status, password_hash")
+    .eq("id", candidateId)
+    .maybeSingle()
+
+  if (
+    !currentStaff ||
+    currentStaff.status === "suspended" ||
+    !parseAndVerifySessionCookie(rawSession, currentStaff.password_hash).valid
+  ) {
+    redirect("/login?expired=1")
+  }
+
+  const staffRole = String(currentStaff.role || "user").trim().toLowerCase()
+  if (
+    staffRole !== "admin" &&
+    staffRole !== "moderator" &&
+    staffRole !== "sales"
+  ) {
+    redirect("/account")
+  }
 
   const { data, error } = await supabase
     .from("sell_requests")

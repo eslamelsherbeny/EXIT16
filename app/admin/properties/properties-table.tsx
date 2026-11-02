@@ -8,10 +8,12 @@ import {
   Check,
   CheckCircle2,
   Clock,
+  Crown,
   ExternalLink,
   Eye,
   EyeOff,
   FileCheck2,
+  Flame,
   Handshake,
   Loader2,
   MessageCircle,
@@ -26,7 +28,6 @@ import {
   User,
   X,
 } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -34,7 +35,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { getCurrencySymbol, useTranslation } from "@/lib/i18n"
+import { useTranslation } from "@/lib/i18n"
 import {
   calculateSmartMatch,
   type MatchableBuyer,
@@ -48,7 +49,6 @@ import {
   verifyUserContactByAdminAction,
 } from "../../../actions/admin-actions"
 import {
-  ACTIVE_ADMIN_COUNTRY,
   buildSellerWhatsAppMessage,
   cleanPropertyAreaDisplay,
   deriveShortUnitCode,
@@ -180,9 +180,8 @@ export default function PropertiesTable({
     return sellerStatusOptions.find((s) => s.value === st)?.label || st
   }
 
-  function getUnitCurrency() {
-    return getCurrencySymbol(ACTIVE_ADMIN_COUNTRY, locale)
-  }
+  // عملة العقارات موحدة بالدولار الأمريكي ($)
+  const unitCur = "$"
 
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
@@ -233,6 +232,8 @@ export default function PropertiesTable({
             property: targetProp,
             promoAction: "activate",
             days: targetProp.featured_days || 14,
+            tier:
+              targetProp.boost_tier === "vip_plus" ? "vip_plus" : "super_vip",
           })
         }
         setTimeout(() => {
@@ -317,16 +318,21 @@ export default function PropertiesTable({
             setNotice({ text: res.error || t.loadError, isError: true })
           }
         } else if (confirmAction.type === "promote") {
+          const resolvedTier =
+            confirmAction.tier ||
+            (target.boost_tier === "vip_plus" ? "vip_plus" : "super_vip")
+
           const res = await managePropertyPromotionAction(
             target.id,
             confirmAction.promoAction,
-            confirmAction.days
+            confirmAction.days,
+            resolvedTier
           )
           if (res.success) {
             setNotice({
               text:
                 confirmAction.promoAction === "activate"
-                  ? `${propNotices.promoActivated} ("${target.project_name || target.name}" - ${confirmAction.days} ${propBadges.dayWord})`
+                  ? `${propNotices.promoActivated} ("${target.project_name || target.name}" - ${resolvedTier === "vip_plus" ? "VIP+" : "SUPER VIP"} · ${confirmAction.days} ${propBadges.dayWord})`
                   : `${propNotices.promoCancelled} ("${target.project_name || target.name}")`,
             })
             router.refresh()
@@ -370,7 +376,7 @@ export default function PropertiesTable({
   const filtered = properties.filter((p) => {
     const currentStatus = p.status || "pending"
     const unitShortCode = p.id.slice(0, 8).toUpperCase()
-    const uPublicCode = deriveShortUnitCode(p.id)
+    const uPublicCode = deriveShortUnitCode(p.id, p.code)
     const orderRefCode = `AE-${p.id.replace(/[^a-zA-Z0-9]/g, "").slice(0, 6).toUpperCase()}`
     const localizedArea = cleanPropertyAreaDisplay(p.area, locale)
 
@@ -444,6 +450,8 @@ export default function PropertiesTable({
       (o) => o.status === "pending_seller" || o.status === "counter_offered"
     )
 
+    const isVipPlus = property.boost_tier === "vip_plus"
+
     return (
       <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
         {acceptedOffer ? (
@@ -506,10 +514,20 @@ export default function PropertiesTable({
         )}
 
         {isFeaturedActive && (
-          <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-900">
-            <Star className="size-2.5 fill-amber-500 text-amber-600" />
+          <span
+            className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold ${
+              isVipPlus
+                ? "bg-indigo-100 text-indigo-900"
+                : "bg-orange-100 text-orange-900"
+            }`}
+          >
+            {isVipPlus ? (
+              <Flame className="size-2.5 text-indigo-600" />
+            ) : (
+              <Crown className="size-2.5 text-orange-600" />
+            )}
             <span>
-              {propBadges.featuredPrefix} ({property.featured_days || 14}{" "}
+              {isVipPlus ? "+VIP" : "SUPER VIP"} ({property.featured_days || 14}{" "}
               {propBadges.dayWord})
             </span>
           </span>
@@ -525,14 +543,18 @@ export default function PropertiesTable({
                   property,
                   promoAction: "activate",
                   days: property.featured_days || 14,
+                  tier: isVipPlus ? "vip_plus" : "super_vip",
                 })
               }
               className="inline-flex items-center gap-1 rounded-md border border-amber-400 bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-950 hover:bg-amber-200"
             >
               <Sparkles className="size-2.5 text-amber-700" />
               <span>
-                {propBadges.promoReqPrefix} ·{" "}
-                {property.featured_fawry_code || "AD"}
+                {propBadges.promoReqPrefix} (
+                {isVipPlus ? "+VIP" : "SUPER VIP"} ·{" "}
+                {property.featured_days || 1}d
+                {property.featured_price ? ` · ${property.featured_price} ₾` : ""}
+                ) · {property.featured_fawry_code || "AD"}
               </span>
             </button>
           )}
@@ -568,7 +590,6 @@ export default function PropertiesTable({
 
   const activeCount = properties.length - deletedBySellerList.length
   const georgiaLabel = t.countries?.GE || "Georgia"
-  const unitCur = getUnitCurrency()
 
   return (
     <div dir={dir} className="text-start">
@@ -714,7 +735,7 @@ export default function PropertiesTable({
           </div>
         )}
 
-      {/* 1. عرض الموبايل (محافظ عليه بالكامل بدون تكرار شارة الحالة) */}
+      {/* 1. عرض الموبايل */}
       <div className="space-y-3 md:hidden">
         {filtered.length === 0 ? (
           <div className="rounded-xl border border-gray-200 bg-white p-8 text-center text-xs text-gray-500">
@@ -774,7 +795,7 @@ export default function PropertiesTable({
                   <div>
                     <div className="flex items-center gap-1.5">
                       <span className="rounded bg-[#0a1122] px-1.5 py-0.5 font-mono text-[10px] font-bold text-white">
-                        {deriveShortUnitCode(property.id)}
+                        {deriveShortUnitCode(property.id, property.code)}
                       </span>
                       <h3 className="text-xs font-extrabold text-[#0a1122] sm:text-sm">
                         {property.project_name || t.table.unspecifiedProject}
@@ -796,19 +817,13 @@ export default function PropertiesTable({
                     <span className="block text-[10px] text-gray-400">
                       {t.table.colCash}
                     </span>
-                    <strong className="mt-0.5 block text-xs font-extrabold text-[#105C50]">
-                      {property.paid_amount ? (
-                        <>
-                          <span dir="ltr">
-                            {Number(property.paid_amount).toLocaleString(
-                              "en-US"
-                            )}
-                          </span>{" "}
-                          {unitCur}
-                        </>
-                      ) : (
-                        "—"
-                      )}
+                    <strong
+                      dir="ltr"
+                      className="mt-0.5 block text-xs font-extrabold text-[#105C50]"
+                    >
+                      {property.paid_amount
+                        ? `${unitCur}${Number(property.paid_amount).toLocaleString("en-US")}`
+                        : "—"}
                     </strong>
                   </div>
 
@@ -817,38 +832,20 @@ export default function PropertiesTable({
                       <span className="text-gray-400">
                         {t.table.contractShort}{" "}
                       </span>
-                      <strong className="text-[#0a1122]">
-                        {property.contract_price ? (
-                          <>
-                            <span dir="ltr">
-                              {Number(property.contract_price).toLocaleString(
-                                "en-US"
-                              )}
-                            </span>{" "}
-                            {unitCur}
-                          </>
-                        ) : (
-                          "—"
-                        )}
+                      <strong dir="ltr" className="text-[#0a1122]">
+                        {property.contract_price
+                          ? `${unitCur}${Number(property.contract_price).toLocaleString("en-US")}`
+                          : "—"}
                       </strong>
                     </div>
                     <div className="mt-0.5">
                       <span className="text-gray-400">
                         {t.table.marketShort}{" "}
                       </span>
-                      <strong className="text-gray-700">
-                        {property.market_price ? (
-                          <>
-                            <span dir="ltr">
-                              {Number(property.market_price).toLocaleString(
-                                "en-US"
-                              )}
-                            </span>{" "}
-                            {unitCur}
-                          </>
-                        ) : (
-                          "—"
-                        )}
+                      <strong dir="ltr" className="text-gray-700">
+                        {property.market_price
+                          ? `${unitCur}${Number(property.market_price).toLocaleString("en-US")}`
+                          : "—"}
                       </strong>
                     </div>
                   </div>
@@ -949,7 +946,7 @@ export default function PropertiesTable({
         )}
       </div>
 
-      {/* 2. عرض الكمبيوتر — جدول Enterprise موحد ونظيف بدون تكرار */}
+      {/* 2. عرض الكمبيوتر */}
       <Card className="hidden border-gray-200/85 bg-white shadow-2xs md:block">
         <CardHeader className="border-b border-gray-100 px-5 py-3.5">
           <CardTitle className="text-sm font-extrabold text-[#0a1122] sm:text-base">
@@ -1031,7 +1028,7 @@ export default function PropertiesTable({
                         <td className="max-w-[290px] px-4 py-3.5 align-middle">
                           <div className="flex items-center gap-1.5">
                             <span className="rounded bg-[#0a1122] px-1.5 py-0.5 font-mono text-[10px] font-bold text-white">
-                              {deriveShortUnitCode(property.id)}
+                              {deriveShortUnitCode(property.id, property.code)}
                             </span>
                             <span className="truncate text-[13px] font-extrabold text-[#0a1122]">
                               {property.project_name ||
@@ -1052,19 +1049,13 @@ export default function PropertiesTable({
                         </td>
 
                         <td className="px-4 py-3.5 align-middle whitespace-nowrap">
-                          <div className="text-[13px] font-black text-[#105C50] tabular-nums">
-                            {property.paid_amount ? (
-                              <>
-                                <span dir="ltr">
-                                  {Number(property.paid_amount).toLocaleString(
-                                    "en-US"
-                                  )}
-                                </span>{" "}
-                                {unitCur}
-                              </>
-                            ) : (
-                              "—"
-                            )}
+                          <div
+                            dir="ltr"
+                            className="text-[13px] font-black text-[#105C50] tabular-nums"
+                          >
+                            {property.paid_amount
+                              ? `${unitCur}${Number(property.paid_amount).toLocaleString("en-US")}`
+                              : "—"}
                           </div>
                           {property.willing_to_discount && (
                             <span className="mt-1 inline-block rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">
@@ -1078,38 +1069,26 @@ export default function PropertiesTable({
                             <span className="text-gray-400">
                               {t.table.contractShort}{" "}
                             </span>
-                            <strong className="font-extrabold text-[#0a1122] tabular-nums">
-                              {property.contract_price ? (
-                                <>
-                                  <span dir="ltr">
-                                    {Number(
-                                      property.contract_price
-                                    ).toLocaleString("en-US")}
-                                  </span>{" "}
-                                  {unitCur}
-                                </>
-                              ) : (
-                                "—"
-                              )}
+                            <strong
+                              dir="ltr"
+                              className="font-extrabold text-[#0a1122] tabular-nums"
+                            >
+                              {property.contract_price
+                                ? `${unitCur}${Number(property.contract_price).toLocaleString("en-US")}`
+                                : "—"}
                             </strong>
                           </div>
                           <div className="mt-1 text-gray-500">
                             <span className="text-gray-400">
                               {t.table.marketShort}{" "}
                             </span>
-                            <span className="font-semibold tabular-nums">
-                              {property.market_price ? (
-                                <>
-                                  <span dir="ltr">
-                                    {Number(
-                                      property.market_price
-                                    ).toLocaleString("en-US")}
-                                  </span>{" "}
-                                  {unitCur}
-                                </>
-                              ) : (
-                                "—"
-                              )}
+                            <span
+                              dir="ltr"
+                              className="font-semibold tabular-nums"
+                            >
+                              {property.market_price
+                                ? `${unitCur}${Number(property.market_price).toLocaleString("en-US")}`
+                                : "—"}
                             </span>
                           </div>
                         </td>
@@ -1147,7 +1126,6 @@ export default function PropertiesTable({
                           )}
                         </td>
 
-                        {/* قائمة حالة واحدة نظيفة وملونة بدون تكرار شارة فوقها */}
                         <td className="px-4 py-3.5 align-middle">
                           <select
                             disabled={pending}
@@ -1176,7 +1154,6 @@ export default function PropertiesTable({
                           </select>
                         </td>
 
-                        {/* شريط إجراءات أفقي نظيف في سطر واحد */}
                         <td className="px-4 py-3.5 align-middle whitespace-nowrap">
                           <div className="flex items-center gap-1.5">
                             {currentSt === "deleted_by_seller" ? (
@@ -1209,6 +1186,10 @@ export default function PropertiesTable({
                                       ? "cancel"
                                       : "activate",
                                     days: property.featured_days || 14,
+                                    tier:
+                                      property.boost_tier === "vip_plus"
+                                        ? "vip_plus"
+                                        : "super_vip",
                                   })
                                 }
                                 className={`h-8 px-2.5 text-[11px] font-bold ${
@@ -1285,6 +1266,10 @@ export default function PropertiesTable({
                                         ? "cancel"
                                         : "activate",
                                       days: property.featured_days || 14,
+                                      tier:
+                                        property.boost_tier === "vip_plus"
+                                          ? "vip_plus"
+                                          : "super_vip",
                                     })
                                   }
                                   className={`inline-flex size-8 items-center justify-center rounded-md border transition ${

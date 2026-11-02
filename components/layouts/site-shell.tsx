@@ -418,6 +418,12 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
 
   useEffect(() => {
     setHasSession(initialServerLoggedIn)
+    if (
+      typeof document !== 'undefined' &&
+      document.cookie.includes('session_hint=1')
+    ) {
+      setHasSession(true)
+    }
   }, [initialServerLoggedIn])
 
   useEffect(() => {
@@ -572,7 +578,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
   const currentLangCfg =
     SUPPORTED_LANGUAGES[language] || SUPPORTED_LANGUAGES.ar
 
-  // ترتيب التابات الجديد: "بيع وحدتك" أولاً، ثم "الفرص المتاحة 🔥" في المنتصف كما طلبت
+  // التابات العلوية: بيع وحدتك أولاً ثم الفرص المتاحة في المنتصف
   const navItems = [
     {
       href: '/sell',
@@ -843,6 +849,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
           </nav>
         </div>
 
+        {/* أزرار الكمبيوتر */}
         <div className="hidden shrink-0 items-center gap-2 lg:flex">
           <Link
             href="/account/favorites"
@@ -877,28 +884,6 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
             {langMenuOpen && renderLanguageDropdownMenu()}
           </div>
 
-          {hasSession && (
-            <div className="relative" ref={notifRefDesktop}>
-              <button
-                type="button"
-                onClick={handleToggleNotifications}
-                aria-label="Notifications"
-                className="relative flex size-9 items-center justify-center rounded-full text-[#334155] transition hover:bg-slate-100"
-              >
-                <Bell className="size-[18px] stroke-[2]" />
-                {unreadCount > 0 && (
-                  <span
-                    dir="ltr"
-                    className="absolute right-1 top-1 flex size-3.5 items-center justify-center rounded-full bg-red-500 text-[8.5px] font-bold text-white"
-                  >
-                    {unreadCount > 9 ? '+9' : unreadCount}
-                  </span>
-                )}
-              </button>
-              {notificationsOpen && renderNotificationsDropdown(false)}
-            </div>
-          )}
-
           <Link
             href={hasSession ? '/account' : '/login'}
             className="inline-flex h-9.5 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-slate-200 bg-white px-3.5 text-xs font-bold text-[#1e3a8a] transition hover:bg-slate-50"
@@ -914,12 +899,35 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
             {buyUnitBtnLabel}
           </Link>
 
-          <Link
-            href="/sell"
-            className="inline-flex h-9.5 items-center justify-center whitespace-nowrap rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-5 text-xs font-bold text-white shadow-[0_6px_18px_rgba(255,92,75,0.28)] transition hover:opacity-95 active:scale-95"
-          >
-            {sellUnitBtnLabel}
-          </Link>
+          {/* إذا سجل العميل حسابه: نشيل زرار "عايز تبيع" ونضع مكانه زرار الإشعارات */}
+          {hasSession ? (
+            <div className="relative" ref={notifRefDesktop}>
+              <button
+                type="button"
+                onClick={handleToggleNotifications}
+                aria-label="Notifications"
+                className="relative flex size-9.5 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-[#1e3a8a] shadow-2xs transition hover:border-[#2563eb] hover:bg-white"
+              >
+                <Bell className="size-[18px] stroke-[2.2]" />
+                {unreadCount > 0 && (
+                  <span
+                    dir="ltr"
+                    className="absolute -right-0.5 -top-0.5 flex size-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white shadow-2xs"
+                  >
+                    {unreadCount > 9 ? '+9' : unreadCount}
+                  </span>
+                )}
+              </button>
+              {notificationsOpen && renderNotificationsDropdown(false)}
+            </div>
+          ) : (
+            <Link
+              href="/sell"
+              className="inline-flex h-9.5 items-center justify-center whitespace-nowrap rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-5 text-xs font-bold text-white shadow-[0_6px_18px_rgba(255,92,75,0.28)] transition hover:opacity-95 active:scale-95"
+            >
+              {sellUnitBtnLabel}
+            </Link>
+          )}
 
           {isAdmin && (
             <Link
@@ -933,6 +941,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
           )}
         </div>
 
+        {/* الموبايل: زر اللغة + (الإشعارات لو مسجل دخول أو عايز تبيع لو زائر) + زر القائمة */}
         <div className="flex items-center gap-1.5 lg:hidden">
           <div className="relative" ref={langRefMobile}>
             <button
@@ -953,12 +962,34 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
             {langMenuOpen && renderLanguageDropdownMenu()}
           </div>
 
-          <Link
-            href="/sell"
-            className="inline-flex h-8 items-center justify-center whitespace-nowrap rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-3.5 text-[11px] font-bold text-white shadow-xs"
-          >
-            {sellUnitBtnLabel}
-          </Link>
+          {hasSession ? (
+            <div className="relative" ref={notifRefMobile}>
+              <button
+                type="button"
+                onClick={handleToggleNotifications}
+                aria-label="Notifications"
+                className="relative flex size-8 items-center justify-center rounded-full border border-gray-200/90 bg-gray-50 text-[#1e3a8a]"
+              >
+                <Bell className="size-4 stroke-[2.2]" />
+                {unreadCount > 0 && (
+                  <span
+                    dir="ltr"
+                    className="absolute -right-0.5 -top-0.5 flex size-3.5 items-center justify-center rounded-full bg-red-500 text-[8.5px] font-bold text-white"
+                  >
+                    {unreadCount > 9 ? '+9' : unreadCount}
+                  </span>
+                )}
+              </button>
+              {notificationsOpen && renderNotificationsDropdown(true)}
+            </div>
+          ) : (
+            <Link
+              href="/sell"
+              className="inline-flex h-8 items-center justify-center whitespace-nowrap rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-3.5 text-[11px] font-bold text-white shadow-xs"
+            >
+              {sellUnitBtnLabel}
+            </Link>
+          )}
 
           <button
             type="button"
@@ -1017,13 +1048,15 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
                 </span>
               </Link>
             )}
-            <Link
-              href="/sell"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex h-11 w-full items-center justify-center rounded-xl bg-gradient-to-r from-[#ff6437] to-[#ff4f69] text-xs font-bold text-white shadow-sm"
-            >
-              <span>{sellUnitBtnLabel}</span>
-            </Link>
+            {!hasSession && (
+              <Link
+                href="/sell"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex h-11 w-full items-center justify-center rounded-xl bg-gradient-to-r from-[#ff6437] to-[#ff4f69] text-xs font-bold text-white shadow-sm"
+              >
+                <span>{sellUnitBtnLabel}</span>
+              </Link>
+            )}
             <Link
               href="/buy"
               onClick={() => setMobileMenuOpen(false)}

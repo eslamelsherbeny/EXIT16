@@ -24,6 +24,13 @@ import {
 
 export type { StaffRoleCode }
 
+const ALLOWED_USER_ROLES = new Set(["admin", "moderator", "sales", "user"])
+const ALLOWED_USER_STATUSES = new Set([
+  "active",
+  "suspended",
+  "deletion_pending",
+])
+
 export async function getPublicSiteRuntimeConfigAction(): Promise<{
   siteSettings: GlobalSiteSettings
   isStaff: boolean
@@ -438,8 +445,15 @@ export async function updateUserRoleAndStatusAction(
   try {
     const { supabase, adminUser } = await requireAdminAuth(["admin"])
 
-    const cleanRole = sanitizeText(role || "user", 20).toLowerCase()
-    const cleanStatus = sanitizeText(status || "active", 20).toLowerCase()
+    const cleanRoleRaw = sanitizeText(role || "user", 20).toLowerCase()
+    const cleanStatusRaw = sanitizeText(status || "active", 20).toLowerCase()
+
+    const cleanRole = ALLOWED_USER_ROLES.has(cleanRoleRaw)
+      ? cleanRoleRaw
+      : "user"
+    const cleanStatus = ALLOWED_USER_STATUSES.has(cleanStatusRaw)
+      ? cleanStatusRaw
+      : "active"
 
     if (
       userId === adminUser.id &&
@@ -485,7 +499,11 @@ export async function createAdminOrUserAction(formData: FormData) {
     const email = sanitizeText(formData.get("email"), 160).toLowerCase()
     const rawPhone = sanitizeText(formData.get("phone"), 30)
     const password = String(formData.get("password") || "").slice(0, 128)
-    const role = sanitizeText(formData.get("role") || "sales", 20).toLowerCase()
+    const rawRole = sanitizeText(
+      formData.get("role") || "sales",
+      20
+    ).toLowerCase()
+    const role = ALLOWED_USER_ROLES.has(rawRole) ? rawRole : "sales"
 
     if (!name || !email || !rawPhone || password.length < 8) {
       return {
@@ -717,7 +735,6 @@ export async function saveSiteSettingsAction(formData: FormData) {
       12
     )
 
-    // تضمين جميع خصائص GlobalSiteSettings بالكامل لتفادي خطأ TypeScript (ts2322)
     const settingsPayload: GlobalSiteSettings & Record<string, any> = {
       siteName: sanitizeText(formData.get("siteName") || "Aqar Exit", 80),
       whatsappNumber: sanitizeText(
@@ -820,7 +837,7 @@ export async function managePropertyPromotionAction(
   propertyId: string,
   action: "activate" | "cancel",
   days: number = 7,
-  tier: "super_vip" | "vip_plus" = "super_vip"
+  tier?: "super_vip" | "vip_plus"
 ) {
   const { t: msg } = await getAdminActionsDict()
   try {
@@ -828,12 +845,18 @@ export async function managePropertyPromotionAction(
 
     const { data: prop } = await supabase
       .from("sell_requests")
-      .select("id, user_id, project_name, name, featured_days")
+      .select("id, user_id, project_name, name, featured_days, boost_tier")
       .eq("id", propertyId)
       .maybeSingle()
 
     if (action === "activate") {
-      const effectiveDays = Math.max(1, Number(days || prop?.featured_days) || 7)
+      const effectiveDays = Math.max(
+        1,
+        Number(days || prop?.featured_days) || 7
+      )
+      const resolvedTier: "super_vip" | "vip_plus" =
+        tier || (prop?.boost_tier === "vip_plus" ? "vip_plus" : "super_vip")
+
       const untilDate = new Date(
         Date.now() + effectiveDays * 24 * 60 * 60 * 1000
       ).toISOString()
@@ -842,7 +865,7 @@ export async function managePropertyPromotionAction(
         .from("sell_requests")
         .update({
           is_featured: true,
-          boost_tier: tier,
+          boost_tier: resolvedTier,
           featured_days: effectiveDays,
           featured_status: "active",
           featured_until: untilDate,
@@ -872,7 +895,7 @@ export async function managePropertyPromotionAction(
           await supabase.from("notifications").insert({
             user_id: prop.user_id,
             role: "client",
-            title: `⭐ ${msg.promoActivatedNotifTitle} (${tier === "vip_plus" ? "VIP+" : "SUPER VIP"} · ${effectiveDays}d)`,
+            title: `⭐ ${msg.promoActivatedNotifTitle} (${resolvedTier === "vip_plus" ? "VIP+" : "SUPER VIP"} · ${effectiveDays}d)`,
             message: `${msg.promoActivatedNotifMsg} (${prop.project_name || msg.defaultProjectWord})`,
             type: "status_update",
             link: `/account?view=seller&unitId=${prop.id}`,
@@ -1000,7 +1023,8 @@ export async function rejectBoostRequestByAdminAction(
           user_id: reqRow.user_id,
           role: "client",
           title: `تنبيه بخصوص طلب تفعيل باقة ${reqRow.package_tier}`,
-          message: reason || "تعذر التحقق من عملية الدفع، يرجى التواصل مع الدعم.",
+          message:
+            reason || "تعذر التحقق من عملية الدفع، يرجى التواصل مع الدعم.",
           type: "status_update",
           link: "/account?view=seller",
           is_read: false,

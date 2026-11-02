@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { cookies } from "next/headers"
+import { redirect } from "next/navigation"
 import { createServerClient } from "@supabase/ssr"
 import {
   ArrowLeft,
@@ -26,14 +27,16 @@ import {
   isSelfDealOffer,
   sanitizeGeorgiaProjectTitle,
 } from "@/lib/offer-helpers"
+import {
+  extractUserIdFromCookie,
+  parseAndVerifySessionCookie,
+} from "@/lib/session-security"
 import { getLocalizedGeorgiaAreaName } from "@/lib/smart-matcher"
 import { getServerI18n } from "@/lib/get-server-dictionary"
-import { getCurrencySymbol } from "@/lib/i18n-config"
 
 export const dynamic = "force-dynamic"
 export const revalidate = 0
 
-const ACTIVE_ADMIN_COUNTRY = "GE"
 const PENDING_ADMIN_TAG = "__PENDING_ADMIN_VERIFICATION__"
 
 const STATUS_BADGE_CLASSES: Record<string, string> = {
@@ -46,10 +49,15 @@ const STATUS_BADGE_CLASSES: Record<string, string> = {
   rejected: "bg-red-100 text-red-800",
 }
 
-function deriveUnitCode(id: string) {
-  const digits = String(id || "").replace(/\D/g, "")
-  const num = digits ? Number(digits.slice(-4)) : 100
-  return `U-${String(num).padStart(5, "0")}`
+function deriveUnitCode(id: string, dbCode?: string | null) {
+  if (dbCode && String(dbCode).trim()) return String(dbCode).trim()
+  const numericCode = String(id || "")
+    .replace(/\D/g, "")
+    .slice(0, 5)
+  const fallbackCode = String(id || "")
+    .slice(0, 5)
+    .toUpperCase()
+  return `U-${numericCode.length >= 4 ? numericCode : fallbackCode}`
 }
 
 function cleanAreaDisplay(rawArea: string | null | undefined, locale: string) {
@@ -93,6 +101,39 @@ async function getSupabase() {
 }
 
 export default async function AdminPage() {
+  const cookieStore = await cookies()
+  const rawSession = cookieStore.get("user_session")?.value
+  const candidateId = extractUserIdFromCookie(rawSession)
+
+  if (!rawSession || !candidateId) {
+    redirect("/login?next=/admin")
+  }
+
+  const supabase = await getSupabase()
+
+  const { data: currentStaff } = await supabase
+    .from("users")
+    .select("role, status, password_hash")
+    .eq("id", candidateId)
+    .maybeSingle()
+
+  if (
+    !currentStaff ||
+    currentStaff.status === "suspended" ||
+    !parseAndVerifySessionCookie(rawSession, currentStaff.password_hash).valid
+  ) {
+    redirect("/login?expired=1")
+  }
+
+  const staffRole = String(currentStaff.role || "user").trim().toLowerCase()
+  if (
+    staffRole !== "admin" &&
+    staffRole !== "moderator" &&
+    staffRole !== "sales"
+  ) {
+    redirect("/account")
+  }
+
   const { dict, locale, dir, siteSettings } = await getServerI18n()
   const t = (dict?.admin?.dashboard as Record<string, any>) || {}
   const statusesDict = (t.statuses as Record<string, string>) || {}
@@ -102,7 +143,7 @@ export default async function AdminPage() {
     {}
 
   const georgiaLabel = t.countries?.GE || "Georgia"
-  const georgiaCurrency = getCurrencySymbol(ACTIVE_ADMIN_COUNTRY, locale)
+  const georgiaCurrency = "$"
   const commPct = Number(siteSettings?.buyerCommission) || 1.25
 
   let propertiesData: any[] = []
@@ -110,17 +151,6 @@ export default async function AdminPage() {
   let allOffersData: any[] = []
 
   try {
-    const supabase = await getSupabase()
-
-    // تنظيف ذاتي تلقائي لأي اسم مشروع مصري قديم ("الرحاب") في جورجيا
-    await supabase
-      .from("sell_requests")
-      .update({
-        project_name: "King David Residences",
-        developer_name: "King David",
-      })
-      .ilike("project_name", "%الرحاب%")
-
     const [propsRes, leadsRes, offersRes] = await Promise.all([
       supabase
         .from("sell_requests")
@@ -421,7 +451,7 @@ export default async function AdminPage() {
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {readyDeals.map(({ offer, unit }) => {
-              const uCode = deriveUnitCode(unit.id)
+              const uCode = deriveUnitCode(unit.id, unit.code)
               const cur = georgiaCurrency
               const agreedCash = Number(offer.offered_cash) || 0
               const commissionBase =
@@ -517,7 +547,8 @@ export default async function AdminPage() {
                         dir="ltr"
                         className="font-black text-[#105C50] tabular-nums"
                       >
-                        {agreedCash.toLocaleString("en-US")} {cur}
+                        {cur}
+                        {agreedCash.toLocaleString("en-US")}
                       </strong>
                     </div>
                     <div>
@@ -528,7 +559,8 @@ export default async function AdminPage() {
                         dir="ltr"
                         className="font-black text-[#0a1122] tabular-nums"
                       >
-                        {platformCommission.toLocaleString("en-US")} {cur}
+                        {cur}
+                        {platformCommission.toLocaleString("en-US")}
                       </strong>
                     </div>
                   </div>
@@ -559,7 +591,7 @@ export default async function AdminPage() {
           <CardContent className="p-3">
             <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
               {liveNegotiationOffers.map(({ offer, unit }) => {
-                const uCode = deriveUnitCode(unit.id)
+                const uCode = deriveUnitCode(unit.id, unit.code)
                 const cur = georgiaCurrency
                 const st = offer.status
 
@@ -586,21 +618,22 @@ export default async function AdminPage() {
                         <span>
                           {sm.agreedCashLabel}:{" "}
                           <strong dir="ltr" className="text-[#0a1122]">
+                            {cur}
                             {Number(offer.offered_cash || 0).toLocaleString(
                               "en-US"
-                            )}{" "}
-                            {cur}
+                            )}
                           </strong>
                         </span>
                         {offer.counter_cash && (
                           <span className="font-bold text-purple-800">
                             (🔄{" "}
                             <span dir="ltr">
+                              {cur}
                               {Number(offer.counter_cash).toLocaleString(
                                 "en-US"
                               )}
-                            </span>{" "}
-                            {cur})
+                            </span>
+                            )
                           </span>
                         )}
                       </div>
@@ -682,10 +715,10 @@ export default async function AdminPage() {
                   const stCls =
                     STATUS_BADGE_CLASSES[prop.status || "pending"] ||
                     STATUS_BADGE_CLASSES.pending
-                  const uCode = deriveUnitCode(prop.id)
+                  const uCode = deriveUnitCode(prop.id, prop.code)
                   const localizedArea = cleanAreaDisplay(prop.area, locale)
 
-                  const sellerWaMsg = `${leadsDict.waGeneralPrefix || ""} ${prop.name}، (${prop.project_name || t.defaultUnit || ""} - ${localizedArea} - ${uCode}) — ${Number(prop.paid_amount || 0).toLocaleString("en-US")} ${georgiaCurrency}`
+                  const sellerWaMsg = `${leadsDict.waGeneralPrefix || ""} ${prop.name}، (${prop.project_name || t.defaultUnit || ""} - ${localizedArea} - ${uCode}) — $${Number(prop.paid_amount || 0).toLocaleString("en-US")}`
 
                   return (
                     <div
@@ -711,19 +744,13 @@ export default async function AdminPage() {
                       </Link>
 
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-extrabold text-[#105C50] tabular-nums">
-                          {prop.paid_amount ? (
-                            <>
-                              <span dir="ltr">
-                                {Number(prop.paid_amount).toLocaleString(
-                                  "en-US"
-                                )}
-                              </span>{" "}
-                              {georgiaCurrency}
-                            </>
-                          ) : (
-                            "—"
-                          )}
+                        <span
+                          dir="ltr"
+                          className="text-xs font-extrabold text-[#105C50] tabular-nums"
+                        >
+                          {prop.paid_amount
+                            ? `$${Number(prop.paid_amount).toLocaleString("en-US")}`
+                            : "—"}
                         </span>
                         <Badge className={`text-[10px] ${stCls}`}>
                           {stLabel}
@@ -792,7 +819,7 @@ export default async function AdminPage() {
                   lead.available_cash || lead.budget || 0
                 ).toLocaleString("en-US")
 
-                const buyerWaMsg = `${leadsDict.waGeneralPrefix || ""} ${lead.name}، ${leadsDict.waGeneralMiddle || ""} (${cleanTarget || t.allAreas || ""}) — ${leadsDict.cashShort || ""} ${cashFormatted} ${georgiaCurrency}. ${leadsDict.waGeneralSuffix || ""}`
+                const buyerWaMsg = `${leadsDict.waGeneralPrefix || ""} ${lead.name}، ${leadsDict.waGeneralMiddle || ""} (${cleanTarget || t.allAreas || ""}) — ${leadsDict.cashShort || ""} $${cashFormatted}. ${leadsDict.waGeneralSuffix || ""}`
 
                 return (
                   <div
@@ -806,8 +833,11 @@ export default async function AdminPage() {
                       <p className="text-xs font-extrabold text-[#0a1122]">
                         {lead.name}
                       </p>
-                      <p className="mt-0.5 text-[11px] font-bold text-[#105C50] tabular-nums">
-                        <span dir="ltr">{cashFormatted}</span> {georgiaCurrency}
+                      <p
+                        dir="ltr"
+                        className="mt-0.5 text-[11px] font-bold text-[#105C50] tabular-nums"
+                      >
+                        ${cashFormatted}
                       </p>
                       <p className="mt-0.5 truncate text-[10px] text-gray-400">
                         {cleanTarget}

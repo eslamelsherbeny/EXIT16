@@ -65,8 +65,8 @@ export function SellerFlow() {
   const [unitId, setUnitId] = useState<string>('')
   const [orderRef, setOrderRef] = useState<string>('AE-1001')
 
-  // جميع الاختيارات تبدأ فارغة تماماً بدون أي تحديد تلقائي
-  const [dealCategory, setDealCategory] = useState<DealCategory | ''>('')
+  // الموقع متخصص 100% في التنازل والأقساط وعملة العقارات الموحدة هي الدولار ($)
+  const [dealCategory, setDealCategory] = useState<DealCategory | ''>('exit')
   const [propertyKind, setPropertyKind] = useState<string>('')
   const [buildingStatus, setBuildingStatus] = useState<string>('')
   const [priceInputMode, setPriceInputMode] = useState<'total' | 'sqm'>('total')
@@ -99,6 +99,7 @@ export function SellerFlow() {
     totalFloors: '',
     maxGuests: '',
     deliveryRemainingMonths: '',
+    deliveryYear: '2026',
     contractPrice: '',
     paidAmount: '',
     marketPrice: '',
@@ -125,7 +126,6 @@ export function SellerFlow() {
     confirmed: 'yes',
   })
 
-  // جميع الفلاتر تبدأ فارغة تماماً ليختار المستخدم بنفسه
   const [selected, setSelected] = useState<Record<string, string[]>>({
     finishing: [],
     buildingSeries: [],
@@ -175,23 +175,15 @@ export function SellerFlow() {
   const [autoSaveTime, setAutoSaveTime] = useState<string>('')
   const [pending, startTransition] = useTransition()
 
-  const isExitDeal = dealCategory === 'exit'
-  const isRentDeal =
-    dealCategory === 'rent_monthly' || dealCategory === 'rent_daily'
-  const isDirectSale = dealCategory === 'sale' || !dealCategory
+  // المنصة متخصصة 100% في التنازل والأقساط
+  const isExitDeal = true
+  const isRentDeal = false
+  const isDirectSale = false
 
-  // دالة اختيار أو إلغاء تحديد نوع العملية عند الضغط مرة ثانية
-  const handleToggleDealCategory = (cat: DealCategory | '') => {
-    if (dealCategory === cat) {
-      setDealCategory('')
-      setPropertyKind('')
-      setBuildingStatus('')
-    } else {
-      setDealCategory(cat)
-    }
+  const handleToggleDealCategory = (_cat: DealCategory | '') => {
+    setDealCategory('exit')
   }
 
-  // دالة اختيار أو إلغاء تحديد نوع العقار عند الضغط مرة ثانية
   const handleTogglePropertyKind = (kindId: string) => {
     if (propertyKind === kindId) {
       setPropertyKind('')
@@ -205,7 +197,6 @@ export function SellerFlow() {
     }
   }
 
-  // دالة اختيار أو إلغاء تحديد حالة البناء + نقل التاب العلوي تلقائياً لـ 2 Photos كما في الصورة 9
   const handleToggleBuildingStatus = (statusId: string) => {
     if (buildingStatus === statusId) {
       setBuildingStatus('')
@@ -215,7 +206,6 @@ export function SellerFlow() {
     }
   }
 
-  // تتبع السكرول الذكي (Scroll-Spy) لتنير التابات العلوية بدقة أثناء النزول والصعود
   useEffect(() => {
     const handleScrollSpy = () => {
       if (isManualScrollingRef.current) return
@@ -239,7 +229,6 @@ export function SellerFlow() {
         }
       }
 
-      // إذا وصل المستخدم لآخر الصفحة نضيء تاب 6 Contact
       if (
         window.innerHeight + window.scrollY >=
         document.documentElement.scrollHeight - 100
@@ -283,14 +272,13 @@ export function SellerFlow() {
           const meta = u.documents?.__unit_meta || {}
           setUnitId(String(u.id))
           setOrderRef(
-            `AE-${String(u.id)
-              .replace(/[^a-zA-Z0-9]/g, '')
-              .slice(0, 6)
-              .toUpperCase()}`
+            u.code ||
+              `AE-${String(u.id)
+                .replace(/[^a-zA-Z0-9]/g, '')
+                .slice(0, 6)
+                .toUpperCase()}`
           )
-          const rawCat = u.listing_category || meta.listing_category || 'exit'
-          const savedCat = (rawCat === 'pledge' ? 'sale' : rawCat) as DealCategory
-          setDealCategory(savedCat)
+          setDealCategory('exit')
           setPropertyKind(u.unit_type || meta.unit_type || 'Apartment')
           setBuildingStatus(
             u.building_status || meta.building_status || 'Newly built'
@@ -336,7 +324,9 @@ export function SellerFlow() {
                 ? String(u.floor_number)
                 : String(meta.floor_number || ''),
             totalFloors: String(u.total_floors || meta.total_floors || ''),
-            maxGuests: String(u.max_guests || meta.max_guests || ''),
+            deliveryYear: String(
+              u.delivery_year || meta.delivery_year || '2026'
+            ),
             description: u.description || '',
             contractPrice: u.contract_price ? String(u.contract_price) : '',
             paidAmount: u.paid_amount ? String(u.paid_amount) : '',
@@ -344,12 +334,6 @@ export function SellerFlow() {
               u.market_price || u.contract_price
                 ? String(u.market_price || u.contract_price)
                 : '',
-            rentPrice:
-              u.rent_price || meta.rent_price
-                ? String(u.rent_price || meta.rent_price)
-                : u.paid_amount
-                  ? String(u.paid_amount)
-                  : '',
             installment:
               u.installment_amount || meta.installment_amount
                 ? String(u.installment_amount || meta.installment_amount)
@@ -383,7 +367,10 @@ export function SellerFlow() {
 
           setSelected((prev) => ({
             ...prev,
-            finishing: u.finishing || meta.finishing ? [u.finishing || meta.finishing] : [],
+            finishing:
+              u.finishing || meta.finishing
+                ? [u.finishing || meta.finishing]
+                : [],
             buildingSeries:
               u.building_series || meta.building_series
                 ? [u.building_series || meta.building_series]
@@ -400,6 +387,10 @@ export function SellerFlow() {
               u.building_material || meta.building_material
                 ? [u.building_material || meta.building_material]
                 : [],
+            frequency:
+              u.installment_frequency || meta.installment_frequency
+                ? [u.installment_frequency || meta.installment_frequency]
+                : ['شهري'],
             features:
               Array.isArray(u.features) && u.features.length > 0
                 ? u.features
@@ -440,22 +431,24 @@ export function SellerFlow() {
     init()
   }, [locale])
 
-  // إذا ضغط المستخدم على نفس الرقم في الغرف/الحمامات يتم إلغاء تحديده
   const update = (key: string, value: string) => {
     setForm((curr) => ({ ...curr, [key]: value }))
     setError('')
     setMissingFields([])
   }
 
-  // إذا ضغط المستخدم على نفس الخيار مرة ثانية يتم إلغاء تحديده
   const toggleSingle = (group: string, value: string) => {
     setSelected((curr) => {
       const currentVal = curr[group]?.[0]
       if (
         currentVal === value &&
-        ['finishing', 'buildingSeries', 'floorType', 'heatingType', 'buildingMaterial'].includes(
-          group
-        )
+        [
+          'finishing',
+          'buildingSeries',
+          'floorType',
+          'heatingType',
+          'buildingMaterial',
+        ].includes(group)
       ) {
         return { ...curr, [group]: [] }
       }
@@ -501,62 +494,55 @@ export function SellerFlow() {
     return [
       {
         id: 'Newly built',
-        ar: 'مبنى حديث',
-        en: 'Newly built',
+        ar: 'مبنى حديث (جاهز)',
+        en: 'Newly built (Ready)',
         ru: 'Новостройка',
         ka: 'ახალი აშენებული',
-        labelAr: 'مبنى حديث',
-        labelEn: 'Newly built',
-      },
-      {
-        id: 'Old built',
-        ar: 'مبنى قديم',
-        en: 'Old built',
-        ru: 'Старая постройка',
-        ka: 'ძველი აშენებული',
-        labelAr: 'مبنى قديم',
-        labelEn: 'Old built',
+        labelAr: 'مبنى حديث (جاهز)',
+        labelEn: 'Newly built (Ready)',
       },
       {
         id: 'Under construction',
-        ar: 'تحت الإنشاء',
+        ar: 'قيد الإنشاء',
         en: 'Under construction',
         ru: 'Строится',
         ka: 'მშენებარე',
-        labelAr: 'تحت الإنشاء',
+        labelAr: 'قيد الإنشاء',
         labelEn: 'Under construction',
+      },
+      {
+        id: 'Old built',
+        ar: 'مبنى قائم',
+        en: 'Existing building',
+        ru: 'Старая постройка',
+        ka: 'ძველი აშენებული',
+        labelAr: 'مبنى قائم',
+        labelEn: 'Existing building',
       },
     ]
   }, [propertyKind])
 
   const sectionCompletion = useMemo(() => {
     const s1 = Boolean(
-      dealCategory &&
-        propertyKind &&
-        (propertyKind === 'Land' || buildingStatus)
+      propertyKind && (propertyKind === 'Land' || buildingStatus)
     )
     const s2 = images.length > 0
     const s3 = Boolean(form.location)
     const s4 = Boolean(s1 && form.areaSize && (propertyKind === 'Land' || form.rooms))
-    const activePrice = isRentDeal
-      ? Number(form.rentPrice)
-      : isDirectSale
-        ? Number(form.contractPrice || form.paidAmount || form.pricePerSqm)
-        : Number(form.paidAmount)
-    const s5 = Boolean(activePrice > 0 && form.description.trim().length >= 10)
+    const activePrice = Number(form.paidAmount || form.contractPrice)
+    const s5 = Boolean(activePrice > 0)
     const s6 = Boolean(
       loggedUser?.id || (form.name.trim() && form.phone.trim())
     )
 
-    let strength = 5
-    if (dealCategory) strength += 2
-    if (propertyKind) strength += 2
-    if (images.length >= 1) strength += 16
-    if (images.length >= 5) strength += 15
+    let strength = 10
+    if (propertyKind) strength += 10
+    if (images.length >= 1) strength += 15
+    if (images.length >= 4) strength += 15
     if (form.location) strength += 15
     if (form.areaSize) strength += 15
-    if (activePrice > 0) strength += 15
-    if (form.description.trim().length >= 40) strength += 15
+    if (activePrice > 0) strength += 10
+    if (form.description.trim().length >= 20) strength += 10
 
     return {
       1: s1,
@@ -569,22 +555,17 @@ export function SellerFlow() {
       strength: Math.min(100, strength),
     }
   }, [
-    dealCategory,
     propertyKind,
     buildingStatus,
     images.length,
     form.location,
     form.areaSize,
     form.rooms,
-    form.rentPrice,
     form.contractPrice,
     form.paidAmount,
-    form.pricePerSqm,
     form.description,
     form.name,
     form.phone,
-    isRentDeal,
-    isDirectSale,
     loggedUser,
   ])
 
@@ -597,76 +578,31 @@ export function SellerFlow() {
       PROPERTY_KINDS.find((k) => k.id === propertyKind) || PROPERTY_KINDS[0]
     const kindName = getOptionLabel(kindObj, locale)
 
-    const dealActionText =
-      locale === 'ar'
-        ? dealCategory === 'exit'
-          ? 'للتنازل في'
-          : isRentDeal
-            ? 'للإيجار في'
-            : 'للبيع في'
-        : locale === 'ru'
-          ? dealCategory === 'exit'
-            ? 'переуступка в'
-            : isRentDeal
-              ? 'в аренду в'
-              : 'на продажу в'
-          : locale === 'ka'
-            ? isRentDeal
-              ? 'ქირავდება'
-              : 'იყიდება'
-            : dealCategory === 'exit'
-              ? 'for exit in'
-              : isRentDeal
-                ? 'for rent in'
-                : 'for sale in'
+    const title = form.project.trim()
+      ? form.project.trim()
+      : `${kindName} · ${localizedArea || '—'}`
 
-    const title = `${kindName} ${dealActionText} ${localizedArea || '—'}`
-
-    const currSym =
-      currencyChoice === 'GEL' ? '₾' : currencyChoice === 'EUR' ? '€' : '$'
-
-    let rawPrice = 0
-    if (isRentDeal) rawPrice = Number(toEnglishDigits(form.rentPrice || '0'))
-    else if (isExitDeal)
-      rawPrice = Number(toEnglishDigits(form.paidAmount || '0'))
-    else
-      rawPrice = Number(
-        toEnglishDigits(
-          form.contractPrice || form.paidAmount || form.pricePerSqm || '0'
-        )
-      )
-
-    const priceSuffix =
-      dealCategory === 'rent_daily'
-        ? pvT.perDay
-        : dealCategory === 'rent_monthly'
-          ? pvT.perMonth
-          : isExitDeal
-            ? pvT.cashRequiredSuffix
-            : ''
+    const rawPrice = Number(
+      toEnglishDigits(form.paidAmount || form.contractPrice || '0')
+    )
 
     return {
       title,
       area: localizedArea || '—',
       priceDisplay:
         rawPrice > 0
-          ? `${currSym}${rawPrice.toLocaleString('en-US')}${priceSuffix}`
+          ? `$${rawPrice.toLocaleString('en-US')}${pvT.cashRequiredSuffix}`
           : pvT.priceOnRequest,
     }
   }, [
     fT.previewSidebar,
+    form.project,
     form.location,
     form.locationDisplay,
-    form.rentPrice,
     form.paidAmount,
     form.contractPrice,
-    form.pricePerSqm,
     propertyKind,
-    dealCategory,
-    currencyChoice,
     locale,
-    isRentDeal,
-    isExitDeal,
   ])
 
   const generateSmartDescription = () => {
@@ -676,21 +612,21 @@ export function SellerFlow() {
     const sizeStr = form.areaSize || '75'
     const roomsStr = form.rooms || '3'
     const bedsStr = form.bedrooms || '2'
-    const floorStr = `${form.floor || '5'}/${form.totalFloors || '12'}`
+    const floorStr = `${form.floor || '5'}/${form.totalFloors || '16'}`
     const condObj =
       PROPERTY_KINDS.find((k) => k.id === propertyKind) || PROPERTY_KINDS[0]
 
     if (locale === 'ar') {
-      const textAr = `عقار مميز (${getOptionLabel(condObj, 'ar')}) في ${areaName}. المساحة الإجمالية ${sizeStr} م²، يتكون من ${roomsStr} غرف (${bedsStr} غرف نوم)، الطابق ${floorStr}. موقع استراتيجي قريب من كافة الخدمات اليومية والمواصلات.`
+      const textAr = `فرصة للتنازل واستكمال الأقساط (${getOptionLabel(condObj, 'ar')}) في ${areaName}${form.project ? ` بمشروع ${form.project}` : ''}. المساحة الإجمالية ${sizeStr} م²، تتكون من ${roomsStr} غرف (${bedsStr} غرف نوم)، الطابق ${floorStr}. عقد موثق وجاهز للتنازل الرسمي لدى المطور.`
       update('description', textAr)
     } else if (locale === 'ru') {
-      const textRu = `${bedsStr}-спальная ${getOptionLabel(condObj, 'ru')} (${sizeStr} м²) в районе ${areaName}. Этаж ${floorStr}. Отличная локация рядом со всей инфраструктурой и транспортом.`
+      const textRu = `Переуступка рассрочки: ${bedsStr}-спальная ${getOptionLabel(condObj, 'ru')} (${sizeStr} м²) в районе ${areaName}. Этаж ${floorStr}. Официальное переоформление у застройщика.`
       update('description', textRu)
     } else if (locale === 'ka') {
-      const textKa = `${bedsStr}-საძინებლიანი ${getOptionLabel(condObj, 'ka')} (${sizeStr} მ²) ${areaName}-ში. სართული ${floorStr}. საუკეთესო მდებარეობა ყველა საჭირო ინფრასტრუქტურასთან ახლოს.`
+      const textKa = `განვადების გადაბარება: ${bedsStr}-საძინებლიანი ${getOptionLabel(condObj, 'ka')} (${sizeStr} მ²) ${areaName}-ში. სართული ${floorStr}.`
       update('description', textKa)
     } else {
-      const textEn = `${bedsStr}-bedroom ${getOptionLabel(condObj, 'en')} (${sizeStr} m²) in ${areaName}. Located on floor ${floorStr}. Prime location with easy access to daily amenities and public transport.`
+      const textEn = `Installment Exit opportunity: ${bedsStr}-bedroom ${getOptionLabel(condObj, 'en')} (${sizeStr} m²) in ${areaName}. Floor ${floorStr}. Verified developer contract ready for official transfer.`
       update('description', textEn)
     }
   }
@@ -788,22 +724,21 @@ export function SellerFlow() {
     const targetId = activeUnitId || unitId
     if (targetId) put('unit_id', targetId)
 
-    const effectiveDeal = (dealCategory || 'exit') as DealCategory
     const effectiveKind = propertyKind || 'Apartment'
     const effectiveArea = form.location || 'Tbilisi - Saburtalo'
     const effectiveStatus = buildingStatus || 'Newly built'
 
     put('country', ACTIVE_PLATFORM_COUNTRY)
-    put('currency_code', currencyChoice)
-    put('listing_category', effectiveDeal)
+    put('currency_code', 'USD')
+    put('listing_category', 'exit')
     put('unit_type', effectiveKind)
     put('building_status', effectiveStatus)
 
     const fallbackProjectTitle =
       form.project.trim() ||
-      (form.exactStreet
-        ? `${effectiveKind} — ${form.exactStreet}`
-        : `${effectiveKind} in ${getLocalizedGeorgiaAreaName(effectiveArea, 'en')}`)
+      (form.developer.trim()
+        ? `${form.developer.trim()} Residence`
+        : `${effectiveKind} — ${getLocalizedGeorgiaAreaName(effectiveArea, 'en')}`)
 
     put('developer_name', form.developer || effectiveStatus)
     put('project_name', fallbackProjectTitle)
@@ -821,11 +756,10 @@ export function SellerFlow() {
     put('garden_size', form.garden)
 
     put('bedrooms', form.bedrooms || '1')
-    put('rooms', form.rooms || '1')
+    put('rooms', form.rooms || '2')
     put('bathrooms', form.bathrooms || '1')
     put('floor_number', form.floor)
     put('total_floors', form.totalFloors)
-    put('max_guests', form.maxGuests)
 
     put('finishing', selected.finishing?.[0] || 'Newly renovated')
     put('building_series', selected.buildingSeries?.[0])
@@ -833,14 +767,15 @@ export function SellerFlow() {
     put('heating_type', selected.heatingType?.[0])
     put('building_material', selected.buildingMaterial?.[0])
 
+    const resolvedDelivYear = Number(form.deliveryYear) || 2026
     const delStatus =
       effectiveStatus === 'Under construction'
-        ? form.deliveryRemainingMonths
-          ? `Under Construction (${form.deliveryRemainingMonths} months)`
-          : 'Under Construction'
-        : 'Ready to Move'
+        ? `Under Construction (${resolvedDelivYear})`
+        : `Ready to Move (${resolvedDelivYear})`
+
     put('delivery_status', delStatus)
     put('delivery_month', form.deliveryRemainingMonths)
+    put('delivery_year', resolvedDelivYear)
 
     selected.features?.forEach((f) => data.append('feature', f))
     selected.messengers?.forEach((m) => data.append('contact_messenger', m))
@@ -848,50 +783,30 @@ export function SellerFlow() {
     put('video_url', form.videoUrl)
     put('tour_3d_url', form.tour3dUrl)
     if (flags.allowOnlineViewing) data.set('allow_online_viewing', 'on')
-    if (flags.installmentSalePossible)
-      data.set('installment_sale_possible', 'on')
-    if (flags.exchangePossible) data.set('exchange_possible', 'on')
     if (flags.isExclusive) data.set('is_exclusive', 'on')
 
-    const sizeNum = Number(toEnglishDigits(form.areaSize || '0')) || 1
-    if (isRentDeal) {
-      const rPrice = Number(toEnglishDigits(form.rentPrice || '0'))
-      put('rent_price', rPrice)
-      put('rent_period', effectiveDeal === 'rent_daily' ? 'daily' : 'monthly')
-      put('contract_price', rPrice)
-      put('paid_amount', rPrice)
-      put('market_price', rPrice)
-    } else if (isDirectSale) {
-      const rawTotal =
-        priceInputMode === 'sqm'
-          ? Math.round(
-              Number(toEnglishDigits(form.pricePerSqm || '0')) * sizeNum
-            )
-          : Number(
-              toEnglishDigits(form.contractPrice || form.paidAmount || '0')
-            )
-      put('contract_price', rawTotal)
-      put('paid_amount', rawTotal)
-      put('market_price', form.marketPrice || rawTotal)
-    } else {
-      put('contract_price', form.contractPrice)
-      put('paid_amount', form.paidAmount)
-      put('market_price', form.marketPrice || form.contractPrice)
-      put('installment_amount', form.installment)
-      put('installment_frequency', selected.frequency?.[0])
-      put('contract_month', form.contractMonth)
-      put('contract_year', form.contractYear)
-      put('years_left', form.remainingMonths)
-      if (selected.annualInstallment?.[0] === 'yes') {
-        data.set('has_annual_installment', 'on')
-      }
-      put('annual_installment_amount', form.annualInstallmentAmount)
-      if (selected.overdueInstallments?.[0] === 'yes') {
-        data.set('has_overdue_installments', 'on')
-      }
-      put('overdue_installments', form.overdueCount)
-      put('overdue_total_amount', form.overdueTotal)
+    put('contract_price', form.contractPrice || form.paidAmount)
+    put('paid_amount', form.paidAmount || form.contractPrice)
+    put(
+      'market_price',
+      form.marketPrice || form.contractPrice || form.paidAmount
+    )
+    put('installment_amount', form.installment)
+    put('installment_frequency', selected.frequency?.[0] || 'شهري')
+    put('contract_month', form.contractMonth)
+    put('contract_year', form.contractYear)
+    put('years_left', form.remainingMonths)
+
+    if (selected.annualInstallment?.[0] === 'yes') {
+      data.set('has_annual_installment', 'on')
     }
+    put('annual_installment_amount', form.annualInstallmentAmount)
+
+    if (selected.overdueInstallments?.[0] === 'yes') {
+      data.set('has_overdue_installments', 'on')
+    }
+    put('overdue_installments', form.overdueCount)
+    put('overdue_total_amount', form.overdueTotal)
 
     if (selected.discountOffer?.[0] === 'yes') {
       data.set('willing_to_discount', 'on')
@@ -949,8 +864,8 @@ export function SellerFlow() {
   const handlePublishListing = () => {
     const missing: string[] = []
 
-    if (!dealCategory || !propertyKind) {
-      missing.push(fT.typeSection.title)
+    if (!propertyKind) {
+      missing.push(fT.typeSection.whatKindLabel)
     }
     if (!form.location) {
       missing.push(fT.locationSection.cityDistrictLabel.replace(' *', ''))
@@ -958,23 +873,11 @@ export function SellerFlow() {
     if (!form.areaSize || Number(toEnglishDigits(form.areaSize)) <= 0) {
       missing.push(fT.detailsSection.areaLabel.replace(' *', ''))
     }
-
-    if (isRentDeal) {
-      if (!form.rentPrice || Number(toEnglishDigits(form.rentPrice)) <= 0) {
-        missing.push(fT.pricingSection.priceLabel.replace(' *', ''))
-      }
-    } else if (isDirectSale) {
-      const hasPrice =
-        Number(toEnglishDigits(form.contractPrice || form.paidAmount)) > 0 ||
-        Number(toEnglishDigits(form.pricePerSqm)) > 0
-      if (!hasPrice) {
-        missing.push(fT.pricingSection.priceLabel.replace(' *', ''))
-      }
-    } else {
-      if (!form.contractPrice)
-        missing.push(fT.pricingSection.contractPriceLabel.replace(' *', ''))
-      if (!form.paidAmount)
-        missing.push(fT.pricingSection.paidAmountLabel.replace(' *', ''))
+    if (!form.contractPrice) {
+      missing.push(fT.pricingSection.contractPriceLabel.replace(' *', ''))
+    }
+    if (!form.paidAmount) {
+      missing.push(fT.pricingSection.paidAmountLabel.replace(' *', ''))
     }
 
     if (!loggedUser) {
@@ -1022,7 +925,6 @@ export function SellerFlow() {
 
     startTransition(async () => {
       let resolvedUnitId = unitId
-      const effectiveDeal = (dealCategory || 'exit') as DealCategory
       const effectiveKind = propertyKind || 'Apartment'
       const effectiveArea = form.location || 'Tbilisi - Saburtalo'
       const effectiveStatus = buildingStatus || 'Newly built'
@@ -1035,24 +937,23 @@ export function SellerFlow() {
 
         const step2Res = await processSellerStep2Action({
           mode: authMode === 'login' ? 'login' : 'register',
-          listingCategory: effectiveDeal,
+          listingCategory: 'exit',
           unitCountry: ACTIVE_PLATFORM_COUNTRY,
           userCountry: form.userCountry || ACTIVE_PLATFORM_COUNTRY,
           developer: form.developer || effectiveStatus,
           project:
             form.project ||
-            `${effectiveKind} in ${getLocalizedGeorgiaAreaName(effectiveArea, 'en')}`,
+            `${effectiveKind} — ${getLocalizedGeorgiaAreaName(effectiveArea, 'en')}`,
           contractPrice:
-            Number(
-              toEnglishDigits(form.contractPrice || form.rentPrice || '0')
-            ) || 0,
+            Number(toEnglishDigits(form.contractPrice || '0')) || 0,
           paidAmount:
             Number(
-              toEnglishDigits(
-                form.paidAmount || form.contractPrice || form.rentPrice || '0'
-              )
+              toEnglishDigits(form.paidAmount || form.contractPrice || '0')
             ) || 0,
-          rentPrice: Number(toEnglishDigits(form.rentPrice || '0')) || 0,
+          marketPrice:
+            Number(
+              toEnglishDigits(form.marketPrice || form.contractPrice || '0')
+            ) || 0,
           name: form.name,
           phone: fullPhone,
           email: form.email,
@@ -1152,15 +1053,18 @@ export function SellerFlow() {
     >
       <div className="mx-auto max-w-[1180px] px-4 sm:px-6">
         <header className="mb-4 text-start">
-          <h1 className="text-2xl font-black tracking-tight text-[#0a1122] sm:text-3xl">
-            {fT.pageTitle}
+          <h1 className="text-2xl font-bold tracking-tight text-[#0a1122] sm:text-3xl">
+            {isAr
+              ? 'اعرض وحدتك للتنازل واستكمال الأقساط'
+              : 'List Your Unit for Installment Exit'}
           </h1>
           <p className="mt-1 text-xs font-medium text-slate-500 sm:text-sm">
-            {fT.pageSubtitle}
+            {isAr
+              ? 'استرد مدفوعاتك بالكامل بالدولار ($) — عمولة البيع 0% على البائع.'
+              : 'Recover 100% of your paid installments in USD ($) — 0% seller commission.'}
           </p>
         </header>
 
-        {/* شريط التابات العلوي المتفاعل مع السكرول وخطوات الإكمال مطابق لـ sivrce.ge */}
         <div className="sticky top-16 z-30 -mx-4 mb-6 border-b border-slate-200/70 bg-[#f4f6f9]/95 px-4 py-3 backdrop-blur-md sm:mx-0 sm:px-0">
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
             {navTabs.map((tab) => {
@@ -1174,9 +1078,9 @@ export function SellerFlow() {
                   key={tab.id}
                   type="button"
                   onClick={() => scrollToSection(tab.id, tab.ref)}
-                  className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-extrabold transition-all duration-200 ${
+                  className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-bold transition-all duration-200 ${
                     isCurrent
-                      ? 'bg-gradient-to-r from-[#f97316] to-[#ea580c] text-white shadow-md shadow-orange-500/25'
+                      ? 'bg-gradient-to-r from-[#ff6437] to-[#ff4f69] text-white shadow-md shadow-orange-500/25'
                       : isDone
                         ? 'border border-blue-200/80 bg-blue-50/90 text-[#2563eb]'
                         : 'border border-slate-200/80 bg-white text-slate-600 hover:bg-slate-50'
@@ -1201,7 +1105,6 @@ export function SellerFlow() {
         </div>
 
         <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
-          {/* العمود الرئيسي للأقسام الستة */}
           <div className="space-y-6 lg:col-span-8">
             <TypeSection
               sectionRef={secTypeRef}
@@ -1281,7 +1184,7 @@ export function SellerFlow() {
             <ContactSection
               sectionRef={secContactRef}
               onHover={() => setActiveTab(6)}
-              isRentDeal={isRentDeal}
+              isRentDeal={false}
               loggedUser={loggedUser}
               onUserAuthenticated={(u) => setLoggedUser(u)}
               authMode={authMode}
@@ -1302,7 +1205,6 @@ export function SellerFlow() {
             />
           </div>
 
-          {/* الشريط الجانبي الثابت للمعاينة الحية وقوة الإعلان */}
           <LivePreviewSidebar
             images={images}
             livePreviewData={livePreviewData}
@@ -1313,7 +1215,6 @@ export function SellerFlow() {
         </div>
       </div>
 
-      {/* الشريط السفلي الثابت للحفظ والنشر */}
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-4 py-3 shadow-lg backdrop-blur-md">
         <div className="mx-auto flex max-w-[1180px] items-center justify-between gap-3">
           <div className="flex items-center gap-3 text-xs font-bold text-slate-500">
@@ -1327,7 +1228,7 @@ export function SellerFlow() {
               <button
                 type="button"
                 onClick={handleSaveDraft}
-                className="hidden rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-extrabold text-[#0a1122] hover:bg-slate-100 sm:inline-block"
+                className="hidden rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-[#0a1122] hover:bg-slate-100 sm:inline-block"
               >
                 {fT.bottomBar.saveDraftBtn}
               </button>
@@ -1338,7 +1239,7 @@ export function SellerFlow() {
             type="button"
             disabled={pending}
             onClick={handlePublishListing}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#f97316] to-[#f43f5e] px-8 text-sm font-black text-white shadow-md shadow-orange-500/20 transition hover:opacity-95 active:scale-[0.98] disabled:opacity-60"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-8 text-sm font-bold text-white shadow-md shadow-orange-500/20 transition hover:opacity-95 active:scale-[0.98] disabled:opacity-60"
           >
             {pending ? (
               <>
@@ -1362,7 +1263,7 @@ export function SellerFlow() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2">
-              <span className="text-xs font-extrabold text-[#0a1122]">
+              <span className="text-xs font-bold text-[#0a1122]">
                 {previewDoc.title}
               </span>
               <button

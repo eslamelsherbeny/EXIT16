@@ -175,13 +175,11 @@ export function StepValidationBanner({
 }
 
 // =====================================================
-// 1. قسم نوع الإعلان والعقار وحالة البناء بالتدرج (TypeSection)
+// 1. قسم نوع العقار وحالة البناء (مخصص للتنازل والأقساط مباشرة)
 // =====================================================
 export function TypeSection({
   sectionRef,
   onHover,
-  dealCategory,
-  setDealCategory,
   propertyKind,
   setPropertyKind,
   buildingStatus,
@@ -199,6 +197,7 @@ export function TypeSection({
   dynamicStatusOptions: Array<LocalizedOptionItem<string>>
 }) {
   const { locale } = useTranslation()
+  const isAr = locale === 'ar'
   const fT = getSellerFormTranslations(locale)
   const tSec = fT.typeSection
 
@@ -209,29 +208,44 @@ export function TypeSection({
       onMouseEnter={onHover}
       className="scroll-mt-32 rounded-[24px] border border-slate-200/80 bg-white p-5 shadow-2xs sm:p-7"
     >
-      <h2 className="text-lg font-black text-[#0a1122]">{tSec.title}</h2>
-      <p className="mt-1 text-xs text-slate-500">{tSec.subtitle}</p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h2 className="text-lg font-bold text-[#0a1122]">
+            {isAr ? 'نوع العقار وحالة البناء' : tSec.title}
+          </h2>
+          <p className="mt-1 text-xs text-slate-500">
+            {isAr
+              ? 'اختر نوع العقار المراد التنازل عنه ثم حالة البناء.'
+              : 'Select the property type and building status for your installment exit.'}
+          </p>
+        </div>
+
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-[#eaf8f2] px-3.5 py-1 text-xs font-bold text-[#007a5a]">
+          <ShieldCheck className="size-3.5" />
+          <span>{isAr ? 'نظام التنازل والأقساط' : 'Installment Exit'}</span>
+        </span>
+      </div>
 
       <div className="mt-5">
-        <label className="mb-2.5 block text-xs font-extrabold text-[#0a1122] sm:text-sm">
-          {tSec.whatToDoLabel}
+        <label className="mb-2.5 block text-xs font-bold text-[#0a1122] sm:text-sm">
+          {tSec.whatKindLabel}
         </label>
-        <div className="grid grid-cols-2 gap-3.5 md:grid-cols-4">
-          {DEAL_TYPES.map((d) => {
-            const Icon = d.icon
-            const active = dealCategory === d.id
+        <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3">
+          {PROPERTY_KINDS.map((k) => {
+            const Icon = k.icon
+            const active = propertyKind === k.id
             const softColor =
-              DEAL_ICON_STYLES[d.id] || 'bg-slate-100 text-slate-600'
+              KIND_ICON_STYLES[k.id] || 'bg-slate-100 text-slate-600'
 
             return (
               <button
-                key={d.id}
+                key={k.id}
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation()
-                  setDealCategory(active ? '' : d.id)
+                  setPropertyKind(active ? '' : k.id)
                 }}
-                className={`relative flex min-h-[132px] flex-col items-center justify-center rounded-2xl border p-4 text-center transition-all ${
+                className={`relative flex min-h-[110px] flex-col items-center justify-center rounded-2xl border p-4 text-center transition-all ${
                   active
                     ? 'border-2 border-[#2563eb] bg-blue-50/25 shadow-xs'
                     : 'border-slate-200/90 bg-white hover:border-slate-300 hover:bg-slate-50/40'
@@ -247,73 +261,20 @@ export function TypeSection({
                     active ? 'bg-[#2563eb] text-white' : softColor
                   }`}
                 >
-                  <Icon className="size-5" />
+                  <Icon className="size-4" />
                 </div>
-                <div className="mt-3">
-                  <strong className="block text-xs font-black text-[#0a1122] sm:text-[13px]">
-                    {getOptionLabel(d, locale)}
-                  </strong>
-                  <span className="mt-1 block text-[11px] leading-snug text-slate-400">
-                    {getOptionSub(d, locale)}
-                  </span>
-                </div>
+                <strong className="mt-2.5 text-xs font-bold text-[#0a1122] sm:text-sm">
+                  {getOptionLabel(k, locale)}
+                </strong>
               </button>
             )
           })}
         </div>
       </div>
 
-      {Boolean(dealCategory) && (
+      {Boolean(propertyKind && propertyKind !== 'Land') && (
         <div className="mt-6 animate-in fade-in slide-in-from-top-2 duration-200">
-          <label className="mb-2.5 block text-xs font-extrabold text-[#0a1122] sm:text-sm">
-            {tSec.whatKindLabel}
-          </label>
-          <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3">
-            {PROPERTY_KINDS.map((k) => {
-              const Icon = k.icon
-              const active = propertyKind === k.id
-              const softColor =
-                KIND_ICON_STYLES[k.id] || 'bg-slate-100 text-slate-600'
-
-              return (
-                <button
-                  key={k.id}
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setPropertyKind(active ? '' : k.id)
-                  }}
-                  className={`relative flex min-h-[110px] flex-col items-center justify-center rounded-2xl border p-4 text-center transition-all ${
-                    active
-                      ? 'border-2 border-[#2563eb] bg-blue-50/25 shadow-xs'
-                      : 'border-slate-200/90 bg-white hover:border-slate-300 hover:bg-slate-50/40'
-                  }`}
-                >
-                  {active && (
-                    <span className="absolute top-2.5 end-2.5 flex size-5 items-center justify-center rounded-full bg-[#2563eb] text-white shadow-2xs">
-                      <Check className="size-3 stroke-[3]" />
-                    </span>
-                  )}
-                  <div
-                    className={`flex size-10 items-center justify-center rounded-xl transition ${
-                      active ? 'bg-[#2563eb] text-white' : softColor
-                    }`}
-                  >
-                    <Icon className="size-4" />
-                  </div>
-                  <strong className="mt-2.5 text-xs font-extrabold text-[#0a1122] sm:text-sm">
-                    {getOptionLabel(k, locale)}
-                  </strong>
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      {Boolean(dealCategory && propertyKind && propertyKind !== 'Land') && (
-        <div className="mt-6 animate-in fade-in slide-in-from-top-2 duration-200">
-          <label className="mb-2.5 block text-xs font-extrabold text-slate-500">
+          <label className="mb-2.5 block text-xs font-bold text-slate-500">
             {tSec.statusLabel}
           </label>
           <div
@@ -335,8 +296,8 @@ export function TypeSection({
                   }}
                   className={`relative flex min-h-[100px] flex-col items-center justify-center rounded-2xl border p-4 text-center transition-all ${
                     active
-                      ? 'border-2 border-[#2563eb] bg-blue-50/25 font-black text-[#0a1122] shadow-xs'
-                      : 'border-slate-200 bg-white font-bold text-slate-700 hover:bg-slate-50'
+                      ? 'border-2 border-[#2563eb] bg-blue-50/25 font-bold text-[#0a1122] shadow-xs'
+                      : 'border-slate-200 bg-white font-semibold text-slate-700 hover:bg-slate-50'
                   }`}
                 >
                   <div
@@ -1148,19 +1109,11 @@ export function DetailsSection({
 }
 
 // =====================================================
-// 4. قسم السعر والوصف والمستندات (PricingSection)
+// 4. قسم السعر والأقساط وسنة الاستلام والمستندات بالدولار ($)
 // =====================================================
 export function PricingSection({
   sectionRef,
   onHover,
-  dealCategory,
-  isExitDeal,
-  isDirectSale,
-  isRentDeal,
-  currencyChoice,
-  setCurrencyChoice,
-  priceInputMode,
-  setPriceInputMode,
   form,
   update,
   selected,
@@ -1212,10 +1165,17 @@ export function PricingSection({
   onGenerateAiDescription: () => void
 }) {
   const { locale, dir } = useTranslation()
+  const isAr = locale === 'ar'
   const fT = getSellerFormTranslations(locale)
   const prT = fT.pricingSection
-  const currSym =
-    currencyChoice === 'GEL' ? '₾' : currencyChoice === 'EUR' ? '€' : '$'
+  const currSym = '$'
+
+  const freqOptions = [
+    { id: 'شهري', label: isAr ? 'شهري' : 'Monthly' },
+    { id: 'ربع سنوي', label: isAr ? 'ربع سنوي' : 'Quarterly' },
+    { id: 'نصف سنوي', label: isAr ? 'نصف سنوي' : 'Semi-Annual' },
+    { id: 'سنوي', label: isAr ? 'سنوي' : 'Annual' },
+  ]
 
   return (
     <section
@@ -1224,278 +1184,237 @@ export function PricingSection({
       onMouseEnter={onHover}
       className="scroll-mt-32 rounded-[24px] border border-slate-200/80 bg-white p-5 shadow-2xs sm:p-7"
     >
-      <h2 className="text-lg font-black text-[#0a1122]">{prT.title}</h2>
-      <p className="mt-1 text-xs text-slate-500">{prT.subtitle}</p>
-
-      <div className="mt-5">
-        <span className="mb-2 block text-xs font-extrabold text-[#0a1122]">
-          {prT.priceLabel.replace(' *', '')}{' '}
-          <span className="text-red-500">*</span>
-        </span>
-
-        <div className="flex flex-wrap items-center gap-3">
-          {!isRentDeal && !isExitDeal && (
-            <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 p-1">
-              <button
-                type="button"
-                onClick={() => setPriceInputMode('total')}
-                className={`rounded-full px-4 py-1 text-xs font-extrabold transition ${
-                  priceInputMode === 'total'
-                    ? 'bg-[#2563eb] text-white'
-                    : 'text-slate-600'
-                }`}
-              >
-                {prT.totalPriceBtn}
-              </button>
-              <button
-                type="button"
-                onClick={() => setPriceInputMode('sqm')}
-                className={`rounded-full px-4 py-1 text-xs font-extrabold transition ${
-                  priceInputMode === 'sqm'
-                    ? 'bg-[#2563eb] text-white'
-                    : 'text-slate-600'
-                }`}
-              >
-                {prT.perSqmBtn}
-              </button>
-            </div>
-          )}
-
-          <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 p-1">
-            {(
-              [
-                { code: 'GEL', sym: '₾' },
-                { code: 'USD', sym: '$' },
-                { code: 'EUR', sym: '€' },
-              ] as const
-            ).map((c) => (
-              <button
-                key={c.code}
-                type="button"
-                onClick={() => setCurrencyChoice(c.code)}
-                className={`flex size-7 items-center justify-center rounded-full text-xs font-black transition ${
-                  currencyChoice === c.code
-                    ? 'bg-[#2563eb] text-white'
-                    : 'text-slate-600 hover:text-[#0a1122]'
-                }`}
-              >
-                {c.sym}
-              </button>
-            ))}
-          </div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h2 className="text-lg font-bold text-[#0a1122]">{prT.title}</h2>
+          <p className="mt-1 text-xs text-slate-500">{prT.subtitle}</p>
         </div>
+
+        <span className="inline-flex h-8 items-center rounded-full bg-blue-50 px-3.5 text-xs font-bold text-[#2563eb]">
+          {isAr ? 'العملة الموحدة: دولار أمريكي ($)' : 'Currency: USD ($)'}
+        </span>
       </div>
 
-      {isExitDeal ? (
-        <div className="mt-4 space-y-5">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <MoneyField
-              label={prT.contractPriceLabel}
-              value={form.contractPrice}
-              currencySymbol={currSym}
-              update={(v) => update('contractPrice', v)}
-            />
-            <MoneyField
-              label={prT.paidAmountLabel}
-              value={form.paidAmount}
-              currencySymbol={currSym}
-              update={(v) => update('paidAmount', v)}
-            />
-            <MoneyField
-              label={prT.marketPriceLabel}
-              value={form.marketPrice}
-              currencySymbol={currSym}
-              update={(v) => update('marketPrice', v)}
-            />
-          </div>
+      <div className="mt-5 space-y-5">
+        {/* 1. إجمالي سعر العقد + المدفوع (الكاش المطلوب) + سعر السوق اليوم بالدولار ($) */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <MoneyField
+            label={prT.contractPriceLabel}
+            value={form.contractPrice}
+            currencySymbol={currSym}
+            update={(v) => update('contractPrice', v)}
+          />
+          <MoneyField
+            label={prT.paidAmountLabel}
+            value={form.paidAmount}
+            currencySymbol={currSym}
+            update={(v) => update('paidAmount', v)}
+          />
+          <MoneyField
+            label={prT.marketPriceLabel}
+            value={form.marketPrice}
+            currencySymbol={currSym}
+            update={(v) => update('marketPrice', v)}
+          />
+        </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <MoneyField
-              label={prT.installmentAmountLabel}
-              value={form.installment}
-              currencySymbol={currSym}
-              update={(v) => update('installment', v)}
-            />
-            <Field
-              label={prT.remainingMonthsLabel}
-              id="remainingMonths"
-              type="number"
-              placeholder="24"
-              value={form.remainingMonths}
-              update={(v) => update('remainingMonths', v)}
-            />
-            <MonthYearSelector
-              label={prT.contractDateLabel}
-              monthValue={form.contractMonth}
-              yearValue={form.contractYear}
-              yearsList={years}
-              onMonthChange={(m) => update('contractMonth', m)}
-              onYearChange={(y) => update('contractYear', y)}
-            />
-          </div>
+        {/* 2. قيمة القسط الدوري + الشهور المتبقية + تاريخ العقد الأصلي */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <MoneyField
+            label={prT.installmentAmountLabel}
+            value={form.installment}
+            currencySymbol={currSym}
+            update={(v) => update('installment', v)}
+          />
+          <Field
+            label={prT.remainingMonthsLabel}
+            id="remainingMonths"
+            type="number"
+            placeholder="24"
+            value={form.remainingMonths}
+            update={(v) => update('remainingMonths', v)}
+          />
+          <MonthYearSelector
+            label={prT.contractDateLabel}
+            monthValue={form.contractMonth}
+            yearValue={form.contractYear}
+            yearsList={years}
+            onMonthChange={(m) => update('contractMonth', m)}
+            onYearChange={(y) => update('contractYear', y)}
+          />
+        </div>
 
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="size-5 text-[#007a5a]" />
-                <strong className="text-xs font-extrabold text-[#0a1122] sm:text-sm">
-                  {prT.docsBoxTitle}
-                </strong>
-              </div>
-              <span className="rounded-full bg-white px-2.5 py-0.5 font-mono text-xs font-black text-[#007a5a]">
-                {
-                  (
-                    ['contract', 'receipts', 'statement', 'passport'] as const
-                  ).filter((k) => Boolean(unitDocs[k]?.url)).length
-                }
-                /4
-              </span>
-            </div>
-
-            <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-              {(
-                [
-                  { key: 'contract', title: prT.docContract },
-                  { key: 'receipts', title: prT.docReceipts },
-                  { key: 'statement', title: prT.docStatement },
-                  { key: 'passport', title: prT.docPassport },
-                ] as const
-              ).map((sec) => {
-                const entry = unitDocs[sec.key]
-                const hasDoc = Boolean(entry?.url)
-                const isUploadingThis = uploadingDocKey === sec.key
+        {/* 3. دورية سداد القسط + سنة الاستلام (التي تظهر في الكارت) */}
+        <div className="grid grid-cols-1 gap-4 border-t border-slate-100 pt-4 sm:grid-cols-2">
+          <div>
+            <label className="mb-2 block text-xs font-bold text-[#0a1122]">
+              {isAr ? 'نظام سداد الأقساط' : 'Installment Frequency'}
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {freqOptions.map((fq) => {
+                const active = selected.frequency?.[0] === fq.id
                 return (
-                  <div
-                    key={sec.key}
-                    className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-3"
+                  <button
+                    key={fq.id}
+                    type="button"
+                    onClick={() => toggleSingle('frequency', fq.id)}
+                    className={`rounded-full border px-4 py-2 text-xs font-bold transition ${
+                      active
+                        ? 'border-[#007a5a] bg-[#007a5a] text-white shadow-2xs'
+                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                    }`}
                   >
-                    <div className="flex items-center gap-2 truncate">
-                      {hasDoc ? (
-                        <FileCheck2 className="size-4 shrink-0 text-[#007a5a]" />
-                      ) : (
-                        <FileText className="size-4 shrink-0 text-slate-400" />
-                      )}
-                      <span className="truncate text-xs font-bold text-[#0a1122]">
-                        {sec.title}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      {hasDoc && isImageFileUrl(entry.url, entry.name) && (
-                        <button
-                          type="button"
-                          onClick={() => onPreviewDoc(entry.url, sec.title)}
-                          className="rounded-lg bg-slate-100 p-1.5 text-slate-600 hover:bg-slate-200"
-                        >
-                          <Eye className="size-3.5" />
-                        </button>
-                      )}
-                      <label className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-lg bg-[#007a5a] px-2.5 text-[11px] font-bold text-white hover:bg-[#006248]">
-                        {isUploadingThis ? (
-                          <Loader2 className="size-3 animate-spin" />
-                        ) : (
-                          <UploadCloud className="size-3" />
-                        )}
-                        <span>{hasDoc ? prT.changeBtn : prT.uploadBtn}</span>
-                        <input
-                          type="file"
-                          accept="image/*,.pdf"
-                          className="sr-only"
-                          onChange={(e) =>
-                            onUploadDoc(sec.key, e.target.files)
-                          }
-                        />
-                      </label>
-                      {hasDoc && (
-                        <button
-                          type="button"
-                          onClick={() => onRemoveDoc(sec.key)}
-                          className="rounded-lg bg-red-50 p-1.5 text-red-600 hover:bg-red-100"
-                        >
-                          <Trash2 className="size-3.5" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
+                    {fq.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-xs font-bold text-[#0a1122]">
+              {isAr
+                ? 'سنة الاستلام (تظهر على الكارت) *'
+                : 'Delivery Year (Shown on Card) *'}
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {['2025', '2026', '2027', '2028', '2029', '2030'].map((yr) => {
+                const active = (form.deliveryYear || '2026') === yr
+                return (
+                  <button
+                    key={yr}
+                    type="button"
+                    onClick={() => update('deliveryYear', yr)}
+                    className={`rounded-full border px-3.5 py-2 font-mono text-xs font-bold transition ${
+                      active
+                        ? 'border-[#2563eb] bg-[#2563eb] text-white shadow-2xs'
+                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    {yr}
+                  </button>
                 )
               })}
             </div>
           </div>
         </div>
-      ) : isRentDeal ? (
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <MoneyField
-            label=""
-            value={form.rentPrice}
-            currencySymbol={currSym}
-            update={(v) => update('rentPrice', v)}
-          />
-          <div className="flex flex-col justify-center space-y-2.5">
-            <label className="flex cursor-pointer items-center gap-2.5 rounded-2xl border border-slate-200/80 px-4 py-3 text-xs font-bold text-slate-700 hover:bg-slate-50">
-              <input
-                type="checkbox"
-                checked={selected.discountOffer?.[0] === 'yes'}
-                onChange={(e) =>
-                  toggleSingle('discountOffer', e.target.checked ? 'yes' : 'no')
-                }
-                className="size-4 rounded-full accent-[#2563eb]"
-              />
-              <span>{prT.negotiableLabel}</span>
-            </label>
-          </div>
-        </div>
-      ) : (
-        <div className="mt-4 grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
-          {priceInputMode === 'total' ? (
-            <MoneyField
-              label=""
-              value={form.contractPrice}
-              currencySymbol={currSym}
-              update={(v) => {
-                update('contractPrice', v)
-                update('paidAmount', v)
-              }}
+
+        {/* 4. قابلية التفاوض والخصم في الكاش */}
+        <div className="grid grid-cols-1 items-start gap-4 border-t border-slate-100 pt-4 sm:grid-cols-2">
+          <label className="flex cursor-pointer items-center gap-2.5 rounded-2xl border border-slate-200/80 px-4 py-3.5 text-xs font-bold text-slate-700 hover:bg-slate-50">
+            <input
+              type="checkbox"
+              checked={selected.discountOffer?.[0] === 'yes'}
+              onChange={(e) =>
+                toggleSingle('discountOffer', e.target.checked ? 'yes' : 'no')
+              }
+              className="size-4 rounded-full accent-[#007a5a]"
             />
-          ) : (
+            <span>
+              {isAr
+                ? 'المبلغ المطلوب (الكاش) قابل للتفاوض للمشتري الجاد'
+                : prT.negotiableLabel}
+            </span>
+          </label>
+
+          {selected.discountOffer?.[0] === 'yes' && (
             <MoneyField
-              label=""
-              value={form.pricePerSqm}
+              label={prT.discountAmountLabel}
+              value={form.discountAmount}
               currencySymbol={currSym}
-              update={(v) => update('pricePerSqm', v)}
+              update={(v) => update('discountAmount', v)}
             />
           )}
+        </div>
 
-          <div className="space-y-2.5">
-            <label className="flex cursor-pointer items-center gap-2.5 rounded-2xl border border-slate-200/80 px-4 py-3 text-xs font-bold text-slate-700 hover:bg-slate-50">
-              <input
-                type="checkbox"
-                checked={selected.discountOffer?.[0] === 'yes'}
-                onChange={(e) =>
-                  toggleSingle('discountOffer', e.target.checked ? 'yes' : 'no')
-                }
-                className="size-4 rounded-full accent-[#2563eb]"
-              />
-              <span>{prT.negotiableLabel}</span>
-            </label>
+        {/* 5. رفع المستندات الـ 4 لتفعيل شارة "متحقق بالمستندات" */}
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="size-5 text-[#007a5a]" />
+              <strong className="text-xs font-bold text-[#0a1122] sm:text-sm">
+                {prT.docsBoxTitle}
+              </strong>
+            </div>
+            <span className="rounded-full bg-white px-2.5 py-0.5 font-mono text-xs font-bold text-[#007a5a]">
+              {
+                (
+                  ['contract', 'receipts', 'statement', 'passport'] as const
+                ).filter((k) => Boolean(unitDocs[k]?.url)).length
+              }
+              /4
+            </span>
+          </div>
 
-            {Boolean(dealCategory === 'sale') && (
-              <label className="flex cursor-pointer items-center gap-2.5 rounded-2xl border border-slate-200/80 px-4 py-3 text-xs font-bold text-slate-700 hover:bg-slate-50">
-                <input
-                  type="checkbox"
-                  checked={flags.exchangePossible}
-                  onChange={(e) =>
-                    setFlags((p) => ({
-                      ...p,
-                      exchangePossible: e.target.checked,
-                    }))
-                  }
-                  className="size-4 rounded-full accent-[#2563eb]"
-                />
-                <span>{prT.exchangePossibleLabel}</span>
-              </label>
-            )}
+          <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+            {(
+              [
+                { key: 'contract', title: prT.docContract },
+                { key: 'receipts', title: prT.docReceipts },
+                { key: 'statement', title: prT.docStatement },
+                { key: 'passport', title: prT.docPassport },
+              ] as const
+            ).map((sec) => {
+              const entry = unitDocs[sec.key]
+              const hasDoc = Boolean(entry?.url)
+              const isUploadingThis = uploadingDocKey === sec.key
+              return (
+                <div
+                  key={sec.key}
+                  className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-3"
+                >
+                  <div className="flex items-center gap-2 truncate">
+                    {hasDoc ? (
+                      <FileCheck2 className="size-4 shrink-0 text-[#007a5a]" />
+                    ) : (
+                      <FileText className="size-4 shrink-0 text-slate-400" />
+                    )}
+                    <span className="truncate text-xs font-bold text-[#0a1122]">
+                      {sec.title}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    {hasDoc && isImageFileUrl(entry.url, entry.name) && (
+                      <button
+                        type="button"
+                        onClick={() => onPreviewDoc(entry.url, sec.title)}
+                        className="rounded-lg bg-slate-100 p-1.5 text-slate-600 hover:bg-slate-200"
+                      >
+                        <Eye className="size-3.5" />
+                      </button>
+                    )}
+                    <label className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-lg bg-[#007a5a] px-2.5 text-[11px] font-bold text-white hover:bg-[#006248]">
+                      {isUploadingThis ? (
+                        <Loader2 className="size-3 animate-spin" />
+                      ) : (
+                        <UploadCloud className="size-3" />
+                      )}
+                      <span>{hasDoc ? prT.changeBtn : prT.uploadBtn}</span>
+                      <input
+                        type="file"
+                        accept="image/*,.pdf"
+                        className="sr-only"
+                        onChange={(e) =>
+                          onUploadDoc(sec.key, e.target.files)
+                        }
+                      />
+                    </label>
+                    {hasDoc && (
+                      <button
+                        type="button"
+                        onClick={() => onRemoveDoc(sec.key)}
+                        className="rounded-lg bg-red-50 p-1.5 text-red-600 hover:bg-red-100"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
           </div>
         </div>
-      )}
+      </div>
 
       <label className="mt-4 flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200/80 bg-[#f8fafc]/70 p-4 text-start transition hover:bg-slate-50">
         <input
@@ -1511,52 +1430,22 @@ export function PricingSection({
         />
         <Crown className="size-4 text-slate-400" />
         <div>
-          <strong className="block text-xs font-extrabold text-[#0a1122]">
+          <strong className="block text-xs font-bold text-[#0a1122]">
             {prT.exclusiveTitle}
           </strong>
           <span className="text-[11px] text-slate-400">{prT.exclusiveSub}</span>
         </div>
       </label>
 
-      {selected.discountOffer?.[0] === 'yes' && isExitDeal && (
-        <div className="mt-4">
-          <MoneyField
-            label={prT.discountAmountLabel}
-            value={form.discountAmount}
-            currencySymbol={currSym}
-            update={(v) => update('discountAmount', v)}
-          />
-        </div>
-      )}
-
-      {(Boolean(dealCategory) || Boolean(form.location)) && (
-        <div className="mt-5 flex items-center gap-3 rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4">
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#2563eb] text-white">
-            <Sparkles className="size-4" />
-          </div>
-          <div className="text-start">
-            <strong className="block text-xs font-black text-[#0a1122]">
-              {prT.districtGuideTitle}
-              {form.location
-                ? ` · ${form.locationDisplay || getLocalizedGeorgiaAreaName(form.location, locale)}`
-                : ''}
-            </strong>
-            <p className="mt-0.5 text-[11px] text-slate-500">
-              {prT.districtGuideSub}
-            </p>
-          </div>
-        </div>
-      )}
-
       <div className="mt-6">
         <div className="mb-2 flex items-center justify-between">
-          <label className="text-xs font-extrabold text-[#0a1122] sm:text-sm">
+          <label className="text-xs font-bold text-[#0a1122] sm:text-sm">
             {prT.descriptionLabel}
           </label>
           <button
             type="button"
             onClick={onGenerateAiDescription}
-            className="inline-flex items-center gap-1.5 rounded-full bg-indigo-100 px-4 py-1.5 text-xs font-extrabold text-[#2563eb] transition hover:bg-indigo-200"
+            className="inline-flex items-center gap-1.5 rounded-full bg-indigo-100 px-4 py-1.5 text-xs font-bold text-[#2563eb] transition hover:bg-indigo-200"
           >
             <Sparkles className="size-3.5" />
             <span>{prT.aiDescriptionBtn}</span>

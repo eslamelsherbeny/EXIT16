@@ -66,7 +66,7 @@ export default async function AccountPage({
   const sessionId = extractUserIdFromCookie(rawSession)
 
   if (!rawSession || !sessionId) {
-    redirect('/login')
+    redirect('/login?expired=1')
   }
 
   const supabase = await getSupabase()
@@ -78,9 +78,10 @@ export default async function AccountPage({
     .maybeSingle()
 
   if (!profile) {
-    redirect('/login')
+    redirect('/login?expired=1')
   }
 
+  // فحص أمني صارم لتوقيع الـ HMAC-SHA256 ومطابقته لبصمة كلمة المرور في قاعدة البيانات
   const sessionCheck = parseAndVerifySessionCookie(
     rawSession,
     profile.password_hash
@@ -88,45 +89,21 @@ export default async function AccountPage({
   const userStatus = String(profile.status || 'active').trim().toLowerCase()
 
   if (!sessionCheck.valid || userStatus === 'suspended') {
-    redirect('/login')
+    redirect('/login?expired=1')
   }
 
   const { dict, dir, locale } = await getServerI18n()
-  const tMain = dict.accountPages.main
-
-  const cleanEmail = String(profile.email || '').trim().toLowerCase()
-  const cleanPhone = String(profile.phone || '').trim()
-
-  try {
-    if (cleanEmail) {
-      await Promise.all([
-        supabase
-          .from('sell_requests')
-          .update({ user_id: profile.id })
-          .is('user_id', null)
-          .ilike('email', cleanEmail),
-        supabase
-          .from('buy_requests')
-          .update({ user_id: profile.id })
-          .is('user_id', null)
-          .ilike('email', cleanEmail),
-      ])
-    }
-    if (cleanPhone) {
-      await Promise.all([
-        supabase
-          .from('sell_requests')
-          .update({ user_id: profile.id })
-          .is('user_id', null)
-          .eq('phone', cleanPhone),
-        supabase
-          .from('buy_requests')
-          .update({ user_id: profile.id })
-          .is('user_id', null)
-          .eq('phone', cleanPhone),
-      ])
-    }
-  } catch {}
+  const tMain = (dict as Record<string, any>)?.accountPages?.main || {
+    emptyWelcomePrefix: locale === 'ar' ? 'أهلاً بك يا' : 'Welcome,',
+    emptyWelcomeFallbackName: locale === 'ar' ? 'عميلنا' : 'Valued Client',
+    emptyWelcomeSuffix: '👋',
+    emptyDesc:
+      locale === 'ar'
+        ? 'لم تقم بإضافة وحدة للتنازل أو تسجيل طلب شراء حتى الآن. ابدأ الآن من الأزرار التالية:'
+        : 'You have not listed a unit or submitted a buy request yet. Start below:',
+    sellCta: locale === 'ar' ? 'اعرض وحدتك للتنازل' : 'List Your Unit',
+    buyCta: locale === 'ar' ? 'سجل طلب شراء' : 'Submit Buy Request',
+  }
 
   let mySellsData: any[] = []
   let myBuysData: any[] = []
@@ -190,7 +167,6 @@ export default async function AccountPage({
   sells.forEach((unit) => {
     const unitIdStr = String(unit.id)
 
-    // 1. عداد كارت «العروض» للبائع: يحسب فقط العروض الفعلية المعتمدة من الأدمن (لا يحسب pending_admin ولا recommended)
     const unitApprovedOffers = allOffers.filter((o: any) => {
       if (!o || String(o.property_id) !== unitIdStr) return false
       const st = normalizeOfferStatus(o)
@@ -202,7 +178,6 @@ export default async function AccountPage({
     })
     offersCountMap[unit.id] = unitApprovedOffers.length
 
-    // 2. عداد شريط الرادار الأخضر: يحسب عدد المشترين المتوافقين في نفس المنطقة والميزانية
     let totalMatchingBuyersCount = 0
     allBuyersForMatch.forEach((b: any) => {
       if (!b || !b.id) return
@@ -217,7 +192,6 @@ export default async function AccountPage({
     matchedBuyersCountMap[unit.id] = totalMatchingBuyersCount
   })
 
-  // حساب عداد زر «عروضي» للمشتري (العروض التي أرسلها + الفرص المرشحة بالرادار)
   const myLeadIds = new Set(buys.map((b) => String(b.id)))
   const directBuyerOffers = allOffers.filter((o: any) => {
     if (!o) return false

@@ -54,40 +54,6 @@ export async function getAccountOffersDataAction() {
 
   const { supabase, user: profile } = session
 
-  const cleanEmail = String(profile.email || '').trim().toLowerCase()
-  const cleanPhone = String(profile.phone || '').trim()
-
-  try {
-    if (cleanEmail) {
-      await Promise.all([
-        supabase
-          .from('sell_requests')
-          .update({ user_id: profile.id })
-          .is('user_id', null)
-          .ilike('email', cleanEmail),
-        supabase
-          .from('buy_requests')
-          .update({ user_id: profile.id })
-          .is('user_id', null)
-          .ilike('email', cleanEmail),
-      ])
-    }
-    if (cleanPhone) {
-      await Promise.all([
-        supabase
-          .from('sell_requests')
-          .update({ user_id: profile.id })
-          .is('user_id', null)
-          .eq('phone', cleanPhone),
-        supabase
-          .from('buy_requests')
-          .update({ user_id: profile.id })
-          .is('user_id', null)
-          .eq('phone', cleanPhone),
-      ])
-    }
-  } catch {}
-
   const [
     { data: mySellsData },
     { data: myBuysData },
@@ -239,7 +205,6 @@ export async function getAccountOffersDataAction() {
       const m = calculateSmartMatch(unit, activeBuyerReq, matchLabels, locale)
       const isFromAdmin = adminRecMap.has(String(unit.id))
 
-      // قاعدة الـ 80%: الوحدات >= 80% تظهر تلقائياً، والأقل من 80% لا تظهر إلا بترشيح الأدمن
       if (isFromAdmin || m.score >= AUTO_PUBLISH_MATCH_THRESHOLD) {
         smartRecommendations.push({
           unit,
@@ -294,8 +259,9 @@ export async function submitBuyerOfferAction(payload: {
   try {
     const supabase = await getOfferSupabase()
     const session = await getVerifiedClientSession()
-    let buyerUser = session?.user || null
-    let sessionId = buyerUser?.id || null
+    const authenticatedUser = session?.user || null
+    let buyerUser = authenticatedUser
+    let sessionId = authenticatedUser?.id || null
 
     const cleanGuestName = String(payload.guestName || '').trim().slice(0, 120)
     const cleanGuestPhone = String(payload.guestPhone || '')
@@ -314,18 +280,16 @@ export async function submitBuyerOfferAction(payload: {
       }
     }
 
+    // تأمين حسابات المستخدمين: الزائر غير المسجل لا يمكنه انتحال حساب موجود بمجرد كتابة رقم هاتفه بدون جلسة موثقة
     if (!sessionId && cleanGuestPhone) {
       const { data: existingUserByPhone } = await supabase
         .from('users')
-        .select('id, name, email, phone, role, status, password_hash')
+        .select('id, name, email, phone')
         .eq('phone', cleanGuestPhone)
         .limit(1)
         .maybeSingle()
 
-      if (existingUserByPhone) {
-        buyerUser = existingUserByPhone
-        sessionId = String(existingUserByPhone.id)
-      } else {
+      if (!existingUserByPhone) {
         const autoEmail =
           cleanGuestEmail ||
           `buyer.${cleanGuestPhone.replace(/\D/g, '')}@aqarexit.ge`
@@ -464,11 +428,12 @@ export async function submitBuyerOfferAction(payload: {
       reasonsList.push(`💬 ${payload.buyerNotes.trim().slice(0, 180)}`)
     }
 
+    // لا يُعتبر المشتري موثقاً كأدمن إلا إذا كان داخلاً بجلسة موقعة حقيقية
     const isBuyerAlreadyVerified = Boolean(
-      buyerUser &&
-        (buyerUser.role === 'admin' ||
-          buyerUser.role === 'moderator' ||
-          buyerUser.role === 'sales')
+      authenticatedUser &&
+        (authenticatedUser.role === 'admin' ||
+          authenticatedUser.role === 'moderator' ||
+          authenticatedUser.role === 'sales')
     )
     const initialOfferStatus: OfferStatusType = isBuyerAlreadyVerified
       ? 'pending_seller'
@@ -567,6 +532,7 @@ export async function submitBuyerOfferAction(payload: {
     const notifsToInsert: any[] = [
       {
         user_id: null,
+        role: 'admin',
         title: `🎯 ${oDict.adminNewOfferNotifTitle} (${offerRef}): ${sanitizeGeorgiaProjectTitle(unit.project_name)}`,
         message: `${buyerNameFinal} (${buyerPhoneFinal}) — $${finalOfferedCash.toLocaleString('en-US')}`,
         type: 'lead',
@@ -578,6 +544,7 @@ export async function submitBuyerOfferAction(payload: {
     if (initialOfferStatus === 'pending_seller' && unit.user_id) {
       notifsToInsert.push({
         user_id: unit.user_id,
+        role: 'client',
         title: `💰 ${oDict.sellerNewOfferNotifTitle} (${sanitizeGeorgiaProjectTitle(unit.project_name)})`,
         message: `$${finalOfferedCash.toLocaleString('en-US')}`,
         type: 'new_offer',
@@ -681,6 +648,7 @@ export async function respondToOfferBySellerAction(payload: {
       const notifs: any[] = [
         {
           user_id: null,
+          role: 'admin',
           title: `🔥 ${oDict.adminDealAcceptedNotifTitle} (${offerRef}): ${sanitizeGeorgiaProjectTitle(unit.project_name)}`,
           message: `${unit.name} 🤝 ${offer.buyer_name || ''} ($${Number(offer.offered_cash).toLocaleString('en-US')})`,
           type: 'property',
@@ -692,6 +660,7 @@ export async function respondToOfferBySellerAction(payload: {
       if (offer.buyer_user_id) {
         notifs.push({
           user_id: offer.buyer_user_id,
+          role: 'client',
           title: `🎉 ${oDict.buyerOfferAcceptedNotifTitle} (${sanitizeGeorgiaProjectTitle(unit.project_name)})`,
           message: oDict.buyerOfferAcceptedNotifMsg,
           type: 'status_update',
@@ -727,6 +696,7 @@ export async function respondToOfferBySellerAction(payload: {
         try {
           await supabase.from('notifications').insert({
             user_id: offer.buyer_user_id,
+            role: 'client',
             title: `🔄 ${oDict.buyerCounterNotifTitle} (${sanitizeGeorgiaProjectTitle(unit.project_name)})`,
             message: `$${cleanCounter.toLocaleString('en-US')}`,
             type: 'new_offer',
@@ -843,6 +813,7 @@ export async function respondToCounterOfferByBuyerAction(payload: {
       const notifs: any[] = [
         {
           user_id: null,
+          role: 'admin',
           title: `🔥 ${oDict.adminDealAcceptedNotifTitle} (${offerRef}): ${sanitizeGeorgiaProjectTitle(unit.project_name)}`,
           message: `${unit.name} 🤝 ${offer.buyer_name || ''} ($${agreedAmount.toLocaleString('en-US')})`,
           type: 'property',
@@ -854,6 +825,7 @@ export async function respondToCounterOfferByBuyerAction(payload: {
       if (unit.user_id) {
         notifs.push({
           user_id: unit.user_id,
+          role: 'client',
           title: `🎉 ${oDict.sellerCounterAcceptedNotifTitle} (${sanitizeGeorgiaProjectTitle(unit.project_name)})`,
           message: `$${agreedAmount.toLocaleString('en-US')}`,
           type: 'status_update',
@@ -998,6 +970,7 @@ export async function adminManageOfferLifecycleAction(payload: {
         try {
           await supabase.from('notifications').insert({
             user_id: unit.user_id,
+            role: 'client',
             title: `💰 ${oDict.sellerNewOfferNotifTitle} (${sanitizeGeorgiaProjectTitle(unit.project_name)})`,
             message: `$${Number(offer.offered_cash).toLocaleString('en-US')}`,
             type: 'new_offer',
@@ -1131,6 +1104,7 @@ export async function adminSendRecommendationAction(payload: {
       try {
         await supabase.from('notifications').insert({
           user_id: lead.user_id,
+          role: 'client',
           title: `🎯 ${oDict.buyerAdminRecNotifTitle} (${match.score}%)`,
           message: `${sanitizeGeorgiaProjectTitle(unit.project_name)} — ${unit.area || ''}`,
           type: 'property_match',
@@ -1185,7 +1159,6 @@ export async function adminSendBulkRecommendationsAction(payload: {
         continue
       }
       const m = calculateSmartMatch(unit, lead, undefined, locale)
-      // نرشح يدوياً فقط لمن هم بين 60% و 79% (لأن >= 80% منشورة لديهم تلقائياً)
       if (m.score >= threshold && m.score < AUTO_PUBLISH_MATCH_THRESHOLD) {
         await adminSendRecommendationAction({
           propertyId: unit.id,
@@ -1243,7 +1216,6 @@ export async function adminCreateOfficialOfferAction(payload: {
       }
     }
 
-    // التحقق من عدم وجود عرض مقبول مسبقاً على نفس الوحدة
     const { data: lockedCheck } = await supabase
       .from('property_offers')
       .select('id')
@@ -1324,6 +1296,7 @@ export async function adminCreateOfficialOfferAction(payload: {
     if (unit.user_id) {
       notifs.push({
         user_id: unit.user_id,
+        role: 'client',
         title: `💰 ${oDict.sellerNewOfferNotifTitle} (${sanitizeGeorgiaProjectTitle(unit.project_name)})`,
         message: `$${cleanCash.toLocaleString('en-US')}`,
         type: 'new_offer',
@@ -1334,6 +1307,7 @@ export async function adminCreateOfficialOfferAction(payload: {
     if (buyerUserId) {
       notifs.push({
         user_id: buyerUserId,
+        role: 'client',
         title: `✅ ${oDict.offerSubmittedSuccess}`,
         message: `${sanitizeGeorgiaProjectTitle(unit.project_name)} — $${cleanCash.toLocaleString('en-US')}`,
         type: 'new_offer',

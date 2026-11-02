@@ -22,7 +22,7 @@ export function getPasswordFingerprint(
 
 /**
  * إنشاء توكن جلسة موقّع رقمياً بـ HMAC-SHA256
- * الصيغة الموحدة: userId.pwdFp.signature (3 أجزاء دائماً)
+ * الصيغة الموحدة الإجبارية: userId.pwdFp.signature (3 أجزاء دائماً)
  */
 export function createSignedSessionToken(
   userId: string,
@@ -49,8 +49,17 @@ export function extractUserIdFromCookie(
     if (!rawCookieValue) return null
     const decoded = decodeURIComponent(String(rawCookieValue).trim())
     if (!decoded || decoded.includes('[object')) return null
-    const candidate = decoded.split('.')[0]?.trim() || null
-    if (!candidate || candidate.length < 8 || candidate.length > 64) return null
+    const parts = decoded.split('.')
+    if (parts.length !== 3) return null
+    const candidate = parts[0]?.trim() || null
+    if (
+      !candidate ||
+      !/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(
+        candidate
+      )
+    ) {
+      return null
+    }
     return candidate
   } catch {
     return null
@@ -58,7 +67,7 @@ export function extractUserIdFromCookie(
 }
 
 /**
- * التحقق الصارم من صحة توقيع الكوكي ومطابقته لبصمة كلمة المرور الحالية
+ * التحقق الصارم من صحة توقيع الكوكي (HMAC-SHA256) ومطابقته لبصمة كلمة المرور الحالية
  */
 export function parseAndVerifySessionCookie(
   rawCookieValue: string | undefined | null,
@@ -72,44 +81,42 @@ export function parseAndVerifySessionCookie(
     }
 
     const parts = clean.split('.')
-    const userId = parts[0]?.trim()
-
-    if (!userId || userId.length < 8 || userId.length > 64) {
+    if (parts.length !== 3) {
       return { valid: false, userId: null }
     }
 
-    // 1. الصيغة القياسية الثلاثية: userId.pwdFp.sig
-    if (parts.length === 3) {
-      const [, cookiePwdFp, sig] = parts
-      if (!cookiePwdFp || !sig) return { valid: false, userId: null }
+    const [userId, cookiePwdFp, sig] = parts.map((p) => p?.trim() || '')
 
-      const expectedSig = createHmac('sha256', getSessionSecret())
-        .update(`${userId}.${cookiePwdFp}`)
-        .digest('hex')
-        .slice(0, 24)
+    if (
+      !userId ||
+      !/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(
+        userId
+      ) ||
+      cookiePwdFp.length !== 12 ||
+      sig.length !== 24
+    ) {
+      return { valid: false, userId: null }
+    }
 
-      const bufA = Buffer.from(sig)
-      const bufB = Buffer.from(expectedSig)
-      if (bufA.length !== bufB.length || !timingSafeEqual(bufA, bufB)) {
+    const expectedSig = createHmac('sha256', getSessionSecret())
+      .update(`${userId}.${cookiePwdFp}`)
+      .digest('hex')
+      .slice(0, 24)
+
+    const bufA = Buffer.from(sig)
+    const bufB = Buffer.from(expectedSig)
+    if (bufA.length !== bufB.length || !timingSafeEqual(bufA, bufB)) {
+      return { valid: false, userId: null }
+    }
+
+    if (currentDbPasswordHash !== undefined) {
+      const dbPwdFp = getPasswordFingerprint(currentDbPasswordHash)
+      if (cookiePwdFp !== dbPwdFp) {
         return { valid: false, userId: null }
       }
-
-      if (currentDbPasswordHash !== undefined) {
-        const dbPwdFp = getPasswordFingerprint(currentDbPasswordHash)
-        if (cookiePwdFp !== dbPwdFp) {
-          return { valid: false, userId: null }
-        }
-      }
-
-      return { valid: true, userId }
     }
 
-    // 2. دعم انتقالي للصيغة الثنائية إن وجدت في متصفح العميل
-    if (parts.length === 2 && /^[0-9a-fA-F-]{32,36}$/.test(userId)) {
-      return { valid: true, userId }
-    }
-
-    return { valid: false, userId: null }
+    return { valid: true, userId }
   } catch {
     return { valid: false, userId: null }
   }

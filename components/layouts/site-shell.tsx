@@ -472,10 +472,6 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
           }
         }
 
-        if (!verifiedLoggedIn && isMounted) {
-          document.cookie = 'session_hint=; path=/; max-age=0; SameSite=Lax'
-        }
-
         if (verifiedLoggedIn) {
           const notifRes = await getUserNotificationsAction('client')
           if (isMounted && notifRes.success) {
@@ -576,19 +572,20 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
   const currentLangCfg =
     SUPPORTED_LANGUAGES[language] || SUPPORTED_LANGUAGES.ar
 
+  // ترتيب التابات الجديد: "بيع وحدتك" أولاً، ثم "الفرص المتاحة 🔥" في المنتصف كما طلبت
   const navItems = [
+    {
+      href: '/sell',
+      label:
+        labels?.navbar?.sell ||
+        (language === 'ar' ? 'بيع وحدتك' : 'Sell Your Unit'),
+    },
     {
       href: '/opportunities',
       label:
         labels?.navbar?.opportunities ||
         (language === 'ar' ? 'الفرص المتاحة' : 'Opportunities'),
       isCore: true,
-    },
-    {
-      href: '/sell',
-      label:
-        labels?.navbar?.sell ||
-        (language === 'ar' ? 'بيع وحدتك' : 'Sell Your Unit'),
     },
     {
       href: '/how-it-works',
@@ -902,13 +899,13 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
             </div>
           )}
 
-          <a
+          <Link
             href={hasSession ? '/account' : '/login'}
             className="inline-flex h-9.5 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-slate-200 bg-white px-3.5 text-xs font-bold text-[#1e3a8a] transition hover:bg-slate-50"
           >
             <User className="size-3.5 text-slate-500" />
             <span>{desktopAuthBtnLabel}</span>
-          </a>
+          </Link>
 
           <Link
             href="/buy"
@@ -917,7 +914,6 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
             {buyUnitBtnLabel}
           </Link>
 
-          {/* زر "عايز تبيع" باللون البرتقالي المتدرج وبدون زر إضافة إعلان المكرر */}
           <Link
             href="/sell"
             className="inline-flex h-9.5 items-center justify-center whitespace-nowrap rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-5 text-xs font-bold text-white shadow-[0_6px_18px_rgba(255,92,75,0.28)] transition hover:opacity-95 active:scale-95"
@@ -926,18 +922,17 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
           </Link>
 
           {isAdmin && (
-            <a
+            <Link
               href="/admin"
               className="inline-flex h-9.5 items-center justify-center gap-1 whitespace-nowrap rounded-full bg-[#1e3a8a] px-3 text-xs font-bold text-white transition hover:bg-[#1d4ed8]"
               title="لوحة الإدارة"
             >
               <ShieldCheck className="size-3.5 shrink-0 text-[#2ee59d]" />
               <span>{language === 'ar' ? 'الإدارة' : 'Admin'}</span>
-            </a>
+            </Link>
           )}
         </div>
 
-        {/* الموبايل: زر اللغة + زر عايز تبيع البرتقالي + زر القائمة */}
         <div className="flex items-center gap-1.5 lg:hidden">
           <div className="relative" ref={langRefMobile}>
             <button
@@ -1011,7 +1006,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
           <hr className="my-4 border-gray-100" />
           <div className="flex flex-col gap-2.5">
             {isAdmin && (
-              <a
+              <Link
                 href="/admin"
                 onClick={() => setMobileMenuOpen(false)}
                 className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#1e3a8a] text-xs font-bold text-white"
@@ -1020,7 +1015,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
                 <span>
                   {language === 'ar' ? 'لوحة الإدارة' : 'Admin Panel'}
                 </span>
-              </a>
+              </Link>
             )}
             <Link
               href="/sell"
@@ -1036,14 +1031,14 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
             >
               {buyUnitBtnLabel}
             </Link>
-            <a
+            <Link
               href={hasSession ? '/account' : '/login'}
               onClick={() => setMobileMenuOpen(false)}
               className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#e2e8f0] bg-gray-50 text-xs font-bold text-[#1e3a8a]"
             >
               <User className="size-4" />
               <span>{desktopAuthBtnLabel}</span>
-            </a>
+            </Link>
           </div>
         </div>
       )}
@@ -1091,7 +1086,6 @@ export function Footer({ dictionary: _unused }: { dictionary?: Dictionary }) {
         ? getMyAccountLabel(language, labels.navbar as Record<string, any>)
         : getGuestLoginLabel(language, labels.navbar as Record<string, any>),
       href: hasSession ? '/account' : '/login',
-      fullReload: true,
     },
   ]
 
@@ -1119,7 +1113,6 @@ export function Footer({ dictionary: _unused }: { dictionary?: Dictionary }) {
               ? 'ადმინისტრატორის პანელი'
               : 'Admin Panel',
       href: '/admin',
-      fullReload: true,
     },
   ]
 
@@ -1168,21 +1161,12 @@ export function Footer({ dictionary: _unused }: { dictionary?: Dictionary }) {
             <ul className="mt-4 flex flex-col gap-3 text-xs text-blue-50 sm:text-[13px]">
               {platformLinks.map((item) => (
                 <li key={item.href}>
-                  {item.fullReload ? (
-                    <a
-                      href={item.href}
-                      className="transition-colors hover:text-[#2ee59d]"
-                    >
-                      {item.label}
-                    </a>
-                  ) : (
-                    <Link
-                      href={item.href}
-                      className="transition-colors hover:text-[#2ee59d]"
-                    >
-                      {item.label}
-                    </Link>
-                  )}
+                  <Link
+                    href={item.href}
+                    className="transition-colors hover:text-[#2ee59d]"
+                  >
+                    {item.label}
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -1211,21 +1195,12 @@ export function Footer({ dictionary: _unused }: { dictionary?: Dictionary }) {
             <ul className="mt-4 flex flex-col gap-3 text-xs text-blue-50 sm:text-[13px]">
               {legalLinks.map((item) => (
                 <li key={item.href}>
-                  {item.fullReload ? (
-                    <a
-                      href={item.href}
-                      className="transition-colors hover:text-[#2ee59d]"
-                    >
-                      {item.label}
-                    </a>
-                  ) : (
-                    <Link
-                      href={item.href}
-                      className="transition-colors hover:text-[#2ee59d]"
-                    >
-                      {item.label}
-                    </Link>
-                  )}
+                  <Link
+                    href={item.href}
+                    className="transition-colors hover:text-[#2ee59d]"
+                  >
+                    {item.label}
+                  </Link>
                 </li>
               ))}
             </ul>

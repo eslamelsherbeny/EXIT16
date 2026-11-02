@@ -29,10 +29,6 @@ import {
   getCurrentSellerProfileAction,
   markUserPhoneVerifiedAction,
 } from '@/actions/submit-forms'
-import {
-  SUPPORTED_COUNTRIES,
-  type CountryCode,
-} from '@/components/layouts/site-shell'
 import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
 import { ScrollReveal } from '@/components/shared/scroll-reveal'
 import { AccountActionLinks } from './delete-account-modal'
@@ -47,12 +43,19 @@ import {
   SellerPromoSection,
   Timeline,
 } from './seller-promo-timeline'
-import { getCurrencySymbol, useTranslation } from '@/lib/i18n'
+import { useTranslation } from '@/lib/i18n'
 
 export type { SellerUnitItem } from './seller-unit-helpers'
 
 const INITIAL_VISIBLE_UNITS = 3
 const SELLER_WA_SENT_STORAGE_KEY = 'aqar_seller_wa_fasttrack_sent'
+
+// أسعار الباقات الافتراضية باللاري الجورجي (₾) لتفادي خطأ undefined في CountryConfig
+const DEFAULT_GEORGIA_PROMO_PACKAGES = {
+  days7: 20,
+  days14: 50,
+  days30: 100,
+}
 
 export function SellerDashboard({
   sells,
@@ -68,8 +71,11 @@ export function SellerDashboard({
   deletionRequested?: boolean
 }) {
   const router = useRouter()
-  const { t: dict, locale, dir } = useTranslation()
-  const t = dict.accountComponents.seller as Record<string, any>
+  const { t: dict, locale, dir, siteSettings } = useTranslation() as Record<
+    string,
+    any
+  >
+  const t = (dict?.accountComponents?.seller as Record<string, any>) || {}
 
   const [localSells, setLocalSells] = useState<SellerUnitItem[]>(sells)
   useEffect(() => {
@@ -93,9 +99,9 @@ export function SellerDashboard({
 
   const [currentUserId, setCurrentUserId] = useState('')
   const [userPhoneVerified, setUserPhoneVerified] = useState(false)
-  const [hiddenWaUnitIds, setHiddenWaUnitIds] = useState<Record<string, boolean>>(
-    {}
-  )
+  const [hiddenWaUnitIds, setHiddenWaUnitIds] = useState<
+    Record<string, boolean>
+  >({})
 
   const activeUnit =
     localSells.find((s) => s.id === selectedId) || localSells[0]
@@ -150,27 +156,38 @@ export function SellerDashboard({
 
   if (!activeUnit) return null
 
-  const unitCountryCode: CountryCode = 'GE'
-  const unitCountryCfg = SUPPORTED_COUNTRIES.GE
-  const currencySymbol = getCurrencySymbol(unitCountryCode, locale)
-  const pkgPrices = unitCountryCfg.defaultPackages
-  const supportWhatsApp = String(dict.footer?.phone || '+201018595959').replace(
-    /\D/g,
-    ''
-  )
+  // عملة العقارات موحدة بالدولار ($)، وعملة باقات التمييز باللاري الجورجي (₾)
+  const unitCurrencySymbol = '$'
+  const promoCurrencySymbol = '₾'
+
+  const pkgPrices = {
+    days7:
+      Number(siteSettings?.promo_GE_7 || siteSettings?.promo7Price) ||
+      DEFAULT_GEORGIA_PROMO_PACKAGES.days7,
+    days14:
+      Number(siteSettings?.promo_GE_14 || siteSettings?.promo14Price) ||
+      DEFAULT_GEORGIA_PROMO_PACKAGES.days14,
+    days30:
+      Number(siteSettings?.promo_GE_30 || siteSettings?.promo30Price) ||
+      DEFAULT_GEORGIA_PROMO_PACKAGES.days30,
+  }
+
+  const supportWhatsApp = String(
+    siteSettings?.whatsappNumber || dict?.footer?.phone || '+201018595959'
+  ).replace(/\D/g, '')
 
   const dynamicPackages: Array<{
     days: 7 | 14 | 30
     price: number
     label: string
   }> = [
-    { days: 7, price: pkgPrices.days7, label: `7 ${t.daysWord}` },
-    { days: 14, price: pkgPrices.days14, label: `14 ${t.daysWord}` },
-    { days: 30, price: pkgPrices.days30, label: `30 ${t.daysWord}` },
+    { days: 7, price: pkgPrices.days7, label: `7 ${t.daysWord || 'أيام'}` },
+    { days: 14, price: pkgPrices.days14, label: `14 ${t.daysWord || 'يوماً'}` },
+    { days: 30, price: pkgPrices.days30, label: `30 ${t.daysWord || 'يوماً'}` },
   ]
 
   const money = (value: number | null | undefined) =>
-    `${Number(value || 0).toLocaleString('en-US')} ${currencySymbol}`
+    `${unitCurrencySymbol}${Number(value || 0).toLocaleString('en-US')}`
 
   const comp = calculateUnitCompletion(activeUnit, t)
   const meta = getSellerTimelineAndStatus(activeUnit, comp, t)
@@ -194,7 +211,9 @@ export function SellerDashboard({
     typeof window !== 'undefined'
       ? window.location.origin
       : 'https://exit-16.vercel.app'
-  const unitRef = `AE-${activeUnit.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase()}`
+  const unitRef =
+    (activeUnit as any).code ||
+    `AE-${activeUnit.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase()}`
   const targetSellerUserId = activeUnit.user_id || currentUserId
   const adminVerifyUnitLink = `${siteOrigin}/admin/properties?verifyPhoneUserId=${encodeURIComponent(targetSellerUserId)}&unitId=${encodeURIComponent(activeUnit.id)}`
 
@@ -208,7 +227,6 @@ export function SellerDashboard({
     meta.code === 'sold' ||
     meta.code === 'transferring'
 
-  // بمجرد الضغط على زر الواتساب وفتح التطبيق يختفي الصندوق فوراً ويُحفظ ذلك
   const handleSellerFastTrackWaClick = () => {
     setHiddenWaUnitIds((prev) => ({ ...prev, [activeUnit.id]: true }))
     try {
@@ -371,7 +389,7 @@ export function SellerDashboard({
                 className="inline-flex h-9 items-center justify-center gap-1 rounded-xl bg-[var(--brand-navy,#0a1122)] px-3.5 text-xs font-bold text-white shadow-2xs transition hover:bg-[var(--brand-navy-hover,#16223f)]"
               >
                 <Plus className="size-3.5" />
-                <span>{t.addUnitBtn.replace('+ ', '')}</span>
+                <span>{(t.addUnitBtn || '+ إضافة وحدة').replace('+ ', '')}</span>
               </Link>
             </div>
 
@@ -528,7 +546,7 @@ export function SellerDashboard({
                 className="inline-flex h-9 items-center justify-center gap-1 rounded-xl bg-[var(--brand-navy,#0a1122)] px-3.5 text-xs font-bold text-white shadow-2xs transition hover:bg-[var(--brand-navy-hover,#16223f)]"
               >
                 <Plus className="size-3.5" />
-                <span>{t.addUnitBtn.replace('+ ', '')}</span>
+                <span>{(t.addUnitBtn || '+ إضافة وحدة').replace('+ ', '')}</span>
               </Link>
             )}
           </div>
@@ -583,7 +601,6 @@ export function SellerDashboard({
             )}
           </div>
 
-          {/* شريط تسريع مراجعة ونشر الوحدة وإيجاد مشتري عبر واتساب (يختفي فور الضغط عليه) */}
           {!isWaFastTrackHidden && (
             <div className="mt-4 flex flex-col justify-between gap-3 rounded-2xl border border-[#25D366]/40 bg-[#f0fdf4] p-3.5 sm:flex-row sm:items-center">
               <p className="text-xs leading-relaxed font-extrabold text-[#0a1122]">
@@ -607,7 +624,10 @@ export function SellerDashboard({
               <p className="text-[11px] font-semibold text-gray-500">
                 {t.contractPriceLabel}
               </p>
-              <strong className="mt-0.5 block text-base font-black text-[var(--brand-navy,#0a1122)] tabular-nums sm:text-lg">
+              <strong
+                dir="ltr"
+                className="mt-0.5 block text-base font-black text-[var(--brand-navy,#0a1122)] tabular-nums sm:text-lg"
+              >
                 {money(activeUnit.contract_price)}
               </strong>
             </div>
@@ -615,7 +635,10 @@ export function SellerDashboard({
               <p className="text-[11px] font-semibold text-gray-500">
                 {t.paidAmountLabel}
               </p>
-              <strong className="mt-0.5 block text-base font-black text-[var(--brand-primary,#007a5a)] tabular-nums sm:text-lg">
+              <strong
+                dir="ltr"
+                className="mt-0.5 block text-base font-black text-[var(--brand-primary,#007a5a)] tabular-nums sm:text-lg"
+              >
                 {money(activeUnit.paid_amount)}
               </strong>
             </div>
@@ -734,7 +757,7 @@ export function SellerDashboard({
             <p
               className={`mt-1.5 text-[11px] font-semibold ${
                 uploadedDocsCount === 4
-                  ? 'text-[var(--brand-primary,#007a5a)] font-extrabold'
+                  ? 'font-extrabold text-[var(--brand-primary,#007a5a)]'
                   : 'text-amber-700'
               }`}
             >
@@ -812,7 +835,7 @@ export function SellerDashboard({
           copiedAdRef={copiedAdRef}
           setCopiedAdRef={setCopiedAdRef}
           dynamicPackages={dynamicPackages}
-          currencySymbol={currencySymbol}
+          currencySymbol={promoCurrencySymbol}
           isPending={isPending}
           onSelectPackage={(pkg) => setConfirmModal({ type: 'promote', pkg })}
           onCancelPromo={() => setConfirmModal({ type: 'cancel_promo' })}
@@ -832,7 +855,7 @@ export function SellerDashboard({
         t={t}
         confirmModal={confirmModal}
         setConfirmModal={setConfirmModal}
-        currencySymbol={currencySymbol}
+        currencySymbol={promoCurrencySymbol}
         isPending={isPending}
         onConfirm={executeConfirmedAction}
       />

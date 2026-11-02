@@ -8,23 +8,19 @@ function isWellFormedSessionToken(rawCookie: string | undefined): boolean {
     if (!clean || clean.includes('[object')) return false
     const parts = clean.split('.')
 
-    // الصيغة القياسية الثلاثية: userId.pwdFp.sig
+    // الصيغة القياسية الثلاثية فقط: userId.pwdFp.sig
     if (parts.length === 3) {
       const [userId, pwdFp, sig] = parts
       return Boolean(
         userId &&
-          userId.length >= 8 &&
+          /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(
+            userId
+          ) &&
           pwdFp &&
           pwdFp.length === 12 &&
           sig &&
           sig.length === 24
       )
-    }
-
-    // الصيغة الثنائية الانتقالية: userId.sig
-    if (parts.length === 2) {
-      const [userId, sig] = parts
-      return Boolean(userId && userId.length >= 8 && sig && sig.length >= 16)
     }
 
     return false
@@ -38,15 +34,12 @@ export function proxy(request: NextRequest) {
   const sessionCookie = request.cookies.get('user_session')?.value
   const hasValidFormat = isWellFormedSessionToken(sessionCookie)
 
-  // إذا تم تحويل المستخدم إلى /login بسبب انتهاء الجلسة، نمسح الكوكي التالفة
-  if (pathname === '/login' && sessionCookie && !hasValidFormat) {
-    const res = NextResponse.next()
-    res.cookies.delete('user_session')
-    res.cookies.delete('session_hint')
-    return res
-  }
-
-  if (pathname === '/login' && searchParams.get('expired') === '1') {
+  // إذا تم تحويل المستخدم إلى /login بسبب انتهاء الجلسة أو تلف الكوكي، نمسح الكوكي التالفة فوراً
+  if (
+    pathname === '/login' &&
+    ((sessionCookie && !hasValidFormat) ||
+      searchParams.get('expired') === '1')
+  ) {
     const res = NextResponse.next()
     res.cookies.delete('user_session')
     res.cookies.delete('session_hint')

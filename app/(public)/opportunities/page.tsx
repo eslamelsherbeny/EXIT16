@@ -60,12 +60,12 @@ import { isNonGeorgianLegacyArea } from '@/lib/smart-matcher'
 const PAGE_SIZE = 48
 const FAVORITES_STORAGE_KEY = 'darak_favorites'
 
-// الأعمدة العامة الآمنة شاملة الكود وعدد المشاهدات والباقة الإعلانية والطوابق
+// الأعمدة العامة الآمنة شاملة الكود وعدد المشاهدات والباقة الإعلانية والطوابق والمميزات
 const PUBLIC_SAFE_UNIT_COLUMNS =
-  'id, code, project_name, developer_name, area, unit_type, size, garden_size, rooms, bedrooms, bathrooms, floor_number, total_floors, finishing, delivery_status, delivery_month, delivery_year, features, description, contract_price, paid_amount, market_price, price_per_sqm, installment_amount, installment_frequency, contract_month, contract_year, years_left, willing_to_discount, discount_amount, images, status, is_featured, boost_tier, featured_until, docs_verified, views_count, created_at'
+  'id, code, project_name, developer_name, area, unit_type, size, garden_size, rooms, bedrooms, bathrooms, floor_number, total_floors, finishing, delivery_status, delivery_month, delivery_year, features, description, contract_price, paid_amount, market_price, price_per_sqm, installment_amount, installment_frequency, contract_month, contract_year, years_left, willing_to_discount, discount_amount, images, status, is_featured, boost_tier, featured_until, docs_verified, views_count, created_at, documents'
 
 const CORE_SAFE_UNIT_COLUMNS =
-  'id, project_name, developer_name, area, unit_type, size, rooms, bathrooms, finishing, delivery_status, description, contract_price, paid_amount, market_price, installment_amount, installment_frequency, contract_year, years_left, willing_to_discount, discount_amount, images, status, created_at'
+  'id, project_name, developer_name, area, unit_type, size, rooms, bathrooms, finishing, delivery_status, features, description, contract_price, paid_amount, market_price, installment_amount, installment_frequency, contract_year, years_left, willing_to_discount, discount_amount, images, status, created_at, documents'
 
 export default function OpportunitiesPage() {
   const { t: dict, locale, dir } = useTranslation()
@@ -97,6 +97,8 @@ export default function OpportunitiesPage() {
   const [maxInstallment, setMaxInstallment] = useState('')
   const [maxContractPrice, setMaxContractPrice] = useState('')
   const [selectedTypes, setSelectedTypes] = useState<string[]>([])
+  const [selectedFeature, setSelectedFeature] = useState<string>('')
+  const [activeCategoryLabel, setActiveCategoryLabel] = useState<string>('')
   const [deliveryStatusIdx, setDeliveryStatusIdx] = useState<number>(0)
   const [deliveryYearIdx, setDeliveryYearIdx] = useState<number>(0)
   const [contractYearIdx, setContractYearIdx] = useState<number>(0)
@@ -150,6 +152,8 @@ export default function OpportunitiesPage() {
       const qParam = urlParams.get('q')
       const areaParam = urlParams.get('area')
       const typeParam = urlParams.get('type')
+      const featureParam = urlParams.get('feature')
+      const labelParam = urlParams.get('label')
       const roomsParam = urlParams.get('rooms')
       const minPriceParam = urlParams.get('minPrice')
       const maxPriceParam = urlParams.get('maxPrice')
@@ -158,6 +162,9 @@ export default function OpportunitiesPage() {
       const viewParam = urlParams.get('view')
       const delivParam = urlParams.get('delivery')
 
+      if (labelParam) {
+        setActiveCategoryLabel(labelParam)
+      }
       if (qParam) {
         setSearch(qParam)
         updateSivrceFilter('q', qParam)
@@ -173,6 +180,17 @@ export default function OpportunitiesPage() {
       if (typeParam) {
         updateSivrceFilter('propertyType', typeParam)
         updateSivrceFilter('quickTag', typeParam)
+      }
+      if (featureParam) {
+        setSelectedFeature(featureParam)
+        const fLower = featureParam.toLowerCase()
+        if (fLower.includes('sea')) updateSivrceFilter('quickTag', 'sea')
+        else if (fLower.includes('pool')) updateSivrceFilter('quickTag', 'pool')
+        else if (fLower.includes('jacuzzi'))
+          updateSivrceFilter('quickTag', 'jacuzzi')
+        else if (fLower.includes('ski')) updateSivrceFilter('quickTag', 'ski')
+        else if (fLower.includes('panoramic'))
+          updateSivrceFilter('quickTag', 'luxury')
       }
       if (roomsParam) {
         updateSivrceFilter('rooms', roomsParam)
@@ -192,6 +210,10 @@ export default function OpportunitiesPage() {
       }
       if (delivParam === 'Under Construction') {
         setDeliveryStatusIdx(2)
+        updateSivrceFilter('quickTag', 'under_const')
+      } else if (delivParam === 'Ready to Move') {
+        setDeliveryStatusIdx(1)
+        updateSivrceFilter('quickTag', 'ready')
       }
       if (viewParam === 'map3d') setViewMode('map3d')
       else if (viewParam === 'map2d') setViewMode('map2d')
@@ -258,9 +280,23 @@ export default function OpportunitiesPage() {
     loadApprovedProperties()
   }, [])
 
-  const dbProperties: MappedProperty[] = useMemo(() => {
-    return rawDbRows.map((row) => mapDbRowToProperty(row, locale, t))
-  }, [rawDbRows, locale, t])
+  // نربط كل وحدة بقائمة المميزات (features) المسجلة في الداتا بيز ليشتغل الفلتر عليها بدقة
+  const dbProperties: Array<MappedProperty & { rawFeatures: string[] }> =
+    useMemo(() => {
+      return rawDbRows.map((row) => {
+        const mapped = mapDbRowToProperty(row, locale, t)
+        const metaFeatures = row?.documents?.__unit_meta?.features
+        const rowFeatures = Array.isArray(row?.features)
+          ? row.features
+          : Array.isArray(metaFeatures)
+            ? metaFeatures
+            : []
+        return {
+          ...mapped,
+          rawFeatures: rowFeatures.map((f: any) => String(f || '')),
+        }
+      })
+    }, [rawDbRows, locale, t])
 
   useEffect(() => {
     setVisibleLimit(PAGE_SIZE)
@@ -269,6 +305,7 @@ export default function OpportunitiesPage() {
     areaQuery,
     negotiable,
     selectedTypes,
+    selectedFeature,
     deliveryStatusIdx,
     deliveryYearIdx,
     contractYearIdx,
@@ -295,6 +332,8 @@ export default function OpportunitiesPage() {
     setMaxInstallment('')
     setMaxContractPrice('')
     setSelectedTypes([])
+    setSelectedFeature('')
+    setActiveCategoryLabel('')
     setDeliveryStatusIdx(0)
     setDeliveryYearIdx(0)
     setContractYearIdx(0)
@@ -326,12 +365,16 @@ export default function OpportunitiesPage() {
     })
     setOpenPanel(null)
     setVisibleLimit(PAGE_SIZE)
+    if (typeof window !== 'undefined') {
+      window.history.replaceState({}, '', '/opportunities')
+    }
   }
 
   const activeFilterCount = useMemo(() => {
     let count = 0
     if (negotiable) count++
     if (areaQuery.trim()) count++
+    if (selectedFeature.trim()) count++
     if (maxCash.trim()) count++
     if (maxInstallment.trim()) count++
     if (maxContractPrice.trim()) count++
@@ -352,6 +395,7 @@ export default function OpportunitiesPage() {
   }, [
     negotiable,
     areaQuery,
+    selectedFeature,
     maxCash,
     maxInstallment,
     maxContractPrice,
@@ -380,8 +424,9 @@ export default function OpportunitiesPage() {
     const cleanMaxArea = Number(toEnglishDigits(sivrceFilters.maxArea))
 
     const filtered = dbProperties.filter((item) => {
+      const featuresJoined = (item.rawFeatures || []).join(' ').toLowerCase()
       const haystack =
-        `${item.project} ${item.developer} ${item.area} ${item.rawArea} ${item.code} ${item.type}`.toLowerCase()
+        `${item.project} ${item.developer} ${item.area} ${item.rawArea} ${item.code} ${item.type} ${featuresJoined}`.toLowerCase()
 
       if (search.trim() && !haystack.includes(search.trim().toLowerCase())) {
         return false
@@ -395,6 +440,32 @@ export default function OpportunitiesPage() {
         return false
       }
       if (negotiable && !item.negotiable) return false
+
+      // فلترة الميزة المختارة من الصفحة الرئيسية أو الشريط السريع (مثل Jacuzzi, Pool, Sea view, Security, Ski access)
+      if (selectedFeature.trim()) {
+        const targetFeat = selectedFeature.trim().toLowerCase()
+        const hasFeatureMatch =
+          featuresJoined.includes(targetFeat) ||
+          haystack.includes(targetFeat) ||
+          (targetFeat === 'sea view' &&
+            (featuresJoined.includes('بحر') ||
+              featuresJoined.includes('sea') ||
+              item.rawArea.toLowerCase().includes('batumi'))) ||
+          (targetFeat === 'pool' &&
+            (featuresJoined.includes('سباحة') ||
+              featuresJoined.includes('pool'))) ||
+          (targetFeat === 'jacuzzi' &&
+            (featuresJoined.includes('جاكوزي') ||
+              featuresJoined.includes('jacuzzi'))) ||
+          (targetFeat === 'ski access' &&
+            (featuresJoined.includes('تزلج') ||
+              featuresJoined.includes('ski') ||
+              item.rawArea.toLowerCase().includes('gudauri') ||
+              item.rawArea.toLowerCase().includes('bakuriani')))
+
+        if (!hasFeatureMatch) return false
+      }
+
       if (
         selectedTypes.length > 0 &&
         !selectedTypes.some(
@@ -408,18 +479,57 @@ export default function OpportunitiesPage() {
 
       if (sivrceFilters.propertyType) {
         const pt = sivrceFilters.propertyType.toLowerCase()
+        const itemTp = item.type.toLowerCase()
         if (
           pt === 'apartment' &&
-          !item.type.toLowerCase().includes('apart') &&
+          !itemTp.includes('apart') &&
           !item.type.includes('شقة') &&
-          !item.type.includes('استوديو')
+          !item.type.includes('استوديو') &&
+          !item.type.includes('ბინა') &&
+          !item.type.includes('квартир')
         ) {
           return false
-        } else if (
-          pt !== 'apartment' &&
-          !item.type.toLowerCase().includes(pt)
-        ) {
-          return false
+        } else if (pt === 'private house') {
+          if (
+            !itemTp.includes('house') &&
+            !itemTp.includes('villa') &&
+            !item.type.includes('منزل') &&
+            !item.type.includes('فيلا') &&
+            !item.type.includes('تاون')
+          ) {
+            return false
+          }
+        } else if (pt === 'cottage') {
+          if (
+            !itemTp.includes('cottage') &&
+            !itemTp.includes('chalet') &&
+            !item.type.includes('شاليه') &&
+            !item.type.includes('كوخ')
+          ) {
+            return false
+          }
+        } else if (pt === 'hotel') {
+          if (
+            !itemTp.includes('hotel') &&
+            !item.type.includes('فندق')
+          ) {
+            return false
+          }
+        } else if (pt === 'commercial') {
+          if (
+            !itemTp.includes('commercial') &&
+            !itemTp.includes('office') &&
+            !itemTp.includes('shop') &&
+            !item.type.includes('تجاري') &&
+            !item.type.includes('مكتب') &&
+            !item.type.includes('محل')
+          ) {
+            return false
+          }
+        } else if (pt === 'land') {
+          if (!itemTp.includes('land') && !item.type.includes('أرض')) {
+            return false
+          }
         }
       }
 
@@ -498,6 +608,7 @@ export default function OpportunitiesPage() {
     areaQuery,
     negotiable,
     selectedTypes,
+    selectedFeature,
     deliveryStatusIdx,
     deliveryYearIdx,
     contractYearIdx,
@@ -550,21 +661,116 @@ export default function OpportunitiesPage() {
   const nextBatchCount = Math.min(PAGE_SIZE, remainingCount)
 
   const quickCategoryChips = [
-    { id: '', label: isAr ? 'كل عروض التنازل' : 'All Exit Deals', icon: Grid2X2 },
-    { id: 'Apartment', label: isAr ? 'شقق بالتقسيط' : 'Apartments', icon: Building2 },
-    { id: 'Private house', label: isAr ? 'منازل وفيلات' : 'Houses & Villas', icon: Home },
-    { id: 'Cottage', label: isAr ? 'أكواخ وشاليهات' : 'Cottages', icon: Trees },
-    { id: 'luxury', label: isAr ? 'عقارات فاخرة' : 'Luxury homes', icon: Gem },
-    { id: 'ready', label: isAr ? 'استلام فوري' : 'Ready to move', icon: Calendar },
-    { id: 'under_const', label: isAr ? 'قيد الإنشاء' : 'Under construction', icon: Building },
-    { id: 'sea', label: isAr ? 'إطلالة بحرية' : 'Sea view', icon: Waves },
-    { id: 'pool', label: isAr ? 'مع حمام سباحة' : 'With pool', icon: Sparkles },
-    { id: 'jacuzzi', label: isAr ? 'مع جاكوزي' : 'With Jacuzzi', icon: Bath },
-    { id: 'ski', label: isAr ? 'منتجعات تزلج' : 'Ski resorts', icon: Mountain },
-    { id: 'Land', label: isAr ? 'قطع أراضٍ' : 'Land plots', icon: MapPin },
-    { id: 'Commercial', label: isAr ? 'تجاري وإداري' : 'Commercial', icon: Store },
-    { id: 'Hotel', label: isAr ? 'شقق فندقية' : 'Hotel units', icon: Hotel },
+    {
+      id: '',
+      label: isAr ? 'كل عروض التنازل' : 'All Exit Deals',
+      icon: Grid2X2,
+      feature: '',
+      type: '',
+    },
+    {
+      id: 'Apartment',
+      label: isAr ? 'شقق بالتقسيط' : 'Apartments',
+      icon: Building2,
+      feature: '',
+      type: 'Apartment',
+    },
+    {
+      id: 'Private house',
+      label: isAr ? 'منازل وفيلات' : 'Houses & Villas',
+      icon: Home,
+      feature: '',
+      type: 'Private house',
+    },
+    {
+      id: 'Cottage',
+      label: isAr ? 'أكواخ وشاليهات' : 'Cottages',
+      icon: Trees,
+      feature: '',
+      type: 'Cottage',
+    },
+    {
+      id: 'luxury',
+      label: isAr ? 'عقارات فاخرة' : 'Luxury homes',
+      icon: Gem,
+      feature: 'Panoramic view',
+      type: '',
+    },
+    {
+      id: 'ready',
+      label: isAr ? 'استلام فوري' : 'Ready to move',
+      icon: Calendar,
+      feature: '',
+      type: '',
+    },
+    {
+      id: 'under_const',
+      label: isAr ? 'قيد الإنشاء' : 'Under construction',
+      icon: Building,
+      feature: '',
+      type: '',
+    },
+    {
+      id: 'sea',
+      label: isAr ? 'إطلالة بحرية' : 'Sea view',
+      icon: Waves,
+      feature: 'Sea view',
+      type: '',
+    },
+    {
+      id: 'pool',
+      label: isAr ? 'مع حمام سباحة' : 'With pool',
+      icon: Sparkles,
+      feature: 'Pool',
+      type: '',
+    },
+    {
+      id: 'jacuzzi',
+      label: isAr ? 'مع جاكوزي' : 'With Jacuzzi',
+      icon: Bath,
+      feature: 'Jacuzzi',
+      type: '',
+    },
+    {
+      id: 'ski',
+      label: isAr ? 'منتجعات تزلج' : 'Ski resorts',
+      icon: Mountain,
+      feature: 'Ski access',
+      type: '',
+    },
+    {
+      id: 'Land',
+      label: isAr ? 'قطع أراضٍ' : 'Land plots',
+      icon: MapPin,
+      feature: '',
+      type: 'Land',
+    },
+    {
+      id: 'Commercial',
+      label: isAr ? 'تجاري وإداري' : 'Commercial',
+      icon: Store,
+      feature: '',
+      type: 'Commercial',
+    },
+    {
+      id: 'Hotel',
+      label: isAr ? 'شقق فندقية' : 'Hotel units',
+      icon: Hotel,
+      feature: '',
+      type: 'Hotel',
+    },
   ]
+
+  // تحديد عنوان البحث النشط ليظهر فوق الكروت كما طلب المستخدم
+  const resolvedSearchHeading =
+    activeCategoryLabel ||
+    search.trim() ||
+    selectedFeature ||
+    (sivrceFilters.propertyType
+      ? quickCategoryChips.find((c) => c.id === sivrceFilters.propertyType)
+          ?.label || sivrceFilters.propertyType
+      : '') ||
+    (areaQuery ? getLocalizedGeorgiaAreaName(areaQuery, locale) : '')
 
   if (viewMode === 'map2d' || viewMode === 'map3d') {
     return (
@@ -590,7 +796,9 @@ export default function OpportunitiesPage() {
       <div className="layout-container">
         <div className="text-start">
           <h1 className="text-xl font-bold tracking-tight text-[var(--brand-navy,#0a1122)] sm:text-3xl md:text-[34px]">
-            {t.header.title}
+            {resolvedSearchHeading
+              ? `${isAr ? 'نتائج البحث:' : 'Search Results:'} ${resolvedSearchHeading} (${availableUnitsCount})`
+              : t.header.title}
           </h1>
           <p className="mt-1.5 flex items-center gap-1.5 text-xs leading-relaxed text-gray-500 sm:mt-2 sm:text-sm">
             <MapPin className="size-3.5 text-[#2563eb]" />
@@ -664,6 +872,7 @@ export default function OpportunitiesPage() {
                       type="button"
                       onClick={() => {
                         updateSivrceFilter('propertyType', tp.id)
+                        setActiveCategoryLabel(tp.id ? tp.label : '')
                         setOpenPanel(null)
                       }}
                       className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-semibold ${
@@ -728,7 +937,9 @@ export default function OpportunitiesPage() {
                   : 'border-slate-200 bg-slate-50/70 text-[#0f1d40] hover:bg-slate-100'
               }`}
             >
-              <span>{isAr ? 'الكاش والأقساط ($)' : 'Cash & Installments ($)'}</span>
+              <span>
+                {isAr ? 'الكاش والأقساط ($)' : 'Cash & Installments ($)'}
+              </span>
               <ChevronDown className="size-3" />
             </button>
 
@@ -881,7 +1092,7 @@ export default function OpportunitiesPage() {
           )}
         </section>
 
-        {/* شريط التصنيفات السريعة الأفقي لوحدات التنازل */}
+        {/* شريط التصنيفات السريعة الأفقي المربوط بالمميزات والنوع */}
         <div className="relative mt-3 flex items-center">
           <div
             ref={chipsScrollRef}
@@ -896,24 +1107,15 @@ export default function OpportunitiesPage() {
                   type="button"
                   onClick={() => {
                     updateSivrceFilter('quickTag', chip.id)
-                    if (chip.id === '') {
-                      updateSivrceFilter('propertyType', '')
-                      setDeliveryStatusIdx(0)
-                    } else if (chip.id === 'ready') {
+                    setActiveCategoryLabel(chip.id ? chip.label : '')
+                    setSelectedFeature(chip.feature || '')
+                    updateSivrceFilter('propertyType', chip.type || '')
+                    if (chip.id === 'ready') {
                       setDeliveryStatusIdx(1)
                     } else if (chip.id === 'under_const') {
                       setDeliveryStatusIdx(2)
-                    } else if (
-                      [
-                        'Apartment',
-                        'Private house',
-                        'Cottage',
-                        'Land',
-                        'Commercial',
-                        'Hotel',
-                      ].includes(chip.id)
-                    ) {
-                      updateSivrceFilter('propertyType', chip.id)
+                    } else {
+                      setDeliveryStatusIdx(0)
                     }
                   }}
                   className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition ${
@@ -948,6 +1150,40 @@ export default function OpportunitiesPage() {
           </button>
         </div>
 
+        {/* شريط البحث النشط الذي يظهر عندما يضغط العميل على أي فلتر من الصفحة الرئيسية */}
+        {Boolean(
+          resolvedSearchHeading ||
+            selectedFeature ||
+            sivrceFilters.propertyType ||
+            areaQuery
+        ) && (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-blue-200/80 bg-white px-4 py-3 shadow-2xs">
+            <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-[#0f1d40] sm:text-sm">
+              <span className="text-slate-500">
+                {isAr ? 'البحث النشط:' : 'Active Search:'}
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3.5 py-1 text-xs font-bold text-[#2563eb]">
+                <span>{resolvedSearchHeading}</span>
+              </span>
+              <span className="rounded-full bg-[#eaf8f2] px-3 py-1 text-xs font-bold text-[#007a5a]">
+                {availableUnitsCount}{' '}
+                {isAr ? 'وحدة متاحة' : 'available units'}
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={clearAll}
+              className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-3.5 py-1 text-xs font-bold text-slate-600 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600"
+            >
+              <X className="size-3.5" />
+              <span>
+                {isAr ? 'إلغاء الفلتر وعرض الكل' : 'Clear Filter & Show All'}
+              </span>
+            </button>
+          </div>
+        )}
+
         {/* شريط التحكم: عدد الإعلانات + الفلاتر النشطة + حفظ البحث + الترتيب + أزرار الخريطة و 3D */}
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
@@ -963,6 +1199,21 @@ export default function OpportunitiesPage() {
                 className="inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-primary-light,#eaf8f2)] px-3 py-1 text-[11px] font-bold text-[var(--brand-primary,#007a5a)] sm:text-xs"
               >
                 <span>{t.filters.negotiableBtn}</span>
+                <X className="size-3" />
+              </button>
+            )}
+
+            {selectedFeature && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedFeature('')
+                  setActiveCategoryLabel('')
+                  updateSivrceFilter('quickTag', '')
+                }}
+                className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-[11px] font-bold text-[#2563eb] sm:text-xs"
+              >
+                <span>{activeCategoryLabel || selectedFeature}</span>
                 <X className="size-3" />
               </button>
             )}
@@ -1207,13 +1458,15 @@ export default function OpportunitiesPage() {
           </Link>
         </div>
 
-        {/* شبكة كروت الفرص المتاحة: كارت واحد تحت الآخر على الموبايل (grid-cols-1) */}
+        {/* شبكة كروت الفرص المتاحة */}
         <section className="mt-6 sm:mt-8">
           <div className="mb-4 flex items-center justify-between gap-2 text-start sm:mb-5">
             <div className="flex items-center gap-1.5">
               <Star className="size-4 fill-amber-400 text-amber-500" />
               <h2 className="text-base font-bold text-[var(--brand-navy,#0a1122)] sm:text-lg">
-                {t.header.title} ({visibleProperties.length})
+                {resolvedSearchHeading
+                  ? `${resolvedSearchHeading} (${visibleProperties.length})`
+                  : `${t.header.title} (${visibleProperties.length})`}
               </h2>
             </div>
           </div>

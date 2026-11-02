@@ -26,6 +26,7 @@ import {
   RequiredLabel,
   toEnglishDigits,
 } from '@/components/features/seller/seller-shared'
+import { splitStoredPhoneToCodeAndLocal } from '@/components/features/seller/seller-contact-step'
 import {
   GEORGIA_CITIES_AND_DISTRICTS,
   GeorgiaAreaSelect,
@@ -36,7 +37,7 @@ import {
   type BuyerConflictState,
   type BuyerFormState,
 } from '@/components/features/buyer/buyer-contact-step'
-import { getCurrencySymbol, useTranslation, type LocaleCode } from '@/lib/i18n'
+import { useTranslation, type LocaleCode } from '@/lib/i18n'
 
 const ACTIVE_PLATFORM_COUNTRY = 'GE'
 const DEFAULT_PHONE_CODE = '995'
@@ -54,6 +55,7 @@ const BUY_VALIDATION_FALLBACK: Record<LocaleCode, Record<string, string>> = {
     invalidPhone: 'يرجى إدخال رقم هاتف صحيح (7 إلى 15 رقماً)',
     invalidEmail: 'يرجى إدخال بريد إلكتروني صحيح',
     shortPassword: 'كلمة المرور يجب ألا تقل عن 8 أحرف',
+    passwordMismatch: 'كلمتا المرور غير متطابقتين',
     loginIdRequired: 'يرجى إدخال البريد الإلكتروني أو رقم الهاتف',
     loginPassRequired: 'يرجى إدخال كلمة المرور',
     missingBannerPrefix: 'يرجى استكمال الحقول المطلوبة التالية:',
@@ -71,6 +73,7 @@ const BUY_VALIDATION_FALLBACK: Record<LocaleCode, Record<string, string>> = {
     invalidPhone: 'Please enter a valid phone number (7 to 15 digits)',
     invalidEmail: 'Please enter a valid email address',
     shortPassword: 'Password must be at least 8 characters',
+    passwordMismatch: 'Passwords do not match',
     loginIdRequired: 'Please enter your email or phone number',
     loginPassRequired: 'Please enter your password',
     missingBannerPrefix: 'Please complete the following required fields:',
@@ -87,6 +90,7 @@ const BUY_VALIDATION_FALLBACK: Record<LocaleCode, Record<string, string>> = {
     invalidPhone: 'Введите корректный номер телефона (от 7 до 15 цифр)',
     invalidEmail: 'Введите корректный адрес электронной почты',
     shortPassword: 'Пароль должен содержать не менее 8 символов',
+    passwordMismatch: 'Пароли не совпадают',
     loginIdRequired: 'Введите ваш email или номер телефона',
     loginPassRequired: 'Введите ваш пароль',
     missingBannerPrefix: 'Пожалуйста, заполните следующие обязательные поля:',
@@ -103,6 +107,7 @@ const BUY_VALIDATION_FALLBACK: Record<LocaleCode, Record<string, string>> = {
     invalidPhone: 'შეიყვანეთ სწორი ტელეფონის ნომერი (7-15 ციფრი)',
     invalidEmail: 'შეიყვანეთ სწორი ელ-ფოსტა',
     shortPassword: 'პაროლი უნდა შედგებოდეს მინიმუმ 8 სიმბოლოსგან',
+    passwordMismatch: 'პაროლები არ ემთხვევა',
     loginIdRequired: 'შეიყვანეთ ელ-ფოსტა ან ტელეფონის ნომერი',
     loginPassRequired: 'შეიყვანეთ პაროლი',
     missingBannerPrefix: 'გთხოვთ შეავსოთ შემდეგი სავალდებულო ველები:',
@@ -169,7 +174,8 @@ function BuyersPageContent() {
   const b = dict.buy
   const bVal = (b.validation as Record<string, string>) || {}
   const sellVal = (dict.sell?.validation as Record<string, string>) || {}
-  const currency = getCurrencySymbol(ACTIVE_PLATFORM_COUNTRY, locale)
+  // توحيد العملة في جميع طلبات الشراء إلى الدولار الأمريكي ($)
+  const currency = '$'
 
   const localizedUnitTypes: string[] =
     (dict as Record<string, any>).buyerFunnelPage?.unitTypes ||
@@ -203,8 +209,10 @@ function BuyersPageContent() {
     phone: '',
     email: '',
     password: '',
+    confirmPassword: '',
     loginIdentifier: '',
     loginPassword: '',
+    contactMessengers: ['whatsapp', 'viber'],
   }))
 
   const [countryCode, setCountryCode] = useState(DEFAULT_PHONE_CODE)
@@ -228,7 +236,6 @@ function BuyersPageContent() {
   const [conflictState, setConflictState] =
     useState<BuyerConflictState>(null)
 
-  // حالة شاشة النجاح وتأكيد الواتساب بعد إرسال طلب الشراء
   const [submittedOrder, setSubmittedOrder] = useState<{
     reqId: string
     orderRef: string
@@ -258,6 +265,19 @@ function BuyersPageContent() {
       if (res.isLoggedIn && res.user) {
         setLoggedUser(res.user)
         setAuthTab('session')
+        const parsedPhone = splitStoredPhoneToCodeAndLocal(res.user.phone)
+        setCountryCode(parsedPhone.code)
+        setData((prev) => ({
+          ...prev,
+          name: prev.name || res.user?.name || '',
+          email: prev.email || res.user?.email || '',
+          phone: prev.phone || parsedPhone.local || '',
+          contactMessengers:
+            Array.isArray((res.user as any)?.contactMessengers) &&
+            (res.user as any).contactMessengers.length > 0
+              ? (res.user as any).contactMessengers
+              : prev.contactMessengers,
+        }))
       }
     }
     checkCurrentSession()
@@ -469,6 +489,14 @@ function BuyersPageContent() {
         )
         missing.push(cleanLabel(b.stepThree.passwordLabel))
       }
+      if (data.password !== (data.confirmPassword || '')) {
+        nextErrors.confirmPassword = getBuyValidationMsg(
+          locale,
+          undefined,
+          'passwordMismatch'
+        )
+        missing.push(locale === 'ar' ? 'تأكيد كلمة السر' : 'Confirm Password')
+      }
     } else if (authTab === 'login') {
       if (!data.loginIdentifier?.trim()) {
         nextErrors.loginIdentifier = getBuyValidationMsg(
@@ -520,6 +548,10 @@ function BuyersPageContent() {
         email: data.email.trim(),
         password: authTab === 'login' ? data.loginPassword : data.password,
         loginIdentifier: data.loginIdentifier,
+        contactMessengers:
+          data.contactMessengers && data.contactMessengers.length > 0
+            ? data.contactMessengers
+            : ['whatsapp'],
       })
 
       if (res.status === 'ok') {
@@ -612,8 +644,8 @@ function BuyersPageContent() {
                   dir="ltr"
                   className="mt-1 block text-sm font-black text-[#007a5a] tabular-nums"
                 >
-                  {submittedOrder.availableCash.toLocaleString('en-US')}{' '}
                   {currency}
+                  {submittedOrder.availableCash.toLocaleString('en-US')}
                 </strong>
               </div>
 
@@ -625,7 +657,8 @@ function BuyersPageContent() {
                   dir="ltr"
                   className="mt-1 block text-sm font-black text-[#0a1122] tabular-nums"
                 >
-                  {submittedOrder.budget.toLocaleString('en-US')} {currency}
+                  {currency}
+                  {submittedOrder.budget.toLocaleString('en-US')}
                 </strong>
               </div>
 
@@ -874,9 +907,9 @@ function BuyerStepOne({
   ) => void
   errors?: Record<string, string>
 }) {
-  const { t: dict, locale } = useTranslation()
+  const { t: dict } = useTranslation()
   const t = dict.buy.stepOne
-  const currency = getCurrencySymbol(ACTIVE_PLATFORM_COUNTRY, locale)
+  const currency = '$'
   const isFullCash = isFullCashPlanOption(data.payment_plan, t.paymentPlans)
 
   return (

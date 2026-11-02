@@ -51,6 +51,64 @@ function formatRelativePublishTime(createdAt?: string, isAr = true): string {
     : `${months} mo ago`
 }
 
+function translateInstallmentFreq(rawFreq?: string, isAr = true): string {
+  if (!rawFreq) return isAr ? 'شهري' : 'Monthly'
+  const clean = rawFreq.trim()
+  if (isAr) {
+    if (clean.toLowerCase() === 'monthly') return 'شهري'
+    if (clean.toLowerCase() === 'quarterly') return 'ربع سنوي'
+    if (clean.toLowerCase() === 'semi-annual') return 'نصف سنوي'
+    if (clean.toLowerCase() === 'annual') return 'سنوي'
+    return clean
+  }
+  if (clean.includes('ربع')) return 'Quarterly'
+  if (clean.includes('نصف')) return 'Semi-Annual'
+  if (clean.includes('سنوي') && !clean.includes('ربع') && !clean.includes('نصف'))
+    return 'Annual'
+  if (clean.includes('شهري')) return 'Monthly'
+  return clean
+}
+
+function translateDeliveryLabel(rawDel?: string, isAr = true): string {
+  if (!rawDel) return '2026'
+  const clean = rawDel.trim()
+  const yearMatch = clean.match(/20\d{2}/)
+  const yr = yearMatch ? yearMatch[0] : ''
+  const isReady =
+    clean.includes('جاهز') ||
+    clean.includes('فوري') ||
+    clean.toLowerCase().includes('ready')
+
+  if (isAr) {
+    if (isReady && yr) return `جاهزة (${yr})`
+    if (isReady) return 'جاهزة'
+    return yr || clean
+  }
+  if (isReady && yr) return `Ready (${yr})`
+  if (isReady) return 'Ready'
+  return yr || clean
+}
+
+function translateUnitTypeWord(rawType?: string, isAr = true): string {
+  const clean = (rawType || '').trim()
+  if (isAr) {
+    if (!clean || clean === 'Apartment') return 'شقة'
+    if (clean === 'Private house') return 'فيلا'
+    if (clean === 'Cottage') return 'شاليه'
+    if (clean === 'Hotel') return 'شقة فندقية'
+    if (clean === 'Commercial') return 'تجاري'
+    if (clean === 'Land') return 'أرض'
+    return clean
+  }
+  if (!clean || clean === 'شقة') return 'Apartment'
+  if (clean.includes('فندقية')) return 'Aparthotel'
+  if (clean.includes('فيلا') || clean.includes('منزل')) return 'Villa'
+  if (clean.includes('شاليه') || clean.includes('كوخ')) return 'Cottage'
+  if (clean.includes('تجاري')) return 'Commercial'
+  if (clean.includes('أرض')) return 'Land'
+  return clean
+}
+
 export function HomePropertyCard({
   unit,
   isFav,
@@ -109,8 +167,9 @@ export function HomePropertyCard({
   const rawLocalizedArea = getLocalizedGeorgiaAreaName(unit.area, locale)
   const cleanArea = cleanPureLocaleText(rawLocalizedArea, locale)
   const projectName = getLocalizedUnitTitle(unit, locale, cleanArea)
-  const subtitleLine = unit.developer
-    ? `${unit.developer} · ${cleanArea}`
+  const cleanDeveloper = cleanPureLocaleText(unit.developer || '', locale)
+  const subtitleLine = cleanDeveloper
+    ? `${cleanDeveloper} · ${cleanArea}`
     : cleanArea
 
   const detailHref =
@@ -131,19 +190,17 @@ export function HomePropertyCard({
   const activeTier =
     unit.boostTier || (unit.isFeatured ? 'super_vip' : null)
 
-  const unitTypeWord =
-    unit.unitTypeLabel || (isAr ? 'شقة' : 'Apartment')
+  const unitTypeWord = translateUnitTypeWord(unit.unitTypeLabel, isAr)
+  const localizedFreq = translateInstallmentFreq(unit.installmentFreq, isAr)
 
   const instText =
     unit.installmentAmount && unit.installmentAmount > 0
-      ? `${USD}${unit.installmentAmount.toLocaleString('en-US')}${
-          unit.installmentFreq ? ` · ${unit.installmentFreq}` : ''
-        }`
+      ? `${USD}${unit.installmentAmount.toLocaleString('en-US')} · ${localizedFreq}`
       : isAr
         ? 'خالص الأقساط'
         : 'Fully Paid'
 
-  const deliveryLabel = unit.deliveryText || '2026'
+  const deliveryLabel = translateDeliveryLabel(unit.deliveryText, isAr)
 
   return (
     <article
@@ -160,7 +217,6 @@ export function HomePropertyCard({
       }`}
     >
       <div>
-        {/* المعرض العلوي للصور بنفس الارتفاع الأصلي 205px */}
         <div className="relative h-[205px] w-full overflow-hidden bg-slate-100">
           <Link href={detailHref} className="block h-full w-full">
             <img
@@ -255,21 +311,17 @@ export function HomePropertyCard({
           </div>
         </div>
 
-        {/* محتوى الكارت مع تقليل المسافات الفارغة الزائدة */}
         <div className="px-4 pt-3 pb-2 text-start">
-          {/* 1. اسم المشروع */}
           <Link href={detailHref}>
             <h3 className="line-clamp-1 text-[17px] font-bold leading-tight text-[#0f1d40] transition hover:text-[#2563eb]">
               {projectName}
             </h3>
           </Link>
 
-          {/* 2. اسم المطور والمنطقة */}
           <p className="mt-0.5 line-clamp-1 text-xs font-medium text-slate-500">
             {subtitleLine}
           </p>
 
-          {/* 3. شارة التوثيق وسعر المتر المربع */}
           <div className="mt-2 flex items-center justify-between gap-2">
             <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200/80 bg-[#eaf8f2] px-2.5 py-0.5 text-[10.5px] font-bold text-[#007a5a]">
               <FileCheck2 className="size-3 shrink-0" />
@@ -285,7 +337,6 @@ export function HomePropertyCard({
             </span>
           </div>
 
-          {/* 4. المواصفات */}
           <p className="mt-2 flex flex-wrap items-center gap-1.5 text-xs font-bold text-[#1e293b]">
             <span>
               {unitTypeWord} · {unit.rooms} {isAr ? 'غرف' : 'Rooms'} ·{' '}
@@ -303,7 +354,6 @@ export function HomePropertyCard({
             )}
           </p>
 
-          {/* 5. المطلوب كاش دلوقتي */}
           <div className="mt-2.5 flex items-baseline justify-between gap-2">
             <div>
               <p className="text-[11.5px] font-medium text-slate-500">
@@ -326,7 +376,6 @@ export function HomePropertyCard({
             )}
           </div>
 
-          {/* 6. صندوق مكسبك عن سعر السوق (مضغوط الرأسي مع الحفاظ على كل البيانات) */}
           {gainVal > 0 && (
             <div className="mt-2 rounded-xl bg-[#eaf8f2] px-3 py-2 text-start">
               <div className="flex items-baseline justify-between gap-2">
@@ -353,7 +402,6 @@ export function HomePropertyCard({
         </div>
       </div>
 
-      {/* الجزء السفلي الملموم: الـ 3 سطور المالية + زر تفاصيل + شريط المشاهدات والكود */}
       <div className="px-4 pt-1 pb-3">
         <div className="space-y-1.5 border-t border-slate-100 pt-2.5 text-xs">
           <div className="flex items-center justify-between gap-2">
@@ -395,7 +443,6 @@ export function HomePropertyCard({
           <span>{isAr ? 'تفاصيل' : 'Details'}</span>
         </Link>
 
-        {/* شريط المشاهدات والوقت والكود */}
         <div className="mt-2 flex items-center justify-between border-t border-slate-100 pt-2 text-[10.5px] font-medium text-slate-400">
           <div className="flex items-center gap-3">
             <span
@@ -445,6 +492,7 @@ export function HomeCardsCarouselSection({
   onToggleFav: (id: string) => void
 }) {
   const { dir } = useTranslation()
+  const isRtl = dir === 'rtl'
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const handleScroll = (direction: 'prev' | 'next') => {
@@ -452,29 +500,20 @@ export function HomeCardsCarouselSection({
     if (!el) return
 
     const step = 356
-    const isRtl = dir === 'rtl'
+    // في العربي (RTL) التقدم للأمام يتجه لليسار (-step)، وفي الإنجليزي (LTR) يتجه لليمين (+step)
     const delta =
       direction === 'next' ? (isRtl ? -step : step) : isRtl ? step : -step
 
-    const maxScroll = el.scrollWidth - el.clientWidth
-    const current = Math.abs(el.scrollLeft)
-
-    if (direction === 'next' && current >= maxScroll - 20) {
-      el.scrollTo({ left: 0, behavior: 'smooth' })
-    } else if (direction === 'prev' && current <= 20) {
-      el.scrollTo({
-        left: isRtl ? -maxScroll : maxScroll,
-        behavior: 'smooth',
-      })
-    } else {
-      el.scrollBy({ left: delta, behavior: 'smooth' })
-    }
+    el.scrollBy({ left: delta, behavior: 'smooth' })
   }
 
   if (!units || units.length === 0) return null
 
   return (
-    <section className="mx-auto max-w-[1280px] px-4 py-8 sm:px-6 lg:px-8">
+    <section
+      dir={dir}
+      className="mx-auto max-w-[1280px] px-4 py-8 sm:px-6 lg:px-8"
+    >
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div className="text-start">
           {badgeText && (
@@ -514,16 +553,18 @@ export function HomeCardsCarouselSection({
           aria-label="Previous listings"
           className="absolute -start-3 top-1/2 z-30 hidden size-11 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-[#0f1d40] shadow-[0_8px_24px_rgba(15,29,64,0.15)] transition hover:scale-110 hover:bg-slate-50 md:flex"
         >
-          {dir === 'rtl' ? (
+          {isRtl ? (
             <ChevronRight className="size-5" />
           ) : (
             <ChevronLeft className="size-5" />
           )}
         </button>
 
+        {/* بدون أي قطع أو بهتان أبيض على البداية، يبدأ من اليمين في العربي ومن اليسار في اللغات الأخرى */}
         <div
           ref={scrollRef}
-          className="carousel-edge-fade flex snap-x snap-mandatory items-stretch gap-5 overflow-x-auto px-2 pb-4 no-scrollbar"
+          dir={dir}
+          className="flex snap-x snap-mandatory items-stretch justify-start gap-5 overflow-x-auto pb-4 no-scrollbar"
         >
           {units.map((unit) => (
             <HomePropertyCard
@@ -541,7 +582,7 @@ export function HomeCardsCarouselSection({
           aria-label="Next listings"
           className="absolute -end-3 top-1/2 z-30 hidden size-11 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-[#0f1d40] shadow-[0_8px_24px_rgba(15,29,64,0.15)] transition hover:scale-110 hover:bg-slate-50 md:flex"
         >
-          {dir === 'rtl' ? (
+          {isRtl ? (
             <ChevronLeft className="size-5" />
           ) : (
             <ChevronRight className="size-5" />
@@ -561,15 +602,29 @@ export function HomeVipPlusSection({
   favorites: string[]
   onToggleFav: (id: string) => void
 }) {
-  const { locale } = useTranslation()
+  const { locale, dir } = useTranslation()
   const isAr = locale === 'ar'
+  const isRtl = dir === 'rtl'
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   if (!vipPlusUnits || vipPlusUnits.length === 0) {
     return null
   }
 
+  const handleScroll = (direction: 'prev' | 'next') => {
+    const el = scrollRef.current
+    if (!el) return
+    const step = 356
+    const delta =
+      direction === 'next' ? (isRtl ? -step : step) : isRtl ? step : -step
+    el.scrollBy({ left: delta, behavior: 'smooth' })
+  }
+
   return (
-    <section className="mx-auto max-w-[1280px] px-4 py-8 sm:px-6 lg:px-8">
+    <section
+      dir={dir}
+      className="mx-auto max-w-[1280px] px-4 py-8 sm:px-6 lg:px-8"
+    >
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div className="text-start">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#4f46e5] to-[#6366f1] px-3.5 py-1 text-[11px] font-bold text-white shadow-xs">
@@ -594,8 +649,26 @@ export function HomeVipPlusSection({
         </Link>
       </div>
 
-      <div className="flex flex-col items-stretch gap-5 lg:flex-row">
-        <div className="flex snap-x snap-mandatory gap-5 overflow-x-auto pb-2 no-scrollbar lg:pb-0">
+      {/* على الموبايل والكمبيوتر: الكارت الترويجي "إعلانك هنا +VIP" بجانب الكروت في نفس السطر الأفقي وبنفس حجم الكارت */}
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => handleScroll('prev')}
+          aria-label="Previous VIP+ listings"
+          className="absolute -start-3 top-1/2 z-30 hidden size-11 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-[#0f1d40] shadow-[0_8px_24px_rgba(15,29,64,0.15)] transition hover:scale-110 hover:bg-slate-50 md:flex"
+        >
+          {isRtl ? (
+            <ChevronRight className="size-5" />
+          ) : (
+            <ChevronLeft className="size-5" />
+          )}
+        </button>
+
+        <div
+          ref={scrollRef}
+          dir={dir}
+          className="flex snap-x snap-mandatory items-stretch justify-start gap-5 overflow-x-auto pb-4 no-scrollbar"
+        >
           {vipPlusUnits.map((unit) => (
             <HomePropertyCard
               key={unit.id}
@@ -604,22 +677,41 @@ export function HomeVipPlusSection({
               onToggleFav={onToggleFav}
             />
           ))}
+
+          {/* صندوق "إعلانك هنا +VIP" بنفس حجم الكارت على التليفون وعلى الكمبيوتر بجانب العناصر */}
+          <Link
+            href="#boost-packages-section"
+            className="sivrce-card group flex min-h-[460px] w-[300px] shrink-0 snap-start flex-col items-center justify-center rounded-[20px] border-2 border-dashed border-indigo-200/90 bg-white p-6 text-center shadow-xs transition hover:border-[#4f46e5] hover:bg-indigo-50/20 sm:w-[326px] lg:w-[336px] lg:flex-1"
+          >
+            <div className="flex size-14 items-center justify-center rounded-full bg-gradient-to-tr from-[#4f46e5] to-[#6366f1] text-white shadow-[0_10px_25px_rgba(79,70,229,0.35)] transition-transform duration-300 group-hover:scale-110">
+              <Flame className="size-6" />
+            </div>
+            <strong className="mt-4 block text-base font-bold text-[#0f1d40]">
+              {isAr ? 'إعلانك هنا' : 'Your listing here'}
+            </strong>
+            <p className="mt-1.5 max-w-[220px] text-xs leading-relaxed text-slate-500">
+              {isAr
+                ? 'رقِّ إعلانك لباقة +VIP بـ 5 ₾ فقط ليظهر في الصدارة أمام المشترين الجادين'
+                : 'Boost your unit with VIP+ for just 5 ₾ to appear right here'}
+            </p>
+            <span className="mt-3 inline-flex items-center gap-1 rounded-full bg-indigo-50 px-4 py-1.5 text-xs font-bold text-[#4f46e5] group-hover:bg-[#4f46e5] group-hover:text-white">
+              <span>{isAr ? '← اشترك في +VIP' : 'Get VIP+ →'}</span>
+            </span>
+          </Link>
         </div>
 
-        <Link
-          href="#boost-packages-section"
-          className="sivrce-card group flex min-h-[340px] flex-1 flex-col items-center justify-center rounded-[24px] border border-dashed border-indigo-200/90 bg-white p-8 text-center shadow-2xs transition hover:border-[#4f46e5] hover:bg-indigo-50/20"
+        <button
+          type="button"
+          onClick={() => handleScroll('next')}
+          aria-label="Next VIP+ listings"
+          className="absolute -end-3 top-1/2 z-30 hidden size-11 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-[#0f1d40] shadow-[0_8px_24px_rgba(15,29,64,0.15)] transition hover:scale-110 hover:bg-slate-50 md:flex"
         >
-          <div className="flex size-14 items-center justify-center rounded-full bg-gradient-to-tr from-[#4f46e5] to-[#6366f1] text-white shadow-[0_10px_25px_rgba(79,70,229,0.35)] transition-transform duration-300 group-hover:scale-110">
-            <Flame className="size-6" />
-          </div>
-          <strong className="mt-4 block text-base font-bold text-[#0f1d40]">
-            {isAr ? 'إعلانك هنا' : 'Your listing here'}
-          </strong>
-          <span className="mt-1.5 inline-flex items-center gap-1 text-xs font-bold text-[#4f46e5] group-hover:underline">
-            <span>{isAr ? '← +VIP' : 'VIP+ →'}</span>
-          </span>
-        </Link>
+          {isRtl ? (
+            <ChevronLeft className="size-5" />
+          ) : (
+            <ChevronRight className="size-5" />
+          )}
+        </button>
       </div>
     </section>
   )

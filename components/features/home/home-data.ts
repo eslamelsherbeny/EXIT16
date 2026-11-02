@@ -48,6 +48,7 @@ export type HomeUnitCardItem = {
   docsVerified?: boolean
   createdAt?: string
   viewsCount?: number
+  features?: string[]
 }
 
 export const SHOWCASE_IMAGES = {
@@ -72,7 +73,6 @@ export function cleanPureLocaleText(raw: string, locale: string): string {
   return raw
 }
 
-// تنظيف اسم المشروع من أي جمل زائدة مثل "للتنازل شقة 2 غرف نوم ·" ليبقى اسم المشروع الصافي فقط
 export function getCleanProjectName(
   unit: HomeUnitCardItem,
   cleanArea: string
@@ -105,7 +105,7 @@ export const FALLBACK_SHOWCASE_UNITS: HomeUnitCardItem[] = [
     title: 'Krtsanisi Resort Residence',
     developer: 'VR Holding',
     area: 'Tbilisi - Krtsanisi',
-    unitTypeLabel: 'شقة',
+    unitTypeLabel: 'Apartment',
     category: 'exit',
     price: 110000,
     contractPrice: 175000,
@@ -134,6 +134,7 @@ export const FALLBACK_SHOWCASE_UNITS: HomeUnitCardItem[] = [
     boostTier: 'super_vip',
     docsVerified: true,
     viewsCount: 85,
+    features: ['Pool', 'Jacuzzi', 'Panoramic view', 'Security'],
   },
   {
     id: '10000050',
@@ -141,7 +142,7 @@ export const FALLBACK_SHOWCASE_UNITS: HomeUnitCardItem[] = [
     title: 'Old Chugureti Residence',
     developer: 'Marjanishvili Square Dev',
     area: 'Tbilisi - Chugureti',
-    unitTypeLabel: 'شقة',
+    unitTypeLabel: 'Apartment',
     category: 'exit',
     price: 75000,
     contractPrice: 128000,
@@ -170,6 +171,7 @@ export const FALLBACK_SHOWCASE_UNITS: HomeUnitCardItem[] = [
     boostTier: 'super_vip',
     docsVerified: true,
     viewsCount: 134,
+    features: ['Balcony', 'Elevator', 'Central'],
   },
   {
     id: '10000046',
@@ -177,7 +179,7 @@ export const FALLBACK_SHOWCASE_UNITS: HomeUnitCardItem[] = [
     title: 'La Quinta by Wyndham Batumi',
     developer: 'Elt Building',
     area: 'Batumi - New Boulevard',
-    unitTypeLabel: 'شقة',
+    unitTypeLabel: 'Apartment',
     category: 'exit',
     price: 46000,
     contractPrice: 84000,
@@ -206,6 +208,7 @@ export const FALLBACK_SHOWCASE_UNITS: HomeUnitCardItem[] = [
     boostTier: 'super_vip',
     docsVerified: true,
     viewsCount: 108,
+    features: ['Sea view', 'Pool', 'Spa', 'Balcony'],
   },
   {
     id: '10000091',
@@ -213,7 +216,7 @@ export const FALLBACK_SHOWCASE_UNITS: HomeUnitCardItem[] = [
     title: 'ORBI City Batumi',
     developer: 'ORBI Group',
     area: 'Batumi - Alley of Heroes',
-    unitTypeLabel: 'شقة فندقية',
+    unitTypeLabel: 'Hotel',
     category: 'exit',
     price: 42000,
     contractPrice: 78000,
@@ -242,6 +245,7 @@ export const FALLBACK_SHOWCASE_UNITS: HomeUnitCardItem[] = [
     boostTier: 'super_vip',
     docsVerified: true,
     viewsCount: 144,
+    features: ['Sea view', 'Furniture', 'Elevator', 'Reception'],
   },
   {
     id: '10000303',
@@ -249,7 +253,7 @@ export const FALLBACK_SHOWCASE_UNITS: HomeUnitCardItem[] = [
     title: 'Archi Vake Residence',
     developer: 'Archi',
     area: 'Tbilisi - Vake',
-    unitTypeLabel: 'شقة',
+    unitTypeLabel: 'Apartment',
     category: 'exit',
     price: 54000,
     contractPrice: 112000,
@@ -277,6 +281,7 @@ export const FALLBACK_SHOWCASE_UNITS: HomeUnitCardItem[] = [
     boostTier: 'vip_plus',
     docsVerified: true,
     viewsCount: 64,
+    features: ['Underground parking', 'Yard', 'Security'],
   },
   {
     id: '12000148',
@@ -284,7 +289,7 @@ export const FALLBACK_SHOWCASE_UNITS: HomeUnitCardItem[] = [
     title: 'Alpha Home Didi Digomi',
     developer: 'Alpha Home',
     area: 'Tbilisi - Didi Digomi',
-    unitTypeLabel: 'شقة',
+    unitTypeLabel: 'Apartment',
     category: 'exit',
     price: 31000,
     contractPrice: 76000,
@@ -313,10 +318,17 @@ export const FALLBACK_SHOWCASE_UNITS: HomeUnitCardItem[] = [
     boostTier: null,
     docsVerified: true,
     viewsCount: 70,
+    features: ['Balcony', 'Elevator'],
   },
 ]
 
+// ربط كل كارت من الـ 16 فلتر بمعاملات بحث حقيقية (type / feature / delivery / area / label)
 export function getHomeCategoriesGrid(isAr: boolean) {
+  const buildUrl = (params: Record<string, string>) => {
+    const sp = new URLSearchParams(params)
+    return `/opportunities?${sp.toString()}`
+  }
+
   return [
     {
       id: 'exit',
@@ -329,105 +341,150 @@ export function getHomeCategoriesGrid(isAr: boolean) {
       id: 'Apartment',
       label: isAr ? 'شقق بالتقسيط' : 'Apartments',
       icon: Building2,
-      href: '/opportunities?type=Apartment',
+      href: buildUrl({
+        type: 'Apartment',
+        label: isAr ? 'شقق بالتقسيط' : 'Apartments',
+      }),
       color: 'bg-blue-50 text-[#2563eb]',
     },
     {
       id: 'Private house',
       label: isAr ? 'منازل وفيلات' : 'Houses & Villas',
       icon: Home,
-      href: '/opportunities?type=Private+house',
+      href: buildUrl({
+        type: 'Private house',
+        label: isAr ? 'منازل وفيلات' : 'Houses & Villas',
+      }),
       color: 'bg-orange-50 text-[#ea580c]',
     },
     {
       id: 'Cottage',
       label: isAr ? 'أكواخ وشاليهات' : 'Cottages',
       icon: Trees,
-      href: '/opportunities?type=Cottage',
+      href: buildUrl({
+        type: 'Cottage',
+        label: isAr ? 'أكواخ وشاليهات' : 'Cottages',
+      }),
       color: 'bg-green-50 text-green-600',
     },
     {
       id: 'Luxury',
       label: isAr ? 'عقارات فاخرة' : 'Luxury homes',
       icon: Gem,
-      href: '/opportunities',
+      href: buildUrl({
+        feature: 'Panoramic view',
+        label: isAr ? 'عقارات فاخرة' : 'Luxury homes',
+      }),
       color: 'bg-amber-50 text-amber-600',
     },
     {
       id: 'Land',
       label: isAr ? 'قطع أراضٍ' : 'Land plots',
       icon: MapPin,
-      href: '/opportunities?type=Land',
+      href: buildUrl({
+        type: 'Land',
+        label: isAr ? 'قطع أراضٍ' : 'Land plots',
+      }),
       color: 'bg-yellow-50 text-yellow-600',
     },
     {
       id: 'Commercial',
       label: isAr ? 'تجاري وإداري' : 'Commercial',
       icon: Store,
-      href: '/opportunities?type=Commercial',
+      href: buildUrl({
+        type: 'Commercial',
+        label: isAr ? 'تجاري وإداري' : 'Commercial',
+      }),
       color: 'bg-purple-50 text-purple-600',
     },
     {
       id: 'Ready',
       label: isAr ? 'استلام فوري' : 'Ready to move',
       icon: Calendar,
-      href: '/opportunities',
+      href: buildUrl({
+        delivery: 'Ready to Move',
+        label: isAr ? 'استلام فوري' : 'Ready to move',
+      }),
       color: 'bg-rose-50 text-rose-500',
     },
     {
       id: 'Sea view',
       label: isAr ? 'إطلالة على البحر' : 'Sea view',
       icon: Waves,
-      href: '/opportunities?area=Batumi+-+New+Boulevard',
+      href: buildUrl({
+        feature: 'Sea view',
+        label: isAr ? 'إطلالة على البحر' : 'Sea view',
+      }),
       color: 'bg-cyan-50 text-cyan-600',
     },
     {
       id: 'Pool',
       label: isAr ? 'مع حمام سباحة' : 'With pool',
       icon: Sparkles,
-      href: '/opportunities',
+      href: buildUrl({
+        feature: 'Pool',
+        label: isAr ? 'مع حمام سباحة' : 'With pool',
+      }),
       color: 'bg-sky-50 text-sky-600',
     },
     {
       id: 'Jacuzzi',
       label: isAr ? 'مع جاكوزي' : 'With Jacuzzi',
       icon: Bath,
-      href: '/opportunities',
+      href: buildUrl({
+        feature: 'Jacuzzi',
+        label: isAr ? 'مع جاكوزي' : 'With Jacuzzi',
+      }),
       color: 'bg-orange-50 text-orange-500',
     },
     {
       id: 'Ski resorts',
       label: isAr ? 'منتجعات تزلج' : 'Ski resorts',
       icon: Mountain,
-      href: '/opportunities?area=Gudauri',
+      href: buildUrl({
+        feature: 'Ski access',
+        label: isAr ? 'منتجعات تزلج' : 'Ski resorts',
+      }),
       color: 'bg-amber-50 text-amber-700',
     },
     {
-      id: 'Pet friendly',
+      id: 'Compounds',
       label: isAr ? 'مجمعات سكنية' : 'Compounds',
       icon: PawPrint,
-      href: '/opportunities',
+      href: buildUrl({
+        feature: 'Security',
+        label: isAr ? 'مجمعات سكنية' : 'Compounds',
+      }),
       color: 'bg-emerald-50 text-emerald-600',
     },
     {
       id: 'Workspace',
       label: isAr ? 'مكاتب وشركات' : 'Offices',
       icon: Briefcase,
-      href: '/opportunities?type=Commercial',
+      href: buildUrl({
+        type: 'Commercial',
+        label: isAr ? 'مكاتب وشركات' : 'Offices',
+      }),
       color: 'bg-indigo-50 text-indigo-600',
     },
     {
       id: 'Hotel',
       label: isAr ? 'شقق فندقية' : 'Hotel units',
       icon: Hotel,
-      href: '/opportunities?type=Hotel',
+      href: buildUrl({
+        type: 'Hotel',
+        label: isAr ? 'شقق فندقية' : 'Hotel units',
+      }),
       color: 'bg-teal-50 text-teal-600',
     },
     {
       id: 'New projects',
       label: isAr ? 'قيد الإنشاء' : 'Under construction',
       icon: Building,
-      href: '/opportunities?delivery=Under+Construction',
+      href: buildUrl({
+        delivery: 'Under Construction',
+        label: isAr ? 'قيد الإنشاء' : 'Under construction',
+      }),
       color: 'bg-blue-50 text-blue-600',
     },
   ]

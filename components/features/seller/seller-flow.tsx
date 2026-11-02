@@ -65,7 +65,6 @@ export function SellerFlow() {
   const [unitId, setUnitId] = useState<string>('')
   const [orderRef, setOrderRef] = useState<string>('AE-1001')
 
-  // الموقع متخصص 100% في التنازل والأقساط وعملة العقارات الموحدة هي الدولار ($)
   const [dealCategory, setDealCategory] = useState<DealCategory | ''>('exit')
   const [propertyKind, setPropertyKind] = useState<string>('')
   const [buildingStatus, setBuildingStatus] = useState<string>('')
@@ -175,7 +174,6 @@ export function SellerFlow() {
   const [autoSaveTime, setAutoSaveTime] = useState<string>('')
   const [pending, startTransition] = useTransition()
 
-  // المنصة متخصصة 100% في التنازل والأقساط
   const isExitDeal = true
   const isRentDeal = false
   const isDirectSale = false
@@ -252,12 +250,51 @@ export function SellerFlow() {
 
       if (profileRes.isLoggedIn && profileRes.user) {
         setLoggedUser(profileRes.user)
+        const rawUserPhone = profileRes.user.phone || ''
+        const digitsOnly = toEnglishDigits(rawUserPhone).replace(/[^0-9]/g, '')
+        let detectedCode = DEFAULT_PHONE_CODE
+        let localPart = digitsOnly
+
+        for (const c of [
+          '995',
+          '966',
+          '971',
+          '965',
+          '974',
+          '973',
+          '968',
+          '962',
+          '20',
+          '90',
+          '44',
+          '7',
+          '1',
+        ]) {
+          if (digitsOnly.startsWith(c) && digitsOnly.length > c.length + 6) {
+            detectedCode = c
+            localPart = digitsOnly.slice(c.length).replace(/^0+/, '')
+            break
+          }
+        }
+
         setForm((prev) => ({
           ...prev,
+          countryCode: prev.phone ? prev.countryCode : detectedCode,
           name: prev.name || profileRes.user?.name || '',
-          phone: prev.phone || profileRes.user?.phone || '',
+          phone: prev.phone || localPart || '',
           email: prev.email || profileRes.user?.email || '',
         }))
+
+        const savedUserMessengers = (profileRes.user as any)?.contactMessengers
+        if (
+          Array.isArray(savedUserMessengers) &&
+          savedUserMessengers.length > 0
+        ) {
+          setSelected((prev) => ({
+            ...prev,
+            messengers: savedUserMessengers,
+          }))
+        }
       }
       if (verStatus.isLoggedIn) {
         setEmailVerified(verStatus.emailVerified)
@@ -285,8 +322,39 @@ export function SellerFlow() {
           )
 
           const savedArea = u.area || meta.area || 'Tbilisi - Saburtalo'
+          const rawUnitPhone = u.phone || profileRes.user?.phone || ''
+          const digitsOnly = toEnglishDigits(rawUnitPhone).replace(
+            /[^0-9]/g,
+            ''
+          )
+          let detectedCode = DEFAULT_PHONE_CODE
+          let localPart = digitsOnly
+
+          for (const c of [
+            '995',
+            '966',
+            '971',
+            '965',
+            '974',
+            '973',
+            '968',
+            '962',
+            '20',
+            '90',
+            '44',
+            '7',
+            '1',
+          ]) {
+            if (digitsOnly.startsWith(c) && digitsOnly.length > c.length + 6) {
+              detectedCode = c
+              localPart = digitsOnly.slice(c.length).replace(/^0+/, '')
+              break
+            }
+          }
+
           setForm((prev) => ({
             ...prev,
+            countryCode: detectedCode,
             developer: u.developer_name || '',
             project: u.project_name || '',
             location: savedArea,
@@ -361,7 +429,7 @@ export function SellerFlow() {
             videoUrl: u.video_url || meta.video_url || '',
             tour3dUrl: u.tour_3d_url || meta.tour_3d_url || '',
             name: u.name || profileRes.user?.name || '',
-            phone: u.phone || profileRes.user?.phone || '',
+            phone: localPart || '',
             email: u.email || profileRes.user?.email || '',
           }))
 
@@ -954,6 +1022,10 @@ export function SellerFlow() {
             Number(
               toEnglishDigits(form.marketPrice || form.contractPrice || '0')
             ) || 0,
+          contactMessengers:
+            selected.messengers && selected.messengers.length > 0
+              ? selected.messengers
+              : ['whatsapp'],
           name: form.name,
           phone: fullPhone,
           email: form.email,

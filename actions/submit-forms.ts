@@ -35,7 +35,7 @@ import {
   submitBuyRequest as _submitBuyRequest,
   submitInvestorLead as _submitInvestorLead,
   type BuyRequestPayload,
-} from './buyer-investor-actions'
+} from './buyer-actions'
 
 export type { BuyRequestPayload }
 
@@ -255,12 +255,12 @@ export async function sendSellerReviewOtpAction(payload?: {
       senderName: msg.emailSenderName,
       subject: `${otp} — ${msg.otpSubjectPrefix} ${otp}`,
       html: `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.8; color: #0a1122;">
-              <p style="font-size: 15px;">${msg.greetingWord} <strong>${sessionUser?.name || ''}</strong>،</p>
-              <p>${msg.otpSubjectPrefix}</p>
-              <div style="background: #eaf8f2; border: 1px solid #aae3cb; padding: 16px; border-radius: 12px; text-align: center; margin: 18px 0;">
-                <span style="font-family: monospace; font-size: 30px; font-weight: 900; letter-spacing: 6px; color: #007a5a;">${otp}</span>
-              </div>
-             </div>`,
+               <p style="font-size: 15px;">${msg.greetingWord} <strong>${sessionUser?.name || ''}</strong>،</p>
+               <p>${msg.otpSubjectPrefix}</p>
+               <div style="background: #eaf8f2; border: 1px solid #aae3cb; padding: 16px; border-radius: 12px; text-align: center; margin: 18px 0;">
+                 <span style="font-family: monospace; font-size: 30px; font-weight: 900; letter-spacing: 6px; color: #007a5a;">${otp}</span>
+               </div>
+              </div>`,
     })
 
     if (!sent) {
@@ -515,6 +515,21 @@ export async function getCurrentSellerProfileAction() {
       phoneVerified: false,
     }
 
+    let contactMessengers: string[] = ['whatsapp', 'viber']
+    try {
+      const { data: extraUser } = await supabase
+        .from('users')
+        .select('contact_messengers')
+        .eq('id', user.id)
+        .maybeSingle()
+      if (
+        Array.isArray((extraUser as any)?.contact_messengers) &&
+        (extraUser as any).contact_messengers.length > 0
+      ) {
+        contactMessengers = (extraUser as any).contact_messengers
+      }
+    } catch {}
+
     return {
       isLoggedIn: true,
       user: {
@@ -525,6 +540,7 @@ export async function getCurrentSellerProfileAction() {
         country: user.country,
         emailVerified: userVer.emailVerified,
         phoneVerified: userVer.phoneVerified,
+        contactMessengers,
       },
     }
   } catch {
@@ -542,6 +558,7 @@ export async function processSellerStep2Action(payload: {
   contractPrice: number
   paidAmount: number
   marketPrice?: number
+  contactMessengers?: string[]
   rentPrice?: number
   rentPeriod?: string
   name?: string
@@ -552,6 +569,7 @@ export async function processSellerStep2Action(payload: {
   existingUnitId?: string
 }): Promise<Step2AuthResponse> {
   const { t: msg, dir } = await getFormsDict()
+
   try {
     const supabase = await getSupabase()
     const siteUrl = DEFAULT_SITE_URL
@@ -564,10 +582,33 @@ export async function processSellerStep2Action(payload: {
     const isRent =
       listingCategory === 'rent_monthly' || listingCategory === 'rent_daily'
 
+    const activeMessengers =
+      Array.isArray(payload.contactMessengers) &&
+      payload.contactMessengers.length > 0
+        ? payload.contactMessengers
+        : ['whatsapp']
+
+    async function syncUserMessengersAndPhone(
+      userId: string,
+      newPhone?: string
+    ) {
+      try {
+        const userUpdates: Record<string, any> = {
+          contact_messengers: activeMessengers,
+        }
+        if (newPhone && newPhone.trim().length >= 8) {
+          userUpdates.phone = formatPrimaryPhone(newPhone)
+        }
+        await supabase.from('users').update(userUpdates).eq('id', userId)
+      } catch {}
+    }
+
     async function upsertDraftUnit(
       userId: string,
       contact: { name: string; phone: string; email: string }
     ) {
+      await syncUserMessengersAndPhone(userId, contact.phone)
+
       const effectivePaid = isRent
         ? Number(payload.rentPrice || payload.paidAmount) || 0
         : Number(payload.paidAmount || payload.contractPrice) || 0
@@ -579,6 +620,8 @@ export async function processSellerStep2Action(payload: {
         user_id: userId,
         country: unitCountryCode,
         country_code: unitCountryCode,
+        currency_code: 'USD',
+        contact_messengers: activeMessengers,
         listing_category: listingCategory,
         rent_price: isRent ? effectivePaid : 0,
         rent_period:
@@ -597,6 +640,7 @@ export async function processSellerStep2Action(payload: {
         documents: {
           __unit_meta: {
             listing_category: listingCategory,
+            contact_messengers: activeMessengers,
             rent_price: isRent ? effectivePaid : 0,
             rent_period:
               payload.rentPeriod ||
@@ -618,6 +662,7 @@ export async function processSellerStep2Action(payload: {
             __unit_meta: {
               ...(existingRow.documents?.__unit_meta || {}),
               ...unitData.documents.__unit_meta,
+              contact_messengers: activeMessengers,
             },
           }
           const { error: updErr } = await supabase
@@ -658,14 +703,16 @@ export async function processSellerStep2Action(payload: {
         await supabase.from('notifications').insert([
           {
             user_id: null,
+            role: 'admin',
             title: `${msg.newDraftUnitAdminTitle} (${unitCountryCode}): ${payload.project || msg.unitWord}`,
-            message: `${contact.name} · ${effectivePaid.toLocaleString('en-US')}`,
+            message: `${contact.name} · $${effectivePaid.toLocaleString('en-US')}`,
             type: 'property',
             link: '/admin/properties',
             is_read: false,
           },
           {
             user_id: userId,
+            role: 'client',
             title: msg.unitSubmittedSellerTitle,
             message: `${msg.unitSubmittedSellerMsg} (${payload.project || msg.unitWord})`,
             type: 'status_update',
@@ -715,9 +762,13 @@ export async function processSellerStep2Action(payload: {
         return { status: 'error', error: msg.sessionExpired }
       }
 
+      const resolvedPhone = payload.phone
+        ? formatPrimaryPhone(payload.phone)
+        : currentUser.phone || ''
+
       const unitId = await upsertDraftUnit(currentUser.id, {
-        name: currentUser.name || msg.unitOwnerFallback,
-        phone: currentUser.phone || '',
+        name: payload.name || currentUser.name || msg.unitOwnerFallback,
+        phone: resolvedPhone,
         email: currentUser.email || '',
       })
 
@@ -738,7 +789,7 @@ export async function processSellerStep2Action(payload: {
         orderRef,
         userName: currentUser.name,
         userEmail: currentUser.email,
-        userPhone: currentUser.phone,
+        userPhone: resolvedPhone || currentUser.phone,
       }
     }
 
@@ -858,7 +909,7 @@ export async function processSellerStep2Action(payload: {
           orderRef: generateOrderRef(unitId),
           userName: emailUser.name,
           userEmail: emailUser.email,
-          userPhone: emailUser.phone,
+          userPhone: emailUser.phone || formattedPhone,
         }
       }
 
@@ -902,20 +953,34 @@ export async function processSellerStep2Action(payload: {
     }
 
     const hash = hashPassword(password)
-    const { data: createdUser, error: createErr } = await supabase
+    const userInsertPayload: Record<string, any> = {
+      name: cleanName,
+      phone: formattedPhone,
+      email: cleanEmail,
+      password_hash: hash,
+      country: userCountryCode,
+      role: 'user',
+      status: 'active',
+      is_verified: false,
+      contact_messengers: activeMessengers,
+    }
+
+    let { data: createdUser, error: createErr } = await supabase
       .from('users')
-      .insert({
-        name: cleanName,
-        phone: formattedPhone,
-        email: cleanEmail,
-        password_hash: hash,
-        country: userCountryCode,
-        role: 'user',
-        status: 'active',
-        is_verified: false,
-      })
+      .insert(userInsertPayload)
       .select('id, name, email, phone')
       .single()
+
+    if (createErr || !createdUser) {
+      const { contact_messengers: _cm, ...basicUserPayload } = userInsertPayload
+      const retryUser = await supabase
+        .from('users')
+        .insert(basicUserPayload)
+        .select('id, name, email, phone')
+        .single()
+      createdUser = retryUser.data
+      createErr = retryUser.error
+    }
 
     if (createErr || !createdUser) {
       return {
@@ -1041,11 +1106,11 @@ export async function sendSellerRecoveryLinkAction(payload: {
       senderName: msg.emailSenderName,
       subject: msg.recoveryEmailSubject,
       html: `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.8; color: #0a1122;">
-              <p>${msg.recoveryEmailPrompt}:</p>
-              <p style="margin: 18px 0;">
-                <a href="${resetLink}" style="color: #0b6954; font-weight: bold; word-break: break-all;">${resetLink}</a>
-              </p>
-             </div>`,
+               <p>${msg.recoveryEmailPrompt}:</p>
+               <p style="margin: 18px 0;">
+                 <a href="${resetLink}" style="color: #0b6954; font-weight: bold; word-break: break-all;">${resetLink}</a>
+               </p>
+              </div>`,
     })
 
     return { success: true }
@@ -1417,6 +1482,13 @@ export async function saveSellProgress(
       payload
     )
 
+    try {
+      await supabase
+        .from('users')
+        .update({ contact_messengers: payload.contact_messengers })
+        .eq('id', sessionUser.id)
+    } catch {}
+
     revalidatePath('/account', 'page')
     revalidatePath('/opportunities', 'page')
     revalidatePath(`/opportunities/${targetUnitId}`, 'page')
@@ -1518,8 +1590,17 @@ export async function submitSellRequest(
       }
 
       try {
+        await supabase
+          .from('users')
+          .update({
+            contact_messengers: payload.contact_messengers,
+            ...(payload.phone ? { phone: payload.phone } : {}),
+          })
+          .eq('id', sessionUser.id)
+
         await supabase.from('notifications').insert({
           user_id: null,
+          role: 'admin',
           title: wasPreviouslySubmitted
             ? `🔄 ${msg.editedUnitAdminTitle} (${unitCountry}): ${projectName || msg.unitWord}`
             : `✅ ${msg.completedUnitAdminTitle} (${unitCountry}): ${projectName || msg.unitWord}`,
@@ -1588,8 +1669,17 @@ export async function submitSellRequest(
 
     const finalId = String(inserted.id)
     try {
+      await supabase
+        .from('users')
+        .update({
+          contact_messengers: payload.contact_messengers,
+          ...(payload.phone ? { phone: payload.phone } : {}),
+        })
+        .eq('id', sessionUser.id)
+
       await supabase.from('notifications').insert({
         user_id: null,
+        role: 'admin',
         title: `${msg.newUnitReviewAdminTitle} (${unitCountry}): ${projectName || msg.unitWord}`,
         message: `${payload.name} · ${payload.area || '—'}`,
         type: 'property',

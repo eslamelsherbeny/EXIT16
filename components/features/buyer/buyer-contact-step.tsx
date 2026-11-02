@@ -7,6 +7,7 @@ import {
   EyeOff,
   Loader2,
   LogIn,
+  MessageCircle,
   UserPlus,
 } from 'lucide-react'
 import {
@@ -26,14 +27,17 @@ import {
   toEnglishDigits,
   type PlatformCountryCode,
 } from '@/components/features/seller/seller-shared'
+import { getPhonePlaceholderByCode } from '@/components/features/seller/seller-contact-step'
 import { useTranslation, type LocaleCode } from '@/lib/i18n'
 
 export type BuyerFormState = BuyRequestPayload & {
   country: PlatformCountryCode
   residenceCountry?: string
   password: string
+  confirmPassword?: string
   loginIdentifier?: string
   loginPassword?: string
+  contactMessengers?: string[]
 }
 
 export type BuyerConflictState =
@@ -121,17 +125,64 @@ export function BuyerContactStep({
   onSuccessRedirect: (info?: { reqId?: string; orderRef?: string }) => void
 }) {
   const { t: dict, locale } = useTranslation()
+  const isAr = locale === 'ar'
   const t = dict.buy.stepThree as Record<string, any>
 
   const [existingPass, setExistingPass] = useState('')
   const [showExistingPass, setShowExistingPass] = useState(false)
+  const [showConfirmPass, setShowConfirmPass] = useState(false)
   const [recoveryLinkSent, setRecoveryLinkSent] = useState(false)
   const [stepError, setStepError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
+  const dynamicPlaceholder = getPhonePlaceholderByCode(countryCode)
+  const selectedMessengers = data.contactMessengers || ['whatsapp', 'viber']
+
+  const toggleMessenger = (appId: string) => {
+    const exists = selectedMessengers.includes(appId)
+    const next = exists
+      ? selectedMessengers.filter((x) => x !== appId)
+      : [...selectedMessengers, appId]
+    update('contactMessengers', next.length > 0 ? next : ['whatsapp'])
+  }
+
   useEffect(() => {
     setStepError('')
   }, [locale])
+
+  const renderMessengersPicker = () => (
+    <div>
+      <label className="mb-2 block text-start text-xs font-extrabold text-slate-600">
+        {isAr
+          ? 'تطبيقات المراسلة المتاحة على هذا الرقم (تُحفظ في قاعدة البيانات)'
+          : 'Messengers available on this number'}
+      </label>
+      <div className="flex flex-wrap gap-2">
+        {[
+          { id: 'whatsapp', label: 'WhatsApp' },
+          { id: 'viber', label: 'Viber' },
+          { id: 'telegram', label: 'Telegram' },
+        ].map((msgApp) => {
+          const active = selectedMessengers.includes(msgApp.id)
+          return (
+            <button
+              key={msgApp.id}
+              type="button"
+              onClick={() => toggleMessenger(msgApp.id)}
+              className={`inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-xs font-extrabold transition ${
+                active
+                  ? 'border-[#2563eb] bg-[#2563eb] text-white shadow-2xs'
+                  : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              <MessageCircle className="size-3.5" />
+              <span>{msgApp.label}</span>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
 
   const handleVerifyExistingEmail = async () => {
     if (!conflictState || conflictState.type !== 'email_exists') return
@@ -167,6 +218,7 @@ export function BuyerContactStep({
         min_rooms: Number.parseInt(String(data.min_rooms), 10) || 0,
         delivery_status: data.delivery_status,
         preferred_areas: data.preferred_areas,
+        contactMessengers: selectedMessengers,
       })
 
       if (saveRes.status === 'ok') {
@@ -352,7 +404,7 @@ export function BuyerContactStep({
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 bg-slate-50/80 p-1.5 sm:flex">
+      <div className="grid grid-cols-1 gap-2 rounded-2xl border border-slate-200 bg-slate-50/80 p-1.5 sm:flex">
         {loggedUser && (
           <button
             type="button"
@@ -398,7 +450,7 @@ export function BuyerContactStep({
       </div>
 
       {authTab === 'session' && loggedUser && (
-        <div className="rounded-2xl border border-[var(--brand-primary,#007a5a)]/30 bg-[var(--brand-primary-light,#eaf8f2)] p-5 text-start">
+        <div className="space-y-4 rounded-2xl border border-[var(--brand-primary,#007a5a)]/30 bg-[var(--brand-primary-light,#eaf8f2)] p-5 text-start">
           <div className="flex items-center justify-between">
             <span className="rounded-full bg-[var(--brand-primary,#007a5a)]/10 px-3 py-1 text-xs font-bold text-[var(--brand-primary,#007a5a)]">
               {t.connectedBadge}
@@ -407,10 +459,10 @@ export function BuyerContactStep({
               {t.welcomeUser} {loggedUser.name}
             </p>
           </div>
-          <p className="mt-2 text-xs leading-relaxed text-slate-600">
+          <p className="text-xs leading-relaxed text-slate-600">
             {t.sessionAutoSaveDesc}
           </p>
-          <div className="mt-3 grid grid-cols-1 gap-2 rounded-xl bg-white p-3.5 text-xs sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-2 rounded-xl bg-white p-3.5 text-xs sm:grid-cols-2">
             <div>
               <span className="text-slate-400">{t.phoneLabelShort} </span>
               <strong
@@ -427,6 +479,8 @@ export function BuyerContactStep({
               </strong>
             </div>
           </div>
+
+          {renderMessengersPicker()}
         </div>
       )}
 
@@ -459,8 +513,8 @@ export function BuyerContactStep({
                 }
                 inputMode="tel"
                 dir="ltr"
-                placeholder="5xx xx xx xx"
-                className={`h-12 flex-1 rounded-xl px-3 text-left ${
+                placeholder={dynamicPlaceholder}
+                className={`h-12 flex-1 rounded-xl px-3 text-left font-bold ${
                   errors?.phone
                     ? 'border-red-500 bg-red-50/20'
                     : 'border-slate-200'
@@ -477,6 +531,8 @@ export function BuyerContactStep({
             </p>
           </div>
 
+          {renderMessengersPicker()}
+
           <Field
             id="email"
             type="email"
@@ -486,42 +542,83 @@ export function BuyerContactStep({
             update={(value) => update('email', value)}
           />
 
-          <div>
-            <Label className="block text-start">
-              <RequiredLabel>{t.passwordLabel}</RequiredLabel>
-            </Label>
-            <div className="relative mt-2">
-              <Input
-                value={data.password}
-                onChange={(event) => update('password', event.target.value)}
-                type={passwordVisible ? 'text' : 'password'}
-                dir="ltr"
-                className={`h-12 rounded-xl pr-12 pl-4 text-left ${
-                  errors?.password
-                    ? 'border-red-500 bg-red-50/20'
-                    : 'border-slate-200'
-                }`}
-              />
-              <button
-                type="button"
-                onClick={() => setPasswordVisible(!passwordVisible)}
-                className="absolute top-1/2 right-3 -translate-y-1/2 text-slate-500 hover:text-[var(--brand-primary,#007a5a)]"
-              >
-                {passwordVisible ? (
-                  <EyeOff className="size-4" />
-                ) : (
-                  <Eye className="size-4" />
-                )}
-              </button>
-            </div>
-            {errors?.password && (
-              <p className="mt-1.5 text-start text-xs font-semibold text-red-600">
-                {errors.password}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <Label className="block text-start">
+                <RequiredLabel>{t.passwordLabel}</RequiredLabel>
+              </Label>
+              <div className="relative mt-2">
+                <Input
+                  value={data.password}
+                  onChange={(event) => update('password', event.target.value)}
+                  type={passwordVisible ? 'text' : 'password'}
+                  dir="ltr"
+                  className={`h-12 rounded-xl pr-12 pl-4 text-left ${
+                    errors?.password
+                      ? 'border-red-500 bg-red-50/20'
+                      : 'border-slate-200'
+                  }`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setPasswordVisible(!passwordVisible)}
+                  className="absolute top-1/2 right-3 -translate-y-1/2 text-slate-500 hover:text-[var(--brand-primary,#007a5a)]"
+                >
+                  {passwordVisible ? (
+                    <EyeOff className="size-4" />
+                  ) : (
+                    <Eye className="size-4" />
+                  )}
+                </button>
+              </div>
+              {errors?.password && (
+                <p className="mt-1.5 text-start text-xs font-semibold text-red-600">
+                  {errors.password}
+                </p>
+              )}
+              <p className="mt-2 text-start text-xs text-slate-500">
+                {t.passwordHelper}
               </p>
-            )}
-            <p className="mt-2 text-start text-xs text-slate-500">
-              {t.passwordHelper}
-            </p>
+            </div>
+
+            {/* حقل تأكيد كلمة السر */}
+            <div>
+              <Label className="block text-start">
+                {isAr ? 'تأكيد كلمة السر' : 'Confirm Password'}{' '}
+                <span className="ms-1 text-red-500">*</span>
+              </Label>
+              <div className="relative mt-2">
+                <Input
+                  value={data.confirmPassword || ''}
+                  onChange={(event) =>
+                    update('confirmPassword', event.target.value)
+                  }
+                  type={showConfirmPass ? 'text' : 'password'}
+                  dir="ltr"
+                  className={`h-12 rounded-xl pr-12 pl-4 text-left ${
+                    errors?.confirmPassword
+                      ? 'border-red-500 bg-red-50/20'
+                      : 'border-slate-200'
+                  }`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPass(!showConfirmPass)}
+                  className="absolute top-1/2 right-3 -translate-y-1/2 text-slate-500 hover:text-[var(--brand-primary,#007a5a)]"
+                >
+                  {showConfirmPass ? (
+                    <EyeOff className="size-4" />
+                  ) : (
+                    <Eye className="size-4" />
+                  )}
+                </button>
+              </div>
+              {errors?.confirmPassword && (
+                <p className="mt-1.5 text-start text-xs font-semibold text-red-600">
+                  {errors.confirmPassword}
+                </p>
+              )}
+            </div>
           </div>
         </>
       )}
@@ -574,6 +671,8 @@ export function BuyerContactStep({
               </p>
             )}
           </div>
+
+          {renderMessengersPicker()}
         </div>
       )}
 

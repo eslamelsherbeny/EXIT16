@@ -38,6 +38,7 @@ export type BuyRequestPayload = {
   phone: string
   email: string
   password: string
+  contactMessengers?: string[]
 }
 
 export async function processBuyerStep3Action(payload: {
@@ -57,6 +58,7 @@ export async function processBuyerStep3Action(payload: {
   email?: string
   password?: string
   loginIdentifier?: string
+  contactMessengers?: string[]
 }): Promise<Step2AuthResponse> {
   const { t: msg, dir } = await getFormsDict()
   try {
@@ -68,10 +70,30 @@ export async function processBuyerStep3Action(payload: {
       .trim()
       .toUpperCase()
 
+    const activeMessengers =
+      Array.isArray(payload.contactMessengers) &&
+      payload.contactMessengers.length > 0
+        ? payload.contactMessengers
+        : ['whatsapp']
+
+    async function syncBuyerUserMessengers(userId: string, newPhone?: string) {
+      try {
+        const updates: Record<string, any> = {
+          contact_messengers: activeMessengers,
+        }
+        if (newPhone && newPhone.trim().length >= 8) {
+          updates.phone = formatPrimaryPhone(newPhone)
+        }
+        await supabase.from('users').update(updates).eq('id', userId)
+      } catch {}
+    }
+
     async function insertBuyRequestRecord(
       userId: string,
       contact: { name: string; phone: string; email: string }
     ) {
+      await syncBuyerUserMessengers(userId, contact.phone)
+
       const buyRow: Record<string, any> = {
         user_id: userId,
         country: targetCountry,
@@ -171,9 +193,13 @@ export async function processBuyerStep3Action(payload: {
         return { status: 'error', error: msg.sessionExpired }
       }
 
+      const resolvedPhone = payload.phone
+        ? formatPrimaryPhone(payload.phone)
+        : currentUser.phone || ''
+
       const reqId = await insertBuyRequestRecord(currentUser.id, {
-        name: currentUser.name || msg.buyerFallback,
-        phone: currentUser.phone || '',
+        name: payload.name || currentUser.name || msg.buyerFallback,
+        phone: resolvedPhone,
         email: currentUser.email || '',
       })
 
@@ -185,6 +211,9 @@ export async function processBuyerStep3Action(payload: {
         userId: currentUser.id,
         unitId: reqId,
         orderRef: generateOrderRef(reqId),
+        userName: currentUser.name,
+        userEmail: currentUser.email,
+        userPhone: resolvedPhone || currentUser.phone,
       }
     }
 
@@ -247,6 +276,9 @@ export async function processBuyerStep3Action(payload: {
         userId: matched.id,
         unitId: reqId,
         orderRef: generateOrderRef(reqId),
+        userName: matched.name,
+        userEmail: matched.email,
+        userPhone: matched.phone,
       }
     }
 
@@ -294,6 +326,9 @@ export async function processBuyerStep3Action(payload: {
           userId: emailUser.id,
           unitId: reqId,
           orderRef: generateOrderRef(reqId),
+          userName: emailUser.name,
+          userEmail: emailUser.email,
+          userPhone: emailUser.phone || formattedPhone,
         }
       }
 
@@ -321,6 +356,9 @@ export async function processBuyerStep3Action(payload: {
           userId: phoneUser.id,
           unitId: reqId,
           orderRef: generateOrderRef(reqId),
+          userName: phoneUser.name,
+          userEmail: phoneUser.email,
+          userPhone: phoneUser.phone,
         }
       }
 
@@ -334,20 +372,34 @@ export async function processBuyerStep3Action(payload: {
     }
 
     const hash = hashPassword(password)
-    const { data: createdUser, error: createErr } = await supabase
+    const userInsertPayload: Record<string, any> = {
+      name: cleanName,
+      phone: formattedPhone,
+      email: cleanEmail,
+      password_hash: hash,
+      country: buyerResidenceCountry,
+      role: 'user',
+      status: 'active',
+      is_verified: false,
+      contact_messengers: activeMessengers,
+    }
+
+    let { data: createdUser, error: createErr } = await supabase
       .from('users')
-      .insert({
-        name: cleanName,
-        phone: formattedPhone,
-        email: cleanEmail,
-        password_hash: hash,
-        country: buyerResidenceCountry,
-        role: 'user',
-        status: 'active',
-        is_verified: false,
-      })
+      .insert(userInsertPayload)
       .select('id, name, email, phone')
       .single()
+
+    if (createErr || !createdUser) {
+      const { contact_messengers: _cm, ...basicUserPayload } = userInsertPayload
+      const retryUser = await supabase
+        .from('users')
+        .insert(basicUserPayload)
+        .select('id, name, email, phone')
+        .single()
+      createdUser = retryUser.data
+      createErr = retryUser.error
+    }
 
     if (createErr || !createdUser) {
       return {
@@ -371,6 +423,9 @@ export async function processBuyerStep3Action(payload: {
       userId: createdUser.id,
       unitId: reqId,
       orderRef: generateOrderRef(reqId),
+      userName: createdUser.name,
+      userEmail: createdUser.email,
+      userPhone: createdUser.phone,
     }
   } catch (e) {
     console.error('processBuyerStep3Action error:', e)
@@ -429,7 +484,6 @@ export async function submitBuyRequest(
   }
 }
 
-// دالة احتياطية فارغة لمنع أي خطأ Import إذا تم استدعاؤها من ملف قديم بعد إلغاء قسم المستثمرين
 export async function submitInvestorLead(_formData: FormData) {
   return { success: true }
 }

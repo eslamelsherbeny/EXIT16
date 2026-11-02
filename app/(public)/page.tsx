@@ -59,7 +59,7 @@ export default async function HomePage() {
         return sum + unitVal
       }, 0)
 
-      for (const u of georgiaUnits.slice(0, 12)) {
+      for (const u of georgiaUnits.slice(0, 16)) {
         const meta = u.documents?.__unit_meta || {}
         const imgs =
           Array.isArray(u.images) && u.images.length > 0 ? u.images : []
@@ -73,7 +73,6 @@ export default async function HomePage() {
             ? Math.max(0, marketVal - contractVal - commission)
             : 0
 
-       
         const delivYearNum = Number(u.delivery_year || meta.delivery_year) || 0
         const rawDelStatus = String(
           u.delivery_status || meta.delivery_status || ''
@@ -101,11 +100,18 @@ export default async function HomePage() {
         const fallbackCode = String(u.id || '')
           .slice(0, 5)
           .toUpperCase()
-        const code = `U-${numericCode.length >= 4 ? numericCode : fallbackCode}`
+        const code =
+          u.code || `U-${numericCode.length >= 4 ? numericCode : fallbackCode}`
 
         const isFeat =
           Boolean(u.is_featured) &&
           (!u.featured_until || new Date(u.featured_until) > new Date())
+
+        const resolvedBoostTier = isFeat
+          ? u.boost_tier === 'vip_plus'
+            ? 'vip_plus'
+            : 'super_vip'
+          : null
 
         dbUnits.push({
           id: String(u.id),
@@ -113,6 +119,7 @@ export default async function HomePage() {
           title: sanitizeGeorgiaProjectTitle(u.project_name),
           developer: u.developer_name || '',
           area: u.area || meta.area || 'Tbilisi - Saburtalo',
+          unitTypeLabel: u.unit_type || meta.unit_type || 'Apartment',
           category: 'exit',
           price: paidVal,
           contractPrice: contractVal,
@@ -138,10 +145,15 @@ export default async function HomePage() {
           images: imgs.length > 0 ? imgs : undefined,
           imagesCount: Math.max(1, imgs.length),
           isFeatured: isFeat,
-          boostTier: isFeat ? 'super_vip' : null,
-          docsVerified: true,
+          boostTier: resolvedBoostTier,
+          docsVerified: u.docs_verified ?? true,
           viewsCount: Number(u.views_count) || 85,
           createdAt: u.created_at,
+          features: Array.isArray(u.features)
+            ? u.features
+            : Array.isArray(meta.features)
+              ? meta.features
+              : [],
         })
       }
     }

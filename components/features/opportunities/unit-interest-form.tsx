@@ -23,38 +23,11 @@ import {
   ZoomOut,
 } from 'lucide-react'
 import { submitBuyerOfferAction } from '@/actions/offer-actions'
+import { formatRelativePublishTime } from '@/components/features/home/home-property-card'
 import { TurnstileBox } from '@/components/layouts/auth-layout'
 import { CountrySelector } from '@/components/shared/country-selector'
 import { toEnglishDigits } from '@/components/features/seller/seller-shared'
 import { useTranslation } from '@/lib/i18n'
-
-function formatRelativePublishedTime(createdAt?: string, isAr = true): string {
-  if (!createdAt) return isAr ? 'قبل أسبوع' : '1 week ago'
-  const createdTime = new Date(createdAt).getTime()
-  if (Number.isNaN(createdTime)) return isAr ? 'قبل أسبوع' : '1 week ago'
-
-  const diffDays = Math.max(
-    0,
-    Math.floor((Date.now() - createdTime) / (1000 * 60 * 60 * 24))
-  )
-
-  if (diffDays === 0) return isAr ? 'نُشرت اليوم' : 'Published today'
-  if (diffDays === 1) return isAr ? 'قبل يوم واحد' : '1 day ago'
-  if (diffDays === 2) return isAr ? 'قبل يومين' : '2 days ago'
-  if (diffDays < 7)
-    return isAr ? `قبل ${diffDays} أيام` : `${diffDays} days ago`
-  if (diffDays < 14) return isAr ? 'قبل أسبوع' : '1 week ago'
-  if (diffDays < 30) {
-    const weeks = Math.floor(diffDays / 7)
-    return isAr
-      ? `قبل ${weeks} ${weeks === 2 ? 'أسبوعين' : 'أسابيع'}`
-      : `${weeks} weeks ago`
-  }
-  const months = Math.max(1, Math.floor(diffDays / 30))
-  return isAr
-    ? `قبل ${months} ${months === 1 ? 'شهر' : months === 2 ? 'شهرين' : 'شهور'}`
-    : `${months} mo ago`
-}
 
 export function UnitGalleryWithLightbox({
   gallery,
@@ -126,20 +99,17 @@ export function UnitGalleryWithLightbox({
   }, [lightboxOpen, isRtl, totalPhotos])
 
   const viewsTotal = Math.max(1, Number(viewsCount) || 1)
-  const viewsToday = Math.max(1, Math.min(viewsTotal, Math.ceil(viewsTotal * 0.12)))
-  const publishedAgo = formatRelativePublishedTime(createdAt, isAr)
+  const publishedAgo = formatRelativePublishTime(createdAt, isAr)
   const resolvedTier = boostTier || (featured ? 'super_vip' : null)
 
   return (
     <>
       <section className="mt-4">
-        {/* شبكة الصور المتجاوبة: صورة رئيسية كبيرة + شبكة الصور المصغرة */}
         <div
           className={`grid grid-cols-1 gap-2.5 ${
             sideThumbnails.length > 0 ? 'sm:grid-cols-12' : ''
           }`}
         >
-          {/* الصورة الرئيسية */}
           <div
             onClick={() => {
               setLightboxOpen(true)
@@ -157,7 +127,6 @@ export function UnitGalleryWithLightbox({
 
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
 
-            {/* شارة الباقة الإعلانية أعلى الصورة */}
             {resolvedTier === 'super_vip' && (
               <span className="pointer-events-none absolute top-3.5 start-3.5 z-10 inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-3 py-1 text-[11px] font-extrabold text-white shadow-md">
                 <Crown className="size-3.5" />
@@ -171,13 +140,13 @@ export function UnitGalleryWithLightbox({
               </span>
             )}
 
-            {/* زر تكبير الصورة في المنتصف السفلي */}
             <span className="pointer-events-none absolute bottom-3.5 start-3.5 z-10 inline-flex items-center gap-1.5 rounded-full bg-black/65 px-3 py-1 text-[11px] font-bold text-white backdrop-blur-xs">
               <ZoomIn className="size-3.5" />
-              <span>{t.zoomHint || (isAr ? 'اضغط لتكبير الصور' : 'Click to zoom')}</span>
+              <span>
+                {t.zoomHint || (isAr ? 'اضغط لتكبير الصور' : 'Click to zoom')}
+              </span>
             </span>
 
-            {/* العداد وأزرار التنقل الدائرية كما في الموقع الأصلي */}
             <div
               onClick={(e) => e.stopPropagation()}
               className="absolute bottom-3.5 end-3.5 z-20 flex flex-col items-end gap-1.5"
@@ -220,9 +189,8 @@ export function UnitGalleryWithLightbox({
             </div>
           </div>
 
-          {/* شبكة الـ 4 صور المصغرة (تظهر في صف أفقي على الموبايل وشبكة 2×2 بجانب الصورة على التابلت والكمبيوتر) */}
           {sideThumbnails.length > 0 && (
-            <div className="grid grid-cols-4 gap-2 sm:col-span-4 sm:grid-cols-2 sm:grid-rows-2 sm:h-[360px]">
+            <div className="grid grid-cols-4 gap-2 sm:col-span-4 sm:h-[360px] sm:grid-cols-2 sm:grid-rows-2">
               {sideThumbnails.map((item, idx) => {
                 const realIdx = idx + 1
                 const isLastThumb = idx === 3 && extraPhotosCount > 0
@@ -260,8 +228,6 @@ export function UnitGalleryWithLightbox({
           )}
         </div>
 
-        {/* الشريط السفلي تحت الصور مباشرة: تاريخ النشر + عدد المشاهدات + كود الوحدة مع النسخ */}
-      {/* الشريط السفلي تحت الصور مباشرة: متى نُشرت بعد موافقة الأدمن + إجمالي المشاهدات الحقيقية من الداتا بيز + كود الوحدة */}
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-gray-200/80 bg-white px-4 py-2.5 text-xs font-semibold text-gray-500 shadow-2xs">
           <div className="flex flex-wrap items-center gap-3 sm:gap-4">
             <span className="inline-flex items-center gap-1.5">
@@ -305,7 +271,6 @@ export function UnitGalleryWithLightbox({
         </div>
       </section>
 
-      {/* نافذة عرض الصور المكبرة (Full-Screen Lightbox) مع زر الإغلاق X والتكبير وشريط الصور المصغرة */}
       {lightboxOpen && (
         <div
           dir={dir}
@@ -315,7 +280,6 @@ export function UnitGalleryWithLightbox({
           }}
           className="fixed inset-0 z-[9999] flex flex-col justify-between bg-[#070b14]/95 p-3 text-white backdrop-blur-md select-none sm:p-5"
         >
-          {/* الهيدر العلوي: زر الإغلاق X + زر التكبير + العنوان + العداد */}
           <div
             onClick={(e) => e.stopPropagation()}
             className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3"
@@ -361,7 +325,6 @@ export function UnitGalleryWithLightbox({
             </div>
           </div>
 
-          {/* الصورة المكبرة في المنتصف مع أسهم التنقل */}
           <div
             onClick={(e) => e.stopPropagation()}
             className="relative my-2 flex flex-1 items-center justify-center overflow-hidden"
@@ -406,7 +369,6 @@ export function UnitGalleryWithLightbox({
             )}
           </div>
 
-          {/* شريط الصور المصغرة بالأسفل */}
           {totalPhotos > 1 && (
             <div
               onClick={(e) => e.stopPropagation()}
@@ -649,7 +611,6 @@ export function UnitInterestForm({
             </div>
           )}
 
-          {/* 1. تحديد قيمة الكاش المعروض للمالك (مع توضيح المبلغ الأصلي المطلوب للتنازل) */}
           <div className="rounded-2xl border border-gray-200/90 bg-[#f8faf9] p-4">
             <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
               <label className="text-xs font-extrabold text-[#0a1122]">
@@ -853,7 +814,6 @@ export function UnitInterestForm({
             </div>
           )}
 
-          {/* 2. جاهزية التنفيذ وطريقة السداد */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-2 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">

@@ -58,6 +58,7 @@ export type MappedProperty = {
   isReady: boolean
   contractYear: number
   featured: boolean
+  boostTier?: 'super_vip' | 'vip_plus' | null
   viewsCount: number
   createdAt?: string
   image: string
@@ -166,7 +167,8 @@ export function mapDbRowToProperty(
   const fallbackCode = String(row.id || '')
     .slice(0, 5)
     .toUpperCase()
-  const code = `U-${numericCode.length >= 4 ? numericCode : fallbackCode}`
+  const code =
+    row.code || `U-${numericCode.length >= 4 ? numericCode : fallbackCode}`
 
   const rawArea = row.area || meta.area || ''
   const localizedArea = rawArea
@@ -185,12 +187,22 @@ export function mapDbRowToProperty(
     Boolean(row.is_featured) &&
     (!row.featured_until || new Date(row.featured_until) > new Date())
 
+  const resolvedBoostTier: 'super_vip' | 'vip_plus' | null = isFeaturedActive
+    ? row.boost_tier === 'vip_plus'
+      ? 'vip_plus'
+      : 'super_vip'
+    : null
+
   const floorNum =
     row.floor_number !== null &&
     row.floor_number !== undefined &&
     String(row.floor_number).trim() !== ''
       ? Number(row.floor_number)
       : undefined
+
+  // توحيد ميعاد النشر في كل الموقع: تاريخ موافقة الأدمن أو تاريخ الرفع
+  const unifiedPublishedAt =
+    row.approved_at || meta.approved_at || row.created_at
 
   return {
     id: String(row.id),
@@ -229,8 +241,9 @@ export function mapDbRowToProperty(
     isReady,
     contractYear: Number(row.contract_year ?? meta.contract_year) || 2024,
     featured: isFeaturedActive,
-    viewsCount: Number(row.views_count) || 85,
-    createdAt: row.created_at,
+    boostTier: resolvedBoostTier,
+    viewsCount: Math.max(1, Number(row.views_count) || 1),
+    createdAt: unifiedPublishedAt,
     image: validImage,
     images: validImages.length > 0 ? validImages : [validImage],
   }
@@ -272,7 +285,8 @@ export function OpportunityCard({
     images: property.images,
     imagesCount: property.images.length,
     isFeatured: property.featured,
-    boostTier: property.featured ? 'super_vip' : null,
+    boostTier:
+      property.boostTier || (property.featured ? 'super_vip' : null),
     docsVerified: true,
     viewsCount: property.viewsCount,
     createdAt: property.createdAt,

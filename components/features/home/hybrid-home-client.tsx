@@ -1,13 +1,12 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Check, Plus, ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ScrollReveal } from '@/components/shared/scroll-reveal'
 import { useTranslation } from '@/lib/i18n'
 import {
-  FALLBACK_SHOWCASE_UNITS,
   getHomeCategoriesGrid,
   type HomeUnitCardItem,
 } from './home-data'
@@ -25,6 +24,7 @@ import {
 export type { HomeUnitCardItem }
 
 const CONTAINER_CLS = 'mx-auto w-full max-w-[1280px] px-4 sm:px-6 lg:px-8'
+const FAVORITES_STORAGE_KEY = 'darak_favorites'
 
 export function HybridHomeClient({
   dbUnits,
@@ -44,45 +44,66 @@ export function HybridHomeClient({
 
   const [favorites, setFavorites] = useState<string[]>([])
 
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(FAVORITES_STORAGE_KEY)
+      if (stored) {
+        const parsed = JSON.parse(stored)
+        if (Array.isArray(parsed)) setFavorites(parsed.map(String))
+      }
+    } catch {}
+  }, [])
+
+  const toggleFav = (id: string) => {
+    setFavorites((prev) => {
+      const idStr = String(id)
+      const next = prev.includes(idStr)
+        ? prev.filter((x) => x !== idStr)
+        : [...prev, idStr]
+      try {
+        localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(next))
+        window.dispatchEvent(new Event('favorites-updated'))
+      } catch {}
+      return next
+    })
+  }
+
+  // الاعتماد الرسمي 100% على وحدات قاعدة البيانات الحقيقية فقط بدون أي وحدات وهمية
   const allDisplayUnits = useMemo(() => {
-    const combined = [...(dbUnits || []), ...FALLBACK_SHOWCASE_UNITS]
     const seen = new Set<string>()
-    return combined.filter((u) => {
-      if (seen.has(u.id)) return false
+    return (dbUnits || []).filter((u) => {
+      if (!u?.id || seen.has(u.id)) return false
       seen.add(u.id)
       return true
     })
   }, [dbUnits])
 
-  // 1. وحدات SUPER VIP فقط
+  // 1. وحدات SUPER VIP الحقيقية من الداتا بيز
   const superVipUnits = useMemo(() => {
     return allDisplayUnits
-      .filter((u) => u.boostTier === 'super_vip' || u.isFeatured)
+      .filter(
+        (u) =>
+          u.boostTier === 'super_vip' ||
+          (u.isFeatured && u.boostTier !== 'vip_plus')
+      )
       .map((u) => ({ ...u, boostTier: 'super_vip' as const }))
   }, [allDisplayUnits])
 
-  // 2. وحدات +VIP فقط (إذا كانت فارغة يختفي قسم +VIP تلقائياً)
+  // 2. وحدات +VIP الحقيقية من الداتا بيز
   const vipPlusUnits = useMemo(() => {
-    return allDisplayUnits.filter((u) => u.boostTier === 'vip_plus')
-  }, [allDisplayUnits])
-
-  // 3. الوحدات المضافة حديثاً (بدون شارة VIP للمجاني)
-  const recentlyAddedUnits = useMemo(() => {
     return allDisplayUnits
-      .slice()
-      .reverse()
-      .map((u) => ({
-        ...u,
-        boostTier: u.boostTier || null,
-        isFeatured: Boolean(u.boostTier),
-      }))
+      .filter((u) => u.boostTier === 'vip_plus')
+      .map((u) => ({ ...u, boostTier: 'vip_plus' as const }))
   }, [allDisplayUnits])
 
-  const toggleFav = (id: string) => {
-    setFavorites((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    )
-  }
+  // 3. أحدث الوحدات المضافة مرتبة من الأحدث للأقدم
+  const recentlyAddedUnits = useMemo(() => {
+    return [...allDisplayUnits].sort((a, b) => {
+      const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0
+      const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0
+      return tB - tA
+    })
+  }, [allDisplayUnits])
 
   const categoriesGrid = getHomeCategoriesGrid(isAr)
   const comparisonRows = t?.comparison?.rows || []
@@ -269,7 +290,7 @@ export function HybridHomeClient({
         </ScrollReveal>
       </section>
 
-      {/* 3. ماذا تبحث عنه للتنازل؟ (الصفين القابلين للسحب يميناً ويساراً باللمس) */}
+      {/* 3. ماذا تبحث عنه للتنازل؟ */}
       <section className={`${CONTAINER_CLS} py-10`}>
         <ScrollReveal>
           <div className="mb-6 text-start">
@@ -309,7 +330,7 @@ export function HybridHomeClient({
         </ScrollReveal>
       </section>
 
-      {/* 4. قسم إعلانات SUPER VIP (بدون كارت "إعلانك هنا" وسطها كما في الصورة 1 و 9) */}
+      {/* 4. قسم إعلانات SUPER VIP الحقيقية */}
       <HomeCardsCarouselSection
         badgeText="SUPER VIP"
         badgeClass="bg-gradient-to-r from-[#ff6437] to-[#ff4f69] text-white shadow-xs"
@@ -326,14 +347,14 @@ export function HybridHomeClient({
         onToggleFav={toggleFav}
       />
 
-      {/* 5. قسم إعلانات +VIP المستقل (يظهر فقط لو فيه إعلان +VIP وبجانبه "إعلانك هنا +VIP" كما في الصورة 5 و 6) */}
+      {/* 5. قسم إعلانات +VIP الحقيقية */}
       <HomeVipPlusSection
         vipPlusUnits={vipPlusUnits}
         favorites={favorites}
         onToggleFav={toggleFav}
       />
 
-      {/* 6. قسم أضيفت حديثاً (الكروت العادية لا تأخذ شارة VIP إلا لو كانت مشتركة) */}
+      {/* 6. قسم أضيفت حديثاً */}
       <HomeCardsCarouselSection
         title={isAr ? 'أضيفت حديثاً' : 'Recently added'}
         subtitle={
@@ -348,13 +369,13 @@ export function HybridHomeClient({
         onToggleFav={toggleFav}
       />
 
-      {/* 7. بانر الترويج المتوسط بالألوان الجديدة والموجة المتحركة */}
+      {/* 7. بانر الترويج المتوسط */}
       <SponsoredRightAlignedBanner />
 
-      {/* 8. خريطة جورجيا ثلاثية الأبعاد 3D (بالثيم الزمردي الجديد والنصوص المتخصصة) */}
+      {/* 8. خريطة جورجيا ثلاثية الأبعاد */}
       <Home3DMapSection />
 
-      {/* 9. لمن هذه المنصة؟ (للبائع وللمشتري) */}
+      {/* 9. لمن هذه المنصة؟ */}
       <section className={`${CONTAINER_CLS} py-12 md:py-16`}>
         <ScrollReveal className="max-w-xl text-start">
           <h2 className="heading-section">{t?.audience?.title}</h2>
@@ -703,7 +724,7 @@ export function HybridHomeClient({
         </ScrollReveal>
       </section>
 
-      {/* 16. قسم شحن الرصيد وباقات الإعلانات (باللاري الجورجي ₾ فقط) */}
+      {/* 16. قسم شحن الرصيد وباقات الإعلانات */}
       <TopUpBalanceGelSection />
 
       {/* 17. كارتا الختام قبل الفوتر */}

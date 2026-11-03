@@ -44,13 +44,15 @@ export default async function HomePage() {
       .order('created_at', { ascending: false })
 
     if (units && units.length > 0) {
-      const georgiaUnits = units.filter((u: any) => {
+      // فلترة رسمية: استبعاد أي صف بدون UUID حقيقي أو من خارج جورجيا
+      const validUnits = units.filter((u: any) => {
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(String(u?.id || ''))
         const areaVal = u.area || u.documents?.__unit_meta?.area
-        return !isNonGeorgianLegacyArea(areaVal)
+        return isUuid && !isNonGeorgianLegacyArea(areaVal)
       })
 
-      realUnitCount = georgiaUnits.length
-      totalMarketValue = georgiaUnits.reduce((sum, u: any) => {
+      realUnitCount = validUnits.length
+      totalMarketValue = validUnits.reduce((sum, u: any) => {
         const unitVal =
           Number(u.market_price) ||
           Number(u.contract_price) ||
@@ -59,7 +61,7 @@ export default async function HomePage() {
         return sum + unitVal
       }, 0)
 
-      for (const u of georgiaUnits.slice(0, 16)) {
+      for (const u of validUnits.slice(0, 24)) {
         const meta = u.documents?.__unit_meta || {}
         const imgs =
           Array.isArray(u.images) && u.images.length > 0 ? u.images : []
@@ -107,11 +109,15 @@ export default async function HomePage() {
           Boolean(u.is_featured) &&
           (!u.featured_until || new Date(u.featured_until) > new Date())
 
-        const resolvedBoostTier = isFeat
+        const resolvedBoostTier: 'super_vip' | 'vip_plus' | null = isFeat
           ? u.boost_tier === 'vip_plus'
             ? 'vip_plus'
             : 'super_vip'
           : null
+
+        // الميعاد الرسمي الموحد في كل الموقع: تاريخ موافقة الأدمن (أو تاريخ الرفع كبديل)
+        const unifiedPublishedAt =
+          u.approved_at || meta.approved_at || u.created_at
 
         dbUnits.push({
           id: String(u.id),
@@ -147,8 +153,8 @@ export default async function HomePage() {
           isFeatured: isFeat,
           boostTier: resolvedBoostTier,
           docsVerified: u.docs_verified ?? true,
-          viewsCount: Number(u.views_count) || 85,
-          createdAt: u.created_at,
+          viewsCount: Math.max(1, Number(u.views_count) || 1),
+          createdAt: unifiedPublishedAt,
           features: Array.isArray(u.features)
             ? u.features
             : Array.isArray(meta.features)

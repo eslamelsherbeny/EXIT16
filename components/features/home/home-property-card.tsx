@@ -23,31 +23,38 @@ import {
   type HomeUnitCardItem,
 } from './home-data'
 
-function formatRelativePublishTime(createdAt?: string, isAr = true): string {
-  if (!createdAt) return isAr ? 'قبل 3 أسابيع' : '3 weeks ago'
+// دالة موحدة لحساب وقت نشر الوحدة في جميع صفحات الموقع (الرئيسية + الفرص المتاحة + صفحة تفاصيل الوحدة)
+export function formatRelativePublishTime(
+  createdAt?: string,
+  isAr = true
+): string {
+  if (!createdAt) return isAr ? 'منذ أسبوع' : '1 week ago'
   const createdTime = new Date(createdAt).getTime()
-  if (Number.isNaN(createdTime)) return isAr ? 'قبل 3 أسابيع' : '3 weeks ago'
+  if (Number.isNaN(createdTime)) return isAr ? 'منذ أسبوع' : '1 week ago'
 
-  const diffDays = Math.max(
-    0,
-    Math.floor((Date.now() - createdTime) / (1000 * 60 * 60 * 24))
-  )
+  const diffMs = Math.max(0, Date.now() - createdTime)
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
 
-  if (diffDays === 0) return isAr ? 'اليوم' : 'Today'
-  if (diffDays === 1) return isAr ? 'أمس' : 'Yesterday'
-  if (diffDays === 2) return isAr ? 'أول أمس' : '2 days ago'
-  if (diffDays < 7)
-    return isAr ? `قبل ${diffDays} أيام` : `${diffDays} days ago`
-  if (diffDays < 14) return isAr ? 'قبل أسبوع' : '1 week ago'
+  if (diffDays === 0) {
+    if (diffHours <= 1) return isAr ? 'منذ ساعة' : '1 hour ago'
+    if (diffHours === 2) return isAr ? 'منذ ساعتين' : '2 hours ago'
+    if (diffHours <= 10) return isAr ? `منذ ${diffHours} ساعات` : `${diffHours} hours ago`
+    return isAr ? `منذ ${diffHours} ساعة` : `${diffHours} hours ago`
+  }
+  if (diffDays === 1) return isAr ? 'منذ يوم واحد' : '1 day ago'
+  if (diffDays === 2) return isAr ? 'منذ يومين' : '2 days ago'
+  if (diffDays <= 10)
+    return isAr ? `منذ ${diffDays} أيام` : `${diffDays} days ago`
+  if (diffDays < 14) return isAr ? 'منذ أسبوع' : '1 week ago'
+  if (diffDays < 21) return isAr ? 'منذ أسبوعين' : '2 weeks ago'
   if (diffDays < 30) {
     const weeks = Math.floor(diffDays / 7)
-    return isAr
-      ? `قبل ${weeks} ${weeks === 2 ? 'أسبوعين' : 'أسابيع'}`
-      : `${weeks} weeks ago`
+    return isAr ? `منذ ${weeks} أسابيع` : `${weeks} weeks ago`
   }
   const months = Math.max(1, Math.floor(diffDays / 30))
   return isAr
-    ? `قبل ${months} ${months === 1 ? 'شهر' : months === 2 ? 'شهرين' : 'شهور'}`
+    ? `منذ ${months} ${months === 1 ? 'شهر' : months === 2 ? 'شهرين' : 'شهور'}`
     : `${months} mo ago`
 }
 
@@ -98,14 +105,19 @@ function translateUnitTypeWord(rawType?: string, isAr = true): string {
     if (clean === 'Hotel') return 'شقة فندقية'
     if (clean === 'Commercial') return 'تجاري'
     if (clean === 'Land') return 'أرض'
-    return clean
+    return clean.replace(/\s*\([^)]*\)/g, '').trim()
   }
   if (!clean || clean === 'شقة') return 'Apartment'
-  if (clean.includes('فندقية')) return 'Aparthotel'
-  if (clean.includes('فيلا') || clean.includes('منزل')) return 'Villa'
-  if (clean.includes('شاليه') || clean.includes('كوخ')) return 'Cottage'
-  if (clean.includes('تجاري')) return 'Commercial'
-  if (clean.includes('أرض')) return 'Land'
+  if (clean.includes('فندقية') || clean.toLowerCase().includes('hotel'))
+    return 'Aparthotel'
+  if (clean.includes('فيلا') || clean.includes('منزل') || clean.toLowerCase().includes('house'))
+    return 'Villa'
+  if (clean.includes('شاليه') || clean.includes('كوخ') || clean.toLowerCase().includes('cottage'))
+    return 'Cottage'
+  if (clean.includes('تجاري') || clean.toLowerCase().includes('commercial'))
+    return 'Commercial'
+  if (clean.includes('أرض') || clean.toLowerCase().includes('land'))
+    return 'Land'
   return clean
 }
 
@@ -125,14 +137,9 @@ export function HomePropertyCard({
   const USD = '$'
 
   const gallery =
-    unit.images && unit.images.length >= 2
+    unit.images && unit.images.length >= 1
       ? unit.images
-      : [
-          unit.image,
-          SHOWCASE_IMAGES.interior,
-          SHOWCASE_IMAGES.park,
-          SHOWCASE_IMAGES.villa,
-        ]
+      : [unit.image || SHOWCASE_IMAGES.interior]
 
   const [imgIdx, setImgIdx] = useState(0)
 
@@ -172,20 +179,16 @@ export function HomePropertyCard({
     ? `${cleanDeveloper} · ${cleanArea}`
     : cleanArea
 
-  const detailHref =
-    unit.id.startsWith('showcase-') ||
-    unit.id.startsWith('12000') ||
-    unit.id.startsWith('10000')
-      ? '/opportunities'
-      : `/opportunities/${unit.id}`
+  // جميع الوحدات رسمية وتوجه مباشرة لصفحة تفاصيل الوحدة
+  const detailHref = `/opportunities/${unit.id}`
 
-  const views = unit.viewsCount || 85
+  const views = Math.max(1, Number(unit.viewsCount) || 1)
   const rawCode =
     unit.code ||
-    `U-${unit.id.replace(/[^0-9]/g, '').slice(0, 5) || '89716'}`
+    `U-${String(unit.id || '').replace(/[^0-9]/g, '').slice(0, 5) || '10901'}`
   const displayCode = rawCode.startsWith('#') ? rawCode : `#${rawCode}`
   const publishedAgo = formatRelativePublishTime(unit.createdAt, isAr)
-  const totalCount = Math.max(unit.imagesCount || 11, gallery.length)
+  const totalCount = gallery.length
 
   const activeTier =
     unit.boostTier || (unit.isFeatured ? 'super_vip' : null)
@@ -257,39 +260,45 @@ export function HomePropertyCard({
             />
           </button>
 
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              setImgIdx((prev) => (prev === 0 ? gallery.length - 1 : prev - 1))
-            }}
-            className="absolute start-2.5 top-1/2 z-20 flex size-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-[#0f1d40] opacity-90 shadow-md transition hover:scale-105 hover:bg-white md:opacity-0 md:group-hover:opacity-100"
-            aria-label="Previous photo"
-          >
-            {dir === 'rtl' ? (
-              <ChevronRight className="size-4" />
-            ) : (
-              <ChevronLeft className="size-4" />
-            )}
-          </button>
+          {gallery.length > 1 && (
+            <>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setImgIdx((prev) =>
+                    prev === 0 ? gallery.length - 1 : prev - 1
+                  )
+                }}
+                className="absolute start-2.5 top-1/2 z-20 flex size-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-[#0f1d40] opacity-90 shadow-md transition hover:scale-105 hover:bg-white md:opacity-0 md:group-hover:opacity-100"
+                aria-label="Previous photo"
+              >
+                {dir === 'rtl' ? (
+                  <ChevronRight className="size-4" />
+                ) : (
+                  <ChevronLeft className="size-4" />
+                )}
+              </button>
 
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              setImgIdx((prev) => (prev + 1) % gallery.length)
-            }}
-            className="absolute end-2.5 top-1/2 z-20 flex size-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-[#0f1d40] opacity-90 shadow-md transition hover:scale-105 hover:bg-white md:opacity-0 md:group-hover:opacity-100"
-            aria-label="Next photo"
-          >
-            {dir === 'rtl' ? (
-              <ChevronLeft className="size-4" />
-            ) : (
-              <ChevronRight className="size-4" />
-            )}
-          </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setImgIdx((prev) => (prev + 1) % gallery.length)
+                }}
+                className="absolute end-2.5 top-1/2 z-20 flex size-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-[#0f1d40] opacity-90 shadow-md transition hover:scale-105 hover:bg-white md:opacity-0 md:group-hover:opacity-100"
+                aria-label="Next photo"
+              >
+                {dir === 'rtl' ? (
+                  <ChevronLeft className="size-4" />
+                ) : (
+                  <ChevronRight className="size-4" />
+                )}
+              </button>
+            </>
+          )}
 
           <div className="pointer-events-none absolute inset-x-3 bottom-2 z-10 flex items-center justify-between gap-2">
             <div className="flex flex-1 items-center gap-1">
@@ -500,7 +509,6 @@ export function HomeCardsCarouselSection({
     if (!el) return
 
     const step = 356
-    // في العربي (RTL) التقدم للأمام يتجه لليسار (-step)، وفي الإنجليزي (LTR) يتجه لليمين (+step)
     const delta =
       direction === 'next' ? (isRtl ? -step : step) : isRtl ? step : -step
 
@@ -560,7 +568,6 @@ export function HomeCardsCarouselSection({
           )}
         </button>
 
-        {/* بدون أي قطع أو بهتان أبيض على البداية، يبدأ من اليمين في العربي ومن اليسار في اللغات الأخرى */}
         <div
           ref={scrollRef}
           dir={dir}
@@ -649,7 +656,6 @@ export function HomeVipPlusSection({
         </Link>
       </div>
 
-      {/* على الموبايل والكمبيوتر: الكارت الترويجي "إعلانك هنا +VIP" بجانب الكروت في نفس السطر الأفقي وبنفس حجم الكارت */}
       <div className="relative">
         <button
           type="button"
@@ -678,7 +684,6 @@ export function HomeVipPlusSection({
             />
           ))}
 
-          {/* صندوق "إعلانك هنا +VIP" بنفس حجم الكارت على التليفون وعلى الكمبيوتر بجانب العناصر */}
           <Link
             href="#boost-packages-section"
             className="sivrce-card group flex min-h-[460px] w-[300px] shrink-0 snap-start flex-col items-center justify-center rounded-[20px] border-2 border-dashed border-indigo-200/90 bg-white p-6 text-center shadow-xs transition hover:border-[#4f46e5] hover:bg-indigo-50/20 sm:w-[326px] lg:w-[336px] lg:flex-1"

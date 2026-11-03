@@ -26,7 +26,7 @@ const RECENTLY_VIEWED_STORAGE_KEY = 'aqar_recently_viewed'
 const DEVICE_VIEWER_KEY_STORAGE = 'aqar_device_viewer_fingerprint'
 
 const PUBLIC_UNIT_DETAIL_COLUMNS =
-  'id, code, user_id, project_name, developer_name, area, unit_type, size, garden_size, rooms, bathrooms, floor_number, finishing, delivery_status, delivery_month, delivery_year, features, description, contract_price, paid_amount, market_price, installment_amount, installment_frequency, contract_month, contract_year, years_left, willing_to_discount, discount_amount, images, status, is_featured, boost_tier, featured_until, views_count, approved_at, created_at'
+  'id, code, user_id, project_name, developer_name, area, unit_type, size, garden_size, rooms, bathrooms, floor_number, finishing, delivery_status, delivery_month, delivery_year, features, description, contract_price, paid_amount, market_price, installment_amount, installment_frequency, contract_month, contract_year, years_left, willing_to_discount, discount_amount, images, status, is_featured, boost_tier, featured_until, views_count, created_at'
 
 const CORE_UNIT_DETAIL_COLUMNS =
   'id, user_id, project_name, developer_name, area, unit_type, size, rooms, bathrooms, finishing, delivery_status, description, contract_price, paid_amount, market_price, installment_amount, installment_frequency, contract_year, years_left, willing_to_discount, discount_amount, images, status, created_at'
@@ -57,6 +57,82 @@ function getOrCreateDeviceFingerprint(): string {
   } catch {
     return 'anon_device'
   }
+}
+
+function UnitDetailsPageSkeleton({ dir }: { dir: 'rtl' | 'ltr' }) {
+  return (
+    <main
+      dir={dir}
+      className="min-h-screen bg-[var(--brand-surface,#f5f6f8)] py-6 text-[var(--brand-navy,#0a1122)] sm:py-10"
+    >
+      <div className="mx-auto w-full max-w-[780px] animate-pulse px-4 sm:px-6">
+        <div className="h-4 w-28 rounded-md bg-slate-200/90" />
+
+        <div className="mt-4 flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+          <div className="space-y-2.5">
+            <div className="h-8 w-64 rounded-xl bg-slate-200 sm:w-80" />
+            <div className="h-4 w-44 rounded-md bg-slate-200/80" />
+            <div className="h-6 w-24 rounded-md bg-slate-200/70" />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="h-7 w-28 rounded-full bg-emerald-100/80" />
+            <div className="h-8 w-20 rounded-lg bg-slate-200/80" />
+            <div className="h-8 w-28 rounded-lg bg-slate-200/80" />
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-12">
+          <div className="h-[250px] rounded-[20px] bg-slate-200/90 sm:col-span-8 sm:h-[360px]" />
+          <div className="grid grid-cols-4 gap-2 sm:col-span-4 sm:h-[360px] sm:grid-cols-2 sm:grid-rows-2">
+            <div className="h-16 rounded-[14px] bg-slate-200/80 sm:h-full" />
+            <div className="h-16 rounded-[14px] bg-slate-200/80 sm:h-full" />
+            <div className="h-16 rounded-[14px] bg-slate-200/80 sm:h-full" />
+            <div className="h-16 rounded-[14px] bg-slate-200/80 sm:h-full" />
+          </div>
+        </div>
+
+        <div className="mt-3 flex items-center justify-between rounded-2xl border border-gray-200/80 bg-white px-4 py-3 shadow-2xs">
+          <div className="flex items-center gap-4">
+            <div className="h-4 w-36 rounded bg-slate-200" />
+            <div className="h-4 w-24 rounded bg-slate-200" />
+          </div>
+          <div className="h-6 w-24 rounded-lg bg-slate-200" />
+        </div>
+
+        <div className="mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-5">
+          {Array.from({ length: 9 }).map((_, idx) => (
+            <div
+              key={idx}
+              className="flex h-24 flex-col justify-between rounded-[18px] border border-gray-200/80 bg-white p-4 shadow-2xs"
+            >
+              <div className="size-4 rounded bg-blue-100" />
+              <div className="space-y-1.5">
+                <div className="h-4 w-20 rounded bg-slate-200" />
+                <div className="h-3 w-14 rounded bg-slate-100" />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-4 space-y-3 rounded-[20px] border border-gray-200/80 bg-white p-6 shadow-2xs">
+          <div className="h-5 w-40 rounded bg-slate-200" />
+          <div className="h-3.5 w-full rounded bg-slate-100" />
+          <div className="h-3.5 w-4/5 rounded bg-slate-100" />
+        </div>
+
+        <div className="mt-4 space-y-4 rounded-[20px] border border-[#b8e6d5] bg-white p-6 shadow-xs">
+          <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              <div className="h-3.5 w-28 rounded bg-slate-200" />
+              <div className="h-9 w-44 rounded-lg bg-slate-200" />
+            </div>
+            <div className="h-11 w-36 rounded-xl bg-emerald-200/70" />
+          </div>
+          <div className="h-16 w-full rounded-xl bg-emerald-50/70" />
+        </div>
+      </div>
+    </main>
+  )
 }
 
 export default function PropertyDetailsPage() {
@@ -181,7 +257,6 @@ export default function PropertyDetailsPage() {
               setUnitRow(dbUnit)
               setLiveViewsCount(Math.max(1, Number(dbUnit.views_count) || 1))
 
-              // تسجيل المشاهدة الفريدة في الداتا بيز (مربوطة بالحساب/الإيميل أو بصمة التليفون بدون تكرار)
               if (!isOwnerViewing) {
                 const viewerIdentity = loggedId
                   ? `user_${loggedId}`
@@ -201,7 +276,6 @@ export default function PropertyDetailsPage() {
                   if (!rpcErr && typeof updatedViews === 'number') {
                     setLiveViewsCount(updatedViews)
                   } else if (rpcErr) {
-                    // Fallback في حال لم يتم تشغيل كود SQL بعد
                     await supabase.rpc('increment_unit_views', {
                       target_unit_id: rawId,
                     })
@@ -495,7 +569,7 @@ export default function PropertyDetailsPage() {
         liveViewsCount !== null
           ? liveViewsCount
           : Math.max(1, Number(row.views_count) || 1),
-      publishedAt: row.approved_at || row.created_at,
+      publishedAt: row.created_at,
       createdAt: row.created_at,
       sizeNum: size,
       contractPrice,
@@ -543,18 +617,7 @@ export default function PropertyDetailsPage() {
   }
 
   if (loading) {
-    return (
-      <main
-        dir={dir}
-        className="min-h-screen bg-[var(--brand-surface,#f5f6f8)] py-10 text-[var(--brand-navy,#0a1122)]"
-      >
-        <div className="mx-auto w-full max-w-[780px] px-4 sm:px-6">
-          <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center text-sm font-bold text-gray-500 shadow-xs">
-            {t.loading}
-          </div>
-        </div>
-      </main>
-    )
+    return <UnitDetailsPageSkeleton dir={dir} />
   }
 
   if (!computedUnit) {

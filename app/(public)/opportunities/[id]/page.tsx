@@ -26,10 +26,10 @@ const RECENTLY_VIEWED_STORAGE_KEY = 'aqar_recently_viewed'
 const DEVICE_VIEWER_KEY_STORAGE = 'aqar_device_viewer_fingerprint'
 
 const PUBLIC_UNIT_DETAIL_COLUMNS =
-  'id, code, user_id, project_name, developer_name, area, unit_type, size, garden_size, rooms, bathrooms, floor_number, finishing, delivery_status, delivery_month, delivery_year, features, description, contract_price, paid_amount, market_price, installment_amount, installment_frequency, contract_month, contract_year, years_left, willing_to_discount, discount_amount, images, status, is_featured, boost_tier, featured_until, views_count, created_at'
+  'id, code, user_id, project_name, developer_name, area, unit_type, size, garden_size, rooms, bathrooms, floor_number, finishing, delivery_status, delivery_month, delivery_year, features, description, contract_price, paid_amount, market_price, installment_amount, installment_frequency, contract_month, contract_year, years_left, willing_to_discount, discount_amount, images, status, is_featured, boost_tier, featured_until, views_count, approved_at, created_at, documents'
 
 const CORE_UNIT_DETAIL_COLUMNS =
-  'id, user_id, project_name, developer_name, area, unit_type, size, rooms, bathrooms, finishing, delivery_status, description, contract_price, paid_amount, market_price, installment_amount, installment_frequency, contract_year, years_left, willing_to_discount, discount_amount, images, status, created_at'
+  'id, user_id, project_name, developer_name, area, unit_type, size, rooms, bathrooms, finishing, delivery_status, description, contract_price, paid_amount, market_price, installment_amount, installment_frequency, contract_year, years_left, willing_to_discount, discount_amount, images, status, created_at, documents'
 
 function parseSafeNumber(val: unknown, fallback = 0): number {
   if (typeof val === 'number' && Number.isFinite(val) && val > 0) return val
@@ -548,6 +548,15 @@ export default function PropertyDetailsPage() {
     const hasActiveOffer =
       String(row.status || '').toLowerCase() === 'offer_received'
 
+    const meta =
+      row.documents && typeof row.documents === 'object'
+        ? row.documents.__unit_meta || {}
+        : {}
+
+    // الميعاد الرسمي الموحد في كل الصفحات: تاريخ موافقة الأدمن أو تاريخ الرفع
+    const unifiedPublishedAt =
+      row.approved_at || meta.approved_at || row.created_at
+
     return {
       id: String(row.id),
       isOwner,
@@ -569,8 +578,8 @@ export default function PropertyDetailsPage() {
         liveViewsCount !== null
           ? liveViewsCount
           : Math.max(1, Number(row.views_count) || 1),
-      publishedAt: row.created_at,
-      createdAt: row.created_at,
+      publishedAt: unifiedPublishedAt,
+      createdAt: unifiedPublishedAt,
       sizeNum: size,
       contractPrice,
       gallery: unitGallery,

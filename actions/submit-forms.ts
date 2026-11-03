@@ -61,6 +61,11 @@ export type Step2AuthResponse = {
   error?: string
 }
 
+function generateOfficialUnitCode(): string {
+  const randomFiveDigits = Math.floor(10000 + Math.random() * 90000)
+  return `U-${randomFiveDigits}`
+}
+
 export async function getUsersVerificationMapAction(
   userIds?: string[]
 ): Promise<
@@ -616,8 +621,13 @@ export async function processSellerStep2Action(payload: {
         ? effectivePaid
         : Number(payload.contractPrice || payload.paidAmount) || 0
 
+      const generatedCode = generateOfficialUnitCode()
+
       const unitData: Record<string, any> = {
         user_id: userId,
+        code: generatedCode,
+        views_count: 1,
+        docs_verified: true,
         country: unitCountryCode,
         country_code: unitCountryCode,
         currency_code: 'USD',
@@ -639,6 +649,7 @@ export async function processSellerStep2Action(payload: {
         status: 'pending',
         documents: {
           __unit_meta: {
+            code: generatedCode,
             listing_category: listingCategory,
             contact_messengers: activeMessengers,
             rent_price: isRent ? effectivePaid : 0,
@@ -652,16 +663,18 @@ export async function processSellerStep2Action(payload: {
       if (payload.existingUnitId) {
         const { data: existingRow } = await supabase
           .from('sell_requests')
-          .select('id, user_id, documents')
+          .select('id, code, user_id, documents')
           .eq('id', payload.existingUnitId)
           .maybeSingle()
 
         if (existingRow && existingRow.user_id === userId) {
+          unitData.code = existingRow.code || generatedCode
           unitData.documents = {
             ...(existingRow.documents || {}),
             __unit_meta: {
               ...(existingRow.documents?.__unit_meta || {}),
               ...unitData.documents.__unit_meta,
+              code: unitData.code,
               contact_messengers: activeMessengers,
             },
           }
@@ -1169,7 +1182,8 @@ export async function setNewPasswordFromTokenAction(payload: {
 
 function buildUnitPayloadWithMetaBackup(
   formData: FormData,
-  existingDocuments?: Record<string, any> | null
+  existingDocuments?: Record<string, any> | null,
+  existingCode?: string | null
 ) {
   let parsedDocuments: Record<string, any> =
     existingDocuments && typeof existingDocuments === 'object'
@@ -1185,6 +1199,11 @@ function buildUnitPayloadWithMetaBackup(
       }
     } catch {}
   }
+
+  const officialCode =
+    existingCode ||
+    parsedDocuments.__unit_meta?.code ||
+    generateOfficialUnitCode()
 
   const listingCategoryVal =
     text(formData, 'listing_category') ||
@@ -1274,6 +1293,7 @@ function buildUnitPayloadWithMetaBackup(
 
   parsedDocuments.__unit_meta = {
     ...(parsedDocuments.__unit_meta || {}),
+    code: officialCode,
     listing_category: listingCategoryVal,
     rent_price: isRent ? effectivePaidAmount : rentPriceVal,
     rent_period: rentPeriodVal,
@@ -1323,6 +1343,7 @@ function buildUnitPayloadWithMetaBackup(
   }
 
   const payload: Record<string, any> = {
+    code: officialCode,
     country: ACTIVE_COUNTRY_CODE,
     country_code: ACTIVE_COUNTRY_CODE,
     currency_code: text(formData, 'currency_code') || ACTIVE_CURRENCY_CODE,
@@ -1472,7 +1493,8 @@ export async function saveSellProgress(
 
     const payload = buildUnitPayloadWithMetaBackup(
       formData,
-      existingUnit?.documents
+      existingUnit?.documents,
+      existingUnit?.code
     )
     payload.user_id = existingUnit?.user_id || sessionUser.id
 
@@ -1551,7 +1573,8 @@ export async function submitSellRequest(
 
       const payload = buildUnitPayloadWithMetaBackup(
         formData,
-        prevUnit?.documents
+        prevUnit?.documents,
+        prevUnit?.code
       )
       payload.user_id = prevUnit.user_id || sessionUser.id
       payload.name = text(formData, 'name') || prevUnit.name || sessionUser.name
@@ -1622,7 +1645,7 @@ export async function submitSellRequest(
       }
     }
 
-    const payload = buildUnitPayloadWithMetaBackup(formData, null)
+    const payload = buildUnitPayloadWithMetaBackup(formData, null, null)
     payload.name = text(formData, 'name') || sessionUser.name || ''
     payload.phone =
       formatPrimaryPhone(text(formData, 'phone')) || sessionUser.phone || ''
@@ -1630,6 +1653,8 @@ export async function submitSellRequest(
       normalizeEmail(text(formData, 'email')) || sessionUser.email || null
     payload.is_original_owner = true
     payload.status = 'pending'
+    payload.views_count = 1
+    payload.docs_verified = true
 
     const insertPayload = {
       ...payload,

@@ -57,12 +57,12 @@ import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
 import { useTranslation } from '@/lib/i18n'
 import { isNonGeorgianLegacyArea } from '@/lib/smart-matcher'
 
-const PAGE_SIZE = 48
+// 9 وحدات في كل صفحة (3 صفوف × 3 أعمدة) ليظهر نظام الترقيم Pagination بشكل متناسق
+const PAGE_SIZE = 9
 const FAVORITES_STORAGE_KEY = 'darak_favorites'
 
-// الأعمدة العامة الآمنة شاملة الكود وعدد المشاهدات والباقة الإعلانية والطوابق والمميزات
 const PUBLIC_SAFE_UNIT_COLUMNS =
-  'id, code, project_name, developer_name, area, unit_type, size, garden_size, rooms, bedrooms, bathrooms, floor_number, total_floors, finishing, delivery_status, delivery_month, delivery_year, features, description, contract_price, paid_amount, market_price, price_per_sqm, installment_amount, installment_frequency, contract_month, contract_year, years_left, willing_to_discount, discount_amount, images, status, is_featured, boost_tier, featured_until, docs_verified, views_count, created_at, documents'
+  'id, code, project_name, developer_name, area, unit_type, size, garden_size, rooms, bedrooms, bathrooms, floor_number, total_floors, finishing, delivery_status, delivery_month, delivery_year, features, description, contract_price, paid_amount, market_price, price_per_sqm, installment_amount, installment_frequency, contract_month, contract_year, years_left, willing_to_discount, discount_amount, images, status, is_featured, boost_tier, featured_until, docs_verified, views_count, approved_at, created_at, documents'
 
 const CORE_SAFE_UNIT_COLUMNS =
   'id, project_name, developer_name, area, unit_type, size, rooms, bathrooms, finishing, delivery_status, features, description, contract_price, paid_amount, market_price, installment_amount, installment_frequency, contract_year, years_left, willing_to_discount, discount_amount, images, status, created_at, documents'
@@ -81,7 +81,7 @@ export default function OpportunitiesPage() {
   const [rawDbRows, setRawDbRows] = useState<any[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [favoriteIds, setFavoriteIds] = useState<string[]>([])
-  const [visibleLimit, setVisibleLimit] = useState<number>(PAGE_SIZE)
+  const [currentPage, setCurrentPage] = useState<number>(1)
 
   const [viewMode, setViewMode] = useState<'list' | 'map2d' | 'map3d'>('list')
   const [openPanel, setOpenPanel] = useState<
@@ -130,6 +130,7 @@ export default function OpportunitiesPage() {
   })
 
   const chipsScrollRef = useRef<HTMLDivElement>(null)
+  const gridTopRef = useRef<HTMLDivElement>(null)
 
   const updateSivrceFilter = <K extends keyof SearchFiltersState>(
     key: K,
@@ -161,7 +162,11 @@ export default function OpportunitiesPage() {
       const maxAreaParam = urlParams.get('maxArea')
       const viewParam = urlParams.get('view')
       const delivParam = urlParams.get('delivery')
+      const pageParam = Number(urlParams.get('page'))
 
+      if (pageParam && pageParam > 0) {
+        setCurrentPage(pageParam)
+      }
       if (labelParam) {
         setActiveCategoryLabel(labelParam)
       }
@@ -266,8 +271,14 @@ export default function OpportunitiesPage() {
         }
 
         if (!queryError && rows) {
+          // قبول الوحدات الرسمية فقط التي تمتلك UUID حقيقي في قاعدة البيانات
           setRawDbRows(
-            rows.filter((row: any) => !isNonGeorgianLegacyArea(row.area))
+            rows.filter((row: any) => {
+              const isValidUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(
+                String(row?.id || '')
+              )
+              return isValidUuid && !isNonGeorgianLegacyArea(row.area)
+            })
           )
         }
       } catch (err) {
@@ -280,7 +291,6 @@ export default function OpportunitiesPage() {
     loadApprovedProperties()
   }, [])
 
-  // نربط كل وحدة بقائمة المميزات (features) المسجلة في الداتا بيز ليشتغل الفلتر عليها بدقة
   const dbProperties: Array<MappedProperty & { rawFeatures: string[] }> =
     useMemo(() => {
       return rawDbRows.map((row) => {
@@ -298,8 +308,9 @@ export default function OpportunitiesPage() {
       })
     }, [rawDbRows, locale, t])
 
+  // إعادة الصفحة إلى 1 عند تغيير أي فلتر بحث
   useEffect(() => {
-    setVisibleLimit(PAGE_SIZE)
+    setCurrentPage(1)
   }, [
     search,
     areaQuery,
@@ -364,7 +375,7 @@ export default function OpportunitiesPage() {
       quickTag: '',
     })
     setOpenPanel(null)
-    setVisibleLimit(PAGE_SIZE)
+    setCurrentPage(1)
     if (typeof window !== 'undefined') {
       window.history.replaceState({}, '', '/opportunities')
     }
@@ -441,7 +452,6 @@ export default function OpportunitiesPage() {
       }
       if (negotiable && !item.negotiable) return false
 
-      // فلترة الميزة المختارة من الصفحة الرئيسية أو الشريط السريع (مثل Jacuzzi, Pool, Sea view, Security, Ski access)
       if (selectedFeature.trim()) {
         const targetFeat = selectedFeature.trim().toLowerCase()
         const hasFeatureMatch =
@@ -453,6 +463,7 @@ export default function OpportunitiesPage() {
               item.rawArea.toLowerCase().includes('batumi'))) ||
           (targetFeat === 'pool' &&
             (featuresJoined.includes('سباحة') ||
+              featuresJoined.includes('مسبح') ||
               featuresJoined.includes('pool'))) ||
           (targetFeat === 'jacuzzi' &&
             (featuresJoined.includes('جاكوزي') ||
@@ -509,10 +520,7 @@ export default function OpportunitiesPage() {
             return false
           }
         } else if (pt === 'hotel') {
-          if (
-            !itemTp.includes('hotel') &&
-            !item.type.includes('فندق')
-          ) {
+          if (!itemTp.includes('hotel') && !item.type.includes('فندق')) {
             return false
           }
         } else if (pt === 'commercial') {
@@ -650,15 +658,38 @@ export default function OpportunitiesPage() {
     }
   }, [totalMarketSum, activeCurrency, t])
 
-  const displayedProperties = useMemo(() => {
-    return visibleProperties.slice(0, visibleLimit)
-  }, [visibleProperties, visibleLimit])
-
-  const remainingCount = Math.max(
-    0,
-    visibleProperties.length - displayedProperties.length
+  // حسابات الـ Pagination الرسمية
+  const totalPages = Math.max(1, Math.ceil(visibleProperties.length / PAGE_SIZE))
+  const safeCurrentPage = Math.min(currentPage, totalPages)
+  const startIndex = (safeCurrentPage - 1) * PAGE_SIZE
+  const endIndex = Math.min(
+    startIndex + PAGE_SIZE,
+    visibleProperties.length
   )
-  const nextBatchCount = Math.min(PAGE_SIZE, remainingCount)
+
+  const displayedProperties = useMemo(() => {
+    return visibleProperties.slice(startIndex, endIndex)
+  }, [visibleProperties, startIndex, endIndex])
+
+  const handleGoToPage = (pageNumber: number) => {
+    const next = Math.max(1, Math.min(totalPages, pageNumber))
+    setCurrentPage(next)
+    gridTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  const pageNumbers = useMemo(() => {
+    const pages: number[] = []
+    const maxButtons = 5
+    let start = Math.max(1, safeCurrentPage - 2)
+    let end = Math.min(totalPages, start + maxButtons - 1)
+    if (end - start + 1 < maxButtons) {
+      start = Math.max(1, end - maxButtons + 1)
+    }
+    for (let i = start; i <= end; i++) {
+      pages.push(i)
+    }
+    return pages
+  }, [safeCurrentPage, totalPages])
 
   const quickCategoryChips = [
     {
@@ -761,7 +792,6 @@ export default function OpportunitiesPage() {
     },
   ]
 
-  // تحديد عنوان البحث النشط ليظهر فوق الكروت كما طلب المستخدم
   const resolvedSearchHeading =
     activeCategoryLabel ||
     search.trim() ||
@@ -810,7 +840,7 @@ export default function OpportunitiesPage() {
           </p>
         </div>
 
-        {/* شريط البحث والفلاتر المخصص للتنازل والأقساط */}
+        {/* شريط البحث والفلاتر */}
         <section className="mt-5 rounded-[22px] border border-slate-200/90 bg-white p-3 shadow-xs sm:p-4">
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex min-w-[230px] flex-1 items-center gap-2 rounded-full bg-slate-100/80 py-1 ps-3.5 pe-1.5">
@@ -831,7 +861,6 @@ export default function OpportunitiesPage() {
               </button>
             </div>
 
-            {/* فلتر نوع العقار */}
             <div className="relative">
               <button
                 type="button"
@@ -891,7 +920,6 @@ export default function OpportunitiesPage() {
               )}
             </div>
 
-            {/* فلتر المنطقة */}
             <SivrceLocationModalPicker
               value={areaQuery}
               displayText={
@@ -921,7 +949,6 @@ export default function OpportunitiesPage() {
               )}
             />
 
-            {/* زر الكاش والأقساط ($) */}
             <button
               type="button"
               onClick={() =>
@@ -1092,7 +1119,7 @@ export default function OpportunitiesPage() {
           )}
         </section>
 
-        {/* شريط التصنيفات السريعة الأفقي المربوط بالمميزات والنوع */}
+        {/* شريط التصنيفات السريعة الأفقي */}
         <div className="relative mt-3 flex items-center">
           <div
             ref={chipsScrollRef}
@@ -1150,7 +1177,7 @@ export default function OpportunitiesPage() {
           </button>
         </div>
 
-        {/* شريط البحث النشط الذي يظهر عندما يضغط العميل على أي فلتر من الصفحة الرئيسية */}
+        {/* شريط البحث النشط */}
         {Boolean(
           resolvedSearchHeading ||
             selectedFeature ||
@@ -1184,7 +1211,7 @@ export default function OpportunitiesPage() {
           </div>
         )}
 
-        {/* شريط التحكم: عدد الإعلانات + الفلاتر النشطة + حفظ البحث + الترتيب + أزرار الخريطة و 3D */}
+        {/* شريط التحكم */}
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <strong className="text-sm font-bold text-[#0f1d40]">
@@ -1231,64 +1258,6 @@ export default function OpportunitiesPage() {
                 <X className="size-3" />
               </button>
             )}
-
-            {maxCash.trim() && (
-              <button
-                type="button"
-                onClick={() => setMaxCash('')}
-                className="inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-primary-light,#eaf8f2)] px-3 py-1 text-[11px] font-bold text-[var(--brand-primary,#007a5a)] sm:text-xs"
-              >
-                <span>
-                  {t.filters.cashUpToPrefix} $
-                  {Number(toEnglishDigits(maxCash)).toLocaleString('en-US')}
-                </span>
-                <X className="size-3" />
-              </button>
-            )}
-
-            {maxInstallment.trim() && (
-              <button
-                type="button"
-                onClick={() => setMaxInstallment('')}
-                className="inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-primary-light,#eaf8f2)] px-3 py-1 text-[11px] font-bold text-[var(--brand-primary,#007a5a)] sm:text-xs"
-              >
-                <span>
-                  {t.filters.instUpToPrefix} $
-                  {Number(toEnglishDigits(maxInstallment)).toLocaleString(
-                    'en-US'
-                  )}
-                </span>
-                <X className="size-3" />
-              </button>
-            )}
-
-            {maxContractPrice.trim() && (
-              <button
-                type="button"
-                onClick={() => setMaxContractPrice('')}
-                className="inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-primary-light,#eaf8f2)] px-3 py-1 text-[11px] font-bold text-[var(--brand-primary,#007a5a)] sm:text-xs"
-              >
-                <span>
-                  {t.filters.contractUpToPrefix} $
-                  {Number(toEnglishDigits(maxContractPrice)).toLocaleString(
-                    'en-US'
-                  )}
-                </span>
-                <X className="size-3" />
-              </button>
-            )}
-
-            {selectedTypes.map((tp) => (
-              <button
-                key={tp}
-                type="button"
-                onClick={() => toggleType(tp)}
-                className="inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-primary-light,#eaf8f2)] px-3 py-1 text-[11px] font-bold text-[var(--brand-primary,#007a5a)] sm:text-xs"
-              >
-                <span>{tp}</span>
-                <X className="size-3" />
-              </button>
-            ))}
 
             <button
               type="button"
@@ -1364,7 +1333,7 @@ export default function OpportunitiesPage() {
           </div>
         </div>
 
-        {/* كارت الإحصائيات الموثقة بالدولار ($) */}
+        {/* كارت الإحصائيات الموثقة */}
         <section className="mt-5 sm:mt-6">
           <div className="grid grid-cols-1 divide-y divide-gray-200/80 overflow-hidden rounded-[20px] border border-gray-200/70 border-t-[3px] border-t-[var(--brand-primary,#007a5a)] bg-white shadow-sm md:grid-cols-2 md:divide-x md:divide-y-0 md:divide-x-reverse">
             <div className="flex flex-col justify-between p-6 text-start sm:p-8">
@@ -1459,8 +1428,8 @@ export default function OpportunitiesPage() {
         </div>
 
         {/* شبكة كروت الفرص المتاحة */}
-        <section className="mt-6 sm:mt-8">
-          <div className="mb-4 flex items-center justify-between gap-2 text-start sm:mb-5">
+        <section ref={gridTopRef} className="mt-6 scroll-mt-24 sm:mt-8">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2 text-start sm:mb-5">
             <div className="flex items-center gap-1.5">
               <Star className="size-4 fill-amber-400 text-amber-500" />
               <h2 className="text-base font-bold text-[var(--brand-navy,#0a1122)] sm:text-lg">
@@ -1469,6 +1438,14 @@ export default function OpportunitiesPage() {
                   : `${t.header.title} (${visibleProperties.length})`}
               </h2>
             </div>
+
+            {visibleProperties.length > 0 && (
+              <span className="text-xs font-semibold text-slate-500">
+                {isAr
+                  ? `عرض ${startIndex + 1}–${endIndex} من أصل ${visibleProperties.length} وحدة`
+                  : `Showing ${startIndex + 1}–${endIndex} of ${visibleProperties.length} units`}
+              </span>
+            )}
           </div>
 
           {loading ? (
@@ -1515,18 +1492,58 @@ export default function OpportunitiesPage() {
             </div>
           )}
 
-          {remainingCount > 0 && (
-            <div className="mt-8 flex justify-center sm:mt-10">
+          {/* شريط ترقيم الصفحات الرسمي (Pagination) */}
+          {totalPages > 1 && (
+            <nav
+              aria-label="Pagination"
+              className="mt-8 flex flex-wrap items-center justify-center gap-2 sm:mt-10"
+            >
               <button
                 type="button"
-                onClick={() => setVisibleLimit((prev) => prev + PAGE_SIZE)}
-                className="rounded-full border border-gray-200 bg-white px-6 py-2.5 text-xs font-bold text-[var(--brand-navy,#0a1122)] shadow-xs transition-all hover:border-gray-300 hover:bg-gray-50 active:scale-95 sm:px-7 sm:py-3"
+                disabled={safeCurrentPage <= 1}
+                onClick={() => handleGoToPage(safeCurrentPage - 1)}
+                className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-bold text-[#0f1d40] shadow-2xs transition hover:border-[#2563eb] hover:text-[#2563eb] disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {t.grid.loadMorePrefix} {nextBatchCount}{' '}
-                {t.grid.loadMoreMiddle} (
-                {remainingCount.toLocaleString('en-US')} {t.grid.remainingWord})
+                {dir === 'rtl' ? (
+                  <ChevronRight className="size-4" />
+                ) : (
+                  <ChevronLeft className="size-4" />
+                )}
+                <span>{isAr ? 'السابق' : 'Prev'}</span>
               </button>
-            </div>
+
+              {pageNumbers.map((pageNum) => {
+                const isActive = pageNum === safeCurrentPage
+                return (
+                  <button
+                    key={pageNum}
+                    type="button"
+                    onClick={() => handleGoToPage(pageNum)}
+                    className={`flex size-10 items-center justify-center rounded-xl border text-xs font-extrabold transition tabular-nums ${
+                      isActive
+                        ? 'border-[#007a5a] bg-[#007a5a] text-white shadow-sm'
+                        : 'border-slate-200 bg-white text-[#0f1d40] hover:border-[#2563eb] hover:text-[#2563eb]'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                )
+              })}
+
+              <button
+                type="button"
+                disabled={safeCurrentPage >= totalPages}
+                onClick={() => handleGoToPage(safeCurrentPage + 1)}
+                className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-bold text-[#0f1d40] shadow-2xs transition hover:border-[#2563eb] hover:text-[#2563eb] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <span>{isAr ? 'التالي' : 'Next'}</span>
+                {dir === 'rtl' ? (
+                  <ChevronLeft className="size-4" />
+                ) : (
+                  <ChevronRight className="size-4" />
+                )}
+              </button>
+            </nav>
           )}
         </section>
 

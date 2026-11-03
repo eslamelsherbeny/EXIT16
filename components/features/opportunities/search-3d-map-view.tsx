@@ -5,8 +5,11 @@ import Link from 'next/link'
 import {
   Bus,
   Compass,
+  Crown,
   Dumbbell,
+  Eye,
   FileCheck2,
+  Flame,
   GraduationCap,
   HeartPulse,
   Landmark,
@@ -24,6 +27,7 @@ import {
   Trees,
   X,
 } from 'lucide-react'
+import { formatRelativePublishTime } from '@/components/features/home/home-property-card'
 import { getCoordinatesForArea } from '@/lib/georgia-coordinates'
 import { type MappedProperty } from '@/components/features/opportunities/opportunities-shared'
 import { useTranslation } from '@/lib/i18n'
@@ -62,12 +66,10 @@ function loadMapLibreScript(): Promise<any> {
 const QUICK_MAP_CITIES = [
   { id: 'Tbilisi', label: 'Tbilisi', lat: 41.7151, lng: 44.8271 },
   { id: 'Batumi', label: 'Batumi', lat: 41.6168, lng: 41.6367 },
+  { id: 'Gudauri', label: 'Gudauri', lat: 42.4779, lng: 44.4761 },
   { id: 'Kutaisi', label: 'Kutaisi', lat: 42.2679, lng: 42.718 },
   { id: 'Rustavi', label: 'Rustavi', lat: 41.5495, lng: 44.9932 },
-  { id: 'Poti', label: 'Poti', lat: 42.1462, lng: 41.672 },
-  { id: 'Zugdidi', label: 'Zugdidi', lat: 42.5088, lng: 41.8709 },
   { id: 'Telavi', label: 'Telavi', lat: 41.9198, lng: 45.4731 },
-  { id: 'Gori', label: 'Gori', lat: 41.9842, lng: 44.1158 },
 ]
 
 export function Search3DMapView({
@@ -107,6 +109,11 @@ export function Search3DMapView({
     let isMounted = true
     let map: any = null
 
+    const initialCenterCoords =
+      properties.length > 0
+        ? getCoordinatesForArea(properties[0].rawArea || properties[0].area)
+        : { lat: 41.7225, lng: 44.7833 }
+
     loadMapLibreScript()
       .then((maplibregl) => {
         if (!isMounted || !mapContainerRef.current || !maplibregl) return
@@ -114,7 +121,7 @@ export function Search3DMapView({
         map = new maplibregl.Map({
           container: mapContainerRef.current,
           style: 'https://tiles.openfreemap.org/styles/liberty',
-          center: [44.7833, 41.7225],
+          center: [initialCenterCoords.lng, initialCenterCoords.lat],
           zoom: 12.6,
           pitch: is3DMode ? 56 : 0,
           bearing: is3DMode ? -16 : 0,
@@ -175,8 +182,8 @@ export function Search3DMapView({
 
         properties.forEach((prop, idx) => {
           const baseCoords = getCoordinatesForArea(prop.rawArea || prop.area)
-          const jitterLat = ((idx % 5) - 2) * 0.0045
-          const jitterLng = ((idx % 4) - 1.5) * 0.0055
+          const jitterLat = ((idx % 5) - 2) * 0.0042
+          const jitterLng = ((idx % 4) - 1.5) * 0.0052
           const lat = baseCoords.lat + jitterLat
           const lng = baseCoords.lng + jitterLng
 
@@ -187,11 +194,17 @@ export function Search3DMapView({
               ? `${USD}${Math.round(prop.cashNum / 1000)}k`
               : `${USD}${prop.cash}`
 
+          const tier =
+            prop.boostTier || (prop.featured ? 'super_vip' : null)
+
           pinEl.className =
-            'rounded-full bg-white px-3 py-1 text-xs font-bold text-[#0f1d40] shadow-lg transition-transform hover:scale-110'
-          pinEl.style.border = prop.featured
-            ? '2px solid #ff6437'
-            : '2px solid #007a5a'
+            'rounded-full bg-white px-3 py-1 text-xs font-extrabold text-[#0f1d40] shadow-lg transition-transform hover:scale-110'
+          pinEl.style.border =
+            tier === 'super_vip'
+              ? '2.5px solid #ff6437'
+              : tier === 'vip_plus'
+                ? '2.5px solid #4f46e5'
+                : '2px solid #007a5a'
           pinEl.innerText = shortPrice
 
           pinEl.onclick = (e) => {
@@ -251,6 +264,10 @@ export function Search3DMapView({
     { id: 'bus', label: isAr ? 'حافلة' : 'Bus', icon: Bus },
   ]
 
+  const selectedTier = selectedProp
+    ? selectedProp.boostTier || (selectedProp.featured ? 'super_vip' : null)
+    : null
+
   return (
     <div
       dir={dir}
@@ -262,7 +279,7 @@ export function Search3DMapView({
         className="absolute inset-0 h-full w-full"
       />
 
-      {/* الأشرطة العلوية العائمة فوق الخريطة (متخصصة في التنازل والأقساط فقط) */}
+      {/* الأشرطة العلوية العائمة فوق الخريطة */}
       <div className="pointer-events-none absolute inset-x-3 top-3 z-20 mx-auto flex max-w-[1260px] flex-col gap-2 sm:inset-x-6">
         <div className="pointer-events-auto flex items-center gap-2 rounded-2xl border border-slate-200/90 bg-white/95 px-4 py-2.5 shadow-lg backdrop-blur-md">
           <div className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#2563eb]">
@@ -325,9 +342,9 @@ export function Search3DMapView({
               { id: '', label: isAr ? 'كل الوحدات' : 'All Units' },
               { id: 'Apartment', label: isAr ? 'شقق' : 'Apartments' },
               { id: 'Private house', label: isAr ? 'منازل وفيلات' : 'Villas' },
-              { id: 'Commercial', label: isAr ? 'تجاري' : 'Commercial' },
-              { id: 'Land', label: isAr ? 'أراضٍ' : 'Land' },
+              { id: 'Cottage', label: isAr ? 'شاليهات وأكواخ' : 'Cottages' },
               { id: 'Hotel', label: isAr ? 'شقق فندقية' : 'Hotel Units' },
+              { id: 'Commercial', label: isAr ? 'تجاري' : 'Commercial' },
             ].map((tp) => {
               const active = typeFilter === tp.id
               return (
@@ -358,7 +375,7 @@ export function Search3DMapView({
         </div>
       </div>
 
-      {/* أزرار التحكم الجانبية (+ / - / 3D / موقعي / إغلاق) */}
+      {/* أزرار التحكم الجانبية */}
       <div className="absolute end-3 top-1/2 z-20 flex -translate-y-1/2 flex-col gap-1.5 rounded-2xl border border-slate-200/80 bg-white/95 p-1.5 shadow-xl backdrop-blur-md sm:end-5">
         <button
           type="button"
@@ -434,10 +451,25 @@ export function Search3DMapView({
             >
               <X className="size-4" />
             </button>
-            <span className="absolute bottom-2.5 start-2.5 rounded-full bg-[#ff6437] px-2.5 py-0.5 text-[10px] font-bold text-white">
-              {selectedProp.featured ? 'SUPER VIP' : selectedProp.code}
+
+            {selectedTier === 'super_vip' && (
+              <span className="absolute top-2.5 start-2.5 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-2.5 py-0.5 text-[10px] font-bold text-white shadow-sm">
+                <Crown className="size-3" />
+                <span>SUPER VIP</span>
+              </span>
+            )}
+            {selectedTier === 'vip_plus' && (
+              <span className="absolute top-2.5 start-2.5 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#4f46e5] to-[#7c3aed] px-2.5 py-0.5 text-[10px] font-bold text-white shadow-sm">
+                <Flame className="size-3" />
+                <span>+VIP</span>
+              </span>
+            )}
+
+            <span className="absolute bottom-2.5 start-2.5 rounded-md bg-black/75 px-2 py-0.5 font-mono text-[10px] font-bold text-white">
+              #{selectedProp.code}
             </span>
           </div>
+
           <div className="p-4 text-start">
             <div className="flex items-center justify-between">
               <strong dir="ltr" className="text-lg font-bold text-[#0f1d40]">
@@ -456,9 +488,18 @@ export function Search3DMapView({
               {selectedProp.area} · {selectedProp.size} {isAr ? 'م²' : 'm²'} ·{' '}
               {selectedProp.rooms} {isAr ? 'غرف' : 'Rooms'}
             </p>
+            <div className="mt-2 flex items-center justify-between border-t border-slate-100 pt-2 text-[10.5px] font-medium text-slate-400">
+              <span className="inline-flex items-center gap-1">
+                <Eye className="size-3" />
+                <span>{selectedProp.viewsCount || 1}</span>
+              </span>
+              <span>
+                {formatRelativePublishTime(selectedProp.createdAt, isAr)}
+              </span>
+            </div>
             <Link
               href={`/opportunities/${selectedProp.id}`}
-              className="mt-3 flex h-9 w-full items-center justify-center rounded-xl bg-gradient-to-r from-[#ff6437] to-[#ff4f69] text-xs font-bold text-white hover:opacity-95"
+              className="mt-2.5 flex h-9 w-full items-center justify-center rounded-xl bg-gradient-to-r from-[#ff6437] to-[#ff4f69] text-xs font-bold text-white hover:opacity-95"
             >
               {isAr ? 'عرض تفاصيل التنازل' : 'View Unit Details'}
             </Link>

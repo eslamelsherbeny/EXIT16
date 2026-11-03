@@ -1,223 +1,429 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import {
   AlertTriangle,
+  Calendar,
+  Camera,
+  Check,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  Copy,
+  Crown,
+  Eye,
+  Flame,
   Loader2,
   MessageCircle,
   Wallet,
   X,
   ZoomIn,
+  ZoomOut,
 } from 'lucide-react'
 import { submitBuyerOfferAction } from '@/actions/offer-actions'
 import { TurnstileBox } from '@/components/layouts/auth-layout'
 import { CountrySelector } from '@/components/shared/country-selector'
 import { toEnglishDigits } from '@/components/features/seller/seller-shared'
-import { getCurrencySymbol, useTranslation } from '@/lib/i18n'
+import { useTranslation } from '@/lib/i18n'
+
+function formatRelativePublishedTime(createdAt?: string, isAr = true): string {
+  if (!createdAt) return isAr ? 'قبل أسبوع' : '1 week ago'
+  const createdTime = new Date(createdAt).getTime()
+  if (Number.isNaN(createdTime)) return isAr ? 'قبل أسبوع' : '1 week ago'
+
+  const diffDays = Math.max(
+    0,
+    Math.floor((Date.now() - createdTime) / (1000 * 60 * 60 * 24))
+  )
+
+  if (diffDays === 0) return isAr ? 'نُشرت اليوم' : 'Published today'
+  if (diffDays === 1) return isAr ? 'قبل يوم واحد' : '1 day ago'
+  if (diffDays === 2) return isAr ? 'قبل يومين' : '2 days ago'
+  if (diffDays < 7)
+    return isAr ? `قبل ${diffDays} أيام` : `${diffDays} days ago`
+  if (diffDays < 14) return isAr ? 'قبل أسبوع' : '1 week ago'
+  if (diffDays < 30) {
+    const weeks = Math.floor(diffDays / 7)
+    return isAr
+      ? `قبل ${weeks} ${weeks === 2 ? 'أسبوعين' : 'أسابيع'}`
+      : `${weeks} weeks ago`
+  }
+  const months = Math.max(1, Math.floor(diffDays / 30))
+  return isAr
+    ? `قبل ${months} ${months === 1 ? 'شهر' : months === 2 ? 'شهرين' : 'شهور'}`
+    : `${months} mo ago`
+}
 
 export function UnitGalleryWithLightbox({
   gallery,
+  unitCode,
+  viewsCount = 1,
+  createdAt,
+  featured = false,
+  boostTier = null,
+  copied = false,
+  onCopyCode,
 }: {
   gallery: Array<{ url: string; caption: string }>
+  unitCode?: string
+  viewsCount?: number
+  createdAt?: string
+  featured?: boolean
+  boostTier?: 'super_vip' | 'vip_plus' | null
+  copied?: boolean
+  onCopyCode?: () => void
 }) {
-  const { t: dict, isRtl } = useTranslation()
-  const t = dict.unitDetailsPage
+  const { t: dict, locale, dir, isRtl } = useTranslation()
+  const t = (dict.unitDetailsPage as Record<string, any>) || {}
+  const isAr = locale === 'ar'
 
-  const scrollContainerRef = useRef<HTMLDivElement>(null)
-  const [scrollProgress, setScrollProgress] = useState(0)
-  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
+  const safeGallery =
+    Array.isArray(gallery) && gallery.length > 0
+      ? gallery
+      : [
+          {
+            url: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=85',
+            caption: '',
+          },
+        ]
 
-  const handleScroll = () => {
-    const el = scrollContainerRef.current
-    if (!el) return
-    const maxScroll = el.scrollWidth - el.clientWidth
-    if (maxScroll <= 0) {
-      setScrollProgress(0)
-      return
+  const [activeIndex, setActiveIndex] = useState(0)
+  const [lightboxOpen, setLightboxOpen] = useState(false)
+  const [zoomed, setZoomed] = useState(false)
+
+  const totalPhotos = safeGallery.length
+  const sideThumbnails = safeGallery.slice(1, 5)
+  const extraPhotosCount = Math.max(0, totalPhotos - 5)
+
+  const handlePrev = (e?: React.MouseEvent) => {
+    e?.stopPropagation()
+    setZoomed(false)
+    setActiveIndex((prev) => (prev === 0 ? totalPhotos - 1 : prev - 1))
+  }
+
+  const handleNext = (e?: React.MouseEvent) => {
+    e?.stopPropagation()
+    setZoomed(false)
+    setActiveIndex((prev) => (prev + 1) % totalPhotos)
+  }
+
+  useEffect(() => {
+    if (!lightboxOpen) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setLightboxOpen(false)
+        setZoomed(false)
+      } else if (e.key === 'ArrowLeft') {
+        isRtl ? handleNext() : handlePrev()
+      } else if (e.key === 'ArrowRight') {
+        isRtl ? handlePrev() : handleNext()
+      }
     }
-    const currentScroll = Math.abs(el.scrollLeft)
-    setScrollProgress(
-      Math.min(100, Math.max(0, (currentScroll / maxScroll) * 100))
-    )
-  }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [lightboxOpen, isRtl, totalPhotos])
 
-  const scrollByAmount = (direction: 'next' | 'prev') => {
-    const el = scrollContainerRef.current
-    if (!el) return
-    const factor = isRtl ? -1 : 1
-    const amount = direction === 'next' ? 360 * factor : -360 * factor
-    el.scrollBy({ left: amount, behavior: 'smooth' })
-  }
-
-  const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = Number(e.target.value)
-    setScrollProgress(value)
-    const el = scrollContainerRef.current
-    if (!el) return
-    const maxScroll = el.scrollWidth - el.clientWidth
-    el.scrollLeft = (isRtl ? -1 : 1) * ((value / 100) * maxScroll)
-  }
+  const viewsTotal = Math.max(1, Number(viewsCount) || 1)
+  const viewsToday = Math.max(1, Math.min(viewsTotal, Math.ceil(viewsTotal * 0.12)))
+  const publishedAgo = formatRelativePublishedTime(createdAt, isAr)
+  const resolvedTier = boostTier || (featured ? 'super_vip' : null)
 
   return (
     <>
-      <section className="mt-5">
+      <section className="mt-4">
+        {/* شبكة الصور المتجاوبة: صورة رئيسية كبيرة + شبكة الصور المصغرة */}
         <div
-          ref={scrollContainerRef}
-          onScroll={handleScroll}
-          className="flex snap-x snap-mandatory gap-3 overflow-x-auto pt-1 pb-2"
-          style={{ scrollbarWidth: 'thin' }}
+          className={`grid grid-cols-1 gap-2.5 ${
+            sideThumbnails.length > 0 ? 'sm:grid-cols-12' : ''
+          }`}
         >
-          {gallery.map((item, idx) => (
-            <div
-              key={`${item.url}-${idx}`}
-              onClick={() => setLightboxIndex(idx)}
-              className={`group relative shrink-0 cursor-pointer snap-center overflow-hidden rounded-[18px] bg-gray-200 ${
-                gallery.length === 1
-                  ? 'h-[250px] w-full sm:h-[360px]'
-                  : idx === 0
-                    ? 'h-[230px] w-[85%] sm:h-[310px] sm:w-[460px]'
-                    : 'h-[230px] w-[70%] sm:h-[310px] sm:w-[300px]'
-              }`}
-            >
-              <img
-                src={item.url}
-                alt={item.caption}
-                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-              />
-              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent opacity-80 transition-opacity group-hover:opacity-100" />
+          {/* الصورة الرئيسية */}
+          <div
+            onClick={() => {
+              setLightboxOpen(true)
+              setZoomed(false)
+            }}
+            className={`group relative h-[250px] cursor-pointer overflow-hidden rounded-[20px] bg-slate-200 sm:h-[360px] ${
+              sideThumbnails.length > 0 ? 'sm:col-span-8' : 'sm:col-span-12'
+            }`}
+          >
+            <img
+              src={safeGallery[activeIndex]?.url || safeGallery[0]?.url}
+              alt={safeGallery[activeIndex]?.caption || ''}
+              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+            />
 
-              <span
-                className={`pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full bg-black/65 px-3.5 py-1 text-[11px] font-medium text-white backdrop-blur-sm transition-opacity ${
-                  idx === 0 ? 'inline-flex' : 'hidden group-hover:inline-flex'
-                }`}
-              >
-                <ZoomIn className="size-3.5" />
-                <span>{t.zoomHint}</span>
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+
+            {/* شارة الباقة الإعلانية أعلى الصورة */}
+            {resolvedTier === 'super_vip' && (
+              <span className="pointer-events-none absolute top-3.5 start-3.5 z-10 inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-3 py-1 text-[11px] font-extrabold text-white shadow-md">
+                <Crown className="size-3.5" />
+                <span>SUPER VIP</span>
               </span>
+            )}
+            {resolvedTier === 'vip_plus' && (
+              <span className="pointer-events-none absolute top-3.5 start-3.5 z-10 inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#4f46e5] to-[#7c3aed] px-3 py-1 text-[11px] font-extrabold text-white shadow-md">
+                <Flame className="size-3.5" />
+                <span>+VIP</span>
+              </span>
+            )}
+
+            {/* زر تكبير الصورة في المنتصف السفلي */}
+            <span className="pointer-events-none absolute bottom-3.5 start-3.5 z-10 inline-flex items-center gap-1.5 rounded-full bg-black/65 px-3 py-1 text-[11px] font-bold text-white backdrop-blur-xs">
+              <ZoomIn className="size-3.5" />
+              <span>{t.zoomHint || (isAr ? 'اضغط لتكبير الصور' : 'Click to zoom')}</span>
+            </span>
+
+            {/* العداد وأزرار التنقل الدائرية كما في الموقع الأصلي */}
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="absolute bottom-3.5 end-3.5 z-20 flex flex-col items-end gap-1.5"
+            >
+              <span
+                dir="ltr"
+                className="rounded-full bg-black/75 px-3 py-0.5 text-[11px] font-extrabold text-white backdrop-blur-xs"
+              >
+                {totalPhotos} / {activeIndex + 1}
+              </span>
+
+              {totalPhotos > 1 && (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={handlePrev}
+                    aria-label={t.prevImageAria || 'Previous'}
+                    className="flex size-8 items-center justify-center rounded-full bg-white/95 text-[#0a1122] shadow-md transition hover:scale-105 hover:bg-white sm:size-9"
+                  >
+                    {isRtl ? (
+                      <ChevronRight className="size-4" />
+                    ) : (
+                      <ChevronLeft className="size-4" />
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleNext}
+                    aria-label={t.nextImageAria || 'Next'}
+                    className="flex size-8 items-center justify-center rounded-full bg-white/95 text-[#0a1122] shadow-md transition hover:scale-105 hover:bg-white sm:size-9"
+                  >
+                    {isRtl ? (
+                      <ChevronLeft className="size-4" />
+                    ) : (
+                      <ChevronRight className="size-4" />
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
-          ))}
+          </div>
+
+          {/* شبكة الـ 4 صور المصغرة (تظهر في صف أفقي على الموبايل وشبكة 2×2 بجانب الصورة على التابلت والكمبيوتر) */}
+          {sideThumbnails.length > 0 && (
+            <div className="grid grid-cols-4 gap-2 sm:col-span-4 sm:grid-cols-2 sm:grid-rows-2 sm:h-[360px]">
+              {sideThumbnails.map((item, idx) => {
+                const realIdx = idx + 1
+                const isLastThumb = idx === 3 && extraPhotosCount > 0
+                const isCurrent = activeIndex === realIdx
+
+                return (
+                  <div
+                    key={`${item.url}-${realIdx}`}
+                    onClick={() => {
+                      setActiveIndex(realIdx)
+                      setLightboxOpen(true)
+                      setZoomed(false)
+                    }}
+                    className={`group relative h-16 cursor-pointer overflow-hidden rounded-[14px] bg-slate-100 sm:h-full ${
+                      isCurrent ? 'ring-2 ring-[#007a5a]' : ''
+                    }`}
+                  >
+                    <img
+                      src={item.url}
+                      alt={item.caption}
+                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                    {isLastThumb && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 text-white backdrop-blur-[1px] transition group-hover:bg-black/70">
+                        <Camera className="mb-0.5 size-4 sm:size-5" />
+                        <span className="text-[11px] font-extrabold sm:text-xs">
+                          +{extraPhotosCount} {isAr ? 'صور' : 'photos'}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
 
-        {gallery.length > 1 && (
-          <div className="mt-2 flex items-center gap-2 px-1">
-            <button
-              type="button"
-              onClick={() => scrollByAmount('prev')}
-              aria-label={t.prevImageAria}
-              className="flex size-5 items-center justify-center rounded text-gray-500 hover:bg-gray-200 hover:text-[var(--brand-navy,#0a1122)]"
-            >
-              <ChevronRight className="size-3.5 rtl:rotate-0 ltr:rotate-180" />
-            </button>
+        {/* الشريط السفلي تحت الصور مباشرة: تاريخ النشر + عدد المشاهدات + كود الوحدة مع النسخ */}
+      {/* الشريط السفلي تحت الصور مباشرة: متى نُشرت بعد موافقة الأدمن + إجمالي المشاهدات الحقيقية من الداتا بيز + كود الوحدة */}
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-gray-200/80 bg-white px-4 py-2.5 text-xs font-semibold text-gray-500 shadow-2xs">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+            <span className="inline-flex items-center gap-1.5">
+              <Calendar className="size-3.5 text-[#007a5a]" />
+              <span>{publishedAgo}</span>
+            </span>
 
-            <div className="relative flex flex-1 items-center">
-              <input
-                type="range"
-                min={0}
-                max={100}
-                value={scrollProgress}
-                onChange={handleSliderChange}
-                aria-label={t.sliderAria}
-                className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-gray-200 accent-gray-500"
-              />
-            </div>
+            <span className="text-gray-300">|</span>
 
-            <button
-              type="button"
-              onClick={() => scrollByAmount('next')}
-              aria-label={t.nextImageAria}
-              className="flex size-5 items-center justify-center rounded text-gray-500 hover:bg-gray-200 hover:text-[var(--brand-navy,#0a1122)]"
-            >
-              <ChevronLeft className="size-3.5 rtl:rotate-0 ltr:rotate-180" />
-            </button>
-          </div>
-        )}
-      </section>
-
-      {lightboxIndex !== null && (
-        <div
-          className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/90 p-4 backdrop-blur-sm"
-          onClick={() => setLightboxIndex(null)}
-        >
-          <div
-            className="mb-4 flex w-full max-w-4xl items-center justify-between text-white"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              type="button"
-              onClick={() => setLightboxIndex(null)}
-              className="flex size-10 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20"
-              aria-label={t.closeAria}
-            >
-              <X className="size-5" />
-            </button>
-            <span className="text-xs font-bold">
-              {lightboxIndex + 1} / {gallery.length} —{' '}
-              {gallery[lightboxIndex]?.caption}
+            <span className="inline-flex items-center gap-1.5">
+              <Eye className="size-3.5 text-[#2563eb]" />
+              <span>
+                <strong className="font-extrabold text-[#0a1122] tabular-nums">
+                  {viewsTotal.toLocaleString('en-US')}
+                </strong>{' '}
+                {isAr ? 'مشاهدة' : 'views'}
+              </span>
             </span>
           </div>
 
+          {unitCode && (
+            <button
+              type="button"
+              onClick={onCopyCode}
+              title={t.copyCodeTitle || 'نسخ كود الوحدة'}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1 font-mono text-[11px] font-extrabold text-[#0a1122] transition hover:border-[#007a5a] hover:bg-[#eaf8f2]"
+            >
+              <span>ID: {unitCode}</span>
+              {copied ? (
+                <Check className="size-3.5 text-[#007a5a]" />
+              ) : (
+                <Copy className="size-3 text-gray-400" />
+              )}
+              {copied && (
+                <span className="font-sans text-[10px] font-bold text-[#007a5a]">
+                  {t.copiedText || (isAr ? 'تم النسخ' : 'Copied')}
+                </span>
+              )}
+            </button>
+          )}
+        </div>
+      </section>
+
+      {/* نافذة عرض الصور المكبرة (Full-Screen Lightbox) مع زر الإغلاق X والتكبير وشريط الصور المصغرة */}
+      {lightboxOpen && (
+        <div
+          dir={dir}
+          onClick={() => {
+            setLightboxOpen(false)
+            setZoomed(false)
+          }}
+          className="fixed inset-0 z-[9999] flex flex-col justify-between bg-[#070b14]/95 p-3 text-white backdrop-blur-md select-none sm:p-5"
+        >
+          {/* الهيدر العلوي: زر الإغلاق X + زر التكبير + العنوان + العداد */}
           <div
-            className="relative flex w-full max-w-4xl items-center justify-center"
             onClick={(e) => e.stopPropagation()}
+            className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3"
           >
-            {gallery.length > 1 && (
+            <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() =>
-                  setLightboxIndex((prev) =>
-                    prev !== null
-                      ? (prev - 1 + gallery.length) % gallery.length
-                      : 0
-                  )
-                }
-                className="absolute right-2 z-10 flex size-10 items-center justify-center rounded-full bg-black/60 text-white transition hover:bg-black/80 sm:right-4 sm:size-12"
-                aria-label={t.prevImageAria}
+                onClick={() => {
+                  setLightboxOpen(false)
+                  setZoomed(false)
+                }}
+                aria-label={t.closeAria || 'Close'}
+                className="inline-flex h-10 items-center gap-1.5 rounded-full bg-white/15 px-3.5 text-xs font-extrabold text-white transition hover:bg-red-600"
               >
-                <ChevronRight className="size-6" />
+                <X className="size-4" />
+                <span>{isAr ? 'إغلاق' : 'Close'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setZoomed((z) => !z)}
+                aria-label="Zoom"
+                className="flex size-10 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20"
+              >
+                {zoomed ? (
+                  <ZoomOut className="size-4" />
+                ) : (
+                  <ZoomIn className="size-4" />
+                )}
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2.5 text-xs font-bold sm:text-sm">
+              <span className="hidden truncate text-slate-200 sm:inline-block">
+                {safeGallery[activeIndex]?.caption}
+              </span>
+              <span
+                dir="ltr"
+                className="rounded-full bg-white/15 px-3.5 py-1 text-xs font-extrabold text-white"
+              >
+                {totalPhotos} / {activeIndex + 1}
+              </span>
+            </div>
+          </div>
+
+          {/* الصورة المكبرة في المنتصف مع أسهم التنقل */}
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="relative my-2 flex flex-1 items-center justify-center overflow-hidden"
+          >
+            {totalPhotos > 1 && (
+              <button
+                type="button"
+                onClick={handlePrev}
+                aria-label={t.prevImageAria || 'Previous'}
+                className="absolute start-2 z-20 flex size-10 items-center justify-center rounded-full bg-white/15 text-white shadow-lg backdrop-blur-xs transition hover:bg-white/30 sm:start-4 sm:size-12"
+              >
+                {isRtl ? (
+                  <ChevronRight className="size-6" />
+                ) : (
+                  <ChevronLeft className="size-6" />
+                )}
               </button>
             )}
 
             <img
-              src={gallery[lightboxIndex]?.url}
-              alt={gallery[lightboxIndex]?.caption}
-              className="max-h-[75vh] w-auto max-w-full rounded-2xl object-contain shadow-2xl"
+              src={safeGallery[activeIndex]?.url}
+              alt={safeGallery[activeIndex]?.caption || ''}
+              onClick={() => setZoomed((z) => !z)}
+              className={`max-h-[72vh] max-w-[92vw] rounded-xl object-contain shadow-2xl transition-transform duration-300 ${
+                zoomed ? 'scale-125 cursor-zoom-out' : 'cursor-zoom-in'
+              }`}
             />
 
-            {gallery.length > 1 && (
+            {totalPhotos > 1 && (
               <button
                 type="button"
-                onClick={() =>
-                  setLightboxIndex((prev) =>
-                    prev !== null ? (prev + 1) % gallery.length : 0
-                  )
-                }
-                className="absolute left-2 z-10 flex size-10 items-center justify-center rounded-full bg-black/60 text-white transition hover:bg-black/80 sm:left-4 sm:size-12"
-                aria-label={t.nextImageAria}
+                onClick={handleNext}
+                aria-label={t.nextImageAria || 'Next'}
+                className="absolute end-2 z-20 flex size-10 items-center justify-center rounded-full bg-white/15 text-white shadow-lg backdrop-blur-xs transition hover:bg-white/30 sm:end-4 sm:size-12"
               >
-                <ChevronLeft className="size-6" />
+                {isRtl ? (
+                  <ChevronLeft className="size-6" />
+                ) : (
+                  <ChevronRight className="size-6" />
+                )}
               </button>
             )}
           </div>
 
-          {gallery.length > 1 && (
+          {/* شريط الصور المصغرة بالأسفل */}
+          {totalPhotos > 1 && (
             <div
-              className="mt-5 flex max-w-full gap-2 overflow-x-auto pb-2"
               onClick={(e) => e.stopPropagation()}
+              className="mx-auto flex max-w-full items-center gap-2 overflow-x-auto pb-1 no-scrollbar"
             >
-              {gallery.map((img, idx) => (
+              {safeGallery.map((img, idx) => (
                 <button
                   key={`${img.url}-${idx}`}
                   type="button"
-                  onClick={() => setLightboxIndex(idx)}
+                  onClick={() => {
+                    setActiveIndex(idx)
+                    setZoomed(false)
+                  }}
                   className={`h-14 w-20 shrink-0 overflow-hidden rounded-lg border-2 transition ${
-                    lightboxIndex === idx
-                      ? 'scale-105 border-[var(--brand-accent,#2ee59d)]'
-                      : 'border-transparent opacity-50 hover:opacity-80'
+                    activeIndex === idx
+                      ? 'scale-105 border-[#2ee59d] opacity-100'
+                      : 'border-transparent opacity-50 hover:opacity-85'
                   }`}
                 >
                   <img
@@ -265,14 +471,14 @@ export function UnitInterestForm({
     ? params.id[0]
     : (params?.id as string) || ''
 
-  const { t: dict, locale } = useTranslation()
+  const { t: dict, locale, siteSettings } = useTranslation()
   const f = dict.unitDetailsPage.interestForm
   const oT = (dict.accountPages?.offers as Record<string, any>) || {}
+  const isAr = locale === 'ar'
   const cur = '$'
-  const supportWhatsApp = String(dict.footer?.phone || '+201018595959').replace(
-    /\D/g,
-    ''
-  )
+  const supportWhatsApp = String(
+    siteSettings?.whatsappNumber || dict.footer?.phone || '+201018595959'
+  ).replace(/\D/g, '')
 
   const allowNegotiation = Boolean(willingToDiscount || discountAmount > 0)
   const maxDiscount =
@@ -371,9 +577,8 @@ export function UnitInterestForm({
       ? window.location.origin
       : 'https://exit-16.vercel.app'
 
-  // رابط محايد ذكي لا يكشف مسار /admin للعميل ويوثق الرقم عندما يفتحه الأدمن
   const whatsappConfirmMsg = submittedOfferData
-    ? locale === 'ar'
+    ? isAr
       ? `أهلاً إدارة Aqar Exit، أؤكد جديتي في عرض الشراء رقم (${submittedOfferData.offerRef}) على وحدة (${projectName} - ${unitCode}) بمبلغ ($${submittedOfferData.amount.toLocaleString('en-US')}).\nرابط مراجعة وتفعيل العرض:\n${siteOrigin}/api/verify-contact?offerId=${encodeURIComponent(submittedOfferData.offerId)}`
       : `Hello Aqar Exit, I confirm my purchase offer (${submittedOfferData.offerRef}) for unit (${projectName} - ${unitCode}) with amount ($${submittedOfferData.amount.toLocaleString('en-US')}).\nVerification Link:\n${siteOrigin}/api/verify-contact?offerId=${encodeURIComponent(submittedOfferData.offerId)}`
     : ''
@@ -408,7 +613,7 @@ export function UnitInterestForm({
             {submittedOfferData.amount.toLocaleString('en-US')}
           </p>
           <p className="mx-auto mt-2.5 max-w-md text-xs leading-relaxed font-semibold text-slate-700">
-            {locale === 'ar'
+            {isAr
               ? 'لتسريع إرسال عرضك للمالك مباشرة، اضغط الزر بالأسفل لتأكيد العرض عبر واتساب المنصة:'
               : 'To fast-track your offer to the owner, click below to confirm via WhatsApp:'}
           </p>
@@ -422,7 +627,7 @@ export function UnitInterestForm({
             >
               <MessageCircle className="size-4 shrink-0" />
               <span>
-                {locale === 'ar'
+                {isAr
                   ? 'تأكيد العرض فوراً عبر واتساب'
                   : 'Confirm Offer via WhatsApp'}
               </span>
@@ -432,7 +637,7 @@ export function UnitInterestForm({
               href="/account/offers?role=buyer"
               className="inline-flex h-12 w-full items-center justify-center rounded-xl border border-gray-300 bg-white px-5 text-xs font-extrabold text-[#0a1122] hover:bg-gray-50 sm:w-auto"
             >
-              {locale === 'ar' ? 'متابعة عروضي في حسابي' : 'View My Offers'}
+              {isAr ? 'متابعة عروضي في حسابي' : 'View My Offers'}
             </Link>
           </div>
         </div>
@@ -444,11 +649,23 @@ export function UnitInterestForm({
             </div>
           )}
 
-          {/* 1. تحديد قيمة الكاش المعروض */}
+          {/* 1. تحديد قيمة الكاش المعروض للمالك (مع توضيح المبلغ الأصلي المطلوب للتنازل) */}
           <div className="rounded-2xl border border-gray-200/90 bg-[#f8faf9] p-4">
-            <label className="mb-2.5 block text-xs font-extrabold text-[#0a1122]">
-              1. {oT.selectOfferTypeLabel || 'تحديد قيمة الكاش المعروض للمالك'}:
-            </label>
+            <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
+              <label className="text-xs font-extrabold text-[#0a1122]">
+                1.{' '}
+                {oT.selectOfferTypeLabel ||
+                  (isAr
+                    ? 'تحديد قيمة الكاش المعروض للمالك'
+                    : 'Select Cash Offer Amount')}
+                :
+              </label>
+              <span className="rounded-lg bg-emerald-100/80 px-2.5 py-0.5 text-[11px] font-extrabold text-[#007a5a]">
+                {isAr
+                  ? `الكاش المطلوب للتنازل: ${requiredCash.toLocaleString('en-US')} $`
+                  : `Required Exit Cash: $${requiredCash.toLocaleString('en-US')}`}
+              </span>
+            </div>
 
             {allowNegotiation ? (
               <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -465,13 +682,20 @@ export function UnitInterestForm({
                   }`}
                 >
                   <span className="block text-[11px] font-extrabold">
-                    ✓ {oT.fullPriceOptionTitle || 'حجز فوري بالسعر الموثق الكامل'}
+                    ✓{' '}
+                    {oT.fullPriceOptionTitle ||
+                      (isAr
+                        ? 'حجز فوري بالسعر الموثق الكامل'
+                        : 'Instant Booking at Full Price')}
                   </span>
                   <strong
                     dir="ltr"
                     className="mt-1 block text-sm font-black tabular-nums"
                   >
-                    {requiredCash.toLocaleString('en-US')} {cur}
+                    {requiredCash.toLocaleString('en-US')} {cur}{' '}
+                    <span className="font-sans text-[10px] font-bold opacity-80">
+                      ({isAr ? 'المدفوع الفعلي للمالك' : 'Paid Cash'})
+                    </span>
                   </strong>
                 </button>
 
@@ -488,10 +712,16 @@ export function UnitInterestForm({
                   }`}
                 >
                   <span className="block text-[11px] font-extrabold">
-                    💬 {oT.negotiateOptionTitle || 'تقديم عرض كاش عاجل (تفاوض)'}
+                    💬{' '}
+                    {oT.negotiateOptionTitle ||
+                      (isAr
+                        ? 'تقديم عرض كاش عاجل (تفاوض محكوم)'
+                        : 'Submit Negotiated Cash Offer')}
                   </span>
                   <span className="mt-1 block text-[10.5px] text-gray-500">
-                    {oT.minAllowedFloorLabel || 'الحد الأدنى المسموح'}:{' '}
+                    {oT.minAllowedFloorLabel ||
+                      (isAr ? 'الحد الأدنى المسموح للعرض' : 'Minimum allowed')}
+                    :{' '}
                     <strong dir="ltr" className="font-extrabold text-[#0a1122]">
                       {minAllowedCash.toLocaleString('en-US')} {cur}
                     </strong>
@@ -501,10 +731,17 @@ export function UnitInterestForm({
             ) : (
               <div className="mb-3 rounded-xl border border-emerald-200 bg-[#eaf8f2] p-3 text-[11px] font-bold text-[#007a5a]">
                 {oT.nonNegotiableUnitNote ||
-                  'هذه الوحدة معروضة بسعر تنازل نهائي غير قابل للتفاوض'}
+                  (isAr
+                    ? `هذه الوحدة معروضة بسعر تنازل نهائي (${requiredCash.toLocaleString('en-US')} $) غير قابل للتفاوض`
+                    : `Fixed exit price ($${requiredCash.toLocaleString('en-US')}) — non-negotiable`)}
               </div>
             )}
 
+            <label className="mb-1.5 block text-[11px] font-bold text-gray-500">
+              {isAr
+                ? 'المبلغ الكاش الذي تعرض دفعه للمالك الآن ($):'
+                : 'Your cash offer amount to the seller ($):'}
+            </label>
             <div className="relative">
               <input
                 type="text"
@@ -541,14 +778,18 @@ export function UnitInterestForm({
                 <CheckCircle2 className="size-4 shrink-0" />
                 <span>
                   {oT.fullPricePriorityHint ||
-                    'أولوية أولى للقبول الفوري وقفل الوحدة'}
+                    (isAr
+                      ? 'أولوية أولى للقبول الفوري وقفل الوحدة'
+                      : 'Top priority for instant acceptance')}
                 </span>
               </div>
             ) : isBelowMinFloor ? (
               <div className="mt-2.5 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-2.5 text-[11px] font-bold text-red-700">
                 <AlertTriangle className="mt-0.5 size-4 shrink-0" />
                 <span>
-                  {oT.errBelowMinFloor || 'أقل مبلغ مسموح للعرض هو'}:{' '}
+                  {oT.errBelowMinFloor ||
+                    (isAr ? 'أقل مبلغ مسموح للعرض هو' : 'Minimum allowed offer')}
+                  :{' '}
                   <strong dir="ltr">
                     {minAllowedCash.toLocaleString('en-US')} {cur}
                   </strong>
@@ -559,7 +800,9 @@ export function UnitInterestForm({
                 <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
                 <span>
                   {oT.fomoNegotiationWarning ||
-                    'العروض بالسعر الكامل لها أولوية القبول الفوري لدى المالك.'}
+                    (isAr
+                      ? 'العروض بالسعر الكامل لها أولوية القبول الفوري لدى المالك.'
+                      : 'Full-price offers receive priority acceptance.')}
                 </span>
               </div>
             )}
@@ -647,7 +890,10 @@ export function UnitInterestForm({
               <div className="grid grid-cols-2 gap-2">
                 {(
                   [
-                    ['bank_check', oT.methodBankCheck || 'شيك مصرفي مقبول الدفع'],
+                    [
+                      'bank_check',
+                      oT.methodBankCheck || 'شيك مصرفي مقبول الدفع',
+                    ],
                     ['bank_transfer', oT.methodBankTransfer || 'تحويل بنكي فوري'],
                   ] as const
                 ).map(([key, label]) => (

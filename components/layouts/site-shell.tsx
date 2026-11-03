@@ -578,7 +578,6 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
   const currentLangCfg =
     SUPPORTED_LANGUAGES[language] || SUPPORTED_LANGUAGES.ar
 
-  // التابات العلوية: بيع وحدتك أولاً ثم الفرص المتاحة في المنتصف
   const navItems = [
     {
       href: '/sell',
@@ -805,13 +804,13 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
       )}
 
       <div
-        className={`mx-auto flex max-w-[1420px] items-center justify-between gap-3 transition-all duration-500 ${
+        className={`mx-auto flex max-w-[1280px] items-center justify-between gap-4 transition-all duration-500 ${
           scrolled
             ? 'h-[62px] rounded-full border border-slate-200/80 bg-white/95 px-5 shadow-[0_14px_34px_rgba(30,58,138,0.1)] backdrop-blur-xl sm:h-[66px] sm:px-7'
-            : 'h-[68px] px-4 sm:h-[74px] sm:px-6 lg:px-10'
+            : 'h-[68px] px-4 sm:h-[74px] sm:px-6 lg:px-8'
         }`}
       >
-        <div className="flex items-center gap-5 xl:gap-8">
+        <div className="flex items-center gap-4 xl:gap-6">
           <Logo />
           <nav
             className="hidden items-center gap-1 lg:flex xl:gap-1.5"
@@ -849,7 +848,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
           </nav>
         </div>
 
-        {/* أزرار الكمبيوتر */}
+        {/* أزرار الكمبيوتر: المفضلة + اللغة + الإشعارات (للمسجلين فقط وبجانب حسابي) + حسابي/دخول + عايز تشتري + عايز تبيع (ثابت دائماً) + الإدارة */}
         <div className="hidden shrink-0 items-center gap-2 lg:flex">
           <Link
             href="/account/favorites"
@@ -884,6 +883,30 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
             {langMenuOpen && renderLanguageDropdownMenu()}
           </div>
 
+          {/* جرس الإشعارات يظهر في الكمبيوتر فقط لو الشخص مسجل الدخول وبجانب زر حسابي مباشرة */}
+          {hasSession && (
+            <div className="relative" ref={notifRefDesktop}>
+              <button
+                type="button"
+                onClick={handleToggleNotifications}
+                aria-label="Notifications"
+                title={language === 'ar' ? 'الإشعارات' : 'Notifications'}
+                className="relative flex size-9 items-center justify-center rounded-full border border-slate-200/90 bg-slate-50/80 text-[#1e3a8a] transition hover:border-[#2563eb] hover:bg-white"
+              >
+                <Bell className="size-[18px] stroke-[2.1]" />
+                {unreadCount > 0 && (
+                  <span
+                    dir="ltr"
+                    className="absolute -right-0.5 -top-0.5 flex size-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white shadow-2xs"
+                  >
+                    {unreadCount > 9 ? '+9' : unreadCount}
+                  </span>
+                )}
+              </button>
+              {notificationsOpen && renderNotificationsDropdown(false)}
+            </div>
+          )}
+
           <Link
             href={hasSession ? '/account' : '/login'}
             className="inline-flex h-9.5 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-slate-200 bg-white px-3.5 text-xs font-bold text-[#1e3a8a] transition hover:bg-slate-50"
@@ -899,35 +922,13 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
             {buyUnitBtnLabel}
           </Link>
 
-          {/* إذا سجل العميل حسابه: نشيل زرار "عايز تبيع" ونضع مكانه زرار الإشعارات */}
-          {hasSession ? (
-            <div className="relative" ref={notifRefDesktop}>
-              <button
-                type="button"
-                onClick={handleToggleNotifications}
-                aria-label="Notifications"
-                className="relative flex size-9.5 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-[#1e3a8a] shadow-2xs transition hover:border-[#2563eb] hover:bg-white"
-              >
-                <Bell className="size-[18px] stroke-[2.2]" />
-                {unreadCount > 0 && (
-                  <span
-                    dir="ltr"
-                    className="absolute -right-0.5 -top-0.5 flex size-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white shadow-2xs"
-                  >
-                    {unreadCount > 9 ? '+9' : unreadCount}
-                  </span>
-                )}
-              </button>
-              {notificationsOpen && renderNotificationsDropdown(false)}
-            </div>
-          ) : (
-            <Link
-              href="/sell"
-              className="inline-flex h-9.5 items-center justify-center whitespace-nowrap rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-5 text-xs font-bold text-white shadow-[0_6px_18px_rgba(255,92,75,0.28)] transition hover:opacity-95 active:scale-95"
-            >
-              {sellUnitBtnLabel}
-            </Link>
-          )}
+          {/* زرار عايز تبيع ثابت دائماً في الكمبيوتر */}
+          <Link
+            href="/sell"
+            className="inline-flex h-9.5 items-center justify-center whitespace-nowrap rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-5 text-xs font-bold text-white shadow-[0_6px_18px_rgba(255,92,75,0.28)] transition hover:opacity-95 active:scale-95"
+          >
+            {sellUnitBtnLabel}
+          </Link>
 
           {isAdmin && (
             <Link
@@ -941,7 +942,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
           )}
         </div>
 
-        {/* الموبايل: زر اللغة + (الإشعارات لو مسجل دخول أو عايز تبيع لو زائر) + زر القائمة */}
+        {/* الموبايل: في التليفون فقط نبدل زرار عايز تبيع بزرار الإشعارات لو العميل مسجل دخول */}
         <div className="flex items-center gap-1.5 lg:hidden">
           <div className="relative" ref={langRefMobile}>
             <button
@@ -1048,15 +1049,13 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
                 </span>
               </Link>
             )}
-            {!hasSession && (
-              <Link
-                href="/sell"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex h-11 w-full items-center justify-center rounded-xl bg-gradient-to-r from-[#ff6437] to-[#ff4f69] text-xs font-bold text-white shadow-sm"
-              >
-                <span>{sellUnitBtnLabel}</span>
-              </Link>
-            )}
+            <Link
+              href="/sell"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex h-11 w-full items-center justify-center rounded-xl bg-gradient-to-r from-[#ff6437] to-[#ff4f69] text-xs font-bold text-white shadow-sm"
+            >
+              <span>{sellUnitBtnLabel}</span>
+            </Link>
             <Link
               href="/buy"
               onClick={() => setMobileMenuOpen(false)}

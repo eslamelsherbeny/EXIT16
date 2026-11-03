@@ -6,6 +6,8 @@ import {
   Baby,
   Building2,
   Bus,
+  ChevronDown,
+  ChevronUp,
   CloudSun,
   Compass,
   Dumbbell,
@@ -26,9 +28,6 @@ import {
 import { getCoordinatesForArea } from '@/lib/georgia-coordinates'
 import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
 
-// ==========================================
-// 1. أنواع وتصنيفات الأماكن القريبة الـ 9 (مطابقة لـ sivrce.ge)
-// ==========================================
 type NearbyCategoryKey =
   | 'all'
   | 'school'
@@ -179,7 +178,6 @@ function formatTravelEstimate(meters: number) {
   return `walk ~${walkMin} min · transit ~${transitMin} min · drive ~${driveMin} min`
 }
 
-// دالة تحميل MapLibre GL ديناميكياً من CDN لتفادي مشكلة Web Workers في Next.js 16 Turbopack
 function loadMapLibreFromCDN(): Promise<any> {
   return new Promise((resolve, reject) => {
     if (typeof window === 'undefined') return reject('SSR')
@@ -213,9 +211,6 @@ function loadMapLibreFromCDN(): Promise<any> {
   })
 }
 
-// ==========================================
-// 2. مكون مخطط الشمس التفاعلي الكامل
-// ==========================================
 function SunAndDaylightInteractiveCard({
   lat,
   lng,
@@ -226,6 +221,7 @@ function SunAndDaylightInteractiveCard({
   locale?: string
 }) {
   const isAr = locale === 'ar'
+  const [isOpen, setIsOpen] = useState(true)
   const [season, setSeason] = useState<'winter' | 'today' | 'summer'>('today')
   const [sliderRatio, setSliderRatio] = useState(0.5)
 
@@ -313,9 +309,9 @@ function SunAndDaylightInteractiveCard({
 
   return (
     <section className="mt-5 rounded-[22px] border border-gray-200/85 bg-white p-5 text-start shadow-2xs sm:p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <span className="flex size-9 items-center justify-center rounded-xl bg-orange-50 text-orange-500">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-orange-500">
             <Sun className="size-5" />
           </span>
           <div>
@@ -332,271 +328,337 @@ function SunAndDaylightInteractiveCard({
           </div>
         </div>
 
-        <div className="inline-flex rounded-full border border-gray-200 bg-gray-50 p-1 text-xs font-extrabold">
-          {(
-            [
-              { id: 'winter', label: isAr ? 'الشتاء' : 'Winter' },
-              { id: 'today', label: isAr ? 'اليوم' : 'Today' },
-              { id: 'summer', label: isAr ? 'الصيف' : 'Summer' },
-            ] as const
-          ).map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setSeason(tab.id)}
-              className={`rounded-full px-3.5 py-1 text-[11px] font-extrabold transition ${
-                season === tab.id
-                  ? 'bg-[#2563eb] text-white shadow-2xs'
-                  : 'text-gray-600 hover:text-[#0a1122]'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+        {/* الجهة اليسرى: أزرار الفصول ثم مسافة فاصلة واضحة ثم زر الطي في أقصى الشمال */}
+        <div className="flex shrink-0 items-center gap-3.5">
+          {isOpen && (
+            <div className="hidden rounded-full border border-gray-200 bg-gray-50 p-1 text-xs font-extrabold sm:inline-flex">
+              {(
+                [
+                  { id: 'winter', label: isAr ? 'الشتاء' : 'Winter' },
+                  { id: 'today', label: isAr ? 'اليوم' : 'Today' },
+                  { id: 'summer', label: isAr ? 'الصيف' : 'Summer' },
+                ] as const
+              ).map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setSeason(tab.id)}
+                  className={`rounded-full px-3.5 py-1 text-[11px] font-extrabold transition ${
+                    season === tab.id
+                      ? 'bg-[#2563eb] text-white shadow-2xs'
+                      : 'text-gray-600 hover:text-[#0a1122]'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="hidden h-5 w-[1px] bg-gray-200 sm:block" />
+
+          {/* زر الطي والفتح في أقصى الشمال مستقل وواضح */}
+          <button
+            type="button"
+            onClick={() => setIsOpen((prev) => !prev)}
+            aria-label="Toggle sun section"
+            title={isOpen ? (isAr ? 'طي القسم' : 'Collapse') : (isAr ? 'فتح القسم' : 'Expand')}
+            className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-gray-200/90 bg-gray-50/90 text-[#0a1122] shadow-2xs transition hover:border-[#2563eb] hover:bg-blue-50/50 hover:text-[#2563eb]"
+          >
+            {isOpen ? (
+              <ChevronUp className="size-4 stroke-[2.4]" />
+            ) : (
+              <ChevronDown className="size-4 stroke-[2.4]" />
+            )}
+          </button>
         </div>
       </div>
 
-      <div className="mt-5">
-        <p className="mb-2.5 text-xs font-extrabold text-[#0a1122]">
-          {isAr
-            ? 'تعرض النوافذ لأشعة الشمس المباشرة حسب الاتجاه (Direct sun by window direction)'
-            : 'Direct sun by window direction'}
-        </p>
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {/* North */}
-          <div className="rounded-2xl border border-gray-100 bg-[#f8fafc] p-3.5">
-            <div className="flex items-center justify-between text-xs font-extrabold text-[#0a1122]">
-              <span>{isAr ? 'الشمال (North)' : 'North'}</span>
-              <span className="text-gray-400">—</span>
+      {isOpen && (
+        <>
+          {/* أزرار الفصول للموبايل */}
+          <div className="mt-3 flex justify-end sm:hidden">
+            <div className="inline-flex rounded-full border border-gray-200 bg-gray-50 p-1 text-xs font-extrabold">
+              {(
+                [
+                  { id: 'winter', label: isAr ? 'الشتاء' : 'Winter' },
+                  { id: 'today', label: isAr ? 'اليوم' : 'Today' },
+                  { id: 'summer', label: isAr ? 'الصيف' : 'Summer' },
+                ] as const
+              ).map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setSeason(tab.id)}
+                  className={`rounded-full px-3.5 py-1 text-[11px] font-extrabold transition ${
+                    season === tab.id
+                      ? 'bg-[#2563eb] text-white shadow-2xs'
+                      : 'text-gray-600 hover:text-[#0a1122]'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
             </div>
-            <div className="mt-2 h-1.5 w-full rounded-full bg-gray-200" />
-            <p className="mt-2 text-[11px] text-gray-400">
-              {isAr ? 'إضاءة ناعمة بدون شمس مباشرة' : 'No direct sun'}
+          </div>
+
+          <div className="mt-5">
+            <p className="mb-2.5 text-xs font-extrabold text-[#0a1122]">
+              {isAr
+                ? 'تعرض النوافذ لأشعة الشمس المباشرة حسب الاتجاه (Direct sun by window direction)'
+                : 'Direct sun by window direction'}
             </p>
-          </div>
 
-          {/* East */}
-          <div className="rounded-2xl border border-gray-100 bg-[#f8fafc] p-3.5">
-            <div className="flex items-center justify-between text-xs font-extrabold text-[#0a1122]">
-              <span>{isAr ? 'الشرق (East)' : 'East'}</span>
-              <span dir="ltr">{sunMetrics.eastHoursStr}</span>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl border border-gray-100 bg-[#f8fafc] p-3.5">
+                <div className="flex items-center justify-between text-xs font-extrabold text-[#0a1122]">
+                  <span>{isAr ? 'الشمال (North)' : 'North'}</span>
+                  <span className="text-gray-400">—</span>
+                </div>
+                <div className="mt-2 h-1.5 w-full rounded-full bg-gray-200" />
+                <p className="mt-2 text-[11px] text-gray-400">
+                  {isAr ? 'إضاءة ناعمة بدون شمس مباشرة' : 'No direct sun'}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-gray-100 bg-[#f8fafc] p-3.5">
+                <div className="flex items-center justify-between text-xs font-extrabold text-[#0a1122]">
+                  <span>{isAr ? 'الشرق (East)' : 'East'}</span>
+                  <span dir="ltr">{sunMetrics.eastHoursStr}</span>
+                </div>
+                <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
+                  <div className="h-full w-1/2 rounded-full bg-orange-500" />
+                </div>
+                <div className="mt-2 flex items-center justify-between text-[11px] text-gray-500">
+                  <span>{isAr ? 'مشرق صباحاً (Bright)' : 'Bright'}</span>
+                  <span dir="ltr" className="font-mono">
+                    {sunMetrics.eastWindowRange}
+                  </span>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-orange-200/80 bg-orange-50/40 p-3.5">
+                <div className="flex items-center justify-between text-xs font-extrabold text-[#0a1122]">
+                  <span>{isAr ? 'الجنوب (South)' : 'South'}</span>
+                  <span dir="ltr">{sunMetrics.daylightStr}</span>
+                </div>
+                <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
+                  <div className="h-full w-[92%] rounded-full bg-orange-500" />
+                </div>
+                <div className="mt-2 flex items-center justify-between text-[11px] text-gray-600">
+                  <span className="font-bold text-orange-700">
+                    {isAr ? 'مشمس جداً طوال النهار (Very bright)' : 'Very bright'}
+                  </span>
+                  <span dir="ltr" className="font-mono">
+                    {sunMetrics.southWindowRange}
+                  </span>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-gray-100 bg-[#f8fafc] p-3.5">
+                <div className="flex items-center justify-between text-xs font-extrabold text-[#0a1122]">
+                  <span>{isAr ? 'الغرب (West)' : 'West'}</span>
+                  <span dir="ltr">{sunMetrics.westHoursStr}</span>
+                </div>
+                <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
+                  <div className="ms-auto h-full w-1/2 rounded-full bg-orange-500" />
+                </div>
+                <div className="mt-2 flex items-center justify-between text-[11px] text-gray-500">
+                  <span>{isAr ? 'مشرق عصراً (Bright)' : 'Bright'}</span>
+                  <span dir="ltr" className="font-mono">
+                    {sunMetrics.westWindowRange}
+                  </span>
+                </div>
+              </div>
             </div>
-            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
-              <div className="h-full w-1/2 rounded-full bg-orange-500" />
+          </div>
+
+          <div className="mt-6">
+            <svg viewBox="0 0 600 185" className="w-full overflow-visible">
+              <defs>
+                <linearGradient id="sunArcGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#f97316" stopOpacity="0.22" />
+                  <stop offset="100%" stopColor="#f97316" stopOpacity="0.0" />
+                </linearGradient>
+              </defs>
+
+              <path
+                d={`M ${startX} ${baseY} Q ${controlX} ${controlY} ${endX} ${baseY} Z`}
+                fill="url(#sunArcGrad)"
+              />
+
+              <line
+                x1="20"
+                y1={baseY}
+                x2="580"
+                y2={baseY}
+                stroke="#e2e8f0"
+                strokeWidth="2"
+              />
+
+              <path
+                d={`M ${startX} ${baseY} Q ${controlX} ${controlY} ${endX} ${baseY}`}
+                fill="none"
+                stroke="#ea580c"
+                strokeWidth="3"
+              />
+
+              <circle
+                cx={sunX}
+                cy={sunY}
+                r="16"
+                fill="#f97316"
+                fillOpacity="0.18"
+              />
+              <circle
+                cx={sunX}
+                cy={sunY}
+                r="7"
+                fill="#ea580c"
+                stroke="#ffffff"
+                strokeWidth="2"
+              />
+
+              <text
+                x="140"
+                y={baseY + 24}
+                fontSize="12"
+                fontWeight="700"
+                fill="#64748b"
+                textAnchor="middle"
+              >
+                E
+              </text>
+              <text
+                x="300"
+                y={baseY + 24}
+                fontSize="12"
+                fontWeight="700"
+                fill="#0f172a"
+                textAnchor="middle"
+              >
+                S
+              </text>
+              <text
+                x="460"
+                y={baseY + 24}
+                fontSize="12"
+                fontWeight="700"
+                fill="#64748b"
+                textAnchor="middle"
+              >
+                W
+              </text>
+            </svg>
+
+            <div className="mx-auto mt-2 max-w-md px-4">
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={Math.round(sliderRatio * 100)}
+                onChange={(e) => setSliderRatio(Number(e.target.value) / 100)}
+                className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-orange-200 accent-[#ea580c]"
+              />
             </div>
-            <div className="mt-2 flex items-center justify-between text-[11px] text-gray-500">
-              <span>{isAr ? 'مشرق صباحاً (Bright)' : 'Bright'}</span>
-              <span dir="ltr" className="font-mono">
-                {sunMetrics.eastWindowRange}
-              </span>
+
+            <div className="mt-5 grid grid-cols-3 gap-3 border-t border-gray-100 pt-4 text-xs sm:grid-cols-4">
+              <div>
+                <span className="block text-[10px] font-bold text-gray-400 uppercase">
+                  {isAr ? 'الوقت المحدد (TIME)' : 'TIME'}
+                </span>
+                <strong
+                  dir="ltr"
+                  className="mt-0.5 block font-mono text-sm font-black text-[#0a1122]"
+                >
+                  {sunMetrics.selectedTimeStr}
+                </strong>
+              </div>
+              <div>
+                <span className="block text-[10px] font-bold text-gray-400 uppercase">
+                  {isAr ? 'زاوية الارتفاع (HEIGHT)' : 'HEIGHT'}
+                </span>
+                <strong
+                  dir="ltr"
+                  className="mt-0.5 block font-mono text-sm font-black text-[#0a1122]"
+                >
+                  {sunMetrics.selectedHeightDeg}°
+                </strong>
+              </div>
+              <div>
+                <span className="block text-[10px] font-bold text-gray-400 uppercase">
+                  {isAr ? 'الاتجاه (DIRECTION)' : 'DIRECTION'}
+                </span>
+                <strong className="mt-0.5 block text-sm font-black text-[#0a1122]">
+                  {sunMetrics.dirLabel}
+                </strong>
+              </div>
+              <div className="hidden sm:block">
+                <span className="block text-[10px] font-bold text-gray-400 uppercase">
+                  {isAr ? 'طول النهار (DAYLIGHT)' : 'DAYLIGHT'}
+                </span>
+                <strong
+                  dir="ltr"
+                  className="mt-0.5 block text-sm font-black text-[#007a5a]"
+                >
+                  {sunMetrics.daylightStr}
+                </strong>
+              </div>
+            </div>
+
+            <div className="mt-3 grid grid-cols-3 gap-3 border-t border-gray-100 pt-3 text-xs sm:grid-cols-4">
+              <div>
+                <span className="block text-[10px] font-bold text-gray-400 uppercase">
+                  SUNRISE
+                </span>
+                <strong
+                  dir="ltr"
+                  className="mt-0.5 block font-mono text-xs font-extrabold text-gray-700"
+                >
+                  {sunMetrics.sunriseStr}
+                </strong>
+              </div>
+              <div>
+                <span className="block text-[10px] font-bold text-gray-400 uppercase">
+                  SOLAR NOON
+                </span>
+                <strong
+                  dir="ltr"
+                  className="mt-0.5 block font-mono text-xs font-extrabold text-gray-700"
+                >
+                  {sunMetrics.noonStr} · {sunMetrics.maxDeg}°
+                </strong>
+              </div>
+              <div>
+                <span className="block text-[10px] font-bold text-gray-400 uppercase">
+                  SUNSET
+                </span>
+                <strong
+                  dir="ltr"
+                  className="mt-0.5 block font-mono text-xs font-extrabold text-gray-700"
+                >
+                  {sunMetrics.sunsetStr}
+                </strong>
+              </div>
+              <div className="sm:hidden">
+                <span className="block text-[10px] font-bold text-gray-400 uppercase">
+                  DAYLIGHT
+                </span>
+                <strong
+                  dir="ltr"
+                  className="mt-0.5 block text-xs font-extrabold text-[#007a5a]"
+                >
+                  {sunMetrics.daylightStr}
+                </strong>
+              </div>
             </div>
           </div>
-
-          {/* South */}
-          <div className="rounded-2xl border border-orange-200/80 bg-orange-50/40 p-3.5">
-            <div className="flex items-center justify-between text-xs font-extrabold text-[#0a1122]">
-              <span>{isAr ? 'الجنوب (South)' : 'South'}</span>
-              <span dir="ltr">{sunMetrics.daylightStr}</span>
-            </div>
-            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
-              <div className="h-full w-[92%] rounded-full bg-orange-500" />
-            </div>
-            <div className="mt-2 flex items-center justify-between text-[11px] text-gray-600">
-              <span className="font-bold text-orange-700">
-                {isAr ? 'مشمس جداً طوال النهار (Very bright)' : 'Very bright'}
-              </span>
-              <span dir="ltr" className="font-mono">
-                {sunMetrics.southWindowRange}
-              </span>
-            </div>
-          </div>
-
-          {/* West */}
-          <div className="rounded-2xl border border-gray-100 bg-[#f8fafc] p-3.5">
-            <div className="flex items-center justify-between text-xs font-extrabold text-[#0a1122]">
-              <span>{isAr ? 'الغرب (West)' : 'West'}</span>
-              <span dir="ltr">{sunMetrics.westHoursStr}</span>
-            </div>
-            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
-              <div className="ms-auto h-full w-1/2 rounded-full bg-orange-500" />
-            </div>
-            <div className="mt-2 flex items-center justify-between text-[11px] text-gray-500">
-              <span>{isAr ? 'مشرق عصراً (Bright)' : 'Bright'}</span>
-              <span dir="ltr" className="font-mono">
-                {sunMetrics.westWindowRange}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-6">
-        <svg viewBox="0 0 600 185" className="w-full overflow-visible">
-          <defs>
-            <linearGradient id="sunArcGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#f97316" stopOpacity="0.22" />
-              <stop offset="100%" stopColor="#f97316" stopOpacity="0.0" />
-            </linearGradient>
-          </defs>
-
-          <path
-            d={`M ${startX} ${baseY} Q ${controlX} ${controlY} ${endX} ${baseY} Z`}
-            fill="url(#sunArcGrad)"
-          />
-
-          <line
-            x1="20"
-            y1={baseY}
-            x2="580"
-            y2={baseY}
-            stroke="#e2e8f0"
-            strokeWidth="2"
-          />
-
-          <path
-            d={`M ${startX} ${baseY} Q ${controlX} ${controlY} ${endX} ${baseY}`}
-            fill="none"
-            stroke="#ea580c"
-            strokeWidth="3"
-          />
-
-          <circle
-            cx={sunX}
-            cy={sunY}
-            r="16"
-            fill="#f97316"
-            fillOpacity="0.18"
-          />
-          <circle
-            cx={sunX}
-            cy={sunY}
-            r="7"
-            fill="#ea580c"
-            stroke="#ffffff"
-            strokeWidth="2"
-          />
-
-          <text
-            x="140"
-            y={baseY + 24}
-            fontSize="12"
-            fontWeight="700"
-            fill="#64748b"
-            textAnchor="middle"
-          >
-            E
-          </text>
-          <text
-            x="300"
-            y={baseY + 24}
-            fontSize="12"
-            fontWeight="700"
-            fill="#0f172a"
-            textAnchor="middle"
-          >
-            S
-          </text>
-          <text
-            x="460"
-            y={baseY + 24}
-            fontSize="12"
-            fontWeight="700"
-            fill="#64748b"
-            textAnchor="middle"
-          >
-            W
-          </text>
-        </svg>
-
-        <div className="mx-auto mt-2 max-w-md px-4">
-          <input
-            type="range"
-            min={0}
-            max={100}
-            value={Math.round(sliderRatio * 100)}
-            onChange={(e) => setSliderRatio(Number(e.target.value) / 100)}
-            className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-orange-200 accent-[#ea580c]"
-          />
-        </div>
-
-        <div className="mt-5 grid grid-cols-3 gap-3 border-t border-gray-100 pt-4 text-xs sm:grid-cols-4">
-          <div>
-            <span className="block text-[10px] font-bold text-gray-400 uppercase">
-              {isAr ? 'الوقت المحدد (TIME)' : 'TIME'}
-            </span>
-            <strong dir="ltr" className="mt-0.5 block font-mono text-sm font-black text-[#0a1122]">
-              {sunMetrics.selectedTimeStr}
-            </strong>
-          </div>
-          <div>
-            <span className="block text-[10px] font-bold text-gray-400 uppercase">
-              {isAr ? 'زاوية الارتفاع (HEIGHT)' : 'HEIGHT'}
-            </span>
-            <strong dir="ltr" className="mt-0.5 block font-mono text-sm font-black text-[#0a1122]">
-              {sunMetrics.selectedHeightDeg}°
-            </strong>
-          </div>
-          <div>
-            <span className="block text-[10px] font-bold text-gray-400 uppercase">
-              {isAr ? 'الاتجاه (DIRECTION)' : 'DIRECTION'}
-            </span>
-            <strong className="mt-0.5 block text-sm font-black text-[#0a1122]">
-              {sunMetrics.dirLabel}
-            </strong>
-          </div>
-          <div className="hidden sm:block">
-            <span className="block text-[10px] font-bold text-gray-400 uppercase">
-              {isAr ? 'طول النهار (DAYLIGHT)' : 'DAYLIGHT'}
-            </span>
-            <strong dir="ltr" className="mt-0.5 block text-sm font-black text-[#007a5a]">
-              {sunMetrics.daylightStr}
-            </strong>
-          </div>
-        </div>
-
-        <div className="mt-3 grid grid-cols-3 gap-3 border-t border-gray-100 pt-3 text-xs sm:grid-cols-4">
-          <div>
-            <span className="block text-[10px] font-bold text-gray-400 uppercase">
-              SUNRISE
-            </span>
-            <strong dir="ltr" className="mt-0.5 block font-mono text-xs font-extrabold text-gray-700">
-              {sunMetrics.sunriseStr}
-            </strong>
-          </div>
-          <div>
-            <span className="block text-[10px] font-bold text-gray-400 uppercase">
-              SOLAR NOON
-            </span>
-            <strong dir="ltr" className="mt-0.5 block font-mono text-xs font-extrabold text-gray-700">
-              {sunMetrics.noonStr} · {sunMetrics.maxDeg}°
-            </strong>
-          </div>
-          <div>
-            <span className="block text-[10px] font-bold text-gray-400 uppercase">
-              SUNSET
-            </span>
-            <strong dir="ltr" className="mt-0.5 block font-mono text-xs font-extrabold text-gray-700">
-              {sunMetrics.sunsetStr}
-            </strong>
-          </div>
-          <div className="sm:hidden">
-            <span className="block text-[10px] font-bold text-gray-400 uppercase">
-              DAYLIGHT
-            </span>
-            <strong dir="ltr" className="mt-0.5 block text-xs font-extrabold text-[#007a5a]">
-              {sunMetrics.daylightStr}
-            </strong>
-          </div>
-        </div>
-      </div>
+        </>
+      )}
     </section>
   )
 }
 
-// ==========================================
-// 3. المكون الرئيسي: Neighborhood Score + 3D Map + What's Nearby + Sun Chart
-// ==========================================
 export function UnitLocationInsights({
   areaId,
   locale = 'ar',
@@ -614,6 +676,7 @@ export function UnitLocationInsights({
 
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
   const mapInstanceRef = useRef<any>(null)
+  const [isLocationSectionOpen, setIsLocationSectionOpen] = useState(true)
   const [is3D, setIs3D] = useState(true)
   const [activeCategory, setActiveCategory] =
     useState<NearbyCategoryKey>('all')
@@ -628,8 +691,43 @@ export function UnitLocationInsights({
     aqi: number
   }>({ temp: 18, aqi: 34 })
 
-  // تشغيل خريطة MapLibre GL 3D مباشرة عبر CDN لضمان عدم تعطل الـ Web Worker في Next.js 16
+  const { walkScore, mobilityScore } = useMemo(() => {
+    const walkEssentials = places.filter((p) =>
+      ['market', 'pharmacy', 'school', 'kindergarten', 'restaurants'].includes(
+        p.category
+      )
+    )
+    const within600m = walkEssentials.filter(
+      (p) => p.distanceMeters <= 600
+    ).length
+    const nearestMarket =
+      places.find((p) => p.category === 'market')?.distanceMeters || 500
+    const nearestPharmacy =
+      places.find((p) => p.category === 'pharmacy')?.distanceMeters || 500
+
+    let computedWalk =
+      68 +
+      Math.min(20, within600m * 3) +
+      (nearestMarket <= 350 ? 5 : 0) +
+      (nearestPharmacy <= 400 ? 4 : 0)
+    computedWalk = Math.max(62, Math.min(96, computedWalk))
+
+    const busStops = places.filter((p) => p.category === 'bus')
+    const nearestBus = busStops[0]?.distanceMeters || 250
+    let computedMobility =
+      65 +
+      Math.min(18, busStops.length * 5) +
+      (nearestBus <= 150 ? 9 : nearestBus <= 350 ? 5 : 0)
+    computedMobility = Math.max(60, Math.min(95, computedMobility))
+
+    return {
+      walkScore: computedWalk,
+      mobilityScore: computedMobility,
+    }
+  }, [places])
+
   useEffect(() => {
+    if (!isLocationSectionOpen) return
     let isMounted = true
     let map: any = null
 
@@ -712,9 +810,8 @@ export function UnitLocationInsights({
         mapInstanceRef.current = null
       }
     }
-  }, [coords.lat, coords.lng])
+  }, [coords.lat, coords.lng, isLocationSectionOpen])
 
-  // جلب الطقس الحي والأماكن القريبة
   useEffect(() => {
     setPlaces(getFallbackPlacesForArea(isBatumi))
 
@@ -803,15 +900,15 @@ export function UnitLocationInsights({
 
   return (
     <>
-      {/* 1. كارت قابلية المشي والمواصلات (Neighborhood & Mobility Score) */}
+      {/* 1. كارت قابلية المشي والمواصلات */}
       <section className="mt-4 rounded-[20px] border border-gray-200/85 bg-white p-5 text-start shadow-2xs sm:p-6">
         <h3 className="text-sm font-black text-[#0a1122] sm:text-base">
           {isAr ? 'تقييم الحي وسهولة التنقل (Neighborhood)' : 'Neighborhood'}
         </h3>
         <p className="mt-0.5 text-xs font-semibold text-gray-500">
           {isAr
-            ? 'منطقة مخدومة بالكامل وقابلة للمشي (Very walkable)'
-            : 'Very walkable & well connected'}
+            ? `منطقة مخدومة بالكامل وقابلة للمشي (${places.length} مرفق وخدمة مسجلة حول الموقع)`
+            : `Very walkable & well connected (${places.length} nearby amenities)`}
         </p>
 
         <div className="mt-4 space-y-3.5 text-xs">
@@ -820,13 +917,20 @@ export function UnitLocationInsights({
               <span className="flex items-center gap-1.5 font-bold text-gray-700">
                 <Footprints className="size-3.5 text-[#2563eb]" />
                 <span>
-                  {isAr ? 'مؤشر المشي والخدمات اليومية (Walk Score)' : 'Walk'}
+                  {isAr
+                    ? 'مؤشر المشي والخدمات اليومية (Walk Score — قرب الأسواق والصيدليات والمدارس مشياً)'
+                    : 'Walk Score (Daily errands on foot)'}
                 </span>
               </span>
-              <strong className="font-black text-[#0a1122]">78</strong>
+              <strong className="font-black text-[#0a1122]">
+                {walkScore}/100
+              </strong>
             </div>
             <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
-              <div className="h-full w-[78%] rounded-full bg-[#2563eb]" />
+              <div
+                className="h-full rounded-full bg-[#2563eb]"
+                style={{ width: `${walkScore}%` }}
+              />
             </div>
           </div>
 
@@ -836,27 +940,33 @@ export function UnitLocationInsights({
                 <TrainFront className="size-3.5 text-[#2563eb]" />
                 <span>
                   {isAr
-                    ? 'مؤشر المواصلات والربط المروري (Mobility Score)'
-                    : 'Mobility Score · Well connected'}
+                    ? 'مؤشر المواصلات والربط المروري (Mobility Score — قرب محطات الباص والمترو)'
+                    : 'Mobility Score · Public transit access'}
                 </span>
               </span>
-              <strong className="font-black text-[#0a1122]">74</strong>
+              <strong className="font-black text-[#0a1122]">
+                {mobilityScore}/100
+              </strong>
             </div>
             <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
-              <div className="h-full w-[74%] rounded-full bg-[#2563eb]" />
+              <div
+                className="h-full rounded-full bg-[#2563eb]"
+                style={{ width: `${mobilityScore}%` }}
+              />
             </div>
           </div>
         </div>
       </section>
 
-      {/* 2. قسم الخريطة ثلاثية الأبعاد الحقيقية (3D Extruded Buildings Map) */}
+      {/* 2. قسم الخريطة ثلاثية الأبعاد + الأماكن القريبة مع تثبيت زر الطي في أقصى الشمال في الأول خالص */}
       <section className="mt-5 overflow-hidden rounded-[22px] border border-gray-200/85 bg-white p-4 shadow-2xs sm:p-6">
-        <div className="mb-3.5 flex flex-wrap items-center justify-between gap-2">
+        {/* السطر الأول: العنوان على اليمين، وشارات الطقس + زر الطي المستقل في أقصى الشمال */}
+        <div className="flex items-start justify-between gap-3">
           <div>
             <h3 className="text-base font-black text-[#0a1122] sm:text-lg">
               {isAr ? 'الموقع والخريطة ثلاثية الأبعاد (Location)' : 'Location'}
             </h3>
-            <div className="mt-1.5 flex flex-wrap items-center gap-2">
+            <div className="mt-2 flex flex-wrap items-center gap-2">
               <span className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-extrabold text-[#0a1122]">
                 📍 {localizedArea}
               </span>
@@ -868,258 +978,288 @@ export function UnitLocationInsights({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-extrabold text-gray-700 shadow-2xs">
-              <CloudSun className="size-3.5 text-sky-500" />
-              <span dir="ltr">{weatherInfo.temp}° Cloudy</span>
-            </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50/70 px-3 py-1 text-xs font-extrabold text-emerald-800">
-              <span className="size-2 rounded-full bg-emerald-500" />
-              <span dir="ltr">AQI {weatherInfo.aqi} Air quality</span>
-            </span>
-          </div>
-        </div>
-
-        {/* حاوية الخريطة ثلاثية الأبعاد */}
-        <div
-          dir="ltr"
-          className="relative h-[360px] w-full overflow-hidden rounded-[18px] border border-gray-200 bg-[#edeae4] sm:h-[430px]"
-        >
-          {/* الـ Div الخاص بـ MapLibre GL */}
-          <div
-            ref={mapContainerRef}
-            style={{ width: '100%', height: '100%' }}
-            className="absolute inset-0"
-          />
-
-          {/* دبوس الموقع البرتقالي الثلاثي الأبعاد في منتصف الخريطة */}
-          <div className="pointer-events-none absolute top-1/2 left-1/2 z-10 -translate-x-1/2 -translate-y-full">
-            <div className="flex flex-col items-center">
-              <div className="flex size-11 items-center justify-center rounded-2xl border-2 border-white bg-[#ea580c] text-white shadow-xl">
-                <Building2 className="size-5" />
-              </div>
-              <div className="-mt-1 h-3 w-0 border-x-[7px] border-t-[9px] border-x-transparent border-t-[#ea580c]" />
-            </div>
-          </div>
-
-          {/* أزرار التحكم الجانبية على يمين الخريطة مثل sivrce.ge */}
-          <div className="absolute top-3 right-3 z-10 flex flex-col gap-1.5">
-            <button
-              type="button"
-              onClick={() => mapInstanceRef.current?.zoomIn()}
-              className="flex size-8 items-center justify-center rounded-lg border border-gray-200 bg-white/95 text-gray-700 shadow-md hover:bg-white"
-              title="Zoom in"
-            >
-              <Plus className="size-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => mapInstanceRef.current?.zoomOut()}
-              className="flex size-8 items-center justify-center rounded-lg border border-gray-200 bg-white/95 text-gray-700 shadow-md hover:bg-white"
-              title="Zoom out"
-            >
-              <Minus className="size-4" />
-            </button>
-            <button
-              type="button"
-              onClick={toggle3DPitch}
-              className={`flex size-8 items-center justify-center rounded-lg border text-[11px] font-black shadow-md transition ${
-                is3D
-                  ? 'border-[#2563eb] bg-[#2563eb] text-white'
-                  : 'border-gray-200 bg-white/95 text-gray-700'
-              }`}
-              title="Toggle 3D"
-            >
-              3D
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                mapInstanceRef.current?.flyTo({
-                  center: [coords.lng, coords.lat],
-                  zoom: 16.4,
-                  pitch: 60,
-                  bearing: -22,
-                  duration: 600,
-                })
-              }
-              className="flex size-8 items-center justify-center rounded-lg border border-gray-200 bg-white/95 text-gray-700 shadow-md hover:bg-white"
-              title="Reset view"
-            >
-              <Compass className="size-4" />
-            </button>
-          </div>
-
-          {/* شريط الإحداثيات السفلي وأزرار Directions و Open 3D Map */}
-          <div className="pointer-events-none absolute inset-x-3 bottom-3 z-10 flex flex-wrap items-center justify-between gap-2">
-            <div className="pointer-events-auto rounded-xl bg-black/65 px-3 py-1.5 text-white backdrop-blur-xs">
-              <p className="text-xs font-extrabold">{localizedArea}</p>
-              <p dir="ltr" className="font-mono text-[10px] text-gray-300">
-                {coords.lat.toFixed(4)}, {coords.lng.toFixed(4)}
-              </p>
-            </div>
-
-            <div className="pointer-events-auto flex items-center gap-2">
-              <a
-                href={`https://www.google.com/maps/search/?api=1&query=${coords.lat},${coords.lng}`}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex h-9 items-center gap-1.5 rounded-full bg-white/95 px-3.5 text-xs font-extrabold text-[#0a1122] shadow-md transition hover:bg-white"
-              >
-                <Navigation className="size-3.5 text-[#2563eb]" />
-                <span>{isAr ? 'الاتجاهات' : 'Directions'}</span>
-              </a>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setIs3D(true)
-                  mapInstanceRef.current?.easeTo({
-                    center: [coords.lng, coords.lat],
-                    zoom: 17,
-                    pitch: 64,
-                    bearing: -28,
-                    duration: 800,
-                  })
-                }}
-                className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[#ea580c] px-4 text-xs font-extrabold text-white shadow-md transition hover:bg-[#c2410c]"
-              >
-                <Maximize2 className="size-3.5" />
-                <span>{isAr ? 'عرض ثلاثي الأبعاد 3D' : 'Open 3D map'}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* 3. قسم الأماكن القريبة (What's nearby) بشبكة الـ 9 كروت المجمعة */}
-        <div className="mt-6">
-          <h4 className="text-sm font-black text-[#0a1122] sm:text-base">
-            {isAr ? "الأماكن والخدمات القريبة (What's nearby)" : "What's nearby"}
-          </h4>
-          <p className="mt-0.5 text-[11px] text-gray-400">
-            Nearest first · walking time · data © OpenStreetMap contributors
-          </p>
-
-          <div className="mt-3.5 flex flex-wrap gap-1.5">
-            <button
-              type="button"
-              onClick={() => setActiveCategory('all')}
-              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-extrabold transition ${
-                activeCategory === 'all'
-                  ? 'border-[#0a1122] bg-[#0a1122] text-white'
-                  : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              <span>{isAr ? 'الكل' : 'All'}</span>
-              <span className="rounded-full bg-white/20 px-1.5 py-0.2 text-[10px]">
-                {places.length}
+          {/* الجهة اليسرى: الطقس ثم فاصل ثم زر الطي في أقصى الشمال في الأول */}
+          <div className="flex shrink-0 items-center gap-3">
+            <div className="hidden items-center gap-2 sm:flex">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-extrabold text-gray-700 shadow-2xs">
+                <CloudSun className="size-3.5 text-sky-500" />
+                <span dir="ltr">{weatherInfo.temp}° Cloudy</span>
               </span>
-            </button>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50/70 px-3 py-1 text-xs font-extrabold text-emerald-800">
+                <span className="size-2 rounded-full bg-emerald-500" />
+                <span dir="ltr">AQI {weatherInfo.aqi} Air quality</span>
+              </span>
+            </div>
 
-            {CATEGORY_META.map((cat) => {
-              const count = places.filter((p) => p.category === cat.key).length
-              const CatIcon = cat.icon
-              const active = activeCategory === cat.key
-              return (
+            <div className="hidden h-5 w-[1px] bg-gray-200 sm:block" />
+
+            {/* زر الطي والفتح في أقصى الشمال */}
+            <button
+              type="button"
+              onClick={() => setIsLocationSectionOpen((prev) => !prev)}
+              aria-label="Toggle location section"
+              title={
+                isLocationSectionOpen
+                  ? isAr
+                    ? 'طي القسم'
+                    : 'Collapse'
+                  : isAr
+                    ? 'فتح القسم'
+                    : 'Expand'
+              }
+              className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-gray-200/90 bg-gray-50/90 text-[#0a1122] shadow-2xs transition hover:border-[#2563eb] hover:bg-blue-50/50 hover:text-[#2563eb]"
+            >
+              {isLocationSectionOpen ? (
+                <ChevronUp className="size-4 stroke-[2.4]" />
+              ) : (
+                <ChevronDown className="size-4 stroke-[2.4]" />
+              )}
+            </button>
+          </div>
+        </div>
+
+        {isLocationSectionOpen && (
+          <>
+            <div
+              dir="ltr"
+              className="relative mt-4 h-[360px] w-full overflow-hidden rounded-[18px] border border-gray-200 bg-[#edeae4] sm:h-[430px]"
+            >
+              <div
+                ref={mapContainerRef}
+                style={{ width: '100%', height: '100%' }}
+                className="absolute inset-0"
+              />
+
+              <div className="pointer-events-none absolute top-1/2 left-1/2 z-10 -translate-x-1/2 -translate-y-full">
+                <div className="flex flex-col items-center">
+                  <div className="flex size-11 items-center justify-center rounded-2xl border-2 border-white bg-[#ea580c] text-white shadow-xl">
+                    <Building2 className="size-5" />
+                  </div>
+                  <div className="-mt-1 h-3 w-0 border-x-[7px] border-t-[9px] border-x-transparent border-t-[#ea580c]" />
+                </div>
+              </div>
+
+              <div className="absolute top-3 right-3 z-10 flex flex-col gap-1.5">
                 <button
-                  key={cat.key}
                   type="button"
-                  onClick={() => setActiveCategory(cat.key)}
-                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
-                    active
+                  onClick={() => mapInstanceRef.current?.zoomIn()}
+                  className="flex size-8 items-center justify-center rounded-lg border border-gray-200 bg-white/95 text-gray-700 shadow-md hover:bg-white"
+                  title="Zoom in"
+                >
+                  <Plus className="size-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => mapInstanceRef.current?.zoomOut()}
+                  className="flex size-8 items-center justify-center rounded-lg border border-gray-200 bg-white/95 text-gray-700 shadow-md hover:bg-white"
+                  title="Zoom out"
+                >
+                  <Minus className="size-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={toggle3DPitch}
+                  className={`flex size-8 items-center justify-center rounded-lg border text-[11px] font-black shadow-md transition ${
+                    is3D
+                      ? 'border-[#2563eb] bg-[#2563eb] text-white'
+                      : 'border-gray-200 bg-white/95 text-gray-700'
+                  }`}
+                  title="Toggle 3D"
+                >
+                  3D
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    mapInstanceRef.current?.flyTo({
+                      center: [coords.lng, coords.lat],
+                      zoom: 16.4,
+                      pitch: 60,
+                      bearing: -22,
+                      duration: 600,
+                    })
+                  }
+                  className="flex size-8 items-center justify-center rounded-lg border border-gray-200 bg-white/95 text-gray-700 shadow-md hover:bg-white"
+                  title="Reset view"
+                >
+                  <Compass className="size-4" />
+                </button>
+              </div>
+
+              <div className="pointer-events-none absolute inset-x-3 bottom-3 z-10 flex flex-wrap items-center justify-between gap-2">
+                <div className="pointer-events-auto rounded-xl bg-black/65 px-3 py-1.5 text-white backdrop-blur-xs">
+                  <p className="text-xs font-extrabold">{localizedArea}</p>
+                  <p dir="ltr" className="font-mono text-[10px] text-gray-300">
+                    {coords.lat.toFixed(4)}, {coords.lng.toFixed(4)}
+                  </p>
+                </div>
+
+                <div className="pointer-events-auto flex items-center gap-2">
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${coords.lat},${coords.lng}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex h-9 items-center gap-1.5 rounded-full bg-white/95 px-3.5 text-xs font-extrabold text-[#0a1122] shadow-md transition hover:bg-white"
+                  >
+                    <Navigation className="size-3.5 text-[#2563eb]" />
+                    <span>{isAr ? 'الاتجاهات' : 'Directions'}</span>
+                  </a>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIs3D(true)
+                      mapInstanceRef.current?.easeTo({
+                        center: [coords.lng, coords.lat],
+                        zoom: 17,
+                        pitch: 64,
+                        bearing: -28,
+                        duration: 800,
+                      })
+                    }}
+                    className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[#ea580c] px-4 text-xs font-extrabold text-white shadow-md transition hover:bg-[#c2410c]"
+                  >
+                    <Maximize2 className="size-3.5" />
+                    <span>{isAr ? 'عرض ثلاثي الأبعاد 3D' : 'Open 3D map'}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6">
+              <h4 className="text-sm font-black text-[#0a1122] sm:text-base">
+                {isAr
+                  ? "الأماكن والخدمات القريبة (What's nearby)"
+                  : "What's nearby"}
+              </h4>
+              <p className="mt-0.5 text-[11px] text-gray-400">
+                Nearest first · walking time · data © OpenStreetMap contributors
+              </p>
+
+              <div className="mt-3.5 flex flex-wrap gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setActiveCategory('all')}
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-extrabold transition ${
+                    activeCategory === 'all'
                       ? 'border-[#0a1122] bg-[#0a1122] text-white'
-                      : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                      : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
                   }`}
                 >
-                  <CatIcon className="size-3.5 text-amber-600" />
-                  <span>{isAr ? cat.labelAr : cat.labelEn}</span>
-                  <span className="text-[10px] text-gray-400">{count}</span>
+                  <span>{isAr ? 'الكل' : 'All'}</span>
+                  <span className="rounded-full bg-white/20 px-1.5 py-0.2 text-[10px]">
+                    {places.length}
+                  </span>
                 </button>
-              )
-            })}
-          </div>
 
-          <div className="mt-4 grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
-            {visibleCategories.map((cat) => {
-              const catPlaces = places
-                .filter((p) => p.category === cat.key)
-                .sort((a, b) => a.distanceMeters - b.distanceMeters)
-              const isExpanded = Boolean(expandedCards[cat.key])
-              const shownPlaces = isExpanded
-                ? catPlaces
-                : catPlaces.slice(0, 3)
-              const extraCount = Math.max(0, catPlaces.length - 3)
-              const CatIcon = cat.icon
-
-              return (
-                <div
-                  key={cat.key}
-                  className="flex flex-col justify-between rounded-2xl border border-gray-200/85 bg-white p-4 shadow-2xs"
-                >
-                  <div>
-                    <div className="flex items-center justify-between border-b border-gray-100 pb-2.5">
-                      <div className="flex items-center gap-1.5 text-xs font-extrabold text-gray-600">
-                        <CatIcon className="size-3.5 text-amber-600" />
-                        <span>{isAr ? cat.labelAr : cat.labelEn}</span>
-                      </div>
-                      <span className="text-[11px] font-bold text-gray-400">
-                        {catPlaces.length}
-                      </span>
-                    </div>
-
-                    <div className="mt-3 space-y-3">
-                      {shownPlaces.map((pl) => (
-                        <div key={pl.id} className="text-xs">
-                          <div className="flex items-baseline justify-between gap-2">
-                            <strong className="truncate font-extrabold text-[#0a1122]">
-                              {pl.name}
-                            </strong>
-                            <span
-                              dir="ltr"
-                              className="shrink-0 text-[11px] font-semibold text-gray-400"
-                            >
-                              {pl.distanceMeters < 1000
-                                ? `${pl.distanceMeters} m`
-                                : `${(pl.distanceMeters / 1000).toFixed(1)} km`}
-                            </span>
-                          </div>
-                          <p
-                            dir="ltr"
-                            className="mt-0.5 text-start text-[10.5px] text-gray-400"
-                          >
-                            {formatTravelEstimate(pl.distanceMeters)}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {extraCount > 0 && (
+                {CATEGORY_META.map((cat) => {
+                  const count = places.filter(
+                    (p) => p.category === cat.key
+                  ).length
+                  const CatIcon = cat.icon
+                  const active = activeCategory === cat.key
+                  return (
                     <button
+                      key={cat.key}
                       type="button"
-                      onClick={() =>
-                        setExpandedCards((prev) => ({
-                          ...prev,
-                          [cat.key]: !prev[cat.key],
-                        }))
-                      }
-                      className="mt-3 border-t border-gray-100 pt-2 text-center text-[11px] font-extrabold text-gray-500 hover:text-[#0a1122]"
+                      onClick={() => setActiveCategory(cat.key)}
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+                        active
+                          ? 'border-[#0a1122] bg-[#0a1122] text-white'
+                          : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                      }`}
                     >
-                      {isExpanded
-                        ? isAr
-                          ? 'عرض أقل ▲'
-                          : 'Show less ▲'
-                        : `+${extraCount} More ⌄`}
+                      <CatIcon className="size-3.5 text-amber-600" />
+                      <span>{isAr ? cat.labelAr : cat.labelEn}</span>
+                      <span className="text-[10px] text-gray-400">{count}</span>
                     </button>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        </div>
+                  )
+                })}
+              </div>
+
+              <div className="mt-4 grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
+                {visibleCategories.map((cat) => {
+                  const catPlaces = places
+                    .filter((p) => p.category === cat.key)
+                    .sort((a, b) => a.distanceMeters - b.distanceMeters)
+                  const isExpanded = Boolean(expandedCards[cat.key])
+                  const shownPlaces = isExpanded
+                    ? catPlaces
+                    : catPlaces.slice(0, 3)
+                  const extraCount = Math.max(0, catPlaces.length - 3)
+                  const CatIcon = cat.icon
+
+                  return (
+                    <div
+                      key={cat.key}
+                      className="flex flex-col justify-between rounded-2xl border border-gray-200/85 bg-white p-4 shadow-2xs"
+                    >
+                      <div>
+                        <div className="flex items-center justify-between border-b border-gray-100 pb-2.5">
+                          <div className="flex items-center gap-1.5 text-xs font-extrabold text-gray-600">
+                            <CatIcon className="size-3.5 text-amber-600" />
+                            <span>{isAr ? cat.labelAr : cat.labelEn}</span>
+                          </div>
+                          <span className="text-[11px] font-bold text-gray-400">
+                            {catPlaces.length}
+                          </span>
+                        </div>
+
+                        <div className="mt-3 space-y-3">
+                          {shownPlaces.map((pl) => (
+                            <div key={pl.id} className="text-xs">
+                              <div className="flex items-baseline justify-between gap-2">
+                                <strong className="truncate font-extrabold text-[#0a1122]">
+                                  {pl.name}
+                                </strong>
+                                <span
+                                  dir="ltr"
+                                  className="shrink-0 text-[11px] font-semibold text-gray-400"
+                                >
+                                  {pl.distanceMeters < 1000
+                                    ? `${pl.distanceMeters} m`
+                                    : `${(pl.distanceMeters / 1000).toFixed(1)} km`}
+                                </span>
+                              </div>
+                              <p
+                                dir="ltr"
+                                className="mt-0.5 text-start text-[10.5px] text-gray-400"
+                              >
+                                {formatTravelEstimate(pl.distanceMeters)}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {extraCount > 0 && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setExpandedCards((prev) => ({
+                              ...prev,
+                              [cat.key]: !prev[cat.key],
+                            }))
+                          }
+                          className="mt-3 border-t border-gray-100 pt-2 text-center text-[11px] font-extrabold text-gray-500 hover:text-[#0a1122]"
+                        >
+                          {isExpanded
+                            ? isAr
+                              ? 'عرض أقل ▲'
+                              : 'Show less ▲'
+                            : `+${extraCount} More ⌄`}
+                        </button>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </>
+        )}
       </section>
 
-      {/* 4. مخطط الشمس والإضاءة التفاعلي الكامل */}
+      {/* 4. مخطط الشمس والإضاءة التفاعلي مع زر الطي والفتح في أقصى الشمال */}
       <SunAndDaylightInteractiveCard
         lat={coords.lat}
         lng={coords.lng}

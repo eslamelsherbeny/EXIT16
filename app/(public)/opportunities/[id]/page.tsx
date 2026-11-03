@@ -23,9 +23,10 @@ const FALLBACK_UNIT_IMAGE =
   'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=85'
 const FAVORITES_STORAGE_KEY = 'darak_favorites'
 const RECENTLY_VIEWED_STORAGE_KEY = 'aqar_recently_viewed'
+const DEVICE_VIEWER_KEY_STORAGE = 'aqar_device_viewer_fingerprint'
 
 const PUBLIC_UNIT_DETAIL_COLUMNS =
-  'id, code, user_id, project_name, developer_name, area, unit_type, size, garden_size, rooms, bedrooms, bathrooms, floor_number, total_floors, finishing, delivery_status, delivery_month, delivery_year, features, description, contract_price, paid_amount, market_price, installment_amount, installment_frequency, contract_month, contract_year, years_left, willing_to_discount, discount_amount, images, status, is_featured, boost_tier, featured_until, views_count, created_at'
+  'id, code, user_id, project_name, developer_name, area, unit_type, size, garden_size, rooms, bathrooms, floor_number, finishing, delivery_status, delivery_month, delivery_year, features, description, contract_price, paid_amount, market_price, installment_amount, installment_frequency, contract_month, contract_year, years_left, willing_to_discount, discount_amount, images, status, is_featured, boost_tier, featured_until, views_count, approved_at, created_at'
 
 const CORE_UNIT_DETAIL_COLUMNS =
   'id, user_id, project_name, developer_name, area, unit_type, size, rooms, bathrooms, finishing, delivery_status, description, contract_price, paid_amount, market_price, installment_amount, installment_frequency, contract_year, years_left, willing_to_discount, discount_amount, images, status, created_at'
@@ -42,6 +43,20 @@ function parseSafeNumber(val: unknown, fallback = 0): number {
     if (Number.isFinite(num) && num > 0) return num
   }
   return fallback
+}
+
+function getOrCreateDeviceFingerprint(): string {
+  try {
+    let fp = localStorage.getItem(DEVICE_VIEWER_KEY_STORAGE)
+    if (!fp) {
+      fp = `dev_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`
+      localStorage.setItem(DEVICE_VIEWER_KEY_STORAGE, fp)
+    }
+    document.cookie = `aqar_vfp=${fp}; path=/; max-age=31536000; SameSite=Lax`
+    return fp
+  } catch {
+    return 'anon_device'
+  }
 }
 
 export default function PropertyDetailsPage() {
@@ -68,6 +83,7 @@ export default function PropertyDetailsPage() {
   const [copied, setCopied] = useState(false)
 
   const [unitRow, setUnitRow] = useState<any | null>(null)
+  const [liveViewsCount, setLiveViewsCount] = useState<number | null>(null)
   const [rawSimilarRows, setRawSimilarRows] = useState<any[]>([])
   const [sameProjectCount, setSameProjectCount] = useState<number>(0)
   const [loading, setLoading] = useState(true)
@@ -90,18 +106,6 @@ export default function PropertyDetailsPage() {
         RECENTLY_VIEWED_STORAGE_KEY,
         JSON.stringify(nextRecent)
       )
-
-      const viewedKey = `aqar_viewed_unit_${rawId}`
-      if (!localStorage.getItem(viewedKey)) {
-        localStorage.setItem(viewedKey, '1')
-        const supabase = createBrowserClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-        )
-        supabase
-          .rpc('increment_unit_views', { target_unit_id: rawId })
-          .then(() => {})
-      }
     } catch {}
   }, [rawId])
 
@@ -130,6 +134,10 @@ export default function PropertyDetailsPage() {
         const loggedId =
           profileRes.isLoggedIn && profileRes.user?.id
             ? profileRes.user.id
+            : null
+        const loggedEmail =
+          profileRes.isLoggedIn && profileRes.user?.email
+            ? String(profileRes.user.email).toLowerCase().trim()
             : null
         setCurrentUserId(loggedId)
 
@@ -171,6 +179,35 @@ export default function PropertyDetailsPage() {
 
             if (isPublicStatus || isOwnerViewing || isStaff) {
               setUnitRow(dbUnit)
+              setLiveViewsCount(Math.max(1, Number(dbUnit.views_count) || 1))
+
+              // تسجيل المشاهدة الفريدة في الداتا بيز (مربوطة بالحساب/الإيميل أو بصمة التليفون بدون تكرار)
+              if (!isOwnerViewing) {
+                const viewerIdentity = loggedId
+                  ? `user_${loggedId}`
+                  : loggedEmail
+                    ? `email_${loggedEmail}`
+                    : getOrCreateDeviceFingerprint()
+                const localViewedKey = `aqar_viewed_${rawId}_${viewerIdentity}`
+
+                if (!localStorage.getItem(localViewedKey)) {
+                  localStorage.setItem(localViewedKey, '1')
+                  const { data: updatedViews, error: rpcErr } =
+                    await supabase.rpc('record_unique_unit_view', {
+                      target_unit_id: rawId,
+                      p_viewer_key: viewerIdentity,
+                    })
+
+                  if (!rpcErr && typeof updatedViews === 'number') {
+                    setLiveViewsCount(updatedViews)
+                  } else if (rpcErr) {
+                    // Fallback في حال لم يتم تشغيل كود SQL بعد
+                    await supabase.rpc('increment_unit_views', {
+                      target_unit_id: rawId,
+                    })
+                  }
+                }
+              }
 
               const unitArea = dbUnit.area
               if (unitArea) {
@@ -454,8 +491,14 @@ export default function PropertyDetailsPage() {
           ? 'vip_plus'
           : 'super_vip'
         : null,
-      viewsCount: Number(row.views_count) || 137,
-      createdAt: row.created_at || new Date().toISOString(),
+      viewsCount:
+        liveViewsCount !== null
+          ? liveViewsCount
+          : Math.max(1, Number(row.views_count) || 1),
+      publishedAt: row.approved_at || row.created_at,
+      createdAt: row.created_at,
+      sizeNum: size,
+      contractPrice,
       gallery: unitGallery,
       specs,
       tags,
@@ -477,6 +520,7 @@ export default function PropertyDetailsPage() {
     }
   }, [
     unitRow,
+    liveViewsCount,
     currentUserId,
     locale,
     c,
@@ -504,7 +548,7 @@ export default function PropertyDetailsPage() {
         dir={dir}
         className="min-h-screen bg-[var(--brand-surface,#f5f6f8)] py-10 text-[var(--brand-navy,#0a1122)]"
       >
-        <div className="mx-auto w-full max-w-[1140px] px-4 sm:px-6">
+        <div className="mx-auto w-full max-w-[780px] px-4 sm:px-6">
           <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center text-sm font-bold text-gray-500 shadow-xs">
             {t.loading}
           </div>
@@ -519,7 +563,7 @@ export default function PropertyDetailsPage() {
         dir={dir}
         className="min-h-screen bg-[var(--brand-surface,#f5f6f8)] py-10 text-[var(--brand-navy,#0a1122)]"
       >
-        <div className="mx-auto w-full max-w-[1140px] px-4 sm:px-6">
+        <div className="mx-auto w-full max-w-[780px] px-4 sm:px-6">
           <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center shadow-xs">
             <h1 className="text-lg font-extrabold text-[var(--brand-navy,#0a1122)]">
               {t.notFoundTitle}
@@ -542,7 +586,7 @@ export default function PropertyDetailsPage() {
       dir={dir}
       className="min-h-screen bg-[var(--brand-surface,#f5f6f8)] py-6 text-[var(--brand-navy,#0a1122)] sm:py-10"
     >
-      <div className="mx-auto w-full max-w-[1140px] px-4 sm:px-6">
+      <div className="mx-auto w-full max-w-[780px] px-4 sm:px-6">
         <UnitDetailsHeader
           computedUnit={computedUnit}
           t={t}
@@ -552,106 +596,101 @@ export default function PropertyDetailsPage() {
           onCopyCode={copyUnitCode}
         />
 
-        <div className="mx-auto max-w-[860px]">
-          <UnitSpecsAndDescription
-            computedUnit={computedUnit}
-            locale={locale}
-          />
+        <UnitSpecsAndDescription computedUnit={computedUnit} locale={locale} />
 
-          <UnitFinancialsCard
-            computedUnit={computedUnit}
-            fin={t.financials}
-            oT={oT}
-            t={t}
-            monthsWord={monthsWord}
-            onMakeOffer={scrollToOfferSection}
-          />
+        <UnitFinancialsCard
+          computedUnit={computedUnit}
+          fin={t.financials}
+          oT={oT}
+          t={t}
+          monthsWord={monthsWord}
+          onMakeOffer={scrollToOfferSection}
+        />
 
-          <UnitLocationInsights
-            areaId={computedUnit.rawArea}
-            t={t}
-            locale={locale}
-          />
+        <UnitLocationInsights
+          areaId={computedUnit.rawArea}
+          t={t}
+          locale={locale}
+        />
 
-          {sameProjectCount > 0 && (
-            <section className="mt-4 flex items-center justify-between rounded-[16px] border border-gray-200/80 bg-white px-5 py-4 shadow-sm">
-              <div className="flex items-center gap-3 text-start">
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]">
-                  <Building2 className="size-4" />
-                </span>
-                <div>
-                  <p className="text-xs font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-[13px]">
-                    {t.sameAreaBanner.prefix} {sameProjectCount}{' '}
-                    {t.sameAreaBanner.middle} {computedUnit.areaName}
-                  </p>
-                  <p className="mt-0.5 text-[11px] text-gray-400">
-                    {t.sameAreaBanner.sub}
-                  </p>
-                </div>
+        {sameProjectCount > 0 && (
+          <section className="mt-4 flex items-center justify-between rounded-[16px] border border-gray-200/80 bg-white px-5 py-4 shadow-sm">
+            <div className="flex items-center gap-3 text-start">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]">
+                <Building2 className="size-4" />
+              </span>
+              <div>
+                <p className="text-xs font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-[13px]">
+                  {t.sameAreaBanner.prefix} {sameProjectCount}{' '}
+                  {t.sameAreaBanner.middle} {computedUnit.areaName}
+                </p>
+                <p className="mt-0.5 text-[11px] text-gray-400">
+                  {t.sameAreaBanner.sub}
+                </p>
               </div>
+            </div>
+            <Link
+              href="/opportunities"
+              className="shrink-0 text-xs font-bold text-[var(--brand-primary,#007a5a)] hover:underline"
+            >
+              {t.sameAreaBanner.viewAllBtn}
+            </Link>
+          </section>
+        )}
+
+        <SimilarUnitsSection similarDbUnits={similarDbUnits} t={t} c={c} />
+
+        {computedUnit.isOwner ? (
+          <section className="mt-8 rounded-[20px] border border-emerald-200 bg-[#eaf8f2] p-6 text-center shadow-xs">
+            <div className="mx-auto mb-2 flex size-10 items-center justify-center rounded-full bg-[#007a5a] text-white">
+              <ShieldCheck className="size-5" />
+            </div>
+            <h3 className="text-base font-extrabold text-[#0a1122]">
+              {locale === 'ar'
+                ? 'هذه وحدتك المعروضة على المنصة'
+                : locale === 'ru'
+                  ? 'Это ваш объект на платформе'
+                  : locale === 'ka'
+                    ? 'ეს თქვენი ობიექტია პლატფორმაზე'
+                    : 'This is your listed unit on the platform'}
+            </h3>
+            <div className="mt-4 flex flex-wrap justify-center gap-3">
               <Link
-                href="/opportunities"
-                className="shrink-0 text-xs font-bold text-[var(--brand-primary,#007a5a)] hover:underline"
+                href={`/account?view=seller&unitId=${computedUnit.id}`}
+                className="inline-flex h-10 items-center justify-center rounded-xl bg-[#007a5a] px-5 text-xs font-extrabold text-white hover:bg-[#006248]"
               >
-                {t.sameAreaBanner.viewAllBtn}
-              </Link>
-            </section>
-          )}
-
-          <SimilarUnitsSection similarDbUnits={similarDbUnits} t={t} c={c} />
-
-          {computedUnit.isOwner ? (
-            <section className="mt-8 rounded-[20px] border border-emerald-200 bg-[#eaf8f2] p-6 text-center shadow-xs">
-              <div className="mx-auto mb-2 flex size-10 items-center justify-center rounded-full bg-[#007a5a] text-white">
-                <ShieldCheck className="size-5" />
-              </div>
-              <h3 className="text-base font-extrabold text-[#0a1122]">
                 {locale === 'ar'
-                  ? 'هذه وحدتك المعروضة على المنصة'
+                  ? 'إدارة وحدتي في حسابي'
                   : locale === 'ru'
-                    ? 'Это ваш объект на платформе'
+                    ? 'Управление объектом'
                     : locale === 'ka'
-                      ? 'ეს თქვენი ობიექტია პლატფორმაზე'
-                      : 'This is your listed unit on the platform'}
-              </h3>
-              <div className="mt-4 flex flex-wrap justify-center gap-3">
-                <Link
-                  href={`/account?view=seller&unitId=${computedUnit.id}`}
-                  className="inline-flex h-10 items-center justify-center rounded-xl bg-[#007a5a] px-5 text-xs font-extrabold text-white hover:bg-[#006248]"
-                >
-                  {locale === 'ar'
-                    ? 'إدارة وحدتي في حسابي'
-                    : locale === 'ru'
-                      ? 'Управление объектом'
-                      : locale === 'ka'
-                        ? 'ობიექტის მართვა'
-                        : 'Manage Unit in My Account'}
-                </Link>
-                <Link
-                  href={`/sell?editUnitId=${computedUnit.id}&step=3`}
-                  className="inline-flex h-10 items-center justify-center rounded-xl border border-gray-300 bg-white px-5 text-xs font-bold text-[#0a1122] hover:bg-gray-50"
-                >
-                  {dict.accountComponents?.seller?.editDataBtn ||
-                    'تعديل البيانات'}
-                </Link>
-              </div>
-            </section>
-          ) : (
-            <UnitInterestForm
-              unitCode={computedUnit.code}
-              projectName={computedUnit.projectName}
-              areaName={computedUnit.areaName}
-              unitType={computedUnit.unitType}
-              deliveryYear={computedUnit.deliveryYear}
-              requiredCash={computedUnit.requiredCash}
-              totalRequiredNow={computedUnit.totalRequiredNow}
-              installmentAmount={computedUnit.installmentAmount}
-              currentUserId={currentUserId}
-              willingToDiscount={computedUnit.willingToDiscount}
-              discountAmount={computedUnit.discountAmount}
-            />
-          )}
-        </div>
+                      ? 'ობიექტის მართვა'
+                      : 'Manage Unit in My Account'}
+              </Link>
+              <Link
+                href={`/sell?editUnitId=${computedUnit.id}&step=3`}
+                className="inline-flex h-10 items-center justify-center rounded-xl border border-gray-300 bg-white px-5 text-xs font-bold text-[#0a1122] hover:bg-gray-50"
+              >
+                {dict.accountComponents?.seller?.editDataBtn ||
+                  'تعديل البيانات'}
+              </Link>
+            </div>
+          </section>
+        ) : (
+          <UnitInterestForm
+            unitCode={computedUnit.code}
+            projectName={computedUnit.projectName}
+            areaName={computedUnit.areaName}
+            unitType={computedUnit.unitType}
+            deliveryYear={computedUnit.deliveryYear}
+            requiredCash={computedUnit.requiredCash}
+            totalRequiredNow={computedUnit.totalRequiredNow}
+            installmentAmount={computedUnit.installmentAmount}
+            currentUserId={currentUserId}
+            willingToDiscount={computedUnit.willingToDiscount}
+            discountAmount={computedUnit.discountAmount}
+          />
+        )}
       </div>
     </main>
   )

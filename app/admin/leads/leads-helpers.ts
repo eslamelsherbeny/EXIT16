@@ -26,6 +26,7 @@ export type BuyerLead = {
 
 export type LinkedUnitSummary = {
   id: string
+  code?: string | null
   user_id?: string | null
   project_name: string | null
   area: string | null
@@ -61,10 +62,15 @@ export type ConfirmLeadAction =
       lead: BuyerLead
     }
 
-export function deriveShortUnitCode(id: string) {
-  const digits = String(id || "").replace(/\D/g, "")
-  const num = digits ? Number(digits.slice(-4)) : 100
-  return `U-${String(num).padStart(5, "0")}`
+export function deriveShortUnitCode(id: string, dbCode?: string | null) {
+  if (dbCode && String(dbCode).trim()) return String(dbCode).trim()
+  const numericCode = String(id || "")
+    .replace(/\D/g, "")
+    .slice(0, 5)
+  const fallbackCode = String(id || "")
+    .slice(0, 5)
+    .toUpperCase()
+  return `U-${numericCode.length >= 4 ? numericCode : fallbackCode}`
 }
 
 export function cleanAreaLabel(
@@ -158,7 +164,8 @@ export function findMatchingUnitForLead(
     const cleanCode = unitCode.toUpperCase()
     const byCode = units.find(
       (u) =>
-        deriveShortUnitCode(u.id).toUpperCase() === cleanCode ||
+        (u.code && u.code.toUpperCase() === cleanCode) ||
+        deriveShortUnitCode(u.id, u.code).toUpperCase() === cleanCode ||
         `U-${u.id.slice(0, 5).toUpperCase()}` === cleanCode ||
         u.id.toUpperCase().startsWith(cleanCode.replace("U-", ""))
     )
@@ -207,7 +214,6 @@ export function parseLeadDetails({
     .replace(/الرحاب/g, "King David Residences")
   const planRaw = lead.payment_plan || ""
 
-  // ربط العرض بهذا الطلب تحديداً (lead.id) فقط وعدم تعميم عرض واحد على كل طلبات المستخدم!
   const leadDirectOffers = (offers || [])
     .map((o) => ({ ...o, status: normalizeOfferStatus(o) }))
     .filter(
@@ -224,7 +230,6 @@ export function parseLeadDetails({
     areasRaw.includes("U-") ||
     planRaw.includes("مهتم بوحدة")
 
-  // إذا كان العميل قد اختار أكثر من منطقة في الفورم فهو بحث عام وليس حجز وحدة واحدة
   const isSingleAreaDirectOffer =
     Boolean(latestDirectOffer) && areasList.length <= 1
 
@@ -242,8 +247,8 @@ export function parseLeadDetails({
       )
     : null
 
-  if (!unitCode && matchedUnit) {
-    unitCode = deriveShortUnitCode(matchedUnit.id)
+  if (matchedUnit) {
+    unitCode = deriveShortUnitCode(matchedUnit.id, matchedUnit.code)
   }
 
   let readinessBadge: { text: string; className: string } | null = null

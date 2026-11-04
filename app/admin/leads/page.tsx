@@ -12,6 +12,12 @@ import LeadsClientTable, {
 export const dynamic = "force-dynamic"
 export const revalidate = 0
 
+function normalizeUnitStatus(raw?: string | null): string {
+  const clean = String(raw || "pending").trim().toLowerCase()
+  if (clean === "approved" || clean === "published") return "active"
+  return clean
+}
+
 export default async function LeadsPage() {
   const cookieStore = await cookies()
   const { dict, dir } = await getServerI18n()
@@ -62,6 +68,8 @@ export default async function LeadsPage() {
       u.documents && typeof pMeta(u) === "object" ? pMeta(u) : {}
     return {
       ...u,
+      code: u.code || meta.code || null,
+      status: normalizeUnitStatus(u.status),
       project_name: sanitizeGeorgiaProjectTitle(u.project_name),
       area: u.area || meta.area || null,
       unit_type: u.unit_type || meta.unit_type || null,

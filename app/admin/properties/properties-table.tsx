@@ -436,10 +436,24 @@ export default function PropertiesTable({
     return true
   })
 
-  function exportUnitsToExcel(rowsToExport: SellRequest[], prefix = "AqarExit_Units") {
+  function exportUnitsToExcel(
+    rowsToExport: SellRequest[],
+    prefix = "AqarExit_Units",
+    customTitle?: string
+  ) {
     const c = expL.cols
+    const resolvedTitle =
+      customTitle ||
+      (rowsToExport.length === 1
+        ? `${expL.singlePropertyReportTitle} — ${rowsToExport[0].project_name || rowsToExport[0].name} (${deriveShortUnitCode(rowsToExport[0].id, rowsToExport[0].code)})`
+        : isPromotionsPage
+          ? expL.promotionsReportTitle
+          : expL.propertiesReportTitle)
+
     downloadExcelCsv({
       filenamePrefix: `${prefix}_${locale.toUpperCase()}`,
+      reportTitle: resolvedTitle,
+      locale,
       data: rowsToExport,
       columns: [
         { header: c.index, accessor: (_, idx) => idx + 1 },
@@ -524,14 +538,20 @@ export default function PropertiesTable({
         <button
           type="button"
           aria-label={expL.moreActionsAria}
-          onClick={() => setOpenMenuId(isMenuOpen ? null : property.id)}
+          onClick={(e) => {
+            e.stopPropagation()
+            setOpenMenuId(isMenuOpen ? null : property.id)
+          }}
           className="flex size-8 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-gray-600 transition hover:border-[#105C50] hover:bg-white hover:text-[#0a1122]"
         >
           <MoreVertical className="size-4" />
         </button>
 
         {isMenuOpen && (
-          <div className="absolute end-0 top-9 z-40 w-52 overflow-hidden rounded-xl border border-gray-200 bg-white p-1.5 shadow-xl">
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="absolute end-0 top-9 z-50 w-56 overflow-hidden rounded-xl border border-gray-200 bg-white p-1.5 shadow-2xl"
+          >
             <Link
               href={`/opportunities/${property.id}`}
               target="_blank"
@@ -547,7 +567,8 @@ export default function PropertiesTable({
                 <button
                   type="button"
                   disabled={pending}
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation()
                     setOpenMenuId(null)
                     setConfirmAction({
                       type: "promote",
@@ -580,7 +601,8 @@ export default function PropertiesTable({
                   <button
                     type="button"
                     disabled={pending}
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation()
                       setOpenMenuId(null)
                       setConfirmAction({
                         type: "status",
@@ -597,7 +619,8 @@ export default function PropertiesTable({
                   <button
                     type="button"
                     disabled={pending}
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation()
                       setOpenMenuId(null)
                       setConfirmAction({
                         type: "status",
@@ -616,11 +639,14 @@ export default function PropertiesTable({
 
             <button
               type="button"
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation()
                 setOpenMenuId(null)
+                const uCode = deriveShortUnitCode(property.id, property.code)
                 exportUnitsToExcel(
                   [property],
-                  `Unit_${deriveShortUnitCode(property.id, property.code)}`
+                  `AqarExit_Unit_${uCode}`,
+                  `${expL.singlePropertyReportTitle} (${uCode} — ${property.project_name || property.name})`
                 )
               }}
               className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-blue-700 transition hover:bg-blue-50"
@@ -634,7 +660,8 @@ export default function PropertiesTable({
             <button
               type="button"
               disabled={pending}
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation()
                 setOpenMenuId(null)
                 setConfirmAction({
                   type: "delete",
@@ -997,7 +1024,7 @@ export default function PropertiesTable({
           </div>
         )}
 
-      {/* 1. عرض الموبايل النظيف مع قائمة الـ 3 نقاط */}
+      {/* 1. عرض الموبايل */}
       <div className="space-y-3.5 md:hidden">
         {filtered.length === 0 ? (
           <div className="rounded-xl border border-gray-200 bg-white p-8 text-center text-xs text-gray-500">
@@ -1160,7 +1187,6 @@ export default function PropertiesTable({
                   </select>
                 </div>
 
-                {/* الأزرار الأساسية فقط في أسفل الكارت: التفاصيل + واتساب */}
                 <div className="mt-2.5 flex items-center gap-2 border-t border-gray-100 pt-2.5">
                   <Button
                     size="sm"
@@ -1189,7 +1215,7 @@ export default function PropertiesTable({
         )}
       </div>
 
-      {/* 2. عرض الكمبيوتر الاحترافي مع قائمة الـ 3 نقاط */}
+      {/* 2. عرض الكمبيوتر الاحترافي */}
       <div className="hidden md:block">
         <div className="mb-3 flex items-center justify-between rounded-xl border border-gray-200/85 bg-white px-5 py-3.5 shadow-2xs">
           <h2 className="text-sm font-extrabold text-[#0a1122] sm:text-base">
@@ -1281,7 +1307,6 @@ export default function PropertiesTable({
                               : "border-slate-200/90"
                   }`}
                 >
-                  {/* العمود 1: المشروع والمنطقة والشارات */}
                   <div className="col-span-4 min-w-0 pe-2">
                     <div className="flex items-center gap-2">
                       <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[11px] font-black text-slate-600">
@@ -1323,7 +1348,6 @@ export default function PropertiesTable({
                     </div>
                   </div>
 
-                  {/* العمود 2: الكاش والعقد والسوق */}
                   <div className="col-span-2 border-s border-slate-100 ps-4">
                     <span className="block text-[10px] font-bold text-slate-400">
                       {t.table.colCash}
@@ -1367,7 +1391,6 @@ export default function PropertiesTable({
                     </div>
                   </div>
 
-                  {/* العمود 3: بيانات البائع */}
                   <div className="col-span-2 min-w-0 border-s border-slate-100 ps-4">
                     <div className="flex items-center gap-1.5 truncate text-xs font-extrabold text-[#0a1122]">
                       <User className="size-3.5 shrink-0 text-slate-400" />
@@ -1395,14 +1418,13 @@ export default function PropertiesTable({
                             title={propBadges.emailVerifiedBadge}
                             className="inline-flex shrink-0 text-[#105C50]"
                           >
-                            <CheckCircle2 className="size-3.5" />
+                            <CheckCircle2 className="size-3" />
                           </span>
                         )}
                       </div>
                     )}
                   </div>
 
-                  {/* العمود 4: حالة الوحدة */}
                   <div className="col-span-2 border-s border-slate-100 ps-4">
                     <select
                       disabled={pending}
@@ -1431,7 +1453,6 @@ export default function PropertiesTable({
                     </select>
                   </div>
 
-                  {/* العمود 5: الأزرار الأساسية فقط (التفاصيل + واتساب + قائمة الـ 3 نقاط ⋮) */}
                   <div className="col-span-2 flex items-center justify-end gap-1.5 border-s border-slate-100 ps-3">
                     {currentSt === "deleted_by_seller" ? (
                       <Button

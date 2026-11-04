@@ -9,6 +9,7 @@ import {
   Calendar,
   CheckCircle2,
   Clock,
+  Download,
   ExternalLink,
   Eye,
   Flame,
@@ -16,12 +17,15 @@ import {
   Loader2,
   MapPin,
   MessageCircle,
+  MoreVertical,
   Phone,
   Search,
   Trash2,
   Wallet,
   X,
 } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { downloadExcelCsv, EXPORT_LABELS } from "@/lib/export-csv"
 import { getCurrencySymbol, useTranslation } from "@/lib/i18n"
 import { calculateSmartMatch } from "@/lib/smart-matcher"
 import { BuyerSmartMatchModal } from "@/components/features/admin/smart-match-dialogs"
@@ -79,6 +83,7 @@ export default function LeadsClientTable({
   const propAdminDict = adminDict.propertiesAdmin || {}
   const dashDict = adminDict.dashboard || {}
   const sm = adminDict.smartMatch || {}
+  const expL = EXPORT_LABELS[locale] || EXPORT_LABELS.ar
 
   function getMatchedUnitsForLead(lead: BuyerLead) {
     if (!units || units.length === 0) return []
@@ -219,6 +224,8 @@ export default function LeadsClientTable({
   const [leadTypeFilter, setLeadTypeFilter] = useState<
     "all" | "unit_leads" | "general"
   >("all")
+
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [highlightedLeadId, setHighlightedLeadId] = useState<string | null>(
     null
   )
@@ -234,6 +241,12 @@ export default function LeadsClientTable({
     isError?: boolean
   } | null>(null)
   const [pending, startTransition] = useTransition()
+
+  useEffect(() => {
+    const closeMenu = () => setOpenMenuId(null)
+    window.addEventListener("click", closeMenu)
+    return () => window.removeEventListener("click", closeMenu)
+  }, [])
 
   useEffect(() => {
     const typeParam = searchParams.get("type")
@@ -375,6 +388,196 @@ export default function LeadsClientTable({
     return true
   })
 
+  function exportLeadsToExcel(
+    rowsToExport: BuyerLead[],
+    prefix = "AqarExit_Buyers",
+    customTitle?: string
+  ) {
+    const c = expL.cols
+    const resolvedTitle =
+      customTitle ||
+      (rowsToExport.length === 1
+        ? `${expL.singleLeadReportTitle} — ${rowsToExport[0].name}`
+        : expL.leadsReportTitle)
+
+    downloadExcelCsv({
+      filenamePrefix: `${prefix}_${locale.toUpperCase()}`,
+      reportTitle: resolvedTitle,
+      locale,
+      data: rowsToExport,
+      columns: [
+        { header: c.index, accessor: (_, idx) => idx + 1 },
+        { header: c.buyerName, accessor: (l) => l.name },
+        { header: c.buyerPhone, accessor: (l) => l.phone, isPhone: true },
+        { header: c.buyerEmail, accessor: (l) => l.email || "—" },
+        {
+          header: c.availableCash,
+          accessor: (l) => Number(l.available_cash || l.budget || 0),
+        },
+        {
+          header: c.maxInstallment,
+          accessor: (l) => Number(l.max_installment || 0),
+        },
+        {
+          header: c.targetAreas,
+          accessor: (l) =>
+            parseLeadDetails({
+              lead: l,
+              units,
+              offers,
+              locale,
+              dir,
+              leadsPrompts,
+            }).cleanTargetUnit,
+        },
+        {
+          header: c.unitType,
+          accessor: (l) =>
+            Array.isArray(l.unit_types) && l.unit_types.length > 0
+              ? l.unit_types.join(" / ")
+              : "—",
+        },
+        {
+          header: c.rooms,
+          accessor: (l) => (l.min_rooms ? `+${l.min_rooms}` : "—"),
+        },
+        {
+          header: c.leadType,
+          accessor: (l) =>
+            parseLeadDetails({
+              lead: l,
+              units,
+              offers,
+              locale,
+              dir,
+              leadsPrompts,
+            }).isUnitLead
+              ? expL.unitLeadType
+              : expL.generalLeadType,
+        },
+        {
+          header: c.notes,
+          accessor: (l) =>
+            parseLeadDetails({
+              lead: l,
+              units,
+              offers,
+              locale,
+              dir,
+              leadsPrompts,
+            }).customerNotes || "—",
+        },
+        { header: c.status, accessor: (l) => getLeadStatusLabel(l.status) },
+        {
+          header: c.createdAt,
+          accessor: (l) => new Date(l.created_at).toLocaleDateString("en-GB"),
+        },
+      ],
+    })
+  }
+
+  function renderThreeDotsMenu(
+    lead: BuyerLead,
+    parsed: ReturnType<typeof parseLeadDetails>
+  ) {
+    const isMenuOpen = openMenuId === lead.id
+
+    return (
+      <div
+        className="relative"
+        onClick={(e) => {
+          e.stopPropagation()
+        }}
+      >
+        <button
+          type="button"
+          aria-label={expL.moreActionsAria}
+          onClick={(e) => {
+            e.stopPropagation()
+            setOpenMenuId(isMenuOpen ? null : lead.id)
+          }}
+          className="flex size-8 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-gray-600 transition hover:border-[#105C50] hover:bg-white hover:text-[#0a1122]"
+        >
+          <MoreVertical className="size-4" />
+        </button>
+
+        {isMenuOpen && (
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="absolute end-0 top-9 z-50 w-56 overflow-hidden rounded-xl border border-gray-200 bg-white p-1.5 shadow-2xl"
+          >
+            {parsed.isUnitLead && (
+              <>
+                <Link
+                  href={
+                    parsed.matchedUnit
+                      ? `/opportunities/${parsed.matchedUnit.id}`
+                      : `/opportunities?q=${encodeURIComponent(parsed.unitCode || parsed.cleanTargetUnit)}`
+                  }
+                  target="_blank"
+                  onClick={() => setOpenMenuId(null)}
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-[#0a1122] transition hover:bg-gray-50"
+                >
+                  <ExternalLink className="size-3.5 text-[#105C50]" />
+                  <span>{t.unitBtn}</span>
+                </Link>
+
+                <Link
+                  href={
+                    parsed.matchedUnit
+                      ? `/admin/properties?unitId=${parsed.matchedUnit.id}`
+                      : `/admin/properties`
+                  }
+                  onClick={() => setOpenMenuId(null)}
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-[#0a1122] transition hover:bg-gray-50"
+                >
+                  <Building2 className="size-3.5 text-[#105C50]" />
+                  <span>{dict.admin?.shell?.nav?.properties}</span>
+                </Link>
+              </>
+            )}
+
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                setOpenMenuId(null)
+                exportLeadsToExcel(
+                  [lead],
+                  `AqarExit_Buyer_${lead.id.slice(0, 6)}`,
+                  `${expL.singleLeadReportTitle} (${lead.name})`
+                )
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-blue-700 transition hover:bg-blue-50"
+            >
+              <Download className="size-3.5 text-blue-600" />
+              <span>{expL.exportRowBtn}</span>
+            </button>
+
+            <div className="my-1 border-t border-gray-100" />
+
+            <button
+              type="button"
+              disabled={pending}
+              onClick={(e) => {
+                e.stopPropagation()
+                setOpenMenuId(null)
+                setConfirmAction({
+                  type: "delete",
+                  lead,
+                })
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-red-600 transition hover:bg-red-50"
+            >
+              <Trash2 className="size-3.5 text-red-600" />
+              <span>{t.deleteBtn}</span>
+            </button>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div dir={dir} className="text-start">
       <div className="mb-4 grid grid-cols-3 gap-2 rounded-xl border border-gray-200/80 bg-white p-1.5 shadow-2xs sm:inline-flex">
@@ -445,16 +648,34 @@ export default function LeadsClientTable({
         </div>
       )}
 
-      <div className="mb-4 flex flex-col gap-3 rounded-xl border border-gray-200/80 bg-white p-3 shadow-2xs sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-        <div className="relative w-full sm:max-w-xs sm:flex-1">
-          <Search className="pointer-events-none absolute top-1/2 end-3 size-4 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={t.searchPlaceholder}
-            className="h-9 w-full rounded-lg border border-gray-200 ps-3 pe-9 text-xs font-semibold focus:border-[#105C50] focus:outline-none"
-          />
+      <div className="mb-4 flex flex-col gap-3 rounded-xl border border-gray-200/80 bg-white p-3.5 shadow-2xs sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <div className="flex w-full items-center gap-2 sm:max-w-md sm:flex-1">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute top-1/2 end-3 size-4 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={t.searchPlaceholder}
+              className="h-9 w-full rounded-lg border border-gray-200 ps-3 pe-9 text-xs font-semibold focus:border-[#105C50] focus:outline-none"
+            />
+          </div>
+
+          <button
+            type="button"
+            disabled={filtered.length === 0}
+            onClick={() =>
+              exportLeadsToExcel(
+                filtered,
+                "AqarExit_Buyers_Leads",
+                expL.leadsReportTitle
+              )
+            }
+            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-xs font-extrabold text-[#105C50] transition hover:bg-[#105C50] hover:text-white disabled:opacity-40"
+          >
+            <Download className="size-3.5" />
+            <span>{expL.exportAllBtn}</span>
+          </button>
         </div>
 
         <div className="flex flex-wrap gap-1.5">
@@ -487,7 +708,7 @@ export default function LeadsClientTable({
       </div>
 
       {/* 1. عرض الموبايل */}
-      <div className="space-y-3 md:hidden">
+      <div className="space-y-3.5 md:hidden">
         {filtered.length === 0 ? (
           <div className="rounded-xl border border-gray-200 bg-white p-8 text-center text-xs text-gray-400">
             {t.emptyText}
@@ -528,7 +749,7 @@ export default function LeadsClientTable({
               <div
                 id={`lead-row-${lead.id}`}
                 key={lead.id}
-                className={`relative overflow-hidden rounded-xl border bg-white p-3.5 shadow-2xs transition ${
+                className={`relative rounded-2xl border bg-white p-4 shadow-xs transition ${
                   isCardLoading
                     ? "border-[#105C50] opacity-75"
                     : isHighlighted
@@ -539,7 +760,7 @@ export default function LeadsClientTable({
                 }`}
               >
                 {isCardLoading && (
-                  <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/65 backdrop-blur-[1px]">
+                  <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-white/65 backdrop-blur-[1px]">
                     <div className="flex items-center gap-2 rounded-full bg-[#0a1122] px-4 py-2 text-xs font-bold text-white shadow-md">
                       <Loader2 className="size-4 animate-spin text-emerald-400" />
                       <span>{t.updatingText}</span>
@@ -548,7 +769,7 @@ export default function LeadsClientTable({
                 )}
 
                 {parsed.isUnitLead && (
-                  <div className="-mx-3.5 -mt-3.5 mb-3 flex items-center justify-between border-b border-orange-200/80 bg-orange-50/90 px-3.5 py-2 text-[11px] font-extrabold text-orange-900">
+                  <div className="-mx-4 -mt-4 mb-3 flex items-center justify-between rounded-t-2xl border-b border-orange-200/80 bg-orange-50/90 px-4 py-2 text-[11px] font-extrabold text-orange-900">
                     <span className="flex items-center gap-1.5">
                       <Flame className="size-3.5 fill-orange-500 text-orange-600" />
                       <span>{t.unitBadge}</span>
@@ -562,7 +783,7 @@ export default function LeadsClientTable({
                 )}
 
                 <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2.5">
+                  <div className="flex min-w-0 flex-1 items-center gap-2.5">
                     <div
                       className={`flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-extrabold ${
                         parsed.isUnitLead
@@ -572,8 +793,8 @@ export default function LeadsClientTable({
                     >
                       {firstLetter}
                     </div>
-                    <div>
-                      <h3 className="text-xs font-extrabold text-[#0a1122] sm:text-sm">
+                    <div className="min-w-0">
+                      <h3 className="truncate text-xs font-extrabold text-[#0a1122] sm:text-sm">
                         {lead.name}
                       </h3>
                       <div
@@ -588,6 +809,8 @@ export default function LeadsClientTable({
                       </div>
                     </div>
                   </div>
+
+                  {renderThreeDotsMenu(lead, parsed)}
                 </div>
 
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -595,7 +818,7 @@ export default function LeadsClientTable({
                     <button
                       type="button"
                       onClick={() => setSmartMatchLead(lead)}
-                      className="inline-flex items-center gap-1 rounded-md border border-teal-300 bg-teal-50/80 px-2 py-0.5 text-[10px] font-extrabold text-[#105C50] transition hover:bg-[#105C50] hover:text-white"
+                      className="inline-flex items-center gap-1 rounded-md border border-teal-300 bg-teal-50/80 px-2.5 py-0.5 text-[10.5px] font-extrabold text-[#105C50] transition hover:bg-[#105C50] hover:text-white"
                     >
                       <span>🎯</span>
                       <span>
@@ -616,7 +839,7 @@ export default function LeadsClientTable({
                   </div>
                 )}
 
-                <div className="mt-2.5 grid grid-cols-2 gap-2.5 rounded-lg border border-gray-100 bg-gray-50/80 p-2.5 text-xs">
+                <div className="mt-2.5 grid grid-cols-2 gap-2.5 rounded-xl border border-gray-100 bg-gray-50/80 p-2.5 text-xs">
                   <div>
                     <span className="flex items-center gap-1 text-[10px] text-gray-400">
                       <Wallet className="size-3 text-[#105C50]" />
@@ -704,7 +927,7 @@ export default function LeadsClientTable({
                         })
                       }
                     }}
-                    className={`h-8 w-full rounded-lg border px-2 text-xs font-extrabold focus:outline-none ${stObj.badge}`}
+                    className={`h-9 w-full rounded-lg border px-3 text-xs font-extrabold focus:outline-none ${stObj.badge}`}
                   >
                     {leadStatuses.map((st) => (
                       <option
@@ -718,69 +941,27 @@ export default function LeadsClientTable({
                   </select>
                 </div>
 
-                <div className="mt-2.5 flex flex-wrap items-center gap-1.5 border-t border-gray-100 pt-2.5">
-                  <button
-                    type="button"
+                <div className="mt-2.5 flex items-center gap-2 border-t border-gray-100 pt-2.5">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8.5 flex-1 rounded-xl text-xs font-bold"
                     onClick={() => setDetailsLead(lead)}
-                    className="inline-flex h-8 items-center justify-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 text-xs font-bold text-[#0a1122] hover:bg-gray-50"
                   >
-                    <Eye className="size-3.5 text-[#105C50]" />
-                    <span>{propAdminDict.actions?.detailsBtn || t.unitBtn}</span>
-                  </button>
-
-                  {parsed.isUnitLead && (
-                    <>
-                      <Link
-                        href={
-                          parsed.matchedUnit
-                            ? `/opportunities/${parsed.matchedUnit.id}`
-                            : `/opportunities?q=${encodeURIComponent(parsed.unitCode || parsed.cleanTargetUnit)}`
-                        }
-                        target="_blank"
-                        className="inline-flex h-8 items-center justify-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 text-xs font-bold text-[#105C50] hover:bg-emerald-100"
-                      >
-                        <ExternalLink className="size-3.5" />
-                        <span>{t.unitBtn}</span>
-                      </Link>
-
-                      <Link
-                        href={
-                          parsed.matchedUnit
-                            ? `/admin/properties?unitId=${parsed.matchedUnit.id}`
-                            : `/admin/properties?q=${encodeURIComponent(parsed.unitCode || "")}`
-                        }
-                        className="inline-flex h-8 items-center justify-center gap-1 rounded-lg border border-gray-200 bg-gray-50 px-2.5 text-xs font-bold text-[#0a1122] hover:bg-gray-100"
-                      >
-                        <Building2 className="size-3.5 text-[#105C50]" />
-                      </Link>
-                    </>
-                  )}
+                    <Eye className="me-1 size-3.5 text-[#105C50]" />
+                    {propAdminDict.actions?.detailsBtn || t.unitBtn}
+                  </Button>
 
                   <a
                     data-admin-client-wa="true"
                     href={`https://wa.me/${String(lead.phone).replace(/\D/g, "")}?text=${encodeURIComponent(waText)}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#25D366] px-3 text-xs font-bold text-white transition hover:opacity-90"
+                    className="inline-flex h-8.5 flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#25D366] px-3 text-xs font-bold text-white transition hover:opacity-90"
                   >
                     <MessageCircle className="size-3.5" />
                     <span>{t.whatsappBtn}</span>
                   </a>
-
-                  <button
-                    type="button"
-                    disabled={pending}
-                    onClick={() =>
-                      setConfirmAction({
-                        type: "delete",
-                        lead,
-                      })
-                    }
-                    className="inline-flex h-8 items-center justify-center rounded-lg border border-red-200 bg-red-50 px-2.5 text-xs font-bold text-red-600 transition hover:bg-red-100"
-                    title={t.deleteBtn}
-                  >
-                    <Trash2 className="size-3.5" />
-                  </button>
                 </div>
               </div>
             )
@@ -788,7 +969,7 @@ export default function LeadsClientTable({
         )}
       </div>
 
-      {/* 2. عرض الكمبيوتر الاحترافي: بطاقات صفوف منفصلة بوضوح تام */}
+      {/* 2. عرض الكمبيوتر الاحترافي */}
       <div className="hidden md:block">
         <div className="mb-3 flex items-center justify-between rounded-xl border border-gray-200/85 bg-white px-5 py-3.5 shadow-2xs">
           <div>
@@ -858,7 +1039,6 @@ export default function LeadsClientTable({
                           : "border-slate-200/90 border-s-4 border-s-[#105C50]"
                   }`}
                 >
-                  {/* العمود 1: اسم المشتري ورقم هاتفه وشارة التوافق */}
                   <div className="col-span-3 min-w-0 pe-2">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[11px] font-black text-slate-600">
@@ -930,7 +1110,6 @@ export default function LeadsClientTable({
                     </div>
                   </div>
 
-                  {/* العمود 2: الكاش المتاح والقسط */}
                   <div className="col-span-2 border-s border-slate-100 ps-4 whitespace-nowrap">
                     <span className="block text-[10px] font-bold text-slate-400">
                       {t.cashLabel}
@@ -955,7 +1134,6 @@ export default function LeadsClientTable({
                     </div>
                   </div>
 
-                  {/* العمود 3: المناطق أو الوحدة المستهدفة + التاريخ */}
                   <div className="col-span-3 min-w-0 border-s border-slate-100 ps-4">
                     <div className="truncate text-xs font-extrabold text-[#0a1122]">
                       {parsed.cleanTargetUnit}
@@ -987,7 +1165,6 @@ export default function LeadsClientTable({
                     )}
                   </div>
 
-                  {/* العمود 4: حالة الطلب */}
                   <div className="col-span-2 border-s border-slate-100 ps-4">
                     <select
                       disabled={pending}
@@ -1016,47 +1193,18 @@ export default function LeadsClientTable({
                     </select>
                   </div>
 
-                  {/* العمود 5: الإجراءات */}
-                  <div className="col-span-2 flex flex-wrap items-center justify-end gap-1.5 border-s border-slate-100 ps-3">
-                    <button
-                      type="button"
+                  <div className="col-span-2 flex items-center justify-end gap-1.5 border-s border-slate-100 ps-3">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 rounded-lg px-3 text-[11px] font-bold"
                       onClick={() => setDetailsLead(lead)}
-                      className="inline-flex h-8 items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 text-[11px] font-bold text-[#0a1122] transition hover:border-[#105C50] hover:bg-gray-50"
                     >
-                      <Eye className="size-3.5 text-[#105C50]" />
+                      <Eye className="me-1 size-3.5 text-[#105C50]" />
                       <span>
                         {propAdminDict.actions?.detailsBtn || t.unitBtn}
                       </span>
-                    </button>
-
-                    {parsed.isUnitLead && (
-                      <>
-                        <Link
-                          href={
-                            parsed.matchedUnit
-                              ? `/opportunities/${parsed.matchedUnit.id}`
-                              : `/opportunities?q=${encodeURIComponent(parsed.unitCode || parsed.cleanTargetUnit)}`
-                          }
-                          target="_blank"
-                          title={t.unitBtn}
-                          className="inline-flex size-8 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-[#105C50] transition hover:bg-emerald-100"
-                        >
-                          <ExternalLink className="size-3.5" />
-                        </Link>
-
-                        <Link
-                          href={
-                            parsed.matchedUnit
-                              ? `/admin/properties?unitId=${parsed.matchedUnit.id}`
-                              : `/admin/properties`
-                          }
-                          title={dict.admin?.shell?.nav?.properties}
-                          className="inline-flex size-8 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-[#0a1122] transition hover:bg-gray-100"
-                        >
-                          <Building2 className="size-3.5 text-[#105C50]" />
-                        </Link>
-                      </>
-                    )}
+                    </Button>
 
                     <a
                       data-admin-client-wa="true"
@@ -1069,20 +1217,7 @@ export default function LeadsClientTable({
                       <MessageCircle className="size-3.5" />
                     </a>
 
-                    <button
-                      type="button"
-                      disabled={pending}
-                      onClick={() =>
-                        setConfirmAction({
-                          type: "delete",
-                          lead,
-                        })
-                      }
-                      className="inline-flex size-8 items-center justify-center rounded-lg border border-gray-200 text-gray-400 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
-                      title={t.deleteBtn}
-                    >
-                      <Trash2 className="size-3.5" />
-                    </button>
+                    {renderThreeDotsMenu(lead, parsed)}
                   </div>
                 </div>
               )

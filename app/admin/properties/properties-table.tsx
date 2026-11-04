@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   Clock,
   Crown,
+  Download,
   ExternalLink,
   Eye,
   EyeOff,
@@ -17,6 +18,7 @@ import {
   Handshake,
   Loader2,
   MessageCircle,
+  MoreVertical,
   PauseCircle,
   Phone,
   RefreshCw,
@@ -29,6 +31,7 @@ import {
   X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { downloadExcelCsv, EXPORT_LABELS } from "@/lib/export-csv"
 import { useTranslation } from "@/lib/i18n"
 import {
   calculateSmartMatch,
@@ -87,12 +90,12 @@ export default function PropertiesTable({
   const isPromotionsPage = mode === "promotions"
 
   const { t: dict, locale, dir } = useTranslation()
-  const isAr = locale === "ar"
   const t = dict.admin.propertiesAdmin as Record<string, any>
   const propBadges = (t.badges as Record<string, string>) || {}
   const propNotices = (t.notices as Record<string, string>) || {}
   const leadsPrompts = dict.admin.leads
   const sm = (dict.admin as Record<string, any>).smartMatch || {}
+  const expL = EXPORT_LABELS[locale] || EXPORT_LABELS.ar
 
   function getMatchedBuyersForUnit(unit: SellRequest) {
     if (!buyers || buyers.length === 0) return []
@@ -189,6 +192,7 @@ export default function PropertiesTable({
     "all_promo" | "pending_payment" | "active_featured" | "all_units"
   >("all_promo")
 
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [highlightedUnitId, setHighlightedUnitId] = useState<string | null>(
     null
   )
@@ -206,6 +210,12 @@ export default function PropertiesTable({
     isError?: boolean
   } | null>(null)
   const [pending, startTransition] = useTransition()
+
+  useEffect(() => {
+    const closeMenu = () => setOpenMenuId(null)
+    window.addEventListener("click", closeMenu)
+    return () => window.removeEventListener("click", closeMenu)
+  }, [])
 
   useEffect(() => {
     const tabParam = searchParams.get("tab")
@@ -426,6 +436,222 @@ export default function PropertiesTable({
     return true
   })
 
+  function exportUnitsToExcel(rowsToExport: SellRequest[], prefix = "AqarExit_Units") {
+    const c = expL.cols
+    downloadExcelCsv({
+      filenamePrefix: `${prefix}_${locale.toUpperCase()}`,
+      data: rowsToExport,
+      columns: [
+        { header: c.index, accessor: (_, idx) => idx + 1 },
+        {
+          header: c.unitCode,
+          accessor: (p) => deriveShortUnitCode(p.id, p.code),
+        },
+        {
+          header: c.projectName,
+          accessor: (p) => p.project_name || t.table.unspecifiedProject,
+        },
+        { header: c.developer, accessor: (p) => p.developer_name || "—" },
+        {
+          header: c.area,
+          accessor: (p) => cleanPropertyAreaDisplay(p.area, locale),
+        },
+        {
+          header: c.unitType,
+          accessor: (p) => p.unit_type || t.table.defaultUnitType,
+        },
+        { header: c.sizeSqm, accessor: (p) => p.size || "—" },
+        { header: c.rooms, accessor: (p) => p.rooms || "—" },
+        {
+          header: c.requiredCash,
+          accessor: (p) => Number(p.paid_amount || 0),
+        },
+        {
+          header: c.contractPrice,
+          accessor: (p) => Number(p.contract_price || 0),
+        },
+        {
+          header: c.marketPrice,
+          accessor: (p) => Number(p.market_price || 0),
+        },
+        {
+          header: c.installment,
+          accessor: (p) => Number(p.installment_amount || 0),
+        },
+        {
+          header: c.frequency,
+          accessor: (p) => p.installment_frequency || "—",
+        },
+        {
+          header: c.negotiable,
+          accessor: (p) => (p.willing_to_discount ? expL.yes : expL.no),
+        },
+        { header: c.sellerName, accessor: (p) => p.name },
+        { header: c.sellerPhone, accessor: (p) => p.phone, isPhone: true },
+        { header: c.sellerEmail, accessor: (p) => p.email || "—" },
+        { header: c.status, accessor: (p) => getStatusLabel(p.status) },
+        {
+          header: c.promoTier,
+          accessor: (p) =>
+            p.is_featured
+              ? p.boost_tier === "vip_plus"
+                ? "+VIP"
+                : "SUPER VIP"
+              : expL.normalTier,
+        },
+        {
+          header: c.createdAt,
+          accessor: (p) => new Date(p.created_at).toLocaleDateString("en-GB"),
+        },
+      ],
+    })
+  }
+
+  function renderThreeDotsMenu(
+    property: SellRequest,
+    currentSt: string,
+    isFeaturedActive: boolean
+  ) {
+    const isMenuOpen = openMenuId === property.id
+
+    return (
+      <div
+        className="relative"
+        onClick={(e) => {
+          e.stopPropagation()
+        }}
+      >
+        <button
+          type="button"
+          aria-label={expL.moreActionsAria}
+          onClick={() => setOpenMenuId(isMenuOpen ? null : property.id)}
+          className="flex size-8 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-gray-600 transition hover:border-[#105C50] hover:bg-white hover:text-[#0a1122]"
+        >
+          <MoreVertical className="size-4" />
+        </button>
+
+        {isMenuOpen && (
+          <div className="absolute end-0 top-9 z-40 w-52 overflow-hidden rounded-xl border border-gray-200 bg-white p-1.5 shadow-xl">
+            <Link
+              href={`/opportunities/${property.id}`}
+              target="_blank"
+              onClick={() => setOpenMenuId(null)}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-[#0a1122] transition hover:bg-gray-50"
+            >
+              <ExternalLink className="size-3.5 text-[#105C50]" />
+              <span>{dict.admin?.shell?.publicSite}</span>
+            </Link>
+
+            {currentSt !== "deleted_by_seller" && (
+              <>
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => {
+                    setOpenMenuId(null)
+                    setConfirmAction({
+                      type: "promote",
+                      property,
+                      promoAction: isFeaturedActive ? "cancel" : "activate",
+                      days: property.featured_days || 14,
+                      tier:
+                        property.boost_tier === "vip_plus"
+                          ? "vip_plus"
+                          : "super_vip",
+                    })
+                  }}
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-amber-800 transition hover:bg-amber-50"
+                >
+                  <Star
+                    className={`size-3.5 ${
+                      isFeaturedActive
+                        ? "fill-amber-500 text-amber-600"
+                        : "text-amber-600"
+                    }`}
+                  />
+                  <span>
+                    {isFeaturedActive
+                      ? t.actions.cancelPromoBtn
+                      : t.actions.promoteStarBtn}
+                  </span>
+                </button>
+
+                {currentSt === "active" ? (
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => {
+                      setOpenMenuId(null)
+                      setConfirmAction({
+                        type: "status",
+                        property,
+                        newStatus: "paused_by_seller",
+                      })
+                    }}
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-orange-800 transition hover:bg-orange-50"
+                  >
+                    <EyeOff className="size-3.5 text-orange-600" />
+                    <span>{t.actions.unpublishBtn}</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => {
+                      setOpenMenuId(null)
+                      setConfirmAction({
+                        type: "status",
+                        property,
+                        newStatus: "active",
+                      })
+                    }}
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-[#105C50] transition hover:bg-emerald-50"
+                  >
+                    <Check className="size-3.5 text-[#105C50]" />
+                    <span>{t.actions.publishShortBtn}</span>
+                  </button>
+                )}
+              </>
+            )}
+
+            <button
+              type="button"
+              onClick={() => {
+                setOpenMenuId(null)
+                exportUnitsToExcel(
+                  [property],
+                  `Unit_${deriveShortUnitCode(property.id, property.code)}`
+                )
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-blue-700 transition hover:bg-blue-50"
+            >
+              <Download className="size-3.5 text-blue-600" />
+              <span>{expL.exportRowBtn}</span>
+            </button>
+
+            <div className="my-1 border-t border-gray-100" />
+
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => {
+                setOpenMenuId(null)
+                setConfirmAction({
+                  type: "delete",
+                  property,
+                })
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-red-600 transition hover:bg-red-50"
+            >
+              <Trash2 className="size-3.5 text-red-600" />
+              <span>{t.modals.deleteTitle}</span>
+            </button>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   function renderSellerActivityBadges(property: SellRequest) {
     const currentSt = normalizeRowStatus(property.status)
     const docs = getUploadedDocsList(
@@ -640,19 +866,36 @@ export default function PropertiesTable({
       )}
 
       <div className="mb-4 flex flex-col gap-3 rounded-xl border border-gray-200/80 bg-white p-3.5 shadow-2xs sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-        <div className="relative w-full sm:max-w-xs sm:flex-1">
-          <Search className="pointer-events-none absolute top-1/2 end-3 size-4 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={
-              isPromotionsPage
-                ? t.filters.promoSearchPlaceholder
-                : t.filters.sellSearchPlaceholder
+        <div className="flex w-full items-center gap-2 sm:max-w-md sm:flex-1">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute top-1/2 end-3 size-4 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={
+                isPromotionsPage
+                  ? t.filters.promoSearchPlaceholder
+                  : t.filters.sellSearchPlaceholder
+              }
+              className="h-9 w-full rounded-lg border border-gray-200 ps-3 pe-9 text-xs font-semibold focus:border-[#105C50] focus:outline-none"
+            />
+          </div>
+
+          <button
+            type="button"
+            disabled={filtered.length === 0}
+            onClick={() =>
+              exportUnitsToExcel(
+                filtered,
+                isPromotionsPage ? "AqarExit_Promotions" : "AqarExit_Properties"
+              )
             }
-            className="h-9 w-full rounded-lg border border-gray-200 ps-3 pe-9 text-xs font-semibold focus:border-[#105C50] focus:outline-none"
-          />
+            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-xs font-extrabold text-[#105C50] transition hover:bg-[#105C50] hover:text-white disabled:opacity-40"
+          >
+            <Download className="size-3.5" />
+            <span>{expL.exportAllBtn}</span>
+          </button>
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5">
@@ -754,7 +997,7 @@ export default function PropertiesTable({
           </div>
         )}
 
-      {/* 1. عرض الموبايل (تمت إضافة زرار الإيقاف المؤقت / النشر + زرار التمييز VIP بوضوح كامل) */}
+      {/* 1. عرض الموبايل النظيف مع قائمة الـ 3 نقاط */}
       <div className="space-y-3.5 md:hidden">
         {filtered.length === 0 ? (
           <div className="rounded-xl border border-gray-200 bg-white p-8 text-center text-xs text-gray-500">
@@ -789,7 +1032,7 @@ export default function PropertiesTable({
               <div
                 id={`prop-row-${property.id}`}
                 key={property.id}
-                className={`relative overflow-hidden rounded-2xl border bg-white p-4 shadow-xs transition ${
+                className={`relative rounded-2xl border bg-white p-4 shadow-xs transition ${
                   isCardLoading
                     ? "border-[#105C50] opacity-75"
                     : isHighlighted
@@ -802,7 +1045,7 @@ export default function PropertiesTable({
                 }`}
               >
                 {isCardLoading && (
-                  <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/65 backdrop-blur-[1px]">
+                  <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-white/65 backdrop-blur-[1px]">
                     <div className="flex items-center gap-2 rounded-full bg-[#0a1122] px-3.5 py-1.5 text-xs font-bold text-white shadow-md">
                       <Loader2 className="size-3.5 animate-spin text-emerald-400" />
                       <span>{t.table.updatingText}</span>
@@ -811,12 +1054,12 @@ export default function PropertiesTable({
                 )}
 
                 <div className="flex items-start justify-between gap-2">
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
                       <span className="rounded bg-[#0a1122] px-2 py-0.5 font-mono text-[10px] font-bold text-white">
                         {deriveShortUnitCode(property.id, property.code)}
                       </span>
-                      <h3 className="text-xs font-extrabold text-[#0a1122] sm:text-sm">
+                      <h3 className="truncate text-xs font-extrabold text-[#0a1122] sm:text-sm">
                         {property.project_name || t.table.unspecifiedProject}
                       </h3>
                     </div>
@@ -829,6 +1072,8 @@ export default function PropertiesTable({
                     </p>
                     {renderSellerActivityBadges(property)}
                   </div>
+
+                  {renderThreeDotsMenu(property, currentSt, isFeaturedActive)}
                 </div>
 
                 <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl border border-gray-100 bg-gray-50/80 p-2.5 text-xs">
@@ -915,132 +1160,28 @@ export default function PropertiesTable({
                   </select>
                 </div>
 
-                {/* شريط أزرار التحكم السريع للموبايل: إيقاف مؤقت / نشر + تمييز VIP */}
-                {currentSt !== "deleted_by_seller" && (
-                  <div className="mt-2.5 grid grid-cols-2 gap-2">
-                    {currentSt === "active" ? (
-                      <button
-                        type="button"
-                        disabled={pending}
-                        onClick={() =>
-                          setConfirmAction({
-                            type: "status",
-                            property,
-                            newStatus: "paused_by_seller",
-                          })
-                        }
-                        className="inline-flex h-8.5 items-center justify-center gap-1.5 rounded-xl border border-orange-300 bg-orange-50 px-3 text-xs font-extrabold text-orange-800 transition hover:bg-orange-100"
-                      >
-                        <EyeOff className="size-3.5 shrink-0" />
-                        <span>
-                          {isAr ? "إيقاف مؤقت" : t.actions.unpublishBtn}
-                        </span>
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        disabled={pending}
-                        onClick={() =>
-                          setConfirmAction({
-                            type: "status",
-                            property,
-                            newStatus: "active",
-                          })
-                        }
-                        className="inline-flex h-8.5 items-center justify-center gap-1.5 rounded-xl bg-[#105C50] px-3 text-xs font-extrabold text-white transition hover:bg-[#0c483f]"
-                      >
-                        <Check className="size-3.5 shrink-0" />
-                        <span>
-                          {t.actions.publishShortBtn ||
-                            (isAr ? "نشر بالسوق" : "Publish")}
-                        </span>
-                      </button>
-                    )}
-
-                    <button
-                      type="button"
-                      disabled={pending}
-                      onClick={() =>
-                        setConfirmAction({
-                          type: "promote",
-                          property,
-                          promoAction: isFeaturedActive
-                            ? "cancel"
-                            : "activate",
-                          days: property.featured_days || 14,
-                          tier:
-                            property.boost_tier === "vip_plus"
-                              ? "vip_plus"
-                              : "super_vip",
-                        })
-                      }
-                      className={`inline-flex h-8.5 items-center justify-center gap-1.5 rounded-xl border px-3 text-xs font-extrabold transition ${
-                        isFeaturedActive
-                          ? "border-amber-300 bg-amber-100 text-amber-900 hover:bg-amber-200"
-                          : "border-amber-400 bg-gradient-to-r from-[#ff6437] to-[#ff4f69] text-white shadow-2xs"
-                      }`}
-                    >
-                      <Star
-                        className={`size-3.5 shrink-0 ${
-                          isFeaturedActive ? "fill-amber-600" : "fill-white"
-                        }`}
-                      />
-                      <span>
-                        {isFeaturedActive
-                          ? isAr
-                            ? "إلغاء التمييز"
-                            : t.actions.cancelPromoBtn
-                          : isAr
-                            ? "تمييز VIP ⭐"
-                            : t.actions.promoteStarBtn}
-                      </span>
-                    </button>
-                  </div>
-                )}
-
-                <div className="mt-2.5 flex flex-wrap items-center gap-1.5 border-t border-gray-100 pt-2.5">
+                {/* الأزرار الأساسية فقط في أسفل الكارت: التفاصيل + واتساب */}
+                <div className="mt-2.5 flex items-center gap-2 border-t border-gray-100 pt-2.5">
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-8 flex-1 rounded-lg text-xs font-bold"
+                    className="h-8.5 flex-1 rounded-xl text-xs font-bold"
                     onClick={() => setDetailsProperty(property)}
                   >
-                    <Eye className="me-1 size-3" />
+                    <Eye className="me-1 size-3.5 text-[#105C50]" />
                     {t.actions.detailsBtn}
                   </Button>
-
-                  <Link
-                    href={`/opportunities/${property.id}`}
-                    target="_blank"
-                    title={dict.admin?.shell?.publicSite}
-                    className="inline-flex h-8 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 text-xs font-bold text-[#105C50]"
-                  >
-                    <ExternalLink className="size-3.5" />
-                  </Link>
 
                   <a
                     data-admin-client-wa="true"
                     href={`https://wa.me/${String(property.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(waText)}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex h-8 items-center justify-center rounded-lg bg-[#25D366] px-2.5 text-xs font-bold text-white"
+                    className="inline-flex h-8.5 flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#25D366] px-3 text-xs font-bold text-white transition hover:opacity-90"
                   >
                     <MessageCircle className="size-3.5" />
+                    <span>{leadsPrompts.whatsappBtn}</span>
                   </a>
-
-                  <button
-                    type="button"
-                    disabled={pending}
-                    onClick={() =>
-                      setConfirmAction({
-                        type: "delete",
-                        property,
-                      })
-                    }
-                    className="inline-flex h-8 items-center justify-center rounded-lg border border-red-200 bg-red-50 px-2.5 text-xs font-bold text-red-600"
-                  >
-                    <Trash2 className="size-3.5" />
-                  </button>
                 </div>
               </div>
             )
@@ -1048,7 +1189,7 @@ export default function PropertiesTable({
         )}
       </div>
 
-      {/* 2. عرض الكمبيوتر الاحترافي: بطاقات صفوف منفصلة بوضوح تام */}
+      {/* 2. عرض الكمبيوتر الاحترافي مع قائمة الـ 3 نقاط */}
       <div className="hidden md:block">
         <div className="mb-3 flex items-center justify-between rounded-xl border border-gray-200/85 bg-white px-5 py-3.5 shadow-2xs">
           <h2 className="text-sm font-extrabold text-[#0a1122] sm:text-base">
@@ -1254,7 +1395,7 @@ export default function PropertiesTable({
                             title={propBadges.emailVerifiedBadge}
                             className="inline-flex shrink-0 text-[#105C50]"
                           >
-                            <CheckCircle2 className="size-3" />
+                            <CheckCircle2 className="size-3.5" />
                           </span>
                         )}
                       </div>
@@ -1290,8 +1431,8 @@ export default function PropertiesTable({
                     </select>
                   </div>
 
-                  {/* العمود 5: أزرار الإجراءات السريعة */}
-                  <div className="col-span-2 flex flex-wrap items-center justify-end gap-1.5 border-s border-slate-100 ps-3">
+                  {/* العمود 5: الأزرار الأساسية فقط (التفاصيل + واتساب + قائمة الـ 3 نقاط ⋮) */}
+                  <div className="col-span-2 flex items-center justify-end gap-1.5 border-s border-slate-100 ps-3">
                     {currentSt === "deleted_by_seller" ? (
                       <Button
                         size="sm"
@@ -1309,149 +1450,34 @@ export default function PropertiesTable({
                         <RotateCcw className="me-1 size-3" />
                         {t.actions.restoreBtn}
                       </Button>
-                    ) : isPromotionsPage ? (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={pending}
-                        onClick={() =>
-                          setConfirmAction({
-                            type: "promote",
-                            property,
-                            promoAction: isFeaturedActive
-                              ? "cancel"
-                              : "activate",
-                            days: property.featured_days || 14,
-                            tier:
-                              property.boost_tier === "vip_plus"
-                                ? "vip_plus"
-                                : "super_vip",
-                          })
-                        }
-                        className={`h-8 rounded-lg px-2.5 text-[11px] font-bold ${
-                          isFeaturedActive
-                            ? "border-amber-300 bg-amber-100 text-amber-900 hover:bg-amber-200"
-                            : "border-amber-300 bg-amber-500 text-white hover:bg-amber-600"
-                        }`}
-                      >
-                        <Star className="me-1 size-3 fill-current" />
-                        {isFeaturedActive
-                          ? t.actions.cancelPromoBtn
-                          : t.actions.promoteStarBtn}
-                      </Button>
-                    ) : currentSt !== "active" ? (
-                      <Button
-                        size="sm"
-                        disabled={pending}
-                        className="h-8 rounded-lg bg-[#105C50] px-3 text-[11px] font-bold text-white hover:bg-[#0c483f]"
-                        onClick={() =>
-                          setConfirmAction({
-                            type: "status",
-                            property,
-                            newStatus: "active",
-                          })
-                        }
-                      >
-                        <Check className="me-1 size-3" />
-                        {t.actions.publishShortBtn}
-                      </Button>
                     ) : (
                       <Button
                         size="sm"
                         variant="outline"
-                        disabled={pending}
-                        className="h-8 rounded-lg border-orange-300 bg-orange-50 px-2.5 text-[11px] font-bold text-orange-800 hover:bg-orange-100"
-                        onClick={() =>
-                          setConfirmAction({
-                            type: "status",
-                            property,
-                            newStatus: "paused_by_seller",
-                          })
-                        }
+                        className="h-8 rounded-lg px-3 text-[11px] font-bold"
+                        onClick={() => setDetailsProperty(property)}
                       >
-                        <EyeOff className="me-1 size-3" />
-                        {isAr ? "إيقاف مؤقت" : t.actions.unpublishBtn}
+                        <Eye className="me-1 size-3 text-[#105C50]" />
+                        {t.actions.detailsBtn}
                       </Button>
                     )}
-
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-8 rounded-lg px-2.5 text-[11px] font-bold"
-                      onClick={() => setDetailsProperty(property)}
-                    >
-                      <Eye className="me-1 size-3" />
-                      {t.actions.detailsBtn}
-                    </Button>
-
-                    {!isPromotionsPage && currentSt !== "deleted_by_seller" && (
-                      <button
-                        type="button"
-                        disabled={pending}
-                        title={
-                          isFeaturedActive
-                            ? t.actions.cancelPromoBtn
-                            : t.actions.promoteStarBtn
-                        }
-                        onClick={() =>
-                          setConfirmAction({
-                            type: "promote",
-                            property,
-                            promoAction: isFeaturedActive
-                              ? "cancel"
-                              : "activate",
-                            days: property.featured_days || 14,
-                            tier:
-                              property.boost_tier === "vip_plus"
-                                ? "vip_plus"
-                                : "super_vip",
-                          })
-                        }
-                        className={`inline-flex h-8 items-center gap-1 rounded-lg border px-2.5 text-[11px] font-bold transition ${
-                          isFeaturedActive
-                            ? "border-amber-300 bg-amber-100 text-amber-800 hover:bg-amber-200"
-                            : "border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100"
-                        }`}
-                      >
-                        <Star
-                          className={`size-3.5 ${isFeaturedActive ? "fill-amber-500" : ""}`}
-                        />
-                        <span>{isFeaturedActive ? "VIP ✓" : "VIP"}</span>
-                      </button>
-                    )}
-
-                    <Link
-                      href={`/opportunities/${property.id}`}
-                      target="_blank"
-                      title={dict.admin?.shell?.publicSite}
-                      className="inline-flex size-8 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-[#105C50] transition hover:bg-emerald-100"
-                    >
-                      <ExternalLink className="size-3.5" />
-                    </Link>
 
                     <a
                       data-admin-client-wa="true"
                       href={`https://wa.me/${String(property.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(waText)}`}
                       target="_blank"
                       rel="noreferrer"
+                      title={leadsPrompts.whatsappBtn}
                       className="inline-flex size-8 items-center justify-center rounded-lg bg-[#25D366] text-white hover:opacity-90"
                     >
                       <MessageCircle className="size-3.5" />
                     </a>
 
-                    <button
-                      type="button"
-                      disabled={pending}
-                      onClick={() =>
-                        setConfirmAction({
-                          type: "delete",
-                          property,
-                        })
-                      }
-                      className="inline-flex size-8 items-center justify-center rounded-lg border border-gray-200 text-gray-400 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
-                    >
-                      <Trash2 className="size-3.5" />
-                    </button>
+                    {renderThreeDotsMenu(
+                      property,
+                      currentSt,
+                      isFeaturedActive
+                    )}
                   </div>
                 </div>
               )

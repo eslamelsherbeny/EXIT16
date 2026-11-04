@@ -3,6 +3,7 @@ import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { createServerClient } from "@supabase/ssr"
 import { getUsersVerificationMapAction } from "@/actions/submit-forms"
+import { sanitizeGeorgiaProjectTitle } from "@/lib/offer-helpers"
 import {
   extractUserIdFromCookie,
   parseAndVerifySessionCookie,
@@ -14,6 +15,12 @@ import PropertiesTable, {
 
 export const dynamic = "force-dynamic"
 export const revalidate = 0
+
+function normalizeAdminStatus(raw?: string | null): string {
+  const clean = String(raw || "pending").trim().toLowerCase()
+  if (clean === "approved" || clean === "published") return "active"
+  return clean
+}
 
 export default async function AdminPromotionsPage() {
   const { dict, dir } = await getServerI18n()
@@ -70,6 +77,9 @@ export default async function AdminPromotionsPage() {
         : {}
     return {
       ...p,
+      code: p.code || meta.code || null,
+      status: normalizeAdminStatus(p.status),
+      project_name: sanitizeGeorgiaProjectTitle(p.project_name),
       area: p.area || meta.area || null,
       unit_type: p.unit_type || meta.unit_type || null,
       size: p.size ?? meta.size ?? null,

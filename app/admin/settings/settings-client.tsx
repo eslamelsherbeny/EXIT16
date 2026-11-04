@@ -44,18 +44,16 @@ type SiteSettings = {
   buyerCommission: string
   developerPenaltyMin?: string
   developerPenaltyMax?: string
+  vipPlusDailyGel?: string
+  superVipDailyGel?: string
+  bankIbanGe?: string
+  bankNameGe?: string
   promo7Price?: string
   promo14Price?: string
   promo30Price?: string
-  promo_RU_7?: string
-  promo_RU_14?: string
-  promo_RU_30?: string
   promo_GE_7?: string
   promo_GE_14?: string
   promo_GE_30?: string
-  promo_AE_7?: string
-  promo_AE_14?: string
-  promo_AE_30?: string
   maintenanceMode: boolean
   allowNewSells: boolean
   allowNewBuys: boolean
@@ -74,7 +72,8 @@ export default function SettingsClient({
   hasEmail: boolean
 }) {
   const router = useRouter()
-  const { t: dict, dir } = useTranslation()
+  const { t: dict, locale, dir } = useTranslation()
+  const isAr = locale === "ar"
   const t = dict.admin.settings as Record<string, any>
 
   const [activeTab, setActiveTab] = useState<"general" | "system">(initialTab)
@@ -243,7 +242,7 @@ export default function SettingsClient({
                   />
                 </div>
 
-                {/* نسب العمولة وخصم المطور عند فسخ العقد */}
+                {/* نسب العمولة وخصم المطور */}
                 <div className="rounded-xl border border-emerald-200/80 bg-emerald-50/40 p-3.5">
                   <div className="mb-2.5 flex items-center gap-1.5 text-xs font-extrabold text-[#0a1122]">
                     <Percent className="size-3.5 text-[#105C50]" />
@@ -307,53 +306,102 @@ export default function SettingsClient({
                   </div>
                 </div>
 
-                {/* أسعار باقات الترويج في جورجيا ($) */}
-                <div className="rounded-xl border border-amber-200/80 bg-amber-50/40 p-3">
-                  <div className="mb-2 flex items-center justify-between gap-1.5 text-xs font-extrabold text-[#0a1122]">
+                {/* أسعار باقات الترويج في جورجيا باللاري الجورجي (₾) */}
+                <div className="rounded-xl border border-amber-200/80 bg-amber-50/40 p-3.5">
+                  <div className="mb-2.5 flex items-center justify-between gap-1.5 text-xs font-extrabold text-[#0a1122]">
                     <span className="flex items-center gap-1.5">
                       <Star className="size-3.5 fill-amber-400 text-amber-500" />
                       <span>{t.promoPricesTitle}</span>
                     </span>
                     <span className="rounded-md bg-[#105C50] px-2 py-0.5 text-[10.5px] font-bold text-white">
-                      🇬🇪 {t.countries.GE} ($)
+                      🇬🇪 {t.countries.GE} (₾ GEL)
                     </span>
                   </div>
 
+                  <div className="mb-3 grid grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="mb-1 block text-[10px] font-bold text-gray-600">
+                        {isAr ? "سعر اليوم +VIP (₾)" : "VIP+ Daily (₾)"}
+                      </label>
+                      <input
+                        name="vipPlusDailyGel"
+                        type="number"
+                        dir="ltr"
+                        defaultValue={initialSettings.vipPlusDailyGel || "5"}
+                        className="h-8 w-full rounded-lg border border-gray-200 bg-white px-2 text-left text-xs font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-[10px] font-bold text-gray-600">
+                        {isAr ? "سعر اليوم SUPER VIP (₾)" : "SUPER VIP Daily (₾)"}
+                      </label>
+                      <input
+                        name="superVipDailyGel"
+                        type="number"
+                        dir="ltr"
+                        defaultValue={initialSettings.superVipDailyGel || "10"}
+                        className="h-8 w-full rounded-lg border border-gray-200 bg-white px-2 text-left text-xs font-bold"
+                      />
+                    </div>
+                  </div>
+
                   <p className="mb-2 text-[11px] font-bold text-[#105C50]">
-                    {t.gePackagesTitle}
+                    {isAr
+                      ? "أسعار باقات التمييز (7 / 14 / 30 يوم باللاري ₾)"
+                      : t.gePackagesTitle}
                   </p>
                   <div className="grid grid-cols-3 gap-2">
                     <div>
                       <label className="mb-1 block text-[10px] font-bold text-gray-600">
-                        {t.days7}
+                        {t.days7} (₾)
                       </label>
                       <input
                         name="promo_GE_7"
                         type="number"
-                        defaultValue={initialSettings.promo_GE_7 || "29"}
-                        className="h-8 w-full rounded-lg border border-gray-200 bg-white px-2 text-xs font-bold"
+                        dir="ltr"
+                        defaultValue={initialSettings.promo_GE_7 || "20"}
+                        className="h-8 w-full rounded-lg border border-gray-200 bg-white px-2 text-left text-xs font-bold"
                       />
                     </div>
                     <div>
                       <label className="mb-1 block text-[10px] font-bold text-gray-600">
-                        {t.days14}
+                        {t.days14} (₾)
                       </label>
                       <input
                         name="promo_GE_14"
                         type="number"
-                        defaultValue={initialSettings.promo_GE_14 || "49"}
-                        className="h-8 w-full rounded-lg border border-gray-200 bg-white px-2 text-xs font-bold"
+                        dir="ltr"
+                        defaultValue={initialSettings.promo_GE_14 || "50"}
+                        className="h-8 w-full rounded-lg border border-gray-200 bg-white px-2 text-left text-xs font-bold"
                       />
                     </div>
                     <div>
                       <label className="mb-1 block text-[10px] font-bold text-gray-600">
-                        {t.days30}
+                        {t.days30} (₾)
                       </label>
                       <input
                         name="promo_GE_30"
                         type="number"
-                        defaultValue={initialSettings.promo_GE_30 || "69"}
-                        className="h-8 w-full rounded-lg border border-gray-200 bg-white px-2 text-xs font-bold"
+                        dir="ltr"
+                        defaultValue={initialSettings.promo_GE_30 || "100"}
+                        className="h-8 w-full rounded-lg border border-gray-200 bg-white px-2 text-left text-xs font-bold"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-1 gap-2 border-t border-amber-200/60 pt-2.5">
+                    <div>
+                      <label className="mb-1 block text-[10px] font-bold text-gray-600">
+                        {isAr ? "رقم الحساب البنكي الجورجي (IBAN)" : "Georgia Bank IBAN"}
+                      </label>
+                      <input
+                        name="bankIbanGe"
+                        dir="ltr"
+                        defaultValue={
+                          initialSettings.bankIbanGe ||
+                          "GE00TB0000000000000000"
+                        }
+                        className="h-8 w-full rounded-lg border border-gray-200 bg-white px-2.5 text-left font-mono text-xs font-bold"
                       />
                     </div>
                   </div>

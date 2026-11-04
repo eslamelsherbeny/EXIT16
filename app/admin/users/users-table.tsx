@@ -8,6 +8,7 @@ import {
   Calendar,
   CheckCircle2,
   Download,
+  FileText,
   Info,
   Loader2,
   Mail,
@@ -21,7 +22,11 @@ import {
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { downloadExcelCsv, EXPORT_LABELS } from "@/lib/export-csv"
+import {
+  downloadExcelCsv,
+  downloadOfficialPdfReport,
+  EXPORT_LABELS,
+} from "@/lib/export-csv"
 import { useTranslation } from "@/lib/i18n"
 import {
   createAdminOrUserAction,
@@ -213,8 +218,9 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
     return true
   })
 
-  function exportUsersToExcel(
+  function exportUsersReport(
     rowsToExport: AdminUserRow[],
+    format: "excel" | "pdf" = "excel",
     prefix = "AqarExit_Users",
     customTitle?: string
   ) {
@@ -225,39 +231,59 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
         ? `${expL.singleUserReportTitle} — ${rowsToExport[0].name}`
         : expL.usersReportTitle)
 
-    downloadExcelCsv({
-      filenamePrefix: `${prefix}_${locale.toUpperCase()}`,
-      reportTitle: resolvedTitle,
-      locale,
-      data: rowsToExport,
-      columns: [
-        { header: c.index, accessor: (_, idx) => idx + 1 },
-        { header: c.buyerName, accessor: (u) => u.name },
-        { header: c.buyerPhone, accessor: (u) => u.phone, isPhone: true },
-        { header: c.buyerEmail, accessor: (u) => u.email },
-        { header: c.userRole, accessor: (u) => getRoleLabel(u.role) },
-        { header: c.sellUnitsCount, accessor: (u) => u.sellCount },
-        { header: c.buyRequestsCount, accessor: (u) => u.buyCount },
-        {
-          header: c.verification,
-          accessor: (u) =>
-            u.emailVerified || u.phoneVerified
-              ? expL.verified
-              : expL.unverified,
-        },
-        {
-          header: c.status,
-          accessor: (u) =>
-            u.status === "suspended"
-              ? expL.suspendedStatus
-              : expL.activeStatus,
-        },
-        {
-          header: c.createdAt,
-          accessor: (u) => new Date(u.created_at).toLocaleDateString("en-GB"),
-        },
-      ],
-    })
+    const columns = [
+      { header: c.index, accessor: (_: AdminUserRow, idx: number) => idx + 1 },
+      { header: c.buyerName, accessor: (u: AdminUserRow) => u.name },
+      {
+        header: c.buyerPhone,
+        accessor: (u: AdminUserRow) => u.phone,
+        isPhone: true,
+      },
+      { header: c.buyerEmail, accessor: (u: AdminUserRow) => u.email },
+      {
+        header: c.userRole,
+        accessor: (u: AdminUserRow) => getRoleLabel(u.role),
+      },
+      { header: c.sellUnitsCount, accessor: (u: AdminUserRow) => u.sellCount },
+      { header: c.buyRequestsCount, accessor: (u: AdminUserRow) => u.buyCount },
+      {
+        header: c.verification,
+        accessor: (u: AdminUserRow) =>
+          u.emailVerified || u.phoneVerified
+            ? expL.verified
+            : expL.unverified,
+      },
+      {
+        header: c.status,
+        accessor: (u: AdminUserRow) =>
+          u.status === "suspended"
+            ? expL.suspendedStatus
+            : expL.activeStatus,
+      },
+      {
+        header: c.createdAt,
+        accessor: (u: AdminUserRow) =>
+          new Date(u.created_at).toLocaleDateString("en-GB"),
+      },
+    ]
+
+    if (format === "pdf") {
+      downloadOfficialPdfReport({
+        filenamePrefix: `${prefix}_${locale.toUpperCase()}`,
+        reportTitle: resolvedTitle,
+        locale,
+        columns,
+        data: rowsToExport,
+      })
+    } else {
+      downloadExcelCsv({
+        filenamePrefix: `${prefix}_${locale.toUpperCase()}`,
+        reportTitle: resolvedTitle,
+        locale,
+        columns,
+        data: rowsToExport,
+      })
+    }
   }
 
   function renderThreeDotsMenu(user: AdminUserRow, isSuspended: boolean) {
@@ -313,21 +339,42 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
               <span>{isSuspended ? t.activateBtn : t.suspendBtn}</span>
             </button>
 
+            <div className="my-1 border-t border-gray-100" />
+
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation()
                 setOpenMenuId(null)
-                exportUsersToExcel(
+                exportUsersReport(
                   [user],
+                  "excel",
+                  `AqarExit_User_${user.id.slice(0, 6)}`,
+                  `${expL.singleUserReportTitle} (${user.name})`
+                )
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-emerald-800 transition hover:bg-emerald-50"
+            >
+              <Download className="size-3.5 text-[#105C50]" />
+              <span>{expL.exportRowBtn}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                setOpenMenuId(null)
+                exportUsersReport(
+                  [user],
+                  "pdf",
                   `AqarExit_User_${user.id.slice(0, 6)}`,
                   `${expL.singleUserReportTitle} (${user.name})`
                 )
               }}
               className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-blue-700 transition hover:bg-blue-50"
             >
-              <Download className="size-3.5 text-blue-600" />
-              <span>{expL.exportRowBtn}</span>
+              <FileText className="size-3.5 text-blue-600" />
+              <span>{expL.exportRowPdfBtn}</span>
             </button>
 
             <div className="my-1 border-t border-gray-100" />
@@ -370,16 +417,34 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
             type="button"
             disabled={filtered.length === 0}
             onClick={() =>
-              exportUsersToExcel(
+              exportUsersReport(
                 filtered,
+                "excel",
                 "AqarExit_Users_Directory",
                 expL.usersReportTitle
               )
             }
-            className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 text-xs font-extrabold text-[#105C50] transition hover:bg-[#105C50] hover:text-white disabled:opacity-40 sm:flex-none"
+            className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 text-xs font-extrabold text-[#105C50] transition hover:bg-[#105C50] hover:text-white disabled:opacity-40 sm:flex-none"
           >
             <Download className="size-4" />
             <span>{expL.exportAllBtn}</span>
+          </button>
+
+          <button
+            type="button"
+            disabled={filtered.length === 0}
+            onClick={() =>
+              exportUsersReport(
+                filtered,
+                "pdf",
+                "AqarExit_Users_Directory",
+                expL.usersReportTitle
+              )
+            }
+            className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-[#0a1122] px-3.5 text-xs font-extrabold text-white transition hover:bg-[#16223f] disabled:opacity-40 sm:flex-none"
+          >
+            <FileText className="size-4 text-emerald-400" />
+            <span>{expL.exportPdfBtn}</span>
           </button>
 
           <Button

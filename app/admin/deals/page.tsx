@@ -40,10 +40,15 @@ function generateOfferRefCode(offerId: string): string {
   return `OF-${clean.slice(0, 6) || '1001'}`
 }
 
-function deriveUnitCode(id: string) {
-  const digits = String(id || '').replace(/\D/g, '')
-  const num = digits ? Number(digits.slice(-4)) : 100
-  return `U-${String(num).padStart(5, '0')}`
+function deriveUnitCode(id: string, dbCode?: string | null) {
+  if (dbCode && String(dbCode).trim()) return String(dbCode).trim()
+  const numericCode = String(id || '')
+    .replace(/\D/g, '')
+    .slice(0, 5)
+  const fallbackCode = String(id || '')
+    .slice(0, 5)
+    .toUpperCase()
+  return `U-${numericCode.length >= 4 ? numericCode : fallbackCode}`
 }
 
 function cleanAreaDisplay(rawArea: string | null | undefined, locale: string) {
@@ -263,7 +268,7 @@ function AdminDealsContent() {
         const buyerDigits = String(o.buyer_phone || '').replace(/\D/g, '')
         const sellerDigits = String(unit.phone || '').replace(/\D/g, '')
         const refCode = generateOfferRefCode(o.id).toLowerCase()
-        const uCode = deriveUnitCode(unit.id).toLowerCase()
+        const uCode = deriveUnitCode(unit.id, unit.code).toLowerCase()
         const haystack =
           `${o.id} ${refCode} ${uCode} ${o.buyer_name || ''} ${o.buyer_phone || ''} ${unit.project_name || ''} ${unit.name || ''} ${unit.phone || ''}`.toLowerCase()
         const phoneMatched =
@@ -403,7 +408,7 @@ function AdminDealsContent() {
             if (!unit) return null
 
             const offerRef = generateOfferRefCode(offer.id)
-            const uCode = deriveUnitCode(unit.id)
+            const uCode = deriveUnitCode(unit.id, unit.code)
             const areaName = cleanAreaDisplay(unit.area, locale)
             const offeredCash = Number(offer.offered_cash) || 0
             const requiredCash =

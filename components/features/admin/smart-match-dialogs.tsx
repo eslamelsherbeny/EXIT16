@@ -37,10 +37,25 @@ import {
 const PENDING_ADMIN_TAG = "__PENDING_ADMIN_VERIFICATION__"
 const AUTO_PUBLISH_THRESHOLD = 80
 
-function deriveShortUnitCode(id: string) {
-  const digits = String(id || "").replace(/\D/g, "")
-  const num = digits ? Number(digits.slice(-4)) : 100
-  return `U-${String(num).padStart(5, "0")}`
+function deriveShortUnitCode(id: string, dbCode?: string | null) {
+  if (dbCode && String(dbCode).trim()) return String(dbCode).trim()
+  const numericCode = String(id || "")
+    .replace(/\D/g, "")
+    .slice(0, 5)
+  const fallbackCode = String(id || "")
+    .slice(0, 5)
+    .toUpperCase()
+  return `U-${numericCode.length >= 4 ? numericCode : fallbackCode}`
+}
+
+function isUnitEligibleForSmartMatch(status?: string | null): boolean {
+  const clean = String(status || "active").trim().toLowerCase()
+  return (
+    clean === "active" ||
+    clean === "approved" ||
+    clean === "published" ||
+    clean === "offer_received"
+  )
 }
 
 function cleanAreaName(rawArea: string | null | undefined, locale: string) {
@@ -51,9 +66,6 @@ function cleanAreaName(rawArea: string | null | undefined, locale: string) {
   return localized
 }
 
-/**
- * تحويل جمل التوافق من صيغة المخاطب للعميل ("سيولتك / قدرتك") إلى صيغة تقرير مختصر للأدمن
- */
 function formatReasonForAdmin(text: string, locale: string): string {
   if (locale !== "ar") return text
   return text
@@ -111,6 +123,7 @@ export function UnitSmartMatchModal({
   const matchPrefix = sm.matchScorePrefix || buyerDict.matchScorePrefix || ""
   const localizedUnitArea = cleanAreaName(unit.area, locale)
   const unitPhoneDigits = String(unit.phone || "").replace(/\D/g, "")
+  const uOfficialCode = deriveShortUnitCode(unit.id, unit.code)
 
   const unitHasAcceptedOffer = offers.some(
     (o) =>
@@ -136,7 +149,9 @@ export function UnitSmartMatchModal({
       const existingOffer = offers.find(
         (o) =>
           String(o.property_id) === String(unit.id) &&
-          String(o.lead_id || "") === String(buyer.id)
+          (String(o.lead_id || "") === String(buyer.id) ||
+            (buyer.user_id &&
+              String(o.buyer_user_id || "") === String(buyer.user_id)))
       )
       return {
         buyer,
@@ -242,7 +257,7 @@ export function UnitSmartMatchModal({
     <Dialog open={Boolean(unit)} onOpenChange={(o) => !o && onClose()}>
       <DialogContent
         dir={dir}
-        className="max-h-[88vh] w-[95vw] max-w-[540px] overflow-x-hidden overflow-y-auto rounded-2xl p-4 text-start sm:p-5"
+        className="max-h-[88vh] w-[95vw] max-w-[560px] overflow-x-hidden overflow-y-auto rounded-2xl p-4 text-start sm:p-5"
       >
         <DialogHeader className="border-b border-gray-100 pb-3 text-start">
           <div className="flex flex-col gap-2 pe-6 sm:flex-row sm:items-center sm:justify-between">
@@ -285,7 +300,10 @@ export function UnitSmartMatchModal({
             <strong dir="ltr" className="text-[#105C50]">
               {Number(unit.paid_amount || 0).toLocaleString("en-US")} {unitCur}
             </strong>{" "}
-            · {localizedUnitArea} · {deriveShortUnitCode(unit.id)}
+            · {localizedUnitArea} ·{" "}
+            <span className="font-mono font-bold text-[#0a1122]">
+              {uOfficialCode}
+            </span>
           </DialogDescription>
         </DialogHeader>
 
@@ -300,7 +318,7 @@ export function UnitSmartMatchModal({
                 const bCash = Number(
                   buyer.available_cash || buyer.budget || 0
                 ).toLocaleString("en-US")
-                const bWa = `${leadsPrompts.waUnitLeadPrefix} ${buyer.name || ""}، ${leadsPrompts.waUnitLeadMiddle} (${unit.project_name || ""} - ${localizedUnitArea}) — ${matchPrefix} ${match.score}%`
+                const bWa = `${leadsPrompts.waUnitLeadPrefix} ${buyer.name || ""}، ${leadsPrompts.waUnitLeadMiddle} (${unit.project_name || ""} - ${localizedUnitArea} - ${uOfficialCode}) — ${matchPrefix} ${match.score}%`
 
                 const recKey = `rec_${unit.id}_${buyer.id}`
                 const offKey = `off_${unit.id}_${buyer.id}`
@@ -320,7 +338,6 @@ export function UnitSmartMatchModal({
                     key={buyer.id}
                     className="overflow-hidden rounded-xl border border-gray-200/90 bg-white p-3.5 text-xs shadow-2xs"
                   >
-                    {/* هيدر البطاقة: الاسم والهاتف في سطر كامل واضح على الموبايل والشارات تحته أو بجانبه في الشاشات الأكبر */}
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                       <div className="w-full sm:w-auto sm:min-w-0 sm:flex-1">
                         <div className="flex items-center justify-between gap-2 sm:block">
@@ -530,7 +547,7 @@ export function BuyerSmartMatchModal({
 
   const matchedUnitsList = (units || [])
     .filter((u) => {
-      if (u.status !== "active" && u.status !== "offer_received") return false
+      if (!isUnitEligibleForSmartMatch(u.status)) return false
       if (lead.user_id && u.user_id && String(u.user_id) === String(lead.user_id))
         return false
       const uPhoneDigits = String(u.phone || "").replace(/\D/g, "")
@@ -547,7 +564,9 @@ export function BuyerSmartMatchModal({
       const existingOffer = offers.find(
         (o) =>
           String(o.property_id) === String(unit.id) &&
-          String(o.lead_id || "") === String(lead.id)
+          (String(o.lead_id || "") === String(lead.id) ||
+            (lead.user_id &&
+              String(o.buyer_user_id || "") === String(lead.user_id)))
       )
       const unitLockedBySomeone = offers.some(
         (o) =>
@@ -659,7 +678,7 @@ export function BuyerSmartMatchModal({
     <Dialog open={Boolean(lead)} onOpenChange={(o) => !o && onClose()}>
       <DialogContent
         dir={dir}
-        className="max-h-[88vh] w-[95vw] max-w-[540px] overflow-x-hidden overflow-y-auto rounded-2xl p-4 text-start sm:p-5"
+        className="max-h-[88vh] w-[95vw] max-w-[560px] overflow-x-hidden overflow-y-auto rounded-2xl p-4 text-start sm:p-5"
       >
         <DialogHeader className="border-b border-gray-100 pb-3 text-start">
           <div className="flex flex-col gap-2 pe-6 sm:flex-row sm:items-center sm:justify-between">
@@ -724,6 +743,7 @@ export function BuyerSmartMatchModal({
                   "en-US"
                 )
                 const localizedArea = cleanAreaName(unit.area, locale)
+                const uOfficialCode = deriveShortUnitCode(unit.id, unit.code)
                 const recKey = `rec_${unit.id}_${lead.id}`
                 const offKey = `off_${unit.id}_${lead.id}`
                 const isAutoPublished = match.score >= AUTO_PUBLISH_THRESHOLD
@@ -742,15 +762,14 @@ export function BuyerSmartMatchModal({
                     key={unit.id}
                     className="overflow-hidden rounded-xl border border-gray-200/90 bg-white p-3.5 text-xs shadow-2xs"
                   >
-                    {/* هيدر البطاقة: اسم المشروع والمنطقة في سطر كامل واضح والشارات مرتبة تحته */}
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                       <div className="w-full sm:w-auto sm:min-w-0 sm:flex-1">
                         <div className="flex items-center justify-between gap-2 sm:block">
                           <p className="text-sm font-black break-words text-[#0a1122]">
                             {unit.project_name || "—"} · {localizedArea}
                           </p>
-                          <span className="inline-block shrink-0 rounded bg-gray-100 px-2 py-0.5 font-mono text-[10px] font-bold text-gray-600 sm:mt-1">
-                            {deriveShortUnitCode(unit.id)}
+                          <span className="inline-block shrink-0 rounded bg-[#0a1122] px-2 py-0.5 font-mono text-[10px] font-bold text-white sm:mt-1">
+                            {uOfficialCode}
                           </span>
                         </div>
                       </div>

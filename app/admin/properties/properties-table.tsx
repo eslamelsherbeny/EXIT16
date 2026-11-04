@@ -87,6 +87,7 @@ export default function PropertiesTable({
   const isPromotionsPage = mode === "promotions"
 
   const { t: dict, locale, dir } = useTranslation()
+  const isAr = locale === "ar"
   const t = dict.admin.propertiesAdmin as Record<string, any>
   const propBadges = (t.badges as Record<string, string>) || {}
   const propNotices = (t.notices as Record<string, string>) || {}
@@ -521,8 +522,19 @@ export default function PropertiesTable({
         )}
 
         {isFeaturedActive && (
-          <span
-            className={`inline-flex items-center gap-1 rounded-md px-2.5 py-0.5 text-[10.5px] font-extrabold ${
+          <button
+            type="button"
+            onClick={() =>
+              setConfirmAction({
+                type: "promote",
+                property,
+                promoAction: "cancel",
+                days: property.featured_days || 14,
+                tier: isVipPlus ? "vip_plus" : "super_vip",
+              })
+            }
+            title={t.actions.cancelPromoBtn}
+            className={`inline-flex items-center gap-1 rounded-md px-2.5 py-0.5 text-[10.5px] font-extrabold transition hover:opacity-85 ${
               isVipPlus
                 ? "bg-indigo-100 text-indigo-900"
                 : "bg-orange-100 text-orange-900"
@@ -537,7 +549,7 @@ export default function PropertiesTable({
               {isVipPlus ? "+VIP" : "SUPER VIP"} ({property.featured_days || 14}{" "}
               {propBadges.dayWord})
             </span>
-          </span>
+          </button>
         )}
 
         {!isFeaturedActive &&
@@ -661,7 +673,7 @@ export default function PropertiesTable({
                 },
                 {
                   id: "all_units" as const,
-                  label: t.filters.manualPromoteTab,
+                  label: `${t.filters.manualPromoteTab} (${activeCount})`,
                 },
               ].map((tab) => (
                 <button
@@ -742,7 +754,7 @@ export default function PropertiesTable({
           </div>
         )}
 
-      {/* 1. عرض الموبايل */}
+      {/* 1. عرض الموبايل (تمت إضافة زرار الإيقاف المؤقت / النشر + زرار التمييز VIP بوضوح كامل) */}
       <div className="space-y-3.5 md:hidden">
         {filtered.length === 0 ? (
           <div className="rounded-xl border border-gray-200 bg-white p-8 text-center text-xs text-gray-500">
@@ -903,7 +915,90 @@ export default function PropertiesTable({
                   </select>
                 </div>
 
-                <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-gray-100 pt-2.5">
+                {/* شريط أزرار التحكم السريع للموبايل: إيقاف مؤقت / نشر + تمييز VIP */}
+                {currentSt !== "deleted_by_seller" && (
+                  <div className="mt-2.5 grid grid-cols-2 gap-2">
+                    {currentSt === "active" ? (
+                      <button
+                        type="button"
+                        disabled={pending}
+                        onClick={() =>
+                          setConfirmAction({
+                            type: "status",
+                            property,
+                            newStatus: "paused_by_seller",
+                          })
+                        }
+                        className="inline-flex h-8.5 items-center justify-center gap-1.5 rounded-xl border border-orange-300 bg-orange-50 px-3 text-xs font-extrabold text-orange-800 transition hover:bg-orange-100"
+                      >
+                        <EyeOff className="size-3.5 shrink-0" />
+                        <span>
+                          {isAr ? "إيقاف مؤقت" : t.actions.unpublishBtn}
+                        </span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={pending}
+                        onClick={() =>
+                          setConfirmAction({
+                            type: "status",
+                            property,
+                            newStatus: "active",
+                          })
+                        }
+                        className="inline-flex h-8.5 items-center justify-center gap-1.5 rounded-xl bg-[#105C50] px-3 text-xs font-extrabold text-white transition hover:bg-[#0c483f]"
+                      >
+                        <Check className="size-3.5 shrink-0" />
+                        <span>
+                          {t.actions.publishShortBtn ||
+                            (isAr ? "نشر بالسوق" : "Publish")}
+                        </span>
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() =>
+                        setConfirmAction({
+                          type: "promote",
+                          property,
+                          promoAction: isFeaturedActive
+                            ? "cancel"
+                            : "activate",
+                          days: property.featured_days || 14,
+                          tier:
+                            property.boost_tier === "vip_plus"
+                              ? "vip_plus"
+                              : "super_vip",
+                        })
+                      }
+                      className={`inline-flex h-8.5 items-center justify-center gap-1.5 rounded-xl border px-3 text-xs font-extrabold transition ${
+                        isFeaturedActive
+                          ? "border-amber-300 bg-amber-100 text-amber-900 hover:bg-amber-200"
+                          : "border-amber-400 bg-gradient-to-r from-[#ff6437] to-[#ff4f69] text-white shadow-2xs"
+                      }`}
+                    >
+                      <Star
+                        className={`size-3.5 shrink-0 ${
+                          isFeaturedActive ? "fill-amber-600" : "fill-white"
+                        }`}
+                      />
+                      <span>
+                        {isFeaturedActive
+                          ? isAr
+                            ? "إلغاء التمييز"
+                            : t.actions.cancelPromoBtn
+                          : isAr
+                            ? "تمييز VIP ⭐"
+                            : t.actions.promoteStarBtn}
+                      </span>
+                    </button>
+                  </div>
+                )}
+
+                <div className="mt-2.5 flex flex-wrap items-center gap-1.5 border-t border-gray-100 pt-2.5">
                   <Button
                     size="sm"
                     variant="outline"
@@ -953,7 +1048,7 @@ export default function PropertiesTable({
         )}
       </div>
 
-      {/* 2. عرض الكمبيوتر الاحترافي الجديد: بطاقات صفوف منفصلة بوضوح تام وفواصل بين الأعمدة */}
+      {/* 2. عرض الكمبيوتر الاحترافي: بطاقات صفوف منفصلة بوضوح تام */}
       <div className="hidden md:block">
         <div className="mb-3 flex items-center justify-between rounded-xl border border-gray-200/85 bg-white px-5 py-3.5 shadow-2xs">
           <h2 className="text-sm font-extrabold text-[#0a1122] sm:text-base">
@@ -988,7 +1083,6 @@ export default function PropertiesTable({
           </div>
         </div>
 
-        {/* شريط رؤوس الأعمدة */}
         <div className="mb-2.5 grid grid-cols-12 items-center gap-4 rounded-xl border border-slate-200/90 bg-slate-100/90 px-5 py-3 text-[11px] font-extrabold text-slate-600">
           <div className="col-span-4">{t.table.colProject}</div>
           <div className="col-span-2">{t.table.colCash}</div>
@@ -997,7 +1091,6 @@ export default function PropertiesTable({
           <div className="col-span-2 text-end">{t.table.colActions}</div>
         </div>
 
-        {/* صفوف الوحدات المنفصلة */}
         {filtered.length === 0 ? (
           <div className="rounded-2xl border border-gray-200 bg-white p-12 text-center text-xs font-bold text-gray-400">
             {t.table.emptyText}
@@ -1047,7 +1140,7 @@ export default function PropertiesTable({
                               : "border-slate-200/90"
                   }`}
                 >
-                  {/* العمود 1: بيانات المشروع والمنطقة والشارات */}
+                  {/* العمود 1: المشروع والمنطقة والشارات */}
                   <div className="col-span-4 min-w-0 pe-2">
                     <div className="flex items-center gap-2">
                       <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[11px] font-black text-slate-600">
@@ -1089,7 +1182,7 @@ export default function PropertiesTable({
                     </div>
                   </div>
 
-                  {/* العمود 2: الكاش المطلوب + سعر العقد والسوق */}
+                  {/* العمود 2: الكاش والعقد والسوق */}
                   <div className="col-span-2 border-s border-slate-100 ps-4">
                     <span className="block text-[10px] font-bold text-slate-400">
                       {t.table.colCash}
@@ -1272,12 +1365,12 @@ export default function PropertiesTable({
                           setConfirmAction({
                             type: "status",
                             property,
-                            newStatus: "pending",
+                            newStatus: "paused_by_seller",
                           })
                         }
                       >
                         <EyeOff className="me-1 size-3" />
-                        {t.actions.unpublishBtn}
+                        {isAr ? "إيقاف مؤقت" : t.actions.unpublishBtn}
                       </Button>
                     )}
 
@@ -1314,15 +1407,16 @@ export default function PropertiesTable({
                                 : "super_vip",
                           })
                         }
-                        className={`inline-flex size-8 items-center justify-center rounded-lg border transition ${
+                        className={`inline-flex h-8 items-center gap-1 rounded-lg border px-2.5 text-[11px] font-bold transition ${
                           isFeaturedActive
-                            ? "border-amber-300 bg-amber-100 text-amber-700 hover:bg-amber-200"
-                            : "border-gray-200 bg-gray-50 text-gray-500 hover:border-amber-300 hover:text-amber-600"
+                            ? "border-amber-300 bg-amber-100 text-amber-800 hover:bg-amber-200"
+                            : "border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100"
                         }`}
                       >
                         <Star
                           className={`size-3.5 ${isFeaturedActive ? "fill-amber-500" : ""}`}
                         />
+                        <span>{isFeaturedActive ? "VIP ✓" : "VIP"}</span>
                       </button>
                     )}
 

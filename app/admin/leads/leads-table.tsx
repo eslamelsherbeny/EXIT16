@@ -12,6 +12,7 @@ import {
   Download,
   ExternalLink,
   Eye,
+  FileText,
   Flame,
   Handshake,
   Loader2,
@@ -25,7 +26,11 @@ import {
   X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { downloadExcelCsv, EXPORT_LABELS } from "@/lib/export-csv"
+import {
+  downloadExcelCsv,
+  downloadOfficialPdfReport,
+  EXPORT_LABELS,
+} from "@/lib/export-csv"
 import { getCurrencySymbol, useTranslation } from "@/lib/i18n"
 import { calculateSmartMatch } from "@/lib/smart-matcher"
 import { BuyerSmartMatchModal } from "@/components/features/admin/smart-match-dialogs"
@@ -388,8 +393,9 @@ export default function LeadsClientTable({
     return true
   })
 
-  function exportLeadsToExcel(
+  function exportLeadsReport(
     rowsToExport: BuyerLead[],
+    format: "excel" | "pdf" = "excel",
     prefix = "AqarExit_Buyers",
     customTitle?: string
   ) {
@@ -400,80 +406,100 @@ export default function LeadsClientTable({
         ? `${expL.singleLeadReportTitle} — ${rowsToExport[0].name}`
         : expL.leadsReportTitle)
 
-    downloadExcelCsv({
-      filenamePrefix: `${prefix}_${locale.toUpperCase()}`,
-      reportTitle: resolvedTitle,
-      locale,
-      data: rowsToExport,
-      columns: [
-        { header: c.index, accessor: (_, idx) => idx + 1 },
-        { header: c.buyerName, accessor: (l) => l.name },
-        { header: c.buyerPhone, accessor: (l) => l.phone, isPhone: true },
-        { header: c.buyerEmail, accessor: (l) => l.email || "—" },
-        {
-          header: c.availableCash,
-          accessor: (l) => Number(l.available_cash || l.budget || 0),
-        },
-        {
-          header: c.maxInstallment,
-          accessor: (l) => Number(l.max_installment || 0),
-        },
-        {
-          header: c.targetAreas,
-          accessor: (l) =>
-            parseLeadDetails({
-              lead: l,
-              units,
-              offers,
-              locale,
-              dir,
-              leadsPrompts,
-            }).cleanTargetUnit,
-        },
-        {
-          header: c.unitType,
-          accessor: (l) =>
-            Array.isArray(l.unit_types) && l.unit_types.length > 0
-              ? l.unit_types.join(" / ")
-              : "—",
-        },
-        {
-          header: c.rooms,
-          accessor: (l) => (l.min_rooms ? `+${l.min_rooms}` : "—"),
-        },
-        {
-          header: c.leadType,
-          accessor: (l) =>
-            parseLeadDetails({
-              lead: l,
-              units,
-              offers,
-              locale,
-              dir,
-              leadsPrompts,
-            }).isUnitLead
-              ? expL.unitLeadType
-              : expL.generalLeadType,
-        },
-        {
-          header: c.notes,
-          accessor: (l) =>
-            parseLeadDetails({
-              lead: l,
-              units,
-              offers,
-              locale,
-              dir,
-              leadsPrompts,
-            }).customerNotes || "—",
-        },
-        { header: c.status, accessor: (l) => getLeadStatusLabel(l.status) },
-        {
-          header: c.createdAt,
-          accessor: (l) => new Date(l.created_at).toLocaleDateString("en-GB"),
-        },
-      ],
-    })
+    const columns = [
+      { header: c.index, accessor: (_: BuyerLead, idx: number) => idx + 1 },
+      { header: c.buyerName, accessor: (l: BuyerLead) => l.name },
+      {
+        header: c.buyerPhone,
+        accessor: (l: BuyerLead) => l.phone,
+        isPhone: true,
+      },
+      { header: c.buyerEmail, accessor: (l: BuyerLead) => l.email || "—" },
+      {
+        header: c.availableCash,
+        accessor: (l: BuyerLead) => Number(l.available_cash || l.budget || 0),
+      },
+      {
+        header: c.maxInstallment,
+        accessor: (l: BuyerLead) => Number(l.max_installment || 0),
+      },
+      {
+        header: c.targetAreas,
+        accessor: (l: BuyerLead) =>
+          parseLeadDetails({
+            lead: l,
+            units,
+            offers,
+            locale,
+            dir,
+            leadsPrompts,
+          }).cleanTargetUnit,
+      },
+      {
+        header: c.unitType,
+        accessor: (l: BuyerLead) =>
+          Array.isArray(l.unit_types) && l.unit_types.length > 0
+            ? l.unit_types.join(" / ")
+            : "—",
+      },
+      {
+        header: c.rooms,
+        accessor: (l: BuyerLead) => (l.min_rooms ? `+${l.min_rooms}` : "—"),
+      },
+      {
+        header: c.leadType,
+        accessor: (l: BuyerLead) =>
+          parseLeadDetails({
+            lead: l,
+            units,
+            offers,
+            locale,
+            dir,
+            leadsPrompts,
+          }).isUnitLead
+            ? expL.unitLeadType
+            : expL.generalLeadType,
+      },
+      {
+        header: c.notes,
+        accessor: (l: BuyerLead) =>
+          parseLeadDetails({
+            lead: l,
+            units,
+            offers,
+            locale,
+            dir,
+            leadsPrompts,
+          }).customerNotes || "—",
+      },
+      {
+        header: c.status,
+        accessor: (l: BuyerLead) => getLeadStatusLabel(l.status),
+      },
+      {
+        header: c.createdAt,
+        accessor: (l: BuyerLead) =>
+          new Date(l.created_at).toLocaleDateString("en-GB"),
+      },
+    ]
+
+    if (format === "pdf") {
+      downloadOfficialPdfReport({
+        filenamePrefix: `${prefix}_${locale.toUpperCase()}`,
+        reportTitle: resolvedTitle,
+        locale,
+        columns,
+        data: rowsToExport,
+      })
+    } else {
+      downloadExcelCsv({
+        filenamePrefix: `${prefix}_${locale.toUpperCase()}`,
+        reportTitle: resolvedTitle,
+        locale,
+        columns,
+        data: rowsToExport,
+      })
+    }
   }
 
   function renderThreeDotsMenu(
@@ -534,6 +560,7 @@ export default function LeadsClientTable({
                   <Building2 className="size-3.5 text-[#105C50]" />
                   <span>{dict.admin?.shell?.nav?.properties}</span>
                 </Link>
+                <div className="my-1 border-t border-gray-100" />
               </>
             )}
 
@@ -542,16 +569,35 @@ export default function LeadsClientTable({
               onClick={(e) => {
                 e.stopPropagation()
                 setOpenMenuId(null)
-                exportLeadsToExcel(
+                exportLeadsReport(
                   [lead],
+                  "excel",
+                  `AqarExit_Buyer_${lead.id.slice(0, 6)}`,
+                  `${expL.singleLeadReportTitle} (${lead.name})`
+                )
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-emerald-800 transition hover:bg-emerald-50"
+            >
+              <Download className="size-3.5 text-[#105C50]" />
+              <span>{expL.exportRowBtn}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                setOpenMenuId(null)
+                exportLeadsReport(
+                  [lead],
+                  "pdf",
                   `AqarExit_Buyer_${lead.id.slice(0, 6)}`,
                   `${expL.singleLeadReportTitle} (${lead.name})`
                 )
               }}
               className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-blue-700 transition hover:bg-blue-50"
             >
-              <Download className="size-3.5 text-blue-600" />
-              <span>{expL.exportRowBtn}</span>
+              <FileText className="size-3.5 text-blue-600" />
+              <span>{expL.exportRowPdfBtn}</span>
             </button>
 
             <div className="my-1 border-t border-gray-100" />
@@ -649,8 +695,8 @@ export default function LeadsClientTable({
       )}
 
       <div className="mb-4 flex flex-col gap-3 rounded-xl border border-gray-200/80 bg-white p-3.5 shadow-2xs sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-        <div className="flex w-full items-center gap-2 sm:max-w-md sm:flex-1">
-          <div className="relative flex-1">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:max-w-xl sm:flex-1">
+          <div className="relative min-w-[180px] flex-1">
             <Search className="pointer-events-none absolute top-1/2 end-3 size-4 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
@@ -665,8 +711,9 @@ export default function LeadsClientTable({
             type="button"
             disabled={filtered.length === 0}
             onClick={() =>
-              exportLeadsToExcel(
+              exportLeadsReport(
                 filtered,
+                "excel",
                 "AqarExit_Buyers_Leads",
                 expL.leadsReportTitle
               )
@@ -675,6 +722,23 @@ export default function LeadsClientTable({
           >
             <Download className="size-3.5" />
             <span>{expL.exportAllBtn}</span>
+          </button>
+
+          <button
+            type="button"
+            disabled={filtered.length === 0}
+            onClick={() =>
+              exportLeadsReport(
+                filtered,
+                "pdf",
+                "AqarExit_Buyers_Leads",
+                expL.leadsReportTitle
+              )
+            }
+            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-slate-300 bg-[#0a1122] px-3 text-xs font-extrabold text-white transition hover:bg-[#16223f] disabled:opacity-40"
+          >
+            <FileText className="size-3.5 text-emerald-400" />
+            <span>{expL.exportPdfBtn}</span>
           </button>
         </div>
 

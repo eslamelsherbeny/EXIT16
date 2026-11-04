@@ -22,6 +22,7 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 const PENDING_ADMIN_TAG = '__PENDING_ADMIN_VERIFICATION__'
+const AUTO_PUBLISH_MATCH_THRESHOLD = 80
 
 function normalizeOfferStatus(raw: any): string {
   const rawDiffs = Array.isArray(raw?.diff_reasons) ? raw.diff_reasons : []
@@ -81,7 +82,6 @@ export default async function AccountPage({
     redirect('/login?expired=1')
   }
 
-  // فحص أمني صارم لتوقيع الـ HMAC-SHA256 ومطابقته لبصمة كلمة المرور في قاعدة البيانات
   const sessionCheck = parseAndVerifySessionCookie(
     rawSession,
     profile.password_hash
@@ -179,12 +179,23 @@ export default async function AccountPage({
     offersCountMap[unit.id] = unitApprovedOffers.length
 
     let totalMatchingBuyersCount = 0
+    const unitPhoneDigits = String((unit as any).phone || '').replace(/\D/g, '')
+
     allBuyersForMatch.forEach((b: any) => {
       if (!b || !b.id) return
       if (b.user_id && String(b.user_id) === String(profile.id)) return
+      const bPhoneDigits = String(b.phone || '').replace(/\D/g, '')
+      if (
+        bPhoneDigits.length >= 8 &&
+        unitPhoneDigits.length >= 8 &&
+        bPhoneDigits.slice(-8) === unitPhoneDigits.slice(-8)
+      ) {
+        return
+      }
       try {
         const res = calculateSmartMatch(unit, b, undefined, locale)
-        if (res.score >= 65) {
+        // موحد على 60% تماماً مثل جدول عقارات الأدمن
+        if (res.score >= 60) {
           totalMatchingBuyersCount++
         }
       } catch {}
@@ -207,6 +218,18 @@ export default async function AccountPage({
     directBuyerOffers.map((o: any) => String(o.property_id))
   )
 
+  const adminRecUnitIds = new Set(
+    allOffers
+      .filter(
+        (o: any) =>
+          o &&
+          normalizeOfferStatus(o) === 'recommended' &&
+          (String(o.buyer_user_id || '') === String(profile.id) ||
+            (o.lead_id && myLeadIds.has(String(o.lead_id))))
+      )
+      .map((o: any) => String(o.property_id))
+  )
+
   const mainBuyerReq =
     buys.find((b) => {
       const areasStr = Array.isArray(b.preferred_areas)
@@ -222,12 +245,14 @@ export default async function AccountPage({
     const seenSignatures = new Set<string>()
     georgiaMarketUnits.forEach((u) => {
       try {
-        if (myUnitIds.has(String(u.id)) || offeredUnitIds.has(String(u.id)))
-          return
+        const uIdStr = String(u.id)
+        if (myUnitIds.has(uIdStr) || offeredUnitIds.has(uIdStr)) return
         const m = calculateSmartMatch(u, mainBuyerReq, undefined, locale)
-        if (m.score >= 70) {
+        const isFromAdmin = adminRecUnitIds.has(uIdStr)
+        // موحد على 80% للظهور التلقائي أو الترشيح اليدوي من الأدمن تماماً مثل صفحة /account/offers
+        if (isFromAdmin || m.score >= AUTO_PUBLISH_MATCH_THRESHOLD) {
           const sig = `${u.project_name || ''}_${u.area || ''}_${u.paid_amount || 0}_${u.unit_type || ''}`
-          if (!seenSignatures.has(sig)) {
+          if (isFromAdmin || !seenSignatures.has(sig)) {
             seenSignatures.add(sig)
             smartMatchesForBuyerCount++
           }

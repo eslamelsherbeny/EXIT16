@@ -12,6 +12,7 @@ import {
   Clock,
   Download,
   ExternalLink,
+  FileText,
   Flame,
   Handshake,
   Loader2,
@@ -30,7 +31,11 @@ import {
   adminGetDealsRoomDataAction,
   adminManageOfferLifecycleAction,
 } from '@/actions/offer-actions'
-import { downloadExcelCsv, EXPORT_LABELS } from '@/lib/export-csv'
+import {
+  downloadExcelCsv,
+  downloadOfficialPdfReport,
+  EXPORT_LABELS,
+} from '@/lib/export-csv'
 import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
 import { getCurrencySymbol, useTranslation } from '@/lib/i18n'
 
@@ -304,8 +309,9 @@ function AdminDealsContent() {
     return d.statusRejected
   }
 
-  function exportDealsToExcel(
+  function exportDealsReport(
     rowsToExport: any[],
+    format: 'excel' | 'pdf' = 'excel',
     prefix = 'AqarExit_Deals',
     customTitle?: string
   ) {
@@ -316,109 +322,119 @@ function AdminDealsContent() {
         ? `${expL.singleDealReportTitle} — ${generateOfferRefCode(rowsToExport[0].id)}`
         : expL.dealsReportTitle)
 
-    downloadExcelCsv({
-      filenamePrefix: `${prefix}_${locale.toUpperCase()}`,
-      reportTitle: resolvedTitle,
-      locale,
-      data: rowsToExport,
-      columns: [
-        { header: c.index, accessor: (_, idx) => idx + 1 },
-        { header: c.offerRef, accessor: (o) => generateOfferRefCode(o.id) },
-        {
-          header: c.unitCode,
-          accessor: (o) => {
-            const u = unitsMap[String(o.property_id)]
-            return u ? deriveUnitCode(u.id, u.code) : '—'
-          },
+    const columns = [
+      { header: c.index, accessor: (_: any, idx: number) => idx + 1 },
+      { header: c.offerRef, accessor: (o: any) => generateOfferRefCode(o.id) },
+      {
+        header: c.unitCode,
+        accessor: (o: any) => {
+          const u = unitsMap[String(o.property_id)]
+          return u ? deriveUnitCode(u.id, u.code) : '—'
         },
-        {
-          header: c.projectName,
-          accessor: (o) =>
-            unitsMap[String(o.property_id)]?.project_name || d.unitFallback,
+      },
+      {
+        header: c.projectName,
+        accessor: (o: any) =>
+          unitsMap[String(o.property_id)]?.project_name || d.unitFallback,
+      },
+      {
+        header: c.area,
+        accessor: (o: any) =>
+          cleanAreaDisplay(unitsMap[String(o.property_id)]?.area, locale),
+      },
+      {
+        header: c.buyerName,
+        accessor: (o: any) => o.buyer_name || d.buyerFallback,
+      },
+      {
+        header: c.buyerPhone,
+        accessor: (o: any) => o.buyer_phone || '—',
+        isPhone: true,
+      },
+      {
+        header: c.sellerName,
+        accessor: (o: any) =>
+          unitsMap[String(o.property_id)]?.name || d.sellerFallback,
+      },
+      {
+        header: c.sellerPhone,
+        accessor: (o: any) => unitsMap[String(o.property_id)]?.phone || '—',
+        isPhone: true,
+      },
+      {
+        header: c.requiredCash,
+        accessor: (o: any) =>
+          Number(
+            unitsMap[String(o.property_id)]?.paid_amount ||
+              o.required_cash ||
+              0
+          ),
+      },
+      {
+        header: c.offeredCash,
+        accessor: (o: any) => Number(o.offered_cash || 0),
+      },
+      {
+        header: c.counterCash,
+        accessor: (o: any) =>
+          o.counter_cash ? Number(o.counter_cash) : '—',
+      },
+      {
+        header: c.commission,
+        accessor: (o: any) => {
+          const u = unitsMap[String(o.property_id)]
+          const contract =
+            Number(u?.contract_price || u?.paid_amount || o.offered_cash) || 0
+          return Math.round(contract * (commPct / 100))
         },
-        {
-          header: c.area,
-          accessor: (o) =>
-            cleanAreaDisplay(
-              unitsMap[String(o.property_id)]?.area,
-              locale
-            ),
-        },
-        {
-          header: c.buyerName,
-          accessor: (o) => o.buyer_name || d.buyerFallback,
-        },
-        {
-          header: c.buyerPhone,
-          accessor: (o) => o.buyer_phone || '—',
-          isPhone: true,
-        },
-        {
-          header: c.sellerName,
-          accessor: (o) =>
-            unitsMap[String(o.property_id)]?.name || d.sellerFallback,
-        },
-        {
-          header: c.sellerPhone,
-          accessor: (o) => unitsMap[String(o.property_id)]?.phone || '—',
-          isPhone: true,
-        },
-        {
-          header: c.requiredCash,
-          accessor: (o) =>
-            Number(
-              unitsMap[String(o.property_id)]?.paid_amount ||
-                o.required_cash ||
-                0
-            ),
-        },
-        {
-          header: c.offeredCash,
-          accessor: (o) => Number(o.offered_cash || 0),
-        },
-        {
-          header: c.counterCash,
-          accessor: (o) => (o.counter_cash ? Number(o.counter_cash) : '—'),
-        },
-        {
-          header: c.commission,
-          accessor: (o) => {
-            const u = unitsMap[String(o.property_id)]
-            const contract =
-              Number(u?.contract_price || u?.paid_amount || o.offered_cash) || 0
-            return Math.round(contract * (commPct / 100))
-          },
-        },
-        {
-          header: c.readiness,
-          accessor: (o) =>
-            o.payment_readiness === '48h'
-              ? d.readiness48h
-              : o.payment_readiness === '1_week'
-                ? d.readiness1Week
-                : d.readiness2Weeks,
-        },
-        {
-          header: c.paymentMethod,
-          accessor: (o) =>
-            o.payment_method === 'bank_check'
-              ? d.methodCheck
-              : d.methodTransfer,
-        },
-        {
-          header: c.status,
-          accessor: (o) =>
-            getDealStatusLabel(o, unitsMap[String(o.property_id)]),
-        },
-        {
-          header: c.createdAt,
-          accessor: (o) =>
-            o.created_at
-              ? new Date(o.created_at).toLocaleDateString('en-GB')
-              : '—',
-        },
-      ],
-    })
+      },
+      {
+        header: c.readiness,
+        accessor: (o: any) =>
+          o.payment_readiness === '48h'
+            ? d.readiness48h
+            : o.payment_readiness === '1_week'
+              ? d.readiness1Week
+              : d.readiness2Weeks,
+      },
+      {
+        header: c.paymentMethod,
+        accessor: (o: any) =>
+          o.payment_method === 'bank_check'
+            ? d.methodCheck
+            : d.methodTransfer,
+      },
+      {
+        header: c.status,
+        accessor: (o: any) =>
+          getDealStatusLabel(o, unitsMap[String(o.property_id)]),
+      },
+      {
+        header: c.createdAt,
+        accessor: (o: any) =>
+          o.created_at
+            ? new Date(o.created_at).toLocaleDateString('en-GB')
+            : '—',
+      },
+    ]
+
+    if (format === 'pdf') {
+      downloadOfficialPdfReport({
+        filenamePrefix: `${prefix}_${locale.toUpperCase()}`,
+        reportTitle: resolvedTitle,
+        locale,
+        columns,
+        data: rowsToExport,
+      })
+    } else {
+      downloadExcelCsv({
+        filenamePrefix: `${prefix}_${locale.toUpperCase()}`,
+        reportTitle: resolvedTitle,
+        locale,
+        columns,
+        data: rowsToExport,
+      })
+    }
   }
 
   return (
@@ -440,8 +456,9 @@ function AdminDealsContent() {
             type="button"
             disabled={filteredOffers.length === 0}
             onClick={() =>
-              exportDealsToExcel(
+              exportDealsReport(
                 filteredOffers,
+                'excel',
                 'AqarExit_Deals_Room',
                 expL.dealsReportTitle
               )
@@ -450,6 +467,23 @@ function AdminDealsContent() {
           >
             <Download className="size-3.5" />
             <span>{expL.exportAllBtn}</span>
+          </button>
+
+          <button
+            type="button"
+            disabled={filteredOffers.length === 0}
+            onClick={() =>
+              exportDealsReport(
+                filteredOffers,
+                'pdf',
+                'AqarExit_Deals_Room',
+                expL.dealsReportTitle
+              )
+            }
+            className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-300 bg-[#0a1122] px-3.5 text-xs font-extrabold text-white transition hover:bg-[#16223f] disabled:opacity-40"
+          >
+            <FileText className="size-3.5 text-emerald-400" />
+            <span>{expL.exportPdfBtn}</span>
           </button>
 
           <Link
@@ -667,7 +701,7 @@ function AdminDealsContent() {
                       </span>
                     )}
 
-                    {/* قائمة الـ 3 نقاط لتصدير الصفقة المفردة أو معاينة الوحدة */}
+                    {/* قائمة الـ 3 نقاط لتصدير الصفقة كـ Excel أو كـ PDF رسمي */}
                     <div
                       className="relative"
                       onClick={(e) => e.stopPropagation()}
@@ -699,21 +733,42 @@ function AdminDealsContent() {
                             <span>{sm.viewUnitBtn || d.previewBtn}</span>
                           </Link>
 
+                          <div className="my-1 border-t border-gray-100" />
+
                           <button
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation()
                               setOpenMenuId(null)
-                              exportDealsToExcel(
+                              exportDealsReport(
                                 [offer],
+                                'excel',
+                                `AqarExit_Deal_${offerRef}`,
+                                `${expL.singleDealReportTitle} (#${offerRef} — ${unit.project_name || uCode})`
+                              )
+                            }}
+                            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-emerald-800 transition hover:bg-emerald-50"
+                          >
+                            <Download className="size-3.5 text-[#105C50]" />
+                            <span>{expL.exportRowBtn}</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setOpenMenuId(null)
+                              exportDealsReport(
+                                [offer],
+                                'pdf',
                                 `AqarExit_Deal_${offerRef}`,
                                 `${expL.singleDealReportTitle} (#${offerRef} — ${unit.project_name || uCode})`
                               )
                             }}
                             className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-blue-700 transition hover:bg-blue-50"
                           >
-                            <Download className="size-3.5 text-blue-600" />
-                            <span>{expL.exportRowBtn}</span>
+                            <FileText className="size-3.5 text-blue-600" />
+                            <span>{expL.exportRowPdfBtn}</span>
                           </button>
                         </div>
                       )}

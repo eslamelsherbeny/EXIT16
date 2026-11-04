@@ -1,15 +1,17 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useEffect, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import {
   AlertTriangle,
   Ban,
   Calendar,
   CheckCircle2,
+  Download,
   Info,
   Loader2,
   Mail,
+  MoreVertical,
   Phone,
   Search,
   ShieldCheck,
@@ -19,6 +21,7 @@ import {
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { downloadExcelCsv, EXPORT_LABELS } from "@/lib/export-csv"
 import { useTranslation } from "@/lib/i18n"
 import {
   createAdminOrUserAction,
@@ -60,9 +63,10 @@ export type ConfirmActionState =
 
 export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
   const router = useRouter()
-  const { t: dict, dir } = useTranslation()
+  const { t: dict, locale, dir } = useTranslation()
   const t = dict.admin.usersPage
   const propBadges = dict.admin?.propertiesAdmin?.badges || {}
+  const expL = EXPORT_LABELS[locale] || EXPORT_LABELS.ar
 
   const roleOptions = [
     { value: "admin", label: t.roles.admin },
@@ -77,6 +81,7 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
 
   const [search, setSearch] = useState("")
   const [roleFilter, setRoleFilter] = useState("all")
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [openAddModal, setOpenAddModal] = useState(false)
   const [confirmState, setConfirmState] =
     useState<ConfirmActionState | null>(null)
@@ -86,6 +91,12 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
     isError?: boolean
   } | null>(null)
   const [pending, startTransition] = useTransition()
+
+  useEffect(() => {
+    const closeMenu = () => setOpenMenuId(null)
+    window.addEventListener("click", closeMenu)
+    return () => window.removeEventListener("click", closeMenu)
+  }, [])
 
   function handleVerifyUserContact(user: AdminUserRow) {
     setNotice(null)
@@ -202,6 +213,147 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
     return true
   })
 
+  function exportUsersToExcel(
+    rowsToExport: AdminUserRow[],
+    prefix = "AqarExit_Users",
+    customTitle?: string
+  ) {
+    const c = expL.cols
+    const resolvedTitle =
+      customTitle ||
+      (rowsToExport.length === 1
+        ? `${expL.singleUserReportTitle} — ${rowsToExport[0].name}`
+        : expL.usersReportTitle)
+
+    downloadExcelCsv({
+      filenamePrefix: `${prefix}_${locale.toUpperCase()}`,
+      reportTitle: resolvedTitle,
+      locale,
+      data: rowsToExport,
+      columns: [
+        { header: c.index, accessor: (_, idx) => idx + 1 },
+        { header: c.buyerName, accessor: (u) => u.name },
+        { header: c.buyerPhone, accessor: (u) => u.phone, isPhone: true },
+        { header: c.buyerEmail, accessor: (u) => u.email },
+        { header: c.userRole, accessor: (u) => getRoleLabel(u.role) },
+        { header: c.sellUnitsCount, accessor: (u) => u.sellCount },
+        { header: c.buyRequestsCount, accessor: (u) => u.buyCount },
+        {
+          header: c.verification,
+          accessor: (u) =>
+            u.emailVerified || u.phoneVerified
+              ? expL.verified
+              : expL.unverified,
+        },
+        {
+          header: c.status,
+          accessor: (u) =>
+            u.status === "suspended"
+              ? expL.suspendedStatus
+              : expL.activeStatus,
+        },
+        {
+          header: c.createdAt,
+          accessor: (u) => new Date(u.created_at).toLocaleDateString("en-GB"),
+        },
+      ],
+    })
+  }
+
+  function renderThreeDotsMenu(user: AdminUserRow, isSuspended: boolean) {
+    const isMenuOpen = openMenuId === user.id
+
+    return (
+      <div
+        className="relative"
+        onClick={(e) => {
+          e.stopPropagation()
+        }}
+      >
+        <button
+          type="button"
+          aria-label={expL.moreActionsAria}
+          onClick={(e) => {
+            e.stopPropagation()
+            setOpenMenuId(isMenuOpen ? null : user.id)
+          }}
+          className="flex size-8 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-gray-600 transition hover:border-[#105C50] hover:bg-white hover:text-[#0a1122]"
+        >
+          <MoreVertical className="size-4" />
+        </button>
+
+        {isMenuOpen && (
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="absolute end-0 top-9 z-50 w-56 overflow-hidden rounded-xl border border-gray-200 bg-white p-1.5 shadow-2xl"
+          >
+            <button
+              type="button"
+              disabled={pending}
+              onClick={(e) => {
+                e.stopPropagation()
+                setOpenMenuId(null)
+                setConfirmState({
+                  type: "status",
+                  user,
+                  newStatus: isSuspended ? "active" : "suspended",
+                })
+              }}
+              className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold transition ${
+                isSuspended
+                  ? "text-emerald-700 hover:bg-emerald-50"
+                  : "text-amber-800 hover:bg-amber-50"
+              }`}
+            >
+              {isSuspended ? (
+                <CheckCircle2 className="size-3.5 text-emerald-600" />
+              ) : (
+                <Ban className="size-3.5 text-amber-600" />
+              )}
+              <span>{isSuspended ? t.activateBtn : t.suspendBtn}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                setOpenMenuId(null)
+                exportUsersToExcel(
+                  [user],
+                  `AqarExit_User_${user.id.slice(0, 6)}`,
+                  `${expL.singleUserReportTitle} (${user.name})`
+                )
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-blue-700 transition hover:bg-blue-50"
+            >
+              <Download className="size-3.5 text-blue-600" />
+              <span>{expL.exportRowBtn}</span>
+            </button>
+
+            <div className="my-1 border-t border-gray-100" />
+
+            <button
+              type="button"
+              disabled={pending}
+              onClick={(e) => {
+                e.stopPropagation()
+                setOpenMenuId(null)
+                setConfirmState({
+                  type: "delete",
+                  user,
+                })
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-red-600 transition hover:bg-red-50"
+            >
+              <Trash2 className="size-3.5 text-red-600" />
+              <span>{t.deleteBtn}</span>
+            </button>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div dir={dir} className="text-start">
       <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
@@ -213,13 +365,31 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
           <p className="mt-1 text-xs text-gray-500 sm:text-sm">{t.subtitle}</p>
         </div>
 
-        <Button
-          onClick={() => setOpenAddModal(true)}
-          className="h-10 w-full rounded-xl bg-[#105C50] px-4 text-xs font-bold text-white hover:bg-[#0c483f] sm:w-auto"
-        >
-          <UserPlus className="me-1.5 size-4" />
-          {t.addBtn}
-        </Button>
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+          <button
+            type="button"
+            disabled={filtered.length === 0}
+            onClick={() =>
+              exportUsersToExcel(
+                filtered,
+                "AqarExit_Users_Directory",
+                expL.usersReportTitle
+              )
+            }
+            className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 text-xs font-extrabold text-[#105C50] transition hover:bg-[#105C50] hover:text-white disabled:opacity-40 sm:flex-none"
+          >
+            <Download className="size-4" />
+            <span>{expL.exportAllBtn}</span>
+          </button>
+
+          <Button
+            onClick={() => setOpenAddModal(true)}
+            className="h-10 flex-1 rounded-xl bg-[#105C50] px-4 text-xs font-bold text-white hover:bg-[#0c483f] sm:flex-none"
+          >
+            <UserPlus className="me-1.5 size-4" />
+            {t.addBtn}
+          </Button>
+        </div>
       </div>
 
       <div className="mb-5 rounded-2xl border border-[#105C50]/20 bg-[#eff8f6] p-4">
@@ -329,14 +499,14 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
             return (
               <div
                 key={user.id}
-                className={`relative overflow-hidden rounded-2xl border bg-white p-4 shadow-xs transition ${
+                className={`relative rounded-2xl border bg-white p-4 shadow-xs transition ${
                   isRowLoading
                     ? "border-[#105C50] opacity-75"
                     : "border-gray-200/90"
                 }`}
               >
                 {isRowLoading && (
-                  <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60 backdrop-blur-[1px]">
+                  <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-white/60 backdrop-blur-[1px]">
                     <div className="flex items-center gap-2 rounded-full bg-[#0a1122] px-4 py-2 text-xs font-bold text-white shadow-md">
                       <Loader2 className="size-4 animate-spin text-emerald-400" />
                       <span>{t.updatingText}</span>
@@ -345,13 +515,13 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                 )}
 
                 <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-3">
+                  <div className="flex min-w-0 flex-1 items-center gap-3">
                     <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#105C50]/10 text-sm font-extrabold text-[#105C50]">
                       {firstLetter}
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <div className="flex items-center gap-1.5 font-extrabold text-[#0a1122]">
-                        <span className="text-sm">{user.name}</span>
+                        <span className="truncate text-sm">{user.name}</span>
                         {isStaffMember(user.role) && (
                           <ShieldCheck className="size-4 shrink-0 text-[#105C50]" />
                         )}
@@ -376,20 +546,18 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                     </div>
                   </div>
 
-                  <Badge
-                    className={`shrink-0 text-[10px] ${
-                      !isSuspended
-                        ? "bg-teal-600 text-white"
-                        : "bg-red-600 text-white"
-                    }`}
-                  >
-                    {!isSuspended ? (
-                      <CheckCircle2 className="me-1 size-3" />
-                    ) : (
-                      <Ban className="me-1 size-3" />
-                    )}
-                    {!isSuspended ? t.activeBadge : t.suspendedBadge}
-                  </Badge>
+                  <div className="flex items-center gap-1.5">
+                    <Badge
+                      className={`shrink-0 text-[10px] ${
+                        !isSuspended
+                          ? "bg-teal-600 text-white"
+                          : "bg-red-600 text-white"
+                      }`}
+                    >
+                      {!isSuspended ? t.activeBadge : t.suspendedBadge}
+                    </Badge>
+                    {renderThreeDotsMenu(user, isSuspended)}
+                  </div>
                 </div>
 
                 <div className="mt-3.5 grid grid-cols-1 gap-1.5 rounded-xl bg-gray-50 p-3 text-xs text-gray-600">
@@ -461,63 +629,28 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                   </select>
                 </div>
 
-                <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3">
-                  {(!user.emailVerified || !user.phoneVerified) && (
+                {(!user.emailVerified || !user.phoneVerified) && (
+                  <div className="mt-3 border-t border-gray-100 pt-3">
                     <Button
                       size="sm"
                       variant="outline"
                       disabled={pending}
                       onClick={() => handleVerifyUserContact(user)}
-                      className="h-9 flex-1 rounded-xl border-emerald-200 bg-emerald-50 text-xs font-bold text-[#105C50] hover:bg-emerald-100"
+                      className="h-9 w-full rounded-xl border-emerald-200 bg-emerald-50 text-xs font-bold text-[#105C50] hover:bg-emerald-100"
                     >
                       <CheckCircle2 className="me-1 size-3.5" />
                       {dict.admin?.propertiesAdmin?.actions?.verifySellerBtn ||
                         t.activateBtn}
                     </Button>
-                  )}
-
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={pending}
-                    onClick={() =>
-                      setConfirmState({
-                        type: "status",
-                        user,
-                        newStatus: isSuspended ? "active" : "suspended",
-                      })
-                    }
-                    className={`h-9 flex-1 rounded-xl text-xs font-bold ${
-                      isSuspended
-                        ? "border-emerald-200 bg-emerald-50/50 text-emerald-700 hover:bg-emerald-100"
-                        : "border-amber-200 bg-amber-50/50 text-amber-700 hover:bg-amber-100"
-                    }`}
-                  >
-                    {isSuspended ? t.activateBtn : t.suspendBtn}
-                  </Button>
-
-                  <button
-                    type="button"
-                    disabled={pending}
-                    onClick={() =>
-                      setConfirmState({
-                        type: "delete",
-                        user,
-                      })
-                    }
-                    className="flex h-9 items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-red-50/60 px-3.5 text-xs font-bold text-red-600 transition hover:bg-red-100"
-                  >
-                    <Trash2 className="size-3.5" />
-                    <span>{t.deleteBtn}</span>
-                  </button>
-                </div>
+                  </div>
+                )}
               </div>
             )
           })
         )}
       </div>
 
-      {/* 2. عرض الكمبيوتر الاحترافي: بطاقات صفوف منفصلة بوضوح تام */}
+      {/* 2. عرض الكمبيوتر الاحترافي */}
       <div className="hidden md:block">
         <div className="mb-3 flex items-center justify-between rounded-xl border border-gray-200/85 bg-white px-5 py-3.5 shadow-2xs">
           <div>
@@ -559,7 +692,6 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                           : "border-slate-200/90"
                   }`}
                 >
-                  {/* العمود 1: بيانات المستخدم */}
                   <div className="col-span-3 min-w-0 pe-2">
                     <div className="flex items-center gap-2 font-extrabold text-[#0a1122]">
                       <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[11px] font-black text-slate-600">
@@ -597,7 +729,6 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                     </div>
                   </div>
 
-                  {/* العمود 2: نشاط الحساب + تاريخ الانضمام */}
                   <div className="col-span-3 border-s border-slate-100 ps-4">
                     <div className="flex flex-wrap gap-1.5">
                       {user.sellCount > 0 && (
@@ -624,7 +755,6 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                     </div>
                   </div>
 
-                  {/* العمود 3: الصلاحية */}
                   <div className="col-span-2 border-s border-slate-100 ps-4">
                     <select
                       disabled={pending}
@@ -649,7 +779,6 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                     </select>
                   </div>
 
-                  {/* العمود 4: حالة الحساب */}
                   <div className="col-span-2 border-s border-slate-100 ps-4">
                     <Badge
                       className={
@@ -667,8 +796,7 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                     </Badge>
                   </div>
 
-                  {/* العمود 5: أزرار التحكم */}
-                  <div className="col-span-2 flex flex-wrap items-center justify-end gap-1.5 border-s border-slate-100 ps-3">
+                  <div className="col-span-2 flex items-center justify-end gap-1.5 border-s border-slate-100 ps-3">
                     {(!user.emailVerified || !user.phoneVerified) && (
                       <Button
                         size="sm"
@@ -683,40 +811,7 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                       </Button>
                     )}
 
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={pending}
-                      onClick={() =>
-                        setConfirmState({
-                          type: "status",
-                          user,
-                          newStatus: isSuspended ? "active" : "suspended",
-                        })
-                      }
-                      className={`h-8 rounded-lg px-2.5 text-xs font-bold ${
-                        isSuspended
-                          ? "text-emerald-700 hover:bg-emerald-50"
-                          : "text-amber-700 hover:bg-amber-50"
-                      }`}
-                    >
-                      {isSuspended ? t.activateBtn : t.suspendBtn}
-                    </Button>
-
-                    <button
-                      type="button"
-                      disabled={pending}
-                      onClick={() =>
-                        setConfirmState({
-                          type: "delete",
-                          user,
-                        })
-                      }
-                      className="inline-flex size-8 items-center justify-center rounded-lg border border-gray-200 text-gray-400 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
-                      title={t.deleteBtn}
-                    >
-                      <Trash2 className="size-3.5" />
-                    </button>
+                    {renderThreeDotsMenu(user, isSuspended)}
                   </div>
                 </div>
               )

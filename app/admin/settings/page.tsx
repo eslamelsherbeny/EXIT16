@@ -18,7 +18,8 @@ export default async function SettingsPage({
   const { dict, siteSettings: runtimeSettings } = await getServerI18n()
 
   let savedSettings = {
-    siteName: runtimeSettings?.siteName || dict.admin?.shell?.brand || "Aqar Exit",
+    siteName:
+      runtimeSettings?.siteName || dict.admin?.shell?.brand || "Aqar Exit",
     whatsappNumber:
       runtimeSettings?.whatsappNumber || dict.footer?.phone || "+201018595959",
     supportEmail:
@@ -31,18 +32,22 @@ export default async function SettingsPage({
       (runtimeSettings as Record<string, any>)?.developerPenaltyMin || "10",
     developerPenaltyMax:
       (runtimeSettings as Record<string, any>)?.developerPenaltyMax || "15",
-    promo7Price: runtimeSettings?.promo7Price || "29",
-    promo14Price: runtimeSettings?.promo14Price || "49",
-    promo30Price: runtimeSettings?.promo30Price || "69",
-    promo_RU_7: runtimeSettings?.promo_RU_7 || "2500",
-    promo_RU_14: runtimeSettings?.promo_RU_14 || "4200",
-    promo_RU_30: runtimeSettings?.promo_RU_30 || "5900",
-    promo_GE_7: runtimeSettings?.promo_GE_7 || "29",
-    promo_GE_14: runtimeSettings?.promo_GE_14 || "49",
-    promo_GE_30: runtimeSettings?.promo_GE_30 || "69",
-    promo_AE_7: runtimeSettings?.promo_AE_7 || "99",
-    promo_AE_14: runtimeSettings?.promo_AE_14 || "179",
-    promo_AE_30: runtimeSettings?.promo_AE_30 || "249",
+    vipPlusDailyGel:
+      (runtimeSettings as Record<string, any>)?.vipPlusDailyGel || "5",
+    superVipDailyGel:
+      (runtimeSettings as Record<string, any>)?.superVipDailyGel || "10",
+    bankIbanGe:
+      (runtimeSettings as Record<string, any>)?.bankIbanGe ||
+      "GE00TB0000000000000000",
+    bankNameGe:
+      (runtimeSettings as Record<string, any>)?.bankNameGe ||
+      "TBC Bank / Bank of Georgia",
+    promo7Price: runtimeSettings?.promo7Price || "20",
+    promo14Price: runtimeSettings?.promo14Price || "50",
+    promo30Price: runtimeSettings?.promo30Price || "100",
+    promo_GE_7: runtimeSettings?.promo_GE_7 || "20",
+    promo_GE_14: runtimeSettings?.promo_GE_14 || "50",
+    promo_GE_30: runtimeSettings?.promo_GE_30 || "100",
     maintenanceMode: Boolean(runtimeSettings?.maintenanceMode),
     allowNewSells: runtimeSettings?.allowNewSells ?? true,
     allowNewBuys: runtimeSettings?.allowNewBuys ?? true,

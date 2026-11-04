@@ -10,6 +10,12 @@ import PropertiesTable, { type SellRequest } from "./properties-table"
 export const dynamic = "force-dynamic"
 export const revalidate = 0
 
+function normalizeAdminUnitStatus(rawStatus?: string | null): string {
+  const clean = String(rawStatus || "pending").trim().toLowerCase()
+  if (clean === "approved" || clean === "published") return "active"
+  return clean
+}
+
 export default async function PropertiesPage() {
   const cookieStore = await cookies()
   const { dict, dir } = await getServerI18n()
@@ -24,14 +30,10 @@ export default async function PropertiesPage() {
   )
 
   try {
-    // تنظيف تلقائي لأي اسم مشروع قديم ("الرحاب")
     await supabase
       .from("sell_requests")
-      .update({
-        project_name: "King David Residences",
-        developer_name: "King David",
-      })
-      .ilike("project_name", "%الرحاب%")
+      .update({ status: "active" })
+      .in("status", ["approved", "published"])
 
     const sevenDaysAgo = new Date(
       Date.now() - 7 * 24 * 60 * 60 * 1000
@@ -80,6 +82,7 @@ export default async function PropertiesPage() {
         : {}
     return {
       ...p,
+      status: normalizeAdminUnitStatus(p.status),
       project_name: sanitizeGeorgiaProjectTitle(p.project_name),
       area: p.area || meta.area || null,
       unit_type: p.unit_type || meta.unit_type || null,

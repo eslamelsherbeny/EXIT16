@@ -29,12 +29,6 @@ import {
   X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
 import { useTranslation } from "@/lib/i18n"
 import {
   calculateSmartMatch,
@@ -68,6 +62,12 @@ import {
 } from "./properties-modals"
 
 export type { SellRequest, UserVerificationBadgeInfo }
+
+function normalizeRowStatus(rawStatus?: string | null): string {
+  const clean = String(rawStatus || "pending").trim().toLowerCase()
+  if (clean === "approved" || clean === "published") return "active"
+  return clean
+}
 
 export default function PropertiesTable({
   properties,
@@ -122,27 +122,27 @@ export default function PropertiesTable({
     {
       value: "pending",
       label: t.statuses.pending,
-      badge: "bg-amber-50 text-amber-900 border-amber-200",
+      badge: "bg-amber-50 text-amber-900 border-amber-300",
     },
     {
       value: "under_review",
       label: t.statuses.under_review,
-      badge: "bg-blue-50 text-blue-900 border-blue-200",
+      badge: "bg-blue-50 text-blue-900 border-blue-300",
     },
     {
       value: "active",
       label: t.statuses.active,
-      badge: "bg-emerald-50 text-[#105C50] border-emerald-200",
+      badge: "bg-emerald-50 text-[#105C50] border-emerald-300",
     },
     {
       value: "offer_received",
       label: t.statuses.offer_received,
-      badge: "bg-purple-50 text-purple-900 border-purple-200",
+      badge: "bg-purple-50 text-purple-900 border-purple-300",
     },
     {
       value: "transferring",
       label: t.statuses.transferring,
-      badge: "bg-indigo-50 text-indigo-900 border-indigo-200",
+      badge: "bg-indigo-50 text-indigo-900 border-indigo-300",
     },
     {
       value: "sold",
@@ -152,17 +152,17 @@ export default function PropertiesTable({
     {
       value: "paused_by_seller",
       label: t.statuses.paused_by_seller,
-      badge: "bg-orange-50 text-orange-900 border-orange-200",
+      badge: "bg-orange-50 text-orange-900 border-orange-300",
     },
     {
       value: "deleted_by_seller",
       label: t.statuses.deleted_by_seller,
-      badge: "bg-red-50 text-red-900 border-red-200",
+      badge: "bg-red-50 text-red-900 border-red-300",
     },
     {
       value: "rejected",
       label: t.statuses.rejected,
-      badge: "bg-red-50 text-red-900 border-red-200",
+      badge: "bg-red-50 text-red-900 border-red-300",
     },
   ]
 
@@ -176,11 +176,10 @@ export default function PropertiesTable({
   }
 
   function getStatusLabel(status: string | null | undefined) {
-    const st = status || "pending"
+    const st = normalizeRowStatus(status)
     return sellerStatusOptions.find((s) => s.value === st)?.label || st
   }
 
-  // عملة العقارات موحدة بالدولار الأمريكي ($)
   const unitCur = "$"
 
   const [search, setSearch] = useState("")
@@ -223,7 +222,10 @@ export default function PropertiesTable({
       const targetProp = properties.find((p) => p.id === unitIdParam)
 
       if (targetProp) {
-        if (!isPromotionsPage && targetProp.status === "deleted_by_seller") {
+        if (
+          !isPromotionsPage &&
+          normalizeRowStatus(targetProp.status) === "deleted_by_seller"
+        ) {
           setStatusFilter("deleted")
         }
         if (actionParam === "promote") {
@@ -349,32 +351,36 @@ export default function PropertiesTable({
   }
 
   const deletedBySellerList = properties.filter(
-    (p) => p.status === "deleted_by_seller"
+    (p) => normalizeRowStatus(p.status) === "deleted_by_seller"
   )
   const pendingPromoList = properties.filter(
     (p) =>
-      p.status !== "deleted_by_seller" &&
+      normalizeRowStatus(p.status) !== "deleted_by_seller" &&
       !p.is_featured &&
       p.featured_status === "pending_payment"
   )
   const activePromoList = properties.filter(
-    (p) => p.status !== "deleted_by_seller" && Boolean(p.is_featured)
+    (p) =>
+      normalizeRowStatus(p.status) !== "deleted_by_seller" &&
+      Boolean(p.is_featured)
   )
   const promoRequestsList = properties.filter(
     (p) =>
-      p.status !== "deleted_by_seller" &&
+      normalizeRowStatus(p.status) !== "deleted_by_seller" &&
       (p.featured_status === "pending_payment" || p.is_featured)
   )
-  const sellerActionsList = properties.filter(
-    (p) =>
-      p.status === "paused_by_seller" ||
-      (p.status === "pending" &&
+  const sellerActionsList = properties.filter((p) => {
+    const st = normalizeRowStatus(p.status)
+    return (
+      st === "paused_by_seller" ||
+      (st === "pending" &&
         (p.submission_type === "edited_by_seller" ||
           p.submission_type === "resumed_by_seller"))
-  )
+    )
+  })
 
   const filtered = properties.filter((p) => {
-    const currentStatus = p.status || "pending"
+    const currentStatus = normalizeRowStatus(p.status)
     const unitShortCode = p.id.slice(0, 8).toUpperCase()
     const uPublicCode = deriveShortUnitCode(p.id, p.code)
     const orderRefCode = `AE-${p.id.replace(/[^a-zA-Z0-9]/g, "").slice(0, 6).toUpperCase()}`
@@ -420,6 +426,7 @@ export default function PropertiesTable({
   })
 
   function renderSellerActivityBadges(property: SellRequest) {
+    const currentSt = normalizeRowStatus(property.status)
     const docs = getUploadedDocsList(
       property.documents,
       docLabels,
@@ -453,7 +460,7 @@ export default function PropertiesTable({
     const isVipPlus = property.boost_tier === "vip_plus"
 
     return (
-      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+      <div className="mt-2 flex flex-wrap items-center gap-1.5">
         {acceptedOffer ? (
           <Link
             href={`/admin/deals?offerId=${acceptedOffer.id}`}
@@ -486,12 +493,12 @@ export default function PropertiesTable({
         ) : null}
 
         {matchedBuyers.length > 0 &&
-          property.status !== "deleted_by_seller" &&
-          property.status !== "sold" && (
+          currentSt !== "deleted_by_seller" &&
+          currentSt !== "sold" && (
             <button
               type="button"
               onClick={() => setSmartMatchProperty(property)}
-              className="inline-flex items-center gap-1 rounded-md border border-teal-300 bg-teal-50/80 px-2 py-0.5 text-[10px] font-extrabold text-[#105C50] transition hover:bg-[#105C50] hover:text-white"
+              className="inline-flex items-center gap-1 rounded-md border border-teal-300 bg-teal-50/80 px-2.5 py-0.5 text-[10.5px] font-extrabold text-[#105C50] transition hover:bg-[#105C50] hover:text-white"
             >
               <span>🎯</span>
               <span>
@@ -504,9 +511,9 @@ export default function PropertiesTable({
           <button
             type="button"
             onClick={() => setDetailsProperty(property)}
-            className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-gray-50 px-2 py-0.5 text-[10px] font-bold text-gray-700 hover:bg-gray-100"
+            className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-gray-50 px-2 py-0.5 text-[10.5px] font-bold text-gray-700 hover:bg-gray-100"
           >
-            <FileCheck2 className="size-2.5 text-[#105C50]" />
+            <FileCheck2 className="size-3 text-[#105C50]" />
             <span>
               {docs.length}/4 {propBadges.docWord}
             </span>
@@ -515,16 +522,16 @@ export default function PropertiesTable({
 
         {isFeaturedActive && (
           <span
-            className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold ${
+            className={`inline-flex items-center gap-1 rounded-md px-2.5 py-0.5 text-[10.5px] font-extrabold ${
               isVipPlus
                 ? "bg-indigo-100 text-indigo-900"
                 : "bg-orange-100 text-orange-900"
             }`}
           >
             {isVipPlus ? (
-              <Flame className="size-2.5 text-indigo-600" />
+              <Flame className="size-3 text-indigo-600" />
             ) : (
-              <Crown className="size-2.5 text-orange-600" />
+              <Crown className="size-3 text-orange-600" />
             )}
             <span>
               {isVipPlus ? "+VIP" : "SUPER VIP"} ({property.featured_days || 14}{" "}
@@ -546,9 +553,9 @@ export default function PropertiesTable({
                   tier: isVipPlus ? "vip_plus" : "super_vip",
                 })
               }
-              className="inline-flex items-center gap-1 rounded-md border border-amber-400 bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-950 hover:bg-amber-200"
+              className="inline-flex items-center gap-1 rounded-md border border-amber-400 bg-amber-100 px-2.5 py-0.5 text-[10.5px] font-bold text-amber-950 hover:bg-amber-200"
             >
-              <Sparkles className="size-2.5 text-amber-700" />
+              <Sparkles className="size-3 text-amber-700" />
               <span>
                 {propBadges.promoReqPrefix} (
                 {isVipPlus ? "+VIP" : "SUPER VIP"} ·{" "}
@@ -560,21 +567,21 @@ export default function PropertiesTable({
           )}
 
         {property.submission_type === "edited_by_seller" &&
-          property.status === "pending" && (
+          currentSt === "pending" && (
             <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-800">
               <RefreshCw className="size-2.5" />
               <span>{propBadges.editedBySeller}</span>
             </span>
           )}
 
-        {property.status === "paused_by_seller" && (
+        {currentSt === "paused_by_seller" && (
           <span className="inline-flex items-center gap-1 rounded-md bg-orange-50 px-2 py-0.5 text-[10px] font-bold text-orange-800">
             <PauseCircle className="size-2.5" />
             <span>{propBadges.pausedBySeller}</span>
           </span>
         )}
 
-        {property.status === "deleted_by_seller" && (
+        {currentSt === "deleted_by_seller" && (
           <span className="inline-flex items-center gap-1 rounded-md bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-800">
             <Trash2 className="size-2.5" />
             <span>
@@ -736,14 +743,14 @@ export default function PropertiesTable({
         )}
 
       {/* 1. عرض الموبايل */}
-      <div className="space-y-3 md:hidden">
+      <div className="space-y-3.5 md:hidden">
         {filtered.length === 0 ? (
           <div className="rounded-xl border border-gray-200 bg-white p-8 text-center text-xs text-gray-500">
             {t.table.emptyText}
           </div>
         ) : (
           filtered.map((property) => {
-            const currentSt = property.status || "pending"
+            const currentSt = normalizeRowStatus(property.status)
             const stObj =
               sellerStatusOptions.find((s) => s.value === currentSt) ||
               sellerStatusOptions[0]
@@ -770,7 +777,7 @@ export default function PropertiesTable({
               <div
                 id={`prop-row-${property.id}`}
                 key={property.id}
-                className={`relative overflow-hidden rounded-xl border bg-white p-3.5 shadow-2xs transition ${
+                className={`relative overflow-hidden rounded-2xl border bg-white p-4 shadow-xs transition ${
                   isCardLoading
                     ? "border-[#105C50] opacity-75"
                     : isHighlighted
@@ -794,7 +801,7 @@ export default function PropertiesTable({
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <div className="flex items-center gap-1.5">
-                      <span className="rounded bg-[#0a1122] px-1.5 py-0.5 font-mono text-[10px] font-bold text-white">
+                      <span className="rounded bg-[#0a1122] px-2 py-0.5 font-mono text-[10px] font-bold text-white">
                         {deriveShortUnitCode(property.id, property.code)}
                       </span>
                       <h3 className="text-xs font-extrabold text-[#0a1122] sm:text-sm">
@@ -812,14 +819,14 @@ export default function PropertiesTable({
                   </div>
                 </div>
 
-                <div className="mt-2.5 grid grid-cols-2 gap-2 rounded-lg border border-gray-100 bg-gray-50/80 p-2.5 text-xs">
+                <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl border border-gray-100 bg-gray-50/80 p-2.5 text-xs">
                   <div>
                     <span className="block text-[10px] text-gray-400">
                       {t.table.colCash}
                     </span>
                     <strong
                       dir="ltr"
-                      className="mt-0.5 block text-xs font-extrabold text-[#105C50]"
+                      className="mt-0.5 block text-sm font-black text-[#105C50]"
                     >
                       {property.paid_amount
                         ? `${unitCur}${Number(property.paid_amount).toLocaleString("en-US")}`
@@ -851,7 +858,7 @@ export default function PropertiesTable({
                   </div>
                 </div>
 
-                <div className="mt-2 flex items-center justify-between rounded-lg bg-gray-50 px-2.5 py-1.5 text-xs">
+                <div className="mt-2.5 flex items-center justify-between rounded-xl bg-gray-50 px-3 py-2 text-xs">
                   <div className="flex items-center gap-1.5 font-bold text-[#0a1122]">
                     <User className="size-3.5 text-gray-400" />
                     <span>{property.name}</span>
@@ -868,7 +875,7 @@ export default function PropertiesTable({
                   </div>
                 </div>
 
-                <div className="mt-2">
+                <div className="mt-2.5">
                   <select
                     disabled={pending}
                     value={currentSt}
@@ -882,7 +889,7 @@ export default function PropertiesTable({
                         })
                       }
                     }}
-                    className={`h-8 w-full rounded-lg border px-2 text-xs font-extrabold focus:outline-none ${stObj.badge}`}
+                    className={`h-9 w-full rounded-xl border px-3 text-xs font-extrabold focus:outline-none ${stObj.badge}`}
                   >
                     {sellerStatusOptions.map((opt) => (
                       <option
@@ -896,7 +903,7 @@ export default function PropertiesTable({
                   </select>
                 </div>
 
-                <div className="mt-2.5 flex flex-wrap items-center gap-1.5 border-t border-gray-100 pt-2.5">
+                <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-gray-100 pt-2.5">
                   <Button
                     size="sm"
                     variant="outline"
@@ -946,387 +953,418 @@ export default function PropertiesTable({
         )}
       </div>
 
-      {/* 2. عرض الكمبيوتر */}
-      <Card className="hidden border-gray-200/85 bg-white shadow-2xs md:block">
-        <CardHeader className="border-b border-gray-100 px-5 py-3.5">
-          <CardTitle className="text-sm font-extrabold text-[#0a1122] sm:text-base">
+      {/* 2. عرض الكمبيوتر الاحترافي الجديد: بطاقات صفوف منفصلة بوضوح تام وفواصل بين الأعمدة */}
+      <div className="hidden md:block">
+        <div className="mb-3 flex items-center justify-between rounded-xl border border-gray-200/85 bg-white px-5 py-3.5 shadow-2xs">
+          <h2 className="text-sm font-extrabold text-[#0a1122] sm:text-base">
             {isPromotionsPage
               ? `${t.header.promoCountryTitle} ${georgiaLabel} (${filtered.length})`
               : `${t.header.sellCountryTitle} ${georgiaLabel} (${filtered.length})`}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-start text-xs">
-              <thead className="border-b border-gray-100 bg-gray-50/80 text-[11px] font-extrabold text-gray-500">
-                <tr>
-                  <th className="px-4 py-3.5">{t.table.colProject}</th>
-                  <th className="px-4 py-3.5">{t.table.colCash}</th>
-                  <th className="px-4 py-3.5">{t.table.colContractMarket}</th>
-                  <th className="px-4 py-3.5">{t.table.colClient}</th>
-                  <th className="px-4 py-3.5">{t.table.colStage}</th>
-                  <th className="px-4 py-3.5">{t.table.colActions}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {filtered.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={6}
-                      className="px-5 py-10 text-center text-xs text-gray-400"
-                    >
-                      {t.table.emptyText}
-                    </td>
-                  </tr>
-                ) : (
-                  filtered.map((property) => {
-                    const currentSt = property.status || "pending"
-                    const stObj =
-                      sellerStatusOptions.find((s) => s.value === currentSt) ||
-                      sellerStatusOptions[0]
-                    const isRowLoading =
-                      pending && activePropertyId === property.id
-                    const isFeaturedActive =
-                      Boolean(property.is_featured) &&
-                      (!property.featured_until ||
-                        new Date(property.featured_until) > new Date())
-                    const isHighlighted = highlightedUnitId === property.id
-                    const waText = buildSellerWhatsAppMessage({
-                      property,
-                      unitCur,
-                      locale,
-                      t,
-                      leadsPrompts,
-                    })
-                    const localizedArea = cleanPropertyAreaDisplay(
-                      property.area,
-                      locale
-                    )
-                    const phoneOk = isSellerPhoneVerified(
-                      property,
-                      verificationMap
-                    )
-                    const emailOk = isSellerEmailVerified(
-                      property,
-                      verificationMap
-                    )
+          </h2>
+          <div className="flex items-center gap-3 text-xs font-bold text-gray-500">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="size-2.5 rounded-full bg-[#105C50]" />
+              <span>
+                {
+                  filtered.filter(
+                    (p) => normalizeRowStatus(p.status) === "active"
+                  ).length
+                }{" "}
+                {t.filters.activeMarketTab}
+              </span>
+            </span>
+            <span>·</span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="size-2.5 rounded-full bg-amber-500" />
+              <span>
+                {
+                  filtered.filter(
+                    (p) => normalizeRowStatus(p.status) === "pending"
+                  ).length
+                }{" "}
+                {t.filters.pendingReviewTab}
+              </span>
+            </span>
+          </div>
+        </div>
 
-                    return (
-                      <tr
-                        id={`prop-row-${property.id}`}
-                        key={property.id}
-                        className={`transition-colors ${
-                          isRowLoading
-                            ? "bg-emerald-50/40 opacity-60"
-                            : isHighlighted
-                              ? "bg-emerald-50/60 ring-2 ring-inset ring-[#105C50]"
-                              : isFeaturedActive
-                                ? "bg-amber-50/20 hover:bg-amber-50/40"
-                                : "hover:bg-gray-50/60"
+        {/* شريط رؤوس الأعمدة */}
+        <div className="mb-2.5 grid grid-cols-12 items-center gap-4 rounded-xl border border-slate-200/90 bg-slate-100/90 px-5 py-3 text-[11px] font-extrabold text-slate-600">
+          <div className="col-span-4">{t.table.colProject}</div>
+          <div className="col-span-2">{t.table.colCash}</div>
+          <div className="col-span-2">{t.table.colClient}</div>
+          <div className="col-span-2">{t.table.colStage}</div>
+          <div className="col-span-2 text-end">{t.table.colActions}</div>
+        </div>
+
+        {/* صفوف الوحدات المنفصلة */}
+        {filtered.length === 0 ? (
+          <div className="rounded-2xl border border-gray-200 bg-white p-12 text-center text-xs font-bold text-gray-400">
+            {t.table.emptyText}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filtered.map((property, index) => {
+              const currentSt = normalizeRowStatus(property.status)
+              const stObj =
+                sellerStatusOptions.find((s) => s.value === currentSt) ||
+                sellerStatusOptions[0]
+              const isRowLoading = pending && activePropertyId === property.id
+              const isFeaturedActive =
+                Boolean(property.is_featured) &&
+                (!property.featured_until ||
+                  new Date(property.featured_until) > new Date())
+              const isHighlighted = highlightedUnitId === property.id
+              const waText = buildSellerWhatsAppMessage({
+                property,
+                unitCur,
+                locale,
+                t,
+                leadsPrompts,
+              })
+              const localizedArea = cleanPropertyAreaDisplay(
+                property.area,
+                locale
+              )
+              const phoneOk = isSellerPhoneVerified(property, verificationMap)
+              const emailOk = isSellerEmailVerified(property, verificationMap)
+
+              return (
+                <div
+                  id={`prop-row-${property.id}`}
+                  key={property.id}
+                  className={`grid grid-cols-12 items-center gap-4 rounded-2xl border-2 bg-white px-5 py-4 shadow-2xs transition-all hover:shadow-md ${
+                    isRowLoading
+                      ? "border-[#105C50] bg-emerald-50/30 opacity-60"
+                      : isHighlighted
+                        ? "border-[#105C50] bg-emerald-50/40 ring-2 ring-[#105C50]/20"
+                        : currentSt === "active"
+                          ? "border-emerald-200/90 border-s-4 border-s-[#105C50]"
+                          : currentSt === "pending"
+                            ? "border-amber-200/90 border-s-4 border-s-amber-500"
+                            : currentSt === "deleted_by_seller"
+                              ? "border-red-200 bg-red-50/20"
+                              : "border-slate-200/90"
+                  }`}
+                >
+                  {/* العمود 1: بيانات المشروع والمنطقة والشارات */}
+                  <div className="col-span-4 min-w-0 pe-2">
+                    <div className="flex items-center gap-2">
+                      <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[11px] font-black text-slate-600">
+                        {index + 1}
+                      </span>
+                      <span className="shrink-0 rounded-md bg-[#0a1122] px-2 py-0.5 font-mono text-[10.5px] font-extrabold text-white">
+                        {deriveShortUnitCode(property.id, property.code)}
+                      </span>
+                      <Link
+                        href={`/opportunities/${property.id}`}
+                        target="_blank"
+                        className="truncate text-sm font-black text-[#0a1122] hover:text-[#105C50] hover:underline"
+                      >
+                        {property.project_name || t.table.unspecifiedProject}
+                      </Link>
+                      {isRowLoading && (
+                        <Loader2 className="size-4 shrink-0 animate-spin text-[#105C50]" />
+                      )}
+                    </div>
+
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5 ps-8 text-xs font-semibold text-slate-500">
+                      <span className="text-[#0a1122]">{localizedArea}</span>
+                      <span>·</span>
+                      <span>
+                        {property.unit_type || t.table.defaultUnitType}
+                      </span>
+                      {property.size ? (
+                        <>
+                          <span>·</span>
+                          <span>
+                            {property.size} {t.table.sqmUnit}
+                          </span>
+                        </>
+                      ) : null}
+                    </div>
+
+                    <div className="ps-8">
+                      {renderSellerActivityBadges(property)}
+                    </div>
+                  </div>
+
+                  {/* العمود 2: الكاش المطلوب + سعر العقد والسوق */}
+                  <div className="col-span-2 border-s border-slate-100 ps-4">
+                    <span className="block text-[10px] font-bold text-slate-400">
+                      {t.table.colCash}
+                    </span>
+                    <div
+                      dir="ltr"
+                      className="mt-0.5 text-base font-black text-[#105C50] tabular-nums"
+                    >
+                      {property.paid_amount
+                        ? `${unitCur}${Number(property.paid_amount).toLocaleString("en-US")}`
+                        : "—"}
+                    </div>
+
+                    <div className="mt-1.5 space-y-0.5 border-t border-slate-100 pt-1.5 text-[11px]">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-slate-400">
+                          {t.table.contractShort}
+                        </span>
+                        <strong
+                          dir="ltr"
+                          className="font-extrabold text-[#0a1122] tabular-nums"
+                        >
+                          {property.contract_price
+                            ? `${unitCur}${Number(property.contract_price).toLocaleString("en-US")}`
+                            : "—"}
+                        </strong>
+                      </div>
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-slate-400">
+                          {t.table.marketShort}
+                        </span>
+                        <span
+                          dir="ltr"
+                          className="font-bold text-slate-600 tabular-nums"
+                        >
+                          {property.market_price
+                            ? `${unitCur}${Number(property.market_price).toLocaleString("en-US")}`
+                            : "—"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* العمود 3: بيانات البائع */}
+                  <div className="col-span-2 min-w-0 border-s border-slate-100 ps-4">
+                    <div className="flex items-center gap-1.5 truncate text-xs font-extrabold text-[#0a1122]">
+                      <User className="size-3.5 shrink-0 text-slate-400" />
+                      <span className="truncate">{property.name}</span>
+                    </div>
+                    <div
+                      dir="ltr"
+                      className="mt-1 flex items-center justify-start gap-1 font-mono text-[11.5px] font-bold text-slate-700"
+                    >
+                      <span>{property.phone}</span>
+                      {phoneOk && (
+                        <span
+                          title={propBadges.phoneVerifiedBadge}
+                          className="inline-flex text-[#105C50]"
+                        >
+                          <CheckCircle2 className="size-3.5" />
+                        </span>
+                      )}
+                    </div>
+                    {property.email && (
+                      <div className="mt-0.5 flex items-center gap-1 truncate text-[10.5px] text-slate-400">
+                        <span className="truncate">{property.email}</span>
+                        {emailOk && (
+                          <span
+                            title={propBadges.emailVerifiedBadge}
+                            className="inline-flex shrink-0 text-[#105C50]"
+                          >
+                            <CheckCircle2 className="size-3" />
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* العمود 4: حالة الوحدة */}
+                  <div className="col-span-2 border-s border-slate-100 ps-4">
+                    <select
+                      disabled={pending}
+                      value={currentSt}
+                      onChange={(e) => {
+                        const nextSt = e.target.value
+                        if (nextSt !== currentSt) {
+                          setConfirmAction({
+                            type: "status",
+                            property,
+                            newStatus: nextSt,
+                          })
+                        }
+                      }}
+                      className={`h-9 w-full cursor-pointer rounded-xl border px-3 text-xs font-extrabold transition focus:outline-none ${stObj.badge}`}
+                    >
+                      {sellerStatusOptions.map((opt) => (
+                        <option
+                          key={opt.value}
+                          value={opt.value}
+                          className="bg-white text-[#0a1122]"
+                        >
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* العمود 5: أزرار الإجراءات السريعة */}
+                  <div className="col-span-2 flex flex-wrap items-center justify-end gap-1.5 border-s border-slate-100 ps-3">
+                    {currentSt === "deleted_by_seller" ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={pending}
+                        onClick={() =>
+                          setConfirmAction({
+                            type: "status",
+                            property,
+                            newStatus: "pending",
+                          })
+                        }
+                        className="h-8 rounded-lg border-emerald-200 bg-emerald-50 px-2.5 text-[11px] font-bold text-[#105C50]"
+                      >
+                        <RotateCcw className="me-1 size-3" />
+                        {t.actions.restoreBtn}
+                      </Button>
+                    ) : isPromotionsPage ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={pending}
+                        onClick={() =>
+                          setConfirmAction({
+                            type: "promote",
+                            property,
+                            promoAction: isFeaturedActive
+                              ? "cancel"
+                              : "activate",
+                            days: property.featured_days || 14,
+                            tier:
+                              property.boost_tier === "vip_plus"
+                                ? "vip_plus"
+                                : "super_vip",
+                          })
+                        }
+                        className={`h-8 rounded-lg px-2.5 text-[11px] font-bold ${
+                          isFeaturedActive
+                            ? "border-amber-300 bg-amber-100 text-amber-900 hover:bg-amber-200"
+                            : "border-amber-300 bg-amber-500 text-white hover:bg-amber-600"
                         }`}
                       >
-                        <td className="max-w-[290px] px-4 py-3.5 align-middle">
-                          <div className="flex items-center gap-1.5">
-                            <span className="rounded bg-[#0a1122] px-1.5 py-0.5 font-mono text-[10px] font-bold text-white">
-                              {deriveShortUnitCode(property.id, property.code)}
-                            </span>
-                            <span className="truncate text-[13px] font-extrabold text-[#0a1122]">
-                              {property.project_name ||
-                                t.table.unspecifiedProject}
-                            </span>
-                            {isRowLoading && (
-                              <Loader2 className="size-3.5 animate-spin text-[#105C50]" />
-                            )}
-                          </div>
-                          <div className="mt-1 text-[11px] font-medium text-gray-500">
-                            {localizedArea} ·{" "}
-                            {property.unit_type || t.table.defaultUnitType}
-                            {property.size
-                              ? ` · ${property.size} ${t.table.sqmUnit}`
-                              : ""}
-                          </div>
-                          {renderSellerActivityBadges(property)}
-                        </td>
+                        <Star className="me-1 size-3 fill-current" />
+                        {isFeaturedActive
+                          ? t.actions.cancelPromoBtn
+                          : t.actions.promoteStarBtn}
+                      </Button>
+                    ) : currentSt !== "active" ? (
+                      <Button
+                        size="sm"
+                        disabled={pending}
+                        className="h-8 rounded-lg bg-[#105C50] px-3 text-[11px] font-bold text-white hover:bg-[#0c483f]"
+                        onClick={() =>
+                          setConfirmAction({
+                            type: "status",
+                            property,
+                            newStatus: "active",
+                          })
+                        }
+                      >
+                        <Check className="me-1 size-3" />
+                        {t.actions.publishShortBtn}
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={pending}
+                        className="h-8 rounded-lg border-orange-300 bg-orange-50 px-2.5 text-[11px] font-bold text-orange-800 hover:bg-orange-100"
+                        onClick={() =>
+                          setConfirmAction({
+                            type: "status",
+                            property,
+                            newStatus: "pending",
+                          })
+                        }
+                      >
+                        <EyeOff className="me-1 size-3" />
+                        {t.actions.unpublishBtn}
+                      </Button>
+                    )}
 
-                        <td className="px-4 py-3.5 align-middle whitespace-nowrap">
-                          <div
-                            dir="ltr"
-                            className="text-[13px] font-black text-[#105C50] tabular-nums"
-                          >
-                            {property.paid_amount
-                              ? `${unitCur}${Number(property.paid_amount).toLocaleString("en-US")}`
-                              : "—"}
-                          </div>
-                          {property.willing_to_discount && (
-                            <span className="mt-1 inline-block rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">
-                              {propBadges.negotiable}
-                            </span>
-                          )}
-                        </td>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 rounded-lg px-2.5 text-[11px] font-bold"
+                      onClick={() => setDetailsProperty(property)}
+                    >
+                      <Eye className="me-1 size-3" />
+                      {t.actions.detailsBtn}
+                    </Button>
 
-                        <td className="px-4 py-3.5 align-middle text-[11.5px] whitespace-nowrap">
-                          <div>
-                            <span className="text-gray-400">
-                              {t.table.contractShort}{" "}
-                            </span>
-                            <strong
-                              dir="ltr"
-                              className="font-extrabold text-[#0a1122] tabular-nums"
-                            >
-                              {property.contract_price
-                                ? `${unitCur}${Number(property.contract_price).toLocaleString("en-US")}`
-                                : "—"}
-                            </strong>
-                          </div>
-                          <div className="mt-1 text-gray-500">
-                            <span className="text-gray-400">
-                              {t.table.marketShort}{" "}
-                            </span>
-                            <span
-                              dir="ltr"
-                              className="font-semibold tabular-nums"
-                            >
-                              {property.market_price
-                                ? `${unitCur}${Number(property.market_price).toLocaleString("en-US")}`
-                                : "—"}
-                            </span>
-                          </div>
-                        </td>
+                    {!isPromotionsPage && currentSt !== "deleted_by_seller" && (
+                      <button
+                        type="button"
+                        disabled={pending}
+                        title={
+                          isFeaturedActive
+                            ? t.actions.cancelPromoBtn
+                            : t.actions.promoteStarBtn
+                        }
+                        onClick={() =>
+                          setConfirmAction({
+                            type: "promote",
+                            property,
+                            promoAction: isFeaturedActive
+                              ? "cancel"
+                              : "activate",
+                            days: property.featured_days || 14,
+                            tier:
+                              property.boost_tier === "vip_plus"
+                                ? "vip_plus"
+                                : "super_vip",
+                          })
+                        }
+                        className={`inline-flex size-8 items-center justify-center rounded-lg border transition ${
+                          isFeaturedActive
+                            ? "border-amber-300 bg-amber-100 text-amber-700 hover:bg-amber-200"
+                            : "border-gray-200 bg-gray-50 text-gray-500 hover:border-amber-300 hover:text-amber-600"
+                        }`}
+                      >
+                        <Star
+                          className={`size-3.5 ${isFeaturedActive ? "fill-amber-500" : ""}`}
+                        />
+                      </button>
+                    )}
 
-                        <td className="max-w-[200px] px-4 py-3.5 align-middle">
-                          <div className="truncate text-xs font-extrabold text-[#0a1122]">
-                            {property.name}
-                          </div>
-                          <div
-                            dir="ltr"
-                            className="mt-0.5 flex items-center justify-start gap-1 text-start font-mono text-[11px] font-semibold text-gray-600"
-                          >
-                            <span>{property.phone}</span>
-                            {phoneOk && (
-                              <span
-                                title={propBadges.phoneVerifiedBadge}
-                                className="inline-flex text-[#105C50]"
-                              >
-                                <CheckCircle2 className="size-3.5" />
-                              </span>
-                            )}
-                          </div>
-                          {property.email && (
-                            <div className="mt-0.5 flex items-center gap-1 truncate text-[10.5px] text-gray-400">
-                              <span className="truncate">{property.email}</span>
-                              {emailOk && (
-                                <span
-                                  title={propBadges.emailVerifiedBadge}
-                                  className="inline-flex shrink-0 text-[#105C50]"
-                                >
-                                  <CheckCircle2 className="size-3" />
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </td>
+                    <Link
+                      href={`/opportunities/${property.id}`}
+                      target="_blank"
+                      title={dict.admin?.shell?.publicSite}
+                      className="inline-flex size-8 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-[#105C50] transition hover:bg-emerald-100"
+                    >
+                      <ExternalLink className="size-3.5" />
+                    </Link>
 
-                        <td className="px-4 py-3.5 align-middle">
-                          <select
-                            disabled={pending}
-                            value={currentSt}
-                            onChange={(e) => {
-                              const nextSt = e.target.value
-                              if (nextSt !== currentSt) {
-                                setConfirmAction({
-                                  type: "status",
-                                  property,
-                                  newStatus: nextSt,
-                                })
-                              }
-                            }}
-                            className={`h-8 rounded-lg border px-2.5 text-[11px] font-extrabold transition focus:outline-none ${stObj.badge}`}
-                          >
-                            {sellerStatusOptions.map((opt) => (
-                              <option
-                                key={opt.value}
-                                value={opt.value}
-                                className="bg-white text-[#0a1122]"
-                              >
-                                {opt.label}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
+                    <a
+                      data-admin-client-wa="true"
+                      href={`https://wa.me/${String(property.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(waText)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex size-8 items-center justify-center rounded-lg bg-[#25D366] text-white hover:opacity-90"
+                    >
+                      <MessageCircle className="size-3.5" />
+                    </a>
 
-                        <td className="px-4 py-3.5 align-middle whitespace-nowrap">
-                          <div className="flex items-center gap-1.5">
-                            {currentSt === "deleted_by_seller" ? (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                disabled={pending}
-                                onClick={() =>
-                                  setConfirmAction({
-                                    type: "status",
-                                    property,
-                                    newStatus: "pending",
-                                  })
-                                }
-                                className="h-8 border-emerald-200 bg-emerald-50 px-2.5 text-[11px] font-bold text-[#105C50]"
-                              >
-                                <RotateCcw className="me-1 size-3" />
-                                {t.actions.restoreBtn}
-                              </Button>
-                            ) : isPromotionsPage ? (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                disabled={pending}
-                                onClick={() =>
-                                  setConfirmAction({
-                                    type: "promote",
-                                    property,
-                                    promoAction: isFeaturedActive
-                                      ? "cancel"
-                                      : "activate",
-                                    days: property.featured_days || 14,
-                                    tier:
-                                      property.boost_tier === "vip_plus"
-                                        ? "vip_plus"
-                                        : "super_vip",
-                                  })
-                                }
-                                className={`h-8 px-2.5 text-[11px] font-bold ${
-                                  isFeaturedActive
-                                    ? "border-amber-300 bg-amber-100 text-amber-900 hover:bg-amber-200"
-                                    : "border-amber-300 bg-amber-500 text-white hover:bg-amber-600"
-                                }`}
-                              >
-                                <Star className="me-1 size-3 fill-current" />
-                                {isFeaturedActive
-                                  ? t.actions.cancelPromoBtn
-                                  : t.actions.promoteStarBtn}
-                              </Button>
-                            ) : currentSt !== "active" ? (
-                              <Button
-                                size="sm"
-                                disabled={pending}
-                                className="h-8 bg-[#105C50] px-2.5 text-[11px] font-bold text-white hover:bg-[#0c483f]"
-                                onClick={() =>
-                                  setConfirmAction({
-                                    type: "status",
-                                    property,
-                                    newStatus: "active",
-                                  })
-                                }
-                              >
-                                <Check className="me-1 size-3" />
-                                {t.actions.publishShortBtn}
-                              </Button>
-                            ) : (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                disabled={pending}
-                                className="h-8 border-orange-300 bg-orange-50 px-2.5 text-[11px] font-bold text-orange-800 hover:bg-orange-100"
-                                onClick={() =>
-                                  setConfirmAction({
-                                    type: "status",
-                                    property,
-                                    newStatus: "pending",
-                                  })
-                                }
-                              >
-                                <EyeOff className="me-1 size-3" />
-                                {t.actions.unpublishBtn}
-                              </Button>
-                            )}
-
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-8 px-2.5 text-[11px] font-bold"
-                              onClick={() => setDetailsProperty(property)}
-                            >
-                              <Eye className="me-1 size-3" />
-                              {t.actions.detailsBtn}
-                            </Button>
-
-                            {!isPromotionsPage &&
-                              currentSt !== "deleted_by_seller" && (
-                                <button
-                                  type="button"
-                                  disabled={pending}
-                                  title={
-                                    isFeaturedActive
-                                      ? t.actions.cancelPromoBtn
-                                      : t.actions.promoteStarBtn
-                                  }
-                                  onClick={() =>
-                                    setConfirmAction({
-                                      type: "promote",
-                                      property,
-                                      promoAction: isFeaturedActive
-                                        ? "cancel"
-                                        : "activate",
-                                      days: property.featured_days || 14,
-                                      tier:
-                                        property.boost_tier === "vip_plus"
-                                          ? "vip_plus"
-                                          : "super_vip",
-                                    })
-                                  }
-                                  className={`inline-flex size-8 items-center justify-center rounded-md border transition ${
-                                    isFeaturedActive
-                                      ? "border-amber-300 bg-amber-100 text-amber-700 hover:bg-amber-200"
-                                      : "border-gray-200 bg-gray-50 text-gray-500 hover:border-amber-300 hover:text-amber-600"
-                                  }`}
-                                >
-                                  <Star
-                                    className={`size-3.5 ${isFeaturedActive ? "fill-amber-500" : ""}`}
-                                  />
-                                </button>
-                              )}
-
-                            <Link
-                              href={`/opportunities/${property.id}`}
-                              target="_blank"
-                              title={dict.admin?.shell?.publicSite}
-                              className="inline-flex size-8 items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 text-[#105C50] transition hover:bg-emerald-100"
-                            >
-                              <ExternalLink className="size-3.5" />
-                            </Link>
-
-                            <a
-                              data-admin-client-wa="true"
-                              href={`https://wa.me/${String(property.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(waText)}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex size-8 items-center justify-center rounded-md bg-[#25D366] text-white hover:opacity-90"
-                            >
-                              <MessageCircle className="size-3.5" />
-                            </a>
-
-                            <button
-                              type="button"
-                              disabled={pending}
-                              onClick={() =>
-                                setConfirmAction({
-                                  type: "delete",
-                                  property,
-                                })
-                              }
-                              className="inline-flex size-8 items-center justify-center rounded-md border border-gray-200 text-gray-400 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
-                            >
-                              <Trash2 className="size-3.5" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })
-                )}
-              </tbody>
-            </table>
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() =>
+                        setConfirmAction({
+                          type: "delete",
+                          property,
+                        })
+                      }
+                      className="inline-flex size-8 items-center justify-center rounded-lg border border-gray-200 text-gray-400 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
           </div>
-        </CardContent>
-      </Card>
+        )}
+      </div>
 
       <UnitSmartMatchModal
         unit={smartMatchProperty}

@@ -19,13 +19,6 @@ import {
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
 import { useTranslation } from "@/lib/i18n"
 import {
   createAdminOrUserAction,
@@ -235,7 +228,7 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
           <span>{t.rolesGuideTitle}</span>
         </div>
         <div className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
-          {t.rolesGuide.map((item) => (
+          {t.rolesGuide.map((item: any) => (
             <div
               key={item.role}
               className="rounded-xl border border-white/80 bg-white p-3 shadow-2xs"
@@ -524,216 +517,213 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
         )}
       </div>
 
-      {/* 2. عرض الكمبيوتر */}
-      <Card className="hidden border-gray-200/80 bg-white shadow-sm md:block">
-        <CardHeader className="border-b border-gray-100">
-          <CardTitle className="text-base font-extrabold">
-            {t.tableTitle} ({filtered.length})
-          </CardTitle>
-          <CardDescription className="text-xs">{t.tableDesc}</CardDescription>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-start text-xs sm:text-sm">
-              <thead className="bg-gray-50 text-xs text-gray-500">
-                <tr>
-                  <th className="px-5 py-4 font-bold">{t.colUser}</th>
-                  <th className="px-5 py-4 font-bold">{t.colActivity}</th>
-                  <th className="px-5 py-4 font-bold">{t.colRole}</th>
-                  <th className="px-5 py-4 font-bold">{t.colJoined}</th>
-                  <th className="px-5 py-4 font-bold">{t.colStatus}</th>
-                  <th className="px-5 py-4 font-bold">{t.colAction}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={6}
-                      className="px-5 py-10 text-center text-gray-400"
-                    >
-                      {t.emptyText}
-                    </td>
-                  </tr>
-                ) : (
-                  filtered.map((user) => {
-                    const isSuspended = user.status === "suspended"
-                    const isRowLoading = pending && activeUserId === user.id
-
-                    return (
-                      <tr
-                        key={user.id}
-                        className={`border-t border-gray-100 transition ${
-                          isRowLoading
-                            ? "bg-emerald-50/40 opacity-70"
-                            : "hover:bg-gray-50/50"
-                        }`}
-                      >
-                        <td className="px-5 py-4">
-                          <div className="flex items-center gap-2 font-extrabold text-[#0a1122]">
-                            <span>{user.name}</span>
-                            {isStaffMember(user.role) && (
-                              <ShieldCheck className="size-4 text-[#105C50]" />
-                            )}
-                          </div>
-                          <div className="mt-0.5 flex items-center gap-1 text-xs text-gray-500">
-                            <span>{user.email}</span>
-                            {user.emailVerified && (
-                              <span
-                                title={propBadges.emailVerifiedBadge}
-                                className="inline-flex text-[#105C50]"
-                              >
-                                <CheckCircle2 className="size-3.5" />
-                              </span>
-                            )}
-                          </div>
-                          <div
-                            dir="ltr"
-                            className="flex items-center justify-start gap-1 text-start text-[11px] text-gray-400"
-                          >
-                            <span>{user.phone}</span>
-                            {user.phoneVerified && (
-                              <span
-                                title={propBadges.phoneVerifiedBadge}
-                                className="inline-flex text-[#105C50]"
-                              >
-                                <CheckCircle2 className="size-3.5" />
-                              </span>
-                            )}
-                          </div>
-                        </td>
-
-                        <td className="px-5 py-4">
-                          <div className="flex flex-wrap gap-1.5">
-                            {user.sellCount > 0 && (
-                              <Badge className="bg-emerald-50 text-emerald-800">
-                                {t.sellerBadge} ({user.sellCount} {t.unitWord})
-                              </Badge>
-                            )}
-                            {user.buyCount > 0 && (
-                              <Badge className="bg-blue-50 text-blue-800">
-                                {t.buyerBadge} ({user.buyCount} {t.reqWord})
-                              </Badge>
-                            )}
-                            {user.sellCount === 0 && user.buyCount === 0 && (
-                              <span className="text-xs text-gray-400">
-                                {t.registeredAcc}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-
-                        <td className="px-5 py-4">
-                          <select
-                            disabled={pending}
-                            value={user.role}
-                            onChange={(e) => {
-                              const nextRole = e.target.value
-                              if (nextRole !== user.role) {
-                                setConfirmState({
-                                  type: "role",
-                                  user,
-                                  newRole: nextRole,
-                                })
-                              }
-                            }}
-                            className="h-9 rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-[#0a1122] focus:border-[#105C50] focus:outline-none disabled:opacity-50"
-                          >
-                            {roleOptions.map((r) => (
-                              <option key={r.value} value={r.value}>
-                                {r.label}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-
-                        <td
-                          dir="ltr"
-                          className="px-5 py-4 text-start text-xs text-gray-500"
-                        >
-                          {new Date(user.created_at).toLocaleDateString("en-GB")}
-                        </td>
-
-                        <td className="px-5 py-4">
-                          <Badge
-                            className={
-                              !isSuspended
-                                ? "bg-teal-600 text-white"
-                                : "bg-red-600 text-white"
-                            }
-                          >
-                            {!isSuspended ? (
-                              <CheckCircle2 className="me-1 size-3.5" />
-                            ) : (
-                              <Ban className="me-1 size-3.5" />
-                            )}
-                            {!isSuspended ? t.activeBadge : t.suspendedBadge}
-                          </Badge>
-                        </td>
-
-                        <td className="px-5 py-4">
-                          <div className="flex flex-wrap items-center gap-2">
-                            {(!user.emailVerified || !user.phoneVerified) && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                disabled={pending}
-                                onClick={() => handleVerifyUserContact(user)}
-                                className="h-8 rounded-lg border-emerald-200 bg-emerald-50 text-xs font-bold text-[#105C50] hover:bg-emerald-100"
-                              >
-                                <CheckCircle2 className="me-1 size-3.5" />
-                                {dict.admin?.propertiesAdmin?.actions
-                                  ?.verifySellerBtn || t.activateBtn}
-                              </Button>
-                            )}
-
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={pending}
-                              onClick={() =>
-                                setConfirmState({
-                                  type: "status",
-                                  user,
-                                  newStatus: isSuspended
-                                    ? "active"
-                                    : "suspended",
-                                })
-                              }
-                              className={`h-8 rounded-lg text-xs font-bold ${
-                                isSuspended
-                                  ? "text-emerald-700 hover:bg-emerald-50"
-                                  : "text-amber-700 hover:bg-amber-50"
-                              }`}
-                            >
-                              {isSuspended ? t.activateBtn : t.suspendBtn}
-                            </Button>
-
-                            <button
-                              type="button"
-                              disabled={pending}
-                              onClick={() =>
-                                setConfirmState({
-                                  type: "delete",
-                                  user,
-                                })
-                              }
-                              className="rounded-lg border border-gray-200 p-2 text-gray-400 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
-                              title={t.deleteBtn}
-                            >
-                              <Trash2 className="size-3.5" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })
-                )}
-              </tbody>
-            </table>
+      {/* 2. عرض الكمبيوتر الاحترافي: بطاقات صفوف منفصلة بوضوح تام */}
+      <div className="hidden md:block">
+        <div className="mb-3 flex items-center justify-between rounded-xl border border-gray-200/85 bg-white px-5 py-3.5 shadow-2xs">
+          <div>
+            <h3 className="text-sm font-extrabold text-[#0a1122] sm:text-base">
+              {t.tableTitle} ({filtered.length})
+            </h3>
+            <p className="mt-0.5 text-xs text-gray-500">{t.tableDesc}</p>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+
+        <div className="mb-2.5 grid grid-cols-12 items-center gap-4 rounded-xl border border-slate-200/90 bg-slate-100/90 px-5 py-3 text-[11px] font-extrabold text-slate-600">
+          <div className="col-span-3">{t.colUser}</div>
+          <div className="col-span-3">{t.colActivity}</div>
+          <div className="col-span-2">{t.colRole}</div>
+          <div className="col-span-2">{t.colStatus}</div>
+          <div className="col-span-2 text-end">{t.colAction}</div>
+        </div>
+
+        {filtered.length === 0 ? (
+          <div className="rounded-2xl border border-gray-200 bg-white p-12 text-center text-xs font-bold text-gray-400">
+            {t.emptyText}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filtered.map((user, index) => {
+              const isSuspended = user.status === "suspended"
+              const isRowLoading = pending && activeUserId === user.id
+
+              return (
+                <div
+                  key={user.id}
+                  className={`grid grid-cols-12 items-center gap-4 rounded-2xl border-2 bg-white px-5 py-4 shadow-2xs transition-all hover:shadow-md ${
+                    isRowLoading
+                      ? "border-[#105C50] bg-emerald-50/40 opacity-70"
+                      : isSuspended
+                        ? "border-red-200 bg-red-50/20"
+                        : isStaffMember(user.role)
+                          ? "border-emerald-200/90 border-s-4 border-s-[#105C50]"
+                          : "border-slate-200/90"
+                  }`}
+                >
+                  {/* العمود 1: بيانات المستخدم */}
+                  <div className="col-span-3 min-w-0 pe-2">
+                    <div className="flex items-center gap-2 font-extrabold text-[#0a1122]">
+                      <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[11px] font-black text-slate-600">
+                        {index + 1}
+                      </span>
+                      <span className="truncate text-sm">{user.name}</span>
+                      {isStaffMember(user.role) && (
+                        <ShieldCheck className="size-4 shrink-0 text-[#105C50]" />
+                      )}
+                    </div>
+                    <div className="mt-1 flex items-center gap-1 truncate ps-8 text-xs text-gray-500">
+                      <span className="truncate">{user.email}</span>
+                      {user.emailVerified && (
+                        <span
+                          title={propBadges.emailVerifiedBadge}
+                          className="inline-flex shrink-0 text-[#105C50]"
+                        >
+                          <CheckCircle2 className="size-3.5" />
+                        </span>
+                      )}
+                    </div>
+                    <div
+                      dir="ltr"
+                      className="mt-0.5 flex items-center justify-start gap-1 ps-8 text-start font-mono text-[11.5px] font-bold text-slate-700"
+                    >
+                      <span>{user.phone}</span>
+                      {user.phoneVerified && (
+                        <span
+                          title={propBadges.phoneVerifiedBadge}
+                          className="inline-flex text-[#105C50]"
+                        >
+                          <CheckCircle2 className="size-3.5" />
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* العمود 2: نشاط الحساب + تاريخ الانضمام */}
+                  <div className="col-span-3 border-s border-slate-100 ps-4">
+                    <div className="flex flex-wrap gap-1.5">
+                      {user.sellCount > 0 && (
+                        <Badge className="bg-emerald-50 text-emerald-800">
+                          {t.sellerBadge} ({user.sellCount} {t.unitWord})
+                        </Badge>
+                      )}
+                      {user.buyCount > 0 && (
+                        <Badge className="bg-blue-50 text-blue-800">
+                          {t.buyerBadge} ({user.buyCount} {t.reqWord})
+                        </Badge>
+                      )}
+                      {user.sellCount === 0 && user.buyCount === 0 && (
+                        <span className="text-xs text-gray-400">
+                          {t.registeredAcc}
+                        </span>
+                      )}
+                    </div>
+                    <div
+                      dir="ltr"
+                      className="mt-1.5 text-start font-mono text-[11px] text-slate-400"
+                    >
+                      📅 {new Date(user.created_at).toLocaleDateString("en-GB")}
+                    </div>
+                  </div>
+
+                  {/* العمود 3: الصلاحية */}
+                  <div className="col-span-2 border-s border-slate-100 ps-4">
+                    <select
+                      disabled={pending}
+                      value={user.role}
+                      onChange={(e) => {
+                        const nextRole = e.target.value
+                        if (nextRole !== user.role) {
+                          setConfirmState({
+                            type: "role",
+                            user,
+                            newRole: nextRole,
+                          })
+                        }
+                      }}
+                      className="h-9 w-full cursor-pointer rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-[#0a1122] focus:border-[#105C50] focus:outline-none disabled:opacity-50"
+                    >
+                      {roleOptions.map((r) => (
+                        <option key={r.value} value={r.value}>
+                          {r.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* العمود 4: حالة الحساب */}
+                  <div className="col-span-2 border-s border-slate-100 ps-4">
+                    <Badge
+                      className={
+                        !isSuspended
+                          ? "bg-teal-600 text-white"
+                          : "bg-red-600 text-white"
+                      }
+                    >
+                      {!isSuspended ? (
+                        <CheckCircle2 className="me-1 size-3.5" />
+                      ) : (
+                        <Ban className="me-1 size-3.5" />
+                      )}
+                      {!isSuspended ? t.activeBadge : t.suspendedBadge}
+                    </Badge>
+                  </div>
+
+                  {/* العمود 5: أزرار التحكم */}
+                  <div className="col-span-2 flex flex-wrap items-center justify-end gap-1.5 border-s border-slate-100 ps-3">
+                    {(!user.emailVerified || !user.phoneVerified) && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={pending}
+                        onClick={() => handleVerifyUserContact(user)}
+                        className="h-8 rounded-lg border-emerald-200 bg-emerald-50 px-2.5 text-xs font-bold text-[#105C50] hover:bg-emerald-100"
+                      >
+                        <CheckCircle2 className="me-1 size-3.5" />
+                        {dict.admin?.propertiesAdmin?.actions
+                          ?.verifySellerBtn || t.activateBtn}
+                      </Button>
+                    )}
+
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={pending}
+                      onClick={() =>
+                        setConfirmState({
+                          type: "status",
+                          user,
+                          newStatus: isSuspended ? "active" : "suspended",
+                        })
+                      }
+                      className={`h-8 rounded-lg px-2.5 text-xs font-bold ${
+                        isSuspended
+                          ? "text-emerald-700 hover:bg-emerald-50"
+                          : "text-amber-700 hover:bg-amber-50"
+                      }`}
+                    >
+                      {isSuspended ? t.activateBtn : t.suspendBtn}
+                    </Button>
+
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() =>
+                        setConfirmState({
+                          type: "delete",
+                          user,
+                        })
+                      }
+                      className="inline-flex size-8 items-center justify-center rounded-lg border border-gray-200 text-gray-400 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                      title={t.deleteBtn}
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
 
       <UserConfirmDialog
         dir={dir}

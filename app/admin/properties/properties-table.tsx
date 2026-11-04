@@ -14,6 +14,7 @@ import {
   Eye,
   EyeOff,
   FileCheck2,
+  FileText,
   Flame,
   Handshake,
   Loader2,
@@ -31,7 +32,11 @@ import {
   X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { downloadExcelCsv, EXPORT_LABELS } from "@/lib/export-csv"
+import {
+  downloadExcelCsv,
+  downloadOfficialPdfReport,
+  EXPORT_LABELS,
+} from "@/lib/export-csv"
 import { useTranslation } from "@/lib/i18n"
 import {
   calculateSmartMatch,
@@ -436,8 +441,9 @@ export default function PropertiesTable({
     return true
   })
 
-  function exportUnitsToExcel(
+  function exportUnitsReport(
     rowsToExport: SellRequest[],
+    format: "excel" | "pdf" = "excel",
     prefix = "AqarExit_Units",
     customTitle?: string
   ) {
@@ -450,75 +456,100 @@ export default function PropertiesTable({
           ? expL.promotionsReportTitle
           : expL.propertiesReportTitle)
 
-    downloadExcelCsv({
-      filenamePrefix: `${prefix}_${locale.toUpperCase()}`,
-      reportTitle: resolvedTitle,
-      locale,
-      data: rowsToExport,
-      columns: [
-        { header: c.index, accessor: (_, idx) => idx + 1 },
-        {
-          header: c.unitCode,
-          accessor: (p) => deriveShortUnitCode(p.id, p.code),
-        },
-        {
-          header: c.projectName,
-          accessor: (p) => p.project_name || t.table.unspecifiedProject,
-        },
-        { header: c.developer, accessor: (p) => p.developer_name || "—" },
-        {
-          header: c.area,
-          accessor: (p) => cleanPropertyAreaDisplay(p.area, locale),
-        },
-        {
-          header: c.unitType,
-          accessor: (p) => p.unit_type || t.table.defaultUnitType,
-        },
-        { header: c.sizeSqm, accessor: (p) => p.size || "—" },
-        { header: c.rooms, accessor: (p) => p.rooms || "—" },
-        {
-          header: c.requiredCash,
-          accessor: (p) => Number(p.paid_amount || 0),
-        },
-        {
-          header: c.contractPrice,
-          accessor: (p) => Number(p.contract_price || 0),
-        },
-        {
-          header: c.marketPrice,
-          accessor: (p) => Number(p.market_price || 0),
-        },
-        {
-          header: c.installment,
-          accessor: (p) => Number(p.installment_amount || 0),
-        },
-        {
-          header: c.frequency,
-          accessor: (p) => p.installment_frequency || "—",
-        },
-        {
-          header: c.negotiable,
-          accessor: (p) => (p.willing_to_discount ? expL.yes : expL.no),
-        },
-        { header: c.sellerName, accessor: (p) => p.name },
-        { header: c.sellerPhone, accessor: (p) => p.phone, isPhone: true },
-        { header: c.sellerEmail, accessor: (p) => p.email || "—" },
-        { header: c.status, accessor: (p) => getStatusLabel(p.status) },
-        {
-          header: c.promoTier,
-          accessor: (p) =>
-            p.is_featured
-              ? p.boost_tier === "vip_plus"
-                ? "+VIP"
-                : "SUPER VIP"
+    const columns = [
+      { header: c.index, accessor: (_: SellRequest, idx: number) => idx + 1 },
+      {
+        header: c.unitCode,
+        accessor: (p: SellRequest) => deriveShortUnitCode(p.id, p.code),
+      },
+      {
+        header: c.projectName,
+        accessor: (p: SellRequest) =>
+          p.project_name || t.table.unspecifiedProject,
+      },
+      {
+        header: c.developer,
+        accessor: (p: SellRequest) => p.developer_name || "—",
+      },
+      {
+        header: c.area,
+        accessor: (p: SellRequest) => cleanPropertyAreaDisplay(p.area, locale),
+      },
+      {
+        header: c.unitType,
+        accessor: (p: SellRequest) => p.unit_type || t.table.defaultUnitType,
+      },
+      { header: c.sizeSqm, accessor: (p: SellRequest) => p.size || "—" },
+      { header: c.rooms, accessor: (p: SellRequest) => p.rooms || "—" },
+      {
+        header: c.requiredCash,
+        accessor: (p: SellRequest) => Number(p.paid_amount || 0),
+      },
+      {
+        header: c.contractPrice,
+        accessor: (p: SellRequest) => Number(p.contract_price || 0),
+      },
+      {
+        header: c.marketPrice,
+        accessor: (p: SellRequest) => Number(p.market_price || 0),
+      },
+      {
+        header: c.installment,
+        accessor: (p: SellRequest) => Number(p.installment_amount || 0),
+      },
+      {
+        header: c.frequency,
+        accessor: (p: SellRequest) => p.installment_frequency || "—",
+      },
+      {
+        header: c.negotiable,
+        accessor: (p: SellRequest) =>
+          p.willing_to_discount ? expL.yes : expL.no,
+      },
+      { header: c.sellerName, accessor: (p: SellRequest) => p.name },
+      {
+        header: c.sellerPhone,
+        accessor: (p: SellRequest) => p.phone,
+        isPhone: true,
+      },
+      { header: c.sellerEmail, accessor: (p: SellRequest) => p.email || "—" },
+      {
+        header: c.status,
+        accessor: (p: SellRequest) => getStatusLabel(p.status),
+      },
+      {
+        header: c.promoTier,
+        accessor: (p: SellRequest) =>
+          p.is_featured
+            ? `${p.boost_tier === "vip_plus" ? "+VIP" : "SUPER VIP"}${p.featured_days ? ` (${p.featured_days}d)` : ""}`
+            : p.featured_status === "pending_payment"
+              ? `${propBadges.promoReqPrefix} (${p.featured_fawry_code || "AD"})`
               : expL.normalTier,
-        },
-        {
-          header: c.createdAt,
-          accessor: (p) => new Date(p.created_at).toLocaleDateString("en-GB"),
-        },
-      ],
-    })
+      },
+      {
+        header: c.createdAt,
+        accessor: (p: SellRequest) =>
+          new Date(p.created_at).toLocaleDateString("en-GB"),
+      },
+    ]
+
+    if (format === "pdf") {
+      downloadOfficialPdfReport({
+        filenamePrefix: `${prefix}_${locale.toUpperCase()}`,
+        reportTitle: resolvedTitle,
+        locale,
+        columns,
+        data: rowsToExport,
+      })
+    } else {
+      downloadExcelCsv({
+        filenamePrefix: `${prefix}_${locale.toUpperCase()}`,
+        reportTitle: resolvedTitle,
+        locale,
+        columns,
+        data: rowsToExport,
+      })
+    }
   }
 
   function renderThreeDotsMenu(
@@ -527,6 +558,7 @@ export default function PropertiesTable({
     isFeaturedActive: boolean
   ) {
     const isMenuOpen = openMenuId === property.id
+    const uCode = deriveShortUnitCode(property.id, property.code)
 
     return (
       <div
@@ -637,22 +669,42 @@ export default function PropertiesTable({
               </>
             )}
 
+            <div className="my-1 border-t border-gray-100" />
+
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation()
                 setOpenMenuId(null)
-                const uCode = deriveShortUnitCode(property.id, property.code)
-                exportUnitsToExcel(
+                exportUnitsReport(
                   [property],
+                  "excel",
+                  `AqarExit_Unit_${uCode}`,
+                  `${expL.singlePropertyReportTitle} (${uCode} — ${property.project_name || property.name})`
+                )
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-emerald-800 transition hover:bg-emerald-50"
+            >
+              <Download className="size-3.5 text-[#105C50]" />
+              <span>{expL.exportRowBtn}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                setOpenMenuId(null)
+                exportUnitsReport(
+                  [property],
+                  "pdf",
                   `AqarExit_Unit_${uCode}`,
                   `${expL.singlePropertyReportTitle} (${uCode} — ${property.project_name || property.name})`
                 )
               }}
               className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-blue-700 transition hover:bg-blue-50"
             >
-              <Download className="size-3.5 text-blue-600" />
-              <span>{expL.exportRowBtn}</span>
+              <FileText className="size-3.5 text-blue-600" />
+              <span>{expL.exportRowPdfBtn}</span>
             </button>
 
             <div className="my-1 border-t border-gray-100" />
@@ -893,8 +945,8 @@ export default function PropertiesTable({
       )}
 
       <div className="mb-4 flex flex-col gap-3 rounded-xl border border-gray-200/80 bg-white p-3.5 shadow-2xs sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-        <div className="flex w-full items-center gap-2 sm:max-w-md sm:flex-1">
-          <div className="relative flex-1">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:max-w-xl sm:flex-1">
+          <div className="relative min-w-[180px] flex-1">
             <Search className="pointer-events-none absolute top-1/2 end-3 size-4 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
@@ -913,8 +965,9 @@ export default function PropertiesTable({
             type="button"
             disabled={filtered.length === 0}
             onClick={() =>
-              exportUnitsToExcel(
+              exportUnitsReport(
                 filtered,
+                "excel",
                 isPromotionsPage ? "AqarExit_Promotions" : "AqarExit_Properties"
               )
             }
@@ -922,6 +975,22 @@ export default function PropertiesTable({
           >
             <Download className="size-3.5" />
             <span>{expL.exportAllBtn}</span>
+          </button>
+
+          <button
+            type="button"
+            disabled={filtered.length === 0}
+            onClick={() =>
+              exportUnitsReport(
+                filtered,
+                "pdf",
+                isPromotionsPage ? "AqarExit_Promotions" : "AqarExit_Properties"
+              )
+            }
+            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-slate-300 bg-[#0a1122] px-3 text-xs font-extrabold text-white transition hover:bg-[#16223f] disabled:opacity-40"
+          >
+            <FileText className="size-3.5 text-emerald-400" />
+            <span>{expL.exportPdfBtn}</span>
           </button>
         </div>
 
@@ -1418,7 +1487,7 @@ export default function PropertiesTable({
                             title={propBadges.emailVerifiedBadge}
                             className="inline-flex shrink-0 text-[#105C50]"
                           >
-                            <CheckCircle2 className="size-3" />
+                            <CheckCircle2 className="size-3.5" />
                           </span>
                         )}
                       </div>

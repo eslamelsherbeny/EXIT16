@@ -49,6 +49,12 @@ const STATUS_BADGE_CLASSES: Record<string, string> = {
   rejected: "bg-red-100 text-red-800",
 }
 
+function normalizeUnitStatus(rawStatus?: string | null): string {
+  const clean = String(rawStatus || "pending").trim().toLowerCase()
+  if (clean === "approved" || clean === "published") return "active"
+  return clean
+}
+
 function deriveUnitCode(id: string, dbCode?: string | null) {
   if (dbCode && String(dbCode).trim()) return String(dbCode).trim()
   const numericCode = String(id || "")
@@ -183,6 +189,7 @@ export default async function AdminPage() {
     return {
       ...p,
       id: String(p.id),
+      status: normalizeUnitStatus(p.status),
       project_name: sanitizeGeorgiaProjectTitle(p.project_name),
       area: p.area || meta.area || null,
       unit_type: p.unit_type || meta.unit_type || null,
@@ -241,7 +248,12 @@ export default async function AdminPage() {
   const pendingProperties = properties.filter(
     (p) => !p.status || p.status === "pending" || p.status === "under_review"
   )
-  const activeProperties = properties.filter((p) => p.status === "active")
+  const activeProperties = properties.filter(
+    (p) =>
+      p.status === "active" ||
+      p.status === "offer_received" ||
+      p.status === "transferring"
+  )
 
   const pendingAdRequests = properties.filter(
     (p) => !p.is_featured && p.featured_status === "pending_payment"
@@ -425,6 +437,7 @@ export default async function AdminPage() {
         </span>
       </Link>
 
+      {/* قسم الصفقات الجاهزة للتنفيذ: يتمدد بعرض الكارت بالكامل لو صفقة واحدة، أو عمودين لو أكثر */}
       {readyDeals.length > 0 && (
         <div className="mt-4 rounded-2xl border-2 border-[#105C50] bg-gradient-to-br from-[#effaf5] via-white to-[#f4fbf8] p-4 shadow-sm sm:p-5">
           <div className="mb-3.5 flex flex-wrap items-center justify-between gap-2">
@@ -449,7 +462,11 @@ export default async function AdminPage() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <div
+            className={`grid grid-cols-1 gap-3 ${
+              readyDeals.length > 1 ? "md:grid-cols-2" : "md:grid-cols-1"
+            }`}
+          >
             {readyDeals.map(({ offer, unit }) => {
               const uCode = deriveUnitCode(unit.id, unit.code)
               const cur = georgiaCurrency
@@ -486,8 +503,8 @@ export default async function AdminPage() {
                     </Link>
                   </div>
 
-                  <div className="mt-3 grid grid-cols-2 gap-2.5 text-xs">
-                    <div className="rounded-xl border border-gray-100 bg-gray-50 p-2.5">
+                  <div className="mt-3 grid grid-cols-1 gap-2.5 text-xs sm:grid-cols-2">
+                    <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
                       <span className="block text-[10px] font-bold text-gray-400">
                         {sm.sellerPartyLabel}
                       </span>
@@ -505,14 +522,14 @@ export default async function AdminPage() {
                         href={`https://wa.me/${String(unit.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(sellerWa)}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="mt-2 inline-flex h-7 w-full items-center justify-center gap-1 rounded-lg bg-[#25D366] px-2 text-[10.5px] font-extrabold text-white"
+                        className="mt-2 inline-flex h-8 w-full items-center justify-center gap-1 rounded-lg bg-[#25D366] px-2 text-[10.5px] font-extrabold text-white"
                       >
                         <MessageCircle className="size-3" />
                         <span>{sm.contactSellerWa}</span>
                       </a>
                     </div>
 
-                    <div className="rounded-xl border border-gray-100 bg-gray-50 p-2.5">
+                    <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
                       <span className="block text-[10px] font-bold text-gray-400">
                         {sm.buyerPartyLabel}
                       </span>
@@ -530,7 +547,7 @@ export default async function AdminPage() {
                         href={`https://wa.me/${String(offer.buyer_phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(buyerWa)}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="mt-2 inline-flex h-7 w-full items-center justify-center gap-1 rounded-lg bg-[#25D366] px-2 text-[10.5px] font-extrabold text-white"
+                        className="mt-2 inline-flex h-8 w-full items-center justify-center gap-1 rounded-lg bg-[#25D366] px-2 text-[10.5px] font-extrabold text-white"
                       >
                         <MessageCircle className="size-3" />
                         <span>{sm.contactBuyerWa}</span>
@@ -538,7 +555,7 @@ export default async function AdminPage() {
                     </div>
                   </div>
 
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[#effaf5] px-3 py-2 text-xs">
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[#effaf5] px-3.5 py-2.5 text-xs">
                     <div>
                       <span className="text-[10.5px] text-gray-500">
                         {sm.agreedCashLabel}:{" "}
@@ -571,6 +588,7 @@ export default async function AdminPage() {
         </div>
       )}
 
+      {/* قسم العروض التفاوضية الحية: يتمدد بعرض الكارت بالكامل لو عرض واحد فقط حتى لا يترك نصف الشاشة فارغاً */}
       {liveNegotiationOffers.length > 0 && (
         <Card className="mt-4 border-gray-200/85 bg-white shadow-2xs">
           <CardHeader className="flex flex-row items-center justify-between border-b border-gray-100 px-4 py-3 sm:px-5">
@@ -588,36 +606,51 @@ export default async function AdminPage() {
               <ArrowLeft className="size-3.5 rtl:rotate-0 ltr:rotate-180" />
             </Link>
           </CardHeader>
-          <CardContent className="p-3">
-            <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+          <CardContent className="p-3.5">
+            <div
+              className={`grid grid-cols-1 gap-2.5 ${
+                liveNegotiationOffers.length > 1
+                  ? "md:grid-cols-2"
+                  : "md:grid-cols-1"
+              }`}
+            >
               {liveNegotiationOffers.map(({ offer, unit }) => {
                 const uCode = deriveUnitCode(unit.id, unit.code)
                 const cur = georgiaCurrency
                 const st = offer.status
+                const localizedArea = cleanAreaDisplay(unit.area, locale)
 
                 return (
                   <Link
                     key={offer.id}
                     href={`/admin/deals?offerId=${offer.id}`}
-                    className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-gray-200/80 bg-gray-50/60 px-3 py-2 text-xs transition hover:border-[#105C50]/50 hover:bg-white"
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200/90 bg-gray-50/70 px-4 py-3 text-xs transition hover:border-[#105C50]/60 hover:bg-white hover:shadow-2xs"
                   >
                     <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="rounded bg-[#0a1122] px-1.5 py-0.5 font-mono text-[9.5px] font-bold text-white">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-md bg-[#0a1122] px-2 py-0.5 font-mono text-[10px] font-bold text-white">
                           {uCode}
                         </span>
-                        <span className="truncate font-extrabold text-[#0a1122]">
+                        <span className="truncate text-[13px] font-extrabold text-[#0a1122]">
                           {unit.project_name || t.defaultUnit}
                         </span>
-                        <span className="text-[11px] text-gray-400">←</span>
-                        <span className="truncate font-bold text-[#105C50]">
+                        {localizedArea && (
+                          <span className="text-[11px] font-semibold text-gray-400">
+                            · {localizedArea}
+                          </span>
+                        )}
+                        <span className="text-xs text-gray-400">←</span>
+                        <span className="truncate font-extrabold text-[#105C50]">
                           {offer.buyer_name || "—"}
                         </span>
                       </div>
-                      <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-gray-600">
+                      <div className="mt-1.5 flex flex-wrap items-center gap-3 text-[11.5px] text-gray-600">
                         <span>
                           {sm.agreedCashLabel}:{" "}
-                          <strong dir="ltr" className="text-[#0a1122]">
+                          <strong
+                            dir="ltr"
+                            className="font-black text-[#0a1122] tabular-nums"
+                          >
                             {cur}
                             {Number(offer.offered_cash || 0).toLocaleString(
                               "en-US"
@@ -639,14 +672,14 @@ export default async function AdminPage() {
                       </div>
                     </div>
 
-                    <div className="flex shrink-0 items-center gap-1.5">
+                    <div className="flex shrink-0 items-center gap-2">
                       {st === "pending_admin" && (
-                        <span className="rounded-full bg-amber-500 px-2.5 py-0.5 text-[10px] font-extrabold text-white">
+                        <span className="rounded-full bg-amber-500 px-3 py-1 text-[10.5px] font-extrabold text-white shadow-2xs">
                           {sm.offerPendingAdminTag}
                         </span>
                       )}
                       {st === "accepted" && (
-                        <span className="rounded-full bg-emerald-600 px-2.5 py-0.5 text-[10px] font-extrabold text-white">
+                        <span className="rounded-full bg-emerald-600 px-3 py-1 text-[10.5px] font-extrabold text-white">
                           ✓{" "}
                           {unit.status === "sold"
                             ? statusesDict.sold || sm.offerAcceptedTag
@@ -654,24 +687,24 @@ export default async function AdminPage() {
                         </span>
                       )}
                       {st === "pending_seller" && (
-                        <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[10px] font-extrabold text-amber-900">
+                        <span className="rounded-full bg-amber-100 px-3 py-1 text-[10.5px] font-extrabold text-amber-900">
                           ⏳ {sm.offerPendingTag}
                         </span>
                       )}
                       {st === "counter_offered" && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2.5 py-0.5 text-[10px] font-extrabold text-purple-900">
-                          <RefreshCw className="size-2.5" />
+                        <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-3 py-1 text-[10.5px] font-extrabold text-purple-900">
+                          <RefreshCw className="size-3" />
                           <span>{sm.offerCounterTag}</span>
                         </span>
                       )}
                       {st === "unit_locked" && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2.5 py-0.5 text-[10px] font-bold text-slate-700">
-                          <Lock className="size-2.5" />
+                        <span className="inline-flex items-center gap-1 rounded-full bg-slate-200 px-3 py-1 text-[10.5px] font-bold text-slate-700">
+                          <Lock className="size-3" />
                           <span>{sm.offerBackupTag}</span>
                         </span>
                       )}
                       {st === "rejected" && (
-                        <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-[10px] font-extrabold text-red-700">
+                        <span className="rounded-full bg-red-100 px-3 py-1 text-[10.5px] font-extrabold text-red-700">
                           ✕ {sm.offerRejectedTag}
                         </span>
                       )}
@@ -702,19 +735,18 @@ export default async function AdminPage() {
           </CardHeader>
 
           <CardContent className="p-3">
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               {properties.length === 0 ? (
                 <div className="py-6 text-center text-xs text-gray-400">
                   {t.noProperties}
                 </div>
               ) : (
                 properties.slice(0, 6).map((prop) => {
-                  const stKey = prop.status || "pending"
+                  const stKey = normalizeUnitStatus(prop.status)
                   const stLabel =
-                    statusesDict[stKey] || statusesDict.pending || stKey
+                    statusesDict[stKey] || statusesDict.active || stKey
                   const stCls =
-                    STATUS_BADGE_CLASSES[prop.status || "pending"] ||
-                    STATUS_BADGE_CLASSES.pending
+                    STATUS_BADGE_CLASSES[stKey] || STATUS_BADGE_CLASSES.active
                   const uCode = deriveUnitCode(prop.id, prop.code)
                   const localizedArea = cleanAreaDisplay(prop.area, locale)
 
@@ -723,21 +755,21 @@ export default async function AdminPage() {
                   return (
                     <div
                       key={prop.id}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-gray-200/80 bg-white px-3.5 py-2.5 transition hover:border-[#105C50]/50 hover:bg-gray-50/70"
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-gray-200/85 bg-white px-3.5 py-2.5 shadow-2xs transition hover:border-[#105C50]/50 hover:bg-gray-50/70"
                     >
                       <Link
                         href={`/admin/properties?unitId=${prop.id}`}
                         className="min-w-[160px] flex-1"
                       >
                         <div className="flex items-center gap-1.5">
+                          <span className="rounded bg-[#0a1122] px-1.5 py-0.5 font-mono text-[9.5px] font-bold text-white">
+                            {uCode}
+                          </span>
                           <p className="text-xs font-extrabold text-[#0a1122]">
                             {prop.project_name || t.defaultUnit}
                           </p>
-                          <span className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[9.5px] font-bold text-gray-600">
-                            {uCode}
-                          </span>
                         </div>
-                        <p className="mt-0.5 text-[11px] text-gray-500">
+                        <p className="mt-1 text-[11px] text-gray-500">
                           {localizedArea} · {prop.name} (
                           <span dir="ltr">{prop.phone}</span>)
                         </p>
@@ -752,7 +784,7 @@ export default async function AdminPage() {
                             ? `$${Number(prop.paid_amount).toLocaleString("en-US")}`
                             : "—"}
                         </span>
-                        <Badge className={`text-[10px] ${stCls}`}>
+                        <Badge className={`text-[10px] font-bold ${stCls}`}>
                           {stLabel}
                         </Badge>
                         <Link
@@ -794,7 +826,7 @@ export default async function AdminPage() {
               <ArrowLeft className="size-3.5 rtl:rotate-0 ltr:rotate-180" />
             </Link>
           </CardHeader>
-          <CardContent className="space-y-2 p-3">
+          <CardContent className="space-y-2.5 p-3">
             {leads.length === 0 ? (
               <div className="py-6 text-center text-xs text-gray-400">
                 {t.noLeads}
@@ -824,7 +856,7 @@ export default async function AdminPage() {
                 return (
                   <div
                     key={lead.id}
-                    className="flex items-center justify-between rounded-xl border border-gray-200/80 bg-white px-3.5 py-2.5 transition hover:border-[#105C50]/40"
+                    className="flex items-center justify-between rounded-xl border border-gray-200/85 bg-white px-3.5 py-2.5 shadow-2xs transition hover:border-[#105C50]/40"
                   >
                     <Link
                       href={`/admin/leads?leadId=${lead.id}`}

@@ -12,6 +12,7 @@ export type { GeorgiaRegionCode }
 
 export type MatchableUnit = {
   id: string
+  code?: string | null
   user_id?: string | null
   listing_category?:
     | 'exit'
@@ -121,6 +122,49 @@ export type SmartMatchResult = {
     developerPenaltyEstimate: number
     netSavedAtFullPrice: number
   }
+}
+
+const UNIT_TYPE_GROUPS: string[][] = [
+  ['apartment', 'studio', 'شقة', 'شقه', 'استوديو', 'بنتهاوس', 'دوبلكس', 'квартира', 'студия', 'ბინა', 'სტუდიო'],
+  ['private house', 'house', 'villa', 'townhouse', 'فيلا', 'منزل', 'تاون هاوس', 'توين هاوس', 'дом', 'вилла', 'კერძო სახლი', 'ვილა'],
+  ['cottage', 'chalet', 'كوخ', 'شاليه', 'كابينة', 'коттедж', 'шале', 'კოტეჯი'],
+  ['hotel', 'aparthotel', 'فندق', 'فندقية', 'شقة فندقية', 'отель', 'апарт', 'სასტუმრო'],
+  ['commercial', 'office', 'shop', 'تجاري', 'مكتب', 'إداري', 'محل', 'коммерч', 'офис', 'კომერციული'],
+  ['land', 'أرض', 'ارض', 'قطعة أرض', 'участок', 'земл', 'მიწის'],
+]
+
+function normalizeUnitTypeCategory(raw?: string | null): string {
+  if (!raw) return ''
+  const lower = String(raw).trim().toLowerCase()
+  for (let i = 0; i < UNIT_TYPE_GROUPS.length; i++) {
+    if (UNIT_TYPE_GROUPS[i].some((kw) => lower.includes(kw))) {
+      return `group_${i}`
+    }
+  }
+  return lower
+}
+
+export function doUnitTypesMatch(
+  unitTypeRaw?: string | null,
+  buyerTypesRaw?: string[] | null
+): boolean {
+  const cleanUnit = String(unitTypeRaw || '').trim()
+  const buyerTypes = Array.isArray(buyerTypesRaw)
+    ? buyerTypesRaw.filter(Boolean)
+    : []
+  if (!cleanUnit || buyerTypes.length === 0) return true
+
+  const unitGroup = normalizeUnitTypeCategory(cleanUnit)
+  return buyerTypes.some((bt) => {
+    const btClean = String(bt || '').trim()
+    if (!btClean) return false
+    const btGroup = normalizeUnitTypeCategory(btClean)
+    if (unitGroup && btGroup && unitGroup === btGroup) return true
+    return (
+      cleanUnit.toLowerCase().includes(btClean.toLowerCase()) ||
+      btClean.toLowerCase().includes(cleanUnit.toLowerCase())
+    )
+  })
 }
 
 export function getLocalizedGeorgiaAreaName(
@@ -431,7 +475,6 @@ export function calculateSmartMatch(
   const contractPrice = Number(unit.contract_price) || guardrails.requiredCash
   const developerPenaltyEstimate = Math.round(contractPrice * 0.125)
 
-  // وحدات الإيجار لا تدخل في رادار التنازل التلقائي للمشترين
   const cat = String(unit.listing_category || 'exit').toLowerCase()
   if (cat === 'rent_monthly' || cat === 'rent_daily') {
     return {
@@ -554,13 +597,7 @@ export function calculateSmartMatch(
 
   if (!unitType || buyerTypes.length === 0) {
     score += 6
-  } else if (
-    buyerTypes.some(
-      (tp) =>
-        unitType.toLowerCase().includes(tp.toLowerCase()) ||
-        tp.toLowerCase().includes(unitType.toLowerCase())
-    )
-  ) {
+  } else if (doUnitTypesMatch(unitType, buyerTypes)) {
     score += 6
     if (L.typeMatch) matches.push(`${L.typeMatch}: ${unitType}`)
   } else {

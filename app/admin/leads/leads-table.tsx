@@ -22,13 +22,6 @@ import {
   Wallet,
   X,
 } from "lucide-react"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
 import { getCurrencySymbol, useTranslation } from "@/lib/i18n"
 import { calculateSmartMatch } from "@/lib/smart-matcher"
 import { BuyerSmartMatchModal } from "@/components/features/admin/smart-match-dialogs"
@@ -53,6 +46,16 @@ import {
 import { LeadConfirmDialog, LeadDetailsDialog } from "./leads-modals"
 
 export type { BuyerLead, LinkedUnitSummary, UserVerificationBadgeInfo }
+
+function isUnitEligibleForLeadMatch(status?: string | null): boolean {
+  const clean = String(status || "active").trim().toLowerCase()
+  return (
+    clean === "active" ||
+    clean === "approved" ||
+    clean === "published" ||
+    clean === "offer_received"
+  )
+}
 
 export default function LeadsClientTable({
   leads,
@@ -81,7 +84,7 @@ export default function LeadsClientTable({
     if (!units || units.length === 0) return []
     const leadPhoneDigits = String(lead.phone || "").replace(/\D/g, "")
     const eligibleUnits = units.filter((u) => {
-      if (u.status !== "active" && u.status !== "offer_received") return false
+      if (!isUnitEligibleForLeadMatch(u.status)) return false
       if (lead.user_id && u.user_id && String(u.user_id) === String(lead.user_id))
         return false
       const uPhoneDigits = String(u.phone || "").replace(/\D/g, "")
@@ -180,27 +183,27 @@ export default function LeadsClientTable({
     {
       value: "new",
       label: t.statuses?.new,
-      badge: "bg-blue-50 text-blue-900 border-blue-200",
+      badge: "bg-blue-50 text-blue-900 border-blue-300",
     },
     {
       value: "contacted",
       label: t.statuses?.contacted,
-      badge: "bg-amber-50 text-amber-900 border-amber-200",
+      badge: "bg-amber-50 text-amber-900 border-amber-300",
     },
     {
       value: "matched",
       label: t.statuses?.matched,
-      badge: "bg-purple-50 text-purple-900 border-purple-200",
+      badge: "bg-purple-50 text-purple-900 border-purple-300",
     },
     {
       value: "closed",
       label: t.statuses?.closed,
-      badge: "bg-emerald-50 text-[#105C50] border-emerald-200",
+      badge: "bg-emerald-50 text-[#105C50] border-emerald-300",
     },
     {
       value: "archived",
       label: t.statuses?.archived,
-      badge: "bg-gray-100 text-gray-700 border-gray-200",
+      badge: "bg-gray-100 text-gray-700 border-gray-300",
     },
   ]
 
@@ -483,7 +486,7 @@ export default function LeadsClientTable({
         </div>
       </div>
 
-      {/* 1. عرض الموبايل (محافظ عليه بالكامل بدون تكرار شارة الحالة) */}
+      {/* 1. عرض الموبايل */}
       <div className="space-y-3 md:hidden">
         {filtered.length === 0 ? (
           <div className="rounded-xl border border-gray-200 bg-white p-8 text-center text-xs text-gray-400">
@@ -785,312 +788,308 @@ export default function LeadsClientTable({
         )}
       </div>
 
-      {/* 2. عرض الكمبيوتر — جدول Enterprise موحد ونظيف بدون تكرار */}
-      <Card className="hidden border-gray-200/80 bg-white shadow-2xs md:block">
-        <CardHeader className="border-b border-gray-100 px-5 py-3.5">
-          <CardTitle className="text-sm font-extrabold text-[#0a1122] sm:text-base">
-            {t.allOrdersTitle} ({filtered.length})
-          </CardTitle>
-          <CardDescription className="text-xs">
-            {t.allOrdersDesc}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-start text-xs">
-              <thead className="border-b border-gray-100 bg-gray-50/80 text-[11px] font-extrabold text-gray-500">
-                <tr>
-                  <th className="px-4 py-3.5">{t.colBuyer}</th>
-                  <th className="px-4 py-3.5">{t.colCash}</th>
-                  <th className="px-4 py-3.5">{t.colTarget}</th>
-                  <th className="px-4 py-3.5">{t.colDate}</th>
-                  <th className="px-4 py-3.5">{t.colStatus}</th>
-                  <th className="px-4 py-3.5">{t.colAction}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {filtered.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={6}
-                      className="px-6 py-10 text-center text-gray-400"
-                    >
-                      {t.emptyText}
-                    </td>
-                  </tr>
-                ) : (
-                  filtered.map((lead) => {
-                    const currentSt = lead.status || "new"
-                    const stObj =
-                      leadStatuses.find((s) => s.value === currentSt) ||
-                      leadStatuses[0]
-                    const parsed = parseLeadDetails({
-                      lead,
-                      units,
-                      offers,
-                      locale,
-                      dir,
-                      leadsPrompts,
-                    })
-                    const matchedUnits = getMatchedUnitsForLead(lead)
-                    const typesText = Array.isArray(lead.unit_types)
-                      ? lead.unit_types.join("، ")
-                      : "—"
-                    const isRowLoading = pending && activeLeadId === lead.id
-                    const isHighlighted = highlightedLeadId === lead.id
-                    const phoneOk = isBuyerPhoneVerified(lead, verificationMap)
-                    const emailOk = isBuyerEmailVerified(lead, verificationMap)
-
-                    const waText = buildLeadWhatsAppMessage({
-                      lead,
-                      parsed,
-                      leadCur,
-                      locale,
-                      t,
-                      leadsPrompts,
-                    })
-
-                    return (
-                      <tr
-                        id={`lead-row-${lead.id}`}
-                        key={lead.id}
-                        className={`transition-colors ${
-                          isRowLoading
-                            ? "bg-emerald-50/40 opacity-70"
-                            : isHighlighted
-                              ? "bg-emerald-50/70 ring-2 ring-inset ring-[#105C50]"
-                              : parsed.isUnitLead
-                                ? "bg-orange-50/20 hover:bg-orange-50/40"
-                                : "hover:bg-gray-50/60"
-                        }`}
-                      >
-                        <td className="max-w-[240px] px-4 py-3.5 align-middle">
-                          <div className="flex flex-wrap items-center gap-1.5 font-extrabold text-[#0a1122]">
-                            <span className="text-[13px]">{lead.name}</span>
-                            {parsed.isUnitLead ? (
-                              <span className="inline-flex items-center gap-1 rounded-md bg-orange-100 px-2 py-0.5 text-[10px] font-extrabold text-orange-800">
-                                <Flame className="size-3 fill-orange-500 text-orange-600" />
-                                {t.unitBadge} {parsed.unitCode || ""}
-                              </span>
-                            ) : (
-                              <span className="rounded-md bg-gray-100 px-2 py-0.5 text-[10px] font-bold text-gray-600">
-                                {t.generalTab}
-                              </span>
-                            )}
-                            {isRowLoading && (
-                              <Loader2 className="size-3.5 animate-spin text-[#105C50]" />
-                            )}
-                          </div>
-                          <div
-                            dir="ltr"
-                            className="mt-0.5 flex items-center justify-start gap-1 text-start font-mono text-[11px] font-semibold text-gray-600"
-                          >
-                            <span>{lead.phone}</span>
-                            {phoneOk && (
-                              <span
-                                title={propAdminDict.badges?.phoneVerifiedBadge}
-                                className="inline-flex text-[#105C50]"
-                              >
-                                <CheckCircle2 className="size-3.5" />
-                              </span>
-                            )}
-                          </div>
-                          {lead.email && (
-                            <div className="mt-0.5 flex items-center gap-1 truncate text-[10.5px] text-gray-400">
-                              <span className="truncate">{lead.email}</span>
-                              {emailOk && (
-                                <span
-                                  title={
-                                    propAdminDict.badges?.emailVerifiedBadge
-                                  }
-                                  className="inline-flex shrink-0 text-[#105C50]"
-                                >
-                                  <CheckCircle2 className="size-3" />
-                                </span>
-                              )}
-                            </div>
-                          )}
-
-                          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                            {matchedUnits.length > 0 && (
-                              <button
-                                type="button"
-                                onClick={() => setSmartMatchLead(lead)}
-                                className="inline-flex items-center gap-1 rounded-md border border-teal-300 bg-teal-50/80 px-2 py-0.5 text-[10px] font-extrabold text-[#105C50] transition hover:bg-[#105C50] hover:text-white"
-                              >
-                                <span>🎯</span>
-                                <span>
-                                  {matchedUnits.length} {sm.matchedUnitsShort}
-                                </span>
-                              </button>
-                            )}
-                          </div>
-                          {renderLeadOfferBadges(lead, parsed)}
-                        </td>
-
-                        <td className="px-4 py-3.5 align-middle whitespace-nowrap">
-                          <div className="text-[13px] font-black text-[#105C50] tabular-nums">
-                            {t.cashLabel}{" "}
-                            <span dir="ltr">
-                              {Number(
-                                lead.available_cash || lead.budget || 0
-                              ).toLocaleString("en-US")}
-                            </span>{" "}
-                            {leadCur}
-                          </div>
-                          <div className="mt-1 text-[11px] text-gray-500 tabular-nums">
-                            {t.installmentLabel}{" "}
-                            <span dir="ltr">
-                              {Number(lead.max_installment || 0).toLocaleString(
-                                "en-US"
-                              )}
-                            </span>{" "}
-                            {leadCur}
-                          </div>
-                        </td>
-
-                        <td className="max-w-[280px] px-4 py-3.5 align-middle">
-                          <div className="font-extrabold text-[#0a1122]">
-                            {parsed.cleanTargetUnit}
-                          </div>
-                          <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-gray-500">
-                            <span>
-                              {typesText}{" "}
-                              {lead.min_rooms ? `· +${lead.min_rooms}` : ""}
-                            </span>
-                            {parsed.readinessBadge && (
-                              <span
-                                className={`rounded-md px-2 py-0.5 text-[10px] font-bold ${parsed.readinessBadge.className}`}
-                              >
-                                {parsed.readinessBadge.text}
-                              </span>
-                            )}
-                          </div>
-                          {parsed.customerNotes && (
-                            <div className="mt-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[11px] text-amber-900">
-                              <strong>{t.customerNotesLabel}</strong>{" "}
-                              {parsed.customerNotes}
-                            </div>
-                          )}
-                        </td>
-
-                        <td
-                          dir="ltr"
-                          className="px-4 py-3.5 text-start align-middle text-xs text-gray-500 whitespace-nowrap"
-                        >
-                          {new Date(lead.created_at).toLocaleDateString(
-                            "en-GB"
-                          )}
-                        </td>
-
-                        {/* قائمة حالة واحدة ملونة ونظيفة بدون تكرار الشارة فوقها */}
-                        <td className="px-4 py-3.5 align-middle">
-                          <select
-                            disabled={pending}
-                            value={currentSt}
-                            onChange={(e) => {
-                              const nextSt = e.target.value
-                              if (nextSt !== currentSt) {
-                                setConfirmAction({
-                                  type: "status",
-                                  lead,
-                                  newStatus: nextSt,
-                                })
-                              }
-                            }}
-                            className={`h-8 rounded-lg border px-2.5 text-[11px] font-extrabold transition focus:outline-none ${stObj.badge}`}
-                          >
-                            {leadStatuses.map((st) => (
-                              <option
-                                key={st.value}
-                                value={st.value}
-                                className="bg-white text-[#0a1122]"
-                              >
-                                {st.label}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-
-                        {/* شريط إجراءات أفقي نظيف في سطر واحد */}
-                        <td className="px-4 py-3.5 align-middle whitespace-nowrap">
-                          <div className="flex items-center gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => setDetailsLead(lead)}
-                              className="inline-flex h-8 items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 text-[11px] font-bold text-[#0a1122] transition hover:border-[#105C50] hover:bg-gray-50"
-                            >
-                              <Eye className="size-3.5 text-[#105C50]" />
-                              <span>
-                                {propAdminDict.actions?.detailsBtn || t.unitBtn}
-                              </span>
-                            </button>
-
-                            {parsed.isUnitLead && (
-                              <>
-                                <Link
-                                  href={
-                                    parsed.matchedUnit
-                                      ? `/opportunities/${parsed.matchedUnit.id}`
-                                      : `/opportunities?q=${encodeURIComponent(parsed.unitCode || parsed.cleanTargetUnit)}`
-                                  }
-                                  target="_blank"
-                                  title={t.unitBtn}
-                                  className="inline-flex size-8 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-[#105C50] transition hover:bg-emerald-100"
-                                >
-                                  <ExternalLink className="size-3.5" />
-                                </Link>
-
-                                <Link
-                                  href={
-                                    parsed.matchedUnit
-                                      ? `/admin/properties?unitId=${parsed.matchedUnit.id}`
-                                      : `/admin/properties`
-                                  }
-                                  title={dict.admin?.shell?.nav?.properties}
-                                  className="inline-flex size-8 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-[#0a1122] transition hover:bg-gray-100"
-                                >
-                                  <Building2 className="size-3.5 text-[#105C50]" />
-                                </Link>
-                              </>
-                            )}
-
-                            <a
-                              data-admin-client-wa="true"
-                              href={`https://wa.me/${String(lead.phone).replace(/\D/g, "")}?text=${encodeURIComponent(waText)}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              title={t.whatsappBtn}
-                              className="inline-flex size-8 items-center justify-center rounded-lg bg-[#25D366] text-white transition hover:opacity-90"
-                            >
-                              <MessageCircle className="size-3.5" />
-                            </a>
-
-                            <button
-                              type="button"
-                              disabled={pending}
-                              onClick={() =>
-                                setConfirmAction({
-                                  type: "delete",
-                                  lead,
-                                })
-                              }
-                              className="inline-flex size-8 items-center justify-center rounded-lg border border-gray-200 text-gray-400 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
-                              title={t.deleteBtn}
-                            >
-                              <Trash2 className="size-3.5" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })
-                )}
-              </tbody>
-            </table>
+      {/* 2. عرض الكمبيوتر الاحترافي: بطاقات صفوف منفصلة بوضوح تام */}
+      <div className="hidden md:block">
+        <div className="mb-3 flex items-center justify-between rounded-xl border border-gray-200/85 bg-white px-5 py-3.5 shadow-2xs">
+          <div>
+            <h2 className="text-sm font-extrabold text-[#0a1122] sm:text-base">
+              {t.allOrdersTitle} ({filtered.length})
+            </h2>
+            <p className="mt-0.5 text-xs text-gray-500">{t.allOrdersDesc}</p>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+
+        <div className="mb-2.5 grid grid-cols-12 items-center gap-4 rounded-xl border border-slate-200/90 bg-slate-100/90 px-5 py-3 text-[11px] font-extrabold text-slate-600">
+          <div className="col-span-3">{t.colBuyer}</div>
+          <div className="col-span-2">{t.colCash}</div>
+          <div className="col-span-3">{t.colTarget}</div>
+          <div className="col-span-2">{t.colStatus}</div>
+          <div className="col-span-2 text-end">{t.colAction}</div>
+        </div>
+
+        {filtered.length === 0 ? (
+          <div className="rounded-2xl border border-gray-200 bg-white p-12 text-center text-xs font-bold text-gray-400">
+            {t.emptyText}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filtered.map((lead, index) => {
+              const currentSt = lead.status || "new"
+              const stObj =
+                leadStatuses.find((s) => s.value === currentSt) ||
+                leadStatuses[0]
+              const parsed = parseLeadDetails({
+                lead,
+                units,
+                offers,
+                locale,
+                dir,
+                leadsPrompts,
+              })
+              const matchedUnits = getMatchedUnitsForLead(lead)
+              const typesText = Array.isArray(lead.unit_types)
+                ? lead.unit_types.join("، ")
+                : "—"
+              const isRowLoading = pending && activeLeadId === lead.id
+              const isHighlighted = highlightedLeadId === lead.id
+              const phoneOk = isBuyerPhoneVerified(lead, verificationMap)
+              const emailOk = isBuyerEmailVerified(lead, verificationMap)
+
+              const waText = buildLeadWhatsAppMessage({
+                lead,
+                parsed,
+                leadCur,
+                locale,
+                t,
+                leadsPrompts,
+              })
+
+              return (
+                <div
+                  id={`lead-row-${lead.id}`}
+                  key={lead.id}
+                  className={`grid grid-cols-12 items-center gap-4 rounded-2xl border-2 bg-white px-5 py-4 shadow-2xs transition-all hover:shadow-md ${
+                    isRowLoading
+                      ? "border-[#105C50] bg-emerald-50/40 opacity-70"
+                      : isHighlighted
+                        ? "border-[#105C50] bg-emerald-50/70 ring-2 ring-[#105C50]/20"
+                        : parsed.isUnitLead
+                          ? "border-orange-200/90 border-s-4 border-s-orange-500"
+                          : "border-slate-200/90 border-s-4 border-s-[#105C50]"
+                  }`}
+                >
+                  {/* العمود 1: اسم المشتري ورقم هاتفه وشارة التوافق */}
+                  <div className="col-span-3 min-w-0 pe-2">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[11px] font-black text-slate-600">
+                        {index + 1}
+                      </span>
+                      <span className="truncate text-sm font-black text-[#0a1122]">
+                        {lead.name}
+                      </span>
+                      {parsed.isUnitLead ? (
+                        <span className="inline-flex items-center gap-1 rounded-md bg-orange-100 px-2 py-0.5 text-[10px] font-extrabold text-orange-800">
+                          <Flame className="size-3 fill-orange-500 text-orange-600" />
+                          {t.unitBadge} {parsed.unitCode || ""}
+                        </span>
+                      ) : (
+                        <span className="rounded-md bg-gray-100 px-2 py-0.5 text-[10px] font-bold text-gray-600">
+                          {t.generalTab}
+                        </span>
+                      )}
+                      {isRowLoading && (
+                        <Loader2 className="size-3.5 animate-spin text-[#105C50]" />
+                      )}
+                    </div>
+
+                    <div
+                      dir="ltr"
+                      className="mt-1 flex items-center justify-start gap-1 ps-7 font-mono text-[11.5px] font-bold text-slate-700"
+                    >
+                      <span>{lead.phone}</span>
+                      {phoneOk && (
+                        <span
+                          title={propAdminDict.badges?.phoneVerifiedBadge}
+                          className="inline-flex text-[#105C50]"
+                        >
+                          <CheckCircle2 className="size-3.5" />
+                        </span>
+                      )}
+                    </div>
+
+                    {lead.email && (
+                      <div className="mt-0.5 flex items-center gap-1 truncate ps-7 text-[10.5px] text-slate-400">
+                        <span className="truncate">{lead.email}</span>
+                        {emailOk && (
+                          <span
+                            title={propAdminDict.badges?.emailVerifiedBadge}
+                            className="inline-flex shrink-0 text-[#105C50]"
+                          >
+                            <CheckCircle2 className="size-3" />
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5 ps-7">
+                      {matchedUnits.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setSmartMatchLead(lead)}
+                          className="inline-flex items-center gap-1 rounded-md border border-teal-300 bg-teal-50/80 px-2.5 py-0.5 text-[10.5px] font-extrabold text-[#105C50] transition hover:bg-[#105C50] hover:text-white"
+                        >
+                          <span>🎯</span>
+                          <span>
+                            {matchedUnits.length} {sm.matchedUnitsShort}
+                          </span>
+                        </button>
+                      )}
+                    </div>
+                    <div className="ps-7">
+                      {renderLeadOfferBadges(lead, parsed)}
+                    </div>
+                  </div>
+
+                  {/* العمود 2: الكاش المتاح والقسط */}
+                  <div className="col-span-2 border-s border-slate-100 ps-4 whitespace-nowrap">
+                    <span className="block text-[10px] font-bold text-slate-400">
+                      {t.cashLabel}
+                    </span>
+                    <div
+                      dir="ltr"
+                      className="mt-0.5 text-base font-black text-[#105C50] tabular-nums"
+                    >
+                      {leadCur}
+                      {Number(
+                        lead.available_cash || lead.budget || 0
+                      ).toLocaleString("en-US")}
+                    </div>
+                    <div className="mt-1.5 border-t border-slate-100 pt-1 text-[11px] text-slate-500 tabular-nums">
+                      <span>{t.installmentLabel} </span>
+                      <strong dir="ltr" className="font-bold text-[#0a1122]">
+                        {leadCur}
+                        {Number(lead.max_installment || 0).toLocaleString(
+                          "en-US"
+                        )}
+                      </strong>
+                    </div>
+                  </div>
+
+                  {/* العمود 3: المناطق أو الوحدة المستهدفة + التاريخ */}
+                  <div className="col-span-3 min-w-0 border-s border-slate-100 ps-4">
+                    <div className="truncate text-xs font-extrabold text-[#0a1122]">
+                      {parsed.cleanTargetUnit}
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500">
+                      <span>
+                        {typesText}{" "}
+                        {lead.min_rooms ? `· +${lead.min_rooms}` : ""}
+                      </span>
+                      {parsed.readinessBadge && (
+                        <span
+                          className={`rounded-md px-2 py-0.5 text-[10px] font-bold ${parsed.readinessBadge.className}`}
+                        >
+                          {parsed.readinessBadge.text}
+                        </span>
+                      )}
+                    </div>
+                    <div
+                      dir="ltr"
+                      className="mt-1 text-start font-mono text-[10.5px] text-slate-400"
+                    >
+                      📅 {new Date(lead.created_at).toLocaleDateString("en-GB")}
+                    </div>
+                    {parsed.customerNotes && (
+                      <div className="mt-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] text-amber-900">
+                        <strong>{t.customerNotesLabel}</strong>{" "}
+                        {parsed.customerNotes}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* العمود 4: حالة الطلب */}
+                  <div className="col-span-2 border-s border-slate-100 ps-4">
+                    <select
+                      disabled={pending}
+                      value={currentSt}
+                      onChange={(e) => {
+                        const nextSt = e.target.value
+                        if (nextSt !== currentSt) {
+                          setConfirmAction({
+                            type: "status",
+                            lead,
+                            newStatus: nextSt,
+                          })
+                        }
+                      }}
+                      className={`h-9 w-full cursor-pointer rounded-xl border px-3 text-xs font-extrabold transition focus:outline-none ${stObj.badge}`}
+                    >
+                      {leadStatuses.map((st) => (
+                        <option
+                          key={st.value}
+                          value={st.value}
+                          className="bg-white text-[#0a1122]"
+                        >
+                          {st.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* العمود 5: الإجراءات */}
+                  <div className="col-span-2 flex flex-wrap items-center justify-end gap-1.5 border-s border-slate-100 ps-3">
+                    <button
+                      type="button"
+                      onClick={() => setDetailsLead(lead)}
+                      className="inline-flex h-8 items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 text-[11px] font-bold text-[#0a1122] transition hover:border-[#105C50] hover:bg-gray-50"
+                    >
+                      <Eye className="size-3.5 text-[#105C50]" />
+                      <span>
+                        {propAdminDict.actions?.detailsBtn || t.unitBtn}
+                      </span>
+                    </button>
+
+                    {parsed.isUnitLead && (
+                      <>
+                        <Link
+                          href={
+                            parsed.matchedUnit
+                              ? `/opportunities/${parsed.matchedUnit.id}`
+                              : `/opportunities?q=${encodeURIComponent(parsed.unitCode || parsed.cleanTargetUnit)}`
+                          }
+                          target="_blank"
+                          title={t.unitBtn}
+                          className="inline-flex size-8 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-[#105C50] transition hover:bg-emerald-100"
+                        >
+                          <ExternalLink className="size-3.5" />
+                        </Link>
+
+                        <Link
+                          href={
+                            parsed.matchedUnit
+                              ? `/admin/properties?unitId=${parsed.matchedUnit.id}`
+                              : `/admin/properties`
+                          }
+                          title={dict.admin?.shell?.nav?.properties}
+                          className="inline-flex size-8 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-[#0a1122] transition hover:bg-gray-100"
+                        >
+                          <Building2 className="size-3.5 text-[#105C50]" />
+                        </Link>
+                      </>
+                    )}
+
+                    <a
+                      data-admin-client-wa="true"
+                      href={`https://wa.me/${String(lead.phone).replace(/\D/g, "")}?text=${encodeURIComponent(waText)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      title={t.whatsappBtn}
+                      className="inline-flex size-8 items-center justify-center rounded-lg bg-[#25D366] text-white transition hover:opacity-90"
+                    >
+                      <MessageCircle className="size-3.5" />
+                    </a>
+
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() =>
+                        setConfirmAction({
+                          type: "delete",
+                          lead,
+                        })
+                      }
+                      className="inline-flex size-8 items-center justify-center rounded-lg border border-gray-200 text-gray-400 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                      title={t.deleteBtn}
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
 
       <BuyerSmartMatchModal
         lead={smartMatchLead}

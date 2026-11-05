@@ -6,21 +6,37 @@ export type SellerUnitItem = {
   project_name: string | null
   developer_name: string | null
   area: string | null
+  exact_street?: string | null
+  house_number?: string | null
+  cadastral_code?: string | null
   unit_type: string | null
+  building_status?: string | null
   size: number | null
   rooms: number | null
+  bedrooms?: number | null
   bathrooms: number | null
+  floor_number?: number | null
+  total_floors?: number | null
   finishing: string | null
   delivery_status: string | null
+  delivery_month?: string | null
+  delivery_year?: number | null
   description: string | null
   contract_price: number | null
   paid_amount: number | null
   market_price: number | null
   installment_amount: number | null
   installment_frequency: string | null
+  contract_month?: string | null
   contract_year: number | null
+  years_left?: number | null
   willing_to_discount: boolean | null
+  discount_amount?: number | null
   has_overdue_installments: boolean | null
+  video_url?: string | null
+  tour_3d_url?: string | null
+  allow_online_viewing?: boolean | null
+  features?: string[] | null
   status: string | null
   submission_type?: string | null
   admin_note: string | null
@@ -36,6 +52,8 @@ export type SellerUnitItem = {
   featured_status?: string | null
   featured_fawry_code?: string | null
   featured_until?: string | null
+  views_count?: number | null
+  approved_at?: string | null
   created_at: string | null
 }
 
@@ -107,26 +125,31 @@ export function calculateUnitCompletion(
   const remainingDocsCount = Math.max(0, totalDocsRequired - uploadedDocsCount)
 
   const areaVal = unit.area || meta.area
+  const streetVal = unit.exact_street || meta.exact_street
   const typeVal = unit.unit_type || meta.unit_type
+  const isLand = String(typeVal || '').toLowerCase() === 'land'
   const sizeVal = Number(unit.size ?? meta.size) || 0
   const roomsVal = Number(unit.rooms ?? meta.rooms) || 0
-  const bathsVal = Number(unit.bathrooms ?? meta.bathrooms) || 0
+  const bedroomsVal = Number(unit.bedrooms ?? meta.bedrooms ?? roomsVal) || 0
+  const bathsVal = Number(unit.bathrooms ?? meta.bathrooms) || 1
   const finishingVal = unit.finishing || meta.finishing
   const deliveryVal = unit.delivery_status || meta.delivery_status
-  const contractYrVal = Number(unit.contract_year ?? meta.contract_year) || 0
-  const instFreqVal = unit.installment_frequency || meta.installment_frequency
+  const contractYrVal =
+    Number(unit.contract_year ?? meta.contract_year) || 2024
+  const instFreqVal =
+    unit.installment_frequency || meta.installment_frequency || 'شهري'
 
   const dataChecks = [
-    Boolean(unit.developer_name),
     Boolean(unit.project_name),
     Boolean(areaVal),
+    Boolean(streetVal),
     Boolean(typeVal),
     sizeVal > 0,
-    roomsVal > 0,
-    bathsVal > 0,
-    Boolean(finishingVal),
+    isLand ? true : roomsVal > 0,
+    isLand ? true : bedroomsVal > 0,
+    isLand ? true : bathsVal > 0,
+    isLand ? true : Boolean(finishingVal),
     Boolean(deliveryVal),
-    Boolean(unit.description),
     Number(unit.contract_price) > 0,
     Number(unit.paid_amount) > 0,
     Boolean(instFreqVal && contractYrVal > 0),
@@ -134,7 +157,12 @@ export function calculateUnitCompletion(
 
   const completedDataCount = dataChecks.filter(Boolean).length
   const hasAllCoreDetails = Boolean(
-    areaVal && typeVal && sizeVal > 0 && completedDataCount === dataChecks.length
+    areaVal &&
+      typeVal &&
+      sizeVal > 0 &&
+      Number(unit.contract_price) > 0 &&
+      Number(unit.paid_amount) > 0 &&
+      (isLand || roomsVal > 0)
   )
 
   const total = dataChecks.length + 1 + totalDocsRequired // 18
@@ -151,14 +179,14 @@ export function calculateUnitCompletion(
     missingItems.push({
       key: 'details',
       label: t.completeDetailsAction,
-      href: `/sell?editUnitId=${unit.id}&step=3`,
+      href: `/sell?editUnitId=${unit.id}`,
     })
   }
   if (!hasImages) {
     missingItems.push({
       key: 'photos',
       label: t.addPhotosAction,
-      href: `/sell?editUnitId=${unit.id}&step=5`,
+      href: `/sell?editUnitId=${unit.id}`,
     })
   }
   if (!hasAllDocuments) {
@@ -182,6 +210,7 @@ export function calculateUnitCompletion(
     uploadedDocsCount,
     missingItems,
     isUnitPhoneVerified: Boolean(meta.phone_verified),
+    isUnitEmailVerified: Boolean(meta.email_verified),
   }
 }
 

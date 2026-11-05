@@ -225,6 +225,7 @@ export async function createBoostRequestAction(payload: {
   unitId?: string
   unitCode?: string
 }) {
+  const { t: msg } = await getAccDict()
   try {
     const supabase = await getSupabase()
     const session = await getVerifiedSessionUser()
@@ -243,7 +244,6 @@ export async function createBoostRequestAction(payload: {
     let resolvedUnitCode = cleanCode || null
     let resolvedProjectName = ''
 
-    // 1. إذا مرر المستخدم unitId أو unitCode نبحث عن الوحدة
     if (resolvedUnitId) {
       const { data: uById } = await supabase
         .from('sell_requests')
@@ -267,7 +267,6 @@ export async function createBoostRequestAction(payload: {
         resolvedProjectName = uByCode.project_name || ''
       }
     } else if (userId) {
-      // إذا لم يكتب كود الوحدة وكان مسجلاً للدخول، نربط الطلب بآخر وحدة نشطة له
       const { data: latestUnit } = await supabase
         .from('sell_requests')
         .select('id, code, project_name')
@@ -283,7 +282,6 @@ export async function createBoostRequestAction(payload: {
       }
     }
 
-    // 2. إدراج الطلب في جدول boost_requests
     const { data: boostRow } = await supabase
       .from('boost_requests')
       .insert({
@@ -299,7 +297,6 @@ export async function createBoostRequestAction(payload: {
       .select('id')
       .maybeSingle()
 
-    // 3. تحديث حالة الترويج في جدول sell_requests إلى pending_payment لحين تفعيل الأدمن
     if (resolvedUnitId) {
       const adRef = `AD-${(resolvedUnitCode || resolvedUnitId).replace(/[^A-Z0-9]/gi, '').slice(0, 6).toUpperCase()}`
       await supabase
@@ -314,20 +311,23 @@ export async function createBoostRequestAction(payload: {
         .eq('id', resolvedUnitId)
     }
 
-    // 4. إرسال إشعار للأدمن لمراجعة الدفع وتفعيل الباقة
+    const methodWord =
+      payload.paymentMethod === 'card'
+        ? msg.methodCard || 'Card'
+        : msg.methodBank || 'Bank'
+
     await supabase.from('notifications').insert({
       user_id: null,
       role: 'admin',
       type: 'property',
-      title: `💳 طلب تفعيل باقة ${cleanTier} بقيمة ${cleanAmount} ₾ (${cleanDays} يوم)`,
-      message: `${session?.user?.name || 'عميل'} ${resolvedUnitCode ? `· وحدة (${resolvedUnitCode})` : ''} ${resolvedProjectName ? `· ${resolvedProjectName}` : ''} · الوسيلة: ${payload.paymentMethod === 'card' ? 'بطاقة بنكية' : 'تحويل بنكي'}`,
+      title: `💳 ${msg.promoNewNotifTitle || 'Boost'} (${cleanTier} — ${cleanAmount} ₾ / ${cleanDays}d)`,
+      message: `${session?.user?.name || msg.dearClient || ''} ${resolvedUnitCode ? `· (${resolvedUnitCode})` : ''} ${resolvedProjectName ? `· ${resolvedProjectName}` : ''} · ${methodWord}`,
       link: resolvedUnitId
         ? `/admin/properties?tab=featured&unitId=${resolvedUnitId}`
         : '/admin/promotions',
       is_read: false,
     })
 
-    // 5. جلب رابط الدفع من إعدادات الموقع إن وجد
     const { data: settingsRow } = await supabase
       .from('site_settings')
       .select('"boostPaymentUrl"')

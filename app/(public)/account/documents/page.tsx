@@ -35,84 +35,16 @@ function isImageUrl(url?: string, name?: string) {
 
 function AccountDocumentsContent() {
   const router = useRouter()
-  const { t: dict, locale, dir } = useTranslation()
+  const { t: dict, dir } = useTranslation()
   const t = dict.accountPages.documents as Record<string, any>
   const tCommon = dict.accountPages.common
 
   const DOCUMENT_SECTIONS: Array<{ key: DocKeyType; title: string }> = [
-    {
-      key: 'contract',
-      title: t.sections?.contract || 'عقد الوحدة الابتدائي أو النهائي',
-    },
-    { key: 'receipts', title: t.sections?.receipts || 'إيصالات السداد' },
-    {
-      key: 'statement',
-      title: t.sections?.statement || 'كشف حساب المطور (Statement)',
-    },
-    {
-      key: 'passport',
-      title: t.sections?.passport || 'صورة جواز السفر (Passport)',
-    },
+    { key: 'contract', title: t.sections?.contract },
+    { key: 'receipts', title: t.sections?.receipts },
+    { key: 'statement', title: t.sections?.statement },
+    { key: 'passport', title: t.sections?.passport },
   ]
-
-  const changeFileLabel =
-    t.changeFileBtn ||
-    (locale === 'ar'
-      ? 'تغيير الملف'
-      : locale === 'ru'
-        ? 'Изменить'
-        : locale === 'ka'
-          ? 'შეცვლა'
-          : 'Replace File')
-
-  const removeFileLabel =
-    t.removeFileBtn ||
-    (locale === 'ar'
-      ? 'حذف'
-      : locale === 'ru'
-        ? 'Удалить'
-        : locale === 'ka'
-          ? 'წაშლა'
-          : 'Remove')
-
-  const viewImageLabel =
-    t.viewFullImageBtn ||
-    (locale === 'ar'
-      ? 'معاينة الصورة'
-      : locale === 'ru'
-        ? 'Просмотр'
-        : locale === 'ka'
-          ? 'ნახვა'
-          : 'View Image')
-
-  const openPdfLabel =
-    t.openFileBtn ||
-    (locale === 'ar'
-      ? 'فتح الملف'
-      : locale === 'ru'
-        ? 'Открыть'
-        : locale === 'ka'
-          ? 'გახსნა'
-          : 'Open PDF')
-
-  const deleteSuccessLabel =
-    t.deleteSuccess ||
-    (locale === 'ar'
-      ? 'تم حذف المستند بنجاح ✓'
-      : locale === 'ru'
-        ? 'Документ удален ✓'
-        : locale === 'ka'
-          ? 'დოკუმენტი წაიშალა ✓'
-          : 'Document removed ✓')
-
-  const noUnitsLabel =
-    locale === 'ar'
-      ? 'لا توجد وحدات مسجلة في حسابك حالياً لرفع مستنداتها.'
-      : locale === 'ru'
-        ? 'В вашем аккаунте пока нет зарегистрированных объектов.'
-        : locale === 'ka'
-          ? 'თქვენს ანგარიშზე ობიექტები ვერ მოიძებნა.'
-          : 'No registered units found in your account.'
 
   const searchParams = useSearchParams()
   const unitIdParam = searchParams.get('unitId')
@@ -144,7 +76,6 @@ function AccountDocumentsContent() {
     }
 
     if (!res.authorized) {
-      // إذا حاول فتح unitId لا يملكه، نعيده فوراً لصفحة حسابه
       router.replace('/account')
       return
     }
@@ -201,7 +132,7 @@ function AccountDocumentsContent() {
         setDocs(cleanDocs)
         setMessage(t.uploadSuccess)
       } else {
-        setErrorMsg(res.error || 'تعذر حفظ المستند')
+        setErrorMsg(res.error || t.saveDocError)
       }
     } finally {
       setUploadingKey(null)
@@ -220,7 +151,7 @@ function AccountDocumentsContent() {
         const cleanDocs = { ...res.documents }
         delete cleanDocs.__unit_meta
         setDocs(cleanDocs)
-        setMessage(deleteSuccessLabel)
+        setMessage(t.deleteSuccess)
       }
     } finally {
       setDeletingKey(null)
@@ -253,7 +184,6 @@ function AccountDocumentsContent() {
             {t.subtitle}
           </p>
 
-          {/* إذا كان لدى البائع أكثر من وحدة، نتيح له التبديل بينها بأمان */}
           {userUnits.length > 1 && (
             <div className="mt-4 flex flex-wrap gap-2">
               {userUnits.map((u) => {
@@ -271,7 +201,7 @@ function AccountDocumentsContent() {
                         : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
                     }`}
                   >
-                    {u.project_name || 'وحدة'}
+                    {u.project_name || tCommon.defaultUnitTitle}
                   </button>
                 )
               })}
@@ -324,13 +254,13 @@ function AccountDocumentsContent() {
           </div>
         ) : !unitId ? (
           <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center">
-            <p className="text-sm font-bold text-gray-600">{noUnitsLabel}</p>
+            <p className="text-sm font-bold text-gray-600">{t.noUnitsLabel}</p>
             <Link
               href="/sell?new=1"
               className="mt-4 inline-flex h-10 items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] px-5 text-xs font-extrabold text-white"
             >
               <Plus className="size-4" />
-              <span>{dict.accountPages.main?.sellCta || 'اعرض وحدتك للبيع'}</span>
+              <span>{dict.accountPages.main?.sellCta}</span>
             </Link>
           </div>
         ) : (
@@ -362,7 +292,7 @@ function AccountDocumentsContent() {
                         ) : hasFile ? (
                           <span className="inline-flex items-center gap-1.5">
                             <RefreshCw className="size-3.5" />
-                            {changeFileLabel}
+                            {t.changeFileBtn}
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1.5">
@@ -393,7 +323,7 @@ function AccountDocumentsContent() {
                           ) : (
                             <Trash2 className="size-3.5" />
                           )}
-                          <span>{removeFileLabel}</span>
+                          <span>{t.removeFileBtn}</span>
                         </button>
                       )}
                     </div>
@@ -467,7 +397,7 @@ function AccountDocumentsContent() {
                           className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-bold text-[#0a1122] hover:bg-slate-50"
                         >
                           <Eye className="size-3.5 text-[#007a5a]" />
-                          <span>{viewImageLabel}</span>
+                          <span>{t.viewFullImageBtn}</span>
                         </button>
                       ) : (
                         <a
@@ -477,7 +407,7 @@ function AccountDocumentsContent() {
                           className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-bold text-[#0a1122] hover:bg-slate-50"
                         >
                           <Eye className="size-3.5 text-[#007a5a]" />
-                          <span>{openPdfLabel}</span>
+                          <span>{t.openFileBtn}</span>
                         </a>
                       )}
                     </div>

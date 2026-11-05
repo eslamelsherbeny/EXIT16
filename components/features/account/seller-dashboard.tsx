@@ -6,18 +6,24 @@ import { useRouter } from 'next/navigation'
 import {
   AlertCircle,
   Building2,
+  Check,
+  CheckCircle2,
   ChevronDown,
   ChevronUp,
   FileCheck2,
   ImagePlus,
+  Loader2,
+  Mail,
   MessageCircle,
   PauseCircle,
   PlayCircle,
   Plus,
   Search,
+  ShieldAlert,
   Star,
   Trash2,
   UploadCloud,
+  X,
 } from 'lucide-react'
 import {
   cancelUnitPromotionBySellerAction,
@@ -28,9 +34,17 @@ import {
 import {
   getCurrentSellerProfileAction,
   markUserPhoneVerifiedAction,
+  sendSellerReviewOtpAction,
+  verifySellerReviewOtpAction,
 } from '@/actions/submit-forms'
+import { Input } from '@/components/ui/input'
 import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
 import { ScrollReveal } from '@/components/shared/scroll-reveal'
+import {
+  getSellerExtraLabels,
+  maskEmailDisplay,
+} from '@/components/features/seller/seller-i18n'
+import { toEnglishDigits } from '@/components/features/seller/seller-shared'
 import { AccountActionLinks } from './delete-account-modal'
 import {
   calculateUnitCompletion,
@@ -50,7 +64,6 @@ export type { SellerUnitItem } from './seller-unit-helpers'
 const INITIAL_VISIBLE_UNITS = 3
 const SELLER_WA_SENT_STORAGE_KEY = 'aqar_seller_wa_fasttrack_sent'
 
-// أسعار الباقات الافتراضية باللاري الجورجي (₾) لتفادي خطأ undefined في CountryConfig
 const DEFAULT_GEORGIA_PROMO_PACKAGES = {
   days7: 20,
   days14: 50,
@@ -76,6 +89,7 @@ export function SellerDashboard({
     any
   >
   const t = (dict?.accountComponents?.seller as Record<string, any>) || {}
+  const extraT = getSellerExtraLabels(locale, dict)
 
   const [localSells, setLocalSells] = useState<SellerUnitItem[]>(sells)
   useEffect(() => {
@@ -98,10 +112,19 @@ export function SellerDashboard({
   const [isPending, startTransition] = useTransition()
 
   const [currentUserId, setCurrentUserId] = useState('')
+  const [currentUserEmail, setCurrentUserEmail] = useState('')
+  const [userEmailVerified, setUserEmailVerified] = useState(true)
   const [userPhoneVerified, setUserPhoneVerified] = useState(false)
   const [hiddenWaUnitIds, setHiddenWaUnitIds] = useState<
     Record<string, boolean>
   >({})
+
+  // نافذة توثيق الإيميل المباشر داخل الحساب لمن ضغط "حفظ وتكملة لاحقاً"
+  const [emailVerifyModalOpen, setEmailVerifyModalOpen] = useState(false)
+  const [otpSent, setOtpSent] = useState(false)
+  const [otpCode, setOtpCode] = useState('')
+  const [otpLoading, setOtpLoading] = useState(false)
+  const [otpError, setOtpError] = useState('')
 
   const activeUnit =
     localSells.find((s) => s.id === selectedId) || localSells[0]
@@ -110,6 +133,8 @@ export function SellerDashboard({
     getCurrentSellerProfileAction().then((res) => {
       if (res.isLoggedIn && res.user) {
         setCurrentUserId(res.user.id)
+        setCurrentUserEmail(res.user.email || '')
+        setUserEmailVerified(Boolean(res.user.emailVerified))
         if (res.user.phoneVerified) {
           setUserPhoneVerified(true)
         }
@@ -156,7 +181,6 @@ export function SellerDashboard({
 
   if (!activeUnit) return null
 
-  // عملة العقارات موحدة بالدولار ($)، وعملة باقات التمييز باللاري الجورجي (₾)
   const unitCurrencySymbol = '$'
   const promoCurrencySymbol = '₾'
 
@@ -181,9 +205,9 @@ export function SellerDashboard({
     price: number
     label: string
   }> = [
-    { days: 7, price: pkgPrices.days7, label: `7 ${t.daysWord || 'أيام'}` },
-    { days: 14, price: pkgPrices.days14, label: `14 ${t.daysWord || 'يوماً'}` },
-    { days: 30, price: pkgPrices.days30, label: `30 ${t.daysWord || 'يوماً'}` },
+    { days: 7, price: pkgPrices.days7, label: `7 ${t.daysWord || ''}` },
+    { days: 14, price: pkgPrices.days14, label: `14 ${t.daysWord || ''}` },
+    { days: 30, price: pkgPrices.days30, label: `30 ${t.daysWord || ''}` },
   ]
 
   const money = (value: number | null | undefined) =>
@@ -205,7 +229,7 @@ export function SellerDashboard({
   const activeUnitType =
     activeUnit.unit_type || activeUnit.documents?.__unit_meta?.unit_type
 
-  const editUnitHref = `/sell?editUnitId=${activeUnit.id}&step=3`
+  const editUnitHref = `/sell?editUnitId=${activeUnit.id}`
 
   const siteOrigin =
     typeof window !== 'undefined'
@@ -239,6 +263,48 @@ export function SellerDashboard({
       userId: targetSellerUserId,
       unitId: activeUnit.id,
     }).catch(() => {})
+  }
+
+  const handleSendEmailOtp = async () => {
+    setOtpLoading(true)
+    setOtpError('')
+    try {
+      const res = await sendSellerReviewOtpAction({
+        email: currentUserEmail,
+        unitId: activeUnit.id,
+        userId: currentUserId,
+      })
+      if (res.success) {
+        setOtpSent(true)
+      } else {
+        setOtpError(res.error || '')
+      }
+    } finally {
+      setOtpLoading(false)
+    }
+  }
+
+  const handleConfirmEmailOtp = async () => {
+    setOtpLoading(true)
+    setOtpError('')
+    try {
+      const res = await verifySellerReviewOtpAction({
+        email: currentUserEmail,
+        otp: otpCode,
+        unitId: activeUnit.id,
+        userId: currentUserId,
+      })
+      if (res.success) {
+        setUserEmailVerified(true)
+        setEmailVerifyModalOpen(false)
+        setActionMessage(extraT.emailVerifiedBadge)
+        router.refresh()
+      } else {
+        setOtpError(res.error || '')
+      }
+    } finally {
+      setOtpLoading(false)
+    }
   }
 
   const isCurrentlyFeatured =
@@ -318,6 +384,7 @@ export function SellerDashboard({
           unitId: activeUnit.id,
           days: pkg.days,
           price: pkg.price,
+          tier: pkg.tier,
         })
         setConfirmModal(null)
         if (res.success) {
@@ -389,7 +456,7 @@ export function SellerDashboard({
                 className="inline-flex h-9 items-center justify-center gap-1 rounded-xl bg-[var(--brand-navy,#0a1122)] px-3.5 text-xs font-bold text-white shadow-2xs transition hover:bg-[var(--brand-navy-hover,#16223f)]"
               >
                 <Plus className="size-3.5" />
-                <span>{(t.addUnitBtn || '+ إضافة وحدة').replace('+ ', '')}</span>
+                <span>{String(t.addUnitBtn || '').replace('+ ', '')}</span>
               </Link>
             </div>
 
@@ -513,6 +580,36 @@ export function SellerDashboard({
         </div>
       )}
 
+      {/* بانر توثيق البريد الإلكتروني إذا لم يوثقه البائع بعد */}
+      {!userEmailVerified && !comp.isUnitEmailVerified && (
+        <div className="mb-4 flex flex-col justify-between gap-3 rounded-2xl border-2 border-amber-300 bg-amber-50/90 p-4 text-start shadow-2xs sm:flex-row sm:items-center">
+          <div className="flex items-start gap-2.5">
+            <ShieldAlert className="mt-0.5 size-5 shrink-0 text-amber-600" />
+            <div>
+              <strong className="block text-xs font-black text-amber-950 sm:text-sm">
+                {extraT.verifyBoxTitle}
+              </strong>
+              <p className="mt-0.5 text-[11.5px] leading-relaxed text-amber-900">
+                {extraT.reviewNoteBeforeSubmit}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setOtpSent(false)
+              setOtpCode('')
+              setOtpError('')
+              setEmailVerifyModalOpen(true)
+            }}
+            className="inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] px-4 text-xs font-extrabold text-white shadow-2xs transition hover:bg-[#006248]"
+          >
+            <Mail className="size-3.5" />
+            <span>{extraT.sendCodeBtn}</span>
+          </button>
+        </div>
+      )}
+
       <ScrollReveal delay={60}>
         <section className="rounded-[20px] border border-gray-200/90 bg-white p-5 text-start shadow-xs sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 pb-4">
@@ -546,7 +643,7 @@ export function SellerDashboard({
                 className="inline-flex h-9 items-center justify-center gap-1 rounded-xl bg-[var(--brand-navy,#0a1122)] px-3.5 text-xs font-bold text-white shadow-2xs transition hover:bg-[var(--brand-navy-hover,#16223f)]"
               >
                 <Plus className="size-3.5" />
-                <span>{(t.addUnitBtn || '+ إضافة وحدة').replace('+ ', '')}</span>
+                <span>{String(t.addUnitBtn || '').replace('+ ', '')}</span>
               </Link>
             )}
           </div>
@@ -725,7 +822,7 @@ export function SellerDashboard({
       <ScrollReveal delay={100}>
         <section className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Link
-            href={`/sell?editUnitId=${activeUnit.id}&step=3`}
+            href={`/sell?editUnitId=${activeUnit.id}`}
             className="flex flex-col justify-between rounded-[16px] border border-gray-200/80 bg-white p-4 text-start shadow-2xs transition hover:border-[var(--brand-primary,#007a5a)]"
           >
             <p className="text-xs font-extrabold text-[var(--brand-navy,#0a1122)]">
@@ -849,6 +946,111 @@ export function SellerDashboard({
           position="bottom"
         />
       </div>
+
+      {/* نافذة توثيق الإيميل المباشر بالـ OTP داخل الحساب */}
+      {emailVerifyModalOpen && (
+        <div
+          dir={dir}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-xs"
+        >
+          <div className="relative w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 text-start shadow-2xl">
+            <button
+              type="button"
+              onClick={() => setEmailVerifyModalOpen(false)}
+              className="absolute top-4 end-4 flex size-8 items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200"
+            >
+              <X className="size-4" />
+            </button>
+
+            <div className="flex size-12 items-center justify-center rounded-2xl bg-emerald-50 text-[#007a5a]">
+              <Mail className="size-6" />
+            </div>
+
+            <h3 className="mt-4 text-lg font-black text-[#0a1122]">
+              {extraT.verifyBoxTitle}
+            </h3>
+            <p className="mt-1.5 text-xs leading-relaxed text-slate-600">
+              {extraT.verifyBoxDescPrefix}{' '}
+              <strong dir="ltr" className="font-mono text-[#0a1122]">
+                {maskEmailDisplay(currentUserEmail)}
+              </strong>{' '}
+              {extraT.verifyBoxDescSuffix}
+            </p>
+
+            <div className="mt-5">
+              {!otpSent ? (
+                <button
+                  type="button"
+                  disabled={otpLoading}
+                  onClick={handleSendEmailOtp}
+                  className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#007a5a] px-5 text-xs font-extrabold text-white shadow-sm hover:bg-[#006248]"
+                >
+                  {otpLoading ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Mail className="size-4" />
+                  )}
+                  <span>{extraT.sendCodeBtn}</span>
+                </button>
+              ) : (
+                <div className="space-y-3">
+                  <div className="rounded-xl bg-slate-50 p-3 text-xs text-slate-600">
+                    <strong className="block font-bold text-[#0a1122]">
+                      {extraT.codeSentToPrefix}
+                    </strong>
+                    <span className="mt-0.5 block">{extraT.codeSentBody}</span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="text"
+                      dir="ltr"
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={otpCode}
+                      onChange={(e) =>
+                        setOtpCode(
+                          toEnglishDigits(e.target.value).replace(/[^0-9]/g, '')
+                        )
+                      }
+                      placeholder="• • • • • •"
+                      className="h-11 flex-1 rounded-xl bg-white text-center font-mono text-lg font-black tracking-[0.35em]"
+                    />
+                    <button
+                      type="button"
+                      disabled={otpLoading || otpCode.length < 6}
+                      onClick={handleConfirmEmailOtp}
+                      className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] px-5 text-xs font-extrabold text-white shadow-sm hover:bg-[#006248] disabled:opacity-50"
+                    >
+                      {otpLoading ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <Check className="size-4" />
+                      )}
+                      <span>{extraT.confirmCodeBtn}</span>
+                    </button>
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={otpLoading}
+                    onClick={handleSendEmailOtp}
+                    className="text-xs font-bold text-[#2563eb] hover:underline"
+                  >
+                    {extraT.resendCodeBtn}
+                  </button>
+                </div>
+              )}
+
+              {otpError && (
+                <p className="mt-2.5 rounded-xl bg-red-50 px-3 py-2 text-xs font-bold text-red-600">
+                  {otpError}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <SellerConfirmModal
         dir={dir}

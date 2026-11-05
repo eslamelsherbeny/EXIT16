@@ -13,10 +13,12 @@ import {
   GraduationCap,
   HeartPulse,
   Landmark,
+  Layers,
   List,
   MapPin,
   Maximize2,
   Minus,
+  Navigation,
   Plus,
   RotateCcw,
   School,
@@ -28,9 +30,11 @@ import {
   X,
 } from 'lucide-react'
 import { formatRelativePublishTime } from '@/components/features/home/home-property-card'
-import { getCoordinatesForArea } from '@/lib/georgia-coordinates'
+import { SIVRCE_POPULAR_CITIES } from '@/components/features/seller/seller-location-modal'
+import { getOptionLabel } from '@/components/features/seller/seller-options-data'
 import { type MappedProperty } from '@/components/features/opportunities/opportunities-shared'
-import { useTranslation } from '@/lib/i18n'
+import { getCoordinatesForArea } from '@/lib/georgia-coordinates'
+import { useTranslation, type LocaleCode } from '@/lib/i18n'
 
 function loadMapLibreScript(): Promise<any> {
   return new Promise((resolve, reject) => {
@@ -63,14 +67,188 @@ function loadMapLibreScript(): Promise<any> {
   })
 }
 
-const QUICK_MAP_CITIES = [
-  { id: 'Tbilisi', label: 'Tbilisi', lat: 41.7151, lng: 44.8271 },
-  { id: 'Batumi', label: 'Batumi', lat: 41.6168, lng: 41.6367 },
-  { id: 'Gudauri', label: 'Gudauri', lat: 42.4779, lng: 44.4761 },
-  { id: 'Kutaisi', label: 'Kutaisi', lat: 42.2679, lng: 42.718 },
-  { id: 'Rustavi', label: 'Rustavi', lat: 41.5495, lng: 44.9932 },
-  { id: 'Telavi', label: 'Telavi', lat: 41.9198, lng: 45.4731 },
+const MAP_CITIES_COORDS = [
+  { id: 'Tbilisi', lat: 41.7151, lng: 44.8271 },
+  { id: 'Batumi', lat: 41.6168, lng: 41.6367 },
+  { id: 'Kutaisi', lat: 42.2679, lng: 42.718 },
+  { id: 'Rustavi', lat: 41.5495, lng: 44.9932 },
+  { id: 'Kobuleti', lat: 41.8214, lng: 41.7767 },
+  { id: 'Bakuriani', lat: 41.7497, lng: 43.5325 },
+  { id: 'Gudauri', lat: 42.4779, lng: 44.4761 },
+  { id: 'Telavi', lat: 41.9198, lng: 45.4731 },
+  { id: 'Gori', lat: 41.9842, lng: 44.1158 },
 ]
+
+const MAP_UI_FALLBACK: Record<
+  LocaleCode,
+  {
+    searchPlaceholder: string
+    cityLabel: string
+    listPrefix: string
+    allTab: string
+    forExitTab: string
+    apartmentsTab: string
+    housesTab: string
+    cottagesTab: string
+    commercialTab: string
+    landTab: string
+    hotelTab: string
+    liveBadge: string
+    resetTooltip: string
+    myLocationTooltip: string
+    exitMapTooltip: string
+    verifiedBadge: string
+    roomsWord: string
+    sqmUnit: string
+    viewDetailsBtn: string
+    pois: Record<string, string>
+  }
+> = {
+  ar: {
+    searchPlaceholder:
+      'مدينة، حي، شارع — أو مشروع، مطور، كود عقاري (U-10057)...',
+    cityLabel: 'City',
+    listPrefix: 'إعلان',
+    allTab: 'الكل',
+    forExitTab: 'للتنازل',
+    apartmentsTab: 'شقة',
+    housesTab: 'منزل',
+    cottagesTab: 'شاليه',
+    commercialTab: 'تجاري',
+    landTab: 'أرض',
+    hotelTab: 'فندق',
+    liveBadge: 'مباشر',
+    resetTooltip: 'إعادة ضبط الفلاتر',
+    myLocationTooltip: 'موقعي الحالي',
+    exitMapTooltip: 'العودة للقائمة',
+    verifiedBadge: 'متحقق بالمستندات',
+    roomsWord: 'غرف',
+    sqmUnit: 'م²',
+    viewDetailsBtn: 'عرض تفاصيل الوحدة',
+    pois: {
+      metro: 'مترو',
+      train: 'قطار',
+      school: 'مدرسة',
+      kindergarten: 'روضة أطفال',
+      pharmacy: 'صيدلية',
+      park: 'حديقة',
+      market: 'سوق',
+      clinic: 'عيادة',
+      uni: 'جامعة',
+      bank: 'بنك',
+      gym: 'نادي رياضي',
+      bus: 'حافلة',
+    },
+  },
+  en: {
+    searchPlaceholder:
+      'City, district, street — or project, developer, unit code...',
+    cityLabel: 'City',
+    listPrefix: 'listings',
+    allTab: 'All',
+    forExitTab: 'Exit Deals',
+    apartmentsTab: 'Apartment',
+    housesTab: 'House',
+    cottagesTab: 'Cottage',
+    commercialTab: 'Commercial',
+    landTab: 'Land',
+    hotelTab: 'Hotel',
+    liveBadge: 'Live',
+    resetTooltip: 'Reset filters',
+    myLocationTooltip: 'My Location',
+    exitMapTooltip: 'Back to list',
+    verifiedBadge: 'Verified',
+    roomsWord: 'Rooms',
+    sqmUnit: 'm²',
+    viewDetailsBtn: 'View Unit Details',
+    pois: {
+      metro: 'Metro',
+      train: 'Train',
+      school: 'School',
+      kindergarten: 'Kindergarten',
+      pharmacy: 'Pharmacy',
+      park: 'Park',
+      market: 'Market',
+      clinic: 'Clinic',
+      uni: 'University',
+      bank: 'Bank',
+      gym: 'Gym',
+      bus: 'Bus',
+    },
+  },
+  ru: {
+    searchPlaceholder:
+      'Город, район, улица — или ЖК, застройщик, код объекта...',
+    cityLabel: 'Город',
+    listPrefix: 'объектов',
+    allTab: 'Все',
+    forExitTab: 'Переуступка',
+    apartmentsTab: 'Квартира',
+    housesTab: 'Дом',
+    cottagesTab: 'Коттедж',
+    commercialTab: 'Коммерция',
+    landTab: 'Участок',
+    hotelTab: 'Отель',
+    liveBadge: 'Live',
+    resetTooltip: 'Сбросить фильтры',
+    myLocationTooltip: 'Моя локация',
+    exitMapTooltip: 'К списку',
+    verifiedBadge: 'Проверено',
+    roomsWord: 'комн.',
+    sqmUnit: 'м²',
+    viewDetailsBtn: 'Подробнее об объекте',
+    pois: {
+      metro: 'Метро',
+      train: 'Поезд',
+      school: 'Школа',
+      kindergarten: 'Детсад',
+      pharmacy: 'Аптека',
+      park: 'Парк',
+      market: 'Рынок',
+      clinic: 'Клиника',
+      uni: 'ВУЗ',
+      bank: 'Банк',
+      gym: 'Спортзал',
+      bus: 'Автобус',
+    },
+  },
+  ka: {
+    searchPlaceholder:
+      'ქალაქი, უბანი, ქუჩა — ან პროექტი, დეველოპერი, კოდი...',
+    cityLabel: 'City',
+    listPrefix: 'განცხადება',
+    allTab: 'ყველა',
+    forExitTab: 'გადაბარება',
+    apartmentsTab: 'ბინა',
+    housesTab: 'სახლი',
+    cottagesTab: 'კოტეჯი',
+    commercialTab: 'კომერციული',
+    landTab: 'მიწა',
+    hotelTab: 'სასტუმრო',
+    liveBadge: 'Live',
+    resetTooltip: 'ფილტრების გასუფთავება',
+    myLocationTooltip: 'ჩემი მდებარეობა',
+    exitMapTooltip: 'სიაზე დაბრუნება',
+    verifiedBadge: 'დამოწმებული',
+    roomsWord: 'ოთახი',
+    sqmUnit: 'მ²',
+    viewDetailsBtn: 'დეტალების ნახვა',
+    pois: {
+      metro: 'მეტრო',
+      train: 'მატარებელი',
+      school: 'სკოლა',
+      kindergarten: 'ბაღი',
+      pharmacy: 'აფთიაქი',
+      park: 'პარკი',
+      market: 'მარკეტი',
+      clinic: 'კლინიკა',
+      uni: 'უნივერსიტეტი',
+      bank: 'ბანკი',
+      gym: 'დარბაზი',
+      bus: 'ავტობუსი',
+    },
+  },
+}
 
 export function Search3DMapView({
   properties,
@@ -93,9 +271,17 @@ export function Search3DMapView({
   setTypeFilter: (t: string) => void
   onResetFilters: () => void
 }) {
-  const { locale, dir } = useTranslation()
+  const { t: dict, locale, dir } = useTranslation()
   const isAr = locale === 'ar'
   const USD = '$'
+
+  const baseUi = MAP_UI_FALLBACK[locale] || MAP_UI_FALLBACK.ar
+  const customMapUi = (dict.opportunitiesPage as any)?.mapView || {}
+  const mT = {
+    ...baseUi,
+    ...customMapUi,
+    pois: { ...baseUi.pois, ...(customMapUi.pois || {}) },
+  }
 
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
   const mapInstanceRef = useRef<any>(null)
@@ -140,9 +326,9 @@ export function Search3DMapView({
                   map.setPaintProperty(
                     layer.id,
                     'fill-extrusion-color',
-                    '#c7d2fe'
+                    '#d8cfc4'
                   )
-                  map.setPaintProperty(layer.id, 'fill-extrusion-opacity', 0.88)
+                  map.setPaintProperty(layer.id, 'fill-extrusion-opacity', 0.9)
                 }
               }
             }
@@ -191,20 +377,20 @@ export function Search3DMapView({
           pinEl.type = 'button'
           const shortPrice =
             prop.cashNum >= 1000
-              ? `${USD}${Math.round(prop.cashNum / 1000)}k`
-              : `${USD}${prop.cash}`
+              ? `${Math.round(prop.cashNum / 1000)}k`
+              : `${prop.cash}`
 
           const tier =
             prop.boostTier || (prop.featured ? 'super_vip' : null)
 
           pinEl.className =
-            'rounded-full bg-white px-3 py-1 text-xs font-extrabold text-[#0f1d40] shadow-lg transition-transform hover:scale-110'
+            'rounded-full bg-white px-3.5 py-1 text-xs font-extrabold text-[#0f1d40] shadow-md transition-transform hover:scale-110'
           pinEl.style.border =
             tier === 'super_vip'
-              ? '2.5px solid #ff6437'
+              ? '2px solid #ef4444'
               : tier === 'vip_plus'
-                ? '2.5px solid #4f46e5'
-                : '2px solid #007a5a'
+                ? '2px solid #8b5cf6'
+                : '2px solid #2563eb'
           pinEl.innerText = shortPrice
 
           pinEl.onclick = (e) => {
@@ -235,33 +421,32 @@ export function Search3DMapView({
     }
   }, [properties, is3DMode])
 
-  const handleFlyToCity = (city: (typeof QUICK_MAP_CITIES)[number]) => {
-    setActiveCity(city.id)
-    mapInstanceRef.current?.flyTo({
-      center: [city.lng, city.lat],
-      zoom: 13,
-      pitch: is3DMode ? 55 : 0,
-      duration: 850,
-    })
+  const handleFlyToCity = (cityId: string) => {
+    setActiveCity(cityId)
+    const found = MAP_CITIES_COORDS.find((c) => c.id === cityId)
+    if (found) {
+      mapInstanceRef.current?.flyTo({
+        center: [found.lng, found.lat],
+        zoom: 13,
+        pitch: is3DMode ? 55 : 0,
+        duration: 850,
+      })
+    }
   }
 
   const poiCategories = [
-    { id: 'metro', label: isAr ? 'مترو' : 'Metro', icon: TrainFront },
-    { id: 'train', label: isAr ? 'قطار' : 'Train', icon: TrainFront },
-    { id: 'school', label: isAr ? 'مدرسة' : 'School', icon: School },
-    {
-      id: 'kindergarten',
-      label: isAr ? 'روضة أطفال' : 'Kindergarten',
-      icon: Sparkles,
-    },
-    { id: 'pharmacy', label: isAr ? 'صيدلية' : 'Pharmacy', icon: HeartPulse },
-    { id: 'park', label: isAr ? 'حديقة' : 'Park', icon: Trees },
-    { id: 'market', label: isAr ? 'سوق' : 'Market', icon: ShoppingBag },
-    { id: 'clinic', label: isAr ? 'عيادة' : 'Clinic', icon: HeartPulse },
-    { id: 'uni', label: isAr ? 'جامعة' : 'University', icon: GraduationCap },
-    { id: 'bank', label: isAr ? 'بنك' : 'Bank', icon: Landmark },
-    { id: 'gym', label: isAr ? 'نادي رياضي' : 'Gym', icon: Dumbbell },
-    { id: 'bus', label: isAr ? 'حافلة' : 'Bus', icon: Bus },
+    { id: 'metro', label: mT.pois.metro, icon: TrainFront },
+    { id: 'train', label: mT.pois.train, icon: TrainFront },
+    { id: 'school', label: mT.pois.school, icon: School },
+    { id: 'kindergarten', label: mT.pois.kindergarten, icon: Sparkles },
+    { id: 'pharmacy', label: mT.pois.pharmacy, icon: HeartPulse },
+    { id: 'park', label: mT.pois.park, icon: Trees },
+    { id: 'market', label: mT.pois.market, icon: ShoppingBag },
+    { id: 'clinic', label: mT.pois.clinic, icon: HeartPulse },
+    { id: 'uni', label: mT.pois.uni, icon: GraduationCap },
+    { id: 'bank', label: mT.pois.bank, icon: Landmark },
+    { id: 'gym', label: mT.pois.gym, icon: Dumbbell },
+    { id: 'bus', label: mT.pois.bus, icon: Bus },
   ]
 
   const selectedTier = selectedProp
@@ -271,7 +456,7 @@ export function Search3DMapView({
   return (
     <div
       dir={dir}
-      className="relative h-[calc(100vh-74px)] min-h-[640px] w-full overflow-hidden bg-[#e5e9f0]"
+      className="relative h-[calc(100vh-74px)] min-h-[640px] w-full overflow-hidden bg-[#dfe5dc]"
     >
       <div
         ref={mapContainerRef}
@@ -279,72 +464,76 @@ export function Search3DMapView({
         className="absolute inset-0 h-full w-full"
       />
 
-      {/* الأشرطة العلوية العائمة فوق الخريطة */}
-      <div className="pointer-events-none absolute inset-x-3 top-3 z-20 mx-auto flex max-w-[1260px] flex-col gap-2 sm:inset-x-6">
-        <div className="pointer-events-auto flex items-center gap-2 rounded-2xl border border-slate-200/90 bg-white/95 px-4 py-2.5 shadow-lg backdrop-blur-md">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#2563eb]">
-            <Sparkles className="size-4" />
-          </div>
+      {/* الأشرطة العلوية الـ 3 العائمة المطابقة لتصميم Sivrce في الصورة */}
+      <div className="pointer-events-none absolute inset-x-3 top-3 z-20 mx-auto flex max-w-[1340px] flex-col gap-2 sm:inset-x-6">
+        {/* 1. شريط البحث العلوي العريض */}
+        <div className="pointer-events-auto flex h-12 items-center justify-between gap-3 rounded-2xl border border-slate-200/90 bg-white/95 px-4 shadow-md backdrop-blur-md">
+          <Search className="size-4 shrink-0 text-slate-400" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={
-              isAr
-                ? 'ابحث باسم المشروع، المطور، الحي، أو كود الوحدة...'
-                : 'Search project, developer, district, or unit code...'
-            }
+            placeholder={mT.searchPlaceholder}
             className="w-full bg-transparent text-xs font-bold text-[#0f1d40] placeholder:text-slate-400 focus:outline-none sm:text-sm"
           />
-          <Search className="size-4 shrink-0 text-slate-400" />
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#2563eb]">
+            <Sparkles className="size-4" />
+          </div>
         </div>
 
-        <div className="pointer-events-auto flex w-fit max-w-full items-center gap-1 overflow-x-auto rounded-full border border-slate-200/80 bg-white/95 px-3 py-1.5 text-xs font-bold shadow-md backdrop-blur-md no-scrollbar">
-          <span className="inline-flex items-center gap-1 pe-2 text-slate-400">
+        {/* 2. شريط المدن السريع */}
+        <div className="pointer-events-auto flex h-10 w-full items-center justify-start gap-1.5 overflow-x-auto rounded-2xl border border-slate-200/80 bg-white/95 px-4 text-xs font-bold shadow-sm backdrop-blur-md no-scrollbar">
+          <span className="inline-flex shrink-0 items-center gap-1 pe-2 text-slate-400">
             <MapPin className="size-3.5 text-[#2563eb]" />
-            <span>{isAr ? 'المدينة:' : 'City:'}</span>
+            <span>{mT.cityLabel}</span>
           </span>
-          {QUICK_MAP_CITIES.map((city) => {
+          {SIVRCE_POPULAR_CITIES.slice(0, 8).map((city) => {
             const active = activeCity === city.id
             return (
               <button
                 key={city.id}
                 type="button"
-                onClick={() => handleFlyToCity(city)}
-                className={`rounded-full px-3 py-1 transition ${
+                onClick={() => handleFlyToCity(city.id)}
+                className={`shrink-0 rounded-full px-3 py-1 transition ${
                   active
-                    ? 'bg-blue-50 font-bold text-[#2563eb]'
+                    ? 'bg-blue-50 font-extrabold text-[#2563eb]'
                     : 'text-slate-600 hover:bg-slate-100 hover:text-[#0f1d40]'
                 }`}
               >
-                {city.label}
+                {getOptionLabel(city, locale)}
               </button>
             )
           })}
         </div>
 
-        <div className="pointer-events-auto flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200/90 bg-white/95 px-3.5 py-2 shadow-md backdrop-blur-md">
+        {/* 3. شريط الفلاتر الأفقي وعدد الإعلانات */}
+        <div className="pointer-events-auto flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200/90 bg-white/95 px-3.5 py-2 shadow-sm backdrop-blur-md">
           <div className="flex flex-wrap items-center gap-1.5 text-xs font-bold">
             <button
               type="button"
               onClick={onBackToList}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-3 py-1.5 text-[#0f1d40] transition hover:bg-slate-200"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-3 py-1.5 font-extrabold text-[#0f1d40] transition hover:bg-slate-200"
             >
               <List className="size-3.5" />
               <span>
-                {isAr ? 'العودة للقائمة' : 'Back to list'} ({properties.length})
+                {properties.length} {mT.listPrefix}
               </span>
             </button>
 
             <div className="mx-1 hidden h-4 w-[1px] bg-slate-200 sm:block" />
 
+            <span className="rounded-full bg-[#2563eb] px-3 py-1 text-white">
+              {mT.forExitTab}
+            </span>
+
             {[
-              { id: '', label: isAr ? 'كل الوحدات' : 'All Units' },
-              { id: 'Apartment', label: isAr ? 'شقق' : 'Apartments' },
-              { id: 'Private house', label: isAr ? 'منازل وفيلات' : 'Villas' },
-              { id: 'Cottage', label: isAr ? 'شاليهات وأكواخ' : 'Cottages' },
-              { id: 'Hotel', label: isAr ? 'شقق فندقية' : 'Hotel Units' },
-              { id: 'Commercial', label: isAr ? 'تجاري' : 'Commercial' },
+              { id: '', label: mT.allTab },
+              { id: 'Apartment', label: mT.apartmentsTab },
+              { id: 'Private house', label: mT.housesTab },
+              { id: 'Cottage', label: mT.cottagesTab },
+              { id: 'Commercial', label: mT.commercialTab },
+              { id: 'Land', label: mT.landTab },
+              { id: 'Hotel', label: mT.hotelTab },
             ].map((tp) => {
               const active = typeFilter === tp.id
               return (
@@ -368,20 +557,19 @@ export function Search3DMapView({
             type="button"
             onClick={onResetFilters}
             className="flex size-8 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-[#0f1d40]"
-            title={isAr ? 'إعادة ضبط' : 'Reset'}
+            title={mT.resetTooltip}
           >
             <RotateCcw className="size-4" />
           </button>
         </div>
       </div>
 
-      {/* أزرار التحكم الجانبية */}
-      <div className="absolute end-3 top-1/2 z-20 flex -translate-y-1/2 flex-col gap-1.5 rounded-2xl border border-slate-200/80 bg-white/95 p-1.5 shadow-xl backdrop-blur-md sm:end-5">
+      {/* الشريط الرأسي لأدوات الخريطة على اليمين مطابق للصورة */}
+      <div className="absolute end-3 top-1/2 z-20 flex -translate-y-1/2 flex-col items-center gap-1.5 rounded-2xl border border-slate-200/80 bg-white/95 p-1.5 shadow-xl backdrop-blur-md sm:end-5">
         <button
           type="button"
           onClick={() => mapInstanceRef.current?.zoomIn()}
           className="flex size-9 items-center justify-center rounded-xl text-[#0f1d40] transition hover:bg-slate-100"
-          title="Zoom in"
         >
           <Plus className="size-4" />
         </button>
@@ -389,7 +577,6 @@ export function Search3DMapView({
           type="button"
           onClick={() => mapInstanceRef.current?.zoomOut()}
           className="flex size-9 items-center justify-center rounded-xl text-[#0f1d40] transition hover:bg-slate-100"
-          title="Zoom out"
         >
           <Minus className="size-4" />
         </button>
@@ -397,15 +584,32 @@ export function Search3DMapView({
         <button
           type="button"
           onClick={() => setIs3DMode(!is3DMode)}
-          className={`flex size-9 items-center justify-center rounded-xl text-xs font-bold transition ${
+          className={`flex size-9 items-center justify-center rounded-xl text-xs font-black transition ${
             is3DMode
               ? 'bg-[#2563eb] text-white shadow-sm'
               : 'bg-slate-100 text-[#0f1d40] hover:bg-slate-200'
           }`}
-          title="Toggle 2D / 3D"
         >
           3D
         </button>
+
+        <button
+          type="button"
+          onClick={() =>
+            mapInstanceRef.current?.easeTo({
+              bearing: 0,
+              pitch: is3DMode ? 55 : 0,
+              duration: 500,
+            })
+          }
+          className="flex size-9 items-center justify-center rounded-xl text-slate-600 transition hover:bg-slate-100 hover:text-[#2563eb]"
+        >
+          <Compass className="size-4" />
+        </button>
+
+        <span className="rounded-lg bg-emerald-50 px-1.5 py-1 text-[9.5px] font-black text-[#007a5a]">
+          {mT.liveBadge}
+        </span>
 
         <button
           type="button"
@@ -420,22 +624,30 @@ export function Search3DMapView({
             }
           }}
           className="flex size-9 items-center justify-center rounded-xl text-slate-600 transition hover:bg-slate-100 hover:text-[#2563eb]"
-          title={isAr ? 'موقعي' : 'My Location'}
+          title={mT.myLocationTooltip}
         >
-          <Compass className="size-4" />
+          <Navigation className="size-4" />
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setIs3DMode(!is3DMode)}
+          className="flex size-9 items-center justify-center rounded-xl text-slate-600 transition hover:bg-slate-100 hover:text-[#0f1d40]"
+        >
+          <Layers className="size-4" />
         </button>
 
         <button
           type="button"
           onClick={onBackToList}
           className="flex size-9 items-center justify-center rounded-xl text-slate-600 transition hover:bg-slate-100 hover:text-[#0f1d40]"
-          title={isAr ? 'إغلاق الخريطة' : 'Exit map'}
+          title={mT.exitMapTooltip}
         >
           <Maximize2 className="size-4" />
         </button>
       </div>
 
-      {/* معاينة الوحدة بالدولار ($) عند الضغط على الدبوس */}
+      {/* بطاقة معاينة الوحدة عند الضغط على الدبوس */}
       {selectedProp && (
         <div className="absolute bottom-20 start-4 z-30 w-80 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-150 sm:start-8">
           <div className="relative h-40 w-full bg-slate-100">
@@ -478,15 +690,19 @@ export function Search3DMapView({
               </strong>
               <span className="inline-flex items-center gap-1 rounded-full bg-[#eaf8f2] px-2 py-0.5 text-[10px] font-bold text-[#007a5a]">
                 <FileCheck2 className="size-3" />
-                {isAr ? 'متحقق بالمستندات' : 'Verified'}
+                {mT.verifiedBadge}
               </span>
             </div>
             <h4 className="mt-1 line-clamp-1 text-xs font-bold text-[#0f1d40]">
               {selectedProp.project}
             </h4>
             <p className="mt-1 text-[11px] font-semibold text-slate-500">
-              {selectedProp.area} · {selectedProp.size} {isAr ? 'م²' : 'm²'} ·{' '}
-              {selectedProp.rooms} {isAr ? 'غرف' : 'Rooms'}
+              {selectedProp.area}
+              {selectedProp.exactStreet
+                ? ` · ${selectedProp.exactStreet}${selectedProp.houseNumber ? ' ' + selectedProp.houseNumber : ''}`
+                : ''}{' '}
+              · {selectedProp.size} {mT.sqmUnit} · {selectedProp.rooms}{' '}
+              {mT.roomsWord}
             </p>
             <div className="mt-2 flex items-center justify-between border-t border-slate-100 pt-2 text-[10.5px] font-medium text-slate-400">
               <span className="inline-flex items-center gap-1">
@@ -501,7 +717,7 @@ export function Search3DMapView({
               href={`/opportunities/${selectedProp.id}`}
               className="mt-2.5 flex h-9 w-full items-center justify-center rounded-xl bg-gradient-to-r from-[#ff6437] to-[#ff4f69] text-xs font-bold text-white hover:opacity-95"
             >
-              {isAr ? 'عرض تفاصيل التنازل' : 'View Unit Details'}
+              {mT.viewDetailsBtn}
             </Link>
           </div>
         </div>
@@ -509,7 +725,7 @@ export function Search3DMapView({
 
       {/* شريط المرافق والخدمات السفلي العائم */}
       <div className="pointer-events-none absolute inset-x-3 bottom-4 z-20 flex justify-center sm:inset-x-6">
-        <div className="pointer-events-auto flex max-w-full items-center gap-1.5 overflow-x-auto rounded-full border border-slate-200/90 bg-white/95 px-3.5 py-2 shadow-xl backdrop-blur-md no-scrollbar">
+        <div className="pointer-events-auto flex max-w-full items-center gap-1.5 overflow-x-auto rounded-full border border-slate-200/90 bg-white/95 px-4 py-2 shadow-xl backdrop-blur-md no-scrollbar">
           {poiCategories.map((poi) => {
             const Icon = poi.icon
             const active = activePoi === poi.id

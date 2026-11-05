@@ -27,6 +27,7 @@ import {
 } from 'lucide-react'
 import { getCoordinatesForArea } from '@/lib/georgia-coordinates'
 import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
+import { useTranslation, type LocaleCode } from '@/lib/i18n'
 
 type NearbyCategoryKey =
   | 'all'
@@ -47,46 +48,306 @@ type PlaceItem = {
   distanceMeters: number
 }
 
-const CATEGORY_META: Array<{
+const INSIGHTS_I18N: Record<
+  LocaleCode,
+  {
+    neighborhoodTitle: string
+    neighborhoodSubPrefix: string
+    neighborhoodSubSuffix: string
+    walkScoreLabel: string
+    mobilityScoreLabel: string
+    locationTitle: string
+    approxCenterBadge: string
+    cloudyWord: string
+    airQualityWord: string
+    collapseTooltip: string
+    expandTooltip: string
+    directionsBtn: string
+    open3dMapBtn: string
+    whatsNearbyTitle: string
+    whatsNearbySub: string
+    allCat: string
+    showLessBtn: string
+    showMoreSuffix: string
+    walkWord: string
+    transitWord: string
+    driveWord: string
+    minWord: string
+    sunTitle: string
+    sunSub: string
+    winterTab: string
+    todayTab: string
+    summerTab: string
+    windowDirectionTitle: string
+    northLabel: string
+    eastLabel: string
+    southLabel: string
+    westLabel: string
+    noDirectSun: string
+    brightMorning: string
+    veryBrightAllDay: string
+    brightAfternoon: string
+    southEastLabel: string
+    southWestLabel: string
+    timeLabel: string
+    heightLabel: string
+    directionLabel: string
+    daylightLabel: string
+    sunriseLabel: string
+    solarNoonLabel: string
+    sunsetLabel: string
+    categories: Record<Exclude<NearbyCategoryKey, 'all'>, string>
+  }
+> = {
+  ar: {
+    neighborhoodTitle: 'تقييم الحي وسهولة التنقل',
+    neighborhoodSubPrefix: 'منطقة مخدومة بالكامل وقابلة للمشي (',
+    neighborhoodSubSuffix: 'مرفق وخدمة مسجلة حول الموقع)',
+    walkScoreLabel:
+      'مؤشر المشي والخدمات اليومية (قرب الأسواق والصيدليات والمدارس مشياً)',
+    mobilityScoreLabel:
+      'مؤشر المواصلات والربط المروري (قرب محطات الحافلات والمترو)',
+    locationTitle: 'الموقع والخريطة ثلاثية الأبعاد',
+    approxCenterBadge: 'موقع موثق في السجل الجغرافي',
+    cloudyWord: 'معتدل',
+    airQualityWord: 'جودة الهواء',
+    collapseTooltip: 'طي القسم',
+    expandTooltip: 'فتح القسم',
+    directionsBtn: 'الاتجاهات',
+    open3dMapBtn: 'عرض ثلاثي الأبعاد 3D',
+    whatsNearbyTitle: 'الأماكن والخدمات القريبة',
+    whatsNearbySub: 'الأقرب أولاً · زمن المشي التقريبي · بيانات خرائط جورجيا',
+    allCat: 'الكل',
+    showLessBtn: 'عرض أقل ▲',
+    showMoreSuffix: 'المزيد ⌄',
+    walkWord: 'مشياً',
+    transitWord: 'مواصلات',
+    driveWord: 'سيارة',
+    minWord: 'د',
+    sunTitle: 'حركة الشمس والإضاءة الطبيعية',
+    sunSub: 'مسار الشمس الفلكي المحسوب من إحداثيات المنطقة',
+    winterTab: 'الشتاء',
+    todayTab: 'اليوم',
+    summerTab: 'الصيف',
+    windowDirectionTitle: 'تعرض النوافذ لأشعة الشمس المباشرة حسب الاتجاه',
+    northLabel: 'الشمال',
+    eastLabel: 'الشرق',
+    southLabel: 'الجنوب',
+    westLabel: 'الغرب',
+    noDirectSun: 'إضاءة ناعمة بدون شمس مباشرة',
+    brightMorning: 'مشرق صباحاً',
+    veryBrightAllDay: 'مشمس جداً طوال النهار',
+    brightAfternoon: 'مشرق عصراً',
+    southEastLabel: 'جنوب شرق',
+    southWestLabel: 'جنوب غرب',
+    timeLabel: 'الوقت المحدد',
+    heightLabel: 'زاوية الارتفاع',
+    directionLabel: 'الاتجاه',
+    daylightLabel: 'طول النهار',
+    sunriseLabel: 'الشروق',
+    solarNoonLabel: 'الظهيرة',
+    sunsetLabel: 'الغروب',
+    categories: {
+      school: 'مدارس',
+      kindergarten: 'حضانات ورياض أطفال',
+      pharmacy: 'صيدليات',
+      market: 'سوبرماركت وأسواق',
+      restaurants: 'مطاعم وكافيهات',
+      clinic: 'عيادات ومراكز طبية',
+      university: 'جامعات وكليات',
+      gym: 'صالات رياضية',
+      bus: 'محطات حافلات ومواصلات',
+    },
+  },
+  en: {
+    neighborhoodTitle: 'Neighborhood & Mobility',
+    neighborhoodSubPrefix: 'Very walkable & well connected (',
+    neighborhoodSubSuffix: 'nearby amenities)',
+    walkScoreLabel: 'Walk Score (Daily errands on foot)',
+    mobilityScoreLabel: 'Mobility Score (Public transit access)',
+    locationTitle: 'Location & 3D Map',
+    approxCenterBadge: 'Verified area coordinates',
+    cloudyWord: 'Partly Cloudy',
+    airQualityWord: 'Air quality',
+    collapseTooltip: 'Collapse',
+    expandTooltip: 'Expand',
+    directionsBtn: 'Directions',
+    open3dMapBtn: 'Open 3D map',
+    whatsNearbyTitle: "What's nearby",
+    whatsNearbySub: 'Nearest first · walking time · OpenStreetMap data',
+    allCat: 'All',
+    showLessBtn: 'Show less ▲',
+    showMoreSuffix: 'More ⌄',
+    walkWord: 'walk',
+    transitWord: 'transit',
+    driveWord: 'drive',
+    minWord: 'min',
+    sunTitle: 'Sun & Daylight',
+    sunSub: 'Sun path calculated from property coordinates',
+    winterTab: 'Winter',
+    todayTab: 'Today',
+    summerTab: 'Summer',
+    windowDirectionTitle: 'Direct sun by window direction',
+    northLabel: 'North',
+    eastLabel: 'East',
+    southLabel: 'South',
+    westLabel: 'West',
+    noDirectSun: 'Soft light without direct sun',
+    brightMorning: 'Bright in the morning',
+    veryBrightAllDay: 'Very bright all day',
+    brightAfternoon: 'Bright in the afternoon',
+    southEastLabel: 'South-East',
+    southWestLabel: 'South-West',
+    timeLabel: 'TIME',
+    heightLabel: 'HEIGHT',
+    directionLabel: 'DIRECTION',
+    daylightLabel: 'DAYLIGHT',
+    sunriseLabel: 'SUNRISE',
+    solarNoonLabel: 'SOLAR NOON',
+    sunsetLabel: 'SUNSET',
+    categories: {
+      school: 'Schools',
+      kindergarten: 'Kindergartens',
+      pharmacy: 'Pharmacies',
+      market: 'Supermarkets',
+      restaurants: 'Restaurants & Cafes',
+      clinic: 'Clinics & Hospitals',
+      university: 'Universities',
+      gym: 'Fitness & Gym',
+      bus: 'Bus & Transit Stops',
+    },
+  },
+  ru: {
+    neighborhoodTitle: 'Район и транспортная доступность',
+    neighborhoodSubPrefix: 'Развитая инфраструктура в пешей доступности (',
+    neighborhoodSubSuffix: 'объектов рядом)',
+    walkScoreLabel: 'Пешая доступность (Магазины, аптеки и школы пешком)',
+    mobilityScoreLabel: 'Транспортная доступность (Автобусы и метро)',
+    locationTitle: 'Локация и 3D-карта',
+    approxCenterBadge: 'Координаты района подтверждены',
+    cloudyWord: 'Переменная облачность',
+    airQualityWord: 'Качество воздуха',
+    collapseTooltip: 'Свернуть',
+    expandTooltip: 'Развернуть',
+    directionsBtn: 'Маршрут',
+    open3dMapBtn: '3D-карта',
+    whatsNearbyTitle: 'Что находится рядом',
+    whatsNearbySub: 'Сначала ближайшие · время пешком · данные OpenStreetMap',
+    allCat: 'Все',
+    showLessBtn: 'Свернуть ▲',
+    showMoreSuffix: 'Еще ⌄',
+    walkWord: 'пешком',
+    transitWord: 'транспорт',
+    driveWord: 'авто',
+    minWord: 'мин',
+    sunTitle: 'Солнце и естественное освещение',
+    sunSub: 'Траектория солнца по координатам объекта',
+    winterTab: 'Зима',
+    todayTab: 'Сегодня',
+    summerTab: 'Лето',
+    windowDirectionTitle: 'Солнечный свет по направлению окон',
+    northLabel: 'Север',
+    eastLabel: 'Восток',
+    southLabel: 'Юг',
+    westLabel: 'Запад',
+    noDirectSun: 'Мягкий свет без прямого солнца',
+    brightMorning: 'Солнечно утром',
+    veryBrightAllDay: 'Солнечно весь день',
+    brightAfternoon: 'Солнечно после полудня',
+    southEastLabel: 'Юго-Восток',
+    southWestLabel: 'Юго-Запад',
+    timeLabel: 'ВРЕМЯ',
+    heightLabel: 'ВЫСОТА',
+    directionLabel: 'НАПРАВЛЕНИЕ',
+    daylightLabel: 'СВЕТОВОЙ ДЕНЬ',
+    sunriseLabel: 'ВОСХОД',
+    solarNoonLabel: 'ПОЛДЕНЬ',
+    sunsetLabel: 'ЗАКАТ',
+    categories: {
+      school: 'Школы',
+      kindergarten: 'Детские сады',
+      pharmacy: 'Аптеки',
+      market: 'Супермаркеты',
+      restaurants: 'Рестораны и кафе',
+      clinic: 'Клиники',
+      university: 'Университеты',
+      gym: 'Фитнес-клубы',
+      bus: 'Остановки транспорта',
+    },
+  },
+  ka: {
+    neighborhoodTitle: 'უბანი და ტრანსპორტი',
+    neighborhoodSubPrefix: 'კეთილმოწყობილი და ფეხით სავალი ზონა (',
+    neighborhoodSubSuffix: 'ობიექტი ახლოს)',
+    walkScoreLabel: 'ფეხით ხელმისაწვდომობა (მარკეტები, აფთიაქები, სკოლები)',
+    mobilityScoreLabel: 'ტრანსპორტის ხელმისაწვდომობა (ავტობუსი და მეტრო)',
+    locationTitle: 'მდებარეობა და 3D რუკა',
+    approxCenterBadge: 'დადასტურებული მდებარეობა',
+    cloudyWord: 'ზომიერი',
+    airQualityWord: 'ჰაერის ხარისხი',
+    collapseTooltip: 'ჩაკეცვა',
+    expandTooltip: 'გაშლა',
+    directionsBtn: 'მარშრუტი',
+    open3dMapBtn: '3D რუკა',
+    whatsNearbyTitle: 'რა არის ახლოს',
+    whatsNearbySub: 'უახლოესი ობიექტები · ფეხით სავალი დრო',
+    allCat: 'ყველა',
+    showLessBtn: 'ნაკლები ▲',
+    showMoreSuffix: 'მეტი ⌄',
+    walkWord: 'ფეხით',
+    transitWord: 'ტრანსპორტი',
+    driveWord: 'მანქანით',
+    minWord: 'წთ',
+    sunTitle: 'მზე და ბუნებრივი განათება',
+    sunSub: 'მზის ტრაექტორია კოორდინატების მიხედვით',
+    winterTab: 'ზამთარი',
+    todayTab: 'დღეს',
+    summerTab: 'ზაფხული',
+    windowDirectionTitle: 'მზის სხივები ფანჯრების მიმართულებით',
+    northLabel: 'ჩრდილოეთი',
+    eastLabel: 'აღმოსავლეთი',
+    southLabel: 'სამხრეთი',
+    westLabel: 'დასავლეთი',
+    noDirectSun: 'რბილი განათება პირდაპირი მზის გარეშე',
+    brightMorning: 'ნათელი დილით',
+    veryBrightAllDay: 'მზიანი მთელი დღე',
+    brightAfternoon: 'ნათელი საღამოს',
+    southEastLabel: 'სამხრეთ-აღმოსავლეთი',
+    southWestLabel: 'სამხრეთ-დასავლეთი',
+    timeLabel: 'დრო',
+    heightLabel: 'სიმაღლე',
+    directionLabel: 'მიმართულება',
+    daylightLabel: 'დღის ხანგრძლივობა',
+    sunriseLabel: 'ამოსვლა',
+    solarNoonLabel: 'შუადღე',
+    sunsetLabel: 'ჩასვლა',
+    categories: {
+      school: 'სკოლები',
+      kindergarten: 'საბავშვო ბაღები',
+      pharmacy: 'აფთიაქები',
+      market: 'სუპერმარკეტები',
+      restaurants: 'რესტორნები და კაფეები',
+      clinic: 'კლინიკები',
+      university: 'უნივერსიტეტები',
+      gym: 'ფიტნეს დარბაზები',
+      bus: 'გაჩერებები',
+    },
+  },
+}
+
+const CATEGORY_ICONS: Array<{
   key: Exclude<NearbyCategoryKey, 'all'>
-  labelEn: string
-  labelAr: string
   icon: any
 }> = [
-  { key: 'school', labelEn: 'School', labelAr: 'مدارس', icon: GraduationCap },
-  {
-    key: 'kindergarten',
-    labelEn: 'Kindergarten',
-    labelAr: 'حضانات ورياض أطفال',
-    icon: Baby,
-  },
-  { key: 'pharmacy', labelEn: 'Pharmacy', labelAr: 'صيدليات', icon: Pill },
-  {
-    key: 'market',
-    labelEn: 'Market',
-    labelAr: 'سوبرماركت وأسواق',
-    icon: ShoppingCart,
-  },
-  {
-    key: 'restaurants',
-    labelEn: 'Restaurants',
-    labelAr: 'مطاعم وكافيهات',
-    icon: Utensils,
-  },
-  {
-    key: 'clinic',
-    labelEn: 'Clinic',
-    labelAr: 'عيادات ومراكز طبية',
-    icon: HeartPulse,
-  },
-  {
-    key: 'university',
-    labelEn: 'University',
-    labelAr: 'جامعات وكليات',
-    icon: Landmark,
-  },
-  { key: 'gym', labelEn: 'Gym', labelAr: 'صالات رياضية (Gym)', icon: Dumbbell },
-  { key: 'bus', labelEn: 'Bus', labelAr: 'محطات حافلات ومواصلات', icon: Bus },
+  { key: 'school', icon: GraduationCap },
+  { key: 'kindergarten', icon: Baby },
+  { key: 'pharmacy', icon: Pill },
+  { key: 'market', icon: ShoppingCart },
+  { key: 'restaurants', icon: Utensils },
+  { key: 'clinic', icon: HeartPulse },
+  { key: 'university', icon: Landmark },
+  { key: 'gym', icon: Dumbbell },
+  { key: 'bus', icon: Bus },
 ]
 
 function getFallbackPlacesForArea(isBatumi: boolean): PlaceItem[] {
@@ -164,18 +425,21 @@ function haversineMeters(
   return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)))
 }
 
-function formatTravelEstimate(meters: number) {
+function formatTravelEstimate(
+  meters: number,
+  iT: (typeof INSIGHTS_I18N)['ar']
+) {
   const walkMin = Math.max(1, Math.round((meters * 1.22) / 80))
   const transitMin = Math.max(2, Math.round(meters / 150))
   const driveMin = Math.max(1, Math.round(meters / 260))
 
   if (meters < 800) {
-    return `walk ~${walkMin} min`
+    return `${iT.walkWord} ~${walkMin} ${iT.minWord}`
   }
   if (meters < 1350) {
-    return `walk ~${walkMin} min · transit ~${transitMin} min`
+    return `${iT.walkWord} ~${walkMin} ${iT.minWord} · ${iT.transitWord} ~${transitMin} ${iT.minWord}`
   }
-  return `walk ~${walkMin} min · transit ~${transitMin} min · drive ~${driveMin} min`
+  return `${iT.walkWord} ~${walkMin} ${iT.minWord} · ${iT.transitWord} ~${transitMin} ${iT.minWord} · ${iT.driveWord} ~${driveMin} ${iT.minWord}`
 }
 
 function loadMapLibreFromCDN(): Promise<any> {
@@ -214,13 +478,12 @@ function loadMapLibreFromCDN(): Promise<any> {
 function SunAndDaylightInteractiveCard({
   lat,
   lng,
-  locale = 'ar',
+  iT,
 }: {
   lat: number
   lng: number
-  locale?: string
+  iT: (typeof INSIGHTS_I18N)['ar']
 }) {
-  const isAr = locale === 'ar'
   const [isOpen, setIsOpen] = useState(true)
   const [season, setSeason] = useState<'winter' | 'today' | 'summer'>('today')
   const [sliderRatio, setSliderRatio] = useState(0.5)
@@ -258,14 +521,12 @@ function SunAndDaylightInteractiveCard({
       Math.round((selectedPos.altitude * 180) / Math.PI)
     )
 
-    let dirLabel = 'South'
-    if (sliderRatio < 0.25) dirLabel = isAr ? 'الشرق (East)' : 'East'
-    else if (sliderRatio < 0.42)
-      dirLabel = isAr ? 'جنوب شرق (South-East)' : 'South-East'
-    else if (sliderRatio <= 0.58) dirLabel = isAr ? 'الجنوب (South)' : 'South'
-    else if (sliderRatio < 0.78)
-      dirLabel = isAr ? 'جنوب غرب (South-West)' : 'South-West'
-    else dirLabel = isAr ? 'الغرب (West)' : 'West'
+    let dirLabel = iT.southLabel
+    if (sliderRatio < 0.25) dirLabel = iT.eastLabel
+    else if (sliderRatio < 0.42) dirLabel = iT.southEastLabel
+    else if (sliderRatio <= 0.58) dirLabel = iT.southLabel
+    else if (sliderRatio < 0.78) dirLabel = iT.southWestLabel
+    else dirLabel = iT.westLabel
 
     const fmt = (d: Date) =>
       d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
@@ -288,7 +549,7 @@ function SunAndDaylightInteractiveCard({
       westWindowRange: `${fmt(safeNoon)}–${fmt(safeSunset)}`,
       southWindowRange: `${fmt(safeSunrise)}–${fmt(safeSunset)}`,
     }
-  }, [targetDate, lat, lng, sliderRatio, isAr])
+  }, [targetDate, lat, lng, sliderRatio, iT])
 
   const startX = 40
   const endX = 560
@@ -316,27 +577,20 @@ function SunAndDaylightInteractiveCard({
           </span>
           <div>
             <h3 className="text-sm font-black text-[#0a1122] sm:text-base">
-              {isAr
-                ? 'حركة الشمس والإضاءة الطبيعية (Sun & daylight)'
-                : 'Sun & daylight'}
+              {iT.sunTitle}
             </h3>
-            <p className="text-[11px] text-gray-400">
-              {isAr
-                ? 'مسار الشمس الفلكي المحسوب من إحداثيات المنطقة'
-                : 'Sun path at this address — astronomical calculation from the coordinates'}
-            </p>
+            <p className="text-[11px] text-gray-400">{iT.sunSub}</p>
           </div>
         </div>
 
-        {/* الجهة اليسرى: أزرار الفصول ثم مسافة فاصلة واضحة ثم زر الطي في أقصى الشمال */}
         <div className="flex shrink-0 items-center gap-3.5">
           {isOpen && (
             <div className="hidden rounded-full border border-gray-200 bg-gray-50 p-1 text-xs font-extrabold sm:inline-flex">
               {(
                 [
-                  { id: 'winter', label: isAr ? 'الشتاء' : 'Winter' },
-                  { id: 'today', label: isAr ? 'اليوم' : 'Today' },
-                  { id: 'summer', label: isAr ? 'الصيف' : 'Summer' },
+                  { id: 'winter', label: iT.winterTab },
+                  { id: 'today', label: iT.todayTab },
+                  { id: 'summer', label: iT.summerTab },
                 ] as const
               ).map((tab) => (
                 <button
@@ -357,12 +611,10 @@ function SunAndDaylightInteractiveCard({
 
           <div className="hidden h-5 w-[1px] bg-gray-200 sm:block" />
 
-          {/* زر الطي والفتح في أقصى الشمال مستقل وواضح */}
           <button
             type="button"
             onClick={() => setIsOpen((prev) => !prev)}
-            aria-label="Toggle sun section"
-            title={isOpen ? (isAr ? 'طي القسم' : 'Collapse') : (isAr ? 'فتح القسم' : 'Expand')}
+            title={isOpen ? iT.collapseTooltip : iT.expandTooltip}
             className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-gray-200/90 bg-gray-50/90 text-[#0a1122] shadow-2xs transition hover:border-[#2563eb] hover:bg-blue-50/50 hover:text-[#2563eb]"
           >
             {isOpen ? (
@@ -376,14 +628,13 @@ function SunAndDaylightInteractiveCard({
 
       {isOpen && (
         <>
-          {/* أزرار الفصول للموبايل */}
           <div className="mt-3 flex justify-end sm:hidden">
             <div className="inline-flex rounded-full border border-gray-200 bg-gray-50 p-1 text-xs font-extrabold">
               {(
                 [
-                  { id: 'winter', label: isAr ? 'الشتاء' : 'Winter' },
-                  { id: 'today', label: isAr ? 'اليوم' : 'Today' },
-                  { id: 'summer', label: isAr ? 'الصيف' : 'Summer' },
+                  { id: 'winter', label: iT.winterTab },
+                  { id: 'today', label: iT.todayTab },
+                  { id: 'summer', label: iT.summerTab },
                 ] as const
               ).map((tab) => (
                 <button
@@ -404,33 +655,31 @@ function SunAndDaylightInteractiveCard({
 
           <div className="mt-5">
             <p className="mb-2.5 text-xs font-extrabold text-[#0a1122]">
-              {isAr
-                ? 'تعرض النوافذ لأشعة الشمس المباشرة حسب الاتجاه (Direct sun by window direction)'
-                : 'Direct sun by window direction'}
+              {iT.windowDirectionTitle}
             </p>
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="rounded-2xl border border-gray-100 bg-[#f8fafc] p-3.5">
                 <div className="flex items-center justify-between text-xs font-extrabold text-[#0a1122]">
-                  <span>{isAr ? 'الشمال (North)' : 'North'}</span>
+                  <span>{iT.northLabel}</span>
                   <span className="text-gray-400">—</span>
                 </div>
                 <div className="mt-2 h-1.5 w-full rounded-full bg-gray-200" />
                 <p className="mt-2 text-[11px] text-gray-400">
-                  {isAr ? 'إضاءة ناعمة بدون شمس مباشرة' : 'No direct sun'}
+                  {iT.noDirectSun}
                 </p>
               </div>
 
               <div className="rounded-2xl border border-gray-100 bg-[#f8fafc] p-3.5">
                 <div className="flex items-center justify-between text-xs font-extrabold text-[#0a1122]">
-                  <span>{isAr ? 'الشرق (East)' : 'East'}</span>
+                  <span>{iT.eastLabel}</span>
                   <span dir="ltr">{sunMetrics.eastHoursStr}</span>
                 </div>
                 <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
                   <div className="h-full w-1/2 rounded-full bg-orange-500" />
                 </div>
                 <div className="mt-2 flex items-center justify-between text-[11px] text-gray-500">
-                  <span>{isAr ? 'مشرق صباحاً (Bright)' : 'Bright'}</span>
+                  <span>{iT.brightMorning}</span>
                   <span dir="ltr" className="font-mono">
                     {sunMetrics.eastWindowRange}
                   </span>
@@ -439,7 +688,7 @@ function SunAndDaylightInteractiveCard({
 
               <div className="rounded-2xl border border-orange-200/80 bg-orange-50/40 p-3.5">
                 <div className="flex items-center justify-between text-xs font-extrabold text-[#0a1122]">
-                  <span>{isAr ? 'الجنوب (South)' : 'South'}</span>
+                  <span>{iT.southLabel}</span>
                   <span dir="ltr">{sunMetrics.daylightStr}</span>
                 </div>
                 <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
@@ -447,7 +696,7 @@ function SunAndDaylightInteractiveCard({
                 </div>
                 <div className="mt-2 flex items-center justify-between text-[11px] text-gray-600">
                   <span className="font-bold text-orange-700">
-                    {isAr ? 'مشمس جداً طوال النهار (Very bright)' : 'Very bright'}
+                    {iT.veryBrightAllDay}
                   </span>
                   <span dir="ltr" className="font-mono">
                     {sunMetrics.southWindowRange}
@@ -457,14 +706,14 @@ function SunAndDaylightInteractiveCard({
 
               <div className="rounded-2xl border border-gray-100 bg-[#f8fafc] p-3.5">
                 <div className="flex items-center justify-between text-xs font-extrabold text-[#0a1122]">
-                  <span>{isAr ? 'الغرب (West)' : 'West'}</span>
+                  <span>{iT.westLabel}</span>
                   <span dir="ltr">{sunMetrics.westHoursStr}</span>
                 </div>
                 <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
                   <div className="ms-auto h-full w-1/2 rounded-full bg-orange-500" />
                 </div>
                 <div className="mt-2 flex items-center justify-between text-[11px] text-gray-500">
-                  <span>{isAr ? 'مشرق عصراً (Bright)' : 'Bright'}</span>
+                  <span>{iT.brightAfternoon}</span>
                   <span dir="ltr" className="font-mono">
                     {sunMetrics.westWindowRange}
                   </span>
@@ -565,7 +814,7 @@ function SunAndDaylightInteractiveCard({
             <div className="mt-5 grid grid-cols-3 gap-3 border-t border-gray-100 pt-4 text-xs sm:grid-cols-4">
               <div>
                 <span className="block text-[10px] font-bold text-gray-400 uppercase">
-                  {isAr ? 'الوقت المحدد (TIME)' : 'TIME'}
+                  {iT.timeLabel}
                 </span>
                 <strong
                   dir="ltr"
@@ -576,7 +825,7 @@ function SunAndDaylightInteractiveCard({
               </div>
               <div>
                 <span className="block text-[10px] font-bold text-gray-400 uppercase">
-                  {isAr ? 'زاوية الارتفاع (HEIGHT)' : 'HEIGHT'}
+                  {iT.heightLabel}
                 </span>
                 <strong
                   dir="ltr"
@@ -587,7 +836,7 @@ function SunAndDaylightInteractiveCard({
               </div>
               <div>
                 <span className="block text-[10px] font-bold text-gray-400 uppercase">
-                  {isAr ? 'الاتجاه (DIRECTION)' : 'DIRECTION'}
+                  {iT.directionLabel}
                 </span>
                 <strong className="mt-0.5 block text-sm font-black text-[#0a1122]">
                   {sunMetrics.dirLabel}
@@ -595,7 +844,7 @@ function SunAndDaylightInteractiveCard({
               </div>
               <div className="hidden sm:block">
                 <span className="block text-[10px] font-bold text-gray-400 uppercase">
-                  {isAr ? 'طول النهار (DAYLIGHT)' : 'DAYLIGHT'}
+                  {iT.daylightLabel}
                 </span>
                 <strong
                   dir="ltr"
@@ -609,7 +858,7 @@ function SunAndDaylightInteractiveCard({
             <div className="mt-3 grid grid-cols-3 gap-3 border-t border-gray-100 pt-3 text-xs sm:grid-cols-4">
               <div>
                 <span className="block text-[10px] font-bold text-gray-400 uppercase">
-                  SUNRISE
+                  {iT.sunriseLabel}
                 </span>
                 <strong
                   dir="ltr"
@@ -620,7 +869,7 @@ function SunAndDaylightInteractiveCard({
               </div>
               <div>
                 <span className="block text-[10px] font-bold text-gray-400 uppercase">
-                  SOLAR NOON
+                  {iT.solarNoonLabel}
                 </span>
                 <strong
                   dir="ltr"
@@ -631,7 +880,7 @@ function SunAndDaylightInteractiveCard({
               </div>
               <div>
                 <span className="block text-[10px] font-bold text-gray-400 uppercase">
-                  SUNSET
+                  {iT.sunsetLabel}
                 </span>
                 <strong
                   dir="ltr"
@@ -642,7 +891,7 @@ function SunAndDaylightInteractiveCard({
               </div>
               <div className="sm:hidden">
                 <span className="block text-[10px] font-bold text-gray-400 uppercase">
-                  DAYLIGHT
+                  {iT.daylightLabel}
                 </span>
                 <strong
                   dir="ltr"
@@ -661,15 +910,37 @@ function SunAndDaylightInteractiveCard({
 
 export function UnitLocationInsights({
   areaId,
+  exactStreet,
+  houseNumber,
   locale = 'ar',
 }: {
   areaId: string | null
+  exactStreet?: string
+  houseNumber?: string
   t?: any
   locale?: string
 }) {
-  const isAr = locale === 'ar'
-  const coords = getCoordinatesForArea(areaId)
-  const localizedArea = getLocalizedGeorgiaAreaName(areaId, locale)
+  const { t: dict } = useTranslation()
+  const activeLocale = (locale as LocaleCode) || 'ar'
+  const baseI18n = INSIGHTS_I18N[activeLocale] || INSIGHTS_I18N.ar
+  const customInsights =
+    (dict.unitDetailsPage as any)?.locationInsights || {}
+  const iT = {
+    ...baseI18n,
+    ...customInsights,
+    categories: {
+      ...baseI18n.categories,
+      ...(customInsights.categories || {}),
+    },
+  }
+
+  const defaultCoords = getCoordinatesForArea(areaId)
+  const [coords, setCoords] = useState<{ lat: number; lng: number }>({
+    lat: defaultCoords.lat,
+    lng: defaultCoords.lng,
+  })
+
+  const localizedArea = getLocalizedGeorgiaAreaName(areaId, activeLocale)
   const isBatumi = String(areaId || '')
     .toLowerCase()
     .includes('batumi')
@@ -690,6 +961,37 @@ export function UnitLocationInsights({
     temp: number
     aqi: number
   }>({ temp: 18, aqi: 34 })
+
+  useEffect(() => {
+    setCoords({ lat: defaultCoords.lat, lng: defaultCoords.lng })
+  }, [defaultCoords.lat, defaultCoords.lng])
+
+  // تحديد الإحداثيات الدقيقة للشارع ورقم المبنى إذا كانا متوفرين
+  useEffect(() => {
+    const street = String(exactStreet || '').trim()
+    const house = String(houseNumber || '').trim()
+    if (street.length < 3) return
+
+    const cityPart = String(areaId || 'Tbilisi')
+      .split('-')[0]
+      .trim()
+    const q = `${house ? house + ' ' : ''}${street}, ${cityPart}, Georgia`
+
+    fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&countrycodes=ge&limit=1&q=${encodeURIComponent(q)}`
+    )
+      .then((r) => r.json())
+      .then((d) => {
+        if (Array.isArray(d) && d[0]) {
+          const lat = Number(d[0].lat)
+          const lng = Number(d[0].lon)
+          if (Number.isFinite(lat) && Number.isFinite(lng)) {
+            setCoords({ lat, lng })
+          }
+        }
+      })
+      .catch(() => {})
+  }, [exactStreet, houseNumber, areaId])
 
   const { walkScore, mobilityScore } = useMemo(() => {
     const walkEssentials = places.filter((p) =>
@@ -753,55 +1055,18 @@ export function UnitLocationInsights({
             const style = map.getStyle()
             if (!style || !style.layers) return
 
-            const sources = style.sources || {}
-            const vectorSourceId =
-              Object.keys(sources).find((k) => sources[k]?.type === 'vector') ||
-              'openmaptiles'
-
-            let hasExtrusion = false
             for (const layer of style.layers) {
               if (layer.type === 'fill-extrusion') {
-                hasExtrusion = true
                 map.setPaintProperty(layer.id, 'fill-extrusion-color', '#d6c3b1')
                 map.setPaintProperty(layer.id, 'fill-extrusion-opacity', 0.94)
               }
             }
-
-            if (!hasExtrusion && !map.getLayer('aqar-3d-buildings-extrusion')) {
-              map.addLayer({
-                id: 'aqar-3d-buildings-extrusion',
-                source: vectorSourceId,
-                'source-layer': 'building',
-                type: 'fill-extrusion',
-                minzoom: 13,
-                paint: {
-                  'fill-extrusion-color': '#d6c3b1',
-                  'fill-extrusion-height': [
-                    'coalesce',
-                    ['get', 'render_height'],
-                    ['get', 'height'],
-                    18,
-                  ],
-                  'fill-extrusion-base': [
-                    'coalesce',
-                    ['get', 'render_min_height'],
-                    ['get', 'min_height'],
-                    0,
-                  ],
-                  'fill-extrusion-opacity': 0.94,
-                },
-              })
-            }
-          } catch (e) {
-            console.warn('3D building layer notice:', e)
-          }
+          } catch {}
         }
 
         map.on('load', enhance3DBuildings)
       })
-      .catch((err) => {
-        console.error('Failed to load MapLibre:', err)
-      })
+      .catch(() => {})
 
     return () => {
       isMounted = false
@@ -895,20 +1160,22 @@ export function UnitLocationInsights({
 
   const visibleCategories =
     activeCategory === 'all'
-      ? CATEGORY_META
-      : CATEGORY_META.filter((c) => c.key === activeCategory)
+      ? CATEGORY_ICONS
+      : CATEGORY_ICONS.filter((c) => c.key === activeCategory)
+
+  const fullAddressLabel = exactStreet
+    ? `${localizedArea} · ${exactStreet}${houseNumber ? ' ' + houseNumber : ''}`
+    : localizedArea
 
   return (
     <>
-      {/* 1. كارت قابلية المشي والمواصلات */}
       <section className="mt-4 rounded-[20px] border border-gray-200/85 bg-white p-5 text-start shadow-2xs sm:p-6">
         <h3 className="text-sm font-black text-[#0a1122] sm:text-base">
-          {isAr ? 'تقييم الحي وسهولة التنقل (Neighborhood)' : 'Neighborhood'}
+          {iT.neighborhoodTitle}
         </h3>
         <p className="mt-0.5 text-xs font-semibold text-gray-500">
-          {isAr
-            ? `منطقة مخدومة بالكامل وقابلة للمشي (${places.length} مرفق وخدمة مسجلة حول الموقع)`
-            : `Very walkable & well connected (${places.length} nearby amenities)`}
+          {iT.neighborhoodSubPrefix}
+          {places.length} {iT.neighborhoodSubSuffix}
         </p>
 
         <div className="mt-4 space-y-3.5 text-xs">
@@ -916,11 +1183,7 @@ export function UnitLocationInsights({
             <div className="mb-1.5 flex items-center justify-between">
               <span className="flex items-center gap-1.5 font-bold text-gray-700">
                 <Footprints className="size-3.5 text-[#2563eb]" />
-                <span>
-                  {isAr
-                    ? 'مؤشر المشي والخدمات اليومية (Walk Score — قرب الأسواق والصيدليات والمدارس مشياً)'
-                    : 'Walk Score (Daily errands on foot)'}
-                </span>
+                <span>{iT.walkScoreLabel}</span>
               </span>
               <strong className="font-black text-[#0a1122]">
                 {walkScore}/100
@@ -938,11 +1201,7 @@ export function UnitLocationInsights({
             <div className="mb-1.5 flex items-center justify-between">
               <span className="flex items-center gap-1.5 font-bold text-gray-700">
                 <TrainFront className="size-3.5 text-[#2563eb]" />
-                <span>
-                  {isAr
-                    ? 'مؤشر المواصلات والربط المروري (Mobility Score — قرب محطات الباص والمترو)'
-                    : 'Mobility Score · Public transit access'}
-                </span>
+                <span>{iT.mobilityScoreLabel}</span>
               </span>
               <strong className="font-black text-[#0a1122]">
                 {mobilityScore}/100
@@ -958,54 +1217,45 @@ export function UnitLocationInsights({
         </div>
       </section>
 
-      {/* 2. قسم الخريطة ثلاثية الأبعاد + الأماكن القريبة مع تثبيت زر الطي في أقصى الشمال في الأول خالص */}
       <section className="mt-5 overflow-hidden rounded-[22px] border border-gray-200/85 bg-white p-4 shadow-2xs sm:p-6">
-        {/* السطر الأول: العنوان على اليمين، وشارات الطقس + زر الطي المستقل في أقصى الشمال */}
         <div className="flex items-start justify-between gap-3">
           <div>
             <h3 className="text-base font-black text-[#0a1122] sm:text-lg">
-              {isAr ? 'الموقع والخريطة ثلاثية الأبعاد (Location)' : 'Location'}
+              {iT.locationTitle}
             </h3>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <span className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-extrabold text-[#0a1122]">
-                📍 {localizedArea}
+                📍 {fullAddressLabel}
               </span>
               <span className="rounded-full border border-emerald-200 bg-[#eaf8f2] px-3 py-1 text-[11px] font-bold text-[#007a5a]">
-                {isAr
-                  ? 'نطاق تقريبي لحماية خصوصية المالك'
-                  : 'Approximate area center'}
+                {iT.approxCenterBadge}
               </span>
             </div>
           </div>
 
-          {/* الجهة اليسرى: الطقس ثم فاصل ثم زر الطي في أقصى الشمال في الأول */}
           <div className="flex shrink-0 items-center gap-3">
             <div className="hidden items-center gap-2 sm:flex">
               <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-extrabold text-gray-700 shadow-2xs">
                 <CloudSun className="size-3.5 text-sky-500" />
-                <span dir="ltr">{weatherInfo.temp}° Cloudy</span>
+                <span dir="ltr">
+                  {weatherInfo.temp}° {iT.cloudyWord}
+                </span>
               </span>
               <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50/70 px-3 py-1 text-xs font-extrabold text-emerald-800">
                 <span className="size-2 rounded-full bg-emerald-500" />
-                <span dir="ltr">AQI {weatherInfo.aqi} Air quality</span>
+                <span dir="ltr">
+                  AQI {weatherInfo.aqi} {iT.airQualityWord}
+                </span>
               </span>
             </div>
 
             <div className="hidden h-5 w-[1px] bg-gray-200 sm:block" />
 
-            {/* زر الطي والفتح في أقصى الشمال */}
             <button
               type="button"
               onClick={() => setIsLocationSectionOpen((prev) => !prev)}
-              aria-label="Toggle location section"
               title={
-                isLocationSectionOpen
-                  ? isAr
-                    ? 'طي القسم'
-                    : 'Collapse'
-                  : isAr
-                    ? 'فتح القسم'
-                    : 'Expand'
+                isLocationSectionOpen ? iT.collapseTooltip : iT.expandTooltip
               }
               className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-gray-200/90 bg-gray-50/90 text-[#0a1122] shadow-2xs transition hover:border-[#2563eb] hover:bg-blue-50/50 hover:text-[#2563eb]"
             >
@@ -1044,7 +1294,6 @@ export function UnitLocationInsights({
                   type="button"
                   onClick={() => mapInstanceRef.current?.zoomIn()}
                   className="flex size-8 items-center justify-center rounded-lg border border-gray-200 bg-white/95 text-gray-700 shadow-md hover:bg-white"
-                  title="Zoom in"
                 >
                   <Plus className="size-4" />
                 </button>
@@ -1052,7 +1301,6 @@ export function UnitLocationInsights({
                   type="button"
                   onClick={() => mapInstanceRef.current?.zoomOut()}
                   className="flex size-8 items-center justify-center rounded-lg border border-gray-200 bg-white/95 text-gray-700 shadow-md hover:bg-white"
-                  title="Zoom out"
                 >
                   <Minus className="size-4" />
                 </button>
@@ -1064,7 +1312,6 @@ export function UnitLocationInsights({
                       ? 'border-[#2563eb] bg-[#2563eb] text-white'
                       : 'border-gray-200 bg-white/95 text-gray-700'
                   }`}
-                  title="Toggle 3D"
                 >
                   3D
                 </button>
@@ -1080,7 +1327,6 @@ export function UnitLocationInsights({
                     })
                   }
                   className="flex size-8 items-center justify-center rounded-lg border border-gray-200 bg-white/95 text-gray-700 shadow-md hover:bg-white"
-                  title="Reset view"
                 >
                   <Compass className="size-4" />
                 </button>
@@ -1088,7 +1334,7 @@ export function UnitLocationInsights({
 
               <div className="pointer-events-none absolute inset-x-3 bottom-3 z-10 flex flex-wrap items-center justify-between gap-2">
                 <div className="pointer-events-auto rounded-xl bg-black/65 px-3 py-1.5 text-white backdrop-blur-xs">
-                  <p className="text-xs font-extrabold">{localizedArea}</p>
+                  <p className="text-xs font-extrabold">{fullAddressLabel}</p>
                   <p dir="ltr" className="font-mono text-[10px] text-gray-300">
                     {coords.lat.toFixed(4)}, {coords.lng.toFixed(4)}
                   </p>
@@ -1102,7 +1348,7 @@ export function UnitLocationInsights({
                     className="inline-flex h-9 items-center gap-1.5 rounded-full bg-white/95 px-3.5 text-xs font-extrabold text-[#0a1122] shadow-md transition hover:bg-white"
                   >
                     <Navigation className="size-3.5 text-[#2563eb]" />
-                    <span>{isAr ? 'الاتجاهات' : 'Directions'}</span>
+                    <span>{iT.directionsBtn}</span>
                   </a>
 
                   <button
@@ -1120,7 +1366,7 @@ export function UnitLocationInsights({
                     className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[#ea580c] px-4 text-xs font-extrabold text-white shadow-md transition hover:bg-[#c2410c]"
                   >
                     <Maximize2 className="size-3.5" />
-                    <span>{isAr ? 'عرض ثلاثي الأبعاد 3D' : 'Open 3D map'}</span>
+                    <span>{iT.open3dMapBtn}</span>
                   </button>
                 </div>
               </div>
@@ -1128,12 +1374,10 @@ export function UnitLocationInsights({
 
             <div className="mt-6">
               <h4 className="text-sm font-black text-[#0a1122] sm:text-base">
-                {isAr
-                  ? "الأماكن والخدمات القريبة (What's nearby)"
-                  : "What's nearby"}
+                {iT.whatsNearbyTitle}
               </h4>
               <p className="mt-0.5 text-[11px] text-gray-400">
-                Nearest first · walking time · data © OpenStreetMap contributors
+                {iT.whatsNearbySub}
               </p>
 
               <div className="mt-3.5 flex flex-wrap gap-1.5">
@@ -1146,13 +1390,13 @@ export function UnitLocationInsights({
                       : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
                   }`}
                 >
-                  <span>{isAr ? 'الكل' : 'All'}</span>
+                  <span>{iT.allCat}</span>
                   <span className="rounded-full bg-white/20 px-1.5 py-0.2 text-[10px]">
                     {places.length}
                   </span>
                 </button>
 
-                {CATEGORY_META.map((cat) => {
+                {CATEGORY_ICONS.map((cat) => {
                   const count = places.filter(
                     (p) => p.category === cat.key
                   ).length
@@ -1170,7 +1414,7 @@ export function UnitLocationInsights({
                       }`}
                     >
                       <CatIcon className="size-3.5 text-amber-600" />
-                      <span>{isAr ? cat.labelAr : cat.labelEn}</span>
+                      <span>{iT.categories[cat.key]}</span>
                       <span className="text-[10px] text-gray-400">{count}</span>
                     </button>
                   )
@@ -1198,7 +1442,7 @@ export function UnitLocationInsights({
                         <div className="flex items-center justify-between border-b border-gray-100 pb-2.5">
                           <div className="flex items-center gap-1.5 text-xs font-extrabold text-gray-600">
                             <CatIcon className="size-3.5 text-amber-600" />
-                            <span>{isAr ? cat.labelAr : cat.labelEn}</span>
+                            <span>{iT.categories[cat.key]}</span>
                           </div>
                           <span className="text-[11px] font-bold text-gray-400">
                             {catPlaces.length}
@@ -1221,11 +1465,8 @@ export function UnitLocationInsights({
                                     : `${(pl.distanceMeters / 1000).toFixed(1)} km`}
                                 </span>
                               </div>
-                              <p
-                                dir="ltr"
-                                className="mt-0.5 text-start text-[10.5px] text-gray-400"
-                              >
-                                {formatTravelEstimate(pl.distanceMeters)}
+                              <p className="mt-0.5 text-start text-[10.5px] text-gray-400">
+                                {formatTravelEstimate(pl.distanceMeters, iT)}
                               </p>
                             </div>
                           ))}
@@ -1244,10 +1485,8 @@ export function UnitLocationInsights({
                           className="mt-3 border-t border-gray-100 pt-2 text-center text-[11px] font-extrabold text-gray-500 hover:text-[#0a1122]"
                         >
                           {isExpanded
-                            ? isAr
-                              ? 'عرض أقل ▲'
-                              : 'Show less ▲'
-                            : `+${extraCount} More ⌄`}
+                            ? iT.showLessBtn
+                            : `+${extraCount} ${iT.showMoreSuffix}`}
                         </button>
                       )}
                     </div>
@@ -1259,11 +1498,10 @@ export function UnitLocationInsights({
         )}
       </section>
 
-      {/* 4. مخطط الشمس والإضاءة التفاعلي مع زر الطي والفتح في أقصى الشمال */}
       <SunAndDaylightInteractiveCard
         lat={coords.lat}
         lng={coords.lng}
-        locale={locale}
+        iT={iT}
       />
     </>
   )

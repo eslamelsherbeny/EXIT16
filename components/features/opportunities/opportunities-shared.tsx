@@ -34,8 +34,11 @@ export type MappedProperty = {
   rawDeveloperName?: string
   area: string
   rawArea: string
+  exactStreet?: string
+  houseNumber?: string
   type: string
   rooms: number
+  bedrooms: number
   baths: number
   size: number
   floor?: number
@@ -168,13 +171,26 @@ export function mapDbRowToProperty(
     .slice(0, 5)
     .toUpperCase()
   const code =
-    row.code || `U-${numericCode.length >= 4 ? numericCode : fallbackCode}`
+    row.code ||
+    meta.code ||
+    `U-${numericCode.length >= 4 ? numericCode : fallbackCode}`
 
   const rawArea = row.area || meta.area || ''
   const localizedArea = rawArea
     ? getLocalizedGeorgiaAreaName(rawArea, locale)
     : t.card.defaultArea
-  const devName = row.developer_name || ''
+
+  const invalidDevNames = [
+    'newly built',
+    'under construction',
+    'old built',
+    'completed',
+  ]
+  const rawDev = row.developer_name || meta.developer_name || ''
+  const devName =
+    rawDev && !invalidDevNames.includes(String(rawDev).trim().toLowerCase())
+      ? String(rawDev).trim()
+      : ''
 
   const validImages = Array.isArray(row.images)
     ? row.images.filter((img: string) => Boolean(img && img.trim()))
@@ -200,7 +216,10 @@ export function mapDbRowToProperty(
       ? Number(row.floor_number)
       : undefined
 
-  // توحيد ميعاد النشر في كل الموقع: تاريخ موافقة الأدمن أو تاريخ الرفع
+  const roomsVal = Number(row.rooms ?? meta.rooms) || 2
+  const bedroomsVal =
+    Number(row.bedrooms ?? meta.bedrooms) || Math.max(1, roomsVal - 1)
+
   const unifiedPublishedAt =
     row.approved_at || meta.approved_at || row.created_at
 
@@ -211,11 +230,14 @@ export function mapDbRowToProperty(
     currency,
     project: row.project_name || t.card.defaultProject,
     developer: devName,
-    rawDeveloperName: row.developer_name || '',
+    rawDeveloperName: devName,
     area: localizedArea,
     rawArea,
+    exactStreet: row.exact_street || meta.exact_street || '',
+    houseNumber: row.house_number || meta.house_number || '',
     type: row.unit_type || meta.unit_type || t.card.defaultType,
-    rooms: Number(row.rooms ?? meta.rooms) || 2,
+    rooms: roomsVal,
+    bedrooms: Math.min(roomsVal, bedroomsVal),
     baths: Number(row.bathrooms ?? meta.bathrooms) || 1,
     size: Number(row.size ?? meta.size) || 75,
     floor: floorNum,
@@ -277,7 +299,7 @@ export function OpportunityCard({
     deliveryText: property.delivery,
     size: property.size,
     rooms: property.rooms,
-    bedrooms: Math.max(1, property.rooms - 1),
+    bedrooms: property.bedrooms,
     bathrooms: property.baths,
     floor: property.floor,
     totalFloors: property.totalFloors || 16,

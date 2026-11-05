@@ -1,7 +1,12 @@
 'use client'
 
 import { Compass } from 'lucide-react'
-import { toEnglishDigits } from '@/components/features/seller/seller-shared'
+import {
+  CONDITION_OPTIONS,
+  getOptionLabel,
+  toEnglishDigits,
+} from '@/components/features/seller/seller-shared'
+import { useTranslation, type LocaleCode } from '@/lib/i18n'
 
 export type SearchFiltersState = {
   q: string
@@ -28,6 +33,101 @@ export type SearchFiltersState = {
   quickTag: string
 }
 
+const POPOVER_I18N: Record<
+  LocaleCode,
+  {
+    minCashPlaceholder: string
+    maxCashPlaceholder: string
+    minWord: string
+    maxWord: string
+    sqmUnit: string
+    commutePlaceholder: string
+    useMyLocationBtn: string
+    modeCar: string
+    modeWalk: string
+    modeBike: string
+    minSuffix: string
+    applyBtn: string
+    boostStatusLabel: string
+    bathroomsLabel: string
+    floorLabel: string
+    conditionLabel: string
+  }
+> = {
+  ar: {
+    minCashPlaceholder: 'أدنى كاش مطلوب ($)',
+    maxCashPlaceholder: 'أقصى كاش مطلوب ($)',
+    minWord: 'الأدنى',
+    maxWord: 'الأقصى',
+    sqmUnit: 'م²',
+    commutePlaceholder: 'الوجهة — العمل، الجامعة، أو محطة المترو...',
+    useMyLocationBtn: 'استخدم موقعي الحالي',
+    modeCar: 'سيارة',
+    modeWalk: 'مشياً',
+    modeBike: 'دراجة',
+    minSuffix: 'د',
+    applyBtn: 'تطبيق',
+    boostStatusLabel: 'الباقة الإعلانية',
+    bathroomsLabel: 'الحمامات',
+    floorLabel: 'الطابق',
+    conditionLabel: 'حالة التشطيب',
+  },
+  en: {
+    minCashPlaceholder: 'Min Required Cash ($)',
+    maxCashPlaceholder: 'Max Required Cash ($)',
+    minWord: 'Min',
+    maxWord: 'Max',
+    sqmUnit: 'm²',
+    commutePlaceholder: 'Destination — work, university, metro station...',
+    useMyLocationBtn: 'Use my location',
+    modeCar: 'Car',
+    modeWalk: 'Walking',
+    modeBike: 'Bicycle',
+    minSuffix: 'min',
+    applyBtn: 'Apply',
+    boostStatusLabel: 'Boost status',
+    bathroomsLabel: 'Bathrooms',
+    floorLabel: 'Floor',
+    conditionLabel: 'Finishing Condition',
+  },
+  ru: {
+    minCashPlaceholder: 'Мин. сумма на руки ($)',
+    maxCashPlaceholder: 'Макс. сумма на руки ($)',
+    minWord: 'От',
+    maxWord: 'До',
+    sqmUnit: 'м²',
+    commutePlaceholder: 'Пункт назначения — работа, ВУЗ, станция метро...',
+    useMyLocationBtn: 'Моя геолокация',
+    modeCar: 'Авто',
+    modeWalk: 'Пешком',
+    modeBike: 'Велосипед',
+    minSuffix: 'мин',
+    applyBtn: 'Применить',
+    boostStatusLabel: 'Статус продвижения',
+    bathroomsLabel: 'Санузлы',
+    floorLabel: 'Этаж',
+    conditionLabel: 'Состояние ремонта',
+  },
+  ka: {
+    minCashPlaceholder: 'მინ. საჭირო თანხა ($)',
+    maxCashPlaceholder: 'მაქს. საჭირო თანხა ($)',
+    minWord: 'მინ.',
+    maxWord: 'მაქს.',
+    sqmUnit: 'მ²',
+    commutePlaceholder: 'დანიშნულების ადგილი — სამსახური, უნივერსიტეტი, მეტრო...',
+    useMyLocationBtn: 'ჩემი მდებარეობა',
+    modeCar: 'მანქანით',
+    modeWalk: 'ფეხით',
+    modeBike: 'ველოსიპედით',
+    minSuffix: 'წთ',
+    applyBtn: 'გამოყენება',
+    boostStatusLabel: 'VIP სტატუსი',
+    bathroomsLabel: 'სველი წერტილები',
+    floorLabel: 'სართული',
+    conditionLabel: 'მდგომარეობა / რემონტი',
+  },
+}
+
 export function PriceFilterPanel({
   filters,
   updateFilter,
@@ -38,7 +138,6 @@ export function PriceFilterPanel({
   maxContractPrice,
   setMaxContractPrice,
   tFilters,
-  isAr,
 }: {
   filters: SearchFiltersState
   updateFilter: <K extends keyof SearchFiltersState>(
@@ -52,8 +151,11 @@ export function PriceFilterPanel({
   maxContractPrice: string
   setMaxContractPrice: (v: string) => void
   tFilters: Record<string, any>
-  isAr: boolean
+  isAr?: boolean
 }) {
+  const { locale } = useTranslation()
+  const pT = POPOVER_I18N[locale] || POPOVER_I18N.ar
+
   return (
     <div className="mt-3 space-y-4 rounded-2xl border border-slate-200/90 bg-[#f8fafc] p-4 shadow-sm animate-in fade-in slide-in-from-top-1 duration-150">
       <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
@@ -63,9 +165,7 @@ export function PriceFilterPanel({
             dir="ltr"
             value={filters.minPrice}
             onChange={(e) => updateFilter('minPrice', e.target.value)}
-            placeholder={
-              isAr ? 'أدنى كاش مطلوب ($)' : 'Min Required Cash ($)'
-            }
+            placeholder={tFilters.minCashPlaceholder || pT.minCashPlaceholder}
             className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-center text-xs font-bold text-[#0f1d40] focus:border-[#2563eb] focus:outline-none sm:text-sm"
           />
           <span className="font-bold text-slate-300">—</span>
@@ -77,9 +177,7 @@ export function PriceFilterPanel({
               updateFilter('maxPrice', e.target.value)
               setMaxCash(e.target.value)
             }}
-            placeholder={
-              isAr ? 'أقصى كاش مطلوب ($)' : 'Max Required Cash ($)'
-            }
+            placeholder={tFilters.maxCashPlaceholder || pT.maxCashPlaceholder}
             className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-center text-xs font-bold text-[#0f1d40] focus:border-[#2563eb] focus:outline-none sm:text-sm"
           />
         </div>
@@ -88,7 +186,6 @@ export function PriceFilterPanel({
         </span>
       </div>
 
-      {/* الفلاتر المالية التفصيلية لنظام التنازل والأقساط بالدولار ($) */}
       <div className="grid grid-cols-1 gap-3 border-t border-slate-200/70 pt-3.5 sm:grid-cols-3">
         <div className="text-start">
           <label className="mb-1 block text-[11px] font-bold text-[#0f1d40]">
@@ -211,15 +308,17 @@ export function RoomsFilterPanel({
 export function AreaFilterPanel({
   filters,
   updateFilter,
-  isAr,
 }: {
   filters: SearchFiltersState
   updateFilter: <K extends keyof SearchFiltersState>(
     key: K,
     val: SearchFiltersState[K]
   ) => void
-  isAr: boolean
+  isAr?: boolean
 }) {
+  const { locale } = useTranslation()
+  const pT = POPOVER_I18N[locale] || POPOVER_I18N.ar
+
   return (
     <div className="mt-3 rounded-2xl border border-slate-200/90 bg-[#f8fafc] p-3.5 shadow-sm animate-in fade-in slide-in-from-top-1 duration-150">
       <div className="flex items-center gap-2.5">
@@ -228,7 +327,7 @@ export function AreaFilterPanel({
           dir="ltr"
           value={filters.minArea}
           onChange={(e) => updateFilter('minArea', e.target.value)}
-          placeholder={isAr ? 'الأدنى' : 'Min'}
+          placeholder={pT.minWord}
           className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-center text-xs font-bold text-[#0f1d40] focus:border-[#2563eb] focus:outline-none sm:text-sm"
         />
         <span className="font-bold text-slate-300">—</span>
@@ -237,11 +336,11 @@ export function AreaFilterPanel({
           dir="ltr"
           value={filters.maxArea}
           onChange={(e) => updateFilter('maxArea', e.target.value)}
-          placeholder={isAr ? 'الأقصى' : 'Max'}
+          placeholder={pT.maxWord}
           className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-center text-xs font-bold text-[#0f1d40] focus:border-[#2563eb] focus:outline-none sm:text-sm"
         />
         <span className="shrink-0 px-2 text-xs font-bold text-slate-400">
-          {isAr ? 'م²' : 'm²'}
+          {pT.sqmUnit}
         </span>
       </div>
     </div>
@@ -252,7 +351,6 @@ export function CommuteFilterPanel({
   filters,
   updateFilter,
   onClose,
-  isAr,
 }: {
   filters: SearchFiltersState
   updateFilter: <K extends keyof SearchFiltersState>(
@@ -260,8 +358,11 @@ export function CommuteFilterPanel({
     val: SearchFiltersState[K]
   ) => void
   onClose: () => void
-  isAr: boolean
+  isAr?: boolean
 }) {
+  const { locale } = useTranslation()
+  const pT = POPOVER_I18N[locale] || POPOVER_I18N.ar
+
   const handleDetectMyLocation = () => {
     if (typeof window === 'undefined' || !('geolocation' in navigator)) return
     navigator.geolocation.getCurrentPosition((pos) => {
@@ -279,11 +380,7 @@ export function CommuteFilterPanel({
           type="text"
           value={filters.commuteDest}
           onChange={(e) => updateFilter('commuteDest', e.target.value)}
-          placeholder={
-            isAr
-              ? 'الوجهة — العمل، الدراسة، أو محطة المترو...'
-              : 'Destination — work, university, metro station...'
-          }
+          placeholder={pT.commutePlaceholder}
           className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-xs font-semibold text-[#0f1d40] focus:border-[#2563eb] focus:outline-none sm:text-sm"
         />
 
@@ -294,16 +391,16 @@ export function CommuteFilterPanel({
             className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-4 py-1.5 text-xs font-bold text-[#0f1d40] shadow-2xs transition hover:border-[#2563eb] hover:text-[#2563eb]"
           >
             <Compass className="size-3.5 text-[#2563eb]" />
-            <span>{isAr ? 'استخدم موقعي' : 'Use my location'}</span>
+            <span>{pT.useMyLocationBtn}</span>
           </button>
         </div>
 
         <div className="grid grid-cols-3 gap-2 rounded-2xl bg-slate-200/60 p-1">
           {(
             [
-              { id: 'car', label: isAr ? 'سيارة' : 'Car' },
-              { id: 'walk', label: isAr ? 'مشياً' : 'Walking' },
-              { id: 'bike', label: isAr ? 'دراجة' : 'Bicycle' },
+              { id: 'car', label: pT.modeCar },
+              { id: 'walk', label: pT.modeWalk },
+              { id: 'bike', label: pT.modeBike },
             ] as const
           ).map((mode) => {
             const active = filters.commuteMode === mode.id
@@ -338,7 +435,7 @@ export function CommuteFilterPanel({
                     : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                 }`}
               >
-                {mins} {isAr ? 'د' : 'min'}
+                {mins} {pT.minSuffix}
               </button>
             )
           })}
@@ -349,7 +446,7 @@ export function CommuteFilterPanel({
           onClick={onClose}
           className="h-11 w-full rounded-xl bg-[#2563eb] text-xs font-bold text-white shadow-xs transition hover:bg-blue-700 sm:text-sm"
         >
-          {isAr ? 'تطبيق' : 'Apply'}
+          {pT.applyBtn}
         </button>
       </div>
     </div>
@@ -371,7 +468,6 @@ export function MoreFiltersMegaPanel({
   tFilters,
   onClearAll,
   onClose,
-  isAr,
 }: {
   filters: SearchFiltersState
   updateFilter: <K extends keyof SearchFiltersState>(
@@ -390,8 +486,11 @@ export function MoreFiltersMegaPanel({
   tFilters: Record<string, any>
   onClearAll: () => void
   onClose: () => void
-  isAr: boolean
+  isAr?: boolean
 }) {
+  const { locale } = useTranslation()
+  const pT = POPOVER_I18N[locale] || POPOVER_I18N.ar
+
   const pillClass = (active: boolean) =>
     `rounded-full border px-3.5 py-1.5 text-xs font-semibold transition ${
       active
@@ -399,20 +498,12 @@ export function MoreFiltersMegaPanel({
         : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
     }`
 
-  const conditions = [
-    { id: 'Newly renovated', ar: 'مجدد حديثاً', en: 'Newly renovated' },
-    { id: 'White frame', ar: 'هيكل أبيض', en: 'White frame' },
-    { id: 'Black frame', ar: 'هيكل أسود', en: 'Black frame' },
-    { id: 'Green frame', ar: 'هيكل أخضر', en: 'Green frame' },
-    { id: 'White plus', ar: 'تشطيب كامل', en: 'Turnkey' },
-  ]
-
   return (
     <div className="mt-3 space-y-5 rounded-3xl border border-slate-200/90 bg-white p-5 text-start shadow-lg animate-in fade-in slide-in-from-top-2 duration-150 sm:p-6">
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
         <div>
           <span className="mb-2 block text-xs font-bold text-slate-400">
-            {isAr ? 'الباقة الإعلانية' : 'Boost status'}
+            {pT.boostStatusLabel}
           </span>
           <div className="flex flex-wrap gap-1.5">
             {['SUPER VIP', '+VIP'].map((tier) => {
@@ -433,7 +524,7 @@ export function MoreFiltersMegaPanel({
 
         <div>
           <span className="mb-2 block text-xs font-bold text-slate-400">
-            {isAr ? 'الحمامات' : 'Bathrooms'}
+            {pT.bathroomsLabel}
           </span>
           <div className="flex flex-wrap gap-1.5">
             {['+1', '+2', '+3', '+4'].map((b) => {
@@ -459,7 +550,7 @@ export function MoreFiltersMegaPanel({
 
         <div>
           <span className="mb-2 block text-xs font-bold text-slate-400">
-            {isAr ? 'الطابق' : 'Floor'}
+            {pT.floorLabel}
           </span>
           <div className="flex items-center gap-2">
             <input
@@ -467,7 +558,7 @@ export function MoreFiltersMegaPanel({
               dir="ltr"
               value={filters.minFloor}
               onChange={(e) => updateFilter('minFloor', e.target.value)}
-              placeholder={isAr ? 'الأدنى' : 'Min'}
+              placeholder={pT.minWord}
               className="h-9 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-center text-xs font-bold text-[#0f1d40] focus:border-[#2563eb] focus:bg-white focus:outline-none"
             />
             <span className="text-slate-300">—</span>
@@ -476,14 +567,13 @@ export function MoreFiltersMegaPanel({
               dir="ltr"
               value={filters.maxFloor}
               onChange={(e) => updateFilter('maxFloor', e.target.value)}
-              placeholder={isAr ? 'الأقصى' : 'Max'}
+              placeholder={pT.maxWord}
               className="h-9 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-center text-xs font-bold text-[#0f1d40] focus:border-[#2563eb] focus:bg-white focus:outline-none"
             />
           </div>
         </div>
       </div>
 
-      {/* فلاتر التنازل والاستلام وسنة العقد الأصلية */}
       <div className="border-t border-slate-100 pt-4">
         <span className="mb-2 block text-xs font-bold text-slate-400">
           {tFilters.unitTypeLabel}
@@ -563,10 +653,10 @@ export function MoreFiltersMegaPanel({
 
       <div className="border-t border-slate-100 pt-4">
         <span className="mb-2 block text-xs font-bold text-slate-400">
-          {isAr ? 'حالة التشطيب' : 'Condition'}
+          {pT.conditionLabel}
         </span>
         <div className="flex flex-wrap gap-2">
-          {conditions.map((c) => {
+          {CONDITION_OPTIONS.map((c) => {
             const active = filters.condition === c.id
             return (
               <button
@@ -575,7 +665,7 @@ export function MoreFiltersMegaPanel({
                 onClick={() => updateFilter('condition', active ? '' : c.id)}
                 className={pillClass(active)}
               >
-                {isAr ? c.ar : c.en}
+                {getOptionLabel(c, locale)}
               </button>
             )
           })}

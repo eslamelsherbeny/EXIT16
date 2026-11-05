@@ -26,10 +26,10 @@ const RECENTLY_VIEWED_STORAGE_KEY = 'aqar_recently_viewed'
 const DEVICE_VIEWER_KEY_STORAGE = 'aqar_device_viewer_fingerprint'
 
 const PUBLIC_UNIT_DETAIL_COLUMNS =
-  'id, code, user_id, project_name, developer_name, area, unit_type, size, garden_size, rooms, bathrooms, floor_number, finishing, delivery_status, delivery_month, delivery_year, features, description, contract_price, paid_amount, market_price, installment_amount, installment_frequency, contract_month, contract_year, years_left, willing_to_discount, discount_amount, images, status, is_featured, boost_tier, featured_until, views_count, approved_at, created_at, documents'
+  'id, code, user_id, project_name, developer_name, area, exact_street, house_number, cadastral_code, unit_type, size, kitchen_area, balcony_area, loggia_area, terrace_area, garden_size, rooms, bedrooms, bathrooms, floor_number, total_floors, finishing, building_status, heating_type, year_built, delivery_status, delivery_month, delivery_year, features, video_url, tour_3d_url, allow_online_viewing, description, contract_price, paid_amount, market_price, price_per_sqm, installment_amount, installment_frequency, contract_month, contract_year, years_left, willing_to_discount, discount_amount, images, status, is_featured, boost_tier, featured_until, docs_verified, views_count, approved_at, created_at, documents'
 
 const CORE_UNIT_DETAIL_COLUMNS =
-  'id, user_id, project_name, developer_name, area, unit_type, size, rooms, bathrooms, finishing, delivery_status, description, contract_price, paid_amount, market_price, installment_amount, installment_frequency, contract_year, years_left, willing_to_discount, discount_amount, images, status, created_at, documents'
+  'id, user_id, project_name, developer_name, area, unit_type, size, rooms, bathrooms, finishing, delivery_status, features, description, contract_price, paid_amount, market_price, installment_amount, installment_frequency, contract_year, years_left, willing_to_discount, discount_amount, images, status, created_at, documents'
 
 function parseSafeNumber(val: unknown, fallback = 0): number {
   if (typeof val === 'number' && Number.isFinite(val) && val > 0) return val
@@ -119,17 +119,6 @@ function UnitDetailsPageSkeleton({ dir }: { dir: 'rtl' | 'ltr' }) {
           <div className="h-3.5 w-full rounded bg-slate-100" />
           <div className="h-3.5 w-4/5 rounded bg-slate-100" />
         </div>
-
-        <div className="mt-4 space-y-4 rounded-[20px] border border-[#b8e6d5] bg-white p-6 shadow-xs">
-          <div className="flex items-center justify-between">
-            <div className="space-y-2">
-              <div className="h-3.5 w-28 rounded bg-slate-200" />
-              <div className="h-9 w-44 rounded-lg bg-slate-200" />
-            </div>
-            <div className="h-11 w-36 rounded-xl bg-emerald-200/70" />
-          </div>
-          <div className="h-16 w-full rounded-xl bg-emerald-50/70" />
-        </div>
       </div>
     </main>
   )
@@ -142,7 +131,7 @@ export default function PropertyDetailsPage() {
   const filtersT = dict.opportunitiesPage.filters
   const oT = (dict.accountPages?.offers as Record<string, any>) || {}
   const monthsWord =
-    (dict.sell?.reviewStep as Record<string, any>)?.monthsUnit ||
+    (dict.sell?.extraLabels as Record<string, any>)?.monthsUnit ||
     (t.financials as Record<string, any>)?.monthWord ||
     t.financials.yearWord
 
@@ -401,14 +390,30 @@ export default function PropertyDetailsPage() {
     if (!unitRow) return null
 
     const row = unitRow
-    const currency = '$'
+    const meta =
+      row.documents && typeof row.documents === 'object'
+        ? row.documents.__unit_meta || {}
+        : {}
 
+    const currency = '$'
     const projectName = row.project_name || c.defaultProject
-    const rawArea = row.area || ''
+    const rawArea = row.area || meta.area || ''
     const areaName = rawArea
       ? getLocalizedGeorgiaAreaName(rawArea, locale)
       : c.defaultArea
-    const developerName = row.developer_name || ''
+
+    const invalidDevNames = [
+      'newly built',
+      'under construction',
+      'old built',
+      'completed',
+    ]
+    const rawDev = row.developer_name || meta.developer_name || ''
+    const developerName =
+      rawDev && !invalidDevNames.includes(String(rawDev).trim().toLowerCase())
+        ? String(rawDev).trim()
+        : ''
+
     const subtitle = developerName ? `${developerName} · ${areaName}` : areaName
 
     const numericId = String(row.id || '')
@@ -419,31 +424,47 @@ export default function PropertyDetailsPage() {
       .toUpperCase()
     const code =
       row.code ||
+      meta.code ||
       `U-${numericId.length >= 4 ? numericId : fallbackId || '1001'}`
 
-    const unitType = row.unit_type || c.defaultType
+    const unitType = row.unit_type || meta.unit_type || c.defaultType
     const isStudio =
       unitType.includes('استوديو') ||
       unitType.toLowerCase().includes('studio') ||
       unitType.toLowerCase().includes('студия') ||
       unitType.includes('სტუდიო')
 
-    const size = parseSafeNumber(row.size, 75)
-    const rawFloor = row.floor_number
+    const size = parseSafeNumber(row.size ?? meta.size, 75)
+    const rawFloor = row.floor_number ?? meta.floor_number
+    const rawTotalFloors = parseSafeNumber(
+      row.total_floors ?? meta.total_floors,
+      0
+    )
     const floor =
       rawFloor !== null &&
       rawFloor !== undefined &&
       String(rawFloor).trim() !== ''
-        ? String(rawFloor)
+        ? rawTotalFloors > 0
+          ? `${rawFloor}/${rawTotalFloors}`
+          : String(rawFloor)
         : t.specs.typicalFloor
 
-    const rooms = parseSafeNumber(row.rooms, isStudio ? 1 : 2)
-    const bathrooms = parseSafeNumber(row.bathrooms, 1)
-    const finishing = row.finishing || t.specs.defaultFinishing
-    const deliveryStatus = row.delivery_status || t.specs.defaultStatus
+    const rooms = parseSafeNumber(row.rooms ?? meta.rooms, isStudio ? 1 : 2)
+    const bedrooms = parseSafeNumber(
+      row.bedrooms ?? meta.bedrooms,
+      Math.max(1, rooms - 1)
+    )
+    const bathrooms = parseSafeNumber(row.bathrooms ?? meta.bathrooms, 1)
+    const finishing =
+      row.finishing || meta.finishing || t.specs.defaultFinishing
+    const deliveryStatus =
+      row.delivery_status || meta.delivery_status || t.specs.defaultStatus
 
-    const contractYear = parseSafeNumber(row.contract_year, 2024)
-    const contractMonth = row.contract_month
+    const contractYear = parseSafeNumber(
+      row.contract_year ?? meta.contract_year,
+      2024
+    )
+    const contractMonth = row.contract_month || meta.contract_month
     const contractDateFormatted = contractMonth
       ? `${contractMonth}/${contractYear}`
       : String(contractYear)
@@ -457,9 +478,15 @@ export default function PropertyDetailsPage() {
     const requiredCash = paidAmount
     const remainingToDeveloper = Math.max(0, contractPrice - paidAmount)
     const marketPrice = parseSafeNumber(row.market_price)
-    const installmentAmount = parseSafeNumber(row.installment_amount)
-    const installmentFreq = row.installment_frequency || c.defaultFreq
-    const remainingInstallmentMonths = parseSafeNumber(row.years_left, 0)
+    const installmentAmount = parseSafeNumber(
+      row.installment_amount ?? meta.installment_amount
+    )
+    const installmentFreq =
+      row.installment_frequency || meta.installment_frequency || c.defaultFreq
+    const remainingInstallmentMonths = parseSafeNumber(
+      row.years_left ?? meta.years_left,
+      0
+    )
 
     const pricePerMeter =
       size > 0 && contractPrice > 0 ? Math.round(contractPrice / size) : 0
@@ -480,17 +507,19 @@ export default function PropertyDetailsPage() {
       rawDelStr.includes('فوري') ||
       rawDelStr.includes('مستلم') ||
       rawDelStr.toLowerCase().includes('ready') ||
+      rawDelStr.toLowerCase().includes('готов') ||
+      rawDelStr.includes('მზად') ||
       rawDelStr.includes(filtersT.deliveryStatuses[1])
 
     const parenMatch = rawDelStr.match(/\(([^)]+)\)/)
     const yearMatch = rawDelStr.match(/20\d{2}/)
-    const delivMonth = row.delivery_month
+    const delivMonth = row.delivery_month || meta.delivery_month
 
     const deliveryDisplay = isReadyDelivery
       ? t.specs.readyForDelivery
       : parenMatch
         ? parenMatch[1]
-        : delivMonth
+        : delivMonth && String(delivMonth) !== '0'
           ? `${delivMonth} ${monthsWord}`
           : yearMatch
             ? yearMatch[0]
@@ -517,13 +546,13 @@ export default function PropertyDetailsPage() {
       { label: t.specs.type, value: unitType },
       { label: t.specs.size, value: `${size} ${c.sqmUnit}` },
       { label: t.specs.floor, value: floor },
-      { label: t.specs.rooms, value: String(rooms) },
+      { label: t.specs.rooms, value: `${rooms} (${bedrooms} 🛏)` },
       {
         label: t.specs.bathrooms,
         value: String(bathrooms),
       },
       { label: t.specs.finishing, value: finishing },
-      { label: t.specs.status, value: deliveryStatus },
+      { label: t.specs.status, value: deliveryDisplay },
       { label: t.specs.contractYear, value: contractDateFormatted },
       {
         label: t.specs.pricePerMeter,
@@ -534,8 +563,12 @@ export default function PropertyDetailsPage() {
       },
     ]
 
-    const tags: string[] =
-      Array.isArray(row.features) && row.features.length > 0 ? row.features : []
+    const featuresList: string[] =
+      Array.isArray(row.features) && row.features.length > 0
+        ? row.features
+        : Array.isArray(meta.features)
+          ? meta.features
+          : []
     const descriptionText = row.description || `${projectName} — ${subtitle}`
 
     const isFeaturedActive =
@@ -548,22 +581,26 @@ export default function PropertyDetailsPage() {
     const hasActiveOffer =
       String(row.status || '').toLowerCase() === 'offer_received'
 
-    const meta =
-      row.documents && typeof row.documents === 'object'
-        ? row.documents.__unit_meta || {}
-        : {}
-
-    // الميعاد الرسمي الموحد في كل الصفحات: تاريخ موافقة الأدمن أو تاريخ الرفع
     const unifiedPublishedAt =
       row.approved_at || meta.approved_at || row.created_at
 
     return {
       id: String(row.id),
+      raw: row,
       isOwner,
       hasActiveOffer,
       projectName,
+      developerName,
       areaName,
       rawArea,
+      exactStreet: row.exact_street || meta.exact_street || '',
+      houseNumber: row.house_number || meta.house_number || '',
+      cadastralCode: row.cadastral_code || meta.cadastral_code || '',
+      videoUrl: row.video_url || meta.video_url || '',
+      tour3dUrl: row.tour_3d_url || meta.tour_3d_url || '',
+      allowOnlineViewing: Boolean(
+        row.allow_online_viewing ?? meta.allow_online_viewing ?? false
+      ),
       subtitle,
       code,
       unitType,
@@ -581,10 +618,13 @@ export default function PropertyDetailsPage() {
       publishedAt: unifiedPublishedAt,
       createdAt: unifiedPublishedAt,
       sizeNum: size,
+      roomsNum: rooms,
+      bedroomsNum: bedrooms,
       contractPrice,
       gallery: unitGallery,
       specs,
-      tags,
+      features: featuresList,
+      tags: featuresList,
       descriptionText,
       requiredCash,
       paidAmount,
@@ -623,6 +663,36 @@ export default function PropertyDetailsPage() {
   const scrollToOfferSection = () => {
     const el = document.getElementById('make-offer-section')
     el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  const ownerBannerLabels = {
+    title:
+      (t as any).ownerUnitBannerTitle ||
+      (locale === 'ar'
+        ? 'هذه وحدتك المعروضة على المنصة'
+        : locale === 'ru'
+          ? 'Это ваш объект на платформе'
+          : locale === 'ka'
+            ? 'ეს თქვენი ობიექტია პლატფორმაზე'
+            : 'This is your listed unit on the platform'),
+    manageBtn:
+      (t as any).manageMyUnitBtn ||
+      (locale === 'ar'
+        ? 'إدارة وحدتي في حسابي'
+        : locale === 'ru'
+          ? 'Управление объектом'
+          : locale === 'ka'
+            ? 'ობიექტის მართვა'
+            : 'Manage Unit in My Account'),
+    editBtn:
+      dict.accountComponents?.seller?.editDataBtn ||
+      (locale === 'ar'
+        ? 'تعديل البيانات'
+        : locale === 'ru'
+          ? 'Редактировать'
+          : locale === 'ka'
+            ? 'რედაქტირება'
+            : 'Edit Details'),
   }
 
   if (loading) {
@@ -718,33 +788,20 @@ export default function PropertyDetailsPage() {
               <ShieldCheck className="size-5" />
             </div>
             <h3 className="text-base font-extrabold text-[#0a1122]">
-              {locale === 'ar'
-                ? 'هذه وحدتك المعروضة على المنصة'
-                : locale === 'ru'
-                  ? 'Это ваш объект на платформе'
-                  : locale === 'ka'
-                    ? 'ეს თქვენი ობიექტია პლატფორმაზე'
-                    : 'This is your listed unit on the platform'}
+              {ownerBannerLabels.title}
             </h3>
             <div className="mt-4 flex flex-wrap justify-center gap-3">
               <Link
                 href={`/account?view=seller&unitId=${computedUnit.id}`}
                 className="inline-flex h-10 items-center justify-center rounded-xl bg-[#007a5a] px-5 text-xs font-extrabold text-white hover:bg-[#006248]"
               >
-                {locale === 'ar'
-                  ? 'إدارة وحدتي في حسابي'
-                  : locale === 'ru'
-                    ? 'Управление объектом'
-                    : locale === 'ka'
-                      ? 'ობიექტის მართვა'
-                      : 'Manage Unit in My Account'}
+                {ownerBannerLabels.manageBtn}
               </Link>
               <Link
-                href={`/sell?editUnitId=${computedUnit.id}&step=3`}
+                href={`/sell?editUnitId=${computedUnit.id}`}
                 className="inline-flex h-10 items-center justify-center rounded-xl border border-gray-300 bg-white px-5 text-xs font-bold text-[#0a1122] hover:bg-gray-50"
               >
-                {dict.accountComponents?.seller?.editDataBtn ||
-                  'تعديل البيانات'}
+                {ownerBannerLabels.editBtn}
               </Link>
             </div>
           </section>

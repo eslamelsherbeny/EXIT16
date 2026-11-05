@@ -3,8 +3,11 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import {
+  ArrowUpDown,
   Bath,
+  Bed,
   BedDouble,
+  Box,
   Building,
   Building2,
   Calendar,
@@ -13,29 +16,55 @@ import {
   CheckCircle2,
   ChevronRight,
   Copy,
+  Crown,
   DollarSign,
-  DoorClosed,
   Droplets,
+  Dumbbell,
+  ExternalLink,
   Eye,
-  Fence,
   Flame,
   Heart,
   Home,
   Layers,
+  Lock,
+  MapPin,
   Maximize2,
   Mountain,
   Paintbrush,
+  Play,
   Share2,
   ShieldCheck,
+  Smartphone,
+  Snowflake,
   Sparkles,
   Star,
-  Store,
+  Sun,
   Trees,
   Tv,
+  Utensils,
+  Video,
   Wallet,
+  Waves,
   Wifi,
+  Wind,
+  Zap,
 } from 'lucide-react'
 import { UnitGalleryWithLightbox } from '@/components/features/opportunities/unit-interest-form'
+import {
+  getOptionLabel,
+  SIVRCE_FEATURE_GROUPS,
+} from '@/components/features/seller/seller-options-data'
+import { useTranslation, type LocaleCode } from '@/lib/i18n'
+
+export type FeatureGroupDisplay = {
+  key: string
+  title: string
+  items: Array<{
+    id: string
+    label: string
+    icon: any
+  }>
+}
 
 function getSpecIcon(index: number) {
   const icons = [
@@ -52,50 +81,186 @@ function getSpecIcon(index: number) {
   return icons[index % icons.length]
 }
 
-const SIVRCE_STYLE_FEATURE_CATEGORIES = [
+function getFeatureIcon(featureId: string) {
+  const map: Record<string, any> = {
+    Balcony: Sun,
+    Loggia: Layers,
+    Terrace: Trees,
+    Yard: Trees,
+    Storage: Box,
+    Cellar: Layers,
+    'Walk-in closet': Home,
+    'Separate kitchen': Utensils,
+    Elevator: ArrowUpDown,
+    Parking: Car,
+    'Underground parking': Car,
+    Garage: Car,
+    Security: ShieldCheck,
+    Concierge: Building2,
+    Intercom: Smartphone,
+    'Backup generator': Zap,
+    'Iron door': Lock,
+    'Double glazing': Maximize2,
+    Penthouse: Crown,
+    'Step-free access': Check,
+    'Underfloor heating': Flame,
+    'Natural gas': Flame,
+    'Hot water': Droplets,
+    Internet: Wifi,
+    'Cable TV': Tv,
+    Furniture: Bed,
+    Appliances: Zap,
+    'Air conditioning': Snowflake,
+    Dishwasher: Droplets,
+    'Washing machine': Droplets,
+    Dryer: Wind,
+    Fireplace: Flame,
+    Kitchen: Utensils,
+    TV: Tv,
+    'Panoramic view': Eye,
+    'Sea view': Waves,
+    'Mountain view': Mountain,
+    'Yard view': Trees,
+    'Street view': MapPin,
+    Beachfront: Waves,
+    Bright: Sun,
+    Quiet: Wind,
+    Pool: Waves,
+    Jacuzzi: Bath,
+    Sauna: Flame,
+    Gym: Dumbbell,
+    'BBQ grill': Flame,
+    'EV charger': Zap,
+    'Ski access': Mountain,
+  }
+  return map[featureId] || CheckCircle2
+}
+
+function getYoutubeEmbedUrl(rawUrl?: string | null): string | null {
+  if (!rawUrl) return null
+  const clean = String(rawUrl).trim()
+  const ytMatch = clean.match(
+    /(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/
+  )
+  if (ytMatch?.[1]) {
+    return `https://www.youtube.com/embed/${ytMatch[1]}`
+  }
+  const vimeoMatch = clean.match(/vimeo\.com\/(\d+)/)
+  if (vimeoMatch?.[1]) {
+    return `https://player.vimeo.com/video/${vimeoMatch[1]}`
+  }
+  return null
+}
+
+const UNIT_DETAILS_LABELS: Record<
+  LocaleCode,
   {
-    key: 'space',
-    titleAr: 'المساحة',
-    titleEn: 'Space',
-    items: [
-      { labelAr: 'شرفة', labelEn: 'Balcony', icon: Fence },
-      { labelAr: 'مخزن', labelEn: 'Storage', icon: Layers },
-      { labelAr: 'تراس مفتوح', labelEn: 'Terrace', icon: Maximize2 },
-    ],
+    descriptionTitle: string
+    featuresTitle: string
+    otherFeaturesGroup: string
+    videoAnd3dTitle: string
+    watchVideoBtn: string
+    open3dTourBtn: string
+    onlineViewingBadge: string
+    streetAddressLabel: string
+    cadastralCodeLabel: string
+    developerLabel: string
+    scoreHeader: string
+    excellentDeal: string
+    veryGoodDeal: string
+    scoreCalculatedPrefix: string
+    scoreSqmUnit: string
+    scoreCalculatedSuffix: string
+    priceVsDistrict: string
+    locationRating: string
+    conditionAndDelivery: string
+  }
+> = {
+  ar: {
+    descriptionTitle: 'وصف الوحدة والتفاصيل',
+    featuresTitle: 'المميزات والتجهيزات',
+    otherFeaturesGroup: 'مميزات إضافية',
+    videoAnd3dTitle: 'الفيديو والجولة الافتراضية ثلاثية الأبعاد',
+    watchVideoBtn: 'مشاهدة فيديو العقار',
+    open3dTourBtn: 'فتح الجولة ثلاثية الأبعاد (3D Tour)',
+    onlineViewingBadge: 'متاح المعاينة أونلاين بالفيديو ✓',
+    streetAddressLabel: 'العنوان:',
+    cadastralCodeLabel: 'الرقم العقاري (NAPR):',
+    developerLabel: 'المطور العقاري:',
+    scoreHeader: 'مؤشر تقييم الفرصة (AQAR EXIT SCORE)',
+    excellentDeal: 'فرصة استثنائية',
+    veryGoodDeal: 'فرصة ممتازة',
+    scoreCalculatedPrefix: 'محسوب تلقائياً من سعر المتر ($',
+    scoreSqmUnit: '/م²)',
+    scoreCalculatedSuffix: 'وموقع وحالة الوحدة',
+    priceVsDistrict: 'السعر مقارنة بمتوسط المنطقة',
+    locationRating: 'تقييم الموقع والخدمات',
+    conditionAndDelivery: 'حالة العقار والتسليم',
   },
-  {
-    key: 'building',
-    titleAr: 'المبنى',
-    titleEn: 'Building',
-    items: [
-      { labelAr: 'موقف سيارات', labelEn: 'Parking', icon: Car },
-      { labelAr: 'حراسة', labelEn: 'Security', icon: ShieldCheck },
-      { labelAr: 'باب حديدي', labelEn: 'Steel door', icon: DoorClosed },
-      { labelAr: 'مصعد حديث', labelEn: 'Elevator', icon: Building2 },
-    ],
+  en: {
+    descriptionTitle: 'Property Description',
+    featuresTitle: 'Features & Amenities',
+    otherFeaturesGroup: 'Additional Features',
+    videoAnd3dTitle: 'Property Video & 3D Virtual Tour',
+    watchVideoBtn: 'Watch Property Video',
+    open3dTourBtn: 'Open 3D Virtual Tour',
+    onlineViewingBadge: 'Online Video Viewing Available ✓',
+    streetAddressLabel: 'Address:',
+    cadastralCodeLabel: 'Cadastral Code (NAPR):',
+    developerLabel: 'Developer:',
+    scoreHeader: 'AQAR EXIT SCORE',
+    excellentDeal: 'Excellent Deal',
+    veryGoodDeal: 'Very Good Deal',
+    scoreCalculatedPrefix: 'Calculated from unit sqm price ($',
+    scoreSqmUnit: '/m²)',
+    scoreCalculatedSuffix: '& location',
+    priceVsDistrict: 'Price vs. District Average',
+    locationRating: 'Location & Amenities Score',
+    conditionAndDelivery: 'Property Condition & Handover',
   },
-  {
-    key: 'utilities',
-    titleAr: 'المرافق',
-    titleEn: 'Utilities',
-    items: [
-      { labelAr: 'غاز طبيعي', labelEn: 'Natural gas', icon: Flame },
-      { labelAr: 'ماء ساخن', labelEn: 'Hot water', icon: Droplets },
-      { labelAr: 'إنترنت', labelEn: 'Internet', icon: Wifi },
-      { labelAr: 'تلفزيون كابل', labelEn: 'Cable TV', icon: Tv },
-    ],
+  ru: {
+    descriptionTitle: 'Описание объекта',
+    featuresTitle: 'Удобства и оснащение',
+    otherFeaturesGroup: 'Дополнительные удобства',
+    videoAnd3dTitle: 'Видеообзор и 3D-тур',
+    watchVideoBtn: 'Смотреть видео объекта',
+    open3dTourBtn: 'Открыть 3D-тур объекта',
+    onlineViewingBadge: 'Доступен онлайн-показ по видео ✓',
+    streetAddressLabel: 'Адрес:',
+    cadastralCodeLabel: 'Кадастровый код (NAPR):',
+    developerLabel: 'Застройщик:',
+    scoreHeader: 'ОЦЕНКА ВЫГОДЫ (AQAR EXIT SCORE)',
+    excellentDeal: 'Отличное предложение',
+    veryGoodDeal: 'Выгодное предложение',
+    scoreCalculatedPrefix: 'Рассчитано из цены за метр ($',
+    scoreSqmUnit: '/м²)',
+    scoreCalculatedSuffix: 'и локации',
+    priceVsDistrict: 'Цена в сравнении с районом',
+    locationRating: 'Оценка локации и инфраструктуры',
+    conditionAndDelivery: 'Состояние и срок сдачи',
   },
-  {
-    key: 'views',
-    titleAr: 'الإطلالة',
-    titleEn: 'View',
-    items: [
-      { labelAr: 'إطلالة على الجبال', labelEn: 'Mountain view', icon: Mountain },
-      { labelAr: 'إطلالة على الفناء', labelEn: 'Courtyard view', icon: Trees },
-      { labelAr: 'إطلالة على الشارع', labelEn: 'Street view', icon: Store },
-    ],
+  ka: {
+    descriptionTitle: 'ქონების აღწერა',
+    featuresTitle: 'მახასიათებლები და კეთილმოწყობა',
+    otherFeaturesGroup: 'დამატებითი მახასიათებლები',
+    videoAnd3dTitle: 'ვიდეო და 3D ვირტუალური ტური',
+    watchVideoBtn: 'ვიდეოს ნახვა',
+    open3dTourBtn: '3D ტურის გახსნა',
+    onlineViewingBadge: 'ხელმისაწვდომია ონლაინ ვიდეო ჩვენება ✓',
+    streetAddressLabel: 'მისამართი:',
+    cadastralCodeLabel: 'საკადასტრო კოდი:',
+    developerLabel: 'დეველოპერი:',
+    scoreHeader: 'შეთავაზების შეფასება (AQAR EXIT SCORE)',
+    excellentDeal: 'საუკეთესო შეთავაზება',
+    veryGoodDeal: 'კარგი შეთავაზება',
+    scoreCalculatedPrefix: 'გამოთვლილია კვ.მ ფასიდან ($',
+    scoreSqmUnit: '/მ²)',
+    scoreCalculatedSuffix: 'და მდებარეობიდან',
+    priceVsDistrict: 'ფასი უბნის საშუალოსთან შედარებით',
+    locationRating: 'მდებარეობის შეფასება',
+    conditionAndDelivery: 'მდგომარეობა და ჩაბარება',
   },
-]
+}
 
 export function UnitDetailsHeader({
   computedUnit,
@@ -105,7 +270,37 @@ export function UnitDetailsHeader({
   copied,
   onCopyCode,
 }: any) {
+  const { locale } = useTranslation()
   const [sharedCopied, setSharedCopied] = useState(false)
+  const baseLabels =
+    UNIT_DETAILS_LABELS[locale as LocaleCode] || UNIT_DETAILS_LABELS.ar
+  const uiL = { ...baseLabels, ...(t?.uiLabels || {}) }
+
+  const exactStreet =
+    computedUnit.exactStreet ||
+    computedUnit.exact_street ||
+    computedUnit.raw?.exact_street ||
+    computedUnit.raw?.documents?.__unit_meta?.exact_street ||
+    ''
+  const houseNumber =
+    computedUnit.houseNumber ||
+    computedUnit.house_number ||
+    computedUnit.raw?.house_number ||
+    computedUnit.raw?.documents?.__unit_meta?.house_number ||
+    ''
+  const cadastralCode =
+    computedUnit.cadastralCode ||
+    computedUnit.cadastral_code ||
+    computedUnit.raw?.cadastral_code ||
+    computedUnit.raw?.documents?.__unit_meta?.cadastral_code ||
+    ''
+  const allowOnlineViewing = Boolean(
+    computedUnit.allowOnlineViewing ??
+      computedUnit.allow_online_viewing ??
+      computedUnit.raw?.allow_online_viewing ??
+      computedUnit.raw?.documents?.__unit_meta?.allow_online_viewing ??
+      false
+  )
 
   const handleShareClick = async () => {
     const shareUrl = typeof window !== 'undefined' ? window.location.href : ''
@@ -147,21 +342,41 @@ export function UnitDetailsHeader({
           </h1>
           <p className="mt-1 text-xs text-gray-500 sm:text-sm">
             📍 {computedUnit.subtitle}
+            {exactStreet
+              ? ` · ${exactStreet}${houseNumber ? ' ' + houseNumber : ''}`
+              : ''}
           </p>
-          <button
-            type="button"
-            onClick={onCopyCode}
-            title={t.copyCodeTitle}
-            className="mt-2.5 inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2.5 py-1 font-mono text-[11px] text-gray-500 transition hover:border-gray-300 hover:text-[var(--brand-navy,#0a1122)]"
-          >
-            <span>{computedUnit.code}</span>
-            <Copy className="size-3 text-gray-400" />
-            {copied && (
-              <span className="font-sans text-[10px] text-[var(--brand-primary,#007a5a)]">
-                {t.copiedText}
+
+          <div className="mt-2.5 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={onCopyCode}
+              title={t.copyCodeTitle}
+              className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2.5 py-1 font-mono text-[11px] text-gray-500 transition hover:border-gray-300 hover:text-[var(--brand-navy,#0a1122)]"
+            >
+              <span>{computedUnit.code}</span>
+              <Copy className="size-3 text-gray-400" />
+              {copied && (
+                <span className="font-sans text-[10px] text-[var(--brand-primary,#007a5a)]">
+                  {t.copiedText}
+                </span>
+              )}
+            </button>
+
+            {cadastralCode && (
+              <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 font-mono text-[11px] font-bold text-slate-600">
+                <span>{uiL.cadastralCodeLabel}</span>
+                <span dir="ltr">{cadastralCode}</span>
               </span>
             )}
-          </button>
+
+            {allowOnlineViewing && (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-[11px] font-extrabold text-[#2563eb]">
+                <Video className="size-3.5" />
+                <span>{uiL.onlineViewingBadge}</span>
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -171,7 +386,7 @@ export function UnitDetailsHeader({
           {computedUnit.hasActiveOffer && (
             <span className="inline-flex items-center gap-1 rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-[11px] font-extrabold text-orange-800">
               <Flame className="size-3.5 fill-orange-500 text-orange-600" />
-              <span>{t.activeOfferBadge || 'عليها عرض نشط'}</span>
+              <span>{t.activeOfferBadge}</span>
             </span>
           )}
           {computedUnit.featured && (
@@ -190,7 +405,7 @@ export function UnitDetailsHeader({
             ) : (
               <Share2 className="size-3.5 text-gray-500" />
             )}
-            <span>{sharedCopied ? t.copiedText || 'تم النسخ' : t.shareBtn}</span>
+            <span>{sharedCopied ? t.copiedText : t.shareBtn}</span>
           </button>
           <button
             type="button"
@@ -232,7 +447,14 @@ export function UnitSpecsAndDescription({
   computedUnit: any
   locale?: string
 }) {
-  const isAr = locale === 'ar'
+  const { t: dict } = useTranslation()
+  const activeLocale = (locale as LocaleCode) || 'ar'
+  const baseLabels =
+    UNIT_DETAILS_LABELS[activeLocale] || UNIT_DETAILS_LABELS.ar
+  const uiL = {
+    ...baseLabels,
+    ...((dict.unitDetailsPage as Record<string, any>)?.uiLabels || {}),
+  }
 
   const contractPrice =
     Number(computedUnit.contractPrice || computedUnit.paidAmount) || 0
@@ -275,6 +497,8 @@ export function UnitSpecsAndDescription({
     delStr.includes('جاهز') ||
     delStr.includes('فوري') ||
     delStr.includes('ready') ||
+    delStr.includes('готов') ||
+    delStr.includes('მზად') ||
     delStr.includes('2025') ||
     delStr.includes('2026')
   const conditionScoreBar = isReadyUnit ? 92 : 84
@@ -295,54 +519,93 @@ export function UnitSpecsAndDescription({
     priceScoreBar * 0.45 + locationScoreBar * 0.3 + conditionScoreBar * 0.25
   )
 
-  const customTags: string[] = Array.isArray(computedUnit.tags)
-    ? computedUnit.tags
-    : []
+  // جلب المميزات الحقيقية للوحدة من قاعدة البيانات
+  const rawFeatures: string[] = Array.isArray(computedUnit.features)
+    ? computedUnit.features
+    : Array.isArray(computedUnit.tags)
+      ? computedUnit.tags
+      : Array.isArray(computedUnit.raw?.features)
+        ? computedUnit.raw.features
+        : []
 
-  const categorizedGroups = SIVRCE_STYLE_FEATURE_CATEGORIES.map((group) => {
-    const items = [...group.items]
-    customTags.forEach((rawTag) => {
-      const tClean = String(rawTag || '').trim()
-      if (!tClean) return
-      const alreadyExists = SIVRCE_STYLE_FEATURE_CATEGORIES.some((g) =>
-        g.items.some(
-          (i) =>
-            i.labelAr === tClean ||
-            i.labelEn.toLowerCase() === tClean.toLowerCase()
-        )
+  const normalizedSet = new Set(
+    rawFeatures.map((f) => String(f || '').trim().toLowerCase()).filter(Boolean)
+  )
+
+  // تعريف النوع صراحةً لمنع خطأ TypeScript عند إضافة مجموعة custom
+  const matchedGroups: FeatureGroupDisplay[] = SIVRCE_FEATURE_GROUPS.map(
+    (grp): FeatureGroupDisplay => {
+      const matchedItems = grp.items.filter(
+        (item) =>
+          normalizedSet.has(item.id.toLowerCase()) ||
+          normalizedSet.has(item.ar.toLowerCase()) ||
+          normalizedSet.has(item.en.toLowerCase()) ||
+          (item.ru && normalizedSet.has(item.ru.toLowerCase())) ||
+          (item.ka && normalizedSet.has(item.ka.toLowerCase()))
       )
-      if (alreadyExists) return
-
-      if (
-        group.key === 'views' &&
-        (tClean.includes('إطلالة') ||
-          tClean.includes('حدائق') ||
-          tClean.includes('ممشى') ||
-          tClean.includes('بانورام'))
-      ) {
-        items.push({ labelAr: tClean, labelEn: tClean, icon: Trees })
-      } else if (
-        group.key === 'building' &&
-        (tClean.includes('قريب') ||
-          tClean.includes('أمن') ||
-          tClean.includes('مسبح') ||
-          tClean.includes('مركز'))
-      ) {
-        items.push({ labelAr: tClean, labelEn: tClean, icon: CheckCircle2 })
+      return {
+        key: String(grp.key),
+        title: getOptionLabel(grp, activeLocale),
+        items: matchedItems.map((it) => ({
+          id: String(it.id),
+          label: getOptionLabel(it, activeLocale),
+          icon: getFeatureIcon(it.id),
+        })),
       }
+    }
+  ).filter((g) => g.items.length > 0)
+
+  const matchedIdsAndLabels = new Set<string>()
+  SIVRCE_FEATURE_GROUPS.forEach((g) =>
+    g.items.forEach((it) => {
+      matchedIdsAndLabels.add(it.id.toLowerCase())
+      matchedIdsAndLabels.add(it.ar.toLowerCase())
+      matchedIdsAndLabels.add(it.en.toLowerCase())
+      if (it.ru) matchedIdsAndLabels.add(it.ru.toLowerCase())
+      if (it.ka) matchedIdsAndLabels.add(it.ka.toLowerCase())
     })
-    return { ...group, items }
-  })
+  )
+
+  const unmatchedCustomFeatures = rawFeatures.filter(
+    (f) =>
+      String(f || '').trim() &&
+      !matchedIdsAndLabels.has(String(f).trim().toLowerCase())
+  )
+
+  if (unmatchedCustomFeatures.length > 0) {
+    matchedGroups.push({
+      key: 'custom',
+      title: uiL.otherFeaturesGroup,
+      items: unmatchedCustomFeatures.map((f) => ({
+        id: String(f),
+        label: String(f),
+        icon: CheckCircle2,
+      })),
+    })
+  }
+
+  const videoUrl =
+    computedUnit.videoUrl ||
+    computedUnit.video_url ||
+    computedUnit.raw?.video_url ||
+    computedUnit.raw?.documents?.__unit_meta?.video_url ||
+    ''
+  const tour3dUrl =
+    computedUnit.tour3dUrl ||
+    computedUnit.tour_3d_url ||
+    computedUnit.raw?.tour_3d_url ||
+    computedUnit.raw?.documents?.__unit_meta?.tour_3d_url ||
+    ''
+  const embedVideoUrl = getYoutubeEmbedUrl(videoUrl)
 
   return (
     <>
-      {/* 1. شبكة كروت المواصفات المنفصلة */}
       <section className="mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-5">
         {computedUnit.specs.map((spec: any, idx: number) => {
           const IconComponent = getSpecIcon(idx)
           return (
             <div
-              key={spec.label}
+              key={`${spec.label}-${idx}`}
               className="flex flex-col justify-between rounded-[18px] border border-gray-200/85 bg-white p-4 text-start shadow-2xs transition hover:border-[#007a5a]/40 hover:shadow-xs"
             >
               <IconComponent className="size-4 text-[#2563eb]" />
@@ -359,56 +622,99 @@ export function UnitSpecsAndDescription({
         })}
       </section>
 
-      {/* 2. قسم الوصف */}
+      {(videoUrl || tour3dUrl) && (
+        <section className="mt-4 rounded-[20px] border border-gray-200/85 bg-white p-5 text-start shadow-2xs sm:p-6">
+          <h2 className="text-sm font-black text-[var(--brand-navy,#0a1122)] sm:text-base">
+            {uiL.videoAnd3dTitle}
+          </h2>
+
+          {embedVideoUrl && (
+            <div className="mt-3.5 aspect-video w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-950">
+              <iframe
+                src={embedVideoUrl}
+                title={computedUnit.projectName}
+                className="h-full w-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+          )}
+
+          <div className="mt-3.5 flex flex-wrap items-center gap-3">
+            {videoUrl && !embedVideoUrl && (
+              <a
+                href={videoUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex h-10 items-center gap-2 rounded-xl bg-red-600 px-4 text-xs font-extrabold text-white shadow-2xs transition hover:bg-red-700"
+              >
+                <Play className="size-3.5 fill-current" />
+                <span>{uiL.watchVideoBtn}</span>
+                <ExternalLink className="size-3" />
+              </a>
+            )}
+
+            {tour3dUrl && (
+              <a
+                href={tour3dUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex h-10 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 text-xs font-extrabold text-[#2563eb] transition hover:bg-blue-100"
+              >
+                <Box className="size-4" />
+                <span>{uiL.open3dTourBtn}</span>
+                <ExternalLink className="size-3" />
+              </a>
+            )}
+          </div>
+        </section>
+      )}
+
       <section className="mt-4 rounded-[20px] border border-gray-200/85 bg-white p-5 text-start shadow-2xs sm:p-6">
         <h2 className="text-sm font-black text-[var(--brand-navy,#0a1122)] sm:text-base">
-          {isAr ? 'وصف الوحدة والتفاصيل' : 'Description'}
+          {uiL.descriptionTitle}
         </h2>
         <p className="mt-2.5 whitespace-pre-line text-xs leading-[1.9] text-gray-600 sm:text-[13.5px]">
           {computedUnit.descriptionText}
         </p>
       </section>
 
-      {/* 3. قسم المميزات مفتوح دائماً بدون زر طي */}
-      <section className="mt-4 rounded-[20px] border border-gray-200/85 bg-white p-5 text-start shadow-2xs sm:p-6">
-        <h2 className="text-base font-black text-[var(--brand-navy,#0a1122)] sm:text-lg">
-          {isAr ? 'المميزات' : 'Features'}
-        </h2>
+      {matchedGroups.length > 0 && (
+        <section className="mt-4 rounded-[20px] border border-gray-200/85 bg-white p-5 text-start shadow-2xs sm:p-6">
+          <h2 className="text-base font-black text-[var(--brand-navy,#0a1122)] sm:text-lg">
+            {uiL.featuresTitle}
+          </h2>
 
-        <div className="mt-4 space-y-5">
-          {categorizedGroups.map((group) => (
-            <div key={group.key}>
-              <span className="mb-2.5 block text-xs font-bold text-slate-400">
-                {isAr ? group.titleAr : group.titleEn}
-              </span>
-              <div className="flex flex-wrap gap-2.5">
-                {group.items.map((item) => {
-                  const ItemIcon = item.icon
-                  return (
-                    <span
-                      key={`${group.key}-${item.labelEn}`}
-                      className="inline-flex items-center gap-2 rounded-full border border-slate-200/90 bg-white px-4 py-2 text-xs font-bold text-[#0f1d40] shadow-2xs transition hover:border-[#2563eb]/40 hover:bg-blue-50/20"
-                    >
-                      <ItemIcon className="size-4 shrink-0 text-[#2563eb]" />
-                      <span>{isAr ? item.labelAr : item.labelEn}</span>
-                    </span>
-                  )
-                })}
+          <div className="mt-4 space-y-5">
+            {matchedGroups.map((group) => (
+              <div key={group.key}>
+                <span className="mb-2.5 block text-xs font-bold text-slate-400">
+                  {group.title}
+                </span>
+                <div className="flex flex-wrap gap-2.5">
+                  {group.items.map((item) => {
+                    const ItemIcon = item.icon
+                    return (
+                      <span
+                        key={`${group.key}-${item.id}`}
+                        className="inline-flex items-center gap-2 rounded-full border border-slate-200/90 bg-white px-4 py-2 text-xs font-bold text-[#0f1d40] shadow-2xs transition hover:border-[#2563eb]/40 hover:bg-blue-50/20"
+                      >
+                        <ItemIcon className="size-4 shrink-0 text-[#2563eb]" />
+                        <span>{item.label}</span>
+                      </span>
+                    )
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      </section>
+            ))}
+          </div>
+        </section>
+      )}
 
-      {/* 4. كارت التقييم الذكي للصفقة (AQAR EXIT SCORE) */}
       <section className="mt-4 rounded-[20px] border border-gray-200/85 bg-white p-5 text-start shadow-2xs sm:p-6">
         <div className="flex items-center gap-1.5 text-[11px] font-extrabold tracking-wider text-[#2563eb] uppercase">
           <Sparkles className="size-3.5" />
-          <span>
-            {isAr
-              ? 'مؤشر تقييم الفرصة (AQAR EXIT SCORE)'
-              : 'AQAR EXIT SCORE'}
-          </span>
+          <span>{uiL.scoreHeader}</span>
         </div>
 
         <div className="mt-3 flex items-center gap-4">
@@ -422,18 +728,12 @@ export function UnitSpecsAndDescription({
           </div>
           <div>
             <h3 className="text-sm font-black text-[#0a1122] sm:text-base">
-              {dealScore >= 85
-                ? isAr
-                  ? 'فرصة استثنائية (Excellent Deal)'
-                  : 'Excellent Deal'
-                : isAr
-                  ? 'فرصة ممتازة (Very Good)'
-                  : 'Very Good'}
+              {dealScore >= 85 ? uiL.excellentDeal : uiL.veryGoodDeal}
             </h3>
             <p className="mt-0.5 text-[11px] font-semibold text-gray-400 uppercase">
-              {isAr
-                ? `محسوب تلقائياً من سعر المتر ($${unitPricePerSqm}/م²) وموقع وحالة الوحدة`
-                : `CALCULATED FROM UNIT SQM PRICE ($${unitPricePerSqm}/m²) & LOCATION`}
+              {uiL.scoreCalculatedPrefix}
+              {unitPricePerSqm}
+              {uiL.scoreSqmUnit} {uiL.scoreCalculatedSuffix}
             </p>
           </div>
         </div>
@@ -442,9 +742,7 @@ export function UnitSpecsAndDescription({
           <div>
             <div className="mb-1.5 flex items-center justify-between">
               <span className="font-semibold text-gray-600">
-                {isAr
-                  ? 'السعر مقارنة بمتوسط المنطقة (Price vs district)'
-                  : 'Price vs district'}
+                {uiL.priceVsDistrict}
               </span>
               <strong dir="ltr" className="font-extrabold text-[#007a5a]">
                 {priceDiffDisplay}
@@ -461,9 +759,7 @@ export function UnitSpecsAndDescription({
           <div>
             <div className="mb-1.5 flex items-center justify-between">
               <span className="font-semibold text-gray-600">
-                {isAr
-                  ? 'تقييم الموقع والخدمات (Location)'
-                  : 'Location'}
+                {uiL.locationRating}
               </span>
               <strong dir="ltr" className="font-extrabold text-[#0a1122]">
                 {locationScoreBar}/100
@@ -480,9 +776,7 @@ export function UnitSpecsAndDescription({
           <div>
             <div className="mb-1.5 flex items-center justify-between">
               <span className="font-semibold text-gray-600">
-                {isAr
-                  ? 'حالة العقار والتسليم (Condition)'
-                  : 'Condition'}
+                {uiL.conditionAndDelivery}
               </span>
               <strong className="font-extrabold text-[#0a1122]">
                 {computedUnit.deliveryYear}
@@ -509,7 +803,7 @@ export function UnitFinancialsCard({
   monthsWord,
   onMakeOffer,
 }: any) {
-  const remainingMonthsRowLabel = fin.remainingYearsLabel || 'المتبقي'
+  const remainingMonthsRowLabel = fin.remainingYearsLabel
 
   return (
     <>
@@ -537,11 +831,7 @@ export function UnitFinancialsCard({
               className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[var(--brand-primary,#007a5a)] px-5 text-xs font-extrabold text-white shadow-sm transition hover:bg-[var(--brand-primary-hover,#006248)] sm:text-sm"
             >
               <Wallet className="size-4" />
-              <span>
-                {oT.makeOfferBtn ||
-                  t.interestForm?.submitBtn ||
-                  'تقديم عرض شراء'}
-              </span>
+              <span>{oT.makeOfferBtn || t.interestForm?.submitBtn}</span>
             </button>
           )}
         </div>

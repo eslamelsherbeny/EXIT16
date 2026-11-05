@@ -16,11 +16,9 @@ import {
   getSupabase,
   getVerifiedSellerSession,
   hashPassword,
-  integer,
   list,
   normalizeDigits,
   normalizeEmail,
-  number,
   parseDeliveryDateFromStatus,
   sendNotificationEmail,
   setUserSession,
@@ -58,12 +56,31 @@ export type Step2AuthResponse = {
   userName?: string
   userEmail?: string
   userPhone?: string
+  emailVerified?: boolean
   error?: string
 }
 
 function generateOfficialUnitCode(): string {
   const randomFiveDigits = Math.floor(10000 + Math.random() * 90000)
   return `U-${randomFiveDigits}`
+}
+
+function safeInt(val: unknown): number | null {
+  if (val === null || val === undefined || String(val).trim() === '') return null
+  const parsed = parseInt(String(val).replace(/[^0-9-]/g, ''), 10)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function safeNum(val: unknown, fallback: number | null = 0): number | null {
+  if (val === null || val === undefined || String(val).trim() === '') {
+    return fallback
+  }
+  const parsed = parseFloat(
+    String(val)
+      .replace(/,/g, '')
+      .replace(/[^0-9.-]/g, '')
+  )
+  return Number.isFinite(parsed) ? parsed : fallback
 }
 
 export async function getUsersVerificationMapAction(
@@ -215,13 +232,25 @@ export async function markUserPhoneVerifiedAction(payload: {
 export async function sendSellerReviewOtpAction(payload?: {
   email?: string
   unitId?: string
+  userId?: string
 }) {
   const { t: msg, dir } = await getFormsDict()
   try {
     const supabase = await getSupabase()
     const sessionUser = await getVerifiedSellerSession(supabase)
+
+    let targetUser = sessionUser
+    if (!targetUser && payload?.userId) {
+      const { data: u } = await supabase
+        .from('users')
+        .select('id, name, email')
+        .eq('id', payload.userId)
+        .maybeSingle()
+      targetUser = u
+    }
+
     const targetEmail = normalizeEmail(
-      payload?.email || sessionUser?.email || ''
+      payload?.email || targetUser?.email || ''
     )
 
     if (!targetEmail) {
@@ -246,12 +275,13 @@ export async function sendSellerReviewOtpAction(payload?: {
       httpOnly: true,
     })
 
-    if (sessionUser?.id) {
+    const activeUserId = targetUser?.id || payload?.userId
+    if (activeUserId) {
       try {
         await supabase
           .from('users')
           .update({ otp_code: otp, otp_expiry: expiryIso })
-          .eq('id', sessionUser.id)
+          .eq('id', activeUserId)
       } catch {}
     }
 
@@ -260,12 +290,12 @@ export async function sendSellerReviewOtpAction(payload?: {
       senderName: msg.emailSenderName,
       subject: `${otp} — ${msg.otpSubjectPrefix} ${otp}`,
       html: `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.8; color: #0a1122;">
-               <p style="font-size: 15px;">${msg.greetingWord} <strong>${sessionUser?.name || ''}</strong>،</p>
+               <p style="font-size: 15px;">${msg.greetingWord} <strong>${targetUser?.name || ''}</strong>،</p>
                <p>${msg.otpSubjectPrefix}</p>
                <div style="background: #eaf8f2; border: 1px solid #aae3cb; padding: 16px; border-radius: 12px; text-align: center; margin: 18px 0;">
                  <span style="font-family: monospace; font-size: 30px; font-weight: 900; letter-spacing: 6px; color: #007a5a;">${otp}</span>
                </div>
-              </div>`,
+             </div>`,
     })
 
     if (!sent) {
@@ -282,11 +312,14 @@ export async function verifySellerReviewOtpAction(payload: {
   email?: string
   otp: string
   unitId?: string
+  userId?: string
 }) {
   const { t: msg } = await getFormsDict()
   try {
     const supabase = await getSupabase()
     const sessionUser = await getVerifiedSellerSession(supabase)
+    const activeUserId = sessionUser?.id || payload.userId || ''
+
     const targetEmail = normalizeEmail(
       payload.email || sessionUser?.email || ''
     )
@@ -316,11 +349,11 @@ export async function verifySellerReviewOtpAction(payload: {
       }
     }
 
-    if (!isValid && sessionUser?.id) {
+    if (!isValid && activeUserId) {
       const { data: dbUser } = await supabase
         .from('users')
         .select('otp_code, otp_expiry')
-        .eq('id', sessionUser.id)
+        .eq('id', activeUserId)
         .maybeSingle()
 
       if (
@@ -338,8 +371,16 @@ export async function verifySellerReviewOtpAction(payload: {
 
     cookieStore.delete('sell_verify_otp')
 
-    if (sessionUser?.id) {
-      await upsertUserVerificationMeta(supabase, sessionUser.id, {
+    // توثيق حساب المستخدم نهائياً في جدول users وفي الميتا حتى لا يُطلب منه الكود مستقبلاً
+    if (activeUserId) {
+      try {
+        await supabase
+          .from('users')
+          .update({ is_verified: true, otp_code: null })
+          .eq('id', activeUserId)
+      } catch {}
+
+      await upsertUserVerificationMeta(supabase, activeUserId, {
         emailVerified: true,
       })
     }
@@ -491,6 +532,13 @@ export async function verifyMagicTokenAction(token: string) {
       return { valid: false, error: msg.invalidLink }
     }
 
+    try {
+      await supabase
+        .from('users')
+        .update({ is_verified: true })
+        .eq('id', userId)
+    } catch {}
+
     await upsertUserVerificationMeta(supabase, userId, {
       emailVerified: true,
     })
@@ -543,7 +591,7 @@ export async function getCurrentSellerProfileAction() {
         email: user.email,
         phone: user.phone,
         country: user.country,
-        emailVerified: userVer.emailVerified,
+        emailVerified: Boolean(user.is_verified || userVer.emailVerified),
         phoneVerified: userVer.phoneVerified,
         contactMessengers,
       },
@@ -593,6 +641,18 @@ export async function processSellerStep2Action(payload: {
         ? payload.contactMessengers
         : ['whatsapp']
 
+    const invalidDevNames = [
+      'newly built',
+      'under construction',
+      'old built',
+      'completed',
+    ]
+    const cleanDeveloper =
+      payload.developer &&
+      !invalidDevNames.includes(payload.developer.trim().toLowerCase())
+        ? payload.developer.trim()
+        : null
+
     async function syncUserMessengersAndPhone(
       userId: string,
       newPhone?: string
@@ -637,7 +697,7 @@ export async function processSellerStep2Action(payload: {
         rent_period:
           payload.rentPeriod ||
           (listingCategory === 'rent_daily' ? 'daily' : 'monthly'),
-        developer_name: payload.developer || null,
+        developer_name: cleanDeveloper,
         project_name: payload.project || null,
         contract_price: effectiveContract,
         paid_amount: effectivePaid,
@@ -652,6 +712,7 @@ export async function processSellerStep2Action(payload: {
             code: generatedCode,
             listing_category: listingCategory,
             contact_messengers: activeMessengers,
+            developer_name: cleanDeveloper,
             rent_price: isRent ? effectivePaid : 0,
             rent_period:
               payload.rentPeriod ||
@@ -758,14 +819,14 @@ export async function processSellerStep2Action(payload: {
         senderName: msg.emailSenderName,
         subject: `${msg.orderReceivedSubjectPrefix} ${orderRef}`,
         html: `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.8; color: #0a1122;">
-                <p style="font-size: 16px;">${msg.greetingWord} <strong>${userName}</strong>،</p>
-                <p>${msg.orderRefLabel}: <strong>${orderRef}</strong>.</p>
-                <p>${msg.orderPaidConfirmText}: <strong>$${paidFormatted}</strong>.</p>
-                <p>${msg.orderMagicLinkPrompt}:</p>
-                <p style="margin: 18px 0;">
-                  <a href="${magicLink}" style="color: #0b6954; font-weight: bold; word-break: break-all;">${magicLink}</a>
-                </p>
-               </div>`,
+                 <p style="font-size: 16px;">${msg.greetingWord} <strong>${userName}</strong>،</p>
+                 <p>${msg.orderRefLabel}: <strong>${orderRef}</strong>.</p>
+                 <p>${msg.orderPaidConfirmText}: <strong>$${paidFormatted}</strong>.</p>
+                 <p>${msg.orderMagicLinkPrompt}:</p>
+                 <p style="margin: 18px 0;">
+                   <a href="${magicLink}" style="color: #0b6954; font-weight: bold; word-break: break-all;">${magicLink}</a>
+                 </p>
+                </div>`,
       }).catch(() => {})
     }
 
@@ -786,7 +847,7 @@ export async function processSellerStep2Action(payload: {
       })
 
       const orderRef = generateOrderRef(unitId)
-      if (currentUser.email) {
+      if (currentUser.email && !currentUser.is_verified) {
         sendOrderConfirmationMagicEmail(
           currentUser.id,
           unitId,
@@ -803,6 +864,7 @@ export async function processSellerStep2Action(payload: {
         userName: currentUser.name,
         userEmail: currentUser.email,
         userPhone: resolvedPhone || currentUser.phone,
+        emailVerified: Boolean(currentUser.is_verified),
       }
     }
 
@@ -821,14 +883,14 @@ export async function processSellerStep2Action(payload: {
       if (rawIdentifier.includes('@')) {
         const { data } = await supabase
           .from('users')
-          .select('id, name, email, phone, password_hash, status')
+          .select('id, name, email, phone, password_hash, status, is_verified')
           .ilike('email', normalizeEmail(rawIdentifier))
         candidates = data || []
       } else {
         const variants = getPhoneVariants(rawIdentifier)
         const { data } = await supabase
           .from('users')
-          .select('id, name, email, phone, password_hash, status')
+          .select('id, name, email, phone, password_hash, status, is_verified')
           .in('phone', variants)
         candidates = data || []
       }
@@ -858,7 +920,7 @@ export async function processSellerStep2Action(payload: {
       })
 
       const orderRef = generateOrderRef(unitId)
-      if (matched.email) {
+      if (matched.email && !matched.is_verified) {
         sendOrderConfirmationMagicEmail(
           matched.id,
           unitId,
@@ -875,6 +937,7 @@ export async function processSellerStep2Action(payload: {
         userName: matched.name,
         userEmail: matched.email,
         userPhone: matched.phone,
+        emailVerified: Boolean(matched.is_verified),
       }
     }
 
@@ -894,12 +957,12 @@ export async function processSellerStep2Action(payload: {
     const [{ data: emailMatches }, { data: phoneMatches }] = await Promise.all([
       supabase
         .from('users')
-        .select('id, name, phone, email, password_hash')
+        .select('id, name, phone, email, password_hash, is_verified')
         .ilike('email', cleanEmail)
         .limit(1),
       supabase
         .from('users')
-        .select('id, name, phone, email, password_hash')
+        .select('id, name, phone, email, password_hash, is_verified')
         .in('phone', phoneVariants)
         .limit(1),
     ])
@@ -923,6 +986,7 @@ export async function processSellerStep2Action(payload: {
           userName: emailUser.name,
           userEmail: emailUser.email,
           userPhone: emailUser.phone || formattedPhone,
+          emailVerified: Boolean(emailUser.is_verified),
         }
       }
 
@@ -952,6 +1016,7 @@ export async function processSellerStep2Action(payload: {
           userName: phoneUser.name,
           userEmail: phoneUser.email,
           userPhone: phoneUser.phone,
+          emailVerified: Boolean(phoneUser.is_verified),
         }
       }
 
@@ -1025,6 +1090,7 @@ export async function processSellerStep2Action(payload: {
       userName: createdUser.name,
       userEmail: createdUser.email,
       userPhone: createdUser.phone,
+      emailVerified: false,
     }
   } catch (e) {
     console.error('processSellerStep2Action error:', e)
@@ -1042,7 +1108,7 @@ export async function verifyExistingEmailPasswordAction(payload: {
     const cleanEmail = normalizeEmail(payload.email)
     const { data: users } = await supabase
       .from('users')
-      .select('id, name, email, phone, password_hash')
+      .select('id, name, email, phone, password_hash, is_verified')
       .ilike('email', cleanEmail)
 
     const matched = (users || []).find((u) =>
@@ -1064,6 +1130,7 @@ export async function verifyExistingEmailPasswordAction(payload: {
         name: matched.name,
         email: matched.email,
         phone: matched.phone,
+        emailVerified: Boolean(matched.is_verified),
       },
     }
   } catch {
@@ -1123,7 +1190,7 @@ export async function sendSellerRecoveryLinkAction(payload: {
                <p style="margin: 18px 0;">
                  <a href="${resetLink}" style="color: #0b6954; font-weight: bold; word-break: break-all;">${resetLink}</a>
                </p>
-              </div>`,
+             </div>`,
     })
 
     return { success: true }
@@ -1217,20 +1284,43 @@ function buildUnitPayloadWithMetaBackup(
   const deliveryStatusRaw = text(formData, 'delivery_status')
   const parsedDel = parseDeliveryDateFromStatus(deliveryStatusRaw)
 
-  const sizeVal = number(formData, 'size')
-  const kitchenAreaVal = number(formData, 'kitchen_area')
-  const balconyAreaVal = number(formData, 'balcony_area')
-  const loggiaAreaVal = number(formData, 'loggia_area')
-  const terraceAreaVal = number(formData, 'terrace_area')
-  const gardenVal = number(formData, 'garden_size')
+  const sizeVal = safeNum(formData.get('size'), 0) || 0
+  const kitchenAreaVal = safeNum(formData.get('kitchen_area'), null)
+  const balconyAreaVal = safeNum(formData.get('balcony_area'), null)
+  const loggiaAreaVal = safeNum(formData.get('loggia_area'), 0) ?? 0
+  const terraceAreaVal = safeNum(formData.get('terrace_area'), 0) ?? 0
+  const gardenVal = safeNum(formData.get('garden_size'), null)
 
-  const roomsVal = number(formData, 'rooms')
+  const rawRooms = safeInt(formData.get('rooms'))
+  const rawBedrooms = safeInt(formData.get('bedrooms'))
+
+  // ضمان السياق المنطقي: إجمالي الغرف لا يقل أبداً عن غرف النوم
+  const roomsVal =
+    rawRooms !== null && rawRooms > 0
+      ? rawBedrooms !== null && rawBedrooms > rawRooms
+        ? rawBedrooms
+        : rawRooms
+      : rawBedrooms !== null && rawBedrooms > 0
+        ? rawBedrooms
+        : null
+
   const bedroomsVal =
-    integer(formData, 'bedrooms') || Math.max(1, roomsVal - 1)
-  const bathsVal = number(formData, 'bathrooms')
-  const floorVal = text(formData, 'floor_number')
-  const totalFloorsVal = integer(formData, 'total_floors')
-  const maxGuestsVal = integer(formData, 'max_guests')
+    rawBedrooms !== null && rawBedrooms > 0
+      ? roomsVal !== null && rawBedrooms > roomsVal
+        ? roomsVal
+        : rawBedrooms
+      : roomsVal !== null && roomsVal > 0
+        ? Math.max(1, roomsVal - 1)
+        : null
+
+  const bathsVal = safeInt(formData.get('bathrooms'))
+  const floorVal = safeInt(formData.get('floor_number'))
+  const rawTotalFloors = safeInt(formData.get('total_floors'))
+  const totalFloorsVal =
+    rawTotalFloors !== null && floorVal !== null && rawTotalFloors < floorVal
+      ? floorVal
+      : rawTotalFloors
+  const maxGuestsVal = safeInt(formData.get('max_guests'))
 
   const finishingVal = text(formData, 'finishing') || null
   const buildingStatusVal = text(formData, 'building_status') || null
@@ -1238,12 +1328,24 @@ function buildUnitPayloadWithMetaBackup(
   const floorTypeVal = text(formData, 'floor_type') || null
   const heatingTypeVal = text(formData, 'heating_type') || null
   const buildingMaterialVal = text(formData, 'building_material') || null
-  const yearBuiltVal = integer(formData, 'year_built')
+  const yearBuiltVal = safeInt(formData.get('year_built'))
 
   const areaVal = text(formData, 'area') || null
   const exactStreetVal = text(formData, 'exact_street') || null
   const houseNumberVal = text(formData, 'house_number') || null
   const cadastralCodeVal = text(formData, 'cadastral_code') || null
+
+  const rawDeveloper = text(formData, 'developer_name')
+  const invalidDevNames = [
+    'newly built',
+    'under construction',
+    'old built',
+    'completed',
+  ]
+  const developerNameVal =
+    rawDeveloper && !invalidDevNames.includes(rawDeveloper.trim().toLowerCase())
+      ? rawDeveloper.trim()
+      : null
 
   const videoUrlVal = text(formData, 'video_url') || null
   const tour3dUrlVal = text(formData, 'tour_3d_url') || null
@@ -1256,40 +1358,43 @@ function buildUnitPayloadWithMetaBackup(
   const exchangePossibleVal =
     formData.get('exchange_possible') === 'on' ||
     formData.get('exchange_possible') === 'true'
-  const isExclusiveVal =
-    formData.get('is_exclusive') === 'on' ||
-    formData.get('is_exclusive') === 'true'
+  const isExclusiveVal = false
 
   const unitTypeVal = text(formData, 'unit_type') || null
   const contractMonthVal = text(formData, 'contract_month') || null
-  const contractYearVal = integer(formData, 'contract_year')
-  const yearsLeftVal = integer(formData, 'years_left')
-  const instAmountVal = number(formData, 'installment_amount')
+  const contractYearVal = safeInt(formData.get('contract_year'))
+  const yearsLeftVal = safeInt(formData.get('years_left')) ?? 0
+  const instAmountVal = safeNum(formData.get('installment_amount'), 0) ?? 0
   const instFreqVal = text(formData, 'installment_frequency') || null
   const featuresList = list(formData, 'feature')
   const messengersList = list(formData, 'contact_messenger')
 
-  const rentPriceVal = number(formData, 'rent_price')
+  const rentPriceVal = safeNum(formData.get('rent_price'), 0) ?? 0
   const rentPeriodVal =
     text(formData, 'rent_period') ||
     (listingCategoryVal === 'rent_daily' ? 'daily' : 'monthly')
 
-  const rawContractPrice = number(formData, 'contract_price')
-  const rawPaidAmount = number(formData, 'paid_amount')
+  const rawContractPrice = safeNum(formData.get('contract_price'), 0) ?? 0
+  const rawPaidAmount = safeNum(formData.get('paid_amount'), 0) ?? 0
 
   const effectiveContractPrice = isRent
     ? rentPriceVal || rawPaidAmount || rawContractPrice
-    : rawContractPrice || rawPaidAmount
+    : Math.max(rawContractPrice, rawPaidAmount)
   const effectivePaidAmount = isRent
     ? rentPriceVal || rawPaidAmount || rawContractPrice
     : isDirectSale
       ? rawPaidAmount || rawContractPrice
-      : rawPaidAmount
+      : Math.min(rawPaidAmount, effectiveContractPrice)
 
   const pricePerSqmVal =
     sizeVal > 0 && effectiveContractPrice > 0
       ? Math.round(effectiveContractPrice / sizeVal)
-      : number(formData, 'price_per_sqm')
+      : safeNum(formData.get('price_per_sqm'), 0) ?? 0
+
+  const deliveryMonthResolved =
+    text(formData, 'delivery_month') || parsedDel.deliveryMonth || null
+  const deliveryYearResolved =
+    safeInt(formData.get('delivery_year')) || parsedDel.deliveryYear || null
 
   parsedDocuments.__unit_meta = {
     ...(parsedDocuments.__unit_meta || {}),
@@ -1298,6 +1403,7 @@ function buildUnitPayloadWithMetaBackup(
     rent_price: isRent ? effectivePaidAmount : rentPriceVal,
     rent_period: rentPeriodVal,
     price_per_sqm: pricePerSqmVal,
+    developer_name: developerNameVal,
     exact_street: exactStreetVal,
     house_number: houseNumberVal,
     cadastral_code: cadastralCodeVal,
@@ -1306,10 +1412,10 @@ function buildUnitPayloadWithMetaBackup(
     floor_type: floorTypeVal,
     heating_type: heatingTypeVal,
     building_material: buildingMaterialVal,
-    year_built: yearBuiltVal || null,
-    total_floors: totalFloorsVal || null,
-    bedrooms: bedroomsVal || null,
-    max_guests: maxGuestsVal || null,
+    year_built: yearBuiltVal,
+    total_floors: totalFloorsVal,
+    bedrooms: bedroomsVal,
+    max_guests: maxGuestsVal,
     kitchen_area: kitchenAreaVal,
     balcony_area: balconyAreaVal,
     loggia_area: loggiaAreaVal,
@@ -1327,13 +1433,12 @@ function buildUnitPayloadWithMetaBackup(
     size: sizeVal,
     rooms: roomsVal,
     bathrooms: bathsVal,
-    floor_number: floorVal || null,
+    floor_number: floorVal,
     garden_size: gardenVal,
     finishing: finishingVal,
     delivery_status: deliveryStatusRaw || null,
-    delivery_month: text(formData, 'delivery_month') || parsedDel.deliveryMonth,
-    delivery_year:
-      integer(formData, 'delivery_year') || parsedDel.deliveryYear,
+    delivery_month: deliveryMonthResolved,
+    delivery_year: deliveryYearResolved,
     contract_month: contractMonthVal,
     contract_year: contractYearVal,
     years_left: yearsLeftVal,
@@ -1359,10 +1464,10 @@ function buildUnitPayloadWithMetaBackup(
     floor_type: floorTypeVal,
     heating_type: heatingTypeVal,
     building_material: buildingMaterialVal,
-    year_built: yearBuiltVal || null,
-    total_floors: totalFloorsVal || null,
-    bedrooms: bedroomsVal || null,
-    max_guests: maxGuestsVal || null,
+    year_built: yearBuiltVal,
+    total_floors: totalFloorsVal,
+    bedrooms: bedroomsVal,
+    max_guests: maxGuestsVal,
     kitchen_area: kitchenAreaVal,
     balcony_area: balconyAreaVal,
     loggia_area: loggiaAreaVal,
@@ -1375,27 +1480,26 @@ function buildUnitPayloadWithMetaBackup(
     is_exclusive: isExclusiveVal,
     contact_messengers:
       messengersList.length > 0 ? messengersList : ['whatsapp'],
-    developer_name: text(formData, 'developer_name') || null,
+    developer_name: developerNameVal,
     project_name: text(formData, 'project_name') || null,
     area: areaVal,
     unit_type: unitTypeVal,
     size: sizeVal,
     rooms: roomsVal,
     bathrooms: bathsVal,
-    floor_number: floorVal ? integer(formData, 'floor_number') : null,
+    floor_number: floorVal,
     garden_size: gardenVal,
     finishing: finishingVal,
     delivery_status: deliveryStatusRaw || null,
-    delivery_month:
-      text(formData, 'delivery_month') || parsedDel.deliveryMonth,
-    delivery_year:
-      integer(formData, 'delivery_year') || parsedDel.deliveryYear,
+    delivery_month: deliveryMonthResolved,
+    delivery_year: deliveryYearResolved,
     features: featuresList,
     description: text(formData, 'description') || null,
     contract_price: effectiveContractPrice,
     paid_amount: effectivePaidAmount,
     market_price:
-      number(formData, 'market_price') || effectiveContractPrice,
+      safeNum(formData.get('market_price'), effectiveContractPrice) ||
+      effectiveContractPrice,
     installment_amount: isRent ? 0 : instAmountVal,
     installment_frequency: isRent ? null : instFreqVal,
     contract_month: contractMonthVal,
@@ -1403,15 +1507,18 @@ function buildUnitPayloadWithMetaBackup(
     years_left: isRent ? 0 : yearsLeftVal,
     has_annual_installment:
       !isRent && formData.get('has_annual_installment') === 'on',
-    annual_installment_amount: number(formData, 'annual_installment_amount'),
+    annual_installment_amount:
+      safeNum(formData.get('annual_installment_amount'), 0) ?? 0,
     willing_to_discount:
       formData.get('willing_to_discount') === 'on' ||
       formData.get('willing_to_discount') === 'true',
-    discount_amount: number(formData, 'discount_amount'),
+    discount_amount: safeNum(formData.get('discount_amount'), 0) ?? 0,
     has_overdue_installments:
       !isRent && formData.get('has_overdue_installments') === 'on',
-    overdue_installments: number(formData, 'overdue_installments'),
-    overdue_total_amount: number(formData, 'overdue_total_amount'),
+    overdue_installments:
+      safeNum(formData.get('overdue_installments'), 0) ?? 0,
+    overdue_total_amount:
+      safeNum(formData.get('overdue_total_amount'), 0) ?? 0,
     images: list(formData, 'image'),
     documents: parsedDocuments,
   }
@@ -1430,6 +1537,7 @@ async function resilientUpdateUnit(
     .eq('id', unitId)
 
   if (error) {
+    console.error('Primary sell_requests update error:', error.message)
     const res2 = await supabase
       .from('sell_requests')
       .update(stripExtendedSellColumns(payload))
@@ -1448,13 +1556,51 @@ async function resilientUpdateUnit(
   return { error }
 }
 
+async function resolveSellerUserOrFallback(
+  supabase: any,
+  formData: FormData
+): Promise<any | null> {
+  const sessionUser = await getVerifiedSellerSession(supabase)
+  if (sessionUser) return sessionUser
+
+  const fallbackUserId = text(formData, 'user_id')
+  const fallbackUnitId = text(formData, 'unit_id')
+  if (fallbackUserId) {
+    const { data: dbUser } = await supabase
+      .from('users')
+      .select('id, name, email, phone, role, status, is_verified')
+      .eq('id', fallbackUserId)
+      .maybeSingle()
+
+    if (
+      dbUser &&
+      String(dbUser.status || 'active').toLowerCase() !== 'suspended'
+    ) {
+      if (fallbackUnitId) {
+        const { data: unitMatch } = await supabase
+          .from('sell_requests')
+          .select('id, user_id')
+          .eq('id', fallbackUnitId)
+          .maybeSingle()
+        if (!unitMatch || String(unitMatch.user_id) === String(dbUser.id)) {
+          return dbUser
+        }
+      } else {
+        return dbUser
+      }
+    }
+  }
+
+  return null
+}
+
 export async function saveSellProgress(
   formData: FormData
 ): Promise<SubmitResult> {
   const { t: msg } = await getFormsDict()
   try {
     const supabase = await getSupabase()
-    const sessionUser = await getVerifiedSellerSession(supabase)
+    const sessionUser = await resolveSellerUserOrFallback(supabase, formData)
     const unitId = text(formData, 'unit_id')
 
     if (!sessionUser) {
@@ -1528,7 +1674,7 @@ export async function submitSellRequest(
   const { t: msg } = await getFormsDict()
   try {
     const supabase = await getSupabase()
-    const sessionUser = await getVerifiedSellerSession(supabase)
+    const sessionUser = await resolveSellerUserOrFallback(supabase, formData)
     let existingUnitId = text(formData, 'unit_id')
     const projectName = text(formData, 'project_name')
     const unitCountry = ACTIVE_COUNTRY_CODE
@@ -1577,7 +1723,8 @@ export async function submitSellRequest(
         prevUnit?.code
       )
       payload.user_id = prevUnit.user_id || sessionUser.id
-      payload.name = text(formData, 'name') || prevUnit.name || sessionUser.name
+      payload.name =
+        text(formData, 'name') || prevUnit.name || sessionUser.name
       payload.phone =
         formatPrimaryPhone(text(formData, 'phone')) ||
         prevUnit.phone ||

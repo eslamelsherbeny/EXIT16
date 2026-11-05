@@ -24,6 +24,7 @@ import { Label } from '@/components/ui/label'
 import { TurnstileBox } from '@/components/layouts/auth-layout'
 import { CountrySelector } from '@/components/shared/country-selector'
 import { useTranslation, type LocaleCode } from '@/lib/i18n'
+import { getSellerFormTranslations } from './seller-i18n'
 import { Field, toEnglishDigits } from './seller-shared'
 
 const CONTACT_VALIDATION_FALLBACK: Record<
@@ -76,42 +77,40 @@ const CONTACT_VALIDATION_FALLBACK: Record<
   },
 }
 
-// تحديد الـ Placeholder المناسب تلقائياً حسب كود الدولة المختار
 export function getPhonePlaceholderByCode(countryCode?: string): string {
   const clean = String(countryCode || '995').replace(/\D/g, '')
   switch (clean) {
     case '20':
-      return '10X XXX XXXX' // مصر
+      return '10X XXX XXXX'
     case '995':
-      return '5XX XX XX XX' // جورجيا
+      return '5XX XX XX XX'
     case '966':
-      return '5X XXX XXXX' // السعودية
+      return '5X XXX XXXX'
     case '971':
-      return '5X XXX XXXX' // الإمارات
+      return '5X XXX XXXX'
     case '965':
-      return '5XXX XXXX' // الكويت
+      return '5XXX XXXX'
     case '974':
-      return '3XXX XXXX' // قطر
+      return '3XXX XXXX'
     case '973':
-      return '3XXX XXXX' // البحرين
+      return '3XXX XXXX'
     case '968':
-      return '9XXX XXXX' // عمان
+      return '9XXX XXXX'
     case '962':
-      return '7X XXX XXXX' // الأردن
+      return '7X XXX XXXX'
     case '7':
-      return '9XX XXX XX XX' // روسيا / كازاخستان
+      return '9XX XXX XX XX'
     case '90':
-      return '5XX XXX XX XX' // تركيا
+      return '5XX XXX XX XX'
     case '44':
-      return '7XXX XXXXXX' // بريطانيا
+      return '7XXX XXXXXX'
     case '1':
-      return '201 555 0123' // أمريكا / كندا
+      return '201 555 0123'
     default:
       return 'XXXXXXXXX'
   }
 }
 
-// فصل كود الدولة عن الرقم المحلي تلقائياً عند سحب رقم المستخدم المسجل
 export function splitStoredPhoneToCodeAndLocal(rawPhone?: string | null): {
   code: string
   local: string
@@ -196,12 +195,15 @@ export function ContactSection({
     email: string
     phone: string
   } | null
-  onUserAuthenticated?: (u: {
-    id: string
-    name: string
-    email: string
-    phone: string
-  }) => void
+  onUserAuthenticated?: (
+    u: {
+      id: string
+      name: string
+      email: string
+      phone: string
+    },
+    createdUnitId?: string
+  ) => void
   authMode: 'sivrce_default' | 'session' | 'register' | 'login'
   setAuthMode: (
     m: 'sivrce_default' | 'session' | 'register' | 'login'
@@ -219,9 +221,10 @@ export function ContactSection({
   setOrderRef?: (ref: string) => void
 }) {
   const { t: dict, locale, dir } = useTranslation()
-  const isAr = locale === 'ar'
   const t = dict.sell.contactStep
   const v = (dict.sell.validation as Record<string, string>) || {}
+  const fT = getSellerFormTranslations(locale, dict)
+  const cT = fT.contactSection
 
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
@@ -254,7 +257,6 @@ export function ContactSection({
 
   const dynamicPhonePlaceholder = getPhonePlaceholderByCode(form.countryCode)
 
-  // سحب بيانات المستخدم المسجل (الاسم + الإيميل + فصل كود الدولة عن رقم الموبايل تلقائياً)
   const syncLoggedUserFields = (u: {
     name: string
     email: string
@@ -269,11 +271,19 @@ export function ContactSection({
     }
   }
 
+  // إذا لم يكن المستخدم مسجلاً، لا نسمح ببقاء الوضع على 'session' أو 'sivrce_default'
   useEffect(() => {
-    if (loggedUser && !form.phone && loggedUser.phone) {
-      syncLoggedUserFields(loggedUser)
+    if (loggedUser) {
+      if (!form.phone && loggedUser.phone) {
+        syncLoggedUserFields(loggedUser)
+      }
+      if (authMode === 'sivrce_default') {
+        setAuthMode('session')
+      }
+    } else if (authMode === 'sivrce_default' || authMode === 'session') {
+      setAuthMode('register')
     }
-  }, [loggedUser])
+  }, [loggedUser, authMode])
 
   useEffect(() => {
     setLocalErrors({})
@@ -283,9 +293,7 @@ export function ContactSection({
   const renderMessengersPicker = () => (
     <div>
       <label className="mb-2 block text-start text-xs font-extrabold text-slate-600">
-        {isAr
-          ? 'تطبيقات المراسلة المتاحة على هذا الرقم (تُحفظ في قاعدة البيانات)'
-          : 'Messengers available on this number'}
+        {cT.messengersLabel}
       </label>
       <div className="flex flex-wrap gap-2">
         {[
@@ -380,15 +388,17 @@ export function ContactSection({
         mode: authMode === 'login' ? 'login' : 'register',
         unitCountry: 'GE',
         userCountry: form.userCountry || 'GE',
-        developer: form.developer || '',
-        project: form.project || '',
+        developer: form.developer.trim() || '',
+        project: form.project.trim() || '',
         contractPrice:
-          Number(toEnglishDigits(form.contractPrice || '').replace(/,/g, '')) ||
-          0,
+          Number(
+            toEnglishDigits(form.contractPrice || '').replace(/,/g, '')
+          ) || 0,
         paidAmount:
           Number(toEnglishDigits(form.paidAmount || '').replace(/,/g, '')) || 0,
         marketPrice:
-          Number(toEnglishDigits(form.marketPrice || '').replace(/,/g, '')) || 0,
+          Number(toEnglishDigits(form.marketPrice || '').replace(/,/g, '')) ||
+          0,
         name: form.name,
         phone: fullPhone,
         email: form.email,
@@ -416,19 +426,18 @@ export function ContactSection({
         })
 
         if (res.userId && onUserAuthenticated) {
-          onUserAuthenticated({
-            id: res.userId,
-            name: resolvedName,
-            email: resolvedEmail,
-            phone: resolvedPhone,
-          })
+          onUserAuthenticated(
+            {
+              id: res.userId,
+              name: resolvedName,
+              email: resolvedEmail,
+              phone: resolvedPhone,
+            },
+            res.unitId
+          )
         }
-        setAuthMode('sivrce_default')
-        setAccountVerifiedMsg(
-          isAr
-            ? 'تم ربط حسابك وسحب رقمك بنجاح ✓ يمكنك الآن الضغط على زر نشر الإعلان'
-            : 'Account connected and phone synced ✓ You can now click Publish'
-        )
+        setAuthMode('session')
+        setAccountVerifiedMsg(cT.accountLinkedSuccessMsg)
         return
       }
 
@@ -442,7 +451,7 @@ export function ContactSection({
           email: res.userEmail || form.email || '',
           userId: res.userId || '',
           unitId: res.unitId || '',
-          orderRef: res.orderRef || 'AE-XXXXXX',
+          orderRef: res.orderRef || 'AE-VERIFY',
         })
         return
       }
@@ -455,7 +464,7 @@ export function ContactSection({
           type: 'phone_exists',
           userId: res.userId || '',
           unitId: res.unitId || '',
-          orderRef: res.orderRef || 'AE-XXXXXX',
+          orderRef: res.orderRef || 'AE-VERIFY',
         })
         return
       }
@@ -494,15 +503,11 @@ export function ContactSection({
       syncLoggedUserFields(res.user)
 
       if (onUserAuthenticated) {
-        onUserAuthenticated(res.user)
+        onUserAuthenticated(res.user, conflictState.unitId)
       }
       setConflictState(null)
-      setAuthMode('sivrce_default')
-      setAccountVerifiedMsg(
-        isAr
-          ? 'تم تسجيل الدخول وسحب رقم هاتفك المسجل بنجاح ✓'
-          : 'Logged in and phone number synced ✓'
-      )
+      setAuthMode('session')
+      setAccountVerifiedMsg(cT.loggedInSyncedSuccessMsg)
     } finally {
       setIsLoading(false)
     }
@@ -541,17 +546,9 @@ export function ContactSection({
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-lg font-black text-[#0a1122]">
-            {isAr ? '6. التواصل (Contact)' : 'Contact'}
-          </h2>
+          <h2 className="text-lg font-black text-[#0a1122]">{cT.title}</h2>
           <p className="mt-1 text-xs text-slate-500">
-            {isRentDeal
-              ? isAr
-                ? 'الاسم ورقم الموبايل — سيتواصل معك المستأجرون هنا. اختر WhatsApp / Viber / Telegram.'
-                : 'Name and mobile — buyers will reach you here. Add WhatsApp / Viber.'
-              : isAr
-                ? 'الاسم ورقم الموبايل — (🔒 في البيع والتنازل يبقى رقمك مخفياً عن الجمهور ويظهر للإدارة فقط لحماية عمولتك).'
-                : 'Name and mobile — (🔒 Kept private for brokered sale & exit deals).'}
+            {isRentDeal ? cT.subtitleRent : cT.subtitleExit}
           </p>
         </div>
 
@@ -668,25 +665,30 @@ export function ContactSection({
         </div>
       )}
 
-      {/* ========================================================= */}
-      {/* 1. الفورم الأساسي (استخدام بياناتي الحالية / حسابي) */}
-      {/* ========================================================= */}
+      {/* 1. عرض الحساب الحالي (يظهر فقط إذا كان المستخدم مسجلاً للدخول فعلياً) */}
       {!conflictState &&
-        (authMode === 'sivrce_default' || authMode === 'session') && (
+        loggedUser &&
+        (authMode === 'session' || authMode === 'sivrce_default') && (
           <div className="mt-5 space-y-5">
+            <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/40 p-4 text-start">
+              <p className="text-xs font-bold text-[#007a5a]">
+                {t.welcomeUser} {loggedUser.name} — {t.sessionAutoLinkDesc}
+              </p>
+            </div>
+
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field
                 error={localErrors.name}
-                label={isAr ? 'الاسم (Name *)' : 'Name *'}
+                label={t.nameLabel}
                 id="name"
-                placeholder="eslam elsherbeny"
+                placeholder={cT.namePlaceholder}
                 value={form.name}
                 update={(v) => update('name', v)}
               />
 
               <div className="flex flex-col gap-2">
                 <Label htmlFor="phone" className="text-start">
-                  {isAr ? 'رقم الموبايل (Mobile number *)' : 'Mobile number *'}
+                  {t.phoneLabel}
                 </Label>
                 <div dir="ltr" className="flex items-center gap-2">
                   <CountrySelector
@@ -723,10 +725,8 @@ export function ContactSection({
           </div>
         )}
 
-      {/* ========================================================= */}
-      {/* 2. فورم تسجيل حساب مالك جديد (مع تأكيد كلمة السر + تطبيقات المراسلة) */}
-      {/* ========================================================= */}
-      {!conflictState && authMode === 'register' && (
+      {/* 2. فورم تسجيل حساب مالك جديد (يفتح تلقائياً لغير المسجلين) */}
+      {!conflictState && (authMode === 'register' || (!loggedUser && authMode !== 'login')) && (
         <div className="mt-5 space-y-5 rounded-2xl border border-slate-200 bg-slate-50/60 p-5">
           <div className="flex items-center justify-between border-b border-slate-200/80 pb-3">
             <div className="flex items-center gap-2">
@@ -735,16 +735,18 @@ export function ContactSection({
                 {t.tabNewRegister}
               </h3>
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                setAuthMode('sivrce_default')
-                if (loggedUser) syncLoggedUserFields(loggedUser)
-              }}
-              className="text-xs font-bold text-[#2563eb] hover:underline"
-            >
-              {isAr ? '← العودة للصفحة الأولى (بيانات حسابي)' : '← Back to my account view'}
-            </button>
+            {loggedUser && (
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMode('session')
+                  syncLoggedUserFields(loggedUser)
+                }}
+                className="text-xs font-bold text-[#2563eb] hover:underline"
+              >
+                {cT.backToCurrentAccountBtn}
+              </button>
+            )}
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -752,6 +754,7 @@ export function ContactSection({
               error={localErrors.name}
               label={t.nameLabel}
               id="name"
+              placeholder={cT.namePlaceholder}
               value={form.name}
               update={(value) => update('name', value)}
             />
@@ -797,6 +800,7 @@ export function ContactSection({
               label={t.emailLabel}
               id="email"
               type="email"
+              placeholder="name@example.com"
               value={form.email}
               update={(value) => update('email', value)}
             />
@@ -838,10 +842,9 @@ export function ContactSection({
               </span>
             </div>
 
-            {/* حقل تأكيد كلمة السر الجديد */}
             <div className="flex flex-col gap-2">
               <Label htmlFor="confirmPassword" className="text-start">
-                {isAr ? 'تأكيد كلمة السر' : 'Confirm Password'}{' '}
+                {cT.confirmPasswordLabel}{' '}
                 <span className="ms-1 text-red-500">*</span>
               </Label>
               <div className="relative w-full">
@@ -852,7 +855,10 @@ export function ContactSection({
                   value={confirmPassword}
                   onChange={(e) => {
                     setConfirmPassword(e.target.value)
-                    setLocalErrors((prev) => ({ ...prev, confirmPassword: '' }))
+                    setLocalErrors((prev) => ({
+                      ...prev,
+                      confirmPassword: '',
+                    }))
                   }}
                   className={`h-12 w-full rounded-xl border-slate-200 bg-white pr-12 pl-4 text-left ${
                     localErrors.confirmPassword
@@ -895,18 +901,14 @@ export function ContactSection({
                 <Loader2 className="size-4 animate-spin" />
                 {t.savingBtn}
               </span>
-            ) : isAr ? (
-              'تأكيد وإنشاء الحساب للمتابعة ✓'
             ) : (
-              'Create Account & Link Listing ✓'
+              cT.createAccountLinkBtn
             )}
           </Button>
         </div>
       )}
 
-      {/* ========================================================= */}
-      {/* 3. فورم تسجيل الدخول بحساب موجود (يسحب الرقم المسجل مع الإيميل فوراً) */}
-      {/* ========================================================= */}
+      {/* 3. فورم تسجيل الدخول بحساب موجود */}
       {!conflictState && authMode === 'login' && (
         <div className="mt-5 space-y-5 rounded-2xl border border-slate-200 bg-slate-50/60 p-5">
           <div className="flex items-center justify-between border-b border-slate-200/80 pb-3">
@@ -916,16 +918,18 @@ export function ContactSection({
                 {t.tabExistingLogin}
               </h3>
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                setAuthMode('sivrce_default')
-                if (loggedUser) syncLoggedUserFields(loggedUser)
-              }}
-              className="text-xs font-bold text-[#2563eb] hover:underline"
-            >
-              {isAr ? '← العودة للصفحة الأولى (بيانات حسابي)' : '← Back to my account view'}
-            </button>
+            {loggedUser && (
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMode('session')
+                  syncLoggedUserFields(loggedUser)
+                }}
+                className="text-xs font-bold text-[#2563eb] hover:underline"
+              >
+                {cT.backToCurrentAccountBtn}
+              </button>
+            )}
           </div>
 
           <p className="text-start text-xs font-semibold text-slate-600">
@@ -996,55 +1000,44 @@ export function ContactSection({
                 <Loader2 className="size-4 animate-spin" />
                 {t.savingBtn}
               </span>
-            ) : isAr ? (
-              'تسجيل الدخول وسحب رقمي المسجل ✓'
             ) : (
-              'Sign In & Sync My Phone ✓'
+              cT.signInSyncPhoneBtn
             )}
           </Button>
         </div>
       )}
 
-      {/* ========================================================= */}
-      {/* شريط الأزرار السفلي الدائم للتنقل بين الأوضاع الثلاثة بسهولة */}
-      {/* ========================================================= */}
+      {/* شريط التبديل بين أوضاع الحساب */}
       <div className="mt-5 rounded-2xl border border-slate-200/90 bg-[#f8fafc] p-3.5">
         <p className="mb-2.5 text-start text-[11px] font-extrabold text-slate-500">
-          {isAr
-            ? 'خيارات الحساب وربط الإعلان:'
-            : 'Account & listing ownership options:'}
+          {cT.accountOptionsTitle}
         </p>
         <div className="flex flex-wrap items-center gap-2">
-          {/* الزر الأول موجود دائماً للرجوع لأول صفحة (التسجيل بحسابي / البيانات الحالية) */}
-          <button
-            type="button"
-            onClick={() => {
-              setAuthMode('sivrce_default')
-              if (loggedUser) {
+          {loggedUser && (
+            <button
+              type="button"
+              onClick={() => {
+                setAuthMode('session')
                 syncLoggedUserFields(loggedUser)
-              }
-            }}
-            className={`inline-flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-extrabold transition ${
-              authMode === 'sivrce_default' || authMode === 'session'
-                ? 'border-[#007a5a] bg-[#eaf8f2] text-[#007a5a]'
-                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-            }`}
-          >
-            <UserCheck className="size-3.5" />
-            <span>
-              {loggedUser
-                ? `${t.tabCurrentSession} (${loggedUser.name.split(' ')[0]})`
-                : isAr
-                  ? 'المتابعة بالبيانات الحالية (الصفحة الأولى)'
-                  : 'Use current contact details'}
-            </span>
-          </button>
+              }}
+              className={`inline-flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-extrabold transition ${
+                authMode === 'session' || authMode === 'sivrce_default'
+                  ? 'border-[#007a5a] bg-[#eaf8f2] text-[#007a5a]'
+                  : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <UserCheck className="size-3.5" />
+              <span>
+                {t.tabCurrentSession} ({loggedUser.name.split(' ')[0]})
+              </span>
+            </button>
+          )}
 
           <button
             type="button"
             onClick={() => setAuthMode('register')}
             className={`inline-flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-extrabold transition ${
-              authMode === 'register'
+              authMode === 'register' || (!loggedUser && authMode !== 'login')
                 ? 'border-[#0a1122] bg-[#0a1122] text-white'
                 : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
             }`}
@@ -1064,11 +1057,7 @@ export function ContactSection({
           >
             <LogIn className="size-3.5" />
             <span>
-              {loggedUser
-                ? isAr
-                  ? 'تسجيل الدخول بحساب آخر'
-                  : 'Sign in with another account'
-                : t.tabExistingLogin}
+              {loggedUser ? cT.signInAnotherAccountBtn : t.tabExistingLogin}
             </span>
           </button>
         </div>
@@ -1096,9 +1085,7 @@ export function ContactSection({
           }}
         />
         <span>
-          {isAr
-            ? `${t.ownerDeclaration} — وأوافق على شروط وأحكام المنصة`
-            : 'I agree to the Aqar Exit terms and conditions & confirm ownership'}
+          {t.ownerDeclaration} {cT.termsAgreementSuffix}
         </span>
       </label>
 

@@ -480,9 +480,8 @@ export function SivrceLocationModalPicker({
     resolvedDisplay: string
   }) => React.ReactNode
 }) {
-  const { locale, dir } = useTranslation()
-  const isAr = locale === 'ar'
-  const fT = getSellerFormTranslations(locale)
+  const { t: dict, locale, dir } = useTranslation()
+  const fT = getSellerFormTranslations(locale, dict)
   const mT = fT.locationModal
 
   const [open, setOpen] = useState(false)
@@ -605,11 +604,7 @@ export function SivrceLocationModalPicker({
   const handleDetectRealGPS = () => {
     setGpsError('')
     if (typeof window === 'undefined' || !('geolocation' in navigator)) {
-      setGpsError(
-        isAr
-          ? 'متصفحك لا يدعم خاصية تحديد الموقع GPS'
-          : 'Geolocation is not supported by your browser'
-      )
+      setGpsError(mT.gpsUnsupportedError)
       return
     }
 
@@ -674,13 +669,7 @@ export function SivrceLocationModalPicker({
       (err) => {
         setGpsLoading(false)
         setGpsError(
-          err.code === 1
-            ? isAr
-              ? 'يرجى السماح للمتصفح بالوصول إلى موقعك (Allow Location)'
-              : 'Please allow location permission in your browser'
-            : isAr
-              ? 'تعذر التقاط إشارة GPS'
-              : 'Could not detect GPS location'
+          err.code === 1 ? mT.gpsPermissionError : mT.gpsSignalError
         )
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
@@ -877,9 +866,7 @@ export function SivrceLocationModalPicker({
                 <div className="mt-2 max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm">
                   {searchingGeo ? (
                     <p className="py-2 text-center text-xs font-bold text-slate-400">
-                      {isAr
-                        ? 'جاري البحث في خرائط جورجيا...'
-                        : 'Searching Georgia maps...'}
+                      {mT.searchingMapsText}
                     </p>
                   ) : liveGeoResults.length > 0 ? (
                     liveGeoResults.map((item, idx) => (
@@ -920,7 +907,7 @@ export function SivrceLocationModalPicker({
                       onClick={() => {
                         onSelectLocation({
                           areaId: '',
-                          displayLabel: isAr ? 'في كل مكان' : 'Everywhere',
+                          displayLabel: mT.everywhereTitle,
                         })
                         setActiveCity(null)
                         setCheckedSubItem(null)
@@ -938,10 +925,10 @@ export function SivrceLocationModalPicker({
                         </div>
                         <div>
                           <strong className="block text-xs font-extrabold text-[#0a1122] sm:text-sm">
-                            {isAr ? 'في كل مكان' : 'Everywhere'}
+                            {mT.everywhereTitle}
                           </strong>
                           <span className="text-[11px] text-slate-400">
-                            {isAr ? 'كل الإعلانات في جورجيا' : 'All listings'}
+                            {mT.everywhereSub}
                           </span>
                         </div>
                       </div>
@@ -967,11 +954,7 @@ export function SivrceLocationModalPicker({
                           {mT.nearbyTitle}
                         </strong>
                         <span className="text-[11px] text-slate-400">
-                          {gpsLoading
-                            ? isAr
-                              ? 'جاري تحديد موقعك...'
-                              : 'Detecting location...'
-                            : mT.nearbySub}
+                          {gpsLoading ? mT.detectingGpsText : mT.nearbySub}
                         </span>
                       </div>
                     </div>
@@ -1059,7 +1042,7 @@ export function SivrceLocationModalPicker({
             ) : (
               <div className="grid flex-1 grid-cols-1 overflow-hidden sm:grid-cols-12">
                 <div className="max-h-48 overflow-y-auto border-b border-slate-100 bg-slate-50/50 p-4 sm:col-span-3 sm:max-h-none sm:border-e sm:border-b-0">
-                  <div className="mb-3 border-b border-blue-500 pb-2 px-2 text-xs font-extrabold text-[#2563eb]">
+                  <div className="mb-3 border-b border-blue-500 px-2 pb-2 text-xs font-extrabold text-[#2563eb]">
                     {mT.districtsTab}
                   </div>
                   <div className="space-y-1">

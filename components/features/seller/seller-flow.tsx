@@ -1,20 +1,31 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
-import { Check, Loader2, X } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import {
+  Check,
+  CheckCircle2,
+  Loader2,
+  Mail,
+  ShieldAlert,
+  X,
+} from 'lucide-react'
 import {
   getAuthorizedUnitForEditAction,
   getCurrentSellerProfileAction,
   processSellerStep2Action,
   saveSellProgress,
+  sendSellerReviewOtpAction,
   submitSellRequest,
   verifyMagicTokenAction,
+  verifySellerReviewOtpAction,
 } from '@/actions/submit-forms'
 import { getUserVerificationStatusAction } from '@/actions/auth-actions'
 import {
   deleteUnitDocumentAction,
   saveUnitDocumentAction,
 } from '@/actions/account-actions'
+import { Input } from '@/components/ui/input'
 import { createClient } from '@/lib/supabase/client'
 import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
 import { useTranslation } from '@/lib/i18n'
@@ -23,6 +34,7 @@ import {
   DEFAULT_PHONE_CODE,
   getSellerExtraLabels,
   getSellerFormTranslations,
+  maskEmailDisplay,
   type SellerDocKey,
   type UploadedDocEntry,
 } from './seller-i18n'
@@ -47,11 +59,11 @@ import { ReviewStep } from './seller-review-step'
 export type { SellerDocKey, UploadedDocEntry }
 
 export function SellerFlow() {
+  const router = useRouter()
   const { t: dict, locale, dir } = useTranslation()
-  const isAr = locale === 'ar'
   const s = dict.sell
   const extraT = getSellerExtraLabels(locale, dict)
-  const fT = getSellerFormTranslations(locale)
+  const fT = getSellerFormTranslations(locale, dict)
 
   const secTypeRef = useRef<HTMLElement | null>(null)
   const secPhotosRef = useRef<HTMLElement | null>(null)
@@ -158,7 +170,7 @@ export function SellerFlow() {
 
   const [authMode, setAuthMode] = useState<
     'sivrce_default' | 'session' | 'register' | 'login'
-  >('sivrce_default')
+  >('register')
 
   const [loggedUser, setLoggedUser] = useState<{
     id: string
@@ -167,6 +179,18 @@ export function SellerFlow() {
     phone: string
   } | null>(null)
   const [emailVerified, setEmailVerified] = useState(false)
+
+  // حالات الديالوج المنبثق لتوثيق الإيميل قبل النشر
+  const [verifyModalOpen, setVerifyModalOpen] = useState(false)
+  const [otpSent, setOtpSent] = useState(false)
+  const [otpCode, setOtpCode] = useState('')
+  const [otpLoading, setOtpLoading] = useState(false)
+  const [otpError, setOtpError] = useState('')
+  const [pendingPublishIds, setPendingPublishIds] = useState<{
+    unitId: string
+    userId: string
+    email: string
+  } | null>(null)
 
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
@@ -200,6 +224,13 @@ export function SellerFlow() {
       setBuildingStatus('')
     } else {
       setBuildingStatus(statusId)
+      if (statusId !== 'Under construction') {
+        setForm((prev) => ({
+          ...prev,
+          deliveryRemainingMonths: '0',
+          deliveryYear: String(new Date().getFullYear()),
+        }))
+      }
       setActiveTab(2)
     }
   }
@@ -250,6 +281,13 @@ export function SellerFlow() {
 
       if (profileRes.isLoggedIn && profileRes.user) {
         setLoggedUser(profileRes.user)
+        setAuthMode('session')
+        setEmailVerified(
+          Boolean(
+            (profileRes.user as any).emailVerified || verStatus.emailVerified
+          )
+        )
+
         const rawUserPhone = profileRes.user.phone || ''
         const digitsOnly = toEnglishDigits(rawUserPhone).replace(/[^0-9]/g, '')
         let detectedCode = DEFAULT_PHONE_CODE
@@ -295,9 +333,9 @@ export function SellerFlow() {
             messengers: savedUserMessengers,
           }))
         }
-      }
-      if (verStatus.isLoggedIn) {
-        setEmailVerified(verStatus.emailVerified)
+      } else {
+        setLoggedUser(null)
+        setAuthMode('register')
       }
 
       if (typeof window !== 'undefined') {
@@ -352,10 +390,24 @@ export function SellerFlow() {
             }
           }
 
+          const invalidDevList = [
+            'newly built',
+            'under construction',
+            'old built',
+            'completed',
+          ]
+          const cleanDev =
+            u.developer_name &&
+            !invalidDevList.includes(
+              String(u.developer_name).trim().toLowerCase()
+            )
+              ? u.developer_name
+              : meta.developer_name || ''
+
           setForm((prev) => ({
             ...prev,
             countryCode: detectedCode,
-            developer: u.developer_name || '',
+            developer: cleanDev,
             project: u.project_name || '',
             location: savedArea,
             locationDisplay: getLocalizedGeorgiaAreaName(savedArea, locale),
@@ -392,6 +444,9 @@ export function SellerFlow() {
                 ? String(u.floor_number)
                 : String(meta.floor_number || ''),
             totalFloors: String(u.total_floors || meta.total_floors || ''),
+            deliveryRemainingMonths: String(
+              u.delivery_month || meta.delivery_month || ''
+            ),
             deliveryYear: String(
               u.delivery_year || meta.delivery_year || '2026'
             ),
@@ -431,6 +486,21 @@ export function SellerFlow() {
             name: u.name || profileRes.user?.name || '',
             phone: localPart || '',
             email: u.email || profileRes.user?.email || '',
+          }))
+
+          setFlags((prev) => ({
+            ...prev,
+            allowOnlineViewing: Boolean(
+              u.allow_online_viewing ?? meta.allow_online_viewing ?? false
+            ),
+            installmentSalePossible: Boolean(
+              u.installment_sale_possible ??
+                meta.installment_sale_possible ??
+                false
+            ),
+            exchangePossible: Boolean(
+              u.exchange_possible ?? meta.exchange_possible ?? false
+            ),
           }))
 
           setSelected((prev) => ({
@@ -485,12 +555,18 @@ export function SellerFlow() {
           }
         }
 
+        // إذا دخل من الرابط السحري في الإيميل، فإن verifyMagicTokenAction يوثق إيميله تلقائياً
         if (magicToken) {
           const res = await verifyMagicTokenAction(magicToken)
-          if (res.valid && res.unit) hydrateUnit(res.unit)
+          if (res.valid && res.unit) {
+            setAuthMode('session')
+            setEmailVerified(true)
+            hydrateUnit(res.unit)
+          }
         } else if (editUnitId) {
           const authUnitRes = await getAuthorizedUnitForEditAction(editUnitId)
           if (authUnitRes.allowed && authUnitRes.unit) {
+            setAuthMode('session')
             hydrateUnit(authUnitRes.unit)
           }
         }
@@ -500,7 +576,25 @@ export function SellerFlow() {
   }, [locale])
 
   const update = (key: string, value: string) => {
-    setForm((curr) => ({ ...curr, [key]: value }))
+    setForm((curr) => {
+      const next = { ...curr, [key]: value }
+
+      if (key === 'rooms' && value) {
+        const rNum = parseInt(value, 10)
+        const bNum = parseInt(curr.bedrooms || '0', 10)
+        if (Number.isFinite(rNum) && Number.isFinite(bNum) && bNum > rNum) {
+          next.bedrooms = String(rNum)
+        }
+      } else if (key === 'bedrooms' && value) {
+        const bNum = parseInt(value, 10)
+        const rNum = parseInt(curr.rooms || '0', 10)
+        if (Number.isFinite(bNum) && (!rNum || bNum > rNum)) {
+          next.rooms = String(bNum)
+        }
+      }
+
+      return next
+    })
     setError('')
     setMissingFields([])
   }
@@ -536,7 +630,9 @@ export function SellerFlow() {
     })
   }
 
-  const dynamicStatusOptions = useMemo<Array<LocalizedOptionItem<string>>>(() => {
+  const dynamicStatusOptions = useMemo<
+    Array<LocalizedOptionItem<string>>
+  >(() => {
     if (propertyKind === 'Hotel' || propertyKind === 'Commercial') {
       return [
         {
@@ -550,42 +646,42 @@ export function SellerFlow() {
         },
         {
           id: 'Completed',
-          ar: 'مكتمل وجاهز',
-          en: 'Completed',
-          ru: 'Завершен',
+          ar: 'مكتمل وجاهز للاستلام',
+          en: 'Completed & Ready',
+          ru: 'Завершен и готов',
           ka: 'დასრულებული',
-          labelAr: 'مكتمل وجاهز',
-          labelEn: 'Completed',
+          labelAr: 'مكتمل وجاهز للاستلام',
+          labelEn: 'Completed & Ready',
         },
       ]
     }
     return [
       {
         id: 'Newly built',
-        ar: 'مبنى حديث (جاهز)',
+        ar: 'مبنى حديث (جاهز للاستلام)',
         en: 'Newly built (Ready)',
-        ru: 'Новостройка',
-        ka: 'ახალი აშენებული',
-        labelAr: 'مبنى حديث (جاهز)',
+        ru: 'Новостройка (Готово)',
+        ka: 'ახალი აშენებული (მზადაა)',
+        labelAr: 'مبنى حديث (جاهز للاستلام)',
         labelEn: 'Newly built (Ready)',
       },
       {
         id: 'Under construction',
-        ar: 'قيد الإنشاء',
+        ar: 'قيد الإنشاء (تحت الإنشاء)',
         en: 'Under construction',
         ru: 'Строится',
         ka: 'მშენებარე',
-        labelAr: 'قيد الإنشاء',
+        labelAr: 'قيد الإنشاء (تحت الإنشاء)',
         labelEn: 'Under construction',
       },
       {
         id: 'Old built',
-        ar: 'مبنى قائم',
-        en: 'Existing building',
-        ru: 'Старая постройка',
+        ar: 'مبنى قائم (جاهز للاستلام)',
+        en: 'Existing building (Ready)',
+        ru: 'Вторичное жилье (Готово)',
         ka: 'ძველი აშენებული',
-        labelAr: 'مبنى قائم',
-        labelEn: 'Existing building',
+        labelAr: 'مبنى قائم (جاهز للاستلام)',
+        labelEn: 'Existing building (Ready)',
       },
     ]
   }, [propertyKind])
@@ -595,10 +691,12 @@ export function SellerFlow() {
       propertyKind && (propertyKind === 'Land' || buildingStatus)
     )
     const s2 = images.length > 0
-    const s3 = Boolean(form.location)
-    const s4 = Boolean(s1 && form.areaSize && (propertyKind === 'Land' || form.rooms))
+    const s3 = Boolean(form.location && form.exactStreet.trim())
+    const s4 = Boolean(
+      s1 && form.areaSize && (propertyKind === 'Land' || form.rooms)
+    )
     const activePrice = Number(form.paidAmount || form.contractPrice)
-    const s5 = Boolean(activePrice > 0)
+    const s5 = Boolean(activePrice > 0 && form.contractPrice)
     const s6 = Boolean(
       loggedUser?.id || (form.name.trim() && form.phone.trim())
     )
@@ -607,7 +705,7 @@ export function SellerFlow() {
     if (propertyKind) strength += 10
     if (images.length >= 1) strength += 15
     if (images.length >= 4) strength += 15
-    if (form.location) strength += 15
+    if (form.location && form.exactStreet.trim()) strength += 15
     if (form.areaSize) strength += 15
     if (activePrice > 0) strength += 10
     if (form.description.trim().length >= 20) strength += 10
@@ -627,6 +725,7 @@ export function SellerFlow() {
     buildingStatus,
     images.length,
     form.location,
+    form.exactStreet,
     form.areaSize,
     form.rooms,
     form.contractPrice,
@@ -672,32 +771,6 @@ export function SellerFlow() {
     propertyKind,
     locale,
   ])
-
-  const generateSmartDescription = () => {
-    const areaName =
-      form.locationDisplay ||
-      getLocalizedGeorgiaAreaName(form.location || 'Tbilisi - Saburtalo', locale)
-    const sizeStr = form.areaSize || '75'
-    const roomsStr = form.rooms || '3'
-    const bedsStr = form.bedrooms || '2'
-    const floorStr = `${form.floor || '5'}/${form.totalFloors || '16'}`
-    const condObj =
-      PROPERTY_KINDS.find((k) => k.id === propertyKind) || PROPERTY_KINDS[0]
-
-    if (locale === 'ar') {
-      const textAr = `فرصة للتنازل واستكمال الأقساط (${getOptionLabel(condObj, 'ar')}) في ${areaName}${form.project ? ` بمشروع ${form.project}` : ''}. المساحة الإجمالية ${sizeStr} م²، تتكون من ${roomsStr} غرف (${bedsStr} غرف نوم)، الطابق ${floorStr}. عقد موثق وجاهز للتنازل الرسمي لدى المطور.`
-      update('description', textAr)
-    } else if (locale === 'ru') {
-      const textRu = `Переуступка рассрочки: ${bedsStr}-спальная ${getOptionLabel(condObj, 'ru')} (${sizeStr} м²) в районе ${areaName}. Этаж ${floorStr}. Официальное переоформление у застройщика.`
-      update('description', textRu)
-    } else if (locale === 'ka') {
-      const textKa = `განვადების გადაბარება: ${bedsStr}-საძინებლიანი ${getOptionLabel(condObj, 'ka')} (${sizeStr} მ²) ${areaName}-ში. სართული ${floorStr}.`
-      update('description', textKa)
-    } else {
-      const textEn = `Installment Exit opportunity: ${bedsStr}-bedroom ${getOptionLabel(condObj, 'en')} (${sizeStr} m²) in ${areaName}. Floor ${floorStr}. Verified developer contract ready for official transfer.`
-      update('description', textEn)
-    }
-  }
 
   const handleUploadPhotos = async (files: FileList | null) => {
     if (!files?.length) return
@@ -781,20 +854,24 @@ export function SellerFlow() {
     }
   }
 
-  const buildFormData = (activeUnitId?: string) => {
+  const buildFormData = (activeUnitId?: string, activeUserId?: string) => {
     const data = new FormData()
     const put = (k: string, v?: string | number | boolean) => {
-      if (v !== undefined && v !== null && String(v) !== '') {
-        data.set(k, String(v))
+      if (v !== undefined && v !== null && String(v).trim() !== '') {
+        data.set(k, String(v).trim())
       }
     }
 
     const targetId = activeUnitId || unitId
     if (targetId) put('unit_id', targetId)
 
+    const targetUser = activeUserId || loggedUser?.id
+    if (targetUser) put('user_id', targetUser)
+
     const effectiveKind = propertyKind || 'Apartment'
     const effectiveArea = form.location || 'Tbilisi - Saburtalo'
     const effectiveStatus = buildingStatus || 'Newly built'
+    const isUnderConstruction = effectiveStatus === 'Under construction'
 
     put('country', ACTIVE_PLATFORM_COUNTRY)
     put('currency_code', 'USD')
@@ -802,20 +879,25 @@ export function SellerFlow() {
     put('unit_type', effectiveKind)
     put('building_status', effectiveStatus)
 
+    const cleanDev = form.developer.trim()
     const fallbackProjectTitle =
       form.project.trim() ||
-      (form.developer.trim()
-        ? `${form.developer.trim()} Residence`
+      (cleanDev
+        ? `${cleanDev} Residence`
         : `${effectiveKind} — ${getLocalizedGeorgiaAreaName(effectiveArea, 'en')}`)
 
-    put('developer_name', form.developer || effectiveStatus)
+    if (cleanDev) {
+      put('developer_name', cleanDev)
+    }
     put('project_name', fallbackProjectTitle)
     put('area', effectiveArea)
     put('exact_street', form.exactStreet)
     put('house_number', form.houseNumber)
     put('cadastral_code', form.cadastralCode)
 
-    put('year_built', form.yearBuilt)
+    if (!isUnderConstruction && form.yearBuilt) {
+      put('year_built', form.yearBuilt)
+    }
     put('size', form.areaSize)
     put('kitchen_area', form.kitchenArea)
     put('balcony_area', form.balconyArea)
@@ -823,8 +905,14 @@ export function SellerFlow() {
     put('terrace_area', form.terraceArea)
     put('garden_size', form.garden)
 
-    put('bedrooms', form.bedrooms || '1')
-    put('rooms', form.rooms || '2')
+    const roomsNum = parseInt(form.rooms || '2', 10) || 2
+    const bedsNum = Math.min(
+      roomsNum,
+      parseInt(form.bedrooms || '1', 10) || 1
+    )
+
+    put('rooms', roomsNum)
+    put('bedrooms', bedsNum)
     put('bathrooms', form.bathrooms || '1')
     put('floor_number', form.floor)
     put('total_floors', form.totalFloors)
@@ -835,14 +923,19 @@ export function SellerFlow() {
     put('heating_type', selected.heatingType?.[0])
     put('building_material', selected.buildingMaterial?.[0])
 
-    const resolvedDelivYear = Number(form.deliveryYear) || 2026
-    const delStatus =
-      effectiveStatus === 'Under construction'
-        ? `Under Construction (${resolvedDelivYear})`
-        : `Ready to Move (${resolvedDelivYear})`
+    const resolvedDelivYear = isUnderConstruction
+      ? Number(form.deliveryYear) || 2026
+      : Number(form.yearBuilt) || new Date().getFullYear()
+
+    const delStatus = isUnderConstruction
+      ? `Under Construction (${resolvedDelivYear})`
+      : `Ready to Move (${resolvedDelivYear})`
 
     put('delivery_status', delStatus)
-    put('delivery_month', form.deliveryRemainingMonths)
+    put(
+      'delivery_month',
+      isUnderConstruction ? form.deliveryRemainingMonths || '12' : '0'
+    )
     put('delivery_year', resolvedDelivYear)
 
     selected.features?.forEach((f) => data.append('feature', f))
@@ -851,7 +944,6 @@ export function SellerFlow() {
     put('video_url', form.videoUrl)
     put('tour_3d_url', form.tour3dUrl)
     if (flags.allowOnlineViewing) data.set('allow_online_viewing', 'on')
-    if (flags.isExclusive) data.set('is_exclusive', 'on')
 
     put('contract_price', form.contractPrice || form.paidAmount)
     put('paid_amount', form.paidAmount || form.contractPrice)
@@ -859,11 +951,11 @@ export function SellerFlow() {
       'market_price',
       form.marketPrice || form.contractPrice || form.paidAmount
     )
-    put('installment_amount', form.installment)
+    put('installment_amount', form.installment || '0')
     put('installment_frequency', selected.frequency?.[0] || 'شهري')
     put('contract_month', form.contractMonth)
     put('contract_year', form.contractYear)
-    put('years_left', form.remainingMonths)
+    put('years_left', form.remainingMonths || '0')
 
     if (selected.annualInstallment?.[0] === 'yes') {
       data.set('has_annual_installment', 'on')
@@ -906,15 +998,12 @@ export function SellerFlow() {
 
   const handleSaveDraft = async () => {
     if (!loggedUser) {
+      setAuthMode('register')
       secContactRef.current?.scrollIntoView({ behavior: 'smooth' })
-      setError(
-        isAr
-          ? 'يرجى تسجيل الدخول أو كتابة بيانات التواصل أولاً لحفظ المسودة'
-          : 'Please sign in or fill contact details first to save draft'
-      )
+      setError(fT.contactSection.signInToSaveDraftError)
       return
     }
-    const data = buildFormData()
+    const data = buildFormData(unitId, loggedUser.id)
     const res = await saveSellProgress(data)
     if (res.success) {
       if (res.unitId) setUnitId(res.unitId)
@@ -925,60 +1014,116 @@ export function SellerFlow() {
         })
       )
     } else {
-      setError(res.error || 'Could not save draft')
+      setError(res.error || s.validation.saveFailed)
+    }
+  }
+
+  // إتمام النشر النهائي بعد التأكد من توثيق البريد الإلكتروني
+  const finalizeUnitPublish = async (
+    targetUnitId: string,
+    targetUserId: string
+  ) => {
+    const data = buildFormData(targetUnitId, targetUserId)
+    const result = await submitSellRequest(data)
+    if (result.success) {
+      if (result.unitId) setUnitId(result.unitId)
+      if (result.orderRef) setOrderRef(result.orderRef)
+      setVerifyModalOpen(false)
+      setSubmitted(true)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    } else {
+      setError(result.error || s.validation.submitFailed)
     }
   }
 
   const handlePublishListing = () => {
     const missing: string[] = []
+    const valT = fT.contactSection.validation
 
     if (!propertyKind) {
-      missing.push(fT.typeSection.whatKindLabel)
+      missing.push(fT.typeSection.whatKindLabel.replace(' *', ''))
     }
     if (!form.location) {
       missing.push(fT.locationSection.cityDistrictLabel.replace(' *', ''))
     }
+    if (!form.exactStreet.trim()) {
+      missing.push(fT.locationSection.streetLabel.replace(' *', ''))
+    }
     if (!form.areaSize || Number(toEnglishDigits(form.areaSize)) <= 0) {
       missing.push(fT.detailsSection.areaLabel.replace(' *', ''))
     }
-    if (!form.contractPrice) {
+
+    if (propertyKind !== 'Land') {
+      const rNum = parseInt(form.rooms || '0', 10)
+      const bNum = parseInt(form.bedrooms || '0', 10)
+      if (!rNum || rNum <= 0) {
+        missing.push(fT.detailsSection.roomsLabel.replace(' *', ''))
+      }
+      if (!bNum || bNum <= 0) {
+        missing.push(fT.detailsSection.bedroomsLabel.replace(' *', ''))
+      }
+      if (rNum > 0 && bNum > rNum) {
+        setError(valT.bedroomsExceedRooms)
+        secDetailsRef.current?.scrollIntoView({ behavior: 'smooth' })
+        return
+      }
+
+      const flNum = parseInt(form.floor || '', 10)
+      const totFlNum = parseInt(form.totalFloors || '', 10)
+      if (
+        Number.isFinite(flNum) &&
+        Number.isFinite(totFlNum) &&
+        totFlNum > 0 &&
+        flNum > totFlNum
+      ) {
+        setError(valT.floorExceedsTotalFloors)
+        secDetailsRef.current?.scrollIntoView({ behavior: 'smooth' })
+        return
+      }
+    }
+
+    const contractPriceNum = Number(toEnglishDigits(form.contractPrice || '0'))
+    const paidAmountNum = Number(toEnglishDigits(form.paidAmount || '0'))
+
+    if (!contractPriceNum || contractPriceNum <= 0) {
       missing.push(fT.pricingSection.contractPriceLabel.replace(' *', ''))
     }
-    if (!form.paidAmount) {
+    if (!paidAmountNum || paidAmountNum <= 0) {
       missing.push(fT.pricingSection.paidAmountLabel.replace(' *', ''))
+    }
+    if (
+      contractPriceNum > 0 &&
+      paidAmountNum > 0 &&
+      paidAmountNum > contractPriceNum
+    ) {
+      setError(valT.paidExceedsContract)
+      secPriceRef.current?.scrollIntoView({ behavior: 'smooth' })
+      return
     }
 
     if (!loggedUser) {
-      if (authMode === 'sivrce_default' || authMode === 'session') {
-        setAuthMode('register')
-        secContactRef.current?.scrollIntoView({ behavior: 'smooth' })
-        setError(
-          isAr
-            ? 'يرجى إكمال البريد الإلكتروني وكلمة المرور لربط الإعلان بحسابك، أو الضغط على تسجيل الدخول بحسابك'
-            : 'Please complete your email & password to link your listing, or sign in'
-        )
-        return
-      }
       if (authMode === 'register') {
-        if (!form.name.trim()) missing.push(isAr ? 'الاسم' : 'Name')
+        if (!form.name.trim())
+          missing.push(s.contactStep.nameLabel.replace(' *', ''))
         if (!form.phone.trim())
-          missing.push(isAr ? 'رقم الموبايل' : 'Mobile number')
+          missing.push(s.contactStep.phoneLabel.replace(' *', ''))
         if (!form.email.trim())
-          missing.push(isAr ? 'البريد الإلكتروني' : 'Email')
+          missing.push(s.contactStep.emailLabel.replace(' *', ''))
         if (!form.password || form.password.length < 8) {
-          missing.push(
-            isAr ? 'كلمة المرور (8 أحرف على الأقل)' : 'Password (min 8 chars)'
-          )
+          missing.push(s.contactStep.passwordLabel)
         }
       } else if (authMode === 'login') {
         if (
           !form.loginIdentifier.trim() ||
           (!form.password && !form.loginPassword)
         ) {
-          missing.push(
-            isAr ? 'بيانات تسجيل الدخول' : 'Login credentials'
-          )
+          missing.push(s.contactStep.loginIdLabel.replace(' *', ''))
         }
+      } else {
+        setAuthMode('register')
+        secContactRef.current?.scrollIntoView({ behavior: 'smooth' })
+        setError(fT.contactSection.completeAccountToPublishError)
+        return
       }
     }
 
@@ -993,9 +1138,12 @@ export function SellerFlow() {
 
     startTransition(async () => {
       let resolvedUnitId = unitId
+      let resolvedUserId = loggedUser?.id || ''
+      let resolvedEmail = form.email || loggedUser?.email || ''
+      let isCurrentlyVerified = emailVerified
+
       const effectiveKind = propertyKind || 'Apartment'
       const effectiveArea = form.location || 'Tbilisi - Saburtalo'
-      const effectiveStatus = buildingStatus || 'Newly built'
 
       if (!loggedUser) {
         const cleanPhone = toEnglishDigits(form.phone || '').trim()
@@ -1008,20 +1156,16 @@ export function SellerFlow() {
           listingCategory: 'exit',
           unitCountry: ACTIVE_PLATFORM_COUNTRY,
           userCountry: form.userCountry || ACTIVE_PLATFORM_COUNTRY,
-          developer: form.developer || effectiveStatus,
+          developer: form.developer.trim() || '',
           project:
-            form.project ||
+            form.project.trim() ||
             `${effectiveKind} — ${getLocalizedGeorgiaAreaName(effectiveArea, 'en')}`,
-          contractPrice:
-            Number(toEnglishDigits(form.contractPrice || '0')) || 0,
-          paidAmount:
-            Number(
-              toEnglishDigits(form.paidAmount || form.contractPrice || '0')
-            ) || 0,
+          contractPrice: contractPriceNum,
+          paidAmount: paidAmountNum,
           marketPrice:
             Number(
               toEnglishDigits(form.marketPrice || form.contractPrice || '0')
-            ) || 0,
+            ) || contractPriceNum,
           contactMessengers:
             selected.messengers && selected.messengers.length > 0
               ? selected.messengers
@@ -1038,12 +1182,7 @@ export function SellerFlow() {
         })
 
         if (step2Res.status !== 'ok') {
-          setError(
-            step2Res.error ||
-              (isAr
-                ? 'تعذر التحقق من بيانات الحساب'
-                : 'Authentication failed')
-          )
+          setError(step2Res.error || fT.contactSection.authFailedError)
           secContactRef.current?.scrollIntoView({ behavior: 'smooth' })
           return
         }
@@ -1054,26 +1193,118 @@ export function SellerFlow() {
         }
         if (step2Res.orderRef) setOrderRef(step2Res.orderRef)
         if (step2Res.userId) {
+          resolvedUserId = step2Res.userId
+          resolvedEmail = step2Res.userEmail || form.email
           setLoggedUser({
             id: step2Res.userId,
             name: step2Res.userName || form.name,
-            email: step2Res.userEmail || form.email,
+            email: resolvedEmail,
             phone: step2Res.userPhone || fullPhone,
           })
+          setAuthMode('session')
         }
       }
 
-      const data = buildFormData(resolvedUnitId)
-      const result = await submitSellRequest(data)
-      if (result.success) {
-        if (result.unitId) setUnitId(result.unitId)
-        if (result.orderRef) setOrderRef(result.orderRef)
-        setSubmitted(true)
-        window.scrollTo({ top: 0, behavior: 'smooth' })
-      } else {
-        setError(result.error || s.validation.submitFailed)
+      // فحص حالة توثيق الإيميل من السيرفر مباشرة للتأكد (ربما قام بتوثيقه من الرابط في تاب آخر)
+      const freshVerStatus = await getUserVerificationStatusAction()
+      if (freshVerStatus.isLoggedIn && freshVerStatus.emailVerified) {
+        isCurrentlyVerified = true
+        setEmailVerified(true)
       }
+
+      // إذا لم يكن الإيميل موثقاً بعد: نحفظ كل بيانات الوحدة كمسودة أولاً ثم نفتح الديالوج لتوثيق الكود قبل النشر
+      if (!isCurrentlyVerified) {
+        const draftData = buildFormData(resolvedUnitId, resolvedUserId)
+        const savedDraft = await saveSellProgress(draftData)
+        if (savedDraft.unitId) {
+          resolvedUnitId = savedDraft.unitId
+          setUnitId(savedDraft.unitId)
+        }
+
+        setPendingPublishIds({
+          unitId: resolvedUnitId,
+          userId: resolvedUserId,
+          email: resolvedEmail,
+        })
+        setOtpSent(false)
+        setOtpCode('')
+        setOtpError('')
+        setVerifyModalOpen(true)
+        return
+      }
+
+      // أما إذا كان الإيميل موثقاً مسبقاً، ننشر الوحدة مباشرة بدون إزعاج المستخدم بأي ديالوج
+      await finalizeUnitPublish(resolvedUnitId, resolvedUserId)
     })
+  }
+
+  // إرسال كود الـ OTP للبريد الإلكتروني داخل الديالوج
+  const handleSendOtpInModal = async () => {
+    const targetEmail =
+      pendingPublishIds?.email || form.email || loggedUser?.email || ''
+    const targetUnit = pendingPublishIds?.unitId || unitId
+    const targetUser = pendingPublishIds?.userId || loggedUser?.id || ''
+
+    setOtpLoading(true)
+    setOtpError('')
+    try {
+      const res = await sendSellerReviewOtpAction({
+        email: targetEmail,
+        unitId: targetUnit,
+        userId: targetUser,
+      })
+      if (res.success) {
+        setOtpSent(true)
+      } else {
+        setOtpError(res.error || s.validation.submitFailed)
+      }
+    } finally {
+      setOtpLoading(false)
+    }
+  }
+
+  // التحقق من الكود داخل الديالوج ثم نشر الوحدة فوراً
+  const handleVerifyOtpAndPublish = async () => {
+    const targetEmail =
+      pendingPublishIds?.email || form.email || loggedUser?.email || ''
+    const targetUnit = pendingPublishIds?.unitId || unitId
+    const targetUser = pendingPublishIds?.userId || loggedUser?.id || ''
+
+    setOtpLoading(true)
+    setOtpError('')
+    try {
+      const res = await verifySellerReviewOtpAction({
+        email: targetEmail,
+        otp: otpCode,
+        unitId: targetUnit,
+        userId: targetUser,
+      })
+      if (!res.success) {
+        setOtpError(res.error || '')
+        return
+      }
+
+      setEmailVerified(true)
+      await finalizeUnitPublish(targetUnit, targetUser)
+    } finally {
+      setOtpLoading(false)
+    }
+  }
+
+  // حفظ الوحدة والذهاب للحساب لإكمال التوثيق لاحقاً
+  const handleSaveAndContinueLater = async () => {
+    const targetUnit = pendingPublishIds?.unitId || unitId
+    const targetUser = pendingPublishIds?.userId || loggedUser?.id || ''
+
+    setOtpLoading(true)
+    try {
+      const draftData = buildFormData(targetUnit, targetUser)
+      await saveSellProgress(draftData)
+      setVerifyModalOpen(false)
+      router.push('/account?view=seller')
+    } finally {
+      setOtpLoading(false)
+    }
   }
 
   const scrollToSection = (
@@ -1101,7 +1332,7 @@ export function SellerFlow() {
         unitId={unitId}
         userId={loggedUser?.id || ''}
         userEmail={form.email || loggedUser?.email || ''}
-        emailVerified={emailVerified}
+        emailVerified={true}
         setEmailVerified={setEmailVerified}
         supportWhatsApp={supportWhatsApp}
         extraT={extraT}
@@ -1118,6 +1349,9 @@ export function SellerFlow() {
     { id: 6, label: fT.tabs.contact, ref: secContactRef },
   ]
 
+  const activeModalEmail =
+    pendingPublishIds?.email || form.email || loggedUser?.email || ''
+
   return (
     <main
       dir={dir}
@@ -1126,14 +1360,10 @@ export function SellerFlow() {
       <div className="mx-auto max-w-[1180px] px-4 sm:px-6">
         <header className="mb-4 text-start">
           <h1 className="text-2xl font-bold tracking-tight text-[#0a1122] sm:text-3xl">
-            {isAr
-              ? 'اعرض وحدتك للتنازل واستكمال الأقساط'
-              : 'List Your Unit for Installment Exit'}
+            {fT.pageTitle}
           </h1>
           <p className="mt-1 text-xs font-medium text-slate-500 sm:text-sm">
-            {isAr
-              ? 'استرد مدفوعاتك بالكامل بالدولار ($) — عمولة البيع 0% على البائع.'
-              : 'Recover 100% of your paid installments in USD ($) — 0% seller commission.'}
+            {fT.pageSubtitle}
           </p>
         </header>
 
@@ -1232,6 +1462,7 @@ export function SellerFlow() {
               sectionRef={secPriceRef}
               onHover={() => setActiveTab(5)}
               dealCategory={dealCategory}
+              buildingStatus={buildingStatus}
               isExitDeal={isExitDeal}
               isDirectSale={isDirectSale}
               isRentDeal={isRentDeal}
@@ -1250,7 +1481,6 @@ export function SellerFlow() {
               onUploadDoc={handleUploadUnitDocument}
               onRemoveDoc={handleRemoveUnitDocument}
               onPreviewDoc={(url, title) => setPreviewDoc({ url, title })}
-              onGenerateAiDescription={generateSmartDescription}
             />
 
             <ContactSection
@@ -1258,7 +1488,19 @@ export function SellerFlow() {
               onHover={() => setActiveTab(6)}
               isRentDeal={false}
               loggedUser={loggedUser}
-              onUserAuthenticated={(u) => setLoggedUser(u)}
+              onUserAuthenticated={async (u, createdUnitId) => {
+                setLoggedUser(u)
+                setAuthMode('session')
+                const verCheck = await getUserVerificationStatusAction()
+                if (verCheck.isLoggedIn) {
+                  setEmailVerified(verCheck.emailVerified)
+                }
+                const targetUId = createdUnitId || unitId
+                if (targetUId) {
+                  const fullData = buildFormData(targetUId, u.id)
+                  await saveSellProgress(fullData)
+                }
+              }}
               authMode={authMode}
               setAuthMode={setAuthMode}
               form={form}
@@ -1324,6 +1566,137 @@ export function SellerFlow() {
           </button>
         </div>
       </div>
+
+      {/* ========================================================= */}
+      {/* ديالوج توثيق البريد الإلكتروني قبل النشر النهائي للوحدة */}
+      {/* ========================================================= */}
+      {verifyModalOpen && (
+        <div
+          dir={dir}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-xs"
+        >
+          <div className="relative w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 text-start shadow-2xl sm:p-7">
+            <button
+              type="button"
+              onClick={() => setVerifyModalOpen(false)}
+              className="absolute top-4 end-4 flex size-8 items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-800"
+            >
+              <X className="size-4" />
+            </button>
+
+            <div className="flex size-12 items-center justify-center rounded-2xl bg-emerald-50 text-[#007a5a]">
+              <ShieldAlert className="size-6" />
+            </div>
+
+            <h3 className="mt-4 text-lg font-black text-[#0a1122]">
+              {extraT.verifyBoxTitle}
+            </h3>
+            <p className="mt-1.5 text-xs leading-relaxed text-slate-600">
+              {extraT.verifyBoxDescPrefix}{' '}
+              <strong dir="ltr" className="font-mono text-[#0a1122]">
+                {maskEmailDisplay(activeModalEmail)}
+              </strong>{' '}
+              {extraT.verifyBoxDescSuffix}
+            </p>
+
+            <div className="mt-4 rounded-2xl border border-emerald-200/80 bg-emerald-50/50 p-3.5 text-xs font-bold text-[#007a5a]">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="size-4 shrink-0" />
+                <span>{extraT.savedBadge}</span>
+              </div>
+              <p className="mt-1 font-medium text-slate-600">
+                {extraT.reviewNoteBeforeSubmit}
+              </p>
+            </div>
+
+            <div className="mt-5">
+              {!otpSent ? (
+                <button
+                  type="button"
+                  disabled={otpLoading}
+                  onClick={handleSendOtpInModal}
+                  className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#007a5a] px-5 text-xs font-extrabold text-white shadow-sm transition hover:bg-[#006248] disabled:opacity-60 sm:text-sm"
+                >
+                  {otpLoading ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Mail className="size-4" />
+                  )}
+                  <span>{extraT.sendCodeBtn}</span>
+                </button>
+              ) : (
+                <div className="space-y-3">
+                  <div className="rounded-xl bg-slate-50 p-3 text-xs text-slate-600">
+                    <strong className="block font-bold text-[#0a1122]">
+                      {extraT.codeSentToPrefix}
+                    </strong>
+                    <span className="mt-0.5 block">{extraT.codeSentBody}</span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="text"
+                      dir="ltr"
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={otpCode}
+                      onChange={(e) =>
+                        setOtpCode(
+                          toEnglishDigits(e.target.value).replace(/[^0-9]/g, '')
+                        )
+                      }
+                      placeholder="• • • • • •"
+                      className="h-12 flex-1 rounded-xl border-slate-300 bg-white text-center font-mono text-lg font-black tracking-[0.35em]"
+                    />
+                    <button
+                      type="button"
+                      disabled={otpLoading || otpCode.length < 6}
+                      onClick={handleVerifyOtpAndPublish}
+                      className="inline-flex h-12 items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] px-6 text-xs font-extrabold text-white shadow-sm transition hover:bg-[#006248] disabled:opacity-50 sm:text-sm"
+                    >
+                      {otpLoading ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <Check className="size-4" />
+                      )}
+                      <span>{extraT.confirmCodeBtn}</span>
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1">
+                    <button
+                      type="button"
+                      disabled={otpLoading}
+                      onClick={handleSendOtpInModal}
+                      className="text-xs font-bold text-[#2563eb] hover:underline"
+                    >
+                      {extraT.resendCodeBtn}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {otpError && (
+                <p className="mt-2.5 rounded-xl bg-red-50 px-3 py-2 text-xs font-bold text-red-600">
+                  {otpError}
+                </p>
+              )}
+            </div>
+
+            {/* زر الحفظ والمتابعة لاحقاً من الحساب */}
+            <div className="mt-5 border-t border-slate-100 pt-4">
+              <button
+                type="button"
+                disabled={otpLoading}
+                onClick={handleSaveAndContinueLater}
+                className="flex h-11 w-full items-center justify-center rounded-xl border border-slate-200 bg-slate-50 px-4 text-xs font-extrabold text-slate-700 transition hover:bg-slate-100"
+              >
+                {s.shared.saveLaterBtn || extraT.continueUploadLaterBtn}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {previewDoc && (
         <div

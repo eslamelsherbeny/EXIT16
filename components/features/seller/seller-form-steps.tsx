@@ -41,7 +41,6 @@ import {
   Tv,
   UploadCloud,
   Utensils,
-  Video,
   Waves,
   Wifi,
   Wind,
@@ -49,7 +48,6 @@ import {
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
 import { useTranslation } from '@/lib/i18n'
 import {
   getSellerFormTranslations,
@@ -62,11 +60,10 @@ import {
   BUILDING_MATERIALS,
   BUILDING_SERIES,
   CONDITION_OPTIONS,
-  DEAL_TYPES,
+  deliveryFutureYears,
   Field,
   FLOOR_TYPES,
   getOptionLabel,
-  getOptionSub,
   HEATING_TYPES,
   MoneyField,
   MonthYearSelector,
@@ -136,13 +133,6 @@ function getFeatureItemIcon(featureId: string) {
   return map[featureId] || Sparkles
 }
 
-const DEAL_ICON_STYLES: Record<string, string> = {
-  exit: 'bg-emerald-50 text-emerald-600',
-  sale: 'bg-blue-50 text-[#2563eb]',
-  rent_monthly: 'bg-purple-50 text-purple-600',
-  rent_daily: 'bg-rose-50 text-rose-500',
-}
-
 const KIND_ICON_STYLES: Record<string, string> = {
   Apartment: 'bg-blue-50 text-[#2563eb]',
   'Private house': 'bg-orange-50 text-[#ea580c]',
@@ -175,7 +165,7 @@ export function StepValidationBanner({
 }
 
 // =====================================================
-// 1. قسم نوع العقار وحالة البناء (مخصص للتنازل والأقساط مباشرة)
+// 1. قسم نوع العقار وحالة البناء
 // =====================================================
 export function TypeSection({
   sectionRef,
@@ -196,9 +186,8 @@ export function TypeSection({
   setBuildingStatus: (s: string) => void
   dynamicStatusOptions: Array<LocalizedOptionItem<string>>
 }) {
-  const { locale } = useTranslation()
-  const isAr = locale === 'ar'
-  const fT = getSellerFormTranslations(locale)
+  const { t: dict, locale } = useTranslation()
+  const fT = getSellerFormTranslations(locale, dict)
   const tSec = fT.typeSection
 
   return (
@@ -210,19 +199,13 @@ export function TypeSection({
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-lg font-bold text-[#0a1122]">
-            {isAr ? 'نوع العقار وحالة البناء' : tSec.title}
-          </h2>
-          <p className="mt-1 text-xs text-slate-500">
-            {isAr
-              ? 'اختر نوع العقار المراد التنازل عنه ثم حالة البناء.'
-              : 'Select the property type and building status for your installment exit.'}
-          </p>
+          <h2 className="text-lg font-bold text-[#0a1122]">{tSec.title}</h2>
+          <p className="mt-1 text-xs text-slate-500">{tSec.subtitle}</p>
         </div>
 
         <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-[#eaf8f2] px-3.5 py-1 text-xs font-bold text-[#007a5a]">
           <ShieldCheck className="size-3.5" />
-          <span>{isAr ? 'نظام التنازل والأقساط' : 'Installment Exit'}</span>
+          <span>{fT.exitBadge}</span>
         </span>
       </div>
 
@@ -321,7 +304,7 @@ export function TypeSection({
 }
 
 // =====================================================
-// 2. قسم الصور والفيديو والجولة الافتراضية (PhotosSection)
+// 2. قسم الصور وروابط الفيديو والجولة الافتراضية (بدون رفع ملف فيديو)
 // =====================================================
 export function PhotosSection({
   sectionRef,
@@ -344,27 +327,9 @@ export function PhotosSection({
   form: Record<string, string>
   update: (k: string, v: string) => void
 }) {
-  const { locale } = useTranslation()
-  const fT = getSellerFormTranslations(locale)
+  const { t: dict, locale } = useTranslation()
+  const fT = getSellerFormTranslations(locale, dict)
   const pT = fT.photosSection
-
-  const uploadFromPhoneLabel =
-    locale === 'ar'
-      ? 'رفع الصور من الموبايل'
-      : locale === 'ru'
-        ? 'Загрузить с телефона'
-        : locale === 'ka'
-          ? 'ტელეფონიდან ატვირთვა'
-          : 'Upload from phone'
-
-  const addPhotoCardLabel =
-    locale === 'ar'
-      ? 'إضافة صورة'
-      : locale === 'ru'
-        ? 'Добавить фото'
-        : locale === 'ka'
-          ? 'ფოტოს დამატება'
-          : 'Add photo'
 
   return (
     <section
@@ -410,7 +375,7 @@ export function PhotosSection({
               <img
                 src={url}
                 alt=""
-                onClick={() => onPreviewDoc(url, `Photo ${idx + 1}`)}
+                onClick={() => onPreviewDoc(url, `${pT.photosWord} ${idx + 1}`)}
                 className="h-full w-full cursor-pointer object-cover transition group-hover:scale-105"
               />
               {idx === 0 && (
@@ -432,7 +397,7 @@ export function PhotosSection({
             <label className="flex aspect-[4/3] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-[#f8fafc] p-4 text-center transition hover:border-[#2563eb] hover:bg-blue-50/20">
               <Plus className="size-5 text-slate-500" />
               <strong className="mt-1.5 text-xs font-extrabold text-slate-600">
-                {addPhotoCardLabel}
+                {pT.addPhotoCardLabel}
               </strong>
               <span className="mt-0.5 text-[10px] font-semibold text-slate-400">
                 {images.length}/22 {pT.photosWord}
@@ -452,7 +417,7 @@ export function PhotosSection({
       <div className="mt-3.5">
         <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-extrabold text-[#2563eb] shadow-2xs transition hover:bg-blue-50/40">
           <Smartphone className="size-3.5" />
-          <span>{uploadFromPhoneLabel}</span>
+          <span>{pT.uploadFromPhoneLabel}</span>
           <input
             type="file"
             accept="image/*"
@@ -478,55 +443,37 @@ export function PhotosSection({
           {pT.videoSectionSubtitle}
         </p>
 
-        <div className="mt-3 grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-          <label className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-[#f8fafc] p-5 text-center transition hover:border-[#2563eb]">
-            <div className="flex size-9 items-center justify-center rounded-xl bg-blue-50 text-[#2563eb]">
-              <Video className="size-4" />
-            </div>
-            <strong className="mt-2.5 text-xs font-extrabold text-[#0a1122]">
-              {pT.uploadVideoBoxTitle}
-            </strong>
-            <span className="mt-0.5 text-[10px] text-slate-400">
-              {pT.uploadVideoBoxSub}
-            </span>
-            <input
-              type="file"
-              accept="video/*"
-              className="sr-only"
-              onChange={(e) => onUploadPhotos(e.target.files)}
-            />
-          </label>
-
-          <div className="flex flex-col justify-center rounded-2xl border border-slate-200/80 bg-white p-4">
-            <label className="mb-2 block text-[11px] font-extrabold text-slate-600">
+        <div className="mt-3.5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <label className="mb-1.5 block text-xs font-extrabold text-slate-600">
               {pT.videoUrlLabel}
             </label>
             <div className="relative">
-              <Play className="pointer-events-none absolute top-1/2 left-3.5 size-3.5 -translate-y-1/2 text-slate-400" />
+              <Play className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-slate-400" />
               <Input
                 dir="ltr"
                 value={form.videoUrl}
                 onChange={(e) => update('videoUrl', e.target.value)}
-                placeholder="https://youtube.com/watch?v=..."
-                className="h-11 rounded-xl border-slate-200 pl-9 text-xs"
+                placeholder={pT.videoUrlPlaceholder}
+                className="h-11 rounded-xl border-slate-200 pl-10 text-xs"
               />
             </div>
           </div>
-        </div>
 
-        <div className="mt-4">
-          <label className="mb-1.5 block text-xs font-extrabold text-slate-600">
-            {pT.tour3dLabel}
-          </label>
-          <div className="relative">
-            <Box className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-slate-400" />
-            <Input
-              dir="ltr"
-              value={form.tour3dUrl}
-              onChange={(e) => update('tour3dUrl', e.target.value)}
-              placeholder="https://my.matterport.com/..."
-              className="h-11 rounded-xl border-slate-200 pl-10 text-xs"
-            />
+          <div>
+            <label className="mb-1.5 block text-xs font-extrabold text-slate-600">
+              {pT.tour3dLabel}
+            </label>
+            <div className="relative">
+              <Box className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-slate-400" />
+              <Input
+                dir="ltr"
+                value={form.tour3dUrl}
+                onChange={(e) => update('tour3dUrl', e.target.value)}
+                placeholder={pT.tour3dPlaceholder}
+                className="h-11 rounded-xl border-slate-200 pl-10 text-xs"
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -535,7 +482,7 @@ export function PhotosSection({
 }
 
 // =====================================================
-// 3. قسم المواصفات والمميزات بالتدرج الذكي (DetailsSection)
+// 3. قسم المواصفات والمميزات
 // =====================================================
 export function DetailsSection({
   sectionRef,
@@ -580,12 +527,14 @@ export function DetailsSection({
   >
   extraT: SellerExtraLabels
 }) {
-  const { locale } = useTranslation()
-  const fT = getSellerFormTranslations(locale)
+  const { t: dict, locale } = useTranslation()
+  const fT = getSellerFormTranslations(locale, dict)
   const dT = fT.detailsSection
 
   const isUnlocked = Boolean(dealCategory && propertyKind)
   const isDirectSale = dealCategory === 'sale'
+  const isUnderConstruction = buildingStatus === 'Under construction'
+  const selectedTotalRooms = parseInt(form.rooms || '0', 10)
 
   const [openFeatureGroups, setOpenFeatureGroups] = useState<
     Record<string, boolean>
@@ -751,7 +700,7 @@ export function DetailsSection({
           )}
 
           <div className="mt-5 space-y-4">
-            {propertyKind !== 'Land' && (
+            {propertyKind !== 'Land' && !isUnderConstruction && (
               <div className="max-w-[200px]">
                 <Field
                   label={dT.yearBuiltLabel}
@@ -836,37 +785,7 @@ export function DetailsSection({
 
           {propertyKind !== 'Land' && (
             <div className="mt-6 space-y-5">
-              <div>
-                <label className="mb-2 block text-xs font-extrabold text-[#0a1122]">
-                  {dT.bedroomsLabel.replace(' *', '')}{' '}
-                  <span className="text-red-500">*</span>
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {['1', '2', '3', '4', '5', '6', '7', '8', '9', '10+'].map(
-                    (num) => {
-                      const cleanVal = num.replace('+', '')
-                      const active = form.bedrooms === cleanVal
-                      return (
-                        <button
-                          key={num}
-                          type="button"
-                          onClick={() =>
-                            update('bedrooms', active ? '' : cleanVal)
-                          }
-                          className={`flex size-9 items-center justify-center rounded-full border text-xs font-extrabold transition ${
-                            active
-                              ? 'border-[#2563eb] bg-[#2563eb] text-white shadow-xs'
-                              : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
-                          }`}
-                        >
-                          {num}
-                        </button>
-                      )
-                    }
-                  )}
-                </div>
-              </div>
-
+              {/* 1. إجمالي عدد الغرف */}
               <div>
                 <label className="mb-2 block text-xs font-extrabold text-[#0a1122]">
                   {dT.roomsLabel.replace(' *', '')}{' '}
@@ -888,6 +807,48 @@ export function DetailsSection({
                             active
                               ? 'border-[#2563eb] bg-[#2563eb] text-white shadow-xs'
                               : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                          }`}
+                        >
+                          {num}
+                        </button>
+                      )
+                    }
+                  )}
+                </div>
+              </div>
+
+              {/* 2. عدد غرف النوم (مقيد بإجمالي الغرف) */}
+              <div>
+                <label className="mb-1 block text-xs font-extrabold text-[#0a1122]">
+                  {dT.bedroomsLabel.replace(' *', '')}{' '}
+                  <span className="text-red-500">*</span>
+                </label>
+                <p className="mb-2 text-[11px] font-semibold text-slate-400">
+                  {dT.roomsBedroomsHint}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {['1', '2', '3', '4', '5', '6', '7', '8', '9', '10+'].map(
+                    (num) => {
+                      const cleanVal = num.replace('+', '')
+                      const numVal = parseInt(cleanVal, 10)
+                      const active = form.bedrooms === cleanVal
+                      const isDisabled =
+                        selectedTotalRooms > 0 && numVal > selectedTotalRooms
+
+                      return (
+                        <button
+                          key={num}
+                          type="button"
+                          disabled={isDisabled}
+                          onClick={() =>
+                            update('bedrooms', active ? '' : cleanVal)
+                          }
+                          className={`flex size-9 items-center justify-center rounded-full border text-xs font-extrabold transition ${
+                            active
+                              ? 'border-[#2563eb] bg-[#2563eb] text-white shadow-xs'
+                              : isDisabled
+                                ? 'cursor-not-allowed border-slate-100 bg-slate-50 text-slate-300 opacity-50'
+                                : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
                           }`}
                         >
                           {num}
@@ -954,7 +915,7 @@ export function DetailsSection({
                   label={dT.totalFloorsLabel}
                   id="totalFloors"
                   type="number"
-                  placeholder="12"
+                  placeholder="16"
                   value={form.totalFloors}
                   update={(v) => update('totalFloors', v)}
                 />
@@ -973,12 +934,13 @@ export function DetailsSection({
                 </div>
               )}
 
-              {buildingStatus === 'Under construction' && (
+              {isUnderConstruction && (
                 <div className="pt-2">
                   <Field
                     label={extraT.deliveryMonthsLabel}
                     id="deliveryRemainingMonths"
                     type="number"
+                    placeholder="12"
                     helper={extraT.deliveryMonthsHelper}
                     value={form.deliveryRemainingMonths}
                     update={(v) => update('deliveryRemainingMonths', v)}
@@ -1109,27 +1071,26 @@ export function DetailsSection({
 }
 
 // =====================================================
-// 4. قسم السعر والأقساط وسنة الاستلام والمستندات بالدولار ($)
+// 4. قسم السعر والأقساط والمستندات والوصف (بدون حصري وبدون ذكاء اصطناعي)
 // =====================================================
 export function PricingSection({
   sectionRef,
   onHover,
+  buildingStatus,
   form,
   update,
   selected,
   toggleSingle,
-  flags,
-  setFlags,
   unitDocs,
   uploadingDocKey,
   onUploadDoc,
   onRemoveDoc,
   onPreviewDoc,
-  onGenerateAiDescription,
 }: {
   sectionRef: React.RefObject<HTMLElement | null>
   onHover: () => void
   dealCategory: DealCategory | ''
+  buildingStatus?: string
   isExitDeal: boolean
   isDirectSale: boolean
   isRentDeal: boolean
@@ -1162,19 +1123,18 @@ export function PricingSection({
   onUploadDoc: (k: SellerDocKey, files: FileList | null) => void
   onRemoveDoc: (k: SellerDocKey) => void
   onPreviewDoc: (url: string, title: string) => void
-  onGenerateAiDescription: () => void
 }) {
-  const { locale, dir } = useTranslation()
-  const isAr = locale === 'ar'
-  const fT = getSellerFormTranslations(locale)
+  const { t: dict, locale, dir } = useTranslation()
+  const fT = getSellerFormTranslations(locale, dict)
   const prT = fT.pricingSection
   const currSym = '$'
+  const isUnderConstruction = buildingStatus === 'Under construction'
 
   const freqOptions = [
-    { id: 'شهري', label: isAr ? 'شهري' : 'Monthly' },
-    { id: 'ربع سنوي', label: isAr ? 'ربع سنوي' : 'Quarterly' },
-    { id: 'نصف سنوي', label: isAr ? 'نصف سنوي' : 'Semi-Annual' },
-    { id: 'سنوي', label: isAr ? 'سنوي' : 'Annual' },
+    { id: 'شهري', label: prT.freqMonthly },
+    { id: 'ربع سنوي', label: prT.freqQuarterly },
+    { id: 'نصف سنوي', label: prT.freqSemiAnnual },
+    { id: 'سنوي', label: prT.freqAnnual },
   ]
 
   return (
@@ -1191,12 +1151,11 @@ export function PricingSection({
         </div>
 
         <span className="inline-flex h-8 items-center rounded-full bg-blue-50 px-3.5 text-xs font-bold text-[#2563eb]">
-          {isAr ? 'العملة الموحدة: دولار أمريكي ($)' : 'Currency: USD ($)'}
+          {fT.unifiedCurrencyBadge}
         </span>
       </div>
 
       <div className="mt-5 space-y-5">
-        {/* 1. إجمالي سعر العقد + المدفوع (الكاش المطلوب) + سعر السوق اليوم بالدولار ($) */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <MoneyField
             label={prT.contractPriceLabel}
@@ -1218,7 +1177,6 @@ export function PricingSection({
           />
         </div>
 
-        {/* 2. قيمة القسط الدوري + الشهور المتبقية + تاريخ العقد الأصلي */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <MoneyField
             label={prT.installmentAmountLabel}
@@ -1244,11 +1202,10 @@ export function PricingSection({
           />
         </div>
 
-        {/* 3. دورية سداد القسط + سنة الاستلام (التي تظهر في الكارت) */}
         <div className="grid grid-cols-1 gap-4 border-t border-slate-100 pt-4 sm:grid-cols-2">
           <div>
             <label className="mb-2 block text-xs font-bold text-[#0a1122]">
-              {isAr ? 'نظام سداد الأقساط' : 'Installment Frequency'}
+              {prT.frequencySystemLabel}
             </label>
             <div className="flex flex-wrap gap-2">
               {freqOptions.map((fq) => {
@@ -1272,34 +1229,45 @@ export function PricingSection({
           </div>
 
           <div>
-            <label className="mb-2 block text-xs font-bold text-[#0a1122]">
-              {isAr
-                ? 'سنة الاستلام (تظهر على الكارت) *'
-                : 'Delivery Year (Shown on Card) *'}
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {['2025', '2026', '2027', '2028', '2029', '2030'].map((yr) => {
-                const active = (form.deliveryYear || '2026') === yr
-                return (
-                  <button
-                    key={yr}
-                    type="button"
-                    onClick={() => update('deliveryYear', yr)}
-                    className={`rounded-full border px-3.5 py-2 font-mono text-xs font-bold transition ${
-                      active
-                        ? 'border-[#2563eb] bg-[#2563eb] text-white shadow-2xs'
-                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                    }`}
-                  >
-                    {yr}
-                  </button>
-                )
-              })}
-            </div>
+            {isUnderConstruction ? (
+              <>
+                <label className="mb-2 block text-xs font-bold text-[#0a1122]">
+                  {prT.deliveryYearCardLabel}
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {deliveryFutureYears.map((yr) => {
+                    const active = (form.deliveryYear || '2026') === yr
+                    return (
+                      <button
+                        key={yr}
+                        type="button"
+                        onClick={() => update('deliveryYear', yr)}
+                        className={`rounded-full border px-3.5 py-2 font-mono text-xs font-bold transition ${
+                          active
+                            ? 'border-[#2563eb] bg-[#2563eb] text-white shadow-2xs'
+                            : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        {yr}
+                      </button>
+                    )
+                  })}
+                </div>
+              </>
+            ) : (
+              <>
+                <label className="mb-2 block text-xs font-bold text-[#0a1122]">
+                  {prT.readyStatusCardLabel}
+                </label>
+                <div className="inline-flex h-10 items-center gap-2 rounded-xl border border-emerald-200 bg-[#eaf8f2] px-4 text-xs font-extrabold text-[#007a5a]">
+                  <ShieldCheck className="size-4" />
+                  <span>{prT.readyImmediateBadge}</span>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
-        {/* 4. قابلية التفاوض والخصم في الكاش */}
         <div className="grid grid-cols-1 items-start gap-4 border-t border-slate-100 pt-4 sm:grid-cols-2">
           <label className="flex cursor-pointer items-center gap-2.5 rounded-2xl border border-slate-200/80 px-4 py-3.5 text-xs font-bold text-slate-700 hover:bg-slate-50">
             <input
@@ -1310,11 +1278,7 @@ export function PricingSection({
               }
               className="size-4 rounded-full accent-[#007a5a]"
             />
-            <span>
-              {isAr
-                ? 'المبلغ المطلوب (الكاش) قابل للتفاوض للمشتري الجاد'
-                : prT.negotiableLabel}
-            </span>
+            <span>{prT.negotiableLabel}</span>
           </label>
 
           {selected.discountOffer?.[0] === 'yes' && (
@@ -1327,7 +1291,6 @@ export function PricingSection({
           )}
         </div>
 
-        {/* 5. رفع المستندات الـ 4 لتفعيل شارة "متحقق بالمستندات" */}
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -1416,40 +1379,11 @@ export function PricingSection({
         </div>
       </div>
 
-      <label className="mt-4 flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200/80 bg-[#f8fafc]/70 p-4 text-start transition hover:bg-slate-50">
-        <input
-          type="checkbox"
-          checked={flags.isExclusive}
-          onChange={(e) =>
-            setFlags((p) => ({
-              ...p,
-              isExclusive: e.target.checked,
-            }))
-          }
-          className="size-4 rounded-full accent-[#2563eb]"
-        />
-        <Crown className="size-4 text-slate-400" />
-        <div>
-          <strong className="block text-xs font-bold text-[#0a1122]">
-            {prT.exclusiveTitle}
-          </strong>
-          <span className="text-[11px] text-slate-400">{prT.exclusiveSub}</span>
-        </div>
-      </label>
-
       <div className="mt-6">
         <div className="mb-2 flex items-center justify-between">
           <label className="text-xs font-bold text-[#0a1122] sm:text-sm">
             {prT.descriptionLabel}
           </label>
-          <button
-            type="button"
-            onClick={onGenerateAiDescription}
-            className="inline-flex items-center gap-1.5 rounded-full bg-indigo-100 px-4 py-1.5 text-xs font-bold text-[#2563eb] transition hover:bg-indigo-200"
-          >
-            <Sparkles className="size-3.5" />
-            <span>{prT.aiDescriptionBtn}</span>
-          </button>
         </div>
         <Textarea
           dir={dir}

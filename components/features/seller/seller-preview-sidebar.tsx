@@ -17,8 +17,8 @@ export function LivePreviewSidebar({
   propertyKind: string
   strength: number
 }) {
-  const { locale } = useTranslation()
-  const fT = getSellerFormTranslations(locale)
+  const { t: dict, locale } = useTranslation()
+  const fT = getSellerFormTranslations(locale, dict)
   const pvT = fT.previewSidebar
 
   return (
@@ -32,7 +32,7 @@ export function LivePreviewSidebar({
             <div className="relative aspect-[4/3] w-full">
               <img
                 src={images[0]}
-                alt="Cover preview"
+                alt=""
                 className="h-full w-full object-cover"
               />
               <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5">

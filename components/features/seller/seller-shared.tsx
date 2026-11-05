@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { GeorgiaAreaSelect } from '@/components/shared/georgia-areas'
 import { useTranslation } from '@/lib/i18n'
+import { getSellerFormTranslations } from './seller-i18n'
 import {
   formatAmount,
   getLocalizedCountryName,
@@ -79,26 +80,10 @@ export function MonthYearSelector({
   error?: string
   helper?: string
 }) {
-  const { locale } = useTranslation()
+  const { t: dict, locale } = useTranslation()
   const monthsOptions = getLocalizedMonthsList(locale)
-
-  const monthPlaceholder =
-    locale === 'ar'
-      ? 'الشهر *'
-      : locale === 'ru'
-        ? 'Месяц *'
-        : locale === 'ka'
-          ? 'თვე *'
-          : 'Month *'
-
-  const yearPlaceholder =
-    locale === 'ar'
-      ? 'السنة *'
-      : locale === 'ru'
-        ? 'Год *'
-        : locale === 'ka'
-          ? 'წელი *'
-          : 'Year *'
+  const fT = getSellerFormTranslations(locale, dict)
+  const prT = fT.pricingSection
 
   return (
     <div className="flex flex-col gap-2">
@@ -116,7 +101,7 @@ export function MonthYearSelector({
             onChange={(e) => onMonthChange(e.target.value)}
             className="h-12 w-full appearance-none rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-bold text-[#0a1122] focus:border-[#2563eb] focus:outline-none sm:text-sm"
           >
-            <option value="">{monthPlaceholder}</option>
+            <option value="">{prT.monthPlaceholder}</option>
             {monthsOptions.map((m) => (
               <option key={m.value} value={m.value}>
                 {m.label}
@@ -132,7 +117,7 @@ export function MonthYearSelector({
             onChange={(e) => onYearChange(e.target.value)}
             className="h-12 w-full appearance-none rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-bold text-[#0a1122] focus:border-[#2563eb] focus:outline-none sm:text-sm"
           >
-            <option value="">{yearPlaceholder}</option>
+            <option value="">{prT.yearPlaceholder}</option>
             {yearsList.map((yr: string) => (
               <option key={yr} value={yr}>
                 {yr}
@@ -514,7 +499,7 @@ export function ToggleSection({
   title,
   group,
   selected,
-  toggle,
+   toggle,
   error,
 }: {
   title: string

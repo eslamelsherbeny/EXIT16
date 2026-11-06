@@ -126,6 +126,7 @@ export async function loginAction(formData: FormData): Promise<AuthResult> {
     .replace(/[\r\n\s]+/g, "")
     .toLowerCase()
   const isStaff =
+  cleanRole === "owner" ||
     cleanRole === "admin" ||
     cleanRole === "moderator" ||
     cleanRole === "sales"
@@ -757,12 +758,13 @@ export async function markUserPhoneVerifiedAction(payload?: {
     const callerRole = String(caller.role || "user")
       .trim()
       .toLowerCase()
-    const isStaff =
-      validSession &&
-      caller.status !== "suspended" &&
-      (callerRole === "admin" ||
-        callerRole === "moderator" ||
-        callerRole === "sales")
+  const isStaff =
+  validSession &&
+  caller.status !== "suspended" &&
+  (callerRole === "owner" ||
+    callerRole === "admin" ||
+    callerRole === "moderator" ||
+    callerRole === "sales")
 
     if (!isStaff) {
       return { success: false }
@@ -965,8 +967,11 @@ export async function getSessionUserAction() {
     const role = String(user.role || "user")
       .replace(/[\r\n\s]+/g, "")
       .toLowerCase()
-    const isAdmin =
-      role === "admin" || role === "moderator" || role === "sales"
+   const isAdmin =
+  role === "owner" ||
+  role === "admin" ||
+  role === "moderator" ||
+  role === "sales"
 
     return {
       isLoggedIn: true,

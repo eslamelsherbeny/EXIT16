@@ -185,8 +185,11 @@ export async function getUserNotificationsAction(
     const role = String(user?.role || "user")
       .replace(/[\r\n\s]+/g, "")
       .toLowerCase()
-    const isAdmin =
-      role === "admin" || role === "moderator" || role === "sales"
+  const isAdmin =
+  role === "owner" ||
+  role === "admin" ||
+  role === "moderator" ||
+  role === "sales"
 
     let query = supabase
       .from("notifications")
@@ -278,7 +281,10 @@ export async function markAllNotificationsAsReadAction(
       .replace(/[\r\n\s]+/g, "")
       .toLowerCase()
     const isAdmin =
-      role === "admin" || role === "moderator" || role === "sales"
+  role === "owner" ||
+  role === "admin" ||
+  role === "moderator" ||
+  role === "sales"
 
     if (context === "admin" && isAdmin) {
       await supabase
@@ -344,8 +350,11 @@ export async function clearAllNotificationsAction(
     const role = String(user?.role || "user")
       .replace(/[\r\n\s]+/g, "")
       .toLowerCase()
-    const isAdmin =
-      role === "admin" || role === "moderator" || role === "sales"
+   const isAdmin =
+  role === "owner" ||
+  role === "admin" ||
+  role === "moderator" ||
+  role === "sales"
 
     if (context === "admin" && isAdmin) {
       await supabase

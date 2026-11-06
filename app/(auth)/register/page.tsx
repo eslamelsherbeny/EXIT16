@@ -12,7 +12,14 @@ import {
 import { CountrySelector } from '@/components/shared/country-selector'
 import { toEnglishDigits } from '@/components/features/seller/seller-shared'
 import { registerAction } from '@/actions/auth-actions'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation, type LocaleCode } from '@/lib/i18n'
+
+const TURNSTILE_WAIT_MESSAGES: Record<LocaleCode, string> = {
+  ar: 'يرجى الانتظار لحظات حتى يكتمل التحقق الأمني (Cloudflare) بالأسفل ثم اضغط إنشاء الحساب.',
+  en: 'Please wait a moment for the Cloudflare security check below to complete, then try again.',
+  ru: 'Пожалуйста, подождите завершения проверки безопасности (Cloudflare) ниже и попробуйте снова.',
+  ka: 'გთხოვთ დაელოდოთ უსაფრთხოების შემოწმების (Cloudflare) დასრულებას და სცადოთ ხელახლა.',
+}
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -37,6 +44,17 @@ export default function RegisterPage() {
     e.preventDefault()
     setError('')
     const formData = new FormData(e.currentTarget)
+
+    const turnstileToken = String(
+      formData.get('cf_turnstile_response') || ''
+    ).trim()
+
+    if (!turnstileToken) {
+      setError(
+        TURNSTILE_WAIT_MESSAGES[locale] || TURNSTILE_WAIT_MESSAGES.ar
+      )
+      return
+    }
 
     const cleanPhone = toEnglishDigits(phoneNumber)
       .replace(/^0+/, '')
@@ -131,7 +149,7 @@ export default function RegisterPage() {
                     setPhoneNumber(toEnglishDigits(e.target.value))
                   }
                   required
-                  className="h-12 flex-1 rounded-xl border border-input bg-background px-4 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary,#007a5a)]"
+                  className="h-12 min-w-0 flex-1 rounded-xl border border-input bg-background px-3.5 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary,#007a5a)]"
                   placeholder="5xx xx xx xx"
                 />
               </div>

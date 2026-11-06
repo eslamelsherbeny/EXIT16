@@ -11,7 +11,14 @@ import {
 } from '@/components/layouts/auth-layout'
 import { toEnglishDigits } from '@/components/features/seller/seller-shared'
 import { loginAction, verifyAccountAction } from '@/actions/auth-actions'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation, type LocaleCode } from '@/lib/i18n'
+
+const TURNSTILE_WAIT_MESSAGES: Record<LocaleCode, string> = {
+  ar: 'يرجى الانتظار لحظات حتى يكتمل التحقق الأمني (Cloudflare) بالأسفل ثم اضغط تسجيل الدخول.',
+  en: 'Please wait a moment for the Cloudflare security check below to complete, then try again.',
+  ru: 'Пожалуйста, подождите завершения проверки безопасности (Cloudflare) ниже и попробуйте снова.',
+  ka: 'გთხოვთ დაელოდოთ უსაფრთხოების შემოწმების (Cloudflare) დასრულებას და სცადოთ ხელახლა.',
+}
 
 function LoginContent() {
   const router = useRouter()
@@ -51,10 +58,22 @@ function LoginContent() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError('')
+
+    const formData = new FormData(e.currentTarget)
+    const turnstileToken = String(
+      formData.get('cf_turnstile_response') || ''
+    ).trim()
+
+    if (!turnstileToken) {
+      setError(
+        TURNSTILE_WAIT_MESSAGES[locale] || TURNSTILE_WAIT_MESSAGES.ar
+      )
+      return
+    }
+
     setPending(true)
 
     try {
-      const formData = new FormData(e.currentTarget)
       const normalizedId = toEnglishDigits(identifier).trim()
       formData.set('emailOrPhone', normalizedId)
       if (nextUrl) {

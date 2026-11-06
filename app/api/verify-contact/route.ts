@@ -35,14 +35,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL('/login', request.url))
     }
 
-    // 2. فحص هوية الشخص الذي ضغط على رابط الواتساب
+    // 2. فحص هوية الشخص الذي ضغط على رابط الواتساب (/api/verify)
     const sessionUser = await getVerifiedSellerSession(supabase)
     const role = String(sessionUser?.role || 'user')
       .trim()
       .toLowerCase()
     const isStaff =
       Boolean(sessionUser) &&
-      (role === 'admin' || role === 'moderator' || role === 'sales')
+      (role === 'owner' ||
+        role === 'admin' ||
+        role === 'moderator' ||
+        role === 'sales')
 
     // إذا كان الذي ضغط على الرابط هو الأدمن نفسه -> نوثق رقم العميل فوراً ونفتح للأدمن الكارت في لوحة الإدارة!
     if (isStaff) {
@@ -97,6 +100,33 @@ export async function GET(request: NextRequest) {
       }
 
       if (resolvedUserId) {
+        const { data: targetUser } = await supabase
+          .from('users')
+          .select('id, otp_code')
+          .eq('id', resolvedUserId)
+          .maybeSingle()
+
+        if (targetUser) {
+          const currentOtp = String(targetUser.otp_code || '').trim()
+          const nextOtp = currentOtp.includes('PHONE_OK')
+            ? currentOtp
+            : currentOtp
+              ? `PHONE_OK|${currentOtp}`
+              : 'PHONE_OK'
+
+          const { error: err1 } = await supabase
+            .from('users')
+            .update({ phone_verified: true, otp_code: nextOtp })
+            .eq('id', resolvedUserId)
+
+          if (err1) {
+            await supabase
+              .from('users')
+              .update({ otp_code: nextOtp })
+              .eq('id', resolvedUserId)
+          }
+        }
+
         await upsertUserVerificationMeta(supabase, resolvedUserId, {
           phoneVerified: true,
         })
@@ -105,7 +135,10 @@ export async function GET(request: NextRequest) {
       // توجيه الأدمن مباشرة إلى الكارت المناسب في لوحة الإدارة
       if (offerId) {
         return NextResponse.redirect(
-          new URL(`/admin/deals?offerId=${encodeURIComponent(offerId)}`, request.url)
+          new URL(
+            `/admin/deals?offerId=${encodeURIComponent(offerId)}`,
+            request.url
+          )
         )
       }
       if (unitId) {
@@ -118,14 +151,16 @@ export async function GET(request: NextRequest) {
       }
       if (leadId) {
         return NextResponse.redirect(
-          new URL(`/admin/leads?leadId=${encodeURIComponent(leadId)}`, request.url)
+          new URL(
+            `/admin/leads?leadId=${encodeURIComponent(leadId)}`,
+            request.url
+          )
         )
       }
       return NextResponse.redirect(new URL('/admin', request.url))
     }
 
     // 3. أما إذا ضغط العميل نفسه (أو أي زائر غير الأدمن) على الرابط في رسالة الواتساب:
-    // لا نسمح له بتوثيق نفسه، ولا نُظهر له صفحة دخول الأدمن أبداً، بل نأخذه لصفحة حسابه أو الوحدة بهدوء!
     if (unitId && !sessionUser) {
       return NextResponse.redirect(
         new URL(`/opportunities/${encodeURIComponent(unitId)}`, request.url)

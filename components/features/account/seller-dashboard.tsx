@@ -301,7 +301,7 @@ export function SellerDashboard({
     (activeUnit as any).code ||
     `AE-${activeUnit.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase()}`
   const targetSellerUserId = activeUnit.user_id || currentUserId
-  const adminVerifyUnitLink = `${siteOrigin}/admin/properties?verifyPhoneUserId=${encodeURIComponent(targetSellerUserId)}&unitId=${encodeURIComponent(activeUnit.id)}`
+  const adminVerifyUnitLink = `${siteOrigin}/api/verify?u=${encodeURIComponent(targetSellerUserId)}&unitId=${encodeURIComponent(activeUnit.id)}`
 
   const sellerFastTrackWaMsg = `${t.waFastTrackSellerMsgPrefix} (${unitRef}) — ${activeUnit.project_name || t.defaultProjectName} (${activeUnitLocalizedArea}) — ${t.paidAmountLabel}: ${money(activeUnit.paid_amount)}.\n${adminVerifyUnitLink}`
 

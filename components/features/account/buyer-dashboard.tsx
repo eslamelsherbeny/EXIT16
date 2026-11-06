@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import Link from 'next/link'
 import {
+  ChevronDown,
   ChevronLeft,
   Compass,
   MapPin,
@@ -24,16 +25,18 @@ import {
   GEORGIA_CITIES_AND_DISTRICTS,
   getLocalizedGeorgiaAreaName,
 } from '@/components/shared/georgia-areas'
+import { GEORGIA_REGION_DISTRICTS } from '@/lib/georgia-districts-data'
 import { ScrollReveal } from '@/components/shared/scroll-reveal'
 import { AccountActionLinks } from './delete-account-modal'
 import type { SellerUnitItem } from './seller-dashboard'
 import { BuyerEditPreferencesForm, BuyerUnitCard } from './buyer-unit-card'
 import { BuyerFiltersBar } from './buyer-filters-bar'
-import { getCurrencySymbol, useTranslation } from '@/lib/i18n'
+import { getCurrencySymbol, useTranslation, type LocaleCode } from '@/lib/i18n'
 import {
   calculateSmartMatch,
   evaluateGeorgiaAreaProximity,
   isNonGeorgianLegacyArea,
+  toMonthlyEquivalent,
 } from '@/lib/smart-matcher'
 
 export type BuyerRequestItem = {
@@ -55,25 +58,53 @@ export type BuyerRequestItem = {
 const FAVORITES_STORAGE_KEY = 'darak_favorites'
 const BUYER_WA_SENT_STORAGE_KEY = 'aqar_buyer_wa_fasttrack_sent'
 const PREFERRED_PAGE_SIZE = 18
-const NEARBY_AREAS_PREVIEW_SIZE = 6
+const NEARBY_AREAS_PREVIEW_SIZE = 9
 
-function calcMonthlyInstallment(amount: number, freq: string | null) {
-  if (!amount) return 0
-  const f = (freq || '').trim()
-  if (f.includes('ربع') || f.toLowerCase().includes('quarter'))
-    return Math.round(amount / 3)
-  if (
-    f.includes('نصف') ||
-    f.includes('نص') ||
-    f.toLowerCase().includes('semi')
-  )
-    return Math.round(amount / 6)
-  if (
-    (f.includes('سنوي') && !f.includes('نصف') && !f.includes('ربع')) ||
-    f.toLowerCase().includes('annual')
-  )
-    return Math.round(amount / 12)
-  return amount
+const BUYER_EXTRA_HINTS: Record<LocaleCode, string> = {
+  ar: 'مرتبة بالأنسب لطلبك — اختار أي شرط عشان تشوف اللي يطابقه بالظبط',
+  en: 'Sorted by best match for your request — click any pill to filter strictly by it',
+  ru: 'Отсортировано по соответствию вашему запросу — выберите фильтр для точного отбора',
+  ka: 'დალაგებულია თქვენს მოთხოვნასთან შესაბამისობით — აირჩიეთ პირობა ზუსტი ფილტრაციისთვის',
+}
+
+/**
+ * مطابقة أي اسم منطقة (سواء كـ ID أو بالعربية أو الإنجليزية أو الروسية أو الجورجية)
+ * وإرجاع الكائن القياسي للمنطقة من GEORGIA_REGION_DISTRICTS
+ */
+function resolveGeorgiaDistrictNode(rawInput?: string | null) {
+  if (!rawInput) return null
+  const clean = String(rawInput)
+    .replace(/🎯/g, '')
+    .replace(/\(U-[^)]+\)/gi, '')
+    .replace(/\s*\([A-Za-z0-9\s/-]+\)\s*$/g, '')
+    .trim()
+    .toLowerCase()
+
+  if (!clean) return null
+
+  for (const node of GEORGIA_REGION_DISTRICTS) {
+    if (
+      node.id.toLowerCase() === clean ||
+      node.labels.ar.toLowerCase() === clean ||
+      node.labels.en.toLowerCase() === clean ||
+      node.labels.ru.toLowerCase() === clean ||
+      node.labels.ka.toLowerCase() === clean
+    ) {
+      return node
+    }
+  }
+
+  for (const node of GEORGIA_REGION_DISTRICTS) {
+    if (
+      node.keywords.some(
+        (kw) => clean.includes(kw.toLowerCase()) || kw.toLowerCase().includes(clean)
+      )
+    ) {
+      return node
+    }
+  }
+
+  return null
 }
 
 function extractCleanGeorgiaAreas(
@@ -83,18 +114,59 @@ function extractCleanGeorgiaAreas(
   if (!Array.isArray(areas) || areas.length === 0) return [fallbackAreaId]
   const cleaned = areas
     .map((a: string) => {
-      if (a.includes(' - ') && a.includes('🎯')) {
-        const parts = a.split(' - ')
-        return parts[parts.length - 1].trim()
+      let raw = String(a || '').trim()
+      if (raw.includes(' - ') && raw.includes('🎯')) {
+        const parts = raw.split(' - ')
+        raw = parts[parts.length - 1].trim()
       }
-      return a
+      raw = raw
         .replace(/🎯/g, '')
         .replace(/\(U-[^)]+\)/gi, '')
         .trim()
+      const matchedNode = resolveGeorgiaDistrictNode(raw)
+      return matchedNode ? matchedNode.id : raw
     })
     .filter((a) => Boolean(a) && !isNonGeorgianLegacyArea(a))
 
   return cleaned.length > 0 ? Array.from(new Set(cleaned)) : [fallbackAreaId]
+}
+
+/**
+ * فحص ذكي وشامل لتطابق منطقة الوحدة مع المناطق التي اختارها المشتري
+ */
+function checkExactAreaMatchSmart(
+  unitRawArea: string | null | undefined,
+  buyerPreferredAreas: string[],
+  locale: LocaleCode
+): boolean {
+  if (!unitRawArea || !buyerPreferredAreas.length) return false
+  const unitNode = resolveGeorgiaDistrictNode(unitRawArea)
+  const unitClean = String(unitRawArea).trim().toLowerCase()
+  const unitLocalized = getLocalizedGeorgiaAreaName(
+    unitRawArea,
+    locale
+  ).toLowerCase()
+
+  for (const pref of buyerPreferredAreas) {
+    const prefNode = resolveGeorgiaDistrictNode(pref)
+    if (unitNode && prefNode && unitNode.id === prefNode.id) {
+      return true
+    }
+    const prefClean = String(pref).trim().toLowerCase()
+    const prefLocalized = getLocalizedGeorgiaAreaName(
+      pref,
+      locale
+    ).toLowerCase()
+    if (
+      unitClean === prefClean ||
+      unitLocalized === prefLocalized ||
+      (prefClean.length >= 4 && unitClean.includes(prefClean)) ||
+      (unitClean.length >= 4 && prefClean.includes(unitClean))
+    ) {
+      return true
+    }
+  }
+  return false
 }
 
 export function BuyerDashboard({
@@ -263,7 +335,7 @@ export function BuyerDashboard({
   }
 
   const mappedUnits = useMemo(() => {
-    const buyerMaxMonthly = calcMonthlyInstallment(bInstallment, bPlan)
+    const buyerMaxMonthly = toMonthlyEquivalent(bInstallment, bPlan)
     const virtualBuyer: BuyerRequestItem = {
       id: buyReq?.id || 'current',
       available_cash: bCash,
@@ -291,7 +363,7 @@ export function BuyerDashboard({
         const market = Number(u.market_price) || contract
         const commission = Math.round(market * 0.0125)
         const gainVal = Math.max(0, market - contract - commission)
-        const unitMonthly = calcMonthlyInstallment(
+        const unitMonthly = toMonthlyEquivalent(
           Number(u.installment_amount ?? meta.installment_amount) || 0,
           u.installment_frequency || meta.installment_frequency
         )
@@ -301,6 +373,8 @@ export function BuyerDashboard({
           rawDel.includes('جاهز') ||
           rawDel.includes('فوري') ||
           rawDel.toLowerCase().includes('ready') ||
+          rawDel.toLowerCase().includes('сдан') ||
+          rawDel.includes('დასრულებული') ||
           rawDel.includes(t.deliveryStatuses[1])
         const deliveryStatus = isReady
           ? t.deliveryStatuses[1]
@@ -315,13 +389,17 @@ export function BuyerDashboard({
           u.unit_type || meta.unit_type || localizedUnitTypes[0] || ''
         const unitCurrency = getCurrencySymbol('GE', locale)
 
+        const dbCode = (u as any).code || meta.code
         const numericCode = String(u.id || '')
           .replace(/\D/g, '')
           .slice(0, 5)
         const fallbackCode = String(u.id || '')
           .slice(0, 5)
           .toUpperCase()
-        const code = `U-${numericCode.length >= 4 ? numericCode : fallbackCode}`
+        const code =
+          dbCode && String(dbCode).trim()
+            ? String(dbCode).trim()
+            : `U-${numericCode.length >= 4 ? numericCode : fallbackCode}`
 
         const geoEval = evaluateGeorgiaAreaProximity(rawAreaId, bAreas)
         const smartRes = calculateSmartMatch(
@@ -331,9 +409,13 @@ export function BuyerDashboard({
           locale
         )
 
-        const isExactAreaMatch = geoEval.relation === 'exact'
+        const isExactAreaMatch =
+          geoEval.relation === 'exact' ||
+          checkExactAreaMatchSmart(rawAreaId, bAreas, locale)
+
         const isNearbyInSameCity =
-          geoEval.relation === 'nearby' || geoEval.relation === 'same_city'
+          !isExactAreaMatch &&
+          (geoEval.relation === 'nearby' || geoEval.relation === 'same_city')
 
         const isCashMatch = bCash === 0 || paid <= bCash * 1.15
         const isInstMatch =
@@ -355,7 +437,8 @@ export function BuyerDashboard({
           matchTags.push(t.tagAreaMatch)
         } else if (isNearbyInSameCity) {
           matchTags.push(t.tagNearbyAreaMatch || t.tagAreaMatch)
-        } else if (isTypeMatch) {
+        }
+        if (isTypeMatch) {
           matchTags.push(t.tagTypeMatch)
         }
 
@@ -387,7 +470,7 @@ export function BuyerDashboard({
           contractYear: Number(u.contract_year ?? meta.contract_year) || 2024,
           image:
             Array.isArray(u.images) && u.images[0] ? u.images[0] : undefined,
-          matchTags: matchTags.slice(0, 3),
+          matchTags: matchTags.slice(0, 4),
           scorePct: smartRes.score,
           distanceKm: geoEval.distanceKm,
           isAreaMatch: isExactAreaMatch,
@@ -431,7 +514,7 @@ export function BuyerDashboard({
       }
       if (
         areaFilter.trim() &&
-        !item.area.toLowerCase().includes(areaFilter.trim().toLowerCase()) &&
+        !checkExactAreaMatchSmart(item.area, [areaFilter.trim()], locale) &&
         !item.localizedArea
           .toLowerCase()
           .includes(areaFilter.trim().toLowerCase())
@@ -523,6 +606,7 @@ export function BuyerDashboard({
     bBudget,
     bRooms,
     bDelivery,
+    locale,
     t,
   ])
 
@@ -557,11 +641,20 @@ export function BuyerDashboard({
     ? filteredUnits
     : filteredUnits.filter((u) => u.isAreaMatch)
 
-  const unitsInTrulyNearbyAreas = areaFilter.trim()
+  const unitsInNearbyAndOtherAreas = areaFilter.trim()
     ? []
     : filteredUnits
-        .filter((u) => !u.isAreaMatch && u.isNearbyInSameCity)
-        .sort((a, b) => (a.distanceKm ?? 99) - (b.distanceKm ?? 99))
+        .filter((u) => !u.isAreaMatch)
+        .sort((a, b) => {
+          if (a.isNearbyInSameCity !== b.isNearbyInSameCity) {
+            return a.isNearbyInSameCity ? -1 : 1
+          }
+          if (a.isNearbyInSameCity && b.isNearbyInSameCity) {
+            const distDiff = (a.distanceKm ?? 99) - (b.distanceKm ?? 99)
+            if (Math.abs(distDiff) > 2) return distDiff
+          }
+          return b.scorePct - a.scorePct
+        })
 
   const localizedPreferredAreasNames = bAreas.map((a) =>
     getLocalizedGeorgiaAreaName(a, locale)
@@ -572,11 +665,10 @@ export function BuyerDashboard({
       ? window.location.origin
       : 'https://exit-16.vercel.app'
   const targetBuyerUserId = buyReq?.user_id || currentUserId
-  const adminVerifyLeadLink = `${siteOrigin}/admin/leads?verifyPhoneUserId=${encodeURIComponent(targetBuyerUserId)}&leadId=${encodeURIComponent(buyReq?.id || '')}`
+ const adminVerifyLeadLink = `${siteOrigin}/api/verify?u=${encodeURIComponent(targetBuyerUserId)}&leadId=${encodeURIComponent(buyReq?.id || '')}`
 
   const buyerFastTrackWaMsg = `${t.waFastTrackMsgPrefix} (${bCash.toLocaleString('en-US')} ${currency}) — ${t.preferredAreasLabel}: (${localizedPreferredAreasNames.join(listSep)}).\n${adminVerifyLeadLink}`
 
-  // بمجرد الضغط على زر الواتساب وفتح التطبيق يختفي الصندوق فوراً ويُحفظ ذلك
   const handleWhatsAppFastTrackClick = () => {
     setWaBoxHidden(true)
     try {
@@ -782,9 +874,7 @@ export function BuyerDashboard({
           activeFiltersCount={activeFiltersCount}
           onlyNegotiable={onlyNegotiable}
           setOnlyNegotiable={setOnlyNegotiable}
-          totalAvailableCount={
-            unitsInPreferredArea.length + unitsInTrulyNearbyAreas.length
-          }
+          totalAvailableCount={filteredUnits.length}
           sortBy={sortBy}
           setSortBy={setSortBy}
           areaFilter={areaFilter}
@@ -808,10 +898,13 @@ export function BuyerDashboard({
           setMinRoomsFilter={setMinRoomsFilter}
           clearAllFilters={clearAllFilters}
         />
+
+        <p className="mt-2 px-1 text-start text-[11px] font-semibold text-gray-400">
+          {BUYER_EXTRA_HINTS[locale] || BUYER_EXTRA_HINTS.ar}
+        </p>
       </ScrollReveal>
 
-      {unitsInPreferredArea.length === 0 &&
-      unitsInTrulyNearbyAreas.length === 0 ? (
+      {filteredUnits.length === 0 ? (
         <div className="mt-6 rounded-[20px] border border-gray-200/80 bg-white p-10 text-center shadow-2xs">
           <Radar className="mx-auto mb-3 size-9 text-slate-300" />
           <p className="text-sm font-extrabold text-[var(--brand-navy,#0a1122)]">
@@ -849,17 +942,20 @@ export function BuyerDashboard({
         <>
           {unitsInPreferredArea.length > 0 && (
             <section className="mt-7">
-              <div className="mb-4 flex items-center gap-2 text-start">
-                <MapPin className="size-4 shrink-0 text-[var(--brand-primary,#007a5a)]" />
-                <h2 className="text-sm font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-base">
-                  {areaFilter.trim()
-                    ? `${oppFilters.areaBadgePrefix || ''} ${getLocalizedGeorgiaAreaName(areaFilter, locale)}`
-                    : `${t.preferredSectionTitle} (${localizedPreferredAreasNames.join(listSep)})`}{' '}
-                  <span className="font-normal text-gray-400">
-                    ({unitsInPreferredArea.length})
-                  </span>
-                </h2>
+              <div className="mb-4 flex items-center justify-between gap-2 text-start">
+                <div className="flex items-center gap-2">
+                  <MapPin className="size-4 shrink-0 text-[var(--brand-primary,#007a5a)]" />
+                  <h2 className="text-sm font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-base">
+                    {areaFilter.trim()
+                      ? `${oppFilters.areaBadgePrefix || ''} ${getLocalizedGeorgiaAreaName(areaFilter, locale)}`
+                      : `${t.preferredSectionTitle} (${localizedPreferredAreasNames.join(listSep)})`}{' '}
+                    <span className="font-normal text-gray-400">
+                      ({unitsInPreferredArea.length})
+                    </span>
+                  </h2>
+                </div>
               </div>
+
               <div className="grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {unitsInPreferredArea.slice(0, visibleCount).map((u, idx) => (
                   <ScrollReveal key={u.id} delay={(idx % 6) * 50}>
@@ -872,20 +968,39 @@ export function BuyerDashboard({
                   </ScrollReveal>
                 ))}
               </div>
+
+              {unitsInPreferredArea.length > visibleCount && (
+                <div className="mt-6 text-center">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setVisibleCount((prev) => prev + PREFERRED_PAGE_SIZE)
+                    }
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-6 py-2.5 text-xs font-extrabold text-[var(--brand-primary,#007a5a)] shadow-2xs transition hover:border-[var(--brand-primary,#007a5a)]"
+                  >
+                    <span>
+                      {t.showAllBtn} ({unitsInPreferredArea.length})
+                    </span>
+                    <ChevronDown className="size-4" />
+                  </button>
+                </div>
+              )}
             </section>
           )}
 
-          {unitsInTrulyNearbyAreas.length > 0 && (
+          {unitsInNearbyAndOtherAreas.length > 0 && (
             <section className="mt-10 border-t border-gray-200/70 pt-8">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center justify-start gap-1.5 text-start">
                   <Compass className="size-4 shrink-0 text-[var(--brand-primary,#007a5a)]" />
                   <h2 className="text-sm font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-base">
-                    {t.otherAreasSectionTitle} ({unitsInTrulyNearbyAreas.length})
+                    {t.otherAreasSectionTitle} (
+                    {unitsInNearbyAndOtherAreas.length})
                   </h2>
                 </div>
 
-                {unitsInTrulyNearbyAreas.length > NEARBY_AREAS_PREVIEW_SIZE && (
+                {unitsInNearbyAndOtherAreas.length >
+                  NEARBY_AREAS_PREVIEW_SIZE && (
                   <button
                     type="button"
                     onClick={() => setShowAllNearbyAreas((prev) => !prev)}
@@ -894,7 +1009,7 @@ export function BuyerDashboard({
                     <span>
                       {showAllNearbyAreas
                         ? t.showLessBtn
-                        : `${t.showAllBtn} (${unitsInTrulyNearbyAreas.length})`}
+                        : `${t.showAllBtn} (${unitsInNearbyAndOtherAreas.length})`}
                     </span>
                     <ChevronLeft className="size-3.5" />
                   </button>
@@ -903,8 +1018,11 @@ export function BuyerDashboard({
 
               <div className="grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {(showAllNearbyAreas
-                  ? unitsInTrulyNearbyAreas
-                  : unitsInTrulyNearbyAreas.slice(0, NEARBY_AREAS_PREVIEW_SIZE)
+                  ? unitsInNearbyAndOtherAreas
+                  : unitsInNearbyAndOtherAreas.slice(
+                      0,
+                      NEARBY_AREAS_PREVIEW_SIZE
+                    )
                 ).map((u, idx) => (
                   <ScrollReveal key={u.id} delay={(idx % 6) * 50}>
                     <BuyerUnitCard

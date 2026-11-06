@@ -182,6 +182,7 @@ export async function getServerI18n() {
           if (check.valid && cleanStatus !== 'suspended') {
             isLoggedIn = true
             if (
+              cleanRole === 'owner' ||
               cleanRole === 'admin' ||
               cleanRole === 'moderator' ||
               cleanRole === 'sales'

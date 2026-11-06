@@ -320,6 +320,23 @@ export function LeadDetailsDialog({
                     )}
                   </span>{" "}
                   {leadCur}
+                  {detailsLead.payment_plan
+                    ? ` (${detailsLead.payment_plan})`
+                    : ""}
+                </strong>
+              </div>
+
+              <div>
+                <span className="block text-[10px] text-gray-400">
+                  {propAdminDict.modals?.contractPriceLabel || "Target Budget"}
+                </span>
+                <strong className="text-[#0a1122]">
+                  <span dir="ltr">
+                    {Number(
+                      detailsLead.budget || detailsLead.available_cash || 0
+                    ).toLocaleString("en-US")}
+                  </span>{" "}
+                  {leadCur}
                 </strong>
               </div>
 
@@ -330,10 +347,13 @@ export function LeadDetailsDialog({
                 <strong className="text-[#0a1122]">
                   {typesText}{" "}
                   {detailsLead.min_rooms ? `(+${detailsLead.min_rooms})` : ""}
+                  {detailsLead.delivery_status
+                    ? ` · ${detailsLead.delivery_status}`
+                    : ""}
                 </strong>
               </div>
 
-              <div>
+              <div className="col-span-2 border-t border-gray-200/70 pt-2">
                 <span className="block text-[10px] text-gray-400">
                   {t.dateLabel}
                 </span>

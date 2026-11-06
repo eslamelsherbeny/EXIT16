@@ -34,58 +34,78 @@ export type NotificationType =
   | "system"
 
 /**
- * دالة ذكية لترجمة الإشعارات المخزنة في قاعدة البيانات بأي لغة
- * إلى لغة المستخدم/الأدمن الحالية لحظياً مع الحفاظ على الأسماء والأكواد بين الأقواس
+ * ترجمة الإشعارات المخزنة في قاعدة البيانات بأي لغة إلى لغة المستخدم/الأدمن الحالية لحظياً
  */
 export async function localizeNotificationItem(
-  item: { title?: string | null; message?: string | null; link?: string | null; type?: string | null },
+  item: {
+    title?: string | null
+    message?: string | null
+    link?: string | null
+    type?: string | null
+  },
   targetDict: Record<string, any>
 ): Promise<{ title: string; message: string }> {
   let title = String(item.title || "")
   let message = String(item.message || "")
 
   const tAdmin = targetDict?.serverActions?.admin || {}
+  const tOffersPage = targetDict?.accountPages?.offers || {}
   const tOffers = targetDict?.serverActions?.offers || {}
   const tAccount = targetDict?.serverActions?.account || {}
-  const tSubmit = targetDict?.serverActions?.submitForms || {}
+  const tForms = targetDict?.serverActions?.forms || {}
 
-  // استخراج أي اسم مشروع أو كود بين قوسين مثل (Orbi City)
   const parenMatches = message.match(/\([^)]+\)/g) || []
   const lastParen = parenMatches[parenMatches.length - 1] || ""
 
-  // 1. مطابقة وترجمة عناوين الإشعارات عبر جميع اللغات الأربع
   const titleKeys: Array<{
     getVal: (d: Record<string, any>) => string | undefined
     targetVal: string | undefined
   }> = [
+    // Admin Actions
     { getVal: (d) => d?.serverActions?.admin?.notifActiveTitle, targetVal: tAdmin.notifActiveTitle },
     { getVal: (d) => d?.serverActions?.admin?.notifOfferTitle, targetVal: tAdmin.notifOfferTitle },
     { getVal: (d) => d?.serverActions?.admin?.notifTransferTitle, targetVal: tAdmin.notifTransferTitle },
     { getVal: (d) => d?.serverActions?.admin?.notifSoldTitle, targetVal: tAdmin.notifSoldTitle },
     { getVal: (d) => d?.serverActions?.admin?.notifRejectedTitle, targetVal: tAdmin.notifRejectedTitle },
+    { getVal: (d) => d?.serverActions?.admin?.notifAdminNoteTitle, targetVal: tAdmin.notifAdminNoteTitle },
     { getVal: (d) => d?.serverActions?.admin?.leadUpdateNotifTitle, targetVal: tAdmin.leadUpdateNotifTitle },
     { getVal: (d) => d?.serverActions?.admin?.promoActivatedNotifTitle, targetVal: tAdmin.promoActivatedNotifTitle },
+    { getVal: (d) => d?.serverActions?.admin?.boostApprovedNotifTitle, targetVal: tAdmin.boostApprovedNotifTitle },
+    { getVal: (d) => d?.serverActions?.admin?.boostRejectedNotifTitle, targetVal: tAdmin.boostRejectedNotifTitle },
     { getVal: (d) => d?.serverActions?.admin?.matchBuyerTitle, targetVal: tAdmin.matchBuyerTitle },
+
+    // Offer Actions (accountPages.offers)
+    { getVal: (d) => d?.accountPages?.offers?.adminNewOfferNotifTitle, targetVal: tOffersPage.adminNewOfferNotifTitle },
+    { getVal: (d) => d?.accountPages?.offers?.sellerNewOfferNotifTitle, targetVal: tOffersPage.sellerNewOfferNotifTitle },
+    { getVal: (d) => d?.accountPages?.offers?.adminDealAcceptedNotifTitle, targetVal: tOffersPage.adminDealAcceptedNotifTitle },
+    { getVal: (d) => d?.accountPages?.offers?.buyerOfferAcceptedNotifTitle, targetVal: tOffersPage.buyerOfferAcceptedNotifTitle },
+    { getVal: (d) => d?.accountPages?.offers?.buyerCounterNotifTitle, targetVal: tOffersPage.buyerCounterNotifTitle },
+    { getVal: (d) => d?.accountPages?.offers?.sellerCounterAcceptedNotifTitle, targetVal: tOffersPage.sellerCounterAcceptedNotifTitle },
+    { getVal: (d) => d?.accountPages?.offers?.buyerAdminRecNotifTitle, targetVal: tOffersPage.buyerAdminRecNotifTitle },
+    { getVal: (d) => d?.accountPages?.offers?.offerSubmittedSuccess, targetVal: tOffersPage.offerSubmittedSuccess },
+
+    // Account Actions (serverActions.account)
+    { getVal: (d) => d?.serverActions?.account?.deletionNotifTitle, targetVal: tAccount.deletionNotifTitle },
+    { getVal: (d) => d?.serverActions?.account?.unitPausedNotifTitle, targetVal: tAccount.unitPausedNotifTitle },
+    { getVal: (d) => d?.serverActions?.account?.unitResumedNotifTitle, targetVal: tAccount.unitResumedNotifTitle },
+    { getVal: (d) => d?.serverActions?.account?.unitDeletedNotifTitle, targetVal: tAccount.unitDeletedNotifTitle },
+    { getVal: (d) => d?.serverActions?.account?.docUploadedNotifTitle, targetVal: tAccount.docUploadedNotifTitle },
+    { getVal: (d) => d?.serverActions?.account?.promoUpdateNotifTitle, targetVal: tAccount.promoUpdateNotifTitle },
+    { getVal: (d) => d?.serverActions?.account?.promoNewNotifTitle, targetVal: tAccount.promoNewNotifTitle },
+    { getVal: (d) => d?.serverActions?.account?.promoStoppedNotifTitle, targetVal: tAccount.promoStoppedNotifTitle },
+    { getVal: (d) => d?.serverActions?.account?.promoCancelledNotifTitle, targetVal: tAccount.promoCancelledNotifTitle },
+
+    // Submit Forms Actions (serverActions.forms)
+    { getVal: (d) => d?.serverActions?.forms?.newDraftUnitAdminTitle, targetVal: tForms.newDraftUnitAdminTitle },
+    { getVal: (d) => d?.serverActions?.forms?.editedUnitAdminTitle, targetVal: tForms.editedUnitAdminTitle },
+    { getVal: (d) => d?.serverActions?.forms?.completedUnitAdminTitle, targetVal: tForms.completedUnitAdminTitle },
+    { getVal: (d) => d?.serverActions?.forms?.newUnitReviewAdminTitle, targetVal: tForms.newUnitReviewAdminTitle },
+    { getVal: (d) => d?.serverActions?.forms?.newBuyRequestAdminTitle, targetVal: tForms.newBuyRequestAdminTitle },
+    { getVal: (d) => d?.serverActions?.forms?.radarActivatedBuyerTitle, targetVal: tForms.radarActivatedBuyerTitle },
+
+    // Legacy fallback keys
     { getVal: (d) => d?.serverActions?.offers?.newOfferSellerTitle, targetVal: tOffers.newOfferSellerTitle },
     { getVal: (d) => d?.serverActions?.offers?.newOfferAdminTitle, targetVal: tOffers.newOfferAdminTitle },
-    { getVal: (d) => d?.serverActions?.offers?.offerAcceptedBuyerTitle, targetVal: tOffers.offerAcceptedBuyerTitle },
-    { getVal: (d) => d?.serverActions?.offers?.offerAcceptedAdminTitle, targetVal: tOffers.offerAcceptedAdminTitle },
-    { getVal: (d) => d?.serverActions?.offers?.counterOfferBuyerTitle, targetVal: tOffers.counterOfferBuyerTitle },
-    { getVal: (d) => d?.serverActions?.offers?.counterOfferAdminTitle, targetVal: tOffers.counterOfferAdminTitle },
-    { getVal: (d) => d?.serverActions?.offers?.counterAcceptedSellerTitle, targetVal: tOffers.counterAcceptedSellerTitle },
-    { getVal: (d) => d?.serverActions?.offers?.counterAcceptedAdminTitle, targetVal: tOffers.counterAcceptedAdminTitle },
-    { getVal: (d) => d?.serverActions?.offers?.offerRejectedBuyerTitle, targetVal: tOffers.offerRejectedBuyerTitle },
-    { getVal: (d) => d?.serverActions?.offers?.recBuyerTitle, targetVal: tOffers.recBuyerTitle },
-    { getVal: (d) => d?.serverActions?.account?.adminEditNotifTitle, targetVal: tAccount.adminEditNotifTitle },
-    { getVal: (d) => d?.serverActions?.account?.adminPauseNotifTitle, targetVal: tAccount.adminPauseNotifTitle },
-    { getVal: (d) => d?.serverActions?.account?.adminResumeNotifTitle, targetVal: tAccount.adminResumeNotifTitle },
-    { getVal: (d) => d?.serverActions?.account?.adminDeleteNotifTitle, targetVal: tAccount.adminDeleteNotifTitle },
-    { getVal: (d) => d?.serverActions?.account?.adminDocsNotifTitle, targetVal: tAccount.adminDocsNotifTitle },
-    { getVal: (d) => d?.serverActions?.account?.adminPromoNotifTitle, targetVal: tAccount.adminPromoNotifTitle },
-    { getVal: (d) => d?.serverActions?.submitForms?.adminNewSellNotifTitle, targetVal: tSubmit.adminNewSellNotifTitle },
-    { getVal: (d) => d?.serverActions?.submitForms?.adminEditSellNotifTitle, targetVal: tSubmit.adminEditSellNotifTitle },
-    { getVal: (d) => d?.serverActions?.submitForms?.adminNewBuyNotifTitle, targetVal: tSubmit.adminNewBuyNotifTitle },
-    { getVal: (d) => d?.serverActions?.submitForms?.adminUnitBookNotifTitle, targetVal: tSubmit.adminUnitBookNotifTitle },
   ]
 
   for (const entry of titleKeys) {
@@ -99,7 +119,6 @@ export async function localizeNotificationItem(
     }
   }
 
-  // 2. مطابقة وترجمة رسائل الإشعارات
   const messageKeys: Array<{
     getVal: (d: Record<string, any>) => string | undefined
     targetVal: string | undefined
@@ -112,21 +131,13 @@ export async function localizeNotificationItem(
     { getVal: (d) => d?.serverActions?.admin?.notifRejectedMsg, targetVal: tAdmin.notifRejectedMsg, keepParen: true },
     { getVal: (d) => d?.serverActions?.admin?.notifRejectedReasonPrefix, targetVal: tAdmin.notifRejectedReasonPrefix },
     { getVal: (d) => d?.serverActions?.admin?.promoActivatedNotifMsg, targetVal: tAdmin.promoActivatedNotifMsg, keepParen: true },
+    { getVal: (d) => d?.serverActions?.admin?.boostApprovedNotifMsg, targetVal: tAdmin.boostApprovedNotifMsg },
+    { getVal: (d) => d?.serverActions?.admin?.boostRejectedDefaultReason, targetVal: tAdmin.boostRejectedDefaultReason },
     { getVal: (d) => d?.serverActions?.admin?.leadContactedNotifMsg, targetVal: tAdmin.leadContactedNotifMsg },
     { getVal: (d) => d?.serverActions?.admin?.leadQualifiedNotifMsg, targetVal: tAdmin.leadQualifiedNotifMsg },
     { getVal: (d) => d?.serverActions?.admin?.leadClosedNotifMsg, targetVal: tAdmin.leadClosedNotifMsg },
-    { getVal: (d) => d?.serverActions?.offers?.newOfferSellerMsg, targetVal: tOffers.newOfferSellerMsg },
-    { getVal: (d) => d?.serverActions?.offers?.offerAcceptedBuyerMsg, targetVal: tOffers.offerAcceptedBuyerMsg },
-    { getVal: (d) => d?.serverActions?.offers?.counterOfferBuyerMsg, targetVal: tOffers.counterOfferBuyerMsg },
-    { getVal: (d) => d?.serverActions?.offers?.counterAcceptedSellerMsg, targetVal: tOffers.counterAcceptedSellerMsg },
-    { getVal: (d) => d?.serverActions?.offers?.offerRejectedBuyerMsg, targetVal: tOffers.offerRejectedBuyerMsg },
-    { getVal: (d) => d?.serverActions?.offers?.recBuyerMsgPrefix, targetVal: tOffers.recBuyerMsgPrefix },
-    { getVal: (d) => d?.serverActions?.account?.adminEditNotifMsg, targetVal: tAccount.adminEditNotifMsg },
-    { getVal: (d) => d?.serverActions?.account?.adminPauseNotifMsg, targetVal: tAccount.adminPauseNotifMsg },
-    { getVal: (d) => d?.serverActions?.account?.adminResumeNotifMsg, targetVal: tAccount.adminResumeNotifMsg },
-    { getVal: (d) => d?.serverActions?.account?.adminDeleteNotifMsg, targetVal: tAccount.adminDeleteNotifMsg },
-    { getVal: (d) => d?.serverActions?.account?.adminDocsNotifMsg, targetVal: tAccount.adminDocsNotifMsg },
-    { getVal: (d) => d?.serverActions?.account?.adminPromoNotifMsg, targetVal: tAccount.adminPromoNotifMsg },
+    { getVal: (d) => d?.accountPages?.offers?.buyerOfferAcceptedNotifMsg, targetVal: tOffersPage.buyerOfferAcceptedNotifMsg },
+    { getVal: (d) => d?.serverActions?.forms?.radarActivatedBuyerMsg, targetVal: tForms.radarActivatedBuyerMsg, keepParen: true },
   ]
 
   for (const entry of messageKeys) {
@@ -181,6 +192,7 @@ export async function getUserNotificationsAction(
       .from("notifications")
       .select("*")
       .neq("title", "__GLOBAL_SITE_CONFIG__")
+      .neq("title", "__USER_VERIFICATION_META__")
       .order("created_at", { ascending: false })
       .limit(25)
 
@@ -197,10 +209,11 @@ export async function getUserNotificationsAction(
     }
 
     const rawList = (notifications || []).filter(
-      (n) => n.title !== "__GLOBAL_SITE_CONFIG__"
+      (n) =>
+        n.title !== "__GLOBAL_SITE_CONFIG__" &&
+        n.title !== "__USER_VERIFICATION_META__"
     )
 
-    // ترجمة كل إشعار لحظياً إلى لغة المستخدم الحالية
     const localizedList = await Promise.all(
       rawList.map(async (n) => {
         const localized = await localizeNotificationItem(n, dict)
@@ -341,7 +354,11 @@ export async function clearAllNotificationsAction(
         .is("user_id", null)
         .neq("title", "__GLOBAL_SITE_CONFIG__")
     } else {
-      await supabase.from("notifications").delete().eq("user_id", sessionId)
+      await supabase
+        .from("notifications")
+        .delete()
+        .eq("user_id", sessionId)
+        .neq("title", "__USER_VERIFICATION_META__")
     }
 
     revalidatePath("/", "layout")

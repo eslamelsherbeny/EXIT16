@@ -1644,6 +1644,23 @@ export async function saveSellProgress(
     )
     payload.user_id = existingUnit?.user_id || sessionUser.id
 
+    // إذا كان حساب المستخدم غير موثق بالإيميل ولم تكن الوحدة منشورة مسبقاً، نحفظها كمسودة غير موثقة ولا نرسلها للأدمن
+    const prevCleanStatus = String(existingUnit?.status || '')
+      .trim()
+      .toLowerCase()
+    const isAlreadyLiveOrReviewed = [
+      'active',
+      'approved',
+      'published',
+      'offer_received',
+      'transferring',
+      'sold',
+    ].includes(prevCleanStatus)
+
+    if (!sessionUser.is_verified && !isAlreadyLiveOrReviewed) {
+      payload.status = 'draft_unverified'
+    }
+
     const { error } = await resilientUpdateUnit(
       supabase,
       targetUnitId,
@@ -1690,7 +1707,7 @@ export async function submitSellRequest(
     if (!existingUnitId) {
       const { data: recentDraft } = await supabase
         .from('sell_requests')
-        .select('id, size, area, project_name')
+        .select('id, size, area, project_name, status')
         .eq('user_id', sessionUser.id)
         .order('created_at', { ascending: false })
         .limit(1)
@@ -1698,8 +1715,8 @@ export async function submitSellRequest(
 
       if (
         recentDraft &&
-        !recentDraft.size &&
-        !recentDraft.area &&
+        (recentDraft.status === 'draft_unverified' ||
+          (!recentDraft.size && !recentDraft.area)) &&
         (!projectName || recentDraft.project_name === projectName)
       ) {
         existingUnitId = String(recentDraft.id)
@@ -1736,17 +1753,29 @@ export async function submitSellRequest(
         null
       payload.is_original_owner = true
       payload.status = 'pending'
+      payload.documents.__unit_meta = {
+        ...(payload.documents.__unit_meta || {}),
+        email_verified: true,
+      }
 
-      const wasPreviouslySubmitted = Boolean(
-        prevUnit?.area ||
-          prevUnit?.size ||
-          prevUnit?.status === 'active' ||
-          prevUnit?.status === 'paused_by_seller'
-      )
+      const prevCleanStatus = String(prevUnit?.status || '')
+        .trim()
+        .toLowerCase()
+      const wasPreviouslySubmitted =
+        prevCleanStatus !== 'draft_unverified' &&
+        Boolean(
+          prevUnit?.area ||
+            prevUnit?.size ||
+            prevCleanStatus === 'active' ||
+            prevCleanStatus === 'rejected' ||
+            prevCleanStatus === 'paused_by_seller'
+        )
 
       if (wasPreviouslySubmitted) {
         payload.submission_type = 'edited_by_seller'
         payload.last_seller_edit_at = new Date().toISOString()
+      } else {
+        payload.submission_type = 'new'
       }
 
       const { error } = await resilientUpdateUnit(
@@ -1802,6 +1831,10 @@ export async function submitSellRequest(
     payload.status = 'pending'
     payload.views_count = 1
     payload.docs_verified = true
+    payload.documents.__unit_meta = {
+      ...(payload.documents.__unit_meta || {}),
+      email_verified: true,
+    }
 
     const insertPayload = {
       ...payload,

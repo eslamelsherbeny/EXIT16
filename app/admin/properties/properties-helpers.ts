@@ -11,13 +11,21 @@ export type SellRequest = {
   project_name: string | null
   developer_name?: string | null
   area: string | null
+  exact_street?: string | null
+  house_number?: string | null
+  cadastral_code?: string | null
   unit_type: string | null
+  building_status?: string | null
   size?: number | null
   rooms?: number | null
+  bedrooms?: number | null
   bathrooms?: number | null
+  floor_number?: number | null
+  total_floors?: number | null
   finishing?: string | null
   delivery_status?: string | null
   delivery_month?: string | null
+  delivery_year?: number | null
   contract_price?: number | null
   paid_amount?: number | null
   market_price: number | null
@@ -28,6 +36,10 @@ export type SellRequest = {
   contract_year?: number | null
   willing_to_discount?: boolean | null
   discount_amount?: number | null
+  video_url?: string | null
+  tour_3d_url?: string | null
+  allow_online_viewing?: boolean | null
+  features?: string[] | null
   description?: string | null
   images?: string[] | null
   documents?: Record<string, any> | null

@@ -161,7 +161,7 @@ export default async function AdminPage() {
       supabase
         .from("sell_requests")
         .select("*")
-        .neq("status", "deleted_by_seller")
+        .not("status", "in", '("deleted_by_seller","draft_unverified")')
         .order("created_at", { ascending: false }),
       supabase
         .from("buy_requests")
@@ -174,7 +174,10 @@ export default async function AdminPage() {
         .limit(60),
     ])
 
-    propertiesData = propsRes.data || []
+    propertiesData = (propsRes.data || []).filter(
+      (p: any) =>
+        p.status !== "deleted_by_seller" && p.status !== "draft_unverified"
+    )
     leadsData = leadsRes.data || []
     allOffersData = offersRes.data || []
   } catch (err) {
@@ -198,7 +201,6 @@ export default async function AdminPage() {
   })
 
   const propsMap = new Map(properties.map((p: any) => [String(p.id), p]))
-
   const leads = leadsData
   const allOffers = allOffersData
     .map(normalizeDashboardOffer)
@@ -248,6 +250,7 @@ export default async function AdminPage() {
   const pendingProperties = properties.filter(
     (p) => !p.status || p.status === "pending" || p.status === "under_review"
   )
+
   const activeProperties = properties.filter(
     (p) =>
       p.status === "active" ||
@@ -437,7 +440,6 @@ export default async function AdminPage() {
         </span>
       </Link>
 
-      {/* قسم الصفقات الجاهزة للتنفيذ: يتمدد بعرض الكارت بالكامل لو صفقة واحدة، أو عمودين لو أكثر */}
       {readyDeals.length > 0 && (
         <div className="mt-4 rounded-2xl border-2 border-[#105C50] bg-gradient-to-br from-[#effaf5] via-white to-[#f4fbf8] p-4 shadow-sm sm:p-5">
           <div className="mb-3.5 flex flex-wrap items-center justify-between gap-2">
@@ -588,7 +590,6 @@ export default async function AdminPage() {
         </div>
       )}
 
-      {/* قسم العروض التفاوضية الحية: يتمدد بعرض الكارت بالكامل لو عرض واحد فقط حتى لا يترك نصف الشاشة فارغاً */}
       {liveNegotiationOffers.length > 0 && (
         <Card className="mt-4 border-gray-200/85 bg-white shadow-2xs">
           <CardHeader className="flex flex-row items-center justify-between border-b border-gray-100 px-4 py-3 sm:px-5">

@@ -12,8 +12,8 @@ import LeadsClientTable, {
 export const dynamic = "force-dynamic"
 export const revalidate = 0
 
-function normalizeUnitStatus(raw?: string | null): string {
-  const clean = String(raw || "pending").trim().toLowerCase()
+function normalizeUnitStatusForMatcher(rawStatus?: string | null): string {
+  const clean = String(rawStatus || "pending").trim().toLowerCase()
   if (clean === "approved" || clean === "published") return "active"
   return clean
 }
@@ -40,7 +40,7 @@ export default async function LeadsPage() {
       supabase
         .from("sell_requests")
         .select("*")
-        .neq("status", "deleted_by_seller"),
+        .not("status", "in", '("deleted_by_seller","draft_unverified")'),
       supabase
         .from("property_offers")
         .select("*")
@@ -63,24 +63,27 @@ export default async function LeadsPage() {
   )
   const verificationMap = await getUsersVerificationMapAction(buyerUserIds)
 
-  const normalizedUnits = ((units ?? []) as any[]).map((u) => {
-    const meta =
-      u.documents && typeof pMeta(u) === "object" ? pMeta(u) : {}
-    return {
-      ...u,
-      code: u.code || meta.code || null,
-      status: normalizeUnitStatus(u.status),
-      project_name: sanitizeGeorgiaProjectTitle(u.project_name),
-      area: u.area || meta.area || null,
-      unit_type: u.unit_type || meta.unit_type || null,
-      rooms: u.rooms ?? meta.rooms ?? null,
-      delivery_status: u.delivery_status || meta.delivery_status || null,
-      installment_amount:
-        u.installment_amount ?? meta.installment_amount ?? null,
-      installment_frequency:
-        u.installment_frequency || meta.installment_frequency || null,
-    } as LinkedUnitSummary
-  })
+  const normalizedUnits = ((units ?? []) as any[])
+    .filter((u) => String(u.status || "").toLowerCase() !== "draft_unverified")
+    .map((u) => {
+      const meta =
+        u.documents && typeof pMeta(u) === "object" ? pMeta(u) : {}
+      return {
+        ...u,
+        code: u.code || meta.code || null,
+        status: normalizeUnitStatusForMatcher(u.status),
+        project_name: sanitizeGeorgiaProjectTitle(u.project_name),
+        area: u.area || meta.area || null,
+        unit_type: u.unit_type || meta.unit_type || null,
+        rooms: u.rooms ?? meta.rooms ?? null,
+        bedrooms: u.bedrooms ?? meta.bedrooms ?? null,
+        delivery_status: u.delivery_status || meta.delivery_status || null,
+        installment_amount:
+          u.installment_amount ?? meta.installment_amount ?? null,
+        installment_frequency:
+          u.installment_frequency || meta.installment_frequency || null,
+      } as LinkedUnitSummary
+    })
 
   return (
     <div className="mx-auto max-w-7xl">

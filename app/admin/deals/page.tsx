@@ -125,6 +125,7 @@ function AdminDealsContent() {
   const commPct = Number(siteSettings?.buyerCommission) || 1.25
 
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [offers, setOffers] = useState<any[]>([])
   const [unitsMap, setUnitsMap] = useState<Record<string, any>>({})
   const [search, setSearch] = useState('')
@@ -154,12 +155,19 @@ function AdminDealsContent() {
 
   async function loadDeals() {
     setLoading(true)
+    setLoadError(false)
     try {
       const res = await adminGetDealsRoomDataAction()
+      if (!res.authorized) {
+        setLoadError(true)
+        return
+      }
 
       const uMap: Record<string, any> = {}
       ;(res.units || []).forEach((u: any) => {
-        uMap[String(u.id)] = u
+        if (String(u.status || '').toLowerCase() !== 'draft_unverified') {
+          uMap[String(u.id)] = u
+        }
       })
 
       const normalizedOffers = (res.offers || [])
@@ -188,6 +196,7 @@ function AdminDealsContent() {
       }
     } catch (e) {
       console.error('Error loading deals:', e)
+      setLoadError(true)
     } finally {
       setLoading(false)
     }
@@ -587,6 +596,21 @@ function AdminDealsContent() {
             <span>{d.loadingText}</span>
           </div>
         </div>
+      ) : loadError ? (
+        <div className="rounded-2xl border border-red-200 bg-white p-10 text-center">
+          <AlertTriangle className="mx-auto mb-3 size-8 text-red-500" />
+          <p className="text-sm font-extrabold text-[#0a1122]">
+            {d.actionErrorFallback}
+          </p>
+          <button
+            type="button"
+            onClick={loadDeals}
+            className="mt-4 inline-flex h-9 items-center gap-1.5 rounded-xl bg-[#105C50] px-5 text-xs font-extrabold text-white hover:bg-[#0c483f]"
+          >
+            <RefreshCw className="size-3.5" />
+            <span>{d.reactivateToSellerBtn || 'Retry'}</span>
+          </button>
+        </div>
       ) : filteredOffers.length === 0 ? (
         <div className="rounded-2xl border border-gray-200 bg-white p-12 text-center">
           <Wallet className="mx-auto mb-3 size-9 text-gray-300" />
@@ -701,7 +725,6 @@ function AdminDealsContent() {
                       </span>
                     )}
 
-                    {/* قائمة الـ 3 نقاط لتصدير الصفقة كـ Excel أو كـ PDF رسمي */}
                     <div
                       className="relative"
                       onClick={(e) => e.stopPropagation()}

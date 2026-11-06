@@ -36,6 +36,7 @@ export default async function UsersPage() {
 
   if (
     !currentStaff ||
+    currentStaff.status === "suspended" ||
     !parseAndVerifySessionCookie(rawSession, currentStaff.password_hash).valid
   ) {
     redirect("/login?next=/admin/users")
@@ -55,7 +56,7 @@ export default async function UsersPage() {
       supabase
         .from("sell_requests")
         .select("user_id, status")
-        .neq("status", "deleted_by_seller"),
+        .not("status", "in", '("deleted_by_seller","draft_unverified")'),
       supabase.from("buy_requests").select("user_id"),
     ])
 
@@ -65,10 +66,16 @@ export default async function UsersPage() {
   const sellCounts: Record<string, number> = {}
   const buyCounts: Record<string, number> = {}
 
-  ;(sellsData || []).forEach((s) => {
-    if (s.user_id) sellCounts[s.user_id] = (sellCounts[s.user_id] || 0) + 1
-  })
-  ;(buysData || []).forEach((b) => {
+  ;(sellsData || [])
+    .filter(
+      (s: any) =>
+        s.status !== "deleted_by_seller" && s.status !== "draft_unverified"
+    )
+    .forEach((s: any) => {
+      if (s.user_id) sellCounts[s.user_id] = (sellCounts[s.user_id] || 0) + 1
+    })
+
+  ;(buysData || []).forEach((b: any) => {
     if (b.user_id) buyCounts[b.user_id] = (buyCounts[b.user_id] || 0) + 1
   })
 

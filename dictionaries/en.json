@@ -1239,6 +1239,7 @@
       "whatsappBarText": "Message us on WhatsApp and tell us what you're looking for",
       "whatsappBarBtn": "Register Your Interest Now"
     },
+   
     "validation": {
       "required": "This field is required",
       "selectPaymentPlan": "This field is required, please select an installment plan",
@@ -1247,11 +1248,20 @@
       "selectDeliveryStatus": "This field is required, please select delivery status",
       "selectAtLeastOneArea": "This field is required, please add at least one area",
       "invalidPhone": "Invalid phone number",
+      "passwordMismatch": "Passwords do not match",
+      "missingBannerPrefix": "Please complete the following required fields:",
       "invalidEmail": "Invalid email or contains spaces",
       "shortPassword": "Password must be at least 8 characters",
       "loginIdRequired": "Please enter your email or phone number",
       "loginPassRequired": "Please enter your password",
       "submitFailed": "Could not submit request"
+    },
+     "successScreen": {
+      "title": "Your Buy Request & Smart Radar Are Active ✓",
+      "subtitle": "To fast-track verified unit recommendations matching your budget, confirm your request via WhatsApp below:",
+      "confirmWaBtn": "Confirm Request via WhatsApp",
+      "goToAccountBtn": "Go to My Account & View Matches",
+      "waMsgPrefix": "Hello Aqar Exit, I confirm my buy request"
     },
     "stepOne": {
       "countryLabel": "Country Where You Are Looking for a Unit *",
@@ -1286,6 +1296,11 @@
       "tabNewRegister": "Register New Details",
       "tabExistingLogin": "I Already Have an Account",
       "connectedBadge": "Connected Now",
+      "confirmPasswordLabel": "Confirm Password",
+      "messengersLabel": "Messengers available on this number",
+      "enterAccountPassError": "Please enter your account password to continue and save your request",
+      "wrongPassError": "Incorrect password",
+      "sendLinkError": "Could not send recovery link right now",
       "welcomeUser": "Welcome,",
       "sessionAutoSaveDesc": "Your buying preferences and budget will be saved directly to your current account without re-entering contact info:",
       "phoneLabelShort": "Phone Number:",
@@ -1319,10 +1334,8 @@
       "sendRecoveryBtn": "Send Link to Registered Email",
       "phoneRecoverySentNote": "Link sent to the email registered with this phone number.",
       "useAnotherPhoneBtn": "← Use Another Number",
-      "orLoginPageBtn": "Or Log In from Login Page",
-      "enterAccountPassError": "Please enter your account password.",
-      "wrongPassError": "Incorrect password.",
-      "sendLinkError": "Could not send link right now."
+      "orLoginPageBtn": "Or Log In from Login Page"
+     
     },
     "actions": {
       "backBtn": "Back",
@@ -2055,6 +2068,12 @@
       "greetingWord": "Hello",
       "dearClient": "Valued Client",
       "defaultProjectWord": "your project",
+      
+      "notifAdminNoteTitle": "New Admin Note Regarding Your Unit",
+      "boostApprovedNotifTitle": "Payment Confirmed & Boost Package Activated",
+      "boostApprovedNotifMsg": "Your payment has been verified and your unit boost is now active.",
+      "boostRejectedNotifTitle": "Notice Regarding Your Boost Request",
+      "boostRejectedDefaultReason": "Could not verify payment, please contact support.",
       "reasonWord": "Reason",
       "updatePropertyFailed": "Could not update property status in database.",
       "deletePropertyFailed": "Could not delete property.",
@@ -2732,11 +2751,12 @@
         "deleted_by_seller": "🗑 Deleted by Owner",
         "rejected": "7. Rejected"
       },
-      "docs": {
-        "contract": "Preliminary Unit Contract",
+     "docs": {
+        "contract": "Original Purchase Contract",
         "receipts": "Payment Receipts",
-        "statement": "Developer Account Statement",
-        "national_id": "Owner National ID",
+        "statement": "Developer Statement",
+        "passport": "Passport Copy",
+        "national_id": "Passport Copy",
         "fallbackName": "Document"
       },
       "badges": {
@@ -2811,36 +2831,51 @@
         "executingBtn": "Executing...",
         "openDocBtn": "Open"
       },
-      "modals": {
+     "modals": {
         "purgeTitle": "Purge Deleted Units",
-        "purgeDescPrefix": "Permanently purge all",
-        "purgeDescSuffix": "deleted units from the database?",
+        "purgeDescPrefix": "Permanently delete all",
+        "purgeDescSuffix": "units deleted by sellers from database?",
         "deleteTitle": "Confirm Permanent Deletion",
         "deleteDescPrefix": "Delete unit",
         "deleteDescSuffix": "permanently?",
-        "activatePromoTitle": "Activate Unit Promotion ⭐",
-        "cancelPromoTitle": "Cancel Unit Promotion",
-        "selectPromoDuration": "Select promotion duration for unit",
-        "confirmCancelPromo": "Cancel promotion for unit",
+        "activatePromoTitle": "Activate Unit Boost ⭐",
+        "cancelPromoTitle": "Cancel Unit Boost",
+        "selectPromoDuration": "Select boost package & duration for",
+        "confirmCancelPromo": "Cancel boost for",
         "publishConfirmTitle": "Confirm Publishing Unit",
         "unpublishConfirmTitle": "Confirm Unpublishing Unit",
         "stageConfirmTitle": "Confirm Stage Update",
         "updateUnitPrefix": "Update unit",
         "toWord": "to",
-        "rejectReasonPlaceholder": "Reason for rejection or note to seller (optional)...",
-        "detailsFallbackTitle": "Real Estate Unit",
-        "areaLabel": "Area",
+        "rejectReasonPlaceholder": "Rejection reason or note for seller (visible in their account)...",
+        "detailsFallbackTitle": "Property Unit",
+        "areaLabel": "District",
         "developerLabel": "Developer",
         "typeSizeLabel": "Type & Size",
         "roomsBathLabel": "Rooms / Bathrooms",
-        "roomsWord": "Rooms",
-        "bathWord": "Bath",
+        "roomsWord": "rooms",
+        "bathWord": "bath",
         "contractPriceLabel": "Contract Price",
         "marketPriceLabel": "Market Price",
-        "installmentYearsLabel": "Installment & Duration",
-        "yearsWord": "Years",
+        "installmentYearsLabel": "Installment & Term",
+        "yearsWord": "years",
         "uploadedDocsTitle": "Uploaded Documents",
-        "noDocsUploaded": "No documents uploaded."
+        "noDocsUploaded": "No documents uploaded yet.",
+        "streetAddressLabel": "Street & Building No.",
+        "cadastralLabel": "Cadastral Code (NAPR)",
+        "sizeAndRoomsLabel": "Area & Rooms (Bedrooms)",
+        "floorAndConditionLabel": "Floor & Condition",
+        "installmentAndRemainingLabel": "Installment & Remaining",
+        "videoLinkBtn": "YouTube Video",
+        "tour3dLinkBtn": "3D Tour",
+        "onlineViewingBadge": "Online Viewing Available",
+        "unitPhotosLabel": "Uploaded Unit Photos",
+        "sellerNoteBoxTitle": "Admin Note to Unit Owner (Visible in Seller Account)",
+        "sellerNoteBoxSub": "Write any required correction so it appears in the seller's dashboard with an instant notification",
+        "sellerNotePlaceholder": "Example: Please verify the floor number or upload a clearer photo of the contract...",
+        "saveAndNotifySellerBtn": "Save & Notify Seller",
+        "clearNoteBtn": "Clear Note",
+        "noteSavedSuccess": "Note saved and seller notified ✓"
       },
       "notices": {
         "purgedSuccess": "All deleted units have been permanently purged ✓",

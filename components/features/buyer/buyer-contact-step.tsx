@@ -28,7 +28,7 @@ import {
   type PlatformCountryCode,
 } from '@/components/features/seller/seller-shared'
 import { getPhonePlaceholderByCode } from '@/components/features/seller/seller-contact-step'
-import { useTranslation, type LocaleCode } from '@/lib/i18n'
+import { useTranslation } from '@/lib/i18n'
 
 export type BuyerFormState = BuyRequestPayload & {
   country: PlatformCountryCode
@@ -53,44 +53,6 @@ export type BuyerConflictState =
       userId: string
       orderRef: string
     }
-
-const BUYER_STEP3_FALLBACK: Record<LocaleCode, Record<string, string>> = {
-  ar: {
-    enterAccountPassError: 'يرجى إدخال كلمة مرور حسابك للمتابعة وحفظ طلبك',
-    wrongPassError: 'كلمة المرور غير صحيحة',
-    sendLinkError: 'تعذر إرسال الرابط حالياً',
-  },
-  en: {
-    enterAccountPassError:
-      'Please enter your account password to continue and save your request',
-    wrongPassError: 'Incorrect password',
-    sendLinkError: 'Could not send recovery link right now',
-  },
-  ru: {
-    enterAccountPassError:
-      'Введите пароль от вашего аккаунта для сохранения заявки',
-    wrongPassError: 'Неверный пароль',
-    sendLinkError: 'Не удалось отправить ссылку восстановления',
-  },
-  ka: {
-    enterAccountPassError:
-      'გთხოვთ შეიყვანოთ ანგარიშის პაროლი მოთხოვნის შესანახად',
-    wrongPassError: 'პაროლი არასწორია',
-    sendLinkError: 'აღდგენის ბმულის გაგზავნა ვერ მოხერხდა',
-  },
-}
-
-function pickMsg(
-  locale: LocaleCode,
-  dictVal: string | undefined,
-  key: string
-): string {
-  const fb =
-    BUYER_STEP3_FALLBACK[locale]?.[key] || BUYER_STEP3_FALLBACK.en[key] || ''
-  if (!dictVal) return fb
-  if (locale !== 'ar' && /[\u0600-\u06FF]/.test(dictVal)) return fb
-  return dictVal
-}
 
 export function BuyerContactStep({
   data,
@@ -125,7 +87,6 @@ export function BuyerContactStep({
   onSuccessRedirect: (info?: { reqId?: string; orderRef?: string }) => void
 }) {
   const { t: dict, locale } = useTranslation()
-  const isAr = locale === 'ar'
   const t = dict.buy.stepThree as Record<string, any>
 
   const [existingPass, setExistingPass] = useState('')
@@ -153,9 +114,7 @@ export function BuyerContactStep({
   const renderMessengersPicker = () => (
     <div>
       <label className="mb-2 block text-start text-xs font-extrabold text-slate-600">
-        {isAr
-          ? 'تطبيقات المراسلة المتاحة على هذا الرقم (تُحفظ في قاعدة البيانات)'
-          : 'Messengers available on this number'}
+        {t.messengersLabel}
       </label>
       <div className="flex flex-wrap gap-2">
         {[
@@ -187,9 +146,7 @@ export function BuyerContactStep({
   const handleVerifyExistingEmail = async () => {
     if (!conflictState || conflictState.type !== 'email_exists') return
     if (!existingPass.trim()) {
-      setStepError(
-        pickMsg(locale, t.enterAccountPassError, 'enterAccountPassError')
-      )
+      setStepError(t.enterAccountPassError)
       return
     }
     setIsLoading(true)
@@ -200,9 +157,7 @@ export function BuyerContactStep({
         password: existingPass,
       })
       if (!res.success || !res.user) {
-        setStepError(
-          res.error || pickMsg(locale, t.wrongPassError, 'wrongPassError')
-        )
+        setStepError(res.error || t.wrongPassError)
         return
       }
 
@@ -229,9 +184,7 @@ export function BuyerContactStep({
         return
       }
 
-      setStepError(
-        saveRes.error || pickMsg(locale, t.wrongPassError, 'wrongPassError')
-      )
+      setStepError(saveRes.error || t.wrongPassError)
     } finally {
       setIsLoading(false)
     }
@@ -252,9 +205,7 @@ export function BuyerContactStep({
       if (res.success) {
         setRecoveryLinkSent(true)
       } else {
-        setStepError(
-          res.error || pickMsg(locale, t.sendLinkError, 'sendLinkError')
-        )
+        setStepError(res.error || t.sendLinkError)
       }
     } finally {
       setIsLoading(false)
@@ -581,11 +532,9 @@ export function BuyerContactStep({
               </p>
             </div>
 
-            {/* حقل تأكيد كلمة السر */}
             <div>
               <Label className="block text-start">
-                {isAr ? 'تأكيد كلمة السر' : 'Confirm Password'}{' '}
-                <span className="ms-1 text-red-500">*</span>
+                <RequiredLabel>{t.confirmPasswordLabel}</RequiredLabel>
               </Label>
               <div className="relative mt-2">
                 <Input
@@ -679,6 +628,7 @@ export function BuyerContactStep({
       <p className="mt-2 text-center text-xs leading-6 font-bold text-slate-500">
         {t.buyerDeclaration}
       </p>
+
       <TurnstileBox />
     </div>
   )

@@ -18,6 +18,7 @@ export type BuyerLead = {
   min_rooms?: number | null
   delivery_status?: string | null
   preferred_areas: string[] | string | null
+  contact_messengers?: string[] | null
   country_code?: string | null
   currency_code?: string | null
   status?: string | null
@@ -32,6 +33,7 @@ export type LinkedUnitSummary = {
   area: string | null
   unit_type: string | null
   rooms?: number | null
+  bedrooms?: number | null
   delivery_status?: string | null
   paid_amount: number | null
   contract_price: number | null
@@ -164,7 +166,7 @@ export function findMatchingUnitForLead(
     const cleanCode = unitCode.toUpperCase()
     const byCode = units.find(
       (u) =>
-        (u.code && u.code.toUpperCase() === cleanCode) ||
+        (u.code && String(u.code).trim().toUpperCase() === cleanCode) ||
         deriveShortUnitCode(u.id, u.code).toUpperCase() === cleanCode ||
         `U-${u.id.slice(0, 5).toUpperCase()}` === cleanCode ||
         u.id.toUpperCase().startsWith(cleanCode.replace("U-", ""))
@@ -247,7 +249,7 @@ export function parseLeadDetails({
       )
     : null
 
-  if (matchedUnit) {
+  if (!unitCode && matchedUnit) {
     unitCode = deriveShortUnitCode(matchedUnit.id, matchedUnit.code)
   }
 

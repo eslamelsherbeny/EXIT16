@@ -37,97 +37,10 @@ import {
   type BuyerConflictState,
   type BuyerFormState,
 } from '@/components/features/buyer/buyer-contact-step'
-import { useTranslation, type LocaleCode } from '@/lib/i18n'
+import { useTranslation } from '@/lib/i18n'
 
 const ACTIVE_PLATFORM_COUNTRY = 'GE'
 const DEFAULT_PHONE_CODE = '995'
-
-const BUY_VALIDATION_FALLBACK: Record<LocaleCode, Record<string, string>> = {
-  ar: {
-    required: 'هذا الحقل مطلوب',
-    selectPaymentPlan: 'يرجى اختيار نظام السداد المفضل',
-    installmentExceedsBudget: 'قيمة القسط لا يمكن أن تتجاوز إجمالي الميزانية',
-    cashExceedsBudget:
-      'إجمالي الميزانية يجب أن يكون مساوياً أو أكبر من الكاش المتاح',
-    selectUnitType: 'يرجى اختيار نوع وحدة واحد على الأقل',
-    selectDeliveryStatus: 'يرجى اختيار حالة الاستلام المفضلة',
-    selectAtLeastOneArea: 'يرجى اختيار منطقة مفضلة واحدة على الأقل',
-    invalidPhone: 'يرجى إدخال رقم هاتف صحيح (7 إلى 15 رقماً)',
-    invalidEmail: 'يرجى إدخال بريد إلكتروني صحيح',
-    shortPassword: 'كلمة المرور يجب ألا تقل عن 8 أحرف',
-    passwordMismatch: 'كلمتا المرور غير متطابقتين',
-    loginIdRequired: 'يرجى إدخال البريد الإلكتروني أو رقم الهاتف',
-    loginPassRequired: 'يرجى إدخال كلمة المرور',
-    missingBannerPrefix: 'يرجى استكمال الحقول المطلوبة التالية:',
-    submitFailed: 'تعذر إرسال الطلب حالياً، يرجى المحاولة مرة أخرى',
-  },
-  en: {
-    required: 'This field is required',
-    selectPaymentPlan: 'Please select a preferred payment plan',
-    installmentExceedsBudget: 'Installment cannot exceed total budget',
-    cashExceedsBudget:
-      'Total budget must be equal to or greater than available cash',
-    selectUnitType: 'Please select at least one unit type',
-    selectDeliveryStatus: 'Please select a preferred delivery status',
-    selectAtLeastOneArea: 'Please select at least one preferred area',
-    invalidPhone: 'Please enter a valid phone number (7 to 15 digits)',
-    invalidEmail: 'Please enter a valid email address',
-    shortPassword: 'Password must be at least 8 characters',
-    passwordMismatch: 'Passwords do not match',
-    loginIdRequired: 'Please enter your email or phone number',
-    loginPassRequired: 'Please enter your password',
-    missingBannerPrefix: 'Please complete the following required fields:',
-    submitFailed: 'Could not submit request right now, please try again',
-  },
-  ru: {
-    required: 'Это поле обязательно для заполнения',
-    selectPaymentPlan: 'Выберите предпочтительный план оплаты',
-    installmentExceedsBudget: 'Платеж не может превышать общий бюджет',
-    cashExceedsBudget: 'Общий бюджет должен быть не меньше суммы наличных',
-    selectUnitType: 'Выберите хотя бы один тип недвижимости',
-    selectDeliveryStatus: 'Выберите статус готовности объекта',
-    selectAtLeastOneArea: 'Выберите хотя бы один район',
-    invalidPhone: 'Введите корректный номер телефона (от 7 до 15 цифр)',
-    invalidEmail: 'Введите корректный адрес электронной почты',
-    shortPassword: 'Пароль должен содержать не менее 8 символов',
-    passwordMismatch: 'Пароли не совпадают',
-    loginIdRequired: 'Введите ваш email или номер телефона',
-    loginPassRequired: 'Введите ваш пароль',
-    missingBannerPrefix: 'Пожалуйста, заполните следующие обязательные поля:',
-    submitFailed: 'Не удалось отправить запрос, попробуйте еще раз',
-  },
-  ka: {
-    required: 'ეს ველი სავალდებულოა',
-    selectPaymentPlan: 'აირჩიეთ გადახდის სასურველი გეგმა',
-    installmentExceedsBudget: 'განვადება არ უნდა აღემატებოდეს ბიუჯეტს',
-    cashExceedsBudget: 'სრული ბიუჯეტი არ უნდა იყოს ნაღდ თანხაზე ნაკლები',
-    selectUnitType: 'აირჩიეთ მინიმუმ ერთი ტიპის ქონება',
-    selectDeliveryStatus: 'აირჩიეთ ჩაბარების სტატუსი',
-    selectAtLeastOneArea: 'აირჩიეთ მინიმუმ ერთი სასურველი უბანი',
-    invalidPhone: 'შეიყვანეთ სწორი ტელეფონის ნომერი (7-15 ციფრი)',
-    invalidEmail: 'შეიყვანეთ სწორი ელ-ფოსტა',
-    shortPassword: 'პაროლი უნდა შედგებოდეს მინიმუმ 8 სიმბოლოსგან',
-    passwordMismatch: 'პაროლები არ ემთხვევა',
-    loginIdRequired: 'შეიყვანეთ ელ-ფოსტა ან ტელეფონის ნომერი',
-    loginPassRequired: 'შეიყვანეთ პაროლი',
-    missingBannerPrefix: 'გთხოვთ შეავსოთ შემდეგი სავალდებულო ველები:',
-    submitFailed: 'მოთხოვნის გაგზავნა ვერ მოხერხდა, სცადეთ თავიდან',
-  },
-}
-
-function getBuyValidationMsg(
-  locale: LocaleCode,
-  dictVal: string | undefined,
-  key: string
-): string {
-  const fb =
-    BUY_VALIDATION_FALLBACK[locale]?.[key] ||
-    BUY_VALIDATION_FALLBACK.en[key] ||
-    ''
-  if (!dictVal) return fb
-  if (locale !== 'ar' && /[\u0600-\u06FF]/.test(dictVal)) return fb
-  return dictVal
-}
 
 function isFullCashPlanOption(plan: string, plansList: string[]): boolean {
   if (!plan) return false
@@ -173,13 +86,14 @@ function BuyersPageContent() {
   const { t: dict, locale, dir } = useTranslation()
   const b = dict.buy
   const bVal = (b.validation as Record<string, string>) || {}
+  const bSuccess = ((b as Record<string, any>).successScreen as Record<string, string>) || {}
   const sellVal = (dict.sell?.validation as Record<string, string>) || {}
-  // توحيد العملة في جميع طلبات الشراء إلى الدولار الأمريكي ($)
   const currency = '$'
 
   const localizedUnitTypes: string[] =
     (dict as Record<string, any>).buyerFunnelPage?.unitTypes ||
     getLocalizedUnitTypes(dict, locale)
+
   const localizedDeliveries: string[] =
     dict.accountComponents?.buyer?.deliveryPreferences ||
     getLocalizedDeliveries(dict, locale)
@@ -313,29 +227,17 @@ function BuyersPageContent() {
     )
 
     if (!data.available_cash || data.available_cash <= 0) {
-      nextErrors.available_cash = getBuyValidationMsg(
-        locale,
-        bVal.required,
-        'required'
-      )
+      nextErrors.available_cash = bVal.required
       missing.push(cleanLabel(b.stepOne.availableCashLabel))
     }
 
     if (!data.payment_plan) {
-      nextErrors.payment_plan = getBuyValidationMsg(
-        locale,
-        bVal.selectPaymentPlan,
-        'selectPaymentPlan'
-      )
+      nextErrors.payment_plan = bVal.selectPaymentPlan
       missing.push(cleanLabel(b.stepOne.paymentPlanLabel))
     }
 
     if (!isFullCash && (!data.max_installment || data.max_installment <= 0)) {
-      nextErrors.max_installment = getBuyValidationMsg(
-        locale,
-        bVal.required,
-        'required'
-      )
+      nextErrors.max_installment = bVal.required
       missing.push(cleanLabel(b.stepOne.maxInstallmentLabel))
     }
 
@@ -343,14 +245,10 @@ function BuyersPageContent() {
       isFullCash && !data.budget ? data.available_cash : data.budget
 
     if (!effectiveBudget || effectiveBudget <= 0) {
-      nextErrors.budget = getBuyValidationMsg(locale, bVal.required, 'required')
+      nextErrors.budget = bVal.required
       missing.push(cleanLabel(b.stepOne.budgetLabel))
     } else if (data.available_cash > effectiveBudget) {
-      nextErrors.budget = getBuyValidationMsg(
-        locale,
-        bVal.cashExceedsBudget,
-        'cashExceedsBudget'
-      )
+      nextErrors.budget = bVal.cashExceedsBudget
       if (!missing.includes(cleanLabel(b.stepOne.budgetLabel))) {
         missing.push(cleanLabel(b.stepOne.budgetLabel))
       }
@@ -362,11 +260,7 @@ function BuyersPageContent() {
       data.max_installment > 0 &&
       data.max_installment > effectiveBudget
     ) {
-      nextErrors.max_installment = getBuyValidationMsg(
-        locale,
-        bVal.installmentExceedsBudget,
-        'installmentExceedsBudget'
-      )
+      nextErrors.max_installment = bVal.installmentExceedsBudget
       if (!missing.includes(cleanLabel(b.stepOne.maxInstallmentLabel))) {
         missing.push(cleanLabel(b.stepOne.maxInstallmentLabel))
       }
@@ -393,27 +287,15 @@ function BuyersPageContent() {
     const missing: string[] = []
 
     if (!data.unit_types.length) {
-      nextErrors.unit_types = getBuyValidationMsg(
-        locale,
-        bVal.selectUnitType,
-        'selectUnitType'
-      )
+      nextErrors.unit_types = bVal.selectUnitType
       missing.push(cleanLabel(b.stepTwo.unitTypeLabel))
     }
     if (!data.delivery_status) {
-      nextErrors.delivery_status = getBuyValidationMsg(
-        locale,
-        bVal.selectDeliveryStatus,
-        'selectDeliveryStatus'
-      )
+      nextErrors.delivery_status = bVal.selectDeliveryStatus
       missing.push(cleanLabel(b.stepTwo.deliveryStatusLabel))
     }
     if (!data.preferred_areas.length) {
-      nextErrors.preferred_areas = getBuyValidationMsg(
-        locale,
-        bVal.selectAtLeastOneArea,
-        'selectAtLeastOneArea'
-      )
+      nextErrors.preferred_areas = bVal.selectAtLeastOneArea
       missing.push(cleanLabel(b.stepTwo.areasLabelPrefix))
     }
 
@@ -462,56 +344,32 @@ function BuyersPageContent() {
 
     if (authTab === 'register') {
       if (!data.name.trim()) {
-        nextErrors.name = getBuyValidationMsg(locale, bVal.required, 'required')
+        nextErrors.name = bVal.required
         missing.push(cleanLabel(b.stepThree.nameLabel))
       }
       if (!cleanPhoneDigits || !/^[0-9]{7,15}$/.test(cleanPhoneDigits)) {
-        nextErrors.phone = getBuyValidationMsg(
-          locale,
-          bVal.invalidPhone,
-          'invalidPhone'
-        )
+        nextErrors.phone = bVal.invalidPhone
         missing.push(cleanLabel(b.stepThree.phoneLabel))
       }
       if (!data.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
-        nextErrors.email = getBuyValidationMsg(
-          locale,
-          bVal.invalidEmail,
-          'invalidEmail'
-        )
+        nextErrors.email = bVal.invalidEmail
         missing.push(cleanLabel(b.stepThree.emailLabel))
       }
       if (data.password.length < 8) {
-        nextErrors.password = getBuyValidationMsg(
-          locale,
-          bVal.shortPassword,
-          'shortPassword'
-        )
+        nextErrors.password = bVal.shortPassword
         missing.push(cleanLabel(b.stepThree.passwordLabel))
       }
       if (data.password !== (data.confirmPassword || '')) {
-        nextErrors.confirmPassword = getBuyValidationMsg(
-          locale,
-          undefined,
-          'passwordMismatch'
-        )
-        missing.push(locale === 'ar' ? 'تأكيد كلمة السر' : 'Confirm Password')
+        nextErrors.confirmPassword = bVal.passwordMismatch
+        missing.push(cleanLabel((b.stepThree as any).confirmPasswordLabel))
       }
     } else if (authTab === 'login') {
       if (!data.loginIdentifier?.trim()) {
-        nextErrors.loginIdentifier = getBuyValidationMsg(
-          locale,
-          bVal.loginIdRequired,
-          'loginIdRequired'
-        )
+        nextErrors.loginIdentifier = bVal.loginIdRequired
         missing.push(cleanLabel(b.stepThree.loginIdLabel))
       }
       if (!data.loginPassword?.trim()) {
-        nextErrors.loginPassword = getBuyValidationMsg(
-          locale,
-          bVal.loginPassRequired,
-          'loginPassRequired'
-        )
+        nextErrors.loginPassword = bVal.loginPassRequired
         missing.push(cleanLabel(b.stepThree.loginPassLabel))
       }
     }
@@ -581,20 +439,13 @@ function BuyersPageContent() {
         return
       }
 
-      setError(
-        res.error ??
-          getBuyValidationMsg(locale, bVal.submitFailed, 'submitFailed')
-      )
+      setError(res.error ?? bVal.submitFailed)
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  const missingPrefix = getBuyValidationMsg(
-    locale,
-    sellVal.missingBannerPrefix,
-    'missingBannerPrefix'
-  )
+  const missingPrefix = sellVal.missingBannerPrefix || bVal.missingBannerPrefix || ''
 
   const siteOrigin =
     typeof window !== 'undefined'
@@ -602,11 +453,8 @@ function BuyersPageContent() {
       : 'https://exit-16.vercel.app'
 
   if (submittedOrder) {
-    const areasText = submittedOrder.areas.join('، ')
-    const waConfirmMessage =
-      locale === 'ar'
-        ? `أهلاً إدارة Aqar Exit، أنا (${submittedOrder.buyerName || 'مشتري'}) أؤكد تسجيل طلب الشراء رقم (${submittedOrder.orderRef}) — الكاش المتاح: ($${submittedOrder.availableCash.toLocaleString('en-US')}) — الميزانية الإجمالية: ($${submittedOrder.budget.toLocaleString('en-US')}) — المناطق المفضلة: (${areasText}).\nرابط الطلب في الإدارة:\n${siteOrigin}/admin/leads${submittedOrder.reqId ? `?leadId=${submittedOrder.reqId}` : ''}`
-        : `Hello Aqar Exit, I confirm my buy request (${submittedOrder.orderRef}) — Cash: ($${submittedOrder.availableCash.toLocaleString('en-US')}) — Budget: ($${submittedOrder.budget.toLocaleString('en-US')}) — Areas: (${areasText}).\nAdmin Link:\n${siteOrigin}/admin/leads${submittedOrder.reqId ? `?leadId=${submittedOrder.reqId}` : ''}`
+    const areasText = submittedOrder.areas.join(dir === 'rtl' ? '، ' : ', ')
+    const waConfirmMessage = `${bSuccess.waMsgPrefix} (${submittedOrder.orderRef}) — ${b.stepOne.availableCashLabel}: ($${submittedOrder.availableCash.toLocaleString('en-US')}) — ${b.stepOne.budgetLabel}: ($${submittedOrder.budget.toLocaleString('en-US')}) — ${b.stepTwo.areasLabelPrefix}: (${areasText}).\n${siteOrigin}/admin/leads${submittedOrder.reqId ? `?leadId=${submittedOrder.reqId}` : ''}`
 
     return (
       <main
@@ -624,15 +472,11 @@ function BuyersPageContent() {
             </span>
 
             <h1 className="mt-3 text-2xl font-black text-[#0a1122] sm:text-3xl">
-              {locale === 'ar'
-                ? 'تم تسجيل طلب الشراء وتفعيل الرادار الذكي بنجاح ✓'
-                : 'Your Buy Request & Smart Radar Are Active ✓'}
+              {bSuccess.title}
             </h1>
 
             <p className="mx-auto mt-3 max-w-lg text-xs leading-relaxed font-semibold text-slate-600 sm:text-sm">
-              {locale === 'ar'
-                ? 'لتسريع ترشيح الوحدات الموثقة المتوافقة مع ميزانيتك، اضغط الزر الأخضر بالأسفل لتأكيد طلبك مباشرة عبر واتساب المنصة:'
-                : 'To fast-track verified unit recommendations matching your budget, confirm your request via WhatsApp below:'}
+              {bSuccess.subtitle}
             </p>
 
             <div className="mt-5 grid grid-cols-2 gap-3 rounded-2xl border border-gray-100 bg-[#f8faf9] p-4 text-start text-xs sm:grid-cols-3">
@@ -680,20 +524,14 @@ function BuyersPageContent() {
                 className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] px-6 text-xs font-extrabold text-white shadow-md transition hover:opacity-95 sm:w-auto sm:text-sm"
               >
                 <MessageCircle className="size-4 shrink-0" />
-                <span>
-                  {locale === 'ar'
-                    ? 'تأكيد طلب الشراء فوراً عبر واتساب'
-                    : 'Confirm Request via WhatsApp'}
-                </span>
+                <span>{bSuccess.confirmWaBtn}</span>
               </a>
 
               <Link
                 href="/account?view=buyer"
                 className="inline-flex h-12 w-full items-center justify-center rounded-xl bg-[#0a1122] px-6 text-xs font-extrabold text-white transition hover:bg-[#16223f] sm:w-auto sm:text-sm"
               >
-                {locale === 'ar'
-                  ? 'الدخول لحسابي وتصفح الفرص المطابقة'
-                  : 'Go to My Account & View Matches'}
+                {bSuccess.goToAccountBtn}
               </Link>
             </div>
           </section>

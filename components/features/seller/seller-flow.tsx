@@ -1,12 +1,14 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import {
+  AlertTriangle,
   Check,
   CheckCircle2,
   Loader2,
   Mail,
+  RefreshCw,
   ShieldAlert,
   X,
 } from 'lucide-react'
@@ -28,7 +30,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { createClient } from '@/lib/supabase/client'
 import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation, type LocaleCode } from '@/lib/i18n'
 import {
   ACTIVE_PLATFORM_COUNTRY,
   DEFAULT_PHONE_CODE,
@@ -58,12 +60,76 @@ import { ReviewStep } from './seller-review-step'
 
 export type { SellerDocKey, UploadedDocEntry }
 
+const FLOW_LOADING_LABELS: Record<
+  LocaleCode,
+  {
+    loadingUnitTitle: string
+    loadingUnitSub: string
+    loadErrorTitle: string
+    loadErrorDesc: string
+    retryBtn: string
+    backToAccountBtn: string
+    oneTimeVerifyBadge: string
+    oneTimeVerifyNote: string
+  }
+> = {
+  ar: {
+    loadingUnitTitle: 'جاري تحميل بيانات وحدتك المسجلة...',
+    loadingUnitSub: 'يرجى الانتظار لحظات حتى نجهز كافة التفاصيل المحفوظة',
+    loadErrorTitle: 'تعذر تحميل بيانات الوحدة',
+    loadErrorDesc:
+      'يبدو أن هناك ضعفاً في الاتصال بالإنترنت أو أن الجلسة انتهت. يرجى إعادة المحاولة.',
+    retryBtn: 'إعادة المحاولة',
+    backToAccountBtn: 'العودة لحسابي',
+    oneTimeVerifyBadge: 'تأكيد لمرة واحدة فقط لتفعيل حسابك',
+    oneTimeVerifyNote:
+      'تأكيد البريد الإلكتروني شرط أساسي في أول مرة فقط لإرسال وحدتك إلى الإدارة ومراجعتها. في المرات القادمة ستُنشر وحداتك مباشرة.',
+  },
+  en: {
+    loadingUnitTitle: 'Loading your saved unit details...',
+    loadingUnitSub: 'Please wait a moment while we restore all saved fields',
+    loadErrorTitle: 'Could not load unit details',
+    loadErrorDesc:
+      'Please check your internet connection and try again.',
+    retryBtn: 'Retry Loading',
+    backToAccountBtn: 'Back to My Account',
+    oneTimeVerifyBadge: 'One-time account verification',
+    oneTimeVerifyNote:
+      'Email verification is required only once on your first listing before sending your unit to Admin for review.',
+  },
+  ru: {
+    loadingUnitTitle: 'Загрузка сохраненных данных объекта...',
+    loadingUnitSub: 'Пожалуйста, подождите несколько секунд',
+    loadErrorTitle: 'Не удалось загрузить данные объекта',
+    loadErrorDesc:
+      'Проверьте подключение к интернету и попробуйте снова.',
+    retryBtn: 'Повторить попытку',
+    backToAccountBtn: 'Вернуться в кабинет',
+    oneTimeVerifyBadge: 'Единоразовое подтверждение аккаунта',
+    oneTimeVerifyNote:
+      'Подтверждение Email требуется только один раз при первом размещении для отправки объекта на проверку администрации.',
+  },
+  ka: {
+    loadingUnitTitle: 'თქვენი ობიექტის მონაცემები იტვირთება...',
+    loadingUnitSub: 'გთხოვთ დაელოდოთ რამდენიმე წამს',
+    loadErrorTitle: 'მონაცემების ჩატვირთვა ვერ მოხერხდა',
+    loadErrorDesc:
+      'შეამოწმეთ ინტერნეტ კავშირი და სცადეთ თავიდან.',
+    retryBtn: 'თავიდან ცდა',
+    backToAccountBtn: 'ანგარიშზე დაბრუნება',
+    oneTimeVerifyBadge: 'ანგარიშის ერთჯერადი დადასტურება',
+    oneTimeVerifyNote:
+      'ელ-ფოსტის დადასტურება საჭიროა მხოლოდ ერთხელ პირველი განცხადებისას, რათა ობიექტი გადაეგზავნოს ადმინისტრაციას.',
+  },
+}
+
 export function SellerFlow() {
   const router = useRouter()
   const { t: dict, locale, dir } = useTranslation()
   const s = dict.sell
   const extraT = getSellerExtraLabels(locale, dict)
   const fT = getSellerFormTranslations(locale, dict)
+  const loadT = FLOW_LOADING_LABELS[locale] || FLOW_LOADING_LABELS.ar
 
   const secTypeRef = useRef<HTMLElement | null>(null)
   const secPhotosRef = useRef<HTMLElement | null>(null)
@@ -72,6 +138,9 @@ export function SellerFlow() {
   const secPriceRef = useRef<HTMLElement | null>(null)
   const secContactRef = useRef<HTMLElement | null>(null)
   const isManualScrollingRef = useRef(false)
+
+  const [initialLoading, setInitialLoading] = useState<boolean>(true)
+  const [initLoadError, setInitLoadError] = useState<string>('')
 
   const [activeTab, setActiveTab] = useState<number>(1)
   const [unitId, setUnitId] = useState<string>('')
@@ -180,7 +249,6 @@ export function SellerFlow() {
   } | null>(null)
   const [emailVerified, setEmailVerified] = useState(false)
 
-  // حالات الديالوج المنبثق لتوثيق الإيميل قبل النشر
   const [verifyModalOpen, setVerifyModalOpen] = useState(false)
   const [otpSent, setOtpSent] = useState(false)
   const [otpCode, setOtpCode] = useState('')
@@ -272,21 +340,29 @@ export function SellerFlow() {
     return () => window.removeEventListener('scroll', handleScrollSpy)
   }, [])
 
-  useEffect(() => {
-    async function init() {
+  const loadInitialData = useCallback(async () => {
+    setInitialLoading(true)
+    setInitLoadError('')
+
+    try {
       const [profileRes, verStatus] = await Promise.all([
         getCurrentSellerProfileAction(),
         getUserVerificationStatusAction(),
       ])
 
+      let isUserEmailVerified = false
+      let currentUserEmail = ''
+      let currentUserId = ''
+
       if (profileRes.isLoggedIn && profileRes.user) {
         setLoggedUser(profileRes.user)
         setAuthMode('session')
-        setEmailVerified(
-          Boolean(
-            (profileRes.user as any).emailVerified || verStatus.emailVerified
-          )
+        currentUserId = profileRes.user.id
+        currentUserEmail = profileRes.user.email || ''
+        isUserEmailVerified = Boolean(
+          (profileRes.user as any).emailVerified || verStatus.emailVerified
         )
+        setEmailVerified(isUserEmailVerified)
 
         const rawUserPhone = profileRes.user.phone || ''
         const digitsOnly = toEnglishDigits(rawUserPhone).replace(/[^0-9]/g, '')
@@ -342,6 +418,7 @@ export function SellerFlow() {
         const params = new URLSearchParams(window.location.search)
         const magicToken = params.get('magic')
         const editUnitId = params.get('editUnitId') || params.get('resume')
+        const shouldOpenVerifyModal = params.get('verifyEmail') === '1'
 
         const hydrateUnit = (u: any) => {
           const meta = u.documents?.__unit_meta || {}
@@ -553,27 +630,62 @@ export function SellerFlow() {
             delete rawDocs.__unit_meta
             setUnitDocs(rawDocs)
           }
+
+          // إذا كانت الوحدة منشورة أو معتمدة مسبقاً، نعتبر الإيميل موثقاً لها
+          const unitCleanStatus = String(u.status || '').trim().toLowerCase()
+          const isAlreadyPublishedOrApproved = [
+            'active',
+            'approved',
+            'published',
+            'offer_received',
+            'transferring',
+            'sold',
+          ].includes(unitCleanStatus)
+
+          if (isAlreadyPublishedOrApproved || meta.email_verified) {
+            setEmailVerified(true)
+          } else if (shouldOpenVerifyModal && !isUserEmailVerified) {
+            setPendingPublishIds({
+              unitId: String(u.id),
+              userId: String(u.user_id || currentUserId),
+              email: String(u.email || currentUserEmail),
+            })
+            setOtpSent(false)
+            setOtpCode('')
+            setOtpError('')
+            setVerifyModalOpen(true)
+          }
         }
 
-        // إذا دخل من الرابط السحري في الإيميل، فإن verifyMagicTokenAction يوثق إيميله تلقائياً
         if (magicToken) {
           const res = await verifyMagicTokenAction(magicToken)
           if (res.valid && res.unit) {
             setAuthMode('session')
             setEmailVerified(true)
             hydrateUnit(res.unit)
+          } else {
+            setInitLoadError(res.error || loadT.loadErrorDesc)
           }
         } else if (editUnitId) {
           const authUnitRes = await getAuthorizedUnitForEditAction(editUnitId)
           if (authUnitRes.allowed && authUnitRes.unit) {
             setAuthMode('session')
             hydrateUnit(authUnitRes.unit)
+          } else {
+            setInitLoadError(loadT.loadErrorDesc)
           }
         }
       }
+    } catch {
+      setInitLoadError(loadT.loadErrorDesc)
+    } finally {
+      setInitialLoading(false)
     }
-    init()
-  }, [locale])
+  }, [locale, loadT.loadErrorDesc])
+
+  useEffect(() => {
+    loadInitialData()
+  }, [loadInitialData])
 
   const update = (key: string, value: string) => {
     setForm((curr) => {
@@ -1018,7 +1130,6 @@ export function SellerFlow() {
     }
   }
 
-  // إتمام النشر النهائي بعد التأكد من توثيق البريد الإلكتروني
   const finalizeUnitPublish = async (
     targetUnitId: string,
     targetUserId: string
@@ -1195,6 +1306,8 @@ export function SellerFlow() {
         if (step2Res.userId) {
           resolvedUserId = step2Res.userId
           resolvedEmail = step2Res.userEmail || form.email
+          isCurrentlyVerified = Boolean(step2Res.emailVerified)
+          setEmailVerified(isCurrentlyVerified)
           setLoggedUser({
             id: step2Res.userId,
             name: step2Res.userName || form.name,
@@ -1205,14 +1318,13 @@ export function SellerFlow() {
         }
       }
 
-      // فحص حالة توثيق الإيميل من السيرفر مباشرة للتأكد (ربما قام بتوثيقه من الرابط في تاب آخر)
       const freshVerStatus = await getUserVerificationStatusAction()
       if (freshVerStatus.isLoggedIn && freshVerStatus.emailVerified) {
         isCurrentlyVerified = true
         setEmailVerified(true)
       }
 
-      // إذا لم يكن الإيميل موثقاً بعد: نحفظ كل بيانات الوحدة كمسودة أولاً ثم نفتح الديالوج لتوثيق الكود قبل النشر
+      // إذا لم يكن الإيميل موثقاً بعد: تُحفظ الوحدة كمسودة غير مرسلة للأدمن، ويفتح الديالوج لتوثيق الكود
       if (!isCurrentlyVerified) {
         const draftData = buildFormData(resolvedUnitId, resolvedUserId)
         const savedDraft = await saveSellProgress(draftData)
@@ -1233,12 +1345,10 @@ export function SellerFlow() {
         return
       }
 
-      // أما إذا كان الإيميل موثقاً مسبقاً، ننشر الوحدة مباشرة بدون إزعاج المستخدم بأي ديالوج
       await finalizeUnitPublish(resolvedUnitId, resolvedUserId)
     })
   }
 
-  // إرسال كود الـ OTP للبريد الإلكتروني داخل الديالوج
   const handleSendOtpInModal = async () => {
     const targetEmail =
       pendingPublishIds?.email || form.email || loggedUser?.email || ''
@@ -1263,7 +1373,6 @@ export function SellerFlow() {
     }
   }
 
-  // التحقق من الكود داخل الديالوج ثم نشر الوحدة فوراً
   const handleVerifyOtpAndPublish = async () => {
     const targetEmail =
       pendingPublishIds?.email || form.email || loggedUser?.email || ''
@@ -1291,7 +1400,6 @@ export function SellerFlow() {
     }
   }
 
-  // حفظ الوحدة والذهاب للحساب لإكمال التوثيق لاحقاً
   const handleSaveAndContinueLater = async () => {
     const targetUnit = pendingPublishIds?.unitId || unitId
     const targetUser = pendingPublishIds?.userId || loggedUser?.id || ''
@@ -1323,6 +1431,67 @@ export function SellerFlow() {
     /\D/g,
     ''
   )
+
+  // شاشة التحميل النظيفة عند فتح تعديل أو استكمال وحدة حتى لا يظهر الفورم فارغاً
+  if (initialLoading) {
+    return (
+      <main
+        dir={dir}
+        className="flex min-h-[75vh] items-center justify-center bg-[#f4f6f9] px-4 py-12 text-[#0a1122]"
+      >
+        <div className="w-full max-w-md rounded-3xl border border-slate-200/90 bg-white p-8 text-center shadow-xs">
+          <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-emerald-50 text-[#007a5a]">
+            <Loader2 className="size-7 animate-spin" />
+          </div>
+          <h2 className="text-base font-extrabold text-[#0a1122] sm:text-lg">
+            {loadT.loadingUnitTitle}
+          </h2>
+          <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
+            {loadT.loadingUnitSub}
+          </p>
+        </div>
+      </main>
+    )
+  }
+
+  // شاشة الخطأ وإعادة المحاولة عند ضعف الإنترنت
+  if (initLoadError) {
+    return (
+      <main
+        dir={dir}
+        className="flex min-h-[75vh] items-center justify-center bg-[#f4f6f9] px-4 py-12 text-[#0a1122]"
+      >
+        <div className="w-full max-w-md rounded-3xl border border-red-200 bg-white p-8 text-center shadow-xs">
+          <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-red-50 text-red-600">
+            <AlertTriangle className="size-7" />
+          </div>
+          <h2 className="text-base font-extrabold text-[#0a1122] sm:text-lg">
+            {loadT.loadErrorTitle}
+          </h2>
+          <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
+            {initLoadError}
+          </p>
+          <div className="mt-6 flex flex-wrap justify-center gap-3">
+            <button
+              type="button"
+              onClick={loadInitialData}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#007a5a] px-5 text-xs font-extrabold text-white shadow-2xs transition hover:bg-[#006248]"
+            >
+              <RefreshCw className="size-3.5" />
+              <span>{loadT.retryBtn}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => router.push('/account?view=seller')}
+              className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 px-5 text-xs font-bold text-slate-700 hover:bg-slate-100"
+            >
+              {loadT.backToAccountBtn}
+            </button>
+          </div>
+        </div>
+      </main>
+    )
+  }
 
   if (submitted) {
     return (
@@ -1488,18 +1657,24 @@ export function SellerFlow() {
               onHover={() => setActiveTab(6)}
               isRentDeal={false}
               loggedUser={loggedUser}
-              onUserAuthenticated={async (u, createdUnitId) => {
+              onUserAuthenticated={(u: {
+                id: string
+                name: string
+                email: string
+                phone: string
+              }) => {
                 setLoggedUser(u)
                 setAuthMode('session')
-                const verCheck = await getUserVerificationStatusAction()
-                if (verCheck.isLoggedIn) {
-                  setEmailVerified(verCheck.emailVerified)
-                }
-                const targetUId = createdUnitId || unitId
-                if (targetUId) {
-                  const fullData = buildFormData(targetUId, u.id)
-                  await saveSellProgress(fullData)
-                }
+                void (async () => {
+                  const verCheck = await getUserVerificationStatusAction()
+                  if (verCheck.isLoggedIn) {
+                    setEmailVerified(verCheck.emailVerified)
+                  }
+                  if (unitId) {
+                    const fullData = buildFormData(unitId, u.id)
+                    await saveSellProgress(fullData)
+                  }
+                })()
               }}
               authMode={authMode}
               setAuthMode={setAuthMode}
@@ -1567,9 +1742,7 @@ export function SellerFlow() {
         </div>
       </div>
 
-      {/* ========================================================= */}
-      {/* ديالوج توثيق البريد الإلكتروني قبل النشر النهائي للوحدة */}
-      {/* ========================================================= */}
+      {/* ديالوج توثيق البريد الإلكتروني (لمرة واحدة فقط في أول وحدة) لإرسال الوحدة للإدارة */}
       {verifyModalOpen && (
         <div
           dir={dir}
@@ -1584,14 +1757,19 @@ export function SellerFlow() {
               <X className="size-4" />
             </button>
 
-            <div className="flex size-12 items-center justify-center rounded-2xl bg-emerald-50 text-[#007a5a]">
-              <ShieldAlert className="size-6" />
+            <div className="flex items-center gap-2.5">
+              <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-[#007a5a]">
+                <ShieldAlert className="size-6" />
+              </div>
+              <span className="rounded-full bg-blue-50 px-3 py-1 text-[11px] font-extrabold text-[#2563eb]">
+                {loadT.oneTimeVerifyBadge}
+              </span>
             </div>
 
-            <h3 className="mt-4 text-lg font-black text-[#0a1122]">
+            <h3 className="mt-3.5 text-lg font-black text-[#0a1122]">
               {extraT.verifyBoxTitle}
             </h3>
-            <p className="mt-1.5 text-xs leading-relaxed text-slate-600">
+            <p className="mt-1 text-xs leading-relaxed text-slate-600">
               {extraT.verifyBoxDescPrefix}{' '}
               <strong dir="ltr" className="font-mono text-[#0a1122]">
                 {maskEmailDisplay(activeModalEmail)}
@@ -1599,13 +1777,13 @@ export function SellerFlow() {
               {extraT.verifyBoxDescSuffix}
             </p>
 
-            <div className="mt-4 rounded-2xl border border-emerald-200/80 bg-emerald-50/50 p-3.5 text-xs font-bold text-[#007a5a]">
+            <div className="mt-3.5 rounded-2xl border border-emerald-200/80 bg-emerald-50/50 p-3.5 text-xs font-bold text-[#007a5a]">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="size-4 shrink-0" />
                 <span>{extraT.savedBadge}</span>
               </div>
-              <p className="mt-1 font-medium text-slate-600">
-                {extraT.reviewNoteBeforeSubmit}
+              <p className="mt-1 font-medium leading-relaxed text-slate-600">
+                {loadT.oneTimeVerifyNote}
               </p>
             </div>
 
@@ -1683,7 +1861,6 @@ export function SellerFlow() {
               )}
             </div>
 
-            {/* زر الحفظ والمتابعة لاحقاً من الحساب */}
             <div className="mt-5 border-t border-slate-100 pt-4">
               <button
                 type="button"

@@ -324,6 +324,59 @@ export async function updatePropertyStatusAction(
   }
 }
 
+export async function savePropertyAdminNoteAction(payload: {
+  propertyId: string
+  adminNote: string
+}) {
+  const { t: msg } = await getAdminActionsDict()
+  try {
+    const { supabase } = await requireAdminAuth([
+      "admin",
+      "moderator",
+      "sales",
+    ])
+    const cleanNote = sanitizeText(payload.adminNote || "", 600)
+
+    const { data: prop } = await supabase
+      .from("sell_requests")
+      .select("id, user_id, project_name")
+      .eq("id", payload.propertyId)
+      .maybeSingle()
+
+    const { error } = await supabase
+      .from("sell_requests")
+      .update({ admin_note: cleanNote || null })
+      .eq("id", payload.propertyId)
+
+    if (error) {
+      return { success: false, error: msg.updatePropertyFailed }
+    }
+
+    if (cleanNote && prop?.user_id) {
+      const projectLabel = prop.project_name || msg.defaultProjectWord
+      try {
+        await supabase.from("notifications").insert({
+          user_id: prop.user_id,
+          role: "client",
+          title: `📝 ${msg.notifRejectedTitle || "Admin Note"} (${projectLabel})`,
+          message: cleanNote,
+          type: "status_update",
+          link: `/account?view=seller&unitId=${prop.id}`,
+          is_read: false,
+        })
+      } catch {}
+    }
+
+    revalidateAdminAll()
+    return { success: true }
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : msg.unauthorizedAction,
+    }
+  }
+}
+
 export async function deletePropertyAction(propertyId: string) {
   const { t: msg } = await getAdminActionsDict()
   try {

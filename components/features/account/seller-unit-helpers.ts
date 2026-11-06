@@ -91,6 +91,32 @@ export const REAL_DOC_KEYS = [
   'passport',
 ] as const
 
+/**
+ * استخراج الملاحظة الفعلية التي كتبها الأدمن للبائع فقط (واستبعاد ملاحظات النظام الآلية)
+ */
+export function getVisibleSellerAdminNote(rawNote?: string | null): string | null {
+  if (!rawNote) return null
+  const clean = String(rawNote).trim()
+  if (!clean) return null
+
+  const systemSubstrings = [
+    'أعاد المالك عرض هذه الوحدة',
+    'حذفها المالك بتاريخ',
+    'Owner resumed this unit',
+    'Deleted by owner on',
+    'Собственник возобновил показ',
+    'Удалено собственником',
+    'მესაკუთრემ განაახლა',
+    'წაშლილია მესაკუთრის მიერ',
+  ]
+
+  for (const sys of systemSubstrings) {
+    if (clean.includes(sys)) return null
+  }
+
+  return clean
+}
+
 export function calculateUnitCompletion(
   unit: SellerUnitItem,
   t: Record<string, any>
@@ -200,6 +226,16 @@ export function calculateUnitCompletion(
     })
   }
 
+  const cleanStatus = String(unit.status || 'pending').trim().toLowerCase()
+  const isAlreadyPublishedOrApproved = [
+    'active',
+    'approved',
+    'published',
+    'offer_received',
+    'transferring',
+    'sold',
+  ].includes(cleanStatus)
+
   return {
     completedCount,
     total,
@@ -209,8 +245,15 @@ export function calculateUnitCompletion(
     hasAllCoreDetails,
     uploadedDocsCount,
     missingItems,
-    isUnitPhoneVerified: Boolean(meta.phone_verified),
-    isUnitEmailVerified: Boolean(meta.email_verified),
+    isUnitPhoneVerified: Boolean(
+      meta.phone_verified || isAlreadyPublishedOrApproved
+    ),
+    isUnitEmailVerified: Boolean(
+      meta.email_verified ||
+        isAlreadyPublishedOrApproved ||
+        cleanStatus !== 'draft_unverified'
+    ),
+    isDraftUnverified: cleanStatus === 'draft_unverified',
   }
 }
 
@@ -224,6 +267,21 @@ export function getSellerTimelineAndStatus(
     comp.hasAllCoreDetails && comp.hasImages && comp.hasAllDocuments
 
   switch (clean) {
+    case 'draft_unverified':
+      return {
+        code: 'draft_unverified',
+        stepIndex: 0,
+        listBadge: {
+          label: t.statusDraftUnverifiedBadge || t.notPublishedYet,
+          cls: 'bg-amber-100 text-amber-900 border border-amber-300',
+        },
+        headerBadge: {
+          label: t.statusDraftUnverifiedBadge || t.notPublishedYet,
+          cls: 'bg-amber-100 text-amber-900 border border-amber-300',
+        } as StatusBadgeItem | null,
+        headline:
+          t.statusDraftUnverifiedHeadline || t.incompleteNextStepHeadline,
+      }
     case 'active':
     case 'approved':
     case 'published':
@@ -328,12 +386,15 @@ export function getSellerTimelineAndStatus(
       if (!isComplete) {
         return {
           code: 'incomplete',
-          stepIndex: 1,
+          stepIndex: 2,
           listBadge: {
-            label: `${t.notPublishedYet} · ${comp.percentage}%`,
-            cls: 'bg-slate-100 text-slate-600 border border-slate-200/80',
+            label: `${t.statusPendingBadge} · ${comp.percentage}%`,
+            cls: 'bg-amber-50 text-amber-800 border border-amber-200',
           },
-          headerBadge: null,
+          headerBadge: {
+            label: t.statusPendingBadge,
+            cls: 'bg-amber-50 text-amber-800 border border-amber-200',
+          } as StatusBadgeItem | null,
           headline: t.incompleteNextStepHeadline,
         }
       }

@@ -253,14 +253,23 @@ export default function LeadsClientTable({
     return () => window.removeEventListener("click", closeMenu)
   }, [])
 
-  useEffect(() => {
+ useEffect(() => {
     const typeParam = searchParams.get("type")
     const leadIdParam = searchParams.get("leadId")
+    const verifyPhoneUserIdParam = searchParams.get("verifyPhoneUserId")
 
     if (typeParam === "unit_leads" || typeParam === "general") {
       setLeadTypeFilter(typeParam)
     } else {
       setLeadTypeFilter("all")
+    }
+
+    if (verifyPhoneUserIdParam) {
+      const alreadyVerified =
+        verificationMap?.[verifyPhoneUserIdParam]?.phoneVerified
+      if (!alreadyVerified) {
+        handleVerifyBuyerContact(verifyPhoneUserIdParam)
+      }
     }
 
     if (leadIdParam) {

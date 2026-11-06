@@ -1230,6 +1230,7 @@
       "directBuyerTitle": "بنتعامل مع المشتري نفسه بس",
       "directBuyerDesc": "مش بنقبل طلبات من سماسرة بيدوروها للعميل. الوحدات دي بتتعرض للمشتري النهائي مباشرة، عشان السعر يفضل سعر التعاقد من غير أي زيادة.",
       "stepWord": "خطوة",
+    
       "ofWord": "من",
       "stepTitles": [
         "قدرتك الشرائية",
@@ -1248,10 +1249,19 @@
       "selectAtLeastOneArea": "هذا الحقل مطلوب، يرجى إضافة منطقة واحدة على الأقل",
       "invalidPhone": "رقم الموبايل غير صحيح",
       "invalidEmail": "الإيميل غير صحيح أو يحتوي على مسافات",
+      "passwordMismatch": "كلمتا المرور غير متطابقتين",
+      "missingBannerPrefix": "يرجى استكمال الحقول المطلوبة التالية:",
       "shortPassword": "كلمة السر يجب ألا تقل عن 8 حروف",
       "loginIdRequired": "يرجى كتابة الإيميل أو رقم الموبايل",
       "loginPassRequired": "يرجى كتابة كلمة السر",
       "submitFailed": "تعذر إرسال الطلب"
+    },
+      "successScreen": {
+      "title": "تم تسجيل طلب الشراء وتفعيل الرادار الذكي بنجاح ✓",
+      "subtitle": "لتسريع ترشيح الوحدات الموثقة المتوافقة مع ميزانيتك، اضغط الزر الأخضر بالأسفل لتأكيد طلبك مباشرة عبر واتساب المنصة:",
+      "confirmWaBtn": "تأكيد طلب الشراء فوراً عبر واتساب",
+      "goToAccountBtn": "الدخول لحسابي وتصفح الفرص المطابقة",
+      "waMsgPrefix": "أهلاً إدارة Aqar Exit، أؤكد تسجيل طلب الشراء رقم"
     },
     "stepOne": {
       "countryLabel": "الدولة اللي بتدوّر فيها على الوحدة *",
@@ -1286,7 +1296,11 @@
       "tabNewRegister": "تسجيل بيانات جديدة",
       "tabExistingLogin": "عندي حساب بالفعل",
       "connectedBadge": "متصل الآن",
-      "welcomeUser": "أهلاً بك يا",
+      "confirmPasswordLabel": "تأكيد كلمة السر",
+      "messengersLabel": "تطبيقات المراسلة المتاحة على هذا الرقم",
+      "enterAccountPassError": "يرجى إدخال كلمة مرور حسابك للمتابعة وحفظ طلبك",
+      "wrongPassError": "كلمة المرور غير صحيحة",
+      "sendLinkError": "تعذر إرسال الرابط حالياً",
       "sessionAutoSaveDesc": "سيتم حفظ تفضيلات الشراء وميزانيتك في حسابك الحالي مباشرة دون الحاجة لإعادة إدخال بياناتك:",
       "phoneLabelShort": "رقم الموبايل:",
       "emailLabelShort": "البريد الإلكتروني:",
@@ -1319,10 +1333,8 @@
       "sendRecoveryBtn": "ابعتلي لينك على الإيميل المسجّل",
       "phoneRecoverySentNote": "بعتنا اللينك على الإيميل المسجّل على الرقم ده. لو مالقتهوش خلال دقيقة، بصّ في السبام.",
       "useAnotherPhoneBtn": "← استخدام رقم آخر",
-      "orLoginPageBtn": "أو ادخل من صفحة الدخول",
-      "enterAccountPassError": "يرجى إدخال كلمة السر الخاصة بحسابك.",
-      "wrongPassError": "كلمة السر غير صحيحة.",
-      "sendLinkError": "تعذر إرسال الرابط حالياً."
+      "orLoginPageBtn": "أو ادخل من صفحة الدخول"
+   
     },
     "actions": {
       "backBtn": "ارجع",
@@ -1908,7 +1920,13 @@
       "unauthorizedAction": "غير مصرح بتنفيذ هذا الإجراء.",
       "adminSenderName": "إدارة منصة دارك",
       "greetingWord": "أهلاً بك يا",
+      
       "dearClient": "عميلنا العزيز",
+      "notifAdminNoteTitle": "ملاحظة جديدة من الإدارة بخصوص وحدتك",
+      "boostApprovedNotifTitle": "تم تأكيد الدفع وتفعيل باقة التمييز",
+      "boostApprovedNotifMsg": "تمت مراجعة الدفع وتفعيل تمييز إعلانك في صدارة السوق بنجاح.",
+      "boostRejectedNotifTitle": "تنبيه بخصوص طلب تفعيل باقة التمييز",
+      "boostRejectedDefaultReason": "تعذر التحقق من عملية الدفع، يرجى التواصل مع الدعم.",
       "defaultProjectWord": "مشروعك",
       "reasonWord": "السبب",
       "updatePropertyFailed": "تعذر تحديث حالة العقار في قاعدة البيانات.",
@@ -2587,11 +2605,12 @@
         "deleted_by_seller": "🗑 محذوفة من المالك",
         "rejected": "٧. مرفوض"
       },
-      "docs": {
-        "contract": "عقد الوحدة الابتدائي",
-        "receipts": "إيصالات السداد",
-        "statement": "كشف حساب المطور",
-        "national_id": "البطاقة الشخصية للمالك",
+    "docs": {
+        "contract": "عقد شراء الوحدة الأصلي",
+        "receipts": "إيصالات السداد للمطور",
+        "statement": "كشف حساب المطور (Statement)",
+        "passport": "صورة جواز السفر (Passport)",
+        "national_id": "صورة جواز السفر (Passport)",
         "fallbackName": "مستند"
       },
       "badges": {
@@ -2664,7 +2683,7 @@
         "executingBtn": "جاري التنفيذ...",
         "openDocBtn": "فتح"
       },
-      "modals": {
+     "modals": {
         "purgeTitle": "مسح الوحدات المحذوفة",
         "purgeDescPrefix": "مسح جميع الوحدات المحذوفة",
         "purgeDescSuffix": "نهائياً من قاعدة البيانات؟",
@@ -2680,7 +2699,7 @@
         "stageConfirmTitle": "تأكيد تحديث المرحلة",
         "updateUnitPrefix": "تحديث وحدة",
         "toWord": "إلى",
-        "rejectReasonPlaceholder": "سبب الرفض أو ملاحظة للبائع (اختياري)...",
+        "rejectReasonPlaceholder": "سبب الرفض أو ملاحظة للبائع (تظهر في حسابه)...",
         "detailsFallbackTitle": "وحدة عقارية",
         "areaLabel": "المنطقة",
         "developerLabel": "المطور",
@@ -2693,7 +2712,22 @@
         "installmentYearsLabel": "القسط والمدة",
         "yearsWord": "سنوات",
         "uploadedDocsTitle": "المستندات المرفوعة",
-        "noDocsUploaded": "لا توجد مستندات مرفوعة."
+        "noDocsUploaded": "لا توجد مستندات مرفوعة.",
+        "streetAddressLabel": "الشارع ورقم المبنى",
+        "cadastralLabel": "الرقم العقاري (NAPR)",
+        "sizeAndRoomsLabel": "المساحة والغرف (النوم)",
+        "floorAndConditionLabel": "الطابق والتشطيب",
+        "installmentAndRemainingLabel": "القسط والمتبقي",
+        "videoLinkBtn": "فيديو اليوتيوب",
+        "tour3dLinkBtn": "جولة 3D",
+        "onlineViewingBadge": "متاح معاينة أونلاين",
+        "unitPhotosLabel": "صور الوحدة المرفوعة",
+        "sellerNoteBoxTitle": "ملاحظة الإدارة لصاحب الوحدة (تظهر في حساب البائع)",
+        "sellerNoteBoxSub": "اكتب أي تعديل مطلوب في تفاصيل أو مستندات الوحدة ليظهر للبائع في حسابه مع إشعار فوري",
+        "sellerNotePlaceholder": "مثال: يرجى مراجعة رقم الطابق وتصحيحه، أو رفع صورة أوضح للعقد...",
+        "saveAndNotifySellerBtn": "حفظ وإرسال الملاحظة للبائع",
+        "clearNoteBtn": "مسح الملاحظة",
+        "noteSavedSuccess": "تم حفظ الملاحظة وإرسال إشعار للبائع ✓"
       },
       "notices": {
         "purgedSuccess": "تم مسح جميع الوحدات المحذوفة نهائياً ✓",

@@ -6,10 +6,9 @@ import { useRouter } from 'next/navigation'
 import {
   AlertCircle,
   Building2,
-  Check,
-  CheckCircle2,
   ChevronDown,
   ChevronUp,
+  Edit3,
   FileCheck2,
   ImagePlus,
   Loader2,
@@ -23,7 +22,6 @@ import {
   Star,
   Trash2,
   UploadCloud,
-  X,
 } from 'lucide-react'
 import {
   cancelUnitPromotionBySellerAction,
@@ -34,21 +32,14 @@ import {
 import {
   getCurrentSellerProfileAction,
   markUserPhoneVerifiedAction,
-  sendSellerReviewOtpAction,
-  verifySellerReviewOtpAction,
 } from '@/actions/submit-forms'
-import { Input } from '@/components/ui/input'
 import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
 import { ScrollReveal } from '@/components/shared/scroll-reveal'
-import {
-  getSellerExtraLabels,
-  maskEmailDisplay,
-} from '@/components/features/seller/seller-i18n'
-import { toEnglishDigits } from '@/components/features/seller/seller-shared'
 import { AccountActionLinks } from './delete-account-modal'
 import {
   calculateUnitCompletion,
   getSellerTimelineAndStatus,
+  getVisibleSellerAdminNote,
   type ConfirmModalState,
   type SellerUnitItem,
 } from './seller-unit-helpers'
@@ -57,7 +48,7 @@ import {
   SellerPromoSection,
   Timeline,
 } from './seller-promo-timeline'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation, type LocaleCode } from '@/lib/i18n'
 
 export type { SellerUnitItem } from './seller-unit-helpers'
 
@@ -68,6 +59,74 @@ const DEFAULT_GEORGIA_PROMO_PACKAGES = {
   days7: 20,
   days14: 50,
   days30: 100,
+}
+
+const SELLER_DASH_EXTRA_I18N: Record<
+  LocaleCode,
+  {
+    navigatingLoading: string
+    unverifiedDraftTitle: string
+    unverifiedDraftDesc: string
+    verifyAndSendToAdminBtn: string
+    adminNoteCardTitle: string
+    adminNoteFixBtn: string
+    adminNoteWaReplyBtn: string
+    adminNoteWaMsgPrefix: string
+    adminNoteWaMsgMiddle: string
+  }
+> = {
+  ar: {
+    navigatingLoading: 'جاري تحميل بيانات الوحدة...',
+    unverifiedDraftTitle: 'تأكيد البريد الإلكتروني لإرسال الوحدة للإدارة',
+    unverifiedDraftDesc:
+      'هذه الوحدة محفوظة كمسودة في حسابك ولم تُرسل للإدارة بعد. أكّد بريدك الإلكتروني (خطوة لمرة واحدة فقط) لإرسالها للمراجعة.',
+    verifyAndSendToAdminBtn: 'تأكيد الإيميل وإرسال الوحدة للإدارة ←',
+    adminNoteCardTitle: 'ملاحظة من مراجع الإدارة على وحدتك قبل النشر:',
+    adminNoteFixBtn: 'تعديل بيانات الوحدة الآن',
+    adminNoteWaReplyBtn: 'توضيح أو استفسار عبر واتساب',
+    adminNoteWaMsgPrefix:
+      'أهلاً إدارة Aqar Exit، بخصوص ملاحظتكم على وحدتي رقم',
+    adminNoteWaMsgMiddle: 'في مشروع',
+  },
+  en: {
+    navigatingLoading: 'Loading unit details...',
+    unverifiedDraftTitle: 'Verify Email to Send Unit to Admin',
+    unverifiedDraftDesc:
+      'This unit is saved as a draft and has not been sent to Admin yet. Verify your email (one-time step) to submit it for review.',
+    verifyAndSendToAdminBtn: 'Verify Email & Submit to Admin →',
+    adminNoteCardTitle: 'Reviewer Note from Admin Regarding Your Unit:',
+    adminNoteFixBtn: 'Edit Unit Details Now',
+    adminNoteWaReplyBtn: 'Reply / Ask via WhatsApp',
+    adminNoteWaMsgPrefix:
+      'Hello Aqar Exit Admin, regarding your note on my unit',
+    adminNoteWaMsgMiddle: 'in project',
+  },
+  ru: {
+    navigatingLoading: 'Загрузка данных объекта...',
+    unverifiedDraftTitle: 'Подтвердите Email для отправки объекта администрации',
+    unverifiedDraftDesc:
+      'Объект сохранен как черновик. Подтвердите ваш Email (только один раз), чтобы отправить его на проверку.',
+    verifyAndSendToAdminBtn: 'Подтвердить Email и отправить →',
+    adminNoteCardTitle: 'Комментарий модератора по вашему объекту:',
+    adminNoteFixBtn: 'Исправить данные объекта',
+    adminNoteWaReplyBtn: 'Ответить в WhatsApp',
+    adminNoteWaMsgPrefix:
+      'Здравствуйте, Aqar Exit! По поводу вашего комментария к объекту',
+    adminNoteWaMsgMiddle: 'в ЖК',
+  },
+  ka: {
+    navigatingLoading: 'ობიექტის მონაცემები იტვირთება...',
+    unverifiedDraftTitle: 'დაადასტურეთ ელ-ფოსტა ობიექტის გასაგზავნად',
+    unverifiedDraftDesc:
+      'ეს ობიექტი შენახულია მონახაზის სახით. დაადასტურეთ ელ-ფოსტა (მხოლოდ ერთხელ) ადმინისტრაციაში გასაგზავნად.',
+    verifyAndSendToAdminBtn: 'ელ-ფოსტის დადასტურება და გაგზავნა →',
+    adminNoteCardTitle: 'ადმინისტრაციის შენიშვნა თქვენს ობიექტზე:',
+    adminNoteFixBtn: 'მონაცემების შესწორება ახლა',
+    adminNoteWaReplyBtn: 'პასუხი WhatsApp-ით',
+    adminNoteWaMsgPrefix:
+      'გამარჯობა Aqar Exit, თქვენს შენიშვნასთან დაკავშირებით ობიექტზე',
+    adminNoteWaMsgMiddle: 'პროექტში',
+  },
 }
 
 export function SellerDashboard({
@@ -89,7 +148,8 @@ export function SellerDashboard({
     any
   >
   const t = (dict?.accountComponents?.seller as Record<string, any>) || {}
-  const extraT = getSellerExtraLabels(locale, dict)
+  const dT =
+    SELLER_DASH_EXTRA_I18N[locale as LocaleCode] || SELLER_DASH_EXTRA_I18N.ar
 
   const [localSells, setLocalSells] = useState<SellerUnitItem[]>(sells)
   useEffect(() => {
@@ -104,6 +164,7 @@ export function SellerDashboard({
 
   const [isUnitsExpanded, setIsUnitsExpanded] = useState(false)
   const [unitSearchQuery, setUnitSearchQuery] = useState('')
+  const [navigatingToHref, setNavigatingToHref] = useState<string | null>(null)
 
   const [isPromoCollapsed, setIsPromoCollapsed] = useState(false)
   const [confirmModal, setConfirmModal] = useState<ConfirmModalState>(null)
@@ -112,19 +173,11 @@ export function SellerDashboard({
   const [isPending, startTransition] = useTransition()
 
   const [currentUserId, setCurrentUserId] = useState('')
-  const [currentUserEmail, setCurrentUserEmail] = useState('')
   const [userEmailVerified, setUserEmailVerified] = useState(true)
   const [userPhoneVerified, setUserPhoneVerified] = useState(false)
   const [hiddenWaUnitIds, setHiddenWaUnitIds] = useState<
     Record<string, boolean>
   >({})
-
-  // نافذة توثيق الإيميل المباشر داخل الحساب لمن ضغط "حفظ وتكملة لاحقاً"
-  const [emailVerifyModalOpen, setEmailVerifyModalOpen] = useState(false)
-  const [otpSent, setOtpSent] = useState(false)
-  const [otpCode, setOtpCode] = useState('')
-  const [otpLoading, setOtpLoading] = useState(false)
-  const [otpError, setOtpError] = useState('')
 
   const activeUnit =
     localSells.find((s) => s.id === selectedId) || localSells[0]
@@ -133,7 +186,6 @@ export function SellerDashboard({
     getCurrentSellerProfileAction().then((res) => {
       if (res.isLoggedIn && res.user) {
         setCurrentUserId(res.user.id)
-        setCurrentUserEmail(res.user.email || '')
         setUserEmailVerified(Boolean(res.user.emailVerified))
         if (res.user.phoneVerified) {
           setUserPhoneVerified(true)
@@ -216,6 +268,11 @@ export function SellerDashboard({
   const comp = calculateUnitCompletion(activeUnit, t)
   const meta = getSellerTimelineAndStatus(activeUnit, comp, t)
   const isPausedBySeller = meta.code === 'paused_by_seller'
+  const visibleAdminNote = getVisibleSellerAdminNote(activeUnit.admin_note)
+
+  // لا يظهر تنبيه تأكيد الإيميل إلا إذا كانت الوحدة مسودة غير موثقة ولم يتم نشرها أو قبولها مسبقاً
+  const needsEmailVerificationToSubmit =
+    comp.isDraftUnverified && !userEmailVerified
 
   const realMatchedBuyersCount = matchedBuyersCountMap[activeUnit.id] ?? 0
   const uploadedDocsCount = comp.uploadedDocsCount
@@ -230,6 +287,7 @@ export function SellerDashboard({
     activeUnit.unit_type || activeUnit.documents?.__unit_meta?.unit_type
 
   const editUnitHref = `/sell?editUnitId=${activeUnit.id}`
+  const verifyUnitHref = `/sell?editUnitId=${activeUnit.id}&verifyEmail=1`
 
   const siteOrigin =
     typeof window !== 'undefined'
@@ -243,7 +301,12 @@ export function SellerDashboard({
 
   const sellerFastTrackWaMsg = `${t.waFastTrackSellerMsgPrefix} (${unitRef}) — ${activeUnit.project_name || t.defaultProjectName} (${activeUnitLocalizedArea}) — ${t.paidAmountLabel}: ${money(activeUnit.paid_amount)}.\n${adminVerifyUnitLink}`
 
+  const adminNoteReplyWaMsg = visibleAdminNote
+    ? `${dT.adminNoteWaMsgPrefix} (${unitRef}) ${dT.adminNoteWaMsgMiddle} (${activeUnit.project_name || t.defaultProjectName}):\n"${visibleAdminNote}"`
+    : ''
+
   const isWaFastTrackHidden =
+    needsEmailVerificationToSubmit ||
     userPhoneVerified ||
     comp.isUnitPhoneVerified ||
     Boolean(hiddenWaUnitIds[activeUnit.id]) ||
@@ -265,46 +328,9 @@ export function SellerDashboard({
     }).catch(() => {})
   }
 
-  const handleSendEmailOtp = async () => {
-    setOtpLoading(true)
-    setOtpError('')
-    try {
-      const res = await sendSellerReviewOtpAction({
-        email: currentUserEmail,
-        unitId: activeUnit.id,
-        userId: currentUserId,
-      })
-      if (res.success) {
-        setOtpSent(true)
-      } else {
-        setOtpError(res.error || '')
-      }
-    } finally {
-      setOtpLoading(false)
-    }
-  }
-
-  const handleConfirmEmailOtp = async () => {
-    setOtpLoading(true)
-    setOtpError('')
-    try {
-      const res = await verifySellerReviewOtpAction({
-        email: currentUserEmail,
-        otp: otpCode,
-        unitId: activeUnit.id,
-        userId: currentUserId,
-      })
-      if (res.success) {
-        setUserEmailVerified(true)
-        setEmailVerifyModalOpen(false)
-        setActionMessage(extraT.emailVerifiedBadge)
-        router.refresh()
-      } else {
-        setOtpError(res.error || '')
-      }
-    } finally {
-      setOtpLoading(false)
-    }
+  const handleNavigateWithLoading = (href: string) => {
+    setNavigatingToHref(href)
+    router.push(href)
   }
 
   const isCurrentlyFeatured =
@@ -438,6 +464,16 @@ export function SellerDashboard({
 
   return (
     <div dir={dir} className="mx-auto max-w-[680px] px-4 sm:px-6">
+      {/* مؤشر تحميل خفيف عند الانتقال لصفحة التعديل أو المستندات */}
+      {navigatingToHref && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4 backdrop-blur-xs">
+          <div className="flex items-center gap-3 rounded-2xl bg-white px-6 py-4 text-xs font-extrabold text-[#0a1122] shadow-xl sm:text-sm">
+            <Loader2 className="size-5 animate-spin text-[#007a5a]" />
+            <span>{dT.navigatingLoading}</span>
+          </div>
+        </div>
+      )}
+
       {localSells.length > 1 && (
         <ScrollReveal>
           <section className="mb-4 rounded-[20px] border border-gray-200/90 bg-white p-4 text-start shadow-2xs sm:p-5">
@@ -451,13 +487,14 @@ export function SellerDashboard({
                 </h1>
               </div>
 
-              <Link
-                href="/sell?new=1"
+              <button
+                type="button"
+                onClick={() => handleNavigateWithLoading('/sell?new=1')}
                 className="inline-flex h-9 items-center justify-center gap-1 rounded-xl bg-[var(--brand-navy,#0a1122)] px-3.5 text-xs font-bold text-white shadow-2xs transition hover:bg-[var(--brand-navy-hover,#16223f)]"
               >
                 <Plus className="size-3.5" />
                 <span>{String(t.addUnitBtn || '').replace('+ ', '')}</span>
-              </Link>
+              </button>
             </div>
 
             {isUnitsExpanded && localSells.length > 5 && (
@@ -580,33 +617,30 @@ export function SellerDashboard({
         </div>
       )}
 
-      {/* بانر توثيق البريد الإلكتروني إذا لم يوثقه البائع بعد */}
-      {!userEmailVerified && !comp.isUnitEmailVerified && (
-        <div className="mb-4 flex flex-col justify-between gap-3 rounded-2xl border-2 border-amber-300 bg-amber-50/90 p-4 text-start shadow-2xs sm:flex-row sm:items-center">
-          <div className="flex items-start gap-2.5">
-            <ShieldAlert className="mt-0.5 size-5 shrink-0 text-amber-600" />
-            <div>
-              <strong className="block text-xs font-black text-amber-950 sm:text-sm">
-                {extraT.verifyBoxTitle}
-              </strong>
-              <p className="mt-0.5 text-[11.5px] leading-relaxed text-amber-900">
-                {extraT.reviewNoteBeforeSubmit}
+      {/* يظهر فقط إذا كانت هذه الوحدة مسودة غير موثقة ولم تُرسل للأدمن بعد */}
+      {needsEmailVerificationToSubmit && (
+        <div className="mb-4 rounded-2xl border-2 border-amber-300 bg-amber-50/95 p-4 text-start shadow-xs sm:p-5">
+          <div className="flex items-start gap-3">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white">
+              <ShieldAlert className="size-5" />
+            </span>
+            <div className="flex-1">
+              <h3 className="text-xs font-black text-amber-950 sm:text-sm">
+                {dT.unverifiedDraftTitle}
+              </h3>
+              <p className="mt-1 text-[11.5px] leading-relaxed text-amber-900">
+                {dT.unverifiedDraftDesc}
               </p>
+              <button
+                type="button"
+                onClick={() => handleNavigateWithLoading(verifyUnitHref)}
+                className="mt-3 inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#007a5a] px-5 text-xs font-extrabold text-white shadow-2xs transition hover:bg-[#006248]"
+              >
+                <Mail className="size-4" />
+                <span>{dT.verifyAndSendToAdminBtn}</span>
+              </button>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              setOtpSent(false)
-              setOtpCode('')
-              setOtpError('')
-              setEmailVerifyModalOpen(true)
-            }}
-            className="inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] px-4 text-xs font-extrabold text-white shadow-2xs transition hover:bg-[#006248]"
-          >
-            <Mail className="size-3.5" />
-            <span>{extraT.sendCodeBtn}</span>
-          </button>
         </div>
       )}
 
@@ -638,15 +672,56 @@ export function SellerDashboard({
             </div>
 
             {localSells.length === 1 && (
-              <Link
-                href="/sell?new=1"
+              <button
+                type="button"
+                onClick={() => handleNavigateWithLoading('/sell?new=1')}
                 className="inline-flex h-9 items-center justify-center gap-1 rounded-xl bg-[var(--brand-navy,#0a1122)] px-3.5 text-xs font-bold text-white shadow-2xs transition hover:bg-[var(--brand-navy-hover,#16223f)]"
               >
                 <Plus className="size-3.5" />
                 <span>{String(t.addUnitBtn || '').replace('+ ', '')}</span>
-              </Link>
+              </button>
             )}
           </div>
+
+          {/* ========================================================= */}
+          {/* صندوق ملاحظة الإدارة التفاعلي (يظهر فقط إذا كتب الأدمن ملاحظة) */}
+          {/* ========================================================= */}
+          {visibleAdminNote && (
+            <div className="mt-4 rounded-2xl border-2 border-amber-300 bg-[#fffbeb] p-4 text-start shadow-2xs">
+              <div className="flex items-start gap-2.5">
+                <AlertCircle className="mt-0.5 size-5 shrink-0 text-amber-600" />
+                <div className="flex-1">
+                  <strong className="block text-xs font-black text-amber-950 sm:text-sm">
+                    {dT.adminNoteCardTitle}
+                  </strong>
+                  <p className="mt-1 whitespace-pre-line text-xs leading-relaxed font-semibold text-amber-900">
+                    {visibleAdminNote}
+                  </p>
+
+                  <div className="mt-3.5 flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleNavigateWithLoading(editUnitHref)}
+                      className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[#0a1122] px-4 text-xs font-extrabold text-white shadow-2xs transition hover:bg-[#16223f]"
+                    >
+                      <Edit3 className="size-3.5" />
+                      <span>{dT.adminNoteFixBtn}</span>
+                    </button>
+
+                    <a
+                      href={`https://wa.me/${supportWhatsApp}?text=${encodeURIComponent(adminNoteReplyWaMsg)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-[#25D366] bg-white px-4 text-xs font-extrabold text-[#128C7E] transition hover:bg-[#f0fdf4]"
+                    >
+                      <MessageCircle className="size-3.5" />
+                      <span>{dT.adminNoteWaReplyBtn}</span>
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="mt-4">
             <span className="text-xs font-extrabold text-[var(--brand-primary,#007a5a)]">
@@ -679,9 +754,10 @@ export function SellerDashboard({
             {comp.missingItems.length > 0 && (
               <div className="mt-3 grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
                 {comp.missingItems.map((item) => (
-                  <Link
+                  <button
                     key={item.key}
-                    href={item.href}
+                    type="button"
+                    onClick={() => handleNavigateWithLoading(item.href)}
                     className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-extrabold text-amber-950 shadow-2xs transition hover:bg-amber-100"
                   >
                     {item.key === 'photos' ? (
@@ -692,7 +768,7 @@ export function SellerDashboard({
                       <AlertCircle className="size-3.5 shrink-0 text-amber-700" />
                     )}
                     <span>{item.label}</span>
-                  </Link>
+                  </button>
                 ))}
               </div>
             )}
@@ -741,29 +817,16 @@ export function SellerDashboard({
             </div>
           </div>
 
-          {activeUnit.admin_note && (
-            <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 p-3.5 text-xs text-amber-900">
-              <AlertCircle className="mt-0.5 size-4 shrink-0 text-amber-600" />
-              <div>
-                <strong className="block font-extrabold">
-                  {t.adminNoteLabel}
-                </strong>
-                <p className="mt-0.5 leading-relaxed">
-                  {activeUnit.admin_note}
-                </p>
-              </div>
-            </div>
-          )}
-
           <div className="mt-4 flex flex-wrap items-center gap-2">
-            <Link
-              href={editUnitHref}
+            <button
+              type="button"
+              onClick={() => handleNavigateWithLoading(editUnitHref)}
               className="inline-flex h-10 flex-1 items-center justify-center rounded-xl bg-[var(--brand-primary,#007a5a)] px-4 text-xs font-bold text-white transition hover:bg-[var(--brand-primary-hover,#006248)] sm:flex-none sm:px-5"
             >
               {t.editDataBtn}
-            </Link>
+            </button>
 
-            {meta.code !== 'sold' && (
+            {meta.code !== 'sold' && !needsEmailVerificationToSubmit && (
               <button
                 type="button"
                 disabled={isPending}
@@ -821,8 +884,9 @@ export function SellerDashboard({
 
       <ScrollReveal delay={100}>
         <section className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Link
-            href={`/sell?editUnitId=${activeUnit.id}`}
+          <button
+            type="button"
+            onClick={() => handleNavigateWithLoading(editUnitHref)}
             className="flex flex-col justify-between rounded-[16px] border border-gray-200/80 bg-white p-4 text-start shadow-2xs transition hover:border-[var(--brand-primary,#007a5a)]"
           >
             <p className="text-xs font-extrabold text-[var(--brand-navy,#0a1122)]">
@@ -831,17 +895,22 @@ export function SellerDashboard({
             <p className="mt-1.5 text-[11px] font-bold text-[var(--brand-primary,#007a5a)]">
               {comp.completedCount}/{comp.total} {t.cardUnitDataSub}
             </p>
-          </Link>
+          </button>
 
-          <Link
-            href={`/account/documents?unitId=${activeUnit.id}`}
+          <button
+            type="button"
+            onClick={() =>
+              handleNavigateWithLoading(
+                `/account/documents?unitId=${activeUnit.id}`
+              )
+            }
             className={`flex flex-col justify-between rounded-[16px] border bg-white p-4 text-start shadow-2xs transition hover:border-[var(--brand-primary,#007a5a)] ${
               uploadedDocsCount < 4
                 ? 'border-amber-300 ring-1 ring-amber-200/60'
                 : 'border-gray-200/80'
             }`}
           >
-            <div className="flex items-center justify-between">
+            <div className="flex w-full items-center justify-between">
               <p className="text-xs font-extrabold text-[var(--brand-navy,#0a1122)]">
                 {t.cardDocuments}
               </p>
@@ -862,10 +931,15 @@ export function SellerDashboard({
                 ? `${uploadedDocsCount}/4 ${t.cardDocumentsUploaded}`
                 : t.cardDocumentsEmpty}
             </p>
-          </Link>
+          </button>
 
-          <Link
-            href={`/account/offers?role=seller&unitId=${activeUnit.id}`}
+          <button
+            type="button"
+            onClick={() =>
+              handleNavigateWithLoading(
+                `/account/offers?role=seller&unitId=${activeUnit.id}`
+              )
+            }
             className={`flex flex-col justify-between rounded-[16px] border bg-white p-4 text-start shadow-2xs transition hover:border-[var(--brand-primary,#007a5a)] ${
               unitOffersCount > 0 || meta.code === 'offer_received'
                 ? 'border-emerald-300 bg-[#eaf8f2]/40'
@@ -886,7 +960,7 @@ export function SellerDashboard({
                 ? `${unitOffersCount || 1} ${t.cardOffersAvailable}`
                 : t.cardOffersEmpty}
             </p>
-          </Link>
+          </button>
 
           <a
             href={`https://wa.me/${supportWhatsApp}`}
@@ -946,111 +1020,6 @@ export function SellerDashboard({
           position="bottom"
         />
       </div>
-
-      {/* نافذة توثيق الإيميل المباشر بالـ OTP داخل الحساب */}
-      {emailVerifyModalOpen && (
-        <div
-          dir={dir}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-xs"
-        >
-          <div className="relative w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 text-start shadow-2xl">
-            <button
-              type="button"
-              onClick={() => setEmailVerifyModalOpen(false)}
-              className="absolute top-4 end-4 flex size-8 items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200"
-            >
-              <X className="size-4" />
-            </button>
-
-            <div className="flex size-12 items-center justify-center rounded-2xl bg-emerald-50 text-[#007a5a]">
-              <Mail className="size-6" />
-            </div>
-
-            <h3 className="mt-4 text-lg font-black text-[#0a1122]">
-              {extraT.verifyBoxTitle}
-            </h3>
-            <p className="mt-1.5 text-xs leading-relaxed text-slate-600">
-              {extraT.verifyBoxDescPrefix}{' '}
-              <strong dir="ltr" className="font-mono text-[#0a1122]">
-                {maskEmailDisplay(currentUserEmail)}
-              </strong>{' '}
-              {extraT.verifyBoxDescSuffix}
-            </p>
-
-            <div className="mt-5">
-              {!otpSent ? (
-                <button
-                  type="button"
-                  disabled={otpLoading}
-                  onClick={handleSendEmailOtp}
-                  className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#007a5a] px-5 text-xs font-extrabold text-white shadow-sm hover:bg-[#006248]"
-                >
-                  {otpLoading ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <Mail className="size-4" />
-                  )}
-                  <span>{extraT.sendCodeBtn}</span>
-                </button>
-              ) : (
-                <div className="space-y-3">
-                  <div className="rounded-xl bg-slate-50 p-3 text-xs text-slate-600">
-                    <strong className="block font-bold text-[#0a1122]">
-                      {extraT.codeSentToPrefix}
-                    </strong>
-                    <span className="mt-0.5 block">{extraT.codeSentBody}</span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="text"
-                      dir="ltr"
-                      inputMode="numeric"
-                      maxLength={6}
-                      value={otpCode}
-                      onChange={(e) =>
-                        setOtpCode(
-                          toEnglishDigits(e.target.value).replace(/[^0-9]/g, '')
-                        )
-                      }
-                      placeholder="• • • • • •"
-                      className="h-11 flex-1 rounded-xl bg-white text-center font-mono text-lg font-black tracking-[0.35em]"
-                    />
-                    <button
-                      type="button"
-                      disabled={otpLoading || otpCode.length < 6}
-                      onClick={handleConfirmEmailOtp}
-                      className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] px-5 text-xs font-extrabold text-white shadow-sm hover:bg-[#006248] disabled:opacity-50"
-                    >
-                      {otpLoading ? (
-                        <Loader2 className="size-4 animate-spin" />
-                      ) : (
-                        <Check className="size-4" />
-                      )}
-                      <span>{extraT.confirmCodeBtn}</span>
-                    </button>
-                  </div>
-
-                  <button
-                    type="button"
-                    disabled={otpLoading}
-                    onClick={handleSendEmailOtp}
-                    className="text-xs font-bold text-[#2563eb] hover:underline"
-                  >
-                    {extraT.resendCodeBtn}
-                  </button>
-                </div>
-              )}
-
-              {otpError && (
-                <p className="mt-2.5 rounded-xl bg-red-50 px-3 py-2 text-xs font-bold text-red-600">
-                  {otpError}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
       <SellerConfirmModal
         dir={dir}

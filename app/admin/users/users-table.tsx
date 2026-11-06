@@ -7,10 +7,12 @@ import {
   Ban,
   Calendar,
   CheckCircle2,
+  Crown,
   Download,
   FileText,
   Info,
   Loader2,
+  Lock,
   Mail,
   MoreVertical,
   Phone,
@@ -48,6 +50,7 @@ export type AdminUserRow = {
   buyCount: number
   emailVerified?: boolean
   phoneVerified?: boolean
+  isOwnerAdmin?: boolean
 }
 
 export type ConfirmActionState =
@@ -66,22 +69,64 @@ export type ConfirmActionState =
       user: AdminUserRow
     }
 
-export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
+export default function UsersClientTable({
+  users,
+  currentAdminId = "",
+  isCurrentUserOwner = false,
+}: {
+  users: AdminUserRow[]
+  currentAdminId?: string
+  isCurrentUserOwner?: boolean
+}) {
   const router = useRouter()
   const { t: dict, locale, dir } = useTranslation()
-  const t = dict.admin.usersPage
+  const t = dict.admin.usersPage as Record<string, any>
   const propBadges = dict.admin?.propertiesAdmin?.badges || {}
   const expL = EXPORT_LABELS[locale] || EXPORT_LABELS.ar
 
-  const roleOptions = [
+  const ownerRoleLabel = t.roles?.owner || `👑 SUPER ADMIN (${t.roles?.admin || "Owner"})`
+
+  const allRoleOptions = [
+    { value: "owner", label: ownerRoleLabel },
     { value: "admin", label: t.roles.admin },
     { value: "moderator", label: t.roles.moderator },
     { value: "sales", label: t.roles.sales },
     { value: "user", label: t.roles.user },
   ]
 
+  // إذا كان المستخدم الحالي مالكاً للمشروع (Owner) يرى جميع الرتب، أما الأدمن العادي فيعيّن المشرفين والمبيعات فقط
+  const assignableRoleOptions = isCurrentUserOwner
+    ? allRoleOptions
+    : allRoleOptions.filter((r) => r.value !== "owner" && r.value !== "admin")
+
   function getRoleLabel(role: string) {
-    return roleOptions.find((r) => r.value === role)?.label || t.roles.user
+    return allRoleOptions.find((r) => r.value === role)?.label || t.roles.user
+  }
+
+  /**
+   * قواعد الحماية القياسية (RBAC):
+   * 1. لا يمكن لأحد تعديل أو حذف حسابه الشخصي من الجدول
+   * 2. لا يمكن لأي شخص غير المالك تعديل أو حذف حساب مالك (Owner) أو حساب مدير (Admin) آخر
+   */
+  function canManageUser(target: AdminUserRow): boolean {
+    if (String(target.id) === String(currentAdminId)) return false
+    const targetRole = String(target.role || "user").trim().toLowerCase()
+    if (
+      (target.isOwnerAdmin || targetRole === "owner" || targetRole === "admin") &&
+      !isCurrentUserOwner
+    ) {
+      return false
+    }
+    return true
+  }
+
+  function canDeleteOrSuspendUser(target: AdminUserRow): boolean {
+    if (!canManageUser(target)) return false
+    // حساب المالك (Owner) محمي من الحذف أو الإيقاف المباشر حتى يتم خفض رتبته أولاً
+    if (target.isOwnerAdmin || String(target.role).toLowerCase() === "owner") {
+      return false
+    }
+    return true
   }
 
   const [search, setSearch] = useState("")
@@ -197,7 +242,7 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
   }
 
   const isStaffMember = (role: string) =>
-    role === "admin" || role === "moderator" || role === "sales"
+    role === "owner" || role === "admin" || role === "moderator" || role === "sales"
 
   const filtered = users.filter((u) => {
     if (roleFilter === "admins" && !isStaffMember(u.role)) {
@@ -288,6 +333,11 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
 
   function renderThreeDotsMenu(user: AdminUserRow, isSuspended: boolean) {
     const isMenuOpen = openMenuId === user.id
+    const canDeleteOrSuspend = canDeleteOrSuspendUser(user)
+    const canGrantOwner =
+      isCurrentUserOwner &&
+      String(user.id) !== String(currentAdminId) &&
+      String(user.role).toLowerCase() !== "owner"
 
     return (
       <div
@@ -311,35 +361,62 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
         {isMenuOpen && (
           <div
             onClick={(e) => e.stopPropagation()}
-            className="absolute end-0 top-9 z-50 w-56 overflow-hidden rounded-xl border border-gray-200 bg-white p-1.5 shadow-2xl"
+            className="absolute end-0 top-9 z-50 w-60 overflow-hidden rounded-xl border border-gray-200 bg-white p-1.5 shadow-2xl"
           >
-            <button
-              type="button"
-              disabled={pending}
-              onClick={(e) => {
-                e.stopPropagation()
-                setOpenMenuId(null)
-                setConfirmState({
-                  type: "status",
-                  user,
-                  newStatus: isSuspended ? "active" : "suspended",
-                })
-              }}
-              className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold transition ${
-                isSuspended
-                  ? "text-emerald-700 hover:bg-emerald-50"
-                  : "text-amber-800 hover:bg-amber-50"
-              }`}
-            >
-              {isSuspended ? (
-                <CheckCircle2 className="size-3.5 text-emerald-600" />
-              ) : (
-                <Ban className="size-3.5 text-amber-600" />
-              )}
-              <span>{isSuspended ? t.activateBtn : t.suspendBtn}</span>
-            </button>
+            {canGrantOwner && (
+              <>
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setOpenMenuId(null)
+                    setConfirmState({
+                      type: "role",
+                      user,
+                      newRole: "owner",
+                    })
+                  }}
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-extrabold text-amber-900 transition hover:bg-amber-50"
+                >
+                  <Crown className="size-3.5 text-amber-600" />
+                  <span>{ownerRoleLabel}</span>
+                </button>
+                <div className="my-1 border-t border-gray-100" />
+              </>
+            )}
 
-            <div className="my-1 border-t border-gray-100" />
+            {canDeleteOrSuspend && (
+              <>
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setOpenMenuId(null)
+                    setConfirmState({
+                      type: "status",
+                      user,
+                      newStatus: isSuspended ? "active" : "suspended",
+                    })
+                  }}
+                  className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold transition ${
+                    isSuspended
+                      ? "text-emerald-700 hover:bg-emerald-50"
+                      : "text-amber-800 hover:bg-amber-50"
+                  }`}
+                >
+                  {isSuspended ? (
+                    <CheckCircle2 className="size-3.5 text-emerald-600" />
+                  ) : (
+                    <Ban className="size-3.5 text-amber-600" />
+                  )}
+                  <span>{isSuspended ? t.activateBtn : t.suspendBtn}</span>
+                </button>
+
+                <div className="my-1 border-t border-gray-100" />
+              </>
+            )}
 
             <button
               type="button"
@@ -377,24 +454,28 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
               <span>{expL.exportRowPdfBtn}</span>
             </button>
 
-            <div className="my-1 border-t border-gray-100" />
+            {canDeleteOrSuspend && (
+              <>
+                <div className="my-1 border-t border-gray-100" />
 
-            <button
-              type="button"
-              disabled={pending}
-              onClick={(e) => {
-                e.stopPropagation()
-                setOpenMenuId(null)
-                setConfirmState({
-                  type: "delete",
-                  user,
-                })
-              }}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-red-600 transition hover:bg-red-50"
-            >
-              <Trash2 className="size-3.5 text-red-600" />
-              <span>{t.deleteBtn}</span>
-            </button>
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setOpenMenuId(null)
+                    setConfirmState({
+                      type: "delete",
+                      user,
+                    })
+                  }}
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-red-600 transition hover:bg-red-50"
+                >
+                  <Trash2 className="size-3.5 text-red-600" />
+                  <span>{t.deleteBtn}</span>
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -560,6 +641,13 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
             const isSuspended = user.status === "suspended"
             const isRowLoading = pending && activeUserId === user.id
             const firstLetter = user.name.trim().charAt(0) || "U"
+            const manageable = canManageUser(user)
+            const roleListForRow =
+              isCurrentUserOwner ||
+              user.role === "admin" ||
+              user.role === "owner"
+                ? allRoleOptions
+                : assignableRoleOptions
 
             return (
               <div
@@ -567,7 +655,9 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                 className={`relative rounded-2xl border bg-white p-4 shadow-xs transition ${
                   isRowLoading
                     ? "border-[#105C50] opacity-75"
-                    : "border-gray-200/90"
+                    : user.isOwnerAdmin
+                      ? "border-amber-300 bg-amber-50/10"
+                      : "border-gray-200/90"
                 }`}
               >
                 {isRowLoading && (
@@ -585,10 +675,17 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                       {firstLetter}
                     </div>
                     <div className="min-w-0">
-                      <div className="flex items-center gap-1.5 font-extrabold text-[#0a1122]">
+                      <div className="flex flex-wrap items-center gap-1.5 font-extrabold text-[#0a1122]">
                         <span className="truncate text-sm">{user.name}</span>
-                        {isStaffMember(user.role) && (
-                          <ShieldCheck className="size-4 shrink-0 text-[#105C50]" />
+                        {user.isOwnerAdmin ? (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-900">
+                            <Crown className="size-3 text-amber-600" />
+                            <span>SUPER ADMIN</span>
+                          </span>
+                        ) : (
+                          isStaffMember(user.role) && (
+                            <ShieldCheck className="size-4 shrink-0 text-[#105C50]" />
+                          )
                         )}
                       </div>
                       <div className="mt-1 flex flex-wrap items-center gap-1.5">
@@ -668,11 +765,14 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                 </div>
 
                 <div className="mt-3">
-                  <label className="mb-1 block text-[11px] font-bold text-gray-500">
-                    {t.roleSelectLabel}
+                  <label className="mb-1 flex items-center justify-between text-[11px] font-bold text-gray-500">
+                    <span>{t.roleSelectLabel}</span>
+                    {!manageable && (
+                      <Lock className="size-3.5 text-amber-600" />
+                    )}
                   </label>
                   <select
-                    disabled={pending}
+                    disabled={pending || !manageable}
                     value={user.role}
                     onChange={(e) => {
                       const nextRole = e.target.value
@@ -684,9 +784,9 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                         })
                       }
                     }}
-                    className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-[#0a1122] focus:border-[#105C50] focus:outline-none"
+                    className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-[#0a1122] focus:border-[#105C50] focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-75"
                   >
-                    {roleOptions.map((r) => (
+                    {roleListForRow.map((r) => (
                       <option key={r.value} value={r.value}>
                         {r.label}
                       </option>
@@ -743,6 +843,13 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
             {filtered.map((user, index) => {
               const isSuspended = user.status === "suspended"
               const isRowLoading = pending && activeUserId === user.id
+              const manageable = canManageUser(user)
+              const roleListForRow =
+                isCurrentUserOwner ||
+                user.role === "admin" ||
+                user.role === "owner"
+                  ? allRoleOptions
+                  : assignableRoleOptions
 
               return (
                 <div
@@ -752,9 +859,11 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                       ? "border-[#105C50] bg-emerald-50/40 opacity-70"
                       : isSuspended
                         ? "border-red-200 bg-red-50/20"
-                        : isStaffMember(user.role)
-                          ? "border-emerald-200/90 border-s-4 border-s-[#105C50]"
-                          : "border-slate-200/90"
+                        : user.isOwnerAdmin
+                          ? "border-amber-300 border-s-4 border-s-amber-500 bg-amber-50/10"
+                          : isStaffMember(user.role)
+                            ? "border-emerald-200/90 border-s-4 border-s-[#105C50]"
+                            : "border-slate-200/90"
                   }`}
                 >
                   <div className="col-span-3 min-w-0 pe-2">
@@ -763,8 +872,15 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                         {index + 1}
                       </span>
                       <span className="truncate text-sm">{user.name}</span>
-                      {isStaffMember(user.role) && (
-                        <ShieldCheck className="size-4 shrink-0 text-[#105C50]" />
+                      {user.isOwnerAdmin ? (
+                        <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-900">
+                          <Crown className="size-3 text-amber-600" />
+                          <span>SUPER ADMIN</span>
+                        </span>
+                      ) : (
+                        isStaffMember(user.role) && (
+                          <ShieldCheck className="size-4 shrink-0 text-[#105C50]" />
+                        )
                       )}
                     </div>
                     <div className="mt-1 flex items-center gap-1 truncate ps-8 text-xs text-gray-500">
@@ -822,7 +938,7 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
 
                   <div className="col-span-2 border-s border-slate-100 ps-4">
                     <select
-                      disabled={pending}
+                      disabled={pending || !manageable}
                       value={user.role}
                       onChange={(e) => {
                         const nextRole = e.target.value
@@ -834,9 +950,9 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
                           })
                         }
                       }}
-                      className="h-9 w-full cursor-pointer rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-[#0a1122] focus:border-[#105C50] focus:outline-none disabled:opacity-50"
+                      className="h-9 w-full cursor-pointer rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-[#0a1122] focus:border-[#105C50] focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-70"
                     >
-                      {roleOptions.map((r) => (
+                      {roleListForRow.map((r) => (
                         <option key={r.value} value={r.value}>
                           {r.label}
                         </option>
@@ -900,7 +1016,7 @@ export default function UsersClientTable({ users }: { users: AdminUserRow[] }) {
         t={t}
         open={openAddModal}
         onOpenChange={setOpenAddModal}
-        roleOptions={roleOptions}
+        roleOptions={assignableRoleOptions}
         pending={pending}
         onSubmit={handleCreateUser}
       />

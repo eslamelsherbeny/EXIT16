@@ -16,7 +16,7 @@ import {
 } from "@/lib/session-security"
 import { getServerI18n } from "@/lib/get-server-dictionary"
 
-export type StaffRoleCode = "admin" | "moderator" | "sales"
+export type StaffRoleCode = "owner" | "admin" | "moderator" | "sales"
 
 export const DEFAULT_SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL || "https://exit-16.vercel.app"
@@ -27,6 +27,45 @@ export function getSessionSecret() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
     "aqar-exit-enterprise-secret-key-2026"
   )
+}
+
+export function getEnvSuperAdminEmails(): string[] {
+  return String(process.env.SUPER_ADMIN_EMAIL || "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean)
+}
+
+/**
+ * تحديد جميع معرفات المستخدمين الذين يتمتعون بحصانة مالك المشروع (Owner / Super Admin):
+ * 1. أي مستخدم يحمل role = "owner" في قاعدة البيانات
+ * 2. أي مستخدم يطابق بريده الإلكتروني SUPER_ADMIN_EMAIL في متغيرات البيئة
+ * 3. إذا لم يوجد أي مما سبق بعد (عند تشغيل المشروع لأول مرة)، يُعتمد أقدم حساب Admin مؤقتاً حتى يعيّن المالك
+ */
+export async function resolveOwnerUserIds(supabase: any): Promise<Set<string>> {
+  const envEmails = getEnvSuperAdminEmails()
+  const { data: staffUsers } = await supabase
+    .from("users")
+    .select("id, email, role, created_at")
+    .in("role", ["owner", "admin"])
+    .order("created_at", { ascending: true })
+
+  const list = staffUsers || []
+  const ownerIds = new Set<string>()
+
+  for (const u of list) {
+    const uRole = String(u.role || "").trim().toLowerCase()
+    const uEmail = String(u.email || "").trim().toLowerCase()
+    if (uRole === "owner" || (uEmail && envEmails.includes(uEmail))) {
+      ownerIds.add(String(u.id))
+    }
+  }
+
+  if (ownerIds.size === 0 && list[0]?.id) {
+    ownerIds.add(String(list[0].id))
+  }
+
+  return ownerIds
 }
 
 export async function getSupabase() {
@@ -306,7 +345,7 @@ export async function getAuthActionsDict() {
 }
 
 export async function requireAdminAuth(
-  allowedRoles: StaffRoleCode[] = ["admin", "moderator", "sales"]
+  allowedRoles: StaffRoleCode[] = ["owner", "admin", "moderator", "sales"]
 ) {
   const { t: msg } = await getAdminActionsDict()
   const cookieStore = await cookies()
@@ -347,7 +386,13 @@ export async function requireAdminAuth(
     .replace(/[\r\n\s]+/g, "")
     .toLowerCase() as StaffRoleCode | "user"
 
-  if (!allowedRoles.includes(cleanRole as StaffRoleCode)) {
+  // رتبة "owner" تمتلك تلقائياً جميع صلاحيات "admin" وأكثر
+  const effectiveAllowed = new Set<string>(allowedRoles)
+  if (effectiveAllowed.has("admin")) {
+    effectiveAllowed.add("owner")
+  }
+
+  if (!effectiveAllowed.has(cleanRole)) {
     throw new Error(msg.insufficientRole)
   }
 

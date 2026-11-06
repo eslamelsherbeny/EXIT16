@@ -2676,6 +2676,7 @@
         "admin": "System Admin (Admin - Full Access)",
         "moderator": "Property Moderator (Moderator - Review & Ads)",
         "sales": "Sales Rep (Sales - Client Contacts & Follow-up)",
+        "owner": "👑 Project Owner (Super Admin)",
         "user": "Regular Client (Seller / Buyer)"
       }
     },

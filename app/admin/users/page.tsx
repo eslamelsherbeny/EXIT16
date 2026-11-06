@@ -2,6 +2,7 @@ import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { createServerClient } from "@supabase/ssr"
 import { getUsersVerificationMapAction } from "@/actions/submit-forms"
+import { resolveOwnerUserIds } from "@/lib/admin-auth-helpers"
 import {
   extractUserIdFromCookie,
   parseAndVerifySessionCookie,
@@ -30,7 +31,7 @@ export default async function UsersPage() {
 
   const { data: currentStaff } = await supabase
     .from("users")
-    .select("role, status, password_hash")
+    .select("id, email, role, status, password_hash")
     .eq("id", candidateId)
     .maybeSingle()
 
@@ -43,24 +44,30 @@ export default async function UsersPage() {
   }
 
   const role = String(currentStaff.role || "user").trim().toLowerCase()
-  if (role !== "admin") {
+  if (role !== "admin" && role !== "owner") {
     redirect("/admin/leads")
   }
 
-  const [{ data: usersData }, { data: sellsData }, { data: buysData }] =
-    await Promise.all([
-      supabase
-        .from("users")
-        .select("*")
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("sell_requests")
-        .select("user_id, status")
-        .not("status", "in", '("deleted_by_seller","draft_unverified")'),
-      supabase.from("buy_requests").select("user_id"),
-    ])
+  const [
+    { data: usersData },
+    { data: sellsData },
+    { data: buysData },
+    ownerIdsSet,
+  ] = await Promise.all([
+    supabase
+      .from("users")
+      .select("*")
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("sell_requests")
+      .select("user_id, status")
+      .not("status", "in", '("deleted_by_seller","draft_unverified")'),
+    supabase.from("buy_requests").select("user_id"),
+    resolveOwnerUserIds(supabase),
+  ])
 
-  const allUserIds = (usersData || []).map((u: any) => String(u.id))
+  const allUsers = usersData || []
+  const allUserIds = allUsers.map((u: any) => String(u.id))
   const verificationMap = await getUsersVerificationMapAction(allUserIds)
 
   const sellCounts: Record<string, number> = {}
@@ -79,13 +86,15 @@ export default async function UsersPage() {
     if (b.user_id) buyCounts[b.user_id] = (buyCounts[b.user_id] || 0) + 1
   })
 
-  const rows: AdminUserRow[] = (usersData || []).map((u) => {
+  const rows: AdminUserRow[] = allUsers.map((u) => {
     const vInfo = verificationMap[u.id] || {
       emailVerified: Boolean(u.is_verified),
       phoneVerified:
         Boolean(u.phone_verified) ||
         String(u.otp_code || "").includes("PHONE_OK"),
     }
+
+    const isOwner = ownerIdsSet.has(String(u.id))
 
     return {
       id: u.id,
@@ -99,12 +108,17 @@ export default async function UsersPage() {
       buyCount: buyCounts[u.id] || 0,
       emailVerified: vInfo.emailVerified,
       phoneVerified: vInfo.phoneVerified,
+      isOwnerAdmin: isOwner,
     }
   })
 
   return (
     <div className="mx-auto max-w-7xl">
-      <UsersClientTable users={rows} />
+      <UsersClientTable
+        users={rows}
+        currentAdminId={String(currentStaff.id)}
+        isCurrentUserOwner={ownerIdsSet.has(String(currentStaff.id))}
+      />
     </div>
   )
 }

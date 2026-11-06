@@ -15,6 +15,7 @@ import {
   getAdminActionsDict,
   hashPassword,
   requireAdminAuth,
+  resolveOwnerUserIds,
   revalidateAdminAll,
   sanitizeText,
   sendSystemEmail,
@@ -24,7 +25,13 @@ import {
 
 export type { StaffRoleCode }
 
-const ALLOWED_USER_ROLES = new Set(["admin", "moderator", "sales", "user"])
+const ALLOWED_USER_ROLES = new Set([
+  "owner",
+  "admin",
+  "moderator",
+  "sales",
+  "user",
+])
 const ALLOWED_USER_STATUSES = new Set([
   "active",
   "suspended",
@@ -358,7 +365,7 @@ export async function savePropertyAdminNoteAction(payload: {
         await supabase.from("notifications").insert({
           user_id: prop.user_id,
           role: "client",
-          title: `📝 ${msg.notifRejectedTitle || "Admin Note"} (${projectLabel})`,
+          title: `📝 ${msg.notifAdminNoteTitle || msg.notifRejectedTitle || "Admin Note"} (${projectLabel})`,
           message: cleanNote,
           type: "status_update",
           link: `/account?view=seller&unitId=${prop.id}`,
@@ -508,13 +515,55 @@ export async function updateUserRoleAndStatusAction(
       ? cleanStatusRaw
       : "active"
 
+    // 1. منع أي مدير أو مالك من إيقاف حسابه الشخصي أو خفض رتبته لنفسه
     if (
-      userId === adminUser.id &&
-      (cleanRole !== "admin" || cleanStatus === "suspended")
+      String(userId) === String(adminUser.id) &&
+      ((cleanRole !== "admin" && cleanRole !== "owner") ||
+        cleanStatus === "suspended")
     ) {
       return {
         success: false,
         error: msg.cannotDeleteSelf,
+      }
+    }
+
+    const ownerIds = await resolveOwnerUserIds(supabase)
+    const isCallerOwner = ownerIds.has(String(adminUser.id))
+    const isTargetOwner = ownerIds.has(String(userId))
+
+    // 2. لا يمكن لأي شخص (حتى لو كان أدمن) إيقاف أو خفض رتبة حساب مالك المشروع (Owner)
+    if (isTargetOwner && (cleanStatus === "suspended" || !isCallerOwner)) {
+      return {
+        success: false,
+        error: msg.cannotModifyOwnerAdmin || msg.unauthorizedAction,
+      }
+    }
+
+    const { data: targetUser } = await supabase
+      .from("users")
+      .select("id, role")
+      .eq("id", userId)
+      .maybeSingle()
+
+    if (!targetUser) {
+      return { success: false, error: msg.unauthorizedNotFound }
+    }
+
+    const targetCurrentRole = String(targetUser.role || "user")
+      .trim()
+      .toLowerCase()
+
+    // 3. فقط مالك المشروع (Owner) يملك صلاحية تعيين أو تعديل أو إيقاف حسابات (Owner / Admin)
+    if (
+      !isCallerOwner &&
+      (targetCurrentRole === "admin" ||
+        targetCurrentRole === "owner" ||
+        cleanRole === "admin" ||
+        cleanRole === "owner")
+    ) {
+      return {
+        success: false,
+        error: msg.onlyOwnerCanManageAdmins || msg.unauthorizedAction,
       }
     }
 
@@ -546,7 +595,7 @@ export async function updateUserRoleAndStatusAction(
 export async function createAdminOrUserAction(formData: FormData) {
   const { t: msg } = await getAdminActionsDict()
   try {
-    const { supabase } = await requireAdminAuth(["admin"])
+    const { supabase, adminUser } = await requireAdminAuth(["admin"])
 
     const name = sanitizeText(formData.get("name"), 120)
     const email = sanitizeText(formData.get("email"), 160).toLowerCase()
@@ -562,6 +611,16 @@ export async function createAdminOrUserAction(formData: FormData) {
       return {
         success: false,
         error: msg.fillAllUserFields,
+      }
+    }
+
+    // فقط مالك المشروع (Owner) يمكنه إنشاء حساب جديد برتبة Owner أو Admin
+    const ownerIds = await resolveOwnerUserIds(supabase)
+    const isCallerOwner = ownerIds.has(String(adminUser.id))
+    if (!isCallerOwner && (role === "admin" || role === "owner")) {
+      return {
+        success: false,
+        error: msg.onlyOwnerCanManageAdmins || msg.unauthorizedAction,
       }
     }
 
@@ -599,8 +658,42 @@ export async function deleteUserByAdminAction(userId: string) {
   const { t: msg } = await getAdminActionsDict()
   try {
     const { supabase, adminUser } = await requireAdminAuth(["admin"])
-    if (userId === adminUser.id) {
+
+    // 1. منع الأدمن من حذف نفسه
+    if (String(userId) === String(adminUser.id)) {
       return { success: false, error: msg.cannotDeleteSelf }
+    }
+
+    const ownerIds = await resolveOwnerUserIds(supabase)
+    const isCallerOwner = ownerIds.has(String(adminUser.id))
+    const isTargetOwner = ownerIds.has(String(userId))
+
+    // 2. مستحيل حذف حساب مالك المشروع (Owner) تحت أي ظرف
+    if (isTargetOwner) {
+      return {
+        success: false,
+        error: msg.cannotModifyOwnerAdmin || msg.unauthorizedAction,
+      }
+    }
+
+    const { data: targetUser } = await supabase
+      .from("users")
+      .select("id, role")
+      .eq("id", userId)
+      .maybeSingle()
+
+    if (!targetUser) {
+      return { success: false, error: msg.unauthorizedNotFound }
+    }
+
+    const targetRole = String(targetUser.role || "user").trim().toLowerCase()
+
+    // 3. منع أي أدمن عادي من حذف أدمن آخر (المالك فقط يملك صلاحية حذف حساب Admin)
+    if ((targetRole === "admin" || targetRole === "owner") && !isCallerOwner) {
+      return {
+        success: false,
+        error: msg.onlyOwnerCanManageAdmins || msg.unauthorizedAction,
+      }
     }
 
     try {
@@ -1020,8 +1113,8 @@ export async function approveBoostRequestByAdminAction(boostRequestId: string) {
         await supabase.from("notifications").insert({
           user_id: reqRow.user_id,
           role: "client",
-          title: `⭐ تم تأكيد الدفع وتفعيل باقة ${reqRow.package_tier} (${reqRow.duration_days} يوم)`,
-          message: `تمت مراجعة الدفع بقيمة ${reqRow.amount_gel} ₾ وتفعيل تمييز إعلانك بنجاح.`,
+          title: `⭐ ${msg.boostApprovedNotifTitle || msg.promoActivatedNotifTitle} (${reqRow.package_tier} · ${reqRow.duration_days}d)`,
+          message: `${msg.boostApprovedNotifMsg || msg.promoActivatedNotifMsg} (${reqRow.amount_gel} ₾)`,
           type: "status_update",
           link: "/account?view=seller",
           is_read: false,
@@ -1075,9 +1168,11 @@ export async function rejectBoostRequestByAdminAction(
         await supabase.from("notifications").insert({
           user_id: reqRow.user_id,
           role: "client",
-          title: `تنبيه بخصوص طلب تفعيل باقة ${reqRow.package_tier}`,
+          title: `${msg.boostRejectedNotifTitle || msg.notifRejectedTitle} (${reqRow.package_tier})`,
           message:
-            reason || "تعذر التحقق من عملية الدفع، يرجى التواصل مع الدعم.",
+            reason ||
+            msg.boostRejectedDefaultReason ||
+            msg.notifRejectedMsg,
           type: "status_update",
           link: "/account?view=seller",
           is_read: false,

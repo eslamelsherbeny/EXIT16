@@ -227,10 +227,19 @@ export default function PropertiesTable({
     const unitIdParam = searchParams.get("unitId")
     const actionParam = searchParams.get("action")
     const qParam = searchParams.get("q")
+    const verifyPhoneUserIdParam = searchParams.get("verifyPhoneUserId")
 
     if (qParam) setSearch(qParam)
     if (!isPromotionsPage && tabParam && tabParam !== "featured") {
       setStatusFilter(tabParam)
+    }
+
+    if (verifyPhoneUserIdParam) {
+      const alreadyVerified =
+        verificationMap?.[verifyPhoneUserIdParam]?.phoneVerified
+      if (!alreadyVerified) {
+        handleVerifySellerContact(verifyPhoneUserIdParam)
+      }
     }
 
     if (unitIdParam) {
@@ -314,7 +323,7 @@ export default function PropertiesTable({
           const res = await updatePropertyStatusAction(
             target.id,
             confirmAction.newStatus,
-            confirmAction.newStatus === "rejected" ? reason : undefined
+            reason.trim() ? reason.trim() : undefined
           )
           if (res.success) {
             const stLabel = getStatusLabel(confirmAction.newStatus)

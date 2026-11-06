@@ -266,11 +266,15 @@ export function SellerDashboard({
     `${unitCurrencySymbol}${Number(value || 0).toLocaleString('en-US')}`
 
   const comp = calculateUnitCompletion(activeUnit, t)
-  const meta = getSellerTimelineAndStatus(activeUnit, comp, t)
+  const meta = getSellerTimelineAndStatus(
+    activeUnit,
+    comp,
+    t,
+    locale as LocaleCode
+  )
   const isPausedBySeller = meta.code === 'paused_by_seller'
   const visibleAdminNote = getVisibleSellerAdminNote(activeUnit.admin_note)
 
-  // لا يظهر تنبيه تأكيد الإيميل إلا إذا كانت الوحدة مسودة غير موثقة ولم يتم نشرها أو قبولها مسبقاً
   const needsEmailVerificationToSubmit =
     comp.isDraftUnverified && !userEmailVerified
 
@@ -410,7 +414,7 @@ export function SellerDashboard({
           unitId: activeUnit.id,
           days: pkg.days,
           price: pkg.price,
-          tier: pkg.tier,
+          tier: pkg.tier as any,
         })
         setConfirmModal(null)
         if (res.success) {
@@ -464,7 +468,6 @@ export function SellerDashboard({
 
   return (
     <div dir={dir} className="mx-auto max-w-[680px] px-4 sm:px-6">
-      {/* مؤشر تحميل خفيف عند الانتقال لصفحة التعديل أو المستندات */}
       {navigatingToHref && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4 backdrop-blur-xs">
           <div className="flex items-center gap-3 rounded-2xl bg-white px-6 py-4 text-xs font-extrabold text-[#0a1122] shadow-xl sm:text-sm">
@@ -519,7 +522,12 @@ export function SellerDashboard({
             >
               {displayedUnits.map((item, idx) => {
                 const itemComp = calculateUnitCompletion(item, t)
-                const itemMeta = getSellerTimelineAndStatus(item, itemComp, t)
+                const itemMeta = getSellerTimelineAndStatus(
+                  item,
+                  itemComp,
+                  t,
+                  locale as LocaleCode
+                )
                 const isSelected = item.id === activeUnit.id
                 const itemRawArea =
                   item.area || item.documents?.__unit_meta?.area
@@ -617,7 +625,6 @@ export function SellerDashboard({
         </div>
       )}
 
-      {/* يظهر فقط إذا كانت هذه الوحدة مسودة غير موثقة ولم تُرسل للأدمن بعد */}
       {needsEmailVerificationToSubmit && (
         <div className="mb-4 rounded-2xl border-2 border-amber-300 bg-amber-50/95 p-4 text-start shadow-xs sm:p-5">
           <div className="flex items-start gap-3">
@@ -683,9 +690,6 @@ export function SellerDashboard({
             )}
           </div>
 
-          {/* ========================================================= */}
-          {/* صندوق ملاحظة الإدارة التفاعلي (يظهر فقط إذا كتب الأدمن ملاحظة) */}
-          {/* ========================================================= */}
           {visibleAdminNote && (
             <div className="mt-4 rounded-2xl border-2 border-amber-300 bg-[#fffbeb] p-4 text-start shadow-2xs">
               <div className="flex items-start gap-2.5">
@@ -986,7 +990,7 @@ export function SellerDashboard({
             <Timeline
               currentStepIndex={meta.stepIndex}
               isRejected={meta.code === 'rejected'}
-              stepTitles={t.timelineSteps}
+              stepTitles={meta.timelineSteps}
             />
           </div>
         </section>

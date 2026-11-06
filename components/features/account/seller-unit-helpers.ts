@@ -1,3 +1,5 @@
+import type { LocaleCode } from '@/lib/i18n'
+
 export type SellerUnitItem = {
   id: string
   code?: string | null
@@ -78,7 +80,7 @@ export type ConfirmModalState =
         days: number
         price: number
         label: string
-        tier?: 'SUPER VIP' | 'VIP+'
+        tier?: 'SUPER VIP' | 'VIP+' | 'super_vip' | 'vip_plus'
       }
     }
   | { type: 'cancel_promo' }
@@ -91,13 +93,77 @@ export const REAL_DOC_KEYS = [
   'passport',
 ] as const
 
+const STAGE_SYNC_I18N: Record<
+  LocaleCode,
+  {
+    steps: [string, string, string, string, string, string]
+    underReviewBadge: string
+    underReviewHeadline: string
+  }
+> = {
+  ar: {
+    steps: [
+      '١. في انتظار المراجعة',
+      '٢. جاري مراجعة المستندات',
+      '٣. معتمد ومعروض بالسوق',
+      '٤. يوجد عرض شراء',
+      '٥. مرحلة نقل التعاقد',
+      '٦. تمت عملية البيع',
+    ],
+    underReviewBadge: '٢. جاري مراجعة المستندات',
+    underReviewHeadline:
+      'يقوم فريق المراجعة القانونية حالياً بفحص بيانات ومستندات وحدتك لاعتمادها ونشرها بالسوق',
+  },
+  en: {
+    steps: [
+      '1. Pending Review',
+      '2. Reviewing Documents',
+      '3. Approved & Live in Market',
+      '4. Purchase Offer Received',
+      '5. Contract Transfer Stage',
+      '6. Unit Sold',
+    ],
+    underReviewBadge: '2. Reviewing Documents',
+    underReviewHeadline:
+      'Our verification team is currently reviewing your unit details & documents for market approval',
+  },
+  ru: {
+    steps: [
+      '1. Ожидает проверки',
+      '2. Проверка документов',
+      '3. Одобрено и на рынке',
+      '4. Получено предложение',
+      '5. Переоформление договора',
+      '6. Объект продан',
+    ],
+    underReviewBadge: '2. Проверка документов',
+    underReviewHeadline:
+      'Юридический отдел проверяет данные и документы вашего объекта перед публикацией',
+  },
+  ka: {
+    steps: [
+      '1. განხილვის მოლოდინში',
+      '2. დოკუმენტების შემოწმება',
+      '3. დამტკიცებულია ბაზარზე',
+      '4. მიღებულია შეთავაზება',
+      '5. კონტრაქტის გადაფორმება',
+      '6. გაყიდულია',
+    ],
+    underReviewBadge: '2. დოკუმენტების შემოწმება',
+    underReviewHeadline:
+      'ჩვენი გუნდი ამოწმებს თქვენი ობიექტის მონაცემებსა და დოკუმენტებს გამოსაქვეყნებლად',
+  },
+}
+
 /**
  * استخراج الملاحظة الفعلية التي كتبها الأدمن للبائع فقط (واستبعاد ملاحظات النظام الآلية)
  */
-export function getVisibleSellerAdminNote(rawNote?: string | null): string | null {
+export function getVisibleSellerAdminNote(
+  rawNote?: string | null
+): string | null {
   if (!rawNote) return null
   const clean = String(rawNote).trim()
-  if (!clean) return null
+  if (!clean || clean.startsWith('__')) return null
 
   const systemSubstrings = [
     'أعاد المالك عرض هذه الوحدة',
@@ -260,17 +326,21 @@ export function calculateUnitCompletion(
 export function getSellerTimelineAndStatus(
   unit: SellerUnitItem,
   comp: ReturnType<typeof calculateUnitCompletion>,
-  t: Record<string, any>
+  t: Record<string, any>,
+  locale: LocaleCode = 'ar'
 ) {
   const clean = (unit.status || 'pending').trim().toLowerCase()
   const isComplete =
     comp.hasAllCoreDetails && comp.hasImages && comp.hasAllDocuments
+  const stageSync = STAGE_SYNC_I18N[locale] || STAGE_SYNC_I18N.ar
+  const timelineSteps = stageSync.steps
 
   switch (clean) {
     case 'draft_unverified':
       return {
         code: 'draft_unverified',
         stepIndex: 0,
+        timelineSteps,
         listBadge: {
           label: t.statusDraftUnverifiedBadge || t.notPublishedYet,
           cls: 'bg-amber-100 text-amber-900 border border-amber-300',
@@ -282,26 +352,100 @@ export function getSellerTimelineAndStatus(
         headline:
           t.statusDraftUnverifiedHeadline || t.incompleteNextStepHeadline,
       }
+
+    // المرحلة ٢ في قائمة الأدمن: جاري مراجعة المستندات
+    case 'under_review':
+      return {
+        code: 'under_review',
+        stepIndex: 1,
+        timelineSteps,
+        listBadge: {
+          label: t.statusUnderReviewBadge || stageSync.underReviewBadge,
+          cls: 'bg-blue-100 text-blue-900 border border-blue-300',
+        },
+        headerBadge: {
+          label: t.statusUnderReviewBadge || stageSync.underReviewBadge,
+          cls: 'bg-blue-100 text-blue-900 border border-blue-300',
+        } as StatusBadgeItem | null,
+        headline: t.statusUnderReviewHeadline || stageSync.underReviewHeadline,
+      }
+
+    // المرحلة ٣ في قائمة الأدمن: معتمد ومعروض بالسوق
     case 'active':
     case 'approved':
     case 'published':
       return {
         code: 'active',
-        stepIndex: 4,
+        stepIndex: 2,
+        timelineSteps,
         listBadge: {
-          label: t.statusActiveBadge,
+          label: t.statusActiveBadge || timelineSteps[2],
           cls: 'bg-emerald-100 text-[var(--brand-primary,#007a5a)]',
         },
         headerBadge: {
-          label: t.statusActiveBadge,
+          label: t.statusActiveBadge || timelineSteps[2],
           cls: 'bg-emerald-100 text-[var(--brand-primary,#007a5a)]',
         } as StatusBadgeItem | null,
         headline: t.statusActiveHeadline,
       }
+
+    // المرحلة ٤ في قائمة الأدمن: يوجد عرض شراء
+    case 'offer_received':
+      return {
+        code: 'offer_received',
+        stepIndex: 3,
+        timelineSteps,
+        listBadge: {
+          label: t.statusOfferBadge || timelineSteps[3],
+          cls: 'bg-purple-100 text-purple-800',
+        },
+        headerBadge: {
+          label: t.statusOfferBadge || timelineSteps[3],
+          cls: 'bg-purple-100 text-purple-800',
+        } as StatusBadgeItem | null,
+        headline: t.statusOfferHeadline,
+      }
+
+    // المرحلة ٥ في قائمة الأدمن: مرحلة نقل التعاقد
+    case 'transferring':
+      return {
+        code: 'transferring',
+        stepIndex: 4,
+        timelineSteps,
+        listBadge: {
+          label: t.statusTransferBadge || timelineSteps[4],
+          cls: 'bg-indigo-100 text-indigo-900',
+        },
+        headerBadge: {
+          label: t.statusTransferBadge || timelineSteps[4],
+          cls: 'bg-indigo-100 text-indigo-900',
+        } as StatusBadgeItem | null,
+        headline: t.statusTransferHeadline,
+      }
+
+    // المرحلة ٦ في قائمة الأدمن: تمت عملية البيع
+    case 'sold':
+      return {
+        code: 'sold',
+        stepIndex: 5,
+        timelineSteps,
+        listBadge: {
+          label: t.statusSoldBadge || timelineSteps[5],
+          cls: 'bg-teal-700 text-white',
+        },
+        headerBadge: {
+          label: t.statusSoldBadge || timelineSteps[5],
+          cls: 'bg-teal-700 text-white',
+        } as StatusBadgeItem | null,
+        headline: t.statusSoldHeadline,
+      }
+
+    // متوقفة مؤقتاً (من البائع أو الأدمن)
     case 'paused_by_seller':
       return {
         code: 'paused_by_seller',
         stepIndex: 2,
+        timelineSteps,
         listBadge: {
           label: t.statusPausedBadge,
           cls: 'bg-amber-100 text-amber-800',
@@ -312,10 +456,12 @@ export function getSellerTimelineAndStatus(
         } as StatusBadgeItem | null,
         headline: t.statusPausedHeadline,
       }
+
     case 'paused_deletion':
       return {
         code: 'paused_deletion',
         stepIndex: 2,
+        timelineSteps,
         listBadge: {
           label: t.statusPausedDeletionBadge,
           cls: 'bg-gray-100 text-gray-600',
@@ -326,52 +472,13 @@ export function getSellerTimelineAndStatus(
         } as StatusBadgeItem | null,
         headline: t.statusPausedDeletionHeadline,
       }
-    case 'offer_received':
-      return {
-        code: 'offer_received',
-        stepIndex: 5,
-        listBadge: {
-          label: t.statusOfferBadge,
-          cls: 'bg-purple-100 text-purple-800',
-        },
-        headerBadge: {
-          label: t.statusOfferBadge,
-          cls: 'bg-purple-100 text-purple-800',
-        } as StatusBadgeItem | null,
-        headline: t.statusOfferHeadline,
-      }
-    case 'transferring':
-      return {
-        code: 'transferring',
-        stepIndex: 6,
-        listBadge: {
-          label: t.statusTransferBadge,
-          cls: 'bg-blue-100 text-blue-800',
-        },
-        headerBadge: {
-          label: t.statusTransferBadge,
-          cls: 'bg-blue-100 text-blue-800',
-        } as StatusBadgeItem | null,
-        headline: t.statusTransferHeadline,
-      }
-    case 'sold':
-      return {
-        code: 'sold',
-        stepIndex: 8,
-        listBadge: {
-          label: t.statusSoldBadge,
-          cls: 'bg-teal-700 text-white',
-        },
-        headerBadge: {
-          label: t.statusSoldBadge,
-          cls: 'bg-teal-700 text-white',
-        } as StatusBadgeItem | null,
-        headline: t.statusSoldHeadline,
-      }
+
+    // المرحلة ٧ في قائمة الأدمن: مرفوض
     case 'rejected':
       return {
         code: 'rejected',
         stepIndex: 1,
+        timelineSteps,
         listBadge: {
           label: t.statusRejectedBadge,
           cls: 'bg-red-100 text-red-700',
@@ -382,17 +489,20 @@ export function getSellerTimelineAndStatus(
         } as StatusBadgeItem | null,
         headline: t.statusRejectedHeadline,
       }
+
+    // المرحلة ١ في قائمة الأدمن: في انتظار المراجعة (pending)
     default:
       if (!isComplete) {
         return {
           code: 'incomplete',
-          stepIndex: 2,
+          stepIndex: 0,
+          timelineSteps,
           listBadge: {
-            label: `${t.statusPendingBadge} · ${comp.percentage}%`,
+            label: `${t.statusPendingBadge || timelineSteps[0]} · ${comp.percentage}%`,
             cls: 'bg-amber-50 text-amber-800 border border-amber-200',
           },
           headerBadge: {
-            label: t.statusPendingBadge,
+            label: t.statusPendingBadge || timelineSteps[0],
             cls: 'bg-amber-50 text-amber-800 border border-amber-200',
           } as StatusBadgeItem | null,
           headline: t.incompleteNextStepHeadline,
@@ -400,13 +510,14 @@ export function getSellerTimelineAndStatus(
       }
       return {
         code: 'pending_review',
-        stepIndex: 2,
+        stepIndex: 0,
+        timelineSteps,
         listBadge: {
-          label: t.statusPendingBadge,
+          label: t.statusPendingBadge || timelineSteps[0],
           cls: 'bg-amber-50 text-amber-800 border border-amber-200',
         },
         headerBadge: {
-          label: t.statusPendingBadge,
+          label: t.statusPendingBadge || timelineSteps[0],
           cls: 'bg-amber-50 text-amber-800 border border-amber-200',
         } as StatusBadgeItem | null,
         headline: t.statusPendingHeadline,

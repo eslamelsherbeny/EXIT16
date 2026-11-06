@@ -15,7 +15,7 @@ export function AuthLayout({ children }: { children: React.ReactNode }) {
       dir={dir}
     >
       <Navbar />
-      <main className="flex flex-1 items-center justify-center px-4 py-8 sm:px-6 sm:py-12">
+      <main className="flex flex-1 items-center justify-center px-3 py-6 sm:px-6 sm:py-12">
         <div className="w-full max-w-[440px]">{children}</div>
       </main>
     </div>
@@ -31,7 +31,7 @@ export function AuthCard({
 }) {
   return (
     <section
-      className={`w-full rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_14px_45px_rgba(20,20,24,0.06)] sm:p-8 ${className}`}
+      className={`w-full rounded-2xl border border-slate-200/80 bg-white px-4 py-5 shadow-[0_14px_45px_rgba(20,20,24,0.06)] sm:p-8 ${className}`}
     >
       {children}
     </section>
@@ -42,7 +42,7 @@ function CloudflareOfficialLogo() {
   return (
     <svg
       viewBox="0 0 64 28"
-      className="h-[15px] w-auto shrink-0"
+      className="h-[14px] w-auto shrink-0 sm:h-[15px]"
       aria-hidden="true"
       fill="none"
     >
@@ -67,12 +67,12 @@ export function TurnstileBox({
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim() || ''
   const containerRef = useRef<HTMLDivElement>(null)
 
-  const [token, setToken] = useState<string>(siteKey ? '' : 'dev-bypass-token')
+  const [token, setToken] = useState<string>('')
   const [status, setStatus] = useState<'verifying' | 'verified'>('verifying')
 
   const verifyingText =
     locale === 'ar'
-      ? 'جاري التحقق...'
+      ? 'جاري التحقق الأمني...'
       : locale === 'ru'
         ? 'Проверка...'
         : locale === 'ka'
@@ -108,7 +108,9 @@ export function TurnstileBox({
 
   useEffect(() => {
     if (!siteKey) {
+      setToken('')
       setStatus('verifying')
+      onTokenChange?.('')
       const timer = setTimeout(() => {
         setToken('dev-bypass-token')
         setStatus('verified')
@@ -118,6 +120,10 @@ export function TurnstileBox({
     }
 
     let widgetId: string | undefined
+    setToken('')
+    setStatus('verifying')
+    onTokenChange?.('')
+
     const renderWidget = () => {
       if (
         typeof window !== 'undefined' &&
@@ -129,13 +135,18 @@ export function TurnstileBox({
           sitekey: siteKey,
           theme: 'light',
           size: 'flexible',
-          language: locale,
+          language: locale === 'ar' ? 'ar' : locale === 'ru' ? 'ru' : 'en',
           callback: (tk: string) => {
             setToken(tk)
             setStatus('verified')
             onTokenChange?.(tk)
           },
           'expired-callback': () => {
+            setToken('')
+            setStatus('verifying')
+            onTokenChange?.('')
+          },
+          'error-callback': () => {
             setToken('')
             setStatus('verifying')
             onTokenChange?.('')
@@ -158,23 +169,30 @@ export function TurnstileBox({
         } catch {}
       }
     }
-  }, [siteKey, locale, onTokenChange])
+  }, [siteKey, locale])
 
   if (siteKey) {
     return (
-      <div className="my-1.5 flex w-full flex-col items-center justify-center">
+      <div className="my-1.5 flex w-full flex-col items-center justify-center overflow-hidden">
         <Script
           src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
           strategy="afterInteractive"
         />
+        {/* حاوية متجاوبة تمنع قص أطراف Cloudflare على شاشات الهواتف */}
         <div
-          ref={containerRef}
-          className="flex min-h-[65px] w-full items-center justify-center overflow-hidden [&_iframe]:!w-full [&_iframe]:max-w-full"
-        />
+          dir="ltr"
+          className="flex min-h-[65px] w-full max-w-full items-center justify-center overflow-hidden rounded-[10px]"
+        >
+          <div
+            ref={containerRef}
+            className="flex w-full max-w-[300px] origin-center items-center justify-center transition-transform max-[350px]:scale-[0.85] max-[385px]:scale-[0.92] sm:max-w-full sm:scale-100 [&_iframe]:!max-w-full"
+          />
+        </div>
         <input
           type="hidden"
           name="cf_turnstile_response"
           value={token}
+          data-turnstile-status={status}
         />
       </div>
     )
@@ -184,27 +202,28 @@ export function TurnstileBox({
     <div className="my-1.5 w-full">
       <div
         dir={dir}
-        className="flex h-[65px] w-full items-center justify-between gap-3 rounded-[10px] border border-[#e0e0e0] bg-[#fafafa] px-4 shadow-[0_1px_2px_rgba(0,0,0,0.03)] select-none"
+        className="flex h-[62px] w-full items-center justify-between gap-2 rounded-[10px] border border-[#e0e0e0] bg-[#fafafa] px-3 shadow-[0_1px_2px_rgba(0,0,0,0.03)] select-none sm:h-[65px] sm:gap-3 sm:px-4"
         aria-label="Cloudflare Turnstile"
       >
         <input
           type="hidden"
           name="cf_turnstile_response"
-          value={token || 'dev-bypass-token'}
+          value={token}
+          data-turnstile-status={status}
         />
 
-        <div className="flex min-w-0 items-center gap-3">
+        <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
           {status === 'verifying' ? (
-            <span className="relative flex size-6 shrink-0 items-center justify-center">
-              <span className="size-6 animate-spin rounded-full border-[2.5px] border-slate-200 border-t-[#03875b]" />
+            <span className="relative flex size-5 shrink-0 items-center justify-center sm:size-6">
+              <span className="size-5 animate-spin rounded-full border-[2.5px] border-slate-200 border-t-[#03875b] sm:size-6" />
             </span>
           ) : (
-            <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-[#03875b] text-white shadow-2xs animate-in zoom-in-75 duration-200">
-              <Check className="size-4 stroke-[3.2]" />
+            <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-[#03875b] text-white shadow-2xs animate-in zoom-in-75 duration-200 sm:size-6">
+              <Check className="size-3.5 stroke-[3.2] sm:size-4" />
             </span>
           )}
 
-          <span className="truncate text-[13.5px] font-bold text-[#222222]">
+          <span className="truncate text-xs font-bold text-[#222222] sm:text-[13.5px]">
             {status === 'verifying' ? verifyingText : verifiedText}
           </span>
         </div>
@@ -215,11 +234,11 @@ export function TurnstileBox({
         >
           <div className="flex items-center gap-1">
             <CloudflareOfficialLogo />
-            <span className="text-[10px] font-black tracking-tight text-[#222222]">
+            <span className="text-[9.5px] font-black tracking-tight text-[#222222] sm:text-[10px]">
               CLOUDFLARE
             </span>
           </div>
-          <div className="mt-0.5 flex items-center gap-1 text-[8.5px] font-medium text-[#767676]">
+          <div className="mt-0.5 flex items-center gap-1 text-[8px] font-medium text-[#767676] sm:text-[8.5px]">
             <Link href="/privacy" className="hover:underline">
               {privacyText}
             </Link>

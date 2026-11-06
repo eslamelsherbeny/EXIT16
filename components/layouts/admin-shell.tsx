@@ -37,7 +37,7 @@ import {
 } from "@/components/layouts/site-shell"
 import { useTranslation, type LocaleCode } from "@/lib/i18n"
 
-export type StaffRole = "ADMIN" | "MODERATOR" | "SALES"
+export type StaffRole = "OWNER" | "ADMIN" | "MODERATOR" | "SALES"
 
 export type AdminNotificationItem = {
   id: string
@@ -79,6 +79,8 @@ export default function AdminShell({
   const notifRef = useRef<HTMLDivElement>(null)
 
   const firstName = adminName.trim().split(/\s+/)[0] || "Admin"
+  const normalizedRole: StaffRole =
+    adminRole === "OWNER" ? "ADMIN" : adminRole
 
   const dealsNavLabel =
     locale === "ar"
@@ -151,7 +153,7 @@ export default function AdminShell({
   ]
 
   const visibleNavLinks = allNavLinks.filter((item) =>
-    item.allowed.includes(adminRole)
+    item.allowed.includes(normalizedRole)
   )
 
   const mobileBottomLinks = visibleNavLinks.slice(0, 5)
@@ -292,7 +294,7 @@ export default function AdminShell({
               </span>
             </Link>
             <span className="ms-auto rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[10px] font-bold text-emerald-300">
-              {t.roles[adminRole]}
+              {t.roles[normalizedRole]}
             </span>
           </div>
 
@@ -365,8 +367,11 @@ export default function AdminShell({
             <User className="size-3.5 text-emerald-400" />
           </Link>
 
+          {/* فتح الموقع العام في تبويب جديد */}
           <Link
             href="/"
+            target="_blank"
+            rel="noopener noreferrer"
             className="flex items-center justify-between rounded-xl bg-white/5 px-3.5 py-2.5 text-xs font-bold text-white/80 transition hover:bg-white/10 hover:text-white"
           >
             <span>{t.publicSite}</span>
@@ -496,8 +501,11 @@ export default function AdminShell({
                 <User className="size-3.5 text-emerald-400" />
               </Link>
 
+              {/* فتح الموقع العام في تبويب جديد من قائمة الموبايل */}
               <Link
                 href="/"
+                target="_blank"
+                rel="noopener noreferrer"
                 onClick={() => setDrawerOpen(false)}
                 className="flex items-center justify-between rounded-xl bg-white/5 px-3.5 py-2 text-xs font-bold text-white/85"
               >

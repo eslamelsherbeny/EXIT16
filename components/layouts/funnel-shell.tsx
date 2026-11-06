@@ -25,7 +25,9 @@ export function FunnelShell({
   children,
 }: FunnelShellProps) {
   const { t: dict, dir } = useTranslation()
-  const s = dict.sell
+  const s = (dict.sell as Record<string, any>) || {}
+  const ownersTitle =
+    s?.header?.ownersOnlyCardTitle || s?.formUi?.ownersOnlyCardTitle || ''
 
   return (
     <section
@@ -57,10 +59,12 @@ export function FunnelShell({
           </header>
           <Card className="overflow-hidden rounded-2xl border-border/70 bg-card shadow-sm transition-all duration-200 hover:shadow-md">
             <CardHeader className="gap-6 border-b border-border/70 bg-[#fbfcfa] p-4 sm:p-6 md:p-8">
-              <div className="flex items-start gap-3 rounded-xl border border-[#eadfbe] bg-[#fffaf0] px-4 py-3 text-sm font-semibold text-[#725d24]">
-                <UserRound className="shrink-0" />{' '}
-                <span>{s.header.ownersOnlyCardTitle}</span>
-              </div>
+              {ownersTitle && (
+                <div className="flex items-start gap-3 rounded-xl border border-[#eadfbe] bg-[#fffaf0] px-4 py-3 text-sm font-semibold text-[#725d24]">
+                  <UserRound className="shrink-0" />{' '}
+                  <span>{ownersTitle}</span>
+                </div>
+              )}
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <Badge className="rounded-full bg-primary px-4 py-2 text-primary-foreground">
                   {step}
@@ -83,16 +87,16 @@ export function FunnelShell({
             <CardFooter className="flex-row-reverse justify-start gap-3 border-t border-border/70 bg-muted/30 p-4 sm:p-5 md:p-8">
               <Button
                 type="button"
-                onClick={() => toast.success(s.reviewStep.successTitle)}
+                onClick={() => toast.success(s?.reviewStep?.successTitle || '')}
                 className="min-w-32 rounded-full bg-primary shadow-sm transition-all duration-200 hover:bg-primary/90 hover:shadow-md"
               >
-                {s.shared.nextBtn}
+                {s?.shared?.nextBtn}
               </Button>
               <Button
                 variant="outline"
                 className="min-w-24 rounded-full bg-transparent shadow-sm transition-all duration-200 hover:border-primary hover:bg-primary/5"
               >
-                {s.shared.backBtn}
+                {s?.shared?.backBtn}
               </Button>
             </CardFooter>
           </Card>

@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import {
@@ -11,13 +11,26 @@ import {
   AlertCircle,
   Check,
   CheckCircle2,
+  ChevronDown,
   Loader2,
+  MapPin,
   MessageCircle,
+  Search,
   UserRound,
   X,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { TurnstileBox } from '@/components/layouts/auth-layout'
 import {
   getLocalizedDeliveries,
   getLocalizedUnitTypes,
@@ -29,18 +42,125 @@ import {
 import { splitStoredPhoneToCodeAndLocal } from '@/components/features/seller/seller-contact-step'
 import {
   GEORGIA_CITIES_AND_DISTRICTS,
-  GeorgiaAreaSelect,
   getLocalizedGeorgiaAreaName,
 } from '@/components/shared/georgia-areas'
+import {
+  GEORGIA_REGION_DISTRICTS,
+  type GeorgiaRegionCode,
+} from '@/lib/georgia-districts-data'
 import {
   BuyerContactStep,
   type BuyerConflictState,
   type BuyerFormState,
 } from '@/components/features/buyer/buyer-contact-step'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation, type LocaleCode } from '@/lib/i18n'
 
 const ACTIVE_PLATFORM_COUNTRY = 'GE'
 const DEFAULT_PHONE_CODE = '995'
+
+const TURNSTILE_WAIT_MESSAGES: Record<LocaleCode, string> = {
+  ar: 'يرجى الانتظار لحظات حتى يكتمل التحقق الأمني (Cloudflare) بالأسفل ثم المحاولة مرة أخرى.',
+  en: 'Please wait a moment for the Cloudflare security check below to complete, then try again.',
+  ru: 'Пожалуйста, подождите завершения проверки безопасности (Cloudflare) ниже и попробуйте снова.',
+  ka: 'გთხოვთ დაელოდოთ უსაფრთხოების შემოწმების (Cloudflare) დასრულებას და სცადოთ ხელახლა.',
+}
+
+const AREA_PICKER_MODAL_I18N: Record<
+  LocaleCode,
+  {
+    triggerPlaceholder: string
+    triggerAddMore: string
+    modalTitle: string
+    modalSubtitle: string
+    searchPlaceholder: string
+    selectedCountSuffix: string
+    clearAllBtn: string
+    confirmBtn: string
+    noResultsText: string
+    regions: Record<'all' | GeorgiaRegionCode, string>
+  }
+> = {
+  ar: {
+    triggerPlaceholder: 'اضغط لاختيار المدن أو الأحياء المطلوبة في جورجيا...',
+    triggerAddMore: 'اضغط لإضافة أو تعديل المناطق المختارة...',
+    modalTitle: 'اختر المناطق والأحياء المفضلة للشراء',
+    modalSubtitle:
+      'يمكنك اختيار منطقة واحدة أو عدة مناطق في تبليسي وباتومي وجورجيا',
+    searchPlaceholder: 'ابحث باسم المدينة أو الحي (مثل: سابورتالو، فاكي، باتومي)...',
+    selectedCountSuffix: 'منطقة محددة',
+    clearAllBtn: 'مسح الكل',
+    confirmBtn: 'تأكيد المناطق المختارة',
+    noResultsText: 'لا توجد مناطق مطابقة لبحثك',
+    regions: {
+      all: 'كل المناطق',
+      tbilisi_metro: 'تبليسي وضواحيها',
+      batumi_adjara: 'باتومي وأجارا',
+      kutaisi_imereti: 'كوتايسي',
+      mountain_resorts: 'غودوري وبورجومي',
+      kakheti_region: 'كاخيتي وتيلافي',
+    },
+  },
+  en: {
+    triggerPlaceholder: 'Click to select preferred cities or districts in Georgia...',
+    triggerAddMore: 'Click to add or edit selected areas...',
+    modalTitle: 'Select Preferred Areas & Districts',
+    modalSubtitle:
+      'You can select one or multiple districts across Tbilisi, Batumi, and Georgia',
+    searchPlaceholder: 'Search city or district (e.g., Saburtalo, Vake, Batumi)...',
+    selectedCountSuffix: 'selected',
+    clearAllBtn: 'Clear All',
+    confirmBtn: 'Confirm Selected Areas',
+    noResultsText: 'No matching areas found',
+    regions: {
+      all: 'All Regions',
+      tbilisi_metro: 'Tbilisi & Metro',
+      batumi_adjara: 'Batumi & Adjara',
+      kutaisi_imereti: 'Kutaisi',
+      mountain_resorts: 'Mountain Resorts',
+      kakheti_region: 'Kakheti',
+    },
+  },
+  ru: {
+    triggerPlaceholder: 'Нажмите для выбора городов и районов Грузии...',
+    triggerAddMore: 'Нажмите, чтобы добавить или изменить районы...',
+    modalTitle: 'Выберите предпочитаемые районы',
+    modalSubtitle:
+      'Можно выбрать один или несколько районов в Тбилиси, Батуми и по всей Грузии',
+    searchPlaceholder: 'Поиск города или района (напр.: Сабуртало, Ваке, Батуми)...',
+    selectedCountSuffix: 'выбрано',
+    clearAllBtn: 'Очистить',
+    confirmBtn: 'Подтвердить выбор',
+    noResultsText: 'Районы не найдены',
+    regions: {
+      all: 'Все районы',
+      tbilisi_metro: 'Тбилиси и пригород',
+      batumi_adjara: 'Батуми и Аджария',
+      kutaisi_imereti: 'Кутаиси',
+      mountain_resorts: 'Горные курорты',
+      kakheti_region: 'Кахетия',
+    },
+  },
+  ka: {
+    triggerPlaceholder: 'დააჭირეთ სასურველი ქალაქების ან უბნების ასარჩევად...',
+    triggerAddMore: 'დააჭირეთ არჩეული უბნების შესაცვლელად...',
+    modalTitle: 'აირჩიეთ სასურველი ქალაქები და უბნები',
+    modalSubtitle:
+      'შეგიძლიათ აირჩიოთ ერთი ან რამდენიმე უბანი თბილისში, ბათუმსა და საქართველოში',
+    searchPlaceholder: 'მოძებნეთ ქალაქი ან უბანი (მაგ: საბურთალო, ვაკე, ბათუმი)...',
+    selectedCountSuffix: 'არჩეულია',
+    clearAllBtn: 'გასუფთავება',
+    confirmBtn: 'არჩევანის დადასტურება',
+    noResultsText: 'უბანი ვერ მოიძებნა',
+    regions: {
+      all: 'ყველა რეგიონი',
+      tbilisi_metro: 'თბილისი',
+      batumi_adjara: 'ბათუმი და აჭარა',
+      kutaisi_imereti: 'ქუთაისი',
+      mountain_resorts: 'მთის კურორტები',
+      kakheti_region: 'კახეთი',
+    },
+  },
+}
 
 function isFullCashPlanOption(plan: string, plansList: string[]): boolean {
   if (!plan) return false
@@ -83,10 +203,11 @@ function StepValidationBanner({
 
 function BuyersPageContent() {
   const searchParams = useSearchParams()
-  const { t: dict, locale, dir } = useTranslation()
+  const { t: dict, locale, dir, siteSettings } = useTranslation()
   const b = dict.buy
   const bVal = (b.validation as Record<string, string>) || {}
-  const bSuccess = ((b as Record<string, any>).successScreen as Record<string, string>) || {}
+  const bSuccess =
+    ((b as Record<string, any>).successScreen as Record<string, string>) || {}
   const sellVal = (dict.sell?.validation as Record<string, string>) || {}
   const currency = '$'
 
@@ -98,10 +219,10 @@ function BuyersPageContent() {
     dict.accountComponents?.buyer?.deliveryPreferences ||
     getLocalizedDeliveries(dict, locale)
 
-  const waPhone = String(dict.footer?.phone || '+201018595959').replace(
-    /\D/g,
-    ''
-  )
+  // قراءة رقم الواتساب من إعدادات الأدمن مباشرةً
+  const waPhone = String(
+    siteSettings?.whatsappNumber || dict.footer?.phone || '+201018595959'
+  ).replace(/\D/g, '')
 
   const initialBudget = Number(
     toEnglishDigits(searchParams.get('budget') || '').replace(/,/g, '')
@@ -131,6 +252,7 @@ function BuyersPageContent() {
 
   const [countryCode, setCountryCode] = useState(DEFAULT_PHONE_CODE)
   const [passwordVisible, setPasswordVisible] = useState(false)
+  const [turnstileToken, setTurnstileToken] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -380,6 +502,13 @@ function BuyersPageContent() {
       return
     }
 
+    if (!turnstileToken) {
+      setError(
+        TURNSTILE_WAIT_MESSAGES[locale] || TURNSTILE_WAIT_MESSAGES.ar
+      )
+      return
+    }
+
     setErrors({})
     setMissingFieldsList([])
     setIsSubmitting(true)
@@ -445,7 +574,8 @@ function BuyersPageContent() {
     }
   }
 
-  const missingPrefix = sellVal.missingBannerPrefix || bVal.missingBannerPrefix || ''
+  const missingPrefix =
+    sellVal.missingBannerPrefix || bVal.missingBannerPrefix || ''
 
   const siteOrigin =
     typeof window !== 'undefined'
@@ -454,15 +584,16 @@ function BuyersPageContent() {
 
   if (submittedOrder) {
     const areasText = submittedOrder.areas.join(dir === 'rtl' ? '، ' : ', ')
-    const waConfirmMessage = `${bSuccess.waMsgPrefix} (${submittedOrder.orderRef}) — ${b.stepOne.availableCashLabel}: ($${submittedOrder.availableCash.toLocaleString('en-US')}) — ${b.stepOne.budgetLabel}: ($${submittedOrder.budget.toLocaleString('en-US')}) — ${b.stepTwo.areasLabelPrefix}: (${areasText}).\n${siteOrigin}/admin/leads${submittedOrder.reqId ? `?leadId=${submittedOrder.reqId}` : ''}`
+    const cleanVerifyLink = `${siteOrigin}/api/verify${submittedOrder.reqId ? `?leadId=${encodeURIComponent(submittedOrder.reqId)}` : ''}`
+    const waConfirmMessage = `${bSuccess.waMsgPrefix} (${submittedOrder.orderRef}) — ${b.stepOne.availableCashLabel}: ($${submittedOrder.availableCash.toLocaleString('en-US')}) — ${b.stepOne.budgetLabel}: ($${submittedOrder.budget.toLocaleString('en-US')}) — ${b.stepTwo.areasLabelPrefix}: (${areasText}).\n${cleanVerifyLink}`
 
     return (
       <main
         dir={dir}
-        className="min-h-screen bg-[var(--brand-surface,#f5f6f8)] px-4 py-12 text-[var(--brand-navy-text,#0a1128)] sm:px-6 lg:py-16"
+        className="min-h-screen bg-[var(--brand-surface,#f5f6f8)] px-4 py-10 text-[var(--brand-navy-text,#0a1128)] sm:px-6 lg:py-16"
       >
         <div className="mx-auto max-w-2xl">
-          <section className="rounded-3xl border-2 border-[#007a5a] bg-white p-6 text-center shadow-md sm:p-10">
+          <section className="rounded-3xl border-2 border-[#007a5a] bg-white p-5 text-center shadow-md sm:p-10">
             <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-[#eaf8f2] text-[#007a5a] shadow-xs">
               <CheckCircle2 className="size-9" />
             </div>
@@ -471,7 +602,7 @@ function BuyersPageContent() {
               Ref: #{submittedOrder.orderRef}
             </span>
 
-            <h1 className="mt-3 text-2xl font-black text-[#0a1122] sm:text-3xl">
+            <h1 className="mt-3 text-xl font-black text-[#0a1122] sm:text-3xl">
               {bSuccess.title}
             </h1>
 
@@ -520,7 +651,7 @@ function BuyersPageContent() {
               <a
                 href={`https://wa.me/${waPhone}?text=${encodeURIComponent(waConfirmMessage)}`}
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] px-6 text-xs font-extrabold text-white shadow-md transition hover:opacity-95 sm:w-auto sm:text-sm"
               >
                 <MessageCircle className="size-4 shrink-0" />
@@ -543,25 +674,25 @@ function BuyersPageContent() {
   return (
     <main
       dir={dir}
-      className="min-h-screen bg-[var(--brand-surface,#f5f6f8)] px-4 py-12 text-[var(--brand-navy-text,#0a1128)] sm:px-6 lg:py-16"
+      className="min-h-screen bg-[var(--brand-surface,#f5f6f8)] px-3 py-8 text-[var(--brand-navy-text,#0a1128)] sm:px-6 sm:py-12 lg:py-16"
     >
       <div className="mx-auto max-w-3xl">
-        <header className="text-center">
-          <h1 className="text-3xl font-black tracking-tight text-[#0c513f] sm:text-4xl">
+        <header className="px-1 text-center">
+          <h1 className="text-2xl font-black tracking-tight text-[#0c513f] sm:text-4xl">
             {b.header.title}
           </h1>
-          <p className="mx-auto mt-4 max-w-2xl text-sm leading-7 text-slate-600">
+          <p className="mx-auto mt-3 max-w-2xl text-xs leading-6 text-slate-600 sm:mt-4 sm:text-sm sm:leading-7">
             {b.header.description}
           </p>
         </header>
 
         {step <= 2 && (
           <>
-            <div className="mt-8 flex flex-col gap-4">
+            <div className="mt-6 flex flex-col gap-3 sm:mt-8 sm:gap-4">
               {b.header.benefits.map((item, index) => (
                 <div
                   key={item}
-                  className={`flex items-center gap-3 rounded-xl border px-5 py-3 text-sm ${
+                  className={`flex items-start gap-2.5 rounded-xl border px-4 py-3 text-start text-xs leading-relaxed sm:items-center sm:gap-3 sm:px-5 sm:text-sm ${
                     index === 3
                       ? 'border-teal-300 bg-teal-50 font-bold text-teal-700'
                       : index === 4
@@ -569,38 +700,38 @@ function BuyersPageContent() {
                         : 'border-slate-200 bg-white text-slate-700'
                   }`}
                 >
-                  <Check className="size-4 shrink-0 text-teal-700" />
-                  {item}
+                  <Check className="mt-0.5 size-4 shrink-0 text-teal-700 sm:mt-0" />
+                  <span>{item}</span>
                 </div>
               ))}
             </div>
-            <div className="mt-8 rounded-2xl border border-slate-500 bg-white p-5 text-start shadow-sm">
-              <div className="flex items-center gap-2 text-sm font-bold">
-                <UserRound className="size-4" />
-                {b.header.directBuyerTitle}
+            <div className="mt-5 rounded-2xl border border-slate-300 bg-white p-4 text-start shadow-2xs sm:mt-8 sm:p-5">
+              <div className="flex items-center gap-2 text-xs font-extrabold text-[#0a1122] sm:text-sm">
+                <UserRound className="size-4 shrink-0 text-[#007a5a]" />
+                <span>{b.header.directBuyerTitle}</span>
               </div>
-              <p className="mt-2 text-xs leading-6 text-slate-600">
+              <p className="mt-1.5 text-xs leading-6 text-slate-600">
                 {b.header.directBuyerDesc}
               </p>
             </div>
           </>
         )}
 
-        <div className="mt-6 rounded-2xl bg-white p-5 shadow-sm sm:p-7">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-black">
+        <div className="mt-6 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-7">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-base font-black text-[#0a1122] sm:text-xl">
               {b.header.stepTitles[step - 1]}
             </h2>
-            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold">
+            <span className="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-[11px] font-bold text-slate-700 sm:text-xs">
               {b.header.stepWord} {step} {b.header.ofWord} 3
             </span>
           </div>
 
-          <div className="mt-5 flex gap-1.5">
+          <div className="mt-4 flex gap-1.5 sm:mt-5">
             {[1, 2, 3].map((item) => (
               <span
                 key={item}
-                className={`h-1.5 flex-1 rounded-full ${
+                className={`h-1.5 flex-1 rounded-full transition-colors ${
                   item <= step
                     ? 'bg-[var(--brand-primary,#007a5a)]'
                     : 'bg-slate-200'
@@ -609,7 +740,7 @@ function BuyersPageContent() {
             ))}
           </div>
 
-          <div className="mt-7">
+          <div className="mt-6 sm:mt-7">
             {step === 1 && (
               <BuyerStepOne data={data} update={update} errors={errors} />
             )}
@@ -623,28 +754,36 @@ function BuyersPageContent() {
               />
             )}
             {step === 3 && (
-              <BuyerContactStep
-                data={data}
-                update={update}
-                errors={errors}
-                countryCode={countryCode}
-                setCountryCode={setCountryCode}
-                passwordVisible={passwordVisible}
-                setPasswordVisible={setPasswordVisible}
-                loggedUser={loggedUser}
-                authTab={authTab}
-                setAuthTab={(tab) => {
-                  setAuthTab(tab)
-                  setErrors({})
-                  setMissingFieldsList([])
-                  setError('')
-                }}
-                conflictState={conflictState}
-                setConflictState={setConflictState}
-                onSuccessRedirect={(info) => {
-                  showWhatsAppSuccessScreen(info)
-                }}
-              />
+              <div className="space-y-5">
+                <BuyerContactStep
+                  data={data}
+                  update={update}
+                  errors={errors}
+                  countryCode={countryCode}
+                  setCountryCode={setCountryCode}
+                  passwordVisible={passwordVisible}
+                  setPasswordVisible={setPasswordVisible}
+                  loggedUser={loggedUser}
+                  authTab={authTab}
+                  setAuthTab={(tab) => {
+                    setAuthTab(tab)
+                    setErrors({})
+                    setMissingFieldsList([])
+                    setError('')
+                  }}
+                  conflictState={conflictState}
+                  setConflictState={setConflictState}
+                  onSuccessRedirect={(info) => {
+                    showWhatsAppSuccessScreen(info)
+                  }}
+                />
+
+                {!conflictState && (
+                  <div className="pt-1">
+                    <TurnstileBox onTokenChange={setTurnstileToken} />
+                  </div>
+                )}
+              </div>
             )}
           </div>
 
@@ -657,14 +796,14 @@ function BuyersPageContent() {
           {error && (
             <div
               role="alert"
-              className="mt-5 rounded-xl bg-red-50 p-3 text-center text-sm font-bold text-red-700"
+              className="mt-5 rounded-xl border border-red-200 bg-red-50 p-3 text-center text-xs font-bold text-red-700 sm:text-sm"
             >
               {error}
             </div>
           )}
 
           {!(step === 3 && conflictState) && (
-            <div className="mt-7 flex gap-3">
+            <div className="mt-6 flex gap-2.5 sm:mt-7 sm:gap-3">
               {step > 1 && (
                 <button
                   type="button"
@@ -675,7 +814,7 @@ function BuyersPageContent() {
                     window.scrollTo({ top: 0, behavior: 'smooth' })
                     setStep((step - 1) as 1 | 2)
                   }}
-                  className="h-12 rounded-xl border border-slate-300 bg-white px-7 font-semibold transition hover:bg-slate-50"
+                  className="h-12 rounded-xl border border-slate-300 bg-white px-5 text-xs font-bold text-[#0a1122] transition hover:bg-slate-50 sm:px-7 sm:text-sm"
                 >
                   {b.actions.backBtn}
                 </button>
@@ -690,7 +829,7 @@ function BuyersPageContent() {
                       ? nextFromTwo
                       : handleFinalSubmit
                 }
-                className={`h-12 flex-1 rounded-xl px-5 font-bold text-white transition active:scale-[0.98] ${
+                className={`h-12 flex-1 rounded-xl px-4 text-xs font-extrabold text-white transition active:scale-[0.98] sm:px-5 sm:text-sm ${
                   step === 3
                     ? 'bg-[var(--brand-primary,#007a5a)] hover:bg-[var(--brand-primary-hover,#006248)]'
                     : 'bg-[var(--brand-navy,#0a1122)] hover:bg-[var(--brand-navy-hover,#16223f)]'
@@ -715,16 +854,25 @@ function BuyersPageContent() {
           )}
         </div>
 
+        {/* شريط التواصل عبر واتساب بتصميم متجاوب وأنيق على الموبايل والكمبيوتر */}
         {step <= 2 && (
-          <div className="mt-6 flex items-center justify-between rounded-2xl bg-[var(--brand-navy,#0a1122)] px-5 py-4 text-sm text-white">
-            <span>{b.header.whatsappBarText}</span>
+          <div className="mt-6 flex flex-col items-stretch justify-between gap-3.5 rounded-2xl border border-[#1e293b] bg-[var(--brand-navy,#0a1122)] p-4 text-white shadow-sm sm:flex-row sm:items-center sm:px-6 sm:py-4">
+            <div className="flex items-center gap-3 text-start">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#25D366]/15 text-[#25D366]">
+                <MessageCircle className="size-5" />
+              </span>
+              <span className="text-xs font-bold leading-relaxed text-white/95 sm:text-sm">
+                {b.header.whatsappBarText}
+              </span>
+            </div>
             <a
               href={`https://wa.me/${waPhone}`}
               target="_blank"
-              rel="noreferrer"
-              className="rounded-full bg-green-500 px-4 py-2 font-bold transition hover:bg-green-600"
+              rel="noopener noreferrer"
+              className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-[#25D366] px-5 text-xs font-extrabold text-white shadow-xs transition active:scale-[0.98] hover:bg-[#20bd5a] sm:h-10 sm:rounded-full sm:text-sm"
             >
-              {b.header.whatsappBarBtn}
+              <MessageCircle className="size-4 shrink-0" />
+              <span>{b.header.whatsappBarBtn}</span>
             </a>
           </div>
         )}
@@ -781,7 +929,7 @@ function BuyerStepOne({
           {t.paymentPlans.map((item) => (
             <label
               key={item}
-              className={`flex cursor-pointer items-center justify-between rounded-xl border px-4 py-3 text-sm transition ${
+              className={`flex cursor-pointer items-center justify-between rounded-xl border px-4 py-3 text-xs transition sm:text-sm ${
                 data.payment_plan === item
                   ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary-light,#eaf8f2)] font-bold text-[var(--brand-primary,#007a5a)]'
                   : 'border-slate-200 bg-white hover:border-teal-300'
@@ -850,13 +998,25 @@ function BuyerStepTwo({
   unitTypesList: string[]
   deliveriesList: string[]
 }) {
-  const { t: dict, locale } = useTranslation()
+  const { t: dict, locale, dir } = useTranslation()
   const t = dict.buy.stepTwo
   const sDetails = (dict.sell?.detailsStep as Record<string, any>) || {}
+  const mL = AREA_PICKER_MODAL_I18N[locale] || AREA_PICKER_MODAL_I18N.ar
 
-  const addGeorgiaArea = (areaId: string) => {
+  const [areaModalOpen, setAreaModalOpen] = useState(false)
+  const [areaSearch, setAreaSearch] = useState('')
+  const [activeRegionTab, setActiveRegionTab] = useState<
+    'all' | GeorgiaRegionCode
+  >('all')
+
+  const toggleGeorgiaArea = (areaId: string) => {
     if (!areaId) return
-    if (!data.preferred_areas.includes(areaId)) {
+    if (data.preferred_areas.includes(areaId)) {
+      update(
+        'preferred_areas',
+        data.preferred_areas.filter((item) => item !== areaId)
+      )
+    } else {
       update('preferred_areas', [...data.preferred_areas, areaId])
     }
   }
@@ -867,6 +1027,21 @@ function BuyerStepTwo({
       data.preferred_areas.filter((item) => item !== areaId)
     )
   }
+
+  const filteredModalDistricts = useMemo(() => {
+    return GEORGIA_REGION_DISTRICTS.filter((node) => {
+      if (activeRegionTab !== 'all' && node.regionCode !== activeRegionTab) {
+        return false
+      }
+      if (areaSearch.trim()) {
+        const q = areaSearch.trim().toLowerCase()
+        const haystack =
+          `${node.id} ${node.labels.ar} ${node.labels.en} ${node.labels.ru} ${node.labels.ka} ${node.keywords.join(' ')}`.toLowerCase()
+        if (!haystack.includes(q)) return false
+      }
+      return true
+    })
+  }, [activeRegionTab, areaSearch])
 
   const quickGeorgiaAreas = GEORGIA_CITIES_AND_DISTRICTS.slice(0, 8)
   const roomQuickOptions = [1, 2, 3, 4]
@@ -908,7 +1083,7 @@ function BuyerStepTwo({
                 key={rm}
                 type="button"
                 onClick={() => update('min_rooms', active ? 0 : rm)}
-                className={`h-11 min-w-[60px] rounded-xl border px-3.5 text-sm font-extrabold transition ${
+                className={`h-11 min-w-[56px] rounded-xl border px-3 text-sm font-extrabold transition sm:min-w-[60px] sm:px-3.5 ${
                   active
                     ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]'
                     : 'border-slate-200 bg-white text-slate-700 hover:border-teal-400'
@@ -931,7 +1106,7 @@ function BuyerStepTwo({
               )
               update('min_rooms', Number(clean) || 0)
             }}
-            className="h-11 w-28 rounded-xl text-center text-base font-bold"
+            className="h-11 w-24 rounded-xl text-center text-base font-bold sm:w-28"
             placeholder={t.minRoomsPlaceholder}
           />
         </div>
@@ -954,7 +1129,7 @@ function BuyerStepTwo({
           {deliveriesList.map((item) => (
             <label
               key={item}
-              className={`flex cursor-pointer items-center justify-between rounded-xl border px-4 py-3 text-sm transition ${
+              className={`flex cursor-pointer items-center justify-between rounded-xl border px-4 py-3 text-xs transition sm:text-sm ${
                 data.delivery_status === item
                   ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary-light,#eaf8f2)] font-bold text-[var(--brand-primary,#007a5a)]'
                   : 'border-slate-200 bg-white hover:border-teal-300'
@@ -977,21 +1152,41 @@ function BuyerStepTwo({
         )}
       </fieldset>
 
-      <div>
-        <GeorgiaAreaSelect
-          label={
-            sDetails.georgiaLocationLabel ||
-            `${t.areasLabelPrefix} *`
-          }
-          value=""
-          onChange={addGeorgiaArea}
-          error={errors?.preferred_areas}
-          placeholder={
-            data.preferred_areas.length > 0
-              ? t.addAnotherAreaPlaceholder
-              : sDetails.georgiaLocationPlaceholder
-          }
-        />
+      {/* حقل فتح نافذة اختيار المناطق المنبثقة (Modal) مثل صفحة البيع */}
+      <div className="text-start">
+        <label className="mb-2 block text-start text-sm font-bold text-[#0a1122]">
+          <RequiredLabel>
+            {sDetails.georgiaLocationLabel || t.areasLabelPrefix}
+          </RequiredLabel>
+        </label>
+
+        <button
+          type="button"
+          onClick={() => setAreaModalOpen(true)}
+          className={`flex min-h-[50px] w-full items-center justify-between gap-2 rounded-xl border px-4 py-3 text-start text-xs font-bold transition sm:text-sm ${
+            errors?.preferred_areas
+              ? 'border-red-500 bg-red-50/20 text-red-800'
+              : data.preferred_areas.length > 0
+                ? 'border-[var(--brand-primary,#007a5a)] bg-[#eaf8f2]/50 text-[#0a1122]'
+                : 'border-slate-200 bg-white text-slate-500 hover:border-[var(--brand-primary,#007a5a)]'
+          }`}
+        >
+          <div className="flex min-w-0 items-center gap-2">
+            <MapPin className="size-4 shrink-0 text-[var(--brand-primary,#007a5a)]" />
+            <span className="truncate">
+              {data.preferred_areas.length > 0
+                ? `${data.preferred_areas.length} ${mL.selectedCountSuffix} — ${mL.triggerAddMore}`
+                : mL.triggerPlaceholder}
+            </span>
+          </div>
+          <ChevronDown className="size-4 shrink-0 text-slate-400" />
+        </button>
+
+        {errors?.preferred_areas && (
+          <p className="mt-1.5 text-start text-xs font-semibold text-red-600">
+            {errors.preferred_areas}
+          </p>
+        )}
 
         {data.preferred_areas.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-2">
@@ -1022,11 +1217,7 @@ function BuyerStepTwo({
               <button
                 key={item.id}
                 type="button"
-                onClick={() =>
-                  isSelected
-                    ? removeGeorgiaArea(item.id)
-                    : addGeorgiaArea(item.id)
-                }
+                onClick={() => toggleGeorgiaArea(item.id)}
                 className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold transition ${
                   isSelected
                     ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]'
@@ -1039,6 +1230,145 @@ function BuyerStepTwo({
           })}
         </div>
       </div>
+
+      {/* نافذة اختيار المناطق والأحياء المنبثقة (Modal) */}
+      <Dialog open={areaModalOpen} onOpenChange={setAreaModalOpen}>
+        <DialogContent
+          dir={dir}
+          className="flex max-h-[88vh] w-[94vw] max-w-2xl flex-col overflow-hidden rounded-3xl p-0 text-start"
+        >
+          <DialogHeader className="border-b border-gray-100 bg-[#f8faf9] px-5 py-4 text-start sm:px-6">
+            <div className="flex items-center gap-2.5">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#eaf8f2] text-[#007a5a]">
+                <MapPin className="size-5" />
+              </span>
+              <div>
+                <DialogTitle className="text-base font-black text-[#0a1122] sm:text-lg">
+                  {mL.modalTitle}
+                </DialogTitle>
+                <DialogDescription className="mt-0.5 text-xs text-gray-500">
+                  {mL.modalSubtitle}
+                </DialogDescription>
+              </div>
+            </div>
+
+            <div className="relative mt-3.5">
+              <Search className="pointer-events-none absolute top-1/2 end-3.5 size-4 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={areaSearch}
+                onChange={(e) => setAreaSearch(e.target.value)}
+                placeholder={mL.searchPlaceholder}
+                className="h-10 w-full rounded-xl border border-gray-200 bg-white ps-3.5 pe-10 text-xs font-semibold text-[#0a1122] focus:border-[#007a5a] focus:outline-none sm:text-sm"
+              />
+            </div>
+
+            <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1">
+              {(
+                [
+                  'all',
+                  'tbilisi_metro',
+                  'batumi_adjara',
+                  'kutaisi_imereti',
+                  'mountain_resorts',
+                  'kakheti_region',
+                ] as const
+              ).map((regCode) => (
+                <button
+                  key={regCode}
+                  type="button"
+                  onClick={() => setActiveRegionTab(regCode)}
+                  className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-extrabold transition ${
+                    activeRegionTab === regCode
+                      ? 'bg-[#0a1122] text-white shadow-2xs'
+                      : ' border border-gray-200 bg-white text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  {mL.regions[regCode]}
+                </button>
+              ))}
+            </div>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+            {filteredModalDistricts.length === 0 ? (
+              <div className="py-10 text-center text-xs font-bold text-gray-400">
+                {mL.noResultsText}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {filteredModalDistricts.map((node) => {
+                  const isSelected = data.preferred_areas.includes(node.id)
+                  const primaryLabel =
+                    node.labels[locale] || node.labels.en
+                  const secondaryLabel =
+                    locale === 'en' ? node.labels.ka : node.labels.en
+
+                  return (
+                    <button
+                      key={node.id}
+                      type="button"
+                      onClick={() => toggleGeorgiaArea(node.id)}
+                      className={`flex items-center justify-between gap-2.5 rounded-2xl border p-3 text-start transition ${
+                        isSelected
+                          ? 'border-2 border-[#007a5a] bg-[#eaf8f2]/70 shadow-2xs'
+                          : 'border-gray-200/90 bg-white hover:border-gray-300 hover:bg-gray-50/70'
+                      }`}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-extrabold text-[#0a1122] sm:text-sm">
+                          {primaryLabel}
+                        </p>
+                        <p
+                          dir="ltr"
+                          className="mt-0.5 truncate text-start text-[10.5px] font-semibold text-gray-400"
+                        >
+                          {secondaryLabel}
+                        </p>
+                      </div>
+
+                      <span
+                        className={`flex size-6 shrink-0 items-center justify-center rounded-full border transition ${
+                          isSelected
+                            ? 'border-[#007a5a] bg-[#007a5a] text-white'
+                            : 'border-gray-300 bg-white'
+                        }`}
+                      >
+                        {isSelected && <Check className="size-3.5 stroke-[3]" />}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="flex flex-row items-center justify-between gap-2 border-t border-gray-100 bg-gray-50 px-5 py-3.5 sm:px-6">
+            <div className="flex items-center gap-2">
+              <span className="rounded-full bg-[#eaf8f2] px-3 py-1 text-xs font-extrabold text-[#007a5a]">
+                {data.preferred_areas.length} {mL.selectedCountSuffix}
+              </span>
+              {data.preferred_areas.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => update('preferred_areas', [])}
+                  className="text-xs font-bold text-red-600 underline hover:text-red-700"
+                >
+                  {mL.clearAllBtn}
+                </button>
+              )}
+            </div>
+
+            <Button
+              type="button"
+              onClick={() => setAreaModalOpen(false)}
+              className="h-10 rounded-xl bg-[#007a5a] px-6 text-xs font-extrabold text-white hover:bg-[#006248]"
+            >
+              {mL.confirmBtn} ({data.preferred_areas.length})
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

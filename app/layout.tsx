@@ -69,13 +69,21 @@ export default async function RootLayout({
   return (
     <html lang={locale} dir={dir}>
       <head>
-        {/* التقاط حدث تثبيت PWA مبكراً قبل Hydration وتسجيل الـ Service Worker الرسمي */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
               window.__deferredPwaPrompt = null;
               window.addEventListener('beforeinstallprompt', function(e) {
                 e.preventDefault();
+                try {
+                  if (
+                    localStorage.getItem('aqar_pwa_prompt_dismissed_v2') === '1' ||
+                    localStorage.getItem('aqar_pwa_prompt_dismissed') === '1' ||
+                    sessionStorage.getItem('aqar_pwa_prompt_dismissed_v2') === '1'
+                  ) {
+                    return;
+                  }
+                } catch (err) {}
                 window.__deferredPwaPrompt = e;
                 window.dispatchEvent(new Event('pwa-prompt-ready'));
               });

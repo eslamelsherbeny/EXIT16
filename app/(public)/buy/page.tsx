@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useEffect, useMemo, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import {
@@ -15,39 +15,23 @@ import {
   Loader2,
   MapPin,
   MessageCircle,
-  Search,
+  Plus,
   UserRound,
   X,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { TurnstileBox } from '@/components/layouts/auth-layout'
-import {
   getLocalizedDeliveries,
   getLocalizedUnitTypes,
   MoneyField,
   Pills,
   RequiredLabel,
+  SivrceLocationModalPicker,
   toEnglishDigits,
 } from '@/components/features/seller/seller-shared'
 import { splitStoredPhoneToCodeAndLocal } from '@/components/features/seller/seller-contact-step'
-import {
-  GEORGIA_CITIES_AND_DISTRICTS,
-  getLocalizedGeorgiaAreaName,
-} from '@/components/shared/georgia-areas'
-import {
-  GEORGIA_REGION_DISTRICTS,
-  type GeorgiaRegionCode,
-} from '@/lib/georgia-districts-data'
+import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
 import {
   BuyerContactStep,
   type BuyerConflictState,
@@ -58,107 +42,38 @@ import { useTranslation, type LocaleCode } from '@/lib/i18n'
 const ACTIVE_PLATFORM_COUNTRY = 'GE'
 const DEFAULT_PHONE_CODE = '995'
 
-const TURNSTILE_WAIT_MESSAGES: Record<LocaleCode, string> = {
-  ar: 'يرجى الانتظار لحظات حتى يكتمل التحقق الأمني (Cloudflare) بالأسفل ثم المحاولة مرة أخرى.',
-  en: 'Please wait a moment for the Cloudflare security check below to complete, then try again.',
-  ru: 'Пожалуйста, подождите завершения проверки безопасности (Cloudflare) ниже и попробуйте снова.',
-  ka: 'გთხოვთ დაელოდოთ უსაფრთხოების შემოწმების (Cloudflare) დასრულებას და სცადოთ ხელახლა.',
-}
-
-const AREA_PICKER_MODAL_I18N: Record<
+const BUY_LOCATION_TRIGGER_I18N: Record<
   LocaleCode,
   {
-    triggerPlaceholder: string
-    triggerAddMore: string
-    modalTitle: string
-    modalSubtitle: string
-    searchPlaceholder: string
-    selectedCountSuffix: string
+    selectAreaPlaceholder: string
+    addMoreAreasPlaceholder: string
+    selectedCountWord: string
     clearAllBtn: string
-    confirmBtn: string
-    noResultsText: string
-    regions: Record<'all' | GeorgiaRegionCode, string>
   }
 > = {
   ar: {
-    triggerPlaceholder: 'اضغط لاختيار المدن أو الأحياء المطلوبة في جورجيا...',
-    triggerAddMore: 'اضغط لإضافة أو تعديل المناطق المختارة...',
-    modalTitle: 'اختر المناطق والأحياء المفضلة للشراء',
-    modalSubtitle:
-      'يمكنك اختيار منطقة واحدة أو عدة مناطق في تبليسي وباتومي وجورجيا',
-    searchPlaceholder: 'ابحث باسم المدينة أو الحي (مثل: سابورتالو، فاكي، باتومي)...',
-    selectedCountSuffix: 'منطقة محددة',
+    selectAreaPlaceholder: 'اضغط لاختيار المدينة أو الحي في جورجيا...',
+    addMoreAreasPlaceholder: 'اضغط لإضافة مدينة أو منطقة أخرى...',
+    selectedCountWord: 'مناطق محددة',
     clearAllBtn: 'مسح الكل',
-    confirmBtn: 'تأكيد المناطق المختارة',
-    noResultsText: 'لا توجد مناطق مطابقة لبحثك',
-    regions: {
-      all: 'كل المناطق',
-      tbilisi_metro: 'تبليسي وضواحيها',
-      batumi_adjara: 'باتومي وأجارا',
-      kutaisi_imereti: 'كوتايسي',
-      mountain_resorts: 'غودوري وبورجومي',
-      kakheti_region: 'كاخيتي وتيلافي',
-    },
   },
   en: {
-    triggerPlaceholder: 'Click to select preferred cities or districts in Georgia...',
-    triggerAddMore: 'Click to add or edit selected areas...',
-    modalTitle: 'Select Preferred Areas & Districts',
-    modalSubtitle:
-      'You can select one or multiple districts across Tbilisi, Batumi, and Georgia',
-    searchPlaceholder: 'Search city or district (e.g., Saburtalo, Vake, Batumi)...',
-    selectedCountSuffix: 'selected',
+    selectAreaPlaceholder: 'Click to select city or district in Georgia...',
+    addMoreAreasPlaceholder: 'Click to add another city or district...',
+    selectedCountWord: 'selected',
     clearAllBtn: 'Clear All',
-    confirmBtn: 'Confirm Selected Areas',
-    noResultsText: 'No matching areas found',
-    regions: {
-      all: 'All Regions',
-      tbilisi_metro: 'Tbilisi & Metro',
-      batumi_adjara: 'Batumi & Adjara',
-      kutaisi_imereti: 'Kutaisi',
-      mountain_resorts: 'Mountain Resorts',
-      kakheti_region: 'Kakheti',
-    },
   },
   ru: {
-    triggerPlaceholder: 'Нажмите для выбора городов и районов Грузии...',
-    triggerAddMore: 'Нажмите, чтобы добавить или изменить районы...',
-    modalTitle: 'Выберите предпочитаемые районы',
-    modalSubtitle:
-      'Можно выбрать один или несколько районов в Тбилиси, Батуми и по всей Грузии',
-    searchPlaceholder: 'Поиск города или района (напр.: Сабуртало, Ваке, Батуми)...',
-    selectedCountSuffix: 'выбрано',
-    clearAllBtn: 'Очистить',
-    confirmBtn: 'Подтвердить выбор',
-    noResultsText: 'Районы не найдены',
-    regions: {
-      all: 'Все районы',
-      tbilisi_metro: 'Тбилиси и пригород',
-      batumi_adjara: 'Батуми и Аджария',
-      kutaisi_imereti: 'Кутаиси',
-      mountain_resorts: 'Горные курорты',
-      kakheti_region: 'Кахетия',
-    },
+    selectAreaPlaceholder: 'Нажмите для выбора города или района в Грузии...',
+    addMoreAreasPlaceholder: 'Нажмите, чтобы добавить еще один район...',
+    selectedCountWord: 'выбрано',
+    clearAllBtn: 'Очистить все',
   },
   ka: {
-    triggerPlaceholder: 'დააჭირეთ სასურველი ქალაქების ან უბნების ასარჩევად...',
-    triggerAddMore: 'დააჭირეთ არჩეული უბნების შესაცვლელად...',
-    modalTitle: 'აირჩიეთ სასურველი ქალაქები და უბნები',
-    modalSubtitle:
-      'შეგიძლიათ აირჩიოთ ერთი ან რამდენიმე უბანი თბილისში, ბათუმსა და საქართველოში',
-    searchPlaceholder: 'მოძებნეთ ქალაქი ან უბანი (მაგ: საბურთალო, ვაკე, ბათუმი)...',
-    selectedCountSuffix: 'არჩეულია',
+    selectAreaPlaceholder: 'დააჭირეთ ქალაქის ან უბნის ასარჩევად...',
+    addMoreAreasPlaceholder: 'დააჭირეთ სხვა უბნის დასამატებლად...',
+    selectedCountWord: 'არჩეულია',
     clearAllBtn: 'გასუფთავება',
-    confirmBtn: 'არჩევანის დადასტურება',
-    noResultsText: 'უბანი ვერ მოიძებნა',
-    regions: {
-      all: 'ყველა რეგიონი',
-      tbilisi_metro: 'თბილისი',
-      batumi_adjara: 'ბათუმი და აჭარა',
-      kutaisi_imereti: 'ქუთაისი',
-      mountain_resorts: 'მთის კურორტები',
-      kakheti_region: 'კახეთი',
-    },
   },
 }
 
@@ -250,9 +165,13 @@ function BuyersPageContent() {
     contactMessengers: ['whatsapp', 'viber'],
   }))
 
+  // حفظ الأسماء المخصصة للمناطق المختارة من نافذة الخريطة لعرضها بدقة في الشارات
+  const [areaDisplayLabels, setAreaDisplayLabels] = useState<
+    Record<string, string>
+  >({})
+
   const [countryCode, setCountryCode] = useState(DEFAULT_PHONE_CODE)
   const [passwordVisible, setPasswordVisible] = useState(false)
-  const [turnstileToken, setTurnstileToken] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -448,8 +367,8 @@ function BuyersPageContent() {
       buyerName: effectiveName,
       availableCash: Number(data.available_cash) || 0,
       budget: Number(data.budget) || Number(data.available_cash) || 0,
-      areas: data.preferred_areas.map((a) =>
-        getLocalizedGeorgiaAreaName(a, locale)
+      areas: data.preferred_areas.map(
+        (a) => areaDisplayLabels[a] || getLocalizedGeorgiaAreaName(a, locale)
       ),
     })
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -499,13 +418,6 @@ function BuyersPageContent() {
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors)
       setMissingFieldsList(missing)
-      return
-    }
-
-    if (!turnstileToken) {
-      setError(
-        TURNSTILE_WAIT_MESSAGES[locale] || TURNSTILE_WAIT_MESSAGES.ar
-      )
       return
     }
 
@@ -751,39 +663,33 @@ function BuyersPageContent() {
                 errors={errors}
                 unitTypesList={localizedUnitTypes}
                 deliveriesList={localizedDeliveries}
+                areaDisplayLabels={areaDisplayLabels}
+                setAreaDisplayLabels={setAreaDisplayLabels}
               />
             )}
             {step === 3 && (
-              <div className="space-y-5">
-                <BuyerContactStep
-                  data={data}
-                  update={update}
-                  errors={errors}
-                  countryCode={countryCode}
-                  setCountryCode={setCountryCode}
-                  passwordVisible={passwordVisible}
-                  setPasswordVisible={setPasswordVisible}
-                  loggedUser={loggedUser}
-                  authTab={authTab}
-                  setAuthTab={(tab) => {
-                    setAuthTab(tab)
-                    setErrors({})
-                    setMissingFieldsList([])
-                    setError('')
-                  }}
-                  conflictState={conflictState}
-                  setConflictState={setConflictState}
-                  onSuccessRedirect={(info) => {
-                    showWhatsAppSuccessScreen(info)
-                  }}
-                />
-
-                {!conflictState && (
-                  <div className="pt-1">
-                    <TurnstileBox onTokenChange={setTurnstileToken} />
-                  </div>
-                )}
-              </div>
+              <BuyerContactStep
+                data={data}
+                update={update}
+                errors={errors}
+                countryCode={countryCode}
+                setCountryCode={setCountryCode}
+                passwordVisible={passwordVisible}
+                setPasswordVisible={setPasswordVisible}
+                loggedUser={loggedUser}
+                authTab={authTab}
+                setAuthTab={(tab) => {
+                  setAuthTab(tab)
+                  setErrors({})
+                  setMissingFieldsList([])
+                  setError('')
+                }}
+                conflictState={conflictState}
+                setConflictState={setConflictState}
+                onSuccessRedirect={(info) => {
+                  showWhatsAppSuccessScreen(info)
+                }}
+              />
             )}
           </div>
 
@@ -807,6 +713,7 @@ function BuyersPageContent() {
               {step > 1 && (
                 <button
                   type="button"
+                  data-testid="buy-back-btn"
                   onClick={() => {
                     setMissingFieldsList([])
                     setErrors({})
@@ -821,6 +728,7 @@ function BuyersPageContent() {
               )}
               <button
                 type="button"
+                data-testid="buy-next-submit-btn"
                 disabled={isSubmitting}
                 onClick={
                   step === 1
@@ -988,6 +896,8 @@ function BuyerStepTwo({
   errors,
   unitTypesList,
   deliveriesList,
+  areaDisplayLabels,
+  setAreaDisplayLabels,
 }: {
   data: BuyerFormState
   update: <K extends keyof BuyerFormState>(
@@ -997,27 +907,31 @@ function BuyerStepTwo({
   errors?: Record<string, string>
   unitTypesList: string[]
   deliveriesList: string[]
+  areaDisplayLabels: Record<string, string>
+  setAreaDisplayLabels: React.Dispatch<
+    React.SetStateAction<Record<string, string>>
+  >
 }) {
-  const { t: dict, locale, dir } = useTranslation()
+  const { t: dict, locale } = useTranslation()
   const t = dict.buy.stepTwo
   const sDetails = (dict.sell?.detailsStep as Record<string, any>) || {}
-  const mL = AREA_PICKER_MODAL_I18N[locale] || AREA_PICKER_MODAL_I18N.ar
+  const trL =
+    BUY_LOCATION_TRIGGER_I18N[locale] || BUY_LOCATION_TRIGGER_I18N.ar
 
-  const [areaModalOpen, setAreaModalOpen] = useState(false)
-  const [areaSearch, setAreaSearch] = useState('')
-  const [activeRegionTab, setActiveRegionTab] = useState<
-    'all' | GeorgiaRegionCode
-  >('all')
-
-  const toggleGeorgiaArea = (areaId: string) => {
-    if (!areaId) return
-    if (data.preferred_areas.includes(areaId)) {
-      update(
-        'preferred_areas',
-        data.preferred_areas.filter((item) => item !== areaId)
-      )
-    } else {
-      update('preferred_areas', [...data.preferred_areas, areaId])
+  const addGeorgiaAreaFromModal = (
+    areaId: string,
+    displayLabel?: string
+  ) => {
+    const cleanId = (areaId || displayLabel || '').trim()
+    if (!cleanId) return
+    if (displayLabel) {
+      setAreaDisplayLabels((prev) => ({
+        ...prev,
+        [cleanId]: displayLabel,
+      }))
+    }
+    if (!data.preferred_areas.includes(cleanId)) {
+      update('preferred_areas', [...data.preferred_areas, cleanId])
     }
   }
 
@@ -1028,22 +942,6 @@ function BuyerStepTwo({
     )
   }
 
-  const filteredModalDistricts = useMemo(() => {
-    return GEORGIA_REGION_DISTRICTS.filter((node) => {
-      if (activeRegionTab !== 'all' && node.regionCode !== activeRegionTab) {
-        return false
-      }
-      if (areaSearch.trim()) {
-        const q = areaSearch.trim().toLowerCase()
-        const haystack =
-          `${node.id} ${node.labels.ar} ${node.labels.en} ${node.labels.ru} ${node.labels.ka} ${node.keywords.join(' ')}`.toLowerCase()
-        if (!haystack.includes(q)) return false
-      }
-      return true
-    })
-  }, [activeRegionTab, areaSearch])
-
-  const quickGeorgiaAreas = GEORGIA_CITIES_AND_DISTRICTS.slice(0, 8)
   const roomQuickOptions = [1, 2, 3, 4]
 
   return (
@@ -1152,35 +1050,53 @@ function BuyerStepTwo({
         )}
       </fieldset>
 
-      {/* حقل فتح نافذة اختيار المناطق المنبثقة (Modal) مثل صفحة البيع */}
+      {/* نفس نافذة الاختيار الموجودة في صفحة "عايز تبيع" بالظبط (SivrceLocationModalPicker) بدون أي اقتراحات تحتها */}
       <div className="text-start">
-        <label className="mb-2 block text-start text-sm font-bold text-[#0a1122]">
-          <RequiredLabel>
-            {sDetails.georgiaLocationLabel || t.areasLabelPrefix}
-          </RequiredLabel>
-        </label>
-
-        <button
-          type="button"
-          onClick={() => setAreaModalOpen(true)}
-          className={`flex min-h-[50px] w-full items-center justify-between gap-2 rounded-xl border px-4 py-3 text-start text-xs font-bold transition sm:text-sm ${
-            errors?.preferred_areas
-              ? 'border-red-500 bg-red-50/20 text-red-800'
-              : data.preferred_areas.length > 0
-                ? 'border-[var(--brand-primary,#007a5a)] bg-[#eaf8f2]/50 text-[#0a1122]'
-                : 'border-slate-200 bg-white text-slate-500 hover:border-[var(--brand-primary,#007a5a)]'
-          }`}
-        >
-          <div className="flex min-w-0 items-center gap-2">
-            <MapPin className="size-4 shrink-0 text-[var(--brand-primary,#007a5a)]" />
-            <span className="truncate">
-              {data.preferred_areas.length > 0
-                ? `${data.preferred_areas.length} ${mL.selectedCountSuffix} — ${mL.triggerAddMore}`
-                : mL.triggerPlaceholder}
-            </span>
-          </div>
-          <ChevronDown className="size-4 shrink-0 text-slate-400" />
-        </button>
+        <SivrceLocationModalPicker
+          label={
+            sDetails.georgiaLocationLabel || `${t.areasLabelPrefix} *`
+          }
+          value=""
+          displayText=""
+          error={errors?.preferred_areas}
+          onSelectLocation={({ areaId, displayLabel }) => {
+            addGeorgiaAreaFromModal(areaId, displayLabel)
+          }}
+          customTrigger={({ onClick }) => (
+            <button
+              type="button"
+              onClick={onClick}
+              className={`flex h-12 w-full items-center justify-between gap-2 rounded-xl border px-4 text-start text-xs font-bold transition sm:text-sm ${
+                errors?.preferred_areas
+                  ? 'border-red-500 bg-red-50/20 text-red-700'
+                  : data.preferred_areas.length > 0
+                    ? 'border-[var(--brand-primary,#007a5a)] bg-[#eaf8f2]/40 text-[#0a1122] hover:bg-[#eaf8f2]/70'
+                    : 'border-slate-200 bg-white text-slate-500 hover:border-[#2563eb]'
+              }`}
+            >
+              <span className="flex min-w-0 items-center gap-2 truncate">
+                <MapPin
+                  className={`size-4 shrink-0 ${
+                    data.preferred_areas.length > 0
+                      ? 'text-[var(--brand-primary,#007a5a)]'
+                      : 'text-slate-400'
+                  }`}
+                />
+                <span className="truncate">
+                  {data.preferred_areas.length > 0
+                    ? `${trL.addMoreAreasPlaceholder} (${data.preferred_areas.length} ${trL.selectedCountWord})`
+                    : trL.selectAreaPlaceholder}
+                </span>
+              </span>
+              <span className="flex items-center gap-1 text-slate-400">
+                {data.preferred_areas.length > 0 && (
+                  <Plus className="size-4 text-[var(--brand-primary,#007a5a)]" />
+                )}
+                <ChevronDown className="size-4" />
+              </span>
+            </button>
+          )}
+        />
 
         {errors?.preferred_areas && (
           <p className="mt-1.5 text-start text-xs font-semibold text-red-600">
@@ -1188,187 +1104,43 @@ function BuyerStepTwo({
           </p>
         )}
 
+        {/* عرض الأماكن التي اختارها المشتري من النافذة مع إمكانية حذف أي مكان أو فتح النافذة لإضافة المزيد */}
         {data.preferred_areas.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {data.preferred_areas.map((area) => (
-              <span
-                key={area}
-                className="inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-primary,#007a5a)] px-3.5 py-1.5 text-xs font-bold text-white shadow-2xs"
-              >
-                <span>{getLocalizedGeorgiaAreaName(area, locale)}</span>
-                <button
-                  type="button"
-                  aria-label={`${t.removeAreaAria} ${area}`}
-                  onClick={() => removeGeorgiaArea(area)}
-                  className="ms-0.5 rounded-full p-0.5 hover:bg-black/20"
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {data.preferred_areas.map((area) => {
+              const displayLabel =
+                areaDisplayLabels[area] ||
+                getLocalizedGeorgiaAreaName(area, locale)
+              return (
+                <span
+                  key={area}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-primary,#007a5a)] px-3.5 py-1.5 text-xs font-bold text-white shadow-2xs"
                 >
-                  <X className="size-3" />
-                </button>
-              </span>
-            ))}
-          </div>
-        )}
+                  <span>{displayLabel}</span>
+                  <button
+                    type="button"
+                    aria-label={`${t.removeAreaAria} ${area}`}
+                    onClick={() => removeGeorgiaArea(area)}
+                    className="ms-0.5 rounded-full p-0.5 hover:bg-black/20"
+                  >
+                    <X className="size-3" />
+                  </button>
+                </span>
+              )
+            })}
 
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {quickGeorgiaAreas.map((item) => {
-            const isSelected = data.preferred_areas.includes(item.id)
-            const localizedName = getLocalizedGeorgiaAreaName(item.id, locale)
-            return (
+            {data.preferred_areas.length > 1 && (
               <button
-                key={item.id}
                 type="button"
-                onClick={() => toggleGeorgiaArea(item.id)}
-                className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold transition ${
-                  isSelected
-                    ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]'
-                    : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300'
-                }`}
+                onClick={() => update('preferred_areas', [])}
+                className="ms-1 text-xs font-bold text-red-600 underline hover:text-red-700"
               >
-                {isSelected ? `✓ ${localizedName}` : `+ ${localizedName}`}
+                {trL.clearAllBtn}
               </button>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* نافذة اختيار المناطق والأحياء المنبثقة (Modal) */}
-      <Dialog open={areaModalOpen} onOpenChange={setAreaModalOpen}>
-        <DialogContent
-          dir={dir}
-          className="flex max-h-[88vh] w-[94vw] max-w-2xl flex-col overflow-hidden rounded-3xl p-0 text-start"
-        >
-          <DialogHeader className="border-b border-gray-100 bg-[#f8faf9] px-5 py-4 text-start sm:px-6">
-            <div className="flex items-center gap-2.5">
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#eaf8f2] text-[#007a5a]">
-                <MapPin className="size-5" />
-              </span>
-              <div>
-                <DialogTitle className="text-base font-black text-[#0a1122] sm:text-lg">
-                  {mL.modalTitle}
-                </DialogTitle>
-                <DialogDescription className="mt-0.5 text-xs text-gray-500">
-                  {mL.modalSubtitle}
-                </DialogDescription>
-              </div>
-            </div>
-
-            <div className="relative mt-3.5">
-              <Search className="pointer-events-none absolute top-1/2 end-3.5 size-4 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                value={areaSearch}
-                onChange={(e) => setAreaSearch(e.target.value)}
-                placeholder={mL.searchPlaceholder}
-                className="h-10 w-full rounded-xl border border-gray-200 bg-white ps-3.5 pe-10 text-xs font-semibold text-[#0a1122] focus:border-[#007a5a] focus:outline-none sm:text-sm"
-              />
-            </div>
-
-            <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1">
-              {(
-                [
-                  'all',
-                  'tbilisi_metro',
-                  'batumi_adjara',
-                  'kutaisi_imereti',
-                  'mountain_resorts',
-                  'kakheti_region',
-                ] as const
-              ).map((regCode) => (
-                <button
-                  key={regCode}
-                  type="button"
-                  onClick={() => setActiveRegionTab(regCode)}
-                  className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-extrabold transition ${
-                    activeRegionTab === regCode
-                      ? 'bg-[#0a1122] text-white shadow-2xs'
-                      : ' border border-gray-200 bg-white text-gray-600 hover:bg-gray-100'
-                  }`}
-                >
-                  {mL.regions[regCode]}
-                </button>
-              ))}
-            </div>
-          </DialogHeader>
-
-          <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-            {filteredModalDistricts.length === 0 ? (
-              <div className="py-10 text-center text-xs font-bold text-gray-400">
-                {mL.noResultsText}
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {filteredModalDistricts.map((node) => {
-                  const isSelected = data.preferred_areas.includes(node.id)
-                  const primaryLabel =
-                    node.labels[locale] || node.labels.en
-                  const secondaryLabel =
-                    locale === 'en' ? node.labels.ka : node.labels.en
-
-                  return (
-                    <button
-                      key={node.id}
-                      type="button"
-                      onClick={() => toggleGeorgiaArea(node.id)}
-                      className={`flex items-center justify-between gap-2.5 rounded-2xl border p-3 text-start transition ${
-                        isSelected
-                          ? 'border-2 border-[#007a5a] bg-[#eaf8f2]/70 shadow-2xs'
-                          : 'border-gray-200/90 bg-white hover:border-gray-300 hover:bg-gray-50/70'
-                      }`}
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs font-extrabold text-[#0a1122] sm:text-sm">
-                          {primaryLabel}
-                        </p>
-                        <p
-                          dir="ltr"
-                          className="mt-0.5 truncate text-start text-[10.5px] font-semibold text-gray-400"
-                        >
-                          {secondaryLabel}
-                        </p>
-                      </div>
-
-                      <span
-                        className={`flex size-6 shrink-0 items-center justify-center rounded-full border transition ${
-                          isSelected
-                            ? 'border-[#007a5a] bg-[#007a5a] text-white'
-                            : 'border-gray-300 bg-white'
-                        }`}
-                      >
-                        {isSelected && <Check className="size-3.5 stroke-[3]" />}
-                      </span>
-                    </button>
-                  )
-                })}
-              </div>
             )}
           </div>
-
-          <DialogFooter className="flex flex-row items-center justify-between gap-2 border-t border-gray-100 bg-gray-50 px-5 py-3.5 sm:px-6">
-            <div className="flex items-center gap-2">
-              <span className="rounded-full bg-[#eaf8f2] px-3 py-1 text-xs font-extrabold text-[#007a5a]">
-                {data.preferred_areas.length} {mL.selectedCountSuffix}
-              </span>
-              {data.preferred_areas.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => update('preferred_areas', [])}
-                  className="text-xs font-bold text-red-600 underline hover:text-red-700"
-                >
-                  {mL.clearAllBtn}
-                </button>
-              )}
-            </div>
-
-            <Button
-              type="button"
-              onClick={() => setAreaModalOpen(false)}
-              className="h-10 rounded-xl bg-[#007a5a] px-6 text-xs font-extrabold text-white hover:bg-[#006248]"
-            >
-              {mL.confirmBtn} ({data.preferred_areas.length})
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        )}
+      </div>
     </div>
   )
 }

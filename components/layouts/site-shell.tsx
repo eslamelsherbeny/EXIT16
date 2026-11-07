@@ -15,6 +15,7 @@ import {
   Flame,
   Heart,
   Loader2,
+  LogOut,
   Menu,
   ShieldCheck,
   Trash2,
@@ -23,6 +24,7 @@ import {
   X,
 } from 'lucide-react'
 import * as authActions from '@/actions/auth-actions'
+import { logoutAccountAction } from '@/actions/account-actions'
 import { getCurrentSellerProfileAction } from '@/actions/submit-forms'
 import {
   clearAllNotificationsAction,
@@ -496,6 +498,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
               profileRes.isLoggedIn && profileRes.user?.id
             )
             setHasSession(verifiedLoggedIn)
+            if (!verifiedLoggedIn) setIsAdmin(false)
           }
         }
 
@@ -505,6 +508,9 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
             setNotifsList(notifRes.notifications)
             setUnreadCount(notifRes.unreadCount)
           }
+        } else if (isMounted) {
+          setNotifsList([])
+          setUnreadCount(0)
         }
       } catch (err) {
         console.error('Session/Notif check error:', err)
@@ -639,6 +645,27 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
   const desktopAuthBtnLabel = hasSession
     ? getMyAccountLabel(language, labels?.navbar as Record<string, any>)
     : getGuestLoginLabel(language, labels?.navbar as Record<string, any>)
+
+  const favoritesLabel =
+    labels?.accountPages?.common?.favorites ||
+    labels?.footer?.favorite ||
+    (language === 'ar'
+      ? 'المفضلة'
+      : language === 'ru'
+        ? 'Избранное'
+        : language === 'ka'
+          ? 'რჩეულები'
+          : 'Favorites')
+
+  const logoutLabel =
+    labels?.accountPages?.common?.logout ||
+    (language === 'ar'
+      ? 'تسجيل الخروج'
+      : language === 'ru'
+        ? 'Выйти'
+        : language === 'ka'
+          ? 'გასვლა'
+          : 'Log Out')
 
   const notifTitleLabel =
     labels?.admin?.shell?.notifications ||
@@ -899,25 +926,27 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
 
         {/* أزرار الكمبيوتر */}
         <div className="hidden shrink-0 items-center gap-2 lg:flex">
-          <Link
-            href="/account/favorites"
-            className="relative flex size-9 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-rose-500"
-            title={labels?.footer?.favorite || 'Favorites'}
-          >
-            <Heart
-              className={`size-[18px] ${
-                favoritesCount > 0 ? 'fill-rose-500 text-rose-500' : ''
-              }`}
-            />
-            {favoritesCount > 0 && (
-              <span
-                dir="ltr"
-                className="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-extrabold text-white shadow-2xs"
-              >
-                {favoritesCount > 9 ? '+9' : favoritesCount}
-              </span>
-            )}
-          </Link>
+          {hasSession && (
+            <Link
+              href="/account/favorites"
+              className="relative flex size-9 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-rose-500"
+              title={favoritesLabel}
+            >
+              <Heart
+                className={`size-[18px] ${
+                  favoritesCount > 0 ? 'fill-rose-500 text-rose-500' : ''
+                }`}
+              />
+              {favoritesCount > 0 && (
+                <span
+                  dir="ltr"
+                  className="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-extrabold text-white shadow-2xs"
+                >
+                  {favoritesCount > 9 ? '+9' : favoritesCount}
+                </span>
+              )}
+            </Link>
+          )}
 
           <div className="relative" ref={langRefDesktop}>
             <button
@@ -1009,28 +1038,8 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
           )}
         </div>
 
-        {/* الموبايل */}
+        {/* الموبايل: بدون أيقونة المفضلة في الهيدر العلوي لمنع الزحام */}
         <div className="flex items-center gap-1.5 lg:hidden">
-          <Link
-            href="/account/favorites"
-            className="relative flex size-8 items-center justify-center rounded-full border border-gray-200/80 bg-gray-50 text-slate-600"
-            aria-label="Favorites"
-          >
-            <Heart
-              className={`size-4 ${
-                favoritesCount > 0 ? 'fill-rose-500 text-rose-500' : ''
-              }`}
-            />
-            {favoritesCount > 0 && (
-              <span
-                dir="ltr"
-                className="absolute -top-0.5 -right-0.5 flex size-3.5 items-center justify-center rounded-full bg-rose-500 text-[8.5px] font-bold text-white"
-              >
-                {favoritesCount > 9 ? '+9' : favoritesCount}
-              </span>
-            )}
-          </Link>
-
           <div className="relative" ref={langRefMobile}>
             <button
               type="button"
@@ -1121,6 +1130,33 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
                 )}
               </Link>
             ))}
+
+            {hasSession && (
+              <Link
+                href="/account/favorites"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-bold text-[#1e3a8a] transition hover:bg-slate-50"
+              >
+                <div className="flex items-center gap-2">
+                  <Heart
+                    className={`size-4 ${
+                      favoritesCount > 0
+                        ? 'fill-rose-500 text-rose-500'
+                        : 'text-rose-500'
+                    }`}
+                  />
+                  <span>{favoritesLabel}</span>
+                </div>
+                {favoritesCount > 0 && (
+                  <span
+                    dir="ltr"
+                    className="rounded-full bg-rose-50 px-2 py-0.5 text-xs font-extrabold text-rose-600"
+                  >
+                    {favoritesCount > 9 ? '+9' : favoritesCount}
+                  </span>
+                )}
+              </Link>
+            )}
           </nav>
           <hr className="my-4 border-gray-100" />
           <div className="flex flex-col gap-2.5">
@@ -1159,6 +1195,25 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
               <User className="size-4" />
               <span>{desktopAuthBtnLabel}</span>
             </Link>
+
+            {hasSession && (
+              <form
+                action={async () => {
+                  setMobileMenuOpen(false)
+                  setHasSession(false)
+                  setIsAdmin(false)
+                  await logoutAccountAction()
+                }}
+              >
+                <button
+                  type="submit"
+                  className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50/50 text-xs font-bold text-red-600 transition hover:bg-red-100/70"
+                >
+                  <LogOut className="size-4" />
+                  <span>{logoutLabel}</span>
+                </button>
+              </form>
+            )}
           </div>
         </div>
       )}
@@ -1197,10 +1252,14 @@ export function Footer({ dictionary: _unused }: { dictionary?: Dictionary }) {
       href: '/buy',
     },
     { label: labels.footer?.calculator || 'حاسبة الخروج', href: '/calculator' },
-    {
-      label: labels.footer?.favorite || 'المفضلة',
-      href: '/account/favorites',
-    },
+    ...(hasSession
+      ? [
+          {
+            label: labels.footer?.favorite || 'المفضلة',
+            href: '/account/favorites',
+          },
+        ]
+      : []),
     {
       label: hasSession
         ? getMyAccountLabel(language, labels.navbar as Record<string, any>)

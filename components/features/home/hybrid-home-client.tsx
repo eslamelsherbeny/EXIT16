@@ -193,6 +193,7 @@ export function HybridHomeClient({
   // - إذا لم يوجد لا SUPER VIP ولا +VIP: يظهر قسم SUPER VIP فقط (مع كارت "إعلانك هنا") ويختفي +VIP.
   // - إذا وجد SUPER VIP ولم يوجد +VIP: يظهر SUPER VIP بوحداته، ويظهر +VIP بكارت "إعلانك هنا".
   // - إذا وجد +VIP ولم يوجد SUPER VIP: يظهر SUPER VIP بكارت "إعلانك هنا"، ويظهر +VIP بوحداته.
+  // - يختفي زر "كل SUPER VIP" وزر "كل +VIP" تلقائياً إذا كان القسم الخاص بهما فارغاً من الإعلانات.
   const hasSuperVip = superVipUnits.length > 0
   const hasVipPlus = vipPlusUnits.length > 0
   const showVipPlusSection = hasSuperVip || hasVipPlus
@@ -422,29 +423,41 @@ export function HybridHomeClient({
         </ScrollReveal>
       </section>
 
-      {/* 4. قسم إعلانات SUPER VIP (يظهر دائماً: إما بوحداته أو بكارت "اعرض إعلانك هنا" إذا كان فارغاً) */}
-      <HomeCardsCarouselSection
-        badgeText="SUPER VIP"
-        badgeClass="bg-gradient-to-r from-[#ff6437] to-[#ff4f69] text-white shadow-xs"
-        title={cT.superVipTitle}
-        subtitle={cT.superVipSub}
-        allLinkText={cT.superVipAllBtn}
-        allLinkHref="/opportunities?tier=super_vip"
-        units={superVipUnits}
-        favorites={favorites}
-        onToggleFav={toggleFav}
-        showAdCardWhenEmpty={true}
-        adTier="SUPER VIP"
-      />
-
-      {/* 5. قسم إعلانات +VIP (يظهر إذا كان هناك وحدات في SUPER VIP أو في +VIP، ويعرض كارت "اعرض إعلانك هنا" إذا كان فارغاً) */}
-      {showVipPlusSection && (
-        <HomeVipPlusSection
-          vipPlusUnits={vipPlusUnits}
+      {/* 4. قسم إعلانات SUPER VIP (يخفي زر "كل SUPER VIP" تلقائياً إذا لم توجد إعلانات داخله) */}
+      <div
+        className={
+          !hasSuperVip ? '[&_a[href*="/opportunities"]]:hidden' : undefined
+        }
+      >
+        <HomeCardsCarouselSection
+          badgeText="SUPER VIP"
+          badgeClass="bg-gradient-to-r from-[#ff6437] to-[#ff4f69] text-white shadow-xs"
+          title={cT.superVipTitle}
+          subtitle={cT.superVipSub}
+          allLinkText={hasSuperVip ? cT.superVipAllBtn : ''}
+          allLinkHref={hasSuperVip ? '/opportunities?tier=super_vip' : ''}
+          units={superVipUnits}
           favorites={favorites}
           onToggleFav={toggleFav}
-          showWhenEmpty={hasSuperVip}
+          showAdCardWhenEmpty={true}
+          adTier="SUPER VIP"
         />
+      </div>
+
+      {/* 5. قسم إعلانات +VIP (يخفي زر "كل +VIP" تلقائياً إذا لم توجد إعلانات داخله) */}
+      {showVipPlusSection && (
+        <div
+          className={
+            !hasVipPlus ? '[&_a[href*="/opportunities"]]:hidden' : undefined
+          }
+        >
+          <HomeVipPlusSection
+            vipPlusUnits={vipPlusUnits}
+            favorites={favorites}
+            onToggleFav={toggleFav}
+            showWhenEmpty={hasSuperVip}
+          />
+        </div>
       )}
 
       {/* 6. قسم الفرص المتاحة للتنازل (قبل أضيفت حديثاً مباشرةً، ويفتح /opportunities) */}
@@ -453,8 +466,12 @@ export function HybridHomeClient({
         badgeClass="bg-[#eaf8f2] text-[#007a5a] border border-emerald-200"
         title={cT.availableOppsTitle}
         subtitle={cT.availableOppsSub}
-        allLinkText={cT.availableOppsAllBtn}
-        allLinkHref="/opportunities"
+        allLinkText={
+          availableOpportunitiesUnits.length > 0 ? cT.availableOppsAllBtn : ''
+        }
+        allLinkHref={
+          availableOpportunitiesUnits.length > 0 ? '/opportunities' : ''
+        }
         units={availableOpportunitiesUnits.slice(0, 12)}
         favorites={favorites}
         onToggleFav={toggleFav}
@@ -466,8 +483,10 @@ export function HybridHomeClient({
         badgeClass="bg-blue-50 text-[#2563eb] border border-blue-200"
         title={cT.recentTitle}
         subtitle={cT.recentSub}
-        allLinkText={cT.recentAllBtn}
-        allLinkHref="/opportunities?sort=newest"
+        allLinkText={recentlyAddedUnits.length > 0 ? cT.recentAllBtn : ''}
+        allLinkHref={
+          recentlyAddedUnits.length > 0 ? '/opportunities?sort=newest' : ''
+        }
         units={recentlyAddedUnits.slice(0, 12)}
         favorites={favorites}
         onToggleFav={toggleFav}

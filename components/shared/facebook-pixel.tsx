@@ -32,6 +32,7 @@ const PROMPTS_I18N: Record<
     pwaSub: string
     installBtn: string
     manualInstallHint: string
+    iosInstallHint: string
   }
 > = {
   ar: {
@@ -48,6 +49,8 @@ const PROMPTS_I18N: Record<
     installBtn: 'تثبيت التطبيق الآن',
     manualInstallHint:
       'لتثبيت التطبيق الآن: اضغط على قائمة المتصفح (⋮) بالأعلى ثم اختر «تثبيت التطبيق / Install App» أو «إضافة إلى الشاشة الرئيسية».',
+    iosInstallHint:
+      'لتثبيت التطبيق على آيفون: اضغط على زر المشاركة (Share ⬆️) بالأسفل ثم اختر «إضافة إلى الشاشة الرئيسية / Add to Home Screen».',
   },
   en: {
     consentText:
@@ -62,7 +65,9 @@ const PROMPTS_I18N: Record<
       'Access installment exit deals and track your offers faster from your home screen.',
     installBtn: 'Install App',
     manualInstallHint:
-      'To install now: Tap your browser menu (⋮ or Share) and select "Install App" or "Add to Home Screen".',
+      'To install now: Tap your browser menu (⋮) and select "Install App" or "Add to Home Screen".',
+    iosInstallHint:
+      'To install on iPhone: Tap the Share button (⬆️) below and select "Add to Home Screen".',
   },
   ru: {
     consentText:
@@ -77,6 +82,8 @@ const PROMPTS_I18N: Record<
     installBtn: 'Установить',
     manualInstallHint:
       'Для установки: откройте меню браузера (⋮) и выберите «Установить приложение» или «На экран Домой».',
+    iosInstallHint:
+      'На iPhone: нажмите кнопку «Поделиться» (⬆️) внизу и выберите «На экран Домой».',
   },
   ka: {
     consentText:
@@ -91,6 +98,8 @@ const PROMPTS_I18N: Record<
     installBtn: 'ინსტალაცია',
     manualInstallHint:
       'ინსტალაციისთვის: გახსენით ბრაუზერის მენიუ (⋮) და აირჩიეთ "Install App" ან "Add to Home Screen".',
+    iosInstallHint:
+      'iPhone-ზე: დააჭირეთ გაზიარების ღილაკს (⬆️) და აირჩიეთ "Add to Home Screen".',
   },
 }
 
@@ -143,11 +152,12 @@ export function FacebookPixel() {
   const [deferredPwaPrompt, setDeferredPwaPrompt] = useState<any>(null)
   const [showPwaBanner, setShowPwaBanner] = useState(false)
   const [showManualPwaGuide, setShowManualPwaGuide] = useState(false)
+  const [isIosDevice, setIsIosDevice] = useState(false)
 
   useEffect(() => {
     setMounted(true)
 
-    // 1. فحص رسالة الموافقة على التتبع (Allow / Decline)
+    // 1. فحص الموافقة على الكوكيز
     try {
       const savedConsent = localStorage.getItem(CONSENT_STORAGE_KEY)
       if (!savedConsent) {
@@ -161,7 +171,7 @@ export function FacebookPixel() {
       setShowConsentBanner(true)
     }
 
-    // 2. فحص رسالة الدولة وتبديل اللغة (Egypt · Language: ...)
+    // 2. فحص اقتراح اللغة
     try {
       const langDismissed = localStorage.getItem(LANG_PROMPT_DISMISSED_KEY)
       if (!langDismissed) {
@@ -199,29 +209,61 @@ export function FacebookPixel() {
       }
     } catch {}
 
-    // 3. فحص رسالة تثبيت الموقع كتطبيق (PWA)
+    // 3. فحص تثبيت التطبيق الرسمي (PWA)
     try {
+      const ua = window.navigator.userAgent.toLowerCase()
+      const ios = /iphone|ipad|ipod/.test(ua)
+      setIsIosDevice(ios)
+
       const pwaDismissed = localStorage.getItem(PWA_PROMPT_DISMISSED_KEY)
-      const isStandalone = window.matchMedia(
-        '(display-mode: standalone)'
-      ).matches
+      const isStandalone =
+        window.matchMedia('(display-mode: standalone)').matches ||
+        (window.navigator as any).standalone === true
+
+      // التقاط الحدث إذا كان قد تم حفظه مبكراً في window.__deferredPwaPrompt
+      if ((window as any).__deferredPwaPrompt) {
+        setDeferredPwaPrompt((window as any).__deferredPwaPrompt)
+      }
+
       if (!pwaDismissed && !isStandalone) {
         setShowPwaBanner(true)
       }
     } catch {}
 
+    const syncEarlyPrompt = () => {
+      if ((window as any).__deferredPwaPrompt) {
+        setDeferredPwaPrompt((window as any).__deferredPwaPrompt)
+        setShowPwaBanner(true)
+      }
+    }
+
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault()
+      ;(window as any).__deferredPwaPrompt = e
       setDeferredPwaPrompt(e)
       setShowPwaBanner(true)
     }
 
+    const handleAppInstalled = () => {
+      ;(window as any).__deferredPwaPrompt = null
+      setDeferredPwaPrompt(null)
+      setShowPwaBanner(false)
+      try {
+        localStorage.setItem(PWA_PROMPT_DISMISSED_KEY, '1')
+      } catch {}
+    }
+
+    window.addEventListener('pwa-prompt-ready', syncEarlyPrompt)
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+    window.addEventListener('appinstalled', handleAppInstalled)
+
     return () => {
+      window.removeEventListener('pwa-prompt-ready', syncEarlyPrompt)
       window.removeEventListener(
         'beforeinstallprompt',
         handleBeforeInstallPrompt
       )
+      window.removeEventListener('appinstalled', handleAppInstalled)
     }
   }, [locale])
 
@@ -257,14 +299,22 @@ export function FacebookPixel() {
   }
 
   const handleInstallPwaClick = async () => {
-    if (deferredPwaPrompt) {
-      deferredPwaPrompt.prompt()
-      await deferredPwaPrompt.userChoice.catch(() => {})
-      setDeferredPwaPrompt(null)
-      setShowPwaBanner(false)
+    const activePrompt =
+      deferredPwaPrompt || (window as any).__deferredPwaPrompt
+
+    if (activePrompt && typeof activePrompt.prompt === 'function') {
       try {
-        localStorage.setItem(PWA_PROMPT_DISMISSED_KEY, '1')
-      } catch {}
+        await activePrompt.prompt()
+        const choiceResult = await activePrompt.userChoice
+        if (choiceResult?.outcome === 'accepted') {
+          ;(window as any).__deferredPwaPrompt = null
+          setDeferredPwaPrompt(null)
+          setShowPwaBanner(false)
+          localStorage.setItem(PWA_PROMPT_DISMISSED_KEY, '1')
+        }
+      } catch {
+        setShowManualPwaGuide(true)
+      }
     } else {
       setShowManualPwaGuide(true)
     }
@@ -273,6 +323,7 @@ export function FacebookPixel() {
   if (!mounted) return null
 
   const isAdminRoute = pathname?.startsWith('/admin')
+  const activeHintText = isIosDevice ? pT.iosInstallHint : pT.manualInstallHint
 
   return (
     <>
@@ -344,7 +395,7 @@ export function FacebookPixel() {
           dir={dir}
           className="pointer-events-none fixed inset-x-3 bottom-4 z-[999] mx-auto flex max-w-md flex-col gap-2.5 sm:bottom-6"
         >
-          {/* الرسالة 1: شريط الدولة وتبديل اللغة (Egypt · Language: ... [Switch]) */}
+          {/* الرسالة 1: شريط الدولة وتبديل اللغة */}
           {geoSuggestion && (
             <div className="pointer-events-auto flex items-center justify-between gap-2.5 rounded-[22px] border border-slate-200/90 bg-white/98 px-4 py-3 shadow-[0_14px_38px_rgba(15,29,64,0.16)] backdrop-blur-md">
               <div className="flex min-w-0 items-center gap-2.5">
@@ -391,7 +442,7 @@ export function FacebookPixel() {
             </div>
           )}
 
-          {/* الرسالة 2: شريط تثبيت الموقع كتطبيق على الموبايل أو الكمبيوتر (PWA) */}
+          {/* الرسالة 2: شريط تثبيت الموقع كتطبيق (PWA) */}
           {showPwaBanner && !showConsentBanner && (
             <div className="pointer-events-auto rounded-[22px] border border-slate-200/90 bg-white/98 p-4 shadow-[0_14px_38px_rgba(15,29,64,0.16)] backdrop-blur-md">
               <div className="flex items-start justify-between gap-3">
@@ -404,7 +455,7 @@ export function FacebookPixel() {
                       {pT.pwaTitle}
                     </strong>
                     <p className="mt-0.5 text-[11px] leading-relaxed text-slate-500">
-                      {showManualPwaGuide ? pT.manualInstallHint : pT.pwaSub}
+                      {showManualPwaGuide ? activeHintText : pT.pwaSub}
                     </p>
                   </div>
                 </div>
@@ -438,14 +489,14 @@ export function FacebookPixel() {
                 <div className="mt-3 flex items-center justify-between rounded-xl bg-emerald-50 px-3 py-2 text-[11px] font-bold text-[#007a5a]">
                   <span className="flex items-center gap-1.5">
                     <CheckCircle2 className="size-3.5 shrink-0" />
-                    <span>{pT.manualInstallHint}</span>
+                    <span>{activeHintText}</span>
                   </span>
                 </div>
               )}
             </div>
           )}
 
-          {/* الرسالة 3: شريط الموافقة على قياس الزيارات والإعلانات (Allow / Decline) */}
+          {/* الرسالة 3: شريط الموافقة على قياس الزيارات والإعلانات */}
           {showConsentBanner && (
             <div className="pointer-events-auto rounded-[24px] border border-slate-200/90 bg-white/98 p-4 text-start shadow-[0_18px_45px_rgba(15,29,64,0.18)] backdrop-blur-md sm:p-5">
               <p className="text-xs leading-relaxed font-medium text-slate-600 sm:text-[13px]">

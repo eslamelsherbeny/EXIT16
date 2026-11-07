@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import {
   AlertTriangle,
+  BarChart3,
   Check,
   CheckCircle2,
   Clock,
@@ -37,7 +38,7 @@ import {
   downloadOfficialPdfReport,
   EXPORT_LABELS,
 } from "@/lib/export-csv"
-import { useTranslation } from "@/lib/i18n"
+import { useTranslation, type LocaleCode } from "@/lib/i18n"
 import {
   calculateSmartMatch,
   type MatchableBuyer,
@@ -51,6 +52,7 @@ import {
   verifyUserContactByAdminAction,
 } from "../../../actions/admin-actions"
 import {
+  buildOwnerPerformanceReportWhatsAppMessage,
   buildSellerWhatsAppMessage,
   cleanPropertyAreaDisplay,
   deriveShortUnitCode,
@@ -70,6 +72,41 @@ import {
 } from "./properties-modals"
 
 export type { SellRequest, UserVerificationBadgeInfo }
+
+const ANALYTICS_UI_LABELS: Record<
+  LocaleCode,
+  {
+    viewsWord: string
+    totalViewsLabel: string
+    sendReportWaBtn: string
+    viewsColumnHeader: string
+  }
+> = {
+  ar: {
+    viewsWord: "مشاهدة",
+    totalViewsLabel: "إجمالي مشاهدات الوحدات:",
+    sendReportWaBtn: "إرسال تقرير المشاهدات للمالك (واتساب)",
+    viewsColumnHeader: "المشاهدات",
+  },
+  en: {
+    viewsWord: "views",
+    totalViewsLabel: "Total Unit Views:",
+    sendReportWaBtn: "Send Views Report to Owner (WhatsApp)",
+    viewsColumnHeader: "Views",
+  },
+  ru: {
+    viewsWord: "просм.",
+    totalViewsLabel: "Всего просмотров:",
+    sendReportWaBtn: "Отправить отчет о просмотрах (WhatsApp)",
+    viewsColumnHeader: "Просмотры",
+  },
+  ka: {
+    viewsWord: "ნახვა",
+    totalViewsLabel: "სულ ნახვები:",
+    sendReportWaBtn: "ნახვების რეპორტის გაგზავნა (WhatsApp)",
+    viewsColumnHeader: "ნახვები",
+  },
+}
 
 function normalizeRowStatus(rawStatus?: string | null): string {
   const clean = String(rawStatus || "pending").trim().toLowerCase()
@@ -101,6 +138,7 @@ export default function PropertiesTable({
   const leadsPrompts = dict.admin.leads
   const sm = (dict.admin as Record<string, any>).smartMatch || {}
   const expL = EXPORT_LABELS[locale] || EXPORT_LABELS.ar
+  const aL = ANALYTICS_UI_LABELS[locale] || ANALYTICS_UI_LABELS.ar
 
   function getMatchedBuyersForUnit(unit: SellRequest) {
     if (!buyers || buyers.length === 0) return []
@@ -125,6 +163,15 @@ export default function PropertiesTable({
       }))
       .filter((item) => item.match.score >= 60)
       .sort((a, b) => b.match.score - a.match.score)
+  }
+
+  function getOffersCountForUnit(unit: SellRequest) {
+    return offers.filter(
+      (o) =>
+        String(o.property_id) === String(unit.id) &&
+        !isSelfOfferOnProperty(o, unit) &&
+        normalizeOfferStatus(o) !== "recommended"
+    ).length
   }
 
   const sellerStatusOptions = [
@@ -450,6 +497,11 @@ export default function PropertiesTable({
     return true
   })
 
+  const totalFilteredViews = filtered.reduce(
+    (sum, p) => sum + Math.max(1, Number(p.views_count) || 1),
+    0
+  )
+
   function exportUnitsReport(
     rowsToExport: SellRequest[],
     format: "excel" | "pdf" = "excel",
@@ -490,6 +542,10 @@ export default function PropertiesTable({
       },
       { header: c.sizeSqm, accessor: (p: SellRequest) => p.size || "—" },
       { header: c.rooms, accessor: (p: SellRequest) => p.rooms || "—" },
+      {
+        header: aL.viewsColumnHeader,
+        accessor: (p: SellRequest) => Math.max(1, Number(p.views_count) || 1),
+      },
       {
         header: c.requiredCash,
         accessor: (p: SellRequest) => Number(p.paid_amount || 0),
@@ -568,6 +624,17 @@ export default function PropertiesTable({
   ) {
     const isMenuOpen = openMenuId === property.id
     const uCode = deriveShortUnitCode(property.id, property.code)
+    const viewsCount = Math.max(1, Number(property.views_count) || 1)
+    const matchedBuyersCount = getMatchedBuyersForUnit(property).length
+    const offersCount = getOffersCountForUnit(property)
+
+    const reportWaMessage = buildOwnerPerformanceReportWhatsAppMessage({
+      property,
+      viewsCount,
+      offersCount,
+      matchedBuyersCount,
+      locale,
+    })
 
     return (
       <div
@@ -591,7 +658,7 @@ export default function PropertiesTable({
         {isMenuOpen && (
           <div
             onClick={(e) => e.stopPropagation()}
-            className="absolute end-0 top-9 z-50 w-56 overflow-hidden rounded-xl border border-gray-200 bg-white p-1.5 shadow-2xl"
+            className="absolute end-0 top-9 z-50 w-60 overflow-hidden rounded-xl border border-gray-200 bg-white p-1.5 shadow-2xl"
           >
             <Link
               href={`/opportunities/${property.id}`}
@@ -602,6 +669,18 @@ export default function PropertiesTable({
               <ExternalLink className="size-3.5 text-[#105C50]" />
               <span>{dict.admin?.shell?.publicSite}</span>
             </Link>
+
+            {/* زر إرسال تقرير المشاهدات والأداء للمالك عبر واتساب */}
+            <a
+              href={`https://wa.me/${String(property.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(reportWaMessage)}`}
+              target="_blank"
+              rel="noreferrer"
+              onClick={() => setOpenMenuId(null)}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-[#2563eb] transition hover:bg-blue-50"
+            >
+              <BarChart3 className="size-3.5 shrink-0 text-[#2563eb]" />
+              <span>{aL.sendReportWaBtn}</span>
+            </a>
 
             {currentSt !== "deleted_by_seller" && (
               <>
@@ -752,6 +831,7 @@ export default function PropertiesTable({
       (!property.featured_until ||
         new Date(property.featured_until) > new Date())
     const matchedBuyers = getMatchedBuyersForUnit(property)
+    const viewsCount = Math.max(1, Number(property.views_count) || 1)
 
     const normalizedUnitOffers = offers
       .filter(
@@ -776,6 +856,17 @@ export default function PropertiesTable({
 
     return (
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        {/* شارة عدد المشاهدات الحقيقية للوحدة */}
+        <span
+          className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50/80 px-2 py-0.5 text-[10.5px] font-extrabold text-[#2563eb]"
+          title={aL.viewsColumnHeader}
+        >
+          <Eye className="size-3" />
+          <span className="tabular-nums">
+            {viewsCount.toLocaleString("en-US")} {aL.viewsWord}
+          </span>
+        </span>
+
         {acceptedOffer ? (
           <Link
             href={`/admin/deals?offerId=${acceptedOffer.id}`}
@@ -1295,13 +1386,23 @@ export default function PropertiesTable({
 
       {/* 2. عرض الكمبيوتر الاحترافي */}
       <div className="hidden md:block">
-        <div className="mb-3 flex items-center justify-between rounded-xl border border-gray-200/85 bg-white px-5 py-3.5 shadow-2xs">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200/85 bg-white px-5 py-3.5 shadow-2xs">
           <h2 className="text-sm font-extrabold text-[#0a1122] sm:text-base">
             {isPromotionsPage
               ? `${t.header.promoCountryTitle} ${georgiaLabel} (${filtered.length})`
               : `${t.header.sellCountryTitle} ${georgiaLabel} (${filtered.length})`}
           </h2>
-          <div className="flex items-center gap-3 text-xs font-bold text-gray-500">
+          <div className="flex flex-wrap items-center gap-3 text-xs font-bold text-gray-500">
+            <span className="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-2.5 py-1 text-[#2563eb]">
+              <Eye className="size-3.5" />
+              <span>
+                {aL.totalViewsLabel}{" "}
+                <strong className="tabular-nums">
+                  {totalFilteredViews.toLocaleString("en-US")}
+                </strong>
+              </span>
+            </span>
+            <span>·</span>
             <span className="inline-flex items-center gap-1.5">
               <span className="size-2.5 rounded-full bg-[#105C50]" />
               <span>
@@ -1623,6 +1724,21 @@ export default function PropertiesTable({
                 locale,
                 t,
                 leadsPrompts,
+              })
+            : ""
+        }
+        reportWaMessage={
+          detailsProperty
+            ? buildOwnerPerformanceReportWhatsAppMessage({
+                property: detailsProperty,
+                viewsCount: Math.max(
+                  1,
+                  Number(detailsProperty.views_count) || 1
+                ),
+                offersCount: getOffersCountForUnit(detailsProperty),
+                matchedBuyersCount:
+                  getMatchedBuyersForUnit(detailsProperty).length,
+                locale,
               })
             : ""
         }

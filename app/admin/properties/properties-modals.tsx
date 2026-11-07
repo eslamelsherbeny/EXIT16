@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
+  BarChart3,
   Box,
   CheckCircle2,
   Crown,
@@ -61,6 +62,7 @@ const MODAL_EXTRA_LABELS: Record<
     clearNoteBtn: string
     noteSavedSuccess: string
     optionalNoteForSellerPlaceholder: string
+    sendPerformanceReportBtn: string
   }
 > = {
   ar: {
@@ -83,6 +85,7 @@ const MODAL_EXTRA_LABELS: Record<
     noteSavedSuccess: "تم حفظ الملاحظة وإرسال إشعار للبائع ✓",
     optionalNoteForSellerPlaceholder:
       "ملاحظة اختيارية لصاحب الوحدة (تظهر في حسابه)...",
+    sendPerformanceReportBtn: "إرسال تقرير المشاهدات للمالك",
   },
   en: {
     streetAddressLabel: "Street & Building No.",
@@ -104,6 +107,7 @@ const MODAL_EXTRA_LABELS: Record<
     noteSavedSuccess: "Note saved and seller notified ✓",
     optionalNoteForSellerPlaceholder:
       "Optional note for the unit owner (visible in their account)...",
+    sendPerformanceReportBtn: "Send Views Report to Owner",
   },
   ru: {
     streetAddressLabel: "Улица и номер дома",
@@ -125,6 +129,7 @@ const MODAL_EXTRA_LABELS: Record<
     noteSavedSuccess: "Примечание сохранено, продавец уведомлен ✓",
     optionalNoteForSellerPlaceholder:
       "Примечание для собственника (необязательно)...",
+    sendPerformanceReportBtn: "Отправить отчет о просмотрах",
   },
   ka: {
     streetAddressLabel: "ქუჩა და სახლის ნომერი",
@@ -146,6 +151,7 @@ const MODAL_EXTRA_LABELS: Record<
     noteSavedSuccess: "შენიშვნა შენახულია ✓",
     optionalNoteForSellerPlaceholder:
       "შენიშვნა მესაკუთრისთვის (არასავალდებულო)...",
+    sendPerformanceReportBtn: "ნახვების რეპორტის გაგზავნა",
   },
 }
 
@@ -431,6 +437,7 @@ export function PropertyDetailsDialog({
   onClose,
   unitCur,
   waMessage,
+  reportWaMessage,
   uploadedDocs,
   verificationMap,
   onVerifySellerContact,
@@ -446,6 +453,7 @@ export function PropertyDetailsDialog({
   onClose: () => void
   unitCur: string
   waMessage: string
+  reportWaMessage?: string
   uploadedDocs: Array<{
     key: string
     label: string
@@ -459,7 +467,8 @@ export function PropertyDetailsDialog({
   renderBadges: (prop: SellRequest) => React.ReactNode
 }) {
   const router = useRouter()
-  const mL = (t.modals as Record<string, string>) || {}
+  const baseModalLabels = MODAL_EXTRA_LABELS[locale] || MODAL_EXTRA_LABELS.ar
+  const mL = { ...baseModalLabels, ...((t.modals as Record<string, string>) || {}) }
 
   const [adminNoteText, setAdminNoteText] = useState("")
   const [noteSavedFeedback, setNoteSavedFeedback] = useState(false)
@@ -565,6 +574,18 @@ export function PropertyDetailsDialog({
                 <MessageCircle className="size-3.5" />
                 <span>{whatsappBtnLabel}</span>
               </a>
+
+              {reportWaMessage && (
+                <a
+                  href={`https://wa.me/${String(detailsProperty.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(reportWaMessage)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg bg-[#2563eb] px-3 text-xs font-bold text-white hover:bg-blue-700"
+                >
+                  <BarChart3 className="size-3.5" />
+                  <span>{mL.sendPerformanceReportBtn}</span>
+                </a>
+              )}
 
               {detailsProperty.user_id &&
                 (!phoneOk || !emailOk) &&
@@ -812,9 +833,7 @@ export function PropertyDetailsDialog({
               )}
             </div>
 
-            {/* ========================================================= */}
             {/* صندوق كتابة وإرسال ملاحظة الإدارة لصاحب الوحدة */}
-            {/* ========================================================= */}
             <div className="mt-3 rounded-xl border-2 border-amber-300/80 bg-[#fffbeb] p-3.5 text-start text-xs">
               <div className="flex items-center gap-1.5 font-extrabold text-amber-950">
                 <MessageSquarePlus className="size-4 text-amber-600" />

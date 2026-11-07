@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
   AlertTriangle,
+  BarChart3,
   CheckCircle2,
   Database,
   Globe,
@@ -54,6 +55,10 @@ type SiteSettings = {
   promo_GE_7?: string
   promo_GE_14?: string
   promo_GE_30?: string
+  fbPixelId?: string
+  gaMeasurementId?: string
+  gtmId?: string
+  googleSiteVerification?: string
   maintenanceMode: boolean
   allowNewSells: boolean
   allowNewBuys: boolean
@@ -409,96 +414,171 @@ export default function SettingsClient({
               </CardContent>
             </Card>
 
-            <Card className="rounded-xl border-gray-200/80 bg-white shadow-2xs">
-              <CardHeader className="border-b border-gray-100 px-5 py-4">
-                <CardTitle className="flex items-center gap-2 text-sm font-extrabold">
-                  <Power className="size-4 text-[#105C50]" />
-                  <span>{t.statusCardTitle}</span>
-                </CardTitle>
-                <CardDescription className="text-[11px]">
-                  {t.statusCardDesc}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3 p-5 text-xs">
-                <label
-                  className={`flex cursor-pointer items-start justify-between gap-3 rounded-xl border p-3 transition ${
-                    maintenanceMode
-                      ? "border-red-300 bg-red-50/70"
-                      : "border-gray-200 bg-gray-50/60"
-                  }`}
-                >
+            <div className="space-y-4">
+              {/* كارت إعدادات التتبع والـ SEO (فيسبوك بيكسل + جوجل أناليتكس + Search Console) */}
+              <Card className="rounded-xl border-blue-200/80 bg-white shadow-2xs">
+                <CardHeader className="border-b border-gray-100 px-5 py-4">
+                  <CardTitle className="flex items-center gap-2 text-sm font-extrabold text-[#0a1122]">
+                    <BarChart3 className="size-4 text-[#2563eb]" />
+                    <span>
+                      {isAr
+                        ? "أدوات التتبع، إعلانات فيسبوك، وأرشفة جوجل (SEO)"
+                        : "Analytics, Facebook Pixel & Google SEO"}
+                    </span>
+                  </CardTitle>
+                  <CardDescription className="text-[11px]">
+                    {isAr
+                      ? "ضع معرف البيكسل أو جوجل أناليتكس هنا ليتم تفعيله في جميع صفحات الموقع تلقائياً."
+                      : "Enter your tracking IDs to activate across the platform."}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3 p-5 text-xs">
                   <div>
-                    <div className="font-extrabold text-[#0a1122]">
-                      {t.maintenanceTitle}
-                    </div>
-                    <p className="mt-0.5 text-[11px] text-gray-500">
-                      {t.maintenanceDesc}
-                    </p>
+                    <label className="mb-1 block font-bold text-[#0a1122]">
+                      Facebook Pixel ID
+                    </label>
+                    <input
+                      name="fbPixelId"
+                      dir="ltr"
+                      placeholder="e.g. 123456789012345"
+                      defaultValue={
+                        initialSettings.fbPixelId ||
+                        process.env.NEXT_PUBLIC_FB_PIXEL_ID ||
+                        ""
+                      }
+                      className="h-9 w-full rounded-lg border border-gray-200 px-3 text-left font-mono text-xs font-bold focus:border-[#2563eb] focus:outline-none"
+                    />
                   </div>
-                  <input
-                    type="checkbox"
-                    name="maintenanceMode"
-                    checked={maintenanceMode}
-                    onChange={(e) => setMaintenanceMode(e.target.checked)}
-                    className="mt-1 size-4 accent-red-600"
-                  />
-                </label>
 
-                <label className="flex cursor-pointer items-start justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50/60 p-3">
-                  <div>
-                    <div className="font-extrabold text-[#0a1122]">
-                      {t.allowSellsTitle}
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-1 block font-bold text-[#0a1122]">
+                        Google Analytics (GA4 ID)
+                      </label>
+                      <input
+                        name="gaMeasurementId"
+                        dir="ltr"
+                        placeholder="G-XXXXXXXXXX"
+                        defaultValue={
+                          initialSettings.gaMeasurementId ||
+                          process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ||
+                          ""
+                        }
+                        className="h-9 w-full rounded-lg border border-gray-200 px-3 text-left font-mono text-xs font-bold focus:border-[#2563eb] focus:outline-none"
+                      />
                     </div>
-                    <p className="mt-0.5 text-[11px] text-gray-500">
-                      {t.allowSellsDesc}
-                    </p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    name="allowNewSells"
-                    checked={allowNewSells}
-                    onChange={(e) => setAllowNewSells(e.target.checked)}
-                    className="mt-1 size-4 accent-[#105C50]"
-                  />
-                </label>
 
-                <label className="flex cursor-pointer items-start justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50/60 p-3">
-                  <div>
-                    <div className="font-extrabold text-[#0a1122]">
-                      {t.allowBuysTitle}
+                    <div>
+                      <label className="mb-1 block font-bold text-[#0a1122]">
+                        Google Tag Manager (GTM)
+                      </label>
+                      <input
+                        name="gtmId"
+                        dir="ltr"
+                        placeholder="GTM-XXXXXXX"
+                        defaultValue={
+                          initialSettings.gtmId ||
+                          process.env.NEXT_PUBLIC_GTM_ID ||
+                          ""
+                        }
+                        className="h-9 w-full rounded-lg border border-gray-200 px-3 text-left font-mono text-xs font-bold focus:border-[#2563eb] focus:outline-none"
+                      />
                     </div>
-                    <p className="mt-0.5 text-[11px] text-gray-500">
-                      {t.allowBuysDesc}
-                    </p>
                   </div>
-                  <input
-                    type="checkbox"
-                    name="allowNewBuys"
-                    checked={allowNewBuys}
-                    onChange={(e) => setAllowNewBuys(e.target.checked)}
-                    className="mt-1 size-4 accent-[#105C50]"
-                  />
-                </label>
+                </CardContent>
+              </Card>
 
-                <label className="flex cursor-pointer items-start justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50/60 p-3">
-                  <div>
-                    <div className="font-extrabold text-[#0a1122]">
-                      {t.emailNotifsTitle}
+              <Card className="rounded-xl border-gray-200/80 bg-white shadow-2xs">
+                <CardHeader className="border-b border-gray-100 px-5 py-4">
+                  <CardTitle className="flex items-center gap-2 text-sm font-extrabold">
+                    <Power className="size-4 text-[#105C50]" />
+                    <span>{t.statusCardTitle}</span>
+                  </CardTitle>
+                  <CardDescription className="text-[11px]">
+                    {t.statusCardDesc}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3 p-5 text-xs">
+                  <label
+                    className={`flex cursor-pointer items-start justify-between gap-3 rounded-xl border p-3 transition ${
+                      maintenanceMode
+                        ? "border-red-300 bg-red-50/70"
+                        : "border-gray-200 bg-gray-50/60"
+                    }`}
+                  >
+                    <div>
+                      <div className="font-extrabold text-[#0a1122]">
+                        {t.maintenanceTitle}
+                      </div>
+                      <p className="mt-0.5 text-[11px] text-gray-500">
+                        {t.maintenanceDesc}
+                      </p>
                     </div>
-                    <p className="mt-0.5 text-[11px] text-gray-500">
-                      {t.emailNotifsDesc}
-                    </p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    name="emailNotifications"
-                    checked={emailNotifications}
-                    onChange={(e) => setEmailNotifications(e.target.checked)}
-                    className="mt-1 size-4 accent-[#105C50]"
-                  />
-                </label>
-              </CardContent>
-            </Card>
+                    <input
+                      type="checkbox"
+                      name="maintenanceMode"
+                      checked={maintenanceMode}
+                      onChange={(e) => setMaintenanceMode(e.target.checked)}
+                      className="mt-1 size-4 accent-red-600"
+                    />
+                  </label>
+
+                  <label className="flex cursor-pointer items-start justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50/60 p-3">
+                    <div>
+                      <div className="font-extrabold text-[#0a1122]">
+                        {t.allowSellsTitle}
+                      </div>
+                      <p className="mt-0.5 text-[11px] text-gray-500">
+                        {t.allowSellsDesc}
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      name="allowNewSells"
+                      checked={allowNewSells}
+                      onChange={(e) => setAllowNewSells(e.target.checked)}
+                      className="mt-1 size-4 accent-[#105C50]"
+                    />
+                  </label>
+
+                  <label className="flex cursor-pointer items-start justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50/60 p-3">
+                    <div>
+                      <div className="font-extrabold text-[#0a1122]">
+                        {t.allowBuysTitle}
+                      </div>
+                      <p className="mt-0.5 text-[11px] text-gray-500">
+                        {t.allowBuysDesc}
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      name="allowNewBuys"
+                      checked={allowNewBuys}
+                      onChange={(e) => setAllowNewBuys(e.target.checked)}
+                      className="mt-1 size-4 accent-[#105C50]"
+                    />
+                  </label>
+
+                  <label className="flex cursor-pointer items-start justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50/60 p-3">
+                    <div>
+                      <div className="font-extrabold text-[#0a1122]">
+                        {t.emailNotifsTitle}
+                      </div>
+                      <p className="mt-0.5 text-[11px] text-gray-500">
+                        {t.emailNotifsDesc}
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      name="emailNotifications"
+                      checked={emailNotifications}
+                      onChange={(e) => setEmailNotifications(e.target.checked)}
+                      className="mt-1 size-4 accent-[#105C50]"
+                    />
+                  </label>
+                </CardContent>
+              </Card>
+            </div>
           </div>
 
           <div className="flex justify-end">

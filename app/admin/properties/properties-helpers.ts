@@ -55,6 +55,7 @@ export type SellRequest = {
   featured_status?: string | null
   featured_fawry_code?: string | null
   featured_until?: string | null
+  views_count?: number | null
   contact_messengers?: string[] | null
   name: string
   phone: string
@@ -215,4 +216,65 @@ export function buildSellerWhatsAppMessage({
     : ""
 
   return `${leadsPrompts.waGeneralPrefix} ${property.name}، (${proj}${localizedArea} - ${uCode}${adPart}) — ${t.table.colCash}: ${cash} ${unitCur} | ${t.table.contractShort} ${contract} ${unitCur}`
+}
+
+/**
+ * دالة إنشاء تقرير أداء ومشاهدات الوحدة لإرساله لصاحب الإعلان عبر واتساب
+ */
+export function buildOwnerPerformanceReportWhatsAppMessage({
+  property,
+  viewsCount,
+  offersCount,
+  matchedBuyersCount,
+  locale = "ar",
+}: {
+  property: SellRequest
+  viewsCount: number
+  offersCount: number
+  matchedBuyersCount: number
+  locale?: LocaleCode
+}) {
+  const uCode = deriveShortUnitCode(property.id, property.code)
+  const proj = property.project_name || "Residential Unit"
+  const area = cleanPropertyAreaDisplay(property.area, locale)
+  const siteOrigin =
+    typeof window !== "undefined"
+      ? window.location.origin
+      : "https://aqarexit.com"
+  const unitUrl = `${siteOrigin}/opportunities/${property.id}`
+  const isFeatured = Boolean(property.is_featured)
+  const tierName =
+    property.boost_tier === "vip_plus" ? "+VIP" : "SUPER VIP"
+
+  if (locale === "ar") {
+    return [
+      `📊 *تقرير أداء إعلان وحدتك على منصة Aqar Exit*`,
+      `مرحباً أستاذ ${property.name}، إليك إحصائيات التفاعل الحية على وحدتك:`,
+      ``,
+      `🏢 *المشروع:* ${proj} (${area})`,
+      `🔖 *كود الإعلان:* #${uCode}`,
+      `👁️ *عدد المشاهدات الفريدة:* ${viewsCount.toLocaleString("en-US")} زائر ومشتري`,
+      `🎯 *المشترون المطابقون للمواصفات:* ${matchedBuyersCount} مشتري`,
+      `💼 *عروض الشراء المسجلة:* ${offersCount} عروض`,
+      `⭐ *حالة الترويج:* ${isFeatured ? `مميزة في الصدارة (${tierName})` : "ظهور عادي"}`,
+      ``,
+      `🔗 *رابط إعلانك المباشر:*`,
+      unitUrl,
+    ].join("\n")
+  }
+
+  return [
+    `📊 *Aqar Exit — Unit Performance Report*`,
+    `Hello ${property.name}, here are the live analytics for your listing:`,
+    ``,
+    `🏢 *Project:* ${proj} (${area})`,
+    `🔖 *Unit Code:* #${uCode}`,
+    `👁️ *Unique Views:* ${viewsCount.toLocaleString("en-US")} buyers`,
+    `🎯 *Matched Buyers:* ${matchedBuyersCount}`,
+    `💼 *Purchase Offers:* ${offersCount}`,
+    `⭐ *Visibility Tier:* ${isFeatured ? `Featured (${tierName})` : "Standard"}`,
+    ``,
+    `🔗 *Direct Listing Link:*`,
+    unitUrl,
+  ].join("\n")
 }

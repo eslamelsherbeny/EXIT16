@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { Check, Plus, ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ScrollReveal } from '@/components/shared/scroll-reveal'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation, type LocaleCode } from '@/lib/i18n'
 import {
   getHomeCategoriesGrid,
   type HomeUnitCardItem,
@@ -26,6 +26,79 @@ export type { HomeUnitCardItem }
 const CONTAINER_CLS = 'mx-auto w-full max-w-[1280px] px-4 sm:px-6 lg:px-8'
 const FAVORITES_STORAGE_KEY = 'darak_favorites'
 
+const HOME_CAROUSEL_TITLES: Record<
+  LocaleCode,
+  {
+    superVipTitle: string
+    superVipSub: string
+    superVipAllBtn: string
+    availableOppsBadge: string
+    availableOppsTitle: string
+    availableOppsSub: string
+    availableOppsAllBtn: string
+    recentBadge: string
+    recentTitle: string
+    recentSub: string
+    recentAllBtn: string
+  }
+> = {
+  ar: {
+    superVipTitle: 'إعلانات SUPER VIP',
+    superVipSub: 'أقصى ظهور — أفضل العروض أولاً في صدارة المنصة',
+    superVipAllBtn: 'كل SUPER VIP ←',
+    availableOppsBadge: 'الفرص المتاحة',
+    availableOppsTitle: 'الفرص المتاحة للتنازل',
+    availableOppsSub:
+      'تصفح وحدات إعادة البيع واستكمال الأقساط المعتمدة بدون أوفر في جورجيا',
+    availableOppsAllBtn: 'كل الفرص المتاحة ←',
+    recentBadge: 'جديد السوق',
+    recentTitle: 'أضيفت حديثاً',
+    recentSub: 'إعلانات جديدة مرتبة تنازلياً حسب التاريخ — الأحدث أولاً',
+    recentAllBtn: 'كل الجديد ←',
+  },
+  en: {
+    superVipTitle: 'SUPER VIP Listings',
+    superVipSub: 'Maximum visibility — top exit offers first',
+    superVipAllBtn: 'All SUPER VIP →',
+    availableOppsBadge: 'Available Deals',
+    availableOppsTitle: 'Available Exit Opportunities',
+    availableOppsSub:
+      'Explore verified installment takeover units at original contract price in Georgia',
+    availableOppsAllBtn: 'All Opportunities →',
+    recentBadge: 'New in Market',
+    recentTitle: 'Recently Added',
+    recentSub: 'Fresh installment exit units sorted by date — newest first',
+    recentAllBtn: 'All New →',
+  },
+  ru: {
+    superVipTitle: 'Объявления SUPER VIP',
+    superVipSub: 'Максимальный охват — лучшие предложения первыми',
+    superVipAllBtn: 'Все SUPER VIP →',
+    availableOppsBadge: 'Доступные объекты',
+    availableOppsTitle: 'Доступные предложения переуступки',
+    availableOppsSub:
+      'Проверенные объекты переуступки рассрочки без наценки в Грузии',
+    availableOppsAllBtn: 'Все предложения →',
+    recentBadge: 'Новинки',
+    recentTitle: 'Недавно добавленные',
+    recentSub: 'Новые объекты, отсортированные по дате — сначала новые',
+    recentAllBtn: 'Все новые →',
+  },
+  ka: {
+    superVipTitle: 'SUPER VIP განცხადებები',
+    superVipSub: 'მაქსიმალური ხილვადობა — საუკეთესო შეთავაზებები',
+    superVipAllBtn: 'ყველა SUPER VIP →',
+    availableOppsBadge: 'ხელმისაწვდომი',
+    availableOppsTitle: 'ხელმისაწვდომი შეთავაზებები',
+    availableOppsSub: 'გადამოწმებული ობიექტები საქართველოში',
+    availableOppsAllBtn: 'ყველა შეთავაზება →',
+    recentBadge: 'ახალი',
+    recentTitle: 'ახალი დამატებული',
+    recentSub: 'ახალი განცხადებები თარიღის მიხედვით — უახლესი პირველ ადგილზე',
+    recentAllBtn: 'ყველა ახალი →',
+  },
+}
+
 export function HybridHomeClient({
   dbUnits,
   realUnitCount,
@@ -40,6 +113,7 @@ export function HybridHomeClient({
   const { t: dict, locale, dir } = useTranslation()
   const isAr = locale === 'ar'
   const t = dict.home
+  const cT = HOME_CAROUSEL_TITLES[locale] || HOME_CAROUSEL_TITLES.ar
   const USD = '$'
 
   const [favorites, setFavorites] = useState<string[]>([])
@@ -83,8 +157,8 @@ export function HybridHomeClient({
     return allDisplayUnits
       .filter(
         (u) =>
-          u.boostTier === 'super_vip' ||
-          (u.isFeatured && u.boostTier !== 'vip_plus')
+          u.isFeatured &&
+          (u.boostTier === 'super_vip' || !u.boostTier)
       )
       .map((u) => ({ ...u, boostTier: 'super_vip' as const }))
   }, [allDisplayUnits])
@@ -92,11 +166,21 @@ export function HybridHomeClient({
   // 2. وحدات +VIP الحقيقية من الداتا بيز
   const vipPlusUnits = useMemo(() => {
     return allDisplayUnits
-      .filter((u) => u.boostTier === 'vip_plus')
+      .filter((u) => u.isFeatured && u.boostTier === 'vip_plus')
       .map((u) => ({ ...u, boostTier: 'vip_plus' as const }))
   }, [allDisplayUnits])
 
-  // 3. أحدث الوحدات المضافة مرتبة من الأحدث للأقدم
+  // 3. الفرص المتاحة للتنازل (تظهر قبل أضيفت حديثاً وتوجه إلى /opportunities)
+  const availableOpportunitiesUnits = useMemo(() => {
+    return [...allDisplayUnits].sort((a, b) => {
+      if (Boolean(a.isFeatured) !== Boolean(b.isFeatured)) {
+        return a.isFeatured ? -1 : 1
+      }
+      return (b.gainAmount || 0) - (a.gainAmount || 0)
+    })
+  }, [allDisplayUnits])
+
+  // 4. أحدث الوحدات المضافة مرتبة تنازلياً حسب التاريخ (الأحدث أولاً)
   const recentlyAddedUnits = useMemo(() => {
     return [...allDisplayUnits].sort((a, b) => {
       const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0
@@ -104,6 +188,14 @@ export function HybridHomeClient({
       return tB - tA
     })
   }, [allDisplayUnits])
+
+  // القاعدة الذكية لظهور SUPER VIP و +VIP وكارت "إعلانك هنا":
+  // - إذا لم يوجد لا SUPER VIP ولا +VIP: يظهر قسم SUPER VIP فقط (مع كارت "إعلانك هنا") ويختفي +VIP.
+  // - إذا وجد SUPER VIP ولم يوجد +VIP: يظهر SUPER VIP بوحداته، ويظهر +VIP بكارت "إعلانك هنا".
+  // - إذا وجد +VIP ولم يوجد SUPER VIP: يظهر SUPER VIP بكارت "إعلانك هنا"، ويظهر +VIP بوحداته.
+  const hasSuperVip = superVipUnits.length > 0
+  const hasVipPlus = vipPlusUnits.length > 0
+  const showVipPlusSection = hasSuperVip || hasVipPlus
 
   const categoriesGrid = getHomeCategoriesGrid(isAr)
   const comparisonRows = t?.comparison?.rows || []
@@ -330,52 +422,64 @@ export function HybridHomeClient({
         </ScrollReveal>
       </section>
 
-      {/* 4. قسم إعلانات SUPER VIP الحقيقية */}
+      {/* 4. قسم إعلانات SUPER VIP (يظهر دائماً: إما بوحداته أو بكارت "اعرض إعلانك هنا" إذا كان فارغاً) */}
       <HomeCardsCarouselSection
         badgeText="SUPER VIP"
         badgeClass="bg-gradient-to-r from-[#ff6437] to-[#ff4f69] text-white shadow-xs"
-        title={isAr ? 'إعلانات SUPER VIP' : 'SUPER VIP listings'}
-        subtitle={
-          isAr
-            ? 'أقصى ظهور — أفضل العروض أولاً'
-            : 'Top exit offers first — maximum visibility'
-        }
-        allLinkText={isAr ? 'كل SUPER VIP ←' : 'All SUPER VIP →'}
-        allLinkHref="/opportunities"
+        title={cT.superVipTitle}
+        subtitle={cT.superVipSub}
+        allLinkText={cT.superVipAllBtn}
+        allLinkHref="/opportunities?tier=super_vip"
         units={superVipUnits}
         favorites={favorites}
         onToggleFav={toggleFav}
+        showAdCardWhenEmpty={true}
+        adTier="SUPER VIP"
       />
 
-      {/* 5. قسم إعلانات +VIP الحقيقية */}
-      <HomeVipPlusSection
-        vipPlusUnits={vipPlusUnits}
-        favorites={favorites}
-        onToggleFav={toggleFav}
-      />
+      {/* 5. قسم إعلانات +VIP (يظهر إذا كان هناك وحدات في SUPER VIP أو في +VIP، ويعرض كارت "اعرض إعلانك هنا" إذا كان فارغاً) */}
+      {showVipPlusSection && (
+        <HomeVipPlusSection
+          vipPlusUnits={vipPlusUnits}
+          favorites={favorites}
+          onToggleFav={toggleFav}
+          showWhenEmpty={hasSuperVip}
+        />
+      )}
 
-      {/* 6. قسم أضيفت حديثاً */}
+      {/* 6. قسم الفرص المتاحة للتنازل (قبل أضيفت حديثاً مباشرةً، ويفتح /opportunities) */}
       <HomeCardsCarouselSection
-        title={isAr ? 'أضيفت حديثاً' : 'Recently added'}
-        subtitle={
-          isAr
-            ? 'إعلانات جديدة — الأحدث أولاً'
-            : 'Fresh installment exit units — newest first'
-        }
-        allLinkText={isAr ? 'كل الجديد ←' : 'All new →'}
+        badgeText={cT.availableOppsBadge}
+        badgeClass="bg-[#eaf8f2] text-[#007a5a] border border-emerald-200"
+        title={cT.availableOppsTitle}
+        subtitle={cT.availableOppsSub}
+        allLinkText={cT.availableOppsAllBtn}
         allLinkHref="/opportunities"
-        units={recentlyAddedUnits}
+        units={availableOpportunitiesUnits.slice(0, 12)}
         favorites={favorites}
         onToggleFav={toggleFav}
       />
 
-      {/* 7. بانر الترويج المتوسط */}
+      {/* 7. قسم أضيفت حديثاً (مرتب تنازلياً حسب التاريخ، ويفتح /opportunities?sort=newest) */}
+      <HomeCardsCarouselSection
+        badgeText={cT.recentBadge}
+        badgeClass="bg-blue-50 text-[#2563eb] border border-blue-200"
+        title={cT.recentTitle}
+        subtitle={cT.recentSub}
+        allLinkText={cT.recentAllBtn}
+        allLinkHref="/opportunities?sort=newest"
+        units={recentlyAddedUnits.slice(0, 12)}
+        favorites={favorites}
+        onToggleFav={toggleFav}
+      />
+
+      {/* 8. بانر الترويج المتوسط */}
       <SponsoredRightAlignedBanner />
 
-      {/* 8. خريطة جورجيا ثلاثية الأبعاد */}
+      {/* 9. خريطة جورجيا ثلاثية الأبعاد */}
       <Home3DMapSection />
 
-      {/* 9. لمن هذه المنصة؟ */}
+      {/* 10. لمن هذه المنصة؟ */}
       <section className={`${CONTAINER_CLS} py-12 md:py-16`}>
         <ScrollReveal className="max-w-xl text-start">
           <h2 className="heading-section">{t?.audience?.title}</h2>
@@ -471,10 +575,10 @@ export function HybridHomeClient({
         </div>
       </section>
 
-      {/* 10. شركات التطوير الرائدة في جورجيا */}
+      {/* 11. شركات التطوير الرائدة في جورجيا */}
       <LeadingDevelopersSection realUnitCount={realUnitCount} />
 
-      {/* 11. جدول المقارنة */}
+      {/* 12. جدول المقارنة */}
       <section className="bg-white py-14 sm:py-16">
         <div className={CONTAINER_CLS}>
           <ScrollReveal className="text-start">
@@ -528,7 +632,7 @@ export function HybridHomeClient({
         </div>
       </section>
 
-      {/* 12. مثال واقعي بالأرقام بالدولار ($) */}
+      {/* 13. مثال واقعي بالأرقام بالدولار ($) */}
       <section className="bg-[#f6f8fc] py-14 sm:py-16">
         <div className={CONTAINER_CLS}>
           <ScrollReveal className="text-start">
@@ -639,7 +743,7 @@ export function HybridHomeClient({
         </div>
       </section>
 
-      {/* 13. إزاي بنشتغل في 5 خطوات */}
+      {/* 14. إزاي بنشتغل في 5 خطوات */}
       <section className="border-t border-gray-200/60 bg-[#f6f8fc] py-14 sm:py-16">
         <div className={CONTAINER_CLS}>
           <ScrollReveal className="text-start">
@@ -669,7 +773,7 @@ export function HybridHomeClient({
         </div>
       </section>
 
-      {/* 14. معايير الأمان والتوثيق */}
+      {/* 15. معايير الأمان والتوثيق */}
       <section className="bg-white py-14 sm:py-16">
         <div className={CONTAINER_CLS}>
           <ScrollReveal className="text-start">
@@ -701,7 +805,7 @@ export function HybridHomeClient({
         </div>
       </section>
 
-      {/* 15. بانر حاسبة الخروج المجانية */}
+      {/* 16. بانر حاسبة الخروج المجانية */}
       <section className={`${CONTAINER_CLS} pt-12 pb-4`}>
         <ScrollReveal>
           <div className="relative overflow-hidden rounded-[28px] border border-blue-200/80 bg-gradient-to-r from-[#eef5ff] via-[#f4fbf7] to-[#fff5f0] p-8 text-center shadow-xs sm:p-12">
@@ -724,10 +828,10 @@ export function HybridHomeClient({
         </ScrollReveal>
       </section>
 
-      {/* 16. قسم شحن الرصيد وباقات الإعلانات */}
+      {/* 17. قسم شحن الرصيد وباقات الإعلانات */}
       <TopUpBalanceGelSection />
 
-      {/* 17. كارتا الختام قبل الفوتر */}
+      {/* 18. كارتا الختام قبل الفوتر */}
       <section className="bg-[#f6f8fc] pb-16 pt-4 sm:pb-20">
         <div className={CONTAINER_CLS}>
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">

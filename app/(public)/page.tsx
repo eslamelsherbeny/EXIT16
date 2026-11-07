@@ -26,9 +26,30 @@ const DEFAULT_FALLBACK_IMG =
   'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1000&q=80'
 
 export default async function HomePage() {
-  const { dict } = await getServerI18n()
+  const { dict, locale } = await getServerI18n()
   const t = dict.home
+  const oppsDict = dict.opportunitiesPage as Record<string, any>
   const currencySymbol = '$'
+
+  const readyWord =
+    oppsDict?.filters?.deliveryStatuses?.[1] ||
+    (locale === 'ar'
+      ? 'جاهزة'
+      : locale === 'ru'
+        ? 'Готово'
+        : locale === 'ka'
+          ? 'მზადაა'
+          : 'Ready')
+
+  const defaultMonthlyWord =
+    oppsDict?.card?.defaultFreq ||
+    (locale === 'ar'
+      ? 'شهري'
+      : locale === 'ru'
+        ? 'Ежемесячно'
+        : locale === 'ka'
+          ? 'ყოველთვიური'
+          : 'Monthly')
 
   let realUnitCount = 0
   let totalMarketValue = 0
@@ -61,10 +82,12 @@ export default async function HomePage() {
         return sum + unitVal
       }, 0)
 
-      for (const u of validUnits.slice(0, 24)) {
+      for (const u of validUnits.slice(0, 60)) {
         const meta = u.documents?.__unit_meta || {}
         const imgs =
-          Array.isArray(u.images) && u.images.length > 0 ? u.images : []
+          Array.isArray(u.images) && u.images.length > 0
+            ? u.images.filter((img: any) => Boolean(img && String(img).trim()))
+            : []
         const paidVal = Number(u.paid_amount || 0)
         const contractVal = Number(u.contract_price) || paidVal
         const marketVal = Number(u.market_price) || contractVal
@@ -83,17 +106,19 @@ export default async function HomePage() {
           rawDelStatus.includes('جاهز') ||
           rawDelStatus.includes('فوري') ||
           rawDelStatus.includes('مستلم') ||
-          rawDelStatus.toLowerCase().includes('ready')
+          rawDelStatus.toLowerCase().includes('ready') ||
+          rawDelStatus.toLowerCase().includes('готов') ||
+          rawDelStatus.includes('მზად')
         const yearMatch = rawDelStatus.match(/20\d{2}/)
 
         const deliveryText = delivYearNum
           ? isReady
-            ? `جاهزة (${delivYearNum})`
+            ? `${readyWord} (${delivYearNum})`
             : String(delivYearNum)
           : yearMatch
             ? yearMatch[0]
             : isReady
-              ? 'جاهزة'
+              ? readyWord
               : rawDelStatus || '2026'
 
         const numericCode = String(u.id || '')
@@ -103,14 +128,22 @@ export default async function HomePage() {
           .slice(0, 5)
           .toUpperCase()
         const code =
-          u.code || `U-${numericCode.length >= 4 ? numericCode : fallbackCode}`
+          u.code ||
+          meta.code ||
+          `U-${numericCode.length >= 4 ? numericCode : fallbackCode}`
 
         const isFeat =
           Boolean(u.is_featured) &&
+          u.featured_status !== 'none' &&
+          u.featured_status !== 'cancelled_by_seller' &&
           (!u.featured_until || new Date(u.featured_until) > new Date())
 
+        const rawTier = String(
+          u.boost_tier || meta.boost_tier || ''
+        ).toLowerCase()
+
         const resolvedBoostTier: 'super_vip' | 'vip_plus' | null = isFeat
-          ? u.boost_tier === 'vip_plus'
+          ? rawTier === 'vip_plus' || rawTier === '+vip'
             ? 'vip_plus'
             : 'super_vip'
           : null
@@ -119,11 +152,15 @@ export default async function HomePage() {
         const unifiedPublishedAt =
           u.approved_at || meta.approved_at || u.created_at
 
+        const roomsCount = Number(u.rooms ?? meta.rooms) || 2
+        const bedroomsCount =
+          Number(u.bedrooms ?? meta.bedrooms) || Math.max(1, roomsCount - 1)
+
         dbUnits.push({
           id: String(u.id),
           code,
           title: sanitizeGeorgiaProjectTitle(u.project_name),
-          developer: u.developer_name || '',
+          developer: u.developer_name || meta.developer_name || '',
           area: u.area || meta.area || 'Tbilisi - Saburtalo',
           unitTypeLabel: u.unit_type || meta.unit_type || 'Apartment',
           category: 'exit',
@@ -136,16 +173,20 @@ export default async function HomePage() {
           installmentAmount:
             Number(u.installment_amount ?? meta.installment_amount) || 0,
           installmentFreq:
-            u.installment_frequency || meta.installment_frequency || 'شهري',
+            u.installment_frequency ||
+            meta.installment_frequency ||
+            defaultMonthlyWord,
           deliveryText,
           size: Number(u.size ?? meta.size) || 65,
-          rooms: Number(u.rooms ?? meta.rooms) || 2,
-          bedrooms: Math.max(1, (Number(u.rooms ?? meta.rooms) || 2) - 1),
+          rooms: roomsCount,
+          bedrooms: Math.min(roomsCount, bedroomsCount),
           bathrooms: Number(u.bathrooms ?? meta.bathrooms) || 1,
           floor:
             u.floor_number !== null && u.floor_number !== undefined
               ? Number(u.floor_number)
-              : undefined,
+              : meta.floor_number !== null && meta.floor_number !== undefined
+                ? Number(meta.floor_number)
+                : undefined,
           totalFloors: Number(u.total_floors ?? meta.total_floors) || 16,
           image: imgs[0] || DEFAULT_FALLBACK_IMG,
           images: imgs.length > 0 ? imgs : undefined,

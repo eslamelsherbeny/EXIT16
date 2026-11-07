@@ -39,7 +39,8 @@ export function formatRelativePublishTime(
   if (diffDays === 0) {
     if (diffHours <= 1) return isAr ? 'منذ ساعة' : '1 hour ago'
     if (diffHours === 2) return isAr ? 'منذ ساعتين' : '2 hours ago'
-    if (diffHours <= 10) return isAr ? `منذ ${diffHours} ساعات` : `${diffHours} hours ago`
+    if (diffHours <= 10)
+      return isAr ? `منذ ${diffHours} ساعات` : `${diffHours} hours ago`
     return isAr ? `منذ ${diffHours} ساعة` : `${diffHours} hours ago`
   }
   if (diffDays === 1) return isAr ? 'منذ يوم واحد' : '1 day ago'
@@ -110,15 +111,125 @@ function translateUnitTypeWord(rawType?: string, isAr = true): string {
   if (!clean || clean === 'شقة') return 'Apartment'
   if (clean.includes('فندقية') || clean.toLowerCase().includes('hotel'))
     return 'Aparthotel'
-  if (clean.includes('فيلا') || clean.includes('منزل') || clean.toLowerCase().includes('house'))
+  if (
+    clean.includes('فيلا') ||
+    clean.includes('منزل') ||
+    clean.toLowerCase().includes('house')
+  )
     return 'Villa'
-  if (clean.includes('شاليه') || clean.includes('كوخ') || clean.toLowerCase().includes('cottage'))
+  if (
+    clean.includes('شاليه') ||
+    clean.includes('كوخ') ||
+    clean.toLowerCase().includes('cottage')
+  )
     return 'Cottage'
   if (clean.includes('تجاري') || clean.toLowerCase().includes('commercial'))
     return 'Commercial'
   if (clean.includes('أرض') || clean.toLowerCase().includes('land'))
     return 'Land'
   return clean
+}
+
+/**
+ * كارت "إعلانك هنا" الترويجي داخل الكاروسيل (يظهر في SUPER VIP أو +VIP حسب القاعدة الذكية)
+ */
+export function HomeCarouselAdSlotCard({
+  tier = 'SUPER VIP',
+  isAr = true,
+}: {
+  tier?: 'SUPER VIP' | '+VIP'
+  isAr?: boolean
+}) {
+  const isSuper = tier === 'SUPER VIP'
+  return (
+    <Link
+      href="#boost-packages-section"
+      className={`sivrce-card group flex min-h-[460px] w-[300px] shrink-0 snap-start flex-col justify-between overflow-hidden rounded-[20px] border bg-white text-start shadow-xs transition hover:shadow-md sm:w-[326px] lg:w-[336px] ${
+        isSuper
+          ? 'border-orange-200/90 border-t-[3px] border-t-[#ff6437]'
+          : 'border-indigo-200/90 border-t-[3px] border-t-[#4f46e5]'
+      }`}
+    >
+      <div>
+        <div
+          className={`relative flex h-[205px] w-full items-center justify-center overflow-hidden ${
+            isSuper
+              ? 'bg-gradient-to-br from-[#0f172a] via-[#1e1b4b] to-[#3b122c]'
+              : 'bg-gradient-to-br from-[#0f172a] via-[#1e1b4b] to-[#1e1b4b]'
+          }`}
+        >
+          <div className="flex size-24 items-center justify-center rounded-full border border-white/10 bg-white/5 transition-transform duration-300 group-hover:scale-110">
+            <div className="flex size-14 items-center justify-center rounded-full border border-orange-400/30 bg-orange-500/15">
+              {isSuper ? (
+                <Crown className="size-6 text-[#ff6437]" />
+              ) : (
+                <Flame className="size-6 text-indigo-400" />
+              )}
+            </div>
+          </div>
+
+          <span
+            className={`absolute top-3 start-3 inline-flex items-center gap-1 rounded-full px-3 py-1 text-[10.5px] font-bold text-white shadow-sm ${
+              isSuper
+                ? 'bg-gradient-to-r from-[#ff6437] to-[#ff4f69]'
+                : 'bg-gradient-to-r from-[#4f46e5] to-[#7c3aed]'
+            }`}
+          >
+            {isSuper ? (
+              <Crown className="size-3" />
+            ) : (
+              <Flame className="size-3" />
+            )}
+            <span>{tier}</span>
+          </span>
+
+          <span className="absolute end-3 bottom-3 rounded-full bg-black/60 px-3 py-1 text-[10px] font-bold text-white backdrop-blur-xs">
+            {isAr ? 'مساحة إعلانية' : 'Ad Space'}
+          </span>
+        </div>
+
+        <div className="p-5 text-start">
+          <h3 className="text-lg font-extrabold text-[#0f1d40]">
+            {isAr ? 'إعلانك هنا' : 'Your Ad Here'}
+          </h3>
+          <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
+            {isAr
+              ? isSuper
+                ? 'انشر إعلانك في صدارة SUPER VIP واصل إلى آلاف المشترين والمستثمرين في العقارات.'
+                : 'رقِّ إعلانك لباقة +VIP بـ 5 ₾ فقط ليظهر في الصدارة أمام المشترين الجادين.'
+              : 'Publish your listing and reach thousands of real estate buyers and investors.'}
+          </p>
+
+          <ul className="mt-4 space-y-1.5 text-xs font-semibold text-slate-500">
+            <li className="flex items-center gap-2">
+              <span className="size-1.5 rounded-full bg-[#ff6437]" />
+              <span>Targeted audience</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="size-1.5 rounded-full bg-[#ff6437]" />
+              <span>Direct contact</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="size-1.5 rounded-full bg-[#ff6437]" />
+              <span>Transparent metrics</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <div className="border-t border-slate-100 px-5 py-3.5 text-start">
+        <span
+          className={`inline-flex h-10 items-center justify-center rounded-full px-5 text-xs font-extrabold text-white shadow-sm transition group-hover:scale-105 ${
+            isSuper
+              ? 'bg-gradient-to-r from-[#ff6437] to-[#ff4f69]'
+              : 'bg-gradient-to-r from-[#4f46e5] to-[#6366f1]'
+          }`}
+        >
+          {isAr ? 'أعلن هنا ←' : 'Advertise Here →'}
+        </span>
+      </div>
+    </Link>
+  )
 }
 
 export function HomePropertyCard({
@@ -489,6 +600,8 @@ export function HomeCardsCarouselSection({
   units,
   favorites,
   onToggleFav,
+  showAdCardWhenEmpty = false,
+  adTier = 'SUPER VIP',
 }: {
   badgeText?: string
   badgeClass?: string
@@ -499,8 +612,11 @@ export function HomeCardsCarouselSection({
   units: HomeUnitCardItem[]
   favorites: string[]
   onToggleFav: (id: string) => void
+  showAdCardWhenEmpty?: boolean
+  adTier?: 'SUPER VIP' | '+VIP'
 }) {
-  const { dir } = useTranslation()
+  const { locale, dir } = useTranslation()
+  const isAr = locale === 'ar'
   const isRtl = dir === 'rtl'
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -515,7 +631,8 @@ export function HomeCardsCarouselSection({
     el.scrollBy({ left: delta, behavior: 'smooth' })
   }
 
-  if (!units || units.length === 0) return null
+  const hasUnits = Boolean(units && units.length > 0)
+  if (!hasUnits && !showAdCardWhenEmpty) return null
 
   return (
     <section
@@ -555,46 +672,59 @@ export function HomeCardsCarouselSection({
       </div>
 
       <div className="relative">
-        <button
-          type="button"
-          onClick={() => handleScroll('prev')}
-          aria-label="Previous listings"
-          className="absolute -start-3 top-1/2 z-30 hidden size-11 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-[#0f1d40] shadow-[0_8px_24px_rgba(15,29,64,0.15)] transition hover:scale-110 hover:bg-slate-50 md:flex"
-        >
-          {isRtl ? (
-            <ChevronRight className="size-5" />
-          ) : (
-            <ChevronLeft className="size-5" />
-          )}
-        </button>
+        {hasUnits && units.length > 2 && (
+          <button
+            type="button"
+            onClick={() => handleScroll('prev')}
+            aria-label="Previous listings"
+            className="absolute -start-3 top-1/2 z-30 hidden size-11 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-[#0f1d40] shadow-[0_8px_24px_rgba(15,29,64,0.15)] transition hover:scale-110 hover:bg-slate-50 md:flex"
+          >
+            {isRtl ? (
+              <ChevronRight className="size-5" />
+            ) : (
+              <ChevronLeft className="size-5" />
+            )}
+          </button>
+        )}
 
         <div
           ref={scrollRef}
           dir={dir}
           className="flex snap-x snap-mandatory items-stretch justify-start gap-5 overflow-x-auto pb-4 no-scrollbar"
         >
-          {units.map((unit) => (
-            <HomePropertyCard
-              key={unit.id}
-              unit={unit}
-              isFav={favorites.includes(unit.id)}
-              onToggleFav={onToggleFav}
-            />
-          ))}
+          {hasUnits ? (
+            <>
+              {units.map((unit) => (
+                <HomePropertyCard
+                  key={unit.id}
+                  unit={unit}
+                  isFav={favorites.includes(unit.id)}
+                  onToggleFav={onToggleFav}
+                />
+              ))}
+              {badgeText === 'SUPER VIP' && (
+                <HomeCarouselAdSlotCard tier="SUPER VIP" isAr={isAr} />
+              )}
+            </>
+          ) : (
+            <HomeCarouselAdSlotCard tier={adTier} isAr={isAr} />
+          )}
         </div>
 
-        <button
-          type="button"
-          onClick={() => handleScroll('next')}
-          aria-label="Next listings"
-          className="absolute -end-3 top-1/2 z-30 hidden size-11 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-[#0f1d40] shadow-[0_8px_24px_rgba(15,29,64,0.15)] transition hover:scale-110 hover:bg-slate-50 md:flex"
-        >
-          {isRtl ? (
-            <ChevronLeft className="size-5" />
-          ) : (
-            <ChevronRight className="size-5" />
-          )}
-        </button>
+        {hasUnits && units.length > 2 && (
+          <button
+            type="button"
+            onClick={() => handleScroll('next')}
+            aria-label="Next listings"
+            className="absolute -end-3 top-1/2 z-30 hidden size-11 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-[#0f1d40] shadow-[0_8px_24px_rgba(15,29,64,0.15)] transition hover:scale-110 hover:bg-slate-50 md:flex"
+          >
+            {isRtl ? (
+              <ChevronLeft className="size-5" />
+            ) : (
+              <ChevronRight className="size-5" />
+            )}
+          </button>
+        )}
       </div>
     </section>
   )
@@ -604,17 +734,20 @@ export function HomeVipPlusSection({
   vipPlusUnits,
   favorites,
   onToggleFav,
+  showWhenEmpty = false,
 }: {
   vipPlusUnits: HomeUnitCardItem[]
   favorites: string[]
   onToggleFav: (id: string) => void
+  showWhenEmpty?: boolean
 }) {
   const { locale, dir } = useTranslation()
   const isAr = locale === 'ar'
   const isRtl = dir === 'rtl'
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  if (!vipPlusUnits || vipPlusUnits.length === 0) {
+  const hasUnits = Boolean(vipPlusUnits && vipPlusUnits.length > 0)
+  if (!hasUnits && !showWhenEmpty) {
     return null
   }
 
@@ -649,7 +782,7 @@ export function HomeVipPlusSection({
         </div>
 
         <Link
-          href="/opportunities"
+          href="/opportunities?tier=vip_plus"
           className="text-xs font-bold text-[#2563eb] hover:underline sm:text-sm"
         >
           {isAr ? 'كل +VIP ←' : 'All VIP+ →'}
@@ -657,66 +790,53 @@ export function HomeVipPlusSection({
       </div>
 
       <div className="relative">
-        <button
-          type="button"
-          onClick={() => handleScroll('prev')}
-          aria-label="Previous VIP+ listings"
-          className="absolute -start-3 top-1/2 z-30 hidden size-11 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-[#0f1d40] shadow-[0_8px_24px_rgba(15,29,64,0.15)] transition hover:scale-110 hover:bg-slate-50 md:flex"
-        >
-          {isRtl ? (
-            <ChevronRight className="size-5" />
-          ) : (
-            <ChevronLeft className="size-5" />
-          )}
-        </button>
+        {hasUnits && vipPlusUnits.length > 2 && (
+          <button
+            type="button"
+            onClick={() => handleScroll('prev')}
+            aria-label="Previous VIP+ listings"
+            className="absolute -start-3 top-1/2 z-30 hidden size-11 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-[#0f1d40] shadow-[0_8px_24px_rgba(15,29,64,0.15)] transition hover:scale-110 hover:bg-slate-50 md:flex"
+          >
+            {isRtl ? (
+              <ChevronRight className="size-5" />
+            ) : (
+              <ChevronLeft className="size-5" />
+            )}
+          </button>
+        )}
 
         <div
           ref={scrollRef}
           dir={dir}
           className="flex snap-x snap-mandatory items-stretch justify-start gap-5 overflow-x-auto pb-4 no-scrollbar"
         >
-          {vipPlusUnits.map((unit) => (
-            <HomePropertyCard
-              key={unit.id}
-              unit={{ ...unit, boostTier: 'vip_plus' }}
-              isFav={favorites.includes(unit.id)}
-              onToggleFav={onToggleFav}
-            />
-          ))}
+          {hasUnits &&
+            vipPlusUnits.map((unit) => (
+              <HomePropertyCard
+                key={unit.id}
+                unit={{ ...unit, boostTier: 'vip_plus' }}
+                isFav={favorites.includes(unit.id)}
+                onToggleFav={onToggleFav}
+              />
+            ))}
 
-          <Link
-            href="#boost-packages-section"
-            className="sivrce-card group flex min-h-[460px] w-[300px] shrink-0 snap-start flex-col items-center justify-center rounded-[20px] border-2 border-dashed border-indigo-200/90 bg-white p-6 text-center shadow-xs transition hover:border-[#4f46e5] hover:bg-indigo-50/20 sm:w-[326px] lg:w-[336px] lg:flex-1"
-          >
-            <div className="flex size-14 items-center justify-center rounded-full bg-gradient-to-tr from-[#4f46e5] to-[#6366f1] text-white shadow-[0_10px_25px_rgba(79,70,229,0.35)] transition-transform duration-300 group-hover:scale-110">
-              <Flame className="size-6" />
-            </div>
-            <strong className="mt-4 block text-base font-bold text-[#0f1d40]">
-              {isAr ? 'إعلانك هنا' : 'Your listing here'}
-            </strong>
-            <p className="mt-1.5 max-w-[220px] text-xs leading-relaxed text-slate-500">
-              {isAr
-                ? 'رقِّ إعلانك لباقة +VIP بـ 5 ₾ فقط ليظهر في الصدارة أمام المشترين الجادين'
-                : 'Boost your unit with VIP+ for just 5 ₾ to appear right here'}
-            </p>
-            <span className="mt-3 inline-flex items-center gap-1 rounded-full bg-indigo-50 px-4 py-1.5 text-xs font-bold text-[#4f46e5] group-hover:bg-[#4f46e5] group-hover:text-white">
-              <span>{isAr ? '← اشترك في +VIP' : 'Get VIP+ →'}</span>
-            </span>
-          </Link>
+          <HomeCarouselAdSlotCard tier="+VIP" isAr={isAr} />
         </div>
 
-        <button
-          type="button"
-          onClick={() => handleScroll('next')}
-          aria-label="Next VIP+ listings"
-          className="absolute -end-3 top-1/2 z-30 hidden size-11 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-[#0f1d40] shadow-[0_8px_24px_rgba(15,29,64,0.15)] transition hover:scale-110 hover:bg-slate-50 md:flex"
-        >
-          {isRtl ? (
-            <ChevronLeft className="size-5" />
-          ) : (
-            <ChevronRight className="size-5" />
-          )}
-        </button>
+        {hasUnits && vipPlusUnits.length > 2 && (
+          <button
+            type="button"
+            onClick={() => handleScroll('next')}
+            aria-label="Next VIP+ listings"
+            className="absolute -end-3 top-1/2 z-30 hidden size-11 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-[#0f1d40] shadow-[0_8px_24px_rgba(15,29,64,0.15)] transition hover:scale-110 hover:bg-slate-50 md:flex"
+          >
+            {isRtl ? (
+              <ChevronLeft className="size-5" />
+            ) : (
+              <ChevronRight className="size-5" />
+            )}
+          </button>
+        )}
       </div>
     </section>
   )

@@ -395,6 +395,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
   const [hasSession, setHasSession] = useState<boolean>(initialServerLoggedIn)
   const [isAdmin, setIsAdmin] = useState<boolean>(initialServerIsStaff)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [favoritesCount, setFavoritesCount] = useState<number>(0)
 
   const [isSwitchingLocale, startSwitchTransition] = useTransition()
   const [switchingLabel, setSwitchingLabel] = useState<string | null>(null)
@@ -415,6 +416,26 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
+
+  // متابعة لحظية لعداد الوحدات المحفوظة في المفضلة
+  useEffect(() => {
+    const syncFavCount = () => {
+      try {
+        const raw = localStorage.getItem('darak_favorites')
+        const parsed = raw ? JSON.parse(raw) : []
+        setFavoritesCount(Array.isArray(parsed) ? parsed.length : 0)
+      } catch {
+        setFavoritesCount(0)
+      }
+    }
+    syncFavCount()
+    window.addEventListener('favorites-updated', syncFavCount)
+    window.addEventListener('storage', syncFavCount)
+    return () => {
+      window.removeEventListener('favorites-updated', syncFavCount)
+      window.removeEventListener('storage', syncFavCount)
+    }
+  }, [pathname])
 
   useEffect(() => {
     setHasSession(initialServerLoggedIn)
@@ -619,6 +640,36 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
     ? getMyAccountLabel(language, labels?.navbar as Record<string, any>)
     : getGuestLoginLabel(language, labels?.navbar as Record<string, any>)
 
+  const notifTitleLabel =
+    labels?.admin?.shell?.notifications ||
+    (language === 'ar'
+      ? 'الإشعارات'
+      : language === 'ru'
+        ? 'Уведомления'
+        : language === 'ka'
+          ? 'შეტყობინებები'
+          : 'Notifications')
+
+  const clearAllLabel =
+    labels?.admin?.shell?.clearAll ||
+    (language === 'ar'
+      ? 'مسح الكل'
+      : language === 'ru'
+        ? 'Очистить'
+        : language === 'ka'
+          ? 'გასუფთავება'
+          : 'Clear All')
+
+  const emptyNotifsLabel =
+    labels?.admin?.shell?.noNotifications ||
+    (language === 'ar'
+      ? 'لا توجد إشعارات حالياً'
+      : language === 'ru'
+        ? 'Нет новых уведомлений'
+        : language === 'ka'
+          ? 'შეტყობინებები არ არის'
+          : 'No notifications yet')
+
   const renderLanguageDropdownMenu = () => (
     <div
       onClick={(e) => e.stopPropagation()}
@@ -660,7 +711,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
       <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50/90 px-4 py-3">
         <div className="flex items-center gap-2">
           <span className="text-xs font-bold text-[#1e3a8a]">
-            {language === 'ar' ? 'الإشعارات' : 'Notifications'}
+            {notifTitleLabel}
           </span>
           <span
             dir="ltr"
@@ -676,7 +727,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
               onClick={handleClearAllNotifications}
               className="rounded-lg px-2 py-1 text-[11px] font-bold text-red-600 transition hover:bg-red-50"
             >
-              {language === 'ar' ? 'مسح الكل' : 'Clear All'}
+              {clearAllLabel}
             </button>
           )}
           <button
@@ -695,9 +746,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
           <div className="flex flex-col items-center justify-center px-4 py-10 text-center">
             <CheckCircle2 className="mb-2.5 size-9 text-emerald-500" />
             <p className="text-xs font-bold text-[#1e3a8a]">
-              {language === 'ar'
-                ? 'لا توجد إشعارات حالياً'
-                : 'No notifications yet'}
+              {emptyNotifsLabel}
             </p>
           </div>
         ) : (
@@ -748,7 +797,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
                   <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#2563eb] group-hover:underline">
                     <span>
                       {labels.accountPages?.common?.viewDetails ||
-                        'عرض التفاصيل'}
+                        labels.admin?.shell?.view}
                     </span>
                     <ArrowLeft className="size-3 ltr:rotate-180 rtl:rotate-0" />
                   </span>
@@ -773,7 +822,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
           onClick={() => setNotificationsOpen(false)}
           className="block w-full rounded-xl py-2 text-xs font-bold text-[#2563eb] transition hover:bg-blue-50"
         >
-          {labels.accountPages?.common?.backToAccount || 'الذهاب إلى حسابي'}
+          {labels.accountPages?.common?.backToAccount || desktopAuthBtnLabel}
         </a>
       </div>
     </div>
@@ -814,7 +863,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
           <Logo />
           <nav
             className="hidden items-center gap-1 lg:flex xl:gap-1.5"
-            aria-label={labels.navbar?.menuTitle || 'القائمة الرئيسية'}
+            aria-label={labels.navbar?.menuTitle || 'Main Navigation'}
           >
             {navItems.map((item) => {
               const isActive =
@@ -848,14 +897,26 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
           </nav>
         </div>
 
-        {/* أزرار الكمبيوتر: المفضلة + اللغة + الإشعارات (للمسجلين فقط وبجانب حسابي) + حسابي/دخول + عايز تشتري + عايز تبيع (ثابت دائماً) + الإدارة */}
+        {/* أزرار الكمبيوتر */}
         <div className="hidden shrink-0 items-center gap-2 lg:flex">
           <Link
             href="/account/favorites"
-            className="flex size-9 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-rose-500"
-            title={labels?.footer?.favorite || 'المفضلة'}
+            className="relative flex size-9 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-rose-500"
+            title={labels?.footer?.favorite || 'Favorites'}
           >
-            <Heart className="size-[18px]" />
+            <Heart
+              className={`size-[18px] ${
+                favoritesCount > 0 ? 'fill-rose-500 text-rose-500' : ''
+              }`}
+            />
+            {favoritesCount > 0 && (
+              <span
+                dir="ltr"
+                className="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-extrabold text-white shadow-2xs"
+              >
+                {favoritesCount > 9 ? '+9' : favoritesCount}
+              </span>
+            )}
           </Link>
 
           <div className="relative" ref={langRefDesktop}>
@@ -883,14 +944,13 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
             {langMenuOpen && renderLanguageDropdownMenu()}
           </div>
 
-          {/* جرس الإشعارات يظهر في الكمبيوتر فقط لو الشخص مسجل الدخول وبجانب زر حسابي مباشرة */}
           {hasSession && (
             <div className="relative" ref={notifRefDesktop}>
               <button
                 type="button"
                 onClick={handleToggleNotifications}
                 aria-label="Notifications"
-                title={language === 'ar' ? 'الإشعارات' : 'Notifications'}
+                title={notifTitleLabel}
                 className="relative flex size-9 items-center justify-center rounded-full border border-slate-200/90 bg-slate-50/80 text-[#1e3a8a] transition hover:border-[#2563eb] hover:bg-white"
               >
                 <Bell className="size-[18px] stroke-[2.1]" />
@@ -922,7 +982,6 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
             {buyUnitBtnLabel}
           </Link>
 
-          {/* زرار عايز تبيع ثابت دائماً في الكمبيوتر */}
           <Link
             href="/sell"
             className="inline-flex h-9.5 items-center justify-center whitespace-nowrap rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-5 text-xs font-bold text-white shadow-[0_6px_18px_rgba(255,92,75,0.28)] transition hover:opacity-95 active:scale-95"
@@ -934,16 +993,44 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
             <Link
               href="/admin"
               className="inline-flex h-9.5 items-center justify-center gap-1 whitespace-nowrap rounded-full bg-[#1e3a8a] px-3 text-xs font-bold text-white transition hover:bg-[#1d4ed8]"
-              title="لوحة الإدارة"
+              title={labels?.admin?.shell?.adminPanel || 'Admin'}
             >
               <ShieldCheck className="size-3.5 shrink-0 text-[#2ee59d]" />
-              <span>{language === 'ar' ? 'الإدارة' : 'Admin'}</span>
+              <span>
+                {language === 'ar'
+                  ? 'الإدارة'
+                  : language === 'ru'
+                    ? 'Админ'
+                    : language === 'ka'
+                      ? 'ადმინი'
+                      : 'Admin'}
+              </span>
             </Link>
           )}
         </div>
 
-        {/* الموبايل: في التليفون فقط نبدل زرار عايز تبيع بزرار الإشعارات لو العميل مسجل دخول */}
+        {/* الموبايل */}
         <div className="flex items-center gap-1.5 lg:hidden">
+          <Link
+            href="/account/favorites"
+            className="relative flex size-8 items-center justify-center rounded-full border border-gray-200/80 bg-gray-50 text-slate-600"
+            aria-label="Favorites"
+          >
+            <Heart
+              className={`size-4 ${
+                favoritesCount > 0 ? 'fill-rose-500 text-rose-500' : ''
+              }`}
+            />
+            {favoritesCount > 0 && (
+              <span
+                dir="ltr"
+                className="absolute -top-0.5 -right-0.5 flex size-3.5 items-center justify-center rounded-full bg-rose-500 text-[8.5px] font-bold text-white"
+              >
+                {favoritesCount > 9 ? '+9' : favoritesCount}
+              </span>
+            )}
+          </Link>
+
           <div className="relative" ref={langRefMobile}>
             <button
               type="button"
@@ -1045,7 +1132,8 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
               >
                 <ShieldCheck className="size-4 text-[#2ee59d]" />
                 <span>
-                  {language === 'ar' ? 'لوحة الإدارة' : 'Admin Panel'}
+                  {labels?.admin?.shell?.adminPanel ||
+                    (language === 'ar' ? 'لوحة الإدارة' : 'Admin Panel')}
                 </span>
               </Link>
             )}
@@ -1176,7 +1264,7 @@ export function Footer({ dictionary: _unused }: { dictionary?: Dictionary }) {
                 rel="noreferrer"
                 className="transition-colors hover:text-[#2ee59d]"
               >
-                {labels.publicPages?.contact?.whatsappTitle || 'واتساب'}
+                {labels.publicPages?.contact?.whatsappTitle || 'WhatsApp'}
               </a>
               <a
                 href={`mailto:${activeEmail}`}
@@ -1188,7 +1276,7 @@ export function Footer({ dictionary: _unused }: { dictionary?: Dictionary }) {
           </div>
           <div className="text-start">
             <h3 className="text-xs font-bold text-blue-200/70">
-              {labels.footer?.platform || 'المنصة'}
+              {labels.footer?.platform || 'Platform'}
             </h3>
             <ul className="mt-4 flex flex-col gap-3 text-xs text-blue-50 sm:text-[13px]">
               {platformLinks.map((item) => (
@@ -1205,7 +1293,7 @@ export function Footer({ dictionary: _unused }: { dictionary?: Dictionary }) {
           </div>
           <div className="text-start">
             <h3 className="text-xs font-bold text-blue-200/70">
-              {labels.footer?.company || 'الشركة'}
+              {labels.footer?.company || 'Company'}
             </h3>
             <ul className="mt-4 flex flex-col gap-3 text-xs text-blue-50 sm:text-[13px]">
               {companyLinks.map((item) => (
@@ -1222,7 +1310,7 @@ export function Footer({ dictionary: _unused }: { dictionary?: Dictionary }) {
           </div>
           <div className="text-start">
             <h3 className="text-xs font-bold text-blue-200/70">
-              {labels.footer?.legal || 'قانوني'}
+              {labels.footer?.legal || 'Legal'}
             </h3>
             <ul className="mt-4 flex flex-col gap-3 text-xs text-blue-50 sm:text-[13px]">
               {legalLinks.map((item) => (

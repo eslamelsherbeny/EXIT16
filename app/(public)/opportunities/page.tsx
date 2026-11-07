@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { createBrowserClient } from '@supabase/ssr'
 import {
@@ -15,6 +15,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock3,
+  Crown,
+  Flame,
   Gem,
   Grid2X2,
   Home,
@@ -94,6 +96,11 @@ const OPPS_UI_FALLBACK: Record<
     showingRangeOf: string
     prevPageBtn: string
     nextPageBtn: string
+    adCardBadge: string
+    adCardTitle: string
+    adCardSub: string
+    adCardBtn: string
+    newlyAddedHeading: string
     chips: {
       all: string
       apartments: string
@@ -128,15 +135,20 @@ const OPPS_UI_FALLBACK: Record<
     listViewBtn: 'قائمة',
     map2dBtn: 'الخريطة',
     map3dBtn: 'خريطة ثلاثية الأبعاد',
-    promoTag: 'تمييز عروض التنازل · SUPER VIP & +VIP',
-    promoHeading: 'هل لديك وحدة تريد التنازل عنها أسرع؟ ضع إعلانك في الصدارة',
+    promoTag: 'مساحة إعلانية · Aqar Exit Network',
+    promoHeading: 'إعلانك هنا',
     promoDesc:
-      'انشر إعلانك أو رقِّه لباقة SUPER VIP ليظهر في أول نتائج الفرص المتاحة والصفحة الرئيسية.',
-    promoCtaBtn: 'باقات تمييز الإعلان ←',
+      'انشر إعلانك واصل إلى آلاف المشترين والمستثمرين في العقارات.',
+    promoCtaBtn: 'أعلن هنا ←',
     showingRangePrefix: 'عرض',
     showingRangeOf: 'من أصل',
     prevPageBtn: 'السابق',
     nextPageBtn: 'التالي',
+    adCardBadge: 'مساحة إعلانية',
+    adCardTitle: 'إعلانك هنا',
+    adCardSub: 'انشر إعلانك واصل إلى آلاف المشترين والمستثمرين في العقارات.',
+    adCardBtn: 'أعلن هنا ←',
+    newlyAddedHeading: 'أضيفت حديثاً (مرتبة حسب التاريخ)',
     chips: {
       all: 'كل عروض التنازل',
       apartments: 'شقق بالتقسيط',
@@ -170,16 +182,21 @@ const OPPS_UI_FALLBACK: Record<
     listViewBtn: 'List',
     map2dBtn: 'Map',
     map3dBtn: '3D Map',
-    promoTag: 'Boost Your Exit Listing · SUPER VIP & +VIP',
-    promoHeading:
-      'Want to exit your unit faster? Feature your listing at the top',
+    promoTag: 'Ad Space · Aqar Exit Network',
+    promoHeading: 'Your Ad Here',
     promoDesc:
-      'Upgrade to SUPER VIP to appear first in Opportunities and on the Homepage.',
-    promoCtaBtn: 'Boost Packages →',
+      'Publish your listing and reach thousands of real estate buyers and investors.',
+    promoCtaBtn: 'Advertise Here →',
     showingRangePrefix: 'Showing',
     showingRangeOf: 'of',
     prevPageBtn: 'Prev',
     nextPageBtn: 'Next',
+    adCardBadge: 'Ad Space',
+    adCardTitle: 'Your Ad Here',
+    adCardSub:
+      'Publish your listing and reach thousands of real estate buyers and investors.',
+    adCardBtn: 'Advertise Here →',
+    newlyAddedHeading: 'Recently Added (Sorted by Date)',
     chips: {
       all: 'All Exit Deals',
       apartments: 'Apartments',
@@ -213,16 +230,21 @@ const OPPS_UI_FALLBACK: Record<
     listViewBtn: 'Список',
     map2dBtn: 'Карта',
     map3dBtn: '3D Карта',
-    promoTag: 'Продвижение объектов · SUPER VIP & +VIP',
-    promoHeading:
-      'Хотите продать объект быстрее? Поднимите объявление в ТОП',
+    promoTag: 'Рекламное место · Aqar Exit Network',
+    promoHeading: 'Ваша реклама здесь',
     promoDesc:
-      'Подключите пакет SUPER VIP для показа на первом месте в каталоге и на главной.',
-    promoCtaBtn: 'Пакеты продвижения →',
+      'Разместите объявление и привлеките тысячи покупателей и инвесторов.',
+    promoCtaBtn: 'Разместить →',
     showingRangePrefix: 'Показано',
     showingRangeOf: 'из',
     prevPageBtn: 'Назад',
     nextPageBtn: 'Далее',
+    adCardBadge: 'Рекламное место',
+    adCardTitle: 'Ваша реклама здесь',
+    adCardSub:
+      'Разместите объявление и привлеките тысячи покупателей и инвесторов.',
+    adCardBtn: 'Разместить →',
+    newlyAddedHeading: 'Недавно добавленные (по дате)',
     chips: {
       all: 'Все предложения',
       apartments: 'Квартиры',
@@ -256,16 +278,21 @@ const OPPS_UI_FALLBACK: Record<
     listViewBtn: 'სია',
     map2dBtn: 'რუკა',
     map3dBtn: '3D რუკა',
-    promoTag: 'განცხადების რეკლამირება · SUPER VIP & +VIP',
-    promoHeading:
-      'გსურთ ქონების სწრაფად გაყიდვა? განათავსეთ განცხადება პირველ ადგილზე',
+    promoTag: 'სარეკლამო სივრცე · Aqar Exit Network',
+    promoHeading: 'თქვენი რეკლამა აქ',
     promoDesc:
-      'ჩართეთ SUPER VIP პაკეტი კატალოგსა და მთავარ გვერდზე პირველ ადგილზე გამოსაჩენად.',
-    promoCtaBtn: 'VIP პაკეტები →',
+      'განათავსეთ განცხადება და მიაწვდინეთ ხმა ათასობით მყიდველსა და ინვესტორს.',
+    promoCtaBtn: 'განთავსება →',
     showingRangePrefix: 'ნაჩვენებია',
     showingRangeOf: 'სულ:',
     prevPageBtn: 'წინა',
     nextPageBtn: 'შემდეგი',
+    adCardBadge: 'სარეკლამო სივრცე',
+    adCardTitle: 'თქვენი რეკლამა აქ',
+    adCardSub:
+      'განათავსეთ განცხადება და მიაწვდინეთ ხმა ათასობით მყიდველსა და ინვესტორს.',
+    adCardBtn: 'განთავსება →',
+    newlyAddedHeading: 'ახალი დამატებული (თარიღის მიხედვით)',
     chips: {
       all: 'ყველა შეთავაზება',
       apartments: 'ბინები',
@@ -283,6 +310,75 @@ const OPPS_UI_FALLBACK: Record<
       hotel: 'აპარტ-ოტელი',
     },
   },
+}
+
+/**
+ * كارت المساحة الإعلانية المدمج داخل الشبكة (مطابق تماماً لتصميم الموقع الجورجي في الصور)
+ */
+export function InlineAdSlotCard({
+  uT,
+  tierLabel,
+}: {
+  uT: Record<string, any>
+  tierLabel?: string
+}) {
+  return (
+    <div className="group flex h-full flex-col justify-between overflow-hidden rounded-[22px] border border-slate-200/90 bg-white shadow-xs transition hover:shadow-md">
+      <div>
+        <div className="relative flex h-[200px] w-full items-center justify-center overflow-hidden bg-gradient-to-br from-[#0f172a] via-[#1e1b4b] to-[#31102f]">
+          <div className="relative flex size-24 items-center justify-center rounded-full border border-white/10 bg-white/5">
+            <div className="flex size-14 items-center justify-center rounded-full border border-orange-400/30 bg-orange-500/10">
+              <Sparkles className="size-6 text-[#ff6437]" />
+            </div>
+          </div>
+
+          {tierLabel && (
+            <span className="absolute top-3 start-3 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-3 py-1 text-[10px] font-black text-white shadow-sm">
+              <Crown className="size-3" />
+              <span>{tierLabel}</span>
+            </span>
+          )}
+
+          <span className="absolute end-3 bottom-3 rounded-full bg-black/55 px-3 py-1 text-[10.5px] font-bold text-white backdrop-blur-xs">
+            {uT.adCardBadge}
+          </span>
+        </div>
+
+        <div className="p-5 text-start">
+          <h3 className="text-base font-black text-[#0f1d40] sm:text-lg">
+            {uT.adCardTitle}
+          </h3>
+          <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
+            {uT.adCardSub}
+          </p>
+
+          <ul className="mt-4 space-y-1.5 text-xs font-semibold text-slate-500">
+            <li className="flex items-center gap-2">
+              <span className="size-1.5 rounded-full bg-[#ff6437]" />
+              <span>Targeted audience</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="size-1.5 rounded-full bg-[#ff6437]" />
+              <span>Direct contact</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="size-1.5 rounded-full bg-[#ff6437]" />
+              <span>Transparent metrics</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <div className="border-t border-slate-100 px-5 py-3.5 text-start">
+        <Link
+          href="/#boost-packages-section"
+          className="inline-flex h-10 items-center justify-center rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-5 text-xs font-extrabold text-white shadow-sm transition hover:scale-105 hover:opacity-95"
+        >
+          {uT.adCardBtn}
+        </Link>
+      </div>
+    </div>
+  )
 }
 
 export default function OpportunitiesPage() {
@@ -317,6 +413,7 @@ export default function OpportunitiesPage() {
 
   const [negotiable, setNegotiable] = useState(false)
   const [sortIdx, setSortIdx] = useState<number>(1)
+  const [strictDateSort, setStrictDateSort] = useState<boolean>(false)
   const [search, setSearch] = useState('')
   const [areaQuery, setAreaQuery] = useState('')
   const [maxCash, setMaxCash] = useState('')
@@ -388,6 +485,8 @@ export default function OpportunitiesPage() {
       const maxAreaParam = urlParams.get('maxArea')
       const viewParam = urlParams.get('view')
       const delivParam = urlParams.get('delivery')
+      const tierParam = urlParams.get('tier')
+      const sortParam = urlParams.get('sort')
       const pageParam = Number(urlParams.get('page'))
 
       if (pageParam && pageParam > 0) {
@@ -411,6 +510,29 @@ export default function OpportunitiesPage() {
       if (typeParam) {
         updateSivrceFilter('propertyType', typeParam)
         updateSivrceFilter('quickTag', typeParam)
+      }
+      if (tierParam) {
+        const cleanTier = tierParam.trim().toLowerCase()
+        if (
+          cleanTier === 'super_vip' ||
+          cleanTier === 'diamond' ||
+          cleanTier === 'super'
+        ) {
+          updateSivrceFilter('vipTier', 'SUPER VIP')
+        } else if (
+          cleanTier === 'vip_plus' ||
+          cleanTier === '+vip' ||
+          cleanTier === 'vip'
+        ) {
+          updateSivrceFilter('vipTier', '+VIP')
+        }
+      }
+      if (sortParam === 'newest' || sortParam === 'recent' || sortParam === 'date') {
+        setSortIdx(1)
+        setStrictDateSort(true)
+        if (!labelParam) {
+          setActiveCategoryLabel(uT.newlyAddedHeading)
+        }
       }
       if (featureParam) {
         setSelectedFeature(featureParam)
@@ -516,22 +638,27 @@ export default function OpportunitiesPage() {
     loadApprovedProperties()
   }, [])
 
-  const dbProperties: Array<MappedProperty & { rawFeatures: string[] }> =
-    useMemo(() => {
-      return rawDbRows.map((row) => {
-        const mapped = mapDbRowToProperty(row, locale, dict.opportunitiesPage)
-        const metaFeatures = row?.documents?.__unit_meta?.features
-        const rowFeatures = Array.isArray(row?.features)
-          ? row.features
-          : Array.isArray(metaFeatures)
-            ? metaFeatures
-            : []
-        return {
-          ...mapped,
-          rawFeatures: rowFeatures.map((f: any) => String(f || '')),
-        }
-      })
-    }, [rawDbRows, locale, dict.opportunitiesPage])
+  const dbProperties: Array<
+    MappedProperty & { rawFeatures: string[]; rawFinishing: string }
+  > = useMemo(() => {
+    return rawDbRows.map((row) => {
+      const mapped = mapDbRowToProperty(row, locale, dict.opportunitiesPage)
+      const metaFeatures = row?.documents?.__unit_meta?.features
+      const rowFeatures = Array.isArray(row?.features)
+        ? row.features
+        : Array.isArray(metaFeatures)
+          ? metaFeatures
+          : []
+      const rawFinishing = String(
+        row?.finishing || row?.documents?.__unit_meta?.finishing || ''
+      )
+      return {
+        ...mapped,
+        rawFeatures: rowFeatures.map((f: any) => String(f || '')),
+        rawFinishing,
+      }
+    })
+  }, [rawDbRows, locale, dict.opportunitiesPage])
 
   useEffect(() => {
     setCurrentPage(1)
@@ -574,6 +701,7 @@ export default function OpportunitiesPage() {
     setContractYearIdx(0)
     setMinRoomsIdx(0)
     setNegotiable(false)
+    setStrictDateSort(false)
     setSivrceFilters({
       q: '',
       propertyType: '',
@@ -624,8 +752,11 @@ export default function OpportunitiesPage() {
     if (sivrceFilters.maxPrice) count++
     if (sivrceFilters.minArea) count++
     if (sivrceFilters.maxArea) count++
+    if (sivrceFilters.vipTier) count++
     if (sivrceFilters.condition) count++
     if (sivrceFilters.bathrooms) count++
+    if (sivrceFilters.minFloor) count++
+    if (sivrceFilters.maxFloor) count++
     return count
   }, [
     negotiable,
@@ -657,6 +788,8 @@ export default function OpportunitiesPage() {
     )
     const cleanMinArea = Number(toEnglishDigits(sivrceFilters.minArea))
     const cleanMaxArea = Number(toEnglishDigits(sivrceFilters.maxArea))
+    const cleanMinFloor = Number(toEnglishDigits(sivrceFilters.minFloor))
+    const cleanMaxFloor = Number(toEnglishDigits(sivrceFilters.maxFloor))
 
     const filtered = dbProperties.filter((item) => {
       const featuresJoined = (item.rawFeatures || []).join(' ').toLowerCase()
@@ -675,6 +808,17 @@ export default function OpportunitiesPage() {
         return false
       }
       if (negotiable && !item.negotiable) return false
+
+      // فلترة دقيقة حسب باقة الترويج (SUPER VIP أو +VIP) مثل الموقع الجورجي في الصور
+      if (sivrceFilters.vipTier === 'SUPER VIP') {
+        const itemTier =
+          item.boostTier || (item.featured ? 'super_vip' : null)
+        if (!item.featured || itemTier !== 'super_vip') return false
+      } else if (sivrceFilters.vipTier === '+VIP') {
+        const itemTier =
+          item.boostTier || (item.featured ? 'super_vip' : null)
+        if (!item.featured || itemTier !== 'vip_plus') return false
+      }
 
       if (selectedFeature.trim()) {
         const targetFeat = selectedFeature.trim().toLowerCase()
@@ -792,6 +936,25 @@ export default function OpportunitiesPage() {
         if (item.rooms < targetRooms) return false
       }
 
+      if (sivrceFilters.bathrooms) {
+        const minBaths = Number(sivrceFilters.bathrooms) || 0
+        if (minBaths > 0 && item.baths < minBaths) return false
+      }
+
+      if (cleanMinFloor > 0 && (item.floor ?? 0) < cleanMinFloor) return false
+      if (cleanMaxFloor > 0 && (item.floor ?? 0) > cleanMaxFloor) return false
+
+      if (sivrceFilters.condition) {
+        const condLower = sivrceFilters.condition.toLowerCase()
+        const unitCondLower = String(item.rawFinishing || '').toLowerCase()
+        if (
+          !unitCondLower.includes(condLower) &&
+          !condLower.includes(unitCondLower)
+        ) {
+          return false
+        }
+      }
+
       const itemSizeNum = Number(String(item.size).replace(/[^0-9.]/g, '')) || 0
       if (cleanMinArea > 0 && itemSizeNum < cleanMinArea) return false
       if (cleanMaxArea > 0 && itemSizeNum > cleanMaxArea) return false
@@ -809,14 +972,20 @@ export default function OpportunitiesPage() {
         return false
       }
 
-      if (sivrceFilters.vipTier === 'SUPER VIP' && !item.featured) {
-        return false
-      }
-
       return true
     })
 
     return [...filtered].sort((a, b) => {
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0
+
+      // إذا اختار المستخدم "أضيفت حديثاً" أو الترتيب حسب التاريخ، نرتب تنازلياً من الأحدث للأقدم
+      if (strictDateSort || sortIdx === 1) {
+        if (!strictDateSort && a.featured !== b.featured) {
+          return a.featured ? -1 : 1
+        }
+        return dateB - dateA
+      }
       if (sortIdx === 3) return a.cashNum - b.cashNum
       if (sortIdx === 4)
         return a.monthlyInstallmentNum - b.monthlyInstallmentNum
@@ -832,7 +1001,7 @@ export default function OpportunitiesPage() {
       if (sortIdx === 2 || sortIdx === 0) {
         return b.gainNum - a.gainNum
       }
-      return 0
+      return dateB - dateA
     })
   }, [
     dbProperties,
@@ -849,6 +1018,7 @@ export default function OpportunitiesPage() {
     maxInstallment,
     maxContractPrice,
     sortIdx,
+    strictDateSort,
     sivrceFilters,
     t,
   ])
@@ -1017,6 +1187,7 @@ export default function OpportunitiesPage() {
 
   const resolvedSearchHeading =
     activeCategoryLabel ||
+    sivrceFilters.vipTier ||
     search.trim() ||
     selectedFeature ||
     (sivrceFilters.propertyType
@@ -1346,6 +1517,43 @@ export default function OpportunitiesPage() {
             ref={chipsScrollRef}
             className="flex items-center gap-2 overflow-x-auto py-1.5 pe-10 no-scrollbar"
           >
+            {/* أزرار سريعة لـ SUPER VIP و +VIP بجانب الفئات */}
+            <button
+              type="button"
+              onClick={() =>
+                updateSivrceFilter(
+                  'vipTier',
+                  sivrceFilters.vipTier === 'SUPER VIP' ? '' : 'SUPER VIP'
+                )
+              }
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-extrabold transition ${
+                sivrceFilters.vipTier === 'SUPER VIP'
+                  ? 'border-[#ff6437] bg-gradient-to-r from-[#ff6437] to-[#ff4f69] text-white shadow-2xs'
+                  : 'border-orange-200 bg-orange-50/70 text-[#ff6437] hover:bg-orange-100/70'
+              }`}
+            >
+              <Crown className="size-3.5" />
+              <span>SUPER VIP</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() =>
+                updateSivrceFilter(
+                  'vipTier',
+                  sivrceFilters.vipTier === '+VIP' ? '' : '+VIP'
+                )
+              }
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-extrabold transition ${
+                sivrceFilters.vipTier === '+VIP'
+                  ? 'border-[#4f46e5] bg-gradient-to-r from-[#4f46e5] to-[#7c3aed] text-white shadow-2xs'
+                  : 'border-indigo-200 bg-indigo-50/70 text-[#4f46e5] hover:bg-indigo-100/70'
+              }`}
+            >
+              <Flame className="size-3.5" />
+              <span>+VIP</span>
+            </button>
+
             {quickCategoryChips.map((chip) => {
               const Icon = chip.icon
               const active = sivrceFilters.quickTag === chip.id
@@ -1397,40 +1605,38 @@ export default function OpportunitiesPage() {
           </button>
         </div>
 
-        {Boolean(
-          resolvedSearchHeading ||
-            selectedFeature ||
-            sivrceFilters.propertyType ||
-            areaQuery
-        ) && (
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-blue-200/80 bg-white px-4 py-3 shadow-2xs">
-            <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-[#0f1d40] sm:text-sm">
-              <span className="text-slate-500">{uT.activeSearchLabel}</span>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3.5 py-1 text-xs font-bold text-[#2563eb]">
-                <span>{resolvedSearchHeading}</span>
-              </span>
-              <span className="rounded-full bg-[#eaf8f2] px-3 py-1 text-xs font-bold text-[#007a5a]">
-                {availableUnitsCount} {t.filters.availableUnitCountWord}
-              </span>
-            </div>
-
-            <button
-              type="button"
-              onClick={clearAll}
-              className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-3.5 py-1 text-xs font-bold text-slate-600 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600"
-            >
-              <X className="size-3.5" />
-              <span>{uT.clearFilterShowAllBtn}</span>
-            </button>
-          </div>
-        )}
-
+        {/* شريط عدد النتائج والشارات النشطة مثل الصور (SUPER VIP × / +VIP ×) */}
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <strong className="text-sm font-bold text-[#0f1d40]">
               {availableUnitsCount.toLocaleString('en-US')}{' '}
               {t.filters.availableUnitCountWord}
             </strong>
+
+            {sivrceFilters.vipTier && (
+              <button
+                type="button"
+                onClick={() => updateSivrceFilter('vipTier', '')}
+                className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-extrabold text-[#2563eb] transition hover:bg-blue-100"
+              >
+                <span>{sivrceFilters.vipTier}</span>
+                <X className="size-3" />
+              </button>
+            )}
+
+            {strictDateSort && (
+              <button
+                type="button"
+                onClick={() => {
+                  setStrictDateSort(false)
+                  setActiveCategoryLabel('')
+                }}
+                className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-[#eaf8f2] px-3 py-1 text-xs font-extrabold text-[#007a5a]"
+              >
+                <span>{uT.newlyAddedHeading}</span>
+                <X className="size-3" />
+              </button>
+            )}
 
             {negotiable && (
               <button
@@ -1499,7 +1705,11 @@ export default function OpportunitiesPage() {
                 <select
                   id="sort-select"
                   value={sortIdx}
-                  onChange={(e) => setSortIdx(Number(e.target.value))}
+                  onChange={(e) => {
+                    const nextIdx = Number(e.target.value)
+                    setSortIdx(nextIdx)
+                    setStrictDateSort(nextIdx === 1)
+                  }}
                   className="h-9 min-w-[130px] appearance-none rounded-full border border-slate-200 bg-white pr-3.5 pl-8 text-xs font-bold text-[#0f1d40] shadow-2xs focus:border-[#007a5a] focus:outline-none sm:min-w-[155px]"
                 >
                   {t.filters.sorts.map((item: string, idx: number) => (
@@ -1540,84 +1750,26 @@ export default function OpportunitiesPage() {
           </div>
         </div>
 
-        <section className="mt-5 sm:mt-6">
-          <div className="grid grid-cols-1 divide-y divide-gray-200/80 overflow-hidden rounded-[20px] border border-gray-200/70 border-t-[3px] border-t-[var(--brand-primary,#007a5a)] bg-white shadow-sm md:grid-cols-2 md:divide-x md:divide-y-0 md:divide-x-reverse">
-            <div className="flex flex-col justify-between p-6 text-start sm:p-8">
-              <p className="text-xs font-bold text-gray-500 sm:text-sm">
-                {t.stats.availableUnitsTitle}
-              </p>
-
-              <div className="mt-3 flex items-baseline justify-start gap-2">
-                <span
-                  dir="ltr"
-                  className="text-4xl font-bold leading-none tracking-tight text-[var(--brand-navy,#0a1122)] tabular-nums sm:text-5xl"
-                >
-                  {availableUnitsCount.toLocaleString('en-US')}
-                </span>
-                <span className="text-base font-medium text-gray-500 sm:text-lg">
-                  {t.stats.unitWord}
-                </span>
-              </div>
-
-              <div>
-                <div className="mt-4 h-[1px] w-12 bg-teal-600/40" />
-                <p className="mt-3 text-xs leading-snug text-gray-400">
-                  {t.stats.availableUnitsSub}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex flex-col justify-between p-6 text-start sm:p-8">
-              <div className="flex items-center justify-start gap-2">
-                <p className="text-xs font-bold text-gray-500 sm:text-sm">
-                  {t.stats.marketValueTitle}
-                </p>
-                <span className="shrink-0 rounded-full bg-gray-100 px-2.5 py-0.5 text-[10px] font-semibold text-gray-500">
-                  {t.stats.estimatedBadge}
-                </span>
-              </div>
-
-              <div className="mt-3 flex items-baseline justify-start gap-2">
-                <span
-                  dir="ltr"
-                  className="text-4xl font-bold leading-none tracking-tight text-[var(--brand-navy,#0a1122)] tabular-nums sm:text-5xl"
-                >
-                  {formattedMarketTotal.value}
-                </span>
-                <span className="text-base font-medium text-gray-500 sm:text-lg">
-                  {formattedMarketTotal.unit}
-                </span>
-              </div>
-
-              <div>
-                <div className="mt-4 h-[1px] w-12 bg-teal-600/40" />
-                <p className="mt-3 text-xs leading-snug text-gray-400">
-                  {t.stats.marketValueSub}
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <div className="aqar-wave-banner mt-5 flex flex-col items-center justify-between gap-4 rounded-[22px] border border-slate-200/80 bg-gradient-to-l from-[#1e1b4b] via-[#172554] to-[#0f172a] p-5 text-white shadow-sm sm:flex-row sm:px-7">
-          <div className="relative z-10 flex items-center gap-3.5 text-start">
-            <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-white/10 text-[#2ee59d]">
+        {/* بانر إعلانك هنا العلوي */}
+        <div className="mt-5 flex flex-col items-center justify-between gap-4 rounded-[22px] border border-slate-200/80 bg-white p-5 shadow-xs sm:flex-row sm:px-7">
+          <div className="flex items-center gap-3.5 text-start">
+            <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-[#2563eb]">
               <Megaphone className="size-5" />
             </div>
             <div>
-              <span className="text-[10.5px] font-bold text-[#2ee59d]">
+              <span className="text-[10.5px] font-bold text-[#2563eb]">
                 ✦ {uT.promoTag}
               </span>
-              <strong className="block text-sm font-bold text-white sm:text-base">
+              <strong className="block text-sm font-black text-[#0f1d40] sm:text-base">
                 {uT.promoHeading}
               </strong>
-              <p className="text-xs text-blue-100/75">{uT.promoDesc}</p>
+              <p className="text-xs text-slate-500">{uT.promoDesc}</p>
             </div>
           </div>
 
           <Link
             href="/#boost-packages-section"
-            className="relative z-10 inline-flex h-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-6 text-xs font-bold text-white shadow-md transition hover:scale-105 hover:opacity-95"
+            className="inline-flex h-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-6 text-xs font-bold text-white shadow-md transition hover:scale-105 hover:opacity-95"
           >
             {uT.promoCtaBtn}
           </Link>
@@ -1659,31 +1811,45 @@ export default function OpportunitiesPage() {
             </div>
           ) : displayedProperties.length > 0 ? (
             <div className="grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 lg:gap-6">
-              {displayedProperties.map((property) => (
-                <OpportunityCard
-                  key={property.id}
-                  property={property}
-                  liked={favoriteIds.includes(String(property.id))}
-                  onToggleLike={handleToggleFavorite}
-                />
+              {displayedProperties.map((property, idx) => (
+                <React.Fragment key={property.id}>
+                  <OpportunityCard
+                    property={property}
+                    liked={favoriteIds.includes(String(property.id))}
+                    onToggleLike={handleToggleFavorite}
+                  />
+                  {/* إدراج كارت المساحة الإعلانية في الموضع الثاني تماماً مثل صور الموقع الجورجي */}
+                  {idx === 0 && safeCurrentPage === 1 && (
+                    <InlineAdSlotCard
+                      uT={uT}
+                      tierLabel={sivrceFilters.vipTier || undefined}
+                    />
+                  )}
+                </React.Fragment>
               ))}
             </div>
           ) : (
-            <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-12 text-center">
-              <p className="text-sm font-bold text-gray-600">
-                {t.grid.emptyInCountryPrefix} {t.countries.GE}.
-              </p>
-              {(activeFilterCount > 0 || search) && (
-                <div className="mt-4 flex justify-center">
-                  <button
-                    type="button"
-                    onClick={clearAll}
-                    className="rounded-xl border border-gray-200 bg-white px-5 py-2 text-xs font-bold text-[var(--brand-navy,#0a1122)] hover:bg-gray-50"
-                  >
-                    {t.grid.resetFiltersBtn}
-                  </button>
-                </div>
-              )}
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              <InlineAdSlotCard
+                uT={uT}
+                tierLabel={sivrceFilters.vipTier || 'SUPER VIP'}
+              />
+              <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-white p-10 text-center sm:col-span-1 lg:col-span-2">
+                <p className="text-sm font-bold text-gray-600">
+                  {t.grid.emptyInCountryPrefix} {t.countries.GE}.
+                </p>
+                {(activeFilterCount > 0 || search) && (
+                  <div className="mt-4 flex justify-center">
+                    <button
+                      type="button"
+                      onClick={clearAll}
+                      className="rounded-xl border border-gray-200 bg-white px-5 py-2 text-xs font-bold text-[var(--brand-navy,#0a1122)] hover:bg-gray-50"
+                    >
+                      {t.grid.resetFiltersBtn}
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

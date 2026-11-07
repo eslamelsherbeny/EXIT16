@@ -16,7 +16,6 @@ import {
 } from './home-property-card'
 import { Home3DMapSection } from './home-3d-map-section'
 import {
-  LeadingDevelopersSection,
   SponsoredRightAlignedBanner,
   TopUpBalanceGelSection,
 } from './home-market-sections'
@@ -142,7 +141,7 @@ export function HybridHomeClient({
     })
   }
 
-  // الاعتماد الرسمي 100% على وحدات قاعدة البيانات الحقيقية فقط بدون أي وحدات وهمية
+  // الاعتماد الرسمي 100% على وحدات قاعدة البيانات الحقيقية فقط
   const allDisplayUnits = useMemo(() => {
     const seen = new Set<string>()
     return (dbUnits || []).filter((u) => {
@@ -170,7 +169,7 @@ export function HybridHomeClient({
       .map((u) => ({ ...u, boostTier: 'vip_plus' as const }))
   }, [allDisplayUnits])
 
-  // 3. الفرص المتاحة للتنازل (تظهر قبل أضيفت حديثاً وتوجه إلى /opportunities)
+  // 3. الفرص المتاحة للتنازل
   const availableOpportunitiesUnits = useMemo(() => {
     return [...allDisplayUnits].sort((a, b) => {
       if (Boolean(a.isFeatured) !== Boolean(b.isFeatured)) {
@@ -189,11 +188,6 @@ export function HybridHomeClient({
     })
   }, [allDisplayUnits])
 
-  // القاعدة الذكية لظهور SUPER VIP و +VIP وكارت "إعلانك هنا":
-  // - إذا لم يوجد لا SUPER VIP ولا +VIP: يظهر قسم SUPER VIP فقط (مع كارت "إعلانك هنا") ويختفي +VIP.
-  // - إذا وجد SUPER VIP ولم يوجد +VIP: يظهر SUPER VIP بوحداته، ويظهر +VIP بكارت "إعلانك هنا".
-  // - إذا وجد +VIP ولم يوجد SUPER VIP: يظهر SUPER VIP بكارت "إعلانك هنا"، ويظهر +VIP بوحداته.
-  // - يختفي زر "كل SUPER VIP" وزر "كل +VIP" تلقائياً إذا كان القسم الخاص بهما فارغاً من الإعلانات.
   const hasSuperVip = superVipUnits.length > 0
   const hasVipPlus = vipPlusUnits.length > 0
   const showVipPlusSection = hasSuperVip || hasVipPlus
@@ -423,7 +417,7 @@ export function HybridHomeClient({
         </ScrollReveal>
       </section>
 
-      {/* 4. قسم إعلانات SUPER VIP (يخفي زر "كل SUPER VIP" تلقائياً إذا لم توجد إعلانات داخله) */}
+      {/* 4. قسم إعلانات SUPER VIP */}
       <div
         className={
           !hasSuperVip ? '[&_a[href*="/opportunities"]]:hidden' : undefined
@@ -444,7 +438,7 @@ export function HybridHomeClient({
         />
       </div>
 
-      {/* 5. قسم إعلانات +VIP (يخفي زر "كل +VIP" تلقائياً إذا لم توجد إعلانات داخله) */}
+      {/* 5. قسم إعلانات +VIP */}
       {showVipPlusSection && (
         <div
           className={
@@ -460,46 +454,8 @@ export function HybridHomeClient({
         </div>
       )}
 
-      {/* 6. قسم الفرص المتاحة للتنازل (قبل أضيفت حديثاً مباشرةً، ويفتح /opportunities) */}
-      <HomeCardsCarouselSection
-        badgeText={cT.availableOppsBadge}
-        badgeClass="bg-[#eaf8f2] text-[#007a5a] border border-emerald-200"
-        title={cT.availableOppsTitle}
-        subtitle={cT.availableOppsSub}
-        allLinkText={
-          availableOpportunitiesUnits.length > 0 ? cT.availableOppsAllBtn : ''
-        }
-        allLinkHref={
-          availableOpportunitiesUnits.length > 0 ? '/opportunities' : ''
-        }
-        units={availableOpportunitiesUnits.slice(0, 12)}
-        favorites={favorites}
-        onToggleFav={toggleFav}
-      />
-
-      {/* 7. قسم أضيفت حديثاً (مرتب تنازلياً حسب التاريخ، ويفتح /opportunities?sort=newest) */}
-      <HomeCardsCarouselSection
-        badgeText={cT.recentBadge}
-        badgeClass="bg-blue-50 text-[#2563eb] border border-blue-200"
-        title={cT.recentTitle}
-        subtitle={cT.recentSub}
-        allLinkText={recentlyAddedUnits.length > 0 ? cT.recentAllBtn : ''}
-        allLinkHref={
-          recentlyAddedUnits.length > 0 ? '/opportunities?sort=newest' : ''
-        }
-        units={recentlyAddedUnits.slice(0, 12)}
-        favorites={favorites}
-        onToggleFav={toggleFav}
-      />
-
-      {/* 8. بانر الترويج المتوسط */}
-      <SponsoredRightAlignedBanner />
-
-      {/* 9. خريطة جورجيا ثلاثية الأبعاد */}
-      <Home3DMapSection />
-
-      {/* 10. لمن هذه المنصة؟ */}
-      <section className={`${CONTAINER_CLS} py-12 md:py-16`}>
+      {/* 6. [قسم فاصل بعد الـ VIP وقبل الفرص المتاحة]: لمن هذه المنصة؟ */}
+      <section className={`${CONTAINER_CLS} py-10 md:py-12`}>
         <ScrollReveal className="max-w-xl text-start">
           <h2 className="heading-section">{t?.audience?.title}</h2>
           <p className="mt-2.5 text-sm leading-relaxed text-gray-500 sm:text-base">
@@ -594,65 +550,25 @@ export function HybridHomeClient({
         </div>
       </section>
 
-      {/* 11. شركات التطوير الرائدة في جورجيا */}
-      <LeadingDevelopersSection realUnitCount={realUnitCount} />
+      {/* 7. قسم الفرص المتاحة للتنازل */}
+      <HomeCardsCarouselSection
+        badgeText={cT.availableOppsBadge}
+        badgeClass="bg-[#eaf8f2] text-[#007a5a] border border-emerald-200"
+        title={cT.availableOppsTitle}
+        subtitle={cT.availableOppsSub}
+        allLinkText={
+          availableOpportunitiesUnits.length > 0 ? cT.availableOppsAllBtn : ''
+        }
+        allLinkHref={
+          availableOpportunitiesUnits.length > 0 ? '/opportunities' : ''
+        }
+        units={availableOpportunitiesUnits.slice(0, 12)}
+        favorites={favorites}
+        onToggleFav={toggleFav}
+      />
 
-      {/* 12. جدول المقارنة */}
-      <section className="bg-white py-14 sm:py-16">
-        <div className={CONTAINER_CLS}>
-          <ScrollReveal className="text-start">
-            <h2 className="heading-section">{t?.comparison?.title}</h2>
-            <p className="mt-2 text-sm text-gray-500 sm:text-base">
-              {t?.comparison?.subtitle}
-            </p>
-          </ScrollReveal>
-
-          <ScrollReveal
-            delay={80}
-            className="mt-8 overflow-hidden rounded-[22px] border border-gray-200/90 shadow-xs sm:mt-10"
-          >
-            <div className="grid grid-cols-[80px_1fr_1.1fr] text-start text-[11px] font-bold sm:grid-cols-[130px_1fr_1fr] sm:text-xs md:grid-cols-[150px_1fr_1fr] md:text-sm">
-              <div className="flex items-center bg-[#f4f5f7] px-3 py-3.5 text-[10px] font-bold text-gray-500 sm:p-4 sm:text-xs">
-                {t?.comparison?.colCriterion}
-              </div>
-              <div className="flex items-center border-r border-gray-200/80 bg-[#f4f5f7] px-3 py-3.5 text-gray-600 sm:p-4">
-                {t?.comparison?.colResale}
-              </div>
-              <div className="flex items-center bg-[#2563eb] px-3 py-3.5 text-white sm:p-4">
-                {t?.comparison?.colExit}
-              </div>
-            </div>
-
-            {comparisonRows.map((row: any) => (
-              <div
-                key={row.criterion}
-                className="grid grid-cols-[80px_1fr_1.1fr] items-stretch border-t border-gray-200/80 text-start text-[11px] leading-relaxed sm:grid-cols-[130px_1fr_1fr] sm:text-xs md:grid-cols-[150px_1fr_1fr] lg:text-sm"
-              >
-                <div className="flex items-center bg-[#f8f9fa] px-3 py-3.5 font-bold text-[#0f1d40] sm:p-4">
-                  {row.criterion}
-                </div>
-
-                <div className="flex items-start gap-1.5 border-r border-gray-200/80 bg-white px-3 py-3.5 text-gray-500 sm:items-center sm:gap-2.5 sm:p-4">
-                  <span className="mt-0.5 shrink-0 font-bold text-red-500 sm:mt-0">
-                    ✕
-                  </span>
-                  <span>{row.resale}</span>
-                </div>
-
-                <div className="flex items-start gap-1.5 bg-[#eaf8f2] px-3 py-3.5 font-semibold text-[#0f1d40] sm:items-center sm:gap-2.5 sm:p-4">
-                  <span className="mt-0.5 shrink-0 font-bold text-[#007a5a] sm:mt-0">
-                    ✓
-                  </span>
-                  <span>{row.exit}</span>
-                </div>
-              </div>
-            ))}
-          </ScrollReveal>
-        </div>
-      </section>
-
-      {/* 13. مثال واقعي بالأرقام بالدولار ($) */}
-      <section className="bg-[#f6f8fc] py-14 sm:py-16">
+      {/* 8. [قسم فاصل بين الفرص المتاحة وبين أضيفت حديثاً]: مثال واقعي بالأرقام + جدول المقارنة */}
+      <section className="bg-white py-12 sm:py-14">
         <div className={CONTAINER_CLS}>
           <ScrollReveal className="text-start">
             <h2 className="heading-section">{t?.example?.title}</h2>
@@ -663,7 +579,7 @@ export function HybridHomeClient({
 
           <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2">
             <ScrollReveal delay={60}>
-              <div className="sivrce-card flex h-full flex-col justify-between rounded-[22px] border border-gray-200/80 bg-white p-6 text-start shadow-xs sm:p-8">
+              <div className="sivrce-card flex h-full flex-col justify-between rounded-[22px] border border-gray-200/80 bg-[#f8fafc] p-6 text-start shadow-xs sm:p-8">
                 <div>
                   <div className="flex items-center justify-start gap-3">
                     <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[#fdecee] text-xs font-bold text-[#d9383a]">
@@ -684,7 +600,7 @@ export function HybridHomeClient({
                     </p>
                   </div>
 
-                  <div className="mt-6 flex items-center justify-between border-t border-gray-100 pt-5">
+                  <div className="mt-6 flex items-center justify-between border-t border-gray-200/70 pt-5">
                     <div className="text-start">
                       <p className="text-xs text-gray-400">
                         {t?.example?.lossReturnLabel}
@@ -756,14 +672,81 @@ export function HybridHomeClient({
             </ScrollReveal>
           </div>
 
-          <p className="mt-6 text-start text-xs leading-relaxed text-gray-400">
+          <p className="mt-5 text-start text-xs leading-relaxed text-gray-400">
             {t?.example?.disclaimer}
           </p>
+
+          {/* جدول المقارنة السريع تحت المثال مباشرة */}
+          <div className="mt-12 border-t border-gray-100 pt-10">
+            <ScrollReveal className="text-start">
+              <h2 className="heading-section">{t?.comparison?.title}</h2>
+              <p className="mt-2 text-sm text-gray-500 sm:text-base">
+                {t?.comparison?.subtitle}
+              </p>
+            </ScrollReveal>
+
+            <ScrollReveal
+              delay={80}
+              className="mt-6 overflow-hidden rounded-[22px] border border-gray-200/90 shadow-xs sm:mt-8"
+            >
+              <div className="grid grid-cols-[80px_1fr_1.1fr] text-start text-[11px] font-bold sm:grid-cols-[130px_1fr_1fr] sm:text-xs md:grid-cols-[150px_1fr_1fr] md:text-sm">
+                <div className="flex items-center bg-[#f4f5f7] px-3 py-3.5 text-[10px] font-bold text-gray-500 sm:p-4 sm:text-xs">
+                  {t?.comparison?.colCriterion}
+                </div>
+                <div className="flex items-center border-r border-gray-200/80 bg-[#f4f5f7] px-3 py-3.5 text-gray-600 sm:p-4">
+                  {t?.comparison?.colResale}
+                </div>
+                <div className="flex items-center bg-[#2563eb] px-3 py-3.5 text-white sm:p-4">
+                  {t?.comparison?.colExit}
+                </div>
+              </div>
+
+              {comparisonRows.map((row: any) => (
+                <div
+                  key={row.criterion}
+                  className="grid grid-cols-[80px_1fr_1.1fr] items-stretch border-t border-gray-200/80 text-start text-[11px] leading-relaxed sm:grid-cols-[130px_1fr_1fr] sm:text-xs md:grid-cols-[150px_1fr_1fr] lg:text-sm"
+                >
+                  <div className="flex items-center bg-[#f8f9fa] px-3 py-3.5 font-bold text-[#0f1d40] sm:p-4">
+                    {row.criterion}
+                  </div>
+
+                  <div className="flex items-start gap-1.5 border-r border-gray-200/80 bg-white px-3 py-3.5 text-gray-500 sm:items-center sm:gap-2.5 sm:p-4">
+                    <span className="mt-0.5 shrink-0 font-bold text-red-500 sm:mt-0">
+                      ✕
+                    </span>
+                    <span>{row.resale}</span>
+                  </div>
+
+                  <div className="flex items-start gap-1.5 bg-[#eaf8f2] px-3 py-3.5 font-semibold text-[#0f1d40] sm:items-center sm:gap-2.5 sm:p-4">
+                    <span className="mt-0.5 shrink-0 font-bold text-[#007a5a] sm:mt-0">
+                      ✓
+                    </span>
+                    <span>{row.exit}</span>
+                  </div>
+                </div>
+              ))}
+            </ScrollReveal>
+          </div>
         </div>
       </section>
 
-      {/* 14. إزاي بنشتغل في 5 خطوات */}
-      <section className="border-t border-gray-200/60 bg-[#f6f8fc] py-14 sm:py-16">
+      {/* 9. قسم أضيفت حديثاً (مرتب تنازلياً حسب التاريخ، ويفتح /opportunities?sort=newest) */}
+      <HomeCardsCarouselSection
+        badgeText={cT.recentBadge}
+        badgeClass="bg-blue-50 text-[#2563eb] border border-blue-200"
+        title={cT.recentTitle}
+        subtitle={cT.recentSub}
+        allLinkText={recentlyAddedUnits.length > 0 ? cT.recentAllBtn : ''}
+        allLinkHref={
+          recentlyAddedUnits.length > 0 ? '/opportunities?sort=newest' : ''
+        }
+        units={recentlyAddedUnits.slice(0, 12)}
+        favorites={favorites}
+        onToggleFav={toggleFav}
+      />
+
+      {/* 10. [قسم فاصل بعد أضيفت حديثاً]: إزاي بنشتغل في 5 خطوات */}
+      <section className="border-t border-gray-200/60 bg-[#f6f8fc] py-12 sm:py-14">
         <div className={CONTAINER_CLS}>
           <ScrollReveal className="text-start">
             <h2 className="heading-section">{t?.steps?.title}</h2>
@@ -792,8 +775,11 @@ export function HybridHomeClient({
         </div>
       </section>
 
-      {/* 15. معايير الأمان والتوثيق */}
-      <section className="bg-white py-14 sm:py-16">
+      {/* 11. الكارت/البانر الترويجي (اعرض إعلانك هنا) */}
+      <SponsoredRightAlignedBanner />
+
+      {/* 12. [قسم فاصل بعد كارت الإعلان وقبل الخريطة]: معايير الأمان والتوثيق */}
+      <section className="bg-white py-12 sm:py-14">
         <div className={CONTAINER_CLS}>
           <ScrollReveal className="text-start">
             <h2 className="heading-section">{t?.standards?.title}</h2>
@@ -824,8 +810,14 @@ export function HybridHomeClient({
         </div>
       </section>
 
-      {/* 16. بانر حاسبة الخروج المجانية */}
-      <section className={`${CONTAINER_CLS} pt-12 pb-4`}>
+      {/* 13. خريطة جورجيا ثلاثية الأبعاد */}
+      <Home3DMapSection />
+
+      {/* 14. سيكشن الإعلانات وشحن الرصيد (تحت الخريطة مباشرة) */}
+      <TopUpBalanceGelSection />
+
+      {/* 15. [الأقسام المتبقية في الآخر]: بانر حاسبة الخروج المجانية + كارتا الختام */}
+      <section className={`${CONTAINER_CLS} pt-6 pb-4`}>
         <ScrollReveal>
           <div className="relative overflow-hidden rounded-[28px] border border-blue-200/80 bg-gradient-to-r from-[#eef5ff] via-[#f4fbf7] to-[#fff5f0] p-8 text-center shadow-xs sm:p-12">
             <h2 className="text-2xl font-bold text-[#0f1d40] sm:text-3xl md:text-4xl">
@@ -847,11 +839,7 @@ export function HybridHomeClient({
         </ScrollReveal>
       </section>
 
-      {/* 17. قسم شحن الرصيد وباقات الإعلانات */}
-      <TopUpBalanceGelSection />
-
-      {/* 18. كارتا الختام قبل الفوتر */}
-      <section className="bg-[#f6f8fc] pb-16 pt-4 sm:pb-20">
+      <section className="bg-[#f6f8fc] pb-16 pt-6 sm:pb-20">
         <div className={CONTAINER_CLS}>
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <ScrollReveal delay={50}>

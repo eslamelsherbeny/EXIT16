@@ -4,19 +4,19 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import Script from 'next/script'
-import { Download, Globe, Smartphone, X } from 'lucide-react'
+import { CheckCircle2, Download, Globe, Smartphone, X } from 'lucide-react'
 import { SUPPORTED_LANGUAGES } from '@/components/layouts/site-shell'
 import { useTranslation, type LocaleCode } from '@/lib/i18n'
 
-const CONSENT_STORAGE_KEY = 'aqar_cookie_consent'
-const LANG_PROMPT_DISMISSED_KEY = 'aqar_lang_prompt_dismissed'
-const PWA_PROMPT_DISMISSED_KEY = 'aqar_pwa_prompt_dismissed'
+const CONSENT_STORAGE_KEY = 'aqar_cookie_consent_v2'
+const LANG_PROMPT_DISMISSED_KEY = 'aqar_lang_prompt_dismissed_v2'
+const PWA_PROMPT_DISMISSED_KEY = 'aqar_pwa_prompt_dismissed_v2'
 
 const LANGUAGE_NAMES_DISPLAY: Record<LocaleCode, string> = {
-  ar: 'العربية (Arabic)',
+  ar: 'العربية',
   en: 'English',
-  ru: 'Русский (Russian)',
-  ka: 'ქართული (Georgian)',
+  ru: 'Русский',
+  ka: 'ქართული',
 }
 
 const PROMPTS_I18N: Record<
@@ -31,21 +31,23 @@ const PROMPTS_I18N: Record<
     pwaTitle: string
     pwaSub: string
     installBtn: string
-    iosHint: string
+    manualInstallHint: string
   }
 > = {
   ar: {
     consentText:
-      'نحن نقيس الزيارات وأداء الإعلانات فقط إذا سمحت بذلك. لا يتم تحميل أي أدوات تتبع قبل قرارك — يمكنك تغيير اختيارك في أي وقت من أسفل الصفحة.',
-    allowBtn: 'سماح',
+      'نحن نقيس الزيارات وأداء الإعلانات فقط إذا سمحت بذلك. لا يتم تحميل أي أدوات تتبع قبل قرارك — يمكنك تغيير اختيارك في أي وقت من الفوتر.',
+    allowBtn: 'سماح (Allow)',
     declineBtn: 'رفض',
     privacyLink: 'سياسة الخصوصية',
     languageWord: 'اللغة:',
-    switchBtn: 'تبديل',
-    pwaTitle: 'ثبّت تطبيق Aqar Exit على هاتفك',
-    pwaSub: 'تصفح فرص التنازل وتابع عروضك وإشعاراتك بسرعة كأنه تطبيق موبايل.',
-    installBtn: 'تثبيت التطبيق',
-    iosHint: 'في آيفون: اضغط مشاركة (Share) ثم "إضافة إلى الشاشة الرئيسية"',
+    switchBtn: 'Switch',
+    pwaTitle: 'نزّل تطبيق Aqar Exit على جهازك',
+    pwaSub:
+      'تصفح فرص التنازل وتابع عروضك وإشعاراتك فوراً من الشاشة الرئيسية كأنه تطبيق موبايل.',
+    installBtn: 'تثبيت التطبيق الآن',
+    manualInstallHint:
+      'لتثبيت التطبيق الآن: اضغط على قائمة المتصفح (⋮) بالأعلى ثم اختر «تثبيت التطبيق / Install App» أو «إضافة إلى الشاشة الرئيسية».',
   },
   en: {
     consentText:
@@ -56,9 +58,11 @@ const PROMPTS_I18N: Record<
     languageWord: 'Language:',
     switchBtn: 'Switch',
     pwaTitle: 'Install Aqar Exit App',
-    pwaSub: 'Access exit deals and track your offers faster from your home screen.',
+    pwaSub:
+      'Access installment exit deals and track your offers faster from your home screen.',
     installBtn: 'Install App',
-    iosHint: 'On iPhone: Tap Share then "Add to Home Screen"',
+    manualInstallHint:
+      'To install now: Tap your browser menu (⋮ or Share) and select "Install App" or "Add to Home Screen".',
   },
   ru: {
     consentText:
@@ -67,11 +71,12 @@ const PROMPTS_I18N: Record<
     declineBtn: 'Отклонить',
     privacyLink: 'Конфиденциальность',
     languageWord: 'Язык:',
-    switchBtn: 'Переключить',
+    switchBtn: 'Switch',
     pwaTitle: 'Установите приложение Aqar Exit',
     pwaSub: 'Быстрый доступ к объектам переуступки прямо с главного экрана.',
     installBtn: 'Установить',
-    iosHint: 'На iPhone: Нажмите «Поделиться», затем «На экран Домой»',
+    manualInstallHint:
+      'Для установки: откройте меню браузера (⋮) и выберите «Установить приложение» или «На экран Домой».',
   },
   ka: {
     consentText:
@@ -80,11 +85,12 @@ const PROMPTS_I18N: Record<
     declineBtn: 'უარყოფა',
     privacyLink: 'კონფიდენციალურობა',
     languageWord: 'ენა:',
-    switchBtn: 'გადართვა',
+    switchBtn: 'Switch',
     pwaTitle: 'დააინსტალირეთ Aqar Exit აპლიკაცია',
     pwaSub: 'სწრაფი წვდომა ყველა შეთავაზებაზე თქვენი ტელეფონის ეკრანიდან.',
     installBtn: 'ინსტალაცია',
-    iosHint: 'iPhone-ზე: დააჭირეთ Share-ს და შემდეგ "Add to Home Screen"',
+    manualInstallHint:
+      'ინსტალაციისთვის: გახსენით ბრაუზერის მენიუ (⋮) და აირჩიეთ "Install App" ან "Add to Home Screen".',
   },
 }
 
@@ -113,7 +119,6 @@ export function FacebookPixel() {
   const { locale, dir, siteSettings } = useTranslation() as Record<string, any>
   const pT = PROMPTS_I18N[locale as LocaleCode] || PROMPTS_I18N.ar
 
-  // قراءة الأكواد من إعدادات الأدمن أو من ملف .env.local
   const fbPixelId =
     siteSettings?.fbPixelId || process.env.NEXT_PUBLIC_FB_PIXEL_ID || ''
   const gaMeasurementId =
@@ -124,9 +129,10 @@ export function FacebookPixel() {
   const posthogKey =
     siteSettings?.posthogKey || process.env.NEXT_PUBLIC_POSTHOG_KEY || ''
 
+  const [mounted, setMounted] = useState(false)
   const [consentStatus, setConsentStatus] = useState<
     'pending' | 'granted' | 'declined'
-  >('granted')
+  >('pending')
   const [showConsentBanner, setShowConsentBanner] = useState(false)
 
   const [geoSuggestion, setGeoSuggestion] = useState<{
@@ -136,10 +142,12 @@ export function FacebookPixel() {
 
   const [deferredPwaPrompt, setDeferredPwaPrompt] = useState<any>(null)
   const [showPwaBanner, setShowPwaBanner] = useState(false)
-  const [isIosDevice, setIsIosDevice] = useState(false)
+  const [showManualPwaGuide, setShowManualPwaGuide] = useState(false)
 
-  // فحص حالة الموافقة على التتبع
   useEffect(() => {
+    setMounted(true)
+
+    // 1. فحص رسالة الموافقة على التتبع (Allow / Decline)
     try {
       const savedConsent = localStorage.getItem(CONSENT_STORAGE_KEY)
       if (!savedConsent) {
@@ -149,75 +157,58 @@ export function FacebookPixel() {
         setConsentStatus(savedConsent === 'granted' ? 'granted' : 'declined')
         setShowConsentBanner(false)
       }
-    } catch {}
-  }, [])
-
-  // تسجيل PageView عند التنقل بين الصفحات
-  useEffect(() => {
-    if (consentStatus !== 'granted') return
-    trackFbEvent('PageView', { page_path: pathname })
-  }, [pathname, searchParams, consentStatus])
-
-  // كشف لغة متصفح وهاتف الزائر تلقائياً لاقتراح تبديل اللغة (مثل الصورة الثانية)
-  useEffect(() => {
-    try {
-      if (localStorage.getItem(LANG_PROMPT_DISMISSED_KEY)) return
-    } catch {}
-
-    const browserLang = (
-      typeof navigator !== 'undefined' ? navigator.language || '' : ''
-    ).toLowerCase()
-    const timeZone =
-      Intl.DateTimeFormat().resolvedOptions().timeZone?.toLowerCase() || ''
-
-    let detectedCountry = 'Egypt'
-    let suggested: LocaleCode = 'ar'
-
-    if (timeZone.includes('tbilisi') || browserLang.startsWith('ka')) {
-      detectedCountry = locale === 'ar' ? 'جورجيا' : 'Georgia'
-      suggested = 'ka'
-    } else if (
-      timeZone.includes('moscow') ||
-      browserLang.startsWith('ru')
-    ) {
-      detectedCountry = locale === 'ar' ? 'روسيا' : 'Russia'
-      suggested = 'ru'
-    } else if (
-      timeZone.includes('cairo') ||
-      timeZone.includes('riyadh') ||
-      timeZone.includes('dubai') ||
-      browserLang.startsWith('ar')
-    ) {
-      detectedCountry =
-        timeZone.includes('riyadh')
-          ? 'Saudi Arabia'
-          : timeZone.includes('dubai')
-            ? 'UAE'
-            : 'Egypt'
-      suggested = 'ar'
-    } else {
-      detectedCountry = 'International'
-      suggested = 'en'
+    } catch {
+      setShowConsentBanner(true)
     }
 
-    if (suggested !== locale && SUPPORTED_LANGUAGES[suggested]) {
-      setGeoSuggestion({
-        countryLabel: detectedCountry,
-        suggestedLocale: suggested,
-      })
-    }
-  }, [locale])
-
-  // التقاط حدث تثبيت التطبيق على الموبايل (PWA)
-  useEffect(() => {
+    // 2. فحص رسالة الدولة وتبديل اللغة (Egypt · Language: ...)
     try {
-      if (localStorage.getItem(PWA_PROMPT_DISMISSED_KEY)) return
-      if (window.matchMedia('(display-mode: standalone)').matches) return
+      const langDismissed = localStorage.getItem(LANG_PROMPT_DISMISSED_KEY)
+      if (!langDismissed) {
+        const timeZone =
+          Intl.DateTimeFormat().resolvedOptions().timeZone?.toLowerCase() || ''
+        const browserLang = (navigator.language || '').toLowerCase()
+
+        let detectedCountry = 'Egypt'
+        let targetLocale: LocaleCode = locale === 'ar' ? 'en' : 'ar'
+
+        if (timeZone.includes('tbilisi') || browserLang.startsWith('ka')) {
+          detectedCountry = 'Georgia'
+          targetLocale = locale === 'ka' ? 'en' : 'ka'
+        } else if (
+          timeZone.includes('moscow') ||
+          browserLang.startsWith('ru')
+        ) {
+          detectedCountry = 'Russia'
+          targetLocale = locale === 'ru' ? 'en' : 'ru'
+        } else if (timeZone.includes('riyadh')) {
+          detectedCountry = 'Saudi Arabia'
+          targetLocale = locale === 'ar' ? 'en' : 'ar'
+        } else if (timeZone.includes('dubai')) {
+          detectedCountry = 'UAE'
+          targetLocale = locale === 'ar' ? 'en' : 'ar'
+        } else {
+          detectedCountry = 'Egypt'
+          targetLocale = locale === 'ar' ? 'en' : 'ar'
+        }
+
+        setGeoSuggestion({
+          countryLabel: detectedCountry,
+          suggestedLocale: targetLocale,
+        })
+      }
     } catch {}
 
-    const ua = window.navigator.userAgent.toLowerCase()
-    const ios = /iphone|ipad|ipod/.test(ua)
-    setIsIosDevice(ios)
+    // 3. فحص رسالة تثبيت الموقع كتطبيق (PWA)
+    try {
+      const pwaDismissed = localStorage.getItem(PWA_PROMPT_DISMISSED_KEY)
+      const isStandalone = window.matchMedia(
+        '(display-mode: standalone)'
+      ).matches
+      if (!pwaDismissed && !isStandalone) {
+        setShowPwaBanner(true)
+      }
+    } catch {}
 
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault()
@@ -232,7 +223,12 @@ export function FacebookPixel() {
         handleBeforeInstallPrompt
       )
     }
-  }, [])
+  }, [locale])
+
+  useEffect(() => {
+    if (consentStatus !== 'granted') return
+    trackFbEvent('PageView', { page_path: pathname })
+  }, [pathname, searchParams, consentStatus])
 
   const handleConsentDecision = (decision: 'granted' | 'declined') => {
     setConsentStatus(decision)
@@ -260,7 +256,22 @@ export function FacebookPixel() {
     router.refresh()
   }
 
-  // لا نعرض الرسائل العائمة داخل لوحة تحكم الأدمن
+  const handleInstallPwaClick = async () => {
+    if (deferredPwaPrompt) {
+      deferredPwaPrompt.prompt()
+      await deferredPwaPrompt.userChoice.catch(() => {})
+      setDeferredPwaPrompt(null)
+      setShowPwaBanner(false)
+      try {
+        localStorage.setItem(PWA_PROMPT_DISMISSED_KEY, '1')
+      } catch {}
+    } else {
+      setShowManualPwaGuide(true)
+    }
+  }
+
+  if (!mounted) return null
+
   const isAdminRoute = pathname?.startsWith('/admin')
 
   return (
@@ -331,20 +342,23 @@ export function FacebookPixel() {
       {!isAdminRoute && (
         <div
           dir={dir}
-          className="pointer-events-none fixed inset-x-3 bottom-4 z-[95] mx-auto flex max-w-md flex-col gap-2.5 sm:bottom-6"
+          className="pointer-events-none fixed inset-x-3 bottom-4 z-[999] mx-auto flex max-w-md flex-col gap-2.5 sm:bottom-6"
         >
-          {/* 1. إشعار اقتراح اللغة حسب الدولة (Egypt · Language: Arabic [Switch]) */}
-          {geoSuggestion && !showConsentBanner && (
+          {/* الرسالة 1: شريط الدولة وتبديل اللغة (Egypt · Language: ... [Switch]) */}
+          {geoSuggestion && (
             <div className="pointer-events-auto flex items-center justify-between gap-2.5 rounded-[22px] border border-slate-200/90 bg-white/98 px-4 py-3 shadow-[0_14px_38px_rgba(15,29,64,0.16)] backdrop-blur-md">
               <div className="flex min-w-0 items-center gap-2.5">
                 <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-blue-50 text-[#2563eb]">
                   <Globe className="size-4" />
                 </span>
-                <p className="truncate text-xs font-extrabold text-[#0f1d40] sm:text-[13px]">
+                <p
+                  dir="ltr"
+                  className="truncate text-xs font-extrabold text-[#0f1d40] sm:text-[13px]"
+                >
                   <span>{geoSuggestion.countryLabel}</span>
                   <span className="mx-1 text-slate-300">·</span>
                   <span className="font-semibold text-slate-500">
-                    {pT.languageWord}{' '}
+                    Language:{' '}
                   </span>
                   <span>
                     {LANGUAGE_NAMES_DISPLAY[geoSuggestion.suggestedLocale]}
@@ -377,8 +391,8 @@ export function FacebookPixel() {
             </div>
           )}
 
-          {/* 2. إشعار تثبيت الموقع كتطبيق على الموبايل (PWA) */}
-          {showPwaBanner && !showConsentBanner && !geoSuggestion && (
+          {/* الرسالة 2: شريط تثبيت الموقع كتطبيق على الموبايل أو الكمبيوتر (PWA) */}
+          {showPwaBanner && !showConsentBanner && (
             <div className="pointer-events-auto rounded-[22px] border border-slate-200/90 bg-white/98 p-4 shadow-[0_14px_38px_rgba(15,29,64,0.16)] backdrop-blur-md">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3 text-start">
@@ -390,9 +404,7 @@ export function FacebookPixel() {
                       {pT.pwaTitle}
                     </strong>
                     <p className="mt-0.5 text-[11px] leading-relaxed text-slate-500">
-                      {isIosDevice && !deferredPwaPrompt
-                        ? pT.iosHint
-                        : pT.pwaSub}
+                      {showManualPwaGuide ? pT.manualInstallHint : pT.pwaSub}
                     </p>
                   </div>
                 </div>
@@ -411,30 +423,29 @@ export function FacebookPixel() {
                 </button>
               </div>
 
-              {deferredPwaPrompt && (
+              {!showManualPwaGuide ? (
                 <div className="mt-3 flex justify-end">
                   <button
                     type="button"
-                    onClick={async () => {
-                      deferredPwaPrompt.prompt()
-                      await deferredPwaPrompt.userChoice.catch(() => {})
-                      setDeferredPwaPrompt(null)
-                      setShowPwaBanner(false)
-                      try {
-                        localStorage.setItem(PWA_PROMPT_DISMISSED_KEY, '1')
-                      } catch {}
-                    }}
+                    onClick={handleInstallPwaClick}
                     className="inline-flex h-9 items-center justify-center gap-1.5 rounded-full bg-[#2563eb] px-5 text-xs font-extrabold text-white shadow-xs transition hover:bg-blue-700"
                   >
                     <Download className="size-3.5" />
                     <span>{pT.installBtn}</span>
                   </button>
                 </div>
+              ) : (
+                <div className="mt-3 flex items-center justify-between rounded-xl bg-emerald-50 px-3 py-2 text-[11px] font-bold text-[#007a5a]">
+                  <span className="flex items-center gap-1.5">
+                    <CheckCircle2 className="size-3.5 shrink-0" />
+                    <span>{pT.manualInstallHint}</span>
+                  </span>
+                </div>
               )}
             </div>
           )}
 
-          {/* 3. إشعار الموافقة على قياس الزيارات والإعلانات (Allow / Decline) */}
+          {/* الرسالة 3: شريط الموافقة على قياس الزيارات والإعلانات (Allow / Decline) */}
           {showConsentBanner && (
             <div className="pointer-events-auto rounded-[24px] border border-slate-200/90 bg-white/98 p-4 text-start shadow-[0_18px_45px_rgba(15,29,64,0.18)] backdrop-blur-md sm:p-5">
               <p className="text-xs leading-relaxed font-medium text-slate-600 sm:text-[13px]">

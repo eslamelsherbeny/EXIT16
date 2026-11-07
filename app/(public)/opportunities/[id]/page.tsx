@@ -7,6 +7,11 @@ import { createBrowserClient } from '@supabase/ssr'
 import { Building2, ShieldCheck } from 'lucide-react'
 import { getCurrentSellerProfileAction } from '@/actions/submit-forms'
 import { UnitInterestForm } from '@/components/features/opportunities/unit-interest-form'
+import {
+  translateStoredFinishing,
+  translateStoredInstallmentFreq,
+  translateStoredPropertyKind,
+} from '@/components/features/seller/seller-options-data'
 import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
 import { useTranslation } from '@/lib/i18n'
 import { isNonGeorgianLegacyArea } from '@/lib/smart-matcher'
@@ -343,6 +348,8 @@ export default function PropertyDetailsPage() {
         rawDel.includes('فوري') ||
         rawDel.includes('مستلم') ||
         rawDel.toLowerCase().includes('ready') ||
+        rawDel.toLowerCase().includes('готов') ||
+        rawDel.includes('მზად') ||
         rawDel.includes(filtersT.deliveryStatuses[1])
 
       const parenMatch = rawDel.match(/\(([^)]+)\)/)
@@ -367,6 +374,7 @@ export default function PropertyDetailsPage() {
         ? getLocalizedGeorgiaAreaName(rawArea, locale)
         : c.defaultArea
 
+      const localizedType = translateStoredPropertyKind(u.unit_type, locale)
       const roomsCount = parseSafeNumber(u.rooms, 2)
       const sizeVal = parseSafeNumber(u.size, 75)
 
@@ -374,7 +382,7 @@ export default function PropertyDetailsPage() {
         id: u.id,
         name: u.project_name || c.defaultProject,
         area: localizedArea,
-        specs: `${u.unit_type || c.defaultType} · ${roomsCount} ${c.roomsWord} · ${sizeVal} ${c.sqmUnit} · ${t.similarSection.deliveryPrefix} ${delivDisplay}`,
+        specs: `${localizedType} · ${roomsCount} ${c.roomsWord} · ${sizeVal} ${c.sqmUnit} · ${t.similarSection.deliveryPrefix} ${delivDisplay}`,
         cash: reqCash.toLocaleString('en-US'),
         currency: uCurrency,
         featured: isFeat,
@@ -427,12 +435,15 @@ export default function PropertyDetailsPage() {
       meta.code ||
       `U-${numericId.length >= 4 ? numericId : fallbackId || '1001'}`
 
-    const unitType = row.unit_type || meta.unit_type || c.defaultType
+    const rawUnitType = row.unit_type || meta.unit_type || c.defaultType
+    // ترجمة نوع الوحدة للغة المستخدم الحالية
+    const unitType = translateStoredPropertyKind(rawUnitType, locale)
+
     const isStudio =
-      unitType.includes('استوديو') ||
-      unitType.toLowerCase().includes('studio') ||
-      unitType.toLowerCase().includes('студия') ||
-      unitType.includes('სტუდიო')
+      rawUnitType.includes('استوديو') ||
+      rawUnitType.toLowerCase().includes('studio') ||
+      rawUnitType.toLowerCase().includes('студия') ||
+      rawUnitType.includes('სტუდიო')
 
     const size = parseSafeNumber(row.size ?? meta.size, 75)
     const rawFloor = row.floor_number ?? meta.floor_number
@@ -455,8 +466,12 @@ export default function PropertyDetailsPage() {
       Math.max(1, rooms - 1)
     )
     const bathrooms = parseSafeNumber(row.bathrooms ?? meta.bathrooms, 1)
-    const finishing =
+
+    const rawFinishing =
       row.finishing || meta.finishing || t.specs.defaultFinishing
+    // ترجمة حالة التشطيب للغة المستخدم الحالية
+    const finishing = translateStoredFinishing(rawFinishing, locale)
+
     const deliveryStatus =
       row.delivery_status || meta.delivery_status || t.specs.defaultStatus
 
@@ -481,8 +496,12 @@ export default function PropertyDetailsPage() {
     const installmentAmount = parseSafeNumber(
       row.installment_amount ?? meta.installment_amount
     )
-    const installmentFreq =
+
+    const rawInstFreq =
       row.installment_frequency || meta.installment_frequency || c.defaultFreq
+    // ترجمة دورية القسط للغة المستخدم الحالية
+    const installmentFreq = translateStoredInstallmentFreq(rawInstFreq, locale)
+
     const remainingInstallmentMonths = parseSafeNumber(
       row.years_left ?? meta.years_left,
       0

@@ -304,7 +304,7 @@ export function TypeSection({
 }
 
 // =====================================================
-// 2. قسم الصور وروابط الفيديو والجولة الافتراضية (بدون رفع ملف فيديو)
+// 2. قسم الصور وروابط الفيديو والجولة الافتراضية
 // =====================================================
 export function PhotosSection({
   sectionRef,
@@ -590,6 +590,7 @@ export function DetailsSection({
                 </div>
               </div>
 
+              {/* طراز المبنى مترجماً بالكامل باللغات الـ 4 */}
               <div className="mt-5">
                 <label className="mb-1 block text-xs font-extrabold text-slate-700">
                   {dT.buildingSeriesLabel}
@@ -599,19 +600,20 @@ export function DetailsSection({
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {BUILDING_SERIES.map((ser) => {
-                    const active = selected.buildingSeries?.[0] === ser
+                    const serId = typeof ser === 'string' ? ser : ser.id
+                    const active = selected.buildingSeries?.[0] === serId
                     return (
                       <button
-                        key={ser}
+                        key={serId}
                         type="button"
-                        onClick={() => toggleSingle('buildingSeries', ser)}
+                        onClick={() => toggleSingle('buildingSeries', serId)}
                         className={`rounded-full border px-3.5 py-1.5 text-xs font-bold transition ${
                           active
                             ? 'border-[#2563eb] bg-[#2563eb] text-white shadow-2xs'
                             : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                         }`}
                       >
-                        {ser}
+                        {getOptionLabel(ser, locale)}
                       </button>
                     )
                   })}
@@ -1071,7 +1073,7 @@ export function DetailsSection({
 }
 
 // =====================================================
-// 4. قسم السعر والأقساط والمستندات والوصف (بدون حصري وبدون ذكاء اصطناعي)
+// 4. قسم السعر والأقساط والمستندات والوصف
 // =====================================================
 export function PricingSection({
   sectionRef,

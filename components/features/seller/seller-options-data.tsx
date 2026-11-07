@@ -58,9 +58,10 @@ export function toEnglishDigits(str: string): string {
 }
 
 export function getOptionLabel(
-  item: { ar: string; en: string; ru?: string; ka?: string },
+  item: { ar: string; en: string; ru?: string; ka?: string } | string,
   locale: LocaleCode = 'ar'
 ): string {
+  if (typeof item === 'string') return item
   if (locale === 'ar') return item.ar
   if (locale === 'ru') return item.ru || item.en
   if (locale === 'ka') return item.ka || item.en
@@ -189,12 +190,12 @@ export const PROPERTY_KINDS: Array<LocalizedOptionItem<string>> = [
   },
   {
     id: 'Hotel',
-    ar: 'فندق',
-    en: 'Hotel',
-    ru: 'Отель',
-    ka: 'სასტუმრო',
-    labelAr: 'فندق',
-    labelEn: 'Hotel',
+    ar: 'شقة فندقية / فندق',
+    en: 'Hotel / Aparthotel',
+    ru: 'Отель / Апарт-отель',
+    ka: 'სასტუმრო / აპარტ-ოტელი',
+    labelAr: 'شقة فندقية / فندق',
+    labelEn: 'Hotel / Aparthotel',
     icon: Hotel,
   },
 ]
@@ -274,22 +275,143 @@ export const CONDITION_OPTIONS: Array<LocalizedOptionItem<string>> = [
   },
 ]
 
-export const BUILDING_SERIES = [
-  'Non-standard',
-  'Leningrad',
-  'Lvov',
-  'Kiev',
-  'Tbilisi yard',
-  'Moscow',
-  'City type',
-  'Czech',
-  'Khrushchev',
-  'Tukhareli',
-  'Vedzisi',
-  'Yugoslav',
-  'Metromsheni',
-  'Kavlashvili',
-  'Other',
+// تم تحويل طراز المبنى (BUILDING_SERIES) إلى خيارات مترجمة بالكامل باللغات الـ 4
+export const BUILDING_SERIES: Array<LocalizedOptionItem<string>> = [
+  {
+    id: 'Non-standard',
+    ar: 'غير قياسي (حديث)',
+    en: 'Non-standard',
+    ru: 'Нестандартный',
+    ka: 'არასტანდარტული',
+    labelAr: 'غير قياسي (حديث)',
+    labelEn: 'Non-standard',
+  },
+  {
+    id: 'City type',
+    ar: 'طراز المدينة (Urban)',
+    en: 'City type',
+    ru: 'Городской проект',
+    ka: 'ქალაქური',
+    labelAr: 'طراز المدينة (Urban)',
+    labelEn: 'City type',
+  },
+  {
+    id: 'Tbilisi yard',
+    ar: 'ساحة تبليسي التراثية',
+    en: 'Tbilisi yard',
+    ru: 'Тбилисский дворик',
+    ka: 'თბილისური ეზო',
+    labelAr: 'ساحة تبليسي التراثية',
+    labelEn: 'Tbilisi yard',
+  },
+  {
+    id: 'Czech',
+    ar: 'طراز تشيكي',
+    en: 'Czech',
+    ru: 'Чешский проект',
+    ka: 'ჩეხური',
+    labelAr: 'طراز تشيكي',
+    labelEn: 'Czech',
+  },
+  {
+    id: 'Kavlashvili',
+    ar: 'كافلاشفيلي',
+    en: 'Kavlashvili',
+    ru: 'Кавлашвили',
+    ka: 'ყავლაშვილის',
+    labelAr: 'كافلاشفيلي',
+    labelEn: 'Kavlashvili',
+  },
+  {
+    id: 'Tukhareli',
+    ar: 'توخاريلي',
+    en: 'Tukhareli',
+    ru: 'Тухарели',
+    ka: 'თუხარელის',
+    labelAr: 'توخاريلي',
+    labelEn: 'Tukhareli',
+  },
+  {
+    id: 'Lvov',
+    ar: 'طراز لفوف',
+    en: 'Lvov',
+    ru: 'Львовский проект',
+    ka: 'ლვოვის',
+    labelAr: 'طراز لفوف',
+    labelEn: 'Lvov',
+  },
+  {
+    id: 'Kiev',
+    ar: 'طراز كييف',
+    en: 'Kiev',
+    ru: 'Киевский проект',
+    ka: 'კიევის',
+    labelAr: 'طراز كييف',
+    labelEn: 'Kiev',
+  },
+  {
+    id: 'Leningrad',
+    ar: 'لينينغراد',
+    en: 'Leningrad',
+    ru: 'Ленинградский',
+    ka: 'ლენინგრადის',
+    labelAr: 'لينينغراد',
+    labelEn: 'Leningrad',
+  },
+  {
+    id: 'Moscow',
+    ar: 'طراز موسكو',
+    en: 'Moscow',
+    ru: 'Московский проект',
+    ka: 'მოსკოვის',
+    labelAr: 'طراز موسكو',
+    labelEn: 'Moscow',
+  },
+  {
+    id: 'Khrushchev',
+    ar: 'خروتشوف',
+    en: 'Khrushchev',
+    ru: 'Хрущевка',
+    ka: 'ხრუშჩოვკა',
+    labelAr: 'خروتشوف',
+    labelEn: 'Khrushchev',
+  },
+  {
+    id: 'Vedzisi',
+    ar: 'فيدزيسي',
+    en: 'Vedzisi',
+    ru: 'Ведзиси',
+    ka: 'ვეძისის',
+    labelAr: 'فيدزيسي',
+    labelEn: 'Vedzisi',
+  },
+  {
+    id: 'Yugoslav',
+    ar: 'يوغوسلافي',
+    en: 'Yugoslav',
+    ru: 'Югославский',
+    ka: 'იუგოსლავიური',
+    labelAr: 'يوغوسلافي',
+    labelEn: 'Yugoslav',
+  },
+  {
+    id: 'Metromsheni',
+    ar: 'مترومشيني',
+    en: 'Metromsheni',
+    ru: 'Метромшени',
+    ka: 'მეტრომშენის',
+    labelAr: 'مترومشيني',
+    labelEn: 'Metromsheni',
+  },
+  {
+    id: 'Other',
+    ar: 'أخرى',
+    en: 'Other',
+    ru: 'Другое',
+    ka: 'სხვა',
+    labelAr: 'أخرى',
+    labelEn: 'Other',
+  },
 ]
 
 export const FLOOR_TYPES: Array<LocalizedOptionItem<string>> = [
@@ -417,6 +539,299 @@ export const BUILDING_MATERIALS: Array<LocalizedOptionItem<string>> = [
     labelEn: 'Mixed',
   },
 ]
+
+// =========================================================================
+// دوال ترجمة ذكية لأي قيمة محفوظة في الداتابيز لعرضها بلغة العميل في كل الصفحات
+// =========================================================================
+
+function matchLocalizedOption(
+  rawVal: string | undefined | null,
+  list: Array<LocalizedOptionItem<string>>,
+  locale: LocaleCode
+): string | null {
+  if (!rawVal) return null
+  const clean = String(rawVal).trim().toLowerCase()
+  const found = list.find(
+    (item) =>
+      item.id.toLowerCase() === clean ||
+      item.ar.toLowerCase() === clean ||
+      item.en.toLowerCase() === clean ||
+      (item.ru && item.ru.toLowerCase() === clean) ||
+      (item.ka && item.ka.toLowerCase() === clean)
+  )
+  return found ? getOptionLabel(found, locale) : null
+}
+
+export function translateStoredPropertyKind(
+  rawType?: string | null,
+  locale: LocaleCode = 'ar'
+): string {
+  if (!rawType) {
+    return getOptionLabel(PROPERTY_KINDS[0], locale)
+  }
+  const direct = matchLocalizedOption(rawType, PROPERTY_KINDS, locale)
+  if (direct) return direct
+
+  const lower = String(rawType).trim().toLowerCase()
+  if (
+    lower.includes('studio') ||
+    lower.includes('استوديو') ||
+    lower.includes('студия') ||
+    lower.includes('სტუდიო')
+  ) {
+    return locale === 'ar'
+      ? 'استوديو'
+      : locale === 'ru'
+        ? 'Студия'
+        : locale === 'ka'
+          ? 'სტუდიო'
+          : 'Studio'
+  }
+  if (
+    lower.includes('hotel') ||
+    lower.includes('فندق') ||
+    lower.includes('отель') ||
+    lower.includes('სასტუმრო') ||
+    lower.includes('აპარტ')
+  ) {
+    return locale === 'ar'
+      ? 'شقة فندقية'
+      : locale === 'ru'
+        ? 'Апарт-отель'
+        : locale === 'ka'
+          ? 'აპარტ-ოტელი'
+          : 'Aparthotel'
+  }
+  if (
+    lower.includes('apart') ||
+    lower.includes('شقة') ||
+    lower.includes('شقه') ||
+    lower.includes('квартир') ||
+    lower.includes('ბინა')
+  ) {
+    return getOptionLabel(PROPERTY_KINDS[0], locale)
+  }
+  if (
+    lower.includes('villa') ||
+    lower.includes('house') ||
+    lower.includes('فيلا') ||
+    lower.includes('منزل') ||
+    lower.includes('дом') ||
+    lower.includes('სახლი')
+  ) {
+    return getOptionLabel(PROPERTY_KINDS[1], locale)
+  }
+  if (
+    lower.includes('cottage') ||
+    lower.includes('chalet') ||
+    lower.includes('شاليه') ||
+    lower.includes('كوخ') ||
+    lower.includes('коттедж') ||
+    lower.includes('კოტეჯი')
+  ) {
+    return getOptionLabel(PROPERTY_KINDS[2], locale)
+  }
+  if (
+    lower.includes('land') ||
+    lower.includes('أرض') ||
+    lower.includes('ارض') ||
+    lower.includes('участок') ||
+    lower.includes('მიწის')
+  ) {
+    return getOptionLabel(PROPERTY_KINDS[3], locale)
+  }
+  if (
+    lower.includes('commercial') ||
+    lower.includes('office') ||
+    lower.includes('shop') ||
+    lower.includes('تجاري') ||
+    lower.includes('مكتب') ||
+    lower.includes('محل') ||
+    lower.includes('коммерч') ||
+    lower.includes('კომერციული')
+  ) {
+    return getOptionLabel(PROPERTY_KINDS[4], locale)
+  }
+  return String(rawType)
+}
+
+export function translateStoredFinishing(
+  rawFinishing?: string | null,
+  locale: LocaleCode = 'ar'
+): string {
+  if (!rawFinishing) {
+    return getOptionLabel(CONDITION_OPTIONS[0], locale)
+  }
+  const direct = matchLocalizedOption(rawFinishing, CONDITION_OPTIONS, locale)
+  if (direct) return direct
+
+  const lower = String(rawFinishing).trim().toLowerCase()
+  if (
+    lower.includes('turnkey') ||
+    lower.includes('تشطيب كامل') ||
+    lower.includes('newly renovated') ||
+    lower.includes('تشطيب جديد') ||
+    lower.includes('под ключ') ||
+    lower.includes('სრული რემონტით')
+  ) {
+    return locale === 'ar'
+      ? 'تشطيب كامل'
+      : locale === 'ru'
+        ? 'Под ключ (Новый ремонт)'
+        : locale === 'ka'
+          ? 'სრული რემონტით'
+          : 'Turnkey (Newly Renovated)'
+  }
+  if (
+    lower.includes('white frame') ||
+    lower.includes('إطار أبيض') ||
+    lower.includes('الاطار الابيض') ||
+    lower.includes('الإطار الأبيض') ||
+    lower.includes('белый каркас') ||
+    lower.includes('თეთრი კარკასი')
+  ) {
+    return getOptionLabel(CONDITION_OPTIONS[4], locale)
+  }
+  if (
+    lower.includes('black frame') ||
+    lower.includes('إطار أسود') ||
+    lower.includes('الإطار الأسود') ||
+    lower.includes('черный каркас') ||
+    lower.includes('შავი კარკასი')
+  ) {
+    return getOptionLabel(CONDITION_OPTIONS[5], locale)
+  }
+  if (
+    lower.includes('green frame') ||
+    lower.includes('إطار أخضر') ||
+    lower.includes('الإطار الأخضر') ||
+    lower.includes('зеленый каркас') ||
+    lower.includes('მწვანე კარკასი')
+  ) {
+    return getOptionLabel(CONDITION_OPTIONS[6], locale)
+  }
+  if (
+    lower.includes('white plus') ||
+    lower.includes('وايت بلس') ||
+    lower.includes('белый плюс') ||
+    lower.includes('თეთრი პლუსი')
+  ) {
+    return getOptionLabel(CONDITION_OPTIONS[7], locale)
+  }
+  if (
+    lower.includes('furnished') ||
+    lower.includes('بالفرش') ||
+    lower.includes('مفروش') ||
+    lower.includes('с мебелью') ||
+    lower.includes('ავეჯით')
+  ) {
+    return locale === 'ar'
+      ? 'مفروش بالكامل بالأجهزة'
+      : locale === 'ru'
+        ? 'С мебелью и техникой'
+        : locale === 'ka'
+          ? 'ავეჯით და ტექნიკით'
+          : 'Fully Furnished'
+  }
+  return String(rawFinishing)
+}
+
+export function translateStoredInstallmentFreq(
+  rawFreq?: string | null,
+  locale: LocaleCode = 'ar'
+): string {
+  const clean = String(rawFreq || '').trim().toLowerCase()
+  if (
+    clean.includes('ربع') ||
+    clean.includes('quarter') ||
+    clean.includes('квартал') ||
+    clean.includes('კვარტ')
+  ) {
+    return locale === 'ar'
+      ? 'ربع سنوي'
+      : locale === 'ru'
+        ? 'Ежеквартально'
+        : locale === 'ka'
+          ? 'კვარტალური'
+          : 'Quarterly'
+  }
+  if (
+    clean.includes('نصف') ||
+    clean.includes('نص') ||
+    clean.includes('semi') ||
+    clean.includes('полгод') ||
+    clean.includes('6 თვე') ||
+    clean.includes('ნახევარ')
+  ) {
+    return locale === 'ar'
+      ? 'نصف سنوي'
+      : locale === 'ru'
+        ? 'Раз в полгода'
+        : locale === 'ka'
+          ? '6 თვეში ერთხელ'
+          : 'Semi-Annual'
+  }
+  if (
+    clean.includes('سنوي') ||
+    clean.includes('annual') ||
+    clean.includes('year') ||
+    clean.includes('ежегодно') ||
+    clean.includes('წლიური')
+  ) {
+    return locale === 'ar'
+      ? 'سنوي'
+      : locale === 'ru'
+        ? 'Ежегодно'
+        : locale === 'ka'
+          ? 'წლიური'
+          : 'Annual'
+  }
+  return locale === 'ar'
+    ? 'شهري'
+    : locale === 'ru'
+      ? 'Ежемесячно'
+      : locale === 'ka'
+        ? 'თვიური'
+        : 'Monthly'
+}
+
+export function translateStoredBuildingSeries(
+  rawVal?: string | null,
+  locale: LocaleCode = 'ar'
+): string {
+  return (
+    matchLocalizedOption(rawVal, BUILDING_SERIES, locale) ||
+    String(rawVal || '')
+  )
+}
+
+export function translateStoredFloorType(
+  rawVal?: string | null,
+  locale: LocaleCode = 'ar'
+): string {
+  return (
+    matchLocalizedOption(rawVal, FLOOR_TYPES, locale) || String(rawVal || '')
+  )
+}
+
+export function translateStoredHeatingType(
+  rawVal?: string | null,
+  locale: LocaleCode = 'ar'
+): string {
+  return (
+    matchLocalizedOption(rawVal, HEATING_TYPES, locale) || String(rawVal || '')
+  )
+}
+
+export function translateStoredBuildingMaterial(
+  rawVal?: string | null,
+  locale: LocaleCode = 'ar'
+): string {
+  return (
+    matchLocalizedOption(rawVal, BUILDING_MATERIALS, locale) ||
+    String(rawVal || '')
+  )
+}
 
 export const SIVRCE_FEATURE_GROUPS = [
   {

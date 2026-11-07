@@ -9,14 +9,17 @@ import { SUPPORTED_LANGUAGES } from '@/components/layouts/site-shell'
 import { useTranslation, type LocaleCode } from '@/lib/i18n'
 
 const CONSENT_STORAGE_KEY = 'aqar_cookie_consent_v2'
+const LEGACY_CONSENT_KEY = 'aqar_cookie_consent'
 const LANG_PROMPT_DISMISSED_KEY = 'aqar_lang_prompt_dismissed_v2'
+const LEGACY_LANG_DISMISSED_KEY = 'aqar_lang_prompt_dismissed'
 const PWA_PROMPT_DISMISSED_KEY = 'aqar_pwa_prompt_dismissed_v2'
+const LEGACY_PWA_DISMISSED_KEY = 'aqar_pwa_prompt_dismissed'
 
 const LANGUAGE_NAMES_DISPLAY: Record<LocaleCode, string> = {
-  ar: 'العربية',
+  ar: 'العربية (Arabic)',
   en: 'English',
-  ru: 'Русский',
-  ka: 'ქართული',
+  ru: 'Русский (Russian)',
+  ka: 'ქართული (Georgian)',
 }
 
 const PROMPTS_I18N: Record<
@@ -41,8 +44,8 @@ const PROMPTS_I18N: Record<
     allowBtn: 'سماح (Allow)',
     declineBtn: 'رفض',
     privacyLink: 'سياسة الخصوصية',
-    languageWord: 'اللغة:',
-    switchBtn: 'Switch',
+    languageWord: 'اللغة المقترحة:',
+    switchBtn: 'تبديل',
     pwaTitle: 'نزّل تطبيق Aqar Exit على جهازك',
     pwaSub:
       'تصفح فرص التنازل وتابع عروضك وإشعاراتك فوراً من الشاشة الرئيسية كأنه تطبيق موبايل.',
@@ -76,7 +79,7 @@ const PROMPTS_I18N: Record<
     declineBtn: 'Отклонить',
     privacyLink: 'Конфиденциальность',
     languageWord: 'Язык:',
-    switchBtn: 'Switch',
+    switchBtn: 'Переключить',
     pwaTitle: 'Установите приложение Aqar Exit',
     pwaSub: 'Быстрый доступ к объектам переуступки прямо с главного экрана.',
     installBtn: 'Установить',
@@ -92,7 +95,7 @@ const PROMPTS_I18N: Record<
     declineBtn: 'უარყოფა',
     privacyLink: 'კონფიდენციალურობა',
     languageWord: 'ენა:',
-    switchBtn: 'Switch',
+    switchBtn: 'გადართვა',
     pwaTitle: 'დააინსტალირეთ Aqar Exit აპლიკაცია',
     pwaSub: 'სწრაფი წვდომა ყველა შეთავაზებაზე თქვენი ტელეფონის ეკრანიდან.',
     installBtn: 'ინსტალაცია',
@@ -101,6 +104,29 @@ const PROMPTS_I18N: Record<
     iosInstallHint:
       'iPhone-ზე: დააჭირეთ გაზიარების ღილაკს (⬆️) და აირჩიეთ "Add to Home Screen".',
   },
+}
+
+function isPwaPromptAlreadyDismissed(): boolean {
+  if (typeof window === 'undefined') return true
+  try {
+    return (
+      localStorage.getItem(PWA_PROMPT_DISMISSED_KEY) === '1' ||
+      localStorage.getItem(LEGACY_PWA_DISMISSED_KEY) === '1' ||
+      sessionStorage.getItem(PWA_PROMPT_DISMISSED_KEY) === '1'
+    )
+  } catch {
+    return false
+  }
+}
+
+function markPwaPromptDismissedForever() {
+  if (typeof window === 'undefined') return
+  ;(window as any).__deferredPwaPrompt = null
+  try {
+    localStorage.setItem(PWA_PROMPT_DISMISSED_KEY, '1')
+    localStorage.setItem(LEGACY_PWA_DISMISSED_KEY, '1')
+    sessionStorage.setItem(PWA_PROMPT_DISMISSED_KEY, '1')
+  } catch {}
 }
 
 export function trackFbEvent(
@@ -121,6 +147,8 @@ export function trackFbEvent(
   } catch {}
 }
 
+export const trackPlatformEvent = trackFbEvent
+
 export function FacebookPixel() {
   const router = useRouter()
   const pathname = usePathname()
@@ -137,6 +165,8 @@ export function FacebookPixel() {
   const gtmId = siteSettings?.gtmId || process.env.NEXT_PUBLIC_GTM_ID || ''
   const posthogKey =
     siteSettings?.posthogKey || process.env.NEXT_PUBLIC_POSTHOG_KEY || ''
+  const posthogHost =
+    process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://eu.i.posthog.com'
 
   const [mounted, setMounted] = useState(false)
   const [consentStatus, setConsentStatus] = useState<
@@ -154,12 +184,14 @@ export function FacebookPixel() {
   const [showManualPwaGuide, setShowManualPwaGuide] = useState(false)
   const [isIosDevice, setIsIosDevice] = useState(false)
 
+  // 1. فحص الكوكيز وحدث تثبيت التطبيق مرة واحدة فقط عند تحميل التطبيق
   useEffect(() => {
     setMounted(true)
 
-    // 1. فحص الموافقة على الكوكيز
     try {
-      const savedConsent = localStorage.getItem(CONSENT_STORAGE_KEY)
+      const savedConsent =
+        localStorage.getItem(CONSENT_STORAGE_KEY) ||
+        localStorage.getItem(LEGACY_CONSENT_KEY)
       if (!savedConsent) {
         setConsentStatus('pending')
         setShowConsentBanner(true)
@@ -171,66 +203,31 @@ export function FacebookPixel() {
       setShowConsentBanner(true)
     }
 
-    // 2. فحص اقتراح اللغة
-    try {
-      const langDismissed = localStorage.getItem(LANG_PROMPT_DISMISSED_KEY)
-      if (!langDismissed) {
-        const timeZone =
-          Intl.DateTimeFormat().resolvedOptions().timeZone?.toLowerCase() || ''
-        const browserLang = (navigator.language || '').toLowerCase()
+    const ua = window.navigator.userAgent.toLowerCase()
+    const ios = /iphone|ipad|ipod/.test(ua)
+    setIsIosDevice(ios)
 
-        let detectedCountry = 'Egypt'
-        let targetLocale: LocaleCode = locale === 'ar' ? 'en' : 'ar'
+    const isStandalone =
+      window.matchMedia('(display-mode: standalone)').matches ||
+      (window.navigator as any).standalone === true
 
-        if (timeZone.includes('tbilisi') || browserLang.startsWith('ka')) {
-          detectedCountry = 'Georgia'
-          targetLocale = locale === 'ka' ? 'en' : 'ka'
-        } else if (
-          timeZone.includes('moscow') ||
-          browserLang.startsWith('ru')
-        ) {
-          detectedCountry = 'Russia'
-          targetLocale = locale === 'ru' ? 'en' : 'ru'
-        } else if (timeZone.includes('riyadh')) {
-          detectedCountry = 'Saudi Arabia'
-          targetLocale = locale === 'ar' ? 'en' : 'ar'
-        } else if (timeZone.includes('dubai')) {
-          detectedCountry = 'UAE'
-          targetLocale = locale === 'ar' ? 'en' : 'ar'
-        } else {
-          detectedCountry = 'Egypt'
-          targetLocale = locale === 'ar' ? 'en' : 'ar'
-        }
+    if (isStandalone || isPwaPromptAlreadyDismissed()) {
+      setShowPwaBanner(false)
+      return
+    }
 
-        setGeoSuggestion({
-          countryLabel: detectedCountry,
-          suggestedLocale: targetLocale,
-        })
-      }
-    } catch {}
-
-    // 3. فحص تثبيت التطبيق الرسمي (PWA)
-    try {
-      const ua = window.navigator.userAgent.toLowerCase()
-      const ios = /iphone|ipad|ipod/.test(ua)
-      setIsIosDevice(ios)
-
-      const pwaDismissed = localStorage.getItem(PWA_PROMPT_DISMISSED_KEY)
-      const isStandalone =
-        window.matchMedia('(display-mode: standalone)').matches ||
-        (window.navigator as any).standalone === true
-
-      // التقاط الحدث إذا كان قد تم حفظه مبكراً في window.__deferredPwaPrompt
-      if ((window as any).__deferredPwaPrompt) {
-        setDeferredPwaPrompt((window as any).__deferredPwaPrompt)
-      }
-
-      if (!pwaDismissed && !isStandalone) {
-        setShowPwaBanner(true)
-      }
-    } catch {}
+    if ((window as any).__deferredPwaPrompt) {
+      setDeferredPwaPrompt((window as any).__deferredPwaPrompt)
+      setShowPwaBanner(true)
+    } else if (ios) {
+      setShowPwaBanner(true)
+    }
 
     const syncEarlyPrompt = () => {
+      if (isPwaPromptAlreadyDismissed()) {
+        setShowPwaBanner(false)
+        return
+      }
       if ((window as any).__deferredPwaPrompt) {
         setDeferredPwaPrompt((window as any).__deferredPwaPrompt)
         setShowPwaBanner(true)
@@ -239,18 +236,20 @@ export function FacebookPixel() {
 
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault()
+      if (isPwaPromptAlreadyDismissed()) {
+        ;(window as any).__deferredPwaPrompt = null
+        setShowPwaBanner(false)
+        return
+      }
       ;(window as any).__deferredPwaPrompt = e
       setDeferredPwaPrompt(e)
       setShowPwaBanner(true)
     }
 
     const handleAppInstalled = () => {
-      ;(window as any).__deferredPwaPrompt = null
+      markPwaPromptDismissedForever()
       setDeferredPwaPrompt(null)
       setShowPwaBanner(false)
-      try {
-        localStorage.setItem(PWA_PROMPT_DISMISSED_KEY, '1')
-      } catch {}
     }
 
     window.addEventListener('pwa-prompt-ready', syncEarlyPrompt)
@@ -265,6 +264,52 @@ export function FacebookPixel() {
       )
       window.removeEventListener('appinstalled', handleAppInstalled)
     }
+  }, [])
+
+  // 2. فحص الدولة واللغة المقترحة عبر /api/geo
+  useEffect(() => {
+    try {
+      if (
+        localStorage.getItem(LANG_PROMPT_DISMISSED_KEY) === '1' ||
+        localStorage.getItem(LEGACY_LANG_DISMISSED_KEY) === '1'
+      ) {
+        return
+      }
+    } catch {}
+
+    let active = true
+    async function detectVisitorGeo() {
+      try {
+        const res = await fetch('/api/geo', { cache: 'no-store' })
+        if (!res.ok) return
+        const data = await res.json()
+        const suggested = data?.suggestedLocale as LocaleCode | undefined
+
+        if (
+          active &&
+          suggested &&
+          suggested !== locale &&
+          SUPPORTED_LANGUAGES[suggested]
+        ) {
+          const countryLabel =
+            data?.countryName?.[locale] ||
+            data?.countryName?.en ||
+            data?.countryCode ||
+            'Georgia'
+          setGeoSuggestion({
+            countryLabel,
+            suggestedLocale: suggested,
+          })
+        } else if (active) {
+          setGeoSuggestion(null)
+        }
+      } catch {}
+    }
+
+    detectVisitorGeo()
+    return () => {
+      active = false
+    }
   }, [locale])
 
   useEffect(() => {
@@ -277,6 +322,7 @@ export function FacebookPixel() {
     setShowConsentBanner(false)
     try {
       localStorage.setItem(CONSENT_STORAGE_KEY, decision)
+      localStorage.setItem(LEGACY_CONSENT_KEY, decision)
     } catch {}
   }
 
@@ -288,6 +334,7 @@ export function FacebookPixel() {
 
     try {
       localStorage.setItem(LANG_PROMPT_DISMISSED_KEY, '1')
+      localStorage.setItem(LEGACY_LANG_DISMISSED_KEY, '1')
     } catch {}
 
     setGeoSuggestion(null)
@@ -298,6 +345,21 @@ export function FacebookPixel() {
     router.refresh()
   }
 
+  const handleDismissGeoSuggestion = () => {
+    setGeoSuggestion(null)
+    try {
+      localStorage.setItem(LANG_PROMPT_DISMISSED_KEY, '1')
+      localStorage.setItem(LEGACY_LANG_DISMISSED_KEY, '1')
+    } catch {}
+  }
+
+  const handleDismissPwaBanner = () => {
+    markPwaPromptDismissedForever()
+    setDeferredPwaPrompt(null)
+    setShowManualPwaGuide(false)
+    setShowPwaBanner(false)
+  }
+
   const handleInstallPwaClick = async () => {
     const activePrompt =
       deferredPwaPrompt || (window as any).__deferredPwaPrompt
@@ -305,13 +367,11 @@ export function FacebookPixel() {
     if (activePrompt && typeof activePrompt.prompt === 'function') {
       try {
         await activePrompt.prompt()
-        const choiceResult = await activePrompt.userChoice
-        if (choiceResult?.outcome === 'accepted') {
-          ;(window as any).__deferredPwaPrompt = null
-          setDeferredPwaPrompt(null)
-          setShowPwaBanner(false)
-          localStorage.setItem(PWA_PROMPT_DISMISSED_KEY, '1')
-        }
+        await activePrompt.userChoice.catch(() => null)
+        // حفظ قرار المستخدم (سواء ثبت التطبيق أو ضغط إلغاء) لمنع تكرار الإشعار في الصفحات الأخرى
+        markPwaPromptDismissedForever()
+        setDeferredPwaPrompt(null)
+        setShowPwaBanner(false)
       } catch {
         setShowManualPwaGuide(true)
       }
@@ -383,7 +443,7 @@ export function FacebookPixel() {
             <Script id="posthog-init" strategy="afterInteractive">
               {`
                 !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.async=!0,p.src=s.api_host+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="capture identify alias people.set people.set_once set_config register register_once unregister opt_out_capturing has_opted_out_capturing opt_in_capturing reset isFeatureEnabled onFeatureFlags getFeatureFlag getFeatureFlagPayload reloadFeatureFlags group updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures getActiveMatchingSurveys getSurveys".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
-                posthog.init('${posthogKey}', { api_host: 'https://eu.i.posthog.com' });
+                posthog.init('${posthogKey}', { api_host: '${posthogHost}' });
               `}
             </Script>
           )}
@@ -395,21 +455,18 @@ export function FacebookPixel() {
           dir={dir}
           className="pointer-events-none fixed inset-x-3 bottom-4 z-[999] mx-auto flex max-w-md flex-col gap-2.5 sm:bottom-6"
         >
-          {/* الرسالة 1: شريط الدولة وتبديل اللغة */}
-          {geoSuggestion && (
+          {/* 1. شريط الدولة وتبديل اللغة */}
+          {geoSuggestion && !showConsentBanner && (
             <div className="pointer-events-auto flex items-center justify-between gap-2.5 rounded-[22px] border border-slate-200/90 bg-white/98 px-4 py-3 shadow-[0_14px_38px_rgba(15,29,64,0.16)] backdrop-blur-md">
               <div className="flex min-w-0 items-center gap-2.5">
                 <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-blue-50 text-[#2563eb]">
                   <Globe className="size-4" />
                 </span>
-                <p
-                  dir="ltr"
-                  className="truncate text-xs font-extrabold text-[#0f1d40] sm:text-[13px]"
-                >
+                <p className="truncate text-xs font-extrabold text-[#0f1d40] sm:text-[13px]">
                   <span>{geoSuggestion.countryLabel}</span>
                   <span className="mx-1 text-slate-300">·</span>
                   <span className="font-semibold text-slate-500">
-                    Language:{' '}
+                    {pT.languageWord}{' '}
                   </span>
                   <span>
                     {LANGUAGE_NAMES_DISPLAY[geoSuggestion.suggestedLocale]}
@@ -427,12 +484,7 @@ export function FacebookPixel() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    setGeoSuggestion(null)
-                    try {
-                      localStorage.setItem(LANG_PROMPT_DISMISSED_KEY, '1')
-                    } catch {}
-                  }}
+                  onClick={handleDismissGeoSuggestion}
                   aria-label="Close"
                   className="flex size-7 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700"
                 >
@@ -442,7 +494,7 @@ export function FacebookPixel() {
             </div>
           )}
 
-          {/* الرسالة 2: شريط تثبيت الموقع كتطبيق (PWA) */}
+          {/* 2. شريط تثبيت الموقع كتطبيق (PWA) */}
           {showPwaBanner && !showConsentBanner && (
             <div className="pointer-events-auto rounded-[22px] border border-slate-200/90 bg-white/98 p-4 shadow-[0_14px_38px_rgba(15,29,64,0.16)] backdrop-blur-md">
               <div className="flex items-start justify-between gap-3">
@@ -462,12 +514,8 @@ export function FacebookPixel() {
 
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowPwaBanner(false)
-                    try {
-                      localStorage.setItem(PWA_PROMPT_DISMISSED_KEY, '1')
-                    } catch {}
-                  }}
+                  onClick={handleDismissPwaBanner}
+                  aria-label="Close"
                   className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
                 >
                   <X className="size-4" />
@@ -496,7 +544,7 @@ export function FacebookPixel() {
             </div>
           )}
 
-          {/* الرسالة 3: شريط الموافقة على قياس الزيارات والإعلانات */}
+          {/* 3. شريط الموافقة على قياس الزيارات والإعلانات */}
           {showConsentBanner && (
             <div className="pointer-events-auto rounded-[24px] border border-slate-200/90 bg-white/98 p-4 text-start shadow-[0_18px_45px_rgba(15,29,64,0.18)] backdrop-blur-md sm:p-5">
               <p className="text-xs leading-relaxed font-medium text-slate-600 sm:text-[13px]">

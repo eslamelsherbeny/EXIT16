@@ -165,18 +165,69 @@
   }
 }
 
-/* تدرج الهيرو المتحرك */
+/* ==========================================================================
+   خلفية الهيرو المعمارية الاحترافية (Luxury Real Estate Mesh + Blueprint Grid)
+   ========================================================================== */
 .aqar-animated-hero {
-  background: linear-gradient(
-    -45deg,
-    #dff7ef,
-    #fff1e6,
-    #ede9fe,
-    #e0f2fe,
-    #d8f3dc
+  position: relative;
+  isolation: isolate;
+  background-color: #f8fafd;
+  background-image:
+    radial-gradient(at 12% 15%, rgba(0, 122, 90, 0.14) 0px, transparent 52%),
+    radial-gradient(at 88% 12%, rgba(37, 99, 235, 0.13) 0px, transparent 50%),
+    radial-gradient(at 52% 85%, rgba(255, 100, 55, 0.1) 0px, transparent 55%),
+    radial-gradient(at 82% 82%, rgba(16, 185, 129, 0.12) 0px, transparent 48%),
+    linear-gradient(135deg, #f0f9f6 0%, #f6f9ff 48%, #fff8f4 100%);
+  background-size: 180% 180%;
+  animation: aqarGradientFlow 16s ease-in-out infinite alternate;
+}
+
+/* شبكة المخطط الهندسي المعماري الناعمة في الخلفية */
+.aqar-animated-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, rgba(15, 29, 64, 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(15, 29, 64, 0.045) 1px, transparent 1px),
+    linear-gradient(to right, rgba(0, 122, 90, 0.025) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 122, 90, 0.025) 1px, transparent 1px);
+  background-size: 64px 64px, 64px 64px, 16px 16px, 16px 16px;
+  mask-image: radial-gradient(
+    ellipse 85% 75% at 50% 42%,
+    rgba(0, 0, 0, 0.95) 20%,
+    rgba(0, 0, 0, 0.35) 65%,
+    transparent 100%
   );
-  background-size: 320% 320%;
-  animation: aqarGradientFlow 11s ease-in-out infinite alternate;
+  -webkit-mask-image: radial-gradient(
+    ellipse 85% 75% at 50% 42%,
+    rgba(0, 0, 0, 0.95) 20%,
+    rgba(0, 0, 0, 0.35) 65%,
+    transparent 100%
+  );
+}
+
+/* توهج علوي زجاجي يعطي فخامة وعمقاً خلف النصوص والكروت */
+.aqar-animated-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      circle 520px at 50% -80px,
+      rgba(255, 255, 255, 0.85),
+      transparent 70%
+    ),
+    linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.25) 0%,
+      transparent 35%,
+      rgba(246, 248, 252, 0.85) 100%
+    );
 }
 
 @keyframes aqarGradientFlow {
@@ -184,45 +235,55 @@
     background-position: 0% 50%;
   }
   50% {
-    background-position: 100% 30%;
+    background-position: 100% 35%;
   }
   100% {
-    background-position: 20% 100%;
+    background-position: 25% 100%;
   }
 }
 
 .aqar-floating-orb-1 {
   position: absolute;
-  top: -5%;
-  left: 10%;
-  width: 360px;
-  height: 360px;
+  top: -8%;
+  left: 6%;
+  width: 440px;
+  height: 440px;
   border-radius: 9999px;
-  background: radial-gradient(circle, rgba(16, 185, 129, 0.24) 0%, transparent 70%);
-  filter: blur(45px);
+  background: radial-gradient(
+    circle,
+    rgba(0, 122, 90, 0.2) 0%,
+    rgba(46, 229, 157, 0.08) 45%,
+    transparent 72%
+  );
+  filter: blur(55px);
   pointer-events: none;
-  animation: aqarOrbDrift 9s ease-in-out infinite alternate;
+  animation: aqarOrbDrift 12s ease-in-out infinite alternate;
 }
 
 .aqar-floating-orb-2 {
   position: absolute;
-  top: 5%;
-  right: 10%;
-  width: 340px;
-  height: 340px;
+  bottom: -6%;
+  right: 6%;
+  width: 420px;
+  height: 420px;
   border-radius: 9999px;
-  background: radial-gradient(circle, rgba(255, 100, 55, 0.22) 0%, transparent 70%);
-  filter: blur(45px);
+  background: radial-gradient(
+    circle,
+    rgba(37, 99, 235, 0.16) 0%,
+    rgba(255, 100, 55, 0.12) 48%,
+    transparent 72%
+  );
+  filter: blur(55px);
   pointer-events: none;
-  animation: aqarOrbDrift 11s ease-in-out infinite alternate-reverse;
+  animation: aqarOrbDrift 14s ease-in-out infinite alternate-reverse;
 }
 
 @keyframes aqarOrbDrift {
   0% {
-    transform: translate(-30px, -10px) scale(0.95);
+    transform: translate(-25px, -15px) scale(0.96);
   }
   100% {
-    transform: translate(35px, 20px) scale(1.08);
+    transform: translate(30px, 20px) scale(1.06);
   }
 }
 

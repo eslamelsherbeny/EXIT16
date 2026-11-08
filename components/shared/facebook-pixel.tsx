@@ -9,7 +9,7 @@ import { SUPPORTED_LANGUAGES } from '@/components/layouts/site-shell'
 import { useTranslation, type LocaleCode } from '@/lib/i18n'
 
 const CONSENT_STORAGE_KEY = 'aqar_cookie_consent_v3'
-const LANG_DISMISSED_SESSION_KEY = 'aqar_lang_dismissed_session_v3'
+const LANG_PROMPT_DISMISSED_KEY = 'aqar_lang_prompt_dismissed_v3'
 const PWA_DISMISSED_UNTIL_KEY = 'aqar_pwa_dismissed_until_v3'
 const PWA_SHOWN_IN_SESSION_KEY = 'aqar_pwa_shown_session_v3'
 const PWA_INSTALLED_KEY = 'aqar_pwa_installed_done_v3'
@@ -44,7 +44,7 @@ const PROMPTS_I18N: Record<
     declineBtn: 'رفض',
     privacyLink: 'سياسة الخصوصية',
     languageWord: 'اللغة:',
-    switchBtn: 'تبديل',
+    switchBtn: 'Switch',
     pwaTitle: 'نزّل تطبيق Aqar Exit على هاتفك',
     pwaSub:
       'تصفح فرص التنازل وتابع عروضك وإشعاراتك فوراً من الشاشة الرئيسية.',
@@ -78,7 +78,7 @@ const PROMPTS_I18N: Record<
     declineBtn: 'Отклонить',
     privacyLink: 'Конфиденциальность',
     languageWord: 'Язык:',
-    switchBtn: 'Переключить',
+    switchBtn: 'Switch',
     pwaTitle: 'Установите приложение Aqar Exit',
     pwaSub: 'Быстрый доступ к объектам переуступки прямо с главного экрана.',
     installBtn: 'Установить',
@@ -92,9 +92,9 @@ const PROMPTS_I18N: Record<
       'ჩვენ ვზომავთ ვიზიტებს და რეკლამის ეფექტურობას მხოლოდ თქვენი თანხმობით. არაფერი იტვირთება თქვენს გადაწყვეტილებამდე.',
     allowBtn: 'დაშვება',
     declineBtn: 'უარყოფა',
-    privacyLink: 'კონფიденციალურობა',
+    privacyLink: 'კონფიდენციალურობა',
     languageWord: 'ენა:',
-    switchBtn: 'გადართვა',
+    switchBtn: 'Switch',
     pwaTitle: 'დააინსტალირეთ Aqar Exit აპლიკაცია',
     pwaSub: 'სწრაფი წვდომა ყველა შეთავაზებაზე თქვენი ტელეფონის ეკრანიდან.',
     installBtn: 'ინსტალაცია',
@@ -121,11 +121,12 @@ function shouldHidePwaBanner(): boolean {
   }
 }
 
-function snoozePwaBannerFor24Hours() {
+function snoozePwaBannerFor7Days() {
   if (typeof window === 'undefined') return
+  ;(window as any).__deferredPwaPrompt = null
   try {
-    const nextDay = Date.now() + 24 * 60 * 60 * 1000
-    localStorage.setItem(PWA_DISMISSED_UNTIL_KEY, String(nextDay))
+    const nextWeek = Date.now() + 7 * 24 * 60 * 60 * 1000
+    localStorage.setItem(PWA_DISMISSED_UNTIL_KEY, String(nextWeek))
     sessionStorage.setItem(PWA_SHOWN_IN_SESSION_KEY, 'dismissed')
   } catch {}
 }
@@ -194,18 +195,16 @@ export function FacebookPixel() {
   const [showManualPwaGuide, setShowManualPwaGuide] = useState(false)
   const [isIosDevice, setIsIosDevice] = useState(false)
 
-  // 1. فحص الكوكيز وحدث تثبيت التطبيق الأصلي
+  // 1. فحص الكوكيز وحدث تثبيت التطبيق
   useEffect(() => {
     setMounted(true)
 
     try {
-      // تنظيف المفاتيح القديمة التي كانت تمنع ظهور اللغة أو التثبيت
-      localStorage.removeItem('aqar_lang_prompt_dismissed_v2')
-      localStorage.removeItem('aqar_lang_prompt_dismissed')
-      localStorage.removeItem('aqar_pwa_prompt_dismissed_v2')
-      localStorage.removeItem('aqar_pwa_prompt_dismissed')
+      const savedConsent =
+        localStorage.getItem(CONSENT_STORAGE_KEY) ||
+        localStorage.getItem('aqar_cookie_consent_v2') ||
+        localStorage.getItem('aqar_cookie_consent')
 
-      const savedConsent = localStorage.getItem(CONSENT_STORAGE_KEY)
       if (!savedConsent) {
         setConsentStatus('pending')
         setShowConsentBanner(true)
@@ -245,11 +244,14 @@ export function FacebookPixel() {
 
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault()
+      if (shouldHidePwaBanner()) {
+        ;(window as any).__deferredPwaPrompt = null
+        setShowPwaBanner(false)
+        return
+      }
       ;(window as any).__deferredPwaPrompt = e
       setDeferredPwaPrompt(e)
-      if (!shouldHidePwaBanner()) {
-        setShowPwaBanner(true)
-      }
+      setShowPwaBanner(true)
     }
 
     const handleAppInstalled = () => {
@@ -263,10 +265,10 @@ export function FacebookPixel() {
     window.addEventListener('appinstalled', handleAppInstalled)
 
     const fallbackTimer = setTimeout(() => {
-      if (!isStandalone && !shouldHidePwaBanner()) {
+      if (!isStandalone && !shouldHidePwaBanner() && (ios || (window as any).__deferredPwaPrompt)) {
         setShowPwaBanner(true)
       }
-    }, 3000)
+    }, 3500)
 
     return () => {
       clearTimeout(fallbackTimer)
@@ -279,10 +281,13 @@ export function FacebookPixel() {
     }
   }, [])
 
-  // 2. فحص الدولة واللغة المقترحة مع Fallback ذكي لو كان الزائر بنفس لغة دولته
+  // 2. الاكتشاف الذكي للدولة واللغة (بنفس أسلوب Sivrce والمواقع العالمية بدون حلقة مفرغة)
   useEffect(() => {
     try {
-      if (sessionStorage.getItem(LANG_DISMISSED_SESSION_KEY) === '1') {
+      if (
+        localStorage.getItem(LANG_PROMPT_DISMISSED_KEY) === '1' ||
+        sessionStorage.getItem(LANG_PROMPT_DISMISSED_KEY) === '1'
+      ) {
         return
       }
     } catch {}
@@ -293,32 +298,43 @@ export function FacebookPixel() {
         const res = await fetch('/api/geo', { cache: 'no-store' })
         if (!res.ok) return
         const data = await res.json()
-        let suggested = data?.suggestedLocale as LocaleCode | undefined
-        const countryLabel =
-          data?.countryName?.[locale] ||
-          data?.countryName?.en ||
-          data?.countryCode ||
-          (locale === 'ar' ? 'مصر' : 'Egypt')
 
-        // إذا كانت لغة الموقع الحالية هي نفس لغة الدولة، نقترح اللغة البديلة (English <-> العربية) ليظهر الشريط كما طلبت
-        if (!suggested || suggested === locale) {
-          suggested = locale === 'ar' ? 'en' : 'ar'
+        const geoLocale = data?.suggestedLocale as LocaleCode | undefined
+        const countryLabel =
+          data?.countryName?.en ||
+          data?.countryName?.[locale] ||
+          data?.countryCode ||
+          'Egypt'
+
+        // فحص لغة هاتف/متصفح الزائر الفعلية كمساعد ذكي
+        const browserLang = (navigator.language || '').slice(0, 2).toLowerCase()
+        const validBrowserLocale: LocaleCode | null =
+          browserLang === 'ar' ||
+          browserLang === 'en' ||
+          browserLang === 'ru' ||
+          browserLang === 'ka'
+            ? (browserLang as LocaleCode)
+            : null
+
+        // الأولوية 1: إذا كانت لغة دولة الزائر مختلفة عن لغة الموقع الحالية (مثل Sivrce تماماً)
+        // الأولوية 2: إذا كانت لغة دولة الزائر تطابق الموقع، لكن هاتفه مضبوط على لغة أخرى مدعومة
+        let targetSuggestion: LocaleCode | null = null
+
+        if (geoLocale && geoLocale !== locale) {
+          targetSuggestion = geoLocale
+        } else if (validBrowserLocale && validBrowserLocale !== locale) {
+          targetSuggestion = validBrowserLocale
         }
 
-        if (active && SUPPORTED_LANGUAGES[suggested]) {
+        if (active && targetSuggestion && SUPPORTED_LANGUAGES[targetSuggestion]) {
           setGeoSuggestion({
             countryLabel,
-            suggestedLocale: suggested,
+            suggestedLocale: targetSuggestion,
           })
+        } else if (active) {
+          setGeoSuggestion(null)
         }
-      } catch {
-        if (active) {
-          setGeoSuggestion({
-            countryLabel: locale === 'ar' ? 'مصر' : 'Egypt',
-            suggestedLocale: locale === 'ar' ? 'en' : 'ar',
-          })
-        }
-      }
+      } catch {}
     }
 
     detectVisitorGeo()
@@ -337,6 +353,7 @@ export function FacebookPixel() {
     setShowConsentBanner(false)
     try {
       localStorage.setItem(CONSENT_STORAGE_KEY, decision)
+      localStorage.setItem('aqar_cookie_consent_v2', decision)
     } catch {}
   }
 
@@ -347,7 +364,8 @@ export function FacebookPixel() {
     if (!targetLang) return
 
     try {
-      sessionStorage.setItem(LANG_DISMISSED_SESSION_KEY, '1')
+      localStorage.setItem(LANG_PROMPT_DISMISSED_KEY, '1')
+      sessionStorage.setItem(LANG_PROMPT_DISMISSED_KEY, '1')
     } catch {}
 
     setGeoSuggestion(null)
@@ -361,12 +379,14 @@ export function FacebookPixel() {
   const handleDismissGeoSuggestion = () => {
     setGeoSuggestion(null)
     try {
-      sessionStorage.setItem(LANG_DISMISSED_SESSION_KEY, '1')
+      localStorage.setItem(LANG_PROMPT_DISMISSED_KEY, '1')
+      sessionStorage.setItem(LANG_PROMPT_DISMISSED_KEY, '1')
     } catch {}
   }
 
   const handleDismissPwaBanner = () => {
-    snoozePwaBannerFor24Hours()
+    snoozePwaBannerFor7Days()
+    setDeferredPwaPrompt(null)
     setShowManualPwaGuide(false)
     setShowPwaBanner(false)
   }
@@ -382,7 +402,7 @@ export function FacebookPixel() {
         if (choiceResult?.outcome === 'accepted') {
           markPwaInstalledPermanently()
         } else {
-          snoozePwaBannerFor24Hours()
+          snoozePwaBannerFor7Days()
         }
         ;(window as any).__deferredPwaPrompt = null
         setDeferredPwaPrompt(null)
@@ -457,7 +477,7 @@ export function FacebookPixel() {
           {posthogKey && (
             <Script id="posthog-init" strategy="afterInteractive">
               {`
-                !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==2&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.async=!0,p.src=s.api_host+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="capture identify alias people.set people.set_once set_config register register_once unregister opt_out_capturing has_opted_out_capturing opt_in_capturing reset isFeatureEnabled onFeatureFlags getFeatureFlag getFeatureFlagPayload reloadFeatureFlags group updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures getActiveMatchingSurveys getSurveys".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
+                !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.async=!0,p.src=s.api_host+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="capture identify alias people.set people.set_once set_config register register_once unregister opt_out_capturing has_opted_out_capturing opt_in_capturing reset isFeatureEnabled onFeatureFlags getFeatureFlag getFeatureFlagPayload reloadFeatureFlags group updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures getActiveMatchingSurveys getSurveys".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
                 posthog.init('${posthogKey}', { api_host: '${posthogHost}' });
               `}
             </Script>
@@ -470,20 +490,21 @@ export function FacebookPixel() {
           dir={dir}
           className="pointer-events-none fixed inset-x-3 bottom-4 z-[999] mx-auto flex max-w-md flex-col gap-2.5 sm:bottom-6"
         >
-          {/* 1. شريط الدولة وتبديل اللغة */}
+          {/* 1. شريط الدولة وتبديل اللغة (بنفس تصميم Sivrce النظيف في الصورة) */}
           {geoSuggestion && !showConsentBanner && (
-            <div className="pointer-events-auto flex items-center justify-between gap-2.5 rounded-[22px] border border-slate-200/90 bg-white/98 px-4 py-3 shadow-[0_14px_38px_rgba(15,29,64,0.16)] backdrop-blur-md">
-              <div className="flex min-w-0 items-center gap-2.5">
+            <div
+              dir="ltr"
+              className="pointer-events-auto flex items-center justify-between gap-2 rounded-[22px] border border-slate-200/90 bg-white/98 px-3.5 py-2.5 shadow-[0_14px_38px_rgba(15,29,64,0.16)] backdrop-blur-md sm:px-4 sm:py-3"
+            >
+              <div className="flex min-w-0 items-center gap-2">
                 <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-blue-50 text-[#2563eb]">
                   <Globe className="size-4" />
                 </span>
                 <p className="truncate text-xs font-extrabold text-[#0f1d40] sm:text-[13px]">
                   <span>{geoSuggestion.countryLabel}</span>
                   <span className="mx-1 text-slate-300">·</span>
-                  <span className="font-semibold text-slate-500">
-                    {pT.languageWord}{' '}
-                  </span>
-                  <span>
+                  <span className="font-medium text-slate-500">Language: </span>
+                  <span className="text-[#0f1d40]">
                     {LANGUAGE_NAMES_DISPLAY[geoSuggestion.suggestedLocale]}
                   </span>
                 </p>
@@ -493,9 +514,9 @@ export function FacebookPixel() {
                 <button
                   type="button"
                   onClick={handleSwitchSuggestedLanguage}
-                  className="rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-4 py-1.5 text-xs font-extrabold text-white shadow-xs transition hover:opacity-95"
+                  className="rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-4 py-1.5 text-xs font-extrabold text-white shadow-xs transition hover:opacity-95 active:scale-95"
                 >
-                  {pT.switchBtn}
+                  Switch
                 </button>
                 <button
                   type="button"
@@ -509,8 +530,8 @@ export function FacebookPixel() {
             </div>
           )}
 
-          {/* 2. شريط تثبيت الموقع كتطبيق (بدون تكرار النص مرتين) */}
-          {showPwaBanner && !showConsentBanner && (
+          {/* 2. شريط تثبيت الموقع كتطبيق (PWA) */}
+          {showPwaBanner && !showConsentBanner && !geoSuggestion && (
             <div className="pointer-events-auto rounded-[22px] border border-slate-200/90 bg-white/98 p-4 shadow-[0_14px_38px_rgba(15,29,64,0.16)] backdrop-blur-md">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3 text-start">

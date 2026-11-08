@@ -1,4 +1,4 @@
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import {
   DICTIONARIES,
@@ -6,6 +6,7 @@ import {
   normalizeLocale,
   type CountryCode,
   type Dictionary,
+  type LocaleCode,
 } from './i18n-config'
 import {
   extractUserIdFromCookie,
@@ -62,6 +63,45 @@ export const DEFAULT_SITE_SETTINGS: GlobalSiteSettings = {
   emailNotifications: true,
 }
 
+/**
+ * تحديد اللغة الذكية للزائر:
+ * 1. إذا كان لديه Cookie محفوظ باختياره السابق -> نعتمد اختياره.
+ * 2. إذا كان زائراً جديداً -> نقرأ لغة هاتفه/متصفحه (Accept-Language):
+ *    - عربي -> ar
+ *    - روسي -> ru
+ *    - جورجي -> ka
+ *    - أي لغة أخرى عالمياً -> en (الإنجليزية كلغة افتراضية دولية)
+ */
+async function resolveSmartServerLocale(): Promise<LocaleCode> {
+  const cookieStore = await cookies()
+  const savedCookieLocale = cookieStore.get('locale')?.value
+
+  if (savedCookieLocale) {
+    return normalizeLocale(savedCookieLocale)
+  }
+
+  try {
+    const headerStore = await headers()
+    const acceptLang = (headerStore.get('accept-language') || '').toLowerCase()
+    const primaryTag = acceptLang.split(',')[0]?.trim() || ''
+
+    if (primaryTag.startsWith('ar')) return 'ar'
+    if (primaryTag.startsWith('ru')) return 'ru'
+    if (primaryTag.startsWith('ka')) return 'ka'
+    if (primaryTag.startsWith('en')) return 'en'
+
+    // فحص بقية اللغات المفضلة في المتصفح إن وجدت
+    if (acceptLang.includes('ar')) return 'ar'
+    if (acceptLang.includes('ru')) return 'ru'
+    if (acceptLang.includes('ka')) return 'ka'
+
+    // اللغة العالمية الافتراضية لأي متصفح غير عربي/روسي/جورجي هي الإنجليزية
+    return 'en'
+  } catch {
+    return 'en'
+  }
+}
+
 export async function getServerDictionary(
   localeOverride?: string
 ): Promise<Dictionary> {
@@ -69,14 +109,13 @@ export async function getServerDictionary(
     const clean = normalizeLocale(localeOverride)
     return DICTIONARIES[clean] || DICTIONARIES.ar
   }
-  const cookieStore = await cookies()
-  const locale = normalizeLocale(cookieStore.get('locale')?.value)
+  const locale = await resolveSmartServerLocale()
   return DICTIONARIES[locale] || DICTIONARIES.ar
 }
 
 export async function getServerI18n() {
   const cookieStore = await cookies()
-  const locale = normalizeLocale(cookieStore.get('locale')?.value)
+  const locale = await resolveSmartServerLocale()
   // تثبيت الدولة النشطة على جورجيا (GE)
   const country: CountryCode = 'GE'
   const dir = locale === 'ar' ? ('rtl' as const) : ('ltr' as const)

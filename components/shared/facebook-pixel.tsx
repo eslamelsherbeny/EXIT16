@@ -12,14 +12,17 @@ const CONSENT_STORAGE_KEY = 'aqar_cookie_consent_v2'
 const LEGACY_CONSENT_KEY = 'aqar_cookie_consent'
 const LANG_PROMPT_DISMISSED_KEY = 'aqar_lang_prompt_dismissed_v2'
 const LEGACY_LANG_DISMISSED_KEY = 'aqar_lang_prompt_dismissed'
-const PWA_PROMPT_DISMISSED_KEY = 'aqar_pwa_prompt_dismissed_v2'
-const LEGACY_PWA_DISMISSED_KEY = 'aqar_pwa_prompt_dismissed'
+
+// مفتاح جديد يعتمد على الوقت (24 ساعة) بدلاً من القفل الأبدي
+const PWA_DISMISSED_UNTIL_KEY = 'aqar_pwa_dismissed_until'
+const PWA_SHOWN_IN_SESSION_KEY = 'aqar_pwa_shown_session'
+const PWA_INSTALLED_KEY = 'aqar_pwa_installed_done'
 
 const LANGUAGE_NAMES_DISPLAY: Record<LocaleCode, string> = {
-  ar: 'العربية (Arabic)',
+  ar: 'العربية',
   en: 'English',
-  ru: 'Русский (Russian)',
-  ka: 'ქართული (Georgian)',
+  ru: 'Русский',
+  ka: 'ქართული',
 }
 
 const PROMPTS_I18N: Record<
@@ -41,7 +44,7 @@ const PROMPTS_I18N: Record<
   ar: {
     consentText:
       'نحن نقيس الزيارات وأداء الإعلانات فقط إذا سمحت بذلك. لا يتم تحميل أي أدوات تتبع قبل قرارك — يمكنك تغيير اختيارك في أي وقت من الفوتر.',
-    allowBtn: 'سماح (Allow)',
+    allowBtn: 'سماح',
     declineBtn: 'رفض',
     privacyLink: 'سياسة الخصوصية',
     languageWord: 'اللغة المقترحة:',
@@ -106,26 +109,49 @@ const PROMPTS_I18N: Record<
   },
 }
 
-function isPwaPromptAlreadyDismissed(): boolean {
+// فحص ما إذا كان الإشعار مؤجلاً مؤقتاً أو تم تثبيت التطبيق بالفعل
+function shouldHidePwaBanner(): boolean {
   if (typeof window === 'undefined') return true
   try {
-    return (
-      localStorage.getItem(PWA_PROMPT_DISMISSED_KEY) === '1' ||
-      localStorage.getItem(LEGACY_PWA_DISMISSED_KEY) === '1' ||
-      sessionStorage.getItem(PWA_PROMPT_DISMISSED_KEY) === '1'
+    // مسح المفاتيح القديمة التي كانت تقفل الإشعار للأبد في النسخة السابقة
+    localStorage.removeItem('aqar_pwa_prompt_dismissed_v2')
+    localStorage.removeItem('aqar_pwa_prompt_dismissed')
+
+    if (localStorage.getItem(PWA_INSTALLED_KEY) === '1') return true
+
+    // إذا ظهر للمستخدم في هذه الجلسة وأغلقه، لا نزعجه مع كل Refresh
+    if (sessionStorage.getItem(PWA_SHOWN_IN_SESSION_KEY) === 'dismissed') {
+      return true
+    }
+
+    const dismissedUntil = Number(
+      localStorage.getItem(PWA_DISMISSED_UNTIL_KEY) || '0'
     )
+    if (dismissedUntil > Date.now()) {
+      return true
+    }
+    return false
   } catch {
     return false
   }
 }
 
-function markPwaPromptDismissedForever() {
+// تأجيل الإشعار لمدة 24 ساعة فقط عند إغلاقه (بدلاً من إخفائه للأبد)
+function snoozePwaBannerFor24Hours() {
+  if (typeof window === 'undefined') return
+  try {
+    const nextDay = Date.now() + 24 * 60 * 60 * 1000
+    localStorage.setItem(PWA_DISMISSED_UNTIL_KEY, String(nextDay))
+    sessionStorage.setItem(PWA_SHOWN_IN_SESSION_KEY, 'dismissed')
+  } catch {}
+}
+
+function markPwaInstalledPermanently() {
   if (typeof window === 'undefined') return
   ;(window as any).__deferredPwaPrompt = null
   try {
-    localStorage.setItem(PWA_PROMPT_DISMISSED_KEY, '1')
-    localStorage.setItem(LEGACY_PWA_DISMISSED_KEY, '1')
-    sessionStorage.setItem(PWA_PROMPT_DISMISSED_KEY, '1')
+    localStorage.setItem(PWA_INSTALLED_KEY, '1')
+    sessionStorage.setItem(PWA_SHOWN_IN_SESSION_KEY, 'dismissed')
   } catch {}
 }
 
@@ -184,7 +210,7 @@ export function FacebookPixel() {
   const [showManualPwaGuide, setShowManualPwaGuide] = useState(false)
   const [isIosDevice, setIsIosDevice] = useState(false)
 
-  // 1. فحص الكوكيز وحدث تثبيت التطبيق مرة واحدة فقط عند تحميل التطبيق
+  // 1. فحص الكوكيز وحدث تثبيت التطبيق
   useEffect(() => {
     setMounted(true)
 
@@ -211,23 +237,19 @@ export function FacebookPixel() {
       window.matchMedia('(display-mode: standalone)').matches ||
       (window.navigator as any).standalone === true
 
-    if (isStandalone || isPwaPromptAlreadyDismissed()) {
+    if (isStandalone || shouldHidePwaBanner()) {
       setShowPwaBanner(false)
       return
     }
 
+    // إذا كان الحدث جاهزاً بالفعل من layout.tsx
     if ((window as any).__deferredPwaPrompt) {
       setDeferredPwaPrompt((window as any).__deferredPwaPrompt)
-      setShowPwaBanner(true)
-    } else if (ios) {
       setShowPwaBanner(true)
     }
 
     const syncEarlyPrompt = () => {
-      if (isPwaPromptAlreadyDismissed()) {
-        setShowPwaBanner(false)
-        return
-      }
+      if (shouldHidePwaBanner()) return
       if ((window as any).__deferredPwaPrompt) {
         setDeferredPwaPrompt((window as any).__deferredPwaPrompt)
         setShowPwaBanner(true)
@@ -236,18 +258,15 @@ export function FacebookPixel() {
 
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault()
-      if (isPwaPromptAlreadyDismissed()) {
-        ;(window as any).__deferredPwaPrompt = null
-        setShowPwaBanner(false)
-        return
-      }
       ;(window as any).__deferredPwaPrompt = e
       setDeferredPwaPrompt(e)
-      setShowPwaBanner(true)
+      if (!shouldHidePwaBanner()) {
+        setShowPwaBanner(true)
+      }
     }
 
     const handleAppInstalled = () => {
-      markPwaPromptDismissedForever()
+      markPwaInstalledPermanently()
       setDeferredPwaPrompt(null)
       setShowPwaBanner(false)
     }
@@ -256,7 +275,15 @@ export function FacebookPixel() {
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
     window.addEventListener('appinstalled', handleAppInstalled)
 
+    // إظهار البانر بعد 3.5 ثانية حتى لو تأخر المتصفح في إرسال beforeinstallprompt
+    const fallbackTimer = setTimeout(() => {
+      if (!isStandalone && !shouldHidePwaBanner()) {
+        setShowPwaBanner(true)
+      }
+    }, 3500)
+
     return () => {
+      clearTimeout(fallbackTimer)
       window.removeEventListener('pwa-prompt-ready', syncEarlyPrompt)
       window.removeEventListener(
         'beforeinstallprompt',
@@ -354,8 +381,7 @@ export function FacebookPixel() {
   }
 
   const handleDismissPwaBanner = () => {
-    markPwaPromptDismissedForever()
-    setDeferredPwaPrompt(null)
+    snoozePwaBannerFor24Hours()
     setShowManualPwaGuide(false)
     setShowPwaBanner(false)
   }
@@ -367,9 +393,13 @@ export function FacebookPixel() {
     if (activePrompt && typeof activePrompt.prompt === 'function') {
       try {
         await activePrompt.prompt()
-        await activePrompt.userChoice.catch(() => null)
-        // حفظ قرار المستخدم (سواء ثبت التطبيق أو ضغط إلغاء) لمنع تكرار الإشعار في الصفحات الأخرى
-        markPwaPromptDismissedForever()
+        const choiceResult = await activePrompt.userChoice.catch(() => null)
+        if (choiceResult?.outcome === 'accepted') {
+          markPwaInstalledPermanently()
+        } else {
+          snoozePwaBannerFor24Hours()
+        }
+        ;(window as any).__deferredPwaPrompt = null
         setDeferredPwaPrompt(null)
         setShowPwaBanner(false)
       } catch {
@@ -442,7 +472,7 @@ export function FacebookPixel() {
           {posthogKey && (
             <Script id="posthog-init" strategy="afterInteractive">
               {`
-                !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.async=!0,p.src=s.api_host+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="capture identify alias people.set people.set_once set_config register register_once unregister opt_out_capturing has_opted_out_capturing opt_in_capturing reset isFeatureEnabled onFeatureFlags getFeatureFlag getFeatureFlagPayload reloadFeatureFlags group updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures getActiveMatchingSurveys getSurveys".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
+                !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==2&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.async=!0,p.src=s.api_host+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="capture identify alias people.set people.set_once set_config register register_once unregister opt_out_capturing has_opted_out_capturing opt_in_capturing reset isFeatureEnabled onFeatureFlags getFeatureFlag getFeatureFlagPayload reloadFeatureFlags group updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures getActiveMatchingSurveys getSurveys".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
                 posthog.init('${posthogKey}', { api_host: '${posthogHost}' });
               `}
             </Script>

@@ -75,15 +75,6 @@ export default async function RootLayout({
               window.__deferredPwaPrompt = null;
               window.addEventListener('beforeinstallprompt', function(e) {
                 e.preventDefault();
-                try {
-                  if (
-                    localStorage.getItem('aqar_pwa_prompt_dismissed_v2') === '1' ||
-                    localStorage.getItem('aqar_pwa_prompt_dismissed') === '1' ||
-                    sessionStorage.getItem('aqar_pwa_prompt_dismissed_v2') === '1'
-                  ) {
-                    return;
-                  }
-                } catch (err) {}
                 window.__deferredPwaPrompt = e;
                 window.dispatchEvent(new Event('pwa-prompt-ready'));
               });

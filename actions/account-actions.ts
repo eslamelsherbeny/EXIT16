@@ -653,6 +653,25 @@ export async function toggleSellerUnitStatusAction(payload: {
     const unit = await verifyUnitOwnership(supabase, payload.unitId, user)
     if (!unit) return { success: false, error: msg.unitNotFound }
 
+    // منع تغيير حالة الوحدة إذا كانت متفقاً عليها (transferring) أو مباعة (sold) أو عليها عرض مقبول
+    const cleanSt = String(unit.status || '').trim().toLowerCase()
+    const { data: acceptedDeal } = await supabase
+      .from('property_offers')
+      .select('id')
+      .eq('property_id', payload.unitId)
+      .eq('status', 'accepted')
+      .limit(1)
+      .maybeSingle()
+
+    if (cleanSt === 'transferring' || cleanSt === 'sold' || acceptedDeal) {
+      return {
+        success: false,
+        error:
+          msg.unitLockedByDeal ||
+          'لا يمكن إيقاف أو تعديل حالة الوحدة أثناء إجراءات التنازل مع الإدارة.',
+      }
+    }
+
     if (payload.action === 'pause') {
       const { error } = await supabase
         .from('sell_requests')
@@ -720,6 +739,25 @@ export async function deleteUnitBySellerAction(unitId: string) {
 
     const unit = await verifyUnitOwnership(supabase, unitId, user)
     if (!unit) return { success: false, error: msg.unitNotFound }
+
+    // منع البائع من حذف الوحدة بعد الاتفاق مع المشتري وقفل الصفقة
+    const cleanSt = String(unit.status || '').trim().toLowerCase()
+    const { data: acceptedDeal } = await supabase
+      .from('property_offers')
+      .select('id')
+      .eq('property_id', unitId)
+      .eq('status', 'accepted')
+      .limit(1)
+      .maybeSingle()
+
+    if (cleanSt === 'transferring' || cleanSt === 'sold' || acceptedDeal) {
+      return {
+        success: false,
+        error:
+          msg.unitLockedByDeal ||
+          'لا يمكن حذف الوحدة بعد قبول العرض وبدء إجراءات التنازل مع الإدارة.',
+      }
+    }
 
     const nowIso = new Date().toISOString()
     const noteText = `${msg.deletedBySellerNote} ${new Date().toLocaleDateString('en-GB')}`

@@ -196,7 +196,7 @@ export default function PropertyDetailsPage() {
     }
   }
 
-  useEffect(() => {
+useEffect(() => {
     async function fetchPropertyDetails() {
       setLoading(true)
       try {
@@ -214,6 +214,19 @@ export default function PropertyDetailsPage() {
         const supabase = createBrowserClient(
           process.env.NEXT_PUBLIC_SUPABASE_URL!,
           process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        )
+
+        // جلب جميع الوحدات المتفق عليها بين البائع والمشتري
+        const { data: acceptedOffersList } = await supabase
+          .from('property_offers')
+          .select('id, property_id, buyer_user_id')
+          .eq('status', 'accepted')
+
+        const lockedUnitIds = new Set(
+          (acceptedOffersList || []).map((o: any) => String(o.property_id))
+        )
+        const acceptedOfferOnThisUnit = (acceptedOffersList || []).find(
+          (o: any) => String(o.property_id) === String(rawId)
         )
 
         if (rawId) {
@@ -237,18 +250,38 @@ export default function PropertyDetailsPage() {
           }
 
           if (dbUnit) {
-            const isPublicStatus = [
-              'active',
-              'approved',
-              'published',
-              'offer_received',
-            ].includes(String(dbUnit.status || '').toLowerCase())
+            const cleanSt = String(dbUnit.status || '').toLowerCase()
+            const isLockedByDeal =
+              cleanSt === 'transferring' ||
+              cleanSt === 'sold' ||
+              Boolean(acceptedOfferOnThisUnit)
+
+            // لا تعتبر متاحة للعامة إذا تم الاتفاق عليها (تفتح فقط للبائع أو المشتري الفائز أو الأدمن)
+            const isPublicStatus =
+              ['active', 'approved', 'published', 'offer_received'].includes(
+                cleanSt
+              ) && !isLockedByDeal
+
             const isOwnerViewing = Boolean(
               loggedId && dbUnit.user_id && dbUnit.user_id === loggedId
             )
+            const isAcceptedBuyerViewing = Boolean(
+              loggedId &&
+                acceptedOfferOnThisUnit?.buyer_user_id &&
+                String(acceptedOfferOnThisUnit.buyer_user_id) ===
+                  String(loggedId)
+            )
 
-            if (isPublicStatus || isOwnerViewing || isStaff) {
-              setUnitRow(dbUnit)
+            if (
+              isPublicStatus ||
+              isOwnerViewing ||
+              isAcceptedBuyerViewing ||
+              isStaff
+            ) {
+              setUnitRow({
+                ...dbUnit,
+                __isLockedByDeal: isLockedByDeal,
+              })
               setLiveViewsCount(Math.max(1, Number(dbUnit.views_count) || 1))
 
               if (!isOwnerViewing) {
@@ -324,7 +357,11 @@ export default function PropertyDetailsPage() {
         if (otherUnits && otherUnits.length > 0) {
           setRawSimilarRows(
             otherUnits
-              .filter((u: any) => !isNonGeorgianLegacyArea(u.area))
+              .filter(
+                (u: any) =>
+                  !isNonGeorgianLegacyArea(u.area) &&
+                  !lockedUnitIds.has(String(u.id))
+              )
               .slice(0, 6)
           )
         }

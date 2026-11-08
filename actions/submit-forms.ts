@@ -1734,6 +1734,36 @@ export async function submitSellRequest(
         return { success: false, error: msg.sessionExpired }
       }
 
+      const prevCleanStatus = String(prevUnit?.status || '')
+        .trim()
+        .toLowerCase()
+      const role = String(sessionUser.role || 'user').trim().toLowerCase()
+      const isStaff =
+        role === 'admin' || role === 'moderator' || role === 'sales'
+
+      const { data: acceptedDealOnUnit } = await supabase
+        .from('property_offers')
+        .select('id')
+        .eq('property_id', existingUnitId)
+        .eq('status', 'accepted')
+        .limit(1)
+        .maybeSingle()
+
+      const isLockedByDeal =
+        prevCleanStatus === 'transferring' ||
+        prevCleanStatus === 'sold' ||
+        Boolean(acceptedDealOnUnit)
+
+      // منع البائع من تعديل أسعار أو مواصفات الوحدة بعد الاتفاق النهائي مع المشتري
+      if (isLockedByDeal && !isStaff) {
+        return {
+          success: false,
+          error:
+            msg.unitLockedByDeal ||
+            'لا يمكن تعديل بيانات الوحدة بعد قبول العرض وبدء إجراءات التنازل مع الإدارة.',
+        }
+      }
+
       const payload = buildUnitPayloadWithMetaBackup(
         formData,
         prevUnit?.documents,
@@ -1752,15 +1782,12 @@ export async function submitSellRequest(
         sessionUser.email ||
         null
       payload.is_original_owner = true
-      payload.status = 'pending'
+      payload.status = isLockedByDeal ? prevUnit.status : 'pending'
       payload.documents.__unit_meta = {
         ...(payload.documents.__unit_meta || {}),
         email_verified: true,
       }
 
-      const prevCleanStatus = String(prevUnit?.status || '')
-        .trim()
-        .toLowerCase()
       const wasPreviouslySubmitted =
         prevCleanStatus !== 'draft_unverified' &&
         Boolean(
@@ -1820,7 +1847,6 @@ export async function submitSellRequest(
         orderRef: generateOrderRef(existingUnitId),
       }
     }
-
     const payload = buildUnitPayloadWithMetaBackup(formData, null, null)
     payload.name = text(formData, 'name') || sessionUser.name || ''
     payload.phone =

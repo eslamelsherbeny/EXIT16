@@ -74,7 +74,14 @@ export async function getAccountOffersDataAction() {
     supabase
       .from('sell_requests')
       .select('*')
-      .in('status', ['active', 'approved', 'published', 'offer_received'])
+      .in('status', [
+        'active',
+        'approved',
+        'published',
+        'offer_received',
+        'transferring',
+        'sold',
+      ])
       .order('is_featured', { ascending: false })
       .order('created_at', { ascending: false }),
     supabase
@@ -88,6 +95,13 @@ export async function getAccountOffersDataAction() {
     .filter(Boolean)
   const myBuys = (myBuysData || []) as MatchableBuyer[]
   const allOffers = ((offersData || []) as any[]).map(normalizeOfferRecord)
+
+  // جميع الوحدات التي تم الاتفاق عليها بين البائع والمشتري (status = 'accepted')
+  const lockedByAcceptedOfferUnitIds = new Set(
+    allOffers
+      .filter((o) => o.status === 'accepted')
+      .map((o) => String(o.property_id))
+  )
 
   const myUnitIds = new Set(mySells.map((u) => String(u.id)))
   const myLeadIds = new Set(myBuys.map((b) => String(b.id)))
@@ -180,6 +194,7 @@ export async function getAccountOffersDataAction() {
       (o) =>
         o.status === 'recommended' &&
         !myUnitIds.has(String(o.property_id)) &&
+        !lockedByAcceptedOfferUnitIds.has(String(o.property_id)) &&
         (String(o.buyer_user_id || '') === String(profile.id) ||
           (o.lead_id && myLeadIds.has(String(o.lead_id))))
     )
@@ -187,6 +202,7 @@ export async function getAccountOffersDataAction() {
       adminRecOffers.map((o) => [String(o.property_id), String(o.id)])
     )
 
+    // استبعاد أي وحدة متفق عليها (lockedByAcceptedOfferUnitIds) أو في حالة transferring أو sold من الرادار الذكي
     const candidateMarketUnits = ((activeMarketData || []) as any[])
       .map((u) => sanitizeUnitForPublicOrBuyer(u)!)
       .filter(
@@ -196,6 +212,7 @@ export async function getAccountOffersDataAction() {
             u.status === 'approved' ||
             u.status === 'published' ||
             u.status === 'offer_received') &&
+          !lockedByAcceptedOfferUnitIds.has(String(u.id)) &&
           !isNonGeorgianLegacyArea(u.area) &&
           !myUnitIds.has(String(u.id)) &&
           !alreadyOfferedUnitIds.has(String(u.id))
@@ -280,7 +297,6 @@ export async function submitBuyerOfferAction(payload: {
       }
     }
 
-    // تأمين حسابات المستخدمين: الزائر غير المسجل لا يمكنه انتحال حساب موجود بمجرد كتابة رقم هاتفه بدون جلسة موثقة
     if (!sessionId && cleanGuestPhone) {
       const { data: existingUserByPhone } = await supabase
         .from('users')
@@ -348,7 +364,36 @@ export async function submitBuyerOfferAction(payload: {
       }
     }
 
-    if (unit.status === 'sold' || unit.status === 'deleted_by_seller') {
+    const cleanUnitStatus = String(unit.status || '').trim().toLowerCase()
+    if (
+      cleanUnitStatus === 'sold' ||
+      cleanUnitStatus === 'transferring' ||
+      cleanUnitStatus === 'deleted_by_seller' ||
+      cleanUnitStatus === 'paused_by_seller'
+    ) {
+      return { success: false, error: oDict.errUnitAlreadyLocked }
+    }
+
+    // فحص حاسم: إذا كان هناك عرض مقبول (accepted) بالفعل على هذه الوحدة، نمنع أي مشتري آخر من تقديم عرض عليها
+    const { data: alreadyAcceptedDeal } = await supabase
+      .from('property_offers')
+      .select('id, buyer_user_id')
+      .eq('property_id', unit.id)
+      .eq('status', 'accepted')
+      .limit(1)
+      .maybeSingle()
+
+    if (alreadyAcceptedDeal) {
+      if (
+        sessionId &&
+        String(alreadyAcceptedDeal.buyer_user_id || '') === String(sessionId)
+      ) {
+        return {
+          success: true,
+          offerId: String(alreadyAcceptedDeal.id),
+          offerRef: makeOfferRefCode(String(alreadyAcceptedDeal.id)),
+        }
+      }
       return { success: false, error: oDict.errUnitAlreadyLocked }
     }
 
@@ -428,7 +473,6 @@ export async function submitBuyerOfferAction(payload: {
       reasonsList.push(`💬 ${payload.buyerNotes.trim().slice(0, 180)}`)
     }
 
-    // لا يُعتبر المشتري موثقاً كأدمن إلا إذا كان داخلاً بجلسة موقعة حقيقية
     const isBuyerAlreadyVerified = Boolean(
       authenticatedUser &&
         (authenticatedUser.role === 'admin' ||
@@ -630,11 +674,12 @@ export async function respondToOfferBySellerAction(payload: {
         .update({ status: 'unit_locked' })
         .eq('property_id', unit.id)
         .neq('id', offer.id)
-        .in('status', ['pending_seller', 'counter_offered'])
+        .in('status', ['pending_admin', 'pending_seller', 'counter_offered'])
 
+      // تحويل حالة الوحدة إلى transferring لإخفائها فوراً من قوائم الفرص العامة بعد اتفاق البائع والمشتري
       await supabase
         .from('sell_requests')
-        .update({ status: 'offer_received' })
+        .update({ status: 'transferring' })
         .eq('id', unit.id)
 
       if (offer.lead_id) {
@@ -716,17 +761,29 @@ export async function respondToOfferBySellerAction(payload: {
 
       const { data: remainingOffers } = await supabase
         .from('property_offers')
-        .select('id')
+        .select('id, status')
         .eq('property_id', unit.id)
         .in('status', ['pending_seller', 'counter_offered', 'accepted'])
 
+      const stillHasAccepted = (remainingOffers || []).some(
+        (r: any) => r.status === 'accepted'
+      )
+
       if (!remainingOffers || remainingOffers.length === 0) {
-        if (unit.status === 'offer_received') {
+        if (
+          unit.status === 'offer_received' ||
+          unit.status === 'transferring'
+        ) {
           await supabase
             .from('sell_requests')
             .update({ status: 'active' })
             .eq('id', unit.id)
         }
+      } else if (!stillHasAccepted && unit.status === 'transferring') {
+        await supabase
+          .from('sell_requests')
+          .update({ status: 'offer_received' })
+          .eq('id', unit.id)
       }
     }
 
@@ -774,11 +831,26 @@ export async function respondToCounterOfferByBuyerAction(payload: {
       .eq('id', offer.property_id)
       .maybeSingle()
 
-    if (!unit || unit.status === 'sold') {
+    if (!unit || unit.status === 'sold' || unit.status === 'transferring') {
       return { success: false, error: oDict.errUnitAlreadyLocked }
     }
 
     if (payload.decision === 'accept') {
+      const { data: alreadyAccepted } = await supabase
+        .from('property_offers')
+        .select('id')
+        .eq('property_id', unit.id)
+        .eq('status', 'accepted')
+        .neq('id', offer.id)
+        .limit(1)
+
+      if (alreadyAccepted && alreadyAccepted.length > 0) {
+        return {
+          success: false,
+          error: oDict.errUnitAlreadyLocked,
+        }
+      }
+
       const agreedAmount = Number(offer.counter_cash || offer.offered_cash)
 
       await supabase
@@ -795,11 +867,12 @@ export async function respondToCounterOfferByBuyerAction(payload: {
         .update({ status: 'unit_locked' })
         .eq('property_id', unit.id)
         .neq('id', offer.id)
-        .in('status', ['pending_seller', 'counter_offered'])
+        .in('status', ['pending_admin', 'pending_seller', 'counter_offered'])
 
+      // تحويل حالة الوحدة إلى transferring لإخفائها فوراً من العرض العام بعد قبول المشتري للسعر المضاد
       await supabase
         .from('sell_requests')
-        .update({ status: 'offer_received' })
+        .update({ status: 'transferring' })
         .eq('id', unit.id)
 
       if (offer.lead_id) {
@@ -1015,6 +1088,8 @@ export async function adminManageOfferLifecycleAction(payload: {
         .update({ status: 'sold' })
         .eq('id', unit.id)
     } else if (payload.action === 'reject_offer') {
+      const wasAccepted = offer.status === 'accepted'
+
       await supabase
         .from('property_offers')
         .update({
@@ -1023,6 +1098,13 @@ export async function adminManageOfferLifecycleAction(payload: {
           updated_at: new Date().toISOString(),
         })
         .eq('id', offer.id)
+
+      if (wasAccepted && unit.status === 'transferring') {
+        await supabase
+          .from('sell_requests')
+          .update({ status: 'active' })
+          .eq('id', unit.id)
+      }
     }
 
     revalidateAllOfferPaths()
@@ -1058,6 +1140,10 @@ export async function adminSendRecommendationAction(payload: {
     ])
 
     if (!unit || !lead) return { success: false, error: oDict.errUnitNotFound }
+
+    if (unit.status === 'transferring' || unit.status === 'sold') {
+      return { success: false, error: oDict.errUnitAlreadyLocked }
+    }
 
     if (
       isSelfDealOffer(
@@ -1148,6 +1234,10 @@ export async function adminSendBulkRecommendationsAction(payload: {
       return { success: false, error: oDict.errUnitNotFound, sentCount: 0 }
     }
 
+    if (unit.status === 'transferring' || unit.status === 'sold') {
+      return { success: false, error: oDict.errUnitAlreadyLocked, sentCount: 0 }
+    }
+
     let sentCount = 0
     for (const lead of allLeads) {
       if (
@@ -1203,6 +1293,10 @@ export async function adminCreateOfficialOfferAction(payload: {
     ])
 
     if (!unit || !lead) return { success: false, error: oDict.errUnitNotFound }
+
+    if (unit.status === 'transferring' || unit.status === 'sold') {
+      return { success: false, error: oDict.errUnitAlreadyLocked }
+    }
 
     if (
       isSelfDealOffer(

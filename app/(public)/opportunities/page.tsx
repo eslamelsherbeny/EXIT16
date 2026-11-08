@@ -587,7 +587,7 @@ export default function OpportunitiesPage() {
     })
   }
 
-  useEffect(() => {
+ useEffect(() => {
     async function loadApprovedProperties() {
       setLoading(true)
       try {
@@ -596,13 +596,24 @@ export default function OpportunitiesPage() {
           process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
         )
 
-        const primaryRes = await supabase
-          .from('sell_requests')
-          .select(PUBLIC_SAFE_UNIT_COLUMNS)
-          .in('status', ['active', 'approved', 'published', 'offer_received'])
-          .order('is_featured', { ascending: false })
-          .order('created_at', { ascending: false })
-          .limit(5000)
+        const [primaryRes, acceptedOffersRes] = await Promise.all([
+          supabase
+            .from('sell_requests')
+            .select(PUBLIC_SAFE_UNIT_COLUMNS)
+            .in('status', ['active', 'approved', 'published', 'offer_received'])
+            .order('is_featured', { ascending: false })
+            .order('created_at', { ascending: false })
+            .limit(5000),
+          supabase
+            .from('property_offers')
+            .select('property_id')
+            .eq('status', 'accepted'),
+        ])
+
+        // جمع أرقام الوحدات التي اتفق عليها البائع والمشتري بالفعل
+        const lockedUnitIds = new Set(
+          (acceptedOffersRes.data || []).map((o: any) => String(o.property_id))
+        )
 
         let rows: any[] | null = primaryRes.data as any[] | null
         let queryError = primaryRes.error
@@ -624,7 +635,14 @@ export default function OpportunitiesPage() {
               const isValidUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(
                 String(row?.id || '')
               )
-              return isValidUuid && !isNonGeorgianLegacyArea(row.area)
+              const cleanSt = String(row?.status || '').toLowerCase()
+              return (
+                isValidUuid &&
+                cleanSt !== 'transferring' &&
+                cleanSt !== 'sold' &&
+                !lockedUnitIds.has(String(row.id)) &&
+                !isNonGeorgianLegacyArea(row.area)
+              )
             })
           )
         }

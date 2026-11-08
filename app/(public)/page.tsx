@@ -57,19 +57,47 @@ export default async function HomePage() {
 
   try {
     const supabase = await getSupabase()
-    const { data: units } = await supabase
-      .from('sell_requests')
-      .select('*')
-      .in('status', ['active', 'approved', 'published', 'offer_received'])
-      .order('is_featured', { ascending: false })
-      .order('created_at', { ascending: false })
+    const [{ data: units }, { data: acceptedOffers }] = await Promise.all([
+      supabase
+        .from('sell_requests')
+        .select('*')
+        .in('status', ['active', 'approved', 'published', 'offer_received'])
+        .order('is_featured', { ascending: false })
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('property_offers')
+        .select('property_id')
+        .eq('status', 'accepted'),
+    ])
+
+    const lockedUnitIds = new Set(
+      (acceptedOffers || []).map((o: any) => String(o.property_id))
+    )
 
     if (units && units.length > 0) {
-      // فلترة رسمية: استبعاد أي صف بدون UUID حقيقي أو من خارج جورجيا
+      // مزامنة تلقائية لأي وحدة قديمة تم الاتفاق عليها وما زالت حالتها offer_received
+      const staleAgreedIds = units
+        .filter((u: any) => lockedUnitIds.has(String(u.id)))
+        .map((u: any) => String(u.id))
+
+      if (staleAgreedIds.length > 0) {
+        try {
+          await supabase
+            .from('sell_requests')
+            .update({ status: 'transferring' })
+            .in('id', staleAgreedIds)
+        } catch {}
+      }
+
+      // فلترة رسمية: استبعاد أي صف بدون UUID حقيقي أو من خارج جورجيا أو تم الاتفاق عليه بين البائع والمشتري
       const validUnits = units.filter((u: any) => {
         const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(String(u?.id || ''))
         const areaVal = u.area || u.documents?.__unit_meta?.area
-        return isUuid && !isNonGeorgianLegacyArea(areaVal)
+        return (
+          isUuid &&
+          !isNonGeorgianLegacyArea(areaVal) &&
+          !lockedUnitIds.has(String(u.id))
+        )
       })
 
       realUnitCount = validUnits.length
@@ -148,7 +176,6 @@ export default async function HomePage() {
             : 'super_vip'
           : null
 
-        // الميعاد الرسمي الموحد في كل الموقع: تاريخ موافقة الأدمن (أو تاريخ الرفع كبديل)
         const unifiedPublishedAt =
           u.approved_at || meta.approved_at || u.created_at
 

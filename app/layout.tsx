@@ -28,18 +28,6 @@ export async function generateMetadata(): Promise<Metadata> {
     title,
     description,
     manifest: '/manifest.webmanifest',
-    appleWebApp: {
-      capable: true,
-      statusBarStyle: 'default',
-      title: 'Aqar Exit',
-    },
-    icons: {
-      icon: [
-        { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
-        { url: '/icon-512.png', sizes: '512x512', type: 'image/png' },
-      ],
-      apple: [{ url: '/apple-icon.png', sizes: '180x180', type: 'image/png' }],
-    },
     openGraph: {
       title,
       description,
@@ -68,25 +56,6 @@ export default async function RootLayout({
 
   return (
     <html lang={locale} dir={dir}>
-      <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              window.__deferredPwaPrompt = null;
-              window.addEventListener('beforeinstallprompt', function(e) {
-                e.preventDefault();
-                window.__deferredPwaPrompt = e;
-                window.dispatchEvent(new Event('pwa-prompt-ready'));
-              });
-              if ('serviceWorker' in navigator) {
-                window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function() {});
-                });
-              }
-            `,
-          }}
-        />
-      </head>
       <body className={`${cairo.variable} ${cairo.className} antialiased`}>
         <LanguageProvider
           initialLocale={locale}

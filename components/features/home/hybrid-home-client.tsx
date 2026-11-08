@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Check, Plus, ShieldCheck } from 'lucide-react'
+import { Plus, ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ScrollReveal } from '@/components/shared/scroll-reveal'
 import { useTranslation, type LocaleCode } from '@/lib/i18n'
@@ -195,7 +195,6 @@ export function HybridHomeClient({
   const categoriesGrid = getHomeCategoriesGrid(isAr)
   const comparisonRows = t?.comparison?.rows || []
   const workSteps = t?.steps?.items || []
-  const fairStandards = t?.standards?.items || []
 
   return (
     <div
@@ -332,8 +331,247 @@ export function HybridHomeClient({
         </div>
       </section>
 
-      {/* 2. شريط الإحصائيات الموثقة بالدولار ($) */}
-      <section className={`${CONTAINER_CLS} pt-10 pb-4`}>
+      {/* 2. ماذا تبحث عنه للتنازل؟ (مباشرة بعد الهيرو لدخول الزائر في الفرص فوراً) */}
+      <section className={`${CONTAINER_CLS} pt-10 pb-6`}>
+        <ScrollReveal>
+          <div className="mb-6 text-start">
+            <h2 className="text-2xl font-bold tracking-tight text-[#0f1d40] sm:text-3xl">
+              {isAr
+                ? 'ماذا تبحث عنه للتنازل؟'
+                : 'What are you looking for to take over?'}
+            </h2>
+            <p className="mt-1 text-xs font-medium text-slate-500 sm:text-sm">
+              {isAr
+                ? 'اختر نوع الوحدة وتصفح أفضل عروض التنازل واستكمال الأقساط في جورجيا'
+                : 'Choose unit type and explore verified installment exit opportunities'}
+            </p>
+          </div>
+
+          <div className="grid auto-cols-[115px] grid-flow-col grid-rows-2 gap-3 overflow-x-auto pb-2 no-scrollbar md:auto-cols-auto md:grid-flow-row md:grid-cols-8 md:grid-rows-2">
+            {categoriesGrid.map((cat) => {
+              const Icon = cat.icon
+              return (
+                <Link
+                  key={cat.id}
+                  href={cat.href}
+                  className="sivrce-card flex min-h-[116px] flex-col items-center justify-center rounded-[22px] border border-slate-200/75 bg-white p-3.5 text-center shadow-2xs"
+                >
+                  <div
+                    className={`mb-2.5 flex size-11 items-center justify-center rounded-2xl ${cat.color}`}
+                  >
+                    <Icon className="size-5" />
+                  </div>
+                  <strong className="text-xs font-bold text-[#0f1d40]">
+                    {cat.label}
+                  </strong>
+                </Link>
+              )
+            })}
+          </div>
+        </ScrollReveal>
+      </section>
+
+      {/* 3. قسم إعلانات SUPER VIP */}
+      <div
+        className={
+          !hasSuperVip ? '[&_a[href*="/opportunities"]]:hidden' : undefined
+        }
+      >
+        <HomeCardsCarouselSection
+          badgeText="SUPER VIP"
+          badgeClass="bg-gradient-to-r from-[#ff6437] to-[#ff4f69] text-white shadow-xs"
+          title={cT.superVipTitle}
+          subtitle={cT.superVipSub}
+          allLinkText={hasSuperVip ? cT.superVipAllBtn : ''}
+          allLinkHref={hasSuperVip ? '/opportunities?tier=super_vip' : ''}
+          units={superVipUnits}
+          favorites={favorites}
+          onToggleFav={toggleFav}
+          showAdCardWhenEmpty={true}
+          adTier="SUPER VIP"
+        />
+      </div>
+
+      {/* 4. قسم إعلانات +VIP */}
+      {showVipPlusSection && (
+        <div
+          className={
+            !hasVipPlus ? '[&_a[href*="/opportunities"]]:hidden' : undefined
+          }
+        >
+          <HomeVipPlusSection
+            vipPlusUnits={vipPlusUnits}
+            favorites={favorites}
+            onToggleFav={toggleFav}
+            showWhenEmpty={hasSuperVip}
+          />
+        </div>
+      )}
+       {/* 7. جدول المقارنة السريع (فاصل مقنع بين الفرص المتاحة وبين أضيفت حديثاً) */}
+      <section className="bg-white py-12 sm:py-14">
+        <div className={CONTAINER_CLS}>
+          <ScrollReveal className="text-start">
+            <h2 className="heading-section">{t?.comparison?.title}</h2>
+            <p className="mt-2 text-sm text-gray-500 sm:text-base">
+              {t?.comparison?.subtitle}
+            </p>
+          </ScrollReveal>
+
+          <ScrollReveal
+            delay={80}
+            className="mt-6 overflow-hidden rounded-[22px] border border-gray-200/90 shadow-xs sm:mt-8"
+          >
+            <div className="grid grid-cols-[80px_1fr_1.1fr] text-start text-[11px] font-bold sm:grid-cols-[130px_1fr_1fr] sm:text-xs md:grid-cols-[150px_1fr_1fr] md:text-sm">
+              <div className="flex items-center bg-[#f4f5f7] px-3 py-3.5 text-[10px] font-bold text-gray-500 sm:p-4 sm:text-xs">
+                {t?.comparison?.colCriterion}
+              </div>
+              <div className="flex items-center border-r border-gray-200/80 bg-[#f4f5f7] px-3 py-3.5 text-gray-600 sm:p-4">
+                {t?.comparison?.colResale}
+              </div>
+              <div className="flex items-center bg-[#2563eb] px-3 py-3.5 text-white sm:p-4">
+                {t?.comparison?.colExit}
+              </div>
+            </div>
+
+            {comparisonRows.map((row: any) => (
+              <div
+                key={row.criterion}
+                className="grid grid-cols-[80px_1fr_1.1fr] items-stretch border-t border-gray-200/80 text-start text-[11px] leading-relaxed sm:grid-cols-[130px_1fr_1fr] sm:text-xs md:grid-cols-[150px_1fr_1fr] lg:text-sm"
+              >
+                <div className="flex items-center bg-[#f8f9fa] px-3 py-3.5 font-bold text-[#0f1d40] sm:p-4">
+                  {row.criterion}
+                </div>
+
+                <div className="flex items-start gap-1.5 border-r border-gray-200/80 bg-white px-3 py-3.5 text-gray-500 sm:items-center sm:gap-2.5 sm:p-4">
+                  <span className="mt-0.5 shrink-0 font-bold text-red-500 sm:mt-0">
+                    ✕
+                  </span>
+                  <span>{row.resale}</span>
+                </div>
+
+                <div className="flex items-start gap-1.5 bg-[#eaf8f2] px-3 py-3.5 font-semibold text-[#0f1d40] sm:items-center sm:gap-2.5 sm:p-4">
+                  <span className="mt-0.5 shrink-0 font-bold text-[#007a5a] sm:mt-0">
+                    ✓
+                  </span>
+                  <span>{row.exit}</span>
+                </div>
+              </div>
+            ))}
+          </ScrollReveal>
+        </div>
+      </section>
+
+     
+      {/* 6. قسم الفرص المتاحة للتنازل */}
+      <HomeCardsCarouselSection
+        badgeText={cT.availableOppsBadge}
+        badgeClass="bg-[#eaf8f2] text-[#007a5a] border border-emerald-200"
+        title={cT.availableOppsTitle}
+        subtitle={cT.availableOppsSub}
+        allLinkText={
+          availableOpportunitiesUnits.length > 0 ? cT.availableOppsAllBtn : ''
+        }
+        allLinkHref={
+          availableOpportunitiesUnits.length > 0 ? '/opportunities' : ''
+        }
+        units={availableOpportunitiesUnits.slice(0, 12)}
+        favorites={favorites}
+        onToggleFav={toggleFav}
+      />
+
+      {/* 5. بانر حاسبة الخروج المجانية ("اعرف موقفك في دقيقة") — في مكان متقدم وبارز بعد الـ VIP */}
+      <section className={`${CONTAINER_CLS} py-6`}>
+        <ScrollReveal>
+          <div className="relative overflow-hidden rounded-[28px] border border-blue-200/80 bg-gradient-to-r from-[#eef5ff] via-[#f4fbf7] to-[#fff5f0] p-7 text-center shadow-xs sm:p-11">
+            <h2 className="text-2xl font-bold text-[#0f1d40] sm:text-3xl md:text-4xl">
+              {t?.calculatorBanner?.title}
+            </h2>
+            <p className="mx-auto mt-3 max-w-xl text-xs leading-relaxed text-slate-600 sm:text-sm md:text-base">
+              {t?.calculatorBanner?.subtitle}
+            </p>
+            <div className="mt-6">
+              <Button
+                size="lg"
+                className="h-12 rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-8 text-sm font-bold text-white shadow-md hover:opacity-95 sm:text-base"
+                render={<Link href="/calculator" />}
+              >
+                {t?.calculatorBanner?.btn}
+              </Button>
+            </div>
+          </div>
+        </ScrollReveal>
+      </section>
+
+
+      {/* 8. قسم أضيفت حديثاً (مرتب تنازلياً حسب التاريخ، ويفتح /opportunities?sort=newest) */}
+      <HomeCardsCarouselSection
+        badgeText={cT.recentBadge}
+        badgeClass="bg-blue-50 text-[#2563eb] border border-blue-200"
+        title={cT.recentTitle}
+        subtitle={cT.recentSub}
+        allLinkText={recentlyAddedUnits.length > 0 ? cT.recentAllBtn : ''}
+        allLinkHref={
+          recentlyAddedUnits.length > 0 ? '/opportunities?sort=newest' : ''
+        }
+        units={recentlyAddedUnits.slice(0, 12)}
+        favorites={favorites}
+        onToggleFav={toggleFav}
+      />
+
+    
+
+      {/* 10. الكارت/البانر الترويجي (اعرض إعلانك هنا) */}
+      <SponsoredRightAlignedBanner />
+        {/* 9. إزاي بنشتغل في 5 خطوات */}
+      <section className="border-t border-gray-200/60 bg-[#f6f8fc] py-12 sm:py-14">
+        <div className={CONTAINER_CLS}>
+          <ScrollReveal className="flex flex-wrap items-end justify-between gap-4 text-start">
+            <div>
+              <h2 className="heading-section">{t?.steps?.title}</h2>
+              <p className="mt-2 text-sm text-gray-500 sm:text-base">
+                {t?.steps?.subtitle}
+              </p>
+            </div>
+            <Link
+              href="/how-it-works"
+              className="text-xs font-bold text-[#2563eb] hover:underline sm:text-sm"
+            >
+              {isAr ? 'تفاصيل إزاي بنشتغل والأمثلة ←' : 'How it works & Examples →'}
+            </Link>
+          </ScrollReveal>
+
+          <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            {workSteps.map((step: any, index: number) => (
+              <ScrollReveal key={step.title} delay={index * 70}>
+                <div className="sivrce-card h-full rounded-[20px] border border-gray-200/70 bg-white p-6 text-start shadow-2xs">
+                  <span className="flex size-9 items-center justify-center rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] text-sm font-bold text-white shadow-xs">
+                    {index + 1}
+                  </span>
+                  <h3 className="mt-4 text-base font-bold text-[#0f1d40]">
+                    {step.title}
+                  </h3>
+                  <p className="mt-2 text-xs leading-[1.8] text-gray-500">
+                    {step.text}
+                  </p>
+                </div>
+              </ScrollReveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* 11. خريطة جورجيا ثلاثية الأبعاد */}
+      <div className="mt-4">
+        <Home3DMapSection />
+      </div>
+
+    
+
+
+      {/* 12. سيكشن باقات الإعلانات وشحن الرصيد (تحت الخريطة مباشرة) */}
+      <TopUpBalanceGelSection />
+   {/* 13. شريط الإحصائيات الموثقة بالدولار ($) — في الجزء قبل الأخير كما طلبت */}
+      <section className={`${CONTAINER_CLS} pt-4 pb-6`}>
         <ScrollReveal>
           <div className="grid grid-cols-1 divide-y divide-gray-200/80 overflow-hidden rounded-[22px] border border-gray-200/70 border-t-[3px] border-t-[#007a5a] bg-white shadow-xs md:grid-cols-2 md:divide-x md:divide-y-0 md:divide-x-reverse">
             <div className="p-7 text-start sm:p-9">
@@ -376,469 +614,8 @@ export function HybridHomeClient({
           </div>
         </ScrollReveal>
       </section>
-
-      {/* 3. ماذا تبحث عنه للتنازل؟ */}
-      <section className={`${CONTAINER_CLS} py-10`}>
-        <ScrollReveal>
-          <div className="mb-6 text-start">
-            <h2 className="text-2xl font-bold tracking-tight text-[#0f1d40] sm:text-3xl">
-              {isAr
-                ? 'ماذا تبحث عنه للتنازل؟'
-                : 'What are you looking for to take over?'}
-            </h2>
-            <p className="mt-1 text-xs font-medium text-slate-500 sm:text-sm">
-              {isAr
-                ? 'اختر نوع الوحدة وتصفح أفضل عروض التنازل واستكمال الأقساط في جورجيا'
-                : 'Choose unit type and explore verified installment exit opportunities'}
-            </p>
-          </div>
-
-          <div className="grid auto-cols-[115px] grid-flow-col grid-rows-2 gap-3 overflow-x-auto pb-2 no-scrollbar md:auto-cols-auto md:grid-flow-row md:grid-cols-8 md:grid-rows-2">
-            {categoriesGrid.map((cat) => {
-              const Icon = cat.icon
-              return (
-                <Link
-                  key={cat.id}
-                  href={cat.href}
-                  className="sivrce-card flex min-h-[116px] flex-col items-center justify-center rounded-[22px] border border-slate-200/75 bg-white p-3.5 text-center shadow-2xs"
-                >
-                  <div
-                    className={`mb-2.5 flex size-11 items-center justify-center rounded-2xl ${cat.color}`}
-                  >
-                    <Icon className="size-5" />
-                  </div>
-                  <strong className="text-xs font-bold text-[#0f1d40]">
-                    {cat.label}
-                  </strong>
-                </Link>
-              )
-            })}
-          </div>
-        </ScrollReveal>
-      </section>
-
-      {/* 4. قسم إعلانات SUPER VIP */}
-      <div
-        className={
-          !hasSuperVip ? '[&_a[href*="/opportunities"]]:hidden' : undefined
-        }
-      >
-        <HomeCardsCarouselSection
-          badgeText="SUPER VIP"
-          badgeClass="bg-gradient-to-r from-[#ff6437] to-[#ff4f69] text-white shadow-xs"
-          title={cT.superVipTitle}
-          subtitle={cT.superVipSub}
-          allLinkText={hasSuperVip ? cT.superVipAllBtn : ''}
-          allLinkHref={hasSuperVip ? '/opportunities?tier=super_vip' : ''}
-          units={superVipUnits}
-          favorites={favorites}
-          onToggleFav={toggleFav}
-          showAdCardWhenEmpty={true}
-          adTier="SUPER VIP"
-        />
-      </div>
-
-      {/* 5. قسم إعلانات +VIP */}
-      {showVipPlusSection && (
-        <div
-          className={
-            !hasVipPlus ? '[&_a[href*="/opportunities"]]:hidden' : undefined
-          }
-        >
-          <HomeVipPlusSection
-            vipPlusUnits={vipPlusUnits}
-            favorites={favorites}
-            onToggleFav={toggleFav}
-            showWhenEmpty={hasSuperVip}
-          />
-        </div>
-      )}
-
-      {/* 6. [قسم فاصل بعد الـ VIP وقبل الفرص المتاحة]: لمن هذه المنصة؟ */}
-      <section className={`${CONTAINER_CLS} py-10 md:py-12`}>
-        <ScrollReveal className="max-w-xl text-start">
-          <h2 className="heading-section">{t?.audience?.title}</h2>
-          <p className="mt-2.5 text-sm leading-relaxed text-gray-500 sm:text-base">
-            {t?.audience?.subtitle}
-          </p>
-        </ScrollReveal>
-
-        <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <ScrollReveal delay={60}>
-            <div className="sivrce-card flex h-full flex-col justify-between rounded-[24px] border border-emerald-200/80 bg-white p-6 text-start shadow-xs sm:p-9">
-              <div>
-                <span className="inline-block rounded-full bg-[#e6f4f1] px-3.5 py-1 text-xs font-bold text-[#007a5a]">
-                  {t?.audience?.sellerBadge}
-                </span>
-                <h3 className="mt-4 text-xl font-bold text-[#0f1d40] sm:text-2xl">
-                  {t?.audience?.sellerTitle}
-                </h3>
-                <p className="mt-3 text-xs leading-[1.9] text-gray-500 sm:text-sm">
-                  {t?.audience?.sellerDesc}
-                </p>
-
-                <ul className="mt-6 space-y-3">
-                  <li className="flex items-start gap-2.5 text-xs font-semibold text-[#0f1d40] sm:text-sm">
-                    <Check className="mt-0.5 size-4 shrink-0 text-[#007a5a]" />
-                    <span>{t?.audience?.sellerPoint1}</span>
-                  </li>
-                  <li className="flex items-start gap-2.5 text-xs font-semibold text-[#0f1d40] sm:text-sm">
-                    <Check className="mt-0.5 size-4 shrink-0 text-[#007a5a]" />
-                    <span>{t?.audience?.sellerPoint2}</span>
-                  </li>
-                  <li className="flex items-start gap-2.5 text-xs font-semibold text-[#0f1d40] sm:text-sm">
-                    <Check className="mt-0.5 size-4 shrink-0 text-[#007a5a]" />
-                    <span>{t?.audience?.sellerPoint3}</span>
-                  </li>
-                </ul>
-
-                <div className="mt-6 rounded-xl border border-[#b8e6d5] bg-[#eaf8f2] px-4 py-3 text-xs font-bold text-[#007a5a] sm:text-sm">
-                  {t?.audience?.sellerFreeNote}
-                </div>
-              </div>
-
-              <div className="mt-7">
-                <Button
-                  className="h-11 rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-7 text-xs font-bold text-white shadow-xs hover:opacity-95 sm:text-sm"
-                  render={<Link href="/sell" />}
-                >
-                  {t?.audience?.sellerBtn}
-                </Button>
-              </div>
-            </div>
-          </ScrollReveal>
-
-          <ScrollReveal delay={140}>
-            <div className="sivrce-card flex h-full flex-col justify-between rounded-[24px] border border-blue-200/80 bg-gradient-to-br from-white via-[#f4f8ff] to-[#eef6ff] p-6 text-start text-[#0f1d40] shadow-xs sm:p-9">
-              <div>
-                <span className="inline-block rounded-full bg-blue-100 px-3.5 py-1 text-xs font-bold text-[#2563eb]">
-                  {t?.audience?.buyerBadge}
-                </span>
-                <h3 className="mt-4 text-xl font-bold text-[#0f1d40] sm:text-2xl">
-                  {t?.audience?.buyerTitle}
-                </h3>
-                <p className="mt-3 text-xs leading-[1.9] text-slate-600 sm:text-sm">
-                  {t?.audience?.buyerDesc}
-                </p>
-
-                <ul className="mt-6 space-y-3">
-                  <li className="flex items-start gap-2.5 text-xs font-semibold text-[#0f1d40] sm:text-sm">
-                    <Check className="mt-0.5 size-4 shrink-0 text-[#2563eb]" />
-                    <span>{t?.audience?.buyerPoint1}</span>
-                  </li>
-                  <li className="flex items-start gap-2.5 text-xs font-semibold text-[#0f1d40] sm:text-sm">
-                    <Check className="mt-0.5 size-4 shrink-0 text-[#2563eb]" />
-                    <span>{t?.audience?.buyerPoint2}</span>
-                  </li>
-                  <li className="flex items-start gap-2.5 text-xs font-semibold text-[#0f1d40] sm:text-sm">
-                    <Check className="mt-0.5 size-4 shrink-0 text-[#2563eb]" />
-                    <span>{t?.audience?.buyerPoint3}</span>
-                  </li>
-                </ul>
-              </div>
-
-              <div className="mt-8">
-                <Button
-                  className="h-11 rounded-full bg-[#2563eb] px-7 text-xs font-bold text-white shadow-xs hover:bg-blue-700 sm:text-sm"
-                  render={<Link href="/opportunities" />}
-                >
-                  {t?.audience?.buyerBtn}
-                </Button>
-              </div>
-            </div>
-          </ScrollReveal>
-        </div>
-      </section>
-
-      {/* 7. قسم الفرص المتاحة للتنازل */}
-      <HomeCardsCarouselSection
-        badgeText={cT.availableOppsBadge}
-        badgeClass="bg-[#eaf8f2] text-[#007a5a] border border-emerald-200"
-        title={cT.availableOppsTitle}
-        subtitle={cT.availableOppsSub}
-        allLinkText={
-          availableOpportunitiesUnits.length > 0 ? cT.availableOppsAllBtn : ''
-        }
-        allLinkHref={
-          availableOpportunitiesUnits.length > 0 ? '/opportunities' : ''
-        }
-        units={availableOpportunitiesUnits.slice(0, 12)}
-        favorites={favorites}
-        onToggleFav={toggleFav}
-      />
-
-      {/* 8. [قسم فاصل بين الفرص المتاحة وبين أضيفت حديثاً]: مثال واقعي بالأرقام + جدول المقارنة */}
-      <section className="bg-white py-12 sm:py-14">
-        <div className={CONTAINER_CLS}>
-          <ScrollReveal className="text-start">
-            <h2 className="heading-section">{t?.example?.title}</h2>
-            <p className="mt-2 text-sm text-gray-500 sm:text-base">
-              {t?.example?.subtitle}
-            </p>
-          </ScrollReveal>
-
-          <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2">
-            <ScrollReveal delay={60}>
-              <div className="sivrce-card flex h-full flex-col justify-between rounded-[22px] border border-gray-200/80 bg-[#f8fafc] p-6 text-start shadow-xs sm:p-8">
-                <div>
-                  <div className="flex items-center justify-start gap-3">
-                    <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[#fdecee] text-xs font-bold text-[#d9383a]">
-                      ✕
-                    </span>
-                    <h3 className="text-base font-bold text-[#0f1d40]">
-                      {t?.example?.lossTitle}
-                    </h3>
-                  </div>
-
-                  <div className="mt-6">
-                    <p className="text-xs text-gray-400">
-                      {t?.example?.lossDiscountLabel}
-                    </p>
-                    <p className="mt-1.5 flex items-baseline gap-1.5 text-2xl font-bold text-[#d9383a] tabular-nums sm:text-3xl">
-                      <span dir="ltr">- {t?.example?.lossDiscountAmount}</span>
-                      <span>{USD}</span>
-                    </p>
-                  </div>
-
-                  <div className="mt-6 flex items-center justify-between border-t border-gray-200/70 pt-5">
-                    <div className="text-start">
-                      <p className="text-xs text-gray-400">
-                        {t?.example?.lossReturnLabel}
-                      </p>
-                      <p className="mt-1 flex items-baseline gap-1 text-lg font-bold text-[#0f1d40] tabular-nums sm:text-xl">
-                        <span dir="ltr">{t?.example?.lossReturnAmount}</span>
-                        <span>{USD}</span>
-                      </p>
-                    </div>
-                    <div className="text-end">
-                      <p className="text-xs text-gray-400">
-                        {t?.example?.lossDurationLabel}
-                      </p>
-                      <p className="mt-1 text-lg font-bold text-[#b45309] sm:text-xl">
-                        {t?.example?.lossDurationValue}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-7 rounded-xl bg-[#fef2f2] px-4 py-3 text-center text-xs font-bold text-[#d9383a]">
-                  {t?.example?.lossFooter}
-                </div>
-              </div>
-            </ScrollReveal>
-
-            <ScrollReveal delay={140}>
-              <div className="sivrce-card flex h-full flex-col justify-between rounded-[22px] border-2 border-[#a7e3cb] bg-white p-6 text-start shadow-xs sm:p-8">
-                <div>
-                  <div className="flex items-center justify-start gap-3">
-                    <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[#e3f7ed] text-xs font-bold text-[#007a5a]">
-                      ✓
-                    </span>
-                    <h3 className="text-base font-bold text-[#0f1d40]">
-                      {t?.example?.winTitle}
-                    </h3>
-                  </div>
-
-                  <div className="mt-6">
-                    <p className="text-xs text-gray-400">
-                      {t?.example?.winReturnLabel}
-                    </p>
-                    <p className="mt-1.5 flex items-baseline gap-1.5 text-2xl font-bold text-[#007a5a] tabular-nums sm:text-3xl">
-                      <span dir="ltr">{t?.example?.winReturnAmount}</span>
-                      <span>{USD}</span>
-                    </p>
-                    <p className="mt-1 text-xs font-bold text-[#0f1d40]">
-                      {t?.example?.winReturnSub}
-                    </p>
-                  </div>
-
-                  <div className="mt-5 border-t border-gray-100 pt-4">
-                    <p className="text-xs text-gray-400">
-                      {t?.example?.winCommissionLabel}
-                    </p>
-                    <p className="mt-1 text-2xl font-bold text-[#007a5a]">
-                      {t?.example?.winCommissionValue}
-                    </p>
-                    <p className="mt-1 text-xs font-bold text-[#0f1d40]">
-                      {t?.example?.winCommissionSub}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-7 rounded-xl bg-[#eaf8f2] px-4 py-3 text-center text-xs font-bold text-[#007a5a]">
-                  {t?.example?.winFooter}
-                </div>
-              </div>
-            </ScrollReveal>
-          </div>
-
-          <p className="mt-5 text-start text-xs leading-relaxed text-gray-400">
-            {t?.example?.disclaimer}
-          </p>
-
-          {/* جدول المقارنة السريع تحت المثال مباشرة */}
-          <div className="mt-12 border-t border-gray-100 pt-10">
-            <ScrollReveal className="text-start">
-              <h2 className="heading-section">{t?.comparison?.title}</h2>
-              <p className="mt-2 text-sm text-gray-500 sm:text-base">
-                {t?.comparison?.subtitle}
-              </p>
-            </ScrollReveal>
-
-            <ScrollReveal
-              delay={80}
-              className="mt-6 overflow-hidden rounded-[22px] border border-gray-200/90 shadow-xs sm:mt-8"
-            >
-              <div className="grid grid-cols-[80px_1fr_1.1fr] text-start text-[11px] font-bold sm:grid-cols-[130px_1fr_1fr] sm:text-xs md:grid-cols-[150px_1fr_1fr] md:text-sm">
-                <div className="flex items-center bg-[#f4f5f7] px-3 py-3.5 text-[10px] font-bold text-gray-500 sm:p-4 sm:text-xs">
-                  {t?.comparison?.colCriterion}
-                </div>
-                <div className="flex items-center border-r border-gray-200/80 bg-[#f4f5f7] px-3 py-3.5 text-gray-600 sm:p-4">
-                  {t?.comparison?.colResale}
-                </div>
-                <div className="flex items-center bg-[#2563eb] px-3 py-3.5 text-white sm:p-4">
-                  {t?.comparison?.colExit}
-                </div>
-              </div>
-
-              {comparisonRows.map((row: any) => (
-                <div
-                  key={row.criterion}
-                  className="grid grid-cols-[80px_1fr_1.1fr] items-stretch border-t border-gray-200/80 text-start text-[11px] leading-relaxed sm:grid-cols-[130px_1fr_1fr] sm:text-xs md:grid-cols-[150px_1fr_1fr] lg:text-sm"
-                >
-                  <div className="flex items-center bg-[#f8f9fa] px-3 py-3.5 font-bold text-[#0f1d40] sm:p-4">
-                    {row.criterion}
-                  </div>
-
-                  <div className="flex items-start gap-1.5 border-r border-gray-200/80 bg-white px-3 py-3.5 text-gray-500 sm:items-center sm:gap-2.5 sm:p-4">
-                    <span className="mt-0.5 shrink-0 font-bold text-red-500 sm:mt-0">
-                      ✕
-                    </span>
-                    <span>{row.resale}</span>
-                  </div>
-
-                  <div className="flex items-start gap-1.5 bg-[#eaf8f2] px-3 py-3.5 font-semibold text-[#0f1d40] sm:items-center sm:gap-2.5 sm:p-4">
-                    <span className="mt-0.5 shrink-0 font-bold text-[#007a5a] sm:mt-0">
-                      ✓
-                    </span>
-                    <span>{row.exit}</span>
-                  </div>
-                </div>
-              ))}
-            </ScrollReveal>
-          </div>
-        </div>
-      </section>
-
-      {/* 9. قسم أضيفت حديثاً (مرتب تنازلياً حسب التاريخ، ويفتح /opportunities?sort=newest) */}
-      <HomeCardsCarouselSection
-        badgeText={cT.recentBadge}
-        badgeClass="bg-blue-50 text-[#2563eb] border border-blue-200"
-        title={cT.recentTitle}
-        subtitle={cT.recentSub}
-        allLinkText={recentlyAddedUnits.length > 0 ? cT.recentAllBtn : ''}
-        allLinkHref={
-          recentlyAddedUnits.length > 0 ? '/opportunities?sort=newest' : ''
-        }
-        units={recentlyAddedUnits.slice(0, 12)}
-        favorites={favorites}
-        onToggleFav={toggleFav}
-      />
-
-      {/* 10. [قسم فاصل بعد أضيفت حديثاً]: إزاي بنشتغل في 5 خطوات */}
-      <section className="border-t border-gray-200/60 bg-[#f6f8fc] py-12 sm:py-14">
-        <div className={CONTAINER_CLS}>
-          <ScrollReveal className="text-start">
-            <h2 className="heading-section">{t?.steps?.title}</h2>
-            <p className="mt-2 text-sm text-gray-500 sm:text-base">
-              {t?.steps?.subtitle}
-            </p>
-          </ScrollReveal>
-
-          <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            {workSteps.map((step: any, index: number) => (
-              <ScrollReveal key={step.title} delay={index * 70}>
-                <div className="sivrce-card h-full rounded-[20px] border border-gray-200/70 bg-white p-6 text-start shadow-2xs">
-                  <span className="flex size-9 items-center justify-center rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] text-sm font-bold text-white shadow-xs">
-                    {index + 1}
-                  </span>
-                  <h3 className="mt-4 text-base font-bold text-[#0f1d40]">
-                    {step.title}
-                  </h3>
-                  <p className="mt-2 text-xs leading-[1.8] text-gray-500">
-                    {step.text}
-                  </p>
-                </div>
-              </ScrollReveal>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* 11. الكارت/البانر الترويجي (اعرض إعلانك هنا) */}
-      <SponsoredRightAlignedBanner />
-
-      {/* 12. [قسم فاصل بعد كارت الإعلان وقبل الخريطة]: معايير الأمان والتوثيق */}
-      <section className="bg-white py-12 sm:py-14">
-        <div className={CONTAINER_CLS}>
-          <ScrollReveal className="text-start">
-            <h2 className="heading-section">{t?.standards?.title}</h2>
-            <p className="mt-2 text-sm text-gray-500 sm:text-base">
-              {t?.standards?.subtitle}
-            </p>
-          </ScrollReveal>
-
-          <div className="mt-10 grid grid-cols-1 gap-x-14 gap-y-8 md:grid-cols-2 md:gap-y-10">
-            {fairStandards.map((item: any, idx: number) => (
-              <ScrollReveal key={item.title} delay={idx * 60}>
-                <div className="flex items-start gap-4 text-start">
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#2563eb]">
-                    <ShieldCheck className="size-5" />
-                  </span>
-                  <div>
-                    <h3 className="text-base font-bold text-[#0f1d40]">
-                      {item.title}
-                    </h3>
-                    <p className="mt-1.5 text-xs leading-[1.85] text-gray-500 sm:text-sm">
-                      {item.text}
-                    </p>
-                  </div>
-                </div>
-              </ScrollReveal>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* 13. خريطة جورجيا ثلاثية الأبعاد */}
-      <Home3DMapSection />
-
-      {/* 14. سيكشن الإعلانات وشحن الرصيد (تحت الخريطة مباشرة) */}
-      <TopUpBalanceGelSection />
-
-      {/* 15. [الأقسام المتبقية في الآخر]: بانر حاسبة الخروج المجانية + كارتا الختام */}
-      <section className={`${CONTAINER_CLS} pt-6 pb-4`}>
-        <ScrollReveal>
-          <div className="relative overflow-hidden rounded-[28px] border border-blue-200/80 bg-gradient-to-r from-[#eef5ff] via-[#f4fbf7] to-[#fff5f0] p-8 text-center shadow-xs sm:p-12">
-            <h2 className="text-2xl font-bold text-[#0f1d40] sm:text-3xl md:text-4xl">
-              {t?.calculatorBanner?.title}
-            </h2>
-            <p className="mx-auto mt-3 max-w-xl text-xs leading-relaxed text-slate-600 sm:text-sm md:text-base">
-              {t?.calculatorBanner?.subtitle}
-            </p>
-            <div className="mt-7">
-              <Button
-                size="lg"
-                className="h-12 rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-8 text-sm font-bold text-white shadow-md hover:opacity-95 sm:text-base"
-                render={<Link href="/calculator" />}
-              >
-                {t?.calculatorBanner?.btn}
-              </Button>
-            </div>
-          </div>
-        </ScrollReveal>
-      </section>
-
+     
+      {/* 14. كارتا الختام قبل الفوتر */}
       <section className="bg-[#f6f8fc] pb-16 pt-6 sm:pb-20">
         <div className={CONTAINER_CLS}>
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">

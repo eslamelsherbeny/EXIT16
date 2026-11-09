@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import {
   processSellerStep2Action,
+   saveSellProgress,
   sendSellerRecoveryLinkAction,
   verifyExistingEmailPasswordAction,
 } from '@/actions/submit-forms'
@@ -185,6 +186,8 @@ export function ContactSection({
   unitId,
   setUnitId,
   setOrderRef,
+  fieldErrors = {},
+  buildFullFormData,
 }: {
   sectionRef: React.RefObject<HTMLElement | null>
   onHover: () => void
@@ -219,11 +222,13 @@ export function ContactSection({
   unitId?: string
   setUnitId?: (id: string) => void
   setOrderRef?: (ref: string) => void
+  fieldErrors?: Record<string, string>
+  buildFullFormData?: (activeUnitId?: string, activeUserId?: string) => FormData
 }) {
   const { t: dict, locale, dir } = useTranslation()
   const t = dict.sell.contactStep
   const v = (dict.sell.validation as Record<string, string>) || {}
-  const fT = getSellerFormTranslations(locale, dict)
+  const fT = getSellerFormTranslations(locale as LocaleCode, dict)
   const cT = fT.contactSection
 
   const [showPassword, setShowPassword] = useState(false)
@@ -257,6 +262,11 @@ export function ContactSection({
 
   const dynamicPhonePlaceholder = getPhonePlaceholderByCode(form.countryCode)
 
+  const mergedErrors: Record<string, string> = {
+    ...fieldErrors,
+    ...localErrors,
+  }
+
   const syncLoggedUserFields = (u: {
     name: string
     email: string
@@ -271,7 +281,6 @@ export function ContactSection({
     }
   }
 
-  // إذا لم يكن المستخدم مسجلاً، لا نسمح ببقاء الوضع على 'session' أو 'sivrce_default'
   useEffect(() => {
     if (loggedUser) {
       if (!form.phone && loggedUser.phone) {
@@ -334,16 +343,28 @@ export function ContactSection({
 
     if (authMode === 'register') {
       if (!form.name?.trim())
-        nextErrors.name = getMsg(locale, v.required, 'required')
+        nextErrors.name = getMsg(locale as LocaleCode, v.required, 'required')
       if (!/^[0-9]{7,15}$/.test(cleanPhoneDigits))
-        nextErrors.phone = getMsg(locale, v.invalidPhone, 'invalidPhone')
+        nextErrors.phone = getMsg(
+          locale as LocaleCode,
+          v.invalidPhone,
+          'invalidPhone'
+        )
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email ?? ''))
-        nextErrors.email = getMsg(locale, v.invalidEmail, 'invalidEmail')
+        nextErrors.email = getMsg(
+          locale as LocaleCode,
+          v.invalidEmail,
+          'invalidEmail'
+        )
       if ((form.password?.length ?? 0) < 8)
-        nextErrors.password = getMsg(locale, v.shortPassword, 'shortPassword')
+        nextErrors.password = getMsg(
+          locale as LocaleCode,
+          v.shortPassword,
+          'shortPassword'
+        )
       if (form.password !== confirmPassword) {
         nextErrors.confirmPassword = getMsg(
-          locale,
+          locale as LocaleCode,
           undefined,
           'passwordMismatch'
         )
@@ -351,13 +372,13 @@ export function ContactSection({
     } else if (authMode === 'login') {
       if (!form.loginIdentifier?.trim())
         nextErrors.loginIdentifier = getMsg(
-          locale,
+          locale as LocaleCode,
           v.loginIdRequired,
           'loginIdRequired'
         )
       if (!form.loginPassword?.trim() && !form.password?.trim())
         nextErrors.loginPassword = getMsg(
-          locale,
+          locale as LocaleCode,
           v.loginPassRequired,
           'loginPassRequired'
         )
@@ -412,7 +433,10 @@ export function ContactSection({
       })
 
       if (res.status === 'ok') {
-        if (res.unitId && setUnitId) setUnitId(res.unitId)
+        const createdOrUpdatedUnitId = res.unitId || unitId || ''
+        if (createdOrUpdatedUnitId && setUnitId) {
+          setUnitId(createdOrUpdatedUnitId)
+        }
         if (res.orderRef && setOrderRef) setOrderRef(res.orderRef)
 
         const resolvedName = res.userName || form.name
@@ -425,6 +449,17 @@ export function ContactSection({
           phone: resolvedPhone,
         })
 
+        // حفظ كافة الحقول المكتوبة في الفورم فوراً داخل المسودة حتى لا تضيع أي بيانات
+        if (res.userId && createdOrUpdatedUnitId && buildFullFormData) {
+          try {
+            const fullDraft = buildFullFormData(
+              createdOrUpdatedUnitId,
+              res.userId
+            )
+            await saveSellProgress(fullDraft)
+          } catch {}
+        }
+
         if (res.userId && onUserAuthenticated) {
           onUserAuthenticated(
             {
@@ -433,7 +468,7 @@ export function ContactSection({
               email: resolvedEmail,
               phone: resolvedPhone,
             },
-            res.unitId
+            createdOrUpdatedUnitId
           )
         }
         setAuthMode('session')
@@ -470,7 +505,7 @@ export function ContactSection({
       }
 
       setStepError(
-        res.error || getMsg(locale, v.submitFailed, 'submitFailed')
+        res.error || getMsg(locale as LocaleCode, v.submitFailed, 'submitFailed')
       )
     } finally {
       setIsLoading(false)
@@ -480,7 +515,9 @@ export function ContactSection({
   const handleVerifyExistingEmail = async () => {
     if (!conflictState || conflictState.type !== 'email_exists') return
     if (!existingPass.trim()) {
-      setStepError(getMsg(locale, v.loginPassRequired, 'loginPassRequired'))
+      setStepError(
+        getMsg(locale as LocaleCode, v.loginPassRequired, 'loginPassRequired')
+      )
       return
     }
     setIsLoading(true)
@@ -492,7 +529,12 @@ export function ContactSection({
       })
       if (!res.success || !res.user) {
         setStepError(
-          res.error || getMsg(locale, v.loginPassRequired, 'loginPassRequired')
+          res.error ||
+            getMsg(
+              locale as LocaleCode,
+              v.loginPassRequired,
+              'loginPassRequired'
+            )
         )
         return
       }
@@ -530,7 +572,8 @@ export function ContactSection({
         setRecoveryLinkSent(true)
       } else {
         setStepError(
-          res.error || getMsg(locale, v.submitFailed, 'submitFailed')
+          res.error ||
+            getMsg(locale as LocaleCode, v.submitFailed, 'submitFailed')
         )
       }
     } finally {
@@ -552,14 +595,19 @@ export function ContactSection({
           </p>
         </div>
 
-        {loggedUser && (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-extrabold text-[#007a5a]">
-            <CheckCircle2 className="size-3.5" />
-            <span>
-              {t.connectedBadge} ({loggedUser.name.split(' ')[0]})
-            </span>
+        <div className="flex items-center gap-2">
+          <span className="rounded-full bg-red-50 px-3 py-1 text-[11px] font-extrabold text-red-600">
+            {fT.requiredBadge}
           </span>
-        )}
+          {loggedUser && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-extrabold text-[#007a5a]">
+              <CheckCircle2 className="size-3.5" />
+              <span>
+                {t.connectedBadge} ({loggedUser.name.split(' ')[0]})
+              </span>
+            </span>
+          )}
+        </div>
       </div>
 
       {conflictState?.type === 'email_exists' && (
@@ -665,7 +713,7 @@ export function ContactSection({
         </div>
       )}
 
-      {/* 1. عرض الحساب الحالي (يظهر فقط إذا كان المستخدم مسجلاً للدخول فعلياً) */}
+      {/* 1. عرض الحساب الحالي (للمسجلين) */}
       {!conflictState &&
         loggedUser &&
         (authMode === 'session' || authMode === 'sivrce_default') && (
@@ -677,16 +725,18 @@ export function ContactSection({
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field
-                error={localErrors.name}
-                label={t.nameLabel}
-                id="name"
-                placeholder={cT.namePlaceholder}
-                value={form.name}
-                update={(v) => update('name', v)}
-              />
+              <div id="field-wrap-name">
+                <Field
+                  error={mergedErrors.name}
+                  label={t.nameLabel}
+                  id="name"
+                  placeholder={cT.namePlaceholder}
+                  value={form.name}
+                  update={(val) => update('name', val)}
+                />
+              </div>
 
-              <div className="flex flex-col gap-2">
+              <div id="field-wrap-phone" className="flex flex-col gap-2">
                 <Label htmlFor="phone" className="text-start">
                   {t.phoneLabel}
                 </Label>
@@ -709,13 +759,15 @@ export function ContactSection({
                       update('phone', toEnglishDigits(e.target.value))
                     }
                     className={`h-12 flex-1 rounded-xl px-3 text-left font-bold ${
-                      localErrors.phone ? 'border-red-500 bg-red-50/20' : ''
+                      mergedErrors.phone
+                        ? 'border-2 border-red-500 bg-red-50/20'
+                        : ''
                     }`}
                   />
                 </div>
-                {localErrors.phone && (
+                {mergedErrors.phone && (
                   <p className="text-start text-xs font-semibold text-red-600">
-                    {localErrors.phone}
+                    {mergedErrors.phone}
                   </p>
                 )}
               </div>
@@ -725,192 +777,201 @@ export function ContactSection({
           </div>
         )}
 
-      {/* 2. فورم تسجيل حساب مالك جديد (يفتح تلقائياً لغير المسجلين) */}
-      {!conflictState && (authMode === 'register' || (!loggedUser && authMode !== 'login')) && (
-        <div className="mt-5 space-y-5 rounded-2xl border border-slate-200 bg-slate-50/60 p-5">
-          <div className="flex items-center justify-between border-b border-slate-200/80 pb-3">
-            <div className="flex items-center gap-2">
-              <UserPlus className="size-4 text-[#007a5a]" />
-              <h3 className="text-sm font-black text-[#0a1122]">
-                {t.tabNewRegister}
-              </h3>
-            </div>
-            {loggedUser && (
-              <button
-                type="button"
-                onClick={() => {
-                  setAuthMode('session')
-                  syncLoggedUserFields(loggedUser)
-                }}
-                className="text-xs font-bold text-[#2563eb] hover:underline"
-              >
-                {cT.backToCurrentAccountBtn}
-              </button>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field
-              error={localErrors.name}
-              label={t.nameLabel}
-              id="name"
-              placeholder={cT.namePlaceholder}
-              value={form.name}
-              update={(value) => update('name', value)}
-            />
-
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="phone-reg" className="text-start">
-                {t.phoneLabel}
-              </Label>
-              <div dir="ltr" className="flex items-center gap-2">
-                <CountrySelector
-                  value={form.countryCode ?? '995'}
-                  onChange={(code, iso) => {
-                    update('countryCode', code)
-                    if (iso) update('userCountry', iso)
-                  }}
-                />
-                <Input
-                  id="phone-reg"
-                  dir="ltr"
-                  type="tel"
-                  inputMode="tel"
-                  placeholder={dynamicPhonePlaceholder}
-                  value={form.phone ?? ''}
-                  onChange={(e) =>
-                    update('phone', toEnglishDigits(e.target.value))
-                  }
-                  className={`h-12 flex-1 rounded-xl bg-white px-3 text-left font-bold ${
-                    localErrors.phone ? 'border-red-500 bg-red-50/20' : ''
-                  }`}
-                />
+      {/* 2. فورم تسجيل حساب مالك جديد */}
+      {!conflictState &&
+        (authMode === 'register' || (!loggedUser && authMode !== 'login')) && (
+          <div className="mt-5 space-y-5 rounded-2xl border border-slate-200 bg-slate-50/60 p-4 sm:p-5">
+            <div className="flex items-center justify-between border-b border-slate-200/80 pb-3">
+              <div className="flex items-center gap-2">
+                <UserPlus className="size-4 text-[#007a5a]" />
+                <h3 className="text-sm font-black text-[#0a1122]">
+                  {t.tabNewRegister}
+                </h3>
               </div>
-              {localErrors.phone && (
-                <p className="text-start text-xs font-semibold text-red-600">
-                  {localErrors.phone}
-                </p>
-              )}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <Field
-              error={localErrors.email}
-              label={t.emailLabel}
-              id="email"
-              type="email"
-              placeholder="name@example.com"
-              value={form.email}
-              update={(value) => update('email', value)}
-            />
-
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="password" className="text-start">
-                {t.passwordLabel} <span className="ms-1 text-red-500">*</span>
-              </Label>
-              <div className="relative w-full">
-                <Input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  dir="ltr"
-                  value={form.password ?? ''}
-                  onChange={(e) => update('password', e.target.value)}
-                  className={`h-12 w-full rounded-xl border-slate-200 bg-white pr-12 pl-4 text-left ${
-                    localErrors.password ? 'border-red-500 bg-red-50/20' : ''
-                  }`}
-                />
+              {loggedUser && (
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute top-1/2 right-3 -translate-y-1/2 text-slate-500 hover:text-[#007a5a]"
-                >
-                  {showPassword ? (
-                    <EyeOff className="size-4" />
-                  ) : (
-                    <Eye className="size-4" />
-                  )}
-                </button>
-              </div>
-              {localErrors.password && (
-                <p className="text-start text-xs font-semibold text-red-600">
-                  {localErrors.password}
-                </p>
-              )}
-              <span className="text-start text-[11px] font-semibold text-teal-700">
-                {t.passwordHelper}
-              </span>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="confirmPassword" className="text-start">
-                {cT.confirmPasswordLabel}{' '}
-                <span className="ms-1 text-red-500">*</span>
-              </Label>
-              <div className="relative w-full">
-                <Input
-                  id="confirmPassword"
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  dir="ltr"
-                  value={confirmPassword}
-                  onChange={(e) => {
-                    setConfirmPassword(e.target.value)
-                    setLocalErrors((prev) => ({
-                      ...prev,
-                      confirmPassword: '',
-                    }))
+                  onClick={() => {
+                    setAuthMode('session')
+                    syncLoggedUserFields(loggedUser)
                   }}
-                  className={`h-12 w-full rounded-xl border-slate-200 bg-white pr-12 pl-4 text-left ${
-                    localErrors.confirmPassword
-                      ? 'border-red-500 bg-red-50/20'
-                      : ''
-                  }`}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute top-1/2 right-3 -translate-y-1/2 text-slate-500 hover:text-[#007a5a]"
+                  className="text-xs font-bold text-[#2563eb] hover:underline"
                 >
-                  {showConfirmPassword ? (
-                    <EyeOff className="size-4" />
-                  ) : (
-                    <Eye className="size-4" />
-                  )}
+                  {cT.backToCurrentAccountBtn}
                 </button>
-              </div>
-              {localErrors.confirmPassword && (
-                <p className="text-start text-xs font-semibold text-red-600">
-                  {localErrors.confirmPassword}
-                </p>
               )}
             </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div id="field-wrap-name">
+                <Field
+                  error={mergedErrors.name}
+                  label={t.nameLabel}
+                  id="name"
+                  placeholder={cT.namePlaceholder}
+                  value={form.name}
+                  update={(value) => update('name', value)}
+                />
+              </div>
+
+              <div id="field-wrap-phone" className="flex flex-col gap-2">
+                <Label htmlFor="phone-reg" className="text-start">
+                  {t.phoneLabel}
+                </Label>
+                <div dir="ltr" className="flex items-center gap-2">
+                  <CountrySelector
+                    value={form.countryCode ?? '995'}
+                    onChange={(code, iso) => {
+                      update('countryCode', code)
+                      if (iso) update('userCountry', iso)
+                    }}
+                  />
+                  <Input
+                    id="phone-reg"
+                    dir="ltr"
+                    type="tel"
+                    inputMode="tel"
+                    placeholder={dynamicPhonePlaceholder}
+                    value={form.phone ?? ''}
+                    onChange={(e) =>
+                      update('phone', toEnglishDigits(e.target.value))
+                    }
+                    className={`h-12 flex-1 rounded-xl bg-white px-3 text-left font-bold ${
+                      mergedErrors.phone
+                        ? 'border-2 border-red-500 bg-red-50/20'
+                        : ''
+                    }`}
+                  />
+                </div>
+                {mergedErrors.phone && (
+                  <p className="text-start text-xs font-semibold text-red-600">
+                    {mergedErrors.phone}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div id="field-wrap-email">
+                <Field
+                  error={mergedErrors.email}
+                  label={t.emailLabel}
+                  id="email"
+                  type="email"
+                  placeholder="name@example.com"
+                  value={form.email}
+                  update={(value) => update('email', value)}
+                />
+              </div>
+
+              <div id="field-wrap-password" className="flex flex-col gap-2">
+                <Label htmlFor="password" className="text-start">
+                  {t.passwordLabel} <span className="ms-1 text-red-500">*</span>
+                </Label>
+                <div className="relative w-full">
+                  <Input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    dir="ltr"
+                    value={form.password ?? ''}
+                    onChange={(e) => update('password', e.target.value)}
+                    className={`h-12 w-full rounded-xl border-slate-200 bg-white pr-12 pl-4 text-left ${
+                      mergedErrors.password
+                        ? 'border-2 border-red-500 bg-red-50/20'
+                        : ''
+                    }`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute top-1/2 right-3 -translate-y-1/2 text-slate-500 hover:text-[#007a5a]"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="size-4" />
+                    ) : (
+                      <Eye className="size-4" />
+                    )}
+                  </button>
+                </div>
+                {mergedErrors.password && (
+                  <p className="text-start text-xs font-semibold text-red-600">
+                    {mergedErrors.password}
+                  </p>
+                )}
+                <span className="text-start text-[11px] font-semibold text-teal-700">
+                  {t.passwordHelper}
+                </span>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="confirmPassword" className="text-start">
+                  {cT.confirmPasswordLabel}{' '}
+                  <span className="ms-1 text-red-500">*</span>
+                </Label>
+                <div className="relative w-full">
+                  <Input
+                    id="confirmPassword"
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    dir="ltr"
+                    value={confirmPassword}
+                    onChange={(e) => {
+                      setConfirmPassword(e.target.value)
+                      setLocalErrors((prev) => ({
+                        ...prev,
+                        confirmPassword: '',
+                      }))
+                    }}
+                    className={`h-12 w-full rounded-xl border-slate-200 bg-white pr-12 pl-4 text-left ${
+                      mergedErrors.confirmPassword
+                        ? 'border-2 border-red-500 bg-red-50/20'
+                        : ''
+                    }`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute top-1/2 right-3 -translate-y-1/2 text-slate-500 hover:text-[#007a5a]"
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff className="size-4" />
+                    ) : (
+                      <Eye className="size-4" />
+                    )}
+                  </button>
+                </div>
+                {mergedErrors.confirmPassword && (
+                  <p className="text-start text-xs font-semibold text-red-600">
+                    {mergedErrors.confirmPassword}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {renderMessengersPicker()}
+
+            <TurnstileBox />
+
+            <Button
+              type="button"
+              disabled={isLoading}
+              onClick={handleVerifyOrSwitchAccount}
+              className="h-11 w-full rounded-xl bg-[#007a5a] text-xs font-extrabold text-white hover:bg-[#006248] sm:text-sm"
+            >
+              {isLoading ? (
+                <span className="inline-flex items-center gap-2">
+                  <Loader2 className="size-4 animate-spin" />
+                  {t.savingBtn}
+                </span>
+              ) : (
+                cT.createAccountLinkBtn
+              )}
+            </Button>
           </div>
-
-          {renderMessengersPicker()}
-
-          <TurnstileBox />
-
-          <Button
-            type="button"
-            disabled={isLoading}
-            onClick={handleVerifyOrSwitchAccount}
-            className="h-11 w-full rounded-xl bg-[#007a5a] text-xs font-extrabold text-white hover:bg-[#006248] sm:text-sm"
-          >
-            {isLoading ? (
-              <span className="inline-flex items-center gap-2">
-                <Loader2 className="size-4 animate-spin" />
-                {t.savingBtn}
-              </span>
-            ) : (
-              cT.createAccountLinkBtn
-            )}
-          </Button>
-        </div>
-      )}
+        )}
 
       {/* 3. فورم تسجيل الدخول بحساب موجود */}
       {!conflictState && authMode === 'login' && (
-        <div className="mt-5 space-y-5 rounded-2xl border border-slate-200 bg-slate-50/60 p-5">
+        <div className="mt-5 space-y-5 rounded-2xl border border-slate-200 bg-slate-50/60 p-4 sm:p-5">
           <div className="flex items-center justify-between border-b border-slate-200/80 pb-3">
             <div className="flex items-center gap-2">
               <LogIn className="size-4 text-[#2563eb]" />
@@ -937,13 +998,15 @@ export function ContactSection({
           </p>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field
-              error={localErrors.loginIdentifier}
-              label={t.loginIdLabel}
-              id="loginIdentifier"
-              value={form.loginIdentifier}
-              update={(value) => update('loginIdentifier', value)}
-            />
+            <div id="field-wrap-loginIdentifier">
+              <Field
+                error={mergedErrors.loginIdentifier}
+                label={t.loginIdLabel}
+                id="loginIdentifier"
+                value={form.loginIdentifier}
+                update={(value) => update('loginIdentifier', value)}
+              />
+            </div>
 
             <div className="flex flex-col gap-2">
               <Label htmlFor="loginPassword" className="text-start">
@@ -960,8 +1023,8 @@ export function ContactSection({
                     update('password', e.target.value)
                   }}
                   className={`h-12 w-full rounded-xl border-slate-200 bg-white pr-12 pl-4 text-left ${
-                    localErrors.loginPassword
-                      ? 'border-red-500 bg-red-50/20'
+                    mergedErrors.loginPassword
+                      ? 'border-2 border-red-500 bg-red-50/20'
                       : ''
                   }`}
                 />
@@ -977,9 +1040,9 @@ export function ContactSection({
                   )}
                 </button>
               </div>
-              {localErrors.loginPassword && (
+              {mergedErrors.loginPassword && (
                 <p className="text-start text-xs font-semibold text-red-600">
-                  {localErrors.loginPassword}
+                  {mergedErrors.loginPassword}
                 </p>
               )}
             </div>
@@ -1070,24 +1133,35 @@ export function ContactSection({
         </div>
       )}
 
-      <label
-        dir={dir}
-        className="mt-5 flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-start text-xs font-bold text-slate-700"
-      >
-        <Checkbox
-          className="m-0 shrink-0"
-          checked={agreedTerms}
-          onCheckedChange={(checked) => {
-            const isOk = Boolean(checked)
-            setAgreedTerms(isOk)
-            update('owner', isOk ? 'yes' : '')
-            update('confirmed', isOk ? 'yes' : '')
-          }}
-        />
-        <span>
-          {t.ownerDeclaration} {cT.termsAgreementSuffix}
-        </span>
-      </label>
+      <div id="field-wrap-agreedTerms">
+        <label
+          dir={dir}
+          className={`mt-5 flex cursor-pointer items-center gap-3 rounded-2xl border p-4 text-start text-xs font-bold transition ${
+            mergedErrors.agreedTerms
+              ? 'border-2 border-red-500 bg-red-50/30 text-red-900'
+              : 'border-slate-200 bg-slate-50/70 text-slate-700'
+          }`}
+        >
+          <Checkbox
+            className="m-0 shrink-0"
+            checked={agreedTerms}
+            onCheckedChange={(checked) => {
+              const isOk = Boolean(checked)
+              setAgreedTerms(isOk)
+              update('owner', isOk ? 'yes' : '')
+              update('confirmed', isOk ? 'yes' : '')
+            }}
+          />
+          <span>
+            {t.ownerDeclaration} {cT.termsAgreementSuffix}
+          </span>
+        </label>
+        {mergedErrors.agreedTerms && (
+          <p className="mt-1.5 text-start text-xs font-extrabold text-red-600">
+            {mergedErrors.agreedTerms}
+          </p>
+        )}
+      </div>
 
       {(stepError || error || missingFields.length > 0) && (
         <div className="mt-5 flex items-start gap-2.5 rounded-2xl border border-red-300 bg-red-50 p-4 text-start text-xs text-red-800">

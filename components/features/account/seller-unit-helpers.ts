@@ -97,67 +97,92 @@ const STAGE_SYNC_I18N: Record<
   LocaleCode,
   {
     steps: [string, string, string, string, string, string]
+    incompleteBadge: string
+    incompleteHeadline: string
+    readyPendingReviewBadge: string
+    readyPendingReviewHeadline: string
     underReviewBadge: string
     underReviewHeadline: string
   }
 > = {
   ar: {
     steps: [
-      '١. في انتظار المراجعة',
-      '٢. جاري مراجعة المستندات',
+      '١. استكمال البيانات والمرفقات',
+      '٢. قيد مراجعة الإدارة والمستندات',
       '٣. معتمد ومعروض بالسوق',
       '٤. يوجد عرض شراء',
       '٥. مرحلة نقل التعاقد',
       '٦. تمت عملية البيع',
     ],
-    underReviewBadge: '٢. جاري مراجعة المستندات',
+    incompleteBadge: '⚠️ غير منشورة — بانتظار استكمال المتطلبات',
+    incompleteHeadline:
+      'وحدتك محفوظة في حسابك (غير منشورة بعد) — يرجى استكمال رفع الصور والمستندات بالأسفل لتنتقل الوحدة إلى مراجعة الإدارة والموافقة على نشرها',
+    readyPendingReviewBadge: '⏳ مكتملة — بانتظار موافقة الإدارة',
+    readyPendingReviewHeadline:
+      'أحسنت! اكتملت جميع البيانات والصور والمستندات — وحدتك الآن لدى الإدارة للمراجعة والموافقة على نشرها في السوق',
+    underReviewBadge: '٢. جاري مراجعة المستندات لدى الإدارة',
     underReviewHeadline:
-      'يقوم فريق المراجعة القانونية حالياً بفحص بيانات ومستندات وحدتك لاعتمادها ونشرها بالسوق',
+      'يقوم فريق المراجعة حالياً بفحص بيانات ومستندات وحدتك لاعتمادها ونشرها بالسوق',
   },
   en: {
     steps: [
-      '1. Pending Review',
-      '2. Reviewing Documents',
+      '1. Complete Details & Media',
+      '2. Under Admin & Document Review',
       '3. Approved & Live in Market',
       '4. Purchase Offer Received',
       '5. Contract Transfer Stage',
       '6. Unit Sold',
     ],
+    incompleteBadge: '⚠️ Not Published — Action Required',
+    incompleteHeadline:
+      'Your unit is saved as a draft (not published yet) — please complete the missing photos or documents below so Admin can review and publish it',
+    readyPendingReviewBadge: '⏳ Complete — Pending Admin Approval',
+    readyPendingReviewHeadline:
+      'Great job! All details, photos, and documents are complete — your unit is now with Admin for review and market publication',
     underReviewBadge: '2. Reviewing Documents',
     underReviewHeadline:
       'Our verification team is currently reviewing your unit details & documents for market approval',
   },
   ru: {
     steps: [
-      '1. Ожидает проверки',
-      '2. Проверка документов',
+      '1. Заполнение данных и файлов',
+      '2. На проверке у администрации',
       '3. Одобрено и на рынке',
       '4. Получено предложение',
       '5. Переоформление договора',
       '6. Объект продан',
     ],
+    incompleteBadge: '⚠️ Не опубликовано — требуются файлы',
+    incompleteHeadline:
+      'Объект сохранен в кабинете (еще не опубликован) — загрузите недостающие фото или документы ниже для отправки на проверку администрации',
+    readyPendingReviewBadge: '⏳ Заполнено — ожидает одобрения',
+    readyPendingReviewHeadline:
+      'Отлично! Все данные, фото и документы загружены — ваш объект передан администрации на проверку и публикацию',
     underReviewBadge: '2. Проверка документов',
     underReviewHeadline:
       'Юридический отдел проверяет данные и документы вашего объекта перед публикацией',
   },
   ka: {
     steps: [
-      '1. განხილვის მოლოდინში',
-      '2. დოკუმენტების შემოწმება',
+      '1. მონაცემების და ფაილების შევსება',
+      '2. ადმინისტრაციის შემოწმებაზე',
       '3. დამტკიცებულია ბაზარზე',
       '4. მიღებულია შეთავაზება',
       '5. კონტრაქტის გადაფორმება',
       '6. გაყიდულია',
     ],
+    incompleteBadge: '⚠️ არ არის გამოქვეყნებული — საჭიროა შევსება',
+    incompleteHeadline:
+      'თქვენი ობიექტი შენახულია (ჯერ არ არის გამოქვეყნებული) — გთხოვთ ატვირთოთ ფოტოები და დოკუმენტები ქვემოთ, რათა გადაეგზავნოს ადმინისტრაციას',
+    readyPendingReviewBadge: '⏳ შევსებულია — ელოდება დადასტურებას',
+    readyPendingReviewHeadline:
+      'ყველა მონაცემი, ფოტო და დოკუმენტი სრულია — თქვენი ობიექტი გადაგზავნილია ადმინისტრაციაში გამოსაქვეყნებლად',
     underReviewBadge: '2. დოკუმენტების შემოწმება',
     underReviewHeadline:
       'ჩვენი გუნდი ამოწმებს თქვენი ობიექტის მონაცემებსა და დოკუმენტებს გამოსაქვეყნებლად',
   },
 }
 
-/**
- * استخراج الملاحظة الفعلية التي كتبها الأدمن للبائع فقط (واستبعاد ملاحظات النظام الآلية)
- */
 export function getVisibleSellerAdminNote(
   rawNote?: string | null
 ): string | null {
@@ -198,9 +223,10 @@ export function calculateUnitCompletion(
       ? meta.images
       : []
 
-  const hasImages =
-    rawImages.filter((img: any) => Boolean(img && String(img).trim())).length >
-    0
+  const imagesCount = rawImages.filter((img: any) =>
+    Boolean(img && String(img).trim())
+  ).length
+  const hasImages = imagesCount > 0
 
   const docsObj =
     unit.documents && typeof unit.documents === 'object' ? unit.documents : {}
@@ -249,7 +275,9 @@ export function calculateUnitCompletion(
 
   const completedDataCount = dataChecks.filter(Boolean).length
   const hasAllCoreDetails = Boolean(
-    areaVal &&
+    unit.project_name &&
+      areaVal &&
+      streetVal &&
       typeVal &&
       sizeVal > 0 &&
       Number(unit.contract_price) > 0 &&
@@ -261,8 +289,8 @@ export function calculateUnitCompletion(
   const completedCount =
     completedDataCount + (hasImages ? 1 : 0) + uploadedDocsCount
 
-  const dataScore = Math.round((completedDataCount / dataChecks.length) * 65)
-  const photosScore = hasImages ? 15 : 0
+  const dataScore = Math.round((completedDataCount / dataChecks.length) * 60)
+  const photosScore = hasImages ? 20 : 0
   const docsScore = Math.round((uploadedDocsCount / totalDocsRequired) * 20)
   const percentage = Math.min(100, dataScore + photosScore + docsScore)
 
@@ -278,7 +306,7 @@ export function calculateUnitCompletion(
     missingItems.push({
       key: 'photos',
       label: t.addPhotosAction,
-      href: `/sell?editUnitId=${unit.id}`,
+      href: `/sell?editUnitId=${unit.id}&focus=photos`,
     })
   }
   if (!hasAllDocuments) {
@@ -306,10 +334,12 @@ export function calculateUnitCompletion(
     completedCount,
     total,
     percentage,
+    imagesCount,
     hasImages,
     hasAllDocuments,
     hasAllCoreDetails,
     uploadedDocsCount,
+    remainingDocsCount,
     missingItems,
     isUnitPhoneVerified: Boolean(
       meta.phone_verified || isAlreadyPublishedOrApproved
@@ -342,18 +372,17 @@ export function getSellerTimelineAndStatus(
         stepIndex: 0,
         timelineSteps,
         listBadge: {
-          label: t.statusDraftUnverifiedBadge || t.notPublishedYet,
+          label: stageSync.incompleteBadge,
           cls: 'bg-amber-100 text-amber-900 border border-amber-300',
         },
         headerBadge: {
-          label: t.statusDraftUnverifiedBadge || t.notPublishedYet,
+          label: stageSync.incompleteBadge,
           cls: 'bg-amber-100 text-amber-900 border border-amber-300',
         } as StatusBadgeItem | null,
         headline:
-          t.statusDraftUnverifiedHeadline || t.incompleteNextStepHeadline,
+          t.statusDraftUnverifiedHeadline || stageSync.incompleteHeadline,
       }
 
-    // المرحلة ٢ في قائمة الأدمن: جاري مراجعة المستندات
     case 'under_review':
       return {
         code: 'under_review',
@@ -370,7 +399,6 @@ export function getSellerTimelineAndStatus(
         headline: t.statusUnderReviewHeadline || stageSync.underReviewHeadline,
       }
 
-    // المرحلة ٣ في قائمة الأدمن: معتمد ومعروض بالسوق
     case 'active':
     case 'approved':
     case 'published':
@@ -389,7 +417,6 @@ export function getSellerTimelineAndStatus(
         headline: t.statusActiveHeadline,
       }
 
-    // المرحلة ٤ في قائمة الأدمن: يوجد عرض شراء
     case 'offer_received':
       return {
         code: 'offer_received',
@@ -406,7 +433,6 @@ export function getSellerTimelineAndStatus(
         headline: t.statusOfferHeadline,
       }
 
-    // المرحلة ٥ في قائمة الأدمن: مرحلة نقل التعاقد
     case 'transferring':
       return {
         code: 'transferring',
@@ -423,7 +449,6 @@ export function getSellerTimelineAndStatus(
         headline: t.statusTransferHeadline,
       }
 
-    // المرحلة ٦ في قائمة الأدمن: تمت عملية البيع
     case 'sold':
       return {
         code: 'sold',
@@ -440,7 +465,6 @@ export function getSellerTimelineAndStatus(
         headline: t.statusSoldHeadline,
       }
 
-    // متوقفة مؤقتاً (من البائع أو الأدمن)
     case 'paused_by_seller':
       return {
         code: 'paused_by_seller',
@@ -473,7 +497,6 @@ export function getSellerTimelineAndStatus(
         headline: t.statusPausedDeletionHeadline,
       }
 
-    // المرحلة ٧ في قائمة الأدمن: مرفوض
     case 'rejected':
       return {
         code: 'rejected',
@@ -490,37 +513,38 @@ export function getSellerTimelineAndStatus(
         headline: t.statusRejectedHeadline,
       }
 
-    // المرحلة ١ في قائمة الأدمن: في انتظار المراجعة (pending)
     default:
+      // إذا لم يرفع الصور أو المستندات أو كانت البيانات ناقصة: نوضح له صراحة أنها "غير منشورة وبانتظار استكمال المتطلبات"
       if (!isComplete) {
         return {
           code: 'incomplete',
           stepIndex: 0,
           timelineSteps,
           listBadge: {
-            label: `${t.statusPendingBadge || timelineSteps[0]} · ${comp.percentage}%`,
-            cls: 'bg-amber-50 text-amber-800 border border-amber-200',
+            label: `${stageSync.incompleteBadge} (${comp.percentage}%)`,
+            cls: 'bg-amber-100 text-amber-950 border border-amber-300',
           },
           headerBadge: {
-            label: t.statusPendingBadge || timelineSteps[0],
-            cls: 'bg-amber-50 text-amber-800 border border-amber-200',
+            label: stageSync.incompleteBadge,
+            cls: 'bg-amber-100 text-amber-950 border border-amber-300',
           } as StatusBadgeItem | null,
-          headline: t.incompleteNextStepHeadline,
+          headline: stageSync.incompleteHeadline,
         }
       }
+      // إذا اكتملت البيانات + الصور + المستندات: تنتقل فوراً إلى الخطوة رقم 2 (قيد مراجعة الإدارة)
       return {
         code: 'pending_review',
-        stepIndex: 0,
+        stepIndex: 1,
         timelineSteps,
         listBadge: {
-          label: t.statusPendingBadge || timelineSteps[0],
-          cls: 'bg-amber-50 text-amber-800 border border-amber-200',
+          label: stageSync.readyPendingReviewBadge,
+          cls: 'bg-blue-100 text-blue-900 border border-blue-300',
         },
         headerBadge: {
-          label: t.statusPendingBadge || timelineSteps[0],
-          cls: 'bg-amber-50 text-amber-800 border border-amber-200',
+          label: stageSync.readyPendingReviewBadge,
+          cls: 'bg-blue-100 text-blue-900 border border-blue-300',
         } as StatusBadgeItem | null,
-        headline: t.statusPendingHeadline,
+        headline: stageSync.readyPendingReviewHeadline,
       }
   }
 }

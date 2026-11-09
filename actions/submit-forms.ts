@@ -60,6 +60,13 @@ export type Step2AuthResponse = {
   error?: string
 }
 
+const REQUIRED_DOC_KEYS = [
+  'contract',
+  'receipts',
+  'statement',
+  'passport',
+] as const
+
 function generateOfficialUnitCode(): string {
   const randomFiveDigits = Math.floor(10000 + Math.random() * 90000)
   return `U-${randomFiveDigits}`
@@ -81,6 +88,62 @@ function safeNum(val: unknown, fallback: number | null = 0): number | null {
       .replace(/[^0-9.-]/g, '')
   )
   return Number.isFinite(parsed) ? parsed : fallback
+}
+
+function checkUnitHasCompleteMediaAndDetails(payload: Record<string, any>): {
+  hasCoreDetails: boolean
+  hasPhotos: boolean
+  hasAllDocs: boolean
+  isFullyCompleteForAdmin: boolean
+} {
+  const meta = payload.documents?.__unit_meta || {}
+  const areaVal = payload.area || meta.area
+  const streetVal = payload.exact_street || meta.exact_street
+  const projectVal = payload.project_name
+  const typeVal = payload.unit_type || meta.unit_type
+  const isLand = String(typeVal || '').toLowerCase() === 'land'
+  const sizeVal = Number(payload.size ?? meta.size) || 0
+  const roomsVal = Number(payload.rooms ?? meta.rooms) || 0
+  const contractVal = Number(payload.contract_price) || 0
+  const paidVal = Number(payload.paid_amount) || 0
+
+  const hasCoreDetails = Boolean(
+    areaVal &&
+      streetVal &&
+      projectVal &&
+      typeVal &&
+      sizeVal > 0 &&
+      contractVal > 0 &&
+      paidVal > 0 &&
+      (isLand || roomsVal > 0)
+  )
+
+  const imgs = Array.isArray(payload.images) ? payload.images : []
+  const hasPhotos =
+    imgs.filter((img: any) => Boolean(img && String(img).trim())).length > 0
+
+  const docsObj =
+    payload.documents && typeof payload.documents === 'object'
+      ? payload.documents
+      : {}
+  const normalizedDocs: Record<string, any> = { ...docsObj }
+  if (normalizedDocs.national_id && !normalizedDocs.passport) {
+    normalizedDocs.passport = normalizedDocs.national_id
+  }
+
+  const uploadedDocsCount = REQUIRED_DOC_KEYS.filter((k) =>
+    Boolean(normalizedDocs[k]?.url)
+  ).length
+  const hasAllDocs = uploadedDocsCount === REQUIRED_DOC_KEYS.length
+
+  return {
+    hasCoreDetails,
+    hasPhotos,
+    hasAllDocs,
+    isFullyCompleteForAdmin: Boolean(
+      hasCoreDetails && hasPhotos && hasAllDocs
+    ),
+  }
 }
 
 export async function getUsersVerificationMapAction(
@@ -371,7 +434,6 @@ export async function verifySellerReviewOtpAction(payload: {
 
     cookieStore.delete('sell_verify_otp')
 
-    // توثيق حساب المستخدم نهائياً في جدول users وفي الميتا حتى لا يُطلب منه الكود مستقبلاً
     if (activeUserId) {
       try {
         await supabase
@@ -687,7 +749,7 @@ export async function processSellerStep2Action(payload: {
         user_id: userId,
         code: generatedCode,
         views_count: 1,
-        docs_verified: true,
+        docs_verified: false,
         country: unitCountryCode,
         country_code: unitCountryCode,
         currency_code: 'USD',
@@ -707,6 +769,7 @@ export async function processSellerStep2Action(payload: {
         email: contact.email || null,
         is_original_owner: true,
         status: 'pending',
+        submission_type: 'draft',
         documents: {
           __unit_meta: {
             code: generatedCode,
@@ -717,6 +780,7 @@ export async function processSellerStep2Action(payload: {
             rent_period:
               payload.rentPeriod ||
               (listingCategory === 'rent_daily' ? 'daily' : 'monthly'),
+            ready_for_admin_review: false,
           },
         },
       }
@@ -771,32 +835,7 @@ export async function processSellerStep2Action(payload: {
         inserted = fallbackIns.data
       }
 
-      const newUnitId = inserted?.id ? String(inserted.id) : ''
-
-      try {
-        await supabase.from('notifications').insert([
-          {
-            user_id: null,
-            role: 'admin',
-            title: `${msg.newDraftUnitAdminTitle} (${unitCountryCode}): ${payload.project || msg.unitWord}`,
-            message: `${contact.name} · $${effectivePaid.toLocaleString('en-US')}`,
-            type: 'property',
-            link: '/admin/properties',
-            is_read: false,
-          },
-          {
-            user_id: userId,
-            role: 'client',
-            title: msg.unitSubmittedSellerTitle,
-            message: `${msg.unitSubmittedSellerMsg} (${payload.project || msg.unitWord})`,
-            type: 'status_update',
-            link: '/account?view=seller',
-            is_read: false,
-          },
-        ])
-      } catch {}
-
-      return newUnitId
+      return inserted?.id ? String(inserted.id) : ''
     }
 
     async function sendOrderConfirmationMagicEmail(
@@ -809,7 +848,9 @@ export async function processSellerStep2Action(payload: {
       const orderRef = generateOrderRef(unitId)
       const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000
       const magicToken = createMagicToken(userId, unitId, expiresAt)
+      // الرابط يفتح حساب البائع أو استكمال الوحدة المحفوظة مباشرة
       const magicLink = `${siteUrl}/sell?magic=${encodeURIComponent(magicToken)}`
+      const accountLink = `${siteUrl}/account?view=seller&unitId=${encodeURIComponent(unitId)}`
       const paidFormatted = Number(
         payload.paidAmount || payload.rentPrice || payload.contractPrice || 0
       ).toLocaleString('en-US')
@@ -824,7 +865,8 @@ export async function processSellerStep2Action(payload: {
                  <p>${msg.orderPaidConfirmText}: <strong>$${paidFormatted}</strong>.</p>
                  <p>${msg.orderMagicLinkPrompt}:</p>
                  <p style="margin: 18px 0;">
-                   <a href="${magicLink}" style="color: #0b6954; font-weight: bold; word-break: break-all;">${magicLink}</a>
+                   <a href="${accountLink}" style="display: inline-block; background: #007a5a; color: #ffffff; padding: 10px 20px; border-radius: 10px; font-weight: bold; text-decoration: none; margin-inline-end: 10px;">متابعة حالة وحدتي في حسابي</a>
+                   <a href="${magicLink}" style="color: #2563eb; font-weight: bold; word-break: break-all;">استكمال أو تعديل بيانات الوحدة</a>
                  </p>
                 </div>`,
       }).catch(() => {})
@@ -848,7 +890,7 @@ export async function processSellerStep2Action(payload: {
 
       const orderRef = generateOrderRef(unitId)
       if (currentUser.email && !currentUser.is_verified) {
-        sendOrderConfirmationMagicEmail(
+        void sendOrderConfirmationMagicEmail(
           currentUser.id,
           unitId,
           currentUser.name || msg.unitOwnerFallback,
@@ -921,7 +963,7 @@ export async function processSellerStep2Action(payload: {
 
       const orderRef = generateOrderRef(unitId)
       if (matched.email && !matched.is_verified) {
-        sendOrderConfirmationMagicEmail(
+        void sendOrderConfirmationMagicEmail(
           matched.id,
           unitId,
           matched.name || msg.unitOwnerFallback,
@@ -1294,7 +1336,6 @@ function buildUnitPayloadWithMetaBackup(
   const rawRooms = safeInt(formData.get('rooms'))
   const rawBedrooms = safeInt(formData.get('bedrooms'))
 
-  // ضمان السياق المنطقي: إجمالي الغرف لا يقل أبداً عن غرف النوم
   const roomsVal =
     rawRooms !== null && rawRooms > 0
       ? rawBedrooms !== null && rawBedrooms > rawRooms
@@ -1334,6 +1375,14 @@ function buildUnitPayloadWithMetaBackup(
   const exactStreetVal = text(formData, 'exact_street') || null
   const houseNumberVal = text(formData, 'house_number') || null
   const cadastralCodeVal = text(formData, 'cadastral_code') || null
+  const latVal =
+    safeNum(formData.get('lat'), null) ??
+    parsedDocuments.__unit_meta?.lat ??
+    null
+  const lngVal =
+    safeNum(formData.get('lng'), null) ??
+    parsedDocuments.__unit_meta?.lng ??
+    null
 
   const rawDeveloper = text(formData, 'developer_name')
   const invalidDevNames = [
@@ -1396,6 +1445,8 @@ function buildUnitPayloadWithMetaBackup(
   const deliveryYearResolved =
     safeInt(formData.get('delivery_year')) || parsedDel.deliveryYear || null
 
+  const imagesList = list(formData, 'image')
+
   parsedDocuments.__unit_meta = {
     ...(parsedDocuments.__unit_meta || {}),
     code: officialCode,
@@ -1407,6 +1458,8 @@ function buildUnitPayloadWithMetaBackup(
     exact_street: exactStreetVal,
     house_number: houseNumberVal,
     cadastral_code: cadastralCodeVal,
+    lat: latVal,
+    lng: lngVal,
     building_status: buildingStatusVal,
     building_series: buildingSeriesVal,
     floor_type: floorTypeVal,
@@ -1445,6 +1498,7 @@ function buildUnitPayloadWithMetaBackup(
     installment_amount: instAmountVal,
     installment_frequency: instFreqVal,
     features: featuresList,
+    images: imagesList,
   }
 
   const payload: Record<string, any> = {
@@ -1519,7 +1573,7 @@ function buildUnitPayloadWithMetaBackup(
       safeNum(formData.get('overdue_installments'), 0) ?? 0,
     overdue_total_amount:
       safeNum(formData.get('overdue_total_amount'), 0) ?? 0,
-    images: list(formData, 'image'),
+    images: imagesList,
     documents: parsedDocuments,
   }
 
@@ -1624,8 +1678,50 @@ export async function saveSellProgress(
       targetUnitId = existing?.id ? String(existing.id) : ''
     }
 
+    // إذا لم يكن للمستخدم مسودة سابقة، ننشئ له مسودة جديدة فوراً
     if (!targetUnitId) {
-      return { success: false, error: msg.saveProgressFailed }
+      const newDraftPayload = buildUnitPayloadWithMetaBackup(
+        formData,
+        null,
+        null
+      )
+      newDraftPayload.user_id = sessionUser.id
+      newDraftPayload.name = text(formData, 'name') || sessionUser.name || ''
+      newDraftPayload.phone =
+        formatPrimaryPhone(text(formData, 'phone')) || sessionUser.phone || ''
+      newDraftPayload.email =
+        normalizeEmail(text(formData, 'email')) || sessionUser.email || null
+      newDraftPayload.is_original_owner = true
+      newDraftPayload.status = sessionUser.is_verified
+        ? 'pending'
+        : 'draft_unverified'
+      newDraftPayload.submission_type = 'draft'
+      newDraftPayload.documents.__unit_meta = {
+        ...(newDraftPayload.documents.__unit_meta || {}),
+        ready_for_admin_review: false,
+      }
+
+      let { data: inserted, error: insErr } = await supabase
+        .from('sell_requests')
+        .insert(newDraftPayload)
+        .select('id')
+        .single()
+
+      if (insErr || !inserted) {
+        const fbIns = await supabase
+          .from('sell_requests')
+          .insert(stripToCoreSellColumns(newDraftPayload))
+          .select('id')
+          .single()
+        inserted = fbIns.data
+      }
+
+      if (!inserted?.id) {
+        return { success: false, error: msg.saveProgressFailed }
+      }
+
+      revalidatePath('/account', 'page')
+      return { success: true, unitId: String(inserted.id) }
     }
 
     const { allowed, unit: existingUnit } = await canModifySellUnit(
@@ -1644,7 +1740,6 @@ export async function saveSellProgress(
     )
     payload.user_id = existingUnit?.user_id || sessionUser.id
 
-    // إذا كان حساب المستخدم غير موثق بالإيميل ولم تكن الوحدة منشورة مسبقاً، نحفظها كمسودة غير موثقة ولا نرسلها للأدمن
     const prevCleanStatus = String(existingUnit?.status || '')
       .trim()
       .toLowerCase()
@@ -1657,8 +1752,16 @@ export async function saveSellProgress(
       'sold',
     ].includes(prevCleanStatus)
 
+    const completeness = checkUnitHasCompleteMediaAndDetails(payload)
+
     if (!sessionUser.is_verified && !isAlreadyLiveOrReviewed) {
       payload.status = 'draft_unverified'
+    }
+
+    payload.documents.__unit_meta = {
+      ...(payload.documents.__unit_meta || {}),
+      ready_for_admin_review:
+        isAlreadyLiveOrReviewed || completeness.isFullyCompleteForAdmin,
     }
 
     const { error } = await resilientUpdateUnit(
@@ -1695,7 +1798,6 @@ export async function submitSellRequest(
     let existingUnitId = text(formData, 'unit_id')
     const projectName = text(formData, 'project_name')
     const unitCountry = ACTIVE_COUNTRY_CODE
-    const customSubType = text(formData, 'submission_type') || 'new'
 
     if (!sessionUser) {
       return {
@@ -1707,7 +1809,7 @@ export async function submitSellRequest(
     if (!existingUnitId) {
       const { data: recentDraft } = await supabase
         .from('sell_requests')
-        .select('id, size, area, project_name, status')
+        .select('id, size, area, project_name, status, submission_type')
         .eq('user_id', sessionUser.id)
         .order('created_at', { ascending: false })
         .limit(1)
@@ -1716,6 +1818,7 @@ export async function submitSellRequest(
       if (
         recentDraft &&
         (recentDraft.status === 'draft_unverified' ||
+          recentDraft.submission_type === 'draft' ||
           (!recentDraft.size && !recentDraft.area)) &&
         (!projectName || recentDraft.project_name === projectName)
       ) {
@@ -1754,7 +1857,6 @@ export async function submitSellRequest(
         prevCleanStatus === 'sold' ||
         Boolean(acceptedDealOnUnit)
 
-      // منع البائع من تعديل أسعار أو مواصفات الوحدة بعد الاتفاق النهائي مع المشتري
       if (isLockedByDeal && !isStaff) {
         return {
           success: false,
@@ -1769,6 +1871,8 @@ export async function submitSellRequest(
         prevUnit?.documents,
         prevUnit?.code
       )
+      const completeness = checkUnitHasCompleteMediaAndDetails(payload)
+
       payload.user_id = prevUnit.user_id || sessionUser.id
       payload.name =
         text(formData, 'name') || prevUnit.name || sessionUser.name
@@ -1783,13 +1887,16 @@ export async function submitSellRequest(
         null
       payload.is_original_owner = true
       payload.status = isLockedByDeal ? prevUnit.status : 'pending'
+      payload.docs_verified = completeness.isFullyCompleteForAdmin
       payload.documents.__unit_meta = {
         ...(payload.documents.__unit_meta || {}),
         email_verified: true,
+        ready_for_admin_review: completeness.isFullyCompleteForAdmin,
       }
 
       const wasPreviouslySubmitted =
         prevCleanStatus !== 'draft_unverified' &&
+        prevUnit?.submission_type !== 'draft' &&
         Boolean(
           prevUnit?.area ||
             prevUnit?.size ||
@@ -1802,7 +1909,9 @@ export async function submitSellRequest(
         payload.submission_type = 'edited_by_seller'
         payload.last_seller_edit_at = new Date().toISOString()
       } else {
-        payload.submission_type = 'new'
+        payload.submission_type = completeness.isFullyCompleteForAdmin
+          ? 'new'
+          : 'incomplete_media'
       }
 
       const { error } = await resilientUpdateUnit(
@@ -1827,9 +1936,9 @@ export async function submitSellRequest(
         await supabase.from('notifications').insert({
           user_id: null,
           role: 'admin',
-          title: wasPreviouslySubmitted
-            ? `🔄 ${msg.editedUnitAdminTitle} (${unitCountry}): ${projectName || msg.unitWord}`
-            : `✅ ${msg.completedUnitAdminTitle} (${unitCountry}): ${projectName || msg.unitWord}`,
+          title: completeness.isFullyCompleteForAdmin
+            ? `✅ ${msg.completedUnitAdminTitle} (${unitCountry}): ${projectName || msg.unitWord}`
+            : `📝 ${msg.newDraftUnitAdminTitle} (${unitCountry}): ${projectName || msg.unitWord}`,
           message: `${payload.name || ''} · (${payload.area || '—'})`,
           type: 'property',
           link: `/admin/properties?unitId=${existingUnitId}`,
@@ -1847,7 +1956,10 @@ export async function submitSellRequest(
         orderRef: generateOrderRef(existingUnitId),
       }
     }
+
     const payload = buildUnitPayloadWithMetaBackup(formData, null, null)
+    const completeness = checkUnitHasCompleteMediaAndDetails(payload)
+
     payload.name = text(formData, 'name') || sessionUser.name || ''
     payload.phone =
       formatPrimaryPhone(text(formData, 'phone')) || sessionUser.phone || ''
@@ -1856,16 +1968,19 @@ export async function submitSellRequest(
     payload.is_original_owner = true
     payload.status = 'pending'
     payload.views_count = 1
-    payload.docs_verified = true
+    payload.docs_verified = completeness.isFullyCompleteForAdmin
     payload.documents.__unit_meta = {
       ...(payload.documents.__unit_meta || {}),
       email_verified: true,
+      ready_for_admin_review: completeness.isFullyCompleteForAdmin,
     }
 
     const insertPayload = {
       ...payload,
       user_id: sessionUser.id,
-      submission_type: customSubType,
+      submission_type: completeness.isFullyCompleteForAdmin
+        ? 'new'
+        : 'incomplete_media',
     }
 
     let { data: inserted, error } = await supabase
@@ -1911,7 +2026,9 @@ export async function submitSellRequest(
       await supabase.from('notifications').insert({
         user_id: null,
         role: 'admin',
-        title: `${msg.newUnitReviewAdminTitle} (${unitCountry}): ${projectName || msg.unitWord}`,
+        title: completeness.isFullyCompleteForAdmin
+          ? `✅ ${msg.newUnitReviewAdminTitle} (${unitCountry}): ${projectName || msg.unitWord}`
+          : `📝 ${msg.newDraftUnitAdminTitle} (${unitCountry}): ${projectName || msg.unitWord}`,
         message: `${payload.name} · ${payload.area || '—'}`,
         type: 'property',
         link: `/admin/properties?unitId=${finalId}`,

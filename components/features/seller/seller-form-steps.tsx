@@ -22,7 +22,7 @@ import {
   Flame,
   Home,
   ImagePlus,
-  Layers,
+  Info,
   Loader2,
   Lock,
   MapPin,
@@ -30,7 +30,6 @@ import {
   Mountain,
   Play,
   Plus,
-  Ruler,
   ShieldCheck,
   Smartphone,
   Snowflake,
@@ -48,7 +47,7 @@ import {
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation, type LocaleCode } from '@/lib/i18n'
 import {
   getSellerFormTranslations,
   isImageFileUrl,
@@ -69,7 +68,6 @@ import {
   MonthYearSelector,
   PROPERTY_KINDS,
   SIVRCE_FEATURE_GROUPS,
-  toEnglishDigits,
   years,
   type DealCategory,
   type LocalizedOptionItem,
@@ -81,11 +79,11 @@ export { LivePreviewSidebar } from './seller-preview-sidebar'
 function getFeatureItemIcon(featureId: string) {
   const map: Record<string, any> = {
     Balcony: Sun,
-    Loggia: Layers,
+    Loggia: Building,
     Terrace: Trees,
     Yard: Trees,
     Storage: Box,
-    Cellar: Layers,
+    Cellar: Box,
     'Walk-in closet': Home,
     'Separate kitchen': Utensils,
     Elevator: ArrowUpDown,
@@ -165,7 +163,7 @@ export function StepValidationBanner({
 }
 
 // =====================================================
-// 1. قسم نوع العقار وحالة البناء
+// 1. قسم نوع العقار وحالة البناء (إجباري *)
 // =====================================================
 export function TypeSection({
   sectionRef,
@@ -175,6 +173,7 @@ export function TypeSection({
   buildingStatus,
   setBuildingStatus,
   dynamicStatusOptions,
+  fieldErrors = {},
 }: {
   sectionRef: React.RefObject<HTMLElement | null>
   onHover: () => void
@@ -185,9 +184,10 @@ export function TypeSection({
   buildingStatus: string
   setBuildingStatus: (s: string) => void
   dynamicStatusOptions: Array<LocalizedOptionItem<string>>
+  fieldErrors?: Record<string, string>
 }) {
   const { t: dict, locale } = useTranslation()
-  const fT = getSellerFormTranslations(locale, dict)
+  const fT = getSellerFormTranslations(locale as LocaleCode, dict)
   const tSec = fT.typeSection
 
   return (
@@ -199,18 +199,30 @@ export function TypeSection({
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-lg font-bold text-[#0a1122]">{tSec.title}</h2>
+          <h2 className="text-lg font-black text-[#0a1122]">{tSec.title}</h2>
           <p className="mt-1 text-xs text-slate-500">{tSec.subtitle}</p>
         </div>
 
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-[#eaf8f2] px-3.5 py-1 text-xs font-bold text-[#007a5a]">
-          <ShieldCheck className="size-3.5" />
-          <span>{fT.exitBadge}</span>
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="rounded-full bg-red-50 px-3 py-1 text-[11px] font-extrabold text-red-600">
+            {fT.requiredBadge}
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-[#eaf8f2] px-3.5 py-1 text-xs font-bold text-[#007a5a]">
+            <ShieldCheck className="size-3.5" />
+            <span>{fT.exitBadge}</span>
+          </span>
+        </div>
       </div>
 
-      <div className="mt-5">
-        <label className="mb-2.5 block text-xs font-bold text-[#0a1122] sm:text-sm">
+      <div
+        id="field-wrap-propertyKind"
+        className={`mt-5 rounded-2xl transition ${
+          fieldErrors.propertyKind
+            ? 'border-2 border-red-500 bg-red-50/20 p-3.5'
+            : ''
+        }`}
+      >
+        <label className="mb-2.5 block text-xs font-extrabold text-[#0a1122] sm:text-sm">
           {tSec.whatKindLabel}
         </label>
         <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3">
@@ -247,17 +259,29 @@ export function TypeSection({
                   <Icon className="size-4" />
                 </div>
                 <strong className="mt-2.5 text-xs font-bold text-[#0a1122] sm:text-sm">
-                  {getOptionLabel(k, locale)}
+                  {getOptionLabel(k, locale as LocaleCode)}
                 </strong>
               </button>
             )
           })}
         </div>
+        {fieldErrors.propertyKind && (
+          <p className="mt-2 text-start text-xs font-extrabold text-red-600">
+            {fieldErrors.propertyKind}
+          </p>
+        )}
       </div>
 
       {Boolean(propertyKind && propertyKind !== 'Land') && (
-        <div className="mt-6 animate-in fade-in slide-in-from-top-2 duration-200">
-          <label className="mb-2.5 block text-xs font-bold text-slate-500">
+        <div
+          id="field-wrap-buildingStatus"
+          className={`mt-6 animate-in fade-in slide-in-from-top-2 duration-200 rounded-2xl transition ${
+            fieldErrors.buildingStatus
+              ? 'border-2 border-red-500 bg-red-50/20 p-3.5'
+              : ''
+          }`}
+        >
+          <label className="mb-2.5 block text-xs font-extrabold text-[#0a1122]">
             {tSec.statusLabel}
           </label>
           <div
@@ -292,11 +316,18 @@ export function TypeSection({
                   >
                     <Building className="size-4" />
                   </div>
-                  <span className="text-xs">{getOptionLabel(st, locale)}</span>
+                  <span className="text-xs">
+                    {getOptionLabel(st, locale as LocaleCode)}
+                  </span>
                 </button>
               )
             })}
           </div>
+          {fieldErrors.buildingStatus && (
+            <p className="mt-2 text-start text-xs font-extrabold text-red-600">
+              {fieldErrors.buildingStatus}
+            </p>
+          )}
         </div>
       )}
     </section>
@@ -328,7 +359,7 @@ export function PhotosSection({
   update: (k: string, v: string) => void
 }) {
   const { t: dict, locale } = useTranslation()
-  const fT = getSellerFormTranslations(locale, dict)
+  const fT = getSellerFormTranslations(locale as LocaleCode, dict)
   const pT = fT.photosSection
 
   return (
@@ -338,8 +369,29 @@ export function PhotosSection({
       onMouseEnter={onHover}
       className="scroll-mt-32 rounded-[24px] border border-slate-200/80 bg-white p-5 shadow-2xs sm:p-7"
     >
-      <h2 className="text-lg font-black text-[#0a1122]">{pT.title}</h2>
-      <p className="mt-1 text-xs text-slate-500">{pT.subtitle}</p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h2 className="text-lg font-black text-[#0a1122]">{pT.title}</h2>
+          <p className="mt-1 text-xs text-slate-500">{pT.subtitle}</p>
+        </div>
+
+        <span
+          className={`rounded-full px-3 py-1 text-[11px] font-extrabold ${
+            images.length > 0
+              ? 'bg-emerald-50 text-[#007a5a]'
+              : 'border border-amber-200 bg-amber-50 text-amber-800'
+          }`}
+        >
+          {images.length > 0
+            ? `✓ ${images.length} ${pT.photosWord}`
+            : fT.requiredForPublishBadge}
+        </span>
+      </div>
+
+      <div className="mt-3.5 flex items-start gap-2 rounded-xl border border-blue-200/80 bg-blue-50/50 p-3 text-start text-xs font-semibold text-slate-700">
+        <Info className="mt-0.5 size-4 shrink-0 text-[#2563eb]" />
+        <span>{pT.publishRequirementNote}</span>
+      </div>
 
       {images.length === 0 ? (
         <label className="mt-4 flex min-h-48 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-200 bg-[#f8fafc] p-6 text-center transition hover:border-[#2563eb] hover:bg-blue-50/20">
@@ -436,16 +488,21 @@ export function PhotosSection({
       )}
 
       <div className="mt-6 border-t border-slate-100 pt-5">
-        <h3 className="text-xs font-black text-[#0a1122] sm:text-sm">
-          {pT.videoSectionTitle}
-        </h3>
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-black text-[#0a1122] sm:text-sm">
+            {pT.videoSectionTitle}
+          </h3>
+          <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-bold text-slate-500">
+            {fT.optionalBadge}
+          </span>
+        </div>
         <p className="mt-0.5 text-[11px] text-slate-400">
           {pT.videoSectionSubtitle}
         </p>
 
-        <div className="mt-3.5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="mt-3.5 grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
           <div>
-            <label className="mb-1.5 block text-xs font-extrabold text-slate-600">
+            <label className="mb-2 block text-xs font-extrabold text-slate-600">
               {pT.videoUrlLabel}
             </label>
             <div className="relative">
@@ -455,13 +512,13 @@ export function PhotosSection({
                 value={form.videoUrl}
                 onChange={(e) => update('videoUrl', e.target.value)}
                 placeholder={pT.videoUrlPlaceholder}
-                className="h-11 rounded-xl border-slate-200 pl-10 text-xs"
+                className="h-12 rounded-xl border-slate-200 pl-10 text-xs"
               />
             </div>
           </div>
 
           <div>
-            <label className="mb-1.5 block text-xs font-extrabold text-slate-600">
+            <label className="mb-2 block text-xs font-extrabold text-slate-600">
               {pT.tour3dLabel}
             </label>
             <div className="relative">
@@ -471,7 +528,7 @@ export function PhotosSection({
                 value={form.tour3dUrl}
                 onChange={(e) => update('tour3dUrl', e.target.value)}
                 placeholder={pT.tour3dPlaceholder}
-                className="h-11 rounded-xl border-slate-200 pl-10 text-xs"
+                className="h-12 rounded-xl border-slate-200 pl-10 text-xs"
               />
             </div>
           </div>
@@ -482,7 +539,7 @@ export function PhotosSection({
 }
 
 // =====================================================
-// 3. قسم المواصفات والمميزات
+// 3. قسم المواصفات والمميزات (بدون مساحة المطبخ + محاذاة موحدة 100%)
 // =====================================================
 export function DetailsSection({
   sectionRef,
@@ -498,6 +555,7 @@ export function DetailsSection({
   flags,
   setFlags,
   extraT,
+  fieldErrors = {},
 }: {
   sectionRef: React.RefObject<HTMLElement | null>
   onHover: () => void
@@ -526,9 +584,10 @@ export function DetailsSection({
     }>
   >
   extraT: SellerExtraLabels
+  fieldErrors?: Record<string, string>
 }) {
   const { t: dict, locale } = useTranslation()
-  const fT = getSellerFormTranslations(locale, dict)
+  const fT = getSellerFormTranslations(locale as LocaleCode, dict)
   const dT = fT.detailsSection
 
   const isUnlocked = Boolean(dealCategory && propertyKind)
@@ -554,17 +613,226 @@ export function DetailsSection({
       onMouseEnter={onHover}
       className="scroll-mt-32 rounded-[24px] border border-slate-200/80 bg-white p-5 shadow-2xs sm:p-7"
     >
-      <h2 className="text-lg font-black text-[#0a1122]">{dT.title}</h2>
-      <p className="mt-1 text-xs text-slate-500">{dT.subtitle}</p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h2 className="text-lg font-black text-[#0a1122]">{dT.title}</h2>
+          <p className="mt-1 text-xs text-slate-500">{dT.subtitle}</p>
+        </div>
+
+        <span className="rounded-full bg-red-50 px-3 py-1 text-[11px] font-extrabold text-red-600">
+          {fT.requiredBadge}
+        </span>
+      </div>
 
       {!isUnlocked ? (
-        <div className="mt-4 rounded-2xl border border-slate-200/80 bg-[#f8fafc] px-4 py-4 text-xs font-semibold text-slate-500">
+        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/50 px-4 py-4 text-xs font-bold text-amber-900">
           {dT.lockedBanner}
         </div>
       ) : (
         <div className="animate-in fade-in duration-200">
+          {/* الحقول الإجبارية في المواصفات: المساحة + سنة البناء على نفس السطر بالضبط */}
+          <div className="mt-5 rounded-2xl border border-slate-200/90 bg-slate-50/50 p-4 sm:p-5">
+            <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
+              <div id="field-wrap-areaSize">
+                <Field
+                  label={dT.areaLabel}
+                  id="areaSize"
+                  type="number"
+                  placeholder="74"
+                  value={form.areaSize}
+                  error={fieldErrors.areaSize}
+                  update={(v) => update('areaSize', v)}
+                />
+              </div>
+
+              {propertyKind !== 'Land' && !isUnderConstruction && (
+                <div>
+                  <Field
+                    label={dT.yearBuiltLabel}
+                    id="yearBuilt"
+                    type="number"
+                    placeholder="2024"
+                    value={form.yearBuilt}
+                    update={(v) => update('yearBuilt', v)}
+                  />
+                </div>
+              )}
+            </div>
+
+            {propertyKind !== 'Land' && (
+              <div className="mt-5 space-y-5">
+                {/* 1. إجمالي عدد الغرف (إجباري *) */}
+                <div
+                  id="field-wrap-rooms"
+                  className={`rounded-xl transition ${
+                    fieldErrors.rooms
+                      ? 'border-2 border-red-500 bg-red-50/25 p-3'
+                      : ''
+                  }`}
+                >
+                  <label className="mb-2 block text-xs font-extrabold text-[#0a1122]">
+                    {dT.roomsLabel.replace(' *', '')}{' '}
+                    <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {['1', '2', '3', '4', '5', '6', '7', '8', '9', '10+'].map(
+                      (num) => {
+                        const cleanVal = num.replace('+', '')
+                        const active = form.rooms === cleanVal
+                        return (
+                          <button
+                            key={num}
+                            type="button"
+                            onClick={() =>
+                              update('rooms', active ? '' : cleanVal)
+                            }
+                            className={`flex size-9 items-center justify-center rounded-full border text-xs font-extrabold transition ${
+                              active
+                                ? 'border-[#2563eb] bg-[#2563eb] text-white shadow-xs'
+                                : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                            }`}
+                          >
+                            {num}
+                          </button>
+                        )
+                      }
+                    )}
+                  </div>
+                  {fieldErrors.rooms && (
+                    <p className="mt-1.5 text-start text-xs font-extrabold text-red-600">
+                      {fieldErrors.rooms}
+                    </p>
+                  )}
+                </div>
+
+                {/* 2. عدد غرف النوم (إجباري *) */}
+                <div
+                  id="field-wrap-bedrooms"
+                  className={`rounded-xl transition ${
+                    fieldErrors.bedrooms
+                      ? 'border-2 border-red-500 bg-red-50/25 p-3'
+                      : ''
+                  }`}
+                >
+                  <label className="mb-1 block text-xs font-extrabold text-[#0a1122]">
+                    {dT.bedroomsLabel.replace(' *', '')}{' '}
+                    <span className="text-red-500">*</span>
+                  </label>
+                  <p className="mb-2 text-[11px] font-semibold text-slate-400">
+                    {dT.roomsBedroomsHint}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {['1', '2', '3', '4', '5', '6', '7', '8', '9', '10+'].map(
+                      (num) => {
+                        const cleanVal = num.replace('+', '')
+                        const numVal = parseInt(cleanVal, 10)
+                        const active = form.bedrooms === cleanVal
+                        const isDisabled =
+                          selectedTotalRooms > 0 && numVal > selectedTotalRooms
+
+                        return (
+                          <button
+                            key={num}
+                            type="button"
+                            disabled={isDisabled}
+                            onClick={() =>
+                              update('bedrooms', active ? '' : cleanVal)
+                            }
+                            className={`flex size-9 items-center justify-center rounded-full border text-xs font-extrabold transition ${
+                              active
+                                ? 'border-[#2563eb] bg-[#2563eb] text-white shadow-xs'
+                                : isDisabled
+                                  ? 'cursor-not-allowed border-slate-100 bg-slate-50 text-slate-300 opacity-50'
+                                  : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                            }`}
+                          >
+                            {num}
+                          </button>
+                        )
+                      }
+                    )}
+                  </div>
+                  {fieldErrors.bedrooms && (
+                    <p className="mt-1.5 text-start text-xs font-extrabold text-red-600">
+                      {fieldErrors.bedrooms}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
           {propertyKind !== 'Land' && (
             <>
+              {/* عدد الحمامات + الطابق + إجمالي الطوابق بمحاذاة موحدة تماماً */}
+              <div className="mt-5 space-y-5">
+                <div>
+                  <label className="mb-2 block text-xs font-extrabold text-[#0a1122]">
+                    {dT.bathroomsLabel}
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {['1', '2', '3', '4', '5+'].map((num) => {
+                      const cleanVal = num.replace('+', '')
+                      const active = form.bathrooms === cleanVal
+                      return (
+                        <button
+                          key={num}
+                          type="button"
+                          onClick={() =>
+                            update('bathrooms', active ? '' : cleanVal)
+                          }
+                          className={`flex size-9 items-center justify-center rounded-full border text-xs font-extrabold transition ${
+                            active
+                              ? 'border-[#2563eb] bg-[#2563eb] text-white shadow-xs'
+                              : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                          }`}
+                        >
+                          {num}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* الطابق وإجمالي الطوابق باستخدام Field الموحد ليكونا على نفس الخط بالمللي */}
+                <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
+                  <div id="field-wrap-floor">
+                    <Field
+                      label={dT.floorLabel}
+                      id="floor"
+                      type="number"
+                      placeholder="5"
+                      value={form.floor}
+                      error={fieldErrors.floor}
+                      update={(v) => update('floor', v)}
+                    />
+                  </div>
+
+                  <Field
+                    label={dT.totalFloorsLabel}
+                    id="totalFloors"
+                    type="number"
+                    placeholder="16"
+                    value={form.totalFloors}
+                    update={(v) => update('totalFloors', v)}
+                  />
+                </div>
+              </div>
+
+              {isUnderConstruction && (
+                <div className="mt-4">
+                  <Field
+                    label={extraT.deliveryMonthsLabel}
+                    id="deliveryRemainingMonths"
+                    type="number"
+                    placeholder="12"
+                    helper={extraT.deliveryMonthsHelper}
+                    value={form.deliveryRemainingMonths}
+                    update={(v) => update('deliveryRemainingMonths', v)}
+                  />
+                </div>
+              )}
+
               <div className="mt-5">
                 <label className="mb-2 block text-xs font-extrabold text-slate-700">
                   {dT.conditionLabel}
@@ -583,14 +851,13 @@ export function DetailsSection({
                             : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                         }`}
                       >
-                        {getOptionLabel(c, locale)}
+                        {getOptionLabel(c, locale as LocaleCode)}
                       </button>
                     )
                   })}
                 </div>
               </div>
 
-              {/* طراز المبنى مترجماً بالكامل باللغات الـ 4 */}
               <div className="mt-5">
                 <label className="mb-1 block text-xs font-extrabold text-slate-700">
                   {dT.buildingSeriesLabel}
@@ -613,7 +880,7 @@ export function DetailsSection({
                             : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                         }`}
                       >
-                        {getOptionLabel(ser, locale)}
+                        {getOptionLabel(ser, locale as LocaleCode)}
                       </button>
                     )
                   })}
@@ -639,7 +906,7 @@ export function DetailsSection({
                               : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                           }`}
                         >
-                          {getOptionLabel(ft, locale)}
+                          {getOptionLabel(ft, locale as LocaleCode)}
                         </button>
                       )
                     })}
@@ -664,7 +931,7 @@ export function DetailsSection({
                               : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                           }`}
                         >
-                          {getOptionLabel(ht, locale)}
+                          {getOptionLabel(ht, locale as LocaleCode)}
                         </button>
                       )
                     })}
@@ -691,265 +958,45 @@ export function DetailsSection({
                               : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                           }`}
                         >
-                          {getOptionLabel(bm, locale)}
+                          {getOptionLabel(bm, locale as LocaleCode)}
                         </button>
                       )
                     })}
                   </div>
                 </div>
               </div>
+
+              {/* الشرفة واللوجيا والتراس على خط واحد متساوٍ (تم حذف مساحة المطبخ نهائياً) */}
+              <div className="mt-5 grid grid-cols-1 items-start gap-4 sm:grid-cols-3">
+                <Field
+                  label={dT.balconyAreaLabel}
+                  id="balconyArea"
+                  type="number"
+                  placeholder="0"
+                  value={form.balconyArea}
+                  update={(v) => update('balconyArea', v)}
+                />
+                <Field
+                  label={dT.loggiaAreaLabel}
+                  id="loggiaArea"
+                  type="number"
+                  placeholder="0"
+                  value={form.loggiaArea}
+                  update={(v) => update('loggiaArea', v)}
+                />
+                <Field
+                  label={dT.terraceAreaLabel}
+                  id="terraceArea"
+                  type="number"
+                  placeholder="0"
+                  value={form.terraceArea}
+                  update={(v) => {
+                    update('terraceArea', v)
+                    update('garden', v)
+                  }}
+                />
+              </div>
             </>
-          )}
-
-          <div className="mt-5 space-y-4">
-            {propertyKind !== 'Land' && !isUnderConstruction && (
-              <div className="max-w-[200px]">
-                <Field
-                  label={dT.yearBuiltLabel}
-                  id="yearBuilt"
-                  type="number"
-                  placeholder="2024"
-                  value={form.yearBuilt}
-                  update={(v) => update('yearBuilt', v)}
-                />
-              </div>
-            )}
-
-            <div className="max-w-sm">
-              <label className="mb-2 block text-start text-xs font-extrabold text-[#0a1122]">
-                {dT.areaLabel.replace(' *', '')}{' '}
-                <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <Ruler className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-slate-400" />
-                <Input
-                  type="text"
-                  inputMode="numeric"
-                  dir="ltr"
-                  placeholder="74"
-                  value={form.areaSize}
-                  onChange={(e) =>
-                    update(
-                      'areaSize',
-                      toEnglishDigits(e.target.value).replace(/[^0-9.]/g, '')
-                    )
-                  }
-                  className="h-12 rounded-xl border-slate-200 pl-10 font-bold"
-                />
-              </div>
-            </div>
-
-            {propertyKind !== 'Land' && (
-              <>
-                <div className="max-w-sm">
-                  <Field
-                    label={dT.kitchenAreaLabel}
-                    id="kitchenArea"
-                    type="number"
-                    placeholder="12"
-                    value={form.kitchenArea}
-                    update={(v) => update('kitchenArea', v)}
-                  />
-                </div>
-
-                <div className="grid max-w-xl grid-cols-3 gap-3">
-                  <Field
-                    label={dT.balconyAreaLabel}
-                    id="balconyArea"
-                    type="number"
-                    placeholder="0"
-                    value={form.balconyArea}
-                    update={(v) => update('balconyArea', v)}
-                  />
-                  <Field
-                    label={dT.loggiaAreaLabel}
-                    id="loggiaArea"
-                    type="number"
-                    placeholder="0"
-                    value={form.loggiaArea}
-                    update={(v) => update('loggiaArea', v)}
-                  />
-                  <Field
-                    label={dT.terraceAreaLabel}
-                    id="terraceArea"
-                    type="number"
-                    placeholder="0"
-                    value={form.terraceArea}
-                    update={(v) => {
-                      update('terraceArea', v)
-                      update('garden', v)
-                    }}
-                  />
-                </div>
-              </>
-            )}
-          </div>
-
-          {propertyKind !== 'Land' && (
-            <div className="mt-6 space-y-5">
-              {/* 1. إجمالي عدد الغرف */}
-              <div>
-                <label className="mb-2 block text-xs font-extrabold text-[#0a1122]">
-                  {dT.roomsLabel.replace(' *', '')}{' '}
-                  <span className="text-red-500">*</span>
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {['1', '2', '3', '4', '5', '6', '7', '8', '9', '10+'].map(
-                    (num) => {
-                      const cleanVal = num.replace('+', '')
-                      const active = form.rooms === cleanVal
-                      return (
-                        <button
-                          key={num}
-                          type="button"
-                          onClick={() =>
-                            update('rooms', active ? '' : cleanVal)
-                          }
-                          className={`flex size-9 items-center justify-center rounded-full border text-xs font-extrabold transition ${
-                            active
-                              ? 'border-[#2563eb] bg-[#2563eb] text-white shadow-xs'
-                              : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
-                          }`}
-                        >
-                          {num}
-                        </button>
-                      )
-                    }
-                  )}
-                </div>
-              </div>
-
-              {/* 2. عدد غرف النوم (مقيد بإجمالي الغرف) */}
-              <div>
-                <label className="mb-1 block text-xs font-extrabold text-[#0a1122]">
-                  {dT.bedroomsLabel.replace(' *', '')}{' '}
-                  <span className="text-red-500">*</span>
-                </label>
-                <p className="mb-2 text-[11px] font-semibold text-slate-400">
-                  {dT.roomsBedroomsHint}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {['1', '2', '3', '4', '5', '6', '7', '8', '9', '10+'].map(
-                    (num) => {
-                      const cleanVal = num.replace('+', '')
-                      const numVal = parseInt(cleanVal, 10)
-                      const active = form.bedrooms === cleanVal
-                      const isDisabled =
-                        selectedTotalRooms > 0 && numVal > selectedTotalRooms
-
-                      return (
-                        <button
-                          key={num}
-                          type="button"
-                          disabled={isDisabled}
-                          onClick={() =>
-                            update('bedrooms', active ? '' : cleanVal)
-                          }
-                          className={`flex size-9 items-center justify-center rounded-full border text-xs font-extrabold transition ${
-                            active
-                              ? 'border-[#2563eb] bg-[#2563eb] text-white shadow-xs'
-                              : isDisabled
-                                ? 'cursor-not-allowed border-slate-100 bg-slate-50 text-slate-300 opacity-50'
-                                : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
-                          }`}
-                        >
-                          {num}
-                        </button>
-                      )
-                    }
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <label className="mb-2 block text-xs font-extrabold text-[#0a1122]">
-                  {dT.bathroomsLabel}
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {['1', '2', '3', '4', '5+'].map((num) => {
-                    const cleanVal = num.replace('+', '')
-                    const active = form.bathrooms === cleanVal
-                    return (
-                      <button
-                        key={num}
-                        type="button"
-                        onClick={() =>
-                          update('bathrooms', active ? '' : cleanVal)
-                        }
-                        className={`flex size-9 items-center justify-center rounded-full border text-xs font-extrabold transition ${
-                          active
-                            ? 'border-[#2563eb] bg-[#2563eb] text-white shadow-xs'
-                            : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
-                        }`}
-                      >
-                        {num}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="mb-2 block text-start text-xs font-extrabold text-[#0a1122]">
-                    {dT.floorLabel}
-                  </label>
-                  <div className="relative">
-                    <Layers className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-slate-400" />
-                    <Input
-                      type="text"
-                      inputMode="numeric"
-                      dir="ltr"
-                      placeholder="5"
-                      value={form.floor}
-                      onChange={(e) =>
-                        update(
-                          'floor',
-                          toEnglishDigits(e.target.value).replace(/[^0-9]/g, '')
-                        )
-                      }
-                      className="h-12 rounded-xl border-slate-200 pl-10 font-bold"
-                    />
-                  </div>
-                </div>
-
-                <Field
-                  label={dT.totalFloorsLabel}
-                  id="totalFloors"
-                  type="number"
-                  placeholder="16"
-                  value={form.totalFloors}
-                  update={(v) => update('totalFloors', v)}
-                />
-              </div>
-
-              {dealCategory === 'rent_daily' && (
-                <div className="max-w-xs">
-                  <Field
-                    label={dT.maxGuestsLabel}
-                    id="maxGuests"
-                    type="number"
-                    placeholder="2"
-                    value={form.maxGuests}
-                    update={(v) => update('maxGuests', v)}
-                  />
-                </div>
-              )}
-
-              {isUnderConstruction && (
-                <div className="pt-2">
-                  <Field
-                    label={extraT.deliveryMonthsLabel}
-                    id="deliveryRemainingMonths"
-                    type="number"
-                    placeholder="12"
-                    helper={extraT.deliveryMonthsHelper}
-                    value={form.deliveryRemainingMonths}
-                    update={(v) => update('deliveryRemainingMonths', v)}
-                  />
-                </div>
-              )}
-            </div>
           )}
 
           <div className="mt-7 border-t border-slate-100 pt-6">
@@ -977,7 +1024,7 @@ export function DetailsSection({
                       className="flex w-full items-center justify-between text-start"
                     >
                       <strong className="text-xs font-extrabold text-slate-500">
-                        {getOptionLabel(grp, locale)}
+                        {getOptionLabel(grp, locale as LocaleCode)}
                       </strong>
                       {isOpen ? (
                         <ChevronUp className="size-4 text-slate-400" />
@@ -1007,7 +1054,9 @@ export function DetailsSection({
                                   active ? 'text-white' : 'text-slate-400'
                                 }`}
                               />
-                              <span>{getOptionLabel(item, locale)}</span>
+                              <span>
+                                {getOptionLabel(item, locale as LocaleCode)}
+                              </span>
                             </button>
                           )
                         })}
@@ -1073,7 +1122,7 @@ export function DetailsSection({
 }
 
 // =====================================================
-// 4. قسم السعر والأقساط والمستندات والوصف
+// 4. قسم السعر والأقساط والمستندات والوصف (محاذاة موحدة 100%)
 // =====================================================
 export function PricingSection({
   sectionRef,
@@ -1088,6 +1137,7 @@ export function PricingSection({
   onUploadDoc,
   onRemoveDoc,
   onPreviewDoc,
+  fieldErrors = {},
 }: {
   sectionRef: React.RefObject<HTMLElement | null>
   onHover: () => void
@@ -1125,9 +1175,10 @@ export function PricingSection({
   onUploadDoc: (k: SellerDocKey, files: FileList | null) => void
   onRemoveDoc: (k: SellerDocKey) => void
   onPreviewDoc: (url: string, title: string) => void
+  fieldErrors?: Record<string, string>
 }) {
   const { t: dict, locale, dir } = useTranslation()
-  const fT = getSellerFormTranslations(locale, dict)
+  const fT = getSellerFormTranslations(locale as LocaleCode, dict)
   const prT = fT.pricingSection
   const currSym = '$'
   const isUnderConstruction = buildingStatus === 'Under construction'
@@ -1139,6 +1190,10 @@ export function PricingSection({
     { id: 'سنوي', label: prT.freqAnnual },
   ]
 
+  const uploadedDocsCount = (
+    ['contract', 'receipts', 'statement', 'passport'] as const
+  ).filter((k) => Boolean(unitDocs[k]?.url)).length
+
   return (
     <section
       ref={sectionRef}
@@ -1148,29 +1203,42 @@ export function PricingSection({
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-lg font-bold text-[#0a1122]">{prT.title}</h2>
+          <h2 className="text-lg font-black text-[#0a1122]">{prT.title}</h2>
           <p className="mt-1 text-xs text-slate-500">{prT.subtitle}</p>
         </div>
 
-        <span className="inline-flex h-8 items-center rounded-full bg-blue-50 px-3.5 text-xs font-bold text-[#2563eb]">
-          {fT.unifiedCurrencyBadge}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="rounded-full bg-red-50 px-3 py-1 text-[11px] font-extrabold text-red-600">
+            {fT.requiredBadge}
+          </span>
+          <span className="inline-flex h-8 items-center rounded-full bg-blue-50 px-3.5 text-xs font-bold text-[#2563eb]">
+            {fT.unifiedCurrencyBadge}
+          </span>
+        </div>
       </div>
 
       <div className="mt-5 space-y-5">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <MoneyField
-            label={prT.contractPriceLabel}
-            value={form.contractPrice}
-            currencySymbol={currSym}
-            update={(v) => update('contractPrice', v)}
-          />
-          <MoneyField
-            label={prT.paidAmountLabel}
-            value={form.paidAmount}
-            currencySymbol={currSym}
-            update={(v) => update('paidAmount', v)}
-          />
+        <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-3">
+          <div id="field-wrap-contractPrice">
+            <MoneyField
+              label={prT.contractPriceLabel}
+              value={form.contractPrice}
+              currencySymbol={currSym}
+              error={fieldErrors.contractPrice}
+              update={(v) => update('contractPrice', v)}
+            />
+          </div>
+
+          <div id="field-wrap-paidAmount">
+            <MoneyField
+              label={prT.paidAmountLabel}
+              value={form.paidAmount}
+              currencySymbol={currSym}
+              error={fieldErrors.paidAmount}
+              update={(v) => update('paidAmount', v)}
+            />
+          </div>
+
           <MoneyField
             label={prT.marketPriceLabel}
             value={form.marketPrice}
@@ -1179,7 +1247,7 @@ export function PricingSection({
           />
         </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-3">
           <MoneyField
             label={prT.installmentAmountLabel}
             value={form.installment}
@@ -1204,7 +1272,7 @@ export function PricingSection({
           />
         </div>
 
-        <div className="grid grid-cols-1 gap-4 border-t border-slate-100 pt-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 items-start gap-4 border-t border-slate-100 pt-4 sm:grid-cols-2">
           <div>
             <label className="mb-2 block text-xs font-bold text-[#0a1122]">
               {prT.frequencySystemLabel}
@@ -1293,25 +1361,30 @@ export function PricingSection({
           )}
         </div>
 
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4">
-          <div className="flex items-center justify-between">
+        <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50/40 p-4 sm:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <ShieldCheck className="size-5 text-[#007a5a]" />
-              <strong className="text-xs font-bold text-[#0a1122] sm:text-sm">
+              <strong className="text-xs font-black text-[#0a1122] sm:text-sm">
                 {prT.docsBoxTitle}
               </strong>
             </div>
-            <span className="rounded-full bg-white px-2.5 py-0.5 font-mono text-xs font-bold text-[#007a5a]">
-              {
-                (
-                  ['contract', 'receipts', 'statement', 'passport'] as const
-                ).filter((k) => Boolean(unitDocs[k]?.url)).length
-              }
-              /4
+            <span
+              className={`rounded-full px-3 py-1 font-mono text-xs font-extrabold ${
+                uploadedDocsCount === 4
+                  ? 'bg-[#007a5a] text-white'
+                  : 'border border-amber-300 bg-amber-100 text-amber-900'
+              }`}
+            >
+              {uploadedDocsCount}/4
             </span>
           </div>
 
-          <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+          <p className="mt-2 rounded-xl bg-white/80 p-3 text-xs leading-relaxed font-semibold text-slate-600">
+            {prT.docsRequirementBanner}
+          </p>
+
+          <div className="mt-3.5 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
             {(
               [
                 { key: 'contract', title: prT.docContract },
@@ -1326,7 +1399,11 @@ export function PricingSection({
               return (
                 <div
                   key={sec.key}
-                  className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-3"
+                  className={`flex items-center justify-between rounded-xl border p-3 transition ${
+                    hasDoc
+                      ? 'border-emerald-300 bg-white shadow-2xs'
+                      : 'border-slate-200 bg-white'
+                  }`}
                 >
                   <div className="flex items-center gap-2 truncate">
                     {hasDoc ? (
@@ -1386,6 +1463,9 @@ export function PricingSection({
           <label className="text-xs font-bold text-[#0a1122] sm:text-sm">
             {prT.descriptionLabel}
           </label>
+          <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-bold text-slate-500">
+            {fT.optionalBadge}
+          </span>
         </div>
         <Textarea
           dir={dir}

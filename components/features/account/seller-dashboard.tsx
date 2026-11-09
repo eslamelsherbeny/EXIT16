@@ -1,13 +1,14 @@
 'use client'
 
 import { useEffect, useMemo, useState, useTransition } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   AlertCircle,
   Building2,
+  CheckCircle2,
   ChevronDown,
   ChevronUp,
+  Clock,
   Edit3,
   FileCheck2,
   ImagePlus,
@@ -73,10 +74,21 @@ const SELLER_DASH_EXTRA_I18N: Record<
     adminNoteWaReplyBtn: string
     adminNoteWaMsgPrefix: string
     adminNoteWaMsgMiddle: string
+    checklistTitleIncomplete: string
+    checklistSubIncomplete: string
+    checklistTitleComplete: string
+    checklistSubComplete: string
+    reqItemDetails: string
+    reqItemPhotos: string
+    reqItemDocs: string
+    doneTag: string
+    missingActionPhotos: string
+    missingActionDocs: string
+    missingActionDetails: string
   }
 > = {
   ar: {
-    navigatingLoading: 'جاري تحميل بيانات الوحدة...',
+    navigatingLoading: 'جاري فتح الصفحة...',
     unverifiedDraftTitle: 'تأكيد البريد الإلكتروني لإرسال الوحدة للإدارة',
     unverifiedDraftDesc:
       'هذه الوحدة محفوظة كمسودة في حسابك ولم تُرسل للإدارة بعد. أكّد بريدك الإلكتروني (خطوة لمرة واحدة فقط) لإرسالها للمراجعة.',
@@ -87,9 +99,24 @@ const SELLER_DASH_EXTRA_I18N: Record<
     adminNoteWaMsgPrefix:
       'أهلاً إدارة Aqar Exit، بخصوص ملاحظتكم على وحدتي رقم',
     adminNoteWaMsgMiddle: 'في مشروع',
+    checklistTitleIncomplete:
+      '⚠️ وضع وحدتك الحالي: غير منشورة (تنتظر استكمال المتطلبات التالية)',
+    checklistSubIncomplete:
+      'لا يتم نشر أي وحدة في السوق العام إلا بعد اكتمال البنود الـ 3 التالية. اضغط على البند الناقص لاستكماله فوراً:',
+    checklistTitleComplete:
+      '✅ وضع وحدتك الحالي: مكتملة وجاهزة (قيد مراجعة الإدارة للنشر)',
+    checklistSubComplete:
+      'استلمت الإدارة جميع بيانات وصور ومستندات وحدتك بالكامل، وجاري مراجعتها للموافقة على نشرها في السوق.',
+    reqItemDetails: '١. البيانات الأساسية الإجبارية للوحدة',
+    reqItemPhotos: '٢. صور الوحدة العقارية',
+    reqItemDocs: '٣. مستندات الملكية والتنازل (4 مستندات)',
+    doneTag: 'مكتمل ✓',
+    missingActionPhotos: 'ارفع صور الوحدة الآن ←',
+    missingActionDocs: 'ارفع المستندات المتبقية ←',
+    missingActionDetails: 'أكمل البيانات الناقصة ←',
   },
   en: {
-    navigatingLoading: 'Loading unit details...',
+    navigatingLoading: 'Opening page...',
     unverifiedDraftTitle: 'Verify Email to Send Unit to Admin',
     unverifiedDraftDesc:
       'This unit is saved as a draft and has not been sent to Admin yet. Verify your email (one-time step) to submit it for review.',
@@ -100,9 +127,24 @@ const SELLER_DASH_EXTRA_I18N: Record<
     adminNoteWaMsgPrefix:
       'Hello Aqar Exit Admin, regarding your note on my unit',
     adminNoteWaMsgMiddle: 'in project',
+    checklistTitleIncomplete:
+      '⚠️ Current Status: Not Published Yet (Waiting for Required Items)',
+    checklistSubIncomplete:
+      'Units are only sent for market publication once all 3 requirements below are completed. Click any missing item to complete it:',
+    checklistTitleComplete:
+      '✅ Current Status: All Requirements Complete (Under Admin Review)',
+    checklistSubComplete:
+      'Admin has received all your unit details, photos, and documents and is reviewing them for market publication.',
+    reqItemDetails: '1. Compulsory Unit Details',
+    reqItemPhotos: '2. Property Photos',
+    reqItemDocs: '3. Ownership Documents (4 files)',
+    doneTag: 'Done ✓',
+    missingActionPhotos: 'Upload Photos Now →',
+    missingActionDocs: 'Upload Remaining Docs →',
+    missingActionDetails: 'Complete Missing Details →',
   },
   ru: {
-    navigatingLoading: 'Загрузка данных объекта...',
+    navigatingLoading: 'Переход...',
     unverifiedDraftTitle: 'Подтвердите Email для отправки объекта администрации',
     unverifiedDraftDesc:
       'Объект сохранен как черновик. Подтвердите ваш Email (только один раз), чтобы отправить его на проверку.',
@@ -113,9 +155,24 @@ const SELLER_DASH_EXTRA_I18N: Record<
     adminNoteWaMsgPrefix:
       'Здравствуйте, Aqar Exit! По поводу вашего комментария к объекту',
     adminNoteWaMsgMiddle: 'в ЖК',
+    checklistTitleIncomplete:
+      '⚠️ Текущий статус: Не опубликовано (Ожидает загрузки файлов)',
+    checklistSubIncomplete:
+      'Объект публикуется на рынке только после выполнения всех 3 пунктов ниже:',
+    checklistTitleComplete:
+      '✅ Текущий статус: Все требования выполнены (На проверке у администрации)',
+    checklistSubComplete:
+      'Администрация получила все данные, фото и документы вашего объекта и проверяет их для публикации.',
+    reqItemDetails: '1. Обязательные данные объекта',
+    reqItemPhotos: '2. Фотографии объекта',
+    reqItemDocs: '3. Документы собственности (4 файла)',
+    doneTag: 'Готово ✓',
+    missingActionPhotos: 'Загрузить фото →',
+    missingActionDocs: 'Загрузить документы →',
+    missingActionDetails: 'Заполнить данные →',
   },
   ka: {
-    navigatingLoading: 'ობიექტის მონაცემები იტვირთება...',
+    navigatingLoading: 'იხსნება...',
     unverifiedDraftTitle: 'დაადასტურეთ ელ-ფოსტა ობიექტის გასაგზავნად',
     unverifiedDraftDesc:
       'ეს ობიექტი შენახულია მონახაზის სახით. დაადასტურეთ ელ-ფოსტა (მხოლოდ ერთხელ) ადმინისტრაციაში გასაგზავნად.',
@@ -126,6 +183,21 @@ const SELLER_DASH_EXTRA_I18N: Record<
     adminNoteWaMsgPrefix:
       'გამარჯობა Aqar Exit, თქვენს შენიშვნასთან დაკავშირებით ობიექტზე',
     adminNoteWaMsgMiddle: 'პროექტში',
+    checklistTitleIncomplete:
+      '⚠️ მიმდინარე სტატუსი: არ არის გამოქვეყნებული (საჭიროა ფაილების ატვირთვა)',
+    checklistSubIncomplete:
+      'ობიექტი გამოქვეყნდება ბაზარზე მხოლოდ ქვემოთ მოცემული 3 პუნქტის შევსების შემდეგ:',
+    checklistTitleComplete:
+      '✅ მიმდინარე სტატუსი: სრულად შევსებულია (ადმინისტრაციის შემოწმებაზე)',
+    checklistSubComplete:
+      'ადმინისტრაციამ მიიღო თქვენი ობიექტის ყველა მონაცემი, ფოტო და დოკუმენტი გამოსაქვეყნებლად.',
+    reqItemDetails: '1. სავალდებულო მონაცემები',
+    reqItemPhotos: '2. ქონების ფოტოები',
+    reqItemDocs: '3. საკუთრების დოკუმენტები (4 ფაილი)',
+    doneTag: 'შევსებულია ✓',
+    missingActionPhotos: 'ფოტოების ატვირთვა →',
+    missingActionDocs: 'დოკუმენტების ატვირთვა →',
+    missingActionDetails: 'მონაცემების შევსება →',
   },
 }
 
@@ -291,6 +363,8 @@ export function SellerDashboard({
     activeUnit.unit_type || activeUnit.documents?.__unit_meta?.unit_type
 
   const editUnitHref = `/sell?editUnitId=${activeUnit.id}`
+  const editPhotosHref = `/sell?editUnitId=${activeUnit.id}&focus=photos`
+  const editDocsHref = `/account/documents?unitId=${activeUnit.id}`
   const verifyUnitHref = `/sell?editUnitId=${activeUnit.id}&verifyEmail=1`
 
   const siteOrigin =
@@ -465,6 +539,12 @@ export function SellerDashboard({
       }
     })
   }
+
+  const isUnitNotLiveYet =
+    meta.code === 'incomplete' ||
+    meta.code === 'pending_review' ||
+    meta.code === 'under_review' ||
+    meta.code === 'draft_unverified'
 
   return (
     <div dir={dir} className="mx-auto max-w-[680px] px-4 sm:px-6">
@@ -727,6 +807,110 @@ export function SellerDashboard({
             </div>
           )}
 
+          {/* =================================================================
+              صندوق الشفافية الكاملة: يوضح للبائع بالضبط هل وحدته منشورة أم ناقصة صور/مستندات
+          ================================================================= */}
+          {isUnitNotLiveYet && (
+            <div
+              className={`mt-4 rounded-2xl border-2 p-4 transition ${
+                meta.code === 'incomplete' || meta.code === 'draft_unverified'
+                  ? 'border-amber-300 bg-amber-50/70'
+                  : 'border-blue-200 bg-blue-50/50'
+              }`}
+            >
+              <div className="flex items-start gap-2.5">
+                {meta.code === 'incomplete' ||
+                meta.code === 'draft_unverified' ? (
+                  <AlertCircle className="mt-0.5 size-5 shrink-0 text-amber-600" />
+                ) : (
+                  <Clock className="mt-0.5 size-5 shrink-0 text-[#2563eb]" />
+                )}
+                <div className="flex-1">
+                  <h3 className="text-xs font-black text-[#0a1122] sm:text-sm">
+                    {meta.code === 'incomplete' ||
+                    meta.code === 'draft_unverified'
+                      ? dT.checklistTitleIncomplete
+                      : dT.checklistTitleComplete}
+                  </h3>
+                  <p className="mt-1 text-xs leading-relaxed font-semibold text-slate-600">
+                    {meta.code === 'incomplete' ||
+                    meta.code === 'draft_unverified'
+                      ? dT.checklistSubIncomplete
+                      : dT.checklistSubComplete}
+                  </p>
+                </div>
+              </div>
+
+              {/* قائمة المتطلبات الـ 3 الواضحة أمام عين البائع */}
+              <div className="mt-3.5 space-y-2">
+                {/* 1. البيانات الإجبارية */}
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200/80 bg-white px-3.5 py-2.5 text-xs">
+                  <span className="font-extrabold text-[#0a1122]">
+                    {dT.reqItemDetails}
+                  </span>
+                  {comp.hasAllCoreDetails ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 font-extrabold text-[#007a5a]">
+                      <CheckCircle2 className="size-3.5" />
+                      <span>{dT.doneTag}</span>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleNavigateWithLoading(editUnitHref)}
+                      className="rounded-lg bg-amber-500 px-3 py-1 font-extrabold text-white hover:bg-amber-600"
+                    >
+                      {dT.missingActionDetails}
+                    </button>
+                  )}
+                </div>
+
+                {/* 2. صور الوحدة */}
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200/80 bg-white px-3.5 py-2.5 text-xs">
+                  <span className="font-extrabold text-[#0a1122]">
+                    {dT.reqItemPhotos} ({comp.imagesCount})
+                  </span>
+                  {comp.hasImages ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 font-extrabold text-[#007a5a]">
+                      <CheckCircle2 className="size-3.5" />
+                      <span>{dT.doneTag}</span>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleNavigateWithLoading(editPhotosHref)}
+                      className="inline-flex items-center gap-1 rounded-lg bg-[#ea580c] px-3 py-1 font-extrabold text-white hover:bg-orange-700"
+                    >
+                      <ImagePlus className="size-3.5" />
+                      <span>{dT.missingActionPhotos}</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* 3. المستندات الـ 4 */}
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200/80 bg-white px-3.5 py-2.5 text-xs">
+                  <span className="font-extrabold text-[#0a1122]">
+                    {dT.reqItemDocs} ({comp.uploadedDocsCount}/4)
+                  </span>
+                  {comp.hasAllDocuments ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 font-extrabold text-[#007a5a]">
+                      <CheckCircle2 className="size-3.5" />
+                      <span>{dT.doneTag}</span>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleNavigateWithLoading(editDocsHref)}
+                      className="inline-flex items-center gap-1 rounded-lg bg-[#2563eb] px-3 py-1 font-extrabold text-white hover:bg-blue-700"
+                    >
+                      <UploadCloud className="size-3.5" />
+                      <span>{dT.missingActionDocs}</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="mt-4">
             <span className="text-xs font-extrabold text-[var(--brand-primary,#007a5a)]">
               {t.nextStepLabel}
@@ -754,28 +938,6 @@ export function SellerDashboard({
                 style={{ width: `${comp.percentage}%` }}
               />
             </div>
-
-            {comp.missingItems.length > 0 && (
-              <div className="mt-3 grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
-                {comp.missingItems.map((item) => (
-                  <button
-                    key={item.key}
-                    type="button"
-                    onClick={() => handleNavigateWithLoading(item.href)}
-                    className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-extrabold text-amber-950 shadow-2xs transition hover:bg-amber-100"
-                  >
-                    {item.key === 'photos' ? (
-                      <ImagePlus className="size-3.5 shrink-0 text-amber-700" />
-                    ) : item.key === 'docs' ? (
-                      <UploadCloud className="size-3.5 shrink-0 text-amber-700" />
-                    ) : (
-                      <AlertCircle className="size-3.5 shrink-0 text-amber-700" />
-                    )}
-                    <span>{item.label}</span>
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
 
           {!isWaFastTrackHidden && (
@@ -903,11 +1065,7 @@ export function SellerDashboard({
 
           <button
             type="button"
-            onClick={() =>
-              handleNavigateWithLoading(
-                `/account/documents?unitId=${activeUnit.id}`
-              )
-            }
+            onClick={() => handleNavigateWithLoading(editDocsHref)}
             className={`flex flex-col justify-between rounded-[16px] border bg-white p-4 text-start shadow-2xs transition hover:border-[var(--brand-primary,#007a5a)] ${
               uploadedDocsCount < 4
                 ? 'border-amber-300 ring-1 ring-amber-200/60'

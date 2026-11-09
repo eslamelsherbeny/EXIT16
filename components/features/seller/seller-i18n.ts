@@ -56,6 +56,13 @@ export type SellerFormTranslations = {
   pageSubtitle: string
   exitBadge: string
   unifiedCurrencyBadge: string
+  requiredBadge: string
+  optionalBadge: string
+  requiredForPublishBadge: string
+  fieldRequiredError: string
+  validationModalTitle: string
+  validationModalSubtitle: string
+  validationModalOkBtn: string
   tabs: {
     type: string
     photos: string
@@ -74,6 +81,7 @@ export type SellerFormTranslations = {
   photosSection: {
     title: string
     subtitle: string
+    publishRequirementNote: string
     dropTitle: string
     photosWord: string
     dropHint: string
@@ -101,6 +109,12 @@ export type SellerFormTranslations = {
     projectPlaceholder: string
     streetLabel: string
     streetPlaceholder: string
+    streetAutocompleteHint: string
+    cantFindAddressTitle: string
+    setLocationOnMapBtn: string
+    detectMyGpsBtn: string
+    reverseGeocodingLoading: string
+    pinMovedSuccess: string
     houseNoLabel: string
     houseNoPlaceholder: string
     cadastralLabel: string
@@ -195,6 +209,7 @@ export type SellerFormTranslations = {
     descriptionLabel: string
     descriptionPlaceholder: string
     docsBoxTitle: string
+    docsRequirementBanner: string
     docContract: string
     docReceipts: string
     docStatement: string
@@ -262,11 +277,16 @@ export type SellerFormTranslations = {
     pkgPro: string
   }
   bottomBar: {
+    finalSectionTitle: string
+    finalSectionDescComplete: string
+    finalSectionDescMissingMedia: string
     savedAtPrefix: string
     autoSavedPrefix: string
     saveDraftBtn: string
+    savingDraftBtn: string
     publishingBtn: string
     publishBtn: string
+    submitAndCompleteDocsLaterBtn: string
   }
 }
 
@@ -277,25 +297,35 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       'استرد مدفوعاتك بالكامل بالدولار ($) — عمولة البيع 0% على البائع.',
     exitBadge: 'نظام التنازل والأقساط',
     unifiedCurrencyBadge: 'العملة الموحدة: دولار أمريكي ($)',
+    requiredBadge: 'إجباري *',
+    optionalBadge: 'اختياري',
+    requiredForPublishBadge: 'شرط لاعتماد ونشر الوحدة',
+    fieldRequiredError: 'هذا الحقل إجباري، يرجى إدخاله للمتابعة',
+    validationModalTitle: 'تنبيه — توجد حقول إجبارية ناقصة',
+    validationModalSubtitle:
+      'للمتابعة إلى الخطوة التالية، يرجى استكمال جميع الحقول الإجبارية المعلّمة باللون الأحمر:',
+    validationModalOkBtn: 'حسناً، انتقل لأول حقل ناقص',
     tabs: {
       type: '1 نوع العقار',
       photos: '2 الصور والروابط',
       location: '3 الموقع والمطور',
       details: '4 المواصفات',
       price: '5 السعر والأقساط',
-      contact: '6 حساب المالك',
+      contact: '6 حساب المالك والإرسال',
     },
     typeSection: {
-      title: 'نوع العقار وحالة البناء',
-      subtitle: 'اختر نوع العقار المراد التنازل عنه ثم حالة البناء الحالية.',
+      title: '1. نوع العقار وحالة البناء',
+      subtitle: 'اختر نوع العقار المراد عرضه للتنازل ثم حالة البناء الحالية.',
       whatToDoLabel: 'نوع العملية',
       whatKindLabel: 'ما هو نوع العقار؟ *',
       statusLabel: 'حالة البناء والاستلام *',
     },
     photosSection: {
-      title: 'الصور وروابط الفيديو والجولة الافتراضية',
+      title: '2. صور الوحدة وروابط الفيديو',
       subtitle:
         'أظهر التصميم الداخلي والخارجي: غرفة المعيشة، غرف النوم، الحمامات، الشرفة، والإطلالة.',
+      publishRequirementNote:
+        '💡 رفع صورة واحدة على الأقل شرط لاعتماد ونشر الوحدة في السوق. يمكنك حفظ طلبك الآن كمسودة ورفع الصور لاحقاً من صفحة حسابك.',
       dropTitle: 'أضف الصور أو اسحبها هنا',
       photosWord: 'صورة',
       dropHint:
@@ -313,33 +343,39 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       tour3dPlaceholder: 'https://my.matterport.com/...',
     },
     locationSection: {
-      title: 'الموقع والعنوان والمطور العقاري',
+      title: '3. الموقع الدقيق والعنوان والمطور العقاري',
       subtitleRent:
-        'أدخل اسم الشارع ورقم المبنى — يظهر الدبوس على الخريطة تلقائياً.',
+        'ابحث باسم الشارع أو حرّك الدبوس على الخريطة ليتم ملء العنوان تلقائياً.',
       subtitleSale:
-        'اختر المدينة والحي وحدد اسم المطور العقاري والمشروع واسم الشارع ورقم المبنى بدقة.',
+        'اكتب جزءاً من اسم الشارع لاختياره من الاقتراحات، أو حرّك الدبوس على الخريطة لتحديد موقع العقار بالضبط.',
       cityDistrictLabel: 'المدينة / الحي *',
-      chooseLocationPlaceholder: 'اختر الموقع',
-      developerLabel: 'اسم المطور العقاري',
+      chooseLocationPlaceholder: 'اضغط لاختيار المدينة والحي أو البحث...',
+      developerLabel: 'اسم المطور العقاري (اختياري)',
       developerPlaceholder: 'مثال: ORBI Group, Archi, m², Next Group...',
       popularDevelopersHint: 'اختيار سريع لأشهر المطورين في جورجيا:',
       projectLabel: 'اسم المشروع أو المجمع السكني *',
       projectPlaceholder: 'مثال: Orbi City, King David, White Sails...',
-      streetLabel: 'اسم الشارع *',
-      streetPlaceholder: 'مثال: Chavchavadze Ave / Khimshiashvili St',
+      streetLabel: 'اسم الشارع (اكتب للبحث التلقائي في جورجيا) *',
+      streetPlaceholder: 'اكتب اسم الشارع أو المنطقة (مثال: Merab Kostava / Chavchavadze)...',
+      streetAutocompleteHint: 'اختر من القائمة المنسدلة أو اضغط على الخريطة بالأسفل لتحديد الموقع تلقائياً',
+      cantFindAddressTitle: 'لم تجد عنوانك في البحث؟',
+      setLocationOnMapBtn: 'حدّد الموقع مباشرة من الخريطة',
+      detectMyGpsBtn: 'تحديد موقعي الحالي (GPS)',
+      reverseGeocodingLoading: 'جاري قراءة اسم الشارع والحي من الخريطة...',
+      pinMovedSuccess: 'تم التقاط الموقع الدقيق وتحديث عنوان الشارع والحي تلقائياً ✓',
       houseNoLabel: 'رقم المبنى / العمارة',
       houseNoPlaceholder: '47',
       cadastralLabel: 'الرقم العقاري الحكومي (Cadastral Code)',
       cadastralPlaceholder: '01.10.01.001.001',
       cadastralHelper:
         'اختياري — يربط الوحدة بالسجل العقاري الجورجي الرسمي NAPR',
-      mapHeaderTitle: 'خريطة الموقع ثلاثية الأبعاد',
-      mapHint: 'يتحرك الدبوس تلقائياً حسب الحي والشارع المختار',
+      mapHeaderTitle: 'خريطة الموقع التفاعلية (اسحب الخريطة أو اضغط عليها لتحديد العقار)',
+      mapHint: 'اسحب الخريطة أو اضغط على موقع العقار بالضبط ليتم ملء اسم الشارع والحي وإحداثيات الوحدة تلقائياً',
     },
     locationModal: {
-      title: 'اختر المدينة والحي في جورجيا',
-      searchPlaceholder: 'ابحث عن الحي، المدينة، المنطقة أو الشارع...',
-      searchingMapsText: 'جاري البحث في خرائط جورجيا...',
+      title: 'اختر المدينة والحي أو ابحث بالشارع في جورجيا',
+      searchPlaceholder: 'ابحث عن الشارع، الحي، المدينة أو المشروع (مثال: Merab Kostava)...',
+      searchingMapsText: 'جاري البحث الفوري في خرائط جورجيا...',
       everywhereTitle: 'في كل مكان',
       everywhereSub: 'كل المناطق في جورجيا',
       nearbyTitle: 'بالقرب مني (GPS)',
@@ -356,30 +392,30 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       selectBtn: 'تأكيد الاختيار',
     },
     detailsSection: {
-      title: 'المواصفات والمميزات',
+      title: '4. المواصفات والمميزات',
       subtitle:
-        'أدخل المساحة وإجمالي الغرف وغرف النوم والطابق والمميزات المتوفرة بدقة.',
+        'أدخل المساحة وإجمالي الغرف وغرف النوم (إجباري)، ويمكنك تحديد التشطيب والمميزات الإضافية.',
       lockedBanner: 'يرجى اختيار نوع العقار بالأعلى أولاً لفتح حقول المواصفات.',
-      conditionLabel: 'حالة التشطيب',
-      buildingSeriesLabel: 'طراز المبنى',
+      conditionLabel: 'حالة التشطيب (اختياري)',
+      buildingSeriesLabel: 'طراز المبنى (اختياري)',
       buildingSeriesSub: 'يساعد المشترين على الفلترة السريعة',
-      floorTypeLabel: 'نوع الطابق',
-      heatingLabel: 'نظام التدفئة',
-      buildingMaterialLabel: 'مادة البناء',
+      floorTypeLabel: 'نوع الطابق (اختياري)',
+      heatingLabel: 'نظام التدفئة (اختياري)',
+      buildingMaterialLabel: 'مادة البناء (اختياري)',
       areaLabel: 'المساحة الإجمالية (م²) *',
       kitchenAreaLabel: 'مساحة المطبخ (م²)',
       yearBuiltLabel: 'سنة البناء / التسليم',
       balconyAreaLabel: 'مساحة الشرفة (م²)',
       loggiaAreaLabel: 'مساحة اللوجيا (م²)',
       terraceAreaLabel: 'مساحة التراس / الحديقة (م²)',
-      roomsLabel: 'إجمالي عدد الغرف (شامل المعيشة) *',
+      roomsLabel: 'إجمالي عدد الغرف (شامل الصالة) *',
       bedroomsLabel: 'عدد غرف النوم من إجمالي الغرف *',
       roomsBedroomsHint: 'ملاحظة: عدد غرف النوم لا يمكن أن يتخطى إجمالي الغرف.',
       bathroomsLabel: 'عدد الحمامات',
       floorLabel: 'الطابق',
       totalFloorsLabel: 'إجمالي طوابق المبنى',
       maxGuestsLabel: 'أقصى عدد للضيوف',
-      featuresTitle: 'المميزات والتجهيزات',
+      featuresTitle: 'المميزات والتجهيزات (اختياري)',
       featuresSubtitle:
         'اختر المميزات المتوفرة فعلياً في العقار لتظهر في صفحة تفاصيل وحدتك.',
       onlineViewingTitle: 'أنا مستعد للمعاينة أونلاين بالفيديو',
@@ -389,14 +425,14 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       installmentSaleSub: 'فعّل هذا الخيار إذا كنت تقبل سداد السعر على دفعات.',
     },
     pricingSection: {
-      title: 'السعر والأقساط والمستندات والوصف',
-      subtitle: 'حدد تفاصيل العقد الأصلي والمبلغ المدفوع والأقساط المتبقية بدقة.',
+      title: '5. السعر والأقساط والمستندات والوصف',
+      subtitle: 'حدد تفاصيل العقد الأصلي والمبلغ المدفوع المطلوب كاش بدقة.',
       priceLabel: 'السعر *',
       totalPriceBtn: 'السعر الإجمالي',
       perSqmBtn: 'سعر المتر',
       contractPriceLabel: 'إجمالي سعر الوحدة في العقد ($) *',
       paidAmountLabel: 'المبلغ المدفوع حتى الآن (الكاش المطلوب $) *',
-      marketPriceLabel: 'سعر السوق اليوم ($ تقديري)',
+      marketPriceLabel: 'سعر السوق اليوم ($ تقديري - اختياري)',
       installmentAmountLabel: 'قيمة القسط الدوري ($)',
       remainingMonthsLabel: 'عدد شهور التقسيط المتبقية (0 إذا خالصة)',
       contractDateLabel: 'تاريخ التعاقد الأصلي مع المطور',
@@ -423,14 +459,16 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       districtGuideTitle: 'مرشد أسعار المنطقة',
       districtGuideSub:
         'متوسط سعر المتر السكني في هذه المنطقة يتراوح بين $1,150 و $1,650 حسب التشطيب.',
-      descriptionLabel: 'وصف تفصيلي للوحدة',
+      descriptionLabel: 'وصف تفصيلي للوحدة (اختياري)',
       descriptionPlaceholder:
         'اشرح مميزات الوحدة، الإطلالة، تفاصيل الطابق، وأبرز نقاط القوة للمشتري...',
-      docsBoxTitle: 'مستندات الملكية والتنازل (اختياري الآن · يسرّع التوثيق)',
-      docContract: 'عقد الشراء',
-      docReceipts: 'إيصالات السداد',
-      docStatement: 'كشف الحساب',
-      docPassport: 'جواز السفر',
+      docsBoxTitle: 'مستندات الملكية والتنازل (شرط أساسي لاعتماد ونشر الوحدة)',
+      docsRequirementBanner:
+        '📌 يمكنك حفظ طلبك الآن بدون المستندات واستكمال رفعها لاحقاً من صفحة (حسابي)، ولكن لن تدخل الوحدة مرحلة النشر في السوق العام إلا بعد رفع المستندات الـ 4 ومراجعة الإدارة.',
+      docContract: '1. عقد الشراء',
+      docReceipts: '2. إيصالات السداد',
+      docStatement: '3. كشف الحساب',
+      docPassport: '4. جواز السفر',
       changeBtn: 'تغيير',
       uploadBtn: 'ارفع',
     },
@@ -443,20 +481,20 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       namePlaceholder: 'اكتب اسمك الثلاثي بالكامل',
       messengersLabel: 'تطبيقات المراسلة المتاحة على هذا الرقم',
       confirmPasswordLabel: 'تأكيد كلمة المرور',
-      accountOptionsTitle: 'خيارات الحساب وربط الإعلان:',
-      createAccountLinkBtn: 'تأكيد وإنشاء الحساب وربط الإعلان ✓',
+      accountOptionsTitle: 'خيارات الحساب وربط الوحدة:',
+      createAccountLinkBtn: 'تأكيد وإنشاء الحساب وربط الوحدة ✓',
       signInSyncPhoneBtn: 'تسجيل الدخول وسحب بياناتي المسجلة ✓',
       signInAnotherAccountBtn: 'تسجيل الدخول بحساب آخر',
       backToCurrentAccountBtn: '← العودة لبيانات حسابي الحالي',
       accountLinkedSuccessMsg:
-        'تم إنشاء وربط حسابك بنجاح ✓ يمكنك الآن الضغط على زر نشر الإعلان بالأسفل',
+        'تم إنشاء وربط حسابك وحفظ مسودة الوحدة بنجاح ✓ يمكنك الآن إرسال الوحدة للمراجعة بالأسفل',
       loggedInSyncedSuccessMsg:
         'تم تسجيل الدخول وسحب بياناتك المسجلة بنجاح ✓',
-      termsAgreementSuffix: '— وأوافق على شروط وأحكام المنصة',
+      termsAgreementSuffix: '— وأوافق على شروط وأحكام المنصة *',
       signInToSaveDraftError:
-        'يرجى تسجيل الدخول أو إنشاء حسابك في قسم التواصل أولاً لحفظ المسودة',
+        'يرجى إدخال بيانات حسابك أو تسجيل الدخول في القسم 6 أولاً لحفظ المسودة في حسابك',
       completeAccountToPublishError:
-        'يرجى إكمال بيانات تسجيل الحساب الجديد أو تسجيل الدخول بحسابك لربط الوحدة باسمك',
+        'يرجى إكمال بيانات الحساب الجديد أو تسجيل الدخول لربط الوحدة باسمك',
       authFailedError: 'تعذر التحقق من بيانات الحساب، يرجى المراجعة والمحاولة',
       validation: {
         bedroomsExceedRooms:
@@ -470,18 +508,18 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       },
     },
     previewSidebar: {
-      title: 'معاينة حية للإعلان',
-      subtitle: 'هكذا سيظهر إعلانك أمام المشترين في السوق',
-      emptyPhotoTitle: 'مطلوب صورة واحدة على الأقل',
-      emptyPhotoSub: 'ارفع صور الوحدة — ستظهر معاينة إعلانك هنا مباشرة',
+      title: 'معاينة حية للوحدة',
+      subtitle: 'هكذا ستظهر وحدتك أمام المشترين بعد مراجعة الإدارة',
+      emptyPhotoTitle: 'لم يتم رفع صور بعد',
+      emptyPhotoSub: 'ارفع صور الوحدة — ستظهر معاينة وحدتك هنا مباشرة',
       priceOnRequest: 'السعر عند الإدخال',
       perDay: ' / يومياً',
       perMonth: ' / شهرياً',
       cashRequiredSuffix: ' (الكاش المطلوب)',
       bedsShort: 'غرف نوم',
-      strengthTitle: 'اكتمال بيانات الوحدة',
-      strengthGreat: 'إعلان ممتاز ومكتمل — جاهز لأعلى ظهور!',
-      strengthGood: 'بداية جيدة — أضف المزيد من التفاصيل والصور',
+      strengthTitle: 'جاهزية الوحدة للمراجعة والنشر',
+      strengthGreat: 'وحدة مكتملة وممتازة — جاهزة لمراجعة الإدارة فوراً!',
+      strengthGood: 'أكمل البيانات الإجبارية والصور والمستندات لتسريع النشر',
       tipPhotos: 'أضف صوراً واضحة للوحدة',
       tipLocation: 'حدد الموقع الدقيق واسم الشارع',
       tipDetails: 'أكمل مواصفات ومساحة العقار',
@@ -489,17 +527,17 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
     },
     reviewSection: {
       fastTrackPhoneTitle:
-        'لتسريع نشر إعلانك وتوثيق رقم هاتفك بعلامة التوثيق ✓:',
+        'لتسريع مراجعة وحدتك وتوثيق رقم هاتفك بعلامة التوثيق ✓:',
       promoSubDesc:
-        'اختر الباقة المناسبة وادفع بالبطاقة لتظهر وحدتك في صدارة الصفحة الرئيسية والفرص المتاحة فور تفعيل الأدمن.',
+        'اختر الباقة المناسبة وادفع بالبطاقة لتظهر وحدتك في صدارة الصفحة الرئيسية والفرص المتاحة فور موافقة الأدمن.',
       payAndActivatePrefix: 'ادفع',
       payAndActivateMiddle: 'وتفعيل باقة',
       daySingular: 'يوم',
       daysPlural: 'أيام',
       boostRecordedPrefix: 'تم تسجيل طلب تفعيل باقة',
       boostRecordedSuffix:
-        'سيتم تفعيل التمييز تلقائياً فور مراجعة الأدمن للإعلان والدفع.',
-      previewPropertyBtn: 'معاينة صفحة العقار',
+        'سيتم تفعيل التمييز تلقائياً فور مراجعة الأدمن للوحدة والدفع.',
+      previewPropertyBtn: 'معاينة صفحة الوحدة',
       pkgStarter: 'بداية · يوم واحد',
       pkgRecommended: 'موصى به 🔥 · يوم واحد',
       pkgTwoDays: 'SUPER VIP · يومان',
@@ -507,29 +545,44 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       pkgPro: 'PRO -30% · 17 يوماً',
     },
     bottomBar: {
-      savedAtPrefix: 'تم حفظ المسودة الساعة',
+      finalSectionTitle: 'إرسال طلب عرض الوحدة أو الحفظ كمسودة',
+      finalSectionDescComplete:
+        'جميع بياناتك وصورك ومستنداتك مكتملة 100%! اضغط بالأسفل لإرسال وحدتك مباشرة إلى مراجعة الإدارة.',
+      finalSectionDescMissingMedia:
+        'ملاحظة هامة: يمكنك إرسال وحفظ بيانات وحدتك الآن، وسيظهر لك في صفحة (حسابي) ما يتبقى عليك من صور أو مستندات لترفعها في أي وقت حتى توافق الإدارة على نشرها.',
+      savedAtPrefix: 'تم حفظ المسودة في حسابك الساعة',
       autoSavedPrefix: 'اكتمال الأقسام',
-      saveDraftBtn: 'حفظ كمسودة',
-      publishingBtn: 'جاري النشر...',
-      publishBtn: 'نشر الإعلان الآن',
+      saveDraftBtn: 'حفظ كمسودة واستكمال لاحقاً في حسابي',
+      savingDraftBtn: 'جاري حفظ المسودة...',
+      publishingBtn: 'جاري إرسال الطلب...',
+      publishBtn: 'إرسال الوحدة لمراجعة الإدارة والاعتماد',
+      submitAndCompleteDocsLaterBtn: 'حفظ بيانات الوحدة واستكمال الصور/المستندات من حسابي',
     },
   },
   en: {
-    pageTitle: 'List Your Unit for Installment Exit',
+    pageTitle: 'Submit Your Unit for Installment Exit',
     pageSubtitle:
       'Recover 100% of your paid installments in USD ($) — 0% seller commission.',
     exitBadge: 'Installment Exit System',
     unifiedCurrencyBadge: 'Unified Currency: USD ($)',
+    requiredBadge: 'Required *',
+    optionalBadge: 'Optional',
+    requiredForPublishBadge: 'Required for Admin Approval',
+    fieldRequiredError: 'This compulsory field is required',
+    validationModalTitle: 'Error — Compulsory Fields Missing',
+    validationModalSubtitle:
+      'To proceed to the next step, please fill out all compulsory fields marked in red:',
+    validationModalOkBtn: 'OK, Go to First Missing Field',
     tabs: {
       type: '1 Property Type',
       photos: '2 Photos & Media',
       location: '3 Location',
       details: '4 Specifications',
       price: '5 Price & Terms',
-      contact: '6 Owner Account',
+      contact: '6 Owner & Submit',
     },
     typeSection: {
-      title: 'Property Type & Building Status',
+      title: '1. Property Type & Building Status',
       subtitle:
         'Select the property type and current building status for your installment exit.',
       whatToDoLabel: 'Deal Type',
@@ -537,9 +590,11 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       statusLabel: 'Building & Handover Status *',
     },
     photosSection: {
-      title: 'Photos, Video & 3D Tour Links',
+      title: '2. Unit Photos, Video & 3D Tour',
       subtitle:
         'Show interior and exterior: living room, bedrooms, bathrooms, balcony, and view.',
+      publishRequirementNote:
+        '💡 Uploading at least 1 photo is required before Admin publishes your unit. You can save as draft now and upload photos later from My Account.',
       dropTitle: 'Add photos or drag them here',
       photosWord: 'photos',
       dropHint:
@@ -557,31 +612,37 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       tour3dPlaceholder: 'https://my.matterport.com/...',
     },
     locationSection: {
-      title: 'Location, Street & Developer',
+      title: '3. Exact Location, Street & Developer',
       subtitleRent:
-        'Enter the exact street and house number — the pin drops on the map automatically.',
+        'Search by street name or drag the pin on the map to auto-fill address.',
       subtitleSale:
-        'Select the city & district, and enter the developer name, project, street, and building number.',
+        'Type part of the street name for live suggestions across Georgia, or move the map pin to set exact building location.',
       cityDistrictLabel: 'City / District *',
-      chooseLocationPlaceholder: 'Choose location',
-      developerLabel: 'Developer Name',
+      chooseLocationPlaceholder: 'Click to select city, district or search street...',
+      developerLabel: 'Developer Name (Optional)',
       developerPlaceholder: 'e.g. ORBI Group, Archi, m², Next Group...',
       popularDevelopersHint: 'Quick-select popular developers in Georgia:',
       projectLabel: 'Project / Complex Name *',
       projectPlaceholder: 'e.g. Orbi City, King David, White Sails...',
-      streetLabel: 'Street Name *',
-      streetPlaceholder: 'e.g. Chavchavadze Ave / Khimshiashvili St',
+      streetLabel: 'Street Name (Live Georgia Search) *',
+      streetPlaceholder: 'Type street or area (e.g. Merab Kostava / Chavchavadze)...',
+      streetAutocompleteHint: 'Select from dropdown suggestions or click on the map below',
+      cantFindAddressTitle: "Can't find your address?",
+      setLocationOnMapBtn: 'Set location on map instead',
+      detectMyGpsBtn: 'Detect my GPS location',
+      reverseGeocodingLoading: 'Reading street & district from map coordinates...',
+      pinMovedSuccess: 'Exact location captured & street address updated ✓',
       houseNoLabel: 'Building / House Nº',
       houseNoPlaceholder: '47',
       cadastralLabel: 'Cadastral Code (NAPR)',
       cadastralPlaceholder: '01.10.01.001.001',
       cadastralHelper: 'Optional — links unit to Georgian Public Registry NAPR',
-      mapHeaderTitle: 'Interactive 3D Map',
-      mapHint: 'Pin updates automatically based on selected district & street',
+      mapHeaderTitle: 'Interactive 3D Map (Drag or click map to set exact building)',
+      mapHint: 'Drag the map or click on your building to auto-fill street, district and exact coordinates',
     },
     locationModal: {
-      title: 'Select City & District in Georgia',
-      searchPlaceholder: 'District, city, neighborhood or street...',
+      title: 'Select City & District or Search Street in Georgia',
+      searchPlaceholder: 'Search street, district, city or project (e.g. Merab Kostava)...',
       searchingMapsText: 'Searching Georgia maps...',
       everywhereTitle: 'Everywhere',
       everywhereSub: 'All regions in Georgia',
@@ -599,16 +660,16 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       selectBtn: 'Confirm Selection',
     },
     detailsSection: {
-      title: 'Specifications & Features',
+      title: '4. Specifications & Features',
       subtitle:
-        'Fill in accurate area, total rooms, bedrooms, floor, and available features.',
+        'Fill in compulsory area, total rooms, and bedrooms. Other specs are optional.',
       lockedBanner: 'Please select a property type above to unlock specifications.',
-      conditionLabel: 'Finishing Condition',
-      buildingSeriesLabel: 'Building Series',
+      conditionLabel: 'Finishing Condition (Optional)',
+      buildingSeriesLabel: 'Building Series (Optional)',
       buildingSeriesSub: 'Helps buyers filter quickly',
-      floorTypeLabel: 'Floor Type',
-      heatingLabel: 'Heating System',
-      buildingMaterialLabel: 'Building Material',
+      floorTypeLabel: 'Floor Type (Optional)',
+      heatingLabel: 'Heating System (Optional)',
+      buildingMaterialLabel: 'Building Material (Optional)',
       areaLabel: 'Total Area (m²) *',
       kitchenAreaLabel: 'Kitchen Area (m²)',
       yearBuiltLabel: 'Year Built / Delivered',
@@ -622,7 +683,7 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       floorLabel: 'Floor',
       totalFloorsLabel: 'Total Building Floors',
       maxGuestsLabel: 'Max Guests',
-      featuresTitle: 'Features & Amenities',
+      featuresTitle: 'Features & Amenities (Optional)',
       featuresSubtitle:
         'Select all features actually available in your property.',
       onlineViewingTitle: 'I am ready for online video viewings',
@@ -633,7 +694,7 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
         'Check if you accept the price paid in parts over time.',
     },
     pricingSection: {
-      title: 'Price, Installments, Documents & Description',
+      title: '5. Price, Installments, Documents & Description',
       subtitle:
         'Enter the original contract price, paid cash amount, and remaining installment details.',
       priceLabel: 'Price *',
@@ -641,7 +702,7 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       perSqmBtn: 'Price per m²',
       contractPriceLabel: 'Total Contract Price ($) *',
       paidAmountLabel: 'Paid Amount So Far (Required Cash $) *',
-      marketPriceLabel: 'Current Market Price ($ Est.)',
+      marketPriceLabel: 'Current Market Price ($ Est. - Optional)',
       installmentAmountLabel: 'Periodic Installment Amount ($)',
       remainingMonthsLabel: 'Remaining Installment Months (0 if fully paid)',
       contractDateLabel: 'Original Contract Date',
@@ -668,14 +729,16 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       districtGuideTitle: 'District Price Guide',
       districtGuideSub:
         'Average market range in this district is $1,150 – $1,650 / m².',
-      descriptionLabel: 'Detailed Property Description',
+      descriptionLabel: 'Detailed Property Description (Optional)',
       descriptionPlaceholder:
         'Describe the property layout, view, floor advantages, and key highlights...',
-      docsBoxTitle: 'Ownership Documents (Optional now · Speeds up verification)',
-      docContract: 'Purchase Contract',
-      docReceipts: 'Payment Receipts',
-      docStatement: 'Account Statement',
-      docPassport: 'Passport Copy',
+      docsBoxTitle: 'Ownership Documents (Required for Market Publication)',
+      docsRequirementBanner:
+        '📌 You can save your unit now and upload documents later from (My Account), but the unit will only be published in the public market after uploading the 4 documents for Admin review.',
+      docContract: '1. Purchase Contract',
+      docReceipts: '2. Payment Receipts',
+      docStatement: '3. Account Statement',
+      docPassport: '4. Passport Copy',
       changeBtn: 'Change',
       uploadBtn: 'Upload',
     },
@@ -688,19 +751,19 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       namePlaceholder: 'Enter your full name',
       messengersLabel: 'Messengers available on this phone number',
       confirmPasswordLabel: 'Confirm Password',
-      accountOptionsTitle: 'Account & listing ownership options:',
-      createAccountLinkBtn: 'Create Account & Link Listing ✓',
+      accountOptionsTitle: 'Account & unit ownership options:',
+      createAccountLinkBtn: 'Create Account & Save Unit Draft ✓',
       signInSyncPhoneBtn: 'Sign In & Sync My Details ✓',
       signInAnotherAccountBtn: 'Sign in with another account',
       backToCurrentAccountBtn: '← Back to my current account',
       accountLinkedSuccessMsg:
-        'Account created and linked ✓ You can now click Publish Listing below',
+        'Account created and draft saved ✓ You can now submit your unit below',
       loggedInSyncedSuccessMsg: 'Signed in and contact details synced ✓',
-      termsAgreementSuffix: '— and I agree to the platform terms & conditions',
+      termsAgreementSuffix: '— and I agree to the platform terms & conditions *',
       signInToSaveDraftError:
-        'Please sign in or register in the Contact section first to save a draft',
+        'Please sign in or register in Section 6 first to save a draft to your account',
       completeAccountToPublishError:
-        'Please complete your account registration or sign in to link this listing',
+        'Please complete your account registration or sign in to link this unit',
       authFailedError: 'Authentication failed, please check your credentials',
       validation: {
         bedroomsExceedRooms: 'Bedrooms cannot exceed total rooms count',
@@ -712,18 +775,18 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       },
     },
     previewSidebar: {
-      title: 'Live Listing Preview',
-      subtitle: 'This is how buyers will see your unit',
-      emptyPhotoTitle: 'At least 1 photo is required',
+      title: 'Live Unit Preview',
+      subtitle: 'This is how buyers will see your unit after Admin approval',
+      emptyPhotoTitle: 'No photos uploaded yet',
       emptyPhotoSub: 'Upload a photo — your live preview appears here',
       priceOnRequest: 'Price on request',
       perDay: ' /day',
       perMonth: ' /month',
       cashRequiredSuffix: ' (Cash Required)',
       bedsShort: 'Beds',
-      strengthTitle: 'Listing Completeness',
-      strengthGreat: 'Excellent completeness — ready for maximum visibility!',
-      strengthGood: 'Good start — add more photos and details',
+      strengthTitle: 'Readiness for Admin Review',
+      strengthGreat: 'Complete unit — ready for immediate Admin review!',
+      strengthGood: 'Complete compulsory fields, photos & docs for approval',
       tipPhotos: 'Add clear property photos',
       tipLocation: 'Specify street and exact location',
       tipDetails: 'Complete property area & rooms',
@@ -731,7 +794,7 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
     },
     reviewSection: {
       fastTrackPhoneTitle:
-        'To fast-track listing review & verify your phone number ✓:',
+        'To fast-track unit review & verify your phone number ✓:',
       promoSubDesc:
         'Choose a boost package to feature your unit at the top of the Homepage and Opportunities upon Admin approval.',
       payAndActivatePrefix: 'Pay',
@@ -741,7 +804,7 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       boostRecordedPrefix: 'Boost request recorded:',
       boostRecordedSuffix:
         'It will activate automatically upon Admin review and payment confirmation.',
-      previewPropertyBtn: 'Preview Property Page',
+      previewPropertyBtn: 'Preview Unit Page',
       pkgStarter: 'Starter · 1 day',
       pkgRecommended: 'Recommended 🔥 · 1 day',
       pkgTwoDays: 'SUPER VIP · 2 days',
@@ -749,11 +812,18 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       pkgPro: 'PRO -30% · 17 days',
     },
     bottomBar: {
+      finalSectionTitle: 'Submit Unit for Admin Review or Save Draft',
+      finalSectionDescComplete:
+        'All your unit details, photos, and documents are 100% complete! Click below to submit your unit for Admin review.',
+      finalSectionDescMissingMedia:
+        'Important Note: You can save and submit your unit details now, and upload the remaining photos or documents anytime from (My Account) so Admin can approve and publish it.',
       savedAtPrefix: 'Draft saved at',
       autoSavedPrefix: 'Sections completed',
-      saveDraftBtn: 'Save draft',
-      publishingBtn: 'Publishing...',
-      publishBtn: 'Publish Listing',
+      saveDraftBtn: 'Save as Draft & Continue Later in My Account',
+      savingDraftBtn: 'Saving draft...',
+      publishingBtn: 'Submitting...',
+      publishBtn: 'Submit Unit for Admin Review & Approval',
+      submitAndCompleteDocsLaterBtn: 'Save Unit Details & Complete Photos/Docs in My Account',
     },
   },
   ru: {
@@ -762,25 +832,35 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       'Верните 100% выплаченных средств в долларах ($) — комиссия для продавца 0%.',
     exitBadge: 'Переуступка рассрочки',
     unifiedCurrencyBadge: 'Единая валюта: USD ($)',
+    requiredBadge: 'Обязательно *',
+    optionalBadge: 'Необязательно',
+    requiredForPublishBadge: 'Обязательно для публикации',
+    fieldRequiredError: 'Это обязательное поле необходимо заполнить',
+    validationModalTitle: 'Внимание — не заполнены обязательные поля',
+    validationModalSubtitle:
+      'Для продолжения заполните все обязательные поля, выделенные красным цветом:',
+    validationModalOkBtn: 'ОК, перейти к первому полю',
     tabs: {
       type: '1 Тип объекта',
       photos: '2 Фото и медиа',
       location: '3 Локация',
       details: '4 Характеристики',
       price: '5 Цена и условия',
-      contact: '6 Аккаунт',
+      contact: '6 Аккаунт и отправка',
     },
     typeSection: {
-      title: 'Тип недвижимости и статус здания',
+      title: '1. Тип недвижимости и статус здания',
       subtitle: 'Выберите тип объекта и текущий статус строительства.',
       whatToDoLabel: 'Тип сделки',
       whatKindLabel: 'Какой тип недвижимости? *',
       statusLabel: 'Статус строительства *',
     },
     photosSection: {
-      title: 'Фотографии, видео и 3D-тур',
+      title: '2. Фотографии, видео и 3D-тур',
       subtitle:
         'Покажите интерьер и экстерьер: гостиную, спальни, санузел, балкон и вид из окон.',
+      publishRequirementNote:
+        '💡 Загрузка хотя бы 1 фото обязательна для публикации на рынке. Вы можете сохранить черновик сейчас и загрузить фото позже в личном кабинете.',
       dropTitle: 'Добавьте фото или перетащите их сюда',
       photosWord: 'фото',
       dropHint: 'Первое фото станет главной обложкой объявления.',
@@ -797,31 +877,37 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       tour3dPlaceholder: 'https://my.matterport.com/...',
     },
     locationSection: {
-      title: 'Местоположение, улица и застройщик',
+      title: '3. Точное местоположение, улица и застройщик',
       subtitleRent:
-        'Укажите улицу и номер дома — пин появится на карте автоматически.',
+        'Введите улицу для автоподсказок или передвиньте пин на карте.',
       subtitleSale:
-        'Выберите город и район, укажите застройщика, ЖК, улицу и номер дома.',
+        'Начните вводить название улицы для поиска по всей Грузии или укажите точку прямо на карте.',
       cityDistrictLabel: 'Город / Район *',
-      chooseLocationPlaceholder: 'Выберите локацию',
-      developerLabel: 'Застройщик',
+      chooseLocationPlaceholder: 'Нажмите для выбора города, района или поиска...',
+      developerLabel: 'Застройщик (Необязательно)',
       developerPlaceholder: 'Напр.: ORBI Group, Archi, m², Next Group...',
       popularDevelopersHint: 'Быстрый выбор популярных застройщиков Грузии:',
       projectLabel: 'Название ЖК / Проекта *',
       projectPlaceholder: 'Напр.: Orbi City, King David, White Sails...',
-      streetLabel: 'Улица *',
-      streetPlaceholder: 'Напр.: Chavchavadze Ave / Khimshiashvili St',
+      streetLabel: 'Улица (Живой поиск по Грузии) *',
+      streetPlaceholder: 'Введите улицу или район (напр.: Merab Kostava / Chavchavadze)...',
+      streetAutocompleteHint: 'Выберите из списка подсказок или укажите точку на карте ниже',
+      cantFindAddressTitle: 'Не нашли точный адрес в поиске?',
+      setLocationOnMapBtn: 'Указать точку на карте',
+      detectMyGpsBtn: 'Мое местоположение (GPS)',
+      reverseGeocodingLoading: 'Определение адреса по координатам карты...',
+      pinMovedSuccess: 'Точная локация и улица успешно обновлены ✓',
       houseNoLabel: 'Номер дома',
       houseNoPlaceholder: '47',
       cadastralLabel: 'Кадастровый код (NAPR)',
       cadastralPlaceholder: '01.10.01.001.001',
       cadastralHelper: 'Необязательно — привязка к реестру недвижимости Грузии',
-      mapHeaderTitle: 'Интерактивная 3D-карта',
-      mapHint: 'Пин перемещается автоматически по выбранному району и улице',
+      mapHeaderTitle: 'Интерактивная 3D-карта (Передвигайте карту или нажмите на дом)',
+      mapHint: 'Передвиньте карту или нажмите на здание — улица, район и координаты заполнятся автоматически',
     },
     locationModal: {
-      title: 'Выберите город и район в Грузии',
-      searchPlaceholder: 'Район, город, микрорайон или улица...',
+      title: 'Выберите город и район или найдите улицу в Грузии',
+      searchPlaceholder: 'Поиск улицы, района, города или ЖК (напр.: Merab Kostava)...',
       searchingMapsText: 'Поиск по карте Грузии...',
       everywhereTitle: 'Везде',
       everywhereSub: 'Все регионы Грузии',
@@ -839,15 +925,15 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       selectBtn: 'Выбрать',
     },
     detailsSection: {
-      title: 'Характеристики и удобства',
-      subtitle: 'Точно укажите площадь, общее число комнат, спальни и этаж.',
+      title: '4. Характеристики и удобства',
+      subtitle: 'Укажите обязательную площадь и комнаты. Остальные поля необязательны.',
       lockedBanner: 'Выберите тип недвижимости выше, чтобы открыть поля.',
-      conditionLabel: 'Состояние / Ремонт',
-      buildingSeriesLabel: 'Серия дома',
+      conditionLabel: 'Состояние / Ремонт (Необязательно)',
+      buildingSeriesLabel: 'Серия дома (Необязательно)',
       buildingSeriesSub: 'Помогает покупателям быстрее находить объект',
-      floorTypeLabel: 'Тип этажа',
-      heatingLabel: 'Отопление',
-      buildingMaterialLabel: 'Материал здания',
+      floorTypeLabel: 'Тип этажа (Необязательно)',
+      heatingLabel: 'Отопление (Необязательно)',
+      buildingMaterialLabel: 'Материал здания (Необязательно)',
       areaLabel: 'Общая площадь (м²) *',
       kitchenAreaLabel: 'Площадь кухни (м²)',
       yearBuiltLabel: 'Год постройки / сдачи',
@@ -861,7 +947,7 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       floorLabel: 'Этаж',
       totalFloorsLabel: 'Всего этажей в доме',
       maxGuestsLabel: 'Макс. гостей',
-      featuresTitle: 'Удобства и оснащение',
+      featuresTitle: 'Удобства и оснащение (Необязательно)',
       featuresSubtitle: 'Отметьте все удобства, которые реально есть в объекте.',
       onlineViewingTitle: 'Готов к онлайн-показу по видеосвязи',
       onlineViewingSub:
@@ -870,14 +956,14 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       installmentSaleSub: 'Отметьте, если готовы принимать оплату частями.',
     },
     pricingSection: {
-      title: 'Цена, рассрочка, документы и описание',
+      title: '5. Цена, рассрочка, документы и описание',
       subtitle: 'Укажите полную цену по договору, выплаченную сумму и остаток рассрочки.',
       priceLabel: 'Цена *',
       totalPriceBtn: 'Общая цена',
       perSqmBtn: 'Цена за м²',
       contractPriceLabel: 'Полная цена по договору ($) *',
       paidAmountLabel: 'Выплачено на сегодня (Сумма на руки $) *',
-      marketPriceLabel: 'Рыночная цена сегодня ($)',
+      marketPriceLabel: 'Рыночная цена сегодня ($ - Необязательно)',
       installmentAmountLabel: 'Платеж по рассрочке ($)',
       remainingMonthsLabel: 'Осталось месяцев рассрочки (0 если выплачено)',
       contractDateLabel: 'Дата первоначального договора',
@@ -903,14 +989,16 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       discountAmountLabel: 'Макс. сумма скидки при торге ($ необязательно)',
       districtGuideTitle: 'Ориентир цен в районе',
       districtGuideSub: 'Средний диапазон цен в этом районе: $1,150 – $1,650 / м².',
-      descriptionLabel: 'Подробное описание объекта',
+      descriptionLabel: 'Подробное описание объекта (Необязательно)',
       descriptionPlaceholder:
         'Опишите планировку, вид из окон, преимущества этажа и комплекса...',
-      docsBoxTitle: 'Документы на объект (Необязательно сейчас · Ускоряет проверку)',
-      docContract: 'Договор купли',
-      docReceipts: 'Квитанции оплаты',
-      docStatement: 'Выписка со счета',
-      docPassport: 'Паспорт',
+      docsBoxTitle: 'Документы на объект (Обязательно для публикации на рынке)',
+      docsRequirementBanner:
+        '📌 Вы можете сохранить данные объекта сейчас и загрузить документы позже в (Личном кабинете), но объект будет опубликован на рынке только после загрузки 4 документов и проверки администрацией.',
+      docContract: '1. Договор купли',
+      docReceipts: '2. Квитанции оплаты',
+      docStatement: '3. Выписка со счета',
+      docPassport: '4. Паспорт',
       changeBtn: 'Заменить',
       uploadBtn: 'Загрузить',
     },
@@ -922,19 +1010,19 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       namePlaceholder: 'Введите ваше полное имя',
       messengersLabel: 'Доступные мессенджеры на этом номере',
       confirmPasswordLabel: 'Подтвердите пароль',
-      accountOptionsTitle: 'Параметры аккаунта и привязки объявления:',
-      createAccountLinkBtn: 'Создать аккаунт и привязать объект ✓',
+      accountOptionsTitle: 'Параметры аккаунта и привязки объекта:',
+      createAccountLinkBtn: 'Создать аккаунт и сохранить черновик ✓',
       signInSyncPhoneBtn: 'Войти и синхронизировать данные ✓',
       signInAnotherAccountBtn: 'Войти в другой аккаунт',
       backToCurrentAccountBtn: '← Вернуться к текущему аккаунту',
       accountLinkedSuccessMsg:
-        'Аккаунт создан и привязан ✓ Теперь нажмите «Опубликовать» внизу',
+        'Аккаунт создан и черновик сохранен ✓ Теперь отправьте объект на проверку ниже',
       loggedInSyncedSuccessMsg: 'Вход выполнен, данные синхронизированы ✓',
-      termsAgreementSuffix: '— и принимаю правила платформы',
+      termsAgreementSuffix: '— и принимаю правила платформы *',
       signInToSaveDraftError:
-        'Войдите или зарегистрируйтесь в разделе Контакты для сохранения черновика',
+        'Войдите или зарегистрируйтесь в разделе 6 для сохранения черновика',
       completeAccountToPublishError:
-        'Заполните данные регистрации или войдите в аккаунт для публикации',
+        'Заполните данные регистрации или войдите в аккаунт для отправки объекта',
       authFailedError: 'Ошибка авторизации, проверьте введенные данные',
       validation: {
         bedroomsExceedRooms:
@@ -948,18 +1036,18 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       },
     },
     previewSidebar: {
-      title: 'Предпросмотр объявления',
-      subtitle: 'Так покупатели увидят ваш объект',
-      emptyPhotoTitle: 'Нужно хотя бы 1 фото',
+      title: 'Предпросмотр объекта',
+      subtitle: 'Так покупатели увидят ваш объект после проверки',
+      emptyPhotoTitle: 'Фото еще не загружены',
       emptyPhotoSub: 'Загрузите фото — предпросмотр появится здесь',
       priceOnRequest: 'Цена по запросу',
       perDay: ' /сут.',
       perMonth: ' /мес.',
       cashRequiredSuffix: ' (На руки)',
       bedsShort: 'спальни',
-      strengthTitle: 'Заполненность объявления',
-      strengthGreat: 'Отличное заполнение — готово к публикации!',
-      strengthGood: 'Хорошее начало — добавьте больше фото и деталей',
+      strengthTitle: 'Готовность к проверке',
+      strengthGreat: 'Отличное заполнение — готово к проверке администрацией!',
+      strengthGood: 'Заполните обязательные поля, фото и документы',
       tipPhotos: 'Добавьте качественные фото объекта',
       tipLocation: 'Укажите улицу и точную локацию',
       tipDetails: 'Заполните площадь и комнаты',
@@ -985,11 +1073,18 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       pkgPro: 'PRO -30% · 17 дней',
     },
     bottomBar: {
+      finalSectionTitle: 'Отправка объекта на проверку или сохранение черновика',
+      finalSectionDescComplete:
+        'Все данные, фото и документы заполнены на 100%! Нажмите ниже, чтобы отправить объект на проверку администрации.',
+      finalSectionDescMissingMedia:
+        'Важно: Вы можете сохранить данные объекта сейчас и загрузить недостающие фото или документы позже в (Личном кабинете) для одобрения публикации.',
       savedAtPrefix: 'Черновик сохранен в',
       autoSavedPrefix: 'Заполнено разделов',
-      saveDraftBtn: 'Сохранить черновик',
-      publishingBtn: 'Публикация...',
-      publishBtn: 'Опубликовать',
+      saveDraftBtn: 'Сохранить черновик и продолжить позже в кабинете',
+      savingDraftBtn: 'Сохранение черновика...',
+      publishingBtn: 'Отправка...',
+      publishBtn: 'Отправить объект на проверку администрации',
+      submitAndCompleteDocsLaterBtn: 'Сохранить объект и загрузить фото/документы в кабинете',
     },
   },
   ka: {
@@ -998,25 +1093,35 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       'დაიბრუნეთ გადახდილი თანხის 100% დოლარში ($) — საკომისიო გამყიდველისთვის 0%.',
     exitBadge: 'განვადების გადაბარება',
     unifiedCurrencyBadge: 'ერთიანი ვალუტა: USD ($)',
+    requiredBadge: 'სავალდებულო *',
+    optionalBadge: 'არასავალდებულო',
+    requiredForPublishBadge: 'სავალდებულოა გამოსაქვეყნებლად',
+    fieldRequiredError: 'ეს სავალდებულო ველი შესავსებია',
+    validationModalTitle: 'ყურადღება — სავალდებულო ველები არ არის შევსებული',
+    validationModalSubtitle:
+      'გასაგრძელებლად გთხოვთ შეავსოთ წითლად მონიშნული ყველა სავალდებულო ველი:',
+    validationModalOkBtn: 'კარგი, გადადით პირველ ველზე',
     tabs: {
       type: '1 ქონების ტიპი',
       photos: '2 ფოტო და მედია',
       location: '3 მდებარეობა',
       details: '4 მახასიათებლები',
       price: '5 ფასი და პირობები',
-      contact: '6 ანგარიში',
+      contact: '6 ანგარიში და გაგზავნა',
     },
     typeSection: {
-      title: 'ქონების ტიპი და მშენებლობის სტატუსი',
+      title: '1. ქონების ტიპი და მშენებლობის სტატუსი',
       subtitle: 'აირჩიეთ ქონების სახეობა და მშენებლობის მიმდინარე სტატუსი.',
       whatToDoLabel: 'გარიგების ტიპი',
       whatKindLabel: 'რა ტიპის ქონებაა? *',
       statusLabel: 'მშენებლობის სტატუსი *',
     },
     photosSection: {
-      title: 'ფოტოები, ვიდეო და 3D ტურის ბმულები',
+      title: '2. ფოტოები, ვიდეო და 3D ტურის ბმულები',
       subtitle:
         'აჩვენეთ ინტერიერი და ექსტერიერი: მისაღები, საძინებელი, სველი წერტილი, აივანი და ხედი.',
+      publishRequirementNote:
+        '💡 მინიმუმ 1 ფოტოს ატვირთვა აუცილებელია ქონების ბაზარზე გამოსაქვეყნებლად. შეგიძლიათ შეინახოთ მონახაზი ახლა და ფოტოები მოგვიანებით ატვირთოთ თქვენი ანგარიშიდან.',
       dropTitle: 'დაამატეთ ფოტოები ან გადმოიტანეთ აქ',
       photosWord: 'ფოტო',
       dropHint: 'პირველი ფოტო გახდება განცხადების მთავარი სურათი.',
@@ -1033,31 +1138,37 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       tour3dPlaceholder: 'https://my.matterport.com/...',
     },
     locationSection: {
-      title: 'მდებარეობა, ქუჩა და დეველოპერი',
+      title: '3. ზუსტი მდებარეობა, ქუჩა და დეველოპერი',
       subtitleRent:
-        'შეიყვანეთ ქუჩა და სახლის ნომერი — პინი რუკაზე ავტომატურად გამოჩნდება.',
+        'მოძებნეთ ქუჩის სახელით ან გადაადგილეთ პინი რუკაზე მისამართის შესავსებად.',
       subtitleSale:
-        'აირჩიეთ ქალაქი და უბანი, მიუთითეთ დეველოპერი, პროექტი, ქუჩა და სახლის ნომერი.',
+        'ჩაწერეთ ქუჩის სახელი სწრაფი ძიებისთვის ან მონიშნეთ ზუსტი ადგილი პირდაპირ რუკაზე.',
       cityDistrictLabel: 'ქალაქი / უბანი *',
-      chooseLocationPlaceholder: 'აირჩიეთ მდებარეობა',
-      developerLabel: 'დეველოპერი',
+      chooseLocationPlaceholder: 'დააჭირეთ ქალაქის, უბნის ან ქუჩის ასარჩევად...',
+      developerLabel: 'დეველოპერი (არასავალდებულო)',
       developerPlaceholder: 'მაგ.: ORBI Group, Archi, m², Next Group...',
       popularDevelopersHint: 'საქართველოს პოპულარული დეველოპერები:',
       projectLabel: 'პროექტის / კომპლექსის სახელი *',
       projectPlaceholder: 'მაგ.: Orbi City, King David, White Sails...',
-      streetLabel: 'ქუჩის სახელი *',
-      streetPlaceholder: 'მაგ.: Chavchavadze Ave / Khimshiashvili St',
+      streetLabel: 'ქუჩის სახელი (სწრაფი ძიება საქართველოში) *',
+      streetPlaceholder: 'ჩაწერეთ ქუჩა ან უბანი (მაგ.: Merab Kostava / Chavchavadze)...',
+      streetAutocompleteHint: 'აირჩიეთ შემოთავაზებული სიიდან ან დააჭირეთ რუკას ქვემოთ',
+      cantFindAddressTitle: 'ვერ პოულობთ მისამართს?',
+      setLocationOnMapBtn: 'მონიშნეთ მდებარეობა რუკაზე',
+      detectMyGpsBtn: 'ჩემი GPS მდებარეობა',
+      reverseGeocodingLoading: 'მისამართის წაკითხვა რუკის კოორდინატებიდან...',
+      pinMovedSuccess: 'ზუსტი მდებარეობა და ქუჩის მისამართი განახლდა ✓',
       houseNoLabel: 'სახლის / კორპუსის Nº',
       houseNoPlaceholder: '47',
       cadastralLabel: 'საკადასტრო კოდი (NAPR)',
       cadastralPlaceholder: '01.10.01.001.001',
       cadastralHelper: 'არასავალდებულო — საჯარო რეესტრის კოდი',
-      mapHeaderTitle: 'ინტერაქტიული 3D რუკა',
-      mapHint: 'პინი ავტომატურად მოძრაობს არჩეული უბნისა და ქუჩის მიხედვით',
+      mapHeaderTitle: 'ინტერაქტიული 3D რუკა (გადაადგილეთ რუკა ან დააჭირეთ შენობას)',
+      mapHint: 'გადაადგილეთ რუკა ან დააჭირეთ შენობას ქუჩისა და კოორდინატების ავტომატურად შესავსებად',
     },
     locationModal: {
-      title: 'აირჩიეთ ქალაქი და უბანი საქართველოში',
-      searchPlaceholder: 'უბანი, ქალაქი ან ქუჩა...',
+      title: 'აირჩიეთ ქალაქი და უბანი ან მოძებნეთ ქუჩა',
+      searchPlaceholder: 'ქუჩა, უბანი, ქალაქი ან პროექტი (მაგ.: Merab Kostava)...',
       searchingMapsText: 'ძიება საქართველოს რუკაზე...',
       everywhereTitle: 'ყველგან',
       everywhereSub: 'საქართველოს ყველა რეგიონი',
@@ -1075,15 +1186,15 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       selectBtn: 'არჩევა',
     },
     detailsSection: {
-      title: 'მახასიათებლები და კეთილმოწყობა',
-      subtitle: 'შეავსეთ ფართობი, ოთახების რაოდენობა, საძინებლები და სართული.',
+      title: '4. მახასიათებლები და კეთილმოწყობა',
+      subtitle: 'შეავსეთ სავალდებულო ფართობი და ოთახები.',
       lockedBanner: 'ველების გასახსნელად ზემოთ აირჩიეთ ქონების ტიპი.',
-      conditionLabel: 'მდგომარეობა / რემონტი',
-      buildingSeriesLabel: 'შენობის პროექტი',
+      conditionLabel: 'მდგომარეობა / რემონტი (არასავალდებულო)',
+      buildingSeriesLabel: 'შენობის პროექტი (არასავალდებულო)',
       buildingSeriesSub: 'ეხმარება მყიდველებს სწრაფ ფილტრაციაში',
-      floorTypeLabel: 'სართულის ტიპი',
-      heatingLabel: 'გათბობა',
-      buildingMaterialLabel: 'სამშენებლო მასალა',
+      floorTypeLabel: 'სართულის ტიპი (არასავალდებულო)',
+      heatingLabel: 'გათბობა (არასავალდებულო)',
+      buildingMaterialLabel: 'სამშენებლო მასალა (არასავალდებულო)',
       areaLabel: 'საერთო ფართი (მ²) *',
       kitchenAreaLabel: 'სამზარეულოს ფართი (მ²)',
       yearBuiltLabel: 'აშენების / ჩაბარების წელი',
@@ -1097,7 +1208,7 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       floorLabel: 'სართული',
       totalFloorsLabel: 'სართულები სულ',
       maxGuestsLabel: 'სტუმრების მაქს. რაოდენობა',
-      featuresTitle: 'მახასიათებლები',
+      featuresTitle: 'მახასიათებლები (არასავალდებულო)',
       featuresSubtitle: 'მონიშნეთ ყველა არსებული კეთილმოწყობა.',
       onlineViewingTitle: 'მზად ვარ ონლაინ ვიდეო ჩვენებისთვის',
       onlineViewingSub:
@@ -1106,14 +1217,14 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       installmentSaleSub: 'მონიშნეთ, თუ თანახმა ხართ ნაწილ-ნაწილ გადახდაზე.',
     },
     pricingSection: {
-      title: 'ფასი, განვადება, დოკუმენტები და აღწერა',
+      title: '5. ფასი, განვადება, დოკუმენტები და აღწერა',
       subtitle: 'მიუთითეთ კონტრაქტის ფასი, გადახდილი თანხა და დარჩენილი განვადება.',
       priceLabel: 'ფასი *',
       totalPriceBtn: 'სრული ფასი',
       perSqmBtn: 'ფასი მ²-ზე',
       contractPriceLabel: 'კონტრაქტის სრული ფასი ($) *',
       paidAmountLabel: 'გადახდილი თანხა (საჭირო თანხა ხელზე $) *',
-      marketPriceLabel: 'საბაზრო ფასი დღეს ($)',
+      marketPriceLabel: 'საბაზრო ფასი დღეს ($ - არასავალდებულო)',
       installmentAmountLabel: 'განვადების შენატანი ($)',
       remainingMonthsLabel: 'დარჩენილი თვეები (0 თუ სრულად გადახდილია)',
       contractDateLabel: 'კონტრაქტის გაფორმების თარიღი',
@@ -1129,7 +1240,7 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       readyImmediateBadge: 'მზადაა შესასვლელად ✓',
       annualInstallmentToggle: 'არის დამატებითი წლიური შენატანი',
       annualInstallmentAmountLabel: 'წლიური შენატანის ოდენობა ($)',
-      overdueInstallmentsToggle: 'არის ვადაგადაცილებული შენატانები',
+      overdueInstallmentsToggle: 'არის ვადაგადაცილებული შენატანები',
       overdueCountLabel: 'ვადაგადაცილებული თვეების რაოდენობა',
       overdueTotalAmountLabel: 'ვადაგადაცილებული თანხა სულ ($)',
       rentDailyLabel: 'დღიური ფასი *',
@@ -1139,14 +1250,16 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       discountAmountLabel: 'მაქსიმალური დასაშვები ფასდაკლება ($ არასავალდებულო)',
       districtGuideTitle: 'უბნის ფასების გზამკვლევი',
       districtGuideSub: 'საშუალო საბაზრო ფასი ამ უბანში: $1,150 – $1,650 / მ².',
-      descriptionLabel: 'დეტალური აღწერა',
+      descriptionLabel: 'დეტალური აღწერა (არასავალდებულო)',
       descriptionPlaceholder:
         'აღწერეთ ქონების უპირატესობები, ხედი, სართული და კომპლექსის პირობები...',
-      docsBoxTitle: 'საკუთრების დოკუმენტები (არასავალდებულო ახლა)',
-      docContract: 'ნასყიდობის კონტრაქტი',
-      docReceipts: 'გადახდის ქვითრები',
-      docStatement: 'ამონაწერი',
-      docPassport: 'პასპორტი',
+      docsBoxTitle: 'საკუთრების დოკუმენტები (სავალდებულოა გამოსაქვეყნებლად)',
+      docsRequirementBanner:
+        '📌 შეგიძლიათ შეინახოთ მონაცემები ახლა და დოკუმენტები მოგვიანებით ატვირთოთ (ჩემი ანგარიშიდან), მაგრამ ობიექტი გამოქვეყნდება მხოლოდ 4 დოკუმენტის ატვირთვისა და ადმინისტრაციის მიერ შემოწმების შემდეგ.',
+      docContract: '1. ნასყიდობის კონტრაქტი',
+      docReceipts: '2. გადახდის ქვითრები',
+      docStatement: '3. ამონაწერი',
+      docPassport: '4. პასპორტი',
       changeBtn: 'შეცვლა',
       uploadBtn: 'ატვირთვა',
     },
@@ -1159,18 +1272,18 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       messengersLabel: 'ამ ნომერზე ხელმისაწვდომი მესენჯერები',
       confirmPasswordLabel: 'გაიმეორეთ პაროლი',
       accountOptionsTitle: 'ანგარიშის და განცხადების პარამეტრები:',
-      createAccountLinkBtn: 'ანგარიშის შექმნა და განცხადების მიბმა ✓',
+      createAccountLinkBtn: 'ანგარიშის შექმნა და მონახაზის შენახვა ✓',
       signInSyncPhoneBtn: 'შესვლა და მონაცემების სინქრონიზაცია ✓',
       signInAnotherAccountBtn: 'სხვა ანგარიშით შესვლა',
       backToCurrentAccountBtn: '← ჩემს ანგარიშზე დაბრუნება',
       accountLinkedSuccessMsg:
-        'ანგარიში შეიქმნა ✓ ახლა დააჭირეთ „გამოქვეყნებას“ ქვემოთ',
+        'ანგარიში შეიქმნა და მონახაზი შენახულია ✓ ახლა გაგზავნეთ ობიექტი ქვემოთ',
       loggedInSyncedSuccessMsg: 'ავტორიზაცია წარმატებულია ✓',
-      termsAgreementSuffix: '— და ვეთანხმები პლატფორმის წესებს',
+      termsAgreementSuffix: '— და ვეთანხმები პლატფორმის წესებს *',
       signInToSaveDraftError:
-        'მონახაზის შესანახად გთხოვთ გაიაროთ ავტორიზაცია კონტაქტის სექციაში',
+        'მონახაზის შესანახად გთხოვთ გაიაროთ ავტორიზაცია მე-6 სექციაში',
       completeAccountToPublishError:
-        'გამოსაქვეყნებლად გთხოვთ შეავსოთ რეგისტრაციის ველები ან შეხვიდეთ ანგარიშში',
+        'გასაგზავნად გთხოვთ შეავსოთ რეგისტრაციის ველები ან შეხვიდეთ ანგარიშში',
       authFailedError: 'ავტორიზაცია ვერ მოხერხდა, გადაამოწმეთ მონაცემები',
       validation: {
         bedroomsExceedRooms:
@@ -1185,17 +1298,17 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
     },
     previewSidebar: {
       title: 'ცოცხალი გადახედვა',
-      subtitle: 'ასე დაინახავენ მყიდველები თქვენს განცხადებას',
-      emptyPhotoTitle: 'საჭიროა მინიმუმ 1 ფოტო',
+      subtitle: 'ასე დაინახავენ მყიდველები თქვენს ობიექტს დადასტურების შემდეგ',
+      emptyPhotoTitle: 'ფოტოები ჯერ არ არის ატვირთული',
       emptyPhotoSub: 'ატვირთეთ ფოტო — გადახედვა აქ გამოჩნდება',
       priceOnRequest: 'ფასი შეთანხმებით',
       perDay: ' /დღე',
       perMonth: ' /თვე',
       cashRequiredSuffix: ' (საჭირო თანხა)',
       bedsShort: 'საძინებელი',
-      strengthTitle: 'განცხადების შევსება',
-      strengthGreat: 'შესანიშნავი შევსება — მზადაა გამოსაქვეყნებლად!',
-      strengthGood: 'კარგი დასაწყისია — დაამატეთ ფოტოები და დეტალები',
+      strengthTitle: 'მზადყოფნა შემოწმებისთვის',
+      strengthGreat: 'სრულად შევსებულია — მზადაა ადმინისტრაციის შემოწმებისთვის!',
+      strengthGood: 'შეავსეთ სავალდებულო ველები, ფოტოები და დოკუმენტები',
       tipPhotos: 'დაამატეთ ქონების ფოტოები',
       tipLocation: 'მიუთითეთ ზუსტი ქუჩა და მდებარეობა',
       tipDetails: 'შეავსეთ ფართობი და ოთახები',
@@ -1221,11 +1334,18 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       pkgPro: 'PRO -30% · 17 დღე',
     },
     bottomBar: {
+      finalSectionTitle: 'ობიექტის გაგზავნა შემოწმებაზე ან მონახაზის შენახვა',
+      finalSectionDescComplete:
+        'ყველა მონაცემი, ფოტო და დოკუმენტი შევსებულია 100%-ით! დააჭირეთ ქვემოთ ადმინისტრაციაში გასაგზავნად.',
+      finalSectionDescMissingMedia:
+        'მნიშვნელოვანია: შეგიძლიათ შეინახოთ მონაცემები ახლა და დარჩენილი ფოტოები ან დოკუმენტები მოგვიანებით ატვირთოთ (ჩემი ანგარიშიდან).',
       savedAtPrefix: 'მონახაზი შენახულია',
       autoSavedPrefix: 'შევსებულია სექციები',
-      saveDraftBtn: 'მონახაზის შენახვა',
-      publishingBtn: 'ქვეყნდება...',
-      publishBtn: 'გამოქვეყნება',
+      saveDraftBtn: 'მონახაზად შენახვა და მოგვიანებით გაგრძელება',
+      savingDraftBtn: 'ინახება...',
+      publishingBtn: 'იგზავნება...',
+      publishBtn: 'ობიექტის გაგზავნა ადმინისტრაციის შემოწმებაზე',
+      submitAndCompleteDocsLaterBtn: 'მონაცემების შენახვა და ფოტო/დოკუმენტების ანგარიშიდან ატვირთვა',
     },
   },
 }
@@ -1243,7 +1363,7 @@ const SELLER_EXTRA_FALLBACKS: Record<LocaleCode, SellerExtraLabels> = {
     docsConditionTitle: 'رفع المستندات شرط أساسي لنشر وحدتك على المنصة',
     docsConditionDesc:
       'لضمان الجدية وحماية الملكية، يتم نشر الوحدة أمام المشترين بعد مراجعة العقد وصورة جواز السفر.',
-    continueUploadLaterBtn: 'كمّل وهرفعها بعدين',
+    continueUploadLaterBtn: 'حفظ واستكمال الرفع لاحقاً في حسابي',
     continueToReviewBtn: 'التالي — مراجعة الطلب',
     changeFileBtn: 'تغيير',
     removeFileBtn: 'حذف',
@@ -1260,7 +1380,7 @@ const SELLER_EXTRA_FALLBACKS: Record<LocaleCode, SellerExtraLabels> = {
     verifyBoxDescPrefix: 'عشان نحمي المنصة، هنبعتلك كود على إيميلك',
     verifyBoxDescSuffix: '— فجهّز إيميلك.',
     sendCodeBtn: 'ابعتلي الكود',
-    confirmCodeBtn: 'تأكيد',
+    confirmCodeBtn: 'تأكيد وإرسال',
     resendCodeBtn: 'ابعت تاني',
     codeSentToPrefix: '✉️ الكود اتبعت على إيميلك',
     codeSentBody: 'افتح إيميلك دلوقتي. الكود مكتوب في عنوان الرسالة.',
@@ -1282,7 +1402,7 @@ const SELLER_EXTRA_FALLBACKS: Record<LocaleCode, SellerExtraLabels> = {
     docsConditionTitle: 'Uploading documents is required to publish your unit',
     docsConditionDesc:
       'To protect both buyer and seller, units are published on the marketplace after verifying.',
-    continueUploadLaterBtn: 'Continue & Upload Later',
+    continueUploadLaterBtn: 'Save & Upload Later in My Account',
     continueToReviewBtn: 'Next — Review Request',
     changeFileBtn: 'Replace',
     removeFileBtn: 'Remove',
@@ -1299,7 +1419,7 @@ const SELLER_EXTRA_FALLBACKS: Record<LocaleCode, SellerExtraLabels> = {
     verifyBoxDescPrefix: 'We will send a code to your email',
     verifyBoxDescSuffix: '— please check your inbox.',
     sendCodeBtn: 'Send Me the Code',
-    confirmCodeBtn: 'Confirm',
+    confirmCodeBtn: 'Confirm & Submit',
     resendCodeBtn: 'Resend',
     codeSentToPrefix: '✉️ The code was sent to your email',
     codeSentBody: 'Open your email now. The code is written in the subject.',
@@ -1320,7 +1440,7 @@ const SELLER_EXTRA_FALLBACKS: Record<LocaleCode, SellerExtraLabels> = {
     docsStepTitle: 'Документы и Паспорт',
     docsConditionTitle: 'Загрузка документов обязательна',
     docsConditionDesc: 'Для защиты объект публикуется после проверки.',
-    continueUploadLaterBtn: 'Загрузить позже',
+    continueUploadLaterBtn: 'Сохранить и загрузить позже в кабинете',
     continueToReviewBtn: 'Далее',
     changeFileBtn: 'Заменить',
     removeFileBtn: 'Удалить',
@@ -1358,7 +1478,7 @@ const SELLER_EXTRA_FALLBACKS: Record<LocaleCode, SellerExtraLabels> = {
     docsStepTitle: 'დოკუმენტები და პასპორტი',
     docsConditionTitle: 'ატვირთვა სავალდებულოა',
     docsConditionDesc: 'უსაფრთხოებისთვის ობიექტი მოწმდება.',
-    continueUploadLaterBtn: 'მოგვიანებით ატვირთვა',
+    continueUploadLaterBtn: 'შენახვა და მოგვიანებით ატვირთვა',
     continueToReviewBtn: 'შემდეგი',
     changeFileBtn: 'შეცვლა',
     removeFileBtn: 'წაშლა',

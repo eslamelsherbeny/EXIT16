@@ -844,16 +844,49 @@ export async function saveUnitDocumentAction(payload: {
       if (normalizedKey === 'passport') delete currentDocs.national_id
     }
 
+    // فحص تلقائي: هل اكتملت المستندات الـ 4 والصور ليتم تحويل الوحدة تلقائياً لمراجعة الإدارة؟
+    const uploadedCount = (
+      ['contract', 'receipts', 'statement', 'passport'] as const
+    ).filter((k) => Boolean(currentDocs[k]?.url)).length
+
+    const rawImages = Array.isArray(unit.images)
+      ? unit.images
+      : Array.isArray(currentDocs.__unit_meta?.images)
+        ? currentDocs.__unit_meta.images
+        : []
+    const hasPhotos = rawImages.filter(Boolean).length > 0
+    const isNowFullyReady = uploadedCount === 4 && hasPhotos
+
+    currentDocs.__unit_meta = {
+      ...(currentDocs.__unit_meta || {}),
+      ready_for_admin_review: isNowFullyReady,
+    }
+
+    const updateFields: Record<string, any> = {
+      documents: currentDocs,
+      docs_verified: isNowFullyReady,
+    }
+
+    if (
+      isNowFullyReady &&
+      (unit.status === 'draft_unverified' ||
+        unit.submission_type === 'draft' ||
+        unit.submission_type === 'incomplete_media')
+    ) {
+      updateFields.status = 'pending'
+      updateFields.submission_type = 'new'
+    }
+
     const { error } = await supabase
       .from('sell_requests')
-      .update({ documents: currentDocs })
+      .update(updateFields)
       .eq('id', payload.unitId)
 
     if (error) {
-      return {
-        success: false,
-        error: msg.docSaveFailed,
-      }
+      await supabase
+        .from('sell_requests')
+        .update({ documents: currentDocs })
+        .eq('id', payload.unitId)
     }
 
     if (payload.fileUrl) {
@@ -861,10 +894,12 @@ export async function saveUnitDocumentAction(payload: {
         await supabase.from('notifications').insert({
           user_id: null,
           role: 'admin',
-          title: `📄 ${msg.docUploadedNotifTitle}: ${unit.project_name || msg.unitWord}`,
+          title: isNowFullyReady
+            ? `✅ اكتملت جميع مستندات وصور الوحدة (${uploadedCount}/4): ${unit.project_name || msg.unitWord}`
+            : `📄 ${msg.docUploadedNotifTitle} (${uploadedCount}/4): ${unit.project_name || msg.unitWord}`,
           message: `${unit.name || ''}`,
           type: 'property',
-          link: '/admin/properties',
+          link: `/admin/properties?unitId=${payload.unitId}`,
           is_read: false,
         })
       } catch {}
@@ -873,7 +908,11 @@ export async function saveUnitDocumentAction(payload: {
     revalidatePath('/account')
     revalidatePath('/account/documents')
     revalidatePath('/admin/properties')
-    return { success: true, documents: currentDocs }
+    return {
+      success: true,
+      documents: currentDocs,
+      isNowFullyReady,
+    }
   } catch {
     return { success: false, error: msg.docSaveFailed }
   }

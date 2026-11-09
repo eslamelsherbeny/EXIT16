@@ -1574,13 +1574,47 @@ export function SellerFlow() {
   }
 
   // الزر الثاني: حفظ كمسودة في حسابي (لا يشترط رفع الصور ولا المستندات ولا اكتمال كل الحقول)
+    // الزر الثاني: حفظ بيانات الوحدة كمسودة في حسابي (يشترط البيانات الأساسية الإجبارية + الحساب، ولا يشترط الصور والمستندات)
   const handleSaveDraftAndGoToAccount = async () => {
+    // إذا كان هناك حقل أساسي إجباري ناقص (أو لم يدخل بيانات حسابه)، نلوّنه بالأحمر ونوجهه إليه فوراً حتى لا يتوه
+    if (liveMissingCoreItems.length > 0) {
+      const nextFieldErrors: Record<string, string> = {}
+      const missingNames: string[] = []
+
+      for (const item of liveMissingCoreItems) {
+        missingNames.push(item.label)
+        nextFieldErrors[item.key] = item.errMsg || fT.fieldRequiredError
+      }
+
+      setFieldErrors(nextFieldErrors)
+      setMissingFields(missingNames)
+      setError(loadT.missingFieldsAlertTitle)
+
+      const firstId = liveMissingCoreItems[0].scrollId
+      setTimeout(() => {
+        document.getElementById(firstId)?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+        })
+      }, 80)
+      return
+    }
+
+    setFieldErrors({})
+    setMissingFields([])
     setError('')
     setSavingDraftLoading(true)
 
     try {
       let resolvedUserId = loggedUser?.id || ''
       let resolvedUnitId = unitId
+
+      const contractPriceNum = Number(
+        toEnglishDigits(form.contractPrice || '0').replace(/,/g, '')
+      )
+      const paidAmountNum = Number(
+        toEnglishDigits(form.paidAmount || '0').replace(/,/g, '')
+      )
 
       if (!loggedUser) {
         const cleanPhone = toEnglishDigits(form.phone || '').trim()
@@ -1590,18 +1624,6 @@ export function SellerFlow() {
             : `+${(form.countryCode || DEFAULT_PHONE_CODE).replace('+', '')}${cleanPhone.replace(/^0+/, '')}`
           : ''
 
-        if (
-          authMode === 'register' &&
-          (!form.name.trim() ||
-            !cleanPhone ||
-            !form.email.trim() ||
-            form.password.length < 8)
-        ) {
-          setError(fT.contactSection.signInToSaveDraftError)
-          secContactRef.current?.scrollIntoView({ behavior: 'smooth' })
-          return
-        }
-
         const step2Res = await processSellerStep2Action({
           mode: authMode === 'login' ? 'login' : 'register',
           listingCategory: 'exit',
@@ -1609,17 +1631,14 @@ export function SellerFlow() {
           userCountry: form.userCountry || ACTIVE_PLATFORM_COUNTRY,
           developer: form.developer.trim() || '',
           project: form.project.trim() || 'Draft Unit',
-          contractPrice:
-            Number(
-              toEnglishDigits(form.contractPrice || '0').replace(/,/g, '')
-            ) || 0,
-          paidAmount:
-            Number(toEnglishDigits(form.paidAmount || '0').replace(/,/g, '')) ||
-            0,
+          contractPrice: contractPriceNum,
+          paidAmount: paidAmountNum,
           marketPrice:
             Number(
-              toEnglishDigits(form.marketPrice || '0').replace(/,/g, '')
-            ) || 0,
+              toEnglishDigits(
+                form.marketPrice || form.contractPrice || '0'
+              ).replace(/,/g, '')
+            ) || contractPriceNum,
           contactMessengers:
             selected.messengers && selected.messengers.length > 0
               ? selected.messengers
@@ -1667,22 +1686,6 @@ export function SellerFlow() {
     }
   }
 
-  const finalizeUnitPublish = async (
-    targetUnitId: string,
-    targetUserId: string
-  ) => {
-    const data = buildFormData(targetUnitId, targetUserId)
-    const result = await submitSellRequest(data)
-    if (result.success) {
-      if (result.unitId) setUnitId(result.unitId)
-      if (result.orderRef) setOrderRef(result.orderRef)
-      setVerifyModalOpen(false)
-      setSubmitted(true)
-      window.scrollTo({ top: 0, behavior: 'smooth' })
-    } else {
-      setError(result.error || s.validation.submitFailed)
-    }
-  }
 
   // الزر الأول (الرئيسي): إرسال الوحدة لمراجعة الإدارة والنشر
   const handlePublishListing = () => {

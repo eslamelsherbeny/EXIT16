@@ -12,18 +12,9 @@ import { useRouter } from 'next/navigation'
 import {
   AlertCircle,
   AlertTriangle,
-  BookmarkCheck,
   Check,
-  CheckCircle2,
-  FileText,
-  ImagePlus,
   Loader2,
-  Lock,
-  Mail,
   RefreshCw,
-  Send,
-  ShieldAlert,
-  X,
 } from 'lucide-react'
 import {
   getAuthorizedUnitForEditAction,
@@ -40,7 +31,6 @@ import {
   deleteUnitDocumentAction,
   saveUnitDocumentAction,
 } from '@/actions/account-actions'
-import { Input } from '@/components/ui/input'
 import { createClient } from '@/lib/supabase/client'
 import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
 import { useTranslation, type LocaleCode } from '@/lib/i18n'
@@ -49,7 +39,6 @@ import {
   DEFAULT_PHONE_CODE,
   getSellerExtraLabels,
   getSellerFormTranslations,
-  maskEmailDisplay,
   type SellerDocKey,
   type UploadedDocEntry,
 } from './seller-i18n'
@@ -58,7 +47,6 @@ import {
   PROPERTY_KINDS,
   toEnglishDigits,
   type DealCategory,
-  type LocalizedOptionItem,
 } from './seller-shared'
 import {
   DetailsSection,
@@ -70,174 +58,21 @@ import {
 } from './seller-form-steps'
 import { ContactSection } from './seller-contact-step'
 import { ReviewStep } from './seller-review-step'
+import {
+  computeMissingCoreItems,
+  createSellerFormData,
+  FLOW_LOADING_LABELS,
+  getDynamicBuildingStatusOptions,
+  parsePhoneCodeAndLocal,
+} from './seller-flow-helpers'
+import {
+  SellerDocPreviewModal,
+  SellerFinalReadinessCard,
+  SellerMissingMediaConfirmModal,
+  SellerVerifyEmailModal,
+} from './seller-final-card'
 
 export type { SellerDocKey, UploadedDocEntry }
-
-const FLOW_LOADING_LABELS: Record<
-  LocaleCode,
-  {
-    loadingUnitTitle: string
-    loadingUnitSub: string
-    loadErrorTitle: string
-    loadErrorDesc: string
-    retryBtn: string
-    backToAccountBtn: string
-    oneTimeVerifyBadge: string
-    oneTimeVerifyNote: string
-    finalCardTitle: string
-    readinessBadgePrefix: string
-    req1Title: string
-    req1Done: string
-    req1MissingPrefix: string
-    req1MissingSuffix: string
-    req2Title: string
-    req2DonePrefix: string
-    req2Missing: string
-    req3Title: string
-    req3Done: string
-    req3MissingPrefix: string
-    publishBtnText: string
-    publishLockedHint: string
-    publishReadyHint: string
-    draftBtnText: string
-    draftBtnSubHint: string
-    missingFieldsAlertTitle: string
-  }
-> = {
-  ar: {
-    loadingUnitTitle: 'جاري استرجاع بيانات وحدتك المحفوظة...',
-    loadingUnitSub: 'يرجى الانتظار لحظات حتى نجهز كافة الحقول للتعديل',
-    loadErrorTitle: 'تعذر تحميل بيانات الوحدة',
-    loadErrorDesc:
-      'يبدو أن هناك ضعفاً في الاتصال بالإنترنت أو أن الجلسة انتهت. يرجى إعادة المحاولة.',
-    retryBtn: 'إعادة المحاولة',
-    backToAccountBtn: 'العودة لحسابي',
-    oneTimeVerifyBadge: 'تأكيد لمرة واحدة فقط لتفعيل حسابك',
-    oneTimeVerifyNote:
-      'تأكيد البريد الإلكتروني شرط أساسي في أول مرة فقط لإرسال وحدتك إلى الإدارة ومراجعتها. في المرات القادمة ستُرسل وحداتك مباشرة.',
-    finalCardTitle: 'الخطوة النهائية: إرسال الوحدة للمراجعة أو حفظها كمسودة',
-    readinessBadgePrefix: 'جاهزية النشر:',
-    req1Title: '١. البيانات الأساسية الإجبارية وحساب المالك',
-    req1Done: 'مكتمل بالكامل ✓',
-    req1MissingPrefix: 'متبقي',
-    req1MissingSuffix: 'حقول إجبارية — اضغط لإظهارها ↗',
-    req2Title: '٢. صور الوحدة العقارية (صورة واحدة على الأقل)',
-    req2DonePrefix: 'مكتمل ✓ — عدد الصور:',
-    req2Missing: 'لم يتم رفع صور — اضغط لرفع صورة ↗',
-    req3Title: '٣. مستندات الملكية والتنازل (4 مستندات)',
-    req3Done: 'مكتمل (4/4) ✓',
-    req3MissingPrefix: 'اضغط لرفع المستندات المتبقية ↗',
-    publishBtnText: 'إرسال الوحدة لمراجعة الإدارة والنشر',
-    publishLockedHint:
-      '🔒 يتفعل زر «إرسال الوحدة لمراجعة الإدارة والنشر» تلقائياً فور استكمال البنود الـ 3 بالأعلى (البيانات الإجبارية + صورة للوحدة + المستندات الـ 4).',
-    publishReadyHint:
-      '✅ جميع البيانات والصور والمستندات مكتملة 100%! اضغط على الزر لإرسال وحدتك لمراجعة الإدارة.',
-    draftBtnText: 'حفظ كمسودة في حسابي (واستكمال الناقص لاحقاً)',
-    draftBtnSubHint:
-      '💡 ليست لديك الصور أو المستندات جاهزة الآن؟ احفظ ما كتبته كمسودة في حسابك واستكمل رفعها في أي وقت.',
-    missingFieldsAlertTitle:
-      'يرجى استكمال الحقول الإجبارية التالية (اضغط على أي حقل للانتقال إليه مباشرةً):',
-  },
-  en: {
-    loadingUnitTitle: 'Restoring your saved unit details...',
-    loadingUnitSub: 'Please wait a moment while we prepare all fields',
-    loadErrorTitle: 'Could not load unit details',
-    loadErrorDesc: 'Please check your internet connection and try again.',
-    retryBtn: 'Retry Loading',
-    backToAccountBtn: 'Back to My Account',
-    oneTimeVerifyBadge: 'One-time account verification',
-    oneTimeVerifyNote:
-      'Email verification is required only once on your first listing before sending your unit to Admin for review.',
-    finalCardTitle: 'Final Step: Submit Unit for Admin Review or Save Draft',
-    readinessBadgePrefix: 'Publish Readiness:',
-    req1Title: '1. Compulsory Unit Details & Owner Account',
-    req1Done: '100% Complete ✓',
-    req1MissingPrefix: 'Missing',
-    req1MissingSuffix: 'required fields — Click to highlight ↗',
-    req2Title: '2. Property Photos (At least 1 photo)',
-    req2DonePrefix: 'Complete ✓ — Photos:',
-    req2Missing: 'No photos uploaded — Click to upload ↗',
-    req3Title: '3. Ownership Documents (4 files)',
-    req3Done: 'Complete (4/4) ✓',
-    req3MissingPrefix: 'Click to upload remaining documents ↗',
-    publishBtnText: 'Submit Unit for Admin Review & Publish',
-    publishLockedHint:
-      '🔒 This button unlocks automatically once all 3 items above (Compulsory Details + Photo + 4 Documents) are completed.',
-    publishReadyHint:
-      '✅ All details, photos, and documents are 100% complete! Click above to submit for Admin review.',
-    draftBtnText: 'Save as Draft in My Account (Complete Later)',
-    draftBtnSubHint:
-      "💡 Don't have photos or documents ready right now? Save your unit as a draft in your account and upload them anytime.",
-    missingFieldsAlertTitle:
-      'Please complete the following compulsory fields (click any item to jump to it):',
-  },
-  ru: {
-    loadingUnitTitle: 'Восстановление сохраненных данных объекта...',
-    loadingUnitSub: 'Пожалуйста, подождите пару секунд',
-    loadErrorTitle: 'Не удалось загрузить данные объекта',
-    loadErrorDesc: 'Проверьте подключение к интернету и попробуйте снова.',
-    retryBtn: 'Повторить попытку',
-    backToAccountBtn: 'Вернуться в кабинет',
-    oneTimeVerifyBadge: 'Единоразовое подтверждение аккаунта',
-    oneTimeVerifyNote:
-      'Подтверждение Email требуется только один раз при первом размещении для отправки объекта на проверку администрации.',
-    finalCardTitle: 'Финальный шаг: Отправка на проверку или сохранение черновика',
-    readinessBadgePrefix: 'Готовность к публикации:',
-    req1Title: '1. Обязательные данные объекта и аккаунт',
-    req1Done: 'Заполнено ✓',
-    req1MissingPrefix: 'Осталось полей:',
-    req1MissingSuffix: '— нажмите чтобы показать ↗',
-    req2Title: '2. Фотографии объекта (минимум 1 фото)',
-    req2DonePrefix: 'Загружено ✓ — Фото:',
-    req2Missing: 'Нет фото — нажмите для загрузки ↗',
-    req3Title: '3. Документы собственности (4 файла)',
-    req3Done: 'Загружено (4/4) ✓',
-    req3MissingPrefix: 'Нажмите для загрузки документов ↗',
-    publishBtnText: 'Отправить объект на проверку и публикацию',
-    publishLockedHint:
-      '🔒 Кнопка отправки активируется автоматически после заполнения всех 3 пунктов выше (обязательные поля + фото + 4 документа).',
-    publishReadyHint:
-      '✅ Все данные, фото и документы готовы на 100%! Нажмите кнопку для отправки на проверку.',
-    draftBtnText: 'Сохранить как черновик в кабинете (дополнить позже)',
-    draftBtnSubHint:
-      '💡 Нет фото или документов под рукой? Сохраните черновик в личном кабинете и загрузите их в любое время.',
-    missingFieldsAlertTitle:
-      'Пожалуйста, заполните следующие обязательные поля (нажмите для перехода):',
-  },
-  ka: {
-    loadingUnitTitle: 'თქვენი ობიექტის მონაცემები იტვირთება...',
-    loadingUnitSub: 'გთხოვთ დაელოდოთ რამდენიმე წამს',
-    loadErrorTitle: 'მონაცემების ჩატვირთვა ვერ მოხერხდა',
-    loadErrorDesc: 'შეამოწმეთ ინტერნეტ კავშირი და სცადეთ თავიდან.',
-    retryBtn: 'თავიდან ცდა',
-    backToAccountBtn: 'ანგარიშზე დაბრუნება',
-    oneTimeVerifyBadge: 'ანგარიშის ერთჯერადი დადასტურება',
-    oneTimeVerifyNote:
-      'ელ-ფოსტის დადასტურება საჭიროა მხოლოდ ერთხელ პირველი განცხადებისას, რათა ობიექტი გადაეგზავნოს ადმინისტრაციას.',
-    finalCardTitle: 'საბოლოო ნაბიჯი: გაგზავნა შემოწმებაზე ან მონახაზის შენახვა',
-    readinessBadgePrefix: 'მზადყოფნა:',
-    req1Title: '1. სავალდებულო მონაცემები და ანგარიში',
-    req1Done: 'შევსებულია ✓',
-    req1MissingPrefix: 'დარჩენილია',
-    req1MissingSuffix: 'ველი — დააჭირეთ სანახავად ↗',
-    req2Title: '2. ქონების ფოტოები (მინიმუმ 1 ფოტო)',
-    req2DonePrefix: 'ატვირთულია ✓ — ფოტო:',
-    req2Missing: 'ფოტო არ არის — დააჭირეთ ასატვირთად ↗',
-    req3Title: '3. საკუთრების დოკუმენტები (4 ფაილი)',
-    req3Done: 'სრულია (4/4) ✓',
-    req3MissingPrefix: 'დააჭირეთ დოკუმენტების ასატვირთად ↗',
-    publishBtnText: 'ობიექტის გაგზავნა შემოწმებაზე და გამოქვეყნება',
-    publishLockedHint:
-      '🔒 გაგზავნის ღილაკი გააქტიურდება ავტომატურად ზემოთ მოცემული 3 პუნქტის (მონაცემები + ფოტო + 4 დოკუმენტი) შევსებისთანავე.',
-    publishReadyHint:
-      '✅ ყველა მონაცემი, ფოტო და დოკუმენტი მზადაა! დააჭირეთ გასაგზავნად.',
-    draftBtnText: 'მონახაზად შენახვა ჩემს ანგარიშში (მოგვიანებით გაგრძელება)',
-    draftBtnSubHint:
-      '💡 ახლა არ გაქვთ ფოტოები ან დოკუმენტები? შეინახეთ მონახაზი ანგარიშში და ატვირთეთ ნებისმიერ დროს.',
-    missingFieldsAlertTitle:
-      'გთხოვთ შეავსოთ შემდეგი სავალდებულო ველები (დააჭირეთ გადასასვლელად):',
-  },
-}
 
 export function SellerFlow() {
   const router = useRouter()
@@ -373,7 +208,7 @@ export function SellerFlow() {
   const [emailVerified, setEmailVerified] = useState(false)
 
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
-
+  const [missingMediaModalOpen, setMissingMediaModalOpen] = useState(false)
   const [verifyModalOpen, setVerifyModalOpen] = useState(false)
   const [otpSent, setOtpSent] = useState(false)
   const [otpCode, setOtpCode] = useState('')
@@ -388,13 +223,8 @@ export function SellerFlow() {
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
   const [missingFields, setMissingFields] = useState<string[]>([])
-  const [autoSaveTime, setAutoSaveTime] = useState<string>('')
   const [savingDraftLoading, setSavingDraftLoading] = useState(false)
   const [pending, startTransition] = useTransition()
-
-  const isExitDeal = true
-  const isRentDeal = false
-  const isDirectSale = false
 
   const clearSingleFieldError = (fieldKey: string) => {
     setFieldErrors((prev) => {
@@ -403,10 +233,6 @@ export function SellerFlow() {
       delete next[fieldKey]
       return next
     })
-  }
-
-  const handleToggleDealCategory = (_cat: DealCategory | '') => {
-    setDealCategory('exit')
   }
 
   const handleTogglePropertyKind = (kindId: string) => {
@@ -418,9 +244,7 @@ export function SellerFlow() {
     } else {
       setPropertyKind(kindId)
       setBuildingStatus('')
-      if (kindId === 'Land') {
-        setActiveTab(2)
-      }
+      if (kindId === 'Land') setActiveTab(2)
     }
   }
 
@@ -455,22 +279,18 @@ export function SellerFlow() {
 
       const viewportLine = window.innerHeight * 0.32
       let activeId = 1
-
       for (const sec of sections) {
         if (!sec.el) continue
-        const rect = sec.el.getBoundingClientRect()
-        if (rect.top <= viewportLine) {
+        if (sec.el.getBoundingClientRect().top <= viewportLine) {
           activeId = sec.id
         }
       }
-
       if (
         window.innerHeight + window.scrollY >=
         document.documentElement.scrollHeight - 100
       ) {
         activeId = 6
       }
-
       setActiveTab((prev) => (prev !== activeId ? activeId : prev))
     }
 
@@ -488,9 +308,7 @@ export function SellerFlow() {
     const shouldOpenVerifyModal = params.get('verifyEmail') === '1'
     const isEditingExistingUnit = Boolean(magicToken || editUnitId)
 
-    if (isEditingExistingUnit) {
-      setInitialLoading(true)
-    }
+    if (isEditingExistingUnit) setInitialLoading(true)
     setInitLoadError('')
 
     try {
@@ -513,38 +331,12 @@ export function SellerFlow() {
         )
         setEmailVerified(isUserEmailVerified)
 
-        const rawUserPhone = profileRes.user.phone || ''
-        const digitsOnly = toEnglishDigits(rawUserPhone).replace(/[^0-9]/g, '')
-        let detectedCode = DEFAULT_PHONE_CODE
-        let localPart = digitsOnly
-
-        for (const c of [
-          '995',
-          '966',
-          '971',
-          '965',
-          '974',
-          '973',
-          '968',
-          '962',
-          '20',
-          '90',
-          '44',
-          '7',
-          '1',
-        ]) {
-          if (digitsOnly.startsWith(c) && digitsOnly.length > c.length + 6) {
-            detectedCode = c
-            localPart = digitsOnly.slice(c.length).replace(/^0+/, '')
-            break
-          }
-        }
-
+        const parsedPhone = parsePhoneCodeAndLocal(profileRes.user.phone)
         setForm((prev) => ({
           ...prev,
-          countryCode: prev.phone ? prev.countryCode : detectedCode,
+          countryCode: prev.phone ? prev.countryCode : parsedPhone.code,
           name: prev.name || profileRes.user?.name || '',
-          phone: prev.phone || localPart || '',
+          phone: prev.phone || parsedPhone.local || '',
           email: prev.email || profileRes.user?.email || '',
         }))
 
@@ -553,10 +345,7 @@ export function SellerFlow() {
           Array.isArray(savedUserMessengers) &&
           savedUserMessengers.length > 0
         ) {
-          setSelected((prev) => ({
-            ...prev,
-            messengers: savedUserMessengers,
-          }))
+          setSelected((prev) => ({ ...prev, messengers: savedUserMessengers }))
         }
       } else {
         setLoggedUser(null)
@@ -581,35 +370,9 @@ export function SellerFlow() {
           )
 
           const savedArea = u.area || meta.area || 'Tbilisi - Saburtalo'
-          const rawUnitPhone = u.phone || profileRes.user?.phone || ''
-          const digitsOnly = toEnglishDigits(rawUnitPhone).replace(
-            /[^0-9]/g,
-            ''
+          const parsedUnitPhone = parsePhoneCodeAndLocal(
+            u.phone || profileRes.user?.phone
           )
-          let detectedCode = DEFAULT_PHONE_CODE
-          let localPart = digitsOnly
-
-          for (const c of [
-            '995',
-            '966',
-            '971',
-            '965',
-            '974',
-            '973',
-            '968',
-            '962',
-            '20',
-            '90',
-            '44',
-            '7',
-            '1',
-          ]) {
-            if (digitsOnly.startsWith(c) && digitsOnly.length > c.length + 6) {
-              detectedCode = c
-              localPart = digitsOnly.slice(c.length).replace(/^0+/, '')
-              break
-            }
-          }
 
           const invalidDevList = [
             'newly built',
@@ -627,7 +390,7 @@ export function SellerFlow() {
 
           setForm((prev) => ({
             ...prev,
-            countryCode: detectedCode,
+            countryCode: parsedUnitPhone.code,
             developer: cleanDev,
             project: u.project_name || '',
             location: savedArea,
@@ -642,10 +405,6 @@ export function SellerFlow() {
             lng: meta.lng ? String(meta.lng) : '',
             yearBuilt: String(u.year_built || meta.year_built || ''),
             areaSize: u.size || meta.size ? String(u.size || meta.size) : '',
-            kitchenArea:
-              u.kitchen_area || meta.kitchen_area
-                ? String(u.kitchen_area || meta.kitchen_area)
-                : '',
             balconyArea:
               u.balcony_area || meta.balcony_area
                 ? String(u.balcony_area || meta.balcony_area)
@@ -710,7 +469,7 @@ export function SellerFlow() {
             videoUrl: u.video_url || meta.video_url || '',
             tour3dUrl: u.tour_3d_url || meta.tour_3d_url || '',
             name: u.name || profileRes.user?.name || '',
-            phone: localPart || '',
+            phone: parsedUnitPhone.local || '',
             email: u.email || profileRes.user?.email || '',
           }))
 
@@ -804,15 +563,36 @@ export function SellerFlow() {
             setVerifyModalOpen(true)
           }
 
+          // توجيه تلقائي ذكي للقسم الناقص عند فتح الوحدة للتعديل من حسابي
           const focusTarget = params.get('focus')
-          if (focusTarget === 'photos') {
-            setTimeout(() => {
+          const savedImgs = Array.isArray(u.images)
+            ? u.images.filter(Boolean)
+            : []
+          const savedDocsObj =
+            u.documents && typeof u.documents === 'object' ? u.documents : {}
+          const savedDocsCount = (
+            ['contract', 'receipts', 'statement', 'passport'] as const
+          ).filter((k) => Boolean(savedDocsObj[k]?.url)).length
+
+          setTimeout(() => {
+            if (
+              focusTarget === 'photos' ||
+              (savedImgs.length === 0 && u.area && u.size)
+            ) {
               secPhotosRef.current?.scrollIntoView({
                 behavior: 'smooth',
-                block: 'start',
+                block: 'center',
               })
-            }, 350)
-          }
+            } else if (
+              focusTarget === 'docs' ||
+              (savedImgs.length > 0 && savedDocsCount < 4 && u.area && u.size)
+            ) {
+              secPriceRef.current?.scrollIntoView({
+                behavior: 'smooth',
+                block: 'end',
+              })
+            }
+          }, 400)
         }
 
         if (magicToken) {
@@ -835,9 +615,7 @@ export function SellerFlow() {
         }
       }
     } catch {
-      if (isEditingExistingUnit) {
-        setInitLoadError(loadT.loadErrorDesc)
-      }
+      if (isEditingExistingUnit) setInitLoadError(loadT.loadErrorDesc)
     } finally {
       setInitialLoading(false)
     }
@@ -851,7 +629,6 @@ export function SellerFlow() {
     clearSingleFieldError(key)
     setForm((curr) => {
       const next = { ...curr, [key]: value }
-
       if (key === 'rooms' && value) {
         const rNum = parseInt(value, 10)
         const bNum = parseInt(curr.bedrooms || '0', 10)
@@ -866,7 +643,6 @@ export function SellerFlow() {
           clearSingleFieldError('rooms')
         }
       }
-
       return next
     })
     setError('')
@@ -904,61 +680,10 @@ export function SellerFlow() {
     })
   }
 
-  const dynamicStatusOptions = useMemo<
-    Array<LocalizedOptionItem<string>>
-  >(() => {
-    if (propertyKind === 'Hotel' || propertyKind === 'Commercial') {
-      return [
-        {
-          id: 'Under construction',
-          ar: 'تحت الإنشاء',
-          en: 'Under construction',
-          ru: 'Строится',
-          ka: 'მშენებარე',
-          labelAr: 'تحت الإنشاء',
-          labelEn: 'Under construction',
-        },
-        {
-          id: 'Completed',
-          ar: 'مكتمل وجاهز للاستلام',
-          en: 'Completed & Ready',
-          ru: 'Завершен и готов',
-          ka: 'დასრულებული',
-          labelAr: 'مكتمل وجاهز للاستلام',
-          labelEn: 'Completed & Ready',
-        },
-      ]
-    }
-    return [
-      {
-        id: 'Newly built',
-        ar: 'مبنى حديث (جاهز للاستلام)',
-        en: 'Newly built (Ready)',
-        ru: 'Новостройка (Готово)',
-        ka: 'ახალი აშენებული (მზადაა)',
-        labelAr: 'مبنى حديث (جاهز للاستلام)',
-        labelEn: 'Newly built (Ready)',
-      },
-      {
-        id: 'Under construction',
-        ar: 'قيد الإنشاء (تحت الإنشاء)',
-        en: 'Under construction',
-        ru: 'Строится',
-        ka: 'მშენებარე',
-        labelAr: 'قيد الإنشاء (تحت الإنشاء)',
-        labelEn: 'Under construction',
-      },
-      {
-        id: 'Old built',
-        ar: 'مبنى قائم (جاهز للاستلام)',
-        en: 'Existing building (Ready)',
-        ru: 'Вторичное жилье (Готово)',
-        ka: 'ძველი აშენებული',
-        labelAr: 'مبنى قائم (جاهز للاستلام)',
-        labelEn: 'Existing building (Ready)',
-      },
-    ]
-  }, [propertyKind])
+  const dynamicStatusOptions = useMemo(
+    () => getDynamicBuildingStatusOptions(propertyKind),
+    [propertyKind]
+  )
 
   const uploadedDocsCount = useMemo(() => {
     return (['contract', 'receipts', 'statement', 'passport'] as const).filter(
@@ -966,216 +691,33 @@ export function SellerFlow() {
     ).length
   }, [unitDocs])
 
-  // حساب حي ودقيق للحقول الأساسية الناقصة في كل لحظة
-  const liveMissingCoreItems = useMemo(() => {
-    const list: Array<{
-      key: string
-      label: string
-      scrollId: string
-      errMsg?: string
-    }> = []
-    const valT = fT.contactSection.validation
-
-    if (!propertyKind) {
-      list.push({
-        key: 'propertyKind',
-        label: fT.typeSection.whatKindLabel.replace(' *', ''),
-        scrollId: 'field-wrap-propertyKind',
-      })
-    } else if (propertyKind !== 'Land' && !buildingStatus) {
-      list.push({
-        key: 'buildingStatus',
-        label: fT.typeSection.statusLabel.replace(' *', ''),
-        scrollId: 'field-wrap-buildingStatus',
-      })
-    }
-
-    if (!form.location) {
-      list.push({
-        key: 'location',
-        label: fT.locationSection.cityDistrictLabel.replace(' *', ''),
-        scrollId: 'field-wrap-location',
-      })
-    }
-    if (!form.project.trim()) {
-      list.push({
-        key: 'project',
-        label: fT.locationSection.projectLabel.replace(' *', ''),
-        scrollId: 'field-wrap-project',
-      })
-    }
-    if (!form.exactStreet.trim()) {
-      list.push({
-        key: 'exactStreet',
-        label: fT.locationSection.streetLabel.replace(' *', ''),
-        scrollId: 'field-wrap-exactStreet',
-      })
-    }
-
-    if (!form.areaSize || Number(toEnglishDigits(form.areaSize)) <= 0) {
-      list.push({
-        key: 'areaSize',
-        label: fT.detailsSection.areaLabel.replace(' *', ''),
-        scrollId: 'field-wrap-areaSize',
-      })
-    }
-
-    if (propertyKind !== 'Land') {
-      const rNum = parseInt(form.rooms || '0', 10)
-      const bNum = parseInt(form.bedrooms || '0', 10)
-      if (!rNum || rNum <= 0) {
-        list.push({
-          key: 'rooms',
-          label: fT.detailsSection.roomsLabel.replace(' *', ''),
-          scrollId: 'field-wrap-rooms',
-        })
-      }
-      if (!bNum || bNum <= 0) {
-        list.push({
-          key: 'bedrooms',
-          label: fT.detailsSection.bedroomsLabel.replace(' *', ''),
-          scrollId: 'field-wrap-bedrooms',
-        })
-      } else if (rNum > 0 && bNum > rNum) {
-        list.push({
-          key: 'bedrooms',
-          label: fT.detailsSection.bedroomsLabel.replace(' *', ''),
-          scrollId: 'field-wrap-bedrooms',
-          errMsg: valT.bedroomsExceedRooms,
-        })
-      }
-
-      const flNum = parseInt(form.floor || '', 10)
-      const totFlNum = parseInt(form.totalFloors || '', 10)
-      if (
-        Number.isFinite(flNum) &&
-        Number.isFinite(totFlNum) &&
-        totFlNum > 0 &&
-        flNum > totFlNum
-      ) {
-        list.push({
-          key: 'floor',
-          label: fT.detailsSection.floorLabel,
-          scrollId: 'field-wrap-floor',
-          errMsg: valT.floorExceedsTotalFloors,
-        })
-      }
-    }
-
-    const contractPriceNum = Number(
-      toEnglishDigits(form.contractPrice || '0').replace(/,/g, '')
-    )
-    const paidAmountNum = Number(
-      toEnglishDigits(form.paidAmount || '0').replace(/,/g, '')
-    )
-
-    if (!contractPriceNum || contractPriceNum <= 0) {
-      list.push({
-        key: 'contractPrice',
-        label: fT.pricingSection.contractPriceLabel.replace(' *', ''),
-        scrollId: 'field-wrap-contractPrice',
-      })
-    }
-    if (!paidAmountNum || paidAmountNum <= 0) {
-      list.push({
-        key: 'paidAmount',
-        label: fT.pricingSection.paidAmountLabel.replace(' *', ''),
-        scrollId: 'field-wrap-paidAmount',
-      })
-    } else if (contractPriceNum > 0 && paidAmountNum > contractPriceNum) {
-      list.push({
-        key: 'paidAmount',
-        label: fT.pricingSection.paidAmountLabel.replace(' *', ''),
-        scrollId: 'field-wrap-paidAmount',
-        errMsg: valT.paidExceedsContract,
-      })
-    }
-
-    if (!loggedUser) {
-      if (authMode === 'register') {
-        if (!form.name.trim()) {
-          list.push({
-            key: 'name',
-            label: s.contactStep.nameLabel.replace(' *', ''),
-            scrollId: 'field-wrap-name',
-          })
-        }
-        if (!form.phone.trim()) {
-          list.push({
-            key: 'phone',
-            label: s.contactStep.phoneLabel.replace(' *', ''),
-            scrollId: 'field-wrap-phone',
-          })
-        }
-        if (!form.email.trim()) {
-          list.push({
-            key: 'email',
-            label: s.contactStep.emailLabel.replace(' *', ''),
-            scrollId: 'field-wrap-email',
-          })
-        }
-        if (!form.password || form.password.length < 8) {
-          list.push({
-            key: 'password',
-            label: s.contactStep.passwordLabel,
-            scrollId: 'field-wrap-password',
-          })
-        }
-      } else if (authMode === 'login') {
-        if (
-          !form.loginIdentifier.trim() ||
-          (!form.password && !form.loginPassword)
-        ) {
-          list.push({
-            key: 'loginIdentifier',
-            label: s.contactStep.loginIdLabel.replace(' *', ''),
-            scrollId: 'field-wrap-loginIdentifier',
-          })
-        }
-      }
-    } else {
-      if (!form.name.trim()) {
-        list.push({
-          key: 'name',
-          label: s.contactStep.nameLabel.replace(' *', ''),
-          scrollId: 'field-wrap-name',
-        })
-      }
-      if (!form.phone.trim()) {
-        list.push({
-          key: 'phone',
-          label: s.contactStep.phoneLabel.replace(' *', ''),
-          scrollId: 'field-wrap-phone',
-        })
-      }
-    }
-
-    if (!flags.agreedTerms) {
-      list.push({
-        key: 'agreedTerms',
-        label: s.contactStep.ownerDeclaration,
-        scrollId: 'field-wrap-agreedTerms',
-      })
-    }
-
-    return list
-  }, [
-    authMode,
-    buildingStatus,
-    fT,
-    flags.agreedTerms,
-    form,
-    loggedUser,
-    propertyKind,
-    s.contactStep,
-  ])
+  const liveMissingCoreItems = useMemo(
+    () =>
+      computeMissingCoreItems({
+        propertyKind,
+        buildingStatus,
+        form,
+        loggedUser,
+        authMode,
+        agreedTerms: flags.agreedTerms,
+        fT,
+        contactStepDict: s.contactStep,
+      }),
+    [
+      propertyKind,
+      buildingStatus,
+      form,
+      loggedUser,
+      authMode,
+      flags.agreedTerms,
+      fT,
+      s.contactStep,
+    ]
+  )
 
   const hasAllCoreDetails = liveMissingCoreItems.length === 0
   const hasPhotos = images.length > 0
   const hasAllDocs = uploadedDocsCount === 4
-  const isReadyToPublish = Boolean(
-    hasAllCoreDetails && hasPhotos && hasAllDocs
-  )
 
   const sectionCompletion = useMemo(() => {
     const s1 = Boolean(
@@ -1191,9 +733,9 @@ export function SellerFlow() {
         (propertyKind === 'Land' ||
           (Number(form.rooms) > 0 && Number(form.bedrooms) > 0))
     )
-    const activePrice = Number(form.paidAmount)
-    const contractPrice = Number(form.contractPrice)
-    const s5 = Boolean(activePrice > 0 && contractPrice > 0)
+    const s5 = Boolean(
+      Number(form.paidAmount) > 0 && Number(form.contractPrice) > 0
+    )
     const s6 = Boolean(
       flags.agreedTerms &&
         (loggedUser?.id || (form.name.trim() && form.phone.trim()))
@@ -1242,16 +784,7 @@ export function SellerFlow() {
     buildingStatus,
     images.length,
     uploadedDocsCount,
-    form.location,
-    form.project,
-    form.exactStreet,
-    form.areaSize,
-    form.rooms,
-    form.bedrooms,
-    form.contractPrice,
-    form.paidAmount,
-    form.name,
-    form.phone,
+    form,
     flags.agreedTerms,
     loggedUser,
     fieldErrors,
@@ -1267,11 +800,9 @@ export function SellerFlow() {
     const kindObj =
       PROPERTY_KINDS.find((k) => k.id === propertyKind) || PROPERTY_KINDS[0]
     const kindName = getOptionLabel(kindObj, locale as LocaleCode)
-
     const title = form.project.trim()
       ? form.project.trim()
       : `${kindName} · ${localizedArea || '—'}`
-
     const rawPrice = Number(
       toEnglishDigits(form.paidAmount || form.contractPrice || '0')
     )
@@ -1284,16 +815,7 @@ export function SellerFlow() {
           ? `$${rawPrice.toLocaleString('en-US')}${pvT.cashRequiredSuffix}`
           : pvT.priceOnRequest,
     }
-  }, [
-    fT.previewSidebar,
-    form.project,
-    form.location,
-    form.locationDisplay,
-    form.paidAmount,
-    form.contractPrice,
-    propertyKind,
-    locale,
-  ])
+  }, [fT.previewSidebar, form, propertyKind, locale])
 
   const handleUploadPhotos = async (files: FileList | null) => {
     if (!files?.length) return
@@ -1302,10 +824,7 @@ export function SellerFlow() {
       const supabase = createClient()
       const uploaded: string[] = []
       for (const file of Array.from(files).slice(0, 22 - images.length)) {
-        const path = `units/${crypto.randomUUID()}-${file.name.replace(
-          /[^a-zA-Z0-9.-]/g,
-          '-'
-        )}`
+        const path = `units/${crypto.randomUUID()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '-')}`
         const result = await supabase.storage
           .from('unit-images')
           .upload(path, file, { contentType: file.type, upsert: false })
@@ -1378,152 +897,23 @@ export function SellerFlow() {
   }
 
   const buildFormData = useCallback(
-    (activeUnitId?: string, activeUserId?: string) => {
-      const data = new FormData()
-      const put = (k: string, v?: string | number | boolean) => {
-        if (v !== undefined && v !== null && String(v).trim() !== '') {
-          data.set(k, String(v).trim())
-        }
-      }
-
-      const targetId = activeUnitId || unitId
-      if (targetId) put('unit_id', targetId)
-
-      const targetUser = activeUserId || loggedUser?.id
-      if (targetUser) put('user_id', targetUser)
-
-      const effectiveKind = propertyKind || 'Apartment'
-      const effectiveArea = form.location || 'Tbilisi - Saburtalo'
-      const effectiveStatus = buildingStatus || 'Newly built'
-      const isUnderConstruction = effectiveStatus === 'Under construction'
-
-      put('country', ACTIVE_PLATFORM_COUNTRY)
-      put('currency_code', 'USD')
-      put('listing_category', 'exit')
-      put('unit_type', effectiveKind)
-      put('building_status', effectiveStatus)
-
-      const cleanDev = form.developer.trim()
-      const fallbackProjectTitle =
-        form.project.trim() ||
-        (cleanDev
-          ? `${cleanDev} Residence`
-          : `${effectiveKind} — ${getLocalizedGeorgiaAreaName(effectiveArea, 'en')}`)
-
-      if (cleanDev) {
-        put('developer_name', cleanDev)
-      }
-      put('project_name', fallbackProjectTitle)
-      put('area', effectiveArea)
-      put('exact_street', form.exactStreet)
-      put('house_number', form.houseNumber)
-      put('cadastral_code', form.cadastralCode)
-      if (form.lat) put('lat', form.lat)
-      if (form.lng) put('lng', form.lng)
-
-      if (!isUnderConstruction && form.yearBuilt) {
-        put('year_built', form.yearBuilt)
-      }
-      put('size', form.areaSize)
-      put('kitchen_area', form.kitchenArea)
-      put('balcony_area', form.balconyArea)
-      put('loggia_area', form.loggiaArea)
-      put('terrace_area', form.terraceArea)
-      put('garden_size', form.garden)
-
-      const roomsNum = parseInt(form.rooms || '2', 10) || 2
-      const bedsNum = Math.min(
-        roomsNum,
-        parseInt(form.bedrooms || '1', 10) || 1
-      )
-
-      put('rooms', roomsNum)
-      put('bedrooms', bedsNum)
-      put('bathrooms', form.bathrooms || '1')
-      put('floor_number', form.floor)
-      put('total_floors', form.totalFloors)
-
-      put('finishing', selected.finishing?.[0] || 'Newly renovated')
-      put('building_series', selected.buildingSeries?.[0])
-      put('floor_type', selected.floorType?.[0])
-      put('heating_type', selected.heatingType?.[0])
-      put('building_material', selected.buildingMaterial?.[0])
-
-      const resolvedDelivYear = isUnderConstruction
-        ? Number(form.deliveryYear) || 2026
-        : Number(form.yearBuilt) || new Date().getFullYear()
-
-      const delStatus = isUnderConstruction
-        ? `Under Construction (${resolvedDelivYear})`
-        : `Ready to Move (${resolvedDelivYear})`
-
-      put('delivery_status', delStatus)
-      put(
-        'delivery_month',
-        isUnderConstruction ? form.deliveryRemainingMonths || '12' : '0'
-      )
-      put('delivery_year', resolvedDelivYear)
-
-      selected.features?.forEach((f) => data.append('feature', f))
-      selected.messengers?.forEach((m) => data.append('contact_messenger', m))
-
-      put('video_url', form.videoUrl)
-      put('tour_3d_url', form.tour3dUrl)
-      if (flags.allowOnlineViewing) data.set('allow_online_viewing', 'on')
-
-      put('contract_price', form.contractPrice || form.paidAmount)
-      put('paid_amount', form.paidAmount || form.contractPrice)
-      put(
-        'market_price',
-        form.marketPrice || form.contractPrice || form.paidAmount
-      )
-      put('installment_amount', form.installment || '0')
-      put('installment_frequency', selected.frequency?.[0] || 'شهري')
-      put('contract_month', form.contractMonth)
-      put('contract_year', form.contractYear)
-      put('years_left', form.remainingMonths || '0')
-
-      if (selected.annualInstallment?.[0] === 'yes') {
-        data.set('has_annual_installment', 'on')
-      }
-      put('annual_installment_amount', form.annualInstallmentAmount)
-
-      if (selected.overdueInstallments?.[0] === 'yes') {
-        data.set('has_overdue_installments', 'on')
-      }
-      put('overdue_installments', form.overdueCount)
-      put('overdue_total_amount', form.overdueTotal)
-
-      if (selected.discountOffer?.[0] === 'yes') {
-        data.set('willing_to_discount', 'on')
-      }
-      put('discount_amount', form.discountAmount)
-      put('description', form.description)
-
-      if (Object.keys(unitDocs).length > 0) {
-        put('documents_json', JSON.stringify(unitDocs))
-      }
-      images.forEach((img) => data.append('image', img))
-
-      put('name', form.name || loggedUser?.name || '')
-      const cleanPhone = toEnglishDigits(form.phone || '').trim()
-      put(
-        'phone',
-        cleanPhone
-          ? cleanPhone.startsWith('+')
-            ? cleanPhone
-            : `+${(form.countryCode ?? DEFAULT_PHONE_CODE).replace('+', '')}${cleanPhone.replace(/^0+/, '')}`
-          : loggedUser?.phone || ''
-      )
-      put('email', form.email || loggedUser?.email || '')
-      data.set('is_original_owner', 'on')
-      data.set('is_confirmed', 'on')
-
-      return data
-    },
+    (activeUnitId?: string, activeUserId?: string) =>
+      createSellerFormData({
+        activeUnitId,
+        activeUserId,
+        unitId,
+        loggedUser,
+        propertyKind,
+        buildingStatus,
+        form,
+        selected,
+        flags,
+        unitDocs,
+        images,
+      }),
     [
       buildingStatus,
-      flags.allowOnlineViewing,
+      flags,
       form,
       images,
       loggedUser,
@@ -1537,71 +927,25 @@ export function SellerFlow() {
   const highlightMissingCoreFieldsAndScroll = () => {
     const nextFieldErrors: Record<string, string> = {}
     const missingNames: string[] = []
-
     for (const item of liveMissingCoreItems) {
       missingNames.push(item.label)
       nextFieldErrors[item.key] = item.errMsg || fT.fieldRequiredError
     }
-
     setFieldErrors(nextFieldErrors)
     setMissingFields(missingNames)
 
     if (liveMissingCoreItems.length > 0) {
       const firstId = liveMissingCoreItems[0].scrollId
       setTimeout(() => {
-        document.getElementById(firstId)?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center',
-        })
+        document
+          .getElementById(firstId)
+          ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
       }, 80)
-      return
-    }
-
-    if (!hasPhotos) {
-      secPhotosRef.current?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center',
-      })
-      return
-    }
-
-    if (!hasAllDocs) {
-      secPriceRef.current?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'end',
-      })
     }
   }
 
-  // الزر الثاني: حفظ كمسودة في حسابي (لا يشترط رفع الصور ولا المستندات ولا اكتمال كل الحقول)
-    // الزر الثاني: حفظ بيانات الوحدة كمسودة في حسابي (يشترط البيانات الأساسية الإجبارية + الحساب، ولا يشترط الصور والمستندات)
+  // الزر الثاني: "احفظ البيانات وكمل بعدين"
   const handleSaveDraftAndGoToAccount = async () => {
-    // إذا كان هناك حقل أساسي إجباري ناقص (أو لم يدخل بيانات حسابه)، نلوّنه بالأحمر ونوجهه إليه فوراً حتى لا يتوه
-    if (liveMissingCoreItems.length > 0) {
-      const nextFieldErrors: Record<string, string> = {}
-      const missingNames: string[] = []
-
-      for (const item of liveMissingCoreItems) {
-        missingNames.push(item.label)
-        nextFieldErrors[item.key] = item.errMsg || fT.fieldRequiredError
-      }
-
-      setFieldErrors(nextFieldErrors)
-      setMissingFields(missingNames)
-      setError(loadT.missingFieldsAlertTitle)
-
-      const firstId = liveMissingCoreItems[0].scrollId
-      setTimeout(() => {
-        document.getElementById(firstId)?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center',
-        })
-      }, 80)
-      return
-    }
-
-    setFieldErrors({})
-    setMissingFields([])
     setError('')
     setSavingDraftLoading(true)
 
@@ -1609,12 +953,11 @@ export function SellerFlow() {
       let resolvedUserId = loggedUser?.id || ''
       let resolvedUnitId = unitId
 
-      const contractPriceNum = Number(
-        toEnglishDigits(form.contractPrice || '0').replace(/,/g, '')
-      )
-      const paidAmountNum = Number(
-        toEnglishDigits(form.paidAmount || '0').replace(/,/g, '')
-      )
+      const contractPriceNum =
+        Number(toEnglishDigits(form.contractPrice || '0').replace(/,/g, '')) ||
+        0
+      const paidAmountNum =
+        Number(toEnglishDigits(form.paidAmount || '0').replace(/,/g, '')) || 0
 
       if (!loggedUser) {
         const cleanPhone = toEnglishDigits(form.phone || '').trim()
@@ -1624,20 +967,37 @@ export function SellerFlow() {
             : `+${(form.countryCode || DEFAULT_PHONE_CODE).replace('+', '')}${cleanPhone.replace(/^0+/, '')}`
           : ''
 
+        const accountMissing = liveMissingCoreItems.filter((it) =>
+          ['name', 'phone', 'email', 'password', 'loginIdentifier'].includes(
+            it.key
+          )
+        )
+        if (accountMissing.length > 0) {
+          const nextErrs: Record<string, string> = {}
+          accountMissing.forEach((it) => {
+            nextErrs[it.key] = it.errMsg || fT.fieldRequiredError
+          })
+          setFieldErrors(nextErrs)
+          setError(fT.contactSection.signInToSaveDraftError)
+          secContactRef.current?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+          })
+          return
+        }
+
         const step2Res = await processSellerStep2Action({
           mode: authMode === 'login' ? 'login' : 'register',
           listingCategory: 'exit',
           unitCountry: ACTIVE_PLATFORM_COUNTRY,
           userCountry: form.userCountry || ACTIVE_PLATFORM_COUNTRY,
           developer: form.developer.trim() || '',
-          project: form.project.trim() || 'Draft Unit',
+          project: form.project.trim() || 'Saved Unit',
           contractPrice: contractPriceNum,
           paidAmount: paidAmountNum,
           marketPrice:
             Number(
-              toEnglishDigits(
-                form.marketPrice || form.contractPrice || '0'
-              ).replace(/,/g, '')
+              toEnglishDigits(form.marketPrice || '0').replace(/,/g, '')
             ) || contractPriceNum,
           contactMessengers:
             selected.messengers && selected.messengers.length > 0
@@ -1669,12 +1029,6 @@ export function SellerFlow() {
       const res = await saveSellProgress(data)
       if (res.success) {
         if (res.unitId) setUnitId(res.unitId)
-        setAutoSaveTime(
-          new Date().toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit',
-          })
-        )
         router.push(
           `/account?view=seller&unitId=${res.unitId || resolvedUnitId}`
         )
@@ -1686,14 +1040,27 @@ export function SellerFlow() {
     }
   }
 
-
-  // الزر الأول (الرئيسي): إرسال الوحدة لمراجعة الإدارة والنشر
-  const handlePublishListing = () => {
-    if (!isReadyToPublish) {
-      highlightMissingCoreFieldsAndScroll()
-      return
+  const finalizeUnitPublish = async (
+    targetUnitId: string,
+    targetUserId: string
+  ) => {
+    const data = buildFormData(targetUnitId, targetUserId)
+    const result = await submitSellRequest(data)
+    if (result.success) {
+      if (result.unitId) setUnitId(result.unitId)
+      if (result.orderRef) setOrderRef(result.orderRef)
+      setMissingMediaModalOpen(false)
+      setVerifyModalOpen(false)
+      setSubmitted(true)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    } else {
+      setError(result.error || s.validation.submitFailed)
     }
+  }
 
+  // الدالة التي تنفذ الإرسال الفعلي إلى الإدارة (سواء بعد اكتمال المرفقات أو بعد موافقة العميل في الديالوج)
+  const executeSubmitToAdmin = () => {
+    setMissingMediaModalOpen(false)
     setFieldErrors({})
     setError('')
     setMissingFields([])
@@ -1808,6 +1175,24 @@ export function SellerFlow() {
     })
   }
 
+  // عند الضغط على الزر الرئيسي "إرسال طلب عرض الوحدة للإدارة":
+  // 1. لو ناسي حقل أساسي إجباري -> يلوّنه بالأحمر ويوديه له
+  // 2. لو مكمل الحقول الأساسية بس مرفعش الصور أو الـ 4 مستندات -> يفتح له الديالوج الذكي للتأكيد
+  // 3. لو مكمل كله -> يبعت للإدارة فوراً
+  const handlePublishListing = () => {
+    if (!hasAllCoreDetails) {
+      highlightMissingCoreFieldsAndScroll()
+      return
+    }
+
+    if (!hasPhotos || !hasAllDocs) {
+      setMissingMediaModalOpen(true)
+      return
+    }
+
+    executeSubmitToAdmin()
+  }
+
   const handleSendOtpInModal = async () => {
     const targetEmail =
       pendingPublishIds?.email || form.email || loggedUser?.email || ''
@@ -1822,11 +1207,8 @@ export function SellerFlow() {
         unitId: targetUnit,
         userId: targetUser,
       })
-      if (res.success) {
-        setOtpSent(true)
-      } else {
-        setOtpError(res.error || s.validation.submitFailed)
-      }
+      if (res.success) setOtpSent(true)
+      else setOtpError(res.error || s.validation.submitFailed)
     } finally {
       setOtpLoading(false)
     }
@@ -1851,7 +1233,6 @@ export function SellerFlow() {
         setOtpError(res.error || '')
         return
       }
-
       setEmailVerified(true)
       await finalizeUnitPublish(targetUnit, targetUser)
     } finally {
@@ -1973,12 +1354,7 @@ export function SellerFlow() {
       ref: secTypeRef,
       hasError: sectionCompletion.hasError1,
     },
-    {
-      id: 2,
-      label: fT.tabs.photos,
-      ref: secPhotosRef,
-      hasError: false,
-    },
+    { id: 2, label: fT.tabs.photos, ref: secPhotosRef, hasError: false },
     {
       id: 3,
       label: fT.tabs.location,
@@ -2004,15 +1380,6 @@ export function SellerFlow() {
       hasError: sectionCompletion.hasError6,
     },
   ]
-
-  const activeModalEmail =
-    pendingPublishIds?.email || form.email || loggedUser?.email || ''
-
-  const readinessCompletedItems = [
-    hasAllCoreDetails,
-    hasPhotos,
-    hasAllDocs,
-  ].filter(Boolean).length
 
   return (
     <main
@@ -2081,7 +1448,7 @@ export function SellerFlow() {
               sectionRef={secTypeRef}
               onHover={() => setActiveTab(1)}
               dealCategory={dealCategory}
-              setDealCategory={handleToggleDealCategory}
+              setDealCategory={() => setDealCategory('exit')}
               propertyKind={propertyKind}
               setPropertyKind={handleTogglePropertyKind}
               buildingStatus={buildingStatus}
@@ -2107,9 +1474,9 @@ export function SellerFlow() {
               onHover={() => setActiveTab(3)}
               form={form}
               update={update}
-              isExitDeal={isExitDeal}
-              isDirectSale={isDirectSale}
-              isRentDeal={isRentDeal}
+              isExitDeal={true}
+              isDirectSale={false}
+              isRentDeal={false}
               fieldErrors={fieldErrors}
             />
 
@@ -2135,9 +1502,9 @@ export function SellerFlow() {
               onHover={() => setActiveTab(5)}
               dealCategory={dealCategory}
               buildingStatus={buildingStatus}
-              isExitDeal={isExitDeal}
-              isDirectSale={isDirectSale}
-              isRentDeal={isRentDeal}
+              isExitDeal={true}
+              isDirectSale={false}
+              isRentDeal={false}
               currencyChoice={currencyChoice}
               setCurrencyChoice={setCurrencyChoice}
               priceInputMode={priceInputMode}
@@ -2161,15 +1528,7 @@ export function SellerFlow() {
               onHover={() => setActiveTab(6)}
               isRentDeal={false}
               loggedUser={loggedUser}
-              onUserAuthenticated={(
-                u: {
-                  id: string
-                  name: string
-                  email: string
-                  phone: string
-                },
-                createdUnitId?: string
-              ) => {
+              onUserAuthenticated={(u, createdUnitId) => {
                 setLoggedUser(u)
                 setAuthMode('session')
                 void (async () => {
@@ -2204,236 +1563,16 @@ export function SellerFlow() {
               buildFullFormData={buildFormData}
             />
 
-            {/* ==============================================================
-                الخطوة النهائية المنطقية الواضحة:
-                1. قائمة جاهزية النشر من 3 نقاط
-                2. زر "إرسال الوحدة لمراجعة الإدارة والنشر" (يتفعل عند اكتمال الـ 3 نقاط)
-                3. زر "حفظ كمسودة في حسابي (واستكمال الناقص لاحقاً)"
-            ============================================================== */}
-            <section className="rounded-[26px] border-2 border-slate-200 bg-white p-5 shadow-md sm:p-7">
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-4">
-                <h3 className="text-base font-black text-[#0a1122] sm:text-lg">
-                  {loadT.finalCardTitle}
-                </h3>
-                <span
-                  className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1 text-xs font-extrabold ${
-                    isReadyToPublish
-                      ? 'bg-[#eaf8f2] text-[#007a5a]'
-                      : 'bg-amber-50 text-amber-800 border border-amber-200'
-                  }`}
-                >
-                  <CheckCircle2 className="size-3.5" />
-                  <span>
-                    {loadT.readinessBadgePrefix} {readinessCompletedItems}/3
-                  </span>
-                </span>
-              </div>
-
-              {/* قائمة شروط النشر الـ 3 أمام عين العميل */}
-              <div className="mt-4 space-y-2.5">
-                {/* الشرط 1: البيانات الإجبارية */}
-                <div
-                  className={`flex flex-wrap items-center justify-between gap-2 rounded-2xl border px-4 py-3 text-xs transition ${
-                    hasAllCoreDetails
-                      ? 'border-emerald-200 bg-emerald-50/40'
-                      : 'border-amber-200 bg-amber-50/40'
-                  }`}
-                >
-                  <span className="font-extrabold text-[#0a1122]">
-                    {loadT.req1Title}
-                  </span>
-                  {hasAllCoreDetails ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-[#007a5a] px-3 py-1 font-extrabold text-white">
-                      <Check className="size-3.5 stroke-[3]" />
-                      <span>{loadT.req1Done}</span>
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={highlightMissingCoreFieldsAndScroll}
-                      className="inline-flex items-center gap-1 rounded-xl bg-amber-500 px-3 py-1.5 font-extrabold text-white shadow-2xs transition hover:bg-amber-600"
-                    >
-                      <span>
-                        {loadT.req1MissingPrefix} {liveMissingCoreItems.length}{' '}
-                        {loadT.req1MissingSuffix}
-                      </span>
-                    </button>
-                  )}
-                </div>
-
-                {/* الشرط 2: صور الوحدة */}
-                <div
-                  className={`flex flex-wrap items-center justify-between gap-2 rounded-2xl border px-4 py-3 text-xs transition ${
-                    hasPhotos
-                      ? 'border-emerald-200 bg-emerald-50/40'
-                      : 'border-amber-200 bg-amber-50/40'
-                  }`}
-                >
-                  <span className="font-extrabold text-[#0a1122]">
-                    {loadT.req2Title}
-                  </span>
-                  {hasPhotos ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-[#007a5a] px-3 py-1 font-extrabold text-white">
-                      <Check className="size-3.5 stroke-[3]" />
-                      <span>
-                        {loadT.req2DonePrefix} {images.length}
-                      </span>
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        secPhotosRef.current?.scrollIntoView({
-                          behavior: 'smooth',
-                          block: 'center',
-                        })
-                      }
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-[#ea580c] px-3 py-1.5 font-extrabold text-white shadow-2xs transition hover:bg-orange-700"
-                    >
-                      <ImagePlus className="size-3.5" />
-                      <span>{loadT.req2Missing}</span>
-                    </button>
-                  )}
-                </div>
-
-                {/* الشرط 3: مستندات الملكية الـ 4 */}
-                <div
-                  className={`flex flex-wrap items-center justify-between gap-2 rounded-2xl border px-4 py-3 text-xs transition ${
-                    hasAllDocs
-                      ? 'border-emerald-200 bg-emerald-50/40'
-                      : 'border-amber-200 bg-amber-50/40'
-                  }`}
-                >
-                  <span className="font-extrabold text-[#0a1122]">
-                    {loadT.req3Title} ({uploadedDocsCount}/4)
-                  </span>
-                  {hasAllDocs ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-[#007a5a] px-3 py-1 font-extrabold text-white">
-                      <Check className="size-3.5 stroke-[3]" />
-                      <span>{loadT.req3Done}</span>
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        secPriceRef.current?.scrollIntoView({
-                          behavior: 'smooth',
-                          block: 'end',
-                        })
-                      }
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-[#2563eb] px-3 py-1.5 font-extrabold text-white shadow-2xs transition hover:bg-blue-700"
-                    >
-                      <FileText className="size-3.5" />
-                      <span>{loadT.req3MissingPrefix}</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* شريط الأزرار الحمراء للحقول الناقصة عند الضغط لإظهار النواقص */}
-              {Object.keys(fieldErrors).length > 0 && (
-                <div
-                  role="alert"
-                  className="mt-4 rounded-2xl border-2 border-red-300 bg-red-50/90 p-4 text-start animate-in fade-in duration-200"
-                >
-                  <div className="flex items-center gap-2 text-xs font-black text-red-900 sm:text-sm">
-                    <AlertCircle className="size-4 shrink-0 text-red-600" />
-                    <span>{loadT.missingFieldsAlertTitle}</span>
-                  </div>
-
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {liveMissingCoreItems.map((item) => (
-                      <button
-                        key={item.key}
-                        type="button"
-                        onClick={() => {
-                          document
-                            .getElementById(item.scrollId)
-                            ?.scrollIntoView({
-                              behavior: 'smooth',
-                              block: 'center',
-                            })
-                        }}
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-red-300 bg-white px-3 py-1.5 text-xs font-extrabold text-red-700 shadow-2xs transition hover:border-red-500 hover:bg-red-600 hover:text-white"
-                      >
-                        <span>• {item.label}</span>
-                        <span className="text-[10px]">↗</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* ============================================================
-                  الزران النهائيان بأسماء ثابتة وواضحة 100%
-              ============================================================ */}
-              <div className="mt-6 space-y-4 border-t border-slate-100 pt-5">
-                {/* 1. الزر الرئيسي: إرسال الوحدة لمراجعة الإدارة والنشر */}
-                <div>
-                  <button
-                    type="button"
-                    disabled={pending || savingDraftLoading}
-                    onClick={handlePublishListing}
-                    className={`flex min-h-[54px] w-full items-center justify-center gap-2.5 rounded-2xl px-6 py-3.5 text-xs font-black transition sm:text-sm ${
-                      isReadyToPublish
-                        ? 'bg-gradient-to-r from-[#007a5a] to-[#00966e] text-white shadow-lg shadow-emerald-600/25 hover:opacity-95 active:scale-[0.99]'
-                        : 'border-2 border-slate-300 bg-slate-100 text-slate-500 hover:border-slate-400 hover:bg-slate-200/70'
-                    }`}
-                  >
-                    {pending ? (
-                      <>
-                        <Loader2 className="size-4 animate-spin" />
-                        <span>{fT.bottomBar.publishingBtn}</span>
-                      </>
-                    ) : isReadyToPublish ? (
-                      <>
-                        <Send className="size-4 shrink-0" />
-                        <span>{loadT.publishBtnText}</span>
-                      </>
-                    ) : (
-                      <>
-                        <Lock className="size-4 shrink-0 text-slate-500" />
-                        <span>{loadT.publishBtnText}</span>
-                      </>
-                    )}
-                  </button>
-                  <p
-                    className={`mt-2 text-start text-[11.5px] leading-relaxed font-bold ${
-                      isReadyToPublish ? 'text-[#007a5a]' : 'text-amber-800'
-                    }`}
-                  >
-                    {isReadyToPublish
-                      ? loadT.publishReadyHint
-                      : loadT.publishLockedHint}
-                  </p>
-                </div>
-
-                {/* 2. الزر الثانوي: حفظ كمسودة في حسابي (واستكمال الناقص لاحقاً) */}
-                <div className="rounded-2xl border border-slate-200/90 bg-slate-50/70 p-3.5">
-                  <button
-                    type="button"
-                    disabled={pending || savingDraftLoading}
-                    onClick={handleSaveDraftAndGoToAccount}
-                    className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl border-2 border-[#0a1122] bg-white px-5 py-2.5 text-xs font-extrabold text-[#0a1122] shadow-2xs transition hover:bg-[#0a1122] hover:text-white disabled:opacity-60 sm:text-sm"
-                  >
-                    {savingDraftLoading ? (
-                      <>
-                        <Loader2 className="size-4 animate-spin" />
-                        <span>{fT.bottomBar.savingDraftBtn}</span>
-                      </>
-                    ) : (
-                      <>
-                        <BookmarkCheck className="size-4 shrink-0" />
-                        <span>{loadT.draftBtnText}</span>
-                      </>
-                    )}
-                  </button>
-                  <p className="mt-2 text-start text-[11px] leading-relaxed font-semibold text-slate-600">
-                    {loadT.draftBtnSubHint}
-                  </p>
-                </div>
-              </div>
-            </section>
+            <SellerFinalReadinessCard
+              loadT={loadT}
+              fT={fT}
+              liveMissingCoreItems={liveMissingCoreItems}
+              fieldErrors={fieldErrors}
+              pending={pending}
+              savingDraftLoading={savingDraftLoading}
+              onPublishListing={handlePublishListing}
+              onSaveDraft={handleSaveDraftAndGoToAccount}
+            />
           </div>
 
           <LivePreviewSidebar
@@ -2446,170 +1585,57 @@ export function SellerFlow() {
         </div>
       </div>
 
-      {/* ديالوج توثيق البريد الإلكتروني (لمرة واحدة فقط في أول وحدة) */}
-      {verifyModalOpen && (
-        <div
-          dir={dir}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-xs"
-        >
-          <div className="relative w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 text-start shadow-2xl sm:p-7">
-            <button
-              type="button"
-              onClick={() => setVerifyModalOpen(false)}
-              className="absolute top-4 end-4 flex size-8 items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-800"
-            >
-              <X className="size-4" />
-            </button>
+      {/* الديالوج الذكي عند الإرسال بدون صور أو مستندات */}
+      <SellerMissingMediaConfirmModal
+        open={missingMediaModalOpen}
+        dir={dir}
+        loadT={loadT}
+        hasPhotos={hasPhotos}
+        hasAllDocs={hasAllDocs}
+        uploadedDocsCount={uploadedDocsCount}
+        pending={pending}
+        onClose={() => setMissingMediaModalOpen(false)}
+        onConfirmSubmitAnyway={executeSubmitToAdmin}
+        onGoToUploadNow={() => {
+          setMissingMediaModalOpen(false)
+          if (!hasPhotos) {
+            secPhotosRef.current?.scrollIntoView({
+              behavior: 'smooth',
+              block: 'center',
+            })
+          } else {
+            secPriceRef.current?.scrollIntoView({
+              behavior: 'smooth',
+              block: 'end',
+            })
+          }
+        }}
+      />
 
-            <div className="flex items-center gap-2.5">
-              <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-[#007a5a]">
-                <ShieldAlert className="size-6" />
-              </div>
-              <span className="rounded-full bg-blue-50 px-3 py-1 text-[11px] font-extrabold text-[#2563eb]">
-                {loadT.oneTimeVerifyBadge}
-              </span>
-            </div>
+      <SellerVerifyEmailModal
+        open={verifyModalOpen}
+        dir={dir}
+        activeModalEmail={
+          pendingPublishIds?.email || form.email || loggedUser?.email || ''
+        }
+        loadT={loadT}
+        extraT={extraT}
+        saveLaterLabel={loadT.saveLaterBtnText}
+        otpSent={otpSent}
+        otpCode={otpCode}
+        setOtpCode={setOtpCode}
+        otpLoading={otpLoading}
+        otpError={otpError}
+        onClose={() => setVerifyModalOpen(false)}
+        onSendOtp={handleSendOtpInModal}
+        onVerifyOtp={handleVerifyOtpAndPublish}
+        onSaveAndContinueLater={handleSaveAndContinueLater}
+      />
 
-            <h3 className="mt-3.5 text-lg font-black text-[#0a1122]">
-              {extraT.verifyBoxTitle}
-            </h3>
-            <p className="mt-1 text-xs leading-relaxed text-slate-600">
-              {extraT.verifyBoxDescPrefix}{' '}
-              <strong dir="ltr" className="font-mono text-[#0a1122]">
-                {maskEmailDisplay(activeModalEmail)}
-              </strong>{' '}
-              {extraT.verifyBoxDescSuffix}
-            </p>
-
-            <div className="mt-3.5 rounded-2xl border border-emerald-200/80 bg-emerald-50/50 p-3.5 text-xs font-bold text-[#007a5a]">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="size-4 shrink-0" />
-                <span>{extraT.savedBadge}</span>
-              </div>
-              <p className="mt-1 font-medium leading-relaxed text-slate-600">
-                {loadT.oneTimeVerifyNote}
-              </p>
-            </div>
-
-            <div className="mt-5">
-              {!otpSent ? (
-                <button
-                  type="button"
-                  disabled={otpLoading}
-                  onClick={handleSendOtpInModal}
-                  className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#007a5a] px-5 text-xs font-extrabold text-white shadow-sm transition hover:bg-[#006248] disabled:opacity-60 sm:text-sm"
-                >
-                  {otpLoading ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <Mail className="size-4" />
-                  )}
-                  <span>{extraT.sendCodeBtn}</span>
-                </button>
-              ) : (
-                <div className="space-y-3">
-                  <div className="rounded-xl bg-slate-50 p-3 text-xs text-slate-600">
-                    <strong className="block font-bold text-[#0a1122]">
-                      {extraT.codeSentToPrefix}
-                    </strong>
-                    <span className="mt-0.5 block">{extraT.codeSentBody}</span>
-                  </div>
-
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                    <Input
-                      type="text"
-                      dir="ltr"
-                      inputMode="numeric"
-                      maxLength={6}
-                      value={otpCode}
-                      onChange={(e) =>
-                        setOtpCode(
-                          toEnglishDigits(e.target.value).replace(/[^0-9]/g, '')
-                        )
-                      }
-                      placeholder="• • • • • •"
-                      className="h-12 flex-1 rounded-xl border-slate-300 bg-white text-center font-mono text-lg font-black tracking-[0.35em]"
-                    />
-                    <button
-                      type="button"
-                      disabled={otpLoading || otpCode.length < 6}
-                      onClick={handleVerifyOtpAndPublish}
-                      className="inline-flex h-12 items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] px-6 text-xs font-extrabold text-white shadow-sm transition hover:bg-[#006248] disabled:opacity-50 sm:text-sm"
-                    >
-                      {otpLoading ? (
-                        <Loader2 className="size-4 animate-spin" />
-                      ) : (
-                        <Check className="size-4" />
-                      )}
-                      <span>{extraT.confirmCodeBtn}</span>
-                    </button>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-1">
-                    <button
-                      type="button"
-                      disabled={otpLoading}
-                      onClick={handleSendOtpInModal}
-                      className="text-xs font-bold text-[#2563eb] hover:underline"
-                    >
-                      {extraT.resendCodeBtn}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {otpError && (
-                <p className="mt-2.5 rounded-xl bg-red-50 px-3 py-2 text-xs font-bold text-red-600">
-                  {otpError}
-                </p>
-              )}
-            </div>
-
-            <div className="mt-5 border-t border-slate-100 pt-4">
-              <button
-                type="button"
-                disabled={otpLoading}
-                onClick={handleSaveAndContinueLater}
-                className="flex h-11 w-full items-center justify-center rounded-xl border border-slate-200 bg-slate-50 px-4 text-xs font-extrabold text-slate-700 transition hover:bg-slate-100"
-              >
-                {s.shared.saveLaterBtn || extraT.continueUploadLaterBtn}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {previewDoc && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-xs"
-          onClick={() => setPreviewDoc(null)}
-        >
-          <div
-            className="relative max-h-[90vh] max-w-4xl overflow-hidden rounded-2xl bg-white p-2 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2">
-              <span className="text-xs font-bold text-[#0a1122]">
-                {previewDoc.title}
-              </span>
-              <button
-                type="button"
-                onClick={() => setPreviewDoc(null)}
-                className="flex size-7 items-center justify-center rounded-full bg-slate-100 text-slate-700 hover:bg-red-100 hover:text-red-600"
-              >
-                <X className="size-4" />
-              </button>
-            </div>
-            <div className="mt-2 flex max-h-[80vh] items-center justify-center overflow-auto bg-slate-950/5 p-2">
-              <img
-                src={previewDoc.url}
-                alt={previewDoc.title}
-                className="max-h-[76vh] w-auto max-w-full rounded-lg object-contain"
-              />
-            </div>
-          </div>
-        </div>
-      )}
+      <SellerDocPreviewModal
+        previewDoc={previewDoc}
+        onClose={() => setPreviewDoc(null)}
+      />
     </main>
   )
 }

@@ -40,6 +40,7 @@ import {
   Tv,
   UploadCloud,
   Utensils,
+  Wand2,
   Waves,
   Wifi,
   Wind,
@@ -47,11 +48,14 @@ import {
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
 import { useTranslation, type LocaleCode } from '@/lib/i18n'
 import {
   getSellerFormTranslations,
   isImageFileUrl,
   type SellerDocKey,
+  AI_DESCRIPTION_I18N,
+  buildSmartPropertyDescription,
   type SellerExtraLabels,
   type UploadedDocEntry,
 } from './seller-i18n'
@@ -68,6 +72,7 @@ import {
   MonthYearSelector,
   PROPERTY_KINDS,
   SIVRCE_FEATURE_GROUPS,
+  toEnglishDigits,
   years,
   type DealCategory,
   type LocalizedOptionItem,
@@ -75,6 +80,9 @@ import {
 
 export { LocationSection } from './seller-location-section'
 export { LivePreviewSidebar } from './seller-preview-sidebar'
+
+
+
 
 function getFeatureItemIcon(featureId: string) {
   const map: Record<string, any> = {
@@ -163,7 +171,7 @@ export function StepValidationBanner({
 }
 
 // =====================================================
-// 1. قسم نوع العقار وحالة البناء (إجباري *)
+// 1. قسم نوع العقار وحالة البناء
 // =====================================================
 export function TypeSection({
   sectionRef,
@@ -539,7 +547,7 @@ export function PhotosSection({
 }
 
 // =====================================================
-// 3. قسم المواصفات والمميزات (بدون مساحة المطبخ + محاذاة موحدة 100%)
+// 3. قسم المواصفات والمميزات
 // =====================================================
 export function DetailsSection({
   sectionRef,
@@ -630,7 +638,6 @@ export function DetailsSection({
         </div>
       ) : (
         <div className="animate-in fade-in duration-200">
-          {/* الحقول الإجبارية في المواصفات: المساحة + سنة البناء على نفس السطر بالضبط */}
           <div className="mt-5 rounded-2xl border border-slate-200/90 bg-slate-50/50 p-4 sm:p-5">
             <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
               <div id="field-wrap-areaSize">
@@ -661,7 +668,6 @@ export function DetailsSection({
 
             {propertyKind !== 'Land' && (
               <div className="mt-5 space-y-5">
-                {/* 1. إجمالي عدد الغرف (إجباري *) */}
                 <div
                   id="field-wrap-rooms"
                   className={`rounded-xl transition ${
@@ -705,7 +711,6 @@ export function DetailsSection({
                   )}
                 </div>
 
-                {/* 2. عدد غرف النوم (إجباري *) */}
                 <div
                   id="field-wrap-bedrooms"
                   className={`rounded-xl transition ${
@@ -764,7 +769,6 @@ export function DetailsSection({
 
           {propertyKind !== 'Land' && (
             <>
-              {/* عدد الحمامات + الطابق + إجمالي الطوابق بمحاذاة موحدة تماماً */}
               <div className="mt-5 space-y-5">
                 <div>
                   <label className="mb-2 block text-xs font-extrabold text-[#0a1122]">
@@ -794,7 +798,6 @@ export function DetailsSection({
                   </div>
                 </div>
 
-                {/* الطابق وإجمالي الطوابق باستخدام Field الموحد ليكونا على نفس الخط بالمللي */}
                 <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
                   <div id="field-wrap-floor">
                     <Field
@@ -966,7 +969,6 @@ export function DetailsSection({
                 </div>
               </div>
 
-              {/* الشرفة واللوجيا والتراس على خط واحد متساوٍ (تم حذف مساحة المطبخ نهائياً) */}
               <div className="mt-5 grid grid-cols-1 items-start gap-4 sm:grid-cols-3">
                 <Field
                   label={dT.balconyAreaLabel}
@@ -1122,7 +1124,7 @@ export function DetailsSection({
 }
 
 // =====================================================
-// 4. قسم السعر والأقساط والمستندات والوصف (محاذاة موحدة 100%)
+// 4. قسم السعر والأقساط والمستندات والوصف (منظم ومريح للعين 100% + زر وصف AI)
 // =====================================================
 export function PricingSection({
   sectionRef,
@@ -1180,8 +1182,13 @@ export function PricingSection({
   const { t: dict, locale, dir } = useTranslation()
   const fT = getSellerFormTranslations(locale as LocaleCode, dict)
   const prT = fT.pricingSection
+  const aiT =
+    AI_DESCRIPTION_I18N[locale as LocaleCode] || AI_DESCRIPTION_I18N.ar
   const currSym = '$'
   const isUnderConstruction = buildingStatus === 'Under construction'
+
+  const [generatingAiDesc, setGeneratingAiDesc] = useState(false)
+  const [aiDescGeneratedSuccess, setAiDescGeneratedSuccess] = useState(false)
 
   const freqOptions = [
     { id: 'شهري', label: prT.freqMonthly },
@@ -1193,6 +1200,33 @@ export function PricingSection({
   const uploadedDocsCount = (
     ['contract', 'receipts', 'statement', 'passport'] as const
   ).filter((k) => Boolean(unitDocs[k]?.url)).length
+
+  const handleGenerateAiDescription = () => {
+    setGeneratingAiDesc(true)
+    setAiDescGeneratedSuccess(false)
+
+    const areaName =
+      form.locationDisplay ||
+      (form.location
+        ? getLocalizedGeorgiaAreaName(form.location, locale as LocaleCode)
+        : locale === 'ar'
+          ? 'تبليسي'
+          : 'Tbilisi')
+
+    setTimeout(() => {
+      const smartText = buildSmartPropertyDescription({
+        locale: locale as LocaleCode,
+        areaName,
+        form,
+        selected,
+        buildingStatus,
+      })
+      update('description', smartText)
+      setGeneratingAiDesc(false)
+      setAiDescGeneratedSuccess(true)
+      setTimeout(() => setAiDescGeneratedSuccess(false), 3500)
+    }, 350)
+  }
 
   return (
     <section
@@ -1217,8 +1251,10 @@ export function PricingSection({
         </div>
       </div>
 
-      <div className="mt-5 space-y-5">
-        <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-3">
+      {/* ترتيب مريح ومنسق للحقول المالية والتعاقد: حقلان في كل صف بدلاً من 3 حقول مضغوطة */}
+      <div className="mt-6 space-y-5">
+        {/* الصف الأول (الأهم والإجباري): إجمالي سعر العقد + المبلغ المدفوع (الكاش المطلوب) */}
+        <div className="grid grid-cols-1 items-start gap-4 rounded-2xl border border-slate-200/90 bg-slate-50/60 p-4 sm:grid-cols-2 sm:p-5">
           <div id="field-wrap-contractPrice">
             <MoneyField
               label={prT.contractPriceLabel}
@@ -1238,16 +1274,10 @@ export function PricingSection({
               update={(v) => update('paidAmount', v)}
             />
           </div>
-
-          <MoneyField
-            label={prT.marketPriceLabel}
-            value={form.marketPrice}
-            currencySymbol={currSym}
-            update={(v) => update('marketPrice', v)}
-          />
         </div>
 
-        <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-3">
+        {/* الصف الثاني: قيمة القسط الدوري + عدد شهور التقسيط المتبقية */}
+        <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
           <MoneyField
             label={prT.installmentAmountLabel}
             value={form.installment}
@@ -1262,6 +1292,10 @@ export function PricingSection({
             value={form.remainingMonths}
             update={(v) => update('remainingMonths', v)}
           />
+        </div>
+
+        {/* الصف الثالث: تاريخ التعاقد الأصلي + سعر السوق اليوم (تقديري) */}
+        <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
           <MonthYearSelector
             label={prT.contractDateLabel}
             monthValue={form.contractMonth}
@@ -1270,11 +1304,17 @@ export function PricingSection({
             onMonthChange={(m) => update('contractMonth', m)}
             onYearChange={(y) => update('contractYear', y)}
           />
+          <MoneyField
+            label={prT.marketPriceLabel}
+            value={form.marketPrice}
+            currencySymbol={currSym}
+            update={(v) => update('marketPrice', v)}
+          />
         </div>
 
-        <div className="grid grid-cols-1 items-start gap-4 border-t border-slate-100 pt-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 items-start gap-4 border-t border-slate-100 pt-5 sm:grid-cols-2">
           <div>
-            <label className="mb-2 block text-xs font-bold text-[#0a1122]">
+            <label className="mb-2.5 block text-xs font-extrabold text-[#0a1122] sm:text-sm">
               {prT.frequencySystemLabel}
             </label>
             <div className="flex flex-wrap gap-2">
@@ -1301,7 +1341,7 @@ export function PricingSection({
           <div>
             {isUnderConstruction ? (
               <>
-                <label className="mb-2 block text-xs font-bold text-[#0a1122]">
+                <label className="mb-2.5 block text-xs font-extrabold text-[#0a1122] sm:text-sm">
                   {prT.deliveryYearCardLabel}
                 </label>
                 <div className="flex flex-wrap gap-2">
@@ -1326,7 +1366,7 @@ export function PricingSection({
               </>
             ) : (
               <>
-                <label className="mb-2 block text-xs font-bold text-[#0a1122]">
+                <label className="mb-2.5 block text-xs font-extrabold text-[#0a1122] sm:text-sm">
                   {prT.readyStatusCardLabel}
                 </label>
                 <div className="inline-flex h-10 items-center gap-2 rounded-xl border border-emerald-200 bg-[#eaf8f2] px-4 text-xs font-extrabold text-[#007a5a]">
@@ -1339,7 +1379,7 @@ export function PricingSection({
         </div>
 
         <div className="grid grid-cols-1 items-start gap-4 border-t border-slate-100 pt-4 sm:grid-cols-2">
-          <label className="flex cursor-pointer items-center gap-2.5 rounded-2xl border border-slate-200/80 px-4 py-3.5 text-xs font-bold text-slate-700 hover:bg-slate-50">
+          <label className="flex cursor-pointer items-center gap-2.5 rounded-2xl border border-slate-200/80 px-4 py-3.5 text-xs font-bold text-slate-700 hover:bg-slate-50 sm:text-sm">
             <input
               type="checkbox"
               checked={selected.discountOffer?.[0] === 'yes'}
@@ -1361,6 +1401,7 @@ export function PricingSection({
           )}
         </div>
 
+        {/* صندوق المستندات الـ 4 */}
         <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50/40 p-4 sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
@@ -1458,21 +1499,56 @@ export function PricingSection({
         </div>
       </div>
 
-      <div className="mt-6">
-        <div className="mb-2 flex items-center justify-between">
-          <label className="text-xs font-bold text-[#0a1122] sm:text-sm">
-            {prT.descriptionLabel}
-          </label>
-          <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-bold text-slate-500">
-            {fT.optionalBadge}
-          </span>
+      {/* قسم الوصف التفصيلي للوحدة + زر كتابة الوصف بالذكاء الاصطناعي (AI) */}
+      <div className="mt-7 border-t border-slate-100 pt-6">
+        <div className="mb-2.5 flex flex-col justify-between gap-2.5 sm:flex-row sm:items-center">
+          <div>
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-black text-[#0a1122]">
+                {prT.descriptionLabel}
+              </label>
+              <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-bold text-slate-500">
+                {fT.optionalBadge}
+              </span>
+            </div>
+            <p className="mt-0.5 text-xs font-semibold text-slate-400">
+              {aiT.helperHint}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            disabled={generatingAiDesc}
+            onClick={handleGenerateAiDescription}
+            className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#2563eb] to-[#7c3aed] px-4 text-xs font-extrabold text-white shadow-sm transition hover:opacity-95 active:scale-[0.99] disabled:opacity-60"
+          >
+            {generatingAiDesc ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                <span>{aiT.generatingBtn}</span>
+              </>
+            ) : (
+              <>
+                <Wand2 className="size-4 shrink-0" />
+                <span>✨ {aiT.generateBtn}</span>
+              </>
+            )}
+          </button>
         </div>
+
+        {aiDescGeneratedSuccess && (
+          <div className="mb-2.5 inline-flex items-center gap-1.5 rounded-xl bg-emerald-50 px-3.5 py-1.5 text-xs font-extrabold text-[#007a5a]">
+            <Sparkles className="size-3.5" />
+            <span>{aiT.generatedBadge}</span>
+          </div>
+        )}
+
         <Textarea
           dir={dir}
           value={form.description}
           onChange={(e) => update('description', e.target.value.slice(0, 5000))}
           placeholder={prT.descriptionPlaceholder}
-          className="min-h-36 rounded-2xl border-slate-200 p-4 text-xs leading-relaxed sm:text-sm"
+          className="min-h-40 rounded-2xl border-slate-200 p-4 text-sm leading-relaxed font-medium text-[#0a1122]"
         />
         <div className="mt-1 text-end font-mono text-[11px] text-slate-400">
           {form.description.length}/5000

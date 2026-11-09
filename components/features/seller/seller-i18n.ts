@@ -1580,3 +1580,253 @@ export function isImageFileUrl(url?: string, name?: string): boolean {
   if (target.includes('.pdf')) return false
   return /\.(jpg|jpeg|png|webp|gif|bmp|svg|avif)/i.test(target) || Boolean(url)
 }
+
+import {
+  CONDITION_OPTIONS,
+  getOptionLabel,
+  SIVRCE_FEATURE_GROUPS,
+  toEnglishDigits,
+  type LocalizedOptionItem,
+} from './seller-options-data'
+
+export const AI_DESCRIPTION_I18N: Record<
+  LocaleCode,
+  {
+    generateBtn: string
+    generatingBtn: string
+    generatedBadge: string
+    helperHint: string
+  }
+> = {
+  ar: {
+    generateBtn: 'كتابة الوصف بالذكاء الاصطناعي (AI)',
+    generatingBtn: 'جاري صياغة الوصف من بيانات وحدتك...',
+    generatedBadge: 'تم توليد الوصف من بيانات وحدتك بنجاح ✓',
+    helperHint:
+      'اضغط على زر الذكاء الاصطناعي لكتابة وصف احترافي جذاب تلقائياً من البيانات التي أدخلتها.',
+  },
+  en: {
+    generateBtn: 'Generate Description with AI',
+    generatingBtn: 'Generating description from your unit data...',
+    generatedBadge: 'AI Description generated from your unit data ✓',
+    helperHint:
+      'Click the AI button to automatically craft a professional description from your entered details.',
+  },
+  ru: {
+    generateBtn: 'Сгенерировать описание с ИИ (AI)',
+    generatingBtn: 'Создание описания по данным вашего объекта...',
+    generatedBadge: 'Описание успешно создано на основе данных объекта ✓',
+    helperHint:
+      'Нажмите кнопку ИИ, чтобы автоматически составить профессиональное описание из введенных данных.',
+  },
+  ka: {
+    generateBtn: 'აღწერის გენერირება ხელოვნური ინტელექტით (AI)',
+    generatingBtn: 'აღწერა იქმნება თქვენი მონაცემებით...',
+    generatedBadge: 'აღწერა წარმატებით შეიქმნა ✓',
+    helperHint:
+      'დააჭირეთ AI ღილაკს, რათა ავტომატურად შეიქმნას პროფესიონალური აღწერა შეყვანილი მონაცემებიდან.',
+  },
+}
+
+export function buildSmartPropertyDescription({
+  locale,
+  areaName,
+  form,
+  selected,
+  buildingStatus,
+}: {
+  locale: LocaleCode
+  areaName: string
+  form: Record<string, string>
+  selected: Record<string, string[]>
+  buildingStatus?: string
+}): string {
+  const street = form.exactStreet?.trim() || ''
+  const project = form.project?.trim() || ''
+  const developer = form.developer?.trim() || ''
+  const size = form.areaSize?.trim() || ''
+  const rooms = form.rooms?.trim() || ''
+  const bedrooms = form.bedrooms?.trim() || ''
+  const bathrooms = form.bathrooms?.trim() || '1'
+  const floor = form.floor?.trim() || ''
+  const totalFloors = form.totalFloors?.trim() || ''
+  const isUnderConst = buildingStatus === 'Under construction'
+  const deliveryYear = form.deliveryYear || '2026'
+
+  const contractPriceNum = Number(
+    toEnglishDigits(form.contractPrice || '0').replace(/,/g, '')
+  )
+  const paidAmountNum = Number(
+    toEnglishDigits(form.paidAmount || '0').replace(/,/g, '')
+  )
+  const installmentNum = Number(
+    toEnglishDigits(form.installment || '0').replace(/,/g, '')
+  )
+  const remainingMonthsNum = Number(
+    toEnglishDigits(form.remainingMonths || '0').replace(/[^0-9]/g, '')
+  )
+  const remainingAmount = Math.max(0, contractPriceNum - paidAmountNum)
+
+  const finishingId = selected.finishing?.[0] || ''
+  const conditionObj = (
+    CONDITION_OPTIONS as readonly LocalizedOptionItem<string>[]
+  ).find((c) => c.id === finishingId)
+  const conditionLabel = conditionObj
+    ? getOptionLabel(conditionObj, locale)
+    : ''
+
+  // حل جذري لخطأ TypeScript مع المصفوفات المعرفة بـ readonly
+  const allFeatureItems: LocalizedOptionItem<string>[] = []
+  for (const grp of SIVRCE_FEATURE_GROUPS) {
+    for (const item of grp.items) {
+      allFeatureItems.push(item as LocalizedOptionItem<string>)
+    }
+  }
+
+  const selectedFeatureLabels = (selected.features || [])
+    .map((fId) => {
+      const found = allFeatureItems.find((it) => it.id === fId)
+      return found ? getOptionLabel(found, locale) : fId
+    })
+    .slice(0, 8)
+
+  if (locale === 'ar') {
+    const lines: string[] = []
+    lines.push(
+      `فرصة استثمارية وسكنية مميزة للتنازل واستكمال الأقساط${project ? ` في مشروع (${project})` : ''}${developer ? ` من تطوير شركة ${developer}` : ''} بموقع حيوي في ${areaName}${street ? ` — شارع ${street}` : ''}.`
+    )
+
+    const specParts: string[] = []
+    if (size) specParts.push(`المساحة الإجمالية ${size} م²`)
+    if (rooms) specParts.push(`تتكون من ${rooms} غرف`)
+    if (bedrooms) specParts.push(`منها ${bedrooms} غرف نوم`)
+    if (bathrooms) specParts.push(`${bathrooms} حمام`)
+    if (floor)
+      specParts.push(
+        `الطابق ${floor}${totalFloors ? ` من أصل ${totalFloors} طوابق` : ''}`
+      )
+    if (conditionLabel) specParts.push(`حالة التشطيب: ${conditionLabel}`)
+
+    if (specParts.length > 0) {
+      lines.push(`📐 مواصفات الوحدة: ${specParts.join(' ، ')}.`)
+    }
+
+    lines.push(
+      `🏗 حالة الاستلام: ${isUnderConst ? `قيد الإنشاء (موعد التسليم المتوقع عام ${deliveryYear})` : 'جاهزة للاستلام الفوري'}.`
+    )
+
+    if (contractPriceNum > 0 || paidAmountNum > 0) {
+      const finParts: string[] = []
+      if (contractPriceNum > 0)
+        finParts.push(
+          `إجمالي سعر العقد الأصلي $${contractPriceNum.toLocaleString('en-US')}`
+        )
+      if (paidAmountNum > 0)
+        finParts.push(
+          `المبلغ المدفوع المطلوب للتنازل (الكاش) $${paidAmountNum.toLocaleString('en-US')}`
+        )
+      if (remainingAmount > 0)
+        finParts.push(
+          `المتبقي للمطور $${remainingAmount.toLocaleString('en-US')}`
+        )
+      if (installmentNum > 0)
+        finParts.push(
+          `بقسط دوري $${installmentNum.toLocaleString('en-US')}${remainingMonthsNum > 0 ? ` لمدة ${remainingMonthsNum} شهر` : ''}`
+        )
+      lines.push(`💰 التفاصيل المالية: ${finParts.join(' — ')}.`)
+    }
+
+    if (selectedFeatureLabels.length > 0) {
+      lines.push(
+        `✨ أبرز المميزات والخدمات: ${selectedFeatureLabels.join(' ، ')}.`
+      )
+    }
+
+    lines.push(
+      `✅ جميع عقود وإيصالات السداد الرسمية جاهزة لنقل الملكية مباشرة عبر المنصة بعمولة 0% على البائع.`
+    )
+    return lines.join('\n\n')
+  }
+
+  if (locale === 'ru') {
+    const lines: string[] = []
+    lines.push(
+      `Отличное предложение по переуступке рассрочки${project ? ` в ЖК «${project}»` : ''}${developer ? ` от застройщика ${developer}` : ''}, расположенном в районе ${areaName}${street ? `, ул. ${street}` : ''}.`
+    )
+    const specParts: string[] = []
+    if (size) specParts.push(`общая площадь ${size} м²`)
+    if (rooms) specParts.push(`комнат: ${rooms}`)
+    if (bedrooms) specParts.push(`спален: ${bedrooms}`)
+    if (floor)
+      specParts.push(
+        `этаж ${floor}${totalFloors ? ` из ${totalFloors}` : ''}`
+      )
+    if (conditionLabel) specParts.push(`состояние: ${conditionLabel}`)
+    if (specParts.length > 0) {
+      lines.push(`📐 Характеристики: ${specParts.join(', ')}.`)
+    }
+    if (contractPriceNum > 0 || paidAmountNum > 0) {
+      lines.push(
+        `💰 Финансовые условия: полная цена по договору $${contractPriceNum.toLocaleString('en-US')}, выплаченная сумма (на руки) $${paidAmountNum.toLocaleString('en-US')}${installmentNum > 0 ? `, платеж по рассрочке $${installmentNum.toLocaleString('en-US')}` : ''}${remainingMonthsNum > 0 ? ` (${remainingMonthsNum} мес.)` : ''}.`
+      )
+    }
+    if (selectedFeatureLabels.length > 0) {
+      lines.push(`✨ Удобства: ${selectedFeatureLabels.join(', ')}.`)
+    }
+    return lines.join('\n\n')
+  }
+
+  if (locale === 'ka') {
+    const lines: string[] = []
+    lines.push(
+      `იყიდება ქონება განვადების გადაბარებით${project ? ` პროექტში «${project}»` : ''}${developer ? ` (${developer})` : ''}, მდებარეობა: ${areaName}${street ? `, ${street}` : ''}.`
+    )
+    const specParts: string[] = []
+    if (size) specParts.push(`ფართობი ${size} მ²`)
+    if (rooms) specParts.push(`ოთახები: ${rooms}`)
+    if (bedrooms) specParts.push(`საძინებელი: ${bedrooms}`)
+    if (floor)
+      specParts.push(
+        `სართული ${floor}${totalFloors ? `/${totalFloors}` : ''}`
+      )
+    if (specParts.length > 0) {
+      lines.push(`📐 მახასიათებლები: ${specParts.join(', ')}.`)
+    }
+    if (contractPriceNum > 0 || paidAmountNum > 0) {
+      lines.push(
+        `💰 ფინანსური პირობები: კონტრაქტის სრული ფასი $${contractPriceNum.toLocaleString('en-US')}, გადახდილი თანხა (ხელზე) $${paidAmountNum.toLocaleString('en-US')}.`
+      )
+    }
+    return lines.join('\n\n')
+  }
+
+  const lines: string[] = []
+  lines.push(
+    `Prime installment assignment opportunity${project ? ` in "${project}"` : ''}${developer ? ` by ${developer}` : ''}, located in ${areaName}${street ? `, ${street}` : ''}.`
+  )
+  const specParts: string[] = []
+  if (size) specParts.push(`${size} m² total area`)
+  if (rooms) specParts.push(`${rooms} rooms`)
+  if (bedrooms) specParts.push(`${bedrooms} bedroom(s)`)
+  if (bathrooms) specParts.push(`${bathrooms} bathroom(s)`)
+  if (floor)
+    specParts.push(
+      `floor ${floor}${totalFloors ? ` of ${totalFloors}` : ''}`
+    )
+  if (conditionLabel) specParts.push(`condition: ${conditionLabel}`)
+  if (specParts.length > 0) {
+    lines.push(`📐 Specifications: ${specParts.join(', ')}.`)
+  }
+  lines.push(
+    `🏗 Handover Status: ${isUnderConst ? `Under construction (Expected delivery ${deliveryYear})` : 'Ready for immediate handover'}.`
+  )
+  if (contractPriceNum > 0 || paidAmountNum > 0) {
+    lines.push(
+      `💰 Financial Terms: Total contract price $${contractPriceNum.toLocaleString('en-US')} — Paid cash required $${paidAmountNum.toLocaleString('en-US')}${remainingAmount > 0 ? ` — Remaining balance $${remainingAmount.toLocaleString('en-US')}` : ''}${installmentNum > 0 ? ` ($${installmentNum.toLocaleString('en-US')} installment${remainingMonthsNum > 0 ? ` for ${remainingMonthsNum} months` : ''})` : ''}.`
+    )
+  }
+  if (selectedFeatureLabels.length > 0) {
+    lines.push(`✨ Key Features: ${selectedFeatureLabels.join(', ')}.`)
+  }
+  return lines.join('\n\n')
+}

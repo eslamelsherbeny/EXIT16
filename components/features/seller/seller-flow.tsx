@@ -15,7 +15,10 @@ import {
   BookmarkCheck,
   Check,
   CheckCircle2,
+  FileText,
+  ImagePlus,
   Loader2,
+  Lock,
   Mail,
   RefreshCw,
   Send,
@@ -81,6 +84,24 @@ const FLOW_LOADING_LABELS: Record<
     backToAccountBtn: string
     oneTimeVerifyBadge: string
     oneTimeVerifyNote: string
+    finalCardTitle: string
+    readinessBadgePrefix: string
+    req1Title: string
+    req1Done: string
+    req1MissingPrefix: string
+    req1MissingSuffix: string
+    req2Title: string
+    req2DonePrefix: string
+    req2Missing: string
+    req3Title: string
+    req3Done: string
+    req3MissingPrefix: string
+    publishBtnText: string
+    publishLockedHint: string
+    publishReadyHint: string
+    draftBtnText: string
+    draftBtnSubHint: string
+    missingFieldsAlertTitle: string
   }
 > = {
   ar: {
@@ -94,6 +115,28 @@ const FLOW_LOADING_LABELS: Record<
     oneTimeVerifyBadge: 'تأكيد لمرة واحدة فقط لتفعيل حسابك',
     oneTimeVerifyNote:
       'تأكيد البريد الإلكتروني شرط أساسي في أول مرة فقط لإرسال وحدتك إلى الإدارة ومراجعتها. في المرات القادمة ستُرسل وحداتك مباشرة.',
+    finalCardTitle: 'الخطوة النهائية: إرسال الوحدة للمراجعة أو حفظها كمسودة',
+    readinessBadgePrefix: 'جاهزية النشر:',
+    req1Title: '١. البيانات الأساسية الإجبارية وحساب المالك',
+    req1Done: 'مكتمل بالكامل ✓',
+    req1MissingPrefix: 'متبقي',
+    req1MissingSuffix: 'حقول إجبارية — اضغط لإظهارها ↗',
+    req2Title: '٢. صور الوحدة العقارية (صورة واحدة على الأقل)',
+    req2DonePrefix: 'مكتمل ✓ — عدد الصور:',
+    req2Missing: 'لم يتم رفع صور — اضغط لرفع صورة ↗',
+    req3Title: '٣. مستندات الملكية والتنازل (4 مستندات)',
+    req3Done: 'مكتمل (4/4) ✓',
+    req3MissingPrefix: 'اضغط لرفع المستندات المتبقية ↗',
+    publishBtnText: 'إرسال الوحدة لمراجعة الإدارة والنشر',
+    publishLockedHint:
+      '🔒 يتفعل زر «إرسال الوحدة لمراجعة الإدارة والنشر» تلقائياً فور استكمال البنود الـ 3 بالأعلى (البيانات الإجبارية + صورة للوحدة + المستندات الـ 4).',
+    publishReadyHint:
+      '✅ جميع البيانات والصور والمستندات مكتملة 100%! اضغط على الزر لإرسال وحدتك لمراجعة الإدارة.',
+    draftBtnText: 'حفظ كمسودة في حسابي (واستكمال الناقص لاحقاً)',
+    draftBtnSubHint:
+      '💡 ليست لديك الصور أو المستندات جاهزة الآن؟ احفظ ما كتبته كمسودة في حسابك واستكمل رفعها في أي وقت.',
+    missingFieldsAlertTitle:
+      'يرجى استكمال الحقول الإجبارية التالية (اضغط على أي حقل للانتقال إليه مباشرةً):',
   },
   en: {
     loadingUnitTitle: 'Restoring your saved unit details...',
@@ -105,6 +148,28 @@ const FLOW_LOADING_LABELS: Record<
     oneTimeVerifyBadge: 'One-time account verification',
     oneTimeVerifyNote:
       'Email verification is required only once on your first listing before sending your unit to Admin for review.',
+    finalCardTitle: 'Final Step: Submit Unit for Admin Review or Save Draft',
+    readinessBadgePrefix: 'Publish Readiness:',
+    req1Title: '1. Compulsory Unit Details & Owner Account',
+    req1Done: '100% Complete ✓',
+    req1MissingPrefix: 'Missing',
+    req1MissingSuffix: 'required fields — Click to highlight ↗',
+    req2Title: '2. Property Photos (At least 1 photo)',
+    req2DonePrefix: 'Complete ✓ — Photos:',
+    req2Missing: 'No photos uploaded — Click to upload ↗',
+    req3Title: '3. Ownership Documents (4 files)',
+    req3Done: 'Complete (4/4) ✓',
+    req3MissingPrefix: 'Click to upload remaining documents ↗',
+    publishBtnText: 'Submit Unit for Admin Review & Publish',
+    publishLockedHint:
+      '🔒 This button unlocks automatically once all 3 items above (Compulsory Details + Photo + 4 Documents) are completed.',
+    publishReadyHint:
+      '✅ All details, photos, and documents are 100% complete! Click above to submit for Admin review.',
+    draftBtnText: 'Save as Draft in My Account (Complete Later)',
+    draftBtnSubHint:
+      "💡 Don't have photos or documents ready right now? Save your unit as a draft in your account and upload them anytime.",
+    missingFieldsAlertTitle:
+      'Please complete the following compulsory fields (click any item to jump to it):',
   },
   ru: {
     loadingUnitTitle: 'Восстановление сохраненных данных объекта...',
@@ -116,6 +181,28 @@ const FLOW_LOADING_LABELS: Record<
     oneTimeVerifyBadge: 'Единоразовое подтверждение аккаунта',
     oneTimeVerifyNote:
       'Подтверждение Email требуется только один раз при первом размещении для отправки объекта на проверку администрации.',
+    finalCardTitle: 'Финальный шаг: Отправка на проверку или сохранение черновика',
+    readinessBadgePrefix: 'Готовность к публикации:',
+    req1Title: '1. Обязательные данные объекта и аккаунт',
+    req1Done: 'Заполнено ✓',
+    req1MissingPrefix: 'Осталось полей:',
+    req1MissingSuffix: '— нажмите чтобы показать ↗',
+    req2Title: '2. Фотографии объекта (минимум 1 фото)',
+    req2DonePrefix: 'Загружено ✓ — Фото:',
+    req2Missing: 'Нет фото — нажмите для загрузки ↗',
+    req3Title: '3. Документы собственности (4 файла)',
+    req3Done: 'Загружено (4/4) ✓',
+    req3MissingPrefix: 'Нажмите для загрузки документов ↗',
+    publishBtnText: 'Отправить объект на проверку и публикацию',
+    publishLockedHint:
+      '🔒 Кнопка отправки активируется автоматически после заполнения всех 3 пунктов выше (обязательные поля + фото + 4 документа).',
+    publishReadyHint:
+      '✅ Все данные, фото и документы готовы на 100%! Нажмите кнопку для отправки на проверку.',
+    draftBtnText: 'Сохранить как черновик в кабинете (дополнить позже)',
+    draftBtnSubHint:
+      '💡 Нет фото или документов под рукой? Сохраните черновик в личном кабинете и загрузите их в любое время.',
+    missingFieldsAlertTitle:
+      'Пожалуйста, заполните следующие обязательные поля (нажмите для перехода):',
   },
   ka: {
     loadingUnitTitle: 'თქვენი ობიექტის მონაცემები იტვირთება...',
@@ -127,6 +214,28 @@ const FLOW_LOADING_LABELS: Record<
     oneTimeVerifyBadge: 'ანგარიშის ერთჯერადი დადასტურება',
     oneTimeVerifyNote:
       'ელ-ფოსტის დადასტურება საჭიროა მხოლოდ ერთხელ პირველი განცხადებისას, რათა ობიექტი გადაეგზავნოს ადმინისტრაციას.',
+    finalCardTitle: 'საბოლოო ნაბიჯი: გაგზავნა შემოწმებაზე ან მონახაზის შენახვა',
+    readinessBadgePrefix: 'მზადყოფნა:',
+    req1Title: '1. სავალდებულო მონაცემები და ანგარიში',
+    req1Done: 'შევსებულია ✓',
+    req1MissingPrefix: 'დარჩენილია',
+    req1MissingSuffix: 'ველი — დააჭირეთ სანახავად ↗',
+    req2Title: '2. ქონების ფოტოები (მინიმუმ 1 ფოტო)',
+    req2DonePrefix: 'ატვირთულია ✓ — ფოტო:',
+    req2Missing: 'ფოტო არ არის — დააჭირეთ ასატვირთად ↗',
+    req3Title: '3. საკუთრების დოკუმენტები (4 ფაილი)',
+    req3Done: 'სრულია (4/4) ✓',
+    req3MissingPrefix: 'დააჭირეთ დოკუმენტების ასატვირთად ↗',
+    publishBtnText: 'ობიექტის გაგზავნა შემოწმებაზე და გამოქვეყნება',
+    publishLockedHint:
+      '🔒 გაგზავნის ღილაკი გააქტიურდება ავტომატურად ზემოთ მოცემული 3 პუნქტის (მონაცემები + ფოტო + 4 დოკუმენტი) შევსებისთანავე.',
+    publishReadyHint:
+      '✅ ყველა მონაცემი, ფოტო და დოკუმენტი მზადაა! დააჭირეთ გასაგზავნად.',
+    draftBtnText: 'მონახაზად შენახვა ჩემს ანგარიშში (მოგვიანებით გაგრძელება)',
+    draftBtnSubHint:
+      '💡 ახლა არ გაქვთ ფოტოები ან დოკუმენტები? შეინახეთ მონახაზი ანგარიშში და ატვირთეთ ნებისმიერ დროს.',
+    missingFieldsAlertTitle:
+      'გთხოვთ შეავსოთ შემდეგი სავალდებულო ველები (დააჭირეთ გადასასვლელად):',
   },
 }
 
@@ -147,7 +256,6 @@ export function SellerFlow() {
   const secContactRef = useRef<HTMLElement | null>(null)
   const isManualScrollingRef = useRef(false)
 
-  // لا نظهر شاشة التحميل أبداً عند إضافة وحدة جديدة! تظهر فقط عند تعديل وحدة موجودة فعلياً
   const [initialLoading, setInitialLoading] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false
     const p = new URLSearchParams(window.location.search)
@@ -264,10 +372,7 @@ export function SellerFlow() {
   } | null>(null)
   const [emailVerified, setEmailVerified] = useState(false)
 
-  // حالة الـ Validation البصري (البرواز الأحمر + نافذة التنبيه المنبثقة مثل evisa.gov.ge)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
-  const [validationPopupOpen, setValidationPopupOpen] = useState(false)
-  const [firstMissingScrollId, setFirstMissingScrollId] = useState<string>('')
 
   const [verifyModalOpen, setVerifyModalOpen] = useState(false)
   const [otpSent, setOtpSent] = useState(false)
@@ -699,7 +804,6 @@ export function SellerFlow() {
             setVerifyModalOpen(true)
           }
 
-          // إذا كان قادماً من صفحة حسابي لاستكمال الصور، نمرره تلقائياً لقسم الصور
           const focusTarget = params.get('focus')
           if (focusTarget === 'photos') {
             setTimeout(() => {
@@ -862,7 +966,216 @@ export function SellerFlow() {
     ).length
   }, [unitDocs])
 
-  const hasAllPhotosAndDocs = images.length > 0 && uploadedDocsCount === 4
+  // حساب حي ودقيق للحقول الأساسية الناقصة في كل لحظة
+  const liveMissingCoreItems = useMemo(() => {
+    const list: Array<{
+      key: string
+      label: string
+      scrollId: string
+      errMsg?: string
+    }> = []
+    const valT = fT.contactSection.validation
+
+    if (!propertyKind) {
+      list.push({
+        key: 'propertyKind',
+        label: fT.typeSection.whatKindLabel.replace(' *', ''),
+        scrollId: 'field-wrap-propertyKind',
+      })
+    } else if (propertyKind !== 'Land' && !buildingStatus) {
+      list.push({
+        key: 'buildingStatus',
+        label: fT.typeSection.statusLabel.replace(' *', ''),
+        scrollId: 'field-wrap-buildingStatus',
+      })
+    }
+
+    if (!form.location) {
+      list.push({
+        key: 'location',
+        label: fT.locationSection.cityDistrictLabel.replace(' *', ''),
+        scrollId: 'field-wrap-location',
+      })
+    }
+    if (!form.project.trim()) {
+      list.push({
+        key: 'project',
+        label: fT.locationSection.projectLabel.replace(' *', ''),
+        scrollId: 'field-wrap-project',
+      })
+    }
+    if (!form.exactStreet.trim()) {
+      list.push({
+        key: 'exactStreet',
+        label: fT.locationSection.streetLabel.replace(' *', ''),
+        scrollId: 'field-wrap-exactStreet',
+      })
+    }
+
+    if (!form.areaSize || Number(toEnglishDigits(form.areaSize)) <= 0) {
+      list.push({
+        key: 'areaSize',
+        label: fT.detailsSection.areaLabel.replace(' *', ''),
+        scrollId: 'field-wrap-areaSize',
+      })
+    }
+
+    if (propertyKind !== 'Land') {
+      const rNum = parseInt(form.rooms || '0', 10)
+      const bNum = parseInt(form.bedrooms || '0', 10)
+      if (!rNum || rNum <= 0) {
+        list.push({
+          key: 'rooms',
+          label: fT.detailsSection.roomsLabel.replace(' *', ''),
+          scrollId: 'field-wrap-rooms',
+        })
+      }
+      if (!bNum || bNum <= 0) {
+        list.push({
+          key: 'bedrooms',
+          label: fT.detailsSection.bedroomsLabel.replace(' *', ''),
+          scrollId: 'field-wrap-bedrooms',
+        })
+      } else if (rNum > 0 && bNum > rNum) {
+        list.push({
+          key: 'bedrooms',
+          label: fT.detailsSection.bedroomsLabel.replace(' *', ''),
+          scrollId: 'field-wrap-bedrooms',
+          errMsg: valT.bedroomsExceedRooms,
+        })
+      }
+
+      const flNum = parseInt(form.floor || '', 10)
+      const totFlNum = parseInt(form.totalFloors || '', 10)
+      if (
+        Number.isFinite(flNum) &&
+        Number.isFinite(totFlNum) &&
+        totFlNum > 0 &&
+        flNum > totFlNum
+      ) {
+        list.push({
+          key: 'floor',
+          label: fT.detailsSection.floorLabel,
+          scrollId: 'field-wrap-floor',
+          errMsg: valT.floorExceedsTotalFloors,
+        })
+      }
+    }
+
+    const contractPriceNum = Number(
+      toEnglishDigits(form.contractPrice || '0').replace(/,/g, '')
+    )
+    const paidAmountNum = Number(
+      toEnglishDigits(form.paidAmount || '0').replace(/,/g, '')
+    )
+
+    if (!contractPriceNum || contractPriceNum <= 0) {
+      list.push({
+        key: 'contractPrice',
+        label: fT.pricingSection.contractPriceLabel.replace(' *', ''),
+        scrollId: 'field-wrap-contractPrice',
+      })
+    }
+    if (!paidAmountNum || paidAmountNum <= 0) {
+      list.push({
+        key: 'paidAmount',
+        label: fT.pricingSection.paidAmountLabel.replace(' *', ''),
+        scrollId: 'field-wrap-paidAmount',
+      })
+    } else if (contractPriceNum > 0 && paidAmountNum > contractPriceNum) {
+      list.push({
+        key: 'paidAmount',
+        label: fT.pricingSection.paidAmountLabel.replace(' *', ''),
+        scrollId: 'field-wrap-paidAmount',
+        errMsg: valT.paidExceedsContract,
+      })
+    }
+
+    if (!loggedUser) {
+      if (authMode === 'register') {
+        if (!form.name.trim()) {
+          list.push({
+            key: 'name',
+            label: s.contactStep.nameLabel.replace(' *', ''),
+            scrollId: 'field-wrap-name',
+          })
+        }
+        if (!form.phone.trim()) {
+          list.push({
+            key: 'phone',
+            label: s.contactStep.phoneLabel.replace(' *', ''),
+            scrollId: 'field-wrap-phone',
+          })
+        }
+        if (!form.email.trim()) {
+          list.push({
+            key: 'email',
+            label: s.contactStep.emailLabel.replace(' *', ''),
+            scrollId: 'field-wrap-email',
+          })
+        }
+        if (!form.password || form.password.length < 8) {
+          list.push({
+            key: 'password',
+            label: s.contactStep.passwordLabel,
+            scrollId: 'field-wrap-password',
+          })
+        }
+      } else if (authMode === 'login') {
+        if (
+          !form.loginIdentifier.trim() ||
+          (!form.password && !form.loginPassword)
+        ) {
+          list.push({
+            key: 'loginIdentifier',
+            label: s.contactStep.loginIdLabel.replace(' *', ''),
+            scrollId: 'field-wrap-loginIdentifier',
+          })
+        }
+      }
+    } else {
+      if (!form.name.trim()) {
+        list.push({
+          key: 'name',
+          label: s.contactStep.nameLabel.replace(' *', ''),
+          scrollId: 'field-wrap-name',
+        })
+      }
+      if (!form.phone.trim()) {
+        list.push({
+          key: 'phone',
+          label: s.contactStep.phoneLabel.replace(' *', ''),
+          scrollId: 'field-wrap-phone',
+        })
+      }
+    }
+
+    if (!flags.agreedTerms) {
+      list.push({
+        key: 'agreedTerms',
+        label: s.contactStep.ownerDeclaration,
+        scrollId: 'field-wrap-agreedTerms',
+      })
+    }
+
+    return list
+  }, [
+    authMode,
+    buildingStatus,
+    fT,
+    flags.agreedTerms,
+    form,
+    loggedUser,
+    propertyKind,
+    s.contactStep,
+  ])
+
+  const hasAllCoreDetails = liveMissingCoreItems.length === 0
+  const hasPhotos = images.length > 0
+  const hasAllDocs = uploadedDocsCount === 4
+  const isReadyToPublish = Boolean(
+    hasAllCoreDetails && hasPhotos && hasAllDocs
+  )
 
   const sectionCompletion = useMemo(() => {
     const s1 = Boolean(
@@ -1221,7 +1534,46 @@ export function SellerFlow() {
     ]
   )
 
-  // حفظ كمسودة والانتقال لصفحة حسابي لاستكمالها لاحقاً (بدون اشتراط الصور والمستندات)
+  const highlightMissingCoreFieldsAndScroll = () => {
+    const nextFieldErrors: Record<string, string> = {}
+    const missingNames: string[] = []
+
+    for (const item of liveMissingCoreItems) {
+      missingNames.push(item.label)
+      nextFieldErrors[item.key] = item.errMsg || fT.fieldRequiredError
+    }
+
+    setFieldErrors(nextFieldErrors)
+    setMissingFields(missingNames)
+
+    if (liveMissingCoreItems.length > 0) {
+      const firstId = liveMissingCoreItems[0].scrollId
+      setTimeout(() => {
+        document.getElementById(firstId)?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+        })
+      }, 80)
+      return
+    }
+
+    if (!hasPhotos) {
+      secPhotosRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      })
+      return
+    }
+
+    if (!hasAllDocs) {
+      secPriceRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'end',
+      })
+    }
+  }
+
+  // الزر الثاني: حفظ كمسودة في حسابي (لا يشترط رفع الصور ولا المستندات ولا اكتمال كل الحقول)
   const handleSaveDraftAndGoToAccount = async () => {
     setError('')
     setSavingDraftLoading(true)
@@ -1258,9 +1610,16 @@ export function SellerFlow() {
           developer: form.developer.trim() || '',
           project: form.project.trim() || 'Draft Unit',
           contractPrice:
-            Number(toEnglishDigits(form.contractPrice || '0')) || 0,
-          paidAmount: Number(toEnglishDigits(form.paidAmount || '0')) || 0,
-          marketPrice: Number(toEnglishDigits(form.marketPrice || '0')) || 0,
+            Number(
+              toEnglishDigits(form.contractPrice || '0').replace(/,/g, '')
+            ) || 0,
+          paidAmount:
+            Number(toEnglishDigits(form.paidAmount || '0').replace(/,/g, '')) ||
+            0,
+          marketPrice:
+            Number(
+              toEnglishDigits(form.marketPrice || '0').replace(/,/g, '')
+            ) || 0,
           contactMessengers:
             selected.messengers && selected.messengers.length > 0
               ? selected.messengers
@@ -1297,7 +1656,9 @@ export function SellerFlow() {
             minute: '2-digit',
           })
         )
-        router.push(`/account?view=seller&unitId=${res.unitId || resolvedUnitId}`)
+        router.push(
+          `/account?view=seller&unitId=${res.unitId || resolvedUnitId}`
+        )
       } else {
         setError(res.error || s.validation.saveFailed)
       }
@@ -1323,236 +1684,23 @@ export function SellerFlow() {
     }
   }
 
-  // فحص كافة الحقول الإجبارية وتلوين الناقص بالأحمر وإظهار نافذة التنبيه مثل evisa.gov.ge
- const handlePublishListing = () => {
-    const missing: string[] = []
-    const nextFieldErrors: Record<string, string> = {}
-    let firstScrollTarget = ''
-
-    const markMissing = (
-      fieldKey: string,
-      labelName: string,
-      scrollId: string,
-      customErrMsg?: string
-    ) => {
-      missing.push(labelName)
-      nextFieldErrors[fieldKey] = customErrMsg || fT.fieldRequiredError
-      if (!firstScrollTarget) {
-        firstScrollTarget = scrollId
-      }
-    }
-
-    const valT = fT.contactSection.validation
-
-    // 1. فحص قسم نوع العقار وحالة البناء
-    if (!propertyKind) {
-      markMissing(
-        'propertyKind',
-        fT.typeSection.whatKindLabel.replace(' *', ''),
-        'field-wrap-propertyKind'
-      )
-    } else if (propertyKind !== 'Land' && !buildingStatus) {
-      markMissing(
-        'buildingStatus',
-        fT.typeSection.statusLabel.replace(' *', ''),
-        'field-wrap-buildingStatus'
-      )
-    }
-
-    // 2. فحص قسم الموقع والمشروع والشارع
-    if (!form.location) {
-      markMissing(
-        'location',
-        fT.locationSection.cityDistrictLabel.replace(' *', ''),
-        'field-wrap-location'
-      )
-    }
-    if (!form.project.trim()) {
-      markMissing(
-        'project',
-        fT.locationSection.projectLabel.replace(' *', ''),
-        'field-wrap-project'
-      )
-    }
-    if (!form.exactStreet.trim()) {
-      markMissing(
-        'exactStreet',
-        fT.locationSection.streetLabel.replace(' *', ''),
-        'field-wrap-exactStreet'
-      )
-    }
-
-    // 3. فحص قسم المواصفات (المساحة والغرف والطوابق)
-    if (!form.areaSize || Number(toEnglishDigits(form.areaSize)) <= 0) {
-      markMissing(
-        'areaSize',
-        fT.detailsSection.areaLabel.replace(' *', ''),
-        'field-wrap-areaSize'
-      )
-    }
-
-    if (propertyKind !== 'Land') {
-      const rNum = parseInt(form.rooms || '0', 10)
-      const bNum = parseInt(form.bedrooms || '0', 10)
-      if (!rNum || rNum <= 0) {
-        markMissing(
-          'rooms',
-          fT.detailsSection.roomsLabel.replace(' *', ''),
-          'field-wrap-rooms'
-        )
-      }
-      if (!bNum || bNum <= 0) {
-        markMissing(
-          'bedrooms',
-          fT.detailsSection.bedroomsLabel.replace(' *', ''),
-          'field-wrap-bedrooms'
-        )
-      } else if (rNum > 0 && bNum > rNum) {
-        markMissing(
-          'bedrooms',
-          fT.detailsSection.bedroomsLabel.replace(' *', ''),
-          'field-wrap-bedrooms',
-          valT.bedroomsExceedRooms
-        )
-      }
-
-      const flNum = parseInt(form.floor || '', 10)
-      const totFlNum = parseInt(form.totalFloors || '', 10)
-      if (
-        Number.isFinite(flNum) &&
-        Number.isFinite(totFlNum) &&
-        totFlNum > 0 &&
-        flNum > totFlNum
-      ) {
-        markMissing(
-          'floor',
-          fT.detailsSection.floorLabel,
-          'field-wrap-floor',
-          valT.floorExceedsTotalFloors
-        )
-      }
-    }
-
-    // 4. فحص قسم السعر والأقساط
-    const contractPriceNum = Number(
-      toEnglishDigits(form.contractPrice || '0').replace(/,/g, '')
-    )
-    const paidAmountNum = Number(
-      toEnglishDigits(form.paidAmount || '0').replace(/,/g, '')
-    )
-
-    if (!contractPriceNum || contractPriceNum <= 0) {
-      markMissing(
-        'contractPrice',
-        fT.pricingSection.contractPriceLabel.replace(' *', ''),
-        'field-wrap-contractPrice'
-      )
-    }
-    if (!paidAmountNum || paidAmountNum <= 0) {
-      markMissing(
-        'paidAmount',
-        fT.pricingSection.paidAmountLabel.replace(' *', ''),
-        'field-wrap-paidAmount'
-      )
-    } else if (contractPriceNum > 0 && paidAmountNum > contractPriceNum) {
-      markMissing(
-        'paidAmount',
-        fT.pricingSection.paidAmountLabel.replace(' *', ''),
-        'field-wrap-paidAmount',
-        valT.paidExceedsContract
-      )
-    }
-
-    // 5. فحص قسم بيانات المالك والحساب
-    if (!loggedUser) {
-      if (authMode === 'register') {
-        if (!form.name.trim()) {
-          markMissing(
-            'name',
-            s.contactStep.nameLabel.replace(' *', ''),
-            'field-wrap-name'
-          )
-        }
-        if (!form.phone.trim()) {
-          markMissing(
-            'phone',
-            s.contactStep.phoneLabel.replace(' *', ''),
-            'field-wrap-phone'
-          )
-        }
-        if (!form.email.trim()) {
-          markMissing(
-            'email',
-            s.contactStep.emailLabel.replace(' *', ''),
-            'field-wrap-email'
-          )
-        }
-        if (!form.password || form.password.length < 8) {
-          markMissing(
-            'password',
-            s.contactStep.passwordLabel,
-            'field-wrap-password'
-          )
-        }
-      } else if (authMode === 'login') {
-        if (
-          !form.loginIdentifier.trim() ||
-          (!form.password && !form.loginPassword)
-        ) {
-          markMissing(
-            'loginIdentifier',
-            s.contactStep.loginIdLabel.replace(' *', ''),
-            'field-wrap-loginIdentifier'
-          )
-        }
-      }
-    } else {
-      if (!form.name.trim()) {
-        markMissing(
-          'name',
-          s.contactStep.nameLabel.replace(' *', ''),
-          'field-wrap-name'
-        )
-      }
-      if (!form.phone.trim()) {
-        markMissing(
-          'phone',
-          s.contactStep.phoneLabel.replace(' *', ''),
-          'field-wrap-phone'
-        )
-      }
-    }
-
-    if (!flags.agreedTerms) {
-      markMissing(
-        'agreedTerms',
-        s.contactStep.ownerDeclaration,
-        'field-wrap-agreedTerms'
-      )
-    }
-
-    // عند وجود حقول إجبارية ناقصة: نلوّنها بالأحمر، ونظهر شريط الأزرار التفاعلي، وننتقل لأول حقل ناقص بنعومة
-    if (missing.length > 0) {
-      setFieldErrors(nextFieldErrors)
-      setMissingFields(missing)
-      setError(s.validation.missingBannerPrefix)
-      setFirstMissingScrollId(firstScrollTarget)
-      setValidationPopupOpen(false)
-
-      if (firstScrollTarget) {
-        setTimeout(() => {
-          document.getElementById(firstScrollTarget)?.scrollIntoView({
-            behavior: 'smooth',
-            block: 'center',
-          })
-        }, 100)
-      }
+  // الزر الأول (الرئيسي): إرسال الوحدة لمراجعة الإدارة والنشر
+  const handlePublishListing = () => {
+    if (!isReadyToPublish) {
+      highlightMissingCoreFieldsAndScroll()
       return
     }
 
     setFieldErrors({})
     setError('')
     setMissingFields([])
+
+    const contractPriceNum = Number(
+      toEnglishDigits(form.contractPrice || '0').replace(/,/g, '')
+    )
+    const paidAmountNum = Number(
+      toEnglishDigits(form.paidAmount || '0').replace(/,/g, '')
+    )
 
     startTransition(async () => {
       let resolvedUnitId = unitId
@@ -1627,14 +1775,12 @@ export function SellerFlow() {
         }
       }
 
-      // فحص لحظي من السيرفر للتأكد من حالة توثيق البريد الإلكتروني
       const freshVerStatus = await getUserVerificationStatusAction()
       if (freshVerStatus.isLoggedIn && freshVerStatus.emailVerified) {
         isCurrentlyVerified = true
         setEmailVerified(true)
       }
 
-      // إذا لم يكن الإيميل موثقاً بعد (في أول مرة يعرض فيها وحدة): نحفظ كل البيانات كاملة في المسودة ونفتح ديالوج الكود
       if (!isCurrentlyVerified) {
         const draftData = buildFormData(resolvedUnitId, resolvedUserId)
         const savedDraft = await saveSellProgress(draftData)
@@ -1657,18 +1803,6 @@ export function SellerFlow() {
 
       await finalizeUnitPublish(resolvedUnitId, resolvedUserId)
     })
-  }
-
-  const handleCloseValidationPopupAndScroll = () => {
-    setValidationPopupOpen(false)
-    if (firstMissingScrollId) {
-      setTimeout(() => {
-        const el = document.getElementById(firstMissingScrollId)
-        if (el) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-        }
-      }, 120)
-    }
   }
 
   const handleSendOtpInModal = async () => {
@@ -1871,6 +2005,12 @@ export function SellerFlow() {
   const activeModalEmail =
     pendingPublishIds?.email || form.email || loggedUser?.email || ''
 
+  const readinessCompletedItems = [
+    hasAllCoreDetails,
+    hasPhotos,
+    hasAllDocs,
+  ].filter(Boolean).length
+
   return (
     <main
       dir={dir}
@@ -1886,7 +2026,6 @@ export function SellerFlow() {
           </p>
         </header>
 
-        {/* شريط الخطوات العلوي الذكي: يوضح المكتمل بالأخضر، والناقص بالأحمر، والحالي بالبرتقالي */}
         <div className="sticky top-16 z-30 -mx-4 mb-6 border-b border-slate-200/70 bg-[#f4f6f9]/95 px-4 py-3 backdrop-blur-md sm:mx-0 sm:px-0">
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
             {navTabs.map((tab) => {
@@ -2062,206 +2201,237 @@ export function SellerFlow() {
               buildFullFormData={buildFormData}
             />
 
-           {/* ==============================================================
-                صندوق الإرسال النهائي + شريط الحقول الناقصة القابلة للضغط (بدون Popup مزعج)
+            {/* ==============================================================
+                الخطوة النهائية المنطقية الواضحة:
+                1. قائمة جاهزية النشر من 3 نقاط
+                2. زر "إرسال الوحدة لمراجعة الإدارة والنشر" (يتفعل عند اكتمال الـ 3 نقاط)
+                3. زر "حفظ كمسودة في حسابي (واستكمال الناقص لاحقاً)"
             ============================================================== */}
-            <section className="rounded-[26px] border-2 border-[#007a5a]/30 bg-white p-5 shadow-md sm:p-7">
-              <div className="flex flex-wrap items-center justify-between gap-2">
+            <section className="rounded-[26px] border-2 border-slate-200 bg-white p-5 shadow-md sm:p-7">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-4">
                 <h3 className="text-base font-black text-[#0a1122] sm:text-lg">
-                  {fT.bottomBar.finalSectionTitle}
+                  {loadT.finalCardTitle}
                 </h3>
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#eaf8f2] px-3 py-1 text-xs font-extrabold text-[#007a5a]">
+                <span
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1 text-xs font-extrabold ${
+                    isReadyToPublish
+                      ? 'bg-[#eaf8f2] text-[#007a5a]'
+                      : 'bg-amber-50 text-amber-800 border border-amber-200'
+                  }`}
+                >
                   <CheckCircle2 className="size-3.5" />
                   <span>
-                    {autoSaveTime
-                      ? `${fT.bottomBar.savedAtPrefix} ${autoSaveTime}`
-                      : `${fT.bottomBar.autoSavedPrefix} ${sectionCompletion.completedCount}/6`}
+                    {loadT.readinessBadgePrefix} {readinessCompletedItems}/3
                   </span>
                 </span>
               </div>
 
-              <p className="mt-2 text-xs leading-relaxed font-semibold text-slate-600 sm:text-sm">
-                {hasAllPhotosAndDocs
-                  ? fT.bottomBar.finalSectionDescComplete
-                  : fT.bottomBar.finalSectionDescMissingMedia}
-              </p>
+              {/* قائمة شروط النشر الـ 3 أمام عين العميل */}
+              <div className="mt-4 space-y-2.5">
+                {/* الشرط 1: البيانات الإجبارية */}
+                <div
+                  className={`flex flex-wrap items-center justify-between gap-2 rounded-2xl border px-4 py-3 text-xs transition ${
+                    hasAllCoreDetails
+                      ? 'border-emerald-200 bg-emerald-50/40'
+                      : 'border-amber-200 bg-amber-50/40'
+                  }`}
+                >
+                  <span className="font-extrabold text-[#0a1122]">
+                    {loadT.req1Title}
+                  </span>
+                  {hasAllCoreDetails ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-[#007a5a] px-3 py-1 font-extrabold text-white">
+                      <Check className="size-3.5 stroke-[3]" />
+                      <span>{loadT.req1Done}</span>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={highlightMissingCoreFieldsAndScroll}
+                      className="inline-flex items-center gap-1 rounded-xl bg-amber-500 px-3 py-1.5 font-extrabold text-white shadow-2xs transition hover:bg-amber-600"
+                    >
+                      <span>
+                        {loadT.req1MissingPrefix} {liveMissingCoreItems.length}{' '}
+                        {loadT.req1MissingSuffix}
+                      </span>
+                    </button>
+                  )}
+                </div>
 
-              {/* شريط الحقول الإجبارية الناقصة: يظهر فوق الزر مباشرةً وكل حقل عبارة عن زر يوديه للحقل الناقص */}
-              {missingFields.length > 0 && (
+                {/* الشرط 2: صور الوحدة */}
+                <div
+                  className={`flex flex-wrap items-center justify-between gap-2 rounded-2xl border px-4 py-3 text-xs transition ${
+                    hasPhotos
+                      ? 'border-emerald-200 bg-emerald-50/40'
+                      : 'border-amber-200 bg-amber-50/40'
+                  }`}
+                >
+                  <span className="font-extrabold text-[#0a1122]">
+                    {loadT.req2Title}
+                  </span>
+                  {hasPhotos ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-[#007a5a] px-3 py-1 font-extrabold text-white">
+                      <Check className="size-3.5 stroke-[3]" />
+                      <span>
+                        {loadT.req2DonePrefix} {images.length}
+                      </span>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        secPhotosRef.current?.scrollIntoView({
+                          behavior: 'smooth',
+                          block: 'center',
+                        })
+                      }
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-[#ea580c] px-3 py-1.5 font-extrabold text-white shadow-2xs transition hover:bg-orange-700"
+                    >
+                      <ImagePlus className="size-3.5" />
+                      <span>{loadT.req2Missing}</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* الشرط 3: مستندات الملكية الـ 4 */}
+                <div
+                  className={`flex flex-wrap items-center justify-between gap-2 rounded-2xl border px-4 py-3 text-xs transition ${
+                    hasAllDocs
+                      ? 'border-emerald-200 bg-emerald-50/40'
+                      : 'border-amber-200 bg-amber-50/40'
+                  }`}
+                >
+                  <span className="font-extrabold text-[#0a1122]">
+                    {loadT.req3Title} ({uploadedDocsCount}/4)
+                  </span>
+                  {hasAllDocs ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-[#007a5a] px-3 py-1 font-extrabold text-white">
+                      <Check className="size-3.5 stroke-[3]" />
+                      <span>{loadT.req3Done}</span>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        secPriceRef.current?.scrollIntoView({
+                          behavior: 'smooth',
+                          block: 'end',
+                        })
+                      }
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-[#2563eb] px-3 py-1.5 font-extrabold text-white shadow-2xs transition hover:bg-blue-700"
+                    >
+                      <FileText className="size-3.5" />
+                      <span>{loadT.req3MissingPrefix}</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* شريط الأزرار الحمراء للحقول الناقصة عند الضغط لإظهار النواقص */}
+              {Object.keys(fieldErrors).length > 0 && (
                 <div
                   role="alert"
                   className="mt-4 rounded-2xl border-2 border-red-300 bg-red-50/90 p-4 text-start animate-in fade-in duration-200"
                 >
                   <div className="flex items-center gap-2 text-xs font-black text-red-900 sm:text-sm">
                     <AlertCircle className="size-4 shrink-0 text-red-600" />
-                    <span>{fT.validationModalSubtitle}</span>
+                    <span>{loadT.missingFieldsAlertTitle}</span>
                   </div>
 
                   <div className="mt-3 flex flex-wrap gap-2">
-                    {Object.entries(fieldErrors).map(([fKey]) => {
-                      const scrollMap: Record<
-                        string,
-                        { label: string; targetId: string }
-                      > = {
-                        propertyKind: {
-                          label: fT.typeSection.whatKindLabel.replace(' *', ''),
-                          targetId: 'field-wrap-propertyKind',
-                        },
-                        buildingStatus: {
-                          label: fT.typeSection.statusLabel.replace(' *', ''),
-                          targetId: 'field-wrap-buildingStatus',
-                        },
-                        location: {
-                          label: fT.locationSection.cityDistrictLabel.replace(
-                            ' *',
-                            ''
-                          ),
-                          targetId: 'field-wrap-location',
-                        },
-                        project: {
-                          label: fT.locationSection.projectLabel.replace(
-                            ' *',
-                            ''
-                          ),
-                          targetId: 'field-wrap-project',
-                        },
-                        exactStreet: {
-                          label: fT.locationSection.streetLabel.replace(
-                            ' *',
-                            ''
-                          ),
-                          targetId: 'field-wrap-exactStreet',
-                        },
-                        areaSize: {
-                          label: fT.detailsSection.areaLabel.replace(' *', ''),
-                          targetId: 'field-wrap-areaSize',
-                        },
-                        rooms: {
-                          label: fT.detailsSection.roomsLabel.replace(' *', ''),
-                          targetId: 'field-wrap-rooms',
-                        },
-                        bedrooms: {
-                          label: fT.detailsSection.bedroomsLabel.replace(
-                            ' *',
-                            ''
-                          ),
-                          targetId: 'field-wrap-bedrooms',
-                        },
-                        floor: {
-                          label: fT.detailsSection.floorLabel,
-                          targetId: 'field-wrap-floor',
-                        },
-                        contractPrice: {
-                          label: fT.pricingSection.contractPriceLabel.replace(
-                            ' *',
-                            ''
-                          ),
-                          targetId: 'field-wrap-contractPrice',
-                        },
-                        paidAmount: {
-                          label: fT.pricingSection.paidAmountLabel.replace(
-                            ' *',
-                            ''
-                          ),
-                          targetId: 'field-wrap-paidAmount',
-                        },
-                        name: {
-                          label: s.contactStep.nameLabel.replace(' *', ''),
-                          targetId: 'field-wrap-name',
-                        },
-                        phone: {
-                          label: s.contactStep.phoneLabel.replace(' *', ''),
-                          targetId: 'field-wrap-phone',
-                        },
-                        email: {
-                          label: s.contactStep.emailLabel.replace(' *', ''),
-                          targetId: 'field-wrap-email',
-                        },
-                        password: {
-                          label: s.contactStep.passwordLabel,
-                          targetId: 'field-wrap-password',
-                        },
-                        loginIdentifier: {
-                          label: s.contactStep.loginIdLabel.replace(' *', ''),
-                          targetId: 'field-wrap-loginIdentifier',
-                        },
-                        agreedTerms: {
-                          label: s.contactStep.ownerDeclaration,
-                          targetId: 'field-wrap-agreedTerms',
-                        },
-                      }
-
-                      const itemInfo = scrollMap[fKey]
-                      if (!itemInfo) return null
-
-                      return (
-                        <button
-                          key={fKey}
-                          type="button"
-                          onClick={() => {
-                            const el = document.getElementById(
-                              itemInfo.targetId
-                            )
-                            el?.scrollIntoView({
+                    {liveMissingCoreItems.map((item) => (
+                      <button
+                        key={item.key}
+                        type="button"
+                        onClick={() => {
+                          document
+                            .getElementById(item.scrollId)
+                            ?.scrollIntoView({
                               behavior: 'smooth',
                               block: 'center',
                             })
-                          }}
-                          className="inline-flex items-center gap-1.5 rounded-xl border border-red-300 bg-white px-3 py-1.5 text-xs font-extrabold text-red-700 shadow-2xs transition hover:border-red-500 hover:bg-red-600 hover:text-white"
-                        >
-                          <span>• {itemInfo.label}</span>
-                          <span className="text-[10px]">↗</span>
-                        </button>
-                      )
-                    })}
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-red-300 bg-white px-3 py-1.5 text-xs font-extrabold text-red-700 shadow-2xs transition hover:border-red-500 hover:bg-red-600 hover:text-white"
+                      >
+                        <span>• {item.label}</span>
+                        <span className="text-[10px]">↗</span>
+                      </button>
+                    ))}
                   </div>
                 </div>
               )}
 
-              <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
-                <button
-                  type="button"
-                  disabled={pending || savingDraftLoading}
-                  onClick={handlePublishListing}
-                  className="inline-flex min-h-[50px] flex-1 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-6 py-3 text-xs font-extrabold text-white shadow-md shadow-orange-500/20 transition hover:opacity-95 active:scale-[0.99] disabled:opacity-60 sm:text-sm"
-                >
-                  {pending ? (
-                    <>
-                      <Loader2 className="size-4 animate-spin" />
-                      <span>{fT.bottomBar.publishingBtn}</span>
-                    </>
-                  ) : (
-                    <>
-                      <Send className="size-4 shrink-0" />
-                      <span>
-                        {hasAllPhotosAndDocs
-                          ? fT.bottomBar.publishBtn
-                          : fT.bottomBar.submitAndCompleteDocsLaterBtn}
-                      </span>
-                    </>
-                  )}
-                </button>
+              {/* ============================================================
+                  الزران النهائيان بأسماء ثابتة وواضحة 100%
+              ============================================================ */}
+              <div className="mt-6 space-y-4 border-t border-slate-100 pt-5">
+                {/* 1. الزر الرئيسي: إرسال الوحدة لمراجعة الإدارة والنشر */}
+                <div>
+                  <button
+                    type="button"
+                    disabled={pending || savingDraftLoading}
+                    onClick={handlePublishListing}
+                    className={`flex min-h-[54px] w-full items-center justify-center gap-2.5 rounded-2xl px-6 py-3.5 text-xs font-black transition sm:text-sm ${
+                      isReadyToPublish
+                        ? 'bg-gradient-to-r from-[#007a5a] to-[#00966e] text-white shadow-lg shadow-emerald-600/25 hover:opacity-95 active:scale-[0.99]'
+                        : 'border-2 border-slate-300 bg-slate-100 text-slate-500 hover:border-slate-400 hover:bg-slate-200/70'
+                    }`}
+                  >
+                    {pending ? (
+                      <>
+                        <Loader2 className="size-4 animate-spin" />
+                        <span>{fT.bottomBar.publishingBtn}</span>
+                      </>
+                    ) : isReadyToPublish ? (
+                      <>
+                        <Send className="size-4 shrink-0" />
+                        <span>{loadT.publishBtnText}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Lock className="size-4 shrink-0 text-slate-500" />
+                        <span>{loadT.publishBtnText}</span>
+                      </>
+                    )}
+                  </button>
+                  <p
+                    className={`mt-2 text-start text-[11.5px] leading-relaxed font-bold ${
+                      isReadyToPublish ? 'text-[#007a5a]' : 'text-amber-800'
+                    }`}
+                  >
+                    {isReadyToPublish
+                      ? loadT.publishReadyHint
+                      : loadT.publishLockedHint}
+                  </p>
+                </div>
 
-                <button
-                  type="button"
-                  disabled={pending || savingDraftLoading}
-                  onClick={handleSaveDraftAndGoToAccount}
-                  className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-2xl border-2 border-slate-200 bg-slate-50 px-5 py-3 text-xs font-extrabold text-[#0a1122] transition hover:border-[#007a5a] hover:bg-[#eaf8f2]/40 hover:text-[#007a5a] disabled:opacity-60 sm:text-sm"
-                >
-                  {savingDraftLoading ? (
-                    <>
-                      <Loader2 className="size-4 animate-spin text-[#007a5a]" />
-                      <span>{fT.bottomBar.savingDraftBtn}</span>
-                    </>
-                  ) : (
-                    <>
-                      <BookmarkCheck className="size-4 shrink-0 text-[#007a5a]" />
-                      <span>{fT.bottomBar.saveDraftBtn}</span>
-                    </>
-                  )}
-                </button>
+                {/* 2. الزر الثانوي: حفظ كمسودة في حسابي (واستكمال الناقص لاحقاً) */}
+                <div className="rounded-2xl border border-slate-200/90 bg-slate-50/70 p-3.5">
+                  <button
+                    type="button"
+                    disabled={pending || savingDraftLoading}
+                    onClick={handleSaveDraftAndGoToAccount}
+                    className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl border-2 border-[#0a1122] bg-white px-5 py-2.5 text-xs font-extrabold text-[#0a1122] shadow-2xs transition hover:bg-[#0a1122] hover:text-white disabled:opacity-60 sm:text-sm"
+                  >
+                    {savingDraftLoading ? (
+                      <>
+                        <Loader2 className="size-4 animate-spin" />
+                        <span>{fT.bottomBar.savingDraftBtn}</span>
+                      </>
+                    ) : (
+                      <>
+                        <BookmarkCheck className="size-4 shrink-0" />
+                        <span>{loadT.draftBtnText}</span>
+                      </>
+                    )}
+                  </button>
+                  <p className="mt-2 text-start text-[11px] leading-relaxed font-semibold text-slate-600">
+                    {loadT.draftBtnSubHint}
+                  </p>
+                </div>
               </div>
-            </section>          </div>
+            </section>
+          </div>
 
           <LivePreviewSidebar
             images={images}
@@ -2272,65 +2442,6 @@ export function SellerFlow() {
           />
         </div>
       </div>
-
-      {/* =====================================================================
-          نافذة تنبيه الحقول الإجبارية الناقصة (مطابقة لـ evisa.gov.ge مع Scroll تلقائي لأول حقل أحمر)
-      ===================================================================== */}
-      {validationPopupOpen && (
-        <div
-          dir={dir}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4 backdrop-blur-xs"
-          onClick={handleCloseValidationPopupAndScroll}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-200"
-          >
-            <div className="flex items-center justify-between border-b border-slate-100 bg-red-50/70 px-6 py-4">
-              <div className="flex items-center gap-2.5">
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600">
-                  <AlertCircle className="size-5" />
-                </span>
-                <h3 className="text-sm font-black text-red-950 sm:text-base">
-                  {fT.validationModalTitle}
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={handleCloseValidationPopupAndScroll}
-                className="rounded-full p-1 text-slate-400 hover:bg-red-100 hover:text-red-700"
-              >
-                <X className="size-4" />
-              </button>
-            </div>
-
-            <div className="p-6 text-start">
-              <p className="text-xs leading-relaxed font-bold text-slate-700 sm:text-sm">
-                {fT.validationModalSubtitle}
-              </p>
-
-              <ul className="mt-3.5 max-h-48 space-y-1.5 overflow-y-auto rounded-2xl border border-red-200 bg-red-50/40 p-3.5 text-xs font-extrabold text-red-800">
-                {missingFields.map((item, idx) => (
-                  <li key={`${item}-${idx}`} className="flex items-center gap-2">
-                    <span className="size-1.5 shrink-0 rounded-full bg-red-600" />
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-
-              <div className="mt-5 flex justify-end">
-                <button
-                  type="button"
-                  onClick={handleCloseValidationPopupAndScroll}
-                  className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-[#007a5a] px-6 text-xs font-black text-white shadow-sm transition hover:bg-[#006248] sm:w-auto sm:text-sm"
-                >
-                  {fT.validationModalOkBtn}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ديالوج توثيق البريد الإلكتروني (لمرة واحدة فقط في أول وحدة) */}
       {verifyModalOpen && (

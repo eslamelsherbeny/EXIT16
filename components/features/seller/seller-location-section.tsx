@@ -8,6 +8,7 @@ import {
   Compass,
   Globe,
   Loader2,
+  Lock,
   Map,
   MapPin,
   Maximize2,
@@ -17,6 +18,7 @@ import {
   Plus,
   Search,
   Sparkles,
+  Unlock,
   X,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
@@ -55,6 +57,36 @@ const POPULAR_GEORGIA_DEVELOPERS = [
   'Gumbati Group',
   'Dar Building',
 ]
+
+const MAP_LOCK_I18N: Record<
+  LocaleCode,
+  {
+    unlockBtn: string
+    lockBtn: string
+    lockedHint: string
+  }
+> = {
+  ar: {
+    unlockBtn: 'اضغط لتحريك الدبوس وتعديل الموقع',
+    lockBtn: 'تثبيت وقفل الخريطة ✓',
+    lockedHint: 'الخريطة مثبتة لمنع تغير العنوان أثناء التصفح',
+  },
+  en: {
+    unlockBtn: 'Tap to move pin & adjust location',
+    lockBtn: 'Lock map position ✓',
+    lockedHint: 'Map locked to prevent accidental scroll changes',
+  },
+  ru: {
+    unlockBtn: 'Нажмите, чтобы передвинуть пин',
+    lockBtn: 'Зафиксировать карту ✓',
+    lockedHint: 'Карта зафиксирована от случайного сдвига',
+  },
+  ka: {
+    unlockBtn: 'დააჭირეთ პინის გადასაადგილებლად',
+    lockBtn: 'რუკის დაფიქსირება ✓',
+    lockedHint: 'რუკა დაბლოკილია შემთხვევითი გადაადგილებისგან',
+  },
+}
 
 function loadSellerMapLibre(): Promise<any> {
   return new Promise((resolve, reject) => {
@@ -114,6 +146,8 @@ export function LocationSection({
   const { t: dict, locale, dir } = useTranslation()
   const fT = getSellerFormTranslations(locale as LocaleCode, dict)
   const locT = fT.locationSection
+  const lockT =
+    MAP_LOCK_I18N[locale as LocaleCode] || MAP_LOCK_I18N.ar
 
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
   const mapWrapperRef = useRef<HTMLDivElement | null>(null)
@@ -121,6 +155,7 @@ export function LocationSection({
   const streetDropdownRef = useRef<HTMLDivElement | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
   const isProgrammaticFlyRef = useRef<boolean>(false)
+  const lastManualTypedRef = useRef<string>('')
 
   const defaultAreaCoords = getCoordinatesForArea(
     form.location || 'Tbilisi - Saburtalo'
@@ -133,6 +168,15 @@ export function LocationSection({
     lat: initialLat,
     lng: initialLng,
   })
+  const liveCoordsRef = useRef<{ lat: number; lng: number }>({
+    lat: initialLat,
+    lng: initialLng,
+  })
+
+  // قفل الخريطة افتراضياً أثناء التصفح لمنع تحرك الدبوس بالخطأ عند عمل Scroll باليد على الموبايل
+  const [isMapInteractive, setIsMapInteractive] = useState(false)
+  const isMapInteractiveRef = useRef(false)
+
   const [mapStyleMode, setMapStyleMode] = useState<
     '3d' | 'streets' | 'satellite'
   >('3d')
@@ -150,6 +194,35 @@ export function LocationSection({
   const [pinSuccessFeedback, setPinSuccessFeedback] = useState(false)
   const [gpsLoading, setGpsLoading] = useState(false)
 
+  const syncCoords = useCallback(
+    (lat: number, lng: number) => {
+      liveCoordsRef.current = { lat, lng }
+      setLiveCoords({ lat, lng })
+      update('lat', String(lat.toFixed(6)))
+      update('lng', String(lng.toFixed(6)))
+    },
+    [update]
+  )
+
+  // تفعيل أو تعطيل سحب الخريطة حسب حالة القفل
+  const toggleMapLock = useCallback((enable: boolean) => {
+    isMapInteractiveRef.current = enable
+    setIsMapInteractive(enable)
+    const map = mapInstanceRef.current
+    if (!map) return
+    try {
+      if (enable) {
+        map.dragPan?.enable()
+        map.touchZoomRotate?.enable()
+        map.doubleClickZoom?.enable()
+      } else {
+        map.dragPan?.disable()
+        map.touchZoomRotate?.disable()
+        map.doubleClickZoom?.disable()
+      }
+    } catch {}
+  }, [])
+
   useEffect(() => {
     function handleOutsideClick(e: MouseEvent) {
       if (
@@ -163,26 +236,33 @@ export function LocationSection({
     return () => document.removeEventListener('mousedown', handleOutsideClick)
   }, [])
 
+  const flyMapToExactPoint = useCallback(
+    (lat: number, lng: number, zoomLevel = 17) => {
+      syncCoords(lat, lng)
+      if (!mapInstanceRef.current) return
+      setMapFlyingLoading(true)
+      isProgrammaticFlyRef.current = true
+      mapInstanceRef.current.flyTo({
+        center: [lng, lat],
+        zoom: zoomLevel,
+        pitch: is3dMode && mapStyleMode === '3d' ? 56 : 0,
+        bearing: is3dMode && mapStyleMode === '3d' ? -15 : 0,
+        duration: 750,
+      })
+      setTimeout(() => {
+        isProgrammaticFlyRef.current = false
+        setMapFlyingLoading(false)
+      }, 800)
+    },
+    [is3dMode, mapStyleMode, syncCoords]
+  )
+
   const reverseGeocodeCoordinates = useCallback(
     async (lat: number, lng: number, shouldFly = false) => {
-      setLiveCoords({ lat, lng })
-      update('lat', String(lat.toFixed(6)))
-      update('lng', String(lng.toFixed(6)))
-
-      if (shouldFly && mapInstanceRef.current) {
-        setMapFlyingLoading(true)
-        isProgrammaticFlyRef.current = true
-        mapInstanceRef.current.flyTo({
-          center: [lng, lat],
-          zoom: 17,
-          pitch: is3dMode && mapStyleMode === '3d' ? 58 : 0,
-          bearing: is3dMode && mapStyleMode === '3d' ? -15 : 0,
-          duration: 800,
-        })
-        setTimeout(() => {
-          isProgrammaticFlyRef.current = false
-          setMapFlyingLoading(false)
-        }, 850)
+      if (shouldFly) {
+        flyMapToExactPoint(lat, lng, 17)
+      } else {
+        syncCoords(lat, lng)
       }
 
       setReverseGeoLoading(true)
@@ -228,14 +308,11 @@ export function LocationSection({
             ? displayParts.join(' — ')
             : getLocalizedGeorgiaAreaName(matchedAreaId, locale as LocaleCode)
 
+        lastManualTypedRef.current = `${detectedStreet}|${detectedHouseNo}`
         update('location', matchedAreaId)
         update('locationDisplay', areaDisplayLabel)
-        if (detectedStreet) {
-          update('exactStreet', detectedStreet)
-        }
-        if (detectedHouseNo) {
-          update('houseNumber', detectedHouseNo)
-        }
+        if (detectedStreet) update('exactStreet', detectedStreet)
+        if (detectedHouseNo) update('houseNumber', detectedHouseNo)
 
         setPinSuccessFeedback(true)
         setTimeout(() => setPinSuccessFeedback(false), 3500)
@@ -245,8 +322,59 @@ export function LocationSection({
         setReverseGeoLoading(false)
       }
     },
-    [is3dMode, mapStyleMode, locale, update]
+    [flyMapToExactPoint, locale, syncCoords, update]
   )
+
+  // عندما يعدل المستخدم اسم الشارع أو رقم العقار بيده، تتحدث الخريطة تلقائياً وتطير للعنوان الجديد!
+  useEffect(() => {
+    const streetClean = (form.exactStreet || '').trim()
+    const houseClean = (form.houseNumber || '').trim()
+    const signature = `${streetClean}|${houseClean}`
+
+    if (
+      streetClean.length < 3 ||
+      signature === lastManualTypedRef.current ||
+      streetDropdownOpen
+    ) {
+      return
+    }
+
+    const timer = setTimeout(async () => {
+      lastManualTypedRef.current = signature
+      try {
+        const cityContext = (form.locationDisplay || form.location || 'Tbilisi')
+          .split('-')[0]
+          .split('—')[0]
+          .split(',')[0]
+          .trim()
+        const fullQuery = `${streetClean} ${houseClean}, ${cityContext}`.trim()
+        const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(
+          fullQuery
+        )}`
+        const r = await fetch(url, {
+          headers: { 'Accept-Language': `${locale},en;q=0.9` },
+        })
+        const d = await r.json()
+        if (Array.isArray(d) && d[0]) {
+          const nextLat = Number(d[0].lat)
+          const nextLng = Number(d[0].lon)
+          if (Number.isFinite(nextLat) && Number.isFinite(nextLng)) {
+            flyMapToExactPoint(nextLat, nextLng, 17.2)
+          }
+        }
+      } catch {}
+    }, 850)
+
+    return () => clearTimeout(timer)
+  }, [
+    form.exactStreet,
+    form.houseNumber,
+    form.location,
+    form.locationDisplay,
+    locale,
+    streetDropdownOpen,
+    flyMapToExactPoint,
+  ])
 
   useEffect(() => {
     const q = (form.exactStreet || '').trim()
@@ -316,11 +444,15 @@ export function LocationSection({
         map = new maplibregl.Map({
           container: mapContainerRef.current,
           style: getReliableGeorgiaMapStyle(mapStyleMode),
-          center: [liveCoords.lng, liveCoords.lat],
-          zoom: 15.6,
-          pitch: is3dMode && mapStyleMode === '3d' ? 58 : 0,
+          center: [liveCoordsRef.current.lng, liveCoordsRef.current.lat],
+          zoom: 16,
+          pitch: is3dMode && mapStyleMode === '3d' ? 56 : 0,
           bearing: is3dMode && mapStyleMode === '3d' ? -15 : 0,
           attributionControl: false,
+          scrollZoom: false,
+          dragPan: isMapInteractiveRef.current,
+          touchZoomRotate: isMapInteractiveRef.current,
+          doubleClickZoom: isMapInteractiveRef.current,
         })
 
         mapInstanceRef.current = map
@@ -340,10 +472,12 @@ export function LocationSection({
         })
 
         map.on('dragstart', () => {
+          if (!isMapInteractiveRef.current) return
           setIsDraggingMap(true)
         })
 
         map.on('click', (e: any) => {
+          if (!isMapInteractiveRef.current) return
           const clickedLat = Number(e?.lngLat?.lat)
           const clickedLng = Number(e?.lngLat?.lng)
           if (Number.isFinite(clickedLat) && Number.isFinite(clickedLng)) {
@@ -353,7 +487,9 @@ export function LocationSection({
 
         map.on('dragend', () => {
           setIsDraggingMap(false)
-          if (isProgrammaticFlyRef.current) return
+          if (!isMapInteractiveRef.current || isProgrammaticFlyRef.current) {
+            return
+          }
           const center = map.getCenter()
           if (
             center &&
@@ -388,38 +524,18 @@ export function LocationSection({
 
   const handleSelectStreetSuggestion = (item: GeorgiaPlaceSuggestion) => {
     setStreetDropdownOpen(false)
-    setMapFlyingLoading(true)
+    lastManualTypedRef.current = `${item.street}|${item.houseNumber || ''}`
     update('exactStreet', item.street)
     if (item.houseNumber) {
       update('houseNumber', item.houseNumber)
     }
     update('location', item.areaId)
     update('locationDisplay', item.displayAreaLabel)
-    update('lat', String(item.lat.toFixed(6)))
-    update('lng', String(item.lng.toFixed(6)))
-    setLiveCoords({ lat: item.lat, lng: item.lng })
-
-    if (mapInstanceRef.current) {
-      isProgrammaticFlyRef.current = true
-      mapInstanceRef.current.flyTo({
-        center: [item.lng, item.lat],
-        zoom: 17,
-        pitch: is3dMode && mapStyleMode === '3d' ? 58 : 0,
-        bearing: is3dMode && mapStyleMode === '3d' ? -15 : 0,
-        duration: 850,
-      })
-      setTimeout(() => {
-        isProgrammaticFlyRef.current = false
-        setMapFlyingLoading(false)
-      }, 900)
-    } else {
-      setMapFlyingLoading(false)
-    }
+    flyMapToExactPoint(item.lat, item.lng, 17)
     setPinSuccessFeedback(true)
     setTimeout(() => setPinSuccessFeedback(false), 3500)
   }
 
-  // الـ GPS يجلب موقعك الفعلي بالظبط حتى لو كنت خارج جورجيا
   const handleDetectMyGps = () => {
     if (typeof window === 'undefined' || !('geolocation' in navigator)) return
     setGpsLoading(true)
@@ -427,9 +543,11 @@ export function LocationSection({
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setGpsLoading(false)
-        const rawLat = pos.coords.latitude
-        const rawLng = pos.coords.longitude
-        void reverseGeocodeCoordinates(rawLat, rawLng, true)
+        void reverseGeocodeCoordinates(
+          pos.coords.latitude,
+          pos.coords.longitude,
+          true
+        )
       },
       () => {
         setGpsLoading(false)
@@ -442,6 +560,7 @@ export function LocationSection({
   const handleFocusOnMapPicker = () => {
     setStreetDropdownOpen(false)
     setIsExpandedMap(true)
+    toggleMapLock(true)
     setTimeout(() => {
       mapInstanceRef.current?.resize()
       mapWrapperRef.current?.scrollIntoView({
@@ -451,18 +570,36 @@ export function LocationSection({
     }, 150)
   }
 
+  // تثبيت مركز الخريطة عند التكبير والتصغير حتى لا ينحرف الدبوس عن الموقع المختار أبداً
+  const handleZoomAroundCenter = (delta: number) => {
+    const map = mapInstanceRef.current
+    if (!map) return
+    isProgrammaticFlyRef.current = true
+    const nextZoom = Math.min(19.5, Math.max(9, (map.getZoom() || 16) + delta))
+    map.easeTo({
+      center: [liveCoordsRef.current.lng, liveCoordsRef.current.lat],
+      zoom: nextZoom,
+      duration: 300,
+    })
+    setTimeout(() => {
+      isProgrammaticFlyRef.current = false
+    }, 350)
+  }
+
   const toggle3dPitch = () => {
     const next3d = !is3dMode
     setIs3dMode(next3d)
     mapInstanceRef.current?.easeTo({
-      pitch: next3d ? 58 : 0,
+      center: [liveCoordsRef.current.lng, liveCoordsRef.current.lat],
+      pitch: next3d ? 56 : 0,
       bearing: next3d ? -15 : 0,
-      duration: 500,
+      duration: 450,
     })
   }
 
   const resetCompass = () => {
     mapInstanceRef.current?.easeTo({
+      center: [liveCoordsRef.current.lng, liveCoordsRef.current.lat],
       bearing: 0,
       pitch: is3dMode ? 55 : 0,
       duration: 450,
@@ -508,27 +645,10 @@ export function LocationSection({
               update('locationDisplay', displayLabel)
               if (street) update('exactStreet', street)
               if (houseNumber) update('houseNumber', houseNumber)
+              lastManualTypedRef.current = `${street || form.exactStreet || ''}|${houseNumber || form.houseNumber || ''}`
               if (lat && lng) {
-                setMapFlyingLoading(true)
-                setLiveCoords({ lat, lng })
-                update('lat', String(lat.toFixed(6)))
-                update('lng', String(lng.toFixed(6)))
-                if (mapInstanceRef.current) {
-                  isProgrammaticFlyRef.current = true
-                  mapInstanceRef.current.flyTo({
-                    center: [lng, lat],
-                    zoom: 16.8,
-                    pitch: is3dMode && mapStyleMode === '3d' ? 58 : 0,
-                    bearing: is3dMode && mapStyleMode === '3d' ? -15 : 0,
-                    duration: 850,
-                  })
-                  setTimeout(() => {
-                    isProgrammaticFlyRef.current = false
-                    setMapFlyingLoading(false)
-                  }, 900)
-                } else {
-                  setMapFlyingLoading(false)
-                }
+                flyMapToExactPoint(lat, lng, 17)
+                toggleMapLock(false)
               }
             }}
           />
@@ -767,10 +887,12 @@ export function LocationSection({
           update={(v) => update('cadastralCode', v)}
         />
 
-        {/* الخريطة التفاعلية الكبيرة داخل الفورم (3D Buildings + Streets + Satellite) */}
+        {/* الخريطة التفاعلية المحمية من اللمس الخاطئ أثناء التصفح */}
         <div
           ref={mapWrapperRef}
-          className="mt-4 overflow-hidden rounded-2xl border-2 border-slate-200 shadow-xs transition focus-within:border-[#2563eb]"
+          className={`mt-4 overflow-hidden rounded-2xl border-2 shadow-xs transition ${
+            isMapInteractive ? 'border-[#2563eb]' : 'border-slate-200'
+          }`}
         >
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 bg-white/95 px-3 py-2.5 backdrop-blur-md">
             <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
@@ -787,7 +909,6 @@ export function LocationSection({
                     key={city.id}
                     type="button"
                     onClick={() => {
-                      setMapFlyingLoading(true)
                       const cityCoords = getCoordinatesForArea(
                         city.defaultAreaId
                       )
@@ -799,28 +920,11 @@ export function LocationSection({
                           locale as LocaleCode
                         )
                       )
-                      setLiveCoords({
-                        lat: cityCoords.lat,
-                        lng: cityCoords.lng,
-                      })
-                      update('lat', String(cityCoords.lat.toFixed(6)))
-                      update('lng', String(cityCoords.lng.toFixed(6)))
-                      if (mapInstanceRef.current) {
-                        isProgrammaticFlyRef.current = true
-                        mapInstanceRef.current.flyTo({
-                          center: [cityCoords.lng, cityCoords.lat],
-                          zoom: 15.2,
-                          pitch: is3dMode && mapStyleMode === '3d' ? 58 : 0,
-                          bearing: is3dMode && mapStyleMode === '3d' ? -15 : 0,
-                          duration: 850,
-                        })
-                        setTimeout(() => {
-                          isProgrammaticFlyRef.current = false
-                          setMapFlyingLoading(false)
-                        }, 900)
-                      } else {
-                        setMapFlyingLoading(false)
-                      }
+                      flyMapToExactPoint(
+                        cityCoords.lat,
+                        cityCoords.lng,
+                        15.2
+                      )
                     }}
                     className={`shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-bold transition ${
                       isActiveCity
@@ -873,19 +977,51 @@ export function LocationSection({
 
           <div
             dir="ltr"
-            style={{ height: isExpandedMap ? '560px' : '420px' }}
-            className="relative w-full cursor-grab overflow-hidden bg-[#dfe5dc] transition-all duration-300 active:cursor-grabbing"
+            style={{ height: isExpandedMap ? '500px' : '360px' }}
+            className="relative w-full overflow-hidden bg-[#dfe5dc] transition-all duration-300"
           >
             <div
               ref={mapContainerRef}
               style={{
                 width: '100%',
-                height: isExpandedMap ? '560px' : '420px',
+                height: isExpandedMap ? '500px' : '360px',
               }}
               className="h-full w-full"
             />
 
-            {/* شاشة التحميل عند الانتقال لأي مدينة أو شارع */}
+            {/* طبقة حماية الـ Scroll على الموبايل: تمنع تحرك الدبوس بالخطأ إلا عندما يضغط المستخدم "تعديل الموقع" */}
+            {!isMapInteractive && (
+              <div
+                onClick={() => toggleMapLock(true)}
+                className="absolute inset-0 z-15 flex cursor-pointer items-end justify-center bg-black/5 pb-12 transition hover:bg-black/10"
+              >
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    toggleMapLock(true)
+                  }}
+                  className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-[#0a1122]/90 px-4 py-2 text-xs font-extrabold text-white shadow-xl backdrop-blur-md transition hover:scale-105"
+                >
+                  <Unlock className="size-3.5 text-emerald-400" />
+                  <span>{lockT.unlockBtn}</span>
+                </button>
+              </div>
+            )}
+
+            {isMapInteractive && (
+              <div className="absolute bottom-11 left-1/2 z-20 -translate-x-1/2">
+                <button
+                  type="button"
+                  onClick={() => toggleMapLock(false)}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-[#007a5a] px-4 py-1.5 text-xs font-extrabold text-white shadow-lg transition hover:bg-[#006248]"
+                >
+                  <Lock className="size-3.5" />
+                  <span>{lockT.lockBtn}</span>
+                </button>
+              </div>
+            )}
+
             {(mapFlyingLoading || gpsLoading) && (
               <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white/70 backdrop-blur-[2px]">
                 <div className="flex items-center gap-2.5 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-xs font-extrabold text-[#0a1122] shadow-xl">
@@ -911,40 +1047,39 @@ export function LocationSection({
               </div>
             </div>
 
-            {/* دبوس تفاعلي يرتفع للأعلى عند سحب الخريطة */}
             <div className="pointer-events-none absolute top-1/2 left-1/2 z-10 -translate-x-1/2 -translate-y-full">
               <div className="flex flex-col items-center">
                 <div
-                  className={`flex size-12 items-center justify-center rounded-full border-2 border-white bg-[#2563eb] text-white shadow-2xl ring-4 ring-blue-500/25 transition-transform duration-200 ${
+                  className={`flex size-11 items-center justify-center rounded-full border-2 border-white bg-[#2563eb] text-white shadow-2xl ring-4 ring-blue-500/25 transition-transform duration-200 ${
                     isDraggingMap ? '-translate-y-3 scale-110' : 'translate-y-0'
                   }`}
                 >
                   <Building2 className="size-5" />
                 </div>
                 <div
-                  className={`-mt-1 h-3.5 w-0 border-x-[7px] border-t-[10px] border-x-transparent border-t-[#2563eb] transition-transform duration-200 ${
+                  className={`-mt-1 h-3 w-0 border-x-[6px] border-t-[9px] border-x-transparent border-t-[#2563eb] transition-transform duration-200 ${
                     isDraggingMap ? '-translate-y-3' : 'translate-y-0'
                   }`}
                 />
                 <div
                   className={`mt-0.5 rounded-full bg-black/30 blur-[1px] transition-all duration-200 ${
-                    isDraggingMap ? 'h-1 w-2 opacity-40' : 'h-1.5 w-3.5'
+                    isDraggingMap ? 'h-1 w-2 opacity-40' : 'h-1.5 w-3'
                   }`}
                 />
               </div>
             </div>
 
-            <div className="absolute top-3 right-3 z-10 flex flex-col items-center gap-1 rounded-2xl border border-slate-200/80 bg-white/95 p-1 shadow-lg backdrop-blur-md">
+            <div className="absolute top-3 right-3 z-20 flex flex-col items-center gap-1 rounded-2xl border border-slate-200/80 bg-white/95 p-1 shadow-lg backdrop-blur-md">
               <button
                 type="button"
-                onClick={() => mapInstanceRef.current?.zoomIn()}
+                onClick={() => handleZoomAroundCenter(1)}
                 className="flex size-8 items-center justify-center rounded-xl text-slate-700 transition hover:bg-slate-100"
               >
                 <Plus className="size-4" />
               </button>
               <button
                 type="button"
-                onClick={() => mapInstanceRef.current?.zoomOut()}
+                onClick={() => handleZoomAroundCenter(-1)}
                 className="flex size-8 items-center justify-center rounded-xl text-slate-700 transition hover:bg-slate-100"
               >
                 <Minus className="size-4" />
@@ -986,8 +1121,8 @@ export function LocationSection({
             </div>
 
             <div className="pointer-events-none absolute inset-x-3 bottom-2.5 z-10 flex justify-start">
-              <span className="rounded-lg bg-white/95 px-3 py-1.5 text-[10.5px] font-extrabold text-[#0a1122] shadow-sm backdrop-blur-xs">
-                📍 {locT.mapHint}
+              <span className="rounded-lg bg-white/95 px-3 py-1 text-[10.5px] font-extrabold text-[#0a1122] shadow-sm backdrop-blur-xs">
+                📍 {isMapInteractive ? locT.mapHint : lockT.lockedHint}
               </span>
             </div>
           </div>

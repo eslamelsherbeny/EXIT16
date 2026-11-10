@@ -298,6 +298,18 @@ export function SellerFlow() {
     return () => window.removeEventListener('scroll', handleScrollSpy)
   }, [])
 
+  // تحريك شريط الخطوات العلوي أفقياً على الموبايل ليتبع القسم الحالي تلقائياً أثناء النزول
+  useEffect(() => {
+    const activeTabBtn = document.getElementById(`seller-step-tab-${activeTab}`)
+    if (activeTabBtn) {
+      activeTabBtn.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'center',
+      })
+    }
+  }, [activeTab])
+
   const loadInitialData = useCallback(async () => {
     const params =
       typeof window !== 'undefined'
@@ -563,7 +575,6 @@ export function SellerFlow() {
             setVerifyModalOpen(true)
           }
 
-          // توجيه تلقائي ذكي للقسم الناقص عند فتح الوحدة للتعديل من حسابي
           const focusTarget = params.get('focus')
           const savedImgs = Array.isArray(u.images)
             ? u.images.filter(Boolean)
@@ -944,7 +955,6 @@ export function SellerFlow() {
     }
   }
 
-  // الزر الثاني: "احفظ البيانات وكمل بعدين"
   const handleSaveDraftAndGoToAccount = async () => {
     setError('')
     setSavingDraftLoading(true)
@@ -1058,7 +1068,6 @@ export function SellerFlow() {
     }
   }
 
-  // الدالة التي تنفذ الإرسال الفعلي إلى الإدارة (سواء بعد اكتمال المرفقات أو بعد موافقة العميل في الديالوج)
   const executeSubmitToAdmin = () => {
     setMissingMediaModalOpen(false)
     setFieldErrors({})
@@ -1175,10 +1184,6 @@ export function SellerFlow() {
     })
   }
 
-  // عند الضغط على الزر الرئيسي "إرسال طلب عرض الوحدة للإدارة":
-  // 1. لو ناسي حقل أساسي إجباري -> يلوّنه بالأحمر ويوديه له
-  // 2. لو مكمل الحقول الأساسية بس مرفعش الصور أو الـ 4 مستندات -> يفتح له الديالوج الذكي للتأكيد
-  // 3. لو مكمل كله -> يبعت للإدارة فوراً
   const handlePublishListing = () => {
     if (!hasAllCoreDetails) {
       highlightMissingCoreFieldsAndScroll()
@@ -1397,7 +1402,7 @@ export function SellerFlow() {
         </header>
 
         <div className="sticky top-16 z-30 -mx-4 mb-6 border-b border-slate-200/70 bg-[#f4f6f9]/95 px-4 py-3 backdrop-blur-md sm:mx-0 sm:px-0">
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-2 overflow-x-auto scroll-smooth no-scrollbar">
             {navTabs.map((tab) => {
               const isDone =
                 sectionCompletion[tab.id as 1 | 2 | 3 | 4 | 5 | 6]
@@ -1407,6 +1412,7 @@ export function SellerFlow() {
               return (
                 <button
                   key={tab.id}
+                  id={`seller-step-tab-${tab.id}`}
                   type="button"
                   onClick={() => scrollToSection(tab.id, tab.ref)}
                   className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-bold transition-all duration-200 ${

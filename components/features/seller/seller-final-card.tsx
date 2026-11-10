@@ -2,6 +2,7 @@
 
 import {
   AlertCircle,
+  ArrowUp,
   BookmarkCheck,
   Check,
   CheckCircle2,
@@ -15,12 +16,57 @@ import {
   X,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
+import { useTranslation, type LocaleCode } from '@/lib/i18n'
 import { maskEmailDisplay, type SellerExtraLabels } from './seller-i18n'
 import { toEnglishDigits } from './seller-shared'
 import type {
   FLOW_LOADING_LABELS,
   MissingCoreFieldItem,
 } from './seller-flow-helpers'
+
+const DYNAMIC_MEDIA_BTN_I18N: Record<
+  LocaleCode,
+  {
+    onlyPhotosBtn: string
+    onlyDocsBtn: string
+    bothBtn: string
+    compactMissingBanner: (count: number) => string
+    jumpToFirstBtn: string
+  }
+> = {
+  ar: {
+    onlyPhotosBtn: 'إضافة صور الوحدة أولاً',
+    onlyDocsBtn: 'رفع المستندات المتبقية أولاً',
+    bothBtn: 'إضافة الصور والمستندات أولاً',
+    compactMissingBanner: (c) =>
+      `يوجد (${c}) حقول إجبارية ناقصة معلّمة باللون الأحمر`,
+    jumpToFirstBtn: 'انتقل لأول حقل ناقص',
+  },
+  en: {
+    onlyPhotosBtn: 'Upload Unit Photos First',
+    onlyDocsBtn: 'Upload Remaining Documents First',
+    bothBtn: 'Upload Photos & Documents First',
+    compactMissingBanner: (c) =>
+      `Please complete (${c}) required fields marked in red`,
+    jumpToFirstBtn: 'Go to first field',
+  },
+  ru: {
+    onlyPhotosBtn: 'Сначала добавить фото объекта',
+    onlyDocsBtn: 'Сначала загрузить документы',
+    bothBtn: 'Сначала добавить фото и документы',
+    compactMissingBanner: (c) =>
+      `Заполните обязательные поля (${c}), выделенные красным`,
+    jumpToFirstBtn: 'Перейти к полю',
+  },
+  ka: {
+    onlyPhotosBtn: 'ჯერ ფოტოების დამატება',
+    onlyDocsBtn: 'ჯერ დოკუმენტების ატვირთვა',
+    bothBtn: 'ჯერ ფოტოების და დოკუმენტების დამატება',
+    compactMissingBanner: (c) =>
+      `შეავსეთ წითლად მონიშნული (${c}) სავალდებულო ველი`,
+    jumpToFirstBtn: 'ველზე გადასვლა',
+  },
+}
 
 export function SellerFinalReadinessCard({
   loadT,
@@ -41,64 +87,71 @@ export function SellerFinalReadinessCard({
   onPublishListing: () => void
   onSaveDraft: () => void
 }) {
+  const { locale } = useTranslation()
+  const dynT =
+    DYNAMIC_MEDIA_BTN_I18N[locale as LocaleCode] || DYNAMIC_MEDIA_BTN_I18N.ar
+
+  const hasVisibleErrors =
+    Object.keys(fieldErrors).length > 0 && liveMissingCoreItems.length > 0
+
   return (
-    <section className="rounded-[26px] border border-slate-200/90 bg-white p-6 shadow-sm sm:p-8">
+    <section className="rounded-[24px] border border-slate-200/90 bg-white p-5 shadow-xs sm:p-7">
       <div className="text-start">
-        <h3 className="text-lg font-black text-[#0a1122] sm:text-xl">
+        <h3 className="text-base font-black text-[#0a1122] sm:text-lg">
           {loadT.finalCardTitle}
         </h3>
-        <p className="mt-1.5 text-sm leading-relaxed font-semibold text-slate-500">
+        <p className="mt-1 text-xs leading-relaxed font-semibold text-slate-500 sm:text-sm">
           {loadT.finalCardSub}
         </p>
       </div>
 
-      {Object.keys(fieldErrors).length > 0 &&
-        liveMissingCoreItems.length > 0 && (
-          <div
-            role="alert"
-            className="mt-5 rounded-2xl border-2 border-red-300 bg-red-50/90 p-4 text-start animate-in fade-in duration-200"
-          >
-            <div className="flex items-center gap-2 text-sm font-black text-red-900">
-              <AlertCircle className="size-5 shrink-0 text-red-600" />
-              <span>{loadT.missingFieldsAlertTitle}</span>
-            </div>
-
-            <div className="mt-3 flex flex-wrap gap-2">
-              {liveMissingCoreItems.map((item) => (
-                <button
-                  key={item.key}
-                  type="button"
-                  onClick={() => {
-                    document.getElementById(item.scrollId)?.scrollIntoView({
-                      behavior: 'smooth',
-                      block: 'center',
-                    })
-                  }}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-red-300 bg-white px-3.5 py-2 text-xs font-extrabold text-red-700 shadow-2xs transition hover:border-red-500 hover:bg-red-600 hover:text-white sm:text-sm"
-                >
-                  <span>• {item.label}</span>
-                  <span className="text-xs">↗</span>
-                </button>
-              ))}
-            </div>
+      {/* شريط تنبيه ذكي ومدمج من سطر واحد فقط (لا يملأ شاشة الموبايل) */}
+      {hasVisibleErrors && (
+        <div
+          role="alert"
+          className="mt-4 flex flex-wrap items-center justify-between gap-2.5 rounded-2xl border border-red-300 bg-red-50/90 px-4 py-3 text-start animate-in fade-in duration-200"
+        >
+          <div className="flex items-center gap-2 text-xs font-extrabold text-red-900 sm:text-sm">
+            <AlertCircle className="size-4 shrink-0 text-red-600" />
+            <span>
+              {dynT.compactMissingBanner(liveMissingCoreItems.length)}
+            </span>
           </div>
-        )}
 
-      <div className="mt-6 flex flex-col gap-3.5 sm:flex-row sm:items-center">
+          <button
+            type="button"
+            onClick={() => {
+              const firstId = liveMissingCoreItems[0]?.scrollId
+              if (firstId) {
+                document.getElementById(firstId)?.scrollIntoView({
+                  behavior: 'smooth',
+                  block: 'center',
+                })
+              }
+            }}
+            className="inline-flex items-center gap-1 rounded-xl bg-red-600 px-3 py-1.5 text-xs font-extrabold text-white shadow-2xs transition hover:bg-red-700"
+          >
+            <span>{dynT.jumpToFirstBtn}</span>
+            <ArrowUp className="size-3.5" />
+          </button>
+        </div>
+      )}
+
+      <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
         <button
           type="button"
           disabled={pending || savingDraftLoading}
           onClick={onPublishListing}
-          className="inline-flex min-h-[56px] flex-1 items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-[#007a5a] to-[#00966e] px-6 py-4 text-sm font-black text-white shadow-md shadow-emerald-600/20 transition hover:opacity-95 active:scale-[0.99] disabled:opacity-60 sm:text-base"
+          className="inline-flex min-h-[52px] flex-1 items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-[#007a5a] to-[#00966e] px-6 py-3.5 text-sm font-black text-white shadow-md shadow-emerald-600/20 transition hover:opacity-95 active:scale-[0.99] disabled:opacity-60"
         >
           {pending ? (
             <>
-              <Loader2 className="size-5 animate-spin" />
+              <Loader2 className="size-4 animate-spin" />
               <span>{fT.bottomBar.publishingBtn}</span>
             </>
           ) : (
             <>
-              <Send className="size-5 shrink-0" />
+              <Send className="size-4 shrink-0" />
               <span>{loadT.publishBtnText}</span>
             </>
           )}
@@ -108,7 +161,7 @@ export function SellerFinalReadinessCard({
           type="button"
           disabled={pending || savingDraftLoading}
           onClick={onSaveDraft}
-          className="inline-flex min-h-[56px] items-center justify-center gap-2 rounded-2xl border-2 border-slate-200 bg-slate-50 px-6 py-3.5 text-sm font-extrabold text-[#0a1122] transition hover:border-[#0a1122] hover:bg-white disabled:opacity-60"
+          className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-2xl border-2 border-slate-200 bg-slate-50 px-5 py-3 text-sm font-extrabold text-[#0a1122] transition hover:border-[#0a1122] hover:bg-white disabled:opacity-60"
         >
           {savingDraftLoading ? (
             <>
@@ -117,7 +170,7 @@ export function SellerFinalReadinessCard({
             </>
           ) : (
             <>
-              <BookmarkCheck className="size-5 shrink-0 text-[#007a5a]" />
+              <BookmarkCheck className="size-4 shrink-0 text-[#007a5a]" />
               <span>{loadT.saveLaterBtnText}</span>
             </>
           )}
@@ -150,9 +203,19 @@ export function SellerMissingMediaConfirmModal({
   onConfirmSubmitAnyway: () => void
   onGoToUploadNow: () => void
 }) {
+  const { locale } = useTranslation()
+  const dynT =
+    DYNAMIC_MEDIA_BTN_I18N[locale as LocaleCode] || DYNAMIC_MEDIA_BTN_I18N.ar
+
   if (!open) return null
 
-  const isAr = dir === 'rtl'
+  // تحديد نص الزر الثانوي ديناميكياً بدقة حسب الناقص الفعلي
+  const dynamicUploadBtnLabel =
+    !hasPhotos && !hasAllDocs
+      ? dynT.bothBtn
+      : !hasPhotos
+        ? dynT.onlyPhotosBtn
+        : dynT.onlyDocsBtn
 
   return (
     <div
@@ -162,48 +225,41 @@ export function SellerMissingMediaConfirmModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-[440px] overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 text-start shadow-2xl animate-in fade-in zoom-in-95 duration-200 sm:p-7"
+        className="relative w-full max-w-[420px] overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 text-start shadow-2xl animate-in fade-in zoom-in-95 duration-200 sm:p-6"
       >
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-4 end-4 flex size-9 items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-800"
+          className="absolute top-4 end-4 flex size-8 items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-800"
         >
-          <X className="size-5" />
+          <X className="size-4" />
         </button>
 
         <div className="flex items-center gap-2.5">
-          <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-amber-50 text-[#ea580c]">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-amber-50 text-[#ea580c]">
             <Sparkles className="size-5" />
           </div>
-          <span className="rounded-full border border-amber-200 bg-amber-50 px-3.5 py-1 text-xs font-extrabold text-amber-800">
+          <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-extrabold text-amber-800">
             {loadT.mediaDialogBadge}
           </span>
         </div>
 
-        <h3 className="mt-4 text-lg font-black text-[#0a1122] sm:text-xl">
+        <h3 className="mt-3.5 text-base font-black text-[#0a1122] sm:text-lg">
           {loadT.mediaDialogTitle}
         </h3>
-        <p className="mt-2 text-sm leading-relaxed font-semibold text-slate-600">
+        <p className="mt-1.5 text-xs leading-relaxed font-semibold text-slate-600 sm:text-sm">
           {loadT.mediaDialogDesc}
         </p>
 
-        {/* جملة واحدة واضحة ومباشرة بحجم مقروء */}
-        <p className="mt-2.5 text-sm leading-relaxed font-extrabold text-[#007a5a]">
-          {isAr
-            ? 'ملاحظة: الصور والمستندات شرط أساسي لنشر الوحدة وظهورها للمشترين.'
-            : 'Note: Photos and documents are mandatory for publishing the unit to buyers.'}
-        </p>
-
-        <div className="mt-4 space-y-2.5 rounded-2xl border border-amber-200 bg-amber-50/60 p-4 text-sm font-extrabold text-amber-950">
+        <div className="mt-3.5 space-y-2 rounded-2xl border border-amber-200 bg-amber-50/60 p-3.5 text-xs font-extrabold text-amber-950 sm:text-sm">
           {!hasPhotos && (
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2">
               <ImagePlus className="size-4 shrink-0 text-[#ea580c]" />
               <span>{loadT.mediaDialogMissingPhotos}</span>
             </div>
           )}
           {!hasAllDocs && (
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2">
               <FileText className="size-4 shrink-0 text-[#2563eb]" />
               <span>
                 {loadT.mediaDialogMissingDocs} ({uploadedDocsCount}/4)
@@ -212,15 +268,15 @@ export function SellerMissingMediaConfirmModal({
           )}
         </div>
 
-        <div className="mt-6 space-y-2.5">
+        <div className="mt-5 space-y-2.5">
           <button
             type="button"
             disabled={pending}
             onClick={onConfirmSubmitAnyway}
-            className="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-[#007a5a] px-5 py-3.5 text-sm font-black text-white shadow-md transition hover:bg-[#006248] disabled:opacity-60 sm:text-base"
+            className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl bg-[#007a5a] px-5 py-3 text-xs font-black text-white shadow-md transition hover:bg-[#006248] disabled:opacity-60 sm:text-sm"
           >
             {pending ? (
-              <Loader2 className="size-5 animate-spin" />
+              <Loader2 className="size-4 animate-spin" />
             ) : (
               <Send className="size-4 shrink-0" />
             )}
@@ -231,9 +287,9 @@ export function SellerMissingMediaConfirmModal({
             type="button"
             disabled={pending}
             onClick={onGoToUploadNow}
-            className="flex min-h-[48px] w-full items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-extrabold text-slate-700 transition hover:bg-slate-100"
+            className="flex min-h-[44px] w-full items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-extrabold text-slate-700 transition hover:bg-slate-100 sm:text-sm"
           >
-            {loadT.mediaDialogUploadNowBtn}
+            {dynamicUploadBtnLabel}
           </button>
         </div>
       </div>
@@ -285,9 +341,9 @@ export function SellerVerifyEmailModal({
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-4 end-4 flex size-9 items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-800"
+          className="absolute top-4 end-4 flex size-8 items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-800"
         >
-          <X className="size-5" />
+          <X className="size-4" />
         </button>
 
         <div className="flex items-center gap-2.5">

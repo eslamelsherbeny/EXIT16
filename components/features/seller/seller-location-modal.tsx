@@ -257,7 +257,9 @@ const MODAL_MAP_I18N: Record<
   LocaleCode,
   {
     openMapStepBtn: string
+    openMapShortBtn: string
     backToListBtn: string
+    backToListShortBtn: string
     dragMapHint: string
     readingAddressText: string
     flyingToPlaceLoading: string
@@ -272,11 +274,13 @@ const MODAL_MAP_I18N: Record<
 > = {
   ar: {
     openMapStepBtn: 'تحديد الموقع الدقيق على الخريطة 3D',
+    openMapShortBtn: 'الخريطة 3D',
     backToListBtn: 'العودة لقائمة المدن والأحياء',
+    backToListShortBtn: 'قائمة المدن',
     dragMapHint:
-      'حرّك الخريطة بالماوس أو اضغط على المبنى بالضبط — سيتم التقاط اسم الشارع ورقم العقار تلقائياً',
-    readingAddressText: 'جاري قراءة اسم الشارع ورقم المبنى من الخريطة...',
-    flyingToPlaceLoading: 'جاري الانتقال للموقع وتحميل الخريطة التفاعلية...',
+      'حرّك الخريطة أو اضغط على المبنى — سيتم التقاط اسم الشارع ورقم العقار تلقائياً',
+    readingAddressText: 'جاري قراءة اسم الشارع ورقم المبنى...',
+    flyingToPlaceLoading: 'جاري الانتقال للموقع وتحميل الخريطة...',
     detectedStreetLabel: 'الشارع المحدد:',
     detectedHouseLabel: 'رقم المبنى:',
     confirmExactPinBtn: 'تأكيد هذا الموقع والعنوان ✓',
@@ -287,11 +291,13 @@ const MODAL_MAP_I18N: Record<
   },
   en: {
     openMapStepBtn: 'Set exact location on 3D Map',
+    openMapShortBtn: '3D Map',
     backToListBtn: 'Back to cities & districts list',
+    backToListShortBtn: 'Cities List',
     dragMapHint:
-      'Drag the map or click on the building — street name and building number update automatically',
+      'Drag the map or tap on the building — street name and building number update automatically',
     readingAddressText: 'Reading street name & building number...',
-    flyingToPlaceLoading: 'Flying to location and loading interactive map...',
+    flyingToPlaceLoading: 'Flying to location and loading map...',
     detectedStreetLabel: 'Detected Street:',
     detectedHouseLabel: 'Building Nº:',
     confirmExactPinBtn: 'Confirm Exact Location ✓',
@@ -302,11 +308,13 @@ const MODAL_MAP_I18N: Record<
   },
   ru: {
     openMapStepBtn: 'Указать точную локацию на 3D-карте',
+    openMapShortBtn: '3D-карта',
     backToListBtn: 'Назад к списку городов и районов',
+    backToListShortBtn: 'Список городов',
     dragMapHint:
       'Передвигайте карту или нажмите на дом — улица и номер дома определятся автоматически',
     readingAddressText: 'Определение улицы и номера дома...',
-    flyingToPlaceLoading: 'Переход к выбранной локации и загрузка карты...',
+    flyingToPlaceLoading: 'Переход к выбранной локации...',
     detectedStreetLabel: 'Улица:',
     detectedHouseLabel: 'Дом Nº:',
     confirmExactPinBtn: 'Подтвердить эту локацию ✓',
@@ -317,11 +325,13 @@ const MODAL_MAP_I18N: Record<
   },
   ka: {
     openMapStepBtn: 'მონიშნეთ ზუსტი მდებარეობა 3D რუკაზე',
+    openMapShortBtn: '3D რუკა',
     backToListBtn: 'უკან ქალაქების სიაში',
+    backToListShortBtn: 'ქალაქების სია',
     dragMapHint:
       'გადაადგილეთ რუკა ან დააჭირეთ შენობას — ქუჩა და სახლის ნომერი ავტომატურად შეივსება',
     readingAddressText: 'მისამართის წაკითხვა...',
-    flyingToPlaceLoading: 'მდებარეობაზე გადასვლა და რუკის ჩატვირთვა...',
+    flyingToPlaceLoading: 'მდებარეობაზე გადასვლა...',
     detectedStreetLabel: 'ქუჩა:',
     detectedHouseLabel: 'სახლის Nº:',
     confirmExactPinBtn: 'მდებარეობის დადასტურება ✓',
@@ -434,6 +444,11 @@ export function SivrceLocationModalPicker({
     lat: defaultCoords.lat,
     lng: defaultCoords.lng,
   })
+  const pinCoordsRef = useRef<{ lat: number; lng: number }>({
+    lat: defaultCoords.lat,
+    lng: defaultCoords.lng,
+  })
+
   const [pinReadingAddress, setPinReadingAddress] = useState(false)
   const [pinResolvedData, setPinResolvedData] = useState<{
     areaId: string
@@ -451,6 +466,11 @@ export function SivrceLocationModalPicker({
     street: '',
     houseNumber: '',
   })
+
+  const updatePinCoords = useCallback((lat: number, lng: number) => {
+    pinCoordsRef.current = { lat, lng }
+    setPinCoords({ lat, lng })
+  }, [])
 
   const resolvedDisplay =
     displayText ||
@@ -475,10 +495,9 @@ export function SivrceLocationModalPicker({
     setCityStreetsLive(preset || GENERIC_MUNICIPALITY_STREETS)
   }, [activeCity])
 
-  // قراءة اسم الشارع ورقم المبنى والحي لأي مكان في العالم أو في جورجيا
   const reverseGeocodeModalPin = useCallback(
     async (lat: number, lng: number, fly = false) => {
-      setPinCoords({ lat, lng })
+      updatePinCoords(lat, lng)
       if (fly && modalMapInstanceRef.current) {
         isModalFlyingRef.current = true
         modalMapInstanceRef.current.flyTo({
@@ -551,7 +570,7 @@ export function SivrceLocationModalPicker({
         setPinReadingAddress(false)
       }
     },
-    [activeCity, isPitch3D, mapStyleMode, locale]
+    [activeCity, isPitch3D, mapStyleMode, locale, updatePinCoords]
   )
 
   useEffect(() => {
@@ -567,7 +586,7 @@ export function SivrceLocationModalPicker({
         map = new maplibregl.Map({
           container: modalMapContainerRef.current,
           style: getReliableGeorgiaMapStyle(mapStyleMode),
-          center: [pinCoords.lng, pinCoords.lat],
+          center: [pinCoordsRef.current.lng, pinCoordsRef.current.lat],
           zoom: 16.4,
           pitch: isPitch3D && mapStyleMode === '3d' ? 56 : 0,
           bearing: isPitch3D && mapStyleMode === '3d' ? -15 : 0,
@@ -716,7 +735,7 @@ export function SivrceLocationModalPicker({
       }
     }
 
-    setPinCoords({ lat: resolvedLat, lng: resolvedLng })
+    updatePinCoords(resolvedLat, resolvedLng)
     setPinResolvedData({
       areaId: target.areaId || 'Tbilisi - Saburtalo',
       displayLabel: target.displayLabel,
@@ -746,7 +765,6 @@ export function SivrceLocationModalPicker({
     }
   }
 
-  // الـ GPS يجلب موقعك الحقيقي بالظبط في أي مكان في العالم (مصر أو جورجيا أو أي دولة)
   const handleDetectRealGPS = () => {
     setGpsNotice('')
     if (typeof window === 'undefined' || !('geolocation' in navigator)) {
@@ -776,13 +794,30 @@ export function SivrceLocationModalPicker({
     )
   }
 
+  // زوم ثابت حول نقطة الدبوس بالمللي حتى لا ينحرف السهم لمكان آخر عند التكبير
+  const handleModalZoom = (delta: number) => {
+    const map = modalMapInstanceRef.current
+    if (!map) return
+    isModalFlyingRef.current = true
+    const nextZoom = Math.min(19.5, Math.max(9, (map.getZoom() || 16) + delta))
+    map.easeTo({
+      center: [pinCoordsRef.current.lng, pinCoordsRef.current.lat],
+      zoom: nextZoom,
+      duration: 300,
+    })
+    setTimeout(() => {
+      isModalFlyingRef.current = false
+    }, 350)
+  }
+
   const toggleModal3dPitch = () => {
     const next = !isPitch3D
     setIsPitch3D(next)
     modalMapInstanceRef.current?.easeTo({
+      center: [pinCoordsRef.current.lng, pinCoordsRef.current.lat],
       pitch: next ? 56 : 0,
       bearing: next ? -15 : 0,
-      duration: 500,
+      duration: 450,
     })
   }
 
@@ -902,16 +937,16 @@ export function SivrceLocationModalPicker({
       {open && (
         <div
           dir={dir}
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/65 p-2 backdrop-blur-xs sm:p-4"
+          className="fixed inset-0 z-[9999] flex items-end justify-center bg-black/65 p-0 backdrop-blur-xs sm:items-center sm:p-4"
           onClick={() => setOpen(false)}
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="flex max-h-[95vh] w-full max-w-[1140px] flex-col overflow-hidden rounded-[26px] bg-white shadow-2xl"
+            className="flex max-h-[94vh] w-full max-w-[1100px] flex-col overflow-hidden rounded-t-[26px] bg-white shadow-2xl sm:rounded-[26px]"
           >
-            {/* هيدر النافذة */}
-            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5 sm:px-6">
-              <div className="flex items-center gap-2">
+            {/* هيدر رشيق ومتجاوب 100% على الموبايل والكمبيوتر */}
+            <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-4 py-3 sm:px-6 sm:py-3.5">
+              <div className="flex min-w-0 items-center gap-2">
                 {(activeCity || viewMode === 'map') && (
                   <button
                     type="button"
@@ -923,29 +958,30 @@ export function SivrceLocationModalPicker({
                         setCheckedSubItem(null)
                       }
                     }}
-                    className="flex size-8 items-center justify-center rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    className="flex size-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200"
                   >
-                    <ChevronLeft className="size-5 rtl:rotate-180" />
+                    <ChevronLeft className="size-4 rtl:rotate-180" />
                   </button>
                 )}
-                <h3 className="text-base font-black text-[#0a1122] sm:text-lg">
+                <h3 className="truncate text-sm font-black text-[#0a1122] sm:text-base">
                   {viewMode === 'map' ? mapI18n.openMapStepBtn : mT.title}
                 </h3>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex shrink-0 items-center gap-1.5">
                 <button
                   type="button"
                   onClick={() =>
                     setViewMode(viewMode === 'map' ? 'browse' : 'map')
                   }
-                  className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-extrabold transition ${
-                    viewMode === 'map'
-                      ? 'bg-slate-100 text-[#0a1122] hover:bg-slate-200'
-                      : 'bg-blue-50 text-[#2563eb] hover:bg-blue-100'
-                  }`}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-blue-50 px-3 py-1.5 text-[11px] font-extrabold whitespace-nowrap text-[#2563eb] transition hover:bg-blue-100 sm:text-xs"
                 >
-                  <span>
+                  <span className="sm:hidden">
+                    {viewMode === 'map'
+                      ? mapI18n.backToListShortBtn
+                      : mapI18n.openMapShortBtn}
+                  </span>
+                  <span className="hidden sm:inline">
                     {viewMode === 'map'
                       ? mapI18n.backToListBtn
                       : mapI18n.openMapStepBtn}
@@ -955,15 +991,15 @@ export function SivrceLocationModalPicker({
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  className="flex size-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                  className="flex size-8 shrink-0 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700"
                 >
-                  <X className="size-5" />
+                  <X className="size-4" />
                 </button>
               </div>
             </div>
 
             {/* شريط البحث السريع */}
-            <div className="border-b border-slate-100 px-5 py-3 sm:px-6">
+            <div className="border-b border-slate-100 px-4 py-2.5 sm:px-6 sm:py-3">
               <div className="relative">
                 <Search className="pointer-events-none absolute top-1/2 start-3.5 size-4 -translate-y-1/2 text-slate-400" />
                 <input
@@ -971,7 +1007,7 @@ export function SivrceLocationModalPicker({
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder={mT.searchPlaceholder}
-                  className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50/70 ps-10 pe-10 text-xs font-semibold text-[#0a1122] focus:border-[#2563eb] focus:bg-white focus:outline-none sm:text-sm"
+                  className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50/70 ps-10 pe-10 text-xs font-semibold text-[#0a1122] focus:border-[#2563eb] focus:bg-white focus:outline-none sm:h-11 sm:text-sm"
                 />
                 {searchingGeo ? (
                   <Loader2 className="absolute top-1/2 end-3.5 size-4 -translate-y-1/2 animate-spin text-[#2563eb]" />
@@ -987,7 +1023,7 @@ export function SivrceLocationModalPicker({
               </div>
 
               {searchQuery.trim().length >= 1 && (
-                <div className="mt-2 max-h-56 divide-y divide-slate-100 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-lg">
+                <div className="mt-2 max-h-52 divide-y divide-slate-100 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-lg">
                   {liveGeoResults.length > 0 ? (
                     liveGeoResults.map((item) => (
                       <button
@@ -1056,12 +1092,12 @@ export function SivrceLocationModalPicker({
             {/* المحتوى الرئيسي */}
             {viewMode === 'map' ? (
               <div className="flex flex-1 flex-col overflow-hidden">
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 bg-[#f8fafc] px-5 py-2.5">
-                  <div className="flex min-w-0 items-center gap-2.5">
-                    <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#2563eb] text-white shadow-xs">
+                <div className="flex flex-col gap-2 border-b border-slate-100 bg-[#f8fafc] px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-[#2563eb] text-white shadow-xs">
                       <MapPin className="size-4" />
                     </span>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       {pinReadingAddress ? (
                         <p className="flex items-center gap-1.5 text-xs font-extrabold text-[#2563eb]">
                           <Loader2 className="size-3.5 animate-spin" />
@@ -1074,7 +1110,7 @@ export function SivrceLocationModalPicker({
                           </p>
                           {(pinResolvedData.street ||
                             pinResolvedData.houseNumber) && (
-                            <p className="text-[11px] font-bold text-[#007a5a]">
+                            <p className="truncate text-[11px] font-bold text-[#007a5a]">
                               {mapI18n.detectedStreetLabel}{' '}
                               {pinResolvedData.street || '—'}
                               {pinResolvedData.houseNumber
@@ -1087,13 +1123,12 @@ export function SivrceLocationModalPicker({
                     </div>
                   </div>
 
-                  {/* أزرار التبديل بين (🏢 خريطة 3D) و (🗺️ شوارع) و (🛰️ قمر صناعي) + GPS */}
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex flex-wrap items-center justify-between gap-1.5 sm:justify-end">
                     <div className="inline-flex rounded-xl border border-slate-200 bg-white p-0.5 shadow-2xs">
                       <button
                         type="button"
                         onClick={() => setMapStyleMode('3d')}
-                        className={`rounded-lg px-2.5 py-1.5 text-xs font-extrabold transition ${
+                        className={`rounded-lg px-2 py-1 text-[11px] font-extrabold transition sm:px-2.5 ${
                           mapStyleMode === '3d'
                             ? 'bg-[#2563eb] text-white shadow-2xs'
                             : 'text-slate-600 hover:bg-slate-50'
@@ -1104,7 +1139,7 @@ export function SivrceLocationModalPicker({
                       <button
                         type="button"
                         onClick={() => setMapStyleMode('streets')}
-                        className={`rounded-lg px-2.5 py-1.5 text-xs font-extrabold transition ${
+                        className={`rounded-lg px-2 py-1 text-[11px] font-extrabold transition sm:px-2.5 ${
                           mapStyleMode === 'streets'
                             ? 'bg-[#2563eb] text-white shadow-2xs'
                             : 'text-slate-600 hover:bg-slate-50'
@@ -1115,7 +1150,7 @@ export function SivrceLocationModalPicker({
                       <button
                         type="button"
                         onClick={() => setMapStyleMode('satellite')}
-                        className={`rounded-lg px-2.5 py-1.5 text-xs font-extrabold transition ${
+                        className={`rounded-lg px-2 py-1 text-[11px] font-extrabold transition sm:px-2.5 ${
                           mapStyleMode === 'satellite'
                             ? 'bg-[#2563eb] text-white shadow-2xs'
                             : 'text-slate-600 hover:bg-slate-50'
@@ -1129,51 +1164,48 @@ export function SivrceLocationModalPicker({
                       type="button"
                       disabled={gpsLoading}
                       onClick={handleDetectRealGPS}
-                      className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-emerald-200 bg-[#eaf8f2] px-3.5 text-xs font-extrabold text-[#007a5a] hover:bg-emerald-100"
+                      className="inline-flex h-8 items-center gap-1 rounded-xl border border-emerald-200 bg-[#eaf8f2] px-2.5 text-[11px] font-extrabold text-[#007a5a] hover:bg-emerald-100"
                     >
                       {gpsLoading ? (
-                        <Loader2 className="size-3.5 animate-spin" />
+                        <Loader2 className="size-3 animate-spin" />
                       ) : (
-                        <Navigation className="size-3.5" />
+                        <Navigation className="size-3" />
                       )}
-                      <span>{mT.nearbyTitle}</span>
+                      <span>GPS</span>
                     </button>
                   </div>
                 </div>
 
                 {gpsNotice && (
-                  <div className="bg-red-50 px-5 py-1.5 text-center text-[11px] font-bold text-red-600">
+                  <div className="bg-red-50 px-4 py-1.5 text-center text-[11px] font-bold text-red-600">
                     ⚠️ {gpsNotice}
                   </div>
                 )}
 
-                {/* حاوية الخريطة الكبيرة والواضحة بارتفاع 500px مع شاشة التحميل أثناء الانتقال */}
                 <div
                   dir="ltr"
-                  style={{ height: '500px' }}
-                  className="relative w-full cursor-grab overflow-hidden bg-[#dfe5dc] active:cursor-grabbing"
+                  className="relative h-[370px] w-full cursor-grab overflow-hidden bg-[#dfe5dc] active:cursor-grabbing sm:h-[460px]"
                 >
                   <div
                     ref={modalMapContainerRef}
-                    style={{ width: '100%', height: '500px' }}
+                    style={{ width: '100%', height: '100%' }}
                     className="h-full w-full"
                   />
 
-                  {/* شاشة التحميل الأنيقة عند اختيار مدينة أو شارع إلى أن تظهر الخريطة */}
                   {(mapTransitionLoading || gpsLoading) && (
                     <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white/75 backdrop-blur-[2px]">
-                      <div className="flex items-center gap-2.5 rounded-2xl border border-slate-200 bg-white px-5 py-3.5 text-xs font-extrabold text-[#0a1122] shadow-xl sm:text-sm">
-                        <Loader2 className="size-5 animate-spin text-[#2563eb]" />
+                      <div className="flex items-center gap-2.5 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-extrabold text-[#0a1122] shadow-xl sm:text-sm">
+                        <Loader2 className="size-4 animate-spin text-[#2563eb]" />
                         <span>{mapI18n.flyingToPlaceLoading}</span>
                       </div>
                     </div>
                   )}
 
-                  {/* دبوس المنتصف التفاعلي */}
+                  {/* دبوس المنتصف الثابت */}
                   <div className="pointer-events-none absolute top-1/2 left-1/2 z-10 -translate-x-1/2 -translate-y-full">
                     <div className="flex flex-col items-center">
                       <div
-                        className={`flex size-12 items-center justify-center rounded-full border-2 border-white bg-[#2563eb] text-white shadow-2xl ring-4 ring-blue-500/30 transition-transform duration-200 ${
+                        className={`flex size-11 items-center justify-center rounded-full border-2 border-white bg-[#2563eb] text-white shadow-2xl ring-4 ring-blue-500/30 transition-transform duration-200 sm:size-12 ${
                           isDraggingPin
                             ? '-translate-y-3 scale-110'
                             : 'translate-y-0'
@@ -1182,7 +1214,7 @@ export function SivrceLocationModalPicker({
                         <Building2 className="size-5" />
                       </div>
                       <div
-                        className={`-mt-1 h-3.5 w-0 border-x-[7px] border-t-[10px] border-x-transparent border-t-[#2563eb] transition-transform duration-200 ${
+                        className={`-mt-1 h-3 w-0 border-x-[6px] border-t-[9px] border-x-transparent border-t-[#2563eb] transition-transform duration-200 ${
                           isDraggingPin ? '-translate-y-3' : 'translate-y-0'
                         }`}
                       />
@@ -1194,18 +1226,18 @@ export function SivrceLocationModalPicker({
                     </div>
                   </div>
 
-                  {/* أدوات التحكم على يمين الخريطة */}
+                  {/* أزرار التحكم بالزوم حول نقطة الدبوس بالمللي */}
                   <div className="absolute top-3 right-3 z-10 flex flex-col gap-1 rounded-2xl border border-slate-200 bg-white/95 p-1 shadow-lg">
                     <button
                       type="button"
-                      onClick={() => modalMapInstanceRef.current?.zoomIn()}
+                      onClick={() => handleModalZoom(1)}
                       className="flex size-8 items-center justify-center rounded-xl text-slate-700 hover:bg-slate-100"
                     >
                       <Plus className="size-4" />
                     </button>
                     <button
                       type="button"
-                      onClick={() => modalMapInstanceRef.current?.zoomOut()}
+                      onClick={() => handleModalZoom(-1)}
                       className="flex size-8 items-center justify-center rounded-xl text-slate-700 hover:bg-slate-100"
                     >
                       <Minus className="size-4" />
@@ -1225,26 +1257,26 @@ export function SivrceLocationModalPicker({
                     )}
                   </div>
 
-                  <div className="pointer-events-none absolute inset-x-3 bottom-3 z-10 flex justify-center">
-                    <span className="rounded-full bg-[#0a1122]/90 px-4 py-1.5 text-[11px] font-bold text-white shadow-md backdrop-blur-xs">
+                  <div className="pointer-events-none absolute inset-x-3 bottom-2.5 z-10 flex justify-center">
+                    <span className="rounded-full bg-[#0a1122]/90 px-3.5 py-1.5 text-[10.5px] font-bold text-white shadow-md backdrop-blur-xs">
                       📍 {mapI18n.dragMapHint}
                     </span>
                   </div>
                 </div>
               </div>
             ) : !activeCity ? (
-              <div className="flex-1 overflow-y-auto px-6 py-5">
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3">
                   <button
                     type="button"
                     disabled={gpsLoading}
                     onClick={handleDetectRealGPS}
-                    className="flex w-full items-center justify-between rounded-2xl border border-slate-100 bg-slate-50/70 p-4 text-start transition hover:border-blue-200 hover:bg-blue-50/30 disabled:opacity-60"
+                    className="flex w-full items-center justify-between rounded-2xl border border-slate-100 bg-slate-50/70 p-3.5 text-start transition hover:border-blue-200 hover:bg-blue-50/30 disabled:opacity-60"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white text-[#2563eb] shadow-2xs">
+                      <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-white text-[#2563eb] shadow-2xs">
                         <Compass
-                          className={`size-5 ${
+                          className={`size-4.5 ${
                             gpsLoading ? 'animate-spin' : ''
                           }`}
                         />
@@ -1266,10 +1298,10 @@ export function SivrceLocationModalPicker({
                       setMapTransitionLoading(true)
                       setViewMode('map')
                     }}
-                    className="flex w-full items-center justify-between rounded-2xl border border-emerald-200/80 bg-[#eaf8f2]/50 p-4 text-start transition hover:bg-[#eaf8f2]"
+                    className="flex w-full items-center justify-between rounded-2xl border border-emerald-200/80 bg-[#eaf8f2]/50 p-3.5 text-start transition hover:bg-[#eaf8f2]"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#007a5a] text-white shadow-2xs">
+                      <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#007a5a] text-white shadow-2xs">
                       </div>
                       <div>
                         <strong className="block text-xs font-extrabold text-[#0a1122] sm:text-sm">
@@ -1283,11 +1315,11 @@ export function SivrceLocationModalPicker({
                   </button>
                 </div>
 
-                <div className="mt-6">
+                <div className="mt-5">
                   <span className="block text-[10px] font-extrabold tracking-wider text-slate-400 uppercase">
                     {mT.popularCitiesTitle}
                   </span>
-                  <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-5">
+                  <div className="mt-2.5 grid grid-cols-2 gap-2.5 sm:grid-cols-5">
                     {SIVRCE_POPULAR_CITIES.map((city) => (
                       <button
                         key={city.id}
@@ -1296,7 +1328,7 @@ export function SivrceLocationModalPicker({
                           setActiveCity(city.id)
                           setCheckedSubItem(null)
                         }}
-                        className="flex items-center gap-2 rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-3 text-start text-xs font-extrabold text-[#0a1122] transition hover:border-[#2563eb] hover:bg-blue-50/30"
+                        className="flex items-center gap-2 rounded-xl border border-slate-100 bg-slate-50/70 px-3.5 py-2.5 text-start text-xs font-extrabold text-[#0a1122] transition hover:border-[#2563eb] hover:bg-blue-50/30"
                       >
                         <MapPin className="size-3.5 shrink-0 text-[#2563eb]" />
                         <span className="truncate">
@@ -1307,18 +1339,18 @@ export function SivrceLocationModalPicker({
                   </div>
                 </div>
 
-                <div className="mt-7">
+                <div className="mt-6">
                   <span className="block text-[10px] font-extrabold tracking-wider text-slate-400 uppercase">
                     {mT.municipalitiesTitle}
                   </span>
-                  <div className="mt-4 grid grid-cols-1 gap-6 sm:grid-cols-3">
+                  <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6">
                     {Object.entries(SIVRCE_MUNICIPALITIES_AZ).map(
                       ([letter, list]) => (
                         <div key={letter}>
-                          <div className="mb-2 w-fit rounded-lg bg-blue-50 px-3 py-1 text-xs font-black text-[#2563eb]">
+                          <div className="mb-1.5 w-fit rounded-lg bg-blue-50 px-2.5 py-0.5 text-xs font-black text-[#2563eb]">
                             {letter}
                           </div>
-                          <ul className="space-y-1.5 px-1">
+                          <ul className="space-y-1 px-1">
                             {list.map((muni) => {
                               const cleanCity = muni
                                 .replace(' Municipality', '')
@@ -1347,11 +1379,11 @@ export function SivrceLocationModalPicker({
               </div>
             ) : (
               <div className="grid flex-1 grid-cols-1 overflow-hidden sm:grid-cols-12">
-                <div className="max-h-48 overflow-y-auto border-b border-slate-100 bg-slate-50/50 p-4 sm:col-span-3 sm:max-h-none sm:border-e sm:border-b-0">
-                  <div className="mb-3 border-b border-blue-500 px-2 pb-2 text-xs font-extrabold text-[#2563eb]">
+                <div className="max-h-40 overflow-y-auto border-b border-slate-100 bg-slate-50/50 p-3 sm:col-span-3 sm:max-h-none sm:border-e sm:border-b-0 sm:p-4">
+                  <div className="mb-2 border-b border-blue-500 px-2 pb-1.5 text-xs font-extrabold text-[#2563eb]">
                     {mT.districtsTab}
                   </div>
-                  <div className="space-y-1">
+                  <div className="flex gap-1.5 overflow-x-auto sm:flex-col sm:space-y-1 sm:overflow-visible">
                     {filteredSidebarCities.map((city) => {
                       const isCurrent =
                         activeCity.toLowerCase() === city.toLowerCase()
@@ -1363,13 +1395,13 @@ export function SivrceLocationModalPicker({
                             setActiveCity(city)
                             setCheckedSubItem(null)
                           }}
-                          className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-start text-xs transition ${
+                          className={`flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-1.5 text-start text-xs transition sm:w-full ${
                             isCurrent
                               ? 'bg-blue-50 font-black text-[#2563eb]'
                               : 'font-semibold text-slate-600 hover:bg-slate-100'
                           }`}
                         >
-                          <MapPin className="size-3.5 shrink-0" />
+                          <MapPin className="size-3 shrink-0" />
                           <span className="truncate">{city}</span>
                         </button>
                       )
@@ -1377,8 +1409,8 @@ export function SivrceLocationModalPicker({
                   </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-5 sm:col-span-9">
-                  <div className="mb-5 flex flex-wrap items-center gap-2">
+                <div className="flex-1 overflow-y-auto p-4 sm:col-span-9 sm:p-5">
+                  <div className="mb-4 flex flex-wrap items-center gap-2">
                     <button
                       type="button"
                       onClick={() => {
@@ -1394,23 +1426,23 @@ export function SivrceLocationModalPicker({
                           searchQueryForCoords: `${activeCity}, Georgia`,
                         })
                       }}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-[#2563eb] px-5 py-2 text-xs font-extrabold text-white shadow-2xs hover:bg-blue-700"
+                      className="inline-flex items-center gap-1.5 rounded-full bg-[#2563eb] px-4 py-2 text-xs font-extrabold text-white shadow-2xs hover:bg-blue-700"
                     >
                       <span>
                         {mT.wholeCityBtn} ({activeCity}) —{' '}
-                        {mapI18n.openMapStepBtn}
+                        {mapI18n.openMapShortBtn}
                       </span>
                     </button>
                   </div>
 
                   {activeCity.toLowerCase() === 'tbilisi' ? (
-                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-3 md:grid-cols-5">
+                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5">
                       {TBILISI_DISTRICT_GROUPS.map((grp) => (
                         <div key={grp.group}>
                           <strong className="mb-2 block text-[11px] font-black text-[#0a1122]">
                             {grp.group}
                           </strong>
-                          <div className="space-y-2">
+                          <div className="space-y-1.5">
                             {grp.items.map((it) => {
                               const checked = checkedSubItem?.name === it.name
                               return (
@@ -1428,7 +1460,7 @@ export function SivrceLocationModalPicker({
                                       searchQueryForCoords: `${it.name.split('(')[0].trim()}, Tbilisi, Georgia`,
                                     })
                                   }}
-                                  className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-start text-xs font-semibold transition ${
+                                  className={`flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-start text-xs font-semibold transition ${
                                     checked
                                       ? 'bg-blue-50 font-extrabold text-[#2563eb]'
                                       : 'text-slate-700 hover:bg-slate-100'
@@ -1446,7 +1478,7 @@ export function SivrceLocationModalPicker({
                       ))}
                     </div>
                   ) : activeCity.toLowerCase() === 'batumi' ? (
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
                       {BATUMI_DISTRICTS_LIST.map((it) => {
                         const checked = checkedSubItem?.name === it.name
                         return (
@@ -1464,7 +1496,7 @@ export function SivrceLocationModalPicker({
                                 searchQueryForCoords: `${it.name.split('(')[0].trim()}, Batumi, Georgia`,
                               })
                             }}
-                            className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-start text-xs font-bold transition ${
+                            className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-start text-xs font-bold transition ${
                               checked
                                 ? 'border-[#2563eb] bg-blue-50 text-[#2563eb]'
                                 : 'border-slate-200/80 bg-white text-slate-700 hover:border-blue-300'
@@ -1502,7 +1534,7 @@ export function SivrceLocationModalPicker({
                                 searchQueryForCoords: `${st}, ${activeCity}, Georgia`,
                               })
                             }}
-                            className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-start text-xs font-bold transition ${
+                            className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-start text-xs font-bold transition ${
                               checked
                                 ? 'border-[#2563eb] bg-blue-50 text-[#2563eb]'
                                 : 'border-slate-200/80 bg-white text-slate-700 hover:bg-slate-50'
@@ -1520,7 +1552,7 @@ export function SivrceLocationModalPicker({
             )}
 
             {/* فوتر النافذة */}
-            <div className="flex items-center justify-between border-t border-slate-100 bg-white px-6 py-4">
+            <div className="flex items-center justify-between border-t border-slate-100 bg-white px-4 py-3.5 sm:px-6">
               <button
                 type="button"
                 onClick={() => {
@@ -1538,7 +1570,7 @@ export function SivrceLocationModalPicker({
                 type="button"
                 disabled={pinReadingAddress}
                 onClick={handleFinalConfirmFromModal}
-                className="inline-flex items-center gap-2 rounded-full bg-[#007a5a] px-7 py-3 text-xs font-black text-white shadow-md transition hover:bg-[#006248] disabled:opacity-60 sm:text-sm"
+                className="inline-flex items-center gap-2 rounded-full bg-[#007a5a] px-6 py-2.5 text-xs font-black text-white shadow-md transition hover:bg-[#006248] disabled:opacity-60 sm:px-7 sm:py-3 sm:text-sm"
               >
                 <Check className="size-4 stroke-[3]" />
                 <span>

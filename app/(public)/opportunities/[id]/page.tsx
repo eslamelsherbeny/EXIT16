@@ -654,6 +654,12 @@ export default function PropertyDetailsPage() {
           ? Number(meta.lng)
           : null
 
+    const cachedNearbyPlaces = Array.isArray(meta.cached_nearby_places_v5)
+      ? meta.cached_nearby_places_v5
+      : Array.isArray(meta.cached_nearby_places_v4)
+        ? meta.cached_nearby_places_v4
+        : null
+
     return {
       id: String(row.id),
       raw: row,
@@ -669,6 +675,7 @@ export default function PropertyDetailsPage() {
       cadastralCode: visibleCadastral,
       savedLat: Number.isFinite(savedLat) ? savedLat : null,
       savedLng: Number.isFinite(savedLng) ? savedLng : null,
+      cachedNearbyPlaces,
       videoUrl: row.video_url || meta.video_url || '',
       tour3dUrl: row.tour_3d_url || meta.tour_3d_url || '',
       allowOnlineViewing: Boolean(
@@ -824,12 +831,14 @@ export default function PropertyDetailsPage() {
         />
 
         <UnitLocationInsights
+          unitId={computedUnit.id}
           areaId={computedUnit.rawArea}
           locationDisplay={computedUnit.locationDisplay}
           exactStreet={computedUnit.exactStreet}
           houseNumber={computedUnit.houseNumber}
           savedLat={computedUnit.savedLat}
           savedLng={computedUnit.savedLng}
+          cachedPlaces={computedUnit.cachedNearbyPlaces}
           t={t}
           locale={locale}
         />

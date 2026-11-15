@@ -13,10 +13,15 @@ import {
   stripToCoreSellColumns,
   text,
 } from '@/lib/form-action-helpers'
+import { getCoordinatesForArea } from '@/lib/georgia-coordinates'
 import {
   buildUnitPayloadWithMetaBackup,
   checkUnitHasCompleteMediaAndDetails,
 } from '@/lib/sell-payload-builder'
+import {
+  fetchRealNearbyPlacesAndWeatherAction,
+  geocodeGeorgiaBuildingAction,
+} from './georgia-geocode-action'
 import {
   getCurrentSellerProfileAction as _getCurrentSellerProfileAction,
   getUsersVerificationMapAction as _getUsersVerificationMapAction,
@@ -44,6 +49,147 @@ export type SubmitResult = {
   error?: string
   unitId?: string
   orderRef?: string
+}
+
+function isValidGeorgiaCoord(lat: number, lng: number): boolean {
+  return (
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    lat >= 40.9 &&
+    lat <= 43.7 &&
+    lng >= 39.8 &&
+    lng <= 46.9
+  )
+}
+
+/**
+ * توليد وحفظ إحداثيات المبنى والأماكن المحيطة (150+ مرفق) وقت رفع الوحدة الفعلي
+ * كما يفعل sivrce.ge حتى تفتح صفحة الوحدة في 0 ثانية لأي زائر
+ */
+async function enrichUnitPayloadWithLocationAndNearbyCache(
+  formData: FormData,
+  payload: Record<string, any>,
+  existingDocs?: any
+) {
+  try {
+    const existingMeta =
+      existingDocs && typeof existingDocs === 'object'
+        ? existingDocs.__unit_meta || {}
+        : {}
+    const currentMeta = payload.documents?.__unit_meta || {}
+
+    const rawLat = Number(
+      text(formData, 'lat') || currentMeta.lat || existingMeta.lat
+    )
+    const rawLng = Number(
+      text(formData, 'lng') || currentMeta.lng || existingMeta.lng
+    )
+
+    let finalLat = isValidGeorgiaCoord(rawLat, rawLng) ? rawLat : NaN
+    let finalLng = isValidGeorgiaCoord(rawLat, rawLng) ? rawLng : NaN
+
+    const street = String(
+      payload.exact_street || currentMeta.exact_street || ''
+    ).trim()
+    const house = String(
+      payload.house_number || currentMeta.house_number || ''
+    ).trim()
+    const areaId = String(payload.area || currentMeta.area || '').trim()
+    const locDisplay = String(
+      text(formData, 'location_display') ||
+        currentMeta.location_display ||
+        existingMeta.location_display ||
+        areaId
+    ).trim()
+
+    if (!isValidGeorgiaCoord(finalLat, finalLng) && street.length >= 2) {
+      const cityPart = locDisplay.includes(',')
+        ? locDisplay.split(',').pop()!.trim()
+        : locDisplay.split(/[-—]/)[0].trim() || 'Tbilisi'
+
+      const geocoded = await Promise.race([
+        geocodeGeorgiaBuildingAction({
+          streetEn: street,
+          houseNumber: house,
+          city: cityPart,
+        }),
+        new Promise<null>((r) => setTimeout(() => r(null), 2500)),
+      ])
+
+      if (geocoded && isValidGeorgiaCoord(geocoded.lat, geocoded.lng)) {
+        finalLat = geocoded.lat
+        finalLng = geocoded.lng
+      }
+    }
+
+    if (!isValidGeorgiaCoord(finalLat, finalLng)) {
+      const fallback = getCoordinatesForArea(areaId || 'Tbilisi - Saburtalo')
+      finalLat = fallback.lat
+      finalLng = fallback.lng
+    }
+
+    const rLat = Number(finalLat.toFixed(4))
+    const rLng = Number(finalLng.toFixed(4))
+    const coordsKey = `${rLat}_${rLng}`
+
+    const existingCachedPlaces = Array.isArray(
+      existingMeta.cached_nearby_places_v5
+    )
+      ? existingMeta.cached_nearby_places_v5
+      : null
+
+    let nearbyPlaces =
+      existingCachedPlaces &&
+      existingCachedPlaces.length >= 15 &&
+      existingMeta.cached_nearby_coords === coordsKey
+        ? existingCachedPlaces
+        : null
+
+    if (!nearbyPlaces) {
+      const nearbyRes = await Promise.race([
+        fetchRealNearbyPlacesAndWeatherAction({
+          lat: finalLat,
+          lng: finalLng,
+          locale: 'en',
+        }),
+        new Promise<null>((r) => setTimeout(() => r(null), 4500)),
+      ])
+
+      if (
+        nearbyRes &&
+        Array.isArray(nearbyRes.places) &&
+        nearbyRes.places.length > 0
+      ) {
+        nearbyPlaces = nearbyRes.places.slice(0, 200)
+      }
+    }
+
+    const hideCadastralRaw = text(formData, 'hide_cadastral')
+    const hideCadastral =
+      hideCadastralRaw === 'true'
+        ? true
+        : hideCadastralRaw === 'false'
+          ? false
+          : Boolean(currentMeta.hide_cadastral ?? existingMeta.hide_cadastral)
+
+    payload.documents = {
+      ...(payload.documents || {}),
+      __unit_meta: {
+        ...existingMeta,
+        ...currentMeta,
+        lat: Number(finalLat.toFixed(6)),
+        lng: Number(finalLng.toFixed(6)),
+        ...(locDisplay ? { location_display: locDisplay } : {}),
+        hide_cadastral: hideCadastral,
+        ...(nearbyPlaces
+          ? {
+              cached_nearby_places_v5: nearbyPlaces,
+              cached_nearby_coords: coordsKey,
+            }
+          : {}),
+      },
+    }
+  } catch {}
 }
 
 async function canModifySellUnit(
@@ -199,7 +345,6 @@ export async function saveSellProgress(
 
     let targetUnitId = unitId
 
-    // لا نستخدم مسودة سابقة إلا إذا كانت مسودة فارغة حديثة لم يتم إرسالها من قبل (لمنع الكتابة فوق وحدة منشورة!)
     if (!targetUnitId) {
       const { data: recentEmptyDraft } = await supabase
         .from('sell_requests')
@@ -218,6 +363,11 @@ export async function saveSellProgress(
         targetUnitId = String(recentEmptyDraft.id)
       }
     }
+
+    const rawLat = Number(text(formData, 'lat'))
+    const rawLng = Number(text(formData, 'lng'))
+    const locDisplay = text(formData, 'location_display')
+    const hideCad = text(formData, 'hide_cadastral')
 
     if (!targetUnitId) {
       const newDraftPayload = buildUnitPayloadWithMetaBackup(
@@ -239,6 +389,11 @@ export async function saveSellProgress(
       newDraftPayload.documents.__unit_meta = {
         ...(newDraftPayload.documents.__unit_meta || {}),
         ready_for_admin_review: false,
+        ...(isValidGeorgiaCoord(rawLat, rawLng)
+          ? { lat: rawLat, lng: rawLng }
+          : {}),
+        ...(locDisplay ? { location_display: locDisplay } : {}),
+        ...(hideCad ? { hide_cadastral: hideCad === 'true' } : {}),
       }
 
       let { data: inserted, error: insErr } = await supabase
@@ -302,6 +457,11 @@ export async function saveSellProgress(
       ...(payload.documents.__unit_meta || {}),
       ready_for_admin_review:
         isAlreadyLiveOrReviewed || completeness.isFullyCompleteForAdmin,
+      ...(isValidGeorgiaCoord(rawLat, rawLng)
+        ? { lat: rawLat, lng: rawLng }
+        : {}),
+      ...(locDisplay ? { location_display: locDisplay } : {}),
+      ...(hideCad ? { hide_cadastral: hideCad === 'true' } : {}),
     }
 
     const { error } = await resilientUpdateUnit(
@@ -425,13 +585,19 @@ export async function submitSellRequest(
         null
       payload.is_original_owner = true
       payload.status = isLockedByDeal ? prevUnit.status : 'pending'
-      // نحافظ على حالة توثيق المستندات الخاصة بالأدمن دون تفعيلها تلقائياً قبل مراجعة الإدارة
       payload.docs_verified = Boolean(prevUnit.docs_verified)
       payload.documents.__unit_meta = {
         ...(payload.documents.__unit_meta || {}),
         email_verified: true,
         ready_for_admin_review: completeness.isFullyCompleteForAdmin,
       }
+
+      // توليد وحفظ الأماكن القريبة وإحداثيات المبنى وقت النشر الفعلي
+      await enrichUnitPayloadWithLocationAndNearbyCache(
+        formData,
+        payload,
+        prevUnit?.documents
+      )
 
       const wasPreviouslySubmitted =
         prevCleanStatus !== 'draft_unverified' &&
@@ -488,6 +654,7 @@ export async function submitSellRequest(
       revalidatePath('/account', 'page')
       revalidatePath('/opportunities', 'page')
       revalidatePath(`/opportunities/${existingUnitId}`, 'page')
+      revalidatePath(`/units/${existingUnitId}`, 'page')
       revalidatePath('/admin', 'layout')
       return {
         success: true,
@@ -513,6 +680,9 @@ export async function submitSellRequest(
       email_verified: true,
       ready_for_admin_review: completeness.isFullyCompleteForAdmin,
     }
+
+    // توليد وحفظ الأماكن القريبة وإحداثيات المبنى وقت النشر الفعلي
+    await enrichUnitPayloadWithLocationAndNearbyCache(formData, payload, null)
 
     const insertPayload = {
       ...payload,
@@ -578,6 +748,7 @@ export async function submitSellRequest(
     revalidatePath('/account', 'page')
     revalidatePath('/opportunities', 'page')
     revalidatePath(`/opportunities/${finalId}`, 'page')
+    revalidatePath(`/units/${finalId}`, 'page')
     revalidatePath('/admin', 'layout')
     return {
       success: true,

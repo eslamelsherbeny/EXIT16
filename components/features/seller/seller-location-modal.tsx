@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import {
+  AlertCircle,
   ArrowUpLeft,
   ChevronDown,
   ChevronLeft,
@@ -34,6 +35,7 @@ const MODAL_EXTRA_I18N: Record<
     wholeCityBtn: string
     pickDistrictOrStreetHint: string
     noStreetsForAreaHint: string
+    outsideGeorgiaGpsWarning: string
   }
 > = {
   ar: {
@@ -43,6 +45,8 @@ const MODAL_EXTRA_I18N: Record<
     pickDistrictOrStreetHint: 'اختر الحي أولاً أو ابحث باسم الشارع بالأعلى',
     noStreetsForAreaHint:
       'لا توجد شوارع فرعية مسجلة لهذه المنطقة — اضغط تأكيد لاختيار المنطقة مباشرة',
+    outsideGeorgiaGpsWarning:
+      'أنت تتصفح حالياً من خارج دولة جورجيا — المنصة مخصصة للعقارات داخل جورجيا فقط. يرجى اختيار مدينة وحي العقار من القائمة أدناه.',
   },
   en: {
     districtsTab: 'Districts',
@@ -51,6 +55,8 @@ const MODAL_EXTRA_I18N: Record<
     pickDistrictOrStreetHint: 'Pick a district or type a street above',
     noStreetsForAreaHint:
       'No streets listed for this area — click Select to use location',
+    outsideGeorgiaGpsWarning:
+      'Your current GPS location is outside Georgia — this platform lists properties in Georgia only. Please select the property city and district below.',
   },
   ru: {
     districtsTab: 'Районы',
@@ -59,6 +65,8 @@ const MODAL_EXTRA_I18N: Record<
     pickDistrictOrStreetHint: 'Выберите район или введите улицу выше',
     noStreetsForAreaHint:
       'Для этого района нет списка улиц — нажмите Выбрать для подтверждения',
+    outsideGeorgiaGpsWarning:
+      'Ваша текущая геопозиция находится за пределами Грузии — платформа предназначена только для объектов в Грузии. Выберите город и район ниже.',
   },
   ka: {
     districtsTab: 'უბნები',
@@ -67,7 +75,20 @@ const MODAL_EXTRA_I18N: Record<
     pickDistrictOrStreetHint: 'აირჩიეთ უბანი ან ჩაწერეთ ქუჩა ზემოთ',
     noStreetsForAreaHint:
       'ამ ზონაში ქუჩები არ არის — დააჭირეთ არჩევას მდებარეობის გამოსაყენებლად',
+    outsideGeorgiaGpsWarning:
+      'თქვენი მიმდინარე GPS მდებარეობა საქართველოს ფარგლებს გარეთაა — გთხოვთ აირჩიოთ ქონების ქალაქი და უბანი საქართველოში ქვემოთ.',
   },
+}
+
+function isCoordInsideGeorgia(lat: number, lng: number): boolean {
+  return (
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    lat >= 40.9 &&
+    lat <= 43.7 &&
+    lng >= 39.8 &&
+    lng <= 46.9
+  )
 }
 
 export const SIVRCE_POPULAR_CITIES = [
@@ -408,6 +429,7 @@ export function SivrceLocationModalPicker({
   } | null>(null)
 
   const [nearbyLoading, setNearbyLoading] = useState(false)
+  const [gpsOutsideWarning, setGpsOutsideWarning] = useState('')
 
   const resolvedDisplay =
     displayText ||
@@ -463,11 +485,19 @@ export function SivrceLocationModalPicker({
   const handleNearbyClick = () => {
     if (typeof window === 'undefined' || !('geolocation' in navigator)) return
     setNearbyLoading(true)
+    setGpsOutsideWarning('')
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         try {
           const lat = pos.coords.latitude
           const lng = pos.coords.longitude
+
+          // إذا كان المالك يتصفح من خارج جورجيا (مثلاً في مصر)، ننبهه ولا نضع عنواناً خارج جورجيا
+          if (!isCoordInsideGeorgia(lat, lng)) {
+            setGpsOutsideWarning(uiT.outsideGeorgiaGpsWarning)
+            return
+          }
+
           const resolved = await reverseGeocodeGeorgiaPin({
             lat,
             lng,
@@ -594,13 +624,19 @@ export function SivrceLocationModalPicker({
 
       {customTrigger ? (
         customTrigger({
-          onClick: () => setOpen(true),
+          onClick: () => {
+            setGpsOutsideWarning('')
+            setOpen(true)
+          },
           resolvedDisplay,
         })
       ) : (
         <button
           type="button"
-          onClick={() => setOpen(true)}
+          onClick={() => {
+            setGpsOutsideWarning('')
+            setOpen(true)
+          }}
           className={`flex h-12 w-full items-center justify-between rounded-xl border px-4 text-start text-xs font-bold transition sm:text-sm ${
             error
               ? 'border-2 border-red-500 bg-red-50/20 text-red-700'
@@ -619,7 +655,11 @@ export function SivrceLocationModalPicker({
                     : 'text-slate-400'
               }`}
             />
-            <span className="truncate">
+            <span
+              className={`truncate ${
+                !value ? 'text-[11px] font-normal text-slate-300 sm:text-xs' : ''
+              }`}
+            >
               {resolvedDisplay || mT.searchPlaceholder}
             </span>
           </span>
@@ -697,7 +737,6 @@ export function SivrceLocationModalPicker({
               </button>
             </div>
 
-            {/* شريط الـ Chips للمدينة والحي والشارع المختار */}
             {activeCity && (
               <div className="flex flex-wrap items-center gap-2 px-4 pb-2.5 sm:px-6">
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-[#2563eb]">
@@ -756,7 +795,7 @@ export function SivrceLocationModalPicker({
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder={mT.searchPlaceholder}
-                  className="h-11 w-full rounded-xl border border-slate-200/90 bg-[#f8fafc] ps-10 pe-10 text-xs font-medium text-[#0a1122] transition focus:border-[#2563eb] focus:bg-white focus:outline-none sm:text-sm"
+                  className="h-11 w-full rounded-xl border border-slate-200/90 bg-[#f8fafc] ps-10 pe-10 text-xs font-medium text-[#0a1122] transition focus:border-[#2563eb] focus:bg-white focus:outline-none placeholder:text-[11px] placeholder:font-normal placeholder:text-slate-400 sm:text-sm"
                 />
                 {searchQuery ? (
                   <button
@@ -835,6 +874,13 @@ export function SivrceLocationModalPicker({
                   </span>
                 </button>
 
+                {gpsOutsideWarning && (
+                  <div className="mt-3 flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-3.5 text-start text-xs leading-relaxed font-bold text-amber-900">
+                    <AlertCircle className="mt-0.5 size-4 shrink-0 text-amber-600" />
+                    <span>{gpsOutsideWarning}</span>
+                  </div>
+                )}
+
                 <div className="mt-5">
                   <span className="block text-[10px] font-extrabold tracking-wider text-slate-400 uppercase">
                     {mT.popularCitiesTitle}
@@ -845,6 +891,7 @@ export function SivrceLocationModalPicker({
                         key={city.id}
                         type="button"
                         onClick={() => {
+                          setGpsOutsideWarning('')
                           setActiveCity(city.id)
                           setActiveDistrict(null)
                           setCheckedStreet(null)
@@ -881,6 +928,7 @@ export function SivrceLocationModalPicker({
                                   <button
                                     type="button"
                                     onClick={() => {
+                                      setGpsOutsideWarning('')
                                       setActiveCity(cleanCity)
                                       setActiveDistrict(null)
                                       setCheckedStreet(null)
@@ -902,7 +950,6 @@ export function SivrceLocationModalPicker({
             ) : (
               <div className="flex flex-1 flex-col overflow-hidden border-t border-slate-100">
                 <div className="grid flex-1 grid-cols-1 overflow-hidden sm:grid-cols-12">
-                  {/* العمود الجانبي للمدن: يظهر على الكمبيوتر فقط (hidden sm:flex) */}
                   <div className="hidden flex-col overflow-hidden border-e border-slate-100 sm:col-span-3 sm:flex">
                     <div className="border-b border-slate-100 px-5 pt-2.5 pb-2 text-xs font-bold text-slate-700">
                       {subTab === 'districts'
@@ -940,7 +987,6 @@ export function SivrceLocationModalPicker({
                     </div>
                   </div>
 
-                  {/* العمود الأيمن: الأحياء أو الشوارع */}
                   <div className="flex flex-1 flex-col overflow-hidden sm:col-span-9">
                     <div className="flex items-center gap-6 border-b border-slate-100 px-4 pt-2.5 sm:px-6">
                       {hasDistrictsForActiveCity && (
@@ -1124,6 +1170,7 @@ export function SivrceLocationModalPicker({
                   setActiveDistrict(null)
                   setCheckedStreet(null)
                   setSearchQuery('')
+                  setGpsOutsideWarning('')
                   setSubTab('districts')
                 }}
                 className="text-xs font-bold text-slate-600 hover:text-[#0a1122]"

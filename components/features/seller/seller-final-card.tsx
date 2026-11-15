@@ -109,7 +109,6 @@ export function SellerFinalReadinessCard({
         </p>
       </div>
 
-      {/* الأزرار أولاً */}
       <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
         <button
           type="button"
@@ -150,7 +149,6 @@ export function SellerFinalReadinessCard({
         </button>
       </div>
 
-      {/* تنبيه الحقول الناقصة يظهر تحت الأزرار بخط هادئ ومناسب بدون أزرار تنقل */}
       {hasVisibleErrors && (
         <div
           role="alert"
@@ -263,34 +261,35 @@ export function SellerMissingMediaConfirmModal({
           )}
         </div>
 
-        {/* رسالة توضيحية تؤكد للمالك أن الصور والمستندات أساسية لنشر الوحدة على المنصة */}
         <div className="mt-3 flex items-start gap-2 rounded-2xl border border-blue-200/80 bg-blue-50/50 p-3 text-[11.5px] leading-relaxed font-semibold text-slate-700">
           <Info className="mt-0.5 size-4 shrink-0 text-[#2563eb]" />
           <p>{mandatoryNoteText}</p>
         </div>
 
+        {/* الزر العلوي (ملون): إرسال البيانات الآن واستكمال المرفقات لاحقاً */}
         <div className="mt-5 space-y-2.5">
           <button
             type="button"
             disabled={pending}
-            onClick={onGoToUploadNow}
-            className="flex min-h-[48px] w-full items-center justify-center rounded-2xl bg-[#007a5a] px-5 py-3 text-xs font-black text-white shadow-md transition hover:bg-[#006248] sm:text-sm"
-          >
-            {dynamicUploadBtnLabel}
-          </button>
-
-          <button
-            type="button"
-            disabled={pending}
             onClick={onConfirmSubmitAnyway}
-            className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-extrabold text-slate-700 transition hover:bg-slate-100 disabled:opacity-60"
+            className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl bg-[#007a5a] px-5 py-3 text-xs font-black text-white shadow-md transition hover:bg-[#006248] disabled:opacity-60 sm:text-sm"
           >
             {pending ? (
               <Loader2 className="size-4 animate-spin" />
             ) : (
-              <Send className="size-3.5 shrink-0" />
+              <Send className="size-4 shrink-0" />
             )}
             <span>{loadT.mediaDialogConfirmBtn}</span>
+          </button>
+
+          {/* الزر السفلي (غير ملون): رفع الصور / المستندات المتبقية أولاً */}
+          <button
+            type="button"
+            disabled={pending}
+            onClick={onGoToUploadNow}
+            className="flex min-h-[44px] w-full items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-extrabold text-slate-700 transition hover:bg-slate-100 disabled:opacity-60 sm:text-sm"
+          >
+            {dynamicUploadBtnLabel}
           </button>
         </div>
       </div>

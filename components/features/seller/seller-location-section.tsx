@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  AlertCircle,
   ArrowUpLeft,
   Camera,
   Check,
@@ -50,6 +51,22 @@ import {
 
 export { mapDetectedAddressToGeorgiaAreaId }
 
+const GEORGIA_MAX_BOUNDS: [[number, number], [number, number]] = [
+  [39.8, 40.9],
+  [46.9, 43.7],
+]
+
+function isPointInsideGeorgia(lat: number, lng: number): boolean {
+  return (
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    lat >= 40.9 &&
+    lat <= 43.7 &&
+    lng >= 39.8 &&
+    lng <= 46.9
+  )
+}
+
 const MAP_STYLE_OPTIONS: Array<{
   id: GeorgiaMapThemeMode
   label: string
@@ -76,6 +93,7 @@ const SIVRCE_MAP_UI_I18N: Record<
     optionalNaprHint: string
     hideCadastralBtn: string
     hiddenFromPublicBadge: string
+    outsideGeorgiaMapAlert: string
     shortProjectPlaceholder: string
     shortDeveloperPlaceholder: string
     shortStreetPlaceholder: string
@@ -95,6 +113,8 @@ const SIVRCE_MAP_UI_I18N: Record<
     optionalNaprHint: 'اختياري — يوجه الخريطة تلقائياً إلى قطعة NAPR',
     hideCadastralBtn: 'إخفاء الرقم العقاري عن الجمهور في الإعلان',
     hiddenFromPublicBadge: 'مخفي عن الزوار في صفحة الإعلان (يظهر للإدارة فقط)',
+    outsideGeorgiaMapAlert:
+      'موقعك الحالي خارج جورجيا — يرجى تحديد موقع العقار داخل خريطة جورجيا فقط.',
     shortProjectPlaceholder: 'اسم المشروع أو المجمع...',
     shortDeveloperPlaceholder: 'اسم المطور (اختياري)...',
     shortStreetPlaceholder: 'ابحث باسم الشارع...',
@@ -112,6 +132,8 @@ const SIVRCE_MAP_UI_I18N: Record<
     optionalNaprHint: 'Optional — snaps NAPR parcel onto the map',
     hideCadastralBtn: 'Hide cadastral code on the website',
     hiddenFromPublicBadge: 'Hidden from public visitors (Visible to Admin only)',
+    outsideGeorgiaMapAlert:
+      'Your GPS location is outside Georgia — please pin the property inside Georgia.',
     shortProjectPlaceholder: 'Project or complex name...',
     shortDeveloperPlaceholder: 'Developer name (optional)...',
     shortStreetPlaceholder: 'Type street name...',
@@ -129,6 +151,8 @@ const SIVRCE_MAP_UI_I18N: Record<
     optionalNaprHint: 'Необязательно — привязывает участок NAPR к карте',
     hideCadastralBtn: 'Скрыть кадастровый код на сайте',
     hiddenFromPublicBadge: 'Скрыто от посетителей в объявлении (Видно только админу)',
+    outsideGeorgiaMapAlert:
+      'Ваша геопозиция вне Грузии — укажите объект на карте Грузии.',
     shortProjectPlaceholder: 'Название ЖК или проекта...',
     shortDeveloperPlaceholder: 'Застройщик (необязательно)...',
     shortStreetPlaceholder: 'Введите название улицы...',
@@ -146,6 +170,8 @@ const SIVRCE_MAP_UI_I18N: Record<
     optionalNaprHint: 'არასავალდებულო — აფიქსირებს NAPR ნაკვეთს რუკაზე',
     hideCadastralBtn: 'საკადასტრო კოდის დამალვა საიტზე',
     hiddenFromPublicBadge: 'დამალულია საჯაროდ (ჩანს მხოლოდ ადმინისტრაციისთვის)',
+    outsideGeorgiaMapAlert:
+      'თქვენი GPS მდებარეობა საქართველოს გარეთაა — მონიშნეთ ობიექტი საქართველოში.',
     shortProjectPlaceholder: 'პროექტის სახელი...',
     shortDeveloperPlaceholder: 'დეველოპერი (არასავალდებულო)...',
     shortStreetPlaceholder: 'ჩაწერეთ ქუჩის სახელი...',
@@ -251,8 +277,19 @@ export function LocationSection({
     form.location || 'Tbilisi - Saburtalo'
   )
 
-  const initialLat = Number(form.lat) || defaultAreaCoords.lat
-  const initialLng = Number(form.lng) || defaultAreaCoords.lng
+  const parsedFormLat = Number(form.lat)
+  const parsedFormLng = Number(form.lng)
+  const validSavedGeorgiaCoords = isPointInsideGeorgia(
+    parsedFormLat,
+    parsedFormLng
+  )
+
+  const initialLat = validSavedGeorgiaCoords
+    ? parsedFormLat
+    : defaultAreaCoords.lat
+  const initialLng = validSavedGeorgiaCoords
+    ? parsedFormLng
+    : defaultAreaCoords.lng
 
   const [liveCoords, setLiveCoords] = useState<{ lat: number; lng: number }>({
     lat: initialLat,
@@ -263,7 +300,6 @@ export function LocationSection({
     lng: initialLng,
   })
 
-  // الخريطة لا تظهر في البداية إلا بعد اختيار المدينة/الحي أو كتابة الشارع أو الرقم العقاري تماماً مثل sivrce.ge
   const hasSelectedAnyLocation = Boolean(
     (form.location && form.location.trim().length > 0) ||
       (form.exactStreet && form.exactStreet.trim().length >= 2) ||
@@ -281,6 +317,7 @@ export function LocationSection({
   const [streetDropdownOpen, setStreetDropdownOpen] = useState(false)
   const [reverseGeoLoading, setReverseGeoLoading] = useState(false)
   const [gpsLoading, setGpsLoading] = useState(false)
+  const [outsideGeorgiaAlert, setOutsideGeorgiaAlert] = useState('')
 
   const [naprParcelAddress, setNaprParcelAddress] = useState<string>('')
   const hideCadastralOnSite = form.hideCadastral === 'true'
@@ -303,6 +340,7 @@ export function LocationSection({
   }, [form.exactStreet, form.location, form.locationDisplay, locale])
 
   const syncCoordsAndMarker = useCallback((lat: number, lng: number) => {
+    if (!isPointInsideGeorgia(lat, lng)) return
     liveCoordsRef.current = { lat, lng }
     setLiveCoords({ lat, lng })
     updateRef.current('lat', String(lat.toFixed(6)))
@@ -350,6 +388,7 @@ export function LocationSection({
 
   const flyMapToExactPoint = useCallback(
     (lat: number, lng: number, zoomLevel = 17.6) => {
+      if (!isPointInsideGeorgia(lat, lng)) return
       syncCoordsAndMarker(lat, lng)
       const map = mapInstanceRef.current
       if (!map) return
@@ -376,6 +415,12 @@ export function LocationSection({
       shouldFly = true,
       clickPixelPoint?: { x: number; y: number }
     ) => {
+      if (!isPointInsideGeorgia(lat, lng)) {
+        setOutsideGeorgiaAlert(mapUiT.outsideGeorgiaMapAlert)
+        return
+      }
+      setOutsideGeorgiaAlert('')
+
       const map = mapInstanceRef.current
       const currentZoom = map?.getZoom?.() || 16.5
       const targetZoom = Math.max(currentZoom, 17.6)
@@ -398,6 +443,16 @@ export function LocationSection({
         screenPt
       )
       if (instantLocal) {
+        const nextSt = instantLocal.street || formRef.current.exactStreet || ''
+        const nextHn =
+          instantLocal.houseNumber !== undefined
+            ? instantLocal.houseNumber
+            : formRef.current.houseNumber || ''
+        const nextDisp =
+          instantLocal.displayLabel || formRef.current.locationDisplay || ''
+
+        lastManualTypedRef.current = `${nextSt}|${nextHn}|${nextDisp}`
+
         if (instantLocal.street) {
           updateRef.current('exactStreet', instantLocal.street)
         }
@@ -410,7 +465,6 @@ export function LocationSection({
         if (instantLocal.displayLabel) {
           updateRef.current('locationDisplay', instantLocal.displayLabel)
         }
-        lastManualTypedRef.current = `${instantLocal.street || formRef.current.exactStreet || ''}|${instantLocal.houseNumber || ''}|${instantLocal.displayLabel || formRef.current.locationDisplay || ''}`
       }
 
       if (reverseAbortRef.current) {
@@ -428,6 +482,11 @@ export function LocationSection({
         })
 
         if (controller.signal.aborted || !serverData) return
+
+        if (serverData.outsideGeorgia) {
+          setOutsideGeorgiaAlert(mapUiT.outsideGeorgiaMapAlert)
+          return
+        }
 
         const matched = matchStreetAndDistrictToOurDatabase({
           rawStreet: serverData.rawStreet,
@@ -451,16 +510,7 @@ export function LocationSection({
 
         updateRef.current('cadastralCode', serverData.cadastralCode || '')
         setNaprParcelAddress(
-          serverData.cadastralCode
-            ? serverData.naprAddress ||
-                [
-                  serverData.rawCity || 'Tbilisi',
-                  finalStreet,
-                  finalHouse ? `N ${finalHouse}` : '',
-                ]
-                  .filter(Boolean)
-                  .join(', ')
-            : ''
+          serverData.cadastralCode ? serverData.naprAddress || '' : ''
         )
 
         if (mapInstanceRef.current) {
@@ -474,7 +524,7 @@ export function LocationSection({
         }
       }
     },
-    [flyMapToExactPoint, syncCoordsAndMarker]
+    [flyMapToExactPoint, mapUiT.outsideGeorgiaMapAlert, syncCoordsAndMarker]
   )
 
   const selectPointRef = useRef(selectPointOnMap)
@@ -520,16 +570,7 @@ export function LocationSection({
         )
         if (coords.cadastralCode) {
           updateRef.current('cadastralCode', coords.cadastralCode)
-          setNaprParcelAddress(
-            coords.naprAddress ||
-              [
-                cityCtx || 'Tbilisi',
-                streetClean,
-                houseClean ? `N ${houseClean}` : '',
-              ]
-                .filter(Boolean)
-                .join(', ')
-          )
+          setNaprParcelAddress(coords.naprAddress || '')
         }
       }
     }, 550)
@@ -547,7 +588,6 @@ export function LocationSection({
     flyMapToExactPoint,
   ])
 
-  // تهيئة الخريطة فقط عندما يختار المستخدم موقعاً (hasSelectedAnyLocation = true)
   useEffect(() => {
     if (!hasSelectedAnyLocation) return
 
@@ -566,6 +606,7 @@ export function LocationSection({
           zoom: 17.2,
           pitch: is3dPitchRef.current && !isPureRasterMode ? 52 : 0,
           bearing: is3dPitchRef.current && !isPureRasterMode ? -12 : 0,
+          maxBounds: GEORGIA_MAX_BOUNDS,
           attributionControl: false,
           cooperativeGestures: true,
           locale: {
@@ -680,6 +721,7 @@ export function LocationSection({
 
   const handleSelectStreetSuggestion = async (item: GeorgiaPlaceSuggestion) => {
     setStreetDropdownOpen(false)
+    setOutsideGeorgiaAlert('')
     const selectedStreet = item.street || item.primaryText
     const nextHouse = item.houseNumber || form.houseNumber || ''
     lastManualTypedRef.current = `${selectedStreet}|${nextHouse}|${item.displayAreaLabel}`
@@ -706,42 +748,27 @@ export function LocationSection({
 
     if (exactCoords?.cadastralCode) {
       update('cadastralCode', exactCoords.cadastralCode)
-      setNaprParcelAddress(
-        exactCoords.naprAddress ||
-          [cityPart, selectedStreet, nextHouse ? `N ${nextHouse}` : '']
-            .filter(Boolean)
-            .join(', ')
-      )
+      setNaprParcelAddress(exactCoords.naprAddress || '')
     } else {
-      const serverData = await reverseGeocodeGeorgiaPinAction({
-        lat: targetLat,
-        lng: targetLng,
-        locale: locale as LocaleCode,
-        fallbackCity: cityPart,
-      })
-      update('cadastralCode', serverData?.cadastralCode || '')
-      setNaprParcelAddress(
-        serverData?.cadastralCode
-          ? serverData.naprAddress ||
-              [cityPart, selectedStreet, nextHouse ? `N ${nextHouse}` : '']
-                .filter(Boolean)
-                .join(', ')
-          : ''
-      )
+      update('cadastralCode', '')
+      setNaprParcelAddress('')
     }
   }
 
   const handleDetectMyGps = () => {
     if (typeof window === 'undefined' || !('geolocation' in navigator)) return
     setGpsLoading(true)
+    setOutsideGeorgiaAlert('')
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setGpsLoading(false)
-        void selectPointOnMap(
-          pos.coords.latitude,
-          pos.coords.longitude,
-          true
-        )
+        const lat = pos.coords.latitude
+        const lng = pos.coords.longitude
+        if (!isPointInsideGeorgia(lat, lng)) {
+          setOutsideGeorgiaAlert(mapUiT.outsideGeorgiaMapAlert)
+          return
+        }
+        void selectPointOnMap(lat, lng, true)
       },
       () => {
         setGpsLoading(false)
@@ -800,6 +827,28 @@ export function LocationSection({
       onMouseEnter={onHover}
       className="scroll-mt-32 rounded-[24px] border border-slate-200/80 bg-white p-5 shadow-2xs sm:p-7"
     >
+      {/* حقول مخفية لضمان إرسال الإحداثيات الدقيقة واسم الحي مع الـ FormData وقت رفع الوحدة */}
+      <input
+        type="hidden"
+        name="lat"
+        value={hasSelectedAnyLocation ? String(liveCoords.lat.toFixed(6)) : ''}
+      />
+      <input
+        type="hidden"
+        name="lng"
+        value={hasSelectedAnyLocation ? String(liveCoords.lng.toFixed(6)) : ''}
+      />
+      <input
+        type="hidden"
+        name="location_display"
+        value={form.locationDisplay ?? ''}
+      />
+      <input
+        type="hidden"
+        name="hide_cadastral"
+        value={form.hideCadastral ?? 'false'}
+      />
+
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="text-lg font-black text-[#0a1122]">{locT.title}</h2>
@@ -830,6 +879,7 @@ export function LocationSection({
               lat,
               lng,
             }) => {
+              setOutsideGeorgiaAlert('')
               update('location', areaId)
               update('locationDisplay', displayLabel)
 
@@ -876,12 +926,7 @@ export function LocationSection({
                   flyMapToExactPoint(targetLat, targetLng, 17.5)
                   if (exactRes?.cadastralCode) {
                     update('cadastralCode', exactRes.cadastralCode)
-                    setNaprParcelAddress(
-                      exactRes.naprAddress ||
-                        [cityPart, nextStreet, nextHouse ? `N ${nextHouse}` : '']
-                          .filter(Boolean)
-                          .join(', ')
-                    )
+                    setNaprParcelAddress(exactRes.naprAddress || '')
                   }
                 })()
               }
@@ -1056,7 +1101,6 @@ export function LocationSection({
           </div>
         </div>
 
-        {/* قسم الرمز العقاري (Cadastral Code) مع توضيح بصري فوري عند تفعيل خيار الإخفاء */}
         <div className="space-y-2.5">
           <div className="flex flex-col gap-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1147,7 +1191,13 @@ export function LocationSection({
           )}
         </div>
 
-        {/* الخريطة لا تظهر إلا بعد اختيار المدينة/الحي أو كتابة الشارع أو الرقم العقاري تماماً مثل sivrce.ge */}
+        {outsideGeorgiaAlert && (
+          <div className="flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-3.5 text-start text-xs font-bold text-amber-900">
+            <AlertCircle className="mt-0.5 size-4 shrink-0 text-amber-600" />
+            <span>{outsideGeorgiaAlert}</span>
+          </div>
+        )}
+
         {hasSelectedAnyLocation && (
           <div
             ref={mapWrapperRef}

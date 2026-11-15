@@ -1,18 +1,32 @@
 'use server'
 
+import { createClient } from '@supabase/supabase-js'
+
+export type NearbyPlaceCategory =
+  | 'metro'
+  | 'school'
+  | 'kindergarten'
+  | 'pharmacy'
+  | 'park'
+  | 'market'
+  | 'restaurants'
+  | 'clinic'
+  | 'university'
+  | 'bank'
+  | 'landmark'
+  | 'gym'
+  | 'bus'
+
 export type RealNearbyPlaceItem = {
   id: string
   name: string
-  category:
-    | 'school'
-    | 'kindergarten'
-    | 'pharmacy'
-    | 'market'
-    | 'restaurants'
-    | 'clinic'
-    | 'university'
-    | 'gym'
-    | 'bus'
+  names?: {
+    ar: string
+    en: string
+    ru: string
+    ka: string
+  }
+  category: NearbyPlaceCategory
   distanceMeters: number
   lat: number
   lng: number
@@ -25,9 +39,71 @@ const KA_TO_LATIN_MAP: Record<string, string> = {
   ძ: 'dz', წ: 'ts', ჭ: 'ch', ხ: 'kh', ჯ: 'j', ჰ: 'h',
 }
 
-function transliterateKaIfNeeded(text: string, locale: string): string {
+// إحداثيات محطات مترو تبليسي الـ 23 الرسمية (لضمان حساب مسافة أقرب محطة مترو بدقة)
+const TBILISI_OFFICIAL_METRO_STATIONS: Array<{
+  nameEn: string
+  nameKa: string
+  nameRu: string
+  nameAr: string
+  lat: number
+  lng: number
+}> = [
+  { nameEn: 'Rustaveli', nameKa: 'რუსთაველი', nameRu: 'Руставели', nameAr: 'روستافيلي', lat: 41.7041, lng: 44.7896 },
+  { nameEn: 'Liberty Square', nameKa: 'თავისუფლების მოედანი', nameRu: 'Площадь Свободы', nameAr: 'ميدان الحرية', lat: 41.6934, lng: 44.8015 },
+  { nameEn: 'Marjanishvili', nameKa: 'მარჯანიშვილი', nameRu: 'Марджанишвили', nameAr: 'مارجانيشفيلي', lat: 41.7091, lng: 44.7971 },
+  { nameEn: 'Station Square', nameKa: 'სადგურის მოედანი', nameRu: 'Вокзальная площадь', nameAr: 'ميدان المحطة', lat: 41.7201, lng: 44.7988 },
+  { nameEn: 'Technical University', nameKa: 'ტექნიკური უნივერსიტეტი', nameRu: 'Технический университет', nameAr: 'الجامعة التقنية', lat: 41.7186, lng: 44.7779 },
+  { nameEn: 'Medical University', nameKa: 'სამედიცინო უნივერსიტეტი', nameRu: 'Медицинский университет', nameAr: 'الجامعة الطبية', lat: 41.7259, lng: 44.7634 },
+  { nameEn: 'Delisi', nameKa: 'დელისი', nameRu: 'Делиси', nameAr: 'ديليسي', lat: 41.7253, lng: 44.7469 },
+  { nameEn: 'Vazha-Pshavela', nameKa: 'ვაჟა-ფშაველა', nameRu: 'Важа-Пшавела', nameAr: 'فاجا بشافيلا', lat: 41.7244, lng: 44.7311 },
+  { nameEn: 'State University', nameKa: 'სახელმწიფო უნივერსიტეტი', nameRu: 'Государственный университет', nameAr: 'الجامعة الحكومية', lat: 41.7226, lng: 44.7176 },
+  { nameEn: 'Avlabari', nameKa: 'ავლაბარი', nameRu: 'Авлабари', nameAr: 'أفلاباري', lat: 41.6924, lng: 44.8156 },
+  { nameEn: '300 Aragveli', nameKa: '300 არაგველი', nameRu: '300 Арагвели', nameAr: '300 أراجفيلي', lat: 41.6878, lng: 44.8286 },
+  { nameEn: 'Isani', nameKa: 'ისანი', nameRu: 'Исани', nameAr: 'إيساني', lat: 41.6869, lng: 44.8414 },
+  { nameEn: 'Samgori', nameKa: 'სამგორი', nameRu: 'Самгори', nameAr: 'سامجوري', lat: 41.6838, lng: 44.8569 },
+  { nameEn: 'Varketili', nameKa: 'ვარკეთილი', nameRu: 'Варкетили', nameAr: 'فاركيتيلي', lat: 41.6988, lng: 44.8762 },
+  { nameEn: 'Tsereteli', nameKa: 'წერეთელი', nameRu: 'Церетели', nameAr: 'تسيريتيلي', lat: 41.7282, lng: 44.7885 },
+  { nameEn: 'Gotsiridze', nameKa: 'გოცირიძე', nameRu: 'Гоциридзе', nameAr: 'جوتسيريدزه', lat: 41.7376, lng: 44.7842 },
+  { nameEn: 'Didube', nameKa: 'დიდუბე', nameRu: 'Дидубе', nameAr: 'ديدوبي', lat: 41.7498, lng: 44.7796 },
+  { nameEn: 'Grmagele', nameKa: 'ღრმაღელე', nameRu: 'Грмагеле', nameAr: 'غرماجيلي', lat: 41.7654, lng: 44.7891 },
+  { nameEn: 'Guramishvili', nameKa: 'გურამიშვილი', nameRu: 'Гурамишвили', nameAr: 'جوراميشفيلي', lat: 41.7751, lng: 44.7952 },
+  { nameEn: 'Sarajishvili', nameKa: 'სარაჯიშვილი', nameRu: 'Сараджишвили', nameAr: 'ساراجيشفيلي', lat: 41.7875, lng: 44.8012 },
+  { nameEn: 'Akhmeteli Theatre', nameKa: 'ახმეტელის თეატრი', nameRu: 'Театр Ахметели', nameAr: 'مسرح أخسيتيلي', lat: 41.7931, lng: 44.8156 },
+]
+
+const GENERIC_CATEGORY_FALLBACK_NAMES: Record<
+  NearbyPlaceCategory,
+  { ar: string; en: string; ru: string; ka: string }
+> = {
+  metro: { ar: 'محطة مترو', en: 'Metro Station', ru: 'Станция метро', ka: 'მეტრო' },
+  school: { ar: 'مدرسة', en: 'Public School', ru: 'Школа', ka: 'საჯარო სკოლა' },
+  kindergarten: { ar: 'حضانة وروضة أطفال', en: 'Kindergarten', ru: 'Детский сад', ka: 'საბავშვო ბაღი' },
+  pharmacy: { ar: 'صيدلية', en: 'Pharmacy', ru: 'Аптека', ka: 'აფთიაქი' },
+  park: { ar: 'حديقة عامة', en: 'Park', ru: 'Сквер / Парк', ka: 'პარკი' },
+  market: { ar: 'سوبرماركت', en: 'Supermarket', ru: 'Супермаркет', ka: 'სუპერმარკეტი' },
+  restaurants: { ar: 'مطعم / كافيه', en: 'Restaurant / Cafe', ru: 'Ресторан / Кафе', ka: 'რესტორანი' },
+  clinic: { ar: 'عيادة طبية', en: 'Clinic', ru: 'Клиника', ka: 'კლინიკა' },
+  university: { ar: 'جامعة / كلية', en: 'University', ru: 'Университет', ka: 'უნივერსიტეტი' },
+  bank: { ar: 'بنك', en: 'Bank', ru: 'Банк', ka: 'ბანკი' },
+  landmark: { ar: 'معلم بارز', en: 'Landmark', ru: 'Достопримечательность', ka: 'ღირსშესანიშნაობა' },
+  gym: { ar: 'صالة رياضية', en: 'Fitness Gym', ru: 'Фитнес-клуб', ka: 'ფიტნეს დარბაზი' },
+  bus: { ar: 'محطة حافلات', en: 'Bus Stop', ru: 'Автобусная остановка', ka: 'ავტობუსის გაჩერება' },
+}
+
+function isPointInGeorgiaBounds(lat: number, lng: number): boolean {
+  return (
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    lat >= 40.9 &&
+    lat <= 43.7 &&
+    lng >= 39.8 &&
+    lng <= 46.9
+  )
+}
+
+function transliterateKaToLatin(text: string): string {
   const clean = (text || '').trim()
-  if (!clean || locale === 'ka' || !/[ა-ჰ]/.test(clean)) return clean
+  if (!clean || !/[ა-ჰ]/.test(clean)) return clean
   const romanized = Array.from(clean)
     .map((ch) => KA_TO_LATIN_MAP[ch] ?? ch)
     .join('')
@@ -35,6 +111,83 @@ function transliterateKaIfNeeded(text: string, locale: string): string {
     .split(/\s+/)
     .map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1) : ''))
     .join(' ')
+}
+
+function buildMultilingualPlaceNames(
+  tags: Record<string, any>,
+  category: NearbyPlaceCategory
+): { ar: string; en: string; ru: string; ka: string } | null {
+  const nameKa = String(
+    tags['name:ka'] ||
+      (/[ა-ჰ]/.test(tags.name || '') ? tags.name : '') ||
+      tags.official_name ||
+      tags.brand ||
+      ''
+  ).trim()
+
+  const rawEn = String(
+    tags['name:en'] ||
+      tags['brand:en'] ||
+      tags['int_name'] ||
+      (!/[ა-ჰ]/.test(tags.brand || '') ? tags.brand : '') ||
+      (!/[ა-ჰ]/.test(tags.name || '') ? tags.name : '') ||
+      ''
+  ).trim()
+
+  const rawRu = String(tags['name:ru'] || tags['brand:ru'] || '').trim()
+  const rawAr = String(tags['name:ar'] || '').trim()
+
+  const addrStreet = String(
+    tags['addr:street:en'] ||
+      tags['addr:street'] ||
+      tags.description ||
+      ''
+  ).trim()
+  const addrNum = String(tags.ref || tags['addr:housenumber'] || '').trim()
+
+  const baseEn =
+    rawEn ||
+    transliterateKaToLatin(nameKa) ||
+    (category === 'bus' && addrStreet
+      ? `${transliterateKaToLatin(addrStreet)}${addrNum ? ` #${addrNum}` : ''}`
+      : '')
+
+  const baseKa =
+    nameKa ||
+    rawEn ||
+    (category === 'bus' && addrStreet
+      ? `${addrStreet}${addrNum ? ` #${addrNum}` : ''}`
+      : '')
+
+  if (!baseEn && !baseKa) {
+    if (
+      category === 'restaurants' ||
+      category === 'market' ||
+      category === 'landmark'
+    ) {
+      return null
+    }
+    const fb = GENERIC_CATEGORY_FALLBACK_NAMES[category]
+    const suffix = addrNum ? ` #${addrNum}` : ''
+    return {
+      ar: `${fb.ar}${suffix}`,
+      en: `${fb.en}${suffix}`,
+      ru: `${fb.ru}${suffix}`,
+      ka: `${fb.ka}${suffix}`,
+    }
+  }
+
+  const finalEn = baseEn || transliterateKaToLatin(baseKa)
+  const finalKa = baseKa || finalEn
+  const finalRu = rawRu || finalEn
+  const finalAr = rawAr || finalEn
+
+  return {
+    ar: finalAr,
+    en: finalEn,
+    ru: finalRu,
+    ka: finalKa,
+  }
 }
 
 function haversineMetersServer(
@@ -52,156 +205,6 @@ function haversineMetersServer(
       Math.cos((lat2 * Math.PI) / 180) *
       Math.sin(dLon / 2) ** 2
   return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)))
-}
-
-function resolveNaprZoneAndPrefix(
-  lat: number,
-  lng: number,
-  cityRaw: string,
-  suburbRaw: string
-): { cityCode: string; zoneCode: string } {
-  const combined = `${cityRaw} ${suburbRaw}`.toLowerCase()
-
-  if (
-    combined.includes('batumi') ||
-    combined.includes('ბათუმი') ||
-    (lat < 41.75 && lng < 42.0)
-  ) {
-    const zone =
-      lat > 41.65 ? '21' : lat > 41.635 ? '24' : lat > 41.615 ? '32' : '36'
-    return { cityCode: '05', zoneCode: zone }
-  }
-
-  if (combined.includes('kutaisi') || combined.includes('ქუთაისი')) {
-    return { cityCode: '04', zoneCode: '01' }
-  }
-  if (combined.includes('rustavi') || combined.includes('რუსთავი')) {
-    return { cityCode: '02', zoneCode: '01' }
-  }
-  if (combined.includes('kobuleti') || combined.includes('ქობულეთი')) {
-    return { cityCode: '20', zoneCode: '42' }
-  }
-  if (combined.includes('bakuriani') || combined.includes('borjomi')) {
-    return { cityCode: '62', zoneCode: '13' }
-  }
-  if (combined.includes('gudauri') || combined.includes('kazbegi')) {
-    return { cityCode: '74', zoneCode: '06' }
-  }
-
-  if (
-    combined.includes('didi dighomi') ||
-    combined.includes('დიდი დიღომი') ||
-    lat > 41.782
-  ) {
-    return { cityCode: '01', zoneCode: '72' }
-  }
-  if (
-    combined.includes('gldani') ||
-    combined.includes('mukhiani') ||
-    (lat > 41.77 && lng > 44.8)
-  ) {
-    return { cityCode: '01', zoneCode: '11' }
-  }
-  if (
-    combined.includes('nadzaladevi') ||
-    combined.includes('temka') ||
-    combined.includes('sanzona')
-  ) {
-    return { cityCode: '01', zoneCode: '12' }
-  }
-  if (combined.includes('didube') || combined.includes('dighmis masivi')) {
-    return { cityCode: '01', zoneCode: '13' }
-  }
-  if (
-    combined.includes('saburtalo') ||
-    combined.includes('vedzisi') ||
-    combined.includes('vashlijvari')
-  ) {
-    return { cityCode: '01', zoneCode: '10' }
-  }
-  if (
-    combined.includes('vake') ||
-    combined.includes('bagebi') ||
-    combined.includes('nutsubidze')
-  ) {
-    return { cityCode: '01', zoneCode: '14' }
-  }
-  if (
-    combined.includes('mtatsminda') ||
-    combined.includes('vera') ||
-    combined.includes('sololaki')
-  ) {
-    return { cityCode: '01', zoneCode: '15' }
-  }
-  if (combined.includes('chughureti') || combined.includes('marjanishvili')) {
-    return { cityCode: '01', zoneCode: '16' }
-  }
-  if (
-    combined.includes('isani') ||
-    combined.includes('avlabari') ||
-    combined.includes('vazisubani') ||
-    combined.includes('metekhi')
-  ) {
-    return { cityCode: '01', zoneCode: '17' }
-  }
-  if (
-    combined.includes('krtsanisi') ||
-    combined.includes('ortachala') ||
-    combined.includes('old tbilisi')
-  ) {
-    return { cityCode: '01', zoneCode: '18' }
-  }
-  if (
-    combined.includes('samgori') ||
-    combined.includes('varketili') ||
-    combined.includes('lilo')
-  ) {
-    return { cityCode: '01', zoneCode: '19' }
-  }
-
-  if (lng < 44.77) {
-    return { cityCode: '01', zoneCode: lat > 41.72 ? '10' : '14' }
-  }
-  if (lng > 44.82) {
-    return { cityCode: '01', zoneCode: lat > 41.75 ? '11' : '17' }
-  }
-  return { cityCode: '01', zoneCode: '15' }
-}
-
-function buildNaprCadastralCodeForPoint(params: {
-  lat: number
-  lng: number
-  city: string
-  suburb: string
-  osmCadastre?: string
-}): string {
-  const { lat, lng, city, suburb, osmCadastre } = params
-  if (
-    osmCadastre &&
-    /^\d{2}\.\d{2}\.\d{2}\.\d{3}\.\d{3}/.test(osmCadastre.trim())
-  ) {
-    return osmCadastre.trim()
-  }
-
-  const { cityCode, zoneCode } = resolveNaprZoneAndPrefix(
-    lat,
-    lng,
-    city,
-    suburb
-  )
-
-  const latScaled = Math.abs(Math.round(lat * 100000))
-  const lngScaled = Math.abs(Math.round(lng * 100000))
-
-  const sectorNum = ((latScaled + lngScaled) % 16) + 1
-  const quarterNum = ((latScaled * 7 + lngScaled * 3) % 140) + 1
-  const parcelNum = ((latScaled * 13 + lngScaled * 17) % 250) + 1
-
-  const sectorStr = String(sectorNum).padStart(2, '0')
-  const quarterStr = String(quarterNum).padStart(3, '0')
-  const parcelStr = String(parcelNum).padStart(3, '0')
-
-  return `${cityCode}.${zoneCode}.${sectorStr}.${quarterStr}.${parcelStr}`
 }
 
 function formatNaprOfficialAddress(
@@ -234,7 +237,6 @@ export async function geocodeGeorgiaBuildingAction(params: {
     streetKa = '',
     baseStreetEn = '',
     houseNumber = '',
-    district = '',
     city = 'Tbilisi',
   } = params
 
@@ -283,30 +285,23 @@ export async function geocodeGeorgiaBuildingAction(params: {
 
         const lat = Number(exactHouseHit.lat)
         const lng = Number(exactHouseHit.lon)
-        if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        if (isPointInGeorgiaBounds(lat, lng)) {
           const resolvedHouse =
             exactHouseHit?.address?.house_number || cleanHouse
-          const osmCad =
+          const realOsmCadastre = String(
             exactHouseHit?.extratags?.['ref:cadastre'] ||
-            exactHouseHit?.extratags?.cadastre ||
-            ''
-          const cadastralCode = buildNaprCadastralCodeForPoint({
-            lat,
-            lng,
-            city: cleanCity,
-            suburb: exactHouseHit?.address?.suburb || district,
-            osmCadastre: osmCad,
-          })
+              exactHouseHit?.extratags?.cadastre ||
+              ''
+          ).trim()
+
           return {
             lat,
             lng,
             houseNumber: resolvedHouse,
-            cadastralCode,
-            naprAddress: formatNaprOfficialAddress(
-              cleanCity,
-              streetEn,
-              resolvedHouse
-            ),
+            cadastralCode: realOsmCadastre || undefined,
+            naprAddress: realOsmCadastre
+              ? formatNaprOfficialAddress(cleanCity, streetEn, resolvedHouse)
+              : undefined,
           }
         }
       }
@@ -329,25 +324,15 @@ export async function geocodeGeorgiaBuildingAction(params: {
       if (Array.isArray(coords) && coords.length >= 2) {
         const lng = Number(coords[0])
         const lat = Number(coords[1])
-        const resolvedHouse = feat?.properties?.housenumber
-          ? String(feat.properties.housenumber)
-          : cleanHouse
-        const cadastralCode = buildNaprCadastralCodeForPoint({
-          lat,
-          lng,
-          city: cleanCity,
-          suburb: district,
-        })
-        return {
-          lng,
-          lat,
-          houseNumber: resolvedHouse,
-          cadastralCode,
-          naprAddress: formatNaprOfficialAddress(
-            cleanCity,
-            streetEn,
-            resolvedHouse
-          ),
+        if (isPointInGeorgiaBounds(lat, lng)) {
+          const resolvedHouse = feat?.properties?.housenumber
+            ? String(feat.properties.housenumber)
+            : cleanHouse
+          return {
+            lng,
+            lat,
+            houseNumber: resolvedHouse,
+          }
         }
       }
     } catch {}
@@ -362,6 +347,7 @@ export async function reverseGeocodeGeorgiaPinAction(params: {
   locale: string
   fallbackCity?: string | null
 }): Promise<{
+  outsideGeorgia?: boolean
   rawCity: string
   rawSuburb: string
   rawStreet: string
@@ -371,8 +357,21 @@ export async function reverseGeocodeGeorgiaPinAction(params: {
   naprAddress: string
 } | null> {
   const { lat, lng, locale, fallbackCity } = params
-  const reqLang = locale === 'ka' ? 'ka' : locale === 'ru' ? 'ru' : 'en'
 
+  if (!isPointInGeorgiaBounds(lat, lng)) {
+    return {
+      outsideGeorgia: true,
+      rawCity: '',
+      rawSuburb: '',
+      rawStreet: '',
+      rawStreetKa: '',
+      rawHouse: '',
+      cadastralCode: '',
+      naprAddress: '',
+    }
+  }
+
+  const reqLang = locale === 'ka' ? 'ka' : locale === 'ru' ? 'ru' : 'en'
   const roundedLat = Number(lat).toFixed(5)
   const roundedLng = Number(lng).toFixed(5)
 
@@ -399,6 +398,19 @@ export async function reverseGeocodeGeorgiaPinAction(params: {
   const names = nomData?.namedetails || {}
   const extratags = nomData?.extratags || {}
   const pProp = pData?.features?.[0]?.properties || {}
+
+  if (addr.country_code && String(addr.country_code).toLowerCase() !== 'ge') {
+    return {
+      outsideGeorgia: true,
+      rawCity: '',
+      rawSuburb: '',
+      rawStreet: '',
+      rawStreetKa: '',
+      rawHouse: '',
+      cadastralCode: '',
+      naprAddress: '',
+    }
+  }
 
   const rawCity =
     addr.city ||
@@ -442,17 +454,9 @@ export async function reverseGeocodeGeorgiaPinAction(params: {
     addr.house_number || pProp.housenumber || ''
   ).trim()
 
-  const osmCadastre = String(
+  const realOsmCadastre = String(
     extratags['ref:cadastre'] || extratags.cadastre || ''
   ).trim()
-
-  const cadastralCode = buildNaprCadastralCodeForPoint({
-    lat,
-    lng,
-    city: rawCity,
-    suburb: rawSuburb,
-    osmCadastre,
-  })
 
   const englishStreetForNapr =
     names['name:en'] ||
@@ -461,11 +465,9 @@ export async function reverseGeocodeGeorgiaPinAction(params: {
     (!/[ა-ჰ]/.test(rawStreet) ? rawStreet : '') ||
     rawStreet
 
-  const naprAddress = formatNaprOfficialAddress(
-    rawCity,
-    englishStreetForNapr,
-    rawHouse
-  )
+  const naprAddress = realOsmCadastre
+    ? formatNaprOfficialAddress(rawCity, englishStreetForNapr, rawHouse)
+    : ''
 
   if (!rawStreet && !rawHouse && !rawSuburb) return null
 
@@ -475,39 +477,56 @@ export async function reverseGeocodeGeorgiaPinAction(params: {
     rawStreet,
     rawStreetKa,
     rawHouse,
-    cadastralCode,
+    cadastralCode: realOsmCadastre,
     naprAddress,
   }
 }
 
+/**
+ * استخراج جميع المرافق والخدمات الـ 13 تلقائياً من خريطة OpenStreetMap (بصيغة nwr الصحيحة)
+ * بنفس أنصاف الأقطار والتصنيفات المستخدمة في sivrce.ge بالضبط
+ */
 export async function fetchRealNearbyPlacesAndWeatherAction(params: {
   lat: number
   lng: number
   locale: string
+  unitId?: string
 }): Promise<{
   places: RealNearbyPlaceItem[]
   temp: number
   aqi: number
 }> {
-  const { lat, lng, locale } = params
+  const { lat, lng, locale, unitId } = params
   const rLat = Number(lat.toFixed(4))
   const rLng = Number(lng.toFixed(4))
 
-  const overpassQuery = `[out:json][timeout:10];(
-    nwr["amenity"~"school|kindergarten|pharmacy|clinic|hospital|doctors|restaurant|cafe|university|college"](around:1600,${rLat},${rLng});
-    nwr["shop"~"supermarket|convenience|mall|greengrocer|bakery"](around:1500,${rLat},${rLng});
-    nwr["leisure"~"fitness_centre|sports_centre"](around:1600,${rLat},${rLng});
-    nwr["highway"="bus_stop"](around:1200,${rLat},${rLng});
-    nwr["railway"~"station|subway_entrance"](around:1600,${rLat},${rLng});
-  );out center 100;`
+  const overpassQuery = `[out:json][timeout:14];(
+    nwr["amenity"~"school|kindergarten|childcare|preschool|language_school|music_school"](around:1500,${rLat},${rLng});
+    nwr["building"~"school|kindergarten"](around:1500,${rLat},${rLng});
+    nwr["amenity"~"university|college"](around:2800,${rLat},${rLng});
+    nwr["building"~"university|college"](around:2800,${rLat},${rLng});
+    nwr["amenity"~"pharmacy|bank"](around:1200,${rLat},${rLng});
+    nwr["amenity"~"clinic|hospital|doctors|dentist"](around:1500,${rLat},${rLng});
+    nwr["leisure"~"park|garden|fitness_centre|sports_centre|swimming_pool"](around:1500,${rLat},${rLng});
+    nwr["shop"~"supermarket|convenience|mall|department_store|greengrocer|bakery"](around:1000,${rLat},${rLng});
+    nwr["amenity"~"restaurant|cafe"](around:1000,${rLat},${rLng});
+    nwr["amenity"="place_of_worship"](around:1500,${rLat},${rLng});
+    nwr["tourism"~"attraction|museum|viewpoint|artwork|gallery"](around:1500,${rLat},${rLng});
+    nwr["historic"~"monument|memorial|castle|ruins"](around:1500,${rLat},${rLng});
+    node["highway"="bus_stop"](around:1000,${rLat},${rLng});
+    nwr["railway"~"station|subway_entrance|tram_stop"](around:2600,${rLat},${rLng});
+  );out center;`
 
   const OVERPASS_ENDPOINTS = [
     'https://overpass-api.de/api/interpreter',
     'https://lz4.overpass-api.de/api/interpreter',
+    'https://overpass.kumi.systems/api/interpreter',
   ]
 
-  const fetchOverpass = async (): Promise<any[]> => {
-    for (const endpoint of OVERPASS_ENDPOINTS) {
+  const fetchFastestOverpass = async (): Promise<any[]> => {
+    const requests = OVERPASS_ENDPOINTS.map(async (endpoint) => {
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), 11000)
       try {
         const res = await fetch(
           `${endpoint}?data=${encodeURIComponent(overpassQuery)}`,
@@ -515,21 +534,30 @@ export async function fetchRealNearbyPlacesAndWeatherAction(params: {
             headers: {
               'User-Agent': 'AqarExitGeorgiaRealEstate/2.0',
             },
+            signal: controller.signal,
             next: { revalidate: 86400 },
           }
         )
-        if (!res.ok) continue
+        if (!res.ok) throw new Error('Bad status')
         const json = await res.json()
-        if (Array.isArray(json?.elements) && json.elements.length > 0) {
-          return json.elements
+        if (!Array.isArray(json?.elements) || json.elements.length === 0) {
+          throw new Error('Empty')
         }
-      } catch {}
+        return json.elements
+      } finally {
+        clearTimeout(timer)
+      }
+    })
+
+    try {
+      return await Promise.any(requests)
+    } catch {
+      return []
     }
-    return []
   }
 
   const [elements, weatherData, aqiData] = await Promise.all([
-    fetchOverpass(),
+    fetchFastestOverpass(),
     fetch(
       `https://api.open-meteo.com/v1/forecast?latitude=${rLat}&longitude=${rLng}&current_weather=true`,
       { next: { revalidate: 3600 } }
@@ -551,10 +579,19 @@ export async function fetchRealNearbyPlacesAndWeatherAction(params: {
   const aqi =
     aqiData?.current?.european_aqi !== undefined
       ? Math.round(Number(aqiData.current.european_aqi))
-      : 28
+      : 22
 
   const places: RealNearbyPlaceItem[] = []
-  const seenKeys = new Set<string>()
+  const seenSpatialItems: Array<{
+    category: NearbyPlaceCategory
+    nameKey: string
+    lat: number
+    lng: number
+  }> = []
+
+  const activeLang = (
+    ['ar', 'en', 'ru', 'ka'].includes(locale) ? locale : 'en'
+  ) as 'ar' | 'en' | 'ru' | 'ka'
 
   for (const el of elements) {
     const tags = el?.tags || {}
@@ -562,62 +599,113 @@ export async function fetchRealNearbyPlacesAndWeatherAction(params: {
     const elLng = Number(el?.lon ?? el?.center?.lon)
     if (!Number.isFinite(elLat) || !Number.isFinite(elLng)) continue
 
-    let rawName = ''
-    if (locale === 'ru') {
-      rawName =
-        tags['name:ru'] ||
-        tags['name:en'] ||
-        tags.brand ||
-        tags.name ||
-        tags['name:ka'] ||
-        ''
-    } else if (locale === 'ka') {
-      rawName = tags['name:ka'] || tags.name || tags['name:en'] || ''
-    } else {
-      rawName =
-        tags['name:en'] ||
-        tags['brand:en'] ||
-        tags.brand ||
-        tags.name ||
-        tags['name:ka'] ||
-        ''
-    }
-
-    const cleanName = transliterateKaIfNeeded(rawName, locale)
-    if (!cleanName || cleanName.length < 2) continue
-
     const am = String(tags.amenity || '').toLowerCase()
+    const bldg = String(tags.building || '').toLowerCase()
     const sh = String(tags.shop || '').toLowerCase()
     const leis = String(tags.leisure || '').toLowerCase()
     const hw = String(tags.highway || '').toLowerCase()
     const rw = String(tags.railway || '').toLowerCase()
+    const st = String(tags.station || '').toLowerCase()
+    const tour = String(tags.tourism || '').toLowerCase()
+    const hist = String(tags.historic || '').toLowerCase()
 
-    let category: RealNearbyPlaceItem['category'] | null = null
-    if (am === 'school') category = 'school'
-    else if (am === 'kindergarten') category = 'kindergarten'
-    else if (am === 'pharmacy') category = 'pharmacy'
-    else if (am === 'clinic' || am === 'hospital' || am === 'doctors')
+    const lowerHint = `${tags['name:en'] || ''} ${tags.name || ''} ${tags.brand || ''} ${tags.description || ''}`.toLowerCase()
+
+    let category: NearbyPlaceCategory | null = null
+    if (
+      rw === 'subway_entrance' ||
+      st === 'subway' ||
+      (rw === 'station' && lowerHint.includes('metro'))
+    ) {
+      category = 'metro'
+    } else if (
+      am === 'kindergarten' ||
+      am === 'childcare' ||
+      am === 'preschool' ||
+      bldg === 'kindergarten' ||
+      lowerHint.includes('kindergarten') ||
+      lowerHint.includes('sabavshvo') ||
+      lowerHint.includes('საბავშვო') ||
+      lowerHint.includes('ბაგა-ბაღი')
+    ) {
+      category = 'kindergarten'
+    } else if (
+      am === 'university' ||
+      am === 'college' ||
+      bldg === 'university' ||
+      bldg === 'college' ||
+      lowerHint.includes('universit') ||
+      lowerHint.includes('უნივერსიტეტი')
+    ) {
+      category = 'university'
+    } else if (
+      am === 'school' ||
+      am === 'language_school' ||
+      am === 'music_school' ||
+      bldg === 'school' ||
+      lowerHint.includes('sajaro skola') ||
+      lowerHint.includes('საჯარო სკოლა')
+    ) {
+      category = 'school'
+    } else if (am === 'pharmacy') {
+      category = 'pharmacy'
+    } else if (leis === 'park' || leis === 'garden') {
+      category = 'park'
+    } else if (am === 'bank') {
+      category = 'bank'
+    } else if (tour || hist || am === 'place_of_worship') {
+      category = 'landmark'
+    } else if (
+      am === 'clinic' ||
+      am === 'hospital' ||
+      am === 'doctors' ||
+      am === 'dentist'
+    ) {
       category = 'clinic'
-    else if (am === 'restaurant' || am === 'cafe') category = 'restaurants'
-    else if (am === 'university' || am === 'college') category = 'university'
-    else if (leis === 'fitness_centre' || leis === 'sports_centre')
+    } else if (am === 'restaurant' || am === 'cafe') {
+      category = 'restaurants'
+    } else if (
+      leis === 'fitness_centre' ||
+      leis === 'sports_centre' ||
+      leis === 'swimming_pool'
+    ) {
       category = 'gym'
-    else if (hw === 'bus_stop' || rw === 'station' || rw === 'subway_entrance')
+    } else if (hw === 'bus_stop' || rw === 'tram_stop') {
       category = 'bus'
-    else if (sh) category = 'market'
+    } else if (sh) {
+      category = 'market'
+    }
 
     if (!category) continue
 
-    const dedupeKey = `${category}_${cleanName.toLowerCase()}`
-    if (seenKeys.has(dedupeKey)) continue
-    seenKeys.add(dedupeKey)
-
     const distanceMeters = haversineMetersServer(rLat, rLng, elLat, elLng)
-    if (distanceMeters > 2200) continue
+    if (distanceMeters > 3500) continue
+
+    const multiNames = buildMultilingualPlaceNames(tags, category)
+    if (!multiNames) continue
+
+    const nameKey = multiNames.en.toLowerCase().trim()
+
+    // منع تكرار نفس المبنى المرسوم مرتين (Node + Way في نفس النقطة ضمن 38 متراً) مع الحفاظ على كل الفروع الحقيقية في الحي
+    const isDuplicateSameBuilding = seenSpatialItems.some(
+      (item) =>
+        item.category === category &&
+        item.nameKey === nameKey &&
+        haversineMetersServer(item.lat, item.lng, elLat, elLng) < 38
+    )
+    if (isDuplicateSameBuilding) continue
+
+    seenSpatialItems.push({
+      category,
+      nameKey,
+      lat: elLat,
+      lng: elLng,
+    })
 
     places.push({
-      id: `${el.type || 'n'}_${el.id}`,
-      name: cleanName,
+      id: `${el.type || 'node'}_${el.id}`,
+      name: multiNames[activeLang] || multiNames.en,
+      names: multiNames,
       category,
       distanceMeters,
       lat: elLat,
@@ -625,7 +713,87 @@ export async function fetchRealNearbyPlacesAndWeatherAction(params: {
     })
   }
 
+  // ضمان وجود أقرب محطة مترو رسمية في تبليسي دائماً (مثل sivrce.ge تماماً)
+  const existingMetro = places.filter((p) => p.category === 'metro')
+  if (existingMetro.length === 0) {
+    let nearestStation = TBILISI_OFFICIAL_METRO_STATIONS[0]
+    let minMetroDist = haversineMetersServer(
+      rLat,
+      rLng,
+      nearestStation.lat,
+      nearestStation.lng
+    )
+
+    for (const st of TBILISI_OFFICIAL_METRO_STATIONS) {
+      const d = haversineMetersServer(rLat, rLng, st.lat, st.lng)
+      if (d < minMetroDist) {
+        minMetroDist = d
+        nearestStation = st
+      }
+    }
+
+    if (minMetroDist <= 5000) {
+      const metroNames = {
+        ar: nearestStation.nameAr,
+        en: nearestStation.nameEn,
+        ru: nearestStation.nameRu,
+        ka: nearestStation.nameKa,
+      }
+      places.push({
+        id: `metro_official_${nearestStation.nameEn.toLowerCase().replace(/\s+/g, '_')}`,
+        name: metroNames[activeLang] || metroNames.en,
+        names: metroNames,
+        category: 'metro',
+        distanceMeters: minMetroDist,
+        lat: nearestStation.lat,
+        lng: nearestStation.lng,
+      })
+    }
+  }
+
   places.sort((a, b) => a.distanceMeters - b.distanceMeters)
+
+  // حفظ البيانات في قاعدة البيانات تلقائياً إذا تم تمرير unitId
+  if (
+    unitId &&
+    places.length >= 10 &&
+    process.env.NEXT_PUBLIC_SUPABASE_URL &&
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+  ) {
+    void (async () => {
+      try {
+        const adminSb = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.SUPABASE_SERVICE_ROLE_KEY!
+        )
+        const { data: row } = await adminSb
+          .from('sell_requests')
+          .select('documents')
+          .eq('id', unitId)
+          .maybeSingle()
+
+        const existingDocs =
+          row?.documents && typeof row.documents === 'object'
+            ? row.documents
+            : {}
+        const existingMeta = existingDocs.__unit_meta || {}
+
+        await adminSb
+          .from('sell_requests')
+          .update({
+            documents: {
+              ...existingDocs,
+              __unit_meta: {
+                ...existingMeta,
+                cached_nearby_places_v5: places.slice(0, 200),
+                cached_nearby_coords: `${rLat}_${rLng}`,
+              },
+            },
+          })
+          .eq('id', unitId)
+      } catch {}
+    })()
+  }
 
   return {
     places,

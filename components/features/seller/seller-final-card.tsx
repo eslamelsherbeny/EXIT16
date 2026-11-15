@@ -2,12 +2,12 @@
 
 import {
   AlertCircle,
-  ArrowUp,
   BookmarkCheck,
   Check,
   CheckCircle2,
   FileText,
   ImagePlus,
+  Info,
   Loader2,
   Mail,
   Send,
@@ -30,41 +30,45 @@ const DYNAMIC_MEDIA_BTN_I18N: Record<
     onlyPhotosBtn: string
     onlyDocsBtn: string
     bothBtn: string
-    compactMissingBanner: (count: number) => string
-    jumpToFirstBtn: string
+    missingBelowBtnPrefix: string
+    mandatoryPublishNotice: string
   }
 > = {
   ar: {
     onlyPhotosBtn: 'إضافة صور الوحدة أولاً',
     onlyDocsBtn: 'رفع المستندات المتبقية أولاً',
     bothBtn: 'إضافة الصور والمستندات أولاً',
-    compactMissingBanner: (c) =>
-      `يوجد (${c}) حقول إجبارية ناقصة معلّمة باللون الأحمر`,
-    jumpToFirstBtn: 'انتقل لأول حقل ناقص',
+    missingBelowBtnPrefix:
+      'يرجى استكمال الحقول الإجبارية المعلّمة باللون الأحمر بالأعلى:',
+    mandatoryPublishNotice:
+      'ملاحظة هامة: صور الوحدة ومستندات الملكية الـ 4 هي متطلبات أساسية للتحقق من العقار ونشره رسمياً للمشترين على المنصة. في حال الإرسال الآن سيُحفظ طلبك لدى الإدارة ولن يُنشر للعامة إلا بعد استكمال المرفقات من صفحة «حسابي».',
   },
   en: {
     onlyPhotosBtn: 'Upload Unit Photos First',
     onlyDocsBtn: 'Upload Remaining Documents First',
     bothBtn: 'Upload Photos & Documents First',
-    compactMissingBanner: (c) =>
-      `Please complete (${c}) required fields marked in red`,
-    jumpToFirstBtn: 'Go to first field',
+    missingBelowBtnPrefix:
+      'Please complete the required fields highlighted in red above:',
+    mandatoryPublishNotice:
+      'Important: Property photos and the 4 ownership documents are mandatory to verify and publish your unit to buyers. If you submit now, your request will be saved with Admin and published once you upload them from "My Account".',
   },
   ru: {
     onlyPhotosBtn: 'Сначала добавить фото объекта',
     onlyDocsBtn: 'Сначала загрузить документы',
     bothBtn: 'Сначала добавить фото и документы',
-    compactMissingBanner: (c) =>
-      `Заполните обязательные поля (${c}), выделенные красным`,
-    jumpToFirstBtn: 'Перейти к полю',
+    missingBelowBtnPrefix:
+      'Пожалуйста, заполните обязательные поля, выделенные красным выше:',
+    mandatoryPublishNotice:
+      'Важно: Фотографии объекта и 4 документа собственности необходимы для проверки и публикации объявления. Если отправить сейчас, заявка сохранится, но будет опубликована после загрузки файлов в «Моем кабинете».',
   },
   ka: {
     onlyPhotosBtn: 'ჯერ ფოტოების დამატება',
     onlyDocsBtn: 'ჯერ დოკუმენტების ატვირთვა',
     bothBtn: 'ჯერ ფოტოების და დოკუმენტების დამატება',
-    compactMissingBanner: (c) =>
-      `შეავსეთ წითლად მონიშნული (${c}) სავალდებულო ველი`,
-    jumpToFirstBtn: 'ველზე გადასვლა',
+    missingBelowBtnPrefix:
+      'გთხოვთ შეავსოთ ზემოთ წითლად მონიშნული სავალდებულო ველები:',
+    mandatoryPublishNotice:
+      'მნიშვნელოვანია: ქონების ფოტოები და საკუთრების 4 დოკუმენტი აუცილებელია გადამოწმებისა და გამოქვეყნებისთვის. ახლა გაგზავნის შემთხვევაში განცხადება გამოქვეყნდება ფაილების «ჩემი ანგარიშიდან» ატვირთვის შემდეგ.',
   },
 }
 
@@ -105,38 +109,7 @@ export function SellerFinalReadinessCard({
         </p>
       </div>
 
-      {/* شريط تنبيه ذكي ومدمج من سطر واحد فقط (لا يملأ شاشة الموبايل) */}
-      {hasVisibleErrors && (
-        <div
-          role="alert"
-          className="mt-4 flex flex-wrap items-center justify-between gap-2.5 rounded-2xl border border-red-300 bg-red-50/90 px-4 py-3 text-start animate-in fade-in duration-200"
-        >
-          <div className="flex items-center gap-2 text-xs font-extrabold text-red-900 sm:text-sm">
-            <AlertCircle className="size-4 shrink-0 text-red-600" />
-            <span>
-              {dynT.compactMissingBanner(liveMissingCoreItems.length)}
-            </span>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => {
-              const firstId = liveMissingCoreItems[0]?.scrollId
-              if (firstId) {
-                document.getElementById(firstId)?.scrollIntoView({
-                  behavior: 'smooth',
-                  block: 'center',
-                })
-              }
-            }}
-            className="inline-flex items-center gap-1 rounded-xl bg-red-600 px-3 py-1.5 text-xs font-extrabold text-white shadow-2xs transition hover:bg-red-700"
-          >
-            <span>{dynT.jumpToFirstBtn}</span>
-            <ArrowUp className="size-3.5" />
-          </button>
-        </div>
-      )}
-
+      {/* الأزرار أولاً */}
       <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
         <button
           type="button"
@@ -176,6 +149,24 @@ export function SellerFinalReadinessCard({
           )}
         </button>
       </div>
+
+      {/* تنبيه الحقول الناقصة يظهر تحت الأزرار بخط هادئ ومناسب بدون أزرار تنقل */}
+      {hasVisibleErrors && (
+        <div
+          role="alert"
+          className="mt-3.5 flex items-start gap-2 rounded-xl border border-red-200/90 bg-red-50/70 px-3.5 py-2.5 text-start text-xs leading-relaxed text-red-700 animate-in fade-in duration-200"
+        >
+          <AlertCircle className="mt-0.5 size-4 shrink-0 text-red-600" />
+          <p className="font-medium">
+            <strong className="font-bold">
+              {dynT.missingBelowBtnPrefix}{' '}
+            </strong>
+            <span>
+              {liveMissingCoreItems.map((it) => it.label).join(' ، ')}
+            </span>
+          </p>
+        </div>
+      )}
     </section>
   )
 }
@@ -194,7 +185,9 @@ export function SellerMissingMediaConfirmModal({
 }: {
   open: boolean
   dir: string
-  loadT: (typeof FLOW_LOADING_LABELS)['ar']
+  loadT: (typeof FLOW_LOADING_LABELS)['ar'] & {
+    mediaDialogMandatoryPublishNote?: string
+  }
   hasPhotos: boolean
   hasAllDocs: boolean
   uploadedDocsCount: number
@@ -209,7 +202,6 @@ export function SellerMissingMediaConfirmModal({
 
   if (!open) return null
 
-  // تحديد نص الزر الثانوي ديناميكياً بدقة حسب الناقص الفعلي
   const dynamicUploadBtnLabel =
     !hasPhotos && !hasAllDocs
       ? dynT.bothBtn
@@ -217,15 +209,18 @@ export function SellerMissingMediaConfirmModal({
         ? dynT.onlyPhotosBtn
         : dynT.onlyDocsBtn
 
+  const mandatoryNoteText =
+    loadT.mediaDialogMandatoryPublishNote || dynT.mandatoryPublishNotice
+
   return (
     <div
       dir={dir}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4 backdrop-blur-xs"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/65 p-4 backdrop-blur-xs"
       onClick={onClose}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-[420px] overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 text-start shadow-2xl animate-in fade-in zoom-in-95 duration-200 sm:p-6"
+        className="relative w-full max-w-[440px] overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 text-start shadow-2xl animate-in fade-in zoom-in-95 duration-200 sm:p-6"
       >
         <button
           type="button"
@@ -247,11 +242,11 @@ export function SellerMissingMediaConfirmModal({
         <h3 className="mt-3.5 text-base font-black text-[#0a1122] sm:text-lg">
           {loadT.mediaDialogTitle}
         </h3>
-        <p className="mt-1.5 text-xs leading-relaxed font-semibold text-slate-600 sm:text-sm">
+        <p className="mt-1.5 text-xs leading-relaxed font-semibold text-slate-600">
           {loadT.mediaDialogDesc}
         </p>
 
-        <div className="mt-3.5 space-y-2 rounded-2xl border border-amber-200 bg-amber-50/60 p-3.5 text-xs font-extrabold text-amber-950 sm:text-sm">
+        <div className="mt-3.5 space-y-2 rounded-2xl border border-amber-200 bg-amber-50/60 p-3.5 text-xs font-extrabold text-amber-950">
           {!hasPhotos && (
             <div className="flex items-center gap-2">
               <ImagePlus className="size-4 shrink-0 text-[#ea580c]" />
@@ -268,28 +263,34 @@ export function SellerMissingMediaConfirmModal({
           )}
         </div>
 
+        {/* رسالة توضيحية تؤكد للمالك أن الصور والمستندات أساسية لنشر الوحدة على المنصة */}
+        <div className="mt-3 flex items-start gap-2 rounded-2xl border border-blue-200/80 bg-blue-50/50 p-3 text-[11.5px] leading-relaxed font-semibold text-slate-700">
+          <Info className="mt-0.5 size-4 shrink-0 text-[#2563eb]" />
+          <p>{mandatoryNoteText}</p>
+        </div>
+
         <div className="mt-5 space-y-2.5">
           <button
             type="button"
             disabled={pending}
-            onClick={onConfirmSubmitAnyway}
-            className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl bg-[#007a5a] px-5 py-3 text-xs font-black text-white shadow-md transition hover:bg-[#006248] disabled:opacity-60 sm:text-sm"
+            onClick={onGoToUploadNow}
+            className="flex min-h-[48px] w-full items-center justify-center rounded-2xl bg-[#007a5a] px-5 py-3 text-xs font-black text-white shadow-md transition hover:bg-[#006248] sm:text-sm"
           >
-            {pending ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Send className="size-4 shrink-0" />
-            )}
-            <span>{loadT.mediaDialogConfirmBtn}</span>
+            {dynamicUploadBtnLabel}
           </button>
 
           <button
             type="button"
             disabled={pending}
-            onClick={onGoToUploadNow}
-            className="flex min-h-[44px] w-full items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-extrabold text-slate-700 transition hover:bg-slate-100 sm:text-sm"
+            onClick={onConfirmSubmitAnyway}
+            className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-extrabold text-slate-700 transition hover:bg-slate-100 disabled:opacity-60"
           >
-            {dynamicUploadBtnLabel}
+            {pending ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Send className="size-3.5 shrink-0" />
+            )}
+            <span>{loadT.mediaDialogConfirmBtn}</span>
           </button>
         </div>
       </div>
@@ -335,7 +336,7 @@ export function SellerVerifyEmailModal({
   return (
     <div
       dir={dir}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-xs"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4 backdrop-blur-xs"
     >
       <div className="relative w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 text-start shadow-2xl sm:p-7">
         <button
@@ -413,7 +414,7 @@ export function SellerVerifyEmailModal({
                     )
                   }
                   placeholder="• • • • • •"
-                  className="h-12 flex-1 rounded-xl border-slate-300 bg-white text-center font-mono text-lg font-black tracking-[0.35em]"
+                  className="h-12 flex-1 rounded-xl border-slate-300 bg-white text-center font-mono text-lg font-black tracking-[0.35em] placeholder:text-xs placeholder:font-normal placeholder:tracking-normal placeholder:text-slate-300"
                 />
                 <button
                   type="button"
@@ -476,7 +477,7 @@ export function SellerDocPreviewModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-xs"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 p-4 backdrop-blur-xs"
       onClick={onClose}
     >
       <div

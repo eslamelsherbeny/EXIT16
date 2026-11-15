@@ -1,4 +1,11 @@
 import type { Dictionary, LocaleCode } from '@/lib/i18n'
+import {
+  CONDITION_OPTIONS,
+  getOptionLabel,
+  SIVRCE_FEATURE_GROUPS,
+  toEnglishDigits,
+  type LocalizedOptionItem,
+} from './seller-options-data'
 
 export const ACTIVE_PLATFORM_COUNTRY = 'GE'
 export const DEFAULT_PHONE_CODE = '995'
@@ -338,7 +345,7 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       videoSectionSubtitle:
         'ضع رابط فيديو العقار من يوتيوب أو فيميو أو رابط الجولة الافتراضية 3D ليظهر في صفحة تفاصيل الوحدة.',
       videoUrlLabel: 'رابط فيديو يوتيوب / فيميو (YouTube / Vimeo)',
-      videoUrlPlaceholder: 'https://www.youtube.com/watch?v=...',
+      videoUrlPlaceholder: 'https://youtube.com/...',
       tour3dLabel: 'رابط جولة ثلاثية الأبعاد (3D Tour)',
       tour3dPlaceholder: 'https://my.matterport.com/...',
     },
@@ -347,34 +354,36 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       subtitleRent:
         'ابحث باسم الشارع أو حرّك الدبوس على الخريطة ليتم ملء العنوان تلقائياً.',
       subtitleSale:
-        'اكتب جزءاً من اسم الشارع لاختياره من الاقتراحات، أو حرّك الدبوس على الخريطة لتحديد موقع العقار بالضبط.',
+        'اكتب جزءاً من اسم الشارع لاختياره من الاقتراحات، أو اضغط على الخريطة لتحديد موقع المبنى بالضبط.',
       cityDistrictLabel: 'المدينة / الحي *',
-      chooseLocationPlaceholder: 'اضغط لاختيار المدينة والحي أو البحث...',
+      chooseLocationPlaceholder: 'اختر المدينة والحي أو ابحث...',
       developerLabel: 'اسم المطور العقاري (اختياري)',
-      developerPlaceholder: 'مثال: ORBI Group, Archi, m², Next Group...',
-      popularDevelopersHint: 'اختيار سريع لأشهر المطورين في جورجيا:',
+      developerPlaceholder: 'اسم شركة التطوير (اختياري)...',
+      popularDevelopersHint: '',
       projectLabel: 'اسم المشروع أو المجمع السكني *',
-      projectPlaceholder: 'مثال: Orbi City, King David, White Sails...',
-      streetLabel: 'اسم الشارع (اكتب للبحث التلقائي في جورجيا) *',
-      streetPlaceholder: 'اكتب اسم الشارع أو المنطقة (مثال: Merab Kostava / Chavchavadze)...',
-      streetAutocompleteHint: 'اختر من القائمة المنسدلة أو اضغط على الخريطة بالأسفل لتحديد الموقع تلقائياً',
+      projectPlaceholder: 'اسم المشروع أو المجمع...',
+      streetLabel: 'اسم الشارع *',
+      streetPlaceholder: 'ابحث باسم الشارع...',
+      streetAutocompleteHint:
+        'اختر من القائمة المنسدلة أو اضغط على الخريطة بالأسفل لتحديد الموقع تلقائياً',
       cantFindAddressTitle: 'لم تجد عنوانك في البحث؟',
       setLocationOnMapBtn: 'حدّد الموقع مباشرة من الخريطة',
       detectMyGpsBtn: 'تحديد موقعي الحالي (GPS)',
       reverseGeocodingLoading: 'جاري قراءة اسم الشارع والحي من الخريطة...',
       pinMovedSuccess: 'تم التقاط الموقع الدقيق وتحديث عنوان الشارع والحي تلقائياً ✓',
       houseNoLabel: 'رقم المبنى / العمارة',
-      houseNoPlaceholder: '47',
+      houseNoPlaceholder: 'مثال: 12',
       cadastralLabel: 'الرقم العقاري الحكومي (Cadastral Code)',
-      cadastralPlaceholder: '01.10.01.001.001',
+      cadastralPlaceholder: 'اختياري',
       cadastralHelper:
         'اختياري — يربط الوحدة بالسجل العقاري الجورجي الرسمي NAPR',
-      mapHeaderTitle: 'خريطة الموقع التفاعلية (اسحب الخريطة أو اضغط عليها لتحديد العقار)',
-      mapHint: 'اسحب الخريطة أو اضغط على موقع العقار بالضبط ليتم ملء اسم الشارع والحي وإحداثيات الوحدة تلقائياً',
+      mapHeaderTitle: 'خريطة الموقع التفاعلية',
+      mapHint:
+        'اضغط على موقع العقار بالضبط ليتم ملء اسم الشارع والحي وإحداثيات الوحدة تلقائياً',
     },
     locationModal: {
       title: 'اختر المدينة والحي أو ابحث بالشارع في جورجيا',
-      searchPlaceholder: 'ابحث عن الشارع، الحي، المدينة أو المشروع (مثال: Merab Kostava)...',
+      searchPlaceholder: 'ابحث عن المدينة، الحي أو الشارع...',
       searchingMapsText: 'جاري البحث الفوري في خرائط جورجيا...',
       everywhereTitle: 'في كل مكان',
       everywhereSub: 'كل المناطق في جورجيا',
@@ -460,8 +469,7 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       districtGuideSub:
         'متوسط سعر المتر السكني في هذه المنطقة يتراوح بين $1,150 و $1,650 حسب التشطيب.',
       descriptionLabel: 'وصف تفصيلي للوحدة (اختياري)',
-      descriptionPlaceholder:
-        'اشرح مميزات الوحدة، الإطلالة، تفاصيل الطابق، وأبرز نقاط القوة للمشتري...',
+      descriptionPlaceholder: 'اكتب وصفاً مختصراً لمميزات الوحدة والإطلالة...',
       docsBoxTitle: 'مستندات الملكية والتنازل (شرط أساسي لاعتماد ونشر الوحدة)',
       docsRequirementBanner:
         '📌 يمكنك حفظ طلبك الآن بدون المستندات واستكمال رفعها لاحقاً من صفحة (حسابي)، ولكن لن تدخل الوحدة مرحلة النشر في السوق العام إلا بعد رفع المستندات الـ 4 ومراجعة الإدارة.',
@@ -478,7 +486,7 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
         'الاسم ورقم الموبايل — (🔒 في البيع والتنازل يبقى رقمك مخفياً عن الجمهور ويظهر للإدارة فقط لحماية خصوصيتك).',
       subtitleRent:
         'الاسم ورقم الموبايل — سيتواصل معك المستأجرون هنا عبر تطبيقات المراسلة.',
-      namePlaceholder: 'اكتب اسمك الثلاثي بالكامل',
+      namePlaceholder: 'الاسم الكامل...',
       messengersLabel: 'تطبيقات المراسلة المتاحة على هذا الرقم',
       confirmPasswordLabel: 'تأكيد كلمة المرور',
       accountOptionsTitle: 'خيارات الحساب وربط الوحدة:',
@@ -556,7 +564,8 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       savingDraftBtn: 'جاري حفظ المسودة...',
       publishingBtn: 'جاري إرسال الطلب...',
       publishBtn: 'إرسال الوحدة لمراجعة الإدارة والاعتماد',
-      submitAndCompleteDocsLaterBtn: 'حفظ بيانات الوحدة واستكمال الصور/المستندات من حسابي',
+      submitAndCompleteDocsLaterBtn:
+        'حفظ بيانات الوحدة واستكمال الصور/المستندات من حسابي',
     },
   },
   en: {
@@ -607,7 +616,7 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       videoSectionSubtitle:
         'Paste a YouTube/Vimeo link or 3D virtual tour link to display on your unit details page.',
       videoUrlLabel: 'YouTube / Vimeo Video Link',
-      videoUrlPlaceholder: 'https://www.youtube.com/watch?v=...',
+      videoUrlPlaceholder: 'https://youtube.com/...',
       tour3dLabel: '3D Virtual Tour Link (Matterport)',
       tour3dPlaceholder: 'https://my.matterport.com/...',
     },
@@ -616,33 +625,35 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       subtitleRent:
         'Search by street name or drag the pin on the map to auto-fill address.',
       subtitleSale:
-        'Type part of the street name for live suggestions across Georgia, or move the map pin to set exact building location.',
+        'Type part of the street name for live suggestions across Georgia, or tap the map to mark the building.',
       cityDistrictLabel: 'City / District *',
-      chooseLocationPlaceholder: 'Click to select city, district or search street...',
+      chooseLocationPlaceholder: 'Select city, district or search...',
       developerLabel: 'Developer Name (Optional)',
-      developerPlaceholder: 'e.g. ORBI Group, Archi, m², Next Group...',
-      popularDevelopersHint: 'Quick-select popular developers in Georgia:',
+      developerPlaceholder: 'Developer name (optional)...',
+      popularDevelopersHint: '',
       projectLabel: 'Project / Complex Name *',
-      projectPlaceholder: 'e.g. Orbi City, King David, White Sails...',
-      streetLabel: 'Street Name (Live Georgia Search) *',
-      streetPlaceholder: 'Type street or area (e.g. Merab Kostava / Chavchavadze)...',
-      streetAutocompleteHint: 'Select from dropdown suggestions or click on the map below',
+      projectPlaceholder: 'Project or complex name...',
+      streetLabel: 'Street Name *',
+      streetPlaceholder: 'Type street name...',
+      streetAutocompleteHint:
+        'Select from dropdown suggestions or tap on the map below',
       cantFindAddressTitle: "Can't find your address?",
       setLocationOnMapBtn: 'Set location on map instead',
       detectMyGpsBtn: 'Detect my GPS location',
       reverseGeocodingLoading: 'Reading street & district from map coordinates...',
       pinMovedSuccess: 'Exact location captured & street address updated ✓',
       houseNoLabel: 'Building / House Nº',
-      houseNoPlaceholder: '47',
+      houseNoPlaceholder: 'e.g. 12',
       cadastralLabel: 'Cadastral Code (NAPR)',
-      cadastralPlaceholder: '01.10.01.001.001',
+      cadastralPlaceholder: 'Optional',
       cadastralHelper: 'Optional — links unit to Georgian Public Registry NAPR',
-      mapHeaderTitle: 'Interactive 3D Map (Drag or click map to set exact building)',
-      mapHint: 'Drag the map or click on your building to auto-fill street, district and exact coordinates',
+      mapHeaderTitle: 'Interactive 3D Map',
+      mapHint:
+        'Tap on your building to auto-fill street, district and exact coordinates',
     },
     locationModal: {
       title: 'Select City & District or Search Street in Georgia',
-      searchPlaceholder: 'Search street, district, city or project (e.g. Merab Kostava)...',
+      searchPlaceholder: 'Search city, district or street...',
       searchingMapsText: 'Searching Georgia maps...',
       everywhereTitle: 'Everywhere',
       everywhereSub: 'All regions in Georgia',
@@ -731,7 +742,7 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
         'Average market range in this district is $1,150 – $1,650 / m².',
       descriptionLabel: 'Detailed Property Description (Optional)',
       descriptionPlaceholder:
-        'Describe the property layout, view, floor advantages, and key highlights...',
+        'Describe the property layout, view, and key highlights...',
       docsBoxTitle: 'Ownership Documents (Required for Market Publication)',
       docsRequirementBanner:
         '📌 You can save your unit now and upload documents later from (My Account), but the unit will only be published in the public market after uploading the 4 documents for Admin review.',
@@ -748,7 +759,7 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
         'Name & mobile — (🔒 Kept private from the public and visible only to Admin for brokered exit deals).',
       subtitleRent:
         'Name & mobile — tenants will reach you via your selected messengers.',
-      namePlaceholder: 'Enter your full name',
+      namePlaceholder: 'Full name...',
       messengersLabel: 'Messengers available on this phone number',
       confirmPasswordLabel: 'Confirm Password',
       accountOptionsTitle: 'Account & unit ownership options:',
@@ -767,7 +778,8 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       authFailedError: 'Authentication failed, please check your credentials',
       validation: {
         bedroomsExceedRooms: 'Bedrooms cannot exceed total rooms count',
-        floorExceedsTotalFloors: 'Floor number cannot exceed total building floors',
+        floorExceedsTotalFloors:
+          'Floor number cannot exceed total building floors',
         paidExceedsContract:
           'Paid amount cannot exceed total contract price',
         installmentRequiredForMonths:
@@ -823,7 +835,8 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       savingDraftBtn: 'Saving draft...',
       publishingBtn: 'Submitting...',
       publishBtn: 'Submit Unit for Admin Review & Approval',
-      submitAndCompleteDocsLaterBtn: 'Save Unit Details & Complete Photos/Docs in My Account',
+      submitAndCompleteDocsLaterBtn:
+        'Save Unit Details & Complete Photos/Docs in My Account',
     },
   },
   ru: {
@@ -872,7 +885,7 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       videoSectionSubtitle:
         'Вставьте ссылку на YouTube / Vimeo или 3D-тур для отображения на странице объекта.',
       videoUrlLabel: 'Ссылка на видео YouTube / Vimeo',
-      videoUrlPlaceholder: 'https://www.youtube.com/watch?v=...',
+      videoUrlPlaceholder: 'https://youtube.com/...',
       tour3dLabel: 'Ссылка на 3D-тур (Matterport)',
       tour3dPlaceholder: 'https://my.matterport.com/...',
     },
@@ -881,33 +894,35 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       subtitleRent:
         'Введите улицу для автоподсказок или передвиньте пин на карте.',
       subtitleSale:
-        'Начните вводить название улицы для поиска по всей Грузии или укажите точку прямо на карте.',
+        'Начните вводить название улицы для поиска по Грузии или нажмите на здание на карте.',
       cityDistrictLabel: 'Город / Район *',
-      chooseLocationPlaceholder: 'Нажмите для выбора города, района или поиска...',
+      chooseLocationPlaceholder: 'Выберите город, район или улицу...',
       developerLabel: 'Застройщик (Необязательно)',
-      developerPlaceholder: 'Напр.: ORBI Group, Archi, m², Next Group...',
-      popularDevelopersHint: 'Быстрый выбор популярных застройщиков Грузии:',
+      developerPlaceholder: 'Застройщик (необязательно)...',
+      popularDevelopersHint: '',
       projectLabel: 'Название ЖК / Проекта *',
-      projectPlaceholder: 'Напр.: Orbi City, King David, White Sails...',
-      streetLabel: 'Улица (Живой поиск по Грузии) *',
-      streetPlaceholder: 'Введите улицу или район (напр.: Merab Kostava / Chavchavadze)...',
-      streetAutocompleteHint: 'Выберите из списка подсказок или укажите точку на карте ниже',
+      projectPlaceholder: 'Название ЖК или проекта...',
+      streetLabel: 'Улица *',
+      streetPlaceholder: 'Введите название улицы...',
+      streetAutocompleteHint:
+        'Выберите из списка подсказок или укажите точку на карте ниже',
       cantFindAddressTitle: 'Не нашли точный адрес в поиске?',
       setLocationOnMapBtn: 'Указать точку на карте',
       detectMyGpsBtn: 'Мое местоположение (GPS)',
       reverseGeocodingLoading: 'Определение адреса по координатам карты...',
       pinMovedSuccess: 'Точная локация и улица успешно обновлены ✓',
       houseNoLabel: 'Номер дома',
-      houseNoPlaceholder: '47',
+      houseNoPlaceholder: 'напр. 12',
       cadastralLabel: 'Кадастровый код (NAPR)',
-      cadastralPlaceholder: '01.10.01.001.001',
+      cadastralPlaceholder: 'Необязательно',
       cadastralHelper: 'Необязательно — привязка к реестру недвижимости Грузии',
-      mapHeaderTitle: 'Интерактивная 3D-карта (Передвигайте карту или нажмите на дом)',
-      mapHint: 'Передвиньте карту или нажмите на здание — улица, район и координаты заполнятся автоматически',
+      mapHeaderTitle: 'Интерактивная 3D-карта',
+      mapHint:
+        'Нажмите на здание — улица, район и координаты заполнятся автоматически',
     },
     locationModal: {
       title: 'Выберите город и район или найдите улицу в Грузии',
-      searchPlaceholder: 'Поиск улицы, района, города или ЖК (напр.: Merab Kostava)...',
+      searchPlaceholder: 'Город, район или улица...',
       searchingMapsText: 'Поиск по карте Грузии...',
       everywhereTitle: 'Везде',
       everywhereSub: 'Все регионы Грузии',
@@ -926,7 +941,8 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
     },
     detailsSection: {
       title: '4. Характеристики и удобства',
-      subtitle: 'Укажите обязательную площадь и комнаты. Остальные поля необязательны.',
+      subtitle:
+        'Укажите обязательную площадь и комнаты. Остальные поля необязательны.',
       lockedBanner: 'Выберите тип недвижимости выше, чтобы открыть поля.',
       conditionLabel: 'Состояние / Ремонт (Необязательно)',
       buildingSeriesLabel: 'Серия дома (Необязательно)',
@@ -942,13 +958,15 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       terraceAreaLabel: 'Терраса / Сад (м²)',
       roomsLabel: 'Всего комнат (включая гостиную) *',
       bedroomsLabel: 'Спальни (из общего числа комнат) *',
-      roomsBedroomsHint: 'Примечание: число спален не может превышать общее число комнат.',
+      roomsBedroomsHint:
+        'Примечание: число спален не может превышать общее число комнат.',
       bathroomsLabel: 'Санузлы',
       floorLabel: 'Этаж',
       totalFloorsLabel: 'Всего этажей в доме',
       maxGuestsLabel: 'Макс. гостей',
       featuresTitle: 'Удобства и оснащение (Необязательно)',
-      featuresSubtitle: 'Отметьте все удобства, которые реально есть в объекте.',
+      featuresSubtitle:
+        'Отметьте все удобства, которые реально есть в объекте.',
       onlineViewingTitle: 'Готов к онлайн-показу по видеосвязи',
       onlineViewingSub:
         'Отметьте, если можете показать объект удаленно через WhatsApp или Zoom.',
@@ -957,7 +975,8 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
     },
     pricingSection: {
       title: '5. Цена, рассрочка, документы и описание',
-      subtitle: 'Укажите полную цену по договору, выплаченную сумму и остаток рассрочки.',
+      subtitle:
+        'Укажите полную цену по договору, выплаченную сумму и остаток рассрочки.',
       priceLabel: 'Цена *',
       totalPriceBtn: 'Общая цена',
       perSqmBtn: 'Цена за м²',
@@ -988,10 +1007,11 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       exchangePossibleLabel: 'Возможен обмен',
       discountAmountLabel: 'Макс. сумма скидки при торге ($ необязательно)',
       districtGuideTitle: 'Ориентир цен в районе',
-      districtGuideSub: 'Средний диапазон цен в этом районе: $1,150 – $1,650 / м².',
+      districtGuideSub:
+        'Средний диапазон цен в этом районе: $1,150 – $1,650 / м².',
       descriptionLabel: 'Подробное описание объекта (Необязательно)',
       descriptionPlaceholder:
-        'Опишите планировку, вид из окон, преимущества этажа и комплекса...',
+        'Опишите планировку, вид из окон и преимущества объекта...',
       docsBoxTitle: 'Документы на объект (Обязательно для публикации на рынке)',
       docsRequirementBanner:
         '📌 Вы можете сохранить данные объекта сейчас и загрузить документы позже в (Личном кабинете), но объект будет опубликован на рынке только после загрузки 4 документов и проверки администрацией.',
@@ -1007,7 +1027,7 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       subtitleExit:
         'Имя и телефон — (🔒 Скрыты от публики и доступны только администрации для защиты сделки).',
       subtitleRent: 'Имя и телефон — для связи через выбранные мессенджеры.',
-      namePlaceholder: 'Введите ваше полное имя',
+      namePlaceholder: 'Ваше имя...',
       messengersLabel: 'Доступные мессенджеры на этом номере',
       confirmPasswordLabel: 'Подтвердите пароль',
       accountOptionsTitle: 'Параметры аккаунта и привязки объекта:',
@@ -1073,7 +1093,8 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       pkgPro: 'PRO -30% · 17 дней',
     },
     bottomBar: {
-      finalSectionTitle: 'Отправка объекта на проверку или сохранение черновика',
+      finalSectionTitle:
+        'Отправка объекта на проверку или сохранение черновика',
       finalSectionDescComplete:
         'Все данные, фото и документы заполнены на 100%! Нажмите ниже, чтобы отправить объект на проверку администрации.',
       finalSectionDescMissingMedia:
@@ -1084,7 +1105,8 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       savingDraftBtn: 'Сохранение черновика...',
       publishingBtn: 'Отправка...',
       publishBtn: 'Отправить объект на проверку администрации',
-      submitAndCompleteDocsLaterBtn: 'Сохранить объект и загрузить фото/документы в кабинете',
+      submitAndCompleteDocsLaterBtn:
+        'Сохранить объект и загрузить фото/документы в кабинете',
     },
   },
   ka: {
@@ -1133,7 +1155,7 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       videoSectionSubtitle:
         'ჩასვით YouTube / Vimeo ან 3D ტურის ბმული ქონების გვერდზე გამოსაჩენად.',
       videoUrlLabel: 'YouTube / Vimeo ვიდეოს ბმული',
-      videoUrlPlaceholder: 'https://www.youtube.com/watch?v=...',
+      videoUrlPlaceholder: 'https://youtube.com/...',
       tour3dLabel: '3D ტურის ბმული (Matterport)',
       tour3dPlaceholder: 'https://my.matterport.com/...',
     },
@@ -1142,33 +1164,36 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       subtitleRent:
         'მოძებნეთ ქუჩის სახელით ან გადაადგილეთ პინი რუკაზე მისამართის შესავსებად.',
       subtitleSale:
-        'ჩაწერეთ ქუჩის სახელი სწრაფი ძიებისთვის ან მონიშნეთ ზუსტი ადგილი პირდაპირ რუკაზე.',
+        'ჩაწერეთ ქუჩის სახელი სწრაფი ძიებისთვის ან მონიშნეთ შენობა პირდაპირ რუკაზე.',
       cityDistrictLabel: 'ქალაქი / უბანი *',
-      chooseLocationPlaceholder: 'დააჭირეთ ქალაქის, უბნის ან ქუჩის ასარჩევად...',
+      chooseLocationPlaceholder: 'აირჩიეთ ქალაქი, უბანი ან ქუჩა...',
       developerLabel: 'დეველოპერი (არასავალდებულო)',
-      developerPlaceholder: 'მაგ.: ORBI Group, Archi, m², Next Group...',
-      popularDevelopersHint: 'საქართველოს პოპულარული დეველოპერები:',
+      developerPlaceholder: 'დეველოპერი (არასავალდებულო)...',
+      popularDevelopersHint: '',
       projectLabel: 'პროექტის / კომპლექსის სახელი *',
-      projectPlaceholder: 'მაგ.: Orbi City, King David, White Sails...',
-      streetLabel: 'ქუჩის სახელი (სწრაფი ძიება საქართველოში) *',
-      streetPlaceholder: 'ჩაწერეთ ქუჩა ან უბანი (მაგ.: Merab Kostava / Chavchavadze)...',
-      streetAutocompleteHint: 'აირჩიეთ შემოთავაზებული სიიდან ან დააჭირეთ რუკას ქვემოთ',
+      projectPlaceholder: 'პროექტის სახელი...',
+      streetLabel: 'ქუჩის სახელი *',
+      streetPlaceholder: 'ჩაწერეთ ქუჩის სახელი...',
+      streetAutocompleteHint:
+        'აირჩიეთ შემოთავაზებული სიიდან ან დააჭირეთ რუკას ქვემოთ',
       cantFindAddressTitle: 'ვერ პოულობთ მისამართს?',
       setLocationOnMapBtn: 'მონიშნეთ მდებარეობა რუკაზე',
       detectMyGpsBtn: 'ჩემი GPS მდებარეობა',
-      reverseGeocodingLoading: 'მისამართის წაკითხვა რუკის კოორდინატებიდან...',
+      reverseGeocodingLoading:
+        'მისამართის წაკითხვა რუკის კოორდინატებიდან...',
       pinMovedSuccess: 'ზუსტი მდებარეობა და ქუჩის მისამართი განახლდა ✓',
       houseNoLabel: 'სახლის / კორპუსის Nº',
-      houseNoPlaceholder: '47',
+      houseNoPlaceholder: 'მაგ. 12',
       cadastralLabel: 'საკადასტრო კოდი (NAPR)',
-      cadastralPlaceholder: '01.10.01.001.001',
+      cadastralPlaceholder: 'არასავალდებულო',
       cadastralHelper: 'არასავალდებულო — საჯარო რეესტრის კოდი',
-      mapHeaderTitle: 'ინტერაქტიული 3D რუკა (გადაადგილეთ რუკა ან დააჭირეთ შენობას)',
-      mapHint: 'გადაადგილეთ რუკა ან დააჭირეთ შენობას ქუჩისა და კოორდინატების ავტომატურად შესავსებად',
+      mapHeaderTitle: 'ინტერაქტიული 3D რუკა',
+      mapHint:
+        'დააჭირეთ შენობას ქუჩისა და კოორდინატების ავტომატურად შესავსებად',
     },
     locationModal: {
       title: 'აირჩიეთ ქალაქი და უბანი ან მოძებნეთ ქუჩა',
-      searchPlaceholder: 'ქუჩა, უბანი, ქალაქი ან პროექტი (მაგ.: Merab Kostava)...',
+      searchPlaceholder: 'ქალაქი, უბანი ან ქუჩა...',
       searchingMapsText: 'ძიება საქართველოს რუკაზე...',
       everywhereTitle: 'ყველგან',
       everywhereSub: 'საქართველოს ყველა რეგიონი',
@@ -1203,7 +1228,8 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       terraceAreaLabel: 'ტერასა / ეზო (მ²)',
       roomsLabel: 'ოთახების საერთო რაოდენობა *',
       bedroomsLabel: 'საძინებლების რაოდენობა *',
-      roomsBedroomsHint: 'შენიშვნა: საძინებლების რაოდენობა არ უნდა აღემატებოდეს ოთახების რაოდენობას.',
+      roomsBedroomsHint:
+        'შენიშვნა: საძინებლების რაოდენობა არ უნდა აღემატებოდეს ოთახების რაოდენობას.',
       bathroomsLabel: 'სველი წერტილები',
       floorLabel: 'სართული',
       totalFloorsLabel: 'სართულები სულ',
@@ -1218,7 +1244,8 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
     },
     pricingSection: {
       title: '5. ფასი, განვადება, დოკუმენტები და აღწერა',
-      subtitle: 'მიუთითეთ კონტრაქტის ფასი, გადახდილი თანხა და დარჩენილი განვადება.',
+      subtitle:
+        'მიუთითეთ კონტრაქტის ფასი, გადახდილი თანხა და დარჩენილი განვადება.',
       priceLabel: 'ფასი *',
       totalPriceBtn: 'სრული ფასი',
       perSqmBtn: 'ფასი მ²-ზე',
@@ -1247,12 +1274,14 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       rentMonthlyLabel: 'თვიური ქირის ფასი *',
       negotiableLabel: 'საჭირო თანხა (ხელზე) ექვემდებარება შეთანხმებას',
       exchangePossibleLabel: 'შესაძლებელია გაცვლა',
-      discountAmountLabel: 'მაქსიმალური დასაშვები ფასდაკლება ($ არასავალდებულო)',
+      discountAmountLabel:
+        'მაქსიმალური დასაშვები ფასდაკლება ($ არასავალდებულო)',
       districtGuideTitle: 'უბნის ფასების გზამკვლევი',
-      districtGuideSub: 'საშუალო საბაზრო ფასი ამ უბანში: $1,150 – $1,650 / მ².',
+      districtGuideSub:
+        'საშუალო საბაზრო ფასი ამ უბანში: $1,150 – $1,650 / მ².',
       descriptionLabel: 'დეტალური აღწერა (არასავალდებულო)',
       descriptionPlaceholder:
-        'აღწერეთ ქონების უპირატესობები, ხედი, სართული და კომპლექსის პირობები...',
+        'აღწერეთ ქონების უპირატესობები, ხედი და პირობები...',
       docsBoxTitle: 'საკუთრების დოკუმენტები (სავალდებულოა გამოსაქვეყნებლად)',
       docsRequirementBanner:
         '📌 შეგიძლიათ შეინახოთ მონაცემები ახლა და დოკუმენტები მოგვიანებით ატვირთოთ (ჩემი ანგარიშიდან), მაგრამ ობიექტი გამოქვეყნდება მხოლოდ 4 დოკუმენტის ატვირთვისა და ადმინისტრაციის მიერ შემოწმების შემდეგ.',
@@ -1268,7 +1297,7 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       subtitleExit:
         'სახელი და ტელეფონი — (🔒 დაფარულია საჯაროდ და ჩანს მხოლოდ ადმინისტრაციისთვის).',
       subtitleRent: 'სახელი და ტელეფონი — კონტაქტისთვის მესენჯერებით.',
-      namePlaceholder: 'შეიყვანეთ თქვენი სრული სახელი',
+      namePlaceholder: 'სრული სახელი...',
       messengersLabel: 'ამ ნომერზე ხელმისაწვდომი მესენჯერები',
       confirmPasswordLabel: 'გაიმეორეთ პაროლი',
       accountOptionsTitle: 'ანგარიშის და განცხადების პარამეტრები:',
@@ -1334,7 +1363,8 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       pkgPro: 'PRO -30% · 17 დღე',
     },
     bottomBar: {
-      finalSectionTitle: 'ობიექტის გაგზავნა შემოწმებაზე ან მონახაზის შენახვა',
+      finalSectionTitle:
+        'ობიექტის გაგზავნა შემოწმებაზე ან მონახაზის შენახვა',
       finalSectionDescComplete:
         'ყველა მონაცემი, ფოტო და დოკუმენტი შევსებულია 100%-ით! დააჭირეთ ქვემოთ ადმინისტრაციაში გასაგზავნად.',
       finalSectionDescMissingMedia:
@@ -1345,7 +1375,8 @@ const SELLER_FORM_TRANSLATIONS: Record<LocaleCode, SellerFormTranslations> = {
       savingDraftBtn: 'ინახება...',
       publishingBtn: 'იგზავნება...',
       publishBtn: 'ობიექტის გაგზავნა ადმინისტრაციის შემოწმებაზე',
-      submitAndCompleteDocsLaterBtn: 'მონაცემების შენახვა და ფოტო/დოკუმენტების ანგარიშიდან ატვირთვა',
+      submitAndCompleteDocsLaterBtn:
+        'მონაცემების შენახვა და ფოტო/დოკუმენტების ანგარიშიდან ატვირთვა',
     },
   },
 }
@@ -1374,7 +1405,8 @@ const SELLER_EXTRA_FALLBACKS: Record<LocaleCode, SellerExtraLabels> = {
     rowFeatures: 'المميزات',
     rowMarketPrice: 'سعر السوق دلوقتي',
     rowInstallment: 'القسط',
-    reviewNoteBeforeSubmit: 'أول ما تبعت، فريقنا بيراجع الوحدة وينشرها في السوق.',
+    reviewNoteBeforeSubmit:
+      'أول ما تبعت، فريقنا بيراجع الوحدة وينشرها في السوق.',
     savedBadge: 'محفوظ ✓',
     verifyBoxTitle: 'خطوة أخيرة — أكّد بريدك الإلكتروني',
     verifyBoxDescPrefix: 'عشان نحمي المنصة، هنبعتلك كود على إيميلك',
@@ -1581,14 +1613,6 @@ export function isImageFileUrl(url?: string, name?: string): boolean {
   return /\.(jpg|jpeg|png|webp|gif|bmp|svg|avif)/i.test(target) || Boolean(url)
 }
 
-import {
-  CONDITION_OPTIONS,
-  getOptionLabel,
-  SIVRCE_FEATURE_GROUPS,
-  toEnglishDigits,
-  type LocalizedOptionItem,
-} from './seller-options-data'
-
 export const AI_DESCRIPTION_I18N: Record<
   LocaleCode,
   {
@@ -1641,7 +1665,11 @@ export function buildSmartPropertyDescription({
   selected: Record<string, string[]>
   buildingStatus?: string
 }): string {
-  const street = form.exactStreet?.trim() || ''
+  const streetRaw = form.exactStreet?.trim() || ''
+  const houseNo = form.houseNumber?.trim() || ''
+  const street = streetRaw
+    ? `${streetRaw}${houseNo ? ` ${houseNo}` : ''}`
+    : ''
   const project = form.project?.trim() || ''
   const developer = form.developer?.trim() || ''
   const size = form.areaSize?.trim() || ''
@@ -1675,7 +1703,6 @@ export function buildSmartPropertyDescription({
     ? getOptionLabel(conditionObj, locale)
     : ''
 
-  // حل جذري لخطأ TypeScript مع المصفوفات المعرفة بـ readonly
   const allFeatureItems: LocalizedOptionItem<string>[] = []
   for (const grp of SIVRCE_FEATURE_GROUPS) {
     for (const item of grp.items) {
@@ -1693,7 +1720,7 @@ export function buildSmartPropertyDescription({
   if (locale === 'ar') {
     const lines: string[] = []
     lines.push(
-      `فرصة استثمارية وسكنية مميزة للتنازل واستكمال الأقساط${project ? ` في مشروع (${project})` : ''}${developer ? ` من تطوير شركة ${developer}` : ''} بموقع حيوي في ${areaName}${street ? ` — شارع ${street}` : ''}.`
+      `فرصة استثمارية وسكنية مميزة للتنازل واستكمال الأقساط${project ? ` في مشروع (${project})` : ''}${developer ? ` من تطوير شركة ${developer}` : ''} بموقع حيوي في ${areaName}${street ? ` — ${street}` : ''}.`
     )
 
     const specParts: string[] = []

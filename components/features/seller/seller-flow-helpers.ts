@@ -34,6 +34,7 @@ export const FLOW_LOADING_LABELS: Record<
     mediaDialogBadge: string
     mediaDialogTitle: string
     mediaDialogDesc: string
+    mediaDialogMandatoryPublishNote: string
     mediaDialogMissingPhotos: string
     mediaDialogMissingDocs: string
     mediaDialogConfirmBtn: string
@@ -58,15 +59,17 @@ export const FLOW_LOADING_LABELS: Record<
     saveLaterBtnText: 'احفظ البيانات وكمل بعدين',
     savingLaterBtnText: 'جاري الحفظ...',
     missingFieldsAlertTitle:
-      'يرجى إكمال الحقول المطلوبة التالية أولاً (اضغط على الحقل للانتقال إليه):',
-    mediaDialogBadge: 'تأكيد سريع',
-    mediaDialogTitle: 'إرسال الطلب الآن واستكمال المرفقات لاحقاً؟',
+      'يرجى مراجعة وإكمال الحقول المطلوبة المحددة باللون الأحمر بالأعلى:',
+    mediaDialogBadge: 'تنبيه هام قبل الإرسال',
+    mediaDialogTitle: 'الصور والمستندات شرط أساسي لنشر وحدتك على المنصة',
     mediaDialogDesc:
-      'سيتم إرسال بيانات وحدتك للإدارة فوراً، وتستكمل رفع المرفقات التالية من صفحة «حسابي» لنشر الإعلان:',
-    mediaDialogMissingPhotos: 'صور الوحدة العقارية',
-    mediaDialogMissingDocs: 'مستندات الملكية',
-    mediaDialogConfirmBtn: 'نعم، أرسل الطلب الآن ←',
-    mediaDialogUploadNowBtn: 'أضف الصور والمستندات أولاً',
+      'يمكنك إرسال بيانات الوحدة الآن لحفظ طلبك لدى الإدارة، ولكن لن يتم نشر إعلانك للمشترين إلا بعد استكمال المرفقات الأساسية التالية:',
+    mediaDialogMandatoryPublishNote:
+      'ملاحظة هامة: صور العقار ومستندات إثبات الملكية الـ 4 هي متطلبات أساسية للتحقق من صحة البيانات ونشر الوحدة رسمياً أمام المشترين. يمكنك رفعها الآن أو استكمالها في أي وقت من صفحة «حسابي».',
+    mediaDialogMissingPhotos: 'صور الوحدة العقارية (صورة واحدة على الأقل)',
+    mediaDialogMissingDocs: 'مستندات الملكية والتعاقد',
+    mediaDialogConfirmBtn: 'أرسل البيانات الآن وأكمل المرفقات من حسابي ←',
+    mediaDialogUploadNowBtn: 'رفع الصور والمستندات الآن قبل الإرسال',
   },
   en: {
     loadingUnitTitle: 'Restoring your saved unit details...',
@@ -85,15 +88,17 @@ export const FLOW_LOADING_LABELS: Record<
     saveLaterBtnText: 'Save Details & Continue Later',
     savingLaterBtnText: 'Saving...',
     missingFieldsAlertTitle:
-      'Please complete these required fields first (click any field to jump to it):',
-    mediaDialogBadge: 'Quick Confirmation',
-    mediaDialogTitle: 'Submit Request Now & Upload Media Later?',
+      'Please complete the required fields highlighted in red above:',
+    mediaDialogBadge: 'Important Notice',
+    mediaDialogTitle: 'Photos & Documents Are Required to Publish Your Unit',
     mediaDialogDesc:
-      'Your unit details will be sent to Admin right away, and you can upload the remaining items from "My Account" to publish:',
-    mediaDialogMissingPhotos: 'Property Photos',
-    mediaDialogMissingDocs: 'Ownership Documents',
-    mediaDialogConfirmBtn: 'Yes, Submit Request Now →',
-    mediaDialogUploadNowBtn: 'Upload Photos & Documents First',
+      'You can submit your unit details now to save your request with Admin, but your listing will not be published to buyers until you upload:',
+    mediaDialogMandatoryPublishNote:
+      'Important: Property photos and the 4 ownership documents are mandatory to verify and publish your unit to buyers. You can upload them now or anytime later from "My Account".',
+    mediaDialogMissingPhotos: 'Property Photos (at least 1 photo)',
+    mediaDialogMissingDocs: 'Ownership & Contract Documents',
+    mediaDialogConfirmBtn: 'Submit Details Now & Upload Later →',
+    mediaDialogUploadNowBtn: 'Upload Photos & Documents Now',
   },
   ru: {
     loadingUnitTitle: 'Восстановление сохраненных данных объекта...',
@@ -112,15 +117,17 @@ export const FLOW_LOADING_LABELS: Record<
     saveLaterBtnText: 'Сохранить данные и продолжить позже',
     savingLaterBtnText: 'Сохранение...',
     missingFieldsAlertTitle:
-      'Заполните обязательные поля ниже (нажмите для перехода):',
-    mediaDialogBadge: 'Подтверждение',
-    mediaDialogTitle: 'Отправить заявку сейчас, а файлы позже?',
+      'Пожалуйста, заполните обязательные поля, выделенные красным выше:',
+    mediaDialogBadge: 'Важное уведомление',
+    mediaDialogTitle: 'Фото и документы обязательны для публикации объекта',
     mediaDialogDesc:
-      'Данные объекта будут отправлены администрации сейчас, а файлы вы сможете загрузить в «Моем кабинете»:',
-    mediaDialogMissingPhotos: 'Фотографии объекта',
+      'Вы можете отправить данные сейчас, но объявление будет опубликовано для покупателей только после загрузки следующих файлов:',
+    mediaDialogMandatoryPublishNote:
+      'Важно: Фотографии объекта и 4 документа собственности необходимы для проверки и публикации вашего объявления. Вы можете загрузить их сейчас или позже в «Моем кабинете».',
+    mediaDialogMissingPhotos: 'Фотографии объекта (минимум 1 фото)',
     mediaDialogMissingDocs: 'Документы собственности',
-    mediaDialogConfirmBtn: 'Да, отправить заявку сейчас →',
-    mediaDialogUploadNowBtn: 'Сначала добавить фото и документы',
+    mediaDialogConfirmBtn: 'Отправить сейчас и загрузить файлы позже →',
+    mediaDialogUploadNowBtn: 'Загрузить фото и документы сейчас',
   },
   ka: {
     loadingUnitTitle: 'თქვენი ობიექტის მონაცემები იტვირთება...',
@@ -139,15 +146,17 @@ export const FLOW_LOADING_LABELS: Record<
     saveLaterBtnText: 'მონაცემების შენახვა და მოგვიანებით გაგრძელება',
     savingLaterBtnText: 'ინახება...',
     missingFieldsAlertTitle:
-      'გთხოვთ შეავსოთ სავალდებულო ველები (დააჭირეთ გადასასვლელად):',
-    mediaDialogBadge: 'დადასტურება',
-    mediaDialogTitle: 'გავგზავნოთ ახლა და ფაილები მოგვიანებით?',
+      'გთხოვთ შეავსოთ ზემოთ წითლად მონიშნული სავალდებულო ველები:',
+    mediaDialogBadge: 'მნიშვნელოვანი შეტყობინება',
+    mediaDialogTitle: 'ფოტოები და დოკუმენტები აუცილებელია გამოსაქვეყნებლად',
     mediaDialogDesc:
-      'ობიექტის მონაცემები გადაეგზავნება ადმინისტრაციას ახლავე, ხოლო ფაილებს ატვირთავთ «ჩემი ანგარიშიდან»:',
-    mediaDialogMissingPhotos: 'ქონების ფოტოები',
+      'შეგიძლიათ გაგზავნოთ მონაცემები ახლა, მაგრამ განცხადება გამოქვეყნდება მხოლოდ შემდეგი ფაილების ატვირთვის შემდეგ:',
+    mediaDialogMandatoryPublishNote:
+      'მნიშვნელოვანია: ქონების ფოტოები და საკუთრების 4 დოკუმენტი აუცილებელია გადამოწმებისა და გამოქვეყნებისთვის. შეგიძლიათ ატვირთოთ ახლა ან მოგვიანებით «ჩემი ანგარიშიდან».',
+    mediaDialogMissingPhotos: 'ქონების ფოტოები (მინიმუმ 1 ფოტო)',
     mediaDialogMissingDocs: 'საკუთრების დოკუმენტები',
-    mediaDialogConfirmBtn: 'დიახ, გაგზავნა ახლავე →',
-    mediaDialogUploadNowBtn: 'ჯერ ფოტოების და დოკუმენტების დამატება',
+    mediaDialogConfirmBtn: 'გაგზავნა ახლა და ფაილების ატვირთვა მოგვიანებით →',
+    mediaDialogUploadNowBtn: 'ფოტოების და დოკუმენტების ატვირთვა ახლა',
   },
 }
 
@@ -511,9 +520,11 @@ export function createSellerFormData(params: {
   if (cleanDev) put('developer_name', cleanDev)
   put('project_name', fallbackProjectTitle)
   put('area', effectiveArea)
+  if (form.locationDisplay) put('location_display', form.locationDisplay)
   put('exact_street', form.exactStreet)
   put('house_number', form.houseNumber)
   put('cadastral_code', form.cadastralCode)
+  if (form.hideCadastral === 'true') put('hide_cadastral', 'true')
   if (form.lat) put('lat', form.lat)
   if (form.lng) put('lng', form.lng)
 

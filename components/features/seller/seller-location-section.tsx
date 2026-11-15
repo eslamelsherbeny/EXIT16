@@ -1,90 +1,156 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowUpLeft,
-  Building2,
+  Camera,
+  Check,
   CheckCircle2,
+  Circle,
   Compass,
+  Contrast,
   Globe,
+  Layers,
   Loader2,
   Lock,
-  Map,
+  LocateFixed,
+  Map as MapIcon,
   MapPin,
   Maximize2,
   Minimize2,
   Minus,
-  Navigation,
+  Mountain,
   Plus,
   Search,
   Sparkles,
-  Unlock,
   X,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
 import { getCoordinatesForArea } from '@/lib/georgia-coordinates'
+import { reverseGeocodeGeorgiaPinAction } from '@/actions/georgia-geocode-action'
 import {
   apply3DBuildingsToMap,
+  extractInstantAddressFromMapFeatures,
+  geocodeExactBuildingInGeorgia,
   getInstantLocalGeorgiaSuggestions,
   getReliableGeorgiaMapStyle,
+  highlight3DBuildingAtCoordinates,
   mapDetectedAddressToGeorgiaAreaId,
-  searchGeorgiaPlacesLikeUber,
+  matchStreetAndDistrictToOurDatabase,
+  type GeorgiaMapThemeMode,
   type GeorgiaPlaceSuggestion,
 } from '@/lib/georgia-uber-search'
 import { useTranslation, type LocaleCode } from '@/lib/i18n'
 import { getSellerFormTranslations } from './seller-i18n'
-import { SIVRCE_POPULAR_CITIES } from './seller-location-modal'
 import {
-  Field,
-  getOptionLabel,
   RequiredLabel,
   SivrceLocationModalPicker,
 } from './seller-shared'
 
 export { mapDetectedAddressToGeorgiaAreaId }
 
-const POPULAR_GEORGIA_DEVELOPERS = [
-  'ORBI Group',
-  'Archi',
-  'm² (m2)',
-  'Next Group',
-  'Alliance Group',
-  'ELT Building',
-  'Biograpi Living',
-  'Mardi Holding',
-  'Gumbati Group',
-  'Dar Building',
+const MAP_STYLE_OPTIONS: Array<{
+  id: GeorgiaMapThemeMode
+  label: string
+  icon: any
+}> = [
+  { id: 'streets', label: 'Streets', icon: MapIcon },
+  { id: 'sivrce', label: 'Sivrce', icon: Globe },
+  { id: 'realistic', label: 'Realistic', icon: Mountain },
+  { id: 'photoreal', label: 'Photoreal', icon: Camera },
+  { id: 'hybrid', label: 'Hybrid', icon: Sparkles },
+  { id: 'minimal', label: 'Minimal', icon: Circle },
+  { id: 'contrast', label: 'High contrast', icon: Contrast },
 ]
 
-const MAP_LOCK_I18N: Record<
+const SIVRCE_MAP_UI_I18N: Record<
   LocaleCode,
   {
-    unlockBtn: string
-    lockBtn: string
-    lockedHint: string
+    windowsHelpText: string
+    macHelpText: string
+    mobileHelpText: string
+    enterStreetHint: string
+    bottomSnapHint: string
+    parcelFoundText: string
+    optionalNaprHint: string
+    hideCadastralBtn: string
+    hiddenFromPublicBadge: string
+    shortProjectPlaceholder: string
+    shortDeveloperPlaceholder: string
+    shortStreetPlaceholder: string
+    shortHousePlaceholder: string
+    shortCadastralPlaceholder: string
   }
 > = {
   ar: {
-    unlockBtn: 'اضغط لتحريك الدبوس وتعديل الموقع',
-    lockBtn: 'تثبيت وقفل الخريطة ✓',
-    lockedHint: 'الخريطة مثبتة لمنع تغير العنوان أثناء التصفح',
+    windowsHelpText: 'استخدم Ctrl + التمرير لتكبير الخريطة',
+    macHelpText: 'استخدم ⌘ + التمرير لتكبير الخريطة',
+    mobileHelpText: 'استخدم إصبعين لتحريك وتكبير الخريطة',
+    enterStreetHint: 'أدخل الشارع — يسقط الدبوس تلقائياً',
+    bottomSnapHint:
+      'الدبوس والمبنى يتحدثان تلقائياً · أو اضغط على الخريطة لتحديد مبنى',
+    parcelFoundText:
+      'تم العثور على القطعة — تم توجيه الخريطة إلى قطعة NAPR',
+    optionalNaprHint: 'اختياري — يوجه الخريطة تلقائياً إلى قطعة NAPR',
+    hideCadastralBtn: 'إخفاء الرقم العقاري عن الجمهور في الإعلان',
+    hiddenFromPublicBadge: 'مخفي عن الزوار في صفحة الإعلان (يظهر للإدارة فقط)',
+    shortProjectPlaceholder: 'اسم المشروع أو المجمع...',
+    shortDeveloperPlaceholder: 'اسم المطور (اختياري)...',
+    shortStreetPlaceholder: 'ابحث باسم الشارع...',
+    shortHousePlaceholder: 'مثال: 12',
+    shortCadastralPlaceholder: 'اختياري (مثال: 01.10...)',
   },
   en: {
-    unlockBtn: 'Tap to move pin & adjust location',
-    lockBtn: 'Lock map position ✓',
-    lockedHint: 'Map locked to prevent accidental scroll changes',
+    windowsHelpText: 'Use Ctrl + scroll to zoom the map',
+    macHelpText: 'Use ⌘ + scroll to zoom the map',
+    mobileHelpText: 'Use two fingers to move the map',
+    enterStreetHint: 'Enter the street — the pin drops automatically',
+    bottomSnapHint:
+      'Pin and building snap automatically · or tap the map to mark a building',
+    parcelFoundText: 'Parcel found — map snapped to the NAPR lot',
+    optionalNaprHint: 'Optional — snaps NAPR parcel onto the map',
+    hideCadastralBtn: 'Hide cadastral code on the website',
+    hiddenFromPublicBadge: 'Hidden from public visitors (Visible to Admin only)',
+    shortProjectPlaceholder: 'Project or complex name...',
+    shortDeveloperPlaceholder: 'Developer name (optional)...',
+    shortStreetPlaceholder: 'Type street name...',
+    shortHousePlaceholder: 'e.g. 12',
+    shortCadastralPlaceholder: 'Optional (e.g. 01.10...)',
   },
   ru: {
-    unlockBtn: 'Нажмите, чтобы передвинуть пин',
-    lockBtn: 'Зафиксировать карту ✓',
-    lockedHint: 'Карта зафиксирована от случайного сдвига',
+    windowsHelpText: 'Используйте Ctrl + колесико для масштабирования',
+    macHelpText: 'Используйте ⌘ + колесико для масштабирования',
+    mobileHelpText: 'Используйте два пальца для перемещения карты',
+    enterStreetHint: 'Введите улицу — пин установится автоматически',
+    bottomSnapHint:
+      'Пин и здание выбираются автоматически · или нажмите на карту',
+    parcelFoundText: 'Участок найден — карта привязана к участку NAPR',
+    optionalNaprHint: 'Необязательно — привязывает участок NAPR к карте',
+    hideCadastralBtn: 'Скрыть кадастровый код на сайте',
+    hiddenFromPublicBadge: 'Скрыто от посетителей в объявлении (Видно только админу)',
+    shortProjectPlaceholder: 'Название ЖК или проекта...',
+    shortDeveloperPlaceholder: 'Застройщик (необязательно)...',
+    shortStreetPlaceholder: 'Введите название улицы...',
+    shortHousePlaceholder: 'напр. 12',
+    shortCadastralPlaceholder: 'Необязательно',
   },
   ka: {
-    unlockBtn: 'დააჭირეთ პინის გადასაადგილებლად',
-    lockBtn: 'რუკის დაფიქსირება ✓',
-    lockedHint: 'რუკა დაბლოკილია შემთხვევითი გადაადგილებისგან',
+    windowsHelpText: 'გამოიყენეთ Ctrl + სქროლი რუკის გასადიდებლად',
+    macHelpText: 'გამოიყენეთ ⌘ + სქროლი რუკის გასადიდებლად',
+    mobileHelpText: 'გამოიყენეთ ორი თითი რუკის გადასაადგილებლად',
+    enterStreetHint: 'შეიყვანეთ ქუჩა — პინი ავტომატურად დაჯდება',
+    bottomSnapHint:
+      'პინი და შენობა ავტომატურად ინიშნება · ან დააჭირეთ რუკას',
+    parcelFoundText: 'ნაკვეთი ნაპოვნია — რუკა გასწორდა NAPR-ის მიხედვით',
+    optionalNaprHint: 'არასავალდებულო — აფიქსირებს NAPR ნაკვეთს რუკაზე',
+    hideCadastralBtn: 'საკადასტრო კოდის დამალვა საიტზე',
+    hiddenFromPublicBadge: 'დამალულია საჯაროდ (ჩანს მხოლოდ ადმინისტრაციისთვის)',
+    shortProjectPlaceholder: 'პროექტის სახელი...',
+    shortDeveloperPlaceholder: 'დეველოპერი (არასავალდებულო)...',
+    shortStreetPlaceholder: 'ჩაწერეთ ქუჩის სახელი...',
+    shortHousePlaceholder: 'მაგ. 12',
+    shortCadastralPlaceholder: 'არასავალდებულო',
   },
 }
 
@@ -124,6 +190,22 @@ function loadSellerMapLibre(): Promise<any> {
   })
 }
 
+function createOrangePinElement(): HTMLDivElement {
+  const wrapper = document.createElement('div')
+  wrapper.style.display = 'flex'
+  wrapper.style.flexDirection = 'column'
+  wrapper.style.alignItems = 'center'
+  wrapper.style.cursor = 'grab'
+  wrapper.innerHTML = `
+    <div style="width: 38px; height: 38px; border-radius: 9999px; border: 3px solid #ffffff; background: #ea580c; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 20px rgba(0,0,0,0.28);">
+      <div style="width: 11px; height: 11px; border-radius: 9999px; background: #ffffff;"></div>
+    </div>
+    <div style="margin-top: -3px; width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 9px solid #ea580c;"></div>
+    <div style="margin-top: 2px; width: 12px; height: 5px; border-radius: 9999px; background: rgba(0,0,0,0.32); filter: blur(1px);"></div>
+  `
+  return wrapper
+}
+
 export function LocationSection({
   sectionRef,
   onHover,
@@ -146,16 +228,24 @@ export function LocationSection({
   const { t: dict, locale, dir } = useTranslation()
   const fT = getSellerFormTranslations(locale as LocaleCode, dict)
   const locT = fT.locationSection
-  const lockT =
-    MAP_LOCK_I18N[locale as LocaleCode] || MAP_LOCK_I18N.ar
+  const mapUiT =
+    SIVRCE_MAP_UI_I18N[locale as LocaleCode] || SIVRCE_MAP_UI_I18N.ar
 
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
   const mapWrapperRef = useRef<HTMLDivElement | null>(null)
   const mapInstanceRef = useRef<any>(null)
+  const markerInstanceRef = useRef<any>(null)
   const streetDropdownRef = useRef<HTMLDivElement | null>(null)
-  const abortControllerRef = useRef<AbortController | null>(null)
-  const isProgrammaticFlyRef = useRef<boolean>(false)
+  const styleMenuRef = useRef<HTMLDivElement | null>(null)
   const lastManualTypedRef = useRef<string>('')
+  const reverseAbortRef = useRef<AbortController | null>(null)
+
+  const updateRef = useRef(update)
+  updateRef.current = update
+  const localeRef = useRef(locale as LocaleCode)
+  localeRef.current = locale as LocaleCode
+  const formRef = useRef(form)
+  formRef.current = form
 
   const defaultAreaCoords = getCoordinatesForArea(
     form.location || 'Tbilisi - Saburtalo'
@@ -173,54 +263,56 @@ export function LocationSection({
     lng: initialLng,
   })
 
-  // قفل الخريطة افتراضياً أثناء التصفح لمنع تحرك الدبوس بالخطأ عند عمل Scroll باليد على الموبايل
-  const [isMapInteractive, setIsMapInteractive] = useState(false)
-  const isMapInteractiveRef = useRef(false)
-
-  const [mapStyleMode, setMapStyleMode] = useState<
-    '3d' | 'streets' | 'satellite'
-  >('3d')
-  const [is3dMode, setIs3dMode] = useState(true)
-  const [isExpandedMap, setIsExpandedMap] = useState(false)
-  const [isDraggingMap, setIsDraggingMap] = useState(false)
-  const [mapFlyingLoading, setMapFlyingLoading] = useState(false)
-
-  const [streetSuggestions, setStreetSuggestions] = useState<
-    GeorgiaPlaceSuggestion[]
-  >(() => getInstantLocalGeorgiaSuggestions('', locale as LocaleCode))
-  const [streetSearchLoading, setStreetSearchLoading] = useState(false)
-  const [streetDropdownOpen, setStreetDropdownOpen] = useState(false)
-  const [reverseGeoLoading, setReverseGeoLoading] = useState(false)
-  const [pinSuccessFeedback, setPinSuccessFeedback] = useState(false)
-  const [gpsLoading, setGpsLoading] = useState(false)
-
-  const syncCoords = useCallback(
-    (lat: number, lng: number) => {
-      liveCoordsRef.current = { lat, lng }
-      setLiveCoords({ lat, lng })
-      update('lat', String(lat.toFixed(6)))
-      update('lng', String(lng.toFixed(6)))
-    },
-    [update]
+  // الخريطة لا تظهر في البداية إلا بعد اختيار المدينة/الحي أو كتابة الشارع أو الرقم العقاري تماماً مثل sivrce.ge
+  const hasSelectedAnyLocation = Boolean(
+    (form.location && form.location.trim().length > 0) ||
+      (form.exactStreet && form.exactStreet.trim().length >= 2) ||
+      (form.cadastralCode && form.cadastralCode.trim().length >= 6)
   )
 
-  // تفعيل أو تعطيل سحب الخريطة حسب حالة القفل
-  const toggleMapLock = useCallback((enable: boolean) => {
-    isMapInteractiveRef.current = enable
-    setIsMapInteractive(enable)
-    const map = mapInstanceRef.current
-    if (!map) return
-    try {
-      if (enable) {
-        map.dragPan?.enable()
-        map.touchZoomRotate?.enable()
-        map.doubleClickZoom?.enable()
-      } else {
-        map.dragPan?.disable()
-        map.touchZoomRotate?.disable()
-        map.doubleClickZoom?.disable()
-      }
-    } catch {}
+  const [mapStyleMode, setMapStyleMode] =
+    useState<GeorgiaMapThemeMode>('realistic')
+  const [styleMenuOpen, setStyleMenuOpen] = useState(false)
+  const [is3dPitch, setIs3dPitch] = useState(true)
+  const is3dPitchRef = useRef(true)
+  is3dPitchRef.current = is3dPitch
+
+  const [isFullscreenMap, setIsFullscreenMap] = useState(false)
+  const [streetDropdownOpen, setStreetDropdownOpen] = useState(false)
+  const [reverseGeoLoading, setReverseGeoLoading] = useState(false)
+  const [gpsLoading, setGpsLoading] = useState(false)
+
+  const [naprParcelAddress, setNaprParcelAddress] = useState<string>('')
+  const hideCadastralOnSite = form.hideCadastral === 'true'
+
+  const isPureRasterMode =
+    mapStyleMode === 'photoreal' || mapStyleMode === 'satellite'
+
+  const streetSuggestions = useMemo(() => {
+    const q = (form.exactStreet || '').trim()
+    const rawLoc = (form.locationDisplay || form.location || '').trim()
+    const cityContext = rawLoc.includes(',')
+      ? rawLoc.split(',').pop()?.trim()
+      : rawLoc.split(/[-—]/)[0]?.trim()
+
+    return getInstantLocalGeorgiaSuggestions(
+      q,
+      locale as LocaleCode,
+      cityContext
+    )
+  }, [form.exactStreet, form.location, form.locationDisplay, locale])
+
+  const syncCoordsAndMarker = useCallback((lat: number, lng: number) => {
+    liveCoordsRef.current = { lat, lng }
+    setLiveCoords({ lat, lng })
+    updateRef.current('lat', String(lat.toFixed(6)))
+    updateRef.current('lng', String(lng.toFixed(6)))
+    if (markerInstanceRef.current) {
+      markerInstanceRef.current.setLngLat([lng, lat])
+    }
+    if (mapInstanceRef.current) {
+      highlight3DBuildingAtCoordinates(mapInstanceRef.current, lng, lat)
+    }
   }, [])
 
   useEffect(() => {
@@ -231,105 +323,167 @@ export function LocationSection({
       ) {
         setStreetDropdownOpen(false)
       }
+      if (
+        styleMenuRef.current &&
+        !styleMenuRef.current.contains(e.target as Node)
+      ) {
+        setStyleMenuOpen(false)
+      }
     }
     document.addEventListener('mousedown', handleOutsideClick)
     return () => document.removeEventListener('mousedown', handleOutsideClick)
   }, [])
 
+  useEffect(() => {
+    const map = mapInstanceRef.current
+    if (!map) return
+    const timer = setTimeout(() => {
+      map.resize()
+      highlight3DBuildingAtCoordinates(
+        map,
+        liveCoordsRef.current.lng,
+        liveCoordsRef.current.lat
+      )
+    }, 120)
+    return () => clearTimeout(timer)
+  }, [isFullscreenMap])
+
   const flyMapToExactPoint = useCallback(
-    (lat: number, lng: number, zoomLevel = 17) => {
-      syncCoords(lat, lng)
-      if (!mapInstanceRef.current) return
-      setMapFlyingLoading(true)
-      isProgrammaticFlyRef.current = true
-      mapInstanceRef.current.flyTo({
+    (lat: number, lng: number, zoomLevel = 17.6) => {
+      syncCoordsAndMarker(lat, lng)
+      const map = mapInstanceRef.current
+      if (!map) return
+      map.flyTo({
         center: [lng, lat],
         zoom: zoomLevel,
-        pitch: is3dMode && mapStyleMode === '3d' ? 56 : 0,
-        bearing: is3dMode && mapStyleMode === '3d' ? -15 : 0,
-        duration: 750,
+        pitch: is3dPitchRef.current && !isPureRasterMode ? 52 : 0,
+        bearing: is3dPitchRef.current && !isPureRasterMode ? -12 : 0,
+        duration: 520,
       })
       setTimeout(() => {
-        isProgrammaticFlyRef.current = false
-        setMapFlyingLoading(false)
-      }, 800)
+        if (mapInstanceRef.current) {
+          highlight3DBuildingAtCoordinates(mapInstanceRef.current, lng, lat)
+        }
+      }, 580)
     },
-    [is3dMode, mapStyleMode, syncCoords]
+    [isPureRasterMode, syncCoordsAndMarker]
   )
 
-  const reverseGeocodeCoordinates = useCallback(
-    async (lat: number, lng: number, shouldFly = false) => {
+  const selectPointOnMap = useCallback(
+    async (
+      lat: number,
+      lng: number,
+      shouldFly = true,
+      clickPixelPoint?: { x: number; y: number }
+    ) => {
+      const map = mapInstanceRef.current
+      const currentZoom = map?.getZoom?.() || 16.5
+      const targetZoom = Math.max(currentZoom, 17.6)
+
       if (shouldFly) {
-        flyMapToExactPoint(lat, lng, 17)
+        flyMapToExactPoint(lat, lng, targetZoom)
       } else {
-        syncCoords(lat, lng)
+        syncCoordsAndMarker(lat, lng)
       }
+
+      const screenPt =
+        clickPixelPoint ||
+        (map && typeof map.project === 'function'
+          ? map.project([lng, lat])
+          : undefined)
+
+      const instantLocal = extractInstantAddressFromMapFeatures(
+        map,
+        localeRef.current,
+        screenPt
+      )
+      if (instantLocal) {
+        if (instantLocal.street) {
+          updateRef.current('exactStreet', instantLocal.street)
+        }
+        if (instantLocal.houseNumber !== undefined) {
+          updateRef.current('houseNumber', instantLocal.houseNumber)
+        }
+        if (instantLocal.areaId) {
+          updateRef.current('location', instantLocal.areaId)
+        }
+        if (instantLocal.displayLabel) {
+          updateRef.current('locationDisplay', instantLocal.displayLabel)
+        }
+        lastManualTypedRef.current = `${instantLocal.street || formRef.current.exactStreet || ''}|${instantLocal.houseNumber || ''}|${instantLocal.displayLabel || formRef.current.locationDisplay || ''}`
+      }
+
+      if (reverseAbortRef.current) {
+        reverseAbortRef.current.abort()
+      }
+      const controller = new AbortController()
+      reverseAbortRef.current = controller
 
       setReverseGeoLoading(true)
       try {
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
-          { headers: { 'Accept-Language': `${locale},en;q=0.9,ka;q=0.8` } }
+        const serverData = await reverseGeocodeGeorgiaPinAction({
+          lat,
+          lng,
+          locale: localeRef.current,
+        })
+
+        if (controller.signal.aborted || !serverData) return
+
+        const matched = matchStreetAndDistrictToOurDatabase({
+          rawStreet: serverData.rawStreet,
+          rawStreetKa: serverData.rawStreetKa,
+          rawSuburb: serverData.rawSuburb,
+          rawCity: serverData.rawCity,
+          locale: localeRef.current,
+        })
+
+        const finalStreet = matched.street || instantLocal?.street || ''
+        const finalHouse =
+          instantLocal?.houseNumber || serverData.rawHouse || ''
+
+        lastManualTypedRef.current = `${finalStreet}|${finalHouse}|${matched.displayLabel || ''}`
+        if (matched.areaId) updateRef.current('location', matched.areaId)
+        if (matched.displayLabel) {
+          updateRef.current('locationDisplay', matched.displayLabel)
+        }
+        if (finalStreet) updateRef.current('exactStreet', finalStreet)
+        updateRef.current('houseNumber', finalHouse)
+
+        updateRef.current('cadastralCode', serverData.cadastralCode || '')
+        setNaprParcelAddress(
+          serverData.cadastralCode
+            ? serverData.naprAddress ||
+                [
+                  serverData.rawCity || 'Tbilisi',
+                  finalStreet,
+                  finalHouse ? `N ${finalHouse}` : '',
+                ]
+                  .filter(Boolean)
+                  .join(', ')
+            : ''
         )
-        const data = await res.json()
-        const addr = data?.address || {}
 
-        const detectedCity =
-          addr.city ||
-          addr.town ||
-          addr.village ||
-          addr.municipality ||
-          addr.county ||
-          addr.state ||
-          'Tbilisi'
-        const detectedSuburb =
-          addr.suburb ||
-          addr.neighbourhood ||
-          addr.city_district ||
-          addr.quarter ||
-          ''
-        const detectedStreet =
-          addr.road ||
-          addr.pedestrian ||
-          addr.footway ||
-          addr.residential ||
-          data?.name ||
-          detectedSuburb ||
-          ''
-        const detectedHouseNo = addr.house_number || ''
-
-        const matchedAreaId = mapDetectedAddressToGeorgiaAreaId(
-          detectedCity,
-          detectedSuburb
-        )
-        const displayParts = [detectedCity, detectedSuburb].filter(Boolean)
-        const areaDisplayLabel =
-          displayParts.length > 0
-            ? displayParts.join(' — ')
-            : getLocalizedGeorgiaAreaName(matchedAreaId, locale as LocaleCode)
-
-        lastManualTypedRef.current = `${detectedStreet}|${detectedHouseNo}`
-        update('location', matchedAreaId)
-        update('locationDisplay', areaDisplayLabel)
-        if (detectedStreet) update('exactStreet', detectedStreet)
-        if (detectedHouseNo) update('houseNumber', detectedHouseNo)
-
-        setPinSuccessFeedback(true)
-        setTimeout(() => setPinSuccessFeedback(false), 3500)
-      } catch {
-        // احتفاظ بالإحداثيات
+        if (mapInstanceRef.current) {
+          highlight3DBuildingAtCoordinates(mapInstanceRef.current, lng, lat)
+        }
+      } catch (err: any) {
+        if (err?.name === 'AbortError') return
       } finally {
-        setReverseGeoLoading(false)
+        if (!controller.signal.aborted) {
+          setReverseGeoLoading(false)
+        }
       }
     },
-    [flyMapToExactPoint, locale, syncCoords, update]
+    [flyMapToExactPoint, syncCoordsAndMarker]
   )
 
-  // عندما يعدل المستخدم اسم الشارع أو رقم العقار بيده، تتحدث الخريطة تلقائياً وتطير للعنوان الجديد!
+  const selectPointRef = useRef(selectPointOnMap)
+  selectPointRef.current = selectPointOnMap
+
   useEffect(() => {
     const streetClean = (form.exactStreet || '').trim()
     const houseClean = (form.houseNumber || '').trim()
-    const signature = `${streetClean}|${houseClean}`
+    const signature = `${streetClean}|${houseClean}|${form.locationDisplay || ''}`
 
     if (
       streetClean.length < 3 ||
@@ -339,86 +493,46 @@ export function LocationSection({
       return
     }
 
+    const controller = new AbortController()
     const timer = setTimeout(async () => {
       lastManualTypedRef.current = signature
-      try {
-        const cityContext = (form.locationDisplay || form.location || 'Tbilisi')
-          .split('-')[0]
-          .split('—')[0]
-          .split(',')[0]
-          .trim()
-        const fullQuery = `${streetClean} ${houseClean}, ${cityContext}`.trim()
-        const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(
-          fullQuery
-        )}`
-        const r = await fetch(url, {
-          headers: { 'Accept-Language': `${locale},en;q=0.9` },
-        })
-        const d = await r.json()
-        if (Array.isArray(d) && d[0]) {
-          const nextLat = Number(d[0].lat)
-          const nextLng = Number(d[0].lon)
-          if (Number.isFinite(nextLat) && Number.isFinite(nextLng)) {
-            flyMapToExactPoint(nextLat, nextLng, 17.2)
-          }
-        }
-      } catch {}
-    }, 850)
+      const rawLoc = (form.locationDisplay || form.location || 'Tbilisi').trim()
+      const parts = rawLoc.split(',')
+      const districtCtx = parts.length > 1 ? parts[0].trim() : ''
+      const cityCtx =
+        parts.length > 1
+          ? parts[parts.length - 1].trim()
+          : parts[0].split(/[-—]/)[0].trim()
 
-    return () => clearTimeout(timer)
-  }, [
-    form.exactStreet,
-    form.houseNumber,
-    form.location,
-    form.locationDisplay,
-    locale,
-    streetDropdownOpen,
-    flyMapToExactPoint,
-  ])
+      const coords = await geocodeExactBuildingInGeorgia({
+        street: streetClean,
+        houseNumber: houseClean,
+        district: districtCtx,
+        city: cityCtx || 'Tbilisi',
+        signal: controller.signal,
+      })
 
-  useEffect(() => {
-    const q = (form.exactStreet || '').trim()
-    const instantMatches = getInstantLocalGeorgiaSuggestions(
-      q,
-      locale as LocaleCode
-    )
-    setStreetSuggestions(instantMatches)
-
-    if (!streetDropdownOpen || q.length < 2) {
-      setStreetSearchLoading(false)
-      return
-    }
-
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort()
-    }
-    const controller = new AbortController()
-    abortControllerRef.current = controller
-
-    setStreetSearchLoading(true)
-    const timer = setTimeout(async () => {
-      try {
-        const cityContext = (form.locationDisplay || form.location || '')
-          .split('-')[0]
-          .split('—')[0]
-          .split(',')[0]
-          .trim()
-
-        const combined = await searchGeorgiaPlacesLikeUber({
-          query: q,
-          cityContext,
-          locale: locale as LocaleCode,
-          signal: controller.signal,
-        })
-        if (!controller.signal.aborted) {
-          setStreetSuggestions(combined)
-        }
-      } finally {
-        if (!controller.signal.aborted) {
-          setStreetSearchLoading(false)
+      if (coords && !controller.signal.aborted) {
+        flyMapToExactPoint(
+          coords.lat,
+          coords.lng,
+          houseClean ? 17.8 : 17.4
+        )
+        if (coords.cadastralCode) {
+          updateRef.current('cadastralCode', coords.cadastralCode)
+          setNaprParcelAddress(
+            coords.naprAddress ||
+              [
+                cityCtx || 'Tbilisi',
+                streetClean,
+                houseClean ? `N ${houseClean}` : '',
+              ]
+                .filter(Boolean)
+                .join(', ')
+          )
         }
       }
-    }, 150)
+    }, 550)
 
     return () => {
       clearTimeout(timer)
@@ -426,17 +540,21 @@ export function LocationSection({
     }
   }, [
     form.exactStreet,
+    form.houseNumber,
     form.location,
     form.locationDisplay,
-    locale,
     streetDropdownOpen,
+    flyMapToExactPoint,
   ])
 
+  // تهيئة الخريطة فقط عندما يختار المستخدم موقعاً (hasSelectedAnyLocation = true)
   useEffect(() => {
+    if (!hasSelectedAnyLocation) return
+
     let isMounted = true
     let map: any = null
+    let marker: any = null
 
-    setMapFlyingLoading(true)
     loadSellerMapLibre()
       .then((maplibregl) => {
         if (!isMounted || !mapContainerRef.current || !maplibregl) return
@@ -445,105 +563,181 @@ export function LocationSection({
           container: mapContainerRef.current,
           style: getReliableGeorgiaMapStyle(mapStyleMode),
           center: [liveCoordsRef.current.lng, liveCoordsRef.current.lat],
-          zoom: 16,
-          pitch: is3dMode && mapStyleMode === '3d' ? 56 : 0,
-          bearing: is3dMode && mapStyleMode === '3d' ? -15 : 0,
+          zoom: 17.2,
+          pitch: is3dPitchRef.current && !isPureRasterMode ? 52 : 0,
+          bearing: is3dPitchRef.current && !isPureRasterMode ? -12 : 0,
           attributionControl: false,
-          scrollZoom: false,
-          dragPan: isMapInteractiveRef.current,
-          touchZoomRotate: isMapInteractiveRef.current,
-          doubleClickZoom: isMapInteractiveRef.current,
+          cooperativeGestures: true,
+          locale: {
+            'ScrollZoomBlocker.CtrlMessage': mapUiT.windowsHelpText,
+            'ScrollZoomBlocker.CmdMessage': mapUiT.macHelpText,
+            'TouchPanBlocker.Message': mapUiT.mobileHelpText,
+          },
         })
 
         mapInstanceRef.current = map
 
+        const pinEl = createOrangePinElement()
+        marker = new maplibregl.Marker({
+          element: pinEl,
+          draggable: true,
+          anchor: 'bottom',
+        })
+          .setLngLat([liveCoordsRef.current.lng, liveCoordsRef.current.lat])
+          .addTo(map)
+
+        markerInstanceRef.current = marker
+
+        marker.on('dragend', () => {
+          const lngLat = marker.getLngLat()
+          if (
+            lngLat &&
+            Number.isFinite(lngLat.lat) &&
+            Number.isFinite(lngLat.lng)
+          ) {
+            void selectPointRef.current(
+              Number(lngLat.lat),
+              Number(lngLat.lng),
+              true
+            )
+          }
+        })
+
         map.on('load', () => {
-          if (mapStyleMode === '3d') {
-            apply3DBuildingsToMap(map)
+          if (!isPureRasterMode) {
+            apply3DBuildingsToMap(
+              map,
+              localeRef.current,
+              mapStyleMode,
+              is3dPitchRef.current
+            )
+            highlight3DBuildingAtCoordinates(
+              map,
+              liveCoordsRef.current.lng,
+              liveCoordsRef.current.lat
+            )
           } else {
             map.resize()
           }
-          setMapFlyingLoading(false)
-          setTimeout(() => map?.resize(), 150)
+          setTimeout(() => map?.resize(), 120)
         })
 
-        map.on('error', () => {
-          setMapFlyingLoading(false)
-        })
-
-        map.on('dragstart', () => {
-          if (!isMapInteractiveRef.current) return
-          setIsDraggingMap(true)
+        map.on('idle', () => {
+          if (!isPureRasterMode) {
+            highlight3DBuildingAtCoordinates(
+              map,
+              liveCoordsRef.current.lng,
+              liveCoordsRef.current.lat
+            )
+          }
         })
 
         map.on('click', (e: any) => {
-          if (!isMapInteractiveRef.current) return
           const clickedLat = Number(e?.lngLat?.lat)
           const clickedLng = Number(e?.lngLat?.lng)
           if (Number.isFinite(clickedLat) && Number.isFinite(clickedLng)) {
-            void reverseGeocodeCoordinates(clickedLat, clickedLng, true)
-          }
-        })
-
-        map.on('dragend', () => {
-          setIsDraggingMap(false)
-          if (!isMapInteractiveRef.current || isProgrammaticFlyRef.current) {
-            return
-          }
-          const center = map.getCenter()
-          if (
-            center &&
-            Number.isFinite(center.lat) &&
-            Number.isFinite(center.lng)
-          ) {
-            void reverseGeocodeCoordinates(
-              Number(center.lat),
-              Number(center.lng),
-              false
+            void selectPointRef.current(
+              clickedLat,
+              clickedLng,
+              true,
+              e?.point
             )
           }
         })
       })
-      .catch(() => {
-        setMapFlyingLoading(false)
-      })
-
-    const safetyTimer = setTimeout(() => {
-      if (isMounted) setMapFlyingLoading(false)
-    }, 2200)
+      .catch(() => {})
 
     return () => {
       isMounted = false
-      clearTimeout(safetyTimer)
+      if (marker) {
+        marker.remove()
+        markerInstanceRef.current = null
+      }
       if (map) {
         map.remove()
         mapInstanceRef.current = null
       }
     }
-  }, [mapStyleMode])
+  }, [hasSelectedAnyLocation, mapStyleMode, isPureRasterMode, mapUiT])
 
-  const handleSelectStreetSuggestion = (item: GeorgiaPlaceSuggestion) => {
-    setStreetDropdownOpen(false)
-    lastManualTypedRef.current = `${item.street}|${item.houseNumber || ''}`
-    update('exactStreet', item.street)
-    if (item.houseNumber) {
-      update('houseNumber', item.houseNumber)
+  useEffect(() => {
+    const map = mapInstanceRef.current
+    if (!map || isPureRasterMode) return
+    if (map.isStyleLoaded?.()) {
+      apply3DBuildingsToMap(
+        map,
+        locale as LocaleCode,
+        mapStyleMode,
+        is3dPitch
+      )
+      highlight3DBuildingAtCoordinates(
+        map,
+        liveCoordsRef.current.lng,
+        liveCoordsRef.current.lat
+      )
     }
+  }, [is3dPitch, locale, mapStyleMode, isPureRasterMode])
+
+  const handleSelectStreetSuggestion = async (item: GeorgiaPlaceSuggestion) => {
+    setStreetDropdownOpen(false)
+    const selectedStreet = item.street || item.primaryText
+    const nextHouse = item.houseNumber || form.houseNumber || ''
+    lastManualTypedRef.current = `${selectedStreet}|${nextHouse}|${item.displayAreaLabel}`
+    update('exactStreet', selectedStreet)
+    if (item.houseNumber) update('houseNumber', item.houseNumber)
     update('location', item.areaId)
     update('locationDisplay', item.displayAreaLabel)
-    flyMapToExactPoint(item.lat, item.lng, 17)
-    setPinSuccessFeedback(true)
-    setTimeout(() => setPinSuccessFeedback(false), 3500)
+
+    const cityPart =
+      item.displayAreaLabel.split(',').pop()?.trim() || 'Tbilisi'
+    const distPart = item.displayAreaLabel.split(',')[0]?.trim() || ''
+
+    const exactCoords = await geocodeExactBuildingInGeorgia({
+      street: selectedStreet,
+      houseNumber: nextHouse,
+      district: distPart,
+      city: cityPart,
+    })
+
+    const targetLat = exactCoords?.lat || item.lat
+    const targetLng = exactCoords?.lng || item.lng
+
+    flyMapToExactPoint(targetLat, targetLng, 17.6)
+
+    if (exactCoords?.cadastralCode) {
+      update('cadastralCode', exactCoords.cadastralCode)
+      setNaprParcelAddress(
+        exactCoords.naprAddress ||
+          [cityPart, selectedStreet, nextHouse ? `N ${nextHouse}` : '']
+            .filter(Boolean)
+            .join(', ')
+      )
+    } else {
+      const serverData = await reverseGeocodeGeorgiaPinAction({
+        lat: targetLat,
+        lng: targetLng,
+        locale: locale as LocaleCode,
+        fallbackCity: cityPart,
+      })
+      update('cadastralCode', serverData?.cadastralCode || '')
+      setNaprParcelAddress(
+        serverData?.cadastralCode
+          ? serverData.naprAddress ||
+              [cityPart, selectedStreet, nextHouse ? `N ${nextHouse}` : '']
+                .filter(Boolean)
+                .join(', ')
+          : ''
+      )
+    }
   }
 
   const handleDetectMyGps = () => {
     if (typeof window === 'undefined' || !('geolocation' in navigator)) return
     setGpsLoading(true)
-    setMapFlyingLoading(true)
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setGpsLoading(false)
-        void reverseGeocodeCoordinates(
+        void selectPointOnMap(
           pos.coords.latitude,
           pos.coords.longitude,
           true
@@ -551,49 +745,35 @@ export function LocationSection({
       },
       () => {
         setGpsLoading(false)
-        setMapFlyingLoading(false)
       },
-      { enableHighAccuracy: true, timeout: 10000 }
+      { enableHighAccuracy: true, timeout: 8000 }
     )
   }
 
-  const handleFocusOnMapPicker = () => {
-    setStreetDropdownOpen(false)
-    setIsExpandedMap(true)
-    toggleMapLock(true)
-    setTimeout(() => {
-      mapInstanceRef.current?.resize()
-      mapWrapperRef.current?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center',
-      })
-    }, 150)
-  }
-
-  // تثبيت مركز الخريطة عند التكبير والتصغير حتى لا ينحرف الدبوس عن الموقع المختار أبداً
   const handleZoomAroundCenter = (delta: number) => {
     const map = mapInstanceRef.current
     if (!map) return
-    isProgrammaticFlyRef.current = true
     const nextZoom = Math.min(19.5, Math.max(9, (map.getZoom() || 16) + delta))
     map.easeTo({
       center: [liveCoordsRef.current.lng, liveCoordsRef.current.lat],
       zoom: nextZoom,
-      duration: 300,
+      duration: 250,
     })
-    setTimeout(() => {
-      isProgrammaticFlyRef.current = false
-    }, 350)
   }
 
-  const toggle3dPitch = () => {
-    const next3d = !is3dMode
-    setIs3dMode(next3d)
+  const toggle3dCameraPitch = () => {
+    if (isPureRasterMode) {
+      setMapStyleMode('realistic')
+      setIs3dPitch(true)
+      return
+    }
+    const next3d = !is3dPitch
+    setIs3dPitch(next3d)
     mapInstanceRef.current?.easeTo({
       center: [liveCoordsRef.current.lng, liveCoordsRef.current.lat],
-      pitch: next3d ? 56 : 0,
-      bearing: next3d ? -15 : 0,
-      duration: 450,
+      pitch: next3d ? 52 : 0,
+      bearing: next3d ? -12 : 0,
+      duration: 380,
     })
   }
 
@@ -601,10 +781,17 @@ export function LocationSection({
     mapInstanceRef.current?.easeTo({
       center: [liveCoordsRef.current.lng, liveCoordsRef.current.lat],
       bearing: 0,
-      pitch: is3dMode ? 55 : 0,
-      duration: 450,
+      pitch: is3dPitch && !isPureRasterMode ? 52 : 0,
+      duration: 350,
     })
   }
+
+  const hasValidCadastral = Boolean(
+    form.cadastralCode && form.cadastralCode.trim().length >= 8
+  )
+
+  const subtleInputClass =
+    'h-12 rounded-xl text-xs font-semibold text-[#0a1122] sm:text-sm placeholder:text-[11px] placeholder:font-normal placeholder:text-slate-300'
 
   return (
     <section
@@ -638,17 +825,65 @@ export function LocationSection({
               displayLabel,
               street,
               houseNumber,
+              cadastralCode,
+              naprAddress,
               lat,
               lng,
             }) => {
               update('location', areaId)
               update('locationDisplay', displayLabel)
-              if (street) update('exactStreet', street)
-              if (houseNumber) update('houseNumber', houseNumber)
-              lastManualTypedRef.current = `${street || form.exactStreet || ''}|${houseNumber || form.houseNumber || ''}`
-              if (lat && lng) {
-                flyMapToExactPoint(lat, lng, 17)
-                toggleMapLock(false)
+
+              const nextStreet = street !== undefined ? street : ''
+              const nextHouse = houseNumber !== undefined ? houseNumber : ''
+              update('exactStreet', nextStreet)
+              update('houseNumber', nextHouse)
+
+              update('cadastralCode', cadastralCode || '')
+              setNaprParcelAddress(naprAddress || '')
+
+              if (!areaId && !nextStreet) {
+                update('lat', '')
+                update('lng', '')
+                return
+              }
+
+              if (!nextStreet && lat && lng) {
+                lastManualTypedRef.current = `||${displayLabel}`
+                syncCoordsAndMarker(lat, lng)
+                setTimeout(() => flyMapToExactPoint(lat, lng, 16.2), 80)
+              } else if (nextStreet) {
+                lastManualTypedRef.current = `${nextStreet}|${nextHouse}|${displayLabel}`
+                const cityPart =
+                  displayLabel.split(',').pop()?.trim() || 'Tbilisi'
+                const distPart =
+                  displayLabel.split(',')[0]?.trim() || ''
+
+                if (lat && lng) {
+                  syncCoordsAndMarker(lat, lng)
+                }
+
+                void (async () => {
+                  const exactRes = await geocodeExactBuildingInGeorgia({
+                    street: nextStreet,
+                    houseNumber: nextHouse,
+                    district: distPart,
+                    city: cityPart,
+                  })
+                  const targetLat =
+                    exactRes?.lat || lat || liveCoordsRef.current.lat
+                  const targetLng =
+                    exactRes?.lng || lng || liveCoordsRef.current.lng
+                  flyMapToExactPoint(targetLat, targetLng, 17.5)
+                  if (exactRes?.cadastralCode) {
+                    update('cadastralCode', exactRes.cadastralCode)
+                    setNaprParcelAddress(
+                      exactRes.naprAddress ||
+                        [cityPart, nextStreet, nextHouse ? `N ${nextHouse}` : '']
+                          .filter(Boolean)
+                          .join(', ')
+                    )
+                  }
+                })()
               }
             }}
           />
@@ -660,55 +895,52 @@ export function LocationSection({
         </div>
 
         {(isExitDeal || isDirectSale) && (
-          <div className="space-y-3 rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
-            <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
-              <div id="field-wrap-project">
-                <Field
-                  label={locT.projectLabel}
-                  id="project"
-                  placeholder={locT.projectPlaceholder}
-                  value={form.project}
-                  error={fieldErrors.project}
-                  update={(v) => update('project', v)}
-                />
-              </div>
-
-              <Field
-                label={locT.developerLabel}
-                id="developer"
-                placeholder={locT.developerPlaceholder}
-                value={form.developer}
-                update={(v) => update('developer', v)}
+          <div className="grid grid-cols-1 items-start gap-4 rounded-2xl border border-slate-100 bg-slate-50/50 p-4 sm:grid-cols-2">
+            <div id="field-wrap-project" className="flex flex-col gap-2">
+              <Label
+                htmlFor="project"
+                className="text-start text-xs font-extrabold text-[#0a1122]"
+              >
+                <RequiredLabel>{locT.projectLabel}</RequiredLabel>
+              </Label>
+              <Input
+                id="project"
+                name="project"
+                type="text"
+                dir={dir}
+                placeholder={mapUiT.shortProjectPlaceholder}
+                value={form.project ?? ''}
+                onChange={(e) => update('project', e.target.value)}
+                className={`${subtleInputClass} ${
+                  fieldErrors.project
+                    ? 'border-2 border-red-500 bg-red-50/20'
+                    : 'border-slate-200 bg-white'
+                }`}
               />
+              {fieldErrors.project && (
+                <p className="text-start text-xs font-extrabold text-red-600">
+                  {fieldErrors.project}
+                </p>
+              )}
             </div>
 
-            <div>
-              <span className="mb-1.5 block text-[11px] font-bold text-slate-500">
-                {locT.popularDevelopersHint}
-              </span>
-              <div className="flex flex-wrap gap-1.5">
-                {POPULAR_GEORGIA_DEVELOPERS.map((devName) => {
-                  const isSelected =
-                    form.developer.trim().toLowerCase() ===
-                    devName.toLowerCase()
-                  return (
-                    <button
-                      key={devName}
-                      type="button"
-                      onClick={() =>
-                        update('developer', isSelected ? '' : devName)
-                      }
-                      className={`rounded-full border px-3 py-1 text-[11px] font-bold transition ${
-                        isSelected
-                          ? 'border-[#2563eb] bg-[#2563eb] text-white shadow-2xs'
-                          : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-[#2563eb]'
-                      }`}
-                    >
-                      {devName}
-                    </button>
-                  )
-                })}
-              </div>
+            <div className="flex flex-col gap-2">
+              <Label
+                htmlFor="developer"
+                className="text-start text-xs font-extrabold text-[#0a1122]"
+              >
+                {locT.developerLabel}
+              </Label>
+              <Input
+                id="developer"
+                name="developer"
+                type="text"
+                dir={dir}
+                placeholder={mapUiT.shortDeveloperPlaceholder}
+                value={form.developer ?? ''}
+                onChange={(e) => update('developer', e.target.value)}
+                className={`${subtleInputClass} border-slate-200 bg-white`}
+              />
             </div>
           </div>
         )}
@@ -719,38 +951,42 @@ export function LocationSection({
             ref={streetDropdownRef}
             className="relative flex flex-col gap-2 sm:col-span-2"
           >
-            <Label htmlFor="exactStreet" className="text-start">
+            <Label
+              htmlFor="exactStreet"
+              className="text-start text-xs font-extrabold text-[#0a1122]"
+            >
               <RequiredLabel>{locT.streetLabel}</RequiredLabel>
             </Label>
 
             <div className="relative">
-              <Search className="pointer-events-none absolute top-1/2 start-3.5 size-4 -translate-y-1/2 text-slate-400" />
+              <Search className="pointer-events-none absolute top-1/2 start-3.5 size-4 -translate-y-1/2 text-slate-300" />
               <Input
                 id="exactStreet"
                 name="exactStreet"
                 type="text"
                 dir={dir}
                 autoComplete="off"
-                placeholder={locT.streetPlaceholder}
+                placeholder={mapUiT.shortStreetPlaceholder}
                 value={form.exactStreet ?? ''}
                 onFocus={() => setStreetDropdownOpen(true)}
                 onChange={(e) => {
                   update('exactStreet', e.target.value)
                   setStreetDropdownOpen(true)
                 }}
-                className={`h-12 rounded-xl ps-10 pe-10 font-bold ${
+                className={`${subtleInputClass} ps-10 pe-10 ${
                   fieldErrors.exactStreet
                     ? 'border-2 border-red-500 bg-red-50/20'
                     : 'border-slate-200 bg-white'
                 }`}
               />
-              {streetSearchLoading ? (
-                <Loader2 className="absolute top-1/2 end-3.5 size-4 -translate-y-1/2 animate-spin text-[#2563eb]" />
-              ) : form.exactStreet ? (
+              {form.exactStreet ? (
                 <button
                   type="button"
                   onClick={() => {
                     update('exactStreet', '')
+                    update('houseNumber', '')
+                    update('cadastralCode', '')
+                    setNaprParcelAddress('')
                   }}
                   className="absolute top-1/2 end-3 -translate-y-1/2 rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
                 >
@@ -764,12 +1000,12 @@ export function LocationSection({
                 {fieldErrors.exactStreet}
               </p>
             ) : (
-              <p className="text-start text-[11px] font-semibold text-slate-400">
+              <p className="text-start text-[11px] font-medium text-slate-400">
                 {locT.streetAutocompleteHint}
               </p>
             )}
 
-            {streetDropdownOpen && (
+            {streetDropdownOpen && streetSuggestions.length > 0 && (
               <div className="absolute top-[78px] z-40 w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
                 <div className="max-h-64 divide-y divide-slate-100 overflow-y-auto">
                   {streetSuggestions.map((item) => (
@@ -780,18 +1016,8 @@ export function LocationSection({
                       className="flex w-full items-center justify-between gap-3 px-4 py-3 text-start transition hover:bg-blue-50/60"
                     >
                       <div className="flex min-w-0 items-center gap-3">
-                        <span
-                          className={`flex size-8 shrink-0 items-center justify-center rounded-full ${
-                            item.category === 'landmark'
-                              ? 'bg-amber-50 text-[#ea580c]'
-                              : 'bg-blue-50 text-[#2563eb]'
-                          }`}
-                        >
-                          {item.category === 'landmark' ? (
-                            <Sparkles className="size-4" />
-                          ) : (
-                            <MapPin className="size-4" />
-                          )}
+                        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-blue-50 text-[#2563eb]">
+                          <MapPin className="size-4" />
                         </span>
                         <div className="min-w-0">
                           <p className="truncate text-xs font-extrabold text-[#0a1122] sm:text-sm">
@@ -805,328 +1031,282 @@ export function LocationSection({
                       <ArrowUpLeft className="size-4 shrink-0 text-slate-400" />
                     </button>
                   ))}
-
-                  <button
-                    type="button"
-                    onClick={handleFocusOnMapPicker}
-                    className="flex w-full items-center justify-between gap-3 bg-slate-50/90 px-4 py-3 text-start transition hover:bg-emerald-50"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#eaf8f2] text-[#007a5a]">
-                      </span>
-                      <div>
-                        <p className="text-xs font-extrabold text-[#0a1122]">
-                          {locT.cantFindAddressTitle}
-                        </p>
-                        <p className="text-[11px] font-bold text-[#007a5a]">
-                          {locT.setLocationOnMapBtn}
-                        </p>
-                      </div>
-                    </div>
-                  </button>
                 </div>
               </div>
             )}
           </div>
 
-          <div>
-            <Field
-              label={locT.houseNoLabel}
+          <div className="flex flex-col gap-2">
+            <Label
+              htmlFor="houseNumber"
+              className="text-start text-xs font-extrabold text-[#0a1122]"
+            >
+              {locT.houseNoLabel}
+            </Label>
+            <Input
               id="houseNumber"
-              placeholder={locT.houseNoPlaceholder}
-              value={form.houseNumber}
-              update={(v) => update('houseNumber', v)}
+              name="houseNumber"
+              type="text"
+              dir="ltr"
+              placeholder={mapUiT.shortHousePlaceholder}
+              value={form.houseNumber ?? ''}
+              onChange={(e) => update('houseNumber', e.target.value)}
+              className={`${subtleInputClass} border-slate-200 bg-white`}
             />
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
-          <button
-            type="button"
-            onClick={handleFocusOnMapPicker}
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50/60 px-4 text-xs font-extrabold text-[#2563eb] transition hover:bg-blue-100/70"
-          >
-            <span>{locT.setLocationOnMapBtn}</span>
-          </button>
-
-          <button
-            type="button"
-            disabled={gpsLoading}
-            onClick={handleDetectMyGps}
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-[#eaf8f2] px-4 text-xs font-extrabold text-[#007a5a] transition hover:bg-emerald-100/70 disabled:opacity-60"
-          >
-            {gpsLoading ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Navigation className="size-4" />
-            )}
-            <span>{locT.detectMyGpsBtn}</span>
-          </button>
-
-          {reverseGeoLoading && (
-            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-[#2563eb]">
-              <Loader2 className="size-3.5 animate-spin" />
-              <span>{locT.reverseGeocodingLoading}</span>
-            </span>
-          )}
-
-          {pinSuccessFeedback && !reverseGeoLoading && (
-            <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-1 text-xs font-extrabold text-[#007a5a]">
-              <CheckCircle2 className="size-3.5" />
-              <span>{locT.pinMovedSuccess}</span>
-            </span>
-          )}
-        </div>
-
-        <Field
-          label={locT.cadastralLabel}
-          id="cadastralCode"
-          placeholder={locT.cadastralPlaceholder}
-          helper={locT.cadastralHelper}
-          value={form.cadastralCode}
-          update={(v) => update('cadastralCode', v)}
-        />
-
-        {/* الخريطة التفاعلية المحمية من اللمس الخاطئ أثناء التصفح */}
-        <div
-          ref={mapWrapperRef}
-          className={`mt-4 overflow-hidden rounded-2xl border-2 shadow-xs transition ${
-            isMapInteractive ? 'border-[#2563eb]' : 'border-slate-200'
-          }`}
-        >
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 bg-white/95 px-3 py-2.5 backdrop-blur-md">
-            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-              <span className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] font-extrabold text-slate-700">
-                <Globe className="size-3.5 text-[#2563eb]" />
-                <span>{locT.mapHeaderTitle}</span>
-              </span>
-              {SIVRCE_POPULAR_CITIES.slice(0, 8).map((city) => {
-                const isActiveCity = (form.location || '')
-                  .toLowerCase()
-                  .includes(city.id.toLowerCase())
-                return (
-                  <button
-                    key={city.id}
-                    type="button"
-                    onClick={() => {
-                      const cityCoords = getCoordinatesForArea(
-                        city.defaultAreaId
-                      )
-                      update('location', city.defaultAreaId)
-                      update(
-                        'locationDisplay',
-                        getLocalizedGeorgiaAreaName(
-                          city.defaultAreaId,
-                          locale as LocaleCode
-                        )
-                      )
-                      flyMapToExactPoint(
-                        cityCoords.lat,
-                        cityCoords.lng,
-                        15.2
-                      )
-                    }}
-                    className={`shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-bold transition ${
-                      isActiveCity
-                        ? 'bg-[#2563eb] text-white shadow-2xs'
-                        : 'text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    {getOptionLabel(city, locale as LocaleCode)}
-                  </button>
-                )
-              })}
-            </div>
-
-            <div className="inline-flex shrink-0 rounded-xl border border-slate-200 bg-slate-50 p-0.5">
-              <button
-                type="button"
-                onClick={() => setMapStyleMode('3d')}
-                className={`rounded-lg px-2.5 py-1 text-[11px] font-extrabold transition ${
-                  mapStyleMode === '3d'
-                    ? 'bg-[#2563eb] text-white shadow-2xs'
-                    : 'text-slate-600 hover:bg-white'
-                }`}
+        {/* قسم الرمز العقاري (Cadastral Code) مع توضيح بصري فوري عند تفعيل خيار الإخفاء */}
+        <div className="space-y-2.5">
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <Label
+                htmlFor="cadastralCode"
+                className="text-start text-xs font-extrabold text-[#0a1122]"
               >
-                🏢 3D
-              </button>
-              <button
-                type="button"
-                onClick={() => setMapStyleMode('streets')}
-                className={`rounded-lg px-2.5 py-1 text-[11px] font-extrabold transition ${
-                  mapStyleMode === 'streets'
-                    ? 'bg-[#2563eb] text-white shadow-2xs'
-                    : 'text-slate-600 hover:bg-white'
-                }`}
-              >
-                🗺️ Streets
-              </button>
-              <button
-                type="button"
-                onClick={() => setMapStyleMode('satellite')}
-                className={`rounded-lg px-2.5 py-1 text-[11px] font-extrabold transition ${
-                  mapStyleMode === 'satellite'
-                    ? 'bg-[#2563eb] text-white shadow-2xs'
-                    : 'text-slate-600 hover:bg-white'
-                }`}
-              >
-                🛰️ Satellite
-              </button>
-            </div>
-          </div>
+                {locT.cadastralLabel}
+              </Label>
 
-          <div
-            dir="ltr"
-            style={{ height: isExpandedMap ? '500px' : '360px' }}
-            className="relative w-full overflow-hidden bg-[#dfe5dc] transition-all duration-300"
-          >
-            <div
-              ref={mapContainerRef}
-              style={{
-                width: '100%',
-                height: isExpandedMap ? '500px' : '360px',
-              }}
-              className="h-full w-full"
-            />
-
-            {/* طبقة حماية الـ Scroll على الموبايل: تمنع تحرك الدبوس بالخطأ إلا عندما يضغط المستخدم "تعديل الموقع" */}
-            {!isMapInteractive && (
-              <div
-                onClick={() => toggleMapLock(true)}
-                className="absolute inset-0 z-15 flex cursor-pointer items-end justify-center bg-black/5 pb-12 transition hover:bg-black/10"
-              >
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    toggleMapLock(true)
-                  }}
-                  className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-[#0a1122]/90 px-4 py-2 text-xs font-extrabold text-white shadow-xl backdrop-blur-md transition hover:scale-105"
-                >
-                  <Unlock className="size-3.5 text-emerald-400" />
-                  <span>{lockT.unlockBtn}</span>
-                </button>
-              </div>
-            )}
-
-            {isMapInteractive && (
-              <div className="absolute bottom-11 left-1/2 z-20 -translate-x-1/2">
-                <button
-                  type="button"
-                  onClick={() => toggleMapLock(false)}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-[#007a5a] px-4 py-1.5 text-xs font-extrabold text-white shadow-lg transition hover:bg-[#006248]"
-                >
-                  <Lock className="size-3.5" />
-                  <span>{lockT.lockBtn}</span>
-                </button>
-              </div>
-            )}
-
-            {(mapFlyingLoading || gpsLoading) && (
-              <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white/70 backdrop-blur-[2px]">
-                <div className="flex items-center gap-2.5 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-xs font-extrabold text-[#0a1122] shadow-xl">
-                  <Loader2 className="size-4 animate-spin text-[#2563eb]" />
-                  <span>{fT.locationModal.searchingMapsText}</span>
-                </div>
-              </div>
-            )}
-
-            <div className="pointer-events-none absolute top-3 left-3 z-10 max-w-[75%]">
-              <div className="inline-flex items-center gap-1.5 rounded-full border border-slate-200/90 bg-white/95 px-3.5 py-1.5 text-xs font-extrabold text-[#0a1122] shadow-md backdrop-blur-xs">
-                <MapPin className="size-3.5 shrink-0 text-[#2563eb]" />
-                <span className="truncate">
-                  {form.exactStreet
-                    ? `${form.exactStreet}${form.houseNumber ? ' ' + form.houseNumber : ''} · `
-                    : ''}
-                  {form.locationDisplay ||
-                    getLocalizedGeorgiaAreaName(
-                      form.location || 'Tbilisi - Saburtalo',
-                      locale as LocaleCode
-                    )}
+              {hideCadastralOnSite && hasValidCadastral && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-[#007a5a]">
+                  <Lock className="size-3" />
+                  <span>{mapUiT.hiddenFromPublicBadge}</span>
                 </span>
-              </div>
-            </div>
-
-            <div className="pointer-events-none absolute top-1/2 left-1/2 z-10 -translate-x-1/2 -translate-y-full">
-              <div className="flex flex-col items-center">
-                <div
-                  className={`flex size-11 items-center justify-center rounded-full border-2 border-white bg-[#2563eb] text-white shadow-2xl ring-4 ring-blue-500/25 transition-transform duration-200 ${
-                    isDraggingMap ? '-translate-y-3 scale-110' : 'translate-y-0'
-                  }`}
-                >
-                  <Building2 className="size-5" />
-                </div>
-                <div
-                  className={`-mt-1 h-3 w-0 border-x-[6px] border-t-[9px] border-x-transparent border-t-[#2563eb] transition-transform duration-200 ${
-                    isDraggingMap ? '-translate-y-3' : 'translate-y-0'
-                  }`}
-                />
-                <div
-                  className={`mt-0.5 rounded-full bg-black/30 blur-[1px] transition-all duration-200 ${
-                    isDraggingMap ? 'h-1 w-2 opacity-40' : 'h-1.5 w-3'
-                  }`}
-                />
-              </div>
-            </div>
-
-            <div className="absolute top-3 right-3 z-20 flex flex-col items-center gap-1 rounded-2xl border border-slate-200/80 bg-white/95 p-1 shadow-lg backdrop-blur-md">
-              <button
-                type="button"
-                onClick={() => handleZoomAroundCenter(1)}
-                className="flex size-8 items-center justify-center rounded-xl text-slate-700 transition hover:bg-slate-100"
-              >
-                <Plus className="size-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => handleZoomAroundCenter(-1)}
-                className="flex size-8 items-center justify-center rounded-xl text-slate-700 transition hover:bg-slate-100"
-              >
-                <Minus className="size-4" />
-              </button>
-              {mapStyleMode === '3d' && (
-                <button
-                  type="button"
-                  onClick={toggle3dPitch}
-                  className={`flex size-8 items-center justify-center rounded-xl text-[11px] font-black transition ${
-                    is3dMode
-                      ? 'bg-[#2563eb] text-white shadow-xs'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                  }`}
-                >
-                  3D
-                </button>
               )}
-              <button
-                type="button"
-                onClick={resetCompass}
-                className="flex size-8 items-center justify-center rounded-xl text-slate-700 transition hover:bg-slate-100"
-              >
-                <Compass className="size-4" />
-              </button>
+            </div>
+
+            <Input
+              id="cadastralCode"
+              name="cadastralCode"
+              type="text"
+              dir="ltr"
+              placeholder={mapUiT.shortCadastralPlaceholder}
+              value={form.cadastralCode ?? ''}
+              onChange={(e) => update('cadastralCode', e.target.value)}
+              className={`${subtleInputClass} font-mono transition ${
+                hideCadastralOnSite && hasValidCadastral
+                  ? 'border-emerald-200 bg-emerald-50/30 text-slate-500'
+                  : 'border-slate-200 bg-white'
+              }`}
+            />
+          </div>
+
+          {hasValidCadastral ? (
+            <div className="flex flex-col justify-between gap-3 pt-0.5 sm:flex-row sm:items-center">
+              <div className="space-y-1 text-start">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-[#2563eb]">
+                  <CheckCircle2 className="size-4 shrink-0 text-[#2563eb]" />
+                  <span>{mapUiT.parcelFoundText}</span>
+                </div>
+                <p
+                  dir="ltr"
+                  className="text-xs font-medium text-slate-500"
+                >
+                  {naprParcelAddress ||
+                    [
+                      form.locationDisplay || 'Tbilisi',
+                      form.exactStreet,
+                      form.houseNumber ? `N ${form.houseNumber}` : '',
+                    ]
+                      .filter(Boolean)
+                      .join(', ')}
+                </p>
+              </div>
+
               <button
                 type="button"
                 onClick={() => {
-                  setIsExpandedMap((p) => !p)
-                  setTimeout(() => mapInstanceRef.current?.resize(), 320)
+                  const nextVal = !hideCadastralOnSite
+                  update('hideCadastral', nextVal ? 'true' : 'false')
                 }}
-                className="flex size-8 items-center justify-center rounded-xl text-slate-700 transition hover:bg-slate-100"
+                className={`inline-flex h-10 items-center justify-center gap-2 rounded-xl border px-4 text-xs font-bold transition ${
+                  hideCadastralOnSite
+                    ? 'border-[#2563eb] bg-[#2563eb] text-white shadow-xs'
+                    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                }`}
               >
-                {isExpandedMap ? (
-                  <Minimize2 className="size-4" />
-                ) : (
-                  <Maximize2 className="size-4" />
-                )}
+                <span
+                  className={`flex size-4 items-center justify-center rounded-full border ${
+                    hideCadastralOnSite
+                      ? 'border-white bg-white/20 text-white'
+                      : 'border-slate-300'
+                  }`}
+                >
+                  {hideCadastralOnSite && (
+                    <Check className="size-2.5 stroke-[3]" />
+                  )}
+                </span>
+                <span>{mapUiT.hideCadastralBtn}</span>
               </button>
             </div>
+          ) : (
+            <div className="flex items-center gap-1.5 text-xs font-medium text-slate-400">
+              <CheckCircle2 className="size-4 shrink-0 text-[#2563eb]" />
+              <span>{mapUiT.optionalNaprHint}</span>
+            </div>
+          )}
+        </div>
 
-            <div className="pointer-events-none absolute inset-x-3 bottom-2.5 z-10 flex justify-start">
-              <span className="rounded-lg bg-white/95 px-3 py-1 text-[10.5px] font-extrabold text-[#0a1122] shadow-sm backdrop-blur-xs">
-                📍 {isMapInteractive ? locT.mapHint : lockT.lockedHint}
+        {/* الخريطة لا تظهر إلا بعد اختيار المدينة/الحي أو كتابة الشارع أو الرقم العقاري تماماً مثل sivrce.ge */}
+        {hasSelectedAnyLocation && (
+          <div
+            ref={mapWrapperRef}
+            className="pt-2 animate-in fade-in slide-in-from-top-2 duration-300"
+          >
+            <div className="mb-2 flex items-center justify-between px-1">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 text-xs font-extrabold text-[#0a1122] sm:text-sm">
+                  <span className="text-[#ea580c]">📍</span>
+                  <span>Aqar Exit Maps</span>
+                </span>
+                {reverseGeoLoading && (
+                  <Loader2 className="size-3.5 animate-spin text-[#2563eb]" />
+                )}
+              </div>
+
+              <span
+                dir="ltr"
+                className="font-mono text-xs font-semibold text-slate-400"
+              >
+                {`${liveCoords.lat.toFixed(5)}, ${liveCoords.lng.toFixed(5)}`}
               </span>
             </div>
+
+            <div
+              dir="ltr"
+              className={
+                isFullscreenMap
+                  ? 'fixed inset-0 z-[9999] h-[100dvh] w-screen bg-[#e5e9e2]'
+                  : 'relative h-[380px] w-full overflow-hidden rounded-[22px] border border-slate-200/90 bg-[#e5e9e2] shadow-sm transition-all duration-300 sm:h-[460px]'
+              }
+            >
+              <div
+                ref={mapContainerRef}
+                style={{ width: '100%', height: '100%' }}
+                className="h-full w-full"
+              />
+
+              <div className="absolute top-4 right-4 z-20 flex flex-col items-end gap-2.5">
+                <div className="flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 shadow-md backdrop-blur-md">
+                  <button
+                    type="button"
+                    onClick={() => handleZoomAroundCenter(1)}
+                    className="hidden size-10 items-center justify-center border-b border-slate-100 text-slate-700 transition hover:bg-slate-100 sm:flex"
+                    title="Zoom in"
+                  >
+                    <Plus className="size-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleZoomAroundCenter(-1)}
+                    className="hidden size-10 items-center justify-center border-b border-slate-100 text-slate-700 transition hover:bg-slate-100 sm:flex"
+                    title="Zoom out"
+                  >
+                    <Minus className="size-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={resetCompass}
+                    className="hidden size-10 items-center justify-center border-b border-slate-100 text-slate-700 transition hover:bg-slate-100 sm:flex"
+                    title="Reset bearing"
+                  >
+                    <Compass className="size-4" />
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={gpsLoading}
+                    onClick={handleDetectMyGps}
+                    className="flex size-10 items-center justify-center border-b border-slate-100 text-slate-700 transition hover:bg-slate-100 disabled:opacity-50"
+                    title={locT.detectMyGpsBtn}
+                  >
+                    {gpsLoading ? (
+                      <Loader2 className="size-4 animate-spin text-[#2563eb]" />
+                    ) : (
+                      <LocateFixed className="size-4" />
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsFullscreenMap((p) => !p)}
+                    className="flex size-10 items-center justify-center text-slate-700 transition hover:bg-slate-100"
+                    title="Fullscreen map"
+                  >
+                    {isFullscreenMap ? (
+                      <Minimize2 className="size-4" />
+                    ) : (
+                      <Maximize2 className="size-4" />
+                    )}
+                  </button>
+                </div>
+
+                <div ref={styleMenuRef} className="relative flex items-center">
+                  {styleMenuOpen && (
+                    <div className="absolute top-0 right-24 z-30 grid w-[265px] grid-cols-2 gap-1.5 rounded-2xl border border-slate-200/90 bg-white/95 p-2.5 shadow-xl backdrop-blur-md">
+                      {MAP_STYLE_OPTIONS.map((opt) => {
+                        const active = mapStyleMode === opt.id
+                        const IconComp = opt.icon
+                        return (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => {
+                              setMapStyleMode(opt.id)
+                              setStyleMenuOpen(false)
+                            }}
+                            className={`flex items-center gap-2 rounded-xl px-3 py-2 text-start text-xs font-extrabold transition ${
+                              active
+                                ? 'bg-[#2563eb] text-white shadow-2xs'
+                                : 'text-slate-700 hover:bg-slate-100'
+                            }`}
+                          >
+                            <IconComp
+                              className={`size-3.5 shrink-0 ${
+                                active ? 'text-white' : 'text-slate-500'
+                              }`}
+                            />
+                            <span className="truncate">{opt.label}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  <div className="flex items-center overflow-hidden rounded-2xl border border-slate-200/90 bg-white/95 shadow-md backdrop-blur-md">
+                    <button
+                      type="button"
+                      onClick={toggle3dCameraPitch}
+                      className={`flex h-10 min-w-[44px] items-center justify-center px-3 text-xs font-black transition ${
+                        is3dPitch && !isPureRasterMode
+                          ? 'bg-[#2563eb] text-white'
+                          : 'bg-transparent text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      3D
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStyleMenuOpen((p) => !p)}
+                      title="Map styles"
+                      className={`flex size-10 items-center justify-center transition ${
+                        styleMenuOpen
+                          ? 'bg-[#2563eb] text-white'
+                          : 'bg-transparent text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      <Layers className="size-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <p className="mt-2.5 text-start text-xs font-medium text-slate-400">
+              {mapUiT.bottomSnapHint}
+            </p>
           </div>
-        </div>
+        )}
       </div>
     </section>
   )

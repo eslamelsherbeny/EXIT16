@@ -220,7 +220,7 @@ export function SearchableCountryField({
             setQuery(e.target.value)
             setOpen(true)
           }}
-          className={`h-12 cursor-pointer rounded-xl px-4 text-start font-bold text-[#0a1122] ${
+          className={`h-12 cursor-pointer rounded-xl px-4 text-start font-bold text-[#0a1122] placeholder:text-[11px] placeholder:font-normal placeholder:text-slate-300 ${
             error ? 'border-red-500 bg-red-50/20' : 'border-slate-200 bg-white'
           }`}
         />
@@ -362,7 +362,7 @@ export function Field({
             update(rawVal)
           }
         }}
-        className={`h-12 rounded-xl ${
+        className={`h-12 rounded-xl placeholder:text-[11px] placeholder:font-normal placeholder:text-slate-300 ${
           error ? 'border-red-500 bg-red-50/20' : 'border-slate-200'
         } ${
           compact
@@ -428,7 +428,7 @@ export function MoneyField({
             )
             update(normalized)
           }}
-          className={`h-12 rounded-xl pr-14 pl-4 text-left font-bold ${
+          className={`h-12 rounded-xl pr-14 pl-4 text-left font-bold placeholder:text-[11px] placeholder:font-normal placeholder:text-slate-300 ${
             error ? 'border-red-500 bg-red-50/20' : 'border-slate-200'
           }`}
         />
@@ -499,7 +499,7 @@ export function ToggleSection({
   title,
   group,
   selected,
-   toggle,
+  toggle,
   error,
 }: {
   title: string

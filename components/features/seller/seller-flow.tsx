@@ -121,6 +121,7 @@ export function SellerFlow() {
     exactStreet: '',
     houseNumber: '',
     cadastralCode: '',
+    hideCadastral: 'false',
     lat: '',
     lng: '',
     yearBuilt: '',
@@ -298,7 +299,6 @@ export function SellerFlow() {
     return () => window.removeEventListener('scroll', handleScrollSpy)
   }, [])
 
-  // تحريك شريط الخطوات العلوي أفقياً على الموبايل ليتبع القسم الحالي تلقائياً أثناء النزول
   useEffect(() => {
     const activeTabBtn = document.getElementById(`seller-step-tab-${activeTab}`)
     if (activeTabBtn) {
@@ -406,13 +406,13 @@ export function SellerFlow() {
             developer: cleanDev,
             project: u.project_name || '',
             location: savedArea,
-            locationDisplay: getLocalizedGeorgiaAreaName(
-              savedArea,
-              locale as LocaleCode
-            ),
+            locationDisplay:
+              meta.location_display ||
+              getLocalizedGeorgiaAreaName(savedArea, locale as LocaleCode),
             exactStreet: u.exact_street || meta.exact_street || '',
             houseNumber: u.house_number || meta.house_number || '',
             cadastralCode: u.cadastral_code || meta.cadastral_code || '',
+            hideCadastral: meta.hide_cadastral ? 'true' : 'false',
             lat: meta.lat ? String(meta.lat) : '',
             lng: meta.lng ? String(meta.lng) : '',
             yearBuilt: String(u.year_built || meta.year_built || ''),
@@ -935,7 +935,7 @@ export function SellerFlow() {
     ]
   )
 
-  const highlightMissingCoreFieldsAndScroll = () => {
+  const highlightMissingCoreFields = () => {
     const nextFieldErrors: Record<string, string> = {}
     const missingNames: string[] = []
     for (const item of liveMissingCoreItems) {
@@ -944,15 +944,6 @@ export function SellerFlow() {
     }
     setFieldErrors(nextFieldErrors)
     setMissingFields(missingNames)
-
-    if (liveMissingCoreItems.length > 0) {
-      const firstId = liveMissingCoreItems[0].scrollId
-      setTimeout(() => {
-        document
-          .getElementById(firstId)
-          ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      }, 80)
-    }
   }
 
   const handleSaveDraftAndGoToAccount = async () => {
@@ -989,10 +980,6 @@ export function SellerFlow() {
           })
           setFieldErrors(nextErrs)
           setError(fT.contactSection.signInToSaveDraftError)
-          secContactRef.current?.scrollIntoView({
-            behavior: 'smooth',
-            block: 'center',
-          })
           return
         }
 
@@ -1026,7 +1013,6 @@ export function SellerFlow() {
 
         if (step2Res.status !== 'ok' || !step2Res.userId) {
           setError(step2Res.error || fT.contactSection.signInToSaveDraftError)
-          secContactRef.current?.scrollIntoView({ behavior: 'smooth' })
           return
         }
 
@@ -1130,7 +1116,6 @@ export function SellerFlow() {
 
         if (step2Res.status !== 'ok') {
           setError(step2Res.error || fT.contactSection.authFailedError)
-          secContactRef.current?.scrollIntoView({ behavior: 'smooth' })
           return
         }
 
@@ -1186,7 +1171,7 @@ export function SellerFlow() {
 
   const handlePublishListing = () => {
     if (!hasAllCoreDetails) {
-      highlightMissingCoreFieldsAndScroll()
+      highlightMissingCoreFields()
       return
     }
 

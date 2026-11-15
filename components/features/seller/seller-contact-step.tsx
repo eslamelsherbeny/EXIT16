@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 import {
   processSellerStep2Action,
-   saveSellProgress,
+  saveSellProgress,
   sendSellerRecoveryLinkAction,
   verifyExistingEmailPasswordAction,
 } from '@/actions/submit-forms'
@@ -182,7 +182,6 @@ export function ContactSection({
   agreedTerms,
   setAgreedTerms,
   error,
-  missingFields,
   unitId,
   setUnitId,
   setOrderRef,
@@ -218,7 +217,7 @@ export function ContactSection({
   agreedTerms: boolean
   setAgreedTerms: (val: boolean) => void
   error: string
-  missingFields: string[]
+  missingFields?: string[]
   unitId?: string
   setUnitId?: (id: string) => void
   setOrderRef?: (ref: string) => void
@@ -449,7 +448,6 @@ export function ContactSection({
           phone: resolvedPhone,
         })
 
-        // حفظ كافة الحقول المكتوبة في الفورم فوراً داخل المسودة حتى لا تضيع أي بيانات
         if (res.userId && createdOrUpdatedUnitId && buildFullFormData) {
           try {
             const fullDraft = buildFullFormData(
@@ -631,7 +629,7 @@ export function ContactSection({
                 dir="ltr"
                 value={existingPass}
                 onChange={(e) => setExistingPass(e.target.value)}
-                className="h-11 rounded-xl bg-white pr-4 pl-16 text-left"
+                className="h-11 rounded-xl bg-white pr-4 pl-16 text-left placeholder:text-[11px] placeholder:font-normal placeholder:text-slate-300"
               />
               <button
                 type="button"
@@ -758,7 +756,7 @@ export function ContactSection({
                     onChange={(e) =>
                       update('phone', toEnglishDigits(e.target.value))
                     }
-                    className={`h-12 flex-1 rounded-xl px-3 text-left font-bold ${
+                    className={`h-12 flex-1 rounded-xl px-3 text-left font-bold placeholder:text-[11px] placeholder:font-normal placeholder:text-slate-300 ${
                       mergedErrors.phone
                         ? 'border-2 border-red-500 bg-red-50/20'
                         : ''
@@ -836,7 +834,7 @@ export function ContactSection({
                     onChange={(e) =>
                       update('phone', toEnglishDigits(e.target.value))
                     }
-                    className={`h-12 flex-1 rounded-xl bg-white px-3 text-left font-bold ${
+                    className={`h-12 flex-1 rounded-xl bg-white px-3 text-left font-bold placeholder:text-[11px] placeholder:font-normal placeholder:text-slate-300 ${
                       mergedErrors.phone
                         ? 'border-2 border-red-500 bg-red-50/20'
                         : ''
@@ -875,7 +873,7 @@ export function ContactSection({
                     dir="ltr"
                     value={form.password ?? ''}
                     onChange={(e) => update('password', e.target.value)}
-                    className={`h-12 w-full rounded-xl border-slate-200 bg-white pr-12 pl-4 text-left ${
+                    className={`h-12 w-full rounded-xl border-slate-200 bg-white pr-12 pl-4 text-left placeholder:text-[11px] placeholder:font-normal placeholder:text-slate-300 ${
                       mergedErrors.password
                         ? 'border-2 border-red-500 bg-red-50/20'
                         : ''
@@ -921,7 +919,7 @@ export function ContactSection({
                         confirmPassword: '',
                       }))
                     }}
-                    className={`h-12 w-full rounded-xl border-slate-200 bg-white pr-12 pl-4 text-left ${
+                    className={`h-12 w-full rounded-xl border-slate-200 bg-white pr-12 pl-4 text-left placeholder:text-[11px] placeholder:font-normal placeholder:text-slate-300 ${
                       mergedErrors.confirmPassword
                         ? 'border-2 border-red-500 bg-red-50/20'
                         : ''
@@ -1022,7 +1020,7 @@ export function ContactSection({
                     update('loginPassword', e.target.value)
                     update('password', e.target.value)
                   }}
-                  className={`h-12 w-full rounded-xl border-slate-200 bg-white pr-12 pl-4 text-left ${
+                  className={`h-12 w-full rounded-xl border-slate-200 bg-white pr-12 pl-4 text-left placeholder:text-[11px] placeholder:font-normal placeholder:text-slate-300 ${
                     mergedErrors.loginPassword
                       ? 'border-2 border-red-500 bg-red-50/20'
                       : ''
@@ -1163,17 +1161,10 @@ export function ContactSection({
         )}
       </div>
 
-      {(stepError || error || missingFields.length > 0) && (
+      {(stepError || error) && (
         <div className="mt-5 flex items-start gap-2.5 rounded-2xl border border-red-300 bg-red-50 p-4 text-start text-xs text-red-800">
           <AlertCircle className="mt-0.5 size-4 shrink-0 text-red-600" />
-          <div>
-            <strong className="block font-extrabold">
-              {stepError || error}
-            </strong>
-            {missingFields.length > 0 && (
-              <p className="mt-1 font-bold">{missingFields.join(' ، ')}</p>
-            )}
-          </div>
+          <strong className="block font-extrabold">{stepError || error}</strong>
         </div>
       )}
     </section>

@@ -1,31 +1,52 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as SunCalc from 'suncalc'
 import {
   Baby,
   Building2,
   Bus,
+  Camera,
   ChevronDown,
   ChevronUp,
+  Circle,
   CloudSun,
   Compass,
+  Contrast,
   Dumbbell,
   Footprints,
+  Globe,
   GraduationCap,
   HeartPulse,
   Landmark,
+  Layers,
+  Loader2,
+  Map as MapIcon,
   Maximize2,
+  Minimize2,
   Minus,
+  Mountain,
   Navigation,
   Pill,
   Plus,
   ShoppingCart,
+  Sparkles,
   Sun,
   TrainFront,
   Utensils,
 } from 'lucide-react'
+import {
+  fetchRealNearbyPlacesAndWeatherAction,
+  type RealNearbyPlaceItem,
+} from '@/actions/georgia-geocode-action'
 import { getCoordinatesForArea } from '@/lib/georgia-coordinates'
+import {
+  apply3DBuildingsToMap,
+  geocodeExactBuildingInGeorgia,
+  getReliableGeorgiaMapStyle,
+  highlight3DBuildingAtCoordinates,
+  type GeorgiaMapThemeMode,
+} from '@/lib/georgia-uber-search'
 import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
 import { useTranslation, type LocaleCode } from '@/lib/i18n'
 
@@ -41,12 +62,19 @@ type NearbyCategoryKey =
   | 'gym'
   | 'bus'
 
-type PlaceItem = {
-  id: string
-  name: string
-  category: Exclude<NearbyCategoryKey, 'all'>
-  distanceMeters: number
-}
+const MAP_STYLE_OPTIONS: Array<{
+  id: GeorgiaMapThemeMode
+  label: string
+  icon: any
+}> = [
+  { id: 'streets', label: 'Streets', icon: MapIcon },
+  { id: 'sivrce', label: 'Sivrce', icon: Globe },
+  { id: 'realistic', label: 'Realistic', icon: Mountain },
+  { id: 'photoreal', label: 'Photoreal', icon: Camera },
+  { id: 'hybrid', label: 'Hybrid', icon: Sparkles },
+  { id: 'minimal', label: 'Minimal', icon: Circle },
+  { id: 'contrast', label: 'High contrast', icon: Contrast },
+]
 
 const INSIGHTS_I18N: Record<
   LocaleCode,
@@ -57,6 +85,7 @@ const INSIGHTS_I18N: Record<
     walkScoreLabel: string
     mobilityScoreLabel: string
     locationTitle: string
+    exactBuildingBadge: string
     approxCenterBadge: string
     cloudyWord: string
     airQualityWord: string
@@ -64,8 +93,11 @@ const INSIGHTS_I18N: Record<
     expandTooltip: string
     directionsBtn: string
     open3dMapBtn: string
+    closeFullscreenBtn: string
     whatsNearbyTitle: string
     whatsNearbySub: string
+    loadingNearbyText: string
+    noPlacesInCategory: string
     allCat: string
     showLessBtn: string
     showMoreSuffix: string
@@ -96,27 +128,35 @@ const INSIGHTS_I18N: Record<
     sunriseLabel: string
     solarNoonLabel: string
     sunsetLabel: string
+    windowsHelpText: string
+    macHelpText: string
+    mobileHelpText: string
     categories: Record<Exclude<NearbyCategoryKey, 'all'>, string>
   }
 > = {
   ar: {
     neighborhoodTitle: 'تقييم الحي وسهولة التنقل',
     neighborhoodSubPrefix: 'منطقة مخدومة بالكامل وقابلة للمشي (',
-    neighborhoodSubSuffix: 'مرفق وخدمة مسجلة حول الموقع)',
+    neighborhoodSubSuffix: 'مرفق وخدمة حقيقية مسجلة حول المبنى)',
     walkScoreLabel:
       'مؤشر المشي والخدمات اليومية (قرب الأسواق والصيدليات والمدارس مشياً)',
     mobilityScoreLabel:
       'مؤشر المواصلات والربط المروري (قرب محطات الحافلات والمترو)',
     locationTitle: 'الموقع والخريطة ثلاثية الأبعاد',
+    exactBuildingBadge: 'موقع المبنى الدقيق ✓',
     approxCenterBadge: 'موقع موثق في السجل الجغرافي',
     cloudyWord: 'معتدل',
     airQualityWord: 'جودة الهواء',
     collapseTooltip: 'طي القسم',
     expandTooltip: 'فتح القسم',
-    directionsBtn: 'الاتجاهات',
-    open3dMapBtn: 'عرض ثلاثي الأبعاد 3D',
-    whatsNearbyTitle: 'الأماكن والخدمات القريبة',
-    whatsNearbySub: 'الأقرب أولاً · زمن المشي التقريبي · بيانات خرائط جورجيا',
+    directionsBtn: 'الاتجاهات على Google Maps',
+    open3dMapBtn: 'تكبير الخريطة 3D',
+    closeFullscreenBtn: 'تصغير الخريطة',
+    whatsNearbyTitle: 'الأماكن والخدمات القريبة من العقار',
+    whatsNearbySub:
+      'الأقرب أولاً · المسافة الحقيقية وزمن المشي من موقع المبنى · بيانات OpenStreetMap',
+    loadingNearbyText: 'جاري تحميل الأماكن والخدمات المحيطة بالمبنى...',
+    noPlacesInCategory: 'لا توجد مرافق مسجلة ضمن 1.5 كم في هذا التصنيف',
     allCat: 'الكل',
     showLessBtn: 'عرض أقل ▲',
     showMoreSuffix: 'المزيد ⌄',
@@ -124,8 +164,8 @@ const INSIGHTS_I18N: Record<
     transitWord: 'مواصلات',
     driveWord: 'سيارة',
     minWord: 'د',
-    sunTitle: 'حركة الشمس والإضاءة الطبيعية',
-    sunSub: 'مسار الشمس الفلكي المحسوب من إحداثيات المنطقة',
+    sunTitle: 'حركة الشمس والإضاءة الطبيعية للمبنى',
+    sunSub: 'مسار الشمس الفلكي المحسوب بدقة من إحداثيات هذا المبنى',
     winterTab: 'الشتاء',
     todayTab: 'اليوم',
     summerTab: 'الصيف',
@@ -147,34 +187,42 @@ const INSIGHTS_I18N: Record<
     sunriseLabel: 'الشروق',
     solarNoonLabel: 'الظهيرة',
     sunsetLabel: 'الغروب',
+    windowsHelpText: 'استخدم Ctrl + التمرير لتكبير الخريطة',
+    macHelpText: 'استخدم ⌘ + التمرير لتكبير الخريطة',
+    mobileHelpText: 'استخدم إصبعين لتحريك وتكبير الخريطة',
     categories: {
       school: 'مدارس',
       kindergarten: 'حضانات ورياض أطفال',
       pharmacy: 'صيدليات',
       market: 'سوبرماركت وأسواق',
       restaurants: 'مطاعم وكافيهات',
-      clinic: 'عيادات ومراكز طبية',
+      clinic: 'عيادات ومستشفيات',
       university: 'جامعات وكليات',
       gym: 'صالات رياضية',
-      bus: 'محطات حافلات ومواصلات',
+      bus: 'محطات حافلات ومترو',
     },
   },
   en: {
     neighborhoodTitle: 'Neighborhood & Mobility',
     neighborhoodSubPrefix: 'Very walkable & well connected (',
-    neighborhoodSubSuffix: 'nearby amenities)',
+    neighborhoodSubSuffix: 'real nearby amenities around this building)',
     walkScoreLabel: 'Walk Score (Daily errands on foot)',
     mobilityScoreLabel: 'Mobility Score (Public transit access)',
     locationTitle: 'Location & 3D Map',
+    exactBuildingBadge: 'Exact building pin ✓',
     approxCenterBadge: 'Verified area coordinates',
     cloudyWord: 'Partly Cloudy',
     airQualityWord: 'Air quality',
     collapseTooltip: 'Collapse',
     expandTooltip: 'Expand',
     directionsBtn: 'Directions',
-    open3dMapBtn: 'Open 3D map',
+    open3dMapBtn: 'Fullscreen 3D Map',
+    closeFullscreenBtn: 'Exit Fullscreen',
     whatsNearbyTitle: "What's nearby",
-    whatsNearbySub: 'Nearest first · walking time · OpenStreetMap data',
+    whatsNearbySub:
+      'Nearest first · exact walking time from building · OpenStreetMap data',
+    loadingNearbyText: 'Loading real nearby places around this building...',
+    noPlacesInCategory: 'No places listed within 1.5 km in this category',
     allCat: 'All',
     showLessBtn: 'Show less ▲',
     showMoreSuffix: 'More ⌄',
@@ -183,7 +231,7 @@ const INSIGHTS_I18N: Record<
     driveWord: 'drive',
     minWord: 'min',
     sunTitle: 'Sun & Daylight',
-    sunSub: 'Sun path calculated from property coordinates',
+    sunSub: 'Sun path calculated from exact building coordinates',
     winterTab: 'Winter',
     todayTab: 'Today',
     summerTab: 'Summer',
@@ -205,6 +253,9 @@ const INSIGHTS_I18N: Record<
     sunriseLabel: 'SUNRISE',
     solarNoonLabel: 'SOLAR NOON',
     sunsetLabel: 'SUNSET',
+    windowsHelpText: 'Use Ctrl + scroll to zoom the map',
+    macHelpText: 'Use ⌘ + scroll to zoom the map',
+    mobileHelpText: 'Use two fingers to move the map',
     categories: {
       school: 'Schools',
       kindergarten: 'Kindergartens',
@@ -214,25 +265,30 @@ const INSIGHTS_I18N: Record<
       clinic: 'Clinics & Hospitals',
       university: 'Universities',
       gym: 'Fitness & Gym',
-      bus: 'Bus & Transit Stops',
+      bus: 'Bus & Metro Stops',
     },
   },
   ru: {
     neighborhoodTitle: 'Район и транспортная доступность',
     neighborhoodSubPrefix: 'Развитая инфраструктура в пешей доступности (',
-    neighborhoodSubSuffix: 'объектов рядом)',
+    neighborhoodSubSuffix: 'реальных объектов рядом со зданием)',
     walkScoreLabel: 'Пешая доступность (Магазины, аптеки и школы пешком)',
     mobilityScoreLabel: 'Транспортная доступность (Автобусы и метро)',
     locationTitle: 'Локация и 3D-карта',
-    approxCenterBadge: 'Координаты района подтверждены',
+    exactBuildingBadge: 'Точное здание ✓',
+    approxCenterBadge: 'Координаты подтверждены',
     cloudyWord: 'Переменная облачность',
     airQualityWord: 'Качество воздуха',
     collapseTooltip: 'Свернуть',
     expandTooltip: 'Развернуть',
     directionsBtn: 'Маршрут',
-    open3dMapBtn: '3D-карта',
+    open3dMapBtn: 'На весь экран 3D',
+    closeFullscreenBtn: 'Свернуть карту',
     whatsNearbyTitle: 'Что находится рядом',
-    whatsNearbySub: 'Сначала ближайшие · время пешком · данные OpenStreetMap',
+    whatsNearbySub:
+      'Сначала ближайшие · точное время пешком от дома · данные OpenStreetMap',
+    loadingNearbyText: 'Загрузка реальных объектов рядом со зданием...',
+    noPlacesInCategory: 'В радиусе 1.5 км нет объектов этой категории',
     allCat: 'Все',
     showLessBtn: 'Свернуть ▲',
     showMoreSuffix: 'Еще ⌄',
@@ -241,7 +297,7 @@ const INSIGHTS_I18N: Record<
     driveWord: 'авто',
     minWord: 'мин',
     sunTitle: 'Солнце и естественное освещение',
-    sunSub: 'Траектория солнца по координатам объекта',
+    sunSub: 'Траектория солнца по точным координатам здания',
     winterTab: 'Зима',
     todayTab: 'Сегодня',
     summerTab: 'Лето',
@@ -263,6 +319,9 @@ const INSIGHTS_I18N: Record<
     sunriseLabel: 'ВОСХОД',
     solarNoonLabel: 'ПОЛДЕНЬ',
     sunsetLabel: 'ЗАКАТ',
+    windowsHelpText: 'Используйте Ctrl + колесико для масштабирования',
+    macHelpText: 'Используйте ⌘ + колесико для масштабирования',
+    mobileHelpText: 'Используйте два пальца для перемещения карты',
     categories: {
       school: 'Школы',
       kindergarten: 'Детские сады',
@@ -272,25 +331,30 @@ const INSIGHTS_I18N: Record<
       clinic: 'Клиники',
       university: 'Университеты',
       gym: 'Фитнес-клубы',
-      bus: 'Остановки транспорта',
+      bus: 'Остановки и метро',
     },
   },
   ka: {
     neighborhoodTitle: 'უბანი და ტრანსპორტი',
     neighborhoodSubPrefix: 'კეთილმოწყობილი და ფეხით სავალი ზონა (',
-    neighborhoodSubSuffix: 'ობიექტი ახლოს)',
+    neighborhoodSubSuffix: 'რეალური ობიექტი შენობის გარშემო)',
     walkScoreLabel: 'ფეხით ხელმისაწვდომობა (მარკეტები, აფთიაქები, სკოლები)',
     mobilityScoreLabel: 'ტრანსპორტის ხელმისაწვდომობა (ავტობუსი და მეტრო)',
     locationTitle: 'მდებარეობა და 3D რუკა',
+    exactBuildingBadge: 'ზუსტი შენობა ✓',
     approxCenterBadge: 'დადასტურებული მდებარეობა',
     cloudyWord: 'ზომიერი',
     airQualityWord: 'ჰაერის ხარისხი',
     collapseTooltip: 'ჩაკეცვა',
     expandTooltip: 'გაშლა',
     directionsBtn: 'მარშრუტი',
-    open3dMapBtn: '3D რუკა',
+    open3dMapBtn: '3D რუკა სრულ ეკრანზე',
+    closeFullscreenBtn: 'დახურვა',
     whatsNearbyTitle: 'რა არის ახლოს',
-    whatsNearbySub: 'უახლოესი ობიექტები · ფეხით სავალი დრო',
+    whatsNearbySub:
+      'უახლოესი ობიექტები · ფეხით სავალი დრო შენობიდან · OpenStreetMap',
+    loadingNearbyText: 'იტვირთება ახლომდებარე ობიექტები...',
+    noPlacesInCategory: '1.5 კმ რადიუსში ობიექტები არ მოიძებნა',
     allCat: 'ყველა',
     showLessBtn: 'ნაკლები ▲',
     showMoreSuffix: 'მეტი ⌄',
@@ -299,7 +363,7 @@ const INSIGHTS_I18N: Record<
     driveWord: 'მანქანით',
     minWord: 'წთ',
     sunTitle: 'მზე და ბუნებრივი განათება',
-    sunSub: 'მზის ტრაექტორია კოორდინატების მიხედვით',
+    sunSub: 'მზის ტრაექტორია შენობის ზუსტი კოორდინატების მიხედვით',
     winterTab: 'ზამთარი',
     todayTab: 'დღეს',
     summerTab: 'ზაფხული',
@@ -321,6 +385,9 @@ const INSIGHTS_I18N: Record<
     sunriseLabel: 'ამოსვლა',
     solarNoonLabel: 'შუადღე',
     sunsetLabel: 'ჩასვლა',
+    windowsHelpText: 'გამოიყენეთ Ctrl + სქროლი რუკის გასადიდებლად',
+    macHelpText: 'გამოიყენეთ ⌘ + სქროლი რუკის გასადიდებლად',
+    mobileHelpText: 'გამოიყენეთ ორი თითი რუკის გადასაადგილებლად',
     categories: {
       school: 'სკოლები',
       kindergarten: 'საბავშვო ბაღები',
@@ -330,7 +397,7 @@ const INSIGHTS_I18N: Record<
       clinic: 'კლინიკები',
       university: 'უნივერსიტეტები',
       gym: 'ფიტნეს დარბაზები',
-      bus: 'გაჩერებები',
+      bus: 'გაჩერებები და მეტრო',
     },
   },
 }
@@ -350,88 +417,13 @@ const CATEGORY_ICONS: Array<{
   { key: 'bus', icon: Bus },
 ]
 
-function getFallbackPlacesForArea(isBatumi: boolean): PlaceItem[] {
-  if (isBatumi) {
-    return [
-      { id: 's1', name: 'Batumi Public School #2', category: 'school', distanceMeters: 540 },
-      { id: 's2', name: 'Euro-2000 High School', category: 'school', distanceMeters: 780 },
-      { id: 's3', name: 'Progress International School', category: 'school', distanceMeters: 1150 },
-      { id: 'k1', name: 'Batumi Kindergarten #14', category: 'kindergarten', distanceMeters: 240 },
-      { id: 'p1', name: 'Aversi Pharmacy', category: 'pharmacy', distanceMeters: 180 },
-      { id: 'p2', name: 'PSP Pharmacy', category: 'pharmacy', distanceMeters: 410 },
-      { id: 'p3', name: 'GPC Pharmacy', category: 'pharmacy', distanceMeters: 590 },
-      { id: 'm1', name: 'Nikora Supermarket', category: 'market', distanceMeters: 140 },
-      { id: 'm2', name: 'Magniti Max', category: 'market', distanceMeters: 290 },
-      { id: 'm3', name: 'Carrefour Batumi Mall', category: 'market', distanceMeters: 620 },
-      { id: 'm4', name: 'Ori Nabiji (2 Steps)', category: 'market', distanceMeters: 350 },
-      { id: 'r1', name: 'Adjara House Restaurant', category: 'restaurants', distanceMeters: 260 },
-      { id: 'r2', name: 'Pirosmani Georgian Cuisine', category: 'restaurants', distanceMeters: 420 },
-      { id: 'r3', name: 'Batumi Boulevard Cafe', category: 'restaurants', distanceMeters: 530 },
-      { id: 'c1', name: 'Batumi Referral Hospital', category: 'clinic', distanceMeters: 690 },
-      { id: 'c2', name: 'MedCenter Batumi', category: 'clinic', distanceMeters: 940 },
-      { id: 'u1', name: 'Batumi Shota Rustaveli State Univ.', category: 'university', distanceMeters: 1300 },
-      { id: 'u2', name: 'Batumi Navigation Teaching Univ.', category: 'university', distanceMeters: 1650 },
-      { id: 'g1', name: 'Reformers Fitness Batumi', category: 'gym', distanceMeters: 480 },
-      { id: 'b1', name: 'Khimshiashvili Ave Bus Stop #4', category: 'bus', distanceMeters: 95 },
-      { id: 'b2', name: 'New Boulevard Municipal Stop', category: 'bus', distanceMeters: 210 },
-      { id: 'b3', name: 'Alley of Heroes Transit Stop', category: 'bus', distanceMeters: 340 },
-    ]
-  }
-
-  return [
-    { id: 's1', name: 'N°221 Sajaro Skola', category: 'school', distanceMeters: 784 },
-    { id: 's2', name: 'Kartul-Germanuli Skola "Skhivi"', category: 'school', distanceMeters: 845 },
-    { id: 's3', name: 'QSI International School of Tbilisi', category: 'school', distanceMeters: 1200 },
-    { id: 's4', name: 'European School Tbilisi', category: 'school', distanceMeters: 1420 },
-    { id: 'k1', name: 'Kindergarten #208', category: 'kindergarten', distanceMeters: 118 },
-    { id: 'p1', name: 'Neoparmi', category: 'pharmacy', distanceMeters: 511 },
-    { id: 'p2', name: '36.6 Pharmacy', category: 'pharmacy', distanceMeters: 554 },
-    { id: 'p3', name: 'PSP & Aversi', category: 'pharmacy', distanceMeters: 680 },
-    { id: 'm1', name: 'Magniti Maksi', category: 'market', distanceMeters: 407 },
-    { id: 'm2', name: 'Ori Nabiji', category: 'market', distanceMeters: 559 },
-    { id: 'm3', name: 'Nikora Supermarket', category: 'market', distanceMeters: 565 },
-    { id: 'm4', name: 'Agrohub Hypermarket', category: 'market', distanceMeters: 890 },
-    { id: 'r1', name: 'Mals Shaurma', category: 'restaurants', distanceMeters: 392 },
-    { id: 'r2', name: 'Barakoni Georgian Restaurant', category: 'restaurants', distanceMeters: 419 },
-    { id: 'r3', name: 'Asorti Bakery & Cafe', category: 'restaurants', distanceMeters: 608 },
-    { id: 'r4', name: 'Tsiskvili Restaurant', category: 'restaurants', distanceMeters: 980 },
-    { id: 'c1', name: 'Vivamedi Medical Center', category: 'clinic', distanceMeters: 646 },
-    { id: 'c2', name: 'Evex Polyclinic', category: 'clinic', distanceMeters: 1450 },
-    { id: 'c3', name: 'Tsm. Mikael Mtavarangelozis Clinic', category: 'clinic', distanceMeters: 1700 },
-    { id: 'u1', name: 'Tavisupali Da Agraruli Universiteti', category: 'university', distanceMeters: 1000 },
-    { id: 'u2', name: 'Kartul-Amerikuli Universiteti (GAU)', category: 'university', distanceMeters: 1600 },
-    { id: 'u3', name: 'Evropis Universiteti', category: 'university', distanceMeters: 1800 },
-    { id: 'g1', name: 'Format Fit Gym', category: 'gym', distanceMeters: 607 },
-    { id: 'b1', name: '#208-E Sabavshvo Baghi Stop', category: 'bus', distanceMeters: 57 },
-    { id: 'b2', name: 'Grigol Peradze St. #6 Stop', category: 'bus', distanceMeters: 98 },
-    { id: 'b3', name: 'Agmashenebeli Alley Transit Stop', category: 'bus', distanceMeters: 310 },
-  ]
-}
-
-function haversineMeters(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number
-) {
-  const R = 6371000
-  const dLat = ((lat2 - lat1) * Math.PI) / 180
-  const dLon = ((lon2 - lon1) * Math.PI) / 180
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) ** 2
-  return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)))
-}
-
 function formatTravelEstimate(
   meters: number,
   iT: (typeof INSIGHTS_I18N)['ar']
 ) {
-  const walkMin = Math.max(1, Math.round((meters * 1.22) / 80))
-  const transitMin = Math.max(2, Math.round(meters / 150))
-  const driveMin = Math.max(1, Math.round(meters / 260))
+  const walkMin = Math.max(1, Math.round((meters * 1.25) / 80))
+  const transitMin = Math.max(2, Math.round(meters / 160))
+  const driveMin = Math.max(1, Math.round(meters / 280))
 
   if (meters < 800) {
     return `${iT.walkWord} ~${walkMin} ${iT.minWord}`
@@ -459,6 +451,9 @@ function loadMapLibreFromCDN(): Promise<any> {
 
     const existingScript = document.getElementById('maplibre-gl-js')
     if (existingScript) {
+      if ((window as any).maplibregl) {
+        return resolve((window as any).maplibregl)
+      }
       existingScript.addEventListener('load', () =>
         resolve((window as any).maplibregl)
       )
@@ -473,6 +468,21 @@ function loadMapLibreFromCDN(): Promise<any> {
     script.onerror = (err) => reject(err)
     document.head.appendChild(script)
   })
+}
+
+function createExactUnitPinElement(): HTMLDivElement {
+  const wrapper = document.createElement('div')
+  wrapper.style.display = 'flex'
+  wrapper.style.flexDirection = 'column'
+  wrapper.style.alignItems = 'center'
+  wrapper.innerHTML = `
+    <div style="width: 40px; height: 40px; border-radius: 9999px; border: 3px solid #ffffff; background: #ea580c; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 22px rgba(0,0,0,0.3);">
+      <div style="width: 12px; height: 12px; border-radius: 9999px; background: #ffffff;"></div>
+    </div>
+    <div style="margin-top: -3px; width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 9px solid #ea580c;"></div>
+    <div style="margin-top: 2px; width: 12px; height: 5px; border-radius: 9999px; background: rgba(0,0,0,0.32); filter: blur(1px);"></div>
+  `
+  return wrapper
 }
 
 function SunAndDaylightInteractiveCard({
@@ -910,13 +920,19 @@ function SunAndDaylightInteractiveCard({
 
 export function UnitLocationInsights({
   areaId,
+  locationDisplay,
   exactStreet,
   houseNumber,
+  savedLat,
+  savedLng,
   locale = 'ar',
 }: {
   areaId: string | null
+  locationDisplay?: string
   exactStreet?: string
   houseNumber?: string
+  savedLat?: number | null
+  savedLng?: number | null
   t?: any
   locale?: string
 }) {
@@ -935,92 +951,175 @@ export function UnitLocationInsights({
   }
 
   const defaultCoords = getCoordinatesForArea(areaId)
-  const [coords, setCoords] = useState<{ lat: number; lng: number }>({
-    lat: defaultCoords.lat,
-    lng: defaultCoords.lng,
-  })
+  const hasSavedExactCoords = Boolean(
+    savedLat &&
+      savedLng &&
+      Number.isFinite(Number(savedLat)) &&
+      Number.isFinite(Number(savedLng))
+  )
 
-  const localizedArea = getLocalizedGeorgiaAreaName(areaId, activeLocale)
-  const isBatumi = String(areaId || '')
-    .toLowerCase()
-    .includes('batumi')
+  const [coords, setCoords] = useState<{ lat: number; lng: number }>(() => ({
+    lat: hasSavedExactCoords ? Number(savedLat) : defaultCoords.lat,
+    lng: hasSavedExactCoords ? Number(savedLng) : defaultCoords.lng,
+  }))
+
+  const localizedArea =
+    locationDisplay || getLocalizedGeorgiaAreaName(areaId, activeLocale)
 
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
   const mapInstanceRef = useRef<any>(null)
+  const markerInstanceRef = useRef<any>(null)
+  const styleMenuRef = useRef<HTMLDivElement | null>(null)
+
   const [isLocationSectionOpen, setIsLocationSectionOpen] = useState(true)
+  const [mapStyleMode, setMapStyleMode] =
+    useState<GeorgiaMapThemeMode>('realistic')
+  const [styleMenuOpen, setStyleMenuOpen] = useState(false)
   const [is3D, setIs3D] = useState(true)
+  const is3DRef = useRef(true)
+  is3DRef.current = is3D
+
+  const [isFullscreenMap, setIsFullscreenMap] = useState(false)
   const [activeCategory, setActiveCategory] =
     useState<NearbyCategoryKey>('all')
   const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>(
     {}
   )
-  const [places, setPlaces] = useState<PlaceItem[]>(() =>
-    getFallbackPlacesForArea(isBatumi)
-  )
+  const [places, setPlaces] = useState<RealNearbyPlaceItem[]>([])
+  const [loadingPlaces, setLoadingPlaces] = useState<boolean>(true)
   const [weatherInfo, setWeatherInfo] = useState<{
     temp: number
     aqi: number
-  }>({ temp: 18, aqi: 34 })
+  }>({ temp: 18, aqi: 28 })
+
+  const isPureRasterMode =
+    mapStyleMode === 'photoreal' || mapStyleMode === 'satellite'
 
   useEffect(() => {
-    setCoords({ lat: defaultCoords.lat, lng: defaultCoords.lng })
-  }, [defaultCoords.lat, defaultCoords.lng])
+    function handleOutsideClick(e: MouseEvent) {
+      if (
+        styleMenuRef.current &&
+        !styleMenuRef.current.contains(e.target as Node)
+      ) {
+        setStyleMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleOutsideClick)
+    return () => document.removeEventListener('mousedown', handleOutsideClick)
+  }, [])
 
-  // تحديد الإحداثيات الدقيقة للشارع ورقم المبنى إذا كانا متوفرين
+  // إذا كان للبائع إحداثيات محفوظة نستخدمها فوراً، وإلا نحول الشارع ورقم المبنى لإحداثيات المبنى الدقيقة
   useEffect(() => {
+    if (
+      savedLat &&
+      savedLng &&
+      Number.isFinite(Number(savedLat)) &&
+      Number.isFinite(Number(savedLng))
+    ) {
+      setCoords({ lat: Number(savedLat), lng: Number(savedLng) })
+      return
+    }
+
     const street = String(exactStreet || '').trim()
     const house = String(houseNumber || '').trim()
-    if (street.length < 3) return
+    if (street.length < 3) {
+      setCoords({ lat: defaultCoords.lat, lng: defaultCoords.lng })
+      return
+    }
 
-    const cityPart = String(areaId || 'Tbilisi')
-      .split('-')[0]
-      .trim()
-    const q = `${house ? house + ' ' : ''}${street}, ${cityPart}, Georgia`
+    const rawLoc = String(locationDisplay || areaId || 'Tbilisi').trim()
+    const cityPart = rawLoc.includes(',')
+      ? rawLoc.split(',').pop()!.trim()
+      : rawLoc.split(/[-—]/)[0].trim()
+    const distPart = rawLoc.includes(',') ? rawLoc.split(',')[0].trim() : ''
 
-    fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&countrycodes=ge&limit=1&q=${encodeURIComponent(q)}`
-    )
-      .then((r) => r.json())
-      .then((d) => {
-        if (Array.isArray(d) && d[0]) {
-          const lat = Number(d[0].lat)
-          const lng = Number(d[0].lon)
-          if (Number.isFinite(lat) && Number.isFinite(lng)) {
-            setCoords({ lat, lng })
-          }
+    let cancelled = false
+    geocodeExactBuildingInGeorgia({
+      street,
+      houseNumber: house,
+      district: distPart,
+      city: cityPart || 'Tbilisi',
+    })
+      .then((res) => {
+        if (!cancelled && res && Number.isFinite(res.lat) && Number.isFinite(res.lng)) {
+          setCoords({ lat: res.lat, lng: res.lng })
         }
       })
       .catch(() => {})
-  }, [exactStreet, houseNumber, areaId])
 
+    return () => {
+      cancelled = true
+    }
+  }, [savedLat, savedLng, exactStreet, houseNumber, areaId, locationDisplay, defaultCoords.lat, defaultCoords.lng])
+
+  // جلب الأماكن والخدمات الحقيقية 100% من السيرفر حول نفس إحداثيات المبنى (coords.lat, coords.lng)
+  useEffect(() => {
+    let isCancelled = false
+    setLoadingPlaces(true)
+
+    fetchRealNearbyPlacesAndWeatherAction({
+      lat: coords.lat,
+      lng: coords.lng,
+      locale: activeLocale,
+    })
+      .then((res) => {
+        if (isCancelled) return
+        setPlaces(res.places || [])
+        setWeatherInfo({ temp: res.temp, aqi: res.aqi })
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!isCancelled) setLoadingPlaces(false)
+      })
+
+    return () => {
+      isCancelled = true
+    }
+  }, [coords.lat, coords.lng, activeLocale])
+
+  // حساب مؤشر المشي ومؤشر المواصلات الحقيقيين بناءً على المسافات الفعلية للمرافق المحيطة بالمبنى
   const { walkScore, mobilityScore } = useMemo(() => {
+    if (places.length === 0) {
+      return { walkScore: 78, mobilityScore: 76 }
+    }
+
     const walkEssentials = places.filter((p) =>
       ['market', 'pharmacy', 'school', 'kindergarten', 'restaurants'].includes(
         p.category
       )
     )
-    const within600m = walkEssentials.filter(
-      (p) => p.distanceMeters <= 600
+    const within500m = walkEssentials.filter(
+      (p) => p.distanceMeters <= 500
     ).length
+    const within1000m = walkEssentials.filter(
+      (p) => p.distanceMeters <= 1000
+    ).length
+
     const nearestMarket =
-      places.find((p) => p.category === 'market')?.distanceMeters || 500
+      places.find((p) => p.category === 'market')?.distanceMeters ?? 900
     const nearestPharmacy =
-      places.find((p) => p.category === 'pharmacy')?.distanceMeters || 500
+      places.find((p) => p.category === 'pharmacy')?.distanceMeters ?? 900
+    const nearestSchool =
+      places.find(
+        (p) => p.category === 'school' || p.category === 'kindergarten'
+      )?.distanceMeters ?? 1100
 
     let computedWalk =
-      68 +
-      Math.min(20, within600m * 3) +
-      (nearestMarket <= 350 ? 5 : 0) +
-      (nearestPharmacy <= 400 ? 4 : 0)
-    computedWalk = Math.max(62, Math.min(96, computedWalk))
+      55 +
+      Math.min(22, within500m * 3.5) +
+      Math.min(10, within1000m * 1.2) +
+      (nearestMarket <= 300 ? 6 : nearestMarket <= 600 ? 3 : 0) +
+      (nearestPharmacy <= 350 ? 4 : 0) +
+      (nearestSchool <= 600 ? 3 : 0)
+    computedWalk = Math.round(Math.max(58, Math.min(98, computedWalk)))
 
     const busStops = places.filter((p) => p.category === 'bus')
-    const nearestBus = busStops[0]?.distanceMeters || 250
+    const nearestBus = busStops[0]?.distanceMeters ?? 800
     let computedMobility =
-      65 +
-      Math.min(18, busStops.length * 5) +
-      (nearestBus <= 150 ? 9 : nearestBus <= 350 ? 5 : 0)
-    computedMobility = Math.max(60, Math.min(95, computedMobility))
+      56 +
+      Math.min(24, busStops.length * 4) +
+      (nearestBus <= 150 ? 12 : nearestBus <= 350 ? 8 : nearestBus <= 600 ? 4 : 0)
+    computedMobility = Math.round(Math.max(58, Math.min(98, computedMobility)))
 
     return {
       walkScore: computedWalk,
@@ -1028,10 +1127,12 @@ export function UnitLocationInsights({
     }
   }, [places])
 
+  // تشغيل الخريطة التفاعلية وتلوين المبنى المختار بالبرتقالي 3D
   useEffect(() => {
     if (!isLocationSectionOpen) return
     let isMounted = true
     let map: any = null
+    let marker: any = null
 
     loadMapLibreFromCDN()
       .then((maplibregl) => {
@@ -1039,122 +1140,108 @@ export function UnitLocationInsights({
 
         map = new maplibregl.Map({
           container: mapContainerRef.current,
-          style: 'https://tiles.openfreemap.org/styles/liberty',
+          style: getReliableGeorgiaMapStyle(mapStyleMode),
           center: [coords.lng, coords.lat],
-          zoom: 16.4,
-          pitch: 60,
-          bearing: -22,
+          zoom: 17.3,
+          pitch: is3DRef.current && !isPureRasterMode ? 54 : 0,
+          bearing: is3DRef.current && !isPureRasterMode ? -14 : 0,
           attributionControl: false,
+          cooperativeGestures: true,
+          locale: {
+            'ScrollZoomBlocker.CtrlMessage': iT.windowsHelpText,
+            'ScrollZoomBlocker.CmdMessage': iT.macHelpText,
+            'TouchPanBlocker.Message': iT.mobileHelpText,
+          },
         })
 
         mapInstanceRef.current = map
 
-        const enhance3DBuildings = () => {
-          try {
+        const pinEl = createExactUnitPinElement()
+        marker = new maplibregl.Marker({
+          element: pinEl,
+          anchor: 'bottom',
+        })
+          .setLngLat([coords.lng, coords.lat])
+          .addTo(map)
+
+        markerInstanceRef.current = marker
+
+        map.on('load', () => {
+          if (!isPureRasterMode) {
+            apply3DBuildingsToMap(
+              map,
+              activeLocale,
+              mapStyleMode,
+              is3DRef.current
+            )
+            highlight3DBuildingAtCoordinates(map, coords.lng, coords.lat)
+          } else {
             map.resize()
-            const style = map.getStyle()
-            if (!style || !style.layers) return
+          }
+          setTimeout(() => map?.resize(), 120)
+        })
 
-            for (const layer of style.layers) {
-              if (layer.type === 'fill-extrusion') {
-                map.setPaintProperty(layer.id, 'fill-extrusion-color', '#d6c3b1')
-                map.setPaintProperty(layer.id, 'fill-extrusion-opacity', 0.94)
-              }
-            }
-          } catch {}
-        }
-
-        map.on('load', enhance3DBuildings)
+        map.on('idle', () => {
+          if (!isPureRasterMode) {
+            highlight3DBuildingAtCoordinates(map, coords.lng, coords.lat)
+          }
+        })
       })
       .catch(() => {})
 
     return () => {
       isMounted = false
+      if (marker) {
+        marker.remove()
+        markerInstanceRef.current = null
+      }
       if (map) {
         map.remove()
         mapInstanceRef.current = null
       }
     }
-  }, [coords.lat, coords.lng, isLocationSectionOpen])
+  }, [coords.lat, coords.lng, isLocationSectionOpen, mapStyleMode, isPureRasterMode, activeLocale, iT.windowsHelpText, iT.macHelpText, iT.mobileHelpText])
 
+  // تحديث الـ 2D/3D واللغة وأبعاد الخريطة عند تكبير الشاشة
   useEffect(() => {
-    setPlaces(getFallbackPlacesForArea(isBatumi))
+    const map = mapInstanceRef.current
+    if (!map) return
+    setTimeout(() => {
+      map.resize()
+      if (!isPureRasterMode && map.isStyleLoaded?.()) {
+        apply3DBuildingsToMap(map, activeLocale, mapStyleMode, is3D)
+        highlight3DBuildingAtCoordinates(map, coords.lng, coords.lat)
+      }
+    }, 120)
+  }, [is3D, isFullscreenMap, activeLocale, mapStyleMode, isPureRasterMode, coords.lng, coords.lat])
 
-    fetch(
-      `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lng}&current_weather=true`
-    )
-      .then((r) => r.json())
-      .then((data) => {
-        if (data?.current_weather?.temperature !== undefined) {
-          setWeatherInfo((prev) => ({
-            ...prev,
-            temp: Math.round(data.current_weather.temperature),
-          }))
-        }
+  const handleZoomAroundUnit = useCallback(
+    (delta: number) => {
+      const map = mapInstanceRef.current
+      if (!map) return
+      const nextZoom = Math.min(19.5, Math.max(9, (map.getZoom() || 17) + delta))
+      map.easeTo({
+        center: [coords.lng, coords.lat],
+        zoom: nextZoom,
+        duration: 250,
       })
-      .catch(() => {})
-
-    const query = `[out:json][timeout:8];(node["amenity"~"school|kindergarten|pharmacy|clinic|hospital|restaurant|cafe|university"](around:1600,${coords.lat},${coords.lng});node["shop"~"supermarket|convenience"](around:1600,${coords.lat},${coords.lng});node["leisure"="fitness_centre"](around:1600,${coords.lat},${coords.lng});node["highway"="bus_stop"](around:1200,${coords.lat},${coords.lng}););out body 60;`
-
-    fetch(
-      `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`
-    )
-      .then((r) => r.json())
-      .then((data) => {
-        if (!Array.isArray(data?.elements) || data.elements.length < 5) return
-        const mapped: PlaceItem[] = []
-        data.elements.forEach((el: any) => {
-          const name =
-            el.tags?.['name:en'] || el.tags?.name || el.tags?.['name:ka']
-          if (!name || !el.lat || !el.lon) return
-          const dist = haversineMeters(coords.lat, coords.lng, el.lat, el.lon)
-          const am = el.tags?.amenity || ''
-          const sh = el.tags?.shop || ''
-          let cat: Exclude<NearbyCategoryKey, 'all'> = 'market'
-
-          if (am === 'school') cat = 'school'
-          else if (am === 'kindergarten') cat = 'kindergarten'
-          else if (am === 'pharmacy') cat = 'pharmacy'
-          else if (am === 'clinic' || am === 'hospital') cat = 'clinic'
-          else if (am === 'restaurant' || am === 'cafe') cat = 'restaurants'
-          else if (am === 'university') cat = 'university'
-          else if (el.tags?.leisure === 'fitness_centre') cat = 'gym'
-          else if (el.tags?.highway === 'bus_stop') cat = 'bus'
-          else if (sh) cat = 'market'
-
-          mapped.push({
-            id: String(el.id),
-            name: String(name),
-            category: cat,
-            distanceMeters: dist,
-          })
-        })
-
-        if (mapped.length >= 6) {
-          setPlaces((prev) => {
-            const combined = [...mapped, ...prev]
-            const seen = new Set<string>()
-            return combined
-              .filter((p) => {
-                const k = `${p.category}_${p.name.toLowerCase()}`
-                if (seen.has(k)) return false
-                seen.add(k)
-                return true
-              })
-              .sort((a, b) => a.distanceMeters - b.distanceMeters)
-          })
-        }
-      })
-      .catch(() => {})
-  }, [coords.lat, coords.lng, isBatumi])
+    },
+    [coords.lat, coords.lng]
+  )
 
   const toggle3DPitch = () => {
+    if (isPureRasterMode) {
+      setMapStyleMode('realistic')
+      setIs3D(true)
+      return
+    }
     const next3D = !is3D
     setIs3D(next3D)
     mapInstanceRef.current?.easeTo({
-      pitch: next3D ? 60 : 0,
-      bearing: next3D ? -22 : 0,
-      duration: 700,
+      center: [coords.lng, coords.lat],
+      pitch: next3D ? 54 : 0,
+      bearing: next3D ? -14 : 0,
+      duration: 420,
     })
   }
 
@@ -1191,7 +1278,7 @@ export function UnitLocationInsights({
             </div>
             <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
               <div
-                className="h-full rounded-full bg-[#2563eb]"
+                className="h-full rounded-full bg-[#2563eb] transition-all duration-500"
                 style={{ width: `${walkScore}%` }}
               />
             </div>
@@ -1209,7 +1296,7 @@ export function UnitLocationInsights({
             </div>
             <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
               <div
-                className="h-full rounded-full bg-[#2563eb]"
+                className="h-full rounded-full bg-[#2563eb] transition-all duration-500"
                 style={{ width: `${mobilityScore}%` }}
               />
             </div>
@@ -1228,7 +1315,9 @@ export function UnitLocationInsights({
                 📍 {fullAddressLabel}
               </span>
               <span className="rounded-full border border-emerald-200 bg-[#eaf8f2] px-3 py-1 text-[11px] font-bold text-[#007a5a]">
-                {iT.approxCenterBadge}
+                {hasSavedExactCoords || exactStreet
+                  ? iT.exactBuildingBadge
+                  : iT.approxCenterBadge}
               </span>
             </div>
           </div>
@@ -1255,7 +1344,9 @@ export function UnitLocationInsights({
               type="button"
               onClick={() => setIsLocationSectionOpen((prev) => !prev)}
               title={
-                isLocationSectionOpen ? iT.collapseTooltip : iT.expandTooltip
+                isLocationSectionOpen
+                  ? iT.collapseTooltip
+                  : iT.expandTooltip
               }
               className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-gray-200/90 bg-gray-50/90 text-[#0a1122] shadow-2xs transition hover:border-[#2563eb] hover:bg-blue-50/50 hover:text-[#2563eb]"
             >
@@ -1272,7 +1363,11 @@ export function UnitLocationInsights({
           <>
             <div
               dir="ltr"
-              className="relative mt-4 h-[360px] w-full overflow-hidden rounded-[18px] border border-gray-200 bg-[#edeae4] sm:h-[430px]"
+              className={
+                isFullscreenMap
+                  ? 'fixed inset-0 z-[9999] h-[100dvh] w-screen bg-[#edeae4]'
+                  : 'relative mt-4 h-[380px] w-full overflow-hidden rounded-[18px] border border-gray-200 bg-[#edeae4] sm:h-[460px]'
+              }
             >
               <div
                 ref={mapContainerRef}
@@ -1280,63 +1375,120 @@ export function UnitLocationInsights({
                 className="absolute inset-0"
               />
 
-              <div className="pointer-events-none absolute top-1/2 left-1/2 z-10 -translate-x-1/2 -translate-y-full">
-                <div className="flex flex-col items-center">
-                  <div className="flex size-11 items-center justify-center rounded-2xl border-2 border-white bg-[#ea580c] text-white shadow-xl">
-                    <Building2 className="size-5" />
+              {/* أزرار التحكم الجانبية للخريطة + أنماط الخريطة الـ 7 مطابقة لـ sivrce.ge */}
+              <div className="absolute top-4 right-4 z-20 flex flex-col items-end gap-2.5">
+                <div className="flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 shadow-md backdrop-blur-md">
+                  <button
+                    type="button"
+                    onClick={() => handleZoomAroundUnit(1)}
+                    className="flex size-10 items-center justify-center border-b border-slate-100 text-slate-700 transition hover:bg-slate-100"
+                    title="Zoom in"
+                  >
+                    <Plus className="size-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleZoomAroundUnit(-1)}
+                    className="flex size-10 items-center justify-center border-b border-slate-100 text-slate-700 transition hover:bg-slate-100"
+                    title="Zoom out"
+                  >
+                    <Minus className="size-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      mapInstanceRef.current?.flyTo({
+                        center: [coords.lng, coords.lat],
+                        zoom: 17.4,
+                        pitch: is3D && !isPureRasterMode ? 54 : 0,
+                        bearing: is3D && !isPureRasterMode ? -14 : 0,
+                        duration: 550,
+                      })
+                    }
+                    className="flex size-10 items-center justify-center border-b border-slate-100 text-slate-700 transition hover:bg-slate-100"
+                    title="Center on building"
+                  >
+                    <Compass className="size-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsFullscreenMap((p) => !p)}
+                    className="flex size-10 items-center justify-center text-slate-700 transition hover:bg-slate-100"
+                    title="Fullscreen"
+                  >
+                    {isFullscreenMap ? (
+                      <Minimize2 className="size-4" />
+                    ) : (
+                      <Maximize2 className="size-4" />
+                    )}
+                  </button>
+                </div>
+
+                <div ref={styleMenuRef} className="relative flex items-center">
+                  {styleMenuOpen && (
+                    <div className="absolute top-0 right-24 z-30 grid w-[265px] grid-cols-2 gap-1.5 rounded-2xl border border-slate-200/90 bg-white/95 p-2.5 shadow-xl backdrop-blur-md">
+                      {MAP_STYLE_OPTIONS.map((opt) => {
+                        const active = mapStyleMode === opt.id
+                        const IconComp = opt.icon
+                        return (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => {
+                              setMapStyleMode(opt.id)
+                              setStyleMenuOpen(false)
+                            }}
+                            className={`flex items-center gap-2 rounded-xl px-3 py-2 text-start text-xs font-extrabold transition ${
+                              active
+                                ? 'bg-[#2563eb] text-white shadow-2xs'
+                                : 'text-slate-700 hover:bg-slate-100'
+                            }`}
+                          >
+                            <IconComp
+                              className={`size-3.5 shrink-0 ${
+                                active ? 'text-white' : 'text-slate-500'
+                              }`}
+                            />
+                            <span className="truncate">{opt.label}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  <div className="flex items-center overflow-hidden rounded-2xl border border-slate-200/90 bg-white/95 shadow-md backdrop-blur-md">
+                    <button
+                      type="button"
+                      onClick={toggle3DPitch}
+                      className={`flex h-10 min-w-[44px] items-center justify-center px-3 text-xs font-black transition ${
+                        is3D && !isPureRasterMode
+                          ? 'bg-[#2563eb] text-white'
+                          : 'bg-transparent text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      3D
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStyleMenuOpen((p) => !p)}
+                      title="Map styles"
+                      className={`flex size-10 items-center justify-center transition ${
+                        styleMenuOpen
+                          ? 'bg-[#2563eb] text-white'
+                          : 'bg-transparent text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      <Layers className="size-4" />
+                    </button>
                   </div>
-                  <div className="-mt-1 h-3 w-0 border-x-[7px] border-t-[9px] border-x-transparent border-t-[#ea580c]" />
                 </div>
               </div>
 
-              <div className="absolute top-3 right-3 z-10 flex flex-col gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => mapInstanceRef.current?.zoomIn()}
-                  className="flex size-8 items-center justify-center rounded-lg border border-gray-200 bg-white/95 text-gray-700 shadow-md hover:bg-white"
-                >
-                  <Plus className="size-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => mapInstanceRef.current?.zoomOut()}
-                  className="flex size-8 items-center justify-center rounded-lg border border-gray-200 bg-white/95 text-gray-700 shadow-md hover:bg-white"
-                >
-                  <Minus className="size-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={toggle3DPitch}
-                  className={`flex size-8 items-center justify-center rounded-lg border text-[11px] font-black shadow-md transition ${
-                    is3D
-                      ? 'border-[#2563eb] bg-[#2563eb] text-white'
-                      : 'border-gray-200 bg-white/95 text-gray-700'
-                  }`}
-                >
-                  3D
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    mapInstanceRef.current?.flyTo({
-                      center: [coords.lng, coords.lat],
-                      zoom: 16.4,
-                      pitch: 60,
-                      bearing: -22,
-                      duration: 600,
-                    })
-                  }
-                  className="flex size-8 items-center justify-center rounded-lg border border-gray-200 bg-white/95 text-gray-700 shadow-md hover:bg-white"
-                >
-                  <Compass className="size-4" />
-                </button>
-              </div>
-
               <div className="pointer-events-none absolute inset-x-3 bottom-3 z-10 flex flex-wrap items-center justify-between gap-2">
-                <div className="pointer-events-auto rounded-xl bg-black/65 px-3 py-1.5 text-white backdrop-blur-xs">
+                <div className="pointer-events-auto rounded-xl bg-black/70 px-3.5 py-2 text-white backdrop-blur-xs">
                   <p className="text-xs font-extrabold">{fullAddressLabel}</p>
                   <p dir="ltr" className="font-mono text-[10px] text-gray-300">
-                    {coords.lat.toFixed(4)}, {coords.lng.toFixed(4)}
+                    {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}
                   </p>
                 </div>
 
@@ -1353,32 +1505,44 @@ export function UnitLocationInsights({
 
                   <button
                     type="button"
-                    onClick={() => {
-                      setIs3D(true)
-                      mapInstanceRef.current?.easeTo({
-                        center: [coords.lng, coords.lat],
-                        zoom: 17,
-                        pitch: 64,
-                        bearing: -28,
-                        duration: 800,
-                      })
-                    }}
+                    onClick={() => setIsFullscreenMap((p) => !p)}
                     className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[#ea580c] px-4 text-xs font-extrabold text-white shadow-md transition hover:bg-[#c2410c]"
                   >
-                    <Maximize2 className="size-3.5" />
-                    <span>{iT.open3dMapBtn}</span>
+                    {isFullscreenMap ? (
+                      <>
+                        <Minimize2 className="size-3.5" />
+                        <span>{iT.closeFullscreenBtn}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Maximize2 className="size-3.5" />
+                        <span>{iT.open3dMapBtn}</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
             </div>
 
             <div className="mt-6">
-              <h4 className="text-sm font-black text-[#0a1122] sm:text-base">
-                {iT.whatsNearbyTitle}
-              </h4>
-              <p className="mt-0.5 text-[11px] text-gray-400">
-                {iT.whatsNearbySub}
-              </p>
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <h4 className="text-sm font-black text-[#0a1122] sm:text-base">
+                    {iT.whatsNearbyTitle}
+                  </h4>
+                  <p className="mt-0.5 text-[11px] text-gray-400">
+                    {iT.whatsNearbySub}
+                  </p>
+                </div>
+                {loadingPlaces && (
+                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-[#2563eb]">
+                    <Loader2 className="size-4 animate-spin" />
+                    <span className="hidden sm:inline">
+                      {iT.loadingNearbyText}
+                    </span>
+                  </span>
+                )}
+              </div>
 
               <div className="mt-3.5 flex flex-wrap gap-1.5">
                 <button
@@ -1407,7 +1571,7 @@ export function UnitLocationInsights({
                       key={cat.key}
                       type="button"
                       onClick={() => setActiveCategory(cat.key)}
-                      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-extrabold transition ${
                         active
                           ? 'border-[#0a1122] bg-[#0a1122] text-white'
                           : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
@@ -1450,26 +1614,44 @@ export function UnitLocationInsights({
                         </div>
 
                         <div className="mt-3 space-y-3">
-                          {shownPlaces.map((pl) => (
-                            <div key={pl.id} className="text-xs">
-                              <div className="flex items-baseline justify-between gap-2">
-                                <strong className="truncate font-extrabold text-[#0a1122]">
-                                  {pl.name}
-                                </strong>
-                                <span
-                                  dir="ltr"
-                                  className="shrink-0 text-[11px] font-semibold text-gray-400"
-                                >
-                                  {pl.distanceMeters < 1000
-                                    ? `${pl.distanceMeters} m`
-                                    : `${(pl.distanceMeters / 1000).toFixed(1)} km`}
-                                </span>
+                          {shownPlaces.length > 0 ? (
+                            shownPlaces.map((pl) => (
+                              <div
+                                key={pl.id}
+                                onClick={() => {
+                                  mapInstanceRef.current?.flyTo({
+                                    center: [pl.lng, pl.lat],
+                                    zoom: 17.5,
+                                    duration: 600,
+                                  })
+                                }}
+                                className="cursor-pointer rounded-lg p-1 text-xs transition hover:bg-slate-50"
+                              >
+                                <div className="flex items-baseline justify-between gap-2">
+                                  <strong className="truncate font-extrabold text-[#0a1122]">
+                                    {pl.name}
+                                  </strong>
+                                  <span
+                                    dir="ltr"
+                                    className="shrink-0 font-mono text-[11px] font-bold text-[#007a5a]"
+                                  >
+                                    {pl.distanceMeters < 1000
+                                      ? `${pl.distanceMeters} m`
+                                      : `${(pl.distanceMeters / 1000).toFixed(1)} km`}
+                                  </span>
+                                </div>
+                                <p className="mt-0.5 text-start text-[10.5px] text-gray-400">
+                                  {formatTravelEstimate(pl.distanceMeters, iT)}
+                                </p>
                               </div>
-                              <p className="mt-0.5 text-start text-[10.5px] text-gray-400">
-                                {formatTravelEstimate(pl.distanceMeters, iT)}
-                              </p>
-                            </div>
-                          ))}
+                            ))
+                          ) : (
+                            <p className="py-3 text-center text-[11px] text-gray-400">
+                              {loadingPlaces
+                                ? iT.loadingNearbyText
+                                : iT.noPlacesInCategory}
+                            </p>
+                          )}
                         </div>
                       </div>
 

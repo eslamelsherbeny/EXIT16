@@ -72,7 +72,6 @@ import {
   MonthYearSelector,
   PROPERTY_KINDS,
   SIVRCE_FEATURE_GROUPS,
-  toEnglishDigits,
   years,
   type DealCategory,
   type LocalizedOptionItem,
@@ -80,9 +79,6 @@ import {
 
 export { LocationSection } from './seller-location-section'
 export { LivePreviewSidebar } from './seller-preview-sidebar'
-
-
-
 
 function getFeatureItemIcon(featureId: string) {
   const map: Record<string, any> = {
@@ -514,13 +510,13 @@ export function PhotosSection({
               {pT.videoUrlLabel}
             </label>
             <div className="relative">
-              <Play className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-slate-400" />
+              <Play className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-slate-300" />
               <Input
                 dir="ltr"
                 value={form.videoUrl}
                 onChange={(e) => update('videoUrl', e.target.value)}
-                placeholder={pT.videoUrlPlaceholder}
-                className="h-12 rounded-xl border-slate-200 pl-10 text-xs"
+                placeholder="https://youtube.com/..."
+                className="h-12 rounded-xl border-slate-200 pl-10 text-xs placeholder:text-[11px] placeholder:font-normal placeholder:text-slate-300"
               />
             </div>
           </div>
@@ -530,13 +526,13 @@ export function PhotosSection({
               {pT.tour3dLabel}
             </label>
             <div className="relative">
-              <Box className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-slate-400" />
+              <Box className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-slate-300" />
               <Input
                 dir="ltr"
                 value={form.tour3dUrl}
                 onChange={(e) => update('tour3dUrl', e.target.value)}
-                placeholder={pT.tour3dPlaceholder}
-                className="h-12 rounded-xl border-slate-200 pl-10 text-xs"
+                placeholder="https://my.matterport.com/..."
+                className="h-12 rounded-xl border-slate-200 pl-10 text-xs placeholder:text-[11px] placeholder:font-normal placeholder:text-slate-300"
               />
             </div>
           </div>
@@ -1124,7 +1120,7 @@ export function DetailsSection({
 }
 
 // =====================================================
-// 4. قسم السعر والأقساط والمستندات والوصف (منظم ومريح للعين 100% + زر وصف AI)
+// 4. قسم السعر والأقساط والمستندات والوصف
 // =====================================================
 export function PricingSection({
   sectionRef,
@@ -1251,9 +1247,7 @@ export function PricingSection({
         </div>
       </div>
 
-      {/* ترتيب مريح ومنسق للحقول المالية والتعاقد: حقلان في كل صف بدلاً من 3 حقول مضغوطة */}
       <div className="mt-6 space-y-5">
-        {/* الصف الأول (الأهم والإجباري): إجمالي سعر العقد + المبلغ المدفوع (الكاش المطلوب) */}
         <div className="grid grid-cols-1 items-start gap-4 rounded-2xl border border-slate-200/90 bg-slate-50/60 p-4 sm:grid-cols-2 sm:p-5">
           <div id="field-wrap-contractPrice">
             <MoneyField
@@ -1276,7 +1270,6 @@ export function PricingSection({
           </div>
         </div>
 
-        {/* الصف الثاني: قيمة القسط الدوري + عدد شهور التقسيط المتبقية */}
         <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
           <MoneyField
             label={prT.installmentAmountLabel}
@@ -1294,7 +1287,6 @@ export function PricingSection({
           />
         </div>
 
-        {/* الصف الثالث: تاريخ التعاقد الأصلي + سعر السوق اليوم (تقديري) */}
         <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
           <MonthYearSelector
             label={prT.contractDateLabel}
@@ -1548,7 +1540,7 @@ export function PricingSection({
           value={form.description}
           onChange={(e) => update('description', e.target.value.slice(0, 5000))}
           placeholder={prT.descriptionPlaceholder}
-          className="min-h-40 rounded-2xl border-slate-200 p-4 text-sm leading-relaxed font-medium text-[#0a1122]"
+          className="min-h-40 rounded-2xl border-slate-200 p-4 text-sm leading-relaxed font-medium text-[#0a1122] placeholder:text-xs placeholder:font-normal placeholder:text-slate-300"
         />
         <div className="mt-1 text-end font-mono text-[11px] text-slate-400">
           {form.description.length}/5000

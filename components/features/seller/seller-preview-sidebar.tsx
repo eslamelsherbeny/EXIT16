@@ -21,6 +21,15 @@ export function LivePreviewSidebar({
   const fT = getSellerFormTranslations(locale, dict)
   const pvT = fT.previewSidebar
 
+  const exactAddressLine = [
+    livePreviewData.area !== '—' ? livePreviewData.area : '',
+    form.exactStreet?.trim()
+      ? `${form.exactStreet.trim()}${form.houseNumber?.trim() ? ` ${form.houseNumber.trim()}` : ''}`
+      : '',
+  ]
+    .filter(Boolean)
+    .join(' · ')
+
   return (
     <aside className="space-y-4 lg:sticky lg:top-28 lg:col-span-4">
       <div className="overflow-hidden rounded-[24px] border border-slate-200/80 bg-white p-5 shadow-2xs">
@@ -63,6 +72,7 @@ export function LivePreviewSidebar({
 
           {(images.length > 0 ||
             form.location ||
+            form.exactStreet ||
             form.areaSize ||
             form.contractPrice ||
             form.paidAmount ||
@@ -78,8 +88,10 @@ export function LivePreviewSidebar({
                 {livePreviewData.title}
               </p>
               <p className="mt-1.5 flex items-center gap-1 text-[11px] text-slate-400">
-                <MapPin className="size-3 text-[#2563eb]" />
-                <span>{livePreviewData.area}</span>
+                <MapPin className="size-3 shrink-0 text-[#2563eb]" />
+                <span className="truncate">
+                  {exactAddressLine || livePreviewData.area}
+                </span>
               </p>
 
               {(form.areaSize || form.bedrooms || form.floor) && (
@@ -129,7 +141,7 @@ export function LivePreviewSidebar({
               +25 <span className="text-slate-700">{pvT.tipPhotos}</span>
             </li>
           )}
-          {!form.location && (
+          {(!form.location || !form.exactStreet) && (
             <li className="text-[#2563eb]">
               +10 <span className="text-slate-700">{pvT.tipLocation}</span>
             </li>

@@ -93,8 +93,13 @@ export function ReviewStep({
       ? window.location.origin
       : 'https://exit-16.vercel.app'
   const waVerifyLink = `${siteOrigin}/api/verify-contact?u=${encodeURIComponent(userId || '')}&unitId=${encodeURIComponent(unitId || '')}`
-  const areaName = getLocalizedGeorgiaAreaName(form.location, locale)
-  const waConfirmMessage = `${form.name || ''} — (${orderRef}) — (${areaName})\n${waVerifyLink}`
+
+  const resolvedAreaLabel =
+    form.locationDisplay || getLocalizedGeorgiaAreaName(form.location, locale)
+  const streetPart = form.exactStreet
+    ? ` - ${form.exactStreet}${form.houseNumber ? ' ' + form.houseNumber : ''}`
+    : ''
+  const waConfirmMessage = `${form.name || ''} — (${orderRef}) — (${resolvedAreaLabel}${streetPart})\n${waVerifyLink}`
 
   const handleRequestBoost = () => {
     startPromoTransition(async () => {
@@ -257,7 +262,9 @@ export function ReviewStep({
               {rT.previewPropertyBtn}
             </Link>
             <Link
-              href="/account"
+              href={
+                unitId ? `/account?view=seller&unitId=${unitId}` : '/account'
+              }
               className="inline-flex h-11 items-center justify-center rounded-xl bg-[#007a5a] px-7 text-xs font-bold text-white shadow-sm hover:bg-[#006248] sm:text-sm"
             >
               {tRev.goToAccountBtn}

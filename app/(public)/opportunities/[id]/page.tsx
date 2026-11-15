@@ -196,7 +196,7 @@ export default function PropertyDetailsPage() {
     }
   }
 
-useEffect(() => {
+  useEffect(() => {
     async function fetchPropertyDetails() {
       setLoading(true)
       try {
@@ -216,7 +216,6 @@ useEffect(() => {
           process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
         )
 
-        // جلب جميع الوحدات المتفق عليها بين البائع والمشتري
         const { data: acceptedOffersList } = await supabase
           .from('property_offers')
           .select('id, property_id, buyer_user_id')
@@ -256,7 +255,6 @@ useEffect(() => {
               cleanSt === 'sold' ||
               Boolean(acceptedOfferOnThisUnit)
 
-            // لا تعتبر متاحة للعامة إذا تم الاتفاق عليها (تفتح فقط للبائع أو المشتري الفائز أو الأدمن)
             const isPublicStatus =
               ['active', 'approved', 'published', 'offer_received'].includes(
                 cleanSt
@@ -443,9 +441,10 @@ useEffect(() => {
     const currency = '$'
     const projectName = row.project_name || c.defaultProject
     const rawArea = row.area || meta.area || ''
-    const areaName = rawArea
-      ? getLocalizedGeorgiaAreaName(rawArea, locale)
-      : c.defaultArea
+    const locationDisplay = meta.location_display || ''
+    const areaName =
+      locationDisplay ||
+      (rawArea ? getLocalizedGeorgiaAreaName(rawArea, locale) : c.defaultArea)
 
     const invalidDevNames = [
       'newly built',
@@ -473,7 +472,6 @@ useEffect(() => {
       `U-${numericId.length >= 4 ? numericId : fallbackId || '1001'}`
 
     const rawUnitType = row.unit_type || meta.unit_type || c.defaultType
-    // ترجمة نوع الوحدة للغة المستخدم الحالية
     const unitType = translateStoredPropertyKind(rawUnitType, locale)
 
     const isStudio =
@@ -506,7 +504,6 @@ useEffect(() => {
 
     const rawFinishing =
       row.finishing || meta.finishing || t.specs.defaultFinishing
-    // ترجمة حالة التشطيب للغة المستخدم الحالية
     const finishing = translateStoredFinishing(rawFinishing, locale)
 
     const deliveryStatus =
@@ -536,7 +533,6 @@ useEffect(() => {
 
     const rawInstFreq =
       row.installment_frequency || meta.installment_frequency || c.defaultFreq
-    // ترجمة دورية القسط للغة المستخدم الحالية
     const installmentFreq = translateStoredInstallmentFreq(rawInstFreq, locale)
 
     const remainingInstallmentMonths = parseSafeNumber(
@@ -640,6 +636,24 @@ useEffect(() => {
     const unifiedPublishedAt =
       row.approved_at || meta.approved_at || row.created_at
 
+    const hideCadastral = Boolean(meta.hide_cadastral)
+    const rawCadastral = row.cadastral_code || meta.cadastral_code || ''
+    const visibleCadastral =
+      hideCadastral && !isOwner && !isStaff ? '' : rawCadastral
+
+    const savedLat =
+      row.lat !== undefined && row.lat !== null
+        ? Number(row.lat)
+        : meta.lat !== undefined && meta.lat !== null
+          ? Number(meta.lat)
+          : null
+    const savedLng =
+      row.lng !== undefined && row.lng !== null
+        ? Number(row.lng)
+        : meta.lng !== undefined && meta.lng !== null
+          ? Number(meta.lng)
+          : null
+
     return {
       id: String(row.id),
       raw: row,
@@ -649,9 +663,12 @@ useEffect(() => {
       developerName,
       areaName,
       rawArea,
+      locationDisplay,
       exactStreet: row.exact_street || meta.exact_street || '',
       houseNumber: row.house_number || meta.house_number || '',
-      cadastralCode: row.cadastral_code || meta.cadastral_code || '',
+      cadastralCode: visibleCadastral,
+      savedLat: Number.isFinite(savedLat) ? savedLat : null,
+      savedLng: Number.isFinite(savedLng) ? savedLng : null,
       videoUrl: row.video_url || meta.video_url || '',
       tour3dUrl: row.tour_3d_url || meta.tour_3d_url || '',
       allowOnlineViewing: Boolean(
@@ -701,6 +718,7 @@ useEffect(() => {
     unitRow,
     liveViewsCount,
     currentUserId,
+    isStaff,
     locale,
     c,
     t,
@@ -807,6 +825,11 @@ useEffect(() => {
 
         <UnitLocationInsights
           areaId={computedUnit.rawArea}
+          locationDisplay={computedUnit.locationDisplay}
+          exactStreet={computedUnit.exactStreet}
+          houseNumber={computedUnit.houseNumber}
+          savedLat={computedUnit.savedLat}
+          savedLng={computedUnit.savedLng}
           t={t}
           locale={locale}
         />

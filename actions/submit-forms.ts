@@ -66,6 +66,9 @@ function isValidGeorgiaCoord(lat: number, lng: number): boolean {
  * توليد وحفظ إحداثيات المبنى والأماكن المحيطة (150+ مرفق) وقت رفع الوحدة الفعلي
  * كما يفعل sivrce.ge حتى تفتح صفحة الوحدة في 0 ثانية لأي زائر
  */
+// داخل دالة enrichUnitPayloadWithLocationAndNearbyCache في src/actions/submit-forms.ts
+// استبدل دالة enrichUnitPayloadWithLocationAndNearbyCache فقط بهذا الكود:
+
 async function enrichUnitPayloadWithLocationAndNearbyCache(
   formData: FormData,
   payload: Record<string, any>,
@@ -113,7 +116,7 @@ async function enrichUnitPayloadWithLocationAndNearbyCache(
           houseNumber: house,
           city: cityPart,
         }),
-        new Promise<null>((r) => setTimeout(() => r(null), 2500)),
+        new Promise<null>((r) => setTimeout(() => r(null), 2000)),
       ])
 
       if (geocoded && isValidGeorgiaCoord(geocoded.lat, geocoded.lng)) {
@@ -126,42 +129,6 @@ async function enrichUnitPayloadWithLocationAndNearbyCache(
       const fallback = getCoordinatesForArea(areaId || 'Tbilisi - Saburtalo')
       finalLat = fallback.lat
       finalLng = fallback.lng
-    }
-
-    const rLat = Number(finalLat.toFixed(4))
-    const rLng = Number(finalLng.toFixed(4))
-    const coordsKey = `${rLat}_${rLng}`
-
-    const existingCachedPlaces = Array.isArray(
-      existingMeta.cached_nearby_places_v5
-    )
-      ? existingMeta.cached_nearby_places_v5
-      : null
-
-    let nearbyPlaces =
-      existingCachedPlaces &&
-      existingCachedPlaces.length >= 15 &&
-      existingMeta.cached_nearby_coords === coordsKey
-        ? existingCachedPlaces
-        : null
-
-    if (!nearbyPlaces) {
-      const nearbyRes = await Promise.race([
-        fetchRealNearbyPlacesAndWeatherAction({
-          lat: finalLat,
-          lng: finalLng,
-          locale: 'en',
-        }),
-        new Promise<null>((r) => setTimeout(() => r(null), 4500)),
-      ])
-
-      if (
-        nearbyRes &&
-        Array.isArray(nearbyRes.places) &&
-        nearbyRes.places.length > 0
-      ) {
-        nearbyPlaces = nearbyRes.places.slice(0, 200)
-      }
     }
 
     const hideCadastralRaw = text(formData, 'hide_cadastral')
@@ -181,12 +148,6 @@ async function enrichUnitPayloadWithLocationAndNearbyCache(
         lng: Number(finalLng.toFixed(6)),
         ...(locDisplay ? { location_display: locDisplay } : {}),
         hide_cadastral: hideCadastral,
-        ...(nearbyPlaces
-          ? {
-              cached_nearby_places_v5: nearbyPlaces,
-              cached_nearby_coords: coordsKey,
-            }
-          : {}),
       },
     }
   } catch {}

@@ -1,27 +1,50 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import * as SunCalc from 'suncalc'
 import {
+  Baby,
+  Building2,
+  Bus,
+  Camera,
   ChevronDown,
   ChevronUp,
+  Circle,
   CloudSun,
   Compass,
+  Contrast,
+  Dumbbell,
   Footprints,
+  Globe,
+  GraduationCap,
+  HeartPulse,
+  Landmark,
   Layers,
-  Loader2,
+  Map as MapIcon,
   Maximize2,
   Minimize2,
   Minus,
+  Mountain,
   Navigation,
+  Pill,
   Plane,
   Plus,
+  ShoppingCart,
+  Sparkles,
+  Sun,
   TrainFront,
+  Trees,
+  Utensils,
 } from 'lucide-react'
-import {
-  fetchRealNearbyPlacesAndWeatherAction,
-  type RealNearbyPlaceItem,
+import type {
+  NearbyPlaceCategory,
+  RealNearbyPlaceItem,
 } from '@/actions/georgia-geocode-action'
 import { getCoordinatesForArea } from '@/lib/georgia-coordinates'
+import {
+  getInstantGeorgiaNearbyPlaces,
+  haversineMetersClient,
+} from '@/lib/georgia-pois-engine'
 import {
   apply3DBuildingsToMap,
   geocodeExactBuildingInGeorgia,
@@ -31,16 +54,1064 @@ import {
 } from '@/lib/georgia-uber-search'
 import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
 import { useTranslation, type LocaleCode } from '@/lib/i18n'
-import {
-  CATEGORY_ICONS,
-  INSIGHTS_I18N,
-  MAP_STYLE_OPTIONS,
-  calculateSivrceMobilityBreakdown,
-  formatTravelEstimate,
-  getLocalizedPlaceName,
-  type NearbyCategoryKey,
-} from './location-insights-data'
-import { SunAndDaylightInteractiveCard } from './unit-sun-daylight-card'
+
+type NearbyCategoryKey = 'all' | NearbyPlaceCategory
+
+const MAP_STYLE_OPTIONS: Array<{
+  id: GeorgiaMapThemeMode
+  label: string
+  icon: any
+}> = [
+  { id: 'streets', label: 'Streets', icon: MapIcon },
+  { id: 'sivrce', label: 'Sivrce', icon: Globe },
+  { id: 'realistic', label: 'Realistic', icon: Mountain },
+  { id: 'photoreal', label: 'Photoreal', icon: Camera },
+  { id: 'hybrid', label: 'Hybrid', icon: Sparkles },
+  { id: 'minimal', label: 'Minimal', icon: Circle },
+  { id: 'contrast', label: 'High contrast', icon: Contrast },
+]
+
+const GEORGIA_RAIL_STATIONS = [
+  { name: 'Tbilisi Central', lat: 41.7205, lng: 44.7992 },
+  { name: 'Navtlughi', lat: 41.6882, lng: 44.8418 },
+  { name: 'Didube', lat: 41.7501, lng: 44.7795 },
+  { name: 'Batumi Central', lat: 41.6588, lng: 41.6769 },
+]
+
+const GEORGIA_AIRPORTS = [
+  { code: 'TBS', name: 'TBS Airport', lat: 41.6692, lng: 44.9547 },
+  { code: 'BUS', name: 'BUS Airport', lat: 41.6103, lng: 41.5997 },
+  { code: 'KUT', name: 'KUT Airport', lat: 42.1767, lng: 42.4826 },
+]
+
+const CATEGORY_ICONS: Array<{
+  key: NearbyPlaceCategory
+  icon: any
+}> = [
+  { key: 'metro', icon: TrainFront },
+  { key: 'school', icon: GraduationCap },
+  { key: 'kindergarten', icon: Baby },
+  { key: 'pharmacy', icon: Pill },
+  { key: 'park', icon: Trees },
+  { key: 'market', icon: ShoppingCart },
+  { key: 'restaurants', icon: Utensils },
+  { key: 'clinic', icon: HeartPulse },
+  { key: 'university', icon: Landmark },
+  { key: 'bank', icon: Building2 },
+  { key: 'landmark', icon: Compass },
+  { key: 'gym', icon: Dumbbell },
+  { key: 'bus', icon: Bus },
+]
+
+function computeSivrceTravelTimes(meters: number) {
+  const walkMin = Math.max(1, Math.round(meters / 80))
+  const transitMin = Math.round(meters / 300) + 5
+  const driveMin = Math.round(meters / 500) + 4
+  return { walkMin, transitMin, driveMin }
+}
+
+const INSIGHTS_I18N: Record<
+  LocaleCode,
+  {
+    neighborhoodTitle: string
+    neighborhoodSubPrefix: string
+    neighborhoodSubSuffix: string
+    walkScoreLabel: string
+    mobilityScoreLabel: string
+    metroRowLabel: string
+    busRowLabel: string
+    busLinesWithin500m: string
+    railRowLabel: string
+    airportRowLabel: string
+    bestBadge: string
+    locationTitle: string
+    exactBuildingBadge: string
+    approxCenterBadge: string
+    cloudyWord: string
+    airQualityWord: string
+    collapseTooltip: string
+    expandTooltip: string
+    directionsBtn: string
+    open3dMapBtn: string
+    closeFullscreenBtn: string
+    whatsNearbyTitle: string
+    whatsNearbySub: string
+    allCat: string
+    showLessBtn: string
+    showMoreSuffix: string
+    walkWord: string
+    transitWord: string
+    driveWord: string
+    minWord: string
+    sunTitle: string
+    sunSub: string
+    winterTab: string
+    todayTab: string
+    summerTab: string
+    windowDirectionTitle: string
+    northLabel: string
+    eastLabel: string
+    southLabel: string
+    westLabel: string
+    noDirectSun: string
+    brightMorning: string
+    veryBrightAllDay: string
+    brightAfternoon: string
+    southEastLabel: string
+    southWestLabel: string
+    timeLabel: string
+    heightLabel: string
+    directionLabel: string
+    daylightLabel: string
+    sunriseLabel: string
+    solarNoonLabel: string
+    sunsetLabel: string
+    windowsHelpText: string
+    macHelpText: string
+    mobileHelpText: string
+    categories: Record<NearbyPlaceCategory, string>
+  }
+> = {
+  ar: {
+    neighborhoodTitle: 'تقييم الحي وسهولة التنقل (Neighborhood & Mobility)',
+    neighborhoodSubPrefix: 'منطقة مخدومة بالكامل وقابلة للمشي (',
+    neighborhoodSubSuffix: 'مرفق وخدمة حقيقية مسجلة حول المبنى)',
+    walkScoreLabel:
+      'مؤشر المشي والخدمات اليومية (Walk Score — قضاء الاحتياجات اليومية مشياً)',
+    mobilityScoreLabel:
+      'مؤشر المواصلات والربط المروري (Mobility Score · Well connected)',
+    metroRowLabel: 'المترو',
+    busRowLabel: 'الحافلات',
+    busLinesWithin500m: 'خطوط ضمن 500 م',
+    railRowLabel: 'محطة القطار',
+    airportRowLabel: 'المطار',
+    bestBadge: 'الأسرع',
+    locationTitle: 'الموقع والخريطة ثلاثية الأبعاد',
+    exactBuildingBadge: 'موقع المبنى الدقيق ✓',
+    approxCenterBadge: 'موقع موثق في السجل الجغرافي',
+    cloudyWord: 'معتدل',
+    airQualityWord: 'جودة الهواء',
+    collapseTooltip: 'طي القسم',
+    expandTooltip: 'فتح القسم',
+    directionsBtn: 'الاتجاهات على Google Maps',
+    open3dMapBtn: 'تكبير الخريطة 3D',
+    closeFullscreenBtn: 'تصغير الخريطة',
+    whatsNearbyTitle: 'الأماكن والخدمات القريبة من العقار',
+    whatsNearbySub:
+      'الأقرب أولاً · المسافة الحقيقية وزمن المشي والسيارة من موقع المبنى · خرائط جورجيا',
+    allCat: 'الكل',
+    showLessBtn: 'عرض أقل ▲',
+    showMoreSuffix: 'المزيد ⌄',
+    walkWord: 'مشياً',
+    transitWord: 'مواصلات',
+    driveWord: 'سيارة',
+    minWord: 'د',
+    sunTitle: 'حركة الشمس والإضاءة الطبيعية للمبنى',
+    sunSub:
+      'مسار الشمس الفلكي المحسوب بدقة من إحداثيات هذا المبنى (بتوقيت جورجيا)',
+    winterTab: 'الشتاء',
+    todayTab: 'اليوم',
+    summerTab: 'الصيف',
+    windowDirectionTitle: 'تعرض النوافذ لأشعة الشمس المباشرة حسب الاتجاه',
+    northLabel: 'الشمال',
+    eastLabel: 'الشرق',
+    southLabel: 'الجنوب',
+    westLabel: 'الغرب',
+    noDirectSun: 'إضاءة ناعمة بدون شمس مباشرة',
+    brightMorning: 'مشرق صباحاً',
+    veryBrightAllDay: 'مشمس جداً طوال النهار',
+    brightAfternoon: 'مشرق عصراً',
+    southEastLabel: 'جنوب شرق',
+    southWestLabel: 'جنوب غرب',
+    timeLabel: 'الوقت المحدد',
+    heightLabel: 'زاوية الارتفاع',
+    directionLabel: 'الاتجاه',
+    daylightLabel: 'طول النهار',
+    sunriseLabel: 'الشروق',
+    solarNoonLabel: 'الظهيرة',
+    sunsetLabel: 'الغروب',
+    windowsHelpText: 'استخدم Ctrl + التمرير لتكبير الخريطة',
+    macHelpText: 'استخدم ⌘ + التمرير لتكبير الخريطة',
+    mobileHelpText: 'استخدم إصبعين لتحريك وتكبير الخريطة',
+    categories: {
+      metro: 'المترو',
+      school: 'مدارس',
+      kindergarten: 'حضانات ورياض أطفال',
+      pharmacy: 'صيدليات',
+      park: 'حدائق ومتنزهات',
+      market: 'سوبرماركت وأسواق',
+      restaurants: 'مطاعم وكافيهات',
+      clinic: 'عيادات ومستشفيات',
+      university: 'جامعات وكليات',
+      bank: 'بنوك وصراف آلي',
+      landmark: 'معالم شهيرة',
+      gym: 'صالات رياضية',
+      bus: 'محطات حافلات',
+    },
+  },
+  en: {
+    neighborhoodTitle: 'Neighborhood',
+    neighborhoodSubPrefix: 'Very walkable (',
+    neighborhoodSubSuffix: 'nearby amenities)',
+    walkScoreLabel: 'Walk (Daily errands on foot)',
+    mobilityScoreLabel: 'Mobility Score · Well connected',
+    metroRowLabel: 'Metro',
+    busRowLabel: 'Bus',
+    busLinesWithin500m: 'Lines within 500 m',
+    railRowLabel: 'Rail',
+    airportRowLabel: 'Airport',
+    bestBadge: 'Best',
+    locationTitle: 'Location & 3D Map',
+    exactBuildingBadge: 'Exact building pin ✓',
+    approxCenterBadge: 'Verified area coordinates',
+    cloudyWord: 'Partly cloudy',
+    airQualityWord: 'Air quality',
+    collapseTooltip: 'Collapse',
+    expandTooltip: 'Expand',
+    directionsBtn: 'Directions',
+    open3dMapBtn: 'Open 3D map',
+    closeFullscreenBtn: 'Exit Fullscreen',
+    whatsNearbyTitle: "What's nearby",
+    whatsNearbySub: 'Nearest first · walking time · Aqar Exit Maps',
+    allCat: 'All',
+    showLessBtn: 'Show less ▲',
+    showMoreSuffix: 'More ⌄',
+    walkWord: 'walk',
+    transitWord: 'transit',
+    driveWord: 'drive',
+    minWord: 'min',
+    sunTitle: 'Sun & daylight',
+    sunSub:
+      'Sun path at this address — astronomical calculation from the coordinates',
+    winterTab: 'Winter',
+    todayTab: 'Today',
+    summerTab: 'Summer',
+    windowDirectionTitle: 'Direct sun by window direction',
+    northLabel: 'North',
+    eastLabel: 'East',
+    southLabel: 'South',
+    westLabel: 'West',
+    noDirectSun: 'No direct sun',
+    brightMorning: 'Bright',
+    veryBrightAllDay: 'Very bright',
+    brightAfternoon: 'Bright',
+    southEastLabel: 'South-East',
+    southWestLabel: 'South-West',
+    timeLabel: 'TIME',
+    heightLabel: 'HEIGHT',
+    directionLabel: 'DIRECTION',
+    daylightLabel: 'DAYLIGHT',
+    sunriseLabel: 'SUNRISE',
+    solarNoonLabel: 'SOLAR NOON',
+    sunsetLabel: 'SUNSET',
+    windowsHelpText: 'Use Ctrl + scroll to zoom the map',
+    macHelpText: 'Use ⌘ + scroll to zoom the map',
+    mobileHelpText: 'Use two fingers to move the map',
+    categories: {
+      metro: 'Metro',
+      school: 'School',
+      kindergarten: 'Kindergarten',
+      pharmacy: 'Pharmacy',
+      park: 'Park',
+      market: 'Market',
+      restaurants: 'Restaurants',
+      clinic: 'Clinic',
+      university: 'University',
+      bank: 'Bank',
+      landmark: 'Landmark',
+      gym: 'Gym',
+      bus: 'Bus',
+    },
+  },
+  ru: {
+    neighborhoodTitle: 'Район и транспортная доступность',
+    neighborhoodSubPrefix: 'Развитая инфраструктура в пешей доступности (',
+    neighborhoodSubSuffix: 'объектов рядом)',
+    walkScoreLabel: 'Пешая доступность (Магазины, аптеки и школы пешком)',
+    mobilityScoreLabel: 'Транспортная доступность · Отличная связь',
+    metroRowLabel: 'Метро',
+    busRowLabel: 'Автобус',
+    busLinesWithin500m: 'Линий в радиусе 500 м',
+    railRowLabel: 'Вокзал',
+    airportRowLabel: 'Аэропорт',
+    bestBadge: 'Лучший',
+    locationTitle: 'Локация и 3D-карта',
+    exactBuildingBadge: 'Точное здание ✓',
+    approxCenterBadge: 'Координаты подтверждены',
+    cloudyWord: 'Переменная облачность',
+    airQualityWord: 'Качество воздуха',
+    collapseTooltip: 'Свернуть',
+    expandTooltip: 'Развернуть',
+    directionsBtn: 'Маршрут',
+    open3dMapBtn: 'На весь экран 3D',
+    closeFullscreenBtn: 'Свернуть карту',
+    whatsNearbyTitle: 'Что находится рядом',
+    whatsNearbySub: 'Сначала ближайшие · точное время пешком · данные карты',
+    allCat: 'Все',
+    showLessBtn: 'Свернуть ▲',
+    showMoreSuffix: 'Еще ⌄',
+    walkWord: 'пешком',
+    transitWord: 'транспорт',
+    driveWord: 'авто',
+    minWord: 'мин',
+    sunTitle: 'Солнце и естественное освещение',
+    sunSub: 'Траектория солнца по точным координатам здания',
+    winterTab: 'Зима',
+    todayTab: 'Сегодня',
+    summerTab: 'Лето',
+    windowDirectionTitle: 'Солнечный свет по направлению окон',
+    northLabel: 'Север',
+    eastLabel: 'Восток',
+    southLabel: 'Юг',
+    westLabel: 'Запад',
+    noDirectSun: 'Без прямого солнца',
+    brightMorning: 'Солнечно утром',
+    veryBrightAllDay: 'Солнечно весь день',
+    brightAfternoon: 'Солнечно после полудня',
+    southEastLabel: 'Юго-Восток',
+    southWestLabel: 'Юго-Запад',
+    timeLabel: 'ВРЕМЯ',
+    heightLabel: 'ВЫСОТА',
+    directionLabel: 'НАПРАВЛЕНИЕ',
+    daylightLabel: 'СВЕТОВОЙ ДЕНЬ',
+    sunriseLabel: 'ВОСХОД',
+    solarNoonLabel: 'ПОЛДЕНЬ',
+    sunsetLabel: 'ЗАКАТ',
+    windowsHelpText: 'Используйте Ctrl + колесико для масштабирования',
+    macHelpText: 'Используйте ⌘ + колесико для масштабирования',
+    mobileHelpText: 'Используйте два пальца для перемещения карты',
+    categories: {
+      metro: 'Метро',
+      school: 'Школы',
+      kindergarten: 'Детские сады',
+      pharmacy: 'Аптеки',
+      park: 'Парки',
+      market: 'Супермаркеты',
+      restaurants: 'Рестораны',
+      clinic: 'Клиники',
+      university: 'Университеты',
+      bank: 'Банки',
+      landmark: 'Достопримечательности',
+      gym: 'Фитнес',
+      bus: 'Автобус',
+    },
+  },
+  ka: {
+    neighborhoodTitle: 'უბანი და ტრანსპორტი',
+    neighborhoodSubPrefix: 'კეთილმოწყობილი და ფეხით სავალი ზონა (',
+    neighborhoodSubSuffix: 'ობიექტი შენობის გარშემო)',
+    walkScoreLabel: 'ფეხით ხელმისაწვდომობა (Walk Score)',
+    mobilityScoreLabel: 'ტრანსპორტის ხელმისაწვდომობა (Mobility Score)',
+    metroRowLabel: 'მეტრო',
+    busRowLabel: 'ავტობუსი',
+    busLinesWithin500m: 'ხაზები 500 მ-ში',
+    railRowLabel: 'რკინიგზა',
+    airportRowLabel: 'აეროპორტი',
+    bestBadge: 'საუკეთესო',
+    locationTitle: 'მდებარეობა და 3D რუკა',
+    exactBuildingBadge: 'ზუსტი შენობა ✓',
+    approxCenterBadge: 'დადასტურებული მდებარეობა',
+    cloudyWord: 'ზომიერი',
+    airQualityWord: 'ჰაერის ხარისხი',
+    collapseTooltip: 'ჩაკეცვა',
+    expandTooltip: 'გაშლა',
+    directionsBtn: 'მარშრუტი',
+    open3dMapBtn: '3D რუკა',
+    closeFullscreenBtn: 'დახურვა',
+    whatsNearbyTitle: 'რა არის ახლოს',
+    whatsNearbySub: 'უახლოესი ობიექტები · ფეხით სავალი დრო',
+    allCat: 'ყველა',
+    showLessBtn: 'ნაკლები ▲',
+    showMoreSuffix: 'მეტი ⌄',
+    walkWord: 'ფეხით',
+    transitWord: 'ტრანსპორტი',
+    driveWord: 'მანქანით',
+    minWord: 'წთ',
+    sunTitle: 'მზე და ბუნებრივი განათება',
+    sunSub: 'მზის ტრაექტორია შენობის ზუსტი კოორდინატების მიხედვით',
+    winterTab: 'ზამთარი',
+    todayTab: 'დღეს',
+    summerTab: 'ზაფხული',
+    windowDirectionTitle: 'მზის სხივები ფანჯრების მიხედვით',
+    northLabel: 'ჩრდილოეთი',
+    eastLabel: 'აღმოსავლეთი',
+    southLabel: 'სამხრეთი',
+    westLabel: 'დასავლეთი',
+    noDirectSun: 'პირდაპირი მზის გარეშე',
+    brightMorning: 'ნათელი დილით',
+    veryBrightAllDay: 'მზიანი მთელი დღე',
+    brightAfternoon: 'ნათელი საღამოს',
+    southEastLabel: 'სამხრეთ-აღმოსავლეთი',
+    southWestLabel: 'სამხრეთ-დასავლეთი',
+    timeLabel: 'დრო',
+    heightLabel: 'სიმაღლე',
+    directionLabel: 'მიმართულება',
+    daylightLabel: 'დღის ხანგრძლივობა',
+    sunriseLabel: 'ამოსვლა',
+    solarNoonLabel: 'შუადღე',
+    sunsetLabel: 'ჩასვლა',
+    windowsHelpText: 'გამოიყენეთ Ctrl + სქროლი რუკის გასადიდებლად',
+    macHelpText: 'გამოიყენეთ ⌘ + სქროლი რუკის გასადიდებლად',
+    mobileHelpText: 'გამოიყენეთ ორი თითი რუკის გადასაადგილებლად',
+    categories: {
+      metro: 'მეტრო',
+      school: 'სკოლები',
+      kindergarten: 'საბავშვო ბაღები',
+      pharmacy: 'აფთიაქები',
+      park: 'პარკები',
+      market: 'მარკეტები',
+      restaurants: 'რესტორნები',
+      clinic: 'კლინიკები',
+      university: 'უნივერსიტეტები',
+      bank: 'ბანკები',
+      landmark: 'ღირსშესანიშნაობები',
+      gym: 'ფიტნესი',
+      bus: 'ავტობუსი',
+    },
+  },
+}
+
+function formatTravelEstimate(
+  meters: number,
+  iT: (typeof INSIGHTS_I18N)['ar']
+): string {
+  const { walkMin, transitMin, driveMin } = computeSivrceTravelTimes(meters)
+  const parts = [`${iT.walkWord} ~${walkMin} ${iT.minWord}`]
+
+  if (transitMin < walkMin) {
+    parts.push(`${iT.transitWord} ~${transitMin} ${iT.minWord}`)
+  }
+  if (meters >= 1200 && driveMin < walkMin) {
+    parts.push(`${iT.driveWord} ~${driveMin} ${iT.minWord}`)
+  }
+
+  return parts.join(' · ')
+}
+
+function getLocalizedPlaceName(
+  place: RealNearbyPlaceItem,
+  locale: LocaleCode
+): string {
+  const anyPlace = place as any
+  if (anyPlace.names && typeof anyPlace.names === 'object') {
+    const localized =
+      anyPlace.names[locale] ||
+      anyPlace.names.en ||
+      anyPlace.names.ka ||
+      anyPlace.names.ru ||
+      anyPlace.names.ar
+    if (localized && String(localized).trim()) {
+      return String(localized).trim()
+    }
+  }
+  return place.name
+}
+
+function calculateSivrceMobilityBreakdown(
+  places: RealNearbyPlaceItem[],
+  lat: number,
+  lng: number,
+  locale: LocaleCode = 'en'
+) {
+  const walkCategories: NearbyPlaceCategory[] = [
+    'market',
+    'pharmacy',
+    'school',
+    'kindergarten',
+    'restaurants',
+    'park',
+    'bank',
+    'clinic',
+  ]
+  const walkEssentials = places.filter((p) =>
+    walkCategories.includes(p.category)
+  )
+  const within500m = walkEssentials.filter(
+    (p) => p.distanceMeters <= 500
+  ).length
+  const within1000m = walkEssentials.filter(
+    (p) => p.distanceMeters <= 1000
+  ).length
+
+  const nearestMarket =
+    places.find((p) => p.category === 'market')?.distanceMeters ?? 400
+  const nearestPharmacy =
+    places.find((p) => p.category === 'pharmacy')?.distanceMeters ?? 400
+  const nearestSchool =
+    places.find(
+      (p) => p.category === 'school' || p.category === 'kindergarten'
+    )?.distanceMeters ?? 500
+
+  let computedWalk =
+    54 +
+    Math.min(24, within500m * 2.2) +
+    Math.min(12, within1000m * 0.5) +
+    (nearestMarket <= 250 ? 6 : nearestMarket <= 500 ? 4 : 0) +
+    (nearestPharmacy <= 300 ? 4 : nearestPharmacy <= 600 ? 2 : 0) +
+    (nearestSchool <= 500 ? 4 : nearestSchool <= 900 ? 2 : 0)
+
+  computedWalk = Math.round(Math.max(72, Math.min(98, computedWalk)))
+
+  const nearestMetroObj = places.find((p) => p.category === 'metro')
+  const metroDist = nearestMetroObj?.distanceMeters ?? 1800
+  const metroName = nearestMetroObj
+    ? getLocalizedPlaceName(nearestMetroObj, locale).replace(/ Metro$/i, '')
+    : 'Technical University'
+
+  let metroPoints = 0
+  if (metroDist <= 500) {
+    metroPoints = 30
+  } else if (metroDist < 1500) {
+    metroPoints = Math.round(30 * (1 - (metroDist - 500) / 1000))
+  }
+  const metroTimes = computeSivrceTravelTimes(metroDist)
+
+  const busStops = places.filter((p) => p.category === 'bus')
+  const busWithin500 = busStops.filter((b) => b.distanceMeters <= 550)
+  const nearestBusDist = busStops[0]?.distanceMeters ?? 120
+  const busLinesCount = Math.min(10, Math.max(4, busWithin500.length))
+  const busPoints = Math.min(40, busLinesCount * 4)
+  const busTimes = computeSivrceTravelTimes(nearestBusDist)
+
+  const railsSorted = GEORGIA_RAIL_STATIONS.map((r) => ({
+    ...r,
+    dist: haversineMetersClient(lat, lng, r.lat, r.lng),
+  })).sort((a, b) => a.dist - b.dist)
+  const nearestRail = railsSorted[0]
+
+  let railPoints = 0
+  if (nearestRail.dist <= 1500) {
+    railPoints = 15
+  } else if (nearestRail.dist < 8000) {
+    railPoints = Math.round(15 * (1 - (nearestRail.dist - 1500) / 6500))
+  }
+  const railTimes = computeSivrceTravelTimes(nearestRail.dist)
+
+  const airportsSorted = GEORGIA_AIRPORTS.map((a) => ({
+    ...a,
+    dist: haversineMetersClient(lat, lng, a.lat, a.lng),
+  })).sort((a, b) => a.dist - b.dist)
+  const nearestAirport = airportsSorted[0]
+
+  let airportPoints = 0
+  if (nearestAirport.dist <= 15000) {
+    airportPoints = 15
+  } else if (nearestAirport.dist < 60000) {
+    airportPoints = Math.round(
+      15 * (1 - (nearestAirport.dist - 15000) / 45000)
+    )
+  }
+  const airportTimes = computeSivrceTravelTimes(nearestAirport.dist)
+
+  const totalMobility = Math.min(
+    100,
+    metroPoints + busPoints + railPoints + airportPoints
+  )
+
+  return {
+    walkScore: computedWalk,
+    mobilityScore: totalMobility,
+    metro: {
+      name: metroName,
+      distStr:
+        metroDist < 1000
+          ? `${metroDist} m`
+          : `${(metroDist / 1000).toFixed(1)} km`,
+      points: metroPoints,
+      driveMin: metroTimes.driveMin,
+      transitMin: metroTimes.transitMin,
+      walkMin: metroTimes.walkMin,
+    },
+    bus: {
+      linesCount: busLinesCount,
+      distStr: `${nearestBusDist} m`,
+      points: busPoints,
+      walkMin: busTimes.walkMin,
+    },
+    rail: {
+      name: nearestRail.name,
+      distStr: `${(nearestRail.dist / 1000).toFixed(1)} km`,
+      points: railPoints,
+      driveMin: railTimes.driveMin,
+      transitMin: railTimes.transitMin,
+      walkMin: railTimes.walkMin,
+    },
+    airport: {
+      code: nearestAirport.code,
+      distStr: `${(nearestAirport.dist / 1000).toFixed(1)} km`,
+      points: airportPoints,
+      driveMin: airportTimes.driveMin,
+      transitMin: airportTimes.transitMin,
+    },
+  }
+}
+
+function normalizeAltitudeDegrees(rawAlt: number): number {
+  if (!Number.isFinite(rawAlt)) return 0
+  const deg =
+    Math.abs(rawAlt) <= Math.PI / 2 + 0.05
+      ? (rawAlt * 180) / Math.PI
+      : rawAlt
+  return Math.max(0, Math.min(90, Math.round(deg)))
+}
+
+function SunAndDaylightInteractiveCard({
+  lat,
+  lng,
+  iT,
+}: {
+  lat: number
+  lng: number
+  iT: (typeof INSIGHTS_I18N)['ar']
+}) {
+  const [isOpen, setIsOpen] = useState(true)
+  const [season, setSeason] = useState<'winter' | 'today' | 'summer'>('today')
+  const [sliderRatio, setSliderRatio] = useState(0.5)
+
+  const targetDate = useMemo(() => {
+    const now = new Date()
+    if (season === 'winter')
+      return new Date(Date.UTC(now.getFullYear(), 11, 21, 8, 0))
+    if (season === 'summer')
+      return new Date(Date.UTC(now.getFullYear(), 5, 21, 8, 0))
+    return now
+  }, [season])
+
+  const sunMetrics = useMemo(() => {
+    const times = SunCalc.getTimes(targetDate, lat, lng)
+    const base = new Date(targetDate)
+    const safeSunrise =
+      times.sunrise && !isNaN(times.sunrise.getTime())
+        ? times.sunrise
+        : new Date(new Date(base).setUTCHours(3, 50, 0, 0))
+    const safeSunset =
+      times.sunset && !isNaN(times.sunset.getTime())
+        ? times.sunset
+        : new Date(new Date(base).setUTCHours(13, 42, 0, 0))
+    const safeNoon =
+      times.solarNoon && !isNaN(times.solarNoon.getTime())
+        ? times.solarNoon
+        : new Date((safeSunrise.getTime() + safeSunset.getTime()) / 2)
+
+    const noonPos = SunCalc.getPosition(safeNoon, lat, lng)
+    const maxDeg = Math.max(25, normalizeAltitudeDegrees(noonPos.altitude))
+
+    const daylightMs = Math.max(0, safeSunset.getTime() - safeSunrise.getTime())
+    const totalHours = Math.floor(daylightMs / 3600000)
+    const totalMins = Math.floor((daylightMs % 3600000) / 60000)
+
+    const clampedRatio = Math.max(0, Math.min(1, sliderRatio))
+    const selectedTimeMs = safeSunrise.getTime() + daylightMs * clampedRatio
+    const selectedDate = new Date(selectedTimeMs)
+    const selectedPos = SunCalc.getPosition(selectedDate, lat, lng)
+
+    const rawSelectedDeg = normalizeAltitudeDegrees(selectedPos.altitude)
+    const smoothParabolicDeg = Math.round(
+      maxDeg * 4 * clampedRatio * (1 - clampedRatio)
+    )
+    const selectedHeightDeg =
+      rawSelectedDeg > 0 && rawSelectedDeg <= maxDeg
+        ? rawSelectedDeg
+        : smoothParabolicDeg
+
+    let dirLabel = iT.southLabel
+    if (clampedRatio < 0.25) dirLabel = iT.eastLabel
+    else if (clampedRatio < 0.42) dirLabel = iT.southEastLabel
+    else if (clampedRatio <= 0.58) dirLabel = iT.southLabel
+    else if (clampedRatio < 0.78) dirLabel = iT.southWestLabel
+    else dirLabel = iT.westLabel
+
+    const fmt = (d: Date) => {
+      try {
+        return d.toLocaleTimeString('en-GB', {
+          hour: '2-digit',
+          minute: '2-digit',
+          timeZone: 'Asia/Tbilisi',
+        })
+      } catch {
+        return d.toLocaleTimeString('en-GB', {
+          hour: '2-digit',
+          minute: '2-digit',
+        })
+      }
+    }
+
+    const halfHours = Math.floor(totalHours / 2)
+    const halfMins = Math.round(totalMins / 2)
+
+    return {
+      sunriseStr: fmt(safeSunrise),
+      sunsetStr: fmt(safeSunset),
+      noonStr: fmt(safeNoon),
+      selectedTimeStr: fmt(selectedDate),
+      maxDeg,
+      selectedHeightDeg,
+      dirLabel,
+      daylightStr: `${totalHours} h ${totalMins} min`,
+      eastHoursStr: `${halfHours} h ${halfMins} min`,
+      westHoursStr: `${halfHours} h ${halfMins} min`,
+      eastWindowRange: `${fmt(safeSunrise)}–${fmt(safeNoon)}`,
+      westWindowRange: `${fmt(safeNoon)}–${fmt(safeSunset)}`,
+      southWindowRange: `${fmt(safeSunrise)}–${fmt(safeSunset)}`,
+    }
+  }, [targetDate, lat, lng, sliderRatio, iT])
+
+  const startX = 40
+  const endX = 560
+  const baseY = 155
+  const peakHeight = season === 'summer' ? 125 : season === 'winter' ? 75 : 105
+  const tVal = sliderRatio
+  const controlX = 300
+  const controlY = baseY - peakHeight * 2
+
+  const sunX =
+    (1 - tVal) * (1 - tVal) * startX +
+    2 * (1 - tVal) * tVal * controlX +
+    tVal * tVal * endX
+  const sunY =
+    (1 - tVal) * (1 - tVal) * baseY +
+    2 * (1 - tVal) * tVal * controlY +
+    tVal * tVal * baseY
+
+  return (
+    <section className="mt-5 rounded-[22px] border border-gray-200/85 bg-white p-5 text-start shadow-2xs sm:p-6">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-orange-500">
+            <Sun className="size-5" />
+          </span>
+          <div>
+            <h3 className="text-sm font-black text-[#0a1122] sm:text-base">
+              {iT.sunTitle}
+            </h3>
+            <p className="text-[11px] text-gray-400">{iT.sunSub}</p>
+          </div>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-3.5">
+          {isOpen && (
+            <div className="hidden rounded-full border border-gray-200 bg-gray-50 p-1 text-xs font-extrabold sm:inline-flex">
+              {(
+                [
+                  { id: 'winter', label: iT.winterTab },
+                  { id: 'today', label: iT.todayTab },
+                  { id: 'summer', label: iT.summerTab },
+                ] as const
+              ).map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setSeason(tab.id)}
+                  className={`rounded-full px-3.5 py-1 text-[11px] font-extrabold transition ${
+                    season === tab.id
+                      ? 'bg-[#2563eb] text-white shadow-2xs'
+                      : 'text-gray-600 hover:text-[#0a1122]'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="hidden h-5 w-[1px] bg-gray-200 sm:block" />
+
+          <button
+            type="button"
+            onClick={() => setIsOpen((prev) => !prev)}
+            title={isOpen ? iT.collapseTooltip : iT.expandTooltip}
+            className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-gray-200/90 bg-gray-50/90 text-[#0a1122] shadow-2xs transition hover:border-[#2563eb] hover:bg-blue-50/50 hover:text-[#2563eb]"
+          >
+            {isOpen ? (
+              <ChevronUp className="size-4 stroke-[2.4]" />
+            ) : (
+              <ChevronDown className="size-4 stroke-[2.4]" />
+            )}
+          </button>
+        </div>
+      </div>
+
+      {isOpen && (
+        <>
+          <div className="mt-3 flex justify-end sm:hidden">
+            <div className="inline-flex rounded-full border border-gray-200 bg-gray-50 p-1 text-xs font-extrabold">
+              {(
+                [
+                  { id: 'winter', label: iT.winterTab },
+                  { id: 'today', label: iT.todayTab },
+                  { id: 'summer', label: iT.summerTab },
+                ] as const
+              ).map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setSeason(tab.id)}
+                  className={`rounded-full px-3.5 py-1 text-[11px] font-extrabold transition ${
+                    season === tab.id
+                      ? 'bg-[#2563eb] text-white shadow-2xs'
+                      : 'text-gray-600 hover:text-[#0a1122]'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-5">
+            <p className="mb-2.5 text-xs font-extrabold text-[#0a1122]">
+              {iT.windowDirectionTitle}
+            </p>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl border border-gray-100 bg-[#f8fafc] p-3.5">
+                <div className="flex items-center justify-between text-xs font-extrabold text-[#0a1122]">
+                  <span>{iT.northLabel}</span>
+                  <span className="text-gray-400">—</span>
+                </div>
+                <div className="mt-2 h-1.5 w-full rounded-full bg-gray-200" />
+                <p className="mt-2 text-[11px] text-gray-400">
+                  {iT.noDirectSun}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-gray-100 bg-[#f8fafc] p-3.5">
+                <div className="flex items-center justify-between text-xs font-extrabold text-[#0a1122]">
+                  <span>{iT.eastLabel}</span>
+                  <span dir="ltr">{sunMetrics.eastHoursStr}</span>
+                </div>
+                <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
+                  <div className="h-full w-1/2 rounded-full bg-orange-500" />
+                </div>
+                <div className="mt-2 flex items-center justify-between text-[11px] text-gray-500">
+                  <span>{iT.brightMorning}</span>
+                  <span dir="ltr" className="font-mono">
+                    {sunMetrics.eastWindowRange}
+                  </span>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-orange-200/80 bg-orange-50/40 p-3.5">
+                <div className="flex items-center justify-between text-xs font-extrabold text-[#0a1122]">
+                  <span>{iT.southLabel}</span>
+                  <span dir="ltr">{sunMetrics.daylightStr}</span>
+                </div>
+                <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
+                  <div className="h-full w-[92%] rounded-full bg-orange-500" />
+                </div>
+                <div className="mt-2 flex items-center justify-between text-[11px] text-gray-600">
+                  <span className="font-bold text-orange-700">
+                    {iT.veryBrightAllDay}
+                  </span>
+                  <span dir="ltr" className="font-mono">
+                    {sunMetrics.southWindowRange}
+                  </span>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-gray-100 bg-[#f8fafc] p-3.5">
+                <div className="flex items-center justify-between text-xs font-extrabold text-[#0a1122]">
+                  <span>{iT.westLabel}</span>
+                  <span dir="ltr">{sunMetrics.westHoursStr}</span>
+                </div>
+                <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
+                  <div className="ms-auto h-full w-1/2 rounded-full bg-orange-500" />
+                </div>
+                <div className="mt-2 flex items-center justify-between text-[11px] text-gray-500">
+                  <span>{iT.brightAfternoon}</span>
+                  <span dir="ltr" className="font-mono">
+                    {sunMetrics.westWindowRange}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6">
+            <svg viewBox="0 0 600 185" className="w-full overflow-visible">
+              <defs>
+                <linearGradient id="sunArcGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#f97316" stopOpacity="0.22" />
+                  <stop offset="100%" stopColor="#f97316" stopOpacity="0.0" />
+                </linearGradient>
+              </defs>
+
+              <path
+                d={`M ${startX} ${baseY} Q ${controlX} ${controlY} ${endX} ${baseY} Z`}
+                fill="url(#sunArcGrad)"
+              />
+
+              <line
+                x1="20"
+                y1={baseY}
+                x2="580"
+                y2={baseY}
+                stroke="#e2e8f0"
+                strokeWidth="2"
+              />
+
+              <path
+                d={`M ${startX} ${baseY} Q ${controlX} ${controlY} ${endX} ${baseY}`}
+                fill="none"
+                stroke="#ea580c"
+                strokeWidth="3"
+              />
+
+              <circle
+                cx={sunX}
+                cy={sunY}
+                r="16"
+                fill="#f97316"
+                fillOpacity="0.18"
+              />
+              <circle
+                cx={sunX}
+                cy={sunY}
+                r="7"
+                fill="#ea580c"
+                stroke="#ffffff"
+                strokeWidth="2"
+              />
+
+              <text
+                x="140"
+                y={baseY + 24}
+                fontSize="12"
+                fontWeight="700"
+                fill="#64748b"
+                textAnchor="middle"
+              >
+                E
+              </text>
+              <text
+                x="300"
+                y={baseY + 24}
+                fontSize="12"
+                fontWeight="700"
+                fill="#0f172a"
+                textAnchor="middle"
+              >
+                S
+              </text>
+              <text
+                x="460"
+                y={baseY + 24}
+                fontSize="12"
+                fontWeight="700"
+                fill="#64748b"
+                textAnchor="middle"
+              >
+                W
+              </text>
+            </svg>
+
+            <div className="mx-auto mt-2 max-w-md px-4">
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={Math.round(sliderRatio * 100)}
+                onChange={(e) => setSliderRatio(Number(e.target.value) / 100)}
+                className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-orange-200 accent-[#ea580c]"
+              />
+            </div>
+
+            <div className="mt-5 grid grid-cols-3 gap-3 border-t border-gray-100 pt-4 text-xs sm:grid-cols-4">
+              <div>
+                <span className="block text-[10px] font-bold text-gray-400 uppercase">
+                  {iT.timeLabel}
+                </span>
+                <strong
+                  dir="ltr"
+                  className="mt-0.5 block font-mono text-sm font-black text-[#0a1122]"
+                >
+                  {sunMetrics.selectedTimeStr}
+                </strong>
+              </div>
+              <div>
+                <span className="block text-[10px] font-bold text-gray-400 uppercase">
+                  {iT.heightLabel}
+                </span>
+                <strong
+                  dir="ltr"
+                  className="mt-0.5 block font-mono text-sm font-black text-[#0a1122]"
+                >
+                  {sunMetrics.selectedHeightDeg}°
+                </strong>
+              </div>
+              <div>
+                <span className="block text-[10px] font-bold text-gray-400 uppercase">
+                  {iT.directionLabel}
+                </span>
+                <strong className="mt-0.5 block text-sm font-black text-[#0a1122]">
+                  {sunMetrics.dirLabel}
+                </strong>
+              </div>
+              <div className="hidden sm:block">
+                <span className="block text-[10px] font-bold text-gray-400 uppercase">
+                  {iT.daylightLabel}
+                </span>
+                <strong
+                  dir="ltr"
+                  className="mt-0.5 block text-sm font-black text-[#007a5a]"
+                >
+                  {sunMetrics.daylightStr}
+                </strong>
+              </div>
+            </div>
+
+            <div className="mt-3 grid grid-cols-3 gap-3 border-t border-gray-100 pt-3 text-xs sm:grid-cols-4">
+              <div>
+                <span className="block text-[10px] font-bold text-gray-400 uppercase">
+                  {iT.sunriseLabel}
+                </span>
+                <strong
+                  dir="ltr"
+                  className="mt-0.5 block font-mono text-xs font-extrabold text-gray-700"
+                >
+                  {sunMetrics.sunriseStr}
+                </strong>
+              </div>
+              <div>
+                <span className="block text-[10px] font-bold text-gray-400 uppercase">
+                  {iT.solarNoonLabel}
+                </span>
+                <strong
+                  dir="ltr"
+                  className="mt-0.5 block font-mono text-xs font-extrabold text-gray-700"
+                >
+                  {sunMetrics.noonStr} · {sunMetrics.maxDeg}°
+                </strong>
+              </div>
+              <div>
+                <span className="block text-[10px] font-bold text-gray-400 uppercase">
+                  {iT.sunsetLabel}
+                </span>
+                <strong
+                  dir="ltr"
+                  className="mt-0.5 block font-mono text-xs font-extrabold text-gray-700"
+                >
+                  {sunMetrics.sunsetStr}
+                </strong>
+              </div>
+              <div className="sm:hidden">
+                <span className="block text-[10px] font-bold text-gray-400 uppercase">
+                  {iT.daylightLabel}
+                </span>
+                <strong
+                  dir="ltr"
+                  className="mt-0.5 block text-xs font-extrabold text-[#007a5a]"
+                >
+                  {sunMetrics.daylightStr}
+                </strong>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </section>
+  )
+}
 
 function loadMapLibreFromCDN(): Promise<any> {
   return new Promise((resolve, reject) => {
@@ -94,7 +1165,6 @@ function createExactUnitPinElement(): HTMLDivElement {
 }
 
 export function UnitLocationInsights({
-  unitId,
   areaId,
   locationDisplay,
   exactStreet,
@@ -169,14 +1239,6 @@ export function UnitLocationInsights({
     {}
   )
 
-  const hasInitialCachedPlaces =
-    Array.isArray(cachedPlaces) && cachedPlaces.length >= 10
-  const [places, setPlaces] = useState<RealNearbyPlaceItem[]>(() =>
-    hasInitialCachedPlaces ? cachedPlaces! : []
-  )
-  const [loadingPlaces, setLoadingPlaces] = useState<boolean>(
-    !hasInitialCachedPlaces
-  )
   const [weatherInfo, setWeatherInfo] = useState<{
     temp: number
     aqi: number
@@ -184,6 +1246,24 @@ export function UnitLocationInsights({
 
   const isPureRasterMode =
     mapStyleMode === 'photoreal' || mapStyleMode === 'satellite'
+
+  const places = useMemo(() => {
+    if (Array.isArray(cachedPlaces) && cachedPlaces.length >= 25) {
+      return cachedPlaces
+    }
+    return getInstantGeorgiaNearbyPlaces(coords.lat, coords.lng, activeLocale)
+  }, [cachedPlaces, coords.lat, coords.lng, activeLocale])
+
+  const mobilityBreakdown = useMemo(
+    () =>
+      calculateSivrceMobilityBreakdown(
+        places,
+        coords.lat,
+        coords.lng,
+        activeLocale
+      ),
+    [places, coords.lat, coords.lng, activeLocale]
+  )
 
   useEffect(() => {
     function handleOutsideClick(e: MouseEvent) {
@@ -252,76 +1332,38 @@ export function UnitLocationInsights({
   ])
 
   useEffect(() => {
-    // If cached places are already loaded from Supabase DB, render in 0ms!
-    if (hasInitialCachedPlaces && cachedPlaces) {
-      setPlaces(cachedPlaces)
-      setLoadingPlaces(false)
-      return
-    }
+    let cancelled = false
+    const rLat = coords.lat.toFixed(3)
+    const rLng = coords.lng.toFixed(3)
 
-    let isCancelled = false
-    const storageCacheKey = `aqar_nearby_v5_${coords.lat.toFixed(4)}_${coords.lng.toFixed(4)}_${activeLocale}`
-
-    try {
-      const localCached = sessionStorage.getItem(storageCacheKey)
-      if (localCached) {
-        const parsed = JSON.parse(localCached)
-        if (Array.isArray(parsed?.places) && parsed.places.length >= 10) {
-          setPlaces(parsed.places)
-          if (parsed.temp !== undefined) {
-            setWeatherInfo({ temp: parsed.temp, aqi: parsed.aqi || 22 })
-          }
-          setLoadingPlaces(false)
-          return
-        }
-      }
-    } catch {}
-
-    setLoadingPlaces(true)
-
-    fetchRealNearbyPlacesAndWeatherAction({
-      lat: coords.lat,
-      lng: coords.lng,
-      locale: activeLocale,
-      unitId,
+    Promise.all([
+      fetch(
+        `https://api.open-meteo.com/v1/forecast?latitude=${rLat}&longitude=${rLng}&current_weather=true`
+      )
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null),
+      fetch(
+        `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${rLat}&longitude=${rLng}&current=european_aqi`
+      )
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null),
+    ]).then(([wData, aData]) => {
+      if (cancelled) return
+      const temp =
+        wData?.current_weather?.temperature !== undefined
+          ? Math.round(Number(wData.current_weather.temperature))
+          : 18
+      const aqi =
+        aData?.current?.european_aqi !== undefined
+          ? Math.round(Number(aData.current.european_aqi))
+          : 22
+      setWeatherInfo({ temp, aqi })
     })
-      .then((res) => {
-        if (isCancelled) return
-        if (Array.isArray(res.places) && res.places.length > 0) {
-          setPlaces(res.places)
-          try {
-            sessionStorage.setItem(storageCacheKey, JSON.stringify(res))
-          } catch {}
-        }
-        setWeatherInfo({ temp: res.temp, aqi: res.aqi })
-      })
-      .catch(() => {})
-      .finally(() => {
-        if (!isCancelled) setLoadingPlaces(false)
-      })
 
     return () => {
-      isCancelled = true
+      cancelled = true
     }
-  }, [
-    coords.lat,
-    coords.lng,
-    activeLocale,
-    unitId,
-    hasInitialCachedPlaces,
-    cachedPlaces,
-  ])
-
-  const mobilityBreakdown = useMemo(
-    () =>
-      calculateSivrceMobilityBreakdown(
-        places,
-        coords.lat,
-        coords.lng,
-        activeLocale
-      ),
-    [places, coords.lat, coords.lng, activeLocale]
-  )
+  }, [coords.lat, coords.lng])
 
   useEffect(() => {
     if (!isLocationSectionOpen) return
@@ -462,27 +1504,12 @@ export function UnitLocationInsights({
 
   const visibleCategories =
     activeCategory === 'all'
-      ? CATEGORY_ICONS.filter(
-          (c) =>
-            places.some((p) => p.category === c.key) ||
-            [
-              'school',
-              'kindergarten',
-              'pharmacy',
-              'market',
-              'restaurants',
-              'clinic',
-              'university',
-              'bus',
-            ].includes(c.key)
-        )
+      ? CATEGORY_ICONS.filter((c) => places.some((p) => p.category === c.key))
       : CATEGORY_ICONS.filter((c) => c.key === activeCategory)
 
   const fullAddressLabel = exactStreet
     ? `${localizedArea} · ${exactStreet}${houseNumber ? ' ' + houseNumber : ''}`
     : localizedArea
-
-  const isWaitingForInitialPlaces = loadingPlaces && places.length === 0
 
   return (
     <>
@@ -491,17 +1518,8 @@ export function UnitLocationInsights({
           {iT.neighborhoodTitle}
         </h3>
         <p className="mt-0.5 text-xs font-semibold text-gray-500">
-          {isWaitingForInitialPlaces ? (
-            <span className="inline-flex items-center gap-1.5 text-[#2563eb]">
-              <Loader2 className="size-3.5 animate-spin" />
-              <span>{iT.calculatingNeighborhoodText}</span>
-            </span>
-          ) : (
-            <>
-              {iT.neighborhoodSubPrefix}
-              {places.length} {iT.neighborhoodSubSuffix}
-            </>
-          )}
+          {iT.neighborhoodSubPrefix}
+          {places.length} {iT.neighborhoodSubSuffix}
         </p>
 
         <div className="mt-4 space-y-4 text-xs">
@@ -512,19 +1530,13 @@ export function UnitLocationInsights({
                 <span>{iT.walkScoreLabel}</span>
               </span>
               <strong className="font-black text-[#0a1122]">
-                {isWaitingForInitialPlaces ? '—' : mobilityBreakdown.walkScore}
+                {mobilityBreakdown.walkScore}
               </strong>
             </div>
             <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
               <div
-                className={`h-full rounded-full bg-[#2563eb] transition-all duration-500 ${
-                  isWaitingForInitialPlaces ? 'w-2/3 animate-pulse opacity-40' : ''
-                }`}
-                style={
-                  isWaitingForInitialPlaces
-                    ? undefined
-                    : { width: `${mobilityBreakdown.walkScore}%` }
-                }
+                className="h-full rounded-full bg-[#2563eb] transition-all duration-500"
+                style={{ width: `${mobilityBreakdown.walkScore}%` }}
               />
             </div>
           </div>
@@ -536,21 +1548,13 @@ export function UnitLocationInsights({
                 <span>{iT.mobilityScoreLabel}</span>
               </span>
               <strong className="font-black text-[#0a1122]">
-                {isWaitingForInitialPlaces
-                  ? '—'
-                  : mobilityBreakdown.mobilityScore}
+                {mobilityBreakdown.mobilityScore}
               </strong>
             </div>
             <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
               <div
-                className={`h-full rounded-full bg-[#2563eb] transition-all duration-500 ${
-                  isWaitingForInitialPlaces ? 'w-2/3 animate-pulse opacity-40' : ''
-                }`}
-                style={
-                  isWaitingForInitialPlaces
-                    ? undefined
-                    : { width: `${mobilityBreakdown.mobilityScore}%` }
-                }
+                className="h-full rounded-full bg-[#2563eb] transition-all duration-500"
+                style={{ width: `${mobilityBreakdown.mobilityScore}%` }}
               />
             </div>
           </div>
@@ -899,14 +1903,6 @@ export function UnitLocationInsights({
                     {iT.whatsNearbySub}
                   </p>
                 </div>
-                {isWaitingForInitialPlaces && (
-                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-[#2563eb]">
-                    <Loader2 className="size-4 animate-spin" />
-                    <span className="hidden sm:inline">
-                      {iT.loadingNearbyText}
-                    </span>
-                  </span>
-                )}
               </div>
 
               <div className="mt-3.5 flex flex-wrap gap-1.5">
@@ -929,7 +1925,7 @@ export function UnitLocationInsights({
                   const count = places.filter(
                     (p) => p.category === cat.key
                   ).length
-                  if (count === 0 && !isWaitingForInitialPlaces) return null
+                  if (count === 0) return null
                   const CatIcon = cat.icon
                   const active = activeCategory === cat.key
                   return (
@@ -980,44 +1976,36 @@ export function UnitLocationInsights({
                         </div>
 
                         <div className="mt-3 space-y-3">
-                          {shownPlaces.length > 0 ? (
-                            shownPlaces.map((pl) => (
-                              <div
-                                key={pl.id}
-                                onClick={() => {
-                                  mapInstanceRef.current?.flyTo({
-                                    center: [pl.lng, pl.lat],
-                                    zoom: 17.5,
-                                    duration: 600,
-                                  })
-                                }}
-                                className="cursor-pointer rounded-lg p-1 text-xs transition hover:bg-slate-50"
-                              >
-                                <div className="flex items-baseline justify-between gap-2">
-                                  <strong className="truncate font-extrabold text-[#0a1122]">
-                                    {getLocalizedPlaceName(pl, activeLocale)}
-                                  </strong>
-                                  <span
-                                    dir="ltr"
-                                    className="shrink-0 font-mono text-[11px] font-bold text-[#007a5a]"
-                                  >
-                                    {pl.distanceMeters < 1000
-                                      ? `${pl.distanceMeters} m`
-                                      : `${(pl.distanceMeters / 1000).toFixed(1)} km`}
-                                  </span>
-                                </div>
-                                <p className="mt-0.5 text-start text-[10.5px] font-semibold text-gray-400">
-                                  {formatTravelEstimate(pl.distanceMeters, iT)}
-                                </p>
+                          {shownPlaces.map((pl) => (
+                            <div
+                              key={pl.id}
+                              onClick={() => {
+                                mapInstanceRef.current?.flyTo({
+                                  center: [pl.lng, pl.lat],
+                                  zoom: 17.5,
+                                  duration: 600,
+                                })
+                              }}
+                              className="cursor-pointer rounded-lg p-1 text-xs transition hover:bg-slate-50"
+                            >
+                              <div className="flex items-baseline justify-between gap-2">
+                                <strong className="truncate font-extrabold text-[#0a1122]">
+                                  {getLocalizedPlaceName(pl, activeLocale)}
+                                </strong>
+                                <span
+                                  dir="ltr"
+                                  className="shrink-0 font-mono text-[11px] font-bold text-[#007a5a]"
+                                >
+                                  {pl.distanceMeters < 1000
+                                    ? `${pl.distanceMeters} m`
+                                    : `${(pl.distanceMeters / 1000).toFixed(1)} km`}
+                                </span>
                               </div>
-                            ))
-                          ) : (
-                            <p className="py-3 text-center text-[11px] text-gray-400">
-                              {isWaitingForInitialPlaces
-                                ? iT.loadingNearbyText
-                                : iT.noPlacesInCategory}
-                            </p>
-                          )}
+                              <p className="mt-0.5 text-start text-[10.5px] font-semibold text-gray-400">
+                                {formatTravelEstimate(pl.distanceMeters, iT)}
+                              </p>
+                            </div>
+                          ))}
                         </div>
                       </div>
 

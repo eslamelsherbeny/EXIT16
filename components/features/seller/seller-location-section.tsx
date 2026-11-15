@@ -29,7 +29,10 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { getCoordinatesForArea } from '@/lib/georgia-coordinates'
-import { reverseGeocodeGeorgiaPinAction } from '@/actions/georgia-geocode-action'
+import {
+  fetchRealNearbyPlacesAndWeatherAction,
+  reverseGeocodeGeorgiaPinAction,
+} from '@/actions/georgia-geocode-action'
 import {
   apply3DBuildingsToMap,
   extractInstantAddressFromMapFeatures,
@@ -318,6 +321,9 @@ export function LocationSection({
   const [reverseGeoLoading, setReverseGeoLoading] = useState(false)
   const [gpsLoading, setGpsLoading] = useState(false)
   const [outsideGeorgiaAlert, setOutsideGeorgiaAlert] = useState('')
+  const [cachedPlacesJson, setCachedPlacesJson] = useState<string>(
+    form.nearbyPlacesJson || ''
+  )
 
   const [naprParcelAddress, setNaprParcelAddress] = useState<string>('')
   const hideCadastralOnSite = form.hideCadastral === 'true'
@@ -352,6 +358,46 @@ export function LocationSection({
       highlight3DBuildingAtCoordinates(mapInstanceRef.current, lng, lat)
     }
   }, [])
+
+  // ضمان مزامنة الإحداثيات مع كائن form فور اختيار أي منطقة
+  useEffect(() => {
+    if (!hasSelectedAnyLocation) return
+    if (!form.lat || !form.lng) {
+      updateRef.current('lat', String(liveCoords.lat.toFixed(6)))
+      updateRef.current('lng', String(liveCoords.lng.toFixed(6)))
+    }
+  }, [hasSelectedAnyLocation, liveCoords.lat, liveCoords.lng, form.lat, form.lng])
+
+  // جلب الأماكن المحيطة في الخلفية أثناء ملء البائع لبيانات الوحدة لتُحفظ مع الفورم فوراً
+  useEffect(() => {
+    if (!hasSelectedAnyLocation) return
+    if (!isPointInsideGeorgia(liveCoords.lat, liveCoords.lng)) return
+
+    let cancelled = false
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetchRealNearbyPlacesAndWeatherAction({
+          lat: liveCoords.lat,
+          lng: liveCoords.lng,
+          locale: 'en',
+        })
+        if (
+          !cancelled &&
+          Array.isArray(res?.places) &&
+          res.places.length >= 5
+        ) {
+          const serialized = JSON.stringify(res.places.slice(0, 180))
+          setCachedPlacesJson(serialized)
+          updateRef.current('nearbyPlacesJson', serialized)
+        }
+      } catch {}
+    }, 900)
+
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [hasSelectedAnyLocation, liveCoords.lat, liveCoords.lng])
 
   useEffect(() => {
     function handleOutsideClick(e: MouseEvent) {
@@ -827,7 +873,6 @@ export function LocationSection({
       onMouseEnter={onHover}
       className="scroll-mt-32 rounded-[24px] border border-slate-200/80 bg-white p-5 shadow-2xs sm:p-7"
     >
-      {/* حقول مخفية لضمان إرسال الإحداثيات الدقيقة واسم الحي مع الـ FormData وقت رفع الوحدة */}
       <input
         type="hidden"
         name="lat"
@@ -847,6 +892,11 @@ export function LocationSection({
         type="hidden"
         name="hide_cadastral"
         value={form.hideCadastral ?? 'false'}
+      />
+      <input
+        type="hidden"
+        name="nearby_places_json"
+        value={cachedPlacesJson}
       />
 
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -897,20 +947,27 @@ export function LocationSection({
                 return
               }
 
-              if (!nextStreet && lat && lng) {
+              const fallbackArea = getCoordinatesForArea(
+                areaId || 'Tbilisi - Saburtalo'
+              )
+              const resolvedLat = lat || fallbackArea.lat
+              const resolvedLng = lng || fallbackArea.lng
+
+              if (!nextStreet) {
                 lastManualTypedRef.current = `||${displayLabel}`
-                syncCoordsAndMarker(lat, lng)
-                setTimeout(() => flyMapToExactPoint(lat, lng, 16.2), 80)
-              } else if (nextStreet) {
+                syncCoordsAndMarker(resolvedLat, resolvedLng)
+                setTimeout(
+                  () => flyMapToExactPoint(resolvedLat, resolvedLng, 16.2),
+                  80
+                )
+              } else {
                 lastManualTypedRef.current = `${nextStreet}|${nextHouse}|${displayLabel}`
                 const cityPart =
                   displayLabel.split(',').pop()?.trim() || 'Tbilisi'
                 const distPart =
                   displayLabel.split(',')[0]?.trim() || ''
 
-                if (lat && lng) {
-                  syncCoordsAndMarker(lat, lng)
-                }
+                syncCoordsAndMarker(resolvedLat, resolvedLng)
 
                 void (async () => {
                   const exactRes = await geocodeExactBuildingInGeorgia({
@@ -919,10 +976,8 @@ export function LocationSection({
                     district: distPart,
                     city: cityPart,
                   })
-                  const targetLat =
-                    exactRes?.lat || lat || liveCoordsRef.current.lat
-                  const targetLng =
-                    exactRes?.lng || lng || liveCoordsRef.current.lng
+                  const targetLat = exactRes?.lat || resolvedLat
+                  const targetLng = exactRes?.lng || resolvedLng
                   flyMapToExactPoint(targetLat, targetLng, 17.5)
                   if (exactRes?.cadastralCode) {
                     update('cadastralCode', exactRes.cadastralCode)

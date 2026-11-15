@@ -1064,3 +1064,5 @@ export function UnitInterestForm({
     </section>
   )
 }
+
+export default UnitInterestForm

@@ -21,7 +21,7 @@ export function generateOfficialUnitCode(): string {
 export function safeInt(val: unknown): number | null {
   if (val === null || val === undefined || String(val).trim() === '') return null
   const parsed = parseInt(String(val).replace(/[^0-9-]/g, ''), 10)
-  return Number.isFinite(parsed) ? parsed : null
+   return Number.isFinite(parsed) ? parsed : null
 }
 
 export function safeNum(
@@ -39,10 +39,6 @@ export function safeNum(
   return Number.isFinite(parsed) ? parsed : fallback
 }
 
-/**
- * استخراج المدينة والحي القياسيين (Canonical City & District Keys)
- * لتمكين الفلترة السريعة وإحصائيات لوحة التحكم لكل مدينة وحي بدقة
- */
 export function extractCanonicalCityAndDistrict(
   areaRaw: string | null,
   locationDisplayRaw: string | null
@@ -151,12 +147,39 @@ export function buildUnitPayloadWithMetaBackup(
       ? { ...existingDocuments }
       : {}
 
+  const existingMeta =
+    existingDocuments &&
+    typeof existingDocuments === 'object' &&
+    existingDocuments.__unit_meta &&
+    typeof existingDocuments.__unit_meta === 'object'
+      ? { ...existingDocuments.__unit_meta }
+      : {}
+
   const rawDocsJson = text(formData, 'documents_json')
   if (rawDocsJson) {
     try {
       const parsed = JSON.parse(rawDocsJson)
       if (parsed && typeof parsed === 'object') {
-        parsedDocuments = { ...parsedDocuments, ...parsed }
+        parsedDocuments = {
+          ...parsedDocuments,
+          ...parsed,
+          __unit_meta: {
+            ...existingMeta,
+            ...(parsed.__unit_meta || {}),
+          },
+        }
+      }
+    } catch {}
+  }
+
+  let preFetchedNearbyPlaces: any[] | null = null
+  const rawNearbyJson =
+    text(formData, 'nearby_places_json') || text(formData, 'nearbyPlacesJson')
+  if (rawNearbyJson) {
+    try {
+      const parsedPlaces = JSON.parse(rawNearbyJson)
+      if (Array.isArray(parsedPlaces) && parsedPlaces.length >= 5) {
+        preFetchedNearbyPlaces = parsedPlaces.slice(0, 200)
       }
     } catch {}
   }
@@ -164,6 +187,7 @@ export function buildUnitPayloadWithMetaBackup(
   const officialCode =
     existingCode ||
     parsedDocuments.__unit_meta?.code ||
+    existingMeta.code ||
     generateOfficialUnitCode()
 
   const listingCategoryVal =
@@ -224,33 +248,44 @@ export function buildUnitPayloadWithMetaBackup(
   const yearBuiltVal = safeInt(formData.get('year_built'))
 
   const areaVal =
-    text(formData, 'area') || parsedDocuments.__unit_meta?.area || null
+    text(formData, 'area') ||
+    text(formData, 'location') ||
+    parsedDocuments.__unit_meta?.area ||
+    null
   const locationDisplayVal =
     text(formData, 'location_display') ||
+    text(formData, 'locationDisplay') ||
     parsedDocuments.__unit_meta?.location_display ||
     null
 
   const { cityKey, districtKey, locationDisplay } =
     extractCanonicalCityAndDistrict(areaVal, locationDisplayVal)
 
-  const exactStreetVal = text(formData, 'exact_street') || null
-  const houseNumberVal = text(formData, 'house_number') || null
-  const cadastralCodeVal = text(formData, 'cadastral_code') || null
+  const exactStreetVal =
+    text(formData, 'exact_street') || text(formData, 'exactStreet') || null
+  const houseNumberVal =
+    text(formData, 'house_number') || text(formData, 'houseNumber') || null
+  const cadastralCodeVal =
+    text(formData, 'cadastral_code') || text(formData, 'cadastralCode') || null
   const hideCadastralVal =
     formData.get('hide_cadastral') === 'on' ||
     formData.get('hide_cadastral') === 'true' ||
-    formData.get('hide_cadastral') === '1'
+    formData.get('hide_cadastral') === '1' ||
+    formData.get('hideCadastral') === 'true'
 
   const latVal =
     safeNum(formData.get('lat'), null) ??
     parsedDocuments.__unit_meta?.lat ??
+    existingMeta.lat ??
     null
   const lngVal =
     safeNum(formData.get('lng'), null) ??
     parsedDocuments.__unit_meta?.lng ??
+    existingMeta.lng ??
     null
 
-  const rawDeveloper = text(formData, 'developer_name')
+  const rawDeveloper =
+    text(formData, 'developer_name') || text(formData, 'developer')
   const invalidDevNames = [
     'newly built',
     'under construction',
@@ -313,7 +348,14 @@ export function buildUnitPayloadWithMetaBackup(
 
   const imagesList = list(formData, 'image')
 
+  const finalCachedPlaces =
+    preFetchedNearbyPlaces ||
+    parsedDocuments.__unit_meta?.cached_nearby_places_v5 ||
+    existingMeta.cached_nearby_places_v5 ||
+    null
+
   parsedDocuments.__unit_meta = {
+    ...existingMeta,
     ...(parsedDocuments.__unit_meta || {}),
     code: officialCode,
     listing_category: listingCategoryVal,
@@ -330,6 +372,15 @@ export function buildUnitPayloadWithMetaBackup(
     hide_cadastral: hideCadastralVal,
     lat: latVal,
     lng: lngVal,
+    ...(finalCachedPlaces
+      ? {
+          cached_nearby_places_v5: finalCachedPlaces,
+          cached_nearby_coords:
+            latVal && lngVal
+              ? `${Number(latVal).toFixed(4)}_${Number(lngVal).toFixed(4)}`
+              : existingMeta.cached_nearby_coords,
+        }
+      : {}),
     building_status: buildingStatusVal,
     building_series: buildingSeriesVal,
     floor_type: floorTypeVal,
@@ -405,7 +456,8 @@ export function buildUnitPayloadWithMetaBackup(
     contact_messengers:
       messengersList.length > 0 ? messengersList : ['whatsapp'],
     developer_name: developerNameVal,
-    project_name: text(formData, 'project_name') || null,
+    project_name:
+      text(formData, 'project_name') || text(formData, 'project') || null,
     area: areaVal,
     unit_type: unitTypeVal,
     size: sizeVal,

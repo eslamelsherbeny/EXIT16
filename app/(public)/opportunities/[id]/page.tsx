@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import { Building2, ShieldCheck } from 'lucide-react'
 import { getCurrentSellerProfileAction } from '@/actions/submit-forms'
-import { UnitInterestForm } from '@/components/features/opportunities/unit-interest-form'
+import * as UnitInterestFormModule from '@/components/features/opportunities/unit-interest-form'
 import {
   translateStoredFinishing,
   translateStoredInstallmentFreq,
@@ -23,6 +23,11 @@ import {
   UnitSpecsAndDescription,
 } from '@/components/features/opportunities/unit-details-ui'
 import { UnitLocationInsights } from '@/components/features/opportunities/unit-location-insights'
+
+const UnitInterestForm =
+  (UnitInterestFormModule as Record<string, any>).UnitInterestForm ||
+  (UnitInterestFormModule as Record<string, any>).default ||
+  (() => null)
 
 const FALLBACK_UNIT_IMAGE =
   'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=85'
@@ -654,12 +659,6 @@ export default function PropertyDetailsPage() {
           ? Number(meta.lng)
           : null
 
-    const cachedNearbyPlaces = Array.isArray(meta.cached_nearby_places_v5)
-      ? meta.cached_nearby_places_v5
-      : Array.isArray(meta.cached_nearby_places_v4)
-        ? meta.cached_nearby_places_v4
-        : null
-
     return {
       id: String(row.id),
       raw: row,
@@ -675,7 +674,7 @@ export default function PropertyDetailsPage() {
       cadastralCode: visibleCadastral,
       savedLat: Number.isFinite(savedLat) ? savedLat : null,
       savedLng: Number.isFinite(savedLng) ? savedLng : null,
-      cachedNearbyPlaces,
+      cachedNearbyPlaces: null,
       videoUrl: row.video_url || meta.video_url || '',
       tour3dUrl: row.tour_3d_url || meta.tour_3d_url || '',
       allowOnlineViewing: Boolean(
@@ -838,7 +837,7 @@ export default function PropertyDetailsPage() {
           houseNumber={computedUnit.houseNumber}
           savedLat={computedUnit.savedLat}
           savedLng={computedUnit.savedLng}
-          cachedPlaces={computedUnit.cachedNearbyPlaces}
+          cachedPlaces={null}
           t={t}
           locale={locale}
         />

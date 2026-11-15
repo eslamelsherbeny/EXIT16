@@ -465,13 +465,60 @@ export function HomeCarouselAdSlotCard({
               : 'bg-gradient-to-br from-[#0f172a] via-[#1e1b4b] to-[#1e1b4b]'
           }`}
         >
-          <div className="flex size-24 items-center justify-center rounded-full border border-white/10 bg-white/5 transition-transform duration-300 group-hover:scale-110">
-            <div className="flex size-14 items-center justify-center rounded-full border border-orange-400/30 bg-orange-500/15">
-              {isSuper ? (
-                <Crown className="size-6 text-[#ff6437]" />
-              ) : (
-                <Flame className="size-6 text-indigo-400" />
-              )}
+          {/* توهج خلفي ناعم في المركز */}
+          <div
+            aria-hidden="true"
+            className={`pointer-events-none absolute size-32 rounded-full blur-2xl transition-opacity duration-500 group-hover:opacity-90 ${
+              isSuper ? 'bg-[#ff6437]/25' : 'bg-indigo-500/25'
+            }`}
+          />
+
+          {/* الدوائر المتحركة (Radar Ripple + Rotating Orbit) */}
+          <div className="relative flex size-28 items-center justify-center">
+            {/* الموجة المتسعة الأولى */}
+            <span
+              aria-hidden="true"
+              className={`pointer-events-none absolute size-24 animate-[ping_3.2s_cubic-bezier(0,0,0.2,1)_infinite] rounded-full border ${
+                isSuper ? 'border-orange-400/30' : 'border-indigo-400/30'
+              }`}
+            />
+
+            {/* الموجة المتسعة الثانية بتأخير زمني */}
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute size-16 animate-[ping_3.2s_cubic-bezier(0,0,0.2,1)_infinite] rounded-full border border-white/15 [animation-delay:1.6s]"
+            />
+
+            {/* المدار الدائري الدوار مع النقطة المضيئة */}
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 animate-[spin_10s_linear_infinite] rounded-full border border-dashed border-white/15"
+            >
+              <span
+                className={`absolute -top-1 left-1/2 size-2 -translate-x-1/2 rounded-full ${
+                  isSuper
+                    ? 'bg-[#ff6437] shadow-[0_0_10px_#ff6437]'
+                    : 'bg-indigo-400 shadow-[0_0_10px_#818cf8]'
+                }`}
+              />
+            </div>
+
+            {/* الحلقة الزجاجية الوسطى */}
+            <div className="relative flex size-22 items-center justify-center rounded-full border border-white/15 bg-white/[0.06] backdrop-blur-[2px] transition-transform duration-500 group-hover:scale-110">
+              {/* النواة الداخلية النابضة */}
+              <div
+                className={`flex size-14 items-center justify-center rounded-full border transition-all duration-500 ${
+                  isSuper
+                    ? 'border-orange-400/40 bg-orange-500/20 shadow-[0_0_24px_rgba(255,100,55,0.4)] group-hover:shadow-[0_0_32px_rgba(255,100,55,0.65)]'
+                    : 'border-indigo-400/40 bg-indigo-500/20 shadow-[0_0_24px_rgba(99,102,241,0.4)] group-hover:shadow-[0_0_32px_rgba(99,102,241,0.65)]'
+                }`}
+              >
+                {isSuper ? (
+                  <Crown className="size-6 animate-pulse text-[#ff6437] transition-transform duration-300 group-hover:scale-110" />
+                ) : (
+                  <Flame className="size-6 animate-pulse text-indigo-400 transition-transform duration-300 group-hover:scale-110" />
+                )}
+              </div>
             </div>
           </div>
 

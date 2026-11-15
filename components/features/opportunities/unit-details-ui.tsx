@@ -174,6 +174,30 @@ const UNIT_DETAILS_LABELS: Record<
     priceVsDistrict: string
     locationRating: string
     conditionAndDelivery: string
+    finRequiredCashNow: string
+    finNoOverNote: string
+    finMakeOfferBtn: string
+    finNegotiableTitle: string
+    finNegotiableDescPrefix: string
+    finNegotiableDescMiddle: string
+    finNegotiableDescSuffix: string
+    finGainPrefix: string
+    finMarketPriceTodayPrefix: string
+    finAfterCommissionSuffix: string
+    finMarketDisclaimer: string
+    finRemainingToDev: string
+    finInstallment: string
+    finRemainingMonthsLabel: string
+    finMonthsWord: string
+    finFullyPaid: string
+    finDelivery: string
+    finCommissionLabel: string
+    finCommissionSub: string
+    finTotalRequiredNow: string
+    similarTitle: string
+    similarSubtitle: string
+    similarReqCashPrefix: string
+    similarViewDetailsBtn: string
   }
 > = {
   ar: {
@@ -196,6 +220,31 @@ const UNIT_DETAILS_LABELS: Record<
     priceVsDistrict: 'السعر مقارنة بمتوسط المنطقة',
     locationRating: 'تقييم الموقع والخدمات',
     conditionAndDelivery: 'حالة العقار والتسليم',
+    finRequiredCashNow: 'المطلوب كاش الآن للمالك (بدون أوفر)',
+    finNoOverNote: '✓ تدفع فقط المدفوع الفعلي للمالك وتكمل الأقساط بنفس شروط العقد',
+    finMakeOfferBtn: 'تقديم عرض شراء',
+    finNegotiableTitle: 'قابل للتفاوض المباشر مع المالك',
+    finNegotiableDescPrefix: 'المالك مستعد لخصم يصل إلى',
+    finNegotiableDescMiddle: '(حوالي',
+    finNegotiableDescSuffix: ') عند الجدية والدفع الكاش السريع.',
+    finGainPrefix: 'مكسبك الفوري عن سعر السوق اليوم:',
+    finMarketPriceTodayPrefix: 'سعر الوحدة في السوق اليوم:',
+    finAfterCommissionSuffix: '(صافي مكسبك بعد خصم عمولة المنصة 1.25%)',
+    finMarketDisclaimer:
+      '* جميع المبالغ موثقة بموجب العقد الأصلي وإيصالات السداد في مقر شركة التطوير العقاري.',
+    finRemainingToDev: 'المتبقي لشركة التطوير (بالتقسيط)',
+    finInstallment: 'قيمة القسط الدوري',
+    finRemainingMonthsLabel: 'المدة المتبقية للأقساط',
+    finMonthsWord: 'شهر',
+    finFullyPaid: 'خالص الأقساط بالكامل',
+    finDelivery: 'موعد الاستلام',
+    finCommissionLabel: 'عمولة المنصة على المشتري (1.25% من إجمالي العقد)',
+    finCommissionSub: 'تُدفع فقط عند إتمام نقل الملكية رسمياً — ومجاناً تماماً للبائع (0%)',
+    finTotalRequiredNow: 'إجمالي المطلوب منك الآن',
+    similarTitle: 'فرص مميزة مشابهة',
+    similarSubtitle: 'وحدات حقيقية أخرى معروضة للتنازل بدون أوفر',
+    similarReqCashPrefix: 'الكاش المطلوب:',
+    similarViewDetailsBtn: 'عرض التفاصيل',
   },
   en: {
     descriptionTitle: 'Property Description',
@@ -217,6 +266,31 @@ const UNIT_DETAILS_LABELS: Record<
     priceVsDistrict: 'Price vs. District Average',
     locationRating: 'Location & Amenities Score',
     conditionAndDelivery: 'Property Condition & Handover',
+    finRequiredCashNow: 'Required Cash Now to Owner (Zero Overprice)',
+    finNoOverNote: '✓ Pay only the actual paid cash and take over the developer contract',
+    finMakeOfferBtn: 'Make an Offer',
+    finNegotiableTitle: 'Open to Direct Negotiation',
+    finNegotiableDescPrefix: 'The owner is willing to discount up to',
+    finNegotiableDescMiddle: '(approx.',
+    finNegotiableDescSuffix: ') for a fast cash closing.',
+    finGainPrefix: 'Your Instant Gain vs. Market Price:',
+    finMarketPriceTodayPrefix: 'Current market price today:',
+    finAfterCommissionSuffix: '(Net gain after 1.25% platform fee)',
+    finMarketDisclaimer:
+      '* All figures are verified against the original developer contract and payment receipts.',
+    finRemainingToDev: 'Remaining to Developer (Installments)',
+    finInstallment: 'Installment Amount',
+    finRemainingMonthsLabel: 'Remaining Installment Period',
+    finMonthsWord: 'months',
+    finFullyPaid: 'Fully Paid',
+    finDelivery: 'Handover Date',
+    finCommissionLabel: 'Buyer Platform Fee (1.25% of contract price)',
+    finCommissionSub: 'Paid only upon official contract transfer — 0% fee for seller',
+    finTotalRequiredNow: 'Total Required Now',
+    similarTitle: 'Similar Exit Opportunities',
+    similarSubtitle: 'Other verified installment takeover units',
+    similarReqCashPrefix: 'Required Cash:',
+    similarViewDetailsBtn: 'View Details',
   },
   ru: {
     descriptionTitle: 'Описание объекта',
@@ -238,6 +312,31 @@ const UNIT_DETAILS_LABELS: Record<
     priceVsDistrict: 'Цена в сравнении с районом',
     locationRating: 'Оценка локации и инфраструктуры',
     conditionAndDelivery: 'Состояние и срок сдачи',
+    finRequiredCashNow: 'Сумма на руки собственнику (без наценки)',
+    finNoOverNote: '✓ Вы платите только выплаченную сумму и переоформляете рассрочку',
+    finMakeOfferBtn: 'Предложить цену',
+    finNegotiableTitle: 'Возможен прямой торг с собственником',
+    finNegotiableDescPrefix: 'Собственник готов предоставить скидку до',
+    finNegotiableDescMiddle: '(около',
+    finNegotiableDescSuffix: ') при быстрой сделке.',
+    finGainPrefix: 'Ваша мгновенная выгода от рынка:',
+    finMarketPriceTodayPrefix: 'Рыночная цена сегодня:',
+    finAfterCommissionSuffix: '(Чистая выгода после комиссии 1.25%)',
+    finMarketDisclaimer:
+      '* Все суммы подтверждены оригинальным договором и квитанциями об оплате у застройщика.',
+    finRemainingToDev: 'Остаток застройщику (в рассрочку)',
+    finInstallment: 'Платеж по рассрочке',
+    finRemainingMonthsLabel: 'Оставшийся срок рассрочки',
+    finMonthsWord: 'мес.',
+    finFullyPaid: 'Выплачено полностью',
+    finDelivery: 'Срок сдачи',
+    finCommissionLabel: 'Комиссия платформы для покупателя (1.25% от договора)',
+    finCommissionSub: 'Оплачивается только при официальном переоформлении — 0% для продавца',
+    finTotalRequiredNow: 'Итого требуется сейчас',
+    similarTitle: 'Похожие предложения переуступки',
+    similarSubtitle: 'Другие проверенные объекты без наценки',
+    similarReqCashPrefix: 'Сумма на руки:',
+    similarViewDetailsBtn: 'Подробнее',
   },
   ka: {
     descriptionTitle: 'ქონების აღწერა',
@@ -259,6 +358,31 @@ const UNIT_DETAILS_LABELS: Record<
     priceVsDistrict: 'ფასი უბნის საშუალოსთან შედარებით',
     locationRating: 'მდებარეობის შეფასება',
     conditionAndDelivery: 'მდგომარეობა და ჩაბარება',
+    finRequiredCashNow: 'საჭირო თანხა ხელზე მესაკუთრეს (ფასნამატის გარეშე)',
+    finNoOverNote: '✓ იხდით მხოლოდ გადახდილ თანხას და იბარებთ დეველოპერის განვადებას',
+    finMakeOfferBtn: 'შეთავაზების გაგზავნა',
+    finNegotiableTitle: 'შესაძლებელია ფასზე შეთანხმება',
+    finNegotiableDescPrefix: 'მესაკუთრე მზად არის დააკლოს',
+    finNegotiableDescMiddle: '(დაახლოებით',
+    finNegotiableDescSuffix: ') სწრაფი გადახდის შემთხვევაში.',
+    finGainPrefix: 'თქვენი მოგება საბაზრო ფასთან შედარებით:',
+    finMarketPriceTodayPrefix: 'საბაზრო ფასი დღეს:',
+    finAfterCommissionSuffix: '(სუფთა მოგება 1.25% საკომისიოს შემდეგ)',
+    finMarketDisclaimer:
+      '* ყველა თანხა დადასტურებულია დეველოპერის ორიგინალი ხელშეკრულებითა და ქვითრებით.',
+    finRemainingToDev: 'დარჩენილი თანხა დეველოპერთან (განვადებით)',
+    finInstallment: 'განვადების შენატანი',
+    finRemainingMonthsLabel: 'განვადების დარჩენილი ვადა',
+    finMonthsWord: 'თვე',
+    finFullyPaid: 'სრულად გადახდილია',
+    finDelivery: 'ჩაბარების თარიღი',
+    finCommissionLabel: 'პლატფორმის საკომისიო მყიდველისთვის (1.25%)',
+    finCommissionSub: 'გადაიხდება მხოლოდ ოფიციალური გადაფორმების დროს — 0% გამყიდველისთვის',
+    finTotalRequiredNow: 'სულ საჭიროა ახლა',
+    similarTitle: 'მსგავსი შეთავაზებები',
+    similarSubtitle: 'სხვა გადამოწმებული ობიექტები ფასნამატის გარეშე',
+    similarReqCashPrefix: 'საჭირო თანხა:',
+    similarViewDetailsBtn: 'დეტალურად',
   },
 }
 
@@ -519,7 +643,6 @@ export function UnitSpecsAndDescription({
     priceScoreBar * 0.45 + locationScoreBar * 0.3 + conditionScoreBar * 0.25
   )
 
-  // جلب المميزات الحقيقية للوحدة من قاعدة البيانات
   const rawFeatures: string[] = Array.isArray(computedUnit.features)
     ? computedUnit.features
     : Array.isArray(computedUnit.tags)
@@ -532,7 +655,6 @@ export function UnitSpecsAndDescription({
     rawFeatures.map((f) => String(f || '').trim().toLowerCase()).filter(Boolean)
   )
 
-  // تعريف النوع صراحةً لمنع خطأ TypeScript عند إضافة مجموعة custom
   const matchedGroups: FeatureGroupDisplay[] = SIVRCE_FEATURE_GROUPS.map(
     (grp): FeatureGroupDisplay => {
       const matchedItems = grp.items.filter(
@@ -797,13 +919,11 @@ export function UnitSpecsAndDescription({
 
 export function UnitFinancialsCard({
   computedUnit,
-  fin,
-  oT,
-  t,
-  monthsWord,
   onMakeOffer,
 }: any) {
-  const remainingMonthsRowLabel = fin.remainingYearsLabel
+  const { locale } = useTranslation()
+  const activeLocale = (locale as LocaleCode) || 'ar'
+  const uiL = UNIT_DETAILS_LABELS[activeLocale] || UNIT_DETAILS_LABELS.ar
 
   return (
     <>
@@ -811,7 +931,7 @@ export function UnitFinancialsCard({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs font-bold text-gray-500">
-              {fin.requiredCashNow}
+              {uiL.finRequiredCashNow}
             </p>
             <p className="mt-1 flex items-baseline gap-1.5 text-3xl font-extrabold tracking-tight text-[var(--brand-navy,#0a1122)] tabular-nums sm:text-[34px]">
               <span dir="ltr">
@@ -820,7 +940,7 @@ export function UnitFinancialsCard({
               <span className="text-lg font-bold">{computedUnit.currency}</span>
             </p>
             <p className="mt-1 text-xs font-bold text-[var(--brand-primary,#007a5a)]">
-              {fin.noOverNote}
+              {uiL.finNoOverNote}
             </p>
           </div>
 
@@ -831,7 +951,7 @@ export function UnitFinancialsCard({
               className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[var(--brand-primary,#007a5a)] px-5 text-xs font-extrabold text-white shadow-sm transition hover:bg-[var(--brand-primary-hover,#006248)] sm:text-sm"
             >
               <Wallet className="size-4" />
-              <span>{oT.makeOfferBtn || t.interestForm?.submitBtn}</span>
+              <span>{uiL.finMakeOfferBtn}</span>
             </button>
           )}
         </div>
@@ -839,16 +959,16 @@ export function UnitFinancialsCard({
         {computedUnit.willingToDiscount && (
           <div className="mt-4 rounded-xl border border-amber-200 bg-[#fffbeb] px-4 py-3 text-start">
             <p className="text-xs font-extrabold text-[#b45309]">
-              {fin.negotiableTitle}
+              {uiL.finNegotiableTitle}
             </p>
             <p className="mt-1 text-[11px] leading-relaxed text-[#92400e]">
-              {fin.negotiableDescPrefix} {computedUnit.discountPercentage}%{' '}
-              {fin.negotiableDescMiddle}{' '}
+              {uiL.finNegotiableDescPrefix} {computedUnit.discountPercentage}%{' '}
+              {uiL.finNegotiableDescMiddle}{' '}
               <span dir="ltr">
                 {computedUnit.discountAmount.toLocaleString('en-US')}
               </span>{' '}
               {computedUnit.currency}
-              {fin.negotiableDescSuffix}
+              {uiL.finNegotiableDescSuffix}
             </p>
           </div>
         )}
@@ -856,31 +976,31 @@ export function UnitFinancialsCard({
         {computedUnit.marketGain > 0 && (
           <div className="mt-3 rounded-xl border border-[#c8eedd] bg-[#ecfbf3] px-4 py-3 text-start">
             <p className="text-xs font-extrabold text-[var(--brand-primary,#007a5a)]">
-              {fin.gainPrefix}{' '}
+              {uiL.finGainPrefix}{' '}
               <span dir="ltr">
                 + {computedUnit.marketGain.toLocaleString('en-US')}
               </span>{' '}
               {computedUnit.currency}
             </p>
             <p className="mt-1 text-[11px] text-[var(--brand-primary,#007a5a)]/85">
-              {fin.marketPriceTodayPrefix}{' '}
+              {uiL.finMarketPriceTodayPrefix}{' '}
               <span dir="ltr">
                 {computedUnit.marketPrice.toLocaleString('en-US')}
               </span>{' '}
-              {computedUnit.currency} {fin.afterCommissionSuffix}
+              {computedUnit.currency} {uiL.finAfterCommissionSuffix}
             </p>
           </div>
         )}
 
         <p className="mt-3 text-[10px] text-gray-400">
-          {fin.marketDisclaimer}
+          {uiL.finMarketDisclaimer}
         </p>
       </section>
 
       <section className="mt-4 overflow-hidden rounded-[20px] border border-gray-200/80 bg-white shadow-sm">
         <div className="divide-y divide-gray-100 text-xs sm:text-[13px]">
           <div className="flex items-center justify-between px-5 py-3.5">
-            <span className="text-gray-500">{fin.remainingToDev}</span>
+            <span className="text-gray-500">{uiL.finRemainingToDev}</span>
             <strong className="font-extrabold text-[var(--brand-navy,#0a1122)]">
               <span dir="ltr">
                 {computedUnit.remainingToDeveloper.toLocaleString('en-US')}
@@ -890,7 +1010,7 @@ export function UnitFinancialsCard({
           </div>
 
           <div className="flex items-center justify-between px-5 py-3.5">
-            <span className="text-gray-500">{fin.installment}</span>
+            <span className="text-gray-500">{uiL.finInstallment}</span>
             <strong className="font-extrabold text-[var(--brand-navy,#0a1122)]">
               <span dir="ltr">
                 {computedUnit.installmentAmount.toLocaleString('en-US')}
@@ -900,16 +1020,16 @@ export function UnitFinancialsCard({
           </div>
 
           <div className="flex items-center justify-between px-5 py-3.5">
-            <span className="text-gray-500">{remainingMonthsRowLabel}</span>
+            <span className="text-gray-500">{uiL.finRemainingMonthsLabel}</span>
             <strong className="font-extrabold text-[var(--brand-navy,#0a1122)]">
               {computedUnit.remainingInstallmentMonths > 0
-                ? `${computedUnit.remainingInstallmentMonths} ${monthsWord}`
-                : fin.fullyPaid}
+                ? `${computedUnit.remainingInstallmentMonths} ${uiL.finMonthsWord}`
+                : uiL.finFullyPaid}
             </strong>
           </div>
 
           <div className="flex items-center justify-between px-5 py-3.5">
-            <span className="text-gray-500">{fin.delivery}</span>
+            <span className="text-gray-500">{uiL.finDelivery}</span>
             <strong className="font-extrabold text-[var(--brand-navy,#0a1122)]">
               {computedUnit.deliveryYear}
             </strong>
@@ -917,7 +1037,7 @@ export function UnitFinancialsCard({
 
           <div className="px-5 py-3.5">
             <div className="flex items-center justify-between">
-              <span className="text-gray-500">{fin.commissionLabel}</span>
+              <span className="text-gray-500">{uiL.finCommissionLabel}</span>
               <strong className="font-extrabold text-[var(--brand-navy,#0a1122)]">
                 <span dir="ltr">
                   {computedUnit.commission.toLocaleString('en-US')}
@@ -926,13 +1046,13 @@ export function UnitFinancialsCard({
               </strong>
             </div>
             <p className="mt-1 text-start text-[10px] text-gray-400">
-              {fin.commissionSub}
+              {uiL.finCommissionSub}
             </p>
           </div>
 
           <div className="flex items-center justify-between bg-[#f1f5f9] px-5 py-4">
             <span className="font-extrabold text-[var(--brand-navy,#0a1122)]">
-              {fin.totalRequiredNow}
+              {uiL.finTotalRequiredNow}
             </span>
             <strong className="text-sm font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-base">
               <span dir="ltr">
@@ -948,16 +1068,20 @@ export function UnitFinancialsCard({
 }
 
 export function SimilarUnitsSection({ similarDbUnits, t }: any) {
+  const { locale } = useTranslation()
+  const activeLocale = (locale as LocaleCode) || 'ar'
+  const uiL = UNIT_DETAILS_LABELS[activeLocale] || UNIT_DETAILS_LABELS.ar
+
   if (!similarDbUnits || similarDbUnits.length === 0) return null
 
   return (
     <section className="mt-8">
       <div className="flex flex-wrap items-baseline justify-between gap-2 text-start">
         <h2 className="text-base font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-lg">
-          {t.similarSection.title}
+          {uiL.similarTitle}
         </h2>
         <span className="text-[11px] text-gray-400">
-          {t.similarSection.subtitle}
+          {uiL.similarSubtitle}
         </span>
       </div>
 
@@ -978,7 +1102,7 @@ export function SimilarUnitsSection({ similarDbUnits, t }: any) {
                 {item.featured && (
                   <span className="absolute top-2 left-2 inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-0.5 text-[9px] font-bold text-amber-700 shadow-sm">
                     <Star className="size-2.5 fill-amber-400 text-amber-500" />
-                    <span>{t.featuredBadge}</span>
+                    <span>{t?.featuredBadge || 'VIP'}</span>
                   </span>
                 )}
               </div>
@@ -994,7 +1118,7 @@ export function SimilarUnitsSection({ similarDbUnits, t }: any) {
                   {item.specs}
                 </p>
                 <p className="mt-2 text-[11px] font-extrabold text-[var(--brand-navy,#0a1122)] tabular-nums">
-                  {t.similarSection.requiredCashPrefix}{' '}
+                  {uiL.similarReqCashPrefix}{' '}
                   <span dir="ltr">{item.cash}</span> {item.currency}
                 </p>
               </div>
@@ -1002,7 +1126,7 @@ export function SimilarUnitsSection({ similarDbUnits, t }: any) {
 
             <div className="px-3 pt-1 pb-3 text-start">
               <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[var(--brand-primary,#007a5a)]">
-                <span>{t.similarSection.viewDetailsBtn}</span>
+                <span>{uiL.similarViewDetailsBtn}</span>
                 <span className="rtl:rotate-0 ltr:rotate-180">←</span>
               </span>
             </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import {
   ChevronLeft,
@@ -15,7 +15,7 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation, type LocaleCode } from '@/lib/i18n'
 import {
   cleanPureLocaleText,
   getLocalizedUnitTitle,
@@ -23,124 +23,431 @@ import {
   type HomeUnitCardItem,
 } from './home-data'
 
-// دالة موحدة لحساب وقت نشر الوحدة في جميع صفحات الموقع (الرئيسية + الفرص المتاحة + صفحة تفاصيل الوحدة)
+const CARD_I18N: Record<
+  LocaleCode,
+  {
+    docsVerified: string
+    sqmUnit: string
+    roomsWord: string
+    bathWord: string
+    requiredCashNow: string
+    negotiable: string
+    yourMarketGain: string
+    marketPriceTodayPrefix: string
+    afterFeeSuffix: string
+    remainingToDeveloper: string
+    installment: string
+    fullyPaid: string
+    delivery: string
+    detailsBtn: string
+    viewsTitle: string
+    adSpace: string
+    yourAdHere: string
+    adDescSuper: string
+    adDescVip: string
+    adBullet1: string
+    adBullet2: string
+    adBullet3: string
+    advertiseHereBtn: string
+    vipPlusTitle: string
+    vipPlusSub: string
+    vipPlusAllBtn: string
+  }
+> = {
+  ar: {
+    docsVerified: 'متحقق بالمستندات',
+    sqmUnit: 'م²',
+    roomsWord: 'غرف',
+    bathWord: 'حمام',
+    requiredCashNow: 'المطلوب كاش دلوقتي',
+    negotiable: 'قابل للتفاوض',
+    yourMarketGain: 'مكسبك عن سعر السوق',
+    marketPriceTodayPrefix: 'سعر السوق اليوم:',
+    afterFeeSuffix: '· بعد خصم عمولتنا 1.25%',
+    remainingToDeveloper: 'المتبقي للمطور',
+    installment: 'القسط',
+    fullyPaid: 'خالص الأقساط',
+    delivery: 'الاستلام',
+    detailsBtn: 'تفاصيل',
+    viewsTitle: 'عدد المشاهدات',
+    adSpace: 'مساحة إعلانية',
+    yourAdHere: 'إعلانك هنا',
+    adDescSuper:
+      'انشر إعلانك في صدارة SUPER VIP واصل إلى آلاف المشترين والمستثمرين في العقارات.',
+    adDescVip:
+      'رقِّ إعلانك لباقة +VIP بـ 5 ₾ فقط ليظهر في الصدارة أمام المشترين الجادين.',
+    adBullet1: 'جمهور مستهدف من المشترين',
+    adBullet2: 'تواصل مباشر وسريع',
+    adBullet3: 'إحصائيات ومشاهدات شفافة',
+    advertiseHereBtn: 'أعلن هنا ←',
+    vipPlusTitle: 'إعلانات +VIP',
+    vipPlusSub: 'إعلانات ذات أولوية — عقارات موثقة بالمستندات وجاهزة للتنازل',
+    vipPlusAllBtn: 'كل +VIP ←',
+  },
+  en: {
+    docsVerified: 'Docs Verified',
+    sqmUnit: 'm²',
+    roomsWord: 'Rooms',
+    bathWord: 'Bath',
+    requiredCashNow: 'Required Cash Now',
+    negotiable: 'Negotiable',
+    yourMarketGain: 'Your Market Gain',
+    marketPriceTodayPrefix: 'Market price today:',
+    afterFeeSuffix: '· after 1.25% fee',
+    remainingToDeveloper: 'Remaining to Developer',
+    installment: 'Installment',
+    fullyPaid: 'Fully Paid',
+    delivery: 'Delivery',
+    detailsBtn: 'Details',
+    viewsTitle: 'Views',
+    adSpace: 'Ad Space',
+    yourAdHere: 'Your Ad Here',
+    adDescSuper:
+      'Publish your listing in SUPER VIP and reach thousands of real estate buyers and investors.',
+    adDescVip:
+      'Upgrade your listing to VIP+ for just 5 ₾ to appear first to serious buyers.',
+    adBullet1: 'Targeted audience',
+    adBullet2: 'Direct contact',
+    adBullet3: 'Transparent metrics',
+    advertiseHereBtn: 'Advertise Here →',
+    vipPlusTitle: 'VIP+ Listings',
+    vipPlusSub: 'Priority listings — verified installment exit properties',
+    vipPlusAllBtn: 'All VIP+ →',
+  },
+  ru: {
+    docsVerified: 'Документы проверены',
+    sqmUnit: 'м²',
+    roomsWord: 'комн.',
+    bathWord: 'сануз.',
+    requiredCashNow: 'Сумма на руки сейчас',
+    negotiable: 'Торг уместен',
+    yourMarketGain: 'Ваша выгода от рынка',
+    marketPriceTodayPrefix: 'Рыночная цена:',
+    afterFeeSuffix: '· после комиссии 1.25%',
+    remainingToDeveloper: 'Остаток застройщику',
+    installment: 'Рассрочка',
+    fullyPaid: 'Выплачено полностью',
+    delivery: 'Сдача',
+    detailsBtn: 'Подробнее',
+    viewsTitle: 'Просмотры',
+    adSpace: 'Рекламное место',
+    yourAdHere: 'Ваша реклама здесь',
+    adDescSuper:
+      'Разместите объект в SUPER VIP и получите максимальный охват среди покупателей и инвесторов.',
+    adDescVip:
+      'Поднимите объявление в +VIP всего за 5 ₾ для приоритетного показа покупателям.',
+    adBullet1: 'Целевая аудитория инвесторов',
+    adBullet2: 'Прямой контакт с покупателем',
+    adBullet3: 'Прозрачная статистика просмотров',
+    advertiseHereBtn: 'Разместить рекламу →',
+    vipPlusTitle: 'Объявления +VIP',
+    vipPlusSub: 'Приоритетные объявления — проверенные объекты переуступки',
+    vipPlusAllBtn: 'Все +VIP →',
+  },
+  ka: {
+    docsVerified: 'დოკუმენტები შემოწმებულია',
+    sqmUnit: 'მ²',
+    roomsWord: 'ოთახი',
+    bathWord: 'სველი წ.',
+    requiredCashNow: 'საჭირო თანხა ხელზე',
+    negotiable: 'ფასზე შეთანხმებით',
+    yourMarketGain: 'თქვენი მოგება საბაზრო ფასთან',
+    marketPriceTodayPrefix: 'საბაზრო ფასი დღეს:',
+    afterFeeSuffix: '· 1.25% საკომისიოს შემდეგ',
+    remainingToDeveloper: 'დარჩენილი დეველოპერთან',
+    installment: 'განვადება',
+    fullyPaid: 'სრულად გადახდილი',
+    delivery: 'ჩაბარება',
+    detailsBtn: 'დეტალურად',
+    viewsTitle: 'ნახვები',
+    adSpace: 'სარეკლამო სივრცე',
+    yourAdHere: 'თქვენი რეკლამა აქ',
+    adDescSuper:
+      'განათავსეთ განცხადება SUPER VIP-ში და მიწვდით ათასობით მყიდველსა და ინვესტორს.',
+    adDescVip:
+      'გაააქტიურეთ +VIP მხოლოდ 5 ₾-ად და გამოჩნდით პირველ ადგილზე.',
+    adBullet1: 'მიზნობრივი აუდიტორია',
+    adBullet2: 'პირდაპირი კონტაქტი',
+    adBullet3: 'გამჭვირვალე სტატისტიკა',
+    advertiseHereBtn: 'რეკლამის განთავსება →',
+    vipPlusTitle: '+VIP განცხადებები',
+    vipPlusSub: 'პრიორიტეტული განცხადებები — გადამოწმებული ობიექტები',
+    vipPlusAllBtn: 'ყველა +VIP →',
+  },
+}
+
 export function formatRelativePublishTime(
   createdAt?: string,
-  isAr = true
+  localeOrIsAr: LocaleCode | boolean = 'ar'
 ): string {
-  if (!createdAt) return isAr ? 'منذ أسبوع' : '1 week ago'
+  const lang: LocaleCode =
+    typeof localeOrIsAr === 'boolean'
+      ? localeOrIsAr
+        ? 'ar'
+        : 'en'
+      : ['ar', 'en', 'ru', 'ka'].includes(localeOrIsAr)
+        ? localeOrIsAr
+        : 'en'
+
+  const fallbackWeek =
+    lang === 'ar'
+      ? 'منذ أسبوع'
+      : lang === 'ru'
+        ? '1 нед. назад'
+        : lang === 'ka'
+          ? '1 კვირის წინ'
+          : '1 week ago'
+
+  if (!createdAt) return fallbackWeek
   const createdTime = new Date(createdAt).getTime()
-  if (Number.isNaN(createdTime)) return isAr ? 'منذ أسبوع' : '1 week ago'
+  if (Number.isNaN(createdTime)) return fallbackWeek
 
   const diffMs = Math.max(0, Date.now() - createdTime)
   const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
 
   if (diffDays === 0) {
-    if (diffHours <= 1) return isAr ? 'منذ ساعة' : '1 hour ago'
-    if (diffHours === 2) return isAr ? 'منذ ساعتين' : '2 hours ago'
-    if (diffHours <= 10)
-      return isAr ? `منذ ${diffHours} ساعات` : `${diffHours} hours ago`
-    return isAr ? `منذ ${diffHours} ساعة` : `${diffHours} hours ago`
+    const h = Math.max(1, diffHours)
+    if (lang === 'ar') {
+      if (h === 1) return 'منذ ساعة'
+      if (h === 2) return 'منذ ساعتين'
+      if (h <= 10) return `منذ ${h} ساعات`
+      return `منذ ${h} ساعة`
+    }
+    if (lang === 'ru') return `${h} ч. назад`
+    if (lang === 'ka') return `${h} სთ წინ`
+    return h === 1 ? '1 hour ago' : `${h} hours ago`
   }
-  if (diffDays === 1) return isAr ? 'منذ يوم واحد' : '1 day ago'
-  if (diffDays === 2) return isAr ? 'منذ يومين' : '2 days ago'
-  if (diffDays <= 10)
-    return isAr ? `منذ ${diffDays} أيام` : `${diffDays} days ago`
-  if (diffDays < 14) return isAr ? 'منذ أسبوع' : '1 week ago'
-  if (diffDays < 21) return isAr ? 'منذ أسبوعين' : '2 weeks ago'
+
+  if (diffDays < 7) {
+    if (lang === 'ar') {
+      if (diffDays === 1) return 'منذ يوم واحد'
+      if (diffDays === 2) return 'منذ يومين'
+      return `منذ ${diffDays} أيام`
+    }
+    if (lang === 'ru') return `${diffDays} дн. назад`
+    if (lang === 'ka') return `${diffDays} დღის წინ`
+    return diffDays === 1 ? '1 day ago' : `${diffDays} days ago`
+  }
+
   if (diffDays < 30) {
-    const weeks = Math.floor(diffDays / 7)
-    return isAr ? `منذ ${weeks} أسابيع` : `${weeks} weeks ago`
+    const weeks = Math.max(1, Math.floor(diffDays / 7))
+    if (lang === 'ar') {
+      if (weeks === 1) return 'منذ أسبوع'
+      if (weeks === 2) return 'منذ أسبوعين'
+      return `منذ ${weeks} أسابيع`
+    }
+    if (lang === 'ru') return `${weeks} нед. назад`
+    if (lang === 'ka') return `${weeks} კვირის წინ`
+    return weeks === 1 ? '1 week ago' : `${weeks} weeks ago`
   }
+
   const months = Math.max(1, Math.floor(diffDays / 30))
-  return isAr
-    ? `منذ ${months} ${months === 1 ? 'شهر' : months === 2 ? 'شهرين' : 'شهور'}`
-    : `${months} mo ago`
-}
-
-function translateInstallmentFreq(rawFreq?: string, isAr = true): string {
-  if (!rawFreq) return isAr ? 'شهري' : 'Monthly'
-  const clean = rawFreq.trim()
-  if (isAr) {
-    if (clean.toLowerCase() === 'monthly') return 'شهري'
-    if (clean.toLowerCase() === 'quarterly') return 'ربع سنوي'
-    if (clean.toLowerCase() === 'semi-annual') return 'نصف سنوي'
-    if (clean.toLowerCase() === 'annual') return 'سنوي'
-    return clean
+  if (lang === 'ar') {
+    return `منذ ${months} ${months === 1 ? 'شهر' : months === 2 ? 'شهرين' : 'شهور'}`
   }
-  if (clean.includes('ربع')) return 'Quarterly'
-  if (clean.includes('نصف')) return 'Semi-Annual'
-  if (clean.includes('سنوي') && !clean.includes('ربع') && !clean.includes('نصف'))
-    return 'Annual'
-  if (clean.includes('شهري')) return 'Monthly'
-  return clean
+  if (lang === 'ru') return `${months} мес. назад`
+  if (lang === 'ka') return `${months} თვის წინ`
+  return `${months} mo ago`
 }
 
-function translateDeliveryLabel(rawDel?: string, isAr = true): string {
+function translateInstallmentFreq(
+  rawFreq?: string,
+  locale: LocaleCode = 'ar'
+): string {
+  const clean = (rawFreq || '').trim().toLowerCase()
+  const isQuarterly =
+    clean.includes('quarter') ||
+    clean.includes('ربع') ||
+    clean.includes('квартал') ||
+    clean.includes('კვარტალ')
+  const isSemi =
+    clean.includes('semi') ||
+    clean.includes('نصف') ||
+    clean.includes('полгод') ||
+    clean.includes('ნახევარ')
+  const isAnnual =
+    (clean.includes('annual') ||
+      clean.includes('year') ||
+      clean.includes('سنوي') ||
+      clean.includes('год') ||
+      clean.includes('წლიურ')) &&
+    !isSemi
+
+  if (isQuarterly) {
+    if (locale === 'ar') return 'ربع سنوي'
+    if (locale === 'ru') return 'Ежеквартально'
+    if (locale === 'ka') return 'კვარტალური'
+    return 'Quarterly'
+  }
+  if (isSemi) {
+    if (locale === 'ar') return 'نصف سنوي'
+    if (locale === 'ru') return 'Раз в полгода'
+    if (locale === 'ka') return '6 თვეში ერთხელ'
+    return 'Semi-Annual'
+  }
+  if (isAnnual) {
+    if (locale === 'ar') return 'سنوي'
+    if (locale === 'ru') return 'Ежегодно'
+    if (locale === 'ka') return 'წლიური'
+    return 'Annual'
+  }
+
+  if (locale === 'ar') return 'شهري'
+  if (locale === 'ru') return 'Ежемесячно'
+  if (locale === 'ka') return 'ყოველთვიური'
+  return 'Monthly'
+}
+
+function translateDeliveryLabel(
+  rawDel?: string,
+  locale: LocaleCode = 'ar'
+): string {
   if (!rawDel) return '2026'
   const clean = rawDel.trim()
   const yearMatch = clean.match(/20\d{2}/)
   const yr = yearMatch ? yearMatch[0] : ''
+  const lower = clean.toLowerCase()
   const isReady =
     clean.includes('جاهز') ||
     clean.includes('فوري') ||
-    clean.toLowerCase().includes('ready')
+    clean.includes('مستلم') ||
+    lower.includes('ready') ||
+    lower.includes('готов') ||
+    clean.includes('მზად')
 
-  if (isAr) {
-    if (isReady && yr) return `جاهزة (${yr})`
-    if (isReady) return 'جاهزة'
-    return yr || clean
-  }
-  if (isReady && yr) return `Ready (${yr})`
-  if (isReady) return 'Ready'
+  const readyWord =
+    locale === 'ar'
+      ? 'جاهزة'
+      : locale === 'ru'
+        ? 'Готово'
+        : locale === 'ka'
+          ? 'მზადაა'
+          : 'Ready'
+
+  if (isReady && yr) return `${readyWord} (${yr})`
+  if (isReady) return readyWord
   return yr || clean
 }
 
-function translateUnitTypeWord(rawType?: string, isAr = true): string {
+function translateUnitTypeWord(
+  rawType?: string,
+  locale: LocaleCode = 'ar'
+): string {
   const clean = (rawType || '').trim()
-  if (isAr) {
-    if (!clean || clean === 'Apartment') return 'شقة'
-    if (clean === 'Private house') return 'فيلا'
-    if (clean === 'Cottage') return 'شاليه'
-    if (clean === 'Hotel') return 'شقة فندقية'
-    if (clean === 'Commercial') return 'تجاري'
-    if (clean === 'Land') return 'أرض'
-    return clean.replace(/\s*\([^)]*\)/g, '').trim()
-  }
-  if (!clean || clean === 'شقة') return 'Apartment'
-  if (clean.includes('فندقية') || clean.toLowerCase().includes('hotel'))
-    return 'Aparthotel'
-  if (
+  const lower = clean.toLowerCase()
+
+  const isStudio =
+    clean.includes('استوديو') ||
+    lower.includes('studio') ||
+    lower.includes('студия') ||
+    clean.includes('სტუდიო')
+  const isHotel =
+    clean.includes('فندقية') ||
+    lower.includes('hotel') ||
+    lower.includes('апарт') ||
+    clean.includes('აპარტ')
+  const isVilla =
     clean.includes('فيلا') ||
     clean.includes('منزل') ||
-    clean.toLowerCase().includes('house')
-  )
-    return 'Villa'
-  if (
+    lower.includes('house') ||
+    lower.includes('villa') ||
+    lower.includes('дом') ||
+    lower.includes('вилл') ||
+    clean.includes('სახლი') ||
+    clean.includes('ვილა')
+  const isCottage =
     clean.includes('شاليه') ||
     clean.includes('كوخ') ||
-    clean.toLowerCase().includes('cottage')
-  )
-    return 'Cottage'
-  if (clean.includes('تجاري') || clean.toLowerCase().includes('commercial'))
-    return 'Commercial'
-  if (clean.includes('أرض') || clean.toLowerCase().includes('land'))
-    return 'Land'
-  return clean
+    lower.includes('cottage') ||
+    lower.includes('коттедж') ||
+    clean.includes('კოტეჯი')
+  const isComm =
+    clean.includes('تجاري') ||
+    lower.includes('commercial') ||
+    lower.includes('коммерч') ||
+    clean.includes('კომერციული')
+  const isLand =
+    clean.includes('أرض') ||
+    lower.includes('land') ||
+    lower.includes('участок') ||
+    clean.includes('მიწა')
+
+  if (isStudio) {
+    return locale === 'ar'
+      ? 'استوديو'
+      : locale === 'ru'
+        ? 'Студия'
+        : locale === 'ka'
+          ? 'სტუდიო'
+          : 'Studio'
+  }
+  if (isHotel) {
+    return locale === 'ar'
+      ? 'شقة فندقية'
+      : locale === 'ru'
+        ? 'Апарт-отель'
+        : locale === 'ka'
+          ? 'აპარტ-ოტელი'
+          : 'Aparthotel'
+  }
+  if (isVilla) {
+    return locale === 'ar'
+      ? 'فيلا'
+      : locale === 'ru'
+        ? 'Вилла / Дом'
+        : locale === 'ka'
+          ? 'ვილა / სახლი'
+          : 'Villa'
+  }
+  if (isCottage) {
+    return locale === 'ar'
+      ? 'شاليه'
+      : locale === 'ru'
+        ? 'Коттедж'
+        : locale === 'ka'
+          ? 'კოტეჯი'
+          : 'Cottage'
+  }
+  if (isComm) {
+    return locale === 'ar'
+      ? 'تجاري'
+      : locale === 'ru'
+        ? 'Коммерческая'
+        : locale === 'ka'
+          ? 'კომერციული'
+          : 'Commercial'
+  }
+  if (isLand) {
+    return locale === 'ar'
+      ? 'أرض'
+      : locale === 'ru'
+        ? 'Участок'
+        : locale === 'ka'
+          ? 'მიწა'
+          : 'Land'
+  }
+
+  return locale === 'ar'
+    ? 'شقة'
+    : locale === 'ru'
+      ? 'Квартира'
+      : locale === 'ka'
+        ? 'ბინა'
+        : 'Apartment'
 }
 
-/**
- * كارت "إعلانك هنا" الترويجي داخل الكاروسيل (يظهر في SUPER VIP أو +VIP حسب القاعدة الذكية)
- */
 export function HomeCarouselAdSlotCard({
   tier = 'SUPER VIP',
-  isAr = true,
 }: {
   tier?: 'SUPER VIP' | '+VIP'
   isAr?: boolean
 }) {
+  const { locale } = useTranslation()
+  const activeLocale = (locale as LocaleCode) || 'ar'
+  const cT = CARD_I18N[activeLocale] || CARD_I18N.ar
   const isSuper = tier === 'SUPER VIP'
+
   return (
     <Link
       href="#boost-packages-section"
@@ -184,34 +491,30 @@ export function HomeCarouselAdSlotCard({
           </span>
 
           <span className="absolute end-3 bottom-3 rounded-full bg-black/60 px-3 py-1 text-[10px] font-bold text-white backdrop-blur-xs">
-            {isAr ? 'مساحة إعلانية' : 'Ad Space'}
+            {cT.adSpace}
           </span>
         </div>
 
         <div className="p-5 text-start">
           <h3 className="text-lg font-extrabold text-[#0f1d40]">
-            {isAr ? 'إعلانك هنا' : 'Your Ad Here'}
+            {cT.yourAdHere}
           </h3>
           <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
-            {isAr
-              ? isSuper
-                ? 'انشر إعلانك في صدارة SUPER VIP واصل إلى آلاف المشترين والمستثمرين في العقارات.'
-                : 'رقِّ إعلانك لباقة +VIP بـ 5 ₾ فقط ليظهر في الصدارة أمام المشترين الجادين.'
-              : 'Publish your listing and reach thousands of real estate buyers and investors.'}
+            {isSuper ? cT.adDescSuper : cT.adDescVip}
           </p>
 
           <ul className="mt-4 space-y-1.5 text-xs font-semibold text-slate-500">
             <li className="flex items-center gap-2">
               <span className="size-1.5 rounded-full bg-[#ff6437]" />
-              <span>Targeted audience</span>
+              <span>{cT.adBullet1}</span>
             </li>
             <li className="flex items-center gap-2">
               <span className="size-1.5 rounded-full bg-[#ff6437]" />
-              <span>Direct contact</span>
+              <span>{cT.adBullet2}</span>
             </li>
             <li className="flex items-center gap-2">
               <span className="size-1.5 rounded-full bg-[#ff6437]" />
-              <span>Transparent metrics</span>
+              <span>{cT.adBullet3}</span>
             </li>
           </ul>
         </div>
@@ -225,7 +528,7 @@ export function HomeCarouselAdSlotCard({
               : 'bg-gradient-to-r from-[#4f46e5] to-[#6366f1]'
           }`}
         >
-          {isAr ? 'أعلن هنا ←' : 'Advertise Here →'}
+          {cT.advertiseHereBtn}
         </span>
       </div>
     </Link>
@@ -244,7 +547,8 @@ export function HomePropertyCard({
   fullWidthOnGrid?: boolean
 }) {
   const { locale, dir } = useTranslation()
-  const isAr = locale === 'ar'
+  const activeLocale = (locale as LocaleCode) || 'ar'
+  const cT = CARD_I18N[activeLocale] || CARD_I18N.ar
   const USD = '$'
 
   const gallery =
@@ -282,15 +586,17 @@ export function HomePropertyCard({
       ? Math.round(contractPriceVal / unit.size).toLocaleString('en-US')
       : '1,350'
 
-  const rawLocalizedArea = getLocalizedGeorgiaAreaName(unit.area, locale)
-  const cleanArea = cleanPureLocaleText(rawLocalizedArea, locale)
-  const projectName = getLocalizedUnitTitle(unit, locale, cleanArea)
-  const cleanDeveloper = cleanPureLocaleText(unit.developer || '', locale)
+  const rawLocalizedArea = getLocalizedGeorgiaAreaName(unit.area, activeLocale)
+  const cleanArea = cleanPureLocaleText(rawLocalizedArea, activeLocale)
+  const projectName = getLocalizedUnitTitle(unit, activeLocale, cleanArea)
+  const cleanDeveloper = cleanPureLocaleText(
+    unit.developer || '',
+    activeLocale
+  )
   const subtitleLine = cleanDeveloper
     ? `${cleanDeveloper} · ${cleanArea}`
     : cleanArea
 
-  // جميع الوحدات رسمية وتوجه مباشرة لصفحة تفاصيل الوحدة
   const detailHref = `/opportunities/${unit.id}`
 
   const views = Math.max(1, Number(unit.viewsCount) || 1)
@@ -298,23 +604,24 @@ export function HomePropertyCard({
     unit.code ||
     `U-${String(unit.id || '').replace(/[^0-9]/g, '').slice(0, 5) || '10901'}`
   const displayCode = rawCode.startsWith('#') ? rawCode : `#${rawCode}`
-  const publishedAgo = formatRelativePublishTime(unit.createdAt, isAr)
+  const publishedAgo = formatRelativePublishTime(unit.createdAt, activeLocale)
   const totalCount = gallery.length
 
   const activeTier =
     unit.boostTier || (unit.isFeatured ? 'super_vip' : null)
 
-  const unitTypeWord = translateUnitTypeWord(unit.unitTypeLabel, isAr)
-  const localizedFreq = translateInstallmentFreq(unit.installmentFreq, isAr)
+  const unitTypeWord = translateUnitTypeWord(unit.unitTypeLabel, activeLocale)
+  const localizedFreq = translateInstallmentFreq(
+    unit.installmentFreq,
+    activeLocale
+  )
 
   const instText =
     unit.installmentAmount && unit.installmentAmount > 0
       ? `${USD}${unit.installmentAmount.toLocaleString('en-US')} · ${localizedFreq}`
-      : isAr
-        ? 'خالص الأقساط'
-        : 'Fully Paid'
+      : cT.fullyPaid
 
-  const deliveryLabel = translateDeliveryLabel(unit.deliveryText, isAr)
+  const deliveryLabel = translateDeliveryLabel(unit.deliveryText, activeLocale)
 
   return (
     <article
@@ -445,7 +752,7 @@ export function HomePropertyCard({
           <div className="mt-2 flex items-center justify-between gap-2">
             <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200/80 bg-[#eaf8f2] px-2.5 py-0.5 text-[10.5px] font-bold text-[#007a5a]">
               <FileCheck2 className="size-3 shrink-0" />
-              <span>{isAr ? 'متحقق بالمستندات' : 'Docs Verified'}</span>
+              <span>{cT.docsVerified}</span>
             </span>
 
             <span
@@ -453,15 +760,14 @@ export function HomePropertyCard({
               className="text-xs font-bold text-slate-400 tabular-nums"
             >
               {USD}
-              {sqmPrice}/{isAr ? 'م²' : 'm²'}
+              {sqmPrice}/{cT.sqmUnit}
             </span>
           </div>
 
           <p className="mt-2 flex flex-wrap items-center gap-1.5 text-xs font-bold text-[#1e293b]">
             <span>
-              {unitTypeWord} · {unit.rooms} {isAr ? 'غرف' : 'Rooms'} ·{' '}
-              {unit.bathrooms} {isAr ? 'حمام' : 'Bath'} · {unit.size}{' '}
-              {isAr ? 'م²' : 'm²'}
+              {unitTypeWord} · {unit.rooms} {cT.roomsWord} · {unit.bathrooms}{' '}
+              {cT.bathWord} · {unit.size} {cT.sqmUnit}
             </span>
             {unit.floor !== undefined && (
               <span
@@ -477,7 +783,7 @@ export function HomePropertyCard({
           <div className="mt-2.5 flex items-baseline justify-between gap-2">
             <div>
               <p className="text-[11.5px] font-medium text-slate-500">
-                {isAr ? 'المطلوب كاش دلوقتي' : 'Required Cash Now'}
+                {cT.requiredCashNow}
               </p>
               <strong
                 dir="ltr"
@@ -491,7 +797,7 @@ export function HomePropertyCard({
             {unit.negotiable && (
               <p className="flex items-center gap-0.5 rounded-lg bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-[#b45309]">
                 <span>↓</span>
-                <span>{isAr ? 'قابل للتفاوض' : 'Negotiable'}</span>
+                <span>{cT.negotiable}</span>
               </p>
             )}
           </div>
@@ -500,7 +806,7 @@ export function HomePropertyCard({
             <div className="mt-2 rounded-xl bg-[#eaf8f2] px-3 py-2 text-start">
               <div className="flex items-baseline justify-between gap-2">
                 <p className="text-[11px] font-bold text-[#007a5a]">
-                  {isAr ? 'مكسبك عن سعر السوق' : 'Your Market Gain'}
+                  {cT.yourMarketGain}
                 </p>
                 <strong
                   dir="ltr"
@@ -512,9 +818,8 @@ export function HomePropertyCard({
               </div>
               {marketPriceVal > 0 && (
                 <p className="mt-0.5 text-[10px] font-medium leading-tight text-[#2b8a6e]">
-                  {isAr
-                    ? `سعر السوق اليوم: ${USD}${marketPriceVal.toLocaleString('en-US')} · بعد خصم عمولتنا 1.25%`
-                    : `Market price today: ${USD}${marketPriceVal.toLocaleString('en-US')} · after 1.25% fee`}
+                  {cT.marketPriceTodayPrefix} {USD}
+                  {marketPriceVal.toLocaleString('en-US')} {cT.afterFeeSuffix}
                 </p>
               )}
             </div>
@@ -526,7 +831,7 @@ export function HomePropertyCard({
         <div className="space-y-1.5 border-t border-slate-100 pt-2.5 text-xs">
           <div className="flex items-center justify-between gap-2">
             <span className="font-medium text-slate-500">
-              {isAr ? 'المتبقي للمطور' : 'Remaining to Developer'}
+              {cT.remainingToDeveloper}
             </span>
             <strong
               dir="ltr"
@@ -539,7 +844,7 @@ export function HomePropertyCard({
 
           <div className="flex items-center justify-between gap-2">
             <span className="font-medium text-slate-500">
-              {isAr ? 'القسط' : 'Installment'}
+              {cT.installment}
             </span>
             <strong className="font-bold text-[#0f1d40] tabular-nums">
               {instText}
@@ -547,9 +852,7 @@ export function HomePropertyCard({
           </div>
 
           <div className="flex items-center justify-between gap-2">
-            <span className="font-medium text-slate-500">
-              {isAr ? 'الاستلام' : 'Delivery'}
-            </span>
+            <span className="font-medium text-slate-500">{cT.delivery}</span>
             <strong className="font-bold text-[#0f1d40] tabular-nums">
               {deliveryLabel}
             </strong>
@@ -560,14 +863,14 @@ export function HomePropertyCard({
           href={detailHref}
           className="mt-2.5 flex h-9.5 w-full items-center justify-center rounded-xl bg-gradient-to-r from-[#ff6437] to-[#ff4f69] text-xs font-bold text-white shadow-xs transition hover:opacity-95 sm:text-[13px]"
         >
-          <span>{isAr ? 'تفاصيل' : 'Details'}</span>
+          <span>{cT.detailsBtn}</span>
         </Link>
 
         <div className="mt-2 flex items-center justify-between border-t border-slate-100 pt-2 text-[10.5px] font-medium text-slate-400">
           <div className="flex items-center gap-3">
             <span
               className="inline-flex items-center gap-1 text-slate-500"
-              title={isAr ? 'عدد المشاهدات' : 'Views'}
+              title={cT.viewsTitle}
             >
               <Eye className="size-3.5 text-slate-400" />
               <span className="tabular-nums">{views}</span>
@@ -620,6 +923,42 @@ export function HomeCardsCarouselSection({
   const isRtl = dir === 'rtl'
   const scrollRef = useRef<HTMLDivElement>(null)
 
+  const [canScrollPrev, setCanScrollPrev] = useState(false)
+  const [canScrollNext, setCanScrollNext] = useState(false)
+
+  const updateScrollButtons = useCallback(() => {
+    const el = scrollRef.current
+    if (!el) return
+
+    const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth)
+    if (maxScroll <= 6) {
+      setCanScrollPrev(false)
+      setCanScrollNext(false)
+      return
+    }
+
+    const offset = Math.abs(el.scrollLeft)
+    setCanScrollPrev(offset > 12)
+    setCanScrollNext(offset < maxScroll - 12)
+  }, [])
+
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+
+    updateScrollButtons()
+    const timer = setTimeout(updateScrollButtons, 150)
+
+    el.addEventListener('scroll', updateScrollButtons, { passive: true })
+    window.addEventListener('resize', updateScrollButtons)
+
+    return () => {
+      clearTimeout(timer)
+      el.removeEventListener('scroll', updateScrollButtons)
+      window.removeEventListener('resize', updateScrollButtons)
+    }
+  }, [units, dir, updateScrollButtons])
+
   const handleScroll = (direction: 'prev' | 'next') => {
     const el = scrollRef.current
     if (!el) return
@@ -663,16 +1002,18 @@ export function HomeCardsCarouselSection({
           )}
         </div>
 
-        <Link
-          href={allLinkHref}
-          className="text-xs font-bold text-[#2563eb] hover:underline sm:text-sm"
-        >
-          {allLinkText}
-        </Link>
+        {allLinkText && (
+          <Link
+            href={allLinkHref}
+            className="text-xs font-bold text-[#2563eb] hover:underline sm:text-sm"
+          >
+            {allLinkText}
+          </Link>
+        )}
       </div>
 
       <div className="relative">
-        {hasUnits && units.length > 2 && (
+        {canScrollPrev && (
           <button
             type="button"
             onClick={() => handleScroll('prev')}
@@ -711,7 +1052,7 @@ export function HomeCardsCarouselSection({
           )}
         </div>
 
-        {hasUnits && units.length > 2 && (
+        {canScrollNext && (
           <button
             type="button"
             onClick={() => handleScroll('next')}
@@ -742,9 +1083,47 @@ export function HomeVipPlusSection({
   showWhenEmpty?: boolean
 }) {
   const { locale, dir } = useTranslation()
-  const isAr = locale === 'ar'
+  const activeLocale = (locale as LocaleCode) || 'ar'
+  const cT = CARD_I18N[activeLocale] || CARD_I18N.ar
+  const isAr = activeLocale === 'ar'
   const isRtl = dir === 'rtl'
   const scrollRef = useRef<HTMLDivElement>(null)
+
+  const [canScrollPrev, setCanScrollPrev] = useState(false)
+  const [canScrollNext, setCanScrollNext] = useState(false)
+
+  const updateScrollButtons = useCallback(() => {
+    const el = scrollRef.current
+    if (!el) return
+
+    const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth)
+    if (maxScroll <= 6) {
+      setCanScrollPrev(false)
+      setCanScrollNext(false)
+      return
+    }
+
+    const offset = Math.abs(el.scrollLeft)
+    setCanScrollPrev(offset > 12)
+    setCanScrollNext(offset < maxScroll - 12)
+  }, [])
+
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+
+    updateScrollButtons()
+    const timer = setTimeout(updateScrollButtons, 150)
+
+    el.addEventListener('scroll', updateScrollButtons, { passive: true })
+    window.addEventListener('resize', updateScrollButtons)
+
+    return () => {
+      clearTimeout(timer)
+      el.removeEventListener('scroll', updateScrollButtons)
+      window.removeEventListener('resize', updateScrollButtons)
+    }
+  }, [vipPlusUnits, dir, updateScrollButtons])
 
   const hasUnits = Boolean(vipPlusUnits && vipPlusUnits.length > 0)
   if (!hasUnits && !showWhenEmpty) {
@@ -772,12 +1151,10 @@ export function HomeVipPlusSection({
             <span>+VIP</span>
           </span>
           <h2 className="mt-2 text-2xl font-bold tracking-tight text-[#0f1d40] sm:text-3xl">
-            {isAr ? 'إعلانات +VIP' : 'VIP+ listings'}
+            {cT.vipPlusTitle}
           </h2>
           <p className="mt-1 text-xs font-medium text-slate-500 sm:text-sm">
-            {isAr
-              ? 'إعلانات ذات أولوية — عقارات موثقة بالمستندات وجاهزة للتنازل'
-              : 'Priority listings — verified installment exit properties'}
+            {cT.vipPlusSub}
           </p>
         </div>
 
@@ -785,12 +1162,12 @@ export function HomeVipPlusSection({
           href="/opportunities?tier=vip_plus"
           className="text-xs font-bold text-[#2563eb] hover:underline sm:text-sm"
         >
-          {isAr ? 'كل +VIP ←' : 'All VIP+ →'}
+          {cT.vipPlusAllBtn}
         </Link>
       </div>
 
       <div className="relative">
-        {hasUnits && vipPlusUnits.length > 2 && (
+        {canScrollPrev && (
           <button
             type="button"
             onClick={() => handleScroll('prev')}
@@ -823,7 +1200,7 @@ export function HomeVipPlusSection({
           <HomeCarouselAdSlotCard tier="+VIP" isAr={isAr} />
         </div>
 
-        {hasUnits && vipPlusUnits.length > 2 && (
+        {canScrollNext && (
           <button
             type="button"
             onClick={() => handleScroll('next')}

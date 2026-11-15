@@ -28,6 +28,9 @@ const FAVORITES_STORAGE_KEY = 'darak_favorites'
 const HOME_CAROUSEL_TITLES: Record<
   LocaleCode,
   {
+    categoriesTitle: string
+    categoriesSub: string
+    howItWorksMoreLink: string
     superVipTitle: string
     superVipSub: string
     superVipAllBtn: string
@@ -42,6 +45,10 @@ const HOME_CAROUSEL_TITLES: Record<
   }
 > = {
   ar: {
+    categoriesTitle: 'ماذا تبحث عنه للتنازل؟',
+    categoriesSub:
+      'اختر نوع الوحدة وتصفح أفضل عروض التنازل واستكمال الأقساط في جورجيا',
+    howItWorksMoreLink: 'تفاصيل إزاي بنشتغل والأمثلة ←',
     superVipTitle: 'إعلانات SUPER VIP',
     superVipSub: 'أقصى ظهور — أفضل العروض أولاً في صدارة المنصة',
     superVipAllBtn: 'كل SUPER VIP ←',
@@ -56,6 +63,10 @@ const HOME_CAROUSEL_TITLES: Record<
     recentAllBtn: 'كل الجديد ←',
   },
   en: {
+    categoriesTitle: 'What are you looking for to take over?',
+    categoriesSub:
+      'Choose unit type and explore verified installment exit opportunities',
+    howItWorksMoreLink: 'How it works & Examples →',
     superVipTitle: 'SUPER VIP Listings',
     superVipSub: 'Maximum visibility — top exit offers first',
     superVipAllBtn: 'All SUPER VIP →',
@@ -70,6 +81,10 @@ const HOME_CAROUSEL_TITLES: Record<
     recentAllBtn: 'All New →',
   },
   ru: {
+    categoriesTitle: 'Какой объект переуступки вы ищете?',
+    categoriesSub:
+      'Выберите тип недвижимости и изучайте проверенные предложения с рассрочкой в Грузии',
+    howItWorksMoreLink: 'Подробнее о процессе и примеры →',
     superVipTitle: 'Объявления SUPER VIP',
     superVipSub: 'Максимальный охват — лучшие предложения первыми',
     superVipAllBtn: 'Все SUPER VIP →',
@@ -84,6 +99,10 @@ const HOME_CAROUSEL_TITLES: Record<
     recentAllBtn: 'Все новые →',
   },
   ka: {
+    categoriesTitle: 'რა ტიპის ქონებას ეძებთ გადასაბარებლად?',
+    categoriesSub:
+      'აირჩიეთ ობიექტის ტიპი და დაათვალიერეთ გადამოწმებული განცხადებები საქართველოში',
+    howItWorksMoreLink: 'როგორ ვმუშაობთ და მაგალითები →',
     superVipTitle: 'SUPER VIP განცხადებები',
     superVipSub: 'მაქსიმალური ხილვადობა — საუკეთესო შეთავაზებები',
     superVipAllBtn: 'ყველა SUPER VIP →',
@@ -110,9 +129,9 @@ export function HybridHomeClient({
   valueUnitLabel: string
 }) {
   const { t: dict, locale, dir } = useTranslation()
-  const isAr = locale === 'ar'
+  const activeLocale = (locale as LocaleCode) || 'ar'
   const t = dict.home
-  const cT = HOME_CAROUSEL_TITLES[locale] || HOME_CAROUSEL_TITLES.ar
+  const cT = HOME_CAROUSEL_TITLES[activeLocale] || HOME_CAROUSEL_TITLES.ar
   const USD = '$'
 
   const [favorites, setFavorites] = useState<string[]>([])
@@ -141,7 +160,6 @@ export function HybridHomeClient({
     })
   }
 
-  // الاعتماد الرسمي 100% على وحدات قاعدة البيانات الحقيقية فقط
   const allDisplayUnits = useMemo(() => {
     const seen = new Set<string>()
     return (dbUnits || []).filter((u) => {
@@ -151,7 +169,6 @@ export function HybridHomeClient({
     })
   }, [dbUnits])
 
-  // 1. وحدات SUPER VIP الحقيقية من الداتا بيز
   const superVipUnits = useMemo(() => {
     return allDisplayUnits
       .filter(
@@ -162,14 +179,12 @@ export function HybridHomeClient({
       .map((u) => ({ ...u, boostTier: 'super_vip' as const }))
   }, [allDisplayUnits])
 
-  // 2. وحدات +VIP الحقيقية من الداتا بيز
   const vipPlusUnits = useMemo(() => {
     return allDisplayUnits
       .filter((u) => u.isFeatured && u.boostTier === 'vip_plus')
       .map((u) => ({ ...u, boostTier: 'vip_plus' as const }))
   }, [allDisplayUnits])
 
-  // 3. الفرص المتاحة للتنازل
   const availableOpportunitiesUnits = useMemo(() => {
     return [...allDisplayUnits].sort((a, b) => {
       if (Boolean(a.isFeatured) !== Boolean(b.isFeatured)) {
@@ -179,7 +194,6 @@ export function HybridHomeClient({
     })
   }, [allDisplayUnits])
 
-  // 4. أحدث الوحدات المضافة مرتبة تنازلياً حسب التاريخ (الأحدث أولاً)
   const recentlyAddedUnits = useMemo(() => {
     return [...allDisplayUnits].sort((a, b) => {
       const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0
@@ -192,7 +206,7 @@ export function HybridHomeClient({
   const hasVipPlus = vipPlusUnits.length > 0
   const showVipPlusSection = hasSuperVip || hasVipPlus
 
-  const categoriesGrid = getHomeCategoriesGrid(isAr)
+  const categoriesGrid = getHomeCategoriesGrid(activeLocale)
   const comparisonRows = t?.comparison?.rows || []
   const workSteps = t?.steps?.items || []
 
@@ -201,7 +215,7 @@ export function HybridHomeClient({
       dir={dir}
       className="min-h-screen overflow-x-hidden bg-[#f6f8fc] text-[#0f1d40]"
     >
-      {/* 1. الهيرو المتخصص في التنازل والأقساط */}
+      {/* 1. الهيرو */}
       <section className="aqar-animated-hero relative flex min-h-[640px] items-center overflow-hidden border-b border-slate-200/80 py-10 lg:min-h-[700px] lg:py-16">
         <div
           aria-hidden="true"
@@ -331,19 +345,15 @@ export function HybridHomeClient({
         </div>
       </section>
 
-      {/* 2. ماذا تبحث عنه للتنازل؟ (مباشرة بعد الهيرو لدخول الزائر في الفرص فوراً) */}
+      {/* 2. ماذا تبحث عنه للتنازل؟ */}
       <section className={`${CONTAINER_CLS} pt-10 pb-6`}>
         <ScrollReveal>
           <div className="mb-6 text-start">
             <h2 className="text-2xl font-bold tracking-tight text-[#0f1d40] sm:text-3xl">
-              {isAr
-                ? 'ماذا تبحث عنه للتنازل؟'
-                : 'What are you looking for to take over?'}
+              {cT.categoriesTitle}
             </h2>
             <p className="mt-1 text-xs font-medium text-slate-500 sm:text-sm">
-              {isAr
-                ? 'اختر نوع الوحدة وتصفح أفضل عروض التنازل واستكمال الأقساط في جورجيا'
-                : 'Choose unit type and explore verified installment exit opportunities'}
+              {cT.categoriesSub}
             </p>
           </div>
 
@@ -407,7 +417,8 @@ export function HybridHomeClient({
           />
         </div>
       )}
-       {/* 7. جدول المقارنة السريع (فاصل مقنع بين الفرص المتاحة وبين أضيفت حديثاً) */}
+
+      {/* 5. جدول المقارنة السريع */}
       <section className="bg-white py-12 sm:py-14">
         <div className={CONTAINER_CLS}>
           <ScrollReveal className="text-start">
@@ -461,7 +472,6 @@ export function HybridHomeClient({
         </div>
       </section>
 
-     
       {/* 6. قسم الفرص المتاحة للتنازل */}
       <HomeCardsCarouselSection
         badgeText={cT.availableOppsBadge}
@@ -479,7 +489,7 @@ export function HybridHomeClient({
         onToggleFav={toggleFav}
       />
 
-      {/* 5. بانر حاسبة الخروج المجانية ("اعرف موقفك في دقيقة") — في مكان متقدم وبارز بعد الـ VIP */}
+      {/* 7. بانر حاسبة الخروج المجانية */}
       <section className={`${CONTAINER_CLS} py-6`}>
         <ScrollReveal>
           <div className="relative overflow-hidden rounded-[28px] border border-blue-200/80 bg-gradient-to-r from-[#eef5ff] via-[#f4fbf7] to-[#fff5f0] p-7 text-center shadow-xs sm:p-11">
@@ -502,8 +512,7 @@ export function HybridHomeClient({
         </ScrollReveal>
       </section>
 
-
-      {/* 8. قسم أضيفت حديثاً (مرتب تنازلياً حسب التاريخ، ويفتح /opportunities?sort=newest) */}
+      {/* 8. قسم أضيفت حديثاً */}
       <HomeCardsCarouselSection
         badgeText={cT.recentBadge}
         badgeClass="bg-blue-50 text-[#2563eb] border border-blue-200"
@@ -518,11 +527,10 @@ export function HybridHomeClient({
         onToggleFav={toggleFav}
       />
 
-    
-
-      {/* 10. الكارت/البانر الترويجي (اعرض إعلانك هنا) */}
+      {/* 9. البانر الترويجي */}
       <SponsoredRightAlignedBanner />
-        {/* 9. إزاي بنشتغل في 5 خطوات */}
+
+      {/* 10. إزاي بنشتغل في 5 خطوات */}
       <section className="border-t border-gray-200/60 bg-[#f6f8fc] py-12 sm:py-14">
         <div className={CONTAINER_CLS}>
           <ScrollReveal className="flex flex-wrap items-end justify-between gap-4 text-start">
@@ -536,7 +544,7 @@ export function HybridHomeClient({
               href="/how-it-works"
               className="text-xs font-bold text-[#2563eb] hover:underline sm:text-sm"
             >
-              {isAr ? 'تفاصيل إزاي بنشتغل والأمثلة ←' : 'How it works & Examples →'}
+              {cT.howItWorksMoreLink}
             </Link>
           </ScrollReveal>
 
@@ -565,12 +573,10 @@ export function HybridHomeClient({
         <Home3DMapSection />
       </div>
 
-    
-
-
-      {/* 12. سيكشن باقات الإعلانات وشحن الرصيد (تحت الخريطة مباشرة) */}
+      {/* 12. سيكشن باقات الإعلانات وشحن الرصيد */}
       <TopUpBalanceGelSection />
-   {/* 13. شريط الإحصائيات الموثقة بالدولار ($) — في الجزء قبل الأخير كما طلبت */}
+
+      {/* 13. شريط الإحصائيات الموثقة بالدولار ($) */}
       <section className={`${CONTAINER_CLS} pt-4 pb-6`}>
         <ScrollReveal>
           <div className="grid grid-cols-1 divide-y divide-gray-200/80 overflow-hidden rounded-[22px] border border-gray-200/70 border-t-[3px] border-t-[#007a5a] bg-white shadow-xs md:grid-cols-2 md:divide-x md:divide-y-0 md:divide-x-reverse">
@@ -614,7 +620,7 @@ export function HybridHomeClient({
           </div>
         </ScrollReveal>
       </section>
-     
+
       {/* 14. كارتا الختام قبل الفوتر */}
       <section className="bg-[#f6f8fc] pb-16 pt-6 sm:pb-20">
         <div className={CONTAINER_CLS}>

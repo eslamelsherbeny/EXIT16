@@ -12,7 +12,6 @@ import {
   ChevronDown,
   Clock,
   FileText,
-  Flame,
   Heart,
   Loader2,
   LogOut,
@@ -617,7 +616,6 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
       label:
         labels?.navbar?.opportunities ||
         (language === 'ar' ? 'الفرص المتاحة' : 'Opportunities'),
-      isCore: true,
     },
     {
       href: '/how-it-works',
@@ -894,19 +892,10 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
           >
             {navItems.map((item) => {
               const isActive =
-                pathname === item.href || pathname.startsWith(`${item.href}/`)
-              if (item.isCore) {
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200/90 bg-[#eaf8f2] px-3.5 py-1.5 text-[13px] font-bold text-[#007a5a] transition hover:bg-[#d8f3e7]"
-                  >
-                    <Flame className="size-3.5 fill-[#ff6437] text-[#ff6437]" />
-                    <span>{item.label}</span>
-                  </Link>
-                )
-              }
+                pathname === item.href ||
+                pathname.startsWith(`${item.href}/`) ||
+                (item.href === '/opportunities' && pathname.startsWith('/units/'))
+
               return (
                 <Link
                   key={item.href}
@@ -1038,7 +1027,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
           )}
         </div>
 
-        {/* الموبايل: بدون أيقونة المفضلة في الهيدر العلوي لمنع الزحام */}
+        {/* الموبايل */}
         <div className="flex items-center gap-1.5 lg:hidden">
           <div className="relative" ref={langRefMobile}>
             <button
@@ -1113,23 +1102,27 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
           className="mx-3 mt-2 overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl lg:hidden"
         >
           <nav className="flex flex-col gap-2.5">
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setMobileMenuOpen(false)}
-                className={`flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-bold transition ${
-                  item.isCore
-                    ? 'bg-[#eaf8f2] text-[#007a5a]'
-                    : 'text-[#1e3a8a] hover:bg-slate-50'
-                }`}
-              >
-                <span>{item.label}</span>
-                {item.isCore && (
-                  <Flame className="size-4 fill-[#ff6437] text-[#ff6437]" />
-                )}
-              </Link>
-            ))}
+            {navItems.map((item) => {
+              const isActive =
+                pathname === item.href ||
+                pathname.startsWith(`${item.href}/`) ||
+                (item.href === '/opportunities' && pathname.startsWith('/units/'))
+
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-bold transition ${
+                    isActive
+                      ? 'bg-blue-50 text-[#2563eb]'
+                      : 'text-[#1e3a8a] hover:bg-slate-50'
+                  }`}
+                >
+                  <span>{item.label}</span>
+                </Link>
+              )
+            })}
 
             {hasSession && (
               <Link

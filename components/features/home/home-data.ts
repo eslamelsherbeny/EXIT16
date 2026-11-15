@@ -16,6 +16,7 @@ import {
   Trees,
   Waves,
 } from 'lucide-react'
+import type { LocaleCode } from '@/lib/i18n'
 
 export type HomeUnitCardItem = {
   id: string
@@ -98,10 +99,123 @@ export function getLocalizedUnitTitle(
   return getCleanProjectName(unit, cleanArea)
 }
 
-// تم إلغاء جميع الوحدات الوهمية للعمل الرسمي 100% من قاعدة البيانات
 export const FALLBACK_SHOWCASE_UNITS: HomeUnitCardItem[] = []
 
-export function getHomeCategoriesGrid(isAr: boolean) {
+const CATEGORY_LABELS: Record<
+  string,
+  Record<LocaleCode, string>
+> = {
+  exit: {
+    ar: 'كل عروض التنازل',
+    en: 'All Exit Deals',
+    ru: 'Все переуступки',
+    ka: 'ყველა შეთავაზება',
+  },
+  Apartment: {
+    ar: 'شقق بالتقسيط',
+    en: 'Apartments',
+    ru: 'Квартиры',
+    ka: 'ბინები',
+  },
+  'Private house': {
+    ar: 'منازل وفيلات',
+    en: 'Houses & Villas',
+    ru: 'Дома и виллы',
+    ka: 'სახლები და ვილები',
+  },
+  Cottage: {
+    ar: 'أكواخ وشاليهات',
+    en: 'Cottages',
+    ru: 'Коттеджи',
+    ka: 'კოტეჯები',
+  },
+  Luxury: {
+    ar: 'عقارات فاخرة',
+    en: 'Luxury homes',
+    ru: 'Элитное жилье',
+    ka: 'პრემიუმ ქონება',
+  },
+  Land: {
+    ar: 'قطع أراضٍ',
+    en: 'Land plots',
+    ru: 'Участки земли',
+    ka: 'მიწის ნაკვეთები',
+  },
+  Commercial: {
+    ar: 'تجاري وإداري',
+    en: 'Commercial',
+    ru: 'Коммерческая',
+    ka: 'კომერციული',
+  },
+  Ready: {
+    ar: 'استلام فوري',
+    en: 'Ready to move',
+    ru: 'Готово к въезду',
+    ka: 'მზადაა საცხოვრებლად',
+  },
+  'Sea view': {
+    ar: 'إطلالة على البحر',
+    en: 'Sea view',
+    ru: 'Вид на море',
+    ka: 'ზღვის ხედით',
+  },
+  Pool: {
+    ar: 'مع حمام سباحة',
+    en: 'With pool',
+    ru: 'С бассейном',
+    ka: 'აუზით',
+  },
+  Jacuzzi: {
+    ar: 'مع جاكوزي',
+    en: 'With Jacuzzi',
+    ru: 'С джакузи',
+    ka: 'ჯაკუზით',
+  },
+  'Ski resorts': {
+    ar: 'منتجعات تزلج',
+    en: 'Ski resorts',
+    ru: 'Горнолыжные курорты',
+    ka: 'სათხილამურო კურორტები',
+  },
+  Compounds: {
+    ar: 'مجمعات سكنية',
+    en: 'Compounds',
+    ru: 'Жилые комплексы',
+    ka: 'საცხოვრებელი კომპლექსები',
+  },
+  Workspace: {
+    ar: 'مكاتب وشركات',
+    en: 'Offices',
+    ru: 'Офисы',
+    ka: 'ოფისები',
+  },
+  Hotel: {
+    ar: 'شقق فندقية',
+    en: 'Hotel units',
+    ru: 'Апарт-отели',
+    ka: 'აპარტ-ოტელები',
+  },
+  'New projects': {
+    ar: 'قيد الإنشاء',
+    en: 'Under construction',
+    ru: 'Строящиеся',
+    ka: 'მშენებარე',
+  },
+}
+
+export function getHomeCategoriesGrid(localeOrIsAr: LocaleCode | boolean) {
+  const lang: LocaleCode =
+    typeof localeOrIsAr === 'boolean'
+      ? localeOrIsAr
+        ? 'ar'
+        : 'en'
+      : ['ar', 'en', 'ru', 'ka'].includes(localeOrIsAr)
+        ? localeOrIsAr
+        : 'en'
+
+  const lbl = (key: string) =>
+    CATEGORY_LABELS[key]?.[lang] || CATEGORY_LABELS[key]?.en || key
+
   const buildUrl = (params: Record<string, string>) => {
     const sp = new URLSearchParams(params)
     return `/opportunities?${sp.toString()}`
@@ -110,158 +224,158 @@ export function getHomeCategoriesGrid(isAr: boolean) {
   return [
     {
       id: 'exit',
-      label: isAr ? 'كل عروض التنازل' : 'All Exit Deals',
+      label: lbl('exit'),
       icon: ShieldCheck,
       href: '/opportunities',
       color: 'bg-emerald-50 text-[#007a5a]',
     },
     {
       id: 'Apartment',
-      label: isAr ? 'شقق بالتقسيط' : 'Apartments',
+      label: lbl('Apartment'),
       icon: Building2,
       href: buildUrl({
         type: 'Apartment',
-        label: isAr ? 'شقق بالتقسيط' : 'Apartments',
+        label: lbl('Apartment'),
       }),
       color: 'bg-blue-50 text-[#2563eb]',
     },
     {
       id: 'Private house',
-      label: isAr ? 'منازل وفيلات' : 'Houses & Villas',
+      label: lbl('Private house'),
       icon: Home,
       href: buildUrl({
         type: 'Private house',
-        label: isAr ? 'منازل وفيلات' : 'Houses & Villas',
+        label: lbl('Private house'),
       }),
       color: 'bg-orange-50 text-[#ea580c]',
     },
     {
       id: 'Cottage',
-      label: isAr ? 'أكواخ وشاليهات' : 'Cottages',
+      label: lbl('Cottage'),
       icon: Trees,
       href: buildUrl({
         type: 'Cottage',
-        label: isAr ? 'أكواخ وشاليهات' : 'Cottages',
+        label: lbl('Cottage'),
       }),
       color: 'bg-green-50 text-green-600',
     },
     {
       id: 'Luxury',
-      label: isAr ? 'عقارات فاخرة' : 'Luxury homes',
+      label: lbl('Luxury'),
       icon: Gem,
       href: buildUrl({
         feature: 'Panoramic view',
-        label: isAr ? 'عقارات فاخرة' : 'Luxury homes',
+        label: lbl('Luxury'),
       }),
       color: 'bg-amber-50 text-amber-600',
     },
     {
       id: 'Land',
-      label: isAr ? 'قطع أراضٍ' : 'Land plots',
+      label: lbl('Land'),
       icon: MapPin,
       href: buildUrl({
         type: 'Land',
-        label: isAr ? 'قطع أراضٍ' : 'Land plots',
+        label: lbl('Land'),
       }),
       color: 'bg-yellow-50 text-yellow-600',
     },
     {
       id: 'Commercial',
-      label: isAr ? 'تجاري وإداري' : 'Commercial',
+      label: lbl('Commercial'),
       icon: Store,
       href: buildUrl({
         type: 'Commercial',
-        label: isAr ? 'تجاري وإداري' : 'Commercial',
+        label: lbl('Commercial'),
       }),
       color: 'bg-purple-50 text-purple-600',
     },
     {
       id: 'Ready',
-      label: isAr ? 'استلام فوري' : 'Ready to move',
+      label: lbl('Ready'),
       icon: Calendar,
       href: buildUrl({
         delivery: 'Ready to Move',
-        label: isAr ? 'استلام فوري' : 'Ready to move',
+        label: lbl('Ready'),
       }),
       color: 'bg-rose-50 text-rose-500',
     },
     {
       id: 'Sea view',
-      label: isAr ? 'إطلالة على البحر' : 'Sea view',
+      label: lbl('Sea view'),
       icon: Waves,
       href: buildUrl({
         feature: 'Sea view',
-        label: isAr ? 'إطلالة على البحر' : 'Sea view',
+        label: lbl('Sea view'),
       }),
       color: 'bg-cyan-50 text-cyan-600',
     },
     {
       id: 'Pool',
-      label: isAr ? 'مع حمام سباحة' : 'With pool',
+      label: lbl('Pool'),
       icon: Sparkles,
       href: buildUrl({
         feature: 'Pool',
-        label: isAr ? 'مع حمام سباحة' : 'With pool',
+        label: lbl('Pool'),
       }),
       color: 'bg-sky-50 text-sky-600',
     },
     {
       id: 'Jacuzzi',
-      label: isAr ? 'مع جاكوزي' : 'With Jacuzzi',
+      label: lbl('Jacuzzi'),
       icon: Bath,
       href: buildUrl({
         feature: 'Jacuzzi',
-        label: isAr ? 'مع جاكوزي' : 'With Jacuzzi',
+        label: lbl('Jacuzzi'),
       }),
       color: 'bg-orange-50 text-orange-500',
     },
     {
       id: 'Ski resorts',
-      label: isAr ? 'منتجعات تزلج' : 'Ski resorts',
+      label: lbl('Ski resorts'),
       icon: Mountain,
       href: buildUrl({
         feature: 'Ski access',
-        label: isAr ? 'منتجعات تزلج' : 'Ski resorts',
+        label: lbl('Ski resorts'),
       }),
       color: 'bg-amber-50 text-amber-700',
     },
     {
       id: 'Compounds',
-      label: isAr ? 'مجمعات سكنية' : 'Compounds',
+      label: lbl('Compounds'),
       icon: PawPrint,
       href: buildUrl({
         feature: 'Security',
-        label: isAr ? 'مجمعات سكنية' : 'Compounds',
+        label: lbl('Compounds'),
       }),
       color: 'bg-emerald-50 text-emerald-600',
     },
     {
       id: 'Workspace',
-      label: isAr ? 'مكاتب وشركات' : 'Offices',
+      label: lbl('Workspace'),
       icon: Briefcase,
       href: buildUrl({
         type: 'Commercial',
-        label: isAr ? 'مكاتب وشركات' : 'Offices',
+        label: lbl('Workspace'),
       }),
       color: 'bg-indigo-50 text-indigo-600',
     },
     {
       id: 'Hotel',
-      label: isAr ? 'شقق فندقية' : 'Hotel units',
+      label: lbl('Hotel'),
       icon: Hotel,
       href: buildUrl({
         type: 'Hotel',
-        label: isAr ? 'شقق فندقية' : 'Hotel units',
+        label: lbl('Hotel'),
       }),
       color: 'bg-teal-50 text-teal-600',
     },
     {
       id: 'New projects',
-      label: isAr ? 'قيد الإنشاء' : 'Under construction',
+      label: lbl('New projects'),
       icon: Building,
       href: buildUrl({
         delivery: 'Under Construction',
-        label: isAr ? 'قيد الإنشاء' : 'Under construction',
+        label: lbl('New projects'),
       }),
       color: 'bg-blue-50 text-blue-600',
     },

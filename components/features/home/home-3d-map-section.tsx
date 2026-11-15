@@ -11,16 +11,140 @@ import {
   Layers,
   MousePointerClick,
 } from 'lucide-react'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation, type LocaleCode } from '@/lib/i18n'
+
+const MAP_SECTION_I18N: Record<
+  LocaleCode,
+  {
+    badge: string
+    titlePrefix: string
+    titleAccent: string
+    subtitle: string
+    browseAllBtn: string
+    launchMapBtn: string
+    features: Array<{ title: string; sub: string }>
+  }
+> = {
+  ar: {
+    badge: 'مستكشف المشاريع ثلاثي الأبعاد',
+    titlePrefix: 'تصفح فرص التنازل على',
+    titleAccent: 'خريطة جورجيا 3D',
+    subtitle:
+      'رؤية بانورامية تفاعلية لجميع الأبراج والمجمعات السكنية المعتمدة في تبليسي وباتومي.',
+    browseAllBtn: 'استعرض كل الوحدات على الخريطة',
+    launchMapBtn: 'افتح خريطة الفرص ثلاثية الأبعاد',
+    features: [
+      {
+        title: 'استكشف عروض التنازل داخل كل برج',
+        sub: 'اضغط على أي مجمع سكني على الخريطة لترى الشقق المتاحة لاستكمال الأقساط ومقدار الكاش المطلوب بالدولار.',
+      },
+      {
+        title: 'مجسمات حية للمشاريع قيد الإنشاء',
+        sub: 'عاين موقع مشروعك ونسبة الإنجاز المعماري ثلاثي الأبعاد قبل اتخاذ قرار شراء عقد التقسيط.',
+      },
+      {
+        title: 'مقارنة سعر العقد القديم بسعر المطور اليوم',
+        sub: 'اعرف حجم التوفير الفوري لكل منطقة في تبليسي وباتومي مع مؤشرات الأسعار والخدمات المحيطة.',
+      },
+      {
+        title: 'تبديل فوري بين المنظور المسطح 2D والغامر 3D',
+        sub: 'تصفح خريطة الفرص بمرونة كاملة على التلفون أو الكمبيوتر بلمسة واحدة.',
+      },
+    ],
+  },
+  en: {
+    badge: '3D PROJECT EXPLORER',
+    titlePrefix: 'Explore Exit Opportunities on',
+    titleAccent: 'Georgia 3D Map',
+    subtitle:
+      'Interactive panoramic view of verified residential complexes in Tbilisi and Batumi.',
+    browseAllBtn: 'Browse all units on 3D map',
+    launchMapBtn: 'Launch Interactive 3D Map',
+    features: [
+      {
+        title: 'Explore Exit Deals in Every Tower',
+        sub: 'Tap any residential tower to see available installment takeover units and required cash in USD.',
+      },
+      {
+        title: '3D Models for Under-Construction Projects',
+        sub: 'Preview project location and 3D architectural progress before taking over an installment contract.',
+      },
+      {
+        title: 'Compare Old Contract vs. Current Developer Price',
+        sub: 'See instant savings per district across Tbilisi and Batumi alongside nearby amenities.',
+      },
+      {
+        title: 'Instant Switch Between 2D & Immersive 3D',
+        sub: 'Navigate opportunities smoothly on mobile or desktop with one tap.',
+      },
+    ],
+  },
+  ru: {
+    badge: '3D-ОБЗОР ПРОЕКТОВ',
+    titlePrefix: 'Изучайте объекты переуступки на',
+    titleAccent: '3D-карте Грузии',
+    subtitle:
+      'Интерактивный панорамный обзор проверенных жилых комплексов в Тбилиси и Батуми.',
+    browseAllBtn: 'Смотреть все объекты на карте',
+    launchMapBtn: 'Открыть интерактивную 3D-карту',
+    features: [
+      {
+        title: 'Предложения переуступки в каждом корпусе',
+        sub: 'Нажмите на любой ЖК на карте, чтобы увидеть доступные квартиры и сумму на руки в USD.',
+      },
+      {
+        title: '3D-модели строящихся комплексов',
+        sub: 'Оцените расположение дома и прогресс строительства в 3D перед переоформлением договора.',
+      },
+      {
+        title: 'Сравнение цены договора с ценой застройщика',
+        sub: 'Узнайте мгновенную выгоду по каждому району Тбилиси и Батуми вместе с инфраструктурой.',
+      },
+      {
+        title: 'Мгновенное переключение 2D и 3D режима',
+        sub: 'Удобная навигация по карте объектов со смартфона или компьютера в один клик.',
+      },
+    ],
+  },
+  ka: {
+    badge: 'პროექტების 3D მიმოხილვა',
+    titlePrefix: 'დაათვალიერეთ შეთავაზებები',
+    titleAccent: 'საქართველოს 3D რუკაზე',
+    subtitle:
+      'თბილისისა და ბათუმის გადამოწმებული საცხოვრებელი კომპლექსების ინტერაქტიული პანორამა.',
+    browseAllBtn: 'ყველა ობიექტის ნახვა რუკაზე',
+    launchMapBtn: 'გახსენით ინტერაქტიული 3D რუკა',
+    features: [
+      {
+        title: 'შეთავაზებები თითოეულ კორპუსში',
+        sub: 'დააჭირეთ ნებისმიერ საცხოვრებელ კომპლექსს რუკაზე და ნახეთ ბინები და საჭირო თანხა.',
+      },
+      {
+        title: 'მშენებარე პროექტების 3D მოდელები',
+        sub: 'შეაფასეთ მდებარეობა და სამშენებლო პროგრესი 3D ფორმატში გადაწყვეტილების მიღებამდე.',
+      },
+      {
+        title: 'ხელშეკრულების ფასის შედარება დეველოპერის ფასთან',
+        sub: 'ნახეთ მყისიერი დანაზოგი თბილისისა და ბათუმის უბნების მიხედვით.',
+      },
+      {
+        title: 'სწრაფი გადართვა 2D და 3D რეჟიმებს შორის',
+        sub: 'მარტივად მართეთ რუკა მობილურიდან ან კომპიუტერიდან ერთი შეხებით.',
+      },
+    ],
+  },
+}
+
+const FEATURE_ICONS = [MousePointerClick, Building2, BarChart3, Layers]
 
 export function Home3DMapSection() {
   const { locale, dir } = useTranslation()
-  const isAr = locale === 'ar'
+  const activeLocale = (locale as LocaleCode) || 'ar'
+  const mT = MAP_SECTION_I18N[activeLocale] || MAP_SECTION_I18N.ar
 
   const sectionRef = useRef<HTMLElement>(null)
   const [inView, setInView] = useState(false)
 
-  // مراقبة السكرول لتفعيل أنيميشن نزول السطور واحداً تحت الآخر بوضوح في كل مرة
   useEffect(() => {
     const el = sectionRef.current
     if (!el) return
@@ -41,51 +165,11 @@ export function Home3DMapSection() {
     return () => observer.disconnect()
   }, [])
 
-  const mapFeatures = [
-    {
-      title: isAr
-        ? 'استكشف عروض التنازل داخل كل برج'
-        : 'Explore Exit Deals in Every Tower',
-      sub: isAr
-        ? 'اضغط على أي مجمع سكني على الخريطة لترى الشقق المتاحة لاستكمال الأقساط ومقدار الكاش المطلوب بالدولار.'
-        : 'Tap any residential tower to see available installment takeover units and required cash in USD.',
-      icon: MousePointerClick,
-    },
-    {
-      title: isAr
-        ? 'مجسمات حية للمشاريع قيد الإنشاء'
-        : '3D Models for Under-Construction Projects',
-      sub: isAr
-        ? 'عاين موقع مشروعك ونسبة الإنجاز المعماري ثلاثي الأبعاد قبل اتخاذ قرار شراء عقد التقسيط.'
-        : 'Preview project location and 3D architectural progress before taking over an installment contract.',
-      icon: Building2,
-    },
-    {
-      title: isAr
-        ? 'مقارنة سعر العقد القديم بسعر المطور اليوم'
-        : 'Compare Old Contract vs. Current Developer Price',
-      sub: isAr
-        ? 'اعرف حجم التوفير الفوري لكل منطقة في تبليسي وباتومي مع مؤشرات الأسعار والخدمات المحيطة.'
-        : 'See instant savings per district across Tbilisi and Batumi alongside nearby amenities.',
-      icon: BarChart3,
-    },
-    {
-      title: isAr
-        ? 'تبديل فوري بين المنظور المسطح 2D والغامر 3D'
-        : 'Instant Switch Between 2D & Immersive 3D',
-      sub: isAr
-        ? 'تصفح خريطة الفرص بمرونة كاملة على التلفون أو الكمبيوتر بلمسة واحدة.'
-        : 'Navigate opportunities smoothly on mobile or desktop with one tap.',
-      icon: Layers,
-    },
-  ]
-
   return (
     <section
       ref={sectionRef}
       className="relative overflow-hidden bg-gradient-to-br from-[#0f172a] via-[#172554] to-[#1e1b4b] px-4 py-16 text-white sm:px-6 lg:px-8 lg:py-20"
     >
-      {/* إضاءة خلفية ناعمة باللون الأزرق الملكي والبرتقالي */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute -top-24 right-1/4 size-96 rounded-full bg-blue-500/15 blur-[110px]"
@@ -96,34 +180,26 @@ export function Home3DMapSection() {
       />
 
       <div className="relative z-10 mx-auto grid max-w-[1280px] grid-cols-1 items-center gap-10 lg:grid-cols-12">
-        {/* العمود الأول (يظهر في اليمين في العربي): العنوان + السطور الـ 4 التي تنزل بالتتابع + الزر السفلي */}
         <div className="text-start lg:col-span-6">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-400/30 bg-blue-500/10 px-4 py-1 text-xs font-bold text-sky-300">
             <Compass className="size-3.5" />
-            <span>
-              {isAr
-                ? 'مستكشف المشاريع ثلاثي الأبعاد'
-                : '3D PROJECT EXPLORER'}
-            </span>
+            <span>{mT.badge}</span>
           </span>
 
           <h2 className="mt-4 text-3xl font-bold leading-tight text-white sm:text-5xl">
-            {isAr ? 'تصفح فرص التنازل على' : 'Explore Exit Opportunities on'}{' '}
+            {mT.titlePrefix}{' '}
             <span className="bg-gradient-to-r from-[#60a5fa] to-[#ff8552] bg-clip-text text-transparent">
-              {isAr ? 'خريطة جورجيا 3D' : 'Georgia 3D Map'}
+              {mT.titleAccent}
             </span>
           </h2>
 
           <p className="mt-3 text-xs leading-relaxed text-blue-100/75 sm:text-sm">
-            {isAr
-              ? 'رؤية بانورامية تفاعلية لجميع الأبراج والمجمعات السكنية المعتمدة في تبليسي وباتومي.'
-              : 'Interactive panoramic view of verified residential complexes in Tbilisi and Batumi.'}
+            {mT.subtitle}
           </p>
 
-          {/* السطور الـ 4 التي تنزل واحداً تحت الآخر بنعومة واضحة */}
           <div className="mt-6 space-y-3">
-            {mapFeatures.map((item, idx) => {
-              const Icon = item.icon
+            {mT.features.map((item, idx) => {
+              const Icon = FEATURE_ICONS[idx] || Layers
               return (
                 <div
                   key={item.title}
@@ -157,7 +233,6 @@ export function Home3DMapSection() {
             })}
           </div>
 
-          {/* الزر الأبيض السفلي يظهر بعد اكتمال السطور الأربعة */}
           <div
             style={{ transitionDelay: '860ms' }}
             className={`mt-7 transition-all duration-700 ease-out ${
@@ -168,11 +243,7 @@ export function Home3DMapSection() {
               href="/opportunities?view=map3d"
               className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-white px-7 text-xs font-bold text-[#0f172a] shadow-lg transition hover:bg-blue-50 sm:text-sm"
             >
-              <span>
-                {isAr
-                  ? 'استعرض كل الوحدات على الخريطة'
-                  : 'Browse all units on 3D map'}
-              </span>
+              <span>{mT.browseAllBtn}</span>
               {dir === 'rtl' ? (
                 <ArrowLeft className="size-4" />
               ) : (
@@ -182,7 +253,6 @@ export function Home3DMapSection() {
           </div>
         </div>
 
-        {/* العمود الثاني (يظهر في الشمال في العربي): المجسم البياني ثلاثي الأبعاد */}
         <div className="flex min-h-[340px] flex-col items-center justify-end overflow-hidden rounded-[28px] border border-blue-400/25 bg-[linear-gradient(180deg,rgba(37,99,235,0.16)_0%,rgba(15,23,42,0.88)_100%)] p-7 shadow-2xl backdrop-blur-xs sm:min-h-[410px] lg:col-span-6">
           <div className="relative flex h-52 w-full items-end justify-center gap-2.5 sm:gap-4">
             {[32, 68, 46, 92, 58, 155, 80, 64, 105, 50, 82].map((h, i) => (
@@ -211,11 +281,7 @@ export function Home3DMapSection() {
             href="/opportunities?view=map3d"
             className="mt-8 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-7 py-2.5 text-xs font-bold text-white shadow-[0_8px_24px_rgba(255,100,55,0.4)] transition hover:scale-105"
           >
-            <span>
-              {isAr
-                ? 'افتح خريطة الفرص ثلاثية الأبعاد'
-                : 'Launch Interactive 3D Map'}
-            </span>
+            <span>{mT.launchMapBtn}</span>
           </Link>
         </div>
       </div>

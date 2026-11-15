@@ -99,6 +99,9 @@ const OPPS_UI_FALLBACK: Record<
     adCardBadge: string
     adCardTitle: string
     adCardSub: string
+    adBullet1: string
+    adBullet2: string
+    adBullet3: string
     adCardBtn: string
     newlyAddedHeading: string
     chips: {
@@ -147,6 +150,9 @@ const OPPS_UI_FALLBACK: Record<
     adCardBadge: 'مساحة إعلانية',
     adCardTitle: 'إعلانك هنا',
     adCardSub: 'انشر إعلانك واصل إلى آلاف المشترين والمستثمرين في العقارات.',
+    adBullet1: 'جمهور مستهدف من المشترين',
+    adBullet2: 'تواصل مباشر وسريع',
+    adBullet3: 'إحصائيات ومشاهدات شفافة',
     adCardBtn: 'أعلن هنا ←',
     newlyAddedHeading: 'أضيفت حديثاً (مرتبة حسب التاريخ)',
     chips: {
@@ -195,6 +201,9 @@ const OPPS_UI_FALLBACK: Record<
     adCardTitle: 'Your Ad Here',
     adCardSub:
       'Publish your listing and reach thousands of real estate buyers and investors.',
+    adBullet1: 'Targeted audience',
+    adBullet2: 'Direct contact',
+    adBullet3: 'Transparent metrics',
     adCardBtn: 'Advertise Here →',
     newlyAddedHeading: 'Recently Added (Sorted by Date)',
     chips: {
@@ -243,6 +252,9 @@ const OPPS_UI_FALLBACK: Record<
     adCardTitle: 'Ваша реклама здесь',
     adCardSub:
       'Разместите объявление и привлеките тысячи покупателей и инвесторов.',
+    adBullet1: 'Целевая аудитория инвесторов',
+    adBullet2: 'Прямой контакт с покупателем',
+    adBullet3: 'Прозрачная статистика просмотров',
     adCardBtn: 'Разместить →',
     newlyAddedHeading: 'Недавно добавленные (по дате)',
     chips: {
@@ -291,6 +303,9 @@ const OPPS_UI_FALLBACK: Record<
     adCardTitle: 'თქვენი რეკლამა აქ',
     adCardSub:
       'განათავსეთ განცხადება და მიაწვდინეთ ხმა ათასობით მყიდველსა და ინვესტორს.',
+    adBullet1: 'მიზნობრივი აუდიტორია',
+    adBullet2: 'პირდაპირი კონტაქტი',
+    adBullet3: 'გამჭვირვალე სტატისტიკა',
     adCardBtn: 'განთავსება →',
     newlyAddedHeading: 'ახალი დამატებული (თარიღის მიხედვით)',
     chips: {
@@ -312,9 +327,91 @@ const OPPS_UI_FALLBACK: Record<
   },
 }
 
-/**
- * كارت المساحة الإعلانية المدمج داخل الشبكة (مطابق تماماً لتصميم الموقع الجورجي في الصور)
- */
+function localizePropertyTypeLabel(rawType: string, locale: LocaleCode): string {
+  const lower = (rawType || '').toLowerCase()
+  if (
+    lower.includes('studio') ||
+    rawType.includes('استوديو') ||
+    lower.includes('студия') ||
+    rawType.includes('სტუდიო')
+  ) {
+    return locale === 'ar'
+      ? 'استوديو'
+      : locale === 'ru'
+        ? 'Студия'
+        : locale === 'ka'
+          ? 'სტუდიო'
+          : 'Studio'
+  }
+  if (
+    lower.includes('hotel') ||
+    rawType.includes('فندق') ||
+    lower.includes('апарт') ||
+    rawType.includes('აპარტ')
+  ) {
+    return locale === 'ar'
+      ? 'شقة فندقية'
+      : locale === 'ru'
+        ? 'Апарт-отель'
+        : locale === 'ka'
+          ? 'აპარტ-ოტელი'
+          : 'Aparthotel'
+  }
+  if (
+    lower.includes('house') ||
+    lower.includes('villa') ||
+    rawType.includes('فيلا') ||
+    rawType.includes('منزل')
+  ) {
+    return locale === 'ar'
+      ? 'فيلا'
+      : locale === 'ru'
+        ? 'Вилла / Дом'
+        : locale === 'ka'
+          ? 'ვილა / სახლი'
+          : 'Villa'
+  }
+  if (
+    lower.includes('cottage') ||
+    lower.includes('chalet') ||
+    rawType.includes('شاليه') ||
+    rawType.includes('كوخ')
+  ) {
+    return locale === 'ar'
+      ? 'شاليه'
+      : locale === 'ru'
+        ? 'Коттедж'
+        : locale === 'ka'
+          ? 'კოტეჯი'
+          : 'Cottage'
+  }
+  if (lower.includes('commercial') || rawType.includes('تجاري')) {
+    return locale === 'ar'
+      ? 'تجاري'
+      : locale === 'ru'
+        ? 'Коммерческая'
+        : locale === 'ka'
+          ? 'კომერციული'
+          : 'Commercial'
+  }
+  if (lower.includes('land') || rawType.includes('أرض')) {
+    return locale === 'ar'
+      ? 'أرض'
+      : locale === 'ru'
+        ? 'Участок'
+        : locale === 'ka'
+          ? 'მიწა'
+          : 'Land'
+  }
+  return locale === 'ar'
+    ? 'شقة'
+    : locale === 'ru'
+      ? 'Квартира'
+      : locale === 'ka'
+        ? 'ბინა'
+        : 'Apartment'
+}
+
 export function InlineAdSlotCard({
   uT,
   tierLabel,
@@ -355,15 +452,15 @@ export function InlineAdSlotCard({
           <ul className="mt-4 space-y-1.5 text-xs font-semibold text-slate-500">
             <li className="flex items-center gap-2">
               <span className="size-1.5 rounded-full bg-[#ff6437]" />
-              <span>Targeted audience</span>
+              <span>{uT.adBullet1}</span>
             </li>
             <li className="flex items-center gap-2">
               <span className="size-1.5 rounded-full bg-[#ff6437]" />
-              <span>Direct contact</span>
+              <span>{uT.adBullet2}</span>
             </li>
             <li className="flex items-center gap-2">
               <span className="size-1.5 rounded-full bg-[#ff6437]" />
-              <span>Transparent metrics</span>
+              <span>{uT.adBullet3}</span>
             </li>
           </ul>
         </div>
@@ -383,11 +480,12 @@ export function InlineAdSlotCard({
 
 export default function OpportunitiesPage() {
   const { t: dict, locale, dir } = useTranslation()
-  const isAr = locale === 'ar'
+  const activeLocale = (locale as LocaleCode) || 'ar'
+  const isAr = activeLocale === 'ar'
   const t = dict.opportunitiesPage as Record<string, any>
   const activeCurrency = '$'
 
-  const baseUi = OPPS_UI_FALLBACK[locale] || OPPS_UI_FALLBACK.ar
+  const baseUi = OPPS_UI_FALLBACK[activeLocale] || OPPS_UI_FALLBACK.ar
   const customUi = t.ui || {}
   const uT = {
     ...baseUi,
@@ -396,8 +494,8 @@ export default function OpportunitiesPage() {
   }
 
   const localizedTypes = useMemo(
-    () => getLocalizedUnitTypes(dict, locale),
-    [dict, locale]
+    () => getLocalizedUnitTypes(dict, activeLocale),
+    [dict, activeLocale]
   )
 
   const [rawDbRows, setRawDbRows] = useState<any[]>([])
@@ -504,7 +602,7 @@ export default function OpportunitiesPage() {
         updateSivrceFilter('location', areaParam)
         updateSivrceFilter(
           'locationDisplay',
-          getLocalizedGeorgiaAreaName(areaParam, locale)
+          getLocalizedGeorgiaAreaName(areaParam, activeLocale)
         )
       }
       if (typeParam) {
@@ -527,7 +625,11 @@ export default function OpportunitiesPage() {
           updateSivrceFilter('vipTier', '+VIP')
         }
       }
-      if (sortParam === 'newest' || sortParam === 'recent' || sortParam === 'date') {
+      if (
+        sortParam === 'newest' ||
+        sortParam === 'recent' ||
+        sortParam === 'date'
+      ) {
         setSortIdx(1)
         setStrictDateSort(true)
         if (!labelParam) {
@@ -571,7 +673,7 @@ export default function OpportunitiesPage() {
       if (viewParam === 'map3d') setViewMode('map3d')
       else if (viewParam === 'map2d') setViewMode('map2d')
     } catch {}
-  }, [locale])
+  }, [activeLocale, uT.newlyAddedHeading])
 
   const handleToggleFavorite = (unitId: string) => {
     setFavoriteIds((prev) => {
@@ -587,7 +689,7 @@ export default function OpportunitiesPage() {
     })
   }
 
- useEffect(() => {
+  useEffect(() => {
     async function loadApprovedProperties() {
       setLoading(true)
       try {
@@ -610,7 +712,6 @@ export default function OpportunitiesPage() {
             .eq('status', 'accepted'),
         ])
 
-        // جمع أرقام الوحدات التي اتفق عليها البائع والمشتري بالفعل
         const lockedUnitIds = new Set(
           (acceptedOffersRes.data || []).map((o: any) => String(o.property_id))
         )
@@ -660,7 +761,11 @@ export default function OpportunitiesPage() {
     MappedProperty & { rawFeatures: string[]; rawFinishing: string }
   > = useMemo(() => {
     return rawDbRows.map((row) => {
-      const mapped = mapDbRowToProperty(row, locale, dict.opportunitiesPage)
+      const mapped = mapDbRowToProperty(
+        row,
+        activeLocale,
+        dict.opportunitiesPage
+      )
       const metaFeatures = row?.documents?.__unit_meta?.features
       const rowFeatures = Array.isArray(row?.features)
         ? row.features
@@ -670,13 +775,22 @@ export default function OpportunitiesPage() {
       const rawFinishing = String(
         row?.finishing || row?.documents?.__unit_meta?.finishing || ''
       )
+      const rawUnitType = String(
+        row?.unit_type || row?.documents?.__unit_meta?.unit_type || mapped.type
+      )
+
       return {
         ...mapped,
+        type: localizePropertyTypeLabel(rawUnitType, activeLocale),
+        area: getLocalizedGeorgiaAreaName(
+          row?.area || mapped.rawArea,
+          activeLocale
+        ),
         rawFeatures: rowFeatures.map((f: any) => String(f || '')),
         rawFinishing,
       }
     })
-  }, [rawDbRows, locale, dict.opportunitiesPage])
+  }, [rawDbRows, activeLocale, dict.opportunitiesPage])
 
   useEffect(() => {
     setCurrentPage(1)
@@ -827,7 +941,6 @@ export default function OpportunitiesPage() {
       }
       if (negotiable && !item.negotiable) return false
 
-      // فلترة دقيقة حسب باقة الترويج (SUPER VIP أو +VIP) مثل الموقع الجورجي في الصور
       if (sivrceFilters.vipTier === 'SUPER VIP') {
         const itemTier =
           item.boostTier || (item.featured ? 'super_vip' : null)
@@ -883,7 +996,8 @@ export default function OpportunitiesPage() {
           !item.type.includes('شقة') &&
           !item.type.includes('استوديو') &&
           !item.type.includes('ბინა') &&
-          !item.type.includes('квартир')
+          !item.type.includes('квартир') &&
+          !item.type.includes('студия')
         ) {
           return false
         } else if (pt === 'private house') {
@@ -892,7 +1006,11 @@ export default function OpportunitiesPage() {
             !itemTp.includes('villa') &&
             !item.type.includes('منزل') &&
             !item.type.includes('فيلا') &&
-            !item.type.includes('تاون')
+            !item.type.includes('تاون') &&
+            !itemTp.includes('дом') &&
+            !itemTp.includes('вилл') &&
+            !item.type.includes('სახლი') &&
+            !item.type.includes('ვილა')
           ) {
             return false
           }
@@ -901,12 +1019,19 @@ export default function OpportunitiesPage() {
             !itemTp.includes('cottage') &&
             !itemTp.includes('chalet') &&
             !item.type.includes('شاليه') &&
-            !item.type.includes('كوخ')
+            !item.type.includes('كوخ') &&
+            !itemTp.includes('коттедж') &&
+            !item.type.includes('კოტეჯი')
           ) {
             return false
           }
         } else if (pt === 'hotel') {
-          if (!itemTp.includes('hotel') && !item.type.includes('فندق')) {
+          if (
+            !itemTp.includes('hotel') &&
+            !item.type.includes('فندق') &&
+            !itemTp.includes('апарт') &&
+            !item.type.includes('აპარტ')
+          ) {
             return false
           }
         } else if (pt === 'commercial') {
@@ -916,12 +1041,19 @@ export default function OpportunitiesPage() {
             !itemTp.includes('shop') &&
             !item.type.includes('تجاري') &&
             !item.type.includes('مكتب') &&
-            !item.type.includes('محل')
+            !item.type.includes('محل') &&
+            !itemTp.includes('коммерч') &&
+            !item.type.includes('კომერციული')
           ) {
             return false
           }
         } else if (pt === 'land') {
-          if (!itemTp.includes('land') && !item.type.includes('أرض')) {
+          if (
+            !itemTp.includes('land') &&
+            !item.type.includes('أرض') &&
+            !itemTp.includes('участок') &&
+            !item.type.includes('მიწა')
+          ) {
             return false
           }
         }
@@ -997,7 +1129,6 @@ export default function OpportunitiesPage() {
       const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0
       const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0
 
-      // إذا اختار المستخدم "أضيفت حديثاً" أو الترتيب حسب التاريخ، نرتب تنازلياً من الأحدث للأقدم
       if (strictDateSort || sortIdx === 1) {
         if (!strictDateSort && a.featured !== b.featured) {
           return a.featured ? -1 : 1
@@ -1042,33 +1173,6 @@ export default function OpportunitiesPage() {
   ])
 
   const availableUnitsCount = visibleProperties.length
-
-  const totalMarketSum = useMemo(() => {
-    return visibleProperties.reduce(
-      (sum, item) =>
-        sum + (item.marketPriceNum || item.contractPriceNum || item.cashNum),
-      0
-    )
-  }, [visibleProperties])
-
-  const formattedMarketTotal = useMemo(() => {
-    if (totalMarketSum >= 1_000_000_000) {
-      return {
-        value: (totalMarketSum / 1_000_000_000).toFixed(1),
-        unit: `${t.stats.billion} ${activeCurrency}`,
-      }
-    }
-    if (totalMarketSum >= 1_000_000) {
-      return {
-        value: (totalMarketSum / 1_000_000).toFixed(1),
-        unit: `${t.stats.million} ${activeCurrency}`,
-      }
-    }
-    return {
-      value: totalMarketSum.toLocaleString('en-US'),
-      unit: activeCurrency,
-    }
-  }, [totalMarketSum, activeCurrency, t])
 
   const totalPages = Math.max(1, Math.ceil(visibleProperties.length / PAGE_SIZE))
   const safeCurrentPage = Math.min(currentPage, totalPages)
@@ -1212,28 +1316,33 @@ export default function OpportunitiesPage() {
       ? quickCategoryChips.find((c) => c.id === sivrceFilters.propertyType)
           ?.label || sivrceFilters.propertyType
       : '') ||
-    (areaQuery ? getLocalizedGeorgiaAreaName(areaQuery, locale) : '')
+    (areaQuery ? getLocalizedGeorgiaAreaName(areaQuery, activeLocale) : '')
 
   const typeMenuOptions = useMemo(() => {
     return [
       { id: '', label: uT.allTypesOption },
       ...PROPERTY_KINDS.map((k) => ({
         id: k.id,
-        label: getOptionLabel(k, locale),
+        label: getOptionLabel(k, activeLocale),
       })),
     ]
-  }, [uT.allTypesOption, locale])
+  }, [uT.allTypesOption, activeLocale])
 
   const selectedTypeDisplay = useMemo(() => {
     if (sivrceFilters.propertyType) {
       const found = PROPERTY_KINDS.find(
         (k) => k.id === sivrceFilters.propertyType
       )
-      if (found) return getOptionLabel(found, locale)
+      if (found) return getOptionLabel(found, activeLocale)
       return sivrceFilters.propertyType
     }
     return selectedTypes[0] || t.filters.unitTypeLabel
-  }, [sivrceFilters.propertyType, selectedTypes, locale, t.filters.unitTypeLabel])
+  }, [
+    sivrceFilters.propertyType,
+    selectedTypes,
+    activeLocale,
+    t.filters.unitTypeLabel,
+  ])
 
   if (viewMode === 'map2d' || viewMode === 'map3d') {
     return (
@@ -1267,7 +1376,7 @@ export default function OpportunitiesPage() {
             <MapPin className="size-3.5 text-[#2563eb]" />
             <span>
               {areaQuery
-                ? getLocalizedGeorgiaAreaName(areaQuery, locale)
+                ? getLocalizedGeorgiaAreaName(areaQuery, activeLocale)
                 : t.header.subtitle}
             </span>
           </p>
@@ -1340,7 +1449,9 @@ export default function OpportunitiesPage() {
             <SivrceLocationModalPicker
               value={areaQuery}
               displayText={
-                areaQuery ? getLocalizedGeorgiaAreaName(areaQuery, locale) : ''
+                areaQuery
+                  ? getLocalizedGeorgiaAreaName(areaQuery, activeLocale)
+                  : ''
               }
               showEverywhereOption={true}
               onSelectLocation={({ areaId, displayLabel }) => {
@@ -1535,7 +1646,6 @@ export default function OpportunitiesPage() {
             ref={chipsScrollRef}
             className="flex items-center gap-2 overflow-x-auto py-1.5 pe-10 no-scrollbar"
           >
-            {/* أزرار سريعة لـ SUPER VIP و +VIP بجانب الفئات */}
             <button
               type="button"
               onClick={() =>
@@ -1623,7 +1733,6 @@ export default function OpportunitiesPage() {
           </button>
         </div>
 
-        {/* شريط عدد النتائج والشارات النشطة مثل الصور (SUPER VIP × / +VIP ×) */}
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <strong className="text-sm font-bold text-[#0f1d40]">
@@ -1690,7 +1799,7 @@ export default function OpportunitiesPage() {
               >
                 <span>
                   {t.filters.areaBadgePrefix}{' '}
-                  {getLocalizedGeorgiaAreaName(areaQuery, locale)}
+                  {getLocalizedGeorgiaAreaName(areaQuery, activeLocale)}
                 </span>
                 <X className="size-3" />
               </button>
@@ -1768,7 +1877,6 @@ export default function OpportunitiesPage() {
           </div>
         </div>
 
-        {/* بانر إعلانك هنا العلوي */}
         <div className="mt-5 flex flex-col items-center justify-between gap-4 rounded-[22px] border border-slate-200/80 bg-white p-5 shadow-xs sm:flex-row sm:px-7">
           <div className="flex items-center gap-3.5 text-start">
             <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-[#2563eb]">
@@ -1836,7 +1944,6 @@ export default function OpportunitiesPage() {
                     liked={favoriteIds.includes(String(property.id))}
                     onToggleLike={handleToggleFavorite}
                   />
-                  {/* إدراج كارت المساحة الإعلانية في الموضع الثاني تماماً مثل صور الموقع الجورجي */}
                   {idx === 0 && safeCurrentPage === 1 && (
                     <InlineAdSlotCard
                       uT={uT}

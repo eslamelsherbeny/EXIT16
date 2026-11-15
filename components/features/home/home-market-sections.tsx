@@ -7,20 +7,314 @@ import {
   Check,
   CheckCircle2,
   CreditCard,
-  Flame,
   Landmark,
   Lock,
   Sparkles,
   Wallet,
   Zap,
 } from 'lucide-react'
-import { createBrowserClient } from '@supabase/ssr'
 import { ScrollReveal } from '@/components/shared/scroll-reveal'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation, type LocaleCode } from '@/lib/i18n'
 import { createBoostRequestAction } from '@/actions/account-actions'
 
-// دالة حساب تفاصيل الباقة باللاري الجورجي (₾) مطابقة للصور 5 إلى 10 بالضبط
-export function calculateGelBoostPackage(amount: number, isAr: boolean) {
+const MARKET_SECTIONS_I18N: Record<
+  LocaleCode,
+  {
+    bannerBadge: string
+    bannerTitle: string
+    bannerDesc: string
+    bannerPill1: string
+    bannerPill2: string
+    bannerPill3: string
+    bannerBtn: string
+    devBadge: string
+    devTitle: string
+    devSub: string
+    devAllBtn: string
+    devProjectsWord: string
+    devActiveWord: string
+    devProjectsLink: string
+    tbilisi: string
+    batumi: string
+    walletBadge: string
+    walletTitlePrefix: string
+    walletTitleAccent: string
+    walletDesc: string
+    feature1Title: string
+    feature1Desc: string
+    feature2Title: string
+    feature2Desc: string
+    feature3Title: string
+    feature3Desc: string
+    quickAmounts: string
+    starterBadge: string
+    recommendedBadge: string
+    popularBadge: string
+    customAmountLabel: string
+    anyWord: string
+    daySingular: string
+    dayPlural: string
+    creditedToBalance: string
+    zeroFeeBadge: string
+    instantCreditBadge: string
+    upsellAdvice: (target: number, discount: string, days: number) => string
+    topUpToBtn: (target: number) => string
+    unitCodePlaceholder: string
+    neverExpires: string
+    fullyRefundable: string
+    payWithCardBtn: (amt: number) => string
+    bankTransferBtn: (amt: number) => string
+    boostRecordedMsg: (
+      tier: string,
+      amt: number,
+      days: number,
+      code?: string | null
+    ) => string
+    coversLabel: (tier: string, days: number) => string
+  }
+> = {
+  ar: {
+    bannerBadge: 'مساحة ترويجية مميزة · AQAR EXIT SPOTLIGHT',
+    bannerTitle: 'هل تريد بيع وحدتك أو تسويق مشروعك أسرع؟',
+    bannerDesc:
+      'ضع وحدتك في صدارة الصفحة الرئيسية أمام آلاف المستثمرين والمشترين الجادين الباحثين عن فرص استكمال الأقساط في جورجيا.',
+    bannerPill1: 'ظهور في الصدارة',
+    bannerPill2: 'مشترون جادون بدون وسطاء',
+    bannerPill3: 'تفعيل فوري',
+    bannerBtn: 'اختر باقة تمييز إعلانك الآن ←',
+    devBadge: 'أفضل المطورين',
+    devTitle: 'شركات التطوير الرائدة',
+    devSub: 'ترتيب حسب الإعلانات النشطة — استعرض المشاريع والعقارات',
+    devAllBtn: 'كل المطورين (1399) ←',
+    devProjectsWord: 'مشروع',
+    devActiveWord: 'نشطة',
+    devProjectsLink: 'المشاريع ←',
+    tbilisi: 'تبليسي',
+    batumi: 'باتومي',
+    walletBadge: 'رصيد المحفظة والترقية',
+    walletTitlePrefix: 'اشحن رصيدك',
+    walletTitleAccent: 'بأي مبلغ',
+    walletDesc:
+      'رقِّ إعلان التنازل الخاص بك لباقات SUPER VIP و VIP+ ليظهر في صدارة الصفحة الرئيسية والفرص المتاحة. بمجرد الدفع عبر الرابط ومراجعة الأدمن للإعلان والدفع، يتم تفعيل باقتك تلقائياً بالمدة المحددة.',
+    feature1Title: 'كل وسائل الدفع',
+    feature1Desc:
+      'دفع مباشر سريع عبر رابط الدفع الآمن بالبطاقة أو التحويل البنكي.',
+    feature2Title: 'قابل للاسترداد 100%',
+    feature2Desc:
+      'إذا لم تتم الموافقة على الإعلان من الأدمن، يُسترد المبلغ بالكامل فوراً.',
+    feature3Title: 'تفعيل فوري بعد المراجعة',
+    feature3Desc:
+      '0% رسوم إضافية — تُحسب أيام الترقية تلقائياً حسب قيمة الباقة المدفوعة.',
+    quickAmounts: 'مبالغ سريعة',
+    starterBadge: 'بداية',
+    recommendedBadge: 'موصى به 🔥',
+    popularBadge: 'الأكثر طلباً',
+    customAmountLabel: 'مبلغ مخصص',
+    anyWord: 'حر',
+    daySingular: 'يوم',
+    dayPlural: 'أيام',
+    creditedToBalance: 'تُضاف لرصيد إعلانك',
+    zeroFeeBadge: 'عمولة 0%',
+    instantCreditBadge: 'رصيد فوري 1:1',
+    upsellAdvice: (target, discount, days) =>
+      `نصيحة: شحن ${target} ₾ يفتح لك خصم ${discount} على باقة SUPER VIP (${days} يوماً)`,
+    topUpToBtn: (target) => `اشحن ${target} ₾`,
+    unitCodePlaceholder:
+      'كود إعلانك (اختياري — لتفعيله فور مراجعة الأدمن للدفع)',
+    neverExpires: 'لا تنتهي صلاحيته',
+    fullyRefundable: 'قابل للاسترداد بالكامل',
+    payWithCardBtn: (amt) => `ادفع ${amt} ₾ بالبطاقة البنكية`,
+    bankTransferBtn: (amt) => `تحويل بنكي ${amt} ₾`,
+    boostRecordedMsg: (tier, amt, days, code) =>
+      `تم تسجيل طلب تفعيل باقة (${tier} — ${amt} ₾ لمدة ${days} يوم)${code ? ` للوحدة ${code}` : ''}. بمجرد إتمام الدفع ومراجعة الأدمن للإعلان والدفع سيتم التفعيل تلقائياً.`,
+    coversLabel: (tier, days) =>
+      `تغطي باقة ${tier} لمدة ${days} ${days === 1 ? 'يوم' : days === 2 ? 'يومين' : 'أيام'}`,
+  },
+  en: {
+    bannerBadge: 'PREMIUM SPOTLIGHT · AQAR EXIT',
+    bannerTitle: 'Want to Exit Your Unit or Promote Your Project Faster?',
+    bannerDesc:
+      'Place your property at the top of the homepage in front of thousands of serious investors.',
+    bannerPill1: 'Top placement',
+    bannerPill2: 'Direct serious buyers',
+    bannerPill3: 'Instant activation',
+    bannerBtn: 'Boost your listing now →',
+    devBadge: 'TOP DEVELOPERS',
+    devTitle: 'Leading development companies',
+    devSub: 'Ranked by active exit listings — explore projects and units',
+    devAllBtn: 'All developers (1399) →',
+    devProjectsWord: 'projects',
+    devActiveWord: 'active',
+    devProjectsLink: 'Projects →',
+    tbilisi: 'Tbilisi',
+    batumi: 'Batumi',
+    walletBadge: 'Wallet & Boost Balance',
+    walletTitlePrefix: 'Top Up Your Balance',
+    walletTitleAccent: 'With Any Amount',
+    walletDesc:
+      'Promote your listings with SUPER VIP and VIP+ boosts. Once paid and verified by Admin, your listing boost activates automatically.',
+    feature1Title: 'All Payment Methods',
+    feature1Desc:
+      'Apple Pay · Mastercard · Visa · BOG · TBC · Bank Transfer.',
+    feature2Title: '100% Refundable',
+    feature2Desc:
+      'Any unspent balance is fully refundable at any time upon request.',
+    feature3Title: 'Instant 1:1 Credit',
+    feature3Desc: '0% fees. Every 1 GEL goes directly to your listing boost.',
+    quickAmounts: 'Quick amounts',
+    starterBadge: 'Starter',
+    recommendedBadge: 'Recommended 🔥',
+    popularBadge: 'Popular',
+    customAmountLabel: 'Custom amount',
+    anyWord: 'Any',
+    daySingular: 'day',
+    dayPlural: 'days',
+    creditedToBalance: 'credited to your balance',
+    zeroFeeBadge: '0% fee',
+    instantCreditBadge: 'Instant 1:1 credit',
+    upsellAdvice: (target, discount, days) =>
+      `Recommendation: ${target} ₾ unlocks ${discount} volume discount on SUPER VIP (${days} days)`,
+    topUpToBtn: (target) => `Top up to ${target} ₾`,
+    unitCodePlaceholder:
+      'Your unit code (optional — for instant admin activation)',
+    neverExpires: 'Never expires',
+    fullyRefundable: 'Fully refundable',
+    payWithCardBtn: (amt) => `Pay ${amt} ₾ with Card`,
+    bankTransferBtn: (amt) => `Bank Transfer ${amt} ₾`,
+    boostRecordedMsg: (tier, amt, days, code) =>
+      `Boost request (${tier} — ${amt} ₾ for ${days} days)${code ? ` for unit ${code}` : ''} recorded. It will activate automatically once payment and listing are approved by Admin.`,
+    coversLabel: (tier, days) =>
+      `Covers ${tier} for ${days} ${days === 1 ? 'day' : 'days'}`,
+  },
+  ru: {
+    bannerBadge: 'ПРЕМИУМ РАЗМЕЩЕНИЕ · AQAR EXIT',
+    bannerTitle: 'Хотите быстрее продать объект или продвинуть проект?',
+    bannerDesc:
+      'Разместите ваш объект в топе главной страницы перед тысячами реальных покупателей и инвесторов в Грузии.',
+    bannerPill1: 'Топ-позиции в выдаче',
+    bannerPill2: 'Прямые покупатели без посредников',
+    bannerPill3: 'Мгновенная активация',
+    bannerBtn: 'Выбрать пакет продвижения →',
+    devBadge: 'ЛУЧШИЕ ЗАСТРОЙЩИКИ',
+    devTitle: 'Ведущие строительные компании',
+    devSub: 'Рейтинг по активным объектам — изучайте ЖК и квартиры',
+    devAllBtn: 'Все застройщики (1399) →',
+    devProjectsWord: 'проектов',
+    devActiveWord: 'активных',
+    devProjectsLink: 'Проекты →',
+    tbilisi: 'Тбилиси',
+    batumi: 'Батуми',
+    walletBadge: 'Баланс и продвижение',
+    walletTitlePrefix: 'Пополните баланс',
+    walletTitleAccent: 'на любую сумму',
+    walletDesc:
+      'Продвигайте объявления с пакетами SUPER VIP и VIP+. После оплаты и проверки администратором продвижение активируется автоматически.',
+    feature1Title: 'Все способы оплаты',
+    feature1Desc:
+      'Apple Pay · Mastercard · Visa · BOG · TBC · Банковский перевод.',
+    feature2Title: '100% возврат средств',
+    feature2Desc:
+      'Неиспользованный баланс полностью возвращается по первому запросу.',
+    feature3Title: 'Зачисление 1:1 без комиссии',
+    feature3Desc:
+      '0% комиссия — каждый 1 ₾ идет напрямую на продвижение вашего объекта.',
+    quickAmounts: 'Быстрый выбор',
+    starterBadge: 'Старт',
+    recommendedBadge: 'Рекомендуем 🔥',
+    popularBadge: 'Популярный',
+    customAmountLabel: 'Другая сумма',
+    anyWord: 'Любая',
+    daySingular: 'день',
+    dayPlural: 'дн.',
+    creditedToBalance: 'зачисляется на баланс',
+    zeroFeeBadge: '0% комиссия',
+    instantCreditBadge: 'Зачисление 1:1',
+    upsellAdvice: (target, discount, days) =>
+      `Совет: пополнение на ${target} ₾ открывает скидку ${discount} на пакет SUPER VIP (${days} дн.)`,
+    topUpToBtn: (target) => `Пополнить ${target} ₾`,
+    unitCodePlaceholder:
+      'Код вашего объекта (необязательно — для быстрой активации)',
+    neverExpires: 'Без срока действия',
+    fullyRefundable: '100% возврат',
+    payWithCardBtn: (amt) => `Оплатить ${amt} ₾ картой`,
+    bankTransferBtn: (amt) => `Банковский перевод ${amt} ₾`,
+    boostRecordedMsg: (tier, amt, days, code) =>
+      `Заявка на продвижение (${tier} — ${amt} ₾ на ${days} дн.)${code ? ` для объекта ${code}` : ''} сохранена и будет активирована после проверки оплаты.`,
+    coversLabel: (tier, days) =>
+      `Покрывает пакет ${tier} на ${days} ${days === 1 ? 'день' : 'дн.'}`,
+  },
+  ka: {
+    bannerBadge: 'პრემიუმ განთავსება · AQAR EXIT',
+    bannerTitle: 'გსურთ უფრო სწრაფად გაყიდოთ ქონება ან პროექტი?',
+    bannerDesc:
+      'განათავსეთ თქვენი ობიექტი მთავარი გვერდის სათავეში ათასობით რეალური მყიდველისა და ინვესტორის წინაშე.',
+    bannerPill1: 'ტოპ პოზიცია მთავარ გვერდზე',
+    bannerPill2: 'პირდაპირი მყიდველები',
+    bannerPill3: 'მყისიერი აქტივაცია',
+    bannerBtn: 'აირჩიეთ რეკლამის პაკეტი →',
+    devBadge: 'საუკეთესო დეველოპერები',
+    devTitle: 'წამყვანი სამშენებლო კომპანიები',
+    devSub: 'რეიტინგი აქტიური განცხადებებით — ნახეთ პროექტები და ბინები',
+    devAllBtn: 'ყველა დეველოპერი (1399) →',
+    devProjectsWord: 'პროექტი',
+    devActiveWord: 'აქტიური',
+    devProjectsLink: 'პროექტები →',
+    tbilisi: 'თბილისი',
+    batumi: 'ბათუმი',
+    walletBadge: 'ბალანსი და რეკლამირება',
+    walletTitlePrefix: 'შეავსეთ ბალანსი',
+    walletTitleAccent: 'ნებისმიერი თანხით',
+    walletDesc:
+      'გაააქტიურეთ SUPER VIP და VIP+ პაკეტები. გადახდისა და ადმინისტრაციის დადასტურებისთანავე სტატუსი ჩაირთვება ავტომატურად.',
+    feature1Title: 'ყველა გადახდის მეთოდი',
+    feature1Desc:
+      'Apple Pay · Mastercard · Visa · BOG · TBC · საბანკო გადარიცხვა.',
+    feature2Title: '100% დაბრუნებადი',
+    feature2Desc:
+      'გამოუყენებელი ბალანსი სრულად ბრუნდება მოთხოვნისთანავე.',
+    feature3Title: 'მყისიერი 1:1 ჩარიცხვა',
+    feature3Desc:
+      '0% საკომისიო — ყოველი 1 ₾ პირდაპირ ხმარდება თქვენი განცხადების წინ წაწევას.',
+    quickAmounts: 'სწრაფი თანხები',
+    starterBadge: 'სტარტი',
+    recommendedBadge: 'რეკომენდებული 🔥',
+    popularBadge: 'პოპულარული',
+    customAmountLabel: 'სხვა თანხა',
+    anyWord: 'სხვა',
+    daySingular: 'დღე',
+    dayPlural: 'დღე',
+    creditedToBalance: 'დაირიცხება თქვენს ბალანსზე',
+    zeroFeeBadge: '0% საკომისიო',
+    instantCreditBadge: '1:1 ჩარიცხვა',
+    upsellAdvice: (target, discount, days) =>
+      `რჩევა: ${target} ₾-ით შევსება ხსნის ${discount} ფასდაკლებას SUPER VIP პაკეტზე (${days} დღე)`,
+    topUpToBtn: (target) => `შეავსეთ ${target} ₾-მდე`,
+    unitCodePlaceholder:
+      'განცხადების კოდი (არასავალდებულო — სწრაფი აქტივაციისთვის)',
+    neverExpires: 'უვადო ბალანსი',
+    fullyRefundable: '100% დაბრუნებადი',
+    payWithCardBtn: (amt) => `გადაიხადეთ ${amt} ₾ ბარათით`,
+    bankTransferBtn: (amt) => `საბანკო გადარიცხვა ${amt} ₾`,
+    boostRecordedMsg: (tier, amt, days, code) =>
+      `მოთხოვნა (${tier} — ${amt} ₾, ${days} დღე)${code ? ` ობიექტზე ${code}` : ''} მიღებულია და ჩაირთვება გადახდის დადასტურებისთანავე.`,
+    coversLabel: (tier, days) => `ფარავს ${tier} პაკეტს ${days} დღით`,
+  },
+}
+
+export function calculateGelBoostPackage(
+  amount: number,
+  localeOrIsAr: LocaleCode | boolean
+) {
+  const lang: LocaleCode =
+    typeof localeOrIsAr === 'boolean'
+      ? localeOrIsAr
+        ? 'ar'
+        : 'en'
+      : ['ar', 'en', 'ru', 'ka'].includes(localeOrIsAr)
+        ? localeOrIsAr
+        : 'en'
+
+  const mT = MARKET_SECTIONS_I18N[lang] || MARKET_SECTIONS_I18N.ar
   const cleanAmt = Math.max(5, Math.round(amount || 5))
 
   let tier: 'VIP+' | 'SUPER VIP' = cleanAmt < 10 ? 'VIP+' : 'SUPER VIP'
@@ -63,10 +357,6 @@ export function calculateGelBoostPackage(amount: number, isAr: boolean) {
     upsellTarget = 0
   }
 
-  const coverLabel = isAr
-    ? `تغطي باقة ${tier} لمدة ${days} ${days === 1 ? 'يوم' : days === 2 ? 'يومين' : 'أيام'}`
-    : `Covers ${tier} for ${days} ${days === 1 ? 'day' : 'days'}`
-
   return {
     amount: cleanAmt,
     tier,
@@ -75,14 +365,14 @@ export function calculateGelBoostPackage(amount: number, isAr: boolean) {
     upsellTarget,
     upsellDiscount,
     upsellDays,
-    coverLabel,
+    coverLabel: mT.coversLabel(tier, days),
   }
 }
 
-// 1. البانر الإعلاني مع الموجة المتحركة (Wave Shimmer) والكلام على اليمين
 export function SponsoredRightAlignedBanner() {
   const { locale } = useTranslation()
-  const isAr = locale === 'ar'
+  const activeLocale = (locale as LocaleCode) || 'ar'
+  const mT = MARKET_SECTIONS_I18N[activeLocale] || MARKET_SECTIONS_I18N.ar
 
   return (
     <section className="mx-auto max-w-[1280px] px-4 py-8 sm:px-6 lg:px-8">
@@ -90,27 +380,16 @@ export function SponsoredRightAlignedBanner() {
         <div className="aqar-wave-banner rounded-[30px] border border-amber-400/20 bg-gradient-to-r from-[#0d2b26] via-[#132a4a] to-[#2d1b4e] p-8 text-center text-white shadow-xl transition duration-300 hover:shadow-2xl sm:p-12">
           <div className="relative z-10 mx-auto flex max-w-2xl flex-col items-center">
             <span className="inline-block rounded-full border border-amber-300/30 bg-amber-400/10 px-4 py-1 text-[11px] font-bold text-amber-300">
-              ✦{' '}
-              {isAr
-                ? 'مساحة ترويجية مميزة · AQAR EXIT SPOTLIGHT'
-                : 'PREMIUM SPOTLIGHT · AQAR EXIT'}
+              ✦ {mT.bannerBadge}
             </span>
             <h2 className="mt-4 text-2xl font-bold sm:text-4xl">
-              {isAr
-                ? 'هل تريد بيع وحدتك أو تسويق مشروعك أسرع؟'
-                : 'Want to Exit Your Unit or Promote Your Project Faster?'}
+              {mT.bannerTitle}
             </h2>
             <p className="mt-2.5 max-w-xl text-xs leading-relaxed text-white/80 sm:text-sm">
-              {isAr
-                ? 'ضع وحدتك في صدارة الصفحة الرئيسية أمام آلاف المستثمرين والمشترين الجادين الباحثين عن فرص استكمال الأقساط في جورجيا.'
-                : 'Place your property at the top of the homepage in front of thousands of serious investors.'}
+              {mT.bannerDesc}
             </p>
             <div className="mt-5 flex flex-wrap justify-center gap-2">
-              {[
-                isAr ? 'ظهور في الصدارة' : 'Top placement',
-                isAr ? 'مشترون جادون بدون وسطاء' : 'Direct serious buyers',
-                isAr ? 'تفعيل فوري' : 'Instant activation',
-              ].map((pill) => (
+              {[mT.bannerPill1, mT.bannerPill2, mT.bannerPill3].map((pill) => (
                 <span
                   key={pill}
                   className="rounded-full border border-white/15 bg-white/10 px-3.5 py-1 text-[11px] font-semibold text-white/90"
@@ -124,11 +403,7 @@ export function SponsoredRightAlignedBanner() {
               href="#boost-packages-section"
               className="mt-6 inline-flex h-11 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-8 text-xs font-bold text-white shadow-lg transition hover:scale-105 hover:opacity-95 sm:text-sm"
             >
-              <span>
-                {isAr
-                  ? 'اختر باقة تمييز إعلانك الآن ←'
-                  : 'Boost your listing now →'}
-              </span>
+              <span>{mT.bannerBtn}</span>
             </Link>
           </div>
         </div>
@@ -137,21 +412,22 @@ export function SponsoredRightAlignedBanner() {
   )
 }
 
-// 2. قسم شركات التطوير الرائدة (التصميم الأفقي مع اللوجو على الجنب مطابق للصورة 1) + بطاقتي الإحصائيات (1,814 و 6)
 export function LeadingDevelopersSection({
-  realUnitCount = 0,
+  realUnitCount: _realUnitCount = 0,
 }: {
   realUnitCount?: number
 }) {
   const { locale } = useTranslation()
-  const isAr = locale === 'ar'
+  const activeLocale = (locale as LocaleCode) || 'ar'
+  const mT = MARKET_SECTIONS_I18N[activeLocale] || MARKET_SECTIONS_I18N.ar
+  const isAr = activeLocale === 'ar'
 
   const topDevelopers = [
     {
       rank: 1,
       name: isAr ? 'آرتشي' : 'Archi',
       nameEn: 'Archi',
-      city: isAr ? 'تبليسي' : 'Tbilisi',
+      city: mT.tbilisi,
       projectsCount: 55,
       activeCount: 33,
       logoType: 'archi',
@@ -160,7 +436,7 @@ export function LeadingDevelopersSection({
       rank: 2,
       name: isAr ? 'أركون للتطوير' : 'Arcon Development',
       nameEn: 'Arcon',
-      city: isAr ? 'تبليسي' : 'Tbilisi',
+      city: mT.tbilisi,
       projectsCount: 18,
       activeCount: 23,
       logoType: 'arcon',
@@ -169,7 +445,7 @@ export function LeadingDevelopersSection({
       rank: 3,
       name: isAr ? 'مجموعة أوربي' : 'ORBI Group',
       nameEn: 'ORBI Group',
-      city: isAr ? 'باتومي' : 'Batumi',
+      city: mT.batumi,
       projectsCount: 30,
       activeCount: 18,
       logoType: 'orbi',
@@ -178,7 +454,7 @@ export function LeadingDevelopersSection({
       rank: 4,
       name: isAr ? 'نكست جروب' : 'NEXT Group',
       nameEn: 'NEXT Group',
-      city: isAr ? 'تبليسي' : 'Tbilisi',
+      city: mT.tbilisi,
       projectsCount: 65,
       activeCount: 17,
       logoType: 'next',
@@ -187,7 +463,7 @@ export function LeadingDevelopersSection({
       rank: 5,
       name: isAr ? 'إم سكوير' : 'm² Real Estate',
       nameEn: 'm²',
-      city: isAr ? 'تبليسي' : 'Tbilisi',
+      city: mT.tbilisi,
       projectsCount: 28,
       activeCount: 14,
       logoType: 'm2',
@@ -249,26 +525,23 @@ export function LeadingDevelopersSection({
         <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
           <div className="text-start">
             <span className="inline-block rounded-full bg-blue-50 px-3.5 py-1 text-[11px] font-bold text-[#2563eb]">
-              🏢 {isAr ? 'أفضل المطورين' : 'TOP DEVELOPERS'}
+              🏢 {mT.devBadge}
             </span>
             <h2 className="mt-2 text-2xl font-bold tracking-tight text-[#0f1d40] sm:text-3xl">
-              {isAr ? 'شركات التطوير الرائدة' : 'Leading development companies'}
+              {mT.devTitle}
             </h2>
             <p className="mt-1 text-xs font-medium text-slate-500 sm:text-sm">
-              {isAr
-                ? 'ترتيب حسب الإعلانات النشطة — استعرض المشاريع والعقارات'
-                : 'Ranked by active exit listings — explore projects and units'}
+              {mT.devSub}
             </p>
           </div>
           <Link
             href="/opportunities"
             className="text-xs font-bold text-[#2563eb] hover:underline sm:text-sm"
           >
-            {isAr ? 'كل المطورين (1399) ←' : 'All developers (1399) →'}
+            {mT.devAllBtn}
           </Link>
         </div>
 
-        {/* كروت شركات التطوير مع اللوجو على الجنب كما في الصورة الأولى */}
         <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-3 no-scrollbar lg:grid lg:grid-cols-5 lg:overflow-visible">
           {topDevelopers.map((dev) => (
             <Link
@@ -276,7 +549,6 @@ export function LeadingDevelopersSection({
               href={`/opportunities?q=${encodeURIComponent(dev.nameEn)}`}
               className="sivrce-card flex w-[250px] shrink-0 snap-start flex-col justify-between rounded-[22px] border border-slate-200/85 bg-white p-4 text-start shadow-2xs lg:w-auto"
             >
-              {/* الجزء العلوي: اللوجو في مربع على الجنب وبجانبه الاسم ورقم الترتيب والمدينة */}
               <div className="flex items-center gap-3.5">
                 {renderDeveloperLogo(dev.logoType)}
 
@@ -290,20 +562,16 @@ export function LeadingDevelopersSection({
                     </span>
                   </div>
                   <span className="mt-1 block truncate text-[11px] font-medium text-slate-400">
-                    {dev.city} · {dev.projectsCount}{' '}
-                    {isAr ? 'مشروع' : 'projects'}
+                    {dev.city} · {dev.projectsCount} {mT.devProjectsWord}
                   </span>
                 </div>
               </div>
 
-              {/* الجزء السفلي: عدد الإعلانات النشطة ورابط المشاريع */}
               <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-3 text-xs font-bold">
                 <span className="text-slate-500">
-                  {dev.activeCount} {isAr ? 'نشطة' : 'active'}
+                  {dev.activeCount} {mT.devActiveWord}
                 </span>
-                <span className="text-[#2563eb]">
-                  {isAr ? 'المشاريع ←' : 'Projects →'}
-                </span>
+                <span className="text-[#2563eb]">{mT.devProjectsLink}</span>
               </div>
             </Link>
           ))}
@@ -313,10 +581,10 @@ export function LeadingDevelopersSection({
   )
 }
 
-// 3. قسم باقات الإعلانات وشحن الرصيد باللاري الجورجي (₾) + ربط الدفع وموافقة الأدمن (مطابق للصور 5 إلى 10)
 export function TopUpBalanceGelSection() {
   const { locale, siteSettings } = useTranslation() as Record<string, any>
-  const isAr = locale === 'ar'
+  const activeLocale = (locale as LocaleCode) || 'ar'
+  const mT = MARKET_SECTIONS_I18N[activeLocale] || MARKET_SECTIONS_I18N.ar
   const GEL = '₾'
 
   const [selectedPreset, setSelectedPreset] = useState<number | 'custom'>(10)
@@ -326,21 +594,21 @@ export function TopUpBalanceGelSection() {
   const [boostNotice, setBoostNotice] = useState<string | null>(null)
 
   const pkgDetails = useMemo(
-    () => calculateGelBoostPackage(topUpAmount, isAr),
-    [topUpAmount, isAr]
+    () => calculateGelBoostPackage(topUpAmount, activeLocale),
+    [topUpAmount, activeLocale]
   )
 
   const presets = [
     {
       id: 5,
       val: 5,
-      topBadge: 'Starter',
-      subText: 'VIP+ · 1 day',
+      topBadge: mT.starterBadge,
+      subText: `VIP+ · 1 ${mT.daySingular}`,
     },
     {
       id: 10,
       val: 10,
-      topBadge: 'Recommended 🔥',
+      topBadge: mT.recommendedBadge,
       subText: 'SUPER VIP',
       isRecommended: true,
     },
@@ -353,7 +621,7 @@ export function TopUpBalanceGelSection() {
     {
       id: 50,
       val: 50,
-      topBadge: 'Popular',
+      topBadge: mT.popularBadge,
       subText: 'SUPER VIP',
     },
     {
@@ -365,12 +633,12 @@ export function TopUpBalanceGelSection() {
     {
       id: 'custom' as const,
       val: 0,
-      topBadge: 'Custom amount',
-      subText: 'Any',
+      topBadge: mT.customAmountLabel,
+      subText: mT.anyWord,
     },
   ]
 
- const handleProceedToPayment = async (method: 'card' | 'bank') => {
+  const handleProceedToPayment = async (method: 'card' | 'bank') => {
     setSubmittingBoost(true)
     setBoostNotice(null)
 
@@ -399,11 +667,15 @@ export function TopUpBalanceGelSection() {
     }
 
     setBoostNotice(
-      isAr
-        ? `تم تسجيل طلب تفعيل باقة (${pkgDetails.tier} — ${pkgDetails.amount} ₾ لمدة ${pkgDetails.days} يوم)${res?.unitCode ? ` للوحدة ${res.unitCode}` : ''}. بمجرد إتمام الدفع ومراجعة الأدمن للإعلان والدفع سيتم التفعيل تلقائياً.`
-        : `Boost request (${pkgDetails.tier} — ${pkgDetails.amount} ₾ for ${pkgDetails.days} days) recorded. It will activate automatically once payment and listing are approved by Admin.`
+      mT.boostRecordedMsg(
+        pkgDetails.tier,
+        pkgDetails.amount,
+        pkgDetails.days,
+        res?.unitCode || undefined
+      )
     )
   }
+
   return (
     <section
       id="boost-packages-section"
@@ -411,27 +683,16 @@ export function TopUpBalanceGelSection() {
     >
       <ScrollReveal>
         <div className="grid grid-cols-1 items-center gap-10 rounded-[30px] border border-slate-200/90 bg-white p-5 shadow-sm sm:p-10 lg:grid-cols-12">
-          {/* العمود الأول (يظهر في اليمين في العربي): العنوان والشرح والكروت الثلاثة بدون كلمة "باللاري" */}
           <div className="text-start lg:col-span-7">
             <span className="inline-block rounded-full bg-blue-50 px-3.5 py-1 text-xs font-bold text-[#2563eb]">
-              ✦ {isAr ? 'رصيد المحفظة والترقية' : 'Wallet & Boost Balance'}
+              ✦ {mT.walletBadge}
             </span>
             <h2 className="mt-3 text-2xl font-bold leading-tight text-[#0f1d40] sm:text-4xl">
-              {isAr ? (
-                <>
-                  اشحن رصيدك <span className="text-[#2563eb]">بأي مبلغ</span>
-                </>
-              ) : (
-                <>
-                  Top Up Your Balance{' '}
-                  <span className="text-[#2563eb]">With Any Amount</span>
-                </>
-              )}
+              {mT.walletTitlePrefix}{' '}
+              <span className="text-[#2563eb]">{mT.walletTitleAccent}</span>
             </h2>
             <p className="mt-3 text-xs leading-relaxed text-slate-500 sm:text-sm">
-              {isAr
-                ? 'رقِّ إعلان التنازل الخاص بك لباقات SUPER VIP و VIP+ ليظهر في صدارة الصفحة الرئيسية والفرص المتاحة. بمجرد الدفع عبر الرابط ومراجعة الأدمن للإعلان والدفع، يتم تفعيل باقتك تلقائياً بالمدة المحددة.'
-                : 'Promote your listings with SUPER VIP and VIP+ boosts. Once paid and verified by Admin, your listing boost activates automatically.'}
+              {mT.walletDesc}
             </p>
 
             <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -440,12 +701,10 @@ export function TopUpBalanceGelSection() {
                   <CreditCard className="size-4" />
                 </div>
                 <strong className="block text-xs font-bold text-[#0f1d40]">
-                  {isAr ? 'كل وسائل الدفع' : 'All Payment Methods'}
+                  {mT.feature1Title}
                 </strong>
                 <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
-                  {isAr
-                    ? 'دفع مباشر سريع عبر رابط الدفع الآمن بالبطاقة أو التحويل البنكي.'
-                    : 'Apple Pay · Mastercard · Visa · BOG · TBC · Bank Transfer.'}
+                  {mT.feature1Desc}
                 </p>
               </div>
 
@@ -454,12 +713,10 @@ export function TopUpBalanceGelSection() {
                   <Check className="size-4" />
                 </div>
                 <strong className="block text-xs font-bold text-[#0f1d40]">
-                  {isAr ? 'قابل للاسترداد 100%' : '100% Refundable'}
+                  {mT.feature2Title}
                 </strong>
                 <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
-                  {isAr
-                    ? 'إذا لم تتم الموافقة على الإعلان من الأدمن، يُسترد المبلغ بالكامل فوراً.'
-                    : 'Any unspent balance is fully refundable at any time upon request.'}
+                  {mT.feature2Desc}
                 </p>
               </div>
 
@@ -468,18 +725,15 @@ export function TopUpBalanceGelSection() {
                   <Sparkles className="size-4" />
                 </div>
                 <strong className="block text-xs font-bold text-[#0f1d40]">
-                  {isAr ? 'تفعيل فوري بعد المراجعة' : 'Instant 1:1 Credit'}
+                  {mT.feature3Title}
                 </strong>
                 <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
-                  {isAr
-                    ? '0% رسوم إضافية — تُحسب أيام الترقية تلقائياً حسب قيمة الباقة المدفوعة.'
-                    : '0% fees. Every 1 GEL goes directly to your listing boost.'}
+                  {mT.feature3Desc}
                 </p>
               </div>
             </div>
           </div>
 
-          {/* العمود الثاني (يظهر في الشمال في العربي): كارت الباقات والدفع التفاعلي */}
           <div className="rounded-[26px] border border-slate-200/90 bg-white p-5 text-start shadow-md sm:p-6 lg:col-span-5">
             <div className="flex items-center justify-between">
               <span className="rounded-full bg-orange-50 px-2.5 py-1 text-[11px] font-bold text-[#ff6437]">
@@ -488,7 +742,7 @@ export function TopUpBalanceGelSection() {
               <div className="flex items-center gap-2.5">
                 <div className="text-end">
                   <strong className="block text-xs font-bold text-[#0f1d40]">
-                    {isAr ? 'مبالغ سريعة' : 'Quick amounts'}
+                    {mT.quickAmounts}
                   </strong>
                   <span dir="ltr" className="text-[10px] text-slate-400">
                     Min 5 {GEL} · Max 10,000 {GEL}
@@ -528,7 +782,7 @@ export function TopUpBalanceGelSection() {
                   >
                     {item.topBadge && (
                       <span
-                        className={`-mt-1 mb-1 rounded-full px-1.5 py-0.5 text-[8px] font-bold whitespace-nowrap ${
+                        className={`-mt-1 mb-1 max-w-full truncate rounded-full px-1.5 py-0.5 text-[7.5px] font-bold ${
                           item.isRecommended
                             ? 'bg-gradient-to-r from-[#ff6437] to-[#ff4f69] text-white shadow-2xs'
                             : isActive
@@ -553,7 +807,7 @@ export function TopUpBalanceGelSection() {
 
             <div className="mt-4">
               <span className="mb-1.5 block text-end text-[11px] font-semibold text-slate-500">
-                {isAr ? 'مبلغ مخصص' : 'Custom amount'}
+                {mT.customAmountLabel}
               </span>
               <div className="flex h-11 items-center justify-between rounded-xl border border-slate-200 bg-slate-50/60 px-3">
                 <div className="flex items-center gap-1.5">
@@ -617,10 +871,7 @@ export function TopUpBalanceGelSection() {
                     dir="ltr"
                     className="block text-xs font-bold text-[#0f1d40] sm:text-sm"
                   >
-                    {pkgDetails.amount} {GEL}{' '}
-                    {isAr
-                      ? 'تُضاف لرصيد إعلانك'
-                      : 'credited to your balance'}
+                    {pkgDetails.amount} {GEL} {mT.creditedToBalance}
                   </strong>
                   <span className="mt-0.5 block text-[11px] font-bold text-[#2563eb]">
                     {pkgDetails.coverLabel}
@@ -630,19 +881,21 @@ export function TopUpBalanceGelSection() {
 
               <div className="mt-3 flex flex-wrap justify-end gap-2">
                 <span className="rounded-full bg-blue-100/70 px-2.5 py-0.5 text-[10px] font-bold text-[#2563eb]">
-                  ✓ {isAr ? 'عمولة 0%' : '0% fee'}
+                  ✓ {mT.zeroFeeBadge}
                 </span>
                 <span className="rounded-full bg-blue-100/70 px-2.5 py-0.5 text-[10px] font-bold text-[#2563eb]">
-                  ✓ {isAr ? 'رصيد فوري 1:1' : 'Instant 1:1 credit'}
+                  ✓ {mT.instantCreditBadge}
                 </span>
               </div>
 
               {pkgDetails.upsellTarget > 0 && (
                 <div className="mt-3 border-t border-blue-200/60 pt-3 text-end">
                   <p className="text-[11px] leading-relaxed text-slate-600">
-                    {isAr
-                      ? `نصيحة: شحن ${pkgDetails.upsellTarget} ${GEL} يفتح لك خصم ${pkgDetails.upsellDiscount} على باقة SUPER VIP (${pkgDetails.upsellDays} يوماً)`
-                      : `Recommendation: ${pkgDetails.upsellTarget} ${GEL} unlocks ${pkgDetails.upsellDiscount} volume discount on SUPER VIP (${pkgDetails.upsellDays} days)`}{' '}
+                    {mT.upsellAdvice(
+                      pkgDetails.upsellTarget,
+                      pkgDetails.upsellDiscount,
+                      pkgDetails.upsellDays
+                    )}{' '}
                     ✨
                   </p>
                   <button
@@ -653,11 +906,7 @@ export function TopUpBalanceGelSection() {
                     }}
                     className="mt-2 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-3 py-1 text-[10.5px] font-bold text-white shadow-2xs transition hover:opacity-95"
                   >
-                    <span>
-                      {isAr
-                        ? `اشحن ${pkgDetails.upsellTarget} ${GEL}`
-                        : `Top up to ${pkgDetails.upsellTarget} ${GEL}`}
-                    </span>
+                    <span>{mT.topUpToBtn(pkgDetails.upsellTarget)}</span>
                   </button>
                 </div>
               )}
@@ -668,19 +917,15 @@ export function TopUpBalanceGelSection() {
                 type="text"
                 value={unitCodeInput}
                 onChange={(e) => setUnitCodeInput(e.target.value)}
-                placeholder={
-                  isAr
-                    ? 'كود إعلانك (اختياري — لتفعيله فور مراجعة الأدمن للدفع)'
-                    : 'Your unit code (optional — for instant admin activation)'
-                }
+                placeholder={mT.unitCodePlaceholder}
                 className="h-9 w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3 text-xs font-medium text-[#0f1d40] placeholder:text-slate-400 focus:border-[#2563eb] focus:bg-white focus:outline-none"
               />
             </div>
 
             <div className="mt-3.5 flex flex-wrap items-center justify-between gap-1 text-[10.5px] font-semibold text-slate-500">
-              <span>⚡ {isAr ? 'رسوم 0%' : '0% fee'}</span>
-              <span>✓ {isAr ? 'لا تنتهي صلاحيته' : 'Never expires'}</span>
-              <span>🛡️ {isAr ? 'قابل للاسترداد بالكامل' : 'Fully refundable'}</span>
+              <span>⚡ {mT.zeroFeeBadge}</span>
+              <span>✓ {mT.neverExpires}</span>
+              <span>🛡️ {mT.fullyRefundable}</span>
             </div>
 
             <button
@@ -690,11 +935,7 @@ export function TopUpBalanceGelSection() {
               className="mt-3.5 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] text-xs font-bold text-white shadow-[0_8px_20px_rgba(255,100,55,0.3)] transition hover:opacity-95 disabled:opacity-60 sm:text-sm"
             >
               <CreditCard className="size-4" />
-              <span>
-                {isAr
-                  ? `ادفع ${pkgDetails.amount} ${GEL} بالبطاقة البنكية`
-                  : `Pay ${pkgDetails.amount} ${GEL} with Card`}
-              </span>
+              <span>{mT.payWithCardBtn(pkgDetails.amount)}</span>
             </button>
 
             <button
@@ -704,11 +945,7 @@ export function TopUpBalanceGelSection() {
               className="mt-2.5 flex h-10 w-full items-center justify-center gap-2 rounded-full border border-slate-200 bg-white text-xs font-bold text-[#0f1d40] transition hover:bg-slate-50 disabled:opacity-60"
             >
               <Landmark className="size-3.5 text-slate-500" />
-              <span>
-                {isAr
-                  ? `تحويل بنكي ${pkgDetails.amount} ${GEL}`
-                  : `Bank Transfer ${pkgDetails.amount} ${GEL}`}
-              </span>
+              <span>{mT.bankTransferBtn(pkgDetails.amount)}</span>
             </button>
 
             {boostNotice && (

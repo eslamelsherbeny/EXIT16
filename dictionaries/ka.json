@@ -1,3 +1,4 @@
+
 {
   "brand": {
     "name": "Aqar",
@@ -10,7 +11,7 @@
     "howItWorks": "წესები",
     "contact": "კონტაქტი",
     "loginGuest": "შესვლა",
-"myAccount": "ანგარიში",
+    "myAccount": "ანგარიში",
     "investors": "ინვესტორებს",
     "languageLabel": "ენა",
     "login": "კაბინეტი",
@@ -23,7 +24,10 @@
       "en": "English",
       "ru": "Русский",
       "ka": "ქართული"
-    }
+    },
+    "home": "მთავარი",
+    "adminShort": "ადმინი",
+    "switchingDefault": "განახლება..."
   },
   "home": {
     "hero": {
@@ -198,6 +202,151 @@
       "buyerTitle": "ეძებთ რეალურ შესაძლებლობას?",
       "buyerDesc": "მიუთითეთ თქვენი ბიუჯეტი და მიიღეთ შემოწმებული ვარიანტები.",
       "buyerBtn": "მყიდველად რეგისტრაცია"
+    },
+    "cards": {
+      "docsVerified": "დოკუმენტები შემოწმებულია",
+      "sqmUnit": "მ²",
+      "roomsWord": "ოთახი",
+      "bathWord": "სველი წ.",
+      "requiredCashNow": "საჭირო თანხა ხელზე",
+      "negotiable": "ფასზე შეთანხმებით",
+      "yourMarketGain": "თქვენი მოგება საბაზრო ფასთან",
+      "marketPriceTodayPrefix": "საბაზრო ფასი დღეს:",
+      "afterFeeSuffix": "· 1.25% საკომისიოს შემდეგ",
+      "remainingToDeveloper": "დარჩენილი დეველოპერთან",
+      "installment": "განვადება",
+      "fullyPaid": "სრულად გადახდილი",
+      "delivery": "ჩაბარება",
+      "detailsBtn": "დეტალურად",
+      "viewsTitle": "ნახვები",
+      "adSpace": "სარეკლამო სივრცე",
+      "yourAdHere": "თქვენი რეკლამა აქ",
+      "adDescSuper": "განათავსეთ განცხადება SUPER VIP-ში და მიწვდით ათასობით მყიდველსა და ინვესტორს.",
+      "adDescVip": "გაააქტიურეთ +VIP მხოლოდ 5 ₾-ად და გამოჩნდით პირველ ადგილზე.",
+      "adBullet1": "მიზნობრივი აუდიტორია",
+      "adBullet2": "პირდაპირი კონტაქტი",
+      "adBullet3": "გამჭვირვალე სტატისტიკა",
+      "advertiseHereBtn": "რეკლამის განთავსება →",
+      "vipPlusTitle": "+VIP განცხადებები",
+      "vipPlusSub": "პრიორიტეტული განცხადებები — გადამოწმებული ობიექტები",
+      "vipPlusAllBtn": "ყველა +VIP →"
+    },
+    "map3dSection": {
+      "badge": "პროექტების 3D მიმოხილვა",
+      "titlePrefix": "დაათვალიერეთ შეთავაზებები",
+      "titleAccent": "საქართველოს 3D რუკაზე",
+      "subtitle": "თბილისისა და ბათუმის გადამოწმებული საცხოვრებელი კომპლექსების ინტერაქტიული პანორამა.",
+      "browseAllBtn": "ყველა ობიექტის ნახვა რუკაზე",
+      "launchMapBtn": "გახსენით ინტერაქტიული 3D რუკა",
+      "features": [
+        {
+          "title": "შეთავაზებები თითოეულ კორპუსში",
+          "sub": "დააჭირეთ ნებისმიერ საცხოვრებელ კომპლექსს რუკაზე და ნახეთ ბინები და საჭირო თანხა."
+        },
+        {
+          "title": "მშენებარე პროექტების 3D მოდელები",
+          "sub": "შეაფასეთ მდებარეობა და სამშენებლო პროგრესი 3D ფორმატში გადაწყვეტილების მიღებამდე."
+        },
+        {
+          "title": "ხელშეკრულების ფასის შედარება დეველოპერის ფასთან",
+          "sub": "ნახეთ მყისიერი დანაზოგი თბილისისა და ბათუმის უბნების მიხედვით."
+        },
+        {
+          "title": "სწრაფი გადართვა 2D და 3D რეჟიმებს შორის",
+          "sub": "მარტივად მართეთ რუკა მობილურიდან ან კომპიუტერიდან ერთი შეხებით."
+        }
+      ]
+    },
+    "categoriesGrid": {
+      "exit": "ყველა შეთავაზება",
+      "Apartment": "ბინები",
+      "Private house": "სახლები და ვილები",
+      "Cottage": "კოტეჯები",
+      "Luxury": "პრემიუმ ქონება",
+      "Land": "მიწის ნაკვეთები",
+      "Commercial": "კომერციული",
+      "Ready": "მზადაა საცხოვრებლად",
+      "Sea view": "ზღვის ხედით",
+      "Pool": "აუზით",
+      "Jacuzzi": "ჯაკუზით",
+      "Ski resorts": "სათხილამურო კურორტები",
+      "Compounds": "საცხოვრებელი კომპლექსები",
+      "Workspace": "ოფისები",
+      "Hotel": "აპარტ-ოტელები",
+      "New projects": "მშენებარე"
+    },
+    "marketSections": {
+      "bannerBadge": "პრემიუმ განთავსება · AQAR EXIT",
+      "bannerTitle": "გსურთ უფრო სწრაფად გაყიდოთ ქონება ან პროექტი?",
+      "bannerDesc": "განათავსეთ თქვენი ობიექტი მთავარი გვერდის სათავეში ათასობით რეალური მყიდველისა და ინვესტორის წინაშე.",
+      "bannerPill1": "ტოპ პოზიცია მთავარ გვერდზე",
+      "bannerPill2": "პირდაპირი მყიდველები",
+      "bannerPill3": "მყისიერი აქტივაცია",
+      "bannerBtn": "აირჩიეთ რეკლამის პაკეტი →",
+      "devBadge": "საუკეთესო დეველოპერები",
+      "devTitle": "წამყვანი სამშენებლო კომპანიები",
+      "devSub": "რეიტინგი აქტიური განცხადებებით — ნახეთ პროექტები და ბინები",
+      "devAllBtn": "ყველა დეველოპერი (1399) →",
+      "devProjectsWord": "პროექტი",
+      "devActiveWord": "აქტიური",
+      "devProjectsLink": "პროექტები →",
+      "tbilisi": "თბილისი",
+      "batumi": "ბათუმი",
+      "developers": {
+        "archi": "Archi",
+        "arcon": "Arcon Development",
+        "orbi": "ORBI Group",
+        "next": "NEXT Group",
+        "m2": "m² Real Estate"
+      },
+      "walletBadge": "ბალანსი და რეკლამირება",
+      "walletTitlePrefix": "შეავსეთ ბალანსი",
+      "walletTitleAccent": "ნებისმიერი თანხით",
+      "walletDesc": "გაააქტიურეთ SUPER VIP და VIP+ პაკეტები. გადახდისა და ადმინისტრაციის დადასტურებისთანავე სტატუსი ჩაირთვება ავტომატურად.",
+      "feature1Title": "ყველა გადახდის მეთოდი",
+      "feature1Desc": "Apple Pay · Mastercard · Visa · BOG · TBC · საბანკო გადარიცხვა.",
+      "feature2Title": "100% დაბრუნებადი",
+      "feature2Desc": "გამოუყენებელი ბალანსი სრულად ბრუნდება მოთხოვნისთანავე.",
+      "feature3Title": "მყისიერი 1:1 ჩარიცხვა",
+      "feature3Desc": "0% საკომისიო — ყოველი 1 ₾ პირდაპირ ხმარდება თქვენი განცხადების წინ წაწევას.",
+      "quickAmounts": "სწრაფი თანხები",
+      "starterBadge": "სტარტი",
+      "recommendedBadge": "რეკომენდებული 🔥",
+      "popularBadge": "პოპულარული",
+      "customAmountLabel": "სხვა თანხა",
+      "anyWord": "სხვა",
+      "daySingular": "დღე",
+      "dayDual": "დღე",
+      "dayPlural": "დღე",
+      "creditedToBalance": "დაირიცხება თქვენს ბალანსზე",
+      "zeroFeeBadge": "0% საკომისიო",
+      "instantCreditBadge": "1:1 ჩარიცხვა",
+      "upsellAdviceTemplate": "რჩევა: {target} ₾-ით შევსება ხსნის {discount} ფასდაკლებას SUPER VIP პაკეტზე ({days} დღე)",
+      "topUpToBtnTemplate": "შეავსეთ {target} ₾-მდე",
+      "unitCodePlaceholder": "განცხადების კოდი (არასავალდებულო — სწრაფი აქტივაციისთვის)",
+      "neverExpires": "უვადო ბალანსი",
+      "fullyRefundable": "100% დაბრუნებადი",
+      "payWithCardBtnTemplate": "გადაიხადეთ {amt} ₾ ბარათით",
+      "bankTransferBtnTemplate": "საბანკო გადარიცხვა {amt} ₾",
+      "boostRecordedMsgTemplate": "მოთხოვნა ({tier} — {amt} ₾, {days} დღე){codePart} მიღებულია და ჩაირთვება გადახდის დადასტურებისთანავე.",
+      "boostRecordedCodePart": " ობიექტზე {code}",
+      "coversLabelTemplate": "ფარავს {tier} პაკეტს {days} დღით"
+    },
+    "carouselTitles": {
+      "categoriesTitle": "რა ტიპის ქონებას ეძებთ გადასაბარებლად?",
+      "categoriesSub": "აირჩიეთ ობიექტის ტიპი და დაათვალიერეთ გადამოწმებული განცხადებები საქართველოში",
+      "howItWorksMoreLink": "როგორ ვმუშაობთ და მაგალითები →",
+      "superVipTitle": "SUPER VIP განცხადებები",
+      "superVipSub": "მაქსიმალური ხილვადობა — საუკეთესო შეთავაზებები",
+      "superVipAllBtn": "ყველა SUPER VIP →",
+      "availableOppsBadge": "ხელმისაწვდომი",
+      "availableOppsTitle": "ხელმისაწვდომი შეთავაზებები",
+      "availableOppsSub": "გადამოწმებული ობიექტები საქართველოში",
+      "availableOppsAllBtn": "ყველა შეთავაზება →",
+      "recentBadge": "ახალი",
+      "recentTitle": "ახალი დამატებული",
+      "recentSub": "ახალი განცხადებები თარიღის მიხედვით — უახლესი პირველ ადგილზე",
+      "recentAllBtn": "ყველა ახალი →"
     }
   },
   "footer": {
@@ -221,7 +370,10 @@
     "appLabel": "აპლიკაცია",
     "disclaimer": "პლატფორმაზე მოცემული ციფრები საორიენტაციოა და ეყრდნობა ინდივიდუალურ კონტრაქტებს. საბოლოო შემოწმება ხდება ოფიციალური დოკუმენტაციის საფუძველზე.",
     "copyright": "© 2026 Aqar Exit. ყველა უფლება დაცულია.",
-    "powered": "Powered by Aqara for Real Estate and Ammar Group LLC"
+    "powered": "Powered by Aqara for Real Estate and Ammar Group LLC",
+    "marketsTitle": "სამუშაო ბაზრები",
+    "soonBadge": "მალე",
+    "adminPanelLink": "ადმინისტრატორის პანელი"
   },
   "calculatorPage": {
     "title": "გასვლის კალკულატორი",
@@ -268,7 +420,8 @@
     "registerViewOppsBtn": "რეგისტრაცია და ობიექტები",
     "disclaimer": "გათვლა საორიენტაციოა. ზუსტი პირობები მოწმდება უშუალოდ თქვენს კონტრაქტში.",
     "millionWord": "მლნ",
-    "thousandWord": "ათასი"
+    "thousandWord": "ათასი",
+    "paidExceedsContractError": "გადახდილი თანხა არ შეიძლება აღემატებოდეს კონტრაქტის სრულ ფასს."
   },
   "exitReportPage": {
     "title": "გასვლის დასკვნა — გაიგეთ თქვენი პოზიცია",
@@ -381,7 +534,7 @@
     "errStep1": "გთხოვთ შეავსოთ ქეში, განვადება და ბიუჯეტი",
     "errStep3": "შეავსეთ საკონტაქტო და პაროლი (მინ. 8 სიმბოლო)"
   },
-"sell": {
+  "sell": {
     "metaTitle": "გაყიდეთ თქვენი ქონება | Aqar Exit",
     "metaDesc": "განათავსეთ თქვენი ქონება უსაფრთხოდ და დაიბრუნეთ გადახდილი თანხა საქართველოში.",
     "shared": {
@@ -407,7 +560,8 @@
       "loginIdRequired": "შეიყვანეთ ელ-ფოსტა ან ტელეფონის ნომერი",
       "loginPassRequired": "შეიყვანეთ პაროლი",
       "saveFailed": "მონახაზის შენახვა ვერ მოხერხდა.",
-      "submitFailed": "განცხადების გაგზავნა ვერ მოხერხდა, სცადეთ თავიდან"
+      "submitFailed": "განცხადების გაგზავნა ვერ მოხერხდა, სცადეთ თავიდან",
+      "passwordMismatch": "პაროლები არ ემთხვევა"
     },
     "contactStep": {
       "tabCurrentSession": "ჩემი მიმდინარე ანგარიში",
@@ -468,6 +622,17 @@
       "deliveries": [
         "მზადაა შესასვლელად",
         "მშენებარე"
+      ],
+      "features": [
+        "ზღვის ხედი (Sea View)",
+        "მთის ხედი (Mountain View)",
+        "პანორამული ხედი ქალაქზე",
+        "აუზი",
+        "ცენტრალური / იატაკის გათბობა",
+        "24/7 დაცვა და მიმღები",
+        "მიწისქვეშა პარკინგი",
+        "ფართო აივანი (Balcony)",
+        "მეტროსთან და სერვისებთან ახლოს"
       ]
     },
     "reviewStep": {
@@ -521,24 +686,32 @@
       "pageSubtitle": "დაიბრუნეთ გადახდილი თანხის 100% დოლარში ($) — საკომისიო გამყიდველისთვის 0%.",
       "exitBadge": "განვადების გადაბარება",
       "unifiedCurrencyBadge": "ერთიანი ვალუტა: USD ($)",
+      "requiredBadge": "სავალდებულო *",
+      "optionalBadge": "არასავალდებულო",
+      "requiredForPublishBadge": "სავალდებულოა გამოსაქვეყნებლად",
+      "fieldRequiredError": "ეს სავალდებულო ველი შესავსებია",
+      "validationModalTitle": "ყურადღება — სავალდებულო ველები არ არის შევსებული",
+      "validationModalSubtitle": "გასაგრძელებლად გთხოვთ შეავსოთ წითლად მონიშნული ყველა სავალდებულო ველი:",
+      "validationModalOkBtn": "კარგი, გადადით პირველ ველზე",
       "tabs": {
         "type": "1 ქონების ტიპი",
         "photos": "2 ფოტო და მედია",
         "location": "3 მდებარეობა",
         "details": "4 მახასიათებლები",
         "price": "5 ფასი და პირობები",
-        "contact": "6 ანგარიში"
+        "contact": "6 ანგარიში და გაგზავნა"
       },
       "typeSection": {
-        "title": "ქონების ტიპი და მშენებლობის სტატუსი",
+        "title": "1. ქონების ტიპი და მშენებლობის სტატუსი",
         "subtitle": "აირჩიეთ ქონების სახეობა და მშენებლობის მიმდინარე სტატუსი.",
         "whatToDoLabel": "გარიგების ტიპი",
         "whatKindLabel": "რა ტიპის ქონებაა? *",
         "statusLabel": "მშენებლობის სტატუსი *"
       },
       "photosSection": {
-        "title": "ფოტოები, ვიდეო და 3D ტურის ბმულები",
+        "title": "2. ფოტოები, ვიდეო და 3D ტურის ბმულები",
         "subtitle": "აჩვენეთ ინტერიერი და ექსტერიერი: მისაღები, საძინებელი, სველი წერტილი, აივანი და ხედი.",
+        "publishRequirementNote": "💡 მინიმუმ 1 ფოტოს ატვირთვა აუცილებელია ქონების ბაზარზე გამოსაქვეყნებლად. შეგიძლიათ შეინახოთ მონახაზი ახლა და ფოტოები მოგვიანებით ატვირთოთ თქვენი ანგარიშიდან.",
         "dropTitle": "დაამატეთ ფოტოები ან გადმოიტანეთ აქ",
         "photosWord": "ფოტო",
         "dropHint": "პირველი ფოტო გახდება განცხადების მთავარი სურათი.",
@@ -549,34 +722,40 @@
         "videoSectionTitle": "ვიდეო და 3D ტურის ბმულები (არასავალდებულო)",
         "videoSectionSubtitle": "ჩასვით YouTube / Vimeo ან 3D ტურის ბმული ქონების გვერდზე გამოსაჩენად.",
         "videoUrlLabel": "YouTube / Vimeo ვიდეოს ბმული",
-        "videoUrlPlaceholder": "https://www.youtube.com/watch?v=...",
+        "videoUrlPlaceholder": "https://youtube.com/...",
         "tour3dLabel": "3D ტურის ბმული (Matterport)",
         "tour3dPlaceholder": "https://my.matterport.com/..."
       },
       "locationSection": {
-        "title": "მდებარეობა, ქუჩა და დეველოპერი",
-        "subtitleRent": "შეიყვანეთ ქუჩა და სახლის ნომერი — პინი რუკაზე ავტომატურად გამოჩნდება.",
-        "subtitleSale": "აირჩიეთ ქალაქი და უბანი, მიუთითეთ დეველოპერი, პროექტი, ქუჩა და სახლის ნომერი.",
+        "title": "3. ზუსტი მდებარეობა, ქუჩა და დეველოპერი",
+        "subtitleRent": "მოძებნეთ ქუჩის სახელით ან გადაადგილეთ პინი რუკაზე მისამართის შესავსებად.",
+        "subtitleSale": "ჩაწერეთ ქუჩის სახელი სწრაფი ძიებისთვის ან მონიშნეთ შენობა პირდაპირ რუკაზე.",
         "cityDistrictLabel": "ქალაქი / უბანი *",
-        "chooseLocationPlaceholder": "აირჩიეთ მდებარეობა",
-        "developerLabel": "დეველოპერი",
-        "developerPlaceholder": "მაგ.: ORBI Group, Archi, m², Next Group...",
+        "chooseLocationPlaceholder": "აირჩიეთ ქალაქი, უბანი ან ქუჩა...",
+        "developerLabel": "დეველოპერი (არასავალდებულო)",
+        "developerPlaceholder": "დეველოპერი (არასავალდებულო)...",
         "popularDevelopersHint": "საქართველოს პოპულარული დეველოპერები:",
         "projectLabel": "პროექტის / კომპლექსის სახელი *",
-        "projectPlaceholder": "მაგ.: Orbi City, King David, White Sails...",
+        "projectPlaceholder": "პროექტის სახელი...",
         "streetLabel": "ქუჩის სახელი *",
-        "streetPlaceholder": "მაგ.: Chavchavadze Ave / Khimshiashvili St",
+        "streetPlaceholder": "ჩაწერეთ ქუჩის სახელი...",
+        "streetAutocompleteHint": "აირჩიეთ შემოთავაზებული სიიდან ან დააჭირეთ რუკას ქვემოთ",
+        "cantFindAddressTitle": "ვერ პოულობთ მისამართს?",
+        "setLocationOnMapBtn": "მონიშნეთ მდებარეობა რუკაზე",
+        "detectMyGpsBtn": "ჩემი GPS მდებარეობა",
+        "reverseGeocodingLoading": "მისამართის წაკითხვა რუკის კოორდინატებიდან...",
+        "pinMovedSuccess": "ზუსტი მდებარეობა და ქუჩის მისამართი განახლდა ✓",
         "houseNoLabel": "სახლის / კორპუსის Nº",
-        "houseNoPlaceholder": "47",
+        "houseNoPlaceholder": "მაგ. 12",
         "cadastralLabel": "საკადასტრო კოდი (NAPR)",
-        "cadastralPlaceholder": "01.10.01.001.001",
+        "cadastralPlaceholder": "არასავალდებულო",
         "cadastralHelper": "არასავალდებულო — საჯარო რეესტრის კოდი",
-        "mapHeaderTitle": "3D რუკა",
-        "mapHint": "პინი ავტომატურად მოძრაობს არჩეული უბნისა და ქუჩის მიხედვით"
+        "mapHeaderTitle": "ინტერაქტიული 3D რუკა",
+        "mapHint": "დააჭირეთ შენობას ქუჩისა და კოორდინატების ავტომატურად შესავსებად"
       },
       "locationModal": {
-        "title": "აირჩიეთ ქალაქი და უბანი საქართველოში",
-        "searchPlaceholder": "უბანი, ქალაქი ან ქუჩა...",
+        "title": "აირჩიეთ ქალაქი და უბანი ან მოძებნეთ ქუჩა",
+        "searchPlaceholder": "ქალაქი, უბანი ან ქუჩა...",
         "searchingMapsText": "ძიება საქართველოს რუკაზე...",
         "everywhereTitle": "ყველგან",
         "everywhereSub": "საქართველოს ყველა რეგიონი",
@@ -594,15 +773,15 @@
         "selectBtn": "არჩევა"
       },
       "detailsSection": {
-        "title": "მახასიათებლები და კეთილმოწყობა",
-        "subtitle": "შეავსეთ ფართობი, ოთახების რაოდენობა, საძინებლები და სართული.",
+        "title": "4. მახასიათებლები და კეთილმოწყობა",
+        "subtitle": "შეავსეთ სავალდებულო ფართობი და ოთახები.",
         "lockedBanner": "ველების გასახსნელად ზემოთ აირჩიეთ ქონების ტიპი.",
-        "conditionLabel": "მდგომარეობა / რემონტი",
-        "buildingSeriesLabel": "შენობის პროექტი",
+        "conditionLabel": "მდგომარეობა / რემონტი (არასავალდებულო)",
+        "buildingSeriesLabel": "შენობის პროექტი (არასავალდებულო)",
         "buildingSeriesSub": "ეხმარება მყიდველებს სწრაფ ფილტრაციაში",
-        "floorTypeLabel": "სართულის ტიპი",
-        "heatingLabel": "გათბობა",
-        "buildingMaterialLabel": "სამშენებლო მასალა",
+        "floorTypeLabel": "სართულის ტიპი (არასავალდებულო)",
+        "heatingLabel": "გათბობა (არასავალდებულო)",
+        "buildingMaterialLabel": "სამშენებლო მასალა (არასავალდებულო)",
         "areaLabel": "საერთო ფართი (მ²) *",
         "kitchenAreaLabel": "სამზარეულოს ფართი (მ²)",
         "yearBuiltLabel": "აშენების / ჩაბარების წელი",
@@ -616,7 +795,7 @@
         "floorLabel": "სართული",
         "totalFloorsLabel": "სართულები სულ",
         "maxGuestsLabel": "სტუმრების მაქს. რაოდენობა",
-        "featuresTitle": "მახასიათებლები",
+        "featuresTitle": "მახასიათებლები (არასავალდებულო)",
         "featuresSubtitle": "მონიშნეთ ყველა არსებული კეთილმოწყობა.",
         "onlineViewingTitle": "მზად ვარ ონლაინ ვიდეო ჩვენებისთვის",
         "onlineViewingSub": "მონიშნეთ, თუ შეგიძლიათ ქონების დისტანციურად ჩვენება WhatsApp ან Zoom-ით.",
@@ -624,14 +803,14 @@
         "installmentSaleSub": "მონიშნეთ, თუ თანახმა ხართ ნაწილ-ნაწილ გადახდაზე."
       },
       "pricingSection": {
-        "title": "ფასი, განვადება, დოკუმენტები და აღწერა",
+        "title": "5. ფასი, განვადება, დოკუმენტები და აღწერა",
         "subtitle": "მიუთითეთ კონტრაქტის ფასი, გადახდილი თანხა და დარჩენილი განვადება.",
         "priceLabel": "ფასი *",
         "totalPriceBtn": "სრული ფასი",
         "perSqmBtn": "ფასი მ²-ზე",
         "contractPriceLabel": "კონტრაქტის სრული ფასი ($) *",
         "paidAmountLabel": "გადახდილი თანხა (საჭირო თანხა ხელზე $) *",
-        "marketPriceLabel": "საბაზრო ფასი დღეს ($)",
+        "marketPriceLabel": "საბაზრო ფასი დღეს ($ - არასავალდებულო)",
         "installmentAmountLabel": "განვადების შენატანი ($)",
         "remainingMonthsLabel": "დარჩენილი თვეები (0 თუ სრულად გადახდილია)",
         "contractDateLabel": "კონტრაქტის გაფორმების თარიღი",
@@ -657,13 +836,14 @@
         "discountAmountLabel": "მაქსიმალური დასაშვები ფასდაკლება ($ არასავალდებულო)",
         "districtGuideTitle": "უბნის ფასების გზამკვლევი",
         "districtGuideSub": "საშუალო საბაზრო ფასი ამ უბანში: $1,150 – $1,650 / მ².",
-        "descriptionLabel": "დეტალური აღწერა",
-        "descriptionPlaceholder": "აღწერეთ ქონების უპირატესობები, ხედი, სართული და კომპლექსის პირობები...",
-        "docsBoxTitle": "საკუთრების დოკუმენტები (არასავალდებულო ახლა)",
-        "docContract": "ნასყიდობის კონტრაქტი",
-        "docReceipts": "გადახდის ქვითრები",
-        "docStatement": "ამონაწერი",
-        "docPassport": "პასპორტი",
+        "descriptionLabel": "დეტალური აღწერა (არასავალდებულო)",
+        "descriptionPlaceholder": "აღწერეთ ქონების უპირატესობები, ხედი და პირობები...",
+        "docsBoxTitle": "საკუთრების დოკუმენტები (სავალდებულოა გამოსაქვეყნებლად)",
+        "docsRequirementBanner": "📌 შეგიძლიათ შეინახოთ მონაცემები ახლა და დოკუმენტები მოგვიანებით ატვირთოთ (ჩემი ანგარიშიდან), მაგრამ ობიექტი გამოქვეყნდება მხოლოდ 4 დოკუმენტის ატვირთვისა და ადმინისტრაციის მიერ შემოწმების შემდეგ.",
+        "docContract": "1. ნასყიდობის კონტრაქტი",
+        "docReceipts": "2. გადახდის ქვითრები",
+        "docStatement": "3. ამონაწერი",
+        "docPassport": "4. პასპორტი",
         "changeBtn": "შეცვლა",
         "uploadBtn": "ატვირთვა"
       },
@@ -671,19 +851,19 @@
         "title": "6. მესაკუთრის მონაცემები და ანგარიში",
         "subtitleExit": "სახელი და ტელეფონი — (🔒 დაფარულია საჯაროდ და ჩანს მხოლოდ ადმინისტრაციისთვის).",
         "subtitleRent": "სახელი და ტელეფონი — კონტაქტისთვის მესენჯერებით.",
-        "namePlaceholder": "შეიყვანეთ თქვენი სრული სახელი",
+        "namePlaceholder": "სრული სახელი...",
         "messengersLabel": "ამ ნომერზე ხელმისაწვდომი მესენჯერები",
         "confirmPasswordLabel": "გაიმეორეთ პაროლი",
         "accountOptionsTitle": "ანგარიშის და განცხადების პარამეტრები:",
-        "createAccountLinkBtn": "ანგარიშის შექმნა და განცხადების მიბმა ✓",
+        "createAccountLinkBtn": "ანგარიშის შექმნა და მონახაზის შენახვა ✓",
         "signInSyncPhoneBtn": "შესვლა და მონაცემების სინქრონიზაცია ✓",
         "signInAnotherAccountBtn": "სხვა ანგარიშით შესვლა",
         "backToCurrentAccountBtn": "← ჩემს ანგარიშზე დაბრუნება",
-        "accountLinkedSuccessMsg": "ანგარიში შეიქმნა ✓ ახლა დააჭირეთ „გამოქვეყნებას“ ქვემოთ",
+        "accountLinkedSuccessMsg": "ანგარიში შეიქმნა და მონახაზი შენახულია ✓ ახლა გაგზავნეთ ობიექტი ქვემოთ",
         "loggedInSyncedSuccessMsg": "ავტორიზაცია წარმატებულია ✓",
-        "termsAgreementSuffix": "— და ვეთანხმები პლატფორმის წესებს",
-        "signInToSaveDraftError": "მონახაზის შესანახად გთხოვთ გაიაროთ ავტორიზაცია კონტაქტის სექციაში",
-        "completeAccountToPublishError": "გამოსაქვეყნებლად გთხოვთ შეავსოთ რეგისტრაციის ველები ან შეხვიდეთ ანგარიშში",
+        "termsAgreementSuffix": "— და ვეთანხმები პლატფორმის წესებს *",
+        "signInToSaveDraftError": "მონახაზის შესანახად გთხოვთ გაიაროთ ავტორიზაცია მე-6 სექციაში",
+        "completeAccountToPublishError": "გასაგზავნად გთხოვთ შეავსოთ რეგისტრაციის ველები ან შეხვიდეთ ანგარიშში",
         "authFailedError": "ავტორიზაცია ვერ მოხერხდა, გადაამოწმეთ მონაცემები",
         "validation": {
           "bedroomsExceedRooms": "საძინებლების რაოდენობა არ შეიძლება აღემატებოდეს ოთახების საერთო რაოდენობას",
@@ -694,17 +874,17 @@
       },
       "previewSidebar": {
         "title": "ცოცხალი გადახედვა",
-        "subtitle": "ასე დაინახავენ მყიდველები თქვენს განცხადებას",
-        "emptyPhotoTitle": "საჭიროა მინიმუმ 1 ფოტო",
+        "subtitle": "ასე დაინახავენ მყიდველები თქვენს ობიექტს დადასტურების შემდეგ",
+        "emptyPhotoTitle": "ფოტოები ჯერ არ არის ატვირთული",
         "emptyPhotoSub": "ატვირთეთ ფოტო — გადახედვა აქ გამოჩნდება",
         "priceOnRequest": "ფასი შეთანხმებით",
         "perDay": " /დღე",
         "perMonth": " /თვე",
         "cashRequiredSuffix": " (საჭირო თანხა)",
         "bedsShort": "საძინებელი",
-        "strengthTitle": "განცხადების შევსება",
-        "strengthGreat": "შესანიშნავი შევსება — მზადაა გამოსაქვეყნებლად!",
-        "strengthGood": "კარგი დასაწყისია — დაამატეთ ფოტოები და დეტალები",
+        "strengthTitle": "მზადყოფნა შემოწმებისთვის",
+        "strengthGreat": "სრულად შევსებულია — მზადაა ადმინისტრაციის შემოწმებისთვის!",
+        "strengthGood": "შეავსეთ სავალდებულო ველები, ფოტოები და დოკუმენტები",
         "tipPhotos": "დაამატეთ ქონების ფოტოები",
         "tipLocation": "მიუთითეთ ზუსტი ქუჩა და მდებარეობა",
         "tipDetails": "შეავსეთ ფართობი და ოთახები",
@@ -727,15 +907,291 @@
         "pkgPro": "PRO -30% · 17 დღე"
       },
       "bottomBar": {
+        "finalSectionTitle": "ობიექტის გაგზავნა შემოწმებაზე ან მონახაზის შენახვა",
+        "finalSectionDescComplete": "ყველა მონაცემი, ფოტო და დოკუმენტი შევსებულია 100%-ით! დააჭირეთ ქვემოთ ადმინისტრაციაში გასაგზავნად.",
+        "finalSectionDescMissingMedia": "მნიშვნელოვანია: შეგიძლიათ შეინახოთ მონაცემები ახლა და დარჩენილი ფოტოები ან დოკუმენტები მოგვიანებით ატვირთოთ (ჩემი ანგარიშიდან).",
         "savedAtPrefix": "მონახაზი შენახულია",
         "autoSavedPrefix": "შევსებულია სექციები",
-        "saveDraftBtn": "მონახაზის შენახვა",
-        "publishingBtn": "ქვეყნდება...",
-        "publishBtn": "გამოქვეყნება"
+        "saveDraftBtn": "მონახაზად შენახვა და მოგვიანებით გაგრძელება",
+        "savingDraftBtn": "ინახება...",
+        "publishingBtn": "იგზავნება...",
+        "publishBtn": "ობიექტის გაგზავნა ადმინისტრაციის შემოწმებაზე",
+        "submitAndCompleteDocsLaterBtn": "მონაცემების შენახვა და ფოტო/დოკუმენტების ანგარიშიდან ატვირთვა"
       }
+    },
+    "aiDescription": {
+      "generateBtn": "აღწერის გენერირება ხელოვნური ინტელექტით (AI)",
+      "generatingBtn": "აღწერა იქმნება თქვენი მონაცემებით...",
+      "generatedBadge": "აღწერა წარმატებით შეიქმნა ✓",
+      "helperHint": "დააჭირეთ AI ღილაკს, რათა ავტომატურად შეიქმნას პროფესიონალური აღწერა შეყვანილი მონაცემებიდან.",
+      "templates": {
+        "intro": "იყიდება ქონება განვადების გადაბარებით",
+        "inProject": "პროექტში",
+        "byDeveloper": "დეველოპერი:",
+        "locatedIn": "მდებარეობა:",
+        "specsTitle": "📐 მახასიათებლები:",
+        "totalArea": "ფართობი",
+        "sqm": "მ²",
+        "roomsPrefix": "ოთახები:",
+        "roomsWord": "",
+        "bedroomsPrefix": "საძინებელი:",
+        "bedroomsWord": "",
+        "bathWord": "სვ. წერტილი",
+        "floorPrefix": "სართული",
+        "ofTotalFloors": "/",
+        "floorsWord": "",
+        "conditionPrefix": "მდგომარეობა:",
+        "handoverTitle": "🏗 ჩაბარების სტატუსი:",
+        "underConstPrefix": "მშენებარე (ჩაბარება:",
+        "readyNow": "მზადაა შესასვლელად",
+        "financialsTitle": "💰 ფინანსური პირობები:",
+        "contractPricePrefix": "კონტრაქტის სრული ფასი",
+        "paidCashPrefix": "გადახდილი თანხა (ხელზე)",
+        "remainingPrefix": "დარჩენილი დეველოპერთან",
+        "installmentPrefix": "განვადების შენატანი",
+        "forDuration": "",
+        "monthsWord": "თვე",
+        "featuresTitle": "✨ უპირატესობები:",
+        "closingLine": "✅ ყველა დოკუმენტი და გადახდის ქვითარი მზადაა გადაფორმებისთვის 0% საკომისიოთი გამყიდველისთვის."
+      }
+    },
+    "flowLoading": {
+      "loadingUnitTitle": "თქვენი ობიექტის მონაცემები იტვირთება...",
+      "loadingUnitSub": "გთხოვთ დაელოდოთ რამდენიმე წამს",
+      "loadErrorTitle": "მონაცემების ჩატვირთვა ვერ მოხერხდა",
+      "loadErrorDesc": "შეამოწმეთ ინტერნეტ კავშირი და სცადეთ თავიდან.",
+      "retryBtn": "თავიდან ცდა",
+      "backToAccountBtn": "ანგარიშზე დაბრუნება",
+      "oneTimeVerifyBadge": "ერთჯერადი დადასტურება",
+      "oneTimeVerifyNote": "ელ-ფოსტის დადასტურება საჭიროა მხოლოდ ერთხელ პირველი განცხადებისას.",
+      "finalCardTitle": "განაცხადის გაგზავნა ან შენახვა",
+      "finalCardSub": "შეგიძლიათ გაგზავნოთ მონაცემები ახლა, ხოლო ფოტოები და დოკუმენტები ატვირთოთ მოგვიანებით «ჩემი ანგარიშიდან».",
+      "publishBtnText": "ობიექტის გაგზავნა ადმინისტრაციაში",
+      "saveLaterBtnText": "მონაცემების შენახვა და მოგვიანებით გაგრძელება",
+      "savingLaterBtnText": "ინახება...",
+      "missingFieldsAlertTitle": "გთხოვთ შეავსოთ ზემოთ წითლად მონიშნული სავალდებულო ველები:",
+      "mediaDialogBadge": "მნიშვნელოვანი შეტყობინება",
+      "mediaDialogTitle": "ფოტოები და დოკუმენტები აუცილებელია გამოსაქვეყნებლად",
+      "mediaDialogDesc": "შეგიძლიათ გაგზავნოთ მონაცემები ახლა, მაგრამ განცხადება გამოქვეყნდება მხოლოდ შემდეგი ფაილების ატვირთვის შემდეგ:",
+      "mediaDialogMandatoryPublishNote": "მნიშვნელოვანია: ქონების ფოტოები და საკუთრების 4 დოკუმენტი აუცილებელია გადამოწმებისა და გამოქვეყნებისთვის. შეგიძლიათ ატვირთოთ ახლა ან მოგვიანებით «ჩემი ანგარიშიდან».",
+      "mediaDialogMissingPhotos": "ქონების ფოტოები (მინიმუმ 1 ფოტო)",
+      "mediaDialogMissingDocs": "საკუთრების დოკუმენტები",
+      "mediaDialogConfirmBtn": "გაგზავნა ახლა და ფაილების ატვირთვა მოგვიანებით →",
+      "mediaDialogUploadNowBtn": "ფოტოების და დოკუმენტების ატვირთვა ახლა",
+      "onlyPhotosBtn": "ჯერ ფოტოების დამატება",
+      "onlyDocsBtn": "ჯერ დოკუმენტების ატვირთვა",
+      "bothBtn": "ჯერ ფოტოების და დოკუმენტების დამატება",
+      "missingBelowBtnPrefix": "გთხოვთ შეავსოთ ზემოთ წითლად მონიშნული სავალდებულო ველები:",
+      "mandatoryPublishNotice": "მნიშვნელოვანია: ქონების ფოტოები და საკუთრების 4 დოკუმენტი აუცილებელია გადამოწმებისა და გამოქვეყნებისთვის. ახლა გაგზავნის შემთხვევაში განცხადება გამოქვეყნდება ფაილების «ჩემი ანგარიშიდან» ატვირთვის შემდეგ.",
+      "defaultCityFallback": "თბილისი"
+    },
+    "buildingStatuses": {
+      "underConstruction": "მშენებარე",
+      "completedReady": "დასრულებული",
+      "newlyBuiltReady": "ახალი აშენებული (მზადაა)",
+      "underConstructionSub": "მშენებარე",
+      "oldBuiltReady": "ძველი აშენებული"
+    },
+    "mapUi": {
+      "windowsHelpText": "გამოიყენეთ Ctrl + სქროლი რუკის გასადიდებლად",
+      "macHelpText": "გამოიყენეთ ⌘ + სქროლი რუკის გასადიდებლად",
+      "mobileHelpText": "გამოიყენეთ ორი თითი რუკის გადასაადგილებლად",
+      "enterStreetHint": "შეიყვანეთ ქუჩა — პინი ავტომატურად დაჯდება",
+      "bottomSnapHint": "პინი და შენობა ავტომატურად ინიშნება · ან დააჭირეთ რუკას",
+      "parcelFoundText": "ნაკვეთი ნაპოვნია — რუკა გასწორდა NAPR-ის მიხედვით",
+      "optionalNaprHint": "არასავალდებულო — აფიქსირებს NAPR ნაკვეთს რუკაზე",
+      "hideCadastralBtn": "საკადასტრო კოდის დამალვა საიტზე",
+      "hiddenFromPublicBadge": "დამალულია საჯაროდ (ჩანს მხოლოდ ადმინისტრაციისთვის)",
+      "outsideGeorgiaMapAlert": "თქვენი GPS მდებარეობა საქართველოს გარეთაა — მონიშნეთ ობიექტი საქართველოში.",
+      "shortProjectPlaceholder": "პროექტის სახელი...",
+      "shortDeveloperPlaceholder": "დეველოპერი (არასავალდებულო)...",
+      "shortStreetPlaceholder": "ჩაწერეთ ქუჩის სახელი...",
+      "shortHousePlaceholder": "მაგ. 12",
+      "shortCadastralPlaceholder": "არასავალდებულო",
+      "zoomInTitle": "გადიდება",
+      "zoomOutTitle": "დაპატარავება",
+      "resetBearingTitle": "ორიენტაციის აღდგენა",
+      "fullscreenMapTitle": "სრული ეკრანი",
+      "mapStylesTitle": "რუკის სტილები",
+      "styles": {
+        "streets": "ქუჩები",
+        "sivrce": "Sivrce",
+        "realistic": "რეალისტური",
+        "photoreal": "სატელიტი",
+        "hybrid": "ჰიბრიდი",
+        "minimal": "მინიმალისტური",
+        "contrast": "კონტრასტული"
+      }
+    },
+    "optionsData": {
+      "dealTypes": {
+        "exit": {
+          "label": "განვადების გადაბარება",
+          "sub": "დაიბრუნეთ გადახდილი თანხა"
+        },
+        "sale": {
+          "label": "იყიდება",
+          "sub": "ქონების გაყიდვა"
+        },
+        "rent_monthly": {
+          "label": "ქირავდება",
+          "sub": "გრძელვადიანი, თვიურად"
+        },
+        "rent_daily": {
+          "label": "დღიურად",
+          "sub": "დღიურად სტუმრებისთვის"
+        }
+      },
+      "propertyKinds": {
+        "Apartment": "ბინა",
+        "Private house": "კერძო სახლი",
+        "Cottage": "კოტეჯი",
+        "Land": "მიწის ნაკვეთი",
+        "Commercial": "კომერციული",
+        "Hotel": "სასტუმრო / აპარტ-ოტელი"
+      },
+      "conditionOptions": {
+        "Newly renovated": "ახალი გარემონტებული",
+        "Old renovation": "ძველი რემონტით",
+        "Under renovation": "მიმდინარე რემონტი",
+        "Needs renovation": "სარემონტო",
+        "White frame": "თეთრი კარკასი",
+        "Black frame": "შავი კარკასი",
+        "Green frame": "მწვანე კარკასი",
+        "White plus": "თეთრი პლუსი",
+        "Turnkey": "სრული რემონტით",
+        "Fully furnished": "ავეჯით და ტექნიკით"
+      },
+      "buildingSeries": {
+        "Non-standard": "არასტანდარტული",
+        "City type": "ქალაქური",
+        "Tbilisi yard": "თბილისური ეზო",
+        "Czech": "ჩეხური",
+        "Kavlashvili": "ყავლაშვილის",
+        "Tukhareli": "თუხარელის",
+        "Lvov": "ლვოვის",
+        "Kiev": "კიევის",
+        "Leningrad": "ლენინგრადის",
+        "Moscow": "მოსკოვის",
+        "Khrushchev": "ხრუშჩოვკა",
+        "Vedzisi": "ვეძისის",
+        "Yugoslav": "იუგოსლავიური",
+        "Metromsheni": "მეტრომშენის",
+        "Other": "სხვა"
+      },
+      "floorTypes": {
+        "Standard": "სტანდარტული",
+        "Duplex": "დუპლექსი",
+        "Triplex": "ტრიპლექსი",
+        "Attic": "მანსარდა"
+      },
+      "heatingTypes": {
+        "Central": "ცენტრალური",
+        "Own gas boiler": "ინდივიდუალური გაზის",
+        "Electric": "ელექტრო",
+        "None": "გათბობის გარეშე"
+      },
+      "buildingMaterials": {
+        "Monolithic concrete": "მონოლითი",
+        "Brick": "აგური",
+        "Block": "ბლოკი",
+        "Panel": "პანელი",
+        "Mixed": "შერეული"
+      },
+      "featureGroups": {
+        "space": "სივრცე",
+        "building": "შენობა",
+        "utilities": "კომუნიკაციები",
+        "comfort": "კომფორტი",
+        "views": "ხედები",
+        "extra": "დამატებითი"
+      },
+      "featureItems": {
+        "Balcony": "აივანი",
+        "Loggia": "ლოჯია",
+        "Terrace": "ტერასა",
+        "Yard": "ეზო",
+        "Storage": "სათავსო",
+        "Cellar": "სარდაფი",
+        "Walk-in closet": "საგარდერობო",
+        "Separate kitchen": "იზოლირებული სამზარეულო",
+        "Elevator": "ლიფტი",
+        "Parking": "პარკინგი",
+        "Underground parking": "მიწისქვეშა პარკინგი",
+        "Garage": "ავტოფარეხი",
+        "Security": "დაცვა",
+        "Concierge": "კონსიერჟი",
+        "Intercom": "დომოფონი",
+        "Backup generator": "გენერატორი",
+        "Iron door": "რკინის კარი",
+        "Double glazing": "მეტალოპლასტმასის ფანჯრები",
+        "Penthouse": "პენტჰაუსი",
+        "Step-free access": "ადაპტირებული შესასვლელი",
+        "Underfloor heating": "იატაკის გათბობა",
+        "Natural gas": "ბუნებრივი აირი",
+        "Hot water": "ცხელი წყალი",
+        "Internet": "ინტერნეტი",
+        "Cable TV": "საკაბელო ტელევიზია",
+        "Furniture": "ავეჯი",
+        "Appliances": "ტექნიკა",
+        "Air conditioning": "კონდიციონერი",
+        "Dishwasher": "ჭურჭლის სარეცხი მანქანა",
+        "Washing machine": "სარეცხი მანქანა",
+        "Dryer": "საშრობი",
+        "Fireplace": "ბუხარი",
+        "Kitchen": "სამზარეულო",
+        "TV": "ტელევიზორი",
+        "Panoramic view": "პანორამული ხედი",
+        "Sea view": "ზღვის ხედი",
+        "Mountain view": "მთის ხედი",
+        "Yard view": "ეზოს ხედი",
+        "Street view": "ქუჩის ხედი",
+        "Beachfront": "პირველი ზოლი",
+        "Bright": "ნათელი",
+        "Quiet": "მშვიდი გარემო",
+        "Pool": "აუზი",
+        "Jacuzzi": "ჯაკუზი",
+        "Sauna": "საუნა",
+        "Gym": "სპორტდარბაზი",
+        "BBQ grill": "ბარბექიუ",
+        "EV charger": "ელექტრომობილის დამტენი",
+        "Ski access": "სათხილამურო ტრასასთან"
+      },
+      "countries": {
+        "GE": "საქართველო",
+        "EG": "ეგვიპტე",
+        "RU": "რუსეთი",
+        "AE": "საამიროები",
+        "SA": "საუდის არაბეთი",
+        "KW": "ქუვეითი",
+        "QA": "ყატარი",
+        "BH": "ბაჰრეინი",
+        "OM": "ომანი",
+        "JO": "იორდანია",
+        "TR": "თურქეთი",
+        "US": "აშშ / კანადა",
+        "GB": "დიდი ბრიტანეთი"
+      },
+      "cityGroupTitles": {
+        "tbilisi": "თბილისი",
+        "batumi": "ბათუმი და შავი ზღვის სანაპირო",
+        "kutaisi": "ქუთაისი",
+        "resorts": "საქართველოს სხვა ქალაქები და კურორტები"
+      },
+      "featuresPreset": [
+        "ზღვის ხედი (Sea View)",
+        "მთის ხედი (Mountain View)",
+        "პანორამული ხედი ქალაქზე",
+        "აუზი",
+        "ცენტრალური / იატაკის გათბობა",
+        "24/7 დაცვა და მიმღები",
+        "მიწისქვეშა პარკინგი",
+        "ფართო აივანი (Balcony)",
+        "მეტროსთან და სერვისებთან ახლოს"
+      ]
     }
   },
-"accountPages": {
+  "accountPages": {
     "common": {
       "backToAccount": "ანგარიშზე დაბრუნება",
       "backShort": "უკან",
@@ -1081,7 +1537,63 @@
       "modalCancelPromoDesc": "ნამდვილად გსურთ VIP მოთხოვნის გაუქმება? ობიექტი დარჩება უფასო განთავსებაში.",
       "modalBackBtn": "უკან",
       "modalConfirmBtn": "დადასტურება",
-      "modalProcessingBtn": "სრულდება..."
+      "modalProcessingBtn": "სრულდება...",
+      "navigatingLoading": "იხსნება...",
+      "unverifiedDraftTitle": "დაადასტურეთ ელ-ფოსტა ობიექტის გასაგზავნად",
+      "unverifiedDraftDesc": "ეს ობიექტი შენახულია მონახაზის სახით. დაადასტურეთ ელ-ფოსტა (მხოლოდ ერთხელ) ადმინისტრაციაში გასაგზავნად.",
+      "verifyAndSendToAdminBtn": "ელ-ფოსტის დადასტურება და გაგზავნა →",
+      "adminNoteCardTitle": "ადმინისტრაციის შენიშვნა თქვენს ობიექტზე:",
+      "adminNoteFixBtn": "მონაცემების შესწორება ახლა",
+      "adminNoteWaReplyBtn": "პასუხი WhatsApp-ით",
+      "adminNoteWaMsgPrefix": "გამარჯობა Aqar Exit, თქვენს შენიშვნასთან დაკავშირებით ობიექტზე",
+      "adminNoteWaMsgMiddle": "პროექტში",
+      "checklistTitleIncomplete": "⚠️ მიმდინარე სტატუსი: არ არის გამოქვეყნებული (საჭიროა ფაილების ატვირთვა)",
+      "checklistSubIncomplete": "ობიექტი გამოქვეყნდება ბაზარზე მხოლოდ ქვემოთ მოცემული 3 პუნქტის შევსების შემდეგ:",
+      "checklistTitleComplete": "✅ მიმდინარე სტატუსი: სრულად შევსებულია (ადმინისტრაციის შემოწმებაზე)",
+      "checklistSubComplete": "ადმინისტრაციამ მიიღო თქვენი ობიექტის ყველა მონაცემი, ფოტო და დოკუმენტი გამოსაქვეყნებლად.",
+      "reqItemDetails": "1. სავალდებულო მონაცემები",
+      "reqItemPhotos": "2. ქონების ფოტოები",
+      "reqItemDocs": "3. საკუთრების დოკუმენტები (4 ფაილი)",
+      "doneTag": "შევსებულია ✓",
+      "missingActionPhotos": "ფოტოების ატვირთვა →",
+      "missingActionDocs": "დოკუმენტების ატვირთვა →",
+      "missingActionDetails": "მონაცემების შევსება →",
+      "boostHeaderBadge": "განცხადების რეკლამირება · SUPER VIP & +VIP",
+      "boostUnitPrefix": "ობიექტის რეკლამირება:",
+      "boostUnitSubtitle": "აირჩიეთ VIP პაკეტი თქვენი ქონების მთავარ გვერდზე პირველ ადგილზე გამოსაჩენად",
+      "quickAmountsLabel": "სწრაფი თანხები",
+      "customAmountLabel": "სხვა თანხა",
+      "starterBadge": "სტარტი",
+      "recommendedBadge": "რეკომენდებული 🔥",
+      "popularBadge": "პოპულარული",
+      "anySub": "ნებისმიერი",
+      "creditedSuffix": "დაერიცხება თქვენს განცხადებას",
+      "upsellPrefix": "რჩევა:",
+      "upsellMiddle": "ხსნის ფასდაკლებას",
+      "upsellDaysSuffix": "SUPER VIP პაკეტზე",
+      "topUpBtnPrefix": "შევსება:",
+      "payCardPrefix": "გადაიხადეთ",
+      "payCardSuffix": "ბარათით",
+      "bankTransferPrefix": "საბანკო გადარიცხვა",
+      "boostRecordedPrefix": "VIP პაკეტის მოთხოვნა",
+      "boostRecordedMiddle": "მიღებულია ობიექტისთვის",
+      "boostRecordedSuffix": "პაკეტი გააქტიურდება გადახდის დადასტურებისთანავე.",
+      "minMaxGelHint": "მინ. 5 ₾ · მაქს. 10,000 ₾",
+      "stageSteps": [
+        "1. მონაცემების და ფაილების შევსება",
+        "2. ადმინისტრაციის შემოწმებაზე",
+        "3. დამტკიცებულია ბაზარზე",
+        "4. მიღებულია შეთავაზება",
+        "5. კონტრაქტის გადაფორმება",
+        "6. გაყიდულია"
+      ],
+      "incompleteStageBadge": "⚠️ არ არის გამოქვეყნებული — საჭიროა შევსება",
+      "incompleteStageHeadline": "თქვენი ობიექტი შენახულია (ჯერ არ არის გამოქვეყნებული) — გთხოვთ ატვირთოთ ფოტოები და დოკუმენტები ქვემოთ, რათა გადაეგზავნოს ადმინისტრაციას",
+      "readyPendingReviewBadge": "⏳ შევსებულია — ელოდება დადასტურებას",
+      "readyPendingReviewHeadline": "ყველა მონაცემი, ფოტო და დოკუმენტი სრულია — თქვენი ობიექტი გადაგზავნილია ადმინისტრაციაში გამოსაქვეყნებლად",
+      "statusUnderReviewBadge": "2. დოკუმენტების შემოწმება",
+      "statusUnderReviewHeadline": "ჩვენი გუნდი ამოწმებს თქვენი ობიექტის მონაცემებსა და დოკუმენტებს გამოსაქვეყნებლად",
+      "statusDraftUnverifiedHeadline": "თქვენი ობიექტი შენახულია მონახაზის სახით — დაადასტურეთ ელ-ფოსტა და ატვირთეთ ფოტოები და დოკუმენტები ქვემოთ"
     },
     "buyer": {
       "popularAreas": [
@@ -1107,10 +1619,37 @@
         "ოთახები",
         "ჩაბარება"
       ],
-      "deliveryStatuses": ["ყველა", "მზადაა შესასვლელად", "მშენებარე"],
-      "deliveryYears": ["ყველა", "2026-მდე", "2027-მდე", "2028-მდე", "2029-მდე", "2030-მდე", "2031-მდე"],
-      "contractYears": ["ყველა", "2025 ან ძველი", "2024 ან ძველი", "2023 ან ძველი", "2022 ან ძველი", "2021 ან ძველი", "2020 ან ძველი"],
-      "roomOptions": ["ყველა", "+1", "+2", "+3", "+4", "+5"],
+      "deliveryStatuses": [
+        "ყველა",
+        "მზადაა შესასვლელად",
+        "მშენებარე"
+      ],
+      "deliveryYears": [
+        "ყველა",
+        "2026-მდე",
+        "2027-მდე",
+        "2028-მდე",
+        "2029-მდე",
+        "2030-მდე",
+        "2031-მდე"
+      ],
+      "contractYears": [
+        "ყველა",
+        "2025 ან ძველი",
+        "2024 ან ძველი",
+        "2023 ან ძველი",
+        "2022 ან ძველი",
+        "2021 ან ძველი",
+        "2020 ან ძველი"
+      ],
+      "roomOptions": [
+        "ყველა",
+        "+1",
+        "+2",
+        "+3",
+        "+4",
+        "+5"
+      ],
       "sorts": [
         "უახლესი",
         "VIP შეთავაზებები ⭐",
@@ -1120,8 +1659,16 @@
         "უახლოესი ჩაბარება",
         "მზადაა შესასვლელად"
       ],
-      "paymentPlans": ["თვიური", "კვარტალური", "6 თვეში ერთხელ", "წლიური"],
-      "deliveryPreferences": ["მზადაა შესასვლელად", "მშენებარე"],
+      "paymentPlans": [
+        "თვიური",
+        "კვარტალური",
+        "6 თვეში ერთხელ",
+        "წლიური"
+      ],
+      "deliveryPreferences": [
+        "მზადაა შესასვლელად",
+        "მშენებარე"
+      ],
       "tagCashMatch": "თანხა ჯდება ბიუჯეტში",
       "tagInstMatch": "შენატანი მისაღებია",
       "tagAreaMatch": "სასურველ უბანში",
@@ -1185,7 +1732,7 @@
       "summaryCashLabel": "ხელმისაწვდომი თანხა:",
       "summaryInstLabel": "მაქს. შენატანი:",
       "filterByRequestLabel": "ფილტრი მოთხოვნით:",
-      "filterByRequestSub": "დალაგებულია საუკეთესო თანხვედრით.",
+      "filterByRequestSub": "დალაგებულია თქვენს მოთხოვნასთან შესაბამისობით — აირჩიეთ პირობა ზუსტი ფილტრაციისთვის",
       "searchPlaceholder": "მოძებნეთ პროექტი, უბანი ან კოდი...",
       "filterBtn": "ფილტრი",
       "negotiableBtn": "შეთანხმებით",
@@ -1253,14 +1800,16 @@
       "shortPassword": "მინიმუმ 8 სიმბოლო",
       "loginIdRequired": "შეიყვანეთ ელ.ფოსტა ან ნომერი",
       "loginPassRequired": "შეიყვანეთ პაროლი",
-      "submitFailed": "გაგზავნა ვერ მოხერხდა"
+      "submitFailed": "გაგზავნა ვერ მოხერხდა",
+      "cashExceedsBudget": "ხელმისაწვდომი თანხა არ შეიძლება აღემატებოდეს სრულ ბიუჯეტს"
     },
     "successScreen": {
       "title": "თქვენი მოთხოვნა და ჭკვიანი რადარი გააქტიურდა ✓",
       "subtitle": "თქვენს ბიუჯეტზე მორგებული ობიექტების სწრაფი შერჩევისთვის დაადასტურეთ მოთხოვნა WhatsApp-ით:",
       "confirmWaBtn": "მოთხოვნის დადასტურება WhatsApp-ით",
       "goToAccountBtn": "ანგარიშზე გადასვლა და შეთავაზებების ნახვა",
-      "waMsgPrefix": "გამარჯობა Aqar Exit, ვადასტურებ შესყიდვის მოთხოვნას"
+      "waMsgPrefix": "გამარჯობა Aqar Exit, ვადასტურებ შესყიდვის მოთხოვნას",
+      "orderRefPrefix": "კოდი:"
     },
     "stepOne": {
       "countryLabel": "სასურველი ქვეყანა *",
@@ -1343,7 +1892,7 @@
       "submitBtn": "გაგზავნა"
     }
   },
- "opportunitiesPage": {
+  "opportunitiesPage": {
     "countries": {
       "ALL": "ყველა ქვეყანა",
       "EG": "ეგვიპტე",
@@ -1398,13 +1947,40 @@
       "maxInstLabel": "მაქს. თვიური შენატანი",
       "unitTypeLabel": "ქონების ტიპი",
       "deliveryLabel": "ჩაბარება",
-      "deliveryStatuses": ["ყველა", "მზადაა შესასვლელად", "მშენებარე"],
+      "deliveryStatuses": [
+        "ყველა",
+        "მზადაა შესასვლელად",
+        "მშენებარე"
+      ],
       "deliveryYearLabel": "ჩაბარების წელი",
-      "deliveryYears": ["ყველა", "2026-მდე", "2027-მდე", "2028-მდე", "2029-მდე", "2030-მდე", "2031-მდე"],
+      "deliveryYears": [
+        "ყველა",
+        "2026-მდე",
+        "2027-მდე",
+        "2028-მდე",
+        "2029-მდე",
+        "2030-მდე",
+        "2031-მდე"
+      ],
       "contractYearLabel": "კონტრაქტის წელი",
-      "contractYears": ["ყველა", "2025 ან ძველი", "2024 ან ძველი", "2023 ან ძველი", "2022 ან ძველი", "2021 ან ძველი", "2020 ან ძველი"],
+      "contractYears": [
+        "ყველა",
+        "2025 ან ძველი",
+        "2024 ან ძველი",
+        "2023 ან ძველი",
+        "2022 ან ძველი",
+        "2021 ან ძველი",
+        "2020 ან ძველი"
+      ],
       "minRoomsLabel": "ოთახების რაოდენობა",
-      "roomOptions": ["ყველა", "+1", "+2", "+3", "+4", "+5"],
+      "roomOptions": [
+        "ყველა",
+        "+1",
+        "+2",
+        "+3",
+        "+4",
+        "+5"
+      ],
       "maxContractPriceLabel": "მაქს. კონტრაქტის ფასი",
       "showResultsBtn": "შედეგების ჩვენება",
       "hideBtn": "დამალვა"
@@ -1441,14 +2017,14 @@
       "detailsBtn": "დეტალურად"
     },
     "trustSection": {
-      "title": "რატომ უნდა ენდოთ ამ შეთავაზებებს?",
-      "card1Title": "ობიექტები ქვეყნდება მხოლოდ კონტრაქტისა და ქვითრების გადამოწმების შემდეგ",
-      "card1Desc": "ჩვენ ვამოწმებთ დეველოპერის კონტრაქტს, გადახდის ქვითრებს და დარჩენილ ბალანსს თითოეულ ობიექტზე.",
-      "card1Btn": "დაარეგისტრირეთ მოთხოვნა",
-      "card2Title": "რას ხედავთ თითოეულ შეთავაზებაში?",
-      "point1": "ზუსტი საჭირო თანხა ხელზე — რაც რეალურად გადაიხადა მესაკუთრემ ქვითრების მიხედვით",
-      "point2": "დეველოპერთან დარჩენილი თანხა და განვადების გრაფიკი",
-      "point3": "ფასთა სხვაობა მიმდინარე საბაზრო ფასთან — თქვენი მყისიერი მოგება"
+      "title": "რატომ უნდა შეიძინოთ ქონება Aqar Exit-ის საშუალებით?",
+      "card1Title": "ვერ იპოვეთ სასურველი ბინა? დატოვეთ მოთხოვნა",
+      "card1Desc": "მიუთითეთ თქვენი ბიუჯეტი, სასურველი უბანი თბილისში ან ბათუმში და განვადების პირობები — ჩვენ შეგირჩევთ გადამოწმებულ ვარიანტებს.",
+      "card1Btn": "მოთხოვნის დატოვება →",
+      "card2Title": "პლატფორმის გარანტიები მყიდველისთვის",
+      "point1": "ორიგინალი ხელშეკრულებისა და გადახდის ქვითრების გადამოწმება გამოქვეყნებამდე.",
+      "point2": "ოფიციალური გადაფორმება ხდება უშუალოდ დეველოპერის ოფისში.",
+      "point3": "ნულოვანი ფასნამატი — იხდით მხოლოდ რეალურად გადახდილ თანხას და აგრძელებთ განვადებას."
     },
     "ui": {
       "searchBtn": "ძიება",
@@ -1489,7 +2065,93 @@
         "land": "მიწის ნაკვეთები",
         "commercial": "კომერციული",
         "hotel": "აპარტ-ოტელი"
+      },
+      "adCardBadge": "სარეკლამო სივრცე",
+      "adCardTitle": "თქვენი რეკლამა აქ",
+      "adCardSub": "განათავსეთ განცხადება და მიაწვდინეთ ხმა ათასობით მყიდველსა და ინვესტორს.",
+      "adBullet1": "მიზნობრივი აუდიტორია",
+      "adBullet2": "პირდაპირი კონტაქტი",
+      "adBullet3": "გამჭვირვალე სტატისტიკა",
+      "adCardBtn": "განთავსება →",
+      "newlyAddedHeading": "ახალი დამატებული (თარიღის მიხედვით)"
+    },
+    "mapView": {
+      "searchPlaceholder": "ქალაქი, უბანი, ქუჩა — ან პროექტი, დეველოპერი, კოდი...",
+      "cityLabel": "ქალაქები",
+      "listPrefix": "განცხადება",
+      "allTab": "ყველა",
+      "forExitTab": "გადაბარება",
+      "underConstTab": "მშენებარე",
+      "readyTab": "მზადაა",
+      "negotiableTab": "შეთანხმებით",
+      "apartmentsTab": "ბინა",
+      "housesTab": "სახლი",
+      "cottagesTab": "კოტეჯი",
+      "commercialTab": "კომერციული",
+      "landTab": "მიწა",
+      "hotelTab": "სასტუმრო",
+      "liveBadge": "Live",
+      "resetTooltip": "ფილტრების გასუფთავება",
+      "myLocationTooltip": "ჩემი მდებარეობა",
+      "fullscreenTooltip": "სრული ეკრანი",
+      "exitFullscreenTooltip": "სრული ეკრანიდან გამოსვლა",
+      "exitMapTooltip": "სიაზე დაბრუნება",
+      "layersTitle": "ფენები",
+      "mapStyleLabel": "რუკის სტილი",
+      "styleRealistic": "რეალისტური 3D",
+      "styleStreets": "ქუჩები",
+      "styleSatellite": "სატელიტი",
+      "styleHybrid": "ჰიბრიდი",
+      "styleMinimal": "მინიმალისტური",
+      "layerTerrain": "რელიეფი 3D",
+      "layerTerrainSub": "გორაკები და ფერდობები 3D-ში",
+      "layerTrees": "პარკები და გამწვანება",
+      "layerTreesSub": "მწვანე ზონების გამოკვეთა",
+      "layerPriceVsMarket": "ფასი ბაზართან შედარებით",
+      "layerPriceVsMarketSub": "მომგებიანი ობიექტების მწვანედ მონიშვნა",
+      "layerNightMode": "ღამის რეჟიმი",
+      "layerNightModeSub": "მუქი რუკის თემა",
+      "verifiedBadge": "დამოწმებული",
+      "roomsWord": "ოთახი",
+      "sqmUnit": "მ²",
+      "remainingLabel": "დარჩენილი:",
+      "installmentLabel": "განვადება:",
+      "gainLabel": "მოგება:",
+      "viewDetailsBtn": "დეტალების ნახვა",
+      "pois": {
+        "metro": "მეტრო",
+        "train": "მატარებელი",
+        "school": "სკოლა",
+        "kindergarten": "ბაღი",
+        "pharmacy": "აფთიაქი",
+        "park": "პარკი",
+        "market": "მარკეტი",
+        "clinic": "კლინიკა",
+        "university": "უნივერსიტეტი",
+        "uni": "უნივერსიტეტი",
+        "bank": "ბანკი",
+        "landmark": "ღირსშესანიშნაობა",
+        "gym": "დარბაზი",
+        "bus": "ავტობუსი"
       }
+    },
+    "popovers": {
+      "minCashPlaceholder": "მინ. საჭირო თანხა ($)",
+      "maxCashPlaceholder": "მაქს. საჭირო თანხა ($)",
+      "minWord": "მინ.",
+      "maxWord": "მაქს.",
+      "sqmUnit": "მ²",
+      "commutePlaceholder": "დანიშნულების ადგილი — სამსახური, უნივერსიტეტი, მეტრო...",
+      "useMyLocationBtn": "ჩემი მდებარეობა",
+      "modeCar": "მანქანით",
+      "modeWalk": "ფეხით",
+      "modeBike": "ველოსიპედით",
+      "minSuffix": "წთ",
+      "applyBtn": "გამოყენება",
+      "boostStatusLabel": "VIP სტატუსი",
+      "bathroomsLabel": "სველი წერტილები",
+      "floorLabel": "სართული",
+      "conditionLabel": "მდგომარეობა / რემონტი"
     }
   },
   "unitDetailsPage": {
@@ -1594,7 +2256,161 @@
       "submitBtn": "შეთავაზების დადასტურება და გაგზავნა",
       "privacyNote": "თქვენი მონაცემები დაცულია და არ გადაეცემა მესამე პირებს.",
       "errorSubmit": "გთხოვთ შეიყვანოთ სწორი სახელი და ტელეფონის ნომერი.",
-      "errorUnexpected": "დაფიქსირდა შეცდომა, სცადეთ თავიდან."
+      "errorUnexpected": "დაფიქსირდა შეცდომა, სცადეთ თავიდან.",
+      "photosWord": "ფოტო",
+      "viewsWord": "ნახვა",
+      "closeBtn": "დახურვა",
+      "selectCashOfferLabel": "აირჩიეთ შეთავაზების თანხა",
+      "requiredExitCashPrefix": "საჭირო თანხა ხელზე:",
+      "fullPriceOptionTitle": "სრული ფასით დაჯავშნა",
+      "paidCashBadge": "გადახდილი თანხა",
+      "negotiateOptionTitle": "ფასზე შეთანხმება (ვაჭრობა)",
+      "minAllowedFloorLabel": "მინიმალური დასაშვები თანხა",
+      "nonNegotiableUnitPrefix": "ფიქსირებული ფასი (",
+      "nonNegotiableUnitSuffix": ") — ვაჭრობის გარეშე",
+      "yourCashOfferInputLabel": "თანხა, რომელსაც სთავაზობთ მესაკუთრეს ($):",
+      "fullPricePriorityHint": "პრიორიტეტული დადასტურება",
+      "errBelowMinFloor": "მინიმალური დასაშვები თანხაა",
+      "fomoNegotiationWarning": "სრული ფასის შეთავაზებებს აქვს პრიორიტეტი მესაკუთრესთან.",
+      "waConfirmIntro": "გამარჯობა Aqar Exit, ვადასტურებ შეთავაზებას",
+      "waConfirmUnitWord": "ობიექტზე",
+      "waConfirmAmountWord": "თანხით",
+      "waConfirmLinkLabel": "დადასტურების ბმული:"
+    },
+    "uiLabels": {
+      "descriptionTitle": "ქონების აღწერა",
+      "featuresTitle": "მახასიათებლები და კეთილმოწყობა",
+      "otherFeaturesGroup": "დამატებითი მახასიათებლები",
+      "videoAnd3dTitle": "ვიდეო და 3D ვირტუალური ტური",
+      "watchVideoBtn": "ვიდეოს ნახვა",
+      "open3dTourBtn": "3D ტურის გახსნა",
+      "onlineViewingBadge": "ხელმისაწვდომია ონლაინ ვიდეო ჩვენება ✓",
+      "streetAddressLabel": "მისამართი:",
+      "cadastralCodeLabel": "საკადასტრო კოდი:",
+      "developerLabel": "დეველოპერი:",
+      "scoreHeader": "შეთავაზების შეფასება (AQAR EXIT SCORE)",
+      "excellentDeal": "საუკეთესო შეთავაზება",
+      "veryGoodDeal": "კარგი შეთავაზება",
+      "scoreCalculatedPrefix": "გამოთვლილია კვ.მ ფასიდან ($",
+      "scoreSqmUnit": "/მ²)",
+      "scoreCalculatedSuffix": "და მდებარეობიდან",
+      "priceVsDistrict": "ფასი უბნის საშუალოსთან შედარებით",
+      "locationRating": "მდებარეობის შეფასება",
+      "conditionAndDelivery": "მდგომარეობა და ჩაბარება",
+      "finRequiredCashNow": "საჭირო თანხა ხელზე მესაკუთრეს (ფასნამატის გარეშე)",
+      "finNoOverNote": "✓ იხდით მხოლოდ გადახდილ თანხას და იბარებთ დეველოპერის განვადებას",
+      "finMakeOfferBtn": "შეთავაზების გაგზავნა",
+      "finNegotiableTitle": "შესაძლებელია ფასზე შეთანხმება",
+      "finNegotiableDescPrefix": "მესაკუთრე მზად არის დააკლოს",
+      "finNegotiableDescMiddle": "(დაახლოებით",
+      "finNegotiableDescSuffix": ") სწრაფი გადახდის შემთხვევაში.",
+      "finGainPrefix": "თქვენი მოგება საბაზრო ფასთან შედარებით:",
+      "finMarketPriceTodayPrefix": "საბაზრო ფასი დღეს:",
+      "finAfterCommissionSuffix": "(სუფთა მოგება 1.25% საკომისიოს შემდეგ)",
+      "finMarketDisclaimer": "* ყველა თანხა დადასტურებულია დეველოპერის ორიგინალი ხელშეკრულებითა და ქვითრებით.",
+      "finRemainingToDev": "დარჩენილი თანხა დეველოპერთან (განვადებით)",
+      "finInstallment": "განვადების შენატანი",
+      "finRemainingMonthsLabel": "განვადების დარჩენილი ვადა",
+      "finMonthsWord": "თვე",
+      "finFullyPaid": "სრულად გადახდილია",
+      "finDelivery": "ჩაბარების თარიღი",
+      "finCommissionLabel": "პლატფორმის საკომისიო მყიდველისთვის (1.25%)",
+      "finCommissionSub": "გადაიხდება მხოლოდ ოფიციალური გადაფორმების დროს — 0% გამყიდველისთვის",
+      "finTotalRequiredNow": "სულ საჭიროა ახლა",
+      "similarTitle": "მსგავსი შეთავაზებები",
+      "similarSubtitle": "სხვა გადამოწმებული ობიექტები ფასნამატის გარეშე",
+      "similarReqCashPrefix": "საჭირო თანხა:",
+      "similarViewDetailsBtn": "დეტალურად"
+    },
+    "locationInsights": {
+      "neighborhoodTitle": "უბანი და ტრანსპორტი",
+      "neighborhoodSubPrefix": "კეთილმოწყობილი და ფეხით სავალი ზონა (",
+      "neighborhoodSubSuffix": "ობიექტი შენობის გარშემო)",
+      "calculatingNeighborhoodText": "იტვირთება მონაცემები რუკიდან...",
+      "walkScoreLabel": "ფეხით ხელმისაწვდომობა (Walk Score)",
+      "mobilityScoreLabel": "ტრანსპორტის ხელმისაწვდომობა (Mobility Score)",
+      "metroRowLabel": "მეტრო",
+      "busRowLabel": "ავტობუსი",
+      "busLinesWithin500m": "ხაზები 500 მ-ში",
+      "railRowLabel": "რკინიგზა",
+      "airportRowLabel": "აეროპორტი",
+      "bestBadge": "საუკეთესო",
+      "locationTitle": "მდებარეობა და 3D რუკა",
+      "exactBuildingBadge": "ზუსტი შენობა ✓",
+      "approxCenterBadge": "დადასტურებული მდებარეობა",
+      "cloudyWord": "ზომიერი",
+      "airQualityWord": "ჰაერის ხარისხი",
+      "collapseTooltip": "ჩაკეცვა",
+      "expandTooltip": "გაშლა",
+      "directionsBtn": "მარშრუტი",
+      "open3dMapBtn": "3D რუკა",
+      "closeFullscreenBtn": "დახურვა",
+      "whatsNearbyTitle": "რა არის ახლოს",
+      "whatsNearbySub": "უახლოესი ობიექტები · ფეხით სავალი დრო",
+      "loadingNearbyText": "იტვირთება ობიექტები...",
+      "noPlacesInCategory": "ობიექტები არ მოიძებნა",
+      "allCat": "ყველა",
+      "showLessBtn": "ნაკლები ▲",
+      "showMoreSuffix": "მეტი ⌄",
+      "walkWord": "ფეხით",
+      "transitWord": "ტრანსპორტი",
+      "driveWord": "მანქანით",
+      "minWord": "წთ",
+      "sunTitle": "მზე და ბუნებრივი განათება",
+      "sunSub": "მზის ტრაექტორია შენობის ზუსტი კოორდინატების მიხედვით",
+      "winterTab": "ზამთარი",
+      "todayTab": "დღეს",
+      "summerTab": "ზაფხული",
+      "windowDirectionTitle": "მზის სხივები ფანჯრების მიხედვით",
+      "northLabel": "ჩრდილოეთი",
+      "eastLabel": "აღმოსავლეთი",
+      "southLabel": "სამხრეთი",
+      "westLabel": "დასავლეთი",
+      "noDirectSun": "პირდაპირი მზის გარეშე",
+      "brightMorning": "ნათელი დილით",
+      "veryBrightAllDay": "მზიანი მთელი დღე",
+      "brightAfternoon": "ნათელი საღამოს",
+      "southEastLabel": "სამხრეთ-აღმოსავლეთი",
+      "southWestLabel": "სამხრეთ-დასავლეთი",
+      "timeLabel": "დრო",
+      "heightLabel": "სიმაღლე",
+      "directionLabel": "მიმართულება",
+      "daylightLabel": "დღის ხანგრძლივობა",
+      "sunriseLabel": "ამოსვლა",
+      "solarNoonLabel": "შუადღე",
+      "sunsetLabel": "ჩასვლა",
+      "windowsHelpText": "გამოიყენეთ Ctrl + სქროლი რუკის გასადიდებლად",
+      "macHelpText": "გამოიყენეთ ⌘ + სქროლი რუკის გასადიდებლად",
+      "mobileHelpText": "გამოიყენეთ ორი თითი რუკის გადასაადგილებლად",
+      "zoomInTitle": "გადიდება",
+      "zoomOutTitle": "დაპატარავება",
+      "centerBuildingTitle": "შენობაზე გასწორება",
+      "fullscreenTitle": "სრული ეკრანი",
+      "mapStylesTitle": "რუკის სტილები",
+      "styles": {
+        "streets": "ქუჩები",
+        "sivrce": "Sivrce",
+        "realistic": "რეალისტური",
+        "photoreal": "სატელიტი",
+        "hybrid": "ჰიბრიდი",
+        "minimal": "მინიმალისტური",
+        "contrast": "კონტრასტული"
+      },
+      "categories": {
+        "metro": "მეტრო",
+        "school": "სკოლები",
+        "kindergarten": "საბავშვო ბაღები",
+        "pharmacy": "აფთიაქები",
+        "park": "პარკები",
+        "market": "მარკეტები",
+        "restaurants": "რესტორნები",
+        "clinic": "კლინიკები",
+        "university": "უნივერსიტეტები",
+        "bank": "ბანკები",
+        "landmark": "ღირსშესანიშნაობები",
+        "gym": "ფიტნესი",
+        "bus": "ავტობუსი"
+      }
     }
   },
   "publicPages": {
@@ -1604,20 +2420,50 @@
       "ownerTitle": "მესაკუთრის გზა",
       "ownerBtn": "კონტრაქტის შეფასება",
       "ownerSteps": [
-        ["კონტრაქტის შეფასება", "შეიყვანეთ მონაცემები და გაიგეთ თქვენი პოზიცია უფასოდ."],
-        ["საბუთების ატვირთვა", "კონტრაქტი და გადახდის ქვითრები მოწმდება გუნდის მიერ."],
-        ["შეთავაზების მომზადება", "ვამზადებთ დადასტურებულ პრეზენტაციას მყიდველებისთვის."],
-        ["მყიდველის შერჩევა", "გაკავშირებთ რეალურ, გადახდისუნარიან მყიდველთან."],
-        ["კონტრაქტის გადაფორმება", "გაცილებთ დეველოპერთან სრულ გადაფორმებამდე."]
+        [
+          "კონტრაქტის შეფასება",
+          "შეიყვანეთ მონაცემები და გაიგეთ თქვენი პოზიცია უფასოდ."
+        ],
+        [
+          "საბუთების ატვირთვა",
+          "კონტრაქტი და გადახდის ქვითრები მოწმდება გუნდის მიერ."
+        ],
+        [
+          "შეთავაზების მომზადება",
+          "ვამზადებთ დადასტურებულ პრეზენტაციას მყიდველებისთვის."
+        ],
+        [
+          "მყიდველის შერჩევა",
+          "გაკავშირებთ რეალურ, გადახდისუნარიან მყიდველთან."
+        ],
+        [
+          "კონტრაქტის გადაფორმება",
+          "გაცილებთ დეველოპერთან სრულ გადაფორმებამდე."
+        ]
       ],
       "buyerTitle": "მყიდველის გზა",
       "buyerBtn": "მყიდველად რეგისტრაცია",
       "buyerSteps": [
-        ["ბიუჯეტის განსაზღვრა", "მიუთითეთ ხელმისაწვდომი ქეში და სასურველი განვადება."],
-        ["ობიექტების შერჩევა", "დაათვალიერეთ დოკუმენტურად შემოწმებული ბინები."],
-        ["შეთავაზების გაგზავნა", "დააფიქსირეთ ოფიციალური ინტერესი მკაფიო პირობებით."],
-        ["ჯავშნის დადასტურება", "ყველა ეტაპი ოფიციალურად დოკუმენტირებულია."],
-        ["კონტრაქტის მიღება", "ოფიციალური გადაფორმება დეველოპერის ოფისში."]
+        [
+          "ბიუჯეტის განსაზღვრა",
+          "მიუთითეთ ხელმისაწვდომი ქეში და სასურველი განვადება."
+        ],
+        [
+          "ობიექტების შერჩევა",
+          "დაათვალიერეთ დოკუმენტურად შემოწმებული ბინები."
+        ],
+        [
+          "შეთავაზების გაგზავნა",
+          "დააფიქსირეთ ოფიციალური ინტერესი მკაფიო პირობებით."
+        ],
+        [
+          "ჯავშნის დადასტურება",
+          "ყველა ეტაპი ოფიციალურად დოკუმენტირებულია."
+        ],
+        [
+          "კონტრაქტის მიღება",
+          "ოფიციალური გადაფორმება დეველოპერის ოფისში."
+        ]
       ],
       "commissionTitle": "0% გამყიდველს — გამჭვირვალე პირობა მყიდველს",
       "commissionDesc": "გამყიდველი არ იხდის არაფერს. მყიდველი იხდის 1.25%-ს მხოლოდ წარმატებული გადაფორმებისას.",
@@ -1645,7 +2491,12 @@
       "phonePlaceholder": "5xx xx xx xx",
       "emailLabel": "ელ.ფოსტა",
       "subjectLabel": "თემა",
-      "subjects": ["ზოგადი კითხვა", "ბინის გაყიდვა", "ბინის ყიდვა", "ინვესტიცია"],
+      "subjects": [
+        "ზოგადი კითხვა",
+        "ბინის გაყიდვა",
+        "ბინის ყიდვა",
+        "ინვესტიცია"
+      ],
       "messageLabel": "შეტყობინება",
       "messagePlaceholder": "დაწერეთ თქვენი კითხვა...",
       "sendBtn": "გაგზავნა",
@@ -1663,7 +2514,7 @@
       "allCountriesHeader": "ყველა ქვეყანა",
       "noCountryMatch": "ქვეყანა ვერ მოიძებნა",
       "searchCountryPlaceholder": "მოძებნეთ ქვეყანა ან კოდი (+995)...",
-"noCountryFound": "ქვეყანა ვერ მოიძებნა",
+      "noCountryFound": "ქვეყანა ვერ მოიძებნა",
       "lightThemeAria": "ნათელი თემა",
       "darkThemeAria": "მუქი თემა"
     },
@@ -1765,9 +2616,18 @@
       ],
       "processTitle": "პროცესის ეტაპები",
       "processSteps": [
-        ["ინტერესის განაცხადი", "შეავსეთ ფორმა რამდენიმე წუთში, ვალდებულების გარეშე."],
-        ["NDA და პრეზენტაცია", "გიზიარებთ დეტალურ ფინანსურ მოდელსა და გეგმას."],
-        ["შეხვედრა დამფუძნებელთან", "პირობებისა და სტრუქტურის პირდაპირი განხილვა."]
+        [
+          "ინტერესის განაცხადი",
+          "შეავსეთ ფორმა რამდენიმე წუთში, ვალდებულების გარეშე."
+        ],
+        [
+          "NDA და პრეზენტაცია",
+          "გიზიარებთ დეტალურ ფინანსურ მოდელსა და გეგმას."
+        ],
+        [
+          "შეხვედრა დამფუძნებელთან",
+          "პირობებისა და სტრუქტურის პირდაპირი განხილვა."
+        ]
       ],
       "confidentialBadge": "კონფიდენციალური — საინვესტიციო განხილვისთვის"
     },
@@ -1826,9 +2686,22 @@
         "კონვერტირებადი სესხი",
         "პირდაპირი პარტნიორობა"
       ],
-      "vehicles": ["პირდაპირი ინვესტიცია", "საინვესტიციო ფონდი"],
-      "holdPeriods": ["1–2 წელი", "3–5 წელი", "5–10 წელი", "გრძელვადიანი"],
-      "participation": ["მხოლოდ ფინანსური", "სტრატეგიული", "ბორდის წევრი", "ოპერაციული"],
+      "vehicles": [
+        "პირდაპირი ინვესტიცია",
+        "საინვესტიციო ფონდი"
+      ],
+      "holdPeriods": [
+        "1–2 წელი",
+        "3–5 წელი",
+        "5–10 წელი",
+        "გრძელვადიანი"
+      ],
+      "participation": [
+        "მხოლოდ ფინანსური",
+        "სტრატეგიული",
+        "ბორდის წევრი",
+        "ოპერაციული"
+      ],
       "neededInfo": [
         "ბიზნეს მოდელი",
         "ფინანსური მაჩვენებლები",
@@ -1839,10 +2712,28 @@
         "ბაზრის ანალიზი",
         "იურიდიული დოკუმენტები"
       ],
-      "returns": ["10%-მდე", "10–15%", "15–20%", "20–30%", "30%+"],
-      "importanceLevels": ["ძალიან მაღალი", "მაღალი", "საშუალო", "დაბალი"],
-      "nextStepsList": ["შეხვედრა გუნდთან", "დოკუმენტების გაცნობა", "პროცესის დაწყება"],
-      "yesNo": ["დიახ", "არა"],
+      "returns": [
+        "10%-მდე",
+        "10–15%",
+        "15–20%",
+        "20–30%",
+        "30%+"
+      ],
+      "importanceLevels": [
+        "ძალიან მაღალი",
+        "მაღალი",
+        "საშუალო",
+        "დაბალი"
+      ],
+      "nextStepsList": [
+        "შეხვედრა გუნდთან",
+        "დოკუმენტების გაცნობა",
+        "პროცესის დაწყება"
+      ],
+      "yesNo": [
+        "დიახ",
+        "არა"
+      ],
       "s1Title": "ინვესტორის მონაცემები",
       "s1Name": "სრული სახელი",
       "s1NamePlaceholder": "სახელი და გვარი",
@@ -1955,13 +2846,13 @@
     "notFoundDesc": "შესაძლოა გვერდი წაიშალა ან ბმული არასწორია.",
     "notFoundBtn": "ობიექტების ნახვა",
     "maintenance": {
-      "badge": "Плановое обновление",
-      "title": "Мы обновляем платформу, чтобы стать еще удобнее для вас",
-      "description": "На сайте проводятся кратковременные технические работы, скоро мы вернемся. По срочным вопросам свяжитесь с нами напрямую в WhatsApp.",
-      "whatsappBtn": "Написать нам в WhatsApp",
-      "staffLoginBtn": "Вход для сотрудников",
-      "staffBannerText": "Режим техработ активен для гостей — сайт открыт вам как сотруднику",
-      "staffManageBtn": "Управление режимом"
+      "badge": "ტექნიკური განახლება",
+      "title": "მიმდინარეობს პლატფორმის განახლება",
+      "description": "საიტზე მიმდინარეობს დროებითი ტექნიკური სამუშაოები და მალე დავბრუნდებით. სასწრაფო კითხვებისთვის მოგვწერეთ WhatsApp-ში.",
+      "whatsappBtn": "მოგვწერეთ WhatsApp-ში",
+      "staffLoginBtn": "თანამშრომლის შესვლა",
+      "staffBannerText": "ტექნიკური რეჟიმი ჩართულია სტუმრებისთვის — საიტი ღიაა გუნდისთვის",
+      "staffManageBtn": "პარამეტრები"
     }
   },
   "serverActions": {
@@ -2008,7 +2899,7 @@
       "registerError": "რეგისტრაცია ვერ მოხერხდა.",
       "loginError": "ელ.ფოსტა ან პაროლი არასწორია."
     },
-   "account": {
+    "account": {
       "sessionExpired": "სესია ამოიწურა, გთხოვთ შეხვიდეთ თავიდან.",
       "invalidNamePhone": "შეიყვანეთ სწორი სახელი და ტელეფონის ნომერი.",
       "phoneConflict": "ეს ნომერი უკვე რეგისტრირებულია სხვა ანგარიშზე.",
@@ -2177,11 +3068,10 @@
       "desc": "ეს პანელი განკუთვნილია მხოლოდ ადმინისტრაციისა და გაყიდვების გუნდისთვის. მიმდინარე ანგარიში:",
       "staffLoginBtn": "თანამშრომლის შესვლა",
       "loginRequiredTitle": "საჭიროა ადმინისტრატორის შესვლა",
-  "loginRequiredDesc": "გთხოვთ შეხვიდეთ ადმინისტრატორის ანგარიშით.",
- 
- 
+      "loginRequiredDesc": "გთხოვთ შეხვიდეთ ადმინისტრატორის ანგარიშით.",
       "backHomeBtn": "მთავარზე დაბრუნება"
-    },"dealsPage": {
+    },
+    "dealsPage": {
       "eyebrow": "გარიგებებისა და შეთავაზებების ოთახი (Deal Room)",
       "title": "შესყიდვის შეთავაზებებისა და გარიგებების მართვა",
       "subtitle": "დაადასტურეთ WhatsApp-ით დამოწმებული შეთავაზებები გამყიდველთან გასაგზავნად",
@@ -2245,7 +3135,7 @@
       "buyerPartyLabel": "მხარე 2 (მყიდველი)",
       "contactSellerWa": "გამყიდველის WhatsApp",
       "offerPendingAdminTag": "ელოდება ადმინს",
-  "offerBackupTag": "სარეზერვო",
+      "offerBackupTag": "სარეზერვო",
       "contactBuyerWa": "მყიდველის WhatsApp",
       "agreedCashLabel": "შეთავაზებული ქეში",
       "commissionDueLabel": "პლატფორმის საკომისიო",
@@ -2269,8 +3159,8 @@
       "noMatchesFound": "60%-ზე მეტი თანხვედრა ვერ მოიძებნა.",
       "recSentSuccess": "ობიექტი გაეგზავნა მყიდველს რეკომენდაციებში!",
       "bulkRecsSentSuccess": "რეკომენდაცია გაეგზავნა ყველა შესაბამის მყიდველს",
-      "officialOfferSentSuccess": "ოფიციალური შეთავაზება გაეგზავნა გამყიდველს!"},
-    
+      "officialOfferSentSuccess": "ოფიციალური შეთავაზება გაეგზავნა გამყიდველს!"
+    },
     "shell": {
       "brand": "Darak",
       "adminPanel": "ადმინ პანელი",
@@ -2278,7 +3168,7 @@
       "myProfile": "პროფილი",
       "publicSite": "საჯარო საიტი",
       "defaultAdminName": "ადმინი",
-  "nowLabel": "ახლა",
+      "nowLabel": "ახლა",
       "logout": "გასვლა",
       "notifications": "შეტყობინებები",
       "clearAll": "გასუფთავება",
@@ -2299,7 +3189,7 @@
         "promotionsShort": "VIP",
         "leads": "მყიდველები",
         "deals": "გარიგებებისა და შეთავაზებების ოთახი",
-    "dealsShort": "გარიგებები",
+        "dealsShort": "გარიგებები",
         "leadsShort": "მყიდველები",
         "users": "მომხმარებლები",
         "usersShort": "როლები",
@@ -2327,15 +3217,15 @@
       "pendingNeedAction": "ელოდება შემოწმებას",
       "allReviewed": "ყველა შემოწმებულია",
       "dealsRoomKpiLabel": "გარიგებების ოთახი",
-  "offersPendingYourApprovalNote": "შეთავაზება ელოდება დასტურს",
-  "dealsReadyToCloseNote": "გარიგება მზადაა დასახურად",
-  "pendingOffersAlertPrefix": "თქვენ გაქვთ",
-  "pendingOffersAlertSuffix": "ახალი შეთავაზება, რომელიც ელოდება თქვენს დადასტურებას",
-  "pendingOffersAlertSub": "დააწკაპუნეთ აქ გარიგებების ოთახის გასახსნელად",
-  "openDealsRoomBtn": "გარიგებების გახსნა",
-  "manageAndCloseDealsBtn": "გარიგებების მართვა",
-  "openInDealsRoomBtn": "გახსნა გარიგებებში",
-  "openFullDealsRoomLink": "ყველა გარიგების ნახვა",
+      "offersPendingYourApprovalNote": "შეთავაზება ელოდება დასტურს",
+      "dealsReadyToCloseNote": "გარიგება მზადაა დასახურად",
+      "pendingOffersAlertPrefix": "თქვენ გაქვთ",
+      "pendingOffersAlertSuffix": "ახალი შეთავაზება, რომელიც ელოდება თქვენს დადასტურებას",
+      "pendingOffersAlertSub": "დააწკაპუნეთ აქ გარიგებების ოთახის გასახსნელად",
+      "openDealsRoomBtn": "გარიგებების გახსნა",
+      "manageAndCloseDealsBtn": "გარიგებების მართვა",
+      "openInDealsRoomBtn": "გახსნა გარიგებებში",
+      "openFullDealsRoomLink": "ყველა გარიგების ნახვა",
       "adRequests": "VIP მოთხოვნები ⭐",
       "adPendingNote": "ელოდება ჩართვას",
       "adActiveNote": "აქტიური VIP ობიექტი",
@@ -2459,7 +3349,7 @@
       "generalTab": "ზოგადი ძიება",
       "emptyText": "მოთხოვნები ვერ მოიძებნა.",
       "verifyBuyerBtn": "მყიდველის დადასტურება ✓",
-"buyerVerifiedSuccess": "მყიდველის საკონტაქტო მონაცემები დადასტურდა ✓",
+      "buyerVerifiedSuccess": "მყიდველის საკონტაქტო მონაცემები დადასტურდა ✓",
       "updatingText": "ახლდება...",
       "unitBadge": "ჯავშანი",
       "cashLabel": "ქეში:",
@@ -2509,8 +3399,8 @@
       "whatsappLabel": "ოფიციალური WhatsApp ნომერი",
       "supportEmailLabel": "მხარდაჭერის ელ.ფოსტა",
       "financialRatesTitle": "საკომისიო და დეველოპერის ჯარიმის პროცენტი (%)",
-"devPenaltyMinLabel": "მინ. დეველოპერის ჯარიმა (%)",
-"devPenaltyMaxLabel": "მაქს. დეველოპერის ჯარიმა (%)",
+      "devPenaltyMinLabel": "მინ. დეველოპერის ჯარიმა (%)",
+      "devPenaltyMaxLabel": "მაქს. დეველოპერის ჯარიმა (%)",
       "commissionLabel": "მყიდველის საკომისიო (%)",
       "promoPricesTitle": "VIP პაკეტების ფასები (ქვეყნების მიხედვით):",
       "countries": {
@@ -2748,7 +3638,7 @@
         "deleted_by_seller": "🗑 წაშლილია მესაკუთრის მიერ",
         "rejected": "7. უარყოფილი"
       },
-    "docs": {
+      "docs": {
         "contract": "ნასყიდობის კონტრაქტი",
         "receipts": "გადახდის ქვითრები",
         "statement": "დეველოპერის ამონაწერი",
@@ -2762,7 +3652,7 @@
         "pausedBySeller": "შეჩერებული",
         "deletedBySellerPrefix": "წაშლილი",
         "phoneVerifiedBadge": "ნომერი დადასტურებულია ✓",
-  "emailVerifiedBadge": "ელ-ფოსტა დადასტურებულია ✓",
+        "emailVerifiedBadge": "ელ-ფოსტა დადასტურებულია ✓",
         "daysWord": "დღე",
         "dayWord": "დღე",
         "docWord": "დოკ.",
@@ -2879,6 +3769,13 @@
         "sellerVerifiedSuccess": "გამყიდველის საკონტაქტო მონაცემები დადასტურდა ✓",
         "promoActivated": "⭐ VIP სტატუსი წარმატებით ჩაირთო.",
         "promoCancelled": "VIP სტატუსი გაუქმდა."
+      },
+      "analytics": {
+        "viewsWord": "ნახვა",
+        "totalViewsLabel": "სულ ნახვები:",
+        "sendReportWaBtn": "ნახვების რეპორტის გაგზავნა (WhatsApp)",
+        "viewsColumnHeader": "ნახვები",
+        "viewUnitBtn": "ობიექტის ნახვა"
       }
     }
   },
@@ -2897,7 +3794,83 @@
     "roomsDiff": "საძინებელი",
     "buyerAskedRooms": "მოთხოვნა",
     "deliveryDiff": "ჩაბარების სტატუსი",
-    "readyKeywords": ["ჩაბარებული", "მზა", "ready", "جاهز"],
-    "bothDeliveryKeywords": ["ორივე", "ნებისმიერი", "both", "الاتنين"]
+    "readyKeywords": [
+      "ჩაბარებული",
+      "მზა",
+      "ready",
+      "جاهز"
+    ],
+    "bothDeliveryKeywords": [
+      "ორივე",
+      "ნებისმიერი",
+      "both",
+      "الاتنين"
+    ]
+  },
+  "common": {
+    "floatingWhatsapp": {
+      "tooltip": "მოგვწერეთ WhatsApp-ში",
+      "prefillMessage": "გამარჯობა Aqar Exit-ის გუნდო, მჭირდება დახმარება პლატფორმასთან დაკავშირებით."
+    },
+    "relativeTime": {
+      "oneWeekAgo": "1 კვირის წინ",
+      "twoWeeksAgo": "2 კვირის წინ",
+      "weeksAgoPrefix": "",
+      "weeksWord": "კვირის წინ",
+      "oneHourAgo": "1 სთ წინ",
+      "twoHoursAgo": "2 სთ წინ",
+      "hoursWordPlural": "სთ წინ",
+      "hourWordSingular": "სთ წინ",
+      "oneDayAgo": "1 დღის წინ",
+      "twoDaysAgo": "2 დღის წინ",
+      "daysWordPlural": "დღის წინ",
+      "oneMonthAgo": "თვის წინ",
+      "twoMonthsAgo": "თვის წინ",
+      "monthsWordPlural": "თვის წინ",
+      "sincePrefix": ""
+    },
+    "frequencies": {
+      "monthly": "ყოველთვიური",
+      "quarterly": "კვარტალური",
+      "semiAnnual": "6 თვეში ერთხელ",
+      "annual": "წლიური"
+    },
+    "delivery": {
+      "ready": "მზადაა"
+    },
+    "unitTypesShort": {
+      "apartment": "ბინა",
+      "studio": "სტუდიო",
+      "aparthotel": "აპარტ-ოტელი",
+      "villa": "ვილა / სახლი",
+      "cottage": "კოტეჯი",
+      "commercial": "კომერციული",
+      "land": "მიწა"
+    }
+  },
+  "locationModal": {
+    "triggerEmpty": "დააჭირეთ ქალაქის ან უბნის ასარჩევად...",
+    "triggerSelectedPrefix": "სხვა უბნის დამატება",
+    "selectedCountSuffix": "არჩეულია",
+    "modalTitle": "მდებარეობა",
+    "sellerModalTitle": "აირჩიეთ ქალაქი და უბანი საქართველოში",
+    "searchPlaceholder": "ქალაქი ან უბანი",
+    "sellerSearchPlaceholder": "უბანი, ქალაქი ან ქუჩა...",
+    "nearbyTitle": "თქვენთან ახლოს",
+    "nearbySub": "ქალაქი ამ მდებარეობიდან",
+    "popularCitiesTitle": "პოპულარული ქალაქები",
+    "browseAllCitiesBtn": "ყველა ქალაქი →",
+    "districtsAZTitle": "უბნები და ზონები (A–Z)",
+    "districtsTab": "უბნები",
+    "streetsTab": "ქუჩები",
+    "citiesHeader": "ყველა ქალაქი",
+    "wholeCityBtn": "მთელი ქალაქი",
+    "pickDistrictOrStreetHint": "აირჩიეთ უბანი ან ჩაწერეთ ქუჩა ზემოთ",
+    "noStreetsForAreaHint": "ამ ზონაში ქუჩები არ არის — დააჭირეთ არჩევას მდებარეობის გამოსაყენებლად",
+    "outsideGeorgiaGpsWarning": "თქვენი GPS მდებარეობა საქართველოს ფარგლებს გარეთაა — აირჩიეთ ქალაქი და უბანი ქვემოთ.",
+    "clearBtn": "გასუფთავება",
+    "clearAllBtn": "გასუფთავება",
+    "selectBtn": "არჩევა",
+    "confirmSelectBtn": "დადასტურება"
   }
 }

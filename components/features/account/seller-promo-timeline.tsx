@@ -30,131 +30,8 @@ import {
 import { Button } from '@/components/ui/button'
 import { createBoostRequestAction } from '@/actions/account-actions'
 import { calculateGelBoostPackage } from '@/components/features/home/home-market-sections'
-import { useTranslation, type LocaleCode } from '@/lib/i18n'
+import { useTranslation } from '@/lib/i18n'
 import type { ConfirmModalState, SellerUnitItem } from './seller-unit-helpers'
-
-const PROMO_UI_FALLBACK: Record<
-  LocaleCode,
-  {
-    boostHeaderBadge: string
-    boostUnitPrefix: string
-    boostUnitSubtitle: string
-    quickAmountsLabel: string
-    customAmountLabel: string
-    starterBadge: string
-    recommendedBadge: string
-    popularBadge: string
-    anySub: string
-    creditedSuffix: string
-    upsellPrefix: string
-    upsellMiddle: string
-    upsellDaysSuffix: string
-    topUpBtnPrefix: string
-    payCardPrefix: string
-    payCardSuffix: string
-    bankTransferPrefix: string
-    boostRecordedPrefix: string
-    boostRecordedMiddle: string
-    boostRecordedSuffix: string
-  }
-> = {
-  ar: {
-    boostHeaderBadge: 'ترقية الإعلان · SUPER VIP & +VIP',
-    boostUnitPrefix: 'تمييز وحدة:',
-    boostUnitSubtitle:
-      'اختر باقة الترقية لظهور وحدتك في صدارة الصفحة الرئيسية والفرص المتاحة',
-    quickAmountsLabel: 'مبالغ سريعة',
-    customAmountLabel: 'مبلغ مخصص',
-    starterBadge: 'بداية',
-    recommendedBadge: 'موصى به 🔥',
-    popularBadge: 'شائع',
-    anySub: 'مخصص',
-    creditedSuffix: 'تُضاف لرصيد إعلانك',
-    upsellPrefix: 'نصيحة: شحن',
-    upsellMiddle: 'يفتح لك خصم',
-    upsellDaysSuffix: 'على باقة SUPER VIP',
-    topUpBtnPrefix: 'اشحن',
-    payCardPrefix: 'ادفع',
-    payCardSuffix: 'بالبطاقة البنكية',
-    bankTransferPrefix: 'تحويل بنكي',
-    boostRecordedPrefix: 'تم تسجيل طلب تفعيل باقة',
-    boostRecordedMiddle: 'لوحدتك',
-    boostRecordedSuffix:
-      'بمجرد إتمام الدفع ومراجعة الأدمن سيتم التفعيل تلقائياً.',
-  },
-  en: {
-    boostHeaderBadge: 'Boost Listing · SUPER VIP & +VIP',
-    boostUnitPrefix: 'Boost Unit:',
-    boostUnitSubtitle:
-      'Choose a boost package to feature your unit at the top of the homepage',
-    quickAmountsLabel: 'Quick amounts',
-    customAmountLabel: 'Custom amount',
-    starterBadge: 'Starter',
-    recommendedBadge: 'Recommended 🔥',
-    popularBadge: 'Popular',
-    anySub: 'Any',
-    creditedSuffix: 'credited to your listing',
-    upsellPrefix: 'Recommendation:',
-    upsellMiddle: 'unlocks',
-    upsellDaysSuffix: 'volume discount on SUPER VIP',
-    topUpBtnPrefix: 'Top up to',
-    payCardPrefix: 'Pay',
-    payCardSuffix: 'with Card',
-    bankTransferPrefix: 'Bank Transfer',
-    boostRecordedPrefix: 'Boost request',
-    boostRecordedMiddle: 'recorded for unit',
-    boostRecordedSuffix:
-      'It will activate automatically upon payment and Admin approval.',
-  },
-  ru: {
-    boostHeaderBadge: 'Продвижение · SUPER VIP & +VIP',
-    boostUnitPrefix: 'Продвижение объекта:',
-    boostUnitSubtitle:
-      'Выберите пакет для вывода вашего объекта в ТОП главной страницы и каталога',
-    quickAmountsLabel: 'Быстрый выбор',
-    customAmountLabel: 'Своя сумма',
-    starterBadge: 'Старт',
-    recommendedBadge: 'Рекомендуем 🔥',
-    popularBadge: 'Популярный',
-    anySub: 'Любая',
-    creditedSuffix: 'зачисляется на баланс объявления',
-    upsellPrefix: 'Совет: пополнение на',
-    upsellMiddle: 'открывает скидку',
-    upsellDaysSuffix: 'на пакет SUPER VIP',
-    topUpBtnPrefix: 'Пополнить',
-    payCardPrefix: 'Оплатить',
-    payCardSuffix: 'картой',
-    bankTransferPrefix: 'Банковский перевод',
-    boostRecordedPrefix: 'Запрос на активацию пакета',
-    boostRecordedMiddle: 'сохранен для объекта',
-    boostRecordedSuffix:
-      'Продвижение включится после подтверждения оплаты администратором.',
-  },
-  ka: {
-    boostHeaderBadge: 'განცხადების რეკლამირება · SUPER VIP & +VIP',
-    boostUnitPrefix: 'ობიექტის რეკლამირება:',
-    boostUnitSubtitle:
-      'აირჩიეთ VIP პაკეტი თქვენი ქონების მთავარ გვერდზე პირველ ადგილზე გამოსაჩენად',
-    quickAmountsLabel: 'სწრაფი თანხები',
-    customAmountLabel: 'სხვა თანხა',
-    starterBadge: 'სტარტი',
-    recommendedBadge: 'რეკომენდებული 🔥',
-    popularBadge: 'პოპულარული',
-    anySub: 'ნებისმიერი',
-    creditedSuffix: 'დაერიცხება თქვენს განცხადებას',
-    upsellPrefix: 'რჩევა:',
-    upsellMiddle: 'ხსნის ფასდაკლებას',
-    upsellDaysSuffix: 'SUPER VIP პაკეტზე',
-    topUpBtnPrefix: 'შევსება:',
-    payCardPrefix: 'გადაიხადეთ',
-    payCardSuffix: 'ბარათით',
-    bankTransferPrefix: 'საბანკო გადარიცხვა',
-    boostRecordedPrefix: 'VIP პაკეტის მოთხოვნა',
-    boostRecordedMiddle: 'მიღებულია ობიექტისთვის',
-    boostRecordedSuffix:
-      'პაკეტი გააქტიურდება გადახდის დადასტურებისთანავე.',
-  },
-}
 
 export function SellerPromoSection({
   t,
@@ -198,10 +75,8 @@ export function SellerPromoSection({
   }) => void
   onCancelPromo: () => void
 }) {
-  const { locale, siteSettings } = useTranslation() as Record<string, any>
-  const isAr = locale === 'ar'
+  const { t: dict, siteSettings } = useTranslation() as Record<string, any>
   const GEL = '₾'
-  const pT = PROMO_UI_FALLBACK[locale as LocaleCode] || PROMO_UI_FALLBACK.ar
 
   const [selectedPreset, setSelectedPreset] = useState<number | 'custom'>(
     activePromoPrice >= 5 ? activePromoPrice : 10
@@ -213,21 +88,21 @@ export function SellerPromoSection({
   const [boostNotice, setBoostNotice] = useState<string | null>(null)
 
   const pkgDetails = useMemo(
-    () => calculateGelBoostPackage(topUpAmount, isAr),
-    [topUpAmount, isAr]
+    () => calculateGelBoostPackage(topUpAmount, dict?.home?.marketSections),
+    [topUpAmount, dict]
   )
 
   const presets = [
     {
       id: 5,
       val: 5,
-      topBadge: pT.starterBadge,
-      subText: `VIP+ · 1 ${t.dayWord || 'day'}`,
+      topBadge: t.starterBadge,
+      subText: `VIP+ · 1 ${t.dayWord || ''}`,
     },
     {
       id: 10,
       val: 10,
-      topBadge: pT.recommendedBadge,
+      topBadge: t.recommendedBadge,
       subText: 'SUPER VIP',
       isRecommended: true,
     },
@@ -240,7 +115,7 @@ export function SellerPromoSection({
     {
       id: 50,
       val: 50,
-      topBadge: pT.popularBadge,
+      topBadge: t.popularBadge,
       subText: 'SUPER VIP',
     },
     {
@@ -252,8 +127,8 @@ export function SellerPromoSection({
     {
       id: 'custom' as const,
       val: 0,
-      topBadge: pT.customAmountLabel,
-      subText: pT.anySub,
+      topBadge: t.customAmountLabel,
+      subText: t.anySub,
     },
   ]
 
@@ -289,12 +164,12 @@ export function SellerPromoSection({
     onSelectPackage({
       days: pkgDetails.days as any,
       price: pkgDetails.amount,
-      label: `${pkgDetails.tier} (${pkgDetails.days} ${t.daysWord || 'days'})`,
+      label: `${pkgDetails.tier} (${pkgDetails.days} ${t.daysWord || ''})`,
       tier: pkgDetails.tier,
     })
 
     setBoostNotice(
-      `${pT.boostRecordedPrefix} (${pkgDetails.tier} — ${pkgDetails.amount} ${GEL} / ${pkgDetails.days} ${t.daysWord || 'days'}) ${pT.boostRecordedMiddle} (${activeUnit.project_name || t.defaultProjectName}). ${pT.boostRecordedSuffix}`
+      `${t.boostRecordedPrefix} (${pkgDetails.tier} — ${pkgDetails.amount} ${GEL} / ${pkgDetails.days} ${t.daysWord || ''}) ${t.boostRecordedMiddle} (${activeUnit.project_name || t.defaultProjectName}). ${t.boostRecordedSuffix}`
     )
   }
 
@@ -326,7 +201,7 @@ export function SellerPromoSection({
         <div className="flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 text-xs font-extrabold text-[#2563eb]">
             <Star className="size-3.5 fill-amber-400 text-amber-500" />
-            <span>{pT.boostHeaderBadge}</span>
+            <span>{t.boostHeaderBadge}</span>
           </span>
 
           {isCurrentlyFeatured && (
@@ -355,19 +230,19 @@ export function SellerPromoSection({
       <div className="mt-4 flex items-center justify-between">
         <div>
           <h3 className="text-base font-extrabold text-[#0f1d40] sm:text-lg">
-            {pT.boostUnitPrefix}{' '}
+            {t.boostUnitPrefix}{' '}
             {activeUnit.project_name || t.defaultProjectName}
           </h3>
-          <p className="mt-0.5 text-xs text-slate-500">{pT.boostUnitSubtitle}</p>
+          <p className="mt-0.5 text-xs text-slate-500">{t.boostUnitSubtitle}</p>
         </div>
 
         <div className="flex items-center gap-2">
           <div className="text-end">
             <strong className="block text-xs font-bold text-[#0f1d40]">
-              {pT.quickAmountsLabel}
+              {t.quickAmountsLabel}
             </strong>
             <span dir="ltr" className="text-[10px] text-slate-400">
-              Min 5 {GEL} · Max 10,000 {GEL}
+              {t.minMaxGelHint}
             </span>
           </div>
           <div className="flex size-9 items-center justify-center rounded-xl bg-blue-50 text-[#2563eb]">
@@ -429,7 +304,7 @@ export function SellerPromoSection({
 
       <div className="mt-4">
         <span className="mb-1.5 block text-end text-[11px] font-semibold text-slate-500">
-          {pT.customAmountLabel}
+          {t.customAmountLabel}
         </span>
         <div className="flex h-11 items-center justify-between rounded-xl border border-slate-200 bg-slate-50/60 px-3">
           <div className="flex items-center gap-1.5">
@@ -490,7 +365,7 @@ export function SellerPromoSection({
               dir="ltr"
               className="block text-xs font-bold text-[#0f1d40] sm:text-sm"
             >
-              {pkgDetails.amount} {GEL} {pT.creditedSuffix}
+              {pkgDetails.amount} {GEL} {t.creditedSuffix}
             </strong>
             <span className="mt-0.5 block text-[11px] font-bold text-[#2563eb]">
               {pkgDetails.coverLabel}
@@ -501,9 +376,9 @@ export function SellerPromoSection({
         {pkgDetails.upsellTarget > 0 && (
           <div className="mt-3 border-t border-blue-200/60 pt-3 text-end">
             <p className="text-[11px] leading-relaxed text-slate-600">
-              {pT.upsellPrefix} {pkgDetails.upsellTarget} {GEL}{' '}
-              {pT.upsellMiddle} {pkgDetails.upsellDiscount}{' '}
-              {pT.upsellDaysSuffix} ({pkgDetails.upsellDays} {t.daysWord}) ✨
+              {t.upsellPrefix} {pkgDetails.upsellTarget} {GEL}{' '}
+              {t.upsellMiddle} {pkgDetails.upsellDiscount}{' '}
+              {t.upsellDaysSuffix} ({pkgDetails.upsellDays} {t.daysWord}) ✨
             </p>
             <button
               type="button"
@@ -514,7 +389,7 @@ export function SellerPromoSection({
               className="mt-2 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-3 py-1 text-[10.5px] font-bold text-white shadow-2xs transition hover:opacity-95"
             >
               <span>
-                {pT.topUpBtnPrefix} {pkgDetails.upsellTarget} {GEL}
+                {t.topUpBtnPrefix} {pkgDetails.upsellTarget} {GEL}
               </span>
             </button>
           </div>
@@ -530,7 +405,7 @@ export function SellerPromoSection({
         >
           <CreditCard className="size-4" />
           <span>
-            {pT.payCardPrefix} {pkgDetails.amount} {GEL} {pT.payCardSuffix}
+            {t.payCardPrefix} {pkgDetails.amount} {GEL} {t.payCardSuffix}
           </span>
         </button>
 
@@ -542,7 +417,7 @@ export function SellerPromoSection({
         >
           <Landmark className="size-3.5 text-slate-500" />
           <span>
-            {pT.bankTransferPrefix} {pkgDetails.amount} {GEL}
+            {t.bankTransferPrefix} {pkgDetails.amount} {GEL}
           </span>
         </button>
       </div>

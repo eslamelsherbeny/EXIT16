@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   AlertCircle,
   ArrowUpLeft,
@@ -63,74 +63,6 @@ export const BATUMI_DISTRICTS_LIST = [
   { name: 'Chakvi / Green Cape', areaId: 'Batumi - Chakvi / Green Cape' },
 ]
 
-const MODAL_EXTRA_I18N: Record<
-  LocaleCode,
-  {
-    citiesHeader: string
-    districtsTab: string
-    streetsTab: string
-    wholeCityBtn: string
-    browseAllCitiesBtn: string
-    districtsAZTitle: string
-    pickDistrictOrStreetHint: string
-    noStreetsForAreaHint: string
-    outsideGeorgiaGpsWarning: string
-  }
-> = {
-  ar: {
-    citiesHeader: 'المدن',
-    districtsTab: 'الأحياء والمناطق',
-    streetsTab: 'الشوارع',
-    wholeCityBtn: 'كل المدينة',
-    browseAllCitiesBtn: 'تصفح كل المدن ←',
-    districtsAZTitle: 'الأحياء والمناطق (A–Z)',
-    pickDistrictOrStreetHint: 'اختر الحي أولاً أو ابحث باسم الشارع بالأعلى',
-    noStreetsForAreaHint:
-      'لا توجد شوارع فرعية مسجلة لهذه المنطقة — اضغط تأكيد لاختيار المنطقة مباشرة',
-    outsideGeorgiaGpsWarning:
-      'أنت تتصفح حالياً من خارج دولة جورجيا — المنصة مخصصة للعقارات داخل جورجيا فقط. يرجى اختيار مدينة وحي العقار من القائمة أدناه.',
-  },
-  en: {
-    citiesHeader: 'Cities',
-    districtsTab: 'Districts',
-    streetsTab: 'Streets',
-    wholeCityBtn: 'Whole city',
-    browseAllCitiesBtn: 'Browse all cities →',
-    districtsAZTitle: 'Districts & Areas (A–Z)',
-    pickDistrictOrStreetHint: 'Pick a district or type a street above',
-    noStreetsForAreaHint:
-      'No streets listed for this area — click Select to use location',
-    outsideGeorgiaGpsWarning:
-      'Your current GPS location is outside Georgia — please select the property city and district below.',
-  },
-  ru: {
-    citiesHeader: 'Города',
-    districtsTab: 'Районы',
-    streetsTab: 'Улицы',
-    wholeCityBtn: 'Весь город',
-    browseAllCitiesBtn: 'Все города →',
-    districtsAZTitle: 'Районы и зоны (A–Z)',
-    pickDistrictOrStreetHint: 'Выберите район или введите улицу выше',
-    noStreetsForAreaHint:
-      'Для этого района нет списка улиц — нажмите Выбрать для подтверждения',
-    outsideGeorgiaGpsWarning:
-      'Ваша текущая геопозиция находится за пределами Грузии — выберите город и район ниже.',
-  },
-  ka: {
-    citiesHeader: 'ქალაქები',
-    districtsTab: 'უბნები',
-    streetsTab: 'ქუჩები',
-    wholeCityBtn: 'მთელი ქალაქი',
-    browseAllCitiesBtn: 'ყველა ქალაქი →',
-    districtsAZTitle: 'უბნები და ზონები (A–Z)',
-    pickDistrictOrStreetHint: 'აირჩიეთ უბანი ან ჩაწერეთ ქუჩა ზემოთ',
-    noStreetsForAreaHint:
-      'ამ ზონაში ქუჩები არ არის — დააჭირეთ არჩევას მდებარეობის გამოსაყენებლად',
-    outsideGeorgiaGpsWarning:
-      'თქვენი GPS მდებარეობა საქართველოს ფარგლებს გარეთაა — აირჩიეთ ქალაქი და უბანი ქვემოთ.',
-  },
-}
-
 function isCoordInsideGeorgia(lat: number, lng: number): boolean {
   return (
     Number.isFinite(lat) &&
@@ -138,7 +70,7 @@ function isCoordInsideGeorgia(lat: number, lng: number): boolean {
     lat >= 40.9 &&
     lat <= 43.7 &&
     lng >= 39.8 &&
-    lng >= 46.9
+    lng <= 46.9
   )
 }
 
@@ -174,7 +106,7 @@ export function SivrceLocationModalPicker({
   const activeLocale = (locale as LocaleCode) || 'ar'
   const fT = getSellerFormTranslations(activeLocale, dict)
   const mT = fT.locationModal
-  const uiT = MODAL_EXTRA_I18N[activeLocale] || MODAL_EXTRA_I18N.ar
+  const uiT = dict.locationModal
 
   const [open, setOpen] = useState(false)
   const [subTab, setSubTab] = useState<'districts' | 'streets'>('districts')
@@ -284,9 +216,6 @@ export function SivrceLocationModalPicker({
     )
   }
 
-  /**
-   * عند اختيار حي من داخل المدينة: يتحدد الحي بالعلامة الزرقاء ويستطيع المستخدم الانتقال لتبويب الشوارع بجانبه أو الضغط على تأكيد
-   */
   const handleSelectDistrictItem = (distKeyRaw: string) => {
     const found = districtMapByKey.get(distKeyRaw.toLowerCase())
     const areaId =
@@ -310,10 +239,6 @@ export function SivrceLocationModalPicker({
     setCheckedStreet(null)
   }
 
-  /**
-   * عند الضغط على حي من القائمة الأبجدية (A–Z) في الصفحة الأولى:
-   * يفتح المدينة التابع لها ويحدد عليها، ويحدد على الحي بعلامة صح، ويبقيه في تبويب الأحياء ليرى التحديد وبجانبه تبويب الشوارع جاهزاً
-   */
   const handlePickDistrictFromAZDirectory = (item: {
     district: string
     city: string
@@ -438,7 +363,9 @@ export function SivrceLocationModalPicker({
             />
             <span
               className={`truncate ${
-                !value ? 'text-[11px] font-normal text-slate-300 sm:text-xs' : ''
+                !value
+                  ? 'text-[11px] font-normal text-slate-300 sm:text-xs'
+                  : ''
               }`}
             >
               {resolvedDisplay || mT.searchPlaceholder}
@@ -480,7 +407,6 @@ export function SivrceLocationModalPicker({
             onClick={(e) => e.stopPropagation()}
             className="flex h-[90vh] w-full max-w-[920px] flex-col overflow-hidden rounded-t-[20px] bg-white shadow-2xl sm:h-[630px] sm:rounded-[20px]"
           >
-            {/* الهيدر */}
             <div className="flex items-center justify-between px-5 pt-4 pb-2.5 sm:px-6">
               <div className="flex items-center gap-2">
                 {activeCity && (
@@ -518,7 +444,6 @@ export function SivrceLocationModalPicker({
               </button>
             </div>
 
-            {/* شريط الشارات المحددة (المدينة + الحي + الشارع) */}
             {activeCity && (
               <div className="flex flex-wrap items-center gap-2 px-5 pb-2 sm:px-6">
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-[#2563eb]">
@@ -568,7 +493,6 @@ export function SivrceLocationModalPicker({
               </div>
             )}
 
-            {/* شريط البحث */}
             <div className="px-5 pb-3 sm:px-6">
               <div className="relative">
                 <Search className="pointer-events-none absolute top-1/2 start-3.5 size-4 -translate-y-1/2 text-slate-400" />
@@ -632,7 +556,6 @@ export function SivrceLocationModalPicker({
               )}
             </div>
 
-            {/* المحتوى الرئيسي */}
             {!activeCity ? (
               <div className="flex-1 overflow-y-auto px-5 py-1 sm:px-6">
                 <button
@@ -663,7 +586,6 @@ export function SivrceLocationModalPicker({
                   </div>
                 )}
 
-                {/* 1. المدن الشائعة + زر "تصفح كل المدن ←" */}
                 <div className="mt-5">
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-medium text-slate-400">
@@ -708,7 +630,6 @@ export function SivrceLocationModalPicker({
                   </div>
                 </div>
 
-                {/* 2. الأحياء والمناطق فقط مرتبة أبجدياً (A–Z) — الضغط على الحي يفتح المدينة ويحدد الحي ويفعّل تبويب الشوارع */}
                 <div className="mt-6 pb-5">
                   <span className="block text-[11px] font-medium text-slate-400">
                     {uiT.districtsAZTitle}
@@ -747,10 +668,8 @@ export function SivrceLocationModalPicker({
                 </div>
               </div>
             ) : (
-              /* الشاشة الداخلية: قائمة كل المدن على الجنب + الأحياء وتبويب الشوارع المجاور لها */
               <div className="flex flex-1 flex-col overflow-hidden border-t border-slate-100">
                 <div className="grid flex-1 grid-cols-1 overflow-hidden sm:grid-cols-12">
-                  {/* العمود الجانبي لكل المدن */}
                   <div className="flex max-h-36 flex-col overflow-hidden border-b border-slate-100 sm:col-span-3 sm:max-h-none sm:border-e sm:border-b-0">
                     <div className="border-b border-slate-100 px-5 py-2.5 text-start text-xs font-semibold text-slate-500">
                       {uiT.citiesHeader}
@@ -787,7 +706,6 @@ export function SivrceLocationModalPicker({
                     </div>
                   </div>
 
-                  {/* منطقة الأحياء وتبويب الشوارع المجاور */}
                   <div className="flex flex-1 flex-col overflow-hidden sm:col-span-9">
                     <div className="flex items-center gap-6 border-b border-slate-100 px-5 pt-2.5">
                       {hasDistrictsForActiveCity && (
@@ -981,7 +899,6 @@ export function SivrceLocationModalPicker({
               </div>
             )}
 
-            {/* الفوتر */}
             <div className="flex items-center justify-between border-t border-slate-100 bg-white px-5 py-3 sm:px-6">
               <button
                 type="button"

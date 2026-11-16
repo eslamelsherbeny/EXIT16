@@ -1,3 +1,7 @@
+import arDict from '@/dictionaries/ar.json'
+import enDict from '@/dictionaries/en.json'
+import kaDict from '@/dictionaries/ka.json'
+import ruDict from '@/dictionaries/ru.json'
 import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
 import type { LocaleCode } from '@/lib/i18n'
 import {
@@ -14,150 +18,13 @@ export type MissingCoreFieldItem = {
   errMsg?: string
 }
 
-export const FLOW_LOADING_LABELS: Record<
-  LocaleCode,
-  {
-    loadingUnitTitle: string
-    loadingUnitSub: string
-    loadErrorTitle: string
-    loadErrorDesc: string
-    retryBtn: string
-    backToAccountBtn: string
-    oneTimeVerifyBadge: string
-    oneTimeVerifyNote: string
-    finalCardTitle: string
-    finalCardSub: string
-    publishBtnText: string
-    saveLaterBtnText: string
-    savingLaterBtnText: string
-    missingFieldsAlertTitle: string
-    mediaDialogBadge: string
-    mediaDialogTitle: string
-    mediaDialogDesc: string
-    mediaDialogMandatoryPublishNote: string
-    mediaDialogMissingPhotos: string
-    mediaDialogMissingDocs: string
-    mediaDialogConfirmBtn: string
-    mediaDialogUploadNowBtn: string
-  }
-> = {
-  ar: {
-    loadingUnitTitle: 'جاري استرجاع بيانات وحدتك المحفوظة...',
-    loadingUnitSub: 'يرجى الانتظار لحظات حتى نجهز كافة الحقول للتعديل',
-    loadErrorTitle: 'تعذر تحميل بيانات الوحدة',
-    loadErrorDesc:
-      'يبدو أن هناك ضعفاً في الاتصال بالإنترنت أو أن الجلسة انتهت. يرجى إعادة المحاولة.',
-    retryBtn: 'إعادة المحاولة',
-    backToAccountBtn: 'العودة لحسابي',
-    oneTimeVerifyBadge: 'خطوة لمرة واحدة فقط',
-    oneTimeVerifyNote:
-      'تأكيد البريد الإلكتروني مطلوب في أول إعلان فقط لتفعيل حسابك.',
-    finalCardTitle: 'إرسال الطلب للإدارة أو الحفظ لوقت لاحق',
-    finalCardSub:
-      'يمكنك إرسال بيانات وحدتك الآن، ورفع الصور والمستندات في أي وقت من صفحة «حسابي».',
-    publishBtnText: 'إرسال طلب عرض الوحدة للإدارة',
-    saveLaterBtnText: 'احفظ البيانات وكمل بعدين',
-    savingLaterBtnText: 'جاري الحفظ...',
-    missingFieldsAlertTitle:
-      'يرجى مراجعة وإكمال الحقول المطلوبة المحددة باللون الأحمر بالأعلى:',
-    mediaDialogBadge: 'تنبيه هام قبل الإرسال',
-    mediaDialogTitle: 'الصور والمستندات شرط أساسي لنشر وحدتك على المنصة',
-    mediaDialogDesc:
-      'يمكنك إرسال بيانات الوحدة الآن لحفظ طلبك لدى الإدارة، ولكن لن يتم نشر إعلانك للمشترين إلا بعد استكمال المرفقات الأساسية التالية:',
-    mediaDialogMandatoryPublishNote:
-      'ملاحظة هامة: صور العقار ومستندات إثبات الملكية الـ 4 هي متطلبات أساسية للتحقق من صحة البيانات ونشر الوحدة رسمياً أمام المشترين. يمكنك رفعها الآن أو استكمالها في أي وقت من صفحة «حسابي».',
-    mediaDialogMissingPhotos: 'صور الوحدة العقارية (صورة واحدة على الأقل)',
-    mediaDialogMissingDocs: 'مستندات الملكية والتعاقد',
-    mediaDialogConfirmBtn: 'أرسل البيانات الآن وأكمل المرفقات من حسابي ←',
-    mediaDialogUploadNowBtn: 'رفع الصور والمستندات الآن قبل الإرسال',
-  },
-  en: {
-    loadingUnitTitle: 'Restoring your saved unit details...',
-    loadingUnitSub: 'Please wait a moment while we prepare all fields',
-    loadErrorTitle: 'Could not load unit details',
-    loadErrorDesc: 'Please check your internet connection and try again.',
-    retryBtn: 'Retry Loading',
-    backToAccountBtn: 'Back to My Account',
-    oneTimeVerifyBadge: 'One-time step',
-    oneTimeVerifyNote:
-      'Email verification is required only once on your first listing.',
-    finalCardTitle: 'Submit Unit Request or Save for Later',
-    finalCardSub:
-      'You can submit your unit details now and upload photos & documents anytime from "My Account".',
-    publishBtnText: 'Submit Unit Request to Admin',
-    saveLaterBtnText: 'Save Details & Continue Later',
-    savingLaterBtnText: 'Saving...',
-    missingFieldsAlertTitle:
-      'Please complete the required fields highlighted in red above:',
-    mediaDialogBadge: 'Important Notice',
-    mediaDialogTitle: 'Photos & Documents Are Required to Publish Your Unit',
-    mediaDialogDesc:
-      'You can submit your unit details now to save your request with Admin, but your listing will not be published to buyers until you upload:',
-    mediaDialogMandatoryPublishNote:
-      'Important: Property photos and the 4 ownership documents are mandatory to verify and publish your unit to buyers. You can upload them now or anytime later from "My Account".',
-    mediaDialogMissingPhotos: 'Property Photos (at least 1 photo)',
-    mediaDialogMissingDocs: 'Ownership & Contract Documents',
-    mediaDialogConfirmBtn: 'Submit Details Now & Upload Later →',
-    mediaDialogUploadNowBtn: 'Upload Photos & Documents Now',
-  },
-  ru: {
-    loadingUnitTitle: 'Восстановление сохраненных данных объекта...',
-    loadingUnitSub: 'Пожалуйста, подождите пару секунд',
-    loadErrorTitle: 'Не удалось загрузить данные объекта',
-    loadErrorDesc: 'Проверьте подключение к интернету и попробуйте снова.',
-    retryBtn: 'Повторить попытку',
-    backToAccountBtn: 'Вернуться в кабинет',
-    oneTimeVerifyBadge: 'Только один раз',
-    oneTimeVerifyNote:
-      'Подтверждение Email требуется только один раз при первом размещении.',
-    finalCardTitle: 'Отправка заявки или сохранение на потом',
-    finalCardSub:
-      'Вы можете отправить данные сейчас, а фото и документы загрузить позже в разделе «Мой кабинет».',
-    publishBtnText: 'Отправить объект администрации',
-    saveLaterBtnText: 'Сохранить данные и продолжить позже',
-    savingLaterBtnText: 'Сохранение...',
-    missingFieldsAlertTitle:
-      'Пожалуйста, заполните обязательные поля, выделенные красным выше:',
-    mediaDialogBadge: 'Важное уведомление',
-    mediaDialogTitle: 'Фото и документы обязательны для публикации объекта',
-    mediaDialogDesc:
-      'Вы можете отправить данные сейчас, но объявление будет опубликовано для покупателей только после загрузки следующих файлов:',
-    mediaDialogMandatoryPublishNote:
-      'Важно: Фотографии объекта и 4 документа собственности необходимы для проверки и публикации вашего объявления. Вы можете загрузить их сейчас или позже в «Моем кабинете».',
-    mediaDialogMissingPhotos: 'Фотографии объекта (минимум 1 фото)',
-    mediaDialogMissingDocs: 'Документы собственности',
-    mediaDialogConfirmBtn: 'Отправить сейчас и загрузить файлы позже →',
-    mediaDialogUploadNowBtn: 'Загрузить фото и документы сейчас',
-  },
-  ka: {
-    loadingUnitTitle: 'თქვენი ობიექტის მონაცემები იტვირთება...',
-    loadingUnitSub: 'გთხოვთ დაელოდოთ რამდენიმე წამს',
-    loadErrorTitle: 'მონაცემების ჩატვირთვა ვერ მოხერხდა',
-    loadErrorDesc: 'შეამოწმეთ ინტერნეტ კავშირი და სცადეთ თავიდან.',
-    retryBtn: 'თავიდან ცდა',
-    backToAccountBtn: 'ანგარიშზე დაბრუნება',
-    oneTimeVerifyBadge: 'ერთჯერადი დადასტურება',
-    oneTimeVerifyNote:
-      'ელ-ფოსტის დადასტურება საჭიროა მხოლოდ ერთხელ პირველი განცხადებისას.',
-    finalCardTitle: 'განაცხადის გაგზავნა ან შენახვა',
-    finalCardSub:
-      'შეგიძლიათ გაგზავნოთ მონაცემები ახლა, ხოლო ფოტოები და დოკუმენტები ატვირთოთ მოგვიანებით «ჩემი ანგარიშიდან».',
-    publishBtnText: 'ობიექტის გაგზავნა ადმინისტრაციაში',
-    saveLaterBtnText: 'მონაცემების შენახვა და მოგვიანებით გაგრძელება',
-    savingLaterBtnText: 'ინახება...',
-    missingFieldsAlertTitle:
-      'გთხოვთ შეავსოთ ზემოთ წითლად მონიშნული სავალდებულო ველები:',
-    mediaDialogBadge: 'მნიშვნელოვანი შეტყობინება',
-    mediaDialogTitle: 'ფოტოები და დოკუმენტები აუცილებელია გამოსაქვეყნებლად',
-    mediaDialogDesc:
-      'შეგიძლიათ გაგზავნოთ მონაცემები ახლა, მაგრამ განცხადება გამოქვეყნდება მხოლოდ შემდეგი ფაილების ატვირთვის შემდეგ:',
-    mediaDialogMandatoryPublishNote:
-      'მნიშვნელოვანია: ქონების ფოტოები და საკუთრების 4 დოკუმენტი აუცილებელია გადამოწმებისა და გამოქვეყნებისთვის. შეგიძლიათ ატვირთოთ ახლა ან მოგვიანებით «ჩემი ანგარიშიდან».',
-    mediaDialogMissingPhotos: 'ქონების ფოტოები (მინიმუმ 1 ფოტო)',
-    mediaDialogMissingDocs: 'საკუთრების დოკუმენტები',
-    mediaDialogConfirmBtn: 'გაგზავნა ახლა და ფაილების ატვირთვა მოგვიანებით →',
-    mediaDialogUploadNowBtn: 'ფოტოების და დოკუმენტების ატვირთვა ახლა',
-  },
+export type FlowLoadingLabels = typeof arDict.sell.flowLoading
+
+export const FLOW_LOADING_LABELS: Record<LocaleCode, FlowLoadingLabels> = {
+  ar: arDict.sell.flowLoading,
+  en: enDict.sell.flowLoading,
+  ru: ruDict.sell.flowLoading,
+  ka: kaDict.sell.flowLoading,
 }
 
 const KNOWN_PHONE_CODES = [
@@ -197,55 +64,60 @@ export function parsePhoneCodeAndLocal(rawPhone?: string | null): {
 export function getDynamicBuildingStatusOptions(
   propertyKind: string
 ): Array<LocalizedOptionItem<string>> {
+  const arB = arDict.sell.buildingStatuses
+  const enB = enDict.sell.buildingStatuses
+  const ruB = ruDict.sell.buildingStatuses
+  const kaB = kaDict.sell.buildingStatuses
+
   if (propertyKind === 'Hotel' || propertyKind === 'Commercial') {
     return [
       {
         id: 'Under construction',
-        ar: 'تحت الإنشاء',
-        en: 'Under construction',
-        ru: 'Строится',
-        ka: 'მშენებარე',
-        labelAr: 'تحت الإنشاء',
-        labelEn: 'Under construction',
+        ar: arB.underConstruction,
+        en: enB.underConstruction,
+        ru: ruB.underConstruction,
+        ka: kaB.underConstruction,
+        labelAr: arB.underConstruction,
+        labelEn: enB.underConstruction,
       },
       {
         id: 'Completed',
-        ar: 'مكتمل وجاهز للاستلام',
-        en: 'Completed & Ready',
-        ru: 'Завершен и готов',
-        ka: 'დასრულებული',
-        labelAr: 'مكتمل وجاهز للاستلام',
-        labelEn: 'Completed & Ready',
+        ar: arB.completedReady,
+        en: enB.completedReady,
+        ru: ruB.completedReady,
+        ka: kaB.completedReady,
+        labelAr: arB.completedReady,
+        labelEn: enB.completedReady,
       },
     ]
   }
   return [
     {
       id: 'Newly built',
-      ar: 'مبنى حديث (جاهز للاستلام)',
-      en: 'Newly built (Ready)',
-      ru: 'Новостройка (Готово)',
-      ka: 'ახალი აშენებული (მზადაა)',
-      labelAr: 'مبنى حديث (جاهز للاستلام)',
-      labelEn: 'Newly built (Ready)',
+      ar: arB.newlyBuiltReady,
+      en: enB.newlyBuiltReady,
+      ru: ruB.newlyBuiltReady,
+      ka: kaB.newlyBuiltReady,
+      labelAr: arB.newlyBuiltReady,
+      labelEn: enB.newlyBuiltReady,
     },
     {
       id: 'Under construction',
-      ar: 'قيد الإنشاء (تحت الإنشاء)',
-      en: 'Under construction',
-      ru: 'Строится',
-      ka: 'მშენებარე',
-      labelAr: 'قيد الإنشاء (تحت الإنشاء)',
-      labelEn: 'Under construction',
+      ar: arB.underConstructionSub,
+      en: enB.underConstructionSub,
+      ru: ruB.underConstructionSub,
+      ka: kaB.underConstructionSub,
+      labelAr: arB.underConstructionSub,
+      labelEn: enB.underConstructionSub,
     },
     {
       id: 'Old built',
-      ar: 'مبنى قائم (جاهز للاستلام)',
-      en: 'Existing building (Ready)',
-      ru: 'Вторичное жилье (Готово)',
-      ka: 'ძველი აშენებული',
-      labelAr: 'مبنى قائم (جاهز للاستلام)',
-      labelEn: 'Existing building (Ready)',
+      ar: arB.oldBuiltReady,
+      en: enB.oldBuiltReady,
+      ru: ruB.oldBuiltReady,
+      ka: kaB.oldBuiltReady,
+      labelAr: arB.oldBuiltReady,
+      labelEn: enB.oldBuiltReady,
     },
   ]
 }

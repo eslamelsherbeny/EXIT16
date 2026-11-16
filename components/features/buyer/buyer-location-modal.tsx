@@ -342,9 +342,6 @@ export type DistrictAZEntry = {
   areaId: string
 }
 
-/**
- * دليل الأحياء والمناطق فقط مرتبة أبجدياً (A–Z) بدون أسماء المدن
- */
 export const SIVRCE_DISTRICTS_AZ_DIRECTORY: Record<string, DistrictAZEntry[]> =
   (() => {
     const all: DistrictAZEntry[] = []
@@ -405,92 +402,6 @@ export const SIVRCE_BUYER_MUNICIPALITIES_AZ: Record<string, string[]> =
     ])
   )
 
-const BUYER_UI_TEXT: Record<
-  LocaleCode,
-  {
-    triggerEmpty: string
-    triggerSelected: (count: number) => string
-    modalTitle: string
-    searchPlaceholder: string
-    nearbyTitle: string
-    nearbySub: string
-    popularCitiesTitle: string
-    browseAllCitiesBtn: string
-    districtsAZTitle: string
-    districtsTab: string
-    citiesHeader: string
-    wholeCityBtn: string
-    clearBtn: string
-    selectBtn: string
-  }
-> = {
-  ar: {
-    triggerEmpty: 'اضغط لاختيار المدينة أو الحي في جورجيا...',
-    triggerSelected: (c) =>
-      `اضغط لإضافة مدينة أو منطقة أخرى (${c} مناطق محددة)`,
-    modalTitle: 'الموقع',
-    searchPlaceholder: 'مدينة أو حي أو منطقة',
-    nearbyTitle: 'بالقرب منك',
-    nearbySub: 'المدينة من هذا الموقع',
-    popularCitiesTitle: 'مدن شائعة',
-    browseAllCitiesBtn: 'تصفح كل المدن ←',
-    districtsAZTitle: 'الأحياء والمناطق (A–Z)',
-    districtsTab: 'الأحياء والمناطق',
-    citiesHeader: 'كل المدن',
-    wholeCityBtn: 'كل المدينة',
-    clearBtn: 'مسح',
-    selectBtn: 'اختيار',
-  },
-  en: {
-    triggerEmpty: 'Click to select city or district in Georgia...',
-    triggerSelected: (c) => `Click to add another area (${c} selected)`,
-    modalTitle: 'Location',
-    searchPlaceholder: 'City or district',
-    nearbyTitle: 'Nearby',
-    nearbySub: 'City from this location',
-    popularCitiesTitle: 'Popular cities',
-    browseAllCitiesBtn: 'Browse all cities →',
-    districtsAZTitle: 'Districts & Areas (A–Z)',
-    districtsTab: 'Districts',
-    citiesHeader: 'All Cities',
-    wholeCityBtn: 'Whole city',
-    clearBtn: 'Clear',
-    selectBtn: 'Select',
-  },
-  ru: {
-    triggerEmpty: 'Нажмите для выбора города или района в Грузии...',
-    triggerSelected: (c) => `Добавить еще район (выбрано: ${c})`,
-    modalTitle: 'Локация',
-    searchPlaceholder: 'Город или район',
-    nearbyTitle: 'Рядом с вами',
-    nearbySub: 'Город по геолокации',
-    popularCitiesTitle: 'Популярные города',
-    browseAllCitiesBtn: 'Все города →',
-    districtsAZTitle: 'Районы и зоны (A–Z)',
-    districtsTab: 'Районы',
-    citiesHeader: 'Все города',
-    wholeCityBtn: 'Весь город',
-    clearBtn: 'Сбросить',
-    selectBtn: 'Выбрать',
-  },
-  ka: {
-    triggerEmpty: 'დააჭირეთ ქალაქის ან უბნის ასარჩევად...',
-    triggerSelected: (c) => `სხვა უბნის დამატება (არჩეულია ${c})`,
-    modalTitle: 'მდებარეობა',
-    searchPlaceholder: 'ქალაქი ან უბანი',
-    nearbyTitle: 'თქვენთან ახლოს',
-    nearbySub: 'ქალაქი ამ მდებარეობიდან',
-    popularCitiesTitle: 'პოპულარული ქალაქები',
-    browseAllCitiesBtn: 'ყველა ქალაქი →',
-    districtsAZTitle: 'უბნები და ზონები (A–Z)',
-    districtsTab: 'უბნები',
-    citiesHeader: 'ყველა ქალაქი',
-    wholeCityBtn: 'მთელი ქალაქი',
-    clearBtn: 'გასუფთავება',
-    selectBtn: 'არჩევა',
-  },
-}
-
 export function BuyerLocationModalPicker({
   label,
   selectedAreas,
@@ -507,9 +418,9 @@ export function BuyerLocationModalPicker({
   ) => void
   error?: string
 }) {
-  const { locale, dir } = useTranslation()
+  const { t: dict, locale, dir } = useTranslation()
   const activeLocale = (locale as LocaleCode) || 'ar'
-  const uT = BUYER_UI_TEXT[activeLocale] || BUYER_UI_TEXT.ar
+  const uT = dict.locationModal
 
   const [open, setOpen] = useState(false)
   const [activeCity, setActiveCity] = useState<string | null>(null)
@@ -585,6 +496,9 @@ export function BuyerLocationModalPicker({
     setOpen(false)
   }
 
+  const formatTriggerSelected = (count: number) =>
+    `${uT.triggerSelectedPrefix} (${count} ${uT.selectedCountSuffix})`
+
   return (
     <div className="text-start">
       <Label className="mb-2 block text-start text-sm font-bold">
@@ -612,7 +526,7 @@ export function BuyerLocationModalPicker({
           />
           <span className="truncate">
             {selectedAreas.length > 0
-              ? uT.triggerSelected(selectedAreas.length)
+              ? formatTriggerSelected(selectedAreas.length)
               : uT.triggerEmpty}
           </span>
         </span>
@@ -676,7 +590,6 @@ export function BuyerLocationModalPicker({
             onClick={(e) => e.stopPropagation()}
             className="flex h-[90vh] w-full max-w-[920px] flex-col overflow-hidden rounded-t-[20px] bg-white shadow-2xl sm:h-[630px] sm:rounded-[20px]"
           >
-            {/* الهيدر */}
             <div className="flex items-center justify-between px-5 pt-4 pb-2.5 sm:px-6">
               <div className="flex items-center gap-2">
                 {activeCity && (
@@ -702,7 +615,6 @@ export function BuyerLocationModalPicker({
               </button>
             </div>
 
-            {/* شريط الشارات المختارة */}
             {draftList.length > 0 && (
               <div className="flex max-h-16 flex-wrap items-center gap-1.5 overflow-y-auto px-5 pb-2 sm:px-6">
                 {draftList.map((sel) => (
@@ -725,7 +637,6 @@ export function BuyerLocationModalPicker({
               </div>
             )}
 
-            {/* شريط البحث */}
             <div className="px-5 pb-3 sm:px-6">
               <div className="relative">
                 <Search className="pointer-events-none absolute top-1/2 start-3.5 size-4 -translate-y-1/2 text-slate-400" />
@@ -779,10 +690,8 @@ export function BuyerLocationModalPicker({
                 )}
             </div>
 
-            {/* المحتوى الرئيسي */}
             {!activeCity ? (
               <div className="flex-1 overflow-y-auto px-5 py-1 sm:px-6">
-                {/* كارت بالقرب منك */}
                 <button
                   type="button"
                   onClick={() => toggleSelection('Tbilisi', 'Tbilisi')}
@@ -799,7 +708,6 @@ export function BuyerLocationModalPicker({
                   </span>
                 </button>
 
-                {/* 1. المدن الشائعة (قابلة للضغط لفتح الأحياء + زر تصفح كل المدن) */}
                 <div className="mt-5">
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-medium text-slate-400">
@@ -841,7 +749,6 @@ export function BuyerLocationModalPicker({
                             </span>
                           </div>
 
-                          {/* سهم يوضح أن كارت المدينة قابل للضغط للدخول لأحيائها */}
                           <ChevronLeft className="size-3.5 shrink-0 text-slate-400 transition group-hover:text-[#2563eb] ltr:rotate-180" />
                         </div>
                       )
@@ -849,7 +756,6 @@ export function BuyerLocationModalPicker({
                   </div>
                 </div>
 
-                {/* 2. الأحياء والمناطق فقط مرتبة أبجدياً (A–Z) — اختيار مباشر بدون انضغاط */}
                 <div className="mt-6 pb-5">
                   <span className="block text-[11px] font-medium text-slate-400">
                     {uT.districtsAZTitle}
@@ -901,10 +807,8 @@ export function BuyerLocationModalPicker({
                 </div>
               </div>
             ) : (
-              /* الشاشة الداخلية: قائمة كل المدن على الجنب + الأحياء (قابلة للتحديد فقط بدون شوارع) */
               <div className="flex flex-1 flex-col overflow-hidden border-t border-slate-100">
                 <div className="grid flex-1 grid-cols-1 overflow-hidden sm:grid-cols-12">
-                  {/* العمود الجانبي لكل المدن */}
                   <div className="flex max-h-36 flex-col overflow-hidden border-b border-slate-100 sm:col-span-3 sm:max-h-none sm:border-e sm:border-b-0">
                     <div className="border-b border-slate-100 px-5 py-2.5 text-start text-xs font-semibold text-slate-500">
                       {uT.citiesHeader}
@@ -936,7 +840,6 @@ export function BuyerLocationModalPicker({
                     </div>
                   </div>
 
-                  {/* أعمدة الأحياء داخل المدينة */}
                   <div className="flex flex-1 flex-col overflow-hidden sm:col-span-9">
                     <div className="flex items-center border-b border-slate-100 px-5 pt-2.5">
                       <span className="border-b-2 border-[#2563eb] pb-2 text-xs font-bold text-[#2563eb]">
@@ -1011,7 +914,6 @@ export function BuyerLocationModalPicker({
               </div>
             )}
 
-            {/* الفوتر */}
             <div className="flex items-center justify-between border-t border-slate-100 bg-white px-5 py-3 sm:px-6">
               <button
                 type="button"

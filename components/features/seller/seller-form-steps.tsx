@@ -166,9 +166,6 @@ export function StepValidationBanner({
   )
 }
 
-// =====================================================
-// 1. قسم نوع العقار وحالة البناء
-// =====================================================
 export function TypeSection({
   sectionRef,
   onHover,
@@ -338,9 +335,6 @@ export function TypeSection({
   )
 }
 
-// =====================================================
-// 2. قسم الصور وروابط الفيديو والجولة الافتراضية
-// =====================================================
 export function PhotosSection({
   sectionRef,
   onHover,
@@ -515,7 +509,7 @@ export function PhotosSection({
                 dir="ltr"
                 value={form.videoUrl}
                 onChange={(e) => update('videoUrl', e.target.value)}
-                placeholder="https://youtube.com/..."
+                placeholder={pT.videoUrlPlaceholder}
                 className="h-12 rounded-xl border-slate-200 pl-10 text-xs placeholder:text-[11px] placeholder:font-normal placeholder:text-slate-300"
               />
             </div>
@@ -531,7 +525,7 @@ export function PhotosSection({
                 dir="ltr"
                 value={form.tour3dUrl}
                 onChange={(e) => update('tour3dUrl', e.target.value)}
-                placeholder="https://my.matterport.com/..."
+                placeholder={pT.tour3dPlaceholder}
                 className="h-12 rounded-xl border-slate-200 pl-10 text-xs placeholder:text-[11px] placeholder:font-normal placeholder:text-slate-300"
               />
             </div>
@@ -542,9 +536,6 @@ export function PhotosSection({
   )
 }
 
-// =====================================================
-// 3. قسم المواصفات والمميزات
-// =====================================================
 export function DetailsSection({
   sectionRef,
   onHover,
@@ -1119,9 +1110,6 @@ export function DetailsSection({
   )
 }
 
-// =====================================================
-// 4. قسم السعر والأقساط والمستندات والوصف
-// =====================================================
 export function PricingSection({
   sectionRef,
   onHover,
@@ -1205,9 +1193,7 @@ export function PricingSection({
       form.locationDisplay ||
       (form.location
         ? getLocalizedGeorgiaAreaName(form.location, locale as LocaleCode)
-        : locale === 'ar'
-          ? 'تبليسي'
-          : 'Tbilisi')
+        : dict.sell.flowLoading.defaultCityFallback)
 
     setTimeout(() => {
       const smartText = buildSmartPropertyDescription({
@@ -1393,7 +1379,6 @@ export function PricingSection({
           )}
         </div>
 
-        {/* صندوق المستندات الـ 4 */}
         <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50/40 p-4 sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
@@ -1491,7 +1476,6 @@ export function PricingSection({
         </div>
       </div>
 
-      {/* قسم الوصف التفصيلي للوحدة + زر كتابة الوصف بالذكاء الاصطناعي (AI) */}
       <div className="mt-7 border-t border-slate-100 pt-6">
         <div className="mb-2.5 flex flex-col justify-between gap-2.5 sm:flex-row sm:items-center">
           <div>

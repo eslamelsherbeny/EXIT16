@@ -93,7 +93,7 @@ export function BuyerMakeOfferModal({
             type="button"
             disabled={isPending}
             onClick={() => setOfferModalUnit(null)}
-            aria-label="Close"
+            aria-label={t.cancelBtn}
             className="flex size-8 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 transition hover:bg-gray-100 hover:text-[#0a1122]"
           >
             <X className="size-4" />
@@ -346,6 +346,7 @@ export function SellerCounterOfferModal({
             type="button"
             disabled={isPending}
             onClick={() => setCounterModalOffer(null)}
+            aria-label={t.cancelBtn}
             className="flex size-8 items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:text-[#0a1122]"
           >
             <X className="size-4" />

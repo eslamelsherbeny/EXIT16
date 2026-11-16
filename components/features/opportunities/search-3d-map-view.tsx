@@ -71,9 +71,6 @@ function loadMapLibreScript(): Promise<any> {
   })
 }
 
-/**
- * حساب إزاحة ثابتة لكل وحدة بناءً على الـ ID الخاص بها لضمان ثبات الدبوس في مكانه دائماً
- */
 function getStableUnitCoords(prop: MappedProperty, fallbackIdx: number) {
   const baseCoords = getCoordinatesForArea(prop.rawArea || prop.area)
   const idStr = String(prop.id || fallbackIdx)
@@ -127,287 +124,6 @@ const POI_COLORS: Record<string, string> = {
   bus: '#0284c7',
 }
 
-const MAP_UI_FALLBACK: Record<
-  LocaleCode,
-  {
-    searchPlaceholder: string
-    cityLabel: string
-    listPrefix: string
-    allTab: string
-    forExitTab: string
-    underConstTab: string
-    readyTab: string
-    negotiableTab: string
-    apartmentsTab: string
-    housesTab: string
-    cottagesTab: string
-    commercialTab: string
-    landTab: string
-    hotelTab: string
-    liveBadge: string
-    resetTooltip: string
-    myLocationTooltip: string
-    fullscreenTooltip: string
-    exitFullscreenTooltip: string
-    layersTitle: string
-    mapStyleLabel: string
-    styleRealistic: string
-    styleStreets: string
-    styleSatellite: string
-    styleHybrid: string
-    styleMinimal: string
-    layerTerrain: string
-    layerTerrainSub: string
-    layerTrees: string
-    layerTreesSub: string
-    layerPriceVsMarket: string
-    layerPriceVsMarketSub: string
-    layerNightMode: string
-    layerNightModeSub: string
-    verifiedBadge: string
-    roomsWord: string
-    sqmUnit: string
-    remainingLabel: string
-    installmentLabel: string
-    gainLabel: string
-    viewDetailsBtn: string
-    pois: Record<string, string>
-  }
-> = {
-  ar: {
-    searchPlaceholder:
-      'مدينة، حي، شارع — أو مشروع، مطور، كود عقاري (U-10057)...',
-    cityLabel: 'المدن',
-    listPrefix: 'إعلان',
-    allTab: 'الكل',
-    forExitTab: 'للتنازل',
-    underConstTab: 'قيد الإنشاء',
-    readyTab: 'استلام فوري',
-    negotiableTab: 'قابل للتفاوض',
-    apartmentsTab: 'شقة',
-    housesTab: 'منزل',
-    cottagesTab: 'شاليه',
-    commercialTab: 'تجاري',
-    landTab: 'أرض',
-    hotelTab: 'فندق',
-    liveBadge: 'مباشر',
-    resetTooltip: 'إعادة ضبط الفلاتر',
-    myLocationTooltip: 'موقعي الحالي',
-    fullscreenTooltip: 'ملء الشاشة',
-    exitFullscreenTooltip: 'إنهاء ملء الشاشة',
-    layersTitle: 'الطبقات',
-    mapStyleLabel: 'نمط الخريطة',
-    styleRealistic: 'واقعي 3D',
-    styleStreets: 'شوارع',
-    styleSatellite: 'صورة حقيقية',
-    styleHybrid: 'هجين',
-    styleMinimal: 'بسيط',
-    layerTerrain: 'التضاريس',
-    layerTerrainSub: 'التلال والمنحدرات بثلاثة أبعاد',
-    layerTrees: 'الأشجار والحدائق',
-    layerTreesSub: 'إبراز المساحات الخضراء والمنتزهات',
-    layerPriceVsMarket: 'السعر مقابل المطور اليوم',
-    layerPriceVsMarketSub: 'تمييز الوحدات الأقل من سعر المطور باللون الأخضر',
-    layerNightMode: 'وضع الليل',
-    layerNightModeSub: 'خريطة داكنة مريحة للعين',
-    verifiedBadge: 'متحقق بالمستندات',
-    roomsWord: 'غرف',
-    sqmUnit: 'م²',
-    remainingLabel: 'المتبقي للمطور:',
-    installmentLabel: 'القسط:',
-    gainLabel: 'مكسبك عن السوق:',
-    viewDetailsBtn: 'عرض تفاصيل الوحدة',
-    pois: {
-      metro: 'مترو',
-      school: 'مدرسة',
-      kindergarten: 'روضة أطفال',
-      pharmacy: 'صيدلية',
-      park: 'حديقة',
-      market: 'سوق',
-      clinic: 'عيادة',
-      university: 'جامعة',
-      bank: 'بنك',
-      landmark: 'معلم سياحي',
-      gym: 'نادي رياضي',
-      bus: 'حافلة',
-    },
-  },
-  en: {
-    searchPlaceholder:
-      'City, district, street — or project, developer, unit code...',
-    cityLabel: 'Cities',
-    listPrefix: 'listings',
-    allTab: 'All',
-    forExitTab: 'Exit Deals',
-    underConstTab: 'Under Construction',
-    readyTab: 'Ready',
-    negotiableTab: 'Negotiable',
-    apartmentsTab: 'Apartment',
-    housesTab: 'House',
-    cottagesTab: 'Cottage',
-    commercialTab: 'Commercial',
-    landTab: 'Land',
-    hotelTab: 'Hotel',
-    liveBadge: 'Live',
-    resetTooltip: 'Reset filters',
-    myLocationTooltip: 'My Location',
-    fullscreenTooltip: 'Fullscreen',
-    exitFullscreenTooltip: 'Exit Fullscreen',
-    layersTitle: 'Layers',
-    mapStyleLabel: 'Map style',
-    styleRealistic: 'Realistic 3D',
-    styleStreets: 'Streets',
-    styleSatellite: 'Satellite',
-    styleHybrid: 'Hybrid',
-    styleMinimal: 'Minimal',
-    layerTerrain: '3D Terrain',
-    layerTerrainSub: 'Hills and elevation in 3D',
-    layerTrees: 'Trees & Parks',
-    layerTreesSub: 'Highlight green spaces and parks',
-    layerPriceVsMarket: 'Price vs. Developer Today',
-    layerPriceVsMarketSub: 'Highlight below-market deals in green',
-    layerNightMode: 'Night Mode',
-    layerNightModeSub: 'Dark map theme',
-    verifiedBadge: 'Verified',
-    roomsWord: 'Rooms',
-    sqmUnit: 'm²',
-    remainingLabel: 'Remaining:',
-    installmentLabel: 'Installment:',
-    gainLabel: 'Market Gain:',
-    viewDetailsBtn: 'View Unit Details',
-    pois: {
-      metro: 'Metro',
-      school: 'School',
-      kindergarten: 'Kindergarten',
-      pharmacy: 'Pharmacy',
-      park: 'Park',
-      market: 'Market',
-      clinic: 'Clinic',
-      university: 'University',
-      bank: 'Bank',
-      landmark: 'Landmark',
-      gym: 'Gym',
-      bus: 'Bus',
-    },
-  },
-  ru: {
-    searchPlaceholder:
-      'Город, район, улица — или ЖК, застройщик, код объекта...',
-    cityLabel: 'Города',
-    listPrefix: 'объектов',
-    allTab: 'Все',
-    forExitTab: 'Переуступка',
-    underConstTab: 'Строится',
-    readyTab: 'Готово',
-    negotiableTab: 'Торг',
-    apartmentsTab: 'Квартира',
-    housesTab: 'Дом',
-    cottagesTab: 'Коттедж',
-    commercialTab: 'Коммерция',
-    landTab: 'Участок',
-    hotelTab: 'Отель',
-    liveBadge: 'Live',
-    resetTooltip: 'Сбросить фильтры',
-    myLocationTooltip: 'Моя локация',
-    fullscreenTooltip: 'На весь экран',
-    exitFullscreenTooltip: 'Выйти из полноэкранного режима',
-    layersTitle: 'Слои',
-    mapStyleLabel: 'Стиль карты',
-    styleRealistic: 'Реалистичный 3D',
-    styleStreets: 'Улицы',
-    styleSatellite: 'Спутник',
-    styleHybrid: 'Гибрид',
-    styleMinimal: 'Минимализм',
-    layerTerrain: 'Рельеф 3D',
-    layerTerrainSub: 'Холмы и склоны в 3D',
-    layerTrees: 'Парки и зелень',
-    layerTreesSub: 'Выделение зеленых зон',
-    layerPriceVsMarket: 'Цена к рынку',
-    layerPriceVsMarketSub: 'Выделять выгодные объекты зеленым',
-    layerNightMode: 'Ночной режим',
-    layerNightModeSub: 'Темная тема карты',
-    verifiedBadge: 'Проверено',
-    roomsWord: 'комн.',
-    sqmUnit: 'м²',
-    remainingLabel: 'Остаток:',
-    installmentLabel: 'Платеж:',
-    gainLabel: 'Выгода:',
-    viewDetailsBtn: 'Подробнее об объекте',
-    pois: {
-      metro: 'Метро',
-      school: 'Школа',
-      kindergarten: 'Детсад',
-      pharmacy: 'Аптека',
-      park: 'Парк',
-      market: 'Рынок',
-      clinic: 'Клиника',
-      university: 'ВУЗ',
-      bank: 'Банк',
-      landmark: 'Достоприм.',
-      gym: 'Спортзал',
-      bus: 'Автобус',
-    },
-  },
-  ka: {
-    searchPlaceholder:
-      'ქალაქი, უბანი, ქუჩა — ან პროექტი, დეველოპერი, კოდი...',
-    cityLabel: 'ქალაქები',
-    listPrefix: 'განცხადება',
-    allTab: 'ყველა',
-    forExitTab: 'გადაბარება',
-    underConstTab: 'მშენებარე',
-    readyTab: 'მზადაა',
-    negotiableTab: 'შეთანხმებით',
-    apartmentsTab: 'ბინა',
-    housesTab: 'სახლი',
-    cottagesTab: 'კოტეჯი',
-    commercialTab: 'კომერციული',
-    landTab: 'მიწა',
-    hotelTab: 'სასტუმრო',
-    liveBadge: 'Live',
-    resetTooltip: 'ფილტრების გასუფთავება',
-    myLocationTooltip: 'ჩემი მდებარეობა',
-    fullscreenTooltip: 'სრული ეკრანი',
-    exitFullscreenTooltip: 'სრული ეკრანიდან გამოსვლა',
-    layersTitle: 'ფენები',
-    mapStyleLabel: 'რუკის სტილი',
-    styleRealistic: 'რეალისტური 3D',
-    styleStreets: 'ქუჩები',
-    styleSatellite: 'სატელიტი',
-    styleHybrid: 'ჰიბრიდი',
-    styleMinimal: 'მინიმალისტური',
-    layerTerrain: 'რელიეფი 3D',
-    layerTerrainSub: 'გორაკები და ფერდობები 3D-ში',
-    layerTrees: 'პარკები და გამწვანება',
-    layerTreesSub: 'მწვანე ზონების გამოკვეთა',
-    layerPriceVsMarket: 'ფასი ბაზართან შედარებით',
-    layerPriceVsMarketSub: 'მომგებიანი ობიექტების მწვანედ მონიშვნა',
-    layerNightMode: 'ღამის რეჟიმი',
-    layerNightModeSub: 'მუქი რუკის თემა',
-    verifiedBadge: 'დამოწმებული',
-    roomsWord: 'ოთახი',
-    sqmUnit: 'მ²',
-    remainingLabel: 'დარჩენილი:',
-    installmentLabel: 'განვადება:',
-    gainLabel: 'მოგება:',
-    viewDetailsBtn: 'დეტალების ნახვა',
-    pois: {
-      metro: 'მეტრო',
-      school: 'სკოლა',
-      kindergarten: 'ბაღი',
-      pharmacy: 'აფთიაქი',
-      park: 'პარკი',
-      market: 'მარკეტი',
-      clinic: 'კლინიკა',
-      university: 'უნივერსიტეტი',
-      bank: 'ბანკი',
-      landmark: 'ღირსშესანიშნაობა',
-      gym: 'დარბაზი',
-      bus: 'ავტობუსი',
-    },
-  },
-}
-
 export function Search3DMapView({
   properties,
   is3DMode,
@@ -432,14 +148,7 @@ export function Search3DMapView({
   const { t: dict, locale, dir } = useTranslation()
   const activeLocale = (locale as LocaleCode) || 'ar'
   const USD = '$'
-
-  const baseUi = MAP_UI_FALLBACK[activeLocale] || MAP_UI_FALLBACK.ar
-  const customMapUi = (dict.opportunitiesPage as any)?.mapView || {}
-  const mT = {
-    ...baseUi,
-    ...customMapUi,
-    pois: { ...baseUi.pois, ...(customMapUi.pois || {}) },
-  }
+  const mT = dict.opportunitiesPage.mapView
 
   const wrapperRef = useRef<HTMLDivElement | null>(null)
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
@@ -592,7 +301,6 @@ export function Search3DMapView({
     } catch {}
   }, [mapStyle, nightMode, showTrees])
 
-  // رسم دبابيس الوحدات العقارية بثبات تام بدون أي اهتزاز عند مرور الماوس
   useEffect(() => {
     let isCancelled = false
     loadMapLibreScript()
@@ -605,7 +313,6 @@ export function Search3DMapView({
         mapFilteredProperties.forEach((prop, idx) => {
           const { lat, lng } = getStableUnitCoords(prop, idx)
 
-          // الحاوية الخارجية للدبوس (لا نضع عليها أي hover أو transition أبداً حتى لا تتعارض مع إحداثيات MapLibre)
           const pinWrapper = document.createElement('div')
           pinWrapper.style.zIndex = selectedProp?.id === prop.id ? '40' : '15'
 
@@ -690,7 +397,6 @@ export function Search3DMapView({
     }
   }, [mapFilteredProperties, is3DMode, showPriceVsMarket, selectedProp?.id])
 
-  // رسم دبابيس المرافق الحقيقية بثبات تام بدون اهتزاز
   useEffect(() => {
     let isCancelled = false
     loadMapLibreScript()
@@ -854,9 +560,7 @@ export function Search3DMapView({
         className={`absolute inset-0 h-full w-full transition-all duration-300 ${mapFilterClass}`}
       />
 
-      {/* الأشرطة العلوية الـ 3 العائمة */}
       <div className="pointer-events-none absolute inset-x-3 top-3 z-20 mx-auto flex max-w-[1360px] flex-col gap-2 sm:inset-x-5 lg:pe-14">
-        {/* 1. شريط البحث العلوي */}
         <div className="pointer-events-auto flex h-11 items-center justify-between gap-3 rounded-2xl border border-slate-200/90 bg-white/95 px-4 shadow-md backdrop-blur-md">
           <div className="flex size-7 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#2563eb]">
             <Sparkles className="size-3.5" />
@@ -881,7 +585,6 @@ export function Search3DMapView({
           )}
         </div>
 
-        {/* 2. شريط المدن السريع */}
         <div className="pointer-events-auto flex h-10 w-full items-center justify-start gap-1.5 overflow-x-auto rounded-2xl border border-slate-200/80 bg-white/95 px-4 text-xs font-bold shadow-sm backdrop-blur-md no-scrollbar">
           <span className="inline-flex shrink-0 items-center gap-1 pe-2 text-slate-400">
             <MapPin className="size-3.5 text-[#2563eb]" />
@@ -906,7 +609,6 @@ export function Search3DMapView({
           })}
         </div>
 
-        {/* 3. شريط الفلاتر الأفقي المخصص لنظام الأقساط والتنازل */}
         <div className="pointer-events-auto flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200/90 bg-white/95 px-3.5 py-1.5 shadow-sm backdrop-blur-md">
           <div className="flex flex-wrap items-center gap-1.5 text-xs font-bold">
             <button
@@ -991,7 +693,6 @@ export function Search3DMapView({
         </div>
       </div>
 
-      {/* الشريط الرأسي لأدوات الخريطة على اليمين */}
       <div className="absolute right-3 top-1/2 z-20 flex -translate-y-1/2 flex-col items-center gap-1.5 rounded-2xl border border-slate-200/80 bg-white/95 p-1.5 shadow-xl backdrop-blur-md sm:right-4">
         <button
           type="button"
@@ -1076,7 +777,6 @@ export function Search3DMapView({
         </button>
       </div>
 
-      {/* نافذة الطبقات المنبثقة (Layers Panel) */}
       {layersOpen && (
         <div className="absolute right-16 top-1/2 z-30 w-72 -translate-y-1/2 rounded-3xl border border-slate-200/90 bg-white/95 p-4 text-start shadow-2xl backdrop-blur-md sm:right-18 sm:w-80">
           <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
@@ -1213,7 +913,6 @@ export function Search3DMapView({
         </div>
       )}
 
-      {/* بطاقة معاينة الوحدة عند الضغط على الدبوس */}
       {selectedProp && (
         <div className="absolute bottom-20 start-4 z-30 w-80 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-150 sm:start-6">
           <div className="relative h-40 w-full bg-slate-100">
@@ -1322,7 +1021,6 @@ export function Search3DMapView({
         </div>
       )}
 
-      {/* شريط المرافق والخدمات السفلي العائم */}
       <div className="pointer-events-none absolute inset-x-3 bottom-4 z-20 flex justify-center sm:inset-x-6">
         <div className="pointer-events-auto flex max-w-full items-center gap-1.5 overflow-x-auto rounded-full border border-slate-200/90 bg-white/95 px-4 py-2 shadow-xl backdrop-blur-md no-scrollbar">
           {poiCategories.map((poi) => {

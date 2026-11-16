@@ -22,7 +22,6 @@ import {
   localizePropertyTypeLabel,
   OpportunitiesFilterSection,
   OpportunitiesPagination,
-  OPPS_UI_FALLBACK,
   PUBLIC_SAFE_UNIT_COLUMNS,
 } from '@/components/features/opportunities/opportunities-page-parts'
 import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
@@ -36,15 +35,8 @@ export default function OpportunitiesPage() {
   const { t: dict, locale, dir } = useTranslation()
   const activeLocale = (locale as LocaleCode) || 'ar'
   const isAr = activeLocale === 'ar'
-  const t = dict.opportunitiesPage as Record<string, any>
-
-  const baseUi = OPPS_UI_FALLBACK[activeLocale] || OPPS_UI_FALLBACK.ar
-  const customUi = t.ui || {}
-  const uT = {
-    ...baseUi,
-    ...customUi,
-    chips: { ...baseUi.chips, ...(customUi.chips || {}) },
-  }
+  const t = dict.opportunitiesPage
+  const uT = t.ui
 
   const localizedTypes = useMemo(
     () => getLocalizedUnitTypes(dict, activeLocale),

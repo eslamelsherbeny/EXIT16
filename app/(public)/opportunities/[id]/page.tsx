@@ -141,8 +141,8 @@ export default function PropertyDetailsPage() {
   const filtersT = dict.opportunitiesPage.filters
   const oT = (dict.accountPages?.offers as Record<string, any>) || {}
   const monthsWord =
-    (dict.sell?.extraLabels as Record<string, any>)?.monthsUnit ||
-    (t.financials as Record<string, any>)?.monthWord ||
+    dict.sell?.extraLabels?.monthsUnit ||
+    t.financials.monthWord ||
     t.financials.yearWord
 
   const rawCommPct = Number(siteSettings?.buyerCommission)
@@ -746,33 +746,9 @@ export default function PropertyDetailsPage() {
   }
 
   const ownerBannerLabels = {
-    title:
-      (t as any).ownerUnitBannerTitle ||
-      (locale === 'ar'
-        ? 'هذه وحدتك المعروضة على المنصة'
-        : locale === 'ru'
-          ? 'Это ваш объект на платформе'
-          : locale === 'ka'
-            ? 'ეს თქვენი ობიექტია პლატფორმაზე'
-            : 'This is your listed unit on the platform'),
-    manageBtn:
-      (t as any).manageMyUnitBtn ||
-      (locale === 'ar'
-        ? 'إدارة وحدتي في حسابي'
-        : locale === 'ru'
-          ? 'Управление объектом'
-          : locale === 'ka'
-            ? 'ობიექტის მართვა'
-            : 'Manage Unit in My Account'),
-    editBtn:
-      dict.accountComponents?.seller?.editDataBtn ||
-      (locale === 'ar'
-        ? 'تعديل البيانات'
-        : locale === 'ru'
-          ? 'Редактировать'
-          : locale === 'ka'
-            ? 'რედაქტირება'
-            : 'Edit Details'),
+    title: t.ownerUnitBannerTitle,
+    manageBtn: t.manageMyUnitBtn,
+    editBtn: dict.accountComponents.seller.editDataBtn,
   }
 
   if (loading) {

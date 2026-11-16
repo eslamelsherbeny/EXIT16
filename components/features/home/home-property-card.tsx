@@ -15,7 +15,8 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
-import { useTranslation, type LocaleCode } from '@/lib/i18n'
+import enDict from '@/dictionaries/en.json'
+import { DICTIONARIES, useTranslation, type LocaleCode } from '@/lib/i18n'
 import {
   cleanPureLocaleText,
   getLocalizedUnitTitle,
@@ -23,163 +24,7 @@ import {
   type HomeUnitCardItem,
 } from './home-data'
 
-const CARD_I18N: Record<
-  LocaleCode,
-  {
-    docsVerified: string
-    sqmUnit: string
-    roomsWord: string
-    bathWord: string
-    requiredCashNow: string
-    negotiable: string
-    yourMarketGain: string
-    marketPriceTodayPrefix: string
-    afterFeeSuffix: string
-    remainingToDeveloper: string
-    installment: string
-    fullyPaid: string
-    delivery: string
-    detailsBtn: string
-    viewsTitle: string
-    adSpace: string
-    yourAdHere: string
-    adDescSuper: string
-    adDescVip: string
-    adBullet1: string
-    adBullet2: string
-    adBullet3: string
-    advertiseHereBtn: string
-    vipPlusTitle: string
-    vipPlusSub: string
-    vipPlusAllBtn: string
-  }
-> = {
-  ar: {
-    docsVerified: 'متحقق بالمستندات',
-    sqmUnit: 'م²',
-    roomsWord: 'غرف',
-    bathWord: 'حمام',
-    requiredCashNow: 'المطلوب كاش دلوقتي',
-    negotiable: 'قابل للتفاوض',
-    yourMarketGain: 'مكسبك عن سعر السوق',
-    marketPriceTodayPrefix: 'سعر السوق اليوم:',
-    afterFeeSuffix: '· بعد خصم عمولتنا 1.25%',
-    remainingToDeveloper: 'المتبقي للمطور',
-    installment: 'القسط',
-    fullyPaid: 'خالص الأقساط',
-    delivery: 'الاستلام',
-    detailsBtn: 'تفاصيل',
-    viewsTitle: 'عدد المشاهدات',
-    adSpace: 'مساحة إعلانية',
-    yourAdHere: 'إعلانك هنا',
-    adDescSuper:
-      'انشر إعلانك في صدارة SUPER VIP واصل إلى آلاف المشترين والمستثمرين في العقارات.',
-    adDescVip:
-      'رقِّ إعلانك لباقة +VIP بـ 5 ₾ فقط ليظهر في الصدارة أمام المشترين الجادين.',
-    adBullet1: 'جمهور مستهدف من المشترين',
-    adBullet2: 'تواصل مباشر وسريع',
-    adBullet3: 'إحصائيات ومشاهدات شفافة',
-    advertiseHereBtn: 'أعلن هنا ←',
-    vipPlusTitle: 'إعلانات +VIP',
-    vipPlusSub: 'إعلانات ذات أولوية — عقارات موثقة بالمستندات وجاهزة للتنازل',
-    vipPlusAllBtn: 'كل +VIP ←',
-  },
-  en: {
-    docsVerified: 'Docs Verified',
-    sqmUnit: 'm²',
-    roomsWord: 'Rooms',
-    bathWord: 'Bath',
-    requiredCashNow: 'Required Cash Now',
-    negotiable: 'Negotiable',
-    yourMarketGain: 'Your Market Gain',
-    marketPriceTodayPrefix: 'Market price today:',
-    afterFeeSuffix: '· after 1.25% fee',
-    remainingToDeveloper: 'Remaining to Developer',
-    installment: 'Installment',
-    fullyPaid: 'Fully Paid',
-    delivery: 'Delivery',
-    detailsBtn: 'Details',
-    viewsTitle: 'Views',
-    adSpace: 'Ad Space',
-    yourAdHere: 'Your Ad Here',
-    adDescSuper:
-      'Publish your listing in SUPER VIP and reach thousands of real estate buyers and investors.',
-    adDescVip:
-      'Upgrade your listing to VIP+ for just 5 ₾ to appear first to serious buyers.',
-    adBullet1: 'Targeted audience',
-    adBullet2: 'Direct contact',
-    adBullet3: 'Transparent metrics',
-    advertiseHereBtn: 'Advertise Here →',
-    vipPlusTitle: 'VIP+ Listings',
-    vipPlusSub: 'Priority listings — verified installment exit properties',
-    vipPlusAllBtn: 'All VIP+ →',
-  },
-  ru: {
-    docsVerified: 'Документы проверены',
-    sqmUnit: 'м²',
-    roomsWord: 'комн.',
-    bathWord: 'сануз.',
-    requiredCashNow: 'Сумма на руки сейчас',
-    negotiable: 'Торг уместен',
-    yourMarketGain: 'Ваша выгода от рынка',
-    marketPriceTodayPrefix: 'Рыночная цена:',
-    afterFeeSuffix: '· после комиссии 1.25%',
-    remainingToDeveloper: 'Остаток застройщику',
-    installment: 'Рассрочка',
-    fullyPaid: 'Выплачено полностью',
-    delivery: 'Сдача',
-    detailsBtn: 'Подробнее',
-    viewsTitle: 'Просмотры',
-    adSpace: 'Рекламное место',
-    yourAdHere: 'Ваша реклама здесь',
-    adDescSuper:
-      'Разместите объект в SUPER VIP и получите максимальный охват среди покупателей и инвесторов.',
-    adDescVip:
-      'Поднимите объявление в +VIP всего за 5 ₾ для приоритетного показа покупателям.',
-    adBullet1: 'Целевая аудитория инвесторов',
-    adBullet2: 'Прямой контакт с покупателем',
-    adBullet3: 'Прозрачная статистика просмотров',
-    advertiseHereBtn: 'Разместить рекламу →',
-    vipPlusTitle: 'Объявления +VIP',
-    vipPlusSub: 'Приоритетные объявления — проверенные объекты переуступки',
-    vipPlusAllBtn: 'Все +VIP →',
-  },
-  ka: {
-    docsVerified: 'დოკუმენტები შემოწმებულია',
-    sqmUnit: 'მ²',
-    roomsWord: 'ოთახი',
-    bathWord: 'სველი წ.',
-    requiredCashNow: 'საჭირო თანხა ხელზე',
-    negotiable: 'ფასზე შეთანხმებით',
-    yourMarketGain: 'თქვენი მოგება საბაზრო ფასთან',
-    marketPriceTodayPrefix: 'საბაზრო ფასი დღეს:',
-    afterFeeSuffix: '· 1.25% საკომისიოს შემდეგ',
-    remainingToDeveloper: 'დარჩენილი დეველოპერთან',
-    installment: 'განვადება',
-    fullyPaid: 'სრულად გადახდილი',
-    delivery: 'ჩაბარება',
-    detailsBtn: 'დეტალურად',
-    viewsTitle: 'ნახვები',
-    adSpace: 'სარეკლამო სივრცე',
-    yourAdHere: 'თქვენი რეკლამა აქ',
-    adDescSuper:
-      'განათავსეთ განცხადება SUPER VIP-ში და მიწვდით ათასობით მყიდველსა და ინვესტორს.',
-    adDescVip:
-      'გაააქტიურეთ +VIP მხოლოდ 5 ₾-ად და გამოჩნდით პირველ ადგილზე.',
-    adBullet1: 'მიზნობრივი აუდიტორია',
-    adBullet2: 'პირდაპირი კონტაქტი',
-    adBullet3: 'გამჭვირვალე სტატისტიკა',
-    advertiseHereBtn: 'რეკლამის განთავსება →',
-    vipPlusTitle: '+VIP განცხადებები',
-    vipPlusSub: 'პრიორიტეტული განცხადებები — გადამოწმებული ობიექტები',
-    vipPlusAllBtn: 'ყველა +VIP →',
-  },
-}
-
-export function formatRelativePublishTime(
-  createdAt?: string,
-  localeOrIsAr: LocaleCode | boolean = 'ar'
-): string {
+function getCommonDict(localeOrIsAr: LocaleCode | boolean) {
   const lang: LocaleCode =
     typeof localeOrIsAr === 'boolean'
       ? localeOrIsAr
@@ -189,18 +34,19 @@ export function formatRelativePublishTime(
         ? localeOrIsAr
         : 'en'
 
-  const fallbackWeek =
-    lang === 'ar'
-      ? 'منذ أسبوع'
-      : lang === 'ru'
-        ? '1 нед. назад'
-        : lang === 'ka'
-          ? '1 კვირის წინ'
-          : '1 week ago'
+  return DICTIONARIES[lang]?.common || enDict.common
+}
 
-  if (!createdAt) return fallbackWeek
+export function formatRelativePublishTime(
+  createdAt?: string,
+  localeOrIsAr: LocaleCode | boolean = 'ar'
+): string {
+  const rt = getCommonDict(localeOrIsAr).relativeTime
+  const prefix = rt.sincePrefix ? `${rt.sincePrefix} ` : ''
+
+  if (!createdAt) return rt.oneWeekAgo
   const createdTime = new Date(createdAt).getTime()
-  if (Number.isNaN(createdTime)) return fallbackWeek
+  if (Number.isNaN(createdTime)) return rt.oneWeekAgo
 
   const diffMs = Math.max(0, Date.now() - createdTime)
   const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
@@ -208,53 +54,41 @@ export function formatRelativePublishTime(
 
   if (diffDays === 0) {
     const h = Math.max(1, diffHours)
-    if (lang === 'ar') {
-      if (h === 1) return 'منذ ساعة'
-      if (h === 2) return 'منذ ساعتين'
-      if (h <= 10) return `منذ ${h} ساعات`
-      return `منذ ${h} ساعة`
-    }
-    if (lang === 'ru') return `${h} ч. назад`
-    if (lang === 'ka') return `${h} სთ წინ`
-    return h === 1 ? '1 hour ago' : `${h} hours ago`
+    if (h === 1) return rt.oneHourAgo
+    if (h === 2) return rt.twoHoursAgo
+    if (h <= 10) return `${prefix}${h} ${rt.hoursWordPlural}`.trim()
+    return `${prefix}${h} ${rt.hourWordSingular}`.trim()
   }
 
   if (diffDays < 7) {
-    if (lang === 'ar') {
-      if (diffDays === 1) return 'منذ يوم واحد'
-      if (diffDays === 2) return 'منذ يومين'
-      return `منذ ${diffDays} أيام`
-    }
-    if (lang === 'ru') return `${diffDays} дн. назад`
-    if (lang === 'ka') return `${diffDays} დღის წინ`
-    return diffDays === 1 ? '1 day ago' : `${diffDays} days ago`
+    if (diffDays === 1) return rt.oneDayAgo
+    if (diffDays === 2) return rt.twoDaysAgo
+    return `${prefix}${diffDays} ${rt.daysWordPlural}`.trim()
   }
 
   if (diffDays < 30) {
     const weeks = Math.max(1, Math.floor(diffDays / 7))
-    if (lang === 'ar') {
-      if (weeks === 1) return 'منذ أسبوع'
-      if (weeks === 2) return 'منذ أسبوعين'
-      return `منذ ${weeks} أسابيع`
-    }
-    if (lang === 'ru') return `${weeks} нед. назад`
-    if (lang === 'ka') return `${weeks} კვირის წინ`
-    return weeks === 1 ? '1 week ago' : `${weeks} weeks ago`
+    if (weeks === 1) return rt.oneWeekAgo
+    if (weeks === 2) return rt.twoWeeksAgo
+    const wPre = rt.weeksAgoPrefix ? `${rt.weeksAgoPrefix} ` : ''
+    return `${wPre}${weeks} ${rt.weeksWord}`.trim()
   }
 
   const months = Math.max(1, Math.floor(diffDays / 30))
-  if (lang === 'ar') {
-    return `منذ ${months} ${months === 1 ? 'شهر' : months === 2 ? 'شهرين' : 'شهور'}`
-  }
-  if (lang === 'ru') return `${months} мес. назад`
-  if (lang === 'ka') return `${months} თვის წინ`
-  return `${months} mo ago`
+  const mWord =
+    months === 1
+      ? rt.oneMonthAgo
+      : months === 2
+        ? rt.twoMonthsAgo
+        : rt.monthsWordPlural
+  return `${prefix}${months} ${mWord}`.trim()
 }
 
 function translateInstallmentFreq(
   rawFreq?: string,
   locale: LocaleCode = 'ar'
 ): string {
+  const freqDict = getCommonDict(locale).frequencies
   const clean = (rawFreq || '').trim().toLowerCase()
   const isQuarterly =
     clean.includes('quarter') ||
@@ -274,29 +108,10 @@ function translateInstallmentFreq(
       clean.includes('წლიურ')) &&
     !isSemi
 
-  if (isQuarterly) {
-    if (locale === 'ar') return 'ربع سنوي'
-    if (locale === 'ru') return 'Ежеквартально'
-    if (locale === 'ka') return 'კვარტალური'
-    return 'Quarterly'
-  }
-  if (isSemi) {
-    if (locale === 'ar') return 'نصف سنوي'
-    if (locale === 'ru') return 'Раз в полгода'
-    if (locale === 'ka') return '6 თვეში ერთხელ'
-    return 'Semi-Annual'
-  }
-  if (isAnnual) {
-    if (locale === 'ar') return 'سنوي'
-    if (locale === 'ru') return 'Ежегодно'
-    if (locale === 'ka') return 'წლიური'
-    return 'Annual'
-  }
-
-  if (locale === 'ar') return 'شهري'
-  if (locale === 'ru') return 'Ежемесячно'
-  if (locale === 'ka') return 'ყოველთვიური'
-  return 'Monthly'
+  if (isQuarterly) return freqDict.quarterly
+  if (isSemi) return freqDict.semiAnnual
+  if (isAnnual) return freqDict.annual
+  return freqDict.monthly
 }
 
 function translateDeliveryLabel(
@@ -316,14 +131,7 @@ function translateDeliveryLabel(
     lower.includes('готов') ||
     clean.includes('მზად')
 
-  const readyWord =
-    locale === 'ar'
-      ? 'جاهزة'
-      : locale === 'ru'
-        ? 'Готово'
-        : locale === 'ka'
-          ? 'მზადაა'
-          : 'Ready'
+  const readyWord = getCommonDict(locale).delivery.ready
 
   if (isReady && yr) return `${readyWord} (${yr})`
   if (isReady) return readyWord
@@ -334,6 +142,7 @@ function translateUnitTypeWord(
   rawType?: string,
   locale: LocaleCode = 'ar'
 ): string {
+  const typesDict = getCommonDict(locale).unitTypesShort
   const clean = (rawType || '').trim()
   const lower = clean.toLowerCase()
 
@@ -373,68 +182,13 @@ function translateUnitTypeWord(
     lower.includes('участок') ||
     clean.includes('მიწა')
 
-  if (isStudio) {
-    return locale === 'ar'
-      ? 'استوديو'
-      : locale === 'ru'
-        ? 'Студия'
-        : locale === 'ka'
-          ? 'სტუდიო'
-          : 'Studio'
-  }
-  if (isHotel) {
-    return locale === 'ar'
-      ? 'شقة فندقية'
-      : locale === 'ru'
-        ? 'Апарт-отель'
-        : locale === 'ka'
-          ? 'აპარტ-ოტელი'
-          : 'Aparthotel'
-  }
-  if (isVilla) {
-    return locale === 'ar'
-      ? 'فيلا'
-      : locale === 'ru'
-        ? 'Вилла / Дом'
-        : locale === 'ka'
-          ? 'ვილა / სახლი'
-          : 'Villa'
-  }
-  if (isCottage) {
-    return locale === 'ar'
-      ? 'شاليه'
-      : locale === 'ru'
-        ? 'Коттедж'
-        : locale === 'ka'
-          ? 'კოტეჯი'
-          : 'Cottage'
-  }
-  if (isComm) {
-    return locale === 'ar'
-      ? 'تجاري'
-      : locale === 'ru'
-        ? 'Коммерческая'
-        : locale === 'ka'
-          ? 'კომერციული'
-          : 'Commercial'
-  }
-  if (isLand) {
-    return locale === 'ar'
-      ? 'أرض'
-      : locale === 'ru'
-        ? 'Участок'
-        : locale === 'ka'
-          ? 'მიწა'
-          : 'Land'
-  }
-
-  return locale === 'ar'
-    ? 'شقة'
-    : locale === 'ru'
-      ? 'Квартира'
-      : locale === 'ka'
-        ? 'ბინა'
-        : 'Apartment'
+  if (isStudio) return typesDict.studio
+  if (isHotel) return typesDict.aparthotel
+  if (isVilla) return typesDict.villa
+  if (isCottage) return typesDict.cottage
+  if (isComm) return typesDict.commercial
+  if (isLand) return typesDict.land
+  return typesDict.apartment
 }
 
 export function HomeCarouselAdSlotCard({
@@ -443,9 +197,8 @@ export function HomeCarouselAdSlotCard({
   tier?: 'SUPER VIP' | '+VIP'
   isAr?: boolean
 }) {
-  const { locale } = useTranslation()
-  const activeLocale = (locale as LocaleCode) || 'ar'
-  const cT = CARD_I18N[activeLocale] || CARD_I18N.ar
+  const { t: dict } = useTranslation()
+  const cT = dict.home.cards
   const isSuper = tier === 'SUPER VIP'
 
   return (
@@ -465,7 +218,6 @@ export function HomeCarouselAdSlotCard({
               : 'bg-gradient-to-br from-[#0f172a] via-[#1e1b4b] to-[#1e1b4b]'
           }`}
         >
-          {/* توهج خلفي ناعم في المركز */}
           <div
             aria-hidden="true"
             className={`pointer-events-none absolute size-32 rounded-full blur-2xl transition-opacity duration-500 group-hover:opacity-90 ${
@@ -473,9 +225,7 @@ export function HomeCarouselAdSlotCard({
             }`}
           />
 
-          {/* الدوائر المتحركة (Radar Ripple + Rotating Orbit) */}
           <div className="relative flex size-28 items-center justify-center">
-            {/* الموجة المتسعة الأولى */}
             <span
               aria-hidden="true"
               className={`pointer-events-none absolute size-24 animate-[ping_3.2s_cubic-bezier(0,0,0.2,1)_infinite] rounded-full border ${
@@ -483,13 +233,11 @@ export function HomeCarouselAdSlotCard({
               }`}
             />
 
-            {/* الموجة المتسعة الثانية بتأخير زمني */}
             <span
               aria-hidden="true"
               className="pointer-events-none absolute size-16 animate-[ping_3.2s_cubic-bezier(0,0,0.2,1)_infinite] rounded-full border border-white/15 [animation-delay:1.6s]"
             />
 
-            {/* المدار الدائري الدوار مع النقطة المضيئة */}
             <div
               aria-hidden="true"
               className="pointer-events-none absolute inset-0 animate-[spin_10s_linear_infinite] rounded-full border border-dashed border-white/15"
@@ -503,9 +251,7 @@ export function HomeCarouselAdSlotCard({
               />
             </div>
 
-            {/* الحلقة الزجاجية الوسطى */}
             <div className="relative flex size-22 items-center justify-center rounded-full border border-white/15 bg-white/[0.06] backdrop-blur-[2px] transition-transform duration-500 group-hover:scale-110">
-              {/* النواة الداخلية النابضة */}
               <div
                 className={`flex size-14 items-center justify-center rounded-full border transition-all duration-500 ${
                   isSuper
@@ -593,9 +339,9 @@ export function HomePropertyCard({
   onToggleFav: (id: string) => void
   fullWidthOnGrid?: boolean
 }) {
-  const { locale, dir } = useTranslation()
+  const { t: dict, locale, dir } = useTranslation()
   const activeLocale = (locale as LocaleCode) || 'ar'
-  const cT = CARD_I18N[activeLocale] || CARD_I18N.ar
+  const cT = dict.home.cards
   const USD = '$'
 
   const gallery =
@@ -716,7 +462,7 @@ export function HomePropertyCard({
               onToggleFav(unit.id)
             }}
             className="absolute top-3 end-3 z-20 flex size-8 items-center justify-center rounded-full bg-white/95 text-slate-700 shadow-xs transition hover:scale-110"
-            aria-label="Favorite"
+            aria-label={dict.opportunitiesPage.card.addToFavAria}
           >
             <Heart
               className={`size-4 ${
@@ -737,7 +483,7 @@ export function HomePropertyCard({
                   )
                 }}
                 className="absolute start-2.5 top-1/2 z-20 flex size-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-[#0f1d40] opacity-90 shadow-md transition hover:scale-105 hover:bg-white md:opacity-0 md:group-hover:opacity-100"
-                aria-label="Previous photo"
+                aria-label={dict.unitDetailsPage.prevImageAria}
               >
                 {dir === 'rtl' ? (
                   <ChevronRight className="size-4" />
@@ -754,7 +500,7 @@ export function HomePropertyCard({
                   setImgIdx((prev) => (prev + 1) % gallery.length)
                 }}
                 className="absolute end-2.5 top-1/2 z-20 flex size-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-[#0f1d40] opacity-90 shadow-md transition hover:scale-105 hover:bg-white md:opacity-0 md:group-hover:opacity-100"
-                aria-label="Next photo"
+                aria-label={dict.unitDetailsPage.nextImageAria}
               >
                 {dir === 'rtl' ? (
                   <ChevronLeft className="size-4" />
@@ -965,7 +711,7 @@ export function HomeCardsCarouselSection({
   showAdCardWhenEmpty?: boolean
   adTier?: 'SUPER VIP' | '+VIP'
 }) {
-  const { locale, dir } = useTranslation()
+  const { t: dict, locale, dir } = useTranslation()
   const isAr = locale === 'ar'
   const isRtl = dir === 'rtl'
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -1064,7 +810,7 @@ export function HomeCardsCarouselSection({
           <button
             type="button"
             onClick={() => handleScroll('prev')}
-            aria-label="Previous listings"
+            aria-label={dict.opportunitiesPage.ui.prevPageBtn}
             className="absolute -start-3 top-1/2 z-30 hidden size-11 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-[#0f1d40] shadow-[0_8px_24px_rgba(15,29,64,0.15)] transition hover:scale-110 hover:bg-slate-50 md:flex"
           >
             {isRtl ? (
@@ -1103,7 +849,7 @@ export function HomeCardsCarouselSection({
           <button
             type="button"
             onClick={() => handleScroll('next')}
-            aria-label="Next listings"
+            aria-label={dict.opportunitiesPage.ui.nextPageBtn}
             className="absolute -end-3 top-1/2 z-30 hidden size-11 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-[#0f1d40] shadow-[0_8px_24px_rgba(15,29,64,0.15)] transition hover:scale-110 hover:bg-slate-50 md:flex"
           >
             {isRtl ? (
@@ -1129,10 +875,9 @@ export function HomeVipPlusSection({
   onToggleFav: (id: string) => void
   showWhenEmpty?: boolean
 }) {
-  const { locale, dir } = useTranslation()
-  const activeLocale = (locale as LocaleCode) || 'ar'
-  const cT = CARD_I18N[activeLocale] || CARD_I18N.ar
-  const isAr = activeLocale === 'ar'
+  const { t: dict, locale, dir } = useTranslation()
+  const cT = dict.home.cards
+  const isAr = locale === 'ar'
   const isRtl = dir === 'rtl'
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -1218,7 +963,7 @@ export function HomeVipPlusSection({
           <button
             type="button"
             onClick={() => handleScroll('prev')}
-            aria-label="Previous VIP+ listings"
+            aria-label={dict.opportunitiesPage.ui.prevPageBtn}
             className="absolute -start-3 top-1/2 z-30 hidden size-11 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-[#0f1d40] shadow-[0_8px_24px_rgba(15,29,64,0.15)] transition hover:scale-110 hover:bg-slate-50 md:flex"
           >
             {isRtl ? (
@@ -1251,7 +996,7 @@ export function HomeVipPlusSection({
           <button
             type="button"
             onClick={() => handleScroll('next')}
-            aria-label="Next VIP+ listings"
+            aria-label={dict.opportunitiesPage.ui.nextPageBtn}
             className="absolute -end-3 top-1/2 z-30 hidden size-11 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-[#0f1d40] shadow-[0_8px_24px_rgba(15,29,64,0.15)] transition hover:scale-110 hover:bg-slate-50 md:flex"
           >
             {isRtl ? (

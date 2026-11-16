@@ -5,7 +5,9 @@ import { Check, ShieldCheck } from 'lucide-react'
 import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
 import { HomePropertyCard } from '@/components/features/home/home-property-card'
 import { type HomeUnitCardItem } from '@/components/features/home/home-data'
+import enDict from '@/dictionaries/en.json'
 import {
+  DICTIONARIES,
   useTranslation,
   type Dictionary,
   type LocaleCode,
@@ -17,7 +19,7 @@ export function getCountryFilterOptions(t: Dictionary['opportunitiesPage']) {
   return [
     {
       code: 'GE' as OpportunityCountryCode,
-      name: t?.countries?.GE || 'Georgia',
+      name: t?.countries?.GE || enDict.opportunitiesPage.countries.GE,
       nameEn: 'Georgia',
       flag: '🇬🇪',
     },
@@ -71,90 +73,6 @@ export type MappedProperty = {
 export const DEFAULT_FALLBACK_IMAGE =
   'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=900&q=85'
 
-const SHARED_OPPS_I18N: Record<
-  LocaleCode,
-  {
-    readyWord: string
-    defaultMonthly: string
-    defaultProject: string
-    defaultArea: string
-    defaultType: string
-    trustTitle: string
-    card1Title: string
-    card1Desc: string
-    card1Btn: string
-    card2Title: string
-    point1: string
-    point2: string
-    point3: string
-  }
-> = {
-  ar: {
-    readyWord: 'جاهزة',
-    defaultMonthly: 'شهري',
-    defaultProject: 'مشروع سكني',
-    defaultArea: 'تبليسي',
-    defaultType: 'شقة',
-    trustTitle: 'لماذا تشتري وحدة تنازل عبر Aqar Exit؟',
-    card1Title: 'لم تجد الوحدة المناسبة بعد؟ سجل طلبك مجاناً',
-    card1Desc:
-      'حدد ميزانيتك، المنطقة المفضلة في تبليسي أو باتومي، وقيمة القسط الشهري المناسب لك، وسنرشح لك أفضل وحدات التنازل فور توفرها.',
-    card1Btn: 'سجل طلب شراء الآن ←',
-    card2Title: 'ضمانات الشراء عبر المنصة',
-    point1: 'مراجعة العقود وإيصالات السداد الأصلية مع شركة التطوير قبل النشر.',
-    point2: 'التنازل ونقل الملكية يتم رسمياً داخل مقر المطور العقاري وبنفس شروط العقد.',
-    point3: 'صفر أوفر برايس — تدفع فقط المدفوع الفعلي أو أقل منه وتكمل الأقساط.',
-  },
-  en: {
-    readyWord: 'Ready',
-    defaultMonthly: 'Monthly',
-    defaultProject: 'Residential Project',
-    defaultArea: 'Tbilisi',
-    defaultType: 'Apartment',
-    trustTitle: 'Why Take Over an Installment Contract via Aqar Exit?',
-    card1Title: "Didn't find the right unit yet? Submit your request",
-    card1Desc:
-      'Set your cash budget, preferred district in Tbilisi or Batumi, and monthly installment limit — we will match you with verified exit deals.',
-    card1Btn: 'Submit Buy Request →',
-    card2Title: 'Platform Buyer Guarantees',
-    point1: 'Original developer contracts and payment receipts verified before listing.',
-    point2: 'Official contract transfer takes place directly at the developer office.',
-    point3: 'Zero overprice — pay only the actual paid cash (or less) and continue installments.',
-  },
-  ru: {
-    readyWord: 'Готово',
-    defaultMonthly: 'Ежемесячно',
-    defaultProject: 'Жилой комплекс',
-    defaultArea: 'Тбилиси',
-    defaultType: 'Квартира',
-    trustTitle: 'Почему выгодно покупать по переуступке через Aqar Exit?',
-    card1Title: 'Не нашли подходящий объект? Оставьте заявку на подбор',
-    card1Desc:
-      'Укажите ваш бюджет на руки, район в Тбилиси или Батуми и комфортный платеж по рассрочке — мы подберем проверенные варианты.',
-    card1Btn: 'Оставить заявку на покупку →',
-    card2Title: 'Гарантии безопасности сделки',
-    point1: 'Проверка оригинального договора и квитанций об оплате у застройщика.',
-    point2: 'Официальное переоформление договора происходит в офисе застройщика.',
-    point3: 'Без наценки (0% оверпрайс) — вы платите только выплаченную сумму и продолжаете рассрочку.',
-  },
-  ka: {
-    readyWord: 'მზადაა',
-    defaultMonthly: 'ყოველთვიური',
-    defaultProject: 'საცხოვრებელი კომპლექსი',
-    defaultArea: 'თბილისი',
-    defaultType: 'ბინა',
-    trustTitle: 'რატომ უნდა შეიძინოთ ქონება Aqar Exit-ის საშუალებით?',
-    card1Title: 'ვერ იპოვეთ სასურველი ბინა? დატოვეთ მოთხოვნა',
-    card1Desc:
-      'მიუთითეთ თქვენი ბიუჯეტი, სასურველი უბანი თბილისში ან ბათუმში და განვადების პირობები — ჩვენ შეგირჩევთ გადამოწმებულ ვარიანტებს.',
-    card1Btn: 'მოთხოვნის დატოვება →',
-    card2Title: 'პლატფორმის გარანტიები მყიდველისთვის',
-    point1: 'ორიგინალი ხელშეკრულებისა და გადახდის ქვითრების გადამოწმება გამოქვეყნებამდე.',
-    point2: 'ოფიციალური გადაფორმება ხდება უშუალოდ დეველოპერის ოფისში.',
-    point3: 'ნულოვანი ფასნამატი — იხდით მხოლოდ რეალურად გადახდილ თანხას და აგრძელებთ განვადებას.',
-  },
-}
-
 export function calcMonthlyEquivalent(amount: number, freq: string): number {
   if (!amount) return 0
   const f = (freq || '').trim().toLowerCase()
@@ -196,7 +114,12 @@ export function mapDbRowToProperty(
   const activeLocale: LocaleCode = ['ar', 'en', 'ru', 'ka'].includes(locale)
     ? locale
     : 'ar'
-  const sT = SHARED_OPPS_I18N[activeLocale] || SHARED_OPPS_I18N.ar
+  const fullDict = DICTIONARIES[activeLocale] || enDict
+  const readyWord = fullDict.common.delivery.ready
+  const defaultMonthly = t.card.defaultFreq || fullDict.common.frequencies.monthly
+  const defaultProject = t.card.defaultProject
+  const defaultArea = t.card.defaultArea
+  const defaultType = t.card.defaultType
 
   const country = 'GE'
   const currency = '$'
@@ -215,7 +138,7 @@ export function mapDbRowToProperty(
   const installmentFreq =
     row.installment_frequency ||
     meta.installment_frequency ||
-    sT.defaultMonthly
+    defaultMonthly
 
   let gainStr: string | undefined = undefined
   let gainNum = 0
@@ -249,12 +172,12 @@ export function mapDbRowToProperty(
 
   const deliveryDisplayStr = delivYearNum
     ? isReady
-      ? `${sT.readyWord} (${delivYearNum})`
+      ? `${readyWord} (${delivYearNum})`
       : String(delivYearNum)
     : yearMatch
       ? yearMatch[0]
       : isReady
-        ? sT.readyWord
+        ? readyWord
         : rawDelStatus || '2026'
 
   const numericCode = String(row.id || '')
@@ -271,7 +194,7 @@ export function mapDbRowToProperty(
   const rawArea = row.area || meta.area || ''
   const localizedArea = rawArea
     ? getLocalizedGeorgiaAreaName(rawArea, activeLocale)
-    : sT.defaultArea
+    : defaultArea
 
   const invalidDevNames = [
     'newly built',
@@ -321,14 +244,14 @@ export function mapDbRowToProperty(
     code,
     country,
     currency,
-    project: row.project_name || sT.defaultProject,
+    project: row.project_name || defaultProject,
     developer: devName,
     rawDeveloperName: devName,
     area: localizedArea,
     rawArea,
     exactStreet: row.exact_street || meta.exact_street || '',
     houseNumber: row.house_number || meta.house_number || '',
-    type: row.unit_type || meta.unit_type || sT.defaultType,
+    type: row.unit_type || meta.unit_type || defaultType,
     rooms: roomsVal,
     bedrooms: Math.min(roomsVal, bedroomsVal),
     baths: Number(row.bathrooms ?? meta.bathrooms) || 1,
@@ -418,14 +341,13 @@ export function OpportunityCard({
 }
 
 export function OpportunitiesBottomSections() {
-  const { locale } = useTranslation()
-  const activeLocale = (locale as LocaleCode) || 'ar'
-  const sT = SHARED_OPPS_I18N[activeLocale] || SHARED_OPPS_I18N.ar
+  const { t: dict } = useTranslation()
+  const sT = dict.opportunitiesPage.trustSection
 
   return (
     <section className="mt-12 border-t border-gray-200/80 pt-10 sm:mt-14 sm:pt-12">
       <h2 className="text-start text-lg font-bold text-[#0f1d40] sm:text-2xl">
-        {sT.trustTitle}
+        {sT.title}
       </h2>
 
       <div className="mt-5 grid grid-cols-1 gap-4 sm:mt-6 sm:gap-6 md:grid-cols-[1.35fr_1fr]">

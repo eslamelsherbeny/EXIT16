@@ -26,30 +26,20 @@ const DEFAULT_FALLBACK_IMG =
   'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1000&q=80'
 
 export default async function HomePage() {
-  const { dict, locale } = await getServerI18n()
+  const { dict } = await getServerI18n()
   const t = dict.home
   const oppsDict = dict.opportunitiesPage as Record<string, any>
   const currencySymbol = '$'
 
   const readyWord =
     oppsDict?.filters?.deliveryStatuses?.[1] ||
-    (locale === 'ar'
-      ? 'جاهزة'
-      : locale === 'ru'
-        ? 'Готово'
-        : locale === 'ka'
-          ? 'მზადაა'
-          : 'Ready')
+    dict.common?.delivery?.ready ||
+    ''
 
   const defaultMonthlyWord =
     oppsDict?.card?.defaultFreq ||
-    (locale === 'ar'
-      ? 'شهري'
-      : locale === 'ru'
-        ? 'Ежемесячно'
-        : locale === 'ka'
-          ? 'ყოველთვიური'
-          : 'Monthly')
+    dict.common?.frequencies?.monthly ||
+    ''
 
   let realUnitCount = 0
   let totalMarketValue = 0
@@ -75,7 +65,6 @@ export default async function HomePage() {
     )
 
     if (units && units.length > 0) {
-      // مزامنة تلقائية في الخلفية بدون تعطيل سرعة فتح الصفحة الرئيسية
       const staleAgreedIds = units
         .filter((u: any) => lockedUnitIds.has(String(u.id)))
         .map((u: any) => String(u.id))
@@ -91,7 +80,6 @@ export default async function HomePage() {
           )
       }
 
-      // فلترة رسمية: استبعاد أي صف بدون UUID حقيقي أو من خارج جورجيا أو تم الاتفاق عليه بين البائع والمشتري
       const validUnits = units.filter((u: any) => {
         const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(String(u?.id || ''))
         const areaVal = u.area || u.documents?.__unit_meta?.area
@@ -247,12 +235,12 @@ export default async function HomePage() {
         maximumFractionDigits: 2,
       }
     )
-    valueUnitLabel = `${t?.stats?.billion || 'B'} ${currencySymbol}`
+    valueUnitLabel = `${t?.stats?.billion || ''} ${currencySymbol}`
   } else if (totalMarketValue >= 1_000_000) {
     formattedValue = (totalMarketValue / 1_000_000).toLocaleString('en-US', {
       maximumFractionDigits: 1,
     })
-    valueUnitLabel = `${t?.stats?.million || 'M'} ${currencySymbol}`
+    valueUnitLabel = `${t?.stats?.million || ''} ${currencySymbol}`
   } else {
     formattedValue = totalMarketValue.toLocaleString('en-US')
     valueUnitLabel = currencySymbol

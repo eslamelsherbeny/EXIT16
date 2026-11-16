@@ -563,7 +563,7 @@ export function BuyerEditPreferencesForm({
               <strong className="text-[var(--brand-primary,#007a5a)]">
                 ({localizedPreferredAreasNames.join(listSep)})
               </strong>
-              ؟
+              {isRtl ? '؟' : '?'}
             </DialogDescription>
           </DialogHeader>
 

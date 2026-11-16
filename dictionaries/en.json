@@ -1,3 +1,4 @@
+
 {
   "brand": {
     "name": "Aqar",
@@ -14,7 +15,7 @@
     "login": "My Account",
     "buy": "Want to Buy",
     "loginGuest": "Login",
-"myAccount": "My Account",
+    "myAccount": "My Account",
     "sellCta": "Want to Sell",
     "menuLabel": "Open Menu",
     "menuTitle": "Main Menu",
@@ -23,7 +24,10 @@
       "en": "English",
       "ru": "Русский",
       "ka": "ქართული"
-    }
+    },
+    "home": "Home",
+    "adminShort": "Admin",
+    "switchingDefault": "Updating..."
   },
   "home": {
     "hero": {
@@ -198,6 +202,151 @@
       "buyerTitle": "Looking for a Real Opportunity?",
       "buyerDesc": "Register your budget and we'll send you verified opportunities matching your available cash and comfortable installment.",
       "buyerBtn": "Register as a Buyer"
+    },
+    "cards": {
+      "docsVerified": "Docs Verified",
+      "sqmUnit": "m²",
+      "roomsWord": "Rooms",
+      "bathWord": "Bath",
+      "requiredCashNow": "Required Cash Now",
+      "negotiable": "Negotiable",
+      "yourMarketGain": "Your Market Gain",
+      "marketPriceTodayPrefix": "Market price today:",
+      "afterFeeSuffix": "· after 1.25% fee",
+      "remainingToDeveloper": "Remaining to Developer",
+      "installment": "Installment",
+      "fullyPaid": "Fully Paid",
+      "delivery": "Delivery",
+      "detailsBtn": "Details",
+      "viewsTitle": "Views",
+      "adSpace": "Ad Space",
+      "yourAdHere": "Your Ad Here",
+      "adDescSuper": "Publish your listing in SUPER VIP and reach thousands of real estate buyers and investors.",
+      "adDescVip": "Upgrade your listing to VIP+ for just 5 ₾ to appear first to serious buyers.",
+      "adBullet1": "Targeted audience",
+      "adBullet2": "Direct contact",
+      "adBullet3": "Transparent metrics",
+      "advertiseHereBtn": "Advertise Here →",
+      "vipPlusTitle": "VIP+ Listings",
+      "vipPlusSub": "Priority listings — verified installment exit properties",
+      "vipPlusAllBtn": "All VIP+ →"
+    },
+    "map3dSection": {
+      "badge": "3D PROJECT EXPLORER",
+      "titlePrefix": "Explore Exit Opportunities on",
+      "titleAccent": "Georgia 3D Map",
+      "subtitle": "Interactive panoramic view of verified residential complexes in Tbilisi and Batumi.",
+      "browseAllBtn": "Browse all units on 3D map",
+      "launchMapBtn": "Launch Interactive 3D Map",
+      "features": [
+        {
+          "title": "Explore Exit Deals in Every Tower",
+          "sub": "Tap any residential tower to see available installment takeover units and required cash in USD."
+        },
+        {
+          "title": "3D Models for Under-Construction Projects",
+          "sub": "Preview project location and 3D architectural progress before taking over an installment contract."
+        },
+        {
+          "title": "Compare Old Contract vs. Current Developer Price",
+          "sub": "See instant savings per district across Tbilisi and Batumi alongside nearby amenities."
+        },
+        {
+          "title": "Instant Switch Between 2D & Immersive 3D",
+          "sub": "Navigate opportunities smoothly on mobile or desktop with one tap."
+        }
+      ]
+    },
+    "categoriesGrid": {
+      "exit": "All Exit Deals",
+      "Apartment": "Apartments",
+      "Private house": "Houses & Villas",
+      "Cottage": "Cottages",
+      "Luxury": "Luxury homes",
+      "Land": "Land plots",
+      "Commercial": "Commercial",
+      "Ready": "Ready to move",
+      "Sea view": "Sea view",
+      "Pool": "With pool",
+      "Jacuzzi": "With Jacuzzi",
+      "Ski resorts": "Ski resorts",
+      "Compounds": "Compounds",
+      "Workspace": "Offices",
+      "Hotel": "Hotel units",
+      "New projects": "Under construction"
+    },
+    "marketSections": {
+      "bannerBadge": "PREMIUM SPOTLIGHT · AQAR EXIT",
+      "bannerTitle": "Want to Exit Your Unit or Promote Your Project Faster?",
+      "bannerDesc": "Place your property at the top of the homepage in front of thousands of serious investors.",
+      "bannerPill1": "Top placement",
+      "bannerPill2": "Direct serious buyers",
+      "bannerPill3": "Instant activation",
+      "bannerBtn": "Boost your listing now →",
+      "devBadge": "TOP DEVELOPERS",
+      "devTitle": "Leading development companies",
+      "devSub": "Ranked by active exit listings — explore projects and units",
+      "devAllBtn": "All developers (1399) →",
+      "devProjectsWord": "projects",
+      "devActiveWord": "active",
+      "devProjectsLink": "Projects →",
+      "tbilisi": "Tbilisi",
+      "batumi": "Batumi",
+      "developers": {
+        "archi": "Archi",
+        "arcon": "Arcon Development",
+        "orbi": "ORBI Group",
+        "next": "NEXT Group",
+        "m2": "m² Real Estate"
+      },
+      "walletBadge": "Wallet & Boost Balance",
+      "walletTitlePrefix": "Top Up Your Balance",
+      "walletTitleAccent": "With Any Amount",
+      "walletDesc": "Promote your listings with SUPER VIP and VIP+ boosts. Once paid and verified by Admin, your listing boost activates automatically.",
+      "feature1Title": "All Payment Methods",
+      "feature1Desc": "Apple Pay · Mastercard · Visa · BOG · TBC · Bank Transfer.",
+      "feature2Title": "100% Refundable",
+      "feature2Desc": "Any unspent balance is fully refundable at any time upon request.",
+      "feature3Title": "Instant 1:1 Credit",
+      "feature3Desc": "0% fees. Every 1 GEL goes directly to your listing boost.",
+      "quickAmounts": "Quick amounts",
+      "starterBadge": "Starter",
+      "recommendedBadge": "Recommended 🔥",
+      "popularBadge": "Popular",
+      "customAmountLabel": "Custom amount",
+      "anyWord": "Any",
+      "daySingular": "day",
+      "dayDual": "days",
+      "dayPlural": "days",
+      "creditedToBalance": "credited to your balance",
+      "zeroFeeBadge": "0% fee",
+      "instantCreditBadge": "Instant 1:1 credit",
+      "upsellAdviceTemplate": "Recommendation: {target} ₾ unlocks {discount} volume discount on SUPER VIP ({days} days)",
+      "topUpToBtnTemplate": "Top up to {target} ₾",
+      "unitCodePlaceholder": "Your unit code (optional — for instant admin activation)",
+      "neverExpires": "Never expires",
+      "fullyRefundable": "Fully refundable",
+      "payWithCardBtnTemplate": "Pay {amt} ₾ with Card",
+      "bankTransferBtnTemplate": "Bank Transfer {amt} ₾",
+      "boostRecordedMsgTemplate": "Boost request ({tier} — {amt} ₾ for {days} days){codePart} recorded. It will activate automatically once payment and listing are approved by Admin.",
+      "boostRecordedCodePart": " for unit {code}",
+      "coversLabelTemplate": "Covers {tier} for {days} {dayWord}"
+    },
+    "carouselTitles": {
+      "categoriesTitle": "What are you looking for to take over?",
+      "categoriesSub": "Choose unit type and explore verified installment exit opportunities",
+      "howItWorksMoreLink": "How it works & Examples →",
+      "superVipTitle": "SUPER VIP Listings",
+      "superVipSub": "Maximum visibility — top exit offers first",
+      "superVipAllBtn": "All SUPER VIP →",
+      "availableOppsBadge": "Available Deals",
+      "availableOppsTitle": "Available Exit Opportunities",
+      "availableOppsSub": "Explore verified installment takeover units at original contract price in Georgia",
+      "availableOppsAllBtn": "All Opportunities →",
+      "recentBadge": "New in Market",
+      "recentTitle": "Recently Added",
+      "recentSub": "Fresh installment exit units sorted by date — newest first",
+      "recentAllBtn": "All New →"
     }
   },
   "footer": {
@@ -221,7 +370,10 @@
     "appLabel": "Download App",
     "disclaimer": "Figures and estimates displayed on the platform are indicative and depend on individual contract terms. They do not constitute legal advice or a guaranteed outcome. Final review is conducted on your actual contract with our team and qualified legal advisors.",
     "copyright": "© 2026 Aqar Exit. All rights reserved.",
-    "powered": "Powered by Aqara for Real Estate and Ammar Group LLC"
+    "powered": "Powered by Aqara for Real Estate and Ammar Group LLC",
+    "marketsTitle": "Markets",
+    "soonBadge": "Soon",
+    "adminPanelLink": "Admin Panel"
   },
   "calculatorPage": {
     "title": "Safe Exit Calculator",
@@ -268,7 +420,8 @@
     "registerViewOppsBtn": "Register & View Opportunities",
     "disclaimer": "This calculation is indicative and not a substitute for reviewing your actual contract. Percentages and terms vary by contract.",
     "millionWord": "Million",
-    "thousandWord": "Thousand"
+    "thousandWord": "Thousand",
+    "paidExceedsContractError": "Paid amount cannot exceed the original total contract price."
   },
   "exitReportPage": {
     "title": "Exit Report — Know Your Position Before You Decide",
@@ -381,7 +534,7 @@
     "errStep1": "Please complete your purchasing power fields first (cash, installment, and budget)",
     "errStep3": "Please complete your contact details and choose a password of at least 8 characters"
   },
- "sell": {
+  "sell": {
     "metaTitle": "Sell Your Unit | Aqar Exit",
     "metaDesc": "List your property safely and recover your paid installments in Georgia.",
     "shared": {
@@ -407,7 +560,8 @@
       "loginIdRequired": "Please enter your email or mobile number",
       "loginPassRequired": "Please enter your password",
       "saveFailed": "Could not save draft.",
-      "submitFailed": "Could not submit listing request, please try again"
+      "submitFailed": "Could not submit listing request, please try again",
+      "passwordMismatch": "Passwords do not match"
     },
     "contactStep": {
       "tabCurrentSession": "My Current Account",
@@ -468,6 +622,17 @@
       "deliveries": [
         "Ready to Move",
         "Under Construction"
+      ],
+      "features": [
+        "Sea View",
+        "Mountain View",
+        "Panoramic City View",
+        "Swimming Pool",
+        "Central / Underfloor Heating",
+        "24/7 Security & Reception",
+        "Underground Parking",
+        "Spacious Balcony",
+        "Near Metro & Amenities"
       ]
     },
     "reviewStep": {
@@ -517,28 +682,36 @@
       "waVerifiedBadge": "WhatsApp Confirmation Opened ✓"
     },
     "formUi": {
-      "pageTitle": "List Your Unit for Installment Exit",
+      "pageTitle": "Submit Your Unit for Installment Exit",
       "pageSubtitle": "Recover 100% of your paid installments in USD ($) — 0% seller commission.",
       "exitBadge": "Installment Exit System",
       "unifiedCurrencyBadge": "Unified Currency: USD ($)",
+      "requiredBadge": "Required *",
+      "optionalBadge": "Optional",
+      "requiredForPublishBadge": "Required for Admin Approval",
+      "fieldRequiredError": "This compulsory field is required",
+      "validationModalTitle": "Error — Compulsory Fields Missing",
+      "validationModalSubtitle": "To proceed to the next step, please fill out all compulsory fields marked in red:",
+      "validationModalOkBtn": "OK, Go to First Missing Field",
       "tabs": {
         "type": "1 Property Type",
         "photos": "2 Photos & Media",
         "location": "3 Location",
         "details": "4 Specifications",
         "price": "5 Price & Terms",
-        "contact": "6 Owner Account"
+        "contact": "6 Owner & Submit"
       },
       "typeSection": {
-        "title": "Property Type & Building Status",
+        "title": "1. Property Type & Building Status",
         "subtitle": "Select the property type and current building status for your installment exit.",
         "whatToDoLabel": "Deal Type",
         "whatKindLabel": "What kind of property? *",
         "statusLabel": "Building & Handover Status *"
       },
       "photosSection": {
-        "title": "Photos, Video & 3D Tour Links",
+        "title": "2. Unit Photos, Video & 3D Tour",
         "subtitle": "Show interior and exterior: living room, bedrooms, bathrooms, balcony, and view.",
+        "publishRequirementNote": "💡 Uploading at least 1 photo is required before Admin publishes your unit. You can save as draft now and upload photos later from My Account.",
         "dropTitle": "Add photos or drag them here",
         "photosWord": "photos",
         "dropHint": "Listings with clear photos get faster offers. The first photo is the cover.",
@@ -549,34 +722,40 @@
         "videoSectionTitle": "Video & 3D Virtual Tour Links (Optional)",
         "videoSectionSubtitle": "Paste a YouTube/Vimeo link or 3D virtual tour link to display on your unit details page.",
         "videoUrlLabel": "YouTube / Vimeo Video Link",
-        "videoUrlPlaceholder": "https://www.youtube.com/watch?v=...",
+        "videoUrlPlaceholder": "https://youtube.com/...",
         "tour3dLabel": "3D Virtual Tour Link (Matterport)",
         "tour3dPlaceholder": "https://my.matterport.com/..."
       },
       "locationSection": {
-        "title": "Location, Street & Developer",
-        "subtitleRent": "Enter the exact street and house number — the pin drops on the map automatically.",
-        "subtitleSale": "Select the city & district, and enter the developer name, project, street, and building number.",
+        "title": "3. Exact Location, Street & Developer",
+        "subtitleRent": "Search by street name or drag the pin on the map to auto-fill address.",
+        "subtitleSale": "Type part of the street name for live suggestions across Georgia, or tap the map to mark the building.",
         "cityDistrictLabel": "City / District *",
-        "chooseLocationPlaceholder": "Choose location",
-        "developerLabel": "Developer Name",
-        "developerPlaceholder": "e.g. ORBI Group, Archi, m², Next Group...",
+        "chooseLocationPlaceholder": "Select city, district or search...",
+        "developerLabel": "Developer Name (Optional)",
+        "developerPlaceholder": "Developer name (optional)...",
         "popularDevelopersHint": "Quick-select popular developers in Georgia:",
         "projectLabel": "Project / Complex Name *",
-        "projectPlaceholder": "e.g. Orbi City, King David, White Sails...",
+        "projectPlaceholder": "Project or complex name...",
         "streetLabel": "Street Name *",
-        "streetPlaceholder": "e.g. Chavchavadze Ave / Khimshiashvili St",
+        "streetPlaceholder": "Type street name...",
+        "streetAutocompleteHint": "Select from dropdown suggestions or tap on the map below",
+        "cantFindAddressTitle": "Can't find your address?",
+        "setLocationOnMapBtn": "Set location on map instead",
+        "detectMyGpsBtn": "Detect my GPS location",
+        "reverseGeocodingLoading": "Reading street & district from map coordinates...",
+        "pinMovedSuccess": "Exact location captured & street address updated ✓",
         "houseNoLabel": "Building / House Nº",
-        "houseNoPlaceholder": "47",
+        "houseNoPlaceholder": "e.g. 12",
         "cadastralLabel": "Cadastral Code (NAPR)",
-        "cadastralPlaceholder": "01.10.01.001.001",
+        "cadastralPlaceholder": "Optional",
         "cadastralHelper": "Optional — links unit to Georgian Public Registry NAPR",
-        "mapHeaderTitle": "3D Map",
-        "mapHint": "Pin updates automatically based on selected district & street"
+        "mapHeaderTitle": "Interactive 3D Map",
+        "mapHint": "Tap on your building to auto-fill street, district and exact coordinates"
       },
       "locationModal": {
-        "title": "Select City & District in Georgia",
-        "searchPlaceholder": "District, city, neighborhood or street...",
+        "title": "Select City & District or Search Street in Georgia",
+        "searchPlaceholder": "Search city, district or street...",
         "searchingMapsText": "Searching Georgia maps...",
         "everywhereTitle": "Everywhere",
         "everywhereSub": "All regions in Georgia",
@@ -594,15 +773,15 @@
         "selectBtn": "Confirm Selection"
       },
       "detailsSection": {
-        "title": "Specifications & Features",
-        "subtitle": "Fill in accurate area, total rooms, bedrooms, floor, and available features.",
+        "title": "4. Specifications & Features",
+        "subtitle": "Fill in compulsory area, total rooms, and bedrooms. Other specs are optional.",
         "lockedBanner": "Please select a property type above to unlock specifications.",
-        "conditionLabel": "Finishing Condition",
-        "buildingSeriesLabel": "Building Series",
+        "conditionLabel": "Finishing Condition (Optional)",
+        "buildingSeriesLabel": "Building Series (Optional)",
         "buildingSeriesSub": "Helps buyers filter quickly",
-        "floorTypeLabel": "Floor Type",
-        "heatingLabel": "Heating System",
-        "buildingMaterialLabel": "Building Material",
+        "floorTypeLabel": "Floor Type (Optional)",
+        "heatingLabel": "Heating System (Optional)",
+        "buildingMaterialLabel": "Building Material (Optional)",
         "areaLabel": "Total Area (m²) *",
         "kitchenAreaLabel": "Kitchen Area (m²)",
         "yearBuiltLabel": "Year Built / Delivered",
@@ -611,12 +790,12 @@
         "terraceAreaLabel": "Terrace / Garden (m²)",
         "roomsLabel": "Total Rooms (including living room) *",
         "bedroomsLabel": "Bedrooms (out of total rooms) *",
-        "roomsBedroomsHint": "Note: Bedrooms cannot exceed total selected rooms.",
+        "roomsBedroomsHint": "Note: Bedrooms cannot exceed total rooms.",
         "bathroomsLabel": "Bathrooms",
         "floorLabel": "Floor",
         "totalFloorsLabel": "Total Building Floors",
         "maxGuestsLabel": "Max Guests",
-        "featuresTitle": "Features & Amenities",
+        "featuresTitle": "Features & Amenities (Optional)",
         "featuresSubtitle": "Select all features actually available in your property.",
         "onlineViewingTitle": "I am ready for online video viewings",
         "onlineViewingSub": "Check this box if you can show the property remotely via WhatsApp or Zoom.",
@@ -624,14 +803,14 @@
         "installmentSaleSub": "Check if you accept the price paid in parts over time."
       },
       "pricingSection": {
-        "title": "Price, Installments, Documents & Description",
+        "title": "5. Price, Installments, Documents & Description",
         "subtitle": "Enter the original contract price, paid cash amount, and remaining installment details.",
         "priceLabel": "Price *",
         "totalPriceBtn": "Total price",
         "perSqmBtn": "Price per m²",
         "contractPriceLabel": "Total Contract Price ($) *",
         "paidAmountLabel": "Paid Amount So Far (Required Cash $) *",
-        "marketPriceLabel": "Current Market Price ($ Est.)",
+        "marketPriceLabel": "Current Market Price ($ Est. - Optional)",
         "installmentAmountLabel": "Periodic Installment Amount ($)",
         "remainingMonthsLabel": "Remaining Installment Months (0 if fully paid)",
         "contractDateLabel": "Original Contract Date",
@@ -657,13 +836,14 @@
         "discountAmountLabel": "Max negotiable discount amount ($ Optional)",
         "districtGuideTitle": "District Price Guide",
         "districtGuideSub": "Average market range in this district is $1,150 – $1,650 / m².",
-        "descriptionLabel": "Detailed Property Description",
-        "descriptionPlaceholder": "Describe the property layout, view, floor advantages, and key highlights...",
-        "docsBoxTitle": "Ownership Documents (Optional now · Speeds up verification)",
-        "docContract": "Purchase Contract",
-        "docReceipts": "Payment Receipts",
-        "docStatement": "Account Statement",
-        "docPassport": "Passport Copy",
+        "descriptionLabel": "Detailed Property Description (Optional)",
+        "descriptionPlaceholder": "Describe the property layout, view, and key highlights...",
+        "docsBoxTitle": "Ownership Documents (Required for Market Publication)",
+        "docsRequirementBanner": "📌 You can save your unit now and upload documents later from (My Account), but the unit will only be published in the public market after uploading the 4 documents for Admin review.",
+        "docContract": "1. Purchase Contract",
+        "docReceipts": "2. Payment Receipts",
+        "docStatement": "3. Account Statement",
+        "docPassport": "4. Passport Copy",
         "changeBtn": "Change",
         "uploadBtn": "Upload"
       },
@@ -671,19 +851,19 @@
         "title": "6. Owner Details & Account Link",
         "subtitleExit": "Name & mobile — (🔒 Kept private from the public and visible only to Admin for brokered exit deals).",
         "subtitleRent": "Name & mobile — tenants will reach you via your selected messengers.",
-        "namePlaceholder": "Enter your full name",
+        "namePlaceholder": "Full name...",
         "messengersLabel": "Messengers available on this phone number",
         "confirmPasswordLabel": "Confirm Password",
-        "accountOptionsTitle": "Account & listing ownership options:",
-        "createAccountLinkBtn": "Create Account & Link Listing ✓",
+        "accountOptionsTitle": "Account & unit ownership options:",
+        "createAccountLinkBtn": "Create Account & Save Unit Draft ✓",
         "signInSyncPhoneBtn": "Sign In & Sync My Details ✓",
         "signInAnotherAccountBtn": "Sign in with another account",
         "backToCurrentAccountBtn": "← Back to my current account",
-        "accountLinkedSuccessMsg": "Account created and linked ✓ You can now click Publish Listing below",
+        "accountLinkedSuccessMsg": "Account created and draft saved ✓ You can now submit your unit below",
         "loggedInSyncedSuccessMsg": "Signed in and contact details synced ✓",
-        "termsAgreementSuffix": "— and I agree to the platform terms & conditions",
-        "signInToSaveDraftError": "Please sign in or register in the Contact section first to save a draft",
-        "completeAccountToPublishError": "Please complete your account registration or sign in to link this listing",
+        "termsAgreementSuffix": "— and I agree to the platform terms & conditions *",
+        "signInToSaveDraftError": "Please sign in or register in Section 6 first to save a draft to your account",
+        "completeAccountToPublishError": "Please complete your account registration or sign in to link this unit",
         "authFailedError": "Authentication failed, please check your credentials",
         "validation": {
           "bedroomsExceedRooms": "Bedrooms cannot exceed total rooms count",
@@ -693,25 +873,25 @@
         }
       },
       "previewSidebar": {
-        "title": "Live Listing Preview",
-        "subtitle": "This is how buyers will see your unit",
-        "emptyPhotoTitle": "At least 1 photo is required",
+        "title": "Live Unit Preview",
+        "subtitle": "This is how buyers will see your unit after Admin approval",
+        "emptyPhotoTitle": "No photos uploaded yet",
         "emptyPhotoSub": "Upload a photo — your live preview appears here",
         "priceOnRequest": "Price on request",
         "perDay": " /day",
         "perMonth": " /month",
         "cashRequiredSuffix": " (Cash Required)",
         "bedsShort": "Beds",
-        "strengthTitle": "Listing Completeness",
-        "strengthGreat": "Excellent completeness — ready for maximum visibility!",
-        "strengthGood": "Good start — add more photos and details",
+        "strengthTitle": "Readiness for Admin Review",
+        "strengthGreat": "Complete unit — ready for immediate Admin review!",
+        "strengthGood": "Complete compulsory fields, photos & docs for approval",
         "tipPhotos": "Add clear property photos",
         "tipLocation": "Specify street and exact location",
         "tipDetails": "Complete property area & rooms",
         "tipDescription": "Write a detailed description"
       },
       "reviewSection": {
-        "fastTrackPhoneTitle": "To fast-track listing review & verify your phone number ✓:",
+        "fastTrackPhoneTitle": "To fast-track unit review & verify your phone number ✓:",
         "promoSubDesc": "Choose a boost package to feature your unit at the top of the Homepage and Opportunities upon Admin approval.",
         "payAndActivatePrefix": "Pay",
         "payAndActivateMiddle": "for",
@@ -719,7 +899,7 @@
         "daysPlural": "days",
         "boostRecordedPrefix": "Boost request recorded:",
         "boostRecordedSuffix": "It will activate automatically upon Admin review and payment confirmation.",
-        "previewPropertyBtn": "Preview Property Page",
+        "previewPropertyBtn": "Preview Unit Page",
         "pkgStarter": "Starter · 1 day",
         "pkgRecommended": "Recommended 🔥 · 1 day",
         "pkgTwoDays": "SUPER VIP · 2 days",
@@ -727,15 +907,291 @@
         "pkgPro": "PRO -30% · 17 days"
       },
       "bottomBar": {
+        "finalSectionTitle": "Submit Unit for Admin Review or Save Draft",
+        "finalSectionDescComplete": "All your unit details, photos, and documents are 100% complete! Click below to submit your unit for Admin review.",
+        "finalSectionDescMissingMedia": "Important Note: You can save and submit your unit details now, and upload the remaining photos or documents anytime from (My Account) so Admin can approve and publish it.",
         "savedAtPrefix": "Draft saved at",
         "autoSavedPrefix": "Sections completed",
-        "saveDraftBtn": "Save draft",
-        "publishingBtn": "Publishing...",
-        "publishBtn": "Publish Listing"
+        "saveDraftBtn": "Save as Draft & Continue Later in My Account",
+        "savingDraftBtn": "Saving draft...",
+        "publishingBtn": "Submitting...",
+        "publishBtn": "Submit Unit for Admin Review & Approval",
+        "submitAndCompleteDocsLaterBtn": "Save Unit Details & Complete Photos/Docs in My Account"
       }
+    },
+    "aiDescription": {
+      "generateBtn": "Generate Description with AI",
+      "generatingBtn": "Generating description from your unit data...",
+      "generatedBadge": "AI Description generated from your unit data ✓",
+      "helperHint": "Click the AI button to automatically craft a professional description from your entered details.",
+      "templates": {
+        "intro": "Prime installment assignment opportunity",
+        "inProject": "in",
+        "byDeveloper": "by",
+        "locatedIn": "located in",
+        "specsTitle": "📐 Specifications:",
+        "totalArea": "total area",
+        "sqm": "m²",
+        "roomsPrefix": "",
+        "roomsWord": "rooms",
+        "bedroomsPrefix": "",
+        "bedroomsWord": "bedroom(s)",
+        "bathWord": "bathroom(s)",
+        "floorPrefix": "floor",
+        "ofTotalFloors": "of",
+        "floorsWord": "",
+        "conditionPrefix": "condition:",
+        "handoverTitle": "🏗 Handover Status:",
+        "underConstPrefix": "Under construction (Expected delivery",
+        "readyNow": "Ready for immediate handover",
+        "financialsTitle": "💰 Financial Terms:",
+        "contractPricePrefix": "Total contract price",
+        "paidCashPrefix": "Paid cash required",
+        "remainingPrefix": "Remaining balance",
+        "installmentPrefix": "installment",
+        "forDuration": "for",
+        "monthsWord": "months",
+        "featuresTitle": "✨ Key Features:",
+        "closingLine": "✅ Official developer contract and payment receipts are ready for direct assignment with 0% seller commission."
+      }
+    },
+    "flowLoading": {
+      "loadingUnitTitle": "Restoring your saved unit details...",
+      "loadingUnitSub": "Please wait a moment while we prepare all fields",
+      "loadErrorTitle": "Could not load unit details",
+      "loadErrorDesc": "Please check your internet connection and try again.",
+      "retryBtn": "Retry Loading",
+      "backToAccountBtn": "Back to My Account",
+      "oneTimeVerifyBadge": "One-time step",
+      "oneTimeVerifyNote": "Email verification is required only once on your first listing.",
+      "finalCardTitle": "Submit Unit Request or Save for Later",
+      "finalCardSub": "You can submit your unit details now and upload photos & documents anytime from \"My Account\".",
+      "publishBtnText": "Submit Unit Request to Admin",
+      "saveLaterBtnText": "Save Details & Continue Later",
+      "savingLaterBtnText": "Saving...",
+      "missingFieldsAlertTitle": "Please complete the required fields highlighted in red above:",
+      "mediaDialogBadge": "Important Notice",
+      "mediaDialogTitle": "Photos & Documents Are Required to Publish Your Unit",
+      "mediaDialogDesc": "You can submit your unit details now to save your request with Admin, but your listing will not be published to buyers until you upload:",
+      "mediaDialogMandatoryPublishNote": "Important: Property photos and the 4 ownership documents are mandatory to verify and publish your unit to buyers. You can upload them now or anytime later from \"My Account\".",
+      "mediaDialogMissingPhotos": "Property Photos (at least 1 photo)",
+      "mediaDialogMissingDocs": "Ownership & Contract Documents",
+      "mediaDialogConfirmBtn": "Submit Details Now & Upload Later →",
+      "mediaDialogUploadNowBtn": "Upload Photos & Documents Now",
+      "onlyPhotosBtn": "Upload Unit Photos First",
+      "onlyDocsBtn": "Upload Remaining Documents First",
+      "bothBtn": "Upload Photos & Documents First",
+      "missingBelowBtnPrefix": "Please complete the required fields highlighted in red above:",
+      "mandatoryPublishNotice": "Important: Property photos and the 4 ownership documents are mandatory to verify and publish your unit to buyers. If you submit now, your request will be saved with Admin and published once you upload them from \"My Account\".",
+      "defaultCityFallback": "Tbilisi"
+    },
+    "buildingStatuses": {
+      "underConstruction": "Under construction",
+      "completedReady": "Completed & Ready",
+      "newlyBuiltReady": "Newly built (Ready)",
+      "underConstructionSub": "Under construction",
+      "oldBuiltReady": "Existing building (Ready)"
+    },
+    "mapUi": {
+      "windowsHelpText": "Use Ctrl + scroll to zoom the map",
+      "macHelpText": "Use ⌘ + scroll to zoom the map",
+      "mobileHelpText": "Use two fingers to move the map",
+      "enterStreetHint": "Enter the street — the pin drops automatically",
+      "bottomSnapHint": "Pin and building snap automatically · or tap the map to mark a building",
+      "parcelFoundText": "Parcel found — map snapped to the NAPR lot",
+      "optionalNaprHint": "Optional — snaps NAPR parcel onto the map",
+      "hideCadastralBtn": "Hide cadastral code on the website",
+      "hiddenFromPublicBadge": "Hidden from public visitors (Visible to Admin only)",
+      "outsideGeorgiaMapAlert": "Your GPS location is outside Georgia — please pin the property inside Georgia.",
+      "shortProjectPlaceholder": "Project or complex name...",
+      "shortDeveloperPlaceholder": "Developer name (optional)...",
+      "shortStreetPlaceholder": "Type street name...",
+      "shortHousePlaceholder": "e.g. 12",
+      "shortCadastralPlaceholder": "Optional (e.g. 01.10...)",
+      "zoomInTitle": "Zoom in",
+      "zoomOutTitle": "Zoom out",
+      "resetBearingTitle": "Reset bearing",
+      "fullscreenMapTitle": "Fullscreen map",
+      "mapStylesTitle": "Map styles",
+      "styles": {
+        "streets": "Streets",
+        "sivrce": "Sivrce",
+        "realistic": "Realistic",
+        "photoreal": "Photoreal",
+        "hybrid": "Hybrid",
+        "minimal": "Minimal",
+        "contrast": "High contrast"
+      }
+    },
+    "optionsData": {
+      "dealTypes": {
+        "exit": {
+          "label": "Installment Exit",
+          "sub": "Recover paid cash · Buyer continues"
+        },
+        "sale": {
+          "label": "For sale",
+          "sub": "Sell the property"
+        },
+        "rent_monthly": {
+          "label": "For rent",
+          "sub": "Long-term, monthly"
+        },
+        "rent_daily": {
+          "label": "Daily rent",
+          "sub": "Per night, for guests"
+        }
+      },
+      "propertyKinds": {
+        "Apartment": "Apartment",
+        "Private house": "Private house",
+        "Cottage": "Cottage",
+        "Land": "Land",
+        "Commercial": "Commercial",
+        "Hotel": "Hotel / Aparthotel"
+      },
+      "conditionOptions": {
+        "Newly renovated": "Newly renovated",
+        "Old renovation": "Old renovation",
+        "Under renovation": "Under renovation",
+        "Needs renovation": "Needs renovation",
+        "White frame": "White frame",
+        "Black frame": "Black frame",
+        "Green frame": "Green frame",
+        "White plus": "White plus",
+        "Turnkey": "Turnkey (Newly Renovated)",
+        "Fully furnished": "Fully Furnished"
+      },
+      "buildingSeries": {
+        "Non-standard": "Non-standard",
+        "City type": "City type",
+        "Tbilisi yard": "Tbilisi yard",
+        "Czech": "Czech",
+        "Kavlashvili": "Kavlashvili",
+        "Tukhareli": "Tukhareli",
+        "Lvov": "Lvov",
+        "Kiev": "Kiev",
+        "Leningrad": "Leningrad",
+        "Moscow": "Moscow",
+        "Khrushchev": "Khrushchev",
+        "Vedzisi": "Vedzisi",
+        "Yugoslav": "Yugoslav",
+        "Metromsheni": "Metromsheni",
+        "Other": "Other"
+      },
+      "floorTypes": {
+        "Standard": "Standard",
+        "Duplex": "Duplex",
+        "Triplex": "Triplex",
+        "Attic": "Attic"
+      },
+      "heatingTypes": {
+        "Central": "Central",
+        "Own gas boiler": "Own gas boiler",
+        "Electric": "Electric",
+        "None": "None"
+      },
+      "buildingMaterials": {
+        "Monolithic concrete": "Monolithic concrete",
+        "Brick": "Brick",
+        "Block": "Block",
+        "Panel": "Panel",
+        "Mixed": "Mixed"
+      },
+      "featureGroups": {
+        "space": "Space",
+        "building": "Building",
+        "utilities": "Utilities",
+        "comfort": "Comfort",
+        "views": "Views",
+        "extra": "Extra"
+      },
+      "featureItems": {
+        "Balcony": "Balcony",
+        "Loggia": "Loggia",
+        "Terrace": "Terrace",
+        "Yard": "Yard",
+        "Storage": "Storage",
+        "Cellar": "Cellar",
+        "Walk-in closet": "Walk-in closet",
+        "Separate kitchen": "Separate kitchen",
+        "Elevator": "Elevator",
+        "Parking": "Parking",
+        "Underground parking": "Underground parking",
+        "Garage": "Garage",
+        "Security": "Security",
+        "Concierge": "Concierge",
+        "Intercom": "Intercom",
+        "Backup generator": "Backup generator",
+        "Iron door": "Iron door",
+        "Double glazing": "Double glazing",
+        "Penthouse": "Penthouse",
+        "Step-free access": "Step-free access",
+        "Underfloor heating": "Underfloor heating",
+        "Natural gas": "Natural gas",
+        "Hot water": "Hot water",
+        "Internet": "Internet",
+        "Cable TV": "Cable TV",
+        "Furniture": "Furniture",
+        "Appliances": "Appliances",
+        "Air conditioning": "Air conditioning",
+        "Dishwasher": "Dishwasher",
+        "Washing machine": "Washing machine",
+        "Dryer": "Dryer",
+        "Fireplace": "Fireplace",
+        "Kitchen": "Kitchen",
+        "TV": "TV",
+        "Panoramic view": "Panoramic view",
+        "Sea view": "Sea view",
+        "Mountain view": "Mountain view",
+        "Yard view": "Yard view",
+        "Street view": "Street view",
+        "Beachfront": "Beachfront",
+        "Bright": "Bright",
+        "Quiet": "Quiet",
+        "Pool": "Pool",
+        "Jacuzzi": "Jacuzzi",
+        "Sauna": "Sauna",
+        "Gym": "Gym",
+        "BBQ grill": "BBQ grill",
+        "EV charger": "EV charger",
+        "Ski access": "Ski access"
+      },
+      "countries": {
+        "GE": "Georgia",
+        "EG": "Egypt",
+        "RU": "Russia",
+        "AE": "UAE",
+        "SA": "Saudi Arabia",
+        "KW": "Kuwait",
+        "QA": "Qatar",
+        "BH": "Bahrain",
+        "OM": "Oman",
+        "JO": "Jordan",
+        "TR": "Turkey",
+        "US": "USA / Canada",
+        "GB": "UK"
+      },
+      "cityGroupTitles": {
+        "tbilisi": "Tbilisi",
+        "batumi": "Batumi & Black Sea Coast",
+        "kutaisi": "Kutaisi",
+        "resorts": "Other Georgian Cities & Resorts"
+      },
+      "featuresPreset": [
+        "Sea View",
+        "Mountain View",
+        "Panoramic City View",
+        "Swimming Pool",
+        "Central / Underfloor Heating",
+        "24/7 Security & Reception",
+        "Underground Parking",
+        "Spacious Balcony",
+        "Near Metro & Amenities"
+      ]
     }
   },
- "accountPages": {
+  "accountPages": {
     "common": {
       "backToAccount": "Back to My Account",
       "backShort": "Back",
@@ -1081,7 +1537,63 @@
       "modalCancelPromoDesc": "Are you sure you want to cancel the boost request? Your unit will remain listed for free.",
       "modalBackBtn": "Back",
       "modalConfirmBtn": "Yes, Confirm",
-      "modalProcessingBtn": "Processing..."
+      "modalProcessingBtn": "Processing...",
+      "navigatingLoading": "Opening page...",
+      "unverifiedDraftTitle": "Verify Email to Send Unit to Admin",
+      "unverifiedDraftDesc": "This unit is saved as a draft and has not been sent to Admin yet. Verify your email (one-time step) to submit it for review.",
+      "verifyAndSendToAdminBtn": "Verify Email & Submit to Admin →",
+      "adminNoteCardTitle": "Reviewer Note from Admin Regarding Your Unit:",
+      "adminNoteFixBtn": "Edit Unit Details Now",
+      "adminNoteWaReplyBtn": "Reply / Ask via WhatsApp",
+      "adminNoteWaMsgPrefix": "Hello Aqar Exit Admin, regarding your note on my unit",
+      "adminNoteWaMsgMiddle": "in project",
+      "checklistTitleIncomplete": "⚠️ Current Status: Not Published Yet (Waiting for Required Items)",
+      "checklistSubIncomplete": "Units are only sent for market publication once all 3 requirements below are completed. Click any missing item to complete it:",
+      "checklistTitleComplete": "✅ Current Status: All Requirements Complete (Under Admin Review)",
+      "checklistSubComplete": "Admin has received all your unit details, photos, and documents and is reviewing them for market publication.",
+      "reqItemDetails": "1. Compulsory Unit Details",
+      "reqItemPhotos": "2. Property Photos",
+      "reqItemDocs": "3. Ownership Documents (4 files)",
+      "doneTag": "Done ✓",
+      "missingActionPhotos": "Upload Photos Now →",
+      "missingActionDocs": "Upload Remaining Docs →",
+      "missingActionDetails": "Complete Missing Details →",
+      "boostHeaderBadge": "Boost Listing · SUPER VIP & +VIP",
+      "boostUnitPrefix": "Boost Unit:",
+      "boostUnitSubtitle": "Choose a boost package to feature your unit at the top of the homepage",
+      "quickAmountsLabel": "Quick amounts",
+      "customAmountLabel": "Custom amount",
+      "starterBadge": "Starter",
+      "recommendedBadge": "Recommended 🔥",
+      "popularBadge": "Popular",
+      "anySub": "Any",
+      "creditedSuffix": "credited to your listing",
+      "upsellPrefix": "Recommendation:",
+      "upsellMiddle": "unlocks",
+      "upsellDaysSuffix": "volume discount on SUPER VIP",
+      "topUpBtnPrefix": "Top up to",
+      "payCardPrefix": "Pay",
+      "payCardSuffix": "with Card",
+      "bankTransferPrefix": "Bank Transfer",
+      "boostRecordedPrefix": "Boost request",
+      "boostRecordedMiddle": "recorded for unit",
+      "boostRecordedSuffix": "It will activate automatically upon payment and Admin approval.",
+      "minMaxGelHint": "Min 5 ₾ · Max 10,000 ₾",
+      "stageSteps": [
+        "1. Complete Details & Media",
+        "2. Under Admin & Document Review",
+        "3. Approved & Live in Market",
+        "4. Purchase Offer Received",
+        "5. Contract Transfer Stage",
+        "6. Unit Sold"
+      ],
+      "incompleteStageBadge": "⚠️ Not Published — Action Required",
+      "incompleteStageHeadline": "Your unit is saved as a draft (not published yet) — please complete the missing photos or documents below so Admin can review and publish it",
+      "readyPendingReviewBadge": "⏳ Complete — Pending Admin Approval",
+      "readyPendingReviewHeadline": "Great job! All details, photos, and documents are complete — your unit is now with Admin for review and market publication",
+      "statusUnderReviewBadge": "2. Reviewing Documents",
+      "statusUnderReviewHeadline": "Our verification team is currently reviewing your unit details & documents for market approval",
+      "statusDraftUnverifiedHeadline": "Your unit is saved as a draft (not published yet) — please verify your email and complete the missing photos or documents below"
     },
     "buyer": {
       "popularAreas": [
@@ -1107,10 +1619,37 @@
         "Rooms",
         "Handover"
       ],
-      "deliveryStatuses": ["All", "Ready to Move", "Under Construction"],
-      "deliveryYears": ["All", "Up to 2026", "Up to 2027", "Up to 2028", "Up to 2029", "Up to 2030", "Up to 2031"],
-      "contractYears": ["All", "2025 or older", "2024 or older", "2023 or older", "2022 or older", "2021 or older", "2020 or older"],
-      "roomOptions": ["All", "+1", "+2", "+3", "+4", "+5"],
+      "deliveryStatuses": [
+        "All",
+        "Ready to Move",
+        "Under Construction"
+      ],
+      "deliveryYears": [
+        "All",
+        "Up to 2026",
+        "Up to 2027",
+        "Up to 2028",
+        "Up to 2029",
+        "Up to 2030",
+        "Up to 2031"
+      ],
+      "contractYears": [
+        "All",
+        "2025 or older",
+        "2024 or older",
+        "2023 or older",
+        "2022 or older",
+        "2021 or older",
+        "2020 or older"
+      ],
+      "roomOptions": [
+        "All",
+        "+1",
+        "+2",
+        "+3",
+        "+4",
+        "+5"
+      ],
       "sorts": [
         "Newest",
         "Featured ⭐",
@@ -1120,8 +1659,16 @@
         "Nearest Handover",
         "Ready to Move"
       ],
-      "paymentPlans": ["Monthly", "Quarterly", "Semi-Annual", "Annual"],
-      "deliveryPreferences": ["Ready to Move", "Under Construction"],
+      "paymentPlans": [
+        "Monthly",
+        "Quarterly",
+        "Semi-Annual",
+        "Annual"
+      ],
+      "deliveryPreferences": [
+        "Ready to Move",
+        "Under Construction"
+      ],
       "tagCashMatch": "Cash Fits Budget",
       "tagInstMatch": "Installment Fits",
       "tagAreaMatch": "Preferred District",
@@ -1185,7 +1732,7 @@
       "summaryCashLabel": "Available Cash:",
       "summaryInstLabel": "Max Installment:",
       "filterByRequestLabel": "Filter by request:",
-      "filterByRequestSub": "Sorted by best match to your preferences.",
+      "filterByRequestSub": "Sorted by best match for your request — click any pill to filter strictly by it",
       "searchPlaceholder": "Search project, district, or unit code...",
       "filterBtn": "Filter",
       "negotiableBtn": "Negotiable",
@@ -1239,7 +1786,6 @@
       "whatsappBarText": "Message us on WhatsApp and tell us what you're looking for",
       "whatsappBarBtn": "Register Your Interest Now"
     },
-   
     "validation": {
       "required": "This field is required",
       "selectPaymentPlan": "This field is required, please select an installment plan",
@@ -1254,14 +1800,16 @@
       "shortPassword": "Password must be at least 8 characters",
       "loginIdRequired": "Please enter your email or phone number",
       "loginPassRequired": "Please enter your password",
-      "submitFailed": "Could not submit request"
+      "submitFailed": "Could not submit request",
+      "cashExceedsBudget": "Available cash cannot exceed target total budget"
     },
-     "successScreen": {
+    "successScreen": {
       "title": "Your Buy Request & Smart Radar Are Active ✓",
       "subtitle": "To fast-track verified unit recommendations matching your budget, confirm your request via WhatsApp below:",
       "confirmWaBtn": "Confirm Request via WhatsApp",
       "goToAccountBtn": "Go to My Account & View Matches",
-      "waMsgPrefix": "Hello Aqar Exit, I confirm my buy request"
+      "waMsgPrefix": "Hello Aqar Exit, I confirm my buy request",
+      "orderRefPrefix": "Ref:"
     },
     "stepOne": {
       "countryLabel": "Country Where You Are Looking for a Unit *",
@@ -1335,7 +1883,6 @@
       "phoneRecoverySentNote": "Link sent to the email registered with this phone number.",
       "useAnotherPhoneBtn": "← Use Another Number",
       "orLoginPageBtn": "Or Log In from Login Page"
-     
     },
     "actions": {
       "backBtn": "Back",
@@ -1345,7 +1892,7 @@
       "submitBtn": "Submit for Review"
     }
   },
- "opportunitiesPage": {
+  "opportunitiesPage": {
     "countries": {
       "ALL": "All Countries",
       "EG": "Egypt",
@@ -1400,13 +1947,40 @@
       "maxInstLabel": "Max Periodic Installment",
       "unitTypeLabel": "Property Type",
       "deliveryLabel": "Handover Status",
-      "deliveryStatuses": ["All", "Ready to Move", "Under Construction"],
+      "deliveryStatuses": [
+        "All",
+        "Ready to Move",
+        "Under Construction"
+      ],
       "deliveryYearLabel": "Handover Year",
-      "deliveryYears": ["All", "Up to 2026", "Up to 2027", "Up to 2028", "Up to 2029", "Up to 2030", "Up to 2031"],
+      "deliveryYears": [
+        "All",
+        "Up to 2026",
+        "Up to 2027",
+        "Up to 2028",
+        "Up to 2029",
+        "Up to 2030",
+        "Up to 2031"
+      ],
       "contractYearLabel": "Contract Year",
-      "contractYears": ["All", "2025 or older", "2024 or older", "2023 or older", "2022 or older", "2021 or older", "2020 or older"],
+      "contractYears": [
+        "All",
+        "2025 or older",
+        "2024 or older",
+        "2023 or older",
+        "2022 or older",
+        "2021 or older",
+        "2020 or older"
+      ],
       "minRoomsLabel": "Min Rooms",
-      "roomOptions": ["All", "+1", "+2", "+3", "+4", "+5"],
+      "roomOptions": [
+        "All",
+        "+1",
+        "+2",
+        "+3",
+        "+4",
+        "+5"
+      ],
       "maxContractPriceLabel": "Max Contract Price",
       "showResultsBtn": "Show Results",
       "hideBtn": "Hide"
@@ -1443,14 +2017,14 @@
       "detailsBtn": "Details"
     },
     "trustSection": {
-      "title": "Why Trust These Exit Deals?",
-      "card1Title": "Units Appear Here Only After Contract & Receipt Verification",
-      "card1Desc": "We review the original developer contract, payment receipts, and remaining balance before publishing any unit.",
-      "card1Btn": "Register Buying Power",
-      "card2Title": "What Do You Get in Every Deal?",
-      "point1": "Exact required cash — matching what the owner actually paid, backed by receipts",
-      "point2": "Remaining developer balance and installment schedule you will take over",
-      "point3": "Instant equity gain compared to current developer/market price"
+      "title": "Why Take Over an Installment Contract via Aqar Exit?",
+      "card1Title": "Didn't find the right unit yet? Submit your request",
+      "card1Desc": "Set your cash budget, preferred district in Tbilisi or Batumi, and monthly installment limit — we will match you with verified exit deals.",
+      "card1Btn": "Submit Buy Request →",
+      "card2Title": "Platform Buyer Guarantees",
+      "point1": "Original developer contracts and payment receipts verified before listing.",
+      "point2": "Official contract transfer takes place directly at the developer office.",
+      "point3": "Zero overprice — pay only the actual paid cash (or less) and continue installments."
     },
     "ui": {
       "searchBtn": "Search",
@@ -1491,7 +2065,93 @@
         "land": "Land plots",
         "commercial": "Commercial",
         "hotel": "Hotel units"
+      },
+      "adCardBadge": "Ad Space",
+      "adCardTitle": "Your Ad Here",
+      "adCardSub": "Publish your listing and reach thousands of real estate buyers and investors.",
+      "adBullet1": "Targeted audience",
+      "adBullet2": "Direct contact",
+      "adBullet3": "Transparent metrics",
+      "adCardBtn": "Advertise Here →",
+      "newlyAddedHeading": "Recently Added (Sorted by Date)"
+    },
+    "mapView": {
+      "searchPlaceholder": "City, district, street — or project, developer, unit code...",
+      "cityLabel": "Cities",
+      "listPrefix": "listings",
+      "allTab": "All",
+      "forExitTab": "Exit Deals",
+      "underConstTab": "Under Construction",
+      "readyTab": "Ready",
+      "negotiableTab": "Negotiable",
+      "apartmentsTab": "Apartment",
+      "housesTab": "House",
+      "cottagesTab": "Cottage",
+      "commercialTab": "Commercial",
+      "landTab": "Land",
+      "hotelTab": "Hotel",
+      "liveBadge": "Live",
+      "resetTooltip": "Reset filters",
+      "myLocationTooltip": "My Location",
+      "fullscreenTooltip": "Fullscreen",
+      "exitFullscreenTooltip": "Exit Fullscreen",
+      "exitMapTooltip": "Back to list",
+      "layersTitle": "Layers",
+      "mapStyleLabel": "Map style",
+      "styleRealistic": "Realistic 3D",
+      "styleStreets": "Streets",
+      "styleSatellite": "Satellite",
+      "styleHybrid": "Hybrid",
+      "styleMinimal": "Minimal",
+      "layerTerrain": "3D Terrain",
+      "layerTerrainSub": "Hills and elevation in 3D",
+      "layerTrees": "Trees & Parks",
+      "layerTreesSub": "Highlight green spaces and parks",
+      "layerPriceVsMarket": "Price vs. Developer Today",
+      "layerPriceVsMarketSub": "Highlight below-market deals in green",
+      "layerNightMode": "Night Mode",
+      "layerNightModeSub": "Dark map theme",
+      "verifiedBadge": "Verified",
+      "roomsWord": "Rooms",
+      "sqmUnit": "m²",
+      "remainingLabel": "Remaining:",
+      "installmentLabel": "Installment:",
+      "gainLabel": "Market Gain:",
+      "viewDetailsBtn": "View Unit Details",
+      "pois": {
+        "metro": "Metro",
+        "train": "Train",
+        "school": "School",
+        "kindergarten": "Kindergarten",
+        "pharmacy": "Pharmacy",
+        "park": "Park",
+        "market": "Market",
+        "clinic": "Clinic",
+        "university": "University",
+        "uni": "University",
+        "bank": "Bank",
+        "landmark": "Landmark",
+        "gym": "Gym",
+        "bus": "Bus"
       }
+    },
+    "popovers": {
+      "minCashPlaceholder": "Min Required Cash ($)",
+      "maxCashPlaceholder": "Max Required Cash ($)",
+      "minWord": "Min",
+      "maxWord": "Max",
+      "sqmUnit": "m²",
+      "commutePlaceholder": "Destination — work, university, metro station...",
+      "useMyLocationBtn": "Use my location",
+      "modeCar": "Car",
+      "modeWalk": "Walking",
+      "modeBike": "Bicycle",
+      "minSuffix": "min",
+      "applyBtn": "Apply",
+      "boostStatusLabel": "Boost status",
+      "bathroomsLabel": "Bathrooms",
+      "floorLabel": "Floor",
+      "conditionLabel": "Finishing Condition"
     }
   },
   "unitDetailsPage": {
@@ -1596,7 +2256,161 @@
       "submitBtn": "Confirm & Submit Purchase Offer",
       "privacyNote": "Your data is strictly confidential and never shared publicly.",
       "errorSubmit": "Please enter a valid name and mobile number.",
-      "errorUnexpected": "An unexpected error occurred, please try again."
+      "errorUnexpected": "An unexpected error occurred, please try again.",
+      "photosWord": "photos",
+      "viewsWord": "views",
+      "closeBtn": "Close",
+      "selectCashOfferLabel": "Select Cash Offer Amount",
+      "requiredExitCashPrefix": "Required Exit Cash:",
+      "fullPriceOptionTitle": "Instant Booking at Full Price",
+      "paidCashBadge": "Actual Paid Cash",
+      "negotiateOptionTitle": "Submit Negotiated Cash Offer",
+      "minAllowedFloorLabel": "Minimum allowed offer",
+      "nonNegotiableUnitPrefix": "Fixed exit price (",
+      "nonNegotiableUnitSuffix": ") — non-negotiable",
+      "yourCashOfferInputLabel": "Your cash offer amount to the seller ($):",
+      "fullPricePriorityHint": "Top priority for instant acceptance",
+      "errBelowMinFloor": "Minimum allowed offer amount is",
+      "fomoNegotiationWarning": "Full-price offers receive priority acceptance from the seller.",
+      "waConfirmIntro": "Hello Aqar Exit, I confirm my purchase offer",
+      "waConfirmUnitWord": "for unit",
+      "waConfirmAmountWord": "with amount",
+      "waConfirmLinkLabel": "Verification Link:"
+    },
+    "uiLabels": {
+      "descriptionTitle": "Property Description",
+      "featuresTitle": "Features & Amenities",
+      "otherFeaturesGroup": "Additional Features",
+      "videoAnd3dTitle": "Property Video & 3D Virtual Tour",
+      "watchVideoBtn": "Watch Property Video",
+      "open3dTourBtn": "Open 3D Virtual Tour",
+      "onlineViewingBadge": "Online Video Viewing Available ✓",
+      "streetAddressLabel": "Address:",
+      "cadastralCodeLabel": "Cadastral Code (NAPR):",
+      "developerLabel": "Developer:",
+      "scoreHeader": "AQAR EXIT SCORE",
+      "excellentDeal": "Excellent Deal",
+      "veryGoodDeal": "Very Good Deal",
+      "scoreCalculatedPrefix": "Calculated from unit sqm price ($",
+      "scoreSqmUnit": "/m²)",
+      "scoreCalculatedSuffix": "& location",
+      "priceVsDistrict": "Price vs. District Average",
+      "locationRating": "Location & Amenities Score",
+      "conditionAndDelivery": "Property Condition & Handover",
+      "finRequiredCashNow": "Required Cash Now to Owner (Zero Overprice)",
+      "finNoOverNote": "✓ Pay only the actual paid cash and take over the developer contract",
+      "finMakeOfferBtn": "Make an Offer",
+      "finNegotiableTitle": "Open to Direct Negotiation",
+      "finNegotiableDescPrefix": "The owner is willing to discount up to",
+      "finNegotiableDescMiddle": "(approx.",
+      "finNegotiableDescSuffix": ") for a fast cash closing.",
+      "finGainPrefix": "Your Instant Gain vs. Market Price:",
+      "finMarketPriceTodayPrefix": "Current market price today:",
+      "finAfterCommissionSuffix": "(Net gain after 1.25% platform fee)",
+      "finMarketDisclaimer": "* All figures are verified against the original developer contract and payment receipts.",
+      "finRemainingToDev": "Remaining to Developer (Installments)",
+      "finInstallment": "Installment Amount",
+      "finRemainingMonthsLabel": "Remaining Installment Period",
+      "finMonthsWord": "months",
+      "finFullyPaid": "Fully Paid",
+      "finDelivery": "Handover Date",
+      "finCommissionLabel": "Buyer Platform Fee (1.25% of contract price)",
+      "finCommissionSub": "Paid only upon official contract transfer — 0% fee for seller",
+      "finTotalRequiredNow": "Total Required Now",
+      "similarTitle": "Similar Exit Opportunities",
+      "similarSubtitle": "Other verified installment takeover units",
+      "similarReqCashPrefix": "Required Cash:",
+      "similarViewDetailsBtn": "View Details"
+    },
+    "locationInsights": {
+      "neighborhoodTitle": "Neighborhood",
+      "neighborhoodSubPrefix": "Very walkable (",
+      "neighborhoodSubSuffix": "nearby amenities)",
+      "calculatingNeighborhoodText": "Reading nearby amenities from map...",
+      "walkScoreLabel": "Walk (Daily errands on foot)",
+      "mobilityScoreLabel": "Mobility Score · Well connected",
+      "metroRowLabel": "Metro",
+      "busRowLabel": "Bus",
+      "busLinesWithin500m": "Lines within 500 m",
+      "railRowLabel": "Rail",
+      "airportRowLabel": "Airport",
+      "bestBadge": "Best",
+      "locationTitle": "Location & 3D Map",
+      "exactBuildingBadge": "Exact building pin ✓",
+      "approxCenterBadge": "Verified area coordinates",
+      "cloudyWord": "Partly cloudy",
+      "airQualityWord": "Air quality",
+      "collapseTooltip": "Collapse",
+      "expandTooltip": "Expand",
+      "directionsBtn": "Directions",
+      "open3dMapBtn": "Open 3D map",
+      "closeFullscreenBtn": "Exit Fullscreen",
+      "whatsNearbyTitle": "What's nearby",
+      "whatsNearbySub": "Nearest first · walking time · Aqar Exit Maps",
+      "loadingNearbyText": "Loading real nearby places...",
+      "noPlacesInCategory": "No places listed nearby in this category",
+      "allCat": "All",
+      "showLessBtn": "Show less ▲",
+      "showMoreSuffix": "More ⌄",
+      "walkWord": "walk",
+      "transitWord": "transit",
+      "driveWord": "drive",
+      "minWord": "min",
+      "sunTitle": "Sun & daylight",
+      "sunSub": "Sun path at this address — astronomical calculation from the coordinates",
+      "winterTab": "Winter",
+      "todayTab": "Today",
+      "summerTab": "Summer",
+      "windowDirectionTitle": "Direct sun by window direction",
+      "northLabel": "North",
+      "eastLabel": "East",
+      "southLabel": "South",
+      "westLabel": "West",
+      "noDirectSun": "No direct sun",
+      "brightMorning": "Bright",
+      "veryBrightAllDay": "Very bright",
+      "brightAfternoon": "Bright",
+      "southEastLabel": "South-East",
+      "southWestLabel": "South-West",
+      "timeLabel": "TIME",
+      "heightLabel": "HEIGHT",
+      "directionLabel": "DIRECTION",
+      "daylightLabel": "DAYLIGHT",
+      "sunriseLabel": "SUNRISE",
+      "solarNoonLabel": "SOLAR NOON",
+      "sunsetLabel": "SUNSET",
+      "windowsHelpText": "Use Ctrl + scroll to zoom the map",
+      "macHelpText": "Use ⌘ + scroll to zoom the map",
+      "mobileHelpText": "Use two fingers to move the map",
+      "zoomInTitle": "Zoom in",
+      "zoomOutTitle": "Zoom out",
+      "centerBuildingTitle": "Center on building",
+      "fullscreenTitle": "Fullscreen",
+      "mapStylesTitle": "Map styles",
+      "styles": {
+        "streets": "Streets",
+        "sivrce": "Sivrce",
+        "realistic": "Realistic",
+        "photoreal": "Photoreal",
+        "hybrid": "Hybrid",
+        "minimal": "Minimal",
+        "contrast": "High contrast"
+      },
+      "categories": {
+        "metro": "Metro",
+        "school": "School",
+        "kindergarten": "Kindergarten",
+        "pharmacy": "Pharmacy",
+        "park": "Park",
+        "market": "Market",
+        "restaurants": "Restaurants",
+        "clinic": "Clinic",
+        "university": "University",
+        "bank": "Bank",
+        "landmark": "Landmark",
+        "gym": "Gym",
+        "bus": "Bus"
+      }
     }
   },
   "publicPages": {
@@ -1606,20 +2420,50 @@
       "ownerTitle": "Unit Owner Journey",
       "ownerBtn": "Start Contract Evaluation",
       "ownerSteps": [
-        ["Evaluate Your Contract", "Enter your contract details and know your initial position — your account is created automatically upon submission."],
-        ["Upload Documents", "Contract and payment receipts — we review and verify them."],
-        ["Prepare Your Opportunity", "We verify numbers against documents and prepare a trusted offer for buyers."],
-        ["Match the Buyer", "We match your unit with qualified buyers ready to continue installments."],
-        ["Contract Assignment", "We walk with you through transfer procedures step by step until you receive your cash."]
+        [
+          "Evaluate Your Contract",
+          "Enter your contract details and know your initial position — your account is created automatically upon submission."
+        ],
+        [
+          "Upload Documents",
+          "Contract and payment receipts — we review and verify them."
+        ],
+        [
+          "Prepare Your Opportunity",
+          "We verify numbers against documents and prepare a trusted offer for buyers."
+        ],
+        [
+          "Match the Buyer",
+          "We match your unit with qualified buyers ready to continue installments."
+        ],
+        [
+          "Contract Assignment",
+          "We walk with you through transfer procedures step by step until you receive your cash."
+        ]
       ],
       "buyerTitle": "Buyer Journey",
       "buyerBtn": "Register as a Buyer",
       "buyerSteps": [
-        ["Evaluate Your Budget", "Define your available cash and comfortable installment — your account is set up automatically."],
-        ["View Matching Opportunities", "Verified opportunities with complete, transparent numbers."],
-        ["Submit Your Offer", "An official offer with clear terms and full figures."],
-        ["Confirm Reservation", "Every step is documented — payment takes place within the official transfer procedures."],
-        ["Receive Your Contract", "Official developer-approved assignment and a complete file."]
+        [
+          "Evaluate Your Budget",
+          "Define your available cash and comfortable installment — your account is set up automatically."
+        ],
+        [
+          "View Matching Opportunities",
+          "Verified opportunities with complete, transparent numbers."
+        ],
+        [
+          "Submit Your Offer",
+          "An official offer with clear terms and full figures."
+        ],
+        [
+          "Confirm Reservation",
+          "Every step is documented — payment takes place within the official transfer procedures."
+        ],
+        [
+          "Receive Your Contract",
+          "Official developer-approved assignment and a complete file."
+        ]
       ],
       "commissionTitle": "Free for Seller — Clear Commission Structure",
       "commissionDesc": "The seller pays zero. The buyer pays 1.25% of the total contract value, strictly when the assignment is successfully completed. If no transfer occurs, nobody pays any commission.",
@@ -1647,7 +2491,12 @@
       "phonePlaceholder": "01xx xxx xxxx",
       "emailLabel": "Email",
       "subjectLabel": "Subject",
-      "subjects": ["General Inquiry", "Selling a Unit", "Buying a Unit", "Investment"],
+      "subjects": [
+        "General Inquiry",
+        "Selling a Unit",
+        "Buying a Unit",
+        "Investment"
+      ],
       "messageLabel": "Your Message",
       "messagePlaceholder": "Write your question or inquiry in detail...",
       "sendBtn": "Send Message",
@@ -1666,7 +2515,7 @@
       "noCountryMatch": "No matching country found",
       "lightThemeAria": "Activate light mode",
       "searchCountryPlaceholder": "Search country or code (+995)...",
-"noCountryFound": "No matching country",
+      "noCountryFound": "No matching country",
       "darkThemeAria": "Activate dark mode"
     },
     "login": {
@@ -1682,7 +2531,7 @@
       "noAccountText": "Don't have an account?",
       "registerNowLink": "Register now",
       "invalidCredentialsError": "Invalid login credentials, please try again.",
-      "adminLoginBanner": "Please sign in with an Admin account to continue"  ,
+      "adminLoginBanner": "Please sign in with an Admin account to continue",
       "connectionError": "Connection error occurred, please try again."
     },
     "register": {
@@ -1767,9 +2616,18 @@
       ],
       "processTitle": "How the Process Works",
       "processSteps": [
-        ["Expression of Interest", "Complete the form in minutes; non-binding."],
-        ["NDA & Investment Deck", "Upon signing, we share detailed financials and metrics."],
-        ["Founder Meeting", "We discuss structure, valuation, and next steps directly."]
+        [
+          "Expression of Interest",
+          "Complete the form in minutes; non-binding."
+        ],
+        [
+          "NDA & Investment Deck",
+          "Upon signing, we share detailed financials and metrics."
+        ],
+        [
+          "Founder Meeting",
+          "We discuss structure, valuation, and next steps directly."
+        ]
       ],
       "confidentialBadge": "Confidential — For Preliminary Investment Discussions"
     },
@@ -1828,9 +2686,22 @@
         "Convertible Note",
         "Direct Partnership"
       ],
-      "vehicles": ["Direct Investment", "Investment Fund / SPV"],
-      "holdPeriods": ["1–2 Years", "3–5 Years", "5–10 Years", "Long-Term"],
-      "participation": ["Financial Only", "Strategic Advisor", "Board Member", "Operational"],
+      "vehicles": [
+        "Direct Investment",
+        "Investment Fund / SPV"
+      ],
+      "holdPeriods": [
+        "1–2 Years",
+        "3–5 Years",
+        "5–10 Years",
+        "Long-Term"
+      ],
+      "participation": [
+        "Financial Only",
+        "Strategic Advisor",
+        "Board Member",
+        "Operational"
+      ],
       "neededInfo": [
         "Business Model",
         "Financial Statements",
@@ -1841,10 +2712,28 @@
         "Market & Competitors",
         "Legal Documentation"
       ],
-      "returns": ["Under 10%", "10–15%", "15–20%", "20–30%", "Over 30%"],
-      "importanceLevels": ["Very Important", "Important", "Moderate", "Low"],
-      "nextStepsList": ["Management Meeting", "Document Review", "Initiate Investment Process"],
-      "yesNo": ["Yes", "No"],
+      "returns": [
+        "Under 10%",
+        "10–15%",
+        "15–20%",
+        "20–30%",
+        "Over 30%"
+      ],
+      "importanceLevels": [
+        "Very Important",
+        "Important",
+        "Moderate",
+        "Low"
+      ],
+      "nextStepsList": [
+        "Management Meeting",
+        "Document Review",
+        "Initiate Investment Process"
+      ],
+      "yesNo": [
+        "Yes",
+        "No"
+      ],
       "s1Title": "Investor Profile",
       "s1Name": "Full Name",
       "s1NamePlaceholder": "John Doe",
@@ -2068,7 +2957,6 @@
       "greetingWord": "Hello",
       "dearClient": "Valued Client",
       "defaultProjectWord": "your project",
-      
       "notifAdminNoteTitle": "New Admin Note Regarding Your Unit",
       "boostApprovedNotifTitle": "Payment Confirmed & Boost Package Activated",
       "boostApprovedNotifMsg": "Your payment has been verified and your unit boost is now active.",
@@ -2178,13 +3066,12 @@
     "accessDenied": {
       "title": "Access Denied",
       "desc": "This dashboard is restricted to administration and sales staff only. Your current account does not have admin privileges:",
-      
       "loginRequiredTitle": "Admin Login Required",
-  "loginRequiredDesc": "Please log in with an authorized staff account to continue.",
-  "staffLoginBtn": "Staff Login",
-  
+      "loginRequiredDesc": "Please log in with an authorized staff account to continue.",
+      "staffLoginBtn": "Staff Login",
       "backHomeBtn": "Back to Home"
-    },"dealsPage": {
+    },
+    "dealsPage": {
       "eyebrow": "Deals & Offers Operations Room",
       "title": "Manage Purchase Offers, Negotiations & Closing",
       "subtitle": "Approve WhatsApp-confirmed offers to forward to sellers, and track agreed deals to completion",
@@ -2238,15 +3125,15 @@
       "waBuyerBodyPrefix": "This is Aqar Exit Management regarding your purchase offer",
       "waSellerGreetingPrefix": "Hello",
       "waSellerBodyPrefix": "This is Aqar Exit Management regarding purchase offer"
-    } ,
-   "smartMatch": {
+    },
+    "smartMatch": {
       "readyDealsTitle": "Ready-to-Close Agreed Deals Room",
       "readyDealsSubtitle": "Both parties officially agreed on the price and the unit is locked — contact them now to finalize transfer & collect commission",
       "liveOffersFeedTitle": "Live Offers & Negotiation Radar",
       "openDealUnitBtn": "Manage Unit",
       "sellerPartyLabel": "Party 1 (Owner / Seller)",
       "offerPendingAdminTag": "Pending Admin",
-  "offerBackupTag": "Backup",
+      "offerBackupTag": "Backup",
       "buyerPartyLabel": "Party 2 (Ready Buyer)",
       "contactSellerWa": "WhatsApp Seller",
       "contactBuyerWa": "WhatsApp Buyer",
@@ -2283,7 +3170,7 @@
       "logout": "Log Out",
       "notifications": "Notifications",
       "defaultAdminName": "Admin",
-  "nowLabel": "Now",
+      "nowLabel": "Now",
       "clearAll": "Clear All",
       "noNotifications": "No new notifications",
       "view": "View",
@@ -2294,7 +3181,6 @@
         "MODERATOR": "Property Moderator",
         "SALES": "Sales & Follow-up"
       },
-      
       "nav": {
         "dashboard": "Dashboard",
         "properties": "Sell Requests",
@@ -2305,7 +3191,7 @@
         "leadsShort": "Buyers",
         "users": "Users & Roles",
         "deals": "Deals & Offers Room",
-    "dealsShort": "Deals",
+        "dealsShort": "Deals",
         "usersShort": "Users",
         "investors": "Investors",
         "investorsShort": "Investors",
@@ -2328,15 +3214,15 @@
       "unitsIn": "Units in",
       "publishedNote": "units currently published in market",
       "dealsRoomKpiLabel": "Deals & Offers Room",
-  "offersPendingYourApprovalNote": "offers awaiting approval",
-  "dealsReadyToCloseNote": "deals ready to close",
-  "pendingOffersAlertPrefix": "You have",
-  "pendingOffersAlertSuffix": "new purchase offers awaiting your verification to forward to sellers",
-  "pendingOffersAlertSub": "Click here to open the Deal Room and approve WhatsApp-confirmed offers",
-  "openDealsRoomBtn": "Open Deal Room",
-  "manageAndCloseDealsBtn": "Manage & Close Deals",
-  "openInDealsRoomBtn": "Open in Deal Room",
-  "openFullDealsRoomLink": "Open Full Deal Room",
+      "offersPendingYourApprovalNote": "offers awaiting approval",
+      "dealsReadyToCloseNote": "deals ready to close",
+      "pendingOffersAlertPrefix": "You have",
+      "pendingOffersAlertSuffix": "new purchase offers awaiting your verification to forward to sellers",
+      "pendingOffersAlertSub": "Click here to open the Deal Room and approve WhatsApp-confirmed offers",
+      "openDealsRoomBtn": "Open Deal Room",
+      "manageAndCloseDealsBtn": "Manage & Close Deals",
+      "openInDealsRoomBtn": "Open in Deal Room",
+      "openFullDealsRoomLink": "Open Full Deal Room",
       "pendingReview": "Pending Review",
       "pendingNeedAction": "New units awaiting your review",
       "allReviewed": "All units reviewed",
@@ -2464,8 +3350,8 @@
       "siteNameLabel": "Platform Name",
       "whatsappLabel": "Official Customer Service WhatsApp",
       "financialRatesTitle": "Commission & Developer Cancellation Penalty (%)",
-"devPenaltyMinLabel": "Min Developer Penalty (%)",
-"devPenaltyMaxLabel": "Max Developer Penalty (%)",
+      "devPenaltyMinLabel": "Min Developer Penalty (%)",
+      "devPenaltyMaxLabel": "Max Developer Penalty (%)",
       "supportEmailLabel": "Official Support Email",
       "commissionLabel": "Platform Buyer Commission (%)",
       "promoPricesTitle": "Unit Promotion Package Prices (Per Country):",
@@ -2574,7 +3460,7 @@
       "cashLabel": "Cash:",
       "installmentLabel": "Installment:",
       "verifyBuyerBtn": "Verify Buyer ✓",
-"buyerVerifiedSuccess": "Buyer contact details verified successfully ✓",
+      "buyerVerifiedSuccess": "Buyer contact details verified successfully ✓",
       "areasLabel": "Areas:",
       "typeDetailsLabel": "Type & Details:",
       "customerNotesLabel": "Client Questions Before Call:",
@@ -2752,7 +3638,7 @@
         "deleted_by_seller": "🗑 Deleted by Owner",
         "rejected": "7. Rejected"
       },
-     "docs": {
+      "docs": {
         "contract": "Original Purchase Contract",
         "receipts": "Payment Receipts",
         "statement": "Developer Statement",
@@ -2767,9 +3653,8 @@
         "deletedBySellerPrefix": "Deleted by Owner",
         "daysWord": "days",
         "phoneVerifiedBadge": "Phone Verified ✓",
-  "emailVerifiedBadge": "Email Verified ✓",
+        "emailVerifiedBadge": "Email Verified ✓",
         "dayWord": "days",
-        
         "docWord": "doc(s)",
         "featuredPrefix": "Featured",
         "promoReqPrefix": "Promo Req",
@@ -2824,7 +3709,6 @@
         "detailsBtn": "Details",
         "cancelPromoBtn": "Cancel Promo",
         "promoteStarBtn": "Promote ⭐",
-       
         "deleteBtn": "Delete",
         "closeBtn": "Close",
         "confirmBtn": "Confirm",
@@ -2832,7 +3716,7 @@
         "executingBtn": "Executing...",
         "openDocBtn": "Open"
       },
-     "modals": {
+      "modals": {
         "purgeTitle": "Purge Deleted Units",
         "purgeDescPrefix": "Permanently delete all",
         "purgeDescSuffix": "units deleted by sellers from database?",
@@ -2885,6 +3769,13 @@
         "sellerVerifiedSuccess": "Seller contact details verified successfully ✓",
         "promoActivated": "⭐ Unit promotion activated successfully.",
         "promoCancelled": "Unit promotion cancelled."
+      },
+      "analytics": {
+        "viewsWord": "views",
+        "totalViewsLabel": "Total Unit Views:",
+        "sendReportWaBtn": "Send Views Report to Owner (WhatsApp)",
+        "viewsColumnHeader": "Views",
+        "viewUnitBtn": "View Unit"
       }
     }
   },
@@ -2903,7 +3794,83 @@
     "roomsDiff": "Bedrooms",
     "buyerAskedRooms": "requested",
     "deliveryDiff": "Delivery status",
-    "readyKeywords": ["ready", "immediate", "delivered", "جاهز", "فوري"],
-    "bothDeliveryKeywords": ["both", "any", "الاتنين"]
+    "readyKeywords": [
+      "ready",
+      "immediate",
+      "delivered",
+      "جاهز",
+      "فوري"
+    ],
+    "bothDeliveryKeywords": [
+      "both",
+      "any",
+      "الاتنين"
+    ]
+  },
+  "common": {
+    "floatingWhatsapp": {
+      "tooltip": "Chat with us on WhatsApp",
+      "prefillMessage": "Hello Aqar Exit support team, I need assistance regarding the platform."
+    },
+    "relativeTime": {
+      "oneWeekAgo": "1 week ago",
+      "twoWeeksAgo": "2 weeks ago",
+      "weeksAgoPrefix": "",
+      "weeksWord": "weeks ago",
+      "oneHourAgo": "1 hour ago",
+      "twoHoursAgo": "2 hours ago",
+      "hoursWordPlural": "hours ago",
+      "hourWordSingular": "hours ago",
+      "oneDayAgo": "1 day ago",
+      "twoDaysAgo": "2 days ago",
+      "daysWordPlural": "days ago",
+      "oneMonthAgo": "mo ago",
+      "twoMonthsAgo": "mo ago",
+      "monthsWordPlural": "mo ago",
+      "sincePrefix": ""
+    },
+    "frequencies": {
+      "monthly": "Monthly",
+      "quarterly": "Quarterly",
+      "semiAnnual": "Semi-Annual",
+      "annual": "Annual"
+    },
+    "delivery": {
+      "ready": "Ready"
+    },
+    "unitTypesShort": {
+      "apartment": "Apartment",
+      "studio": "Studio",
+      "aparthotel": "Aparthotel",
+      "villa": "Villa",
+      "cottage": "Cottage",
+      "commercial": "Commercial",
+      "land": "Land"
+    }
+  },
+  "locationModal": {
+    "triggerEmpty": "Click to select city or district in Georgia...",
+    "triggerSelectedPrefix": "Click to add another area",
+    "selectedCountSuffix": "selected",
+    "modalTitle": "Location",
+    "sellerModalTitle": "Select City & District in Georgia",
+    "searchPlaceholder": "City or district",
+    "sellerSearchPlaceholder": "District, city, neighborhood or street...",
+    "nearbyTitle": "Nearby",
+    "nearbySub": "City from this location",
+    "popularCitiesTitle": "Popular cities",
+    "browseAllCitiesBtn": "Browse all cities →",
+    "districtsAZTitle": "Districts & Areas (A–Z)",
+    "districtsTab": "Districts",
+    "streetsTab": "Streets",
+    "citiesHeader": "All Cities",
+    "wholeCityBtn": "Whole city",
+    "pickDistrictOrStreetHint": "Pick a district or type a street above",
+    "noStreetsForAreaHint": "No streets listed for this area — click Select to use location",
+    "outsideGeorgiaGpsWarning": "Your current GPS location is outside Georgia — please select the property city and district below.",
+    "clearBtn": "Clear",
+    "clearAllBtn": "Clear All",
+    "selectBtn": "Select",
+    "confirmSelectBtn": "Confirm Selection"
   }
 }

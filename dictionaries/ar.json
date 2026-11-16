@@ -1,3 +1,5 @@
+
+
 {
   "brand": {
     "name": "Aqar",
@@ -12,7 +14,7 @@
     "investors": "للمستثمرين",
     "languageLabel": "اختار اللغة",
     "loginGuest": "دخول",
-"myAccount": "حسابي",
+    "myAccount": "حسابي",
     "login": "حسابي",
     "buy": "عايز تشتري",
     "sellCta": "عايز تبيع",
@@ -23,7 +25,10 @@
       "en": "English",
       "ru": "Русский",
       "ka": "ქართული"
-    }
+    },
+    "home": "الرئيسية",
+    "adminShort": "الإدارة",
+    "switchingDefault": "جاري التحديث..."
   },
   "home": {
     "hero": {
@@ -198,6 +203,151 @@
       "buyerTitle": "بتدور على فرصة حقيقية؟",
       "buyerDesc": "سجّل ميزانيتك وهنبعتلك الفرص اللي تناسب الكاش المتاح معاك والقسط اللي يريحك.",
       "buyerBtn": "سجّل كمشتري"
+    },
+    "cards": {
+      "docsVerified": "متحقق بالمستندات",
+      "sqmUnit": "م²",
+      "roomsWord": "غرف",
+      "bathWord": "حمام",
+      "requiredCashNow": "المطلوب كاش دلوقتي",
+      "negotiable": "قابل للتفاوض",
+      "yourMarketGain": "مكسبك عن سعر السوق",
+      "marketPriceTodayPrefix": "سعر السوق اليوم:",
+      "afterFeeSuffix": "· بعد خصم عمولتنا 1.25%",
+      "remainingToDeveloper": "المتبقي للمطور",
+      "installment": "القسط",
+      "fullyPaid": "خالص الأقساط",
+      "delivery": "الاستلام",
+      "detailsBtn": "تفاصيل",
+      "viewsTitle": "عدد المشاهدات",
+      "adSpace": "مساحة إعلانية",
+      "yourAdHere": "إعلانك هنا",
+      "adDescSuper": "انشر إعلانك في صدارة SUPER VIP واصل إلى آلاف المشترين والمستثمرين في العقارات.",
+      "adDescVip": "رقِّ إعلانك لباقة +VIP بـ 5 ₾ فقط ليظهر في الصدارة أمام المشترين الجادين.",
+      "adBullet1": "جمهور مستهدف من المشترين",
+      "adBullet2": "تواصل مباشر وسريع",
+      "adBullet3": "إحصائيات ومشاهدات شفافة",
+      "advertiseHereBtn": "أعلن هنا ←",
+      "vipPlusTitle": "إعلانات +VIP",
+      "vipPlusSub": "إعلانات ذات أولوية — عقارات موثقة بالمستندات وجاهزة للتنازل",
+      "vipPlusAllBtn": "كل +VIP ←"
+    },
+    "map3dSection": {
+      "badge": "مستكشف المشاريع ثلاثي الأبعاد",
+      "titlePrefix": "تصفح فرص التنازل على",
+      "titleAccent": "خريطة جورجيا 3D",
+      "subtitle": "رؤية بانورامية تفاعلية لجميع الأبراج والمجمعات السكنية المعتمدة في تبليسي وباتومي.",
+      "browseAllBtn": "استعرض كل الوحدات على الخريطة",
+      "launchMapBtn": "افتح خريطة الفرص ثلاثية الأبعاد",
+      "features": [
+        {
+          "title": "استكشف عروض التنازل داخل كل برج",
+          "sub": "اضغط على أي مجمع سكني على الخريطة لترى الشقق المتاحة لاستكمال الأقساط ومقدار الكاش المطلوب بالدولار."
+        },
+        {
+          "title": "مجسمات حية للمشاريع قيد الإنشاء",
+          "sub": "عاين موقع مشروعك ونسبة الإنجاز المعماري ثلاثي الأبعاد قبل اتخاذ قرار شراء عقد التقسيط."
+        },
+        {
+          "title": "مقارنة سعر العقد القديم بسعر المطور اليوم",
+          "sub": "اعرف حجم التوفير الفوري لكل منطقة في تبليسي وباتومي مع مؤشرات الأسعار والخدمات المحيطة."
+        },
+        {
+          "title": "تبديل فوري بين المنظور المسطح 2D والغامر 3D",
+          "sub": "تصفح خريطة الفرص بمرونة كاملة على التلفون أو الكمبيوتر بلمسة واحدة."
+        }
+      ]
+    },
+    "categoriesGrid": {
+      "exit": "كل عروض التنازل",
+      "Apartment": "شقق بالتقسيط",
+      "Private house": "منازل وفيلات",
+      "Cottage": "أكواخ وشاليهات",
+      "Luxury": "عقارات فاخرة",
+      "Land": "قطع أراضٍ",
+      "Commercial": "تجاري وإداري",
+      "Ready": "استلام فوري",
+      "Sea view": "إطلالة على البحر",
+      "Pool": "مع حمام سباحة",
+      "Jacuzzi": "مع جاكوزي",
+      "Ski resorts": "منتجعات تزلج",
+      "Compounds": "مجمعات سكنية",
+      "Workspace": "مكاتب وشركات",
+      "Hotel": "شقق فندقية",
+      "New projects": "قيد الإنشاء"
+    },
+    "marketSections": {
+      "bannerBadge": "مساحة ترويجية مميزة · AQAR EXIT SPOTLIGHT",
+      "bannerTitle": "هل تريد بيع وحدتك أو تسويق مشروعك أسرع؟",
+      "bannerDesc": "ضع وحدتك في صدارة الصفحة الرئيسية أمام آلاف المستثمرين والمشترين الجادين الباحثين عن فرص استكمال الأقساط في جورجيا.",
+      "bannerPill1": "ظهور في الصدارة",
+      "bannerPill2": "مشترون جادون بدون وسطاء",
+      "bannerPill3": "تفعيل فوري",
+      "bannerBtn": "اختر باقة تمييز إعلانك الآن ←",
+      "devBadge": "أفضل المطورين",
+      "devTitle": "شركات التطوير الرائدة",
+      "devSub": "ترتيب حسب الإعلانات النشطة — استعرض المشاريع والعقارات",
+      "devAllBtn": "كل المطورين (1399) ←",
+      "devProjectsWord": "مشروع",
+      "devActiveWord": "نشطة",
+      "devProjectsLink": "المشاريع ←",
+      "tbilisi": "تبليسي",
+      "batumi": "باتومي",
+      "developers": {
+        "archi": "آرتشي",
+        "arcon": "أركون للتطوير",
+        "orbi": "مجموعة أوربي",
+        "next": "نكست جروب",
+        "m2": "إم سكوير"
+      },
+      "walletBadge": "رصيد المحفظة والترقية",
+      "walletTitlePrefix": "اشحن رصيدك",
+      "walletTitleAccent": "بأي مبلغ",
+      "walletDesc": "رقِّ إعلان التنازل الخاص بك لباقات SUPER VIP و VIP+ ليظهر في صدارة الصفحة الرئيسية والفرص المتاحة. بمجرد الدفع عبر الرابط ومراجعة الأدمن للإعلان والدفع، يتم تفعيل باقتك تلقائياً بالمدة المحددة.",
+      "feature1Title": "كل وسائل الدفع",
+      "feature1Desc": "دفع مباشر سريع عبر رابط الدفع الآمن بالبطاقة أو التحويل البنكي.",
+      "feature2Title": "قابل للاسترداد 100%",
+      "feature2Desc": "إذا لم تتم الموافقة على الإعلان من الأدمن، يُسترد المبلغ بالكامل فوراً.",
+      "feature3Title": "تفعيل فوري بعد المراجعة",
+      "feature3Desc": "0% رسوم إضافية — تُحسب أيام الترقية تلقائياً حسب قيمة الباقة المدفوعة.",
+      "quickAmounts": "مبالغ سريعة",
+      "starterBadge": "بداية",
+      "recommendedBadge": "موصى به 🔥",
+      "popularBadge": "الأكثر طلباً",
+      "customAmountLabel": "مبلغ مخصص",
+      "anyWord": "حر",
+      "daySingular": "يوم",
+      "dayDual": "يومين",
+      "dayPlural": "أيام",
+      "creditedToBalance": "تُضاف لرصيد إعلانك",
+      "zeroFeeBadge": "عمولة 0%",
+      "instantCreditBadge": "رصيد فوري 1:1",
+      "upsellAdviceTemplate": "نصيحة: شحن {target} ₾ يفتح لك خصم {discount} على باقة SUPER VIP ({days} يوماً)",
+      "topUpToBtnTemplate": "اشحن {target} ₾",
+      "unitCodePlaceholder": "كود إعلانك (اختياري — لتفعيله فور مراجعة الأدمن للدفع)",
+      "neverExpires": "لا تنتهي صلاحيته",
+      "fullyRefundable": "قابل للاسترداد بالكامل",
+      "payWithCardBtnTemplate": "ادفع {amt} ₾ بالبطاقة البنكية",
+      "bankTransferBtnTemplate": "تحويل بنكي {amt} ₾",
+      "boostRecordedMsgTemplate": "تم تسجيل طلب تفعيل باقة ({tier} — {amt} ₾ لمدة {days} يوم){codePart}. بمجرد إتمام الدفع ومراجعة الأدمن للإعلان والدفع سيتم التفعيل تلقائياً.",
+      "boostRecordedCodePart": " للوحدة {code}",
+      "coversLabelTemplate": "تغطي باقة {tier} لمدة {days} {dayWord}"
+    },
+    "carouselTitles": {
+      "categoriesTitle": "ماذا تبحث عنه للتنازل؟",
+      "categoriesSub": "اختر نوع الوحدة وتصفح أفضل عروض التنازل واستكمال الأقساط في جورجيا",
+      "howItWorksMoreLink": "تفاصيل إزاي بنشتغل والأمثلة ←",
+      "superVipTitle": "إعلانات SUPER VIP",
+      "superVipSub": "أقصى ظهور — أفضل العروض أولاً في صدارة المنصة",
+      "superVipAllBtn": "كل SUPER VIP ←",
+      "availableOppsBadge": "الفرص المتاحة",
+      "availableOppsTitle": "الفرص المتاحة للتنازل",
+      "availableOppsSub": "تصفح وحدات إعادة البيع واستكمال الأقساط المعتمدة بدون أوفر في جورجيا",
+      "availableOppsAllBtn": "كل الفرص المتاحة ←",
+      "recentBadge": "جديد السوق",
+      "recentTitle": "أضيفت حديثاً",
+      "recentSub": "إعلانات جديدة مرتبة تنازلياً حسب التاريخ — الأحدث أولاً",
+      "recentAllBtn": "كل الجديد ←"
     }
   },
   "footer": {
@@ -221,7 +371,10 @@
     "appLabel": "حمّل التطبيق",
     "disclaimer": "الأرقام والتقديرات المعروضة على المنصة استرشادية وتعتمد على بنود كل عقد على حدة، ولا تعتبر استشارة قانونية أو وعدًا بنتيجة محددة. المراجعة النهائية بتتم على عقدك الفعلي مع فريقنا ومستشارين قانونيين مؤهلين.",
     "copyright": "© 2026 عقار إكزت. جميع الحقوق محفوظة.",
-    "powered": "Powered by Aqara for Real Estate and Ammar Group LLC"
+    "powered": "Powered by Aqara for Real Estate and Ammar Group LLC",
+    "marketsTitle": "أسواق العمل",
+    "soonBadge": "قريباً",
+    "adminPanelLink": "لوحة الإدارة"
   },
   "calculatorPage": {
     "title": "حاسبة الخروج الآمن",
@@ -268,7 +421,8 @@
     "registerViewOppsBtn": "سجّل وشوف الفرص المتاحة",
     "disclaimer": "الحسبة دي استرشادية ومش بديل عن مراجعة عقدك الفعلي. النسب والشروط بتختلف من عقد لعقد.",
     "millionWord": "مليون",
-    "thousandWord": "ألف"
+    "thousandWord": "ألف",
+    "paidExceedsContractError": "المبلغ المدفوع لا يمكن أن يكون أكبر من إجمالي سعر العقد الأصلي."
   },
   "exitReportPage": {
     "title": "تقرير الخروج — اعرف موقفك قبل ما تقرر",
@@ -381,7 +535,7 @@
     "errStep1": "كمّل حقول القدرة الشرائية الأول (الكاش، القسط، والميزانية)",
     "errStep3": "يرجى إكمال بيانات التواصل واختيار كلمة سر من 8 حروف على الأقل"
   },
- "sell": {
+  "sell": {
     "metaTitle": "بيع وحدتك | عقار إكزت",
     "metaDesc": "بيع وحدتك العقارية بأمان وبسعر عادل في جورجيا.",
     "shared": {
@@ -407,7 +561,8 @@
       "loginIdRequired": "يرجى كتابة البريد الإلكتروني أو رقم الموبايل",
       "loginPassRequired": "يرجى كتابة كلمة المرور",
       "saveFailed": "تعذر حفظ المسودة حالياً.",
-      "submitFailed": "تعذر إرسال الطلب، يرجى المحاولة مرة أخرى"
+      "submitFailed": "تعذر إرسال الطلب، يرجى المحاولة مرة أخرى",
+      "passwordMismatch": "كلمتا المرور غير متطابقتين"
     },
     "contactStep": {
       "tabCurrentSession": "حسابي الحالي",
@@ -468,6 +623,17 @@
       "deliveries": [
         "جاهزة للاستلام",
         "تحت الإنشاء"
+      ],
+      "features": [
+        "إطلالة بحرية (Sea View)",
+        "إطلالة جبلية (Mountain View)",
+        "إطلالة بانورامية على المدينة",
+        "حمام سباحة",
+        "تدفئة مركزية / أرضية",
+        "أمن واستقبال 24 ساعة",
+        "جراج سيارات تحت الأرض",
+        "شرفة واسعة (Balcony)",
+        "قريبة من المترو والخدمات"
       ]
     },
     "reviewStep": {
@@ -521,24 +687,32 @@
       "pageSubtitle": "استرد مدفوعاتك بالكامل بالدولار ($) — عمولة البيع 0% على البائع.",
       "exitBadge": "نظام التنازل والأقساط",
       "unifiedCurrencyBadge": "العملة الموحدة: دولار أمريكي ($)",
+      "requiredBadge": "إجباري *",
+      "optionalBadge": "اختياري",
+      "requiredForPublishBadge": "شرط لاعتماد ونشر الوحدة",
+      "fieldRequiredError": "هذا الحقل إجباري، يرجى إدخاله للمتابعة",
+      "validationModalTitle": "تنبيه — توجد حقول إجبارية ناقصة",
+      "validationModalSubtitle": "للمتابعة إلى الخطوة التالية، يرجى استكمال جميع الحقول الإجبارية المعلّمة باللون الأحمر:",
+      "validationModalOkBtn": "حسناً، انتقل لأول حقل ناقص",
       "tabs": {
         "type": "1 نوع العقار",
         "photos": "2 الصور والروابط",
         "location": "3 الموقع والمطور",
         "details": "4 المواصفات",
         "price": "5 السعر والأقساط",
-        "contact": "6 حساب المالك"
+        "contact": "6 حساب المالك والإرسال"
       },
       "typeSection": {
-        "title": "نوع العقار وحالة البناء",
-        "subtitle": "اختر نوع العقار المراد التنازل عنه ثم حالة البناء الحالية.",
+        "title": "1. نوع العقار وحالة البناء",
+        "subtitle": "اختر نوع العقار المراد عرضه للتنازل ثم حالة البناء الحالية.",
         "whatToDoLabel": "نوع العملية",
         "whatKindLabel": "ما هو نوع العقار؟ *",
         "statusLabel": "حالة البناء والاستلام *"
       },
       "photosSection": {
-        "title": "الصور وروابط الفيديو والجولة الافتراضية",
+        "title": "2. صور الوحدة وروابط الفيديو",
         "subtitle": "أظهر التصميم الداخلي والخارجي: غرفة المعيشة، غرف النوم، الحمامات، الشرفة، والإطلالة.",
+        "publishRequirementNote": "💡 رفع صورة واحدة على الأقل شرط لاعتماد ونشر الوحدة في السوق. يمكنك حفظ طلبك الآن كمسودة ورفع الصور لاحقاً من صفحة حسابك.",
         "dropTitle": "أضف الصور أو اسحبها هنا",
         "photosWord": "صورة",
         "dropHint": "الإعلانات المدعومة بصور واضحة تحصل على عروض أسرع. الصورة الأولى تصبح صورة الغلاف.",
@@ -549,35 +723,41 @@
         "videoSectionTitle": "روابط الفيديو والجولة ثلاثية الأبعاد (اختياري)",
         "videoSectionSubtitle": "ضع رابط فيديو العقار من يوتيوب أو فيميو أو رابط الجولة الافتراضية 3D ليظهر في صفحة تفاصيل الوحدة.",
         "videoUrlLabel": "رابط فيديو يوتيوب / فيميو (YouTube / Vimeo)",
-        "videoUrlPlaceholder": "https://www.youtube.com/watch?v=...",
+        "videoUrlPlaceholder": "https://youtube.com/...",
         "tour3dLabel": "رابط جولة ثلاثية الأبعاد (3D Tour)",
         "tour3dPlaceholder": "https://my.matterport.com/..."
       },
       "locationSection": {
-        "title": "الموقع والعنوان والمطور العقاري",
-        "subtitleRent": "أدخل اسم الشارع ورقم المبنى — يظهر الدبوس على الخريطة تلقائياً.",
-        "subtitleSale": "اختر المدينة والحي وحدد اسم المطور العقاري والمشروع واسم الشارع ورقم المبنى بدقة.",
+        "title": "3. الموقع الدقيق والعنوان والمطور العقاري",
+        "subtitleRent": "ابحث باسم الشارع أو حرّك الدبوس على الخريطة ليتم ملء العنوان تلقائياً.",
+        "subtitleSale": "اكتب جزءاً من اسم الشارع لاختياره من الاقتراحات، أو اضغط على الخريطة لتحديد موقع المبنى بالضبط.",
         "cityDistrictLabel": "المدينة / الحي *",
-        "chooseLocationPlaceholder": "اختر الموقع",
-        "developerLabel": "اسم المطور العقاري",
-        "developerPlaceholder": "مثال: ORBI Group, Archi, m², Next Group...",
+        "chooseLocationPlaceholder": "اختر المدينة والحي أو ابحث...",
+        "developerLabel": "اسم المطور العقاري (اختياري)",
+        "developerPlaceholder": "اسم شركة التطوير (اختياري)...",
         "popularDevelopersHint": "اختيار سريع لأشهر المطورين في جورجيا:",
         "projectLabel": "اسم المشروع أو المجمع السكني *",
-        "projectPlaceholder": "مثال: Orbi City, King David, White Sails...",
+        "projectPlaceholder": "اسم المشروع أو المجمع...",
         "streetLabel": "اسم الشارع *",
-        "streetPlaceholder": "مثال: Chavchavadze Ave / Khimshiashvili St",
+        "streetPlaceholder": "ابحث باسم الشارع...",
+        "streetAutocompleteHint": "اختر من القائمة المنسدلة أو اضغط على الخريطة بالأسفل لتحديد الموقع تلقائياً",
+        "cantFindAddressTitle": "لم تجد عنوانك في البحث؟",
+        "setLocationOnMapBtn": "حدّد الموقع مباشرة من الخريطة",
+        "detectMyGpsBtn": "تحديد موقعي الحالي (GPS)",
+        "reverseGeocodingLoading": "جاري قراءة اسم الشارع والحي من الخريطة...",
+        "pinMovedSuccess": "تم التقاط الموقع الدقيق وتحديث عنوان الشارع والحي تلقائياً ✓",
         "houseNoLabel": "رقم المبنى / العمارة",
-        "houseNoPlaceholder": "47",
+        "houseNoPlaceholder": "مثال: 12",
         "cadastralLabel": "الرقم العقاري الحكومي (Cadastral Code)",
-        "cadastralPlaceholder": "01.10.01.001.001",
+        "cadastralPlaceholder": "اختياري",
         "cadastralHelper": "اختياري — يربط الوحدة بالسجل العقاري الجورجي الرسمي NAPR",
-        "mapHeaderTitle": "خريطة 3D",
-        "mapHint": "يتحرك الدبوس تلقائياً حسب الحي والشارع المختار"
+        "mapHeaderTitle": "خريطة الموقع التفاعلية",
+        "mapHint": "اضغط على موقع العقار بالضبط ليتم ملء اسم الشارع والحي وإحداثيات الوحدة تلقائياً"
       },
       "locationModal": {
-        "title": "اختر المدينة والحي في جورجيا",
-        "searchPlaceholder": "ابحث عن الحي، المدينة، المنطقة أو الشارع...",
-        "searchingMapsText": "جاري البحث في خرائط جورجيا...",
+        "title": "اختر المدينة والحي أو ابحث بالشارع في جورجيا",
+        "searchPlaceholder": "ابحث عن المدينة، الحي أو الشارع...",
+        "searchingMapsText": "جاري البحث الفوري في خرائط جورجيا...",
         "everywhereTitle": "في كل مكان",
         "everywhereSub": "كل المناطق في جورجيا",
         "nearbyTitle": "بالقرب مني (GPS)",
@@ -594,15 +774,15 @@
         "selectBtn": "تأكيد الاختيار"
       },
       "detailsSection": {
-        "title": "المواصفات والمميزات",
-        "subtitle": "أدخل المساحة وإجمالي الغرف وغرف النوم والطابق والمميزات المتوفرة بدقة.",
+        "title": "4. المواصفات والمميزات",
+        "subtitle": "أدخل المساحة وإجمالي الغرف وغرف النوم (إجباري)، ويمكنك تحديد التشطيب والمميزات الإضافية.",
         "lockedBanner": "يرجى اختيار نوع العقار بالأعلى أولاً لفتح حقول المواصفات.",
-        "conditionLabel": "حالة التشطيب",
-        "buildingSeriesLabel": "طراز المبنى",
+        "conditionLabel": "حالة التشطيب (اختياري)",
+        "buildingSeriesLabel": "طراز المبنى (اختياري)",
         "buildingSeriesSub": "يساعد المشترين على الفلترة السريعة",
-        "floorTypeLabel": "نوع الطابق",
-        "heatingLabel": "نظام التدفئة",
-        "buildingMaterialLabel": "مادة البناء",
+        "floorTypeLabel": "نوع الطابق (اختياري)",
+        "heatingLabel": "نظام التدفئة (اختياري)",
+        "buildingMaterialLabel": "مادة البناء (اختياري)",
         "areaLabel": "المساحة الإجمالية (م²) *",
         "kitchenAreaLabel": "مساحة المطبخ (م²)",
         "yearBuiltLabel": "سنة البناء / التسليم",
@@ -611,12 +791,12 @@
         "terraceAreaLabel": "مساحة التراس / الحديقة (م²)",
         "roomsLabel": "إجمالي عدد الغرف (شامل الصالة) *",
         "bedroomsLabel": "عدد غرف النوم من إجمالي الغرف *",
-        "roomsBedroomsHint": "ملاحظة: عدد غرف النوم لا يمكن أن يتخطى إجمالي عدد الغرف المختار.",
+        "roomsBedroomsHint": "ملاحظة: عدد غرف النوم لا يمكن أن يتخطى إجمالي الغرف.",
         "bathroomsLabel": "عدد الحمامات",
         "floorLabel": "الطابق",
         "totalFloorsLabel": "إجمالي طوابق المبنى",
         "maxGuestsLabel": "أقصى عدد للضيوف",
-        "featuresTitle": "المميزات والتجهيزات",
+        "featuresTitle": "المميزات والتجهيزات (اختياري)",
         "featuresSubtitle": "اختر المميزات المتوفرة فعلياً في العقار لتظهر في صفحة تفاصيل وحدتك.",
         "onlineViewingTitle": "أنا مستعد للمعاينة أونلاين بالفيديو",
         "onlineViewingSub": "فعّل هذا الخيار إذا كان بإمكانك عرض العقار للمشتري عن بُعد عبر واتساب أو زووم.",
@@ -624,14 +804,14 @@
         "installmentSaleSub": "فعّل هذا الخيار إذا كنت تقبل سداد السعر على دفعات."
       },
       "pricingSection": {
-        "title": "السعر والأقساط والمستندات والوصف",
-        "subtitle": "حدد تفاصيل العقد الأصلي والمبلغ المدفوع والأقساط المتبقية بدقة.",
+        "title": "5. السعر والأقساط والمستندات والوصف",
+        "subtitle": "حدد تفاصيل العقد الأصلي والمبلغ المدفوع المطلوب كاش بدقة.",
         "priceLabel": "السعر *",
         "totalPriceBtn": "السعر الإجمالي",
         "perSqmBtn": "سعر المتر",
         "contractPriceLabel": "إجمالي سعر الوحدة في العقد ($) *",
         "paidAmountLabel": "المبلغ المدفوع حتى الآن (الكاش المطلوب $) *",
-        "marketPriceLabel": "سعر السوق اليوم ($ تقديري)",
+        "marketPriceLabel": "سعر السوق اليوم ($ تقديري - اختياري)",
         "installmentAmountLabel": "قيمة القسط الدوري ($)",
         "remainingMonthsLabel": "عدد شهور التقسيط المتبقية (0 إذا خالصة)",
         "contractDateLabel": "تاريخ التعاقد الأصلي مع المطور",
@@ -657,13 +837,14 @@
         "discountAmountLabel": "أقصى قيمة خصم مسموح بها للتفاوض ($ اختياري)",
         "districtGuideTitle": "مرشد أسعار المنطقة",
         "districtGuideSub": "متوسط سعر المتر السكني في هذه المنطقة يتراوح بين $1,150 و $1,650 حسب التشطيب.",
-        "descriptionLabel": "وصف تفصيلي للوحدة",
-        "descriptionPlaceholder": "اشرح مميزات الوحدة، الإطلالة، تفاصيل الطابق، وأبرز نقاط القوة للمشتري...",
-        "docsBoxTitle": "مستندات الملكية والتنازل (اختياري الآن · يسرّع التوثيق)",
-        "docContract": "عقد الشراء",
-        "docReceipts": "إيصالات السداد",
-        "docStatement": "كشف الحساب",
-        "docPassport": "جواز السفر",
+        "descriptionLabel": "وصف تفصيلي للوحدة (اختياري)",
+        "descriptionPlaceholder": "اكتب وصفاً مختصراً لمميزات الوحدة والإطلالة...",
+        "docsBoxTitle": "مستندات الملكية والتنازل (شرط أساسي لاعتماد ونشر الوحدة)",
+        "docsRequirementBanner": "📌 يمكنك حفظ طلبك الآن بدون المستندات واستكمال رفعها لاحقاً من صفحة (حسابي)، ولكن لن تدخل الوحدة مرحلة النشر في السوق العام إلا بعد رفع المستندات الـ 4 ومراجعة الإدارة.",
+        "docContract": "1. عقد الشراء",
+        "docReceipts": "2. إيصالات السداد",
+        "docStatement": "3. كشف الحساب",
+        "docPassport": "4. جواز السفر",
         "changeBtn": "تغيير",
         "uploadBtn": "ارفع"
       },
@@ -671,19 +852,19 @@
         "title": "6. بيانات المالك وربط الحساب",
         "subtitleExit": "الاسم ورقم الموبايل — (🔒 في البيع والتنازل يبقى رقمك مخفياً عن الجمهور ويظهر للإدارة فقط لحماية خصوصيتك).",
         "subtitleRent": "الاسم ورقم الموبايل — سيتواصل معك المستأجرون هنا عبر تطبيقات المراسلة.",
-        "namePlaceholder": "اكتب اسمك الثلاثي بالكامل",
+        "namePlaceholder": "الاسم الكامل...",
         "messengersLabel": "تطبيقات المراسلة المتاحة على هذا الرقم",
         "confirmPasswordLabel": "تأكيد كلمة المرور",
-        "accountOptionsTitle": "خيارات الحساب وربط الإعلان:",
-        "createAccountLinkBtn": "تأكيد وإنشاء الحساب وربط الإعلان ✓",
+        "accountOptionsTitle": "خيارات الحساب وربط الوحدة:",
+        "createAccountLinkBtn": "تأكيد وإنشاء الحساب وربط الوحدة ✓",
         "signInSyncPhoneBtn": "تسجيل الدخول وسحب بياناتي المسجلة ✓",
         "signInAnotherAccountBtn": "تسجيل الدخول بحساب آخر",
         "backToCurrentAccountBtn": "← العودة لبيانات حسابي الحالي",
-        "accountLinkedSuccessMsg": "تم إنشاء وربط حسابك بنجاح ✓ يمكنك الآن الضغط على زر نشر الإعلان بالأسفل",
+        "accountLinkedSuccessMsg": "تم إنشاء وربط حسابك وحفظ مسودة الوحدة بنجاح ✓ يمكنك الآن إرسال الوحدة للمراجعة بالأسفل",
         "loggedInSyncedSuccessMsg": "تم تسجيل الدخول وسحب بياناتك المسجلة بنجاح ✓",
-        "termsAgreementSuffix": "— وأوافق على شروط وأحكام المنصة",
-        "signInToSaveDraftError": "يرجى تسجيل الدخول أو إنشاء حسابك في قسم التواصل أولاً لحفظ المسودة",
-        "completeAccountToPublishError": "يرجى إكمال بيانات تسجيل الحساب الجديد أو تسجيل الدخول بحسابك لربط الوحدة باسمك",
+        "termsAgreementSuffix": "— وأوافق على شروط وأحكام المنصة *",
+        "signInToSaveDraftError": "يرجى إدخال بيانات حسابك أو تسجيل الدخول في القسم 6 أولاً لحفظ المسودة في حسابك",
+        "completeAccountToPublishError": "يرجى إكمال بيانات الحساب الجديد أو تسجيل الدخول لربط الوحدة باسمك",
         "authFailedError": "تعذر التحقق من بيانات الحساب، يرجى المراجعة والمحاولة",
         "validation": {
           "bedroomsExceedRooms": "عدد غرف النوم لا يمكن أن يكون أكبر من إجمالي عدد الغرف",
@@ -693,33 +874,33 @@
         }
       },
       "previewSidebar": {
-        "title": "معاينة حية للإعلان",
-        "subtitle": "هكذا سيظهر إعلانك أمام المشترين في السوق",
-        "emptyPhotoTitle": "مطلوب صورة واحدة على الأقل",
-        "emptyPhotoSub": "ارفع صور الوحدة — ستظهر معاينة إعلانك هنا مباشرة",
+        "title": "معاينة حية للوحدة",
+        "subtitle": "هكذا ستظهر وحدتك أمام المشترين بعد مراجعة الإدارة",
+        "emptyPhotoTitle": "لم يتم رفع صور بعد",
+        "emptyPhotoSub": "ارفع صور الوحدة — ستظهر معاينة وحدتك هنا مباشرة",
         "priceOnRequest": "السعر عند الإدخال",
         "perDay": " / يومياً",
         "perMonth": " / شهرياً",
         "cashRequiredSuffix": " (الكاش المطلوب)",
         "bedsShort": "غرف نوم",
-        "strengthTitle": "اكتمال بيانات الوحدة",
-        "strengthGreat": "إعلان ممتاز ومكتمل — جاهز لأعلى ظهور!",
-        "strengthGood": "بداية جيدة — أضف المزيد من التفاصيل والصور",
+        "strengthTitle": "جاهزية الوحدة للمراجعة والنشر",
+        "strengthGreat": "وحدة مكتملة وممتازة — جاهزة لمراجعة الإدارة فوراً!",
+        "strengthGood": "أكمل البيانات الإجبارية والصور والمستندات لتسريع النشر",
         "tipPhotos": "أضف صوراً واضحة للوحدة",
         "tipLocation": "حدد الموقع الدقيق واسم الشارع",
         "tipDetails": "أكمل مواصفات ومساحة العقار",
         "tipDescription": "اكتب وصفاً كاملاً للعقار"
       },
       "reviewSection": {
-        "fastTrackPhoneTitle": "لتسريع نشر إعلانك وتوثيق رقم هاتفك بعلامة التوثيق ✓:",
-        "promoSubDesc": "اختر الباقة المناسبة وادفع بالبطاقة لتظهر وحدتك في صدارة الصفحة الرئيسية والفرص المتاحة فور تفعيل الأدمن.",
+        "fastTrackPhoneTitle": "لتسريع مراجعة وحدتك وتوثيق رقم هاتفك بعلامة التوثيق ✓:",
+        "promoSubDesc": "اختر الباقة المناسبة وادفع بالبطاقة لتظهر وحدتك في صدارة الصفحة الرئيسية والفرص المتاحة فور موافقة الأدمن.",
         "payAndActivatePrefix": "ادفع",
         "payAndActivateMiddle": "وتفعيل باقة",
         "daySingular": "يوم",
         "daysPlural": "أيام",
         "boostRecordedPrefix": "تم تسجيل طلب تفعيل باقة",
-        "boostRecordedSuffix": "سيتم تفعيل التمييز تلقائياً فور مراجعة الأدمن للإعلان والدفع.",
-        "previewPropertyBtn": "معاينة صفحة العقار",
+        "boostRecordedSuffix": "سيتم تفعيل التمييز تلقائياً فور مراجعة الأدمن للوحدة والدفع.",
+        "previewPropertyBtn": "معاينة صفحة الوحدة",
         "pkgStarter": "بداية · يوم واحد",
         "pkgRecommended": "موصى به 🔥 · يوم واحد",
         "pkgTwoDays": "SUPER VIP · يومان",
@@ -727,12 +908,288 @@
         "pkgPro": "PRO -30% · 17 يوماً"
       },
       "bottomBar": {
-        "savedAtPrefix": "تم حفظ المسودة الساعة",
+        "finalSectionTitle": "إرسال طلب عرض الوحدة أو الحفظ كمسودة",
+        "finalSectionDescComplete": "جميع بياناتك وصورك ومستنداتك مكتملة 100%! اضغط بالأسفل لإرسال وحدتك مباشرة إلى مراجعة الإدارة.",
+        "finalSectionDescMissingMedia": "ملاحظة هامة: يمكنك إرسال وحفظ بيانات وحدتك الآن، وسيظهر لك في صفحة (حسابي) ما يتبقى عليك من صور أو مستندات لترفعها في أي وقت حتى توافق الإدارة على نشرها.",
+        "savedAtPrefix": "تم حفظ المسودة في حسابك الساعة",
         "autoSavedPrefix": "اكتمال الأقسام",
-        "saveDraftBtn": "حفظ كمسودة",
-        "publishingBtn": "جاري النشر...",
-        "publishBtn": "نشر الإعلان الآن"
+        "saveDraftBtn": "حفظ كمسودة واستكمال لاحقاً في حسابي",
+        "savingDraftBtn": "جاري حفظ المسودة...",
+        "publishingBtn": "جاري إرسال الطلب...",
+        "publishBtn": "إرسال الوحدة لمراجعة الإدارة والاعتماد",
+        "submitAndCompleteDocsLaterBtn": "حفظ بيانات الوحدة واستكمال الصور/المستندات من حسابي"
       }
+    },
+    "aiDescription": {
+      "generateBtn": "كتابة الوصف بالذكاء الاصطناعي (AI)",
+      "generatingBtn": "جاري صياغة الوصف من بيانات وحدتك...",
+      "generatedBadge": "تم توليد الوصف من بيانات وحدتك بنجاح ✓",
+      "helperHint": "اضغط على زر الذكاء الاصطناعي لكتابة وصف احترافي جذاب تلقائياً من البيانات التي أدخلتها.",
+      "templates": {
+        "intro": "فرصة استثمارية وسكنية مميزة للتنازل واستكمال الأقساط",
+        "inProject": "في مشروع",
+        "byDeveloper": "من تطوير شركة",
+        "locatedIn": "بموقع حيوي في",
+        "specsTitle": "📐 مواصفات الوحدة:",
+        "totalArea": "المساحة الإجمالية",
+        "sqm": "م²",
+        "roomsPrefix": "تتكون من",
+        "roomsWord": "غرف",
+        "bedroomsPrefix": "منها",
+        "bedroomsWord": "غرف نوم",
+        "bathWord": "حمام",
+        "floorPrefix": "الطابق",
+        "ofTotalFloors": "من أصل",
+        "floorsWord": "طوابق",
+        "conditionPrefix": "حالة التشطيب:",
+        "handoverTitle": "🏗 حالة الاستلام:",
+        "underConstPrefix": "قيد الإنشاء (موعد التسليم المتوقع عام",
+        "readyNow": "جاهزة للاستلام الفوري",
+        "financialsTitle": "💰 التفاصيل المالية:",
+        "contractPricePrefix": "إجمالي سعر العقد الأصلي",
+        "paidCashPrefix": "المبلغ المدفوع المطلوب للتنازل (الكاش)",
+        "remainingPrefix": "المتبقي للمطور",
+        "installmentPrefix": "بقسط دوري",
+        "forDuration": "لمدة",
+        "monthsWord": "شهر",
+        "featuresTitle": "✨ أبرز المميزات والخدمات:",
+        "closingLine": "✅ جميع عقود وإيصالات السداد الرسمية جاهزة لنقل الملكية مباشرة عبر المنصة بعمولة 0% على البائع."
+      }
+    },
+    "flowLoading": {
+      "loadingUnitTitle": "جاري استرجاع بيانات وحدتك المحفوظة...",
+      "loadingUnitSub": "يرجى الانتظار لحظات حتى نجهز كافة الحقول للتعديل",
+      "loadErrorTitle": "تعذر تحميل بيانات الوحدة",
+      "loadErrorDesc": "يبدو أن هناك ضعفاً في الاتصال بالإنترنت أو أن الجلسة انتهت. يرجى إعادة المحاولة.",
+      "retryBtn": "إعادة المحاولة",
+      "backToAccountBtn": "العودة لحسابي",
+      "oneTimeVerifyBadge": "خطوة لمرة واحدة فقط",
+      "oneTimeVerifyNote": "تأكيد البريد الإلكتروني مطلوب في أول إعلان فقط لتفعيل حسابك.",
+      "finalCardTitle": "إرسال الطلب للإدارة أو الحفظ لوقت لاحق",
+      "finalCardSub": "يمكنك إرسال بيانات وحدتك الآن، ورفع الصور والمستندات في أي وقت من صفحة «حسابي».",
+      "publishBtnText": "إرسال طلب عرض الوحدة للإدارة",
+      "saveLaterBtnText": "احفظ البيانات وكمل بعدين",
+      "savingLaterBtnText": "جاري الحفظ...",
+      "missingFieldsAlertTitle": "يرجى مراجعة وإكمال الحقول المطلوبة المحددة باللون الأحمر بالأعلى:",
+      "mediaDialogBadge": "تنبيه هام قبل الإرسال",
+      "mediaDialogTitle": "الصور والمستندات شرط أساسي لنشر وحدتك على المنصة",
+      "mediaDialogDesc": "يمكنك إرسال بيانات الوحدة الآن لحفظ طلبك لدى الإدارة، ولكن لن يتم نشر إعلانك للمشترين إلا بعد استكمال المرفقات الأساسية التالية:",
+      "mediaDialogMandatoryPublishNote": "ملاحظة هامة: صور العقار ومستندات إثبات الملكية الـ 4 هي متطلبات أساسية للتحقق من صحة البيانات ونشر الوحدة رسمياً أمام المشترين. يمكنك رفعها الآن أو استكمالها في أي وقت من صفحة «حسابي».",
+      "mediaDialogMissingPhotos": "صور الوحدة العقارية (صورة واحدة على الأقل)",
+      "mediaDialogMissingDocs": "مستندات الملكية والتعاقد",
+      "mediaDialogConfirmBtn": "أرسل البيانات الآن وأكمل المرفقات من حسابي ←",
+      "mediaDialogUploadNowBtn": "رفع الصور والمستندات الآن قبل الإرسال",
+      "onlyPhotosBtn": "إضافة صور الوحدة أولاً",
+      "onlyDocsBtn": "رفع المستندات المتبقية أولاً",
+      "bothBtn": "إضافة الصور والمستندات أولاً",
+      "missingBelowBtnPrefix": "يرجى استكمال الحقول الإجبارية المعلّمة باللون الأحمر بالأعلى:",
+      "mandatoryPublishNotice": "ملاحظة هامة: صور الوحدة ومستندات الملكية الـ 4 هي متطلبات أساسية للتحقق من العقار ونشره رسمياً للمشترين على المنصة. في حال الإرسال الآن سيُحفظ طلبك لدى الإدارة ولن يُنشر للعامة إلا بعد استكمال المرفقات من صفحة «حسابي».",
+      "defaultCityFallback": "تبليسي"
+    },
+    "buildingStatuses": {
+      "underConstruction": "تحت الإنشاء",
+      "completedReady": "مكتمل وجاهز للاستلام",
+      "newlyBuiltReady": "مبنى حديث (جاهز للاستلام)",
+      "underConstructionSub": "قيد الإنشاء (تحت الإنشاء)",
+      "oldBuiltReady": "مبنى قائم (جاهز للاستلام)"
+    },
+    "mapUi": {
+      "windowsHelpText": "استخدم Ctrl + التمرير لتكبير الخريطة",
+      "macHelpText": "استخدم ⌘ + التمرير لتكبير الخريطة",
+      "mobileHelpText": "استخدم إصبعين لتحريك وتكبير الخريطة",
+      "enterStreetHint": "أدخل الشارع — يسقط الدبوس تلقائياً",
+      "bottomSnapHint": "الدبوس والمبنى يتحدثان تلقائياً · أو اضغط على الخريطة لتحديد مبنى",
+      "parcelFoundText": "تم العثور على القطعة — تم توجيه الخريطة إلى قطعة NAPR",
+      "optionalNaprHint": "اختياري — يوجه الخريطة تلقائياً إلى قطعة NAPR",
+      "hideCadastralBtn": "إخفاء الرقم العقاري عن الجمهور في الإعلان",
+      "hiddenFromPublicBadge": "مخفي عن الزوار في صفحة الإعلان (يظهر للإدارة فقط)",
+      "outsideGeorgiaMapAlert": "موقعك الحالي خارج جورجيا — يرجى تحديد موقع العقار داخل خريطة جورجيا فقط.",
+      "shortProjectPlaceholder": "اسم المشروع أو المجمع...",
+      "shortDeveloperPlaceholder": "اسم المطور (اختياري)...",
+      "shortStreetPlaceholder": "ابحث باسم الشارع...",
+      "shortHousePlaceholder": "مثال: 12",
+      "shortCadastralPlaceholder": "اختياري (مثال: 01.10...)",
+      "zoomInTitle": "تكبير",
+      "zoomOutTitle": "تصغير",
+      "resetBearingTitle": "إعادة ضبط الاتجاه",
+      "fullscreenMapTitle": "ملء الشاشة",
+      "mapStylesTitle": "أنماط الخريطة",
+      "styles": {
+        "streets": "شوارع",
+        "sivrce": "Sivrce",
+        "realistic": "واقعي 3D",
+        "photoreal": "صورة جوية",
+        "hybrid": "هجين",
+        "minimal": "بسيط",
+        "contrast": "تباين عالي"
+      }
+    },
+    "optionsData": {
+      "dealTypes": {
+        "exit": {
+          "label": "تنازل واستكمال أقساط",
+          "sub": "استرد ما دفعته ويكمل المشتري الأقساط"
+        },
+        "sale": {
+          "label": "للبيع",
+          "sub": "بيع العقار مباشرة"
+        },
+        "rent_monthly": {
+          "label": "للإيجار",
+          "sub": "إيجار طويل الأمد، شهرياً"
+        },
+        "rent_daily": {
+          "label": "إيجار يومي",
+          "sub": "بالليلة، للضيوف والسياح"
+        }
+      },
+      "propertyKinds": {
+        "Apartment": "شقة",
+        "Private house": "منزل مستقل",
+        "Cottage": "كوخ / شاليه",
+        "Land": "أرض",
+        "Commercial": "تجاري",
+        "Hotel": "شقة فندقية / فندق"
+      },
+      "conditionOptions": {
+        "Newly renovated": "تشطيب جديد",
+        "Old renovation": "تشطيب قديم",
+        "Under renovation": "قيد التشطيب",
+        "Needs renovation": "يحتاج تجديد",
+        "White frame": "إطار أبيض",
+        "Black frame": "إطار أسود",
+        "Green frame": "إطار أخضر",
+        "White plus": "وايت بلس",
+        "Turnkey": "تشطيب كامل",
+        "Fully furnished": "مفروش بالكامل بالأجهزة"
+      },
+      "buildingSeries": {
+        "Non-standard": "غير قياسي (حديث)",
+        "City type": "طراز المدينة (Urban)",
+        "Tbilisi yard": "ساحة تبليسي التراثية",
+        "Czech": "طراز تشيكي",
+        "Kavlashvili": "كافلاشفيلي",
+        "Tukhareli": "توخاريلي",
+        "Lvov": "طراز لفوف",
+        "Kiev": "طراز كييف",
+        "Leningrad": "لينينغراد",
+        "Moscow": "طراز موسكو",
+        "Khrushchev": "خروتشوف",
+        "Vedzisi": "فيدزيسي",
+        "Yugoslav": "يوغوسلافي",
+        "Metromsheni": "مترومشيني",
+        "Other": "أخرى"
+      },
+      "floorTypes": {
+        "Standard": "طابق قياسي",
+        "Duplex": "دوبلكس",
+        "Triplex": "تريبلكس",
+        "Attic": "علية / روف"
+      },
+      "heatingTypes": {
+        "Central": "تدفئة مركزية",
+        "Own gas boiler": "غلاية غاز خاصة",
+        "Electric": "كهربائية",
+        "None": "بدون تدفئة"
+      },
+      "buildingMaterials": {
+        "Monolithic concrete": "خرسانة مسلحة",
+        "Brick": "طوب",
+        "Block": "بلوك",
+        "Panel": "بانل",
+        "Mixed": "مختلط"
+      },
+      "featureGroups": {
+        "space": "المساحات والتقسيم",
+        "building": "المبنى والحماية",
+        "utilities": "المرافق الأساسية",
+        "comfort": "الراحة والأجهزة",
+        "views": "الإطلالة والإضاءة",
+        "extra": "مميزات إضافية"
+      },
+      "featureItems": {
+        "Balcony": "شرفة",
+        "Loggia": "لوجيا",
+        "Terrace": "تراس مفتوح",
+        "Yard": "حديقة خاصة",
+        "Storage": "غرفة تخزين",
+        "Cellar": "قبو",
+        "Walk-in closet": "غرفة ملابس",
+        "Separate kitchen": "مطبخ منفصل",
+        "Elevator": "مصعد",
+        "Parking": "موقف سيارات",
+        "Underground parking": "جراج تحت الأرض",
+        "Garage": "جراج خاص",
+        "Security": "أمن وحراسة",
+        "Concierge": "كونسيرج",
+        "Intercom": "إنتركم",
+        "Backup generator": "مولد احتياطي",
+        "Iron door": "باب مصفح",
+        "Double glazing": "زجاج مزدوج عازل",
+        "Penthouse": "بنتهاوس",
+        "Step-free access": "مدخل لذوي الهمم",
+        "Underfloor heating": "تدفئة أرضية",
+        "Natural gas": "غاز طبيعي",
+        "Hot water": "مياه ساخنة",
+        "Internet": "إنترنت فايبر",
+        "Cable TV": "تلفاز كابل",
+        "Furniture": "مفروش بالكامل",
+        "Appliances": "أجهزة كهربائية",
+        "Air conditioning": "تكييف هواء",
+        "Dishwasher": "غسالة أطباق",
+        "Washing machine": "غسالة ملابس",
+        "Dryer": "مجفف ملابس",
+        "Fireplace": "مدفأة",
+        "Kitchen": "مطبخ مجهز",
+        "TV": "تلفاز ذكي",
+        "Panoramic view": "إطلالة بانورامية",
+        "Sea view": "إطلالة بحرية",
+        "Mountain view": "إطلالة جبلية",
+        "Yard view": "إطلالة على الحديقة",
+        "Street view": "إطلالة على الشارع",
+        "Beachfront": "صف أول على البحر",
+        "Bright": "مشمس ومضيء",
+        "Quiet": "منطقة هادئة",
+        "Pool": "حمام سباحة",
+        "Jacuzzi": "جاكوزي",
+        "Sauna": "ساونا",
+        "Gym": "صالة رياضية",
+        "BBQ grill": "منطقة شواء",
+        "EV charger": "شاحن سيارات كهربائية",
+        "Ski access": "قريب من مسارات التزلج"
+      },
+      "countries": {
+        "GE": "جورجيا",
+        "EG": "مصر",
+        "RU": "روسيا",
+        "AE": "الإمارات",
+        "SA": "السعودية",
+        "KW": "الكويت",
+        "QA": "قطر",
+        "BH": "البحرين",
+        "OM": "عمان",
+        "JO": "الأردن",
+        "TR": "تركيا",
+        "US": "أمريكا / كندا",
+        "GB": "بريطانيا"
+      },
+      "cityGroupTitles": {
+        "tbilisi": "تبليسي",
+        "batumi": "باتومي وساحل البحر الأسود",
+        "kutaisi": "كوتايسي",
+        "resorts": "منتجعات ومدن جورجيا الأخرى"
+      },
+      "featuresPreset": [
+        "إطلالة بحرية (Sea View)",
+        "إطلالة جبلية (Mountain View)",
+        "إطلالة بانورامية على المدينة",
+        "حمام سباحة",
+        "تدفئة مركزية / أرضية",
+        "أمن واستقبال 24 ساعة",
+        "جراج سيارات تحت الأرض",
+        "شرفة واسعة (Balcony)",
+        "قريبة من المترو والخدمات"
+      ]
     }
   },
   "accountPages": {
@@ -1081,7 +1538,63 @@
       "modalCancelPromoDesc": "هل أنت متأكد من إلغاء طلب الإعلان المميز؟ ستظل وحدتك معروضة بشكل مجاني عادي.",
       "modalBackBtn": "تراجع",
       "modalConfirmBtn": "نعم، تأكيد",
-      "modalProcessingBtn": "جاري التنفيذ..."
+      "modalProcessingBtn": "جاري التنفيذ...",
+      "navigatingLoading": "جاري فتح الصفحة...",
+      "unverifiedDraftTitle": "تأكيد البريد الإلكتروني لإرسال الوحدة للإدارة",
+      "unverifiedDraftDesc": "هذه الوحدة محفوظة كمسودة في حسابك ولم تُرسل للإدارة بعد. أكّد بريدك الإلكتروني (خطوة لمرة واحدة فقط) لإرسالها للمراجعة.",
+      "verifyAndSendToAdminBtn": "تأكيد الإيميل وإرسال الوحدة للإدارة ←",
+      "adminNoteCardTitle": "ملاحظة من مراجع الإدارة على وحدتك قبل النشر:",
+      "adminNoteFixBtn": "تعديل بيانات الوحدة الآن",
+      "adminNoteWaReplyBtn": "توضيح أو استفسار عبر واتساب",
+      "adminNoteWaMsgPrefix": "أهلاً إدارة Aqar Exit، بخصوص ملاحظتكم على وحدتي رقم",
+      "adminNoteWaMsgMiddle": "في مشروع",
+      "checklistTitleIncomplete": "⚠️ وضع وحدتك الحالي: غير منشورة (تنتظر استكمال المتطلبات التالية)",
+      "checklistSubIncomplete": "لا يتم نشر أي وحدة في السوق العام إلا بعد اكتمال البنود الـ 3 التالية. اضغط على البند الناقص لاستكماله فوراً:",
+      "checklistTitleComplete": "✅ وضع وحدتك الحالي: مكتملة وجاهزة (قيد مراجعة الإدارة للنشر)",
+      "checklistSubComplete": "استلمت الإدارة جميع بيانات وصور ومستندات وحدتك بالكامل، وجاري مراجعتها للموافقة على نشرها في السوق.",
+      "reqItemDetails": "١. البيانات الأساسية الإجبارية للوحدة",
+      "reqItemPhotos": "٢. صور الوحدة العقارية",
+      "reqItemDocs": "٣. مستندات الملكية والتنازل (4 مستندات)",
+      "doneTag": "مكتمل ✓",
+      "missingActionPhotos": "ارفع صور الوحدة الآن ←",
+      "missingActionDocs": "ارفع المستندات المتبقية ←",
+      "missingActionDetails": "أكمل البيانات الناقصة ←",
+      "boostHeaderBadge": "ترقية الإعلان · SUPER VIP & +VIP",
+      "boostUnitPrefix": "تمييز وحدة:",
+      "boostUnitSubtitle": "اختر باقة الترقية لظهور وحدتك في صدارة الصفحة الرئيسية والفرص المتاحة",
+      "quickAmountsLabel": "مبالغ سريعة",
+      "customAmountLabel": "مبلغ مخصص",
+      "starterBadge": "بداية",
+      "recommendedBadge": "موصى به 🔥",
+      "popularBadge": "شائع",
+      "anySub": "مخصص",
+      "creditedSuffix": "تُضاف لرصيد إعلانك",
+      "upsellPrefix": "نصيحة: شحن",
+      "upsellMiddle": "يفتح لك خصم",
+      "upsellDaysSuffix": "على باقة SUPER VIP",
+      "topUpBtnPrefix": "اشحن",
+      "payCardPrefix": "ادفع",
+      "payCardSuffix": "بالبطاقة البنكية",
+      "bankTransferPrefix": "تحويل بنكي",
+      "boostRecordedPrefix": "تم تسجيل طلب تفعيل باقة",
+      "boostRecordedMiddle": "لوحدتك",
+      "boostRecordedSuffix": "بمجرد إتمام الدفع ومراجعة الأدمن سيتم التفعيل تلقائياً.",
+      "minMaxGelHint": "الحد الأدنى 5 ₾ · الحد الأقصى 10,000 ₾",
+      "stageSteps": [
+        "١. استكمال البيانات والمرفقات",
+        "٢. قيد مراجعة الإدارة والمستندات",
+        "٣. معتمد ومعروض بالسوق",
+        "٤. يوجد عرض شراء",
+        "٥. مرحلة نقل التعاقد",
+        "٦. تمت عملية البيع"
+      ],
+      "incompleteStageBadge": "⚠️ غير منشورة — بانتظار استكمال المتطلبات",
+      "incompleteStageHeadline": "وحدتك محفوظة في حسابك (غير منشورة بعد) — يرجى استكمال رفع الصور والمستندات بالأسفل لتنتقل الوحدة إلى مراجعة الإدارة والموافقة على نشرها",
+      "readyPendingReviewBadge": "⏳ مكتملة — بانتظار موافقة الإدارة",
+      "readyPendingReviewHeadline": "أحسنت! اكتملت جميع البيانات والصور والمستندات — وحدتك الآن لدى الإدارة للمراجعة والموافقة على نشرها في السوق",
+      "statusUnderReviewBadge": "٢. جاري مراجعة المستندات لدى الإدارة",
+      "statusUnderReviewHeadline": "يقوم فريق المراجعة حالياً بفحص بيانات ومستندات وحدتك لاعتمادها ونشرها بالسوق",
+      "statusDraftUnverifiedHeadline": "وحدتك محفوظة في حسابك (غير منشورة بعد) — يرجى تأكيد بريدك الإلكتروني واستكمال الصور والمستندات بالأسفل لتنتقل الوحدة إلى مراجعة الإدارة"
     },
     "buyer": {
       "popularAreas": [
@@ -1107,10 +1620,37 @@
         "عدد الغرف",
         "الاستلام"
       ],
-      "deliveryStatuses": ["الكل", "جاهزة للاستلام", "تحت الإنشاء"],
-      "deliveryYears": ["الكل", "حتى 2026", "حتى 2027", "حتى 2028", "حتى 2029", "حتى 2030", "حتى 2031"],
-      "contractYears": ["الكل", "2025 أو أقدم", "2024 أو أقدم", "2023 أو أقدم", "2022 أو أقدم", "2021 أو أقدم", "2020 أو أقدم"],
-      "roomOptions": ["الكل", "+1", "+2", "+3", "+4", "+5"],
+      "deliveryStatuses": [
+        "الكل",
+        "جاهزة للاستلام",
+        "تحت الإنشاء"
+      ],
+      "deliveryYears": [
+        "الكل",
+        "حتى 2026",
+        "حتى 2027",
+        "حتى 2028",
+        "حتى 2029",
+        "حتى 2030",
+        "حتى 2031"
+      ],
+      "contractYears": [
+        "الكل",
+        "2025 أو أقدم",
+        "2024 أو أقدم",
+        "2023 أو أقدم",
+        "2022 أو أقدم",
+        "2021 أو أقدم",
+        "2020 أو أقدم"
+      ],
+      "roomOptions": [
+        "الكل",
+        "+1",
+        "+2",
+        "+3",
+        "+4",
+        "+5"
+      ],
       "sorts": [
         "الأحدث",
         "الفرص المميزة ⭐",
@@ -1120,8 +1660,16 @@
         "الأقرب للاستلام",
         "جاهزة للنقل"
       ],
-      "paymentPlans": ["شهري", "ربع سنوي", "نصف سنوي", "سنوي"],
-      "deliveryPreferences": ["جاهزة للاستلام", "تحت الإنشاء"],
+      "paymentPlans": [
+        "شهري",
+        "ربع سنوي",
+        "نصف سنوي",
+        "سنوي"
+      ],
+      "deliveryPreferences": [
+        "جاهزة للاستلام",
+        "تحت الإنشاء"
+      ],
       "tagCashMatch": "الكاش في ميزانيتك",
       "tagInstMatch": "القسط مناسب",
       "tagAreaMatch": "في المنطقة المطلوبة",
@@ -1185,7 +1733,7 @@
       "summaryCashLabel": "الكاش المتاح الآن:",
       "summaryInstLabel": "أقصى قسط:",
       "filterByRequestLabel": "فلترة حسب طلبك:",
-      "filterByRequestSub": "مرتبة بالأكثر توافقاً مع طلبك.",
+      "filterByRequestSub": "مرتبة بالأنسب لطلبك — اختار أي شرط عشان تشوف اللي يطابقه بالظبط",
       "searchPlaceholder": "ابحث باسم المشروع أو المنطقة أو كود الوحدة...",
       "filterBtn": "فلترة",
       "negotiableBtn": "قابل للتفاوض",
@@ -1230,7 +1778,6 @@
       "directBuyerTitle": "بنتعامل مع المشتري نفسه بس",
       "directBuyerDesc": "مش بنقبل طلبات من سماسرة بيدوروها للعميل. الوحدات دي بتتعرض للمشتري النهائي مباشرة، عشان السعر يفضل سعر التعاقد من غير أي زيادة.",
       "stepWord": "خطوة",
-    
       "ofWord": "من",
       "stepTitles": [
         "قدرتك الشرائية",
@@ -1254,14 +1801,16 @@
       "shortPassword": "كلمة السر يجب ألا تقل عن 8 حروف",
       "loginIdRequired": "يرجى كتابة الإيميل أو رقم الموبايل",
       "loginPassRequired": "يرجى كتابة كلمة السر",
-      "submitFailed": "تعذر إرسال الطلب"
+      "submitFailed": "تعذر إرسال الطلب",
+      "cashExceedsBudget": "الكاش المتاح لا يمكن أن يتخطى إجمالي الميزانية المستهدفة"
     },
-      "successScreen": {
+    "successScreen": {
       "title": "تم تسجيل طلب الشراء وتفعيل الرادار الذكي بنجاح ✓",
       "subtitle": "لتسريع ترشيح الوحدات الموثقة المتوافقة مع ميزانيتك، اضغط الزر الأخضر بالأسفل لتأكيد طلبك مباشرة عبر واتساب المنصة:",
       "confirmWaBtn": "تأكيد طلب الشراء فوراً عبر واتساب",
       "goToAccountBtn": "الدخول لحسابي وتصفح الفرص المطابقة",
-      "waMsgPrefix": "أهلاً إدارة Aqar Exit، أؤكد تسجيل طلب الشراء رقم"
+      "waMsgPrefix": "أهلاً إدارة Aqar Exit، أؤكد تسجيل طلب الشراء رقم",
+      "orderRefPrefix": "رقم الطلب:"
     },
     "stepOne": {
       "countryLabel": "الدولة اللي بتدوّر فيها على الوحدة *",
@@ -1334,7 +1883,6 @@
       "phoneRecoverySentNote": "بعتنا اللينك على الإيميل المسجّل على الرقم ده. لو مالقتهوش خلال دقيقة، بصّ في السبام.",
       "useAnotherPhoneBtn": "← استخدام رقم آخر",
       "orLoginPageBtn": "أو ادخل من صفحة الدخول"
-   
     },
     "actions": {
       "backBtn": "ارجع",
@@ -1345,7 +1893,7 @@
       "submitBtn": "إرسال للمراجعة"
     }
   },
- "opportunitiesPage": {
+  "opportunitiesPage": {
     "countries": {
       "ALL": "كل الدول",
       "EG": "مصر",
@@ -1400,13 +1948,40 @@
       "maxInstLabel": "أقصى قسط دوري",
       "unitTypeLabel": "نوع الوحدة",
       "deliveryLabel": "الاستلام",
-      "deliveryStatuses": ["الكل", "جاهزة للاستلام", "تحت الإنشاء"],
+      "deliveryStatuses": [
+        "الكل",
+        "جاهزة للاستلام",
+        "تحت الإنشاء"
+      ],
       "deliveryYearLabel": "سنة الاستلام",
-      "deliveryYears": ["الكل", "حتى 2026", "حتى 2027", "حتى 2028", "حتى 2029", "حتى 2030", "حتى 2031"],
+      "deliveryYears": [
+        "الكل",
+        "حتى 2026",
+        "حتى 2027",
+        "حتى 2028",
+        "حتى 2029",
+        "حتى 2030",
+        "حتى 2031"
+      ],
       "contractYearLabel": "سنة التعاقد",
-      "contractYears": ["الكل", "2025 أو أقدم", "2024 أو أقدم", "2023 أو أقدم", "2022 أو أقدم", "2021 أو أقدم", "2020 أو أقدم"],
+      "contractYears": [
+        "الكل",
+        "2025 أو أقدم",
+        "2024 أو أقدم",
+        "2023 أو أقدم",
+        "2022 أو أقدم",
+        "2021 أو أقدم",
+        "2020 أو أقدم"
+      ],
       "minRoomsLabel": "أقل عدد غرف",
-      "roomOptions": ["الكل", "+1", "+2", "+3", "+4", "+5"],
+      "roomOptions": [
+        "الكل",
+        "+1",
+        "+2",
+        "+3",
+        "+4",
+        "+5"
+      ],
       "maxContractPriceLabel": "أقصى سعر تعاقد",
       "showResultsBtn": "اعرض النتائج",
       "hideBtn": "إخفاء"
@@ -1443,14 +2018,14 @@
       "detailsBtn": "تفاصيل"
     },
     "trustSection": {
-      "title": "لماذا تثق في هذه الفرص؟",
-      "card1Title": "الفرص تظهر هنا بعد التحقق الكامل من العقود والإيصالات",
-      "card1Desc": "نحن لا ننشر أي وحدة قبل مراجعة عقد الشراء الأصلي وإيصالات السداد وتأكيد الرصيد المتبقي وشروط التنازل لدى المطور.",
-      "card1Btn": "سجّل قدرتك الشرائية",
-      "card2Title": "ماذا ترى في كل فرصة؟",
-      "point1": "المطلوب كاش بالضبط — وهو نفس ما دفعه مالك الوحدة موثقاً بالإيصالات",
-      "point2": "المتبقي للمطور وجدول الأقساط الذي ستكمله بنفس شروط العقد القديم",
-      "point3": "فرق السعر عن سعر السوق الحالي — مكسبك الفوري من أول يوم"
+      "title": "لماذا تشتري وحدة تنازل عبر Aqar Exit؟",
+      "card1Title": "لم تجد الوحدة المناسبة بعد؟ سجل طلبك مجاناً",
+      "card1Desc": "حدد ميزانيتك، المنطقة المفضلة في تبليسي أو باتومي، وقيمة القسط الشهري المناسب لك، وسنرشح لك أفضل وحدات التنازل فور توفرها.",
+      "card1Btn": "سجل طلب شراء الآن ←",
+      "card2Title": "ضمانات الشراء عبر المنصة",
+      "point1": "مراجعة العقود وإيصالات السداد الأصلية مع شركة التطوير قبل النشر.",
+      "point2": "التنازل ونقل الملكية يتم رسمياً داخل مقر المطور العقاري وبنفس شروط العقد.",
+      "point3": "صفر أوفر برايس — تدفع فقط المدفوع الفعلي أو أقل منه وتكمل الأقساط."
     },
     "ui": {
       "searchBtn": "بحث",
@@ -1491,7 +2066,93 @@
         "land": "قطع أراضٍ",
         "commercial": "تجاري وإداري",
         "hotel": "شقق فندقية"
+      },
+      "adCardBadge": "مساحة إعلانية",
+      "adCardTitle": "إعلانك هنا",
+      "adCardSub": "انشر إعلانك واصل إلى آلاف المشترين والمستثمرين في العقارات.",
+      "adBullet1": "جمهور مستهدف من المشترين",
+      "adBullet2": "تواصل مباشر وسريع",
+      "adBullet3": "إحصائيات ومشاهدات شفافة",
+      "adCardBtn": "أعلن هنا ←",
+      "newlyAddedHeading": "أضيفت حديثاً (مرتبة حسب التاريخ)"
+    },
+    "mapView": {
+      "searchPlaceholder": "مدينة، حي، شارع — أو مشروع، مطور، كود عقاري (U-10057)...",
+      "cityLabel": "المدن",
+      "listPrefix": "إعلان",
+      "allTab": "الكل",
+      "forExitTab": "للتنازل",
+      "underConstTab": "قيد الإنشاء",
+      "readyTab": "استلام فوري",
+      "negotiableTab": "قابل للتفاوض",
+      "apartmentsTab": "شقة",
+      "housesTab": "منزل",
+      "cottagesTab": "شاليه",
+      "commercialTab": "تجاري",
+      "landTab": "أرض",
+      "hotelTab": "فندق",
+      "liveBadge": "مباشر",
+      "resetTooltip": "إعادة ضبط الفلاتر",
+      "myLocationTooltip": "موقعي الحالي",
+      "fullscreenTooltip": "ملء الشاشة",
+      "exitFullscreenTooltip": "إنهاء ملء الشاشة",
+      "exitMapTooltip": "العودة للقائمة",
+      "layersTitle": "الطبقات",
+      "mapStyleLabel": "نمط الخريطة",
+      "styleRealistic": "واقعي 3D",
+      "styleStreets": "شوارع",
+      "styleSatellite": "صورة حقيقية",
+      "styleHybrid": "هجين",
+      "styleMinimal": "بسيط",
+      "layerTerrain": "التضاريس",
+      "layerTerrainSub": "التلال والمنحدرات بثلاثة أبعاد",
+      "layerTrees": "الأشجار والحدائق",
+      "layerTreesSub": "إبراز المساحات الخضراء والمنتزهات",
+      "layerPriceVsMarket": "السعر مقابل المطور اليوم",
+      "layerPriceVsMarketSub": "تمييز الوحدات الأقل من سعر المطور باللون الأخضر",
+      "layerNightMode": "وضع الليل",
+      "layerNightModeSub": "خريطة داكنة مريحة للعين",
+      "verifiedBadge": "متحقق بالمستندات",
+      "roomsWord": "غرف",
+      "sqmUnit": "م²",
+      "remainingLabel": "المتبقي للمطور:",
+      "installmentLabel": "القسط:",
+      "gainLabel": "مكسبك عن السوق:",
+      "viewDetailsBtn": "عرض تفاصيل الوحدة",
+      "pois": {
+        "metro": "مترو",
+        "train": "قطار",
+        "school": "مدرسة",
+        "kindergarten": "روضة أطفال",
+        "pharmacy": "صيدلية",
+        "park": "حديقة",
+        "market": "سوق",
+        "clinic": "عيادة",
+        "university": "جامعة",
+        "uni": "جامعة",
+        "bank": "بنك",
+        "landmark": "معلم سياحي",
+        "gym": "نادي رياضي",
+        "bus": "حافلة"
       }
+    },
+    "popovers": {
+      "minCashPlaceholder": "أدنى كاش مطلوب ($)",
+      "maxCashPlaceholder": "أقصى كاش مطلوب ($)",
+      "minWord": "الأدنى",
+      "maxWord": "الأقصى",
+      "sqmUnit": "م²",
+      "commutePlaceholder": "الوجهة — العمل، الجامعة، أو محطة المترو...",
+      "useMyLocationBtn": "استخدم موقعي الحالي",
+      "modeCar": "سيارة",
+      "modeWalk": "مشياً",
+      "modeBike": "دراجة",
+      "minSuffix": "د",
+      "applyBtn": "تطبيق",
+      "boostStatusLabel": "الباقة الإعلانية",
+      "bathroomsLabel": "الحمامات",
+      "floorLabel": "الطابق",
+      "conditionLabel": "حالة التشطيب"
     }
   },
   "unitDetailsPage": {
@@ -1596,7 +2257,161 @@
       "submitBtn": "تأكيد وإرسال عرض الشراء",
       "privacyNote": "بياناتك محمية بالكامل — لا نشاركها مع أي طرف خارجي.",
       "errorSubmit": "يرجى التأكد من إدخال الاسم ورقم الموبايل بشكل صحيح.",
-      "errorUnexpected": "حدث خطأ غير متوقع، يرجى المحاولة مرة أخرى."
+      "errorUnexpected": "حدث خطأ غير متوقع، يرجى المحاولة مرة أخرى.",
+      "photosWord": "صور",
+      "viewsWord": "مشاهدة",
+      "closeBtn": "إغلاق",
+      "selectCashOfferLabel": "تحديد قيمة الكاش المعروض للمالك",
+      "requiredExitCashPrefix": "الكاش المطلوب للتنازل:",
+      "fullPriceOptionTitle": "حجز فوري بالسعر الموثق الكامل",
+      "paidCashBadge": "المدفوع الفعلي للمالك",
+      "negotiateOptionTitle": "تقديم عرض كاش عاجل (تفاوض محكوم)",
+      "minAllowedFloorLabel": "الحد الأدنى المسموح للعرض",
+      "nonNegotiableUnitPrefix": "هذه الوحدة معروضة بسعر تنازل نهائي (",
+      "nonNegotiableUnitSuffix": ") غير قابل للتفاوض",
+      "yourCashOfferInputLabel": "المبلغ الكاش الذي تعرض دفعه للمالك الآن ($):",
+      "fullPricePriorityHint": "أولوية أولى للقبول الفوري وقفل الوحدة",
+      "errBelowMinFloor": "أقل مبلغ مسموح للتفاوض هو",
+      "fomoNegotiationWarning": "العروض بالسعر الكامل لها أولوية القبول الفوري لدى المالك.",
+      "waConfirmIntro": "أهلاً إدارة Aqar Exit، أؤكد جديتي في عرض الشراء رقم",
+      "waConfirmUnitWord": "على وحدة",
+      "waConfirmAmountWord": "بمبلغ",
+      "waConfirmLinkLabel": "رابط مراجعة وتفعيل العرض:"
+    },
+    "uiLabels": {
+      "descriptionTitle": "وصف الوحدة والتفاصيل",
+      "featuresTitle": "المميزات والتجهيزات",
+      "otherFeaturesGroup": "مميزات إضافية",
+      "videoAnd3dTitle": "الفيديو والجولة الافتراضية ثلاثية الأبعاد",
+      "watchVideoBtn": "مشاهدة فيديو العقار",
+      "open3dTourBtn": "فتح الجولة ثلاثية الأبعاد (3D Tour)",
+      "onlineViewingBadge": "متاح المعاينة أونلاين بالفيديو ✓",
+      "streetAddressLabel": "العنوان:",
+      "cadastralCodeLabel": "الرقم العقاري (NAPR):",
+      "developerLabel": "المطور العقاري:",
+      "scoreHeader": "مؤشر تقييم الفرصة (AQAR EXIT SCORE)",
+      "excellentDeal": "فرصة استثنائية",
+      "veryGoodDeal": "فرصة ممتازة",
+      "scoreCalculatedPrefix": "محسوب تلقائياً من سعر المتر ($",
+      "scoreSqmUnit": "/م²)",
+      "scoreCalculatedSuffix": "وموقع وحالة الوحدة",
+      "priceVsDistrict": "السعر مقارنة بمتوسط المنطقة",
+      "locationRating": "تقييم الموقع والخدمات",
+      "conditionAndDelivery": "حالة العقار والتسليم",
+      "finRequiredCashNow": "المطلوب كاش الآن للمالك (بدون أوفر)",
+      "finNoOverNote": "✓ تدفع فقط المدفوع الفعلي للمالك وتكمل الأقساط بنفس شروط العقد",
+      "finMakeOfferBtn": "تقديم عرض شراء",
+      "finNegotiableTitle": "قابل للتفاوض المباشر مع المالك",
+      "finNegotiableDescPrefix": "المالك مستعد لخصم يصل إلى",
+      "finNegotiableDescMiddle": "(حوالي",
+      "finNegotiableDescSuffix": ") عند الجدية والدفع الكاش السريع.",
+      "finGainPrefix": "مكسبك الفوري عن سعر السوق اليوم:",
+      "finMarketPriceTodayPrefix": "سعر الوحدة في السوق اليوم:",
+      "finAfterCommissionSuffix": "(صافي مكسبك بعد خصم عمولة المنصة 1.25%)",
+      "finMarketDisclaimer": "* جميع المبالغ موثقة بموجب العقد الأصلي وإيصالات السداد في مقر شركة التطوير العقاري.",
+      "finRemainingToDev": "المتبقي لشركة التطوير (بالتقسيط)",
+      "finInstallment": "قيمة القسط الدوري",
+      "finRemainingMonthsLabel": "المدة المتبقية للأقساط",
+      "finMonthsWord": "شهر",
+      "finFullyPaid": "خالص الأقساط بالكامل",
+      "finDelivery": "موعد الاستلام",
+      "finCommissionLabel": "عمولة المنصة على المشتري (1.25% من إجمالي العقد)",
+      "finCommissionSub": "تُدفع فقط عند إتمام نقل الملكية رسمياً — ومجاناً تماماً للبائع (0%)",
+      "finTotalRequiredNow": "إجمالي المطلوب منك الآن",
+      "similarTitle": "فرص مميزة مشابهة",
+      "similarSubtitle": "وحدات حقيقية أخرى معروضة للتنازل بدون أوفر",
+      "similarReqCashPrefix": "الكاش المطلوب:",
+      "similarViewDetailsBtn": "عرض التفاصيل"
+    },
+    "locationInsights": {
+      "neighborhoodTitle": "تقييم الحي وسهولة التنقل (Neighborhood & Mobility)",
+      "neighborhoodSubPrefix": "منطقة مخدومة بالكامل وقابلة للمشي (",
+      "neighborhoodSubSuffix": "مرفق وخدمة حقيقية مسجلة حول المبنى)",
+      "calculatingNeighborhoodText": "جاري قراءة المرافق والخدمات المحيطة بالمبنى من الخريطة...",
+      "walkScoreLabel": "مؤشر المشي والخدمات اليومية (Walk Score — قضاء الاحتياجات اليومية مشياً)",
+      "mobilityScoreLabel": "مؤشر المواصلات والربط المروري (Mobility Score · Well connected)",
+      "metroRowLabel": "المترو",
+      "busRowLabel": "الحافلات",
+      "busLinesWithin500m": "خطوط ضمن 500 م",
+      "railRowLabel": "محطة القطار",
+      "airportRowLabel": "المطار",
+      "bestBadge": "الأسرع",
+      "locationTitle": "الموقع والخريطة ثلاثية الأبعاد",
+      "exactBuildingBadge": "موقع المبنى الدقيق ✓",
+      "approxCenterBadge": "موقع موثق في السجل الجغرافي",
+      "cloudyWord": "معتدل",
+      "airQualityWord": "جودة الهواء",
+      "collapseTooltip": "طي القسم",
+      "expandTooltip": "فتح القسم",
+      "directionsBtn": "الاتجاهات على Google Maps",
+      "open3dMapBtn": "تكبير الخريطة 3D",
+      "closeFullscreenBtn": "تصغير الخريطة",
+      "whatsNearbyTitle": "الأماكن والخدمات القريبة من العقار",
+      "whatsNearbySub": "الأقرب أولاً · المسافة الحقيقية وزمن المشي والسيارة من موقع المبنى · خرائط جورجيا",
+      "loadingNearbyText": "جاري تحميل الأماكن والخدمات المحيطة بالمبنى...",
+      "noPlacesInCategory": "لا توجد مرافق مسجلة قريبة في هذا التصنيف",
+      "allCat": "الكل",
+      "showLessBtn": "عرض أقل ▲",
+      "showMoreSuffix": "المزيد ⌄",
+      "walkWord": "مشياً",
+      "transitWord": "مواصلات",
+      "driveWord": "سيارة",
+      "minWord": "د",
+      "sunTitle": "حركة الشمس والإضاءة الطبيعية للمبنى",
+      "sunSub": "مسار الشمس الفلكي المحسوب بدقة من إحداثيات هذا المبنى (بتوقيت جورجيا)",
+      "winterTab": "الشتاء",
+      "todayTab": "اليوم",
+      "summerTab": "الصيف",
+      "windowDirectionTitle": "تعرض النوافذ لأشعة الشمس المباشرة حسب الاتجاه",
+      "northLabel": "الشمال",
+      "eastLabel": "الشرق",
+      "southLabel": "الجنوب",
+      "westLabel": "الغرب",
+      "noDirectSun": "إضاءة ناعمة بدون شمس مباشرة",
+      "brightMorning": "مشرق صباحاً",
+      "veryBrightAllDay": "مشمس جداً طوال النهار",
+      "brightAfternoon": "مشرق عصراً",
+      "southEastLabel": "جنوب شرق",
+      "southWestLabel": "جنوب غرب",
+      "timeLabel": "الوقت المحدد",
+      "heightLabel": "زاوية الارتفاع",
+      "directionLabel": "الاتجاه",
+      "daylightLabel": "طول النهار",
+      "sunriseLabel": "الشروق",
+      "solarNoonLabel": "الظهيرة",
+      "sunsetLabel": "الغروب",
+      "windowsHelpText": "استخدم Ctrl + التمرير لتكبير الخريطة",
+      "macHelpText": "استخدم ⌘ + التمرير لتكبير الخريطة",
+      "mobileHelpText": "استخدم إصبعين لتحريك وتكبير الخريطة",
+      "zoomInTitle": "تكبير",
+      "zoomOutTitle": "تصغير",
+      "centerBuildingTitle": "توسيط المبنى",
+      "fullscreenTitle": "ملء الشاشة",
+      "mapStylesTitle": "أنماط الخريطة",
+      "styles": {
+        "streets": "شوارع",
+        "sivrce": "Sivrce",
+        "realistic": "واقعي 3D",
+        "photoreal": "صورة جوية",
+        "hybrid": "هجين",
+        "minimal": "بسيط",
+        "contrast": "تباين عالي"
+      },
+      "categories": {
+        "metro": "المترو",
+        "school": "مدارس",
+        "kindergarten": "حضانات ورياض أطفال",
+        "pharmacy": "صيدليات",
+        "park": "حدائق ومتنزهات",
+        "market": "سوبرماركت وأسواق",
+        "restaurants": "مطاعم وكافيهات",
+        "clinic": "عيادات ومستشفيات",
+        "university": "جامعات وكليات",
+        "bank": "بنوك وصراف آلي",
+        "landmark": "معالم شهيرة",
+        "gym": "صالات رياضية",
+        "bus": "محطات حافلات"
+      }
     }
   },
   "publicPages": {
@@ -1606,20 +2421,50 @@
       "ownerTitle": "رحلة صاحب الوحدة",
       "ownerBtn": "ابدأ تقييم عقدك",
       "ownerSteps": [
-        ["قيّم عقدك", "دخّل بيانات عقدك واعرف موقفك مبدئيًا — وأول ما تبعت طلبك، حسابك بيتسجل تلقائيًا."],
-        ["ارفع مستنداتك", "العقد وإيصالات السداد — بنراجعها ونتحقق منها."],
-        ["نجهز فرصتك", "بنتحقق من الأرقام بالمستندات ونجهز عرض موثوق للمشترين."],
-        ["نطابق المشتري", "بنطابق وحدتك مع مشترين قادرين فعلاً يكملوا."],
-        ["نقل التعاقد", "بنمشي معاك في إجراءات النقل خطوة بخطوة لحد ما تقبض."]
+        [
+          "قيّم عقدك",
+          "دخّل بيانات عقدك واعرف موقفك مبدئيًا — وأول ما تبعت طلبك، حسابك بيتسجل تلقائيًا."
+        ],
+        [
+          "ارفع مستنداتك",
+          "العقد وإيصالات السداد — بنراجعها ونتحقق منها."
+        ],
+        [
+          "نجهز فرصتك",
+          "بنتحقق من الأرقام بالمستندات ونجهز عرض موثوق للمشترين."
+        ],
+        [
+          "نطابق المشتري",
+          "بنطابق وحدتك مع مشترين قادرين فعلاً يكملوا."
+        ],
+        [
+          "نقل التعاقد",
+          "بنمشي معاك في إجراءات النقل خطوة بخطوة لحد ما تقبض."
+        ]
       ],
       "buyerTitle": "رحلة المشتري",
       "buyerBtn": "سجل كمشتري",
       "buyerSteps": [
-        ["قيّم ميزانيتك", "اعرف المبلغ والقسط اللي يريحك — وحسابك يتجهز تلقائيًا من طلبك."],
-        ["شوف الفرص المناسبة", "فرص متحقق منها بأرقام كاملة وواضحة."],
-        ["قدّم عرضك", "عرض رسمي بشروط واضحة وأرقام كاملة."],
-        ["ثبّت الحجز", "كل خطوة موثقة — والدفع يتم ضمن إجراءات النقل الرسمية نفسها."],
-        ["استلم تعاقدك", "نقل رسمي معتمد من المطور وملف كامل."]
+        [
+          "قيّم ميزانيتك",
+          "اعرف المبلغ والقسط اللي يريحك — وحسابك يتجهز تلقائيًا من طلبك."
+        ],
+        [
+          "شوف الفرص المناسبة",
+          "فرص متحقق منها بأرقام كاملة وواضحة."
+        ],
+        [
+          "قدّم عرضك",
+          "عرض رسمي بشروط واضحة وأرقام كاملة."
+        ],
+        [
+          "ثبّت الحجز",
+          "كل خطوة موثقة — والدفع يتم ضمن إجراءات النقل الرسمية نفسها."
+        ],
+        [
+          "استلم تعاقدك",
+          "نقل رسمي معتمد من المطور وملف كامل."
+        ]
       ],
       "commissionTitle": "مجاناً للبائع — والعمولة بكل وضوح",
       "commissionDesc": "البائع مش بيدفع ولا جنيه. المشتري بيدفع 1.25% من قيمة التعاقد، وفقط لما يتم التنازل بنجاح. لو النقل ما تمش، مفيش عمولة على حد.",
@@ -1647,7 +2492,12 @@
       "phonePlaceholder": "01xx xxx xxxx",
       "emailLabel": "الإيميل",
       "subjectLabel": "الموضوع",
-      "subjects": ["استفسار عام", "بيع وحدة", "شراء وحدة", "استثمار"],
+      "subjects": [
+        "استفسار عام",
+        "بيع وحدة",
+        "شراء وحدة",
+        "استثمار"
+      ],
       "messageLabel": "رسالتك",
       "messagePlaceholder": "اكتب سؤالك أو موضوعك بالتفصيل...",
       "sendBtn": "ابعت الرسالة",
@@ -1666,7 +2516,7 @@
       "noCountryMatch": "لا توجد دولة مطابقة للبحث",
       "lightThemeAria": "تفعيل الوضع الفاتح",
       "searchCountryPlaceholder": "ابحث عن الدولة أو الكود (+995)...",
-"noCountryFound": "لا توجد دولة مطابقة",
+      "noCountryFound": "لا توجد دولة مطابقة",
       "darkThemeAria": "تفعيل الوضع الداكن"
     },
     "login": {
@@ -1750,7 +2600,6 @@
       "genericError": "تعذر تغيير كلمة السر."
     }
   },
-  
   "storyPage": {
     "heroEyebrow": "الحكاية من البداية",
     "heroTitle": "ليه حد ممكن يخسر جزء كبير من فلوسه لمجرد إنه مش قادر يكمّل؟",
@@ -1817,10 +2666,9 @@
       "staffBannerText": "وضع الصيانة مفعّل حالياً للزوار — الموقع مفتوح لك لأنك من فريق الإدارة",
       "staffManageBtn": "إدارة وضع الصيانة"
     }
-    
   },
   "serverActions": {
-        "auth": {
+    "auth": {
       "turnstile": "يرجى إتمام التحقق الأمني (Cloudflare) والمحاولة مرة أخرى.",
       "missingLogin": "يرجى إدخال البريد الإلكتروني/الهاتف وكلمة المرور.",
       "notRegistered": "هذا البريد الإلكتروني أو رقم الموبايل غير مسجل لدينا. يمكنك إنشاء حساب جديد.",
@@ -1855,7 +2703,6 @@
       "otpEmailGreeting": "أهلاً",
       "otpEmailBody": "استخدم كود التحقق التالي لتعيين كلمة مرور جديدة لحسابك:"
     },
-
     "basic": {
       "saveUnitError": "تعذر حفظ بيانات الوحدة. حاول مرة أخرى.",
       "loadOpportunitiesError": "تعذر تحميل الفرص حالياً.",
@@ -1864,7 +2711,7 @@
       "registerError": "تعذر إنشاء الحساب. تأكد من البيانات وحاول مرة أخرى.",
       "loginError": "البريد الإلكتروني أو كلمة السر غير صحيحة."
     },
-  "account": {
+    "account": {
       "sessionExpired": "انتهت الجلسة، يرجى تسجيل الدخول.",
       "invalidNamePhone": "يرجى إدخال اسم صحيح ورقم موبايل صحيح.",
       "phoneConflict": "رقم الموبايل هذا مسجل بالفعل لحساب آخر.",
@@ -1920,7 +2767,6 @@
       "unauthorizedAction": "غير مصرح بتنفيذ هذا الإجراء.",
       "adminSenderName": "إدارة منصة دارك",
       "greetingWord": "أهلاً بك يا",
-      
       "dearClient": "عميلنا العزيز",
       "notifAdminNoteTitle": "ملاحظة جديدة من الإدارة بخصوص وحدتك",
       "boostApprovedNotifTitle": "تم تأكيد الدفع وتفعيل باقة التمييز",
@@ -2035,9 +2881,9 @@
       "staffLoginBtn": "دخول بحساب الإدارة",
       "backHomeBtn": "العودة للرئيسية",
       "loginRequiredTitle": "تسجيل دخول الإدارة مطلوب",
-  "loginRequiredDesc": "يرجى تسجيل الدخول بحساب يمتلك صلاحيات الإدارة للمتابعة."
-  
-    },"dealsPage": {
+      "loginRequiredDesc": "يرجى تسجيل الدخول بحساب يمتلك صلاحيات الإدارة للمتابعة."
+    },
+    "dealsPage": {
       "eyebrow": "غرفة عمليات العروض والصفقات (Deal Room)",
       "title": "إدارة عروض الشراء والتفاوض وإغلاق الصفقات",
       "subtitle": "اعتمد العروض المؤكدة عبر واتساب لإرسالها للبائعين، وتابع الصفقات المتفق عليها لإتمام التنازل",
@@ -2092,7 +2938,7 @@
       "waSellerGreetingPrefix": "أهلاً أستاذ",
       "waSellerBodyPrefix": "معك إدارة منصة Aqar Exit بخصوص عرض الشراء الوارد على وحدتك رقم"
     },
-     "smartMatch": {
+    "smartMatch": {
       "readyDealsTitle": "غرفة الصفقات المتفق عليها الجاهزة للتنفيذ",
       "readyDealsSubtitle": "هؤلاء العملاء وافقوا رسمياً على السعر وتم قفل الوحدة لهم — تواصل مع الطرفين لإتمام التنازل وتحصيل العمولة",
       "liveOffersFeedTitle": "رادار حركة العروض الحية والتفاوض",
@@ -2108,8 +2954,8 @@
       "unitMatchedBuyersTitle": "المشترون المتوافقون مع",
       "buyerMatchedUnitsTitle": "الوحدات المطابقة للمشتري",
       "sendAllRecsBtn": "ترشيح للكل",
-       "offerPendingAdminTag": "بانتظار موافقتك",
-  "offerBackupTag": "احتياطي",
+      "offerPendingAdminTag": "بانتظار موافقتك",
+      "offerBackupTag": "احتياطي",
       "sentAllDoneBtn": "تم الإرسال للكل",
       "sendRecToBuyerBtn": "ترشيح للمشتري",
       "sentRecDoneBtn": "تم الترشيح",
@@ -2136,7 +2982,7 @@
       "logout": "تسجيل الخروج",
       "notifications": "الإشعارات",
       "defaultAdminName": "المشرف",
-  "nowLabel": "الآن",
+      "nowLabel": "الآن",
       "clearAll": "مسح الكل",
       "noNotifications": "لا توجد إشعارات جديدة",
       "view": "عرض",
@@ -2147,14 +2993,13 @@
         "MODERATOR": "مشرف عقارات",
         "SALES": "مبيعات وتواصل"
       },
-    
       "nav": {
         "dashboard": "الرئيسية",
         "properties": "طلبات البيع",
         "propertiesShort": "العقارات",
         "promotions": "طلبات الإعلان ⭐",
         "deals": "غرفة الصفقات والعروض",
-    "dealsShort": "الصفقات",
+        "dealsShort": "الصفقات",
         "promotionsShort": "الإعلانات",
         "leads": "طلبات الشراء",
         "leadsShort": "المشترين",
@@ -2184,15 +3029,15 @@
       "pendingNeedAction": "وحدات جديدة تحتاج مراجعتك",
       "allReviewed": "تمت مراجعة الكل",
       "dealsRoomKpiLabel": "غرفة العروض والصفقات",
-  "offersPendingYourApprovalNote": "عرض بانتظار موافقتك",
-  "dealsReadyToCloseNote": "صفقة جاهزة للتنفيذ",
-  "pendingOffersAlertPrefix": "لديك",
-  "pendingOffersAlertSuffix": "عروض شراء جديدة بانتظار تأكيدك وإرسالها للبائعين",
-  "pendingOffersAlertSub": "اضغط هنا لفتح غرفة الصفقات واعتماد العروض المؤكدة عبر واتساب",
-  "openDealsRoomBtn": "فتح غرفة الصفقات",
-  "manageAndCloseDealsBtn": "إدارة وإغلاق الصفقات",
-  "openInDealsRoomBtn": "فتح في غرفة الصفقات",
-  "openFullDealsRoomLink": "فتح غرفة الصفقات الكاملة",
+      "offersPendingYourApprovalNote": "عرض بانتظار موافقتك",
+      "dealsReadyToCloseNote": "صفقة جاهزة للتنفيذ",
+      "pendingOffersAlertPrefix": "لديك",
+      "pendingOffersAlertSuffix": "عروض شراء جديدة بانتظار تأكيدك وإرسالها للبائعين",
+      "pendingOffersAlertSub": "اضغط هنا لفتح غرفة الصفقات واعتماد العروض المؤكدة عبر واتساب",
+      "openDealsRoomBtn": "فتح غرفة الصفقات",
+      "manageAndCloseDealsBtn": "إدارة وإغلاق الصفقات",
+      "openInDealsRoomBtn": "فتح في غرفة الصفقات",
+      "openFullDealsRoomLink": "فتح غرفة الصفقات الكاملة",
       "adRequests": "طلبات الإعلان ⭐",
       "adPendingNote": "طلب جديد بانتظار التفعيل",
       "adActiveNote": "وحدة مميزة نشطة",
@@ -2317,8 +3162,8 @@
       "siteNameLabel": "اسم المنصة",
       "whatsappLabel": "رقم واتساب خدمة العملاء الرسمي",
       "financialRatesTitle": "نسب العمولة وخصم استرجاع المطور (%)",
-"devPenaltyMinLabel": "أقل خصم للمطور عند الفسخ (%)",
-"devPenaltyMaxLabel": "أقصى خصم للمطور عند الفسخ (%)",
+      "devPenaltyMinLabel": "أقل خصم للمطور عند الفسخ (%)",
+      "devPenaltyMaxLabel": "أقصى خصم للمطور عند الفسخ (%)",
       "supportEmailLabel": "البريد الإلكتروني الرسمي للدعم",
       "commissionLabel": "نسبة عمولة المنصة على المشتري (%)",
       "promoPricesTitle": "أسعار باقات تمييز الوحدات (حسب كل دولة):",
@@ -2424,8 +3269,7 @@
       "emptyText": "لا توجد طلبات شراء مطابقة.",
       "updatingText": "جاري تحديث الطلب...",
       "verifyBuyerBtn": "توثيق المشتري ✓",
-"buyerVerifiedSuccess": "تم توثيق بيانات اتصال المشتري بنجاح ✓",
-
+      "buyerVerifiedSuccess": "تم توثيق بيانات اتصال المشتري بنجاح ✓",
       "unitBadge": "حجز وحدة",
       "cashLabel": "كاش:",
       "installmentLabel": "القسط:",
@@ -2606,7 +3450,7 @@
         "deleted_by_seller": "🗑 محذوفة من المالك",
         "rejected": "٧. مرفوض"
       },
-    "docs": {
+      "docs": {
         "contract": "عقد شراء الوحدة الأصلي",
         "receipts": "إيصالات السداد للمطور",
         "statement": "كشف حساب المطور (Statement)",
@@ -2620,7 +3464,7 @@
         "pausedBySeller": "متوقفة من المالك",
         "deletedBySellerPrefix": "حذفها المالك",
         "phoneVerifiedBadge": "الهاتف موثّق ✓",
-  "emailVerifiedBadge": "الإيميل موثّق ✓",
+        "emailVerifiedBadge": "الإيميل موثّق ✓",
         "daysWord": "أيام",
         "dayWord": "يوم",
         "docWord": "مستند",
@@ -2684,7 +3528,7 @@
         "executingBtn": "جاري التنفيذ...",
         "openDocBtn": "فتح"
       },
-     "modals": {
+      "modals": {
         "purgeTitle": "مسح الوحدات المحذوفة",
         "purgeDescPrefix": "مسح جميع الوحدات المحذوفة",
         "purgeDescSuffix": "نهائياً من قاعدة البيانات؟",
@@ -2737,9 +3581,17 @@
         "promoActivated": "⭐ تم تفعيل تمييز الوحدة بنجاح.",
         "sellerVerifiedSuccess": "تم توثيق بيانات اتصال البائع بنجاح ✓",
         "promoCancelled": "تم إلغاء تمييز الوحدة."
+      },
+      "analytics": {
+        "viewsWord": "مشاهدة",
+        "totalViewsLabel": "إجمالي مشاهدات الوحدات:",
+        "sendReportWaBtn": "إرسال تقرير المشاهدات للمالك (واتساب)",
+        "viewsColumnHeader": "المشاهدات",
+        "viewUnitBtn": "مشاهدة الوحدة"
       }
     }
-  },"smartMatcher": {
+  },
+  "smartMatcher": {
     "cashExact": "الكاش المطلوب في حدود سيولتك المتاحة",
     "cashNegotiableBridge": "متوافق عبر التفاوض على الكاش",
     "cashSlightlyHigher": "الكاش المطلوب أعلى قليلاً من سيولتك المحددة",
@@ -2754,7 +3606,83 @@
     "roomsDiff": "عدد الغرف",
     "buyerAskedRooms": "طلبك",
     "deliveryDiff": "حالة الاستلام",
-    "readyKeywords": ["جاهز", "فوري", "مستلم", "ready"],
-    "bothDeliveryKeywords": ["الاتنين", "كلاهما", "both", "any"]
+    "readyKeywords": [
+      "جاهز",
+      "فوري",
+      "مستلم",
+      "ready"
+    ],
+    "bothDeliveryKeywords": [
+      "الاتنين",
+      "كلاهما",
+      "both",
+      "any"
+    ]
+  },
+  "common": {
+    "floatingWhatsapp": {
+      "tooltip": "تواصل معنا عبر واتساب",
+      "prefillMessage": "مرحباً فريق Aqar Exit، أحتاج إلى مساعدة واستفسار بخصوص المنصة."
+    },
+    "relativeTime": {
+      "oneWeekAgo": "منذ أسبوع",
+      "twoWeeksAgo": "منذ أسبوعين",
+      "weeksAgoPrefix": "منذ",
+      "weeksWord": "أسابيع",
+      "oneHourAgo": "منذ ساعة",
+      "twoHoursAgo": "منذ ساعتين",
+      "hoursWordPlural": "ساعات",
+      "hourWordSingular": "ساعة",
+      "oneDayAgo": "منذ يوم واحد",
+      "twoDaysAgo": "منذ يومين",
+      "daysWordPlural": "أيام",
+      "oneMonthAgo": "شهر",
+      "twoMonthsAgo": "شهرين",
+      "monthsWordPlural": "شهور",
+      "sincePrefix": "منذ"
+    },
+    "frequencies": {
+      "monthly": "شهري",
+      "quarterly": "ربع سنوي",
+      "semiAnnual": "نصف سنوي",
+      "annual": "سنوي"
+    },
+    "delivery": {
+      "ready": "جاهزة"
+    },
+    "unitTypesShort": {
+      "apartment": "شقة",
+      "studio": "استوديو",
+      "aparthotel": "شقة فندقية",
+      "villa": "فيلا",
+      "cottage": "شاليه",
+      "commercial": "تجاري",
+      "land": "أرض"
+    }
+  },
+  "locationModal": {
+    "triggerEmpty": "اضغط لاختيار المدينة أو الحي في جورجيا...",
+    "triggerSelectedPrefix": "اضغط لإضافة مدينة أو منطقة أخرى",
+    "selectedCountSuffix": "مناطق محددة",
+    "modalTitle": "الموقع",
+    "sellerModalTitle": "اختر المدينة والحي في جورجيا",
+    "searchPlaceholder": "مدينة أو حي أو منطقة",
+    "sellerSearchPlaceholder": "ابحث عن الحي، المدينة، المنطقة أو الشارع...",
+    "nearbyTitle": "بالقرب منك",
+    "nearbySub": "المدينة من هذا الموقع",
+    "popularCitiesTitle": "مدن شائعة",
+    "browseAllCitiesBtn": "تصفح كل المدن ←",
+    "districtsAZTitle": "الأحياء والمناطق (A–Z)",
+    "districtsTab": "الأحياء والمناطق",
+    "streetsTab": "الشوارع",
+    "citiesHeader": "كل المدن",
+    "wholeCityBtn": "كل المدينة",
+    "pickDistrictOrStreetHint": "اختر الحي أولاً أو ابحث باسم الشارع بالأعلى",
+    "noStreetsForAreaHint": "لا توجد شوارع فرعية مسجلة لهذه المنطقة — اضغط تأكيد لاختيار المنطقة مباشرة",
+    "outsideGeorgiaGpsWarning": "أنت تتصفح حالياً من خارج دولة جورجيا — المنصة مخصصة للعقارات داخل جورجيا فقط. يرجى اختيار مدينة وحي العقار من القائمة أدناه.",
+    "clearBtn": "مسح",
+    "clearAllBtn": "مسح الكل",
+    "selectBtn": "اختيار",
+    "confirmSelectBtn": "تأكيد الاختيار"
   }
 }

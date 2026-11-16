@@ -47,10 +47,7 @@ import {
 } from '@/lib/georgia-uber-search'
 import { useTranslation, type LocaleCode } from '@/lib/i18n'
 import { getSellerFormTranslations } from './seller-i18n'
-import {
-  RequiredLabel,
-  SivrceLocationModalPicker,
-} from './seller-shared'
+import { RequiredLabel, SivrceLocationModalPicker } from './seller-shared'
 
 export { mapDetectedAddressToGeorgiaAreaId }
 
@@ -70,118 +67,26 @@ function isPointInsideGeorgia(lat: number, lng: number): boolean {
   )
 }
 
-const MAP_STYLE_OPTIONS: Array<{
+const MAP_STYLE_ITEMS: Array<{
   id: GeorgiaMapThemeMode
-  label: string
+  styleKey:
+    | 'streets'
+    | 'sivrce'
+    | 'realistic'
+    | 'photoreal'
+    | 'hybrid'
+    | 'minimal'
+    | 'contrast'
   icon: any
 }> = [
-  { id: 'streets', label: 'Streets', icon: MapIcon },
-  { id: 'sivrce', label: 'Sivrce', icon: Globe },
-  { id: 'realistic', label: 'Realistic', icon: Mountain },
-  { id: 'photoreal', label: 'Photoreal', icon: Camera },
-  { id: 'hybrid', label: 'Hybrid', icon: Sparkles },
-  { id: 'minimal', label: 'Minimal', icon: Circle },
-  { id: 'contrast', label: 'High contrast', icon: Contrast },
+  { id: 'streets', styleKey: 'streets', icon: MapIcon },
+  { id: 'sivrce', styleKey: 'sivrce', icon: Globe },
+  { id: 'realistic', styleKey: 'realistic', icon: Mountain },
+  { id: 'photoreal', styleKey: 'photoreal', icon: Camera },
+  { id: 'hybrid', styleKey: 'hybrid', icon: Sparkles },
+  { id: 'minimal', styleKey: 'minimal', icon: Circle },
+  { id: 'contrast', styleKey: 'contrast', icon: Contrast },
 ]
-
-const SIVRCE_MAP_UI_I18N: Record<
-  LocaleCode,
-  {
-    windowsHelpText: string
-    macHelpText: string
-    mobileHelpText: string
-    enterStreetHint: string
-    bottomSnapHint: string
-    parcelFoundText: string
-    optionalNaprHint: string
-    hideCadastralBtn: string
-    hiddenFromPublicBadge: string
-    outsideGeorgiaMapAlert: string
-    shortProjectPlaceholder: string
-    shortDeveloperPlaceholder: string
-    shortStreetPlaceholder: string
-    shortHousePlaceholder: string
-    shortCadastralPlaceholder: string
-  }
-> = {
-  ar: {
-    windowsHelpText: 'استخدم Ctrl + التمرير لتكبير الخريطة',
-    macHelpText: 'استخدم ⌘ + التمرير لتكبير الخريطة',
-    mobileHelpText: 'استخدم إصبعين لتحريك وتكبير الخريطة',
-    enterStreetHint: 'أدخل الشارع — يسقط الدبوس تلقائياً',
-    bottomSnapHint:
-      'الدبوس والمبنى يتحدثان تلقائياً · أو اضغط على الخريطة لتحديد مبنى',
-    parcelFoundText:
-      'تم العثور على القطعة — تم توجيه الخريطة إلى قطعة NAPR',
-    optionalNaprHint: 'اختياري — يوجه الخريطة تلقائياً إلى قطعة NAPR',
-    hideCadastralBtn: 'إخفاء الرقم العقاري عن الجمهور في الإعلان',
-    hiddenFromPublicBadge: 'مخفي عن الزوار في صفحة الإعلان (يظهر للإدارة فقط)',
-    outsideGeorgiaMapAlert:
-      'موقعك الحالي خارج جورجيا — يرجى تحديد موقع العقار داخل خريطة جورجيا فقط.',
-    shortProjectPlaceholder: 'اسم المشروع أو المجمع...',
-    shortDeveloperPlaceholder: 'اسم المطور (اختياري)...',
-    shortStreetPlaceholder: 'ابحث باسم الشارع...',
-    shortHousePlaceholder: 'مثال: 12',
-    shortCadastralPlaceholder: 'اختياري (مثال: 01.10...)',
-  },
-  en: {
-    windowsHelpText: 'Use Ctrl + scroll to zoom the map',
-    macHelpText: 'Use ⌘ + scroll to zoom the map',
-    mobileHelpText: 'Use two fingers to move the map',
-    enterStreetHint: 'Enter the street — the pin drops automatically',
-    bottomSnapHint:
-      'Pin and building snap automatically · or tap the map to mark a building',
-    parcelFoundText: 'Parcel found — map snapped to the NAPR lot',
-    optionalNaprHint: 'Optional — snaps NAPR parcel onto the map',
-    hideCadastralBtn: 'Hide cadastral code on the website',
-    hiddenFromPublicBadge: 'Hidden from public visitors (Visible to Admin only)',
-    outsideGeorgiaMapAlert:
-      'Your GPS location is outside Georgia — please pin the property inside Georgia.',
-    shortProjectPlaceholder: 'Project or complex name...',
-    shortDeveloperPlaceholder: 'Developer name (optional)...',
-    shortStreetPlaceholder: 'Type street name...',
-    shortHousePlaceholder: 'e.g. 12',
-    shortCadastralPlaceholder: 'Optional (e.g. 01.10...)',
-  },
-  ru: {
-    windowsHelpText: 'Используйте Ctrl + колесико для масштабирования',
-    macHelpText: 'Используйте ⌘ + колесико для масштабирования',
-    mobileHelpText: 'Используйте два пальца для перемещения карты',
-    enterStreetHint: 'Введите улицу — пин установится автоматически',
-    bottomSnapHint:
-      'Пин и здание выбираются автоматически · или нажмите на карту',
-    parcelFoundText: 'Участок найден — карта привязана к участку NAPR',
-    optionalNaprHint: 'Необязательно — привязывает участок NAPR к карте',
-    hideCadastralBtn: 'Скрыть кадастровый код на сайте',
-    hiddenFromPublicBadge: 'Скрыто от посетителей в объявлении (Видно только админу)',
-    outsideGeorgiaMapAlert:
-      'Ваша геопозиция вне Грузии — укажите объект на карте Грузии.',
-    shortProjectPlaceholder: 'Название ЖК или проекта...',
-    shortDeveloperPlaceholder: 'Застройщик (необязательно)...',
-    shortStreetPlaceholder: 'Введите название улицы...',
-    shortHousePlaceholder: 'напр. 12',
-    shortCadastralPlaceholder: 'Необязательно',
-  },
-  ka: {
-    windowsHelpText: 'გამოიყენეთ Ctrl + სქროლი რუკის გასადიდებლად',
-    macHelpText: 'გამოიყენეთ ⌘ + სქროლი რუკის გასადიდებლად',
-    mobileHelpText: 'გამოიყენეთ ორი თითი რუკის გადასაადგილებლად',
-    enterStreetHint: 'შეიყვანეთ ქუჩა — პინი ავტომატურად დაჯდება',
-    bottomSnapHint:
-      'პინი და შენობა ავტომატურად ინიშნება · ან დააჭირეთ რუკას',
-    parcelFoundText: 'ნაკვეთი ნაპოვნია — რუკა გასწორდა NAPR-ის მიხედვით',
-    optionalNaprHint: 'არასავალდებულო — აფიქსირებს NAPR ნაკვეთს რუკაზე',
-    hideCadastralBtn: 'საკადასტრო კოდის დამალვა საიტზე',
-    hiddenFromPublicBadge: 'დამალულია საჯაროდ (ჩანს მხოლოდ ადმინისტრაციისთვის)',
-    outsideGeorgiaMapAlert:
-      'თქვენი GPS მდებარეობა საქართველოს გარეთაა — მონიშნეთ ობიექტი საქართველოში.',
-    shortProjectPlaceholder: 'პროექტის სახელი...',
-    shortDeveloperPlaceholder: 'დეველოპერი (არასავალდებულო)...',
-    shortStreetPlaceholder: 'ჩაწერეთ ქუჩის სახელი...',
-    shortHousePlaceholder: 'მაგ. 12',
-    shortCadastralPlaceholder: 'არასავალდებულო',
-  },
-}
 
 function loadSellerMapLibre(): Promise<any> {
   return new Promise((resolve, reject) => {
@@ -257,8 +162,7 @@ export function LocationSection({
   const { t: dict, locale, dir } = useTranslation()
   const fT = getSellerFormTranslations(locale as LocaleCode, dict)
   const locT = fT.locationSection
-  const mapUiT =
-    SIVRCE_MAP_UI_I18N[locale as LocaleCode] || SIVRCE_MAP_UI_I18N.ar
+  const mapUiT = dict.sell.mapUi
 
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
   const mapWrapperRef = useRef<HTMLDivElement | null>(null)
@@ -359,7 +263,6 @@ export function LocationSection({
     }
   }, [])
 
-  // ضمان مزامنة الإحداثيات مع كائن form فور اختيار أي منطقة
   useEffect(() => {
     if (!hasSelectedAnyLocation) return
     if (!form.lat || !form.lng) {
@@ -368,7 +271,6 @@ export function LocationSection({
     }
   }, [hasSelectedAnyLocation, liveCoords.lat, liveCoords.lng, form.lat, form.lng])
 
-  // جلب الأماكن المحيطة في الخلفية أثناء ملء البائع لبيانات الوحدة لتُحفظ مع الفورم فوراً
   useEffect(() => {
     if (!hasSelectedAnyLocation) return
     if (!isPointInsideGeorgia(liveCoords.lat, liveCoords.lng)) return
@@ -1297,7 +1199,7 @@ export function LocationSection({
                     type="button"
                     onClick={() => handleZoomAroundCenter(1)}
                     className="hidden size-10 items-center justify-center border-b border-slate-100 text-slate-700 transition hover:bg-slate-100 sm:flex"
-                    title="Zoom in"
+                    title={mapUiT.zoomInTitle}
                   >
                     <Plus className="size-4" />
                   </button>
@@ -1305,7 +1207,7 @@ export function LocationSection({
                     type="button"
                     onClick={() => handleZoomAroundCenter(-1)}
                     className="hidden size-10 items-center justify-center border-b border-slate-100 text-slate-700 transition hover:bg-slate-100 sm:flex"
-                    title="Zoom out"
+                    title={mapUiT.zoomOutTitle}
                   >
                     <Minus className="size-4" />
                   </button>
@@ -1313,7 +1215,7 @@ export function LocationSection({
                     type="button"
                     onClick={resetCompass}
                     className="hidden size-10 items-center justify-center border-b border-slate-100 text-slate-700 transition hover:bg-slate-100 sm:flex"
-                    title="Reset bearing"
+                    title={mapUiT.resetBearingTitle}
                   >
                     <Compass className="size-4" />
                   </button>
@@ -1336,7 +1238,7 @@ export function LocationSection({
                     type="button"
                     onClick={() => setIsFullscreenMap((p) => !p)}
                     className="flex size-10 items-center justify-center text-slate-700 transition hover:bg-slate-100"
-                    title="Fullscreen map"
+                    title={mapUiT.fullscreenMapTitle}
                   >
                     {isFullscreenMap ? (
                       <Minimize2 className="size-4" />
@@ -1349,9 +1251,11 @@ export function LocationSection({
                 <div ref={styleMenuRef} className="relative flex items-center">
                   {styleMenuOpen && (
                     <div className="absolute top-0 right-24 z-30 grid w-[265px] grid-cols-2 gap-1.5 rounded-2xl border border-slate-200/90 bg-white/95 p-2.5 shadow-xl backdrop-blur-md">
-                      {MAP_STYLE_OPTIONS.map((opt) => {
+                      {MAP_STYLE_ITEMS.map((opt) => {
                         const active = mapStyleMode === opt.id
                         const IconComp = opt.icon
+                        const labelText =
+                          mapUiT.styles?.[opt.styleKey] || opt.styleKey
                         return (
                           <button
                             key={opt.id}
@@ -1371,7 +1275,7 @@ export function LocationSection({
                                 active ? 'text-white' : 'text-slate-500'
                               }`}
                             />
-                            <span className="truncate">{opt.label}</span>
+                            <span className="truncate">{labelText}</span>
                           </button>
                         )
                       })}
@@ -1393,7 +1297,7 @@ export function LocationSection({
                     <button
                       type="button"
                       onClick={() => setStyleMenuOpen((p) => !p)}
-                      title="Map styles"
+                      title={mapUiT.mapStylesTitle}
                       className={`flex size-10 items-center justify-center transition ${
                         styleMenuOpen
                           ? 'bg-[#2563eb] text-white'

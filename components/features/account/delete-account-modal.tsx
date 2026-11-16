@@ -30,11 +30,11 @@ export function AccountActionLinks({
   const [error, setError] = useState('')
   const [isPending, startTransition] = useTransition()
 
+  const normalizedInput = confirmWord.trim().toLowerCase()
   const isConfirmReady =
-    confirmWord.trim().toLowerCase() ===
-      (t.confirmWordTarget || 'حذف').trim().toLowerCase() ||
-    confirmWord.trim() === 'حذف' ||
-    confirmWord.trim().toLowerCase() === 'delete'
+    normalizedInput === t.confirmWordTarget.trim().toLowerCase() ||
+    normalizedInput === 'delete' ||
+    normalizedInput === 'حذف'
 
   const handleRequestDeletion = () => {
     if (!isConfirmReady) return

@@ -56,7 +56,7 @@ export default function Error({
             href="/"
             className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-5 text-xs font-bold text-[#0a1122] hover:bg-slate-50"
           >
-            {(dict.navbar as any)?.home || 'الرئيسية'}
+            {dict.navbar.home}
           </Link>
         </div>
       </div>

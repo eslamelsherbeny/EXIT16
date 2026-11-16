@@ -1,3 +1,4 @@
+
 {
   "brand": {
     "name": "Aqar",
@@ -10,7 +11,7 @@
     "howItWorks": "Как это работает",
     "contact": "Контакты",
     "loginGuest": "Войти",
-"myAccount": "Кабинет",
+    "myAccount": "Кабинет",
     "investors": "Инвесторам",
     "languageLabel": "Выберите язык",
     "login": "Кабинет",
@@ -23,7 +24,10 @@
       "en": "English",
       "ru": "Русский",
       "ka": "ქართული"
-    }
+    },
+    "home": "Главная",
+    "adminShort": "Админ",
+    "switchingDefault": "Обновление..."
   },
   "home": {
     "hero": {
@@ -198,6 +202,151 @@
       "buyerTitle": "Ищете реальную выгоду?",
       "buyerDesc": "Укажите свой бюджет, и мы пришлем проверенные объекты под ваш доступный кэш и комфортный платеж.",
       "buyerBtn": "Зарегистрироваться как покупатель"
+    },
+    "cards": {
+      "docsVerified": "Документы проверены",
+      "sqmUnit": "м²",
+      "roomsWord": "комн.",
+      "bathWord": "сануз.",
+      "requiredCashNow": "Сумма на руки сейчас",
+      "negotiable": "Торг уместен",
+      "yourMarketGain": "Ваша выгода от рынка",
+      "marketPriceTodayPrefix": "Рыночная цена:",
+      "afterFeeSuffix": "· после комиссии 1.25%",
+      "remainingToDeveloper": "Остаток застройщику",
+      "installment": "Рассрочка",
+      "fullyPaid": "Выплачено полностью",
+      "delivery": "Сдача",
+      "detailsBtn": "Подробнее",
+      "viewsTitle": "Просмотры",
+      "adSpace": "Рекламное место",
+      "yourAdHere": "Ваша реклама здесь",
+      "adDescSuper": "Разместите объект в SUPER VIP и получите максимальный охват среди покупателей и инвесторов.",
+      "adDescVip": "Поднимите объявление в +VIP всего за 5 ₾ для приоритетного показа покупателям.",
+      "adBullet1": "Целевая аудитория инвесторов",
+      "adBullet2": "Прямой контакт с покупателем",
+      "adBullet3": "Прозрачная статистика просмотров",
+      "advertiseHereBtn": "Разместить рекламу →",
+      "vipPlusTitle": "Объявления +VIP",
+      "vipPlusSub": "Приоритетные объявления — проверенные объекты переуступки",
+      "vipPlusAllBtn": "Все +VIP →"
+    },
+    "map3dSection": {
+      "badge": "3D-ОБЗОР ПРОЕКТОВ",
+      "titlePrefix": "Изучайте объекты переуступки на",
+      "titleAccent": "3D-карте Грузии",
+      "subtitle": "Интерактивный панорамный обзор проверенных жилых комплексов в Тбилиси и Батуми.",
+      "browseAllBtn": "Смотреть все объекты на карте",
+      "launchMapBtn": "Открыть интерактивную 3D-карту",
+      "features": [
+        {
+          "title": "Предложения переуступки в каждом корпусе",
+          "sub": "Нажмите на любой ЖК на карте, чтобы увидеть доступные квартиры и сумму на руки в USD."
+        },
+        {
+          "title": "3D-модели строящихся комплексов",
+          "sub": "Оцените расположение дома и прогресс строительства в 3D перед переоформлением договора."
+        },
+        {
+          "title": "Сравнение цены договора с ценой застройщика",
+          "sub": "Узнайте мгновенную выгоду по каждому району Тбилиси и Батуми вместе с инфраструктурой."
+        },
+        {
+          "title": "Мгновенное переключение 2D и 3D режима",
+          "sub": "Удобная навигация по карте объектов со смартфона или компьютера в один клик."
+        }
+      ]
+    },
+    "categoriesGrid": {
+      "exit": "Все переуступки",
+      "Apartment": "Квартиры",
+      "Private house": "Дома и виллы",
+      "Cottage": "Коттеджи",
+      "Luxury": "Элитное жилье",
+      "Land": "Участки земли",
+      "Commercial": "Коммерческая",
+      "Ready": "Готово к въезду",
+      "Sea view": "Вид на море",
+      "Pool": "С бассейном",
+      "Jacuzzi": "С джакузи",
+      "Ski resorts": "Горнолыжные курорты",
+      "Compounds": "Жилые комплексы",
+      "Workspace": "Офисы",
+      "Hotel": "Апарт-отели",
+      "New projects": "Строящиеся"
+    },
+    "marketSections": {
+      "bannerBadge": "ПРЕМИУМ РАЗМЕЩЕНИЕ · AQAR EXIT",
+      "bannerTitle": "Хотите быстрее продать объект или продвинуть проект?",
+      "bannerDesc": "Разместите ваш объект в топе главной страницы перед тысячами реальных покупателей и инвесторов в Грузии.",
+      "bannerPill1": "Топ-позиции в выдаче",
+      "bannerPill2": "Прямые покупатели без посредников",
+      "bannerPill3": "Мгновенная активация",
+      "bannerBtn": "Выбрать пакет продвижения →",
+      "devBadge": "ЛУЧШИЕ ЗАСТРОЙЩИКИ",
+      "devTitle": "Ведущие строительные компании",
+      "devSub": "Рейтинг по активным объектам — изучайте ЖК и квартиры",
+      "devAllBtn": "Все застройщики (1399) →",
+      "devProjectsWord": "проектов",
+      "devActiveWord": "активных",
+      "devProjectsLink": "Проекты →",
+      "tbilisi": "Тбилиси",
+      "batumi": "Батуми",
+      "developers": {
+        "archi": "Archi",
+        "arcon": "Arcon Development",
+        "orbi": "ORBI Group",
+        "next": "NEXT Group",
+        "m2": "m² Real Estate"
+      },
+      "walletBadge": "Баланс и продвижение",
+      "walletTitlePrefix": "Пополните баланс",
+      "walletTitleAccent": "на любую сумму",
+      "walletDesc": "Продвигайте объявления с пакетами SUPER VIP и VIP+. После оплаты и проверки администратором продвижение активируется автоматически.",
+      "feature1Title": "Все способы оплаты",
+      "feature1Desc": "Apple Pay · Mastercard · Visa · BOG · TBC · Банковский перевод.",
+      "feature2Title": "100% возврат средств",
+      "feature2Desc": "Неиспользованный баланс полностью возвращается по первому запросу.",
+      "feature3Title": "Зачисление 1:1 без комиссии",
+      "feature3Desc": "0% комиссия — каждый 1 ₾ идет напрямую на продвижение вашего объекта.",
+      "quickAmounts": "Быстрый выбор",
+      "starterBadge": "Старт",
+      "recommendedBadge": "Рекомендуем 🔥",
+      "popularBadge": "Популярный",
+      "customAmountLabel": "Другая сумма",
+      "anyWord": "Любая",
+      "daySingular": "день",
+      "dayDual": "дн.",
+      "dayPlural": "дн.",
+      "creditedToBalance": "зачисляется на баланс",
+      "zeroFeeBadge": "0% комиссия",
+      "instantCreditBadge": "Зачисление 1:1",
+      "upsellAdviceTemplate": "Совет: пополнение на {target} ₾ открывает скидку {discount} на пакет SUPER VIP ({days} дн.)",
+      "topUpToBtnTemplate": "Пополнить {target} ₾",
+      "unitCodePlaceholder": "Код вашего объекта (необязательно — для быстрой активации)",
+      "neverExpires": "Без срока действия",
+      "fullyRefundable": "100% возврат",
+      "payWithCardBtnTemplate": "Оплатить {amt} ₾ картой",
+      "bankTransferBtnTemplate": "Банковский перевод {amt} ₾",
+      "boostRecordedMsgTemplate": "Заявка на продвижение ({tier} — {amt} ₾ на {days} дн.){codePart} сохранена и будет активирована после проверки оплаты.",
+      "boostRecordedCodePart": " для объекта {code}",
+      "coversLabelTemplate": "Покрывает пакет {tier} на {days} {dayWord}"
+    },
+    "carouselTitles": {
+      "categoriesTitle": "Какой объект переуступки вы ищете?",
+      "categoriesSub": "Выберите тип недвижимости и изучайте проверенные предложения с рассрочкой в Грузии",
+      "howItWorksMoreLink": "Подробнее о процессе и примеры →",
+      "superVipTitle": "Объявления SUPER VIP",
+      "superVipSub": "Максимальный охват — лучшие предложения первыми",
+      "superVipAllBtn": "Все SUPER VIP →",
+      "availableOppsBadge": "Доступные объекты",
+      "availableOppsTitle": "Доступные предложения переуступки",
+      "availableOppsSub": "Проверенные объекты переуступки рассрочки без наценки в Грузии",
+      "availableOppsAllBtn": "Все предложения →",
+      "recentBadge": "Новинки",
+      "recentTitle": "Недавно добавленные",
+      "recentSub": "Новые объекты, отсортированные по дате — сначала новые",
+      "recentAllBtn": "Все новые →"
     }
   },
   "footer": {
@@ -221,7 +370,10 @@
     "appLabel": "Скачать приложение",
     "disclaimer": "Цифры и расчеты на платформе носят ознакомительный характер и зависят от условий конкретного договора. Они не являются юридической консультацией или гарантией результата. Итоговая проверка проводится по вашему фактическому договору нашей командой и профильными юристами.",
     "copyright": "© 2026 Aqar Exit. Все права защищены.",
-    "powered": "Powered by Aqara for Real Estate and Ammar Group LLC"
+    "powered": "Powered by Aqara for Real Estate and Ammar Group LLC",
+    "marketsTitle": "Рынки присутствия",
+    "soonBadge": "Скоро",
+    "adminPanelLink": "Панель администратора"
   },
   "calculatorPage": {
     "title": "Калькулятор безопасного выхода",
@@ -268,7 +420,8 @@
     "registerViewOppsBtn": "Зарегистрироваться и смотреть объекты",
     "disclaimer": "Этот расчет является ориентировочным и не заменяет проверку вашего договора. Условия и штрафы зависят от конкретного застройщика.",
     "millionWord": "млн",
-    "thousandWord": "тыс."
+    "thousandWord": "тыс.",
+    "paidExceedsContractError": "Выплаченная сумма не может превышать полную стоимость договора."
   },
   "exitReportPage": {
     "title": "Отчет о выходе — узнайте свои варианты до принятия решения",
@@ -407,7 +560,8 @@
       "loginIdRequired": "Введите ваш email или номер телефона",
       "loginPassRequired": "Введите ваш пароль",
       "saveFailed": "Не удалось сохранить черновик.",
-      "submitFailed": "Не удалось отправить заявку, попробуйте еще раз"
+      "submitFailed": "Не удалось отправить заявку, попробуйте еще раз",
+      "passwordMismatch": "Пароли не совпадают"
     },
     "contactStep": {
       "tabCurrentSession": "Мой текущий аккаунт",
@@ -468,6 +622,17 @@
       "deliveries": [
         "Готово к заселению",
         "Строится"
+      ],
+      "features": [
+        "Вид на море (Sea View)",
+        "Вид на горы (Mountain View)",
+        "Панорамный вид на город",
+        "Бассейн",
+        "Центральное / Подогрев полов",
+        "Охрана и ресепшн 24/7",
+        "Подземный паркинг",
+        "Просторный балкон",
+        "Рядом с метро и инфраструктурой"
       ]
     },
     "reviewStep": {
@@ -521,24 +686,32 @@
       "pageSubtitle": "Верните 100% выплаченных средств в долларах ($) — комиссия для продавца 0%.",
       "exitBadge": "Переуступка рассрочки",
       "unifiedCurrencyBadge": "Единая валюта: USD ($)",
+      "requiredBadge": "Обязательно *",
+      "optionalBadge": "Необязательно",
+      "requiredForPublishBadge": "Обязательно для публикации",
+      "fieldRequiredError": "Это обязательное поле необходимо заполнить",
+      "validationModalTitle": "Внимание — не заполнены обязательные поля",
+      "validationModalSubtitle": "Для продолжения заполните все обязательные поля, выделенные красным цветом:",
+      "validationModalOkBtn": "ОК, перейти к первому полю",
       "tabs": {
         "type": "1 Тип объекта",
         "photos": "2 Фото и медиа",
         "location": "3 Локация",
         "details": "4 Характеристики",
         "price": "5 Цена и условия",
-        "contact": "6 Аккаунт"
+        "contact": "6 Аккаунт и отправка"
       },
       "typeSection": {
-        "title": "Тип недвижимости и статус здания",
+        "title": "1. Тип недвижимости и статус здания",
         "subtitle": "Выберите тип объекта и текущий статус строительства.",
         "whatToDoLabel": "Тип сделки",
         "whatKindLabel": "Какой тип недвижимости? *",
         "statusLabel": "Статус строительства *"
       },
       "photosSection": {
-        "title": "Фотографии, видео и 3D-тур",
+        "title": "2. Фотографии, видео и 3D-тур",
         "subtitle": "Покажите интерьер и экстерьер: гостиную, спальни, санузел, балкон и вид из окон.",
+        "publishRequirementNote": "💡 Загрузка хотя бы 1 фото обязательна для публикации на рынке. Вы можете сохранить черновик сейчас и загрузить фото позже в личном кабинете.",
         "dropTitle": "Добавьте фото или перетащите их сюда",
         "photosWord": "фото",
         "dropHint": "Первое фото станет главной обложкой объявления.",
@@ -549,34 +722,40 @@
         "videoSectionTitle": "Ссылки на видео и 3D-тур (Необязательно)",
         "videoSectionSubtitle": "Вставьте ссылку на YouTube / Vimeo или 3D-тур для отображения на странице объекта.",
         "videoUrlLabel": "Ссылка на видео YouTube / Vimeo",
-        "videoUrlPlaceholder": "https://www.youtube.com/watch?v=...",
+        "videoUrlPlaceholder": "https://youtube.com/...",
         "tour3dLabel": "Ссылка на 3D-тур (Matterport)",
         "tour3dPlaceholder": "https://my.matterport.com/..."
       },
       "locationSection": {
-        "title": "Местоположение, улица и застройщик",
-        "subtitleRent": "Укажите улицу и номер дома — пин появится на карте автоматически.",
-        "subtitleSale": "Выберите город и район, укажите застройщика, ЖК, улицу и номер дома.",
+        "title": "3. Точное местоположение, улица и застройщик",
+        "subtitleRent": "Введите улицу для автоподсказок или передвиньте пин на карте.",
+        "subtitleSale": "Начните вводить название улицы для поиска по Грузии или нажмите на здание на карте.",
         "cityDistrictLabel": "Город / Район *",
-        "chooseLocationPlaceholder": "Выберите локацию",
-        "developerLabel": "Застройщик",
-        "developerPlaceholder": "Напр.: ORBI Group, Archi, m², Next Group...",
+        "chooseLocationPlaceholder": "Выберите город, район или улицу...",
+        "developerLabel": "Застройщик (Необязательно)",
+        "developerPlaceholder": "Застройщик (необязательно)...",
         "popularDevelopersHint": "Быстрый выбор популярных застройщиков Грузии:",
         "projectLabel": "Название ЖК / Проекта *",
-        "projectPlaceholder": "Напр.: Orbi City, King David, White Sails...",
+        "projectPlaceholder": "Название ЖК или проекта...",
         "streetLabel": "Улица *",
-        "streetPlaceholder": "Напр.: Chavchavadze Ave / Khimshiashvili St",
+        "streetPlaceholder": "Введите название улицы...",
+        "streetAutocompleteHint": "Выберите из списка подсказок или укажите точку на карте ниже",
+        "cantFindAddressTitle": "Не нашли точный адрес в поиске?",
+        "setLocationOnMapBtn": "Указать точку на карте",
+        "detectMyGpsBtn": "Мое местоположение (GPS)",
+        "reverseGeocodingLoading": "Определение адреса по координатам карты...",
+        "pinMovedSuccess": "Точная локация и улица успешно обновлены ✓",
         "houseNoLabel": "Номер дома",
-        "houseNoPlaceholder": "47",
+        "houseNoPlaceholder": "напр. 12",
         "cadastralLabel": "Кадастровый код (NAPR)",
-        "cadastralPlaceholder": "01.10.01.001.001",
+        "cadastralPlaceholder": "Необязательно",
         "cadastralHelper": "Необязательно — привязка к реестру недвижимости Грузии",
-        "mapHeaderTitle": "3D Карта",
-        "mapHint": "Пин перемещается автоматически по выбранному району и улице"
+        "mapHeaderTitle": "Интерактивная 3D-карта",
+        "mapHint": "Нажмите на здание — улица, район и координаты заполнятся автоматически"
       },
       "locationModal": {
-        "title": "Выберите город и район в Грузии",
-        "searchPlaceholder": "Район, город, микрорайон или улица...",
+        "title": "Выберите город и район или найдите улицу в Грузии",
+        "searchPlaceholder": "Город, район или улица...",
         "searchingMapsText": "Поиск по карте Грузии...",
         "everywhereTitle": "Везде",
         "everywhereSub": "Все регионы Грузии",
@@ -594,15 +773,15 @@
         "selectBtn": "Выбрать"
       },
       "detailsSection": {
-        "title": "Характеристики и удобства",
-        "subtitle": "Точно укажите площадь, общее число комнат, спальни и этаж.",
+        "title": "4. Характеристики и удобства",
+        "subtitle": "Укажите обязательную площадь и комнаты. Остальные поля необязательны.",
         "lockedBanner": "Выберите тип недвижимости выше, чтобы открыть поля.",
-        "conditionLabel": "Состояние / Ремонт",
-        "buildingSeriesLabel": "Серия дома",
+        "conditionLabel": "Состояние / Ремонт (Необязательно)",
+        "buildingSeriesLabel": "Серия дома (Необязательно)",
         "buildingSeriesSub": "Помогает покупателям быстрее находить объект",
-        "floorTypeLabel": "Тип этажа",
-        "heatingLabel": "Отопление",
-        "buildingMaterialLabel": "Материал здания",
+        "floorTypeLabel": "Тип этажа (Необязательно)",
+        "heatingLabel": "Отопление (Необязательно)",
+        "buildingMaterialLabel": "Материал здания (Необязательно)",
         "areaLabel": "Общая площадь (м²) *",
         "kitchenAreaLabel": "Площадь кухни (м²)",
         "yearBuiltLabel": "Год постройки / сдачи",
@@ -616,7 +795,7 @@
         "floorLabel": "Этаж",
         "totalFloorsLabel": "Всего этажей в доме",
         "maxGuestsLabel": "Макс. гостей",
-        "featuresTitle": "Удобства и оснащение",
+        "featuresTitle": "Удобства и оснащение (Необязательно)",
         "featuresSubtitle": "Отметьте все удобства, которые реально есть в объекте.",
         "onlineViewingTitle": "Готов к онлайн-показу по видеосвязи",
         "onlineViewingSub": "Отметьте, если можете показать объект удаленно через WhatsApp или Zoom.",
@@ -624,14 +803,14 @@
         "installmentSaleSub": "Отметьте, если готовы принимать оплату частями."
       },
       "pricingSection": {
-        "title": "Цена, рассрочка, документы и описание",
+        "title": "5. Цена, рассрочка, документы и описание",
         "subtitle": "Укажите полную цену по договору, выплаченную сумму и остаток рассрочки.",
         "priceLabel": "Цена *",
         "totalPriceBtn": "Общая цена",
         "perSqmBtn": "Цена за м²",
         "contractPriceLabel": "Полная цена по договору ($) *",
         "paidAmountLabel": "Выплачено на сегодня (Сумма на руки $) *",
-        "marketPriceLabel": "Рыночная цена сегодня ($)",
+        "marketPriceLabel": "Рыночная цена сегодня ($ - Необязательно)",
         "installmentAmountLabel": "Платеж по рассрочке ($)",
         "remainingMonthsLabel": "Осталось месяцев рассрочки (0 если выплачено)",
         "contractDateLabel": "Дата первоначального договора",
@@ -657,13 +836,14 @@
         "discountAmountLabel": "Макс. сумма скидки при торге ($ необязательно)",
         "districtGuideTitle": "Ориентир цен в районе",
         "districtGuideSub": "Средний диапазон цен в этом районе: $1,150 – $1,650 / м².",
-        "descriptionLabel": "Подробное описание объекта",
-        "descriptionPlaceholder": "Опишите планировку, вид из окон, преимущества этажа и комплекса...",
-        "docsBoxTitle": "Документы на объект (Необязательно сейчас · Ускоряет проверку)",
-        "docContract": "Договор купли",
-        "docReceipts": "Квитанции оплаты",
-        "docStatement": "Выписка со счета",
-        "docPassport": "Паспорт",
+        "descriptionLabel": "Подробное описание объекта (Необязательно)",
+        "descriptionPlaceholder": "Опишите планировку, вид из окон и преимущества объекта...",
+        "docsBoxTitle": "Документы на объект (Обязательно для публикации на рынке)",
+        "docsRequirementBanner": "📌 Вы можете сохранить данные объекта сейчас и загрузить документы позже в (Личном кабинете), но объект будет опубликован на рынке только после загрузки 4 документов и проверки администрацией.",
+        "docContract": "1. Договор купли",
+        "docReceipts": "2. Квитанции оплаты",
+        "docStatement": "3. Выписка со счета",
+        "docPassport": "4. Паспорт",
         "changeBtn": "Заменить",
         "uploadBtn": "Загрузить"
       },
@@ -671,19 +851,19 @@
         "title": "6. Данные собственника и аккаунт",
         "subtitleExit": "Имя и телефон — (🔒 Скрыты от публики и доступны только администрации для защиты сделки).",
         "subtitleRent": "Имя и телефон — для связи через выбранные мессенджеры.",
-        "namePlaceholder": "Введите ваше полное имя",
+        "namePlaceholder": "Ваше имя...",
         "messengersLabel": "Доступные мессенджеры на этом номере",
         "confirmPasswordLabel": "Подтвердите пароль",
-        "accountOptionsTitle": "Параметры аккаунта и привязки объявления:",
-        "createAccountLinkBtn": "Создать аккаунт и привязать объект ✓",
+        "accountOptionsTitle": "Параметры аккаунта и привязки объекта:",
+        "createAccountLinkBtn": "Создать аккаунт и сохранить черновик ✓",
         "signInSyncPhoneBtn": "Войти и синхронизировать данные ✓",
         "signInAnotherAccountBtn": "Войти в другой аккаунт",
         "backToCurrentAccountBtn": "← Вернуться к текущему аккаунту",
-        "accountLinkedSuccessMsg": "Аккаунт создан и привязан ✓ Теперь нажмите «Опубликовать» внизу",
+        "accountLinkedSuccessMsg": "Аккаунт создан и черновик сохранен ✓ Теперь отправьте объект на проверку ниже",
         "loggedInSyncedSuccessMsg": "Вход выполнен, данные синхронизированы ✓",
-        "termsAgreementSuffix": "— и принимаю правила платформы",
-        "signInToSaveDraftError": "Войдите или зарегистрируйтесь в разделе Контакты для сохранения черновика",
-        "completeAccountToPublishError": "Заполните данные регистрации или войдите в аккаунт для публикации",
+        "termsAgreementSuffix": "— и принимаю правила платформы *",
+        "signInToSaveDraftError": "Войдите или зарегистрируйтесь в разделе 6 для сохранения черновика",
+        "completeAccountToPublishError": "Заполните данные регистрации или войдите в аккаунт для отправки объекта",
         "authFailedError": "Ошибка авторизации, проверьте введенные данные",
         "validation": {
           "bedroomsExceedRooms": "Количество спален не может превышать общее количество комнат",
@@ -693,18 +873,18 @@
         }
       },
       "previewSidebar": {
-        "title": "Предпросмотр объявления",
-        "subtitle": "Так покупатели увидят ваш объект",
-        "emptyPhotoTitle": "Нужно хотя бы 1 фото",
+        "title": "Предпросмотр объекта",
+        "subtitle": "Так покупатели увидят ваш объект после проверки",
+        "emptyPhotoTitle": "Фото еще не загружены",
         "emptyPhotoSub": "Загрузите фото — предпросмотр появится здесь",
         "priceOnRequest": "Цена по запросу",
         "perDay": " /сут.",
         "perMonth": " /мес.",
         "cashRequiredSuffix": " (На руки)",
         "bedsShort": "спальни",
-        "strengthTitle": "Заполненность объявления",
-        "strengthGreat": "Отличное заполнение — готово к публикации!",
-        "strengthGood": "Хорошее начало — добавьте больше фото и деталей",
+        "strengthTitle": "Готовность к проверке",
+        "strengthGreat": "Отличное заполнение — готово к проверке администрацией!",
+        "strengthGood": "Заполните обязательные поля, фото и документы",
         "tipPhotos": "Добавьте качественные фото объекта",
         "tipLocation": "Укажите улицу и точную локацию",
         "tipDetails": "Заполните площадь и комнаты",
@@ -727,15 +907,291 @@
         "pkgPro": "PRO -30% · 17 дней"
       },
       "bottomBar": {
+        "finalSectionTitle": "Отправка объекта на проверку или сохранение черновика",
+        "finalSectionDescComplete": "Все данные, фото и документы заполнены на 100%! Нажмите ниже, чтобы отправить объект на проверку администрации.",
+        "finalSectionDescMissingMedia": "Важно: Вы можете сохранить данные объекта сейчас и загрузить недостающие фото или документы позже в (Личном кабинете) для одобрения публикации.",
         "savedAtPrefix": "Черновик сохранен в",
         "autoSavedPrefix": "Заполнено разделов",
-        "saveDraftBtn": "Сохранить черновик",
-        "publishingBtn": "Публикация...",
-        "publishBtn": "Опубликовать"
+        "saveDraftBtn": "Сохранить черновик и продолжить позже в кабинете",
+        "savingDraftBtn": "Сохранение черновика...",
+        "publishingBtn": "Отправка...",
+        "publishBtn": "Отправить объект на проверку администрации",
+        "submitAndCompleteDocsLaterBtn": "Сохранить объект и загрузить фото/документы в кабинете"
       }
+    },
+    "aiDescription": {
+      "generateBtn": "Сгенерировать описание с ИИ (AI)",
+      "generatingBtn": "Создание описания по данным вашего объекта...",
+      "generatedBadge": "Описание успешно создано на основе данных объекта ✓",
+      "helperHint": "Нажмите кнопку ИИ, чтобы автоматически составить профессиональное описание из введенных данных.",
+      "templates": {
+        "intro": "Отличное предложение по переуступке рассрочки",
+        "inProject": "в ЖК",
+        "byDeveloper": "от застройщика",
+        "locatedIn": "расположенном в районе",
+        "specsTitle": "📐 Характеристики:",
+        "totalArea": "общая площадь",
+        "sqm": "м²",
+        "roomsPrefix": "комнат:",
+        "roomsWord": "",
+        "bedroomsPrefix": "спален:",
+        "bedroomsWord": "",
+        "bathWord": "сануз.",
+        "floorPrefix": "этаж",
+        "ofTotalFloors": "из",
+        "floorsWord": "",
+        "conditionPrefix": "состояние:",
+        "handoverTitle": "🏗 Статус сдачи:",
+        "underConstPrefix": "Строится (сдача в",
+        "readyNow": "Готово к заселению",
+        "financialsTitle": "💰 Финансовые условия:",
+        "contractPricePrefix": "полная цена по договору",
+        "paidCashPrefix": "выплаченная сумма (на руки)",
+        "remainingPrefix": "остаток застройщику",
+        "installmentPrefix": "платеж по рассрочке",
+        "forDuration": "на",
+        "monthsWord": "мес.",
+        "featuresTitle": "✨ Удобства:",
+        "closingLine": "✅ Все договоры и квитанции об оплате готовы к переоформлению с комиссией 0% для продавца."
+      }
+    },
+    "flowLoading": {
+      "loadingUnitTitle": "Восстановление сохраненных данных объекта...",
+      "loadingUnitSub": "Пожалуйста, подождите пару секунд",
+      "loadErrorTitle": "Не удалось загрузить данные объекта",
+      "loadErrorDesc": "Проверьте подключение к интернету и попробуйте снова.",
+      "retryBtn": "Повторить попытку",
+      "backToAccountBtn": "Вернуться в кабинет",
+      "oneTimeVerifyBadge": "Только один раз",
+      "oneTimeVerifyNote": "Подтверждение Email требуется только один раз при первом размещении.",
+      "finalCardTitle": "Отправка заявки или сохранение на потом",
+      "finalCardSub": "Вы можете отправить данные сейчас, а фото и документы загрузить позже в разделе «Мой кабинет».",
+      "publishBtnText": "Отправить объект администрации",
+      "saveLaterBtnText": "Сохранить данные и продолжить позже",
+      "savingLaterBtnText": "Сохранение...",
+      "missingFieldsAlertTitle": "Пожалуйста, заполните обязательные поля, выделенные красным выше:",
+      "mediaDialogBadge": "Важное уведомление",
+      "mediaDialogTitle": "Фото и документы обязательны для публикации объекта",
+      "mediaDialogDesc": "Вы можете отправить данные сейчас, но объявление будет опубликовано для покупателей только после загрузки следующих файлов:",
+      "mediaDialogMandatoryPublishNote": "Важно: Фотографии объекта и 4 документа собственности необходимы для проверки и публикации вашего объявления. Вы можете загрузить их сейчас или позже в «Моем кабинете».",
+      "mediaDialogMissingPhotos": "Фотографии объекта (минимум 1 фото)",
+      "mediaDialogMissingDocs": "Документы собственности",
+      "mediaDialogConfirmBtn": "Отправить сейчас и загрузить файлы позже →",
+      "mediaDialogUploadNowBtn": "Загрузить фото и документы сейчас",
+      "onlyPhotosBtn": "Сначала добавить фото объекта",
+      "onlyDocsBtn": "Сначала загрузить документы",
+      "bothBtn": "Сначала добавить фото и документы",
+      "missingBelowBtnPrefix": "Пожалуйста, заполните обязательные поля, выделенные красным выше:",
+      "mandatoryPublishNotice": "Важно: Фотографии объекта и 4 документа собственности необходимы для проверки и публикации объявления. Если отправить сейчас, заявка сохранится, но будет опубликована после загрузки файлов в «Моем кабинете».",
+      "defaultCityFallback": "Тбилиси"
+    },
+    "buildingStatuses": {
+      "underConstruction": "Строится",
+      "completedReady": "Завершен и готов",
+      "newlyBuiltReady": "Новостройка (Готово)",
+      "underConstructionSub": "Строится",
+      "oldBuiltReady": "Вторичное жилье (Готово)"
+    },
+    "mapUi": {
+      "windowsHelpText": "Используйте Ctrl + колесико для масштабирования",
+      "macHelpText": "Используйте ⌘ + колесико для масштабирования",
+      "mobileHelpText": "Используйте два пальца для перемещения карты",
+      "enterStreetHint": "Введите улицу — пин установится автоматически",
+      "bottomSnapHint": "Пин и здание выбираются автоматически · или нажмите на карту",
+      "parcelFoundText": "Участок найден — карта привязана к участку NAPR",
+      "optionalNaprHint": "Необязательно — привязывает участок NAPR к карте",
+      "hideCadastralBtn": "Скрыть кадастровый код на сайте",
+      "hiddenFromPublicBadge": "Скрыто от посетителей в объявлении (Видно только админу)",
+      "outsideGeorgiaMapAlert": "Ваша геопозиция вне Грузии — укажите объект на карте Грузии.",
+      "shortProjectPlaceholder": "Название ЖК или проекта...",
+      "shortDeveloperPlaceholder": "Застройщик (необязательно)...",
+      "shortStreetPlaceholder": "Введите название улицы...",
+      "shortHousePlaceholder": "напр. 12",
+      "shortCadastralPlaceholder": "Необязательно",
+      "zoomInTitle": "Приблизить",
+      "zoomOutTitle": "Отдалить",
+      "resetBearingTitle": "Сбросить поворот",
+      "fullscreenMapTitle": "На весь экран",
+      "mapStylesTitle": "Стили карты",
+      "styles": {
+        "streets": "Улицы",
+        "sivrce": "Sivrce",
+        "realistic": "Реалистичный",
+        "photoreal": "Спутник",
+        "hybrid": "Гибрид",
+        "minimal": "Минимализм",
+        "contrast": "Контрастный"
+      }
+    },
+    "optionsData": {
+      "dealTypes": {
+        "exit": {
+          "label": "Переуступка рассрочки",
+          "sub": "Верните вложенное без комиссии"
+        },
+        "sale": {
+          "label": "Продажа",
+          "sub": "Прямая продажа объекта"
+        },
+        "rent_monthly": {
+          "label": "Аренда",
+          "sub": "Долгосрочная, помесячно"
+        },
+        "rent_daily": {
+          "label": "Посуточно",
+          "sub": "Посуточно для гостей"
+        }
+      },
+      "propertyKinds": {
+        "Apartment": "Квартира",
+        "Private house": "Частный дом",
+        "Cottage": "Коттедж",
+        "Land": "Участок",
+        "Commercial": "Коммерческая",
+        "Hotel": "Отель / Апарт-отель"
+      },
+      "conditionOptions": {
+        "Newly renovated": "Новый ремонт",
+        "Old renovation": "Старый ремонт",
+        "Under renovation": "В процессе ремонта",
+        "Needs renovation": "Требует ремонта",
+        "White frame": "Белый каркас",
+        "Black frame": "Черный каркас",
+        "Green frame": "Зеленый каркас",
+        "White plus": "Белый плюс",
+        "Turnkey": "Под ключ (Новый ремонт)",
+        "Fully furnished": "С мебелью и техникой"
+      },
+      "buildingSeries": {
+        "Non-standard": "Нестандартный",
+        "City type": "Городской проект",
+        "Tbilisi yard": "Тбилисский дворик",
+        "Czech": "Чешский проект",
+        "Kavlashvili": "Кавлашвили",
+        "Tukhareli": "Тухарели",
+        "Lvov": "Львовский проект",
+        "Kiev": "Киевский проект",
+        "Leningrad": "Ленинградский",
+        "Moscow": "Московский проект",
+        "Khrushchev": "Хрущевка",
+        "Vedzisi": "Ведзиси",
+        "Yugoslav": "Югославский",
+        "Metromsheni": "Метромшени",
+        "Other": "Другое"
+      },
+      "floorTypes": {
+        "Standard": "Стандартный",
+        "Duplex": "Дуплекс",
+        "Triplex": "Триплекс",
+        "Attic": "Мансарда"
+      },
+      "heatingTypes": {
+        "Central": "Центральное",
+        "Own gas boiler": "Газовый котел",
+        "Electric": "Электрическое",
+        "None": "Без отопления"
+      },
+      "buildingMaterials": {
+        "Monolithic concrete": "Монолит",
+        "Brick": "Кирпич",
+        "Block": "Блок",
+        "Panel": "Панель",
+        "Mixed": "Смешанный"
+      },
+      "featureGroups": {
+        "space": "Планировка",
+        "building": "Здание и безопасность",
+        "utilities": "Коммуникации",
+        "comfort": "Комфорт и техника",
+        "views": "Вид из окон",
+        "extra": "Дополнительно"
+      },
+      "featureItems": {
+        "Balcony": "Балкон",
+        "Loggia": "Лоджия",
+        "Terrace": "Терраса",
+        "Yard": "Двор",
+        "Storage": "Кладовая",
+        "Cellar": "Подвал",
+        "Walk-in closet": "Гардеробная",
+        "Separate kitchen": "Отдельная кухня",
+        "Elevator": "Лифт",
+        "Parking": "Парковка",
+        "Underground parking": "Подземный паркинг",
+        "Garage": "Гараж",
+        "Security": "Охрана",
+        "Concierge": "Консьерж",
+        "Intercom": "Домофон",
+        "Backup generator": "Генератор",
+        "Iron door": "Железная дверь",
+        "Double glazing": "Стеклопакет",
+        "Penthouse": "Пентхаус",
+        "Step-free access": "Безбарьерный вход",
+        "Underfloor heating": "Теплый пол",
+        "Natural gas": "Природный газ",
+        "Hot water": "Горячая вода",
+        "Internet": "Интернет",
+        "Cable TV": "Кабельное ТВ",
+        "Furniture": "Мебель",
+        "Appliances": "Бытовая техника",
+        "Air conditioning": "Кондиционер",
+        "Dishwasher": "Посудомоечная машина",
+        "Washing machine": "Стиральная машина",
+        "Dryer": "Сушильная машина",
+        "Fireplace": "Камин",
+        "Kitchen": "Кухонный гарнитур",
+        "TV": "Телевизор",
+        "Panoramic view": "Панорамный вид",
+        "Sea view": "Вид на море",
+        "Mountain view": "Вид на горы",
+        "Yard view": "Вид во двор",
+        "Street view": "Вид на улицу",
+        "Beachfront": "Первая линия",
+        "Bright": "Светлая",
+        "Quiet": "Тихий район",
+        "Pool": "Бассейн",
+        "Jacuzzi": "Джакузи",
+        "Sauna": "Сауна",
+        "Gym": "Тренажерный зал",
+        "BBQ grill": "Зона барбекю",
+        "EV charger": "Зарядка для электромобиля",
+        "Ski access": "Рядом с горнолыжным спуском"
+      },
+      "countries": {
+        "GE": "Грузия",
+        "EG": "Египет",
+        "RU": "Россия",
+        "AE": "ОАЭ",
+        "SA": "Саудовская Аравия",
+        "KW": "Кувейт",
+        "QA": "Катар",
+        "BH": "Бахрейн",
+        "OM": "Оман",
+        "JO": "Иордания",
+        "TR": "Турция",
+        "US": "США / Канада",
+        "GB": "Великобритания"
+      },
+      "cityGroupTitles": {
+        "tbilisi": "Тбилиси",
+        "batumi": "Батуми и побережье",
+        "kutaisi": "Кутаиси",
+        "resorts": "Другие города и курорты Грузии"
+      },
+      "featuresPreset": [
+        "Вид на море (Sea View)",
+        "Вид на горы (Mountain View)",
+        "Панорамный вид на город",
+        "Бассейн",
+        "Центральное / Подогрев полов",
+        "Охрана и ресепшн 24/7",
+        "Подземный паркинг",
+        "Просторный балкон",
+        "Рядом с метро и инфраструктурой"
+      ]
     }
   },
- "accountPages": {
+  "accountPages": {
     "common": {
       "backToAccount": "Назад в кабинет",
       "backShort": "Назад",
@@ -1081,7 +1537,63 @@
       "modalCancelPromoDesc": "Вы уверены, что хотите отменить продвижение? Объект останется в бесплатном показе.",
       "modalBackBtn": "Назад",
       "modalConfirmBtn": "Подтвердить",
-      "modalProcessingBtn": "Выполнение..."
+      "modalProcessingBtn": "Выполнение...",
+      "navigatingLoading": "Переход...",
+      "unverifiedDraftTitle": "Подтвердите Email для отправки объекта администрации",
+      "unverifiedDraftDesc": "Объект сохранен как черновик. Подтвердите ваш Email (только один раз), чтобы отправить его на проверку.",
+      "verifyAndSendToAdminBtn": "Подтвердить Email и отправить →",
+      "adminNoteCardTitle": "Комментарий модератора по вашему объекту:",
+      "adminNoteFixBtn": "Исправить данные объекта",
+      "adminNoteWaReplyBtn": "Ответить в WhatsApp",
+      "adminNoteWaMsgPrefix": "Здравствуйте, Aqar Exit! По поводу вашего комментария к объекту",
+      "adminNoteWaMsgMiddle": "в ЖК",
+      "checklistTitleIncomplete": "⚠️ Текущий статус: Не опубликовано (Ожидает загрузки файлов)",
+      "checklistSubIncomplete": "Объект публикуется на рынке только после выполнения всех 3 пунктов ниже:",
+      "checklistTitleComplete": "✅ Текущий статус: Все требования выполнены (На проверке у администрации)",
+      "checklistSubComplete": "Администрация получила все данные, фото и документы вашего объекта и проверяет их для публикации.",
+      "reqItemDetails": "1. Обязательные данные объекта",
+      "reqItemPhotos": "2. Фотографии объекта",
+      "reqItemDocs": "3. Документы собственности (4 файла)",
+      "doneTag": "Готово ✓",
+      "missingActionPhotos": "Загрузить фото →",
+      "missingActionDocs": "Загрузить документы →",
+      "missingActionDetails": "Заполнить данные →",
+      "boostHeaderBadge": "Продвижение · SUPER VIP & +VIP",
+      "boostUnitPrefix": "Продвижение объекта:",
+      "boostUnitSubtitle": "Выберите пакет для вывода вашего объекта в ТОП главной страницы и каталога",
+      "quickAmountsLabel": "Быстрый выбор",
+      "customAmountLabel": "Своя сумма",
+      "starterBadge": "Старт",
+      "recommendedBadge": "Рекомендуем 🔥",
+      "popularBadge": "Популярный",
+      "anySub": "Любая",
+      "creditedSuffix": "зачисляется на баланс объявления",
+      "upsellPrefix": "Совет: пополнение на",
+      "upsellMiddle": "открывает скидку",
+      "upsellDaysSuffix": "на пакет SUPER VIP",
+      "topUpBtnPrefix": "Пополнить",
+      "payCardPrefix": "Оплатить",
+      "payCardSuffix": "картой",
+      "bankTransferPrefix": "Банковский перевод",
+      "boostRecordedPrefix": "Запрос на активацию пакета",
+      "boostRecordedMiddle": "сохранен для объекта",
+      "boostRecordedSuffix": "Продвижение включится после подтверждения оплаты администратором.",
+      "minMaxGelHint": "Мин. 5 ₾ · Макс. 10,000 ₾",
+      "stageSteps": [
+        "1. Заполнение данных и файлов",
+        "2. На проверке у администрации",
+        "3. Одобрено и на рынке",
+        "4. Получено предложение",
+        "5. Переоформление договора",
+        "6. Объект продан"
+      ],
+      "incompleteStageBadge": "⚠️ Не опубликовано — требуются файлы",
+      "incompleteStageHeadline": "Объект сохранен в кабинете (еще не опубликован) — загрузите недостающие фото или документы ниже для отправки на проверку администрации",
+      "readyPendingReviewBadge": "⏳ Заполнено — ожидает одобрения",
+      "readyPendingReviewHeadline": "Отлично! Все данные, фото и документы загружены — ваш объект передан администрации на проверку и публикацию",
+      "statusUnderReviewBadge": "2. Проверка документов",
+      "statusUnderReviewHeadline": "Юридический отдел проверяет данные и документы вашего объекта перед публикацией",
+      "statusDraftUnverifiedHeadline": "Объект сохранен как черновик — подтвердите Email и загрузите недостающие фото или документы ниже"
     },
     "buyer": {
       "popularAreas": [
@@ -1107,10 +1619,37 @@
         "Комнаты",
         "Сдача"
       ],
-      "deliveryStatuses": ["Все", "Готово к заселению", "Строится"],
-      "deliveryYears": ["Все", "До 2026", "До 2027", "До 2028", "До 2029", "До 2030", "До 2031"],
-      "contractYears": ["Все", "2025 и старше", "2024 и старше", "2023 и старше", "2022 и старше", "2021 и старше", "2020 и старше"],
-      "roomOptions": ["Все", "+1", "+2", "+3", "+4", "+5"],
+      "deliveryStatuses": [
+        "Все",
+        "Готово к заселению",
+        "Строится"
+      ],
+      "deliveryYears": [
+        "Все",
+        "До 2026",
+        "До 2027",
+        "До 2028",
+        "До 2029",
+        "До 2030",
+        "До 2031"
+      ],
+      "contractYears": [
+        "Все",
+        "2025 и старше",
+        "2024 и старше",
+        "2023 и старше",
+        "2022 и старше",
+        "2021 и старше",
+        "2020 и старше"
+      ],
+      "roomOptions": [
+        "Все",
+        "+1",
+        "+2",
+        "+3",
+        "+4",
+        "+5"
+      ],
       "sorts": [
         "Сначала новые",
         "VIP предложения ⭐",
@@ -1120,8 +1659,16 @@
         "Ближайшая сдача",
         "Готовые к заселению"
       ],
-      "paymentPlans": ["Ежемесячно", "Ежеквартально", "Раз в полгода", "Ежегодно"],
-      "deliveryPreferences": ["Готово к заселению", "Строится"],
+      "paymentPlans": [
+        "Ежемесячно",
+        "Ежеквартально",
+        "Раз в полгода",
+        "Ежегодно"
+      ],
+      "deliveryPreferences": [
+        "Готово к заселению",
+        "Строится"
+      ],
       "tagCashMatch": "Подходит по сумме на руки",
       "tagInstMatch": "Подходит платеж",
       "tagAreaMatch": "В выбранном районе",
@@ -1185,7 +1732,7 @@
       "summaryCashLabel": "Доступно на руки:",
       "summaryInstLabel": "Макс. платеж:",
       "filterByRequestLabel": "Фильтр по запросу:",
-      "filterByRequestSub": "Отсортировано по лучшему совпадению.",
+      "filterByRequestSub": "Отсортировано по соответствию вашему запросу — выберите фильтр для точного отбора",
       "searchPlaceholder": "Поиск по ЖК, району или коду...",
       "filterBtn": "Фильтр",
       "negotiableBtn": "Торг",
@@ -1230,7 +1777,6 @@
       "directBuyerTitle": "Работаем только с самим покупателем",
       "directBuyerDesc": "Мы не принимаем заявки от риелторов, ищущих варианты для клиентов. Объекты предлагаются напрямую конечному покупателю по цене договора без наценок.",
       "stepWord": "Шаг",
-      
       "ofWord": "из",
       "stepTitles": [
         "Финансовые возможности",
@@ -1248,21 +1794,22 @@
       "selectDeliveryStatus": "Пожалуйста, выберите статус сдачи",
       "selectAtLeastOneArea": "Пожалуйста, добавьте хотя бы один район",
       "invalidPhone": "Некорректный номер телефона",
-      
       "passwordMismatch": "Пароли не совпадают",
       "missingBannerPrefix": "Пожалуйста, заполните следующие обязательные поля:",
       "invalidEmail": "Некорректный email или содержит пробелы",
       "shortPassword": "Пароль должен содержать минимум 8 символов",
       "loginIdRequired": "Введите email или номер телефона",
       "loginPassRequired": "Введите пароль",
-      "submitFailed": "Не удалось отправить заявку"
+      "submitFailed": "Не удалось отправить заявку",
+      "cashExceedsBudget": "Доступная сумма наличными не может превышать общий целевой бюджет"
     },
     "successScreen": {
       "title": "Ваша заявка и умный радар успешно активированы ✓",
       "subtitle": "Для ускорения подбора проверенных объектов под ваш бюджет подтвердите заявку через WhatsApp:",
       "confirmWaBtn": "Подтвердить заявку через WhatsApp",
       "goToAccountBtn": "Перейти в кабинет к подборкам",
-      "waMsgPrefix": "Здравствуйте, Aqar Exit! Подтверждаю мою заявку на покупку"
+      "waMsgPrefix": "Здравствуйте, Aqar Exit! Подтверждаю мою заявку на покупку",
+      "orderRefPrefix": "Код заявки:"
     },
     "stepOne": {
       "countryLabel": "Страна, в которой вы ищете недвижимость *",
@@ -1336,7 +1883,6 @@
       "phoneRecoverySentNote": "Ссылка отправлена на зарегистрированный email.",
       "useAnotherPhoneBtn": "← Использовать другой номер",
       "orLoginPageBtn": "Или войти на странице входа"
- 
     },
     "actions": {
       "backBtn": "Назад",
@@ -1346,7 +1892,7 @@
       "submitBtn": "Отправить заявку"
     }
   },
-"opportunitiesPage": {
+  "opportunitiesPage": {
     "countries": {
       "ALL": "Все страны",
       "EG": "Египет",
@@ -1401,13 +1947,40 @@
       "maxInstLabel": "Макс. платеж по рассрочке",
       "unitTypeLabel": "Тип недвижимости",
       "deliveryLabel": "Статус сдачи",
-      "deliveryStatuses": ["Все", "Готово к заселению", "Строится"],
+      "deliveryStatuses": [
+        "Все",
+        "Готово к заселению",
+        "Строится"
+      ],
       "deliveryYearLabel": "Год сдачи",
-      "deliveryYears": ["Все", "До 2026", "До 2027", "До 2028", "До 2029", "До 2030", "До 2031"],
+      "deliveryYears": [
+        "Все",
+        "До 2026",
+        "До 2027",
+        "До 2028",
+        "До 2029",
+        "До 2030",
+        "До 2031"
+      ],
       "contractYearLabel": "Год договора",
-      "contractYears": ["Все", "2025 и старше", "2024 и старше", "2023 и старше", "2022 и старше", "2021 и старше", "2020 и старше"],
+      "contractYears": [
+        "Все",
+        "2025 и старше",
+        "2024 и старше",
+        "2023 и старше",
+        "2022 и старше",
+        "2021 и старше",
+        "2020 и старше"
+      ],
       "minRoomsLabel": "Мин. комнат",
-      "roomOptions": ["Все", "+1", "+2", "+3", "+4", "+5"],
+      "roomOptions": [
+        "Все",
+        "+1",
+        "+2",
+        "+3",
+        "+4",
+        "+5"
+      ],
       "maxContractPriceLabel": "Макс. цена по договору",
       "showResultsBtn": "Показать результаты",
       "hideBtn": "Скрыть"
@@ -1444,14 +2017,14 @@
       "detailsBtn": "Подробнее"
     },
     "trustSection": {
-      "title": "Почему доверяют нашим объектам?",
-      "card1Title": "Объекты публикуются только после проверки договора и квитанций",
-      "card1Desc": "Мы проверяем оригинальный договор купли-продажи, квитанции об оплате и остаток долга перед застройщиком.",
-      "card1Btn": "Оставить заявку на подбор",
-      "card2Title": "Что вы видите в каждом объекте?",
-      "point1": "Точная сумма на руки — равна фактически выплаченной сумме собственника по квитанциям",
-      "point2": "Остаток долга застройщику и график рассрочки по старой цене договора",
-      "point3": "Мгновенная выгода по сравнению с текущей рыночной ценой"
+      "title": "Почему выгодно покупать по переуступке через Aqar Exit?",
+      "card1Title": "Не нашли подходящий объект? Оставьте заявку на подбор",
+      "card1Desc": "Укажите ваш бюджет на руки, район в Тбилиси или Батуми и комфортный платеж по рассрочке — мы подберем проверенные варианты.",
+      "card1Btn": "Оставить заявку на покупку →",
+      "card2Title": "Гарантии безопасности сделки",
+      "point1": "Проверка оригинального договора и квитанций об оплате у застройщика.",
+      "point2": "Официальное переоформление договора происходит в офисе застройщика.",
+      "point3": "Без наценки (0% оверпрайс) — вы платите только выплаченную сумму и продолжаете рассрочку."
     },
     "ui": {
       "searchBtn": "Поиск",
@@ -1492,7 +2065,93 @@
         "land": "Участки земли",
         "commercial": "Коммерция",
         "hotel": "Апарт-отели"
+      },
+      "adCardBadge": "Рекламное место",
+      "adCardTitle": "Ваша реклама здесь",
+      "adCardSub": "Разместите объявление и привлеките тысячи покупателей и инвесторов.",
+      "adBullet1": "Целевая аудитория инвесторов",
+      "adBullet2": "Прямой контакт с покупателем",
+      "adBullet3": "Прозрачная статистика просмотров",
+      "adCardBtn": "Разместить →",
+      "newlyAddedHeading": "Недавно добавленные (по дате)"
+    },
+    "mapView": {
+      "searchPlaceholder": "Город, район, улица — или ЖК, застройщик, код объекта...",
+      "cityLabel": "Города",
+      "listPrefix": "объектов",
+      "allTab": "Все",
+      "forExitTab": "Переуступка",
+      "underConstTab": "Строится",
+      "readyTab": "Готово",
+      "negotiableTab": "Торг",
+      "apartmentsTab": "Квартира",
+      "housesTab": "Дом",
+      "cottagesTab": "Коттедж",
+      "commercialTab": "Коммерция",
+      "landTab": "Участок",
+      "hotelTab": "Отель",
+      "liveBadge": "Live",
+      "resetTooltip": "Сбросить фильтры",
+      "myLocationTooltip": "Моя локация",
+      "fullscreenTooltip": "На весь экран",
+      "exitFullscreenTooltip": "Выйти из полноэкранного режима",
+      "exitMapTooltip": "К списку",
+      "layersTitle": "Слои",
+      "mapStyleLabel": "Стиль карты",
+      "styleRealistic": "Реалистичный 3D",
+      "styleStreets": "Улицы",
+      "styleSatellite": "Спутник",
+      "styleHybrid": "Гибрид",
+      "styleMinimal": "Минимализм",
+      "layerTerrain": "Рельеф 3D",
+      "layerTerrainSub": "Холмы и склоны в 3D",
+      "layerTrees": "Парки и зелень",
+      "layerTreesSub": "Выделение зеленых зон",
+      "layerPriceVsMarket": "Цена к рынку",
+      "layerPriceVsMarketSub": "Выделять выгодные объекты зеленым",
+      "layerNightMode": "Ночной режим",
+      "layerNightModeSub": "Темная тема карты",
+      "verifiedBadge": "Проверено",
+      "roomsWord": "комн.",
+      "sqmUnit": "м²",
+      "remainingLabel": "Остаток:",
+      "installmentLabel": "Платеж:",
+      "gainLabel": "Выгода:",
+      "viewDetailsBtn": "Подробнее об объекте",
+      "pois": {
+        "metro": "Метро",
+        "train": "Поезд",
+        "school": "Школа",
+        "kindergarten": "Детсад",
+        "pharmacy": "Аптека",
+        "park": "Парк",
+        "market": "Рынок",
+        "clinic": "Клиника",
+        "university": "ВУЗ",
+        "uni": "ВУЗ",
+        "bank": "Банк",
+        "landmark": "Достоприм.",
+        "gym": "Спортзал",
+        "bus": "Автобус"
       }
+    },
+    "popovers": {
+      "minCashPlaceholder": "Мин. сумма на руки ($)",
+      "maxCashPlaceholder": "Макс. сумма на руки ($)",
+      "minWord": "От",
+      "maxWord": "До",
+      "sqmUnit": "м²",
+      "commutePlaceholder": "Пункт назначения — работа, ВУЗ, станция метро...",
+      "useMyLocationBtn": "Моя геолокация",
+      "modeCar": "Авто",
+      "modeWalk": "Пешком",
+      "modeBike": "Велосипед",
+      "minSuffix": "мин",
+      "applyBtn": "Применить",
+      "boostStatusLabel": "Статус продвижения",
+      "bathroomsLabel": "Санузлы",
+      "floorLabel": "Этаж",
+      "conditionLabel": "Состояние ремонта"
     }
   },
   "unitDetailsPage": {
@@ -1597,7 +2256,161 @@
       "submitBtn": "Подтвердить и отправить предложение",
       "privacyNote": "Ваши данные надежно защищены и не передаются третьим лицам.",
       "errorSubmit": "Пожалуйста, укажите корректное имя и номер телефона.",
-      "errorUnexpected": "Произошла ошибка, попробуйте еще раз."
+      "errorUnexpected": "Произошла ошибка, попробуйте еще раз.",
+      "photosWord": "фото",
+      "viewsWord": "просм.",
+      "closeBtn": "Закрыть",
+      "selectCashOfferLabel": "Выберите сумму предложения на руки",
+      "requiredExitCashPrefix": "Требуемая сумма на руки:",
+      "fullPriceOptionTitle": "Мгновенная бронь по полной цене",
+      "paidCashBadge": "Выплачено собственником",
+      "negotiateOptionTitle": "Предложить свою цену (торг)",
+      "minAllowedFloorLabel": "Минимально допустимая сумма",
+      "nonNegotiableUnitPrefix": "Фиксированная цена переуступки (",
+      "nonNegotiableUnitSuffix": ") — без торга",
+      "yourCashOfferInputLabel": "Сумма, которую вы готовы выплатить сейчас ($):",
+      "fullPricePriorityHint": "Приоритет для мгновенного подтверждения сделки",
+      "errBelowMinFloor": "Минимально допустимая сумма предложения",
+      "fomoNegotiationWarning": "Предложения по полной цене имеют приоритет у собственника.",
+      "waConfirmIntro": "Здравствуйте, Aqar Exit! Подтверждаю мое предложение",
+      "waConfirmUnitWord": "по объекту",
+      "waConfirmAmountWord": "на сумму",
+      "waConfirmLinkLabel": "Ссылка для подтверждения:"
+    },
+    "uiLabels": {
+      "descriptionTitle": "Описание объекта",
+      "featuresTitle": "Удобства и оснащение",
+      "otherFeaturesGroup": "Дополнительные удобства",
+      "videoAnd3dTitle": "Видеообзор и 3D-тур",
+      "watchVideoBtn": "Смотреть видео объекта",
+      "open3dTourBtn": "Открыть 3D-тур объекта",
+      "onlineViewingBadge": "Доступен онлайн-показ по видео ✓",
+      "streetAddressLabel": "Адрес:",
+      "cadastralCodeLabel": "Кадастровый код (NAPR):",
+      "developerLabel": "Застройщик:",
+      "scoreHeader": "ОЦЕНКА ВЫГОДЫ (AQAR EXIT SCORE)",
+      "excellentDeal": "Отличное предложение",
+      "veryGoodDeal": "Выгодное предложение",
+      "scoreCalculatedPrefix": "Рассчитано из цены за метр ($",
+      "scoreSqmUnit": "/м²)",
+      "scoreCalculatedSuffix": "и локации",
+      "priceVsDistrict": "Цена в сравнении с районом",
+      "locationRating": "Оценка локации и инфраструктуры",
+      "conditionAndDelivery": "Состояние и срок сдачи",
+      "finRequiredCashNow": "Сумма на руки собственнику (без наценки)",
+      "finNoOverNote": "✓ Вы платите только выплаченную сумму и переоформляете рассрочку",
+      "finMakeOfferBtn": "Предложить цену",
+      "finNegotiableTitle": "Возможен прямой торг с собственником",
+      "finNegotiableDescPrefix": "Собственник готов предоставить скидку до",
+      "finNegotiableDescMiddle": "(около",
+      "finNegotiableDescSuffix": ") при быстрой сделке.",
+      "finGainPrefix": "Ваша мгновенная выгода от рынка:",
+      "finMarketPriceTodayPrefix": "Рыночная цена сегодня:",
+      "finAfterCommissionSuffix": "(Чистая выгода после комиссии 1.25%)",
+      "finMarketDisclaimer": "* Все суммы подтверждены оригинальным договором и квитанциями об оплате у застройщика.",
+      "finRemainingToDev": "Остаток застройщику (в рассрочку)",
+      "finInstallment": "Платеж по рассрочке",
+      "finRemainingMonthsLabel": "Оставшийся срок рассрочки",
+      "finMonthsWord": "мес.",
+      "finFullyPaid": "Выплачено полностью",
+      "finDelivery": "Срок сдачи",
+      "finCommissionLabel": "Комиссия платформы для покупателя (1.25% от договора)",
+      "finCommissionSub": "Оплачивается только при официальном переоформлении — 0% для продавца",
+      "finTotalRequiredNow": "Итого требуется сейчас",
+      "similarTitle": "Похожие предложения переуступки",
+      "similarSubtitle": "Другие проверенные объекты без наценки",
+      "similarReqCashPrefix": "Сумма на руки:",
+      "similarViewDetailsBtn": "Подробнее"
+    },
+    "locationInsights": {
+      "neighborhoodTitle": "Район и транспортная доступность",
+      "neighborhoodSubPrefix": "Развитая инфраструктура в пешей доступности (",
+      "neighborhoodSubSuffix": "объектов рядом)",
+      "calculatingNeighborhoodText": "Загрузка объектов инфраструктуры с карты...",
+      "walkScoreLabel": "Пешая доступность (Магазины, аптеки и школы пешком)",
+      "mobilityScoreLabel": "Транспортная доступность · Отличная связь",
+      "metroRowLabel": "Метро",
+      "busRowLabel": "Автобус",
+      "busLinesWithin500m": "Линий в радиусе 500 м",
+      "railRowLabel": "Вокзал",
+      "airportRowLabel": "Аэропорт",
+      "bestBadge": "Лучший",
+      "locationTitle": "Локация и 3D-карта",
+      "exactBuildingBadge": "Точное здание ✓",
+      "approxCenterBadge": "Координаты подтверждены",
+      "cloudyWord": "Переменная облачность",
+      "airQualityWord": "Качество воздуха",
+      "collapseTooltip": "Свернуть",
+      "expandTooltip": "Развернуть",
+      "directionsBtn": "Маршрут",
+      "open3dMapBtn": "На весь экран 3D",
+      "closeFullscreenBtn": "Свернуть карту",
+      "whatsNearbyTitle": "Что находится рядом",
+      "whatsNearbySub": "Сначала ближайшие · точное время пешком · данные карты",
+      "loadingNearbyText": "Загрузка объектов рядом...",
+      "noPlacesInCategory": "Нет объектов поблизости",
+      "allCat": "Все",
+      "showLessBtn": "Свернуть ▲",
+      "showMoreSuffix": "Еще ⌄",
+      "walkWord": "пешком",
+      "transitWord": "транспорт",
+      "driveWord": "авто",
+      "minWord": "мин",
+      "sunTitle": "Солнце и естественное освещение",
+      "sunSub": "Траектория солнца по точным координатам здания",
+      "winterTab": "Зима",
+      "todayTab": "Сегодня",
+      "summerTab": "Лето",
+      "windowDirectionTitle": "Солнечный свет по направлению окон",
+      "northLabel": "Север",
+      "eastLabel": "Восток",
+      "southLabel": "Юг",
+      "westLabel": "Запад",
+      "noDirectSun": "Без прямого солнца",
+      "brightMorning": "Солнечно утром",
+      "veryBrightAllDay": "Солнечно весь день",
+      "brightAfternoon": "Солнечно после полудня",
+      "southEastLabel": "Юго-Восток",
+      "southWestLabel": "Юго-Запад",
+      "timeLabel": "ВРЕМЯ",
+      "heightLabel": "ВЫСОТА",
+      "directionLabel": "НАПРАВЛЕНИЕ",
+      "daylightLabel": "СВЕТОВОЙ ДЕНЬ",
+      "sunriseLabel": "ВОСХОД",
+      "solarNoonLabel": "ПОЛДЕНЬ",
+      "sunsetLabel": "ЗАКАТ",
+      "windowsHelpText": "Используйте Ctrl + колесико для масштабирования",
+      "macHelpText": "Используйте ⌘ + колесико для масштабирования",
+      "mobileHelpText": "Используйте два пальца для перемещения карты",
+      "zoomInTitle": "Приблизить",
+      "zoomOutTitle": "Отдалить",
+      "centerBuildingTitle": "Центрировать здание",
+      "fullscreenTitle": "На весь экран",
+      "mapStylesTitle": "Стили карты",
+      "styles": {
+        "streets": "Улицы",
+        "sivrce": "Sivrce",
+        "realistic": "Реалистичный",
+        "photoreal": "Спутник",
+        "hybrid": "Гибрид",
+        "minimal": "Минимализм",
+        "contrast": "Контрастный"
+      },
+      "categories": {
+        "metro": "Метро",
+        "school": "Школы",
+        "kindergarten": "Детские сады",
+        "pharmacy": "Аптеки",
+        "park": "Парки",
+        "market": "Супермаркеты",
+        "restaurants": "Рестораны",
+        "clinic": "Клиники",
+        "university": "Университеты",
+        "bank": "Банки",
+        "landmark": "Достопримечательности",
+        "gym": "Фитнес",
+        "bus": "Автобус"
+      }
     }
   },
   "publicPages": {
@@ -1607,20 +2420,50 @@
       "ownerTitle": "Путь владельца объекта",
       "ownerBtn": "Начать оценку договора",
       "ownerSteps": [
-        ["Оцените договор", "Введите данные договора и узнайте свою ситуацию — личный кабинет создается автоматически при отправке заявки."],
-        ["Загрузите документы", "Договор и квитанции об оплате — мы проверяем их подлинность и суммы."],
-        ["Готовим предложение", "Подтверждаем все цифры документально и оформляем карточку объекта для покупателей."],
-        ["Подбираем покупателя", "Соединяем ваш объект с платежеспособными покупателями, готовыми продолжить рассрочку."],
-        ["Переуступка договора", "Сопровождаем переоформление у застройщика шаг за шагом до получения вами наличных."]
+        [
+          "Оцените договор",
+          "Введите данные договора и узнайте свою ситуацию — личный кабинет создается автоматически при отправке заявки."
+        ],
+        [
+          "Загрузите документы",
+          "Договор и квитанции об оплате — мы проверяем их подлинность и суммы."
+        ],
+        [
+          "Готовим предложение",
+          "Подтверждаем все цифры документально и оформляем карточку объекта для покупателей."
+        ],
+        [
+          "Подбираем покупателя",
+          "Соединяем ваш объект с платежеспособными покупателями, готовыми продолжить рассрочку."
+        ],
+        [
+          "Переуступка договора",
+          "Сопровождаем переоформление у застройщика шаг за шагом до получения вами наличных."
+        ]
       ],
       "buyerTitle": "Путь покупателя",
       "buyerBtn": "Зарегистрироваться как покупатель",
       "buyerSteps": [
-        ["Определите бюджет", "Укажите доступный кэш и комфортный платеж — личный кабинет создается автоматически."],
-        ["Смотрите подходящие объекты", "Проверенные предложения с полными и прозрачными расчетами."],
-        ["Сделайте предложение", "Официальный оффер с понятными условиями и проверенными цифрами."],
-        ["Зафиксируйте бронь", "Каждый шаг документируется — расчеты проходят в рамках официальной переуступки."],
-        ["Получите свой договор", "Официальное переоформление у застройщика и полный пакет документов."]
+        [
+          "Определите бюджет",
+          "Укажите доступный кэш и комфортный платеж — личный кабинет создается автоматически."
+        ],
+        [
+          "Смотрите подходящие объекты",
+          "Проверенные предложения с полными и прозрачными расчетами."
+        ],
+        [
+          "Сделайте предложение",
+          "Официальный оффер с понятными условиями и проверенными цифрами."
+        ],
+        [
+          "Зафиксируйте бронь",
+          "Каждый шаг документируется — расчеты проходят в рамках официальной переуступки."
+        ],
+        [
+          "Получите свой договор",
+          "Официальное переоформление у застройщика и полный пакет документов."
+        ]
       ],
       "commissionTitle": "Бесплатно для продавца — честная и прозрачная комиссия",
       "commissionDesc": "Продавец не платит ничего. Покупатель оплачивает 1.25% от стоимости договора только после успешного завершения переуступки. Если сделка не состоялась — никто ничего не платит.",
@@ -1648,7 +2491,12 @@
       "phonePlaceholder": "01xx xxx xxxx",
       "emailLabel": "Email",
       "subjectLabel": "Тема обращения",
-      "subjects": ["Общий вопрос", "Продажа объекта", "Покупка объекта", "Инвестиции"],
+      "subjects": [
+        "Общий вопрос",
+        "Продажа объекта",
+        "Покупка объекта",
+        "Инвестиции"
+      ],
       "messageLabel": "Ваше сообщение",
       "messagePlaceholder": "Опишите ваш вопрос или ситуацию подробно...",
       "sendBtn": "Отправить сообщение",
@@ -1667,7 +2515,7 @@
       "noCountryMatch": "Страна не найдена",
       "lightThemeAria": "Включить светлую тему",
       "searchCountryPlaceholder": "Поиск страны или кода (+995)...",
-"noCountryFound": "Страна не найдена",
+      "noCountryFound": "Страна не найдена",
       "darkThemeAria": "Включить темную тему"
     },
     "login": {
@@ -1768,9 +2616,18 @@
       ],
       "processTitle": "Как строится диалог",
       "processSteps": [
-        ["Заявка о заинтересованности", "Заполните анкету за пару минут — это не накладывает обязательств."],
-        ["NDA и инвестиционные материалы", "После подписания NDA мы предоставляем презентацию и финансовую модель."],
-        ["Встреча с основателем", "Обсуждаем структуру раунда, оценку и следующие шаги напрямую."]
+        [
+          "Заявка о заинтересованности",
+          "Заполните анкету за пару минут — это не накладывает обязательств."
+        ],
+        [
+          "NDA и инвестиционные материалы",
+          "После подписания NDA мы предоставляем презентацию и финансовую модель."
+        ],
+        [
+          "Встреча с основателем",
+          "Обсуждаем структуру раунда, оценку и следующие шаги напрямую."
+        ]
       ],
       "confidentialBadge": "Конфиденциально — для предварительных инвестиционных переговоров"
     },
@@ -1829,9 +2686,22 @@
         "Конвертируемый заем",
         "Прямое партнерство"
       ],
-      "vehicles": ["Прямая инвестиция", "Через инвестфонд / SPV"],
-      "holdPeriods": ["1–2 года", "3–5 лет", "5–10 лет", "Долгосрочно"],
-      "participation": ["Только финансовое", "Стратегическое", "Член совета директоров", "Операционное"],
+      "vehicles": [
+        "Прямая инвестиция",
+        "Через инвестфонд / SPV"
+      ],
+      "holdPeriods": [
+        "1–2 года",
+        "3–5 лет",
+        "5–10 лет",
+        "Долгосрочно"
+      ],
+      "participation": [
+        "Только финансовое",
+        "Стратегическое",
+        "Член совета директоров",
+        "Операционное"
+      ],
       "neededInfo": [
         "Бизнес-модель",
         "Финансовая отчетность",
@@ -1842,10 +2712,28 @@
         "Анализ рынка и конкурентов",
         "Юридические документы"
       ],
-      "returns": ["Менее 10%", "10–15%", "15–20%", "20–30%", "Более 30%"],
-      "importanceLevels": ["Очень высокий", "Высокий", "Средний", "Низкий"],
-      "nextStepsList": ["Встреча с руководством", "Изучение документов", "Начало оформления сделки"],
-      "yesNo": ["Да", "Нет"],
+      "returns": [
+        "Менее 10%",
+        "10–15%",
+        "15–20%",
+        "20–30%",
+        "Более 30%"
+      ],
+      "importanceLevels": [
+        "Очень высокий",
+        "Высокий",
+        "Средний",
+        "Низкий"
+      ],
+      "nextStepsList": [
+        "Встреча с руководством",
+        "Изучение документов",
+        "Начало оформления сделки"
+      ],
+      "yesNo": [
+        "Да",
+        "Нет"
+      ],
       "s1Title": "Данные инвестора",
       "s1Name": "Полное имя",
       "s1NamePlaceholder": "Иван Петров",
@@ -1958,13 +2846,13 @@
     "notFoundDesc": "Возможно, страница была удалена или ссылка указана неверно.",
     "notFoundBtn": "Доступные объекты",
     "maintenance": {
-      "badge": "ტექნიკური განახლება",
-      "title": "მიმდინარეობს პლატფორმის განახლება",
-      "description": "საიტზე მიმდინარეობს დროებითი ტექნიკური სამუშაოები და მალე დავბრუნდებით. სასწრაფო კითხვებისთვის მოგვწერეთ WhatsApp-ში.",
-      "whatsappBtn": "მოგვწერეთ WhatsApp-ში",
-      "staffLoginBtn": "თანამშრომლის შესვლა",
-      "staffBannerText": "ტექნიკური რეჟიმი ჩართულია სტუმრებისთვის — საიტი ღიაა გუნდისთვის",
-      "staffManageBtn": "პარამეტრები"
+      "badge": "Плановое обновление",
+      "title": "Мы обновляем платформу, чтобы стать еще удобнее для вас",
+      "description": "На сайте проводятся кратковременные технические работы, скоро мы вернемся. По срочным вопросам свяжитесь с нами напрямую в WhatsApp.",
+      "whatsappBtn": "Написать нам в WhatsApp",
+      "staffLoginBtn": "Вход для сотрудников",
+      "staffBannerText": "Режим техработ активен для гостей — сайт открыт вам как сотруднику",
+      "staffManageBtn": "Управление режимом"
     }
   },
   "serverActions": {
@@ -2011,7 +2899,7 @@
       "registerError": "Не удалось создать аккаунт. Проверьте данные и попробуйте снова.",
       "loginError": "Неверный email или пароль."
     },
-   "account": {
+    "account": {
       "sessionExpired": "Сессия истекла, войдите снова.",
       "invalidNamePhone": "Укажите корректное имя и номер телефона.",
       "phoneConflict": "Этот номер телефона уже привязан к другому аккаунту.",
@@ -2068,7 +2956,8 @@
       "adminSenderName": "Администрация платформы Darak",
       "greetingWord": "Здравствуйте,",
       "dearClient": "Уважаемый клиент",
-      "defaultProjectWord": "ваш проект","notifAdminNoteTitle": "Новое примечание администрации по вашему объекту",
+      "defaultProjectWord": "ваш проект",
+      "notifAdminNoteTitle": "Новое примечание администрации по вашему объекту",
       "boostApprovedNotifTitle": "Оплата подтверждена · Продвижение активировано",
       "boostApprovedNotifMsg": "Оплата проверена, VIP-продвижение вашего объекта успешно включено.",
       "boostRejectedNotifTitle": "Уведомление по запросу на продвижение",
@@ -2177,12 +3066,10 @@
     "accessDenied": {
       "title": "Доступ запрещен",
       "desc": "Эта панель предназначена только для команды управления и отдела продаж. Ваш текущий аккаунт не обладает правами администратора:",
-      
       "loginRequiredTitle": "Требуется вход администратора",
-  "loginRequiredDesc": "Пожалуйста, войдите с учетной записью администратора.",
-  "staffLoginBtn": "Войти как админ",
-  "backHomeBtn": "На главную"
-     
+      "loginRequiredDesc": "Пожалуйста, войдите с учетной записью администратора.",
+      "staffLoginBtn": "Войти как админ",
+      "backHomeBtn": "На главную"
     },
     "dealsPage": {
       "eyebrow": "Комната управления сделками (Deal Room)",
@@ -2248,7 +3135,7 @@
       "buyerPartyLabel": "Сторона 2 (Покупатель)",
       "contactSellerWa": "WhatsApp продавца",
       "offerPendingAdminTag": "Ждет админа",
-  "offerBackupTag": "Резерв",
+      "offerBackupTag": "Резерв",
       "contactBuyerWa": "WhatsApp покупателя",
       "agreedCashLabel": "Сумма кэша",
       "commissionDueLabel": "Комиссия платформы",
@@ -2273,14 +3160,13 @@
       "recSentSuccess": "Объект отправлен в рекомендации покупателю!",
       "bulkRecsSentSuccess": "Рекомендация отправлена всем подходящим покупателям",
       "officialOfferSentSuccess": "Официальное предложение отправлено продавцу!"
-    
     },
     "shell": {
       "brand": "Darak",
       "adminPanel": "Панель управления",
       "welcome": "Здравствуйте,",
       "defaultAdminName": "Админ",
-  "nowLabel": "Сейчас",
+      "nowLabel": "Сейчас",
       "myProfile": "Мой профиль",
       "publicSite": "Перейти на сайт",
       "logout": "Выйти",
@@ -2302,7 +3188,7 @@
         "promotions": "Заявки на рекламу ⭐",
         "promotionsShort": "Реклама",
         "deals": "Комната сделок и оферт",
-    "dealsShort": "Сделки",
+        "dealsShort": "Сделки",
         "leads": "Заявки на покупку",
         "leadsShort": "Покупатели",
         "users": "Пользователи и роли",
@@ -2321,7 +3207,6 @@
         "GE": "Грузия",
         "AE": "ОАЭ"
       },
-      
       "showingAll": "Показано сейчас: Объекты и заявки во всех странах 🌍",
       "showingCountry": "Показано сейчас: Объекты и заявки на рынке",
       "filterHint": "Нажмите на любую страну, чтобы отфильтровать объекты и покупателей только для этого рынка:",
@@ -2329,15 +3214,15 @@
       "unitsIn": "Объекты в:",
       "publishedNote": "опубликовано на витрине сейчас",
       "dealsRoomKpiLabel": "Комната сделок",
-  "offersPendingYourApprovalNote": "оферт ждут подтверждения",
-  "dealsReadyToCloseNote": "сделок готовы к закрытию",
-  "pendingOffersAlertPrefix": "У вас",
-  "pendingOffersAlertSuffix": "новых предложений о покупке ожидают проверки перед отправкой продавцам",
-  "pendingOffersAlertSub": "Нажмите здесь, чтобы открыть комнату сделок и одобрить предложения",
-  "openDealsRoomBtn": "Открыть сделки",
-  "manageAndCloseDealsBtn": "Управление сделками",
-  "openInDealsRoomBtn": "Открыть в сделках",
-  "openFullDealsRoomLink": "Открыть все сделки",
+      "offersPendingYourApprovalNote": "оферт ждут подтверждения",
+      "dealsReadyToCloseNote": "сделок готовы к закрытию",
+      "pendingOffersAlertPrefix": "У вас",
+      "pendingOffersAlertSuffix": "новых предложений о покупке ожидают проверки перед отправкой продавцам",
+      "pendingOffersAlertSub": "Нажмите здесь, чтобы открыть комнату сделок и одобрить предложения",
+      "openDealsRoomBtn": "Открыть сделки",
+      "manageAndCloseDealsBtn": "Управление сделками",
+      "openInDealsRoomBtn": "Открыть в сделках",
+      "openFullDealsRoomLink": "Открыть все сделки",
       "pendingReview": "Ожидают проверки",
       "pendingNeedAction": "Новые объекты требуют вашей проверки",
       "allReviewed": "Все объекты проверены",
@@ -2464,8 +3349,8 @@
       "contactCardDesc": "Эти номера и тарифы отображаются клиентам в зависимости от выбранной страны.",
       "siteNameLabel": "Название платформы",
       "financialRatesTitle": "Комиссия и штраф застройщика при возврате (%)",
-"devPenaltyMinLabel": "Мин. штраф застройщика (%)",
-"devPenaltyMaxLabel": "Макс. штраф застройщика (%)",
+      "devPenaltyMinLabel": "Мин. штраф застройщика (%)",
+      "devPenaltyMaxLabel": "Макс. штраф застройщика (%)",
       "whatsappLabel": "Официальный номер WhatsApp поддержки",
       "supportEmailLabel": "Официальный Email поддержки",
       "commissionLabel": "Комиссия платформы для покупателя (%)",
@@ -2569,7 +3454,7 @@
       "allTab": "Все",
       "unitLeadsTab": "Брони объектов",
       "verifyBuyerBtn": "Подтвердить покупателя ✓",
-"buyerVerifiedSuccess": "Контактные данные покупателя успешно подтверждены ✓",
+      "buyerVerifiedSuccess": "Контактные данные покупателя успешно подтверждены ✓",
       "generalTab": "Общий подбор",
       "emptyText": "Подходящих заявок на покупку не найдено.",
       "updatingText": "Обновление заявки...",
@@ -2753,7 +3638,7 @@
         "deleted_by_seller": "🗑 Удален владельцем",
         "rejected": "7. Отклонено"
       },
-    "docs": {
+      "docs": {
         "contract": "Договор купли-продажи",
         "receipts": "Квитанции об оплате",
         "statement": "Выписка застройщика (Statement)",
@@ -2767,7 +3652,7 @@
         "pausedBySeller": "Приостановлено владельцем",
         "deletedBySellerPrefix": "Удалено владельцем",
         "phoneVerifiedBadge": "Телефон подтвержден ✓",
-  "emailVerifiedBadge": "Email подтвержден ✓",
+        "emailVerifiedBadge": "Email подтвержден ✓",
         "daysWord": "дн.",
         "dayWord": "дн.",
         "docWord": "док.",
@@ -2884,6 +3769,13 @@
         "sellerVerifiedSuccess": "Контактные данные продавца успешно подтверждены ✓",
         "promoActivated": "⭐ VIP-продвижение объекта успешно активировано.",
         "promoCancelled": "VIP-продвижение объекта отменено."
+      },
+      "analytics": {
+        "viewsWord": "просм.",
+        "totalViewsLabel": "Всего просмотров:",
+        "sendReportWaBtn": "Отправить отчет о просмотрах (WhatsApp)",
+        "viewsColumnHeader": "Просмотры",
+        "viewUnitBtn": "Посмотреть объект"
       }
     }
   },
@@ -2902,7 +3794,83 @@
     "roomsDiff": "Спальни",
     "buyerAskedRooms": "запрос",
     "deliveryDiff": "Статус сдачи",
-    "readyKeywords": ["сдан", "готов", "ready", "جاهز"],
-    "bothDeliveryKeywords": ["оба", "любой", "both", "الاتنين"]
+    "readyKeywords": [
+      "сдан",
+      "готов",
+      "ready",
+      "جاهز"
+    ],
+    "bothDeliveryKeywords": [
+      "оба",
+      "любой",
+      "both",
+      "الاتنين"
+    ]
+  },
+  "common": {
+    "floatingWhatsapp": {
+      "tooltip": "Напишите нам в WhatsApp",
+      "prefillMessage": "Здравствуйте, команда Aqar Exit! Мне нужна консультация по платформе."
+    },
+    "relativeTime": {
+      "oneWeekAgo": "1 нед. назад",
+      "twoWeeksAgo": "2 нед. назад",
+      "weeksAgoPrefix": "",
+      "weeksWord": "нед. назад",
+      "oneHourAgo": "1 ч. назад",
+      "twoHoursAgo": "2 ч. назад",
+      "hoursWordPlural": "ч. назад",
+      "hourWordSingular": "ч. назад",
+      "oneDayAgo": "1 дн. назад",
+      "twoDaysAgo": "2 дн. назад",
+      "daysWordPlural": "дн. назад",
+      "oneMonthAgo": "мес. назад",
+      "twoMonthsAgo": "мес. назад",
+      "monthsWordPlural": "мес. назад",
+      "sincePrefix": ""
+    },
+    "frequencies": {
+      "monthly": "Ежемесячно",
+      "quarterly": "Ежеквартально",
+      "semiAnnual": "Раз в полгода",
+      "annual": "Ежегодно"
+    },
+    "delivery": {
+      "ready": "Готово"
+    },
+    "unitTypesShort": {
+      "apartment": "Квартира",
+      "studio": "Студия",
+      "aparthotel": "Апарт-отель",
+      "villa": "Вилла / Дом",
+      "cottage": "Коттедж",
+      "commercial": "Коммерческая",
+      "land": "Участок"
+    }
+  },
+  "locationModal": {
+    "triggerEmpty": "Нажмите для выбора города или района в Грузии...",
+    "triggerSelectedPrefix": "Добавить еще район",
+    "selectedCountSuffix": "выбрано",
+    "modalTitle": "Локация",
+    "sellerModalTitle": "Выберите город и район в Грузии",
+    "searchPlaceholder": "Город или район",
+    "sellerSearchPlaceholder": "Район, город, микрорайон или улица...",
+    "nearbyTitle": "Рядом с вами",
+    "nearbySub": "Город по геолокации",
+    "popularCitiesTitle": "Популярные города",
+    "browseAllCitiesBtn": "Все города →",
+    "districtsAZTitle": "Районы и зоны (A–Z)",
+    "districtsTab": "Районы",
+    "streetsTab": "Улицы",
+    "citiesHeader": "Все города",
+    "wholeCityBtn": "Весь город",
+    "pickDistrictOrStreetHint": "Выберите район или введите улицу выше",
+    "noStreetsForAreaHint": "Для этого района нет списка улиц — нажмите Выбрать для подтверждения",
+    "outsideGeorgiaGpsWarning": "Ваша текущая геопозиция находится за пределами Грузии — выберите город и район ниже.",
+    "clearBtn": "Сбросить",
+    "clearAllBtn": "Очистить все",
+    "selectBtn": "Выбрать",
+    "confirmSelectBtn": "Подтвердить выбор"
   }
 }

@@ -6,7 +6,7 @@ import {
   getOptionLabel,
   toEnglishDigits,
 } from '@/components/features/seller/seller-shared'
-import { useTranslation, type LocaleCode } from '@/lib/i18n'
+import { useTranslation } from '@/lib/i18n'
 
 export type SearchFiltersState = {
   q: string
@@ -31,101 +31,6 @@ export type SearchFiltersState = {
   floorType: string
   heating: string
   quickTag: string
-}
-
-const POPOVER_I18N: Record<
-  LocaleCode,
-  {
-    minCashPlaceholder: string
-    maxCashPlaceholder: string
-    minWord: string
-    maxWord: string
-    sqmUnit: string
-    commutePlaceholder: string
-    useMyLocationBtn: string
-    modeCar: string
-    modeWalk: string
-    modeBike: string
-    minSuffix: string
-    applyBtn: string
-    boostStatusLabel: string
-    bathroomsLabel: string
-    floorLabel: string
-    conditionLabel: string
-  }
-> = {
-  ar: {
-    minCashPlaceholder: 'أدنى كاش مطلوب ($)',
-    maxCashPlaceholder: 'أقصى كاش مطلوب ($)',
-    minWord: 'الأدنى',
-    maxWord: 'الأقصى',
-    sqmUnit: 'م²',
-    commutePlaceholder: 'الوجهة — العمل، الجامعة، أو محطة المترو...',
-    useMyLocationBtn: 'استخدم موقعي الحالي',
-    modeCar: 'سيارة',
-    modeWalk: 'مشياً',
-    modeBike: 'دراجة',
-    minSuffix: 'د',
-    applyBtn: 'تطبيق',
-    boostStatusLabel: 'الباقة الإعلانية',
-    bathroomsLabel: 'الحمامات',
-    floorLabel: 'الطابق',
-    conditionLabel: 'حالة التشطيب',
-  },
-  en: {
-    minCashPlaceholder: 'Min Required Cash ($)',
-    maxCashPlaceholder: 'Max Required Cash ($)',
-    minWord: 'Min',
-    maxWord: 'Max',
-    sqmUnit: 'm²',
-    commutePlaceholder: 'Destination — work, university, metro station...',
-    useMyLocationBtn: 'Use my location',
-    modeCar: 'Car',
-    modeWalk: 'Walking',
-    modeBike: 'Bicycle',
-    minSuffix: 'min',
-    applyBtn: 'Apply',
-    boostStatusLabel: 'Boost status',
-    bathroomsLabel: 'Bathrooms',
-    floorLabel: 'Floor',
-    conditionLabel: 'Finishing Condition',
-  },
-  ru: {
-    minCashPlaceholder: 'Мин. сумма на руки ($)',
-    maxCashPlaceholder: 'Макс. сумма на руки ($)',
-    minWord: 'От',
-    maxWord: 'До',
-    sqmUnit: 'м²',
-    commutePlaceholder: 'Пункт назначения — работа, ВУЗ, станция метро...',
-    useMyLocationBtn: 'Моя геолокация',
-    modeCar: 'Авто',
-    modeWalk: 'Пешком',
-    modeBike: 'Велосипед',
-    minSuffix: 'мин',
-    applyBtn: 'Применить',
-    boostStatusLabel: 'Статус продвижения',
-    bathroomsLabel: 'Санузлы',
-    floorLabel: 'Этаж',
-    conditionLabel: 'Состояние ремонта',
-  },
-  ka: {
-    minCashPlaceholder: 'მინ. საჭირო თანხა ($)',
-    maxCashPlaceholder: 'მაქს. საჭირო თანხა ($)',
-    minWord: 'მინ.',
-    maxWord: 'მაქს.',
-    sqmUnit: 'მ²',
-    commutePlaceholder: 'დანიშნულების ადგილი — სამსახური, უნივერსიტეტი, მეტრო...',
-    useMyLocationBtn: 'ჩემი მდებარეობა',
-    modeCar: 'მანქანით',
-    modeWalk: 'ფეხით',
-    modeBike: 'ველოსიპედით',
-    minSuffix: 'წთ',
-    applyBtn: 'გამოყენება',
-    boostStatusLabel: 'VIP სტატუსი',
-    bathroomsLabel: 'სველი წერტილები',
-    floorLabel: 'სართული',
-    conditionLabel: 'მდგომარეობა / რემონტი',
-  },
 }
 
 export function PriceFilterPanel({
@@ -153,8 +58,8 @@ export function PriceFilterPanel({
   tFilters: Record<string, any>
   isAr?: boolean
 }) {
-  const { locale } = useTranslation()
-  const pT = POPOVER_I18N[locale] || POPOVER_I18N.ar
+  const { t: dict } = useTranslation()
+  const pT = dict.opportunitiesPage.popovers
 
   return (
     <div className="mt-3 space-y-4 rounded-2xl border border-slate-200/90 bg-[#f8fafc] p-4 shadow-sm animate-in fade-in slide-in-from-top-1 duration-150">
@@ -316,8 +221,8 @@ export function AreaFilterPanel({
   ) => void
   isAr?: boolean
 }) {
-  const { locale } = useTranslation()
-  const pT = POPOVER_I18N[locale] || POPOVER_I18N.ar
+  const { t: dict } = useTranslation()
+  const pT = dict.opportunitiesPage.popovers
 
   return (
     <div className="mt-3 rounded-2xl border border-slate-200/90 bg-[#f8fafc] p-3.5 shadow-sm animate-in fade-in slide-in-from-top-1 duration-150">
@@ -360,8 +265,8 @@ export function CommuteFilterPanel({
   onClose: () => void
   isAr?: boolean
 }) {
-  const { locale } = useTranslation()
-  const pT = POPOVER_I18N[locale] || POPOVER_I18N.ar
+  const { t: dict } = useTranslation()
+  const pT = dict.opportunitiesPage.popovers
 
   const handleDetectMyLocation = () => {
     if (typeof window === 'undefined' || !('geolocation' in navigator)) return
@@ -488,8 +393,8 @@ export function MoreFiltersMegaPanel({
   onClose: () => void
   isAr?: boolean
 }) {
-  const { locale } = useTranslation()
-  const pT = POPOVER_I18N[locale] || POPOVER_I18N.ar
+  const { t: dict, locale } = useTranslation()
+  const pT = dict.opportunitiesPage.popovers
 
   const pillClass = (active: boolean) =>
     `rounded-full border px-3.5 py-1.5 text-xs font-semibold transition ${

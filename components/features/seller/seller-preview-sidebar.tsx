@@ -20,6 +20,7 @@ export function LivePreviewSidebar({
   const { t: dict, locale } = useTranslation()
   const fT = getSellerFormTranslations(locale, dict)
   const pvT = fT.previewSidebar
+  const sqmUnit = dict.opportunitiesPage?.card?.sqmUnit || 'm²'
 
   const exactAddressLine = [
     livePreviewData.area !== '—' ? livePreviewData.area : '',
@@ -96,7 +97,11 @@ export function LivePreviewSidebar({
 
               {(form.areaSize || form.bedrooms || form.floor) && (
                 <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-2.5 text-[11px] font-bold text-slate-500">
-                  {form.areaSize && <span>📐 {form.areaSize} m²</span>}
+                  {form.areaSize && (
+                    <span>
+                      📐 {form.areaSize} {sqmUnit}
+                    </span>
+                  )}
                   {propertyKind !== 'Land' && form.bedrooms && (
                     <span>
                       🛏 {form.bedrooms} {pvT.bedsShort}

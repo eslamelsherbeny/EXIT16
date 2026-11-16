@@ -49,7 +49,7 @@ import {
   SellerPromoSection,
   Timeline,
 } from './seller-promo-timeline'
-import { useTranslation, type LocaleCode } from '@/lib/i18n'
+import { useTranslation } from '@/lib/i18n'
 
 export type { SellerUnitItem } from './seller-unit-helpers'
 
@@ -60,145 +60,6 @@ const DEFAULT_GEORGIA_PROMO_PACKAGES = {
   days7: 20,
   days14: 50,
   days30: 100,
-}
-
-const SELLER_DASH_EXTRA_I18N: Record<
-  LocaleCode,
-  {
-    navigatingLoading: string
-    unverifiedDraftTitle: string
-    unverifiedDraftDesc: string
-    verifyAndSendToAdminBtn: string
-    adminNoteCardTitle: string
-    adminNoteFixBtn: string
-    adminNoteWaReplyBtn: string
-    adminNoteWaMsgPrefix: string
-    adminNoteWaMsgMiddle: string
-    checklistTitleIncomplete: string
-    checklistSubIncomplete: string
-    checklistTitleComplete: string
-    checklistSubComplete: string
-    reqItemDetails: string
-    reqItemPhotos: string
-    reqItemDocs: string
-    doneTag: string
-    missingActionPhotos: string
-    missingActionDocs: string
-    missingActionDetails: string
-  }
-> = {
-  ar: {
-    navigatingLoading: 'جاري فتح الصفحة...',
-    unverifiedDraftTitle: 'تأكيد البريد الإلكتروني لإرسال الوحدة للإدارة',
-    unverifiedDraftDesc:
-      'هذه الوحدة محفوظة كمسودة في حسابك ولم تُرسل للإدارة بعد. أكّد بريدك الإلكتروني (خطوة لمرة واحدة فقط) لإرسالها للمراجعة.',
-    verifyAndSendToAdminBtn: 'تأكيد الإيميل وإرسال الوحدة للإدارة ←',
-    adminNoteCardTitle: 'ملاحظة من مراجع الإدارة على وحدتك قبل النشر:',
-    adminNoteFixBtn: 'تعديل بيانات الوحدة الآن',
-    adminNoteWaReplyBtn: 'توضيح أو استفسار عبر واتساب',
-    adminNoteWaMsgPrefix:
-      'أهلاً إدارة Aqar Exit، بخصوص ملاحظتكم على وحدتي رقم',
-    adminNoteWaMsgMiddle: 'في مشروع',
-    checklistTitleIncomplete:
-      '⚠️ وضع وحدتك الحالي: غير منشورة (تنتظر استكمال المتطلبات التالية)',
-    checklistSubIncomplete:
-      'لا يتم نشر أي وحدة في السوق العام إلا بعد اكتمال البنود الـ 3 التالية. اضغط على البند الناقص لاستكماله فوراً:',
-    checklistTitleComplete:
-      '✅ وضع وحدتك الحالي: مكتملة وجاهزة (قيد مراجعة الإدارة للنشر)',
-    checklistSubComplete:
-      'استلمت الإدارة جميع بيانات وصور ومستندات وحدتك بالكامل، وجاري مراجعتها للموافقة على نشرها في السوق.',
-    reqItemDetails: '١. البيانات الأساسية الإجبارية للوحدة',
-    reqItemPhotos: '٢. صور الوحدة العقارية',
-    reqItemDocs: '٣. مستندات الملكية والتنازل (4 مستندات)',
-    doneTag: 'مكتمل ✓',
-    missingActionPhotos: 'ارفع صور الوحدة الآن ←',
-    missingActionDocs: 'ارفع المستندات المتبقية ←',
-    missingActionDetails: 'أكمل البيانات الناقصة ←',
-  },
-  en: {
-    navigatingLoading: 'Opening page...',
-    unverifiedDraftTitle: 'Verify Email to Send Unit to Admin',
-    unverifiedDraftDesc:
-      'This unit is saved as a draft and has not been sent to Admin yet. Verify your email (one-time step) to submit it for review.',
-    verifyAndSendToAdminBtn: 'Verify Email & Submit to Admin →',
-    adminNoteCardTitle: 'Reviewer Note from Admin Regarding Your Unit:',
-    adminNoteFixBtn: 'Edit Unit Details Now',
-    adminNoteWaReplyBtn: 'Reply / Ask via WhatsApp',
-    adminNoteWaMsgPrefix:
-      'Hello Aqar Exit Admin, regarding your note on my unit',
-    adminNoteWaMsgMiddle: 'in project',
-    checklistTitleIncomplete:
-      '⚠️ Current Status: Not Published Yet (Waiting for Required Items)',
-    checklistSubIncomplete:
-      'Units are only sent for market publication once all 3 requirements below are completed. Click any missing item to complete it:',
-    checklistTitleComplete:
-      '✅ Current Status: All Requirements Complete (Under Admin Review)',
-    checklistSubComplete:
-      'Admin has received all your unit details, photos, and documents and is reviewing them for market publication.',
-    reqItemDetails: '1. Compulsory Unit Details',
-    reqItemPhotos: '2. Property Photos',
-    reqItemDocs: '3. Ownership Documents (4 files)',
-    doneTag: 'Done ✓',
-    missingActionPhotos: 'Upload Photos Now →',
-    missingActionDocs: 'Upload Remaining Docs →',
-    missingActionDetails: 'Complete Missing Details →',
-  },
-  ru: {
-    navigatingLoading: 'Переход...',
-    unverifiedDraftTitle: 'Подтвердите Email для отправки объекта администрации',
-    unverifiedDraftDesc:
-      'Объект сохранен как черновик. Подтвердите ваш Email (только один раз), чтобы отправить его на проверку.',
-    verifyAndSendToAdminBtn: 'Подтвердить Email и отправить →',
-    adminNoteCardTitle: 'Комментарий модератора по вашему объекту:',
-    adminNoteFixBtn: 'Исправить данные объекта',
-    adminNoteWaReplyBtn: 'Ответить в WhatsApp',
-    adminNoteWaMsgPrefix:
-      'Здравствуйте, Aqar Exit! По поводу вашего комментария к объекту',
-    adminNoteWaMsgMiddle: 'в ЖК',
-    checklistTitleIncomplete:
-      '⚠️ Текущий статус: Не опубликовано (Ожидает загрузки файлов)',
-    checklistSubIncomplete:
-      'Объект публикуется на рынке только после выполнения всех 3 пунктов ниже:',
-    checklistTitleComplete:
-      '✅ Текущий статус: Все требования выполнены (На проверке у администрации)',
-    checklistSubComplete:
-      'Администрация получила все данные, фото и документы вашего объекта и проверяет их для публикации.',
-    reqItemDetails: '1. Обязательные данные объекта',
-    reqItemPhotos: '2. Фотографии объекта',
-    reqItemDocs: '3. Документы собственности (4 файла)',
-    doneTag: 'Готово ✓',
-    missingActionPhotos: 'Загрузить фото →',
-    missingActionDocs: 'Загрузить документы →',
-    missingActionDetails: 'Заполнить данные →',
-  },
-  ka: {
-    navigatingLoading: 'იხსნება...',
-    unverifiedDraftTitle: 'დაადასტურეთ ელ-ფოსტა ობიექტის გასაგზავნად',
-    unverifiedDraftDesc:
-      'ეს ობიექტი შენახულია მონახაზის სახით. დაადასტურეთ ელ-ფოსტა (მხოლოდ ერთხელ) ადმინისტრაციაში გასაგზავნად.',
-    verifyAndSendToAdminBtn: 'ელ-ფოსტის დადასტურება და გაგზავნა →',
-    adminNoteCardTitle: 'ადმინისტრაციის შენიშვნა თქვენს ობიექტზე:',
-    adminNoteFixBtn: 'მონაცემების შესწორება ახლა',
-    adminNoteWaReplyBtn: 'პასუხი WhatsApp-ით',
-    adminNoteWaMsgPrefix:
-      'გამარჯობა Aqar Exit, თქვენს შენიშვნასთან დაკავშირებით ობიექტზე',
-    adminNoteWaMsgMiddle: 'პროექტში',
-    checklistTitleIncomplete:
-      '⚠️ მიმდინარე სტატუსი: არ არის გამოქვეყნებული (საჭიროა ფაილების ატვირთვა)',
-    checklistSubIncomplete:
-      'ობიექტი გამოქვეყნდება ბაზარზე მხოლოდ ქვემოთ მოცემული 3 პუნქტის შევსების შემდეგ:',
-    checklistTitleComplete:
-      '✅ მიმდინარე სტატუსი: სრულად შევსებულია (ადმინისტრაციის შემოწმებაზე)',
-    checklistSubComplete:
-      'ადმინისტრაციამ მიიღო თქვენი ობიექტის ყველა მონაცემი, ფოტო და დოკუმენტი გამოსაქვეყნებლად.',
-    reqItemDetails: '1. სავალდებულო მონაცემები',
-    reqItemPhotos: '2. ქონების ფოტოები',
-    reqItemDocs: '3. საკუთრების დოკუმენტები (4 ფაილი)',
-    doneTag: 'შევსებულია ✓',
-    missingActionPhotos: 'ფოტოების ატვირთვა →',
-    missingActionDocs: 'დოკუმენტების ატვირთვა →',
-    missingActionDetails: 'მონაცემების შევსება →',
-  },
 }
 
 export function SellerDashboard({
@@ -220,8 +81,6 @@ export function SellerDashboard({
     any
   >
   const t = (dict?.accountComponents?.seller as Record<string, any>) || {}
-  const dT =
-    SELLER_DASH_EXTRA_I18N[locale as LocaleCode] || SELLER_DASH_EXTRA_I18N.ar
 
   const [localSells, setLocalSells] = useState<SellerUnitItem[]>(sells)
   useEffect(() => {
@@ -338,12 +197,7 @@ export function SellerDashboard({
     `${unitCurrencySymbol}${Number(value || 0).toLocaleString('en-US')}`
 
   const comp = calculateUnitCompletion(activeUnit, t)
-  const meta = getSellerTimelineAndStatus(
-    activeUnit,
-    comp,
-    t,
-    locale as LocaleCode
-  )
+  const meta = getSellerTimelineAndStatus(activeUnit, comp, t)
   const isPausedBySeller = meta.code === 'paused_by_seller'
   const visibleAdminNote = getVisibleSellerAdminNote(activeUnit.admin_note)
 
@@ -380,7 +234,7 @@ export function SellerDashboard({
   const sellerFastTrackWaMsg = `${t.waFastTrackSellerMsgPrefix} (${unitRef}) — ${activeUnit.project_name || t.defaultProjectName} (${activeUnitLocalizedArea}) — ${t.paidAmountLabel}: ${money(activeUnit.paid_amount)}.\n${adminVerifyUnitLink}`
 
   const adminNoteReplyWaMsg = visibleAdminNote
-    ? `${dT.adminNoteWaMsgPrefix} (${unitRef}) ${dT.adminNoteWaMsgMiddle} (${activeUnit.project_name || t.defaultProjectName}):\n"${visibleAdminNote}"`
+    ? `${t.adminNoteWaMsgPrefix} (${unitRef}) ${t.adminNoteWaMsgMiddle} (${activeUnit.project_name || t.defaultProjectName}):\n"${visibleAdminNote}"`
     : ''
 
   const isWaFastTrackHidden =
@@ -552,7 +406,7 @@ export function SellerDashboard({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4 backdrop-blur-xs">
           <div className="flex items-center gap-3 rounded-2xl bg-white px-6 py-4 text-xs font-extrabold text-[#0a1122] shadow-xl sm:text-sm">
             <Loader2 className="size-5 animate-spin text-[#007a5a]" />
-            <span>{dT.navigatingLoading}</span>
+            <span>{t.navigatingLoading}</span>
           </div>
         </div>
       )}
@@ -602,12 +456,7 @@ export function SellerDashboard({
             >
               {displayedUnits.map((item, idx) => {
                 const itemComp = calculateUnitCompletion(item, t)
-                const itemMeta = getSellerTimelineAndStatus(
-                  item,
-                  itemComp,
-                  t,
-                  locale as LocaleCode
-                )
+                const itemMeta = getSellerTimelineAndStatus(item, itemComp, t)
                 const isSelected = item.id === activeUnit.id
                 const itemRawArea =
                   item.area || item.documents?.__unit_meta?.area
@@ -713,10 +562,10 @@ export function SellerDashboard({
             </span>
             <div className="flex-1">
               <h3 className="text-xs font-black text-amber-950 sm:text-sm">
-                {dT.unverifiedDraftTitle}
+                {t.unverifiedDraftTitle}
               </h3>
               <p className="mt-1 text-[11.5px] leading-relaxed text-amber-900">
-                {dT.unverifiedDraftDesc}
+                {t.unverifiedDraftDesc}
               </p>
               <button
                 type="button"
@@ -724,7 +573,7 @@ export function SellerDashboard({
                 className="mt-3 inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#007a5a] px-5 text-xs font-extrabold text-white shadow-2xs transition hover:bg-[#006248]"
               >
                 <Mail className="size-4" />
-                <span>{dT.verifyAndSendToAdminBtn}</span>
+                <span>{t.verifyAndSendToAdminBtn}</span>
               </button>
             </div>
           </div>
@@ -776,7 +625,7 @@ export function SellerDashboard({
                 <AlertCircle className="mt-0.5 size-5 shrink-0 text-amber-600" />
                 <div className="flex-1">
                   <strong className="block text-xs font-black text-amber-950 sm:text-sm">
-                    {dT.adminNoteCardTitle}
+                    {t.adminNoteCardTitle}
                   </strong>
                   <p className="mt-1 whitespace-pre-line text-xs leading-relaxed font-semibold text-amber-900">
                     {visibleAdminNote}
@@ -789,7 +638,7 @@ export function SellerDashboard({
                       className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[#0a1122] px-4 text-xs font-extrabold text-white shadow-2xs transition hover:bg-[#16223f]"
                     >
                       <Edit3 className="size-3.5" />
-                      <span>{dT.adminNoteFixBtn}</span>
+                      <span>{t.adminNoteFixBtn}</span>
                     </button>
 
                     <a
@@ -799,7 +648,7 @@ export function SellerDashboard({
                       className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-[#25D366] bg-white px-4 text-xs font-extrabold text-[#128C7E] transition hover:bg-[#f0fdf4]"
                     >
                       <MessageCircle className="size-3.5" />
-                      <span>{dT.adminNoteWaReplyBtn}</span>
+                      <span>{t.adminNoteWaReplyBtn}</span>
                     </a>
                   </div>
                 </div>
@@ -829,14 +678,14 @@ export function SellerDashboard({
                   <h3 className="text-xs font-black text-[#0a1122] sm:text-sm">
                     {meta.code === 'incomplete' ||
                     meta.code === 'draft_unverified'
-                      ? dT.checklistTitleIncomplete
-                      : dT.checklistTitleComplete}
+                      ? t.checklistTitleIncomplete
+                      : t.checklistTitleComplete}
                   </h3>
                   <p className="mt-1 text-xs leading-relaxed font-semibold text-slate-600">
                     {meta.code === 'incomplete' ||
                     meta.code === 'draft_unverified'
-                      ? dT.checklistSubIncomplete
-                      : dT.checklistSubComplete}
+                      ? t.checklistSubIncomplete
+                      : t.checklistSubComplete}
                   </p>
                 </div>
               </div>
@@ -846,12 +695,12 @@ export function SellerDashboard({
                 {/* 1. البيانات الإجبارية */}
                 <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200/80 bg-white px-3.5 py-2.5 text-xs">
                   <span className="font-extrabold text-[#0a1122]">
-                    {dT.reqItemDetails}
+                    {t.reqItemDetails}
                   </span>
                   {comp.hasAllCoreDetails ? (
                     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 font-extrabold text-[#007a5a]">
                       <CheckCircle2 className="size-3.5" />
-                      <span>{dT.doneTag}</span>
+                      <span>{t.doneTag}</span>
                     </span>
                   ) : (
                     <button
@@ -859,7 +708,7 @@ export function SellerDashboard({
                       onClick={() => handleNavigateWithLoading(editUnitHref)}
                       className="rounded-lg bg-amber-500 px-3 py-1 font-extrabold text-white hover:bg-amber-600"
                     >
-                      {dT.missingActionDetails}
+                      {t.missingActionDetails}
                     </button>
                   )}
                 </div>
@@ -867,12 +716,12 @@ export function SellerDashboard({
                 {/* 2. صور الوحدة */}
                 <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200/80 bg-white px-3.5 py-2.5 text-xs">
                   <span className="font-extrabold text-[#0a1122]">
-                    {dT.reqItemPhotos} ({comp.imagesCount})
+                    {t.reqItemPhotos} ({comp.imagesCount})
                   </span>
                   {comp.hasImages ? (
                     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 font-extrabold text-[#007a5a]">
                       <CheckCircle2 className="size-3.5" />
-                      <span>{dT.doneTag}</span>
+                      <span>{t.doneTag}</span>
                     </span>
                   ) : (
                     <button
@@ -881,7 +730,7 @@ export function SellerDashboard({
                       className="inline-flex items-center gap-1 rounded-lg bg-[#ea580c] px-3 py-1 font-extrabold text-white hover:bg-orange-700"
                     >
                       <ImagePlus className="size-3.5" />
-                      <span>{dT.missingActionPhotos}</span>
+                      <span>{t.missingActionPhotos}</span>
                     </button>
                   )}
                 </div>
@@ -889,12 +738,12 @@ export function SellerDashboard({
                 {/* 3. المستندات الـ 4 */}
                 <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200/80 bg-white px-3.5 py-2.5 text-xs">
                   <span className="font-extrabold text-[#0a1122]">
-                    {dT.reqItemDocs} ({comp.uploadedDocsCount}/4)
+                    {t.reqItemDocs} ({comp.uploadedDocsCount}/4)
                   </span>
                   {comp.hasAllDocuments ? (
                     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 font-extrabold text-[#007a5a]">
                       <CheckCircle2 className="size-3.5" />
-                      <span>{dT.doneTag}</span>
+                      <span>{t.doneTag}</span>
                     </span>
                   ) : (
                     <button
@@ -903,7 +752,7 @@ export function SellerDashboard({
                       className="inline-flex items-center gap-1 rounded-lg bg-[#2563eb] px-3 py-1 font-extrabold text-white hover:bg-blue-700"
                     >
                       <UploadCloud className="size-3.5" />
-                      <span>{dT.missingActionDocs}</span>
+                      <span>{t.missingActionDocs}</span>
                     </button>
                   )}
                 </div>

@@ -25,98 +25,6 @@ export type { HomeUnitCardItem }
 const CONTAINER_CLS = 'mx-auto w-full max-w-[1280px] px-4 sm:px-6 lg:px-8'
 const FAVORITES_STORAGE_KEY = 'darak_favorites'
 
-const HOME_CAROUSEL_TITLES: Record<
-  LocaleCode,
-  {
-    categoriesTitle: string
-    categoriesSub: string
-    howItWorksMoreLink: string
-    superVipTitle: string
-    superVipSub: string
-    superVipAllBtn: string
-    availableOppsBadge: string
-    availableOppsTitle: string
-    availableOppsSub: string
-    availableOppsAllBtn: string
-    recentBadge: string
-    recentTitle: string
-    recentSub: string
-    recentAllBtn: string
-  }
-> = {
-  ar: {
-    categoriesTitle: 'ماذا تبحث عنه للتنازل؟',
-    categoriesSub:
-      'اختر نوع الوحدة وتصفح أفضل عروض التنازل واستكمال الأقساط في جورجيا',
-    howItWorksMoreLink: 'تفاصيل إزاي بنشتغل والأمثلة ←',
-    superVipTitle: 'إعلانات SUPER VIP',
-    superVipSub: 'أقصى ظهور — أفضل العروض أولاً في صدارة المنصة',
-    superVipAllBtn: 'كل SUPER VIP ←',
-    availableOppsBadge: 'الفرص المتاحة',
-    availableOppsTitle: 'الفرص المتاحة للتنازل',
-    availableOppsSub:
-      'تصفح وحدات إعادة البيع واستكمال الأقساط المعتمدة بدون أوفر في جورجيا',
-    availableOppsAllBtn: 'كل الفرص المتاحة ←',
-    recentBadge: 'جديد السوق',
-    recentTitle: 'أضيفت حديثاً',
-    recentSub: 'إعلانات جديدة مرتبة تنازلياً حسب التاريخ — الأحدث أولاً',
-    recentAllBtn: 'كل الجديد ←',
-  },
-  en: {
-    categoriesTitle: 'What are you looking for to take over?',
-    categoriesSub:
-      'Choose unit type and explore verified installment exit opportunities',
-    howItWorksMoreLink: 'How it works & Examples →',
-    superVipTitle: 'SUPER VIP Listings',
-    superVipSub: 'Maximum visibility — top exit offers first',
-    superVipAllBtn: 'All SUPER VIP →',
-    availableOppsBadge: 'Available Deals',
-    availableOppsTitle: 'Available Exit Opportunities',
-    availableOppsSub:
-      'Explore verified installment takeover units at original contract price in Georgia',
-    availableOppsAllBtn: 'All Opportunities →',
-    recentBadge: 'New in Market',
-    recentTitle: 'Recently Added',
-    recentSub: 'Fresh installment exit units sorted by date — newest first',
-    recentAllBtn: 'All New →',
-  },
-  ru: {
-    categoriesTitle: 'Какой объект переуступки вы ищете?',
-    categoriesSub:
-      'Выберите тип недвижимости и изучайте проверенные предложения с рассрочкой в Грузии',
-    howItWorksMoreLink: 'Подробнее о процессе и примеры →',
-    superVipTitle: 'Объявления SUPER VIP',
-    superVipSub: 'Максимальный охват — лучшие предложения первыми',
-    superVipAllBtn: 'Все SUPER VIP →',
-    availableOppsBadge: 'Доступные объекты',
-    availableOppsTitle: 'Доступные предложения переуступки',
-    availableOppsSub:
-      'Проверенные объекты переуступки рассрочки без наценки в Грузии',
-    availableOppsAllBtn: 'Все предложения →',
-    recentBadge: 'Новинки',
-    recentTitle: 'Недавно добавленные',
-    recentSub: 'Новые объекты, отсортированные по дате — сначала новые',
-    recentAllBtn: 'Все новые →',
-  },
-  ka: {
-    categoriesTitle: 'რა ტიპის ქონებას ეძებთ გადასაბარებლად?',
-    categoriesSub:
-      'აირჩიეთ ობიექტის ტიპი და დაათვალიერეთ გადამოწმებული განცხადებები საქართველოში',
-    howItWorksMoreLink: 'როგორ ვმუშაობთ და მაგალითები →',
-    superVipTitle: 'SUPER VIP განცხადებები',
-    superVipSub: 'მაქსიმალური ხილვადობა — საუკეთესო შეთავაზებები',
-    superVipAllBtn: 'ყველა SUPER VIP →',
-    availableOppsBadge: 'ხელმისაწვდომი',
-    availableOppsTitle: 'ხელმისაწვდომი შეთავაზებები',
-    availableOppsSub: 'გადამოწმებული ობიექტები საქართველოში',
-    availableOppsAllBtn: 'ყველა შეთავაზება →',
-    recentBadge: 'ახალი',
-    recentTitle: 'ახალი დამატებული',
-    recentSub: 'ახალი განცხადებები თარიღის მიხედვით — უახლესი პირველ ადგილზე',
-    recentAllBtn: 'ყველა ახალი →',
-  },
-}
-
 export function HybridHomeClient({
   dbUnits,
   realUnitCount,
@@ -131,7 +39,7 @@ export function HybridHomeClient({
   const { t: dict, locale, dir } = useTranslation()
   const activeLocale = (locale as LocaleCode) || 'ar'
   const t = dict.home
-  const cT = HOME_CAROUSEL_TITLES[activeLocale] || HOME_CAROUSEL_TITLES.ar
+  const cT = dict.home.carouselTitles
   const USD = '$'
 
   const [favorites, setFavorites] = useState<string[]>([])

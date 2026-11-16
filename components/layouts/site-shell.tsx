@@ -32,7 +32,12 @@ import {
   markAllNotificationsAsReadAction,
   markNotificationAsReadAction,
 } from '@/actions/notification-actions'
+import arDict from '@/dictionaries/ar.json'
+import enDict from '@/dictionaries/en.json'
+import kaDict from '@/dictionaries/ka.json'
+import ruDict from '@/dictionaries/ru.json'
 import {
+  DICTIONARIES,
   useTranslation,
   type CountryCode,
   type LocaleCode,
@@ -50,35 +55,37 @@ export type LanguageConfig = {
   dir: 'rtl' | 'ltr'
 }
 
+const langOpts = arDict.navbar.languageOptions
+
 export const SUPPORTED_LANGUAGES: Record<LanguageCode, LanguageConfig> = {
   ar: {
     code: 'ar',
-    label: 'العربية',
-    nativeName: 'العربية',
+    label: langOpts.ar,
+    nativeName: langOpts.ar,
     shortCode: 'AR',
     flagCode: 'AR',
     dir: 'rtl',
   },
   en: {
     code: 'en',
-    label: 'الإنجليزية',
-    nativeName: 'English',
+    label: langOpts.en,
+    nativeName: langOpts.en,
     shortCode: 'EN',
     flagCode: 'EN',
     dir: 'ltr',
   },
   ru: {
     code: 'ru',
-    label: 'الروسية',
-    nativeName: 'Русский',
+    label: langOpts.ru,
+    nativeName: langOpts.ru,
     shortCode: 'RU',
     flagCode: 'RU',
     dir: 'ltr',
   },
   ka: {
     code: 'ka',
-    label: 'الجورجية',
-    nativeName: 'ქართული',
+    label: langOpts.ka,
+    nativeName: langOpts.ka,
     shortCode: 'KA',
     flagCode: 'GE',
     dir: 'ltr',
@@ -103,10 +110,10 @@ export type CountryConfig = {
 export const SUPPORTED_COUNTRIES: Record<CountryCode, CountryConfig> = {
   GE: {
     code: 'GE',
-    nameAr: 'جورجيا',
-    nameEn: 'Georgia',
-    nameRu: 'Грузия',
-    nameKa: 'საქართველო',
+    nameAr: arDict.sell.optionsData.countries.GE,
+    nameEn: enDict.sell.optionsData.countries.GE,
+    nameRu: ruDict.sell.optionsData.countries.GE,
+    nameKa: kaDict.sell.optionsData.countries.GE,
     flag: '🇬🇪',
     currencyCode: 'USD',
     currencySymbol: '$',
@@ -115,10 +122,10 @@ export const SUPPORTED_COUNTRIES: Record<CountryCode, CountryConfig> = {
   },
   EG: {
     code: 'EG',
-    nameAr: 'مصر',
-    nameEn: 'Egypt',
-    nameRu: 'Египет',
-    nameKa: 'ეგვიპტე',
+    nameAr: arDict.sell.optionsData.countries.EG,
+    nameEn: enDict.sell.optionsData.countries.EG,
+    nameRu: ruDict.sell.optionsData.countries.EG,
+    nameKa: kaDict.sell.optionsData.countries.EG,
     flag: '🇪🇬',
     currencyCode: 'EGP',
     currencySymbol: 'ج.م',
@@ -127,10 +134,10 @@ export const SUPPORTED_COUNTRIES: Record<CountryCode, CountryConfig> = {
   },
   AE: {
     code: 'AE',
-    nameAr: 'الإمارات',
-    nameEn: 'UAE',
-    nameRu: 'ОАЭ',
-    nameKa: 'საამიროები',
+    nameAr: arDict.sell.optionsData.countries.AE,
+    nameEn: enDict.sell.optionsData.countries.AE,
+    nameRu: ruDict.sell.optionsData.countries.AE,
+    nameKa: kaDict.sell.optionsData.countries.AE,
     flag: '🇦🇪',
     currencyCode: 'AED',
     currencySymbol: 'د.إ',
@@ -139,10 +146,10 @@ export const SUPPORTED_COUNTRIES: Record<CountryCode, CountryConfig> = {
   },
   RU: {
     code: 'RU',
-    nameAr: 'روسيا',
-    nameEn: 'Russia',
-    nameRu: 'Россия',
-    nameKa: 'რუსეთი',
+    nameAr: arDict.sell.optionsData.countries.RU,
+    nameEn: enDict.sell.optionsData.countries.RU,
+    nameRu: ruDict.sell.optionsData.countries.RU,
+    nameKa: kaDict.sell.optionsData.countries.RU,
     flag: '🇷🇺',
     currencyCode: 'RUB',
     currencySymbol: '₽',
@@ -249,39 +256,12 @@ export function CountryFlag({
 }
 
 function getCountryName(c: CountryConfig, lang: LanguageCode) {
+  const dictCountries = DICTIONARIES[lang]?.sell?.optionsData?.countries
+  if (dictCountries?.[c.code]) return dictCountries[c.code]
   if (lang === 'ar') return c.nameAr
   if (lang === 'ru') return c.nameRu
   if (lang === 'ka') return c.nameKa
   return c.nameEn
-}
-
-function getSoonLabel(lang: LanguageCode) {
-  if (lang === 'ar') return 'قريباً'
-  if (lang === 'ru') return 'Скоро'
-  if (lang === 'ka') return 'მალე'
-  return 'Soon'
-}
-
-function getGuestLoginLabel(
-  lang: LanguageCode,
-  dictNavbar?: Record<string, any>
-) {
-  if (dictNavbar?.loginGuest) return dictNavbar.loginGuest
-  if (lang === 'ar') return 'دخول'
-  if (lang === 'ru') return 'Войти'
-  if (lang === 'ka') return 'შესვლა'
-  return 'Login'
-}
-
-function getMyAccountLabel(
-  lang: LanguageCode,
-  dictNavbar?: Record<string, any>
-) {
-  if (dictNavbar?.myAccount) return dictNavbar.myAccount
-  if (lang === 'ar') return 'حسابي'
-  if (lang === 'ru') return 'Кабинет'
-  if (lang === 'ka') return 'ანგარიში'
-  return 'My Account'
 }
 
 export function Logo({ inverse = false }: { inverse?: boolean }) {
@@ -418,7 +398,6 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
-  // متابعة لحظية لعداد الوحدات المحفوظة في المفضلة
   useEffect(() => {
     const syncFavCount = () => {
       try {
@@ -607,93 +586,41 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
   const navItems = [
     {
       href: '/sell',
-      label:
-        labels?.navbar?.sell ||
-        (language === 'ar' ? 'بيع وحدتك' : 'Sell Your Unit'),
+      label: labels.navbar.sell,
     },
     {
       href: '/opportunities',
-      label:
-        labels?.navbar?.opportunities ||
-        (language === 'ar' ? 'الفرص المتاحة' : 'Opportunities'),
+      label: labels.navbar.opportunities,
     },
     {
       href: '/how-it-works',
-      label:
-        labels?.navbar?.howItWorks ||
-        (language === 'ar' ? 'إزاي بنشتغل' : 'How it works'),
+      label: labels.navbar.howItWorks,
     },
     {
       href: '/story',
-      label:
-        labels?.navbar?.story || (language === 'ar' ? 'قصتنا' : 'Our Story'),
+      label: labels.navbar.story,
     },
     {
       href: '/contact',
-      label:
-        labels?.navbar?.contact || (language === 'ar' ? 'كلمنا' : 'Contact Us'),
+      label: labels.navbar.contact,
     },
   ]
 
-  const sellUnitBtnLabel =
-    labels?.navbar?.sellCta || (language === 'ar' ? 'عايز تبيع' : 'Sell Unit')
-  const buyUnitBtnLabel =
-    labels?.navbar?.buy || (language === 'ar' ? 'عايز تشتري' : 'Want to Buy')
+  const sellUnitBtnLabel = labels.navbar.sellCta
+  const buyUnitBtnLabel = labels.navbar.buy
 
   const desktopAuthBtnLabel = hasSession
-    ? getMyAccountLabel(language, labels?.navbar as Record<string, any>)
-    : getGuestLoginLabel(language, labels?.navbar as Record<string, any>)
+    ? labels.navbar.myAccount
+    : labels.navbar.loginGuest
 
   const favoritesLabel =
-    labels?.accountPages?.common?.favorites ||
-    labels?.footer?.favorite ||
-    (language === 'ar'
-      ? 'المفضلة'
-      : language === 'ru'
-        ? 'Избранное'
-        : language === 'ka'
-          ? 'რჩეულები'
-          : 'Favorites')
+    labels.accountPages?.common?.favorites || labels.footer?.favorite
 
-  const logoutLabel =
-    labels?.accountPages?.common?.logout ||
-    (language === 'ar'
-      ? 'تسجيل الخروج'
-      : language === 'ru'
-        ? 'Выйти'
-        : language === 'ka'
-          ? 'გასვლა'
-          : 'Log Out')
+  const logoutLabel = labels.accountPages?.common?.logout
 
-  const notifTitleLabel =
-    labels?.admin?.shell?.notifications ||
-    (language === 'ar'
-      ? 'الإشعارات'
-      : language === 'ru'
-        ? 'Уведомления'
-        : language === 'ka'
-          ? 'შეტყობინებები'
-          : 'Notifications')
-
-  const clearAllLabel =
-    labels?.admin?.shell?.clearAll ||
-    (language === 'ar'
-      ? 'مسح الكل'
-      : language === 'ru'
-        ? 'Очистить'
-        : language === 'ka'
-          ? 'გასუფთავება'
-          : 'Clear All')
-
-  const emptyNotifsLabel =
-    labels?.admin?.shell?.noNotifications ||
-    (language === 'ar'
-      ? 'لا توجد إشعارات حالياً'
-      : language === 'ru'
-        ? 'Нет новых уведомлений'
-        : language === 'ka'
-          ? 'შეტყობინებები არ არის'
-          : 'No notifications yet')
+  const notifTitleLabel = labels.admin?.shell?.notifications
+  const clearAllLabel = labels.admin?.shell?.clearAll
+  const emptyNotifsLabel = labels.admin?.shell?.noNotifications
 
   const renderLanguageDropdownMenu = () => (
     <div
@@ -759,7 +686,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
             type="button"
             onClick={() => setNotificationsOpen(false)}
             className="rounded-lg p-1 text-gray-400 transition hover:bg-gray-200/60 hover:text-gray-700"
-            aria-label="Close"
+            aria-label={labels.unitDetailsPage?.closeAria}
           >
             <X className="size-4" />
           </button>
@@ -816,7 +743,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
                     <span dir="ltr">
                       {item.created_at
                         ? new Date(item.created_at).toLocaleDateString('en-US')
-                        : 'Now'}
+                        : labels.admin?.shell?.nowLabel}
                     </span>
                   </span>
                   <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#2563eb] group-hover:underline">
@@ -831,7 +758,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
               <button
                 type="button"
                 onClick={(e) => handleDeleteNotification(e, item.id)}
-                aria-label="Delete"
+                aria-label={labels.admin?.shell?.deleteNotif}
                 className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-600"
               >
                 <Trash2 className="size-3.5" />
@@ -872,7 +799,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
             className="fixed top-[80px] left-1/2 z-[120] flex -translate-x-1/2 items-center gap-2 rounded-full bg-[#1e3a8a]/95 px-4 py-1.5 text-xs font-bold text-white shadow-lg backdrop-blur-xs"
           >
             <Loader2 className="size-3.5 animate-spin text-[#2ee59d]" />
-            <span>{switchingLabel || 'Updating...'}</span>
+            <span>{switchingLabel || labels.navbar.switchingDefault}</span>
           </div>
         </>
       )}
@@ -888,7 +815,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
           <Logo />
           <nav
             className="hidden items-center gap-1 lg:flex xl:gap-1.5"
-            aria-label={labels.navbar?.menuTitle || 'Main Navigation'}
+            aria-label={labels.navbar?.menuTitle}
           >
             {navItems.map((item) => {
               const isActive =
@@ -913,7 +840,6 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
           </nav>
         </div>
 
-        {/* أزرار الكمبيوتر */}
         <div className="hidden shrink-0 items-center gap-2 lg:flex">
           {hasSession && (
             <Link
@@ -967,7 +893,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
               <button
                 type="button"
                 onClick={handleToggleNotifications}
-                aria-label="Notifications"
+                aria-label={notifTitleLabel}
                 title={notifTitleLabel}
                 className="relative flex size-9 items-center justify-center rounded-full border border-slate-200/90 bg-slate-50/80 text-[#1e3a8a] transition hover:border-[#2563eb] hover:bg-white"
               >
@@ -1011,23 +937,14 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
             <Link
               href="/admin"
               className="inline-flex h-9.5 items-center justify-center gap-1 whitespace-nowrap rounded-full bg-[#1e3a8a] px-3 text-xs font-bold text-white transition hover:bg-[#1d4ed8]"
-              title={labels?.admin?.shell?.adminPanel || 'Admin'}
+              title={labels.admin?.shell?.adminPanel}
             >
               <ShieldCheck className="size-3.5 shrink-0 text-[#2ee59d]" />
-              <span>
-                {language === 'ar'
-                  ? 'الإدارة'
-                  : language === 'ru'
-                    ? 'Админ'
-                    : language === 'ka'
-                      ? 'ადმინი'
-                      : 'Admin'}
-              </span>
+              <span>{labels.navbar.adminShort}</span>
             </Link>
           )}
         </div>
 
-        {/* الموبايل */}
         <div className="flex items-center gap-1.5 lg:hidden">
           <div className="relative" ref={langRefMobile}>
             <button
@@ -1053,7 +970,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
               <button
                 type="button"
                 onClick={handleToggleNotifications}
-                aria-label="Notifications"
+                aria-label={notifTitleLabel}
                 className="relative flex size-8 items-center justify-center rounded-full border border-gray-200/90 bg-gray-50 text-[#1e3a8a]"
               >
                 <Bell className="size-4 stroke-[2.2]" />
@@ -1084,7 +1001,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
               setLangMenuOpen(false)
               setNotificationsOpen(false)
             }}
-            aria-label="Menu"
+            aria-label={labels.navbar?.menuLabel}
             className="flex size-8 items-center justify-center rounded-full border border-gray-200/80 bg-gray-50 text-[#1e3a8a]"
           >
             {mobileMenuOpen ? (
@@ -1160,10 +1077,7 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
                 className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#1e3a8a] text-xs font-bold text-white"
               >
                 <ShieldCheck className="size-4 text-[#2ee59d]" />
-                <span>
-                  {labels?.admin?.shell?.adminPanel ||
-                    (language === 'ar' ? 'لوحة الإدارة' : 'Admin Panel')}
-                </span>
+                <span>{labels.admin?.shell?.adminPanel}</span>
               </Link>
             )}
             <Link
@@ -1233,62 +1147,53 @@ export function Footer({ dictionary: _unused }: { dictionary?: Dictionary }) {
 
   const platformLinks = [
     {
-      label: labels.navbar?.opportunities || 'الفرص المتاحة',
+      label: labels.navbar.opportunities,
       href: '/opportunities',
     },
     {
-      label: labels.footer?.forSellers || 'للبايعين (عايز تبيع)',
+      label: labels.footer.forSellers,
       href: '/sell',
     },
     {
-      label: labels.footer?.forBuyers || 'للمشترين (عايز تشتري)',
+      label: labels.footer.forBuyers,
       href: '/buy',
     },
-    { label: labels.footer?.calculator || 'حاسبة الخروج', href: '/calculator' },
+    { label: labels.footer.calculator, href: '/calculator' },
     ...(hasSession
       ? [
           {
-            label: labels.footer?.favorite || 'المفضلة',
+            label: labels.footer.favorite,
             href: '/account/favorites',
           },
         ]
       : []),
     {
-      label: hasSession
-        ? getMyAccountLabel(language, labels.navbar as Record<string, any>)
-        : getGuestLoginLabel(language, labels.navbar as Record<string, any>),
+      label: hasSession ? labels.navbar.myAccount : labels.navbar.loginGuest,
       href: hasSession ? '/account' : '/login',
     },
   ]
 
   const companyLinks = [
-    { label: labels.footer?.about || 'قصتنا', href: '/story' },
-    { label: labels.footer?.work || 'إزاي بنشتغل', href: '/how-it-works' },
+    { label: labels.footer.about, href: '/story' },
+    { label: labels.footer.work, href: '/how-it-works' },
     {
-      label: labels.footer?.reports || 'التقارير والمؤشرات',
+      label: labels.footer.reports,
       href: '/reports',
     },
-    { label: labels.footer?.faq || 'الأسئلة الشائعة', href: '/faq' },
-    { label: labels.navbar?.contact || 'كلمنا', href: '/contact' },
+    { label: labels.footer.faq, href: '/faq' },
+    { label: labels.navbar.contact, href: '/contact' },
   ]
 
   const legalLinks = [
-    { label: labels.footer?.privacy || 'سياسة الخصوصية', href: '/privacy' },
-    { label: labels.footer?.terms || 'الشروط والأحكام', href: '/terms' },
+    { label: labels.footer.privacy, href: '/privacy' },
+    { label: labels.footer.terms, href: '/terms' },
     {
-      label:
-        language === 'ar'
-          ? 'لوحة الإدارة'
-          : language === 'ru'
-            ? 'Панель администратора'
-            : language === 'ka'
-              ? 'ადმინისტრატორის პანელი'
-              : 'Admin Panel',
+      label: labels.footer.adminPanelLink || labels.admin?.shell?.adminPanel,
       href: '/admin',
     },
   ]
 
-  const soonText = getSoonLabel(language)
+  const soonText = labels.footer.soonBadge
 
   return (
     <footer
@@ -1328,7 +1233,7 @@ export function Footer({ dictionary: _unused }: { dictionary?: Dictionary }) {
           </div>
           <div className="text-start">
             <h3 className="text-xs font-bold text-blue-200/70">
-              {labels.footer?.platform || 'Platform'}
+              {labels.footer?.platform}
             </h3>
             <ul className="mt-4 flex flex-col gap-3 text-xs text-blue-50 sm:text-[13px]">
               {platformLinks.map((item) => (
@@ -1345,7 +1250,7 @@ export function Footer({ dictionary: _unused }: { dictionary?: Dictionary }) {
           </div>
           <div className="text-start">
             <h3 className="text-xs font-bold text-blue-200/70">
-              {labels.footer?.company || 'Company'}
+              {labels.footer?.company}
             </h3>
             <ul className="mt-4 flex flex-col gap-3 text-xs text-blue-50 sm:text-[13px]">
               {companyLinks.map((item) => (
@@ -1362,7 +1267,7 @@ export function Footer({ dictionary: _unused }: { dictionary?: Dictionary }) {
           </div>
           <div className="text-start">
             <h3 className="text-xs font-bold text-blue-200/70">
-              {labels.footer?.legal || 'Legal'}
+              {labels.footer?.legal}
             </h3>
             <ul className="mt-4 flex flex-col gap-3 text-xs text-blue-50 sm:text-[13px]">
               {legalLinks.map((item) => (
@@ -1381,13 +1286,7 @@ export function Footer({ dictionary: _unused }: { dictionary?: Dictionary }) {
         <div className="mt-12 border-t border-white/10 pt-8 text-start text-xs text-blue-200/70">
           <div>
             <span className="block text-[11px]">
-              {language === 'ar'
-                ? 'أسواق العمل'
-                : language === 'ru'
-                  ? 'Рынки присутствия'
-                  : language === 'ka'
-                    ? 'სამუშაო ბაზრები'
-                    : 'Markets'}
+              {labels.footer?.marketsTitle}
             </span>
             <div className="mt-2.5 flex flex-wrap items-center justify-start gap-2.5 text-xs">
               {(Object.values(SUPPORTED_COUNTRIES) as CountryConfig[]).map(

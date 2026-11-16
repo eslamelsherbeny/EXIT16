@@ -28,56 +28,6 @@ import { useTranslation, type LocaleCode } from '@/lib/i18n'
 import { getSellerFormTranslations } from './seller-i18n'
 import { Field, toEnglishDigits } from './seller-shared'
 
-const CONTACT_VALIDATION_FALLBACK: Record<
-  LocaleCode,
-  Record<string, string>
-> = {
-  ar: {
-    required: 'هذا الحقل مطلوب',
-    confirmRequired: 'يرجى تأكيد الإقرار للمتابعة',
-    invalidPhone: 'يرجى إدخال رقم هاتف صحيح (7 إلى 15 رقماً)',
-    invalidEmail: 'يرجى إدخال بريد إلكتروني صحيح',
-    shortPassword: 'كلمة المرور يجب ألا تقل عن 8 أحرف',
-    passwordMismatch: 'كلمتا المرور غير متطابقتين',
-    loginIdRequired: 'يرجى إدخال البريد الإلكتروني أو رقم الهاتف',
-    loginPassRequired: 'يرجى إدخال كلمة المرور',
-    submitFailed: 'تعذر حفظ البيانات حالياً، يرجى المحاولة مرة أخرى',
-  },
-  en: {
-    required: 'This field is required',
-    confirmRequired: 'Please confirm the declaration to continue',
-    invalidPhone: 'Please enter a valid phone number (7 to 15 digits)',
-    invalidEmail: 'Please enter a valid email address',
-    shortPassword: 'Password must be at least 8 characters',
-    passwordMismatch: 'Passwords do not match',
-    loginIdRequired: 'Please enter your email or phone number',
-    loginPassRequired: 'Please enter your password',
-    submitFailed: 'Could not save data right now, please try again',
-  },
-  ru: {
-    required: 'Это поле обязательно для заполнения',
-    confirmRequired: 'Пожалуйста, подтвердите согласие для продолжения',
-    invalidPhone: 'Введите корректный номер телефона (от 7 до 15 цифр)',
-    invalidEmail: 'Введите корректный адрес электронной почты',
-    shortPassword: 'Пароль должен содержать не менее 8 символов',
-    passwordMismatch: 'Пароли не совпадают',
-    loginIdRequired: 'Введите ваш email или номер телефона',
-    loginPassRequired: 'Введите ваш пароль',
-    submitFailed: 'Не удалось сохранить данные, попробуйте еще раз',
-  },
-  ka: {
-    required: 'ეს ველი სავალდებულოა',
-    confirmRequired: 'გთხოვთ დაადასტუროთ განაცხადი გასაგრძელებლად',
-    invalidPhone: 'შეიყვანეთ სწორი ტელეფონის ნომერი (7-15 ციფრი)',
-    invalidEmail: 'შეიყვანეთ სწორი ელ-ფოსტა',
-    shortPassword: 'პაროლი უნდა შედგებოდეს მინიმუმ 8 სიმბოლოსგან',
-    passwordMismatch: 'პაროლები არ ემთხვევა',
-    loginIdRequired: 'შეიყვანეთ ელ-ფოსტა ან ტელეფონის ნომერი',
-    loginPassRequired: 'შეიყვანეთ პაროლი',
-    submitFailed: 'მონაცემების შენახვა ვერ მოხერხდა, სცადეთ თავიდან',
-  },
-}
-
 export function getPhonePlaceholderByCode(countryCode?: string): string {
   const clean = String(countryCode || '995').replace(/\D/g, '')
   switch (clean) {
@@ -151,22 +101,6 @@ export function splitStoredPhoneToCodeAndLocal(rawPhone?: string | null): {
   }
 }
 
-function getMsg(
-  locale: LocaleCode,
-  dictVal: string | undefined,
-  key: string
-): string {
-  const fallback =
-    CONTACT_VALIDATION_FALLBACK[locale]?.[key] ||
-    CONTACT_VALIDATION_FALLBACK.en[key] ||
-    ''
-  if (!dictVal) return fallback
-  if (locale !== 'ar' && /[\u0600-\u06FF]/.test(dictVal)) {
-    return fallback
-  }
-  return dictVal
-}
-
 export function ContactSection({
   sectionRef,
   onHover,
@@ -226,7 +160,7 @@ export function ContactSection({
 }) {
   const { t: dict, locale, dir } = useTranslation()
   const t = dict.sell.contactStep
-  const v = (dict.sell.validation as Record<string, string>) || {}
+  const v = dict.sell.validation
   const fT = getSellerFormTranslations(locale as LocaleCode, dict)
   const cT = fT.contactSection
 
@@ -341,46 +275,21 @@ export function ContactSection({
     )
 
     if (authMode === 'register') {
-      if (!form.name?.trim())
-        nextErrors.name = getMsg(locale as LocaleCode, v.required, 'required')
+      if (!form.name?.trim()) nextErrors.name = v.required
       if (!/^[0-9]{7,15}$/.test(cleanPhoneDigits))
-        nextErrors.phone = getMsg(
-          locale as LocaleCode,
-          v.invalidPhone,
-          'invalidPhone'
-        )
+        nextErrors.phone = v.invalidPhone
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email ?? ''))
-        nextErrors.email = getMsg(
-          locale as LocaleCode,
-          v.invalidEmail,
-          'invalidEmail'
-        )
+        nextErrors.email = v.invalidEmail
       if ((form.password?.length ?? 0) < 8)
-        nextErrors.password = getMsg(
-          locale as LocaleCode,
-          v.shortPassword,
-          'shortPassword'
-        )
+        nextErrors.password = v.shortPassword
       if (form.password !== confirmPassword) {
-        nextErrors.confirmPassword = getMsg(
-          locale as LocaleCode,
-          undefined,
-          'passwordMismatch'
-        )
+        nextErrors.confirmPassword = v.passwordMismatch
       }
     } else if (authMode === 'login') {
       if (!form.loginIdentifier?.trim())
-        nextErrors.loginIdentifier = getMsg(
-          locale as LocaleCode,
-          v.loginIdRequired,
-          'loginIdRequired'
-        )
+        nextErrors.loginIdentifier = v.loginIdRequired
       if (!form.loginPassword?.trim() && !form.password?.trim())
-        nextErrors.loginPassword = getMsg(
-          locale as LocaleCode,
-          v.loginPassRequired,
-          'loginPassRequired'
-        )
+        nextErrors.loginPassword = v.loginPassRequired
     }
 
     if (Object.keys(nextErrors).length > 0) {
@@ -502,9 +411,7 @@ export function ContactSection({
         return
       }
 
-      setStepError(
-        res.error || getMsg(locale as LocaleCode, v.submitFailed, 'submitFailed')
-      )
+      setStepError(res.error || v.submitFailed)
     } finally {
       setIsLoading(false)
     }
@@ -513,9 +420,7 @@ export function ContactSection({
   const handleVerifyExistingEmail = async () => {
     if (!conflictState || conflictState.type !== 'email_exists') return
     if (!existingPass.trim()) {
-      setStepError(
-        getMsg(locale as LocaleCode, v.loginPassRequired, 'loginPassRequired')
-      )
+      setStepError(v.loginPassRequired)
       return
     }
     setIsLoading(true)
@@ -526,14 +431,7 @@ export function ContactSection({
         password: existingPass,
       })
       if (!res.success || !res.user) {
-        setStepError(
-          res.error ||
-            getMsg(
-              locale as LocaleCode,
-              v.loginPassRequired,
-              'loginPassRequired'
-            )
-        )
+        setStepError(res.error || v.loginPassRequired)
         return
       }
       if (conflictState.unitId && setUnitId) setUnitId(conflictState.unitId)
@@ -569,10 +467,7 @@ export function ContactSection({
       if (res.success) {
         setRecoveryLinkSent(true)
       } else {
-        setStepError(
-          res.error ||
-            getMsg(locale as LocaleCode, v.submitFailed, 'submitFailed')
-        )
+        setStepError(res.error || v.submitFailed)
       }
     } finally {
       setIsLoading(false)
@@ -711,7 +606,6 @@ export function ContactSection({
         </div>
       )}
 
-      {/* 1. عرض الحساب الحالي (للمسجلين) */}
       {!conflictState &&
         loggedUser &&
         (authMode === 'session' || authMode === 'sivrce_default') && (
@@ -775,7 +669,6 @@ export function ContactSection({
           </div>
         )}
 
-      {/* 2. فورم تسجيل حساب مالك جديد */}
       {!conflictState &&
         (authMode === 'register' || (!loggedUser && authMode !== 'login')) && (
           <div className="mt-5 space-y-5 rounded-2xl border border-slate-200 bg-slate-50/60 p-4 sm:p-5">
@@ -967,7 +860,6 @@ export function ContactSection({
           </div>
         )}
 
-      {/* 3. فورم تسجيل الدخول بحساب موجود */}
       {!conflictState && authMode === 'login' && (
         <div className="mt-5 space-y-5 rounded-2xl border border-slate-200 bg-slate-50/60 p-4 sm:p-5">
           <div className="flex items-center justify-between border-b border-slate-200/80 pb-3">
@@ -1068,7 +960,6 @@ export function ContactSection({
         </div>
       )}
 
-      {/* شريط التبديل بين أوضاع الحساب */}
       <div className="mt-5 rounded-2xl border border-slate-200/90 bg-[#f8fafc] p-3.5">
         <p className="mb-2.5 text-start text-[11px] font-extrabold text-slate-500">
           {cT.accountOptionsTitle}

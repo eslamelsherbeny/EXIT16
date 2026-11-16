@@ -46,7 +46,8 @@ import {
   type SearchFiltersState,
 } from '@/components/features/opportunities/search-filter-popovers'
 import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
-import { type LocaleCode } from '@/lib/i18n'
+import enDict from '@/dictionaries/en.json'
+import { DICTIONARIES, type LocaleCode } from '@/lib/i18n'
 
 export const PUBLIC_SAFE_UNIT_COLUMNS =
   'id, code, project_name, developer_name, area, exact_street, house_number, cadastral_code, unit_type, size, garden_size, rooms, bedrooms, bathrooms, floor_number, total_floors, finishing, delivery_status, delivery_month, delivery_year, features, video_url, tour_3d_url, allow_online_viewing, description, contract_price, paid_amount, market_price, price_per_sqm, installment_amount, installment_frequency, contract_month, contract_year, years_left, willing_to_discount, discount_amount, images, status, is_featured, boost_tier, featured_until, docs_verified, views_count, approved_at, created_at, documents'
@@ -54,257 +55,21 @@ export const PUBLIC_SAFE_UNIT_COLUMNS =
 export const CORE_SAFE_UNIT_COLUMNS =
   'id, project_name, developer_name, area, unit_type, size, rooms, bathrooms, finishing, delivery_status, features, description, contract_price, paid_amount, market_price, installment_amount, installment_frequency, contract_year, years_left, willing_to_discount, discount_amount, images, status, created_at, documents'
 
-export const OPPS_UI_FALLBACK: Record<
-  LocaleCode,
-  {
-    searchBtn: string
-    allTypesOption: string
-    everywhereBtn: string
-    cashAndInstallmentsBtn: string
-    roomsBtn: string
-    areaBtn: string
-    commuteBtn: string
-    searchResultsPrefix: string
-    activeSearchLabel: string
-    clearFilterShowAllBtn: string
-    saveSearchBtn: string
-    searchSavedToast: string
-    listViewBtn: string
-    map2dBtn: string
-    map3dBtn: string
-    showingRangePrefix: string
-    showingRangeOf: string
-    prevPageBtn: string
-    nextPageBtn: string
-    adCardBadge: string
-    adCardTitle: string
-    adCardSub: string
-    adBullet1: string
-    adBullet2: string
-    adBullet3: string
-    adCardBtn: string
-    newlyAddedHeading: string
-    chips: {
-      all: string
-      apartments: string
-      houses: string
-      cottages: string
-      luxury: string
-      ready: string
-      underConst: string
-      sea: string
-      pool: string
-      jacuzzi: string
-      ski: string
-      land: string
-      commercial: string
-      hotel: string
-    }
-  }
-> = {
-  ar: {
-    searchBtn: 'بحث',
-    allTypesOption: 'كل الأنواع',
-    everywhereBtn: 'في كل مكان',
-    cashAndInstallmentsBtn: 'الكاش والأقساط ($)',
-    roomsBtn: 'الغرف',
-    areaBtn: 'المساحة',
-    commuteBtn: 'التنقل',
-    searchResultsPrefix: 'نتائج البحث:',
-    activeSearchLabel: 'البحث النشط:',
-    clearFilterShowAllBtn: 'إلغاء الفلتر وعرض الكل',
-    saveSearchBtn: 'حفظ البحث',
-    searchSavedToast: 'تم حفظ البحث ✓',
-    listViewBtn: 'قائمة',
-    map2dBtn: 'الخريطة',
-    map3dBtn: 'خريطة ثلاثية الأبعاد',
-    showingRangePrefix: 'عرض',
-    showingRangeOf: 'من أصل',
-    prevPageBtn: 'السابق',
-    nextPageBtn: 'التالي',
-    adCardBadge: 'مساحة إعلانية',
-    adCardTitle: 'إعلانك هنا',
-    adCardSub: 'انشر إعلانك واصل إلى آلاف المشترين والمستثمرين في العقارات.',
-    adBullet1: 'جمهور مستهدف من المشترين',
-    adBullet2: 'تواصل مباشر وسريع',
-    adBullet3: 'إحصائيات ومشاهدات شفافة',
-    adCardBtn: 'أعلن هنا ←',
-    newlyAddedHeading: 'أضيفت حديثاً (مرتبة حسب التاريخ)',
-    chips: {
-      all: 'كل عروض التنازل',
-      apartments: 'شقق بالتقسيط',
-      houses: 'منازل وفيلات',
-      cottages: 'أكواخ وشاليهات',
-      luxury: 'عقارات فاخرة',
-      ready: 'استلام فوري',
-      underConst: 'قيد الإنشاء',
-      sea: 'إطلالة بحرية',
-      pool: 'مع حمام سباحة',
-      jacuzzi: 'مع جاكوزي',
-      ski: 'منتجعات تزلج',
-      land: 'قطع أراضٍ',
-      commercial: 'تجاري وإداري',
-      hotel: 'شقق فندقية',
-    },
-  },
-  en: {
-    searchBtn: 'Search',
-    allTypesOption: 'All types',
-    everywhereBtn: 'Everywhere',
-    cashAndInstallmentsBtn: 'Cash & Installments ($)',
-    roomsBtn: 'Rooms',
-    areaBtn: 'Area',
-    commuteBtn: 'Commute',
-    searchResultsPrefix: 'Search Results:',
-    activeSearchLabel: 'Active Search:',
-    clearFilterShowAllBtn: 'Clear Filter & Show All',
-    saveSearchBtn: 'Save search',
-    searchSavedToast: 'Search saved ✓',
-    listViewBtn: 'List',
-    map2dBtn: 'Map',
-    map3dBtn: '3D Map',
-    showingRangePrefix: 'Showing',
-    showingRangeOf: 'of',
-    prevPageBtn: 'Prev',
-    nextPageBtn: 'Next',
-    adCardBadge: 'Ad Space',
-    adCardTitle: 'Your Ad Here',
-    adCardSub:
-      'Publish your listing and reach thousands of real estate buyers and investors.',
-    adBullet1: 'Targeted audience',
-    adBullet2: 'Direct contact',
-    adBullet3: 'Transparent metrics',
-    adCardBtn: 'Advertise Here →',
-    newlyAddedHeading: 'Recently Added (Sorted by Date)',
-    chips: {
-      all: 'All Exit Deals',
-      apartments: 'Apartments',
-      houses: 'Houses & Villas',
-      cottages: 'Cottages',
-      luxury: 'Luxury homes',
-      ready: 'Ready to move',
-      underConst: 'Under construction',
-      sea: 'Sea view',
-      pool: 'With pool',
-      jacuzzi: 'With Jacuzzi',
-      ski: 'Ski resorts',
-      land: 'Land plots',
-      commercial: 'Commercial',
-      hotel: 'Hotel units',
-    },
-  },
-  ru: {
-    searchBtn: 'Поиск',
-    allTypesOption: 'Все типы',
-    everywhereBtn: 'Везде',
-    cashAndInstallmentsBtn: 'На руки и рассрочка ($)',
-    roomsBtn: 'Комнаты',
-    areaBtn: 'Площадь',
-    commuteBtn: 'В пути',
-    searchResultsPrefix: 'Результаты поиска:',
-    activeSearchLabel: 'Активный фильтр:',
-    clearFilterShowAllBtn: 'Сбросить фильтр и показать все',
-    saveSearchBtn: 'Сохранить поиск',
-    searchSavedToast: 'Поиск сохранен ✓',
-    listViewBtn: 'Список',
-    map2dBtn: 'Карта',
-    map3dBtn: '3D Карта',
-    showingRangePrefix: 'Показано',
-    showingRangeOf: 'из',
-    prevPageBtn: 'Назад',
-    nextPageBtn: 'Далее',
-    adCardBadge: 'Рекламное место',
-    adCardTitle: 'Ваша реклама здесь',
-    adCardSub:
-      'Разместите объявление и привлеките тысячи покупателей и инвесторов.',
-    adBullet1: 'Целевая аудитория инвесторов',
-    adBullet2: 'Прямой контакт с покупателем',
-    adBullet3: 'Прозрачная статистика просмотров',
-    adCardBtn: 'Разместить →',
-    newlyAddedHeading: 'Недавно добавленные (по дате)',
-    chips: {
-      all: 'Все предложения',
-      apartments: 'Квартиры',
-      houses: 'Дома и виллы',
-      cottages: 'Коттеджи и шале',
-      luxury: 'Премиум объекты',
-      ready: 'Готово к сдаче',
-      underConst: 'Строится',
-      sea: 'Вид на море',
-      pool: 'С бассейном',
-      jacuzzi: 'С джакузи',
-      ski: 'Горнолыжные курорты',
-      land: 'Участки земли',
-      commercial: 'Коммерция',
-      hotel: 'Апарт-отели',
-    },
-  },
-  ka: {
-    searchBtn: 'ძიება',
-    allTypesOption: 'ყველა ტიპი',
-    everywhereBtn: 'ყველგან',
-    cashAndInstallmentsBtn: 'თანხა და განვადება ($)',
-    roomsBtn: 'ოთახები',
-    areaBtn: 'ფართობი',
-    commuteBtn: 'მგზავრობა',
-    searchResultsPrefix: 'ძიების შედეგები:',
-    activeSearchLabel: 'აქტიური ფილტრი:',
-    clearFilterShowAllBtn: 'ფილტრის გასუფთავება',
-    saveSearchBtn: 'ძიების შენახვა',
-    searchSavedToast: 'შენახულია ✓',
-    listViewBtn: 'სია',
-    map2dBtn: 'რუკა',
-    map3dBtn: '3D რუკა',
-    showingRangePrefix: 'ნაჩვენებია',
-    showingRangeOf: 'სულ:',
-    prevPageBtn: 'წინა',
-    nextPageBtn: 'შემდეგი',
-    adCardBadge: 'სარეკლამო სივრცე',
-    adCardTitle: 'თქვენი რეკლამა აქ',
-    adCardSub:
-      'განათავსეთ განცხადება და მიაწვდინეთ ხმა ათასობით მყიდველსა და ინვესტორს.',
-    adBullet1: 'მიზნობრივი აუდიტორია',
-    adBullet2: 'პირდაპირი კონტაქტი',
-    adBullet3: 'გამჭვირვალე სტატისტიკა',
-    adCardBtn: 'განთავსება →',
-    newlyAddedHeading: 'ახალი დამატებული (თარიღის მიხედვით)',
-    chips: {
-      all: 'ყველა შეთავაზება',
-      apartments: 'ბინები',
-      houses: 'სახლები და ვილები',
-      cottages: 'კოტეჯები',
-      luxury: 'პრემიუმ ქონება',
-      ready: 'მზადაა შესასვლელად',
-      underConst: 'მშენებარე',
-      sea: 'ზღვის ხედით',
-      pool: 'აუზით',
-      jacuzzi: 'ჯაკუზით',
-      ski: 'სათხილამურო კურორტები',
-      land: 'მიწის ნაკვეთები',
-      commercial: 'კომერციული',
-      hotel: 'აპარტ-ოტელი',
-    },
-  },
-}
-
 export function localizePropertyTypeLabel(
   rawType: string,
   locale: LocaleCode
 ): string {
+  const typesShort =
+    DICTIONARIES[locale]?.common?.unitTypesShort || enDict.common.unitTypesShort
   const lower = (rawType || '').toLowerCase()
+
   if (
     lower.includes('studio') ||
     rawType.includes('استوديو') ||
     lower.includes('студия') ||
     rawType.includes('სტუდიო')
   ) {
-    return locale === 'ar'
-      ? 'استوديو'
-      : locale === 'ru'
-        ? 'Студия'
-        : locale === 'ka'
-          ? 'სტუდიო'
-          : 'Studio'
+    return typesShort.studio
   }
   if (
     lower.includes('hotel') ||
@@ -312,13 +77,7 @@ export function localizePropertyTypeLabel(
     lower.includes('апарт') ||
     rawType.includes('აპარტ')
   ) {
-    return locale === 'ar'
-      ? 'شقة فندقية'
-      : locale === 'ru'
-        ? 'Апарт-отель'
-        : locale === 'ka'
-          ? 'აპარტ-ოტელი'
-          : 'Aparthotel'
+    return typesShort.aparthotel
   }
   if (
     lower.includes('house') ||
@@ -326,13 +85,7 @@ export function localizePropertyTypeLabel(
     rawType.includes('فيلا') ||
     rawType.includes('منزل')
   ) {
-    return locale === 'ar'
-      ? 'فيلا'
-      : locale === 'ru'
-        ? 'Вилла / Дом'
-        : locale === 'ka'
-          ? 'ვილა / სახლი'
-          : 'Villa'
+    return typesShort.villa
   }
   if (
     lower.includes('cottage') ||
@@ -340,44 +93,17 @@ export function localizePropertyTypeLabel(
     rawType.includes('شاليه') ||
     rawType.includes('كوخ')
   ) {
-    return locale === 'ar'
-      ? 'شاليه'
-      : locale === 'ru'
-        ? 'Коттедж'
-        : locale === 'ka'
-          ? 'კოტეჯი'
-          : 'Cottage'
+    return typesShort.cottage
   }
   if (lower.includes('commercial') || rawType.includes('تجاري')) {
-    return locale === 'ar'
-      ? 'تجاري'
-      : locale === 'ru'
-        ? 'Коммерческая'
-        : locale === 'ka'
-          ? 'კომერციული'
-          : 'Commercial'
+    return typesShort.commercial
   }
   if (lower.includes('land') || rawType.includes('أرض')) {
-    return locale === 'ar'
-      ? 'أرض'
-      : locale === 'ru'
-        ? 'Участок'
-        : locale === 'ka'
-          ? 'მიწა'
-          : 'Land'
+    return typesShort.land
   }
-  return locale === 'ar'
-    ? 'شقة'
-    : locale === 'ru'
-      ? 'Квартира'
-      : locale === 'ka'
-        ? 'ბინა'
-        : 'Apartment'
+  return typesShort.apartment
 }
 
-/**
- * كارت المساحة الإعلانية بنفس الأنيميشن الاحترافي الموجود في الصفحة الرئيسية
- */
 export function InlineAdSlotCard({
   uT,
   tierLabel,
@@ -389,7 +115,6 @@ export function InlineAdSlotCard({
     <div className="group relative flex h-full flex-col justify-between overflow-hidden rounded-[22px] border border-slate-200/90 bg-white shadow-xs transition-all duration-500 hover:-translate-y-1.5 hover:border-orange-300/80 hover:shadow-[0_20px_40px_rgba(15,23,42,0.12)]">
       <div>
         <div className="relative flex h-[200px] w-full items-center justify-center overflow-hidden bg-gradient-to-br from-[#0f172a] via-[#1e1b4b] to-[#31102f]">
-          {/* إضاءات خلفية متموجة */}
           <div
             aria-hidden="true"
             className="pointer-events-none absolute -top-10 -left-10 size-40 animate-pulse rounded-full bg-[#ff6437]/20 blur-2xl"
@@ -399,7 +124,6 @@ export function InlineAdSlotCard({
             className="pointer-events-none absolute -right-10 -bottom-10 size-40 animate-pulse rounded-full bg-blue-500/20 blur-2xl"
           />
 
-          {/* حلقات رادار ومدار متحركة مثل كروت الصفحة الرئيسية */}
           <div className="relative flex size-28 items-center justify-center">
             <span
               aria-hidden="true"

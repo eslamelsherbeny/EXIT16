@@ -93,17 +93,7 @@ export default async function AccountPage({
   }
 
   const { dict, dir, locale } = await getServerI18n()
-  const tMain = (dict as Record<string, any>)?.accountPages?.main || {
-    emptyWelcomePrefix: locale === 'ar' ? 'أهلاً بك يا' : 'Welcome,',
-    emptyWelcomeFallbackName: locale === 'ar' ? 'عميلنا' : 'Valued Client',
-    emptyWelcomeSuffix: '👋',
-    emptyDesc:
-      locale === 'ar'
-        ? 'لم تقم بإضافة وحدة للتنازل أو تسجيل طلب شراء حتى الآن. ابدأ الآن من الأزرار التالية:'
-        : 'You have not listed a unit or submitted a buy request yet. Start below:',
-    sellCta: locale === 'ar' ? 'اعرض وحدتك للتنازل' : 'List Your Unit',
-    buyCta: locale === 'ar' ? 'سجل طلب شراء' : 'Submit Buy Request',
-  }
+  const tMain = dict.accountPages.main
 
   let mySellsData: any[] = []
   let myBuysData: any[] = []

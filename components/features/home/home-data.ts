@@ -16,7 +16,8 @@ import {
   Trees,
   Waves,
 } from 'lucide-react'
-import type { LocaleCode } from '@/lib/i18n'
+import enDict from '@/dictionaries/en.json'
+import { DICTIONARIES, type LocaleCode } from '@/lib/i18n'
 
 export type HomeUnitCardItem = {
   id: string
@@ -79,7 +80,7 @@ export function getCleanProjectName(
   cleanArea: string
 ): string {
   const raw = (unit.title || '').trim()
-  if (!raw) return cleanArea || 'Residential Project'
+  if (!raw) return cleanArea || ''
 
   const stripped = raw
     .replace(
@@ -101,107 +102,7 @@ export function getLocalizedUnitTitle(
 
 export const FALLBACK_SHOWCASE_UNITS: HomeUnitCardItem[] = []
 
-const CATEGORY_LABELS: Record<
-  string,
-  Record<LocaleCode, string>
-> = {
-  exit: {
-    ar: 'كل عروض التنازل',
-    en: 'All Exit Deals',
-    ru: 'Все переуступки',
-    ka: 'ყველა შეთავაზება',
-  },
-  Apartment: {
-    ar: 'شقق بالتقسيط',
-    en: 'Apartments',
-    ru: 'Квартиры',
-    ka: 'ბინები',
-  },
-  'Private house': {
-    ar: 'منازل وفيلات',
-    en: 'Houses & Villas',
-    ru: 'Дома и виллы',
-    ka: 'სახლები და ვილები',
-  },
-  Cottage: {
-    ar: 'أكواخ وشاليهات',
-    en: 'Cottages',
-    ru: 'Коттеджи',
-    ka: 'კოტეჯები',
-  },
-  Luxury: {
-    ar: 'عقارات فاخرة',
-    en: 'Luxury homes',
-    ru: 'Элитное жилье',
-    ka: 'პრემიუმ ქონება',
-  },
-  Land: {
-    ar: 'قطع أراضٍ',
-    en: 'Land plots',
-    ru: 'Участки земли',
-    ka: 'მიწის ნაკვეთები',
-  },
-  Commercial: {
-    ar: 'تجاري وإداري',
-    en: 'Commercial',
-    ru: 'Коммерческая',
-    ka: 'კომერციული',
-  },
-  Ready: {
-    ar: 'استلام فوري',
-    en: 'Ready to move',
-    ru: 'Готово к въезду',
-    ka: 'მზადაა საცხოვრებლად',
-  },
-  'Sea view': {
-    ar: 'إطلالة على البحر',
-    en: 'Sea view',
-    ru: 'Вид на море',
-    ka: 'ზღვის ხედით',
-  },
-  Pool: {
-    ar: 'مع حمام سباحة',
-    en: 'With pool',
-    ru: 'С бассейном',
-    ka: 'აუზით',
-  },
-  Jacuzzi: {
-    ar: 'مع جاكوزي',
-    en: 'With Jacuzzi',
-    ru: 'С джакузи',
-    ka: 'ჯაკუზით',
-  },
-  'Ski resorts': {
-    ar: 'منتجعات تزلج',
-    en: 'Ski resorts',
-    ru: 'Горнолыжные курорты',
-    ka: 'სათხილამურო კურორტები',
-  },
-  Compounds: {
-    ar: 'مجمعات سكنية',
-    en: 'Compounds',
-    ru: 'Жилые комплексы',
-    ka: 'საცხოვრებელი კომპლექსები',
-  },
-  Workspace: {
-    ar: 'مكاتب وشركات',
-    en: 'Offices',
-    ru: 'Офисы',
-    ka: 'ოფისები',
-  },
-  Hotel: {
-    ar: 'شقق فندقية',
-    en: 'Hotel units',
-    ru: 'Апарт-отели',
-    ka: 'აპარტ-ოტელები',
-  },
-  'New projects': {
-    ar: 'قيد الإنشاء',
-    en: 'Under construction',
-    ru: 'Строящиеся',
-    ka: 'მშენებარე',
-  },
-}
+type CategoryKey = keyof typeof enDict.home.categoriesGrid
 
 export function getHomeCategoriesGrid(localeOrIsAr: LocaleCode | boolean) {
   const lang: LocaleCode =
@@ -213,8 +114,11 @@ export function getHomeCategoriesGrid(localeOrIsAr: LocaleCode | boolean) {
         ? localeOrIsAr
         : 'en'
 
-  const lbl = (key: string) =>
-    CATEGORY_LABELS[key]?.[lang] || CATEGORY_LABELS[key]?.en || key
+  const catDict =
+    DICTIONARIES[lang]?.home?.categoriesGrid || enDict.home.categoriesGrid
+
+  const lbl = (key: CategoryKey) =>
+    catDict[key] || enDict.home.categoriesGrid[key] || key
 
   const buildUrl = (params: Record<string, string>) => {
     const sp = new URLSearchParams(params)

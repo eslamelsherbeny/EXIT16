@@ -16,61 +16,12 @@ import {
   X,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
-import { useTranslation, type LocaleCode } from '@/lib/i18n'
 import { maskEmailDisplay, type SellerExtraLabels } from './seller-i18n'
 import { toEnglishDigits } from './seller-shared'
 import type {
-  FLOW_LOADING_LABELS,
+  FlowLoadingLabels,
   MissingCoreFieldItem,
 } from './seller-flow-helpers'
-
-const DYNAMIC_MEDIA_BTN_I18N: Record<
-  LocaleCode,
-  {
-    onlyPhotosBtn: string
-    onlyDocsBtn: string
-    bothBtn: string
-    missingBelowBtnPrefix: string
-    mandatoryPublishNotice: string
-  }
-> = {
-  ar: {
-    onlyPhotosBtn: 'إضافة صور الوحدة أولاً',
-    onlyDocsBtn: 'رفع المستندات المتبقية أولاً',
-    bothBtn: 'إضافة الصور والمستندات أولاً',
-    missingBelowBtnPrefix:
-      'يرجى استكمال الحقول الإجبارية المعلّمة باللون الأحمر بالأعلى:',
-    mandatoryPublishNotice:
-      'ملاحظة هامة: صور الوحدة ومستندات الملكية الـ 4 هي متطلبات أساسية للتحقق من العقار ونشره رسمياً للمشترين على المنصة. في حال الإرسال الآن سيُحفظ طلبك لدى الإدارة ولن يُنشر للعامة إلا بعد استكمال المرفقات من صفحة «حسابي».',
-  },
-  en: {
-    onlyPhotosBtn: 'Upload Unit Photos First',
-    onlyDocsBtn: 'Upload Remaining Documents First',
-    bothBtn: 'Upload Photos & Documents First',
-    missingBelowBtnPrefix:
-      'Please complete the required fields highlighted in red above:',
-    mandatoryPublishNotice:
-      'Important: Property photos and the 4 ownership documents are mandatory to verify and publish your unit to buyers. If you submit now, your request will be saved with Admin and published once you upload them from "My Account".',
-  },
-  ru: {
-    onlyPhotosBtn: 'Сначала добавить фото объекта',
-    onlyDocsBtn: 'Сначала загрузить документы',
-    bothBtn: 'Сначала добавить фото и документы',
-    missingBelowBtnPrefix:
-      'Пожалуйста, заполните обязательные поля, выделенные красным выше:',
-    mandatoryPublishNotice:
-      'Важно: Фотографии объекта и 4 документа собственности необходимы для проверки и публикации объявления. Если отправить сейчас, заявка сохранится, но будет опубликована после загрузки файлов в «Моем кабинете».',
-  },
-  ka: {
-    onlyPhotosBtn: 'ჯერ ფოტოების დამატება',
-    onlyDocsBtn: 'ჯერ დოკუმენტების ატვირთვა',
-    bothBtn: 'ჯერ ფოტოების და დოკუმენტების დამატება',
-    missingBelowBtnPrefix:
-      'გთხოვთ შეავსოთ ზემოთ წითლად მონიშნული სავალდებულო ველები:',
-    mandatoryPublishNotice:
-      'მნიშვნელოვანია: ქონების ფოტოები და საკუთრების 4 დოკუმენტი აუცილებელია გადამოწმებისა და გამოქვეყნებისთვის. ახლა გაგზავნის შემთხვევაში განცხადება გამოქვეყნდება ფაილების «ჩემი ანგარიშიდან» ატვირთვის შემდეგ.',
-  },
-}
 
 export function SellerFinalReadinessCard({
   loadT,
@@ -82,7 +33,7 @@ export function SellerFinalReadinessCard({
   onPublishListing,
   onSaveDraft,
 }: {
-  loadT: (typeof FLOW_LOADING_LABELS)['ar']
+  loadT: FlowLoadingLabels
   fT: any
   liveMissingCoreItems: MissingCoreFieldItem[]
   fieldErrors: Record<string, string>
@@ -91,10 +42,6 @@ export function SellerFinalReadinessCard({
   onPublishListing: () => void
   onSaveDraft: () => void
 }) {
-  const { locale } = useTranslation()
-  const dynT =
-    DYNAMIC_MEDIA_BTN_I18N[locale as LocaleCode] || DYNAMIC_MEDIA_BTN_I18N.ar
-
   const hasVisibleErrors =
     Object.keys(fieldErrors).length > 0 && liveMissingCoreItems.length > 0
 
@@ -157,7 +104,7 @@ export function SellerFinalReadinessCard({
           <AlertCircle className="mt-0.5 size-4 shrink-0 text-red-600" />
           <p className="font-medium">
             <strong className="font-bold">
-              {dynT.missingBelowBtnPrefix}{' '}
+              {loadT.missingBelowBtnPrefix}{' '}
             </strong>
             <span>
               {liveMissingCoreItems.map((it) => it.label).join(' ، ')}
@@ -183,9 +130,7 @@ export function SellerMissingMediaConfirmModal({
 }: {
   open: boolean
   dir: string
-  loadT: (typeof FLOW_LOADING_LABELS)['ar'] & {
-    mediaDialogMandatoryPublishNote?: string
-  }
+  loadT: FlowLoadingLabels
   hasPhotos: boolean
   hasAllDocs: boolean
   uploadedDocsCount: number
@@ -194,21 +139,17 @@ export function SellerMissingMediaConfirmModal({
   onConfirmSubmitAnyway: () => void
   onGoToUploadNow: () => void
 }) {
-  const { locale } = useTranslation()
-  const dynT =
-    DYNAMIC_MEDIA_BTN_I18N[locale as LocaleCode] || DYNAMIC_MEDIA_BTN_I18N.ar
-
   if (!open) return null
 
   const dynamicUploadBtnLabel =
     !hasPhotos && !hasAllDocs
-      ? dynT.bothBtn
+      ? loadT.bothBtn
       : !hasPhotos
-        ? dynT.onlyPhotosBtn
-        : dynT.onlyDocsBtn
+        ? loadT.onlyPhotosBtn
+        : loadT.onlyDocsBtn
 
   const mandatoryNoteText =
-    loadT.mediaDialogMandatoryPublishNote || dynT.mandatoryPublishNotice
+    loadT.mediaDialogMandatoryPublishNote || loadT.mandatoryPublishNotice
 
   return (
     <div
@@ -266,7 +207,6 @@ export function SellerMissingMediaConfirmModal({
           <p>{mandatoryNoteText}</p>
         </div>
 
-        {/* الزر العلوي (ملون): إرسال البيانات الآن واستكمال المرفقات لاحقاً */}
         <div className="mt-5 space-y-2.5">
           <button
             type="button"
@@ -282,7 +222,6 @@ export function SellerMissingMediaConfirmModal({
             <span>{loadT.mediaDialogConfirmBtn}</span>
           </button>
 
-          {/* الزر السفلي (غير ملون): رفع الصور / المستندات المتبقية أولاً */}
           <button
             type="button"
             disabled={pending}
@@ -317,7 +256,7 @@ export function SellerVerifyEmailModal({
   open: boolean
   dir: string
   activeModalEmail: string
-  loadT: (typeof FLOW_LOADING_LABELS)['ar']
+  loadT: FlowLoadingLabels
   extraT: SellerExtraLabels
   saveLaterLabel: string
   otpSent: boolean

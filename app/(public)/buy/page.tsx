@@ -470,7 +470,7 @@ function BuyersPageContent() {
             </div>
 
             <span className="inline-block rounded-full bg-[#eaf8f2] px-3.5 py-1 font-mono text-xs font-extrabold text-[#007a5a]">
-              Ref: #{submittedOrder.orderRef}
+              {bSuccess.orderRefPrefix} #{submittedOrder.orderRef}
             </span>
 
             <h1 className="mt-3 text-xl font-black text-[#0a1122] sm:text-3xl">
@@ -872,7 +872,7 @@ function BuyerStepTwo({
 }) {
   const { t: dict } = useTranslation()
   const t = dict.buy.stepTwo
-  const sDetails = (dict.sell?.detailsStep as Record<string, any>) || {}
+  const sDetails = (dict.sell?.extraLabels as Record<string, any>) || {}
 
   const roomQuickOptions = [1, 2, 3, 4]
 

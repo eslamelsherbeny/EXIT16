@@ -27,155 +27,7 @@ import { formatRelativePublishTime } from '@/components/features/home/home-prope
 import { TurnstileBox } from '@/components/layouts/auth-layout'
 import { CountrySelector } from '@/components/shared/country-selector'
 import { toEnglishDigits } from '@/components/features/seller/seller-shared'
-import { useTranslation, type LocaleCode } from '@/lib/i18n'
-
-const INTEREST_UI_FALLBACK: Record<
-  LocaleCode,
-  {
-    photosWord: string
-    viewsWord: string
-    closeBtn: string
-    fastTrackWaNote: string
-    confirmOfferWaBtn: string
-    viewMyOffersBtn: string
-    selectCashOfferLabel: string
-    requiredExitCashPrefix: string
-    fullPriceOptionTitle: string
-    paidCashBadge: string
-    negotiateOptionTitle: string
-    minAllowedFloorLabel: string
-    nonNegotiableUnitPrefix: string
-    nonNegotiableUnitSuffix: string
-    yourCashOfferInputLabel: string
-    fullPricePriorityHint: string
-    errBelowMinFloor: string
-    fomoNegotiationWarning: string
-    paymentMethodLabel: string
-    methodBankCheck: string
-    methodBankTransfer: string
-    waConfirmIntro: string
-    waConfirmUnitWord: string
-    waConfirmAmountWord: string
-    waConfirmLinkLabel: string
-  }
-> = {
-  ar: {
-    photosWord: 'صور',
-    viewsWord: 'مشاهدة',
-    closeBtn: 'إغلاق',
-    fastTrackWaNote:
-      'لتسريع إرسال عرضك للمالك مباشرة، اضغط الزر بالأسفل لتأكيد العرض عبر واتساب المنصة:',
-    confirmOfferWaBtn: 'تأكيد العرض فوراً عبر واتساب',
-    viewMyOffersBtn: 'متابعة عروضي في حسابي',
-    selectCashOfferLabel: 'تحديد قيمة الكاش المعروض للمالك',
-    requiredExitCashPrefix: 'الكاش المطلوب للتنازل:',
-    fullPriceOptionTitle: 'حجز فوري بالسعر الموثق الكامل',
-    paidCashBadge: 'المدفوع الفعلي للمالك',
-    negotiateOptionTitle: 'تقديم عرض كاش عاجل (تفاوض محكوم)',
-    minAllowedFloorLabel: 'الحد الأدنى المسموح للعرض',
-    nonNegotiableUnitPrefix: 'هذه الوحدة معروضة بسعر تنازل نهائي (',
-    nonNegotiableUnitSuffix: ') غير قابل للتفاوض',
-    yourCashOfferInputLabel: 'المبلغ الكاش الذي تعرض دفعه للمالك الآن ($):',
-    fullPricePriorityHint: 'أولوية أولى للقبول الفوري وقفل الوحدة',
-    errBelowMinFloor: 'أقل مبلغ مسموح للتفاوض هو',
-    fomoNegotiationWarning:
-      'العروض بالسعر الكامل لها أولوية القبول الفوري لدى المالك.',
-    paymentMethodLabel: 'طريقة السداد في مقر المطور',
-    methodBankCheck: 'شيك مصرفي مقبول الدفع',
-    methodBankTransfer: 'تحويل بنكي فوري',
-    waConfirmIntro: 'أهلاً إدارة Aqar Exit، أؤكد جديتي في عرض الشراء رقم',
-    waConfirmUnitWord: 'على وحدة',
-    waConfirmAmountWord: 'بمبلغ',
-    waConfirmLinkLabel: 'رابط مراجعة وتفعيل العرض:',
-  },
-  en: {
-    photosWord: 'photos',
-    viewsWord: 'views',
-    closeBtn: 'Close',
-    fastTrackWaNote:
-      'To fast-track your offer to the owner, click below to confirm via WhatsApp:',
-    confirmOfferWaBtn: 'Confirm Offer via WhatsApp',
-    viewMyOffersBtn: 'View My Offers',
-    selectCashOfferLabel: 'Select Cash Offer Amount',
-    requiredExitCashPrefix: 'Required Exit Cash:',
-    fullPriceOptionTitle: 'Instant Booking at Full Price',
-    paidCashBadge: 'Actual Paid Cash',
-    negotiateOptionTitle: 'Submit Negotiated Cash Offer',
-    minAllowedFloorLabel: 'Minimum allowed offer',
-    nonNegotiableUnitPrefix: 'Fixed exit price (',
-    nonNegotiableUnitSuffix: ') — non-negotiable',
-    yourCashOfferInputLabel: 'Your cash offer amount to the seller ($):',
-    fullPricePriorityHint: 'Top priority for instant acceptance',
-    errBelowMinFloor: 'Minimum allowed offer amount is',
-    fomoNegotiationWarning:
-      'Full-price offers receive priority acceptance from the seller.',
-    paymentMethodLabel: 'Payment Method at Developer Office',
-    methodBankCheck: 'Certified Bank Check',
-    methodBankTransfer: 'Instant Bank Transfer',
-    waConfirmIntro: 'Hello Aqar Exit, I confirm my purchase offer',
-    waConfirmUnitWord: 'for unit',
-    waConfirmAmountWord: 'with amount',
-    waConfirmLinkLabel: 'Verification Link:',
-  },
-  ru: {
-    photosWord: 'фото',
-    viewsWord: 'просм.',
-    closeBtn: 'Закрыть',
-    fastTrackWaNote:
-      'Для быстрой отправки вашего предложения собственнику подтвердите его через WhatsApp:',
-    confirmOfferWaBtn: 'Подтвердить предложение в WhatsApp',
-    viewMyOffersBtn: 'Мои предложения в кабинете',
-    selectCashOfferLabel: 'Выберите сумму предложения на руки',
-    requiredExitCashPrefix: 'Требуемая сумма на руки:',
-    fullPriceOptionTitle: 'Мгновенная бронь по полной цене',
-    paidCashBadge: 'Выплачено собственником',
-    negotiateOptionTitle: 'Предложить свою цену (торг)',
-    minAllowedFloorLabel: 'Минимально допустимая сумма',
-    nonNegotiableUnitPrefix: 'Фиксированная цена переуступки (',
-    nonNegotiableUnitSuffix: ') — без торга',
-    yourCashOfferInputLabel: 'Сумма, которую вы готовы выплатить сейчас ($):',
-    fullPricePriorityHint: 'Приоритет для мгновенного подтверждения сделки',
-    errBelowMinFloor: 'Минимально допустимая сумма предложения',
-    fomoNegotiationWarning:
-      'Предложения по полной цене имеют приоритет у собственника.',
-    paymentMethodLabel: 'Способ расчета в офисе застройщика',
-    methodBankCheck: 'Банковский чек',
-    methodBankTransfer: 'Банковский перевод',
-    waConfirmIntro: 'Здравствуйте, Aqar Exit! Подтверждаю мое предложение',
-    waConfirmUnitWord: 'по объекту',
-    waConfirmAmountWord: 'на сумму',
-    waConfirmLinkLabel: 'Ссылка для подтверждения:',
-  },
-  ka: {
-    photosWord: 'ფოტო',
-    viewsWord: 'ნახვა',
-    closeBtn: 'დახურვა',
-    fastTrackWaNote:
-      'თქვენი შეთავაზების დასაჩქარებლად დაადასტურეთ WhatsApp-ის საშუალებით:',
-    confirmOfferWaBtn: 'შეთავაზების დადასტურება WhatsApp-ით',
-    viewMyOffersBtn: 'ჩემი შეთავაზებები',
-    selectCashOfferLabel: 'აირჩიეთ შეთავაზების თანხა',
-    requiredExitCashPrefix: 'საჭირო თანხა ხელზე:',
-    fullPriceOptionTitle: 'სრული ფასით დაჯავშნა',
-    paidCashBadge: 'გადახდილი თანხა',
-    negotiateOptionTitle: 'ფასზე შეთანხმება (ვაჭრობა)',
-    minAllowedFloorLabel: 'მინიმალური დასაშვები თანხა',
-    nonNegotiableUnitPrefix: 'ფიქსირებული ფასი (',
-    nonNegotiableUnitSuffix: ') — ვაჭრობის გარეშე',
-    yourCashOfferInputLabel: 'თანხა, რომელსაც სთავაზობთ მესაკუთრეს ($):',
-    fullPricePriorityHint: 'პრიორიტეტული დადასტურება',
-    errBelowMinFloor: 'მინიმალური დასაშვები თანხაა',
-    fomoNegotiationWarning:
-      'სრული ფასის შეთავაზებებს აქვს პრიორიტეტი მესაკუთრესთან.',
-    paymentMethodLabel: 'გადახდის მეთოდი დეველოპერის ოფისში',
-    methodBankCheck: 'საბანკო ჩეკი',
-    methodBankTransfer: 'საბანკო გადარიცხვა',
-    waConfirmIntro: 'გამარჯობა Aqar Exit, ვადასტურებ შეთავაზებას',
-    waConfirmUnitWord: 'ობიექტზე',
-    waConfirmAmountWord: 'თანხით',
-    waConfirmLinkLabel: 'დადასტურების ბმული:',
-  },
-}
+import { useTranslation } from '@/lib/i18n'
 
 export function UnitGalleryWithLightbox({
   gallery,
@@ -197,9 +49,8 @@ export function UnitGalleryWithLightbox({
   onCopyCode?: () => void
 }) {
   const { t: dict, locale, dir, isRtl } = useTranslation()
-  const t = (dict.unitDetailsPage as Record<string, any>) || {}
-  const isAr = locale === 'ar'
-  const uT = INTEREST_UI_FALLBACK[locale] || INTEREST_UI_FALLBACK.ar
+  const t = dict.unitDetailsPage
+  const uT = dict.unitDetailsPage.interestForm
 
   const safeGallery =
     Array.isArray(gallery) && gallery.length > 0
@@ -248,7 +99,7 @@ export function UnitGalleryWithLightbox({
   }, [lightboxOpen, isRtl, totalPhotos])
 
   const viewsTotal = Math.max(1, Number(viewsCount) || 1)
-  const publishedAgo = formatRelativePublishTime(createdAt, isAr)
+  const publishedAgo = formatRelativePublishTime(createdAt, locale)
   const resolvedTier = boostTier || (featured ? 'super_vip' : null)
 
   return (
@@ -579,10 +430,9 @@ export function UnitInterestForm({
     ? params.id[0]
     : (params?.id as string) || ''
 
-  const { t: dict, locale, siteSettings } = useTranslation()
-  const f = dict.unitDetailsPage.interestForm as Record<string, any>
-  const oT = (dict.accountPages?.offers as Record<string, any>) || {}
-  const uT = INTEREST_UI_FALLBACK[locale] || INTEREST_UI_FALLBACK.ar
+  const { t: dict, siteSettings } = useTranslation()
+  const f = dict.unitDetailsPage.interestForm
+  const oT = dict.accountPages.offers
   const cur = '$'
   const supportWhatsApp = String(
     siteSettings?.whatsappNumber || dict.footer?.phone || '+201018595959'
@@ -642,7 +492,7 @@ export function UnitInterestForm({
 
     if (isBelowMinFloor) {
       setOfferError(
-        `${oT.errBelowMinFloor || f.errBelowMinFloor || uT.errBelowMinFloor}: ${minAllowedCash.toLocaleString('en-US')} ${cur}`
+        `${oT.errBelowMinFloor || f.errBelowMinFloor}: ${minAllowedCash.toLocaleString('en-US')} ${cur}`
       )
       return
     }
@@ -686,7 +536,7 @@ export function UnitInterestForm({
       : 'https://exit-16.vercel.app'
 
   const whatsappConfirmMsg = submittedOfferData
-    ? `${uT.waConfirmIntro} (${submittedOfferData.offerRef}) ${uT.waConfirmUnitWord} (${projectName} - ${unitCode}) ${uT.waConfirmAmountWord} ($${submittedOfferData.amount.toLocaleString('en-US')}).\n${uT.waConfirmLinkLabel}\n${siteOrigin}/api/verify-contact?offerId=${encodeURIComponent(submittedOfferData.offerId)}`
+    ? `${f.waConfirmIntro} (${submittedOfferData.offerRef}) ${f.waConfirmUnitWord} (${projectName} - ${unitCode}) ${f.waConfirmAmountWord} ($${submittedOfferData.amount.toLocaleString('en-US')}).\n${f.waConfirmLinkLabel}\n${siteOrigin}/api/verify-contact?offerId=${encodeURIComponent(submittedOfferData.offerId)}`
     : ''
 
   return (
@@ -719,7 +569,7 @@ export function UnitInterestForm({
             {submittedOfferData.amount.toLocaleString('en-US')}
           </p>
           <p className="mx-auto mt-2.5 max-w-md text-xs leading-relaxed font-semibold text-slate-700">
-            {f.fastTrackWaNote || uT.fastTrackWaNote}
+            {f.fastTrackWaNote}
           </p>
 
           <div className="mt-5 flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -730,14 +580,14 @@ export function UnitInterestForm({
               className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] px-6 text-xs font-extrabold text-white shadow-md transition hover:opacity-95 sm:w-auto sm:text-sm"
             >
               <MessageCircle className="size-4 shrink-0" />
-              <span>{f.confirmOfferWaBtn || uT.confirmOfferWaBtn}</span>
+              <span>{f.confirmOfferWaBtn}</span>
             </a>
 
             <Link
               href="/account/offers?role=buyer"
               className="inline-flex h-12 w-full items-center justify-center rounded-xl border border-gray-300 bg-white px-5 text-xs font-extrabold text-[#0a1122] hover:bg-gray-50 sm:w-auto"
             >
-              {f.viewMyOffersBtn || uT.viewMyOffersBtn}
+              {f.viewMyOffersBtn}
             </Link>
           </div>
         </div>
@@ -752,14 +602,10 @@ export function UnitInterestForm({
           <div className="rounded-2xl border border-gray-200/90 bg-[#f8faf9] p-4">
             <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
               <label className="text-xs font-extrabold text-[#0a1122]">
-                1.{' '}
-                {oT.selectOfferTypeLabel ||
-                  f.selectCashOfferLabel ||
-                  uT.selectCashOfferLabel}
-                :
+                1. {oT.selectOfferTypeLabel || f.selectCashOfferLabel}:
               </label>
               <span className="rounded-lg bg-emerald-100/80 px-2.5 py-0.5 text-[11px] font-extrabold text-[#007a5a]">
-                {f.requiredExitCashPrefix || uT.requiredExitCashPrefix}{' '}
+                {f.requiredExitCashPrefix}{' '}
                 {requiredCash.toLocaleString('en-US')} $
               </span>
             </div>
@@ -779,10 +625,7 @@ export function UnitInterestForm({
                   }`}
                 >
                   <span className="block text-[11px] font-extrabold">
-                    ✓{' '}
-                    {oT.fullPriceOptionTitle ||
-                      f.fullPriceOptionTitle ||
-                      uT.fullPriceOptionTitle}
+                    ✓ {oT.fullPriceOptionTitle || f.fullPriceOptionTitle}
                   </span>
                   <strong
                     dir="ltr"
@@ -790,7 +633,7 @@ export function UnitInterestForm({
                   >
                     {requiredCash.toLocaleString('en-US')} {cur}{' '}
                     <span className="font-sans text-[10px] font-bold opacity-80">
-                      ({f.paidCashBadge || uT.paidCashBadge})
+                      ({f.paidCashBadge})
                     </span>
                   </strong>
                 </button>
@@ -808,16 +651,10 @@ export function UnitInterestForm({
                   }`}
                 >
                   <span className="block text-[11px] font-extrabold">
-                    💬{' '}
-                    {oT.negotiateOptionTitle ||
-                      f.negotiateOptionTitle ||
-                      uT.negotiateOptionTitle}
+                    💬 {oT.negotiateOptionTitle || f.negotiateOptionTitle}
                   </span>
                   <span className="mt-1 block text-[10.5px] text-gray-500">
-                    {oT.minAllowedFloorLabel ||
-                      f.minAllowedFloorLabel ||
-                      uT.minAllowedFloorLabel}
-                    :{' '}
+                    {oT.minAllowedFloorLabel || f.minAllowedFloorLabel}:{' '}
                     <strong dir="ltr" className="font-extrabold text-[#0a1122]">
                       {minAllowedCash.toLocaleString('en-US')} {cur}
                     </strong>
@@ -827,12 +664,12 @@ export function UnitInterestForm({
             ) : (
               <div className="mb-3 rounded-xl border border-emerald-200 bg-[#eaf8f2] p-3 text-[11px] font-bold text-[#007a5a]">
                 {oT.nonNegotiableUnitNote ||
-                  `${uT.nonNegotiableUnitPrefix}${requiredCash.toLocaleString('en-US')} $${uT.nonNegotiableUnitSuffix}`}
+                  `${f.nonNegotiableUnitPrefix}${requiredCash.toLocaleString('en-US')} $${f.nonNegotiableUnitSuffix}`}
               </div>
             )}
 
             <label className="mb-1.5 block text-[11px] font-bold text-gray-500">
-              {f.yourCashOfferInputLabel || uT.yourCashOfferInputLabel}
+              {f.yourCashOfferInputLabel}
             </label>
             <div className="relative">
               <input
@@ -869,19 +706,14 @@ export function UnitInterestForm({
               <div className="mt-2.5 flex items-center gap-2 rounded-xl border border-emerald-200 bg-[#eaf8f2] p-2.5 text-[11px] font-bold text-[#007a5a]">
                 <CheckCircle2 className="size-4 shrink-0" />
                 <span>
-                  {oT.fullPricePriorityHint ||
-                    f.fullPricePriorityHint ||
-                    uT.fullPricePriorityHint}
+                  {oT.fullPricePriorityHint || f.fullPricePriorityHint}
                 </span>
               </div>
             ) : isBelowMinFloor ? (
               <div className="mt-2.5 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-2.5 text-[11px] font-bold text-red-700">
                 <AlertTriangle className="mt-0.5 size-4 shrink-0" />
                 <span>
-                  {oT.errBelowMinFloor ||
-                    f.errBelowMinFloor ||
-                    uT.errBelowMinFloor}
-                  :{' '}
+                  {oT.errBelowMinFloor || f.errBelowMinFloor}:{' '}
                   <strong dir="ltr">
                     {minAllowedCash.toLocaleString('en-US')} {cur}
                   </strong>
@@ -891,9 +723,7 @@ export function UnitInterestForm({
               <div className="mt-2.5 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-[11px] leading-relaxed font-bold text-amber-900">
                 <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
                 <span>
-                  {oT.fomoNegotiationWarning ||
-                    f.fomoNegotiationWarning ||
-                    uT.fomoNegotiationWarning}
+                  {oT.fomoNegotiationWarning || f.fomoNegotiationWarning}
                 </span>
               </div>
             )}
@@ -975,25 +805,15 @@ export function UnitInterestForm({
 
             <div>
               <label className="mb-2 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
-                3.{' '}
-                {oT.paymentMethodLabel ||
-                  f.paymentMethodLabel ||
-                  uT.paymentMethodLabel}
+                3. {oT.paymentMethodLabel || f.paymentMethodLabel}
               </label>
               <div className="grid grid-cols-2 gap-2">
                 {(
                   [
-                    [
-                      'bank_check',
-                      oT.methodBankCheck ||
-                        f.methodBankCheck ||
-                        uT.methodBankCheck,
-                    ],
+                    ['bank_check', oT.methodBankCheck || f.methodBankCheck],
                     [
                       'bank_transfer',
-                      oT.methodBankTransfer ||
-                        f.methodBankTransfer ||
-                        uT.methodBankTransfer,
+                      oT.methodBankTransfer || f.methodBankTransfer,
                     ],
                   ] as const
                 ).map(([key, label]) => (

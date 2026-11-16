@@ -60,13 +60,6 @@ const BUYER_WA_SENT_STORAGE_KEY = 'aqar_buyer_wa_fasttrack_sent'
 const PREFERRED_PAGE_SIZE = 18
 const NEARBY_AREAS_PREVIEW_SIZE = 9
 
-const BUYER_EXTRA_HINTS: Record<LocaleCode, string> = {
-  ar: 'مرتبة بالأنسب لطلبك — اختار أي شرط عشان تشوف اللي يطابقه بالظبط',
-  en: 'Sorted by best match for your request — click any pill to filter strictly by it',
-  ru: 'Отсортировано по соответствию вашему запросу — выберите фильтр для точного отбора',
-  ka: 'დალაგებულია თქვენს მოთხოვნასთან შესაბამისობით — აირჩიეთ პირობა ზუსტი ფილტრაციისთვის',
-}
-
 /**
  * مطابقة أي اسم منطقة (سواء كـ ID أو بالعربية أو الإنجليزية أو الروسية أو الجورجية)
  * وإرجاع الكائن القياسي للمنطقة من GEORGIA_REGION_DISTRICTS
@@ -665,7 +658,7 @@ export function BuyerDashboard({
       ? window.location.origin
       : 'https://exit-16.vercel.app'
   const targetBuyerUserId = buyReq?.user_id || currentUserId
- const adminVerifyLeadLink = `${siteOrigin}/api/verify?u=${encodeURIComponent(targetBuyerUserId)}&leadId=${encodeURIComponent(buyReq?.id || '')}`
+  const adminVerifyLeadLink = `${siteOrigin}/api/verify?u=${encodeURIComponent(targetBuyerUserId)}&leadId=${encodeURIComponent(buyReq?.id || '')}`
 
   const buyerFastTrackWaMsg = `${t.waFastTrackMsgPrefix} (${bCash.toLocaleString('en-US')} ${currency}) — ${t.preferredAreasLabel}: (${localizedPreferredAreasNames.join(listSep)}).\n${adminVerifyLeadLink}`
 
@@ -900,7 +893,7 @@ export function BuyerDashboard({
         />
 
         <p className="mt-2 px-1 text-start text-[11px] font-semibold text-gray-400">
-          {BUYER_EXTRA_HINTS[locale] || BUYER_EXTRA_HINTS.ar}
+          {t.filterByRequestSub}
         </p>
       </ScrollReveal>
 

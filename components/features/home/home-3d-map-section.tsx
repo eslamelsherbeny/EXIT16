@@ -11,136 +11,13 @@ import {
   Layers,
   MousePointerClick,
 } from 'lucide-react'
-import { useTranslation, type LocaleCode } from '@/lib/i18n'
-
-const MAP_SECTION_I18N: Record<
-  LocaleCode,
-  {
-    badge: string
-    titlePrefix: string
-    titleAccent: string
-    subtitle: string
-    browseAllBtn: string
-    launchMapBtn: string
-    features: Array<{ title: string; sub: string }>
-  }
-> = {
-  ar: {
-    badge: 'مستكشف المشاريع ثلاثي الأبعاد',
-    titlePrefix: 'تصفح فرص التنازل على',
-    titleAccent: 'خريطة جورجيا 3D',
-    subtitle:
-      'رؤية بانورامية تفاعلية لجميع الأبراج والمجمعات السكنية المعتمدة في تبليسي وباتومي.',
-    browseAllBtn: 'استعرض كل الوحدات على الخريطة',
-    launchMapBtn: 'افتح خريطة الفرص ثلاثية الأبعاد',
-    features: [
-      {
-        title: 'استكشف عروض التنازل داخل كل برج',
-        sub: 'اضغط على أي مجمع سكني على الخريطة لترى الشقق المتاحة لاستكمال الأقساط ومقدار الكاش المطلوب بالدولار.',
-      },
-      {
-        title: 'مجسمات حية للمشاريع قيد الإنشاء',
-        sub: 'عاين موقع مشروعك ونسبة الإنجاز المعماري ثلاثي الأبعاد قبل اتخاذ قرار شراء عقد التقسيط.',
-      },
-      {
-        title: 'مقارنة سعر العقد القديم بسعر المطور اليوم',
-        sub: 'اعرف حجم التوفير الفوري لكل منطقة في تبليسي وباتومي مع مؤشرات الأسعار والخدمات المحيطة.',
-      },
-      {
-        title: 'تبديل فوري بين المنظور المسطح 2D والغامر 3D',
-        sub: 'تصفح خريطة الفرص بمرونة كاملة على التلفون أو الكمبيوتر بلمسة واحدة.',
-      },
-    ],
-  },
-  en: {
-    badge: '3D PROJECT EXPLORER',
-    titlePrefix: 'Explore Exit Opportunities on',
-    titleAccent: 'Georgia 3D Map',
-    subtitle:
-      'Interactive panoramic view of verified residential complexes in Tbilisi and Batumi.',
-    browseAllBtn: 'Browse all units on 3D map',
-    launchMapBtn: 'Launch Interactive 3D Map',
-    features: [
-      {
-        title: 'Explore Exit Deals in Every Tower',
-        sub: 'Tap any residential tower to see available installment takeover units and required cash in USD.',
-      },
-      {
-        title: '3D Models for Under-Construction Projects',
-        sub: 'Preview project location and 3D architectural progress before taking over an installment contract.',
-      },
-      {
-        title: 'Compare Old Contract vs. Current Developer Price',
-        sub: 'See instant savings per district across Tbilisi and Batumi alongside nearby amenities.',
-      },
-      {
-        title: 'Instant Switch Between 2D & Immersive 3D',
-        sub: 'Navigate opportunities smoothly on mobile or desktop with one tap.',
-      },
-    ],
-  },
-  ru: {
-    badge: '3D-ОБЗОР ПРОЕКТОВ',
-    titlePrefix: 'Изучайте объекты переуступки на',
-    titleAccent: '3D-карте Грузии',
-    subtitle:
-      'Интерактивный панорамный обзор проверенных жилых комплексов в Тбилиси и Батуми.',
-    browseAllBtn: 'Смотреть все объекты на карте',
-    launchMapBtn: 'Открыть интерактивную 3D-карту',
-    features: [
-      {
-        title: 'Предложения переуступки в каждом корпусе',
-        sub: 'Нажмите на любой ЖК на карте, чтобы увидеть доступные квартиры и сумму на руки в USD.',
-      },
-      {
-        title: '3D-модели строящихся комплексов',
-        sub: 'Оцените расположение дома и прогресс строительства в 3D перед переоформлением договора.',
-      },
-      {
-        title: 'Сравнение цены договора с ценой застройщика',
-        sub: 'Узнайте мгновенную выгоду по каждому району Тбилиси и Батуми вместе с инфраструктурой.',
-      },
-      {
-        title: 'Мгновенное переключение 2D и 3D режима',
-        sub: 'Удобная навигация по карте объектов со смартфона или компьютера в один клик.',
-      },
-    ],
-  },
-  ka: {
-    badge: 'პროექტების 3D მიმოხილვა',
-    titlePrefix: 'დაათვალიერეთ შეთავაზებები',
-    titleAccent: 'საქართველოს 3D რუკაზე',
-    subtitle:
-      'თბილისისა და ბათუმის გადამოწმებული საცხოვრებელი კომპლექსების ინტერაქტიული პანორამა.',
-    browseAllBtn: 'ყველა ობიექტის ნახვა რუკაზე',
-    launchMapBtn: 'გახსენით ინტერაქტიული 3D რუკა',
-    features: [
-      {
-        title: 'შეთავაზებები თითოეულ კორპუსში',
-        sub: 'დააჭირეთ ნებისმიერ საცხოვრებელ კომპლექსს რუკაზე და ნახეთ ბინები და საჭირო თანხა.',
-      },
-      {
-        title: 'მშენებარე პროექტების 3D მოდელები',
-        sub: 'შეაფასეთ მდებარეობა და სამშენებლო პროგრესი 3D ფორმატში გადაწყვეტილების მიღებამდე.',
-      },
-      {
-        title: 'ხელშეკრულების ფასის შედარება დეველოპერის ფასთან',
-        sub: 'ნახეთ მყისიერი დანაზოგი თბილისისა და ბათუმის უბნების მიხედვით.',
-      },
-      {
-        title: 'სწრაფი გადართვა 2D და 3D რეჟიმებს შორის',
-        sub: 'მარტივად მართეთ რუკა მობილურიდან ან კომპიუტერიდან ერთი შეხებით.',
-      },
-    ],
-  },
-}
+import { useTranslation } from '@/lib/i18n'
 
 const FEATURE_ICONS = [MousePointerClick, Building2, BarChart3, Layers]
 
 export function Home3DMapSection() {
-  const { locale, dir } = useTranslation()
-  const activeLocale = (locale as LocaleCode) || 'ar'
-  const mT = MAP_SECTION_I18N[activeLocale] || MAP_SECTION_I18N.ar
+  const { t: dict, dir } = useTranslation()
+  const mT = dict.home.map3dSection
 
   const sectionRef = useRef<HTMLElement>(null)
   const [inView, setInView] = useState(false)

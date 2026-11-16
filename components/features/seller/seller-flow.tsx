@@ -171,7 +171,7 @@ export function SellerFlow() {
     floorType: [],
     heatingType: [],
     buildingMaterial: [],
-    frequency: ['شهري'],
+    frequency: [fT.pricingSection.freqMonthly],
     annualInstallment: ['no'],
     discountOffer: ['no'],
     overdueInstallments: ['no'],
@@ -525,7 +525,7 @@ export function SellerFlow() {
             frequency:
               u.installment_frequency || meta.installment_frequency
                 ? [u.installment_frequency || meta.installment_frequency]
-                : ['شهري'],
+                : [fT.pricingSection.freqMonthly],
             features:
               Array.isArray(u.features) && u.features.length > 0
                 ? u.features
@@ -630,7 +630,7 @@ export function SellerFlow() {
     } finally {
       setInitialLoading(false)
     }
-  }, [locale, loadT.loadErrorDesc])
+  }, [locale, loadT.loadErrorDesc, fT.pricingSection.freqMonthly])
 
   useEffect(() => {
     void loadInitialData()
@@ -1576,7 +1576,6 @@ export function SellerFlow() {
         </div>
       </div>
 
-      {/* الديالوج الذكي عند الإرسال بدون صور أو مستندات */}
       <SellerMissingMediaConfirmModal
         open={missingMediaModalOpen}
         dir={dir}

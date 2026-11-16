@@ -6,6 +6,7 @@ import './globals.css'
 import { Toaster } from '@/components/ui/sonner'
 import { FacebookPixel } from '@/components/shared/facebook-pixel'
 import { FloatingWhatsApp } from '@/components/shared/floating-whatsapp'
+import { RouteProgressBar } from '@/components/shared/route-progress-bar'
 import { LanguageProvider } from '@/lib/i18n'
 import { getServerI18n } from '@/lib/get-server-dictionary'
 
@@ -97,6 +98,9 @@ export default async function RootLayout({
           initialHasSession={isLoggedIn}
           initialIsStaff={isStaff}
         >
+          <Suspense fallback={null}>
+            <RouteProgressBar />
+          </Suspense>
           {children}
           <FloatingWhatsApp />
           <Suspense fallback={null}>

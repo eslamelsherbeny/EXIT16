@@ -80,6 +80,7 @@ const ANALYTICS_UI_LABELS: Record<
     totalViewsLabel: string
     sendReportWaBtn: string
     viewsColumnHeader: string
+    viewUnitBtn: string
   }
 > = {
   ar: {
@@ -87,24 +88,28 @@ const ANALYTICS_UI_LABELS: Record<
     totalViewsLabel: "إجمالي مشاهدات الوحدات:",
     sendReportWaBtn: "إرسال تقرير المشاهدات للمالك (واتساب)",
     viewsColumnHeader: "المشاهدات",
+    viewUnitBtn: "مشاهدة الوحدة",
   },
   en: {
     viewsWord: "views",
     totalViewsLabel: "Total Unit Views:",
     sendReportWaBtn: "Send Views Report to Owner (WhatsApp)",
     viewsColumnHeader: "Views",
+    viewUnitBtn: "View Unit",
   },
   ru: {
     viewsWord: "просм.",
     totalViewsLabel: "Всего просмотров:",
     sendReportWaBtn: "Отправить отчет о просмотрах (WhatsApp)",
     viewsColumnHeader: "Просмотры",
+    viewUnitBtn: "Посмотреть объект",
   },
   ka: {
     viewsWord: "ნახვა",
     totalViewsLabel: "სულ ნახვები:",
     sendReportWaBtn: "ნახვების რეპორტის გაგზავნა (WhatsApp)",
     viewsColumnHeader: "ნახვები",
+    viewUnitBtn: "ობიექტის ნახვა",
   },
 }
 
@@ -145,7 +150,11 @@ export default function PropertiesTable({
     const unitPhoneDigits = String(unit.phone || "").replace(/\D/g, "")
     return buyers
       .filter((b) => {
-        if (b.user_id && unit.user_id && String(b.user_id) === String(unit.user_id))
+        if (
+          b.user_id &&
+          unit.user_id &&
+          String(b.user_id) === String(unit.user_id)
+        )
           return false
         const bPhoneDigits = String(b.phone || "").replace(/\D/g, "")
         if (
@@ -617,6 +626,106 @@ export default function PropertiesTable({
     }
   }
 
+  function renderPublishButton(
+    property: SellRequest,
+    currentSt: string,
+    isMobile = false
+  ) {
+    if (currentSt === "deleted_by_seller") return null
+
+    if (currentSt === "active") {
+      return (
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() =>
+            setConfirmAction({
+              type: "status",
+              property,
+              newStatus: "paused_by_seller",
+            })
+          }
+          className={`inline-flex items-center justify-center gap-1 rounded-xl border border-orange-200 bg-orange-50 px-2.5 text-xs font-extrabold text-orange-800 transition hover:bg-orange-100 disabled:opacity-50 ${
+            isMobile ? "h-8.5 flex-1" : "h-8 shrink-0"
+          }`}
+          title={t.actions.unpublishBtn}
+        >
+          <EyeOff className="size-3.5 shrink-0 text-orange-600" />
+          <span className="truncate">{t.actions.unpublishBtn}</span>
+        </button>
+      )
+    }
+
+    return (
+      <button
+        type="button"
+        disabled={pending}
+        onClick={() =>
+          setConfirmAction({
+            type: "status",
+            property,
+            newStatus: "active",
+          })
+        }
+        className={`inline-flex items-center justify-center gap-1 rounded-xl bg-[#105C50] px-3 text-xs font-extrabold text-white shadow-2xs transition hover:bg-[#0d4a40] disabled:opacity-50 ${
+          isMobile ? "h-8.5 flex-1" : "h-8 shrink-0"
+        }`}
+        title={t.actions.publishShortBtn}
+      >
+        <Check className="size-3.5 shrink-0" />
+        <span className="truncate">{t.actions.publishShortBtn}</span>
+      </button>
+    )
+  }
+
+  function renderPromoteButtonDesktop(
+    property: SellRequest,
+    currentSt: string,
+    isFeaturedActive: boolean
+  ) {
+    if (currentSt === "deleted_by_seller") return null
+
+    return (
+      <button
+        type="button"
+        disabled={pending}
+        onClick={() =>
+          setConfirmAction({
+            type: "promote",
+            property,
+            promoAction: isFeaturedActive ? "cancel" : "activate",
+            days: property.featured_days || 14,
+            tier:
+              property.boost_tier === "vip_plus" ? "vip_plus" : "super_vip",
+          })
+        }
+        title={
+          isFeaturedActive
+            ? t.actions.cancelPromoBtn
+            : t.actions.promoteStarBtn
+        }
+        className={`inline-flex h-8 shrink-0 items-center justify-center gap-1 rounded-xl border px-2.5 text-[11px] font-extrabold transition disabled:opacity-50 ${
+          isFeaturedActive
+            ? "border-amber-300 bg-amber-100 text-amber-900 hover:bg-amber-200"
+            : "border-amber-200 bg-amber-50/80 text-amber-800 hover:bg-amber-100"
+        }`}
+      >
+        <Star
+          className={`size-3.5 shrink-0 ${
+            isFeaturedActive
+              ? "fill-amber-500 text-amber-600"
+              : "text-amber-600"
+          }`}
+        />
+        <span className="truncate">
+          {isFeaturedActive
+            ? t.actions.cancelPromoBtn
+            : t.actions.promoteStarBtn}
+        </span>
+      </button>
+    )
+  }
+
   function renderThreeDotsMenu(
     property: SellRequest,
     currentSt: string,
@@ -660,6 +769,7 @@ export default function PropertiesTable({
             onClick={(e) => e.stopPropagation()}
             className="absolute end-0 top-9 z-50 w-60 overflow-hidden rounded-xl border border-gray-200 bg-white p-1.5 shadow-2xl"
           >
+            {/* مشاهدة الوحدة على الموقع */}
             <Link
               href={`/opportunities/${property.id}`}
               target="_blank"
@@ -667,7 +777,7 @@ export default function PropertiesTable({
               className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-[#0a1122] transition hover:bg-gray-50"
             >
               <ExternalLink className="size-3.5 text-[#105C50]" />
-              <span>{dict.admin?.shell?.publicSite}</span>
+              <span>{aL.viewUnitBtn}</span>
             </Link>
 
             {/* زر إرسال تقرير المشاهدات والأداء للمالك عبر واتساب */}
@@ -856,7 +966,6 @@ export default function PropertiesTable({
 
     return (
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
-        {/* شارة عدد المشاهدات الحقيقية للوحدة */}
         <span
           className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50/80 px-2 py-0.5 text-[10.5px] font-extrabold text-[#2563eb]"
           title={aL.viewsColumnHeader}
@@ -1193,7 +1302,7 @@ export default function PropertiesTable({
           </div>
         )}
 
-      {/* 1. عرض الموبايل */}
+      {/* 1. عرض الموبايل (زر النشر ظاهر بالخارج بجانب التفاصيل والواتساب) */}
       <div className="space-y-3.5 md:hidden">
         {filtered.length === 0 ? (
           <div className="rounded-xl border border-gray-200 bg-white p-8 text-center text-xs text-gray-500">
@@ -1356,7 +1465,10 @@ export default function PropertiesTable({
                   </select>
                 </div>
 
-                <div className="mt-2.5 flex items-center gap-2 border-t border-gray-100 pt-2.5">
+                <div className="mt-2.5 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-2.5">
+                  {/* زر النشر / إيقاف النشر خارج الـ 3 نقاط في الموبايل */}
+                  {renderPublishButton(property, currentSt, true)}
+
                   <Button
                     size="sm"
                     variant="outline"
@@ -1384,7 +1496,7 @@ export default function PropertiesTable({
         )}
       </div>
 
-      {/* 2. عرض الكمبيوتر الاحترافي */}
+      {/* 2. عرض الكمبيوتر الاحترافي (زرا النشر والتمييز خارج الـ 3 نقاط) */}
       <div className="hidden md:block">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200/85 bg-white px-5 py-3.5 shadow-2xs">
           <h2 className="text-sm font-extrabold text-[#0a1122] sm:text-base">
@@ -1430,11 +1542,11 @@ export default function PropertiesTable({
         </div>
 
         <div className="mb-2.5 grid grid-cols-12 items-center gap-4 rounded-xl border border-slate-200/90 bg-slate-100/90 px-5 py-3 text-[11px] font-extrabold text-slate-600">
-          <div className="col-span-4">{t.table.colProject}</div>
+          <div className="col-span-3">{t.table.colProject}</div>
           <div className="col-span-2">{t.table.colCash}</div>
           <div className="col-span-2">{t.table.colClient}</div>
           <div className="col-span-2">{t.table.colStage}</div>
-          <div className="col-span-2 text-end">{t.table.colActions}</div>
+          <div className="col-span-3 text-end">{t.table.colActions}</div>
         </div>
 
         {filtered.length === 0 ? (
@@ -1486,7 +1598,7 @@ export default function PropertiesTable({
                               : "border-slate-200/90"
                   }`}
                 >
-                  <div className="col-span-4 min-w-0 pe-2">
+                  <div className="col-span-3 min-w-0 pe-2">
                     <div className="flex items-center gap-2">
                       <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[11px] font-black text-slate-600">
                         {index + 1}
@@ -1632,7 +1744,8 @@ export default function PropertiesTable({
                     </select>
                   </div>
 
-                  <div className="col-span-2 flex items-center justify-end gap-1.5 border-s border-slate-100 ps-3">
+                  {/* أزرار الإجراءات في الكمبيوتر: النشر + التمييز + التفاصيل + واتساب + الـ 3 نقاط */}
+                  <div className="col-span-3 flex flex-wrap items-center justify-end gap-1.5 border-s border-slate-100 ps-3">
                     {currentSt === "deleted_by_seller" ? (
                       <Button
                         size="sm"
@@ -1645,21 +1758,29 @@ export default function PropertiesTable({
                             newStatus: "pending",
                           })
                         }
-                        className="h-8 rounded-lg border-emerald-200 bg-emerald-50 px-2.5 text-[11px] font-bold text-[#105C50]"
+                        className="h-8 rounded-xl border-emerald-200 bg-emerald-50 px-2.5 text-[11px] font-bold text-[#105C50]"
                       >
                         <RotateCcw className="me-1 size-3" />
                         {t.actions.restoreBtn}
                       </Button>
                     ) : (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-8 rounded-lg px-3 text-[11px] font-bold"
-                        onClick={() => setDetailsProperty(property)}
-                      >
-                        <Eye className="me-1 size-3 text-[#105C50]" />
-                        {t.actions.detailsBtn}
-                      </Button>
+                      <>
+                        {renderPublishButton(property, currentSt, false)}
+                        {renderPromoteButtonDesktop(
+                          property,
+                          currentSt,
+                          isFeaturedActive
+                        )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 rounded-xl px-2.5 text-[11px] font-bold"
+                          onClick={() => setDetailsProperty(property)}
+                        >
+                          <Eye className="me-1 size-3 text-[#105C50]" />
+                          {t.actions.detailsBtn}
+                        </Button>
+                      </>
                     )}
 
                     <a
@@ -1668,7 +1789,7 @@ export default function PropertiesTable({
                       target="_blank"
                       rel="noreferrer"
                       title={leadsPrompts.whatsappBtn}
-                      className="inline-flex size-8 items-center justify-center rounded-lg bg-[#25D366] text-white hover:opacity-90"
+                      className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#25D366] text-white hover:opacity-90"
                     >
                       <MessageCircle className="size-3.5" />
                     </a>
@@ -1711,7 +1832,7 @@ export default function PropertiesTable({
         dir={dir}
         locale={locale}
         t={t}
-        publicSiteLabel={dict.admin?.shell?.publicSite || ""}
+        publicSiteLabel={aL.viewUnitBtn}
         whatsappBtnLabel={dict.admin?.leads?.whatsappBtn || ""}
         detailsProperty={detailsProperty}
         onClose={() => setDetailsProperty(null)}

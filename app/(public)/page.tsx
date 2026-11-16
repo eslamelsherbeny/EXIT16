@@ -75,18 +75,20 @@ export default async function HomePage() {
     )
 
     if (units && units.length > 0) {
-      // مزامنة تلقائية لأي وحدة قديمة تم الاتفاق عليها وما زالت حالتها offer_received
+      // مزامنة تلقائية في الخلفية بدون تعطيل سرعة فتح الصفحة الرئيسية
       const staleAgreedIds = units
         .filter((u: any) => lockedUnitIds.has(String(u.id)))
         .map((u: any) => String(u.id))
 
       if (staleAgreedIds.length > 0) {
-        try {
-          await supabase
-            .from('sell_requests')
-            .update({ status: 'transferring' })
-            .in('id', staleAgreedIds)
-        } catch {}
+        supabase
+          .from('sell_requests')
+          .update({ status: 'transferring' })
+          .in('id', staleAgreedIds)
+          .then(
+            () => {},
+            () => {}
+          )
       }
 
       // فلترة رسمية: استبعاد أي صف بدون UUID حقيقي أو من خارج جورجيا أو تم الاتفاق عليه بين البائع والمشتري

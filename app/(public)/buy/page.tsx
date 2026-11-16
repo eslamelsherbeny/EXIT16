@@ -11,13 +11,9 @@ import {
   AlertCircle,
   Check,
   CheckCircle2,
-  ChevronDown,
   Loader2,
-  MapPin,
   MessageCircle,
-  Plus,
   UserRound,
-  X,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -27,7 +23,6 @@ import {
   MoneyField,
   Pills,
   RequiredLabel,
-  SivrceLocationModalPicker,
   toEnglishDigits,
 } from '@/components/features/seller/seller-shared'
 import { splitStoredPhoneToCodeAndLocal } from '@/components/features/seller/seller-contact-step'
@@ -37,45 +32,11 @@ import {
   type BuyerConflictState,
   type BuyerFormState,
 } from '@/components/features/buyer/buyer-contact-step'
-import { useTranslation, type LocaleCode } from '@/lib/i18n'
+import { BuyerLocationModalPicker } from '@/components/features/buyer/buyer-location-modal'
+import { useTranslation } from '@/lib/i18n'
 
 const ACTIVE_PLATFORM_COUNTRY = 'GE'
 const DEFAULT_PHONE_CODE = '995'
-
-const BUY_LOCATION_TRIGGER_I18N: Record<
-  LocaleCode,
-  {
-    selectAreaPlaceholder: string
-    addMoreAreasPlaceholder: string
-    selectedCountWord: string
-    clearAllBtn: string
-  }
-> = {
-  ar: {
-    selectAreaPlaceholder: 'اضغط لاختيار المدينة أو الحي في جورجيا...',
-    addMoreAreasPlaceholder: 'اضغط لإضافة مدينة أو منطقة أخرى...',
-    selectedCountWord: 'مناطق محددة',
-    clearAllBtn: 'مسح الكل',
-  },
-  en: {
-    selectAreaPlaceholder: 'Click to select city or district in Georgia...',
-    addMoreAreasPlaceholder: 'Click to add another city or district...',
-    selectedCountWord: 'selected',
-    clearAllBtn: 'Clear All',
-  },
-  ru: {
-    selectAreaPlaceholder: 'Нажмите для выбора города или района в Грузии...',
-    addMoreAreasPlaceholder: 'Нажмите, чтобы добавить еще один район...',
-    selectedCountWord: 'выбрано',
-    clearAllBtn: 'Очистить все',
-  },
-  ka: {
-    selectAreaPlaceholder: 'დააჭირეთ ქალაქის ან უბნის ასარჩევად...',
-    addMoreAreasPlaceholder: 'დააჭირეთ სხვა უბნის დასამატებლად...',
-    selectedCountWord: 'არჩეულია',
-    clearAllBtn: 'გასუფთავება',
-  },
-}
 
 function isFullCashPlanOption(plan: string, plansList: string[]): boolean {
   if (!plan) return false
@@ -134,7 +95,6 @@ function BuyersPageContent() {
     dict.accountComponents?.buyer?.deliveryPreferences ||
     getLocalizedDeliveries(dict, locale)
 
-  // قراءة رقم الواتساب من إعدادات الأدمن مباشرةً
   const waPhone = String(
     siteSettings?.whatsappNumber || dict.footer?.phone || '+201018595959'
   ).replace(/\D/g, '')
@@ -165,7 +125,6 @@ function BuyersPageContent() {
     contactMessengers: ['whatsapp', 'viber'],
   }))
 
-  // حفظ الأسماء المخصصة للمناطق المختارة من نافذة الخريطة لعرضها بدقة في الشارات
   const [areaDisplayLabels, setAreaDisplayLabels] = useState<
     Record<string, string>
   >({})
@@ -762,7 +721,6 @@ function BuyersPageContent() {
           )}
         </div>
 
-        {/* شريط التواصل عبر واتساب بتصميم متجاوب وأنيق على الموبايل والكمبيوتر */}
         {step <= 2 && (
           <div className="mt-6 flex flex-col items-stretch justify-between gap-3.5 rounded-2xl border border-[#1e293b] bg-[var(--brand-navy,#0a1122)] p-4 text-white shadow-sm sm:flex-row sm:items-center sm:px-6 sm:py-4">
             <div className="flex items-center gap-3 text-start">
@@ -912,35 +870,9 @@ function BuyerStepTwo({
     React.SetStateAction<Record<string, string>>
   >
 }) {
-  const { t: dict, locale } = useTranslation()
+  const { t: dict } = useTranslation()
   const t = dict.buy.stepTwo
   const sDetails = (dict.sell?.detailsStep as Record<string, any>) || {}
-  const trL =
-    BUY_LOCATION_TRIGGER_I18N[locale] || BUY_LOCATION_TRIGGER_I18N.ar
-
-  const addGeorgiaAreaFromModal = (
-    areaId: string,
-    displayLabel?: string
-  ) => {
-    const cleanId = (areaId || displayLabel || '').trim()
-    if (!cleanId) return
-    if (displayLabel) {
-      setAreaDisplayLabels((prev) => ({
-        ...prev,
-        [cleanId]: displayLabel,
-      }))
-    }
-    if (!data.preferred_areas.includes(cleanId)) {
-      update('preferred_areas', [...data.preferred_areas, cleanId])
-    }
-  }
-
-  const removeGeorgiaArea = (areaId: string) => {
-    update(
-      'preferred_areas',
-      data.preferred_areas.filter((item) => item !== areaId)
-    )
-  }
 
   const roomQuickOptions = [1, 2, 3, 4]
 
@@ -1050,97 +982,16 @@ function BuyerStepTwo({
         )}
       </fieldset>
 
-      {/* نفس نافذة الاختيار الموجودة في صفحة "عايز تبيع" بالظبط (SivrceLocationModalPicker) بدون أي اقتراحات تحتها */}
-      <div className="text-start">
-        <SivrceLocationModalPicker
-          label={
-            sDetails.georgiaLocationLabel || `${t.areasLabelPrefix} *`
-          }
-          value=""
-          displayText=""
-          error={errors?.preferred_areas}
-          onSelectLocation={({ areaId, displayLabel }) => {
-            addGeorgiaAreaFromModal(areaId, displayLabel)
-          }}
-          customTrigger={({ onClick }) => (
-            <button
-              type="button"
-              onClick={onClick}
-              className={`flex h-12 w-full items-center justify-between gap-2 rounded-xl border px-4 text-start text-xs font-bold transition sm:text-sm ${
-                errors?.preferred_areas
-                  ? 'border-red-500 bg-red-50/20 text-red-700'
-                  : data.preferred_areas.length > 0
-                    ? 'border-[var(--brand-primary,#007a5a)] bg-[#eaf8f2]/40 text-[#0a1122] hover:bg-[#eaf8f2]/70'
-                    : 'border-slate-200 bg-white text-slate-500 hover:border-[#2563eb]'
-              }`}
-            >
-              <span className="flex min-w-0 items-center gap-2 truncate">
-                <MapPin
-                  className={`size-4 shrink-0 ${
-                    data.preferred_areas.length > 0
-                      ? 'text-[var(--brand-primary,#007a5a)]'
-                      : 'text-slate-400'
-                  }`}
-                />
-                <span className="truncate">
-                  {data.preferred_areas.length > 0
-                    ? `${trL.addMoreAreasPlaceholder} (${data.preferred_areas.length} ${trL.selectedCountWord})`
-                    : trL.selectAreaPlaceholder}
-                </span>
-              </span>
-              <span className="flex items-center gap-1 text-slate-400">
-                {data.preferred_areas.length > 0 && (
-                  <Plus className="size-4 text-[var(--brand-primary,#007a5a)]" />
-                )}
-                <ChevronDown className="size-4" />
-              </span>
-            </button>
-          )}
-        />
-
-        {errors?.preferred_areas && (
-          <p className="mt-1.5 text-start text-xs font-semibold text-red-600">
-            {errors.preferred_areas}
-          </p>
-        )}
-
-        {/* عرض الأماكن التي اختارها المشتري من النافذة مع إمكانية حذف أي مكان أو فتح النافذة لإضافة المزيد */}
-        {data.preferred_areas.length > 0 && (
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            {data.preferred_areas.map((area) => {
-              const displayLabel =
-                areaDisplayLabels[area] ||
-                getLocalizedGeorgiaAreaName(area, locale)
-              return (
-                <span
-                  key={area}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-primary,#007a5a)] px-3.5 py-1.5 text-xs font-bold text-white shadow-2xs"
-                >
-                  <span>{displayLabel}</span>
-                  <button
-                    type="button"
-                    aria-label={`${t.removeAreaAria} ${area}`}
-                    onClick={() => removeGeorgiaArea(area)}
-                    className="ms-0.5 rounded-full p-0.5 hover:bg-black/20"
-                  >
-                    <X className="size-3" />
-                  </button>
-                </span>
-              )
-            })}
-
-            {data.preferred_areas.length > 1 && (
-              <button
-                type="button"
-                onClick={() => update('preferred_areas', [])}
-                className="ms-1 text-xs font-bold text-red-600 underline hover:text-red-700"
-              >
-                {trL.clearAllBtn}
-              </button>
-            )}
-          </div>
-        )}
-      </div>
+      <BuyerLocationModalPicker
+        label={sDetails.georgiaLocationLabel || `${t.areasLabelPrefix} *`}
+        selectedAreas={data.preferred_areas}
+        areaDisplayLabels={areaDisplayLabels}
+        error={errors?.preferred_areas}
+        onChangeAreas={(nextIds, nextLabels) => {
+          setAreaDisplayLabels(nextLabels)
+          update('preferred_areas', nextIds)
+        }}
+      />
     </div>
   )
 }

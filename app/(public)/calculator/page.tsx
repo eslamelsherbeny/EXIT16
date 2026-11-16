@@ -2,8 +2,8 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { Info } from "lucide-react"
-import { useTranslation, getCurrencySymbol } from "@/lib/i18n"
+import { AlertCircle, Info } from "lucide-react"
+import { useTranslation, getCurrencySymbol, type LocaleCode } from "@/lib/i18n"
 
 function formatNumberInput(val: string) {
   const digits = val.replace(/\D/g, "")
@@ -15,10 +15,232 @@ function parseNumberInput(val: string) {
   return Number(val.replace(/,/g, "")) || 0
 }
 
+const CALC_FALLBACK_I18N: Record<LocaleCode, Record<string, string>> = {
+  ar: {
+    title: "حاسبة الخروج والمكسب الفوري",
+    subtitle:
+      "احسب بدقة الفرق بين فسخ العقد مع المطور وبين التنازل المباشر عبر المنصة بدون أوفر",
+    ownerTab: "أنا مالك (عايز أبيع)",
+    buyerTab: "أنا مشتري (عايز أشتري)",
+    contractPriceLabel: "إجمالي سعر العقد الأصلي مع المطور",
+    contractPriceHint: "السعر الإجمالي المكتوب في عقد شراء الوحدة",
+    paidSoFarLabel: "إجمالي المبلغ المدفوع حتى الآن",
+    paidSoFarHint: "مجموع الدفعة المقدمة والأقساط المسددة للمطور",
+    yearsPaidLabel: "عدد السنوات المنقضية من العقد",
+    yearsPaidHint: "المدة التي دفعت فيها الأقساط حتى اليوم",
+    yearUnit: "سنة",
+    yearsWord: "سنوات",
+    calcOwnerBtn: "احسب موقفي الآن",
+    devPriceTodayLabel: "سعر نفس الوحدة عند المطور اليوم",
+    devPriceTodayHint: "سعر السوق أو المطور الحالي لنفس المساحة والمشروع",
+    oldContractPriceLabel: "إجمالي سعر العقد المعروض للتنازل",
+    oldContractPriceHint: "السعر الأصلي في عقد المالك الحالي",
+    calcBuyerBtn: "احسب مكسبي الفوري",
+    ownerEmptyPrompt:
+      "أدخل سعر العقد والمبلغ المدفوع على اليمين لمقارنة الفسخ مع التنازل المباشر",
+    buyerEmptyPrompt:
+      "أدخل سعر المطور اليوم وسعر العقد المعروض لحساب صافي مكسبك الفوري",
+    lossAlertTitle: "تنبيه مهم قبل فسخ العقد مع المطور",
+    lossAlertPrefix: "فسخ العقد المباشر قد يعرضك لخصم يصل إلى",
+    lossAlertMiddle: "بالإضافة للانتظار حوالي",
+    cancelScenarioTitle: "البديل الأول: فسخ العقد مع شركة التطوير",
+    expectedPenaltyLabel: "الخصم المتوقع من المطور (غرامة الفسخ)",
+    penaltyBasisHint: "تُحسب كنسبة من إجمالي سعر العقد الأصلي",
+    refundedAmountLabel: "الصافي الذي سيسترده المالك بعد الخصم",
+    expectedDurationLabel: "المدة المتوقعة لاسترداد المبلغ من المطور",
+    aroundWord: "حوالي",
+    sameDurationSuffix: "(أو حتى إعادة بيع الوحدة بمعرفة المطور)",
+    assignScenarioTitle: "البديل الثاني: التنازل المباشر عبر Aqar Exit",
+    recoveredViaAssignLabel: "المبلغ المسترد كاش في يدك عبر المنصة",
+    recoveredViaAssignHint: "تسترد كامل مدفوعاتك كاش بدون خصم غرامة الفسخ",
+    commissionLabel: "عمولة المنصة على البائع",
+    netDiffInFavorLabel: "صافي التوفير لصالحك مقارنة بفسخ العقد",
+    estimateBadge: "تقديري",
+    estimateNote: "الأرقام تقريبية وفق متوسط شروط عقود المطورين في جورجيا",
+    requestFreeReportBtn: "اعرض وحدتك للتنازل الآن مجاناً ←",
+    requestFreeReportSub: "عمولة 0% على البائع — مراجعة وتوثيق العقود مجاناً",
+    dayOneGainLabel: "صافي مكسبك الفوري من اليوم الأول",
+    dayOneGainSub: "بعد خصم عمولة المنصة على المشتري",
+    registerViewOppsBtn: "تصفح الفرص المتاحة بهذه الميزانية ←",
+    disclaimer:
+      "* هذه الحاسبة استرشادية وتعتمد على النسب المعتادة في عقود شركات التطوير العقاري في جورجيا.",
+    millionWord: "مليون",
+    thousandWord: "ألف",
+    paidExceedsContractError:
+      "المبلغ المدفوع لا يمكن أن يكون أكبر من إجمالي سعر العقد الأصلي.",
+  },
+  en: {
+    title: "Exit & Instant Gain Calculator",
+    subtitle:
+      "Compare cancelling your contract with the developer vs. direct exit takeover via Aqar Exit",
+    ownerTab: "I'm an Owner (Selling)",
+    buyerTab: "I'm a Buyer (Buying)",
+    contractPriceLabel: "Original Total Contract Price",
+    contractPriceHint: "Total unit price stated in your developer contract",
+    paidSoFarLabel: "Total Amount Paid So Far",
+    paidSoFarHint: "Down payment plus installments paid to the developer",
+    yearsPaidLabel: "Years Elapsed Since Contract",
+    yearsPaidHint: "How many years you have been paying installments",
+    yearUnit: "yr",
+    yearsWord: "years",
+    calcOwnerBtn: "Calculate My Position",
+    devPriceTodayLabel: "Developer Price Today for Same Unit",
+    devPriceTodayHint: "Current developer or market price for the same unit",
+    oldContractPriceLabel: "Original Contract Price Offered for Exit",
+    oldContractPriceHint: "Original contract total of the unit you are buying",
+    calcBuyerBtn: "Calculate Instant Gain",
+    ownerEmptyPrompt:
+      "Enter your contract price and paid amount to compare cancellation vs. direct exit",
+    buyerEmptyPrompt:
+      "Enter today's developer price and the exit contract price to calculate your net gain",
+    lossAlertTitle: "Important Notice Before Cancelling with Developer",
+    lossAlertPrefix: "Direct contract cancellation can cost you up to",
+    lossAlertMiddle: "plus a waiting period of around",
+    cancelScenarioTitle: "Option 1: Cancel Contract with Developer",
+    expectedPenaltyLabel: "Expected Developer Penalty",
+    penaltyBasisHint: "Calculated as a percentage of total contract price",
+    refundedAmountLabel: "Net Amount Refunded After Penalty",
+    expectedDurationLabel: "Expected Refund Waiting Time",
+    aroundWord: "Around",
+    sameDurationSuffix: "(or until developer resells the unit)",
+    assignScenarioTitle: "Option 2: Direct Exit via Aqar Exit",
+    recoveredViaAssignLabel: "Cash Recovered in Hand via Platform",
+    recoveredViaAssignHint: "Recover 100% of your paid cash without cancellation penalties",
+    commissionLabel: "Platform Fee for Seller",
+    netDiffInFavorLabel: "Net Savings in Your Favor vs. Cancellation",
+    estimateBadge: "Estimate",
+    estimateNote: "Figures are based on standard developer contract terms in Georgia",
+    requestFreeReportBtn: "List Your Unit for Exit Now (Free) →",
+    requestFreeReportSub: "0% seller commission — free contract verification",
+    dayOneGainLabel: "Your Net Instant Gain from Day One",
+    dayOneGainSub: "After deducting buyer platform commission",
+    registerViewOppsBtn: "Browse Opportunities with This Budget →",
+    disclaimer:
+      "* This calculator is indicative and based on standard real estate developer terms in Georgia.",
+    millionWord: "Million",
+    thousandWord: "K",
+    paidExceedsContractError:
+      "Paid amount cannot exceed the original total contract price.",
+  },
+  ru: {
+    title: "Калькулятор переуступки и выгоды",
+    subtitle:
+      "Сравните расторжение договора с застройщиком и прямую переуступку через Aqar Exit",
+    ownerTab: "Я собственник (Продать)",
+    buyerTab: "Я покупатель (Купить)",
+    contractPriceLabel: "Полная стоимость по договору с застройщиком",
+    contractPriceHint: "Общая стоимость объекта, указанная в вашем договоре",
+    paidSoFarLabel: "Выплаченная сумма на сегодняшний день",
+    paidSoFarHint: "Первоначальный взнос + выплаченные платежи по рассрочке",
+    yearsPaidLabel: "Сколько лет вы платите рассрочку",
+    yearsPaidHint: "Период с момента заключения договора",
+    yearUnit: "г.",
+    yearsWord: "лет",
+    calcOwnerBtn: "Рассчитать результат",
+    devPriceTodayLabel: "Цена такого объекта у застройщика сегодня",
+    devPriceTodayHint: "Текущая рыночная цена аналогичной квартиры в проекте",
+    oldContractPriceLabel: "Цена договора по переуступке",
+    oldContractPriceHint: "Исходная цена в договоре текущего собственника",
+    calcBuyerBtn: "Рассчитать мою выгоду",
+    ownerEmptyPrompt:
+      "Введите цену договора и выплаченную сумму для сравнения расторжения и переуступки",
+    buyerEmptyPrompt:
+      "Введите текущую цену застройщика и цену договора для расчета чистой выгоды",
+    lossAlertTitle: "Важно знать перед расторжением договора",
+    lossAlertPrefix: "При расторжении договора штраф застройщика составит до",
+    lossAlertMiddle: "а возврат средств займет около",
+    cancelScenarioTitle: "Вариант 1: Расторжение договора с застройщиком",
+    expectedPenaltyLabel: "Штраф застройщика при расторжении",
+    penaltyBasisHint: "Рассчитывается как процент от полной стоимости договора",
+    refundedAmountLabel: "Сумма к возврату после вычета штрафа",
+    expectedDurationLabel: "Ожидаемый срок возврата средств",
+    aroundWord: "Около",
+    sameDurationSuffix: "(или до перепродажи квартиры застройщиком)",
+    assignScenarioTitle: "Вариант 2: Прямая переуступка через Aqar Exit",
+    recoveredViaAssignLabel: "Сумма на руки через платформу",
+    recoveredViaAssignHint: "Вы возвращаете 100% выплаченных средств без штрафа застройщика",
+    commissionLabel: "Комиссия платформы для продавца",
+    netDiffInFavorLabel: "Чистая выгода в вашу пользу",
+    estimateBadge: "Расчет",
+    estimateNote: "Показатели основаны на стандартных договорах застройщиков Грузии",
+    requestFreeReportBtn: "Разместить объект на продажу бесплатно →",
+    requestFreeReportSub: "0% комиссия для продавца — бесплатная проверка договора",
+    dayOneGainLabel: "Ваша чистая выгода с первого дня",
+    dayOneGainSub: "После вычета комиссии платформы для покупателя",
+    registerViewOppsBtn: "Смотреть объекты в этом бюджете →",
+    disclaimer:
+      "* Расчет носит ознакомительный характер и основан на стандартных условиях застройщиков Грузии.",
+    millionWord: "млн",
+    thousandWord: "тыс.",
+    paidExceedsContractError:
+      "Выплаченная сумма не может превышать полную стоимость договора.",
+  },
+  ka: {
+    title: "გადაბარების და სარგებლის კალკულატორი",
+    subtitle:
+      "შეადარეთ ხელშეკრულების გაუქმება დეველოპერთან და პირდაპირი გადაბარება Aqar Exit-ით",
+    ownerTab: "მესაკუთრე ვარ (გაყიდვა)",
+    buyerTab: "მყიდველი ვარ (ყიდვა)",
+    contractPriceLabel: "ხელშეკრულების სრული საწყისი ფასი",
+    contractPriceHint: "ბინის სრული ღირებულება დეველოპერის კონტრაქტით",
+    paidSoFarLabel: "დღემდე გადახდილი თანხა",
+    paidSoFarHint: "პირველადი შენატანი და გადახდილი განვადება",
+    yearsPaidLabel: "რამდენი წელია იხდით განვადებას",
+    yearsPaidHint: "ხელშეკრულების გაფორმებიდან გასული პერიოდი",
+    yearUnit: "წ.",
+    yearsWord: "წელი",
+    calcOwnerBtn: "შედეგის გამოთვლა",
+    devPriceTodayLabel: "დეველოპერის მიმდინარე ფასი დღეს",
+    devPriceTodayHint: "ამავე ბინის დღევანდელი საბაზრო ფასი",
+    oldContractPriceLabel: "გადასაბარებელი კონტრაქტის ფასი",
+    oldContractPriceHint: "მესაკუთრის თავდაპირველი კონტრაქტის ფასი",
+    calcBuyerBtn: "სარგებლის გამოთვლა",
+    ownerEmptyPrompt:
+      "შეიყვანეთ კონტრაქტის ფასი და გადახდილი თანხა შედეგის სანახავად",
+    buyerEmptyPrompt:
+      "შეიყვანეთ დეველოპერის დღევანდელი ფასი და კონტრაქტის ფასი მოგების გამოსათვლელად",
+    lossAlertTitle: "მნიშვნელოვანი გაფრთხილება კონტრაქტის გაუქმებამდე",
+    lossAlertPrefix: "კონტრაქტის გაუქმებისას ჯარიმა შეადგენს",
+    lossAlertMiddle: "ხოლო თანხის დაბრუნებას დასჭირდება დაახლოებით",
+    cancelScenarioTitle: "ვარიანტი 1: კონტრაქტის გაუქმება დეველოპერთან",
+    expectedPenaltyLabel: "მოსალოდნელი ჯარიმა დეველოპერისგან",
+    penaltyBasisHint: "გამოითვლება კონტრაქტის სრული ღირებულებიდან",
+    refundedAmountLabel: "დასაბრუნებელი თანხა ჯარიმის გამოკლებით",
+    expectedDurationLabel: "თანხის დაბრუნების სავარაუდო ვადა",
+    aroundWord: "დაახლოებით",
+    sameDurationSuffix: "(ან ბინის ხელახლა გაყიდვამდე)",
+    assignScenarioTitle: "ვარიანტი 2: პირდაპირი გადაბარება Aqar Exit-ით",
+    recoveredViaAssignLabel: "ხელზე მისაღები თანხა პლატფორმით",
+    recoveredViaAssignHint: "იბრუნებთ გადახდილ თანხას სრულად ჯარიმის გარეშე",
+    commissionLabel: "პლატფორმის საკომისიო გამყიდველისთვის",
+    netDiffInFavorLabel: "სუფთა დანაზოგი თქვენს სასარგებლოდ",
+    estimateBadge: "სავარაუდო",
+    estimateNote: "მონაცემები ეფუძნება საქართველოს დეველოპერების სტანდარტულ პირობებს",
+    requestFreeReportBtn: "განათავსეთ ქონება უფასოდ →",
+    requestFreeReportSub: "0% საკომისიო გამყიდველისთვის — უფასო შემოწმება",
+    dayOneGainLabel: "თქვენი სუფთა მოგება პირველივე დღიდან",
+    dayOneGainSub: "მყიდველის საკომისიოს გამოკლების შემდეგ",
+    registerViewOppsBtn: "ნახეთ შეთავაზებები ამ ბიუჯეტით →",
+    disclaimer:
+      "* კალკულატორი საორიენტაციოა და ეფუძნება საქართველოს სამშენებლო კომპანიების პირობებს.",
+    millionWord: "მლნ",
+    thousandWord: "ათასი",
+    paidExceedsContractError:
+      "გადახდილი თანხა არ შეიძლება აღემატებოდეს კონტრაქტის სრულ ფასს.",
+  },
+}
+
 export default function CalculatorPage() {
   const { t: dict, locale, dir, siteSettings } = useTranslation()
-  const cur = getCurrencySymbol("GE", locale)
-  const t = (dict as Record<string, any>).calculatorPage
+  const activeLocale = (locale as LocaleCode) || "ar"
+  const cur = getCurrencySymbol("GE", activeLocale)
+
+  const baseT = CALC_FALLBACK_I18N[activeLocale] || CALC_FALLBACK_I18N.ar
+  const dictT = ((dict as Record<string, any>).calculatorPage || {}) as Record<
+    string,
+    string
+  >
+  const t = { ...baseT, ...dictT }
 
   // قراءة نسب الخصم والعمولة ديناميكياً من إعدادات الأدمن
   const rawMinPenaltyPct = Number(
@@ -70,6 +292,9 @@ export default function CalculatorPage() {
   const developerToday = parseNumberInput(developerTodayStr)
   const oldContract = parseNumberInput(oldContractStr)
 
+  const isPaidExceedingContract =
+    contractPrice > 0 && paidAmount > contractPrice
+
   const minPenalty = Math.round(contractPrice * (minPenaltyPct / 100))
   const maxPenalty = Math.round(contractPrice * (maxPenaltyPct / 100))
   const minRefund = Math.max(0, paidAmount - maxPenalty)
@@ -79,7 +304,8 @@ export default function CalculatorPage() {
   const buyerCommission = Math.round(oldContract * (commissionPct / 100))
   const netBuyerGain = Math.max(0, rawDiff - buyerCommission)
 
-  const canCalcSeller = contractPrice > 0 && paidAmount > 0
+  const canCalcSeller =
+    contractPrice > 0 && paidAmount > 0 && !isPaidExceedingContract
   const canCalcBuyer = developerToday > 0 && oldContract > 0
 
   return (
@@ -131,21 +357,22 @@ export default function CalculatorPage() {
                     {t.contractPriceLabel}{" "}
                     <span className="text-red-500">*</span>
                   </label>
-                  <div className="relative">
+                  <div dir="ltr" className="relative">
+                    <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-xs font-bold text-gray-400">
+                      {cur}
+                    </span>
                     <input
                       type="text"
                       inputMode="numeric"
                       dir="ltr"
+                      placeholder="100,000"
                       value={contractPriceStr}
                       onChange={(e) => {
                         setContractPriceStr(formatNumberInput(e.target.value))
                         setSellerCalculated(false)
                       }}
-                      className="h-12 w-full rounded-xl border border-gray-200 bg-white px-4 text-end text-sm font-bold text-[#0a1122] focus:border-[#0b6954] focus:outline-none"
+                      className="h-12 w-full rounded-xl border border-gray-200 bg-white pr-4 pl-9 text-right text-sm font-bold text-[#0a1122] focus:border-[#0b6954] focus:outline-none"
                     />
-                    <span className="pointer-events-none absolute top-1/2 start-3.5 -translate-y-1/2 text-xs font-bold text-gray-500">
-                      {cur}
-                    </span>
                   </div>
                   {getAmountHint(contractPrice) && (
                     <p className="mt-1.5 text-xs font-bold text-[#0b6954]">
@@ -161,23 +388,34 @@ export default function CalculatorPage() {
                   <label className="mb-2 block text-xs font-extrabold text-[#0a1122] sm:text-sm">
                     {t.paidSoFarLabel} <span className="text-red-500">*</span>
                   </label>
-                  <div className="relative">
+                  <div dir="ltr" className="relative">
+                    <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-xs font-bold text-gray-400">
+                      {cur}
+                    </span>
                     <input
                       type="text"
                       inputMode="numeric"
                       dir="ltr"
+                      placeholder="35,000"
                       value={paidAmountStr}
                       onChange={(e) => {
                         setPaidAmountStr(formatNumberInput(e.target.value))
                         setSellerCalculated(false)
                       }}
-                      className="h-12 w-full rounded-xl border border-gray-200 bg-white px-4 text-end text-sm font-bold text-[#0a1122] focus:border-[#0b6954] focus:outline-none"
+                      className={`h-12 w-full rounded-xl border bg-white pr-4 pl-9 text-right text-sm font-bold text-[#0a1122] focus:outline-none ${
+                        isPaidExceedingContract
+                          ? "border-red-500 bg-red-50/20"
+                          : "border-gray-200 focus:border-[#0b6954]"
+                      }`}
                     />
-                    <span className="pointer-events-none absolute top-1/2 start-3.5 -translate-y-1/2 text-xs font-bold text-gray-500">
-                      {cur}
-                    </span>
                   </div>
-                  {getAmountHint(paidAmount) && (
+                  {isPaidExceedingContract && (
+                    <p className="mt-1.5 flex items-center gap-1 text-xs font-bold text-red-600">
+                      <AlertCircle className="size-3.5 shrink-0" />
+                      <span>{t.paidExceedsContractError}</span>
+                    </p>
+                  )}
+                  {!isPaidExceedingContract && getAmountHint(paidAmount) && (
                     <p className="mt-1.5 text-xs font-bold text-[#0b6954]">
                       {getAmountHint(paidAmount)}
                     </p>
@@ -191,22 +429,23 @@ export default function CalculatorPage() {
                   <label className="mb-2 block text-xs font-extrabold text-[#0a1122] sm:text-sm">
                     {t.yearsPaidLabel} <span className="text-red-500">*</span>
                   </label>
-                  <div className="relative">
+                  <div dir="ltr" className="relative">
+                    <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-xs font-bold text-gray-400">
+                      {t.yearUnit}
+                    </span>
                     <input
                       type="number"
                       min={1}
                       max={15}
                       dir="ltr"
+                      placeholder="2"
                       value={yearsPaidStr}
                       onChange={(e) => {
                         setYearsPaidStr(e.target.value)
                         setSellerCalculated(false)
                       }}
-                      className="h-12 w-full rounded-xl border border-gray-200 bg-white px-4 text-end text-sm font-bold text-[#0a1122] focus:border-[#0b6954] focus:outline-none"
+                      className="h-12 w-full rounded-xl border border-gray-200 bg-white pr-4 pl-12 text-right text-sm font-bold text-[#0a1122] focus:border-[#0b6954] focus:outline-none"
                     />
-                    <span className="pointer-events-none absolute top-1/2 start-3.5 -translate-y-1/2 text-xs font-bold text-gray-500">
-                      {t.yearUnit}
-                    </span>
                   </div>
                   <p className="mt-1 text-[11px] text-gray-400">
                     {t.yearsPaidHint}
@@ -233,21 +472,22 @@ export default function CalculatorPage() {
                     {t.devPriceTodayLabel}{" "}
                     <span className="text-red-500">*</span>
                   </label>
-                  <div className="relative">
+                  <div dir="ltr" className="relative">
+                    <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-xs font-bold text-gray-400">
+                      {cur}
+                    </span>
                     <input
                       type="text"
                       inputMode="numeric"
                       dir="ltr"
+                      placeholder="125,000"
                       value={developerTodayStr}
                       onChange={(e) => {
                         setDeveloperTodayStr(formatNumberInput(e.target.value))
                         setBuyerCalculated(false)
                       }}
-                      className="h-12 w-full rounded-xl border border-gray-200 bg-white px-4 text-end text-sm font-bold text-[#0a1122] focus:border-[#0b6954] focus:outline-none"
+                      className="h-12 w-full rounded-xl border border-gray-200 bg-white pr-4 pl-9 text-right text-sm font-bold text-[#0a1122] focus:border-[#0b6954] focus:outline-none"
                     />
-                    <span className="pointer-events-none absolute top-1/2 start-3.5 -translate-y-1/2 text-xs font-bold text-gray-500">
-                      {cur}
-                    </span>
                   </div>
                   {getAmountHint(developerToday) && (
                     <p className="mt-1.5 text-xs font-bold text-[#0b6954]">
@@ -264,21 +504,22 @@ export default function CalculatorPage() {
                     {t.oldContractPriceLabel}{" "}
                     <span className="text-red-500">*</span>
                   </label>
-                  <div className="relative">
+                  <div dir="ltr" className="relative">
+                    <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-xs font-bold text-gray-400">
+                      {cur}
+                    </span>
                     <input
                       type="text"
                       inputMode="numeric"
                       dir="ltr"
+                      placeholder="95,000"
                       value={oldContractStr}
                       onChange={(e) => {
                         setOldContractStr(formatNumberInput(e.target.value))
                         setBuyerCalculated(false)
                       }}
-                      className="h-12 w-full rounded-xl border border-gray-200 bg-white px-4 text-end text-sm font-bold text-[#0a1122] focus:border-[#0b6954] focus:outline-none"
+                      className="h-12 w-full rounded-xl border border-gray-200 bg-white pr-4 pl-9 text-right text-sm font-bold text-[#0a1122] focus:border-[#0b6954] focus:outline-none"
                     />
-                    <span className="pointer-events-none absolute top-1/2 start-3.5 -translate-y-1/2 text-xs font-bold text-gray-500">
-                      {cur}
-                    </span>
                   </div>
                   {getAmountHint(oldContract) && (
                     <p className="mt-1.5 text-xs font-bold text-[#0b6954]">
@@ -483,7 +724,7 @@ export default function CalculatorPage() {
 
                   <div className="rounded-[20px] bg-[#0a1122] p-6 text-center text-white shadow-lg">
                     <Link
-                      href={`/exit?contract=${contractPrice}&paid=${paidAmount}`}
+                      href={`/sell?contract=${contractPrice}&paid=${paidAmount}`}
                       className="inline-flex h-12 w-full items-center justify-center rounded-xl bg-[#0b6954] px-6 text-sm font-extrabold text-white transition hover:bg-[#095342]"
                     >
                       {t.requestFreeReportBtn}

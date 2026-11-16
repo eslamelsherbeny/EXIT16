@@ -5,6 +5,7 @@ import { Cairo } from 'next/font/google'
 import './globals.css'
 import { Toaster } from '@/components/ui/sonner'
 import { FacebookPixel } from '@/components/shared/facebook-pixel'
+import { FloatingWhatsApp } from '@/components/shared/floating-whatsapp'
 import { LanguageProvider } from '@/lib/i18n'
 import { getServerI18n } from '@/lib/get-server-dictionary'
 
@@ -97,6 +98,7 @@ export default async function RootLayout({
           initialIsStaff={isStaff}
         >
           {children}
+          <FloatingWhatsApp />
           <Suspense fallback={null}>
             <FacebookPixel />
           </Suspense>

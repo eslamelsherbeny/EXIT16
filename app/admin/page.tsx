@@ -429,7 +429,6 @@ export default async function AdminPage() {
     return "active"
   }
 
-  /* 1. الصفقات المتفق عليها الجاهزة للتعاقد */
   const readyDeals = allOffers
     .filter((o: any) => o.status === "accepted")
     .map((offer: any) => ({
@@ -438,7 +437,6 @@ export default async function AdminPage() {
     }))
     .filter((item) => Boolean(item.unit) && item.unit.status !== "sold")
 
-  /* 2. عروض الشراء الجديدة فقط التي تنتظر موافقة الأدمن لإرسالها للبائع */
   const newPendingAdminOffers = allOffers
     .filter(
       (o: any) =>
@@ -541,23 +539,28 @@ export default async function AdminPage() {
 
   return (
     <div dir={dir} className="mx-auto max-w-7xl space-y-5 text-start">
-      {/* صف الإحصائيات السريعة (5 كروت بأرقام في المنتصف تماماً) */}
-      <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3 xl:grid-cols-5">
+      {/* 1. صف الإحصائيات السريعة */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
         {kpis.map(
-          ({ label, value, note, icon: Icon, href, iconWrap, noteClass }) => (
+          (
+            { label, value, note, icon: Icon, href, iconWrap, noteClass },
+            idx
+          ) => (
             <Link
               key={href}
               href={href}
-              className="group block h-full transition-transform duration-150 hover:-translate-y-0.5"
+              className={`group block h-full transition-transform duration-150 hover:-translate-y-0.5 ${
+                idx === 4 ? "col-span-2 sm:col-span-1" : ""
+              }`}
             >
               <Card className="h-full rounded-2xl border border-slate-200/90 bg-white shadow-2xs transition-all hover:border-[#007a5a]/40 hover:shadow-sm">
-                <CardContent className="flex h-full flex-col justify-between p-4">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="line-clamp-1 text-xs font-extrabold text-slate-600 group-hover:text-[#0f1d40]">
+                <CardContent className="flex h-full flex-col justify-between p-3.5 sm:p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-xs leading-snug font-extrabold text-slate-700 group-hover:text-[#0f1d40]">
                       {label}
                     </p>
                     <span
-                      className={`flex size-9 shrink-0 items-center justify-center rounded-xl ${iconWrap}`}
+                      className={`flex size-8 shrink-0 items-center justify-center rounded-xl sm:size-9 ${iconWrap}`}
                     >
                       <Icon className="size-4 shrink-0" />
                     </span>
@@ -565,14 +568,14 @@ export default async function AdminPage() {
 
                   <div
                     dir="ltr"
-                    className="my-3 text-center text-3xl font-black tracking-tight text-[#0f1d40] tabular-nums"
+                    className="my-2.5 text-center text-2xl font-black tracking-tight text-[#0f1d40] tabular-nums sm:my-3 sm:text-3xl"
                   >
                     {value}
                   </div>
 
-                  <div className="flex items-center justify-between border-t border-slate-100 pt-2.5">
+                  <div className="flex items-center justify-between gap-1.5 border-t border-slate-100 pt-2">
                     <span
-                      className={`line-clamp-1 text-[11px] font-bold ${noteClass}`}
+                      className={`text-[11px] leading-tight font-bold ${noteClass}`}
                     >
                       {note}
                     </span>
@@ -585,7 +588,7 @@ export default async function AdminPage() {
         )}
       </div>
 
-      {/* السيكشن الأول (قابل للطي والفتح، ويفتح تلقائياً عند وجود صفقات جاهزة) */}
+      {/* 2. السيكشن الأول: صفقات متفق عليها جاهزة للتعاقد */}
       <details
         open={readyDeals.length > 0}
         className={`group overflow-hidden rounded-2xl bg-white shadow-2xs transition-all ${
@@ -595,21 +598,21 @@ export default async function AdminPage() {
         }`}
       >
         <summary
-          className={`flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 px-5 py-3.5 transition select-none [&::-webkit-details-marker]:hidden ${
+          className={`flex cursor-pointer list-none flex-col gap-3 p-4 transition select-none sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-3.5 [&::-webkit-details-marker]:hidden ${
             readyDeals.length > 0
               ? "bg-[#eaf8f2]/65 group-open:border-b group-open:border-emerald-100"
               : "bg-white hover:bg-slate-50/70 group-open:border-b group-open:border-slate-100"
           }`}
         >
-          <div className="flex items-center gap-3">
+          <div className="flex items-start gap-3">
             <span
-              className={`flex size-9 shrink-0 items-center justify-center rounded-xl text-white shadow-2xs ${
+              className={`mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl text-white shadow-2xs ${
                 readyDeals.length > 0 ? "bg-[#007a5a]" : "bg-slate-400"
               }`}
             >
               <Handshake className="size-4" />
             </span>
-            <div>
+            <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm font-black text-[#0f1d40] sm:text-base">
                   {L.sec1Title}
@@ -630,14 +633,14 @@ export default async function AdminPage() {
                 )}
               </div>
               {readyDeals.length > 0 && (
-                <p className="mt-0.5 text-[11.5px] font-semibold text-[#007a5a]">
+                <p className="mt-1 text-[11.5px] leading-relaxed font-semibold text-[#007a5a]">
                   {L.sec1Sub}
                 </p>
               )}
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-end gap-2 self-end sm:self-center">
             <Link
               href="/admin/deals?tab=accepted"
               className={`inline-flex h-8.5 items-center gap-1.5 rounded-xl px-3.5 text-xs font-extrabold transition ${
@@ -649,7 +652,7 @@ export default async function AdminPage() {
               <span>{L.sec1Btn}</span>
               <ArrowLeft className="size-3.5 rtl:rotate-0 ltr:rotate-180" />
             </Link>
-            <span className="flex size-8.5 items-center justify-center rounded-xl border border-slate-200/80 bg-white text-slate-500 transition group-hover:text-[#0f1d40]">
+            <span className="flex size-8.5 shrink-0 items-center justify-center rounded-xl border border-slate-200/80 bg-white text-slate-500 transition group-hover:text-[#0f1d40]">
               <ChevronDown className="size-4 transition-transform duration-200 group-open:rotate-180" />
             </span>
           </div>
@@ -662,146 +665,264 @@ export default async function AdminPage() {
               <span>{L.sec1Empty}</span>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-start text-xs">
-                <thead>
-                  <tr className="border-b border-slate-100 bg-slate-50/80 text-[11px] font-extrabold text-slate-500">
-                    <th className="px-5 py-3 text-start">{L.colUnit}</th>
-                    <th className="px-3 py-3 text-start">{L.colSeller}</th>
-                    <th className="px-3 py-3 text-start">{L.colBuyer}</th>
-                    <th className="px-3 py-3 text-start">{L.colAgreedCash}</th>
-                    <th className="px-3 py-3 text-start">
-                      {L.colCommission} ({commPct}%)
-                    </th>
-                    <th className="px-5 py-3 text-end">{L.colAction}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {readyDeals.map(({ offer, unit }) => {
-                    const uCode = deriveUnitCode(unit.id, unit.code)
-                    const cur = georgiaCurrency
-                    const agreedCash = Number(offer.offered_cash) || 0
-                    const commissionBase =
-                      Number(unit.contract_price) || agreedCash || 0
-                    const platformCommission = Math.round(
-                      commissionBase * (commPct / 100)
-                    )
-                    const localizedArea = cleanAreaDisplay(unit.area, locale)
+            <>
+              <div className="divide-y divide-slate-100 md:hidden">
+                {readyDeals.map(({ offer, unit }) => {
+                  const uCode = deriveUnitCode(unit.id, unit.code)
+                  const cur = georgiaCurrency
+                  const agreedCash = Number(offer.offered_cash) || 0
+                  const commissionBase =
+                    Number(unit.contract_price) || agreedCash || 0
+                  const platformCommission = Math.round(
+                    commissionBase * (commPct / 100)
+                  )
+                  const localizedArea = cleanAreaDisplay(unit.area, locale)
 
-                    const sellerWa = `${leadsDict.waGeneralPrefix || ""} ${unit.name}${listSep}(${unit.project_name || t.defaultUnit || ""} - ${uCode}) — ${sm.agreedCashLabel || ""}: ${agreedCash.toLocaleString("en-US")} ${cur}`
-                    const buyerWa = `${leadsDict.waUnitLeadPrefix || ""} ${offer.buyer_name || ""}${listSep}(${unit.project_name || t.defaultUnit || ""} - ${uCode}) — ${sm.agreedCashLabel || ""}: ${agreedCash.toLocaleString("en-US")} ${cur}`
+                  const sellerWa = `${leadsDict.waGeneralPrefix || ""} ${unit.name}${listSep}(${unit.project_name || t.defaultUnit || ""} - ${uCode}) — ${sm.agreedCashLabel || ""}: ${agreedCash.toLocaleString("en-US")} ${cur}`
+                  const buyerWa = `${leadsDict.waUnitLeadPrefix || ""} ${offer.buyer_name || ""}${listSep}(${unit.project_name || t.defaultUnit || ""} - ${uCode}) — ${sm.agreedCashLabel || ""}: ${agreedCash.toLocaleString("en-US")} ${cur}`
 
-                    return (
-                      <tr
-                        key={offer.id}
-                        className="transition hover:bg-[#eaf8f2]/25"
-                      >
-                        <td className="px-5 py-3.5">
-                          <div className="flex items-center gap-2">
+                  return (
+                    <div key={offer.id} className="space-y-3 p-4">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-1.5">
                             <span className="rounded-md bg-[#eaf8f2] px-2 py-0.5 font-mono text-[10.5px] font-black text-[#007a5a]">
                               {uCode}
                             </span>
-                            <span className="font-extrabold text-[#0f1d40]">
+                            <span className="text-xs font-extrabold text-[#0f1d40]">
                               {unit.project_name || t.defaultUnit}
                             </span>
                           </div>
                           <p className="mt-0.5 text-[11px] font-medium text-slate-400">
                             {localizedArea}
                           </p>
-                        </td>
+                        </div>
 
-                        <td className="px-3 py-3.5">
-                          <div className="flex items-center gap-2.5">
-                            <a
-                              data-admin-client-wa="true"
-                              href={`https://wa.me/${String(unit.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(sellerWa)}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              title={sm.contactSellerWa}
-                              className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#25D366] text-white shadow-2xs transition hover:bg-[#1ebe5d]"
-                            >
-                              <WhatsAppOfficialIcon className="size-4" />
-                            </a>
-                            <div className="min-w-0">
-                              <p className="truncate font-extrabold text-[#0f1d40]">
-                                {unit.name || "—"}
-                              </p>
-                              <p
-                                dir="ltr"
-                                className="text-start font-mono text-[11px] text-slate-400"
-                              >
-                                {unit.phone || "—"}
-                              </p>
-                            </div>
-                          </div>
-                        </td>
-
-                        <td className="px-3 py-3.5">
-                          <div className="flex items-center gap-2.5">
-                            <a
-                              data-admin-client-wa="true"
-                              href={`https://wa.me/${String(offer.buyer_phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(buyerWa)}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              title={sm.contactBuyerWa}
-                              className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#25D366] text-white shadow-2xs transition hover:bg-[#1ebe5d]"
-                            >
-                              <WhatsAppOfficialIcon className="size-4" />
-                            </a>
-                            <div className="min-w-0">
-                              <p className="truncate font-extrabold text-[#0f1d40]">
-                                {offer.buyer_name || "—"}
-                              </p>
-                              <p
-                                dir="ltr"
-                                className="text-start font-mono text-[11px] text-slate-400"
-                              >
-                                {offer.buyer_phone || "—"}
-                              </p>
-                            </div>
-                          </div>
-                        </td>
-
-                        <td className="px-3 py-3.5">
+                        <div className="shrink-0 text-end">
                           <strong
                             dir="ltr"
-                            className="text-sm font-black text-[#007a5a] tabular-nums"
+                            className="block text-sm font-black text-[#007a5a] tabular-nums"
                           >
                             {cur}
                             {agreedCash.toLocaleString("en-US")}
                           </strong>
-                        </td>
+                          <span className="text-[10px] font-bold text-slate-400">
+                            {L.colCommission}:{" "}
+                            <strong dir="ltr" className="text-[#0f1d40]">
+                              {cur}
+                              {platformCommission.toLocaleString("en-US")}
+                            </strong>
+                          </span>
+                        </div>
+                      </div>
 
-                        <td className="px-3 py-3.5">
-                          <strong
-                            dir="ltr"
-                            className="rounded-md bg-[#eaf8f2] px-2.5 py-1 text-xs font-black text-[#007a5a] tabular-nums"
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        <div className="flex items-center justify-between gap-2 rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2">
+                          <div className="min-w-0">
+                            <span className="block text-[10px] font-bold text-slate-400">
+                              {L.colSeller}
+                            </span>
+                            <p className="truncate text-xs font-extrabold text-[#0f1d40]">
+                              {unit.name || "—"}
+                            </p>
+                            <p
+                              dir="ltr"
+                              className="text-start font-mono text-[11px] text-slate-500"
+                            >
+                              {unit.phone || "—"}
+                            </p>
+                          </div>
+                          <a
+                            data-admin-client-wa="true"
+                            href={`https://wa.me/${String(unit.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(sellerWa)}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex size-8.5 shrink-0 items-center justify-center rounded-xl bg-[#25D366] text-white shadow-2xs"
                           >
-                            {cur}
-                            {platformCommission.toLocaleString("en-US")}
-                          </strong>
-                        </td>
+                            <WhatsAppOfficialIcon className="size-4" />
+                          </a>
+                        </div>
 
-                        <td className="px-5 py-3.5 text-end">
-                          <Link
-                            href={`/admin/deals?offerId=${offer.id}`}
-                            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#007a5a] px-3.5 text-[11px] font-extrabold text-white transition hover:bg-[#006248]"
+                        <div className="flex items-center justify-between gap-2 rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2">
+                          <div className="min-w-0">
+                            <span className="block text-[10px] font-bold text-slate-400">
+                              {L.colBuyer}
+                            </span>
+                            <p className="truncate text-xs font-extrabold text-[#0f1d40]">
+                              {offer.buyer_name || "—"}
+                            </p>
+                            <p
+                              dir="ltr"
+                              className="text-start font-mono text-[11px] text-slate-500"
+                            >
+                              {offer.buyer_phone || "—"}
+                            </p>
+                          </div>
+                          <a
+                            data-admin-client-wa="true"
+                            href={`https://wa.me/${String(offer.buyer_phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(buyerWa)}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex size-8.5 shrink-0 items-center justify-center rounded-xl bg-[#25D366] text-white shadow-2xs"
                           >
-                            <span>{L.btnCloseDeal}</span>
-                            <ArrowLeft className="size-3 rtl:rotate-0 ltr:rotate-180" />
-                          </Link>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
+                            <WhatsAppOfficialIcon className="size-4" />
+                          </a>
+                        </div>
+                      </div>
+
+                      <Link
+                        href={`/admin/deals?offerId=${offer.id}`}
+                        className="flex h-9 w-full items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] text-xs font-extrabold text-white transition hover:bg-[#006248]"
+                      >
+                        <span>{L.btnCloseDeal}</span>
+                        <ArrowLeft className="size-3.5 rtl:rotate-0 ltr:rotate-180" />
+                      </Link>
+                    </div>
+                  )
+                })}
+              </div>
+
+              <div className="hidden overflow-x-auto md:block">
+                <table className="w-full text-start text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-100 bg-slate-50/80 text-[11px] font-extrabold text-slate-500">
+                      <th className="px-5 py-3 text-start">{L.colUnit}</th>
+                      <th className="px-3 py-3 text-start">{L.colSeller}</th>
+                      <th className="px-3 py-3 text-start">{L.colBuyer}</th>
+                      <th className="px-3 py-3 text-start">{L.colAgreedCash}</th>
+                      <th className="px-3 py-3 text-start">
+                        {L.colCommission} ({commPct}%)
+                      </th>
+                      <th className="px-5 py-3 text-end">{L.colAction}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {readyDeals.map(({ offer, unit }) => {
+                      const uCode = deriveUnitCode(unit.id, unit.code)
+                      const cur = georgiaCurrency
+                      const agreedCash = Number(offer.offered_cash) || 0
+                      const commissionBase =
+                        Number(unit.contract_price) || agreedCash || 0
+                      const platformCommission = Math.round(
+                        commissionBase * (commPct / 100)
+                      )
+                      const localizedArea = cleanAreaDisplay(unit.area, locale)
+
+                      const sellerWa = `${leadsDict.waGeneralPrefix || ""} ${unit.name}${listSep}(${unit.project_name || t.defaultUnit || ""} - ${uCode}) — ${sm.agreedCashLabel || ""}: ${agreedCash.toLocaleString("en-US")} ${cur}`
+                      const buyerWa = `${leadsDict.waUnitLeadPrefix || ""} ${offer.buyer_name || ""}${listSep}(${unit.project_name || t.defaultUnit || ""} - ${uCode}) — ${sm.agreedCashLabel || ""}: ${agreedCash.toLocaleString("en-US")} ${cur}`
+
+                      return (
+                        <tr
+                          key={offer.id}
+                          className="transition hover:bg-[#eaf8f2]/25"
+                        >
+                          <td className="px-5 py-3.5">
+                            <div className="flex items-center gap-2">
+                              <span className="rounded-md bg-[#eaf8f2] px-2 py-0.5 font-mono text-[10.5px] font-black text-[#007a5a]">
+                                {uCode}
+                              </span>
+                              <span className="font-extrabold text-[#0f1d40]">
+                                {unit.project_name || t.defaultUnit}
+                              </span>
+                            </div>
+                            <p className="mt-0.5 text-[11px] font-medium text-slate-400">
+                              {localizedArea}
+                            </p>
+                          </td>
+
+                          <td className="px-3 py-3.5">
+                            <div className="flex items-center gap-2.5">
+                              <a
+                                data-admin-client-wa="true"
+                                href={`https://wa.me/${String(unit.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(sellerWa)}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                title={sm.contactSellerWa}
+                                className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#25D366] text-white shadow-2xs transition hover:bg-[#1ebe5d]"
+                              >
+                                <WhatsAppOfficialIcon className="size-4" />
+                              </a>
+                              <div className="min-w-0">
+                                <p className="truncate font-extrabold text-[#0f1d40]">
+                                  {unit.name || "—"}
+                                </p>
+                                <p
+                                  dir="ltr"
+                                  className="text-start font-mono text-[11px] text-slate-400"
+                                >
+                                  {unit.phone || "—"}
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+
+                          <td className="px-3 py-3.5">
+                            <div className="flex items-center gap-2.5">
+                              <a
+                                data-admin-client-wa="true"
+                                href={`https://wa.me/${String(offer.buyer_phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(buyerWa)}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                title={sm.contactBuyerWa}
+                                className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#25D366] text-white shadow-2xs transition hover:bg-[#1ebe5d]"
+                              >
+                                <WhatsAppOfficialIcon className="size-4" />
+                              </a>
+                              <div className="min-w-0">
+                                <p className="truncate font-extrabold text-[#0f1d40]">
+                                  {offer.buyer_name || "—"}
+                                </p>
+                                <p
+                                  dir="ltr"
+                                  className="text-start font-mono text-[11px] text-slate-400"
+                                >
+                                  {offer.buyer_phone || "—"}
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+
+                          <td className="px-3 py-3.5">
+                            <strong
+                              dir="ltr"
+                              className="text-sm font-black text-[#007a5a] tabular-nums"
+                            >
+                              {cur}
+                              {agreedCash.toLocaleString("en-US")}
+                            </strong>
+                          </td>
+
+                          <td className="px-3 py-3.5">
+                            <strong
+                              dir="ltr"
+                              className="rounded-md bg-[#eaf8f2] px-2.5 py-1 text-xs font-black text-[#007a5a] tabular-nums"
+                            >
+                              {cur}
+                              {platformCommission.toLocaleString("en-US")}
+                            </strong>
+                          </td>
+
+                          <td className="px-5 py-3.5 text-end">
+                            <Link
+                              href={`/admin/deals?offerId=${offer.id}`}
+                              className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#007a5a] px-3.5 text-[11px] font-extrabold text-white transition hover:bg-[#006248]"
+                            >
+                              <span>{L.btnCloseDeal}</span>
+                              <ArrowLeft className="size-3 rtl:rotate-0 ltr:rotate-180" />
+                            </Link>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
       </details>
 
-      {/* السيكشن الثاني (يطوى تلقائياً في سطر واحد نظيف عندما يكون العدد 0، ويفتح تلقائياً عند وصول عرض جديد) */}
+      {/* 3. السيكشن الثاني: عروض شراء جديدة بانتظار موافقتك */}
       <details
         open={pendingAdminOffersCount > 0}
         className={`group overflow-hidden rounded-2xl bg-white shadow-2xs transition-all ${
@@ -811,21 +932,21 @@ export default async function AdminPage() {
         }`}
       >
         <summary
-          className={`flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 px-5 py-3.5 transition select-none [&::-webkit-details-marker]:hidden ${
+          className={`flex cursor-pointer list-none flex-col gap-3 p-4 transition select-none sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-3.5 [&::-webkit-details-marker]:hidden ${
             pendingAdminOffersCount > 0
               ? "bg-amber-50/60 group-open:border-b group-open:border-amber-100"
               : "bg-white hover:bg-slate-50/70 group-open:border-b group-open:border-slate-100"
           }`}
         >
-          <div className="flex items-center gap-3">
+          <div className="flex items-start gap-3">
             <span
-              className={`flex size-9 shrink-0 items-center justify-center rounded-xl text-white shadow-2xs ${
+              className={`mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl text-white shadow-2xs ${
                 pendingAdminOffersCount > 0 ? "bg-amber-500" : "bg-slate-400"
               }`}
             >
               <BellRing className="size-4" />
             </span>
-            <div>
+            <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm font-black text-[#0f1d40] sm:text-base">
                   {L.sec2Title}
@@ -848,14 +969,14 @@ export default async function AdminPage() {
                 )}
               </div>
               {pendingAdminOffersCount > 0 && (
-                <p className="mt-0.5 text-[11.5px] font-semibold text-amber-900">
+                <p className="mt-1 text-[11.5px] leading-relaxed font-semibold text-amber-900">
                   {L.sec2Sub}
                 </p>
               )}
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-end gap-2 self-end sm:self-center">
             <Link
               href="/admin/deals"
               className="inline-flex h-8.5 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-extrabold text-[#0f1d40] transition hover:border-[#007a5a] hover:text-[#007a5a]"
@@ -863,7 +984,7 @@ export default async function AdminPage() {
               <span>{L.sec2Btn}</span>
               <ArrowLeft className="size-3.5 rtl:rotate-0 ltr:rotate-180" />
             </Link>
-            <span className="flex size-8.5 items-center justify-center rounded-xl border border-slate-200/80 bg-white text-slate-500 transition group-hover:text-[#0f1d40]">
+            <span className="flex size-8.5 shrink-0 items-center justify-center rounded-xl border border-slate-200/80 bg-white text-slate-500 transition group-hover:text-[#0f1d40]">
               <ChevronDown className="size-4 transition-transform duration-200 group-open:rotate-180" />
             </span>
           </div>
@@ -876,177 +997,315 @@ export default async function AdminPage() {
               <span>{L.sec2Empty}</span>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-start text-xs">
-                <thead>
-                  <tr className="border-b border-slate-100 bg-slate-50/70 text-[11px] font-extrabold text-slate-500">
-                    <th className="px-5 py-3 text-start">{L.colUnit}</th>
-                    <th className="px-3 py-3 text-start">{L.colBuyer}</th>
-                    <th className="px-3 py-3 text-start">{L.colSeller}</th>
-                    <th className="px-3 py-3 text-start">{L.colOfferedCash}</th>
-                    <th className="px-3 py-3 text-start">{L.colReadiness}</th>
-                    <th className="px-5 py-3 text-end">{L.colAction}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {newPendingAdminOffers.slice(0, 6).map(({ offer, unit }) => {
-                    const uCode = deriveUnitCode(unit.id, unit.code)
-                    const cur = georgiaCurrency
-                    const offeredCash = Number(offer.offered_cash) || 0
-                    const originalCash =
-                      Number(unit.paid_amount || offer.required_cash) || 0
-                    const localizedArea = cleanAreaDisplay(unit.area, locale)
+            <>
+              <div className="divide-y divide-slate-100 md:hidden">
+                {newPendingAdminOffers.slice(0, 6).map(({ offer, unit }) => {
+                  const uCode = deriveUnitCode(unit.id, unit.code)
+                  const cur = georgiaCurrency
+                  const offeredCash = Number(offer.offered_cash) || 0
+                  const originalCash =
+                    Number(unit.paid_amount || offer.required_cash) || 0
+                  const localizedArea = cleanAreaDisplay(unit.area, locale)
 
-                    const readinessText =
-                      offer.payment_readiness === "48h"
-                        ? L.readiness48h
-                        : offer.payment_readiness === "1_week"
-                          ? L.readiness1Week
-                          : L.readiness2Weeks
-                    const methodText =
-                      offer.payment_method === "bank_check"
-                        ? L.methodCheck
-                        : L.methodTransfer
+                  const readinessText =
+                    offer.payment_readiness === "48h"
+                      ? L.readiness48h
+                      : offer.payment_readiness === "1_week"
+                        ? L.readiness1Week
+                        : L.readiness2Weeks
+                  const methodText =
+                    offer.payment_method === "bank_check"
+                      ? L.methodCheck
+                      : L.methodTransfer
 
-                    const buyerWa = `${leadsDict.waUnitLeadPrefix || ""} ${offer.buyer_name || ""}${listSep}(${unit.project_name || t.defaultUnit || ""} - ${uCode}) — ${sm.agreedCashLabel || ""}: ${offeredCash.toLocaleString("en-US")} ${cur}`
-                    const sellerWa = `${leadsDict.waGeneralPrefix || ""} ${unit.name}${listSep}(${unit.project_name || t.defaultUnit || ""} - ${uCode}) — ${sm.agreedCashLabel || ""}: ${offeredCash.toLocaleString("en-US")} ${cur}`
+                  const buyerWa = `${leadsDict.waUnitLeadPrefix || ""} ${offer.buyer_name || ""}${listSep}(${unit.project_name || t.defaultUnit || ""} - ${uCode}) — ${sm.agreedCashLabel || ""}: ${offeredCash.toLocaleString("en-US")} ${cur}`
+                  const sellerWa = `${leadsDict.waGeneralPrefix || ""} ${unit.name}${listSep}(${unit.project_name || t.defaultUnit || ""} - ${uCode}) — ${sm.agreedCashLabel || ""}: ${offeredCash.toLocaleString("en-US")} ${cur}`
 
-                    return (
-                      <tr
-                        key={offer.id}
-                        className="bg-amber-50/20 transition hover:bg-amber-50/50"
-                      >
-                        <td className="px-5 py-3.5">
-                          <Link
-                            href={`/admin/deals?offerId=${offer.id}`}
-                            className="block"
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[10px] font-black text-[#0f1d40]">
-                                {uCode}
-                              </span>
-                              <span className="font-extrabold text-[#0f1d40] hover:text-[#007a5a]">
-                                {unit.project_name || t.defaultUnit}
-                              </span>
-                            </div>
-                            <p className="mt-0.5 text-[11px] font-medium text-slate-400">
-                              {localizedArea}
-                            </p>
-                          </Link>
-                        </td>
-
-                        <td className="px-3 py-3.5">
-                          <div className="flex items-center gap-2.5">
-                            <a
-                              data-admin-client-wa="true"
-                              href={`https://wa.me/${String(offer.buyer_phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(buyerWa)}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              title={sm.contactBuyerWa}
-                              className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#25D366] text-white shadow-2xs transition hover:bg-[#1ebe5d]"
-                            >
-                              <WhatsAppOfficialIcon className="size-4" />
-                            </a>
-                            <div className="min-w-0">
-                              <p className="truncate font-extrabold text-[#0f1d40]">
-                                {offer.buyer_name || "—"}
-                              </p>
-                              <p
-                                dir="ltr"
-                                className="text-start font-mono text-[11px] text-slate-400"
-                              >
-                                {offer.buyer_phone || "—"}
-                              </p>
-                            </div>
+                  return (
+                    <div
+                      key={offer.id}
+                      className="space-y-3 bg-amber-50/20 p-4"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[10px] font-black text-[#0f1d40]">
+                              {uCode}
+                            </span>
+                            <span className="text-xs font-extrabold text-[#0f1d40]">
+                              {unit.project_name || t.defaultUnit}
+                            </span>
                           </div>
-                        </td>
+                          <p className="mt-0.5 text-[11px] font-medium text-slate-400">
+                            {localizedArea}
+                          </p>
+                        </div>
 
-                        <td className="px-3 py-3.5">
-                          <div className="flex items-center gap-2.5">
-                            <a
-                              data-admin-client-wa="true"
-                              href={`https://wa.me/${String(unit.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(sellerWa)}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              title={sm.contactSellerWa}
-                              className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#25D366] text-white shadow-2xs transition hover:bg-[#1ebe5d]"
-                            >
-                              <WhatsAppOfficialIcon className="size-4" />
-                            </a>
-                            <div className="min-w-0">
-                              <p className="truncate font-bold text-slate-700">
-                                {unit.name || "—"}
-                              </p>
-                              <p
-                                dir="ltr"
-                                className="text-start font-mono text-[11px] text-slate-400"
-                              >
-                                {unit.phone || "—"}
-                              </p>
-                            </div>
-                          </div>
-                        </td>
-
-                        <td className="px-3 py-3.5">
+                        <div className="shrink-0 text-end">
                           <strong
                             dir="ltr"
-                            className="text-sm font-black text-[#007a5a] tabular-nums"
+                            className="block text-sm font-black text-[#007a5a] tabular-nums"
                           >
                             {cur}
                             {offeredCash.toLocaleString("en-US")}
                           </strong>
-                          <p className="mt-0.5 text-[10.5px] font-semibold text-slate-400">
+                          <span className="text-[10px] font-semibold text-slate-400">
                             {L.colOriginalCash}:{" "}
                             <span dir="ltr">
                               {cur}
                               {originalCash.toLocaleString("en-US")}
                             </span>
-                          </p>
-                        </td>
-
-                        <td className="px-3 py-3.5">
-                          <span className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-white px-2.5 py-1 text-[11px] font-extrabold text-amber-900">
-                            <span>⚡ {readinessText}</span>
-                            <span>·</span>
-                            <span>{methodText}</span>
                           </span>
-                        </td>
+                        </div>
+                      </div>
 
-                        <td className="px-5 py-3.5 text-end">
-                          <Link
-                            href={`/admin/deals?offerId=${offer.id}`}
-                            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-amber-500 px-3.5 text-[11px] font-extrabold text-white shadow-2xs transition hover:bg-amber-600"
+                      <div className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-white px-2.5 py-1 text-[11px] font-extrabold text-amber-900">
+                        <span>⚡ {readinessText}</span>
+                        <span>·</span>
+                        <span>{methodText}</span>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        <div className="flex items-center justify-between gap-2 rounded-xl border border-slate-200/80 bg-white px-3 py-2">
+                          <div className="min-w-0">
+                            <span className="block text-[10px] font-bold text-slate-400">
+                              {L.colBuyer}
+                            </span>
+                            <p className="truncate text-xs font-extrabold text-[#0f1d40]">
+                              {offer.buyer_name || "—"}
+                            </p>
+                            <p
+                              dir="ltr"
+                              className="text-start font-mono text-[11px] text-slate-500"
+                            >
+                              {offer.buyer_phone || "—"}
+                            </p>
+                          </div>
+                          <a
+                            data-admin-client-wa="true"
+                            href={`https://wa.me/${String(offer.buyer_phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(buyerWa)}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex size-8.5 shrink-0 items-center justify-center rounded-xl bg-[#25D366] text-white shadow-2xs"
                           >
-                            <Send className="size-3" />
-                            <span>{L.btnApproveOffer}</span>
-                            <ArrowLeft className="size-3 rtl:rotate-0 ltr:rotate-180" />
-                          </Link>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
+                            <WhatsAppOfficialIcon className="size-4" />
+                          </a>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-2 rounded-xl border border-slate-200/80 bg-white px-3 py-2">
+                          <div className="min-w-0">
+                            <span className="block text-[10px] font-bold text-slate-400">
+                              {L.colSeller}
+                            </span>
+                            <p className="truncate text-xs font-extrabold text-[#0f1d40]">
+                              {unit.name || "—"}
+                            </p>
+                            <p
+                              dir="ltr"
+                              className="text-start font-mono text-[11px] text-slate-500"
+                            >
+                              {unit.phone || "—"}
+                            </p>
+                          </div>
+                          <a
+                            data-admin-client-wa="true"
+                            href={`https://wa.me/${String(unit.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(sellerWa)}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex size-8.5 shrink-0 items-center justify-center rounded-xl bg-[#25D366] text-white shadow-2xs"
+                          >
+                            <WhatsAppOfficialIcon className="size-4" />
+                          </a>
+                        </div>
+                      </div>
+
+                      <Link
+                        href={`/admin/deals?offerId=${offer.id}`}
+                        className="flex h-9 w-full items-center justify-center gap-1.5 rounded-xl bg-amber-500 text-xs font-extrabold text-white transition hover:bg-amber-600"
+                      >
+                        <Send className="size-3.5" />
+                        <span>{L.btnApproveOffer}</span>
+                        <ArrowLeft className="size-3.5 rtl:rotate-0 ltr:rotate-180" />
+                      </Link>
+                    </div>
+                  )
+                })}
+              </div>
+
+              <div className="hidden overflow-x-auto md:block">
+                <table className="w-full text-start text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-100 bg-slate-50/70 text-[11px] font-extrabold text-slate-500">
+                      <th className="px-5 py-3 text-start">{L.colUnit}</th>
+                      <th className="px-3 py-3 text-start">{L.colBuyer}</th>
+                      <th className="px-3 py-3 text-start">{L.colSeller}</th>
+                      <th className="px-3 py-3 text-start">
+                        {L.colOfferedCash}
+                      </th>
+                      <th className="px-3 py-3 text-start">{L.colReadiness}</th>
+                      <th className="px-5 py-3 text-end">{L.colAction}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {newPendingAdminOffers.slice(0, 6).map(({ offer, unit }) => {
+                      const uCode = deriveUnitCode(unit.id, unit.code)
+                      const cur = georgiaCurrency
+                      const offeredCash = Number(offer.offered_cash) || 0
+                      const originalCash =
+                        Number(unit.paid_amount || offer.required_cash) || 0
+                      const localizedArea = cleanAreaDisplay(unit.area, locale)
+
+                      const readinessText =
+                        offer.payment_readiness === "48h"
+                          ? L.readiness48h
+                          : offer.payment_readiness === "1_week"
+                            ? L.readiness1Week
+                            : L.readiness2Weeks
+                      const methodText =
+                        offer.payment_method === "bank_check"
+                          ? L.methodCheck
+                          : L.methodTransfer
+
+                      const buyerWa = `${leadsDict.waUnitLeadPrefix || ""} ${offer.buyer_name || ""}${listSep}(${unit.project_name || t.defaultUnit || ""} - ${uCode}) — ${sm.agreedCashLabel || ""}: ${offeredCash.toLocaleString("en-US")} ${cur}`
+                      const sellerWa = `${leadsDict.waGeneralPrefix || ""} ${unit.name}${listSep}(${unit.project_name || t.defaultUnit || ""} - ${uCode}) — ${sm.agreedCashLabel || ""}: ${offeredCash.toLocaleString("en-US")} ${cur}`
+
+                      return (
+                        <tr
+                          key={offer.id}
+                          className="bg-amber-50/20 transition hover:bg-amber-50/50"
+                        >
+                          <td className="px-5 py-3.5">
+                            <Link
+                              href={`/admin/deals?offerId=${offer.id}`}
+                              className="block"
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[10px] font-black text-[#0f1d40]">
+                                  {uCode}
+                                </span>
+                                <span className="font-extrabold text-[#0f1d40] hover:text-[#007a5a]">
+                                  {unit.project_name || t.defaultUnit}
+                                </span>
+                              </div>
+                              <p className="mt-0.5 text-[11px] font-medium text-slate-400">
+                                {localizedArea}
+                              </p>
+                            </Link>
+                          </td>
+
+                          <td className="px-3 py-3.5">
+                            <div className="flex items-center gap-2.5">
+                              <a
+                                data-admin-client-wa="true"
+                                href={`https://wa.me/${String(offer.buyer_phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(buyerWa)}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                title={sm.contactBuyerWa}
+                                className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#25D366] text-white shadow-2xs transition hover:bg-[#1ebe5d]"
+                              >
+                                <WhatsAppOfficialIcon className="size-4" />
+                              </a>
+                              <div className="min-w-0">
+                                <p className="truncate font-extrabold text-[#0f1d40]">
+                                  {offer.buyer_name || "—"}
+                                </p>
+                                <p
+                                  dir="ltr"
+                                  className="text-start font-mono text-[11px] text-slate-400"
+                                >
+                                  {offer.buyer_phone || "—"}
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+
+                          <td className="px-3 py-3.5">
+                            <div className="flex items-center gap-2.5">
+                              <a
+                                data-admin-client-wa="true"
+                                href={`https://wa.me/${String(unit.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(sellerWa)}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                title={sm.contactSellerWa}
+                                className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#25D366] text-white shadow-2xs transition hover:bg-[#1ebe5d]"
+                              >
+                                <WhatsAppOfficialIcon className="size-4" />
+                              </a>
+                              <div className="min-w-0">
+                                <p className="truncate font-bold text-slate-700">
+                                  {unit.name || "—"}
+                                </p>
+                                <p
+                                  dir="ltr"
+                                  className="text-start font-mono text-[11px] text-slate-400"
+                                >
+                                  {unit.phone || "—"}
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+
+                          <td className="px-3 py-3.5">
+                            <strong
+                              dir="ltr"
+                              className="text-sm font-black text-[#007a5a] tabular-nums"
+                            >
+                              {cur}
+                              {offeredCash.toLocaleString("en-US")}
+                            </strong>
+                            <p className="mt-0.5 text-[10.5px] font-semibold text-slate-400">
+                              {L.colOriginalCash}:{" "}
+                              <span dir="ltr">
+                                {cur}
+                                {originalCash.toLocaleString("en-US")}
+                              </span>
+                            </p>
+                          </td>
+
+                          <td className="px-3 py-3.5">
+                            <span className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-white px-2.5 py-1 text-[11px] font-extrabold text-amber-900">
+                              <span>⚡ {readinessText}</span>
+                              <span>·</span>
+                              <span>{methodText}</span>
+                            </span>
+                          </td>
+
+                          <td className="px-5 py-3.5 text-end">
+                            <Link
+                              href={`/admin/deals?offerId=${offer.id}`}
+                              className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-amber-500 px-3.5 text-[11px] font-extrabold text-white shadow-2xs transition hover:bg-amber-600"
+                            >
+                              <Send className="size-3" />
+                              <span>{L.btnApproveOffer}</span>
+                              <ArrowLeft className="size-3 rtl:rotate-0 ltr:rotate-180" />
+                            </Link>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
       </details>
 
-      {/* السيكشن الثالث: أحدث الوحدات المضافة (يمين) وأحدث طلبات المشترين (يسار) */}
+      {/* 4. السيكشن الثالث: أحدث الوحدات المضافة (يمين) وأحدث طلبات المشترين (يسار) */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         <Card className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-2xs lg:col-span-8">
-          <CardHeader className="flex flex-row items-center justify-between border-b border-slate-100 px-5 py-4">
-            <div className="flex items-center gap-2.5">
-              <span className="flex size-8 items-center justify-center rounded-xl bg-[#eaf8f2] text-[#007a5a]">
+          <CardHeader className="flex flex-row items-center justify-between gap-2 border-b border-slate-100 px-4 py-3.5 sm:px-5 sm:py-4">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-[#eaf8f2] text-[#007a5a]">
                 <Building2 className="size-4" />
               </span>
-              <CardTitle className="text-sm font-black text-[#0f1d40]">
+              <CardTitle className="truncate text-sm font-black text-[#0f1d40]">
                 {t.latestProperties} ({georgiaLabel})
               </CardTitle>
             </div>
             <Link
               href="/admin/properties"
-              className="inline-flex items-center gap-1 text-xs font-extrabold text-[#007a5a] hover:underline"
+              className="inline-flex shrink-0 items-center gap-1 text-xs font-extrabold text-[#007a5a] hover:underline"
             >
               <span>{t.viewAll}</span>
               <ArrowLeft className="size-3.5 rtl:rotate-0 ltr:rotate-180" />
@@ -1059,135 +1318,215 @@ export default async function AdminPage() {
                 {t.noProperties}
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-start text-xs">
-                  <thead>
-                    <tr className="border-b border-slate-100 bg-slate-50/70 text-[11px] font-extrabold text-slate-500">
-                      <th className="px-5 py-3 text-start">{L.colUnit}</th>
-                      <th className="hidden px-3 py-3 text-start sm:table-cell">
-                        {cols.sellerName || L.colSeller}
-                      </th>
-                      <th className="px-3 py-3 text-start">
-                        {cols.requiredCash || ""}
-                      </th>
-                      <th className="px-3 py-3 text-start">
-                        {cols.status || ""}
-                      </th>
-                      <th className="px-5 py-3 text-end"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {properties.slice(0, 6).map((prop) => {
-                      const stKey = resolveEffectiveUnitStatus(prop)
-                      const stLabel =
-                        statusesDict[stKey] || statusesDict.active || stKey
-                      const stCls =
-                        STATUS_BADGE_CLASSES[stKey] ||
-                        STATUS_BADGE_CLASSES.active
-                      const uCode = deriveUnitCode(prop.id, prop.code)
-                      const localizedArea = cleanAreaDisplay(prop.area, locale)
+              <>
+                <div className="divide-y divide-slate-100 md:hidden">
+                  {properties.slice(0, 6).map((prop) => {
+                    const stKey = resolveEffectiveUnitStatus(prop)
+                    const stLabel =
+                      statusesDict[stKey] || statusesDict.active || stKey
+                    const stCls =
+                      STATUS_BADGE_CLASSES[stKey] ||
+                      STATUS_BADGE_CLASSES.active
+                    const uCode = deriveUnitCode(prop.id, prop.code)
+                    const localizedArea = cleanAreaDisplay(prop.area, locale)
 
-                      const sellerWaMsg = `${leadsDict.waGeneralPrefix || ""} ${prop.name}${listSep}(${prop.project_name || t.defaultUnit || ""} - ${localizedArea} - ${uCode}) — $${Number(prop.paid_amount || 0).toLocaleString("en-US")}`
+                    const sellerWaMsg = `${leadsDict.waGeneralPrefix || ""} ${prop.name}${listSep}(${prop.project_name || t.defaultUnit || ""} - ${localizedArea} - ${uCode}) — $${Number(prop.paid_amount || 0).toLocaleString("en-US")}`
 
-                      return (
-                        <tr
-                          key={prop.id}
-                          className="group transition hover:bg-slate-50/80"
-                        >
-                          <td className="px-5 py-3.5">
-                            <Link
-                              href={`/admin/properties?unitId=${prop.id}`}
-                              className="block"
-                            >
-                              <div className="flex items-center gap-2">
-                                <span className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[10px] font-black text-[#0f1d40]">
-                                  {uCode}
-                                </span>
-                                <span className="font-extrabold text-[#0f1d40] group-hover:text-[#007a5a]">
-                                  {prop.project_name || t.defaultUnit}
-                                </span>
-                              </div>
-                              <p className="mt-0.5 text-[11px] font-medium text-slate-400">
-                                {localizedArea}
-                              </p>
-                            </Link>
-                          </td>
-
-                          <td className="hidden px-3 py-3.5 sm:table-cell">
-                            <p className="font-bold text-slate-700">
-                              {prop.name || "—"}
-                            </p>
-                            <p
-                              dir="ltr"
-                              className="text-start font-mono text-[11px] text-slate-400"
-                            >
-                              {prop.phone || "—"}
-                            </p>
-                          </td>
-
-                          <td className="px-3 py-3.5">
-                            <span
-                              dir="ltr"
-                              className="font-black text-[#007a5a] tabular-nums"
-                            >
-                              {prop.paid_amount
-                                ? `$${Number(prop.paid_amount).toLocaleString("en-US")}`
-                                : "—"}
-                            </span>
-                          </td>
-
-                          <td className="px-3 py-3.5">
-                            <Badge
-                              className={`border text-[10px] font-extrabold ${stCls}`}
-                            >
-                              {stLabel}
-                            </Badge>
-                          </td>
-
-                          <td className="px-5 py-3.5 text-end">
-                            <div className="inline-flex items-center justify-end gap-1.5">
-                              <Link
-                                href={`/opportunities/${prop.id}`}
-                                target="_blank"
-                                title={t.viewAll}
-                                className="inline-flex size-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-[#007a5a] hover:text-[#007a5a]"
-                              >
-                                <ExternalLink className="size-3.5" />
-                              </Link>
-                              <a
-                                data-admin-client-wa="true"
-                                href={`https://wa.me/${String(prop.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(sellerWaMsg)}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex size-8 items-center justify-center rounded-lg bg-[#25D366] text-white shadow-2xs transition hover:bg-[#1ebe5d]"
-                              >
-                                <WhatsAppOfficialIcon className="size-4" />
-                              </a>
+                    return (
+                      <div key={prop.id} className="space-y-2.5 p-3.5">
+                        <div className="flex items-start justify-between gap-2">
+                          <Link
+                            href={`/admin/properties?unitId=${prop.id}`}
+                            className="min-w-0 flex-1"
+                          >
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[10px] font-black text-[#0f1d40]">
+                                {uCode}
+                              </span>
+                              <span className="text-xs font-extrabold text-[#0f1d40]">
+                                {prop.project_name || t.defaultUnit}
+                              </span>
                             </div>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                            <p className="mt-1 text-[11px] font-medium text-slate-500">
+                              {localizedArea} · {prop.name || "—"}
+                            </p>
+                          </Link>
+
+                          <Badge
+                            className={`shrink-0 border text-[10px] font-extrabold ${stCls}`}
+                          >
+                            {stLabel}
+                          </Badge>
+                        </div>
+
+                        <div className="flex items-center justify-between border-t border-slate-100 pt-2">
+                          <span
+                            dir="ltr"
+                            className="text-sm font-black text-[#007a5a] tabular-nums"
+                          >
+                            {prop.paid_amount
+                              ? `$${Number(prop.paid_amount).toLocaleString("en-US")}`
+                              : "—"}
+                          </span>
+
+                          <div className="flex items-center gap-1.5">
+                            <Link
+                              href={`/opportunities/${prop.id}`}
+                              target="_blank"
+                              title={t.viewAll}
+                              className="inline-flex size-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600"
+                            >
+                              <ExternalLink className="size-3.5" />
+                            </Link>
+                            <a
+                              data-admin-client-wa="true"
+                              href={`https://wa.me/${String(prop.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(sellerWaMsg)}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex size-8 items-center justify-center rounded-lg bg-[#25D366] text-white shadow-2xs"
+                            >
+                              <WhatsAppOfficialIcon className="size-4" />
+                            </a>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                <div className="hidden overflow-x-auto md:block">
+                  <table className="w-full text-start text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-100 bg-slate-50/70 text-[11px] font-extrabold text-slate-500">
+                        <th className="px-5 py-3 text-start">{L.colUnit}</th>
+                        <th className="px-3 py-3 text-start">
+                          {cols.sellerName || L.colSeller}
+                        </th>
+                        <th className="px-3 py-3 text-start">
+                          {cols.requiredCash || ""}
+                        </th>
+                        <th className="px-3 py-3 text-start">
+                          {cols.status || ""}
+                        </th>
+                        <th className="px-5 py-3 text-end"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {properties.slice(0, 6).map((prop) => {
+                        const stKey = resolveEffectiveUnitStatus(prop)
+                        const stLabel =
+                          statusesDict[stKey] || statusesDict.active || stKey
+                        const stCls =
+                          STATUS_BADGE_CLASSES[stKey] ||
+                          STATUS_BADGE_CLASSES.active
+                        const uCode = deriveUnitCode(prop.id, prop.code)
+                        const localizedArea = cleanAreaDisplay(
+                          prop.area,
+                          locale
+                        )
+
+                        const sellerWaMsg = `${leadsDict.waGeneralPrefix || ""} ${prop.name}${listSep}(${prop.project_name || t.defaultUnit || ""} - ${localizedArea} - ${uCode}) — $${Number(prop.paid_amount || 0).toLocaleString("en-US")}`
+
+                        return (
+                          <tr
+                            key={prop.id}
+                            className="group transition hover:bg-slate-50/80"
+                          >
+                            <td className="px-5 py-3.5">
+                              <Link
+                                href={`/admin/properties?unitId=${prop.id}`}
+                                className="block"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[10px] font-black text-[#0f1d40]">
+                                    {uCode}
+                                  </span>
+                                  <span className="font-extrabold text-[#0f1d40] group-hover:text-[#007a5a]">
+                                    {prop.project_name || t.defaultUnit}
+                                  </span>
+                                </div>
+                                <p className="mt-0.5 text-[11px] font-medium text-slate-400">
+                                  {localizedArea}
+                                </p>
+                              </Link>
+                            </td>
+
+                            <td className="px-3 py-3.5">
+                              <p className="font-bold text-slate-700">
+                                {prop.name || "—"}
+                              </p>
+                              <p
+                                dir="ltr"
+                                className="text-start font-mono text-[11px] text-slate-400"
+                              >
+                                {prop.phone || "—"}
+                              </p>
+                            </td>
+
+                            <td className="px-3 py-3.5">
+                              <span
+                                dir="ltr"
+                                className="font-black text-[#007a5a] tabular-nums"
+                              >
+                                {prop.paid_amount
+                                  ? `$${Number(prop.paid_amount).toLocaleString("en-US")}`
+                                  : "—"}
+                              </span>
+                            </td>
+
+                            <td className="px-3 py-3.5">
+                              <Badge
+                                className={`border text-[10px] font-extrabold ${stCls}`}
+                              >
+                                {stLabel}
+                              </Badge>
+                            </td>
+
+                            <td className="px-5 py-3.5 text-end">
+                              <div className="inline-flex items-center justify-end gap-1.5">
+                                <Link
+                                  href={`/opportunities/${prop.id}`}
+                                  target="_blank"
+                                  title={t.viewAll}
+                                  className="inline-flex size-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-[#007a5a] hover:text-[#007a5a]"
+                                >
+                                  <ExternalLink className="size-3.5" />
+                                </Link>
+                                <a
+                                  data-admin-client-wa="true"
+                                  href={`https://wa.me/${String(prop.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(sellerWaMsg)}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex size-8 items-center justify-center rounded-lg bg-[#25D366] text-white shadow-2xs transition hover:bg-[#1ebe5d]"
+                                >
+                                  <WhatsAppOfficialIcon className="size-4" />
+                                </a>
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
 
         <Card className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-2xs lg:col-span-4">
-          <CardHeader className="flex flex-row items-center justify-between border-b border-slate-100 px-5 py-4">
-            <div className="flex items-center gap-2.5">
-              <span className="flex size-8 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
+          <CardHeader className="flex flex-row items-center justify-between gap-2 border-b border-slate-100 px-4 py-3.5 sm:px-5 sm:py-4">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
                 <FileText className="size-4" />
               </span>
-              <CardTitle className="text-sm font-black text-[#0f1d40]">
+              <CardTitle className="truncate text-sm font-black text-[#0f1d40]">
                 {t.latestLeads} ({georgiaLabel})
               </CardTitle>
             </div>
             <Link
               href="/admin/leads"
-              className="inline-flex items-center gap-1 text-xs font-extrabold text-[#007a5a] hover:underline"
+              className="inline-flex shrink-0 items-center gap-1 text-xs font-extrabold text-[#007a5a] hover:underline"
             >
               <span>{t.allShort}</span>
               <ArrowLeft className="size-3.5 rtl:rotate-0 ltr:rotate-180" />
@@ -1238,18 +1577,24 @@ export default async function AdminPage() {
                     >
                       <Link
                         href={`/admin/leads?leadId=${lead.id}`}
-                        className="flex min-w-0 flex-1 items-center gap-3"
+                        className="flex min-w-0 flex-1 items-start gap-3"
                       >
-                        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#eaf8f2] text-xs font-black text-[#007a5a]">
+                        <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#eaf8f2] text-xs font-black text-[#007a5a]">
                           {leadInitial}
                         </span>
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5">
-                            <p className="truncate text-xs font-extrabold text-[#0f1d40]">
-                              {lead.name}
-                            </p>
+                          <p className="truncate text-xs font-extrabold text-[#0f1d40]">
+                            {lead.name}
+                          </p>
+                          <div className="mt-1 flex flex-wrap items-center gap-1.5">
                             <span
-                              className={`shrink-0 rounded px-1.5 py-0.5 text-[9.5px] font-extrabold ${
+                              dir="ltr"
+                              className="rounded-md bg-[#eaf8f2] px-2 py-0.5 text-[10.5px] font-black text-[#007a5a] tabular-nums"
+                            >
+                              ${cashFormatted}
+                            </span>
+                            <span
+                              className={`rounded px-1.5 py-0.5 text-[9.5px] font-extrabold ${
                                 isSpecificUnitBooker
                                   ? "bg-amber-100 text-amber-800"
                                   : "bg-slate-100 text-slate-600"
@@ -1260,29 +1605,21 @@ export default async function AdminPage() {
                                 : L.generalLeadBadge}
                             </span>
                           </div>
-                          <p className="mt-0.5 truncate text-[11px] font-medium text-slate-400">
+                          <p className="mt-1 truncate text-[11px] font-medium text-slate-400">
                             {cleanTarget}
                           </p>
                         </div>
                       </Link>
 
-                      <div className="flex shrink-0 items-center gap-2">
-                        <span
-                          dir="ltr"
-                          className="rounded-md bg-[#eaf8f2] px-2 py-1 text-[11px] font-black text-[#007a5a] tabular-nums"
-                        >
-                          ${cashFormatted}
-                        </span>
-                        <a
-                          data-admin-client-wa="true"
-                          href={`https://wa.me/${String(lead.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(buyerWaMsg)}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#25D366] text-white shadow-2xs transition hover:bg-[#1ebe5d]"
-                        >
-                          <WhatsAppOfficialIcon className="size-4" />
-                        </a>
-                      </div>
+                      <a
+                        data-admin-client-wa="true"
+                        href={`https://wa.me/${String(lead.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(buyerWaMsg)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex size-8.5 shrink-0 items-center justify-center rounded-xl bg-[#25D366] text-white shadow-2xs transition hover:bg-[#1ebe5d]"
+                      >
+                        <WhatsAppOfficialIcon className="size-4" />
+                      </a>
                     </div>
                   )
                 })}

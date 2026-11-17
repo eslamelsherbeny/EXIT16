@@ -39,7 +39,6 @@ const KA_TO_LATIN_MAP: Record<string, string> = {
   ძ: 'dz', წ: 'ts', ჭ: 'ch', ხ: 'kh', ჯ: 'j', ჰ: 'h',
 }
 
-// إحداثيات محطات مترو تبليسي الـ 23 الرسمية (لضمان حساب مسافة أقرب محطة مترو بدقة)
 const TBILISI_OFFICIAL_METRO_STATIONS: Array<{
   nameEn: string
   nameKa: string
@@ -482,10 +481,6 @@ export async function reverseGeocodeGeorgiaPinAction(params: {
   }
 }
 
-/**
- * استخراج جميع المرافق والخدمات الـ 13 تلقائياً من خريطة OpenStreetMap (بصيغة nwr الصحيحة)
- * بنفس أنصاف الأقطار والتصنيفات المستخدمة في sivrce.ge بالضبط
- */
 export async function fetchRealNearbyPlacesAndWeatherAction(params: {
   lat: number
   lng: number
@@ -686,7 +681,6 @@ export async function fetchRealNearbyPlacesAndWeatherAction(params: {
 
     const nameKey = multiNames.en.toLowerCase().trim()
 
-    // منع تكرار نفس المبنى المرسوم مرتين (Node + Way في نفس النقطة ضمن 38 متراً) مع الحفاظ على كل الفروع الحقيقية في الحي
     const isDuplicateSameBuilding = seenSpatialItems.some(
       (item) =>
         item.category === category &&
@@ -713,7 +707,6 @@ export async function fetchRealNearbyPlacesAndWeatherAction(params: {
     })
   }
 
-  // ضمان وجود أقرب محطة مترو رسمية في تبليسي دائماً (مثل sivrce.ge تماماً)
   const existingMetro = places.filter((p) => p.category === 'metro')
   if (existingMetro.length === 0) {
     let nearestStation = TBILISI_OFFICIAL_METRO_STATIONS[0]
@@ -753,7 +746,6 @@ export async function fetchRealNearbyPlacesAndWeatherAction(params: {
 
   places.sort((a, b) => a.distanceMeters - b.distanceMeters)
 
-  // حفظ البيانات في قاعدة البيانات تلقائياً إذا تم تمرير unitId
   if (
     unitId &&
     places.length >= 10 &&

@@ -8,7 +8,6 @@ function isWellFormedSessionToken(rawCookie: string | undefined): boolean {
     if (!clean || clean.includes('[object')) return false
     const parts = clean.split('.')
 
-    // الصيغة القياسية الثلاثية فقط: userId.pwdFp.sig
     if (parts.length === 3) {
       const [userId, pwdFp, sig] = parts
       return Boolean(
@@ -34,7 +33,6 @@ export function proxy(request: NextRequest) {
   const sessionCookie = request.cookies.get('user_session')?.value
   const hasValidFormat = isWellFormedSessionToken(sessionCookie)
 
-  // إذا تم تحويل المستخدم إلى /login بسبب انتهاء الجلسة أو تلف الكوكي، نمسح الكوكي التالفة فوراً
   if (
     pathname === '/login' &&
     ((sessionCookie && !hasValidFormat) ||
@@ -46,7 +44,6 @@ export function proxy(request: NextRequest) {
     return res
   }
 
-  // 1. حماية مسارات لوحة الإدارة (/admin)
   if (pathname.startsWith('/admin')) {
     if (!hasValidFormat) {
       const loginUrl = new URL('/login', request.url)
@@ -58,7 +55,6 @@ export function proxy(request: NextRequest) {
     }
   }
 
-  // 2. حماية مسارات صفحة الحساب (/account)
   if (pathname.startsWith('/account')) {
     if (!hasValidFormat) {
       const loginUrl = new URL('/login', request.url)

@@ -633,7 +633,10 @@
         "Подземный паркинг",
         "Просторный балкон",
         "Рядом с метро и инфраструктурой"
-      ]
+      ],
+      "georgiaLocationPlaceholder": "Выберите город или район Грузии (Тбилиси, Батуми...)",
+      "georgiaLocationSearchPlaceholder": "Поиск района или города...",
+      "noAreaMatch": "Район не найден"
     },
     "reviewStep": {
       "successTitle": "Готово! Мы получили данные вашего объекта",
@@ -917,7 +920,8 @@
         "publishingBtn": "Отправка...",
         "publishBtn": "Отправить объект на проверку администрации",
         "submitAndCompleteDocsLaterBtn": "Сохранить объект и загрузить фото/документы в кабинете"
-      }
+      },
+      "ownersOnlyCardTitle": "Только собственники: работаем напрямую с владельцем объекта без посредников."
     },
     "aiDescription": {
       "generateBtn": "Сгенерировать описание с ИИ (AI)",
@@ -1889,7 +1893,8 @@
       "nextBtn": "Продолжить",
       "savingBtn": "Сохранение...",
       "confirmWithSessionBtn": "Подтвердить заявку с текущим аккаунтом",
-      "submitBtn": "Отправить заявку"
+      "submitBtn": "Отправить заявку",
+      "verifySellerBtn": "Подтвердить продавца ✓"
     }
   },
   "opportunitiesPage": {
@@ -2516,7 +2521,12 @@
       "lightThemeAria": "Включить светлую тему",
       "searchCountryPlaceholder": "Поиск страны или кода (+995)...",
       "noCountryFound": "Страна не найдена",
-      "darkThemeAria": "Включить темную тему"
+      "darkThemeAria": "Включить темную тему",
+      "turnstileWaitMessage": "Пожалуйста, подождите завершения проверки безопасности (Cloudflare) ниже и попробуйте снова.",
+      "turnstileVerifying": "Проверка...",
+      "turnstileVerified": "Успешно!",
+      "turnstilePrivacy": "Конфид.",
+      "turnstileTerms": "Условия"
     },
     "login": {
       "title": "Вход в кабинет",
@@ -2853,7 +2863,8 @@
       "staffLoginBtn": "Вход для сотрудников",
       "staffBannerText": "Режим техработ активен для гостей — сайт открыт вам как сотруднику",
       "staffManageBtn": "Управление режимом"
-    }
+    },
+    "manifestDesc": "Платформа переуступки недвижимости в рассрочку в Грузии без наценки по цене старого договора."
   },
   "serverActions": {
     "auth": {
@@ -2944,7 +2955,9 @@
       "promoUpdateNotifTitle": "Обновление пакета продвижения",
       "promoNewNotifTitle": "Новая заявка на продвижение",
       "promoStoppedNotifTitle": "Продавец остановил продвижение объекта",
-      "promoCancelledNotifTitle": "Продавец отменил заявку на продвижение"
+      "promoCancelledNotifTitle": "Продавец отменил заявку на продвижение",
+      "unitLockedByDeal": "Нельзя приостановить, изменить или удалить объект после принятия предложения и начала переоформления.",
+      "allDocsReadyNotifTitle": "Все документы и фото объекта загружены"
     },
     "admin": {
       "unauthorizedLogin": "Нет доступа: пожалуйста, войдите под аккаунтом администратора.",
@@ -3012,7 +3025,9 @@
       "promoActivatedNotifTitle": "VIP-продвижение вашего объекта активировано",
       "promoActivatedNotifMsg": "Ваш объект теперь отображается со звездой в топе каталога",
       "cancelPromoFailed": "Не удалось отменить продвижение.",
-      "purgeDeletedFailed": "Не удалось очистить удаленные объекты."
+      "purgeDeletedFailed": "Не удалось очистить удаленные объекты.",
+      "cannotModifyOwnerAdmin": "Аккаунт владельца проекта (Super Admin) нельзя изменить, заблокировать или удалить.",
+      "onlyOwnerCanManageAdmins": "Только владелец проекта (Super Admin) может назначать, изменять или удалять администраторов."
     },
     "forms": {
       "expiredLink": "Срок действия ссылки истек.",
@@ -3059,7 +3074,15 @@
       "radarActivatedBuyerMsg": "Ваш бюджет сохранен — мы уведомим вас, как только появится подходящий объект",
       "buyOrderSubjectPrefix": "Мы получили вашу заявку на покупку",
       "registeredCashLabel": "Зарегистрированная сумма наличными",
-      "newInvestorAdminTitle": "Новая заявка инвестора"
+      "newInvestorAdminTitle": "Новая заявка инвестора",
+      "otpSubjectPrefix": "Код подтверждения вашего Email на Aqar Exit:",
+      "otpSendError": "Не удалось отправить код подтверждения, попробуйте еще раз.",
+      "otpInvalid": "Неверный или просроченный код подтверждения.",
+      "trackUnitInAccountBtn": "Отслеживать объект в моем кабинете",
+      "completeOrEditUnitBtn": "Дополнить или изменить данные объекта",
+      "unitLockedByDeal": "Нельзя изменить данные объекта после принятия предложения и начала переоформления с администрацией.",
+      "unauthorized": "Нет доступа для выполнения этого действия.",
+      "onlyAdminCanVerifyPhone": "Только сотрудники администрации могут подтверждать номер телефона."
     }
   },
   "admin": {
@@ -3124,7 +3147,8 @@
       "waBuyerGreetingPrefix": "Здравствуйте,",
       "waBuyerBodyPrefix": "Администрация Aqar Exit по поводу вашего предложения",
       "waSellerGreetingPrefix": "Здравствуйте,",
-      "waSellerBodyPrefix": "Администрация Aqar Exit по поводу предложения на ваш объект"
+      "waSellerBodyPrefix": "Администрация Aqar Exit по поводу предложения на ваш объект",
+      "retryBtn": "Повторить"
     },
     "smartMatch": {
       "readyDealsTitle": "Готовые к закрытию согласованные сделки",
@@ -3159,7 +3183,15 @@
       "noMatchesFound": "Совпадений свыше 60% пока нет.",
       "recSentSuccess": "Объект отправлен в рекомендации покупателю!",
       "bulkRecsSentSuccess": "Рекомендация отправлена всем подходящим покупателям",
-      "officialOfferSentSuccess": "Официальное предложение отправлено продавцу!"
+      "officialOfferSentSuccess": "Официальное предложение отправлено продавцу!",
+      "matchScorePrefix": "Совпадение",
+      "autoPublishedTag": "Опубликовано автоматически",
+      "notAutoPublishedTag": "Не опубликовано авто (<80%)",
+      "adminCashMatch": "Кэш подходит покупателю",
+      "adminCashHigher": "Кэш чуть выше бюджета покупателя",
+      "adminInstMatch": "Платеж подходит покупателю",
+      "adminInstHigher": "Платеж выше лимита покупателя",
+      "adminBuyerAskedRooms": "запрос покупателя"
     },
     "shell": {
       "brand": "Darak",
@@ -3400,7 +3432,39 @@
       "confirmSaveBtn": "Да, сохранить",
       "savingBtn": "Сохранение...",
       "savedSuccess": "Настройки сайта и тарифы продвижения успешно сохранены ✓",
-      "savedError": "Не удалось сохранить настройки."
+      "savedError": "Не удалось сохранить настройки.",
+      "mapBatch1Label": "Загрузка школ, детсадов, вузов, клиник, аптек и банков Тбилиси...",
+      "mapBatch2Label": "Загрузка супермаркетов, ресторанов, парков, спортзалов и ориентиров Тбилиси...",
+      "mapBatch3Label": "Загрузка автобусных остановок и станций метро Тбилиси...",
+      "mapBatch4Label": "Загрузка инфраструктуры Батуми и основных городов...",
+      "mapFilteringLabel": "Фильтрация и индексация координат объектов...",
+      "mapSavingChunkPrefix": "Сохранение базы данных (пакет",
+      "mapSavingChunkOf": "из",
+      "mapSavingChunkPlacesSuffix": "объектов)...",
+      "mapSaveChunkError": "Не удалось сохранить пакет данных",
+      "mapSyncSuccessPrefix": "Карта и инфраструктура Грузии обновлены — сохранено",
+      "mapSyncSuccessSuffix": "реальных объектов!",
+      "mapSyncErrorFallback": "Произошла ошибка при обновлении карты",
+      "mapCardTitle": "База данных карты и инфраструктуры Грузии",
+      "mapInstantBadge": "⚡ Мгновенный отклик 0 мс",
+      "mapCardDesc": "Содержит проверенные координаты школ, детских садов, аптек, супермаркетов, клиник, банков и остановок по всей Грузии.",
+      "mapTotalPlacesPrefix": "Всего зарегистрировано объектов инфраструктуры:",
+      "mapTotalPlacesSuffix": "проверенных мест",
+      "mapLastUpdatedLabel": "Последнее обновление:",
+      "mapCoverageLabel": "Тбилиси, Батуми и города Грузии",
+      "mapSyncingBtnPrefix": "Обновление",
+      "mapSyncNowBtn": "Обновить данные карты Грузии",
+      "vipPlusDailyLabel": "Цена в день +VIP (₾)",
+      "superVipDailyLabel": "Цена в день SUPER VIP (₾)",
+      "gePackagesGelTitle": "🇬🇪 Тарифы продвижения в Грузии (7 / 14 / 30 дней в ₾ GEL)",
+      "bankIbanGeLabel": "Банковский счет в Грузии (IBAN)",
+      "seoCardTitle": "Аналитика, Facebook Pixel и Google SEO",
+      "seoCardDesc": "Укажите идентификаторы счетчиков для автоматического подключения на всех страницах сайта.",
+      "fbPixelLabel": "Facebook Pixel ID",
+      "gaMeasurementLabel": "Google Analytics (GA4 ID)",
+      "gtmLabel": "Google Tag Manager (GTM)",
+      "mapInvalidChunkData": "Полученные данные карты некорректны.",
+      "mapServerWriteError": "Не удалось сохранить обновления карты на сервере."
     },
     "profile": {
       "eyebrow": "Личный профиль",
@@ -3564,7 +3628,8 @@
         "sales": "Менеджер продаж (Sales - Контакты и сопровождение)",
         "user": "Обычный клиент (Продавец / Покупатель)",
         "owner": "👑 Владелец проекта (Super Admin)"
-      }
+      },
+      "superAdminBadge": "SUPER ADMIN"
     },
     "investorsAdmin": {
       "loadError": "Не удалось загрузить заявки инвесторов.",
@@ -3760,7 +3825,9 @@
         "sellerNotePlaceholder": "Например: Пожалуйста, уточните этаж или загрузите четкое фото договора...",
         "saveAndNotifySellerBtn": "Сохранить и уведомить продавца",
         "clearNoteBtn": "Очистить",
-        "noteSavedSuccess": "Примечание сохранено, продавец уведомлен ✓"
+        "noteSavedSuccess": "Примечание сохранено, продавец уведомлен ✓",
+        "optionalNoteForSellerPlaceholder": "Примечание для собственника (необязательно)...",
+        "sendPerformanceReportBtn": "Отправить отчет о просмотрах"
       },
       "notices": {
         "purgedSuccess": "Все удаленные объекты безвозвратно очищены ✓",
@@ -3775,7 +3842,104 @@
         "totalViewsLabel": "Всего просмотров:",
         "sendReportWaBtn": "Отправить отчет о просмотрах (WhatsApp)",
         "viewsColumnHeader": "Просмотры",
-        "viewUnitBtn": "Посмотреть объект"
+        "viewUnitBtn": "Посмотреть объект",
+        "waReportTitle": "📊 *Aqar Exit — Отчет об эффективности вашего объявления*",
+        "waReportGreetingPrefix": "Здравствуйте,",
+        "waReportGreetingSuffix": "! Вот актуальная статистика по вашему объекту:",
+        "waReportProjectLabel": "🏢 *Проект:*",
+        "waReportCodeLabel": "🔖 *Код объекта:*",
+        "waReportViewsLabel": "👁️ *Уникальные просмотры:*",
+        "waReportViewsSuffix": "покупателей",
+        "waReportMatchedBuyersLabel": "🎯 *Подходящие покупатели:*",
+        "waReportMatchedBuyersSuffix": "",
+        "waReportOffersLabel": "💼 *Предложения о покупке:*",
+        "waReportOffersSuffix": "",
+        "waReportPromoStatusLabel": "⭐ *Статус продвижения:*",
+        "waReportFeaturedPrefix": "В топе",
+        "waReportStandardTier": "Стандартный показ",
+        "waReportDirectLinkLabel": "🔗 *Прямая ссылка на объявление:*"
+      }
+    },
+    "contactVerification": {
+      "waLinkVerifiedBanner": "Номер телефона клиента подтвержден по ссылке WhatsApp ✓",
+      "emailVerifiedTitle": "Email подтвержден",
+      "phoneVerifiedTitle": "Номер телефона подтвержден через WhatsApp",
+      "verifiedBadge": "Подтвержден ✓",
+      "unverifiedBadge": "Не подтвержден",
+      "clickToVerifyTitle": "Нажмите, чтобы подтвердить вручную",
+      "verifyNowBtn": "Подтвердить",
+      "closeBtn": "✕"
+    },
+    "exportLabels": {
+      "exportAllBtn": "Экспорт Excel",
+      "exportPdfBtn": "Экспорт PDF",
+      "exportRowBtn": "Экспорт (Excel)",
+      "exportRowPdfBtn": "Сохранить в PDF",
+      "moreActionsAria": "Действия",
+      "brandSubtitle": "Платформа переуступки недвижимости в рассрочку — Грузия",
+      "marketLocationLabel": "Рынок / Локация",
+      "marketLocationValue": "Грузия (Тбилиси · Батуми · Гудаури) — Валюта ($)",
+      "generatedAtLabel": "Дата выпуска",
+      "totalRecordsLabel": "Всего записей",
+      "officialDocBadge": "Официальный документ системы управления Aqar Exit",
+      "footerDisclaimer": "Документ сформирован автоматически в панели администратора Aqar Exit.",
+      "propertiesReportTitle": "Список объектов и заявок продавцов",
+      "promotionsReportTitle": "Список VIP-объектов и продвижения",
+      "singlePropertyReportTitle": "Официальная карточка объекта недвижимости",
+      "leadsReportTitle": "Список покупателей и заявок на покупку",
+      "singleLeadReportTitle": "Официальная карточка покупателя",
+      "usersReportTitle": "Список пользователей и клиентов платформы",
+      "singleUserReportTitle": "Карточка аккаунта клиента",
+      "dealsReportTitle": "Реестр сделок, офферов и комиссий",
+      "singleDealReportTitle": "Официальная карточка сделки",
+      "yes": "Да",
+      "no": "Нет",
+      "normalTier": "Обычный",
+      "unitLeadType": "Запрос по объекту",
+      "generalLeadType": "Общий запрос",
+      "activeStatus": "Активен",
+      "suspendedStatus": "Заблокирован",
+      "verified": "Подтвержден ✓",
+      "unverified": "Не подтвержден",
+      "cols": {
+        "index": "№",
+        "unitCode": "Код объекта",
+        "projectName": "Проект",
+        "developer": "Застройщик",
+        "area": "Район",
+        "unitType": "Тип объекта",
+        "sizeSqm": "Площадь (м²)",
+        "rooms": "Комнат",
+        "requiredCash": "Нужно наличными ($)",
+        "contractPrice": "Цена по договору ($)",
+        "marketPrice": "Рыночная цена ($)",
+        "installment": "Платеж ($)",
+        "frequency": "Периодичность",
+        "negotiable": "Торг уместен",
+        "sellerName": "Продавец",
+        "sellerPhone": "Телефон продавца",
+        "sellerEmail": "Email продавца",
+        "status": "Статус",
+        "promoTier": "Пакет продвижения",
+        "createdAt": "Дата создания",
+        "buyerName": "Покупатель",
+        "buyerPhone": "Телефон покупателя",
+        "buyerEmail": "Email покупателя",
+        "availableCash": "Бюджет наличными ($)",
+        "maxInstallment": "Макс. платеж ($)",
+        "targetAreas": "Желаемые районы / Объект",
+        "leadType": "Тип заявки",
+        "notes": "Заметки",
+        "userRole": "Роль",
+        "sellUnitsCount": "Объектов на продажу",
+        "buyRequestsCount": "Заявок на покупку",
+        "verification": "Верификация",
+        "offerRef": "Код оффера",
+        "offeredCash": "Предложено ($)",
+        "counterCash": "Встречный оффер ($)",
+        "commission": "Комиссия ($)",
+        "readiness": "Готовность к оплате",
+        "paymentMethod": "Способ оплаты"
       }
     }
   },
@@ -3846,6 +4010,60 @@
       "cottage": "Коттедж",
       "commercial": "Коммерческая",
       "land": "Участок"
+    },
+    "countrySelector": {
+      "modalTitle": "Выберите код страны",
+      "searchPlaceholder": "Поиск страны или кода (+995)...",
+      "countries": {
+        "GE": "Грузия",
+        "EG": "Египет",
+        "SA": "Саудовская Аравия",
+        "AE": "ОАЭ",
+        "KW": "Кувейт",
+        "QA": "Катар",
+        "BH": "Бахрейн",
+        "OM": "Оман",
+        "JO": "Иордания",
+        "LB": "Ливан",
+        "IQ": "Ирак",
+        "PS": "Палестина",
+        "IL": "+972",
+        "SY": "Сирия",
+        "YE": "Йемен",
+        "LY": "Ливия",
+        "TN": "Тунис",
+        "DZ": "Алжир",
+        "MA": "Марокко",
+        "SD": "Судан",
+        "TR": "Турция",
+        "RU": "Россия / Казахстан",
+        "UA": "Украина",
+        "BY": "Беларусь",
+        "AZ": "Азербайджан",
+        "AM": "Армения",
+        "DE": "Германия",
+        "GB": "Великобритания",
+        "FR": "Франция",
+        "IT": "Италия",
+        "ES": "Испания",
+        "NL": "Нидерланды",
+        "PL": "Польша",
+        "US": "США / Канада"
+      }
+    },
+    "prompts": {
+      "consentText": "Мы анализируем посещения и эффективность рекламы только с вашего согласия. Ничего не загружается до вашего решения.",
+      "allowBtn": "Разрешить",
+      "declineBtn": "Отклонить",
+      "privacyLink": "Конфиденциальность",
+      "languageWord": "Язык:",
+      "switchBtn": "Переключить",
+      "closeAria": "Закрыть",
+      "pwaTitle": "Установите приложение Aqar Exit",
+      "pwaSub": "Быстрый доступ к объектам переуступки прямо с главного экрана.",
+      "installBtn": "Установить",
+      "manualInstallHint": "Откройте меню браузера (⋮) вверху и выберите «Установить приложение» или «На экран Домой».",
+      "iosInstallHint": "На iPhone: нажмите кнопку «Поделиться» (⬆️) внизу и выберите «На экран Домой»."
     }
   },
   "locationModal": {

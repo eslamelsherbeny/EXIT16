@@ -15,6 +15,10 @@ import {
 } from '@/lib/session-security'
 import { getServerI18n } from '@/lib/get-server-dictionary'
 import type { LocaleCode } from '@/lib/i18n-config'
+import arDict from '@/dictionaries/ar.json'
+import enDict from '@/dictionaries/en.json'
+import ruDict from '@/dictionaries/ru.json'
+import kaDict from '@/dictionaries/ka.json'
 
 export const DEFAULT_SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL || 'https://exit-16.vercel.app'
@@ -28,314 +32,128 @@ export type ListingCategoryType =
   | 'rent_daily'
   | 'pledge'
 
-// القاموس الموحد للمميزات المقسمة إلى 6 مجموعات (Space, Building, Utilities, Comfort, Views, Extra)
-export const SIVRCE_FEATURE_GROUPS = [
+const FEATURE_GROUP_KEYS = [
   {
     key: 'space',
-    labelEn: 'Space',
-    labelAr: 'المساحات والتقسيم',
-    items: [
-      { id: 'Balcony', labelEn: 'Balcony', labelAr: 'بلكونة (شرفة)' },
-      { id: 'Loggia', labelEn: 'Loggia', labelAr: 'لوجيا (شرفة مغلقة)' },
-      { id: 'Terrace', labelEn: 'Terrace', labelAr: 'تراس مفتوح' },
-      { id: 'Yard', labelEn: 'Yard', labelAr: 'حديقة / فناء خاص' },
-      { id: 'Storage', labelEn: 'Storage', labelAr: 'غرفة تخزين' },
-      { id: 'Cellar', labelEn: 'Cellar', labelAr: 'قبو (بدروم)' },
-      { id: 'Walk-in closet', labelEn: 'Walk-in closet', labelAr: 'غرفة ملابس (Dressing)' },
-      { id: 'Separate kitchen', labelEn: 'Separate kitchen', labelAr: 'مطبخ منفصل' },
+    ids: [
+      'Balcony',
+      'Loggia',
+      'Terrace',
+      'Yard',
+      'Storage',
+      'Cellar',
+      'Walk-in closet',
+      'Separate kitchen',
     ],
   },
   {
     key: 'building',
-    labelEn: 'Building',
-    labelAr: 'المبنى والحماية',
-    items: [
-      { id: 'Elevator', labelEn: 'Elevator', labelAr: 'مصعد حديث' },
-      { id: 'Parking', labelEn: 'Parking', labelAr: 'موقف سيارات' },
-      { id: 'Underground parking', labelEn: 'Underground parking', labelAr: 'جراج تحت الأرض' },
-      { id: 'Garage', labelEn: 'Garage', labelAr: 'جراج خاص مغلق' },
-      { id: 'Security', labelEn: 'Security', labelAr: 'أمن وحراسة 24/7' },
-      { id: 'Concierge', labelEn: 'Concierge', labelAr: 'استقبال (كونسيرج)' },
-      { id: 'Intercom', labelEn: 'Intercom', labelAr: 'إنتركم مرئي' },
-      { id: 'Backup generator', labelEn: 'Backup generator', labelAr: 'مولد كهرباء احتياطي' },
-      { id: 'Iron door', labelEn: 'Iron door', labelAr: 'باب مصفح' },
-      { id: 'Double glazing', labelEn: 'Double glazing', labelAr: 'نوافذ زجاج مزدوج عازل' },
-      { id: 'Penthouse', labelEn: 'Penthouse', labelAr: 'بنتهاوس' },
-      { id: 'Step-free access', labelEn: 'Step-free access', labelAr: 'مدخل مهيأ بدون درجات' },
+    ids: [
+      'Elevator',
+      'Parking',
+      'Underground parking',
+      'Garage',
+      'Security',
+      'Concierge',
+      'Intercom',
+      'Backup generator',
+      'Iron door',
+      'Double glazing',
+      'Penthouse',
+      'Step-free access',
     ],
   },
   {
     key: 'utilities',
-    labelEn: 'Utilities',
-    labelAr: 'المرافق والأساسيات',
-    items: [
-      { id: 'Underfloor heating', labelEn: 'Underfloor heating', labelAr: 'تدفئة أرضية' },
-      { id: 'Natural gas', labelEn: 'Natural gas', labelAr: 'غاز طبيعي' },
-      { id: 'Hot water', labelEn: 'Hot water', labelAr: 'مياه ساخنة مركزية' },
-      { id: 'Internet', labelEn: 'Internet', labelAr: 'إنترنت فايبر' },
-      { id: 'Cable TV', labelEn: 'Cable TV', labelAr: 'قنوات كابل وتلفاز' },
+    ids: [
+      'Underfloor heating',
+      'Natural gas',
+      'Hot water',
+      'Internet',
+      'Cable TV',
     ],
   },
   {
     key: 'comfort',
-    labelEn: 'Comfort',
-    labelAr: 'الراحة والأجهزة',
-    items: [
-      { id: 'Furniture', labelEn: 'Furniture', labelAr: 'مفروش بالكامل' },
-      { id: 'Appliances', labelEn: 'Appliances', labelAr: 'أجهزة كهربائية كاملة' },
-      { id: 'Air conditioning', labelEn: 'Air conditioning', labelAr: 'تكييف هواء' },
-      { id: 'Dishwasher', labelEn: 'Dishwasher', labelAr: 'غسالة أطباق' },
-      { id: 'Washing machine', labelEn: 'Washing machine', labelAr: 'غسالة ملابس' },
-      { id: 'Dryer', labelEn: 'Dryer', labelAr: 'مجفف ملابس' },
-      { id: 'Fireplace', labelEn: 'Fireplace', labelAr: 'مدفأة (Fireplace)' },
-      { id: 'Kitchen', labelEn: 'Kitchen', labelAr: 'مطبخ مجهز' },
-      { id: 'TV', labelEn: 'TV', labelAr: 'شاشة تلفاز ذكية' },
+    ids: [
+      'Furniture',
+      'Appliances',
+      'Air conditioning',
+      'Dishwasher',
+      'Washing machine',
+      'Dryer',
+      'Fireplace',
+      'Kitchen',
+      'TV',
     ],
   },
   {
     key: 'views',
-    labelEn: 'Views',
-    labelAr: 'الإطلالة والإضاءة',
-    items: [
-      { id: 'Panoramic view', labelEn: 'Panoramic view', labelAr: 'إطلالة بانورامية مفتوحة' },
-      { id: 'Sea view', labelEn: 'Sea view', labelAr: 'إطلالة بحرية' },
-      { id: 'Mountain view', labelEn: 'Mountain view', labelAr: 'إطلالة على الجبال' },
-      { id: 'Yard view', labelEn: 'Yard view', labelAr: 'إطلالة على الحديقة' },
-      { id: 'Street view', labelEn: 'Street view', labelAr: 'إطلالة على الشارع الرئيسي' },
-      { id: 'Beachfront', labelEn: 'Beachfront', labelAr: 'صف أول على البحر' },
-      { id: 'Bright', labelEn: 'Bright', labelAr: 'مشمس ومضيء طبيعياً' },
-      { id: 'Quiet', labelEn: 'Quiet', labelAr: 'منطقة هادئة' },
+    ids: [
+      'Panoramic view',
+      'Sea view',
+      'Mountain view',
+      'Yard view',
+      'Street view',
+      'Beachfront',
+      'Bright',
+      'Quiet',
     ],
   },
   {
     key: 'extra',
-    labelEn: 'Extra',
-    labelAr: 'مميزات إضافية وفاخرة',
-    items: [
-      { id: 'Pool', labelEn: 'Pool', labelAr: 'حمام سباحة (مسبح)' },
-      { id: 'Jacuzzi', labelEn: 'Jacuzzi', labelAr: 'جاكوزي' },
-      { id: 'Sauna', labelEn: 'Sauna', labelAr: 'ساونا' },
-      { id: 'Gym', labelEn: 'Gym', labelAr: 'صالة جيم رياضية' },
-      { id: 'BBQ grill', labelEn: 'BBQ grill', labelAr: 'منطقة شواء (BBQ)' },
-      { id: 'EV charger', labelEn: 'EV charger', labelAr: 'شاحن سيارات كهربائية' },
-      { id: 'Ski access', labelEn: 'Ski access', labelAr: 'قريب من مسارات التزلج' },
+    ids: [
+      'Pool',
+      'Jacuzzi',
+      'Sauna',
+      'Gym',
+      'BBQ grill',
+      'EV charger',
+      'Ski access',
     ],
   },
 ] as const
 
-const FORMS_MESSAGES_FALLBACK: Record<LocaleCode, Record<string, string>> = {
-  ar: {
-    expiredLink: 'انتهت صلاحية هذا الرابط أو أنه غير صالح.',
-    invalidLink: 'الرابط غير صالح.',
-    verifyFailed: 'تعذر التحقق من الرابط.',
-    unitOwnerFallback: 'مالك وحدة',
-    buyerFallback: 'مشتري',
-    unitWord: 'وحدة',
-    newDraftUnitAdminTitle: 'وحدة جديدة قيد الاستكمال',
-    unitSubmittedSellerTitle: 'تم استلام بيانات وحدتك المبدئية ✓',
-    unitSubmittedSellerMsg: 'يمكنك استكمال تفاصيل وصور ومستندات وحدتك في أي وقت',
-    editedUnitAdminTitle: 'تعديل وحدة من البائع',
-    completedUnitAdminTitle: 'وحدة مكتملة جاهزة للمراجعة',
-    newUnitReviewAdminTitle: 'وحدة جديدة للمراجعة',
-    newBuyRequestAdminTitle: 'طلب شراء جديد',
-    radarActivatedBuyerTitle: 'تم تفعيل رادار الفرص العقارية لحسابك 🎯',
-    radarActivatedBuyerMsg: 'سنقوم بإشعارك فور توفر وحدات مطابقة لميزانيتك',
-    emailSenderName: 'Aqar Exit',
-    orderReceivedSubjectPrefix: 'تم استلام طلب عرض وحدتك رقم',
-    buyOrderSubjectPrefix: 'تم تسجيل طلب الشراء الخاص بك رقم',
-    greetingWord: 'أهلاً',
-    orderRefLabel: 'رقم مرجع الطلب',
-    orderPaidConfirmText: 'السعر / المبلغ المسجل',
-    registeredCashLabel: 'ميزانية الكاش المسجلة',
-    orderMagicLinkPrompt:
-      'اضغط على الرابط التالي لتأكيد بريدك الإلكتروني ومتابعة طلبك مباشرة على الموقع',
-    sessionExpired: 'انتهت الجلسة أو لا تملك صلاحية تعديل هذه الوحدة.',
-    enterLogin: 'يرجى إدخال البريد الإلكتروني أو رقم الهاتف وكلمة المرور.',
-    notRegistered: 'هذا الحساب غير مسجل لدينا. اختر "تسجيل حساب جديد".',
-    wrongPassword: 'كلمة المرور غير صحيحة.',
-    fillAll:
-      'يرجى استكمال كافة البيانات والتأكد أن كلمة المرور 8 أحرف على الأقل.',
-    createAccountFailed:
-      'تعذر إنشاء الحساب، قد يكون البريد أو الهاتف مسجلاً مسبقاً.',
-    unexpected: 'حدث خطأ غير متوقع، يرجى المحاولة مرة أخرى.',
-    emailNotFound: 'لم يتم العثور على بريد إلكتروني مسجل لهذا الحساب.',
-    recoveryEmailSubject: 'استعادة الدخول واستكمال طلبك — Aqar Exit',
-    recoveryEmailPrompt:
-      'اضغط على الرابط التالي لتعيين كلمة مرور جديدة والدخول لحسابك',
-    sendLinkFailed: 'تعذر إرسال الرابط حالياً، يرجى المحاولة لاحقاً.',
-    shortPassword: 'كلمة المرور يجب أن تكون 8 أحرف على الأقل.',
-    updatePassFailed: 'تعذر تحديث كلمة المرور.',
-    saveProgressFailed: 'تعذر حفظ التقدم حالياً.',
-    submitUnitFailed: 'تعذر إرسال طلب الإعلان حالياً، يرجى المحاولة مرة أخرى.',
-    defaultMonthly: 'شهري',
-    defaultReady: 'جاهز للاستلام',
-    enterNamePhone: 'يرجى إدخال الاسم ورقم الهاتف.',
-    investorFailed: 'تعذر إرسال الطلب حالياً.',
-    otpSubjectPrefix: 'كود التأكيد الخاص بك في عقار إكزت هو:',
-    otpInvalid: 'كود التأكيد غير صحيح أو منتهي الصلاحية.',
-    otpSendError: 'تعذر إرسال الكود حالياً، يرجى المحاولة مرة أخرى.',
-  },
-  en: {
-    expiredLink: 'This link has expired or is invalid.',
-    invalidLink: 'Invalid link.',
-    verifyFailed: 'Could not verify the link.',
-    unitOwnerFallback: 'Unit Owner',
-    buyerFallback: 'Buyer',
-    unitWord: 'Unit',
-    newDraftUnitAdminTitle: 'New Draft Unit',
-    unitSubmittedSellerTitle: 'Your initial unit details were received ✓',
-    unitSubmittedSellerMsg:
-      'You can complete your unit details and documents anytime',
-    editedUnitAdminTitle: 'Unit Edited by Seller',
-    completedUnitAdminTitle: 'Completed Unit Ready for Review',
-    newUnitReviewAdminTitle: 'New Unit for Review',
-    newBuyRequestAdminTitle: 'New Buy Request',
-    radarActivatedBuyerTitle: 'Smart Opportunity Radar Activated 🎯',
-    radarActivatedBuyerMsg:
-      'We will notify you as soon as matching units are available',
-    emailSenderName: 'Aqar Exit',
-    orderReceivedSubjectPrefix: 'Unit Listing Request Received #',
-    buyOrderSubjectPrefix: 'Your Buy Request is Registered #',
-    greetingWord: 'Hello',
-    orderRefLabel: 'Order Reference',
-    orderPaidConfirmText: 'Registered Price / Amount',
-    registeredCashLabel: 'Registered Cash Budget',
-    orderMagicLinkPrompt:
-      'Click the link below to confirm your email and access your request on the website',
-    sessionExpired:
-      'Your session has expired or you do not have permission to edit this unit.',
-    enterLogin: 'Please enter your email or phone number and password.',
-    notRegistered:
-      'No account found with these details. Please choose "New Account".',
-    wrongPassword: 'Incorrect password.',
-    fillAll:
-      'Please complete all required fields and use at least 8 characters for password.',
-    createAccountFailed:
-      'Could not create account. Email or phone may already be registered.',
-    unexpected: 'An unexpected error occurred. Please try again.',
-    emailNotFound: 'No registered email address found for this account.',
-    recoveryEmailSubject: 'Reset Password & Continue Your Request — Aqar Exit',
-    recoveryEmailPrompt:
-      'Click the link below to set a new password and access your account',
-    sendLinkFailed: 'Could not send recovery link right now.',
-    shortPassword: 'Password must be at least 8 characters.',
-    updatePassFailed: 'Could not update password.',
-    saveProgressFailed: 'Could not save progress right now.',
-    submitUnitFailed:
-      'Could not submit your unit right now. Please try again.',
-    defaultMonthly: 'Monthly',
-    defaultReady: 'Ready to Move',
-    enterNamePhone: 'Please enter your name and phone number.',
-    investorFailed: 'Could not submit request right now.',
-    otpSubjectPrefix: 'Your Aqar Exit verification code is:',
-    otpInvalid: 'Invalid or expired verification code.',
-    otpSendError: 'Could not send verification code right now.',
-  },
-  ru: {
-    expiredLink: 'Срок действия ссылки истек или она недействительна.',
-    invalidLink: 'Недействительная ссылка.',
-    verifyFailed: 'Не удалось проверить ссылку.',
-    unitOwnerFallback: 'Владелец',
-    buyerFallback: 'Покупатель',
-    unitWord: 'Объект',
-    newDraftUnitAdminTitle: 'Новый черновик объекта',
-    unitSubmittedSellerTitle: 'Предварительные данные объекта получены ✓',
-    unitSubmittedSellerMsg:
-      'Вы можете дополнить описание и документы в любое время',
-    editedUnitAdminTitle: 'Объект обновлен продавцом',
-    completedUnitAdminTitle: 'Объект заполнен и готов к проверке',
-    newUnitReviewAdminTitle: 'Новый объект на проверку',
-    newBuyRequestAdminTitle: 'Новая заявка на покупку',
-    radarActivatedBuyerTitle: 'Радар выгодных объектов активирован 🎯',
-    radarActivatedBuyerMsg:
-      'Мы уведомим вас при появлении подходящих вариантов',
-    emailSenderName: 'Aqar Exit',
-    orderReceivedSubjectPrefix: 'Заявка на продажу объекта получена №',
-    buyOrderSubjectPrefix: 'Ваша заявка на покупку зарегистрирована №',
-    greetingWord: 'Здравствуйте,',
-    orderRefLabel: 'Номер заявки',
-    orderPaidConfirmText: 'Зарегистрированная сумма',
-    registeredCashLabel: 'Зарегистрированный бюджет наличными',
-    orderMagicLinkPrompt:
-      'Перейдите по ссылке ниже для подтверждения email и входа на сайт',
-    sessionExpired:
-      'Сессия истекла или у вас нет прав на редактирование этого объекта.',
-    enterLogin: 'Введите ваш email или номер телефона и пароль.',
-    notRegistered: 'Аккаунт не найден. Выберите «Регистрация».',
-    wrongPassword: 'Неверный пароль.',
-    fillAll:
-      'Заполните все обязательные поля (пароль не менее 8 символов).',
-    createAccountFailed:
-      'Не удалось создать аккаунт. Email или телефон уже используется.',
-    unexpected: 'Произошла ошибка. Пожалуйста, попробуйте снова.',
-    emailNotFound: 'Для этого аккаунта не найден зарегистрированный email.',
-    recoveryEmailSubject: 'Восстановление доступа — Aqar Exit',
-    recoveryEmailPrompt:
-      'Перейдите по ссылке ниже для установки нового пароля',
-    sendLinkFailed: 'Не удалось отправить ссылку.',
-    shortPassword: 'Пароль должен содержать не менее 8 символов.',
-    updatePassFailed: 'Не удалось обновить пароль.',
-    saveProgressFailed: 'Не удалось сохранить черновик.',
-    submitUnitFailed: 'Не удалось отправить заявку. Попробуйте снова.',
-    defaultMonthly: 'Ежемесячно',
-    defaultReady: 'Готов к заселению',
-    enterNamePhone: 'Введите имя и номер телефона.',
-    investorFailed: 'Не удалось отправить запрос.',
-    otpSubjectPrefix: 'Ваш код подтверждения Aqar Exit:',
-    otpInvalid: 'Неверный или просроченный код подтверждения.',
-    otpSendError: 'Не удалось отправить код подтверждения.',
-  },
-  ka: {
-    expiredLink: 'ბმულს ვადა გაუვიდა ან არასწორია.',
-    invalidLink: 'არასწორი ბმული.',
-    verifyFailed: 'ბმულის გადამოწმება ვერ მოხერხდა.',
-    unitOwnerFallback: 'მესაკუთრე',
-    buyerFallback: 'მყიდველი',
-    unitWord: 'ობიექტი',
-    newDraftUnitAdminTitle: 'ახალი ობიექტის მონახაზი',
-    unitSubmittedSellerTitle: 'ობიექტის პირველადი მონაცემები მიღებულია ✓',
-    unitSubmittedSellerMsg:
-      'დეტალებისა და დოკუმენტების შევსება ნებისმიერ დროს შეგიძლიათ',
-    editedUnitAdminTitle: 'ობიექტი განახლდა გამყidველის მიერ',
-    completedUnitAdminTitle: 'ობიექტი მზადაა შესამოწმებლად',
-    newUnitReviewAdminTitle: 'ახალი ობიექტი შესამოწმებლად',
-    newBuyRequestAdminTitle: 'ახალი შეძენის მოთხოვნა',
-    radarActivatedBuyerTitle: 'შეთავაზებების რადარი გააქტიურებულია 🎯',
-    radarActivatedBuyerMsg:
-      'შეგატყობინებთ შესაბამისი ვარიანტების გამოჩენისთანავე',
-    emailSenderName: 'Aqar Exit',
-    orderReceivedSubjectPrefix: 'განაცხადი მიღებულია #',
-    buyOrderSubjectPrefix: 'შეძენის მოთხოვნა რეგისტრირებულია #',
-    greetingWord: 'გამარჯობა',
-    orderRefLabel: 'განაცხადის ნომერი',
-    orderPaidConfirmText: 'დაფიქსირებული თანხა',
-    registeredCashLabel: 'დაფიქსირებული ბიუჯეტი',
-    orderMagicLinkPrompt:
-      'ელ-ფოსტის დასადასტურებლად და საიტზე შესასვლელად გადადით ბმულზე',
-    sessionExpired: 'სესიის ვადა ამოიწურა ან არ გაქვთ რედაქტირების უფლება.',
-    enterLogin: 'შეიყვანეთ ელ-ფოსტა ან ტელეფონის ნომერი და პაროლი.',
-    notRegistered: 'ანგარიში ვერ მოიძებნა. აირჩიეთ „ახალი რეგისტრაცია“.',
-    wrongPassword: 'პაროლი არასწორია.',
-    fillAll: 'გთხოვთ შეავსოთ ყველა ველი (პაროლი მინიმუმ 8 სიმბოლო).',
-    createAccountFailed:
-      'ანგარიშის შექმნა ვერ მოხერხდა. ელ-ფოსტა ან ტელეფონი უკვე რეგისტრირებულია.',
-    unexpected: 'მოხდა შეცდომა, გთხოვთ სცადოთ თავიდან.',
-    emailNotFound: 'ელ-ფოსტა ვერ მოიძებნა.',
-    recoveryEmailSubject: 'პაროლის აღდგენა — Aqar Exit',
-    recoveryEmailPrompt: 'ახალი პაროლის დასაყენებლად გადადით ბმულზე',
-    sendLinkFailed: 'ბმულის გაგზავნა ვერ მოხერხდა.',
-    shortPassword: 'პაროლი უნდა შედგებოდეს მინიმუმ 8 სიმბოლოსგან.',
-    updatePassFailed: 'პაროლის განახლება ვერ მოხერხდა.',
-    saveProgressFailed: 'მონაცემების შენახვა ვერ მოხერხდა.',
-    submitUnitFailed: 'განაცხადის გაგზავნა ვერ მოხერხდა.',
-    defaultMonthly: 'ყოველთვიური',
-    defaultReady: 'ჩაბარებული',
-    enterNamePhone: 'შეიყვანეთ სახელი და ტელეფონის ნომერი.',
-    investorFailed: 'მოთხოვნის გაგზავნა ვერ მოხერხდა.',
-    otpSubjectPrefix: 'თქვენი Aqar Exit დადასტურების კოდია:',
-    otpInvalid: 'კოდი არასწორია ან ვადა გაუვიდა.',
-    otpSendError: 'კოდის გაგზავნა ვერ მოხერხდა.',
-  },
+export const SIVRCE_FEATURE_GROUPS = FEATURE_GROUP_KEYS.map((group) => ({
+  key: group.key,
+  labelEn:
+    (enDict.sell.optionsData.featureGroups as Record<string, string>)[
+      group.key
+    ] || group.key,
+  labelAr:
+    (arDict.sell.optionsData.featureGroups as Record<string, string>)[
+      group.key
+    ] || group.key,
+  labelRu:
+    (ruDict.sell.optionsData.featureGroups as Record<string, string>)[
+      group.key
+    ] || group.key,
+  labelKa:
+    (kaDict.sell.optionsData.featureGroups as Record<string, string>)[
+      group.key
+    ] || group.key,
+  items: group.ids.map((id) => ({
+    id,
+    labelEn:
+      (enDict.sell.optionsData.featureItems as Record<string, string>)[id] ||
+      id,
+    labelAr:
+      (arDict.sell.optionsData.featureItems as Record<string, string>)[id] ||
+      id,
+    labelRu:
+      (ruDict.sell.optionsData.featureItems as Record<string, string>)[id] ||
+      id,
+    labelKa:
+      (kaDict.sell.optionsData.featureItems as Record<string, string>)[id] ||
+      id,
+  })),
+}))
+
+const FORMS_DICTS_BY_LOCALE: Record<LocaleCode, Record<string, string>> = {
+  ar: arDict.serverActions.forms,
+  en: enDict.serverActions.forms,
+  ru: ruDict.serverActions.forms,
+  ka: kaDict.serverActions.forms,
 }
 
 export async function getFormsDict() {
@@ -344,14 +162,14 @@ export async function getFormsDict() {
     (dict as Record<string, any>)?.serverActions?.forms ||
     (dict as Record<string, any>)?.serverActions?.submitForms ||
     {}
-  const fb = FORMS_MESSAGES_FALLBACK[locale] || FORMS_MESSAGES_FALLBACK.en
+  const fb = FORMS_DICTS_BY_LOCALE[locale] || FORMS_DICTS_BY_LOCALE.en
   const t: Record<string, string> = { ...fb }
 
-  for (const key of Object.keys(fb)) {
+  for (const key of Object.keys({ ...fb, ...raw })) {
     const val = raw[key]
     if (typeof val === 'string' && val.trim()) {
       if (locale !== 'ar' && /[\u0600-\u06FF]/.test(val)) {
-        t[key] = fb[key]
+        t[key] = fb[key] || FORMS_DICTS_BY_LOCALE.en[key] || val
       } else {
         t[key] = val
       }
@@ -718,7 +536,6 @@ export function stripExtendedSellColumns(payload: Record<string, any>) {
   delete clone.overdue_installments
   delete clone.submission_type
   delete clone.last_seller_edit_at
-  // الأعمدة الجديدة في حال لم يشغّل المستخدم الـ SQL بعد (تبقى محفوظة في documents.__unit_meta)
   delete clone.listing_category
   delete clone.rent_price
   delete clone.rent_period

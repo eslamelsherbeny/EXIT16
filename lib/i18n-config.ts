@@ -17,10 +17,10 @@ export const SUPPORTED_LANGUAGES: Record<
     dir: 'rtl' | 'ltr'
   }
 > = {
-  ar: { code: 'ar', shortCode: 'AR', nativeName: 'العربية', dir: 'rtl' },
-  en: { code: 'en', shortCode: 'EN', nativeName: 'English', dir: 'ltr' },
-  ru: { code: 'ru', shortCode: 'RU', nativeName: 'Русский', dir: 'ltr' },
-  ka: { code: 'ka', shortCode: 'KA', nativeName: 'ქართული', dir: 'ltr' },
+  ar: { code: 'ar', shortCode: 'AR', nativeName: ar.navbar.languageOptions.ar, dir: 'rtl' },
+  en: { code: 'en', shortCode: 'EN', nativeName: en.navbar.languageOptions.en, dir: 'ltr' },
+  ru: { code: 'ru', shortCode: 'RU', nativeName: ru.navbar.languageOptions.ru, dir: 'ltr' },
+  ka: { code: 'ka', shortCode: 'KA', nativeName: ka.navbar.languageOptions.ka, dir: 'ltr' },
 }
 
 export const DICTIONARIES: Record<LocaleCode, Dictionary> = {
@@ -37,7 +37,6 @@ export function normalizeLocale(val?: string | null): LocaleCode {
 }
 
 export function normalizeCountry(val?: string | null): CountryCode {
-  // الموقع يعمل حالياً في سوق جورجيا (GE) فقط، مع إبقاء الأنواع الأخرى جاهزة للتوسع مستقبلاً
   const clean = (val || 'GE').trim().toUpperCase()
   if (clean === 'GE' || clean === 'EG' || clean === 'RU' || clean === 'AE') {
     return clean
@@ -47,19 +46,17 @@ export function normalizeCountry(val?: string | null): CountryCode {
 
 export function getCurrencySymbol(
   country?: string | null,
-  locale?: string | null
+  _locale?: string | null
 ): string {
   const c = normalizeCountry(country)
-  const l = normalizeLocale(locale)
-  const isArabic = l === 'ar'
 
   switch (c) {
     case 'GE':
       return '$'
     case 'EG':
-      return isArabic ? 'ج.م' : 'EGP'
+      return 'EGP'
     case 'AE':
-      return isArabic ? 'د.إ' : 'AED'
+      return 'AED'
     case 'RU':
       return '₽'
     default:

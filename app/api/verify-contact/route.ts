@@ -26,7 +26,6 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = await getSupabase()
 
-    // 1. إذا كان الرابط لتأكيد الإيميل عبر التوكن السحري المرسل في الإيميل
     if (type === 'email' && token) {
       const verified = await verifyMagicTokenAction(token)
       if (verified.valid && verified.userId) {
@@ -35,7 +34,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL('/login', request.url))
     }
 
-    // 2. فحص هوية الشخص الذي ضغط على رابط الواتساب (/api/verify)
     const sessionUser = await getVerifiedSellerSession(supabase)
     const role = String(sessionUser?.role || 'user')
       .trim()
@@ -47,7 +45,6 @@ export async function GET(request: NextRequest) {
         role === 'moderator' ||
         role === 'sales')
 
-    // إذا كان الذي ضغط على الرابط هو الأدمن نفسه -> نوثق رقم العميل فوراً ونفتح للأدمن الكارت في لوحة الإدارة!
     if (isStaff) {
       let resolvedUserId = targetUserId
 
@@ -132,7 +129,6 @@ export async function GET(request: NextRequest) {
         })
       }
 
-      // توجيه الأدمن مباشرة إلى الكارت المناسب في لوحة الإدارة
       if (offerId) {
         return NextResponse.redirect(
           new URL(
@@ -160,7 +156,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL('/admin', request.url))
     }
 
-    // 3. أما إذا ضغط العميل نفسه (أو أي زائر غير الأدمن) على الرابط في رسالة الواتساب:
     if (unitId && !sessionUser) {
       return NextResponse.redirect(
         new URL(`/opportunities/${encodeURIComponent(unitId)}`, request.url)

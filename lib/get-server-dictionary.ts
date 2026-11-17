@@ -63,15 +63,6 @@ export const DEFAULT_SITE_SETTINGS: GlobalSiteSettings = {
   emailNotifications: true,
 }
 
-/**
- * تحديد اللغة الذكية للزائر:
- * 1. إذا كان لديه Cookie محفوظ باختياره السابق -> نعتمد اختياره.
- * 2. إذا كان زائراً جديداً -> نقرأ لغة هاتفه/متصفحه (Accept-Language):
- *    - عربي -> ar
- *    - روسي -> ru
- *    - جورجي -> ka
- *    - أي لغة أخرى عالمياً -> en (الإنجليزية كلغة افتراضية دولية)
- */
 async function resolveSmartServerLocale(): Promise<LocaleCode> {
   const cookieStore = await cookies()
   const savedCookieLocale = cookieStore.get('locale')?.value
@@ -90,12 +81,10 @@ async function resolveSmartServerLocale(): Promise<LocaleCode> {
     if (primaryTag.startsWith('ka')) return 'ka'
     if (primaryTag.startsWith('en')) return 'en'
 
-    // فحص بقية اللغات المفضلة في المتصفح إن وجدت
     if (acceptLang.includes('ar')) return 'ar'
     if (acceptLang.includes('ru')) return 'ru'
     if (acceptLang.includes('ka')) return 'ka'
 
-    // اللغة العالمية الافتراضية لأي متصفح غير عربي/روسي/جورجي هي الإنجليزية
     return 'en'
   } catch {
     return 'en'
@@ -107,20 +96,19 @@ export async function getServerDictionary(
 ): Promise<Dictionary> {
   if (localeOverride) {
     const clean = normalizeLocale(localeOverride)
-    return DICTIONARIES[clean] || DICTIONARIES.ar
+    return DICTIONARIES[clean] || DICTIONARIES.en
   }
   const locale = await resolveSmartServerLocale()
-  return DICTIONARIES[locale] || DICTIONARIES.ar
+  return DICTIONARIES[locale] || DICTIONARIES.en
 }
 
 export async function getServerI18n() {
   const cookieStore = await cookies()
   const locale = await resolveSmartServerLocale()
-  // تثبيت الدولة النشطة على جورجيا (GE)
   const country: CountryCode = 'GE'
   const dir = locale === 'ar' ? ('rtl' as const) : ('ltr' as const)
 
-  const baseDict = DICTIONARIES[locale] || DICTIONARIES.ar
+  const baseDict = DICTIONARIES[locale] || DICTIONARIES.en
   const dict = structuredClone(baseDict) as Dictionary & Record<string, any>
   const currency = getCurrencySymbol(country, locale)
 
@@ -144,7 +132,6 @@ export async function getServerI18n() {
         }
       )
 
-      // 1. قراءة إعدادات الموقع من جدول site_settings في Supabase
       let loadedFromDb = false
       try {
         const { data: dbRow } = await supabase
@@ -175,7 +162,6 @@ export async function getServerI18n() {
         }
       } catch {}
 
-      // 2. قراءة احتياطية من جدول notifications
       if (!loadedFromDb) {
         try {
           const { data: sysRow } = await supabase
@@ -198,7 +184,6 @@ export async function getServerI18n() {
         } catch {}
       }
 
-      // 3. التحقق الدقيق من جلسة المستخدم وصلاحية الإدارة
       if (rawSession && candidateUserId) {
         const { data: user } = await supabase
           .from('users')

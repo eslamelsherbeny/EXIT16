@@ -8,9 +8,6 @@ function getSessionSecret(): string {
   )
 }
 
-/**
- * بصمة مختصرة لكلمة المرور (12 حرفاً) لضمان إبطال الجلسة تلقائياً إذا غيّر المستخدم كلمة مروره
- */
 export function getPasswordFingerprint(
   passwordHash: string | null | undefined
 ): string {
@@ -20,10 +17,6 @@ export function getPasswordFingerprint(
     .slice(0, 12)
 }
 
-/**
- * إنشاء توكن جلسة موقّع رقمياً بـ HMAC-SHA256
- * الصيغة الموحدة الإجبارية: userId.pwdFp.signature (3 أجزاء دائماً)
- */
 export function createSignedSessionToken(
   userId: string,
   passwordHash?: string | null
@@ -39,9 +32,6 @@ export function createSignedSessionToken(
   return `${payload}.${sig}`
 }
 
-/**
- * استخراج معرف المستخدم (UUID) من الكوكي بأمان تام
- */
 export function extractUserIdFromCookie(
   rawCookieValue?: string | null
 ): string | null {
@@ -66,9 +56,6 @@ export function extractUserIdFromCookie(
   }
 }
 
-/**
- * التحقق الصارم من صحة توقيع الكوكي (HMAC-SHA256) ومطابقته لبصمة كلمة المرور الحالية
- */
 export function parseAndVerifySessionCookie(
   rawCookieValue: string | undefined | null,
   currentDbPasswordHash?: string | null

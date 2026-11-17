@@ -38,7 +38,7 @@ import {
   downloadOfficialPdfReport,
   EXPORT_LABELS,
 } from "@/lib/export-csv"
-import { useTranslation, type LocaleCode } from "@/lib/i18n"
+import { useTranslation } from "@/lib/i18n"
 import {
   calculateSmartMatch,
   type MatchableBuyer,
@@ -73,46 +73,6 @@ import {
 
 export type { SellRequest, UserVerificationBadgeInfo }
 
-const ANALYTICS_UI_LABELS: Record<
-  LocaleCode,
-  {
-    viewsWord: string
-    totalViewsLabel: string
-    sendReportWaBtn: string
-    viewsColumnHeader: string
-    viewUnitBtn: string
-  }
-> = {
-  ar: {
-    viewsWord: "مشاهدة",
-    totalViewsLabel: "إجمالي مشاهدات الوحدات:",
-    sendReportWaBtn: "إرسال تقرير المشاهدات للمالك (واتساب)",
-    viewsColumnHeader: "المشاهدات",
-    viewUnitBtn: "مشاهدة الوحدة",
-  },
-  en: {
-    viewsWord: "views",
-    totalViewsLabel: "Total Unit Views:",
-    sendReportWaBtn: "Send Views Report to Owner (WhatsApp)",
-    viewsColumnHeader: "Views",
-    viewUnitBtn: "View Unit",
-  },
-  ru: {
-    viewsWord: "просм.",
-    totalViewsLabel: "Всего просмотров:",
-    sendReportWaBtn: "Отправить отчет о просмотрах (WhatsApp)",
-    viewsColumnHeader: "Просмотры",
-    viewUnitBtn: "Посмотреть объект",
-  },
-  ka: {
-    viewsWord: "ნახვა",
-    totalViewsLabel: "სულ ნახვები:",
-    sendReportWaBtn: "ნახვების რეპორტის გაგზავნა (WhatsApp)",
-    viewsColumnHeader: "ნახვები",
-    viewUnitBtn: "ობიექტის ნახვა",
-  },
-}
-
 function normalizeRowStatus(rawStatus?: string | null): string {
   const clean = String(rawStatus || "pending").trim().toLowerCase()
   if (clean === "approved" || clean === "published") return "active"
@@ -143,7 +103,7 @@ export default function PropertiesTable({
   const leadsPrompts = dict.admin.leads
   const sm = (dict.admin as Record<string, any>).smartMatch || {}
   const expL = EXPORT_LABELS[locale] || EXPORT_LABELS.ar
-  const aL = ANALYTICS_UI_LABELS[locale] || ANALYTICS_UI_LABELS.ar
+  const aL = (t.analytics as Record<string, string>) || {}
 
   function getMatchedBuyersForUnit(unit: SellRequest) {
     if (!buyers || buyers.length === 0) return []
@@ -743,6 +703,7 @@ export default function PropertiesTable({
       offersCount,
       matchedBuyersCount,
       locale,
+      t,
     })
 
     return (
@@ -1085,7 +1046,7 @@ export default function PropertiesTable({
               <span>
                 {propBadges.promoReqPrefix} (
                 {isVipPlus ? "+VIP" : "SUPER VIP"} ·{" "}
-                {property.featured_days || 1}d
+                {property.featured_days || 1} {propBadges.dayWord}
                 {property.featured_price ? ` · ${property.featured_price} ₾` : ""}
                 ) · {property.featured_fawry_code || "AD"}
               </span>
@@ -1122,7 +1083,7 @@ export default function PropertiesTable({
   }
 
   const activeCount = properties.length - deletedBySellerList.length
-  const georgiaLabel = t.countries?.GE || "Georgia"
+  const georgiaLabel = t.countries?.GE || ""
 
   return (
     <div dir={dir} className="text-start">
@@ -1860,6 +1821,7 @@ export default function PropertiesTable({
                 matchedBuyersCount:
                   getMatchedBuyersForUnit(detailsProperty).length,
                 locale,
+                t,
               })
             : ""
         }

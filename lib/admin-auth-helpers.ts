@@ -36,12 +36,6 @@ export function getEnvSuperAdminEmails(): string[] {
     .filter(Boolean)
 }
 
-/**
- * تحديد جميع معرفات المستخدمين الذين يتمتعون بحصانة مالك المشروع (Owner / Super Admin):
- * 1. أي مستخدم يحمل role = "owner" في قاعدة البيانات
- * 2. أي مستخدم يطابق بريده الإلكتروني SUPER_ADMIN_EMAIL في متغيرات البيئة
- * 3. إذا لم يوجد أي مما سبق بعد (عند تشغيل المشروع لأول مرة)، يُعتمد أقدم حساب Admin مؤقتاً حتى يعيّن المالك
- */
 export async function resolveOwnerUserIds(supabase: any): Promise<Set<string>> {
   const envEmails = getEnvSuperAdminEmails()
   const { data: staffUsers } = await supabase
@@ -386,7 +380,6 @@ export async function requireAdminAuth(
     .replace(/[\r\n\s]+/g, "")
     .toLowerCase() as StaffRoleCode | "user"
 
-  // رتبة "owner" تمتلك تلقائياً جميع صلاحيات "admin" وأكثر
   const effectiveAllowed = new Set<string>(allowedRoles)
   if (effectiveAllowed.has("admin")) {
     effectiveAllowed.add("owner")

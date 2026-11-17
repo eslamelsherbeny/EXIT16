@@ -165,7 +165,10 @@ export async function verifyStaffSession() {
   if (
     !valid ||
     user.status === 'suspended' ||
-    (role !== 'admin' && role !== 'moderator' && role !== 'sales')
+    (role !== 'owner' &&
+      role !== 'admin' &&
+      role !== 'moderator' &&
+      role !== 'sales')
   ) {
     return null
   }
@@ -175,7 +178,14 @@ export async function verifyStaffSession() {
 export function isUnitOwnedByUser(unit: any, user: any): boolean {
   if (!unit || !user?.id) return false
   const role = String(user.role || 'user').trim().toLowerCase()
-  if (role === 'admin' || role === 'moderator' || role === 'sales') return true
+  if (
+    role === 'owner' ||
+    role === 'admin' ||
+    role === 'moderator' ||
+    role === 'sales'
+  ) {
+    return true
+  }
 
   if (unit.user_id) {
     return String(unit.user_id) === String(user.id)
@@ -218,11 +228,6 @@ export function normalizeOfferRecord(raw: any): OfferRecord {
   }
 }
 
-/**
- * تطهير بيانات الوحدة للعرض العام وللمشترين:
- * - يحافظ على الكود (code)، وعدد المشاهدات (views_count)، ونوع الباقة (boost_tier)، وسنة الاستلام (delivery_year)، وتاريخ النشر (created_at)
- * - يخفي دائماً اسم ورقم هاتف المالك والشارع الدقيق لحماية عمولة المنصة في التنازل والأقساط
- */
 export function sanitizeUnitForPublicOrBuyer(
   unit: any
 ): (MatchableUnit & Record<string, any>) | undefined {

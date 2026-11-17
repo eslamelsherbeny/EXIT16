@@ -1,4 +1,8 @@
 import type { LocaleCode } from '@/lib/i18n'
+import arDict from '@/dictionaries/ar.json'
+import enDict from '@/dictionaries/en.json'
+import ruDict from '@/dictionaries/ru.json'
+import kaDict from '@/dictionaries/ka.json'
 
 export type CsvColumnDef<T> = {
   header: string
@@ -9,373 +13,13 @@ export type CsvColumnDef<T> = {
   isPhone?: boolean
 }
 
-export const EXPORT_LABELS: Record<
-  LocaleCode,
-  {
-    exportAllBtn: string
-    exportPdfBtn: string
-    exportRowBtn: string
-    exportRowPdfBtn: string
-    moreActionsAria: string
-    brandSubtitle: string
-    marketLocationLabel: string
-    marketLocationValue: string
-    generatedAtLabel: string
-    totalRecordsLabel: string
-    officialDocBadge: string
-    footerDisclaimer: string
-    propertiesReportTitle: string
-    promotionsReportTitle: string
-    singlePropertyReportTitle: string
-    leadsReportTitle: string
-    singleLeadReportTitle: string
-    usersReportTitle: string
-    singleUserReportTitle: string
-    dealsReportTitle: string
-    singleDealReportTitle: string
-    yes: string
-    no: string
-    normalTier: string
-    unitLeadType: string
-    generalLeadType: string
-    activeStatus: string
-    suspendedStatus: string
-    verified: string
-    unverified: string
-    cols: {
-      index: string
-      unitCode: string
-      projectName: string
-      developer: string
-      area: string
-      unitType: string
-      sizeSqm: string
-      rooms: string
-      requiredCash: string
-      contractPrice: string
-      marketPrice: string
-      installment: string
-      frequency: string
-      negotiable: string
-      sellerName: string
-      sellerPhone: string
-      sellerEmail: string
-      status: string
-      promoTier: string
-      createdAt: string
-      buyerName: string
-      buyerPhone: string
-      buyerEmail: string
-      availableCash: string
-      maxInstallment: string
-      targetAreas: string
-      leadType: string
-      notes: string
-      userRole: string
-      sellUnitsCount: string
-      buyRequestsCount: string
-      verification: string
-      offerRef: string
-      offeredCash: string
-      counterCash: string
-      commission: string
-      readiness: string
-      paymentMethod: string
-    }
-  }
-> = {
-  ar: {
-    exportAllBtn: 'تصدير Excel',
-    exportPdfBtn: 'تصدير PDF رسمي',
-    exportRowBtn: 'تصدير السجل (Excel)',
-    exportRowPdfBtn: 'طباعة / حفظ كـ PDF',
-    moreActionsAria: 'خيارات إضافية',
-    brandSubtitle: 'منصة التنازل واستكمال الأقساط العقارية الموثقة — جورجيا',
-    marketLocationLabel: 'السوق العقاري',
-    marketLocationValue: 'جورجيا (تبليسي · باتومي · غودوري) — العملة ($)',
-    generatedAtLabel: 'تاريخ التحرير',
-    totalRecordsLabel: 'إجمالي السجلات',
-    officialDocBadge: 'وثيقة رسمية مستخرجة من نظام إدارة Aqar Exit',
-    footerDisclaimer:
-      'تم إصدار هذا المستند إلكترونياً من لوحة تحكم إدارة Aqar Exit — جميع البيانات موثقة وسرية.',
-    propertiesReportTitle: 'قائمة الوحدات المعروضة وطلبات البيع (البائعين)',
-    promotionsReportTitle: 'قائمة الإعلانات المميزة وباقات الترويج (VIP)',
-    singlePropertyReportTitle: 'استمارة بيانات وحدة عقارية رسمية',
-    leadsReportTitle: 'قائمة المشترين وطلبات الشراء المسجلة',
-    singleLeadReportTitle: 'استمارة بيانات مشتري وطلب شراء',
-    usersReportTitle: 'قائمة المستخدمين والعملاء المسجلين بالمنصة',
-    singleUserReportTitle: 'بطاقة بيانات حساب عميل',
-    dealsReportTitle: 'سجل غرفة الصفقات والعروض والعمولات',
-    singleDealReportTitle: 'استمارة تفاصيل صفقة وعرض شراء',
-    yes: 'نعم',
-    no: 'لا',
-    normalTier: 'عادي',
-    unitLeadType: 'طلب على وحدة محددة',
-    generalLeadType: 'طلب بحث عام',
-    activeStatus: 'نشط',
-    suspendedStatus: 'موقوف',
-    verified: 'موثق ✓',
-    unverified: 'غير موثق',
-    cols: {
-      index: '#',
-      unitCode: 'كود الوحدة',
-      projectName: 'اسم المشروع',
-      developer: 'المطور العقاري',
-      area: 'المنطقة / الحي',
-      unitType: 'نوع الوحدة',
-      sizeSqm: 'المساحة (م²)',
-      rooms: 'الغرف',
-      requiredCash: 'الكاش المطلوب ($)',
-      contractPrice: 'سعر العقد ($)',
-      marketPrice: 'سعر السوق ($)',
-      installment: 'القسط ($)',
-      frequency: 'دورية القسط',
-      negotiable: 'قابل للتفاوض',
-      sellerName: 'اسم البائع',
-      sellerPhone: 'هاتف البائع',
-      sellerEmail: 'إيميل البائع',
-      status: 'الحالة',
-      promoTier: 'باقة التمييز',
-      createdAt: 'تاريخ التسجيل',
-      buyerName: 'اسم المشتري',
-      buyerPhone: 'هاتف المشتري',
-      buyerEmail: 'إيميل المشتري',
-      availableCash: 'الكاش المتاح ($)',
-      maxInstallment: 'أقصى قسط ($)',
-      targetAreas: 'المناطق / الوحدة المطلوبة',
-      leadType: 'نوع الطلب',
-      notes: 'ملاحظات العميل',
-      userRole: 'الصلاحية',
-      sellUnitsCount: 'وحدات البيع',
-      buyRequestsCount: 'طلبات الشراء',
-      verification: 'توثيق الحساب',
-      offerRef: 'مرجع العرض',
-      offeredCash: 'الكاش المعروض ($)',
-      counterCash: 'العرض المقابل ($)',
-      commission: 'عمولة المنصة ($)',
-      readiness: 'جاهزية الدفع',
-      paymentMethod: 'طريقة السداد',
-    },
-  },
-  en: {
-    exportAllBtn: 'Export Excel',
-    exportPdfBtn: 'Export PDF',
-    exportRowBtn: 'Export Record (Excel)',
-    exportRowPdfBtn: 'Save / Print as PDF',
-    moreActionsAria: 'More actions',
-    brandSubtitle: 'Verified Real Estate Installment Exit Platform — Georgia',
-    marketLocationLabel: 'Market / Location',
-    marketLocationValue: 'Georgia (Tbilisi · Batumi · Gudauri) — Currency ($)',
-    generatedAtLabel: 'Issued On',
-    totalRecordsLabel: 'Total Records',
-    officialDocBadge: 'Official Document Generated by Aqar Exit Admin System',
-    footerDisclaimer:
-      'This document was electronically generated by Aqar Exit Admin Dashboard — Confidential & Verified.',
-    propertiesReportTitle: 'Listed Properties & Seller Requests Directory',
-    promotionsReportTitle: 'Featured Listings & VIP Promotions Report',
-    singlePropertyReportTitle: 'Official Property & Seller Dossier',
-    leadsReportTitle: 'Registered Buyers & Purchase Leads Directory',
-    singleLeadReportTitle: 'Official Buyer Lead Dossier',
-    usersReportTitle: 'Registered Platform Users & Clients Directory',
-    singleUserReportTitle: 'Client Account Dossier',
-    dealsReportTitle: 'Deals Room, Offers & Commissions Registry',
-    singleDealReportTitle: 'Official Deal & Purchase Offer Dossier',
-    yes: 'Yes',
-    no: 'No',
-    normalTier: 'Standard',
-    unitLeadType: 'Specific Unit Lead',
-    generalLeadType: 'General Search Lead',
-    activeStatus: 'Active',
-    suspendedStatus: 'Suspended',
-    verified: 'Verified ✓',
-    unverified: 'Unverified',
-    cols: {
-      index: '#',
-      unitCode: 'Unit Code',
-      projectName: 'Project Name',
-      developer: 'Developer',
-      area: 'District / Area',
-      unitType: 'Unit Type',
-      sizeSqm: 'Area (m²)',
-      rooms: 'Rooms',
-      requiredCash: 'Required Cash ($)',
-      contractPrice: 'Contract Price ($)',
-      marketPrice: 'Market Price ($)',
-      installment: 'Installment ($)',
-      frequency: 'Frequency',
-      negotiable: 'Negotiable',
-      sellerName: 'Seller Name',
-      sellerPhone: 'Seller Phone',
-      sellerEmail: 'Seller Email',
-      status: 'Status',
-      promoTier: 'Boost Tier',
-      createdAt: 'Created Date',
-      buyerName: 'Buyer Name',
-      buyerPhone: 'Buyer Phone',
-      buyerEmail: 'Buyer Email',
-      availableCash: 'Available Cash ($)',
-      maxInstallment: 'Max Installment ($)',
-      targetAreas: 'Target Areas / Unit',
-      leadType: 'Lead Type',
-      notes: 'Customer Notes',
-      userRole: 'Role',
-      sellUnitsCount: 'Listed Units',
-      buyRequestsCount: 'Buy Requests',
-      verification: 'Verification',
-      offerRef: 'Offer Ref',
-      offeredCash: 'Offered Cash ($)',
-      counterCash: 'Counter Offer ($)',
-      commission: 'Platform Fee ($)',
-      readiness: 'Payment Readiness',
-      paymentMethod: 'Payment Method',
-    },
-  },
-  ru: {
-    exportAllBtn: 'Экспорт Excel',
-    exportPdfBtn: 'Экспорт PDF',
-    exportRowBtn: 'Экспорт (Excel)',
-    exportRowPdfBtn: 'Сохранить в PDF',
-    moreActionsAria: 'Действия',
-    brandSubtitle: 'Платформа переуступки недвижимости в рассрочку — Грузия',
-    marketLocationLabel: 'Рынок / Локация',
-    marketLocationValue: 'Грузия (Тбилиси · Батуми · Гудаури) — Валюта ($)',
-    generatedAtLabel: 'Дата выпуска',
-    totalRecordsLabel: 'Всего записей',
-    officialDocBadge: 'Официальный документ системы управления Aqar Exit',
-    footerDisclaimer:
-      'Документ сформирован автоматически в панели администратора Aqar Exit.',
-    propertiesReportTitle: 'Список объектов и заявок продавцов',
-    promotionsReportTitle: 'Список VIP-объектов и продвижения',
-    singlePropertyReportTitle: 'Официальная карточка объекта недвижимости',
-    leadsReportTitle: 'Список покупателей и заявок на покупку',
-    singleLeadReportTitle: 'Официальная карточка покупателя',
-    usersReportTitle: 'Список пользователей и клиентов платформы',
-    singleUserReportTitle: 'Карточка аккаунта клиента',
-    dealsReportTitle: 'Реестр сделок, офферов и комиссий',
-    singleDealReportTitle: 'Официальная карточка сделки',
-    yes: 'Да',
-    no: 'Нет',
-    normalTier: 'Обычный',
-    unitLeadType: 'Запрос по объекту',
-    generalLeadType: 'Общий запрос',
-    activeStatus: 'Активен',
-    suspendedStatus: 'Заблокирован',
-    verified: 'Подтвержден ✓',
-    unverified: 'Не подтвержден',
-    cols: {
-      index: '№',
-      unitCode: 'Код объекта',
-      projectName: 'Проект',
-      developer: 'Застройщик',
-      area: 'Район',
-      unitType: 'Тип объекта',
-      sizeSqm: 'Площадь (м²)',
-      rooms: 'Комнат',
-      requiredCash: 'Нужно наличными ($)',
-      contractPrice: 'Цена по договору ($)',
-      marketPrice: 'Рыночная цена ($)',
-      installment: 'Платеж ($)',
-      frequency: 'Периодичность',
-      negotiable: 'Торг уместен',
-      sellerName: 'Продавец',
-      sellerPhone: 'Телефон продавца',
-      sellerEmail: 'Email продавца',
-      status: 'Статус',
-      promoTier: 'Пакет продвижения',
-      createdAt: 'Дата создания',
-      buyerName: 'Покупатель',
-      buyerPhone: 'Телефон покупателя',
-      buyerEmail: 'Email покупателя',
-      availableCash: 'Бюджет наличными ($)',
-      maxInstallment: 'Макс. платеж ($)',
-      targetAreas: 'Желаемые районы / Объект',
-      leadType: 'Тип заявки',
-      notes: 'Заметки',
-      userRole: 'Роль',
-      sellUnitsCount: 'Объектов на продажу',
-      buyRequestsCount: 'Заявок на покупку',
-      verification: 'Верификация',
-      offerRef: 'Код оффера',
-      offeredCash: 'Предложено ($)',
-      counterCash: 'Встречный оффер ($)',
-      commission: 'Комиссия ($)',
-      readiness: 'Готовность к оплате',
-      paymentMethod: 'Способ оплаты',
-    },
-  },
-  ka: {
-    exportAllBtn: 'Excel ექსპორტი',
-    exportPdfBtn: 'PDF ექსპორტი',
-    exportRowBtn: 'Excel-ში ჩამოტვირთვა',
-    exportRowPdfBtn: 'PDF-ში შენახვა',
-    moreActionsAria: 'დამატებითი მოქმედებები',
-    brandSubtitle: 'უძრავი ქონების გადაბარების ვერიფიცირებული პლატფორმა',
-    marketLocationLabel: 'ბაზარი / მდებარეობა',
-    marketLocationValue: 'საქართველო (თბილისი · ბათუმი · გუდაური) — ვალუტა ($)',
-    generatedAtLabel: 'გაცემის თარიღი',
-    totalRecordsLabel: 'სულ ჩანაწერები',
-    officialDocBadge: 'Aqar Exit-ის ოფიციალური დოკუმენტი',
-    footerDisclaimer:
-      'დოკუმენტი გენერირებულია Aqar Exit-ის ადმინისტრაციული პანელიდან.',
-    propertiesReportTitle: 'ობიექტებისა და გამყიდველების სია',
-    promotionsReportTitle: 'VIP რეკლამებისა და პაკეტების სია',
-    singlePropertyReportTitle: 'უძრავი ქონების ოფიციალური ბარათი',
-    leadsReportTitle: 'მყიდველებისა და მოთხოვნების სია',
-    singleLeadReportTitle: 'მყიდველის მოთხოვნის ოფიციალური ბარათი',
-    usersReportTitle: 'პლატფორმის მომხმარებლების სია',
-    singleUserReportTitle: 'მომხმარებლის ანგარიშის ბარათი',
-    dealsReportTitle: 'გარიგებების, ოფერების და საკომისიოს რეესტრი',
-    singleDealReportTitle: 'გარიგების დეტალური ბარათი',
-    yes: 'დიახ',
-    no: 'არა',
-    normalTier: 'სტანდარტული',
-    unitLeadType: 'კონკრეტული ობიექტის მოთხოვნა',
-    generalLeadType: 'ზოგადი მოთხოვნა',
-    activeStatus: 'აქტიური',
-    suspendedStatus: 'შეჩერებული',
-    verified: 'ვერიფიცირებული ✓',
-    unverified: 'არავერიფიცირებული',
-    cols: {
-      index: '#',
-      unitCode: 'ობიექტის კოდი',
-      projectName: 'პროექტი',
-      developer: 'დეველოპერი',
-      area: 'უბანი',
-      unitType: 'ტიპი',
-      sizeSqm: 'ფართობი (მ²)',
-      rooms: 'ოთახები',
-      requiredCash: 'საჭირო თანხა ($)',
-      contractPrice: 'კონტრაქტის ფასი ($)',
-      marketPrice: 'საბაზრო ფასი ($)',
-      installment: 'განვადება ($)',
-      frequency: 'პერიოდულობა',
-      negotiable: 'შეთანხმებით',
-      sellerName: 'გამყიდველი',
-      sellerPhone: 'გამყიდველის ტელეფონი',
-      sellerEmail: 'გამყიდველის ელ-ფოსტა',
-      status: 'სტატუსი',
-      promoTier: 'VIP პაკეტი',
-      createdAt: 'თარიღი',
-      buyerName: 'მყიდველი',
-      buyerPhone: 'მყიდველის ტელეფონი',
-      buyerEmail: 'მყიდველის ელ-ფოსტა',
-      availableCash: 'ხელმისაწვდომი თანხა ($)',
-      maxInstallment: 'მაქს. განვადება ($)',
-      targetAreas: 'სასურველი უბნები',
-      leadType: 'მოთხოვნის ტიპი',
-      notes: 'შენიშვნები',
-      userRole: 'როლი',
-      sellUnitsCount: 'გასაყიდი ობიექტები',
-      buyRequestsCount: 'შესყიდვის მოთხოვნები',
-      verification: 'ვერიფიკაცია',
-      offerRef: 'ოფერის კოდი',
-      offeredCash: 'შეთავაზებული თანხა ($)',
-      counterCash: 'საპასუხო შეთავაზება ($)',
-      commission: 'საკომისიო ($)',
-      readiness: 'გადახდის მზაობა',
-      paymentMethod: 'გადახდის მეთოდი',
-    },
-  },
+export type ExportLabelsConfig = typeof enDict.admin.exportLabels
+
+export const EXPORT_LABELS: Record<LocaleCode, ExportLabelsConfig> = {
+  ar: arDict.admin.exportLabels,
+  en: enDict.admin.exportLabels,
+  ru: ruDict.admin.exportLabels,
+  ka: kaDict.admin.exportLabels,
 }
 
 function escapeHtml(raw: string | number | boolean | null | undefined): string {
@@ -389,9 +33,6 @@ function escapeHtml(raw: string | number | boolean | null | undefined): string {
     .replace(/"/g, '&quot;')
 }
 
-/**
- * 1. تصدير ملف إكسيل رسمي منسق بالكامل (.xls)
- */
 export function downloadExcelCsv<T>({
   filenamePrefix,
   reportTitle,
@@ -407,7 +48,7 @@ export function downloadExcelCsv<T>({
 }) {
   if (typeof window === 'undefined' || !data || data.length === 0) return
 
-  const L = EXPORT_LABELS[locale] || EXPORT_LABELS.ar
+  const L = EXPORT_LABELS[locale] || EXPORT_LABELS.en
   const isRtl = locale === 'ar'
   const dirAttr = isRtl ? 'rtl' : 'ltr'
   const alignAttr = isRtl ? 'right' : 'left'
@@ -526,11 +167,6 @@ export function downloadExcelCsv<T>({
   setTimeout(() => URL.revokeObjectURL(url), 1500)
 }
 
-/**
- * 2. تصدير وثيقة PDF رسمية مرسومة باللوجو والتسطير الاحترافي
- * - إذا كان السجل واحداً (1 Row): يرسمه كاستمارة / بطاقة عقارية فخمة مسطرة (Dossier View)
- * - إذا كان عدة سجلات: يرسمه كجدول تقرير رسمي مسطر (Landscape Official Table)
- */
 export function downloadOfficialPdfReport<T>({
   filenamePrefix,
   reportTitle,
@@ -546,7 +182,7 @@ export function downloadOfficialPdfReport<T>({
 }) {
   if (typeof window === 'undefined' || !data || data.length === 0) return
 
-  const L = EXPORT_LABELS[locale] || EXPORT_LABELS.ar
+  const L = EXPORT_LABELS[locale] || EXPORT_LABELS.en
   const isRtl = locale === 'ar'
   const dirAttr = isRtl ? 'rtl' : 'ltr'
   const resolvedTitle = reportTitle || L.propertiesReportTitle
@@ -560,7 +196,6 @@ export function downloadOfficialPdfReport<T>({
   })
   const docSerial = `DOC-${Date.now().toString(36).toUpperCase().slice(-6)}`
 
-  // اللوجو الرسمي لـ Aqar Exit بصيغة SVG Vector عالية الدقة
   const logoSvgHtml = `
     <svg width="118" height="52" viewBox="0 0 116 54" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M5 30L17.5 5.5C18.2 4.1 19.8 4.1 20.5 5.5L33 30" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -581,7 +216,6 @@ export function downloadOfficialPdfReport<T>({
   let contentHtml = ''
 
   if (isSingleDossier) {
-    // تصميم استمارة / وثيقة رسمية مسطرة لسجل واحد
     const singleRow = data[0]
     const dossierFields = columns
       .filter((_, idx) => idx !== 0)
@@ -609,7 +243,6 @@ export function downloadOfficialPdfReport<T>({
       </div>
     `
   } else {
-    // تصميم جدول رسمي مسطر لقائمة كاملة
     const thHtml = columns
       .map((col) => `<th>${escapeHtml(col.header)}</th>`)
       .join('')
@@ -743,7 +376,6 @@ export function downloadOfficialPdfReport<T>({
     .content-wrapper {
       padding: 18px 20px;
     }
-    /* تنسيق جدول القوائم المسطر */
     .official-table {
       width: 100%;
       border-collapse: collapse;
@@ -787,7 +419,6 @@ export function downloadOfficialPdfReport<T>({
       color: #105C50;
       white-space: nowrap;
     }
-    /* تنسيق الاستمارة المفردة (Dossier) */
     .dossier-container {
       border: 1.5px solid #cbd5e1;
       border-radius: 12px;

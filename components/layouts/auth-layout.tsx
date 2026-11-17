@@ -63,48 +63,18 @@ export function TurnstileBox({
 }: {
   onTokenChange?: (token: string) => void
 }) {
-  const { locale, dir } = useTranslation()
+  const { t: dict, locale, dir } = useTranslation()
+  const c = (dict.authPages?.common as Record<string, any>) || {}
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim() || ''
   const containerRef = useRef<HTMLDivElement>(null)
 
   const [token, setToken] = useState<string>('')
   const [status, setStatus] = useState<'verifying' | 'verified'>('verifying')
 
-  const verifyingText =
-    locale === 'ar'
-      ? 'جاري التحقق الأمني...'
-      : locale === 'ru'
-        ? 'Проверка...'
-        : locale === 'ka'
-          ? 'მოწმდება...'
-          : 'Verifying...'
-
-  const verifiedText =
-    locale === 'ar'
-      ? 'تم التحقق بنجاح!'
-      : locale === 'ru'
-        ? 'Успешно!'
-        : locale === 'ka'
-          ? 'წარმატებით!'
-          : 'Success!'
-
-  const privacyText =
-    locale === 'ar'
-      ? 'الخصوصية'
-      : locale === 'ru'
-        ? 'Конфид.'
-        : locale === 'ka'
-          ? 'კონფიდ.'
-          : 'Privacy'
-
-  const termsText =
-    locale === 'ar'
-      ? 'الشروط'
-      : locale === 'ru'
-        ? 'Условия'
-        : locale === 'ka'
-          ? 'პირობები'
-          : 'Terms'
+  const verifyingText = c.turnstileVerifying || ''
+  const verifiedText = c.turnstileVerified || ''
+  const privacyText = c.turnstilePrivacy || ''
+  const termsText = c.turnstileTerms || ''
 
   useEffect(() => {
     if (!siteKey) {
@@ -178,7 +148,6 @@ export function TurnstileBox({
           src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
           strategy="afterInteractive"
         />
-        {/* حاوية متجاوبة تمنع قص أطراف Cloudflare على شاشات الهواتف */}
         <div
           dir="ltr"
           className="flex min-h-[65px] w-full max-w-full items-center justify-center overflow-hidden rounded-[10px]"

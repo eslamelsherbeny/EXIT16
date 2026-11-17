@@ -152,25 +152,9 @@ export function GeorgiaAreaSelect({
   const cleanLabel = (label || '').replace(/\s*\*\s*$/, '')
   const isRequired = (label || '').includes('*')
 
-  const defaultSelectPlaceholder =
-    tDetails?.georgiaLocationPlaceholder ||
-    (locale === 'ar'
-      ? 'اختر المدينة أو الحي في جورجيا (تبليسي، باتومي...)'
-      : locale === 'ru'
-        ? 'Выберите город или район Грузии (Тбилиси, Батуми...)'
-        : locale === 'ka'
-          ? 'აირჩიეთ ქალაქი ან უბანი (თბილისი, ბათუმი...)'
-          : 'Select City or District in Georgia (Tbilisi, Batumi...)')
-
+  const defaultSelectPlaceholder = tDetails?.georgiaLocationPlaceholder || ''
   const defaultSearchPlaceholder =
-    tDetails?.georgiaLocationSearchPlaceholder ||
-    (locale === 'ar'
-      ? 'ابحث باسم الحي أو المدينة...'
-      : locale === 'ru'
-        ? 'Поиск района или города...'
-        : locale === 'ka'
-          ? 'მოძებნეთ უბანი ან ქალაქი...'
-          : 'Search district or city...')
+    tDetails?.georgiaLocationSearchPlaceholder || ''
 
   return (
     <div className="flex flex-col gap-2" ref={wrapperRef}>

@@ -365,7 +365,7 @@ export async function savePropertyAdminNoteAction(payload: {
         await supabase.from("notifications").insert({
           user_id: prop.user_id,
           role: "client",
-          title: `📝 ${msg.notifAdminNoteTitle || msg.notifRejectedTitle || "Admin Note"} (${projectLabel})`,
+          title: `📝 ${msg.notifAdminNoteTitle || msg.notifRejectedTitle} (${projectLabel})`,
           message: cleanNote,
           type: "status_update",
           link: `/account?view=seller&unitId=${prop.id}`,
@@ -515,7 +515,6 @@ export async function updateUserRoleAndStatusAction(
       ? cleanStatusRaw
       : "active"
 
-    // 1. منع أي مدير أو مالك من إيقاف حسابه الشخصي أو خفض رتبته لنفسه
     if (
       String(userId) === String(adminUser.id) &&
       ((cleanRole !== "admin" && cleanRole !== "owner") ||
@@ -531,7 +530,6 @@ export async function updateUserRoleAndStatusAction(
     const isCallerOwner = ownerIds.has(String(adminUser.id))
     const isTargetOwner = ownerIds.has(String(userId))
 
-    // 2. لا يمكن لأي شخص (حتى لو كان أدمن) إيقاف أو خفض رتبة حساب مالك المشروع (Owner)
     if (isTargetOwner && (cleanStatus === "suspended" || !isCallerOwner)) {
       return {
         success: false,
@@ -553,7 +551,6 @@ export async function updateUserRoleAndStatusAction(
       .trim()
       .toLowerCase()
 
-    // 3. فقط مالك المشروع (Owner) يملك صلاحية تعيين أو تعديل أو إيقاف حسابات (Owner / Admin)
     if (
       !isCallerOwner &&
       (targetCurrentRole === "admin" ||
@@ -614,7 +611,6 @@ export async function createAdminOrUserAction(formData: FormData) {
       }
     }
 
-    // فقط مالك المشروع (Owner) يمكنه إنشاء حساب جديد برتبة Owner أو Admin
     const ownerIds = await resolveOwnerUserIds(supabase)
     const isCallerOwner = ownerIds.has(String(adminUser.id))
     if (!isCallerOwner && (role === "admin" || role === "owner")) {
@@ -659,7 +655,6 @@ export async function deleteUserByAdminAction(userId: string) {
   try {
     const { supabase, adminUser } = await requireAdminAuth(["admin"])
 
-    // 1. منع الأدمن من حذف نفسه
     if (String(userId) === String(adminUser.id)) {
       return { success: false, error: msg.cannotDeleteSelf }
     }
@@ -668,7 +663,6 @@ export async function deleteUserByAdminAction(userId: string) {
     const isCallerOwner = ownerIds.has(String(adminUser.id))
     const isTargetOwner = ownerIds.has(String(userId))
 
-    // 2. مستحيل حذف حساب مالك المشروع (Owner) تحت أي ظرف
     if (isTargetOwner) {
       return {
         success: false,
@@ -688,7 +682,6 @@ export async function deleteUserByAdminAction(userId: string) {
 
     const targetRole = String(targetUser.role || "user").trim().toLowerCase()
 
-    // 3. منع أي أدمن عادي من حذف أدمن آخر (المالك فقط يملك صلاحية حذف حساب Admin)
     if ((targetRole === "admin" || targetRole === "owner") && !isCallerOwner) {
       return {
         success: false,
@@ -764,13 +757,14 @@ export async function updateAdminProfileDataAction(formData: FormData) {
       updateData.otp_code = verifyToken
 
       const verifyLink = `${DEFAULT_SITE_URL}/login?verified=1&email=${encodeURIComponent(email)}&token=${verifyToken}`
+      const comma = dir === "rtl" ? "،" : ","
 
       await sendSystemEmail({
         to: email,
         senderName: msg.adminSenderName,
         subject: msg.confirmNewEmailSubject,
         html: `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.6;">
-                <h2 style="color: #101A2B;">${msg.greetingWord} ${name}،</h2>
+                <h2 style="color: #101A2B;">${msg.greetingWord} ${name}${comma}</h2>
                 <p>${msg.confirmNewEmailBody}</p>
                 <div style="margin: 20px 0;">
                   <a href="${verifyLink}" style="display: inline-block; background-color: #105C50; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 10px; font-weight: bold;">

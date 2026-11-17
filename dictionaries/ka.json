@@ -1,4 +1,5 @@
 
+
 {
   "brand": {
     "name": "Aqar",
@@ -633,7 +634,10 @@
         "მიწისქვეშა პარკინგი",
         "ფართო აივანი (Balcony)",
         "მეტროსთან და სერვისებთან ახლოს"
-      ]
+      ],
+      "georgiaLocationPlaceholder": "აირჩიეთ ქალაქი ან უბანი (თბილისი, ბათუმი...)",
+      "georgiaLocationSearchPlaceholder": "მოძებნეთ უბანი ან ქალაქი...",
+      "noAreaMatch": "უბანი ვერ მოიძებნა"
     },
     "reviewStep": {
       "successTitle": "მზადაა! თქვენი ქონების მონაცემები მიღებულია",
@@ -917,7 +921,8 @@
         "publishingBtn": "იგზავნება...",
         "publishBtn": "ობიექტის გაგზავნა ადმინისტრაციის შემოწმებაზე",
         "submitAndCompleteDocsLaterBtn": "მონაცემების შენახვა და ფოტო/დოკუმენტების ანგარიშიდან ატვირთვა"
-      }
+      },
+      "ownersOnlyCardTitle": "მხოლოდ მესაკუთრეებს: ვმუშაობთ უშუალოდ მფლობელთან — მაკლერების გარეშე."
     },
     "aiDescription": {
       "generateBtn": "აღწერის გენერირება ხელოვნური ინტელექტით (AI)",
@@ -1889,7 +1894,8 @@
       "nextBtn": "შემდეგი",
       "savingBtn": "ინახება...",
       "confirmWithSessionBtn": "დადასტურება ჩემი ანგარიშით",
-      "submitBtn": "გაგზავნა"
+      "submitBtn": "გაგზავნა",
+      "verifySellerBtn": "გამყიდველის დადასტურება ✓"
     }
   },
   "opportunitiesPage": {
@@ -2516,7 +2522,12 @@
       "searchCountryPlaceholder": "მოძებნეთ ქვეყანა ან კოდი (+995)...",
       "noCountryFound": "ქვეყანა ვერ მოიძებნა",
       "lightThemeAria": "ნათელი თემა",
-      "darkThemeAria": "მუქი თემა"
+      "darkThemeAria": "მუქი თემა",
+      "turnstileWaitMessage": "გთხოვთ დაელოდოთ უსაფრთხოების შემოწმების (Cloudflare) დასრულებას და სცადოთ ხელახლა.",
+      "turnstileVerifying": "მოწმდება...",
+      "turnstileVerified": "წარმატებით!",
+      "turnstilePrivacy": "კონფიდ.",
+      "turnstileTerms": "პირობები"
     },
     "login": {
       "title": "შესვლა",
@@ -2853,7 +2864,8 @@
       "staffLoginBtn": "თანამშრომლის შესვლა",
       "staffBannerText": "ტექნიკური რეჟიმი ჩართულია სტუმრებისთვის — საიტი ღიაა გუნდისთვის",
       "staffManageBtn": "პარამეტრები"
-    }
+    },
+    "manifestDesc": "განვადებიანი ქონების გადაფორმების პლატფორმა საქართველოში ფასნამატის გარეშე."
   },
   "serverActions": {
     "auth": {
@@ -2944,7 +2956,9 @@
       "promoUpdateNotifTitle": "VIP პაკეტის განახლება",
       "promoNewNotifTitle": "ახალი VIP მოთხოვნა",
       "promoStoppedNotifTitle": "გამყიდველმა შეაჩერა VIP პაკეტი",
-      "promoCancelledNotifTitle": "გამყიდველმა გააუქმა VIP მოთხოვნა"
+      "promoCancelledNotifTitle": "გამყიდველმა გააუქმა VIP მოთხოვნა",
+      "unitLockedByDeal": "შეთავაზების მიღებისა და გადაფორმების დაწყების შემდეგ ობიექტის შეჩერება ან წაშლა შეუძლებელია.",
+      "allDocsReadyNotifTitle": "ობიექტის ყველა დოკუმენტი და ფოტო ატვირთულია"
     },
     "admin": {
       "unauthorizedLogin": "წვდომა შეზღუდულია: შედით ადმინის ანგარიშით.",
@@ -3012,7 +3026,9 @@
       "promoActivatedNotifTitle": "VIP სტატუსი ჩაირთო",
       "promoActivatedNotifMsg": "თქვენი ობიექტი გამოჩნდა VIP სიის თავში",
       "cancelPromoFailed": "VIP გაუქმება ვერ მოხერხდა.",
-      "purgeDeletedFailed": "წაშლილი ობიექტების გასუფთავება ვერ მოხერხდა."
+      "purgeDeletedFailed": "წაშლილი ობიექტების გასუფთავება ვერ მოხერხდა.",
+      "cannotModifyOwnerAdmin": "პროექტის მფლობელის (Super Admin) ანგარიშის შეცვლა, შეჩერება ან წაშლა შეუძლებელია.",
+      "onlyOwnerCanManageAdmins": "მხოლოდ პროექტის მფლობელს (Super Admin) შეუძლია ადმინისტრატორების მართვა."
     },
     "forms": {
       "expiredLink": "ბმულის ვადა გავიდა.",
@@ -3059,7 +3075,15 @@
       "radarActivatedBuyerMsg": "ბიუჯეტი შენახულია — შეგატყობინებთ შესაბამისი ობიექტის დამატებისთანავე",
       "buyOrderSubjectPrefix": "მივიღეთ თქვენი მოთხოვნა",
       "registeredCashLabel": "დაფიქსირებული ქეში",
-      "newInvestorAdminTitle": "ახალი ინვესტორის განაცხადი"
+      "newInvestorAdminTitle": "ახალი ინვესტორის განაცხადი",
+      "otpSubjectPrefix": "დადასტურების კოდი თქვენი ელ-ფოსტისთვის Aqar Exit-ზე:",
+      "otpSendError": "დადასტურების კოდის გაგზავნა ვერ მოხერხდა, სცადეთ თავიდან.",
+      "otpInvalid": "დადასტურების კოდი არასწორია ან ვადაგასულია.",
+      "trackUnitInAccountBtn": "ჩემი ობიექტის სტატუსი კაბინეტში",
+      "completeOrEditUnitBtn": "ობიექტის მონაცემების შევსება ან შეცვლა",
+      "unitLockedByDeal": "შეთავაზების მიღებისა და გადაფორმების დაწყების შემდეგ მონაცემების შეცვლა შეუძლებელია.",
+      "unauthorized": "არაავტორიზებული მოქმედება.",
+      "onlyAdminCanVerifyPhone": "მხოლოდ ადმინისტრაციას შეუძლია ტელეფონის ნომრის დადასტურება."
     }
   },
   "admin": {
@@ -3124,7 +3148,8 @@
       "waBuyerGreetingPrefix": "გამარჯობა",
       "waBuyerBodyPrefix": "Aqar Exit-ის ადმინისტრაცია გწერთ შეთავაზებაზე",
       "waSellerGreetingPrefix": "გამარჯობა",
-      "waSellerBodyPrefix": "Aqar Exit-ის ადმინისტრაცია გწერთ თქვენს ობიექტზე შემოსულ შეთავაზებაზე"
+      "waSellerBodyPrefix": "Aqar Exit-ის ადმინისტრაცია გწერთ თქვენს ობიექტზე შემოსულ შეთავაზებაზე",
+      "retryBtn": "თავიდან ცდა"
     },
     "smartMatch": {
       "readyDealsTitle": "დასასრულებლად მზა შეთანხმებული გარიგებები",
@@ -3159,7 +3184,15 @@
       "noMatchesFound": "60%-ზე მეტი თანხვედრა ვერ მოიძებნა.",
       "recSentSuccess": "ობიექტი გაეგზავნა მყიდველს რეკომენდაციებში!",
       "bulkRecsSentSuccess": "რეკომენდაცია გაეგზავნა ყველა შესაბამის მყიდველს",
-      "officialOfferSentSuccess": "ოფიციალური შეთავაზება გაეგზავნა გამყიდველს!"
+      "officialOfferSentSuccess": "ოფიციალური შეთავაზება გაეგზავნა გამყიდველს!",
+      "matchScorePrefix": "თანხვედრა",
+      "autoPublishedTag": "ავტომატურად გამოქვეყნებული",
+      "notAutoPublishedTag": "არ არის ავტო-გამოქვეყნებული (<80%)",
+      "adminCashMatch": "თანხა შეესაბამება მყიდველს",
+      "adminCashHigher": "თანხა ოდნავ აღემატება ბიუჯეტს",
+      "adminInstMatch": "განვადება შეესაბამება მყიდველს",
+      "adminInstHigher": "განვადება აღემატება მყიდველის ლიმიტს",
+      "adminBuyerAskedRooms": "მყიდველის მოთხოვნა"
     },
     "shell": {
       "brand": "Darak",
@@ -3448,7 +3481,39 @@
       "confirmSaveBtn": "დიახ, შენახვა",
       "savingBtn": "ინახება...",
       "savedSuccess": "პარამეტრები და ტარიფები წარმატებით შეინახა ✓",
-      "savedError": "შენახვა ვერ მოხერხდა."
+      "savedError": "შენახვა ვერ მოხერხდა.",
+      "mapBatch1Label": "თბილისის სკოლების, ბაღების, უნივერსიტეტების, კლინიკების, აფთიაქებისა და ბანკების ჩატვირთვა...",
+      "mapBatch2Label": "თბილისის სუპერმარკეტების, რესტორნების, პარკებისა და დარბაზების ჩატვირთვა...",
+      "mapBatch3Label": "თბილისის ავტობუსის გაჩერებებისა და მეტროსადგურების ჩატვირთვა...",
+      "mapBatch4Label": "ბათუმისა და ძირითადი ქალაქების ობიექტების ჩატვირთვა...",
+      "mapFilteringLabel": "კოორდინატების დახარისხება და ინდექსაცია...",
+      "mapSavingChunkPrefix": "მონაცემთა ბაზის შენახვა (ნაწილი",
+      "mapSavingChunkOf": "/",
+      "mapSavingChunkPlacesSuffix": "ობიექტი)...",
+      "mapSaveChunkError": "მონაცემების შენახვა ვერ მოხერხდა",
+      "mapSyncSuccessPrefix": "საქართველოს რუკა განახლდა და შეინახა",
+      "mapSyncSuccessSuffix": "რეალური ობიექტი!",
+      "mapSyncErrorFallback": "რუკის განახლებისას დაფიქსირდა შეცდომა",
+      "mapCardTitle": "საქართველოს რუკისა და ინფრასტრუქტურის ბაზა",
+      "mapInstantBadge": "⚡ მყისიერი რეაგირება 0 წმ",
+      "mapCardDesc": "მოიცავს სკოლების, ბაღების, აფთიაქების, სუპერმარკეტების, კლინიკების, ბანკებისა და გაჩერებების ზუსტ კოორდინატებს საქართველოში.",
+      "mapTotalPlacesPrefix": "სულ რეგისტრირებული ობიექტები:",
+      "mapTotalPlacesSuffix": "დადასტურებული ობიექტი",
+      "mapLastUpdatedLabel": "ბოლო განახლება:",
+      "mapCoverageLabel": "თბილისი, ბათუმი და საქართველოს ქალაქები",
+      "mapSyncingBtnPrefix": "განახლება",
+      "mapSyncNowBtn": "საქართველოს რუკის განახლება",
+      "vipPlusDailyLabel": "+VIP დღიური ფასი (₾)",
+      "superVipDailyLabel": "SUPER VIP დღიური ფასი (₾)",
+      "gePackagesGelTitle": "🇬🇪 VIP პაკეტების ტარიფები (7 / 14 / 30 დღე ლარში ₾)",
+      "bankIbanGeLabel": "საბანკო ანგარიში საქართველოში (IBAN)",
+      "seoCardTitle": "ანალიტიკა, Facebook Pixel და Google SEO",
+      "seoCardDesc": "შეიყვანეთ კოდები საიტის ყველა გვერდზე ავტომატურად გასააქტიურებლად.",
+      "fbPixelLabel": "Facebook Pixel ID",
+      "gaMeasurementLabel": "Google Analytics (GA4 ID)",
+      "gtmLabel": "Google Tag Manager (GTM)",
+      "mapInvalidChunkData": "მიღებული რუკის მონაცემები არასწორია.",
+      "mapServerWriteError": "სერვერზე რუკის განახლების შენახვა ვერ მოხერხდა."
     },
     "profile": {
       "eyebrow": "პირადი პროფილი",
@@ -3564,7 +3629,8 @@
         "sales": "გაყიდვები (Sales - კონტაქტი და მოთხოვნები)",
         "user": "კლიენტი (გამყიდველი / მყიდველი)",
         "owner": "👑 პროექტის მფლობელი (Super Admin)"
-      }
+      },
+      "superAdminBadge": "SUPER ADMIN"
     },
     "investorsAdmin": {
       "loadError": "ინვესტორების მოთხოვნების ჩატვირთვა ვერ მოხერხდა.",
@@ -3760,7 +3826,9 @@
         "sellerNotePlaceholder": "მაგ: გთხოვთ გადაამოწმოთ სართული ან ატვირთოთ კონტრაქტის მკაფიო ფოტო...",
         "saveAndNotifySellerBtn": "შენახვა და გაგზავნა",
         "clearNoteBtn": "გასუფთავება",
-        "noteSavedSuccess": "შენიშვნა შენახულია ✓"
+        "noteSavedSuccess": "შენიშვნა შენახულია ✓",
+        "optionalNoteForSellerPlaceholder": "შენიშვნა მესაკუთრისთვის (არასავალდებულო)...",
+        "sendPerformanceReportBtn": "ნახვების რეპორტის გაგზავნა"
       },
       "notices": {
         "purgedSuccess": "ყველა წაშლილი ობიექტი გასუფთავდა ✓",
@@ -3775,7 +3843,104 @@
         "totalViewsLabel": "სულ ნახვები:",
         "sendReportWaBtn": "ნახვების რეპორტის გაგზავნა (WhatsApp)",
         "viewsColumnHeader": "ნახვები",
-        "viewUnitBtn": "ობიექტის ნახვა"
+        "viewUnitBtn": "ობიექტის ნახვა",
+        "waReportTitle": "📊 *Aqar Exit — თქვენი განცხადების სტატისტიკის რეპორტი*",
+        "waReportGreetingPrefix": "გამარჯობა",
+        "waReportGreetingSuffix": ", წარმოგიდგენთ თქვენი ობიექტის აქტივობის მონაცემებს:",
+        "waReportProjectLabel": "🏢 *პროექტი:*",
+        "waReportCodeLabel": "🔖 *ობიექტის კოდი:*",
+        "waReportViewsLabel": "👁️ *უნიკალური ნახვები:*",
+        "waReportViewsSuffix": "მყიდველი",
+        "waReportMatchedBuyersLabel": "🎯 *შესაბამისი მყიდველები:*",
+        "waReportMatchedBuyersSuffix": "",
+        "waReportOffersLabel": "💼 *შესყიდვის შეთავაზებები:*",
+        "waReportOffersSuffix": "",
+        "waReportPromoStatusLabel": "⭐ *რეკლამის სტატუსი:*",
+        "waReportFeaturedPrefix": "VIP პრიორიტეტი",
+        "waReportStandardTier": "სტანდარტული",
+        "waReportDirectLinkLabel": "🔗 *განცხადების პირდაპირი ბმული:*"
+      }
+    },
+    "contactVerification": {
+      "waLinkVerifiedBanner": "კლიენტის ტელეფონის ნომერი დადასტურდა WhatsApp ბმულით ✓",
+      "emailVerifiedTitle": "ელ-ფოსტა დადასტურებულია",
+      "phoneVerifiedTitle": "ტელეფონის ნომერი დადასტურებულია WhatsApp-ით",
+      "verifiedBadge": "დადასტურებული ✓",
+      "unverifiedBadge": "არაა დადასტურებული",
+      "clickToVerifyTitle": "დააჭირეთ ხელით დასადასტურებლად",
+      "verifyNowBtn": "დადასტურება",
+      "closeBtn": "✕"
+    },
+    "exportLabels": {
+      "exportAllBtn": "Excel ექსპორტი",
+      "exportPdfBtn": "PDF ექსპორტი",
+      "exportRowBtn": "Excel-ში ჩამოტვირთვა",
+      "exportRowPdfBtn": "PDF-ში შენახვა",
+      "moreActionsAria": "დამატებითი მოქმედებები",
+      "brandSubtitle": "უძრავი ქონების გადაბარების ვერიფიცირებული პლატფორმა",
+      "marketLocationLabel": "ბაზარი / მდებარეობა",
+      "marketLocationValue": "საქართველო (თბილისი · ბათუმი · გუდაური) — ვალუტა ($)",
+      "generatedAtLabel": "გაცემის თარიღი",
+      "totalRecordsLabel": "სულ ჩანაწერები",
+      "officialDocBadge": "Aqar Exit-ის ოფიციალური დოკუმენტი",
+      "footerDisclaimer": "დოკუმენტი გენერირებულია Aqar Exit-ის ადმინისტრაციული პანელიდან.",
+      "propertiesReportTitle": "ობიექტებისა და გამყიდველების სია",
+      "promotionsReportTitle": "VIP რეკლამებისა და პაკეტების სია",
+      "singlePropertyReportTitle": "უძრავი ქონების ოფიციალური ბარათი",
+      "leadsReportTitle": "მყიდველებისა და მოთხოვნების სია",
+      "singleLeadReportTitle": "მყიდველის მოთხოვნის ოფიციალური ბარათი",
+      "usersReportTitle": "პლატფორმის მომხმარებლების სია",
+      "singleUserReportTitle": "მომხმარებლის ანგარიშის ბარათი",
+      "dealsReportTitle": "გარიგებების, ოფერების და საკომისიოს რეესტრი",
+      "singleDealReportTitle": "გარიგების დეტალური ბარათი",
+      "yes": "დიახ",
+      "no": "არა",
+      "normalTier": "სტანდარტული",
+      "unitLeadType": "კონკრეტული ობიექტის მოთხოვნა",
+      "generalLeadType": "ზოგადი მოთხოვნა",
+      "activeStatus": "აქტიური",
+      "suspendedStatus": "შეჩერებული",
+      "verified": "ვერიფიცირებული ✓",
+      "unverified": "არავერიფიცირებული",
+      "cols": {
+        "index": "#",
+        "unitCode": "ობიექტის კოდი",
+        "projectName": "პროექტი",
+        "developer": "დეველოპერი",
+        "area": "უბანი",
+        "unitType": "ტიპი",
+        "sizeSqm": "ფართობი (მ²)",
+        "rooms": "ოთახები",
+        "requiredCash": "საჭირო თანხა ($)",
+        "contractPrice": "კონტრაქტის ფასი ($)",
+        "marketPrice": "საბაზრო ფასი ($)",
+        "installment": "განვადება ($)",
+        "frequency": "პერიოდულობა",
+        "negotiable": "შეთანხმებით",
+        "sellerName": "გამყიდველი",
+        "sellerPhone": "გამყიდველის ტელეფონი",
+        "sellerEmail": "გამყიდველის ელ-ფოსტა",
+        "status": "სტატუსი",
+        "promoTier": "VIP პაკეტი",
+        "createdAt": "თარიღი",
+        "buyerName": "მყიდველი",
+        "buyerPhone": "მყიდველის ტელეფონი",
+        "buyerEmail": "მყიდველის ელ-ფოსტა",
+        "availableCash": "ხელმისაწვდომი თანხა ($)",
+        "maxInstallment": "მაქს. განვადება ($)",
+        "targetAreas": "სასურველი უბნები",
+        "leadType": "მოთხოვნის ტიპი",
+        "notes": "შენიშვნები",
+        "userRole": "როლი",
+        "sellUnitsCount": "გასაყიდი ობიექტები",
+        "buyRequestsCount": "შესყიდვის მოთხოვნები",
+        "verification": "ვერიფიკაცია",
+        "offerRef": "ოფერის კოდი",
+        "offeredCash": "შეთავაზებული თანხა ($)",
+        "counterCash": "საპასუხო შეთავაზება ($)",
+        "commission": "საკომისიო ($)",
+        "readiness": "გადახდის მზაობა",
+        "paymentMethod": "გადახდის მეთოდი"
       }
     }
   },
@@ -3846,6 +4011,60 @@
       "cottage": "კოტეჯი",
       "commercial": "კომერციული",
       "land": "მიწა"
+    },
+    "countrySelector": {
+      "modalTitle": "აირჩიეთ ქვეყნის კოდი",
+      "searchPlaceholder": "ქვეყნის ან კოდის ძიება (+995)...",
+      "countries": {
+        "GE": "საქართველო",
+        "EG": "ეგვიპტე",
+        "SA": "საუდის არაბეთი",
+        "AE": "არაბთა გაერთიანებული საამიროები",
+        "KW": "ქუვეითი",
+        "QA": "ყატარი",
+        "BH": "ბაჰრეინი",
+        "OM": "ომანი",
+        "JO": "იორდანია",
+        "LB": "ლიბანი",
+        "IQ": "ერაყი",
+        "PS": "პალესტინა",
+        "IL": "+972",
+        "SY": "სირია",
+        "YE": "იემენი",
+        "LY": "ლიბია",
+        "TN": "ტუნისი",
+        "DZ": "ალჟირი",
+        "MA": "მაროკო",
+        "SD": "სუდანი",
+        "TR": "თურქეთი",
+        "RU": "რუსეთი / ყაზახეთი",
+        "UA": "უკრაინა",
+        "BY": "ბელარუსი",
+        "AZ": "აზერბაიჯანი",
+        "AM": "სომხეთი",
+        "DE": "გერმანია",
+        "GB": "დიდი ბრიტანეთი",
+        "FR": "საფრანგეთი",
+        "IT": "იტალია",
+        "ES": "ესპანეთი",
+        "NL": "ნიდერლანდები",
+        "PL": "პოლონეთი",
+        "US": "აშშ / კანადა"
+      }
+    },
+    "prompts": {
+      "consentText": "ჩვენ ვზომავთ ვიზიტებს და რეკლამის ეფექტურობას მხოლოდ თქვენი თანხმობით. არაფერი იტვირთება თქვენს გადაწყვეტილებამდე.",
+      "allowBtn": "დაშვება",
+      "declineBtn": "უარყოფა",
+      "privacyLink": "კონფიდენციალურობა",
+      "languageWord": "ენა:",
+      "switchBtn": "გადართვა",
+      "closeAria": "დახურვა",
+      "pwaTitle": "დააინსტალირეთ Aqar Exit აპლიკაცია",
+      "pwaSub": "სწრაფი წვდომა ყველა შეთავაზებაზე თქვენი ტელეფონის ეკრანიდან.",
+      "installBtn": "ინსტალაცია",
+      "manualInstallHint": "გახსენით ბრაუზერის მენიუ (⋮) და აირჩიეთ \"Install App\" ან \"Add to Home Screen\".",
+      "iosInstallHint": "iPhone-ზე: დააჭირეთ გაზიარების ღილაკს (⬆️) და აირჩიეთ \"Add to Home Screen\"."
     }
   },
   "locationModal": {

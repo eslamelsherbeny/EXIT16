@@ -79,54 +79,9 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode
 }) {
-  let dict: Record<string, any> = {}
-  let dir: "rtl" | "ltr" = "rtl"
-  let locale = "ar"
-
-  try {
-    const i18n = await getServerI18n()
-    dict = i18n.dict
-    dir = i18n.dir
-    locale = i18n.locale
-  } catch (e) {
-    console.error("getServerI18n error in AdminLayout:", e)
-  }
-
-  const t = dict?.admin?.accessDenied || {}
-  const fallbackTitle =
-    locale === "ar"
-      ? "تسجيل دخول الإدارة مطلوب"
-      : locale === "ru"
-        ? "Требуется вход администратора"
-        : locale === "ka"
-          ? "საჭიროა ადმინისტრატორის შესვლა"
-          : "Admin Login Required"
-  const fallbackDesc =
-    locale === "ar"
-      ? "يرجى تسجيل الدخول بحساب يمتلك صلاحيات الإدارة للمتابعة."
-      : locale === "ru"
-        ? "Пожалуйста, войдите с учетной записью администратора."
-        : locale === "ka"
-          ? "გთხოვთ შეხვიდეთ ადმინისტრატორის ანგარიშით."
-          : "Please log in with an authorized staff account to continue."
-  const fallbackLoginBtn =
-    t?.staffLoginBtn ||
-    (locale === "ar"
-      ? "تسجيل دخول الإدارة"
-      : locale === "ru"
-        ? "Войти как админ"
-        : locale === "ka"
-          ? "ადმინისტრატორის შესვლა"
-          : "Staff Login")
-  const fallbackHomeBtn =
-    t?.backHomeBtn ||
-    (locale === "ar"
-      ? "العودة للرئيسية"
-      : locale === "ru"
-        ? "На главную"
-        : locale === "ka"
-          ? "მთავარზე დაბრუნება"
-          : "Back to Home")
+  const { dict, dir } = await getServerI18n()
+  const t = dict.admin.accessDenied
+  const shellDict = dict.admin.shell
 
   let user: any = null
   let supabase: any = null
@@ -140,10 +95,10 @@ export default async function AdminLayout({
       return (
         <AdminAuthRequiredScreen
           dir={dir}
-          title={fallbackTitle}
-          desc={fallbackDesc}
-          staffLoginBtn={fallbackLoginBtn}
-          backHomeBtn={fallbackHomeBtn}
+          title={t.loginRequiredTitle}
+          desc={t.loginRequiredDesc}
+          staffLoginBtn={t.staffLoginBtn}
+          backHomeBtn={t.backHomeBtn}
         />
       )
     }
@@ -168,10 +123,10 @@ export default async function AdminLayout({
       return (
         <AdminAuthRequiredScreen
           dir={dir}
-          title={fallbackTitle}
-          desc={fallbackDesc}
-          staffLoginBtn={fallbackLoginBtn}
-          backHomeBtn={fallbackHomeBtn}
+          title={t.loginRequiredTitle}
+          desc={t.loginRequiredDesc}
+          staffLoginBtn={t.staffLoginBtn}
+          backHomeBtn={t.backHomeBtn}
         />
       )
     }
@@ -184,10 +139,10 @@ export default async function AdminLayout({
       return (
         <AdminAuthRequiredScreen
           dir={dir}
-          title={fallbackTitle}
-          desc={fallbackDesc}
-          staffLoginBtn={fallbackLoginBtn}
-          backHomeBtn={fallbackHomeBtn}
+          title={t.loginRequiredTitle}
+          desc={t.loginRequiredDesc}
+          staffLoginBtn={t.staffLoginBtn}
+          backHomeBtn={t.backHomeBtn}
         />
       )
     }
@@ -196,10 +151,10 @@ export default async function AdminLayout({
     return (
       <AdminAuthRequiredScreen
         dir={dir}
-        title={fallbackTitle}
-        desc={fallbackDesc}
-        staffLoginBtn={fallbackLoginBtn}
-        backHomeBtn={fallbackHomeBtn}
+        title={t.loginRequiredTitle}
+        desc={t.loginRequiredDesc}
+        staffLoginBtn={t.staffLoginBtn}
+        backHomeBtn={t.backHomeBtn}
       />
     )
   }
@@ -221,16 +176,16 @@ export default async function AdminLayout({
     return (
       <AdminAuthRequiredScreen
         dir={dir}
-        title={t?.title || fallbackTitle}
-        desc={t?.desc || fallbackDesc}
+        title={t.title}
+        desc={t.desc}
         email={user.email}
-        staffLoginBtn={fallbackLoginBtn}
-        backHomeBtn={fallbackHomeBtn}
+        staffLoginBtn={t.staffLoginBtn}
+        backHomeBtn={t.backHomeBtn}
       />
     )
   }
 
-  const adminName = user.name || "Admin"
+  const adminName = user.name || shellDict.defaultAdminName
   const staffRole: StaffRole =
     cleanRole === "admin"
       ? "ADMIN"
@@ -269,7 +224,7 @@ export default async function AdminLayout({
           isRead: Boolean(n.is_read),
           createdAt: n.created_at
             ? new Date(n.created_at).toLocaleDateString("en-GB")
-            : "Now",
+            : shellDict.nowLabel,
         }
       })
 

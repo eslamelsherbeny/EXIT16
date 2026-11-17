@@ -40,7 +40,6 @@ export function ScrollReveal({
     return () => observer.disconnect()
   }, [isHomePage])
 
-  // في جميع صفحات الموقع ما عدا الرئيسية، تظهر العناصر فوراً بدون أي تأخير أو إخفاء عند السكرول
   if (!isHomePage) {
     return className ? <div className={className}>{children}</div> : <>{children}</>
   }

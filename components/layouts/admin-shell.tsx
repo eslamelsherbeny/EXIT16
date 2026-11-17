@@ -78,27 +78,10 @@ export default function AdminShell({
 
   const notifRef = useRef<HTMLDivElement>(null)
 
-  const firstName = adminName.trim().split(/\s+/)[0] || "Admin"
+  const firstName =
+    adminName.trim().split(/\s+/)[0] || t.defaultAdminName || ""
   const normalizedRole: StaffRole =
     adminRole === "OWNER" ? "ADMIN" : adminRole
-
-  const dealsNavLabel =
-    locale === "ar"
-      ? "غرفة الصفقات والعروض"
-      : locale === "ru"
-        ? "Сделки и офферы"
-        : locale === "ka"
-          ? "გარიგებები"
-          : "Deals & Offers Room"
-
-  const dealsNavShort =
-    locale === "ar"
-      ? "الصفقات"
-      : locale === "ru"
-        ? "Сделки"
-        : locale === "ka"
-          ? "გარიგებები"
-          : "Deals"
 
   const allNavLinks = [
     {
@@ -110,8 +93,8 @@ export default function AdminShell({
     },
     {
       href: "/admin/deals",
-      label: dealsNavLabel,
-      shortLabel: dealsNavShort,
+      label: t.nav.deals,
+      shortLabel: t.nav.dealsShort,
       icon: WalletCards,
       allowed: ["ADMIN", "MODERATOR", "SALES"] as StaffRole[],
     },
@@ -367,7 +350,6 @@ export default function AdminShell({
             <User className="size-3.5 text-emerald-400" />
           </Link>
 
-          {/* فتح الموقع العام في تبويب جديد */}
           <Link
             href="/"
             target="_blank"
@@ -501,7 +483,6 @@ export default function AdminShell({
                 <User className="size-3.5 text-emerald-400" />
               </Link>
 
-              {/* فتح الموقع العام في تبويب جديد من قائمة الموبايل */}
               <Link
                 href="/"
                 target="_blank"

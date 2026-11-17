@@ -1,17 +1,33 @@
 import type { MetadataRoute } from 'next'
+import { cookies } from 'next/headers'
+import { DICTIONARIES, type LocaleCode } from '@/lib/i18n-config'
 
-export default function manifest(): MetadataRoute.Manifest {
+export default async function manifest(): Promise<MetadataRoute.Manifest> {
+  let locale: LocaleCode = 'ar'
+  try {
+    const cookieStore = await cookies()
+    const saved = cookieStore.get('locale')?.value as LocaleCode | undefined
+    if (saved === 'ar' || saved === 'en' || saved === 'ru' || saved === 'ka') {
+      locale = saved
+    }
+  } catch {}
+
+  const dict = (DICTIONARIES[locale] || DICTIONARIES.ar) as Record<string, any>
+  const description =
+    dict?.systemPages?.manifestDesc ||
+    dict?.systemPages?.metaDesc ||
+    'Aqar Exit'
+
   return {
     id: '/',
     name: 'Aqar Exit',
     short_name: 'Aqar Exit',
-    description:
-      'منصة التنازل عن وحدات التقسيط واستكمال الأقساط في جورجيا بدون أوفر وبسعر العقد الأصلي.',
+    description,
     start_url: '/',
     scope: '/',
     display: 'standalone',
-    dir: 'auto',
-    lang: 'ar',
+    dir: locale === 'ar' ? 'rtl' : 'ltr',
+    lang: locale,
     background_color: '#f6f8fc',
     theme_color: '#0a1122',
     orientation: 'portrait',

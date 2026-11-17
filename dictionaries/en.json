@@ -1,4 +1,6 @@
 
+
+
 {
   "brand": {
     "name": "Aqar",
@@ -633,7 +635,10 @@
         "Underground Parking",
         "Spacious Balcony",
         "Near Metro & Amenities"
-      ]
+      ],
+      "georgiaLocationPlaceholder": "Select City or District in Georgia (Tbilisi, Batumi...)",
+      "georgiaLocationSearchPlaceholder": "Search district or city...",
+      "noAreaMatch": "No matching area found"
     },
     "reviewStep": {
       "successTitle": "Success! We Received Your Unit Details",
@@ -917,7 +922,8 @@
         "publishingBtn": "Submitting...",
         "publishBtn": "Submit Unit for Admin Review & Approval",
         "submitAndCompleteDocsLaterBtn": "Save Unit Details & Complete Photos/Docs in My Account"
-      }
+      },
+      "ownersOnlyCardTitle": "Owners Only: We deal directly with the unit owner — no brokers."
     },
     "aiDescription": {
       "generateBtn": "Generate Description with AI",
@@ -1889,7 +1895,8 @@
       "nextBtn": "Continue",
       "savingBtn": "Saving...",
       "confirmWithSessionBtn": "Confirm Request with Current Account",
-      "submitBtn": "Submit for Review"
+      "submitBtn": "Submit for Review",
+      "verifySellerBtn": "Verify Seller ✓"
     }
   },
   "opportunitiesPage": {
@@ -2516,7 +2523,12 @@
       "lightThemeAria": "Activate light mode",
       "searchCountryPlaceholder": "Search country or code (+995)...",
       "noCountryFound": "No matching country",
-      "darkThemeAria": "Activate dark mode"
+      "darkThemeAria": "Activate dark mode",
+      "turnstileWaitMessage": "Please wait a moment for the Cloudflare security check below to complete, then try again.",
+      "turnstileVerifying": "Verifying...",
+      "turnstileVerified": "Success!",
+      "turnstilePrivacy": "Privacy",
+      "turnstileTerms": "Terms"
     },
     "login": {
       "title": "Sign In",
@@ -2853,7 +2865,8 @@
       "staffLoginBtn": "Staff & Admin Sign In",
       "staffBannerText": "Maintenance mode is active for visitors — Site is accessible to you as staff",
       "staffManageBtn": "Manage Maintenance Mode"
-    }
+    },
+    "manifestDesc": "Installment property assignment platform in Georgia — zero overprice, original contract price."
   },
   "serverActions": {
     "auth": {
@@ -2944,7 +2957,9 @@
       "promoUpdateNotifTitle": "Boost package updated",
       "promoNewNotifTitle": "New Boost Request",
       "promoStoppedNotifTitle": "Seller stopped active boost",
-      "promoCancelledNotifTitle": "Seller cancelled boost request"
+      "promoCancelledNotifTitle": "Seller cancelled boost request",
+      "unitLockedByDeal": "Cannot pause, modify, or delete the unit after accepting an offer and starting transfer procedures.",
+      "allDocsReadyNotifTitle": "All unit documents & photos completed"
     },
     "admin": {
       "unauthorizedLogin": "Unauthorized: Please sign in with an admin account.",
@@ -3012,7 +3027,9 @@
       "promoActivatedNotifTitle": "Your Unit Promotion is Now Active",
       "promoActivatedNotifMsg": "Your unit now appears with a gold star badge at the top of Available Opportunities",
       "cancelPromoFailed": "Could not cancel promotion.",
-      "purgeDeletedFailed": "Could not purge deleted units."
+      "purgeDeletedFailed": "Could not purge deleted units.",
+      "cannotModifyOwnerAdmin": "The project owner (Super Admin) account cannot be modified, suspended, or deleted.",
+      "onlyOwnerCanManageAdmins": "Only the project owner (Super Admin) can assign, modify, or delete admin accounts."
     },
     "forms": {
       "expiredLink": "This link has expired.",
@@ -3059,7 +3076,15 @@
       "radarActivatedBuyerMsg": "Your budget is saved, and we will notify you as soon as a matching unit is listed",
       "buyOrderSubjectPrefix": "We Received Your Purchase Request",
       "registeredCashLabel": "Registered Available Cash",
-      "newInvestorAdminTitle": "New Investor Request"
+      "newInvestorAdminTitle": "New Investor Request",
+      "otpSubjectPrefix": "Verification code to confirm your email on Aqar Exit:",
+      "otpSendError": "Could not send verification code right now, please try again.",
+      "otpInvalid": "Invalid or expired verification code.",
+      "trackUnitInAccountBtn": "Track My Unit in My Account",
+      "completeOrEditUnitBtn": "Complete or Edit Unit Details",
+      "unitLockedByDeal": "Cannot modify unit details after accepting an offer and starting transfer procedures with Admin.",
+      "unauthorized": "Unauthorized to perform this action.",
+      "onlyAdminCanVerifyPhone": "Only staff members can mark a phone number as verified."
     }
   },
   "admin": {
@@ -3124,7 +3149,8 @@
       "waBuyerGreetingPrefix": "Hello",
       "waBuyerBodyPrefix": "This is Aqar Exit Management regarding your purchase offer",
       "waSellerGreetingPrefix": "Hello",
-      "waSellerBodyPrefix": "This is Aqar Exit Management regarding purchase offer"
+      "waSellerBodyPrefix": "This is Aqar Exit Management regarding purchase offer",
+      "retryBtn": "Retry"
     },
     "smartMatch": {
       "readyDealsTitle": "Ready-to-Close Agreed Deals Room",
@@ -3159,7 +3185,15 @@
       "noMatchesFound": "No matches above 60% found in the same country.",
       "recSentSuccess": "Unit sent as a smart recommendation to the buyer!",
       "bulkRecsSentSuccess": "Unit recommended to all matched buyers",
-      "officialOfferSentSuccess": "Official purchase offer created and sent to seller!"
+      "officialOfferSentSuccess": "Official purchase offer created and sent to seller!",
+      "matchScorePrefix": "Match",
+      "autoPublishedTag": "Auto-published in buyer account",
+      "notAutoPublishedTag": "Not auto-published (<80%)",
+      "adminCashMatch": "Cash fits buyer budget",
+      "adminCashHigher": "Cash slightly above buyer budget",
+      "adminInstMatch": "Installment fits buyer",
+      "adminInstHigher": "Installment above buyer limit",
+      "adminBuyerAskedRooms": "buyer requested"
     },
     "shell": {
       "brand": "Darak",
@@ -3400,7 +3434,39 @@
       "confirmSaveBtn": "Yes, Confirm Save",
       "savingBtn": "Saving...",
       "savedSuccess": "Site settings and promotion package prices saved successfully ✓",
-      "savedError": "Could not save settings."
+      "savedError": "Could not save settings.",
+      "mapBatch1Label": "Fetching Tbilisi schools, kindergartens, universities, clinics, pharmacies & banks...",
+      "mapBatch2Label": "Fetching Tbilisi supermarkets, restaurants, parks, gyms & landmarks...",
+      "mapBatch3Label": "Fetching all Tbilisi bus stops & transit stations...",
+      "mapBatch4Label": "Fetching Batumi & major cities POIs...",
+      "mapFilteringLabel": "Filtering and indexing coordinates...",
+      "mapSavingChunkPrefix": "Saving database chunk",
+      "mapSavingChunkOf": "of",
+      "mapSavingChunkPlacesSuffix": "places)...",
+      "mapSaveChunkError": "Failed to save database chunk",
+      "mapSyncSuccessPrefix": "Successfully synced and saved",
+      "mapSyncSuccessSuffix": "real places across Georgia!",
+      "mapSyncErrorFallback": "An error occurred while updating map data",
+      "mapCardTitle": "Georgia Map & Amenities Database",
+      "mapInstantBadge": "⚡ 0ms Instant Engine",
+      "mapCardDesc": "Contains verified locations for schools, kindergartens, pharmacies, markets, clinics, banks, and transit stops across Georgia.",
+      "mapTotalPlacesPrefix": "Total registered amenities & places:",
+      "mapTotalPlacesSuffix": "verified places",
+      "mapLastUpdatedLabel": "Last updated:",
+      "mapCoverageLabel": "Tbilisi, Batumi & Georgia Cities",
+      "mapSyncingBtnPrefix": "Updating",
+      "mapSyncNowBtn": "Update Georgia Map Data",
+      "vipPlusDailyLabel": "VIP+ Daily (₾)",
+      "superVipDailyLabel": "SUPER VIP Daily (₾)",
+      "gePackagesGelTitle": "🇬🇪 Georgia Boost Packages (7 / 14 / 30 Days in ₾ GEL)",
+      "bankIbanGeLabel": "Georgia Bank IBAN",
+      "seoCardTitle": "Analytics, Facebook Pixel & Google SEO",
+      "seoCardDesc": "Enter your tracking IDs to activate across the platform.",
+      "fbPixelLabel": "Facebook Pixel ID",
+      "gaMeasurementLabel": "Google Analytics (GA4 ID)",
+      "gtmLabel": "Google Tag Manager (GTM)",
+      "mapInvalidChunkData": "Received map data is invalid.",
+      "mapServerWriteError": "Could not save map updates on the server."
     },
     "profile": {
       "eyebrow": "Profile",
@@ -3564,7 +3630,8 @@
         "sales": "Sales Rep (Sales - Client Contacts & Follow-up)",
         "owner": "👑 Project Owner (Super Admin)",
         "user": "Regular Client (Seller / Buyer)"
-      }
+      },
+      "superAdminBadge": "SUPER ADMIN"
     },
     "investorsAdmin": {
       "loadError": "Could not load investor requests.",
@@ -3760,7 +3827,9 @@
         "sellerNotePlaceholder": "Example: Please verify the floor number or upload a clearer photo of the contract...",
         "saveAndNotifySellerBtn": "Save & Notify Seller",
         "clearNoteBtn": "Clear Note",
-        "noteSavedSuccess": "Note saved and seller notified ✓"
+        "noteSavedSuccess": "Note saved and seller notified ✓",
+        "optionalNoteForSellerPlaceholder": "Optional note for the unit owner (visible in their account)...",
+        "sendPerformanceReportBtn": "Send Views Report to Owner"
       },
       "notices": {
         "purgedSuccess": "All deleted units have been permanently purged ✓",
@@ -3775,7 +3844,104 @@
         "totalViewsLabel": "Total Unit Views:",
         "sendReportWaBtn": "Send Views Report to Owner (WhatsApp)",
         "viewsColumnHeader": "Views",
-        "viewUnitBtn": "View Unit"
+        "viewUnitBtn": "View Unit",
+        "waReportTitle": "📊 *Aqar Exit — Unit Performance Report*",
+        "waReportGreetingPrefix": "Hello",
+        "waReportGreetingSuffix": ", here are the live analytics for your listing:",
+        "waReportProjectLabel": "🏢 *Project:*",
+        "waReportCodeLabel": "🔖 *Unit Code:*",
+        "waReportViewsLabel": "👁️ *Unique Views:*",
+        "waReportViewsSuffix": "buyers",
+        "waReportMatchedBuyersLabel": "🎯 *Matched Buyers:*",
+        "waReportMatchedBuyersSuffix": "",
+        "waReportOffersLabel": "💼 *Purchase Offers:*",
+        "waReportOffersSuffix": "",
+        "waReportPromoStatusLabel": "⭐ *Visibility Tier:*",
+        "waReportFeaturedPrefix": "Featured",
+        "waReportStandardTier": "Standard",
+        "waReportDirectLinkLabel": "🔗 *Direct Listing Link:*"
+      }
+    },
+    "contactVerification": {
+      "waLinkVerifiedBanner": "Client phone number verified via WhatsApp link ✓",
+      "emailVerifiedTitle": "Email verified",
+      "phoneVerifiedTitle": "Phone number verified via WhatsApp",
+      "verifiedBadge": "Verified ✓",
+      "unverifiedBadge": "Unverified",
+      "clickToVerifyTitle": "Click to mark as verified",
+      "verifyNowBtn": "Verify",
+      "closeBtn": "✕"
+    },
+    "exportLabels": {
+      "exportAllBtn": "Export Excel",
+      "exportPdfBtn": "Export PDF",
+      "exportRowBtn": "Export Record (Excel)",
+      "exportRowPdfBtn": "Save / Print as PDF",
+      "moreActionsAria": "More actions",
+      "brandSubtitle": "Verified Real Estate Installment Exit Platform — Georgia",
+      "marketLocationLabel": "Market / Location",
+      "marketLocationValue": "Georgia (Tbilisi · Batumi · Gudauri) — Currency ($)",
+      "generatedAtLabel": "Issued On",
+      "totalRecordsLabel": "Total Records",
+      "officialDocBadge": "Official Document Generated by Aqar Exit Admin System",
+      "footerDisclaimer": "This document was electronically generated by Aqar Exit Admin Dashboard — Confidential & Verified.",
+      "propertiesReportTitle": "Listed Properties & Seller Requests Directory",
+      "promotionsReportTitle": "Featured Listings & VIP Promotions Report",
+      "singlePropertyReportTitle": "Official Property & Seller Dossier",
+      "leadsReportTitle": "Registered Buyers & Purchase Leads Directory",
+      "singleLeadReportTitle": "Official Buyer Lead Dossier",
+      "usersReportTitle": "Registered Platform Users & Clients Directory",
+      "singleUserReportTitle": "Client Account Dossier",
+      "dealsReportTitle": "Deals Room, Offers & Commissions Registry",
+      "singleDealReportTitle": "Official Deal & Purchase Offer Dossier",
+      "yes": "Yes",
+      "no": "No",
+      "normalTier": "Standard",
+      "unitLeadType": "Specific Unit Lead",
+      "generalLeadType": "General Search Lead",
+      "activeStatus": "Active",
+      "suspendedStatus": "Suspended",
+      "verified": "Verified ✓",
+      "unverified": "Unverified",
+      "cols": {
+        "index": "#",
+        "unitCode": "Unit Code",
+        "projectName": "Project Name",
+        "developer": "Developer",
+        "area": "District / Area",
+        "unitType": "Unit Type",
+        "sizeSqm": "Area (m²)",
+        "rooms": "Rooms",
+        "requiredCash": "Required Cash ($)",
+        "contractPrice": "Contract Price ($)",
+        "marketPrice": "Market Price ($)",
+        "installment": "Installment ($)",
+        "frequency": "Frequency",
+        "negotiable": "Negotiable",
+        "sellerName": "Seller Name",
+        "sellerPhone": "Seller Phone",
+        "sellerEmail": "Seller Email",
+        "status": "Status",
+        "promoTier": "Boost Tier",
+        "createdAt": "Created Date",
+        "buyerName": "Buyer Name",
+        "buyerPhone": "Buyer Phone",
+        "buyerEmail": "Buyer Email",
+        "availableCash": "Available Cash ($)",
+        "maxInstallment": "Max Installment ($)",
+        "targetAreas": "Target Areas / Unit",
+        "leadType": "Lead Type",
+        "notes": "Customer Notes",
+        "userRole": "Role",
+        "sellUnitsCount": "Listed Units",
+        "buyRequestsCount": "Buy Requests",
+        "verification": "Verification",
+        "offerRef": "Offer Ref",
+        "offeredCash": "Offered Cash ($)",
+        "counterCash": "Counter Offer ($)",
+        "commission": "Platform Fee ($)",
+        "readiness": "Payment Readiness",
+        "paymentMethod": "Payment Method"
       }
     }
   },
@@ -3846,6 +4012,60 @@
       "cottage": "Cottage",
       "commercial": "Commercial",
       "land": "Land"
+    },
+    "countrySelector": {
+      "modalTitle": "Select Country Code",
+      "searchPlaceholder": "Search country or code (+995)...",
+      "countries": {
+        "GE": "Georgia",
+        "EG": "Egypt",
+        "SA": "Saudi Arabia",
+        "AE": "UAE",
+        "KW": "Kuwait",
+        "QA": "Qatar",
+        "BH": "Bahrain",
+        "OM": "Oman",
+        "JO": "Jordan",
+        "LB": "Lebanon",
+        "IQ": "Iraq",
+        "PS": "Palestine",
+        "IL": "+972",
+        "SY": "Syria",
+        "YE": "Yemen",
+        "LY": "Libya",
+        "TN": "Tunisia",
+        "DZ": "Algeria",
+        "MA": "Morocco",
+        "SD": "Sudan",
+        "TR": "Turkey",
+        "RU": "Russia / Kazakhstan",
+        "UA": "Ukraine",
+        "BY": "Belarus",
+        "AZ": "Azerbaijan",
+        "AM": "Armenia",
+        "DE": "Germany",
+        "GB": "United Kingdom",
+        "FR": "France",
+        "IT": "Italy",
+        "ES": "Spain",
+        "NL": "Netherlands",
+        "PL": "Poland",
+        "US": "USA / Canada"
+      }
+    },
+    "prompts": {
+      "consentText": "We measure visits and ad performance only if you allow it. Nothing loads before you decide — change your choice anytime from the footer.",
+      "allowBtn": "Allow",
+      "declineBtn": "Decline",
+      "privacyLink": "Privacy policy",
+      "languageWord": "Language:",
+      "switchBtn": "Switch",
+      "closeAria": "Close",
+      "pwaTitle": "Install Aqar Exit App",
+      "pwaSub": "Access installment exit deals and track your offers faster from your home screen.",
+      "installBtn": "Install App",
+      "manualInstallHint": "Tap your browser menu (⋮) at the top and select \"Install App\" or \"Add to Home Screen\".",
+      "iosInstallHint": "On iPhone: Tap the Share button (⬆️) below and select \"Add to Home Screen\"."
     }
   },
   "locationModal": {

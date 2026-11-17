@@ -12,20 +12,13 @@ import {
 import { CountrySelector } from '@/components/shared/country-selector'
 import { toEnglishDigits } from '@/components/features/seller/seller-shared'
 import { registerAction } from '@/actions/auth-actions'
-import { useTranslation, type LocaleCode } from '@/lib/i18n'
-
-const TURNSTILE_WAIT_MESSAGES: Record<LocaleCode, string> = {
-  ar: 'يرجى الانتظار لحظات حتى يكتمل التحقق الأمني (Cloudflare) بالأسفل ثم اضغط إنشاء الحساب.',
-  en: 'Please wait a moment for the Cloudflare security check below to complete, then try again.',
-  ru: 'Пожалуйста, подождите завершения проверки безопасности (Cloudflare) ниже и попробуйте снова.',
-  ka: 'გთხოვთ დაელოდოთ უსაფრთხოების შემოწმების (Cloudflare) დასრულებას და სცადოთ ხელახლა.',
-}
+import { useTranslation } from '@/lib/i18n'
 
 export default function RegisterPage() {
   const router = useRouter()
   const { t: dict, locale, dir } = useTranslation()
   const t = dict.authPages.register
-  const c = dict.authPages.common
+  const c = dict.authPages.common as Record<string, any>
 
   const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -50,9 +43,7 @@ export default function RegisterPage() {
     ).trim()
 
     if (!turnstileToken) {
-      setError(
-        TURNSTILE_WAIT_MESSAGES[locale] || TURNSTILE_WAIT_MESSAGES.ar
-      )
+      setError(c.turnstileWaitMessage || c.turnstileText || '')
       return
     }
 

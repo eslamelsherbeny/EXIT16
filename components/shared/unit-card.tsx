@@ -36,6 +36,8 @@ export function SharedUnitCard({
 }) {
   const { t: dict, locale, dir } = useTranslation()
   const t = dict.accountPages.common
+  const propertyKinds =
+    (dict.sell?.optionsData?.propertyKinds as Record<string, string>) || {}
 
   const meta =
     unit.documents && typeof unit.documents === 'object'
@@ -43,7 +45,9 @@ export function SharedUnitCard({
       : {}
 
   const resolvedArea = unit.area || meta.area || ''
-  const resolvedType = unit.unit_type || meta.unit_type || t.defaultUnitType
+  const rawType = unit.unit_type || meta.unit_type || ''
+  const resolvedType =
+    (rawType && propertyKinds[rawType]) || rawType || t.defaultUnitType
   const resolvedRooms = unit.rooms ?? meta.rooms ?? 2
 
   const paid = Number(unit.paid_amount) || 0

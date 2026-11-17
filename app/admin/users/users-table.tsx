@@ -84,7 +84,7 @@ export default function UsersClientTable({
   const propBadges = dict.admin?.propertiesAdmin?.badges || {}
   const expL = EXPORT_LABELS[locale] || EXPORT_LABELS.ar
 
-  const ownerRoleLabel = t.roles?.owner || `👑 SUPER ADMIN (${t.roles?.admin || "Owner"})`
+  const ownerRoleLabel = t.roles.owner
 
   const allRoleOptions = [
     { value: "owner", label: ownerRoleLabel },
@@ -680,7 +680,7 @@ export default function UsersClientTable({
                         {user.isOwnerAdmin ? (
                           <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-900">
                             <Crown className="size-3 text-amber-600" />
-                            <span>SUPER ADMIN</span>
+                            <span>{t.superAdminBadge}</span>
                           </span>
                         ) : (
                           isStaffMember(user.role) && (
@@ -875,7 +875,7 @@ export default function UsersClientTable({
                       {user.isOwnerAdmin ? (
                         <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-900">
                           <Crown className="size-3 text-amber-600" />
-                          <span>SUPER ADMIN</span>
+                          <span>{t.superAdminBadge}</span>
                         </span>
                       ) : (
                         isStaffMember(user.role) && (

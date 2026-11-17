@@ -212,7 +212,7 @@ export function parseLeadDetails({
       : []
 
   const areasRaw = areasList
-    .join("، ")
+    .join(sep)
     .replace(/الرحاب/g, "King David Residences")
   const planRaw = lead.payment_plan || ""
 
@@ -328,20 +328,21 @@ export function buildLeadWhatsAppMessage({
   t: Record<string, any>
   leadsPrompts: Record<string, any>
 }) {
+  const sep = locale === "ar" ? "، " : ", "
   const cashVal = Number(
     lead.available_cash || lead.budget || 0
   ).toLocaleString("en-US")
   const instVal = Number(lead.max_installment || 0).toLocaleString("en-US")
   const typesStr = Array.isArray(lead.unit_types)
-    ? lead.unit_types.join("، ")
+    ? lead.unit_types.join(sep)
     : ""
 
   if (parsed.isUnitLead) {
     const unitTitle = parsed.matchedUnit
       ? `${parsed.matchedUnit.project_name || ""} - ${cleanAreaLabel(parsed.matchedUnit.area, locale)} (${parsed.unitCode || ""})`
       : parsed.cleanTargetUnit
-    return `${leadsPrompts.waUnitLeadPrefix} ${lead.name}، ${leadsPrompts.waUnitLeadMiddle} (${unitTitle}) — ${t.cashLabel} ${cashVal} ${leadCur} | ${t.installmentLabel} ${instVal} ${leadCur}.${parsed.customerNotes ? ` (${t.customerNotesLabel} ${parsed.customerNotes})` : ""} ${leadsPrompts.waUnitLeadSuffix}`
+    return `${leadsPrompts.waUnitLeadPrefix} ${lead.name}${sep}${leadsPrompts.waUnitLeadMiddle} (${unitTitle}) — ${t.cashLabel} ${cashVal} ${leadCur} | ${t.installmentLabel} ${instVal} ${leadCur}.${parsed.customerNotes ? ` (${t.customerNotesLabel} ${parsed.customerNotes})` : ""} ${leadsPrompts.waUnitLeadSuffix}`
   }
 
-  return `${leadsPrompts.waGeneralPrefix} ${lead.name}، ${leadsPrompts.waGeneralMiddle} (${parsed.cleanTargetUnit}) — ${t.cashLabel} ${cashVal} ${leadCur} | ${t.installmentLabel} ${instVal} ${leadCur}${typesStr ? ` | ${typesStr}` : ""}. ${leadsPrompts.waGeneralSuffix}`
+  return `${leadsPrompts.waGeneralPrefix} ${lead.name}${sep}${leadsPrompts.waGeneralMiddle} (${parsed.cleanTargetUnit}) — ${t.cashLabel} ${cashVal} ${leadCur} | ${t.installmentLabel} ${instVal} ${leadCur}${typesStr ? ` | ${typesStr}` : ""}. ${leadsPrompts.waGeneralSuffix}`
 }

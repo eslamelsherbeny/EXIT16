@@ -89,6 +89,7 @@ export default function LeadsClientTable({
   const dashDict = adminDict.dashboard || {}
   const sm = adminDict.smartMatch || {}
   const expL = EXPORT_LABELS[locale] || EXPORT_LABELS.ar
+  const listSep = dir === "rtl" ? "، " : ", "
 
   function getMatchedUnitsForLead(lead: BuyerLead) {
     if (!units || units.length === 0) return []
@@ -253,7 +254,7 @@ export default function LeadsClientTable({
     return () => window.removeEventListener("click", closeMenu)
   }, [])
 
- useEffect(() => {
+  useEffect(() => {
     const typeParam = searchParams.get("type")
     const leadIdParam = searchParams.get("leadId")
     const verifyPhoneUserIdParam = searchParams.get("verifyPhoneUserId")
@@ -802,7 +803,7 @@ export default function LeadsClientTable({
             })
             const matchedUnits = getMatchedUnitsForLead(lead)
             const typesText = Array.isArray(lead.unit_types)
-              ? lead.unit_types.join("، ")
+              ? lead.unit_types.join(listSep)
               : "—"
             const isCardLoading = pending && activeLeadId === lead.id
             const isHighlighted = highlightedLeadId === lead.id
@@ -1082,7 +1083,7 @@ export default function LeadsClientTable({
               })
               const matchedUnits = getMatchedUnitsForLead(lead)
               const typesText = Array.isArray(lead.unit_types)
-                ? lead.unit_types.join("، ")
+                ? lead.unit_types.join(listSep)
                 : "—"
               const isRowLoading = pending && activeLeadId === lead.id
               const isHighlighted = highlightedLeadId === lead.id

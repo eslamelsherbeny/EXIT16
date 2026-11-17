@@ -96,7 +96,6 @@ export async function getAccountOffersDataAction() {
   const myBuys = (myBuysData || []) as MatchableBuyer[]
   const allOffers = ((offersData || []) as any[]).map(normalizeOfferRecord)
 
-  // جميع الوحدات التي تم الاتفاق عليها بين البائع والمشتري (status = 'accepted')
   const lockedByAcceptedOfferUnitIds = new Set(
     allOffers
       .filter((o) => o.status === 'accepted')
@@ -202,7 +201,6 @@ export async function getAccountOffersDataAction() {
       adminRecOffers.map((o) => [String(o.property_id), String(o.id)])
     )
 
-    // استبعاد أي وحدة متفق عليها (lockedByAcceptedOfferUnitIds) أو في حالة transferring أو sold من الرادار الذكي
     const candidateMarketUnits = ((activeMarketData || []) as any[])
       .map((u) => sanitizeUnitForPublicOrBuyer(u)!)
       .filter(
@@ -374,7 +372,6 @@ export async function submitBuyerOfferAction(payload: {
       return { success: false, error: oDict.errUnitAlreadyLocked }
     }
 
-    // فحص حاسم: إذا كان هناك عرض مقبول (accepted) بالفعل على هذه الوحدة، نمنع أي مشتري آخر من تقديم عرض عليها
     const { data: alreadyAcceptedDeal } = await supabase
       .from('property_offers')
       .select('id, buyer_user_id')
@@ -676,7 +673,6 @@ export async function respondToOfferBySellerAction(payload: {
         .neq('id', offer.id)
         .in('status', ['pending_admin', 'pending_seller', 'counter_offered'])
 
-      // تحويل حالة الوحدة إلى transferring لإخفائها فوراً من قوائم الفرص العامة بعد اتفاق البائع والمشتري
       await supabase
         .from('sell_requests')
         .update({ status: 'transferring' })
@@ -869,7 +865,6 @@ export async function respondToCounterOfferByBuyerAction(payload: {
         .neq('id', offer.id)
         .in('status', ['pending_admin', 'pending_seller', 'counter_offered'])
 
-      // تحويل حالة الوحدة إلى transferring لإخفائها فوراً من العرض العام بعد قبول المشتري للسعر المضاد
       await supabase
         .from('sell_requests')
         .update({ status: 'transferring' })

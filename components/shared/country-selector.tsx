@@ -61,7 +61,10 @@ export function CountrySelector({
   onChange: (code: string, iso?: string) => void
   heightClass?: string
 }) {
-  const { locale, dir } = useTranslation()
+  const { t: dict, locale, dir } = useTranslation()
+  const cs = (dict.common as Record<string, any>)?.countrySelector || {}
+  const countriesMap = (cs.countries as Record<string, string>) || {}
+
   const [open, setOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [query, setQuery] = useState('')
@@ -81,6 +84,7 @@ export function CountrySelector({
   }, [cleanCode])
 
   const getLocalizedName = (item: CountryPhoneOption) => {
+    if (countriesMap[item.iso]) return countriesMap[item.iso]
     if (locale === 'ar') return item.nameAr
     if (locale === 'ru') return item.nameRu
     if (locale === 'ka') return item.nameKa
@@ -102,22 +106,10 @@ export function CountrySelector({
   }, [query])
 
   const searchPlaceholder =
-    locale === 'ar'
-      ? 'ابحث باسم الدولة أو الكود (+995)...'
-      : locale === 'ru'
-        ? 'Поиск страны или кода (+995)...'
-        : locale === 'ka'
-          ? 'ქვეყნის ან კოდის ძიება (+995)...'
-          : 'Search country or code (+995)...'
-
-  const modalTitle =
-    locale === 'ar'
-      ? 'اختر كود الدولة'
-      : locale === 'ru'
-        ? 'Выберите код страны'
-        : locale === 'ka'
-          ? 'აირჩიეთ ქვეყნის კოდი'
-          : 'Select Country Code'
+    cs.searchPlaceholder ||
+    dict.authPages?.common?.searchCountryPlaceholder ||
+    ''
+  const modalTitle = cs.modalTitle || ''
 
   return (
     <div className="relative shrink-0" dir="ltr">

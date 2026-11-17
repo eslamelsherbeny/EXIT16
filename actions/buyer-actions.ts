@@ -138,6 +138,8 @@ export async function processBuyerStep3Action(payload: {
       const cashFormatted = Number(
         payload.available_cash || payload.budget || 0
       ).toLocaleString('en-US')
+      const comma = dir === 'rtl' ? '،' : ','
+      const listSep = dir === 'rtl' ? '، ' : ', '
 
       try {
         await supabase.from('notifications').insert([
@@ -145,7 +147,7 @@ export async function processBuyerStep3Action(payload: {
             user_id: null,
             role: 'admin',
             title: `${msg.newBuyRequestAdminTitle} (${targetCountry}): ${contact.name || msg.buyerFallback}`,
-            message: `$${cashFormatted} · ${(payload.preferred_areas || []).slice(0, 2).join('، ')}`,
+            message: `$${cashFormatted} · ${(payload.preferred_areas || []).slice(0, 2).join(listSep)}`,
             type: 'lead',
             link: `/admin/leads${reqId ? `?leadId=${reqId}` : ''}`,
             is_read: false,
@@ -173,7 +175,7 @@ export async function processBuyerStep3Action(payload: {
           senderName: msg.emailSenderName,
           subject: `${msg.buyOrderSubjectPrefix} ${orderRef}`,
           html: `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.8; color: #0a1122;">
-                  <p style="font-size: 16px;">${msg.greetingWord} <strong>${contact.name}</strong>،</p>
+                  <p style="font-size: 16px;">${msg.greetingWord} <strong>${contact.name}</strong>${comma}</p>
                   <p>${msg.orderRefLabel}: <strong>${orderRef}</strong>.</p>
                   <p>${msg.registeredCashLabel}: <strong>$${cashFormatted}</strong>.</p>
                   <p>${msg.orderMagicLinkPrompt}:</p>

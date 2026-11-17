@@ -214,8 +214,9 @@ export function buildSellerWhatsAppMessage({
   const adPart = property.featured_fawry_code
     ? ` | ${t.badges.adCodeLabel} ${property.featured_fawry_code}`
     : ""
+  const commaSep = locale === "ar" ? "، " : ", "
 
-  return `${leadsPrompts.waGeneralPrefix} ${property.name}، (${proj}${localizedArea} - ${uCode}${adPart}) — ${t.table.colCash}: ${cash} ${unitCur} | ${t.table.contractShort} ${contract} ${unitCur}`
+  return `${leadsPrompts.waGeneralPrefix} ${property.name}${commaSep}(${proj}${localizedArea} - ${uCode}${adPart}) — ${t.table.colCash}: ${cash} ${unitCur} | ${t.table.contractShort} ${contract} ${unitCur}`
 }
 
 /**
@@ -227,15 +228,22 @@ export function buildOwnerPerformanceReportWhatsAppMessage({
   offersCount,
   matchedBuyersCount,
   locale = "ar",
+  t,
 }: {
   property: SellRequest
   viewsCount: number
   offersCount: number
   matchedBuyersCount: number
   locale?: LocaleCode
+  t?: Record<string, any>
 }) {
+  const aL = (t?.analytics as Record<string, string>) || {}
   const uCode = deriveShortUnitCode(property.id, property.code)
-  const proj = property.project_name || "Residential Unit"
+  const proj =
+    property.project_name ||
+    t?.modals?.detailsFallbackTitle ||
+    t?.table?.unspecifiedProject ||
+    ""
   const area = cleanPropertyAreaDisplay(property.area, locale)
   const siteOrigin =
     typeof window !== "undefined"
@@ -246,35 +254,22 @@ export function buildOwnerPerformanceReportWhatsAppMessage({
   const tierName =
     property.boost_tier === "vip_plus" ? "+VIP" : "SUPER VIP"
 
-  if (locale === "ar") {
-    return [
-      `📊 *تقرير أداء إعلان وحدتك على منصة Aqar Exit*`,
-      `مرحباً أستاذ ${property.name}، إليك إحصائيات التفاعل الحية على وحدتك:`,
-      ``,
-      `🏢 *المشروع:* ${proj} (${area})`,
-      `🔖 *كود الإعلان:* #${uCode}`,
-      `👁️ *عدد المشاهدات الفريدة:* ${viewsCount.toLocaleString("en-US")} زائر ومشتري`,
-      `🎯 *المشترون المطابقون للمواصفات:* ${matchedBuyersCount} مشتري`,
-      `💼 *عروض الشراء المسجلة:* ${offersCount} عروض`,
-      `⭐ *حالة الترويج:* ${isFeatured ? `مميزة في الصدارة (${tierName})` : "ظهور عادي"}`,
-      ``,
-      `🔗 *رابط إعلانك المباشر:*`,
-      unitUrl,
-    ].join("\n")
-  }
+  const promoStatusText = isFeatured
+    ? `${aL.waReportFeaturedPrefix || ""} (${tierName})`.trim()
+    : aL.waReportStandardTier || ""
 
   return [
-    `📊 *Aqar Exit — Unit Performance Report*`,
-    `Hello ${property.name}, here are the live analytics for your listing:`,
+    aL.waReportTitle || "",
+    `${aL.waReportGreetingPrefix || ""} ${property.name}${aL.waReportGreetingSuffix || ""}`,
     ``,
-    `🏢 *Project:* ${proj} (${area})`,
-    `🔖 *Unit Code:* #${uCode}`,
-    `👁️ *Unique Views:* ${viewsCount.toLocaleString("en-US")} buyers`,
-    `🎯 *Matched Buyers:* ${matchedBuyersCount}`,
-    `💼 *Purchase Offers:* ${offersCount}`,
-    `⭐ *Visibility Tier:* ${isFeatured ? `Featured (${tierName})` : "Standard"}`,
+    `${aL.waReportProjectLabel || ""} ${proj} (${area})`,
+    `${aL.waReportCodeLabel || ""} #${uCode}`,
+    `${aL.waReportViewsLabel || ""} ${viewsCount.toLocaleString("en-US")}${aL.waReportViewsSuffix ? ` ${aL.waReportViewsSuffix}` : ""}`,
+    `${aL.waReportMatchedBuyersLabel || ""} ${matchedBuyersCount}${aL.waReportMatchedBuyersSuffix ? ` ${aL.waReportMatchedBuyersSuffix}` : ""}`,
+    `${aL.waReportOffersLabel || ""} ${offersCount}${aL.waReportOffersSuffix ? ` ${aL.waReportOffersSuffix}` : ""}`,
+    `${aL.waReportPromoStatusLabel || ""} ${promoStatusText}`,
     ``,
-    `🔗 *Direct Listing Link:*`,
+    aL.waReportDirectLinkLabel || "",
     unitUrl,
   ].join("\n")
 }

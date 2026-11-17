@@ -43,9 +43,6 @@ export function haversineMetersClient(
   return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)))
 }
 
-/**
- * محطات مترو تبليسي الـ 23 الرسمية بإحداثياتها الحقيقية الثابتة
- */
 export const OFFICIAL_METRO_POIS: MasterPoiRecord[] = [
   { id: 'metro_rustaveli', category: 'metro', lat: 41.7041, lng: 44.7896, names: { ar: 'روستافيلي', en: 'Rustaveli', ru: 'Руставели', ka: 'რუსთაველი' } },
   { id: 'metro_liberty', category: 'metro', lat: 41.6934, lng: 44.8015, names: { ar: 'ميدان الحرية', en: 'Liberty Square', ru: 'Площадь Свободы', ka: 'თავისუფლების მოედანი' } },
@@ -70,9 +67,6 @@ export const OFFICIAL_METRO_POIS: MasterPoiRecord[] = [
   { id: 'metro_akhmeteli', category: 'metro', lat: 41.7931, lng: 44.8156, names: { ar: 'مسرح أخسيتيلي', en: 'Akhmeteli Theatre', ru: 'Театр Ахметели', ka: 'ახმეტელის თეატრი' } },
 ]
 
-/**
- * أنصاف الأقطار الدقيقة لكل تصنيف بالمتر (مطابقة لنطاق المشي في sivrce.ge)
- */
 const CATEGORY_RADIUS_LIMITS: Record<NearbyPlaceCategory, number> = {
   metro: 3000,
   university: 1800,
@@ -89,9 +83,6 @@ const CATEGORY_RADIUS_LIMITS: Record<NearbyPlaceCategory, number> = {
   bus: 750,
 }
 
-/**
- * الحد الأقصى لعدد العناصر المعروضة في كل تصنيف (لإعطاء إجمالي احترافي ~140-190 مرفق حول العقار)
- */
 const CATEGORY_MAX_ITEMS_CAP: Record<NearbyPlaceCategory, number> = {
   metro: 3,
   school: 12,
@@ -108,9 +99,6 @@ const CATEGORY_MAX_ITEMS_CAP: Record<NearbyPlaceCategory, number> = {
   bus: 35,
 }
 
-/**
- * استبعاد الأسماء العامة المجهولة (مثل Park أو Medical Clinic بدون اسم مميز)
- */
 const GENERIC_UNNAMED_SKIP = new Set([
   'park',
   'პარკი',
@@ -128,10 +116,6 @@ const GENERIC_UNNAMED_SKIP = new Set([
   'بنك',
 ])
 
-/**
- * قراءة المرافق الحقيقية الثابتة من ملف georgia-real-osm-pois.json
- * وحساب المسافة الفعلية بالمتر من إحداثيات العمارة في الشارع (في 0 ثانية)
- */
 export function getInstantGeorgiaNearbyPlaces(
   lat: number,
   lng: number,
@@ -153,7 +137,6 @@ export function getInstantGeorgiaNearbyPlaces(
   const candidates: RealNearbyPlaceItem[] = []
   const seenIds = new Set<string>()
 
-  // 1. محطات المترو الرسمية (أقرب 3 محطات ضمن 4.5 كم)
   const metrosSorted = OFFICIAL_METRO_POIS.map((m) => ({
     ...m,
     dist: haversineMetersClient(safeLat, safeLng, m.lat, m.lng),
@@ -174,7 +157,6 @@ export function getInstantGeorgiaNearbyPlaces(
     }
   }
 
-  // 2. قراءة قائمة المرافق الحقيقية الثابتة من ملف الـ JSON مع تصفية الأسماء المجهولة
   const rawItems: MasterPoiRecord[] = Array.isArray(
     (realPoisSnapshot as any)?.items
   )
@@ -186,7 +168,6 @@ export function getInstantGeorgiaNearbyPlaces(
       continue
     }
 
-    // فلتر مربع جغرافي سريع قبل حساب Haversine لتسريع البحث في الـ 11,393 مرفق (أقل من 1ms)
     if (
       Math.abs(item.lat - safeLat) > 0.022 ||
       Math.abs(item.lng - safeLng) > 0.028
@@ -221,7 +202,6 @@ export function getInstantGeorgiaNearbyPlaces(
 
   candidates.sort((a, b) => a.distanceMeters - b.distanceMeters)
 
-  // 3. تطبيق السقف لكل فئة ليكون العرض متوازناً ومرتباً من الأقرب للأبعد
   const countByCat: Record<string, number> = {}
   const finalResults: RealNearbyPlaceItem[] = []
 

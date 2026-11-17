@@ -180,9 +180,6 @@ export async function logoutAccountAction() {
   redirect('/login')
 }
 
-/**
- * زيادة عداد المشاهدات الفعلي للوحدة (يُستدعى عند فتح صفحة تفاصيل الوحدة)
- */
 export async function incrementUnitViewsAction(unitId: string) {
   try {
     if (!unitId || unitId.startsWith('1') || unitId.startsWith('showcase')) {
@@ -213,10 +210,6 @@ export async function incrementUnitViewsAction(unitId: string) {
   }
 }
 
-/**
- * إنشاء طلب ترقية إعلان باللاري الجورجي (₾) من الصفحة الرئيسية أو صفحة الحساب
- * وحفظه في جدول boost_requests بانتظار مراجعة الدفع وتفعيل الأدمن
- */
 export async function createBoostRequestAction(payload: {
   amountGel: number
   packageTier: 'SUPER VIP' | 'VIP+'
@@ -487,12 +480,14 @@ export async function updateEmailInfoAction(payload: { email: string }) {
         .eq('user_id', currentUser.id),
     ])
 
+    const comma = dir === 'rtl' ? '،' : ','
+
     sendAccountEmail({
       to: cleanEmail,
       senderName: msg.emailSenderName,
       subject: msg.emailUpdatedSubject,
       html: `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.8; color: #0a1122;">
-               <p>${msg.greetingWord} <strong>${currentUser.name || msg.dearClient}</strong>،</p>
+               <p>${msg.greetingWord} <strong>${currentUser.name || msg.dearClient}</strong>${comma}</p>
                <p>${msg.emailUpdatedBody} <strong>${cleanEmail}</strong>.</p>
               </div>`,
     }).catch(() => {})
@@ -653,7 +648,6 @@ export async function toggleSellerUnitStatusAction(payload: {
     const unit = await verifyUnitOwnership(supabase, payload.unitId, user)
     if (!unit) return { success: false, error: msg.unitNotFound }
 
-    // منع تغيير حالة الوحدة إذا كانت متفقاً عليها (transferring) أو مباعة (sold) أو عليها عرض مقبول
     const cleanSt = String(unit.status || '').trim().toLowerCase()
     const { data: acceptedDeal } = await supabase
       .from('property_offers')
@@ -666,9 +660,7 @@ export async function toggleSellerUnitStatusAction(payload: {
     if (cleanSt === 'transferring' || cleanSt === 'sold' || acceptedDeal) {
       return {
         success: false,
-        error:
-          msg.unitLockedByDeal ||
-          'لا يمكن إيقاف أو تعديل حالة الوحدة أثناء إجراءات التنازل مع الإدارة.',
+        error: msg.unitLockedByDeal || msg.pauseFailed,
       }
     }
 
@@ -740,7 +732,6 @@ export async function deleteUnitBySellerAction(unitId: string) {
     const unit = await verifyUnitOwnership(supabase, unitId, user)
     if (!unit) return { success: false, error: msg.unitNotFound }
 
-    // منع البائع من حذف الوحدة بعد الاتفاق مع المشتري وقفل الصفقة
     const cleanSt = String(unit.status || '').trim().toLowerCase()
     const { data: acceptedDeal } = await supabase
       .from('property_offers')
@@ -753,9 +744,7 @@ export async function deleteUnitBySellerAction(unitId: string) {
     if (cleanSt === 'transferring' || cleanSt === 'sold' || acceptedDeal) {
       return {
         success: false,
-        error:
-          msg.unitLockedByDeal ||
-          'لا يمكن حذف الوحدة بعد قبول العرض وبدء إجراءات التنازل مع الإدارة.',
+        error: msg.unitLockedByDeal || msg.deleteFailed,
       }
     }
 
@@ -844,7 +833,6 @@ export async function saveUnitDocumentAction(payload: {
       if (normalizedKey === 'passport') delete currentDocs.national_id
     }
 
-    // فحص تلقائي: هل اكتملت المستندات الـ 4 والصور ليتم تحويل الوحدة تلقائياً لمراجعة الإدارة؟
     const uploadedCount = (
       ['contract', 'receipts', 'statement', 'passport'] as const
     ).filter((k) => Boolean(currentDocs[k]?.url)).length
@@ -895,7 +883,7 @@ export async function saveUnitDocumentAction(payload: {
           user_id: null,
           role: 'admin',
           title: isNowFullyReady
-            ? `✅ اكتملت جميع مستندات وصور الوحدة (${uploadedCount}/4): ${unit.project_name || msg.unitWord}`
+            ? `✅ ${msg.allDocsReadyNotifTitle || msg.docUploadedNotifTitle} (${uploadedCount}/4): ${unit.project_name || msg.unitWord}`
             : `📄 ${msg.docUploadedNotifTitle} (${uploadedCount}/4): ${unit.project_name || msg.unitWord}`,
           message: `${unit.name || ''}`,
           type: 'property',
@@ -1092,7 +1080,6 @@ export async function requestUnitPromotionAction(payload: {
       }
     }
 
-    // تسجيل الطلب في جدول boost_requests ليظهر للأدمن
     try {
       await supabase.from('boost_requests').insert({
         user_id: user.id,

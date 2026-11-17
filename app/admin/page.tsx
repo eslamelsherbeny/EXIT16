@@ -148,9 +148,10 @@ export default async function AdminPage() {
     ((dict?.admin as Record<string, any>)?.smartMatch as Record<string, any>) ||
     {}
 
-  const georgiaLabel = t.countries?.GE || "Georgia"
+  const georgiaLabel = t.countries?.GE || ""
   const georgiaCurrency = "$"
   const commPct = Number(siteSettings?.buyerCommission) || 1.25
+  const listSep = dir === "rtl" ? "، " : ", "
 
   let propertiesData: any[] = []
   let leadsData: any[] = []
@@ -480,8 +481,8 @@ export default async function AdminPage() {
               )
               const localizedArea = cleanAreaDisplay(unit.area, locale)
 
-              const sellerWa = `${leadsDict.waGeneralPrefix || ""} ${unit.name}، (${unit.project_name || t.defaultUnit || ""} - ${uCode}) — ${sm.agreedCashLabel || ""}: ${agreedCash.toLocaleString("en-US")} ${cur}`
-              const buyerWa = `${leadsDict.waUnitLeadPrefix || ""} ${offer.buyer_name || ""}، (${unit.project_name || t.defaultUnit || ""} - ${uCode}) — ${sm.agreedCashLabel || ""}: ${agreedCash.toLocaleString("en-US")} ${cur}`
+              const sellerWa = `${leadsDict.waGeneralPrefix || ""} ${unit.name}${listSep}(${unit.project_name || t.defaultUnit || ""} - ${uCode}) — ${sm.agreedCashLabel || ""}: ${agreedCash.toLocaleString("en-US")} ${cur}`
+              const buyerWa = `${leadsDict.waUnitLeadPrefix || ""} ${offer.buyer_name || ""}${listSep}(${unit.project_name || t.defaultUnit || ""} - ${uCode}) — ${sm.agreedCashLabel || ""}: ${agreedCash.toLocaleString("en-US")} ${cur}`
 
               return (
                 <div
@@ -751,7 +752,7 @@ export default async function AdminPage() {
                   const uCode = deriveUnitCode(prop.id, prop.code)
                   const localizedArea = cleanAreaDisplay(prop.area, locale)
 
-                  const sellerWaMsg = `${leadsDict.waGeneralPrefix || ""} ${prop.name}، (${prop.project_name || t.defaultUnit || ""} - ${localizedArea} - ${uCode}) — $${Number(prop.paid_amount || 0).toLocaleString("en-US")}`
+                  const sellerWaMsg = `${leadsDict.waGeneralPrefix || ""} ${prop.name}${listSep}(${prop.project_name || t.defaultUnit || ""} - ${localizedArea} - ${uCode}) — $${Number(prop.paid_amount || 0).toLocaleString("en-US")}`
 
                   return (
                     <div
@@ -847,12 +848,12 @@ export default async function AdminPage() {
                         locale
                       )
                     )
-                    .join("، ") || t.allAreas
+                    .join(listSep) || t.allAreas
                 const cashFormatted = Number(
                   lead.available_cash || lead.budget || 0
                 ).toLocaleString("en-US")
 
-                const buyerWaMsg = `${leadsDict.waGeneralPrefix || ""} ${lead.name}، ${leadsDict.waGeneralMiddle || ""} (${cleanTarget || t.allAreas || ""}) — ${leadsDict.cashShort || ""} $${cashFormatted}. ${leadsDict.waGeneralSuffix || ""}`
+                const buyerWaMsg = `${leadsDict.waGeneralPrefix || ""} ${lead.name}${listSep}${leadsDict.waGeneralMiddle || ""} (${cleanTarget || t.allAreas || ""}) — ${leadsDict.cashShort || ""} $${cashFormatted}. ${leadsDict.waGeneralSuffix || ""}`
 
                 return (
                   <div

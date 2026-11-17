@@ -14,97 +14,6 @@ const PWA_DISMISSED_UNTIL_KEY = 'aqar_pwa_dismissed_until_v3'
 const PWA_SHOWN_IN_SESSION_KEY = 'aqar_pwa_shown_session_v3'
 const PWA_INSTALLED_KEY = 'aqar_pwa_installed_done_v3'
 
-const LANGUAGE_NAMES_DISPLAY: Record<LocaleCode, string> = {
-  ar: 'العربية',
-  en: 'English',
-  ru: 'Русский',
-  ka: 'ქართული',
-}
-
-const PROMPTS_I18N: Record<
-  LocaleCode,
-  {
-    consentText: string
-    allowBtn: string
-    declineBtn: string
-    privacyLink: string
-    languageWord: string
-    switchBtn: string
-    pwaTitle: string
-    pwaSub: string
-    installBtn: string
-    manualInstallHint: string
-    iosInstallHint: string
-  }
-> = {
-  ar: {
-    consentText:
-      'نحن نقيس الزيارات وأداء الإعلانات فقط إذا سمحت بذلك. لا يتم تحميل أي أدوات تتبع قبل قرارك — يمكنك تغيير اختيارك في أي وقت من الفوتر.',
-    allowBtn: 'سماح',
-    declineBtn: 'رفض',
-    privacyLink: 'سياسة الخصوصية',
-    languageWord: 'اللغة:',
-    switchBtn: 'Switch',
-    pwaTitle: 'نزّل تطبيق Aqar Exit على هاتفك',
-    pwaSub:
-      'تصفح فرص التنازل وتابع عروضك وإشعاراتك فوراً من الشاشة الرئيسية.',
-    installBtn: 'تثبيت التطبيق الآن',
-    manualInstallHint:
-      'من قائمة المتصفح (⋮) بالأعلى اختر «تثبيت التطبيق / Install App» أو «إضافة إلى الشاشة الرئيسية».',
-    iosInstallHint:
-      'في آيفون: اضغط على زر المشاركة (Share ⬆️) بالأسفل ثم اختر «إضافة إلى الشاشة الرئيسية».',
-  },
-  en: {
-    consentText:
-      'We measure visits and ad performance only if you allow it. Nothing loads before you decide — change your choice anytime from the footer.',
-    allowBtn: 'Allow',
-    declineBtn: 'Decline',
-    privacyLink: 'Privacy policy',
-    languageWord: 'Language:',
-    switchBtn: 'Switch',
-    pwaTitle: 'Install Aqar Exit App',
-    pwaSub:
-      'Access installment exit deals and track your offers faster from your home screen.',
-    installBtn: 'Install App',
-    manualInstallHint:
-      'Tap your browser menu (⋮) at the top and select "Install App" or "Add to Home Screen".',
-    iosInstallHint:
-      'On iPhone: Tap the Share button (⬆️) below and select "Add to Home Screen".',
-  },
-  ru: {
-    consentText:
-      'Мы анализируем посещения и эффективность рекламы только с вашего согласия. Ничего не загружается до вашего решения.',
-    allowBtn: 'Разрешить',
-    declineBtn: 'Отклонить',
-    privacyLink: 'Конфиденциальность',
-    languageWord: 'Язык:',
-    switchBtn: 'Switch',
-    pwaTitle: 'Установите приложение Aqar Exit',
-    pwaSub: 'Быстрый доступ к объектам переуступки прямо с главного экрана.',
-    installBtn: 'Установить',
-    manualInstallHint:
-      'Откройте меню браузера (⋮) вверху и выберите «Установить приложение» или «На экран Домой».',
-    iosInstallHint:
-      'На iPhone: нажмите кнопку «Поделиться» (⬆️) внизу и выберите «На экран Домой».',
-  },
-  ka: {
-    consentText:
-      'ჩვენ ვზომავთ ვიზიტებს და რეკლამის ეფექტურობას მხოლოდ თქვენი თანხმობით. არაფერი იტვირთება თქვენს გადაწყვეტილებამდე.',
-    allowBtn: 'დაშვება',
-    declineBtn: 'უარყოფა',
-    privacyLink: 'კონფიდენციალურობა',
-    languageWord: 'ენა:',
-    switchBtn: 'Switch',
-    pwaTitle: 'დააინსტალირეთ Aqar Exit აპლიკაცია',
-    pwaSub: 'სწრაფი წვდომა ყველა შეთავაზებაზე თქვენი ტელეფონის ეკრანიდან.',
-    installBtn: 'ინსტალაცია',
-    manualInstallHint:
-      'გახსენით ბრაუზერის მენიუ (⋮) და აირჩიეთ "Install App" ან "Add to Home Screen".',
-    iosInstallHint:
-      'iPhone-ზე: დააჭირეთ გაზიარების ღილაკს (⬆️) და აირჩიეთ "Add to Home Screen".',
-  },
-}
-
 function shouldHidePwaBanner(): boolean {
   if (typeof window === 'undefined') return true
   try {
@@ -164,8 +73,13 @@ export function FacebookPixel() {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const { locale, dir, siteSettings } = useTranslation() as Record<string, any>
-  const pT = PROMPTS_I18N[locale as LocaleCode] || PROMPTS_I18N.ar
+  const { t: dict, locale, dir, siteSettings } = useTranslation() as Record<
+    string,
+    any
+  >
+  const pT = (dict?.common as Record<string, any>)?.prompts || {}
+  const langNames =
+    (dict?.navbar as Record<string, any>)?.languageOptions || {}
 
   const fbPixelId =
     siteSettings?.fbPixelId || process.env.NEXT_PUBLIC_FB_PIXEL_ID || ''
@@ -195,7 +109,6 @@ export function FacebookPixel() {
   const [showManualPwaGuide, setShowManualPwaGuide] = useState(false)
   const [isIosDevice, setIsIosDevice] = useState(false)
 
-  // 1. فحص الكوكيز وحدث تثبيت التطبيق
   useEffect(() => {
     setMounted(true)
 
@@ -265,7 +178,11 @@ export function FacebookPixel() {
     window.addEventListener('appinstalled', handleAppInstalled)
 
     const fallbackTimer = setTimeout(() => {
-      if (!isStandalone && !shouldHidePwaBanner() && (ios || (window as any).__deferredPwaPrompt)) {
+      if (
+        !isStandalone &&
+        !shouldHidePwaBanner() &&
+        (ios || (window as any).__deferredPwaPrompt)
+      ) {
         setShowPwaBanner(true)
       }
     }, 3500)
@@ -281,7 +198,6 @@ export function FacebookPixel() {
     }
   }, [])
 
-  // 2. الاكتشاف الذكي للدولة واللغة (بنفس أسلوب Sivrce والمواقع العالمية بدون حلقة مفرغة)
   useEffect(() => {
     try {
       if (
@@ -301,12 +217,11 @@ export function FacebookPixel() {
 
         const geoLocale = data?.suggestedLocale as LocaleCode | undefined
         const countryLabel =
-          data?.countryName?.en ||
           data?.countryName?.[locale] ||
+          data?.countryName?.en ||
           data?.countryCode ||
-          'Egypt'
+          ''
 
-        // فحص لغة هاتف/متصفح الزائر الفعلية كمساعد ذكي
         const browserLang = (navigator.language || '').slice(0, 2).toLowerCase()
         const validBrowserLocale: LocaleCode | null =
           browserLang === 'ar' ||
@@ -316,8 +231,6 @@ export function FacebookPixel() {
             ? (browserLang as LocaleCode)
             : null
 
-        // الأولوية 1: إذا كانت لغة دولة الزائر مختلفة عن لغة الموقع الحالية (مثل Sivrce تماماً)
-        // الأولوية 2: إذا كانت لغة دولة الزائر تطابق الموقع، لكن هاتفه مضبوط على لغة أخرى مدعومة
         let targetSuggestion: LocaleCode | null = null
 
         if (geoLocale && geoLocale !== locale) {
@@ -490,7 +403,6 @@ export function FacebookPixel() {
           dir={dir}
           className="pointer-events-none fixed inset-x-3 bottom-4 z-[999] mx-auto flex max-w-md flex-col gap-2.5 sm:bottom-6"
         >
-          {/* 1. شريط الدولة وتبديل اللغة (بنفس تصميم Sivrce النظيف في الصورة) */}
           {geoSuggestion && !showConsentBanner && (
             <div
               dir="ltr"
@@ -503,9 +415,13 @@ export function FacebookPixel() {
                 <p className="truncate text-xs font-extrabold text-[#0f1d40] sm:text-[13px]">
                   <span>{geoSuggestion.countryLabel}</span>
                   <span className="mx-1 text-slate-300">·</span>
-                  <span className="font-medium text-slate-500">Language: </span>
+                  <span className="font-medium text-slate-500">
+                    {pT.languageWord}{' '}
+                  </span>
                   <span className="text-[#0f1d40]">
-                    {LANGUAGE_NAMES_DISPLAY[geoSuggestion.suggestedLocale]}
+                    {langNames[geoSuggestion.suggestedLocale] ||
+                      SUPPORTED_LANGUAGES[geoSuggestion.suggestedLocale]
+                        ?.nativeName}
                   </span>
                 </p>
               </div>
@@ -516,12 +432,12 @@ export function FacebookPixel() {
                   onClick={handleSwitchSuggestedLanguage}
                   className="rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-4 py-1.5 text-xs font-extrabold text-white shadow-xs transition hover:opacity-95 active:scale-95"
                 >
-                  Switch
+                  {pT.switchBtn}
                 </button>
                 <button
                   type="button"
                   onClick={handleDismissGeoSuggestion}
-                  aria-label="Close"
+                  aria-label={pT.closeAria}
                   className="flex size-7 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700"
                 >
                   <X className="size-4" />
@@ -530,7 +446,6 @@ export function FacebookPixel() {
             </div>
           )}
 
-          {/* 2. شريط تثبيت الموقع كتطبيق (PWA) */}
           {showPwaBanner && !showConsentBanner && !geoSuggestion && (
             <div className="pointer-events-auto rounded-[22px] border border-slate-200/90 bg-white/98 p-4 shadow-[0_14px_38px_rgba(15,29,64,0.16)] backdrop-blur-md">
               <div className="flex items-start justify-between gap-3">
@@ -551,7 +466,7 @@ export function FacebookPixel() {
                 <button
                   type="button"
                   onClick={handleDismissPwaBanner}
-                  aria-label="Close"
+                  aria-label={pT.closeAria}
                   className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
                 >
                   <X className="size-4" />
@@ -580,7 +495,6 @@ export function FacebookPixel() {
             </div>
           )}
 
-          {/* 3. شريط الموافقة على قياس الزيارات والإعلانات */}
           {showConsentBanner && (
             <div className="pointer-events-auto rounded-[24px] border border-slate-200/90 bg-white/98 p-4 text-start shadow-[0_18px_45px_rgba(15,29,64,0.18)] backdrop-blur-md sm:p-5">
               <p className="text-xs leading-relaxed font-medium text-slate-600 sm:text-[13px]">

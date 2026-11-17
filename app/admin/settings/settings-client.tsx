@@ -143,8 +143,7 @@ export default function SettingsClient({
   hasEmail: boolean
 }) {
   const router = useRouter()
-  const { t: dict, locale, dir } = useTranslation()
-  const isAr = locale === "ar"
+  const { t: dict, dir } = useTranslation()
   const t = dict.admin.settings as Record<string, any>
 
   const [activeTab, setActiveTab] = useState<"general" | "system">(initialTab)
@@ -202,30 +201,22 @@ export default function SettingsClient({
       const batches = [
         {
           targetPct: 22,
-          label: isAr
-            ? "جاري سحب المدارس، الحضانات، الجامعات، المستشفيات، الصيدليات والبنوك في تبليسي..."
-            : "Fetching Tbilisi schools, kindergartens, universities, clinics, pharmacies & banks...",
+          label: t.mapBatch1Label,
           query: `[out:json][timeout:25][bbox:41.65,44.70,41.82,44.91];(node["amenity"~"^(school|kindergarten|childcare|preschool|university|college|pharmacy|clinic|hospital|doctors|dentist|bank)$"];way["amenity"~"^(school|kindergarten|childcare|preschool|university|college|pharmacy|clinic|hospital|doctors|dentist|bank)$"];);out center qt;`,
         },
         {
           targetPct: 44,
-          label: isAr
-            ? "جاري سحب السوبرماركت، المطاعم، الحدائق، الصالات الرياضية والمعالم في تبليسي..."
-            : "Fetching Tbilisi supermarkets, restaurants, parks, gyms & landmarks...",
+          label: t.mapBatch2Label,
           query: `[out:json][timeout:25][bbox:41.65,44.70,41.82,44.91];(node["shop"~"^(supermarket|convenience|mall|bakery|greengrocer)$"];way["shop"~"^(supermarket|convenience|mall|bakery|greengrocer)$"];node["amenity"~"^(restaurant|cafe|place_of_worship)$"];node["leisure"~"^(park|garden|fitness_centre|sports_centre)$"];way["leisure"~"^(park|garden|fitness_centre|sports_centre)$"];node["tourism"~"^(attraction|museum|viewpoint|gallery)$"];node["historic"~"^(monument|memorial|castle)$"];);out center qt;`,
         },
         {
           targetPct: 62,
-          label: isAr
-            ? "جاري سحب جميع محطات الحافلات والمترو في تبليسي..."
-            : "Fetching all Tbilisi bus stops & transit stations...",
+          label: t.mapBatch3Label,
           query: `[out:json][timeout:25][bbox:41.65,44.70,41.82,44.91];(node["highway"="bus_stop"];);out center qt;`,
         },
         {
           targetPct: 76,
-          label: isAr
-            ? "جاري سحب مرافق ومحطات باتومي والمدن الرئيسية..."
-            : "Fetching Batumi & major cities POIs...",
+          label: t.mapBatch4Label,
           query: `[out:json][timeout:25][bbox:41.60,41.57,41.68,41.69];(node["amenity"~"^(school|kindergarten|university|pharmacy|clinic|hospital|bank|restaurant|cafe)$"];way["amenity"~"^(school|kindergarten|university|pharmacy|clinic|hospital|bank)$"];node["shop"~"^(supermarket|convenience|mall|bakery)$"];node["leisure"~"^(park|garden|fitness_centre)$"];way["leisure"~"^(park|garden)$"];node["highway"="bus_stop"];);out center qt;`,
         },
       ]
@@ -238,11 +229,7 @@ export default function SettingsClient({
         setSyncPercent(b.targetPct)
       }
 
-      setSyncProgressText(
-        isAr
-          ? "جاري تنقية وترتيب إحداثيات المرافق والخدمات..."
-          : "Filtering and indexing coordinates..."
-      )
+      setSyncProgressText(t.mapFilteringLabel)
       setSyncPercent(80)
 
       const parsedItems: StoredGeorgiaPoiRecord[] = []
@@ -399,9 +386,7 @@ export default function SettingsClient({
         const savePct = 80 + Math.round(((i + 1) / totalChunks) * 20)
         setSyncPercent(Math.min(99, savePct))
         setSyncProgressText(
-          isAr
-            ? `جاري حفظ قاعدة بيانات المرافق (دفعة ${i + 1} من ${totalChunks} — ${parsedItems.length.toLocaleString("en-US")} مرفق)...`
-            : `Saving database chunk ${i + 1} of ${totalChunks} (${parsedItems.length.toLocaleString("en-US")} places)...`
+          `${t.mapSavingChunkPrefix} ${i + 1} ${t.mapSavingChunkOf} ${totalChunks} (${parsedItems.length.toLocaleString("en-US")} ${t.mapSavingChunkPlacesSuffix}`
         )
 
         const writeRes = await saveGeorgiaPoisChunkAction({
@@ -413,7 +398,7 @@ export default function SettingsClient({
         })
 
         if (!writeRes.success) {
-          throw new Error(writeRes.error || "فشل حفظ إحدى الدفعات")
+          throw new Error(writeRes.error || t.mapSaveChunkError)
         }
         finalSavedCount = writeRes.savedCount
       }
@@ -425,14 +410,12 @@ export default function SettingsClient({
       setLastMapSyncDate(todayIso)
       setTotalPoisInJson(finalSavedCount)
       setMapSyncMessage({
-        text: isAr
-          ? `تم تحديث خريطة ومرافق جورجيا وحفظ ${finalSavedCount.toLocaleString("en-US")} مرفق وخدمة حقيقية بنجاح!`
-          : `Successfully synced and saved ${finalSavedCount.toLocaleString("en-US")} real places across Georgia!`,
+        text: `${t.mapSyncSuccessPrefix} ${finalSavedCount.toLocaleString("en-US")} ${t.mapSyncSuccessSuffix}`,
       })
       router.refresh()
     } catch (e: any) {
       setMapSyncMessage({
-        text: e?.message || "حدث خطأ أثناء تحديث الخريطة",
+        text: e?.message || t.mapSyncErrorFallback,
         isError: true,
       })
     } finally {
@@ -475,20 +458,14 @@ export default function SettingsClient({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <CardTitle className="flex items-center gap-2 text-sm font-extrabold text-[#0a1122]">
             <MapPin className="size-4 text-[#2563eb]" />
-            <span>
-              {isAr
-                ? "قاعدة بيانات خريطة ومرافق جورجيا"
-                : "Georgia Map & Amenities Database"}
-            </span>
+            <span>{t.mapCardTitle}</span>
           </CardTitle>
           <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10.5px] font-extrabold text-[#007a5a]">
-            {isAr ? "⚡ استجابة فورية 0 ثانية" : "⚡ 0ms Instant Engine"}
+            {t.mapInstantBadge}
           </span>
         </div>
         <CardDescription className="text-[11px]">
-          {isAr
-            ? "تحتوي على المواقع الحقيقية الثابتة للمدارس، الحضانات، الصيدليات، السوبرماركت، المستشفيات، البنوك، ومحطات الحافلات في جورجيا لحساب المسافة الفعلية من كل عمارة في 0 ثانية."
-            : "Contains verified locations for schools, kindergartens, pharmacies, markets, clinics, banks, and transit stops across Georgia."}
+          {t.mapCardDesc}
         </CardDescription>
       </CardHeader>
 
@@ -496,23 +473,18 @@ export default function SettingsClient({
         <div className="flex flex-col justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/80 p-3.5 sm:flex-row sm:items-center">
           <div className="space-y-1">
             <div className="font-extrabold text-[#0a1122]">
-              {isAr
-                ? `إجمالي المرافق والخدمات المسجلة حالياً: ${totalPoisInJson.toLocaleString("en-US")} مرفق حقيقي`
-                : `Total registered amenities & places: ${totalPoisInJson.toLocaleString("en-US")} verified places`}
+              {t.mapTotalPlacesPrefix} {totalPoisInJson.toLocaleString("en-US")}{" "}
+              {t.mapTotalPlacesSuffix}
             </div>
             <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold text-gray-500">
               <span>
-                {isAr ? "تاريخ آخر تحديث:" : "Last updated:"}{" "}
+                {t.mapLastUpdatedLabel}{" "}
                 <strong dir="ltr" className="font-mono text-[#0a1122]">
                   {lastMapSyncDate}
                 </strong>
               </span>
               <span>·</span>
-              <span className="text-[#007a5a]">
-                {isAr
-                  ? "تبليسي، باتومي، وكافة مدن جورجيا"
-                  : "Tbilisi, Batumi & Georgia Cities"}
-              </span>
+              <span className="text-[#007a5a]">{t.mapCoverageLabel}</span>
             </div>
           </div>
 
@@ -527,12 +499,8 @@ export default function SettingsClient({
             />
             <span>
               {syncingMap
-                ? isAr
-                  ? `جاري التحديث (${syncPercent}%)...`
-                  : `Updating (${syncPercent}%)...`
-                : isAr
-                  ? "سحب وتحديث خريطة جورجيا"
-                  : "Update Georgia Map Data"}
+                ? `${t.mapSyncingBtnPrefix} (${syncPercent}%)...`
+                : t.mapSyncNowBtn}
             </span>
           </Button>
         </div>
@@ -700,10 +668,7 @@ export default function SettingsClient({
                 <div className="rounded-xl border border-emerald-200/80 bg-emerald-50/40 p-3.5">
                   <div className="mb-2.5 flex items-center gap-1.5 text-xs font-extrabold text-[#0a1122]">
                     <Percent className="size-3.5 text-[#105C50]" />
-                    <span>
-                      {t.financialRatesTitle ||
-                        "نسب العمولة وخصم استرجاع المطور (%)"}
-                    </span>
+                    <span>{t.financialRatesTitle}</span>
                   </div>
 
                   <div>
@@ -725,7 +690,7 @@ export default function SettingsClient({
                   <div className="mt-3 grid grid-cols-2 gap-2.5">
                     <div>
                       <label className="mb-1 block text-[10.5px] font-bold text-gray-700">
-                        {t.devPenaltyMinLabel || "أقل خصم للمطور عند الفسخ (%)"}
+                        {t.devPenaltyMinLabel}
                       </label>
                       <input
                         name="developerPenaltyMin"
@@ -742,7 +707,7 @@ export default function SettingsClient({
                     </div>
                     <div>
                       <label className="mb-1 block text-[10.5px] font-bold text-gray-700">
-                        {t.devPenaltyMaxLabel || "أقصى خصم للمطور عند الفسخ (%)"}
+                        {t.devPenaltyMaxLabel}
                       </label>
                       <input
                         name="developerPenaltyMax"
@@ -774,7 +739,7 @@ export default function SettingsClient({
                   <div className="mb-3 grid grid-cols-2 gap-2.5">
                     <div>
                       <label className="mb-1 block text-[10px] font-bold text-gray-600">
-                        {isAr ? "سعر اليوم +VIP (₾)" : "VIP+ Daily (₾)"}
+                        {t.vipPlusDailyLabel}
                       </label>
                       <input
                         name="vipPlusDailyGel"
@@ -786,7 +751,7 @@ export default function SettingsClient({
                     </div>
                     <div>
                       <label className="mb-1 block text-[10px] font-bold text-gray-600">
-                        {isAr ? "سعر اليوم SUPER VIP (₾)" : "SUPER VIP Daily (₾)"}
+                        {t.superVipDailyLabel}
                       </label>
                       <input
                         name="superVipDailyGel"
@@ -799,9 +764,7 @@ export default function SettingsClient({
                   </div>
 
                   <p className="mb-2 text-[11px] font-bold text-[#105C50]">
-                    {isAr
-                      ? "أسعار باقات التمييز (7 / 14 / 30 يوم باللاري ₾)"
-                      : t.gePackagesTitle}
+                    {t.gePackagesGelTitle}
                   </p>
                   <div className="grid grid-cols-3 gap-2">
                     <div>
@@ -845,7 +808,7 @@ export default function SettingsClient({
                   <div className="mt-3 grid grid-cols-1 gap-2 border-t border-amber-200/60 pt-2.5">
                     <div>
                       <label className="mb-1 block text-[10px] font-bold text-gray-600">
-                        {isAr ? "رقم الحساب البنكي الجورجي (IBAN)" : "Georgia Bank IBAN"}
+                        {t.bankIbanGeLabel}
                       </label>
                       <input
                         name="bankIbanGe"
@@ -867,27 +830,21 @@ export default function SettingsClient({
                 <CardHeader className="border-b border-gray-100 px-5 py-4">
                   <CardTitle className="flex items-center gap-2 text-sm font-extrabold text-[#0a1122]">
                     <BarChart3 className="size-4 text-[#2563eb]" />
-                    <span>
-                      {isAr
-                        ? "أدوات التتبع، إعلانات فيسبوك، وأرشفة جوجل (SEO)"
-                        : "Analytics, Facebook Pixel & Google SEO"}
-                    </span>
+                    <span>{t.seoCardTitle}</span>
                   </CardTitle>
                   <CardDescription className="text-[11px]">
-                    {isAr
-                      ? "ضع معرف البيكسل أو جوجل أناليتكس هنا ليتم تفعيله في جميع صفحات الموقع تلقائياً."
-                      : "Enter your tracking IDs to activate across the platform."}
+                    {t.seoCardDesc}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3 p-5 text-xs">
                   <div>
                     <label className="mb-1 block font-bold text-[#0a1122]">
-                      Facebook Pixel ID
+                      {t.fbPixelLabel}
                     </label>
                     <input
                       name="fbPixelId"
                       dir="ltr"
-                      placeholder="e.g. 123456789012345"
+                      placeholder="123456789012345"
                       defaultValue={
                         initialSettings.fbPixelId ||
                         process.env.NEXT_PUBLIC_FB_PIXEL_ID ||
@@ -900,7 +857,7 @@ export default function SettingsClient({
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div>
                       <label className="mb-1 block font-bold text-[#0a1122]">
-                        Google Analytics (GA4 ID)
+                        {t.gaMeasurementLabel}
                       </label>
                       <input
                         name="gaMeasurementId"
@@ -917,7 +874,7 @@ export default function SettingsClient({
 
                     <div>
                       <label className="mb-1 block font-bold text-[#0a1122]">
-                        Google Tag Manager (GTM)
+                        {t.gtmLabel}
                       </label>
                       <input
                         name="gtmId"

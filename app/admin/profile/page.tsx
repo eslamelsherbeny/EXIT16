@@ -21,9 +21,12 @@ export default async function ProfilePage() {
     }
   )
 
+  const defaultRoleTitle =
+    dict.admin?.shell?.roles?.ADMIN || dict.admin?.shell?.defaultAdminName || ""
+
   let adminProfile = {
     id: candidateUserId || "",
-    name: dict.admin?.shell?.roles?.ADMIN || "Admin",
+    name: defaultRoleTitle,
     email: "info@aqarexit.com",
     phone: "+995500000000",
     role: "admin",
@@ -53,7 +56,7 @@ export default async function ProfilePage() {
     if (user) {
       adminProfile = {
         id: user.id,
-        name: user.name || dict.admin?.shell?.roles?.ADMIN || "Admin",
+        name: user.name || defaultRoleTitle,
         email: user.email || "",
         phone: user.phone || "",
         role: user.role || "admin",
@@ -70,17 +73,3 @@ export default async function ProfilePage() {
     </div>
   )
 }
-
-/* ============================================================================
-   ARCHIVED OLD EGYPT DEFAULT ADMIN PROFILE (COMMENTED FOR FUTURE REFERENCE)
-   ============================================================================
-   // let adminProfile = {
-   //   id: sessionId || "",
-   //   name: "مدير النظام",
-   //   email: "admin@darak.com",
-   //   phone: "+201018595959",
-   //   role: "admin",
-   //   personalSellCount: 0,
-   //   personalBuyCount: 0,
-   // }
-============================================================================ */

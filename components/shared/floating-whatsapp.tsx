@@ -1,50 +1,18 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
-import { useTranslation, type LocaleCode } from '@/lib/i18n'
-
-const WHATSAPP_FLOAT_I18N: Record<
-  LocaleCode,
-  {
-    tooltip: string
-    prefillMessage: string
-  }
-> = {
-  ar: {
-    tooltip: 'تواصل معنا عبر واتساب',
-    prefillMessage:
-      'مرحباً فريق Aqar Exit، أحتاج إلى مساعدة واستفسار بخصوص المنصة.',
-  },
-  en: {
-    tooltip: 'Chat with us on WhatsApp',
-    prefillMessage:
-      'Hello Aqar Exit support team, I need assistance regarding the platform.',
-  },
-  ru: {
-    tooltip: 'Напишите нам в WhatsApp',
-    prefillMessage:
-      'Здравствуйте, команда Aqar Exit! Мне нужна консультация по платформе.',
-  },
-  ka: {
-    tooltip: 'მოგვწერეთ WhatsApp-ში',
-    prefillMessage:
-      'გამარჯობა Aqar Exit-ის გუნდო, მჭირდება დახმარება პლატფორმასთან დაკავშირებით.',
-  },
-}
+import { useTranslation } from '@/lib/i18n'
 
 export function FloatingWhatsApp() {
   const pathname = usePathname()
-  const { locale, dir, siteSettings, t } = useTranslation()
+  const { dir, siteSettings, t } = useTranslation()
 
-  // إخفاء الزر داخل لوحة تحكم الأدمن
   if (pathname?.startsWith('/admin')) {
     return null
   }
 
-  const activeLocale = (locale as LocaleCode) || 'ar'
-  const wT = WHATSAPP_FLOAT_I18N[activeLocale] || WHATSAPP_FLOAT_I18N.ar
+  const wT = (t?.common as Record<string, any>)?.floatingWhatsapp || {}
 
-  // قراءة رقم الواتساب من إعدادات الأدمن مباشرة
   const rawPhone = String(
     siteSettings?.whatsappNumber || t?.footer?.phone || '+201018595959'
   ).trim()
@@ -55,7 +23,7 @@ export function FloatingWhatsApp() {
   }
 
   const whatsappHref = `https://wa.me/${cleanPhoneDigits}?text=${encodeURIComponent(
-    wT.prefillMessage
+    wT.prefillMessage || ''
   )}`
 
   return (
@@ -71,13 +39,11 @@ export function FloatingWhatsApp() {
         title={wT.tooltip}
         className="group relative flex size-12 items-center justify-center rounded-full bg-[#25D366] text-white shadow-[0_6px_22px_rgba(37,211,102,0.45)] transition-all duration-300 hover:-translate-y-1 hover:bg-[#20bd5a] hover:shadow-[0_10px_28px_rgba(37,211,102,0.6)] active:scale-95 sm:size-[52px]"
       >
-        {/* موجة نبض خفيفة حول الأيقونة */}
         <span
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 animate-[ping_3s_cubic-bezier(0,0,0.2,1)_infinite] rounded-full bg-[#25D366] opacity-25"
         />
 
-        {/* أيقونة واتساب فقط */}
         <svg
           viewBox="0 0 32 32"
           fill="currentColor"

@@ -174,9 +174,10 @@ export function LeadDetailsDialog({
     ? isBuyerEmailVerified(detailsLead, verificationMap)
     : false
 
+  const listSep = dir === "rtl" ? "، " : ", "
   const typesText =
     detailsLead && Array.isArray(detailsLead.unit_types)
-      ? detailsLead.unit_types.join("، ")
+      ? detailsLead.unit_types.join(listSep)
       : "—"
 
   return (
@@ -328,7 +329,7 @@ export function LeadDetailsDialog({
 
               <div>
                 <span className="block text-[10px] text-gray-400">
-                  {propAdminDict.modals?.contractPriceLabel || "Target Budget"}
+                  {propAdminDict.modals?.contractPriceLabel || t.colCash}
                 </span>
                 <strong className="text-[#0a1122]">
                   <span dir="ltr">

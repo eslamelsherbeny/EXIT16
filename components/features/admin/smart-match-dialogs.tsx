@@ -66,18 +66,41 @@ function cleanAreaName(rawArea: string | null | undefined, locale: string) {
   return localized
 }
 
-function formatReasonForAdmin(text: string, locale: string): string {
-  if (locale !== "ar") return text
-  return text
-    .replace("الكاش المطلوب في حدود سيولتك المتاحة", "الكاش مناسب للمشتري")
-    .replace(
-      "الكاش المطلوب أعلى قليلاً من سيولتك المحددة",
-      "الكاش أعلى قليلاً من ميزانيته"
+function formatReasonForAdmin(
+  text: string,
+  locale: string,
+  matcherDict: Record<string, any>,
+  smDict: Record<string, any>
+): string {
+  let formatted = text
+  if (matcherDict?.cashExact && smDict?.adminCashMatch) {
+    formatted = formatted.replace(matcherDict.cashExact, smDict.adminCashMatch)
+  }
+  if (matcherDict?.cashSlightlyHigher && smDict?.adminCashHigher) {
+    formatted = formatted.replace(
+      matcherDict.cashSlightlyHigher,
+      smDict.adminCashHigher
     )
-    .replace("القسط مناسب لقدرتك الشهرية", "القسط مناسب للمشتري")
-    .replace("القسط أعلى من القسط المفضل لديك", "القسط أعلى من طلب المشتري")
-    .replace("(طلبك ", "(طلبه ")
-    .replace(/\s*\([A-Za-z0-9\s/-]+\)\s*$/g, "")
+  }
+  if (matcherDict?.instMatch && smDict?.adminInstMatch) {
+    formatted = formatted.replace(matcherDict.instMatch, smDict.adminInstMatch)
+  }
+  if (matcherDict?.instHigher && smDict?.adminInstHigher) {
+    formatted = formatted.replace(
+      matcherDict.instHigher,
+      smDict.adminInstHigher
+    )
+  }
+  if (matcherDict?.buyerAskedRooms && smDict?.adminBuyerAskedRooms) {
+    formatted = formatted.replace(
+      `(${matcherDict.buyerAskedRooms} `,
+      `(${smDict.adminBuyerAskedRooms} `
+    )
+  }
+  if (locale === "ar") {
+    formatted = formatted.replace(/\s*\([A-Za-z0-9\s/-]+\)\s*$/g, "")
+  }
+  return formatted
 }
 
 function resolveEffectiveOfferStatus(offer: any): string {
@@ -107,11 +130,13 @@ export function UnitSmartMatchModal({
   onNotice?: (msg: { text: string; isError?: boolean }) => void
 }) {
   const router = useRouter()
-  const { t: dict, locale, dir } = useTranslation()
+  const { t: dict, locale, dir, isRtl } = useTranslation()
   const sm = (dict.admin as Record<string, any>)?.smartMatch || {}
+  const matcherDict = (dict.smartMatcher as Record<string, any>) || {}
   const buyerDict = (dict.accountComponents as Record<string, any>)?.buyer || {}
   const leadsPrompts = dict.admin?.leads || {}
   const propTable = dict.admin?.propertiesAdmin?.table || {}
+  const commaSep = isRtl ? "، " : ", "
 
   const [loadingKey, setLoadingKey] = useState<string | null>(null)
   const [doneKeys, setDoneKeys] = useState<Record<string, boolean>>({})
@@ -318,7 +343,7 @@ export function UnitSmartMatchModal({
                 const bCash = Number(
                   buyer.available_cash || buyer.budget || 0
                 ).toLocaleString("en-US")
-                const bWa = `${leadsPrompts.waUnitLeadPrefix} ${buyer.name || ""}، ${leadsPrompts.waUnitLeadMiddle} (${unit.project_name || ""} - ${localizedUnitArea} - ${uOfficialCode}) — ${matchPrefix} ${match.score}%`
+                const bWa = `${leadsPrompts.waUnitLeadPrefix} ${buyer.name || ""}${commaSep}${leadsPrompts.waUnitLeadMiddle} (${unit.project_name || ""} - ${localizedUnitArea} - ${uOfficialCode}) — ${matchPrefix} ${match.score}%`
 
                 const recKey = `rec_${unit.id}_${buyer.id}`
                 const offKey = `off_${unit.id}_${buyer.id}`
@@ -395,9 +420,7 @@ export function UnitSmartMatchModal({
                         ) : isAutoPublished ? (
                           <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-extrabold text-[#105C50]">
                             <CheckCircle2 className="size-3" />
-                            <span>
-                              {sm.autoPublishedTag || "منشورة تلقائياً بحسابه"}
-                            </span>
+                            <span>{sm.autoPublishedTag}</span>
                           </span>
                         ) : isManuallyRecommended ? (
                           <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-extrabold text-blue-800">
@@ -406,10 +429,7 @@ export function UnitSmartMatchModal({
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-800">
-                            <span>
-                              {sm.notAutoPublishedTag ||
-                                "غير منشورة تلقائياً (<80%)"}
-                            </span>
+                            <span>{sm.notAutoPublishedTag}</span>
                           </span>
                         )}
                       </div>
@@ -426,7 +446,13 @@ export function UnitSmartMatchModal({
                           key={mStr}
                           className="rounded bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-[#105C50]"
                         >
-                          ✓ {formatReasonForAdmin(mStr, locale)}
+                          ✓{" "}
+                          {formatReasonForAdmin(
+                            mStr,
+                            locale,
+                            matcherDict,
+                            sm
+                          )}
                         </span>
                       ))}
                       {match.differences.map((dStr) => (
@@ -434,7 +460,13 @@ export function UnitSmartMatchModal({
                           key={dStr}
                           className="rounded bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800"
                         >
-                          ⚠️ {formatReasonForAdmin(dStr, locale)}
+                          ⚠️{" "}
+                          {formatReasonForAdmin(
+                            dStr,
+                            locale,
+                            matcherDict,
+                            sm
+                          )}
                         </span>
                       ))}
                     </div>
@@ -532,6 +564,7 @@ export function BuyerSmartMatchModal({
   const router = useRouter()
   const { t: dict, locale, dir } = useTranslation()
   const sm = (dict.admin as Record<string, any>)?.smartMatch || {}
+  const matcherDict = (dict.smartMatcher as Record<string, any>) || {}
   const buyerDict = (dict.accountComponents as Record<string, any>)?.buyer || {}
   const tLeads = dict.admin?.leadsAdmin || {}
 
@@ -815,9 +848,7 @@ export function BuyerSmartMatchModal({
                         ) : isAutoPublished ? (
                           <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-extrabold text-[#105C50]">
                             <CheckCircle2 className="size-3" />
-                            <span>
-                              {sm.autoPublishedTag || "منشورة تلقائياً بحسابه"}
-                            </span>
+                            <span>{sm.autoPublishedTag}</span>
                           </span>
                         ) : isManuallyRecommended ? (
                           <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-extrabold text-blue-800">
@@ -826,10 +857,7 @@ export function BuyerSmartMatchModal({
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-800">
-                            <span>
-                              {sm.notAutoPublishedTag ||
-                                "غير منشورة تلقائياً (<80%)"}
-                            </span>
+                            <span>{sm.notAutoPublishedTag}</span>
                           </span>
                         )}
                       </div>
@@ -846,7 +874,13 @@ export function BuyerSmartMatchModal({
                           key={mStr}
                           className="rounded bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-[#105C50]"
                         >
-                          ✓ {formatReasonForAdmin(mStr, locale)}
+                          ✓{" "}
+                          {formatReasonForAdmin(
+                            mStr,
+                            locale,
+                            matcherDict,
+                            sm
+                          )}
                         </span>
                       ))}
                       {match.differences.map((dStr) => (
@@ -854,7 +888,13 @@ export function BuyerSmartMatchModal({
                           key={dStr}
                           className="rounded bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800"
                         >
-                          ⚠️ {formatReasonForAdmin(dStr, locale)}
+                          ⚠️{" "}
+                          {formatReasonForAdmin(
+                            dStr,
+                            locale,
+                            matcherDict,
+                            sm
+                          )}
                         </span>
                       ))}
                     </div>

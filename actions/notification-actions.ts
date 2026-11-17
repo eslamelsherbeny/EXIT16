@@ -33,9 +33,6 @@ export type NotificationType =
   | "admin_alert"
   | "system"
 
-/**
- * ترجمة الإشعارات المخزنة في قاعدة البيانات بأي لغة إلى لغة المستخدم/الأدمن الحالية لحظياً
- */
 export async function localizeNotificationItem(
   item: {
     title?: string | null
@@ -89,6 +86,7 @@ export async function localizeNotificationItem(
     { getVal: (d) => d?.serverActions?.account?.unitPausedNotifTitle, targetVal: tAccount.unitPausedNotifTitle },
     { getVal: (d) => d?.serverActions?.account?.unitResumedNotifTitle, targetVal: tAccount.unitResumedNotifTitle },
     { getVal: (d) => d?.serverActions?.account?.unitDeletedNotifTitle, targetVal: tAccount.unitDeletedNotifTitle },
+    { getVal: (d) => d?.serverActions?.account?.allDocsReadyNotifTitle, targetVal: tAccount.allDocsReadyNotifTitle },
     { getVal: (d) => d?.serverActions?.account?.docUploadedNotifTitle, targetVal: tAccount.docUploadedNotifTitle },
     { getVal: (d) => d?.serverActions?.account?.promoUpdateNotifTitle, targetVal: tAccount.promoUpdateNotifTitle },
     { getVal: (d) => d?.serverActions?.account?.promoNewNotifTitle, targetVal: tAccount.promoNewNotifTitle },
@@ -185,11 +183,11 @@ export async function getUserNotificationsAction(
     const role = String(user?.role || "user")
       .replace(/[\r\n\s]+/g, "")
       .toLowerCase()
-  const isAdmin =
-  role === "owner" ||
-  role === "admin" ||
-  role === "moderator" ||
-  role === "sales"
+    const isAdmin =
+      role === "owner" ||
+      role === "admin" ||
+      role === "moderator" ||
+      role === "sales"
 
     let query = supabase
       .from("notifications")
@@ -281,10 +279,10 @@ export async function markAllNotificationsAsReadAction(
       .replace(/[\r\n\s]+/g, "")
       .toLowerCase()
     const isAdmin =
-  role === "owner" ||
-  role === "admin" ||
-  role === "moderator" ||
-  role === "sales"
+      role === "owner" ||
+      role === "admin" ||
+      role === "moderator" ||
+      role === "sales"
 
     if (context === "admin" && isAdmin) {
       await supabase
@@ -350,11 +348,11 @@ export async function clearAllNotificationsAction(
     const role = String(user?.role || "user")
       .replace(/[\r\n\s]+/g, "")
       .toLowerCase()
-   const isAdmin =
-  role === "owner" ||
-  role === "admin" ||
-  role === "moderator" ||
-  role === "sales"
+    const isAdmin =
+      role === "owner" ||
+      role === "admin" ||
+      role === "moderator" ||
+      role === "sales"
 
     if (context === "admin" && isAdmin) {
       await supabase

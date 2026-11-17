@@ -117,22 +117,29 @@ export async function markUserPhoneVerifiedAction(payload: {
   unitId?: string
   leadId?: string
 }) {
+  const { t: msg } = await getFormsDict()
   try {
     const supabase = await getSupabase()
     const currentSessionUser = await getVerifiedSellerSession(supabase)
 
     if (!currentSessionUser) {
-      return { success: false, error: 'Unauthorized' }
+      return { success: false, error: msg.unauthorized || msg.sessionExpired }
     }
 
     const role = String(currentSessionUser.role || 'user')
       .trim()
       .toLowerCase()
     const isStaff =
-      role === 'admin' || role === 'moderator' || role === 'sales'
+      role === 'owner' ||
+      role === 'admin' ||
+      role === 'moderator' ||
+      role === 'sales'
 
     if (!isStaff) {
-      return { success: false, error: 'Only admin can mark phone verified' }
+      return {
+        success: false,
+        error: msg.onlyAdminCanVerifyPhone || msg.unauthorized,
+      }
     }
 
     let targetUserId = payload.userId || ''
@@ -243,12 +250,14 @@ export async function sendSellerReviewOtpAction(payload?: {
       } catch {}
     }
 
+    const comma = dir === 'rtl' ? '،' : ','
+
     const sent = await sendNotificationEmail({
       to: targetEmail,
       senderName: msg.emailSenderName,
       subject: `${otp} — ${msg.otpSubjectPrefix} ${otp}`,
       html: `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.8; color: #0a1122;">
-               <p style="font-size: 15px;">${msg.greetingWord} <strong>${targetUser?.name || ''}</strong>،</p>
+               <p style="font-size: 15px;">${msg.greetingWord} <strong>${targetUser?.name || ''}</strong>${comma}</p>
                <p>${msg.otpSubjectPrefix}</p>
                <div style="background: #eaf8f2; border: 1px solid #aae3cb; padding: 16px; border-radius: 12px; text-align: center; margin: 18px 0;">
                  <span style="font-family: monospace; font-size: 30px; font-weight: 900; letter-spacing: 6px; color: #007a5a;">${otp}</span>
@@ -679,19 +688,20 @@ export async function processSellerStep2Action(payload: {
       const paidFormatted = Number(
         payload.paidAmount || payload.rentPrice || payload.contractPrice || 0
       ).toLocaleString('en-US')
+      const comma = dir === 'rtl' ? '،' : ','
 
       await sendNotificationEmail({
         to: userEmail,
         senderName: msg.emailSenderName,
         subject: `${msg.orderReceivedSubjectPrefix} ${orderRef}`,
         html: `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.8; color: #0a1122;">
-                 <p style="font-size: 16px;">${msg.greetingWord} <strong>${userName}</strong>،</p>
+                 <p style="font-size: 16px;">${msg.greetingWord} <strong>${userName}</strong>${comma}</p>
                  <p>${msg.orderRefLabel}: <strong>${orderRef}</strong>.</p>
                  <p>${msg.orderPaidConfirmText}: <strong>$${paidFormatted}</strong>.</p>
                  <p>${msg.orderMagicLinkPrompt}:</p>
                  <p style="margin: 18px 0;">
-                   <a href="${accountLink}" style="display: inline-block; background: #007a5a; color: #ffffff; padding: 10px 20px; border-radius: 10px; font-weight: bold; text-decoration: none; margin-inline-end: 10px;">متابعة حالة وحدتي في حسابي</a>
-                   <a href="${magicLink}" style="color: #2563eb; font-weight: bold; word-break: break-all;">استكمال أو تعديل بيانات الوحدة</a>
+                   <a href="${accountLink}" style="display: inline-block; background: #007a5a; color: #ffffff; padding: 10px 20px; border-radius: 10px; font-weight: bold; text-decoration: none; margin-inline-end: 10px;">${msg.trackUnitInAccountBtn}</a>
+                   <a href="${magicLink}" style="color: #2563eb; font-weight: bold; word-break: break-all;">${msg.completeOrEditUnitBtn}</a>
                  </p>
                </div>`,
       }).catch(() => {})

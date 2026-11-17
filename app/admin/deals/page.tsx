@@ -120,6 +120,7 @@ function AdminDealsContent() {
   const d = (adminDict.dealsPage as Record<string, any>) || {}
   const sm = (adminDict.smartMatch as Record<string, any>) || {}
   const expL = EXPORT_LABELS[locale] || EXPORT_LABELS.ar
+  const commaSep = isRtl ? '، ' : ', '
 
   const cur = getCurrencySymbol('GE', locale)
   const commPct = Number(siteSettings?.buyerCommission) || 1.25
@@ -608,7 +609,7 @@ function AdminDealsContent() {
             className="mt-4 inline-flex h-9 items-center gap-1.5 rounded-xl bg-[#105C50] px-5 text-xs font-extrabold text-white hover:bg-[#0c483f]"
           >
             <RefreshCw className="size-3.5" />
-            <span>{d.reactivateToSellerBtn || 'Retry'}</span>
+            <span>{d.retryBtn || d.reactivateToSellerBtn}</span>
           </button>
         </div>
       ) : filteredOffers.length === 0 ? (
@@ -636,8 +637,8 @@ function AdminDealsContent() {
             const isCardBusy = isPending && processingId === offer.id
             const isMenuOpen = openMenuId === offer.id
 
-            const buyerWaMsg = `${d.waBuyerGreetingPrefix} ${offer.buyer_name || ''}، ${d.waBuyerBodyPrefix} (${offerRef}) — (${unit.project_name || ''} - ${uCode}) — (${offeredCash.toLocaleString('en-US')} ${cur}).`
-            const sellerWaMsg = `${d.waSellerGreetingPrefix} ${unit.name || ''}، ${d.waSellerBodyPrefix} (${offerRef}) — (${unit.project_name || ''} - ${uCode}) — (${offeredCash.toLocaleString('en-US')} ${cur}).`
+            const buyerWaMsg = `${d.waBuyerGreetingPrefix} ${offer.buyer_name || ''}${commaSep}${d.waBuyerBodyPrefix} (${offerRef}) — (${unit.project_name || ''} - ${uCode}) — (${offeredCash.toLocaleString('en-US')} ${cur}).`
+            const sellerWaMsg = `${d.waSellerGreetingPrefix} ${unit.name || ''}${commaSep}${d.waSellerBodyPrefix} (${offerRef}) — (${unit.project_name || ''} - ${uCode}) — (${offeredCash.toLocaleString('en-US')} ${cur}).`
 
             return (
               <div

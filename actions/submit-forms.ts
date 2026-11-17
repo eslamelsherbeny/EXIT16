@@ -18,10 +18,7 @@ import {
   buildUnitPayloadWithMetaBackup,
   checkUnitHasCompleteMediaAndDetails,
 } from '@/lib/sell-payload-builder'
-import {
-  fetchRealNearbyPlacesAndWeatherAction,
-  geocodeGeorgiaBuildingAction,
-} from './georgia-geocode-action'
+import { geocodeGeorgiaBuildingAction } from './georgia-geocode-action'
 import {
   getCurrentSellerProfileAction as _getCurrentSellerProfileAction,
   getUsersVerificationMapAction as _getUsersVerificationMapAction,
@@ -61,13 +58,6 @@ function isValidGeorgiaCoord(lat: number, lng: number): boolean {
     lng <= 46.9
   )
 }
-
-/**
- * توليد وحفظ إحداثيات المبنى والأماكن المحيطة (150+ مرفق) وقت رفع الوحدة الفعلي
- * كما يفعل sivrce.ge حتى تفتح صفحة الوحدة في 0 ثانية لأي زائر
- */
-// داخل دالة enrichUnitPayloadWithLocationAndNearbyCache في src/actions/submit-forms.ts
-// استبدل دالة enrichUnitPayloadWithLocationAndNearbyCache فقط بهذا الكود:
 
 async function enrichUnitPayloadWithLocationAndNearbyCache(
   formData: FormData,
@@ -169,7 +159,11 @@ async function canModifySellUnit(
   if (!unit) return { allowed: false, unit: null }
 
   const role = String(sessionUser.role || 'user').trim().toLowerCase()
-  const isStaff = role === 'admin' || role === 'moderator' || role === 'sales'
+  const isStaff =
+    role === 'owner' ||
+    role === 'admin' ||
+    role === 'moderator' ||
+    role === 'sales'
 
   if (unit.user_id) {
     return {
@@ -251,9 +245,6 @@ async function resilientUpdateUnit(
   return { error }
 }
 
-/**
- * تحقق آمن من هوية البائع: لا يقبل fallbackUserId إلا إذا كان يطابق ملكية unit_id الفعلي في قاعدة البيانات
- */
 async function resolveSellerUserOrFallback(
   supabase: any,
   formData: FormData
@@ -501,7 +492,10 @@ export async function submitSellRequest(
         .toLowerCase()
       const role = String(sessionUser.role || 'user').trim().toLowerCase()
       const isStaff =
-        role === 'admin' || role === 'moderator' || role === 'sales'
+        role === 'owner' ||
+        role === 'admin' ||
+        role === 'moderator' ||
+        role === 'sales'
 
       const { data: acceptedDealOnUnit } = await supabase
         .from('property_offers')
@@ -519,9 +513,7 @@ export async function submitSellRequest(
       if (isLockedByDeal && !isStaff) {
         return {
           success: false,
-          error:
-            msg.unitLockedByDeal ||
-            'لا يمكن تعديل بيانات الوحدة بعد قبول العرض وبدء إجراءات التنازل مع الإدارة.',
+          error: msg.unitLockedByDeal || msg.submitUnitFailed,
         }
       }
 
@@ -553,7 +545,6 @@ export async function submitSellRequest(
         ready_for_admin_review: completeness.isFullyCompleteForAdmin,
       }
 
-      // توليد وحفظ الأماكن القريبة وإحداثيات المبنى وقت النشر الفعلي
       await enrichUnitPayloadWithLocationAndNearbyCache(
         formData,
         payload,
@@ -642,7 +633,6 @@ export async function submitSellRequest(
       ready_for_admin_review: completeness.isFullyCompleteForAdmin,
     }
 
-    // توليد وحفظ الأماكن القريبة وإحداثيات المبنى وقت النشر الفعلي
     await enrichUnitPayloadWithLocationAndNearbyCache(formData, payload, null)
 
     const insertPayload = {

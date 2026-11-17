@@ -124,24 +124,169 @@ export type SmartMatchResult = {
   }
 }
 
-const UNIT_TYPE_GROUPS: string[][] = [
-  ['apartment', 'studio', 'شقة', 'شقه', 'استوديو', 'بنتهاوس', 'دوبلكس', 'квартира', 'студия', 'ბინა', 'სტუდიო'],
-  ['private house', 'house', 'villa', 'townhouse', 'فيلا', 'منزل', 'تاون هاوس', 'توين هاوس', 'дом', 'вилла', 'კერძო სახლი', 'ვილა'],
-  ['cottage', 'chalet', 'كوخ', 'شاليه', 'كابينة', 'коттедж', 'шале', 'კოტეჯი'],
-  ['hotel', 'aparthotel', 'فندق', 'فندقية', 'شقة فندقية', 'отель', 'апарт', 'სასტუმრო'],
-  ['commercial', 'office', 'shop', 'تجاري', 'مكتب', 'إداري', 'محل', 'коммерч', 'офис', 'კომერციული'],
-  ['land', 'أرض', 'ارض', 'قطعة أرض', 'участок', 'земл', 'მიწის'],
+const ALL_DICTS_MAP: Record<string, any> = {
+  ar: arDict,
+  en: enDict,
+  ru: ruDict,
+  ka: kaDict,
+}
+
+const UNIT_TYPE_GROUPS: Array<{
+  dictKey:
+    | 'apartment'
+    | 'villa'
+    | 'cottage'
+    | 'aparthotel'
+    | 'commercial'
+    | 'land'
+  keywords: string[]
+}> = [
+  {
+    dictKey: 'apartment',
+    keywords: [
+      'apartment',
+      'studio',
+      'شقة',
+      'شقه',
+      'استوديو',
+      'بنتهاوس',
+      'دوبلكس',
+      'квартира',
+      'студия',
+      'ბინა',
+      'სტუდიო',
+    ],
+  },
+  {
+    dictKey: 'villa',
+    keywords: [
+      'private house',
+      'house',
+      'villa',
+      'townhouse',
+      'فيلا',
+      'منزل',
+      'تاون هاوس',
+      'توين هاوس',
+      'дом',
+      'вилла',
+      'კერძო სახლი',
+      'ვილა',
+    ],
+  },
+  {
+    dictKey: 'cottage',
+    keywords: [
+      'cottage',
+      'chalet',
+      'كوخ',
+      'شاليه',
+      'كابينة',
+      'коттедж',
+      'шале',
+      'კოტეჯი',
+    ],
+  },
+  {
+    dictKey: 'aparthotel',
+    keywords: [
+      'hotel',
+      'aparthotel',
+      'فندق',
+      'فندقية',
+      'شقة فندقية',
+      'отель',
+      'апарт',
+      'სასტუმრო',
+    ],
+  },
+  {
+    dictKey: 'commercial',
+    keywords: [
+      'commercial',
+      'office',
+      'shop',
+      'تجاري',
+      'مكتب',
+      'إداري',
+      'محل',
+      'коммерч',
+      'офис',
+      'კომერციული',
+    ],
+  },
+  {
+    dictKey: 'land',
+    keywords: [
+      'land',
+      'أرض',
+      'ارض',
+      'قطعة أرض',
+      'участок',
+      'земл',
+      'მიწის',
+    ],
+  },
 ]
 
 function normalizeUnitTypeCategory(raw?: string | null): string {
   if (!raw) return ''
   const lower = String(raw).trim().toLowerCase()
   for (let i = 0; i < UNIT_TYPE_GROUPS.length; i++) {
-    if (UNIT_TYPE_GROUPS[i].some((kw) => lower.includes(kw))) {
+    if (UNIT_TYPE_GROUPS[i].keywords.some((kw) => lower.includes(kw))) {
       return `group_${i}`
     }
   }
   return lower
+}
+
+export function getLocalizedUnitTypeName(
+  rawType?: string | null,
+  locale: string = 'ar'
+): string {
+  if (!rawType) return ''
+  const clean = String(rawType).trim()
+  const lower = clean.toLowerCase()
+  const activeDict = ALL_DICTS_MAP[locale] || enDict
+  const shortTypes = activeDict?.common?.unitTypesShort || {}
+
+  for (const grp of UNIT_TYPE_GROUPS) {
+    if (grp.keywords.some((kw) => lower.includes(kw))) {
+      return shortTypes[grp.dictKey] || clean
+    }
+  }
+  return clean
+}
+
+export function getLocalizedDeliveryStatus(
+  rawDel?: string | null,
+  locale: string = 'ar'
+): string {
+  if (!rawDel) return ''
+  const clean = String(rawDel).trim()
+  const lower = clean.toLowerCase()
+  const activeDict = ALL_DICTS_MAP[locale] || enDict
+  const deliveries = activeDict?.sell?.detailsStep?.deliveries || []
+  const readyKeywords = [
+    'جاهز',
+    'فوري',
+    'مستلم',
+    'ready',
+    'immediate',
+    'delivered',
+    'сдан',
+    'готов',
+    'ჩაბარებული',
+    'მზა',
+  ]
+  const isReady = readyKeywords.some((kw) => lower.includes(kw))
+  if (isReady) {
+    return deliveries[0] || activeDict?.common?.delivery?.ready || clean
+  }
+  const yearMatch = clean.match(/(20\d{2})/)
+  const underConstLabel =
+    deliveries[1] || activeDict?.unitDetailsPage?.specs?.defaultStatus || clean
+  return yearMatch ? `${underConstLabel} (${yearMatch[1]})` : underConstLabel
 }
 
 export function doUnitTypesMatch(
@@ -309,13 +454,7 @@ export function evaluateGeorgiaAreaProximity(
 }
 
 function getMatcherDict(locale: string = 'ar') {
-  const dictionaries: Record<string, any> = {
-    ar: arDict,
-    en: enDict,
-    ru: ruDict,
-    ka: kaDict,
-  }
-  const activeDict = dictionaries[locale] || arDict
+  const activeDict = ALL_DICTS_MAP[locale] || enDict
   const smDict = activeDict?.smartMatcher || {}
   const offersDict = activeDict?.accountPages?.offers || {}
 
@@ -593,16 +732,17 @@ export function calculateSmartMatch(
   }
 
   const unitType = String(unit.unit_type || '').trim()
+  const localizedUnitType = getLocalizedUnitTypeName(unitType, locale)
   const buyerTypes = Array.isArray(buyer.unit_types) ? buyer.unit_types : []
 
   if (!unitType || buyerTypes.length === 0) {
     score += 6
   } else if (doUnitTypesMatch(unitType, buyerTypes)) {
     score += 6
-    if (L.typeMatch) matches.push(`${L.typeMatch}: ${unitType}`)
+    if (L.typeMatch) matches.push(`${L.typeMatch}: ${localizedUnitType}`)
   } else {
     score += 2
-    if (L.typeDiff) differences.push(`${L.typeDiff}: ${unitType}`)
+    if (L.typeDiff) differences.push(`${L.typeDiff}: ${localizedUnitType}`)
   }
 
   const unitRooms = Number(unit.rooms) || 0
@@ -625,6 +765,7 @@ export function calculateSmartMatch(
   }
 
   const unitDel = String(unit.delivery_status || '').trim()
+  const localizedUnitDel = getLocalizedDeliveryStatus(unitDel, locale)
   const buyerDel = String(buyer.delivery_status || '').trim()
   if (!unitDel || !buyerDel) {
     score += 4
@@ -642,7 +783,7 @@ export function calculateSmartMatch(
     if (buyerAcceptsBoth || unitIsReady === buyerWantsReady) {
       score += 4
     } else if (L.deliveryDiff) {
-      differences.push(`${L.deliveryDiff}: ${unitDel}`)
+      differences.push(`${L.deliveryDiff}: ${localizedUnitDel}`)
     }
   }
 

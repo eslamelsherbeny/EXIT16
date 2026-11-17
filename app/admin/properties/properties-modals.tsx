@@ -43,118 +43,6 @@ import {
   isSellerPhoneVerified,
 } from "./properties-helpers"
 
-const MODAL_EXTRA_LABELS: Record<
-  LocaleCode,
-  {
-    streetAddressLabel: string
-    cadastralLabel: string
-    sizeAndRoomsLabel: string
-    floorAndConditionLabel: string
-    installmentAndRemainingLabel: string
-    videoLinkBtn: string
-    tour3dLinkBtn: string
-    onlineViewingBadge: string
-    unitPhotosLabel: string
-    sellerNoteBoxTitle: string
-    sellerNoteBoxSub: string
-    sellerNotePlaceholder: string
-    saveAndNotifySellerBtn: string
-    clearNoteBtn: string
-    noteSavedSuccess: string
-    optionalNoteForSellerPlaceholder: string
-    sendPerformanceReportBtn: string
-  }
-> = {
-  ar: {
-    streetAddressLabel: "الشارع ورقم المبنى",
-    cadastralLabel: "الرقم العقاري (NAPR)",
-    sizeAndRoomsLabel: "المساحة والغرف (النوم)",
-    floorAndConditionLabel: "الطابق والتشطيب",
-    installmentAndRemainingLabel: "القسط والمتبقي",
-    videoLinkBtn: "فيديو اليوتيوب",
-    tour3dLinkBtn: "جولة 3D",
-    onlineViewingBadge: "متاح معاينة أونلاين",
-    unitPhotosLabel: "صور الوحدة المرفوعة",
-    sellerNoteBoxTitle: "ملاحظة الإدارة لصاحب الوحدة (تظهر في حساب البائع)",
-    sellerNoteBoxSub:
-      "اكتب أي تعديل مطلوب في تفاصيل أو مستندات الوحدة ليظهر للبائع في حسابه مع إشعار فوري",
-    sellerNotePlaceholder:
-      "مثال: يرجى مراجعة رقم الطابق وتصحيحه، أو رفع صورة أوضح للعقد...",
-    saveAndNotifySellerBtn: "حفظ وإرسال الملاحظة للبائع",
-    clearNoteBtn: "مسح الملاحظة",
-    noteSavedSuccess: "تم حفظ الملاحظة وإرسال إشعار للبائع ✓",
-    optionalNoteForSellerPlaceholder:
-      "ملاحظة اختيارية لصاحب الوحدة (تظهر في حسابه)...",
-    sendPerformanceReportBtn: "إرسال تقرير المشاهدات للمالك",
-  },
-  en: {
-    streetAddressLabel: "Street & Building No.",
-    cadastralLabel: "Cadastral Code (NAPR)",
-    sizeAndRoomsLabel: "Area & Rooms (Bedrooms)",
-    floorAndConditionLabel: "Floor & Condition",
-    installmentAndRemainingLabel: "Installment & Remaining",
-    videoLinkBtn: "YouTube Video",
-    tour3dLinkBtn: "3D Tour",
-    onlineViewingBadge: "Online Viewing Available",
-    unitPhotosLabel: "Uploaded Unit Photos",
-    sellerNoteBoxTitle: "Admin Note to Unit Owner (Visible in Seller Account)",
-    sellerNoteBoxSub:
-      "Write any required correction so it appears in the seller's dashboard with an instant notification",
-    sellerNotePlaceholder:
-      "Example: Please verify the floor number or upload a clearer photo of the contract...",
-    saveAndNotifySellerBtn: "Save & Notify Seller",
-    clearNoteBtn: "Clear Note",
-    noteSavedSuccess: "Note saved and seller notified ✓",
-    optionalNoteForSellerPlaceholder:
-      "Optional note for the unit owner (visible in their account)...",
-    sendPerformanceReportBtn: "Send Views Report to Owner",
-  },
-  ru: {
-    streetAddressLabel: "Улица и номер дома",
-    cadastralLabel: "Кадастровый код (NAPR)",
-    sizeAndRoomsLabel: "Площадь и комнаты (Спальни)",
-    floorAndConditionLabel: "Этаж и состояние",
-    installmentAndRemainingLabel: "Платеж и остаток срока",
-    videoLinkBtn: "Видео YouTube",
-    tour3dLinkBtn: "3D-тур",
-    onlineViewingBadge: "Доступен онлайн-показ",
-    unitPhotosLabel: "Загруженные фото объекта",
-    sellerNoteBoxTitle: "Примечание для собственника (в личном кабинете)",
-    sellerNoteBoxSub:
-      "Напишите замечание по объекту — оно появится в кабинете продавца с уведомлением",
-    sellerNotePlaceholder:
-      "Например: Пожалуйста, уточните этаж или загрузите четкое фото договора...",
-    saveAndNotifySellerBtn: "Сохранить и уведомить продавца",
-    clearNoteBtn: "Очистить",
-    noteSavedSuccess: "Примечание сохранено, продавец уведомлен ✓",
-    optionalNoteForSellerPlaceholder:
-      "Примечание для собственника (необязательно)...",
-    sendPerformanceReportBtn: "Отправить отчет о просмотрах",
-  },
-  ka: {
-    streetAddressLabel: "ქუჩა და სახლის ნომერი",
-    cadastralLabel: "საკადასტრო კოდი",
-    sizeAndRoomsLabel: "ფართობი და ოთახები (საძინებელი)",
-    floorAndConditionLabel: "სართული და კონდიცია",
-    installmentAndRemainingLabel: "შენატანი და დარჩენილი ვადა",
-    videoLinkBtn: "YouTube ვიდეო",
-    tour3dLinkBtn: "3D ტური",
-    onlineViewingBadge: "ონლაინ ჩვენება",
-    unitPhotosLabel: "ატვირთული ფოტოები",
-    sellerNoteBoxTitle: "ადმინისტრაციის შენიშვნა მესაკუთრისთვის",
-    sellerNoteBoxSub:
-      "დაწერეთ ნებისმიერი შესწორება — გამოჩნდება გამყიდველის ანგარიშში შეტყობინებით",
-    sellerNotePlaceholder:
-      "მაგ: გთხოვთ გადაამოწმოთ სართული ან ატვირთოთ კონტრაქტის მკაფიო ფოტო...",
-    saveAndNotifySellerBtn: "შენახვა და გაგზავნა",
-    clearNoteBtn: "გასუფთავება",
-    noteSavedSuccess: "შენიშვნა შენახულია ✓",
-    optionalNoteForSellerPlaceholder:
-      "შენიშვნა მესაკუთრისთვის (არასავალდებულო)...",
-    sendPerformanceReportBtn: "ნახვების რეპორტის გაგზავნა",
-  },
-}
-
 export function PropertyConfirmDialog({
   dir,
   t,
@@ -178,6 +66,8 @@ export function PropertyConfirmDialog({
   onClose: () => void
   onExecute: () => void
 }) {
+  const qMark = dir === "rtl" ? "؟" : "?"
+
   return (
     <Dialog
       open={Boolean(confirmAction)}
@@ -252,7 +142,7 @@ export function PropertyConfirmDialog({
                     <span className="font-bold text-[#105C50]">
                       ({getStatusLabel(confirmAction.newStatus)})
                     </span>
-                    ؟
+                    {qMark}
                   </>
                 )}
 
@@ -290,7 +180,7 @@ export function PropertyConfirmDialog({
                           confirmAction.property.name}
                         &rdquo;
                       </strong>
-                      ؟
+                      {qMark}
                     </>
                   ))}
               </DialogDescription>
@@ -467,8 +357,7 @@ export function PropertyDetailsDialog({
   renderBadges: (prop: SellRequest) => React.ReactNode
 }) {
   const router = useRouter()
-  const baseModalLabels = MODAL_EXTRA_LABELS[locale] || MODAL_EXTRA_LABELS.ar
-  const mL = { ...baseModalLabels, ...((t.modals as Record<string, string>) || {}) }
+  const mL = (t.modals as Record<string, string>) || {}
 
   const [adminNoteText, setAdminNoteText] = useState("")
   const [noteSavedFeedback, setNoteSavedFeedback] = useState(false)

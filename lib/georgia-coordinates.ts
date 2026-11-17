@@ -3,7 +3,6 @@ import rawDatabase from '@/lib/georgia_locations_slim.json'
 export type Coordinates = { lat: number; lng: number }
 
 export const GEORGIA_AREA_COORDINATES: Record<string, Coordinates> = {
-  // تبليسي وأحياؤها
   'Tbilisi - Saburtalo': { lat: 41.7271, lng: 44.7535 },
   'Tbilisi - Vake': { lat: 41.71, lng: 44.7645 },
   'Tbilisi - Vera': { lat: 41.7058, lng: 44.7831 },
@@ -25,7 +24,6 @@ export const GEORGIA_AREA_COORDINATES: Record<string, Coordinates> = {
   'Tbilisi - Tbilisi Sea': { lat: 41.7583, lng: 44.8483 },
   'Tbilisi - Tabakhmela / Kojori': { lat: 41.658, lng: 44.748 },
 
-  // باتومي وأحياؤها
   'Batumi - New Boulevard': { lat: 41.6258, lng: 41.6067 },
   'Batumi - Alley of Heroes': { lat: 41.6375, lng: 41.6133 },
   'Batumi - Old Boulevard / Center': { lat: 41.6517, lng: 41.6364 },
@@ -37,7 +35,6 @@ export const GEORGIA_AREA_COORDINATES: Record<string, Coordinates> = {
   'Batumi - Makhinjauri': { lat: 41.6706, lng: 41.6953 },
   'Batumi - Chakvi / Green Cape': { lat: 41.6958, lng: 41.7114 },
 
-  // مدن أخرى
   Kutaisi: { lat: 42.2662, lng: 42.718 },
   Rustavi: { lat: 41.5398, lng: 45.0069 },
   Gudauri: { lat: 42.4789, lng: 44.4797 },

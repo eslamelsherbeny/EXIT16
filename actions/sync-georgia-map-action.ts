@@ -3,6 +3,7 @@
 import fs from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import path from 'node:path'
+import { getServerI18n } from '@/lib/get-server-dictionary'
 
 export type StoredGeorgiaPoiRecord = {
   id: string
@@ -42,13 +43,16 @@ export async function saveGeorgiaPoisChunkAction(params: {
   savedCount: number
   error?: string
 }> {
+  const { dict } = await getServerI18n()
+  const sDict = (dict.admin as Record<string, any>)?.settings || {}
+
   try {
     const { asOf, chunk, isFirstChunk } = params
     if (!Array.isArray(chunk)) {
       return {
         success: false,
         savedCount: 0,
-        error: 'البيانات المستلمة غير صالحة.',
+        error: sDict.mapInvalidChunkData || sDict.mapSaveChunkError,
       }
     }
 
@@ -91,7 +95,8 @@ export async function saveGeorgiaPoisChunkAction(params: {
       savedCount: 0,
       error:
         err?.message ||
-        'تعذر حفظ تحديثات الخريطة على السيرفر.',
+        sDict.mapServerWriteError ||
+        sDict.mapSyncErrorFallback,
     }
   }
 }

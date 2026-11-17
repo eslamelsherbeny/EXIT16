@@ -20,6 +20,7 @@ import {
   Sparkles,
   Wallet,
   X,
+  RefreshCw,
 } from 'lucide-react'
 import {
   getAccountOffersDataAction,
@@ -106,6 +107,7 @@ function OffersContent() {
     (OfferRecord & { unit?: MatchableUnit }) | null
   >(null)
   const [counterCashStr, setCounterCashStr] = useState('')
+  const [isCounteringAsBuyer, setIsCounteringAsBuyer] = useState(false)
 
   const [feedback, setFeedback] = useState<{
     text: string
@@ -300,17 +302,35 @@ function OffersContent() {
       Number(toEnglishDigits(counterCashStr).replace(/,/g, '')) || 0
 
     startTransition(async () => {
-      const res = await respondToOfferBySellerAction({
-        offerId: counterModalOffer.id,
-        decision: 'counter',
-        counterCash: amount,
-      })
-      if (res.success) {
-        setCounterModalOffer(null)
-        setFeedback({ text: t.counterSentSuccess })
-        await loadAllData()
+      if (isCounteringAsBuyer) {
+        // המشتري يقدم سعراً جديداً (Counter-Counter) -> יذهب مباشرة للبائع
+        const res = await respondToCounterOfferByBuyerAction({
+          offerId: counterModalOffer.id,
+          decision: 'counter',
+          counterCash: amount,
+        })
+        if (res.success) {
+          setCounterModalOffer(null)
+          setIsCounteringAsBuyer(false)
+          setFeedback({ text: t.counterSentSuccess })
+          await loadAllData()
+        } else {
+          setFeedback({ text: res.error || t.errSubmitFailed, isError: true })
+        }
       } else {
-        setFeedback({ text: res.error || t.errSubmitFailed, isError: true })
+        // البائع يقدم سعراً بديلاً (Counter) -> يذهب للمشتري
+        const res = await respondToOfferBySellerAction({
+          offerId: counterModalOffer.id,
+          decision: 'counter',
+          counterCash: amount,
+        })
+        if (res.success) {
+          setCounterModalOffer(null)
+          setFeedback({ text: t.counterSentSuccess })
+          await loadAllData()
+        } else {
+          setFeedback({ text: res.error || t.errSubmitFailed, isError: true })
+        }
       }
     })
   }
@@ -350,10 +370,16 @@ function OffersContent() {
     return t.methodBankTransfer
   }
 
-  const markOfferWaClickedAndHide = (offerId: string, leadId?: string | null) => {
+  const markOfferWaClickedAndHide = (
+    offerId: string,
+    leadId?: string | null
+  ) => {
     setHiddenWaOfferIds((prev) => ({ ...prev, [offerId]: true }))
     try {
-      localStorage.setItem(`${BUYER_WA_OFFER_SENT_STORAGE_KEY}_${offerId}`, '1')
+      localStorage.setItem(
+        `${BUYER_WA_OFFER_SENT_STORAGE_KEY}_${offerId}`,
+        '1'
+      )
     } catch {}
     markUserPhoneVerifiedAction({
       leadId: leadId || undefined,
@@ -426,7 +452,7 @@ function OffersContent() {
           </Link>
         </div>
 
-        {/* بانر النجاح بعد تقديم عرض الشراء: يحتوي على زر تسريع حجز الوحدة عبر واتساب الذي يختفي فور الضغط عليه */}
+        {/* بانر النجاح بعد تقديم عرض الشراء: يحتوي على زر تسريع حجز الوحدة عبر واتساب */}
         {feedback && (
           <div
             className={`mb-6 rounded-2xl border p-4 shadow-xs sm:p-5 ${
@@ -510,6 +536,7 @@ function OffersContent() {
             getPaymentMethodLabel={getPaymentMethodLabel}
             onSellerDecision={handleSellerDecision}
             onOpenCounterModal={(offer, defaultMidCash) => {
+              setIsCounteringAsBuyer(false)
               setCounterModalOffer(offer)
               setCounterCashStr(defaultMidCash)
             }}
@@ -672,6 +699,7 @@ function OffersContent() {
                           </div>
                         )}
 
+                        {/* ===================== واجهة المشتري عند وصول رد/تفاوض من البائع ===================== */}
                         {offer.status === 'counter_offered' &&
                           offer.counter_cash && (
                             <div className="mt-4 rounded-2xl border border-purple-200 bg-purple-50/90 p-3.5 sm:p-4">
@@ -704,6 +732,27 @@ function OffersContent() {
                                   <span>{t.acceptCounterBtn}</span>
                                 </button>
 
+                                {/* زر تعديل السعر للمشتري لتقديم عرض بديل (Counter-Counter) يذهب للبائع مباشرة */}
+                                <button
+                                  type="button"
+                                  disabled={isPending}
+                                  onClick={() => {
+                                    setIsCounteringAsBuyer(true)
+                                    setCounterModalOffer(offer)
+                                    const mid = Math.round(
+                                      (Number(offer.offered_cash) +
+                                        Number(offer.counter_cash)) /
+                                        2
+                                    )
+                                    setCounterCashStr(mid.toLocaleString('en-US'))
+                                  }}
+                                  className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-center text-xs font-extrabold text-[#0a1122] transition hover:bg-gray-50"
+                                >
+                                  <RefreshCw className="size-3.5 shrink-0 text-[#007a5a]" />
+                                  <span>{t.sendCounterBtn}</span>
+                                </button>
+                              </div>
+                              <div className="mt-2">
                                 <button
                                   type="button"
                                   disabled={isPending}
@@ -713,7 +762,7 @@ function OffersContent() {
                                       'reject'
                                     )
                                   }
-                                  className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-red-200 bg-white px-4 py-2.5 text-center text-xs font-bold text-red-600 transition hover:bg-red-50"
+                                  className="inline-flex min-h-[44px] w-full items-center justify-center rounded-xl border border-red-200 bg-white px-4 py-2.5 text-center text-xs font-bold text-red-600 transition hover:bg-red-50"
                                 >
                                   {t.rejectOfferBtn}
                                 </button>

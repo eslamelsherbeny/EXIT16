@@ -16,6 +16,7 @@ import { type MatchableUnit } from '@/lib/smart-matcher'
 import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
 import { type LocaleCode } from '@/lib/i18n'
 import { getOfferRef } from './offers-modals'
+import Link from 'next/link'
 
 export function SellerOffersSection({
   t,
@@ -275,6 +276,7 @@ export function SellerOffersSection({
                   </div>
                 )}
 
+                {/* عندما يكون العرض معلقاً عند البائع (إما لأنه عرض جديد من الأدمن أو لأن المشتري أرسل سعراً تفاوضياً جديداً) */}
                 {offer.status === 'pending_seller' &&
                   !unitAlreadyHasAcceptedOffer && (
                     <div className="mt-5 flex flex-col gap-2 border-t border-gray-100 pt-4 sm:flex-row sm:flex-wrap sm:items-center">
@@ -288,6 +290,7 @@ export function SellerOffersSection({
                         <span>{t.acceptOfferBtn}</span>
                       </button>
 
+                      {/* إمكانية البائع للتفاوض في السعر مرة أخرى إذا أراد */}
                       {Number(offer.offered_cash) < paid && (
                         <button
                           type="button"

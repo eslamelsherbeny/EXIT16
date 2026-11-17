@@ -367,7 +367,10 @@ export async function submitBuyerOfferAction(payload: {
       cleanUnitStatus === 'sold' ||
       cleanUnitStatus === 'transferring' ||
       cleanUnitStatus === 'deleted_by_seller' ||
-      cleanUnitStatus === 'paused_by_seller'
+      cleanUnitStatus === 'paused_by_seller' ||
+      cleanUnitStatus === 'pending' ||
+      cleanUnitStatus === 'under_review' ||
+      cleanUnitStatus === 'rejected'
     ) {
       return { success: false, error: oDict.errUnitAlreadyLocked }
     }
@@ -470,26 +473,18 @@ export async function submitBuyerOfferAction(payload: {
       reasonsList.push(`💬 ${payload.buyerNotes.trim().slice(0, 180)}`)
     }
 
-    const isBuyerAlreadyVerified = Boolean(
-      authenticatedUser &&
-        (authenticatedUser.role === 'admin' ||
-          authenticatedUser.role === 'moderator' ||
-          authenticatedUser.role === 'sales')
-    )
-    const initialOfferStatus: OfferStatusType = isBuyerAlreadyVerified
-      ? 'pending_seller'
-      : 'pending_admin'
-
     let existingOfferRow: any = null
     if (sessionId) {
       const { data: existingOffer } = await supabase
         .from('property_offers')
-        .select('id, status')
+        .select('id, status, diff_reasons')
         .eq('property_id', unit.id)
         .eq('buyer_user_id', sessionId)
         .limit(1)
         .maybeSingle()
-      existingOfferRow = existingOffer || null
+      existingOfferRow = existingOffer
+        ? normalizeOfferRecord(existingOffer)
+        : null
     }
 
     if (existingOfferRow?.status === 'accepted') {
@@ -499,6 +494,27 @@ export async function submitBuyerOfferAction(payload: {
         offerRef: makeOfferRefCode(String(existingOfferRow.id)),
       }
     }
+
+    // إذا كان العرض قد تمت الموافقة عليه من الأدمن سابقاً (في مرحلة التفاوض مع البائع)،
+    // يذهب السعر الجديد مباشرة للبائع دون انتظار الأدمن مرة ثانية
+    const wasAlreadyApprovedByAdmin = Boolean(
+      existingOfferRow &&
+        (existingOfferRow.status === 'pending_seller' ||
+          existingOfferRow.status === 'counter_offered')
+    )
+
+    const isStaffCaller = Boolean(
+      authenticatedUser &&
+        (authenticatedUser.role === 'owner' ||
+          authenticatedUser.role === 'admin' ||
+          authenticatedUser.role === 'moderator' ||
+          authenticatedUser.role === 'sales')
+    )
+
+    const sendDirectlyToSeller = isStaffCaller || wasAlreadyApprovedByAdmin
+    const initialOfferStatus: OfferStatusType = sendDirectlyToSeller
+      ? 'pending_seller'
+      : 'pending_admin'
 
     const existingOfferId = existingOfferRow?.id
       ? String(existingOfferRow.id)
@@ -526,8 +542,8 @@ export async function submitBuyerOfferAction(payload: {
 
     const fallbackCompatibleRow = {
       ...offerRow,
-      status: isBuyerAlreadyVerified ? 'pending_seller' : 'recommended',
-      diff_reasons: isBuyerAlreadyVerified
+      status: sendDirectlyToSeller ? 'pending_seller' : 'recommended',
+      diff_reasons: sendDirectlyToSeller
         ? matchInfo.differences
         : [...matchInfo.differences, PENDING_ADMIN_TAG],
     }
@@ -583,6 +599,12 @@ export async function submitBuyerOfferAction(payload: {
     ]
 
     if (initialOfferStatus === 'pending_seller' && unit.user_id) {
+      if (cleanUnitStatus === 'active') {
+        await supabase
+          .from('sell_requests')
+          .update({ status: 'offer_received' })
+          .eq('id', unit.id)
+      }
       notifsToInsert.push({
         user_id: unit.user_id,
         role: 'client',
@@ -792,7 +814,8 @@ export async function respondToOfferBySellerAction(payload: {
 
 export async function respondToCounterOfferByBuyerAction(payload: {
   offerId: string
-  decision: 'accept' | 'reject'
+  decision: 'accept' | 'counter' | 'reject'
+  counterCash?: number
 }) {
   const { dict } = await getServerI18n()
   const oDict = (dict.accountPages as Record<string, any>)?.offers || {}
@@ -808,12 +831,16 @@ export async function respondToCounterOfferByBuyerAction(payload: {
       .eq('id', payload.offerId)
       .maybeSingle()
 
-    if (!offer || offer.status !== 'counter_offered') {
+    if (!offer) {
       return { success: false, error: oDict.errUnitNotFound }
     }
 
     const role = String(user.role || 'user').trim().toLowerCase()
-    const isStaff = role === 'admin' || role === 'moderator' || role === 'sales'
+    const isStaff =
+      role === 'owner' ||
+      role === 'admin' ||
+      role === 'moderator' ||
+      role === 'sales'
     const isBuyerOwner =
       isStaff || String(offer.buyer_user_id) === String(user.id)
 
@@ -905,6 +932,46 @@ export async function respondToCounterOfferByBuyerAction(payload: {
       try {
         await supabase.from('notifications').insert(notifs)
       } catch {}
+    } else if (payload.decision === 'counter') {
+      // تفاوض مباشر من المشتري بعد موافقة الأدمن الأولى -> يذهب مباشرة للبائع
+      const guardrails = getUnitPricingGuardrails(unit)
+      const cleanBuyerCounter = Math.round(Number(payload.counterCash) || 0)
+
+      if (cleanBuyerCounter < guardrails.minAllowedOfferCash) {
+        return {
+          success: false,
+          error: `${oDict.errBelowMinFloor} (${guardrails.minAllowedOfferCash.toLocaleString('en-US')})`,
+        }
+      }
+
+      const finalBuyerCounter = Math.min(
+        guardrails.requiredCash,
+        cleanBuyerCounter
+      )
+
+      await supabase
+        .from('property_offers')
+        .update({
+          offered_cash: finalBuyerCounter,
+          counter_cash: null,
+          status: 'pending_seller',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', offer.id)
+
+      if (unit.user_id) {
+        try {
+          await supabase.from('notifications').insert({
+            user_id: unit.user_id,
+            role: 'client',
+            title: `💰 ${oDict.sellerNewOfferNotifTitle} (${sanitizeGeorgiaProjectTitle(unit.project_name)})`,
+            message: `$${finalBuyerCounter.toLocaleString('en-US')}`,
+            type: 'new_offer',
+            link: `/account/offers?role=seller&unitId=${unit.id}`,
+            is_read: false,
+          })
+        } catch {}
+      }
     } else {
       await supabase
         .from('property_offers')
@@ -913,6 +980,21 @@ export async function respondToCounterOfferByBuyerAction(payload: {
           updated_at: new Date().toISOString(),
         })
         .eq('id', offer.id)
+
+      const { data: remainingOffers } = await supabase
+        .from('property_offers')
+        .select('id, status')
+        .eq('property_id', unit.id)
+        .in('status', ['pending_seller', 'counter_offered', 'accepted'])
+
+      if (!remainingOffers || remainingOffers.length === 0) {
+        if (unit.status === 'offer_received') {
+          await supabase
+            .from('sell_requests')
+            .update({ status: 'active' })
+            .eq('id', unit.id)
+        }
+      }
     }
 
     revalidateAllOfferPaths()
@@ -1094,11 +1176,22 @@ export async function adminManageOfferLifecycleAction(payload: {
         })
         .eq('id', offer.id)
 
-      if (wasAccepted && unit.status === 'transferring') {
-        await supabase
-          .from('sell_requests')
-          .update({ status: 'active' })
-          .eq('id', unit.id)
+      const { data: remainingOffers } = await supabase
+        .from('property_offers')
+        .select('id, status')
+        .eq('property_id', unit.id)
+        .in('status', ['pending_seller', 'counter_offered', 'accepted'])
+
+      if (!remainingOffers || remainingOffers.length === 0) {
+        if (
+          unit.status === 'offer_received' ||
+          (wasAccepted && unit.status === 'transferring')
+        ) {
+          await supabase
+            .from('sell_requests')
+            .update({ status: 'active' })
+            .eq('id', unit.id)
+        }
       }
     }
 

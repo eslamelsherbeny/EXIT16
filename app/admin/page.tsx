@@ -7,6 +7,7 @@ import {
   BellRing,
   Building2,
   CheckCircle2,
+  ChevronDown,
   Clock3,
   ExternalLink,
   FileText,
@@ -65,10 +66,12 @@ const DASHBOARD_SECTIONS_TEXT: Record<
   {
     sec1Title: string
     sec1Sub: string
+    sec1EmptyShort: string
     sec1Empty: string
     sec1Btn: string
     sec2Title: string
     sec2Sub: string
+    sec2EmptyShort: string
     sec2Empty: string
     sec2Btn: string
     colUnit: string
@@ -95,11 +98,13 @@ const DASHBOARD_SECTIONS_TEXT: Record<
     sec1Title: "١. صفقات متفق عليها جاهزة للتعاقد",
     sec1Sub:
       "البائع والمشتري وافقا رسمياً على السعر وتم قفل الوحدة — تواصل مع الطرفين لتوقيع التنازل وتحصيل العمولة",
+    sec1EmptyShort: "لا توجد صفقات تنتظر الإغلاق حالياً",
     sec1Empty: "لا توجد صفقات متفق عليها تنتظر الإغلاق حالياً.",
     sec1Btn: "فتح الصفقات الجاهزة",
     sec2Title: "٢. عروض شراء جديدة بانتظار موافقتك",
     sec2Sub:
       "عروض جديدة قدمها مشترون على وحدات محددة ولم تظهر للبائع بعد — راجع جدية المشتري ثم أرسل العرض لحساب البائع",
+    sec2EmptyShort: "لا توجد عروض جديدة معلقة حالياً",
     sec2Empty: "لا توجد عروض شراء جديدة تنتظر موافقتك حالياً.",
     sec2Btn: "فتح غرفة الصفقات والعروض",
     colUnit: "الوحدة والمشروع",
@@ -125,11 +130,13 @@ const DASHBOARD_SECTIONS_TEXT: Record<
     sec1Title: "1. Agreed Deals Ready for Contract Transfer",
     sec1Sub:
       "Both seller and buyer agreed on the price and the unit is locked — contact both parties to close & collect fee",
+    sec1EmptyShort: "No deals awaiting closing",
     sec1Empty: "No agreed deals awaiting closing right now.",
     sec1Btn: "Open Ready Deals",
     sec2Title: "2. New Purchase Offers Awaiting Your Approval",
     sec2Sub:
       "New offers submitted by buyers on specific units and not yet visible to the seller — verify buyer & forward to seller",
+    sec2EmptyShort: "All caught up — no pending offers",
     sec2Empty: "No new purchase offers awaiting your approval right now.",
     sec2Btn: "Open Deals & Offers Room",
     colUnit: "Unit & Project",
@@ -155,11 +162,13 @@ const DASHBOARD_SECTIONS_TEXT: Record<
     sec1Title: "1. Согласованные сделки (Готовы к переоформлению)",
     sec1Sub:
       "Продавец и покупатель подтвердили цену — свяжитесь со сторонами для подписания переуступки и получения комиссии",
+    sec1EmptyShort: "Нет сделок к закрытию",
     sec1Empty: "Сейчас нет согласованных сделок, ожидающих закрытия.",
     sec1Btn: "Открыть готовые сделки",
     sec2Title: "2. Новые предложения о покупке (Ждут вашего одобрения)",
     sec2Sub:
       "Новые предложения от покупателей по конкретным объектам, которые еще не отправлены продавцу",
+    sec2EmptyShort: "Новых предложений нет",
     sec2Empty: "Новых предложений, ожидающих вашего одобрения, сейчас нет.",
     sec2Btn: "Открыть комнату сделок",
     colUnit: "Объект и ЖК",
@@ -185,11 +194,13 @@ const DASHBOARD_SECTIONS_TEXT: Record<
     sec1Title: "1. შეთანხმებული გარიგებები (მზადაა გადასაფორმებლად)",
     sec1Sub:
       "გამყიდველი და მყიდველი შეთანხმდნენ ფასზე — დაუკავშირდით მხარეებს გადაფორმების დასასრულებლად",
+    sec1EmptyShort: "დასასრულებელი გარიგებები არ არის",
     sec1Empty: "ამჟამად დასასრულებელი შეთანხმებული გარიგებები არ არის.",
     sec1Btn: "მზა გარიგებები",
     sec2Title: "2. ახალი შესყიდვის შეთავაზებები (ელოდება თქვენს დასტურს)",
     sec2Sub:
       "მყიდველების მიერ კონკრეტულ ობიექტებზე გამოგზავნილი ახალი შეთავაზებები — გადაამოწმეთ და გაუგზავნეთ გამყიდველს",
+    sec2EmptyShort: "ახალი შეთავაზებები არ არის",
     sec2Empty: "ახალი დასადასტურებელი შეთავაზებები ამჟამად არ არის.",
     sec2Btn: "გარიგებების ოთახის გახსნა",
     colUnit: "ობიექტი და პროექტი",
@@ -382,7 +393,6 @@ export default async function AdminPage() {
   const propsMap = new Map(properties.map((p: any) => [String(p.id), p]))
   const leads = leadsData
 
-  /* تصفية العروض لاستبعاد أي وحدة لا تزال قيد المراجعة أو غير منشورة بالسوق */
   const allOffers = allOffersData
     .map(normalizeDashboardOffer)
     .filter((o: any) => {
@@ -419,7 +429,7 @@ export default async function AdminPage() {
     return "active"
   }
 
-  /* 1. الصفقات المتفق عليها الجاهزة للتعاقد (تظهر في الكارت الأول المستقل) */
+  /* 1. الصفقات المتفق عليها الجاهزة للتعاقد */
   const readyDeals = allOffers
     .filter((o: any) => o.status === "accepted")
     .map((offer: any) => ({
@@ -428,7 +438,7 @@ export default async function AdminPage() {
     }))
     .filter((item) => Boolean(item.unit) && item.unit.status !== "sold")
 
-  /* 2. عروض الشراء الجديدة فقط التي تنتظر موافقة الأدمن لإرسالها للبائع (الكارت الثاني المستقل) */
+  /* 2. عروض الشراء الجديدة فقط التي تنتظر موافقة الأدمن لإرسالها للبائع */
   const newPendingAdminOffers = allOffers
     .filter(
       (o: any) =>
@@ -441,7 +451,6 @@ export default async function AdminPage() {
     }))
     .filter((item) => Boolean(item.unit) && item.unit.status !== "sold")
 
-  /* إجمالي العروض النشطة في غرفة الصفقات (شاملاً العروض المرسلة للبائع) لعرض العدد في كارت الإحصائيات العلوي */
   const totalActiveDealsRoomCount = allOffers.filter((o: any) => {
     const u = propsMap.get(String(o.property_id))
     if (!u || u.status === "sold") return false
@@ -531,7 +540,7 @@ export default async function AdminPage() {
   ]
 
   return (
-    <div dir={dir} className="mx-auto max-w-7xl space-y-6 text-start">
+    <div dir={dir} className="mx-auto max-w-7xl space-y-5 text-start">
       {/* صف الإحصائيات السريعة (5 كروت بأرقام في المنتصف تماماً) */}
       <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3 xl:grid-cols-5">
         {kpis.map(
@@ -576,43 +585,79 @@ export default async function AdminPage() {
         )}
       </div>
 
-      {/* السيكشن الأول (مستقل ومميز باللون الأخضر): صفقات متفق عليها جاهزة للتعاقد */}
-      <Card className="overflow-hidden rounded-2xl border-2 border-emerald-200 bg-white shadow-2xs">
-        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 border-b border-emerald-100 bg-[#eaf8f2]/65 px-5 py-4">
+      {/* السيكشن الأول (قابل للطي والفتح، ويفتح تلقائياً عند وجود صفقات جاهزة) */}
+      <details
+        open={readyDeals.length > 0}
+        className={`group overflow-hidden rounded-2xl bg-white shadow-2xs transition-all ${
+          readyDeals.length > 0
+            ? "border-2 border-emerald-200"
+            : "border border-slate-200/90"
+        }`}
+      >
+        <summary
+          className={`flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 px-5 py-3.5 transition select-none [&::-webkit-details-marker]:hidden ${
+            readyDeals.length > 0
+              ? "bg-[#eaf8f2]/65 group-open:border-b group-open:border-emerald-100"
+              : "bg-white hover:bg-slate-50/70 group-open:border-b group-open:border-slate-100"
+          }`}
+        >
           <div className="flex items-center gap-3">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#007a5a] text-white shadow-2xs">
-              <Handshake className="size-5" />
+            <span
+              className={`flex size-9 shrink-0 items-center justify-center rounded-xl text-white shadow-2xs ${
+                readyDeals.length > 0 ? "bg-[#007a5a]" : "bg-slate-400"
+              }`}
+            >
+              <Handshake className="size-4" />
             </span>
             <div>
-              <div className="flex items-center gap-2">
-                <CardTitle className="text-sm font-black text-[#0f1d40] sm:text-base">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-black text-[#0f1d40] sm:text-base">
                   {L.sec1Title}
-                </CardTitle>
+                </span>
                 <span
                   dir="ltr"
-                  className="rounded-full bg-[#007a5a] px-2.5 py-0.5 text-xs font-black text-white"
+                  className={`rounded-full px-2.5 py-0.5 text-xs font-black text-white ${
+                    readyDeals.length > 0 ? "bg-[#007a5a]" : "bg-slate-400"
+                  }`}
                 >
                   {readyDeals.length}
                 </span>
+                {readyDeals.length === 0 && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-500">
+                    <CheckCircle2 className="size-3.5 text-emerald-500" />
+                    <span>{L.sec1EmptyShort}</span>
+                  </span>
+                )}
               </div>
-              <p className="mt-0.5 text-[11.5px] font-semibold text-[#007a5a]">
-                {L.sec1Sub}
-              </p>
+              {readyDeals.length > 0 && (
+                <p className="mt-0.5 text-[11.5px] font-semibold text-[#007a5a]">
+                  {L.sec1Sub}
+                </p>
+              )}
             </div>
           </div>
 
-          <Link
-            href="/admin/deals?tab=accepted"
-            className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-[#007a5a] px-4 text-xs font-extrabold text-white transition hover:bg-[#006248]"
-          >
-            <span>{L.sec1Btn}</span>
-            <ArrowLeft className="size-3.5 rtl:rotate-0 ltr:rotate-180" />
-          </Link>
-        </CardHeader>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/admin/deals?tab=accepted"
+              className={`inline-flex h-8.5 items-center gap-1.5 rounded-xl px-3.5 text-xs font-extrabold transition ${
+                readyDeals.length > 0
+                  ? "bg-[#007a5a] text-white hover:bg-[#006248]"
+                  : "border border-slate-200 bg-white text-[#0f1d40] hover:border-[#007a5a] hover:text-[#007a5a]"
+              }`}
+            >
+              <span>{L.sec1Btn}</span>
+              <ArrowLeft className="size-3.5 rtl:rotate-0 ltr:rotate-180" />
+            </Link>
+            <span className="flex size-8.5 items-center justify-center rounded-xl border border-slate-200/80 bg-white text-slate-500 transition group-hover:text-[#0f1d40]">
+              <ChevronDown className="size-4 transition-transform duration-200 group-open:rotate-180" />
+            </span>
+          </div>
+        </summary>
 
-        <CardContent className="p-0">
+        <div>
           {readyDeals.length === 0 ? (
-            <div className="flex items-center justify-center gap-2 py-7 text-xs font-bold text-slate-400">
+            <div className="flex items-center justify-center gap-2 py-5 text-xs font-bold text-slate-400">
               <CheckCircle2 className="size-4 text-emerald-500" />
               <span>{L.sec1Empty}</span>
             </div>
@@ -683,7 +728,7 @@ export default async function AdminPage() {
                               </p>
                               <p
                                 dir="ltr"
-                                className="font-mono text-[11px] text-slate-400"
+                                className="text-start font-mono text-[11px] text-slate-400"
                               >
                                 {unit.phone || "—"}
                               </p>
@@ -709,7 +754,7 @@ export default async function AdminPage() {
                               </p>
                               <p
                                 dir="ltr"
-                                className="font-mono text-[11px] text-slate-400"
+                                className="text-start font-mono text-[11px] text-slate-400"
                               >
                                 {offer.buyer_phone || "—"}
                               </p>
@@ -753,65 +798,81 @@ export default async function AdminPage() {
               </table>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </details>
 
-      {/* السيكشن الثاني (مخصص فقط لعروض الشراء الجديدة التي تنتظر موافقة الأدمن لإرسالها للبائع) */}
-      <Card
-        className={`overflow-hidden rounded-2xl border bg-white shadow-2xs ${
+      {/* السيكشن الثاني (يطوى تلقائياً في سطر واحد نظيف عندما يكون العدد 0، ويفتح تلقائياً عند وصول عرض جديد) */}
+      <details
+        open={pendingAdminOffersCount > 0}
+        className={`group overflow-hidden rounded-2xl bg-white shadow-2xs transition-all ${
           pendingAdminOffersCount > 0
             ? "border-2 border-amber-300"
-            : "border-slate-200/90"
+            : "border border-slate-200/90"
         }`}
       >
-        <CardHeader
-          className={`flex flex-row flex-wrap items-center justify-between gap-3 border-b px-5 py-4 ${
+        <summary
+          className={`flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 px-5 py-3.5 transition select-none [&::-webkit-details-marker]:hidden ${
             pendingAdminOffersCount > 0
-              ? "border-amber-100 bg-amber-50/60"
-              : "border-slate-100 bg-slate-50/60"
+              ? "bg-amber-50/60 group-open:border-b group-open:border-amber-100"
+              : "bg-white hover:bg-slate-50/70 group-open:border-b group-open:border-slate-100"
           }`}
         >
           <div className="flex items-center gap-3">
             <span
-              className={`flex size-10 shrink-0 items-center justify-center rounded-xl text-white shadow-2xs ${
+              className={`flex size-9 shrink-0 items-center justify-center rounded-xl text-white shadow-2xs ${
                 pendingAdminOffersCount > 0 ? "bg-amber-500" : "bg-slate-400"
               }`}
             >
-              <BellRing className="size-5" />
+              <BellRing className="size-4" />
             </span>
             <div>
-              <div className="flex items-center gap-2">
-                <CardTitle className="text-sm font-black text-[#0f1d40] sm:text-base">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-black text-[#0f1d40] sm:text-base">
                   {L.sec2Title}
-                </CardTitle>
+                </span>
                 <span
                   dir="ltr"
                   className={`rounded-full px-2.5 py-0.5 text-xs font-black text-white ${
-                    pendingAdminOffersCount > 0 ? "bg-amber-500" : "bg-slate-400"
+                    pendingAdminOffersCount > 0
+                      ? "bg-amber-500"
+                      : "bg-slate-400"
                   }`}
                 >
                   {newPendingAdminOffers.length}
                 </span>
+                {pendingAdminOffersCount === 0 && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-500">
+                    <CheckCircle2 className="size-3.5 text-emerald-500" />
+                    <span>{L.sec2EmptyShort}</span>
+                  </span>
+                )}
               </div>
-              <p className="mt-0.5 text-[11.5px] font-semibold text-slate-500">
-                {L.sec2Sub}
-              </p>
+              {pendingAdminOffersCount > 0 && (
+                <p className="mt-0.5 text-[11.5px] font-semibold text-amber-900">
+                  {L.sec2Sub}
+                </p>
+              )}
             </div>
           </div>
 
-          <Link
-            href="/admin/deals"
-            className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 text-xs font-extrabold text-[#0f1d40] transition hover:border-[#007a5a] hover:text-[#007a5a]"
-          >
-            <span>{L.sec2Btn}</span>
-            <ArrowLeft className="size-3.5 rtl:rotate-0 ltr:rotate-180" />
-          </Link>
-        </CardHeader>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/admin/deals"
+              className="inline-flex h-8.5 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-extrabold text-[#0f1d40] transition hover:border-[#007a5a] hover:text-[#007a5a]"
+            >
+              <span>{L.sec2Btn}</span>
+              <ArrowLeft className="size-3.5 rtl:rotate-0 ltr:rotate-180" />
+            </Link>
+            <span className="flex size-8.5 items-center justify-center rounded-xl border border-slate-200/80 bg-white text-slate-500 transition group-hover:text-[#0f1d40]">
+              <ChevronDown className="size-4 transition-transform duration-200 group-open:rotate-180" />
+            </span>
+          </div>
+        </summary>
 
-        <CardContent className="p-0">
+        <div>
           {newPendingAdminOffers.length === 0 ? (
-            <div className="flex items-center justify-center gap-2 py-7 text-xs font-bold text-slate-400">
-              <CheckCircle2 className="size-4 text-slate-300" />
+            <div className="flex items-center justify-center gap-2 py-5 text-xs font-bold text-slate-400">
+              <CheckCircle2 className="size-4 text-emerald-500" />
               <span>{L.sec2Empty}</span>
             </div>
           ) : (
@@ -892,7 +953,7 @@ export default async function AdminPage() {
                               </p>
                               <p
                                 dir="ltr"
-                                className="font-mono text-[11px] text-slate-400"
+                                className="text-start font-mono text-[11px] text-slate-400"
                               >
                                 {offer.buyer_phone || "—"}
                               </p>
@@ -918,7 +979,7 @@ export default async function AdminPage() {
                               </p>
                               <p
                                 dir="ltr"
-                                className="font-mono text-[11px] text-slate-400"
+                                className="text-start font-mono text-[11px] text-slate-400"
                               >
                                 {unit.phone || "—"}
                               </p>
@@ -968,8 +1029,8 @@ export default async function AdminPage() {
               </table>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </details>
 
       {/* السيكشن الثالث: أحدث الوحدات المضافة (يمين) وأحدث طلبات المشترين (يسار) */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
@@ -1058,7 +1119,7 @@ export default async function AdminPage() {
                             </p>
                             <p
                               dir="ltr"
-                              className="font-mono text-[11px] text-slate-400"
+                              className="text-start font-mono text-[11px] text-slate-400"
                             >
                               {prop.phone || "—"}
                             </p>

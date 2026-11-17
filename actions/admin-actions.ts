@@ -174,6 +174,47 @@ export async function updatePropertyStatusAction(
       }
     }
 
+    // مزامنة جدول العروض (property_offers) مع المرحلة الجديدة للوحدة لمنع أي تعارض منطقي
+    try {
+      if (
+        cleanStatus === "pending" ||
+        cleanStatus === "under_review" ||
+        cleanStatus === "rejected" ||
+        cleanStatus === "paused_by_seller" ||
+        cleanStatus === "deleted_by_seller"
+      ) {
+        // الوحدة غير منشورة بالسوق أو قيد المراجعة -> إلغاء أي عروض شراء نشطة عليها فوراً
+        await supabase
+          .from("property_offers")
+          .update({
+            status: "rejected",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("property_id", propertyId)
+          .neq("status", "recommended")
+      } else if (cleanStatus === "active") {
+        // إعادة الوحدة للسوق كمعروضة متاحة -> إعادة فتح أي عروض كانت مقفلة
+        await supabase
+          .from("property_offers")
+          .update({
+            status: "rejected",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("property_id", propertyId)
+          .in("status", ["accepted", "unit_locked"])
+      } else if (cleanStatus === "sold") {
+        // عند تحويل الوحدة إلى مباعة -> قفل أي عروض أخرى معلقة
+        await supabase
+          .from("property_offers")
+          .update({
+            status: "unit_locked",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("property_id", propertyId)
+          .in("status", ["pending_admin", "pending_seller", "counter_offered"])
+      }
+    } catch {}
+
     const projectLabel = prop?.project_name || msg.defaultProjectWord
     const resolvedArea =
       prop?.area || prop?.documents?.__unit_meta?.area || ""

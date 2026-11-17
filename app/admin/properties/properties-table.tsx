@@ -19,7 +19,6 @@ import {
   Flame,
   Handshake,
   Loader2,
-  MessageCircle,
   MoreVertical,
   PauseCircle,
   Phone,
@@ -73,10 +72,35 @@ import {
 
 export type { SellRequest, UserVerificationBadgeInfo }
 
+function WhatsAppOfficialIcon({ className = "size-4" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M12.031 2c-5.516 0-9.969 4.453-9.969 9.969 0 1.758.459 3.473 1.332 4.988L2 22l5.188-1.361c1.469.801 3.125 1.225 4.843 1.225 5.516 0 9.969-4.453 9.969-9.969S17.547 2 12.031 2zm5.82 14.129c-.244.688-1.422 1.314-1.977 1.396-.508.076-1.152.109-1.859-.115-.43-.137-.98-.32-1.688-.625-2.973-1.283-4.914-4.275-5.062-4.473-.148-.197-1.209-1.609-1.209-3.07 0-1.461.766-2.18 1.037-2.477.271-.297.592-.371.791-.371.197 0 .395.002.568.01.182.008.426-.068.666.508.246.592.84 2.049.914 2.197.074.148.123.32.025.518-.098.197-.148.32-.297.494-.148.172-.312.385-.445.518-.148.148-.303.309-.131.605.172.297.768 1.268 1.648 2.053 1.133 1.01 2.088 1.322 2.385 1.471.297.148.469.123.643-.074.172-.197.74-.863.938-1.16.197-.297.395-.246.666-.148.271.098 1.729.814 2.025.963.297.148.494.223.568.346.074.123.074.715-.17 1.403z" />
+    </svg>
+  )
+}
+
 function normalizeRowStatus(rawStatus?: string | null): string {
   const clean = String(rawStatus || "pending").trim().toLowerCase()
   if (clean === "approved" || clean === "published") return "active"
   return clean
+}
+
+/**
+ * التحقق مما إذا كانت الوحدة معتمدة ومنشورة في السوق وتسمح باستقبال عروض شراء
+ */
+function isUnitEligibleForOffers(status: string): boolean {
+  return (
+    status === "active" ||
+    status === "offer_received" ||
+    status === "transferring" ||
+    status === "sold"
+  )
 }
 
 export default function PropertiesTable({
@@ -106,6 +130,8 @@ export default function PropertiesTable({
   const aL = (t.analytics as Record<string, string>) || {}
 
   function getMatchedBuyersForUnit(unit: SellRequest) {
+    const st = normalizeRowStatus(unit.status)
+    if (!isUnitEligibleForOffers(st) || st === "sold") return []
     if (!buyers || buyers.length === 0) return []
     const unitPhoneDigits = String(unit.phone || "").replace(/\D/g, "")
     return buyers
@@ -134,13 +160,44 @@ export default function PropertiesTable({
       .sort((a, b) => b.match.score - a.match.score)
   }
 
+  function getValidOffersForUnit(unit: SellRequest) {
+    const st = normalizeRowStatus(unit.status)
+    if (!isUnitEligibleForOffers(st)) return []
+    return offers
+      .filter(
+        (o) =>
+          String(o.property_id) === String(unit.id) &&
+          !isSelfOfferOnProperty(o, unit)
+      )
+      .map((o) => ({ ...o, status: normalizeOfferStatus(o) }))
+      .filter((o) => o.status !== "recommended" && o.status !== "rejected")
+  }
+
   function getOffersCountForUnit(unit: SellRequest) {
-    return offers.filter(
-      (o) =>
-        String(o.property_id) === String(unit.id) &&
-        !isSelfOfferOnProperty(o, unit) &&
-        normalizeOfferStatus(o) !== "recommended"
-    ).length
+    return getValidOffersForUnit(unit).length
+  }
+
+  /**
+   * المرحلة الفعلية للوحدة: إذا كانت معتمدة وعليها عرض موافق عليه تظهر كـ "مرحلة نقل التعاقد"،
+   * وإذا كان عليها عرض عند البائع تظهر كـ "يوجد عرض شراء"
+   */
+  function getEffectiveUnitStage(property: SellRequest): string {
+    const rawSt = normalizeRowStatus(property.status)
+    if (!isUnitEligibleForOffers(rawSt) || rawSt === "sold") {
+      return rawSt
+    }
+    const validOffers = getValidOffersForUnit(property)
+    if (validOffers.some((o) => o.status === "accepted")) {
+      return "transferring"
+    }
+    if (
+      validOffers.some(
+        (o) => o.status === "pending_seller" || o.status === "counter_offered"
+      )
+    ) {
+      return "offer_received"
+    }
+    return rawSt
   }
 
   const sellerStatusOptions = [
@@ -157,7 +214,7 @@ export default function PropertiesTable({
     {
       value: "active",
       label: t.statuses.active,
-      badge: "bg-emerald-50 text-[#105C50] border-emerald-300",
+      badge: "bg-[#eaf8f2] text-[#007a5a] border-emerald-300",
     },
     {
       value: "offer_received",
@@ -172,7 +229,7 @@ export default function PropertiesTable({
     {
       value: "sold",
       label: t.statuses.sold,
-      badge: "bg-teal-700 text-white border-teal-700",
+      badge: "bg-[#007a5a] text-white border-[#007a5a]",
     },
     {
       value: "paused_by_seller",
@@ -421,7 +478,7 @@ export default function PropertiesTable({
   })
 
   const filtered = properties.filter((p) => {
-    const currentStatus = normalizeRowStatus(p.status)
+    const currentStatus = getEffectiveUnitStage(p)
     const unitShortCode = p.id.slice(0, 8).toUpperCase()
     const uPublicCode = deriveShortUnitCode(p.id, p.code)
     const orderRefCode = `AE-${p.id.replace(/[^a-zA-Z0-9]/g, "").slice(0, 6).toUpperCase()}`
@@ -459,6 +516,16 @@ export default function PropertiesTable({
         currentStatus === "paused_by_seller" ||
         p.submission_type === "edited_by_seller" ||
         p.submission_type === "resumed_by_seller"
+      )
+    }
+
+    if (statusFilter === "pending") {
+      return currentStatus === "pending" || currentStatus === "under_review"
+    }
+
+    if (statusFilter === "offer_received") {
+      return (
+        currentStatus === "offer_received" || currentStatus === "transferring"
       )
     }
 
@@ -549,7 +616,7 @@ export default function PropertiesTable({
       { header: c.sellerEmail, accessor: (p: SellRequest) => p.email || "—" },
       {
         header: c.status,
-        accessor: (p: SellRequest) => getStatusLabel(p.status),
+        accessor: (p: SellRequest) => getStatusLabel(getEffectiveUnitStage(p)),
       },
       {
         header: c.promoTier,
@@ -591,9 +658,13 @@ export default function PropertiesTable({
     currentSt: string,
     isMobile = false
   ) {
-    if (currentSt === "deleted_by_seller") return null
+    if (currentSt === "deleted_by_seller" || currentSt === "sold") return null
 
-    if (currentSt === "active") {
+    if (
+      currentSt === "active" ||
+      currentSt === "offer_received" ||
+      currentSt === "transferring"
+    ) {
       return (
         <button
           type="button"
@@ -627,7 +698,7 @@ export default function PropertiesTable({
             newStatus: "active",
           })
         }
-        className={`inline-flex items-center justify-center gap-1 rounded-xl bg-[#105C50] px-3 text-xs font-extrabold text-white shadow-2xs transition hover:bg-[#0d4a40] disabled:opacity-50 ${
+        className={`inline-flex items-center justify-center gap-1 rounded-xl bg-[#007a5a] px-3 text-xs font-extrabold text-white shadow-2xs transition hover:bg-[#006248] disabled:opacity-50 ${
           isMobile ? "h-8.5 flex-1" : "h-8 shrink-0"
         }`}
         title={t.actions.publishShortBtn}
@@ -720,7 +791,7 @@ export default function PropertiesTable({
             e.stopPropagation()
             setOpenMenuId(isMenuOpen ? null : property.id)
           }}
-          className="flex size-8 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-gray-600 transition hover:border-[#105C50] hover:bg-white hover:text-[#0a1122]"
+          className="flex size-8 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-600 transition hover:border-[#007a5a] hover:bg-white hover:text-[#0f1d40]"
         >
           <MoreVertical className="size-4" />
         </button>
@@ -728,20 +799,18 @@ export default function PropertiesTable({
         {isMenuOpen && (
           <div
             onClick={(e) => e.stopPropagation()}
-            className="absolute end-0 top-9 z-50 w-60 overflow-hidden rounded-xl border border-gray-200 bg-white p-1.5 shadow-2xl"
+            className="absolute end-0 top-9 z-50 w-60 overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl"
           >
-            {/* مشاهدة الوحدة على الموقع */}
             <Link
               href={`/opportunities/${property.id}`}
               target="_blank"
               onClick={() => setOpenMenuId(null)}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-[#0a1122] transition hover:bg-gray-50"
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-[#0f1d40] transition hover:bg-slate-50"
             >
-              <ExternalLink className="size-3.5 text-[#105C50]" />
+              <ExternalLink className="size-3.5 text-[#007a5a]" />
               <span>{aL.viewUnitBtn}</span>
             </Link>
 
-            {/* زر إرسال تقرير المشاهدات والأداء للمالك عبر واتساب */}
             <a
               href={`https://wa.me/${String(property.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(reportWaMessage)}`}
               target="_blank"
@@ -788,7 +857,9 @@ export default function PropertiesTable({
                   </span>
                 </button>
 
-                {currentSt === "active" ? (
+                {currentSt === "active" ||
+                currentSt === "offer_received" ||
+                currentSt === "transferring" ? (
                   <button
                     type="button"
                     disabled={pending}
@@ -819,16 +890,16 @@ export default function PropertiesTable({
                         newStatus: "active",
                       })
                     }}
-                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-[#105C50] transition hover:bg-emerald-50"
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-[#007a5a] transition hover:bg-[#eaf8f2]"
                   >
-                    <Check className="size-3.5 text-[#105C50]" />
+                    <Check className="size-3.5 text-[#007a5a]" />
                     <span>{t.actions.publishShortBtn}</span>
                   </button>
                 )}
               </>
             )}
 
-            <div className="my-1 border-t border-gray-100" />
+            <div className="my-1 border-t border-slate-100" />
 
             <button
               type="button"
@@ -842,9 +913,9 @@ export default function PropertiesTable({
                   `${expL.singlePropertyReportTitle} (${uCode} — ${property.project_name || property.name})`
                 )
               }}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-emerald-800 transition hover:bg-emerald-50"
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-[#007a5a] transition hover:bg-[#eaf8f2]"
             >
-              <Download className="size-3.5 text-[#105C50]" />
+              <Download className="size-3.5 text-[#007a5a]" />
               <span>{expL.exportRowBtn}</span>
             </button>
 
@@ -866,7 +937,7 @@ export default function PropertiesTable({
               <span>{expL.exportRowPdfBtn}</span>
             </button>
 
-            <div className="my-1 border-t border-gray-100" />
+            <div className="my-1 border-t border-slate-100" />
 
             <button
               type="button"
@@ -891,7 +962,7 @@ export default function PropertiesTable({
   }
 
   function renderSellerActivityBadges(property: SellRequest) {
-    const currentSt = normalizeRowStatus(property.status)
+    const rawSt = normalizeRowStatus(property.status)
     const docs = getUploadedDocsList(
       property.documents,
       docLabels,
@@ -904,14 +975,8 @@ export default function PropertiesTable({
     const matchedBuyers = getMatchedBuyersForUnit(property)
     const viewsCount = Math.max(1, Number(property.views_count) || 1)
 
-    const normalizedUnitOffers = offers
-      .filter(
-        (o) =>
-          String(o.property_id) === String(property.id) &&
-          !isSelfOfferOnProperty(o, property)
-      )
-      .map((o) => ({ ...o, status: normalizeOfferStatus(o) }))
-      .filter((o) => o.status !== "recommended")
+    // لا تعرض شارات عروض الشراء إلا إذا كانت الوحدة معتمدة ومنشورة في السوق
+    const normalizedUnitOffers = getValidOffersForUnit(property)
 
     const acceptedOffer = normalizedUnitOffers.find(
       (o) => o.status === "accepted"
@@ -940,7 +1005,7 @@ export default function PropertiesTable({
         {acceptedOffer ? (
           <Link
             href={`/admin/deals?offerId=${acceptedOffer.id}`}
-            className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2 py-0.5 text-[10px] font-extrabold text-white shadow-2xs hover:bg-emerald-700"
+            className="inline-flex items-center gap-1 rounded-md bg-[#007a5a] px-2 py-0.5 text-[10px] font-extrabold text-white shadow-2xs hover:bg-[#006248]"
           >
             <Handshake className="size-2.5" />
             <span>
@@ -968,28 +1033,26 @@ export default function PropertiesTable({
           </Link>
         ) : null}
 
-        {matchedBuyers.length > 0 &&
-          currentSt !== "deleted_by_seller" &&
-          currentSt !== "sold" && (
-            <button
-              type="button"
-              onClick={() => setSmartMatchProperty(property)}
-              className="inline-flex items-center gap-1 rounded-md border border-teal-300 bg-teal-50/80 px-2.5 py-0.5 text-[10.5px] font-extrabold text-[#105C50] transition hover:bg-[#105C50] hover:text-white"
-            >
-              <span>🎯</span>
-              <span>
-                {matchedBuyers.length} {sm.matchedBuyersShort}
-              </span>
-            </button>
-          )}
+        {matchedBuyers.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setSmartMatchProperty(property)}
+            className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-[#eaf8f2] px-2.5 py-0.5 text-[10.5px] font-extrabold text-[#007a5a] transition hover:bg-[#007a5a] hover:text-white"
+          >
+            <span>🎯</span>
+            <span>
+              {matchedBuyers.length} {sm.matchedBuyersShort}
+            </span>
+          </button>
+        )}
 
         {docs.length > 0 && (
           <button
             type="button"
             onClick={() => setDetailsProperty(property)}
-            className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-gray-50 px-2 py-0.5 text-[10.5px] font-bold text-gray-700 hover:bg-gray-100"
+            className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10.5px] font-bold text-slate-700 hover:bg-slate-100"
           >
-            <FileCheck2 className="size-3 text-[#105C50]" />
+            <FileCheck2 className="size-3 text-[#007a5a]" />
             <span>
               {docs.length}/4 {propBadges.docWord}
             </span>
@@ -1054,21 +1117,21 @@ export default function PropertiesTable({
           )}
 
         {property.submission_type === "edited_by_seller" &&
-          currentSt === "pending" && (
+          rawSt === "pending" && (
             <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-800">
               <RefreshCw className="size-2.5" />
               <span>{propBadges.editedBySeller}</span>
             </span>
           )}
 
-        {currentSt === "paused_by_seller" && (
+        {rawSt === "paused_by_seller" && (
           <span className="inline-flex items-center gap-1 rounded-md bg-orange-50 px-2 py-0.5 text-[10px] font-bold text-orange-800">
             <PauseCircle className="size-2.5" />
             <span>{propBadges.pausedBySeller}</span>
           </span>
         )}
 
-        {currentSt === "deleted_by_seller" && (
+        {rawSt === "deleted_by_seller" && (
           <span className="inline-flex items-center gap-1 rounded-md bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-800">
             <Trash2 className="size-2.5" />
             <span>
@@ -1093,14 +1156,14 @@ export default function PropertiesTable({
           className={`mb-4 flex items-center justify-between gap-3 rounded-xl border p-3.5 text-xs font-bold shadow-xs sm:text-sm ${
             notice.isError
               ? "border-red-200 bg-red-50 text-red-700"
-              : "border-emerald-200 bg-emerald-50 text-emerald-800"
+              : "border-emerald-200 bg-[#eaf8f2] text-[#007a5a]"
           }`}
         >
           <div className="flex items-center gap-2">
             {notice.isError ? (
               <AlertTriangle className="size-4 shrink-0 text-red-600" />
             ) : (
-              <CheckCircle2 className="size-4 shrink-0 text-emerald-600" />
+              <CheckCircle2 className="size-4 shrink-0 text-[#007a5a]" />
             )}
             <span>{notice.text}</span>
           </div>
@@ -1114,10 +1177,10 @@ export default function PropertiesTable({
         </div>
       )}
 
-      <div className="mb-4 flex flex-col gap-3 rounded-xl border border-gray-200/80 bg-white p-3.5 shadow-2xs sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+      <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-slate-200/90 bg-white p-3.5 shadow-2xs sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="flex w-full flex-wrap items-center gap-2 sm:max-w-xl sm:flex-1">
           <div className="relative min-w-[180px] flex-1">
-            <Search className="pointer-events-none absolute top-1/2 end-3 size-4 -translate-y-1/2 text-gray-400" />
+            <Search className="pointer-events-none absolute top-1/2 end-3 size-4 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               value={search}
@@ -1127,7 +1190,7 @@ export default function PropertiesTable({
                   ? t.filters.promoSearchPlaceholder
                   : t.filters.sellSearchPlaceholder
               }
-              className="h-9 w-full rounded-lg border border-gray-200 ps-3 pe-9 text-xs font-semibold focus:border-[#105C50] focus:outline-none"
+              className="h-9 w-full rounded-xl border border-slate-200 bg-slate-50/50 ps-3 pe-9 text-xs font-semibold focus:border-[#007a5a] focus:bg-white focus:outline-none"
             />
           </div>
 
@@ -1141,7 +1204,7 @@ export default function PropertiesTable({
                 isPromotionsPage ? "AqarExit_Promotions" : "AqarExit_Properties"
               )
             }
-            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-xs font-extrabold text-[#105C50] transition hover:bg-[#105C50] hover:text-white disabled:opacity-40"
+            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl border border-emerald-200 bg-[#eaf8f2] px-3 text-xs font-extrabold text-[#007a5a] transition hover:bg-[#007a5a] hover:text-white disabled:opacity-40"
           >
             <Download className="size-3.5" />
             <span>{expL.exportAllBtn}</span>
@@ -1157,9 +1220,9 @@ export default function PropertiesTable({
                 isPromotionsPage ? "AqarExit_Promotions" : "AqarExit_Properties"
               )
             }
-            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-slate-300 bg-[#0a1122] px-3 text-xs font-extrabold text-white transition hover:bg-[#16223f] disabled:opacity-40"
+            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-800 px-3 text-xs font-extrabold text-white transition hover:bg-slate-900 disabled:opacity-40"
           >
-            <FileText className="size-3.5 text-emerald-400" />
+            <FileText className="size-3.5 text-emerald-300" />
             <span>{expL.exportPdfBtn}</span>
           </button>
         </div>
@@ -1189,10 +1252,10 @@ export default function PropertiesTable({
                   key={tab.id}
                   type="button"
                   onClick={() => setPromoTab(tab.id)}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                  className={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${
                     promoTab === tab.id
-                      ? "bg-[#105C50] text-white"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                      ? "bg-[#007a5a] text-white"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                   }`}
                 >
                   {tab.label}
@@ -1221,14 +1284,14 @@ export default function PropertiesTable({
                   key={tab.id}
                   type="button"
                   onClick={() => setStatusFilter(tab.id)}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                  className={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${
                     statusFilter === tab.id
                       ? tab.id === "deleted"
                         ? "bg-red-600 text-white"
-                        : "bg-[#105C50] text-white"
+                        : "bg-[#007a5a] text-white"
                       : tab.id === "deleted" && deletedBySellerList.length > 0
                         ? "bg-red-50 text-red-700 hover:bg-red-100"
-                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                   }`}
                 >
                   {tab.label}
@@ -1263,15 +1326,15 @@ export default function PropertiesTable({
           </div>
         )}
 
-      {/* 1. عرض الموبايل (زر النشر ظاهر بالخارج بجانب التفاصيل والواتساب) */}
+      {/* 1. عرض الموبايل */}
       <div className="space-y-3.5 md:hidden">
         {filtered.length === 0 ? (
-          <div className="rounded-xl border border-gray-200 bg-white p-8 text-center text-xs text-gray-500">
+          <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-xs text-slate-500">
             {t.table.emptyText}
           </div>
         ) : (
           filtered.map((property) => {
-            const currentSt = normalizeRowStatus(property.status)
+            const currentSt = getEffectiveUnitStage(property)
             const stObj =
               sellerStatusOptions.find((s) => s.value === currentSt) ||
               sellerStatusOptions[0]
@@ -1300,19 +1363,19 @@ export default function PropertiesTable({
                 key={property.id}
                 className={`relative rounded-2xl border bg-white p-4 shadow-xs transition ${
                   isCardLoading
-                    ? "border-[#105C50] opacity-75"
+                    ? "border-[#007a5a] opacity-75"
                     : isHighlighted
-                      ? "border-[#105C50] ring-2 ring-[#105C50]/30"
+                      ? "border-[#007a5a] ring-2 ring-[#007a5a]/30"
                       : currentSt === "deleted_by_seller"
                         ? "border-red-300 bg-red-50/20"
                         : isFeaturedActive
                           ? "border-amber-300"
-                          : "border-gray-200/90"
+                          : "border-slate-200/90"
                 }`}
               >
                 {isCardLoading && (
                   <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-white/65 backdrop-blur-[1px]">
-                    <div className="flex items-center gap-2 rounded-full bg-[#0a1122] px-3.5 py-1.5 text-xs font-bold text-white shadow-md">
+                    <div className="flex items-center gap-2 rounded-full bg-[#0f1d40] px-3.5 py-1.5 text-xs font-bold text-white shadow-md">
                       <Loader2 className="size-3.5 animate-spin text-emerald-400" />
                       <span>{t.table.updatingText}</span>
                     </div>
@@ -1322,14 +1385,14 @@ export default function PropertiesTable({
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
-                      <span className="rounded bg-[#0a1122] px-2 py-0.5 font-mono text-[10px] font-bold text-white">
+                      <span className="rounded bg-slate-100 px-2 py-0.5 font-mono text-[10px] font-black text-[#0f1d40]">
                         {deriveShortUnitCode(property.id, property.code)}
                       </span>
-                      <h3 className="truncate text-xs font-extrabold text-[#0a1122] sm:text-sm">
+                      <h3 className="truncate text-xs font-extrabold text-[#0f1d40] sm:text-sm">
                         {property.project_name || t.table.unspecifiedProject}
                       </h3>
                     </div>
-                    <p className="mt-0.5 text-[11px] text-gray-500">
+                    <p className="mt-0.5 text-[11px] text-slate-500">
                       {localizedArea} ·{" "}
                       {property.unit_type || t.table.defaultUnitType}{" "}
                       {property.size
@@ -1342,14 +1405,14 @@ export default function PropertiesTable({
                   {renderThreeDotsMenu(property, currentSt, isFeaturedActive)}
                 </div>
 
-                <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl border border-gray-100 bg-gray-50/80 p-2.5 text-xs">
+                <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl border border-slate-100 bg-slate-50/80 p-2.5 text-xs">
                   <div>
-                    <span className="block text-[10px] text-gray-400">
+                    <span className="block text-[10px] text-slate-400">
                       {t.table.colCash}
                     </span>
                     <strong
                       dir="ltr"
-                      className="mt-0.5 block text-sm font-black text-[#105C50]"
+                      className="mt-0.5 block text-sm font-black text-[#007a5a]"
                     >
                       {property.paid_amount
                         ? `${unitCur}${Number(property.paid_amount).toLocaleString("en-US")}`
@@ -1357,22 +1420,22 @@ export default function PropertiesTable({
                     </strong>
                   </div>
 
-                  <div className="border-s border-gray-200/70 ps-2 text-[11px]">
+                  <div className="border-s border-slate-200/70 ps-2 text-[11px]">
                     <div>
-                      <span className="text-gray-400">
+                      <span className="text-slate-400">
                         {t.table.contractShort}{" "}
                       </span>
-                      <strong dir="ltr" className="text-[#0a1122]">
+                      <strong dir="ltr" className="text-[#0f1d40]">
                         {property.contract_price
                           ? `${unitCur}${Number(property.contract_price).toLocaleString("en-US")}`
                           : "—"}
                       </strong>
                     </div>
                     <div className="mt-0.5">
-                      <span className="text-gray-400">
+                      <span className="text-slate-400">
                         {t.table.marketShort}{" "}
                       </span>
-                      <strong dir="ltr" className="text-gray-700">
+                      <strong dir="ltr" className="text-slate-700">
                         {property.market_price
                           ? `${unitCur}${Number(property.market_price).toLocaleString("en-US")}`
                           : "—"}
@@ -1381,19 +1444,19 @@ export default function PropertiesTable({
                   </div>
                 </div>
 
-                <div className="mt-2.5 flex items-center justify-between rounded-xl bg-gray-50 px-3 py-2 text-xs">
-                  <div className="flex items-center gap-1.5 font-bold text-[#0a1122]">
-                    <User className="size-3.5 text-gray-400" />
+                <div className="mt-2.5 flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-xs">
+                  <div className="flex items-center gap-1.5 font-bold text-[#0f1d40]">
+                    <User className="size-3.5 text-slate-400" />
                     <span>{property.name}</span>
                   </div>
                   <div
                     dir="ltr"
-                    className="flex items-center gap-1 font-medium text-gray-600"
+                    className="flex items-center gap-1 font-medium text-slate-600"
                   >
-                    <Phone className="size-3 text-gray-400" />
+                    <Phone className="size-3 text-slate-400" />
                     <span>{property.phone}</span>
                     {phoneOk && (
-                      <CheckCircle2 className="size-3.5 text-[#105C50]" />
+                      <CheckCircle2 className="size-3.5 text-[#007a5a]" />
                     )}
                   </div>
                 </div>
@@ -1418,7 +1481,7 @@ export default function PropertiesTable({
                       <option
                         key={opt.value}
                         value={opt.value}
-                        className="bg-white text-[#0a1122]"
+                        className="bg-white text-[#0f1d40]"
                       >
                         {opt.label}
                       </option>
@@ -1426,8 +1489,7 @@ export default function PropertiesTable({
                   </select>
                 </div>
 
-                <div className="mt-2.5 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-2.5">
-                  {/* زر النشر / إيقاف النشر خارج الـ 3 نقاط في الموبايل */}
+                <div className="mt-2.5 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-2.5">
                   {renderPublishButton(property, currentSt, true)}
 
                   <Button
@@ -1436,7 +1498,7 @@ export default function PropertiesTable({
                     className="h-8.5 flex-1 rounded-xl text-xs font-bold"
                     onClick={() => setDetailsProperty(property)}
                   >
-                    <Eye className="me-1 size-3.5 text-[#105C50]" />
+                    <Eye className="me-1 size-3.5 text-[#007a5a]" />
                     {t.actions.detailsBtn}
                   </Button>
 
@@ -1445,9 +1507,9 @@ export default function PropertiesTable({
                     href={`https://wa.me/${String(property.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(waText)}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex h-8.5 flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#25D366] px-3 text-xs font-bold text-white transition hover:opacity-90"
+                    className="inline-flex h-8.5 flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#25D366] px-3 text-xs font-bold text-white transition hover:bg-[#1ebe5d]"
                   >
-                    <MessageCircle className="size-3.5" />
+                    <WhatsAppOfficialIcon className="size-4" />
                     <span>{leadsPrompts.whatsappBtn}</span>
                   </a>
                 </div>
@@ -1457,15 +1519,15 @@ export default function PropertiesTable({
         )}
       </div>
 
-      {/* 2. عرض الكمبيوتر الاحترافي (زرا النشر والتمييز خارج الـ 3 نقاط) */}
+      {/* 2. عرض الكمبيوتر */}
       <div className="hidden md:block">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200/85 bg-white px-5 py-3.5 shadow-2xs">
-          <h2 className="text-sm font-extrabold text-[#0a1122] sm:text-base">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/90 bg-white px-5 py-3.5 shadow-2xs">
+          <h2 className="text-sm font-black text-[#0f1d40] sm:text-base">
             {isPromotionsPage
               ? `${t.header.promoCountryTitle} ${georgiaLabel} (${filtered.length})`
               : `${t.header.sellCountryTitle} ${georgiaLabel} (${filtered.length})`}
           </h2>
-          <div className="flex flex-wrap items-center gap-3 text-xs font-bold text-gray-500">
+          <div className="flex flex-wrap items-center gap-3 text-xs font-bold text-slate-500">
             <span className="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-2.5 py-1 text-[#2563eb]">
               <Eye className="size-3.5" />
               <span>
@@ -1477,11 +1539,11 @@ export default function PropertiesTable({
             </span>
             <span>·</span>
             <span className="inline-flex items-center gap-1.5">
-              <span className="size-2.5 rounded-full bg-[#105C50]" />
+              <span className="size-2.5 rounded-full bg-[#007a5a]" />
               <span>
                 {
                   filtered.filter(
-                    (p) => normalizeRowStatus(p.status) === "active"
+                    (p) => getEffectiveUnitStage(p) === "active"
                   ).length
                 }{" "}
                 {t.filters.activeMarketTab}
@@ -1492,9 +1554,10 @@ export default function PropertiesTable({
               <span className="size-2.5 rounded-full bg-amber-500" />
               <span>
                 {
-                  filtered.filter(
-                    (p) => normalizeRowStatus(p.status) === "pending"
-                  ).length
+                  filtered.filter((p) => {
+                    const st = getEffectiveUnitStage(p)
+                    return st === "pending" || st === "under_review"
+                  }).length
                 }{" "}
                 {t.filters.pendingReviewTab}
               </span>
@@ -1502,7 +1565,7 @@ export default function PropertiesTable({
           </div>
         </div>
 
-        <div className="mb-2.5 grid grid-cols-12 items-center gap-4 rounded-xl border border-slate-200/90 bg-slate-100/90 px-5 py-3 text-[11px] font-extrabold text-slate-600">
+        <div className="mb-2.5 grid grid-cols-12 items-center gap-4 rounded-xl border border-slate-200/90 bg-slate-100/80 px-5 py-3 text-[11px] font-extrabold text-slate-600">
           <div className="col-span-3">{t.table.colProject}</div>
           <div className="col-span-2">{t.table.colCash}</div>
           <div className="col-span-2">{t.table.colClient}</div>
@@ -1511,13 +1574,13 @@ export default function PropertiesTable({
         </div>
 
         {filtered.length === 0 ? (
-          <div className="rounded-2xl border border-gray-200 bg-white p-12 text-center text-xs font-bold text-gray-400">
+          <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center text-xs font-bold text-slate-400">
             {t.table.emptyText}
           </div>
         ) : (
           <div className="space-y-3">
             {filtered.map((property, index) => {
-              const currentSt = normalizeRowStatus(property.status)
+              const currentSt = getEffectiveUnitStage(property)
               const stObj =
                 sellerStatusOptions.find((s) => s.value === currentSt) ||
                 sellerStatusOptions[0]
@@ -1545,18 +1608,22 @@ export default function PropertiesTable({
                 <div
                   id={`prop-row-${property.id}`}
                   key={property.id}
-                  className={`grid grid-cols-12 items-center gap-4 rounded-2xl border-2 bg-white px-5 py-4 shadow-2xs transition-all hover:shadow-md ${
+                  className={`grid grid-cols-12 items-center gap-4 rounded-2xl border bg-white px-5 py-4 shadow-2xs transition-all hover:shadow-sm ${
                     isRowLoading
-                      ? "border-[#105C50] bg-emerald-50/30 opacity-60"
+                      ? "border-[#007a5a] bg-[#eaf8f2]/30 opacity-60"
                       : isHighlighted
-                        ? "border-[#105C50] bg-emerald-50/40 ring-2 ring-[#105C50]/20"
+                        ? "border-2 border-[#007a5a] bg-[#eaf8f2]/40 ring-2 ring-[#007a5a]/20"
                         : currentSt === "active"
-                          ? "border-emerald-200/90 border-s-4 border-s-[#105C50]"
-                          : currentSt === "pending"
-                            ? "border-amber-200/90 border-s-4 border-s-amber-500"
-                            : currentSt === "deleted_by_seller"
-                              ? "border-red-200 bg-red-50/20"
-                              : "border-slate-200/90"
+                          ? "border-slate-200/90 border-s-4 border-s-[#007a5a]"
+                          : currentSt === "offer_received" ||
+                              currentSt === "transferring"
+                            ? "border-purple-200 border-s-4 border-s-purple-600"
+                            : currentSt === "pending" ||
+                                currentSt === "under_review"
+                              ? "border-amber-200/90 border-s-4 border-s-amber-500"
+                              : currentSt === "deleted_by_seller"
+                                ? "border-red-200 bg-red-50/20"
+                                : "border-slate-200/90"
                   }`}
                 >
                   <div className="col-span-3 min-w-0 pe-2">
@@ -1564,23 +1631,23 @@ export default function PropertiesTable({
                       <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[11px] font-black text-slate-600">
                         {index + 1}
                       </span>
-                      <span className="shrink-0 rounded-md bg-[#0a1122] px-2 py-0.5 font-mono text-[10.5px] font-extrabold text-white">
+                      <span className="shrink-0 rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[10.5px] font-black text-[#0f1d40]">
                         {deriveShortUnitCode(property.id, property.code)}
                       </span>
                       <Link
                         href={`/opportunities/${property.id}`}
                         target="_blank"
-                        className="truncate text-sm font-black text-[#0a1122] hover:text-[#105C50] hover:underline"
+                        className="truncate text-sm font-black text-[#0f1d40] hover:text-[#007a5a] hover:underline"
                       >
                         {property.project_name || t.table.unspecifiedProject}
                       </Link>
                       {isRowLoading && (
-                        <Loader2 className="size-4 shrink-0 animate-spin text-[#105C50]" />
+                        <Loader2 className="size-4 shrink-0 animate-spin text-[#007a5a]" />
                       )}
                     </div>
 
                     <div className="mt-1.5 flex flex-wrap items-center gap-1.5 ps-8 text-xs font-semibold text-slate-500">
-                      <span className="text-[#0a1122]">{localizedArea}</span>
+                      <span className="text-[#0f1d40]">{localizedArea}</span>
                       <span>·</span>
                       <span>
                         {property.unit_type || t.table.defaultUnitType}
@@ -1606,7 +1673,7 @@ export default function PropertiesTable({
                     </span>
                     <div
                       dir="ltr"
-                      className="mt-0.5 text-base font-black text-[#105C50] tabular-nums"
+                      className="mt-0.5 text-base font-black text-[#007a5a] tabular-nums"
                     >
                       {property.paid_amount
                         ? `${unitCur}${Number(property.paid_amount).toLocaleString("en-US")}`
@@ -1620,7 +1687,7 @@ export default function PropertiesTable({
                         </span>
                         <strong
                           dir="ltr"
-                          className="font-extrabold text-[#0a1122] tabular-nums"
+                          className="font-extrabold text-[#0f1d40] tabular-nums"
                         >
                           {property.contract_price
                             ? `${unitCur}${Number(property.contract_price).toLocaleString("en-US")}`
@@ -1644,7 +1711,7 @@ export default function PropertiesTable({
                   </div>
 
                   <div className="col-span-2 min-w-0 border-s border-slate-100 ps-4">
-                    <div className="flex items-center gap-1.5 truncate text-xs font-extrabold text-[#0a1122]">
+                    <div className="flex items-center gap-1.5 truncate text-xs font-extrabold text-[#0f1d40]">
                       <User className="size-3.5 shrink-0 text-slate-400" />
                       <span className="truncate">{property.name}</span>
                     </div>
@@ -1656,7 +1723,7 @@ export default function PropertiesTable({
                       {phoneOk && (
                         <span
                           title={propBadges.phoneVerifiedBadge}
-                          className="inline-flex text-[#105C50]"
+                          className="inline-flex text-[#007a5a]"
                         >
                           <CheckCircle2 className="size-3.5" />
                         </span>
@@ -1668,7 +1735,7 @@ export default function PropertiesTable({
                         {emailOk && (
                           <span
                             title={propBadges.emailVerifiedBadge}
-                            className="inline-flex shrink-0 text-[#105C50]"
+                            className="inline-flex shrink-0 text-[#007a5a]"
                           >
                             <CheckCircle2 className="size-3.5" />
                           </span>
@@ -1697,7 +1764,7 @@ export default function PropertiesTable({
                         <option
                           key={opt.value}
                           value={opt.value}
-                          className="bg-white text-[#0a1122]"
+                          className="bg-white text-[#0f1d40]"
                         >
                           {opt.label}
                         </option>
@@ -1705,7 +1772,6 @@ export default function PropertiesTable({
                     </select>
                   </div>
 
-                  {/* أزرار الإجراءات في الكمبيوتر: النشر + التمييز + التفاصيل + واتساب + الـ 3 نقاط */}
                   <div className="col-span-3 flex flex-wrap items-center justify-end gap-1.5 border-s border-slate-100 ps-3">
                     {currentSt === "deleted_by_seller" ? (
                       <Button
@@ -1719,7 +1785,7 @@ export default function PropertiesTable({
                             newStatus: "pending",
                           })
                         }
-                        className="h-8 rounded-xl border-emerald-200 bg-emerald-50 px-2.5 text-[11px] font-bold text-[#105C50]"
+                        className="h-8 rounded-xl border-emerald-200 bg-[#eaf8f2] px-2.5 text-[11px] font-bold text-[#007a5a]"
                       >
                         <RotateCcw className="me-1 size-3" />
                         {t.actions.restoreBtn}
@@ -1738,7 +1804,7 @@ export default function PropertiesTable({
                           className="h-8 rounded-xl px-2.5 text-[11px] font-bold"
                           onClick={() => setDetailsProperty(property)}
                         >
-                          <Eye className="me-1 size-3 text-[#105C50]" />
+                          <Eye className="me-1 size-3 text-[#007a5a]" />
                           {t.actions.detailsBtn}
                         </Button>
                       </>
@@ -1750,9 +1816,9 @@ export default function PropertiesTable({
                       target="_blank"
                       rel="noreferrer"
                       title={leadsPrompts.whatsappBtn}
-                      className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#25D366] text-white hover:opacity-90"
+                      className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#25D366] text-white shadow-2xs transition hover:bg-[#1ebe5d]"
                     >
-                      <MessageCircle className="size-3.5" />
+                      <WhatsAppOfficialIcon className="size-4" />
                     </a>
 
                     {renderThreeDotsMenu(

@@ -167,7 +167,8 @@ export default async function AdminLayout({
     .toLowerCase()
 
   const isAuthorizedStaff =
-    (cleanRole === "admin" ||
+    (cleanRole === "owner" ||
+      cleanRole === "admin" ||
       cleanRole === "moderator" ||
       cleanRole === "sales") &&
     cleanStatus !== "suspended"
@@ -187,11 +188,13 @@ export default async function AdminLayout({
 
   const adminName = user.name || shellDict.defaultAdminName
   const staffRole: StaffRole =
-    cleanRole === "admin"
-      ? "ADMIN"
-      : cleanRole === "moderator"
-        ? "MODERATOR"
-        : "SALES"
+    cleanRole === "owner"
+      ? "OWNER"
+      : cleanRole === "admin"
+        ? "ADMIN"
+        : cleanRole === "moderator"
+          ? "MODERATOR"
+          : "SALES"
 
   let notifications: AdminNotificationItem[] = []
   let unreadCount = 0

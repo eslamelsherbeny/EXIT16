@@ -4,17 +4,15 @@ import { redirect } from "next/navigation"
 import { createServerClient } from "@supabase/ssr"
 import {
   ArrowLeft,
+  BellRing,
   Building2,
+  CheckCircle2,
   Clock3,
   ExternalLink,
   FileText,
   Handshake,
-  Lock,
-  MessageCircle,
-  RefreshCw,
   Send,
   Star,
-  Wallet,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -39,20 +37,196 @@ export const revalidate = 0
 
 const PENDING_ADMIN_TAG = "__PENDING_ADMIN_VERIFICATION__"
 
+function WhatsAppOfficialIcon({ className = "size-4" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M12.031 2c-5.516 0-9.969 4.453-9.969 9.969 0 1.758.459 3.473 1.332 4.988L2 22l5.188-1.361c1.469.801 3.125 1.225 4.843 1.225 5.516 0 9.969-4.453 9.969-9.969S17.547 2 12.031 2zm5.82 14.129c-.244.688-1.422 1.314-1.977 1.396-.508.076-1.152.109-1.859-.115-.43-.137-.98-.32-1.688-.625-2.973-1.283-4.914-4.275-5.062-4.473-.148-.197-1.209-1.609-1.209-3.07 0-1.461.766-2.18 1.037-2.477.271-.297.592-.371.791-.371.197 0 .395.002.568.01.182.008.426-.068.666.508.246.592.84 2.049.914 2.197.074.148.123.32.025.518-.098.197-.148.32-.297.494-.148.172-.312.385-.445.518-.148.148-.303.309-.131.605.172.297.768 1.268 1.648 2.053 1.133 1.01 2.088 1.322 2.385 1.471.297.148.469.123.643-.074.172-.197.74-.863.938-1.16.197-.297.395-.246.666-.148.271.098 1.729.814 2.025.963.297.148.494.223.568.346.074.123.074.715-.17 1.403z" />
+    </svg>
+  )
+}
+
 const STATUS_BADGE_CLASSES: Record<string, string> = {
-  pending: "bg-amber-100 text-amber-800",
-  under_review: "bg-blue-100 text-blue-800",
-  active: "bg-emerald-100 text-emerald-800",
-  offer_received: "bg-purple-100 text-purple-800",
-  transferring: "bg-indigo-100 text-indigo-800",
-  sold: "bg-teal-700 text-white",
-  rejected: "bg-red-100 text-red-800",
+  pending: "border-amber-200 bg-amber-50 text-amber-800",
+  under_review: "border-blue-200 bg-blue-50 text-blue-800",
+  active: "border-emerald-200 bg-[#eaf8f2] text-[#007a5a]",
+  offer_received: "border-purple-200 bg-purple-50 text-purple-800",
+  transferring: "border-indigo-200 bg-indigo-50 text-indigo-800",
+  sold: "border-[#007a5a] bg-[#007a5a] text-white",
+  rejected: "border-red-200 bg-red-50 text-red-700",
+}
+
+const DASHBOARD_SECTIONS_TEXT: Record<
+  string,
+  {
+    sec1Title: string
+    sec1Sub: string
+    sec1Empty: string
+    sec1Btn: string
+    sec2Title: string
+    sec2Sub: string
+    sec2Empty: string
+    sec2Btn: string
+    colUnit: string
+    colSeller: string
+    colBuyer: string
+    colAgreedCash: string
+    colOfferedCash: string
+    colOriginalCash: string
+    colCommission: string
+    colReadiness: string
+    colAction: string
+    readiness48h: string
+    readiness1Week: string
+    readiness2Weeks: string
+    methodCheck: string
+    methodTransfer: string
+    btnApproveOffer: string
+    btnCloseDeal: string
+    specificUnitLeadBadge: string
+    generalLeadBadge: string
+  }
+> = {
+  ar: {
+    sec1Title: "١. صفقات متفق عليها جاهزة للتعاقد",
+    sec1Sub:
+      "البائع والمشتري وافقا رسمياً على السعر وتم قفل الوحدة — تواصل مع الطرفين لتوقيع التنازل وتحصيل العمولة",
+    sec1Empty: "لا توجد صفقات متفق عليها تنتظر الإغلاق حالياً.",
+    sec1Btn: "فتح الصفقات الجاهزة",
+    sec2Title: "٢. عروض شراء جديدة بانتظار موافقتك",
+    sec2Sub:
+      "عروض جديدة قدمها مشترون على وحدات محددة ولم تظهر للبائع بعد — راجع جدية المشتري ثم أرسل العرض لحساب البائع",
+    sec2Empty: "لا توجد عروض شراء جديدة تنتظر موافقتك حالياً.",
+    sec2Btn: "فتح غرفة الصفقات والعروض",
+    colUnit: "الوحدة والمشروع",
+    colSeller: "البائع (المالك)",
+    colBuyer: "المشتري (مقدم العرض)",
+    colAgreedCash: "المبلغ المتفق عليه",
+    colOfferedCash: "المبلغ المعروض",
+    colOriginalCash: "المطلوب الأصلي",
+    colCommission: "عمولة المنصة",
+    colReadiness: "جاهزية الدفع وطريقة السداد",
+    colAction: "الإجراء المطلوب",
+    readiness48h: "خلال 48 ساعة",
+    readiness1Week: "خلال أسبوع",
+    readiness2Weeks: "خلال أسبوعين",
+    methodCheck: "شيك بنكي",
+    methodTransfer: "تحويل بنكي",
+    btnApproveOffer: "مراجعة وإرسال للبائع",
+    btnCloseDeal: "إتمام البيع",
+    specificUnitLeadBadge: "مهتم بوحدة محددة",
+    generalLeadBadge: "طلب توفير عقار",
+  },
+  en: {
+    sec1Title: "1. Agreed Deals Ready for Contract Transfer",
+    sec1Sub:
+      "Both seller and buyer agreed on the price and the unit is locked — contact both parties to close & collect fee",
+    sec1Empty: "No agreed deals awaiting closing right now.",
+    sec1Btn: "Open Ready Deals",
+    sec2Title: "2. New Purchase Offers Awaiting Your Approval",
+    sec2Sub:
+      "New offers submitted by buyers on specific units and not yet visible to the seller — verify buyer & forward to seller",
+    sec2Empty: "No new purchase offers awaiting your approval right now.",
+    sec2Btn: "Open Deals & Offers Room",
+    colUnit: "Unit & Project",
+    colSeller: "Seller (Owner)",
+    colBuyer: "Buyer",
+    colAgreedCash: "Agreed Cash",
+    colOfferedCash: "Offered Cash",
+    colOriginalCash: "Original Ask",
+    colCommission: "Platform Fee",
+    colReadiness: "Payment Readiness & Method",
+    colAction: "Next Action",
+    readiness48h: "Within 48 Hours",
+    readiness1Week: "Within 1 Week",
+    readiness2Weeks: "Within 2 Weeks",
+    methodCheck: "Bank Check",
+    methodTransfer: "Bank Transfer",
+    btnApproveOffer: "Review & Send to Seller",
+    btnCloseDeal: "Complete Sale",
+    specificUnitLeadBadge: "Specific Unit Inquiry",
+    generalLeadBadge: "General Budget Request",
+  },
+  ru: {
+    sec1Title: "1. Согласованные сделки (Готовы к переоформлению)",
+    sec1Sub:
+      "Продавец и покупатель подтвердили цену — свяжитесь со сторонами для подписания переуступки и получения комиссии",
+    sec1Empty: "Сейчас нет согласованных сделок, ожидающих закрытия.",
+    sec1Btn: "Открыть готовые сделки",
+    sec2Title: "2. Новые предложения о покупке (Ждут вашего одобрения)",
+    sec2Sub:
+      "Новые предложения от покупателей по конкретным объектам, которые еще не отправлены продавцу",
+    sec2Empty: "Новых предложений, ожидающих вашего одобрения, сейчас нет.",
+    sec2Btn: "Открыть комнату сделок",
+    colUnit: "Объект и ЖК",
+    colSeller: "Продавец (Владелец)",
+    colBuyer: "Покупатель",
+    colAgreedCash: "Согласованная сумма",
+    colOfferedCash: "Предложенная сумма",
+    colOriginalCash: "Цена продавца",
+    colCommission: "Комиссия",
+    colReadiness: "Готовность и способ оплаты",
+    colAction: "Действие",
+    readiness48h: "За 48 часов",
+    readiness1Week: "За 1 неделю",
+    readiness2Weeks: "За 2 недели",
+    methodCheck: "Банковский чек",
+    methodTransfer: "Банковский перевод",
+    btnApproveOffer: "Проверить и отправить",
+    btnCloseDeal: "Завершить продажу",
+    specificUnitLeadBadge: "Запрос по объекту",
+    generalLeadBadge: "Подбор под бюджет",
+  },
+  ka: {
+    sec1Title: "1. შეთანხმებული გარიგებები (მზადაა გადასაფორმებლად)",
+    sec1Sub:
+      "გამყიდველი და მყიდველი შეთანხმდნენ ფასზე — დაუკავშირდით მხარეებს გადაფორმების დასასრულებლად",
+    sec1Empty: "ამჟამად დასასრულებელი შეთანხმებული გარიგებები არ არის.",
+    sec1Btn: "მზა გარიგებები",
+    sec2Title: "2. ახალი შესყიდვის შეთავაზებები (ელოდება თქვენს დასტურს)",
+    sec2Sub:
+      "მყიდველების მიერ კონკრეტულ ობიექტებზე გამოგზავნილი ახალი შეთავაზებები — გადაამოწმეთ და გაუგზავნეთ გამყიდველს",
+    sec2Empty: "ახალი დასადასტურებელი შეთავაზებები ამჟამად არ არის.",
+    sec2Btn: "გარიგებების ოთახის გახსნა",
+    colUnit: "ობიექტი და პროექტი",
+    colSeller: "გამყიდველი (მესაკუთრე)",
+    colBuyer: "მყიდველი",
+    colAgreedCash: "შეთანხმებული თანხა",
+    colOfferedCash: "შეთავაზებული თანხა",
+    colOriginalCash: "საწყისი ფასი",
+    colCommission: "საკომისიო",
+    colReadiness: "გადახდის მზაობა და მეთოდი",
+    colAction: "მოქმედება",
+    readiness48h: "48 საათში",
+    readiness1Week: "1 კვირაში",
+    readiness2Weeks: "2 კვირაში",
+    methodCheck: "საბანკო ჩეკი",
+    methodTransfer: "საბანკო გადარიცხვა",
+    btnApproveOffer: "გადამოწმება და გაგზავნა",
+    btnCloseDeal: "გაყიდვის დასრულება",
+    specificUnitLeadBadge: "კონკრეტული ობიექტი",
+    generalLeadBadge: "ზოგადი მოთხოვნა",
+  },
 }
 
 function normalizeUnitStatus(rawStatus?: string | null): string {
   const clean = String(rawStatus || "pending").trim().toLowerCase()
   if (clean === "approved" || clean === "published") return "active"
   return clean
+}
+
+function isUnitEligibleForOffers(status?: string | null): boolean {
+  const st = normalizeUnitStatus(status)
+  return (
+    st === "active" ||
+    st === "offer_received" ||
+    st === "transferring" ||
+    st === "sold"
+  )
 }
 
 function deriveUnitCode(id: string, dbCode?: string | null) {
@@ -133,6 +307,7 @@ export default async function AdminPage() {
 
   const staffRole = String(currentStaff.role || "user").trim().toLowerCase()
   if (
+    staffRole !== "owner" &&
     staffRole !== "admin" &&
     staffRole !== "moderator" &&
     staffRole !== "sales"
@@ -144,9 +319,12 @@ export default async function AdminPage() {
   const t = (dict?.admin?.dashboard as Record<string, any>) || {}
   const statusesDict = (t.statuses as Record<string, string>) || {}
   const leadsDict = (dict?.admin?.leads as Record<string, any>) || {}
+  const exportLabels = (dict?.admin?.exportLabels as Record<string, any>) || {}
+  const cols = (exportLabels.cols as Record<string, string>) || {}
   const sm =
     ((dict?.admin as Record<string, any>)?.smartMatch as Record<string, any>) ||
     {}
+  const L = DASHBOARD_SECTIONS_TEXT[locale] || DASHBOARD_SECTIONS_TEXT.en
 
   const georgiaLabel = t.countries?.GE || ""
   const georgiaCurrency = "$"
@@ -203,12 +381,15 @@ export default async function AdminPage() {
 
   const propsMap = new Map(properties.map((p: any) => [String(p.id), p]))
   const leads = leadsData
+
+  /* تصفية العروض لاستبعاد أي وحدة لا تزال قيد المراجعة أو غير منشورة بالسوق */
   const allOffers = allOffersData
     .map(normalizeDashboardOffer)
     .filter((o: any) => {
-      if (o.status === "recommended") return false
+      if (o.status === "recommended" || o.status === "rejected") return false
       const unit = propsMap.get(String(o.property_id))
       if (!unit || isSelfDealOffer(o, unit)) return false
+      if (!isUnitEligibleForOffers(unit.status)) return false
       return true
     })
 
@@ -218,10 +399,27 @@ export default async function AdminPage() {
       .map((o: any) => String(o.property_id))
   )
 
-  const pendingAdminOffersCount = allOffers.filter(
-    (o: any) => o.status === "pending_admin"
-  ).length
+  const unitsWithSellerPendingOffer = new Set(
+    allOffers
+      .filter(
+        (o: any) =>
+          o.status === "pending_seller" || o.status === "counter_offered"
+      )
+      .map((o: any) => String(o.property_id))
+  )
 
+  function resolveEffectiveUnitStatus(unit: any): string {
+    const rawSt = normalizeUnitStatus(unit.status)
+    if (!isUnitEligibleForOffers(rawSt) || rawSt === "sold") {
+      return rawSt
+    }
+    const uid = String(unit.id)
+    if (unitsWithAcceptedOffer.has(uid)) return "transferring"
+    if (unitsWithSellerPendingOffer.has(uid)) return "offer_received"
+    return "active"
+  }
+
+  /* 1. الصفقات المتفق عليها الجاهزة للتعاقد (تظهر في الكارت الأول المستقل) */
   const readyDeals = allOffers
     .filter((o: any) => o.status === "accepted")
     .map((offer: any) => ({
@@ -230,23 +428,32 @@ export default async function AdminPage() {
     }))
     .filter((item) => Boolean(item.unit) && item.unit.status !== "sold")
 
-  const liveNegotiationOffers = allOffers
-    .map((offer: any) => {
-      const unit = propsMap.get(String(offer.property_id))
-      let displayStatus = offer.status
-      if (
-        displayStatus === "pending_seller" &&
-        unitsWithAcceptedOffer.has(String(offer.property_id))
-      ) {
-        displayStatus = "unit_locked"
-      }
-      return {
-        offer: { ...offer, status: displayStatus },
-        unit,
-      }
-    })
-    .filter((item) => Boolean(item.unit))
-    .slice(0, 8)
+  /* 2. عروض الشراء الجديدة فقط التي تنتظر موافقة الأدمن لإرسالها للبائع (الكارت الثاني المستقل) */
+  const newPendingAdminOffers = allOffers
+    .filter(
+      (o: any) =>
+        o.status === "pending_admin" &&
+        !unitsWithAcceptedOffer.has(String(o.property_id))
+    )
+    .map((offer: any) => ({
+      offer,
+      unit: propsMap.get(String(offer.property_id)),
+    }))
+    .filter((item) => Boolean(item.unit) && item.unit.status !== "sold")
+
+  /* إجمالي العروض النشطة في غرفة الصفقات (شاملاً العروض المرسلة للبائع) لعرض العدد في كارت الإحصائيات العلوي */
+  const totalActiveDealsRoomCount = allOffers.filter((o: any) => {
+    const u = propsMap.get(String(o.property_id))
+    if (!u || u.status === "sold") return false
+    return (
+      o.status === "accepted" ||
+      o.status === "pending_admin" ||
+      o.status === "pending_seller" ||
+      o.status === "counter_offered"
+    )
+  }).length
+
+  const pendingAdminOffersCount = newPendingAdminOffers.length
 
   const pendingProperties = properties.filter(
     (p) => !p.status || p.status === "pending" || p.status === "under_review"
@@ -271,6 +478,8 @@ export default async function AdminPage() {
       note: `${activeProperties.length.toLocaleString("en-US")} ${t.publishedNote || ""}`,
       icon: Building2,
       href: "/admin/properties",
+      iconWrap: "bg-[#eaf8f2] text-[#007a5a]",
+      noteClass: "text-slate-500",
     },
     {
       label: t.pendingReview || "",
@@ -281,18 +490,34 @@ export default async function AdminPage() {
           : t.allReviewed || "",
       icon: Clock3,
       href: "/admin/properties?tab=pending",
-      highlight: pendingProperties.length > 0,
+      iconWrap: "bg-amber-50 text-amber-600",
+      noteClass:
+        pendingProperties.length > 0 ? "text-amber-700" : "text-slate-500",
     },
     {
       label: t.dealsRoomKpiLabel || sm.dealsRoomTitle || "",
-      value: allOffers.length.toLocaleString("en-US"),
+      value: totalActiveDealsRoomCount.toLocaleString("en-US"),
       note:
         pendingAdminOffersCount > 0
           ? `${pendingAdminOffersCount} ${t.offersPendingYourApprovalNote || ""}`
           : `${readyDeals.length} ${t.dealsReadyToCloseNote || ""}`,
       icon: Handshake,
       href: "/admin/deals",
-      highlight: pendingAdminOffersCount > 0 || readyDeals.length > 0,
+      iconWrap: "bg-[#eaf8f2] text-[#007a5a]",
+      noteClass: "text-[#007a5a]",
+    },
+    {
+      label: t.adRequests || "",
+      value: pendingAdRequests.length.toLocaleString("en-US"),
+      note:
+        pendingAdRequests.length > 0
+          ? `${pendingAdRequests.length} ${t.adPendingNote || ""}`
+          : `${activeFeaturedUnits.length} ${t.adActiveNote || ""}`,
+      icon: Star,
+      href: "/admin/promotions",
+      iconWrap: "bg-amber-50 text-amber-600",
+      noteClass:
+        pendingAdRequests.length > 0 ? "text-amber-700" : "text-slate-500",
     },
     {
       label: t.totalBuyerLeads || dict?.admin?.shell?.nav?.leads || "",
@@ -300,595 +525,707 @@ export default async function AdminPage() {
       note: `${leads.length.toLocaleString("en-US")} ${t.buyRequestsWord || t.generalRequestsNote || ""}`,
       icon: FileText,
       href: "/admin/leads",
+      iconWrap: "bg-blue-50 text-blue-600",
+      noteClass: "text-slate-500",
     },
   ]
 
   return (
-    <div dir={dir} className="mx-auto max-w-7xl text-start">
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-        {kpis.map(({ label, value, note, icon: Icon, href, highlight }) => (
-          <Link
-            key={href}
-            href={href}
-            className="group block h-full transition-transform hover:-translate-y-0.5"
-          >
-            <Card
-              className={`h-full border transition ${
-                highlight
-                  ? "border-[#105C50]/40 bg-gradient-to-br from-[#eff8f6] to-white"
-                  : "border-gray-200/80 bg-white hover:border-[#105C50]/50"
-              }`}
+    <div dir={dir} className="mx-auto max-w-7xl space-y-6 text-start">
+      {/* صف الإحصائيات السريعة (5 كروت بأرقام في المنتصف تماماً) */}
+      <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3 xl:grid-cols-5">
+        {kpis.map(
+          ({ label, value, note, icon: Icon, href, iconWrap, noteClass }) => (
+            <Link
+              key={href}
+              href={href}
+              className="group block h-full transition-transform duration-150 hover:-translate-y-0.5"
             >
-              <CardContent className="flex h-full flex-col justify-between p-3.5 sm:p-4">
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${
-                      highlight
-                        ? "bg-[#105C50] text-white"
-                        : "bg-[#105C50]/10 text-[#105C50]"
-                    }`}
+              <Card className="h-full rounded-2xl border border-slate-200/90 bg-white shadow-2xs transition-all hover:border-[#007a5a]/40 hover:shadow-sm">
+                <CardContent className="flex h-full flex-col justify-between p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="line-clamp-1 text-xs font-extrabold text-slate-600 group-hover:text-[#0f1d40]">
+                      {label}
+                    </p>
+                    <span
+                      className={`flex size-9 shrink-0 items-center justify-center rounded-xl ${iconWrap}`}
+                    >
+                      <Icon className="size-4 shrink-0" />
+                    </span>
+                  </div>
+
+                  <div
+                    dir="ltr"
+                    className="my-3 text-center text-3xl font-black tracking-tight text-[#0f1d40] tabular-nums"
                   >
-                    <Icon className="size-4 shrink-0" />
-                  </span>
-                  <p className="line-clamp-2 text-[11.5px] leading-snug font-extrabold text-[#0a1122] group-hover:text-[#105C50] sm:text-xs">
-                    {label}
-                  </p>
-                </div>
+                    {value}
+                  </div>
 
-                <div
-                  dir="ltr"
-                  className="my-3 text-center text-2xl font-black text-[#0a1122] tabular-nums sm:text-3xl"
-                >
-                  {value}
-                </div>
-
-                <p
-                  className={`line-clamp-1 text-center text-[10.5px] font-semibold sm:text-[11px] ${
-                    highlight ? "text-[#105C50]" : "text-gray-400"
-                  }`}
-                >
-                  {note}
-                </p>
-              </CardContent>
-            </Card>
-          </Link>
-        ))}
+                  <div className="flex items-center justify-between border-t border-slate-100 pt-2.5">
+                    <span
+                      className={`line-clamp-1 text-[11px] font-bold ${noteClass}`}
+                    >
+                      {note}
+                    </span>
+                    <ArrowLeft className="size-3 shrink-0 text-slate-300 transition-colors group-hover:text-[#007a5a] rtl:rotate-0 ltr:rotate-180" />
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          )
+        )}
       </div>
 
-      {pendingAdminOffersCount > 0 && (
-        <Link
-          href="/admin/deals?tab=pending_admin"
-          className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-amber-400 bg-amber-50/90 p-4 shadow-xs transition hover:bg-amber-100/70"
-        >
+      {/* السيكشن الأول (مستقل ومميز باللون الأخضر): صفقات متفق عليها جاهزة للتعاقد */}
+      <Card className="overflow-hidden rounded-2xl border-2 border-emerald-200 bg-white shadow-2xs">
+        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 border-b border-emerald-100 bg-[#eaf8f2]/65 px-5 py-4">
           <div className="flex items-center gap-3">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white">
-              <Send className="size-5" />
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#007a5a] text-white shadow-2xs">
+              <Handshake className="size-5" />
             </span>
             <div>
-              <p className="text-xs font-black text-[#0a1122] sm:text-sm">
-                {t.pendingOffersAlertPrefix} ({pendingAdminOffersCount}){" "}
-                {t.pendingOffersAlertSuffix}
-              </p>
-              <p className="mt-0.5 text-[11px] font-semibold text-amber-900">
-                {t.pendingOffersAlertSub}
-              </p>
-            </div>
-          </div>
-          <span className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-[#0a1122] px-4 text-xs font-extrabold text-white">
-            <span>{t.openDealsRoomBtn}</span>
-            <ArrowLeft className="size-3.5 rtl:rotate-0 ltr:rotate-180" />
-          </span>
-        </Link>
-      )}
-
-      <Link
-        href="/admin/promotions"
-        className={`mt-3.5 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3.5 shadow-2xs transition hover:shadow-xs sm:mt-4 sm:px-4 ${
-          pendingAdRequests.length > 0
-            ? "border-amber-400 bg-gradient-to-l from-amber-50/90 to-white"
-            : "border-gray-200/85 bg-white hover:border-amber-300"
-        }`}
-      >
-        <div className="flex min-w-0 items-center gap-3">
-          <span
-            className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${
-              pendingAdRequests.length > 0
-                ? "bg-amber-500 text-white"
-                : "bg-amber-100 text-amber-700"
-            }`}
-          >
-            <Star className="size-4 shrink-0 fill-current" />
-          </span>
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="text-xs font-extrabold text-[#0a1122] sm:text-sm">
-                {t.adRequests}
-              </p>
-
-              <span
-                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10.5px] font-extrabold ${
-                  pendingAdRequests.length > 0
-                    ? "bg-red-600 text-white shadow-2xs"
-                    : "bg-amber-100 text-amber-900"
-                }`}
-              >
-                <span dir="ltr">{pendingAdRequests.length}</span>
-                <span>{t.adPendingNote}</span>
-              </span>
-
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10.5px] font-bold text-[#105C50]">
-                <span dir="ltr">{activeFeaturedUnits.length}</span>
-                <span>{t.adActiveNote}</span>
-              </span>
-            </div>
-
-            {pendingAdRequests.length > 0 && (
-              <p className="mt-1 truncate text-[11px] font-bold text-amber-900">
-                {t.adAlertPrefix}{" "}
-                <span className="font-mono">
-                  {pendingAdRequests
-                    .map((p) => p.featured_fawry_code || "AD")
-                    .join(" , ")}
-                </span>
-              </p>
-            )}
-          </div>
-        </div>
-
-        <span className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg bg-[#0a1122] px-3 text-[11px] font-bold text-white">
-          <span>{t.openAdRequests}</span>
-          <ArrowLeft className="size-3 rtl:rotate-0 ltr:rotate-180" />
-        </span>
-      </Link>
-
-      {readyDeals.length > 0 && (
-        <div className="mt-4 rounded-2xl border-2 border-[#105C50] bg-gradient-to-br from-[#effaf5] via-white to-[#f4fbf8] p-4 shadow-sm sm:p-5">
-          <div className="mb-3.5 flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <span className="flex size-9 items-center justify-center rounded-xl bg-[#105C50] text-white shadow-xs">
-                <Handshake className="size-5" />
-              </span>
-              <div>
-                <h2 className="text-sm font-black text-[#0a1122] sm:text-base">
-                  🔥 {sm.readyDealsTitle} ({readyDeals.length})
-                </h2>
-                <p className="text-[11px] font-semibold text-[#105C50]">
-                  {sm.readyDealsSubtitle}
-                </p>
-              </div>
-            </div>
-            <Link
-              href="/admin/deals?tab=accepted"
-              className="rounded-xl bg-[#105C50] px-3.5 py-1.5 text-xs font-extrabold text-white hover:bg-[#0c483f]"
-            >
-              {t.manageAndCloseDealsBtn}
-            </Link>
-          </div>
-
-          <div
-            className={`grid grid-cols-1 gap-3 ${
-              readyDeals.length > 1 ? "md:grid-cols-2" : "md:grid-cols-1"
-            }`}
-          >
-            {readyDeals.map(({ offer, unit }) => {
-              const uCode = deriveUnitCode(unit.id, unit.code)
-              const cur = georgiaCurrency
-              const agreedCash = Number(offer.offered_cash) || 0
-              const commissionBase =
-                Number(unit.contract_price) || agreedCash || 0
-              const platformCommission = Math.round(
-                commissionBase * (commPct / 100)
-              )
-              const localizedArea = cleanAreaDisplay(unit.area, locale)
-
-              const sellerWa = `${leadsDict.waGeneralPrefix || ""} ${unit.name}${listSep}(${unit.project_name || t.defaultUnit || ""} - ${uCode}) — ${sm.agreedCashLabel || ""}: ${agreedCash.toLocaleString("en-US")} ${cur}`
-              const buyerWa = `${leadsDict.waUnitLeadPrefix || ""} ${offer.buyer_name || ""}${listSep}(${unit.project_name || t.defaultUnit || ""} - ${uCode}) — ${sm.agreedCashLabel || ""}: ${agreedCash.toLocaleString("en-US")} ${cur}`
-
-              return (
-                <div
-                  key={offer.id}
-                  className="rounded-xl border border-emerald-200 bg-white p-4 shadow-2xs"
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-sm font-black text-[#0f1d40] sm:text-base">
+                  {L.sec1Title}
+                </CardTitle>
+                <span
+                  dir="ltr"
+                  className="rounded-full bg-[#007a5a] px-2.5 py-0.5 text-xs font-black text-white"
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 pb-2.5">
-                    <div className="flex items-center gap-1.5">
-                      <span className="rounded bg-[#0a1122] px-2 py-0.5 font-mono text-[10px] font-extrabold text-white">
-                        {uCode}
-                      </span>
-                      <span className="text-xs font-black text-[#0a1122] sm:text-sm">
-                        {unit.project_name || t.defaultUnit} · {localizedArea}
-                      </span>
-                    </div>
-                    <Link
-                      href={`/admin/deals?offerId=${offer.id}`}
-                      className="rounded-lg bg-emerald-100 px-2.5 py-1 text-[10.5px] font-extrabold text-[#105C50] hover:bg-emerald-200"
-                    >
-                      {t.openInDealsRoomBtn}
-                    </Link>
-                  </div>
-
-                  <div className="mt-3 grid grid-cols-1 gap-2.5 text-xs sm:grid-cols-2">
-                    <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
-                      <span className="block text-[10px] font-bold text-gray-400">
-                        {sm.sellerPartyLabel}
-                      </span>
-                      <strong className="mt-0.5 block truncate font-extrabold text-[#0a1122]">
-                        {unit.name}
-                      </strong>
-                      <span
-                        dir="ltr"
-                        className="mt-0.5 block font-mono text-[11px] text-gray-600"
-                      >
-                        {unit.phone}
-                      </span>
-                      <a
-                        data-admin-client-wa="true"
-                        href={`https://wa.me/${String(unit.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(sellerWa)}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="mt-2 inline-flex h-8 w-full items-center justify-center gap-1 rounded-lg bg-[#25D366] px-2 text-[10.5px] font-extrabold text-white"
-                      >
-                        <MessageCircle className="size-3" />
-                        <span>{sm.contactSellerWa}</span>
-                      </a>
-                    </div>
-
-                    <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
-                      <span className="block text-[10px] font-bold text-gray-400">
-                        {sm.buyerPartyLabel}
-                      </span>
-                      <strong className="mt-0.5 block truncate font-extrabold text-[#0a1122]">
-                        {offer.buyer_name || "—"}
-                      </strong>
-                      <span
-                        dir="ltr"
-                        className="mt-0.5 block font-mono text-[11px] text-gray-600"
-                      >
-                        {offer.buyer_phone || "—"}
-                      </span>
-                      <a
-                        data-admin-client-wa="true"
-                        href={`https://wa.me/${String(offer.buyer_phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(buyerWa)}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="mt-2 inline-flex h-8 w-full items-center justify-center gap-1 rounded-lg bg-[#25D366] px-2 text-[10.5px] font-extrabold text-white"
-                      >
-                        <MessageCircle className="size-3" />
-                        <span>{sm.contactBuyerWa}</span>
-                      </a>
-                    </div>
-                  </div>
-
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[#effaf5] px-3.5 py-2.5 text-xs">
-                    <div>
-                      <span className="text-[10.5px] text-gray-500">
-                        {sm.agreedCashLabel}:{" "}
-                      </span>
-                      <strong
-                        dir="ltr"
-                        className="font-black text-[#105C50] tabular-nums"
-                      >
-                        {cur}
-                        {agreedCash.toLocaleString("en-US")}
-                      </strong>
-                    </div>
-                    <div>
-                      <span className="text-[10.5px] text-gray-500">
-                        {sm.commissionDueLabel} ({commPct}%):{" "}
-                      </span>
-                      <strong
-                        dir="ltr"
-                        className="font-black text-[#0a1122] tabular-nums"
-                      >
-                        {cur}
-                        {platformCommission.toLocaleString("en-US")}
-                      </strong>
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      {liveNegotiationOffers.length > 0 && (
-        <Card className="mt-4 border-gray-200/85 bg-white shadow-2xs">
-          <CardHeader className="flex flex-row items-center justify-between border-b border-gray-100 px-4 py-3 sm:px-5">
-            <div className="flex items-center gap-2">
-              <Wallet className="size-4 text-[#105C50]" />
-              <CardTitle className="text-xs font-extrabold text-[#0a1122] sm:text-sm">
-                {sm.liveOffersFeedTitle} ({liveNegotiationOffers.length})
-              </CardTitle>
+                  {readyDeals.length}
+                </span>
+              </div>
+              <p className="mt-0.5 text-[11.5px] font-semibold text-[#007a5a]">
+                {L.sec1Sub}
+              </p>
             </div>
-            <Link
-              href="/admin/deals"
-              className="flex items-center gap-1 text-xs font-bold text-[#105C50] hover:underline"
-            >
-              <span>{t.openFullDealsRoomLink}</span>
-              <ArrowLeft className="size-3.5 rtl:rotate-0 ltr:rotate-180" />
-            </Link>
-          </CardHeader>
-          <CardContent className="p-3.5">
-            <div
-              className={`grid grid-cols-1 gap-2.5 ${
-                liveNegotiationOffers.length > 1
-                  ? "md:grid-cols-2"
-                  : "md:grid-cols-1"
-              }`}
-            >
-              {liveNegotiationOffers.map(({ offer, unit }) => {
-                const uCode = deriveUnitCode(unit.id, unit.code)
-                const cur = georgiaCurrency
-                const st = offer.status
-                const localizedArea = cleanAreaDisplay(unit.area, locale)
+          </div>
 
-                return (
-                  <Link
-                    key={offer.id}
-                    href={`/admin/deals?offerId=${offer.id}`}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200/90 bg-gray-50/70 px-4 py-3 text-xs transition hover:border-[#105C50]/60 hover:bg-white hover:shadow-2xs"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded-md bg-[#0a1122] px-2 py-0.5 font-mono text-[10px] font-bold text-white">
-                          {uCode}
-                        </span>
-                        <span className="truncate text-[13px] font-extrabold text-[#0a1122]">
-                          {unit.project_name || t.defaultUnit}
-                        </span>
-                        {localizedArea && (
-                          <span className="text-[11px] font-semibold text-gray-400">
-                            · {localizedArea}
-                          </span>
-                        )}
-                        <span className="text-xs text-gray-400">←</span>
-                        <span className="truncate font-extrabold text-[#105C50]">
-                          {offer.buyer_name || "—"}
-                        </span>
-                      </div>
-                      <div className="mt-1.5 flex flex-wrap items-center gap-3 text-[11.5px] text-gray-600">
-                        <span>
-                          {sm.agreedCashLabel}:{" "}
+          <Link
+            href="/admin/deals?tab=accepted"
+            className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-[#007a5a] px-4 text-xs font-extrabold text-white transition hover:bg-[#006248]"
+          >
+            <span>{L.sec1Btn}</span>
+            <ArrowLeft className="size-3.5 rtl:rotate-0 ltr:rotate-180" />
+          </Link>
+        </CardHeader>
+
+        <CardContent className="p-0">
+          {readyDeals.length === 0 ? (
+            <div className="flex items-center justify-center gap-2 py-7 text-xs font-bold text-slate-400">
+              <CheckCircle2 className="size-4 text-emerald-500" />
+              <span>{L.sec1Empty}</span>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-start text-xs">
+                <thead>
+                  <tr className="border-b border-slate-100 bg-slate-50/80 text-[11px] font-extrabold text-slate-500">
+                    <th className="px-5 py-3 text-start">{L.colUnit}</th>
+                    <th className="px-3 py-3 text-start">{L.colSeller}</th>
+                    <th className="px-3 py-3 text-start">{L.colBuyer}</th>
+                    <th className="px-3 py-3 text-start">{L.colAgreedCash}</th>
+                    <th className="px-3 py-3 text-start">
+                      {L.colCommission} ({commPct}%)
+                    </th>
+                    <th className="px-5 py-3 text-end">{L.colAction}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {readyDeals.map(({ offer, unit }) => {
+                    const uCode = deriveUnitCode(unit.id, unit.code)
+                    const cur = georgiaCurrency
+                    const agreedCash = Number(offer.offered_cash) || 0
+                    const commissionBase =
+                      Number(unit.contract_price) || agreedCash || 0
+                    const platformCommission = Math.round(
+                      commissionBase * (commPct / 100)
+                    )
+                    const localizedArea = cleanAreaDisplay(unit.area, locale)
+
+                    const sellerWa = `${leadsDict.waGeneralPrefix || ""} ${unit.name}${listSep}(${unit.project_name || t.defaultUnit || ""} - ${uCode}) — ${sm.agreedCashLabel || ""}: ${agreedCash.toLocaleString("en-US")} ${cur}`
+                    const buyerWa = `${leadsDict.waUnitLeadPrefix || ""} ${offer.buyer_name || ""}${listSep}(${unit.project_name || t.defaultUnit || ""} - ${uCode}) — ${sm.agreedCashLabel || ""}: ${agreedCash.toLocaleString("en-US")} ${cur}`
+
+                    return (
+                      <tr
+                        key={offer.id}
+                        className="transition hover:bg-[#eaf8f2]/25"
+                      >
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center gap-2">
+                            <span className="rounded-md bg-[#eaf8f2] px-2 py-0.5 font-mono text-[10.5px] font-black text-[#007a5a]">
+                              {uCode}
+                            </span>
+                            <span className="font-extrabold text-[#0f1d40]">
+                              {unit.project_name || t.defaultUnit}
+                            </span>
+                          </div>
+                          <p className="mt-0.5 text-[11px] font-medium text-slate-400">
+                            {localizedArea}
+                          </p>
+                        </td>
+
+                        <td className="px-3 py-3.5">
+                          <div className="flex items-center gap-2.5">
+                            <a
+                              data-admin-client-wa="true"
+                              href={`https://wa.me/${String(unit.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(sellerWa)}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              title={sm.contactSellerWa}
+                              className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#25D366] text-white shadow-2xs transition hover:bg-[#1ebe5d]"
+                            >
+                              <WhatsAppOfficialIcon className="size-4" />
+                            </a>
+                            <div className="min-w-0">
+                              <p className="truncate font-extrabold text-[#0f1d40]">
+                                {unit.name || "—"}
+                              </p>
+                              <p
+                                dir="ltr"
+                                className="font-mono text-[11px] text-slate-400"
+                              >
+                                {unit.phone || "—"}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className="px-3 py-3.5">
+                          <div className="flex items-center gap-2.5">
+                            <a
+                              data-admin-client-wa="true"
+                              href={`https://wa.me/${String(offer.buyer_phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(buyerWa)}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              title={sm.contactBuyerWa}
+                              className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#25D366] text-white shadow-2xs transition hover:bg-[#1ebe5d]"
+                            >
+                              <WhatsAppOfficialIcon className="size-4" />
+                            </a>
+                            <div className="min-w-0">
+                              <p className="truncate font-extrabold text-[#0f1d40]">
+                                {offer.buyer_name || "—"}
+                              </p>
+                              <p
+                                dir="ltr"
+                                className="font-mono text-[11px] text-slate-400"
+                              >
+                                {offer.buyer_phone || "—"}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className="px-3 py-3.5">
                           <strong
                             dir="ltr"
-                            className="font-black text-[#0a1122] tabular-nums"
+                            className="text-sm font-black text-[#007a5a] tabular-nums"
                           >
                             {cur}
-                            {Number(offer.offered_cash || 0).toLocaleString(
-                              "en-US"
-                            )}
+                            {agreedCash.toLocaleString("en-US")}
                           </strong>
-                        </span>
-                        {offer.counter_cash && (
-                          <span className="font-bold text-purple-800">
-                            (🔄{" "}
+                        </td>
+
+                        <td className="px-3 py-3.5">
+                          <strong
+                            dir="ltr"
+                            className="rounded-md bg-[#eaf8f2] px-2.5 py-1 text-xs font-black text-[#007a5a] tabular-nums"
+                          >
+                            {cur}
+                            {platformCommission.toLocaleString("en-US")}
+                          </strong>
+                        </td>
+
+                        <td className="px-5 py-3.5 text-end">
+                          <Link
+                            href={`/admin/deals?offerId=${offer.id}`}
+                            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#007a5a] px-3.5 text-[11px] font-extrabold text-white transition hover:bg-[#006248]"
+                          >
+                            <span>{L.btnCloseDeal}</span>
+                            <ArrowLeft className="size-3 rtl:rotate-0 ltr:rotate-180" />
+                          </Link>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* السيكشن الثاني (مخصص فقط لعروض الشراء الجديدة التي تنتظر موافقة الأدمن لإرسالها للبائع) */}
+      <Card
+        className={`overflow-hidden rounded-2xl border bg-white shadow-2xs ${
+          pendingAdminOffersCount > 0
+            ? "border-2 border-amber-300"
+            : "border-slate-200/90"
+        }`}
+      >
+        <CardHeader
+          className={`flex flex-row flex-wrap items-center justify-between gap-3 border-b px-5 py-4 ${
+            pendingAdminOffersCount > 0
+              ? "border-amber-100 bg-amber-50/60"
+              : "border-slate-100 bg-slate-50/60"
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <span
+              className={`flex size-10 shrink-0 items-center justify-center rounded-xl text-white shadow-2xs ${
+                pendingAdminOffersCount > 0 ? "bg-amber-500" : "bg-slate-400"
+              }`}
+            >
+              <BellRing className="size-5" />
+            </span>
+            <div>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-sm font-black text-[#0f1d40] sm:text-base">
+                  {L.sec2Title}
+                </CardTitle>
+                <span
+                  dir="ltr"
+                  className={`rounded-full px-2.5 py-0.5 text-xs font-black text-white ${
+                    pendingAdminOffersCount > 0 ? "bg-amber-500" : "bg-slate-400"
+                  }`}
+                >
+                  {newPendingAdminOffers.length}
+                </span>
+              </div>
+              <p className="mt-0.5 text-[11.5px] font-semibold text-slate-500">
+                {L.sec2Sub}
+              </p>
+            </div>
+          </div>
+
+          <Link
+            href="/admin/deals"
+            className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 text-xs font-extrabold text-[#0f1d40] transition hover:border-[#007a5a] hover:text-[#007a5a]"
+          >
+            <span>{L.sec2Btn}</span>
+            <ArrowLeft className="size-3.5 rtl:rotate-0 ltr:rotate-180" />
+          </Link>
+        </CardHeader>
+
+        <CardContent className="p-0">
+          {newPendingAdminOffers.length === 0 ? (
+            <div className="flex items-center justify-center gap-2 py-7 text-xs font-bold text-slate-400">
+              <CheckCircle2 className="size-4 text-slate-300" />
+              <span>{L.sec2Empty}</span>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-start text-xs">
+                <thead>
+                  <tr className="border-b border-slate-100 bg-slate-50/70 text-[11px] font-extrabold text-slate-500">
+                    <th className="px-5 py-3 text-start">{L.colUnit}</th>
+                    <th className="px-3 py-3 text-start">{L.colBuyer}</th>
+                    <th className="px-3 py-3 text-start">{L.colSeller}</th>
+                    <th className="px-3 py-3 text-start">{L.colOfferedCash}</th>
+                    <th className="px-3 py-3 text-start">{L.colReadiness}</th>
+                    <th className="px-5 py-3 text-end">{L.colAction}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {newPendingAdminOffers.slice(0, 6).map(({ offer, unit }) => {
+                    const uCode = deriveUnitCode(unit.id, unit.code)
+                    const cur = georgiaCurrency
+                    const offeredCash = Number(offer.offered_cash) || 0
+                    const originalCash =
+                      Number(unit.paid_amount || offer.required_cash) || 0
+                    const localizedArea = cleanAreaDisplay(unit.area, locale)
+
+                    const readinessText =
+                      offer.payment_readiness === "48h"
+                        ? L.readiness48h
+                        : offer.payment_readiness === "1_week"
+                          ? L.readiness1Week
+                          : L.readiness2Weeks
+                    const methodText =
+                      offer.payment_method === "bank_check"
+                        ? L.methodCheck
+                        : L.methodTransfer
+
+                    const buyerWa = `${leadsDict.waUnitLeadPrefix || ""} ${offer.buyer_name || ""}${listSep}(${unit.project_name || t.defaultUnit || ""} - ${uCode}) — ${sm.agreedCashLabel || ""}: ${offeredCash.toLocaleString("en-US")} ${cur}`
+                    const sellerWa = `${leadsDict.waGeneralPrefix || ""} ${unit.name}${listSep}(${unit.project_name || t.defaultUnit || ""} - ${uCode}) — ${sm.agreedCashLabel || ""}: ${offeredCash.toLocaleString("en-US")} ${cur}`
+
+                    return (
+                      <tr
+                        key={offer.id}
+                        className="bg-amber-50/20 transition hover:bg-amber-50/50"
+                      >
+                        <td className="px-5 py-3.5">
+                          <Link
+                            href={`/admin/deals?offerId=${offer.id}`}
+                            className="block"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[10px] font-black text-[#0f1d40]">
+                                {uCode}
+                              </span>
+                              <span className="font-extrabold text-[#0f1d40] hover:text-[#007a5a]">
+                                {unit.project_name || t.defaultUnit}
+                              </span>
+                            </div>
+                            <p className="mt-0.5 text-[11px] font-medium text-slate-400">
+                              {localizedArea}
+                            </p>
+                          </Link>
+                        </td>
+
+                        <td className="px-3 py-3.5">
+                          <div className="flex items-center gap-2.5">
+                            <a
+                              data-admin-client-wa="true"
+                              href={`https://wa.me/${String(offer.buyer_phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(buyerWa)}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              title={sm.contactBuyerWa}
+                              className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#25D366] text-white shadow-2xs transition hover:bg-[#1ebe5d]"
+                            >
+                              <WhatsAppOfficialIcon className="size-4" />
+                            </a>
+                            <div className="min-w-0">
+                              <p className="truncate font-extrabold text-[#0f1d40]">
+                                {offer.buyer_name || "—"}
+                              </p>
+                              <p
+                                dir="ltr"
+                                className="font-mono text-[11px] text-slate-400"
+                              >
+                                {offer.buyer_phone || "—"}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className="px-3 py-3.5">
+                          <div className="flex items-center gap-2.5">
+                            <a
+                              data-admin-client-wa="true"
+                              href={`https://wa.me/${String(unit.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(sellerWa)}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              title={sm.contactSellerWa}
+                              className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#25D366] text-white shadow-2xs transition hover:bg-[#1ebe5d]"
+                            >
+                              <WhatsAppOfficialIcon className="size-4" />
+                            </a>
+                            <div className="min-w-0">
+                              <p className="truncate font-bold text-slate-700">
+                                {unit.name || "—"}
+                              </p>
+                              <p
+                                dir="ltr"
+                                className="font-mono text-[11px] text-slate-400"
+                              >
+                                {unit.phone || "—"}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className="px-3 py-3.5">
+                          <strong
+                            dir="ltr"
+                            className="text-sm font-black text-[#007a5a] tabular-nums"
+                          >
+                            {cur}
+                            {offeredCash.toLocaleString("en-US")}
+                          </strong>
+                          <p className="mt-0.5 text-[10.5px] font-semibold text-slate-400">
+                            {L.colOriginalCash}:{" "}
                             <span dir="ltr">
                               {cur}
-                              {Number(offer.counter_cash).toLocaleString(
-                                "en-US"
-                              )}
+                              {originalCash.toLocaleString("en-US")}
                             </span>
-                            )
+                          </p>
+                        </td>
+
+                        <td className="px-3 py-3.5">
+                          <span className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-white px-2.5 py-1 text-[11px] font-extrabold text-amber-900">
+                            <span>⚡ {readinessText}</span>
+                            <span>·</span>
+                            <span>{methodText}</span>
                           </span>
-                        )}
-                      </div>
-                    </div>
+                        </td>
 
-                    <div className="flex shrink-0 items-center gap-2">
-                      {st === "pending_admin" && (
-                        <span className="rounded-full bg-amber-500 px-3 py-1 text-[10.5px] font-extrabold text-white shadow-2xs">
-                          {sm.offerPendingAdminTag}
-                        </span>
-                      )}
-                      {st === "accepted" && (
-                        <span className="rounded-full bg-emerald-600 px-3 py-1 text-[10.5px] font-extrabold text-white">
-                          ✓{" "}
-                          {unit.status === "sold"
-                            ? statusesDict.sold || sm.offerAcceptedTag
-                            : sm.offerAcceptedTag}
-                        </span>
-                      )}
-                      {st === "pending_seller" && (
-                        <span className="rounded-full bg-amber-100 px-3 py-1 text-[10.5px] font-extrabold text-amber-900">
-                          ⏳ {sm.offerPendingTag}
-                        </span>
-                      )}
-                      {st === "counter_offered" && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-3 py-1 text-[10.5px] font-extrabold text-purple-900">
-                          <RefreshCw className="size-3" />
-                          <span>{sm.offerCounterTag}</span>
-                        </span>
-                      )}
-                      {st === "unit_locked" && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-slate-200 px-3 py-1 text-[10.5px] font-bold text-slate-700">
-                          <Lock className="size-3" />
-                          <span>{sm.offerBackupTag}</span>
-                        </span>
-                      )}
-                      {st === "rejected" && (
-                        <span className="rounded-full bg-red-100 px-3 py-1 text-[10.5px] font-extrabold text-red-700">
-                          ✕ {sm.offerRejectedTag}
-                        </span>
-                      )}
-                    </div>
-                  </Link>
-                )
-              })}
+                        <td className="px-5 py-3.5 text-end">
+                          <Link
+                            href={`/admin/deals?offerId=${offer.id}`}
+                            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-amber-500 px-3.5 text-[11px] font-extrabold text-white shadow-2xs transition hover:bg-amber-600"
+                          >
+                            <Send className="size-3" />
+                            <span>{L.btnApproveOffer}</span>
+                            <ArrowLeft className="size-3 rtl:rotate-0 ltr:rotate-180" />
+                          </Link>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </CardContent>
+      </Card>
 
-      <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-3">
-        <Card className="border-gray-200/80 bg-white shadow-2xs lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between border-b border-gray-100 px-4 py-3.5 sm:px-5">
-            <div>
-              <CardTitle className="text-sm font-extrabold text-[#0a1122]">
+      {/* السيكشن الثالث: أحدث الوحدات المضافة (يمين) وأحدث طلبات المشترين (يسار) */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        <Card className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-2xs lg:col-span-8">
+          <CardHeader className="flex flex-row items-center justify-between border-b border-slate-100 px-5 py-4">
+            <div className="flex items-center gap-2.5">
+              <span className="flex size-8 items-center justify-center rounded-xl bg-[#eaf8f2] text-[#007a5a]">
+                <Building2 className="size-4" />
+              </span>
+              <CardTitle className="text-sm font-black text-[#0f1d40]">
                 {t.latestProperties} ({georgiaLabel})
               </CardTitle>
             </div>
             <Link
               href="/admin/properties"
-              className="flex items-center gap-1 text-xs font-bold text-[#105C50] hover:underline"
+              className="inline-flex items-center gap-1 text-xs font-extrabold text-[#007a5a] hover:underline"
             >
-              {t.viewAll}{" "}
+              <span>{t.viewAll}</span>
               <ArrowLeft className="size-3.5 rtl:rotate-0 ltr:rotate-180" />
             </Link>
           </CardHeader>
 
-          <CardContent className="p-3">
-            <div className="space-y-2.5">
-              {properties.length === 0 ? (
-                <div className="py-6 text-center text-xs text-gray-400">
-                  {t.noProperties}
-                </div>
-              ) : (
-                properties.slice(0, 6).map((prop) => {
-                  const stKey = normalizeUnitStatus(prop.status)
-                  const stLabel =
-                    statusesDict[stKey] || statusesDict.active || stKey
-                  const stCls =
-                    STATUS_BADGE_CLASSES[stKey] || STATUS_BADGE_CLASSES.active
-                  const uCode = deriveUnitCode(prop.id, prop.code)
-                  const localizedArea = cleanAreaDisplay(prop.area, locale)
+          <CardContent className="p-0">
+            {properties.length === 0 ? (
+              <div className="py-10 text-center text-xs font-semibold text-slate-400">
+                {t.noProperties}
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-start text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-100 bg-slate-50/70 text-[11px] font-extrabold text-slate-500">
+                      <th className="px-5 py-3 text-start">{L.colUnit}</th>
+                      <th className="hidden px-3 py-3 text-start sm:table-cell">
+                        {cols.sellerName || L.colSeller}
+                      </th>
+                      <th className="px-3 py-3 text-start">
+                        {cols.requiredCash || ""}
+                      </th>
+                      <th className="px-3 py-3 text-start">
+                        {cols.status || ""}
+                      </th>
+                      <th className="px-5 py-3 text-end"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {properties.slice(0, 6).map((prop) => {
+                      const stKey = resolveEffectiveUnitStatus(prop)
+                      const stLabel =
+                        statusesDict[stKey] || statusesDict.active || stKey
+                      const stCls =
+                        STATUS_BADGE_CLASSES[stKey] ||
+                        STATUS_BADGE_CLASSES.active
+                      const uCode = deriveUnitCode(prop.id, prop.code)
+                      const localizedArea = cleanAreaDisplay(prop.area, locale)
 
-                  const sellerWaMsg = `${leadsDict.waGeneralPrefix || ""} ${prop.name}${listSep}(${prop.project_name || t.defaultUnit || ""} - ${localizedArea} - ${uCode}) — $${Number(prop.paid_amount || 0).toLocaleString("en-US")}`
+                      const sellerWaMsg = `${leadsDict.waGeneralPrefix || ""} ${prop.name}${listSep}(${prop.project_name || t.defaultUnit || ""} - ${localizedArea} - ${uCode}) — $${Number(prop.paid_amount || 0).toLocaleString("en-US")}`
+
+                      return (
+                        <tr
+                          key={prop.id}
+                          className="group transition hover:bg-slate-50/80"
+                        >
+                          <td className="px-5 py-3.5">
+                            <Link
+                              href={`/admin/properties?unitId=${prop.id}`}
+                              className="block"
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[10px] font-black text-[#0f1d40]">
+                                  {uCode}
+                                </span>
+                                <span className="font-extrabold text-[#0f1d40] group-hover:text-[#007a5a]">
+                                  {prop.project_name || t.defaultUnit}
+                                </span>
+                              </div>
+                              <p className="mt-0.5 text-[11px] font-medium text-slate-400">
+                                {localizedArea}
+                              </p>
+                            </Link>
+                          </td>
+
+                          <td className="hidden px-3 py-3.5 sm:table-cell">
+                            <p className="font-bold text-slate-700">
+                              {prop.name || "—"}
+                            </p>
+                            <p
+                              dir="ltr"
+                              className="font-mono text-[11px] text-slate-400"
+                            >
+                              {prop.phone || "—"}
+                            </p>
+                          </td>
+
+                          <td className="px-3 py-3.5">
+                            <span
+                              dir="ltr"
+                              className="font-black text-[#007a5a] tabular-nums"
+                            >
+                              {prop.paid_amount
+                                ? `$${Number(prop.paid_amount).toLocaleString("en-US")}`
+                                : "—"}
+                            </span>
+                          </td>
+
+                          <td className="px-3 py-3.5">
+                            <Badge
+                              className={`border text-[10px] font-extrabold ${stCls}`}
+                            >
+                              {stLabel}
+                            </Badge>
+                          </td>
+
+                          <td className="px-5 py-3.5 text-end">
+                            <div className="inline-flex items-center justify-end gap-1.5">
+                              <Link
+                                href={`/opportunities/${prop.id}`}
+                                target="_blank"
+                                title={t.viewAll}
+                                className="inline-flex size-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-[#007a5a] hover:text-[#007a5a]"
+                              >
+                                <ExternalLink className="size-3.5" />
+                              </Link>
+                              <a
+                                data-admin-client-wa="true"
+                                href={`https://wa.me/${String(prop.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(sellerWaMsg)}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex size-8 items-center justify-center rounded-lg bg-[#25D366] text-white shadow-2xs transition hover:bg-[#1ebe5d]"
+                              >
+                                <WhatsAppOfficialIcon className="size-4" />
+                              </a>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-2xs lg:col-span-4">
+          <CardHeader className="flex flex-row items-center justify-between border-b border-slate-100 px-5 py-4">
+            <div className="flex items-center gap-2.5">
+              <span className="flex size-8 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
+                <FileText className="size-4" />
+              </span>
+              <CardTitle className="text-sm font-black text-[#0f1d40]">
+                {t.latestLeads} ({georgiaLabel})
+              </CardTitle>
+            </div>
+            <Link
+              href="/admin/leads"
+              className="inline-flex items-center gap-1 text-xs font-extrabold text-[#007a5a] hover:underline"
+            >
+              <span>{t.allShort}</span>
+              <ArrowLeft className="size-3.5 rtl:rotate-0 ltr:rotate-180" />
+            </Link>
+          </CardHeader>
+
+          <CardContent className="p-0">
+            {leads.length === 0 ? (
+              <div className="py-10 text-center text-xs font-semibold text-slate-400">
+                {t.noLeads}
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {leads.slice(0, 6).map((lead) => {
+                  const areasList = Array.isArray(lead.preferred_areas)
+                    ? lead.preferred_areas
+                    : lead.preferred_areas
+                      ? [String(lead.preferred_areas)]
+                      : []
+                  const isSpecificUnitBooker = areasList.some(
+                    (a: string) =>
+                      String(a).includes("🎯") ||
+                      String(a).includes("U-") ||
+                      Boolean(lead.target_unit_id)
+                  )
+                  const cleanTarget =
+                    areasList
+                      .map((a: string) =>
+                        cleanAreaDisplay(
+                          a.replace(/الرحاب/g, "King David Residences"),
+                          locale
+                        )
+                      )
+                      .join(listSep) || t.allAreas
+                  const cashFormatted = Number(
+                    lead.available_cash || lead.budget || 0
+                  ).toLocaleString("en-US")
+                  const leadInitial = (
+                    String(lead.name || "B").trim().charAt(0) || "B"
+                  ).toUpperCase()
+
+                  const buyerWaMsg = `${leadsDict.waGeneralPrefix || ""} ${lead.name}${listSep}${leadsDict.waGeneralMiddle || ""} (${cleanTarget || t.allAreas || ""}) — ${leadsDict.cashShort || ""} $${cashFormatted}. ${leadsDict.waGeneralSuffix || ""}`
 
                   return (
                     <div
-                      key={prop.id}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-gray-200/85 bg-white px-3.5 py-2.5 shadow-2xs transition hover:border-[#105C50]/50 hover:bg-gray-50/70"
+                      key={lead.id}
+                      className="flex items-center justify-between gap-3 px-4 py-3.5 transition hover:bg-slate-50/80"
                     >
                       <Link
-                        href={`/admin/properties?unitId=${prop.id}`}
-                        className="min-w-[160px] flex-1"
+                        href={`/admin/leads?leadId=${lead.id}`}
+                        className="flex min-w-0 flex-1 items-center gap-3"
                       >
-                        <div className="flex items-center gap-1.5">
-                          <span className="rounded bg-[#0a1122] px-1.5 py-0.5 font-mono text-[9.5px] font-bold text-white">
-                            {uCode}
-                          </span>
-                          <p className="text-xs font-extrabold text-[#0a1122]">
-                            {prop.project_name || t.defaultUnit}
+                        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#eaf8f2] text-xs font-black text-[#007a5a]">
+                          {leadInitial}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <p className="truncate text-xs font-extrabold text-[#0f1d40]">
+                              {lead.name}
+                            </p>
+                            <span
+                              className={`shrink-0 rounded px-1.5 py-0.5 text-[9.5px] font-extrabold ${
+                                isSpecificUnitBooker
+                                  ? "bg-amber-100 text-amber-800"
+                                  : "bg-slate-100 text-slate-600"
+                              }`}
+                            >
+                              {isSpecificUnitBooker
+                                ? L.specificUnitLeadBadge
+                                : L.generalLeadBadge}
+                            </span>
+                          </div>
+                          <p className="mt-0.5 truncate text-[11px] font-medium text-slate-400">
+                            {cleanTarget}
                           </p>
                         </div>
-                        <p className="mt-1 text-[11px] text-gray-500">
-                          {localizedArea} · {prop.name} (
-                          <span dir="ltr">{prop.phone}</span>)
-                        </p>
                       </Link>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex shrink-0 items-center gap-2">
                         <span
                           dir="ltr"
-                          className="text-xs font-extrabold text-[#105C50] tabular-nums"
+                          className="rounded-md bg-[#eaf8f2] px-2 py-1 text-[11px] font-black text-[#007a5a] tabular-nums"
                         >
-                          {prop.paid_amount
-                            ? `$${Number(prop.paid_amount).toLocaleString("en-US")}`
-                            : "—"}
+                          ${cashFormatted}
                         </span>
-                        <Badge className={`text-[10px] font-bold ${stCls}`}>
-                          {stLabel}
-                        </Badge>
-                        <Link
-                          href={`/opportunities/${prop.id}`}
-                          target="_blank"
-                          title={t.viewAll}
-                          className="inline-flex size-7 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-[#0a1122] hover:border-[#105C50] hover:text-[#105C50]"
-                        >
-                          <ExternalLink className="size-3.5" />
-                        </Link>
                         <a
                           data-admin-client-wa="true"
-                          href={`https://wa.me/${String(prop.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(sellerWaMsg)}`}
+                          href={`https://wa.me/${String(lead.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(buyerWaMsg)}`}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex size-7 items-center justify-center rounded-lg bg-[#25D366] text-white hover:opacity-90"
+                          className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#25D366] text-white shadow-2xs transition hover:bg-[#1ebe5d]"
                         >
-                          <MessageCircle className="size-3.5" />
+                          <WhatsAppOfficialIcon className="size-4" />
                         </a>
                       </div>
                     </div>
                   )
-                })
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-gray-200/80 bg-white shadow-2xs">
-          <CardHeader className="flex flex-row items-center justify-between border-b border-gray-100 px-4 py-3.5 sm:px-5">
-            <CardTitle className="text-sm font-extrabold text-[#0a1122]">
-              {t.latestLeads} ({georgiaLabel})
-            </CardTitle>
-            <Link
-              href="/admin/leads"
-              className="flex items-center gap-1 text-xs font-bold text-[#105C50] hover:underline"
-            >
-              {t.allShort}{" "}
-              <ArrowLeft className="size-3.5 rtl:rotate-0 ltr:rotate-180" />
-            </Link>
-          </CardHeader>
-          <CardContent className="space-y-2.5 p-3">
-            {leads.length === 0 ? (
-              <div className="py-6 text-center text-xs text-gray-400">
-                {t.noLeads}
+                })}
               </div>
-            ) : (
-              leads.slice(0, 5).map((lead) => {
-                const areasList = Array.isArray(lead.preferred_areas)
-                  ? lead.preferred_areas
-                  : lead.preferred_areas
-                    ? [String(lead.preferred_areas)]
-                    : []
-                const cleanTarget =
-                  areasList
-                    .map((a: string) =>
-                      cleanAreaDisplay(
-                        a.replace(/الرحاب/g, "King David Residences"),
-                        locale
-                      )
-                    )
-                    .join(listSep) || t.allAreas
-                const cashFormatted = Number(
-                  lead.available_cash || lead.budget || 0
-                ).toLocaleString("en-US")
-
-                const buyerWaMsg = `${leadsDict.waGeneralPrefix || ""} ${lead.name}${listSep}${leadsDict.waGeneralMiddle || ""} (${cleanTarget || t.allAreas || ""}) — ${leadsDict.cashShort || ""} $${cashFormatted}. ${leadsDict.waGeneralSuffix || ""}`
-
-                return (
-                  <div
-                    key={lead.id}
-                    className="flex items-center justify-between rounded-xl border border-gray-200/85 bg-white px-3.5 py-2.5 shadow-2xs transition hover:border-[#105C50]/40"
-                  >
-                    <Link
-                      href={`/admin/leads?leadId=${lead.id}`}
-                      className="min-w-0 flex-1"
-                    >
-                      <p className="text-xs font-extrabold text-[#0a1122]">
-                        {lead.name}
-                      </p>
-                      <p
-                        dir="ltr"
-                        className="mt-0.5 text-[11px] font-bold text-[#105C50] tabular-nums"
-                      >
-                        ${cashFormatted}
-                      </p>
-                      <p className="mt-0.5 truncate text-[10px] text-gray-400">
-                        {cleanTarget}
-                      </p>
-                    </Link>
-                    <a
-                      data-admin-client-wa="true"
-                      href={`https://wa.me/${String(lead.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(buyerWaMsg)}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="ms-2 inline-flex h-8 shrink-0 items-center justify-center rounded-lg bg-[#25D366] px-2.5 text-white hover:opacity-90"
-                    >
-                      <MessageCircle className="size-3.5" />
-                    </a>
-                  </div>
-                )
-              })
             )}
           </CardContent>
         </Card>

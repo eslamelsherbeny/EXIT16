@@ -16,7 +16,6 @@ import { type MatchableUnit } from '@/lib/smart-matcher'
 import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
 import { type LocaleCode } from '@/lib/i18n'
 import { getOfferRef } from './offers-modals'
-import Link from 'next/link'
 
 export function SellerOffersSection({
   t,
@@ -276,7 +275,6 @@ export function SellerOffersSection({
                   </div>
                 )}
 
-                {/* عندما يكون العرض معلقاً عند البائع (إما لأنه عرض جديد من الأدمن أو لأن المشتري أرسل سعراً تفاوضياً جديداً) */}
                 {offer.status === 'pending_seller' &&
                   !unitAlreadyHasAcceptedOffer && (
                     <div className="mt-5 flex flex-col gap-2 border-t border-gray-100 pt-4 sm:flex-row sm:flex-wrap sm:items-center">
@@ -290,26 +288,27 @@ export function SellerOffersSection({
                         <span>{t.acceptOfferBtn}</span>
                       </button>
 
-                      {/* إمكانية البائع للتفاوض في السعر مرة أخرى إذا أراد */}
-                      {Number(offer.offered_cash) < paid && (
-                        <button
-                          type="button"
-                          disabled={isPending}
-                          onClick={() => {
-                            const mid = Math.round(
-                              (Number(offer.offered_cash) + paid) / 2
-                            )
-                            onOpenCounterModal(
-                              offer,
-                              mid.toLocaleString('en-US')
-                            )
-                          }}
-                          className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-xs font-extrabold text-[#0a1122] transition hover:bg-gray-50"
-                        >
-                          <RefreshCw className="size-3.5 shrink-0 text-[#007a5a]" />
-                          <span>{t.sendCounterBtn}</span>
-                        </button>
-                      )}
+                      {/* إخفاء زر التفاوض (إرسال سعر بديل) إذا كان العرض قد تم التفاوض عليه مسبقاً من البائع ثم رد عليه المشتري */}
+                      {Number(offer.offered_cash) < paid &&
+                        !offer.counter_cash && (
+                          <button
+                            type="button"
+                            disabled={isPending}
+                            onClick={() => {
+                              const mid = Math.round(
+                                (Number(offer.offered_cash) + paid) / 2
+                              )
+                              onOpenCounterModal(
+                                offer,
+                                mid.toLocaleString('en-US')
+                              )
+                            }}
+                            className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-xs font-extrabold text-[#0a1122] transition hover:bg-gray-50"
+                          >
+                            <RefreshCw className="size-3.5 shrink-0 text-[#007a5a]" />
+                            <span>{t.sendCounterBtn}</span>
+                          </button>
+                        )}
 
                       <button
                         type="button"

@@ -21,6 +21,13 @@ import {
   Wallet,
   X,
   RefreshCw,
+  Timer,
+  Building2,
+  Flame,
+  Handshake,
+  Lock,
+  ShieldCheck,
+  TrendingUp,
 } from 'lucide-react'
 import {
   getAccountOffersDataAction,
@@ -41,12 +48,392 @@ import {
   getOfferRef,
   SellerCounterOfferModal,
 } from '@/components/features/account/offers-modals'
-import { SellerOffersSection } from '@/components/features/account/seller-offers-section'
 import { getCurrencySymbol, useTranslation } from '@/lib/i18n'
+import type { LocaleCode } from '@/lib/i18n'
 
 const INITIAL_SUBMITTED_OFFERS_VISIBLE = 2
 const BUYER_WA_OFFER_SENT_STORAGE_KEY = 'aqar_buyer_wa_offer_sent'
+const OFFER_EXPIRATION_HOURS = 72
 
+// =========================================================================
+// 1. مكون العداد التنازلي الذكي (Smart Countdown Component)
+// =========================================================================
+function OfferCountdownTimer({
+  updatedAt,
+  onExpire,
+}: {
+  updatedAt: string
+  onExpire: () => void
+}) {
+  const [timeLeft, setTimeLeft] = useState<{ h: number; m: number; s: number } | null>(null)
+  const [isExpired, setIsExpired] = useState(false)
+
+  useEffect(() => {
+    const expireTime = new Date(updatedAt).getTime() + OFFER_EXPIRATION_HOURS * 60 * 60 * 1000
+
+    const interval = setInterval(() => {
+      const now = new Date().getTime()
+      const distance = expireTime - now
+
+      if (distance <= 0) {
+        clearInterval(interval)
+        setIsExpired(true)
+        onExpire()
+      } else {
+        setTimeLeft({
+          h: Math.floor((distance % (1000 * 60 * 60 * 24 * 30)) / (1000 * 60 * 60)),
+          m: Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)),
+          s: Math.floor((distance % (1000 * 60)) / 1000),
+        })
+      }
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [updatedAt, onExpire])
+
+  if (isExpired) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-md bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700">
+        <Timer className="size-3" />
+        انتهت صلاحية العرض
+      </span>
+    )
+  }
+
+  if (!timeLeft) return null
+
+  return (
+    <span className="inline-flex items-center gap-1 rounded-md bg-orange-100 px-2 py-0.5 text-[10px] font-bold text-orange-800">
+      <Timer className="size-3" />
+      <span dir="ltr">
+        {String(timeLeft.h).padStart(2, '0')}:{String(timeLeft.m).padStart(2, '0')}:{String(timeLeft.s).padStart(2, '0')}
+      </span>
+    </span>
+  )
+}
+
+// =========================================================================
+// 2. قسم البائع (Seller Offers Section)
+// =========================================================================
+function SellerOffersSection({
+  t,
+  locale,
+  cur,
+  sells,
+  sellerOffers,
+  displayedSellerOffers,
+  selectedSellerUnitId,
+  setSelectedSellerUnitId,
+  acceptedPropertyIds,
+  isPending,
+  getReadinessLabel,
+  getPaymentMethodLabel,
+  onSellerDecision,
+  onOpenCounterModal,
+}: {
+  t: Record<string, any>
+  locale: LocaleCode
+  cur: string
+  sells: MatchableUnit[]
+  sellerOffers: Array<OfferRecord & { unit?: MatchableUnit }>
+  displayedSellerOffers: Array<OfferRecord & { unit?: MatchableUnit }>
+  selectedSellerUnitId: string
+  setSelectedSellerUnitId: (id: string) => void
+  acceptedPropertyIds: Set<string>
+  isPending: boolean
+  getReadinessLabel: (r: string) => string
+  getPaymentMethodLabel: (m: string) => string
+  onSellerDecision: (
+    offer: OfferRecord & { unit?: MatchableUnit },
+    decision: 'accept' | 'reject'
+  ) => void
+  onOpenCounterModal: (
+    offer: OfferRecord & { unit?: MatchableUnit },
+    defaultMidCash: string
+  ) => void
+}) {
+  const [expiredOffers, setExpiredOffers] = useState<Set<string>>(new Set())
+
+  return (
+    <div>
+      <header className="mb-6 text-start">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100/80 px-3 py-1 text-[11px] font-extrabold text-[#007a5a]">
+          <ShieldCheck className="size-3.5" />
+          <span>{t.zeroLeakageBadge}</span>
+        </span>
+        <h1 className="mt-2 text-xl font-black text-[#0a1122] sm:text-3xl">
+          {t.sellerTitle} ({displayedSellerOffers.length})
+        </h1>
+        <p className="mt-1.5 text-xs leading-relaxed text-gray-500 sm:text-sm">
+          {t.sellerSubtitle}
+        </p>
+
+        {sells.length > 1 && (
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setSelectedSellerUnitId('ALL')}
+              className={`rounded-xl border px-3.5 py-1.5 text-xs font-extrabold transition ${
+                selectedSellerUnitId === 'ALL'
+                  ? 'border-[#007a5a] bg-[#007a5a] text-white'
+                  : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              {t.allMyUnitsTab} ({sellerOffers.length})
+            </button>
+            {sells.map((u) => {
+              const count = sellerOffers.filter(
+                (o) => String(o.property_id) === String(u.id)
+              ).length
+              const active = String(selectedSellerUnitId) === String(u.id)
+              return (
+                <button
+                  key={u.id}
+                  type="button"
+                  onClick={() => setSelectedSellerUnitId(String(u.id))}
+                  className={`rounded-xl border px-3.5 py-1.5 text-xs font-extrabold transition ${
+                    active
+                      ? 'border-[#007a5a] bg-[#007a5a] text-white'
+                      : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  {u.project_name || t.unitFallback} ({count})
+                </button>
+              )
+            })}
+          </div>
+        )}
+      </header>
+
+      {displayedSellerOffers.length === 0 ? (
+        <div className="rounded-3xl border border-gray-200/90 bg-white p-10 text-center shadow-2xs">
+          <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-2xl bg-emerald-50 text-[#007a5a]">
+            <Sparkles className="size-6" />
+          </div>
+          <p className="text-base font-extrabold text-[#0a1122]">
+            {t.sellerEmpty}
+          </p>
+          <p className="mx-auto mt-2 max-w-md text-xs leading-relaxed text-gray-500">
+            {t.sellerDisclaimer}
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {displayedSellerOffers.map((offer) => {
+            const u = offer.unit
+            const paid = Number(u?.paid_amount || offer.required_cash) || 1
+            const contract = Number(u?.contract_price) || paid
+            const recoveryPct = Math.min(
+              100,
+              Math.round((Number(offer.offered_cash) / paid) * 100)
+            )
+            const cancelPenalty = Math.round(contract * 0.125)
+            const sellerDiscount = Math.max(0, paid - Number(offer.offered_cash))
+            const netSavedVsCancel = Math.max(0, cancelPenalty - sellerDiscount)
+            const unitAlreadyHasAcceptedOffer =
+              acceptedPropertyIds.has(String(offer.property_id)) &&
+              offer.status !== 'accepted'
+
+            const isOfferExpired = expiredOffers.has(offer.id)
+
+            return (
+              <div
+                key={offer.id}
+                className={`rounded-[22px] border bg-white p-4 text-start shadow-xs sm:p-6 ${
+                  offer.status === 'accepted'
+                    ? 'border-2 border-[#007a5a] bg-emerald-50/20'
+                    : isOfferExpired
+                      ? 'border-red-200 bg-red-50/10 opacity-75'
+                      : 'border-gray-200/90'
+                }`}
+              >
+                <div className="flex flex-col gap-3 border-b border-gray-100 pb-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="inline-flex items-center gap-1 rounded-lg bg-[#0a1122] px-2.5 py-1 text-[11px] font-extrabold text-white">
+                        <Building2 className="size-3.5 shrink-0 text-emerald-400" />
+                        <span>{u?.project_name || t.unitFallback}</span>
+                      </span>
+                      <span className="rounded-lg bg-emerald-100 px-2.5 py-1 text-[11px] font-extrabold text-[#007a5a]">
+                        🎯 {t.matchScoreLabel}: {offer.match_score}%
+                      </span>
+                      <span className="font-mono text-[11px] font-bold text-gray-400">
+                        #{getOfferRef(offer.id)}
+                      </span>
+                      
+                      {/* إضافة العداد التنازلي لو العرض مستني رد البائع ومفيش حد تاني اشترى */}
+                      {offer.status === 'pending_seller' && !unitAlreadyHasAcceptedOffer && !isOfferExpired && (
+                        <OfferCountdownTimer 
+                          updatedAt={offer.updated_at || offer.created_at} 
+                          onExpire={() => setExpiredOffers(prev => new Set(prev).add(offer.id))}
+                        />
+                      )}
+                    </div>
+                    <p className="mt-1.5 text-xs text-gray-500">
+                      {getLocalizedGeorgiaAreaName(u?.area, locale)} ·{' '}
+                      {u?.unit_type || '—'}
+                    </p>
+                  </div>
+
+                  <div className="shrink-0">
+                    {isOfferExpired ? (
+                       <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-3.5 py-1.5 text-xs font-extrabold text-red-800">
+                        <X className="size-3.5" />
+                        <span>انتهت الصلاحية</span>
+                      </span>
+                    ) : offer.status === 'accepted' ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-[#007a5a] px-3.5 py-1.5 text-xs font-extrabold text-white shadow-2xs">
+                        <Handshake className="size-3.5" />
+                        <span>{t.statusAcceptedBadge}</span>
+                      </span>
+                    ) : offer.status === 'pending_seller' && !unitAlreadyHasAcceptedOffer ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3.5 py-1.5 text-xs font-extrabold text-amber-900">
+                        <Flame className="size-3.5 fill-amber-500 text-amber-600" />
+                        <span>{t.statusPendingSellerBadge}</span>
+                      </span>
+                    ) : (offer.status === 'unit_locked' || unitAlreadyHasAcceptedOffer) ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3.5 py-1.5 text-xs font-extrabold text-slate-700">
+                        <Lock className="size-3.5" />
+                        <span>{t.backupOfferBadge}</span>
+                      </span>
+                    ) : offer.status === 'counter_offered' ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-3.5 py-1.5 text-xs font-extrabold text-purple-900">
+                        <RefreshCw className="size-3.5" />
+                        <span>{t.statusCounterSentBadge}</span>
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div className="rounded-2xl border border-emerald-200 bg-[#eaf8f2] p-4">
+                    <span className="block text-[11px] font-bold text-[#007a5a]">
+                      {t.offeredCashLabel}
+                    </span>
+                    <strong className="mt-1 block text-xl font-black text-[#007a5a] tabular-nums sm:text-2xl">
+                      <span dir="ltr">
+                        {Number(offer.offered_cash).toLocaleString('en-US')}
+                      </span>{' '}
+                      {cur}
+                    </strong>
+                    <span className="mt-1 inline-block rounded-md bg-white/90 px-2 py-0.5 text-[10.5px] font-extrabold text-[#0a1122]">
+                      {t.recoveryRatePrefix} {recoveryPct}%
+                    </span>
+                  </div>
+
+                  <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+                    <span className="block text-[11px] text-gray-400">
+                      {t.buyerReadinessLabel}
+                    </span>
+                    <strong className="mt-1.5 block text-xs font-extrabold text-[#0a1122] sm:text-sm">
+                      ⚡ {getReadinessLabel(offer.payment_readiness)}
+                    </strong>
+                    <span className="mt-1.5 block text-[11px] font-semibold text-gray-500">
+                      {getPaymentMethodLabel(offer.payment_method)}
+                    </span>
+                  </div>
+
+                  <div className="rounded-2xl border border-sky-200 bg-sky-50/70 p-4">
+                    <div className="flex items-center gap-1.5 text-[11px] font-extrabold text-sky-900">
+                      <TrendingUp className="size-3.5 text-sky-700" />
+                      <span>{t.aiAdvisorTitle}</span>
+                    </div>
+                    <p className="mt-1.5 text-[11.5px] leading-relaxed font-semibold text-sky-950">
+                      {t.aiAdvisorSavedPrefix}{' '}
+                      <strong dir="ltr" className="font-black text-[#007a5a]">
+                        {netSavedVsCancel.toLocaleString('en-US')} {cur}
+                      </strong>{' '}
+                      {t.aiAdvisorSavedSuffix}
+                    </p>
+                  </div>
+                </div>
+
+                {offer.match_reasons.length > 0 && (
+                  <div className="mt-3.5 flex flex-wrap gap-1.5">
+                    {offer.match_reasons.map((reason: string) => (
+                      <span
+                        key={reason}
+                        className="rounded-lg bg-[#eaf8f2] px-2.5 py-1 text-[10.5px] font-bold text-[#007a5a]"
+                      >
+                        ✓ {reason}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {offer.status === 'counter_offered' && offer.counter_cash && (
+                  <div className="mt-4 rounded-xl border border-purple-200 bg-purple-50/80 px-4 py-3 text-xs font-bold text-purple-900">
+                    {t.yourCounterOfferText}:{' '}
+                    <strong dir="ltr">
+                      {Number(offer.counter_cash).toLocaleString('en-US')}
+                    </strong>{' '}
+                    {cur} — {t.waitingBuyerResponseText}
+                  </div>
+                )}
+
+                {offer.status === 'accepted' && (
+                  <div className="mt-4 rounded-xl border border-[#007a5a]/30 bg-[#eaf8f2] p-4 text-xs font-bold text-[#007a5a]">
+                    🎉 {t.dealLockedBannerForSeller}
+                  </div>
+                )}
+
+                {(offer.status === 'unit_locked' ||
+                  unitAlreadyHasAcceptedOffer) && (
+                  <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-xs font-semibold text-slate-600">
+                    {t.backupOfferSellerNote}
+                  </div>
+                )}
+
+                {/* أزرار اتخاذ القرار للبائع (تختفي لو الوقت خلص) */}
+                {offer.status === 'pending_seller' && !unitAlreadyHasAcceptedOffer && !isOfferExpired && (
+                  <div className="mt-5 flex flex-col gap-2 border-t border-gray-100 pt-4 sm:flex-row sm:flex-wrap sm:items-center">
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={() => onSellerDecision(offer, 'accept')}
+                      className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-xl bg-[#007a5a] px-4 py-2.5 text-xs font-extrabold text-white shadow-sm transition hover:bg-[#006248] disabled:opacity-50 sm:text-sm"
+                    >
+                      <Check className="size-4 shrink-0" />
+                      <span>{t.acceptOfferBtn}</span>
+                    </button>
+
+                    {Number(offer.offered_cash) < paid && !offer.counter_cash && (
+                      <button
+                        type="button"
+                        disabled={isPending}
+                        onClick={() => {
+                          const mid = Math.round((Number(offer.offered_cash) + paid) / 2)
+                          onOpenCounterModal(offer, mid.toLocaleString('en-US'))
+                        }}
+                        className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-xs font-extrabold text-[#0a1122] transition hover:bg-gray-50"
+                      >
+                        <RefreshCw className="size-3.5 shrink-0 text-[#007a5a]" />
+                        <span>{t.sendCounterBtn}</span>
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={() => onSellerDecision(offer, 'reject')}
+                      className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-xs font-bold text-red-600 transition hover:bg-red-100"
+                    >
+                      {t.rejectOfferBtn}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// =========================================================================
+// 3. الصفحة الرئيسية للعروض (Main Offers Content)
+// =========================================================================
 function OffersContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -90,18 +477,13 @@ function OffersContent() {
   const [hiddenWaOfferIds, setHiddenWaOfferIds] = useState<
     Record<string, boolean>
   >({})
+  const [expiredBuyerOffers, setExpiredBuyerOffers] = useState<Set<string>>(new Set())
 
-  const [offerModalUnit, setOfferModalUnit] = useState<MatchableUnit | null>(
-    null
-  )
+  const [offerModalUnit, setOfferModalUnit] = useState<MatchableUnit | null>(null)
   const [offerMode, setOfferMode] = useState<'full' | 'negotiate'>('full')
   const [customOfferCashStr, setCustomOfferCashStr] = useState('')
-  const [readiness, setReadiness] = useState<'48h' | '1_week' | '2_weeks'>(
-    '48h'
-  )
-  const [paymentMethod, setPaymentMethod] = useState<
-    'bank_check' | 'bank_transfer'
-  >('bank_check')
+  const [readiness, setReadiness] = useState<'48h' | '1_week' | '2_weeks'>('48h')
+  const [paymentMethod, setPaymentMethod] = useState<'bank_check' | 'bank_transfer'>('bank_check')
 
   const [counterModalOffer, setCounterModalOffer] = useState<
     (OfferRecord & { unit?: MatchableUnit }) | null
@@ -303,7 +685,6 @@ function OffersContent() {
 
     startTransition(async () => {
       if (isCounteringAsBuyer) {
-        // המشتري يقدم سعراً جديداً (Counter-Counter) -> יذهب مباشرة للبائع
         const res = await respondToCounterOfferByBuyerAction({
           offerId: counterModalOffer.id,
           decision: 'counter',
@@ -318,7 +699,6 @@ function OffersContent() {
           setFeedback({ text: res.error || t.errSubmitFailed, isError: true })
         }
       } else {
-        // البائع يقدم سعراً بديلاً (Counter) -> يذهب للمشتري
         const res = await respondToOfferBySellerAction({
           offerId: counterModalOffer.id,
           decision: 'counter',
@@ -452,7 +832,6 @@ function OffersContent() {
           </Link>
         </div>
 
-        {/* بانر النجاح بعد تقديم عرض الشراء: يحتوي على زر تسريع حجز الوحدة عبر واتساب */}
         {feedback && (
           <div
             className={`mb-6 rounded-2xl border p-4 shadow-xs sm:p-5 ${
@@ -586,14 +965,16 @@ function OffersContent() {
                       (offer.status !== 'pending_admin' &&
                         offer.status !== 'pending_seller')
 
+                    const isOfferExpired = expiredBuyerOffers.has(offer.id)
+
                     return (
                       <div
                         key={offer.id}
                         className={`rounded-[20px] border p-4 text-start transition sm:p-5 ${
                           offer.status === 'accepted'
                             ? 'border-2 border-[#007a5a] bg-emerald-50/25'
-                            : offer.status === 'counter_offered'
-                              ? 'border-2 border-purple-400 bg-purple-50/20'
+                            : isOfferExpired
+                              ? 'border-red-200 bg-red-50/10 opacity-75'
                               : 'border-gray-200 bg-[#fcfdfd]'
                         }`}
                       >
@@ -602,28 +983,37 @@ function OffersContent() {
                             #{refCode}
                           </span>
 
-                          <div>
-                            {(offer.status === 'pending_seller' ||
-                              offer.status === 'pending_admin') && (
+                          <div className="flex items-center gap-1.5">
+                            {offer.status === 'counter_offered' && !isOfferExpired && (
+                              <OfferCountdownTimer 
+                                updatedAt={offer.updated_at || offer.created_at} 
+                                onExpire={() => setExpiredBuyerOffers(prev => new Set(prev).add(offer.id))}
+                              />
+                            )}
+
+                            {isOfferExpired ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-3 py-1 text-[11px] font-extrabold text-red-800">
+                                <X className="size-3.5" />
+                                انتهت الصلاحية
+                              </span>
+                            ) : (offer.status === 'pending_seller' ||
+                              offer.status === 'pending_admin') ? (
                               <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-[11px] font-extrabold text-amber-800">
                                 ⏳ {t.statusWaitingSellerBadge}
                               </span>
-                            )}
-                            {offer.status === 'accepted' && (
+                            ) : offer.status === 'accepted' ? (
                               <span className="inline-flex items-center gap-1 rounded-full bg-[#007a5a] px-3 py-1 text-[11px] font-extrabold text-white">
                                 ✓ {t.statusAcceptedBadge}
                               </span>
-                            )}
-                            {offer.status === 'unit_locked' && (
+                            ) : offer.status === 'unit_locked' ? (
                               <span className="inline-flex items-center gap-1 rounded-full bg-gray-200 px-3 py-1 text-[11px] font-bold text-gray-600">
                                 {t.statusLockedOtherBuyer}
                               </span>
-                            )}
-                            {offer.status === 'counter_offered' && (
+                            ) : offer.status === 'counter_offered' ? (
                               <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-3 py-1 text-[11px] font-extrabold text-purple-900">
                                 🔄 {t.statusCounterSentBadge}
                               </span>
-                            )}
+                            ) : null}
                           </div>
                         </div>
 
@@ -701,7 +1091,7 @@ function OffersContent() {
 
                         {/* ===================== واجهة المشتري عند وصول رد/تفاوض من البائع ===================== */}
                         {offer.status === 'counter_offered' &&
-                          offer.counter_cash && (
+                          offer.counter_cash && !isOfferExpired && (
                             <div className="mt-4 rounded-2xl border border-purple-200 bg-purple-50/90 p-3.5 sm:p-4">
                               <p className="text-xs leading-relaxed font-extrabold text-purple-950 sm:text-sm">
                                 🔄 {t.sellerCounterReceivedText}:{' '}
@@ -732,7 +1122,7 @@ function OffersContent() {
                                   <span>{t.acceptCounterBtn}</span>
                                 </button>
 
-                                {/* زر تعديل السعر للمشتري لتقديم عرض بديل (Counter-Counter) يذهب للبائع مباشرة */}
+                                {/* زر تعديل السعر للمشتري (يتم إخفاؤه لو كان البائع قد استنفد محاولات التفاوض، لكننا هنا نتركه كخطوة أخيرة للمشتري) */}
                                 <button
                                   type="button"
                                   disabled={isPending}

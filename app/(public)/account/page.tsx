@@ -3,7 +3,10 @@ import { redirect } from 'next/navigation'
 import { createServerClient } from '@supabase/ssr'
 import Link from 'next/link'
 import type { SellerUnitItem } from '@/components/features/account/seller-dashboard'
-import type { BuyerRequestItem } from '@/components/features/account/buyer-dashboard'
+import type {
+  BuyerRequestItem,
+  PurchasedUnitSummary,
+} from '@/components/features/account/buyer-dashboard'
 import { AccountActionLinks } from '@/components/features/account/delete-account-modal'
 import { AccountViewSwitcher } from '@/components/features/account/account-view-switcher'
 import { AccountTopBar } from '@/components/features/account/account-top-bar'
@@ -118,17 +121,24 @@ export default async function AccountPage({
         supabase
           .from('buy_requests')
           .select('*')
+          .neq('status', 'closed')
           .order('created_at', { ascending: false }),
         supabase
           .from('sell_requests')
           .select('*')
-          .in('status', ['active', 'approved', 'published', 'offer_received'])
+          .in('status', [
+            'active',
+            'approved',
+            'published',
+            'offer_received',
+            'sold',
+          ])
           .order('is_featured', { ascending: false })
           .order('created_at', { ascending: false }),
         supabase
           .from('property_offers')
           .select(
-            'id, property_id, lead_id, buyer_user_id, seller_user_id, status, initiated_by, diff_reasons'
+            'id, property_id, lead_id, buyer_user_id, seller_user_id, offered_cash, status, initiated_by, diff_reasons, updated_at'
           ),
       ])
 
@@ -146,10 +156,57 @@ export default async function AccountPage({
   )
   const buys = (myBuysData as BuyerRequestItem[]).filter(Boolean)
   const myUnitIds = new Set(sells.map((s) => String(s.id)))
+  const myLeadIds = new Set(buys.map((b) => String(b.id)))
 
   const georgiaMarketUnits = (activeMarketUnits as SellerUnitItem[]).filter(
-    (u) => u && !isNonGeorgianLegacyArea(u.area) && !myUnitIds.has(String(u.id))
+    (u) =>
+      u &&
+      String(u.status || '').toLowerCase() !== 'sold' &&
+      !isNonGeorgianLegacyArea(u.area) &&
+      !myUnitIds.has(String(u.id))
   )
+
+  // الوحدات التي أتم هذا المشتري شراءها فعلياً (accepted + sold)
+  const soldUnitsMap = new Map<string, any>(
+    (activeMarketUnits || [])
+      .filter((u: any) => String(u.status || '').toLowerCase() === 'sold')
+      .map((u: any) => [String(u.id), u])
+  )
+
+  const purchasedUnits: PurchasedUnitSummary[] = allOffers
+    .filter((o: any) => {
+      if (!o || normalizeOfferStatus(o) !== 'accepted') return false
+      const isMyBuy =
+        String(o.buyer_user_id || '') === String(profile.id) ||
+        (o.lead_id && myLeadIds.has(String(o.lead_id)))
+      return isMyBuy && soldUnitsMap.has(String(o.property_id))
+    })
+    .map((o: any) => {
+      const u = soldUnitsMap.get(String(o.property_id))
+      const numericCode = String(u.id || '')
+        .replace(/\D/g, '')
+        .slice(0, 5)
+      const fallbackCode = String(u.id || '')
+        .slice(0, 5)
+        .toUpperCase()
+      return {
+        id: String(u.id),
+        code:
+          u.code && String(u.code).trim()
+            ? String(u.code).trim()
+            : `U-${numericCode.length >= 4 ? numericCode : fallbackCode}`,
+        projectName: u.project_name || '—',
+        area: u.area || '',
+        unitType: u.unit_type || '',
+        rooms: Number(u.rooms) || 1,
+        size: Number(u.size) || 0,
+        paidAmount: Number(o.offered_cash || u.paid_amount) || 0,
+        contractPrice: Number(u.contract_price || u.paid_amount) || 0,
+        image:
+          Array.isArray(u.images) && u.images[0] ? u.images[0] : undefined,
+        purchasedAt: o.updated_at || u.created_at,
+      }
+    })
 
   const offersCountMap: Record<string, number> = {}
   const matchedBuyersCountMap: Record<string, number> = {}
@@ -161,9 +218,7 @@ export default async function AccountPage({
       if (!o || String(o.property_id) !== unitIdStr) return false
       const st = normalizeOfferStatus(o)
       return (
-        st !== 'recommended' &&
-        st !== 'pending_admin' &&
-        st !== 'rejected'
+        st !== 'recommended' && st !== 'pending_admin' && st !== 'rejected'
       )
     })
     offersCountMap[unit.id] = unitApprovedOffers.length
@@ -184,7 +239,6 @@ export default async function AccountPage({
       }
       try {
         const res = calculateSmartMatch(unit, b, undefined, locale)
-        // موحد على 60% تماماً مثل جدول عقارات الأدمن
         if (res.score >= 60) {
           totalMatchingBuyersCount++
         }
@@ -193,7 +247,6 @@ export default async function AccountPage({
     matchedBuyersCountMap[unit.id] = totalMatchingBuyersCount
   })
 
-  const myLeadIds = new Set(buys.map((b) => String(b.id)))
   const directBuyerOffers = allOffers.filter((o: any) => {
     if (!o) return false
     const st = normalizeOfferStatus(o)
@@ -222,13 +275,13 @@ export default async function AccountPage({
 
   const mainBuyerReq =
     buys.find((b) => {
+      const st = String(b.status || '').toLowerCase()
+      if (st === 'closed' || st === 'archived') return false
       const areasStr = Array.isArray(b.preferred_areas)
         ? b.preferred_areas.join(' ')
         : String(b.preferred_areas || '')
       return !areasStr.includes('🎯')
-    }) ||
-    buys[0] ||
-    null
+    }) || null
 
   let smartMatchesForBuyerCount = 0
   if (mainBuyerReq) {
@@ -239,7 +292,6 @@ export default async function AccountPage({
         if (myUnitIds.has(uIdStr) || offeredUnitIds.has(uIdStr)) return
         const m = calculateSmartMatch(u, mainBuyerReq, undefined, locale)
         const isFromAdmin = adminRecUnitIds.has(uIdStr)
-        // موحد على 80% للظهور التلقائي أو الترشيح اليدوي من الأدمن تماماً مثل صفحة /account/offers
         if (isFromAdmin || m.score >= AUTO_PUBLISH_MATCH_THRESHOLD) {
           const sig = `${u.project_name || ''}_${u.area || ''}_${u.paid_amount || 0}_${u.unit_type || ''}`
           if (isFromAdmin || !seenSignatures.has(sig)) {
@@ -255,7 +307,7 @@ export default async function AccountPage({
     directBuyerOffers.length + smartMatchesForBuyerCount
 
   const hasSells = sells.length > 0
-  const hasBuys = buys.length > 0
+  const hasBuys = buys.length > 0 || purchasedUnits.length > 0
 
   const initialView: 'seller' | 'buyer' =
     resolvedParams.view === 'seller' && hasSells
@@ -286,6 +338,7 @@ export default async function AccountPage({
           offersCountMap={offersCountMap}
           buyerOffersCount={totalBuyerOffersCount}
           matchedBuyersCountMap={matchedBuyersCountMap}
+          purchasedUnits={purchasedUnits}
           deletionRequested={deletionRequested}
         />
       ) : (

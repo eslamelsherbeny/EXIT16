@@ -3,6 +3,7 @@ import type { LocaleCode } from "@/lib/i18n"
 
 export const ACTIVE_ADMIN_COUNTRY = "GE"
 export const PENDING_ADMIN_TAG = "__PENDING_ADMIN_VERIFICATION__"
+export const PRIORITY_RETURNED_TAG = "__PRIORITY_FROM_BACKUP__"
 
 export type BuyerLead = {
   id: string
@@ -64,6 +65,110 @@ export type ConfirmLeadAction =
       lead: BuyerLead
     }
 
+export type DirectUnitInquiryItem = {
+  key: string
+  lead: BuyerLead
+  parsed: ReturnType<typeof parseLeadDetails>
+  unit: LinkedUnitSummary | null
+  unitCode: string | null
+  offer: any | null
+  hasGeneralSearchProfile: boolean
+  createdAt: string
+}
+
+export function getLeadUiMicroLabels(locale: LocaleCode) {
+  switch (locale) {
+    case "en":
+      return {
+        searchProfilesTab: "Buyer Requests & Direct Offers",
+        directInquiriesTab: "Direct Unit Inquiries",
+        searchTabDesc:
+          "All active buyers — whether they submitted search criteria or made a direct offer on a unit.",
+        inquiriesTabDesc:
+          "Clients who expressed direct interest or sent offers on specific units.",
+        desiredAreasCol: "Desired Areas & Specs",
+        targetUnitCol: "Target Unit & Owner",
+        interestedBuyerCol: "Interested Buyer",
+        offerFinanceCol: "Offer / Capacity",
+        unitOwnerLabel: "Owner:",
+        targetBudgetLabel: "Target Budget",
+        hasGeneralProfileTag: "Has Search Profile",
+        alternativeUnitsWord: "alternative units",
+        openDealsBtn: "Track Offer",
+        offeredCashLabel: "Offered Cash",
+        unitRequiredCashLabel: "Unit Cash",
+        sourceDirectOfferBadge: "Direct Offer",
+        sourceSearchBadge: "Search Request",
+      }
+    case "ru":
+      return {
+        searchProfilesTab: "Заявки покупателей и офферы",
+        directInquiriesTab: "Интерес к объектам",
+        searchTabDesc:
+          "Все активные покупатели — как с заявкой на подбор, так и с прямым оффером.",
+        inquiriesTabDesc:
+          "Клиенты, проявившие прямой интерес или отправившие оффер по конкретным объектам.",
+        desiredAreasCol: "Районы и параметры",
+        targetUnitCol: "Объект и владелец",
+        interestedBuyerCol: "Покупатель",
+        offerFinanceCol: "Оффер / Бюджет",
+        unitOwnerLabel: "Владелец:",
+        targetBudgetLabel: "Целевой бюджет",
+        hasGeneralProfileTag: "Есть заявка на подбор",
+        alternativeUnitsWord: "похожих объектов",
+        openDealsBtn: "К офферу",
+        offeredCashLabel: "Предложено",
+        unitRequiredCashLabel: "Наличными по объекту",
+        sourceDirectOfferBadge: "Прямой оффер",
+        sourceSearchBadge: "Заявка на подбор",
+      }
+    case "ka":
+      return {
+        searchProfilesTab: "მყიდველების მოთხოვნები და შეთავაზებები",
+        directInquiriesTab: "ინტერესი ობიექტებზე",
+        searchTabDesc:
+          "ყველა აქტიური მყიდველი — ძიების მოთხოვნით ან პირდაპირი შეთავაზებით.",
+        inquiriesTabDesc:
+          "კლიენტები, რომლებმაც გამოხატეს ინტერესი ან გაგზავნეს შეთავაზება კონკრეტულ ობიექტზე.",
+        desiredAreasCol: "სასურველი უბნები და პარამეტრები",
+        targetUnitCol: "ობიექტი და მფლობელი",
+        interestedBuyerCol: "დაინტერესებული მყიდველი",
+        offerFinanceCol: "შეთავაზება / ბიუჯეტი",
+        unitOwnerLabel: "მფლობელი:",
+        targetBudgetLabel: "სამიზნე ბიუჯეტი",
+        hasGeneralProfileTag: "აქვს ძიების პროფილი",
+        alternativeUnitsWord: "ალტერნატიული ობიექტი",
+        openDealsBtn: "შეთავაზების ნახვა",
+        offeredCashLabel: "შეთავაზებული თანხა",
+        unitRequiredCashLabel: "ობიექტის თანხა",
+        sourceDirectOfferBadge: "პირდაპირი შეთავაზება",
+        sourceSearchBadge: "ძიების მოთხოვნა",
+      }
+    default:
+      return {
+        searchProfilesTab: "طلبات الشراء والعروض المباشرة",
+        directInquiriesTab: "طلبات الاهتمام والحجز المباشر",
+        searchTabDesc:
+          "جميع المشترين النشطين — سواء من سجلوا مواصفات بحث أو من قدموا عرضاً مباشراً على وحدة.",
+        inquiriesTabDesc:
+          "العملاء الذين أبدوا اهتماماً أو قدموا عروضاً على وحدات محددة.",
+        desiredAreasCol: "المناطق والمواصفات المطلوبة",
+        targetUnitCol: "الوحدة المستهدفة والمالك",
+        interestedBuyerCol: "العميل المهتم",
+        offerFinanceCol: "العرض / القدرة المالية",
+        unitOwnerLabel: "مالك الوحدة:",
+        targetBudgetLabel: "الميزانية المستهدفة",
+        hasGeneralProfileTag: "لديه طلب بحث عام",
+        alternativeUnitsWord: "وحدات بديلة",
+        openDealsBtn: "متابعة العرض",
+        offeredCashLabel: "العرض المقدم",
+        unitRequiredCashLabel: "كاش الوحدة",
+        sourceDirectOfferBadge: "عرض مباشر",
+        sourceSearchBadge: "طلب بحث",
+      }
+  }
+}
+
 export function deriveShortUnitCode(id: string, dbCode?: string | null) {
   if (dbCode && String(dbCode).trim()) return String(dbCode).trim()
   const numericCode = String(id || "")
@@ -99,6 +204,28 @@ export function normalizeOfferStatus(rawOffer: any): string {
     return "pending_admin"
   }
   return rawOffer?.status || "pending_seller"
+}
+
+export function isOfferOwnedByLead(offer: any, lead: BuyerLead): boolean {
+  if (!offer || !lead) return false
+  if (String(offer.lead_id || "") === String(lead.id)) return true
+  if (
+    lead.user_id &&
+    offer.buyer_user_id &&
+    String(offer.buyer_user_id) === String(lead.user_id)
+  ) {
+    return true
+  }
+  const leadPhoneDigits = String(lead.phone || "").replace(/\D/g, "")
+  const offerPhoneDigits = String(offer.buyer_phone || "").replace(/\D/g, "")
+  if (
+    leadPhoneDigits.length >= 8 &&
+    offerPhoneDigits.length >= 8 &&
+    leadPhoneDigits.slice(-8) === offerPhoneDigits.slice(-8)
+  ) {
+    return true
+  }
+  return false
 }
 
 export function isSelfOfferForLead(
@@ -206,7 +333,7 @@ export function parseLeadDetails({
 }) {
   const sep = dir === "rtl" ? "، " : ", "
   const areasList = Array.isArray(lead.preferred_areas)
-    ? lead.preferred_areas
+    ? lead.preferred_areas.filter(Boolean)
     : lead.preferred_areas
       ? [String(lead.preferred_areas)]
       : []
@@ -216,31 +343,50 @@ export function parseLeadDetails({
     .replace(/الرحاب/g, "King David Residences")
   const planRaw = lead.payment_plan || ""
 
-  const leadDirectOffers = (offers || [])
+  const directOffers = (offers || [])
     .map((o) => ({ ...o, status: normalizeOfferStatus(o) }))
-    .filter(
-      (o) =>
-        o.status !== "recommended" &&
-        !isSelfOfferForLead(o, units) &&
-        String(o.lead_id || "") === String(lead.id)
-    )
+    .filter((o) => {
+      if (o.status === "recommended") return false
+      if (isSelfOfferForLead(o, units)) return false
+      return isOfferOwnedByLead(o, lead)
+    })
 
-  const latestDirectOffer = leadDirectOffers[0] || null
+  const offerLinkedByLeadId =
+    directOffers.find((o) => String(o.lead_id || "") === String(lead.id)) ||
+    null
+  const latestActiveDirectOffer =
+    directOffers.find((o) => o.status !== "rejected") || null
+  const latestDirectOffer =
+    latestActiveDirectOffer || offerLinkedByLeadId || directOffers[0] || null
 
   const isLegacyUnitLead =
     areasRaw.includes("🎯") ||
     areasRaw.includes("U-") ||
     planRaw.includes("مهتم بوحدة")
 
-  const isSingleAreaDirectOffer =
-    Boolean(latestDirectOffer) && areasList.length <= 1
+  // تحديد ما إذا كان هذا المشتري قد دخل عبر "عرض مباشر على وحدة" (للتمييز بالشارة فقط دون إخفائه)
+  const isDirectUnitSource = (() => {
+    if (isLegacyUnitLead) return true
+    if (!offerLinkedByLeadId || areasList.length > 1) return false
+    const leadTime = new Date(lead.created_at).getTime()
+    const offerTime = new Date(
+      offerLinkedByLeadId.created_at || lead.created_at
+    ).getTime()
+    return (
+      Number.isFinite(leadTime) &&
+      Number.isFinite(offerTime) &&
+      Math.abs(offerTime - leadTime) <= 120_000
+    )
+  })()
 
-  const isUnitLead = isLegacyUnitLead || isSingleAreaDirectOffer
+  // لا نخفي إلا السجلات التراثية القديمة جداً؛ أما العروض المباشرة الجديدة فتظهر في طلبات الشراء
+  const isPureUnitInquiry = isLegacyUnitLead
+  const isUnitLead = isPureUnitInquiry
 
   const codeMatch = `${areasRaw} ${planRaw}`.match(/U-[A-Z0-9]+/i)
   let unitCode = codeMatch ? codeMatch[0].toUpperCase() : null
 
-  const matchedUnit = isUnitLead
+  const matchedUnit = isDirectUnitSource
     ? findMatchingUnitForLead(
         unitCode,
         areasRaw,
@@ -256,21 +402,22 @@ export function parseLeadDetails({
   let readinessBadge: { text: string; className: string } | null = null
   if (
     latestDirectOffer?.payment_readiness === "48h" ||
+    latestDirectOffer?.payment_readiness === "1_week" ||
     planRaw.includes("48") ||
     planRaw.includes("خلال أسبوع")
   ) {
     readinessBadge = {
       text: leadsPrompts.readiness?.week || "",
-      className: "bg-red-100 text-red-700 border border-red-200",
+      className: "bg-red-50 text-red-700 border border-red-200",
     }
   } else if (
-    latestDirectOffer?.payment_readiness === "1_week" ||
+    latestDirectOffer?.payment_readiness === "2_weeks" ||
     planRaw.includes("شهر لـ 3 شهور") ||
     planRaw.includes("خلال شهر")
   ) {
     readinessBadge = {
       text: leadsPrompts.readiness?.month || "",
-      className: "bg-amber-100 text-amber-800 border border-amber-200",
+      className: "bg-amber-50 text-amber-800 border border-amber-200",
     }
   } else if (planRaw.includes("يجمع معلومات")) {
     readinessBadge = {
@@ -286,30 +433,35 @@ export function parseLeadDetails({
     customerNotes = planRaw.split("ملاحظات:")[1]?.trim() || ""
   }
 
+  const preferredAreasList = isLegacyUnitLead
+    ? []
+    : areasList
+        .map((a) =>
+          cleanAreaLabel(a.replace(/الرحاب/g, "King David Residences"), locale)
+        )
+        .filter(Boolean)
+
   const localizedAreasStr = isLegacyUnitLead
     ? areasRaw
         .replace("🎯 مهتم بوحدة:", "")
         .replace(/\s*\([A-Za-z0-9\s/-]+\)\s*$/g, "")
         .trim()
-    : isSingleAreaDirectOffer && matchedUnit
-      ? `${matchedUnit.project_name || ""} — ${cleanAreaLabel(matchedUnit.area, locale)}`
-      : areasList
-          .map((a) =>
-            cleanAreaLabel(a.replace(/الرحاب/g, "King David Residences"), locale)
-          )
-          .filter(Boolean)
-          .join(sep)
+    : preferredAreasList.join(sep)
 
   const cleanTargetUnit = localizedAreasStr || leadsPrompts.allAreas || ""
 
   return {
     isUnitLead,
+    isPureUnitInquiry,
+    isDirectUnitSource,
     unitCode,
     cleanTargetUnit,
+    preferredAreasList,
     readinessBadge,
     customerNotes,
     matchedUnit,
     latestDirectOffer,
+    directOffers,
   }
 }
 
@@ -320,6 +472,7 @@ export function buildLeadWhatsAppMessage({
   locale,
   t,
   leadsPrompts,
+  focusUnit,
 }: {
   lead: BuyerLead
   parsed: ReturnType<typeof parseLeadDetails>
@@ -327,6 +480,7 @@ export function buildLeadWhatsAppMessage({
   locale: LocaleCode
   t: Record<string, any>
   leadsPrompts: Record<string, any>
+  focusUnit?: LinkedUnitSummary | null
 }) {
   const sep = locale === "ar" ? "، " : ", "
   const cashVal = Number(
@@ -337,9 +491,15 @@ export function buildLeadWhatsAppMessage({
     ? lead.unit_types.join(sep)
     : ""
 
-  if (parsed.isUnitLead) {
-    const unitTitle = parsed.matchedUnit
-      ? `${parsed.matchedUnit.project_name || ""} - ${cleanAreaLabel(parsed.matchedUnit.area, locale)} (${parsed.unitCode || ""})`
+  const targetUnit =
+    focusUnit || (parsed.isPureUnitInquiry ? parsed.matchedUnit : null)
+
+  if (targetUnit || parsed.isPureUnitInquiry) {
+    const uCode = targetUnit
+      ? deriveShortUnitCode(targetUnit.id, targetUnit.code)
+      : parsed.unitCode || ""
+    const unitTitle = targetUnit
+      ? `${targetUnit.project_name || ""} - ${cleanAreaLabel(targetUnit.area, locale)} (${uCode})`
       : parsed.cleanTargetUnit
     return `${leadsPrompts.waUnitLeadPrefix} ${lead.name}${sep}${leadsPrompts.waUnitLeadMiddle} (${unitTitle}) — ${t.cashLabel} ${cashVal} ${leadCur} | ${t.installmentLabel} ${instVal} ${leadCur}.${parsed.customerNotes ? ` (${t.customerNotesLabel} ${parsed.customerNotes})` : ""} ${leadsPrompts.waUnitLeadSuffix}`
   }

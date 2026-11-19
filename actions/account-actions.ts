@@ -18,7 +18,8 @@ const DEFAULT_SITE_URL =
 async function getAccDict() {
   const { dict, dir } = await getServerI18n()
   const t = (dict as Record<string, any>)?.serverActions?.account || {}
-  return { t, dir }
+  const oDict = (dict as Record<string, any>)?.accountPages?.offers || {}
+  return { t, oDict, dir }
 }
 
 async function getSupabase() {
@@ -171,6 +172,71 @@ function formatPrimaryPhone(rawPhone: string) {
     return `+${stripped}`
   }
   return `+995${stripped}`
+}
+
+async function closeActiveOffersOnUnitWithdrawal(
+  supabase: any,
+  unitIds: string[],
+  projectNameFallback?: string,
+  oDict?: Record<string, any>
+) {
+  if (!unitIds || unitIds.length === 0) return
+
+  try {
+    const activeStatuses = [
+      'pending_admin',
+      'pending_seller',
+      'counter_offered',
+      'unit_locked',
+    ]
+
+    const { data: affectedOffers } = await supabase
+      .from('property_offers')
+      .select('id, buyer_user_id, property_id')
+      .in('property_id', unitIds)
+      .in('status', activeStatuses)
+
+    if (!affectedOffers || affectedOffers.length === 0) return
+
+    const nowIso = new Date().toISOString()
+
+    await supabase
+      .from('property_offers')
+      .update({
+        status: 'rejected',
+        updated_at: nowIso,
+      })
+      .in(
+        'id',
+        affectedOffers.map((o: any) => o.id)
+      )
+
+    const uniqueBuyerIds = Array.from(
+      new Set(
+        affectedOffers
+          .map((o: any) => o.buyer_user_id)
+          .filter((id: any) => Boolean(id))
+      )
+    ) as string[]
+
+    if (uniqueBuyerIds.length > 0) {
+      const notificationsPayload = uniqueBuyerIds.map((buyerId) => ({
+        user_id: buyerId,
+        role: 'client',
+        type: 'status_update',
+        title: `ℹ️ ${oDict?.unitWithdrawnBuyerNotifTitle || 'لم تعد الوحدة متاحة حالياً'} (${projectNameFallback || ''})`,
+        message:
+          oDict?.unitWithdrawnBuyerNotifMsg ||
+          'تم إغلاق عرض هذه الوحدة من قِبل المالك. يمكنك استكشاف الفرص البديلة المطابقة لميزانيتك في حسابك.',
+        link: '/account/offers?role=buyer',
+        is_read: false,
+      }))
+
+      await supabase.from('notifications').insert(notificationsPayload)
+    }
+  } catch (e) {
+    console.error('closeActiveOffersOnUnitWithdrawal error:', e)
+  }
 }
 
 export async function logoutAccountAction() {
@@ -506,7 +572,7 @@ export async function updateEmailInfoAction(payload: { email: string }) {
 export async function requestAccountDeletionAction(payload: {
   reason?: string
 }) {
-  const { t: msg, dir } = await getAccDict()
+  const { t: msg, oDict, dir } = await getAccDict()
   try {
     const session = await getVerifiedSessionUser()
     if (!session) return { success: false, error: msg.sessionExpired }
@@ -517,26 +583,39 @@ export async function requestAccountDeletionAction(payload: {
 
     const { data: userUnits } = await supabase
       .from('sell_requests')
-      .select('id, status')
+      .select('id, status, project_name')
       .eq('user_id', user.id)
+      .neq('status', 'deleted_by_seller')
 
     const unitsCount = userUnits?.length || 0
 
     if (userUnits && userUnits.length > 0) {
-      await Promise.all(
-        userUnits.map((u) =>
-          supabase
-            .from('sell_requests')
-            .update({
-              previous_status:
-                u.status && u.status !== 'paused_deletion'
-                  ? u.status
-                  : 'pending',
-              status: 'paused_deletion',
-            })
-            .eq('id', u.id)
-            .eq('user_id', user.id)
-        )
+      const allUnitIds = userUnits.map((u: any) => String(u.id))
+
+      // إغلاق وحذف جميع وحدات البائع وكل مراحلها نهائياً فور طلب حذف الحساب
+      await supabase
+        .from('sell_requests')
+        .update({
+          previous_status: null,
+          status: 'deleted_by_seller',
+          submission_type: 'deleted_by_account_closure',
+          is_featured: false,
+          boost_tier: null,
+          featured_status: 'none',
+          last_seller_edit_at: nowIso,
+          admin_note:
+            msg.closedByAccountDeletionNote ||
+            'تم إغلاق هذه الوحدة نهائياً بسبب طلب حذف الحساب. لعرض وحدة مرة أخرى يرجى إضافة وحدة جديدة.',
+        })
+        .in('id', allUnitIds)
+        .eq('user_id', user.id)
+
+      // إغلاق جميع العروض المرتبطة بهذه الوحدات عند كل المشترين وإبلاغهم فوراً
+      await closeActiveOffersOnUnitWithdrawal(
+        supabase,
+        allUnitIds,
+        userUnits[0]?.project_name || msg.unitWord,
+        oDict
       )
     }
 
@@ -581,8 +660,11 @@ export async function requestAccountDeletionAction(payload: {
     }
 
     revalidatePath('/account')
+    revalidatePath('/account/offers')
     revalidatePath('/opportunities')
     revalidatePath('/admin/users')
+    revalidatePath('/admin/properties')
+    revalidatePath('/admin/deals')
     return { success: true }
   } catch {
     return { success: false, error: msg.unexpected }
@@ -595,6 +677,7 @@ export async function cancelAccountDeletionAction() {
     if (!session) return { success: false }
     const { supabase, user } = session
 
+    // عند تراجع العميل عن حذف حسابه: يعود الحساب نشطاً، لكن الوحدات التي أُغلقت تظل مغلقة ويضيف وحدة جديدة من الصفر
     await supabase
       .from('users')
       .update({
@@ -604,27 +687,6 @@ export async function cancelAccountDeletionAction() {
         status: 'active',
       })
       .eq('id', user.id)
-
-    const { data: pausedUnits } = await supabase
-      .from('sell_requests')
-      .select('id, previous_status')
-      .eq('user_id', user.id)
-      .eq('status', 'paused_deletion')
-
-    if (pausedUnits && pausedUnits.length > 0) {
-      await Promise.all(
-        pausedUnits.map((u) =>
-          supabase
-            .from('sell_requests')
-            .update({
-              status: u.previous_status || 'pending',
-              previous_status: null,
-            })
-            .eq('id', u.id)
-            .eq('user_id', user.id)
-        )
-      )
-    }
 
     revalidatePath('/account')
     revalidatePath('/opportunities')
@@ -639,7 +701,7 @@ export async function toggleSellerUnitStatusAction(payload: {
   unitId: string
   action: 'pause' | 'resume'
 }) {
-  const { t: msg } = await getAccDict()
+  const { t: msg, oDict } = await getAccDict()
   try {
     const session = await getVerifiedSessionUser()
     if (!session) return { success: false, error: msg.sessionExpired }
@@ -675,6 +737,13 @@ export async function toggleSellerUnitStatusAction(payload: {
         .eq('id', payload.unitId)
 
       if (error) return { success: false, error: msg.pauseFailed }
+
+      await closeActiveOffersOnUnitWithdrawal(
+        supabase,
+        [String(payload.unitId)],
+        unit.project_name || msg.unitWord,
+        oDict
+      )
 
       try {
         await supabase.from('notifications').insert({
@@ -714,8 +783,10 @@ export async function toggleSellerUnitStatusAction(payload: {
     }
 
     revalidatePath('/account')
+    revalidatePath('/account/offers')
     revalidatePath('/opportunities')
     revalidatePath('/admin/properties')
+    revalidatePath('/admin/deals')
     return { success: true }
   } catch {
     return { success: false, error: msg.unexpected }
@@ -723,7 +794,7 @@ export async function toggleSellerUnitStatusAction(payload: {
 }
 
 export async function deleteUnitBySellerAction(unitId: string) {
-  const { t: msg } = await getAccDict()
+  const { t: msg, oDict } = await getAccDict()
   try {
     const session = await getVerifiedSessionUser()
     if (!session) return { success: false, error: msg.sessionExpired }
@@ -776,6 +847,13 @@ export async function deleteUnitBySellerAction(unitId: string) {
       }
     }
 
+    await closeActiveOffersOnUnitWithdrawal(
+      supabase,
+      [String(unitId)],
+      unit?.project_name || msg.unitWord,
+      oDict
+    )
+
     try {
       await supabase.from('notifications').insert({
         user_id: null,
@@ -789,8 +867,10 @@ export async function deleteUnitBySellerAction(unitId: string) {
     } catch {}
 
     revalidatePath('/account')
+    revalidatePath('/account/offers')
     revalidatePath('/opportunities')
     revalidatePath('/admin/properties')
+    revalidatePath('/admin/deals')
     return { success: true }
   } catch {
     return { success: false, error: msg.deleteFailed }

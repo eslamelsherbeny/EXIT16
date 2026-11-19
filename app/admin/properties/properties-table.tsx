@@ -1,34 +1,15 @@
 "use client"
 
 import { useEffect, useState, useTransition } from "react"
-import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import {
   AlertTriangle,
-  BarChart3,
-  Check,
   CheckCircle2,
-  Clock,
-  Crown,
   Download,
-  ExternalLink,
   Eye,
-  EyeOff,
-  FileCheck2,
   FileText,
-  Flame,
-  Handshake,
-  Loader2,
-  MoreVertical,
-  PauseCircle,
-  Phone,
-  RefreshCw,
-  RotateCcw,
   Search,
-  Sparkles,
-  Star,
   Trash2,
-  User,
   X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -55,11 +36,8 @@ import {
   buildSellerWhatsAppMessage,
   cleanPropertyAreaDisplay,
   deriveShortUnitCode,
-  getRemainingDaysBeforePurge,
   getUploadedDocsList,
   isSelfOfferOnProperty,
-  isSellerEmailVerified,
-  isSellerPhoneVerified,
   normalizeOfferStatus,
   type ConfirmPropertyAction,
   type SellRequest,
@@ -69,21 +47,14 @@ import {
   PropertyConfirmDialog,
   PropertyDetailsDialog,
 } from "./properties-modals"
+import {
+  PropertyActivityBadges,
+  PropertyDesktopRow,
+  PropertyDocsQuickDialog,
+  PropertyMobileCard,
+} from "./properties-row-cards"
 
 export type { SellRequest, UserVerificationBadgeInfo }
-
-function WhatsAppOfficialIcon({ className = "size-4" }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      className={className}
-      aria-hidden="true"
-    >
-      <path d="M12.031 2c-5.516 0-9.969 4.453-9.969 9.969 0 1.758.459 3.473 1.332 4.988L2 22l5.188-1.361c1.469.801 3.125 1.225 4.843 1.225 5.516 0 9.969-4.453 9.969-9.969S17.547 2 12.031 2zm5.82 14.129c-.244.688-1.422 1.314-1.977 1.396-.508.076-1.152.109-1.859-.115-.43-.137-.98-.32-1.688-.625-2.973-1.283-4.914-4.275-5.062-4.473-.148-.197-1.209-1.609-1.209-3.07 0-1.461.766-2.18 1.037-2.477.271-.297.592-.371.791-.371.197 0 .395.002.568.01.182.008.426-.068.666.508.246.592.84 2.049.914 2.197.074.148.123.32.025.518-.098.197-.148.32-.297.494-.148.172-.312.385-.445.518-.148.148-.303.309-.131.605.172.297.768 1.268 1.648 2.053 1.133 1.01 2.088 1.322 2.385 1.471.297.148.469.123.643-.074.172-.197.74-.863.938-1.16.197-.297.395-.246.666-.148.271.098 1.729.814 2.025.963.297.148.494.223.568.346.074.123.074.715-.17 1.403z" />
-    </svg>
-  )
-}
 
 function normalizeRowStatus(rawStatus?: string | null): string {
   const clean = String(rawStatus || "pending").trim().toLowerCase()
@@ -91,9 +62,6 @@ function normalizeRowStatus(rawStatus?: string | null): string {
   return clean
 }
 
-/**
- * التحقق مما إذا كانت الوحدة معتمدة ومنشورة في السوق وتسمح باستقبال عروض شراء
- */
 function isUnitEligibleForOffers(status: string): boolean {
   return (
     status === "active" ||
@@ -126,6 +94,7 @@ export default function PropertiesTable({
   const propNotices = (t.notices as Record<string, string>) || {}
   const leadsPrompts = dict.admin.leads
   const sm = (dict.admin as Record<string, any>).smartMatch || {}
+  const dealsDict = (dict.admin as Record<string, any>).dealsPage || {}
   const expL = EXPORT_LABELS[locale] || EXPORT_LABELS.ar
   const aL = (t.analytics as Record<string, string>) || {}
 
@@ -173,23 +142,11 @@ export default function PropertiesTable({
       .filter((o) => o.status !== "recommended" && o.status !== "rejected")
   }
 
-  function getOffersCountForUnit(unit: SellRequest) {
-    return getValidOffersForUnit(unit).length
-  }
-
-  /**
-   * المرحلة الفعلية للوحدة: إذا كانت معتمدة وعليها عرض موافق عليه تظهر كـ "مرحلة نقل التعاقد"،
-   * وإذا كان عليها عرض عند البائع تظهر كـ "يوجد عرض شراء"
-   */
   function getEffectiveUnitStage(property: SellRequest): string {
     const rawSt = normalizeRowStatus(property.status)
-    if (!isUnitEligibleForOffers(rawSt) || rawSt === "sold") {
-      return rawSt
-    }
+    if (!isUnitEligibleForOffers(rawSt) || rawSt === "sold") return rawSt
     const validOffers = getValidOffersForUnit(property)
-    if (validOffers.some((o) => o.status === "accepted")) {
-      return "transferring"
-    }
+    if (validOffers.some((o) => o.status === "accepted")) return "transferring"
     if (
       validOffers.some(
         (o) => o.status === "pending_seller" || o.status === "counter_offered"
@@ -197,6 +154,7 @@ export default function PropertiesTable({
     ) {
       return "offer_received"
     }
+    if (rawSt === "transferring" || rawSt === "offer_received") return "active"
     return rawSt
   }
 
@@ -277,6 +235,7 @@ export default function PropertiesTable({
   const [detailsProperty, setDetailsProperty] = useState<SellRequest | null>(
     null
   )
+  const [docsProperty, setDocsProperty] = useState<SellRequest | null>(null)
   const [smartMatchProperty, setSmartMatchProperty] =
     useState<SellRequest | null>(null)
   const [confirmAction, setConfirmAction] =
@@ -310,15 +269,12 @@ export default function PropertiesTable({
     if (verifyPhoneUserIdParam) {
       const alreadyVerified =
         verificationMap?.[verifyPhoneUserIdParam]?.phoneVerified
-      if (!alreadyVerified) {
-        handleVerifySellerContact(verifyPhoneUserIdParam)
-      }
+      if (!alreadyVerified) handleVerifySellerContact(verifyPhoneUserIdParam)
     }
 
     if (unitIdParam) {
       setHighlightedUnitId(unitIdParam)
       const targetProp = properties.find((p) => p.id === unitIdParam)
-
       if (targetProp) {
         if (
           !isPromotionsPage &&
@@ -337,8 +293,9 @@ export default function PropertiesTable({
           })
         }
         setTimeout(() => {
-          const el = document.getElementById(`prop-row-${unitIdParam}`)
-          el?.scrollIntoView({ behavior: "smooth", block: "center" })
+          document
+            .getElementById(`prop-row-${unitIdParam}`)
+            ?.scrollIntoView({ behavior: "smooth", block: "center" })
         }, 250)
       }
     }
@@ -353,10 +310,7 @@ export default function PropertiesTable({
   function handleVerifySellerContact(userId: string) {
     setNotice(null)
     startTransition(async () => {
-      const res = await verifyUserContactByAdminAction({
-        userId,
-        type: "both",
-      })
+      const res = await verifyUserContactByAdminAction({ userId, type: "both" })
       if (res.success) {
         setNotice({ text: propNotices.sellerVerifiedSuccess })
         router.refresh()
@@ -399,9 +353,8 @@ export default function PropertiesTable({
             reason.trim() ? reason.trim() : undefined
           )
           if (res.success) {
-            const stLabel = getStatusLabel(confirmAction.newStatus)
             setNotice({
-              text: `${propNotices.statusUpdated} ("${target.project_name || target.name}" → ${stLabel})`,
+              text: `${propNotices.statusUpdated} ("${target.project_name || target.name}" → ${getStatusLabel(confirmAction.newStatus)})`,
             })
             router.refresh()
           } else {
@@ -421,7 +374,6 @@ export default function PropertiesTable({
           const resolvedTier =
             confirmAction.tier ||
             (target.boost_tier === "vip_plus" ? "vip_plus" : "super_vip")
-
           const res = await managePropertyPromotionAction(
             target.id,
             confirmAction.promoAction,
@@ -518,17 +470,14 @@ export default function PropertiesTable({
         p.submission_type === "resumed_by_seller"
       )
     }
-
     if (statusFilter === "pending") {
       return currentStatus === "pending" || currentStatus === "under_review"
     }
-
     if (statusFilter === "offer_received") {
       return (
         currentStatus === "offer_received" || currentStatus === "transferring"
       )
     }
-
     if (statusFilter !== "all" && currentStatus !== statusFilter) return false
     return true
   })
@@ -653,500 +602,77 @@ export default function PropertiesTable({
     }
   }
 
-  function renderPublishButton(
-    property: SellRequest,
-    currentSt: string,
-    isMobile = false
-  ) {
-    if (currentSt === "deleted_by_seller" || currentSt === "sold") return null
-
-    if (
-      currentSt === "active" ||
-      currentSt === "offer_received" ||
-      currentSt === "transferring"
-    ) {
-      return (
-        <button
-          type="button"
-          disabled={pending}
-          onClick={() =>
-            setConfirmAction({
-              type: "status",
-              property,
-              newStatus: "paused_by_seller",
-            })
-          }
-          className={`inline-flex items-center justify-center gap-1 rounded-xl border border-orange-200 bg-orange-50 px-2.5 text-xs font-extrabold text-orange-800 transition hover:bg-orange-100 disabled:opacity-50 ${
-            isMobile ? "h-8.5 flex-1" : "h-8 shrink-0"
-          }`}
-          title={t.actions.unpublishBtn}
-        >
-          <EyeOff className="size-3.5 shrink-0 text-orange-600" />
-          <span className="truncate">{t.actions.unpublishBtn}</span>
-        </button>
-      )
-    }
-
-    return (
-      <button
-        type="button"
-        disabled={pending}
-        onClick={() =>
-          setConfirmAction({
-            type: "status",
-            property,
-            newStatus: "active",
-          })
-        }
-        className={`inline-flex items-center justify-center gap-1 rounded-xl bg-[#007a5a] px-3 text-xs font-extrabold text-white shadow-2xs transition hover:bg-[#006248] disabled:opacity-50 ${
-          isMobile ? "h-8.5 flex-1" : "h-8 shrink-0"
-        }`}
-        title={t.actions.publishShortBtn}
-      >
-        <Check className="size-3.5 shrink-0" />
-        <span className="truncate">{t.actions.publishShortBtn}</span>
-      </button>
-    )
-  }
-
-  function renderPromoteButtonDesktop(
-    property: SellRequest,
-    currentSt: string,
-    isFeaturedActive: boolean
-  ) {
-    if (currentSt === "deleted_by_seller") return null
-
-    return (
-      <button
-        type="button"
-        disabled={pending}
-        onClick={() =>
-          setConfirmAction({
-            type: "promote",
-            property,
-            promoAction: isFeaturedActive ? "cancel" : "activate",
-            days: property.featured_days || 14,
-            tier:
-              property.boost_tier === "vip_plus" ? "vip_plus" : "super_vip",
-          })
-        }
-        title={
-          isFeaturedActive
-            ? t.actions.cancelPromoBtn
-            : t.actions.promoteStarBtn
-        }
-        className={`inline-flex h-8 shrink-0 items-center justify-center gap-1 rounded-xl border px-2.5 text-[11px] font-extrabold transition disabled:opacity-50 ${
-          isFeaturedActive
-            ? "border-amber-300 bg-amber-100 text-amber-900 hover:bg-amber-200"
-            : "border-amber-200 bg-amber-50/80 text-amber-800 hover:bg-amber-100"
-        }`}
-      >
-        <Star
-          className={`size-3.5 shrink-0 ${
-            isFeaturedActive
-              ? "fill-amber-500 text-amber-600"
-              : "text-amber-600"
-          }`}
-        />
-        <span className="truncate">
-          {isFeaturedActive
-            ? t.actions.cancelPromoBtn
-            : t.actions.promoteStarBtn}
-        </span>
-      </button>
-    )
-  }
-
-  function renderThreeDotsMenu(
-    property: SellRequest,
-    currentSt: string,
-    isFeaturedActive: boolean
-  ) {
-    const isMenuOpen = openMenuId === property.id
+  function handleExportSingle(property: SellRequest, format: "excel" | "pdf") {
     const uCode = deriveShortUnitCode(property.id, property.code)
-    const viewsCount = Math.max(1, Number(property.views_count) || 1)
-    const matchedBuyersCount = getMatchedBuyersForUnit(property).length
-    const offersCount = getOffersCountForUnit(property)
-
-    const reportWaMessage = buildOwnerPerformanceReportWhatsAppMessage({
-      property,
-      viewsCount,
-      offersCount,
-      matchedBuyersCount,
-      locale,
-      t,
-    })
-
-    return (
-      <div
-        className="relative"
-        onClick={(e) => {
-          e.stopPropagation()
-        }}
-      >
-        <button
-          type="button"
-          aria-label={expL.moreActionsAria}
-          onClick={(e) => {
-            e.stopPropagation()
-            setOpenMenuId(isMenuOpen ? null : property.id)
-          }}
-          className="flex size-8 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-600 transition hover:border-[#007a5a] hover:bg-white hover:text-[#0f1d40]"
-        >
-          <MoreVertical className="size-4" />
-        </button>
-
-        {isMenuOpen && (
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="absolute end-0 top-9 z-50 w-60 overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl"
-          >
-            <Link
-              href={`/opportunities/${property.id}`}
-              target="_blank"
-              onClick={() => setOpenMenuId(null)}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-[#0f1d40] transition hover:bg-slate-50"
-            >
-              <ExternalLink className="size-3.5 text-[#007a5a]" />
-              <span>{aL.viewUnitBtn}</span>
-            </Link>
-
-            <a
-              href={`https://wa.me/${String(property.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(reportWaMessage)}`}
-              target="_blank"
-              rel="noreferrer"
-              onClick={() => setOpenMenuId(null)}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-[#2563eb] transition hover:bg-blue-50"
-            >
-              <BarChart3 className="size-3.5 shrink-0 text-[#2563eb]" />
-              <span>{aL.sendReportWaBtn}</span>
-            </a>
-
-            {currentSt !== "deleted_by_seller" && (
-              <>
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setOpenMenuId(null)
-                    setConfirmAction({
-                      type: "promote",
-                      property,
-                      promoAction: isFeaturedActive ? "cancel" : "activate",
-                      days: property.featured_days || 14,
-                      tier:
-                        property.boost_tier === "vip_plus"
-                          ? "vip_plus"
-                          : "super_vip",
-                    })
-                  }}
-                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-amber-800 transition hover:bg-amber-50"
-                >
-                  <Star
-                    className={`size-3.5 ${
-                      isFeaturedActive
-                        ? "fill-amber-500 text-amber-600"
-                        : "text-amber-600"
-                    }`}
-                  />
-                  <span>
-                    {isFeaturedActive
-                      ? t.actions.cancelPromoBtn
-                      : t.actions.promoteStarBtn}
-                  </span>
-                </button>
-
-                {currentSt === "active" ||
-                currentSt === "offer_received" ||
-                currentSt === "transferring" ? (
-                  <button
-                    type="button"
-                    disabled={pending}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setOpenMenuId(null)
-                      setConfirmAction({
-                        type: "status",
-                        property,
-                        newStatus: "paused_by_seller",
-                      })
-                    }}
-                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-orange-800 transition hover:bg-orange-50"
-                  >
-                    <EyeOff className="size-3.5 text-orange-600" />
-                    <span>{t.actions.unpublishBtn}</span>
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    disabled={pending}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setOpenMenuId(null)
-                      setConfirmAction({
-                        type: "status",
-                        property,
-                        newStatus: "active",
-                      })
-                    }}
-                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-[#007a5a] transition hover:bg-[#eaf8f2]"
-                  >
-                    <Check className="size-3.5 text-[#007a5a]" />
-                    <span>{t.actions.publishShortBtn}</span>
-                  </button>
-                )}
-              </>
-            )}
-
-            <div className="my-1 border-t border-slate-100" />
-
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                setOpenMenuId(null)
-                exportUnitsReport(
-                  [property],
-                  "excel",
-                  `AqarExit_Unit_${uCode}`,
-                  `${expL.singlePropertyReportTitle} (${uCode} — ${property.project_name || property.name})`
-                )
-              }}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-[#007a5a] transition hover:bg-[#eaf8f2]"
-            >
-              <Download className="size-3.5 text-[#007a5a]" />
-              <span>{expL.exportRowBtn}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                setOpenMenuId(null)
-                exportUnitsReport(
-                  [property],
-                  "pdf",
-                  `AqarExit_Unit_${uCode}`,
-                  `${expL.singlePropertyReportTitle} (${uCode} — ${property.project_name || property.name})`
-                )
-              }}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-blue-700 transition hover:bg-blue-50"
-            >
-              <FileText className="size-3.5 text-blue-600" />
-              <span>{expL.exportRowPdfBtn}</span>
-            </button>
-
-            <div className="my-1 border-t border-slate-100" />
-
-            <button
-              type="button"
-              disabled={pending}
-              onClick={(e) => {
-                e.stopPropagation()
-                setOpenMenuId(null)
-                setConfirmAction({
-                  type: "delete",
-                  property,
-                })
-              }}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-red-600 transition hover:bg-red-50"
-            >
-              <Trash2 className="size-3.5 text-red-600" />
-              <span>{t.modals.deleteTitle}</span>
-            </button>
-          </div>
-        )}
-      </div>
+    exportUnitsReport(
+      [property],
+      format,
+      `AqarExit_Unit_${uCode}`,
+      `${expL.singlePropertyReportTitle} (${uCode} — ${property.project_name || property.name})`
     )
   }
 
-  function renderSellerActivityBadges(property: SellRequest) {
-    const rawSt = normalizeRowStatus(property.status)
-    const docs = getUploadedDocsList(
-      property.documents,
-      docLabels,
-      t.docs.fallbackName
-    )
+  function buildCardProps(property: SellRequest, index?: number) {
+    const rawStatus = normalizeRowStatus(property.status)
+    const currentSt = getEffectiveUnitStage(property)
+    const stObj =
+      sellerStatusOptions.find((s) => s.value === currentSt) ||
+      sellerStatusOptions[0]
     const isFeaturedActive =
       Boolean(property.is_featured) &&
       (!property.featured_until ||
         new Date(property.featured_until) > new Date())
-    const matchedBuyers = getMatchedBuyersForUnit(property)
-    const viewsCount = Math.max(1, Number(property.views_count) || 1)
+    const docsCount = getUploadedDocsList(
+      property.documents,
+      docLabels,
+      t.docs.fallbackName
+    ).length
+    const matchedBuyersCount = getMatchedBuyersForUnit(property).length
+    const validOffers = getValidOffersForUnit(property)
 
-    // لا تعرض شارات عروض الشراء إلا إذا كانت الوحدة معتمدة ومنشورة في السوق
-    const normalizedUnitOffers = getValidOffersForUnit(property)
-
-    const acceptedOffer = normalizedUnitOffers.find(
-      (o) => o.status === "accepted"
-    )
-    const pendingAdminOffer = normalizedUnitOffers.find(
-      (o) => o.status === "pending_admin"
-    )
-    const pendingSellerOffer = normalizedUnitOffers.find(
-      (o) => o.status === "pending_seller" || o.status === "counter_offered"
-    )
-
-    const isVipPlus = property.boost_tier === "vip_plus"
-
-    return (
-      <div className="mt-2 flex flex-wrap items-center gap-1.5">
-        <span
-          className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50/80 px-2 py-0.5 text-[10.5px] font-extrabold text-[#2563eb]"
-          title={aL.viewsColumnHeader}
-        >
-          <Eye className="size-3" />
-          <span className="tabular-nums">
-            {viewsCount.toLocaleString("en-US")} {aL.viewsWord}
-          </span>
-        </span>
-
-        {acceptedOffer ? (
-          <Link
-            href={`/admin/deals?offerId=${acceptedOffer.id}`}
-            className="inline-flex items-center gap-1 rounded-md bg-[#007a5a] px-2 py-0.5 text-[10px] font-extrabold text-white shadow-2xs hover:bg-[#006248]"
-          >
-            <Handshake className="size-2.5" />
-            <span>
-              {sm.offerAcceptedTag} ({acceptedOffer.buyer_name || ""})
-            </span>
-          </Link>
-        ) : pendingAdminOffer ? (
-          <Link
-            href={`/admin/deals?offerId=${pendingAdminOffer.id}`}
-            className="inline-flex items-center gap-1 rounded-md bg-amber-500 px-2 py-0.5 text-[10px] font-extrabold text-white shadow-2xs hover:bg-amber-600"
-          >
-            <Clock className="size-2.5" />
-            <span>
-              {sm.offerPendingAdminTag} ({pendingAdminOffer.buyer_name || ""})
-            </span>
-          </Link>
-        ) : pendingSellerOffer ? (
-          <Link
-            href={`/admin/deals?offerId=${pendingSellerOffer.id}`}
-            className="inline-flex items-center gap-1 rounded-md border border-purple-300 bg-purple-50 px-2 py-0.5 text-[10px] font-extrabold text-purple-900 hover:bg-purple-100"
-          >
-            <span>
-              💰 {sm.offerPendingTag} ({pendingSellerOffer.buyer_name || ""})
-            </span>
-          </Link>
-        ) : null}
-
-        {matchedBuyers.length > 0 && (
-          <button
-            type="button"
-            onClick={() => setSmartMatchProperty(property)}
-            className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-[#eaf8f2] px-2.5 py-0.5 text-[10.5px] font-extrabold text-[#007a5a] transition hover:bg-[#007a5a] hover:text-white"
-          >
-            <span>🎯</span>
-            <span>
-              {matchedBuyers.length} {sm.matchedBuyersShort}
-            </span>
-          </button>
-        )}
-
-        {docs.length > 0 && (
-          <button
-            type="button"
-            onClick={() => setDetailsProperty(property)}
-            className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10.5px] font-bold text-slate-700 hover:bg-slate-100"
-          >
-            <FileCheck2 className="size-3 text-[#007a5a]" />
-            <span>
-              {docs.length}/4 {propBadges.docWord}
-            </span>
-          </button>
-        )}
-
-        {isFeaturedActive && (
-          <button
-            type="button"
-            onClick={() =>
-              setConfirmAction({
-                type: "promote",
-                property,
-                promoAction: "cancel",
-                days: property.featured_days || 14,
-                tier: isVipPlus ? "vip_plus" : "super_vip",
-              })
-            }
-            title={t.actions.cancelPromoBtn}
-            className={`inline-flex items-center gap-1 rounded-md px-2.5 py-0.5 text-[10.5px] font-extrabold transition hover:opacity-85 ${
-              isVipPlus
-                ? "bg-indigo-100 text-indigo-900"
-                : "bg-orange-100 text-orange-900"
-            }`}
-          >
-            {isVipPlus ? (
-              <Flame className="size-3 text-indigo-600" />
-            ) : (
-              <Crown className="size-3 text-orange-600" />
-            )}
-            <span>
-              {isVipPlus ? "+VIP" : "SUPER VIP"} ({property.featured_days || 14}{" "}
-              {propBadges.dayWord})
-            </span>
-          </button>
-        )}
-
-        {!isFeaturedActive &&
-          property.featured_status === "pending_payment" && (
-            <button
-              type="button"
-              onClick={() =>
-                setConfirmAction({
-                  type: "promote",
-                  property,
-                  promoAction: "activate",
-                  days: property.featured_days || 14,
-                  tier: isVipPlus ? "vip_plus" : "super_vip",
-                })
-              }
-              className="inline-flex items-center gap-1 rounded-md border border-amber-400 bg-amber-100 px-2.5 py-0.5 text-[10.5px] font-bold text-amber-950 hover:bg-amber-200"
-            >
-              <Sparkles className="size-3 text-amber-700" />
-              <span>
-                {propBadges.promoReqPrefix} (
-                {isVipPlus ? "+VIP" : "SUPER VIP"} ·{" "}
-                {property.featured_days || 1} {propBadges.dayWord}
-                {property.featured_price ? ` · ${property.featured_price} ₾` : ""}
-                ) · {property.featured_fawry_code || "AD"}
-              </span>
-            </button>
-          )}
-
-        {property.submission_type === "edited_by_seller" &&
-          rawSt === "pending" && (
-            <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-800">
-              <RefreshCw className="size-2.5" />
-              <span>{propBadges.editedBySeller}</span>
-            </span>
-          )}
-
-        {rawSt === "paused_by_seller" && (
-          <span className="inline-flex items-center gap-1 rounded-md bg-orange-50 px-2 py-0.5 text-[10px] font-bold text-orange-800">
-            <PauseCircle className="size-2.5" />
-            <span>{propBadges.pausedBySeller}</span>
-          </span>
-        )}
-
-        {rawSt === "deleted_by_seller" && (
-          <span className="inline-flex items-center gap-1 rounded-md bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-800">
-            <Trash2 className="size-2.5" />
-            <span>
-              {propBadges.deletedBySellerPrefix} (
-              {getRemainingDaysBeforePurge(property.last_seller_edit_at)}{" "}
-              {propBadges.daysWord})
-            </span>
-          </span>
-        )}
-      </div>
-    )
+    return {
+      property,
+      index,
+      rawStatus,
+      currentSt,
+      stObj,
+      sellerStatusOptions,
+      isLoading: pending && activePropertyId === property.id,
+      isHighlighted: highlightedUnitId === property.id,
+      isFeaturedActive,
+      unitCur,
+      locale,
+      t,
+      propBadges,
+      leadsPrompts,
+      sm,
+      dealsDict,
+      aL,
+      expL,
+      pending,
+      verificationMap,
+      openMenuId,
+      setOpenMenuId,
+      onConfirmAction: setConfirmAction,
+      onOpenDetails: setDetailsProperty,
+      onOpenDocs: setDocsProperty,
+      onOpenSmartMatch: setSmartMatchProperty,
+      onExportSingle: handleExportSingle,
+      matchedBuyersCount,
+      validOffers,
+      docsCount,
+    }
   }
 
   const activeCount = properties.length - deletedBySellerList.length
   const georgiaLabel = t.countries?.GE || ""
+  const modalDocsList = docsProperty
+    ? getUploadedDocsList(
+        docsProperty.documents,
+        docLabels,
+        t.docs.fallbackName
+      )
+    : []
 
   return (
     <div dir={dir} className="text-start">
@@ -1333,189 +859,12 @@ export default function PropertiesTable({
             {t.table.emptyText}
           </div>
         ) : (
-          filtered.map((property) => {
-            const currentSt = getEffectiveUnitStage(property)
-            const stObj =
-              sellerStatusOptions.find((s) => s.value === currentSt) ||
-              sellerStatusOptions[0]
-            const isCardLoading = pending && activePropertyId === property.id
-            const isFeaturedActive =
-              Boolean(property.is_featured) &&
-              (!property.featured_until ||
-                new Date(property.featured_until) > new Date())
-            const isHighlighted = highlightedUnitId === property.id
-            const waText = buildSellerWhatsAppMessage({
-              property,
-              unitCur,
-              locale,
-              t,
-              leadsPrompts,
-            })
-            const localizedArea = cleanPropertyAreaDisplay(
-              property.area,
-              locale
-            )
-            const phoneOk = isSellerPhoneVerified(property, verificationMap)
-
-            return (
-              <div
-                id={`prop-row-${property.id}`}
-                key={property.id}
-                className={`relative rounded-2xl border bg-white p-4 shadow-xs transition ${
-                  isCardLoading
-                    ? "border-[#007a5a] opacity-75"
-                    : isHighlighted
-                      ? "border-[#007a5a] ring-2 ring-[#007a5a]/30"
-                      : currentSt === "deleted_by_seller"
-                        ? "border-red-300 bg-red-50/20"
-                        : isFeaturedActive
-                          ? "border-amber-300"
-                          : "border-slate-200/90"
-                }`}
-              >
-                {isCardLoading && (
-                  <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-white/65 backdrop-blur-[1px]">
-                    <div className="flex items-center gap-2 rounded-full bg-[#0f1d40] px-3.5 py-1.5 text-xs font-bold text-white shadow-md">
-                      <Loader2 className="size-3.5 animate-spin text-emerald-400" />
-                      <span>{t.table.updatingText}</span>
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
-                      <span className="rounded bg-slate-100 px-2 py-0.5 font-mono text-[10px] font-black text-[#0f1d40]">
-                        {deriveShortUnitCode(property.id, property.code)}
-                      </span>
-                      <h3 className="truncate text-xs font-extrabold text-[#0f1d40] sm:text-sm">
-                        {property.project_name || t.table.unspecifiedProject}
-                      </h3>
-                    </div>
-                    <p className="mt-0.5 text-[11px] text-slate-500">
-                      {localizedArea} ·{" "}
-                      {property.unit_type || t.table.defaultUnitType}{" "}
-                      {property.size
-                        ? `· ${property.size} ${t.table.sqmUnit}`
-                        : ""}
-                    </p>
-                    {renderSellerActivityBadges(property)}
-                  </div>
-
-                  {renderThreeDotsMenu(property, currentSt, isFeaturedActive)}
-                </div>
-
-                <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl border border-slate-100 bg-slate-50/80 p-2.5 text-xs">
-                  <div>
-                    <span className="block text-[10px] text-slate-400">
-                      {t.table.colCash}
-                    </span>
-                    <strong
-                      dir="ltr"
-                      className="mt-0.5 block text-sm font-black text-[#007a5a]"
-                    >
-                      {property.paid_amount
-                        ? `${unitCur}${Number(property.paid_amount).toLocaleString("en-US")}`
-                        : "—"}
-                    </strong>
-                  </div>
-
-                  <div className="border-s border-slate-200/70 ps-2 text-[11px]">
-                    <div>
-                      <span className="text-slate-400">
-                        {t.table.contractShort}{" "}
-                      </span>
-                      <strong dir="ltr" className="text-[#0f1d40]">
-                        {property.contract_price
-                          ? `${unitCur}${Number(property.contract_price).toLocaleString("en-US")}`
-                          : "—"}
-                      </strong>
-                    </div>
-                    <div className="mt-0.5">
-                      <span className="text-slate-400">
-                        {t.table.marketShort}{" "}
-                      </span>
-                      <strong dir="ltr" className="text-slate-700">
-                        {property.market_price
-                          ? `${unitCur}${Number(property.market_price).toLocaleString("en-US")}`
-                          : "—"}
-                      </strong>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-2.5 flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-xs">
-                  <div className="flex items-center gap-1.5 font-bold text-[#0f1d40]">
-                    <User className="size-3.5 text-slate-400" />
-                    <span>{property.name}</span>
-                  </div>
-                  <div
-                    dir="ltr"
-                    className="flex items-center gap-1 font-medium text-slate-600"
-                  >
-                    <Phone className="size-3 text-slate-400" />
-                    <span>{property.phone}</span>
-                    {phoneOk && (
-                      <CheckCircle2 className="size-3.5 text-[#007a5a]" />
-                    )}
-                  </div>
-                </div>
-
-                <div className="mt-2.5">
-                  <select
-                    disabled={pending}
-                    value={currentSt}
-                    onChange={(e) => {
-                      const nextSt = e.target.value
-                      if (nextSt !== currentSt) {
-                        setConfirmAction({
-                          type: "status",
-                          property,
-                          newStatus: nextSt,
-                        })
-                      }
-                    }}
-                    className={`h-9 w-full rounded-xl border px-3 text-xs font-extrabold focus:outline-none ${stObj.badge}`}
-                  >
-                    {sellerStatusOptions.map((opt) => (
-                      <option
-                        key={opt.value}
-                        value={opt.value}
-                        className="bg-white text-[#0f1d40]"
-                      >
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="mt-2.5 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-2.5">
-                  {renderPublishButton(property, currentSt, true)}
-
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-8.5 flex-1 rounded-xl text-xs font-bold"
-                    onClick={() => setDetailsProperty(property)}
-                  >
-                    <Eye className="me-1 size-3.5 text-[#007a5a]" />
-                    {t.actions.detailsBtn}
-                  </Button>
-
-                  <a
-                    data-admin-client-wa="true"
-                    href={`https://wa.me/${String(property.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(waText)}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex h-8.5 flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#25D366] px-3 text-xs font-bold text-white transition hover:bg-[#1ebe5d]"
-                  >
-                    <WhatsAppOfficialIcon className="size-4" />
-                    <span>{leadsPrompts.whatsappBtn}</span>
-                  </a>
-                </div>
-              </div>
-            )
-          })
+          filtered.map((property) => (
+            <PropertyMobileCard
+              key={property.id}
+              {...buildCardProps(property)}
+            />
+          ))
         )}
       </div>
 
@@ -1565,12 +914,11 @@ export default function PropertiesTable({
           </div>
         </div>
 
-        <div className="mb-2.5 grid grid-cols-12 items-center gap-4 rounded-xl border border-slate-200/90 bg-slate-100/80 px-5 py-3 text-[11px] font-extrabold text-slate-600">
-          <div className="col-span-3">{t.table.colProject}</div>
-          <div className="col-span-2">{t.table.colCash}</div>
-          <div className="col-span-2">{t.table.colClient}</div>
-          <div className="col-span-2">{t.table.colStage}</div>
-          <div className="col-span-3 text-end">{t.table.colActions}</div>
+        <div className="mb-2.5 grid grid-cols-[minmax(0,3.5fr)_minmax(0,2.5fr)_minmax(0,3fr)_215px] items-center gap-4 rounded-xl border border-slate-200/90 bg-slate-100/80 px-5 py-2.5 text-[11px] font-extrabold text-slate-600">
+          <div>{t.table.colProject}</div>
+          <div>{t.table.colCash}</div>
+          <div>{t.table.colClient}</div>
+          <div className="text-center">{t.table.colStage}</div>
         </div>
 
         {filtered.length === 0 ? (
@@ -1579,260 +927,25 @@ export default function PropertiesTable({
           </div>
         ) : (
           <div className="space-y-3">
-            {filtered.map((property, index) => {
-              const currentSt = getEffectiveUnitStage(property)
-              const stObj =
-                sellerStatusOptions.find((s) => s.value === currentSt) ||
-                sellerStatusOptions[0]
-              const isRowLoading = pending && activePropertyId === property.id
-              const isFeaturedActive =
-                Boolean(property.is_featured) &&
-                (!property.featured_until ||
-                  new Date(property.featured_until) > new Date())
-              const isHighlighted = highlightedUnitId === property.id
-              const waText = buildSellerWhatsAppMessage({
-                property,
-                unitCur,
-                locale,
-                t,
-                leadsPrompts,
-              })
-              const localizedArea = cleanPropertyAreaDisplay(
-                property.area,
-                locale
-              )
-              const phoneOk = isSellerPhoneVerified(property, verificationMap)
-              const emailOk = isSellerEmailVerified(property, verificationMap)
-
-              return (
-                <div
-                  id={`prop-row-${property.id}`}
-                  key={property.id}
-                  className={`grid grid-cols-12 items-center gap-4 rounded-2xl border bg-white px-5 py-4 shadow-2xs transition-all hover:shadow-sm ${
-                    isRowLoading
-                      ? "border-[#007a5a] bg-[#eaf8f2]/30 opacity-60"
-                      : isHighlighted
-                        ? "border-2 border-[#007a5a] bg-[#eaf8f2]/40 ring-2 ring-[#007a5a]/20"
-                        : currentSt === "active"
-                          ? "border-slate-200/90 border-s-4 border-s-[#007a5a]"
-                          : currentSt === "offer_received" ||
-                              currentSt === "transferring"
-                            ? "border-purple-200 border-s-4 border-s-purple-600"
-                            : currentSt === "pending" ||
-                                currentSt === "under_review"
-                              ? "border-amber-200/90 border-s-4 border-s-amber-500"
-                              : currentSt === "deleted_by_seller"
-                                ? "border-red-200 bg-red-50/20"
-                                : "border-slate-200/90"
-                  }`}
-                >
-                  <div className="col-span-3 min-w-0 pe-2">
-                    <div className="flex items-center gap-2">
-                      <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[11px] font-black text-slate-600">
-                        {index + 1}
-                      </span>
-                      <span className="shrink-0 rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[10.5px] font-black text-[#0f1d40]">
-                        {deriveShortUnitCode(property.id, property.code)}
-                      </span>
-                      <Link
-                        href={`/opportunities/${property.id}`}
-                        target="_blank"
-                        className="truncate text-sm font-black text-[#0f1d40] hover:text-[#007a5a] hover:underline"
-                      >
-                        {property.project_name || t.table.unspecifiedProject}
-                      </Link>
-                      {isRowLoading && (
-                        <Loader2 className="size-4 shrink-0 animate-spin text-[#007a5a]" />
-                      )}
-                    </div>
-
-                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5 ps-8 text-xs font-semibold text-slate-500">
-                      <span className="text-[#0f1d40]">{localizedArea}</span>
-                      <span>·</span>
-                      <span>
-                        {property.unit_type || t.table.defaultUnitType}
-                      </span>
-                      {property.size ? (
-                        <>
-                          <span>·</span>
-                          <span>
-                            {property.size} {t.table.sqmUnit}
-                          </span>
-                        </>
-                      ) : null}
-                    </div>
-
-                    <div className="ps-8">
-                      {renderSellerActivityBadges(property)}
-                    </div>
-                  </div>
-
-                  <div className="col-span-2 border-s border-slate-100 ps-4">
-                    <span className="block text-[10px] font-bold text-slate-400">
-                      {t.table.colCash}
-                    </span>
-                    <div
-                      dir="ltr"
-                      className="mt-0.5 text-base font-black text-[#007a5a] tabular-nums"
-                    >
-                      {property.paid_amount
-                        ? `${unitCur}${Number(property.paid_amount).toLocaleString("en-US")}`
-                        : "—"}
-                    </div>
-
-                    <div className="mt-1.5 space-y-0.5 border-t border-slate-100 pt-1.5 text-[11px]">
-                      <div className="flex items-center justify-between gap-1">
-                        <span className="text-slate-400">
-                          {t.table.contractShort}
-                        </span>
-                        <strong
-                          dir="ltr"
-                          className="font-extrabold text-[#0f1d40] tabular-nums"
-                        >
-                          {property.contract_price
-                            ? `${unitCur}${Number(property.contract_price).toLocaleString("en-US")}`
-                            : "—"}
-                        </strong>
-                      </div>
-                      <div className="flex items-center justify-between gap-1">
-                        <span className="text-slate-400">
-                          {t.table.marketShort}
-                        </span>
-                        <span
-                          dir="ltr"
-                          className="font-bold text-slate-600 tabular-nums"
-                        >
-                          {property.market_price
-                            ? `${unitCur}${Number(property.market_price).toLocaleString("en-US")}`
-                            : "—"}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="col-span-2 min-w-0 border-s border-slate-100 ps-4">
-                    <div className="flex items-center gap-1.5 truncate text-xs font-extrabold text-[#0f1d40]">
-                      <User className="size-3.5 shrink-0 text-slate-400" />
-                      <span className="truncate">{property.name}</span>
-                    </div>
-                    <div
-                      dir="ltr"
-                      className="mt-1 flex items-center justify-start gap-1 font-mono text-[11.5px] font-bold text-slate-700"
-                    >
-                      <span>{property.phone}</span>
-                      {phoneOk && (
-                        <span
-                          title={propBadges.phoneVerifiedBadge}
-                          className="inline-flex text-[#007a5a]"
-                        >
-                          <CheckCircle2 className="size-3.5" />
-                        </span>
-                      )}
-                    </div>
-                    {property.email && (
-                      <div className="mt-0.5 flex items-center gap-1 truncate text-[10.5px] text-slate-400">
-                        <span className="truncate">{property.email}</span>
-                        {emailOk && (
-                          <span
-                            title={propBadges.emailVerifiedBadge}
-                            className="inline-flex shrink-0 text-[#007a5a]"
-                          >
-                            <CheckCircle2 className="size-3.5" />
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="col-span-2 border-s border-slate-100 ps-4">
-                    <select
-                      disabled={pending}
-                      value={currentSt}
-                      onChange={(e) => {
-                        const nextSt = e.target.value
-                        if (nextSt !== currentSt) {
-                          setConfirmAction({
-                            type: "status",
-                            property,
-                            newStatus: nextSt,
-                          })
-                        }
-                      }}
-                      className={`h-9 w-full cursor-pointer rounded-xl border px-3 text-xs font-extrabold transition focus:outline-none ${stObj.badge}`}
-                    >
-                      {sellerStatusOptions.map((opt) => (
-                        <option
-                          key={opt.value}
-                          value={opt.value}
-                          className="bg-white text-[#0f1d40]"
-                        >
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="col-span-3 flex flex-wrap items-center justify-end gap-1.5 border-s border-slate-100 ps-3">
-                    {currentSt === "deleted_by_seller" ? (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={pending}
-                        onClick={() =>
-                          setConfirmAction({
-                            type: "status",
-                            property,
-                            newStatus: "pending",
-                          })
-                        }
-                        className="h-8 rounded-xl border-emerald-200 bg-[#eaf8f2] px-2.5 text-[11px] font-bold text-[#007a5a]"
-                      >
-                        <RotateCcw className="me-1 size-3" />
-                        {t.actions.restoreBtn}
-                      </Button>
-                    ) : (
-                      <>
-                        {renderPublishButton(property, currentSt, false)}
-                        {renderPromoteButtonDesktop(
-                          property,
-                          currentSt,
-                          isFeaturedActive
-                        )}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-8 rounded-xl px-2.5 text-[11px] font-bold"
-                          onClick={() => setDetailsProperty(property)}
-                        >
-                          <Eye className="me-1 size-3 text-[#007a5a]" />
-                          {t.actions.detailsBtn}
-                        </Button>
-                      </>
-                    )}
-
-                    <a
-                      data-admin-client-wa="true"
-                      href={`https://wa.me/${String(property.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(waText)}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      title={leadsPrompts.whatsappBtn}
-                      className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#25D366] text-white shadow-2xs transition hover:bg-[#1ebe5d]"
-                    >
-                      <WhatsAppOfficialIcon className="size-4" />
-                    </a>
-
-                    {renderThreeDotsMenu(
-                      property,
-                      currentSt,
-                      isFeaturedActive
-                    )}
-                  </div>
-                </div>
-              )
-            })}
+            {filtered.map((property, index) => (
+              <PropertyDesktopRow
+                key={property.id}
+                {...buildCardProps(property, index)}
+              />
+            ))}
           </div>
         )}
       </div>
+
+      <PropertyDocsQuickDialog
+        dir={dir}
+        t={t}
+        propBadges={propBadges}
+        docsProperty={docsProperty}
+        docsList={modalDocsList}
+        onClose={() => setDocsProperty(null)}
+        onOpenFullDetails={(prop) => setDetailsProperty(prop)}
+      />
 
       <UnitSmartMatchModal
         unit={smartMatchProperty}
@@ -1883,7 +996,7 @@ export default function PropertiesTable({
                   1,
                   Number(detailsProperty.views_count) || 1
                 ),
-                offersCount: getOffersCountForUnit(detailsProperty),
+                offersCount: getValidOffersForUnit(detailsProperty).length,
                 matchedBuyersCount:
                   getMatchedBuyersForUnit(detailsProperty).length,
                 locale,
@@ -1903,7 +1016,9 @@ export default function PropertiesTable({
         verificationMap={verificationMap}
         onVerifySellerContact={handleVerifySellerContact}
         pending={pending}
-        renderBadges={renderSellerActivityBadges}
+        renderBadges={(prop) => (
+          <PropertyActivityBadges {...buildCardProps(prop)} />
+        )}
       />
     </div>
   )

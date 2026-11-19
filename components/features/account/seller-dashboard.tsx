@@ -199,6 +199,8 @@ export function SellerDashboard({
   const comp = calculateUnitCompletion(activeUnit, t)
   const meta = getSellerTimelineAndStatus(activeUnit, comp, t)
   const isPausedBySeller = meta.code === 'paused_by_seller'
+  const isLockedInTransferOrSold =
+    meta.code === 'transferring' || meta.code === 'sold'
   const visibleAdminNote = getVisibleSellerAdminNote(activeUnit.admin_note)
 
   const needsEmailVerificationToSubmit =
@@ -326,6 +328,8 @@ export function SellerDashboard({
             nextAction === 'pause' ? t.msgPausedSuccess : t.msgResumedSuccess
           )
           router.refresh()
+        } else if (res.error) {
+          setActionMessage(res.error)
         }
       } else if (confirmModal.type === 'delete') {
         const res = await deleteUnitBySellerAction(activeUnit.id)
@@ -335,6 +339,8 @@ export function SellerDashboard({
           setLocalSells(remaining)
           if (remaining[0]) setSelectedId(remaining[0].id)
           router.refresh()
+        } else if (res.error) {
+          setActionMessage(res.error)
         }
       } else if (confirmModal.type === 'promote') {
         const pkg = confirmModal.pkg
@@ -656,9 +662,6 @@ export function SellerDashboard({
             </div>
           )}
 
-          {/* =================================================================
-              صندوق الشفافية الكاملة: يوضح للبائع بالضبط هل وحدته منشورة أم ناقصة صور/مستندات
-          ================================================================= */}
           {isUnitNotLiveYet && (
             <div
               className={`mt-4 rounded-2xl border-2 p-4 transition ${
@@ -690,9 +693,7 @@ export function SellerDashboard({
                 </div>
               </div>
 
-              {/* قائمة المتطلبات الـ 3 الواضحة أمام عين البائع */}
               <div className="mt-3.5 space-y-2">
-                {/* 1. البيانات الإجبارية */}
                 <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200/80 bg-white px-3.5 py-2.5 text-xs">
                   <span className="font-extrabold text-[#0a1122]">
                     {t.reqItemDetails}
@@ -713,7 +714,6 @@ export function SellerDashboard({
                   )}
                 </div>
 
-                {/* 2. صور الوحدة */}
                 <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200/80 bg-white px-3.5 py-2.5 text-xs">
                   <span className="font-extrabold text-[#0a1122]">
                     {t.reqItemPhotos} ({comp.imagesCount})
@@ -735,7 +735,6 @@ export function SellerDashboard({
                   )}
                 </div>
 
-                {/* 3. المستندات الـ 4 */}
                 <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200/80 bg-white px-3.5 py-2.5 text-xs">
                   <span className="font-extrabold text-[#0a1122]">
                     {t.reqItemDocs} ({comp.uploadedDocsCount}/4)
@@ -832,16 +831,25 @@ export function SellerDashboard({
             </div>
           </div>
 
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => handleNavigateWithLoading(editUnitHref)}
-              className="inline-flex h-10 flex-1 items-center justify-center rounded-xl bg-[var(--brand-primary,#007a5a)] px-4 text-xs font-bold text-white transition hover:bg-[var(--brand-primary-hover,#006248)] sm:flex-none sm:px-5"
-            >
-              {t.editDataBtn}
-            </button>
+          {(unitOffersCount > 0 || meta.code === 'offer_received') &&
+            !isLockedInTransferOrSold && (
+              <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2 text-[11px] font-bold text-amber-900">
+                ℹ️ {t.activeOffersPriceEditWarn}
+              </p>
+            )}
 
-            {meta.code !== 'sold' && !needsEmailVerificationToSubmit && (
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            {!isLockedInTransferOrSold && (
+              <button
+                type="button"
+                onClick={() => handleNavigateWithLoading(editUnitHref)}
+                className="inline-flex h-10 flex-1 items-center justify-center rounded-xl bg-[var(--brand-primary,#007a5a)] px-4 text-xs font-bold text-white transition hover:bg-[var(--brand-primary-hover,#006248)] sm:flex-none sm:px-5"
+              >
+                {t.editDataBtn}
+              </button>
+            )}
+
+            {!isLockedInTransferOrSold && !needsEmailVerificationToSubmit && (
               <button
                 type="button"
                 disabled={isPending}
@@ -870,15 +878,17 @@ export function SellerDashboard({
               </button>
             )}
 
-            <button
-              type="button"
-              disabled={isPending}
-              onClick={() => setConfirmModal({ type: 'delete' })}
-              className="inline-flex h-10 items-center justify-center gap-1 rounded-xl border border-red-100 bg-red-50/50 px-3.5 text-xs font-bold text-red-600 transition hover:bg-red-100"
-            >
-              <Trash2 className="size-3.5" />
-              <span>{t.deleteBtn}</span>
-            </button>
+            {!isLockedInTransferOrSold && (
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() => setConfirmModal({ type: 'delete' })}
+                className="inline-flex h-10 items-center justify-center gap-1 rounded-xl border border-red-100 bg-red-50/50 px-3.5 text-xs font-bold text-red-600 transition hover:bg-red-100"
+              >
+                <Trash2 className="size-3.5" />
+                <span>{t.deleteBtn}</span>
+              </button>
+            )}
           </div>
 
           <div className="mt-4 rounded-xl bg-[var(--brand-primary-light,#eaf8f2)] px-3.5 py-2.5 text-start text-[11.5px] font-bold text-[var(--brand-primary,#007a5a)]">

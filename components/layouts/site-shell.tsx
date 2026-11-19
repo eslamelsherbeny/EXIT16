@@ -4,10 +4,10 @@ import { useEffect, useRef, useState, useTransition, type ReactNode } from 'reac
 import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
-  ArrowLeft,
   Bell,
   Building2,
   Check,
+  CheckCheck,
   CheckCircle2,
   ChevronDown,
   Clock,
@@ -17,7 +17,6 @@ import {
   LogOut,
   Menu,
   ShieldCheck,
-  Trash2,
   User,
   WalletCards,
   X,
@@ -26,8 +25,6 @@ import * as authActions from '@/actions/auth-actions'
 import { logoutAccountAction } from '@/actions/account-actions'
 import { getCurrentSellerProfileAction } from '@/actions/submit-forms'
 import {
-  clearAllNotificationsAction,
-  deleteNotificationAction,
   getUserNotificationsAction,
   markAllNotificationsAsReadAction,
   markNotificationAsReadAction,
@@ -526,58 +523,36 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
   }, [])
 
   const handleToggleNotifications = () => {
-    const nextState = !notificationsOpen
-    setNotificationsOpen(nextState)
+    setNotificationsOpen((prev) => !prev)
     setLangMenuOpen(false)
+  }
 
-    if (nextState && unreadCount > 0) {
-      setUnreadCount(0)
-      setNotifsList((prev) => prev.map((n) => ({ ...n, is_read: true })))
-      startNotifTransition(async () => {
-        await markAllNotificationsAsReadAction('client')
-      })
-    }
+  const handleMarkAllRead = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (unreadCount === 0) return
+    setUnreadCount(0)
+    setNotifsList((prev) => prev.map((n) => ({ ...n, is_read: true })))
+    startNotifTransition(async () => {
+      await markAllNotificationsAsReadAction('client')
+    })
   }
 
   const handleSingleNotifClick = (item: any) => {
     const targetUrl = item.link && item.link !== '/' ? item.link : '/account'
 
     setNotificationsOpen(false)
-    setNotifsList((prev) =>
-      prev.map((n) => (n.id === item.id ? { ...n, is_read: true } : n))
-    )
-    setUnreadCount((prev) => Math.max(0, prev - 1))
-
-    startNotifTransition(async () => {
-      await markNotificationAsReadAction(item.id)
-    })
-
-    window.location.href = targetUrl
-  }
-
-  const handleDeleteNotification = (e: React.MouseEvent, id: string) => {
-    e.stopPropagation()
-    e.preventDefault()
-
-    const target = notifsList.find((n) => n.id === id)
-    if (target && !target.is_read) {
+    if (!item.is_read) {
+      setNotifsList((prev) =>
+        prev.map((n) => (n.id === item.id ? { ...n, is_read: true } : n))
+      )
       setUnreadCount((prev) => Math.max(0, prev - 1))
+
+      startNotifTransition(async () => {
+        await markNotificationAsReadAction(item.id)
+      })
     }
-    setNotifsList((prev) => prev.filter((n) => n.id !== id))
 
-    startNotifTransition(async () => {
-      await deleteNotificationAction(id)
-    })
-  }
-
-  const handleClearAllNotifications = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    setNotifsList([])
-    setUnreadCount(0)
-
-    startNotifTransition(async () => {
-      await clearAllNotificationsAction('client')
-    })
+    router.push(targetUrl)
   }
 
   const currentLangCfg =
@@ -618,9 +593,73 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
 
   const logoutLabel = labels.accountPages?.common?.logout
 
-  const notifTitleLabel = labels.admin?.shell?.notifications
-  const clearAllLabel = labels.admin?.shell?.clearAll
-  const emptyNotifsLabel = labels.admin?.shell?.noNotifications
+  const nL =
+    (labels.accountPages?.notifications as Record<string, string>) || {}
+  const notifTitleLabel = nL.title || labels.admin?.shell?.notifications
+  const emptyNotifsLabel =
+    nL.emptyTitle || labels.admin?.shell?.noNotifications
+
+  const previewNotifs = notifsList.slice(0, 8)
+  const unreadPreview = previewNotifs.filter((n) => !n.is_read)
+  const readPreview = previewNotifs.filter((n) => n.is_read)
+
+  const renderClientNotifRow = (item: any) => (
+    <div
+      key={item.id}
+      onClick={() => handleSingleNotifClick(item)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') handleSingleNotifClick(item)
+      }}
+      className={`group flex cursor-pointer items-start gap-3 p-3.5 transition hover:bg-gray-50 active:bg-gray-100 ${
+        !item.is_read ? 'bg-blue-50/45' : 'bg-white'
+      }`}
+    >
+      <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#2563eb]">
+        {item.type === 'property' || item.type === 'property_match' ? (
+          <Building2 className="size-4" />
+        ) : item.type === 'lead' ? (
+          <FileText className="size-4" />
+        ) : item.type === 'investor' ? (
+          <WalletCards className="size-4" />
+        ) : (
+          <Bell className="size-4" />
+        )}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-start justify-between gap-2">
+          <p
+            className={`text-xs leading-snug text-[#1e3a8a] ${
+              !item.is_read ? 'font-extrabold' : 'font-semibold'
+            }`}
+          >
+            {item.title}
+          </p>
+          {!item.is_read && (
+            <span className="mt-1 size-2 shrink-0 rounded-full bg-[#2563eb]" />
+          )}
+        </div>
+        <p className="mt-1 break-words text-[11.5px] leading-relaxed text-gray-600 line-clamp-2">
+          {item.message}
+        </p>
+        <div className="mt-1.5 flex items-center justify-between">
+          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-gray-400">
+            <Clock className="size-3" />
+            <span dir="ltr">
+              {item.created_at
+                ? new Date(item.created_at).toLocaleDateString('en-GB')
+                : labels.admin?.shell?.nowLabel}
+            </span>
+          </span>
+          <span className="text-[11px] font-bold text-[#2563eb] group-hover:underline">
+            {labels.accountPages?.common?.viewDetails ||
+              labels.admin?.shell?.view}
+          </span>
+        </div>
+      </div>
+    </div>
+  )
 
   const renderLanguageDropdownMenu = () => (
     <div
@@ -662,39 +701,41 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
     >
       <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50/90 px-4 py-3">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-[#1e3a8a]">
+          <span className="text-xs font-extrabold text-[#1e3a8a]">
             {notifTitleLabel}
           </span>
-          <span
-            dir="ltr"
-            className="rounded-full bg-[#2563eb]/10 px-2 py-0.5 text-[10px] font-bold text-[#2563eb]"
-          >
-            {notifsList.length}
-          </span>
+          {unreadCount > 0 && (
+            <span
+              dir="ltr"
+              className="rounded-full bg-[#2563eb]/10 px-2 py-0.5 text-[10px] font-extrabold text-[#2563eb]"
+            >
+              {unreadCount}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
-          {notifsList.length > 0 && (
+          {unreadCount > 0 && (
             <button
               type="button"
-              onClick={handleClearAllNotifications}
-              className="rounded-lg px-2 py-1 text-[11px] font-bold text-red-600 transition hover:bg-red-50"
+              onClick={handleMarkAllRead}
+              className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-extrabold text-[#007a5a] transition hover:bg-emerald-50"
             >
-              {clearAllLabel}
+              <CheckCheck className="size-3.5" />
+              <span>{nL.markAllReadBtn}</span>
             </button>
           )}
-          <button
-            type="button"
+          <Link
+            href="/notifications"
             onClick={() => setNotificationsOpen(false)}
-            className="rounded-lg p-1 text-gray-400 transition hover:bg-gray-200/60 hover:text-gray-700"
-            aria-label={labels.unitDetailsPage?.closeAria}
+            className="rounded-lg px-2 py-1 text-[11px] font-extrabold text-[#2563eb] transition hover:bg-blue-50"
           >
-            <X className="size-4" />
-          </button>
+            {nL.viewAllBtn}
+          </Link>
         </div>
       </div>
 
-      <div className="max-h-[65vh] divide-y divide-gray-100 overflow-y-auto text-start sm:max-h-96">
-        {notifsList.length === 0 ? (
+      <div className="max-h-[65vh] overflow-y-auto text-start sm:max-h-96">
+        {previewNotifs.length === 0 ? (
           <div className="flex flex-col items-center justify-center px-4 py-10 text-center">
             <CheckCircle2 className="mb-2.5 size-9 text-emerald-500" />
             <p className="text-xs font-bold text-[#1e3a8a]">
@@ -702,80 +743,40 @@ export function Navbar({ dictionary: _unused }: { dictionary?: Dictionary }) {
             </p>
           </div>
         ) : (
-          notifsList.map((item) => (
-            <div
-              key={item.id}
-              onClick={() => handleSingleNotifClick(item)}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleSingleNotifClick(item)
-              }}
-              className={`group flex cursor-pointer items-start gap-3 p-4 transition hover:bg-gray-50 active:bg-gray-100 ${
-                !item.is_read ? 'bg-blue-50/40' : 'bg-white'
-              }`}
-            >
-              <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#2563eb]">
-                {item.type === 'property' || item.type === 'property_match' ? (
-                  <Building2 className="size-4" />
-                ) : item.type === 'lead' ? (
-                  <FileText className="size-4" />
-                ) : item.type === 'investor' ? (
-                  <WalletCards className="size-4" />
-                ) : (
-                  <Bell className="size-4" />
-                )}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p
-                  className={`text-xs leading-snug text-[#1e3a8a] ${
-                    !item.is_read ? 'font-bold' : 'font-semibold'
-                  }`}
-                >
-                  {item.title}
-                </p>
-                <p className="mt-1 break-words text-[11.5px] leading-relaxed text-gray-600">
-                  {item.message}
-                </p>
-                <div className="mt-2 flex items-center justify-between">
-                  <span className="inline-flex items-center gap-1 text-[10px] font-medium text-gray-400">
-                    <Clock className="size-3" />
-                    <span dir="ltr">
-                      {item.created_at
-                        ? new Date(item.created_at).toLocaleDateString('en-US')
-                        : labels.admin?.shell?.nowLabel}
-                    </span>
-                  </span>
-                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#2563eb] group-hover:underline">
-                    <span>
-                      {labels.accountPages?.common?.viewDetails ||
-                        labels.admin?.shell?.view}
-                    </span>
-                    <ArrowLeft className="size-3 ltr:rotate-180 rtl:rotate-0" />
-                  </span>
+          <div>
+            {unreadPreview.length > 0 && (
+              <div>
+                <div className="bg-slate-50/90 px-4 py-1.5 text-[10.5px] font-black text-[#2563eb]">
+                  {nL.newSectionHeader}
+                </div>
+                <div className="divide-y divide-gray-100">
+                  {unreadPreview.map(renderClientNotifRow)}
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={(e) => handleDeleteNotification(e, item.id)}
-                aria-label={labels.admin?.shell?.deleteNotif}
-                className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-600"
-              >
-                <Trash2 className="size-3.5" />
-              </button>
-            </div>
-          ))
+            )}
+
+            {readPreview.length > 0 && (
+              <div>
+                <div className="bg-slate-50/90 px-4 py-1.5 text-[10.5px] font-black text-gray-400">
+                  {nL.olderSectionHeader}
+                </div>
+                <div className="divide-y divide-gray-100">
+                  {readPreview.map(renderClientNotifRow)}
+                </div>
+              </div>
+            )}
+          </div>
         )}
       </div>
 
       <div className="border-t border-gray-100 bg-gray-50/70 p-2 text-center">
-        <a
-          href="/account"
+        <Link
+          href="/notifications"
           onClick={() => setNotificationsOpen(false)}
-          className="block w-full rounded-xl py-2 text-xs font-bold text-[#2563eb] transition hover:bg-blue-50"
+          className="block w-full rounded-xl py-2 text-xs font-extrabold text-[#2563eb] transition hover:bg-blue-50"
         >
-          {labels.accountPages?.common?.backToAccount || desktopAuthBtnLabel}
-        </a>
+          {nL.viewAllBtn}
+        </Link>
       </div>
     </div>
   )
@@ -1176,10 +1177,6 @@ export function Footer({ dictionary: _unused }: { dictionary?: Dictionary }) {
   const companyLinks = [
     { label: labels.footer.about, href: '/story' },
     { label: labels.footer.work, href: '/how-it-works' },
-    {
-      label: labels.footer.reports,
-      href: '/reports',
-    },
     { label: labels.footer.faq, href: '/faq' },
     { label: labels.navbar.contact, href: '/contact' },
   ]

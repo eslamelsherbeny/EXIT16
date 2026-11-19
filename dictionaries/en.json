@@ -1223,7 +1223,7 @@
       "sellerTitle": "Official Purchase Offers on Your Units",
       "errCannotOfferOwnUnit": "You cannot submit a purchase offer on your own unit.",
       "errSellerAlreadyAcceptedAnother": "You have already accepted another offer for this unit. Contact admin if the first deal did not close.",
-      "sellerSubtitle": "Review verified purchase offers from serious buyers, accept the best offer, or send a counter-offer safely.",
+      "sellerSubtitle": "Review verified purchase offers from serious buyers, accept the best offer, or set your final transfer price safely.",
       "sellerEmpty": "No purchase offers recorded yet — our AI radar is actively matching your unit with buyers.",
       "sellerDisclaimer": "All offers shown here are financially verified by our platform advisors.",
       "buyerTitle": "My Offers & AI-Matched Opportunities",
@@ -1232,13 +1232,13 @@
       "sellerTabBtn": "Offers on My Units (Seller)",
       "buyerTabBtn": "My Offers & Matches (Buyer)",
       "allMyUnitsTab": "All My Units",
-      "backupOfferBadge": "Backup Offer (Standby)",
+      "backupOfferBadge": "Backup Offer (Waitlist)",
       "backupOfferSellerNote": "You already accepted another offer on this unit. This offer remains saved as a backup.",
       "mySubmittedOffersSubtitle": "Track the status of units you have reserved or made offers on",
       "smartRecsSubtitle": "Active units on the market matching your budget and ready for an offer",
       "confirmOfferViaWaBtn": "Confirm Offer & Fast-Track via WhatsApp",
       "fastTrackAfterOfferPrompt": "To fast-track unit reservation and notify the owner immediately, confirm via WhatsApp:",
-      "collapseOffersBtn": "Show latest 2 offers only",
+      "collapseOffersBtn": "Show latest offers only",
       "expandRemainingOffersPrefix": "Show remaining submitted offers",
       "waFastTrackOfferMsgPrefix": "Hello Aqar Exit, I confirm my purchase offer",
       "waFastTrackOfferMsgMiddle": "for unit",
@@ -1247,12 +1247,12 @@
       "aiMatcherBadge": "AI Smart Matcher",
       "unitFallback": "Property Unit",
       "matchScoreLabel": "Match Score",
-      "statusAcceptedBadge": "Deal Accepted & Unit Locked",
+      "statusAcceptedBadge": "Under Contract (Deal Agreed & Unit Locked)",
       "statusPendingSellerBadge": "New Offer Awaiting Your Decision",
-      "statusWaitingSellerBadge": "Awaiting Seller Response",
-      "statusCounterSentBadge": "Counter-Offer Sent to Buyer",
-      "statusRejectedBadge": "Declined",
-      "statusLockedOtherBuyer": "Reserved by Another Buyer",
+      "statusWaitingSellerBadge": "Offer Approved & Forwarded to Owner for Reply",
+      "statusCounterSentBadge": "Final Price Sent by Owner",
+      "statusRejectedBadge": "Closed / Not Accepted",
+      "statusLockedOtherBuyer": "On Waitlist (Unit Currently Under Contract)",
       "offeredCashLabel": "Offered Cash Amount",
       "requiredCashLabel": "Required Cash for Seller",
       "instantBuyerGainLabel": "Instant Market Gain",
@@ -1267,12 +1267,12 @@
       "aiAdvisorTitle": "Smart Deal Advisor Analysis",
       "aiAdvisorSavedPrefix": "Accepting this offer saves you",
       "aiAdvisorSavedSuffix": "net compared to developer cancellation penalties!",
-      "yourCounterOfferText": "Your counter-offer sent to buyer",
-      "waitingBuyerResponseText": "Awaiting buyer approval",
+      "yourCounterOfferText": "Your final price sent to buyer",
+      "waitingBuyerResponseText": "Awaiting buyer final approval",
       "dealLockedBannerForSeller": "Offer accepted and unit locked! Your case manager will contact you to schedule the contract transfer at the developer's office.",
       "dealLockedBannerForBuyer": "Congratulations! The owner accepted your offer and the unit is locked for you. Our case manager will contact you shortly.",
       "acceptOfferBtn": "Accept Offer & Start Transfer",
-      "sendCounterBtn": "Send Counter-Offer",
+      "sendCounterBtn": "Set My Final Transfer Price",
       "rejectOfferBtn": "Decline Offer",
       "mySubmittedOffersTitle": "My Submitted Purchase Offers",
       "smartRecsTitle": "AI-Matched Opportunities for You",
@@ -1282,28 +1282,28 @@
       "diffPointsTitle": "Differs from your request in",
       "viewUnitPageBtn": "View Unit Page & Photos",
       "makeOfferBtn": "Submit Purchase Offer",
-      "sellerCounterReceivedText": "The owner sent a counter-offer for immediate closing at",
-      "acceptCounterBtn": "Accept Counter-Offer — Lock Unit",
+      "sellerCounterReceivedText": "Owner's Final Price for Contract Transfer",
+      "acceptCounterBtn": "Accept Final Price & Lock Unit",
       "modalMakeOfferTitle": "Submit Official Purchase Offer",
-      "modalMakeOfferSubtitle": "Select your offer amount and payment readiness to send directly to the owner.",
+      "modalMakeOfferSubtitle": "Select your offer type and payment readiness for our advisor to coordinate with the owner.",
       "selectOfferTypeLabel": "Select Cash Offer Amount",
-      "fullPriceOptionTitle": "Instant Booking at Full Verified Price",
+      "fullPriceOptionTitle": "Agree to Pay Full Paid Amount",
       "fullPricePriorityHint": "Top priority for instant acceptance & locking the unit",
-      "negotiateOptionTitle": "Submit Negotiated Cash Offer",
+      "negotiateOptionTitle": "Submit Negotiated Offer",
       "minAllowedFloorLabel": "Minimum allowed offer",
       "nonNegotiableUnitNote": "The owner listed this unit at a fixed receipt-verified price with no overprice (non-negotiable).",
       "enterNegotiatedCashLabel": "Enter offered cash amount",
-      "fomoNegotiationWarning": "Note: Full-price offers get priority acceptance, while negotiated offers may be declined if another buyer offers full price.",
+      "fomoNegotiationWarning": "Our deal advisor will review your offer and coordinate with you to reach the best agreement with the owner. Offers closer to the full paid amount get priority acceptance.",
       "cancelBtn": "Cancel",
-      "confirmSendOfferBtn": "Send Official Offer to Owner",
-      "counterModalDesc": "Enter the minimum cash amount you accept for immediate transfer:",
-      "offerSubmittedSuccess": "Official purchase offer sent to the owner and admin!",
+      "confirmSendOfferBtn": "Submit Official Offer",
+      "counterModalDesc": "This amount will be sent to the buyer as your one-time final price to accept or decline",
+      "offerSubmittedSuccess": "Purchase offer received! Our deal advisor will contact you to confirm and forward it to the owner.",
       "sellerAcceptedSuccess": "Offer accepted and unit locked! Our sales advisor will contact you.",
-      "sellerRejectedSuccess": "Offer declined.",
-      "counterSentSuccess": "Counter-offer sent to the buyer.",
-      "buyerAcceptedCounterSuccess": "Counter-offer accepted and unit locked for you!",
+      "sellerRejectedSuccess": "Offer closed.",
+      "counterSentSuccess": "Your final price has been sent to the buyer.",
+      "buyerAcceptedCounterSuccess": "Final price accepted and unit locked for you!",
       "matchCashExact": "Required cash is within your available liquidity",
-      "matchCashBridge": "Matches within seller's negotiable discount range",
+      "matchCashBridge": "Matches within negotiable range",
       "diffCashHigher": "Required cash is slightly above your specified cash",
       "matchInst": "Installment fits your monthly limit",
       "diffInstHigher": "Installment is higher than your preferred limit",
@@ -1316,19 +1316,72 @@
       "diffDelivery": "Handover status",
       "errLoginRequired": "Please sign in first.",
       "errUnitNotFound": "Unit not found.",
-      "errUnitAlreadyLocked": "Sorry, this unit has been reserved by another buyer.",
+      "errUnitAlreadyLocked": "Sorry, this unit is currently unavailable.",
       "errFixedPriceOnly": "This unit is fixed-price and does not accept lower offers.",
-      "errBelowMinFloor": "Amount is below the minimum negotiable floor for this unit",
-      "errInvalidCounterAmount": "Please enter an amount higher than the buyer's offer and up to the paid amount.",
+      "errBelowMinFloor": "Please enter a valid offer amount",
+      "errInvalidCounterAmount": "Final price must be higher than the buyer's current offer and not exceed the total paid amount.",
       "errSubmitFailed": "Could not complete action, please try again.",
       "adminNewOfferNotifTitle": "New buyer offer on unit",
       "sellerNewOfferNotifTitle": "You received a new purchase offer on your unit",
       "adminDealAcceptedNotifTitle": "Accepted deal ready for closing",
       "buyerOfferAcceptedNotifTitle": "The owner accepted your purchase offer!",
       "buyerOfferAcceptedNotifMsg": "The unit is locked for you. Your case manager will contact you.",
-      "buyerCounterNotifTitle": "Counter-offer from owner on unit",
-      "sellerCounterAcceptedNotifTitle": "The buyer accepted your counter-offer!",
-      "buyerAdminRecNotifTitle": "Your advisor recommended a unit with match score"
+      "buyerCounterNotifTitle": "Owner's final price on unit",
+      "sellerCounterAcceptedNotifTitle": "The buyer accepted your final price!",
+      "buyerAdminRecNotifTitle": "Your advisor recommended a unit with match score",
+      "statusPendingAdminReviewBadge": "Under Review & Coordination by Property Advisor",
+      "contactDealManagerWaLink": "Facing an issue or need coordination? Contact your deal manager immediately",
+      "waitlistBtnLabel": "Register Interest (In Case Deal Falls Through)",
+      "waitlistModalSubtitle": "This unit is currently under contract with another buyer. Register your offer on the priority waitlist for free so we contact you immediately if the current deal does not close.",
+      "confirmWaitlistOfferBtn": "Register My Interest on Priority Waitlist ⏳",
+      "waitlistSubmittedSuccess": "Your interest has been registered on the priority waitlist! We will notify you immediately if the current transaction does not close.",
+      "waitlistBuyerCardNote": "This unit is currently under contract with another buyer. Your request is saved on the priority waitlist and we will notify you if it reopens.",
+      "exploreAlternativeUnitsLink": "Explore other available units matching your budget now",
+      "contactAdvisorWaBtn": "Have a Close Offer / Contact Deal Advisor (WhatsApp)",
+      "negotiateOptionSubHint": "Specify the maximum cash amount you can offer",
+      "maxNegotiableCashInputLabel": "Maximum cash amount you can pay for this unit out of",
+      "sentDatePrefix": "Sent on",
+      "daysAgoSuffix": "d ago",
+      "hoursAgoSuffix": "h ago",
+      "priceSyncedByAdvisorNote": "Offer amount updated based on your coordination with the platform advisor",
+      "preAdminEditHint": "You can edit your offer amount or withdraw the request before it is sent to the owner:",
+      "editOfferPriceBtn": "Edit Price",
+      "savePriceBtn": "Save Price",
+      "withdrawOfferBtn": "Withdraw",
+      "offerPriceUpdatedMsg": "Your offer amount has been updated.",
+      "reopenedUnitAvailableBadge": "Unit Available Again! (Confirm Priority)",
+      "reopenedPromptTitle": "The previous transaction on this unit did not close and it is available again! Are you still interested in acquiring it?",
+      "installmentIncreasedNote": "Note: The unit's paid amount was updated after a new developer installment payment to",
+      "confirmReopenedBtn": "Yes, I'm Still Interested (Confirm Offer)",
+      "confirmWithNewPriceBtn": "Confirm & Adjust Price",
+      "notInterestedAnymoreBtn": "No Longer Interested",
+      "reopenedInterestConfirmedMsg": "Your interest has been confirmed! Our deal advisor will contact you to finalize with the owner.",
+      "unitSoldFinalBadge": "Unit Sold",
+      "unitUnavailableBadge": "No Longer Available",
+      "unitSoldToOtherCardDesc": "This unit has been sold to another buyer. We have other verified units in the same district matching your budget.",
+      "unitWithdrawnCardDesc": "This unit is no longer listed for sale. You can explore alternative units matching your budget in your account.",
+      "sellerDelayedBuyerNote": "The owner is currently unavailable to complete sale procedures. To avoid delaying you, this offer was closed and you can explore other ready units in your district.",
+      "offerClosedSimpleNote": "This offer has been closed. You can explore other opportunities matching your budget.",
+      "viewAlternativesAndDismissBtn": "View Matching Opportunities & Dismiss",
+      "errOfferExceedsPaid": "Entered amount exceeds total required paid cash",
+      "errOfferSanityIncomplete": "Please make sure to write the full offer amount accurately (entered digits appear incomplete).",
+      "errMaxActiveOffersReached": "You currently have 3 active purchase offers under review or negotiation. Please wait for owner responses or cancel an active offer to submit a new one.",
+      "errOfferAlreadyClosedOnUnit": "Negotiation on this offer was previously closed. To submit a full-price offer, please contact our deal advisor via WhatsApp.",
+      "errCannotCancelAcceptedDeal": "This offer is currently in contract closing stage. Please contact your deal advisor via WhatsApp.",
+      "errCannotEditSentOffer": "This offer has already been forwarded to the owner and cannot be edited until the owner responds.",
+      "errUnitLockedAgainKeepWaitlist": "This unit was just reserved by another buyer. Your offer remains saved on the priority waitlist.",
+      "errStaleOfferState": "This offer status was just updated. Please review the latest status on your page.",
+      "errBuyerDoubleAcceptance": "You already have another unit in contract closing stage. To acquire two units simultaneously, please confirm with your deal advisor via WhatsApp.",
+      "waitlistAdminNotifTitle": "Backup waitlist interest",
+      "priorityBuyerReturnedAdminTitle": "Priority buyer returned from waitlist",
+      "reopenedUnitBuyerNotifTitle": "Unit is back on the market!",
+      "reopenedUnitBuyerNotifMsg": "You are on the priority waitlist for this unit. Click here to confirm your interest if you still wish to acquire it.",
+      "unitSoldToOtherNotifTitle": "Unit sold to another buyer",
+      "unitSoldToOtherNotifMsg": "This unit has been sold to another buyer. Explore similar units matching your budget in your account.",
+      "sellerDelayedNotifTitle": "Update regarding your offer on unit",
+      "sellerDelayedNotifMsg": "The owner is currently unavailable to proceed. To save your time, explore ready alternative opportunities in your account.",
+      "unitWithdrawnBuyerNotifTitle": "Unit no longer available",
+      "unitWithdrawnBuyerNotifMsg": "The owner withdrew this unit listing. Explore alternative opportunities matching your budget in your account."
     },
     "documents": {
       "title": "Ownership & Verification Documents",
@@ -1388,6 +1441,18 @@
       "changeEmailBtn": "Update Email",
       "emailSaveSuccess": "Email address updated successfully ✓",
       "emailSaveError": "Could not update email address."
+    },
+    "notifications": {
+      "title": "Notifications",
+      "subtitle": "Complete activity log of all notifications and updates regarding your units and offers",
+      "adminSubtitle": "Real-time notification log for all purchase offers, listings, and client requests",
+      "loading": "Loading notifications...",
+      "markAllReadBtn": "Mark all as read",
+      "viewAllBtn": "See all",
+      "newSectionHeader": "New",
+      "olderSectionHeader": "Earlier",
+      "emptyTitle": "No notifications yet",
+      "emptySubtitle": "All updates regarding your purchase offers and listed units will appear here."
     }
   },
   "accountComponents": {
@@ -1599,7 +1664,8 @@
       "readyPendingReviewHeadline": "Great job! All details, photos, and documents are complete — your unit is now with Admin for review and market publication",
       "statusUnderReviewBadge": "2. Reviewing Documents",
       "statusUnderReviewHeadline": "Our verification team is currently reviewing your unit details & documents for market approval",
-      "statusDraftUnverifiedHeadline": "Your unit is saved as a draft (not published yet) — please verify your email and complete the missing photos or documents below"
+      "statusDraftUnverifiedHeadline": "Your unit is saved as a draft (not published yet) — please verify your email and complete the missing photos or documents below",
+      "activeOffersPriceEditWarn": "You currently have active purchase offers on this unit; any price change will apply to new offers only."
     },
     "buyer": {
       "popularAreas": [
@@ -2307,7 +2373,7 @@
       "finRequiredCashNow": "Required Cash Now to Owner (Zero Overprice)",
       "finNoOverNote": "✓ Pay only the actual paid cash and take over the developer contract",
       "finMakeOfferBtn": "Make an Offer",
-      "finNegotiableTitle": "Open to Direct Negotiation",
+      "finNegotiableTitle": "↓ Negotiable",
       "finNegotiableDescPrefix": "The owner is willing to discount up to",
       "finNegotiableDescMiddle": "(approx.",
       "finNegotiableDescSuffix": ") for a fast cash closing.",
@@ -2327,7 +2393,10 @@
       "similarTitle": "Similar Exit Opportunities",
       "similarSubtitle": "Other verified installment takeover units",
       "similarReqCashPrefix": "Required Cash:",
-      "similarViewDetailsBtn": "View Details"
+      "similarViewDetailsBtn": "View Details",
+      "underContractBadge": "Under Contract / Reserved",
+      "underContractTopBannerDesc": "This unit is currently in contract signing stage with another buyer. You can register your interest on the priority waitlist to be contacted immediately if the sale does not close.",
+      "finNegotiableCleanDesc": "The seller is willing to discount part of the paid amount for a fast sale — submit your offer and we will negotiate on your behalf."
     },
     "locationInsights": {
       "neighborhoodTitle": "Neighborhood",
@@ -2509,6 +2578,175 @@
       "sendBtn": "Send Message",
       "sentSuccessMsg": "Your message has been sent! Our team will contact you shortly.",
       "privacyNote": "Your information reaches our team only and is never shared with third parties."
+    },
+    "privacy": {
+      "backHome": "Home",
+      "title": "Privacy Policy",
+      "lastUpdated": "Last updated: November 2026",
+      "sections": [
+        {
+          "title": "1. General information",
+          "body": "Aqar Exit operates an online real estate platform specialized in installment property resales and contract assignments (exit deals) in Georgia at original contract prices with zero overprice. This Privacy Policy explains what personal data and property documents we collect from sellers and buyers, how we use them, and how we protect them in accordance with Georgian data protection laws."
+        },
+        {
+          "title": "2. What data we collect",
+          "body": "We collect information you voluntarily provide when registering an account, listing a unit for sale, submitting a buy request, or making an official offer. This includes: full name, phone number (and preferred messengers such as WhatsApp, Viber, Telegram), email address, property details (project name, developer, district, area size, contract price, paid amount, and remaining installments), as well as technical data such as IP address, browser type, and device information."
+        },
+        {
+          "title": "3. How data is used",
+          "body": "Collected data is used to operate the platform, match serious buyers with suitable exit units through our Smart Property Radar, communicate regarding listing statuses and purchase offers, send verification codes (OTP) and notifications, and improve platform security and performance. We never sell your personal data to third parties."
+        },
+        {
+          "title": "4. Data sharing and contact protection",
+          "body": "To protect owner privacy and prevent spam or unauthorized solicitation, Aqar Exit does not publicly display the seller’s phone number, email address, or exact unit number on public listing pages; only property specifications and financial figures are shown publicly. Contact details and assignment procedures are coordinated strictly through our verification team when a serious, verified purchase offer is submitted, in cooperation with the developer and the National Agency of Public Registry (NAPR). We may use trusted infrastructure providers (cloud hosting, databases, and consented analytics tools) under strict confidentiality obligations."
+        },
+        {
+          "title": "5. Cookies and local storage",
+          "body": "We use essential cookies and browser localStorage to maintain your login session, store your language preference, and save your favorite units. Only with your explicit consent, we also use analytics and ad measurement tools (Google Analytics, Google Tag Manager, Meta Pixel, and PostHog) to measure traffic and ad performance. None of these tracking scripts load before you grant consent, and you can change your choice anytime using the button at the bottom of this page."
+        },
+        {
+          "title": "6. Property documents and verification",
+          "body": "When sellers upload ownership and payment verification documents (developer contract, payment receipts, account statement, or passport/ID), these files are stored in encrypted cloud storage with restricted access. They are reviewed exclusively by our verification specialists to validate financial figures and grant the \"Verified Documents\" badge, and are never accessible to public visitors."
+        },
+        {
+          "title": "7. Storage and protection",
+          "body": "All data transmission is encrypted via HTTPS / TLS. Passwords are encrypted using Scrypt hashing with cryptographically signed session tokens, and sensitive owner fields are filtered on the server before reaching the client browser. Data is retained while your account remains active; if you request account deletion, your active listings are immediately paused and removed from public view."
+        },
+        {
+          "title": "8. Your rights",
+          "body": "Under the Law of Georgia on Personal Data Protection, you have the right to access your personal data, update or correct it via your account dashboard (/account), pause or delete your property listings, withdraw consent for analytics tracking, or request permanent account deletion."
+        },
+        {
+          "title": "9. Changes and contact",
+          "body": "We may update this Privacy Policy from time to time. Any changes will be posted on this page with an updated revision date. For privacy-related inquiries, please reach out via our Contact page (/contact) or our official support email."
+        }
+      ],
+      "cookieResetTitle": "Cookie & Tracking Consent Preferences",
+      "cookieResetDesc": "You can reset your analytics and ad measurement consent choice (Allow / Decline) at any time to reopen the consent prompt.",
+      "cookieResetBtn": "Change Cookie Consent Settings",
+      "cookieResetDone": "Preferences reset! The consent banner will appear at the bottom."
+    },
+    "terms": {
+      "backHome": "Home",
+      "title": "Terms & Conditions",
+      "lastUpdated": "Last updated: November 2026",
+      "intro": "Welcome to Aqar Exit. By accessing our platform, creating an account, listing a property for contract assignment, or submitting a purchase offer, you agree to comply with these Terms & Conditions designed to protect both sellers and buyers.",
+      "sections": [
+        {
+          "title": "1. Platform Scope & Zero-Overprice Rule",
+          "body": "Aqar Exit operates as a verified digital marketplace and brokerage facilitator for installment property contract assignments at original contract prices. Our core rule prohibits any markup (overprice) above the actual amount paid to the developer: sellers recover their paid cash (or less if they offer a discount for a fast sale), while buyers take over the original contract price and continue remaining installments."
+        },
+        {
+          "title": "2. Direct Principals Only (No Brokers)",
+          "body": "Our platform is strictly for direct unit owners and end buyers. Real estate brokers, agents, or intermediaries are prohibited from listing properties they do not personally own or submitting offers on behalf of third parties to charge external commissions. Violating accounts and listings are permanently removed."
+        },
+        {
+          "title": "3. Document Verification & Financial Accuracy",
+          "body": "Sellers warrant that all submitted financial figures (total contract price, paid amount, remaining installments, and any overdue balances) are accurate. No unit is published to the public marketplace until at least one photo and the 4 mandatory verification documents (original purchase contract, payment receipts, developer account statement, and passport copy) are uploaded and verified by our team."
+        },
+        {
+          "title": "4. Purchase Offers, Negotiation & Priority Waitlist",
+          "body": "All purchase offers are reviewed by our deal advisors before being forwarded to sellers. To prevent spam, buyers may hold a maximum of three (3) active offers simultaneously. When a seller marks a unit as negotiable, their minimum acceptable floor remains strictly confidential with Admin. Once an offer is accepted, the unit enters \"Under Contract\" status and other offers are placed on the Priority Waitlist in case the transaction does not close."
+        },
+        {
+          "title": "5. Commission & Fee Structure (0% Seller Fee)",
+          "body": "Listing and assigning a unit through Aqar Exit is 100% free for sellers (0% seller commission). Buyers pay a 1.25% platform commission (calculated on the total original contract price), payable strictly upon successful completion of the official contract transfer at the developer's office."
+        },
+        {
+          "title": "6. Official Contract Assignment & Liability Disclaimer",
+          "body": "All contract transfers and cash settlements take place officially at the developer's headquarters and/or the National Agency of Public Registry (NAPR). Aqar Exit facilitates document verification, matching, negotiation, and transfer coordination, and is not liable for pre-existing contractual disputes with developers or construction delays."
+        },
+        {
+          "title": "7. Listing Boost Packages (+VIP & SUPER VIP)",
+          "body": "Sellers may purchase optional promotional boost packages to feature their units at the top of the marketplace. Boosts activate upon Admin approval of the listing and payment confirmation. If a listing cannot be approved due to document issues, any unspent boost payment is 100% refundable."
+        },
+        {
+          "title": "8. Pausing, Deleting Listings & Account Closure",
+          "body": "Owners may pause or delete their listings or request account deletion at any time prior to locking an accepted deal. Submitting an account deletion request immediately closes and withdraws all associated units and pending offers from the public market."
+        },
+        {
+          "title": "9. Governing Law & Contact",
+          "body": "These Terms & Conditions are governed by applicable laws in Georgia. For legal or operational inquiries, please contact us via our Contact page (/contact) or official support email."
+        }
+      ],
+      "bottomCtaTitle": "Have questions about our assignment terms or fees?",
+      "bottomCtaSub": "Our deal advisors are ready to clarify every detail before you list or make an offer.",
+      "contactBtn": "Contact Us Now",
+      "faqBtn": "Read FAQ"
+    },
+    "faq": {
+      "backHome": "Home",
+      "eyebrow": "Help Center & FAQ",
+      "title": "Everything You Need to Know About Zero-Overprice Exits",
+      "subtitle": "Clear, direct answers on how to recover your paid installments as a seller or take over an original developer contract as a buyer.",
+      "categories": {
+        "all": "All Questions",
+        "general": "About Aqar Exit",
+        "sellers": "For Sellers (Owners)",
+        "buyers": "For Buyers",
+        "deals": "Negotiation, Transfer & Fees"
+      },
+      "items": [
+        {
+          "category": "general",
+          "q": "How is Aqar Exit different from traditional resale websites?",
+          "a": "In traditional resale, sellers and brokers add an inflated markup (overprice) and figures are unverified. On Aqar Exit, overprice is strictly prohibited: the required cash is the exact receipt-verified amount paid to the developer (or less if the owner offers a discount for a quick exit), and every contract is verified before publication."
+        },
+        {
+          "category": "general",
+          "q": "Do you accept listings or requests from real estate brokers?",
+          "a": "No. We deal exclusively with the actual unit owner and the end buyer under the supervision of our deal advisors to ensure zero external brokerage markups."
+        },
+        {
+          "category": "sellers",
+          "q": "Why assign my contract via Aqar Exit instead of cancelling with the developer?",
+          "a": "Cancelling with a developer typically triggers a 10%–15% penalty calculated on the entire contract price (not just what you paid), which can wipe out 50%–75% of your paid cash, with the remainder refunded over several years. Assigning via Aqar Exit lets you recover up to 100% of your paid cash immediately upon transfer."
+        },
+        {
+          "category": "sellers",
+          "q": "How much commission does the seller pay?",
+          "a": "Zero (0%). Listing, verification, buyer matching, and transfer coordination are 100% free for the unit owner."
+        },
+        {
+          "category": "sellers",
+          "q": "Is my phone number or name visible to the public on my listing?",
+          "a": "No. Your contact details and uploaded documents are kept private and visible only to platform administration. Our deal advisor contacts you only when a serious, verified purchase offer is submitted."
+        },
+        {
+          "category": "sellers",
+          "q": "What documents are required to publish my unit?",
+          "a": "To verify your figures and grant the \"Docs Verified\" badge, we require at least 1 property photo and 4 documents: original purchase contract, payment receipts, developer account statement, and passport copy. You can save your unit draft first and upload documents anytime from My Account."
+        },
+        {
+          "category": "buyers",
+          "q": "What is my advantage as a buyer taking over an installment contract?",
+          "a": "You acquire the property at its old contract price—significantly below the developer's current price today—pay only the previously paid cash portion, and continue the remaining installments directly with the developer with zero overprice."
+        },
+        {
+          "category": "buyers",
+          "q": "How does negotiation work on negotiable units?",
+          "a": "If a seller has enabled \"Negotiable\", you can select \"Submit Negotiated Offer\" and enter the maximum cash amount you can pay. Our deal advisor will coordinate with the owner to reach the best agreement while keeping the owner's minimum floor strictly confidential."
+        },
+        {
+          "category": "buyers",
+          "q": "What does \"Under Contract\" mean and how does the Priority Waitlist work?",
+          "a": "When an owner accepts an offer, the unit is locked as \"Under Contract\" while transfer paperwork is finalized. Other interested buyers can click \"Register Interest (In Case Deal Falls Through)\" for free. If the primary deal does not close, waitlist buyers are notified immediately to confirm priority acquisition."
+        },
+        {
+          "category": "deals",
+          "q": "When is the 1.25% buyer commission paid?",
+          "a": "The 1.25% buyer fee (calculated on total contract price) is paid only when the official contract assignment is completed at the developer's office. There are no upfront fees to submit offers."
+        },
+        {
+          "category": "deals",
+          "q": "Where and how does the cash payment and contract transfer happen?",
+          "a": "All payments and contract transfers happen officially at the developer's headquarters and/or the Public Registry (NAPR) in the presence of your Aqar Exit case manager, via certified bank check or instant bank transfer upon signing."
+        }
+      ],
+      "bottomTitle": "Still have questions?",
+      "bottomSub": "Chat directly with our deal advisors on WhatsApp or send us a message.",
+      "contactBtn": "Contact Us",
+      "browseBtn": "Browse Opportunities"
     }
   },
   "authPages": {
@@ -2959,7 +3197,8 @@
       "promoStoppedNotifTitle": "Seller stopped active boost",
       "promoCancelledNotifTitle": "Seller cancelled boost request",
       "unitLockedByDeal": "Cannot pause, modify, or delete the unit after accepting an offer and starting transfer procedures.",
-      "allDocsReadyNotifTitle": "All unit documents & photos completed"
+      "allDocsReadyNotifTitle": "All unit documents & photos completed",
+      "closedByAccountDeletionNote": "This unit was permanently closed due to an account deletion request. To list a unit again, please add a new unit."
     },
     "admin": {
       "unauthorizedLogin": "Unauthorized: Please sign in with an admin account.",
@@ -3097,27 +3336,27 @@
       "backHomeBtn": "Back to Home"
     },
     "dealsPage": {
-      "eyebrow": "Deals & Offers Operations Room",
-      "title": "Manage Purchase Offers, Negotiations & Closing",
-      "subtitle": "Approve WhatsApp-confirmed offers to forward to sellers, and track agreed deals to completion",
+      "eyebrow": "Deals & Offers Room",
+      "title": "Manage Purchase Offers & Close Deals",
+      "subtitle": "Negotiate with buyers, approve offers to forward to sellers, and manage waitlists & agreed deals",
       "backToDashboardBtn": "Back to Dashboard",
       "searchPlaceholder": "Search by offer ref (OF-...), buyer name, or phone...",
-      "tabAll": "All",
-      "tabPendingAdmin": "Pending Admin",
-      "tabAccepted": "Ready to Close",
+      "tabAll": "All Active",
+      "tabPendingAdmin": "Pending Your Review",
+      "tabAccepted": "Agreed (Ready to Close)",
       "tabNegotiating": "With Seller / Negotiating",
-      "tabBackupRejected": "Backup / Rejected",
+      "tabBackupRejected": "Archive (Sold / Closed)",
       "loadingText": "Loading offers and deals...",
       "emptyText": "No matching offers in this section right now",
       "unitFallback": "Property Unit",
       "previewBtn": "Preview",
-      "statusPendingAdmin": "Awaiting your review to forward to seller",
-      "statusPendingSeller": "Sent to seller — awaiting response",
-      "statusCounterPrefix": "Seller Counter Offer",
+      "statusPendingAdmin": "New Offer — Awaiting your review to forward to seller",
+      "statusPendingSeller": "With Seller — Awaiting reply",
+      "statusCounterPrefix": "Final Price by Seller",
       "statusSoldDone": "✓ Unit Sold Successfully",
-      "statusAcceptedReady": "🔥 Deal Agreed — Ready to Close",
-      "statusBackupWaiting": "Backup Offer (Waiting List)",
-      "statusRejected": "Rejected / Cancelled",
+      "statusAcceptedReady": "Agreed Deal — Ready for Transfer",
+      "statusBackupWaiting": "On Backup Waitlist",
+      "statusRejected": "Declined / Closed",
       "buyerPartyHeader": "Buyer Party (Offer Maker)",
       "buyerFallback": "Buyer",
       "readinessLabel": "Readiness",
@@ -3132,25 +3371,37 @@
       "originalRequiredCashLabel": "Original Required Cash",
       "sellerWaBtn": "WhatsApp Seller",
       "offeredCashHeader": "Cash Offered by Buyer",
-      "counterOfferLabel": "Counter Offer",
+      "counterOfferLabel": "Seller Final Price",
       "platformCommissionLabel": "Platform Commission",
-      "offerDateLabel": "Offer Date",
-      "approveToSellerBtn": "Approve & Forward to Seller ✓",
-      "rejectOfferBtn": "Reject Offer",
-      "markUnitSoldBtn": "Mark Transfer Completed & Sold",
-      "reopenBackupOffersBtn": "Cancel Offer & Reopen Backup Offers",
+      "offerDateLabel": "Buyer Offer Date",
+      "approveToSellerBtn": "Approve Price & Send to Seller ✓",
+      "rejectOfferBtn": "Decline Offer",
+      "markUnitSoldBtn": "Confirm Transfer & Mark Sold ✓",
+      "reopenBackupOffersBtn": "Cancel Reservation & Notify Backup Waitlist",
       "cancelOfferBtn": "Cancel Offer",
       "reactivateToSellerBtn": "Reactivate & Forward to Seller",
       "noticeApprovedToSeller": "Offer approved and forwarded to seller account",
-      "noticeOfferRejected": "Offer rejected and cancelled",
+      "noticeOfferRejected": "Offer closed",
       "noticeUnitMarkedSold": "Congratulations! Unit marked as sold and deal closed",
-      "noticeReopenedBackups": "Offer cancelled and backup offers reopened for seller",
+      "noticeReopenedBackups": "Reservation cancelled and waitlist buyers notified",
       "actionErrorFallback": "Could not execute action right now",
       "waBuyerGreetingPrefix": "Hello",
       "waBuyerBodyPrefix": "This is Aqar Exit Management regarding your purchase offer",
       "waSellerGreetingPrefix": "Hello",
       "waSellerBodyPrefix": "This is Aqar Exit Management regarding purchase offer",
-      "retryBtn": "Retry"
+      "retryBtn": "Retry",
+      "tabWaitlist": "Backup Waitlist",
+      "badgeReopenNotifiedWaiting": "Reopen Notification Sent — Awaiting Buyer Confirmation",
+      "badgePriorityReturned": "Priority Buyer (Confirmed Interest from Waitlist)",
+      "secretSellerMinLabel": "Seller Secret Min Floor",
+      "fixedPriceNonNegotiableBadge": "Fixed Price Unit (Non-Negotiable)",
+      "editNegotiatedPriceBtn": "Edit Negotiated Price",
+      "sentToSellerSinceLabel": "With Seller Since",
+      "confirmActionPrompt": "Are you sure you want to",
+      "confirmYesBtn": "Yes, Confirm",
+      "confirmBackBtn": "Cancel",
+      "btnAdminAcceptDeal": "Approve Agreement & Convert to Deal",
+      "btnSellerUnavailableCancel": "Owner Unavailable Now (Cancel & Redirect to Alternatives)"
     },
     "smartMatch": {
       "readyDealsTitle": "Ready-to-Close Agreed Deals Room",
@@ -3173,8 +3424,8 @@
       "sentAllDoneBtn": "Sent to All",
       "sendRecToBuyerBtn": "Recommend",
       "sentRecDoneBtn": "Recommended",
-      "createOfficialOfferBtn": "Send Offer to Owner",
-      "sentOfferDoneBtn": "Offer Sent",
+      "createOfficialOfferBtn": "Record Offer for Buyer",
+      "sentOfferDoneBtn": "Offer Sent to Owner",
       "viewUnitBtn": "View",
       "sendingNow": "Sending...",
       "offerAcceptedTag": "Deal Agreed",
@@ -3193,7 +3444,26 @@
       "adminCashHigher": "Cash slightly above buyer budget",
       "adminInstMatch": "Installment fits buyer",
       "adminInstHigher": "Installment above buyer limit",
-      "adminBuyerAskedRooms": "buyer requested"
+      "adminBuyerAskedRooms": "buyer requested",
+      "createOfferFromBuyerBtn": "Record Offer from Buyer",
+      "buyerModalHelperBanner": "Units matching this buyer's budget and areas, sorted by highest match. Click \"Record Offer for Buyer\" to send a full-price or negotiated offer to the unit owner, or withdraw it cleanly before the owner replies.",
+      "unitModalHelperBanner": "Buyers matching this unit, sorted by highest match. Record an official offer to the owner for any buyer after confirming with them, or recommend the unit to their account.",
+      "negotiableUnitBadge": "Negotiable",
+      "fixedPriceUnitBadge": "Fixed Price (Non-Negotiable)",
+      "sellerMinFloorHint": "Owner's Secret Min Floor",
+      "offerBoxTitle": "Send Official Offer to Owner on Behalf of Buyer",
+      "fullPriceChoice": "Full Cash Price",
+      "customPriceChoice": "Custom Negotiated Price",
+      "fixedPriceNotice": "Fixed-price unit (non-negotiable) — offer will be sent at full cash price",
+      "confirmSendOfferToOwnerBtn": "Confirm & Send to Owner ✓",
+      "cancelOfferBtn": "Withdraw Offer",
+      "confirmCancelOfferPrompt": "Permanently withdraw this offer from the owner as if it was never sent?",
+      "confirmYesCancelBtn": "Yes, Withdraw",
+      "backBtn": "Back",
+      "offerCancelledSuccess": "Offer withdrawn and removed from owner ✓",
+      "openInDealsBtn": "Track Offer",
+      "invalidCustomPriceErr": "Please enter a valid price greater than 0 and up to the required cash",
+      "openAcceptedDealBtn": "Track Deal"
     },
     "shell": {
       "brand": "Darak",
@@ -3224,7 +3494,7 @@
         "leads": "Buy Requests",
         "leadsShort": "Buyers",
         "users": "Users & Roles",
-        "deals": "Deals & Offers Room",
+        "deals": "Offers & Deals",
         "dealsShort": "Deals",
         "usersShort": "Users",
         "investors": "Investors",
@@ -3525,7 +3795,7 @@
       "unitBadge": "Unit Booking",
       "cashLabel": "Cash:",
       "installmentLabel": "Installment:",
-      "verifyBuyerBtn": "Verify Buyer ✓",
+      "verifyBuyerBtn": "Verify Buyer Phone Manually ✓",
       "buyerVerifiedSuccess": "Buyer contact details verified successfully ✓",
       "areasLabel": "Areas:",
       "typeDetailsLabel": "Type & Details:",
@@ -3537,7 +3807,7 @@
       "deleteBtn": "Delete",
       "allOrdersTitle": "Buyer Requests & Unit Bookers List",
       "allOrdersDesc": "Clients marked with (🔥 Unit Booking) requested a specific unit from the Opportunities page.",
-      "colBuyer": "Buyer Name & Request Type",
+      "colBuyer": "Buyer Details",
       "colCash": "Financial Capacity / Cash",
       "colTarget": "Target Unit / Area & Readiness",
       "colDate": "Request Date",
@@ -3558,7 +3828,33 @@
         "matched": "Recommended / Viewing",
         "closed": "Purchased / Contracted",
         "archived": "Archived"
-      }
+      },
+      "verifyBuyerBothBtn": "Verify Phone & Email Manually ✓",
+      "verifyBuyerEmailBtn": "Verify Buyer Email Manually ✓",
+      "verifyBuyerHint": "Use this after verifying the buyer's phone/WhatsApp to mark their contact as verified",
+      "viewMatchedUnitsBtn": "View Matched Units",
+      "activeDealOnUnitPrefix": "Deals Room:",
+      "activeDealPendingAdmin": "New offer for review on",
+      "activeDealPendingSeller": "Offer awaiting owner reply on",
+      "activeDealAccepted": "Accepted deal on",
+      "activeDealWaitlist": "On waitlist for",
+      "offersLogBtn": "Offers Log",
+      "offersLogTitle": "Buyer's Property Offers Log",
+      "offersLogSubtitle": "All active and past offers submitted by this buyer to track their preferences and negotiation status",
+      "offersLogEmpty": "This buyer has not submitted any property offers yet.",
+      "offerSummaryPendingAdmin": "Offered {offered} — awaiting your review to forward to the owner",
+      "offerSummaryPendingSeller": "Offer of {offered} sent to unit owner — awaiting owner reply",
+      "offerSummaryCounter": "Buyer offered {offered} → Owner countered at {counter} (Gap: {diff})",
+      "offerSummaryAccepted": "Deal agreed at {offered} — unit reserved for transfer",
+      "offerSummaryWaitlist": "Registered on priority waitlist with offer {offered}",
+      "offerSummaryRejected": "Offer of {offered} was closed / declined",
+      "unitRequiredCashShort": "Unit Required Cash:",
+      "buyerOfferedShort": "Buyer Offered:",
+      "ownerCounterShort": "Owner Counter:",
+      "followUpOfferBtn": "Track Offer",
+      "followUpDealBtn": "Track Deal",
+      "activeOffersBadge": "Active",
+      "closedOffersBadge": "Closed"
     },
     "usersPage": {
       "eyebrow": "Community & Role-Based Access (RBAC)",

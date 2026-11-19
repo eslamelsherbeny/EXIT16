@@ -16,6 +16,7 @@ import {
   Eye,
   Flame,
   Loader2,
+  Mail,
   MessageCircle,
   Wallet,
   X,
@@ -411,7 +412,7 @@ export function UnitInterestForm({
   installmentAmount: _installmentAmount,
   currentUserId,
   willingToDiscount = false,
-  discountAmount = 0,
+  isUnderContractDeal = false,
 }: {
   unitCode: string
   projectName: string
@@ -424,34 +425,30 @@ export function UnitInterestForm({
   currentUserId: string | null
   willingToDiscount?: boolean
   discountAmount?: number
+  isUnderContractDeal?: boolean
 }) {
   const params = useParams()
   const rawPropertyId = Array.isArray(params?.id)
     ? params.id[0]
     : (params?.id as string) || ''
 
-  const { t: dict, siteSettings } = useTranslation()
+  const { t: dict, locale, siteSettings } = useTranslation()
   const f = dict.unitDetailsPage.interestForm
-  const oT = dict.accountPages.offers
+  const oT = dict.accountPages.offers as Record<string, any>
   const cur = '$'
   const supportWhatsApp = String(
     siteSettings?.whatsappNumber || dict.footer?.phone || '+201018595959'
   ).replace(/\D/g, '')
 
-  const allowNegotiation = Boolean(willingToDiscount || discountAmount > 0)
-  const maxDiscount =
-    discountAmount > 0
-      ? Math.min(requiredCash - 1, discountAmount)
-      : Math.round(requiredCash * 0.2)
-  const minAllowedCash = allowNegotiation
-    ? Math.max(1, requiredCash - maxDiscount)
-    : requiredCash
+  const allowNegotiation = Boolean(willingToDiscount)
+  const sanityMinFloor = Math.round(Math.max(1, requiredCash) * 0.5)
 
   const [offerMode, setOfferMode] = useState<'full' | 'negotiate'>('full')
   const [offeredCashStr, setOfferedCashStr] = useState(
     requiredCash > 0 ? requiredCash.toLocaleString('en-US') : ''
   )
   const [buyerName, setBuyerName] = useState('')
+  const [buyerEmail, setBuyerEmail] = useState('')
   const [buyerPhone, setBuyerPhone] = useState('')
   const [countryCode, setCountryCode] = useState('995')
   const [buyerNotes, setBuyerNotes] = useState('')
@@ -467,14 +464,51 @@ export function UnitInterestForm({
     offerId: string
     offerRef: string
     amount: number
+    isBackupWaitlist?: boolean
+    accountCreated?: boolean
   } | null>(null)
   const [offerError, setOfferError] = useState('')
 
   const numericCash =
-    Number(toEnglishDigits(offeredCashStr).replace(/,/g, '')) || requiredCash
-  const isFullPrice = numericCash >= requiredCash
-  const isBelowMinFloor =
-    allowNegotiation && numericCash > 0 && numericCash < minAllowedCash
+    Number(toEnglishDigits(offeredCashStr).replace(/,/g, '')) || 0
+  const isFullPrice = offerMode === 'full' && numericCash === requiredCash
+  const isOverPaidError = numericCash > requiredCash
+  const isSanityIncompleteError =
+    allowNegotiation &&
+    offerMode === 'negotiate' &&
+    numericCash > 0 &&
+    numericCash < sanityMinFloor
+
+  const negotiatePlaceholder =
+    locale === 'en'
+      ? 'Enter your offer amount...'
+      : locale === 'ru'
+        ? 'Введите сумму предложения...'
+        : locale === 'ka'
+          ? 'შეიყვანეთ შეთავაზების თანხა...'
+          : 'أدخل مبلغ العرض...'
+
+  const emailFieldLabel =
+    dict.buy?.stepThree?.emailLabel?.replace('*', '').trim() ||
+    (locale === 'en' ? 'Email Address' : 'البريد الإلكتروني')
+
+  const salesCallExpectText =
+    locale === 'en'
+      ? 'Expect a call or message from our sales advisor shortly to confirm your offer and coordinate with the owner.'
+      : locale === 'ru'
+        ? 'Ожидайте звонка или сообщения от нашего менеджера в ближайшее время для подтверждения оффера.'
+        : locale === 'ka'
+          ? 'მალე დაგიკავშირდებათ ჩვენი გაყიდვების კონსულტანტი შეთავაზების დასადასტურებლად.'
+          : 'انتظر مكالمة أو رسالة من مسؤول المبيعات قريباً لتأكيد عرضك والتنسيق مع مالك الوحدة.'
+
+  const accountCreatedNote =
+    locale === 'en'
+      ? 'We also created your personal account automatically and sent an email so you can set your password whenever you like.'
+      : locale === 'ru'
+        ? 'Мы также автоматически создали ваш личный кабинет и отправили письмо на почту, чтобы вы могли задать пароль в любое удобное время.'
+        : locale === 'ka'
+          ? 'ასევე ავტომატურად შევქმენით თქვენი პირადი კაბინეტი და გამოგიგზავნეთ ბმული ელ-ფოსტაზე პაროლის დასაყენებლად.'
+          : 'كما أنشأنا لك حساباً شخصياً تلقائياً وأرسلنا رسالة إلى بريدك الإلكتروني لتعيين كلمة مرور وقتما تشاء.'
 
   const handleInterestSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -484,16 +518,28 @@ export function UnitInterestForm({
       .replace(/^0+/, '')
       .replace(/\D/g, '')
       .trim()
+    const cleanEmail = buyerEmail.trim().toLowerCase()
 
-    if (!currentUserId && (!buyerName.trim() || cleanDigits.length < 7)) {
-      setOfferError(f.errorSubmit)
+    if (!currentUserId) {
+      if (
+        !buyerName.trim() ||
+        cleanDigits.length < 7 ||
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)
+      ) {
+        setOfferError(f.errorSubmit)
+        return
+      }
+    }
+
+    if (numericCash <= 0 || isOverPaidError) {
+      setOfferError(
+        `${oT.errOfferExceedsPaid} (${requiredCash.toLocaleString('en-US')} ${cur})`
+      )
       return
     }
 
-    if (isBelowMinFloor) {
-      setOfferError(
-        `${oT.errBelowMinFloor || f.errBelowMinFloor}: ${minAllowedCash.toLocaleString('en-US')} ${cur}`
-      )
+    if (isSanityIncompleteError) {
+      setOfferError(oT.errOfferSanityIncomplete)
       return
     }
 
@@ -506,11 +552,12 @@ export function UnitInterestForm({
 
       const res = await submitBuyerOfferAction({
         propertyId: rawPropertyId,
-        offeredCash: numericCash,
+        offeredCash: allowNegotiation ? numericCash : requiredCash,
         paymentReadiness: readiness,
         paymentMethod,
         guestName: buyerName.trim(),
         guestPhone: cleanPhone,
+        guestEmail: cleanEmail,
         buyerNotes: buyerNotes.trim(),
       })
 
@@ -520,7 +567,9 @@ export function UnitInterestForm({
         setSubmittedOfferData({
           offerId: res.offerId || '',
           offerRef: res.offerRef || `OF-${unitCode}`,
-          amount: numericCash,
+          amount: allowNegotiation ? numericCash : requiredCash,
+          isBackupWaitlist: res.isBackupWaitlist,
+          accountCreated: res.accountCreated,
         })
       }
     } catch {
@@ -549,11 +598,15 @@ export function UnitInterestForm({
           <Wallet className="size-4" />
         </span>
         <h2 className="text-lg font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-xl">
-          {oT.makeOfferBtn || f.title}
+          {isUnderContractDeal
+            ? oT.waitlistBtnLabel
+            : oT.makeOfferBtn || f.title}
         </h2>
       </div>
       <p className="mt-1.5 text-xs leading-relaxed text-gray-500">
-        {f.subtitlePrefix} ({unitCode}) {f.subtitleSuffix}
+        {isUnderContractDeal
+          ? oT.waitlistModalSubtitle
+          : `${f.subtitlePrefix} (${unitCode}) ${f.subtitleSuffix}`}
       </p>
 
       {submittedOfferData ? (
@@ -562,26 +615,39 @@ export function UnitInterestForm({
             <CheckCircle2 className="size-6" />
           </div>
           <p className="text-base font-black text-[#0a1122] sm:text-lg">
-            {f.successTitlePrefix} ({projectName}) {f.successTitleSuffix}
+            {submittedOfferData.isBackupWaitlist
+              ? oT.waitlistSubmittedSuccess
+              : `${f.successTitlePrefix} (${projectName}) ${f.successTitleSuffix}`}
           </p>
           <p className="mt-1 font-mono text-xs font-extrabold text-[#007a5a]">
             Ref: #{submittedOfferData.offerRef} · $
             {submittedOfferData.amount.toLocaleString('en-US')}
           </p>
-          <p className="mx-auto mt-2.5 max-w-md text-xs leading-relaxed font-semibold text-slate-700">
-            {f.fastTrackWaNote}
+          <p className="mx-auto mt-2.5 max-w-md text-xs leading-relaxed font-bold text-[#0a1122]">
+            {submittedOfferData.isBackupWaitlist
+              ? oT.waitlistBuyerCardNote
+              : salesCallExpectText}
           </p>
 
+          {submittedOfferData.accountCreated && (
+            <div className="mx-auto mt-3 flex max-w-md items-start gap-2 rounded-xl border border-emerald-200 bg-white px-3.5 py-2.5 text-start text-[11.5px] font-semibold leading-relaxed text-slate-700">
+              <Mail className="mt-0.5 size-4 shrink-0 text-[#007a5a]" />
+              <span>{accountCreatedNote}</span>
+            </div>
+          )}
+
           <div className="mt-5 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <a
-              href={`https://wa.me/${supportWhatsApp}?text=${encodeURIComponent(whatsappConfirmMsg)}`}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] px-6 text-xs font-extrabold text-white shadow-md transition hover:opacity-95 sm:w-auto sm:text-sm"
-            >
-              <MessageCircle className="size-4 shrink-0" />
-              <span>{f.confirmOfferWaBtn}</span>
-            </a>
+            {!submittedOfferData.isBackupWaitlist && (
+              <a
+                href={`https://wa.me/${supportWhatsApp}?text=${encodeURIComponent(whatsappConfirmMsg)}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] px-6 text-xs font-extrabold text-white shadow-md transition hover:opacity-95 sm:w-auto sm:text-sm"
+              >
+                <MessageCircle className="size-4 shrink-0" />
+                <span>{f.confirmOfferWaBtn}</span>
+              </a>
+            )}
 
             <Link
               href="/account/offers?role=buyer"
@@ -642,7 +708,9 @@ export function UnitInterestForm({
                   type="button"
                   onClick={() => {
                     setOfferMode('negotiate')
-                    setOfferedCashStr(minAllowedCash.toLocaleString('en-US'))
+                    if (numericCash >= requiredCash) {
+                      setOfferedCashStr('')
+                    }
                   }}
                   className={`flex flex-col justify-between rounded-xl border p-3 text-start transition ${
                     offerMode === 'negotiate'
@@ -653,11 +721,8 @@ export function UnitInterestForm({
                   <span className="block text-[11px] font-extrabold">
                     💬 {oT.negotiateOptionTitle || f.negotiateOptionTitle}
                   </span>
-                  <span className="mt-1 block text-[10.5px] text-gray-500">
-                    {oT.minAllowedFloorLabel || f.minAllowedFloorLabel}:{' '}
-                    <strong dir="ltr" className="font-extrabold text-[#0a1122]">
-                      {minAllowedCash.toLocaleString('en-US')} {cur}
-                    </strong>
+                  <span className="mt-1 block text-[10.5px] font-semibold text-gray-600">
+                    {oT.negotiateOptionSubHint}
                   </span>
                 </button>
               </div>
@@ -668,8 +733,10 @@ export function UnitInterestForm({
               </div>
             )}
 
-            <label className="mb-1.5 block text-[11px] font-bold text-gray-500">
-              {f.yourCashOfferInputLabel}
+            <label className="mb-1.5 block text-[11px] font-bold text-gray-600">
+              {allowNegotiation && offerMode === 'negotiate'
+                ? `${oT.maxNegotiableCashInputLabel} (${requiredCash.toLocaleString('en-US')} ${cur}):`
+                : f.yourCashOfferInputLabel}
             </label>
             <div className="relative">
               <input
@@ -677,7 +744,10 @@ export function UnitInterestForm({
                 inputMode="numeric"
                 dir="ltr"
                 required
-                readOnly={!allowNegotiation}
+                placeholder={
+                  offerMode === 'negotiate' ? negotiatePlaceholder : ''
+                }
+                readOnly={!allowNegotiation || offerMode === 'full'}
                 value={offeredCashStr}
                 onChange={(e) => {
                   if (!allowNegotiation) return
@@ -686,13 +756,12 @@ export function UnitInterestForm({
                     ''
                   )
                   const num = Number(digits) || 0
-                  setOfferMode(num >= requiredCash ? 'full' : 'negotiate')
                   setOfferedCashStr(
                     digits ? num.toLocaleString('en-US') : ''
                   )
                 }}
-                className={`h-12 w-full rounded-xl border pr-4 pl-12 text-left text-base font-black text-[#0a1122] tabular-nums focus:outline-none ${
-                  !allowNegotiation
+                className={`h-12 w-full rounded-xl border pr-4 pl-12 text-left text-base font-black text-[#0a1122] tabular-nums placeholder:text-xs placeholder:font-semibold placeholder:text-gray-400 focus:outline-none ${
+                  !allowNegotiation || offerMode === 'full'
                     ? 'cursor-not-allowed border-gray-200 bg-gray-100'
                     : 'border-gray-300 bg-white focus:border-[#007a5a]'
                 }`}
@@ -702,21 +771,27 @@ export function UnitInterestForm({
               </span>
             </div>
 
-            {isFullPrice ? (
+            {isOverPaidError ? (
+              <div className="mt-2.5 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-2.5 text-[11px] font-bold text-red-700">
+                <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+                <span>
+                  {oT.errOfferExceedsPaid} (
+                  <strong dir="ltr">
+                    {requiredCash.toLocaleString('en-US')} {cur}
+                  </strong>
+                  )
+                </span>
+              </div>
+            ) : isSanityIncompleteError ? (
+              <div className="mt-2.5 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-2.5 text-[11px] font-bold text-red-700">
+                <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+                <span>{oT.errOfferSanityIncomplete}</span>
+              </div>
+            ) : isFullPrice || numericCash === requiredCash ? (
               <div className="mt-2.5 flex items-center gap-2 rounded-xl border border-emerald-200 bg-[#eaf8f2] p-2.5 text-[11px] font-bold text-[#007a5a]">
                 <CheckCircle2 className="size-4 shrink-0" />
                 <span>
                   {oT.fullPricePriorityHint || f.fullPricePriorityHint}
-                </span>
-              </div>
-            ) : isBelowMinFloor ? (
-              <div className="mt-2.5 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-2.5 text-[11px] font-bold text-red-700">
-                <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-                <span>
-                  {oT.errBelowMinFloor || f.errBelowMinFloor}:{' '}
-                  <strong dir="ltr">
-                    {minAllowedCash.toLocaleString('en-US')} {cur}
-                  </strong>
                 </span>
               </div>
             ) : (
@@ -733,7 +808,7 @@ export function UnitInterestForm({
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className="mb-2 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
-                  {f.nameLabel}
+                  {f.nameLabel} *
                 </label>
                 <input
                   type="text"
@@ -748,7 +823,7 @@ export function UnitInterestForm({
 
               <div>
                 <label className="mb-2 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
-                  {f.whatsappLabel}
+                  {f.whatsappLabel} *
                 </label>
                 <div dir="ltr" className="flex items-center gap-2">
                   <CountrySelector
@@ -770,6 +845,22 @@ export function UnitInterestForm({
                     className="h-11 flex-1 rounded-xl border border-gray-200 bg-white px-4 text-left text-xs font-medium text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:text-sm"
                   />
                 </div>
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="mb-2 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
+                  {emailFieldLabel} *
+                </label>
+                <input
+                  type="email"
+                  dir="ltr"
+                  value={buyerEmail}
+                  onChange={(e) => setBuyerEmail(e.target.value)}
+                  placeholder="name@example.com"
+                  required
+                  maxLength={140}
+                  className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-left text-xs font-medium text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:text-sm"
+                />
               </div>
             </div>
           )}
@@ -863,7 +954,12 @@ export function UnitInterestForm({
 
           <button
             type="submit"
-            disabled={submittingOffer || isBelowMinFloor}
+            disabled={
+              submittingOffer ||
+              numericCash <= 0 ||
+              isOverPaidError ||
+              isSanityIncompleteError
+            }
             className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[var(--brand-primary,#007a5a)] text-sm font-bold text-white shadow-sm transition active:scale-[0.98] hover:bg-[var(--brand-primary-hover,#006248)] disabled:opacity-50"
           >
             {submittingOffer ? (
@@ -872,7 +968,11 @@ export function UnitInterestForm({
                 <span>{f.submittingBtn}</span>
               </>
             ) : (
-              <span>{oT.confirmSendOfferBtn || f.submitBtn}</span>
+              <span>
+                {isUnderContractDeal
+                  ? oT.confirmWaitlistOfferBtn
+                  : oT.confirmSendOfferBtn || f.submitBtn}
+              </span>
             )}
           </button>
 

@@ -1,16 +1,14 @@
 "use client"
 
-import { useEffect, useState, useTransition } from "react"
+import { useEffect, useMemo, useState, useTransition } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import {
   AlertTriangle,
-  Building2,
-  Calendar,
   CheckCircle2,
-  Clock,
+  ChevronDown,
+  ClipboardList,
   Download,
-  ExternalLink,
   Eye,
   FileText,
   Flame,
@@ -21,7 +19,10 @@ import {
   MoreVertical,
   Phone,
   Search,
+  Target,
   Trash2,
+  Trophy,
+  User,
   Wallet,
   X,
 } from "lucide-react"
@@ -42,9 +43,11 @@ import {
 import {
   ACTIVE_ADMIN_COUNTRY,
   buildLeadWhatsAppMessage,
+  deriveShortUnitCode,
+  getLeadUiMicroLabels,
   isBuyerEmailVerified,
   isBuyerPhoneVerified,
-  isSelfOfferForLead,
+  isOfferOwnedByLead,
   normalizeOfferStatus,
   parseLeadDetails,
   type BuyerLead,
@@ -52,9 +55,19 @@ import {
   type LinkedUnitSummary,
   type UserVerificationBadgeInfo,
 } from "./leads-helpers"
-import { LeadConfirmDialog, LeadDetailsDialog } from "./leads-modals"
+import {
+  LeadConfirmDialog,
+  LeadDetailsDialog,
+  LeadOffersLogDialog,
+} from "./leads-modals"
 
 export type { BuyerLead, LinkedUnitSummary, UserVerificationBadgeInfo }
+
+type LeadStatusOption = {
+  value: string
+  label: string
+  badge: string
+}
 
 function isUnitEligibleForLeadMatch(status?: string | null): boolean {
   const clean = String(status || "active").trim().toLowerCase()
@@ -62,7 +75,203 @@ function isUnitEligibleForLeadMatch(status?: string | null): boolean {
     clean === "active" ||
     clean === "approved" ||
     clean === "published" ||
-    clean === "offer_received"
+    clean === "offer_received" ||
+    clean === "transferring"
+  )
+}
+
+function getEffectiveLeadStatus(
+  lead: BuyerLead,
+  parsed: ReturnType<typeof parseLeadDetails>,
+  units: LinkedUnitSummary[]
+): string {
+  const raw = String(lead.status || "new").trim().toLowerCase()
+  if (raw !== "new" && raw !== "") return raw
+
+  const hasCompletedPurchase = parsed.directOffers.some((o) => {
+    if (o.status !== "accepted") return false
+    const u = units.find((item) => String(item.id) === String(o.property_id))
+    return String(u?.status || "").trim().toLowerCase() === "sold"
+  })
+
+  if (hasCompletedPurchase) return "closed"
+  if (parsed.directOffers.some((o) => o.status !== "rejected")) return "matched"
+  return "new"
+}
+
+function findCompletedPurchaseDeal(
+  parsed: ReturnType<typeof parseLeadDetails>,
+  units: LinkedUnitSummary[]
+) {
+  const soldOffer = parsed.directOffers.find((o) => {
+    if (o.status !== "accepted") return false
+    const u = units.find((item) => String(item.id) === String(o.property_id))
+    return String(u?.status || "").trim().toLowerCase() === "sold"
+  })
+  if (!soldOffer) return null
+  const unit =
+    units.find((item) => String(item.id) === String(soldOffer.property_id)) ||
+    null
+  return { offer: soldOffer, unit }
+}
+
+function StatusSelectBox({
+  value,
+  options,
+  badgeClass,
+  disabled,
+  onChange,
+}: {
+  value: string
+  options: LeadStatusOption[]
+  badgeClass: string
+  disabled: boolean
+  onChange: (next: string) => void
+}) {
+  return (
+    <div className="relative w-full">
+      <select
+        disabled={disabled}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={`h-9 w-full cursor-pointer appearance-none rounded-xl border px-7 text-center text-[11.5px] font-extrabold transition focus:outline-none [text-align-last:center] disabled:opacity-50 ${badgeClass}`}
+      >
+        {options.map((st) => (
+          <option
+            key={st.value}
+            value={st.value}
+            className="bg-white text-xs text-[#0f1d40]"
+          >
+            {st.label}
+          </option>
+        ))}
+      </select>
+      <ChevronDown className="pointer-events-none absolute top-1/2 end-2.5 size-3.5 -translate-y-1/2 opacity-70" />
+    </div>
+  )
+}
+
+function BuyerOffersLogButton({
+  offers,
+  units,
+  label,
+  onClick,
+}: {
+  offers: any[]
+  units: LinkedUnitSummary[]
+  label: string
+  onClick: () => void
+}) {
+  if (!offers || offers.length === 0) return null
+
+  const hasActiveAccepted = offers.some((o) => {
+    if (o.status !== "accepted") return false
+    const u = units.find((item) => String(item.id) === String(o.property_id))
+    return String(u?.status || "").trim().toLowerCase() !== "sold"
+  })
+  const hasPendingAdmin = offers.some((o) => o.status === "pending_admin")
+  const hasNegotiating = offers.some(
+    (o) => o.status === "pending_seller" || o.status === "counter_offered"
+  )
+
+  const toneClass = hasActiveAccepted
+    ? "border-emerald-300 bg-emerald-50 text-[#007a5a] hover:bg-[#007a5a] hover:text-white"
+    : hasPendingAdmin
+      ? "border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-500 hover:text-white"
+      : hasNegotiating
+        ? "border-purple-200 bg-purple-50 text-purple-900 hover:bg-purple-600 hover:text-white"
+        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
+
+  const dotClass = hasActiveAccepted
+    ? "bg-[#007a5a]"
+    : hasPendingAdmin
+      ? "bg-amber-500"
+      : hasNegotiating
+        ? "bg-purple-600"
+        : "bg-slate-400"
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`group inline-flex h-8 items-center gap-1.5 rounded-xl border px-3 text-[11px] font-extrabold shadow-2xs transition ${toneClass}`}
+    >
+      <span
+        className={`size-2 shrink-0 rounded-full group-hover:bg-white ${dotClass}`}
+      />
+      <ClipboardList className="size-3.5 shrink-0" />
+      <span>
+        {label} ({offers.length})
+      </span>
+    </button>
+  )
+}
+
+function CompletedPurchaseSummaryBanner({
+  deal,
+  leadCur,
+  locale,
+}: {
+  deal: { offer: any; unit: LinkedUnitSummary | null } | null
+  leadCur: string
+  locale: string
+}) {
+  if (!deal) {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-[#eaf8f2] px-3 py-1.5 text-[11px] font-extrabold text-[#007a5a]">
+        <Trophy className="size-3.5 shrink-0" />
+        <span>
+          {locale === "en"
+            ? "Purchase completed — request closed"
+            : "تم إتمام الشراء وإغلاق هذا الطلب بنجاح"}
+        </span>
+      </span>
+    )
+  }
+
+  const uCode = deal.unit
+    ? deriveShortUnitCode(deal.unit.id, deal.unit.code)
+    : ""
+  const projName = deal.unit?.project_name || "—"
+  const ownerName = deal.unit?.name || ""
+  const amount = `${leadCur}${Number(deal.offer.offered_cash || deal.unit?.paid_amount || 0).toLocaleString("en-US")}`
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="inline-flex flex-wrap items-center gap-1.5 rounded-xl border border-emerald-200 bg-[#eaf8f2] px-3 py-1.5 text-[11px] font-extrabold text-[#0f1d40]">
+        <Trophy className="size-3.5 shrink-0 text-[#007a5a]" />
+        <span>
+          {locale === "en" ? (
+            <>
+              Purchased <strong className="text-[#007a5a]">{projName}</strong>{" "}
+              {uCode ? `(${uCode})` : ""}
+              {ownerName ? ` from ${ownerName}` : ""} —{" "}
+              <strong dir="ltr" className="inline-block text-[#007a5a]">
+                {amount}
+              </strong>
+            </>
+          ) : (
+            <>
+              قام بشراء وحدة{" "}
+              <strong className="text-[#007a5a]">{projName}</strong>{" "}
+              {uCode ? `(${uCode})` : ""}
+              {ownerName ? ` من ${ownerName}` : ""} بـ{" "}
+              <strong dir="ltr" className="inline-block text-[#007a5a]">
+                {amount}
+              </strong>
+            </>
+          )}
+        </span>
+      </span>
+
+      <Link
+        href={`/admin/deals?offerId=${deal.offer.id}`}
+        className="inline-flex h-8 items-center gap-1 rounded-xl bg-[#0f1d40] px-3 text-[11px] font-extrabold text-white transition hover:bg-[#1e293b]"
+      >
+        <Handshake className="size-3.5 text-emerald-300" />
+        <span>{locale === "en" ? "View Deal" : "تفاصيل الصفقة"}</span>
+      </Link>
+    </div>
   )
 }
 
@@ -81,6 +290,7 @@ export default function LeadsClientTable({
   const searchParams = useSearchParams()
 
   const { t: dict, locale, dir } = useTranslation()
+  const ui = getLeadUiMicroLabels(locale)
 
   const adminDict = (dict?.admin as Record<string, any>) || {}
   const t = adminDict.leadsAdmin || {}
@@ -89,108 +299,10 @@ export default function LeadsClientTable({
   const dashDict = adminDict.dashboard || {}
   const sm = adminDict.smartMatch || {}
   const expL = EXPORT_LABELS[locale] || EXPORT_LABELS.ar
+  const propertiesNavLabel = dict.admin?.shell?.nav?.properties || ""
   const listSep = dir === "rtl" ? "، " : ", "
 
-  function getMatchedUnitsForLead(lead: BuyerLead) {
-    if (!units || units.length === 0) return []
-    const leadPhoneDigits = String(lead.phone || "").replace(/\D/g, "")
-    const eligibleUnits = units.filter((u) => {
-      if (!isUnitEligibleForLeadMatch(u.status)) return false
-      if (lead.user_id && u.user_id && String(u.user_id) === String(lead.user_id))
-        return false
-      const uPhoneDigits = String(u.phone || "").replace(/\D/g, "")
-      if (
-        leadPhoneDigits.length >= 8 &&
-        uPhoneDigits.length >= 8 &&
-        leadPhoneDigits.slice(-8) === uPhoneDigits.slice(-8)
-      ) {
-        return false
-      }
-      return true
-    })
-    return eligibleUnits
-      .map((u) => ({
-        unit: u,
-        match: calculateSmartMatch(u, lead, undefined, locale),
-      }))
-      .filter((item) => item.match.score >= 60)
-      .sort((a, b) => b.match.score - a.match.score)
-  }
-
-  function renderLeadOfferBadges(
-    lead: BuyerLead,
-    parsed: ReturnType<typeof parseLeadDetails>
-  ) {
-    const leadOffers = offers
-      .map((o) => ({ ...o, status: normalizeOfferStatus(o) }))
-      .filter((o) => {
-        if (o.status === "recommended") return false
-        if (isSelfOfferForLead(o, units)) return false
-        if (String(o.lead_id || "") === String(lead.id)) return true
-        if (
-          parsed.isUnitLead &&
-          parsed.matchedUnit &&
-          String(o.property_id) === String(parsed.matchedUnit.id) &&
-          lead.user_id &&
-          String(o.buyer_user_id || "") === String(lead.user_id)
-        ) {
-          return true
-        }
-        return false
-      })
-
-    if (leadOffers.length === 0) return null
-
-    const accepted = leadOffers.find((o) => o.status === "accepted")
-    const pendingAdmin = leadOffers.find((o) => o.status === "pending_admin")
-    const pendingOffer = leadOffers.find(
-      (o) => o.status === "pending_seller" || o.status === "counter_offered"
-    )
-    const rejectedCount = leadOffers.filter(
-      (o) => o.status === "rejected"
-    ).length
-
-    return (
-      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-        {accepted && (
-          <Link
-            href={`/admin/deals?offerId=${accepted.id}`}
-            className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2 py-0.5 text-[10px] font-extrabold text-white shadow-2xs hover:bg-emerald-700"
-          >
-            <Handshake className="size-2.5" />
-            <span>{sm.offerAcceptedTag}</span>
-          </Link>
-        )}
-
-        {!accepted && pendingAdmin && (
-          <Link
-            href={`/admin/deals?offerId=${pendingAdmin.id}`}
-            className="inline-flex items-center gap-1 rounded-md bg-amber-500 px-2 py-0.5 text-[10px] font-extrabold text-white shadow-2xs hover:bg-amber-600"
-          >
-            <Clock className="size-2.5" />
-            <span>{sm.offerPendingAdminTag}</span>
-          </Link>
-        )}
-
-        {!accepted && !pendingAdmin && pendingOffer && (
-          <Link
-            href={`/admin/deals?offerId=${pendingOffer.id}`}
-            className="inline-flex items-center gap-1 rounded-md border border-purple-300 bg-purple-50 px-2 py-0.5 text-[10px] font-extrabold text-purple-900 hover:bg-purple-100"
-          >
-            <span>💰 {sm.offerPendingTag}</span>
-          </Link>
-        )}
-
-        {!accepted && !pendingAdmin && !pendingOffer && rejectedCount > 0 && (
-          <span className="inline-flex items-center gap-1 rounded-md bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-700">
-            ✕ {rejectedCount} {sm.offerRejectedTag}
-          </span>
-        )}
-      </div>
-    )
-  }
-
-  const leadStatuses = [
+  const leadStatuses: LeadStatusOption[] = [
     {
       value: "new",
       label: t.statuses?.new,
@@ -208,13 +320,13 @@ export default function LeadsClientTable({
     },
     {
       value: "closed",
-      label: t.statuses?.closed,
-      badge: "bg-emerald-50 text-[#105C50] border-emerald-300",
+      label: locale === "ar" ? "تم الشراء بنجاح" : t.statuses?.closed,
+      badge: "bg-[#eaf8f2] text-[#007a5a] border-emerald-300",
     },
     {
       value: "archived",
       label: t.statuses?.archived,
-      badge: "bg-gray-100 text-gray-700 border-gray-300",
+      badge: "bg-slate-100 text-slate-700 border-slate-300",
     },
   ]
 
@@ -227,17 +339,13 @@ export default function LeadsClientTable({
 
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
-  const [leadTypeFilter, setLeadTypeFilter] = useState<
-    "all" | "unit_leads" | "general"
-  >("all")
-
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [highlightedLeadId, setHighlightedLeadId] = useState<string | null>(
     null
   )
   const [detailsLead, setDetailsLead] = useState<BuyerLead | null>(null)
+  const [offersLogLead, setOffersLogLead] = useState<BuyerLead | null>(null)
   const [smartMatchLead, setSmartMatchLead] = useState<BuyerLead | null>(null)
-
   const [confirmAction, setConfirmAction] = useState<ConfirmLeadAction | null>(
     null
   )
@@ -248,6 +356,80 @@ export default function LeadsClientTable({
   } | null>(null)
   const [pending, startTransition] = useTransition()
 
+  function getMatchedUnitsForLead(lead: BuyerLead) {
+    if (!units || units.length === 0) return []
+    const leadPhoneDigits = String(lead.phone || "").replace(/\D/g, "")
+
+    const activeOfferedUnitIds = new Set(
+      (offers || [])
+        .map((o) => ({ ...o, status: normalizeOfferStatus(o) }))
+        .filter((o) => {
+          if (o.status === "recommended" || o.status === "rejected")
+            return false
+          return isOfferOwnedByLead(o, lead)
+        })
+        .map((o) => String(o.property_id))
+    )
+
+    const eligibleUnits = units.filter((u) => {
+      if (!isUnitEligibleForLeadMatch(u.status)) return false
+      if (activeOfferedUnitIds.has(String(u.id))) return false
+      if (
+        lead.user_id &&
+        u.user_id &&
+        String(u.user_id) === String(lead.user_id)
+      )
+        return false
+      const uPhoneDigits = String(u.phone || "").replace(/\D/g, "")
+      if (
+        leadPhoneDigits.length >= 8 &&
+        uPhoneDigits.length >= 8 &&
+        leadPhoneDigits.slice(-8) === uPhoneDigits.slice(-8)
+      ) {
+        return false
+      }
+      return true
+    })
+
+    return eligibleUnits
+      .map((u) => ({
+        unit: u,
+        match: calculateSmartMatch(u, lead, undefined, locale),
+      }))
+      .filter((item) => item.match.score >= 60)
+      .sort((a, b) => {
+        if (b.match.score !== a.match.score) {
+          return b.match.score - a.match.score
+        }
+        return a.match.differences.length - b.match.differences.length
+      })
+  }
+
+  const generalSearchEntries = useMemo(() => {
+    return leads
+      .map((lead) => ({
+        lead,
+        parsed: parseLeadDetails({
+          lead,
+          units,
+          offers,
+          locale,
+          dir,
+          leadsPrompts,
+        }),
+      }))
+      .filter((entry) => !entry.parsed.isPureUnitInquiry)
+  }, [leads, units, offers, locale, dir, leadsPrompts])
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const { lead, parsed } of generalSearchEntries) {
+      const st = getEffectiveLeadStatus(lead, parsed, units)
+      counts[st] = (counts[st] || 0) + 1
+    }
+    return counts
+  }, [generalSearchEntries, units])
+
   useEffect(() => {
     const closeMenu = () => setOpenMenuId(null)
     window.addEventListener("click", closeMenu)
@@ -255,15 +437,8 @@ export default function LeadsClientTable({
   }, [])
 
   useEffect(() => {
-    const typeParam = searchParams.get("type")
     const leadIdParam = searchParams.get("leadId")
     const verifyPhoneUserIdParam = searchParams.get("verifyPhoneUserId")
-
-    if (typeParam === "unit_leads" || typeParam === "general") {
-      setLeadTypeFilter(typeParam)
-    } else {
-      setLeadTypeFilter("all")
-    }
 
     if (verifyPhoneUserIdParam) {
       const alreadyVerified =
@@ -275,16 +450,13 @@ export default function LeadsClientTable({
 
     if (leadIdParam) {
       setHighlightedLeadId(leadIdParam)
-      const targetLead = leads.find((l) => l.id === leadIdParam)
-
-      if (targetLead) {
-        setTimeout(() => {
-          const el = document.getElementById(`lead-row-${leadIdParam}`)
-          el?.scrollIntoView({ behavior: "smooth", block: "center" })
-        }, 250)
-      }
+      setTimeout(() => {
+        document
+          .getElementById(`lead-row-${leadIdParam}`)
+          ?.scrollIntoView({ behavior: "smooth", block: "center" })
+      }, 250)
     }
-  }, [searchParams, leads])
+  }, [searchParams])
 
   function closeConfirmModal() {
     if (pending) return
@@ -325,9 +497,8 @@ export default function LeadsClientTable({
             confirmAction.newStatus
           )
           if (res.success) {
-            const stLabel = getLeadStatusLabel(confirmAction.newStatus)
             setNotice({
-              text: `${t.statusUpdatedSuccess} ("${target.name}" → ${stLabel})`,
+              text: `${t.statusUpdatedSuccess} ("${target.name}" → ${getLeadStatusLabel(confirmAction.newStatus)})`,
             })
             router.refresh()
           } else {
@@ -339,15 +510,10 @@ export default function LeadsClientTable({
         } else if (confirmAction.type === "delete") {
           const res = await deleteBuyerLeadAction(target.id)
           if (res.success) {
-            setNotice({
-              text: `${t.deletedSuccess} ("${target.name}")`,
-            })
+            setNotice({ text: `${t.deletedSuccess} ("${target.name}")` })
             router.refresh()
           } else {
-            setNotice({
-              text: res.error || t.deleteError,
-              isError: true,
-            })
+            setNotice({ text: res.error || t.deleteError, isError: true })
           }
         }
       } finally {
@@ -357,51 +523,35 @@ export default function LeadsClientTable({
     })
   }
 
-  const unitLeadsCount = leads.filter(
-    (l) =>
-      parseLeadDetails({
-        lead: l,
-        units,
-        offers,
-        locale,
-        dir,
-        leadsPrompts,
-      }).isUnitLead
-  ).length
-  const generalLeadsCount = leads.length - unitLeadsCount
-
-  const filtered = leads.filter((l) => {
-    const parsed = parseLeadDetails({
-      lead: l,
-      units,
-      offers,
-      locale,
-      dir,
-      leadsPrompts,
+  const filteredGeneral = generalSearchEntries
+    .filter(({ lead, parsed }) => {
+      const st = getEffectiveLeadStatus(lead, parsed, units)
+      if (statusFilter !== "all" && st !== statusFilter) return false
+      if (search.trim()) {
+        const q = search.trim().toLowerCase()
+        const qDigits = q.replace(/\D/g, "")
+        const leadPhoneDigits = String(lead.phone || "").replace(/\D/g, "")
+        const areas = parsed.preferredAreasList.join(" ")
+        const match =
+          `${lead.name} ${lead.phone} ${lead.email || ""} ${areas} ${parsed.cleanTargetUnit} ${lead.payment_plan || ""}`
+            .toLowerCase()
+            .includes(q) ||
+          (qDigits.length >= 5 && leadPhoneDigits.includes(qDigits))
+        if (!match) return false
+      }
+      return true
     })
-    if (leadTypeFilter === "unit_leads" && !parsed.isUnitLead) return false
-    if (leadTypeFilter === "general" && parsed.isUnitLead) return false
-
-    const st = l.status || "new"
-    if (statusFilter !== "all" && st !== statusFilter) return false
-
-    if (search.trim()) {
-      const q = search.trim().toLowerCase()
-      const qDigits = q.replace(/\D/g, "")
-      const leadPhoneDigits = String(l.phone || "").replace(/\D/g, "")
-      const areas = Array.isArray(l.preferred_areas)
-        ? l.preferred_areas.join(" ")
-        : l.preferred_areas || ""
-      const match =
-        `${l.name} ${l.phone} ${l.email || ""} ${areas} ${parsed.cleanTargetUnit} ${parsed.unitCode || ""} ${l.payment_plan || ""}`
-          .toLowerCase()
-          .includes(q) ||
-        (qDigits.length >= 5 && leadPhoneDigits.includes(qDigits))
-
-      if (!match) return false
-    }
-    return true
-  })
+    .sort((a, b) => {
+      const stA = getEffectiveLeadStatus(a.lead, a.parsed, units)
+      const stB = getEffectiveLeadStatus(b.lead, b.parsed, units)
+      const rank = (s: string) => (s === "archived" ? 3 : s === "closed" ? 2 : 1)
+      const diff = rank(stA) - rank(stB)
+      if (diff !== 0) return diff
+      return (
+        new Date(b.lead.created_at).getTime() -
+        new Date(a.lead.created_at).getTime()
+      )
+    })
 
   function exportLeadsReport(
     rowsToExport: BuyerLead[],
@@ -457,32 +607,6 @@ export default function LeadsClientTable({
         accessor: (l: BuyerLead) => (l.min_rooms ? `+${l.min_rooms}` : "—"),
       },
       {
-        header: c.leadType,
-        accessor: (l: BuyerLead) =>
-          parseLeadDetails({
-            lead: l,
-            units,
-            offers,
-            locale,
-            dir,
-            leadsPrompts,
-          }).isUnitLead
-            ? expL.unitLeadType
-            : expL.generalLeadType,
-      },
-      {
-        header: c.notes,
-        accessor: (l: BuyerLead) =>
-          parseLeadDetails({
-            lead: l,
-            units,
-            offers,
-            locale,
-            dir,
-            leadsPrompts,
-          }).customerNotes || "—",
-      },
-      {
         header: c.status,
         accessor: (l: BuyerLead) => getLeadStatusLabel(l.status),
       },
@@ -512,27 +636,18 @@ export default function LeadsClientTable({
     }
   }
 
-  function renderThreeDotsMenu(
-    lead: BuyerLead,
-    parsed: ReturnType<typeof parseLeadDetails>
-  ) {
-    const isMenuOpen = openMenuId === lead.id
-
+  function renderThreeDotsMenu(menuKey: string, lead: BuyerLead) {
+    const isMenuOpen = openMenuId === menuKey
     return (
-      <div
-        className="relative"
-        onClick={(e) => {
-          e.stopPropagation()
-        }}
-      >
+      <div className="relative" onClick={(e) => e.stopPropagation()}>
         <button
           type="button"
           aria-label={expL.moreActionsAria}
           onClick={(e) => {
             e.stopPropagation()
-            setOpenMenuId(isMenuOpen ? null : lead.id)
+            setOpenMenuId(isMenuOpen ? null : menuKey)
           }}
-          className="flex size-8 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-gray-600 transition hover:border-[#105C50] hover:bg-white hover:text-[#0a1122]"
+          className="flex size-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-[#007a5a] hover:bg-slate-50 hover:text-[#0f1d40]"
         >
           <MoreVertical className="size-4" />
         </button>
@@ -540,40 +655,8 @@ export default function LeadsClientTable({
         {isMenuOpen && (
           <div
             onClick={(e) => e.stopPropagation()}
-            className="absolute end-0 top-9 z-50 w-56 overflow-hidden rounded-xl border border-gray-200 bg-white p-1.5 shadow-2xl"
+            className="absolute end-0 top-9 z-50 w-52 overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl"
           >
-            {parsed.isUnitLead && (
-              <>
-                <Link
-                  href={
-                    parsed.matchedUnit
-                      ? `/opportunities/${parsed.matchedUnit.id}`
-                      : `/opportunities?q=${encodeURIComponent(parsed.unitCode || parsed.cleanTargetUnit)}`
-                  }
-                  target="_blank"
-                  onClick={() => setOpenMenuId(null)}
-                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-[#0a1122] transition hover:bg-gray-50"
-                >
-                  <ExternalLink className="size-3.5 text-[#105C50]" />
-                  <span>{t.unitBtn}</span>
-                </Link>
-
-                <Link
-                  href={
-                    parsed.matchedUnit
-                      ? `/admin/properties?unitId=${parsed.matchedUnit.id}`
-                      : `/admin/properties`
-                  }
-                  onClick={() => setOpenMenuId(null)}
-                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-[#0a1122] transition hover:bg-gray-50"
-                >
-                  <Building2 className="size-3.5 text-[#105C50]" />
-                  <span>{dict.admin?.shell?.nav?.properties}</span>
-                </Link>
-                <div className="my-1 border-t border-gray-100" />
-              </>
-            )}
-
             <button
               type="button"
               onClick={(e) => {
@@ -586,9 +669,9 @@ export default function LeadsClientTable({
                   `${expL.singleLeadReportTitle} (${lead.name})`
                 )
               }}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-emerald-800 transition hover:bg-emerald-50"
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-[#007a5a] transition hover:bg-[#eaf8f2]"
             >
-              <Download className="size-3.5 text-[#105C50]" />
+              <Download className="size-3.5 text-[#007a5a]" />
               <span>{expL.exportRowBtn}</span>
             </button>
 
@@ -610,7 +693,7 @@ export default function LeadsClientTable({
               <span>{expL.exportRowPdfBtn}</span>
             </button>
 
-            <div className="my-1 border-t border-gray-100" />
+            <div className="my-1 border-t border-slate-100" />
 
             <button
               type="button"
@@ -618,10 +701,7 @@ export default function LeadsClientTable({
               onClick={(e) => {
                 e.stopPropagation()
                 setOpenMenuId(null)
-                setConfirmAction({
-                  type: "delete",
-                  lead,
-                })
+                setConfirmAction({ type: "delete", lead })
               }}
               className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-red-600 transition hover:bg-red-50"
             >
@@ -634,63 +714,39 @@ export default function LeadsClientTable({
     )
   }
 
+  const currentExportRows = filteredGeneral.map((e) => e.lead)
+
+  const modalParsed = detailsLead
+    ? parseLeadDetails({
+        lead: detailsLead,
+        units,
+        offers,
+        locale,
+        dir,
+        leadsPrompts,
+      })
+    : null
+
+  const offersLogEntry = offersLogLead
+    ? generalSearchEntries.find((e) => e.lead.id === offersLogLead.id) || null
+    : null
+
   return (
     <div dir={dir} className="text-start">
-      <div className="mb-4 grid grid-cols-3 gap-2 rounded-xl border border-gray-200/80 bg-white p-1.5 shadow-2xs sm:inline-flex">
-        <button
-          type="button"
-          onClick={() => setLeadTypeFilter("all")}
-          className={`rounded-lg px-3.5 py-2 text-xs font-extrabold transition ${
-            leadTypeFilter === "all"
-              ? "bg-[#0a1122] text-white"
-              : "text-gray-600 hover:bg-gray-100"
-          }`}
-        >
-          {t.allTab} ({leads.length})
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setLeadTypeFilter("unit_leads")}
-          className={`flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-extrabold transition ${
-            leadTypeFilter === "unit_leads"
-              ? "bg-orange-600 text-white shadow-2xs"
-              : "bg-orange-50/80 text-orange-800 hover:bg-orange-100"
-          }`}
-        >
-          <Flame className="size-3.5 shrink-0" />
-          <span>
-            {t.unitBadge} ({unitLeadsCount})
-          </span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setLeadTypeFilter("general")}
-          className={`rounded-lg px-3.5 py-2 text-xs font-extrabold transition ${
-            leadTypeFilter === "general"
-              ? "bg-[#105C50] text-white"
-              : "text-gray-600 hover:bg-gray-100"
-          }`}
-        >
-          {t.generalTab} ({generalLeadsCount})
-        </button>
-      </div>
-
       {notice && (
         <div
           role="status"
           className={`mb-4 flex items-center justify-between gap-3 rounded-xl border p-3.5 text-xs font-bold shadow-xs sm:text-sm ${
             notice.isError
               ? "border-red-200 bg-red-50 text-red-700"
-              : "border-emerald-200 bg-emerald-50 text-emerald-800"
+              : "border-emerald-200 bg-[#eaf8f2] text-[#007a5a]"
           }`}
         >
           <div className="flex items-center gap-2">
             {notice.isError ? (
               <AlertTriangle className="size-4 shrink-0 text-red-600" />
             ) : (
-              <CheckCircle2 className="size-4 shrink-0 text-emerald-600" />
+              <CheckCircle2 className="size-4 shrink-0 text-[#007a5a]" />
             )}
             <span>{notice.text}</span>
           </div>
@@ -704,31 +760,32 @@ export default function LeadsClientTable({
         </div>
       )}
 
-      <div className="mb-4 flex flex-col gap-3 rounded-xl border border-gray-200/80 bg-white p-3.5 shadow-2xs sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+      {/* شريط البحث والفلاتر والتصدير */}
+      <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-slate-200/90 bg-white p-3.5 shadow-2xs sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="flex w-full flex-wrap items-center gap-2 sm:max-w-xl sm:flex-1">
           <div className="relative min-w-[180px] flex-1">
-            <Search className="pointer-events-none absolute top-1/2 end-3 size-4 -translate-y-1/2 text-gray-400" />
+            <Search className="pointer-events-none absolute top-1/2 end-3 size-4 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={t.searchPlaceholder}
-              className="h-9 w-full rounded-lg border border-gray-200 ps-3 pe-9 text-xs font-semibold focus:border-[#105C50] focus:outline-none"
+              className="h-9 w-full rounded-xl border border-slate-200 bg-slate-50/50 ps-3 pe-9 text-xs font-semibold focus:border-[#007a5a] focus:bg-white focus:outline-none"
             />
           </div>
 
           <button
             type="button"
-            disabled={filtered.length === 0}
+            disabled={currentExportRows.length === 0}
             onClick={() =>
               exportLeadsReport(
-                filtered,
+                currentExportRows,
                 "excel",
-                "AqarExit_Buyers_Leads",
-                expL.leadsReportTitle
+                "AqarExit_Search_Profiles",
+                ui.searchProfilesTab
               )
             }
-            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-xs font-extrabold text-[#105C50] transition hover:bg-[#105C50] hover:text-white disabled:opacity-40"
+            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl border border-emerald-200 bg-[#eaf8f2] px-3 text-xs font-extrabold text-[#007a5a] transition hover:bg-[#007a5a] hover:text-white disabled:opacity-40"
           >
             <Download className="size-3.5" />
             <span>{expL.exportAllBtn}</span>
@@ -736,18 +793,18 @@ export default function LeadsClientTable({
 
           <button
             type="button"
-            disabled={filtered.length === 0}
+            disabled={currentExportRows.length === 0}
             onClick={() =>
               exportLeadsReport(
-                filtered,
+                currentExportRows,
                 "pdf",
-                "AqarExit_Buyers_Leads",
-                expL.leadsReportTitle
+                "AqarExit_Search_Profiles",
+                ui.searchProfilesTab
               )
             }
-            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-slate-300 bg-[#0a1122] px-3 text-xs font-extrabold text-white transition hover:bg-[#16223f] disabled:opacity-40"
+            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-800 px-3 text-xs font-extrabold text-white transition hover:bg-slate-900 disabled:opacity-40"
           >
-            <FileText className="size-3.5 text-emerald-400" />
+            <FileText className="size-3.5 text-emerald-300" />
             <span>{expL.exportPdfBtn}</span>
           </button>
         </div>
@@ -756,26 +813,26 @@ export default function LeadsClientTable({
           <button
             type="button"
             onClick={() => setStatusFilter("all")}
-            className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+            className={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${
               statusFilter === "all"
-                ? "bg-[#105C50] text-white"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                ? "bg-[#007a5a] text-white"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
             }`}
           >
-            {t.allTab}
+            {t.allTab} ({generalSearchEntries.length})
           </button>
           {leadStatuses.map((st) => (
             <button
               key={st.value}
               type="button"
               onClick={() => setStatusFilter(st.value)}
-              className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+              className={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${
                 statusFilter === st.value
-                  ? "bg-[#105C50] text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  ? "bg-[#007a5a] text-white"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               }`}
             >
-              {st.label}
+              {st.label} ({statusCounts[st.value] || 0})
             </button>
           ))}
         </div>
@@ -783,32 +840,32 @@ export default function LeadsClientTable({
 
       {/* 1. عرض الموبايل */}
       <div className="space-y-3.5 md:hidden">
-        {filtered.length === 0 ? (
-          <div className="rounded-xl border border-gray-200 bg-white p-8 text-center text-xs text-gray-400">
+        {filteredGeneral.length === 0 ? (
+          <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-xs text-slate-400">
             {t.emptyText}
           </div>
         ) : (
-          filtered.map((lead) => {
-            const currentSt = lead.status || "new"
+          filteredGeneral.map(({ lead, parsed }) => {
+            const currentSt = getEffectiveLeadStatus(lead, parsed, units)
+            const isClosedDeal = currentSt === "closed"
+            const completedDeal = isClosedDeal
+              ? findCompletedPurchaseDeal(parsed, units)
+              : null
             const stObj =
               leadStatuses.find((s) => s.value === currentSt) ||
               leadStatuses[0]
-            const parsed = parseLeadDetails({
-              lead,
-              units,
-              offers,
-              locale,
-              dir,
-              leadsPrompts,
-            })
-            const matchedUnits = getMatchedUnitsForLead(lead)
+            const matchedUnitsCount = isClosedDeal
+              ? 0
+              : getMatchedUnitsForLead(lead).length
+            const phoneOk = isBuyerPhoneVerified(lead, verificationMap)
+            const emailOk = isBuyerEmailVerified(lead, verificationMap)
             const typesText = Array.isArray(lead.unit_types)
               ? lead.unit_types.join(listSep)
               : "—"
-            const isCardLoading = pending && activeLeadId === lead.id
+            const isLoading = pending && activeLeadId === lead.id
             const isHighlighted = highlightedLeadId === lead.id
-            const firstLetter = lead.name.trim().charAt(0) || "U"
-            const phoneOk = isBuyerPhoneVerified(lead, verificationMap)
+            const showTargetBudget =
+              Number(lead.budget || 0) > Number(lead.available_cash || 0)
 
             const waText = buildLeadWhatsAppMessage({
               lead,
@@ -823,219 +880,230 @@ export default function LeadsClientTable({
               <div
                 id={`lead-row-${lead.id}`}
                 key={lead.id}
-                className={`relative rounded-2xl border bg-white p-4 shadow-xs transition ${
-                  isCardLoading
-                    ? "border-[#105C50] opacity-75"
+                className={`relative overflow-visible rounded-2xl border bg-white shadow-xs transition ${
+                  isLoading
+                    ? "border-[#007a5a] opacity-75"
                     : isHighlighted
-                      ? "border-[#105C50] bg-emerald-50/20 ring-2 ring-[#105C50]/30"
-                      : parsed.isUnitLead
-                        ? "border-orange-300 ring-1 ring-orange-200/60"
-                        : "border-gray-200/90"
+                      ? "border-2 border-[#007a5a] ring-2 ring-[#007a5a]/25"
+                      : isClosedDeal
+                        ? "border-emerald-200/90 bg-slate-50/40 border-s-4 border-s-[#0f1d40]"
+                        : parsed.isDirectUnitSource
+                          ? "border-slate-200/90 border-s-4 border-s-orange-500"
+                          : "border-slate-200/90 border-s-4 border-s-[#007a5a]"
                 }`}
               >
-                {isCardLoading && (
-                  <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-white/65 backdrop-blur-[1px]">
-                    <div className="flex items-center gap-2 rounded-full bg-[#0a1122] px-4 py-2 text-xs font-bold text-white shadow-md">
-                      <Loader2 className="size-4 animate-spin text-emerald-400" />
-                      <span>{t.updatingText}</span>
-                    </div>
-                  </div>
-                )}
-
-                {parsed.isUnitLead && (
-                  <div className="-mx-4 -mt-4 mb-3 flex items-center justify-between rounded-t-2xl border-b border-orange-200/80 bg-orange-50/90 px-4 py-2 text-[11px] font-extrabold text-orange-900">
-                    <span className="flex items-center gap-1.5">
-                      <Flame className="size-3.5 fill-orange-500 text-orange-600" />
-                      <span>{t.unitBadge}</span>
-                    </span>
-                    {parsed.unitCode && (
-                      <span className="rounded bg-white px-2 py-0.5 font-mono text-[10px] font-bold text-orange-800 shadow-2xs">
-                        {parsed.unitCode}
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex min-w-0 flex-1 items-center gap-2.5">
-                    <div
-                      className={`flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-extrabold ${
-                        parsed.isUnitLead
-                          ? "bg-orange-100 text-orange-800"
-                          : "bg-[#105C50]/10 text-[#105C50]"
-                      }`}
-                    >
-                      {firstLetter}
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className="truncate text-xs font-extrabold text-[#0a1122] sm:text-sm">
-                        {lead.name}
-                      </h3>
-                      <div
-                        dir="ltr"
-                        className="mt-0.5 flex items-center justify-start gap-1 text-xs font-medium text-gray-500"
-                      >
-                        <Phone className="size-3 text-gray-400" />
-                        <span>{lead.phone}</span>
-                        {phoneOk && (
-                          <CheckCircle2 className="size-3.5 text-[#105C50]" />
+                <div className="p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <h3 className="truncate text-sm font-black text-[#0f1d40]">
+                          {lead.name}
+                        </h3>
+                        {parsed.isDirectUnitSource ? (
+                          <span className="inline-flex items-center gap-0.5 rounded-md bg-orange-100 px-1.5 py-0.5 text-[10px] font-extrabold text-orange-800">
+                            <Flame className="size-2.5" />
+                            <span>{ui.sourceDirectOfferBadge}</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center rounded-md bg-[#eaf8f2] px-1.5 py-0.5 text-[10px] font-extrabold text-[#007a5a]">
+                            {ui.sourceSearchBadge}
+                          </span>
                         )}
                       </div>
-                    </div>
-                  </div>
-
-                  {renderThreeDotsMenu(lead, parsed)}
-                </div>
-
-                <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                  {matchedUnits.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setSmartMatchLead(lead)}
-                      className="inline-flex items-center gap-1 rounded-md border border-teal-300 bg-teal-50/80 px-2.5 py-0.5 text-[10.5px] font-extrabold text-[#105C50] transition hover:bg-[#105C50] hover:text-white"
-                    >
-                      <span>🎯</span>
-                      <span>
-                        {matchedUnits.length} {sm.matchedUnitsShort}
-                      </span>
-                    </button>
-                  )}
-                  {renderLeadOfferBadges(lead, parsed)}
-                </div>
-
-                {parsed.readinessBadge && (
-                  <div className="mt-2">
-                    <span
-                      className={`inline-block rounded-lg px-2.5 py-1 text-[11px] font-extrabold ${parsed.readinessBadge.className}`}
-                    >
-                      {parsed.readinessBadge.text}
-                    </span>
-                  </div>
-                )}
-
-                <div className="mt-2.5 grid grid-cols-2 gap-2.5 rounded-xl border border-gray-100 bg-gray-50/80 p-2.5 text-xs">
-                  <div>
-                    <span className="flex items-center gap-1 text-[10px] text-gray-400">
-                      <Wallet className="size-3 text-[#105C50]" />
-                      <span>{t.cashLabel}</span>
-                    </span>
-                    <strong className="mt-0.5 block text-xs font-extrabold text-[#105C50]">
-                      <span dir="ltr">
-                        {Number(
-                          lead.available_cash || lead.budget || 0
-                        ).toLocaleString("en-US")}
-                      </span>{" "}
-                      {leadCur}
-                    </strong>
-                  </div>
-
-                  <div className="border-s border-gray-200/70 ps-2.5">
-                    <span className="block text-[10px] text-gray-400">
-                      {t.installmentLabel}
-                    </span>
-                    <strong className="mt-0.5 block text-xs font-extrabold text-[#0a1122]">
-                      <span dir="ltr">
-                        {Number(lead.max_installment || 0).toLocaleString(
-                          "en-US"
+                      <div className="mt-1 flex items-center gap-1.5 text-[11.5px] font-bold text-slate-700">
+                        <Phone className="size-3 shrink-0 text-slate-400" />
+                        <span dir="ltr" className="font-mono">
+                          {lead.phone}
+                        </span>
+                        {phoneOk && (
+                          <CheckCircle2 className="size-3.5 shrink-0 text-[#007a5a]" />
                         )}
-                      </span>{" "}
-                      {leadCur}
-                    </strong>
+                      </div>
+                      {lead.email && (
+                        <div className="mt-0.5 flex items-center gap-1 text-[10.5px] text-slate-500">
+                          <span dir="ltr" className="break-all">
+                            {lead.email}
+                          </span>
+                          {emailOk && (
+                            <CheckCircle2 className="size-3.5 shrink-0 text-[#007a5a]" />
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {renderThreeDotsMenu(`mob_${lead.id}`, lead)}
+                  </div>
+
+                  <div className="mt-3 rounded-xl border border-slate-100 bg-slate-50/80 p-2.5 text-xs">
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <div className="text-start">
+                        <span className="flex items-center gap-1 text-[10px] font-bold text-slate-400">
+                          <Wallet className="size-3 text-[#007a5a]" />
+                          <span>{t.cashLabel}</span>
+                        </span>
+                        <div className="mt-0.5">
+                          <strong
+                            dir="ltr"
+                            className="inline-block text-sm font-black text-[#007a5a] tabular-nums"
+                          >
+                            {leadCur}
+                            {Number(
+                              lead.available_cash || lead.budget || 0
+                            ).toLocaleString("en-US")}
+                          </strong>
+                        </div>
+                      </div>
+
+                      <div className="border-s border-slate-200/70 ps-2.5 text-start">
+                        <span className="block text-[10px] font-bold text-slate-400">
+                          {t.installmentLabel}
+                        </span>
+                        <div className="mt-0.5">
+                          <strong
+                            dir="ltr"
+                            className="inline-block text-sm font-black text-[#0f1d40] tabular-nums"
+                          >
+                            {leadCur}
+                            {Number(lead.max_installment || 0).toLocaleString(
+                              "en-US"
+                            )}
+                          </strong>
+                        </div>
+                      </div>
+                    </div>
+
+                    {showTargetBudget && (
+                      <div className="mt-2 flex items-center justify-between border-t border-slate-200/60 pt-1.5 text-[11px]">
+                        <span className="font-bold text-slate-500">
+                          {ui.targetBudgetLabel}
+                        </span>
+                        <strong
+                          dir="ltr"
+                          className="font-extrabold text-[#0f1d40] tabular-nums"
+                        >
+                          {leadCur}
+                          {Number(lead.budget).toLocaleString("en-US")}
+                        </strong>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-2.5 space-y-1.5 rounded-xl border border-slate-100 bg-slate-50/60 p-2.5 text-xs">
+                    <div className="flex flex-wrap gap-1">
+                      {parsed.preferredAreasList.length > 0 ? (
+                        parsed.preferredAreasList.map((areaLabel, i) => (
+                          <span
+                            key={`${areaLabel}-${i}`}
+                            className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-extrabold text-[#0f1d40]"
+                          >
+                            <MapPin className="size-3 text-[#007a5a]" />
+                            <span>{areaLabel}</span>
+                          </span>
+                        ))
+                      ) : (
+                        <strong className="text-[#0f1d40]">
+                          {parsed.cleanTargetUnit}
+                        </strong>
+                      )}
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-600">
+                      <span>
+                        {typesText}{" "}
+                        {lead.min_rooms ? `· +${lead.min_rooms}` : ""}
+                      </span>
+                      <span dir="ltr" className="font-mono text-slate-400">
+                        {new Date(lead.created_at).toLocaleDateString("en-GB")}
+                      </span>
+                    </div>
+
+                    {!isClosedDeal && parsed.readinessBadge && (
+                      <div className="pt-0.5">
+                        <span
+                          className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10.5px] font-extrabold ${parsed.readinessBadge.className}`}
+                        >
+                          {parsed.readinessBadge.text}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-2.5">
+                    <StatusSelectBox
+                      value={currentSt}
+                      options={leadStatuses}
+                      badgeClass={stObj.badge}
+                      disabled={pending}
+                      onChange={(nextSt) => {
+                        if (nextSt !== currentSt) {
+                          setConfirmAction({
+                            type: "status",
+                            lead,
+                            newStatus: nextSt,
+                          })
+                        }
+                      }}
+                    />
                   </div>
                 </div>
 
-                <div className="mt-2 space-y-1.5 rounded-lg bg-gray-50 p-2.5 text-xs">
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="flex shrink-0 items-center gap-1 text-gray-400">
-                      {parsed.isUnitLead ? (
-                        <Building2 className="size-3.5 text-orange-600" />
-                      ) : (
-                        <MapPin className="size-3.5" />
-                      )}
-                      <span>{t.areasLabel}</span>
-                    </span>
-                    <strong className="text-end font-bold text-[#0a1122]">
-                      {parsed.cleanTargetUnit}
-                    </strong>
-                  </div>
+                <div className="space-y-2.5 rounded-b-2xl border-t border-slate-100 bg-slate-50/70 px-4 py-3">
+                  {isClosedDeal ? (
+                    <CompletedPurchaseSummaryBanner
+                      deal={completedDeal}
+                      leadCur={leadCur}
+                      locale={locale}
+                    />
+                  ) : (
+                    (matchedUnitsCount > 0 ||
+                      parsed.directOffers.length > 0) && (
+                      <div className="flex flex-wrap items-center gap-2">
+                        {matchedUnitsCount > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setSmartMatchLead(lead)}
+                            className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-emerald-200 bg-[#eaf8f2] px-3 text-[11px] font-extrabold text-[#007a5a]"
+                          >
+                            <span>🎯</span>
+                            <span>
+                              {t.viewMatchedUnitsBtn || sm.matchedUnitsShort} (
+                              {matchedUnitsCount})
+                            </span>
+                          </button>
+                        )}
 
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-gray-400">{t.typeDetailsLabel}</span>
-                    <span className="font-semibold text-gray-700">
-                      {typesText}{" "}
-                      {lead.min_rooms ? `· +${lead.min_rooms}` : ""}
-                    </span>
-                  </div>
-
-                  {parsed.customerNotes && (
-                    <div className="mt-1.5 rounded-lg border border-amber-200/80 bg-amber-50/70 p-2 text-[11px] text-amber-900">
-                      <span className="font-extrabold">
-                        {t.customerNotesLabel}{" "}
-                      </span>
-                      <span>{parsed.customerNotes}</span>
-                    </div>
+                        <BuyerOffersLogButton
+                          offers={parsed.directOffers}
+                          units={units}
+                          label={t.offersLogBtn}
+                          onClick={() => setOffersLogLead(lead)}
+                        />
+                      </div>
+                    )
                   )}
 
-                  <div className="flex items-center justify-between gap-2 pt-1 text-[11px]">
-                    <span className="flex items-center gap-1 text-gray-400">
-                      <Calendar className="size-3" />
-                      <span>{t.dateLabel}</span>
-                    </span>
-                    <span dir="ltr" className="font-medium text-gray-600">
-                      {new Date(lead.created_at).toLocaleDateString("en-GB")}
-                    </span>
+                  <div className="flex items-center gap-2 border-t border-slate-200/60 pt-2.5">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8.5 flex-1 rounded-xl bg-white text-xs font-bold"
+                      onClick={() => setDetailsLead(lead)}
+                    >
+                      <Eye className="me-1 size-3.5 text-[#007a5a]" />
+                      {propAdminDict.actions?.detailsBtn || t.unitBtn}
+                    </Button>
+
+                    <a
+                      data-admin-client-wa="true"
+                      href={`https://wa.me/${String(lead.phone).replace(/\D/g, "")}?text=${encodeURIComponent(waText)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex h-8.5 flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#25D366] px-3 text-xs font-bold text-white"
+                    >
+                      <MessageCircle className="size-3.5" />
+                      <span>{t.whatsappBtn}</span>
+                    </a>
                   </div>
-                </div>
-
-                <div className="mt-2.5">
-                  <select
-                    disabled={pending}
-                    value={currentSt}
-                    onChange={(e) => {
-                      const nextSt = e.target.value
-                      if (nextSt !== currentSt) {
-                        setConfirmAction({
-                          type: "status",
-                          lead,
-                          newStatus: nextSt,
-                        })
-                      }
-                    }}
-                    className={`h-9 w-full rounded-lg border px-3 text-xs font-extrabold focus:outline-none ${stObj.badge}`}
-                  >
-                    {leadStatuses.map((st) => (
-                      <option
-                        key={st.value}
-                        value={st.value}
-                        className="bg-white text-[#0a1122]"
-                      >
-                        {st.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="mt-2.5 flex items-center gap-2 border-t border-gray-100 pt-2.5">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-8.5 flex-1 rounded-xl text-xs font-bold"
-                    onClick={() => setDetailsLead(lead)}
-                  >
-                    <Eye className="me-1 size-3.5 text-[#105C50]" />
-                    {propAdminDict.actions?.detailsBtn || t.unitBtn}
-                  </Button>
-
-                  <a
-                    data-admin-client-wa="true"
-                    href={`https://wa.me/${String(lead.phone).replace(/\D/g, "")}?text=${encodeURIComponent(waText)}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex h-8.5 flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#25D366] px-3 text-xs font-bold text-white transition hover:opacity-90"
-                  >
-                    <MessageCircle className="size-3.5" />
-                    <span>{t.whatsappBtn}</span>
-                  </a>
                 </div>
               </div>
             )
@@ -1043,52 +1111,58 @@ export default function LeadsClientTable({
         )}
       </div>
 
-      {/* 2. عرض الكمبيوتر الاحترافي */}
+      {/* 2. عرض الكمبيوتر */}
       <div className="hidden md:block">
-        <div className="mb-3 flex items-center justify-between rounded-xl border border-gray-200/85 bg-white px-5 py-3.5 shadow-2xs">
-          <div>
-            <h2 className="text-sm font-extrabold text-[#0a1122] sm:text-base">
-              {t.allOrdersTitle} ({filtered.length})
-            </h2>
-            <p className="mt-0.5 text-xs text-gray-500">{t.allOrdersDesc}</p>
+        <div className="mb-3 flex items-center justify-between gap-3 rounded-2xl border border-slate-200/90 bg-white px-5 py-3.5 shadow-2xs">
+          <div className="flex items-center gap-3">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#eaf8f2] text-[#007a5a]">
+              <Target className="size-4.5" />
+            </span>
+            <div>
+              <h2 className="text-sm font-black text-[#0f1d40] sm:text-base">
+                {ui.searchProfilesTab} ({filteredGeneral.length})
+              </h2>
+              <p className="mt-0.5 text-xs font-medium text-slate-500">
+                {ui.searchTabDesc}
+              </p>
+            </div>
           </div>
         </div>
 
-        <div className="mb-2.5 grid grid-cols-12 items-center gap-4 rounded-xl border border-slate-200/90 bg-slate-100/90 px-5 py-3 text-[11px] font-extrabold text-slate-600">
-          <div className="col-span-3">{t.colBuyer}</div>
-          <div className="col-span-2">{t.colCash}</div>
-          <div className="col-span-3">{t.colTarget}</div>
-          <div className="col-span-2">{t.colStatus}</div>
-          <div className="col-span-2 text-end">{t.colAction}</div>
+        <div className="mb-2.5 grid grid-cols-[minmax(0,3fr)_minmax(0,2.4fr)_minmax(0,3.4fr)_195px] items-center gap-4 rounded-xl border border-slate-200/90 bg-slate-100/80 px-5 py-2.5 text-[11px] font-extrabold text-slate-600">
+          <div>{t.colBuyer}</div>
+          <div>{t.colCash}</div>
+          <div>{ui.desiredAreasCol}</div>
+          <div className="text-center">{t.colStatus}</div>
         </div>
 
-        {filtered.length === 0 ? (
-          <div className="rounded-2xl border border-gray-200 bg-white p-12 text-center text-xs font-bold text-gray-400">
+        {filteredGeneral.length === 0 ? (
+          <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center text-xs font-bold text-slate-400">
             {t.emptyText}
           </div>
         ) : (
           <div className="space-y-3">
-            {filtered.map((lead, index) => {
-              const currentSt = lead.status || "new"
+            {filteredGeneral.map(({ lead, parsed }, index) => {
+              const currentSt = getEffectiveLeadStatus(lead, parsed, units)
+              const isClosedDeal = currentSt === "closed"
+              const completedDeal = isClosedDeal
+                ? findCompletedPurchaseDeal(parsed, units)
+                : null
               const stObj =
                 leadStatuses.find((s) => s.value === currentSt) ||
                 leadStatuses[0]
-              const parsed = parseLeadDetails({
-                lead,
-                units,
-                offers,
-                locale,
-                dir,
-                leadsPrompts,
-              })
-              const matchedUnits = getMatchedUnitsForLead(lead)
+              const matchedUnitsCount = isClosedDeal
+                ? 0
+                : getMatchedUnitsForLead(lead).length
+              const phoneOk = isBuyerPhoneVerified(lead, verificationMap)
+              const emailOk = isBuyerEmailVerified(lead, verificationMap)
               const typesText = Array.isArray(lead.unit_types)
                 ? lead.unit_types.join(listSep)
                 : "—"
-              const isRowLoading = pending && activeLeadId === lead.id
+              const isLoading = pending && activeLeadId === lead.id
               const isHighlighted = highlightedLeadId === lead.id
-              const phoneOk = isBuyerPhoneVerified(lead, verificationMap)
-              const emailOk = isBuyerEmailVerified(lead, verificationMap)
+              const showTargetBudget =
+                Number(lead.budget || 0) > Number(lead.available_cash || 0)
 
               const waText = buildLeadWhatsAppMessage({
                 lead,
@@ -1103,195 +1177,260 @@ export default function LeadsClientTable({
                 <div
                   id={`lead-row-${lead.id}`}
                   key={lead.id}
-                  className={`grid grid-cols-12 items-center gap-4 rounded-2xl border-2 bg-white px-5 py-4 shadow-2xs transition-all hover:shadow-md ${
-                    isRowLoading
-                      ? "border-[#105C50] bg-emerald-50/40 opacity-70"
+                  className={`overflow-visible rounded-2xl border bg-white shadow-2xs transition-all hover:shadow-md ${
+                    isLoading
+                      ? "border-[#007a5a] bg-[#eaf8f2]/30 opacity-60"
                       : isHighlighted
-                        ? "border-[#105C50] bg-emerald-50/70 ring-2 ring-[#105C50]/20"
-                        : parsed.isUnitLead
-                          ? "border-orange-200/90 border-s-4 border-s-orange-500"
-                          : "border-slate-200/90 border-s-4 border-s-[#105C50]"
+                        ? "border-2 border-[#007a5a] bg-[#eaf8f2]/30 ring-2 ring-[#007a5a]/20"
+                        : isClosedDeal
+                          ? "border-emerald-200/90 bg-slate-50/40 border-s-4 border-s-[#0f1d40]"
+                          : parsed.isDirectUnitSource
+                            ? "border-slate-200/90 border-s-4 border-s-orange-500"
+                            : "border-slate-200/90 border-s-4 border-s-[#007a5a]"
                   }`}
                 >
-                  <div className="col-span-3 min-w-0 pe-2">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[11px] font-black text-slate-600">
-                        {index + 1}
-                      </span>
-                      <span className="truncate text-sm font-black text-[#0a1122]">
-                        {lead.name}
-                      </span>
-                      {parsed.isUnitLead ? (
-                        <span className="inline-flex items-center gap-1 rounded-md bg-orange-100 px-2 py-0.5 text-[10px] font-extrabold text-orange-800">
-                          <Flame className="size-3 fill-orange-500 text-orange-600" />
-                          {t.unitBadge} {parsed.unitCode || ""}
+                  <div className="grid grid-cols-[minmax(0,3fr)_minmax(0,2.4fr)_minmax(0,3.4fr)_195px] items-center gap-4 px-5 py-4">
+                    <div className="min-w-0 pe-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[11px] font-black text-slate-600">
+                          {index + 1}
                         </span>
-                      ) : (
-                        <span className="rounded-md bg-gray-100 px-2 py-0.5 text-[10px] font-bold text-gray-600">
-                          {t.generalTab}
+                        <span className="flex items-center gap-1.5 truncate text-sm font-black text-[#0f1d40]">
+                          <User className="size-3.5 shrink-0 text-slate-400" />
+                          <span className="truncate">{lead.name}</span>
                         </span>
-                      )}
-                      {isRowLoading && (
-                        <Loader2 className="size-3.5 animate-spin text-[#105C50]" />
-                      )}
-                    </div>
+                        {parsed.isDirectUnitSource ? (
+                          <span className="inline-flex items-center gap-0.5 rounded-md bg-orange-100 px-1.5 py-0.5 text-[10px] font-extrabold text-orange-800">
+                            <Flame className="size-2.5" />
+                            <span>{ui.sourceDirectOfferBadge}</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center rounded-md bg-[#eaf8f2] px-1.5 py-0.5 text-[10px] font-extrabold text-[#007a5a]">
+                            {ui.sourceSearchBadge}
+                          </span>
+                        )}
+                        {isLoading && (
+                          <Loader2 className="size-3.5 animate-spin text-[#007a5a]" />
+                        )}
+                      </div>
 
-                    <div
-                      dir="ltr"
-                      className="mt-1 flex items-center justify-start gap-1 ps-7 font-mono text-[11.5px] font-bold text-slate-700"
-                    >
-                      <span>{lead.phone}</span>
-                      {phoneOk && (
-                        <span
-                          title={propAdminDict.badges?.phoneVerifiedBadge}
-                          className="inline-flex text-[#105C50]"
-                        >
-                          <CheckCircle2 className="size-3.5" />
+                      <div className="mt-1.5 flex items-center gap-1.5 ps-8 text-[11.5px] font-bold text-slate-700">
+                        <span dir="ltr" className="font-mono">
+                          {lead.phone}
                         </span>
-                      )}
-                    </div>
-
-                    {lead.email && (
-                      <div className="mt-0.5 flex items-center gap-1 truncate ps-7 text-[10.5px] text-slate-400">
-                        <span className="truncate">{lead.email}</span>
-                        {emailOk && (
+                        {phoneOk && (
                           <span
-                            title={propAdminDict.badges?.emailVerifiedBadge}
-                            className="inline-flex shrink-0 text-[#105C50]"
+                            title={propAdminDict.badges?.phoneVerifiedBadge}
+                            className="inline-flex text-[#007a5a]"
                           >
-                            <CheckCircle2 className="size-3" />
+                            <CheckCircle2 className="size-3.5" />
                           </span>
                         )}
                       </div>
-                    )}
 
-                    <div className="mt-2 flex flex-wrap items-center gap-1.5 ps-7">
-                      {matchedUnits.length > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => setSmartMatchLead(lead)}
-                          className="inline-flex items-center gap-1 rounded-md border border-teal-300 bg-teal-50/80 px-2.5 py-0.5 text-[10.5px] font-extrabold text-[#105C50] transition hover:bg-[#105C50] hover:text-white"
-                        >
-                          <span>🎯</span>
-                          <span>
-                            {matchedUnits.length} {sm.matchedUnitsShort}
+                      {lead.email && (
+                        <div className="mt-0.5 flex items-center gap-1 ps-8 text-[11px] font-medium text-slate-500">
+                          <span dir="ltr" className="break-all">
+                            {lead.email}
                           </span>
-                        </button>
+                          {emailOk && (
+                            <span
+                              title={propAdminDict.badges?.emailVerifiedBadge}
+                              className="inline-flex shrink-0 text-[#007a5a]"
+                            >
+                              <CheckCircle2 className="size-3.5" />
+                            </span>
+                          )}
+                        </div>
                       )}
                     </div>
-                    <div className="ps-7">
-                      {renderLeadOfferBadges(lead, parsed)}
-                    </div>
-                  </div>
 
-                  <div className="col-span-2 border-s border-slate-100 ps-4 whitespace-nowrap">
-                    <span className="block text-[10px] font-bold text-slate-400">
-                      {t.cashLabel}
-                    </span>
-                    <div
-                      dir="ltr"
-                      className="mt-0.5 text-base font-black text-[#105C50] tabular-nums"
-                    >
-                      {leadCur}
-                      {Number(
-                        lead.available_cash || lead.budget || 0
-                      ).toLocaleString("en-US")}
-                    </div>
-                    <div className="mt-1.5 border-t border-slate-100 pt-1 text-[11px] text-slate-500 tabular-nums">
-                      <span>{t.installmentLabel} </span>
-                      <strong dir="ltr" className="font-bold text-[#0a1122]">
-                        {leadCur}
-                        {Number(lead.max_installment || 0).toLocaleString(
-                          "en-US"
-                        )}
-                      </strong>
-                    </div>
-                  </div>
-
-                  <div className="col-span-3 min-w-0 border-s border-slate-100 ps-4">
-                    <div className="truncate text-xs font-extrabold text-[#0a1122]">
-                      {parsed.cleanTargetUnit}
-                    </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500">
-                      <span>
-                        {typesText}{" "}
-                        {lead.min_rooms ? `· +${lead.min_rooms}` : ""}
-                      </span>
-                      {parsed.readinessBadge && (
-                        <span
-                          className={`rounded-md px-2 py-0.5 text-[10px] font-bold ${parsed.readinessBadge.className}`}
-                        >
-                          {parsed.readinessBadge.text}
+                    <div className="border-s border-slate-100 ps-4 whitespace-nowrap">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className="text-[11px] font-bold text-slate-400">
+                          {t.cashLabel}
                         </span>
+                        <span
+                          dir="ltr"
+                          className="text-base font-black text-[#007a5a] tabular-nums"
+                        >
+                          {leadCur}
+                          {Number(
+                            lead.available_cash || lead.budget || 0
+                          ).toLocaleString("en-US")}
+                        </span>
+                      </div>
+
+                      <div className="mt-1.5 space-y-1 border-t border-slate-100 pt-1.5 text-[11px] text-slate-500 tabular-nums">
+                        <div className="flex items-center justify-between gap-2">
+                          <span>{t.installmentLabel}</span>
+                          <strong
+                            dir="ltr"
+                            className="font-extrabold text-[#0f1d40]"
+                          >
+                            {leadCur}
+                            {Number(lead.max_installment || 0).toLocaleString(
+                              "en-US"
+                            )}
+                          </strong>
+                        </div>
+                        {showTargetBudget && (
+                          <div className="flex items-center justify-between gap-2">
+                            <span>{ui.targetBudgetLabel}:</span>
+                            <strong
+                              dir="ltr"
+                              className="font-bold text-slate-700"
+                            >
+                              {leadCur}
+                              {Number(lead.budget).toLocaleString("en-US")}
+                            </strong>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="min-w-0 border-s border-slate-100 ps-4">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {parsed.preferredAreasList.length > 0 ? (
+                          parsed.preferredAreasList.map((areaLabel, i) => (
+                            <span
+                              key={`${areaLabel}-${i}`}
+                              className="inline-flex items-center gap-1 rounded-md border border-slate-200/90 bg-slate-50 px-2 py-0.5 text-[11px] font-extrabold text-[#0f1d40]"
+                            >
+                              <MapPin className="size-3 shrink-0 text-[#007a5a]" />
+                              <span>{areaLabel}</span>
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-xs font-bold text-slate-600">
+                            {parsed.cleanTargetUnit}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] font-semibold text-slate-500">
+                        <span>
+                          {typesText}
+                          {lead.min_rooms ? ` · +${lead.min_rooms}` : ""}
+                        </span>
+                        {lead.delivery_status && (
+                          <>
+                            <span>·</span>
+                            <span className="text-slate-600">
+                              {lead.delivery_status}
+                            </span>
+                          </>
+                        )}
+                        <span>·</span>
+                        <span
+                          dir="ltr"
+                          className="font-mono text-[10.5px] text-slate-400"
+                        >
+                          📅{" "}
+                          {new Date(lead.created_at).toLocaleDateString(
+                            "en-GB"
+                          )}
+                        </span>
+                      </div>
+
+                      {!isClosedDeal && parsed.readinessBadge && (
+                        <div className="mt-1.5">
+                          <span
+                            className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10.5px] font-extrabold ${parsed.readinessBadge.className}`}
+                          >
+                            {parsed.readinessBadge.text}
+                          </span>
+                        </div>
+                      )}
+
+                      {parsed.customerNotes && (
+                        <div className="mt-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] text-amber-900">
+                          <strong>{t.customerNotesLabel}</strong>{" "}
+                          {parsed.customerNotes}
+                        </div>
                       )}
                     </div>
-                    <div
-                      dir="ltr"
-                      className="mt-1 text-start font-mono text-[10.5px] text-slate-400"
-                    >
-                      📅 {new Date(lead.created_at).toLocaleDateString("en-GB")}
+
+                    <div className="border-s border-slate-100 ps-3.5">
+                      <StatusSelectBox
+                        value={currentSt}
+                        options={leadStatuses}
+                        badgeClass={stObj.badge}
+                        disabled={pending}
+                        onChange={(nextSt) => {
+                          if (nextSt !== currentSt) {
+                            setConfirmAction({
+                              type: "status",
+                              lead,
+                              newStatus: nextSt,
+                            })
+                          }
+                        }}
+                      />
                     </div>
-                    {parsed.customerNotes && (
-                      <div className="mt-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] text-amber-900">
-                        <strong>{t.customerNotesLabel}</strong>{" "}
-                        {parsed.customerNotes}
-                      </div>
-                    )}
                   </div>
 
-                  <div className="col-span-2 border-s border-slate-100 ps-4">
-                    <select
-                      disabled={pending}
-                      value={currentSt}
-                      onChange={(e) => {
-                        const nextSt = e.target.value
-                        if (nextSt !== currentSt) {
-                          setConfirmAction({
-                            type: "status",
-                            lead,
-                            newStatus: nextSt,
-                          })
-                        }
-                      }}
-                      className={`h-9 w-full cursor-pointer rounded-xl border px-3 text-xs font-extrabold transition focus:outline-none ${stObj.badge}`}
-                    >
-                      {leadStatuses.map((st) => (
-                        <option
-                          key={st.value}
-                          value={st.value}
-                          className="bg-white text-[#0a1122]"
-                        >
-                          {st.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  {/* الشريط السفلي */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-b-2xl border-t border-slate-100 bg-slate-50/70 px-5 py-2.5">
+                    <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                      {isClosedDeal ? (
+                        <CompletedPurchaseSummaryBanner
+                          deal={completedDeal}
+                          leadCur={leadCur}
+                          locale={locale}
+                        />
+                      ) : (
+                        <>
+                          {matchedUnitsCount > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setSmartMatchLead(lead)}
+                              className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-emerald-200 bg-[#eaf8f2] px-3 text-[11px] font-extrabold text-[#007a5a] shadow-2xs transition hover:bg-[#007a5a] hover:text-white"
+                            >
+                              <span>🎯</span>
+                              <span>
+                                {t.viewMatchedUnitsBtn || sm.matchedUnitsShort}{" "}
+                                ({matchedUnitsCount})
+                              </span>
+                            </button>
+                          )}
 
-                  <div className="col-span-2 flex items-center justify-end gap-1.5 border-s border-slate-100 ps-3">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-8 rounded-lg px-3 text-[11px] font-bold"
-                      onClick={() => setDetailsLead(lead)}
-                    >
-                      <Eye className="me-1 size-3.5 text-[#105C50]" />
-                      <span>
-                        {propAdminDict.actions?.detailsBtn || t.unitBtn}
-                      </span>
-                    </Button>
+                          <BuyerOffersLogButton
+                            offers={parsed.directOffers}
+                            units={units}
+                            label={t.offersLogBtn}
+                            onClick={() => setOffersLogLead(lead)}
+                          />
+                        </>
+                      )}
+                    </div>
 
-                    <a
-                      data-admin-client-wa="true"
-                      href={`https://wa.me/${String(lead.phone).replace(/\D/g, "")}?text=${encodeURIComponent(waText)}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      title={t.whatsappBtn}
-                      className="inline-flex size-8 items-center justify-center rounded-lg bg-[#25D366] text-white transition hover:opacity-90"
-                    >
-                      <MessageCircle className="size-3.5" />
-                    </a>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 rounded-xl bg-white px-3 text-[11px] font-bold"
+                        onClick={() => setDetailsLead(lead)}
+                      >
+                        <Eye className="me-1 size-3.5 text-[#007a5a]" />
+                        <span>
+                          {propAdminDict.actions?.detailsBtn || t.unitBtn}
+                        </span>
+                      </Button>
 
-                    {renderThreeDotsMenu(lead, parsed)}
+                      <a
+                        data-admin-client-wa="true"
+                        href={`https://wa.me/${String(lead.phone).replace(/\D/g, "")}?text=${encodeURIComponent(waText)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        title={t.whatsappBtn}
+                        className="inline-flex size-8 items-center justify-center rounded-lg bg-[#25D366] text-white shadow-2xs transition hover:bg-[#1ebe5d]"
+                      >
+                        <MessageCircle className="size-3.5" />
+                      </a>
+
+                      {renderThreeDotsMenu(`desk_${lead.id}`, lead)}
+                    </div>
                   </div>
                 </div>
               )
@@ -1308,39 +1447,35 @@ export default function LeadsClientTable({
         onNotice={(msg) => setNotice(msg)}
       />
 
+      <LeadOffersLogDialog
+        dir={dir}
+        locale={locale}
+        t={t}
+        sm={sm}
+        lead={offersLogLead}
+        offers={offersLogEntry?.parsed.directOffers || []}
+        units={units}
+        leadCur={leadCur}
+        onClose={() => setOffersLogLead(null)}
+        onNotice={(msg) => setNotice(msg)}
+      />
+
       <LeadDetailsDialog
         dir={dir}
+        locale={locale}
         t={t}
         propAdminDict={propAdminDict}
         publicSiteLabel={dict.admin?.shell?.publicSite || ""}
-        propertiesNavLabel={dict.admin?.shell?.nav?.properties || ""}
+        propertiesNavLabel={propertiesNavLabel}
         openInDealsRoomLabel={dashDict.openInDealsRoomBtn || ""}
         detailsLead={detailsLead}
-        parsed={
-          detailsLead
-            ? parseLeadDetails({
-                lead: detailsLead,
-                units,
-                offers,
-                locale,
-                dir,
-                leadsPrompts,
-              })
-            : null
-        }
+        parsed={modalParsed}
         leadCur={leadCur}
         waText={
-          detailsLead
+          detailsLead && modalParsed
             ? buildLeadWhatsAppMessage({
                 lead: detailsLead,
-                parsed: parseLeadDetails({
-                  lead: detailsLead,
-                  units,
-                  offers,
-                  locale,
-                  dir,
-                  leadsPrompts,
-                }),
+                parsed: modalParsed,
                 leadCur,
                 locale,
                 t,

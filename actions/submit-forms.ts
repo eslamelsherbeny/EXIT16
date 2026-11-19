@@ -165,6 +165,14 @@ async function canModifySellUnit(
     role === 'moderator' ||
     role === 'sales'
 
+  if (
+    !isStaff &&
+    (unit.status === 'deleted_by_seller' ||
+      unit.submission_type === 'deleted_by_account_closure')
+  ) {
+    return { allowed: false, unit: null }
+  }
+
   if (unit.user_id) {
     return {
       allowed: Boolean(isStaff || unit.user_id === sessionUser.id),
@@ -302,6 +310,7 @@ export async function saveSellProgress(
         .from('sell_requests')
         .select('id, size, area, status, submission_type')
         .eq('user_id', sessionUser.id)
+        .neq('status', 'deleted_by_seller')
         .in('submission_type', ['draft'])
         .order('created_at', { ascending: false })
         .limit(1)
@@ -411,7 +420,7 @@ export async function saveSellProgress(
         isAlreadyLiveOrReviewed || completeness.isFullyCompleteForAdmin,
       ...(isValidGeorgiaCoord(rawLat, rawLng)
         ? { lat: rawLat, lng: rawLng }
-        : {}),
+          : {}),
       ...(locDisplay ? { location_display: locDisplay } : {}),
       ...(hideCad ? { hide_cadastral: hideCad === 'true' } : {}),
     }
@@ -460,6 +469,7 @@ export async function submitSellRequest(
         .from('sell_requests')
         .select('id, size, area, project_name, status, submission_type')
         .eq('user_id', sessionUser.id)
+        .neq('status', 'deleted_by_seller')
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle()
@@ -517,6 +527,17 @@ export async function submitSellRequest(
         }
       }
 
+      const { data: activeOffersOnUnit } = await supabase
+        .from('property_offers')
+        .select('id')
+        .eq('property_id', existingUnitId)
+        .in('status', ['pending_seller', 'counter_offered'])
+        .limit(1)
+
+      const hasLiveOffersWithSeller = Boolean(
+        activeOffersOnUnit && activeOffersOnUnit.length > 0
+      )
+
       const payload = buildUnitPayloadWithMetaBackup(
         formData,
         prevUnit?.documents,
@@ -537,7 +558,12 @@ export async function submitSellRequest(
         sessionUser.email ||
         null
       payload.is_original_owner = true
-      payload.status = isLockedByDeal ? prevUnit.status : 'pending'
+      // إذا كان على الوحدة عروض نشطة عند البائع، نحافظ على حالتها حتى لا تختفي العروض القائمة
+      payload.status = isLockedByDeal
+        ? prevUnit.status
+        : hasLiveOffersWithSeller
+          ? 'offer_received'
+          : 'pending'
       payload.docs_verified = Boolean(prevUnit.docs_verified)
       payload.documents.__unit_meta = {
         ...(payload.documents.__unit_meta || {}),
@@ -558,6 +584,7 @@ export async function submitSellRequest(
           prevUnit?.area ||
             prevUnit?.size ||
             prevCleanStatus === 'active' ||
+            prevCleanStatus === 'offer_received' ||
             prevCleanStatus === 'rejected' ||
             prevCleanStatus === 'paused_by_seller'
         )

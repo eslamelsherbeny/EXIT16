@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useEffect, useState, useTransition } from 'react'
+import { Suspense, useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createBrowserClient } from '@supabase/ssr'
@@ -12,25 +12,20 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
+  Edit3,
   ExternalLink,
   FileCheck2,
   Loader2,
   MessageCircle,
   Radar,
   Sparkles,
+  Trash2,
   Wallet,
   X,
-  RefreshCw,
-  Timer,
-  Building2,
-  Flame,
-  Handshake,
-  Lock,
-  ShieldCheck,
-  TrendingUp,
 } from 'lucide-react'
 import {
   getAccountOffersDataAction,
+  manageBuyerOwnOfferAction,
   respondToCounterOfferByBuyerAction,
   respondToOfferBySellerAction,
   submitBuyerOfferAction,
@@ -48,392 +43,19 @@ import {
   getOfferRef,
   SellerCounterOfferModal,
 } from '@/components/features/account/offers-modals'
+import {
+  OfferSentElapsedBadge,
+  SellerOffersSection,
+} from '@/components/features/account/seller-offers-section'
 import { getCurrencySymbol, useTranslation } from '@/lib/i18n'
-import type { LocaleCode } from '@/lib/i18n'
 
-const INITIAL_SUBMITTED_OFFERS_VISIBLE = 2
+const INITIAL_SUBMITTED_OFFERS_VISIBLE = 3
 const BUYER_WA_OFFER_SENT_STORAGE_KEY = 'aqar_buyer_wa_offer_sent'
-const OFFER_EXPIRATION_HOURS = 72
 
-// =========================================================================
-// 1. مكون العداد التنازلي الذكي (Smart Countdown Component)
-// =========================================================================
-function OfferCountdownTimer({
-  updatedAt,
-  onExpire,
-}: {
-  updatedAt: string
-  onExpire: () => void
-}) {
-  const [timeLeft, setTimeLeft] = useState<{ h: number; m: number; s: number } | null>(null)
-  const [isExpired, setIsExpired] = useState(false)
+const REOPENED_PROMPT_TAG = '__REOPENED_PROMPT__'
+const ADMIN_SYNCED_PRICE_TAG = '__ADMIN_SYNCED_PRICE__'
+const SELLER_DELAYED_UNAVAILABLE_TAG = '__SELLER_UNAVAILABLE_NOW__'
 
-  useEffect(() => {
-    const expireTime = new Date(updatedAt).getTime() + OFFER_EXPIRATION_HOURS * 60 * 60 * 1000
-
-    const interval = setInterval(() => {
-      const now = new Date().getTime()
-      const distance = expireTime - now
-
-      if (distance <= 0) {
-        clearInterval(interval)
-        setIsExpired(true)
-        onExpire()
-      } else {
-        setTimeLeft({
-          h: Math.floor((distance % (1000 * 60 * 60 * 24 * 30)) / (1000 * 60 * 60)),
-          m: Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)),
-          s: Math.floor((distance % (1000 * 60)) / 1000),
-        })
-      }
-    }, 1000)
-
-    return () => clearInterval(interval)
-  }, [updatedAt, onExpire])
-
-  if (isExpired) {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-md bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700">
-        <Timer className="size-3" />
-        انتهت صلاحية العرض
-      </span>
-    )
-  }
-
-  if (!timeLeft) return null
-
-  return (
-    <span className="inline-flex items-center gap-1 rounded-md bg-orange-100 px-2 py-0.5 text-[10px] font-bold text-orange-800">
-      <Timer className="size-3" />
-      <span dir="ltr">
-        {String(timeLeft.h).padStart(2, '0')}:{String(timeLeft.m).padStart(2, '0')}:{String(timeLeft.s).padStart(2, '0')}
-      </span>
-    </span>
-  )
-}
-
-// =========================================================================
-// 2. قسم البائع (Seller Offers Section)
-// =========================================================================
-function SellerOffersSection({
-  t,
-  locale,
-  cur,
-  sells,
-  sellerOffers,
-  displayedSellerOffers,
-  selectedSellerUnitId,
-  setSelectedSellerUnitId,
-  acceptedPropertyIds,
-  isPending,
-  getReadinessLabel,
-  getPaymentMethodLabel,
-  onSellerDecision,
-  onOpenCounterModal,
-}: {
-  t: Record<string, any>
-  locale: LocaleCode
-  cur: string
-  sells: MatchableUnit[]
-  sellerOffers: Array<OfferRecord & { unit?: MatchableUnit }>
-  displayedSellerOffers: Array<OfferRecord & { unit?: MatchableUnit }>
-  selectedSellerUnitId: string
-  setSelectedSellerUnitId: (id: string) => void
-  acceptedPropertyIds: Set<string>
-  isPending: boolean
-  getReadinessLabel: (r: string) => string
-  getPaymentMethodLabel: (m: string) => string
-  onSellerDecision: (
-    offer: OfferRecord & { unit?: MatchableUnit },
-    decision: 'accept' | 'reject'
-  ) => void
-  onOpenCounterModal: (
-    offer: OfferRecord & { unit?: MatchableUnit },
-    defaultMidCash: string
-  ) => void
-}) {
-  const [expiredOffers, setExpiredOffers] = useState<Set<string>>(new Set())
-
-  return (
-    <div>
-      <header className="mb-6 text-start">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100/80 px-3 py-1 text-[11px] font-extrabold text-[#007a5a]">
-          <ShieldCheck className="size-3.5" />
-          <span>{t.zeroLeakageBadge}</span>
-        </span>
-        <h1 className="mt-2 text-xl font-black text-[#0a1122] sm:text-3xl">
-          {t.sellerTitle} ({displayedSellerOffers.length})
-        </h1>
-        <p className="mt-1.5 text-xs leading-relaxed text-gray-500 sm:text-sm">
-          {t.sellerSubtitle}
-        </p>
-
-        {sells.length > 1 && (
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setSelectedSellerUnitId('ALL')}
-              className={`rounded-xl border px-3.5 py-1.5 text-xs font-extrabold transition ${
-                selectedSellerUnitId === 'ALL'
-                  ? 'border-[#007a5a] bg-[#007a5a] text-white'
-                  : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              {t.allMyUnitsTab} ({sellerOffers.length})
-            </button>
-            {sells.map((u) => {
-              const count = sellerOffers.filter(
-                (o) => String(o.property_id) === String(u.id)
-              ).length
-              const active = String(selectedSellerUnitId) === String(u.id)
-              return (
-                <button
-                  key={u.id}
-                  type="button"
-                  onClick={() => setSelectedSellerUnitId(String(u.id))}
-                  className={`rounded-xl border px-3.5 py-1.5 text-xs font-extrabold transition ${
-                    active
-                      ? 'border-[#007a5a] bg-[#007a5a] text-white'
-                      : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
-                  {u.project_name || t.unitFallback} ({count})
-                </button>
-              )
-            })}
-          </div>
-        )}
-      </header>
-
-      {displayedSellerOffers.length === 0 ? (
-        <div className="rounded-3xl border border-gray-200/90 bg-white p-10 text-center shadow-2xs">
-          <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-2xl bg-emerald-50 text-[#007a5a]">
-            <Sparkles className="size-6" />
-          </div>
-          <p className="text-base font-extrabold text-[#0a1122]">
-            {t.sellerEmpty}
-          </p>
-          <p className="mx-auto mt-2 max-w-md text-xs leading-relaxed text-gray-500">
-            {t.sellerDisclaimer}
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {displayedSellerOffers.map((offer) => {
-            const u = offer.unit
-            const paid = Number(u?.paid_amount || offer.required_cash) || 1
-            const contract = Number(u?.contract_price) || paid
-            const recoveryPct = Math.min(
-              100,
-              Math.round((Number(offer.offered_cash) / paid) * 100)
-            )
-            const cancelPenalty = Math.round(contract * 0.125)
-            const sellerDiscount = Math.max(0, paid - Number(offer.offered_cash))
-            const netSavedVsCancel = Math.max(0, cancelPenalty - sellerDiscount)
-            const unitAlreadyHasAcceptedOffer =
-              acceptedPropertyIds.has(String(offer.property_id)) &&
-              offer.status !== 'accepted'
-
-            const isOfferExpired = expiredOffers.has(offer.id)
-
-            return (
-              <div
-                key={offer.id}
-                className={`rounded-[22px] border bg-white p-4 text-start shadow-xs sm:p-6 ${
-                  offer.status === 'accepted'
-                    ? 'border-2 border-[#007a5a] bg-emerald-50/20'
-                    : isOfferExpired
-                      ? 'border-red-200 bg-red-50/10 opacity-75'
-                      : 'border-gray-200/90'
-                }`}
-              >
-                <div className="flex flex-col gap-3 border-b border-gray-100 pb-4 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="inline-flex items-center gap-1 rounded-lg bg-[#0a1122] px-2.5 py-1 text-[11px] font-extrabold text-white">
-                        <Building2 className="size-3.5 shrink-0 text-emerald-400" />
-                        <span>{u?.project_name || t.unitFallback}</span>
-                      </span>
-                      <span className="rounded-lg bg-emerald-100 px-2.5 py-1 text-[11px] font-extrabold text-[#007a5a]">
-                        🎯 {t.matchScoreLabel}: {offer.match_score}%
-                      </span>
-                      <span className="font-mono text-[11px] font-bold text-gray-400">
-                        #{getOfferRef(offer.id)}
-                      </span>
-                      
-                      {/* إضافة العداد التنازلي لو العرض مستني رد البائع ومفيش حد تاني اشترى */}
-                      {offer.status === 'pending_seller' && !unitAlreadyHasAcceptedOffer && !isOfferExpired && (
-                        <OfferCountdownTimer 
-                          updatedAt={offer.updated_at || offer.created_at} 
-                          onExpire={() => setExpiredOffers(prev => new Set(prev).add(offer.id))}
-                        />
-                      )}
-                    </div>
-                    <p className="mt-1.5 text-xs text-gray-500">
-                      {getLocalizedGeorgiaAreaName(u?.area, locale)} ·{' '}
-                      {u?.unit_type || '—'}
-                    </p>
-                  </div>
-
-                  <div className="shrink-0">
-                    {isOfferExpired ? (
-                       <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-3.5 py-1.5 text-xs font-extrabold text-red-800">
-                        <X className="size-3.5" />
-                        <span>انتهت الصلاحية</span>
-                      </span>
-                    ) : offer.status === 'accepted' ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-[#007a5a] px-3.5 py-1.5 text-xs font-extrabold text-white shadow-2xs">
-                        <Handshake className="size-3.5" />
-                        <span>{t.statusAcceptedBadge}</span>
-                      </span>
-                    ) : offer.status === 'pending_seller' && !unitAlreadyHasAcceptedOffer ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3.5 py-1.5 text-xs font-extrabold text-amber-900">
-                        <Flame className="size-3.5 fill-amber-500 text-amber-600" />
-                        <span>{t.statusPendingSellerBadge}</span>
-                      </span>
-                    ) : (offer.status === 'unit_locked' || unitAlreadyHasAcceptedOffer) ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3.5 py-1.5 text-xs font-extrabold text-slate-700">
-                        <Lock className="size-3.5" />
-                        <span>{t.backupOfferBadge}</span>
-                      </span>
-                    ) : offer.status === 'counter_offered' ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-3.5 py-1.5 text-xs font-extrabold text-purple-900">
-                        <RefreshCw className="size-3.5" />
-                        <span>{t.statusCounterSentBadge}</span>
-                      </span>
-                    ) : null}
-                  </div>
-                </div>
-
-                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  <div className="rounded-2xl border border-emerald-200 bg-[#eaf8f2] p-4">
-                    <span className="block text-[11px] font-bold text-[#007a5a]">
-                      {t.offeredCashLabel}
-                    </span>
-                    <strong className="mt-1 block text-xl font-black text-[#007a5a] tabular-nums sm:text-2xl">
-                      <span dir="ltr">
-                        {Number(offer.offered_cash).toLocaleString('en-US')}
-                      </span>{' '}
-                      {cur}
-                    </strong>
-                    <span className="mt-1 inline-block rounded-md bg-white/90 px-2 py-0.5 text-[10.5px] font-extrabold text-[#0a1122]">
-                      {t.recoveryRatePrefix} {recoveryPct}%
-                    </span>
-                  </div>
-
-                  <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
-                    <span className="block text-[11px] text-gray-400">
-                      {t.buyerReadinessLabel}
-                    </span>
-                    <strong className="mt-1.5 block text-xs font-extrabold text-[#0a1122] sm:text-sm">
-                      ⚡ {getReadinessLabel(offer.payment_readiness)}
-                    </strong>
-                    <span className="mt-1.5 block text-[11px] font-semibold text-gray-500">
-                      {getPaymentMethodLabel(offer.payment_method)}
-                    </span>
-                  </div>
-
-                  <div className="rounded-2xl border border-sky-200 bg-sky-50/70 p-4">
-                    <div className="flex items-center gap-1.5 text-[11px] font-extrabold text-sky-900">
-                      <TrendingUp className="size-3.5 text-sky-700" />
-                      <span>{t.aiAdvisorTitle}</span>
-                    </div>
-                    <p className="mt-1.5 text-[11.5px] leading-relaxed font-semibold text-sky-950">
-                      {t.aiAdvisorSavedPrefix}{' '}
-                      <strong dir="ltr" className="font-black text-[#007a5a]">
-                        {netSavedVsCancel.toLocaleString('en-US')} {cur}
-                      </strong>{' '}
-                      {t.aiAdvisorSavedSuffix}
-                    </p>
-                  </div>
-                </div>
-
-                {offer.match_reasons.length > 0 && (
-                  <div className="mt-3.5 flex flex-wrap gap-1.5">
-                    {offer.match_reasons.map((reason: string) => (
-                      <span
-                        key={reason}
-                        className="rounded-lg bg-[#eaf8f2] px-2.5 py-1 text-[10.5px] font-bold text-[#007a5a]"
-                      >
-                        ✓ {reason}
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                {offer.status === 'counter_offered' && offer.counter_cash && (
-                  <div className="mt-4 rounded-xl border border-purple-200 bg-purple-50/80 px-4 py-3 text-xs font-bold text-purple-900">
-                    {t.yourCounterOfferText}:{' '}
-                    <strong dir="ltr">
-                      {Number(offer.counter_cash).toLocaleString('en-US')}
-                    </strong>{' '}
-                    {cur} — {t.waitingBuyerResponseText}
-                  </div>
-                )}
-
-                {offer.status === 'accepted' && (
-                  <div className="mt-4 rounded-xl border border-[#007a5a]/30 bg-[#eaf8f2] p-4 text-xs font-bold text-[#007a5a]">
-                    🎉 {t.dealLockedBannerForSeller}
-                  </div>
-                )}
-
-                {(offer.status === 'unit_locked' ||
-                  unitAlreadyHasAcceptedOffer) && (
-                  <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-xs font-semibold text-slate-600">
-                    {t.backupOfferSellerNote}
-                  </div>
-                )}
-
-                {/* أزرار اتخاذ القرار للبائع (تختفي لو الوقت خلص) */}
-                {offer.status === 'pending_seller' && !unitAlreadyHasAcceptedOffer && !isOfferExpired && (
-                  <div className="mt-5 flex flex-col gap-2 border-t border-gray-100 pt-4 sm:flex-row sm:flex-wrap sm:items-center">
-                    <button
-                      type="button"
-                      disabled={isPending}
-                      onClick={() => onSellerDecision(offer, 'accept')}
-                      className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-xl bg-[#007a5a] px-4 py-2.5 text-xs font-extrabold text-white shadow-sm transition hover:bg-[#006248] disabled:opacity-50 sm:text-sm"
-                    >
-                      <Check className="size-4 shrink-0" />
-                      <span>{t.acceptOfferBtn}</span>
-                    </button>
-
-                    {Number(offer.offered_cash) < paid && !offer.counter_cash && (
-                      <button
-                        type="button"
-                        disabled={isPending}
-                        onClick={() => {
-                          const mid = Math.round((Number(offer.offered_cash) + paid) / 2)
-                          onOpenCounterModal(offer, mid.toLocaleString('en-US'))
-                        }}
-                        className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-xs font-extrabold text-[#0a1122] transition hover:bg-gray-50"
-                      >
-                        <RefreshCw className="size-3.5 shrink-0 text-[#007a5a]" />
-                        <span>{t.sendCounterBtn}</span>
-                      </button>
-                    )}
-
-                    <button
-                      type="button"
-                      disabled={isPending}
-                      onClick={() => onSellerDecision(offer, 'reject')}
-                      className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-xs font-bold text-red-600 transition hover:bg-red-100"
-                    >
-                      {t.rejectOfferBtn}
-                    </button>
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// =========================================================================
-// 3. الصفحة الرئيسية للعروض (Main Offers Content)
-// =========================================================================
 function OffersContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -449,6 +71,7 @@ function OffersContent() {
   const filterUnitId = searchParams.get('unitId')
   const applyUnitId = searchParams.get('applyUnitId')
   const requestedRole = searchParams.get('role')
+  const smartRecsRef = useRef<HTMLElement | null>(null)
 
   const [loading, setLoading] = useState(true)
   const [roleView, setRoleView] = useState<'seller' | 'buyer'>(
@@ -477,19 +100,28 @@ function OffersContent() {
   const [hiddenWaOfferIds, setHiddenWaOfferIds] = useState<
     Record<string, boolean>
   >({})
-  const [expiredBuyerOffers, setExpiredBuyerOffers] = useState<Set<string>>(new Set())
 
-  const [offerModalUnit, setOfferModalUnit] = useState<MatchableUnit | null>(null)
+  const [editingBuyerOfferId, setEditingBuyerOfferId] = useState<string | null>(
+    null
+  )
+  const [editingBuyerCashStr, setEditingBuyerCashStr] = useState('')
+
+  const [offerModalUnit, setOfferModalUnit] = useState<MatchableUnit | null>(
+    null
+  )
   const [offerMode, setOfferMode] = useState<'full' | 'negotiate'>('full')
   const [customOfferCashStr, setCustomOfferCashStr] = useState('')
-  const [readiness, setReadiness] = useState<'48h' | '1_week' | '2_weeks'>('48h')
-  const [paymentMethod, setPaymentMethod] = useState<'bank_check' | 'bank_transfer'>('bank_check')
+  const [readiness, setReadiness] = useState<'48h' | '1_week' | '2_weeks'>(
+    '48h'
+  )
+  const [paymentMethod, setPaymentMethod] = useState<
+    'bank_check' | 'bank_transfer'
+  >('bank_check')
 
   const [counterModalOffer, setCounterModalOffer] = useState<
     (OfferRecord & { unit?: MatchableUnit }) | null
   >(null)
   const [counterCashStr, setCounterCashStr] = useState('')
-  const [isCounteringAsBuyer, setIsCounteringAsBuyer] = useState(false)
 
   const [feedback, setFeedback] = useState<{
     text: string
@@ -575,6 +207,7 @@ function OffersContent() {
                 'approved',
                 'published',
                 'offer_received',
+                'transferring',
               ])
               .maybeSingle()
             if (directUnit && !myOwnUnitIds.has(String(directUnit.id))) {
@@ -639,13 +272,17 @@ function OffersContent() {
         setOfferModalUnit(null)
         await loadAllData()
         setFeedback({
-          text: t.offerSubmittedSuccess,
-          justSubmittedOffer: {
-            offerId: String(res.offerId || targetUnit.id),
-            unitId: String(targetUnit.id),
-            projectName: targetUnit.project_name || t.unitFallback,
-            offeredCash: finalAmount,
-          },
+          text: res.isBackupWaitlist
+            ? t.waitlistSubmittedSuccess
+            : t.offerSubmittedSuccess,
+          justSubmittedOffer: res.isBackupWaitlist
+            ? undefined
+            : {
+                offerId: String(res.offerId || targetUnit.id),
+                unitId: String(targetUnit.id),
+                projectName: targetUnit.project_name || t.unitFallback,
+                offeredCash: finalAmount,
+              },
         })
       } else {
         setFeedback({ text: res.error || t.errSubmitFailed, isError: true })
@@ -684,33 +321,17 @@ function OffersContent() {
       Number(toEnglishDigits(counterCashStr).replace(/,/g, '')) || 0
 
     startTransition(async () => {
-      if (isCounteringAsBuyer) {
-        const res = await respondToCounterOfferByBuyerAction({
-          offerId: counterModalOffer.id,
-          decision: 'counter',
-          counterCash: amount,
-        })
-        if (res.success) {
-          setCounterModalOffer(null)
-          setIsCounteringAsBuyer(false)
-          setFeedback({ text: t.counterSentSuccess })
-          await loadAllData()
-        } else {
-          setFeedback({ text: res.error || t.errSubmitFailed, isError: true })
-        }
+      const res = await respondToOfferBySellerAction({
+        offerId: counterModalOffer.id,
+        decision: 'counter',
+        counterCash: amount,
+      })
+      if (res.success) {
+        setCounterModalOffer(null)
+        setFeedback({ text: t.counterSentSuccess })
+        await loadAllData()
       } else {
-        const res = await respondToOfferBySellerAction({
-          offerId: counterModalOffer.id,
-          decision: 'counter',
-          counterCash: amount,
-        })
-        if (res.success) {
-          setCounterModalOffer(null)
-          setFeedback({ text: t.counterSentSuccess })
-          await loadAllData()
-        } else {
-          setFeedback({ text: res.error || t.errSubmitFailed, isError: true })
-        }
+        setFeedback({ text: res.error || t.errSubmitFailed, isError: true })
       }
     })
   }
@@ -733,6 +354,42 @@ function OffersContent() {
               : t.sellerRejectedSuccess,
         })
         await loadAllData()
+      } else {
+        setFeedback({ text: res.error || t.errSubmitFailed, isError: true })
+      }
+    })
+  }
+
+  function handleManageBuyerOwnOffer(
+    offerId: string,
+    action:
+      | 'update_pending_price'
+      | 'cancel_offer'
+      | 'confirm_reopened_interest'
+      | 'dismiss_from_list',
+    customCash?: number,
+    scrollToRecs?: boolean
+  ) {
+    setFeedback(null)
+    startTransition(async () => {
+      const res = await manageBuyerOwnOfferAction({
+        offerId,
+        action,
+        newOfferedCash: customCash,
+      })
+      if (res.success) {
+        setEditingBuyerOfferId(null)
+        await loadAllData()
+        if (action === 'confirm_reopened_interest') {
+          setFeedback({
+            text: t.reopenedInterestConfirmedMsg,
+          })
+        } else if (action === 'update_pending_price') {
+          setFeedback({ text: t.offerPriceUpdatedMsg })
+        }
+        if (scrollToRecs && smartRecsRef.current) {
+          smartRecsRef.current.scrollIntoView({ behavior: 'smooth' })
+        }
       } else {
         setFeedback({ text: res.error || t.errSubmitFailed, isError: true })
       }
@@ -911,11 +568,11 @@ function OffersContent() {
             setSelectedSellerUnitId={setSelectedSellerUnitId}
             acceptedPropertyIds={acceptedPropertyIds}
             isPending={isPending}
+            supportWhatsApp={supportWhatsApp}
             getReadinessLabel={getReadinessLabel}
             getPaymentMethodLabel={getPaymentMethodLabel}
             onSellerDecision={handleSellerDecision}
             onOpenCounterModal={(offer, defaultMidCash) => {
-              setIsCounteringAsBuyer(false)
               setCounterModalOffer(offer)
               setCounterCashStr(defaultMidCash)
             }}
@@ -935,7 +592,6 @@ function OffersContent() {
               </p>
             </header>
 
-            {/* ==================== القسم الأول: عروض الشراء والحجوزات التي قدمها المشتري ==================== */}
             {buyerOffers.length > 0 && (
               <section className="rounded-[24px] border-2 border-[#0a1122]/10 bg-white p-4 shadow-xs sm:p-6">
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 pb-3.5">
@@ -958,6 +614,40 @@ function OffersContent() {
                   {visibleBuyerOffers.map((offer) => {
                     const u = offer.unit
                     const refCode = getOfferRef(offer.id)
+                    const diffs = Array.isArray(offer.diff_reasons)
+                      ? offer.diff_reasons
+                      : []
+
+                    const unitStatusClean = String(
+                      u?.status || ''
+                    ).toLowerCase()
+                    const isUnitSoldToOther =
+                      unitStatusClean === 'sold' && offer.status !== 'accepted'
+                    const isUnitWithdrawn =
+                      !u ||
+                      unitStatusClean === 'deleted_by_seller' ||
+                      unitStatusClean === 'paused_by_seller' ||
+                      unitStatusClean === 'paused_deletion'
+
+                    const isReopenedPromptActive =
+                      offer.status === 'unit_locked' &&
+                      diffs.includes(REOPENED_PROMPT_TAG) &&
+                      unitStatusClean !== 'transferring' &&
+                      unitStatusClean !== 'sold'
+
+                    const wasPriceSyncedByAdmin = diffs.includes(
+                      ADMIN_SYNCED_PRICE_TAG
+                    )
+                    const isSellerDelayedCancel = diffs.includes(
+                      SELLER_DELAYED_UNAVAILABLE_TAG
+                    )
+
+                    const currentUnitPaid = Number(
+                      u?.paid_amount || offer.required_cash || 0
+                    )
+                    const didInstallmentIncrease =
+                      currentUnitPaid > Number(offer.required_cash || 0)
+
                     const waConfirmText = `${t.waFastTrackOfferMsgPrefix} (${refCode}) ${t.waFastTrackOfferMsgMiddle} (${u?.project_name || ''}) — ${Number(offer.offered_cash).toLocaleString('en-US')} ${cur} ${t.waFastTrackOfferMsgSuffix}\n${siteOrigin}/admin/properties?unitId=${offer.property_id}`
 
                     const isWaBtnHidden =
@@ -965,7 +655,52 @@ function OffersContent() {
                       (offer.status !== 'pending_admin' &&
                         offer.status !== 'pending_seller')
 
-                    const isOfferExpired = expiredBuyerOffers.has(offer.id)
+                    if (isUnitSoldToOther || isUnitWithdrawn) {
+                      return (
+                        <div
+                          key={offer.id}
+                          className="rounded-[20px] border border-gray-200 bg-gray-50/80 p-4 text-start sm:p-5"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span className="inline-flex items-center rounded-lg bg-gray-200 px-2.5 py-1 font-mono text-[11px] font-extrabold text-gray-600">
+                              #{refCode}
+                            </span>
+                            <span className="inline-flex items-center gap-1 rounded-full bg-gray-200 px-3 py-1 text-[11px] font-extrabold text-gray-700">
+                              {isUnitSoldToOther
+                                ? t.unitSoldFinalBadge
+                                : t.unitUnavailableBadge}
+                            </span>
+                          </div>
+                          <h3 className="mt-2 text-sm font-black text-gray-700 sm:text-base">
+                            {u?.project_name || t.unitFallback} —{' '}
+                            {getLocalizedGeorgiaAreaName(u?.area, locale)}
+                          </h3>
+                          <p className="mt-1.5 text-xs leading-relaxed font-semibold text-gray-600">
+                            {isUnitSoldToOther
+                              ? t.unitSoldToOtherCardDesc
+                              : t.unitWithdrawnCardDesc}
+                          </p>
+                          <div className="mt-3.5 flex flex-wrap items-center gap-2">
+                            <button
+                              type="button"
+                              disabled={isPending}
+                              onClick={() =>
+                                handleManageBuyerOwnOffer(
+                                  offer.id,
+                                  'dismiss_from_list',
+                                  undefined,
+                                  true
+                                )
+                              }
+                              className="inline-flex min-h-[40px] flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] px-4 py-2 text-xs font-extrabold text-white transition hover:bg-[#006248]"
+                            >
+                              <Radar className="size-3.5" />
+                              <span>{t.viewAlternativesAndDismissBtn}</span>
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    }
 
                     return (
                       <div
@@ -973,8 +708,8 @@ function OffersContent() {
                         className={`rounded-[20px] border p-4 text-start transition sm:p-5 ${
                           offer.status === 'accepted'
                             ? 'border-2 border-[#007a5a] bg-emerald-50/25'
-                            : isOfferExpired
-                              ? 'border-red-200 bg-red-50/10 opacity-75'
+                            : isReopenedPromptActive
+                              ? 'border-2 border-amber-400 bg-amber-50/20'
                               : 'border-gray-200 bg-[#fcfdfd]'
                         }`}
                       >
@@ -983,21 +718,20 @@ function OffersContent() {
                             #{refCode}
                           </span>
 
-                          <div className="flex items-center gap-1.5">
-                            {offer.status === 'counter_offered' && !isOfferExpired && (
-                              <OfferCountdownTimer 
-                                updatedAt={offer.updated_at || offer.created_at} 
-                                onExpire={() => setExpiredBuyerOffers(prev => new Set(prev).add(offer.id))}
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {(offer.status === 'counter_offered' ||
+                              offer.status === 'pending_seller') && (
+                              <OfferSentElapsedBadge
+                                updatedAt={offer.updated_at || offer.created_at}
+                                t={t}
                               />
                             )}
 
-                            {isOfferExpired ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-3 py-1 text-[11px] font-extrabold text-red-800">
-                                <X className="size-3.5" />
-                                انتهت الصلاحية
+                            {offer.status === 'pending_admin' ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-3 py-1 text-[11px] font-extrabold text-sky-900">
+                                📋 {t.statusPendingAdminReviewBadge}
                               </span>
-                            ) : (offer.status === 'pending_seller' ||
-                              offer.status === 'pending_admin') ? (
+                            ) : offer.status === 'pending_seller' ? (
                               <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-[11px] font-extrabold text-amber-800">
                                 ⏳ {t.statusWaitingSellerBadge}
                               </span>
@@ -1005,13 +739,21 @@ function OffersContent() {
                               <span className="inline-flex items-center gap-1 rounded-full bg-[#007a5a] px-3 py-1 text-[11px] font-extrabold text-white">
                                 ✓ {t.statusAcceptedBadge}
                               </span>
+                            ) : isReopenedPromptActive ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/90 px-3 py-1 text-[11px] font-black text-[#0a1122]">
+                                🔥 {t.reopenedUnitAvailableBadge}
+                              </span>
                             ) : offer.status === 'unit_locked' ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-gray-200 px-3 py-1 text-[11px] font-bold text-gray-600">
-                                {t.statusLockedOtherBuyer}
+                              <span className="inline-flex items-center gap-1 rounded-full bg-slate-200 px-3 py-1 text-[11px] font-extrabold text-slate-700">
+                                ⏳ {t.statusLockedOtherBuyer}
                               </span>
                             ) : offer.status === 'counter_offered' ? (
                               <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-3 py-1 text-[11px] font-extrabold text-purple-900">
                                 🔄 {t.statusCounterSentBadge}
+                              </span>
+                            ) : offer.status === 'rejected' ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-3 py-1 text-[11px] font-bold text-red-700">
+                                {t.statusRejectedBadge}
                               </span>
                             ) : null}
                           </div>
@@ -1036,6 +778,11 @@ function OffersContent() {
                               )}{' '}
                               {cur}
                             </strong>
+                            {wasPriceSyncedByAdmin && (
+                              <span className="mt-1 block text-[10.5px] font-bold text-sky-800">
+                                ✓ {t.priceSyncedByAdvisorNote}
+                              </span>
+                            )}
                           </div>
 
                           <div className="border-t border-gray-100 pt-2.5 sm:border-s sm:border-t-0 sm:ps-3.5 sm:pt-0">
@@ -1048,6 +795,224 @@ function OffersContent() {
                             </strong>
                           </div>
                         </div>
+
+                        {offer.status === 'pending_admin' && (
+                          <div className="mt-3 rounded-xl border border-gray-200 bg-gray-50/70 p-3">
+                            {editingBuyerOfferId === offer.id ? (
+                              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                                <input
+                                  type="text"
+                                  dir="ltr"
+                                  value={editingBuyerCashStr}
+                                  onChange={(e) => {
+                                    const raw = toEnglishDigits(
+                                      e.target.value
+                                    ).replace(/[^\d]/g, '')
+                                    setEditingBuyerCashStr(
+                                      raw
+                                        ? Number(raw).toLocaleString('en-US')
+                                        : ''
+                                    )
+                                  }}
+                                  className="h-10 flex-1 rounded-xl border border-gray-300 bg-white px-3 text-sm font-black text-[#0a1122]"
+                                />
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    disabled={isPending}
+                                    onClick={() => {
+                                      const val =
+                                        Number(
+                                          toEnglishDigits(
+                                            editingBuyerCashStr
+                                          ).replace(/,/g, '')
+                                        ) || 0
+                                      handleManageBuyerOwnOffer(
+                                        offer.id,
+                                        'update_pending_price',
+                                        val
+                                      )
+                                    }}
+                                    className="rounded-xl bg-[#007a5a] px-4 py-2 text-xs font-extrabold text-white"
+                                  >
+                                    {t.savePriceBtn}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditingBuyerOfferId(null)}
+                                    className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs font-bold text-gray-600"
+                                  >
+                                    {t.cancelBtn}
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                                <span className="font-semibold text-gray-600">
+                                  {t.preAdminEditHint}
+                                </span>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setEditingBuyerOfferId(offer.id)
+                                      setEditingBuyerCashStr(
+                                        Number(
+                                          offer.offered_cash
+                                        ).toLocaleString('en-US')
+                                      )
+                                    }}
+                                    className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 font-extrabold text-[#0a1122] hover:bg-gray-100"
+                                  >
+                                    <Edit3 className="size-3.5 text-[#007a5a]" />
+                                    <span>{t.editOfferPriceBtn}</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={isPending}
+                                    onClick={() =>
+                                      handleManageBuyerOwnOffer(
+                                        offer.id,
+                                        'cancel_offer'
+                                      )
+                                    }
+                                    className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 font-bold text-red-600 hover:bg-red-100"
+                                  >
+                                    <Trash2 className="size-3.5" />
+                                    <span>{t.withdrawOfferBtn}</span>
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {isReopenedPromptActive && (
+                          <div className="mt-4 rounded-2xl border-2 border-amber-400 bg-amber-50/90 p-4">
+                            <p className="text-xs leading-relaxed font-extrabold text-[#0a1122] sm:text-sm">
+                              🔥 {t.reopenedPromptTitle}
+                            </p>
+                            {didInstallmentIncrease && (
+                              <p className="mt-1.5 rounded-lg bg-white/90 p-2 text-[11px] font-bold text-amber-900">
+                                ℹ️ {t.installmentIncreasedNote}:{' '}
+                                <strong dir="ltr">
+                                  {currentUnitPaid.toLocaleString('en-US')}{' '}
+                                  {cur}
+                                </strong>
+                              </p>
+                            )}
+
+                            {editingBuyerOfferId === offer.id ? (
+                              <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+                                <input
+                                  type="text"
+                                  dir="ltr"
+                                  value={editingBuyerCashStr}
+                                  onChange={(e) => {
+                                    const raw = toEnglishDigits(
+                                      e.target.value
+                                    ).replace(/[^\d]/g, '')
+                                    setEditingBuyerCashStr(
+                                      raw
+                                        ? Number(raw).toLocaleString('en-US')
+                                        : ''
+                                    )
+                                  }}
+                                  className="h-10 flex-1 rounded-xl border border-gray-300 bg-white px-3 text-sm font-black text-[#0a1122]"
+                                />
+                                <button
+                                  type="button"
+                                  disabled={isPending}
+                                  onClick={() => {
+                                    const val =
+                                      Number(
+                                        toEnglishDigits(
+                                          editingBuyerCashStr
+                                        ).replace(/,/g, '')
+                                      ) || Number(offer.offered_cash)
+                                    handleManageBuyerOwnOffer(
+                                      offer.id,
+                                      'confirm_reopened_interest',
+                                      val
+                                    )
+                                  }}
+                                  className="rounded-xl bg-[#007a5a] px-4 py-2.5 text-xs font-extrabold text-white"
+                                >
+                                  {t.confirmReopenedBtn}
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                                <button
+                                  type="button"
+                                  disabled={isPending}
+                                  onClick={() =>
+                                    handleManageBuyerOwnOffer(
+                                      offer.id,
+                                      'confirm_reopened_interest'
+                                    )
+                                  }
+                                  className="inline-flex min-h-[42px] flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] px-4 py-2 text-xs font-extrabold text-white shadow-2xs transition hover:bg-[#006248]"
+                                >
+                                  <Check className="size-4" />
+                                  <span>
+                                    {t.confirmReopenedBtn} (
+                                    {Number(offer.offered_cash).toLocaleString(
+                                      'en-US'
+                                    )}{' '}
+                                    {cur})
+                                  </span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingBuyerOfferId(offer.id)
+                                    setEditingBuyerCashStr(
+                                      Number(
+                                        offer.offered_cash
+                                      ).toLocaleString('en-US')
+                                    )
+                                  }}
+                                  className="inline-flex min-h-[42px] items-center justify-center gap-1.5 rounded-xl border border-gray-300 bg-white px-3.5 py-2 text-xs font-extrabold text-[#0a1122]"
+                                >
+                                  <Edit3 className="size-3.5 text-[#007a5a]" />
+                                  <span>{t.confirmWithNewPriceBtn}</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={isPending}
+                                  onClick={() =>
+                                    handleManageBuyerOwnOffer(
+                                      offer.id,
+                                      'dismiss_from_list'
+                                    )
+                                  }
+                                  className="inline-flex min-h-[42px] items-center justify-center rounded-xl border border-red-200 bg-white px-3.5 py-2 text-xs font-bold text-red-600"
+                                >
+                                  {t.notInterestedAnymoreBtn}
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {offer.status === 'unit_locked' &&
+                          !isReopenedPromptActive && (
+                            <div className="mt-3.5 rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-xs font-semibold text-slate-700">
+                              <p>{t.waitlistBuyerCardNote}</p>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  smartRecsRef.current?.scrollIntoView({
+                                    behavior: 'smooth',
+                                  })
+                                }
+                                className="mt-2 inline-flex items-center gap-1 font-extrabold text-[#007a5a] underline"
+                              >
+                                <span>{t.exploreAlternativeUnitsLink}</span>
+                              </button>
+                            </div>
+                          )}
 
                         <div
                           className={`mt-3.5 grid grid-cols-1 gap-2 ${
@@ -1084,14 +1049,24 @@ function OffersContent() {
                         </div>
 
                         {offer.status === 'accepted' && (
-                          <div className="mt-3.5 rounded-xl border border-[#007a5a]/30 bg-[#eaf8f2] p-3.5 text-xs font-bold text-[#007a5a]">
-                            🎉 {t.dealLockedBannerForBuyer}
+                          <div className="mt-3.5 space-y-2 rounded-xl border border-[#007a5a]/30 bg-[#eaf8f2] p-3.5 text-xs font-bold text-[#007a5a]">
+                            <p>🎉 {t.dealLockedBannerForBuyer}</p>
+                            <a
+                              href={`https://wa.me/${supportWhatsApp}?text=${encodeURIComponent(
+                                `${t.waFastTrackOfferMsgPrefix} (#${refCode}) ${t.waFastTrackOfferMsgMiddle} (${u?.project_name || ''})`
+                              )}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1.5 text-[11px] font-extrabold text-[#0a1122] underline hover:text-[#007a5a]"
+                            >
+                              <MessageCircle className="size-3.5 text-[#25D366]" />
+                              <span>{t.contactDealManagerWaLink}</span>
+                            </a>
                           </div>
                         )}
 
-                        {/* ===================== واجهة المشتري عند وصول رد/تفاوض من البائع ===================== */}
                         {offer.status === 'counter_offered' &&
-                          offer.counter_cash && !isOfferExpired && (
+                          offer.counter_cash && (
                             <div className="mt-4 rounded-2xl border border-purple-200 bg-purple-50/90 p-3.5 sm:p-4">
                               <p className="text-xs leading-relaxed font-extrabold text-purple-950 sm:text-sm">
                                 🔄 {t.sellerCounterReceivedText}:{' '}
@@ -1119,29 +1094,28 @@ function OffersContent() {
                                   className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] px-4 py-2.5 text-center text-xs font-extrabold text-white shadow-2xs transition hover:bg-[#006248]"
                                 >
                                   <Check className="size-4 shrink-0" />
-                                  <span>{t.acceptCounterBtn}</span>
+                                  <span>
+                                    {t.acceptCounterBtn} (
+                                    {Number(offer.counter_cash).toLocaleString(
+                                      'en-US'
+                                    )}{' '}
+                                    {cur})
+                                  </span>
                                 </button>
 
-                                {/* زر تعديل السعر للمشتري (يتم إخفاؤه لو كان البائع قد استنفد محاولات التفاوض، لكننا هنا نتركه كخطوة أخيرة للمشتري) */}
-                                <button
-                                  type="button"
-                                  disabled={isPending}
-                                  onClick={() => {
-                                    setIsCounteringAsBuyer(true)
-                                    setCounterModalOffer(offer)
-                                    const mid = Math.round(
-                                      (Number(offer.offered_cash) +
-                                        Number(offer.counter_cash)) /
-                                        2
-                                    )
-                                    setCounterCashStr(mid.toLocaleString('en-US'))
-                                  }}
-                                  className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-center text-xs font-extrabold text-[#0a1122] transition hover:bg-gray-50"
+                                <a
+                                  href={`https://wa.me/${supportWhatsApp}?text=${encodeURIComponent(
+                                    `${t.waFastTrackOfferMsgPrefix} (#${refCode}) ${t.waFastTrackOfferMsgMiddle} (${u?.project_name || ''}) — ${Number(offer.counter_cash).toLocaleString('en-US')} ${cur}`
+                                  )}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-[#25D366] bg-white px-4 py-2.5 text-center text-xs font-extrabold text-[#0a1122] transition hover:bg-emerald-50"
                                 >
-                                  <RefreshCw className="size-3.5 shrink-0 text-[#007a5a]" />
-                                  <span>{t.sendCounterBtn}</span>
-                                </button>
+                                  <MessageCircle className="size-4 shrink-0 text-[#25D366]" />
+                                  <span>{t.contactAdvisorWaBtn}</span>
+                                </a>
                               </div>
+
                               <div className="mt-2">
                                 <button
                                   type="button"
@@ -1152,13 +1126,41 @@ function OffersContent() {
                                       'reject'
                                     )
                                   }
-                                  className="inline-flex min-h-[44px] w-full items-center justify-center rounded-xl border border-red-200 bg-white px-4 py-2.5 text-center text-xs font-bold text-red-600 transition hover:bg-red-50"
+                                  className="inline-flex min-h-[40px] w-full items-center justify-center rounded-xl border border-red-200 bg-white px-4 py-2 text-center text-xs font-bold text-red-600 transition hover:bg-red-50"
                                 >
                                   {t.rejectOfferBtn}
                                 </button>
                               </div>
                             </div>
                           )}
+
+                        {offer.status === 'rejected' && (
+                          <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50/70 p-3 text-xs">
+                            <p className="font-bold text-amber-950">
+                              {isSellerDelayedCancel
+                                ? t.sellerDelayedBuyerNote
+                                : t.offerClosedSimpleNote}
+                            </p>
+                            <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                              <button
+                                type="button"
+                                disabled={isPending}
+                                onClick={() =>
+                                  handleManageBuyerOwnOffer(
+                                    offer.id,
+                                    'dismiss_from_list',
+                                    undefined,
+                                    true
+                                  )
+                                }
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-[#007a5a] px-3.5 py-1.5 text-xs font-extrabold text-white hover:bg-[#006248]"
+                              >
+                                <Radar className="size-3.5" />
+                                <span>{t.viewAlternativesAndDismissBtn}</span>
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )
                   })}
@@ -1193,8 +1195,10 @@ function OffersContent() {
               </section>
             )}
 
-            {/* ==================== القسم الثاني: الفرص المرشحة بالرادار الذكي ==================== */}
-            <section className="rounded-[24px] border border-emerald-200/80 bg-[#effaf5]/40 p-4 sm:p-6">
+            <section
+              ref={smartRecsRef}
+              className="rounded-[24px] border border-emerald-200/80 bg-[#effaf5]/40 p-4 sm:p-6"
+            >
               <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-emerald-200/60 pb-3.5">
                 <div className="flex items-center gap-2.5">
                   <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#007a5a] text-white">

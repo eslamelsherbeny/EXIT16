@@ -543,9 +543,8 @@ export function getUnitPricingGuardrails(unit: MatchableUnit) {
     Number(unit.paid_amount || unit.contract_price || unit.rent_price) || 0
   )
   const rawSellerDiscount = Math.max(0, Number(unit.discount_amount) || 0)
-  const sellerAllowsDiscount = Boolean(
-    unit.willing_to_discount || rawSellerDiscount > 0
-  )
+  // القابلية للتفاوض تفتح فقط إذا كان البائع معلماً صراحةً على خيار التفاوض willing_to_discount
+  const sellerAllowsDiscount = Boolean(unit.willing_to_discount)
 
   if (requiredCash <= 0) {
     return {

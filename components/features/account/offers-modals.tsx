@@ -3,6 +3,7 @@
 import {
   AlertTriangle,
   CheckCircle2,
+  Clock,
   Loader2,
   Wallet,
   X,
@@ -57,13 +58,30 @@ export function BuyerMakeOfferModal({
   if (!offerModalUnit) return null
 
   const guard = getUnitPricingGuardrails(offerModalUnit)
+  const requiredPaid = Math.max(1, Number(guard.requiredCash) || 1)
+  const sanityMinFloor = Math.round(requiredPaid * 0.5)
+
+  const unitStatusClean = String(offerModalUnit.status || '')
+    .trim()
+    .toLowerCase()
+  const isWaitlistMode = unitStatusClean === 'transferring'
+
   const typedAmount =
     Number(toEnglishDigits(customOfferCashStr).replace(/,/g, '')) || 0
-  const isFullPrice = typedAmount >= guard.requiredCash
-  const isTooLowFake =
-    guard.allowNegotiation &&
+  const isFullPrice = offerMode === 'full' && typedAmount === requiredPaid
+  const isOverPaidError = typedAmount > requiredPaid
+  const isSanityIncompleteError =
+    offerMode === 'negotiate' &&
     typedAmount > 0 &&
-    typedAmount < guard.minAllowedOfferCash
+    typedAmount < sanityMinFloor
+  const isNegotiateEqualFullError =
+    offerMode === 'negotiate' && typedAmount === requiredPaid
+
+  const isSubmitDisabled =
+    isPending ||
+    typedAmount <= 0 ||
+    isOverPaidError ||
+    isSanityIncompleteError
 
   return (
     <div
@@ -73,19 +91,36 @@ export function BuyerMakeOfferModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="relative flex max-h-[90vh] w-full max-w-[460px] flex-col overflow-hidden rounded-[24px] border border-gray-200 bg-white text-start shadow-2xl"
+        className="relative flex max-h-[90vh] w-full max-w-[470px] flex-col overflow-hidden rounded-[24px] border border-gray-200 bg-white text-start shadow-2xl"
       >
         <div className="flex items-start justify-between gap-3 border-b border-gray-100 bg-[#f8faf9] px-5 py-4">
           <div className="min-w-0 flex-1">
-            <span className="inline-flex items-center gap-1 rounded-md bg-[#eaf8f2] px-2 py-0.5 text-[10.5px] font-extrabold text-[#007a5a]">
-              <Wallet className="size-3" />
-              <span>{t.modalMakeOfferTitle}</span>
+            <span
+              className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10.5px] font-extrabold ${
+                isWaitlistMode
+                  ? 'bg-amber-100 text-amber-900'
+                  : 'bg-[#eaf8f2] text-[#007a5a]'
+              }`}
+            >
+              {isWaitlistMode ? (
+                <>
+                  <Clock className="size-3" />
+                  <span>{t.waitlistBtnLabel}</span>
+                </>
+              ) : (
+                <>
+                  <Wallet className="size-3" />
+                  <span>{t.modalMakeOfferTitle}</span>
+                </>
+              )}
             </span>
             <h3 className="mt-1 truncate text-sm font-black text-[#0a1122] sm:text-base">
               {offerModalUnit.project_name || t.unitFallback}
             </h3>
             <p className="mt-0.5 text-[11px] text-gray-500">
-              {t.modalMakeOfferSubtitle}
+              {isWaitlistMode
+                ? t.waitlistModalSubtitle
+                : t.modalMakeOfferSubtitle}
             </p>
           </div>
 
@@ -112,9 +147,7 @@ export function BuyerMakeOfferModal({
                   type="button"
                   onClick={() => {
                     setOfferMode('full')
-                    setCustomOfferCashStr(
-                      guard.requiredCash.toLocaleString('en-US')
-                    )
+                    setCustomOfferCashStr(requiredPaid.toLocaleString('en-US'))
                   }}
                   className={`flex flex-col justify-between rounded-xl border p-3 text-start transition ${
                     offerMode === 'full'
@@ -129,7 +162,7 @@ export function BuyerMakeOfferModal({
                     dir="ltr"
                     className="mt-1 block text-sm font-black tabular-nums"
                   >
-                    {guard.requiredCash.toLocaleString('en-US')} {cur}
+                    {requiredPaid.toLocaleString('en-US')} {cur}
                   </strong>
                 </button>
 
@@ -137,9 +170,9 @@ export function BuyerMakeOfferModal({
                   type="button"
                   onClick={() => {
                     setOfferMode('negotiate')
-                    setCustomOfferCashStr(
-                      guard.minAllowedOfferCash.toLocaleString('en-US')
-                    )
+                    if (typedAmount >= requiredPaid) {
+                      setCustomOfferCashStr('')
+                    }
                   }}
                   className={`flex flex-col justify-between rounded-xl border p-3 text-start transition ${
                     offerMode === 'negotiate'
@@ -150,11 +183,8 @@ export function BuyerMakeOfferModal({
                   <span className="block text-[11px] leading-snug font-extrabold">
                     💬 {t.negotiateOptionTitle}
                   </span>
-                  <span className="mt-1 block text-[10.5px] text-gray-500">
-                    {t.minAllowedFloorLabel}:{' '}
-                    <strong dir="ltr" className="font-extrabold text-[#0a1122]">
-                      {guard.minAllowedOfferCash.toLocaleString('en-US')} {cur}
-                    </strong>
+                  <span className="mt-1 block text-[10.5px] font-semibold text-gray-600">
+                    {t.negotiateOptionSubHint}
                   </span>
                 </button>
               </div>
@@ -164,12 +194,25 @@ export function BuyerMakeOfferModal({
               </div>
             )}
 
+            {guard.allowNegotiation && offerMode === 'negotiate' && (
+              <label className="mb-1.5 block text-[11px] font-extrabold text-[#0a1122]">
+                {t.maxNegotiableCashInputLabel} (
+                <span dir="ltr">{requiredPaid.toLocaleString('en-US')}</span>{' '}
+                {cur}):
+              </label>
+            )}
+
             <div className="relative">
               <input
                 type="text"
                 inputMode="numeric"
                 dir="ltr"
-                readOnly={!guard.allowNegotiation}
+                placeholder={
+                  offerMode === 'negotiate'
+                    ? `${Math.round(requiredPaid * 0.92).toLocaleString('en-US')}`
+                    : ''
+                }
+                readOnly={!guard.allowNegotiation || offerMode === 'full'}
                 value={customOfferCashStr}
                 onChange={(e) => {
                   if (!guard.allowNegotiation) return
@@ -178,15 +221,12 @@ export function BuyerMakeOfferModal({
                     ''
                   )
                   const num = Number(digits) || 0
-                  setOfferMode(
-                    num >= guard.requiredCash ? 'full' : 'negotiate'
-                  )
                   setCustomOfferCashStr(
                     digits ? num.toLocaleString('en-US') : ''
                   )
                 }}
                 className={`h-12 w-full rounded-xl border pr-4 pl-12 text-left text-base font-black text-[#0a1122] tabular-nums focus:outline-none ${
-                  !guard.allowNegotiation
+                  !guard.allowNegotiation || offerMode === 'full'
                     ? 'cursor-not-allowed border-gray-200 bg-gray-100'
                     : 'border-gray-300 bg-white focus:border-[#007a5a]'
                 }`}
@@ -196,20 +236,26 @@ export function BuyerMakeOfferModal({
               </span>
             </div>
 
-            {isFullPrice ? (
-              <div className="mt-2.5 flex items-center gap-2 rounded-xl border border-emerald-200 bg-[#eaf8f2] p-2.5 text-[11px] font-bold text-[#007a5a]">
-                <CheckCircle2 className="size-4 shrink-0" />
-                <span>{t.fullPricePriorityHint}</span>
-              </div>
-            ) : isTooLowFake ? (
+            {isOverPaidError ? (
               <div className="mt-2.5 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-2.5 text-[11px] font-bold text-red-700">
                 <AlertTriangle className="mt-0.5 size-4 shrink-0" />
                 <span>
-                  {t.errBelowMinFloor}:{' '}
+                  {t.errOfferExceedsPaid} (
                   <strong dir="ltr">
-                    {guard.minAllowedOfferCash.toLocaleString('en-US')} {cur}
+                    {requiredPaid.toLocaleString('en-US')} {cur}
                   </strong>
+                  )
                 </span>
+              </div>
+            ) : isSanityIncompleteError ? (
+              <div className="mt-2.5 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-2.5 text-[11px] font-bold text-red-700">
+                <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+                <span>{t.errOfferSanityIncomplete}</span>
+              </div>
+            ) : isFullPrice || isNegotiateEqualFullError ? (
+              <div className="mt-2.5 flex items-center gap-2 rounded-xl border border-emerald-200 bg-[#eaf8f2] p-2.5 text-[11px] font-bold text-[#007a5a]">
+                <CheckCircle2 className="size-4 shrink-0" />
+                <span>{t.fullPricePriorityHint}</span>
               </div>
             ) : (
               <div className="mt-2.5 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-[11px] leading-relaxed font-bold text-amber-900">
@@ -278,14 +324,18 @@ export function BuyerMakeOfferModal({
         <div className="flex items-center gap-2.5 border-t border-gray-100 bg-gray-50/80 px-4 py-3.5 sm:px-5">
           <button
             type="button"
-            disabled={isPending || isTooLowFake || typedAmount <= 0}
+            disabled={isSubmitDisabled}
             onClick={onSubmit}
             className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-xl bg-[#007a5a] px-4 py-2.5 text-xs font-extrabold text-white shadow-sm transition hover:bg-[#006248] disabled:opacity-50"
           >
             {isPending ? (
               <Loader2 className="size-4 animate-spin" />
             ) : (
-              <span>{t.confirmSendOfferBtn}</span>
+              <span>
+                {isWaitlistMode
+                  ? t.confirmWaitlistOfferBtn
+                  : t.confirmSendOfferBtn}
+              </span>
             )}
           </button>
 
@@ -328,6 +378,16 @@ export function SellerCounterOfferModal({
 }) {
   if (!counterModalOffer) return null
 
+  const offeredByBuyer = Number(counterModalOffer.offered_cash) || 0
+  const maxPaid =
+    Number(
+      counterModalOffer.unit?.paid_amount || counterModalOffer.required_cash
+    ) || offeredByBuyer
+  const typedCounter =
+    Number(toEnglishDigits(counterCashStr).replace(/,/g, '')) || 0
+  const isInvalidCounter =
+    typedCounter <= offeredByBuyer || typedCounter > maxPaid
+
   return (
     <div
       dir={dir}
@@ -336,7 +396,7 @@ export function SellerCounterOfferModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-[390px] overflow-hidden rounded-[24px] border border-gray-200 bg-white p-5 text-start shadow-2xl"
+        className="w-full max-w-[410px] overflow-hidden rounded-[24px] border border-gray-200 bg-white p-5 text-start shadow-2xl"
       >
         <div className="flex items-center justify-between gap-2 border-b border-gray-100 pb-3">
           <h3 className="text-sm font-black text-[#0a1122] sm:text-base">
@@ -353,8 +413,10 @@ export function SellerCounterOfferModal({
           </button>
         </div>
 
-        <p className="mt-2.5 text-xs leading-relaxed text-gray-500">
-          {t.counterModalDesc}
+        <p className="mt-2.5 text-xs leading-relaxed text-gray-600">
+          {t.counterModalDesc} (
+          <strong dir="ltr">{offeredByBuyer.toLocaleString('en-US')}</strong> –{' '}
+          <strong dir="ltr">{maxPaid.toLocaleString('en-US')}</strong> {cur}).
         </p>
 
         <div className="relative mt-4">
@@ -376,12 +438,18 @@ export function SellerCounterOfferModal({
           </span>
         </div>
 
+        {isInvalidCounter && typedCounter > 0 && (
+          <p className="mt-2 text-[11px] font-bold text-red-600">
+            {t.errInvalidCounterAmount}
+          </p>
+        )}
+
         <div className="mt-5 flex items-center gap-2">
           <button
             type="button"
-            disabled={isPending}
+            disabled={isPending || isInvalidCounter}
             onClick={onSubmit}
-            className="inline-flex min-h-[42px] flex-1 items-center justify-center rounded-xl bg-[#007a5a] px-4 py-2 text-xs font-extrabold text-white transition hover:bg-[#006248]"
+            className="inline-flex min-h-[42px] flex-1 items-center justify-center rounded-xl bg-[#007a5a] px-4 py-2 text-xs font-extrabold text-white transition hover:bg-[#006248] disabled:opacity-50"
           >
             {isPending ? (
               <Loader2 className="size-4 animate-spin" />

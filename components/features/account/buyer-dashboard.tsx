@@ -3,13 +3,16 @@
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import Link from 'next/link'
 import {
+  CheckCircle2,
   ChevronDown,
   ChevronLeft,
   Compass,
   MapPin,
   MessageCircle,
+  PlusCircle,
   Radar,
   SlidersHorizontal,
+  Trophy,
   Wallet,
 } from 'lucide-react'
 import { updateBuyerPreferencesAction } from '@/actions/account-actions'
@@ -55,15 +58,25 @@ export type BuyerRequestItem = {
   notify_featured?: boolean | null
 }
 
+export type PurchasedUnitSummary = {
+  id: string
+  code: string
+  projectName: string
+  area: string
+  unitType: string
+  rooms: number
+  size: number
+  paidAmount: number
+  contractPrice: number
+  image?: string
+  purchasedAt?: string
+}
+
 const FAVORITES_STORAGE_KEY = 'darak_favorites'
 const BUYER_WA_SENT_STORAGE_KEY = 'aqar_buyer_wa_fasttrack_sent'
 const PREFERRED_PAGE_SIZE = 18
 const NEARBY_AREAS_PREVIEW_SIZE = 9
 
-/**
- * مطابقة أي اسم منطقة (سواء كـ ID أو بالعربية أو الإنجليزية أو الروسية أو الجورجية)
- * وإرجاع الكائن القياسي للمنطقة من GEORGIA_REGION_DISTRICTS
- */
 function resolveGeorgiaDistrictNode(rawInput?: string | null) {
   if (!rawInput) return null
   const clean = String(rawInput)
@@ -90,7 +103,8 @@ function resolveGeorgiaDistrictNode(rawInput?: string | null) {
   for (const node of GEORGIA_REGION_DISTRICTS) {
     if (
       node.keywords.some(
-        (kw) => clean.includes(kw.toLowerCase()) || kw.toLowerCase().includes(clean)
+        (kw) =>
+          clean.includes(kw.toLowerCase()) || kw.toLowerCase().includes(clean)
       )
     ) {
       return node
@@ -124,9 +138,6 @@ function extractCleanGeorgiaAreas(
   return cleaned.length > 0 ? Array.from(new Set(cleaned)) : [fallbackAreaId]
 }
 
-/**
- * فحص ذكي وشامل لتطابق منطقة الوحدة مع المناطق التي اختارها المشتري
- */
 function checkExactAreaMatchSmart(
   unitRawArea: string | null | undefined,
   buyerPreferredAreas: string[],
@@ -162,16 +173,154 @@ function checkExactAreaMatchSmart(
   return false
 }
 
+function PurchasedUnitsSection({
+  units,
+  locale,
+  currency,
+  isCycleClosed,
+}: {
+  units: PurchasedUnitSummary[]
+  locale: LocaleCode
+  currency: string
+  isCycleClosed: boolean
+}) {
+  if (!units || units.length === 0) return null
+
+  const title =
+    locale === 'en'
+      ? 'Units You Purchased'
+      : locale === 'ru'
+        ? 'Приобретённые объекты'
+        : locale === 'ka'
+          ? 'თქვენ მიერ შეძენილი ობიექტები'
+          : 'وحدات قمت بشرائها بنجاح'
+
+  const subtitle =
+    locale === 'en'
+      ? 'Congratulations! Your previous purchase cycle is complete. You can start a new purchase request whenever you are ready.'
+      : locale === 'ru'
+        ? 'Поздравляем! Ваша сделка успешно завершена. Вы можете создать новую заявку на покупку в любое время.'
+        : locale === 'ka'
+          ? 'გილოცავთ! თქვენი შესყიდვა წარმატებით დასრულდა. შეგიძლიათ ნებისმიერ დროს შექმნათ ახალი მოთხოვნა.'
+          : 'مبروك! تم إغلاق طلب الشراء السابق بنجاح. يمكنك البدء في طلب شراء جديد في أي وقت.'
+
+  const newReqBtn =
+    locale === 'en'
+      ? 'Submit New Purchase Request'
+      : locale === 'ru'
+        ? 'Создать новую заявку на покупку'
+        : locale === 'ka'
+          ? 'ახალი შესყიდვის მოთხოვნა'
+          : 'تقديم طلب شراء جديد'
+
+  const paidLabel = locale === 'en' ? 'Agreed Cash' : 'المبلغ المدفوع'
+  const contractLabel = locale === 'en' ? 'Contract Price' : 'سعر العقد'
+  const badgeLabel = locale === 'en' ? 'Purchased ✓' : 'تم الشراء ✓'
+
+  return (
+    <section className="mb-6 overflow-hidden rounded-[22px] border border-emerald-200 border-t-[3px] border-t-[#007a5a] bg-white p-5 text-start shadow-xs sm:p-6">
+      <div className="flex flex-col gap-3 border-b border-gray-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-3">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#eaf8f2] text-[#007a5a]">
+            <Trophy className="size-5" />
+          </span>
+          <div>
+            <h2 className="text-base font-black text-[#0a1122] sm:text-lg">
+              {title} ({units.length})
+            </h2>
+            {isCycleClosed && (
+              <p className="mt-0.5 text-xs leading-relaxed text-gray-500">
+                {subtitle}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {isCycleClosed && (
+          <Link
+            href="/buy"
+            className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-[#007a5a] px-5 text-xs font-extrabold text-white shadow-xs transition hover:bg-[#006248]"
+          >
+            <PlusCircle className="size-4" />
+            <span>{newReqBtn}</span>
+          </Link>
+        )}
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+        {units.map((u) => (
+          <div
+            key={u.id}
+            className="flex flex-col justify-between rounded-2xl border border-emerald-200/80 bg-[#f8faf9] p-4 shadow-2xs"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="rounded-md bg-[#0a1122] px-2 py-0.5 font-mono text-[10px] font-bold text-white">
+                    {u.code}
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-md bg-[#007a5a] px-2 py-0.5 text-[10px] font-extrabold text-white">
+                    <CheckCircle2 className="size-3" />
+                    <span>{badgeLabel}</span>
+                  </span>
+                </div>
+                <h3 className="mt-2 truncate text-sm font-black text-[#0a1122]">
+                  {u.projectName}
+                </h3>
+                <p className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-gray-500">
+                  <MapPin className="size-3 text-[#007a5a]" />
+                  <span>{getLocalizedGeorgiaAreaName(u.area, locale)}</span>
+                  <span>·</span>
+                  <span>
+                    {u.unitType} · {u.rooms} · {u.size} m²
+                  </span>
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl border border-gray-200/70 bg-white p-2.5 text-xs">
+              <div>
+                <span className="block text-[10px] font-bold text-gray-400">
+                  {paidLabel}
+                </span>
+                <strong
+                  dir="ltr"
+                  className="mt-0.5 inline-block text-sm font-black text-[#007a5a] tabular-nums"
+                >
+                  {u.paidAmount.toLocaleString('en-US')} {currency}
+                </strong>
+              </div>
+              <div className="border-s border-gray-100 ps-2.5">
+                <span className="block text-[10px] font-bold text-gray-400">
+                  {contractLabel}
+                </span>
+                <strong
+                  dir="ltr"
+                  className="mt-0.5 inline-block text-sm font-extrabold text-[#0a1122] tabular-nums"
+                >
+                  {u.contractPrice.toLocaleString('en-US')} {currency}
+                </strong>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 export function BuyerDashboard({
   buyReq,
   marketUnits,
   offersCount = 0,
+  purchasedUnits = [],
   deletionRequested = false,
 }: {
   userName?: string
   buyReq: BuyerRequestItem | null
   marketUnits: SellerUnitItem[]
   offersCount?: number
+  purchasedUnits?: PurchasedUnitSummary[]
   deletionRequested?: boolean
 }) {
   const { t: dict, locale, dir, isRtl } = useTranslation()
@@ -184,6 +333,12 @@ export function BuyerDashboard({
     /\D/g,
     ''
   )
+
+  const isBuyCycleClosed =
+    !buyReq ||
+    String(buyReq.status || '')
+      .trim()
+      .toLowerCase() === 'closed'
 
   const localizedUnitTypes = useMemo(
     () => getLocalizedUnitTypes(dict, locale),
@@ -700,6 +855,65 @@ export function BuyerDashboard({
     })
   }
 
+  // إذا كان طلب الشراء السابق قد أُغلق بعد إتمام الشراء: نعرض وحداته المشتراة + زر بدء طلب شراء جديد
+  if (isBuyCycleClosed) {
+    return (
+      <div dir={dir} className="mx-auto max-w-[1020px] px-3 sm:px-6">
+        <ScrollReveal>
+          <PurchasedUnitsSection
+            units={purchasedUnits}
+            locale={locale}
+            currency={currency}
+            isCycleClosed={true}
+          />
+
+          {purchasedUnits.length === 0 && (
+            <section className="rounded-[22px] border border-gray-200/90 bg-white p-8 text-center shadow-xs sm:p-10">
+              <Radar className="mx-auto mb-3 size-10 text-[#007a5a]" />
+              <h2 className="text-base font-black text-[#0a1122] sm:text-lg">
+                {locale === 'en'
+                  ? 'No Active Purchase Request'
+                  : 'لا يوجد طلب شراء نشط حالياً'}
+              </h2>
+              <p className="mx-auto mt-1.5 max-w-md text-xs leading-relaxed text-gray-500">
+                {locale === 'en'
+                  ? 'Start a new purchase request with your budget and preferred areas to unlock smart unit matching.'
+                  : 'سجّل طلب شراء جديد بميزانيتك والمناطق المفضلة لتظهر لك أحدث الوحدات المطابقة فوراً.'}
+              </p>
+              <div className="mt-5 flex flex-wrap justify-center gap-3">
+                <Link
+                  href="/buy"
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#007a5a] px-6 text-xs font-extrabold text-white shadow-xs transition hover:bg-[#006248]"
+                >
+                  <PlusCircle className="size-4" />
+                  <span>
+                    {locale === 'en'
+                      ? 'Submit New Purchase Request'
+                      : 'تقديم طلب شراء جديد'}
+                  </span>
+                </Link>
+                <Link
+                  href="/opportunities"
+                  className="inline-flex h-11 items-center justify-center rounded-xl border border-gray-200 bg-white px-5 text-xs font-bold text-[#0a1122] hover:bg-gray-50"
+                >
+                  {t.browseAllMarketBtn}
+                </Link>
+              </div>
+            </section>
+          )}
+        </ScrollReveal>
+
+        <div className="mt-10 flex justify-center border-t border-gray-200/80 pt-6 [&>*]:justify-center [&_div]:justify-center [&_form]:hidden">
+          <AccountActionLinks
+            unitsCount={0}
+            initialDeletionRequested={deletionRequested}
+            position="bottom"
+          />
+        </div>
+      </div>
+    )
+  }
+
   if (isEditingBudget) {
     return (
       <BuyerEditPreferencesForm
@@ -745,6 +959,15 @@ export function BuyerDashboard({
       )}
 
       <ScrollReveal>
+        {purchasedUnits.length > 0 && (
+          <PurchasedUnitsSection
+            units={purchasedUnits}
+            locale={locale}
+            currency={currency}
+            isCycleClosed={false}
+          />
+        )}
+
         <section className="overflow-hidden rounded-[22px] border border-gray-200/90 border-t-[3px] border-t-[var(--brand-primary,#007a5a)] bg-white p-5 text-start shadow-xs sm:p-6">
           <div className="flex flex-col gap-3.5 border-b border-gray-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-3">

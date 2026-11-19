@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
-import { Building2, ShieldCheck } from 'lucide-react'
+import { Building2, Clock, Handshake, ShieldCheck } from 'lucide-react'
 import { getCurrentSellerProfileAction } from '@/actions/submit-forms'
 import * as UnitInterestFormModule from '@/components/features/opportunities/unit-interest-form'
 import {
@@ -137,6 +137,7 @@ function UnitDetailsPageSkeleton({ dir }: { dir: 'rtl' | 'ltr' }) {
 export default function PropertyDetailsPage() {
   const { t: dict, locale, dir, siteSettings, isStaff } = useTranslation()
   const t = dict.unitDetailsPage
+  const uiL = dict.unitDetailsPage.uiLabels
   const c = dict.opportunitiesPage.card
   const filtersT = dict.opportunitiesPage.filters
   const oT = (dict.accountPages?.offers as Record<string, any>) || {}
@@ -255,15 +256,18 @@ export default function PropertyDetailsPage() {
 
           if (dbUnit) {
             const cleanSt = String(dbUnit.status || '').toLowerCase()
-            const isLockedByDeal =
-              cleanSt === 'transferring' ||
-              cleanSt === 'sold' ||
-              Boolean(acceptedOfferOnThisUnit)
+            const isUnderContractDeal =
+              cleanSt === 'transferring' || Boolean(acceptedOfferOnThisUnit)
+            const isSoldFinal = cleanSt === 'sold'
 
             const isPublicStatus =
-              ['active', 'approved', 'published', 'offer_received'].includes(
-                cleanSt
-              ) && !isLockedByDeal
+              [
+                'active',
+                'approved',
+                'published',
+                'offer_received',
+                'transferring',
+              ].includes(cleanSt) && !isSoldFinal
 
             const isOwnerViewing = Boolean(
               loggedId && dbUnit.user_id && dbUnit.user_id === loggedId
@@ -283,7 +287,8 @@ export default function PropertyDetailsPage() {
             ) {
               setUnitRow({
                 ...dbUnit,
-                __isLockedByDeal: isLockedByDeal,
+                __isUnderContractDeal: isUnderContractDeal,
+                __isAcceptedBuyerViewing: isAcceptedBuyerViewing,
               })
               setLiveViewsCount(Math.max(1, Number(dbUnit.views_count) || 1))
 
@@ -525,9 +530,6 @@ export default function PropertyDetailsPage() {
 
     const paidAmount = parseSafeNumber(row.paid_amount)
     const contractPrice = parseSafeNumber(row.contract_price, paidAmount)
-    const discountAmount = row.willing_to_discount
-      ? parseSafeNumber(row.discount_amount)
-      : 0
 
     const requiredCash = paidAmount
     const remainingToDeveloper = Math.max(0, contractPrice - paidAmount)
@@ -552,11 +554,7 @@ export default function PropertyDetailsPage() {
       marketPrice > contractPrice
         ? Math.max(0, marketPrice - contractPrice - commission)
         : 0
-    const totalRequiredNow = requiredCash + commission
-    const discountPercentage =
-      paidAmount > 0 && discountAmount > 0
-        ? Math.max(1, Math.round((discountAmount / paidAmount) * 100))
-        : 5
+    const totalRequiredNow = requiredCash
 
     const rawDelStr = String(deliveryStatus)
     const isReadyDelivery =
@@ -637,6 +635,8 @@ export default function PropertyDetailsPage() {
     )
     const hasActiveOffer =
       String(row.status || '').toLowerCase() === 'offer_received'
+    const isUnderContractDeal = Boolean(row.__isUnderContractDeal)
+    const isAcceptedBuyerViewing = Boolean(row.__isAcceptedBuyerViewing)
 
     const unifiedPublishedAt =
       row.approved_at || meta.approved_at || row.created_at
@@ -664,6 +664,8 @@ export default function PropertyDetailsPage() {
       raw: row,
       isOwner,
       hasActiveOffer,
+      isUnderContractDeal,
+      isAcceptedBuyerViewing,
       projectName,
       developerName,
       areaName,
@@ -708,8 +710,8 @@ export default function PropertyDetailsPage() {
       requiredCash,
       paidAmount,
       willingToDiscount: Boolean(row.willing_to_discount),
-      discountAmount: discountAmount || Math.round(paidAmount * 0.05),
-      discountPercentage,
+      discountAmount: 0,
+      discountPercentage: 0,
       marketPrice,
       marketGain,
       remainingToDeveloper,
@@ -785,6 +787,37 @@ export default function PropertyDetailsPage() {
       className="min-h-screen bg-[var(--brand-surface,#f5f6f8)] py-6 text-[var(--brand-navy,#0a1122)] sm:py-10"
     >
       <div className="mx-auto w-full max-w-[780px] px-4 sm:px-6">
+        {computedUnit.isUnderContractDeal && (
+          <div className="mb-4 flex flex-col justify-between gap-3 rounded-2xl border-2 border-amber-400 bg-amber-50/95 p-4 text-start shadow-xs sm:flex-row sm:items-center">
+            <div className="flex items-start gap-3">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white">
+                <Handshake className="size-5" />
+              </span>
+              <div>
+                <span className="inline-flex items-center gap-1 rounded-md bg-amber-200/80 px-2 py-0.5 text-[10.5px] font-black text-amber-950">
+                  {uiL.underContractBadge}
+                </span>
+                <p className="mt-1 text-xs leading-relaxed font-bold text-[#0a1122]">
+                  {computedUnit.isAcceptedBuyerViewing
+                    ? oT.dealLockedBannerForBuyer
+                    : uiL.underContractTopBannerDesc}
+                </p>
+              </div>
+            </div>
+
+            {!computedUnit.isOwner && !computedUnit.isAcceptedBuyerViewing && (
+              <button
+                type="button"
+                onClick={scrollToOfferSection}
+                className="inline-flex min-h-[40px] shrink-0 items-center justify-center gap-1.5 rounded-xl bg-[#0a1122] px-4 py-2 text-xs font-extrabold text-white shadow-2xs transition hover:bg-[#16223f]"
+              >
+                <Clock className="size-3.5 text-amber-400" />
+                <span>{oT.waitlistBtnLabel}</span>
+              </button>
+            )}
+          </div>
+        )}
+
         <UnitDetailsHeader
           computedUnit={computedUnit}
           t={t}
@@ -860,28 +893,39 @@ export default function PropertyDetailsPage() {
               >
                 {ownerBannerLabels.manageBtn}
               </Link>
-              <Link
-                href={`/sell?editUnitId=${computedUnit.id}`}
-                className="inline-flex h-10 items-center justify-center rounded-xl border border-gray-300 bg-white px-5 text-xs font-bold text-[#0a1122] hover:bg-gray-50"
-              >
-                {ownerBannerLabels.editBtn}
-              </Link>
+              {!computedUnit.isUnderContractDeal && (
+                <Link
+                  href={`/sell?editUnitId=${computedUnit.id}`}
+                  className="inline-flex h-10 items-center justify-center rounded-xl border border-gray-300 bg-white px-5 text-xs font-bold text-[#0a1122] hover:bg-gray-50"
+                >
+                  {ownerBannerLabels.editBtn}
+                </Link>
+              )}
             </div>
           </section>
         ) : (
-          <UnitInterestForm
-            unitCode={computedUnit.code}
-            projectName={computedUnit.projectName}
-            areaName={computedUnit.areaName}
-            unitType={computedUnit.unitType}
-            deliveryYear={computedUnit.deliveryYear}
-            requiredCash={computedUnit.requiredCash}
-            totalRequiredNow={computedUnit.totalRequiredNow}
-            installmentAmount={computedUnit.installmentAmount}
-            currentUserId={currentUserId}
-            willingToDiscount={computedUnit.willingToDiscount}
-            discountAmount={computedUnit.discountAmount}
-          />
+          <div id="make-offer-section">
+            {computedUnit.isUnderContractDeal && (
+              <div className="mt-8 mb-2 rounded-2xl border border-amber-300 bg-amber-50/90 px-4 py-3 text-start text-xs font-bold text-amber-950">
+                ⏳ <strong>{oT.waitlistBtnLabel}:</strong>{' '}
+                {oT.waitlistModalSubtitle}
+              </div>
+            )}
+            <UnitInterestForm
+              unitCode={computedUnit.code}
+              projectName={computedUnit.projectName}
+              areaName={computedUnit.areaName}
+              unitType={computedUnit.unitType}
+              deliveryYear={computedUnit.deliveryYear}
+              requiredCash={computedUnit.requiredCash}
+              totalRequiredNow={computedUnit.totalRequiredNow}
+              installmentAmount={computedUnit.installmentAmount}
+              currentUserId={currentUserId}
+              willingToDiscount={computedUnit.willingToDiscount}
+              discountAmount={0}
+              isUnderContractDeal={computedUnit.isUnderContractDeal}
+            />
+          </div>
         )}
       </div>
     </main>

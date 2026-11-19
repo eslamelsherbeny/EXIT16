@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   Clock,
   Download,
+  Edit3,
   ExternalLink,
   FileText,
   Handshake,
@@ -21,6 +22,7 @@ import {
   RotateCcw,
   Search,
   Send,
+  Sparkles,
   Wallet,
   X,
   XCircle,
@@ -29,6 +31,8 @@ import {
   adminGetDealsRoomDataAction,
   adminManageOfferLifecycleAction,
 } from '@/actions/offer-actions'
+import { getUnitPricingGuardrails } from '@/lib/smart-matcher'
+import { toEnglishDigits } from '@/components/features/seller/seller-shared'
 import {
   downloadExcelCsv,
   downloadOfficialPdfReport,
@@ -38,6 +42,8 @@ import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
 import { getCurrencySymbol, useTranslation } from '@/lib/i18n'
 
 const PENDING_ADMIN_TAG = '__PENDING_ADMIN_VERIFICATION__'
+const PRIORITY_RETURNED_TAG = '__PRIORITY_FROM_BACKUP__'
+const REOPENED_PROMPT_TAG = '__REOPENED_PROMPT__'
 
 function WhatsAppOfficialIcon({ className = 'size-4' }: { className?: string }) {
   return (
@@ -50,110 +56,6 @@ function WhatsAppOfficialIcon({ className = 'size-4' }: { className?: string }) 
       <path d="M12.031 2c-5.516 0-9.969 4.453-9.969 9.969 0 1.758.459 3.473 1.332 4.988L2 22l5.188-1.361c1.469.801 3.125 1.225 4.843 1.225 5.516 0 9.969-4.453 9.969-9.969S17.547 2 12.031 2zm5.82 14.129c-.244.688-1.422 1.314-1.977 1.396-.508.076-1.152.109-1.859-.115-.43-.137-.98-.32-1.688-.625-2.973-1.283-4.914-4.275-5.062-4.473-.148-.197-1.209-1.609-1.209-3.07 0-1.461.766-2.18 1.037-2.477.271-.297.592-.371.791-.371.197 0 .395.002.568.01.182.008.426-.068.666.508.246.592.84 2.049.914 2.197.074.148.123.32.025.518-.098.197-.148.32-.297.494-.148.172-.312.385-.445.518-.148.148-.303.309-.131.605.172.297.768 1.268 1.648 2.053 1.133 1.01 2.088 1.322 2.385 1.471.297.148.469.123.643-.074.172-.197.74-.863.938-1.16.197-.297.395-.246.666-.148.271.098 1.729.814 2.025.963.297.148.494.223.568.346.074.123.074.715-.17 1.403z" />
     </svg>
   )
-}
-
-const DEALS_CLEAR_UI: Record<
-  string,
-  {
-    pageBadge: string
-    pageTitle: string
-    pageSub: string
-    tabAll: string
-    tabStep1: string
-    tabStep2: string
-    tabStep3: string
-    tabOther: string
-    badgeStep1: string
-    badgeStep2: string
-    badgeStep2Counter: string
-    badgeStep3: string
-    badgeStep4: string
-    badgeBackup: string
-    badgeRejected: string
-    btnSendToSeller: string
-    btnMarkSold: string
-  }
-> = {
-  ar: {
-    pageBadge: 'غرفة الصفقات وعروض الشراء',
-    pageTitle: 'متابعة عروض الشراء وإغلاق الصفقات',
-    pageSub:
-      'راجع العروض الجديدة لإرسالها للبائعين، وتابع الصفقات المتفق عليها لإتمام التنازل',
-    tabAll: 'كل العروض النشطة',
-    tabStep1: 'بانتظار مراجعتك',
-    tabStep2: 'عند البائع للموافقة',
-    tabStep3: 'متفق عليها للتعاقد',
-    tabOther: 'الأرشيف (تم البيع / مرفوض)',
-    badgeStep1: 'عرض جديد — بانتظار إرسالك للبائع',
-    badgeStep2: 'عند البائع — بانتظار موافقته',
-    badgeStep2Counter: 'تفاوض — البائع طلب سعراً مقابلاً',
-    badgeStep3: 'متفق عليها — جاهزة لإتمام التعاقد',
-    badgeStep4: 'تم البيع ونقل الملكية بنجاح',
-    badgeBackup: 'عرض احتياطي',
-    badgeRejected: 'عرض مرفوض / ملغي',
-    btnSendToSeller: 'موافقة وإرسال العرض لحساب البائع ✓',
-    btnMarkSold: 'تأكيد إتمام البيع ونقل الملكية ✓',
-  },
-  en: {
-    pageBadge: 'Deals & Offers Room',
-    pageTitle: 'Manage Purchase Offers & Close Deals',
-    pageSub:
-      'Approve new buyer offers to forward to sellers, and close agreed deals',
-    tabAll: 'All Active',
-    tabStep1: 'Pending Your Review',
-    tabStep2: 'With Seller',
-    tabStep3: 'Agreed (Ready to Close)',
-    tabOther: 'Archive (Sold / Declined)',
-    badgeStep1: 'New Offer — Send to Seller',
-    badgeStep2: 'With Seller — Awaiting Reply',
-    badgeStep2Counter: 'Counter-Offer Sent by Seller',
-    badgeStep3: 'Agreed Deal — Ready for Transfer',
-    badgeStep4: 'Unit Sold Successfully',
-    badgeBackup: 'Backup Offer',
-    badgeRejected: 'Declined / Cancelled',
-    btnSendToSeller: 'Approve & Send Offer to Seller ✓',
-    btnMarkSold: 'Confirm Transfer & Mark Sold ✓',
-  },
-  ru: {
-    pageBadge: 'Комната сделок и предложений',
-    pageTitle: 'Предложения о покупке и закрытие сделок',
-    pageSub:
-      'Проверяйте новые офферы перед отправкой продавцам и закрывайте согласованные сделки',
-    tabAll: 'Все активные',
-    tabStep1: 'Ждут проверки',
-    tabStep2: 'У продавца',
-    tabStep3: 'Согласованы (К сделке)',
-    tabOther: 'Архив (Продано / Отмена)',
-    badgeStep1: 'Новый оффер — Отправить продавцу',
-    badgeStep2: 'У продавца — Ожидает ответа',
-    badgeStep2Counter: 'Встречное предложение продавца',
-    badgeStep3: 'Согласовано — Готово к переоформлению',
-    badgeStep4: 'Продажа успешно завершена',
-    badgeBackup: 'Резервный оффер',
-    badgeRejected: 'Отклонено / Отменено',
-    btnSendToSeller: 'Одобрить и отправить продавцу ✓',
-    btnMarkSold: 'Подтвердить продажу объекта ✓',
-  },
-  ka: {
-    pageBadge: 'შეთავაზებებისა და გარიგებების ოთახი',
-    pageTitle: 'შესყიდვის შეთავაზებები და გარიგებები',
-    pageSub:
-      'დაადასტურეთ ახალი შეთავაზებები გამყიდველთან გასაგზავნად და დაასრულეთ შეთანხმებული გარიგებები',
-    tabAll: 'ყველა აქტიური',
-    tabStep1: 'დასადასტურებელი',
-    tabStep2: 'გამყიდველთან',
-    tabStep3: 'შეთანხმებული',
-    tabOther: 'არქივი (გაყიდული)',
-    badgeStep1: 'ახალი შეთავაზება — გასაგზავნია გამყიდველთან',
-    badgeStep2: 'გამყიდველთან — ელოდება თანხმობას',
-    badgeStep2Counter: 'შემხვედრი ფასი გამყიდველისგან',
-    badgeStep3: 'შეთანხმებულია — მზადაა გასაფორმებლად',
-    badgeStep4: 'ობიექტი წარმატებით გაიყიდა',
-    badgeBackup: 'სარეზერვო შეთავაზება',
-    badgeRejected: 'უარყოფილი / გაუქმებული',
-    btnSendToSeller: 'დადასტურება და გამყიდველთან გაგზავნა ✓',
-    btnMarkSold: 'გაყიდვის დადასტურება ✓',
-  },
 }
 
 function generateOfferRefCode(offerId: string): string {
@@ -224,13 +126,18 @@ function normalizeDealOffer(raw: any) {
   }
 }
 
-function getOfferSortPriority(offerStatus: string, unitStatus?: string): number {
+function getOfferSortPriority(offer: any, unitStatus?: string): number {
+  const offerStatus = offer.status
+  const diffs = Array.isArray(offer.diff_reasons) ? offer.diff_reasons : []
+  const isPriorityReturned = diffs.includes(PRIORITY_RETURNED_TAG)
+
   if (offerStatus === 'accepted' && unitStatus !== 'sold') return 1
+  if (offerStatus === 'pending_admin' && isPriorityReturned) return 1.5
   if (offerStatus === 'pending_admin') return 2
   if (offerStatus === 'counter_offered') return 3
   if (offerStatus === 'pending_seller') return 4
-  if (unitStatus === 'sold') return 5
-  if (offerStatus === 'unit_locked') return 6
+  if (offerStatus === 'unit_locked') return 5
+  if (unitStatus === 'sold') return 6
   return 7
 }
 
@@ -245,7 +152,6 @@ function AdminDealsContent() {
   const d = (adminDict.dealsPage as Record<string, any>) || {}
   const sm = (adminDict.smartMatch as Record<string, any>) || {}
   const expL = EXPORT_LABELS[locale] || EXPORT_LABELS.ar
-  const ui = DEALS_CLEAR_UI[locale] || DEALS_CLEAR_UI.en
   const commaSep = isRtl ? '، ' : ', '
 
   const cur = getCurrencySymbol('GE', locale)
@@ -258,14 +164,38 @@ function AdminDealsContent() {
   const [search, setSearch] = useState('')
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<
-    'all' | 'pending_admin' | 'accepted' | 'negotiating' | 'backup_rejected'
+    | 'all'
+    | 'pending_admin'
+    | 'accepted'
+    | 'negotiating'
+    | 'waitlist'
+    | 'backup_rejected'
   >(
     initialTabParam === 'accepted'
       ? 'accepted'
       : initialTabParam === 'pending_admin'
         ? 'pending_admin'
-        : 'all'
+        : initialTabParam === 'waitlist'
+          ? 'waitlist'
+          : 'all'
   )
+
+  const [editingPriceOfferId, setEditingPriceOfferId] = useState<string | null>(
+    null
+  )
+  const [editingPriceStr, setEditingPriceStr] = useState('')
+
+  const [confirmingAction, setConfirmingAction] = useState<{
+    offerId: string
+    action:
+      | 'approve_to_seller'
+      | 'admin_accept_deal'
+      | 'reopen_unit_offers'
+      | 'mark_unit_sold'
+      | 'reject_offer'
+      | 'seller_unresponsive_cancel'
+    label: string
+  } | null>(null)
 
   const [notice, setNotice] = useState<{
     text: string
@@ -323,12 +253,10 @@ function AdminDealsContent() {
         )
         if (found) {
           const foundUnit = uMap[String(found.property_id)]
-          if (
-            foundUnit?.status === 'sold' ||
-            found.status === 'unit_locked' ||
-            found.status === 'rejected'
-          ) {
+          if (foundUnit?.status === 'sold' || found.status === 'rejected') {
             setActiveTab('backup_rejected')
+          } else if (found.status === 'unit_locked') {
+            setActiveTab('waitlist')
           } else {
             setActiveTab('all')
           }
@@ -354,18 +282,24 @@ function AdminDealsContent() {
     offerId: string,
     action:
       | 'approve_to_seller'
+      | 'admin_accept_deal'
       | 'reopen_unit_offers'
       | 'mark_unit_sold'
-      | 'reject_offer',
-    successText: string
+      | 'reject_offer'
+      | 'seller_unresponsive_cancel',
+    successText: string,
+    customNegotiatedCash?: number
   ) => {
     setProcessingId(offerId)
+    setConfirmingAction(null)
+    setEditingPriceOfferId(null)
     setNotice(null)
     startTransition(async () => {
       try {
         const res = await adminManageOfferLifecycleAction({
           offerId,
           action,
+          negotiatedCash: customNegotiatedCash,
         })
         if (res.success) {
           setNotice({ text: successText })
@@ -399,9 +333,13 @@ function AdminDealsContent() {
         (o.status === 'pending_seller' || o.status === 'counter_offered') &&
         unitsMap[String(o.property_id)]?.status !== 'sold'
     ).length
+    const waitlist = offers.filter(
+      (o) =>
+        o.status === 'unit_locked' &&
+        unitsMap[String(o.property_id)]?.status !== 'sold'
+    ).length
     const archive = offers.filter(
       (o) =>
-        o.status === 'unit_locked' ||
         o.status === 'rejected' ||
         unitsMap[String(o.property_id)]?.status === 'sold'
     ).length
@@ -411,6 +349,7 @@ function AdminDealsContent() {
       pending_admin: pendingAdmin,
       accepted,
       negotiating,
+      waitlist,
       backup_rejected: archive,
     }
   }, [offers, unitsMap])
@@ -449,8 +388,12 @@ function AdminDealsContent() {
         )
           return false
         if (
+          activeTab === 'waitlist' &&
+          (o.status !== 'unit_locked' || isSold)
+        )
+          return false
+        if (
           activeTab === 'backup_rejected' &&
-          o.status !== 'unit_locked' &&
           o.status !== 'rejected' &&
           !isSold
         )
@@ -477,8 +420,8 @@ function AdminDealsContent() {
       .sort((a, b) => {
         const uA = unitsMap[String(a.property_id)]
         const uB = unitsMap[String(b.property_id)]
-        const pA = getOfferSortPriority(a.status, uA?.status)
-        const pB = getOfferSortPriority(b.status, uB?.status)
+        const pA = getOfferSortPriority(a, uA?.status)
+        const pB = getOfferSortPriority(b, uB?.status)
         if (pA !== pB) return pA - pB
         return (
           new Date(b.updated_at || b.created_at || 0).getTime() -
@@ -488,13 +431,13 @@ function AdminDealsContent() {
   }, [offers, unitsMap, activeTab, search])
 
   function getDealStatusLabel(offer: any, unit: any) {
-    if (unit?.status === 'sold') return ui.badgeStep4
-    if (offer.status === 'pending_admin') return ui.badgeStep1
-    if (offer.status === 'pending_seller') return ui.badgeStep2
-    if (offer.status === 'counter_offered') return ui.badgeStep2Counter
-    if (offer.status === 'accepted') return ui.badgeStep3
-    if (offer.status === 'unit_locked') return ui.badgeBackup
-    return ui.badgeRejected
+    if (unit?.status === 'sold') return d.statusSoldDone
+    if (offer.status === 'pending_admin') return d.statusPendingAdmin
+    if (offer.status === 'pending_seller') return d.statusPendingSeller
+    if (offer.status === 'counter_offered') return d.statusCounterPrefix
+    if (offer.status === 'accepted') return d.statusAcceptedReady
+    if (offer.status === 'unit_locked') return d.statusBackupWaiting
+    return d.statusRejected
   }
 
   function exportDealsReport(
@@ -627,18 +570,17 @@ function AdminDealsContent() {
 
   return (
     <div dir={dir} className="mx-auto max-w-6xl space-y-4 text-start">
-      {/* 1. هيدر الصفحة وأزرار التصدير */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/90 bg-white px-5 py-4 shadow-2xs">
         <div>
           <div className="inline-flex items-center gap-1.5 rounded-full bg-[#eaf8f2] px-3 py-1 text-[11px] font-extrabold text-[#007a5a]">
             <Handshake className="size-3.5" />
-            <span>{ui.pageBadge}</span>
+            <span>{d.eyebrow}</span>
           </div>
           <h1 className="mt-1 text-lg font-black text-[#0f1d40] sm:text-xl">
-            {ui.pageTitle}
+            {d.title}
           </h1>
           <p className="mt-0.5 text-xs font-medium text-slate-500">
-            {ui.pageSub}
+            {d.subtitle}
           </p>
         </div>
 
@@ -717,7 +659,6 @@ function AdminDealsContent() {
         </div>
       )}
 
-      {/* 2. شريط موحد للبحث وتبويبات الفلترة (بدون كروت علوية مكررة) */}
       <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/90 bg-white p-3.5 shadow-2xs sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="relative w-full sm:max-w-xs sm:flex-1">
           <Search className="pointer-events-none absolute top-1/2 end-3 size-4 -translate-y-1/2 text-slate-400" />
@@ -732,22 +673,26 @@ function AdminDealsContent() {
 
         <div className="flex flex-wrap items-center gap-1.5">
           {[
-            { id: 'all' as const, label: `${ui.tabAll} (${counts.all})` },
+            { id: 'all' as const, label: `${d.tabAll} (${counts.all})` },
             {
               id: 'pending_admin' as const,
-              label: `${ui.tabStep1} (${counts.pending_admin})`,
+              label: `${d.tabPendingAdmin} (${counts.pending_admin})`,
             },
             {
               id: 'negotiating' as const,
-              label: `${ui.tabStep2} (${counts.negotiating})`,
+              label: `${d.tabNegotiating} (${counts.negotiating})`,
             },
             {
               id: 'accepted' as const,
-              label: `${ui.tabStep3} (${counts.accepted})`,
+              label: `${d.tabAccepted} (${counts.accepted})`,
+            },
+            {
+              id: 'waitlist' as const,
+              label: `⏳ ${d.tabWaitlist} (${counts.waitlist})`,
             },
             {
               id: 'backup_rejected' as const,
-              label: `${ui.tabOther} (${counts.backup_rejected})`,
+              label: `${d.tabBackupRejected} (${counts.backup_rejected})`,
             },
           ].map((tab) => (
             <button
@@ -766,7 +711,6 @@ function AdminDealsContent() {
         </div>
       </div>
 
-      {/* 3. قائمة العروض والصفقات */}
       {loading ? (
         <div className="flex min-h-[40vh] items-center justify-center rounded-2xl border border-slate-200 bg-white p-10">
           <div className="flex items-center gap-2 text-xs font-bold text-[#007a5a]">
@@ -786,7 +730,7 @@ function AdminDealsContent() {
             className="mt-4 inline-flex h-9 items-center gap-1.5 rounded-xl bg-[#007a5a] px-5 text-xs font-extrabold text-white hover:bg-[#006248]"
           >
             <RefreshCw className="size-3.5" />
-            <span>{d.retryBtn || d.reactivateToSellerBtn}</span>
+            <span>{d.retryBtn}</span>
           </button>
         </div>
       ) : filteredOffers.length === 0 ? (
@@ -810,9 +754,26 @@ function AdminDealsContent() {
             const commissionAmount = Math.round(
               contractPrice * (commPct / 100)
             )
+
+            const unitGuardrails = getUnitPricingGuardrails(unit)
+            const secretSellerMinCash = unitGuardrails.minAllowedOfferCash
+            const isSellerNegotiable = unitGuardrails.allowNegotiation
+
+            const diffs = Array.isArray(offer.diff_reasons)
+              ? offer.diff_reasons
+              : []
+            const isReturnedFromWaitlistPriority = diffs.includes(
+              PRIORITY_RETURNED_TAG
+            )
+            const isNotifiedForReopen = diffs.includes(REOPENED_PROMPT_TAG)
+
             const isHighlighted = String(targetOfferId) === String(offer.id)
             const isCardBusy = isPending && processingId === offer.id
             const isMenuOpen = openMenuId === offer.id
+            const activeConfirm =
+              confirmingAction && confirmingAction.offerId === offer.id
+                ? confirmingAction
+                : null
 
             const buyerWaMsg = `${d.waBuyerGreetingPrefix} ${offer.buyer_name || ''}${commaSep}${d.waBuyerBodyPrefix} (${offerRef}) — (${unit.project_name || ''} - ${uCode}) — (${offeredCash.toLocaleString('en-US')} ${cur}).`
             const sellerWaMsg = `${d.waSellerGreetingPrefix} ${unit.name || ''}${commaSep}${d.waSellerBodyPrefix} (${offerRef}) — (${unit.project_name || ''} - ${uCode}) — (${offeredCash.toLocaleString('en-US')} ${cur}).`
@@ -824,11 +785,14 @@ function AdminDealsContent() {
                 className={`relative overflow-hidden rounded-2xl border bg-white p-5 shadow-2xs transition ${
                   isHighlighted
                     ? 'border-2 border-[#007a5a] ring-4 ring-[#007a5a]/15'
-                    : offer.status === 'accepted' && unit.status !== 'sold'
-                      ? 'border-2 border-emerald-300'
-                      : offer.status === 'pending_admin'
-                        ? 'border-2 border-amber-300'
-                        : 'border-slate-200/90'
+                    : isReturnedFromWaitlistPriority &&
+                        offer.status === 'pending_admin'
+                      ? 'border-2 border-amber-500 bg-amber-50/15'
+                      : offer.status === 'accepted' && unit.status !== 'sold'
+                        ? 'border-2 border-emerald-300'
+                        : offer.status === 'pending_admin'
+                          ? 'border-2 border-amber-300'
+                          : 'border-slate-200/90'
                 }`}
               >
                 {isCardBusy && (
@@ -837,7 +801,6 @@ function AdminDealsContent() {
                   </div>
                 )}
 
-                {/* الصف العلوي: كود العرض + اسم الوحدة + شارة المرحلة */}
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3.5">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="rounded-lg bg-[#eaf8f2] px-2.5 py-1 font-mono text-xs font-black text-[#007a5a]">
@@ -852,29 +815,36 @@ function AdminDealsContent() {
                     >
                       {unit.project_name || d.unitFallback} · {areaName}
                     </Link>
+
+                    {isReturnedFromWaitlistPriority && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/90 px-3 py-1 text-[11px] font-black text-[#0f1d40] shadow-2xs">
+                        <Sparkles className="size-3.5" />
+                        <span>⭐ {d.badgePriorityReturned}</span>
+                      </span>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-2">
                     {unit.status === 'sold' ? (
                       <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-700 px-3.5 py-1 text-xs font-extrabold text-white">
                         <Check className="size-3.5" />
-                        <span>{ui.badgeStep4}</span>
+                        <span>{d.statusSoldDone}</span>
                       </span>
                     ) : offer.status === 'pending_admin' ? (
                       <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500 px-3.5 py-1 text-xs font-extrabold text-white">
                         <Clock className="size-3.5" />
-                        <span>{ui.badgeStep1}</span>
+                        <span>{d.statusPendingAdmin}</span>
                       </span>
                     ) : offer.status === 'pending_seller' ? (
                       <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3.5 py-1 text-xs font-extrabold text-blue-800">
                         <Clock className="size-3.5 text-blue-600" />
-                        <span>{ui.badgeStep2}</span>
+                        <span>{d.statusPendingSeller}</span>
                       </span>
                     ) : offer.status === 'counter_offered' ? (
                       <span className="inline-flex items-center gap-1.5 rounded-full border border-purple-200 bg-purple-50 px-3.5 py-1 text-xs font-extrabold text-purple-900">
                         <RefreshCw className="size-3.5" />
                         <span>
-                          {ui.badgeStep2Counter} (
+                          {d.statusCounterPrefix} (
                           <span dir="ltr">
                             {Number(offer.counter_cash || 0).toLocaleString(
                               'en-US'
@@ -887,16 +857,20 @@ function AdminDealsContent() {
                     ) : offer.status === 'accepted' ? (
                       <span className="inline-flex items-center gap-1.5 rounded-full bg-[#007a5a] px-4 py-1 text-xs font-extrabold text-white">
                         <Handshake className="size-3.5" />
-                        <span>{ui.badgeStep3}</span>
+                        <span>{d.statusAcceptedReady}</span>
                       </span>
                     ) : offer.status === 'unit_locked' ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
                         <Lock className="size-3" />
-                        <span>{ui.badgeBackup}</span>
+                        <span>
+                          {isNotifiedForReopen
+                            ? d.badgeReopenNotifiedWaiting
+                            : d.statusBackupWaiting}
+                        </span>
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-3 py-1 text-xs font-bold text-red-700">
-                        <span>{ui.badgeRejected}</span>
+                        <span>{d.statusRejected}</span>
                       </span>
                     )}
 
@@ -974,7 +948,6 @@ function AdminDealsContent() {
                   </div>
                 </div>
 
-                {/* الأعمدة الـ 3: المشتري | البائع | الملخص المالي */}
                 <div className="mt-4 grid grid-cols-1 gap-3.5 md:grid-cols-3">
                   <div className="flex flex-col justify-between rounded-xl border border-slate-200/80 bg-slate-50/50 p-3.5">
                     <div>
@@ -1038,6 +1011,20 @@ function AdminDealsContent() {
                           {requiredCash.toLocaleString('en-US')} {cur}
                         </strong>
                       </p>
+
+                      <div className="mt-1.5 rounded-lg border border-amber-200 bg-amber-50/90 px-2.5 py-1 text-[10.5px] font-extrabold text-amber-950">
+                        {isSellerNegotiable ? (
+                          <>
+                            🔒 {d.secretSellerMinLabel}:{' '}
+                            <strong dir="ltr">
+                              {secretSellerMinCash.toLocaleString('en-US')}{' '}
+                              {cur}
+                            </strong>
+                          </>
+                        ) : (
+                          <span>🔒 {d.fixedPriceNonNegotiableBadge}</span>
+                        )}
+                      </div>
                     </div>
 
                     {unit.phone && (
@@ -1056,15 +1043,91 @@ function AdminDealsContent() {
 
                   <div className="flex flex-col justify-between rounded-xl border border-emerald-200 bg-[#eaf8f2]/60 p-3.5">
                     <div>
-                      <span className="block text-[10.5px] font-extrabold text-[#007a5a]">
-                        {d.offeredCashHeader}
-                      </span>
-                      <strong
-                        dir="ltr"
-                        className="mt-1 block text-2xl font-black text-[#007a5a] tabular-nums"
-                      >
-                        {offeredCash.toLocaleString('en-US')} {cur}
-                      </strong>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="block text-[10.5px] font-extrabold text-[#007a5a]">
+                          {d.offeredCashHeader}
+                        </span>
+                        {unit.status !== 'sold' &&
+                          (offer.status === 'pending_admin' ||
+                            offer.status === 'pending_seller' ||
+                            offer.status === 'counter_offered') && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (editingPriceOfferId === offer.id) {
+                                  setEditingPriceOfferId(null)
+                                } else {
+                                  setEditingPriceOfferId(offer.id)
+                                  setEditingPriceStr(
+                                    offeredCash.toLocaleString('en-US')
+                                  )
+                                }
+                              }}
+                              className="inline-flex items-center gap-1 rounded-md bg-white px-2 py-0.5 text-[10px] font-extrabold text-[#0f1d40] shadow-2xs hover:text-[#007a5a]"
+                            >
+                              <Edit3 className="size-3 text-[#007a5a]" />
+                              <span>{d.editNegotiatedPriceBtn}</span>
+                            </button>
+                          )}
+                      </div>
+
+                      {editingPriceOfferId === offer.id ? (
+                        <div className="mt-2 space-y-2">
+                          <input
+                            type="text"
+                            dir="ltr"
+                            value={editingPriceStr}
+                            onChange={(e) => {
+                              const raw = toEnglishDigits(
+                                e.target.value
+                              ).replace(/[^\d]/g, '')
+                              setEditingPriceStr(
+                                raw ? Number(raw).toLocaleString('en-US') : ''
+                              )
+                            }}
+                            className="h-9 w-full rounded-lg border border-emerald-400 bg-white px-2.5 text-sm font-black text-[#0f1d40]"
+                          />
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              disabled={isPending}
+                              onClick={() => {
+                                const val =
+                                  Number(
+                                    toEnglishDigits(editingPriceStr).replace(
+                                      /,/g,
+                                      ''
+                                    )
+                                  ) || offeredCash
+                                handleLifecycleAction(
+                                  offer.id,
+                                  'approve_to_seller',
+                                  `${d.noticeApprovedToSeller} (${val.toLocaleString('en-US')} ${cur}) ✓`,
+                                  val
+                                )
+                              }}
+                              className="flex-1 rounded-lg bg-[#007a5a] px-2.5 py-1.5 text-[11px] font-extrabold text-white"
+                            >
+                              {d.approveToSellerBtn}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditingPriceOfferId(null)}
+                              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-bold text-slate-600"
+                            >
+                              {d.cancelOfferBtn}
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <strong
+                          dir="ltr"
+                          className="mt-1 block text-2xl font-black text-[#007a5a] tabular-nums"
+                        >
+                          {offeredCash.toLocaleString('en-US')} {cur}
+                        </strong>
+                      )}
+
                       {offer.counter_cash && (
                         <p className="mt-1 text-[11px] font-extrabold text-purple-800">
                           🔄 {d.counterOfferLabel}:{' '}
@@ -1091,21 +1154,207 @@ function AdminDealsContent() {
                   </div>
                 </div>
 
-                {/* الشريط السفلي: تاريخ العرض + أزرار القرار */}
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-2.5 border-t border-slate-100 pt-3.5">
-                  <span className="text-[11px] font-semibold text-slate-400">
-                    {d.offerDateLabel}:{' '}
-                    <span dir="ltr">
-                      {offer.created_at
-                        ? new Date(offer.created_at).toLocaleDateString('en-GB')
-                        : '—'}
+                  <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold text-slate-500">
+                    <span>
+                      {d.offerDateLabel}:{' '}
+                      <strong dir="ltr" className="text-[#0f1d40]">
+                        {offer.created_at
+                          ? new Date(offer.created_at).toLocaleDateString(
+                              'en-GB'
+                            )
+                          : '—'}
+                      </strong>
                     </span>
-                  </span>
+                    {(offer.status === 'pending_seller' ||
+                      offer.status === 'counter_offered') &&
+                      offer.updated_at && (
+                        <span className="inline-flex items-center rounded-md bg-amber-100 px-2 py-0.5 text-[10.5px] font-extrabold text-amber-900">
+                          ⏳ {d.sentToSellerSinceLabel}:{' '}
+                          <span dir="ltr" className="ms-1">
+                            {new Date(offer.updated_at).toLocaleDateString(
+                              'en-GB'
+                            )}
+                          </span>
+                        </span>
+                      )}
+                  </div>
 
-                  <div className="flex flex-wrap items-center gap-2">
-                    {offer.status === 'pending_admin' &&
-                      unit.status !== 'sold' && (
+                  {activeConfirm ? (
+                    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-1.5">
+                      <span className="text-xs font-extrabold text-amber-950">
+                        ⚠️ {d.confirmActionPrompt} ({activeConfirm.label})؟
+                      </span>
+                      <button
+                        type="button"
+                        disabled={isPending}
+                        onClick={() =>
+                          handleLifecycleAction(
+                            offer.id,
+                            activeConfirm.action,
+                            `${activeConfirm.label} (#${offerRef}) ✓`
+                          )
+                        }
+                        className="rounded-lg bg-[#007a5a] px-3 py-1 text-xs font-extrabold text-white hover:bg-[#006248]"
+                      >
+                        {d.confirmYesBtn}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmingAction(null)}
+                        className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-bold text-slate-700"
+                      >
+                        {d.confirmBackBtn}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap items-center gap-2">
+                      {offer.status === 'pending_admin' &&
+                        unit.status !== 'sold' && (
+                          <>
+                            <button
+                              type="button"
+                              disabled={isPending}
+                              onClick={() =>
+                                handleLifecycleAction(
+                                  offer.id,
+                                  'approve_to_seller',
+                                  `${d.noticeApprovedToSeller} (${offerRef}) ✓`
+                                )
+                              }
+                              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] px-4 text-xs font-extrabold text-white shadow-xs transition hover:bg-[#006248]"
+                            >
+                              <Send className="size-3.5" />
+                              <span>{d.approveToSellerBtn}</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              disabled={isPending}
+                              onClick={() =>
+                                setConfirmingAction({
+                                  offerId: offer.id,
+                                  action: 'admin_accept_deal',
+                                  label: d.btnAdminAcceptDeal,
+                                })
+                              }
+                              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-emerald-300 bg-[#eaf8f2] px-3.5 text-xs font-extrabold text-[#007a5a] hover:bg-emerald-100"
+                            >
+                              <Handshake className="size-3.5" />
+                              <span>{d.btnAdminAcceptDeal}</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              disabled={isPending}
+                              onClick={() =>
+                                setConfirmingAction({
+                                  offerId: offer.id,
+                                  action: 'reject_offer',
+                                  label: d.rejectOfferBtn,
+                                })
+                              }
+                              className="inline-flex h-9 items-center justify-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3.5 text-xs font-bold text-red-600 hover:bg-red-100"
+                            >
+                              <XCircle className="size-3.5" />
+                              <span>{d.rejectOfferBtn}</span>
+                            </button>
+                          </>
+                        )}
+
+                      {offer.status === 'accepted' && unit.status !== 'sold' && (
                         <>
+                          <button
+                            type="button"
+                            disabled={isPending}
+                            onClick={() =>
+                              setConfirmingAction({
+                                offerId: offer.id,
+                                action: 'mark_unit_sold',
+                                label: d.markUnitSoldBtn,
+                              })
+                            }
+                            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] px-4 text-xs font-extrabold text-white shadow-xs transition hover:bg-[#006248]"
+                          >
+                            <Check className="size-4" />
+                            <span>{d.markUnitSoldBtn}</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            disabled={isPending}
+                            onClick={() =>
+                              setConfirmingAction({
+                                offerId: offer.id,
+                                action: 'reopen_unit_offers',
+                                label: d.reopenBackupOffersBtn,
+                              })
+                            }
+                            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 px-3.5 text-xs font-extrabold text-amber-900 transition hover:bg-amber-100"
+                          >
+                            <RotateCcw className="size-3.5" />
+                            <span>{d.reopenBackupOffersBtn}</span>
+                          </button>
+                        </>
+                      )}
+
+                      {(offer.status === 'pending_seller' ||
+                        offer.status === 'counter_offered') &&
+                        unit.status !== 'sold' && (
+                          <>
+                            <button
+                              type="button"
+                              disabled={isPending}
+                              onClick={() =>
+                                setConfirmingAction({
+                                  offerId: offer.id,
+                                  action: 'admin_accept_deal',
+                                  label: d.btnAdminAcceptDeal,
+                                })
+                              }
+                              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] px-4 text-xs font-extrabold text-white shadow-xs transition hover:bg-[#006248]"
+                            >
+                              <Handshake className="size-3.5" />
+                              <span>🤝 {d.btnAdminAcceptDeal}</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              disabled={isPending}
+                              onClick={() =>
+                                setConfirmingAction({
+                                  offerId: offer.id,
+                                  action: 'seller_unresponsive_cancel',
+                                  label: d.btnSellerUnavailableCancel,
+                                })
+                              }
+                              className="inline-flex h-9 items-center justify-center gap-1 rounded-xl border border-amber-300 bg-amber-50 px-3 text-xs font-extrabold text-amber-900 hover:bg-amber-100"
+                            >
+                              <Clock className="size-3.5" />
+                              <span>{d.btnSellerUnavailableCancel}</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              disabled={isPending}
+                              onClick={() =>
+                                setConfirmingAction({
+                                  offerId: offer.id,
+                                  action: 'reject_offer',
+                                  label: d.cancelOfferBtn,
+                                })
+                              }
+                              className="inline-flex h-9 items-center justify-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 text-xs font-bold text-red-600 hover:bg-red-100"
+                            >
+                              <XCircle className="size-3.5" />
+                              <span>{d.cancelOfferBtn}</span>
+                            </button>
+                          </>
+                        )}
+
+                      {(offer.status === 'unit_locked' ||
+                        offer.status === 'rejected') &&
+                        unit.status !== 'sold' && (
                           <button
                             type="button"
                             disabled={isPending}
@@ -1116,106 +1365,14 @@ function AdminDealsContent() {
                                 `${d.noticeApprovedToSeller} (${offerRef}) ✓`
                               )
                             }
-                            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] px-4 text-xs font-extrabold text-white shadow-xs transition hover:bg-[#006248]"
+                            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-[#eaf8f2] px-3.5 text-xs font-extrabold text-[#007a5a] hover:bg-emerald-100"
                           >
-                            <Send className="size-3.5" />
-                            <span>{ui.btnSendToSeller}</span>
+                            <RotateCcw className="size-3.5" />
+                            <span>{d.reactivateToSellerBtn}</span>
                           </button>
-
-                          <button
-                            type="button"
-                            disabled={isPending}
-                            onClick={() =>
-                              handleLifecycleAction(
-                                offer.id,
-                                'reject_offer',
-                                `${d.noticeOfferRejected} (${offerRef})`
-                              )
-                            }
-                            className="inline-flex h-9 items-center justify-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3.5 text-xs font-bold text-red-600 hover:bg-red-100"
-                          >
-                            <XCircle className="size-3.5" />
-                            <span>{d.rejectOfferBtn}</span>
-                          </button>
-                        </>
-                      )}
-
-                    {offer.status === 'accepted' && unit.status !== 'sold' && (
-                      <>
-                        <button
-                          type="button"
-                          disabled={isPending}
-                          onClick={() =>
-                            handleLifecycleAction(
-                              offer.id,
-                              'mark_unit_sold',
-                              `🎉 ${d.noticeUnitMarkedSold} (${unit.project_name || ''})`
-                            )
-                          }
-                          className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] px-4 text-xs font-extrabold text-white shadow-xs transition hover:bg-[#006248]"
-                        >
-                          <Check className="size-4" />
-                          <span>{ui.btnMarkSold}</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          disabled={isPending}
-                          onClick={() =>
-                            handleLifecycleAction(
-                              offer.id,
-                              'reopen_unit_offers',
-                              `${d.noticeReopenedBackups} (${offer.buyer_name || ''}) ✓`
-                            )
-                          }
-                          className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 px-3.5 text-xs font-extrabold text-amber-900 transition hover:bg-amber-100"
-                        >
-                          <RotateCcw className="size-3.5" />
-                          <span>{d.reopenBackupOffersBtn}</span>
-                        </button>
-                      </>
-                    )}
-
-                    {(offer.status === 'pending_seller' ||
-                      offer.status === 'counter_offered') &&
-                      unit.status !== 'sold' && (
-                        <button
-                          type="button"
-                          disabled={isPending}
-                          onClick={() =>
-                            handleLifecycleAction(
-                              offer.id,
-                              'reject_offer',
-                              `${d.noticeOfferRejected} (${offerRef})`
-                            )
-                          }
-                          className="inline-flex h-9 items-center justify-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 text-xs font-bold text-red-600 hover:bg-red-100"
-                        >
-                          <XCircle className="size-3.5" />
-                          <span>{d.cancelOfferBtn}</span>
-                        </button>
-                      )}
-
-                    {(offer.status === 'unit_locked' ||
-                      offer.status === 'rejected') &&
-                      unit.status !== 'sold' && (
-                        <button
-                          type="button"
-                          disabled={isPending}
-                          onClick={() =>
-                            handleLifecycleAction(
-                              offer.id,
-                              'approve_to_seller',
-                              `${d.noticeApprovedToSeller} (${offerRef}) ✓`
-                            )
-                          }
-                          className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-[#eaf8f2] px-3.5 text-xs font-extrabold text-[#007a5a] hover:bg-emerald-100"
-                        >
-                          <RotateCcw className="size-3.5" />
-                          <span>{d.reactivateToSellerBtn}</span>
-                        </button>
-                      )}
-                  </div>
+                        )}
+                    </div>
+                  )}
                 </div>
               </div>
             )

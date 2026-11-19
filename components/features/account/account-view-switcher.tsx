@@ -4,7 +4,11 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { Building2, Compass } from 'lucide-react'
 import { SellerDashboard, type SellerUnitItem } from './seller-dashboard'
-import { BuyerDashboard, type BuyerRequestItem } from './buyer-dashboard'
+import {
+  BuyerDashboard,
+  type BuyerRequestItem,
+  type PurchasedUnitSummary,
+} from './buyer-dashboard'
 import { AccountActionLinks } from './delete-account-modal'
 import { useTranslation } from '@/lib/i18n'
 
@@ -18,6 +22,7 @@ export function AccountViewSwitcher({
   offersCountMap,
   buyerOffersCount = 0,
   matchedBuyersCountMap,
+  purchasedUnits = [],
   deletionRequested,
 }: {
   userName?: string
@@ -29,6 +34,7 @@ export function AccountViewSwitcher({
   offersCountMap: Record<string, number>
   buyerOffersCount?: number
   matchedBuyersCountMap: Record<string, number>
+  purchasedUnits?: PurchasedUnitSummary[]
   deletionRequested: boolean
 }) {
   const { t: dict, dir } = useTranslation()
@@ -38,8 +44,13 @@ export function AccountViewSwitcher({
     initialView
   )
 
+  const hasBuyerActivity = buys.length > 0 || purchasedUnits.length > 0
+
+  // الأولوية للطلب النشط غير المغلق؛ لو كل الطلبات مغلقة يمرر المغلق ليعرض قسم الوحدات المشتراة وزر طلب جديد
   const mainBuyerRequest =
     buys.find((b) => {
+      const st = String(b.status || '').trim().toLowerCase()
+      if (st === 'closed' || st === 'archived') return false
       const areasStr = Array.isArray(b.preferred_areas)
         ? b.preferred_areas.join(' ')
         : String(b.preferred_areas || '')
@@ -60,7 +71,7 @@ export function AccountViewSwitcher({
 
   return (
     <div dir={dir}>
-      {sells.length > 0 && buys.length > 0 && (
+      {sells.length > 0 && hasBuyerActivity && (
         <div className="mx-auto mb-6 max-w-[680px] px-4 sm:px-6">
           <div className="grid grid-cols-2 gap-2 rounded-2xl border border-gray-200/90 bg-white p-1.5 shadow-2xs">
             <button
@@ -102,12 +113,13 @@ export function AccountViewSwitcher({
           matchedBuyersCountMap={matchedBuyersCountMap}
           deletionRequested={deletionRequested}
         />
-      ) : currentView === 'buyer' && buys.length > 0 ? (
+      ) : currentView === 'buyer' && hasBuyerActivity ? (
         <BuyerDashboard
           userName={userName}
           buyReq={mainBuyerRequest}
           marketUnits={activeMarketUnits}
           offersCount={buyerOffersCount}
+          purchasedUnits={purchasedUnits}
           deletionRequested={deletionRequested}
         />
       ) : (
@@ -126,7 +138,7 @@ export function AccountViewSwitcher({
               >
                 {t.sellCta}
               </Link>
-              {buys.length > 0 ? (
+              {hasBuyerActivity ? (
                 <button
                   type="button"
                   onClick={() => handleSwitch('buyer')}

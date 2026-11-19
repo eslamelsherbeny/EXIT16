@@ -4,10 +4,10 @@ import { useState, useEffect, useRef, useTransition } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
-  ArrowLeft,
   Bell,
   Building2,
   Check,
+  CheckCheck,
   CheckCircle2,
   ChevronDown,
   Clock,
@@ -20,15 +20,12 @@ import {
   Settings,
   ShieldCheck,
   Star,
-  Trash2,
   User,
   Users,
   WalletCards,
   X,
 } from "lucide-react"
 import {
-  clearAllNotificationsAction,
-  deleteNotificationAction,
   markAllNotificationsAsReadAction,
   markNotificationAsReadAction,
 } from "@/actions/notification-actions"
@@ -127,6 +124,11 @@ export default function AdminShell({
 
   const { t: dict, locale, dir, isRtl } = useTranslation()
   const t = dict.admin.shell
+  const nL =
+    ((dict.accountPages as Record<string, any>)?.notifications as Record<
+      string,
+      string
+    >) || {}
   const brandName = dict.brand?.name || "Aqar"
   const brandAccent = dict.brand?.exit || "Exit"
 
@@ -277,29 +279,31 @@ export default function AdminShell({
   }
 
   const handleToggleNotifications = () => {
-    const nextOpen = !notifOpen
-    setNotifOpen(nextOpen)
+    setNotifOpen((prev) => !prev)
     setLangMenuOpen(false)
+  }
 
-    if (nextOpen && unreadCount > 0) {
-      setUnreadCount(0)
-      setLocalNotifs((prev) => prev.map((n) => ({ ...n, isRead: true })))
-      startTransition(async () => {
-        await markAllNotificationsAsReadAction("admin")
-      })
-    }
+  const handleMarkAllRead = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (unreadCount === 0) return
+    setUnreadCount(0)
+    setLocalNotifs((prev) => prev.map((n) => ({ ...n, isRead: true })))
+    startTransition(async () => {
+      await markAllNotificationsAsReadAction("admin")
+    })
   }
 
   const handleNotificationClick = (item: AdminNotificationItem) => {
     setNotifOpen(false)
-    setLocalNotifs((prev) =>
-      prev.map((n) => (n.id === item.id ? { ...n, isRead: true } : n))
-    )
-    setUnreadCount((prev) => Math.max(0, prev - 1))
-
-    startTransition(async () => {
-      await markNotificationAsReadAction(item.id)
-    })
+    if (!item.isRead) {
+      setLocalNotifs((prev) =>
+        prev.map((n) => (n.id === item.id ? { ...n, isRead: true } : n))
+      )
+      setUnreadCount((prev) => Math.max(0, prev - 1))
+      startTransition(async () => {
+        await markNotificationAsReadAction(item.id)
+      })
+    }
 
     const targetHref = item.href?.includes("tab=featured")
       ? item.href.replace("/admin/properties?tab=featured", "/admin/promotions?")
@@ -310,34 +314,73 @@ export default function AdminShell({
     router.push(targetHref)
   }
 
-  const handleDeleteNotification = (e: React.MouseEvent, id: string) => {
-    e.stopPropagation()
-    e.preventDefault()
-
-    const target = localNotifs.find((n) => n.id === id)
-    if (target && !target.isRead) {
-      setUnreadCount((prev) => Math.max(0, prev - 1))
-    }
-    setLocalNotifs((prev) => prev.filter((n) => n.id !== id))
-
-    startTransition(async () => {
-      await deleteNotificationAction(id)
-    })
-  }
-
-  const handleClearAll = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    setLocalNotifs([])
-    setUnreadCount(0)
-
-    startTransition(async () => {
-      await clearAllNotificationsAction("admin")
-    })
-  }
-
   const currentSection =
     visibleNavLinks.find((item) => isActive(item.href))?.label || t.adminPanel
   const activeLangObj = SUPPORTED_LANGUAGES[locale] || SUPPORTED_LANGUAGES.ar
+
+  const previewNotifs = localNotifs.slice(0, 8)
+  const unreadPreview = previewNotifs.filter((n) => !n.isRead)
+  const readPreview = previewNotifs.filter((n) => n.isRead)
+
+  const renderAdminNotifRow = (item: AdminNotificationItem) => (
+    <div
+      key={item.id}
+      onClick={() => handleNotificationClick(item)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") handleNotificationClick(item)
+      }}
+      className={`group flex cursor-pointer items-start gap-3 p-3.5 text-start transition hover:bg-slate-50 ${
+        !item.isRead ? "bg-[#eaf8f2]/45" : "bg-white"
+      }`}
+    >
+      <span
+        className={`mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
+          item.type === "property"
+            ? "bg-amber-100 text-amber-800"
+            : item.type === "lead"
+              ? "bg-[#eaf8f2] text-[#007a5a]"
+              : "bg-blue-100 text-blue-800"
+        }`}
+      >
+        {item.type === "property" ? (
+          <Building2 className="size-4" />
+        ) : item.type === "lead" ? (
+          <FileText className="size-4" />
+        ) : (
+          <WalletCards className="size-4" />
+        )}
+      </span>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-start justify-between gap-2">
+          <p
+            className={`text-xs leading-snug text-[#0f1d40] ${
+              !item.isRead ? "font-extrabold" : "font-bold"
+            }`}
+          >
+            {item.title}
+          </p>
+          {!item.isRead && (
+            <span className="mt-1 size-2 shrink-0 rounded-full bg-[#007a5a]" />
+          )}
+        </div>
+        <p className="mt-0.5 text-[11px] leading-relaxed text-slate-600 break-words line-clamp-2">
+          {item.subtitle}
+        </p>
+        <div className="mt-1.5 flex items-center justify-between">
+          <span className="flex items-center gap-1 text-[10px] text-slate-400">
+            <Clock className="size-3" />
+            <span dir="ltr">{item.createdAt}</span>
+          </span>
+          <span className="text-[10px] font-bold text-[#007a5a] group-hover:underline">
+            {t.view}
+          </span>
+        </div>
+      </div>
+    </div>
+  )
 
   return (
     <div
@@ -589,7 +632,7 @@ export default function AdminShell({
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
-            {/* 1. زر اختيار اللغة المنسدل (علم + أول حرفين) */}
+            {/* 1. زر اختيار اللغة المنسدل */}
             <div className="relative" ref={langMenuRef}>
               <button
                 type="button"
@@ -659,7 +702,7 @@ export default function AdminShell({
               )}
             </div>
 
-            {/* 2. زر الإشعارات */}
+            {/* 2. زر الإشعارات بنظام فيسبوك (جديد / أقدم + شوف الكل بدون مسح) */}
             <div className="relative" ref={notifRef}>
               <button
                 type="button"
@@ -689,117 +732,87 @@ export default function AdminShell({
                 >
                   <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-4 py-3">
                     <span className="flex items-center gap-1.5 text-xs font-extrabold text-[#0f1d40]">
-                      <span>{t.notifications}</span>
-                      <span
-                        dir="ltr"
-                        className="rounded-full bg-[#eaf8f2] px-2 py-0.5 text-[10px] font-extrabold text-[#007a5a]"
-                      >
-                        {localNotifs.length}
-                      </span>
+                      <span>{nL.title || t.notifications}</span>
+                      {unreadCount > 0 && (
+                        <span
+                          dir="ltr"
+                          className="rounded-full bg-[#eaf8f2] px-2 py-0.5 text-[10px] font-extrabold text-[#007a5a]"
+                        >
+                          {unreadCount}
+                        </span>
+                      )}
                     </span>
 
                     <div className="flex items-center gap-2">
-                      {localNotifs.length > 0 && (
+                      {unreadCount > 0 && (
                         <button
                           type="button"
-                          onClick={handleClearAll}
-                          className="rounded-lg px-2 py-1 text-[11px] font-bold text-red-600 transition hover:bg-red-50"
+                          onClick={handleMarkAllRead}
+                          className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-extrabold text-[#007a5a] transition hover:bg-[#eaf8f2]"
                         >
-                          {t.clearAll}
+                          <CheckCheck className="size-3.5" />
+                          <span>{nL.markAllReadBtn}</span>
                         </button>
                       )}
-                      <button
-                        type="button"
+                      <Link
+                        href="/admin/notifications"
                         onClick={() => setNotifOpen(false)}
-                        className="rounded-lg p-1 text-slate-400 hover:bg-slate-200/60 hover:text-slate-700"
+                        className="rounded-lg px-2 py-1 text-[11px] font-extrabold text-[#2563eb] transition hover:bg-blue-50"
                       >
-                        <X className="size-3.5" />
-                      </button>
+                        {nL.viewAllBtn}
+                      </Link>
                     </div>
                   </div>
 
-                  <div className="max-h-[60vh] divide-y divide-slate-100 overflow-y-auto sm:max-h-96">
-                    {localNotifs.length === 0 ? (
+                  <div className="max-h-[60vh] overflow-y-auto sm:max-h-96">
+                    {previewNotifs.length === 0 ? (
                       <div className="flex flex-col items-center justify-center px-4 py-8 text-center">
                         <CheckCircle2 className="mb-1.5 size-7 text-emerald-500" />
                         <p className="text-xs font-bold text-[#0f1d40]">
-                          {t.noNotifications}
+                          {nL.emptyTitle || t.noNotifications}
                         </p>
                       </div>
                     ) : (
-                      localNotifs.map((item) => (
-                        <div
-                          key={item.id}
-                          onClick={() => handleNotificationClick(item)}
-                          role="button"
-                          tabIndex={0}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") handleNotificationClick(item)
-                          }}
-                          className={`group flex cursor-pointer items-start gap-3 p-3.5 text-start transition hover:bg-slate-50 ${
-                            !item.isRead ? "bg-[#eaf8f2]/40" : "bg-white"
-                          }`}
-                        >
-                          <span
-                            className={`mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                              item.type === "property"
-                                ? "bg-amber-100 text-amber-800"
-                                : item.type === "lead"
-                                  ? "bg-[#eaf8f2] text-[#007a5a]"
-                                  : "bg-blue-100 text-blue-800"
-                            }`}
-                          >
-                            {item.type === "property" ? (
-                              <Building2 className="size-4" />
-                            ) : item.type === "lead" ? (
-                              <FileText className="size-4" />
-                            ) : (
-                              <WalletCards className="size-4" />
-                            )}
-                          </span>
-
-                          <div className="min-w-0 flex-1">
-                            <p
-                              className={`text-xs leading-snug text-[#0f1d40] ${
-                                !item.isRead ? "font-extrabold" : "font-bold"
-                              }`}
-                            >
-                              {item.title}
-                            </p>
-                            <p className="mt-0.5 text-[11px] leading-relaxed text-slate-600 break-words">
-                              {item.subtitle}
-                            </p>
-                            <div className="mt-1.5 flex items-center justify-between">
-                              <span className="flex items-center gap-1 text-[10px] text-slate-400">
-                                <Clock className="size-3" />
-                                <span dir="ltr">{item.createdAt}</span>
-                              </span>
-                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#007a5a] group-hover:underline">
-                                <span>{t.view}</span>
-                                <ArrowLeft className="size-3 rtl:rotate-0 ltr:rotate-180" />
-                              </span>
+                      <div>
+                        {unreadPreview.length > 0 && (
+                          <div>
+                            <div className="bg-slate-50/90 px-4 py-1.5 text-[10.5px] font-black text-[#007a5a]">
+                              {nL.newSectionHeader}
+                            </div>
+                            <div className="divide-y divide-slate-100">
+                              {unreadPreview.map(renderAdminNotifRow)}
                             </div>
                           </div>
+                        )}
 
-                          <button
-                            type="button"
-                            onClick={(e) =>
-                              handleDeleteNotification(e, item.id)
-                            }
-                            title={t.deleteNotif}
-                            className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md text-slate-400 transition hover:bg-red-50 hover:text-red-600"
-                          >
-                            <Trash2 className="size-3.5" />
-                          </button>
-                        </div>
-                      ))
+                        {readPreview.length > 0 && (
+                          <div>
+                            <div className="bg-slate-50/90 px-4 py-1.5 text-[10.5px] font-black text-slate-400">
+                              {nL.olderSectionHeader}
+                            </div>
+                            <div className="divide-y divide-slate-100">
+                              {readPreview.map(renderAdminNotifRow)}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     )}
+                  </div>
+
+                  <div className="border-t border-slate-100 bg-slate-50/70 p-2 text-center">
+                    <Link
+                      href="/admin/notifications"
+                      onClick={() => setNotifOpen(false)}
+                      className="block w-full rounded-xl py-2 text-xs font-extrabold text-[#007a5a] transition hover:bg-[#eaf8f2]"
+                    >
+                      {nL.viewAllBtn}
+                    </Link>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* 3. أيقونة الملف الشخصي فقط بدون تكرار الاسم */}
+            {/* 3. أيقونة الملف الشخصي */}
             <Link
               href="/admin/profile"
               title={t.myProfile}

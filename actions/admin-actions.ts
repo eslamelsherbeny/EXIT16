@@ -38,6 +38,8 @@ const ALLOWED_USER_STATUSES = new Set([
   "deletion_pending",
 ])
 
+const REOPENED_PROMPT_TAG = "__REOPENED_PROMPT__"
+
 export async function getPublicSiteRuntimeConfigAction(): Promise<{
   siteSettings: GlobalSiteSettings
   isStaff: boolean
@@ -174,7 +176,10 @@ export async function updatePropertyStatusAction(
       }
     }
 
-    // مزامنة جدول العروض (property_offers) مع المرحلة الجديدة للوحدة لمنع أي تعارض منطقي
+    const projectLabel = prop?.project_name || msg.defaultProjectWord
+    const resolvedArea =
+      prop?.area || prop?.documents?.__unit_meta?.area || ""
+
     try {
       if (
         cleanStatus === "pending" ||
@@ -183,7 +188,6 @@ export async function updatePropertyStatusAction(
         cleanStatus === "paused_by_seller" ||
         cleanStatus === "deleted_by_seller"
       ) {
-        // الوحدة غير منشورة بالسوق أو قيد المراجعة -> إلغاء أي عروض شراء نشطة عليها فوراً
         await supabase
           .from("property_offers")
           .update({
@@ -193,7 +197,6 @@ export async function updatePropertyStatusAction(
           .eq("property_id", propertyId)
           .neq("status", "recommended")
       } else if (cleanStatus === "active") {
-        // إعادة الوحدة للسوق كمعروضة متاحة -> إعادة فتح أي عروض كانت مقفلة
         await supabase
           .from("property_offers")
           .update({
@@ -201,9 +204,47 @@ export async function updatePropertyStatusAction(
             updated_at: new Date().toISOString(),
           })
           .eq("property_id", propertyId)
-          .in("status", ["accepted", "unit_locked"])
+          .eq("status", "accepted")
+
+        const { data: waitlistOffers } = await supabase
+          .from("property_offers")
+          .select("id, buyer_user_id, diff_reasons")
+          .eq("property_id", propertyId)
+          .eq("status", "unit_locked")
+
+        if (waitlistOffers && waitlistOffers.length > 0) {
+          for (const wOffer of waitlistOffers) {
+            const wDiffs = Array.isArray(wOffer.diff_reasons)
+              ? wOffer.diff_reasons
+              : []
+            const nextDiffs = Array.from(
+              new Set([...wDiffs, REOPENED_PROMPT_TAG])
+            )
+            await supabase
+              .from("property_offers")
+              .update({
+                diff_reasons: nextDiffs,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", wOffer.id)
+
+            if (wOffer.buyer_user_id) {
+              try {
+                await supabase.from("notifications").insert({
+                  user_id: wOffer.buyer_user_id,
+                  role: "client",
+                  title: `🔥 ${msg.notifActiveTitle} (${projectLabel})`,
+                  message:
+                    "أنت في قائمة الأولوية الاحتياطية لهذه الوحدة. ادخل لتأكيد اهتمامك إذا كنت لا تزال راغباً في شرائها.",
+                  type: "status_update",
+                  link: "/account/offers?role=buyer",
+                  is_read: false,
+                })
+              } catch {}
+            }
+          }
+        }
       } else if (cleanStatus === "sold") {
-        // عند تحويل الوحدة إلى مباعة -> قفل أي عروض أخرى معلقة
         await supabase
           .from("property_offers")
           .update({
@@ -212,12 +253,39 @@ export async function updatePropertyStatusAction(
           })
           .eq("property_id", propertyId)
           .in("status", ["pending_admin", "pending_seller", "counter_offered"])
+
+        const { data: nonAcceptedBuyers } = await supabase
+          .from("property_offers")
+          .select("buyer_user_id")
+          .eq("property_id", propertyId)
+          .neq("status", "accepted")
+
+        const buyerIds = Array.from(
+          new Set(
+            (nonAcceptedBuyers || [])
+              .map((o: any) => o.buyer_user_id)
+              .filter(Boolean)
+          )
+        ) as string[]
+
+        if (buyerIds.length > 0) {
+          try {
+            await supabase.from("notifications").insert(
+              buyerIds.map((bId) => ({
+                user_id: bId,
+                role: "client",
+                title: `ℹ️ ${msg.notifSoldTitle} (${projectLabel})`,
+                message:
+                  "تم إتمام بيع هذه الوحدة لمشترٍ آخر. استكشف الوحدات البديلة المطابقة لميزانيتك في حسابك.",
+                type: "status_update",
+                link: "/account/offers?role=buyer",
+                is_read: false,
+              }))
+            )
+          } catch {}
+        }
       }
     } catch {}
-
-    const projectLabel = prop?.project_name || msg.defaultProjectWord
-    const resolvedArea =
-      prop?.area || prop?.documents?.__unit_meta?.area || ""
 
     if (prop?.user_id) {
       const sellerNotifMap: Record<

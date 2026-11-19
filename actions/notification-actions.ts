@@ -32,6 +32,7 @@ export type NotificationType =
   | "status_update"
   | "admin_alert"
   | "system"
+  | "offer"
 
 export async function localizeNotificationItem(
   item: {
@@ -73,6 +74,8 @@ export async function localizeNotificationItem(
 
     // Offer Actions (accountPages.offers)
     { getVal: (d) => d?.accountPages?.offers?.adminNewOfferNotifTitle, targetVal: tOffersPage.adminNewOfferNotifTitle },
+    { getVal: (d) => d?.accountPages?.offers?.waitlistAdminNotifTitle, targetVal: tOffersPage.waitlistAdminNotifTitle },
+    { getVal: (d) => d?.accountPages?.offers?.priorityBuyerReturnedAdminTitle, targetVal: tOffersPage.priorityBuyerReturnedAdminTitle },
     { getVal: (d) => d?.accountPages?.offers?.sellerNewOfferNotifTitle, targetVal: tOffersPage.sellerNewOfferNotifTitle },
     { getVal: (d) => d?.accountPages?.offers?.adminDealAcceptedNotifTitle, targetVal: tOffersPage.adminDealAcceptedNotifTitle },
     { getVal: (d) => d?.accountPages?.offers?.buyerOfferAcceptedNotifTitle, targetVal: tOffersPage.buyerOfferAcceptedNotifTitle },
@@ -80,6 +83,11 @@ export async function localizeNotificationItem(
     { getVal: (d) => d?.accountPages?.offers?.sellerCounterAcceptedNotifTitle, targetVal: tOffersPage.sellerCounterAcceptedNotifTitle },
     { getVal: (d) => d?.accountPages?.offers?.buyerAdminRecNotifTitle, targetVal: tOffersPage.buyerAdminRecNotifTitle },
     { getVal: (d) => d?.accountPages?.offers?.offerSubmittedSuccess, targetVal: tOffersPage.offerSubmittedSuccess },
+    { getVal: (d) => d?.accountPages?.offers?.statusWaitingSellerBadge, targetVal: tOffersPage.statusWaitingSellerBadge },
+    { getVal: (d) => d?.accountPages?.offers?.reopenedUnitBuyerNotifTitle, targetVal: tOffersPage.reopenedUnitBuyerNotifTitle },
+    { getVal: (d) => d?.accountPages?.offers?.unitSoldToOtherNotifTitle, targetVal: tOffersPage.unitSoldToOtherNotifTitle },
+    { getVal: (d) => d?.accountPages?.offers?.sellerDelayedNotifTitle, targetVal: tOffersPage.sellerDelayedNotifTitle },
+    { getVal: (d) => d?.accountPages?.offers?.unitWithdrawnBuyerNotifTitle, targetVal: tOffersPage.unitWithdrawnBuyerNotifTitle },
 
     // Account Actions (serverActions.account)
     { getVal: (d) => d?.serverActions?.account?.deletionNotifTitle, targetVal: tAccount.deletionNotifTitle },
@@ -135,6 +143,10 @@ export async function localizeNotificationItem(
     { getVal: (d) => d?.serverActions?.admin?.leadQualifiedNotifMsg, targetVal: tAdmin.leadQualifiedNotifMsg },
     { getVal: (d) => d?.serverActions?.admin?.leadClosedNotifMsg, targetVal: tAdmin.leadClosedNotifMsg },
     { getVal: (d) => d?.accountPages?.offers?.buyerOfferAcceptedNotifMsg, targetVal: tOffersPage.buyerOfferAcceptedNotifMsg },
+    { getVal: (d) => d?.accountPages?.offers?.reopenedUnitBuyerNotifMsg, targetVal: tOffersPage.reopenedUnitBuyerNotifMsg },
+    { getVal: (d) => d?.accountPages?.offers?.unitSoldToOtherNotifMsg, targetVal: tOffersPage.unitSoldToOtherNotifMsg },
+    { getVal: (d) => d?.accountPages?.offers?.sellerDelayedNotifMsg, targetVal: tOffersPage.sellerDelayedNotifMsg },
+    { getVal: (d) => d?.accountPages?.offers?.unitWithdrawnBuyerNotifMsg, targetVal: tOffersPage.unitWithdrawnBuyerNotifMsg },
     { getVal: (d) => d?.serverActions?.forms?.radarActivatedBuyerMsg, targetVal: tForms.radarActivatedBuyerMsg, keepParen: true },
   ]
 
@@ -157,7 +169,8 @@ export async function localizeNotificationItem(
 }
 
 export async function getUserNotificationsAction(
-  context: "client" | "admin" = "client"
+  context: "client" | "admin" = "client",
+  limitCount: number = 60
 ) {
   try {
     const cookieStore = await cookies()
@@ -195,7 +208,7 @@ export async function getUserNotificationsAction(
       .neq("title", "__GLOBAL_SITE_CONFIG__")
       .neq("title", "__USER_VERIFICATION_META__")
       .order("created_at", { ascending: false })
-      .limit(25)
+      .limit(Math.max(25, Math.min(150, limitCount)))
 
     if (context === "admin" && isAdmin) {
       query = query.is("user_id", null)
@@ -251,6 +264,8 @@ export async function markNotificationAsReadAction(notificationId: string) {
     revalidatePath("/", "layout")
     revalidatePath("/admin", "layout")
     revalidatePath("/account", "layout")
+    revalidatePath("/notifications")
+    revalidatePath("/admin/notifications")
     return { success: true }
   } catch {
     return { success: false }
@@ -302,78 +317,26 @@ export async function markAllNotificationsAsReadAction(
     revalidatePath("/", "layout")
     revalidatePath("/admin", "layout")
     revalidatePath("/account", "layout")
+    revalidatePath("/notifications")
+    revalidatePath("/admin/notifications")
     return { success: true }
   } catch {
     return { success: false }
   }
 }
 
+/**
+ * الإشعارات تعتبر سجلاً رسمياً دائماً لحركات الحساب مثل موقع Exit ولا تُحذف من قاعدة البيانات،
+ * بل يتم تعليمها كمقروءة (is_read: true) لإخفاء عداد التنبيهات مع بقاء السجل محفوظاً.
+ */
 export async function deleteNotificationAction(notificationId: string) {
-  try {
-    if (!notificationId) return { success: false }
-    const supabase = await getSupabase()
-
-    await supabase
-      .from("notifications")
-      .delete()
-      .eq("id", notificationId)
-      .neq("title", "__GLOBAL_SITE_CONFIG__")
-
-    revalidatePath("/", "layout")
-    revalidatePath("/admin", "layout")
-    return { success: true }
-  } catch {
-    return { success: false }
-  }
+  return markNotificationAsReadAction(notificationId)
 }
 
 export async function clearAllNotificationsAction(
   context: "client" | "admin" = "client"
 ) {
-  try {
-    const cookieStore = await cookies()
-    const sessionId = extractUserIdFromCookie(
-      cookieStore.get("user_session")?.value
-    )
-    if (!sessionId) return { success: false }
-
-    const supabase = await getSupabase()
-
-    const { data: user } = await supabase
-      .from("users")
-      .select("role")
-      .eq("id", sessionId)
-      .maybeSingle()
-
-    const role = String(user?.role || "user")
-      .replace(/[\r\n\s]+/g, "")
-      .toLowerCase()
-    const isAdmin =
-      role === "owner" ||
-      role === "admin" ||
-      role === "moderator" ||
-      role === "sales"
-
-    if (context === "admin" && isAdmin) {
-      await supabase
-        .from("notifications")
-        .delete()
-        .is("user_id", null)
-        .neq("title", "__GLOBAL_SITE_CONFIG__")
-    } else {
-      await supabase
-        .from("notifications")
-        .delete()
-        .eq("user_id", sessionId)
-        .neq("title", "__USER_VERIFICATION_META__")
-    }
-
-    revalidatePath("/", "layout")
-    revalidatePath("/admin", "layout")
-    return { success: true }
-  } catch {
-    return { success: false }
-  }
+  return markAllNotificationsAsReadAction(context)
 }
 
 export async function createNotification(payload: {

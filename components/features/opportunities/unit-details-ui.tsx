@@ -15,6 +15,7 @@ import {
   Check,
   CheckCircle2,
   ChevronRight,
+  Clock,
   Copy,
   Crown,
   DollarSign,
@@ -271,11 +272,18 @@ export function UnitDetailsHeader({
           <span className="rounded-full bg-[#e6f4f9] px-3 py-1 text-[11px] font-bold text-[var(--brand-primary,#007a5a)]">
             {t.verifiedBadge}
           </span>
-          {computedUnit.hasActiveOffer && (
-            <span className="inline-flex items-center gap-1 rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-[11px] font-extrabold text-orange-800">
-              <Flame className="size-3.5 fill-orange-500 text-orange-600" />
-              <span>{t.activeOfferBadge}</span>
+          {computedUnit.isUnderContractDeal ? (
+            <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-100 px-3 py-1 text-[11px] font-extrabold text-amber-950">
+              <Clock className="size-3.5 text-amber-700" />
+              <span>{uiL.underContractBadge}</span>
             </span>
+          ) : (
+            computedUnit.hasActiveOffer && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-[11px] font-extrabold text-orange-800">
+                <Flame className="size-3.5 fill-orange-500 text-orange-600" />
+                <span>{t.activeOfferBadge}</span>
+              </span>
+            )
           )}
           {computedUnit.featured && (
             <span className="inline-flex items-center gap-1 rounded-full border border-amber-200/60 bg-amber-50 px-3 py-1 text-[11px] font-bold text-amber-700">
@@ -361,12 +369,7 @@ export function UnitSpecsAndDescription({
     -25,
     Math.min(
       10,
-      computedUnit.willingToDiscount
-        ? Math.min(
-            -4,
-            rawDiffPct - (Number(computedUnit.discountPercentage) || 5)
-          )
-        : rawDiffPct
+      computedUnit.willingToDiscount ? Math.min(-4, rawDiffPct - 5) : rawDiffPct
     )
   )
 
@@ -680,8 +683,10 @@ export function UnitFinancialsCard({
   computedUnit,
   onMakeOffer,
 }: any) {
-  const { t: dict } = useTranslation()
+  const { t: dict, siteSettings } = useTranslation()
   const uiL = dict.unitDetailsPage.uiLabels
+  const oT = (dict.accountPages?.offers as Record<string, any>) || {}
+  const commPctDisplay = Number(siteSettings?.buyerCommission) || 1.25
 
   return (
     <>
@@ -691,13 +696,13 @@ export function UnitFinancialsCard({
             <p className="text-xs font-bold text-gray-500">
               {uiL.finRequiredCashNow}
             </p>
-            <p className="mt-1 flex items-baseline gap-1.5 text-3xl font-extrabold tracking-tight text-[var(--brand-navy,#0a1122)] tabular-nums sm:text-[34px]">
+            <p className="mt-1 flex items-baseline gap-1.5 text-3xl font-extrabold tracking-tight text-[var(--brand-navy,#0a1122)] tabular-nums sm:text-[36px]">
               <span dir="ltr">
                 {computedUnit.requiredCash.toLocaleString('en-US')}
               </span>
               <span className="text-lg font-bold">{computedUnit.currency}</span>
             </p>
-            <p className="mt-1 text-xs font-bold text-[var(--brand-primary,#007a5a)]">
+            <p className="mt-1 text-xs font-extrabold text-[var(--brand-primary,#007a5a)]">
               {uiL.finNoOverNote}
             </p>
           </div>
@@ -709,7 +714,11 @@ export function UnitFinancialsCard({
               className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[var(--brand-primary,#007a5a)] px-5 text-xs font-extrabold text-white shadow-sm transition hover:bg-[var(--brand-primary-hover,#006248)] sm:text-sm"
             >
               <Wallet className="size-4" />
-              <span>{uiL.finMakeOfferBtn}</span>
+              <span>
+                {computedUnit.isUnderContractDeal
+                  ? oT.waitlistBtnLabel
+                  : uiL.finMakeOfferBtn}
+              </span>
             </button>
           )}
         </div>
@@ -719,14 +728,8 @@ export function UnitFinancialsCard({
             <p className="text-xs font-extrabold text-[#b45309]">
               {uiL.finNegotiableTitle}
             </p>
-            <p className="mt-1 text-[11px] leading-relaxed text-[#92400e]">
-              {uiL.finNegotiableDescPrefix} {computedUnit.discountPercentage}%{' '}
-              {uiL.finNegotiableDescMiddle}{' '}
-              <span dir="ltr">
-                {computedUnit.discountAmount.toLocaleString('en-US')}
-              </span>{' '}
-              {computedUnit.currency}
-              {uiL.finNegotiableDescSuffix}
+            <p className="mt-1 text-[11.5px] leading-relaxed font-semibold text-[#92400e]">
+              {uiL.finNegotiableCleanDesc}
             </p>
           </div>
         )}
@@ -740,7 +743,7 @@ export function UnitFinancialsCard({
               </span>{' '}
               {computedUnit.currency}
             </p>
-            <p className="mt-1 text-[11px] text-[var(--brand-primary,#007a5a)]/85">
+            <p className="mt-1 text-[11px] font-semibold text-[var(--brand-primary,#007a5a)]/85">
               {uiL.finMarketPriceTodayPrefix}{' '}
               <span dir="ltr">
                 {computedUnit.marketPrice.toLocaleString('en-US')}
@@ -750,7 +753,7 @@ export function UnitFinancialsCard({
           </div>
         )}
 
-        <p className="mt-3 text-[10px] text-gray-400">
+        <p className="mt-3 text-[10.5px] leading-relaxed text-gray-400">
           {uiL.finMarketDisclaimer}
         </p>
       </section>
@@ -758,8 +761,10 @@ export function UnitFinancialsCard({
       <section className="mt-4 overflow-hidden rounded-[20px] border border-gray-200/80 bg-white shadow-sm">
         <div className="divide-y divide-gray-100 text-xs sm:text-[13px]">
           <div className="flex items-center justify-between px-5 py-3.5">
-            <span className="text-gray-500">{uiL.finRemainingToDev}</span>
-            <strong className="font-extrabold text-[var(--brand-navy,#0a1122)]">
+            <span className="font-medium text-gray-500">
+              {uiL.finRemainingToDev}
+            </span>
+            <strong className="text-sm font-black text-[var(--brand-navy,#0a1122)] tabular-nums sm:text-base">
               <span dir="ltr">
                 {computedUnit.remainingToDeveloper.toLocaleString('en-US')}
               </span>{' '}
@@ -768,8 +773,10 @@ export function UnitFinancialsCard({
           </div>
 
           <div className="flex items-center justify-between px-5 py-3.5">
-            <span className="text-gray-500">{uiL.finInstallment}</span>
-            <strong className="font-extrabold text-[var(--brand-navy,#0a1122)]">
+            <span className="font-medium text-gray-500">
+              {uiL.finInstallment}
+            </span>
+            <strong className="text-sm font-black text-[var(--brand-navy,#0a1122)] tabular-nums sm:text-base">
               <span dir="ltr">
                 {computedUnit.installmentAmount.toLocaleString('en-US')}
               </span>{' '}
@@ -778,8 +785,10 @@ export function UnitFinancialsCard({
           </div>
 
           <div className="flex items-center justify-between px-5 py-3.5">
-            <span className="text-gray-500">{uiL.finRemainingMonthsLabel}</span>
-            <strong className="font-extrabold text-[var(--brand-navy,#0a1122)]">
+            <span className="font-medium text-gray-500">
+              {uiL.finRemainingMonthsLabel}
+            </span>
+            <strong className="text-sm font-black text-[var(--brand-navy,#0a1122)]">
               {computedUnit.remainingInstallmentMonths > 0
                 ? `${computedUnit.remainingInstallmentMonths} ${uiL.finMonthsWord}`
                 : uiL.finFullyPaid}
@@ -787,23 +796,25 @@ export function UnitFinancialsCard({
           </div>
 
           <div className="flex items-center justify-between px-5 py-3.5">
-            <span className="text-gray-500">{uiL.finDelivery}</span>
-            <strong className="font-extrabold text-[var(--brand-navy,#0a1122)]">
+            <span className="font-medium text-gray-500">{uiL.finDelivery}</span>
+            <strong className="text-sm font-black text-[var(--brand-navy,#0a1122)]">
               {computedUnit.deliveryYear}
             </strong>
           </div>
 
           <div className="px-5 py-3.5">
             <div className="flex items-center justify-between">
-              <span className="text-gray-500">{uiL.finCommissionLabel}</span>
-              <strong className="font-extrabold text-[var(--brand-navy,#0a1122)]">
-                <span dir="ltr">
-                  {computedUnit.commission.toLocaleString('en-US')}
-                </span>{' '}
-                {computedUnit.currency}
+              <span className="font-medium text-gray-500">
+                {uiL.finCommissionLabel}
+              </span>
+              <strong
+                dir="ltr"
+                className="rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-black text-[#007a5a]"
+              >
+                {commPctDisplay}%
               </strong>
             </div>
-            <p className="mt-1 text-start text-[10px] text-gray-400">
+            <p className="mt-1 text-start text-[10.5px] text-gray-400">
               {uiL.finCommissionSub}
             </p>
           </div>
@@ -812,9 +823,9 @@ export function UnitFinancialsCard({
             <span className="font-extrabold text-[var(--brand-navy,#0a1122)]">
               {uiL.finTotalRequiredNow}
             </span>
-            <strong className="text-sm font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-base">
+            <strong className="text-base font-black text-[var(--brand-navy,#0a1122)] tabular-nums sm:text-lg">
               <span dir="ltr">
-                {computedUnit.totalRequiredNow.toLocaleString('en-US')}
+                {computedUnit.requiredCash.toLocaleString('en-US')}
               </span>{' '}
               {computedUnit.currency}
             </strong>

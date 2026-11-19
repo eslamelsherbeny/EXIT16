@@ -5,10 +5,11 @@ import {
   Check,
   Flame,
   Handshake,
-  Lock,
+  MessageCircle,
   RefreshCw,
   ShieldCheck,
   Sparkles,
+  Timer,
   TrendingUp,
 } from 'lucide-react'
 import { type OfferRecord } from '@/actions/offer-actions'
@@ -16,6 +17,35 @@ import { type MatchableUnit } from '@/lib/smart-matcher'
 import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
 import { type LocaleCode } from '@/lib/i18n'
 import { getOfferRef } from './offers-modals'
+
+export function OfferSentElapsedBadge({
+  updatedAt,
+  t,
+}: {
+  updatedAt: string
+  t: Record<string, any>
+}) {
+  const sentDate = new Date(updatedAt)
+  const diffHours = Math.max(
+    1,
+    Math.floor((Date.now() - sentDate.getTime()) / (1000 * 60 * 60))
+  )
+  const days = Math.floor(diffHours / 24)
+  const dateFormatted = sentDate.toLocaleDateString('en-GB')
+
+  return (
+    <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2.5 py-0.5 text-[10.5px] font-bold text-slate-700">
+      <Timer className="size-3 text-[#007a5a]" />
+      <span>
+        {t.sentDatePrefix} <span dir="ltr">{dateFormatted}</span> (
+        {days > 0
+          ? `${days} ${t.daysAgoSuffix}`
+          : `${diffHours} ${t.hoursAgoSuffix}`}
+        )
+      </span>
+    </span>
+  )
+}
 
 export function SellerOffersSection({
   t,
@@ -28,6 +58,7 @@ export function SellerOffersSection({
   setSelectedSellerUnitId,
   acceptedPropertyIds,
   isPending,
+  supportWhatsApp,
   getReadinessLabel,
   getPaymentMethodLabel,
   onSellerDecision,
@@ -43,6 +74,7 @@ export function SellerOffersSection({
   setSelectedSellerUnitId: (id: string) => void
   acceptedPropertyIds: Set<string>
   isPending: boolean
+  supportWhatsApp?: string
   getReadinessLabel: (r: string) => string
   getPaymentMethodLabel: (m: string) => string
   onSellerDecision: (
@@ -54,6 +86,17 @@ export function SellerOffersSection({
     defaultMidCash: string
   ) => void
 }) {
+  const cleanVisibleSellerOffers = displayedSellerOffers.filter((offer) => {
+    if (offer.status === 'unit_locked') return false
+    if (
+      acceptedPropertyIds.has(String(offer.property_id)) &&
+      offer.status !== 'accepted'
+    ) {
+      return false
+    }
+    return true
+  })
+
   return (
     <div>
       <header className="mb-6 text-start">
@@ -62,7 +105,7 @@ export function SellerOffersSection({
           <span>{t.zeroLeakageBadge}</span>
         </span>
         <h1 className="mt-2 text-xl font-black text-[#0a1122] sm:text-3xl">
-          {t.sellerTitle} ({displayedSellerOffers.length})
+          {t.sellerTitle} ({cleanVisibleSellerOffers.length})
         </h1>
         <p className="mt-1.5 text-xs leading-relaxed text-gray-500 sm:text-sm">
           {t.sellerSubtitle}
@@ -105,7 +148,7 @@ export function SellerOffersSection({
         )}
       </header>
 
-      {displayedSellerOffers.length === 0 ? (
+      {cleanVisibleSellerOffers.length === 0 ? (
         <div className="rounded-3xl border border-gray-200/90 bg-white p-10 text-center shadow-2xs">
           <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-2xl bg-emerald-50 text-[#007a5a]">
             <Sparkles className="size-6" />
@@ -119,7 +162,7 @@ export function SellerOffersSection({
         </div>
       ) : (
         <div className="space-y-4">
-          {displayedSellerOffers.map((offer) => {
+          {cleanVisibleSellerOffers.map((offer) => {
             const u = offer.unit
             const paid = Number(u?.paid_amount || offer.required_cash) || 1
             const contract = Number(u?.contract_price) || paid
@@ -159,6 +202,13 @@ export function SellerOffersSection({
                       <span className="font-mono text-[11px] font-bold text-gray-400">
                         #{getOfferRef(offer.id)}
                       </span>
+                      {offer.status === 'pending_seller' &&
+                        !unitAlreadyHasAcceptedOffer && (
+                          <OfferSentElapsedBadge
+                            updatedAt={offer.updated_at || offer.created_at}
+                            t={t}
+                          />
+                        )}
                     </div>
                     <p className="mt-1.5 text-xs text-gray-500">
                       {getLocalizedGeorgiaAreaName(u?.area, locale)} ·{' '}
@@ -180,13 +230,6 @@ export function SellerOffersSection({
                           <span>{t.statusPendingSellerBadge}</span>
                         </span>
                       )}
-                    {(offer.status === 'unit_locked' ||
-                      unitAlreadyHasAcceptedOffer) && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3.5 py-1.5 text-xs font-extrabold text-slate-700">
-                        <Lock className="size-3.5" />
-                        <span>{t.backupOfferBadge}</span>
-                      </span>
-                    )}
                     {offer.status === 'counter_offered' && (
                       <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-3.5 py-1.5 text-xs font-extrabold text-purple-900">
                         <RefreshCw className="size-3.5" />
@@ -263,15 +306,21 @@ export function SellerOffersSection({
                 )}
 
                 {offer.status === 'accepted' && (
-                  <div className="mt-4 rounded-xl border border-[#007a5a]/30 bg-[#eaf8f2] p-4 text-xs font-bold text-[#007a5a]">
-                    🎉 {t.dealLockedBannerForSeller}
-                  </div>
-                )}
-
-                {(offer.status === 'unit_locked' ||
-                  unitAlreadyHasAcceptedOffer) && (
-                  <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-xs font-semibold text-slate-600">
-                    {t.backupOfferSellerNote}
+                  <div className="mt-4 space-y-2 rounded-xl border border-[#007a5a]/30 bg-[#eaf8f2] p-4 text-xs font-bold text-[#007a5a]">
+                    <p>🎉 {t.dealLockedBannerForSeller}</p>
+                    {supportWhatsApp && (
+                      <a
+                        href={`https://wa.me/${supportWhatsApp}?text=${encodeURIComponent(
+                          `${t.waFastTrackOfferMsgPrefix} (#${getOfferRef(offer.id)}) ${t.waFastTrackOfferMsgMiddle} (${u?.project_name || ''})`
+                        )}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 text-[11px] font-extrabold text-[#0a1122] underline hover:text-[#007a5a]"
+                      >
+                        <MessageCircle className="size-3.5 text-[#25D366]" />
+                        <span>{t.contactDealManagerWaLink}</span>
+                      </a>
+                    )}
                   </div>
                 )}
 
@@ -288,7 +337,6 @@ export function SellerOffersSection({
                         <span>{t.acceptOfferBtn}</span>
                       </button>
 
-                      {/* إخفاء زر التفاوض (إرسال سعر بديل) إذا كان العرض قد تم التفاوض عليه مسبقاً من البائع ثم رد عليه المشتري */}
                       {Number(offer.offered_cash) < paid &&
                         !offer.counter_cash && (
                           <button

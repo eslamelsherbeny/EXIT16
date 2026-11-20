@@ -1,4 +1,5 @@
-import nodemailer from 'nodemailer'
+
+import { sendEmail } from '@/lib/mail'
 
 export const AUTO_PUBLISH_MATCH_THRESHOLD = 80
 export const MAX_ACTIVE_BUYER_OFFERS = 3
@@ -29,56 +30,34 @@ export async function sendOfferTransactionalEmail({
   ctaUrl: string
   dir?: 'rtl' | 'ltr'
 }) {
-  const user = process.env.EMAIL_USER?.trim()
-  const pass = process.env.EMAIL_PASS?.replace(/\s+/g, '')
   const cleanTo = String(to || '').trim()
-  if (
-    !user ||
-    !pass ||
-    !cleanTo ||
-    !cleanTo.includes('@') ||
-    cleanTo.endsWith('@aqarexit.ge')
-  ) {
+  if (!cleanTo || !cleanTo.includes('@') || cleanTo.endsWith('@aqarexit.ge')) {
     return false
   }
 
-  try {
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 465,
-      secure: true,
-      auth: { user, pass },
-      tls: { rejectUnauthorized: false },
-    })
-
-    const htmlBody = `
-      <div dir="${dir}" style="font-family: Arial, sans-serif; max-width: 580px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 16px; overflow: hidden; background: #ffffff; color: #0a1122;">
-        <div style="background: #0a1122; padding: 18px 24px; color: #ffffff; font-weight: bold; font-size: 16px;">
-          Aqar Exit
-        </div>
-        <div style="padding: 24px; line-height: 1.8; font-size: 14px;">
-          <h2 style="margin-top: 0; color: #007a5a; font-size: 18px;">${heading}</h2>
-          ${bodyLines.map((line) => `<p style="margin: 10px 0;">${line}</p>`).join('')}
-          <div style="margin-top: 24px; text-align: center;">
-            <a href="${ctaUrl}" style="display: inline-block; background: #007a5a; color: #ffffff; text-decoration: none; font-weight: bold; padding: 12px 28px; border-radius: 10px; font-size: 14px;">
-              ${ctaText}
-            </a>
-          </div>
+  const htmlBody = `
+    <div dir="${dir}" style="font-family: Arial, sans-serif; max-width: 580px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 16px; overflow: hidden; background: #ffffff; color: #0a1122;">
+      <div style="background: #0a1122; padding: 18px 24px; color: #ffffff; font-weight: bold; font-size: 16px;">
+        DualDealz
+      </div>
+      <div style="padding: 24px; line-height: 1.8; font-size: 14px;">
+        <h2 style="margin-top: 0; color: #007a5a; font-size: 18px;">${heading}</h2>
+        ${bodyLines.map((line) => `<p style="margin: 10px 0;">${line}</p>`).join('')}
+        <div style="margin-top: 24px; text-align: center;">
+          <a href="${ctaUrl}" style="display: inline-block; background: #007a5a; color: #ffffff; text-decoration: none; font-weight: bold; padding: 12px 28px; border-radius: 10px; font-size: 14px;">
+            ${ctaText}
+          </a>
         </div>
       </div>
-    `
+    </div>
+  `
 
-    await transporter.sendMail({
-      from: `"Aqar Exit" <${user}>`,
-      to: cleanTo,
-      subject,
-      html: htmlBody,
-    })
-    return true
-  } catch (e) {
-    console.error('sendOfferTransactionalEmail error:', e)
-    return false
-  }
+  return sendEmail({
+    to: cleanTo,
+    subject,
+    html: htmlBody,
+    senderName: 'DualDealz',
+  })
 }
 
 export async function resolveSellerEmail(

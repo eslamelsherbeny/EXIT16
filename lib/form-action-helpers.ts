@@ -7,7 +7,8 @@ import {
   scryptSync,
   timingSafeEqual,
 } from 'node:crypto'
-import nodemailer from 'nodemailer'
+
+import { sendEmail } from '@/lib/mail'
 import {
   createSignedSessionToken,
   extractUserIdFromCookie,
@@ -330,34 +331,12 @@ export async function sendNotificationEmail({
   html: string
   senderName?: string
 }) {
-  const user = process.env.EMAIL_USER?.trim()
-  const pass = process.env.EMAIL_PASS?.replace(/\s+/g, '')
-
-  if (!user || !pass || !to) return false
-
-  try {
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 465,
-      secure: true,
-      auth: { user, pass },
-      tls: { rejectUnauthorized: false },
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-      socketTimeout: 15000,
-    })
-
-    await transporter.sendMail({
-      from: `"${senderName || 'Aqar Exit'}" <${user}>`,
-      to: to.trim(),
-      subject,
-      html,
-    })
-    return true
-  } catch (error) {
-    console.error('Notification email error:', error)
-    return false
-  }
+  return sendEmail({
+    to,
+    subject,
+    html,
+    senderName: senderName || 'DualDealz',
+  })
 }
 
 export function normalizeDigits(str: string): string {

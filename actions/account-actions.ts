@@ -4,7 +4,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import nodemailer from 'nodemailer'
+import { sendEmail } from '@/lib/mail'
 import {
   extractUserIdFromCookie,
   parseAndVerifySessionCookie,
@@ -141,30 +141,12 @@ async function sendAccountEmail({
   html: string
   senderName?: string
 }) {
-  const user = process.env.EMAIL_USER?.trim()
-  const pass = process.env.EMAIL_PASS?.replace(/\s+/g, '')
-  if (!user || !pass || !to) return false
-
-  try {
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 465,
-      secure: true,
-      auth: { user, pass },
-      tls: { rejectUnauthorized: false },
-    })
-
-    await transporter.sendMail({
-      from: `"${senderName || 'Aqar Exit'}" <${user}>`,
-      to: to.trim(),
-      subject,
-      html,
-    })
-    return true
-  } catch (e) {
-    console.error('Account Email Error:', e)
-    return false
-  }
+  return sendEmail({
+    to,
+    subject,
+    html,
+    senderName: senderName || 'DualDealz',
+  })
 }
 
 function formatPrimaryPhone(rawPhone: string) {

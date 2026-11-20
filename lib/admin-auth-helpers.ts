@@ -8,7 +8,8 @@ import {
   timingSafeEqual,
 } from "node:crypto"
 import { revalidatePath } from "next/cache"
-import nodemailer from "nodemailer"
+import { sendEmail } from "@/lib/mail"
+
 import {
   createSignedSessionToken,
   extractUserIdFromCookie,
@@ -269,33 +270,12 @@ export async function sendSystemEmail({
   html: string
   senderName?: string
 }) {
-  const user = process.env.EMAIL_USER?.trim()
-  const pass = process.env.EMAIL_PASS?.replace(/\s+/g, "")
-  if (!user || !pass || !to) return false
-
-  try {
-    const transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 465,
-      secure: true,
-      auth: { user, pass },
-      tls: { rejectUnauthorized: false },
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-      socketTimeout: 15000,
-    })
-
-    await transporter.sendMail({
-      from: `"${senderName || "Aqar Exit"}" <${user}>`,
-      to: to.trim(),
-      subject,
-      html,
-    })
-    return true
-  } catch (e) {
-    console.error("System Email Error:", e)
-    return false
-  }
+  return sendEmail({
+    to,
+    subject,
+    html,
+    senderName: senderName || "DualDealz",
+  })
 }
 
 export async function verifyTurnstileOnServer(

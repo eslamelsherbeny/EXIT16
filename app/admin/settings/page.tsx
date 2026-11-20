@@ -1,6 +1,11 @@
 import { cookies } from "next/headers"
+import { redirect } from "next/navigation"
 import { createServerClient } from "@supabase/ssr"
 import { getServerI18n } from "@/lib/get-server-dictionary"
+import {
+  extractUserIdFromCookie,
+  parseAndVerifySessionCookie,
+} from "@/lib/session-security"
 import SettingsClient from "./settings-client"
 
 export const dynamic = "force-dynamic"
@@ -15,6 +20,40 @@ export default async function SettingsPage({
   const initialTab = resolvedParams.tab === "system" ? "system" : "general"
 
   const cookieStore = await cookies()
+  const rawSession = cookieStore.get("user_session")?.value
+  const candidateId = extractUserIdFromCookie(rawSession)
+
+  if (!rawSession || !candidateId) {
+    redirect("/login?next=/admin/settings")
+  }
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} },
+    }
+  )
+
+  const { data: currentStaff } = await supabase
+    .from("users")
+    .select("id, role, status, password_hash")
+    .eq("id", candidateId)
+    .maybeSingle()
+
+  if (
+    !currentStaff ||
+    currentStaff.status === "suspended" ||
+    !parseAndVerifySessionCookie(rawSession, currentStaff.password_hash).valid
+  ) {
+    redirect("/login?next=/admin/settings")
+  }
+
+  const role = String(currentStaff.role || "user").trim().toLowerCase()
+  if (role !== "admin" && role !== "owner") {
+    redirect("/admin/leads")
+  }
+
   const { dict, siteSettings: runtimeSettings } = await getServerI18n()
 
   let savedSettings = {
@@ -36,18 +75,16 @@ export default async function SettingsPage({
       (runtimeSettings as Record<string, any>)?.vipPlusDailyGel || "5",
     superVipDailyGel:
       (runtimeSettings as Record<string, any>)?.superVipDailyGel || "10",
-    bankIbanGe:
-      (runtimeSettings as Record<string, any>)?.bankIbanGe ||
-      "GE00TB0000000000000000",
-    bankNameGe:
-      (runtimeSettings as Record<string, any>)?.bankNameGe ||
-      "TBC Bank / Bank of Georgia",
     promo7Price: runtimeSettings?.promo7Price || "20",
     promo14Price: runtimeSettings?.promo14Price || "50",
     promo30Price: runtimeSettings?.promo30Price || "100",
     promo_GE_7: runtimeSettings?.promo_GE_7 || "20",
     promo_GE_14: runtimeSettings?.promo_GE_14 || "50",
     promo_GE_30: runtimeSettings?.promo_GE_30 || "100",
+    fbPixelId: (runtimeSettings as Record<string, any>)?.fbPixelId || "",
+    gaMeasurementId:
+      (runtimeSettings as Record<string, any>)?.gaMeasurementId || "",
+    gtmId: (runtimeSettings as Record<string, any>)?.gtmId || "",
     maintenanceMode: Boolean(runtimeSettings?.maintenanceMode),
     allowNewSells: runtimeSettings?.allowNewSells ?? true,
     allowNewBuys: runtimeSettings?.allowNewBuys ?? true,
@@ -62,13 +99,6 @@ export default async function SettingsPage({
   } catch {}
 
   try {
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} },
-      }
-    )
     const { data: dbSettings } = await supabase
       .from("site_settings")
       .select("*")

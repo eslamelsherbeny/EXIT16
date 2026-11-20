@@ -2,16 +2,17 @@ import { Suspense } from "react"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { createServerClient } from "@supabase/ssr"
-import { getUsersVerificationMapAction } from "@/actions/submit-forms"
 import { sanitizeGeorgiaProjectTitle } from "@/lib/offer-helpers"
 import {
   extractUserIdFromCookie,
   parseAndVerifySessionCookie,
 } from "@/lib/session-security"
 import { getServerI18n } from "@/lib/get-server-dictionary"
-import PropertiesTable, {
-  type SellRequest,
-} from "../properties/properties-table"
+import type { SellRequest } from "../properties/properties-helpers"
+import {
+  PromotionsManager,
+  type BoostRequestRow,
+} from "./promotions-manager"
 
 export const dynamic = "force-dynamic"
 export const revalidate = 0
@@ -56,21 +57,40 @@ export default async function AdminPromotionsPage() {
 
   const staffRole = String(currentStaff.role || "user").trim().toLowerCase()
   if (
+    staffRole !== "owner" &&
     staffRole !== "admin" &&
-    staffRole !== "moderator" &&
-    staffRole !== "sales"
+    staffRole !== "moderator"
   ) {
     redirect("/account")
   }
 
-  const { data, error } = await supabase
-    .from("sell_requests")
-    .select("*")
-    .neq("status", "deleted_by_seller")
-    .order("is_featured", { ascending: false })
-    .order("created_at", { ascending: false })
+  const [propsRes, boostRes] = await Promise.all([
+    supabase
+      .from("sell_requests")
+      .select("*")
+      .neq("status", "deleted_by_seller")
+      .neq("status", "draft_unverified")
+      .order("is_featured", { ascending: false })
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("boost_requests")
+      .select("*")
+      .neq("status", "awaiting_payment")
+      .order("created_at", { ascending: false }),
+  ])
 
-  const properties = ((data ?? []) as any[]).map((p) => {
+  if (propsRes.error) {
+    return (
+      <div dir={dir} className="mx-auto max-w-7xl">
+        <div className="rounded-xl border border-red-200 bg-red-50 p-5 text-xs font-bold text-red-700">
+          {dict.admin?.promotions?.loadError ||
+            dict.admin?.propertiesAdmin?.loadError}
+        </div>
+      </div>
+    )
+  }
+
+  const properties = ((propsRes.data ?? []) as any[]).map((p) => {
     const meta =
       p.documents && typeof p.documents === "object"
         ? p.documents.__unit_meta || {}
@@ -86,29 +106,32 @@ export default async function AdminPromotionsPage() {
     } as SellRequest
   })
 
-  const sellerUserIds = Array.from(
-    new Set(properties.map((p) => p.user_id).filter(Boolean) as string[])
+  const boostRequests = ((boostRes.data ?? []) as any[]).map(
+    (b) =>
+      ({
+        id: String(b.id),
+        unit_id: b.unit_id ? String(b.unit_id) : null,
+        unit_code: b.unit_code || null,
+        user_id: b.user_id ? String(b.user_id) : null,
+        package_tier: String(b.package_tier || "SUPER VIP"),
+        duration_days: Number(b.duration_days) || 7,
+        amount_gel: Number(b.amount_gel) || 0,
+        payment_method: String(b.payment_method || "bank_transfer"),
+        status: String(b.status || "pending_admin_approval"),
+        order_ref: b.order_ref || null,
+        admin_note: b.admin_note || null,
+        created_at: b.created_at,
+        approved_at: b.approved_at || null,
+        rejected_at: b.rejected_at || null,
+      }) as BoostRequestRow
   )
-  const verificationMap = await getUsersVerificationMapAction(sellerUserIds)
-
-  if (error) {
-    return (
-      <div dir={dir} className="mx-auto max-w-7xl">
-        <div className="rounded-xl border border-red-200 bg-red-50 p-5 text-xs font-bold text-red-700">
-          {dict.admin?.promotions?.loadError ||
-            dict.admin?.propertiesAdmin?.loadError}
-        </div>
-      </div>
-    )
-  }
 
   return (
     <div className="mx-auto max-w-7xl">
       <Suspense fallback={null}>
-        <PropertiesTable
+        <PromotionsManager
           properties={properties}
-          verificationMap={verificationMap}
-          mode="promotions"
+          boostRequests={boostRequests}
         />
       </Suspense>
     </div>

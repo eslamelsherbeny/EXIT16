@@ -1,18 +1,29 @@
 "use client"
 
-import { useEffect, useState, useTransition } from "react"
+import { useEffect, useMemo, useState, useTransition } from "react"
+import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import {
   AlertTriangle,
   CheckCircle2,
+  ClipboardList,
   Download,
   Eye,
   FileText,
+  Handshake,
   Search,
   Trash2,
   X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import {
   downloadExcelCsv,
   downloadOfficialPdfReport,
@@ -23,6 +34,10 @@ import {
   calculateSmartMatch,
   type MatchableBuyer,
 } from "@/lib/smart-matcher"
+import {
+  AdminAreaFilter,
+  matchesAdminAreaSelection,
+} from "@/components/features/admin/admin-area-filter"
 import { UnitSmartMatchModal } from "@/components/features/admin/smart-match-dialogs"
 import {
   deletePropertyAction,
@@ -45,13 +60,16 @@ import {
 } from "./properties-helpers"
 import {
   PropertyConfirmDialog,
+  PropertyDealQuickSummaryDialog,
   PropertyDetailsDialog,
+  PropertyOffersLogDialog,
 } from "./properties-modals"
 import {
   PropertyActivityBadges,
   PropertyDesktopRow,
   PropertyDocsQuickDialog,
   PropertyMobileCard,
+  type StatusOptionItem,
 } from "./properties-row-cards"
 
 export type { SellRequest, UserVerificationBadgeInfo }
@@ -88,23 +106,65 @@ export default function PropertiesTable({
   const searchParams = useSearchParams()
   const isPromotionsPage = mode === "promotions"
 
-  const { t: dict, locale, dir } = useTranslation()
+  const { t: dict, locale, dir, siteSettings } = useTranslation()
   const t = dict.admin.propertiesAdmin as Record<string, any>
   const propBadges = (t.badges as Record<string, string>) || {}
   const propNotices = (t.notices as Record<string, string>) || {}
+  const blockedDict = (t.blocked as Record<string, string>) || {}
   const leadsPrompts = dict.admin.leads
+  const leadsAdminDict = (dict.admin as Record<string, any>).leadsAdmin || {}
   const sm = (dict.admin as Record<string, any>).smartMatch || {}
   const dealsDict = (dict.admin as Record<string, any>).dealsPage || {}
   const expL = EXPORT_LABELS[locale] || EXPORT_LABELS.ar
   const aL = (t.analytics as Record<string, string>) || {}
+  const commPct = Number(siteSettings?.buyerCommission) || 1.25
+
+  function getValidOffersForUnit(unit: SellRequest) {
+    const st = normalizeRowStatus(unit.status)
+    if (!isUnitEligibleForOffers(st)) return []
+    return offers
+      .filter(
+        (o) =>
+          String(o.property_id) === String(unit.id) &&
+          !isSelfOfferOnProperty(o, unit)
+      )
+      .map((o) => ({ ...o, status: normalizeOfferStatus(o) }))
+      .filter((o) => o.status !== "recommended" && o.status !== "rejected")
+  }
+
+  function getEffectiveUnitStage(property: SellRequest): string {
+    const rawSt = normalizeRowStatus(property.status)
+    if (!isUnitEligibleForOffers(rawSt) || rawSt === "sold") return rawSt
+    const validOffers = getValidOffersForUnit(property)
+    if (validOffers.some((o) => o.status === "accepted")) return "in_deal"
+    if (validOffers.some((o) => o.status === "counter_offered"))
+      return "negotiating"
+    if (
+      validOffers.some(
+        (o) => o.status === "pending_admin" || o.status === "pending_seller"
+      )
+    ) {
+      return "has_offers"
+    }
+    if (rawSt === "transferring" || rawSt === "offer_received") return "active"
+    return rawSt
+  }
 
   function getMatchedBuyersForUnit(unit: SellRequest) {
-    const st = normalizeRowStatus(unit.status)
-    if (!isUnitEligibleForOffers(st) || st === "sold") return []
+    const stage = getEffectiveUnitStage(unit)
+    if (
+      stage !== "active" &&
+      stage !== "has_offers" &&
+      stage !== "negotiating"
+    ) {
+      return []
+    }
     if (!buyers || buyers.length === 0) return []
     const unitPhoneDigits = String(unit.phone || "").replace(/\D/g, "")
     return buyers
-      .filter((b) => {
+      .filter((b: any) => {
+        const bSt = String(b.status || "new").trim().toLowerCase()
+        if (bSt === "closed" || bSt === "archived") return false
         if (
           b.user_id &&
           unit.user_id &&
@@ -129,81 +189,65 @@ export default function PropertiesTable({
       .sort((a, b) => b.match.score - a.match.score)
   }
 
-  function getValidOffersForUnit(unit: SellRequest) {
-    const st = normalizeRowStatus(unit.status)
-    if (!isUnitEligibleForOffers(st)) return []
-    return offers
-      .filter(
-        (o) =>
-          String(o.property_id) === String(unit.id) &&
-          !isSelfOfferOnProperty(o, unit)
-      )
-      .map((o) => ({ ...o, status: normalizeOfferStatus(o) }))
-      .filter((o) => o.status !== "recommended" && o.status !== "rejected")
-  }
-
-  function getEffectiveUnitStage(property: SellRequest): string {
-    const rawSt = normalizeRowStatus(property.status)
-    if (!isUnitEligibleForOffers(rawSt) || rawSt === "sold") return rawSt
-    const validOffers = getValidOffersForUnit(property)
-    if (validOffers.some((o) => o.status === "accepted")) return "transferring"
-    if (
-      validOffers.some(
-        (o) => o.status === "pending_seller" || o.status === "counter_offered"
-      )
-    ) {
-      return "offer_received"
-    }
-    if (rawSt === "transferring" || rawSt === "offer_received") return "active"
-    return rawSt
-  }
-
-  const sellerStatusOptions = [
-    {
+  const allStatusBadges: Record<string, StatusOptionItem> = {
+    pending: {
       value: "pending",
       label: t.statuses.pending,
       badge: "bg-amber-50 text-amber-900 border-amber-300",
     },
-    {
+    under_review: {
       value: "under_review",
       label: t.statuses.under_review,
       badge: "bg-blue-50 text-blue-900 border-blue-300",
     },
-    {
+    active: {
       value: "active",
       label: t.statuses.active,
       badge: "bg-[#eaf8f2] text-[#007a5a] border-emerald-300",
     },
-    {
-      value: "offer_received",
-      label: t.statuses.offer_received,
-      badge: "bg-purple-50 text-purple-900 border-purple-300",
+    has_offers: {
+      value: "has_offers",
+      label: t.statuses.has_offers || t.statuses.offer_received,
+      badge: "bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100",
     },
-    {
-      value: "transferring",
-      label: t.statuses.transferring,
-      badge: "bg-indigo-50 text-indigo-900 border-indigo-300",
+    negotiating: {
+      value: "negotiating",
+      label: t.statuses.negotiating || t.statuses.offer_received,
+      badge: "bg-purple-700 text-white border-purple-700 hover:bg-purple-800",
     },
-    {
+    in_deal: {
+      value: "in_deal",
+      label: t.statuses.in_deal || t.statuses.transferring,
+      badge: "bg-[#007a5a] text-white border-[#007a5a] hover:bg-[#006248]",
+    },
+    sold: {
       value: "sold",
       label: t.statuses.sold,
       badge: "bg-[#007a5a] text-white border-[#007a5a]",
     },
-    {
+    paused_by_seller: {
       value: "paused_by_seller",
       label: t.statuses.paused_by_seller,
       badge: "bg-orange-50 text-orange-900 border-orange-300",
     },
-    {
+    deleted_by_seller: {
       value: "deleted_by_seller",
       label: t.statuses.deleted_by_seller,
       badge: "bg-red-50 text-red-900 border-red-300",
     },
-    {
+    rejected: {
       value: "rejected",
       label: t.statuses.rejected,
       badge: "bg-red-50 text-red-900 border-red-300",
     },
+  }
+
+  const manualStatusOptions: StatusOptionItem[] = [
+    allStatusBadges.pending,
+    allStatusBadges.under_review,
+    allStatusBadges.active,
+    allStatusBadges.paused_by_seller,
+    allStatusBadges.rejected,
   ]
 
   const docsDict = t.docs as Record<string, string>
@@ -217,12 +261,13 @@ export default function PropertiesTable({
 
   function getStatusLabel(status: string | null | undefined) {
     const st = normalizeRowStatus(status)
-    return sellerStatusOptions.find((s) => s.value === st)?.label || st
+    return allStatusBadges[st]?.label || st
   }
 
   const unitCur = "$"
 
   const [search, setSearch] = useState("")
+  const [areaFilter, setAreaFilter] = useState("ALL")
   const [statusFilter, setStatusFilter] = useState("all")
   const [promoTab, setPromoTab] = useState<
     "all_promo" | "pending_payment" | "active_featured" | "all_units"
@@ -238,6 +283,18 @@ export default function PropertiesTable({
   const [docsProperty, setDocsProperty] = useState<SellRequest | null>(null)
   const [smartMatchProperty, setSmartMatchProperty] =
     useState<SellRequest | null>(null)
+  const [offersLogProperty, setOffersLogProperty] =
+    useState<SellRequest | null>(null)
+  const [dealSummaryData, setDealSummaryData] = useState<{
+    property: SellRequest
+    offer: any
+    waitlistCount: number
+  } | null>(null)
+  const [blockedStageModal, setBlockedStageModal] = useState<{
+    property: SellRequest
+    stage: string
+    offerId?: string
+  } | null>(null)
   const [confirmAction, setConfirmAction] =
     useState<ConfirmPropertyAction | null>(null)
   const [activePropertyId, setActivePropertyId] = useState<string | null>(null)
@@ -429,58 +486,102 @@ export default function PropertiesTable({
     )
   })
 
-  const filtered = properties.filter((p) => {
-    const currentStatus = getEffectiveUnitStage(p)
-    const unitShortCode = p.id.slice(0, 8).toUpperCase()
-    const uPublicCode = deriveShortUnitCode(p.id, p.code)
-    const orderRefCode = `AE-${p.id.replace(/[^a-zA-Z0-9]/g, "").slice(0, 6).toUpperCase()}`
-    const localizedArea = cleanPropertyAreaDisplay(p.area, locale)
-
-    if (search.trim()) {
-      const q = search.trim().toLowerCase()
-      const qDigits = q.replace(/\D/g, "")
-      const propPhoneDigits = String(p.phone || "").replace(/\D/g, "")
-      const textMatch =
-        `${p.id} ${unitShortCode} ${uPublicCode} ${orderRefCode} ${p.project_name || ""} ${p.area || ""} ${localizedArea} ${p.name || ""} ${p.phone || ""} ${p.email || ""} ${p.featured_fawry_code || ""}`
-          .toLowerCase()
-          .includes(q) ||
-        (qDigits.length >= 5 && propPhoneDigits.includes(qDigits))
-
-      if (!textMatch) return false
-      if (isPromotionsPage) return currentStatus !== "deleted_by_seller"
+  const tabCounts = useMemo(() => {
+    const counts = {
+      pending: 0,
+      active: 0,
+      offers_group: 0,
+      in_deal: 0,
+      sold: 0,
+      rejected: 0,
     }
+    for (const p of properties) {
+      const st = getEffectiveUnitStage(p)
+      if (st === "deleted_by_seller") continue
+      if (st === "pending" || st === "under_review") counts.pending++
+      else if (st === "active") counts.active++
+      else if (st === "has_offers" || st === "negotiating")
+        counts.offers_group++
+      else if (st === "in_deal") counts.in_deal++
+      else if (st === "sold") counts.sold++
+      else if (st === "rejected") counts.rejected++
+    }
+    return counts
+  }, [properties, offers])
 
-    if (isPromotionsPage) {
-      if (currentStatus === "deleted_by_seller") return false
-      if (promoTab === "pending_payment") {
-        return !p.is_featured && p.featured_status === "pending_payment"
+  const filtered = properties
+    .filter((p) => {
+      if (!matchesAdminAreaSelection([p.area], areaFilter)) return false
+
+      const currentStatus = getEffectiveUnitStage(p)
+      const unitShortCode = p.id.slice(0, 8).toUpperCase()
+      const uPublicCode = deriveShortUnitCode(p.id, p.code)
+      const orderRefCode = `AE-${p.id.replace(/[^a-zA-Z0-9]/g, "").slice(0, 6).toUpperCase()}`
+      const localizedArea = cleanPropertyAreaDisplay(p.area, locale)
+
+      if (search.trim()) {
+        const q = search.trim().toLowerCase()
+        const qDigits = q.replace(/\D/g, "")
+        const propPhoneDigits = String(p.phone || "").replace(/\D/g, "")
+        const textMatch =
+          `${p.id} ${unitShortCode} ${uPublicCode} ${orderRefCode} ${p.project_name || ""} ${p.area || ""} ${localizedArea} ${p.name || ""} ${p.phone || ""} ${p.email || ""} ${p.featured_fawry_code || ""}`
+            .toLowerCase()
+            .includes(q) ||
+          (qDigits.length >= 5 && propPhoneDigits.includes(qDigits))
+
+        if (!textMatch) return false
+        if (isPromotionsPage) return currentStatus !== "deleted_by_seller"
       }
-      if (promoTab === "active_featured") return Boolean(p.is_featured)
-      if (promoTab === "all_units") return true
-      return Boolean(p.is_featured || p.featured_status === "pending_payment")
-    }
 
-    if (statusFilter === "deleted") return currentStatus === "deleted_by_seller"
-    if (currentStatus === "deleted_by_seller") return false
+      if (isPromotionsPage) {
+        if (currentStatus === "deleted_by_seller") return false
+        if (promoTab === "pending_payment") {
+          return !p.is_featured && p.featured_status === "pending_payment"
+        }
+        if (promoTab === "active_featured") return Boolean(p.is_featured)
+        if (promoTab === "all_units") return true
+        return Boolean(p.is_featured || p.featured_status === "pending_payment")
+      }
 
-    if (statusFilter === "seller_actions") {
+      if (statusFilter === "deleted")
+        return currentStatus === "deleted_by_seller"
+      if (currentStatus === "deleted_by_seller") return false
+
+      if (statusFilter === "seller_actions") {
+        return (
+          currentStatus === "paused_by_seller" ||
+          p.submission_type === "edited_by_seller" ||
+          p.submission_type === "resumed_by_seller"
+        )
+      }
+      if (statusFilter === "pending") {
+        return currentStatus === "pending" || currentStatus === "under_review"
+      }
+      if (statusFilter === "offers_group" || statusFilter === "offer_received") {
+        return (
+          currentStatus === "has_offers" || currentStatus === "negotiating"
+        )
+      }
+      if (statusFilter !== "all" && currentStatus !== statusFilter) return false
+      return true
+    })
+    .sort((a, b) => {
+      const stA = getEffectiveUnitStage(a)
+      const stB = getEffectiveUnitStage(b)
+      const rank = (s: string) => {
+        if (s === "rejected") return 6
+        if (s === "sold") return 5
+        if (s === "paused_by_seller") return 4
+        if (s === "in_deal") return 1
+        if (s === "negotiating" || s === "has_offers") return 2
+        return 3
+      }
+      const diff = rank(stA) - rank(stB)
+      if (diff !== 0) return diff
       return (
-        currentStatus === "paused_by_seller" ||
-        p.submission_type === "edited_by_seller" ||
-        p.submission_type === "resumed_by_seller"
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       )
-    }
-    if (statusFilter === "pending") {
-      return currentStatus === "pending" || currentStatus === "under_review"
-    }
-    if (statusFilter === "offer_received") {
-      return (
-        currentStatus === "offer_received" || currentStatus === "transferring"
-      )
-    }
-    if (statusFilter !== "all" && currentStatus !== statusFilter) return false
-    return true
-  })
+    })
 
   const totalFilteredViews = filtered.reduce(
     (sum, p) => sum + Math.max(1, Number(p.views_count) || 1),
@@ -615,9 +716,11 @@ export default function PropertiesTable({
   function buildCardProps(property: SellRequest, index?: number) {
     const rawStatus = normalizeRowStatus(property.status)
     const currentSt = getEffectiveUnitStage(property)
-    const stObj =
-      sellerStatusOptions.find((s) => s.value === currentSt) ||
-      sellerStatusOptions[0]
+    const isAutoLockedStage =
+      currentSt === "in_deal" ||
+      currentSt === "negotiating" ||
+      currentSt === "has_offers"
+    const stObj = allStatusBadges[currentSt] || allStatusBadges.pending
     const isFeaturedActive =
       Boolean(property.is_featured) &&
       (!property.featured_until ||
@@ -635,8 +738,10 @@ export default function PropertiesTable({
       index,
       rawStatus,
       currentSt,
+      isAutoLockedStage,
+      isPromotionsPage,
       stObj,
-      sellerStatusOptions,
+      manualStatusOptions,
       isLoading: pending && activePropertyId === property.id,
       isHighlighted: highlightedUnitId === property.id,
       isFeaturedActive,
@@ -657,6 +762,17 @@ export default function PropertiesTable({
       onOpenDetails: setDetailsProperty,
       onOpenDocs: setDocsProperty,
       onOpenSmartMatch: setSmartMatchProperty,
+      onOpenOffersLog: setOffersLogProperty,
+      onOpenDealSummary: (
+        prop: SellRequest,
+        offer: any,
+        waitlistCount: number
+      ) => setDealSummaryData({ property: prop, offer, waitlistCount }),
+      onOpenBlockedStage: (
+        prop: SellRequest,
+        stage: string,
+        offerId?: string
+      ) => setBlockedStageModal({ property: prop, stage, offerId }),
       onExportSingle: handleExportSingle,
       matchedBuyersCount,
       validOffers,
@@ -704,7 +820,7 @@ export default function PropertiesTable({
       )}
 
       <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-slate-200/90 bg-white p-3.5 shadow-2xs sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-        <div className="flex w-full flex-wrap items-center gap-2 sm:max-w-xl sm:flex-1">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:max-w-2xl sm:flex-1">
           <div className="relative min-w-[180px] flex-1">
             <Search className="pointer-events-none absolute top-1/2 end-3 size-4 -translate-y-1/2 text-slate-400" />
             <input
@@ -719,6 +835,14 @@ export default function PropertiesTable({
               className="h-9 w-full rounded-xl border border-slate-200 bg-slate-50/50 ps-3 pe-9 text-xs font-semibold focus:border-[#007a5a] focus:bg-white focus:outline-none"
             />
           </div>
+
+          <AdminAreaFilter
+            value={areaFilter}
+            onChange={setAreaFilter}
+            itemsAreas={properties
+              .filter((p) => normalizeRowStatus(p.status) !== "deleted_by_seller")
+              .map((p) => [p.area])}
+          />
 
           <button
             type="button"
@@ -792,15 +916,34 @@ export default function PropertiesTable({
             <>
               {[
                 { id: "all", label: `${t.filters.allTab} (${activeCount})` },
-                { id: "pending", label: t.filters.pendingReviewTab },
-                { id: "active", label: t.filters.activeMarketTab },
+                {
+                  id: "pending",
+                  label: `${t.filters.pendingReviewTab} (${tabCounts.pending})`,
+                },
+                {
+                  id: "active",
+                  label: `${t.filters.activeMarketTab} (${tabCounts.active})`,
+                },
+                {
+                  id: "offers_group",
+                  label: `${t.filters.offerReceivedTab} (${tabCounts.offers_group})`,
+                },
+                {
+                  id: "in_deal",
+                  label: `${t.filters.inDealTab} (${tabCounts.in_deal})`,
+                },
+                {
+                  id: "sold",
+                  label: `${t.filters.soldTab} (${tabCounts.sold})`,
+                },
                 {
                   id: "seller_actions",
                   label: `${t.filters.editedPausedTab} (${sellerActionsList.length})`,
                 },
-                { id: "offer_received", label: t.filters.offerReceivedTab },
-                { id: "sold", label: t.filters.soldTab },
-                { id: "rejected", label: t.filters.rejectedTab },
+                {
+                  id: "rejected",
+                  label: `${t.filters.rejectedTab} (${tabCounts.rejected})`,
+                },
                 {
                   id: "deleted",
                   label: `${t.filters.deletedTab} (${deletedBySellerList.length})`,
@@ -890,25 +1033,14 @@ export default function PropertiesTable({
             <span className="inline-flex items-center gap-1.5">
               <span className="size-2.5 rounded-full bg-[#007a5a]" />
               <span>
-                {
-                  filtered.filter(
-                    (p) => getEffectiveUnitStage(p) === "active"
-                  ).length
-                }{" "}
-                {t.filters.activeMarketTab}
+                {tabCounts.active} {t.filters.activeMarketTab}
               </span>
             </span>
             <span>·</span>
             <span className="inline-flex items-center gap-1.5">
               <span className="size-2.5 rounded-full bg-amber-500" />
               <span>
-                {
-                  filtered.filter((p) => {
-                    const st = getEffectiveUnitStage(p)
-                    return st === "pending" || st === "under_review"
-                  }).length
-                }{" "}
-                {t.filters.pendingReviewTab}
+                {tabCounts.pending} {t.filters.pendingReviewTab}
               </span>
             </span>
           </div>
@@ -936,6 +1068,107 @@ export default function PropertiesTable({
           </div>
         )}
       </div>
+
+      {/* نافذة التوجيه عند الضغط على حالة تلقائية (صفقة أو عروض نشطة) */}
+      <Dialog
+        open={Boolean(blockedStageModal)}
+        onOpenChange={(o) => !o && setBlockedStageModal(null)}
+      >
+        <DialogContent
+          dir={dir}
+          className="w-[92vw] max-w-[430px] rounded-2xl p-5 text-start"
+        >
+          {blockedStageModal && (
+            <>
+              <DialogHeader className="pr-9 text-start">
+                <div className="mb-2 flex items-center gap-2.5">
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+                    <AlertTriangle className="size-4.5" />
+                  </span>
+                  <DialogTitle className="text-sm font-black text-[#0f1d40] sm:text-base">
+                    {blockedDict.title}
+                  </DialogTitle>
+                </div>
+                <DialogDescription className="text-start text-xs leading-relaxed text-slate-600">
+                  {blockedStageModal.stage === "in_deal"
+                    ? String(blockedDict.activeDealDesc || "").replace(
+                        "{unit}",
+                        blockedStageModal.property.project_name ||
+                          blockedStageModal.property.name
+                      )
+                    : String(blockedDict.activeOffersDesc || "").replace(
+                        "{unit}",
+                        blockedStageModal.property.project_name ||
+                          blockedStageModal.property.name
+                      )}
+                </DialogDescription>
+              </DialogHeader>
+
+              <DialogFooter className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setBlockedStageModal(null)}
+                  className="h-9 rounded-xl text-xs font-bold"
+                >
+                  {blockedDict.gotItBtn}
+                </Button>
+
+                {blockedStageModal.stage === "in_deal" &&
+                blockedStageModal.offerId ? (
+                  <Link
+                    href={`/admin/deals?offerId=${blockedStageModal.offerId}`}
+                    onClick={() => setBlockedStageModal(null)}
+                    className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] px-4 text-xs font-extrabold text-white hover:bg-[#006248]"
+                  >
+                    <Handshake className="size-3.5" />
+                    <span>{blockedDict.openDealBtn}</span>
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const targetProp = blockedStageModal.property
+                      setBlockedStageModal(null)
+                      setOffersLogProperty(targetProp)
+                    }}
+                    className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[#0f1d40] px-4 text-xs font-extrabold text-white hover:bg-[#1e293b]"
+                  >
+                    <ClipboardList className="size-3.5 text-emerald-300" />
+                    <span>{blockedDict.openOffersBtn}</span>
+                  </button>
+                )}
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <PropertyOffersLogDialog
+        dir={dir}
+        t={t}
+        sm={sm}
+        dealsDict={dealsDict}
+        property={offersLogProperty}
+        offers={
+          offersLogProperty ? getValidOffersForUnit(offersLogProperty) : []
+        }
+        unitCur={unitCur}
+        onClose={() => setOffersLogProperty(null)}
+        onNotice={(msg) => setNotice(msg)}
+      />
+
+      <PropertyDealQuickSummaryDialog
+        dir={dir}
+        locale={locale}
+        t={t}
+        sm={sm}
+        leadsDict={leadsAdminDict}
+        dealData={dealSummaryData}
+        unitCur={unitCur}
+        commPct={commPct}
+        onClose={() => setDealSummaryData(null)}
+      />
 
       <PropertyDocsQuickDialog
         dir={dir}

@@ -13,6 +13,7 @@ import {
   Clock,
   ExternalLink,
   FileText,
+  Handshake,
   LayoutDashboard,
   Loader2,
   LogOut,
@@ -124,6 +125,7 @@ export default function AdminShell({
 
   const { t: dict, locale, dir, isRtl } = useTranslation()
   const t = dict.admin.shell
+  const nav = t.nav as Record<string, string>
   const nL =
     ((dict.accountPages as Record<string, any>)?.notifications as Record<
       string,
@@ -158,26 +160,35 @@ export default function AdminShell({
   const allNavLinks = [
     {
       href: "/admin",
-      label: t.nav.dashboard,
-      shortLabel: t.nav.dashboard,
+      label: nav.dashboard,
+      shortLabel: nav.dashboard,
       icon: LayoutDashboard,
       allowed: ["ADMIN", "MODERATOR", "SALES"] as Array<
         "ADMIN" | "MODERATOR" | "SALES"
       >,
     },
     {
-      href: "/admin/deals",
-      label: t.nav.deals,
-      shortLabel: t.nav.dealsShort,
+      href: "/admin/offers",
+      label: nav.offers || (locale === "ar" ? "العروض والتفاوض" : "Offers"),
+      shortLabel: nav.offersShort || (locale === "ar" ? "العروض" : "Offers"),
       icon: WalletCards,
       allowed: ["ADMIN", "MODERATOR", "SALES"] as Array<
         "ADMIN" | "MODERATOR" | "SALES"
       >,
     },
     {
+      href: "/admin/deals",
+      label: nav.deals || (locale === "ar" ? "الصفقات والمبيعات" : "Deals"),
+      shortLabel: nav.dealsShort || (locale === "ar" ? "الصفقات" : "Deals"),
+      icon: Handshake,
+      allowed: ["ADMIN", "MODERATOR", "SALES"] as Array<
+        "ADMIN" | "MODERATOR" | "SALES"
+      >,
+    },
+    {
       href: "/admin/properties",
-      label: t.nav.properties,
-      shortLabel: t.nav.propertiesShort,
+      label: nav.properties,
+      shortLabel: nav.propertiesShort,
       icon: Building2,
       allowed: ["ADMIN", "MODERATOR", "SALES"] as Array<
         "ADMIN" | "MODERATOR" | "SALES"
@@ -185,8 +196,8 @@ export default function AdminShell({
     },
     {
       href: "/admin/promotions",
-      label: t.nav.promotions,
-      shortLabel: t.nav.promotionsShort,
+      label: nav.promotions,
+      shortLabel: nav.promotionsShort,
       icon: Star,
       allowed: ["ADMIN", "MODERATOR"] as Array<
         "ADMIN" | "MODERATOR" | "SALES"
@@ -194,8 +205,8 @@ export default function AdminShell({
     },
     {
       href: "/admin/leads",
-      label: t.nav.leads,
-      shortLabel: t.nav.leadsShort,
+      label: nav.leads,
+      shortLabel: nav.leadsShort,
       icon: FileText,
       allowed: ["ADMIN", "MODERATOR", "SALES"] as Array<
         "ADMIN" | "MODERATOR" | "SALES"
@@ -203,15 +214,15 @@ export default function AdminShell({
     },
     {
       href: "/admin/users",
-      label: t.nav.users,
-      shortLabel: t.nav.usersShort,
+      label: nav.users,
+      shortLabel: nav.usersShort,
       icon: Users,
       allowed: ["ADMIN"] as Array<"ADMIN" | "MODERATOR" | "SALES">,
     },
     {
       href: "/admin/settings",
-      label: t.nav.settings,
-      shortLabel: t.nav.settingsShort,
+      label: nav.settings,
+      shortLabel: nav.settingsShort,
       icon: Settings,
       allowed: ["ADMIN"] as Array<"ADMIN" | "MODERATOR" | "SALES">,
     },
@@ -632,7 +643,6 @@ export default function AdminShell({
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
-            {/* 1. زر اختيار اللغة المنسدل */}
             <div className="relative" ref={langMenuRef}>
               <button
                 type="button"
@@ -702,7 +712,6 @@ export default function AdminShell({
               )}
             </div>
 
-            {/* 2. زر الإشعارات بنظام فيسبوك (جديد / أقدم + شوف الكل بدون مسح) */}
             <div className="relative" ref={notifRef}>
               <button
                 type="button"
@@ -812,7 +821,6 @@ export default function AdminShell({
               )}
             </div>
 
-            {/* 3. أيقونة الملف الشخصي */}
             <Link
               href="/admin/profile"
               title={t.myProfile}

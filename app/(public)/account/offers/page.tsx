@@ -19,6 +19,7 @@ import {
   MessageCircle,
   Radar,
   Sparkles,
+  Star,
   Trash2,
   Wallet,
   X,
@@ -423,6 +424,131 @@ function OffersContent() {
     }).catch(() => {})
   }
 
+  const renderRecommendationCard = ({
+    unit,
+    match,
+    recommendedByAdmin,
+  }: {
+    unit: MatchableUnit
+    match: any
+    recommendedByAdmin: boolean
+  }) => {
+    const paid = Number(unit.paid_amount) || 0
+    const contract = Number(unit.contract_price) || paid
+    const market = Number(unit.market_price) || contract
+    const instantGain = Math.max(
+      0,
+      market - contract - Math.round(market * 0.0125)
+    )
+
+    return (
+      <div
+        key={unit.id}
+        className={`flex flex-col justify-between rounded-[22px] border bg-white p-4 text-start shadow-xs transition hover:shadow-md sm:p-5 ${
+          recommendedByAdmin
+            ? 'border-2 border-amber-400'
+            : match.score >= 85
+              ? 'border-2 border-[#007a5a]/50'
+              : 'border-gray-200/90'
+        }`}
+      >
+        <div>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span
+              className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-black ${
+                match.score >= 85
+                  ? 'bg-[#007a5a] text-white'
+                  : 'bg-emerald-100 text-[#007a5a]'
+              }`}
+            >
+              🎯 {t.matchScoreLabel}: {match.score}%
+            </span>
+
+            {recommendedByAdmin ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-[10.5px] font-extrabold text-amber-900">
+                🌟 {t.adminRecommendedBadge}
+              </span>
+            ) : (
+              match.score >= 85 && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[10.5px] font-bold text-[#007a5a]">
+                  🤖 {t.autoPilotMatchBadge}
+                </span>
+              )
+            )}
+          </div>
+
+          <h3 className="mt-3 text-base font-extrabold text-[#0a1122]">
+            {unit.project_name || t.unitFallback}
+          </h3>
+          <p className="mt-0.5 text-xs text-gray-500">
+            {unit.developer_name || ''} ·{' '}
+            {getLocalizedGeorgiaAreaName(unit.area, locale)} ·{' '}
+            {unit.unit_type || ''}
+          </p>
+
+          <div className="mt-3.5 grid grid-cols-2 gap-2.5 rounded-xl bg-gray-50 p-3 text-xs">
+            <div>
+              <span className="block text-[10px] text-gray-400">
+                {t.requiredCashLabel}
+              </span>
+              <strong className="mt-0.5 block text-sm font-black text-[#0a1122] tabular-nums">
+                <span dir="ltr">{paid.toLocaleString('en-US')}</span> {cur}
+              </strong>
+            </div>
+            {instantGain > 0 && (
+              <div>
+                <span className="block text-[10px] text-gray-400">
+                  {t.instantBuyerGainLabel}
+                </span>
+                <strong className="mt-0.5 block text-sm font-black text-[#007a5a] tabular-nums">
+                  + <span dir="ltr">{instantGain.toLocaleString('en-US')}</span>{' '}
+                  {cur}
+                </strong>
+              </div>
+            )}
+          </div>
+
+          {match.matches.length > 0 && (
+            <div className="mt-3">
+              <p className="mb-1.5 text-[11px] font-extrabold text-[#007a5a]">
+                ✓ {t.matchedPointsTitle}:
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {match.matches.map((mItem: string) => (
+                  <span
+                    key={mItem}
+                    className="rounded-lg bg-[#eaf8f2] px-2.5 py-1 text-[10.5px] font-bold text-[#007a5a]"
+                  >
+                    ✓ {mItem}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="mt-5 grid grid-cols-1 gap-2 border-t border-gray-100 pt-3.5 sm:grid-cols-2">
+          <Link
+            href={`/opportunities/${unit.id}`}
+            className="inline-flex min-h-[42px] items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-center text-xs font-extrabold text-[#0a1122] transition hover:border-[#007a5a] hover:bg-gray-50"
+          >
+            <ExternalLink className="size-3.5 shrink-0 text-[#007a5a]" />
+            <span>{t.viewUnitPageBtn}</span>
+          </Link>
+
+          <button
+            type="button"
+            onClick={() => openBuyerOfferModal(unit)}
+            className="inline-flex min-h-[42px] items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] px-3 py-2 text-center text-xs font-extrabold text-white shadow-2xs transition hover:bg-[#006248]"
+          >
+            <Wallet className="size-3.5 shrink-0" />
+            <span>{t.makeOfferBtn}</span>
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   if (loading) {
     return (
       <div
@@ -467,6 +593,13 @@ function OffersContent() {
   const hiddenBuyerOffersCount = Math.max(
     0,
     buyerOffers.length - INITIAL_SUBMITTED_OFFERS_VISIBLE
+  )
+
+  const advisorPickedRecs = smartRecommendations.filter(
+    (item) => item.recommendedByAdmin
+  )
+  const autoMatchedRecs = smartRecommendations.filter(
+    (item) => !item.recommendedByAdmin
   )
 
   return (
@@ -535,7 +668,7 @@ function OffersContent() {
                 <div className="mt-3.5 border-t border-emerald-200/80 pt-3">
                   <a
                     href={`https://wa.me/${supportWhatsApp}?text=${encodeURIComponent(
-                      `${t.waFastTrackOfferMsgPrefix} (${getOfferRef(feedback.justSubmittedOffer.offerId)}) ${t.waFastTrackOfferMsgMiddle} (${feedback.justSubmittedOffer.projectName}) — ${feedback.justSubmittedOffer.offeredCash.toLocaleString('en-US')} ${cur} ${t.waFastTrackOfferMsgSuffix}\n${siteOrigin}/admin/properties?unitId=${feedback.justSubmittedOffer.unitId}`
+                      `${t.waFastTrackOfferMsgPrefix} (${getOfferRef(feedback.justSubmittedOffer.offerId)}) ${t.waFastTrackOfferMsgMiddle} (${feedback.justSubmittedOffer.projectName}) — ${feedback.justSubmittedOffer.offeredCash.toLocaleString('en-US')} ${cur} ${t.waFastTrackOfferMsgSuffix}\n${siteOrigin}/admin/offers?offerId=${feedback.justSubmittedOffer.offerId}`
                     )}`}
                     target="_blank"
                     rel="noreferrer"
@@ -648,7 +781,7 @@ function OffersContent() {
                     const didInstallmentIncrease =
                       currentUnitPaid > Number(offer.required_cash || 0)
 
-                    const waConfirmText = `${t.waFastTrackOfferMsgPrefix} (${refCode}) ${t.waFastTrackOfferMsgMiddle} (${u?.project_name || ''}) — ${Number(offer.offered_cash).toLocaleString('en-US')} ${cur} ${t.waFastTrackOfferMsgSuffix}\n${siteOrigin}/admin/properties?unitId=${offer.property_id}`
+                    const waConfirmText = `${t.waFastTrackOfferMsgPrefix} (${refCode}) ${t.waFastTrackOfferMsgMiddle} (${u?.project_name || ''}) — ${Number(offer.offered_cash).toLocaleString('en-US')} ${cur} ${t.waFastTrackOfferMsgSuffix}\n${siteOrigin}/admin/offers?offerId=${offer.id}`
 
                     const isWaBtnHidden =
                       Boolean(hiddenWaOfferIds[offer.id]) ||
@@ -1195,6 +1328,29 @@ function OffersContent() {
               </section>
             )}
 
+            {/* قسم ترشيحات مستشار المبيعات لك (يظهر في الصدارة عندما يرشح السيلز وحدة يدوياً) */}
+            {advisorPickedRecs.length > 0 && (
+              <section className="rounded-[24px] border-2 border-amber-300/90 bg-amber-50/45 p-4 shadow-xs sm:p-6">
+                <div className="mb-4 flex items-center gap-2.5 border-b border-amber-200/70 pb-3.5">
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-amber-400 text-[#0a1122] shadow-2xs">
+                    <Star className="size-4.5 fill-current" />
+                  </span>
+                  <div>
+                    <h2 className="text-sm font-black text-[#0a1122] sm:text-base">
+                      {t.advisorPicksSectionTitle} ({advisorPickedRecs.length})
+                    </h2>
+                    <p className="text-[11px] font-medium text-amber-950/80">
+                      {t.advisorPicksSectionSubtitle}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  {advisorPickedRecs.map(renderRecommendationCard)}
+                </div>
+              </section>
+            )}
+
             <section
               ref={smartRecsRef}
               className="rounded-[24px] border border-emerald-200/80 bg-[#effaf5]/40 p-4 sm:p-6"
@@ -1206,7 +1362,7 @@ function OffersContent() {
                   </span>
                   <div>
                     <h2 className="text-sm font-black text-[#0a1122] sm:text-base">
-                      {t.smartRecsTitle} ({smartRecommendations.length})
+                      {t.smartRecsTitle} ({autoMatchedRecs.length})
                     </h2>
                     <p className="text-[11px] text-gray-500">
                       {t.smartRecsSubtitle}
@@ -1215,7 +1371,7 @@ function OffersContent() {
                 </div>
               </div>
 
-              {smartRecommendations.length === 0 ? (
+              {autoMatchedRecs.length === 0 ? (
                 <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center shadow-2xs">
                   <p className="text-sm font-bold text-gray-600">
                     {t.buyerEmpty}
@@ -1229,130 +1385,7 @@ function OffersContent() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  {smartRecommendations.map(
-                    ({ unit, match, recommendedByAdmin }) => {
-                      const paid = Number(unit.paid_amount) || 0
-                      const contract = Number(unit.contract_price) || paid
-                      const market = Number(unit.market_price) || contract
-                      const instantGain = Math.max(
-                        0,
-                        market - contract - Math.round(market * 0.0125)
-                      )
-
-                      return (
-                        <div
-                          key={unit.id}
-                          className={`flex flex-col justify-between rounded-[22px] border bg-white p-4 text-start shadow-xs transition hover:shadow-md sm:p-5 ${
-                            recommendedByAdmin
-                              ? 'border-2 border-amber-400'
-                              : match.score >= 85
-                                ? 'border-2 border-[#007a5a]/50'
-                                : 'border-gray-200/90'
-                          }`}
-                        >
-                          <div>
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                              <span
-                                className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-black ${
-                                  match.score >= 85
-                                    ? 'bg-[#007a5a] text-white'
-                                    : 'bg-emerald-100 text-[#007a5a]'
-                                }`}
-                              >
-                                🎯 {t.matchScoreLabel}: {match.score}%
-                              </span>
-
-                              {recommendedByAdmin ? (
-                                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-[10.5px] font-extrabold text-amber-900">
-                                  🌟 {t.adminRecommendedBadge}
-                                </span>
-                              ) : (
-                                match.score >= 85 && (
-                                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[10.5px] font-bold text-[#007a5a]">
-                                    🤖 {t.autoPilotMatchBadge}
-                                  </span>
-                                )
-                              )}
-                            </div>
-
-                            <h3 className="mt-3 text-base font-extrabold text-[#0a1122]">
-                              {unit.project_name || t.unitFallback}
-                            </h3>
-                            <p className="mt-0.5 text-xs text-gray-500">
-                              {unit.developer_name || ''} ·{' '}
-                              {getLocalizedGeorgiaAreaName(unit.area, locale)} ·{' '}
-                              {unit.unit_type || ''}
-                            </p>
-
-                            <div className="mt-3.5 grid grid-cols-2 gap-2.5 rounded-xl bg-gray-50 p-3 text-xs">
-                              <div>
-                                <span className="block text-[10px] text-gray-400">
-                                  {t.requiredCashLabel}
-                                </span>
-                                <strong className="mt-0.5 block text-sm font-black text-[#0a1122] tabular-nums">
-                                  <span dir="ltr">
-                                    {paid.toLocaleString('en-US')}
-                                  </span>{' '}
-                                  {cur}
-                                </strong>
-                              </div>
-                              {instantGain > 0 && (
-                                <div>
-                                  <span className="block text-[10px] text-gray-400">
-                                    {t.instantBuyerGainLabel}
-                                  </span>
-                                  <strong className="mt-0.5 block text-sm font-black text-[#007a5a] tabular-nums">
-                                    +{' '}
-                                    <span dir="ltr">
-                                      {instantGain.toLocaleString('en-US')}
-                                    </span>{' '}
-                                    {cur}
-                                  </strong>
-                                </div>
-                              )}
-                            </div>
-
-                            {match.matches.length > 0 && (
-                              <div className="mt-3">
-                                <p className="mb-1.5 text-[11px] font-extrabold text-[#007a5a]">
-                                  ✓ {t.matchedPointsTitle}:
-                                </p>
-                                <div className="flex flex-wrap gap-1.5">
-                                  {match.matches.map((mItem: string) => (
-                                    <span
-                                      key={mItem}
-                                      className="rounded-lg bg-[#eaf8f2] px-2.5 py-1 text-[10.5px] font-bold text-[#007a5a]"
-                                    >
-                                      ✓ {mItem}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="mt-5 grid grid-cols-1 gap-2 border-t border-gray-100 pt-3.5 sm:grid-cols-2">
-                            <Link
-                              href={`/opportunities/${unit.id}`}
-                              className="inline-flex min-h-[42px] items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-center text-xs font-extrabold text-[#0a1122] transition hover:border-[#007a5a] hover:bg-gray-50"
-                            >
-                              <ExternalLink className="size-3.5 shrink-0 text-[#007a5a]" />
-                              <span>{t.viewUnitPageBtn}</span>
-                            </Link>
-
-                            <button
-                              type="button"
-                              onClick={() => openBuyerOfferModal(unit)}
-                              className="inline-flex min-h-[42px] items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] px-3 py-2 text-center text-xs font-extrabold text-white shadow-2xs transition hover:bg-[#006248]"
-                            >
-                              <Wallet className="size-3.5 shrink-0" />
-                              <span>{t.makeOfferBtn}</span>
-                            </button>
-                          </div>
-                        </div>
-                      )
-                    }
-                  )}
+                  {autoMatchedRecs.map(renderRecommendationCard)}
                 </div>
               )}
             </section>

@@ -1,9 +1,11 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useMemo, useState, useTransition } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
+  AlertTriangle,
+  Building2,
   Check,
   CheckCircle2,
   Clock,
@@ -14,8 +16,10 @@ import {
   Lock,
   MessageCircle,
   Phone,
+  Search,
   Send,
   Sparkles,
+  Star,
   Wallet,
   XCircle,
 } from "lucide-react"
@@ -68,8 +72,7 @@ function isUnitEligibleForSmartMatch(status?: string | null): boolean {
     clean === "active" ||
     clean === "approved" ||
     clean === "published" ||
-    clean === "offer_received" ||
-    clean === "transferring"
+    clean === "offer_received"
   )
 }
 
@@ -153,6 +156,13 @@ function resolveEffectiveOfferStatus(offer: any): string {
   return offer.status || "recommended"
 }
 
+function resolveOfferRoute(status: string, offerId: string): string {
+  if (status === "accepted" || status === "unit_locked") {
+    return `/admin/deals?offerId=${offerId}`
+  }
+  return `/admin/offers?offerId=${offerId}`
+}
+
 function UnitNegotiabilityBadge({
   unit,
   cur,
@@ -194,6 +204,8 @@ function InlineOfferComposer({
   sm,
   mode,
   setMode,
+  dealMode,
+  setDealMode,
   customPriceStr,
   setCustomPriceStr,
   errorText,
@@ -207,6 +219,8 @@ function InlineOfferComposer({
   sm: Record<string, any>
   mode: "full" | "custom"
   setMode: (m: "full" | "custom") => void
+  dealMode: "send_to_seller" | "direct_accept_deal"
+  setDealMode: (m: "send_to_seller" | "direct_accept_deal") => void
   customPriceStr: string
   setCustomPriceStr: (s: string) => void
   errorText: string | null
@@ -301,6 +315,42 @@ function InlineOfferComposer({
         </div>
       )}
 
+      {/* اختيار المسار: إرسال للمالك أم موافقة هاتفية فورية */}
+      <div className="mt-2.5 grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+        <button
+          type="button"
+          onClick={() => setDealMode("send_to_seller")}
+          className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-2 text-start text-[11px] font-extrabold transition ${
+            dealMode === "send_to_seller"
+              ? "border-[#0f1d40] bg-[#0f1d40] text-white"
+              : "border-slate-200 bg-white text-[#0f1d40]"
+          }`}
+        >
+          <Send className="size-3.5 shrink-0" />
+          <span>{sm.offerModeSendShort}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setDealMode("direct_accept_deal")}
+          className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-2 text-start text-[11px] font-extrabold transition ${
+            dealMode === "direct_accept_deal"
+              ? "border-[#007a5a] bg-[#007a5a] text-white"
+              : "border-emerald-200 bg-white text-[#007a5a]"
+          }`}
+        >
+          <Handshake className="size-3.5 shrink-0" />
+          <span>{sm.offerModeDirectShort}</span>
+        </button>
+      </div>
+
+      {dealMode === "direct_accept_deal" && (
+        <div className="mt-2 flex items-start gap-1.5 rounded-lg border border-amber-200 bg-amber-50 p-2 text-[10.5px] font-bold text-amber-900">
+          <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-amber-600" />
+          <span>{sm.directAcceptConfirmWarn}</span>
+        </div>
+      )}
+
       {errorText && (
         <p className="mt-2 text-[11px] font-extrabold text-red-600">
           {errorText}
@@ -312,14 +362,24 @@ function InlineOfferComposer({
           type="button"
           disabled={isBusy}
           onClick={onConfirm}
-          className="inline-flex h-8.5 flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#007a5a] px-3 text-[11px] font-extrabold text-white transition hover:bg-[#006248] disabled:opacity-50"
+          className={`inline-flex h-8.5 flex-1 items-center justify-center gap-1.5 rounded-lg px-3 text-[11px] font-extrabold text-white transition disabled:opacity-50 ${
+            dealMode === "direct_accept_deal"
+              ? "bg-[#007a5a] hover:bg-[#006248]"
+              : "bg-[#0f1d40] hover:bg-[#1e293b]"
+          }`}
         >
           {isBusy ? (
             <Loader2 className="size-3.5 animate-spin" />
+          ) : dealMode === "direct_accept_deal" ? (
+            <Handshake className="size-3.5 shrink-0" />
           ) : (
             <Check className="size-3.5 shrink-0" />
           )}
-          <span>{sm.confirmSendOfferToOwnerBtn}</span>
+          <span>
+            {dealMode === "direct_accept_deal"
+              ? sm.directAcceptPhoneBtn
+              : sm.confirmSendOfferToOwnerBtn}
+          </span>
         </button>
 
         <button
@@ -368,6 +428,9 @@ export function UnitSmartMatchModal({
   >({})
   const [draftOfferKey, setDraftOfferKey] = useState<string | null>(null)
   const [draftMode, setDraftMode] = useState<"full" | "custom">("full")
+  const [draftDealMode, setDraftDealMode] = useState<
+    "send_to_seller" | "direct_accept_deal"
+  >("send_to_seller")
   const [draftPriceStr, setDraftPriceStr] = useState("")
   const [draftError, setDraftError] = useState<string | null>(null)
   const [confirmCancelKey, setConfirmCancelKey] = useState<string | null>(null)
@@ -381,6 +444,10 @@ export function UnitSmartMatchModal({
   const unitPhoneDigits = String(unit.phone || "").replace(/\D/g, "")
   const uOfficialCode = deriveShortUnitCode(unit.id, unit.code)
   const unitGuardrails = getUnitPricingGuardrails(unit)
+  const unitPublicLink =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/opportunities/${unit.id}`
+      : `https://aqarexit.com/opportunities/${unit.id}`
 
   const unitHasAcceptedOffer = offers.some(
     (o) =>
@@ -390,7 +457,9 @@ export function UnitSmartMatchModal({
   )
 
   const matchedList = (buyers || [])
-    .filter((b) => {
+    .filter((b: any) => {
+      const bSt = String(b.status || "new").trim().toLowerCase()
+      if (bSt === "closed" || bSt === "archived") return false
       if (
         b.user_id &&
         unit.user_id &&
@@ -432,9 +501,7 @@ export function UnitSmartMatchModal({
 
   const manualCandidates = matchedList.filter(
     (item) =>
-      item.match.score < AUTO_PUBLISH_THRESHOLD &&
-      !item.existingOffer &&
-      !doneKeys[`rec_${unit.id}_${item.buyer.id}`]
+      !item.existingOffer && !doneKeys[`rec_${unit.id}_${item.buyer.id}`]
   )
 
   const bulkKey = `bulk_${unit.id}`
@@ -496,6 +563,7 @@ export function UnitSmartMatchModal({
 
     setDraftOfferKey(k)
     setDraftMode("full")
+    setDraftDealMode("send_to_seller")
     setDraftPriceStr(suggestedCustom.toLocaleString("en-US"))
     setDraftError(null)
     setConfirmCancelKey(null)
@@ -528,6 +596,7 @@ export function UnitSmartMatchModal({
           leadId: buyer.id,
           offeredCash,
           paymentReadiness: "1_week",
+          mode: draftDealMode,
         })
         if (res.success) {
           setDoneKeys((prev) => ({ ...prev, [k]: true }))
@@ -538,7 +607,11 @@ export function UnitSmartMatchModal({
             }))
           }
           setDraftOfferKey(null)
-          onNotice?.({ text: sm.officialOfferSentSuccess })
+          onNotice?.({
+            text: res.isDirectDeal
+              ? sm.directDealCreatedSuccess
+              : sm.officialOfferSentSuccess,
+          })
           router.refresh()
         } else if (res.error) {
           setDraftError(res.error)
@@ -583,7 +656,7 @@ export function UnitSmartMatchModal({
     <Dialog open={Boolean(unit)} onOpenChange={(o) => !o && onClose()}>
       <DialogContent
         dir={dir}
-        className="max-h-[88vh] w-[95vw] overflow-x-hidden overflow-y-auto rounded-2xl p-4 text-start sm:max-w-[620px] sm:p-5"
+        className="max-h-[88vh] w-[95vw] overflow-x-hidden overflow-y-auto rounded-2xl p-4 text-start sm:max-w-[640px] sm:p-5"
       >
         <DialogHeader className="border-b border-slate-100 pb-3 pr-9 text-start">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -655,11 +728,10 @@ export function UnitSmartMatchModal({
                 const bCash = Number(
                   buyer.available_cash || buyer.budget || 0
                 ).toLocaleString("en-US")
-                const bWa = `${leadsPrompts.waUnitLeadPrefix} ${buyer.name || ""}${commaSep}${leadsPrompts.waUnitLeadMiddle} (${unit.project_name || ""} - ${localizedUnitArea} - ${uOfficialCode}) — ${matchPrefix} ${match.score}%`
+                const bWa = `${leadsPrompts.waUnitLeadPrefix} ${buyer.name || ""}${commaSep}${leadsPrompts.waUnitLeadMiddle} (${unit.project_name || ""} - ${localizedUnitArea} - ${uOfficialCode}) — ${matchPrefix} ${match.score}%\n${unitPublicLink}`
 
                 const recKey = `rec_${unit.id}_${buyer.id}`
                 const offKey = `off_${unit.id}_${buyer.id}`
-                const isAutoPublished = match.score >= AUTO_PUBLISH_THRESHOLD
                 const isManuallyRecommended =
                   Boolean(doneKeys[recKey]) ||
                   isBulkDone ||
@@ -714,11 +786,10 @@ export function UnitSmartMatchModal({
 
                       {hasRealOffer ? (
                         <Link
-                          href={
-                            effectiveStatus === "unit_locked"
-                              ? `/admin/deals?tab=waitlist&offerId=${existingOffer.id}`
-                              : `/admin/deals?offerId=${existingOffer.id}`
-                          }
+                          href={resolveOfferRoute(
+                            effectiveStatus,
+                            String(existingOffer.id)
+                          )}
                           onClick={onClose}
                           className={`inline-flex items-center gap-1 rounded-md px-2.5 py-0.5 text-[10.5px] font-extrabold ${
                             effectiveStatus === "accepted"
@@ -755,15 +826,15 @@ export function UnitSmartMatchModal({
                                     : sm.sentOfferDoneBtn}
                           </span>
                         </Link>
-                      ) : isAutoPublished ? (
-                        <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2.5 py-0.5 text-[10.5px] font-extrabold text-[#007a5a]">
-                          <CheckCircle2 className="size-3" />
-                          <span>{sm.autoPublishedTag}</span>
-                        </span>
                       ) : isManuallyRecommended ? (
                         <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2.5 py-0.5 text-[10.5px] font-extrabold text-blue-800">
                           <Check className="size-3" />
                           <span>{sm.recSentTag}</span>
+                        </span>
+                      ) : match.score >= AUTO_PUBLISH_THRESHOLD ? (
+                        <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2.5 py-0.5 text-[10.5px] font-extrabold text-[#007a5a]">
+                          <CheckCircle2 className="size-3" />
+                          <span>{sm.autoPublishedTag}</span>
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2.5 py-0.5 text-[10.5px] font-bold text-amber-800">
@@ -809,6 +880,8 @@ export function UnitSmartMatchModal({
                         sm={sm}
                         mode={draftMode}
                         setMode={setDraftMode}
+                        dealMode={draftDealMode}
+                        setDealMode={setDraftDealMode}
                         customPriceStr={draftPriceStr}
                         setCustomPriceStr={setDraftPriceStr}
                         errorText={draftError}
@@ -849,12 +922,24 @@ export function UnitSmartMatchModal({
                       </div>
                     ) : (
                       <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-2.5">
-                        {!isAutoPublished && !isOfferSentNow && (
+                        {/* الأزرار الأساسية البارزة للتواصل والترشيح */}
+                        <a
+                          data-admin-client-wa="true"
+                          href={`https://wa.me/${String(buyer.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(bWa)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex h-8.5 flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#25D366] px-3 text-[11px] font-extrabold whitespace-nowrap text-white hover:bg-[#1ebe5d]"
+                        >
+                          <MessageCircle className="size-3.5 shrink-0" />
+                          <span>{leadsPrompts.whatsappBtn}</span>
+                        </a>
+
+                        {!isOfferSentNow && (
                           <button
                             type="button"
                             disabled={isPending || isManuallyRecommended}
                             onClick={() => handleSendSingle(buyer.id)}
-                            className={`inline-flex h-8.5 flex-1 items-center justify-center gap-1.5 rounded-xl px-3 text-[11px] font-bold whitespace-nowrap text-white transition ${
+                            className={`inline-flex h-8.5 flex-1 items-center justify-center gap-1.5 rounded-xl px-3 text-[11px] font-extrabold whitespace-nowrap text-white transition ${
                               isManuallyRecommended
                                 ? "bg-emerald-600"
                                 : "bg-[#0f1d40] hover:bg-[#1e293b]"
@@ -869,8 +954,8 @@ export function UnitSmartMatchModal({
                               </>
                             ) : (
                               <>
-                                <Send className="size-3.5 shrink-0" />
-                                <span>{sm.sendRecToBuyerBtn}</span>
+                                <Star className="size-3.5 shrink-0 text-amber-300" />
+                                <span>{sm.recommendToBuyerStarBtn || sm.sendRecToBuyerBtn}</span>
                               </>
                             )}
                           </button>
@@ -880,11 +965,10 @@ export function UnitSmartMatchModal({
                           <>
                             {resolvedOfferId && (
                               <Link
-                                href={
-                                  effectiveStatus === "unit_locked"
-                                    ? `/admin/deals?tab=waitlist&offerId=${resolvedOfferId}`
-                                    : `/admin/deals?offerId=${resolvedOfferId}`
-                                }
+                                href={resolveOfferRoute(
+                                  effectiveStatus,
+                                  resolvedOfferId
+                                )}
                                 onClick={onClose}
                                 className={`inline-flex h-8.5 flex-1 items-center justify-center gap-1.5 rounded-xl px-3 text-[11px] font-extrabold whitespace-nowrap text-white transition ${
                                   effectiveStatus === "accepted"
@@ -918,26 +1002,15 @@ export function UnitSmartMatchModal({
                             type="button"
                             disabled={isPending}
                             onClick={() => openOfferComposer(buyer)}
-                            className="inline-flex h-8.5 flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] px-3 text-[11px] font-extrabold whitespace-nowrap text-white transition hover:bg-[#006248]"
+                            className="inline-flex h-8.5 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 text-[11px] font-bold whitespace-nowrap text-[#0f1d40] transition hover:border-[#007a5a] hover:bg-[#eaf8f2] hover:text-[#007a5a]"
                           >
-                            <Wallet className="size-3.5 shrink-0" />
+                            <Wallet className="size-3.5 shrink-0 text-[#007a5a]" />
                             <span>
-                              {sm.createOfferFromBuyerBtn ||
+                              {sm.recordOfferAfterCallBtn ||
                                 sm.createOfficialOfferBtn}
                             </span>
                           </button>
                         ) : null}
-
-                        <a
-                          data-admin-client-wa="true"
-                          href={`https://wa.me/${String(buyer.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(bWa)}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex h-8.5 items-center justify-center gap-1.5 rounded-xl bg-[#25D366] px-3 text-[11px] font-bold whitespace-nowrap text-white hover:bg-[#1ebe5d]"
-                        >
-                          <MessageCircle className="size-3.5 shrink-0" />
-                          <span>{leadsPrompts.whatsappBtn}</span>
-                        </a>
                       </div>
                     )}
                   </div>
@@ -965,13 +1038,17 @@ export function BuyerSmartMatchModal({
   onNotice?: (msg: { text: string; isError?: boolean }) => void
 }) {
   const router = useRouter()
-  const { t: dict, locale, dir } = useTranslation()
+  const { t: dict, locale, dir, isRtl } = useTranslation()
   const sm = (dict.admin as Record<string, any>)?.smartMatch || {}
   const dealsDict = (dict.admin as Record<string, any>)?.dealsPage || {}
   const matcherDict = (dict.smartMatcher as Record<string, any>) || {}
   const buyerDict = (dict.accountComponents as Record<string, any>)?.buyer || {}
+  const leadsPrompts = dict.admin?.leads || {}
   const tLeads = dict.admin?.leadsAdmin || {}
+  const commaSep = isRtl ? "، " : ", "
 
+  const [modalTab, setModalTab] = useState<"matched" | "all_phone">("matched")
+  const [unitSearch, setUnitSearch] = useState("")
   const [loadingKey, setLoadingKey] = useState<string | null>(null)
   const [doneKeys, setDoneKeys] = useState<Record<string, boolean>>({})
   const [createdOfferIds, setCreatedOfferIds] = useState<
@@ -982,81 +1059,99 @@ export function BuyerSmartMatchModal({
   >({})
   const [draftOfferKey, setDraftOfferKey] = useState<string | null>(null)
   const [draftMode, setDraftMode] = useState<"full" | "custom">("full")
+  const [draftDealMode, setDraftDealMode] = useState<
+    "send_to_seller" | "direct_accept_deal"
+  >("send_to_seller")
   const [draftPriceStr, setDraftPriceStr] = useState("")
   const [draftError, setDraftError] = useState<string | null>(null)
   const [confirmCancelKey, setConfirmCancelKey] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
-  if (!lead) return null
-
   const leadCur = getCurrencySymbol("GE", locale)
   const matchPrefix = sm.matchScorePrefix || buyerDict.matchScorePrefix || ""
-  const leadPhoneDigits = String(lead.phone || "").replace(/\D/g, "")
+  const leadPhoneDigits = String(lead?.phone || "").replace(/\D/g, "")
 
-  const matchedUnitsList = (units || [])
-    .filter((u) => {
-      if (!isUnitEligibleForSmartMatch(u.status)) return false
-      if (
-        lead.user_id &&
-        u.user_id &&
-        String(u.user_id) === String(lead.user_id)
-      )
-        return false
-      const uPhoneDigits = String(u.phone || "").replace(/\D/g, "")
-      if (
-        leadPhoneDigits.length >= 8 &&
-        uPhoneDigits.length >= 8 &&
-        leadPhoneDigits.slice(-8) === uPhoneDigits.slice(-8)
-      ) {
-        return false
-      }
-      return true
-    })
-    .map((unit) => {
-      const existingOffer = offers.find(
-        (o) =>
-          String(o.property_id) === String(unit.id) &&
-          !cancelledOfferIds[String(o.id)] &&
-          isSameBuyerOffer(o, lead)
-      )
-      const unitLockedBySomeone = offers.some(
-        (o) =>
-          String(o.property_id) === String(unit.id) &&
-          !cancelledOfferIds[String(o.id)] &&
-          resolveEffectiveOfferStatus(o) === "accepted"
-      )
-      return {
-        unit,
-        match: calculateSmartMatch(unit, lead, undefined, locale),
-        existingOffer,
-        effectiveStatus: resolveEffectiveOfferStatus(existingOffer),
-        unitLockedBySomeone,
-      }
-    })
-    .filter((item) => {
-      if (item.match.score < 60) return false
-      const offKey = `off_${item.unit.id}_${lead.id}`
-      // إخفاء الوحدات التي عليها عرض فعلي مسبقاً (لأن مكانها "سجل عروضه") مع إبقاء الوحدة التي تم تسجيل عرضها للتو حتى إغلاق النافذة
-      const hasPreExistingRealOffer =
-        Boolean(item.existingOffer) &&
-        item.effectiveStatus !== "recommended" &&
-        item.effectiveStatus !== "rejected" &&
-        !doneKeys[offKey]
-      return !hasPreExistingRealOffer
-    })
-    .sort((a, b) => {
-      if (b.match.score !== a.match.score) return b.match.score - a.match.score
-      if (a.match.differences.length !== b.match.differences.length) {
+  const allScoredUnits = useMemo(() => {
+    if (!lead) return []
+    return (units || [])
+      .filter((u) => {
+        if (!isUnitEligibleForSmartMatch(u.status)) return false
+        if (
+          lead.user_id &&
+          u.user_id &&
+          String(u.user_id) === String(lead.user_id)
+        )
+          return false
+        const uPhoneDigits = String(u.phone || "").replace(/\D/g, "")
+        if (
+          leadPhoneDigits.length >= 8 &&
+          uPhoneDigits.length >= 8 &&
+          leadPhoneDigits.slice(-8) === uPhoneDigits.slice(-8)
+        ) {
+          return false
+        }
+        return true
+      })
+      .map((unit) => {
+        const existingOffer = offers.find(
+          (o) =>
+            String(o.property_id) === String(unit.id) &&
+            !cancelledOfferIds[String(o.id)] &&
+            isSameBuyerOffer(o, lead)
+        )
+        const unitLockedBySomeone = offers.some(
+          (o) =>
+            String(o.property_id) === String(unit.id) &&
+            !cancelledOfferIds[String(o.id)] &&
+            resolveEffectiveOfferStatus(o) === "accepted"
+        )
+        return {
+          unit,
+          match: calculateSmartMatch(unit, lead, undefined, locale),
+          existingOffer,
+          effectiveStatus: resolveEffectiveOfferStatus(existingOffer),
+          unitLockedBySomeone,
+        }
+      })
+      .filter((item) => {
+        if (item.unitLockedBySomeone) return false
+        const offKey = `off_${item.unit.id}_${lead.id}`
+        const hasPreExistingRealOffer =
+          Boolean(item.existingOffer) &&
+          item.effectiveStatus !== "recommended" &&
+          item.effectiveStatus !== "rejected" &&
+          !doneKeys[offKey]
+        return !hasPreExistingRealOffer
+      })
+      .sort((a, b) => {
+        if (b.match.score !== a.match.score) return b.match.score - a.match.score
         return a.match.differences.length - b.match.differences.length
-      }
-      return b.match.matches.length - a.match.matches.length
+      })
+  }, [lead, units, offers, cancelledOfferIds, doneKeys, leadPhoneDigits, locale])
+
+  const matchedUnitsList = useMemo(
+    () => allScoredUnits.filter((item) => item.match.score >= 60),
+    [allScoredUnits]
+  )
+
+  const displayedList = useMemo(() => {
+    if (modalTab === "matched") return matchedUnitsList
+    const q = unitSearch.trim().toLowerCase()
+    if (!q) return allScoredUnits
+    return allScoredUnits.filter(({ unit }) => {
+      const uCode = deriveShortUnitCode(unit.id, unit.code).toLowerCase()
+      const localizedArea = cleanAreaName(unit.area, locale).toLowerCase()
+      return `${uCode} ${unit.project_name || ""} ${unit.area || ""} ${localizedArea} ${unit.name || ""}`
+        .toLowerCase()
+        .includes(q)
     })
+  }, [modalTab, matchedUnitsList, allScoredUnits, unitSearch, locale])
+
+  if (!lead) return null
 
   const manualUnits = matchedUnitsList.filter(
     (item) =>
-      item.match.score < AUTO_PUBLISH_THRESHOLD &&
-      !item.existingOffer &&
-      !doneKeys[`rec_${item.unit.id}_${lead.id}`]
+      !item.existingOffer && !doneKeys[`rec_${item.unit.id}_${lead.id}`]
   )
 
   const bulkKey = `bulk_lead_${lead.id}`
@@ -1117,6 +1212,7 @@ export function BuyerSmartMatchModal({
 
     setDraftOfferKey(k)
     setDraftMode("full")
+    setDraftDealMode("send_to_seller")
     setDraftPriceStr(suggestedCustom.toLocaleString("en-US"))
     setDraftError(null)
     setConfirmCancelKey(null)
@@ -1150,6 +1246,7 @@ export function BuyerSmartMatchModal({
           leadId: lead.id,
           offeredCash,
           paymentReadiness: "1_week",
+          mode: draftDealMode,
         })
         if (res.success) {
           setDoneKeys((prev) => ({ ...prev, [k]: true }))
@@ -1160,7 +1257,11 @@ export function BuyerSmartMatchModal({
             }))
           }
           setDraftOfferKey(null)
-          onNotice?.({ text: sm.officialOfferSentSuccess })
+          onNotice?.({
+            text: res.isDirectDeal
+              ? sm.directDealCreatedSuccess
+              : sm.officialOfferSentSuccess,
+          })
           router.refresh()
         } else if (res.error) {
           setDraftError(res.error)
@@ -1205,7 +1306,7 @@ export function BuyerSmartMatchModal({
     <Dialog open={Boolean(lead)} onOpenChange={(o) => !o && onClose()}>
       <DialogContent
         dir={dir}
-        className="max-h-[88vh] w-[95vw] overflow-x-hidden overflow-y-auto rounded-2xl p-4 text-start sm:max-w-[620px] sm:p-5"
+        className="max-h-[88vh] w-[95vw] overflow-x-hidden overflow-y-auto rounded-2xl p-4 text-start sm:max-w-[650px] sm:p-5"
       >
         <DialogHeader className="border-b border-slate-100 pb-3 pr-9 text-start">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1214,7 +1315,7 @@ export function BuyerSmartMatchModal({
               <span className="text-[#007a5a]">{lead.name}</span>
             </DialogTitle>
 
-            {manualUnits.length > 0 && (
+            {modalTab === "matched" && manualUnits.length > 0 && (
               <button
                 type="button"
                 disabled={isPending || isBulkDone}
@@ -1252,25 +1353,63 @@ export function BuyerSmartMatchModal({
           </DialogDescription>
         </DialogHeader>
 
+        {/* تبويبي: الوحدات المطابقة + كل وحدات الموقع للحجز الهاتفي */}
+        <div className="mt-2.5 grid grid-cols-2 gap-1.5 rounded-xl bg-slate-100 p-1">
+          <button
+            type="button"
+            onClick={() => setModalTab("matched")}
+            className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-extrabold transition ${
+              modalTab === "matched"
+                ? "bg-white text-[#007a5a] shadow-2xs"
+                : "text-slate-600 hover:text-[#0f1d40]"
+            }`}
+          >
+            <span>🎯 {sm.tabMatchedUnits}</span>
+            <span>({matchedUnitsList.length})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setModalTab("all_phone")}
+            className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-extrabold transition ${
+              modalTab === "all_phone"
+                ? "bg-white text-[#0f1d40] shadow-2xs"
+                : "text-slate-600 hover:text-[#0f1d40]"
+            }`}
+          >
+            <Building2 className="size-3.5 text-[#007a5a]" />
+            <span>
+              {sm.tabAllUnitsPhone} ({allScoredUnits.length})
+            </span>
+          </button>
+        </div>
+
+        {modalTab === "all_phone" && (
+          <div className="relative mt-2.5">
+            <Search className="pointer-events-none absolute top-1/2 end-3 size-4 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={unitSearch}
+              onChange={(e) => setUnitSearch(e.target.value)}
+              placeholder={sm.searchAllUnitsPlaceholder}
+              className="h-9 w-full rounded-xl border border-slate-200 bg-slate-50/70 ps-3 pe-9 text-xs font-semibold focus:border-[#007a5a] focus:bg-white focus:outline-none"
+            />
+          </div>
+        )}
+
         <div className="mt-2.5 flex items-start gap-2 rounded-xl border border-blue-100 bg-blue-50/70 px-3 py-2.5 text-[11.5px] font-semibold leading-relaxed text-blue-950">
           <Info className="mt-0.5 size-4 shrink-0 text-[#2563eb]" />
           <span>{sm.buyerModalHelperBanner}</span>
         </div>
 
         <div className="mt-3 space-y-3">
-          {matchedUnitsList.length === 0 ? (
+          {displayedList.length === 0 ? (
             <p className="py-6 text-center text-xs text-slate-400">
               {sm.noMatchesFound}
             </p>
           ) : (
-            matchedUnitsList.map(
-              ({
-                unit,
-                match,
-                existingOffer,
-                effectiveStatus,
-                unitLockedBySomeone,
-              }) => {
+            displayedList.map(
+              ({ unit, match, existingOffer, effectiveStatus }) => {
                 const uCash = Number(unit.paid_amount || 0).toLocaleString(
                   "en-US"
                 )
@@ -1278,7 +1417,6 @@ export function BuyerSmartMatchModal({
                 const uOfficialCode = deriveShortUnitCode(unit.id, unit.code)
                 const recKey = `rec_${unit.id}_${lead.id}`
                 const offKey = `off_${unit.id}_${lead.id}`
-                const isAutoPublished = match.score >= AUTO_PUBLISH_THRESHOLD
                 const isManuallyRecommended =
                   Boolean(doneKeys[recKey]) ||
                   isBulkDone ||
@@ -1301,6 +1439,12 @@ export function BuyerSmartMatchModal({
                   (effectiveStatus === "pending_admin" ||
                     effectiveStatus === "pending_seller" ||
                     (!existingOffer && Boolean(createdOfferIds[offKey])))
+
+                const unitPublicUrl =
+                  typeof window !== "undefined"
+                    ? `${window.location.origin}/opportunities/${unit.id}`
+                    : `https://aqarexit.com/opportunities/${unit.id}`
+                const buyerUnitWaMsg = `${leadsPrompts.waUnitLeadPrefix} ${lead.name || ""}${commaSep}${leadsPrompts.waUnitLeadMiddle} (${unit.project_name || ""} - ${localizedArea} - ${uOfficialCode}) — ${tLeads.cashLabel} ${leadCur}${uCash}\n${unitPublicUrl}`
 
                 return (
                   <div
@@ -1326,7 +1470,9 @@ export function BuyerSmartMatchModal({
                         className={`rounded-md px-2.5 py-0.5 text-[11px] font-black ${
                           match.score >= AUTO_PUBLISH_THRESHOLD
                             ? "bg-[#007a5a] text-white"
-                            : "bg-amber-100 text-amber-900"
+                            : match.score >= 60
+                              ? "bg-amber-100 text-amber-900"
+                              : "bg-slate-100 text-slate-700"
                         }`}
                       >
                         🎯 {matchPrefix} {match.score}%
@@ -1356,21 +1502,17 @@ export function BuyerSmartMatchModal({
                                     : sm.sentOfferDoneBtn}
                           </span>
                         </span>
-                      ) : isAutoPublished ? (
-                        <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2.5 py-0.5 text-[10.5px] font-extrabold text-[#007a5a]">
-                          <CheckCircle2 className="size-3" />
-                          <span>{sm.autoPublishedTag}</span>
-                        </span>
                       ) : isManuallyRecommended ? (
                         <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2.5 py-0.5 text-[10.5px] font-extrabold text-blue-800">
                           <Check className="size-3" />
                           <span>{sm.recSentTag}</span>
                         </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2.5 py-0.5 text-[10.5px] font-bold text-amber-800">
-                          <span>{sm.notAutoPublishedTag}</span>
+                      ) : match.score >= AUTO_PUBLISH_THRESHOLD ? (
+                        <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2.5 py-0.5 text-[10.5px] font-extrabold text-[#007a5a]">
+                          <CheckCircle2 className="size-3" />
+                          <span>{sm.autoPublishedTag}</span>
                         </span>
-                      )}
+                      ) : null}
                     </div>
 
                     <div className="mt-2.5 flex flex-wrap items-center gap-2">
@@ -1417,6 +1559,8 @@ export function BuyerSmartMatchModal({
                         sm={sm}
                         mode={draftMode}
                         setMode={setDraftMode}
+                        dealMode={draftDealMode}
+                        setDealMode={setDraftDealMode}
                         customPriceStr={draftPriceStr}
                         setCustomPriceStr={setDraftPriceStr}
                         errorText={draftError}
@@ -1457,12 +1601,13 @@ export function BuyerSmartMatchModal({
                       </div>
                     ) : (
                       <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-2.5">
-                        {!isAutoPublished && !isOfferSentNow && (
+                        {/* 1. ترشيح للعميل (يثبت في قسم ترشيحات المستشار بحسابه) */}
+                        {!isOfferSentNow && (
                           <button
                             type="button"
                             disabled={isPending || isManuallyRecommended}
                             onClick={() => handleSendSingle(unit.id)}
-                            className={`inline-flex h-8.5 flex-1 items-center justify-center gap-1.5 rounded-xl px-3 text-[11px] font-bold whitespace-nowrap text-white transition ${
+                            className={`inline-flex h-8.5 items-center justify-center gap-1.5 rounded-xl px-3 text-[11px] font-extrabold whitespace-nowrap text-white transition ${
                               isManuallyRecommended
                                 ? "bg-emerald-600"
                                 : "bg-[#0f1d40] hover:bg-[#1e293b]"
@@ -1477,22 +1622,39 @@ export function BuyerSmartMatchModal({
                               </>
                             ) : (
                               <>
-                                <Send className="size-3.5 shrink-0" />
-                                <span>{sm.sendRecToBuyerBtn}</span>
+                                <Star className="size-3.5 shrink-0 text-amber-300" />
+                                <span>
+                                  {sm.recommendToBuyerStarBtn ||
+                                    sm.sendRecToBuyerBtn}
+                                </span>
                               </>
                             )}
                           </button>
                         )}
 
+                        {/* 2. إرسال رابط الوحدة واتساب للمشتري */}
+                        {lead.phone && (
+                          <a
+                            data-admin-client-wa="true"
+                            href={`https://wa.me/${String(lead.phone).replace(/\D/g, "")}?text=${encodeURIComponent(buyerUnitWaMsg)}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex h-8.5 items-center justify-center gap-1.5 rounded-xl bg-[#25D366] px-3 text-[11px] font-extrabold whitespace-nowrap text-white hover:bg-[#1ebe5d]"
+                          >
+                            <MessageCircle className="size-3.5 shrink-0" />
+                            <span>{sm.sendUnitWaBtn || leadsPrompts.whatsappBtn}</span>
+                          </a>
+                        )}
+
+                        {/* 3. تسجيل عرض أو متابعة العرض المرسل */}
                         {isOfferSentNow ? (
                           <>
                             {resolvedOfferId && (
                               <Link
-                                href={
-                                  effectiveStatus === "unit_locked"
-                                    ? `/admin/deals?tab=waitlist&offerId=${resolvedOfferId}`
-                                    : `/admin/deals?offerId=${resolvedOfferId}`
-                                }
+                                href={resolveOfferRoute(
+                                  effectiveStatus,
+                                  resolvedOfferId
+                                )}
                                 onClick={onClose}
                                 className={`inline-flex h-8.5 flex-1 items-center justify-center gap-1.5 rounded-xl px-3 text-[11px] font-extrabold whitespace-nowrap text-white transition ${
                                   effectiveStatus === "accepted"
@@ -1521,7 +1683,7 @@ export function BuyerSmartMatchModal({
                               </button>
                             )}
                           </>
-                        ) : !unitLockedBySomeone ? (
+                        ) : (
                           <button
                             type="button"
                             disabled={isPending}
@@ -1531,12 +1693,12 @@ export function BuyerSmartMatchModal({
                             <Wallet className="size-3.5 shrink-0" />
                             <span>{sm.createOfficialOfferBtn}</span>
                           </button>
-                        ) : null}
+                        )}
 
                         <Link
                           href={`/opportunities/${unit.id}`}
                           target="_blank"
-                          className="inline-flex h-8.5 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-[11px] font-bold whitespace-nowrap text-[#007a5a] hover:bg-slate-100"
+                          className="inline-flex h-8.5 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 text-[11px] font-bold whitespace-nowrap text-[#007a5a] hover:bg-slate-100"
                         >
                           <ExternalLink className="size-3.5 shrink-0" />
                           <span>{sm.viewUnitBtn}</span>

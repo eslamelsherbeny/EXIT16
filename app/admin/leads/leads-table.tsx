@@ -13,12 +13,16 @@ import {
   FileText,
   Flame,
   Handshake,
+  Info,
   Loader2,
+  Lock,
   MapPin,
   MessageCircle,
   MoreVertical,
   Phone,
+  PhoneCall,
   Search,
+  Snowflake,
   Target,
   Trash2,
   Trophy,
@@ -28,13 +32,26 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
   downloadExcelCsv,
   downloadOfficialPdfReport,
   EXPORT_LABELS,
 } from "@/lib/export-csv"
 import { getCurrencySymbol, useTranslation } from "@/lib/i18n"
 import { calculateSmartMatch } from "@/lib/smart-matcher"
+import {
+  AdminAreaFilter,
+  matchesAdminAreaSelection,
+} from "@/components/features/admin/admin-area-filter"
 import { BuyerSmartMatchModal } from "@/components/features/admin/smart-match-dialogs"
+import { PhoneOfferDialog } from "@/components/features/admin/phone-offer-dialog"
 import {
   deleteBuyerLeadAction,
   updateBuyerLeadStatusAction,
@@ -44,7 +61,6 @@ import {
   ACTIVE_ADMIN_COUNTRY,
   buildLeadWhatsAppMessage,
   deriveShortUnitCode,
-  getLeadUiMicroLabels,
   isBuyerEmailVerified,
   isBuyerPhoneVerified,
   isOfferOwnedByLead,
@@ -57,7 +73,9 @@ import {
 } from "./leads-helpers"
 import {
   LeadConfirmDialog,
+  LeadDealQuickSummaryDialog,
   LeadDetailsDialog,
+  LeadFrozenAlternativesDialog,
   LeadOffersLogDialog,
 } from "./leads-modals"
 
@@ -69,50 +87,129 @@ type LeadStatusOption = {
   badge: string
 }
 
-function isUnitEligibleForLeadMatch(status?: string | null): boolean {
-  const clean = String(status || "active").trim().toLowerCase()
-  return (
-    clean === "active" ||
-    clean === "approved" ||
-    clean === "published" ||
-    clean === "offer_received" ||
-    clean === "transferring"
-  )
+type BlockedTransitionState = {
+  lead: BuyerLead
+  reasonType: "active_deal" | "active_offers"
+  count: number
+  dealOfferId?: string
 }
 
-function getEffectiveLeadStatus(
+function getLeadRawAreas(
+  lead: BuyerLead,
+  parsed: ReturnType<typeof parseLeadDetails>
+): Array<string | null | undefined> {
+  const raw = (lead as any).preferred_areas
+  if (Array.isArray(raw) && raw.length > 0) return raw
+  if (typeof raw === "string" && raw.trim()) return [raw]
+  return parsed.preferredAreasList || []
+}
+
+function isUnitCurrentlyOpenForNewDeals(
+  unit: LinkedUnitSummary | undefined,
+  lockedByAcceptedUnitIds: Set<string>
+): boolean {
+  if (!unit) return false
+  const st = String(unit.status || "active").trim().toLowerCase()
+  if (
+    st !== "active" &&
+    st !== "approved" &&
+    st !== "published" &&
+    st !== "offer_received"
+  ) {
+    return false
+  }
+  return !lockedByAcceptedUnitIds.has(String(unit.id))
+}
+
+function resolveLeadDisplayStatus(
   lead: BuyerLead,
   parsed: ReturnType<typeof parseLeadDetails>,
   units: LinkedUnitSummary[]
-): string {
+): {
+  key: string
+  isAutoLocked: boolean
+  activeDealOffer: any | null
+  activeDealUnit: LinkedUnitSummary | null
+  activeOffersCount: number
+} {
   const raw = String(lead.status || "new").trim().toLowerCase()
-  if (raw !== "new" && raw !== "") return raw
 
-  const hasCompletedPurchase = parsed.directOffers.some((o) => {
-    if (o.status !== "accepted") return false
-    const u = units.find((item) => String(item.id) === String(o.property_id))
-    return String(u?.status || "").trim().toLowerCase() === "sold"
-  })
-
-  if (hasCompletedPurchase) return "closed"
-  if (parsed.directOffers.some((o) => o.status !== "rejected")) return "matched"
-  return "new"
-}
-
-function findCompletedPurchaseDeal(
-  parsed: ReturnType<typeof parseLeadDetails>,
-  units: LinkedUnitSummary[]
-) {
   const soldOffer = parsed.directOffers.find((o) => {
     if (o.status !== "accepted") return false
     const u = units.find((item) => String(item.id) === String(o.property_id))
     return String(u?.status || "").trim().toLowerCase() === "sold"
   })
-  if (!soldOffer) return null
-  const unit =
-    units.find((item) => String(item.id) === String(soldOffer.property_id)) ||
-    null
-  return { offer: soldOffer, unit }
+
+  if (raw === "closed" || Boolean(soldOffer)) {
+    const u = soldOffer
+      ? units.find((item) => String(item.id) === String(soldOffer.property_id)) ||
+        null
+      : null
+    return {
+      key: "closed",
+      isAutoLocked: true,
+      activeDealOffer: soldOffer || null,
+      activeDealUnit: u,
+      activeOffersCount: 0,
+    }
+  }
+
+  const activeDealOffer =
+    parsed.directOffers.find((o) => {
+      if (o.status !== "accepted") return false
+      const u = units.find((item) => String(item.id) === String(o.property_id))
+      return String(u?.status || "").trim().toLowerCase() !== "sold"
+    }) || null
+
+  if (activeDealOffer) {
+    const u =
+      units.find(
+        (item) => String(item.id) === String(activeDealOffer.property_id)
+      ) || null
+    return {
+      key: "in_deal",
+      isAutoLocked: true,
+      activeDealOffer,
+      activeDealUnit: u,
+      activeOffersCount: 1,
+    }
+  }
+
+  const negotiatingOffers = parsed.directOffers.filter(
+    (o) => o.status === "counter_offered"
+  )
+  const pendingOffers = parsed.directOffers.filter(
+    (o) => o.status === "pending_admin" || o.status === "pending_seller"
+  )
+  const totalActive = negotiatingOffers.length + pendingOffers.length
+
+  if (negotiatingOffers.length > 0) {
+    return {
+      key: "negotiating",
+      isAutoLocked: true,
+      activeDealOffer: null,
+      activeDealUnit: null,
+      activeOffersCount: totalActive,
+    }
+  }
+
+  if (pendingOffers.length > 0) {
+    return {
+      key: "has_offer",
+      isAutoLocked: true,
+      activeDealOffer: null,
+      activeDealUnit: null,
+      activeOffersCount: totalActive,
+    }
+  }
+
+  return {
+    key: raw || "new",
+    isAutoLocked: false,
+    activeDealOffer: null,
+    activeDealUnit: null,
+    activeOffersCount: 0,
+  }
 }
 
 function StatusSelectBox({
@@ -151,9 +248,49 @@ function StatusSelectBox({
   )
 }
 
+function AutoStatusPill({
+  statusKey,
+  label,
+  onClick,
+}: {
+  statusKey: string
+  label: string
+  onClick?: () => void
+}) {
+  const tone =
+    statusKey === "closed"
+      ? "border-emerald-300 bg-[#eaf8f2] text-[#007a5a] cursor-default"
+      : statusKey === "in_deal"
+        ? "border-[#007a5a] bg-[#007a5a] text-white hover:bg-[#006248]"
+        : statusKey === "negotiating"
+          ? "border-purple-300 bg-purple-700 text-white hover:bg-purple-800"
+          : "border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100"
+
+  if (statusKey === "closed") {
+    return (
+      <div
+        className={`inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-xl border px-3 text-center text-[11.5px] font-extrabold select-none ${tone}`}
+      >
+        <Lock className="size-3.5 shrink-0 opacity-80" />
+        <span className="truncate">{label}</span>
+      </div>
+    )
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-xl border px-3 text-center text-[11.5px] font-extrabold transition ${tone}`}
+    >
+      <span className="truncate">{label}</span>
+      <Info className="size-3.5 shrink-0 opacity-80" />
+    </button>
+  )
+}
+
 function BuyerOffersLogButton({
   offers,
-  units,
   label,
   onClick,
 }: {
@@ -164,30 +301,24 @@ function BuyerOffersLogButton({
 }) {
   if (!offers || offers.length === 0) return null
 
-  const hasActiveAccepted = offers.some((o) => {
-    if (o.status !== "accepted") return false
-    const u = units.find((item) => String(item.id) === String(o.property_id))
-    return String(u?.status || "").trim().toLowerCase() !== "sold"
-  })
   const hasPendingAdmin = offers.some((o) => o.status === "pending_admin")
-  const hasNegotiating = offers.some(
-    (o) => o.status === "pending_seller" || o.status === "counter_offered"
-  )
+  const hasCounter = offers.some((o) => o.status === "counter_offered")
+  const hasPendingSeller = offers.some((o) => o.status === "pending_seller")
 
-  const toneClass = hasActiveAccepted
-    ? "border-emerald-300 bg-emerald-50 text-[#007a5a] hover:bg-[#007a5a] hover:text-white"
+  const toneClass = hasCounter
+    ? "border-purple-300 bg-purple-50 text-purple-900 hover:bg-purple-700 hover:text-white"
     : hasPendingAdmin
       ? "border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-500 hover:text-white"
-      : hasNegotiating
-        ? "border-purple-200 bg-purple-50 text-purple-900 hover:bg-purple-600 hover:text-white"
+      : hasPendingSeller
+        ? "border-blue-200 bg-blue-50 text-blue-900 hover:bg-blue-600 hover:text-white"
         : "border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
 
-  const dotClass = hasActiveAccepted
-    ? "bg-[#007a5a]"
+  const dotClass = hasCounter
+    ? "bg-purple-600"
     : hasPendingAdmin
       ? "bg-amber-500"
-      : hasNegotiating
-        ? "bg-purple-600"
+      : hasPendingSeller
+        ? "bg-blue-600"
         : "bg-slate-400"
 
   return (
@@ -210,21 +341,17 @@ function BuyerOffersLogButton({
 function CompletedPurchaseSummaryBanner({
   deal,
   leadCur,
-  locale,
+  t,
 }: {
   deal: { offer: any; unit: LinkedUnitSummary | null } | null
   leadCur: string
-  locale: string
+  t: Record<string, any>
 }) {
   if (!deal) {
     return (
       <span className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-[#eaf8f2] px-3 py-1.5 text-[11px] font-extrabold text-[#007a5a]">
         <Trophy className="size-3.5 shrink-0" />
-        <span>
-          {locale === "en"
-            ? "Purchase completed — request closed"
-            : "تم إتمام الشراء وإغلاق هذا الطلب بنجاح"}
-        </span>
+        <span>{t.completedPurchaseNoDeal}</span>
       </span>
     )
   }
@@ -233,35 +360,20 @@ function CompletedPurchaseSummaryBanner({
     ? deriveShortUnitCode(deal.unit.id, deal.unit.code)
     : ""
   const projName = deal.unit?.project_name || "—"
-  const ownerName = deal.unit?.name || ""
+  const ownerName = deal.unit?.name || "—"
   const amount = `${leadCur}${Number(deal.offer.offered_cash || deal.unit?.paid_amount || 0).toLocaleString("en-US")}`
+
+  const summaryText = String(t.completedPurchaseSummary || "")
+    .replace("{project}", projName)
+    .replace("{code}", uCode)
+    .replace("{owner}", ownerName)
+    .replace("{amount}", amount)
 
   return (
     <div className="flex flex-wrap items-center gap-2">
       <span className="inline-flex flex-wrap items-center gap-1.5 rounded-xl border border-emerald-200 bg-[#eaf8f2] px-3 py-1.5 text-[11px] font-extrabold text-[#0f1d40]">
         <Trophy className="size-3.5 shrink-0 text-[#007a5a]" />
-        <span>
-          {locale === "en" ? (
-            <>
-              Purchased <strong className="text-[#007a5a]">{projName}</strong>{" "}
-              {uCode ? `(${uCode})` : ""}
-              {ownerName ? ` from ${ownerName}` : ""} —{" "}
-              <strong dir="ltr" className="inline-block text-[#007a5a]">
-                {amount}
-              </strong>
-            </>
-          ) : (
-            <>
-              قام بشراء وحدة{" "}
-              <strong className="text-[#007a5a]">{projName}</strong>{" "}
-              {uCode ? `(${uCode})` : ""}
-              {ownerName ? ` من ${ownerName}` : ""} بـ{" "}
-              <strong dir="ltr" className="inline-block text-[#007a5a]">
-                {amount}
-              </strong>
-            </>
-          )}
-        </span>
+        <span>{summaryText}</span>
       </span>
 
       <Link
@@ -269,7 +381,7 @@ function CompletedPurchaseSummaryBanner({
         className="inline-flex h-8 items-center gap-1 rounded-xl bg-[#0f1d40] px-3 text-[11px] font-extrabold text-white transition hover:bg-[#1e293b]"
       >
         <Handshake className="size-3.5 text-emerald-300" />
-        <span>{locale === "en" ? "View Deal" : "تفاصيل الصفقة"}</span>
+        <span>{t.openDealFileBtn || t.viewDealBtn}</span>
       </Link>
     </div>
   )
@@ -289,20 +401,21 @@ export default function LeadsClientTable({
   const router = useRouter()
   const searchParams = useSearchParams()
 
-  const { t: dict, locale, dir } = useTranslation()
-  const ui = getLeadUiMicroLabels(locale)
-
+  const { t: dict, locale, dir, siteSettings } = useTranslation()
   const adminDict = (dict?.admin as Record<string, any>) || {}
   const t = adminDict.leadsAdmin || {}
+  const ui = (t.ui as Record<string, string>) || {}
   const leadsPrompts = adminDict.leads || {}
   const propAdminDict = adminDict.propertiesAdmin || {}
   const dashDict = adminDict.dashboard || {}
   const sm = adminDict.smartMatch || {}
+  const dealsDict = adminDict.dealsPage || {}
   const expL = EXPORT_LABELS[locale] || EXPORT_LABELS.ar
   const propertiesNavLabel = dict.admin?.shell?.nav?.properties || ""
   const listSep = dir === "rtl" ? "، " : ", "
+  const commPct = Number(siteSettings?.buyerCommission) || 1.25
 
-  const leadStatuses: LeadStatusOption[] = [
+  const manualLeadStatuses: LeadStatusOption[] = [
     {
       value: "new",
       label: t.statuses?.new,
@@ -319,25 +432,39 @@ export default function LeadsClientTable({
       badge: "bg-purple-50 text-purple-900 border-purple-300",
     },
     {
-      value: "closed",
-      label: locale === "ar" ? "تم الشراء بنجاح" : t.statuses?.closed,
-      badge: "bg-[#eaf8f2] text-[#007a5a] border-emerald-300",
-    },
-    {
       value: "archived",
       label: t.statuses?.archived,
       badge: "bg-slate-100 text-slate-700 border-slate-300",
     },
   ]
 
-  function getLeadStatusLabel(status: string | null | undefined) {
-    const st = status || "new"
-    return leadStatuses.find((s) => s.value === st)?.label || st
+  const filterTabs = [
+    { value: "new", label: t.statuses?.new },
+    { value: "contacted", label: t.statuses?.contacted },
+    { value: "matched", label: t.statuses?.matched },
+    { value: "offers_group", label: t.filterOffersAndNegTab },
+    { value: "in_deal", label: t.filterInDealTab },
+    { value: "closed", label: t.statusPurchasedLocked || t.statuses?.closed },
+    { value: "archived", label: t.statuses?.archived },
+  ]
+
+  function getDisplayStatusLabel(rawKey?: string | null): string {
+    const key = String(rawKey || "new").trim().toLowerCase()
+    if (key === "closed") return t.statusPurchasedLocked || t.statuses?.closed
+    if (key === "in_deal") return t.statusInActiveDeal
+    if (key === "negotiating") return t.statusNegotiating
+    if (key === "has_offer") return t.statusHasActiveOffer
+    return (
+      manualLeadStatuses.find((s) => s.value === key)?.label ||
+      t.statuses?.[key] ||
+      key
+    )
   }
 
   const leadCur = getCurrencySymbol(ACTIVE_ADMIN_COUNTRY, locale)
 
   const [search, setSearch] = useState("")
+  const [areaFilter, setAreaFilter] = useState("ALL")
   const [statusFilter, setStatusFilter] = useState("all")
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [highlightedLeadId, setHighlightedLeadId] = useState<string | null>(
@@ -346,15 +473,65 @@ export default function LeadsClientTable({
   const [detailsLead, setDetailsLead] = useState<BuyerLead | null>(null)
   const [offersLogLead, setOffersLogLead] = useState<BuyerLead | null>(null)
   const [smartMatchLead, setSmartMatchLead] = useState<BuyerLead | null>(null)
+  const [phoneOfferLead, setPhoneOfferLead] = useState<BuyerLead | null>(null)
+  const [dealQuickSummary, setDealQuickSummary] = useState<{
+    lead: BuyerLead
+    offer: any
+    unit: LinkedUnitSummary | null
+    waitlistCount: number
+  } | null>(null)
+  const [frozenAltsData, setFrozenAltsData] = useState<{
+    lead: BuyerLead
+    alternatives: Array<{ offer: any; unit: LinkedUnitSummary }>
+  } | null>(null)
   const [confirmAction, setConfirmAction] = useState<ConfirmLeadAction | null>(
     null
   )
+  const [blockedModal, setBlockedModal] =
+    useState<BlockedTransitionState | null>(null)
   const [activeLeadId, setActiveLeadId] = useState<string | null>(null)
   const [notice, setNotice] = useState<{
     text: string
     isError?: boolean
   } | null>(null)
   const [pending, startTransition] = useTransition()
+
+  const lockedByAcceptedUnitIds = useMemo(() => {
+    return new Set(
+      (offers || [])
+        .map((o) => ({ ...o, status: normalizeOfferStatus(o) }))
+        .filter((o) => o.status === "accepted")
+        .map((o) => String(o.property_id))
+    )
+  }, [offers])
+
+  function getWaitlistCountForUnit(unitId?: string | null): number {
+    if (!unitId) return 0
+    return (offers || []).filter(
+      (o) =>
+        String(o.property_id) === String(unitId) &&
+        normalizeOfferStatus(o) === "unit_locked"
+    ).length
+  }
+
+  function getAvailableFrozenAlternatives(
+    parsed: ReturnType<typeof parseLeadDetails>,
+    activeDealOfferId?: string | null
+  ): Array<{ offer: any; unit: LinkedUnitSummary }> {
+    const result: Array<{ offer: any; unit: LinkedUnitSummary }> = []
+    for (const o of parsed.directOffers) {
+      if (activeDealOfferId && String(o.id) === String(activeDealOfferId)) {
+        continue
+      }
+      if (o.status === "rejected" || o.status === "accepted") continue
+      const unit = units.find((u) => String(u.id) === String(o.property_id))
+      if (!isUnitCurrentlyOpenForNewDeals(unit, lockedByAcceptedUnitIds)) {
+        continue
+      }
+      if (unit) result.push({ offer: o, unit })
+    }
+    return result
+  }
 
   function getMatchedUnitsForLead(lead: BuyerLead) {
     if (!units || units.length === 0) return []
@@ -372,7 +549,8 @@ export default function LeadsClientTable({
     )
 
     const eligibleUnits = units.filter((u) => {
-      if (!isUnitEligibleForLeadMatch(u.status)) return false
+      if (!isUnitCurrentlyOpenForNewDeals(u, lockedByAcceptedUnitIds))
+        return false
       if (activeOfferedUnitIds.has(String(u.id))) return false
       if (
         lead.user_id &&
@@ -407,28 +585,32 @@ export default function LeadsClientTable({
 
   const generalSearchEntries = useMemo(() => {
     return leads
-      .map((lead) => ({
-        lead,
-        parsed: parseLeadDetails({
+      .map((lead) => {
+        const parsed = parseLeadDetails({
           lead,
           units,
           offers,
           locale,
           dir,
           leadsPrompts,
-        }),
-      }))
+        })
+        const statusInfo = resolveLeadDisplayStatus(lead, parsed, units)
+        return { lead, parsed, statusInfo }
+      })
       .filter((entry) => !entry.parsed.isPureUnitInquiry)
   }, [leads, units, offers, locale, dir, leadsPrompts])
 
   const statusCounts = useMemo(() => {
     const counts: Record<string, number> = {}
-    for (const { lead, parsed } of generalSearchEntries) {
-      const st = getEffectiveLeadStatus(lead, parsed, units)
-      counts[st] = (counts[st] || 0) + 1
+    for (const { statusInfo } of generalSearchEntries) {
+      const k = statusInfo.key
+      counts[k] = (counts[k] || 0) + 1
+      if (k === "has_offer" || k === "negotiating") {
+        counts.offers_group = (counts.offers_group || 0) + 1
+      }
     }
     return counts
-  }, [generalSearchEntries, units])
+  }, [generalSearchEntries])
 
   useEffect(() => {
     const closeMenu = () => setOpenMenuId(null)
@@ -498,7 +680,7 @@ export default function LeadsClientTable({
           )
           if (res.success) {
             setNotice({
-              text: `${t.statusUpdatedSuccess} ("${target.name}" → ${getLeadStatusLabel(confirmAction.newStatus)})`,
+              text: `${t.statusUpdatedSuccess} ("${target.name}" → ${getDisplayStatusLabel(confirmAction.newStatus)})`,
             })
             router.refresh()
           } else {
@@ -524,9 +706,18 @@ export default function LeadsClientTable({
   }
 
   const filteredGeneral = generalSearchEntries
-    .filter(({ lead, parsed }) => {
-      const st = getEffectiveLeadStatus(lead, parsed, units)
-      if (statusFilter !== "all" && st !== statusFilter) return false
+    .filter(({ lead, parsed, statusInfo }) => {
+      if (!matchesAdminAreaSelection(getLeadRawAreas(lead, parsed), areaFilter)) {
+        return false
+      }
+
+      const st = statusInfo.key
+      if (statusFilter === "offers_group") {
+        if (st !== "has_offer" && st !== "negotiating") return false
+      } else if (statusFilter !== "all" && st !== statusFilter) {
+        return false
+      }
+
       if (search.trim()) {
         const q = search.trim().toLowerCase()
         const qDigits = q.replace(/\D/g, "")
@@ -542,10 +733,15 @@ export default function LeadsClientTable({
       return true
     })
     .sort((a, b) => {
-      const stA = getEffectiveLeadStatus(a.lead, a.parsed, units)
-      const stB = getEffectiveLeadStatus(b.lead, b.parsed, units)
-      const rank = (s: string) => (s === "archived" ? 3 : s === "closed" ? 2 : 1)
-      const diff = rank(stA) - rank(stB)
+      const rank = (s: string) => {
+        if (s === "archived") return 6
+        if (s === "closed") return 5
+        if (s === "in_deal") return 1
+        if (s === "negotiating") return 2
+        if (s === "has_offer") return 3
+        return 4
+      }
+      const diff = rank(a.statusInfo.key) - rank(b.statusInfo.key)
       if (diff !== 0) return diff
       return (
         new Date(b.lead.created_at).getTime() -
@@ -608,7 +804,8 @@ export default function LeadsClientTable({
       },
       {
         header: c.status,
-        accessor: (l: BuyerLead) => getLeadStatusLabel(l.status),
+        accessor: (l: BuyerLead) =>
+          getDisplayStatusLabel(String(l.status || "new")),
       },
       {
         header: c.createdAt,
@@ -714,6 +911,165 @@ export default function LeadsClientTable({
     )
   }
 
+  function renderLeadStatusControl(
+    lead: BuyerLead,
+    statusInfo: ReturnType<typeof resolveLeadDisplayStatus>
+  ) {
+    const label = getDisplayStatusLabel(statusInfo.key)
+    if (statusInfo.isAutoLocked) {
+      return (
+        <AutoStatusPill
+          statusKey={statusInfo.key}
+          label={label}
+          onClick={() => {
+            if (statusInfo.key === "in_deal" && statusInfo.activeDealOffer) {
+              setBlockedModal({
+                lead,
+                reasonType: "active_deal",
+                count: 1,
+                dealOfferId: String(statusInfo.activeDealOffer.id),
+              })
+            } else if (
+              statusInfo.key === "negotiating" ||
+              statusInfo.key === "has_offer"
+            ) {
+              setBlockedModal({
+                lead,
+                reasonType: "active_offers",
+                count: statusInfo.activeOffersCount,
+              })
+            }
+          }}
+        />
+      )
+    }
+
+    const stObj =
+      manualLeadStatuses.find((s) => s.value === statusInfo.key) ||
+      manualLeadStatuses[0]
+
+    return (
+      <StatusSelectBox
+        value={stObj.value}
+        options={manualLeadStatuses}
+        badgeClass={stObj.badge}
+        disabled={pending}
+        onChange={(nextSt) => {
+          if (nextSt !== stObj.value) {
+            setConfirmAction({
+              type: "status",
+              lead,
+              newStatus: nextSt,
+            })
+          }
+        }}
+      />
+    )
+  }
+
+  function renderLeadFooterActions(
+    lead: BuyerLead,
+    parsed: ReturnType<typeof parseLeadDetails>,
+    statusInfo: ReturnType<typeof resolveLeadDisplayStatus>,
+    matchedUnitsCount: number
+  ) {
+    if (statusInfo.key === "closed") {
+      return (
+        <CompletedPurchaseSummaryBanner
+          deal={
+            statusInfo.activeDealOffer
+              ? {
+                  offer: statusInfo.activeDealOffer,
+                  unit: statusInfo.activeDealUnit,
+                }
+              : null
+          }
+          leadCur={leadCur}
+          t={t}
+        />
+      )
+    }
+
+    if (statusInfo.key === "in_deal" && statusInfo.activeDealOffer) {
+      const frozenAlts = getAvailableFrozenAlternatives(
+        parsed,
+        statusInfo.activeDealOffer.id
+      )
+      return (
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() =>
+              setDealQuickSummary({
+                lead,
+                offer: statusInfo.activeDealOffer,
+                unit: statusInfo.activeDealUnit,
+                waitlistCount: getWaitlistCountForUnit(
+                  statusInfo.activeDealUnit?.id
+                ),
+              })
+            }
+            className="inline-flex h-8 items-center gap-1.5 rounded-xl bg-[#007a5a] px-3 text-[11px] font-extrabold text-white shadow-2xs transition hover:bg-[#006248]"
+          >
+            <Handshake className="size-3.5" />
+            <span>{t.currentDealBtn}</span>
+          </button>
+
+          {frozenAlts.length > 0 && (
+            <button
+              type="button"
+              onClick={() =>
+                setFrozenAltsData({ lead, alternatives: frozenAlts })
+              }
+              className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50 px-3 text-[11px] font-extrabold text-sky-900 shadow-2xs transition hover:bg-sky-100"
+            >
+              <Snowflake className="size-3.5 text-sky-600" />
+              <span>
+                {t.frozenAlternativesBtn} ({frozenAlts.length})
+              </span>
+            </button>
+          )}
+        </div>
+      )
+    }
+
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        {matchedUnitsCount > 0 && (
+          <button
+            type="button"
+            onClick={() => setSmartMatchLead(lead)}
+            className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-emerald-200 bg-[#eaf8f2] px-3 text-[11px] font-extrabold text-[#007a5a] shadow-2xs transition hover:bg-[#007a5a] hover:text-white"
+          >
+            <span>🎯</span>
+            <span>
+              {t.viewMatchedUnitsBtn || sm.matchedUnitsShort} (
+              {matchedUnitsCount})
+            </span>
+          </button>
+        )}
+
+        {statusInfo.key !== "archived" && (
+          <button
+            type="button"
+            onClick={() => setPhoneOfferLead(lead)}
+            className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-[11px] font-extrabold text-[#0f1d40] shadow-2xs transition hover:border-[#007a5a] hover:text-[#007a5a]"
+          >
+            <PhoneCall className="size-3.5 text-[#007a5a]" />
+            <span>{sm.recordOfferOnAnyUnitBtn}</span>
+          </button>
+        )}
+
+        <BuyerOffersLogButton
+          offers={parsed.directOffers}
+          units={units}
+          label={t.offersLogBtn}
+          onClick={() => setOffersLogLead(lead)}
+        />
+      </div>
+    )
+  }
+
   const currentExportRows = filteredGeneral.map((e) => e.lead)
 
   const modalParsed = detailsLead
@@ -760,9 +1116,9 @@ export default function LeadsClientTable({
         </div>
       )}
 
-      {/* شريط البحث والفلاتر والتصدير */}
+      {/* شريط البحث وفلاتر المدن والأحياء والتصدير */}
       <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-slate-200/90 bg-white p-3.5 shadow-2xs sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-        <div className="flex w-full flex-wrap items-center gap-2 sm:max-w-xl sm:flex-1">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:max-w-2xl sm:flex-1">
           <div className="relative min-w-[180px] flex-1">
             <Search className="pointer-events-none absolute top-1/2 end-3 size-4 -translate-y-1/2 text-slate-400" />
             <input
@@ -773,6 +1129,14 @@ export default function LeadsClientTable({
               className="h-9 w-full rounded-xl border border-slate-200 bg-slate-50/50 ps-3 pe-9 text-xs font-semibold focus:border-[#007a5a] focus:bg-white focus:outline-none"
             />
           </div>
+
+          <AdminAreaFilter
+            value={areaFilter}
+            onChange={setAreaFilter}
+            itemsAreas={generalSearchEntries.map(({ lead, parsed }) =>
+              getLeadRawAreas(lead, parsed)
+            )}
+          />
 
           <button
             type="button"
@@ -821,7 +1185,7 @@ export default function LeadsClientTable({
           >
             {t.allTab} ({generalSearchEntries.length})
           </button>
-          {leadStatuses.map((st) => (
+          {filterTabs.map((st) => (
             <button
               key={st.value}
               type="button"
@@ -845,15 +1209,8 @@ export default function LeadsClientTable({
             {t.emptyText}
           </div>
         ) : (
-          filteredGeneral.map(({ lead, parsed }) => {
-            const currentSt = getEffectiveLeadStatus(lead, parsed, units)
-            const isClosedDeal = currentSt === "closed"
-            const completedDeal = isClosedDeal
-              ? findCompletedPurchaseDeal(parsed, units)
-              : null
-            const stObj =
-              leadStatuses.find((s) => s.value === currentSt) ||
-              leadStatuses[0]
+          filteredGeneral.map(({ lead, parsed, statusInfo }) => {
+            const isClosedDeal = statusInfo.key === "closed"
             const matchedUnitsCount = isClosedDeal
               ? 0
               : getMatchedUnitsForLead(lead).length
@@ -887,9 +1244,13 @@ export default function LeadsClientTable({
                       ? "border-2 border-[#007a5a] ring-2 ring-[#007a5a]/25"
                       : isClosedDeal
                         ? "border-emerald-200/90 bg-slate-50/40 border-s-4 border-s-[#0f1d40]"
-                        : parsed.isDirectUnitSource
-                          ? "border-slate-200/90 border-s-4 border-s-orange-500"
-                          : "border-slate-200/90 border-s-4 border-s-[#007a5a]"
+                        : statusInfo.key === "in_deal"
+                          ? "border-emerald-300 border-s-4 border-s-[#007a5a]"
+                          : statusInfo.key === "negotiating"
+                            ? "border-purple-200 border-s-4 border-s-purple-600"
+                            : parsed.isDirectUnitSource
+                              ? "border-slate-200/90 border-s-4 border-s-orange-500"
+                              : "border-slate-200/90 border-s-4 border-s-[#007a5a]"
                 }`}
               >
                 <div className="p-4">
@@ -1029,57 +1390,16 @@ export default function LeadsClientTable({
                   </div>
 
                   <div className="mt-2.5">
-                    <StatusSelectBox
-                      value={currentSt}
-                      options={leadStatuses}
-                      badgeClass={stObj.badge}
-                      disabled={pending}
-                      onChange={(nextSt) => {
-                        if (nextSt !== currentSt) {
-                          setConfirmAction({
-                            type: "status",
-                            lead,
-                            newStatus: nextSt,
-                          })
-                        }
-                      }}
-                    />
+                    {renderLeadStatusControl(lead, statusInfo)}
                   </div>
                 </div>
 
                 <div className="space-y-2.5 rounded-b-2xl border-t border-slate-100 bg-slate-50/70 px-4 py-3">
-                  {isClosedDeal ? (
-                    <CompletedPurchaseSummaryBanner
-                      deal={completedDeal}
-                      leadCur={leadCur}
-                      locale={locale}
-                    />
-                  ) : (
-                    (matchedUnitsCount > 0 ||
-                      parsed.directOffers.length > 0) && (
-                      <div className="flex flex-wrap items-center gap-2">
-                        {matchedUnitsCount > 0 && (
-                          <button
-                            type="button"
-                            onClick={() => setSmartMatchLead(lead)}
-                            className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-emerald-200 bg-[#eaf8f2] px-3 text-[11px] font-extrabold text-[#007a5a]"
-                          >
-                            <span>🎯</span>
-                            <span>
-                              {t.viewMatchedUnitsBtn || sm.matchedUnitsShort} (
-                              {matchedUnitsCount})
-                            </span>
-                          </button>
-                        )}
-
-                        <BuyerOffersLogButton
-                          offers={parsed.directOffers}
-                          units={units}
-                          label={t.offersLogBtn}
-                          onClick={() => setOffersLogLead(lead)}
-                        />
-                      </div>
-                    )
+                  {renderLeadFooterActions(
+                    lead,
+                    parsed,
+                    statusInfo,
+                    matchedUnitsCount
                   )}
 
                   <div className="flex items-center gap-2 border-t border-slate-200/60 pt-2.5">
@@ -1142,15 +1462,8 @@ export default function LeadsClientTable({
           </div>
         ) : (
           <div className="space-y-3">
-            {filteredGeneral.map(({ lead, parsed }, index) => {
-              const currentSt = getEffectiveLeadStatus(lead, parsed, units)
-              const isClosedDeal = currentSt === "closed"
-              const completedDeal = isClosedDeal
-                ? findCompletedPurchaseDeal(parsed, units)
-                : null
-              const stObj =
-                leadStatuses.find((s) => s.value === currentSt) ||
-                leadStatuses[0]
+            {filteredGeneral.map(({ lead, parsed, statusInfo }, index) => {
+              const isClosedDeal = statusInfo.key === "closed"
               const matchedUnitsCount = isClosedDeal
                 ? 0
                 : getMatchedUnitsForLead(lead).length
@@ -1184,9 +1497,13 @@ export default function LeadsClientTable({
                         ? "border-2 border-[#007a5a] bg-[#eaf8f2]/30 ring-2 ring-[#007a5a]/20"
                         : isClosedDeal
                           ? "border-emerald-200/90 bg-slate-50/40 border-s-4 border-s-[#0f1d40]"
-                          : parsed.isDirectUnitSource
-                            ? "border-slate-200/90 border-s-4 border-s-orange-500"
-                            : "border-slate-200/90 border-s-4 border-s-[#007a5a]"
+                          : statusInfo.key === "in_deal"
+                            ? "border-emerald-300 border-s-4 border-s-[#007a5a]"
+                            : statusInfo.key === "negotiating"
+                              ? "border-purple-200 border-s-4 border-s-purple-600"
+                              : parsed.isDirectUnitSource
+                                ? "border-slate-200/90 border-s-4 border-s-orange-500"
+                                : "border-slate-200/90 border-s-4 border-s-[#007a5a]"
                   }`}
                 >
                   <div className="grid grid-cols-[minmax(0,3fr)_minmax(0,2.4fr)_minmax(0,3.4fr)_195px] items-center gap-4 px-5 py-4">
@@ -1352,56 +1669,18 @@ export default function LeadsClientTable({
                     </div>
 
                     <div className="border-s border-slate-100 ps-3.5">
-                      <StatusSelectBox
-                        value={currentSt}
-                        options={leadStatuses}
-                        badgeClass={stObj.badge}
-                        disabled={pending}
-                        onChange={(nextSt) => {
-                          if (nextSt !== currentSt) {
-                            setConfirmAction({
-                              type: "status",
-                              lead,
-                              newStatus: nextSt,
-                            })
-                          }
-                        }}
-                      />
+                      {renderLeadStatusControl(lead, statusInfo)}
                     </div>
                   </div>
 
                   {/* الشريط السفلي */}
                   <div className="flex flex-wrap items-center justify-between gap-3 rounded-b-2xl border-t border-slate-100 bg-slate-50/70 px-5 py-2.5">
                     <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-                      {isClosedDeal ? (
-                        <CompletedPurchaseSummaryBanner
-                          deal={completedDeal}
-                          leadCur={leadCur}
-                          locale={locale}
-                        />
-                      ) : (
-                        <>
-                          {matchedUnitsCount > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => setSmartMatchLead(lead)}
-                              className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-emerald-200 bg-[#eaf8f2] px-3 text-[11px] font-extrabold text-[#007a5a] shadow-2xs transition hover:bg-[#007a5a] hover:text-white"
-                            >
-                              <span>🎯</span>
-                              <span>
-                                {t.viewMatchedUnitsBtn || sm.matchedUnitsShort}{" "}
-                                ({matchedUnitsCount})
-                              </span>
-                            </button>
-                          )}
-
-                          <BuyerOffersLogButton
-                            offers={parsed.directOffers}
-                            units={units}
-                            label={t.offersLogBtn}
-                            onClick={() => setOffersLogLead(lead)}
-                          />
-                        </>
+                      {renderLeadFooterActions(
+                        lead,
+                        parsed,
+                        statusInfo,
+                        matchedUnitsCount
                       )}
                     </div>
 
@@ -1438,6 +1717,120 @@ export default function LeadsClientTable({
           </div>
         )}
       </div>
+
+      {/* نافذة التوجيه الذكية عند الضغط على حالة تلقائية مقفولة */}
+      <Dialog
+        open={Boolean(blockedModal)}
+        onOpenChange={(o) => !o && setBlockedModal(null)}
+      >
+        <DialogContent
+          dir={dir}
+          className="w-[92vw] max-w-[430px] rounded-2xl p-5 text-start"
+        >
+          {blockedModal && (
+            <>
+              <DialogHeader className="pr-9 text-start">
+                <div className="mb-2 flex items-center gap-2.5">
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+                    <AlertTriangle className="size-4.5" />
+                  </span>
+                  <DialogTitle className="text-sm font-black text-[#0f1d40] sm:text-base">
+                    {t.blockedModalTitle}
+                  </DialogTitle>
+                </div>
+
+                <DialogDescription className="text-start text-xs leading-relaxed text-slate-600">
+                  {blockedModal.reasonType === "active_deal"
+                    ? String(t.blockedActiveDealDesc || "").replace(
+                        "{name}",
+                        blockedModal.lead.name
+                      )
+                    : String(t.blockedActiveOffersDesc || "")
+                        .replace("{name}", blockedModal.lead.name)
+                        .replace("{count}", String(blockedModal.count))}
+                </DialogDescription>
+              </DialogHeader>
+
+              <DialogFooter className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setBlockedModal(null)}
+                  className="h-9 rounded-xl text-xs font-bold"
+                >
+                  {t.blockedGotItBtn}
+                </Button>
+
+                {blockedModal.reasonType === "active_deal" &&
+                blockedModal.dealOfferId ? (
+                  <Link
+                    href={`/admin/deals?offerId=${blockedModal.dealOfferId}`}
+                    onClick={() => setBlockedModal(null)}
+                    className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] px-4 text-xs font-extrabold text-white transition hover:bg-[#006248]"
+                  >
+                    <Handshake className="size-3.5" />
+                    <span>{t.blockedOpenDealBtn}</span>
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const target = blockedModal.lead
+                      setBlockedModal(null)
+                      setOffersLogLead(target)
+                    }}
+                    className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[#0f1d40] px-4 text-xs font-extrabold text-white transition hover:bg-[#1e293b]"
+                  >
+                    <ClipboardList className="size-3.5 text-emerald-300" />
+                    <span>{t.blockedOpenOffersBtn}</span>
+                  </button>
+                )}
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <LeadDealQuickSummaryDialog
+        dir={dir}
+        locale={locale}
+        t={t}
+        sm={sm}
+        dealData={dealQuickSummary}
+        leadCur={leadCur}
+        commPct={commPct}
+        onClose={() => setDealQuickSummary(null)}
+      />
+
+      <LeadFrozenAlternativesDialog
+        dir={dir}
+        locale={locale}
+        t={t}
+        sm={sm}
+        data={frozenAltsData}
+        leadCur={leadCur}
+        onClose={() => setFrozenAltsData(null)}
+      />
+
+      <PhoneOfferDialog
+        open={Boolean(phoneOfferLead)}
+        onClose={() => setPhoneOfferLead(null)}
+        leads={leads}
+        units={units}
+        preselectedLeadId={phoneOfferLead?.id || null}
+        onSuccess={({ offerId, isDirectDeal }) => {
+          setNotice({
+            text: isDirectDeal
+              ? dealsDict.directDealCreatedNotice
+              : dealsDict.phoneOfferSentNotice,
+          })
+          if (isDirectDeal && offerId) {
+            router.push(`/admin/deals?offerId=${offerId}`)
+          } else {
+            router.refresh()
+          }
+        }}
+      />
 
       <BuyerSmartMatchModal
         lead={smartMatchLead}
@@ -1494,7 +1887,7 @@ export default function LeadsClientTable({
         t={t}
         confirmAction={confirmAction}
         pending={pending}
-        getLeadStatusLabel={getLeadStatusLabel}
+        getLeadStatusLabel={getDisplayStatusLabel}
         onClose={closeConfirmModal}
         onExecute={executeConfirmedAction}
       />

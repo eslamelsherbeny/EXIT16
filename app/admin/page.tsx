@@ -11,9 +11,11 @@ import {
   Clock3,
   ExternalLink,
   FileText,
+  Flame,
   Handshake,
   Send,
   Star,
+  WalletCards,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -59,169 +61,6 @@ const STATUS_BADGE_CLASSES: Record<string, string> = {
   transferring: "border-indigo-200 bg-indigo-50 text-indigo-800",
   sold: "border-[#007a5a] bg-[#007a5a] text-white",
   rejected: "border-red-200 bg-red-50 text-red-700",
-}
-
-const DASHBOARD_SECTIONS_TEXT: Record<
-  string,
-  {
-    sec1Title: string
-    sec1Sub: string
-    sec1EmptyShort: string
-    sec1Empty: string
-    sec1Btn: string
-    sec2Title: string
-    sec2Sub: string
-    sec2EmptyShort: string
-    sec2Empty: string
-    sec2Btn: string
-    colUnit: string
-    colSeller: string
-    colBuyer: string
-    colAgreedCash: string
-    colOfferedCash: string
-    colOriginalCash: string
-    colCommission: string
-    colReadiness: string
-    colAction: string
-    readiness48h: string
-    readiness1Week: string
-    readiness2Weeks: string
-    methodCheck: string
-    methodTransfer: string
-    btnApproveOffer: string
-    btnCloseDeal: string
-    specificUnitLeadBadge: string
-    generalLeadBadge: string
-  }
-> = {
-  ar: {
-    sec1Title: "١. صفقات متفق عليها جاهزة للتعاقد",
-    sec1Sub:
-      "البائع والمشتري وافقا رسمياً على السعر وتم قفل الوحدة — تواصل مع الطرفين لتوقيع التنازل وتحصيل العمولة",
-    sec1EmptyShort: "لا توجد صفقات تنتظر الإغلاق حالياً",
-    sec1Empty: "لا توجد صفقات متفق عليها تنتظر الإغلاق حالياً.",
-    sec1Btn: "فتح الصفقات الجاهزة",
-    sec2Title: "٢. عروض شراء جديدة بانتظار موافقتك",
-    sec2Sub:
-      "عروض جديدة قدمها مشترون على وحدات محددة ولم تظهر للبائع بعد — راجع جدية المشتري ثم أرسل العرض لحساب البائع",
-    sec2EmptyShort: "لا توجد عروض جديدة معلقة حالياً",
-    sec2Empty: "لا توجد عروض شراء جديدة تنتظر موافقتك حالياً.",
-    sec2Btn: "فتح غرفة الصفقات والعروض",
-    colUnit: "الوحدة والمشروع",
-    colSeller: "البائع (المالك)",
-    colBuyer: "المشتري (مقدم العرض)",
-    colAgreedCash: "المبلغ المتفق عليه",
-    colOfferedCash: "المبلغ المعروض",
-    colOriginalCash: "المطلوب الأصلي",
-    colCommission: "عمولة المنصة",
-    colReadiness: "جاهزية الدفع وطريقة السداد",
-    colAction: "الإجراء المطلوب",
-    readiness48h: "خلال 48 ساعة",
-    readiness1Week: "خلال أسبوع",
-    readiness2Weeks: "خلال أسبوعين",
-    methodCheck: "شيك بنكي",
-    methodTransfer: "تحويل بنكي",
-    btnApproveOffer: "مراجعة وإرسال للبائع",
-    btnCloseDeal: "إتمام البيع",
-    specificUnitLeadBadge: "مهتم بوحدة محددة",
-    generalLeadBadge: "طلب توفير عقار",
-  },
-  en: {
-    sec1Title: "1. Agreed Deals Ready for Contract Transfer",
-    sec1Sub:
-      "Both seller and buyer agreed on the price and the unit is locked — contact both parties to close & collect fee",
-    sec1EmptyShort: "No deals awaiting closing",
-    sec1Empty: "No agreed deals awaiting closing right now.",
-    sec1Btn: "Open Ready Deals",
-    sec2Title: "2. New Purchase Offers Awaiting Your Approval",
-    sec2Sub:
-      "New offers submitted by buyers on specific units and not yet visible to the seller — verify buyer & forward to seller",
-    sec2EmptyShort: "All caught up — no pending offers",
-    sec2Empty: "No new purchase offers awaiting your approval right now.",
-    sec2Btn: "Open Deals & Offers Room",
-    colUnit: "Unit & Project",
-    colSeller: "Seller (Owner)",
-    colBuyer: "Buyer",
-    colAgreedCash: "Agreed Cash",
-    colOfferedCash: "Offered Cash",
-    colOriginalCash: "Original Ask",
-    colCommission: "Platform Fee",
-    colReadiness: "Payment Readiness & Method",
-    colAction: "Next Action",
-    readiness48h: "Within 48 Hours",
-    readiness1Week: "Within 1 Week",
-    readiness2Weeks: "Within 2 Weeks",
-    methodCheck: "Bank Check",
-    methodTransfer: "Bank Transfer",
-    btnApproveOffer: "Review & Send to Seller",
-    btnCloseDeal: "Complete Sale",
-    specificUnitLeadBadge: "Specific Unit Inquiry",
-    generalLeadBadge: "General Budget Request",
-  },
-  ru: {
-    sec1Title: "1. Согласованные сделки (Готовы к переоформлению)",
-    sec1Sub:
-      "Продавец и покупатель подтвердили цену — свяжитесь со сторонами для подписания переуступки и получения комиссии",
-    sec1EmptyShort: "Нет сделок к закрытию",
-    sec1Empty: "Сейчас нет согласованных сделок, ожидающих закрытия.",
-    sec1Btn: "Открыть готовые сделки",
-    sec2Title: "2. Новые предложения о покупке (Ждут вашего одобрения)",
-    sec2Sub:
-      "Новые предложения от покупателей по конкретным объектам, которые еще не отправлены продавцу",
-    sec2EmptyShort: "Новых предложений нет",
-    sec2Empty: "Новых предложений, ожидающих вашего одобрения, сейчас нет.",
-    sec2Btn: "Открыть комнату сделок",
-    colUnit: "Объект и ЖК",
-    colSeller: "Продавец (Владелец)",
-    colBuyer: "Покупатель",
-    colAgreedCash: "Согласованная сумма",
-    colOfferedCash: "Предложенная сумма",
-    colOriginalCash: "Цена продавца",
-    colCommission: "Комиссия",
-    colReadiness: "Готовность и способ оплаты",
-    colAction: "Действие",
-    readiness48h: "За 48 часов",
-    readiness1Week: "За 1 неделю",
-    readiness2Weeks: "За 2 недели",
-    methodCheck: "Банковский чек",
-    methodTransfer: "Банковский перевод",
-    btnApproveOffer: "Проверить и отправить",
-    btnCloseDeal: "Завершить продажу",
-    specificUnitLeadBadge: "Запрос по объекту",
-    generalLeadBadge: "Подбор под бюджет",
-  },
-  ka: {
-    sec1Title: "1. შეთანხმებული გარიგებები (მზადაა გადასაფორმებლად)",
-    sec1Sub:
-      "გამყიდველი და მყიდველი შეთანხმდნენ ფასზე — დაუკავშირდით მხარეებს გადაფორმების დასასრულებლად",
-    sec1EmptyShort: "დასასრულებელი გარიგებები არ არის",
-    sec1Empty: "ამჟამად დასასრულებელი შეთანხმებული გარიგებები არ არის.",
-    sec1Btn: "მზა გარიგებები",
-    sec2Title: "2. ახალი შესყიდვის შეთავაზებები (ელოდება თქვენს დასტურს)",
-    sec2Sub:
-      "მყიდველების მიერ კონკრეტულ ობიექტებზე გამოგზავნილი ახალი შეთავაზებები — გადაამოწმეთ და გაუგზავნეთ გამყიდველს",
-    sec2EmptyShort: "ახალი შეთავაზებები არ არის",
-    sec2Empty: "ახალი დასადასტურებელი შეთავაზებები ამჟამად არ არის.",
-    sec2Btn: "გარიგებების ოთახის გახსნა",
-    colUnit: "ობიექტი და პროექტი",
-    colSeller: "გამყიდველი (მესაკუთრე)",
-    colBuyer: "მყიდველი",
-    colAgreedCash: "შეთანხმებული თანხა",
-    colOfferedCash: "შეთავაზებული თანხა",
-    colOriginalCash: "საწყისი ფასი",
-    colCommission: "საკომისიო",
-    colReadiness: "გადახდის მზაობა და მეთოდი",
-    colAction: "მოქმედება",
-    readiness48h: "48 საათში",
-    readiness1Week: "1 კვირაში",
-    readiness2Weeks: "2 კვირაში",
-    methodCheck: "საბანკო ჩეკი",
-    methodTransfer: "საბანკო გადარიცხვა",
-    btnApproveOffer: "გადამოწმება და გაგზავნა",
-    btnCloseDeal: "გაყიდვის დასრულება",
-    specificUnitLeadBadge: "კონკრეტული ობიექტი",
-    generalLeadBadge: "ზოგადი მოთხოვნა",
-  },
 }
 
 function normalizeUnitStatus(rawStatus?: string | null): string {
@@ -328,6 +167,9 @@ export default async function AdminPage() {
 
   const { dict, locale, dir, siteSettings } = await getServerI18n()
   const t = (dict?.admin?.dashboard as Record<string, any>) || {}
+  const L = (t.sections as Record<string, string>) || {}
+  const nav = ((dict?.admin as Record<string, any>)?.shell?.nav ||
+    {}) as Record<string, string>
   const statusesDict = (t.statuses as Record<string, string>) || {}
   const leadsDict = (dict?.admin?.leads as Record<string, any>) || {}
   const exportLabels = (dict?.admin?.exportLabels as Record<string, any>) || {}
@@ -335,9 +177,7 @@ export default async function AdminPage() {
   const sm =
     ((dict?.admin as Record<string, any>)?.smartMatch as Record<string, any>) ||
     {}
-  const L = DASHBOARD_SECTIONS_TEXT[locale] || DASHBOARD_SECTIONS_TEXT.en
 
-  const georgiaLabel = t.countries?.GE || ""
   const georgiaCurrency = "$"
   const commPct = Number(siteSettings?.buyerCommission) || 1.25
   const listSep = dir === "rtl" ? "، " : ", "
@@ -361,7 +201,7 @@ export default async function AdminPage() {
         .from("property_offers")
         .select("*")
         .order("updated_at", { ascending: false })
-        .limit(60),
+        .limit(80),
     ])
 
     propertiesData = (propsRes.data || []).filter(
@@ -391,7 +231,6 @@ export default async function AdminPage() {
   })
 
   const propsMap = new Map(properties.map((p: any) => [String(p.id), p]))
-  const leads = leadsData
 
   const allOffers = allOffersData
     .map(normalizeDashboardOffer)
@@ -409,26 +248,6 @@ export default async function AdminPage() {
       .map((o: any) => String(o.property_id))
   )
 
-  const unitsWithSellerPendingOffer = new Set(
-    allOffers
-      .filter(
-        (o: any) =>
-          o.status === "pending_seller" || o.status === "counter_offered"
-      )
-      .map((o: any) => String(o.property_id))
-  )
-
-  function resolveEffectiveUnitStatus(unit: any): string {
-    const rawSt = normalizeUnitStatus(unit.status)
-    if (!isUnitEligibleForOffers(rawSt) || rawSt === "sold") {
-      return rawSt
-    }
-    const uid = String(unit.id)
-    if (unitsWithAcceptedOffer.has(uid)) return "transferring"
-    if (unitsWithSellerPendingOffer.has(uid)) return "offer_received"
-    return "active"
-  }
-
   const readyDeals = allOffers
     .filter((o: any) => o.status === "accepted")
     .map((offer: any) => ({
@@ -437,10 +256,10 @@ export default async function AdminPage() {
     }))
     .filter((item) => Boolean(item.unit) && item.unit.status !== "sold")
 
-  const newPendingAdminOffers = allOffers
+  const actionableOffers = allOffers
     .filter(
       (o: any) =>
-        o.status === "pending_admin" &&
+        (o.status === "pending_admin" || o.status === "counter_offered") &&
         !unitsWithAcceptedOffer.has(String(o.property_id))
     )
     .map((offer: any) => ({
@@ -449,29 +268,30 @@ export default async function AdminPage() {
     }))
     .filter((item) => Boolean(item.unit) && item.unit.status !== "sold")
 
-  const totalActiveDealsRoomCount = allOffers.filter((o: any) => {
+  const totalOpenOffersCount = allOffers.filter((o: any) => {
     const u = propsMap.get(String(o.property_id))
     if (!u || u.status === "sold") return false
     return (
-      o.status === "accepted" ||
       o.status === "pending_admin" ||
       o.status === "pending_seller" ||
       o.status === "counter_offered"
     )
   }).length
 
-  const pendingAdminOffersCount = newPendingAdminOffers.length
-
-  const pendingProperties = properties.filter(
+  const pendingReviewProperties = properties.filter(
     (p) => !p.status || p.status === "pending" || p.status === "under_review"
   )
 
-  const activeProperties = properties.filter(
-    (p) =>
-      p.status === "active" ||
-      p.status === "offer_received" ||
-      p.status === "transferring"
-  )
+  const newUncontactedLeads = leadsData.filter((l: any) => {
+    const st = String(l.status || "new").trim().toLowerCase()
+    if (st !== "new" && st !== "") return false
+    const hasAnyOffer = allOffers.some(
+      (o: any) =>
+        String(o.lead_id || "") === String(l.id) ||
+        (l.user_id && String(o.buyer_user_id || "") === String(l.user_id))
+    )
+    return !hasAnyOffer
+  })
 
   const pendingAdRequests = properties.filter(
     (p) => !p.is_featured && p.featured_status === "pending_payment"
@@ -480,38 +300,48 @@ export default async function AdminPage() {
 
   const kpis = [
     {
-      label: `${t.unitsIn || ""} ${georgiaLabel}`,
-      value: properties.length.toLocaleString("en-US"),
-      note: `${activeProperties.length.toLocaleString("en-US")} ${t.publishedNote || ""}`,
-      icon: Building2,
-      href: "/admin/properties",
+      label: nav.offers || "",
+      value: totalOpenOffersCount.toLocaleString("en-US"),
+      note: `${actionableOffers.length} ${t.offersPendingYourApprovalNote || ""}`,
+      icon: WalletCards,
+      href: "/admin/offers",
+      iconWrap: "bg-amber-50 text-amber-600",
+      noteClass:
+        actionableOffers.length > 0 ? "text-amber-700" : "text-slate-500",
+    },
+    {
+      label: nav.deals || "",
+      value: readyDeals.length.toLocaleString("en-US"),
+      note: `${readyDeals.length} ${t.dealsReadyToCloseNote || ""}`,
+      icon: Handshake,
+      href: "/admin/deals",
       iconWrap: "bg-[#eaf8f2] text-[#007a5a]",
-      noteClass: "text-slate-500",
+      noteClass: "text-[#007a5a]",
     },
     {
       label: t.pendingReview || "",
-      value: pendingProperties.length.toLocaleString("en-US"),
+      value: pendingReviewProperties.length.toLocaleString("en-US"),
       note:
-        pendingProperties.length > 0
+        pendingReviewProperties.length > 0
           ? t.pendingNeedAction || ""
           : t.allReviewed || "",
       icon: Clock3,
       href: "/admin/properties?tab=pending",
       iconWrap: "bg-amber-50 text-amber-600",
       noteClass:
-        pendingProperties.length > 0 ? "text-amber-700" : "text-slate-500",
+        pendingReviewProperties.length > 0
+          ? "text-amber-700"
+          : "text-slate-500",
     },
     {
-      label: t.dealsRoomKpiLabel || sm.dealsRoomTitle || "",
-      value: totalActiveDealsRoomCount.toLocaleString("en-US"),
-      note:
-        pendingAdminOffersCount > 0
-          ? `${pendingAdminOffersCount} ${t.offersPendingYourApprovalNote || ""}`
-          : `${readyDeals.length} ${t.dealsReadyToCloseNote || ""}`,
-      icon: Handshake,
-      href: "/admin/deals",
-      iconWrap: "bg-[#eaf8f2] text-[#007a5a]",
-      noteClass: "text-[#007a5a]",
+      label: t.totalBuyerLeads || nav.leads || "",
+      value: newUncontactedLeads.length.toLocaleString("en-US"),
+      note: `${leadsData.length.toLocaleString("en-US")} ${t.buyRequestsWord || ""}`,
+      icon: FileText,
+      href: "/admin/leads",
+      iconWrap: "bg-blue-50 text-blue-600",
+      noteClass:
+        newUncontactedLeads.length > 0 ? "text-blue-700" : "text-slate-500",
     },
     {
       label: t.adRequests || "",
@@ -525,15 +355,6 @@ export default async function AdminPage() {
       iconWrap: "bg-amber-50 text-amber-600",
       noteClass:
         pendingAdRequests.length > 0 ? "text-amber-700" : "text-slate-500",
-    },
-    {
-      label: t.totalBuyerLeads || dict?.admin?.shell?.nav?.leads || "",
-      value: leads.length.toLocaleString("en-US"),
-      note: `${leads.length.toLocaleString("en-US")} ${t.buyRequestsWord || t.generalRequestsNote || ""}`,
-      icon: FileText,
-      href: "/admin/leads",
-      iconWrap: "bg-blue-50 text-blue-600",
-      noteClass: "text-slate-500",
     },
   ]
 
@@ -642,7 +463,7 @@ export default async function AdminPage() {
 
           <div className="flex items-center justify-end gap-2 self-end sm:self-center">
             <Link
-              href="/admin/deals?tab=accepted"
+              href="/admin/deals"
               className={`inline-flex h-8.5 items-center gap-1.5 rounded-xl px-3.5 text-xs font-extrabold transition ${
                 readyDeals.length > 0
                   ? "bg-[#007a5a] text-white hover:bg-[#006248]"
@@ -666,6 +487,7 @@ export default async function AdminPage() {
             </div>
           ) : (
             <>
+              {/* عرض الموبايل */}
               <div className="divide-y divide-slate-100 md:hidden">
                 {readyDeals.map(({ offer, unit }) => {
                   const uCode = deriveUnitCode(unit.id, unit.code)
@@ -782,6 +604,7 @@ export default async function AdminPage() {
                 })}
               </div>
 
+              {/* عرض الكمبيوتر */}
               <div className="hidden overflow-x-auto md:block">
                 <table className="w-full text-start text-xs">
                   <thead>
@@ -922,18 +745,18 @@ export default async function AdminPage() {
         </div>
       </details>
 
-      {/* 3. السيكشن الثاني: عروض شراء جديدة بانتظار موافقتك */}
+      {/* 3. السيكشن الثاني: عروض جديدة وتفاوض نشط بانتظار تدخلك */}
       <details
-        open={pendingAdminOffersCount > 0}
+        open={actionableOffers.length > 0}
         className={`group overflow-hidden rounded-2xl bg-white shadow-2xs transition-all ${
-          pendingAdminOffersCount > 0
+          actionableOffers.length > 0
             ? "border-2 border-amber-300"
             : "border border-slate-200/90"
         }`}
       >
         <summary
           className={`flex cursor-pointer list-none flex-col gap-3 p-4 transition select-none sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-3.5 [&::-webkit-details-marker]:hidden ${
-            pendingAdminOffersCount > 0
+            actionableOffers.length > 0
               ? "bg-amber-50/60 group-open:border-b group-open:border-amber-100"
               : "bg-white hover:bg-slate-50/70 group-open:border-b group-open:border-slate-100"
           }`}
@@ -941,7 +764,7 @@ export default async function AdminPage() {
           <div className="flex items-start gap-3">
             <span
               className={`mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl text-white shadow-2xs ${
-                pendingAdminOffersCount > 0 ? "bg-amber-500" : "bg-slate-400"
+                actionableOffers.length > 0 ? "bg-amber-500" : "bg-slate-400"
               }`}
             >
               <BellRing className="size-4" />
@@ -954,21 +777,21 @@ export default async function AdminPage() {
                 <span
                   dir="ltr"
                   className={`rounded-full px-2.5 py-0.5 text-xs font-black text-white ${
-                    pendingAdminOffersCount > 0
+                    actionableOffers.length > 0
                       ? "bg-amber-500"
                       : "bg-slate-400"
                   }`}
                 >
-                  {newPendingAdminOffers.length}
+                  {actionableOffers.length}
                 </span>
-                {pendingAdminOffersCount === 0 && (
+                {actionableOffers.length === 0 && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-500">
                     <CheckCircle2 className="size-3.5 text-emerald-500" />
                     <span>{L.sec2EmptyShort}</span>
                   </span>
                 )}
               </div>
-              {pendingAdminOffersCount > 0 && (
+              {actionableOffers.length > 0 && (
                 <p className="mt-1 text-[11.5px] leading-relaxed font-semibold text-amber-900">
                   {L.sec2Sub}
                 </p>
@@ -978,7 +801,7 @@ export default async function AdminPage() {
 
           <div className="flex items-center justify-end gap-2 self-end sm:self-center">
             <Link
-              href="/admin/deals"
+              href="/admin/offers"
               className="inline-flex h-8.5 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-extrabold text-[#0f1d40] transition hover:border-[#007a5a] hover:text-[#007a5a]"
             >
               <span>{L.sec2Btn}</span>
@@ -991,32 +814,24 @@ export default async function AdminPage() {
         </summary>
 
         <div>
-          {newPendingAdminOffers.length === 0 ? (
+          {actionableOffers.length === 0 ? (
             <div className="flex items-center justify-center gap-2 py-5 text-xs font-bold text-slate-400">
               <CheckCircle2 className="size-4 text-emerald-500" />
               <span>{L.sec2Empty}</span>
             </div>
           ) : (
             <>
+              {/* عرض الموبايل */}
               <div className="divide-y divide-slate-100 md:hidden">
-                {newPendingAdminOffers.slice(0, 6).map(({ offer, unit }) => {
+                {actionableOffers.slice(0, 6).map(({ offer, unit }) => {
                   const uCode = deriveUnitCode(unit.id, unit.code)
                   const cur = georgiaCurrency
+                  const isCounter = offer.status === "counter_offered"
                   const offeredCash = Number(offer.offered_cash) || 0
+                  const counterCash = Number(offer.counter_cash) || 0
                   const originalCash =
                     Number(unit.paid_amount || offer.required_cash) || 0
                   const localizedArea = cleanAreaDisplay(unit.area, locale)
-
-                  const readinessText =
-                    offer.payment_readiness === "48h"
-                      ? L.readiness48h
-                      : offer.payment_readiness === "1_week"
-                        ? L.readiness1Week
-                        : L.readiness2Weeks
-                  const methodText =
-                    offer.payment_method === "bank_check"
-                      ? L.methodCheck
-                      : L.methodTransfer
 
                   const buyerWa = `${leadsDict.waUnitLeadPrefix || ""} ${offer.buyer_name || ""}${listSep}(${unit.project_name || t.defaultUnit || ""} - ${uCode}) — ${sm.agreedCashLabel || ""}: ${offeredCash.toLocaleString("en-US")} ${cur}`
                   const sellerWa = `${leadsDict.waGeneralPrefix || ""} ${unit.name}${listSep}(${unit.project_name || t.defaultUnit || ""} - ${uCode}) — ${sm.agreedCashLabel || ""}: ${offeredCash.toLocaleString("en-US")} ${cur}`
@@ -1024,7 +839,9 @@ export default async function AdminPage() {
                   return (
                     <div
                       key={offer.id}
-                      className="space-y-3 bg-amber-50/20 p-4"
+                      className={`space-y-3 p-4 ${
+                        isCounter ? "bg-purple-50/20" : "bg-amber-50/20"
+                      }`}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
@@ -1049,21 +866,36 @@ export default async function AdminPage() {
                             {cur}
                             {offeredCash.toLocaleString("en-US")}
                           </strong>
-                          <span className="text-[10px] font-semibold text-slate-400">
-                            {L.colOriginalCash}:{" "}
-                            <span dir="ltr">
-                              {cur}
-                              {originalCash.toLocaleString("en-US")}
+                          {isCounter && counterCash > 0 ? (
+                            <span className="text-[10.5px] font-extrabold text-purple-800">
+                              →{" "}
+                              <span dir="ltr">
+                                {cur}
+                                {counterCash.toLocaleString("en-US")}
+                              </span>
                             </span>
-                          </span>
+                          ) : (
+                            <span className="text-[10px] font-semibold text-slate-400">
+                              {L.colOriginalCash}:{" "}
+                              <span dir="ltr">
+                                {cur}
+                                {originalCash.toLocaleString("en-US")}
+                              </span>
+                            </span>
+                          )}
                         </div>
                       </div>
 
-                      <div className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-white px-2.5 py-1 text-[11px] font-extrabold text-amber-900">
-                        <span>⚡ {readinessText}</span>
-                        <span>·</span>
-                        <span>{methodText}</span>
-                      </div>
+                      {isCounter ? (
+                        <span className="inline-flex items-center gap-1 rounded-lg border border-purple-200 bg-purple-50 px-2.5 py-1 text-[11px] font-extrabold text-purple-900">
+                          <Flame className="size-3" />
+                          <span>{L.negotiatingBadge}</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-white px-2.5 py-1 text-[11px] font-extrabold text-amber-900">
+                          <span>{L.newOfferBadge}</span>
+                        </span>
+                      )}
 
                       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                         <div className="flex items-center justify-between gap-2 rounded-xl border border-slate-200/80 bg-white px-3 py-2">
@@ -1120,11 +952,17 @@ export default async function AdminPage() {
                       </div>
 
                       <Link
-                        href={`/admin/deals?offerId=${offer.id}`}
-                        className="flex h-9 w-full items-center justify-center gap-1.5 rounded-xl bg-amber-500 text-xs font-extrabold text-white transition hover:bg-amber-600"
+                        href={`/admin/offers?offerId=${offer.id}`}
+                        className={`flex h-9 w-full items-center justify-center gap-1.5 rounded-xl text-xs font-extrabold text-white transition ${
+                          isCounter
+                            ? "bg-purple-700 hover:bg-purple-800"
+                            : "bg-amber-500 hover:bg-amber-600"
+                        }`}
                       >
                         <Send className="size-3.5" />
-                        <span>{L.btnApproveOffer}</span>
+                        <span>
+                          {isCounter ? L.btnNegotiateNow : L.btnApproveOffer}
+                        </span>
                         <ArrowLeft className="size-3.5 rtl:rotate-0 ltr:rotate-180" />
                       </Link>
                     </div>
@@ -1132,6 +970,7 @@ export default async function AdminPage() {
                 })}
               </div>
 
+              {/* عرض الكمبيوتر */}
               <div className="hidden overflow-x-auto md:block">
                 <table className="w-full text-start text-xs">
                   <thead>
@@ -1147,24 +986,13 @@ export default async function AdminPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {newPendingAdminOffers.slice(0, 6).map(({ offer, unit }) => {
+                    {actionableOffers.slice(0, 6).map(({ offer, unit }) => {
                       const uCode = deriveUnitCode(unit.id, unit.code)
                       const cur = georgiaCurrency
+                      const isCounter = offer.status === "counter_offered"
                       const offeredCash = Number(offer.offered_cash) || 0
-                      const originalCash =
-                        Number(unit.paid_amount || offer.required_cash) || 0
+                      const counterCash = Number(offer.counter_cash) || 0
                       const localizedArea = cleanAreaDisplay(unit.area, locale)
-
-                      const readinessText =
-                        offer.payment_readiness === "48h"
-                          ? L.readiness48h
-                          : offer.payment_readiness === "1_week"
-                            ? L.readiness1Week
-                            : L.readiness2Weeks
-                      const methodText =
-                        offer.payment_method === "bank_check"
-                          ? L.methodCheck
-                          : L.methodTransfer
 
                       const buyerWa = `${leadsDict.waUnitLeadPrefix || ""} ${offer.buyer_name || ""}${listSep}(${unit.project_name || t.defaultUnit || ""} - ${uCode}) — ${sm.agreedCashLabel || ""}: ${offeredCash.toLocaleString("en-US")} ${cur}`
                       const sellerWa = `${leadsDict.waGeneralPrefix || ""} ${unit.name}${listSep}(${unit.project_name || t.defaultUnit || ""} - ${uCode}) — ${sm.agreedCashLabel || ""}: ${offeredCash.toLocaleString("en-US")} ${cur}`
@@ -1172,11 +1000,15 @@ export default async function AdminPage() {
                       return (
                         <tr
                           key={offer.id}
-                          className="bg-amber-50/20 transition hover:bg-amber-50/50"
+                          className={
+                            isCounter
+                              ? "bg-purple-50/20 transition hover:bg-purple-50/40"
+                              : "bg-amber-50/20 transition hover:bg-amber-50/50"
+                          }
                         >
                           <td className="px-5 py-3.5">
                             <Link
-                              href={`/admin/deals?offerId=${offer.id}`}
+                              href={`/admin/offers?offerId=${offer.id}`}
                               className="block"
                             >
                               <div className="flex items-center gap-2">
@@ -1253,30 +1085,45 @@ export default async function AdminPage() {
                               {cur}
                               {offeredCash.toLocaleString("en-US")}
                             </strong>
-                            <p className="mt-0.5 text-[10.5px] font-semibold text-slate-400">
-                              {L.colOriginalCash}:{" "}
-                              <span dir="ltr">
-                                {cur}
-                                {originalCash.toLocaleString("en-US")}
-                              </span>
-                            </p>
+                            {isCounter && counterCash > 0 && (
+                              <p className="mt-0.5 text-[10.5px] font-extrabold text-purple-800">
+                                →{" "}
+                                <span dir="ltr">
+                                  {cur}
+                                  {counterCash.toLocaleString("en-US")}
+                                </span>
+                              </p>
+                            )}
                           </td>
 
                           <td className="px-3 py-3.5">
-                            <span className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-white px-2.5 py-1 text-[11px] font-extrabold text-amber-900">
-                              <span>⚡ {readinessText}</span>
-                              <span>·</span>
-                              <span>{methodText}</span>
-                            </span>
+                            {isCounter ? (
+                              <span className="inline-flex items-center gap-1 rounded-lg border border-purple-200 bg-purple-50 px-2.5 py-1 text-[11px] font-extrabold text-purple-900">
+                                <Flame className="size-3" />
+                                <span>{L.negotiatingBadge}</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-white px-2.5 py-1 text-[11px] font-extrabold text-amber-900">
+                                <span>{L.newOfferBadge}</span>
+                              </span>
+                            )}
                           </td>
 
                           <td className="px-5 py-3.5 text-end">
                             <Link
-                              href={`/admin/deals?offerId=${offer.id}`}
-                              className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-amber-500 px-3.5 text-[11px] font-extrabold text-white shadow-2xs transition hover:bg-amber-600"
+                              href={`/admin/offers?offerId=${offer.id}`}
+                              className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-3.5 text-[11px] font-extrabold text-white shadow-2xs transition ${
+                                isCounter
+                                  ? "bg-purple-700 hover:bg-purple-800"
+                                  : "bg-amber-500 hover:bg-amber-600"
+                              }`}
                             >
                               <Send className="size-3" />
-                              <span>{L.btnApproveOffer}</span>
+                              <span>
+                                {isCounter
+                                  ? L.btnNegotiateNow
+                                  : L.btnApproveOffer}
+                              </span>
                               <ArrowLeft className="size-3 rtl:rotate-0 ltr:rotate-180" />
                             </Link>
                           </td>
@@ -1291,20 +1138,20 @@ export default async function AdminPage() {
         </div>
       </details>
 
-      {/* 4. السيكشن الثالث: أحدث الوحدات المضافة (يمين) وأحدث طلبات المشترين (يسار) */}
+      {/* 4. السيكشن الثالث: وحدات بانتظار المراجعة فقط + طلبات شراء جديدة فقط */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        <Card className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-2xs lg:col-span-8">
+        <Card className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-2xs lg:col-span-7">
           <CardHeader className="flex flex-row items-center justify-between gap-2 border-b border-slate-100 px-4 py-3.5 sm:px-5 sm:py-4">
             <div className="flex min-w-0 items-center gap-2.5">
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-[#eaf8f2] text-[#007a5a]">
-                <Building2 className="size-4" />
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
+                <Clock3 className="size-4" />
               </span>
               <CardTitle className="truncate text-sm font-black text-[#0f1d40]">
-                {t.latestProperties} ({georgiaLabel})
+                {L.pendingUnitsTitle} ({pendingReviewProperties.length})
               </CardTitle>
             </div>
             <Link
-              href="/admin/properties"
+              href="/admin/properties?tab=pending"
               className="inline-flex shrink-0 items-center gap-1 text-xs font-extrabold text-[#007a5a] hover:underline"
             >
               <span>{t.viewAll}</span>
@@ -1313,23 +1160,23 @@ export default async function AdminPage() {
           </CardHeader>
 
           <CardContent className="p-0">
-            {properties.length === 0 ? (
-              <div className="py-10 text-center text-xs font-semibold text-slate-400">
-                {t.noProperties}
+            {pendingReviewProperties.length === 0 ? (
+              <div className="flex items-center justify-center gap-2 py-10 text-xs font-bold text-slate-400">
+                <CheckCircle2 className="size-4 text-emerald-500" />
+                <span>{L.pendingUnitsEmpty}</span>
               </div>
             ) : (
               <>
                 <div className="divide-y divide-slate-100 md:hidden">
-                  {properties.slice(0, 6).map((prop) => {
-                    const stKey = resolveEffectiveUnitStatus(prop)
+                  {pendingReviewProperties.slice(0, 6).map((prop) => {
+                    const stKey = normalizeUnitStatus(prop.status)
                     const stLabel =
-                      statusesDict[stKey] || statusesDict.active || stKey
+                      statusesDict[stKey] || statusesDict.pending || stKey
                     const stCls =
                       STATUS_BADGE_CLASSES[stKey] ||
-                      STATUS_BADGE_CLASSES.active
+                      STATUS_BADGE_CLASSES.pending
                     const uCode = deriveUnitCode(prop.id, prop.code)
                     const localizedArea = cleanAreaDisplay(prop.area, locale)
-
                     const sellerWaMsg = `${leadsDict.waGeneralPrefix || ""} ${prop.name}${listSep}(${prop.project_name || t.defaultUnit || ""} - ${localizedArea} - ${uCode}) — $${Number(prop.paid_amount || 0).toLocaleString("en-US")}`
 
                     return (
@@ -1371,9 +1218,7 @@ export default async function AdminPage() {
 
                           <div className="flex items-center gap-1.5">
                             <Link
-                              href={`/opportunities/${prop.id}`}
-                              target="_blank"
-                              title={t.viewAll}
+                              href={`/admin/properties?unitId=${prop.id}`}
                               className="inline-flex size-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600"
                             >
                               <ExternalLink className="size-3.5" />
@@ -1412,19 +1257,18 @@ export default async function AdminPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {properties.slice(0, 6).map((prop) => {
-                        const stKey = resolveEffectiveUnitStatus(prop)
+                      {pendingReviewProperties.slice(0, 6).map((prop) => {
+                        const stKey = normalizeUnitStatus(prop.status)
                         const stLabel =
-                          statusesDict[stKey] || statusesDict.active || stKey
+                          statusesDict[stKey] || statusesDict.pending || stKey
                         const stCls =
                           STATUS_BADGE_CLASSES[stKey] ||
-                          STATUS_BADGE_CLASSES.active
+                          STATUS_BADGE_CLASSES.pending
                         const uCode = deriveUnitCode(prop.id, prop.code)
                         const localizedArea = cleanAreaDisplay(
                           prop.area,
                           locale
                         )
-
                         const sellerWaMsg = `${leadsDict.waGeneralPrefix || ""} ${prop.name}${listSep}(${prop.project_name || t.defaultUnit || ""} - ${localizedArea} - ${uCode}) — $${Number(prop.paid_amount || 0).toLocaleString("en-US")}`
 
                         return (
@@ -1485,9 +1329,7 @@ export default async function AdminPage() {
                             <td className="px-5 py-3.5 text-end">
                               <div className="inline-flex items-center justify-end gap-1.5">
                                 <Link
-                                  href={`/opportunities/${prop.id}`}
-                                  target="_blank"
-                                  title={t.viewAll}
+                                  href={`/admin/properties?unitId=${prop.id}`}
                                   className="inline-flex size-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-[#007a5a] hover:text-[#007a5a]"
                                 >
                                   <ExternalLink className="size-3.5" />
@@ -1514,14 +1356,14 @@ export default async function AdminPage() {
           </CardContent>
         </Card>
 
-        <Card className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-2xs lg:col-span-4">
+        <Card className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-2xs lg:col-span-5">
           <CardHeader className="flex flex-row items-center justify-between gap-2 border-b border-slate-100 px-4 py-3.5 sm:px-5 sm:py-4">
             <div className="flex min-w-0 items-center gap-2.5">
               <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
                 <FileText className="size-4" />
               </span>
               <CardTitle className="truncate text-sm font-black text-[#0f1d40]">
-                {t.latestLeads} ({georgiaLabel})
+                {L.newLeadsTitle} ({newUncontactedLeads.length})
               </CardTitle>
             </div>
             <Link
@@ -1534,24 +1376,19 @@ export default async function AdminPage() {
           </CardHeader>
 
           <CardContent className="p-0">
-            {leads.length === 0 ? (
-              <div className="py-10 text-center text-xs font-semibold text-slate-400">
-                {t.noLeads}
+            {newUncontactedLeads.length === 0 ? (
+              <div className="flex items-center justify-center gap-2 py-10 text-xs font-bold text-slate-400">
+                <CheckCircle2 className="size-4 text-emerald-500" />
+                <span>{L.newLeadsEmpty}</span>
               </div>
             ) : (
               <div className="divide-y divide-slate-100">
-                {leads.slice(0, 6).map((lead) => {
+                {newUncontactedLeads.slice(0, 6).map((lead: any) => {
                   const areasList = Array.isArray(lead.preferred_areas)
                     ? lead.preferred_areas
                     : lead.preferred_areas
                       ? [String(lead.preferred_areas)]
                       : []
-                  const isSpecificUnitBooker = areasList.some(
-                    (a: string) =>
-                      String(a).includes("🎯") ||
-                      String(a).includes("U-") ||
-                      Boolean(lead.target_unit_id)
-                  )
                   const cleanTarget =
                     areasList
                       .map((a: string) =>
@@ -1579,7 +1416,7 @@ export default async function AdminPage() {
                         href={`/admin/leads?leadId=${lead.id}`}
                         className="flex min-w-0 flex-1 items-start gap-3"
                       >
-                        <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#eaf8f2] text-xs font-black text-[#007a5a]">
+                        <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-xs font-black text-blue-700">
                           {leadInitial}
                         </span>
                         <div className="min-w-0 flex-1">
@@ -1592,17 +1429,6 @@ export default async function AdminPage() {
                               className="rounded-md bg-[#eaf8f2] px-2 py-0.5 text-[10.5px] font-black text-[#007a5a] tabular-nums"
                             >
                               ${cashFormatted}
-                            </span>
-                            <span
-                              className={`rounded px-1.5 py-0.5 text-[9.5px] font-extrabold ${
-                                isSpecificUnitBooker
-                                  ? "bg-amber-100 text-amber-800"
-                                  : "bg-slate-100 text-slate-600"
-                              }`}
-                            >
-                              {isSpecificUnitBooker
-                                ? L.specificUnitLeadBadge
-                                : L.generalLeadBadge}
                             </span>
                           </div>
                           <p className="mt-1 truncate text-[11px] font-medium text-slate-400">

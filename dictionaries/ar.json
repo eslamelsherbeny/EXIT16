@@ -1,5 +1,3 @@
-
-
 {
   "brand": {
     "name": "Aqar",
@@ -305,7 +303,7 @@
       "walletTitleAccent": "بأي مبلغ",
       "walletDesc": "رقِّ إعلان التنازل الخاص بك لباقات SUPER VIP و VIP+ ليظهر في صدارة الصفحة الرئيسية والفرص المتاحة. بمجرد الدفع عبر الرابط ومراجعة الأدمن للإعلان والدفع، يتم تفعيل باقتك تلقائياً بالمدة المحددة.",
       "feature1Title": "كل وسائل الدفع",
-      "feature1Desc": "دفع مباشر سريع عبر رابط الدفع الآمن بالبطاقة أو التحويل البنكي.",
+      "feature1Desc": "دفع إلكتروني مباشر وآمن بالبطاقة البنكية عبر بوابة Flitt (Visa · Mastercard · Apple Pay · Google Pay).",
       "feature2Title": "قابل للاسترداد 100%",
       "feature2Desc": "إذا لم تتم الموافقة على الإعلان من الأدمن، يُسترد المبلغ بالكامل فوراً.",
       "feature3Title": "تفعيل فوري بعد المراجعة",
@@ -1380,7 +1378,9 @@
       "sellerDelayedNotifTitle": "تحديث بخصوص عرضك على وحدة",
       "sellerDelayedNotifMsg": "المالك غير متاح للرد وإتمام الإجراءات في الوقت الحالي. حتى لا نعطل وقتك، يمكنك استكشاف الفرص البديلة الجاهزة للاستحواذ الفوري في حسابك.",
       "unitWithdrawnBuyerNotifTitle": "لم تعد الوحدة متاحة حالياً",
-      "unitWithdrawnBuyerNotifMsg": "تم إغلاق عرض هذه الوحدة من قِبل المالك. يمكنك استكشاف الفرص البديلة المطابقة لميزانيتك في حسابك."
+      "unitWithdrawnBuyerNotifMsg": "تم إغلاق عرض هذه الوحدة من قِبل المالك. يمكنك استكشاف الفرص البديلة المطابقة لميزانيتك في حسابك.",
+      "advisorPicksSectionTitle": "ترشيحات مستشار المبيعات لك",
+      "advisorPicksSectionSubtitle": "وحدات مختارة خصيصاً لك من مستشارك العقاري بناءً على تواصلك معنا"
     },
     "documents": {
       "title": "مستندات الملكية والتنازل",
@@ -1664,7 +1664,13 @@
       "statusUnderReviewBadge": "٢. جاري مراجعة المستندات لدى الإدارة",
       "statusUnderReviewHeadline": "يقوم فريق المراجعة حالياً بفحص بيانات ومستندات وحدتك لاعتمادها ونشرها بالسوق",
       "statusDraftUnverifiedHeadline": "وحدتك محفوظة في حسابك (غير منشورة بعد) — يرجى تأكيد بريدك الإلكتروني واستكمال الصور والمستندات بالأسفل لتنتقل الوحدة إلى مراجعة الإدارة",
-      "activeOffersPriceEditWarn": "لديك عروض شراء قائمة على هذه الوحدة حالياً؛ أي تعديل في السعر سيُطبق على العروض الجديدة فقط."
+      "activeOffersPriceEditWarn": "لديك عروض شراء قائمة على هذه الوحدة حالياً؛ أي تعديل في السعر سيُطبق على العروض الجديدة فقط.",
+      "boostLockedTitle": "التمييز متاح فور اعتماد ونشر الوحدة",
+      "boostLockedDesc": "يمكنك ترقية وحدتك بباقات SUPER VIP أو +VIP والدفع إلكترونياً بالبطاقة عبر بوابة Flitt فور موافقة الإدارة على نشرها في السوق.",
+      "flittRedirectingBtn": "جاري التحويل لبوابة الدفع الآمنة (Flitt)...",
+      "flittPaymentReturnedNotice": "تم استلام عودتك من بوابة الدفع (مرجع: {ref}) — يتم التحقق تلقائياً وتفعيل التمييز فور تأكيد العملية.",
+      "flittNotConfiguredErr": "بوابة الدفع الإلكتروني (Flitt) قيد التفعيل النهائي حالياً — يرجى المحاولة لاحقاً أو التواصل مع الدعم.",
+      "flittInitFailedErr": "تعذر فتح صفحة الدفع بالبطاقة حالياً. يرجى المحاولة مرة أخرى بعد لحظات."
     },
     "buyer": {
       "popularAreas": [
@@ -1831,7 +1837,18 @@
       "showAllBtn": "عرض الكل",
       "cardRequiredCash": "المطلوب كاش الآن",
       "cardMarketPriceToday": "سعر السوق اليوم:",
-      "addToFavoritesAria": "إضافة للمفضلة"
+      "addToFavoritesAria": "إضافة للمفضلة",
+      "advisorPicksTitle": "ترشيحات مستشار المبيعات لك",
+      "advisorPicksSubtitle": "وحدات مختارة خصيصاً لك من مستشارك العقاري بناءً على تواصلك معنا",
+      "advisorPickBadge": "رشّحها لك مستشار المبيعات",
+      "purchasedSectionTitle": "وحدات قمت بشرائها بنجاح",
+      "purchasedSectionSub": "مبروك! تم إغلاق طلب الشراء السابق بنجاح. يمكنك البدء في طلب شراء جديد في أي وقت.",
+      "newBuyReqBtn": "تقديم طلب شراء جديد",
+      "purchasedPaidLabel": "المبلغ المدفوع",
+      "purchasedContractLabel": "سعر العقد",
+      "purchasedBadge": "تم الشراء ✓",
+      "noActiveReqTitle": "لا يوجد طلب شراء نشط حالياً",
+      "noActiveReqSub": "سجّل طلب شراء جديد بميزانيتك والمناطق المفضلة لتظهر لك أحدث الوحدات المطابقة فوراً."
     }
   },
   "buy": {
@@ -3008,7 +3025,8 @@
       "promoCancelledNotifTitle": "ألغى البائع طلب إعلان وحدته",
       "unitLockedByDeal": "لا يمكن إيقاف أو تعديل أو حذف الوحدة بعد قبول العرض وبدء إجراءات التنازل مع الإدارة.",
       "allDocsReadyNotifTitle": "اكتملت جميع مستندات وصور الوحدة",
-      "closedByAccountDeletionNote": "تم إغلاق هذه الوحدة نهائياً بسبب طلب حذف الحساب. لعرض وحدة مرة أخرى يرجى إضافة وحدة جديدة."
+      "closedByAccountDeletionNote": "تم إغلاق هذه الوحدة نهائياً بسبب طلب حذف الحساب. لعرض وحدة مرة أخرى يرجى إضافة وحدة جديدة.",
+      "boostOnlyActiveUnits": "لا يمكن تمييز الوحدة إلا بعد مراجعتها واعتماد نشرها في السوق أولاً."
     },
     "admin": {
       "unauthorizedLogin": "غير مصرح: يرجى تسجيل الدخول بحساب الإدارة.",
@@ -3078,7 +3096,13 @@
       "cancelPromoFailed": "تعذر إلغاء التمييز.",
       "purgeDeletedFailed": "تعذر مسح الوحدات المحذوفة.",
       "cannotModifyOwnerAdmin": "لا يمكن تعديل أو إيقاف أو حذف حساب مالك المشروع (Super Admin).",
-      "onlyOwnerCanManageAdmins": "فقط مالك المشروع (Super Admin) يملك صلاحية تعيين أو تعديل أو حذف حسابات المدراء."
+      "onlyOwnerCanManageAdmins": "فقط مالك المشروع (Super Admin) يملك صلاحية تعيين أو تعديل أو حذف حسابات المدراء.",
+      "leadManualClosedNotAllowed": "لا يمكن اختيار حالة (تم الشراء بنجاح) يدوياً؛ يتم تحديثها تلقائياً عند تأكيد البيع في قسم الصفقات.",
+      "leadClosedLocked": "هذا الطلب مغلق لارتباطه بصفقة شراء مكتملة ولا يمكن تغيير حالته يدوياً.",
+      "leadHasActiveDealBlocked": "لا يمكن تغيير حالة المشتري حالياً لأن لديه صفقة قيد التعاقد؛ يرجى إدارتها أولاً من قسم الصفقات.",
+      "leadHasActiveOffersBlocked": "لا يمكن تغيير الحالة حالياً لوجود ({count}) عروض نشطة لهذا المشتري؛ يرجى سحبها أولاً من سجل عروضه أو قسم العروض.",
+      "unitSoldLocked": "هذه الوحدة مباعة ومغلقة بصفقة مكتملة ولا يمكن تغيير حالتها يدوياً.",
+      "unitHasActiveDealBlocked": "لا يمكن تغيير حالة هذه الوحدة لأن عليها صفقة قيد التعاقد حالياً؛ يرجى إدارتها أولاً من قسم الصفقات."
     },
     "forms": {
       "expiredLink": "الرابط منتهي الصلاحية.",
@@ -3211,7 +3235,43 @@
       "confirmYesBtn": "نعم، تأكيد التنفيذ",
       "confirmBackBtn": "تراجع",
       "btnAdminAcceptDeal": "اعتماد الاتفاق وتحويل لصفقة",
-      "btnSellerUnavailableCancel": "المالك غير جاهز حالياً (إلغاء وتوجيه لبدائل)"
+      "btnSellerUnavailableCancel": "المالك غير جاهز حالياً (إلغاء وتوجيه لبدائل)",
+      "offersPageEyebrow": "إدارة العروض والتفاوض اليومي",
+      "offersPageTitle": "العروض والتفاوض",
+      "offersPageSubtitle": "راجع العروض الجديدة، تابع المفاوضات والأسعار المقابلة، وسجّل العروض الهاتفية مباشرة",
+      "dealsPageEyebrow": "إغلاق الصفقات وتحصيل العمولات",
+      "dealsPageTitle": "الصفقات والمبيعات",
+      "dealsPageSubtitle": "تابع الصفقات المتفق عليها قيد التنازل، قوائم الانتظار الخاصة بكل وحدة، وسجل المبيعات المكتملة",
+      "tabCounterNegotiating": "🔥 قيد التفاوض (سعر مقابل)",
+      "tabPendingSellerOnly": "عند المالك بانتظار الرد",
+      "tabRejectedClosed": "مرفوضة / ملغاة",
+      "tabDealsClosing": "صفقات قيد التنازل",
+      "tabDealsSold": "صفقات مكتملة ومباعة",
+      "sourceSalesPhoneBadge": "📞 مسجل عبر المبيعات",
+      "sourceWebsiteBadge": "🌐 مقدم من الموقع",
+      "recordPhoneOfferBtn": "+ تسجيل عرض هاتفي جديد",
+      "openDealFileBtn": "فتح ملف الصفقة",
+      "expectedCommissionsLabel": "عمولات متوقعة (قيد التنازل)",
+      "collectedCommissionsLabel": "عمولات مكتملة (مباعة)",
+      "waitlistOnUnitBtn": "قائمة الانتظار على هذه الوحدة",
+      "waitlistHighestOfferLabel": "أعلى عرض احتياطي:",
+      "waitlistEmptyOnUnit": "لا توجد عروض احتياطية مسجلة على هذه الوحدة حالياً.",
+      "phoneModalTitle": "تسجيل عرض شراء هاتفي",
+      "phoneModalSubtitle": "اختر المشتري وأي وحدة منشورة بالسوق لتسجيل عرض رسمي أو اعتماد صفقة هاتفياً فوراً",
+      "selectBuyerLabel": "١. اختر المشتري",
+      "searchBuyerPlaceholder": "ابحث باسم المشتري أو رقم الموبايل...",
+      "noBuyersMatch": "لا يوجد مشترون مطابقون للبحث",
+      "selectUnitLabel": "٢. اختر الوحدة من السوق",
+      "searchUnitPlaceholder": "ابحث بكود الوحدة (U-15876)، اسم المشروع، المنطقة، أو اسم المالك...",
+      "noUnitsMatch": "لا توجد وحدات متاحة مطابقة للبحث",
+      "offerModeSendLabel": "إرسال للمالك للموافقة",
+      "offerModeDirectLabel": "المالك وافق هاتفياً — بدء الصفقة فوراً",
+      "offerModeDirectWarn": "سيتم قفل الوحدة قيد التنازل، تجميد عروض المشتري الأخرى، وتوثيق الاتفاق بإيميل وإشعار للطرفين.",
+      "submitPhoneOfferBtn": "تسجيل وإرسال العرض للمالك ✓",
+      "submitDirectDealBtn": "اعتماد الصفقة ونقلها لقسم الصفقات 🤝",
+      "invalidOfferAmountErr": "يرجى إدخال مبلغ صحيح لا يتجاوز الكاش المطلوب للوحدة",
+      "directDealCreatedNotice": "تم اعتماد الصفقة هاتفياً ونقلها فوراً لقسم الصفقات ✓",
+      "phoneOfferSentNotice": "تم تسجيل العرض الهاتفي وإرساله للمالك بنجاح ✓"
     },
     "smartMatch": {
       "readyDealsTitle": "غرفة الصفقات المتفق عليها الجاهزة للتنفيذ",
@@ -3273,7 +3333,19 @@
       "offerCancelledSuccess": "تم سحب العرض وحذفه من عند المالك بنجاح ✓",
       "openInDealsBtn": "متابعة العرض",
       "invalidCustomPriceErr": "يرجى إدخال مبلغ صحيح أكبر من صفر ولا يتجاوز الكاش المطلوب للوحدة",
-      "openAcceptedDealBtn": "متابعة الصفقة"
+      "openAcceptedDealBtn": "متابعة الصفقة",
+      "tabMatchedUnits": "الوحدات المطابقة لميزانيته",
+      "tabAllUnitsPhone": "كل وحدات الموقع (حجز هاتفي)",
+      "searchAllUnitsPlaceholder": "ابحث بكود الوحدة (U-15876)، اسم المشروع، المنطقة، أو اسم المالك...",
+      "directAcceptPhoneBtn": "اعتماد الصفقة الآن 🤝",
+      "directAcceptConfirmWarn": "سيتم حجز الوحدة قيد التنازل، تجميد عروض المشتري الأخرى، وتوثيق الاتفاق بإيميل وإشعار للطرفين.",
+      "directDealCreatedSuccess": "تم اعتماد الصفقة هاتفياً ونقلها فوراً لقسم الصفقات ✓",
+      "recordOfferOnAnyUnitBtn": "+ تسجيل عرض على وحدة",
+      "offerModeSendShort": "إرسال للمالك للموافقة",
+      "offerModeDirectShort": "المالك وافق هاتفياً — بدء الصفقة",
+      "recommendToBuyerStarBtn": "ترشيح للعميل",
+      "recordOfferAfterCallBtn": "تسجيل عرض بعد المكالمة",
+      "sendUnitWaBtn": "إرسال واتساب"
     },
     "shell": {
       "brand": "دارك",
@@ -3300,7 +3372,7 @@
         "properties": "طلبات البيع",
         "propertiesShort": "العقارات",
         "promotions": "طلبات الإعلان ⭐",
-        "deals": "العروض والصفقات",
+        "deals": "الصفقات والمبيعات",
         "dealsShort": "الصفقات",
         "promotionsShort": "الإعلانات",
         "leads": "طلبات الشراء",
@@ -3310,7 +3382,9 @@
         "investors": "المستثمرين",
         "investorsShort": "المستثمرين",
         "settings": "إعدادات الموقع",
-        "settingsShort": "الإعدادات"
+        "settingsShort": "الإعدادات",
+        "offers": "العروض والتفاوض",
+        "offersShort": "العروض"
       }
     },
     "dashboard": {
@@ -3370,6 +3444,41 @@
         "transferring": "نقل التعاقد",
         "sold": "تم البيع",
         "rejected": "مرفوضة"
+      },
+      "sections": {
+        "sec1Title": "١. صفقات متفق عليها جاهزة للتنازل",
+        "sec1Sub": "البائع والمشتري وافقا على السعر — تواصل مع الطرفين لتوقيع التنازل في مقر المطور وتحصيل العمولة",
+        "sec1EmptyShort": "لا توجد صفقات تنتظر الإغلاق حالياً",
+        "sec1Empty": "لا توجد صفقات متفق عليها تنتظر الإغلاق حالياً.",
+        "sec1Btn": "فتح الصفقات والمبيعات",
+        "sec2Title": "٢. عروض جديدة وتفاوض نشط بانتظار تدخلك",
+        "sec2Sub": "عروض جديدة بانتظار مراجعتك أو عروض فيها سعر مقابل من المالك وتحتاج متابعة سريعة من المبيعات",
+        "sec2EmptyShort": "لا توجد عروض معلقة حالياً",
+        "sec2Empty": "جميع العروض تمت مراجعتها حالياً.",
+        "sec2Btn": "فتح العروض والتفاوض",
+        "pendingUnitsTitle": "وحدات بانتظار المراجعة والنشر",
+        "pendingUnitsEmpty": "تمت مراجعة جميع طلبات البيع الجديدة ✓",
+        "newLeadsTitle": "طلبات شراء جديدة (لم يتم التواصل)",
+        "newLeadsEmpty": "تم التواصل مع جميع المشترين الجدد ✓",
+        "colUnit": "الوحدة والمشروع",
+        "colSeller": "البائع (المالك)",
+        "colBuyer": "المشتري (مقدم العرض)",
+        "colAgreedCash": "المبلغ المتفق عليه",
+        "colOfferedCash": "المبلغ المعروض",
+        "colOriginalCash": "المطلوب الأصلي",
+        "colCommission": "عمولة المنصة",
+        "colReadiness": "الحالة والجاهزية",
+        "colAction": "الإجراء المطلوب",
+        "readiness48h": "خلال 48 ساعة",
+        "readiness1Week": "خلال أسبوع",
+        "readiness2Weeks": "خلال أسبوعين",
+        "methodCheck": "شيك بنكي",
+        "methodTransfer": "تحويل بنكي",
+        "btnApproveOffer": "مراجعة وإرسال",
+        "btnNegotiateNow": "متابعة التفاوض",
+        "btnCloseDeal": "إدارة الصفقة",
+        "negotiatingBadge": "🔥 سعر مقابل",
+        "newOfferBadge": "عرض جديد"
       }
     },
     "promotions": {
@@ -3539,7 +3648,6 @@
       "vipPlusDailyLabel": "سعر اليوم +VIP (₾)",
       "superVipDailyLabel": "سعر اليوم SUPER VIP (₾)",
       "gePackagesGelTitle": "أسعار باقات التمييز (7 / 14 / 30 يوم باللاري ₾)",
-      "bankIbanGeLabel": "رقم الحساب البنكي الجورجي (IBAN)",
       "seoCardTitle": "أدوات التتبع، إعلانات فيسبوك، وأرشفة جوجل (SEO)",
       "seoCardDesc": "ضع معرف البيكسل أو جوجل أناليتكس هنا ليتم تفعيله في جميع صفحات الموقع تلقائياً.",
       "fbPixelLabel": "Facebook Pixel ID",
@@ -3664,7 +3772,56 @@
       "followUpOfferBtn": "متابعة العرض",
       "followUpDealBtn": "متابعة الصفقة",
       "activeOffersBadge": "نشط",
-      "closedOffersBadge": "منتهي"
+      "closedOffersBadge": "منتهي",
+      "ui": {
+        "searchProfilesTab": "طلبات الشراء والعروض المباشرة",
+        "directInquiriesTab": "طلبات الاهتمام والحجز المباشر",
+        "searchTabDesc": "جميع المشترين النشطين — سواء من سجلوا مواصفات بحث أو من قدموا عرضاً مباشراً على وحدة.",
+        "inquiriesTabDesc": "العملاء الذين أبدوا اهتماماً أو قدموا عروضاً على وحدات محددة.",
+        "desiredAreasCol": "المناطق والمواصفات المطلوبة",
+        "targetUnitCol": "الوحدة المستهدفة والمالك",
+        "interestedBuyerCol": "العميل المهتم",
+        "offerFinanceCol": "العرض / القدرة المالية",
+        "unitOwnerLabel": "مالك الوحدة:",
+        "targetBudgetLabel": "الميزانية المستهدفة",
+        "hasGeneralProfileTag": "لديه طلب بحث عام",
+        "alternativeUnitsWord": "وحدات بديلة",
+        "openDealsBtn": "متابعة العرض",
+        "offeredCashLabel": "العرض المقدم",
+        "unitRequiredCashLabel": "كاش الوحدة",
+        "sourceDirectOfferBadge": "عرض مباشر",
+        "sourceSearchBadge": "طلب بحث"
+      },
+      "statusHasActiveOffer": "💬 لديه عرض نشط",
+      "statusNegotiating": "🔥 قيد التفاوض",
+      "statusInActiveDeal": "🤝 في صفقة حالياً",
+      "statusPurchasedLocked": "تم الشراء بنجاح",
+      "filterOffersAndNegTab": "عرض / تفاوض",
+      "filterInDealTab": "في صفقة حالياً",
+      "currentDealBtn": "الصفقة الحالية",
+      "frozenAlternativesBtn": "بدائل مجمّدة متاحة",
+      "frozenAlternativesTitle": "العروض المجمّدة المتاحة حالياً (آخر تحديث)",
+      "frozenAlternativesSubtitle": "تظهر هنا فقط الوحدات البديلة التي ما زالت متاحة في السوق حالياً",
+      "frozenAlternativesEmpty": "لا توجد عروض بديلة متاحة حالياً (جميع الوحدات الأخرى مباعة أو محجوزة).",
+      "frozenAvailableTag": "متاحة الآن",
+      "dealQuickSummaryTitle": "ملخص الصفقة الحالية",
+      "dealSummaryAgreedCash": "السعر المتفق عليه",
+      "dealSummaryCommission": "عمولة المنصة",
+      "dealSummaryBuyer": "المشتري",
+      "dealSummarySeller": "البائع (المالك)",
+      "dealSummaryWaitlistCount": "المشترون في قائمة الانتظار لهذه الوحدة",
+      "openDealFileBtn": "فتح ملف الصفقة",
+      "viewDealBtn": "تفاصيل الصفقة",
+      "soldOfferBadge": "تم الشراء ✓",
+      "soldOfferSummary": "تم إتمام الشراء ونقل الملكية بنجاح بمبلغ {offered}",
+      "completedPurchaseNoDeal": "تم إتمام الشراء وإغلاق هذا الطلب بنجاح",
+      "completedPurchaseSummary": "قام بشراء وحدة {project} ({code}) من {owner} بمبلغ {amount}",
+      "blockedModalTitle": "حالة تلقائية مرتبطة بمسار العروض والصفقات",
+      "blockedActiveDealDesc": "المشتري ({name}) لديه صفقة قيد التعاقد حالياً ولا يمكن تغيير حالته يدوياً من هنا؛ يرجى إدارتها من قسم الصفقات والمبيعات.",
+      "blockedActiveOffersDesc": "المشتري ({name}) لديه ({count}) عروض نشطة حالياً. لتغيير حالته يدوياً، افتح سجل عروضه واسحب العروض النشطة أولاً.",
+      "blockedGotItBtn": "فهمت",
+      "blockedOpenDealBtn": "فتح ملف الصفقة",
+      "blockedOpenOffersBtn": "فتح سجل عروض المشتري"
     },
     "usersPage": {
       "eyebrow": "المجتمع والصلاحيات (RBAC)",
@@ -3809,7 +3966,10 @@
         "sold": "٦. تمت عملية البيع",
         "paused_by_seller": "⏸ متوقفة من المالك",
         "deleted_by_seller": "🗑 محذوفة من المالك",
-        "rejected": "٧. مرفوض"
+        "rejected": "٧. مرفوض",
+        "has_offers": "💬 عليها عروض نشطة",
+        "negotiating": "🔥 قيد التفاوض",
+        "in_deal": "🤝 في صفقة قيد التنازل"
       },
       "docs": {
         "contract": "عقد شراء الوحدة الأصلي",
@@ -3856,7 +4016,8 @@
         "rejectedTab": "مرفوضة",
         "deletedTab": "محذوفة",
         "deletedBannerTitle": "الوحدات المحذوفة بواسطة الملاك",
-        "purgeAllBtn": "مسح الكل"
+        "purgeAllBtn": "مسح الكل",
+        "inDealTab": "في صفقة"
       },
       "table": {
         "emptyText": "لا توجد وحدات مطابقة حالياً.",
@@ -3966,6 +4127,31 @@
         "waReportFeaturedPrefix": "مميزة في الصدارة",
         "waReportStandardTier": "ظهور عادي",
         "waReportDirectLinkLabel": "🔗 *رابط إعلانك المباشر:*"
+      },
+      "offersLog": {
+        "btnLabel": "عروض الوحدة",
+        "title": "العروض النشطة على الوحدة",
+        "subtitle": "جميع العروض المقدمة على هذه الوحدة مرتبة من الأعلى سعراً",
+        "emptyText": "لا توجد عروض نشطة على هذه الوحدة حالياً.",
+        "buyerOfferedShort": "عرض المشتري",
+        "ownerCounterShort": "السعر المقابل من المالك",
+        "openDealBtn": "فتح ملف الصفقة",
+        "openOfferBtn": "إدارة العرض"
+      },
+      "dealSummary": {
+        "currentDealBtn": "الصفقة الحالية",
+        "openDealFileBtn": "فتح ملف الصفقة",
+        "waitlistCountPrefix": "قائمة الانتظار",
+        "soldToBuyerSummary": "تم بيعها للمشتري {buyer} بمبلغ {amount}",
+        "soldNoBuyerSummary": "تم بيع الوحدة وإغلاق ملفها بنجاح"
+      },
+      "blocked": {
+        "title": "حالة الوحدة محمية لوجود تفاوض أو صفقة قائمة",
+        "activeDealDesc": "الوحدة ({unit}) في مرحلة التنازل ضمن صفقة قائمة حالياً؛ لإلغاء التعاقد أو تأكيد البيع يرجى إدارتها من قسم الصفقات والمبيعات.",
+        "activeOffersDesc": "الوحدة ({unit}) عليها عروض شراء نشطة حالياً. يمكنك مراجعة أو سحب العروض من نافذة عروض الوحدة أولاً.",
+        "gotItBtn": "فهمت",
+        "openDealBtn": "فتح ملف الصفقة",
+        "openOffersBtn": "عرض عروض الوحدة"
       }
     },
     "contactVerification": {
@@ -4049,6 +4235,46 @@
         "readiness": "جاهزية الدفع",
         "paymentMethod": "طريقة السداد"
       }
+    },
+    "areaFilter": {
+      "allLocationsOption": "كل المدن والأحياء",
+      "wholeCitySuffix": "بالكامل",
+      "citiesGroupLabel": "المدن الرئيسية",
+      "districtsGroupLabel": "الأحياء والمناطق",
+      "ariaLabel": "تصفية حسب المدينة أو الحي"
+    },
+    "promotionsManager": {
+      "eyebrow": "إدارة الإعلانات المميزة والمدفوعات",
+      "title": "طلبات الإعلان والتمييز (SUPER VIP & +VIP)",
+      "subtitle": "راجع طلبات التمييز المدفوعة إلكترونياً عبر Flitt، وتابع مدة الإعلانات النشطة والتمييز اليدوي",
+      "searchPlaceholder": "ابحث بكود الوحدة، رقم الطلب، المشروع، أو اسم المالك...",
+      "tabPending": "بانتظار التفعيل",
+      "tabActive": "نشطة حالياً",
+      "tabHistory": "السجل (مفعّلة / مرفوضة)",
+      "tabManual": "تمييز يدوي",
+      "emptyPending": "لا توجد طلبات تمييز بانتظار المراجعة حالياً ✓",
+      "emptyActive": "لا توجد وحدات مميزة نشطة حالياً.",
+      "emptyHistory": "لا يوجد سجل تاريخي لطلبات التمييز حتى الآن.",
+      "sellerLabel": "المالك",
+      "refCodeLabel": "مرجع الدفع",
+      "paidFlittBadge": "مدفوع عبر Flitt ✓",
+      "bankTransferPendingBadge": "تحويل بنكي — بانتظار التحقق",
+      "rejectBtn": "رفض الطلب",
+      "activateBtn": "تفعيل التمييز ✓",
+      "remainingDaysLabel": "المتبقي",
+      "stopPromoBtn": "إيقاف التمييز",
+      "approvedBadge": "مفعّل ✓",
+      "rejectedBadge": "مرفوض",
+      "onlyActiveUnitHint": "ملاحظة: تظهر هنا فقط الوحدات المعتمدة والمنشورة في السوق؛ لا يمكن تمييز وحدة قيد المراجعة أو مباعة.",
+      "manualPromoteBtn": "تمييز يدوي ⭐",
+      "rejectModalTitle": "رفض / إلغاء طلب التمييز",
+      "rejectModalDesc": "سيتم إبلاغ المالك برفض الطلب وإلغاء حالة الانتظار",
+      "rejectReasonPlaceholder": "سبب الرفض (اختياري — يظهر للمالك في الإشعار)...",
+      "cancelBtn": "تراجع",
+      "confirmRejectBtn": "تأكيد الرفض",
+      "activatedSuccess": "تم تفعيل باقة التمييز وإشعار المالك بنجاح ✓",
+      "rejectedSuccess": "تم رفض طلب التمييز وإشعار المالك.",
+      "cancelledSuccess": "تم إيقاف التمييز وعادت الوحدة للعرض العادي."
     }
   },
   "smartMatcher": {

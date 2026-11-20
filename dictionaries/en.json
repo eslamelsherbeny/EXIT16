@@ -1,6 +1,3 @@
-
-
-
 {
   "brand": {
     "name": "Aqar",
@@ -306,7 +303,7 @@
       "walletTitleAccent": "With Any Amount",
       "walletDesc": "Promote your listings with SUPER VIP and VIP+ boosts. Once paid and verified by Admin, your listing boost activates automatically.",
       "feature1Title": "All Payment Methods",
-      "feature1Desc": "Apple Pay · Mastercard · Visa · BOG · TBC · Bank Transfer.",
+      "feature1Desc": "Direct, secure online card payment via Flitt (Visa · Mastercard · Apple Pay · Google Pay).",
       "feature2Title": "100% Refundable",
       "feature2Desc": "Any unspent balance is fully refundable at any time upon request.",
       "feature3Title": "Instant 1:1 Credit",
@@ -1381,7 +1378,9 @@
       "sellerDelayedNotifTitle": "Update regarding your offer on unit",
       "sellerDelayedNotifMsg": "The owner is currently unavailable to proceed. To save your time, explore ready alternative opportunities in your account.",
       "unitWithdrawnBuyerNotifTitle": "Unit no longer available",
-      "unitWithdrawnBuyerNotifMsg": "The owner withdrew this unit listing. Explore alternative opportunities matching your budget in your account."
+      "unitWithdrawnBuyerNotifMsg": "The owner withdrew this unit listing. Explore alternative opportunities matching your budget in your account.",
+      "advisorPicksSectionTitle": "Picked for You by Your Sales Advisor",
+      "advisorPicksSectionSubtitle": "Hand-picked units shared by your advisor based on your conversation"
     },
     "documents": {
       "title": "Ownership & Verification Documents",
@@ -1665,7 +1664,13 @@
       "statusUnderReviewBadge": "2. Reviewing Documents",
       "statusUnderReviewHeadline": "Our verification team is currently reviewing your unit details & documents for market approval",
       "statusDraftUnverifiedHeadline": "Your unit is saved as a draft (not published yet) — please verify your email and complete the missing photos or documents below",
-      "activeOffersPriceEditWarn": "You currently have active purchase offers on this unit; any price change will apply to new offers only."
+      "activeOffersPriceEditWarn": "You currently have active purchase offers on this unit; any price change will apply to new offers only.",
+      "boostLockedTitle": "Boost Unlocks Once Unit Is Published",
+      "boostLockedDesc": "You can promote your unit with SUPER VIP or +VIP packages via Flitt secure card checkout as soon as Admin approves and publishes it.",
+      "flittRedirectingBtn": "Redirecting to Flitt secure checkout...",
+      "flittPaymentReturnedNotice": "Returned from payment gateway (Ref: {ref}) — your boost will activate automatically once payment verification completes.",
+      "flittNotConfiguredErr": "Online card checkout (Flitt) is currently being activated. Please try again shortly or contact support.",
+      "flittInitFailedErr": "Could not start card checkout right now. Please try again in a moment."
     },
     "buyer": {
       "popularAreas": [
@@ -1832,7 +1837,18 @@
       "showAllBtn": "Show All",
       "cardRequiredCash": "Required Cash Now",
       "cardMarketPriceToday": "Market price today:",
-      "addToFavoritesAria": "Add to favorites"
+      "addToFavoritesAria": "Add to favorites",
+      "advisorPicksTitle": "Picked for You by Your Sales Advisor",
+      "advisorPicksSubtitle": "Hand-picked units shared by your advisor based on your conversation",
+      "advisorPickBadge": "Recommended by Sales Advisor",
+      "purchasedSectionTitle": "Units You Purchased",
+      "purchasedSectionSub": "Congratulations! Your previous purchase cycle is complete. You can start a new purchase request whenever you are ready.",
+      "newBuyReqBtn": "Submit New Purchase Request",
+      "purchasedPaidLabel": "Agreed Cash",
+      "purchasedContractLabel": "Contract Price",
+      "purchasedBadge": "Purchased ✓",
+      "noActiveReqTitle": "No Active Purchase Request",
+      "noActiveReqSub": "Start a new purchase request with your budget and preferred areas to unlock smart unit matching."
     }
   },
   "buy": {
@@ -3198,7 +3214,8 @@
       "promoCancelledNotifTitle": "Seller cancelled boost request",
       "unitLockedByDeal": "Cannot pause, modify, or delete the unit after accepting an offer and starting transfer procedures.",
       "allDocsReadyNotifTitle": "All unit documents & photos completed",
-      "closedByAccountDeletionNote": "This unit was permanently closed due to an account deletion request. To list a unit again, please add a new unit."
+      "closedByAccountDeletionNote": "This unit was permanently closed due to an account deletion request. To list a unit again, please add a new unit.",
+      "boostOnlyActiveUnits": "Only approved and published units on the marketplace can be boosted."
     },
     "admin": {
       "unauthorizedLogin": "Unauthorized: Please sign in with an admin account.",
@@ -3268,7 +3285,13 @@
       "cancelPromoFailed": "Could not cancel promotion.",
       "purgeDeletedFailed": "Could not purge deleted units.",
       "cannotModifyOwnerAdmin": "The project owner (Super Admin) account cannot be modified, suspended, or deleted.",
-      "onlyOwnerCanManageAdmins": "Only the project owner (Super Admin) can assign, modify, or delete admin accounts."
+      "onlyOwnerCanManageAdmins": "Only the project owner (Super Admin) can assign, modify, or delete admin accounts.",
+      "leadManualClosedNotAllowed": "Cannot set (Purchased) manually; it updates automatically when a sale is confirmed in Deals.",
+      "leadClosedLocked": "This request is locked due to a completed purchase deal and cannot be modified manually.",
+      "leadHasActiveDealBlocked": "Cannot change buyer status while they have an active deal in closing; manage it in Deals first.",
+      "leadHasActiveOffersBlocked": "Cannot change status while ({count}) active offers exist for this buyer; withdraw them first.",
+      "unitSoldLocked": "This unit is sold and closed; its status cannot be changed manually.",
+      "unitHasActiveDealBlocked": "Cannot change unit status while an active deal is in progress; manage it in Deals first."
     },
     "forms": {
       "expiredLink": "This link has expired.",
@@ -3401,7 +3424,43 @@
       "confirmYesBtn": "Yes, Confirm",
       "confirmBackBtn": "Cancel",
       "btnAdminAcceptDeal": "Approve Agreement & Convert to Deal",
-      "btnSellerUnavailableCancel": "Owner Unavailable Now (Cancel & Redirect to Alternatives)"
+      "btnSellerUnavailableCancel": "Owner Unavailable Now (Cancel & Redirect to Alternatives)",
+      "offersPageEyebrow": "Daily Offers & Negotiation Pipeline",
+      "offersPageTitle": "Offers & Negotiation",
+      "offersPageSubtitle": "Review incoming offers, follow up on counter-offers, and record phone offers directly",
+      "dealsPageEyebrow": "Deal Closing & Commissions",
+      "dealsPageTitle": "Deals & Sales",
+      "dealsPageSubtitle": "Manage agreed deals in transfer, per-unit waitlists, and completed sales",
+      "tabCounterNegotiating": "🔥 Negotiating (Counter)",
+      "tabPendingSellerOnly": "Awaiting Owner Reply",
+      "tabRejectedClosed": "Declined / Cancelled",
+      "tabDealsClosing": "Deals in Transfer",
+      "tabDealsSold": "Completed Sales",
+      "sourceSalesPhoneBadge": "📞 Recorded by Sales",
+      "sourceWebsiteBadge": "🌐 From Website",
+      "recordPhoneOfferBtn": "+ Record Phone Offer",
+      "openDealFileBtn": "Open Deal File",
+      "expectedCommissionsLabel": "Expected Fees (In Transfer)",
+      "collectedCommissionsLabel": "Completed Fees (Sold)",
+      "waitlistOnUnitBtn": "Waitlist on This Unit",
+      "waitlistHighestOfferLabel": "Highest Backup Offer:",
+      "waitlistEmptyOnUnit": "No backup waitlist offers recorded on this unit yet.",
+      "phoneModalTitle": "Record Phone Purchase Offer",
+      "phoneModalSubtitle": "Select a buyer and any active unit to forward an offer or approve a phone deal directly",
+      "selectBuyerLabel": "1. Select Buyer",
+      "searchBuyerPlaceholder": "Search by buyer name or phone...",
+      "noBuyersMatch": "No matching buyers found",
+      "selectUnitLabel": "2. Select Marketplace Unit",
+      "searchUnitPlaceholder": "Search by unit code (U-15876), project, district, or owner...",
+      "noUnitsMatch": "No available units match search",
+      "offerModeSendLabel": "Send to Owner for Approval",
+      "offerModeDirectLabel": "Owner Agreed by Phone — Start Deal Now",
+      "offerModeDirectWarn": "Unit will move to contract transfer, buyer's other offers will freeze, and both parties will receive email confirmation.",
+      "submitPhoneOfferBtn": "Record & Send Offer to Owner ✓",
+      "submitDirectDealBtn": "Approve Deal & Move to Deals 🤝",
+      "invalidOfferAmountErr": "Please enter a valid amount up to the unit's required cash",
+      "directDealCreatedNotice": "Phone deal approved and moved to Deals & Sales ✓",
+      "phoneOfferSentNotice": "Phone offer recorded and forwarded to owner ✓"
     },
     "smartMatch": {
       "readyDealsTitle": "Ready-to-Close Agreed Deals Room",
@@ -3463,7 +3522,19 @@
       "offerCancelledSuccess": "Offer withdrawn and removed from owner ✓",
       "openInDealsBtn": "Track Offer",
       "invalidCustomPriceErr": "Please enter a valid price greater than 0 and up to the required cash",
-      "openAcceptedDealBtn": "Track Deal"
+      "openAcceptedDealBtn": "Track Deal",
+      "tabMatchedUnits": "Budget-Matched Units",
+      "tabAllUnitsPhone": "All Marketplace Units (Phone)",
+      "searchAllUnitsPlaceholder": "Search by unit code (U-15876), project, area, or owner name...",
+      "directAcceptPhoneBtn": "Approve Deal Now 🤝",
+      "directAcceptConfirmWarn": "The unit will enter contract transfer, buyer's other offers will freeze, and both parties will receive email confirmation.",
+      "directDealCreatedSuccess": "Phone deal approved and moved to Deals & Sales ✓",
+      "recordOfferOnAnyUnitBtn": "+ Record Offer on Unit",
+      "offerModeSendShort": "Send to Owner",
+      "offerModeDirectShort": "Owner Agreed — Start Deal",
+      "recommendToBuyerStarBtn": "Recommend to Buyer",
+      "recordOfferAfterCallBtn": "Record Offer After Call",
+      "sendUnitWaBtn": "Send WhatsApp"
     },
     "shell": {
       "brand": "Darak",
@@ -3494,13 +3565,15 @@
         "leads": "Buy Requests",
         "leadsShort": "Buyers",
         "users": "Users & Roles",
-        "deals": "Offers & Deals",
+        "deals": "Deals & Sales",
         "dealsShort": "Deals",
         "usersShort": "Users",
         "investors": "Investors",
         "investorsShort": "Investors",
         "settings": "Site Settings",
-        "settingsShort": "Settings"
+        "settingsShort": "Settings",
+        "offers": "Offers & Negotiation",
+        "offersShort": "Offers"
       }
     },
     "dashboard": {
@@ -3560,6 +3633,41 @@
         "transferring": "Transferring",
         "sold": "Sold",
         "rejected": "Rejected"
+      },
+      "sections": {
+        "sec1Title": "1. Agreed Deals Ready for Contract Transfer",
+        "sec1Sub": "Both parties agreed on the price — coordinate signing at the developer office and collect platform fee",
+        "sec1EmptyShort": "No deals awaiting closing",
+        "sec1Empty": "No agreed deals awaiting closing right now.",
+        "sec1Btn": "Open Deals & Sales",
+        "sec2Title": "2. New Offers & Active Negotiations",
+        "sec2Sub": "New offers awaiting your approval or counter-offers needing quick sales follow-up",
+        "sec2EmptyShort": "All caught up — no pending offers",
+        "sec2Empty": "All incoming offers have been reviewed.",
+        "sec2Btn": "Open Offers & Negotiation",
+        "pendingUnitsTitle": "Units Awaiting Review & Publishing",
+        "pendingUnitsEmpty": "All new sell requests have been reviewed ✓",
+        "newLeadsTitle": "New Buy Requests (Not Contacted)",
+        "newLeadsEmpty": "All new buyers have been contacted ✓",
+        "colUnit": "Unit & Project",
+        "colSeller": "Seller (Owner)",
+        "colBuyer": "Buyer",
+        "colAgreedCash": "Agreed Cash",
+        "colOfferedCash": "Offered Cash",
+        "colOriginalCash": "Original Ask",
+        "colCommission": "Platform Fee",
+        "colReadiness": "Status & Readiness",
+        "colAction": "Next Action",
+        "readiness48h": "Within 48 Hours",
+        "readiness1Week": "Within 1 Week",
+        "readiness2Weeks": "Within 2 Weeks",
+        "methodCheck": "Bank Check",
+        "methodTransfer": "Bank Transfer",
+        "btnApproveOffer": "Review & Forward",
+        "btnNegotiateNow": "Follow Up",
+        "btnCloseDeal": "Manage Deal",
+        "negotiatingBadge": "🔥 Counter-Offer",
+        "newOfferBadge": "New Offer"
       }
     },
     "promotions": {
@@ -3729,7 +3837,6 @@
       "vipPlusDailyLabel": "VIP+ Daily (₾)",
       "superVipDailyLabel": "SUPER VIP Daily (₾)",
       "gePackagesGelTitle": "🇬🇪 Georgia Boost Packages (7 / 14 / 30 Days in ₾ GEL)",
-      "bankIbanGeLabel": "Georgia Bank IBAN",
       "seoCardTitle": "Analytics, Facebook Pixel & Google SEO",
       "seoCardDesc": "Enter your tracking IDs to activate across the platform.",
       "fbPixelLabel": "Facebook Pixel ID",
@@ -3854,7 +3961,56 @@
       "followUpOfferBtn": "Track Offer",
       "followUpDealBtn": "Track Deal",
       "activeOffersBadge": "Active",
-      "closedOffersBadge": "Closed"
+      "closedOffersBadge": "Closed",
+      "ui": {
+        "searchProfilesTab": "Buyer Requests & Direct Offers",
+        "directInquiriesTab": "Direct Unit Inquiries",
+        "searchTabDesc": "All active buyers — whether they submitted search criteria or made a direct offer on a unit.",
+        "inquiriesTabDesc": "Clients who expressed direct interest or sent offers on specific units.",
+        "desiredAreasCol": "Desired Areas & Specs",
+        "targetUnitCol": "Target Unit & Owner",
+        "interestedBuyerCol": "Interested Buyer",
+        "offerFinanceCol": "Offer / Capacity",
+        "unitOwnerLabel": "Owner:",
+        "targetBudgetLabel": "Target Budget",
+        "hasGeneralProfileTag": "Has Search Profile",
+        "alternativeUnitsWord": "alternative units",
+        "openDealsBtn": "Track Offer",
+        "offeredCashLabel": "Offered Cash",
+        "unitRequiredCashLabel": "Unit Cash",
+        "sourceDirectOfferBadge": "Direct Offer",
+        "sourceSearchBadge": "Search Request"
+      },
+      "statusHasActiveOffer": "💬 Active Offer",
+      "statusNegotiating": "🔥 Negotiating",
+      "statusInActiveDeal": "🤝 In Active Deal",
+      "statusPurchasedLocked": "Purchased Successfully",
+      "filterOffersAndNegTab": "Offer / Negotiating",
+      "filterInDealTab": "In Active Deal",
+      "currentDealBtn": "Current Deal",
+      "frozenAlternativesBtn": "Available Frozen Alternatives",
+      "frozenAlternativesTitle": "Available Frozen Offers (Live Status)",
+      "frozenAlternativesSubtitle": "Only alternative units still actively available on the marketplace appear here",
+      "frozenAlternativesEmpty": "No active alternative units remain available right now.",
+      "frozenAvailableTag": "Available Now",
+      "dealQuickSummaryTitle": "Current Deal Summary",
+      "dealSummaryAgreedCash": "Agreed Cash",
+      "dealSummaryCommission": "Platform Fee",
+      "dealSummaryBuyer": "Buyer",
+      "dealSummarySeller": "Seller (Owner)",
+      "dealSummaryWaitlistCount": "Waitlist Buyers on This Unit",
+      "openDealFileBtn": "Open Deal File",
+      "viewDealBtn": "View Deal",
+      "soldOfferBadge": "Purchased ✓",
+      "soldOfferSummary": "Purchase & transfer completed successfully at {offered}",
+      "completedPurchaseNoDeal": "Purchase completed — request closed",
+      "completedPurchaseSummary": "Purchased {project} ({code}) from {owner} at {amount}",
+      "blockedModalTitle": "Automatic Status Driven by Offers & Deals",
+      "blockedActiveDealDesc": "Buyer ({name}) currently has an active deal in transfer and cannot be changed manually here; manage it in Deals & Sales.",
+      "blockedActiveOffersDesc": "Buyer ({name}) has ({count}) active offers. To change status manually, open their offers log and withdraw active offers first.",
+      "blockedGotItBtn": "Got It",
+      "blockedOpenDealBtn": "Open Deal File",
+      "blockedOpenOffersBtn": "Open Buyer Offers Log"
     },
     "usersPage": {
       "eyebrow": "Community & Role-Based Access (RBAC)",
@@ -3999,7 +4155,10 @@
         "sold": "6. Sold",
         "paused_by_seller": "⏸ Paused by Owner",
         "deleted_by_seller": "🗑 Deleted by Owner",
-        "rejected": "7. Rejected"
+        "rejected": "7. Rejected",
+        "has_offers": "💬 Active Offers",
+        "negotiating": "🔥 Negotiating",
+        "in_deal": "🤝 In Active Deal"
       },
       "docs": {
         "contract": "Original Purchase Contract",
@@ -4046,7 +4205,8 @@
         "rejectedTab": "Rejected",
         "deletedTab": "Deleted",
         "deletedBannerTitle": "Units Deleted by Owners",
-        "purgeAllBtn": "Purge All"
+        "purgeAllBtn": "Purge All",
+        "inDealTab": "In Deal"
       },
       "table": {
         "emptyText": "No matching units found.",
@@ -4156,6 +4316,31 @@
         "waReportFeaturedPrefix": "Featured",
         "waReportStandardTier": "Standard",
         "waReportDirectLinkLabel": "🔗 *Direct Listing Link:*"
+      },
+      "offersLog": {
+        "btnLabel": "Unit Offers",
+        "title": "Active Offers on Unit",
+        "subtitle": "All active offers on this unit sorted by highest cash offer",
+        "emptyText": "No active offers on this unit right now.",
+        "buyerOfferedShort": "Buyer Offer",
+        "ownerCounterShort": "Owner Counter-Offer",
+        "openDealBtn": "Open Deal File",
+        "openOfferBtn": "Manage Offer"
+      },
+      "dealSummary": {
+        "currentDealBtn": "Current Deal",
+        "openDealFileBtn": "Open Deal File",
+        "waitlistCountPrefix": "Waitlist",
+        "soldToBuyerSummary": "Sold to buyer {buyer} at {amount}",
+        "soldNoBuyerSummary": "Unit sold and file closed successfully"
+      },
+      "blocked": {
+        "title": "Unit Status Protected by Active Deal / Offers",
+        "activeDealDesc": "Unit ({unit}) is currently in contract transfer under an active deal; manage or cancel it in Deals & Sales first.",
+        "activeOffersDesc": "Unit ({unit}) currently has active purchase offers. Review or withdraw them from Unit Offers first.",
+        "gotItBtn": "Got It",
+        "openDealBtn": "Open Deal File",
+        "openOffersBtn": "Open Unit Offers"
       }
     },
     "contactVerification": {
@@ -4239,6 +4424,46 @@
         "readiness": "Payment Readiness",
         "paymentMethod": "Payment Method"
       }
+    },
+    "areaFilter": {
+      "allLocationsOption": "All Cities & Districts",
+      "wholeCitySuffix": "All",
+      "citiesGroupLabel": "Main Cities",
+      "districtsGroupLabel": "Districts & Areas",
+      "ariaLabel": "Filter by city or district"
+    },
+    "promotionsManager": {
+      "eyebrow": "Featured Listings & Payments",
+      "title": "Ad & Boost Requests (SUPER VIP & +VIP)",
+      "subtitle": "Review online Flitt card payments, manage active boosts, remaining days, and manual boosts",
+      "searchPlaceholder": "Search by unit code, order ref, project, or owner...",
+      "tabPending": "Pending Activation",
+      "tabActive": "Active Now",
+      "tabHistory": "History (Approved / Rejected)",
+      "tabManual": "Manual Boost",
+      "emptyPending": "No pending boost requests right now ✓",
+      "emptyActive": "No active featured units right now.",
+      "emptyHistory": "No historical boost records yet.",
+      "sellerLabel": "Owner",
+      "refCodeLabel": "Payment Ref",
+      "paidFlittBadge": "Paid via Flitt ✓",
+      "bankTransferPendingBadge": "Bank Transfer — Verify",
+      "rejectBtn": "Reject",
+      "activateBtn": "Activate Boost ✓",
+      "remainingDaysLabel": "Remaining",
+      "stopPromoBtn": "Stop Boost",
+      "approvedBadge": "Active ✓",
+      "rejectedBadge": "Rejected",
+      "onlyActiveUnitHint": "Note: Only approved & published market units appear here; pending or sold units cannot be boosted.",
+      "manualPromoteBtn": "Manual Boost ⭐",
+      "rejectModalTitle": "Reject / Cancel Boost Request",
+      "rejectModalDesc": "The owner will be notified and pending boost status cleared",
+      "rejectReasonPlaceholder": "Rejection reason (optional — shown to owner)...",
+      "cancelBtn": "Cancel",
+      "confirmRejectBtn": "Confirm Rejection",
+      "activatedSuccess": "Boost activated and owner notified ✓",
+      "rejectedSuccess": "Boost request rejected and owner notified.",
+      "cancelledSuccess": "Boost stopped and unit returned to standard listing."
     }
   },
   "smartMatcher": {

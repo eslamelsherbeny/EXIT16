@@ -396,6 +396,7 @@ export function revalidateAdminAll() {
   revalidatePath("/", "layout")
   revalidatePath("/admin", "layout")
   revalidatePath("/admin")
+  revalidatePath("/admin/offers")
   revalidatePath("/admin/deals")
   revalidatePath("/admin/properties")
   revalidatePath("/admin/promotions")

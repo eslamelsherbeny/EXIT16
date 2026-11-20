@@ -1,17 +1,17 @@
-'use client'
+"use client"
 
-import { Suspense, useEffect, useMemo, useState, useTransition } from 'react'
-import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { Suspense, useEffect, useMemo, useState, useTransition } from "react"
+import Link from "next/link"
+import { useRouter, useSearchParams } from "next/navigation"
 import {
   AlertTriangle,
   ArrowLeft,
   ArrowRight,
   Check,
   CheckCircle2,
-  Clock,
+  ChevronDown,
+  ChevronUp,
   Download,
-  Edit3,
   ExternalLink,
   FileText,
   Handshake,
@@ -21,31 +21,26 @@ import {
   RefreshCw,
   RotateCcw,
   Search,
-  Send,
-  Sparkles,
+  Trophy,
+  Users,
   Wallet,
   X,
-  XCircle,
-} from 'lucide-react'
+} from "lucide-react"
 import {
   adminGetDealsRoomDataAction,
   adminManageOfferLifecycleAction,
-} from '@/actions/offer-actions'
-import { getUnitPricingGuardrails } from '@/lib/smart-matcher'
-import { toEnglishDigits } from '@/components/features/seller/seller-shared'
+} from "@/actions/offer-actions"
 import {
   downloadExcelCsv,
   downloadOfficialPdfReport,
   EXPORT_LABELS,
-} from '@/lib/export-csv'
-import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
-import { getCurrencySymbol, useTranslation } from '@/lib/i18n'
+} from "@/lib/export-csv"
+import { getLocalizedGeorgiaAreaName } from "@/components/shared/georgia-areas"
+import { getCurrencySymbol, useTranslation } from "@/lib/i18n"
 
-const PENDING_ADMIN_TAG = '__PENDING_ADMIN_VERIFICATION__'
-const PRIORITY_RETURNED_TAG = '__PRIORITY_FROM_BACKUP__'
-const REOPENED_PROMPT_TAG = '__REOPENED_PROMPT__'
+const PENDING_ADMIN_TAG = "__PENDING_ADMIN_VERIFICATION__"
 
-function WhatsAppOfficialIcon({ className = 'size-4' }: { className?: string }) {
+function WhatsAppOfficialIcon({ className = "size-4" }: { className?: string }) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -59,18 +54,18 @@ function WhatsAppOfficialIcon({ className = 'size-4' }: { className?: string }) 
 }
 
 function generateOfferRefCode(offerId: string): string {
-  const clean = String(offerId || '')
-    .replace(/[^a-zA-Z0-9]/g, '')
+  const clean = String(offerId || "")
+    .replace(/[^a-zA-Z0-9]/g, "")
     .toUpperCase()
-  return `OF-${clean.slice(0, 6) || '1001'}`
+  return `OF-${clean.slice(0, 6) || "1001"}`
 }
 
 function deriveUnitCode(id: string, dbCode?: string | null) {
   if (dbCode && String(dbCode).trim()) return String(dbCode).trim()
-  const numericCode = String(id || '')
-    .replace(/\D/g, '')
+  const numericCode = String(id || "")
+    .replace(/\D/g, "")
     .slice(0, 5)
-  const fallbackCode = String(id || '')
+  const fallbackCode = String(id || "")
     .slice(0, 5)
     .toUpperCase()
   return `U-${numericCode.length >= 4 ? numericCode : fallbackCode}`
@@ -78,8 +73,8 @@ function deriveUnitCode(id: string, dbCode?: string | null) {
 
 function cleanAreaDisplay(rawArea: string | null | undefined, locale: string) {
   const localized = getLocalizedGeorgiaAreaName(rawArea, locale as any)
-  if (locale === 'ar') {
-    return localized.replace(/\s*\([A-Za-z0-9\s/-]+\)\s*$/g, '').trim()
+  if (locale === "ar") {
+    return localized.replace(/\s*\([A-Za-z0-9\s/-]+\)\s*$/g, "").trim()
   }
   return localized
 }
@@ -93,8 +88,8 @@ function isSelfOfferClient(offer: any, unit: any): boolean {
   ) {
     return true
   }
-  const bPhone = String(offer.buyer_phone || '').replace(/\D/g, '')
-  const sPhone = String(unit.phone || '').replace(/\D/g, '')
+  const bPhone = String(offer.buyer_phone || "").replace(/\D/g, "")
+  const sPhone = String(unit.phone || "").replace(/\D/g, "")
   if (
     bPhone.length >= 8 &&
     sPhone.length >= 8 &&
@@ -108,14 +103,14 @@ function isSelfOfferClient(offer: any, unit: any): boolean {
 function normalizeDealOffer(raw: any) {
   const rawDiffs = Array.isArray(raw?.diff_reasons) ? raw.diff_reasons : []
   const hasPendingAdminTag = rawDiffs.includes(PENDING_ADMIN_TAG)
-  let effectiveStatus = raw?.status || 'pending_admin'
+  let effectiveStatus = raw?.status || "pending_admin"
 
   if (
-    raw?.status === 'pending_admin' ||
-    (raw?.status === 'recommended' &&
-      (raw?.initiated_by === 'buyer' || hasPendingAdminTag))
+    raw?.status === "pending_admin" ||
+    (raw?.status === "recommended" &&
+      (raw?.initiated_by === "buyer" || hasPendingAdminTag))
   ) {
-    effectiveStatus = 'pending_admin'
+    effectiveStatus = "pending_admin"
   }
 
   return {
@@ -126,74 +121,38 @@ function normalizeDealOffer(raw: any) {
   }
 }
 
-function getOfferSortPriority(offer: any, unitStatus?: string): number {
-  const offerStatus = offer.status
-  const diffs = Array.isArray(offer.diff_reasons) ? offer.diff_reasons : []
-  const isPriorityReturned = diffs.includes(PRIORITY_RETURNED_TAG)
-
-  if (offerStatus === 'accepted' && unitStatus !== 'sold') return 1
-  if (offerStatus === 'pending_admin' && isPriorityReturned) return 1.5
-  if (offerStatus === 'pending_admin') return 2
-  if (offerStatus === 'counter_offered') return 3
-  if (offerStatus === 'pending_seller') return 4
-  if (offerStatus === 'unit_locked') return 5
-  if (unitStatus === 'sold') return 6
-  return 7
-}
-
 function AdminDealsContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const targetOfferId = searchParams.get('offerId')
-  const initialTabParam = searchParams.get('tab')
+  const targetOfferId = searchParams.get("offerId")
+  const initialTabParam = searchParams.get("tab")
 
   const { t: dict, locale, dir, isRtl, siteSettings } = useTranslation()
   const adminDict = (dict?.admin as Record<string, any>) || {}
   const d = (adminDict.dealsPage as Record<string, any>) || {}
   const sm = (adminDict.smartMatch as Record<string, any>) || {}
   const expL = EXPORT_LABELS[locale] || EXPORT_LABELS.ar
-  const commaSep = isRtl ? '، ' : ', '
+  const commaSep = isRtl ? "، " : ", "
 
-  const cur = getCurrencySymbol('GE', locale)
+  const cur = getCurrencySymbol("GE", locale)
   const commPct = Number(siteSettings?.buyerCommission) || 1.25
 
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
-  const [offers, setOffers] = useState<any[]>([])
+  const [allOffers, setAllOffers] = useState<any[]>([])
   const [unitsMap, setUnitsMap] = useState<Record<string, any>>({})
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState("")
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<
-    | 'all'
-    | 'pending_admin'
-    | 'accepted'
-    | 'negotiating'
-    | 'waitlist'
-    | 'backup_rejected'
-  >(
-    initialTabParam === 'accepted'
-      ? 'accepted'
-      : initialTabParam === 'pending_admin'
-        ? 'pending_admin'
-        : initialTabParam === 'waitlist'
-          ? 'waitlist'
-          : 'all'
+  const [expandedWaitlistIds, setExpandedWaitlistIds] = useState<
+    Record<string, boolean>
+  >({})
+  const [activeTab, setActiveTab] = useState<"closing" | "sold">(
+    initialTabParam === "sold" ? "sold" : "closing"
   )
-
-  const [editingPriceOfferId, setEditingPriceOfferId] = useState<string | null>(
-    null
-  )
-  const [editingPriceStr, setEditingPriceStr] = useState('')
 
   const [confirmingAction, setConfirmingAction] = useState<{
     offerId: string
-    action:
-      | 'approve_to_seller'
-      | 'admin_accept_deal'
-      | 'reopen_unit_offers'
-      | 'mark_unit_sold'
-      | 'reject_offer'
-      | 'seller_unresponsive_cancel'
+    action: "reopen_unit_offers" | "mark_unit_sold"
     label: string
   } | null>(null)
 
@@ -206,8 +165,8 @@ function AdminDealsContent() {
 
   useEffect(() => {
     const closeMenu = () => setOpenMenuId(null)
-    window.addEventListener('click', closeMenu)
-    return () => window.removeEventListener('click', closeMenu)
+    window.addEventListener("click", closeMenu)
+    return () => window.removeEventListener("click", closeMenu)
   }, [])
 
   async function loadDeals() {
@@ -222,52 +181,52 @@ function AdminDealsContent() {
 
       const uMap: Record<string, any> = {}
       ;(res.units || []).forEach((u: any) => {
-        const st = String(u.status || '').trim().toLowerCase()
+        const st = String(u.status || "").trim().toLowerCase()
         if (
-          st !== 'draft_unverified' &&
-          st !== 'pending' &&
-          st !== 'under_review' &&
-          st !== 'rejected' &&
-          st !== 'paused_by_seller' &&
-          st !== 'deleted_by_seller'
+          st !== "draft_unverified" &&
+          st !== "pending" &&
+          st !== "under_review" &&
+          st !== "rejected" &&
+          st !== "paused_by_seller" &&
+          st !== "deleted_by_seller"
         ) {
           uMap[String(u.id)] = u
         }
       })
 
-      const normalizedOffers = (res.offers || [])
+      const normalized = (res.offers || [])
         .map(normalizeDealOffer)
         .filter((o: any) => {
-          if (o.status === 'recommended') return false
+          if (o.status === "recommended") return false
           const u = uMap[String(o.property_id)]
           if (!u || isSelfOfferClient(o, u)) return false
           return true
         })
 
-      setUnitsMap(uMap)
-      setOffers(normalizedOffers)
-
-      if (targetOfferId && normalizedOffers.length > 0) {
-        const found = normalizedOffers.find(
+      // لو الرابط بيشاور على عرض لسه في مرحلة التفاوض (مش صفقة مقبولة)، نحوّله تلقائياً لصفحة العروض
+      if (targetOfferId) {
+        const found = normalized.find(
           (o: any) => String(o.id) === String(targetOfferId)
         )
+        if (found && found.status !== "accepted") {
+          router.replace(`/admin/offers?offerId=${targetOfferId}`)
+          return
+        }
         if (found) {
           const foundUnit = uMap[String(found.property_id)]
-          if (foundUnit?.status === 'sold' || found.status === 'rejected') {
-            setActiveTab('backup_rejected')
-          } else if (found.status === 'unit_locked') {
-            setActiveTab('waitlist')
-          } else {
-            setActiveTab('all')
-          }
+          setActiveTab(foundUnit?.status === "sold" ? "sold" : "closing")
           setTimeout(() => {
-            const el = document.getElementById(`deal-card-${targetOfferId}`)
-            el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            document
+              .getElementById(`deal-card-${targetOfferId}`)
+              ?.scrollIntoView({ behavior: "smooth", block: "center" })
           }, 250)
         }
       }
+
+      setUnitsMap(uMap)
+      setAllOffers(normalized)
     } catch (e) {
-      console.error('Error loading deals:', e)
+      console.error("Error loading deals:", e)
       setLoadError(true)
     } finally {
       setLoading(false)
@@ -280,26 +239,17 @@ function AdminDealsContent() {
 
   const handleLifecycleAction = (
     offerId: string,
-    action:
-      | 'approve_to_seller'
-      | 'admin_accept_deal'
-      | 'reopen_unit_offers'
-      | 'mark_unit_sold'
-      | 'reject_offer'
-      | 'seller_unresponsive_cancel',
-    successText: string,
-    customNegotiatedCash?: number
+    action: "reopen_unit_offers" | "mark_unit_sold",
+    successText: string
   ) => {
     setProcessingId(offerId)
     setConfirmingAction(null)
-    setEditingPriceOfferId(null)
     setNotice(null)
     startTransition(async () => {
       try {
         const res = await adminManageOfferLifecycleAction({
           offerId,
           action,
-          negotiatedCash: customNegotiatedCash,
         })
         if (res.success) {
           setNotice({ text: successText })
@@ -317,97 +267,70 @@ function AdminDealsContent() {
     })
   }
 
-  const counts = useMemo(() => {
-    const pendingAdmin = offers.filter(
-      (o) =>
-        o.status === 'pending_admin' &&
-        unitsMap[String(o.property_id)]?.status !== 'sold'
-    ).length
-    const accepted = offers.filter(
-      (o) =>
-        o.status === 'accepted' &&
-        unitsMap[String(o.property_id)]?.status !== 'sold'
-    ).length
-    const negotiating = offers.filter(
-      (o) =>
-        (o.status === 'pending_seller' || o.status === 'counter_offered') &&
-        unitsMap[String(o.property_id)]?.status !== 'sold'
-    ).length
-    const waitlist = offers.filter(
-      (o) =>
-        o.status === 'unit_locked' &&
-        unitsMap[String(o.property_id)]?.status !== 'sold'
-    ).length
-    const archive = offers.filter(
-      (o) =>
-        o.status === 'rejected' ||
-        unitsMap[String(o.property_id)]?.status === 'sold'
-    ).length
+  const acceptedDeals = useMemo(() => {
+    return allOffers.filter(
+      (o) => o.status === "accepted" && Boolean(unitsMap[String(o.property_id)])
+    )
+  }, [allOffers, unitsMap])
 
-    return {
-      all: pendingAdmin + accepted + negotiating,
-      pending_admin: pendingAdmin,
-      accepted,
-      negotiating,
-      waitlist,
-      backup_rejected: archive,
+  const waitlistByPropertyId = useMemo(() => {
+    const map: Record<string, any[]> = {}
+    for (const o of allOffers) {
+      if (o.status !== "unit_locked") continue
+      const pid = String(o.property_id)
+      if (!map[pid]) map[pid] = []
+      map[pid].push(o)
     }
-  }, [offers, unitsMap])
+    Object.keys(map).forEach((pid) => {
+      map[pid].sort(
+        (a, b) => Number(b.offered_cash || 0) - Number(a.offered_cash || 0)
+      )
+    })
+    return map
+  }, [allOffers])
 
-  const filteredOffers = useMemo(() => {
-    return offers
+  const stats = useMemo(() => {
+    let closingCount = 0
+    let soldCount = 0
+    let expectedComm = 0
+    let collectedComm = 0
+
+    for (const o of acceptedDeals) {
+      const unit = unitsMap[String(o.property_id)]
+      if (!unit) continue
+      const contract =
+        Number(unit.contract_price || unit.paid_amount || o.offered_cash) || 0
+      const fee = Math.round(contract * (commPct / 100))
+      if (unit.status === "sold") {
+        soldCount++
+        collectedComm += fee
+      } else {
+        closingCount++
+        expectedComm += fee
+      }
+    }
+
+    return { closingCount, soldCount, expectedComm, collectedComm }
+  }, [acceptedDeals, unitsMap, commPct])
+
+  const filteredDeals = useMemo(() => {
+    return acceptedDeals
       .filter((o) => {
         const unit = unitsMap[String(o.property_id)]
         if (!unit) return false
-        const isSold = unit.status === 'sold'
-
-        if (activeTab === 'all') {
-          if (
-            isSold ||
-            o.status === 'unit_locked' ||
-            o.status === 'rejected'
-          ) {
-            return false
-          }
-        }
-        if (
-          activeTab === 'pending_admin' &&
-          (o.status !== 'pending_admin' || isSold)
-        )
-          return false
-        if (
-          activeTab === 'accepted' &&
-          (o.status !== 'accepted' || isSold)
-        )
-          return false
-        if (
-          activeTab === 'negotiating' &&
-          ((o.status !== 'pending_seller' &&
-            o.status !== 'counter_offered') ||
-            isSold)
-        )
-          return false
-        if (
-          activeTab === 'waitlist' &&
-          (o.status !== 'unit_locked' || isSold)
-        )
-          return false
-        if (
-          activeTab === 'backup_rejected' &&
-          o.status !== 'rejected' &&
-          !isSold
-        )
-          return false
+        const isSold = unit.status === "sold"
+        if (activeTab === "closing" && isSold) return false
+        if (activeTab === "sold" && !isSold) return false
 
         if (search.trim()) {
           const q = search.trim().toLowerCase()
-          const qDigits = q.replace(/\D/g, '')
-          const buyerDigits = String(o.buyer_phone || '').replace(/\D/g, '')
-          const sellerDigits = String(unit.phone || '').replace(/\D/g, '')
+          const qDigits = q.replace(/\D/g, "")
+          const buyerDigits = String(o.buyer_phone || "").replace(/\D/g, "")
+          const sellerDigits = String(unit.phone || "").replace(/\D/g, "")
           const refCode = generateOfferRefCode(o.id).toLowerCase()
           const uCode = deriveUnitCode(unit.id, unit.code).toLowerCase()
           const haystack =
-            `${o.id} ${refCode} ${uCode} ${o.buyer_name || ''} ${o.buyer_phone || ''} ${unit.project_name || ''} ${unit.name || ''} ${unit.phone || ''}`.toLowerCase()
+            `${o.id} ${refCode} ${uCode} ${o.buyer_name || ""} ${o.buyer_phone || ""} ${unit.project_name || ""} ${unit.name || ""} ${unit.phone || ""}`.toLowerCase()
           const phoneMatched =
             qDigits.length >= 5 &&
             (buyerDigits.includes(qDigits) || sellerDigits.includes(qDigits))
@@ -417,33 +340,17 @@ function AdminDealsContent() {
 
         return true
       })
-      .sort((a, b) => {
-        const uA = unitsMap[String(a.property_id)]
-        const uB = unitsMap[String(b.property_id)]
-        const pA = getOfferSortPriority(a, uA?.status)
-        const pB = getOfferSortPriority(b, uB?.status)
-        if (pA !== pB) return pA - pB
-        return (
+      .sort(
+        (a, b) =>
           new Date(b.updated_at || b.created_at || 0).getTime() -
           new Date(a.updated_at || a.created_at || 0).getTime()
-        )
-      })
-  }, [offers, unitsMap, activeTab, search])
-
-  function getDealStatusLabel(offer: any, unit: any) {
-    if (unit?.status === 'sold') return d.statusSoldDone
-    if (offer.status === 'pending_admin') return d.statusPendingAdmin
-    if (offer.status === 'pending_seller') return d.statusPendingSeller
-    if (offer.status === 'counter_offered') return d.statusCounterPrefix
-    if (offer.status === 'accepted') return d.statusAcceptedReady
-    if (offer.status === 'unit_locked') return d.statusBackupWaiting
-    return d.statusRejected
-  }
+      )
+  }, [acceptedDeals, unitsMap, activeTab, search])
 
   function exportDealsReport(
     rowsToExport: any[],
-    format: 'excel' | 'pdf' = 'excel',
-    prefix = 'AqarExit_Deals',
+    format: "excel" | "pdf" = "excel",
+    prefix = "AqarExit_Deals",
     customTitle?: string
   ) {
     const c = expL.cols
@@ -451,7 +358,7 @@ function AdminDealsContent() {
       customTitle ||
       (rowsToExport.length === 1
         ? `${expL.singleDealReportTitle} — ${generateOfferRefCode(rowsToExport[0].id)}`
-        : expL.dealsReportTitle)
+        : d.dealsPageTitle || expL.dealsReportTitle)
 
     const columns = [
       { header: c.index, accessor: (_: any, idx: number) => idx + 1 },
@@ -460,7 +367,7 @@ function AdminDealsContent() {
         header: c.unitCode,
         accessor: (o: any) => {
           const u = unitsMap[String(o.property_id)]
-          return u ? deriveUnitCode(u.id, u.code) : '—'
+          return u ? deriveUnitCode(u.id, u.code) : "—"
         },
       },
       {
@@ -479,7 +386,7 @@ function AdminDealsContent() {
       },
       {
         header: c.buyerPhone,
-        accessor: (o: any) => o.buyer_phone || '—',
+        accessor: (o: any) => o.buyer_phone || "—",
         isPhone: true,
       },
       {
@@ -489,26 +396,12 @@ function AdminDealsContent() {
       },
       {
         header: c.sellerPhone,
-        accessor: (o: any) => unitsMap[String(o.property_id)]?.phone || '—',
+        accessor: (o: any) => unitsMap[String(o.property_id)]?.phone || "—",
         isPhone: true,
-      },
-      {
-        header: c.requiredCash,
-        accessor: (o: any) =>
-          Number(
-            unitsMap[String(o.property_id)]?.paid_amount ||
-              o.required_cash ||
-              0
-          ),
       },
       {
         header: c.offeredCash,
         accessor: (o: any) => Number(o.offered_cash || 0),
-      },
-      {
-        header: c.counterCash,
-        accessor: (o: any) =>
-          o.counter_cash ? Number(o.counter_cash) : '—',
       },
       {
         header: c.commission,
@@ -520,36 +413,22 @@ function AdminDealsContent() {
         },
       },
       {
-        header: c.readiness,
-        accessor: (o: any) =>
-          o.payment_readiness === '48h'
-            ? d.readiness48h
-            : o.payment_readiness === '1_week'
-              ? d.readiness1Week
-              : d.readiness2Weeks,
-      },
-      {
-        header: c.paymentMethod,
-        accessor: (o: any) =>
-          o.payment_method === 'bank_check'
-            ? d.methodCheck
-            : d.methodTransfer,
-      },
-      {
         header: c.status,
         accessor: (o: any) =>
-          getDealStatusLabel(o, unitsMap[String(o.property_id)]),
+          unitsMap[String(o.property_id)]?.status === "sold"
+            ? d.statusSoldDone
+            : d.statusAcceptedReady,
       },
       {
         header: c.createdAt,
         accessor: (o: any) =>
           o.created_at
-            ? new Date(o.created_at).toLocaleDateString('en-GB')
-            : '—',
+            ? new Date(o.created_at).toLocaleDateString("en-GB")
+            : "—",
       },
     ]
 
-    if (format === 'pdf') {
+    if (format === "pdf") {
       downloadOfficialPdfReport({
         filenamePrefix: `${prefix}_${locale.toUpperCase()}`,
         reportTitle: resolvedTitle,
@@ -574,26 +453,26 @@ function AdminDealsContent() {
         <div>
           <div className="inline-flex items-center gap-1.5 rounded-full bg-[#eaf8f2] px-3 py-1 text-[11px] font-extrabold text-[#007a5a]">
             <Handshake className="size-3.5" />
-            <span>{d.eyebrow}</span>
+            <span>{d.dealsPageEyebrow}</span>
           </div>
           <h1 className="mt-1 text-lg font-black text-[#0f1d40] sm:text-xl">
-            {d.title}
+            {d.dealsPageTitle}
           </h1>
           <p className="mt-0.5 text-xs font-medium text-slate-500">
-            {d.subtitle}
+            {d.dealsPageSubtitle}
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            disabled={filteredOffers.length === 0}
+            disabled={filteredDeals.length === 0}
             onClick={() =>
               exportDealsReport(
-                filteredOffers,
-                'excel',
-                'AqarExit_Deals_Room',
-                expL.dealsReportTitle
+                filteredDeals,
+                "excel",
+                "AqarExit_Deals_Sales",
+                d.dealsPageTitle
               )
             }
             className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-emerald-200 bg-[#eaf8f2] px-3.5 text-xs font-extrabold text-[#007a5a] transition hover:bg-[#007a5a] hover:text-white disabled:opacity-40"
@@ -604,13 +483,13 @@ function AdminDealsContent() {
 
           <button
             type="button"
-            disabled={filteredOffers.length === 0}
+            disabled={filteredDeals.length === 0}
             onClick={() =>
               exportDealsReport(
-                filteredOffers,
-                'pdf',
-                'AqarExit_Deals_Room',
-                expL.dealsReportTitle
+                filteredDeals,
+                "pdf",
+                "AqarExit_Deals_Sales",
+                d.dealsPageTitle
               )
             }
             className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-800 px-3.5 text-xs font-extrabold text-white transition hover:bg-slate-900 disabled:opacity-40"
@@ -620,7 +499,7 @@ function AdminDealsContent() {
           </button>
 
           <Link
-            href="/admin"
+            href="/admin/offers"
             className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-extrabold text-[#0f1d40] shadow-2xs hover:bg-slate-50"
           >
             {isRtl ? (
@@ -628,8 +507,45 @@ function AdminDealsContent() {
             ) : (
               <ArrowLeft className="size-3.5" />
             )}
-            <span>{d.backToDashboardBtn}</span>
+            <span>{d.offersPageTitle}</span>
           </Link>
+        </div>
+      </div>
+
+      {/* ملخص العمولات المتوقعة والمكتملة */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="flex items-center justify-between rounded-2xl border border-emerald-200 bg-[#eaf8f2]/70 p-4 shadow-2xs">
+          <div>
+            <span className="text-xs font-extrabold text-[#007a5a]">
+              {d.expectedCommissionsLabel} ({stats.closingCount})
+            </span>
+            <strong
+              dir="ltr"
+              className="mt-1 block text-2xl font-black text-[#0f1d40] tabular-nums"
+            >
+              {stats.expectedComm.toLocaleString("en-US")} {cur}
+            </strong>
+          </div>
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-[#007a5a] text-white">
+            <Handshake className="size-5" />
+          </span>
+        </div>
+
+        <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs">
+          <div>
+            <span className="text-xs font-extrabold text-slate-500">
+              {d.collectedCommissionsLabel} ({stats.soldCount})
+            </span>
+            <strong
+              dir="ltr"
+              className="mt-1 block text-2xl font-black text-[#007a5a] tabular-nums"
+            >
+              {stats.collectedComm.toLocaleString("en-US")} {cur}
+            </strong>
+          </div>
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-[#0f1d40] text-emerald-300">
+            <Trophy className="size-5" />
+          </span>
         </div>
       </div>
 
@@ -637,8 +553,8 @@ function AdminDealsContent() {
         <div
           className={`flex items-center justify-between gap-3 rounded-xl border p-3.5 text-xs font-extrabold shadow-xs sm:text-sm ${
             notice.isError
-              ? 'border-red-200 bg-red-50 text-red-700'
-              : 'border-emerald-200 bg-[#eaf8f2] text-[#007a5a]'
+              ? "border-red-200 bg-red-50 text-red-700"
+              : "border-emerald-200 bg-[#eaf8f2] text-[#007a5a]"
           }`}
         >
           <div className="flex items-center gap-2">
@@ -672,42 +588,28 @@ function AdminDealsContent() {
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5">
-          {[
-            { id: 'all' as const, label: `${d.tabAll} (${counts.all})` },
-            {
-              id: 'pending_admin' as const,
-              label: `${d.tabPendingAdmin} (${counts.pending_admin})`,
-            },
-            {
-              id: 'negotiating' as const,
-              label: `${d.tabNegotiating} (${counts.negotiating})`,
-            },
-            {
-              id: 'accepted' as const,
-              label: `${d.tabAccepted} (${counts.accepted})`,
-            },
-            {
-              id: 'waitlist' as const,
-              label: `⏳ ${d.tabWaitlist} (${counts.waitlist})`,
-            },
-            {
-              id: 'backup_rejected' as const,
-              label: `${d.tabBackupRejected} (${counts.backup_rejected})`,
-            },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              className={`rounded-xl px-3 py-1.5 text-xs font-extrabold transition ${
-                activeTab === tab.id
-                  ? 'bg-[#007a5a] text-white shadow-2xs'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80 hover:text-[#0f1d40]'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+          <button
+            type="button"
+            onClick={() => setActiveTab("closing")}
+            className={`rounded-xl px-3.5 py-1.5 text-xs font-extrabold transition ${
+              activeTab === "closing"
+                ? "bg-[#007a5a] text-white shadow-2xs"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200/80 hover:text-[#0f1d40]"
+            }`}
+          >
+            {d.tabDealsClosing} ({stats.closingCount})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("sold")}
+            className={`rounded-xl px-3.5 py-1.5 text-xs font-extrabold transition ${
+              activeTab === "sold"
+                ? "bg-[#0f1d40] text-white shadow-2xs"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200/80 hover:text-[#0f1d40]"
+            }`}
+          >
+            {d.tabDealsSold} ({stats.soldCount})
+          </button>
         </div>
       </div>
 
@@ -733,21 +635,22 @@ function AdminDealsContent() {
             <span>{d.retryBtn}</span>
           </button>
         </div>
-      ) : filteredOffers.length === 0 ? (
+      ) : filteredDeals.length === 0 ? (
         <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center">
           <Wallet className="mx-auto mb-3 size-9 text-slate-300" />
           <p className="text-sm font-extrabold text-[#0f1d40]">{d.emptyText}</p>
         </div>
       ) : (
         <div className="space-y-4">
-          {filteredOffers.map((offer) => {
+          {filteredDeals.map((offer) => {
             const unit = unitsMap[String(offer.property_id)]
             if (!unit) return null
 
+            const isSold = unit.status === "sold"
             const offerRef = generateOfferRefCode(offer.id)
             const uCode = deriveUnitCode(unit.id, unit.code)
             const areaName = cleanAreaDisplay(unit.area, locale)
-            const offeredCash = Number(offer.offered_cash) || 0
+            const agreedCash = Number(offer.offered_cash) || 0
             const requiredCash =
               Number(unit.paid_amount || offer.required_cash) || 0
             const contractPrice = Number(unit.contract_price) || requiredCash
@@ -755,17 +658,10 @@ function AdminDealsContent() {
               contractPrice * (commPct / 100)
             )
 
-            const unitGuardrails = getUnitPricingGuardrails(unit)
-            const secretSellerMinCash = unitGuardrails.minAllowedOfferCash
-            const isSellerNegotiable = unitGuardrails.allowNegotiation
-
-            const diffs = Array.isArray(offer.diff_reasons)
-              ? offer.diff_reasons
-              : []
-            const isReturnedFromWaitlistPriority = diffs.includes(
-              PRIORITY_RETURNED_TAG
-            )
-            const isNotifiedForReopen = diffs.includes(REOPENED_PROMPT_TAG)
+            const isPhoneRecorded =
+              String(offer.initiated_by || "").toLowerCase() === "admin"
+            const unitWaitlist = waitlistByPropertyId[String(unit.id)] || []
+            const isWaitlistExpanded = Boolean(expandedWaitlistIds[offer.id])
 
             const isHighlighted = String(targetOfferId) === String(offer.id)
             const isCardBusy = isPending && processingId === offer.id
@@ -775,8 +671,8 @@ function AdminDealsContent() {
                 ? confirmingAction
                 : null
 
-            const buyerWaMsg = `${d.waBuyerGreetingPrefix} ${offer.buyer_name || ''}${commaSep}${d.waBuyerBodyPrefix} (${offerRef}) — (${unit.project_name || ''} - ${uCode}) — (${offeredCash.toLocaleString('en-US')} ${cur}).`
-            const sellerWaMsg = `${d.waSellerGreetingPrefix} ${unit.name || ''}${commaSep}${d.waSellerBodyPrefix} (${offerRef}) — (${unit.project_name || ''} - ${uCode}) — (${offeredCash.toLocaleString('en-US')} ${cur}).`
+            const buyerWaMsg = `${d.waBuyerGreetingPrefix} ${offer.buyer_name || ""}${commaSep}${d.waBuyerBodyPrefix} (${offerRef}) — (${unit.project_name || ""} - ${uCode}) — (${agreedCash.toLocaleString("en-US")} ${cur}).`
+            const sellerWaMsg = `${d.waSellerGreetingPrefix} ${unit.name || ""}${commaSep}${d.waSellerBodyPrefix} (${offerRef}) — (${unit.project_name || ""} - ${uCode}) — (${agreedCash.toLocaleString("en-US")} ${cur}).`
 
             return (
               <div
@@ -784,15 +680,10 @@ function AdminDealsContent() {
                 key={offer.id}
                 className={`relative overflow-hidden rounded-2xl border bg-white p-5 shadow-2xs transition ${
                   isHighlighted
-                    ? 'border-2 border-[#007a5a] ring-4 ring-[#007a5a]/15'
-                    : isReturnedFromWaitlistPriority &&
-                        offer.status === 'pending_admin'
-                      ? 'border-2 border-amber-500 bg-amber-50/15'
-                      : offer.status === 'accepted' && unit.status !== 'sold'
-                        ? 'border-2 border-emerald-300'
-                        : offer.status === 'pending_admin'
-                          ? 'border-2 border-amber-300'
-                          : 'border-slate-200/90'
+                    ? "border-2 border-[#007a5a] ring-4 ring-[#007a5a]/15"
+                    : isSold
+                      ? "border-slate-200/90 bg-slate-50/40"
+                      : "border-2 border-emerald-300"
                 }`}
               >
                 {isCardBusy && (
@@ -816,61 +707,29 @@ function AdminDealsContent() {
                       {unit.project_name || d.unitFallback} · {areaName}
                     </Link>
 
-                    {isReturnedFromWaitlistPriority && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/90 px-3 py-1 text-[11px] font-black text-[#0f1d40] shadow-2xs">
-                        <Sparkles className="size-3.5" />
-                        <span>⭐ {d.badgePriorityReturned}</span>
-                      </span>
-                    )}
+                    <span
+                      className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10.5px] font-extrabold ${
+                        isPhoneRecorded
+                          ? "border border-sky-200 bg-sky-50 text-sky-900"
+                          : "bg-slate-100 text-slate-600"
+                      }`}
+                    >
+                      {isPhoneRecorded
+                        ? d.sourceSalesPhoneBadge
+                        : d.sourceWebsiteBadge}
+                    </span>
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {unit.status === 'sold' ? (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-700 px-3.5 py-1 text-xs font-extrabold text-white">
-                        <Check className="size-3.5" />
+                    {isSold ? (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-[#0f1d40] px-3.5 py-1 text-xs font-extrabold text-white">
+                        <Trophy className="size-3.5 text-emerald-300" />
                         <span>{d.statusSoldDone}</span>
                       </span>
-                    ) : offer.status === 'pending_admin' ? (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500 px-3.5 py-1 text-xs font-extrabold text-white">
-                        <Clock className="size-3.5" />
-                        <span>{d.statusPendingAdmin}</span>
-                      </span>
-                    ) : offer.status === 'pending_seller' ? (
-                      <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3.5 py-1 text-xs font-extrabold text-blue-800">
-                        <Clock className="size-3.5 text-blue-600" />
-                        <span>{d.statusPendingSeller}</span>
-                      </span>
-                    ) : offer.status === 'counter_offered' ? (
-                      <span className="inline-flex items-center gap-1.5 rounded-full border border-purple-200 bg-purple-50 px-3.5 py-1 text-xs font-extrabold text-purple-900">
-                        <RefreshCw className="size-3.5" />
-                        <span>
-                          {d.statusCounterPrefix} (
-                          <span dir="ltr">
-                            {Number(offer.counter_cash || 0).toLocaleString(
-                              'en-US'
-                            )}{' '}
-                            {cur}
-                          </span>
-                          )
-                        </span>
-                      </span>
-                    ) : offer.status === 'accepted' ? (
+                    ) : (
                       <span className="inline-flex items-center gap-1.5 rounded-full bg-[#007a5a] px-4 py-1 text-xs font-extrabold text-white">
                         <Handshake className="size-3.5" />
                         <span>{d.statusAcceptedReady}</span>
-                      </span>
-                    ) : offer.status === 'unit_locked' ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
-                        <Lock className="size-3" />
-                        <span>
-                          {isNotifiedForReopen
-                            ? d.badgeReopenNotifiedWaiting
-                            : d.statusBackupWaiting}
-                        </span>
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-3 py-1 text-xs font-bold text-red-700">
-                        <span>{d.statusRejected}</span>
                       </span>
                     )}
 
@@ -914,9 +773,9 @@ function AdminDealsContent() {
                               setOpenMenuId(null)
                               exportDealsReport(
                                 [offer],
-                                'excel',
+                                "excel",
                                 `AqarExit_Deal_${offerRef}`,
-                                `${expL.singleDealReportTitle} (#${offerRef} — ${unit.project_name || uCode})`
+                                `${expL.singleDealReportTitle} (#${offerRef})`
                               )
                             }}
                             className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-[#007a5a] transition hover:bg-[#eaf8f2]"
@@ -932,9 +791,9 @@ function AdminDealsContent() {
                               setOpenMenuId(null)
                               exportDealsReport(
                                 [offer],
-                                'pdf',
+                                "pdf",
                                 `AqarExit_Deal_${offerRef}`,
-                                `${expL.singleDealReportTitle} (#${offerRef} — ${unit.project_name || uCode})`
+                                `${expL.singleDealReportTitle} (#${offerRef})`
                               )
                             }}
                             className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-blue-700 transition hover:bg-blue-50"
@@ -961,17 +820,17 @@ function AdminDealsContent() {
                         dir="ltr"
                         className="mt-0.5 text-start font-mono text-xs font-bold text-slate-600"
                       >
-                        {offer.buyer_phone || '—'}
+                        {offer.buyer_phone || "—"}
                       </p>
                       <p className="mt-1 text-[11px] font-semibold text-slate-500">
-                        {d.readinessLabel}:{' '}
-                        {offer.payment_readiness === '48h'
+                        {d.readinessLabel}:{" "}
+                        {offer.payment_readiness === "48h"
                           ? d.readiness48h
-                          : offer.payment_readiness === '1_week'
+                          : offer.payment_readiness === "1_week"
                             ? d.readiness1Week
-                            : d.readiness2Weeks}{' '}
-                        ·{' '}
-                        {offer.payment_method === 'bank_check'
+                            : d.readiness2Weeks}{" "}
+                        ·{" "}
+                        {offer.payment_method === "bank_check"
                           ? d.methodCheck
                           : d.methodTransfer}
                       </p>
@@ -980,7 +839,7 @@ function AdminDealsContent() {
                     {offer.buyer_phone && (
                       <a
                         data-admin-client-wa="true"
-                        href={`https://wa.me/${String(offer.buyer_phone).replace(/\D/g, '')}?text=${encodeURIComponent(buyerWaMsg)}`}
+                        href={`https://wa.me/${String(offer.buyer_phone).replace(/\D/g, "")}?text=${encodeURIComponent(buyerWaMsg)}`}
                         target="_blank"
                         rel="noreferrer"
                         className="mt-3 inline-flex h-9 w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] px-3 text-xs font-extrabold text-white shadow-2xs transition hover:bg-[#1ebe5d]"
@@ -1003,34 +862,20 @@ function AdminDealsContent() {
                         dir="ltr"
                         className="mt-0.5 text-start font-mono text-xs font-bold text-slate-600"
                       >
-                        {unit.phone || '—'}
+                        {unit.phone || "—"}
                       </p>
                       <p className="mt-1 text-[11px] font-semibold text-slate-500">
-                        {d.originalRequiredCashLabel}:{' '}
+                        {d.originalRequiredCashLabel}:{" "}
                         <strong dir="ltr" className="text-[#0f1d40]">
-                          {requiredCash.toLocaleString('en-US')} {cur}
+                          {requiredCash.toLocaleString("en-US")} {cur}
                         </strong>
                       </p>
-
-                      <div className="mt-1.5 rounded-lg border border-amber-200 bg-amber-50/90 px-2.5 py-1 text-[10.5px] font-extrabold text-amber-950">
-                        {isSellerNegotiable ? (
-                          <>
-                            🔒 {d.secretSellerMinLabel}:{' '}
-                            <strong dir="ltr">
-                              {secretSellerMinCash.toLocaleString('en-US')}{' '}
-                              {cur}
-                            </strong>
-                          </>
-                        ) : (
-                          <span>🔒 {d.fixedPriceNonNegotiableBadge}</span>
-                        )}
-                      </div>
                     </div>
 
                     {unit.phone && (
                       <a
                         data-admin-client-wa="true"
-                        href={`https://wa.me/${String(unit.phone).replace(/\D/g, '')}?text=${encodeURIComponent(sellerWaMsg)}`}
+                        href={`https://wa.me/${String(unit.phone).replace(/\D/g, "")}?text=${encodeURIComponent(sellerWaMsg)}`}
                         target="_blank"
                         rel="noreferrer"
                         className="mt-3 inline-flex h-9 w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] px-3 text-xs font-extrabold text-white shadow-2xs transition hover:bg-[#1ebe5d]"
@@ -1043,100 +888,15 @@ function AdminDealsContent() {
 
                   <div className="flex flex-col justify-between rounded-xl border border-emerald-200 bg-[#eaf8f2]/60 p-3.5">
                     <div>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="block text-[10.5px] font-extrabold text-[#007a5a]">
-                          {d.offeredCashHeader}
-                        </span>
-                        {unit.status !== 'sold' &&
-                          (offer.status === 'pending_admin' ||
-                            offer.status === 'pending_seller' ||
-                            offer.status === 'counter_offered') && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (editingPriceOfferId === offer.id) {
-                                  setEditingPriceOfferId(null)
-                                } else {
-                                  setEditingPriceOfferId(offer.id)
-                                  setEditingPriceStr(
-                                    offeredCash.toLocaleString('en-US')
-                                  )
-                                }
-                              }}
-                              className="inline-flex items-center gap-1 rounded-md bg-white px-2 py-0.5 text-[10px] font-extrabold text-[#0f1d40] shadow-2xs hover:text-[#007a5a]"
-                            >
-                              <Edit3 className="size-3 text-[#007a5a]" />
-                              <span>{d.editNegotiatedPriceBtn}</span>
-                            </button>
-                          )}
-                      </div>
-
-                      {editingPriceOfferId === offer.id ? (
-                        <div className="mt-2 space-y-2">
-                          <input
-                            type="text"
-                            dir="ltr"
-                            value={editingPriceStr}
-                            onChange={(e) => {
-                              const raw = toEnglishDigits(
-                                e.target.value
-                              ).replace(/[^\d]/g, '')
-                              setEditingPriceStr(
-                                raw ? Number(raw).toLocaleString('en-US') : ''
-                              )
-                            }}
-                            className="h-9 w-full rounded-lg border border-emerald-400 bg-white px-2.5 text-sm font-black text-[#0f1d40]"
-                          />
-                          <div className="flex items-center gap-1.5">
-                            <button
-                              type="button"
-                              disabled={isPending}
-                              onClick={() => {
-                                const val =
-                                  Number(
-                                    toEnglishDigits(editingPriceStr).replace(
-                                      /,/g,
-                                      ''
-                                    )
-                                  ) || offeredCash
-                                handleLifecycleAction(
-                                  offer.id,
-                                  'approve_to_seller',
-                                  `${d.noticeApprovedToSeller} (${val.toLocaleString('en-US')} ${cur}) ✓`,
-                                  val
-                                )
-                              }}
-                              className="flex-1 rounded-lg bg-[#007a5a] px-2.5 py-1.5 text-[11px] font-extrabold text-white"
-                            >
-                              {d.approveToSellerBtn}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setEditingPriceOfferId(null)}
-                              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-bold text-slate-600"
-                            >
-                              {d.cancelOfferBtn}
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <strong
-                          dir="ltr"
-                          className="mt-1 block text-2xl font-black text-[#007a5a] tabular-nums"
-                        >
-                          {offeredCash.toLocaleString('en-US')} {cur}
-                        </strong>
-                      )}
-
-                      {offer.counter_cash && (
-                        <p className="mt-1 text-[11px] font-extrabold text-purple-800">
-                          🔄 {d.counterOfferLabel}:{' '}
-                          <span dir="ltr">
-                            {Number(offer.counter_cash).toLocaleString('en-US')}{' '}
-                            {cur}
-                          </span>
-                        </p>
-                      )}
+                      <span className="block text-[10.5px] font-extrabold text-[#007a5a]">
+                        {sm.agreedCashLabel || d.offeredCashHeader}
+                      </span>
+                      <strong
+                        dir="ltr"
+                        className="mt-1 block text-2xl font-black text-[#007a5a] tabular-nums"
+                      >
+                        {agreedCash.toLocaleString("en-US")} {cur}
+                      </strong>
                     </div>
 
                     <div className="mt-3 flex items-center justify-between border-t border-emerald-200/70 pt-2.5 text-xs">
@@ -1148,231 +908,182 @@ function AdminDealsContent() {
                         dir="ltr"
                         className="rounded-md bg-white px-2 py-0.5 font-black text-[#0f1d40] shadow-2xs tabular-nums"
                       >
-                        {commissionAmount.toLocaleString('en-US')} {cur}
+                        {commissionAmount.toLocaleString("en-US")} {cur}
                       </strong>
                     </div>
                   </div>
                 </div>
 
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-2.5 border-t border-slate-100 pt-3.5">
-                  <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold text-slate-500">
-                    <span>
-                      {d.offerDateLabel}:{' '}
-                      <strong dir="ltr" className="text-[#0f1d40]">
-                        {offer.created_at
-                          ? new Date(offer.created_at).toLocaleDateString(
-                              'en-GB'
-                            )
-                          : '—'}
-                      </strong>
-                    </span>
-                    {(offer.status === 'pending_seller' ||
-                      offer.status === 'counter_offered') &&
-                      offer.updated_at && (
-                        <span className="inline-flex items-center rounded-md bg-amber-100 px-2 py-0.5 text-[10.5px] font-extrabold text-amber-900">
-                          ⏳ {d.sentToSellerSinceLabel}:{' '}
-                          <span dir="ltr" className="ms-1">
-                            {new Date(offer.updated_at).toLocaleDateString(
-                              'en-GB'
-                            )}
-                          </span>
+                {/* قائمة الانتظار الاحتياطية الخاصة بهذه الوحدة */}
+                {!isSold && (
+                  <div className="mt-3.5 rounded-xl border border-slate-200/80 bg-slate-50/70 p-3">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setExpandedWaitlistIds((prev) => ({
+                          ...prev,
+                          [offer.id]: !prev[offer.id],
+                        }))
+                      }
+                      className="flex w-full items-center justify-between gap-2 text-xs font-extrabold text-[#0f1d40]"
+                    >
+                      <span className="flex flex-wrap items-center gap-2">
+                        <Users className="size-4 text-[#007a5a]" />
+                        <span>
+                          {d.waitlistOnUnitBtn} ({unitWaitlist.length})
                         </span>
-                      )}
-                  </div>
-
-                  {activeConfirm ? (
-                    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-1.5">
-                      <span className="text-xs font-extrabold text-amber-950">
-                        ⚠️ {d.confirmActionPrompt} ({activeConfirm.label})؟
+                        {unitWaitlist.length > 0 && (
+                          <span className="rounded-md bg-white px-2 py-0.5 text-[11px] font-bold text-[#007a5a] shadow-2xs">
+                            {d.waitlistHighestOfferLabel}{" "}
+                            <strong dir="ltr">
+                              {Number(
+                                unitWaitlist[0].offered_cash || 0
+                              ).toLocaleString("en-US")}{" "}
+                              {cur}
+                            </strong>
+                          </span>
+                        )}
                       </span>
-                      <button
-                        type="button"
-                        disabled={isPending}
-                        onClick={() =>
-                          handleLifecycleAction(
-                            offer.id,
-                            activeConfirm.action,
-                            `${activeConfirm.label} (#${offerRef}) ✓`
-                          )
-                        }
-                        className="rounded-lg bg-[#007a5a] px-3 py-1 text-xs font-extrabold text-white hover:bg-[#006248]"
-                      >
-                        {d.confirmYesBtn}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setConfirmingAction(null)}
-                        className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-bold text-slate-700"
-                      >
-                        {d.confirmBackBtn}
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex flex-wrap items-center gap-2">
-                      {offer.status === 'pending_admin' &&
-                        unit.status !== 'sold' && (
-                          <>
-                            <button
-                              type="button"
-                              disabled={isPending}
-                              onClick={() =>
-                                handleLifecycleAction(
-                                  offer.id,
-                                  'approve_to_seller',
-                                  `${d.noticeApprovedToSeller} (${offerRef}) ✓`
-                                )
-                              }
-                              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] px-4 text-xs font-extrabold text-white shadow-xs transition hover:bg-[#006248]"
-                            >
-                              <Send className="size-3.5" />
-                              <span>{d.approveToSellerBtn}</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              disabled={isPending}
-                              onClick={() =>
-                                setConfirmingAction({
-                                  offerId: offer.id,
-                                  action: 'admin_accept_deal',
-                                  label: d.btnAdminAcceptDeal,
-                                })
-                              }
-                              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-emerald-300 bg-[#eaf8f2] px-3.5 text-xs font-extrabold text-[#007a5a] hover:bg-emerald-100"
-                            >
-                              <Handshake className="size-3.5" />
-                              <span>{d.btnAdminAcceptDeal}</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              disabled={isPending}
-                              onClick={() =>
-                                setConfirmingAction({
-                                  offerId: offer.id,
-                                  action: 'reject_offer',
-                                  label: d.rejectOfferBtn,
-                                })
-                              }
-                              className="inline-flex h-9 items-center justify-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3.5 text-xs font-bold text-red-600 hover:bg-red-100"
-                            >
-                              <XCircle className="size-3.5" />
-                              <span>{d.rejectOfferBtn}</span>
-                            </button>
-                          </>
-                        )}
-
-                      {offer.status === 'accepted' && unit.status !== 'sold' && (
-                        <>
-                          <button
-                            type="button"
-                            disabled={isPending}
-                            onClick={() =>
-                              setConfirmingAction({
-                                offerId: offer.id,
-                                action: 'mark_unit_sold',
-                                label: d.markUnitSoldBtn,
-                              })
-                            }
-                            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] px-4 text-xs font-extrabold text-white shadow-xs transition hover:bg-[#006248]"
-                          >
-                            <Check className="size-4" />
-                            <span>{d.markUnitSoldBtn}</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            disabled={isPending}
-                            onClick={() =>
-                              setConfirmingAction({
-                                offerId: offer.id,
-                                action: 'reopen_unit_offers',
-                                label: d.reopenBackupOffersBtn,
-                              })
-                            }
-                            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 px-3.5 text-xs font-extrabold text-amber-900 transition hover:bg-amber-100"
-                          >
-                            <RotateCcw className="size-3.5" />
-                            <span>{d.reopenBackupOffersBtn}</span>
-                          </button>
-                        </>
+                      {isWaitlistExpanded ? (
+                        <ChevronUp className="size-4 text-slate-500" />
+                      ) : (
+                        <ChevronDown className="size-4 text-slate-500" />
                       )}
+                    </button>
 
-                      {(offer.status === 'pending_seller' ||
-                        offer.status === 'counter_offered') &&
-                        unit.status !== 'sold' && (
-                          <>
-                            <button
-                              type="button"
-                              disabled={isPending}
-                              onClick={() =>
-                                setConfirmingAction({
-                                  offerId: offer.id,
-                                  action: 'admin_accept_deal',
-                                  label: d.btnAdminAcceptDeal,
-                                })
-                              }
-                              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] px-4 text-xs font-extrabold text-white shadow-xs transition hover:bg-[#006248]"
+                    {isWaitlistExpanded && (
+                      <div className="mt-3 space-y-2 border-t border-slate-200/70 pt-3">
+                        {unitWaitlist.length === 0 ? (
+                          <p className="text-xs font-semibold text-slate-500">
+                            {d.waitlistEmptyOnUnit}
+                          </p>
+                        ) : (
+                          unitWaitlist.map((wOffer, idx) => (
+                            <div
+                              key={wOffer.id}
+                              className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs"
                             >
-                              <Handshake className="size-3.5" />
-                              <span>🤝 {d.btnAdminAcceptDeal}</span>
-                            </button>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="flex size-5 items-center justify-center rounded-full bg-slate-100 text-[10px] font-black text-slate-600">
+                                  {idx + 1}
+                                </span>
+                                <Lock className="size-3 text-slate-400" />
+                                <strong className="text-[#0f1d40]">
+                                  {wOffer.buyer_name || d.buyerFallback}
+                                </strong>
+                                <span
+                                  dir="ltr"
+                                  className="font-mono text-[11px] text-slate-500"
+                                >
+                                  {wOffer.buyer_phone || "—"}
+                                </span>
+                              </div>
 
-                            <button
-                              type="button"
-                              disabled={isPending}
-                              onClick={() =>
-                                setConfirmingAction({
-                                  offerId: offer.id,
-                                  action: 'seller_unresponsive_cancel',
-                                  label: d.btnSellerUnavailableCancel,
-                                })
-                              }
-                              className="inline-flex h-9 items-center justify-center gap-1 rounded-xl border border-amber-300 bg-amber-50 px-3 text-xs font-extrabold text-amber-900 hover:bg-amber-100"
-                            >
-                              <Clock className="size-3.5" />
-                              <span>{d.btnSellerUnavailableCancel}</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              disabled={isPending}
-                              onClick={() =>
-                                setConfirmingAction({
-                                  offerId: offer.id,
-                                  action: 'reject_offer',
-                                  label: d.cancelOfferBtn,
-                                })
-                              }
-                              className="inline-flex h-9 items-center justify-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 text-xs font-bold text-red-600 hover:bg-red-100"
-                            >
-                              <XCircle className="size-3.5" />
-                              <span>{d.cancelOfferBtn}</span>
-                            </button>
-                          </>
+                              <div className="flex items-center gap-2">
+                                <strong
+                                  dir="ltr"
+                                  className="font-black text-[#007a5a] tabular-nums"
+                                >
+                                  {Number(
+                                    wOffer.offered_cash || 0
+                                  ).toLocaleString("en-US")}{" "}
+                                  {cur}
+                                </strong>
+                                {wOffer.buyer_phone && (
+                                  <a
+                                    data-admin-client-wa="true"
+                                    href={`https://wa.me/${String(wOffer.buyer_phone).replace(/\D/g, "")}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex size-7 items-center justify-center rounded-lg bg-[#25D366] text-white"
+                                  >
+                                    <WhatsAppOfficialIcon className="size-3.5" />
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                          ))
                         )}
+                      </div>
+                    )}
+                  </div>
+                )}
 
-                      {(offer.status === 'unit_locked' ||
-                        offer.status === 'rejected') &&
-                        unit.status !== 'sold' && (
-                          <button
-                            type="button"
-                            disabled={isPending}
-                            onClick={() =>
-                              handleLifecycleAction(
-                                offer.id,
-                                'approve_to_seller',
-                                `${d.noticeApprovedToSeller} (${offerRef}) ✓`
-                              )
-                            }
-                            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-[#eaf8f2] px-3.5 text-xs font-extrabold text-[#007a5a] hover:bg-emerald-100"
-                          >
-                            <RotateCcw className="size-3.5" />
-                            <span>{d.reactivateToSellerBtn}</span>
-                          </button>
-                        )}
-                    </div>
-                  )}
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-2.5 border-t border-slate-100 pt-3.5">
+                  <span className="text-[11px] font-semibold text-slate-500">
+                    {d.offerDateLabel}:{" "}
+                    <strong dir="ltr" className="text-[#0f1d40]">
+                      {offer.updated_at || offer.created_at
+                        ? new Date(
+                            offer.updated_at || offer.created_at
+                          ).toLocaleDateString("en-GB")
+                        : "—"}
+                    </strong>
+                  </span>
+
+                  {!isSold &&
+                    (activeConfirm ? (
+                      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-1.5">
+                        <span className="text-xs font-extrabold text-amber-950">
+                          ⚠️ {d.confirmActionPrompt} ({activeConfirm.label})
+                        </span>
+                        <button
+                          type="button"
+                          disabled={isPending}
+                          onClick={() =>
+                            handleLifecycleAction(
+                              offer.id,
+                              activeConfirm.action,
+                              `${activeConfirm.label} (#${offerRef}) ✓`
+                            )
+                          }
+                          className="rounded-lg bg-[#007a5a] px-3 py-1 text-xs font-extrabold text-white hover:bg-[#006248]"
+                        >
+                          {d.confirmYesBtn}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmingAction(null)}
+                          className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-bold text-slate-700"
+                        >
+                          {d.confirmBackBtn}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          disabled={isPending}
+                          onClick={() =>
+                            setConfirmingAction({
+                              offerId: offer.id,
+                              action: "mark_unit_sold",
+                              label: d.markUnitSoldBtn,
+                            })
+                          }
+                          className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] px-4 text-xs font-extrabold text-white shadow-xs transition hover:bg-[#006248]"
+                        >
+                          <Check className="size-4" />
+                          <span>{d.markUnitSoldBtn}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={isPending}
+                          onClick={() =>
+                            setConfirmingAction({
+                              offerId: offer.id,
+                              action: "reopen_unit_offers",
+                              label: d.reopenBackupOffersBtn,
+                            })
+                          }
+                          className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 px-3.5 text-xs font-extrabold text-amber-900 transition hover:bg-amber-100"
+                        >
+                          <RotateCcw className="size-3.5" />
+                          <span>{d.reopenBackupOffersBtn}</span>
+                        </button>
+                      </div>
+                    ))}
                 </div>
               </div>
             )

@@ -1,5 +1,3 @@
-
-
 {
   "brand": {
     "name": "Aqar",
@@ -305,7 +303,7 @@
       "walletTitleAccent": "ნებისმიერი თანხით",
       "walletDesc": "გაააქტიურეთ SUPER VIP და VIP+ პაკეტები. გადახდისა და ადმინისტრაციის დადასტურებისთანავე სტატუსი ჩაირთვება ავტომატურად.",
       "feature1Title": "ყველა გადახდის მეთოდი",
-      "feature1Desc": "Apple Pay · Mastercard · Visa · BOG · TBC · საბანკო გადარიცხვა.",
+      "feature1Desc": "პირდაპირი და უსაფრთხო ონლაინ გადახდა ბარათით Flitt-ის მეშვეობით (Visa · Mastercard · Apple Pay · Google Pay).",
       "feature2Title": "100% დაბრუნებადი",
       "feature2Desc": "გამოუყენებელი ბალანსი სრულად ბრუნდება მოთხოვნისთანავე.",
       "feature3Title": "მყისიერი 1:1 ჩარიცხვა",
@@ -1380,7 +1378,9 @@
       "sellerDelayedNotifTitle": "განახლება თქვენს შეთავაზებაზე",
       "sellerDelayedNotifMsg": "მესაკუთრე ამჟამად მიუწვდომელია. იხილეთ სხვა მზა ობიექტები თქვენს ანგარიშში.",
       "unitWithdrawnBuyerNotifTitle": "ობიექტი აღარ არის ხელმისაწვდომი",
-      "unitWithdrawnBuyerNotifMsg": "მესაკუთრემ მოხსნა ობიექტი გაყიდვიდან. იხილეთ ალტერნატიული ვარიანტები თქვენს ანგარიშში."
+      "unitWithdrawnBuyerNotifMsg": "მესაკუთრემ მოხსნა ობიექტი გაყიდვიდან. იხილეთ ალტერნატიული ვარიანტები თქვენს ანგარიშში.",
+      "advisorPicksSectionTitle": "თქვენი კონსულტანტის რეკომენდაციები",
+      "advisorPicksSectionSubtitle": "სპეციალურად თქვენთვის შერჩეული ობიექტები კონსულტანტის მიერ"
     },
     "documents": {
       "title": "საკუთრების დოკუმენტები და პასპორტი",
@@ -1664,7 +1664,13 @@
       "statusUnderReviewBadge": "2. დოკუმენტების შემოწმება",
       "statusUnderReviewHeadline": "ჩვენი გუნდი ამოწმებს თქვენი ობიექტის მონაცემებსა და დოკუმენტებს გამოსაქვეყნებლად",
       "statusDraftUnverifiedHeadline": "თქვენი ობიექტი შენახულია მონახაზის სახით — დაადასტურეთ ელ-ფოსტა და ატვირთეთ ფოტოები და დოკუმენტები ქვემოთ",
-      "activeOffersPriceEditWarn": "ამ ობიექტზე ამჟამად აქტიური შეთავაზებებია; ფასის ცვლილება გავრცელდება მხოლოდ ახალ შეთავაზებებზე."
+      "activeOffersPriceEditWarn": "ამ ობიექტზე ამჟამად აქტიური შეთავაზებებია; ფასის ცვლილება გავრცელდება მხოლოდ ახალ შეთავაზებებზე.",
+      "boostLockedTitle": "VIP რეკლამა გაიხსნება ობიექტის გამოქვეყნებისთანავე",
+      "boostLockedDesc": "SUPER VIP და +VIP პაკეტების შეძენა Flitt ბარათით ხელმისაწვდომი გახდება ადმინისტრაციის მიერ ობიექტის დადასტურებისთანავე.",
+      "flittRedirectingBtn": "გადამისამართება Flitt-ის გადახდის გვერდზე...",
+      "flittPaymentReturnedNotice": "დაბრუნება გადახდის გვერდიდან (კოდი: {ref}) — VIP სტატუსი ჩაირთვება გადახდის დადასტურებისთანავე.",
+      "flittNotConfiguredErr": "ბარათით ონლაინ გადახდა (Flitt) აქტივაციის პროცესშია — გთხოვთ სცადოთ მოგვიანებით ან დაუკავშირდეთ მხარდაჭერას.",
+      "flittInitFailedErr": "ბარათით გადახდის დაწყება ვერ მოხერხდა. გთხოვთ სცადოთ ხელახლა."
     },
     "buyer": {
       "popularAreas": [
@@ -1831,7 +1837,18 @@
       "showAllBtn": "ყველას ჩვენება",
       "cardRequiredCash": "საჭირო თანხა ახლა",
       "cardMarketPriceToday": "საბაზრო ფასი დღეს:",
-      "addToFavoritesAria": "რჩეულებში დამატება"
+      "addToFavoritesAria": "რჩეულებში დამატება",
+      "advisorPicksTitle": "თქვენი კონსულტანტის რეკომენდაციები",
+      "advisorPicksSubtitle": "სპეციალურად თქვენთვის შერჩეული ობიექტები კონსულტანტის მიერ",
+      "advisorPickBadge": "კონსულტანტის რეკომენდაცია",
+      "purchasedSectionTitle": "თქვენ მიერ შეძენილი ობიექტები",
+      "purchasedSectionSub": "გილოცავთ! თქვენი შესყიდვა წარმატებით დასრულდა. შეგიძლიათ ნებისმიერ დროს შექმნათ ახალი მოთხოვნა.",
+      "newBuyReqBtn": "ახალი შესყიდვის მოთხოვნა",
+      "purchasedPaidLabel": "შეთანხმებული თანხა",
+      "purchasedContractLabel": "კონტრაქტის ფასი",
+      "purchasedBadge": "შეძენილია ✓",
+      "noActiveReqTitle": "აქტიური შესყიდვის მოთხოვნა არ არის",
+      "noActiveReqSub": "შექმენით ახალი მოთხოვნა თქვენი ბიუჯეტით და უბნებით შესაბამისი ობიექტების სანახავად."
     }
   },
   "buy": {
@@ -3197,7 +3214,8 @@
       "promoCancelledNotifTitle": "გამყიდველმა გააუქმა VIP მოთხოვნა",
       "unitLockedByDeal": "შეთავაზების მიღებისა და გადაფორმების დაწყების შემდეგ ობიექტის შეჩერება ან წაშლა შეუძლებელია.",
       "allDocsReadyNotifTitle": "ობიექტის ყველა დოკუმენტი და ფოტო ატვირთულია",
-      "closedByAccountDeletionNote": "ეს ობიექტი საბოლოოდ დაიხურა ანგარიშის წაშლის მოთხოვნის გამო. ახალი ობიექტის განსათავსებლად დაამატეთ ახალი განცხადება."
+      "closedByAccountDeletionNote": "ეს ობიექტი საბოლოოდ დაიხურა ანგარიშის წაშლის მოთხოვნის გამო. ახალი ობიექტის განსათავსებლად დაამატეთ ახალი განცხადება.",
+      "boostOnlyActiveUnits": "VIP რეკლამის ჩართვა შესაძლებელია მხოლოდ გამოქვეყნებულ და დამტკიცებულ ობიექტებზე."
     },
     "admin": {
       "unauthorizedLogin": "წვდომა შეზღუდულია: შედით ადმინის ანგარიშით.",
@@ -3267,7 +3285,13 @@
       "cancelPromoFailed": "VIP გაუქმება ვერ მოხერხდა.",
       "purgeDeletedFailed": "წაშლილი ობიექტების გასუფთავება ვერ მოხერხდა.",
       "cannotModifyOwnerAdmin": "პროექტის მფლობელის (Super Admin) ანგარიშის შეცვლა, შეჩერება ან წაშლა შეუძლებელია.",
-      "onlyOwnerCanManageAdmins": "მხოლოდ პროექტის მფლობელს (Super Admin) შეუძლია ადმინისტრატორების მართვა."
+      "onlyOwnerCanManageAdmins": "მხოლოდ პროექტის მფლობელს (Super Admin) შეუძლია ადმინისტრატორების მართვა.",
+      "leadManualClosedNotAllowed": "სტატუსი (შეძენილია) ხელით არ ირჩევა — იცვლება ავტომატურად გარიგებების გვერდიდან.",
+      "leadClosedLocked": "ეს მოთხოვნა დახურულია დასრულებული გარიგების გამო და ხელით არ იცვლება.",
+      "leadHasActiveDealBlocked": "სტატუსის შეცვლა შეუძლებელია მიმდინარე გარიგების დროს; ჯერ მართეთ გარიგებებში.",
+      "leadHasActiveOffersBlocked": "სტატუსის შეცვლა შეუძლებელია ({count}) აქტიური შეთავაზების გამო; ჯერ გააუქმეთ შეთავაზებები.",
+      "unitSoldLocked": "ეს ობიექტი გაყიდულია და სტატუსი ხელით არ იცვლება.",
+      "unitHasActiveDealBlocked": "ობიექტზე მიმდინარეობს გარიგება; ჯერ მართეთ გარიგებების განყოფილებაში."
     },
     "forms": {
       "expiredLink": "ბმულის ვადა გავიდა.",
@@ -3400,7 +3424,43 @@
       "confirmYesBtn": "დიახ, დადასტურება",
       "confirmBackBtn": "უკან",
       "btnAdminAcceptDeal": "შეთანხმების პირდაპირ დადასტურება",
-      "btnSellerUnavailableCancel": "მესაკუთრე მიუწვდომელია (გაუქმება და ალტერნატივების შეთავაზება)"
+      "btnSellerUnavailableCancel": "მესაკუთრე მიუწვდომელია (გაუქმება და ალტერნატივების შეთავაზება)",
+      "offersPageEyebrow": "შეთავაზებებისა და მოლაპარაკებების მართვა",
+      "offersPageTitle": "შეთავაზებები და ვაჭრობა",
+      "offersPageSubtitle": "განიხილეთ ახალი შეთავაზებები, აწარმოეთ მოლაპარაკებები და დააფიქსირეთ სატელეფონო შეთავაზებები",
+      "dealsPageEyebrow": "გარიგებების დახურვა და საკომისიო",
+      "dealsPageTitle": "გარიგებები და გაყიდვები",
+      "dealsPageSubtitle": "მართეთ გადაფორმების ეტაპზე მყოფი გარიგებები, მოლოდინის სიები და გაყიდული ობიექტები",
+      "tabCounterNegotiating": "🔥 მოლაპარაკება (საპასუხო ფასი)",
+      "tabPendingSellerOnly": "ელოდება მფლობელს",
+      "tabRejectedClosed": "უარყოფილი / გაუქმებული",
+      "tabDealsClosing": "გადაფორმების ეტაპზე",
+      "tabDealsSold": "დასრულებული გაყიდვები",
+      "sourceSalesPhoneBadge": "📞 გაყიდვების გუნდი",
+      "sourceWebsiteBadge": "🌐 საიტიდან",
+      "recordPhoneOfferBtn": "+ სატელეფონო შეთავაზება",
+      "openDealFileBtn": "გარიგების ფაილი",
+      "expectedCommissionsLabel": "მოსალოდნელი საკომისიო",
+      "collectedCommissionsLabel": "მიღებული საკომისიო",
+      "waitlistOnUnitBtn": "მოლოდინის სია ამ ობიექტზე",
+      "waitlistHighestOfferLabel": "უმაღლესი სარეზერვო ფასი:",
+      "waitlistEmptyOnUnit": "ამ ობიექტზე მოლოდინის სიაში განაცხადები არ არის.",
+      "phoneModalTitle": "სატელეფონო შეთავაზების რეგისტრაცია",
+      "phoneModalSubtitle": "აირჩიეთ მყიდველი და ნებისმიერი აქტიური ობიექტი შეთავაზების გასაგზავნად ან გარიგების დასაწყებად",
+      "selectBuyerLabel": "1. აირჩიეთ მყიდველი",
+      "searchBuyerPlaceholder": "ძიება სახელით ან ტელეფონით...",
+      "noBuyersMatch": "მყიდველი ვერ მოიძებნა",
+      "selectUnitLabel": "2. აირჩიეთ ობიექტი",
+      "searchUnitPlaceholder": "ძიება კოდით (U-15876), პროექტით, უბნით ან მფლობელით...",
+      "noUnitsMatch": "ხელმისაწვდომი ობიექტი ვერ მოიძებნა",
+      "offerModeSendLabel": "გაგზავნა მფლობელთან დასტურისთვის",
+      "offerModeDirectLabel": "მფლობელი დაეთანხმა — გარიგების დაწყება",
+      "offerModeDirectWarn": "ობიექტი გადავა გადაფორმების ეტაპზე, სხვა შეთავაზებები დაიბლოკება და მხარეებს გაეგზავნებათ შეტყობინება.",
+      "submitPhoneOfferBtn": "შეთავაზების გაგზავნა მფლობელთან ✓",
+      "submitDirectDealBtn": "გარიგების დადასტურება 🤝",
+      "invalidOfferAmountErr": "შეიყვანეთ სწორი თანხა",
+      "directDealCreatedNotice": "გარიგება დადასტურდა და გადავიდა გარიგებების გვერდზე ✓",
+      "phoneOfferSentNotice": "სატელეფონო შეთავაზება გაეგზავნა მფლობელს ✓"
     },
     "smartMatch": {
       "readyDealsTitle": "დასასრულებლად მზა შეთანხმებული გარიგებები",
@@ -3462,7 +3522,19 @@
       "offerCancelledSuccess": "შეთავაზება სრულად წაიშალა მფლობელთან ✓",
       "openInDealsBtn": "შეთავაზების ნახვა",
       "invalidCustomPriceErr": "შეიყვანეთ სწორი თანხა",
-      "openAcceptedDealBtn": "გარიგების ნახვა"
+      "openAcceptedDealBtn": "გარიგების ნახვა",
+      "tabMatchedUnits": "ბიუჯეტთან თავსებადი",
+      "tabAllUnitsPhone": "ყველა ობიექტი (ტელეფონით)",
+      "searchAllUnitsPlaceholder": "ძიება კოდით (U-15876), პროექტით, უბნით ან მფლობელით...",
+      "directAcceptPhoneBtn": "გარიგების დაწყება ახლა 🤝",
+      "directAcceptConfirmWarn": "ობიექტი გადავა გადაფორმების ეტაპზე, სხვა შეთავაზებები დაიბლოკება და ორივე მხარეს გაეგზავნება შეტყობინება.",
+      "directDealCreatedSuccess": "გარიგება დადასტურდა და გადავიდა გარიგებების გვერდზე ✓",
+      "recordOfferOnAnyUnitBtn": "+ შეთავაზების გაფორმება",
+      "offerModeSendShort": "გაგზავნა მფლობელთან",
+      "offerModeDirectShort": "დაეთანხმა — გარიგების დაწყება",
+      "recommendToBuyerStarBtn": "რეკომენდაცია",
+      "recordOfferAfterCallBtn": "შეთავაზების გაფორმება",
+      "sendUnitWaBtn": "WhatsApp გაგზავნა"
     },
     "shell": {
       "brand": "Darak",
@@ -3491,7 +3563,7 @@
         "promotions": "VIP რეკლამა ⭐",
         "promotionsShort": "VIP",
         "leads": "მყიდველები",
-        "deals": "შეთავაზებები და გარიგებები",
+        "deals": "გარიგებები და გაყიდვები",
         "dealsShort": "გარიგებები",
         "leadsShort": "მყიდველები",
         "users": "მომხმარებლები",
@@ -3499,7 +3571,9 @@
         "investors": "ინვესტორები",
         "investorsShort": "ინვესტორები",
         "settings": "პარამეტრები",
-        "settingsShort": "პარამეტრები"
+        "settingsShort": "პარამეტრები",
+        "offers": "შეთავაზებები და ვაჭრობა",
+        "offersShort": "შეთავაზებები"
       }
     },
     "dashboard": {
@@ -3559,6 +3633,41 @@
         "transferring": "გადაფორმება",
         "sold": "გაყიდული",
         "rejected": "უარყოფილი"
+      },
+      "sections": {
+        "sec1Title": "1. შეთანხმებული გარიგებები (გადაფორმებისთვის)",
+        "sec1Sub": "მხარეები შეთანხმდნენ ფასზე — დაუკავშირდით გადაფორმების დასასრულებლად",
+        "sec1EmptyShort": "დასასრულებელი გარიგებები არ არის",
+        "sec1Empty": "ამჟამად დასასრულებელი გარიგებები არ არის.",
+        "sec1Btn": "გარიგებების გახსნა",
+        "sec2Title": "2. ახალი შეთავაზებები და აქტიური ვაჭრობა",
+        "sec2Sub": "ახალი შეთავაზებები დასადასტურებლად ან საპასუხო ფასები სწრაფი რეაგირებისთვის",
+        "sec2EmptyShort": "ახალი შეთავაზებები არ არის",
+        "sec2Empty": "ყველა შეთავაზება გადამოწმებულია.",
+        "sec2Btn": "შეთავაზებების გახსნა",
+        "pendingUnitsTitle": "შესამოწმებელი ობიექტები",
+        "pendingUnitsEmpty": "ყველა ახალი ობიექტი შემოწმებულია ✓",
+        "newLeadsTitle": "ახალი მყიდველები (დასაკავშირებელი)",
+        "newLeadsEmpty": "ყველა ახალ მყიდველთან დაკავშირება შესრულდა ✓",
+        "colUnit": "ობიექტი და პროექტი",
+        "colSeller": "გამყიდველი",
+        "colBuyer": "მყიდველი",
+        "colAgreedCash": "შეთანხმებული თანხა",
+        "colOfferedCash": "შეთავაზებული",
+        "colOriginalCash": "საწყისი ფასი",
+        "colCommission": "საკომისიო",
+        "colReadiness": "სტატუსი და მზაობა",
+        "colAction": "მოქმედება",
+        "readiness48h": "48 საათში",
+        "readiness1Week": "1 კვირაში",
+        "readiness2Weeks": "2 კვირაში",
+        "methodCheck": "საბანკო ჩეკი",
+        "methodTransfer": "საბანკო გადარიცხვა",
+        "btnApproveOffer": "შემოწმება",
+        "btnNegotiateNow": "მოლაპარაკება",
+        "btnCloseDeal": "გარიგება",
+        "negotiatingBadge": "🔥 საპასუხო ფასი",
+        "newOfferBadge": "ახალი შეთავაზება"
       }
     },
     "promotions": {
@@ -3714,7 +3823,56 @@
       "followUpOfferBtn": "შეთავაზების ნახვა",
       "followUpDealBtn": "გარიგების ნახვა",
       "activeOffersBadge": "აქტიური",
-      "closedOffersBadge": "დახურული"
+      "closedOffersBadge": "დახურული",
+      "ui": {
+        "searchProfilesTab": "მყიდველების მოთხოვნები და შეთავაზებები",
+        "directInquiriesTab": "ინტერესი ობიექტებზე",
+        "searchTabDesc": "ყველა აქტიური მყიდველი — ძიების მოთხოვნით ან პირდაპირი შეთავაზებით.",
+        "inquiriesTabDesc": "კლიენტები, რომლებმაც გამოხატეს ინტერესი ან გაგზავნეს შეთავაზება კონკრეტულ ობიექტზე.",
+        "desiredAreasCol": "სასურველი უბნები და პარამეტრები",
+        "targetUnitCol": "ობიექტი და მფლობელი",
+        "interestedBuyerCol": "დაინტერესებული მყიდველი",
+        "offerFinanceCol": "შეთავაზება / ბიუჯეტი",
+        "unitOwnerLabel": "მფლობელი:",
+        "targetBudgetLabel": "სამიზნე ბიუჯეტი",
+        "hasGeneralProfileTag": "აქვს ძიების პროფილი",
+        "alternativeUnitsWord": "ალტერნატიული ობიექტი",
+        "openDealsBtn": "შეთავაზების ნახვა",
+        "offeredCashLabel": "შეთავაზებული თანხა",
+        "unitRequiredCashLabel": "ობიექტის თანხა",
+        "sourceDirectOfferBadge": "პირდაპირი შეთავაზება",
+        "sourceSearchBadge": "ძიების მოთხოვნა"
+      },
+      "statusHasActiveOffer": "💬 აქტიური შეთავაზება",
+      "statusNegotiating": "🔥 მოლაპარაკება",
+      "statusInActiveDeal": "🤝 მიმდინარე გარიგება",
+      "statusPurchasedLocked": "წარმატებით შეძენილია",
+      "filterOffersAndNegTab": "შეთავაზება / ვაჭრობა",
+      "filterInDealTab": "მიმდინარე გარიგება",
+      "currentDealBtn": "მიმდინარე გარიგება",
+      "frozenAlternativesBtn": "ხელმისაწვდომი ალტერნატივები",
+      "frozenAlternativesTitle": "დაყინული ალტერნატიული შეთავაზებები (აქტუალური)",
+      "frozenAlternativesSubtitle": "აქ ჩანს მხოლოდ ის ობიექტები, რომლებიც ამჟამად კვლავ ხელმისაწვდომია",
+      "frozenAlternativesEmpty": "სხვა ხელმისაწვდომი ალტერნატიული ობიექტები არ დარჩა.",
+      "frozenAvailableTag": "ხელმისაწვდომია",
+      "dealQuickSummaryTitle": "მიმდინარე გარიგების შეჯამება",
+      "dealSummaryAgreedCash": "შეთანხმებული თანხა",
+      "dealSummaryCommission": "საკომისიო",
+      "dealSummaryBuyer": "მყიდველი",
+      "dealSummarySeller": "გამყიდველი",
+      "dealSummaryWaitlistCount": "მოლოდინის სია ამ ობიექტზე",
+      "openDealFileBtn": "გარიგების ფაილი",
+      "viewDealBtn": "გარიგების ნახვა",
+      "soldOfferBadge": "შეძენილია ✓",
+      "soldOfferSummary": "შესყიდვა და გადაფორმება წარმატებით დასრულდა — {offered}",
+      "completedPurchaseNoDeal": "შესყიდვა დასრულებულია — მოთხოვნა დახურულია",
+      "completedPurchaseSummary": "შეიძინა {project} ({code}) მფლობელისგან {owner} — {amount}",
+      "blockedModalTitle": "ავტომატური სტატუსი დაკავშირებულია გარიგებებთან",
+      "blockedActiveDealDesc": "მყიდველს ({name}) აქვს მიმდინარე გარიგება; მართეთ ის გარიგებების განყოფილებაში.",
+      "blockedActiveOffersDesc": "მყიდველს ({name}) აქვს ({count}) აქტიური შეთავაზება. სტატუსის ხელით შესაცვლელად ჯერ გააუქმეთ შეთავაზებები.",
+      "blockedGotItBtn": "გასაგებია",
+      "blockedOpenDealBtn": "გარიგების ფაილი",
+      "blockedOpenOffersBtn": "შეთავაზებების ისტორია"
     },
     "settings": {
       "eyebrow": "ცენტრალური მართვა",
@@ -3802,7 +3960,6 @@
       "vipPlusDailyLabel": "+VIP დღიური ფასი (₾)",
       "superVipDailyLabel": "SUPER VIP დღიური ფასი (₾)",
       "gePackagesGelTitle": "🇬🇪 VIP პაკეტების ტარიფები (7 / 14 / 30 დღე ლარში ₾)",
-      "bankIbanGeLabel": "საბანკო ანგარიში საქართველოში (IBAN)",
       "seoCardTitle": "ანალიტიკა, Facebook Pixel და Google SEO",
       "seoCardDesc": "შეიყვანეთ კოდები საიტის ყველა გვერდზე ავტომატურად გასააქტიურებლად.",
       "fbPixelLabel": "Facebook Pixel ID",
@@ -3998,7 +4155,10 @@
         "sold": "6. გაყიდულია",
         "paused_by_seller": "⏸ შეჩერებულია მესაკუთრის მიერ",
         "deleted_by_seller": "🗑 წაშლილია მესაკუთრის მიერ",
-        "rejected": "7. უარყოფილი"
+        "rejected": "7. უარყოფილი",
+        "has_offers": "💬 აქტიური შეთავაზებები",
+        "negotiating": "🔥 მოლაპარაკება",
+        "in_deal": "🤝 მიმდინარე გარიგება"
       },
       "docs": {
         "contract": "ნასყიდობის კონტრაქტი",
@@ -4045,7 +4205,8 @@
         "rejectedTab": "უარყოფილი",
         "deletedTab": "წაშლილი",
         "deletedBannerTitle": "მესაკუთრის მიერ წაშლილი ობიექტები",
-        "purgeAllBtn": "ყველას წაშლა"
+        "purgeAllBtn": "ყველას წაშლა",
+        "inDealTab": "გარიგებაშია"
       },
       "table": {
         "emptyText": "შესაბამისი ობიექტები ვერ მოიძებნა.",
@@ -4155,6 +4316,31 @@
         "waReportFeaturedPrefix": "VIP პრიორიტეტი",
         "waReportStandardTier": "სტანდარტული",
         "waReportDirectLinkLabel": "🔗 *განცხადების პირდაპირი ბმული:*"
+      },
+      "offersLog": {
+        "btnLabel": "ობიექტის შეთავაზებები",
+        "title": "აქტიური შეთავაზებები ამ ობიექტზე",
+        "subtitle": "ყველა აქტიური შეთავაზება დალაგებულია უმაღლესი ფასის მიხედვით",
+        "emptyText": "ამ ობიექტზე აქტიური შეთავაზებები არ არის.",
+        "buyerOfferedShort": "მყიდველის ფასი",
+        "ownerCounterShort": "მფლობელის საპასუხო ფასი",
+        "openDealBtn": "გარიგების ფაილი",
+        "openOfferBtn": "შეთავაზების მართვა"
+      },
+      "dealSummary": {
+        "currentDealBtn": "მიმდინარე გარიგება",
+        "openDealFileBtn": "გარიგების ფაილი",
+        "waitlistCountPrefix": "მოლოდინის სია",
+        "soldToBuyerSummary": "გაიყიდა მყიდველზე {buyer} — {amount}",
+        "soldNoBuyerSummary": "ობიექტი გაიყიდა და დაიხურა"
+      },
+      "blocked": {
+        "title": "სტატუსი დაცულია მიმდინარე გარიგების გამო",
+        "activeDealDesc": "ობიექტზე ({unit}) მიმდინარეობს გარიგება; მართეთ ის გარიგებების განყოფილებაში.",
+        "activeOffersDesc": "ობიექტზე ({unit}) არის აქტიური შეთავაზებები. ჯერ გადახედეთ შეთავაზებებს.",
+        "gotItBtn": "გასაგებია",
+        "openDealBtn": "გარიგების ფაილი",
+        "openOffersBtn": "ობიექტის შეთავაზებები"
       }
     },
     "contactVerification": {
@@ -4238,6 +4424,46 @@
         "readiness": "გადახდის მზაობა",
         "paymentMethod": "გადახდის მეთოდი"
       }
+    },
+    "areaFilter": {
+      "allLocationsOption": "ყველა ქალაქი და უბანი",
+      "wholeCitySuffix": "მთლიანად",
+      "citiesGroupLabel": "ძირითადი ქალაქები",
+      "districtsGroupLabel": "უბნები და ზონები",
+      "ariaLabel": "ფილტრი ქალაქის ან უბნის მიხედვით"
+    },
+    "promotionsManager": {
+      "eyebrow": "VIP რეკლამები და გადახდები",
+      "title": "VIP რეკლამის მოთხოვნები (SUPER VIP & +VIP)",
+      "subtitle": "გადაამოწმეთ Flitt ბარათით გადახდები, მართეთ აქტიური VIP პაკეტები და ხელით გააქტიურება",
+      "searchPlaceholder": "ძიება კოდით, პროექტით ან მფლობელით...",
+      "tabPending": "ელოდება ჩართვას",
+      "tabActive": "აქტიური VIP",
+      "tabHistory": "ისტორია",
+      "tabManual": "ხელით ჩართვა",
+      "emptyPending": "დასადასტურებელი VIP მოთხოვნები არ არის ✓",
+      "emptyActive": "აქტიური VIP ობიექტები არ არის.",
+      "emptyHistory": "ისტორია ცარიელია.",
+      "sellerLabel": "მფლობელი",
+      "refCodeLabel": "გადახდის კოდი",
+      "paidFlittBadge": "გადახდილია Flitt-ით ✓",
+      "bankTransferPendingBadge": "საბანკო გადარიცხვა — გადასამოწმებელი",
+      "rejectBtn": "უარყოფა",
+      "activateBtn": "VIP ჩართვა ✓",
+      "remainingDaysLabel": "დარჩა",
+      "stopPromoBtn": "VIP გაჩერება",
+      "approvedBadge": "აქტიური ✓",
+      "rejectedBadge": "უარყოფილი",
+      "onlyActiveUnitHint": "მხოლოდ გამოქვეყნებული და აქტიური ობიექტები შეიძლება ჩაირთოს VIP-ში.",
+      "manualPromoteBtn": "ხელით ჩართვა ⭐",
+      "rejectModalTitle": "VIP მოთხოვნის უარყოფა",
+      "rejectModalDesc": "მფლობელს გაეგზავნება შეტყობინება მოთხოვნის გაუქმების შესახებ",
+      "rejectReasonPlaceholder": "უარყოფის მიზეზი (არასავალდებულო)...",
+      "cancelBtn": "გაუქმება",
+      "confirmRejectBtn": "უარყოფის დადასტურება",
+      "activatedSuccess": "VIP პაკეტი გააქტიურდა ✓",
+      "rejectedSuccess": "VIP მოთხოვნა უარყოფილია.",
+      "cancelledSuccess": "VIP შეჩერდა."
     }
   },
   "smartMatcher": {

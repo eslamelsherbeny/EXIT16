@@ -4,6 +4,7 @@ import type { LocaleCode } from "@/lib/i18n"
 export const ACTIVE_ADMIN_COUNTRY = "GE"
 export const PENDING_ADMIN_TAG = "__PENDING_ADMIN_VERIFICATION__"
 export const PRIORITY_RETURNED_TAG = "__PRIORITY_FROM_BACKUP__"
+export const BUYER_PAUSED_FOR_DEAL_TAG = "__BUYER_PAUSED_FOR_DEAL__"
 
 export type BuyerLead = {
   id: string
@@ -74,99 +75,6 @@ export type DirectUnitInquiryItem = {
   offer: any | null
   hasGeneralSearchProfile: boolean
   createdAt: string
-}
-
-export function getLeadUiMicroLabels(locale: LocaleCode) {
-  switch (locale) {
-    case "en":
-      return {
-        searchProfilesTab: "Buyer Requests & Direct Offers",
-        directInquiriesTab: "Direct Unit Inquiries",
-        searchTabDesc:
-          "All active buyers — whether they submitted search criteria or made a direct offer on a unit.",
-        inquiriesTabDesc:
-          "Clients who expressed direct interest or sent offers on specific units.",
-        desiredAreasCol: "Desired Areas & Specs",
-        targetUnitCol: "Target Unit & Owner",
-        interestedBuyerCol: "Interested Buyer",
-        offerFinanceCol: "Offer / Capacity",
-        unitOwnerLabel: "Owner:",
-        targetBudgetLabel: "Target Budget",
-        hasGeneralProfileTag: "Has Search Profile",
-        alternativeUnitsWord: "alternative units",
-        openDealsBtn: "Track Offer",
-        offeredCashLabel: "Offered Cash",
-        unitRequiredCashLabel: "Unit Cash",
-        sourceDirectOfferBadge: "Direct Offer",
-        sourceSearchBadge: "Search Request",
-      }
-    case "ru":
-      return {
-        searchProfilesTab: "Заявки покупателей и офферы",
-        directInquiriesTab: "Интерес к объектам",
-        searchTabDesc:
-          "Все активные покупатели — как с заявкой на подбор, так и с прямым оффером.",
-        inquiriesTabDesc:
-          "Клиенты, проявившие прямой интерес или отправившие оффер по конкретным объектам.",
-        desiredAreasCol: "Районы и параметры",
-        targetUnitCol: "Объект и владелец",
-        interestedBuyerCol: "Покупатель",
-        offerFinanceCol: "Оффер / Бюджет",
-        unitOwnerLabel: "Владелец:",
-        targetBudgetLabel: "Целевой бюджет",
-        hasGeneralProfileTag: "Есть заявка на подбор",
-        alternativeUnitsWord: "похожих объектов",
-        openDealsBtn: "К офферу",
-        offeredCashLabel: "Предложено",
-        unitRequiredCashLabel: "Наличными по объекту",
-        sourceDirectOfferBadge: "Прямой оффер",
-        sourceSearchBadge: "Заявка на подбор",
-      }
-    case "ka":
-      return {
-        searchProfilesTab: "მყიდველების მოთხოვნები და შეთავაზებები",
-        directInquiriesTab: "ინტერესი ობიექტებზე",
-        searchTabDesc:
-          "ყველა აქტიური მყიდველი — ძიების მოთხოვნით ან პირდაპირი შეთავაზებით.",
-        inquiriesTabDesc:
-          "კლიენტები, რომლებმაც გამოხატეს ინტერესი ან გაგზავნეს შეთავაზება კონკრეტულ ობიექტზე.",
-        desiredAreasCol: "სასურველი უბნები და პარამეტრები",
-        targetUnitCol: "ობიექტი და მფლობელი",
-        interestedBuyerCol: "დაინტერესებული მყიდველი",
-        offerFinanceCol: "შეთავაზება / ბიუჯეტი",
-        unitOwnerLabel: "მფლობელი:",
-        targetBudgetLabel: "სამიზნე ბიუჯეტი",
-        hasGeneralProfileTag: "აქვს ძიების პროფილი",
-        alternativeUnitsWord: "ალტერნატიული ობიექტი",
-        openDealsBtn: "შეთავაზების ნახვა",
-        offeredCashLabel: "შეთავაზებული თანხა",
-        unitRequiredCashLabel: "ობიექტის თანხა",
-        sourceDirectOfferBadge: "პირდაპირი შეთავაზება",
-        sourceSearchBadge: "ძიების მოთხოვნა",
-      }
-    default:
-      return {
-        searchProfilesTab: "طلبات الشراء والعروض المباشرة",
-        directInquiriesTab: "طلبات الاهتمام والحجز المباشر",
-        searchTabDesc:
-          "جميع المشترين النشطين — سواء من سجلوا مواصفات بحث أو من قدموا عرضاً مباشراً على وحدة.",
-        inquiriesTabDesc:
-          "العملاء الذين أبدوا اهتماماً أو قدموا عروضاً على وحدات محددة.",
-        desiredAreasCol: "المناطق والمواصفات المطلوبة",
-        targetUnitCol: "الوحدة المستهدفة والمالك",
-        interestedBuyerCol: "العميل المهتم",
-        offerFinanceCol: "العرض / القدرة المالية",
-        unitOwnerLabel: "مالك الوحدة:",
-        targetBudgetLabel: "الميزانية المستهدفة",
-        hasGeneralProfileTag: "لديه طلب بحث عام",
-        alternativeUnitsWord: "وحدات بديلة",
-        openDealsBtn: "متابعة العرض",
-        offeredCashLabel: "العرض المقدم",
-        unitRequiredCashLabel: "كاش الوحدة",
-        sourceDirectOfferBadge: "عرض مباشر",
-        sourceSearchBadge: "طلب بحث",
-      }
-  }
 }
 
 export function deriveShortUnitCode(id: string, dbCode?: string | null) {
@@ -364,7 +272,6 @@ export function parseLeadDetails({
     areasRaw.includes("U-") ||
     planRaw.includes("مهتم بوحدة")
 
-  // تحديد ما إذا كان هذا المشتري قد دخل عبر "عرض مباشر على وحدة" (للتمييز بالشارة فقط دون إخفائه)
   const isDirectUnitSource = (() => {
     if (isLegacyUnitLead) return true
     if (!offerLinkedByLeadId || areasList.length > 1) return false
@@ -379,7 +286,6 @@ export function parseLeadDetails({
     )
   })()
 
-  // لا نخفي إلا السجلات التراثية القديمة جداً؛ أما العروض المباشرة الجديدة فتظهر في طلبات الشراء
   const isPureUnitInquiry = isLegacyUnitLead
   const isUnitLead = isPureUnitInquiry
 

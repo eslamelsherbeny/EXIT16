@@ -58,8 +58,6 @@ type SiteSettings = {
   developerPenaltyMax?: string
   vipPlusDailyGel?: string
   superVipDailyGel?: string
-  bankIbanGe?: string
-  bankNameGe?: string
   promo7Price?: string
   promo14Price?: string
   promo30Price?: string
@@ -375,7 +373,6 @@ export default function SettingsClient({
         })
       }
 
-      // تقسيم الحفظ إلى دفعات خفيفة (1500 مرفق في كل دفعة) لتفادي حد 1MB في Next.js Server Actions
       const CHUNK_SIZE = 1500
       const totalChunks = Math.max(1, Math.ceil(parsedItems.length / CHUNK_SIZE))
       const todayIso = new Date().toISOString().slice(0, 10)
@@ -801,23 +798,6 @@ export default function SettingsClient({
                         dir="ltr"
                         defaultValue={initialSettings.promo_GE_30 || "100"}
                         className="h-8 w-full rounded-lg border border-gray-200 bg-white px-2 text-left text-xs font-bold"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="mt-3 grid grid-cols-1 gap-2 border-t border-amber-200/60 pt-2.5">
-                    <div>
-                      <label className="mb-1 block text-[10px] font-bold text-gray-600">
-                        {t.bankIbanGeLabel}
-                      </label>
-                      <input
-                        name="bankIbanGe"
-                        dir="ltr"
-                        defaultValue={
-                          initialSettings.bankIbanGe ||
-                          "GE00TB0000000000000000"
-                        }
-                        className="h-8 w-full rounded-lg border border-gray-200 bg-white px-2.5 text-left font-mono text-xs font-bold"
                       />
                     </div>
                   </div>

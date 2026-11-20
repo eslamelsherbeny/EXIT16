@@ -23,6 +23,7 @@ export function AccountViewSwitcher({
   buyerOffersCount = 0,
   matchedBuyersCountMap,
   purchasedUnits = [],
+  advisorPickedUnitIds = [],
   deletionRequested,
 }: {
   userName?: string
@@ -35,6 +36,7 @@ export function AccountViewSwitcher({
   buyerOffersCount?: number
   matchedBuyersCountMap: Record<string, number>
   purchasedUnits?: PurchasedUnitSummary[]
+  advisorPickedUnitIds?: string[]
   deletionRequested: boolean
 }) {
   const { t: dict, dir } = useTranslation()
@@ -120,6 +122,7 @@ export function AccountViewSwitcher({
           marketUnits={activeMarketUnits}
           offersCount={buyerOffersCount}
           purchasedUnits={purchasedUnits}
+          advisorPickedUnitIds={advisorPickedUnitIds}
           deletionRequested={deletionRequested}
         />
       ) : (

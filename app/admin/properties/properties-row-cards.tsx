@@ -5,7 +5,7 @@ import {
   BarChart3,
   Check,
   CheckCircle2,
-  Clock,
+  ClipboardList,
   Crown,
   Download,
   ExternalLink,
@@ -15,6 +15,7 @@ import {
   FileText,
   Flame,
   Handshake,
+  Info,
   Loader2,
   Lock,
   MoreVertical,
@@ -25,6 +26,7 @@ import {
   Sparkles,
   Star,
   Trash2,
+  Trophy,
   User,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -48,8 +50,6 @@ import {
   type UserVerificationBadgeInfo,
 } from "./properties-helpers"
 import type { LocaleCode } from "@/lib/i18n"
-
-const PRIORITY_RETURNED_TAG = "__PRIORITY_FROM_BACKUP__"
 
 export function WhatsAppOfficialIcon({
   className = "size-4",
@@ -88,6 +88,14 @@ function getLocalizedUnitTypeNameShort(
   return String(rawType).replace(/\s*\([^)]+\)\s*/g, "").trim() || fallback
 }
 
+function computeRemainingBoostDays(property: SellRequest): number {
+  if (property.featured_until) {
+    const ms = new Date(property.featured_until).getTime() - Date.now()
+    if (ms > 0) return Math.max(1, Math.ceil(ms / (1000 * 60 * 60 * 24)))
+  }
+  return Math.max(1, Number(property.featured_days) || 1)
+}
+
 export type StatusOptionItem = {
   value: string
   label: string
@@ -99,8 +107,10 @@ export type SharedPropertyCardProps = {
   index?: number
   rawStatus: string
   currentSt: string
+  isAutoLockedStage: boolean
+  isPromotionsPage: boolean
   stObj: StatusOptionItem
-  sellerStatusOptions: StatusOptionItem[]
+  manualStatusOptions: StatusOptionItem[]
   isLoading: boolean
   isHighlighted: boolean
   isFeaturedActive: boolean
@@ -121,59 +131,156 @@ export type SharedPropertyCardProps = {
   onOpenDetails: (property: SellRequest) => void
   onOpenDocs: (property: SellRequest) => void
   onOpenSmartMatch: (property: SellRequest) => void
+  onOpenOffersLog: (property: SellRequest) => void
+  onOpenDealSummary: (property: SellRequest, offer: any, waitlistCount: number) => void
+  onOpenBlockedStage: (property: SellRequest, stage: string, offerId?: string) => void
   onExportSingle: (property: SellRequest, format: "excel" | "pdf") => void
   matchedBuyersCount: number
   validOffers: any[]
   docsCount: number
 }
 
+function UnitStatusControl(props: SharedPropertyCardProps) {
+  const {
+    property,
+    currentSt,
+    isAutoLockedStage,
+    stObj,
+    manualStatusOptions,
+    pending,
+    validOffers,
+    onConfirmAction,
+    onOpenBlockedStage,
+  } = props
+
+  if (currentSt === "sold") {
+    return (
+      <div className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-xl border border-[#007a5a] bg-[#007a5a] px-3 text-center text-[11px] font-extrabold text-white select-none">
+        <Lock className="size-3.5 shrink-0 opacity-85" />
+        <span className="truncate">{stObj.label}</span>
+      </div>
+    )
+  }
+
+  if (currentSt === "deleted_by_seller") {
+    return (
+      <div className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-xl border border-red-300 bg-red-50 px-3 text-center text-[11px] font-extrabold text-red-900 select-none">
+        <Trash2 className="size-3.5 shrink-0" />
+        <span className="truncate">{stObj.label}</span>
+      </div>
+    )
+  }
+
+  if (isAutoLockedStage) {
+    const acceptedOffer = validOffers.find((o) => o.status === "accepted")
+    return (
+      <button
+        type="button"
+        onClick={() =>
+          onOpenBlockedStage(
+            property,
+            currentSt,
+            acceptedOffer ? String(acceptedOffer.id) : undefined
+          )
+        }
+        className={`inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-xl border px-3 text-center text-[11px] font-extrabold transition ${stObj.badge}`}
+      >
+        <span className="truncate">{stObj.label}</span>
+        <Info className="size-3.5 shrink-0 opacity-80" />
+      </button>
+    )
+  }
+
+  return (
+    <select
+      disabled={pending}
+      value={currentSt}
+      onChange={(e) => {
+        const nextSt = e.target.value
+        if (nextSt !== currentSt) {
+          onConfirmAction({
+            type: "status",
+            property,
+            newStatus: nextSt,
+          })
+        }
+      }}
+      className={`h-9 w-full cursor-pointer rounded-xl border px-2 text-center text-[11px] font-extrabold transition focus:outline-none [text-align-last:center] ${stObj.badge}`}
+    >
+      {manualStatusOptions.map((opt) => (
+        <option
+          key={opt.value}
+          value={opt.value}
+          className="bg-white text-xs text-[#0f1d40]"
+        >
+          {opt.label}
+        </option>
+      ))}
+    </select>
+  )
+}
+
 export function PropertyActivityBadges({
   property,
   rawStatus,
+  currentSt,
+  isPromotionsPage,
   isFeaturedActive,
   docsCount,
   matchedBuyersCount,
   validOffers,
+  unitCur,
   t,
   propBadges,
   sm,
-  dealsDict,
   aL,
   onOpenDocs,
   onOpenSmartMatch,
+  onOpenOffersLog,
+  onOpenDealSummary,
   onConfirmAction,
-}: {
-  property: SellRequest
-  rawStatus: string
-  isFeaturedActive: boolean
-  docsCount: number
-  matchedBuyersCount: number
-  validOffers: any[]
-  t: Record<string, any>
-  propBadges: Record<string, string>
-  sm: Record<string, any>
-  dealsDict: Record<string, any>
-  aL: Record<string, string>
-  onOpenDocs: (property: SellRequest) => void
-  onOpenSmartMatch: (property: SellRequest) => void
-  onConfirmAction: (action: ConfirmPropertyAction) => void
-}) {
+}: SharedPropertyCardProps) {
   const viewsCount = Math.max(1, Number(property.views_count) || 1)
   const acceptedOffer = validOffers.find((o) => o.status === "accepted")
-  const priorityReturnedOffer = validOffers.find(
+  const activeNonAcceptedOffers = validOffers.filter(
     (o) =>
-      o.status === "pending_admin" &&
-      Array.isArray(o.diff_reasons) &&
-      o.diff_reasons.includes(PRIORITY_RETURNED_TAG)
-  )
-  const pendingAdminOffer = validOffers.find(
-    (o) => o.status === "pending_admin"
-  )
-  const pendingSellerOffer = validOffers.find(
-    (o) => o.status === "pending_seller" || o.status === "counter_offered"
+      o.status === "pending_admin" ||
+      o.status === "pending_seller" ||
+      o.status === "counter_offered"
   )
   const waitlistOffers = validOffers.filter((o) => o.status === "unit_locked")
   const isVipPlus = property.boost_tier === "vip_plus"
+  const ds = (t.dealSummary as Record<string, string>) || {}
+  const oL = (t.offersLog as Record<string, string>) || {}
+
+  // حالة البيع المكتمل: يظهر ملخص البيع ورابط ملف الصفقة فقط وتختفي أزرار التطابق
+  if (currentSt === "sold") {
+    const buyerName = acceptedOffer?.buyer_name || "—"
+    const amountStr = `${unitCur}${Number(acceptedOffer?.offered_cash || property.paid_amount || 0).toLocaleString("en-US")}`
+    const soldLine = acceptedOffer
+      ? String(ds.soldToBuyerSummary || "")
+          .replace("{buyer}", buyerName)
+          .replace("{amount}", amountStr)
+      : ds.soldNoBuyerSummary || ""
+
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-[#eaf8f2] px-3 py-1.5 text-[11px] font-extrabold text-[#0f1d40]">
+          <Trophy className="size-3.5 shrink-0 text-[#007a5a]" />
+          <span>{soldLine}</span>
+        </span>
+        {acceptedOffer && (
+          <Link
+            href={`/admin/deals?offerId=${acceptedOffer.id}`}
+            className="inline-flex h-8 items-center gap-1 rounded-xl bg-[#0f1d40] px-3 text-[11px] font-extrabold text-white transition hover:bg-[#1e293b]"
+          >
+            <Handshake className="size-3.5 text-emerald-300" />
+            <span>{ds.openDealFileBtn}</span>
+          </Link>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-wrap items-center gap-1.5">
@@ -210,104 +317,100 @@ export function PropertyActivityBadges({
         <span>{propBadges.docWord}</span>
       </button>
 
-      {matchedBuyersCount > 0 && (
-        <button
-          type="button"
-          onClick={() => onOpenSmartMatch(property)}
-          className="inline-flex h-7 items-center gap-1.5 rounded-lg border border-emerald-200 bg-[#eaf8f2] px-2.5 text-[11px] font-extrabold text-[#007a5a] shadow-2xs transition hover:bg-[#007a5a] hover:text-white"
-        >
-          <span>🎯</span>
-          <span>
-            {matchedBuyersCount} {sm.matchedBuyersShort}
-          </span>
-        </button>
+      {currentSt === "in_deal" && acceptedOffer ? (
+        <>
+          <button
+            type="button"
+            onClick={() =>
+              onOpenDealSummary(property, acceptedOffer, waitlistOffers.length)
+            }
+            className="inline-flex h-7 items-center gap-1.5 rounded-lg bg-[#007a5a] px-3 text-[11px] font-extrabold text-white shadow-2xs transition hover:bg-[#006248]"
+          >
+            <Handshake className="size-3.5 shrink-0" />
+            <span>
+              {ds.currentDealBtn}
+              {acceptedOffer.buyer_name
+                ? ` (${acceptedOffer.buyer_name})`
+                : ""}
+            </span>
+          </button>
+
+          {waitlistOffers.length > 0 && (
+            <Link
+              href={`/admin/deals?offerId=${acceptedOffer.id}`}
+              className="inline-flex h-7 items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 text-[11px] font-extrabold text-slate-700 shadow-2xs transition hover:bg-slate-100"
+            >
+              <Lock className="size-3 shrink-0" />
+              <span>
+                ⏳ {ds.waitlistCountPrefix} ({waitlistOffers.length})
+              </span>
+            </Link>
+          )}
+        </>
+      ) : (
+        <>
+          {matchedBuyersCount > 0 && (
+            <button
+              type="button"
+              onClick={() => onOpenSmartMatch(property)}
+              className="inline-flex h-7 items-center gap-1.5 rounded-lg border border-emerald-200 bg-[#eaf8f2] px-2.5 text-[11px] font-extrabold text-[#007a5a] shadow-2xs transition hover:bg-[#007a5a] hover:text-white"
+            >
+              <span>🎯</span>
+              <span>
+                {matchedBuyersCount} {sm.matchedBuyersShort}
+              </span>
+            </button>
+          )}
+
+          {activeNonAcceptedOffers.length > 0 && (
+            <button
+              type="button"
+              onClick={() => onOpenOffersLog(property)}
+              className={`inline-flex h-7 items-center gap-1.5 rounded-lg border px-2.5 text-[11px] font-extrabold shadow-2xs transition ${
+                activeNonAcceptedOffers.some(
+                  (o) => o.status === "counter_offered"
+                )
+                  ? "border-purple-300 bg-purple-50 text-purple-900 hover:bg-purple-700 hover:text-white"
+                  : activeNonAcceptedOffers.some(
+                        (o) => o.status === "pending_admin"
+                      )
+                    ? "border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-500 hover:text-white"
+                    : "border-blue-200 bg-blue-50 text-blue-900 hover:bg-blue-600 hover:text-white"
+              }`}
+            >
+              <ClipboardList className="size-3.5 shrink-0" />
+              <span>
+                {oL.btnLabel} ({activeNonAcceptedOffers.length})
+              </span>
+            </button>
+          )}
+        </>
       )}
 
-      {acceptedOffer ? (
-        <Link
-          href={`/admin/deals?offerId=${acceptedOffer.id}`}
-          className="inline-flex h-7 items-center gap-1.5 rounded-lg bg-[#007a5a] px-3 text-[11px] font-extrabold text-white shadow-2xs transition hover:bg-[#006248]"
-        >
-          <Handshake className="size-3.5 shrink-0" />
-          <span>
-            {sm.offerAcceptedTag}
-            {acceptedOffer.buyer_name ? ` (${acceptedOffer.buyer_name})` : ""}
-          </span>
-        </Link>
-      ) : priorityReturnedOffer ? (
-        <Link
-          href={`/admin/deals?offerId=${priorityReturnedOffer.id}`}
-          className="inline-flex h-7 items-center gap-1.5 rounded-lg bg-amber-400 px-3 text-[11px] font-black text-[#0f1d40] shadow-2xs transition hover:bg-amber-500"
-        >
-          <Sparkles className="size-3.5 shrink-0" />
-          <span>
-            ⭐ {dealsDict.badgePriorityReturned || sm.offerPendingAdminTag}
-            {priorityReturnedOffer.buyer_name
-              ? ` (${priorityReturnedOffer.buyer_name})`
-              : ""}
-          </span>
-        </Link>
-      ) : pendingAdminOffer ? (
-        <Link
-          href={`/admin/deals?offerId=${pendingAdminOffer.id}`}
-          className="inline-flex h-7 items-center gap-1.5 rounded-lg bg-amber-500 px-3 text-[11px] font-extrabold text-white shadow-2xs transition hover:bg-amber-600"
-        >
-          <Clock className="size-3.5 shrink-0" />
-          <span>
-            {sm.offerPendingAdminTag}
-            {pendingAdminOffer.buyer_name
-              ? ` (${pendingAdminOffer.buyer_name})`
-              : ""}
-          </span>
-        </Link>
-      ) : pendingSellerOffer ? (
-        <Link
-          href={`/admin/deals?offerId=${pendingSellerOffer.id}`}
-          className="inline-flex h-7 items-center gap-1.5 rounded-lg border border-purple-200 bg-purple-50 px-3 text-[11px] font-extrabold text-purple-900 shadow-2xs transition hover:bg-purple-100"
-        >
-          <span>
-            💰 {sm.offerPendingTag}
-            {pendingSellerOffer.buyer_name
-              ? ` (${pendingSellerOffer.buyer_name})`
-              : ""}
-          </span>
-        </Link>
-      ) : null}
-
-      {waitlistOffers.length > 0 && (
-        <Link
-          href={`/admin/deals?tab=waitlist&offerId=${waitlistOffers[0].id}`}
-          className="inline-flex h-7 items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 text-[11px] font-extrabold text-slate-700 shadow-2xs transition hover:bg-slate-100"
-        >
-          <Lock className="size-3 shrink-0" />
-          <span>
-            ⏳ {waitlistOffers.length} {sm.offerBackupTag}
-          </span>
-        </Link>
-      )}
-
-      {!isFeaturedActive && property.featured_status === "pending_payment" && (
-        <button
-          type="button"
-          onClick={() =>
-            onConfirmAction({
-              type: "promote",
-              property,
-              promoAction: "activate",
-              days: property.featured_days || 14,
-              tier: isVipPlus ? "vip_plus" : "super_vip",
-            })
-          }
-          title={`${propBadges.promoReqPrefix} (${property.featured_fawry_code || "AD"}${property.featured_price ? ` · ${property.featured_price} ₾` : ""})`}
-          className="inline-flex h-7 items-center gap-1 rounded-lg border border-amber-300 bg-amber-50 px-2.5 text-[11px] font-extrabold text-amber-900 shadow-2xs hover:bg-amber-100"
-        >
-          <Sparkles className="size-3 shrink-0 text-amber-600" />
-          <span>
-            {propBadges.promoReqPrefix} {isVipPlus ? "+VIP" : "SUPER VIP"} (
-            {property.featured_days || 1} {propBadges.dayWord})
-          </span>
-        </button>
-      )}
+      {/* طلبات التمييز المعلّقة تظهر فقط في صفحة طلبات الإعلان */}
+      {isPromotionsPage &&
+        !isFeaturedActive &&
+        property.featured_status === "pending_payment" && (
+          <button
+            type="button"
+            onClick={() =>
+              onConfirmAction({
+                type: "promote",
+                property,
+                promoAction: "activate",
+                days: property.featured_days || 14,
+                tier: isVipPlus ? "vip_plus" : "super_vip",
+              })
+            }
+            className="inline-flex h-7 items-center gap-1 rounded-lg border border-amber-300 bg-amber-50 px-2.5 text-[11px] font-extrabold text-amber-900 shadow-2xs hover:bg-amber-100"
+          >
+            <Sparkles className="size-3 shrink-0 text-amber-600" />
+            <span>
+              {propBadges.promoReqPrefix} {isVipPlus ? "+VIP" : "SUPER VIP"} (
+              {property.featured_days || 1} {propBadges.dayWord})
+            </span>
+          </button>
+        )}
 
       {property.submission_type === "edited_by_seller" &&
         rawStatus === "pending" && (
@@ -342,6 +445,7 @@ function PropertyThreeDotsMenu(props: SharedPropertyCardProps) {
   const {
     property,
     currentSt,
+    isAutoLockedStage,
     isFeaturedActive,
     openMenuId,
     setOpenMenuId,
@@ -430,7 +534,7 @@ function PropertyThreeDotsMenu(props: SharedPropertyCardProps) {
             <span>{aL.sendReportWaBtn}</span>
           </a>
 
-          {currentSt !== "deleted_by_seller" && (
+          {currentSt !== "deleted_by_seller" && currentSt !== "sold" && (
             <>
               <button
                 type="button"
@@ -465,45 +569,44 @@ function PropertyThreeDotsMenu(props: SharedPropertyCardProps) {
                 </span>
               </button>
 
-              {currentSt === "active" ||
-              currentSt === "offer_received" ||
-              currentSt === "transferring" ? (
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setOpenMenuId(null)
-                    onConfirmAction({
-                      type: "status",
-                      property,
-                      newStatus: "paused_by_seller",
-                    })
-                  }}
-                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-orange-800 transition hover:bg-orange-50"
-                >
-                  <EyeOff className="size-3.5 text-orange-600" />
-                  <span>{t.actions.unpublishBtn}</span>
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setOpenMenuId(null)
-                    onConfirmAction({
-                      type: "status",
-                      property,
-                      newStatus: "active",
-                    })
-                  }}
-                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-[#007a5a] transition hover:bg-[#eaf8f2]"
-                >
-                  <Check className="size-3.5 text-[#007a5a]" />
-                  <span>{t.actions.publishShortBtn}</span>
-                </button>
-              )}
+              {!isAutoLockedStage &&
+                (currentSt === "active" ? (
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setOpenMenuId(null)
+                      onConfirmAction({
+                        type: "status",
+                        property,
+                        newStatus: "paused_by_seller",
+                      })
+                    }}
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-orange-800 transition hover:bg-orange-50"
+                  >
+                    <EyeOff className="size-3.5 text-orange-600" />
+                    <span>{t.actions.unpublishBtn}</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setOpenMenuId(null)
+                      onConfirmAction({
+                        type: "status",
+                        property,
+                        newStatus: "active",
+                      })
+                    }}
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-[#007a5a] transition hover:bg-[#eaf8f2]"
+                  >
+                    <Check className="size-3.5 text-[#007a5a]" />
+                    <span>{t.actions.publishShortBtn}</span>
+                  </button>
+                ))}
             </>
           )}
 
@@ -535,21 +638,24 @@ function PropertyThreeDotsMenu(props: SharedPropertyCardProps) {
             <span>{expL.exportRowPdfBtn}</span>
           </button>
 
-          <div className="my-1 border-t border-slate-100" />
-
-          <button
-            type="button"
-            disabled={pending}
-            onClick={(e) => {
-              e.stopPropagation()
-              setOpenMenuId(null)
-              onConfirmAction({ type: "delete", property })
-            }}
-            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-red-600 transition hover:bg-red-50"
-          >
-            <Trash2 className="size-3.5 text-red-600" />
-            <span>{t.modals.deleteTitle}</span>
-          </button>
+          {!isAutoLockedStage && (
+            <>
+              <div className="my-1 border-t border-slate-100" />
+              <button
+                type="button"
+                disabled={pending}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setOpenMenuId(null)
+                  onConfirmAction({ type: "delete", property })
+                }}
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-red-600 transition hover:bg-red-50"
+              >
+                <Trash2 className="size-3.5 text-red-600" />
+                <span>{t.modals.deleteTitle}</span>
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>
@@ -559,6 +665,7 @@ function PropertyThreeDotsMenu(props: SharedPropertyCardProps) {
 function PublishToggleButton({
   property,
   currentSt,
+  isAutoLockedStage,
   pending,
   t,
   isMobile,
@@ -566,18 +673,21 @@ function PublishToggleButton({
 }: {
   property: SellRequest
   currentSt: string
+  isAutoLockedStage: boolean
   pending: boolean
   t: Record<string, any>
   isMobile?: boolean
   onConfirmAction: (action: ConfirmPropertyAction) => void
 }) {
-  if (currentSt === "deleted_by_seller" || currentSt === "sold") return null
-
   if (
-    currentSt === "active" ||
-    currentSt === "offer_received" ||
-    currentSt === "transferring"
+    currentSt === "deleted_by_seller" ||
+    currentSt === "sold" ||
+    isAutoLockedStage
   ) {
+    return null
+  }
+
+  if (currentSt === "active") {
     return (
       <button
         type="button"
@@ -622,14 +732,14 @@ export function PropertyMobileCard(props: SharedPropertyCardProps) {
   const {
     property,
     currentSt,
-    stObj,
-    sellerStatusOptions,
+    isAutoLockedStage,
     isLoading,
     isHighlighted,
     isFeaturedActive,
     unitCur,
     locale,
     t,
+    propBadges,
     leadsPrompts,
     pending,
     verificationMap,
@@ -638,6 +748,7 @@ export function PropertyMobileCard(props: SharedPropertyCardProps) {
   } = props
 
   const isVipPlus = property.boost_tier === "vip_plus"
+  const remainingDays = computeRemainingBoostDays(property)
   const waText = buildSellerWhatsAppMessage({
     property,
     unitCur,
@@ -657,11 +768,13 @@ export function PropertyMobileCard(props: SharedPropertyCardProps) {
           ? "border-[#007a5a] opacity-75"
           : isHighlighted
             ? "border-2 border-[#007a5a] ring-2 ring-[#007a5a]/25"
-            : currentSt === "deleted_by_seller"
-              ? "border-red-300 bg-red-50/20"
-              : isFeaturedActive
-                ? "border-amber-300"
-                : "border-slate-200/90"
+            : currentSt === "sold"
+              ? "border-emerald-200/90 bg-slate-50/40 border-s-4 border-s-[#0f1d40]"
+              : currentSt === "deleted_by_seller"
+                ? "border-red-300 bg-red-50/20"
+                : isFeaturedActive
+                  ? "border-amber-300"
+                  : "border-slate-200/90"
       }`}
     >
       {isLoading && (
@@ -691,7 +804,8 @@ export function PropertyMobileCard(props: SharedPropertyCardProps) {
                       : "bg-amber-100 text-amber-900"
                   }`}
                 >
-                  {isVipPlus ? "+VIP" : "SUPER VIP"}
+                  {isVipPlus ? "+VIP" : "SUPER VIP"} · {remainingDays}{" "}
+                  {propBadges.dayWord}
                 </span>
               )}
             </div>
@@ -772,31 +886,7 @@ export function PropertyMobileCard(props: SharedPropertyCardProps) {
         </div>
 
         <div className="mt-2.5">
-          <select
-            disabled={pending}
-            value={currentSt}
-            onChange={(e) => {
-              const nextSt = e.target.value
-              if (nextSt !== currentSt) {
-                onConfirmAction({
-                  type: "status",
-                  property,
-                  newStatus: nextSt,
-                })
-              }
-            }}
-            className={`h-9 w-full rounded-xl border px-3 text-center text-xs font-extrabold focus:outline-none [text-align-last:center] ${stObj.badge}`}
-          >
-            {sellerStatusOptions.map((opt) => (
-              <option
-                key={opt.value}
-                value={opt.value}
-                className="bg-white text-[#0f1d40]"
-              >
-                {opt.label}
-              </option>
-            ))}
-          </select>
+          <UnitStatusControl {...props} />
         </div>
       </div>
 
@@ -807,6 +897,7 @@ export function PropertyMobileCard(props: SharedPropertyCardProps) {
           <PublishToggleButton
             property={property}
             currentSt={currentSt}
+            isAutoLockedStage={isAutoLockedStage}
             pending={pending}
             t={t}
             isMobile
@@ -844,8 +935,8 @@ export function PropertyDesktopRow(props: SharedPropertyCardProps) {
     property,
     index = 0,
     currentSt,
-    stObj,
-    sellerStatusOptions,
+    isAutoLockedStage,
+    isPromotionsPage,
     isLoading,
     isHighlighted,
     isFeaturedActive,
@@ -861,6 +952,7 @@ export function PropertyDesktopRow(props: SharedPropertyCardProps) {
   } = props
 
   const isVipPlus = property.boost_tier === "vip_plus"
+  const remainingDays = computeRemainingBoostDays(property)
   const waText = buildSellerWhatsAppMessage({
     property,
     unitCur,
@@ -880,15 +972,21 @@ export function PropertyDesktopRow(props: SharedPropertyCardProps) {
           ? "border-[#007a5a] bg-[#eaf8f2]/30 opacity-60"
           : isHighlighted
             ? "border-2 border-[#007a5a] bg-[#eaf8f2]/30 ring-2 ring-[#007a5a]/20"
-            : currentSt === "active"
-              ? "border-slate-200/90 border-s-4 border-s-[#007a5a]"
-              : currentSt === "offer_received" || currentSt === "transferring"
-                ? "border-purple-200 border-s-4 border-s-purple-600"
-                : currentSt === "pending" || currentSt === "under_review"
-                  ? "border-amber-200/90 border-s-4 border-s-amber-500"
-                  : currentSt === "deleted_by_seller"
-                    ? "border-red-200 bg-red-50/20"
-                    : "border-slate-200/90"
+            : currentSt === "sold"
+              ? "border-emerald-200/90 bg-slate-50/40 border-s-4 border-s-[#0f1d40]"
+              : currentSt === "in_deal"
+                ? "border-emerald-300 border-s-4 border-s-[#007a5a]"
+                : currentSt === "negotiating"
+                  ? "border-purple-200 border-s-4 border-s-purple-600"
+                  : currentSt === "has_offers"
+                    ? "border-amber-200 border-s-4 border-s-amber-500"
+                    : currentSt === "active"
+                      ? "border-slate-200/90 border-s-4 border-s-[#007a5a]"
+                      : currentSt === "pending" || currentSt === "under_review"
+                        ? "border-amber-200/90 border-s-4 border-s-amber-500"
+                        : currentSt === "deleted_by_seller"
+                          ? "border-red-200 bg-red-50/20"
+                          : "border-slate-200/90"
       }`}
     >
       <div className="grid grid-cols-[minmax(0,3.5fr)_minmax(0,2.5fr)_minmax(0,3fr)_215px] items-center gap-4 px-5 py-4">
@@ -921,8 +1019,8 @@ export function PropertyDesktopRow(props: SharedPropertyCardProps) {
                   <Crown className="size-3 text-amber-600" />
                 )}
                 <span>
-                  {isVipPlus ? "+VIP" : "SUPER VIP"} (
-                  {property.featured_days || 14} {propBadges.dayWord})
+                  {isVipPlus ? "+VIP" : "SUPER VIP"} · {remainingDays}{" "}
+                  {propBadges.dayWord}
                 </span>
               </span>
             )}
@@ -1030,31 +1128,7 @@ export function PropertyDesktopRow(props: SharedPropertyCardProps) {
         </div>
 
         <div className="border-s border-slate-100 ps-3.5">
-          <select
-            disabled={pending}
-            value={currentSt}
-            onChange={(e) => {
-              const nextSt = e.target.value
-              if (nextSt !== currentSt) {
-                onConfirmAction({
-                  type: "status",
-                  property,
-                  newStatus: nextSt,
-                })
-              }
-            }}
-            className={`h-9 w-full cursor-pointer rounded-xl border px-2 text-center text-[11px] font-extrabold transition focus:outline-none [text-align-last:center] ${stObj.badge}`}
-          >
-            {sellerStatusOptions.map((opt) => (
-              <option
-                key={opt.value}
-                value={opt.value}
-                className="bg-white text-xs text-[#0f1d40]"
-              >
-                {opt.label}
-              </option>
-            ))}
-          </select>
+          <UnitStatusControl {...props} />
         </div>
       </div>
 
@@ -1086,50 +1160,49 @@ export function PropertyDesktopRow(props: SharedPropertyCardProps) {
               <PublishToggleButton
                 property={property}
                 currentSt={currentSt}
+                isAutoLockedStage={isAutoLockedStage}
                 pending={pending}
                 t={t}
                 onConfirmAction={onConfirmAction}
               />
 
-              <button
-                type="button"
-                disabled={pending}
-                onClick={() =>
-                  onConfirmAction({
-                    type: "promote",
-                    property,
-                    promoAction: isFeaturedActive ? "cancel" : "activate",
-                    days: property.featured_days || 14,
-                    tier:
-                      property.boost_tier === "vip_plus"
-                        ? "vip_plus"
-                        : "super_vip",
-                  })
-                }
-                title={
-                  isFeaturedActive
-                    ? t.actions.cancelPromoBtn
-                    : t.actions.promoteStarBtn
-                }
-                className={`inline-flex h-8 shrink-0 items-center justify-center gap-1 rounded-xl border px-2.5 text-[11px] font-extrabold transition disabled:opacity-50 ${
-                  isFeaturedActive
-                    ? "border-amber-300 bg-amber-100 text-amber-900 hover:bg-amber-200"
-                    : "border-amber-200 bg-amber-50/80 text-amber-800 hover:bg-amber-100"
-                }`}
-              >
-                <Star
-                  className={`size-3.5 shrink-0 ${
+              {/* زر التمييز المباشر يظهر في صفحة طلبات الإعلان فقط (ومتاح في الـ 3 نقط في طلبات البيع) */}
+              {isPromotionsPage && currentSt !== "sold" && (
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() =>
+                    onConfirmAction({
+                      type: "promote",
+                      property,
+                      promoAction: isFeaturedActive ? "cancel" : "activate",
+                      days: property.featured_days || 14,
+                      tier:
+                        property.boost_tier === "vip_plus"
+                          ? "vip_plus"
+                          : "super_vip",
+                    })
+                  }
+                  className={`inline-flex h-8 shrink-0 items-center justify-center gap-1 rounded-xl border px-2.5 text-[11px] font-extrabold transition disabled:opacity-50 ${
                     isFeaturedActive
-                      ? "fill-amber-500 text-amber-600"
-                      : "text-amber-600"
+                      ? "border-amber-300 bg-amber-100 text-amber-900 hover:bg-amber-200"
+                      : "border-amber-200 bg-amber-50/80 text-amber-800 hover:bg-amber-100"
                   }`}
-                />
-                <span className="truncate">
-                  {isFeaturedActive
-                    ? t.actions.cancelPromoBtn
-                    : t.actions.promoteStarBtn}
-                </span>
-              </button>
+                >
+                  <Star
+                    className={`size-3.5 shrink-0 ${
+                      isFeaturedActive
+                        ? "fill-amber-500 text-amber-600"
+                        : "text-amber-600"
+                    }`}
+                  />
+                  <span className="truncate">
+                    {isFeaturedActive
+                      ? t.actions.cancelPromoBtn
+                      : t.actions.promoteStarBtn}
+                  </span>
+                </button>
+              )}
 
               <Button
                 size="sm"

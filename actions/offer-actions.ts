@@ -46,6 +46,11 @@ import {
 
 export type { OfferRecord, OfferStatusType }
 
+function isAdvanceableToMatched(status?: string | null): boolean {
+  const st = String(status || '').trim().toLowerCase()
+  return !st || st === 'new' || st === 'contacted'
+}
+
 export async function getAccountOffersDataAction() {
   const { dict, locale } = await getServerI18n()
   const oDict = (dict.accountPages as Record<string, any>)?.offers || {}
@@ -574,6 +579,7 @@ export async function submitBuyerOfferAction(payload: {
         .select('*')
         .eq('user_id', sessionId)
         .neq('status', 'closed')
+        .neq('status', 'archived')
         .order('created_at', { ascending: false })
         .limit(1)
       activeLead = existingLeads?.[0] || null
@@ -761,7 +767,9 @@ export async function submitBuyerOfferAction(payload: {
           : `🎯 ${oDict.adminNewOfferNotifTitle} (${offerRef}): ${projectTitle}`,
         message: `${buyerNameFinal} (${buyerPhoneFinal}) — $${finalOfferedCash.toLocaleString('en-US')}`,
         type: 'lead',
-        link: `/admin/deals?offerId=${savedOfferId}`,
+        link: isUnitCurrentlyInClosing
+          ? `/admin/deals?offerId=${savedOfferId}`
+          : `/admin/offers?offerId=${savedOfferId}`,
         is_read: false,
       },
     ]
@@ -772,6 +780,12 @@ export async function submitBuyerOfferAction(payload: {
           .from('sell_requests')
           .update({ status: 'offer_received' })
           .eq('id', unit.id)
+      }
+      if (activeLead?.id && isAdvanceableToMatched(activeLead.status)) {
+        await supabase
+          .from('buy_requests')
+          .update({ status: 'matched' })
+          .eq('id', activeLead.id)
       }
       notifsToInsert.push({
         user_id: unit.user_id,
@@ -1011,7 +1025,7 @@ export async function manageBuyerOwnOfferAction(payload: {
           title: `⭐ ${oDict.priorityBuyerReturnedAdminTitle || 'عميل أولوية عائد من الاحتياطي'} (${offerRef}): ${sanitizeGeorgiaProjectTitle(unit.project_name)}`,
           message: `${user.name || offer.buyer_name || ''} — $${nextCash.toLocaleString('en-US')}`,
           type: 'lead',
-          link: `/admin/deals?offerId=${offer.id}`,
+          link: `/admin/offers?offerId=${offer.id}`,
           is_read: false,
         })
       } catch {}
@@ -1113,6 +1127,7 @@ export async function respondToOfferBySellerAction(payload: {
           .from('buy_requests')
           .update({ status: 'matched' })
           .eq('id', offer.lead_id)
+          .neq('status', 'closed')
       }
 
       const offerRef = makeOfferRefCode(offer.id)
@@ -1204,10 +1219,15 @@ export async function respondToOfferBySellerAction(payload: {
         }).catch(() => {})
       }
     } else if (payload.decision === 'reject') {
+      const wasAccepted = offer.status === 'accepted'
       await supabase
         .from('property_offers')
         .update({ status: 'rejected', updated_at: new Date().toISOString() })
         .eq('id', offer.id)
+
+      if (wasAccepted) {
+        await unfreezeBuyerPausedOffers(supabase, offer)
+      }
 
       const { data: remainingOffers } = await supabase
         .from('property_offers')
@@ -1342,6 +1362,7 @@ export async function respondToCounterOfferByBuyerAction(payload: {
           .from('buy_requests')
           .update({ status: 'matched' })
           .eq('id', offer.lead_id)
+          .neq('status', 'closed')
       }
 
       const offerRef = makeOfferRefCode(offer.id)
@@ -1421,20 +1442,32 @@ export async function adminGetDealsRoomDataAction() {
   try {
     const auth = await verifyStaffSession()
     if (!auth) {
-      return { authorized: false, offers: [] as any[], units: [] as any[] }
+      return {
+        authorized: false,
+        offers: [] as any[],
+        units: [] as any[],
+        leads: [] as any[],
+      }
     }
     const { supabase } = auth
 
-    const [{ data: offersData }, { data: unitsData }] = await Promise.all([
-      supabase
-        .from('property_offers')
-        .select('*')
-        .order('updated_at', { ascending: false }),
-      supabase
-        .from('sell_requests')
-        .select('*')
-        .neq('status', 'deleted_by_seller'),
-    ])
+    const [{ data: offersData }, { data: unitsData }, { data: leadsData }] =
+      await Promise.all([
+        supabase
+          .from('property_offers')
+          .select('*')
+          .order('updated_at', { ascending: false }),
+        supabase
+          .from('sell_requests')
+          .select('*')
+          .neq('status', 'deleted_by_seller'),
+        supabase
+          .from('buy_requests')
+          .select('*')
+          .neq('status', 'closed')
+          .neq('status', 'archived')
+          .order('created_at', { ascending: false }),
+      ])
 
     const cleanedUnits = ((unitsData || []) as any[]).map((u) => ({
       ...u,
@@ -1469,10 +1502,16 @@ export async function adminGetDealsRoomDataAction() {
       authorized: true,
       offers: validNormalizedOffers,
       units: cleanedUnits,
+      leads: (leadsData || []) as any[],
     }
   } catch (e) {
     console.error('adminGetDealsRoomDataAction error:', e)
-    return { authorized: false, offers: [] as any[], units: [] as any[] }
+    return {
+      authorized: false,
+      offers: [] as any[],
+      units: [] as any[],
+      leads: [] as any[],
+    }
   }
 }
 
@@ -1556,7 +1595,7 @@ export async function adminManageOfferLifecycleAction(payload: {
           .from('buy_requests')
           .update({ status: 'matched' })
           .eq('id', offer.lead_id)
-          .eq('status', 'new')
+          .in('status', ['new', 'contacted'])
       }
 
       if (unit.user_id) {
@@ -1637,6 +1676,72 @@ export async function adminManageOfferLifecycleAction(payload: {
           .from('buy_requests')
           .update({ status: 'matched' })
           .eq('id', offer.lead_id)
+          .neq('status', 'closed')
+      }
+
+      // توثيق الاتفاق الهاتفي فوراً بإشعار وإيميل للطرفين (البائع والمشتري)
+      const projectTitle = sanitizeGeorgiaProjectTitle(unit.project_name)
+      const notifs: any[] = []
+      if (offer.buyer_user_id) {
+        notifs.push({
+          user_id: offer.buyer_user_id,
+          role: 'client',
+          title: `🎉 ${oDict.buyerOfferAcceptedNotifTitle} (${projectTitle})`,
+          message: `$${agreedCash.toLocaleString('en-US')} — ${oDict.buyerOfferAcceptedNotifMsg}`,
+          type: 'status_update',
+          link: '/account/offers?role=buyer',
+          is_read: false,
+        })
+      }
+      if (unit.user_id) {
+        notifs.push({
+          user_id: unit.user_id,
+          role: 'client',
+          title: `🎉 ${oDict.sellerCounterAcceptedNotifTitle} (${projectTitle})`,
+          message: `$${agreedCash.toLocaleString('en-US')}`,
+          type: 'status_update',
+          link: `/account/offers?role=seller&unitId=${unit.id}`,
+          is_read: false,
+        })
+      }
+      if (notifs.length > 0) {
+        try {
+          await supabase.from('notifications').insert(notifs)
+        } catch {}
+      }
+
+      const [buyerContact, sellerContact] = await Promise.all([
+        resolveBuyerEmail(supabase, offer),
+        resolveSellerEmail(supabase, unit),
+      ])
+
+      if (buyerContact.email) {
+        sendOfferTransactionalEmail({
+          to: buyerContact.email,
+          dir,
+          subject: `🎉 ${oDict.buyerOfferAcceptedNotifTitle} (${projectTitle})`,
+          heading: oDict.buyerOfferAcceptedNotifTitle,
+          bodyLines: [
+            `${oDict.buyerOfferAcceptedNotifMsg} (${projectTitle}) — $${agreedCash.toLocaleString('en-US')}.`,
+          ],
+          ctaText: oDict.buyerTitle || 'My Offers',
+          ctaUrl: `${DEFAULT_SITE_URL}/account/offers?role=buyer`,
+        }).catch(() => {})
+      }
+
+      if (sellerContact.email) {
+        sendOfferTransactionalEmail({
+          to: sellerContact.email,
+          dir,
+          subject: `🎉 ${oDict.sellerCounterAcceptedNotifTitle} (${projectTitle})`,
+          heading: oDict.sellerCounterAcceptedNotifTitle,
+          bodyLines: [
+            `${projectTitle} — $${agreedCash.toLocaleString('en-US')}.`,
+            oDict.dealLockedBannerForSeller || '',
+          ],
+          ctaText: oDict.sellerTitle || 'View Deal',
+          ctaUrl: `${DEFAULT_SITE_URL}/account/offers?role=seller&unitId=${unit.id}`,
+        }).catch(() => {})
       }
     } else if (payload.action === 'reopen_unit_offers') {
       await supabase
@@ -1859,7 +1964,7 @@ export async function adminSendRecommendationAction(payload: {
   propertyId: string
   leadId: string
 }) {
-  const { dict, locale } = await getServerI18n()
+  const { dict, locale, dir } = await getServerI18n()
   const oDict = (dict.accountPages as Record<string, any>)?.offers || {}
 
   try {
@@ -1882,6 +1987,14 @@ export async function adminSendRecommendationAction(payload: {
 
     if (!unit || !lead) return { success: false, error: oDict.errUnitNotFound }
 
+    const leadSt = String(lead.status || '').trim().toLowerCase()
+    if (leadSt === 'closed' || leadSt === 'archived') {
+      return {
+        success: false,
+        error: 'لا يمكن إرسال ترشيح لطلب شراء مغلق أو مؤرشف.',
+      }
+    }
+
     if (unit.status === 'transferring' || unit.status === 'sold') {
       return { success: false, error: oDict.errUnitAlreadyLocked }
     }
@@ -1899,6 +2012,16 @@ export async function adminSendRecommendationAction(payload: {
     }
 
     const match = calculateSmartMatch(unit, lead, undefined, locale)
+    let buyerUserId = lead.user_id || null
+    if (!buyerUserId && lead.phone) {
+      const { data: matchedUser } = await supabase
+        .from('users')
+        .select('id')
+        .eq('phone', String(lead.phone).trim())
+        .limit(1)
+        .maybeSingle()
+      if (matchedUser?.id) buyerUserId = String(matchedUser.id)
+    }
 
     const { data: existing } = await supabase
       .from('property_offers')
@@ -1911,7 +2034,7 @@ export async function adminSendRecommendationAction(payload: {
       await supabase.from('property_offers').insert({
         property_id: unit.id,
         lead_id: lead.id,
-        buyer_user_id: lead.user_id || null,
+        buyer_user_id: buyerUserId,
         seller_user_id: unit.user_id || null,
         buyer_name: lead.name || '',
         buyer_phone: lead.phone || '',
@@ -1927,25 +2050,41 @@ export async function adminSendRecommendationAction(payload: {
       })
     }
 
-    if (!lead.status || lead.status === 'new') {
+    if (isAdvanceableToMatched(lead.status)) {
       await supabase
         .from('buy_requests')
         .update({ status: 'matched' })
         .eq('id', lead.id)
     }
 
-    if (lead.user_id) {
+    const projectTitle = sanitizeGeorgiaProjectTitle(unit.project_name)
+    if (buyerUserId) {
       try {
         await supabase.from('notifications').insert({
-          user_id: lead.user_id,
+          user_id: buyerUserId,
           role: 'client',
-          title: `🎯 ${oDict.buyerAdminRecNotifTitle} (${match.score}%)`,
-          message: `${sanitizeGeorgiaProjectTitle(unit.project_name)} — ${unit.area || ''}`,
+          title: `⭐ ${oDict.buyerAdminRecNotifTitle} (${match.score}%)`,
+          message: `${projectTitle} — ${unit.area || ''}`,
           type: 'property_match',
-          link: '/account/offers?role=buyer',
+          link: `/opportunities/${unit.id}`,
           is_read: false,
         })
       } catch {}
+    }
+
+    const buyerEmail = lead.email ? String(lead.email).trim() : null
+    if (buyerEmail) {
+      sendOfferTransactionalEmail({
+        to: buyerEmail,
+        dir,
+        subject: `⭐ ${oDict.buyerAdminRecNotifTitle} — ${projectTitle}`,
+        heading: `${oDict.adminRecommendedBadge || oDict.buyerAdminRecNotifTitle}`,
+        bodyLines: [
+          `${projectTitle} — ${unit.area || ''} ($${Number(unit.paid_amount || 0).toLocaleString('en-US')}).`,
+        ],
+        ctaText: oDict.viewUnitPageBtn || 'View Unit',
+        ctaUrl: `${DEFAULT_SITE_URL}/opportunities/${unit.id}`,
+      }).catch(() => {})
     }
 
     revalidateAllOfferPaths()
@@ -1975,7 +2114,11 @@ export async function adminSendBulkRecommendationsAction(payload: {
         .select('*')
         .eq('id', payload.propertyId)
         .maybeSingle(),
-      supabase.from('buy_requests').select('*').neq('status', 'closed'),
+      supabase
+        .from('buy_requests')
+        .select('*')
+        .neq('status', 'closed')
+        .neq('status', 'archived'),
     ])
 
     if (!unit || !allLeads) {
@@ -2018,14 +2161,22 @@ export async function adminCreateOfficialOfferAction(payload: {
   leadId: string
   offeredCash: number
   paymentReadiness: '48h' | '1_week' | '2_weeks'
-}): Promise<{ success: boolean; error?: string; offerId?: string }> {
-  const { dict, locale } = await getServerI18n()
+  mode?: 'send_to_seller' | 'direct_accept_deal'
+}): Promise<{
+  success: boolean
+  error?: string
+  offerId?: string
+  isDirectDeal?: boolean
+}> {
+  const { dict, locale, dir } = await getServerI18n()
   const oDict = (dict.accountPages as Record<string, any>)?.offers || {}
 
   try {
     const auth = await verifyStaffSession()
     if (!auth) return { success: false, error: oDict.errLoginRequired }
     const { supabase } = auth
+
+    const isDirectDeal = payload.mode === 'direct_accept_deal'
 
     const [{ data: unit }, { data: lead }] = await Promise.all([
       supabase
@@ -2041,6 +2192,14 @@ export async function adminCreateOfficialOfferAction(payload: {
     ])
 
     if (!unit || !lead) return { success: false, error: oDict.errUnitNotFound }
+
+    const leadSt = String(lead.status || '').trim().toLowerCase()
+    if (leadSt === 'closed' || leadSt === 'archived') {
+      return {
+        success: false,
+        error: 'لا يمكن تسجيل عرض لطلب شراء مغلق أو مؤرشف.',
+      }
+    }
 
     if (unit.status === 'transferring' || unit.status === 'sold') {
       return { success: false, error: oDict.errUnitAlreadyLocked }
@@ -2069,10 +2228,6 @@ export async function adminCreateOfficialOfferAction(payload: {
       return { success: false, error: oDict.errUnitAlreadyLocked }
     }
 
-    const match = calculateSmartMatch(unit, lead, undefined, locale)
-    const cleanCash =
-      Math.round(Number(payload.offeredCash)) || Number(unit.paid_amount) || 0
-
     let buyerUserId = lead.user_id || null
     if (!buyerUserId && lead.phone) {
       const { data: matchedUser } = await supabase
@@ -2084,6 +2239,34 @@ export async function adminCreateOfficialOfferAction(payload: {
       if (matchedUser?.id) buyerUserId = String(matchedUser.id)
     }
 
+    // منع بدء صفقتين متزامنتين لنفس المشتري
+    if (isDirectDeal && (buyerUserId || lead.id)) {
+      let activeDealQuery = supabase
+        .from('property_offers')
+        .select('id')
+        .eq('status', 'accepted')
+        .neq('property_id', unit.id)
+        .limit(1)
+      if (buyerUserId) {
+        activeDealQuery = activeDealQuery.eq('buyer_user_id', buyerUserId)
+      } else {
+        activeDealQuery = activeDealQuery.eq('lead_id', lead.id)
+      }
+      const { data: buyerAlreadyInDeal } = await activeDealQuery
+      if (buyerAlreadyInDeal && buyerAlreadyInDeal.length > 0) {
+        return {
+          success: false,
+          error:
+            oDict.errBuyerDoubleAcceptance ||
+            'هذا المشتري لديه صفقة قيد التعاقد بالفعل على وحدة أخرى.',
+        }
+      }
+    }
+
+    const match = calculateSmartMatch(unit, lead, undefined, locale)
+    const cleanCash =
+      Math.round(Number(payload.offeredCash)) || Number(unit.paid_amount) || 0
+
     const { data: existingOffer } = await supabase
       .from('property_offers')
       .select('id')
@@ -2091,6 +2274,10 @@ export async function adminCreateOfficialOfferAction(payload: {
       .eq('lead_id', lead.id)
       .limit(1)
       .maybeSingle()
+
+    const targetOfferStatus: OfferStatusType = isDirectDeal
+      ? 'accepted'
+      : 'pending_seller'
 
     let savedOfferId = ''
 
@@ -2103,8 +2290,9 @@ export async function adminCreateOfficialOfferAction(payload: {
           seller_user_id: unit.user_id || null,
           offered_cash: cleanCash,
           counter_cash: null,
-          status: 'pending_seller',
+          status: targetOfferStatus,
           diff_reasons: match.differences,
+          initiated_by: 'admin',
           updated_at: new Date().toISOString(),
         })
         .eq('id', existingOffer.id)
@@ -2125,7 +2313,7 @@ export async function adminCreateOfficialOfferAction(payload: {
           match_score: match.score,
           match_reasons: match.matches,
           diff_reasons: match.differences,
-          status: 'pending_seller',
+          status: targetOfferStatus,
           initiated_by: 'admin',
         })
         .select('id')
@@ -2134,53 +2322,168 @@ export async function adminCreateOfficialOfferAction(payload: {
       if (inserted?.id) savedOfferId = String(inserted.id)
     }
 
-    if (unit.status === 'active') {
+    const projectTitle = sanitizeGeorgiaProjectTitle(unit.project_name)
+
+    if (isDirectDeal) {
+      // قفل العروض المنافسة على الوحدة لقائمة الانتظار + تحويل الوحدة لقيد التعاقد (تظل بالماركت بشارة قيد التعاقد)
+      await supabase
+        .from('property_offers')
+        .update({ status: 'unit_locked' })
+        .eq('property_id', unit.id)
+        .neq('id', savedOfferId)
+        .in('status', ['pending_admin', 'pending_seller', 'counter_offered'])
+
       await supabase
         .from('sell_requests')
-        .update({ status: 'offer_received' })
+        .update({ status: 'transferring' })
         .eq('id', unit.id)
-    }
 
-    if (!lead.status || lead.status === 'new') {
-      await supabase
-        .from('buy_requests')
-        .update({ status: 'matched' })
-        .eq('id', lead.id)
-    }
-
-    const offerIdQuery = savedOfferId ? `&offerId=${savedOfferId}` : ''
-    const notifs: any[] = []
-    if (unit.user_id) {
-      notifs.push({
-        user_id: unit.user_id,
-        role: 'client',
-        title: `💰 ${oDict.sellerNewOfferNotifTitle} (${sanitizeGeorgiaProjectTitle(unit.project_name)})`,
-        message: `$${cleanCash.toLocaleString('en-US')}`,
-        type: 'new_offer',
-        link: `/account/offers?role=seller&unitId=${unit.id}${offerIdQuery}`,
-        is_read: false,
+      await freezeBuyerOtherPendingOffers(supabase, {
+        id: savedOfferId,
+        buyer_user_id: buyerUserId,
+        lead_id: lead.id,
       })
-    }
-    if (buyerUserId) {
-      notifs.push({
-        user_id: buyerUserId,
-        role: 'client',
-        title: `✅ ${oDict.offerSubmittedSuccess}`,
-        message: `${sanitizeGeorgiaProjectTitle(unit.project_name)} — $${cleanCash.toLocaleString('en-US')}`,
-        type: 'new_offer',
-        link: `/account/offers?role=buyer${offerIdQuery}`,
-        is_read: false,
-      })
-    }
 
-    if (notifs.length > 0) {
-      try {
-        await supabase.from('notifications').insert(notifs)
-      } catch {}
+      if (isAdvanceableToMatched(lead.status)) {
+        await supabase
+          .from('buy_requests')
+          .update({ status: 'matched' })
+          .eq('id', lead.id)
+      }
+
+      const notifs: any[] = []
+      if (unit.user_id) {
+        notifs.push({
+          user_id: unit.user_id,
+          role: 'client',
+          title: `🎉 ${oDict.sellerCounterAcceptedNotifTitle} (${projectTitle})`,
+          message: `$${cleanCash.toLocaleString('en-US')}`,
+          type: 'status_update',
+          link: `/account/offers?role=seller&unitId=${unit.id}`,
+          is_read: false,
+        })
+      }
+      if (buyerUserId) {
+        notifs.push({
+          user_id: buyerUserId,
+          role: 'client',
+          title: `🎉 ${oDict.buyerOfferAcceptedNotifTitle} (${projectTitle})`,
+          message: `$${cleanCash.toLocaleString('en-US')} — ${oDict.buyerOfferAcceptedNotifMsg}`,
+          type: 'status_update',
+          link: `/account/offers?role=buyer`,
+          is_read: false,
+        })
+      }
+      if (notifs.length > 0) {
+        try {
+          await supabase.from('notifications').insert(notifs)
+        } catch {}
+      }
+
+      const [sellerContact, buyerContact] = await Promise.all([
+        resolveSellerEmail(supabase, unit),
+        resolveBuyerEmail(supabase, {
+          buyer_user_id: buyerUserId,
+          lead_id: lead.id,
+          buyer_name: lead.name,
+        }),
+      ])
+      if (sellerContact.email) {
+        sendOfferTransactionalEmail({
+          to: sellerContact.email,
+          dir,
+          subject: `🎉 ${oDict.sellerCounterAcceptedNotifTitle} (${projectTitle})`,
+          heading: oDict.sellerCounterAcceptedNotifTitle,
+          bodyLines: [
+            `${projectTitle} — $${cleanCash.toLocaleString('en-US')}.`,
+            oDict.dealLockedBannerForSeller || '',
+          ],
+          ctaText: oDict.sellerTitle || 'View Deal',
+          ctaUrl: `${DEFAULT_SITE_URL}/account/offers?role=seller&unitId=${unit.id}`,
+        }).catch(() => {})
+      }
+      if (buyerContact.email) {
+        sendOfferTransactionalEmail({
+          to: buyerContact.email,
+          dir,
+          subject: `🎉 ${oDict.buyerOfferAcceptedNotifTitle} (${projectTitle})`,
+          heading: oDict.buyerOfferAcceptedNotifTitle,
+          bodyLines: [
+            `${oDict.buyerOfferAcceptedNotifMsg} (${projectTitle}) — $${cleanCash.toLocaleString('en-US')}.`,
+          ],
+          ctaText: oDict.buyerTitle || 'My Offers',
+          ctaUrl: `${DEFAULT_SITE_URL}/account/offers?role=buyer`,
+        }).catch(() => {})
+      }
+    } else {
+      if (unit.status === 'active') {
+        await supabase
+          .from('sell_requests')
+          .update({ status: 'offer_received' })
+          .eq('id', unit.id)
+      }
+
+      if (isAdvanceableToMatched(lead.status)) {
+        await supabase
+          .from('buy_requests')
+          .update({ status: 'matched' })
+          .eq('id', lead.id)
+      }
+
+      const offerIdQuery = savedOfferId ? `&offerId=${savedOfferId}` : ''
+      const notifs: any[] = []
+      if (unit.user_id) {
+        notifs.push({
+          user_id: unit.user_id,
+          role: 'client',
+          title: `💰 ${oDict.sellerNewOfferNotifTitle} (${projectTitle})`,
+          message: `$${cleanCash.toLocaleString('en-US')}`,
+          type: 'new_offer',
+          link: `/account/offers?role=seller&unitId=${unit.id}${offerIdQuery}`,
+          is_read: false,
+        })
+      }
+      if (buyerUserId) {
+        notifs.push({
+          user_id: buyerUserId,
+          role: 'client',
+          title: `✅ ${oDict.offerSubmittedSuccess}`,
+          message: `${projectTitle} — $${cleanCash.toLocaleString('en-US')}`,
+          type: 'new_offer',
+          link: `/account/offers?role=buyer${offerIdQuery}`,
+          is_read: false,
+        })
+      }
+
+      if (notifs.length > 0) {
+        try {
+          await supabase.from('notifications').insert(notifs)
+        } catch {}
+      }
+
+      const sellerContact = await resolveSellerEmail(supabase, unit)
+      if (sellerContact.email) {
+        sendOfferTransactionalEmail({
+          to: sellerContact.email,
+          dir,
+          subject: `💰 ${oDict.sellerNewOfferNotifTitle} (${projectTitle})`,
+          heading: oDict.sellerNewOfferNotifTitle,
+          bodyLines: [
+            `${projectTitle} — $${cleanCash.toLocaleString('en-US')}.`,
+            oDict.sellerSubtitle || '',
+          ],
+          ctaText: oDict.sellerTitle || 'Review Offer',
+          ctaUrl: `${DEFAULT_SITE_URL}/account/offers?role=seller&unitId=${unit.id}`,
+        }).catch(() => {})
+      }
     }
 
     revalidateAllOfferPaths()
-    return { success: true, offerId: savedOfferId || undefined }
+    return {
+      success: true,
+      offerId: savedOfferId || undefined,
+      isDirectDeal,
+    }
   } catch {
     return { success: false, error: oDict.errSubmitFailed }
   }
@@ -2211,7 +2514,7 @@ export async function adminWithdrawPendingOfferAction(offerId: string) {
       return {
         success: false,
         error:
-          'لا يمكن سحب هذا العرض مباشرة لأن المالك قد ردّ عليه بالفعل؛ يرجى متابعته من صفحة العروض والصفقات.',
+          'لا يمكن سحب هذا العرض مباشرة لأن المالك قد ردّ عليه بالفعل؛ يرجى متابعته من قسم العروض والصفقات.',
       }
     }
 

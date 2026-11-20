@@ -2,12 +2,12 @@
 
 import { useMemo, useState } from 'react'
 import {
+  AlertTriangle,
   Check,
   CheckCircle2,
   Copy,
   CreditCard,
   EyeOff,
-  Landmark,
   Loader2,
   Lock,
   MessageCircle,
@@ -28,7 +28,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { createBoostRequestAction } from '@/actions/account-actions'
 import { calculateGelBoostPackage } from '@/components/features/home/home-market-sections'
 import { useTranslation } from '@/lib/i18n'
 import type { ConfirmModalState, SellerUnitItem } from './seller-unit-helpers'
@@ -37,6 +36,7 @@ export function SellerPromoSection({
   t,
   activeUnit,
   supportWhatsApp,
+  isUnitActiveForBoost,
   isPromoCollapsed,
   setIsPromoCollapsed,
   isCurrentlyFeatured,
@@ -48,12 +48,12 @@ export function SellerPromoSection({
   copiedAdRef,
   setCopiedAdRef,
   isPending,
-  onSelectPackage,
   onCancelPromo,
 }: {
   t: Record<string, any>
   activeUnit: SellerUnitItem
   supportWhatsApp: string
+  isUnitActiveForBoost: boolean
   isPromoCollapsed: boolean
   setIsPromoCollapsed: (v: boolean) => void
   isCurrentlyFeatured: boolean
@@ -67,15 +67,9 @@ export function SellerPromoSection({
   dynamicPackages?: Array<{ days: any; price: number; label: string }>
   currencySymbol?: string
   isPending: boolean
-  onSelectPackage: (pkg: {
-    days: any
-    price: number
-    label: string
-    tier?: 'SUPER VIP' | 'VIP+'
-  }) => void
   onCancelPromo: () => void
 }) {
-  const { t: dict, siteSettings } = useTranslation() as Record<string, any>
+  const { t: dict } = useTranslation() as Record<string, any>
   const GEL = '₾'
 
   const [selectedPreset, setSelectedPreset] = useState<number | 'custom'>(
@@ -85,7 +79,10 @@ export function SellerPromoSection({
     activePromoPrice >= 5 ? activePromoPrice : 10
   )
   const [submittingPayment, setSubmittingPayment] = useState(false)
-  const [boostNotice, setBoostNotice] = useState<string | null>(null)
+  const [boostNotice, setBoostNotice] = useState<{
+    text: string
+    isError?: boolean
+  } | null>(null)
 
   const pkgDetails = useMemo(
     () => calculateGelBoostPackage(topUpAmount, dict?.home?.marketSections),
@@ -132,44 +129,61 @@ export function SellerPromoSection({
     },
   ]
 
-  const handleDirectBoostPayment = async (method: 'card' | 'bank') => {
+  // الدفع الإلكتروني المباشر بالبطاقة عبر بوابة Flitt
+  const handleFlittCardPayment = async () => {
     setSubmittingPayment(true)
     setBoostNotice(null)
+    try {
+      const res = await fetch('/api/payments/flitt/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          unitId: activeUnit.id,
+          tier: pkgDetails.tier === 'VIP+' ? 'vip_plus' : 'super_vip',
+          days: pkgDetails.days,
+          amountGel: pkgDetails.amount,
+        }),
+      })
 
-    const res = await createBoostRequestAction({
-      amountGel: pkgDetails.amount,
-      packageTier: pkgDetails.tier,
-      durationDays: pkgDetails.days,
-      paymentMethod: method,
-      unitId: activeUnit.id,
-      unitCode: (activeUnit as any).code || undefined,
-    })
+      const data = await res.json().catch(() => ({}))
 
-    setSubmittingPayment(false)
+      if (res.ok && data?.checkoutUrl) {
+        window.location.href = data.checkoutUrl
+        return
+      }
 
-    const configuredPaymentUrl =
-      res?.paymentUrl ||
-      siteSettings?.boostPaymentUrl ||
-      process.env.NEXT_PUBLIC_BOOST_PAYMENT_URL ||
-      ''
-
-    if (configuredPaymentUrl) {
-      const sep = configuredPaymentUrl.includes('?') ? '&' : '?'
-      window.open(
-        `${configuredPaymentUrl}${sep}amount=${pkgDetails.amount}&currency=GEL&tier=${encodeURIComponent(pkgDetails.tier)}&days=${pkgDetails.days}&unitId=${encodeURIComponent(activeUnit.id)}&reqId=${encodeURIComponent(res?.boostRequestId || '')}`,
-        '_blank'
-      )
+      if (data?.error === 'FLITT_NOT_CONFIGURED') {
+        setBoostNotice({ text: t.flittNotConfiguredErr, isError: true })
+      } else if (data?.error === 'UNIT_MUST_BE_ACTIVE_TO_BOOST') {
+        setBoostNotice({ text: t.boostLockedDesc, isError: true })
+      } else {
+        setBoostNotice({ text: t.flittInitFailedErr, isError: true })
+      }
+    } catch {
+      setBoostNotice({ text: t.flittInitFailedErr, isError: true })
+    } finally {
+      setSubmittingPayment(false)
     }
+  }
 
-    onSelectPackage({
-      days: pkgDetails.days as any,
-      price: pkgDetails.amount,
-      label: `${pkgDetails.tier} (${pkgDetails.days} ${t.daysWord || ''})`,
-      tier: pkgDetails.tier,
-    })
-
-    setBoostNotice(
-      `${t.boostRecordedPrefix} (${pkgDetails.tier} — ${pkgDetails.amount} ${GEL} / ${pkgDetails.days} ${t.daysWord || ''}) ${t.boostRecordedMiddle} (${activeUnit.project_name || t.defaultProjectName}). ${t.boostRecordedSuffix}`
+  // إذا كانت الوحدة لم تُنشر بعد (قيد المراجعة / غير مكتملة / موقوفة)
+  if (!isUnitActiveForBoost && !isCurrentlyFeatured && !isPendingPromo) {
+    return (
+      <section className="mt-5 rounded-[20px] border border-slate-200/90 bg-slate-50/70 p-4 text-start sm:p-5">
+        <div className="flex items-start gap-3">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-slate-200/80 text-slate-600">
+            <Lock className="size-4" />
+          </span>
+          <div>
+            <h3 className="text-xs font-extrabold text-[#0f1d40] sm:text-sm">
+              {t.boostLockedTitle}
+            </h3>
+            <p className="mt-1 text-[11.5px] leading-relaxed text-slate-500">
+              {t.boostLockedDesc}
+            </p>
+          </div>
+        </div>
+      </section>
     )
   }
 
@@ -396,36 +410,43 @@ export function SellerPromoSection({
         )}
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+      <div className="mt-4">
         <button
           type="button"
           disabled={isPending || submittingPayment}
-          onClick={() => handleDirectBoostPayment('card')}
+          onClick={handleFlittCardPayment}
           className="flex h-11 w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-5 text-xs font-bold text-white shadow-[0_8px_20px_rgba(255,100,55,0.28)] transition hover:opacity-95 disabled:opacity-60"
         >
-          <CreditCard className="size-4" />
-          <span>
-            {t.payCardPrefix} {pkgDetails.amount} {GEL} {t.payCardSuffix}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          disabled={isPending || submittingPayment}
-          onClick={() => handleDirectBoostPayment('bank')}
-          className="flex h-11 w-full items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-5 text-xs font-bold text-[#0f1d40] transition hover:bg-slate-50 disabled:opacity-60"
-        >
-          <Landmark className="size-3.5 text-slate-500" />
-          <span>
-            {t.bankTransferPrefix} {pkgDetails.amount} {GEL}
-          </span>
+          {submittingPayment ? (
+            <>
+              <Loader2 className="size-4 animate-spin" />
+              <span>{t.flittRedirectingBtn}</span>
+            </>
+          ) : (
+            <>
+              <CreditCard className="size-4" />
+              <span>
+                {t.payCardPrefix} {pkgDetails.amount} {GEL} {t.payCardSuffix}
+              </span>
+            </>
+          )}
         </button>
       </div>
 
       {boostNotice && (
-        <div className="mt-3 flex items-start gap-2 rounded-xl border border-emerald-200 bg-[#eaf8f2] p-3 text-xs font-semibold text-[#007a5a]">
-          <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
-          <span>{boostNotice}</span>
+        <div
+          className={`mt-3 flex items-start gap-2 rounded-xl border p-3 text-xs font-semibold ${
+            boostNotice.isError
+              ? 'border-amber-200 bg-amber-50 text-amber-900'
+              : 'border-emerald-200 bg-[#eaf8f2] text-[#007a5a]'
+          }`}
+        >
+          {boostNotice.isError ? (
+            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
+          ) : (
+            <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
+          )}
+          <span>{boostNotice.text}</span>
         </div>
       )}
 
@@ -487,7 +508,7 @@ export function SellerPromoSection({
       )}
 
       <div className="mt-3.5 flex items-center justify-between text-[10px] text-slate-400">
-        <span>Visa · Mastercard · Apple Pay · TBC · BOG</span>
+        <span>Flitt · Visa · Mastercard · Apple Pay · Google Pay</span>
         <span className="inline-flex items-center gap-1">
           <Lock className="size-3" /> 256-bit SSL
         </span>

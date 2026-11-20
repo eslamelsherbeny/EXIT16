@@ -12,6 +12,7 @@ import {
   PlusCircle,
   Radar,
   SlidersHorizontal,
+  Star,
   Trophy,
   Wallet,
 } from 'lucide-react'
@@ -178,44 +179,15 @@ function PurchasedUnitsSection({
   locale,
   currency,
   isCycleClosed,
+  t,
 }: {
   units: PurchasedUnitSummary[]
   locale: LocaleCode
   currency: string
   isCycleClosed: boolean
+  t: Record<string, any>
 }) {
   if (!units || units.length === 0) return null
-
-  const title =
-    locale === 'en'
-      ? 'Units You Purchased'
-      : locale === 'ru'
-        ? 'Приобретённые объекты'
-        : locale === 'ka'
-          ? 'თქვენ მიერ შეძენილი ობიექტები'
-          : 'وحدات قمت بشرائها بنجاح'
-
-  const subtitle =
-    locale === 'en'
-      ? 'Congratulations! Your previous purchase cycle is complete. You can start a new purchase request whenever you are ready.'
-      : locale === 'ru'
-        ? 'Поздравляем! Ваша сделка успешно завершена. Вы можете создать новую заявку на покупку в любое время.'
-        : locale === 'ka'
-          ? 'გილოცავთ! თქვენი შესყიდვა წარმატებით დასრულდა. შეგიძლიათ ნებისმიერ დროს შექმნათ ახალი მოთხოვნა.'
-          : 'مبروك! تم إغلاق طلب الشراء السابق بنجاح. يمكنك البدء في طلب شراء جديد في أي وقت.'
-
-  const newReqBtn =
-    locale === 'en'
-      ? 'Submit New Purchase Request'
-      : locale === 'ru'
-        ? 'Создать новую заявку на покупку'
-        : locale === 'ka'
-          ? 'ახალი შესყიდვის მოთხოვნა'
-          : 'تقديم طلب شراء جديد'
-
-  const paidLabel = locale === 'en' ? 'Agreed Cash' : 'المبلغ المدفوع'
-  const contractLabel = locale === 'en' ? 'Contract Price' : 'سعر العقد'
-  const badgeLabel = locale === 'en' ? 'Purchased ✓' : 'تم الشراء ✓'
 
   return (
     <section className="mb-6 overflow-hidden rounded-[22px] border border-emerald-200 border-t-[3px] border-t-[#007a5a] bg-white p-5 text-start shadow-xs sm:p-6">
@@ -226,11 +198,11 @@ function PurchasedUnitsSection({
           </span>
           <div>
             <h2 className="text-base font-black text-[#0a1122] sm:text-lg">
-              {title} ({units.length})
+              {t.purchasedSectionTitle} ({units.length})
             </h2>
             {isCycleClosed && (
               <p className="mt-0.5 text-xs leading-relaxed text-gray-500">
-                {subtitle}
+                {t.purchasedSectionSub}
               </p>
             )}
           </div>
@@ -242,7 +214,7 @@ function PurchasedUnitsSection({
             className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-[#007a5a] px-5 text-xs font-extrabold text-white shadow-xs transition hover:bg-[#006248]"
           >
             <PlusCircle className="size-4" />
-            <span>{newReqBtn}</span>
+            <span>{t.newBuyReqBtn}</span>
           </Link>
         )}
       </div>
@@ -261,7 +233,7 @@ function PurchasedUnitsSection({
                   </span>
                   <span className="inline-flex items-center gap-1 rounded-md bg-[#007a5a] px-2 py-0.5 text-[10px] font-extrabold text-white">
                     <CheckCircle2 className="size-3" />
-                    <span>{badgeLabel}</span>
+                    <span>{t.purchasedBadge}</span>
                   </span>
                 </div>
                 <h3 className="mt-2 truncate text-sm font-black text-[#0a1122]">
@@ -272,7 +244,7 @@ function PurchasedUnitsSection({
                   <span>{getLocalizedGeorgiaAreaName(u.area, locale)}</span>
                   <span>·</span>
                   <span>
-                    {u.unitType} · {u.rooms} · {u.size} m²
+                    {u.unitType} · {u.rooms} · {u.size} {t.sqmUnit}
                   </span>
                 </p>
               </div>
@@ -281,7 +253,7 @@ function PurchasedUnitsSection({
             <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl border border-gray-200/70 bg-white p-2.5 text-xs">
               <div>
                 <span className="block text-[10px] font-bold text-gray-400">
-                  {paidLabel}
+                  {t.purchasedPaidLabel}
                 </span>
                 <strong
                   dir="ltr"
@@ -292,7 +264,7 @@ function PurchasedUnitsSection({
               </div>
               <div className="border-s border-gray-100 ps-2.5">
                 <span className="block text-[10px] font-bold text-gray-400">
-                  {contractLabel}
+                  {t.purchasedContractLabel}
                 </span>
                 <strong
                   dir="ltr"
@@ -314,6 +286,7 @@ export function BuyerDashboard({
   marketUnits,
   offersCount = 0,
   purchasedUnits = [],
+  advisorPickedUnitIds = [],
   deletionRequested = false,
 }: {
   userName?: string
@@ -321,6 +294,7 @@ export function BuyerDashboard({
   marketUnits: SellerUnitItem[]
   offersCount?: number
   purchasedUnits?: PurchasedUnitSummary[]
+  advisorPickedUnitIds?: string[]
   deletionRequested?: boolean
 }) {
   const { t: dict, locale, dir, isRtl } = useTranslation()
@@ -332,6 +306,11 @@ export function BuyerDashboard({
   const supportWhatsApp = String(dict.footer?.phone || '+201018595959').replace(
     /\D/g,
     ''
+  )
+
+  const advisorPickedSet = useMemo(
+    () => new Set(advisorPickedUnitIds.map(String)),
+    [advisorPickedUnitIds]
   )
 
   const isBuyCycleClosed =
@@ -578,7 +557,12 @@ export function BuyerDashboard({
               tp.toLowerCase().includes(unitType.toLowerCase())
           )
 
+        const isAdvisorPick = advisorPickedSet.has(String(u.id))
+
         const matchTags: string[] = []
+        if (isAdvisorPick && t.advisorPickBadge) {
+          matchTags.push(`⭐ ${t.advisorPickBadge}`)
+        }
         if (isCashMatch) matchTags.push(t.tagCashMatch)
         if (isInstMatch) matchTags.push(t.tagInstMatch)
         if (isExactAreaMatch) {
@@ -621,6 +605,7 @@ export function BuyerDashboard({
           matchTags: matchTags.slice(0, 4),
           scorePct: smartRes.score,
           distanceKm: geoEval.distanceKm,
+          isAdvisorPick,
           isAreaMatch: isExactAreaMatch,
           isNearbyInSameCity,
           isCashMatch,
@@ -640,9 +625,15 @@ export function BuyerDashboard({
     bAreas,
     bTypes,
     localizedUnitTypes,
+    advisorPickedSet,
     locale,
     t,
   ])
+
+  const advisorPickedUnits = useMemo(
+    () => mappedUnits.filter((u) => u.isAdvisorPick),
+    [mappedUnits]
+  )
 
   const filteredUnits = useMemo(() => {
     const maxCashVal = Number(toEnglishDigits(maxCashFilter).replace(/,/g, ''))
@@ -855,7 +846,6 @@ export function BuyerDashboard({
     })
   }
 
-  // إذا كان طلب الشراء السابق قد أُغلق بعد إتمام الشراء: نعرض وحداته المشتراة + زر بدء طلب شراء جديد
   if (isBuyCycleClosed) {
     return (
       <div dir={dir} className="mx-auto max-w-[1020px] px-3 sm:px-6">
@@ -865,20 +855,17 @@ export function BuyerDashboard({
             locale={locale}
             currency={currency}
             isCycleClosed={true}
+            t={t}
           />
 
           {purchasedUnits.length === 0 && (
             <section className="rounded-[22px] border border-gray-200/90 bg-white p-8 text-center shadow-xs sm:p-10">
               <Radar className="mx-auto mb-3 size-10 text-[#007a5a]" />
               <h2 className="text-base font-black text-[#0a1122] sm:text-lg">
-                {locale === 'en'
-                  ? 'No Active Purchase Request'
-                  : 'لا يوجد طلب شراء نشط حالياً'}
+                {t.noActiveReqTitle}
               </h2>
               <p className="mx-auto mt-1.5 max-w-md text-xs leading-relaxed text-gray-500">
-                {locale === 'en'
-                  ? 'Start a new purchase request with your budget and preferred areas to unlock smart unit matching.'
-                  : 'سجّل طلب شراء جديد بميزانيتك والمناطق المفضلة لتظهر لك أحدث الوحدات المطابقة فوراً.'}
+                {t.noActiveReqSub}
               </p>
               <div className="mt-5 flex flex-wrap justify-center gap-3">
                 <Link
@@ -886,11 +873,7 @@ export function BuyerDashboard({
                   className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#007a5a] px-6 text-xs font-extrabold text-white shadow-xs transition hover:bg-[#006248]"
                 >
                   <PlusCircle className="size-4" />
-                  <span>
-                    {locale === 'en'
-                      ? 'Submit New Purchase Request'
-                      : 'تقديم طلب شراء جديد'}
-                  </span>
+                  <span>{t.newBuyReqBtn}</span>
                 </Link>
                 <Link
                   href="/opportunities"
@@ -965,6 +948,7 @@ export function BuyerDashboard({
             locale={locale}
             currency={currency}
             isCycleClosed={false}
+            t={t}
           />
         )}
 
@@ -1075,6 +1059,38 @@ export function BuyerDashboard({
             </div>
           )}
         </section>
+
+        {/* قسم ترشيحات مستشار المبيعات لك (يظهر تلقائياً في الصدارة عند وجود وحدات مرشحة يدوياً من السيلز) */}
+        {advisorPickedUnits.length > 0 && (
+          <section className="mt-6 rounded-[22px] border-2 border-amber-300/90 bg-amber-50/40 p-4 text-start shadow-xs sm:p-6">
+            <div className="mb-4 flex items-start gap-3 border-b border-amber-200/70 pb-3.5">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-amber-400 text-[#0a1122] shadow-2xs">
+                <Star className="size-4.5 fill-current" />
+              </span>
+              <div>
+                <h2 className="text-sm font-black text-[#0a1122] sm:text-base">
+                  {t.advisorPicksTitle} ({advisorPickedUnits.length})
+                </h2>
+                <p className="mt-0.5 text-xs font-medium text-amber-950/80">
+                  {t.advisorPicksSubtitle}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {advisorPickedUnits.map((u, idx) => (
+                <ScrollReveal key={u.id} delay={(idx % 6) * 50}>
+                  <BuyerUnitCard
+                    t={t}
+                    unit={u}
+                    isLiked={favoriteIds.includes(String(u.id))}
+                    onToggleLike={() => toggleFavorite(u.id)}
+                  />
+                </ScrollReveal>
+              ))}
+            </div>
+          </section>
+        )}
 
         <BuyerFiltersBar
           t={t}

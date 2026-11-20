@@ -22,6 +22,10 @@ import {
   verifyPassword,
   type StaffRoleCode,
 } from "@/lib/admin-auth-helpers"
+import {
+  purgeBuyerOtherOffersOnSale,
+  unfreezeBuyerPausedOffers,
+} from "@/lib/offer-lifecycle-helpers"
 
 export type { StaffRoleCode }
 
@@ -37,8 +41,27 @@ const ALLOWED_USER_STATUSES = new Set([
   "suspended",
   "deletion_pending",
 ])
+const ALLOWED_MANUAL_LEAD_STATUSES = new Set([
+  "new",
+  "contacted",
+  "matched",
+  "archived",
+])
 
 const REOPENED_PROMPT_TAG = "__REOPENED_PROMPT__"
+const PENDING_ADMIN_TAG = "__PENDING_ADMIN_VERIFICATION__"
+
+function resolveRawOfferStatus(offer: any): string {
+  const diffs = Array.isArray(offer?.diff_reasons) ? offer.diff_reasons : []
+  if (
+    offer?.status === "pending_admin" ||
+    (offer?.status === "recommended" &&
+      (offer?.initiated_by === "buyer" || diffs.includes(PENDING_ADMIN_TAG)))
+  ) {
+    return "pending_admin"
+  }
+  return String(offer?.status || "")
+}
 
 export async function getPublicSiteRuntimeConfigAction(): Promise<{
   siteSettings: GlobalSiteSettings
@@ -140,12 +163,52 @@ export async function updatePropertyStatusAction(
     const { data: prop } = await supabase
       .from("sell_requests")
       .select(
-        "id, user_id, project_name, area, unit_type, paid_amount, contract_price, name, email, documents"
+        "id, user_id, status, project_name, area, unit_type, paid_amount, contract_price, name, email, documents"
       )
       .eq("id", propertyId)
       .maybeSingle()
 
-    const cleanStatus = sanitizeText(status, 40)
+    const cleanStatus = sanitizeText(status, 40).toLowerCase()
+    const currentUnitStatus = String(prop?.status || "").trim().toLowerCase()
+
+    // حماية السيرفر: الوحدة المباعة لا تُعدّل حالتها يدوياً من جدول طلبات البيع
+    if (currentUnitStatus === "sold" && cleanStatus !== "sold") {
+      return {
+        success: false,
+        error:
+          msg.unitSoldLocked ||
+          "هذه الوحدة مباعة ومغلقة بصفقة مكتملة ولا يمكن تغيير حالتها يدوياً.",
+      }
+    }
+
+    // حماية السيرفر: لا يمكن إيقاف أو رفض أو سحب وحدة عليها صفقة قائمة قبل إلغائها من قسم الصفقات
+    if (
+      [
+        "pending",
+        "under_review",
+        "rejected",
+        "paused_by_seller",
+        "deleted_by_seller",
+      ].includes(cleanStatus)
+    ) {
+      const { data: activeDeal } = await supabase
+        .from("property_offers")
+        .select("id")
+        .eq("property_id", propertyId)
+        .eq("status", "accepted")
+        .limit(1)
+        .maybeSingle()
+
+      if (activeDeal) {
+        return {
+          success: false,
+          error:
+            msg.unitHasActiveDealBlocked ||
+            "لا يمكن تغيير حالة هذه الوحدة لأن عليها صفقة قيد التعاقد حالياً؛ يرجى إدارتها أولاً من قسم الصفقات.",
+        }
+      }
+    }
+
     const updatePayload: Record<string, any> = {
       status: cleanStatus,
     }
@@ -197,6 +260,14 @@ export async function updatePropertyStatusAction(
           .eq("property_id", propertyId)
           .neq("status", "recommended")
       } else if (cleanStatus === "active") {
+        const { data: prevAccepted } = await supabase
+          .from("property_offers")
+          .select("id, buyer_user_id, lead_id")
+          .eq("property_id", propertyId)
+          .eq("status", "accepted")
+          .limit(1)
+          .maybeSingle()
+
         await supabase
           .from("property_offers")
           .update({
@@ -205,6 +276,10 @@ export async function updatePropertyStatusAction(
           })
           .eq("property_id", propertyId)
           .eq("status", "accepted")
+
+        if (prevAccepted) {
+          await unfreezeBuyerPausedOffers(supabase, prevAccepted)
+        }
 
         const { data: waitlistOffers } = await supabase
           .from("property_offers")
@@ -245,6 +320,30 @@ export async function updatePropertyStatusAction(
           }
         }
       } else if (cleanStatus === "sold") {
+        const { data: winningOffer } = await supabase
+          .from("property_offers")
+          .select("id, buyer_user_id, lead_id")
+          .eq("property_id", propertyId)
+          .eq("status", "accepted")
+          .limit(1)
+          .maybeSingle()
+
+        if (winningOffer) {
+          if (winningOffer.lead_id) {
+            await supabase
+              .from("buy_requests")
+              .update({ status: "closed" })
+              .eq("id", winningOffer.lead_id)
+          } else if (winningOffer.buyer_user_id) {
+            await supabase
+              .from("buy_requests")
+              .update({ status: "closed" })
+              .eq("user_id", winningOffer.buyer_user_id)
+              .neq("status", "closed")
+          }
+          await purgeBuyerOtherOffersOnSale(supabase, winningOffer)
+        }
+
         await supabase
           .from("property_offers")
           .update({
@@ -344,12 +443,14 @@ export async function updatePropertyStatusAction(
 
         const { data: buyers } = await supabase
           .from("buy_requests")
-          .select("user_id, available_cash, budget, preferred_areas")
+          .select("user_id, available_cash, budget, preferred_areas, status")
           .not("user_id", "is", null)
 
         const matchedBuyerIds = new Set<string>()
 
         ;(buyers || []).forEach((b: any) => {
+          const bStatus = String(b.status || "new").trim().toLowerCase()
+          if (bStatus === "closed" || bStatus === "archived") return
           if (!b.user_id || b.user_id === prop.user_id) return
           const buyerMaxCash = Number(b.available_cash || b.budget || 0)
           const areas: string[] = Array.isArray(b.preferred_areas)
@@ -530,13 +631,84 @@ export async function updateBuyerLeadStatusAction(
       "moderator",
       "sales",
     ])
-    const cleanStatus = sanitizeText(status, 40)
+    const cleanStatus = sanitizeText(status, 40).toLowerCase()
+
+    // 1. حالة "تم الشراء بنجاح" (closed) تُحدَّث تلقائياً من قسم الصفقات فقط
+    if (!ALLOWED_MANUAL_LEAD_STATUSES.has(cleanStatus)) {
+      return {
+        success: false,
+        error:
+          msg.leadManualClosedNotAllowed ||
+          "لا يمكن اختيار حالة (تم الشراء بنجاح) يدوياً؛ يتم تحديثها تلقائياً عند تأكيد البيع في قسم الصفقات.",
+      }
+    }
 
     const { data: lead } = await supabase
       .from("buy_requests")
-      .select("id, user_id, name")
+      .select("id, user_id, name, status")
       .eq("id", leadId)
       .maybeSingle()
+
+    if (!lead) {
+      return { success: false, error: msg.updateLeadFailed }
+    }
+
+    const currentStatus = String(lead.status || "new").trim().toLowerCase()
+
+    // 2. الطلب المغلق بصفقة شراء مكتملة لا يُعدّل يدوياً
+    if (currentStatus === "closed") {
+      return {
+        success: false,
+        error:
+          msg.leadClosedLocked ||
+          "هذا الطلب مغلق لارتباطه بصفقة شراء مكتملة ولا يمكن تغيير حالته يدوياً.",
+      }
+    }
+
+    // 3. مسموح التنقل المرن بين الحالات اليدوية (بما فيها الرجوع لطلب جديد لتصحيح خطأ) فقط إذا لم تكن هناك صفقة أو عروض نشطة
+    if (
+      cleanStatus === "new" ||
+      cleanStatus === "contacted" ||
+      cleanStatus === "archived"
+    ) {
+      let offerQuery = supabase
+        .from("property_offers")
+        .select("id, status, initiated_by, diff_reasons")
+
+      if (lead.user_id) {
+        offerQuery = offerQuery.or(
+          `lead_id.eq.${lead.id},buyer_user_id.eq.${lead.user_id}`
+        )
+      } else {
+        offerQuery = offerQuery.eq("lead_id", lead.id)
+      }
+
+      const { data: leadOffers } = await offerQuery
+      const normalizedStatuses = (leadOffers || []).map(resolveRawOfferStatus)
+
+      if (normalizedStatuses.includes("accepted")) {
+        return {
+          success: false,
+          error:
+            msg.leadHasActiveDealBlocked ||
+            "لا يمكن تغيير حالة المشتري حالياً لأن لديه صفقة قيد التعاقد؛ يرجى إدارتها أولاً من قسم الصفقات.",
+        }
+      }
+
+      const activeOffersCount = normalizedStatuses.filter((st) =>
+        ["pending_admin", "pending_seller", "counter_offered"].includes(st)
+      ).length
+
+      if (activeOffersCount > 0) {
+        return {
+          success: false,
+          error: (
+            msg.leadHasActiveOffersBlocked ||
+            "لا يمكن تغيير الحالة حالياً لوجود ({count}) عروض نشطة لهذا المشتري؛ يرجى سحبها أولاً من سجل عروضه أو قسم العروض."
+          ).replace("{count}", String(activeOffersCount)),
+        }
+      }
+    }
 
     const { error } = await supabase
       .from("buy_requests")
@@ -555,7 +727,6 @@ export async function updateBuyerLeadStatusAction(
         contacted: msg.leadContactedNotifMsg,
         qualified: msg.leadQualifiedNotifMsg,
         matched: msg.leadQualifiedNotifMsg,
-        closed: msg.leadClosedNotifMsg,
       }
       if (buyerStatusText[cleanStatus]) {
         try {
@@ -1136,7 +1307,7 @@ export async function managePropertyPromotionAction(
             approved_at: new Date().toISOString(),
           })
           .eq("unit_id", propertyId)
-          .eq("status", "pending_admin_approval")
+          .in("status", ["pending_admin_approval", "paid_pending_approval"])
       } catch {}
 
       if (prop?.user_id) {

@@ -122,6 +122,7 @@ export default async function AccountPage({
           .from('buy_requests')
           .select('*')
           .neq('status', 'closed')
+          .neq('status', 'archived')
           .order('created_at', { ascending: false }),
         supabase
           .from('sell_requests')
@@ -166,7 +167,6 @@ export default async function AccountPage({
       !myUnitIds.has(String(u.id))
   )
 
-  // الوحدات التي أتم هذا المشتري شراءها فعلياً (accepted + sold)
   const soldUnitsMap = new Map<string, any>(
     (activeMarketUnits || [])
       .filter((u: any) => String(u.status || '').toLowerCase() === 'sold')
@@ -261,6 +261,7 @@ export default async function AccountPage({
     directBuyerOffers.map((o: any) => String(o.property_id))
   )
 
+  // الوحدات التي رشحها مستشار المبيعات خصيصاً لهذا المشتري
   const adminRecUnitIds = new Set(
     allOffers
       .filter(
@@ -339,6 +340,7 @@ export default async function AccountPage({
           buyerOffersCount={totalBuyerOffersCount}
           matchedBuyersCountMap={matchedBuyersCountMap}
           purchasedUnits={purchasedUnits}
+          advisorPickedUnitIds={Array.from(adminRecUnitIds)}
           deletionRequested={deletionRequested}
         />
       ) : (

@@ -311,7 +311,6 @@ export function sanitizeUnitForPublicOrBuyer(
     installment_frequency:
       unit.installment_frequency || meta.installment_frequency || null,
     years_left: Number(unit.years_left ?? meta.years_left) || 0,
-    // نمرر فقط قابلية التفاوض (true/false) ونصفر مبلغ الخصم السري لحماية البائع 100%
     willing_to_discount: Boolean(unit.willing_to_discount),
     discount_amount: 0,
     country: 'GE',
@@ -338,6 +337,7 @@ export function revalidateAllOfferPaths() {
   revalidatePath('/notifications')
   revalidatePath('/opportunities')
   revalidatePath('/admin')
+  revalidatePath('/admin/offers')
   revalidatePath('/admin/properties')
   revalidatePath('/admin/leads')
   revalidatePath('/admin/deals')

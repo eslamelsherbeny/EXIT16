@@ -113,6 +113,28 @@ export function SellerDashboard({
   const activeUnit =
     localSells.find((s) => s.id === selectedId) || localSells[0]
 
+  // التقاط العودة من بوابة الدفع Flitt لعرض رسالة التأكيد للمالك
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('payment') === 'returned') {
+      const ref = params.get('ref') || 'FLITT'
+      const msg = String(t.flittPaymentReturnedNotice || '').replace(
+        '{ref}',
+        ref
+      )
+      if (msg) setActionMessage(msg)
+      params.delete('payment')
+      params.delete('ref')
+      const cleanSearch = params.toString()
+      window.history.replaceState(
+        {},
+        '',
+        `${window.location.pathname}${cleanSearch ? `?${cleanSearch}` : ''}`
+      )
+    }
+  }, [t.flittPaymentReturnedNotice])
+
   useEffect(() => {
     getCurrentSellerProfileAction().then((res) => {
       if (res.isLoggedIn && res.user) {
@@ -201,6 +223,8 @@ export function SellerDashboard({
   const isPausedBySeller = meta.code === 'paused_by_seller'
   const isLockedInTransferOrSold =
     meta.code === 'transferring' || meta.code === 'sold'
+  const isUnitActiveForBoost =
+    meta.code === 'active' || meta.code === 'offer_received'
   const visibleAdminNote = getVisibleSellerAdminNote(activeUnit.admin_note)
 
   const needsEmailVerificationToSubmit =
@@ -294,10 +318,10 @@ export function SellerDashboard({
         `AD-${activeUnit.id.slice(0, 6).toUpperCase()}`
       : null
 
-  const activePromoDays = (activeUnit.featured_days as 7 | 14 | 30) || 14
+  const activePromoDays = activeUnit.featured_days || 14
   const activePromoPrice =
-    dynamicPackages.find((p) => p.days === activePromoDays)?.price ||
     activeUnit.featured_price ||
+    dynamicPackages.find((p) => p.days === activePromoDays)?.price ||
     pkgPrices.days14
 
   const executeConfirmedAction = () => {
@@ -788,24 +812,6 @@ export function SellerDashboard({
             </div>
           </div>
 
-          {!isWaFastTrackHidden && (
-            <div className="mt-4 flex flex-col justify-between gap-3 rounded-2xl border border-[#25D366]/40 bg-[#f0fdf4] p-3.5 sm:flex-row sm:items-center">
-              <p className="text-xs leading-relaxed font-extrabold text-[#0a1122]">
-                {t.fastTrackSellerWaTitle}
-              </p>
-              <a
-                href={`https://wa.me/${supportWhatsApp}?text=${encodeURIComponent(sellerFastTrackWaMsg)}`}
-                target="_blank"
-                rel="noreferrer"
-                onClick={handleSellerFastTrackWaClick}
-                className="inline-flex min-h-[42px] shrink-0 items-center justify-center gap-1.5 rounded-xl bg-[#25D366] px-4 py-2 text-xs font-extrabold text-white shadow-2xs transition hover:opacity-95"
-              >
-                <MessageCircle className="size-4 shrink-0" />
-                <span>{t.fastTrackSellerWaBtn}</span>
-              </a>
-            </div>
-          )}
-
           <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl border border-gray-100 bg-[#f8faf9] p-3.5">
             <div>
               <p className="text-[11px] font-semibold text-gray-500">
@@ -1012,29 +1018,50 @@ export function SellerDashboard({
           </div>
         </section>
 
-        <SellerPromoSection
-          t={t}
-          activeUnit={activeUnit}
-          supportWhatsApp={supportWhatsApp}
-          isPromoCollapsed={isPromoCollapsed}
-          setIsPromoCollapsed={setIsPromoCollapsed}
-          isCurrentlyFeatured={isCurrentlyFeatured}
-          isPendingPromo={isPendingPromo}
-          remainingFeaturedDays={remainingFeaturedDays}
-          activePromoDays={activePromoDays}
-          activePromoPrice={activePromoPrice}
-          currentAdRef={currentAdRef}
-          copiedAdRef={copiedAdRef}
-          setCopiedAdRef={setCopiedAdRef}
-          dynamicPackages={dynamicPackages}
-          currencySymbol={promoCurrencySymbol}
-          isPending={isPending}
-          onSelectPackage={(pkg) => setConfirmModal({ type: 'promote', pkg })}
-          onCancelPromo={() => setConfirmModal({ type: 'cancel_promo' })}
-        />
+        {!isLockedInTransferOrSold && (
+          <SellerPromoSection
+            t={t}
+            activeUnit={activeUnit}
+            supportWhatsApp={supportWhatsApp}
+            isUnitActiveForBoost={isUnitActiveForBoost}
+            isPromoCollapsed={isPromoCollapsed}
+            setIsPromoCollapsed={setIsPromoCollapsed}
+            isCurrentlyFeatured={isCurrentlyFeatured}
+            isPendingPromo={isPendingPromo}
+            remainingFeaturedDays={remainingFeaturedDays}
+            activePromoDays={activePromoDays}
+            activePromoPrice={activePromoPrice}
+            currentAdRef={currentAdRef}
+            copiedAdRef={copiedAdRef}
+            setCopiedAdRef={setCopiedAdRef}
+            dynamicPackages={dynamicPackages}
+            currencySymbol={promoCurrencySymbol}
+            isPending={isPending}
+            onCancelPromo={() => setConfirmModal({ type: 'cancel_promo' })}
+          />
+        )}
       </ScrollReveal>
 
-      <div className="mt-8 flex justify-center border-t border-gray-200/80 pt-6 [&>*]:justify-center [&_div]:justify-center [&_form]:hidden">
+      {/* زر تسريع المراجعة وتأكيد الهاتف عبر واتساب — قبل أزرار بياناتي وحذف الحساب مباشرة */}
+      {!isWaFastTrackHidden && (
+        <div className="mt-6 flex flex-col justify-between gap-3 rounded-2xl border border-[#25D366]/40 bg-[#f0fdf4] p-4 text-start shadow-2xs sm:flex-row sm:items-center">
+          <p className="text-xs leading-relaxed font-extrabold text-[#0a1122]">
+            {t.fastTrackSellerWaTitle}
+          </p>
+          <a
+            href={`https://wa.me/${supportWhatsApp}?text=${encodeURIComponent(sellerFastTrackWaMsg)}`}
+            target="_blank"
+            rel="noreferrer"
+            onClick={handleSellerFastTrackWaClick}
+            className="inline-flex min-h-[42px] shrink-0 items-center justify-center gap-1.5 rounded-xl bg-[#25D366] px-4 py-2 text-xs font-extrabold text-white shadow-2xs transition hover:opacity-95"
+          >
+            <MessageCircle className="size-4 shrink-0" />
+            <span>{t.fastTrackSellerWaBtn}</span>
+          </a>
+        </div>
+      )}
+
+      <div className="mt-6 flex justify-center border-t border-gray-200/80 pt-6 [&>*]:justify-center [&_div]:justify-center [&_form]:hidden">
         <AccountActionLinks
           unitsCount={localSells.length}
           initialDeletionRequested={deletionRequested}

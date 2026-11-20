@@ -17,8 +17,10 @@ import {
   MessageCircle,
   ShieldAlert,
   ShieldCheck,
+  Snowflake,
   Sparkles,
   Trash2,
+  Users,
   XCircle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -35,7 +37,6 @@ import type { LocaleCode } from "@/lib/i18n"
 import {
   cleanAreaLabel,
   deriveShortUnitCode,
-  getLeadUiMicroLabels,
   isBuyerEmailVerified,
   isBuyerPhoneVerified,
   PRIORITY_RETURNED_TAG,
@@ -46,29 +47,11 @@ import {
   type UserVerificationBadgeInfo,
 } from "./leads-helpers"
 
-function getSoldOfferCopy(locale: LocaleCode, offeredText: string) {
-  switch (locale) {
-    case "en":
-      return {
-        badge: "Purchased ✓",
-        summary: `Purchase & transfer completed successfully at ${offeredText}`,
-      }
-    case "ru":
-      return {
-        badge: "Куплено ✓",
-        summary: `Покупка и переоформление успешно завершены за ${offeredText}`,
-      }
-    case "ka":
-      return {
-        badge: "შეძენილია ✓",
-        summary: `შესყიდვა და გადაფორმება წარმატებით დასრულდა — ${offeredText}`,
-      }
-    default:
-      return {
-        badge: "تم الشراء ✓",
-        summary: `تم إتمام الشراء ونقل الملكية بنجاح بـ ${offeredText}`,
-      }
+function resolveOfferRouteHref(offer: any): string {
+  if (offer?.status === "accepted" || offer?.status === "unit_locked") {
+    return `/admin/deals?offerId=${offer.id}`
   }
+  return `/admin/offers?offerId=${offer.id}`
 }
 
 export function LeadConfirmDialog({
@@ -176,6 +159,298 @@ export function LeadConfirmDialog({
   )
 }
 
+export function LeadDealQuickSummaryDialog({
+  dir,
+  locale,
+  t,
+  sm,
+  dealData,
+  leadCur,
+  commPct,
+  onClose,
+}: {
+  dir: "rtl" | "ltr"
+  locale: LocaleCode
+  t: Record<string, any>
+  sm: Record<string, any>
+  dealData: {
+    lead: BuyerLead
+    offer: any
+    unit: LinkedUnitSummary | null
+    waitlistCount: number
+  } | null
+  leadCur: string
+  commPct: number
+  onClose: () => void
+}) {
+  if (!dealData) return null
+  const { lead, offer, unit, waitlistCount } = dealData
+  const uCode = unit
+    ? deriveShortUnitCode(unit.id, unit.code)
+    : deriveShortUnitCode(String(offer.property_id || ""))
+  const area = unit ? cleanAreaLabel(unit.area, locale) : ""
+  const agreedCash = Number(offer.offered_cash || unit?.paid_amount || 0)
+  const commBase = Number(unit?.contract_price || agreedCash || 0)
+  const commission = Math.round(commBase * (commPct / 100))
+
+  return (
+    <Dialog open={Boolean(dealData)} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent
+        dir={dir}
+        className="w-[94vw] max-w-[500px] rounded-2xl p-5 text-start"
+      >
+        <DialogHeader className="border-b border-slate-100 pb-3 pr-9 text-start">
+          <DialogTitle className="flex items-center gap-2 text-base font-black text-[#0f1d40]">
+            <Handshake className="size-5 text-[#007a5a]" />
+            <span>{t.dealQuickSummaryTitle}</span>
+          </DialogTitle>
+          <DialogDescription className="mt-1 text-start text-xs font-semibold text-slate-500">
+            {unit?.project_name || "—"} ({uCode}){area ? ` · ${area}` : ""}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="mt-3 space-y-3 text-xs">
+          <div className="grid grid-cols-2 gap-2.5 rounded-xl border border-emerald-200 bg-[#eaf8f2]/70 p-3">
+            <div>
+              <span className="block text-[10.5px] font-bold text-[#007a5a]">
+                {t.dealSummaryAgreedCash}
+              </span>
+              <strong
+                dir="ltr"
+                className="mt-0.5 block text-lg font-black text-[#007a5a] tabular-nums"
+              >
+                {leadCur}
+                {agreedCash.toLocaleString("en-US")}
+              </strong>
+            </div>
+
+            <div className="border-s border-emerald-200/80 ps-3">
+              <span className="block text-[10.5px] font-bold text-slate-500">
+                {t.dealSummaryCommission} ({commPct}%)
+              </span>
+              <strong
+                dir="ltr"
+                className="mt-0.5 block text-lg font-black text-[#0f1d40] tabular-nums"
+              >
+                {leadCur}
+                {commission.toLocaleString("en-US")}
+              </strong>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+              <span className="block text-[10px] font-bold text-slate-400">
+                {t.dealSummaryBuyer}
+              </span>
+              <p className="mt-0.5 truncate text-xs font-black text-[#0f1d40]">
+                {lead.name}
+              </p>
+              <p dir="ltr" className="font-mono text-[11px] text-slate-600">
+                {lead.phone}
+              </p>
+              <a
+                data-admin-client-wa="true"
+                href={`https://wa.me/${String(lead.phone || "").replace(/\D/g, "")}`}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-2 inline-flex h-7.5 w-full items-center justify-center gap-1.5 rounded-lg bg-[#25D366] text-[11px] font-extrabold text-white"
+              >
+                <MessageCircle className="size-3.5" />
+                <span>{sm.contactBuyerWa || t.whatsappBtn}</span>
+              </a>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+              <span className="block text-[10px] font-bold text-slate-400">
+                {t.dealSummarySeller}
+              </span>
+              <p className="mt-0.5 truncate text-xs font-black text-[#0f1d40]">
+                {unit?.name || "—"}
+              </p>
+              <p dir="ltr" className="font-mono text-[11px] text-slate-600">
+                {unit?.phone || "—"}
+              </p>
+              {unit?.phone && (
+                <a
+                  data-admin-client-wa="true"
+                  href={`https://wa.me/${String(unit.phone).replace(/\D/g, "")}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-2 inline-flex h-7.5 w-full items-center justify-center gap-1.5 rounded-lg bg-[#25D366] text-[11px] font-extrabold text-white"
+                >
+                  <MessageCircle className="size-3.5" />
+                  <span>{sm.contactSellerWa || t.whatsappBtn}</span>
+                </a>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3.5 py-2.5">
+            <span className="flex items-center gap-1.5 font-bold text-slate-600">
+              <Users className="size-4 text-[#007a5a]" />
+              <span>{t.dealSummaryWaitlistCount}</span>
+            </span>
+            <strong className="rounded-md bg-slate-100 px-2.5 py-0.5 font-mono text-xs font-black text-[#0f1d40]">
+              {waitlistCount}
+            </strong>
+          </div>
+        </div>
+
+        <DialogFooter className="mt-4 flex flex-row items-center justify-end gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onClose}
+            className="h-9 rounded-xl text-xs font-bold"
+          >
+            {t.cancelBtn}
+          </Button>
+          <Link
+            href={`/admin/deals?offerId=${offer.id}`}
+            onClick={onClose}
+            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] px-4 text-xs font-extrabold text-white transition hover:bg-[#006248]"
+          >
+            <Handshake className="size-3.5" />
+            <span>{t.openDealFileBtn}</span>
+          </Link>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+export function LeadFrozenAlternativesDialog({
+  dir,
+  locale,
+  t,
+  sm,
+  data,
+  leadCur,
+  onClose,
+}: {
+  dir: "rtl" | "ltr"
+  locale: LocaleCode
+  t: Record<string, any>
+  sm: Record<string, any>
+  data: {
+    lead: BuyerLead
+    alternatives: Array<{ offer: any; unit: LinkedUnitSummary }>
+  } | null
+  leadCur: string
+  onClose: () => void
+}) {
+  if (!data) return null
+  const { lead, alternatives } = data
+
+  return (
+    <Dialog open={Boolean(data)} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent
+        dir={dir}
+        className="max-h-[85vh] w-[94vw] max-w-[560px] overflow-y-auto rounded-2xl p-5 text-start"
+      >
+        <DialogHeader className="border-b border-slate-100 pb-3 pr-9 text-start">
+          <DialogTitle className="flex items-center gap-2 text-sm font-black text-[#0f1d40] sm:text-base">
+            <Snowflake className="size-4.5 text-sky-600" />
+            <span>
+              {t.frozenAlternativesTitle}:{" "}
+              <span className="text-[#007a5a]">{lead.name}</span>
+            </span>
+          </DialogTitle>
+          <DialogDescription className="text-start text-xs text-slate-500">
+            {t.frozenAlternativesSubtitle}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="mt-3 space-y-2.5 text-xs">
+          {alternatives.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 py-8 text-center font-bold text-slate-400">
+              {t.frozenAlternativesEmpty}
+            </div>
+          ) : (
+            alternatives.map(({ offer, unit }) => {
+              const uCode = deriveShortUnitCode(unit.id, unit.code)
+              const area = cleanAreaLabel(unit.area, locale)
+              return (
+                <div
+                  key={offer.id}
+                  className="rounded-xl border border-sky-200/90 bg-sky-50/30 p-3.5"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="rounded bg-[#0f1d40] px-2 py-0.5 font-mono text-[10px] font-bold text-white">
+                          {uCode}
+                        </span>
+                        <h4 className="font-black text-[#0f1d40]">
+                          {unit.project_name || "—"}
+                        </h4>
+                      </div>
+                      <p className="mt-1 text-[11px] font-semibold text-slate-500">
+                        {area} · {unit.name}
+                      </p>
+                    </div>
+                    <span className="inline-flex items-center gap-1 rounded-md bg-emerald-100 px-2 py-0.5 text-[10.5px] font-extrabold text-[#007a5a]">
+                      <CheckCircle2 className="size-3" />
+                      <span>{t.frozenAvailableTag}</span>
+                    </span>
+                  </div>
+
+                  <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 border-t border-sky-100 pt-2.5">
+                    <div className="flex items-center gap-3">
+                      <span>
+                        {t.buyerOfferedShort}{" "}
+                        <strong dir="ltr" className="text-[#007a5a]">
+                          {leadCur}
+                          {Number(offer.offered_cash || 0).toLocaleString(
+                            "en-US"
+                          )}
+                        </strong>
+                      </span>
+                      <span>
+                        {t.unitRequiredCashShort}{" "}
+                        <strong dir="ltr" className="text-[#0f1d40]">
+                          {leadCur}
+                          {Number(unit.paid_amount || 0).toLocaleString(
+                            "en-US"
+                          )}
+                        </strong>
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <Link
+                        href={`/opportunities/${unit.id}`}
+                        target="_blank"
+                        className="inline-flex h-7.5 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 text-[11px] font-bold text-slate-700"
+                      >
+                        <ExternalLink className="size-3 text-[#007a5a]" />
+                        <span>{sm.viewUnitBtn}</span>
+                      </Link>
+                      {unit.phone && (
+                        <a
+                          data-admin-client-wa="true"
+                          href={`https://wa.me/${String(unit.phone).replace(/\D/g, "")}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex h-7.5 items-center gap-1 rounded-lg bg-[#25D366] px-2.5 text-[11px] font-bold text-white"
+                        >
+                          <MessageCircle className="size-3" />
+                          <span>{sm.contactSellerWa}</span>
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )
+            })
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 export function LeadOffersLogDialog({
   dir,
   locale,
@@ -268,7 +543,7 @@ export function LeadOffersLogDialog({
     )
 
     if (isSoldDeal) {
-      return getSoldOfferCopy(locale, offered).summary
+      return String(t.soldOfferSummary || "").replace("{offered}", offered)
     }
     if (offer.status === "accepted") {
       return String(t.offerSummaryAccepted || "").replace("{offered}", offered)
@@ -362,10 +637,6 @@ export function LeadOffersLogDialog({
                 Array.isArray(offer.diff_reasons) &&
                 offer.diff_reasons.includes(PRIORITY_RETURNED_TAG)
               const canCleanWithdraw = isPendingAdmin || isPendingSeller
-              const soldCopy = getSoldOfferCopy(
-                locale,
-                formatMoney(offer.offered_cash)
-              )
 
               const cardTone = isSoldDeal
                 ? "border-slate-300 bg-slate-50/80"
@@ -381,9 +652,7 @@ export function LeadOffersLogDialog({
                           ? "border-slate-200 bg-slate-50/60 opacity-85"
                           : "border-slate-200 bg-white"
 
-              const dealsHref = isWaitlist
-                ? `/admin/deals?tab=waitlist&offerId=${offer.id}`
-                : `/admin/deals?offerId=${offer.id}`
+              const targetHref = resolveOfferRouteHref(offer)
 
               return (
                 <div
@@ -449,7 +718,7 @@ export function LeadOffersLogDialog({
                         {isWaitlist && <Lock className="size-3" />}
                         <span>
                           {isSoldDeal
-                            ? soldCopy.badge
+                            ? t.soldOfferBadge
                             : isRejected
                               ? t.closedOffersBadge
                               : t.activeOffersBadge}
@@ -573,7 +842,7 @@ export function LeadOffersLogDialog({
                         )}
 
                         <Link
-                          href={dealsHref}
+                          href={targetHref}
                           onClick={onClose}
                           className={`inline-flex h-8 items-center gap-1.5 rounded-xl px-3 text-[11px] font-extrabold text-white transition ${
                             isAccepted && !isSoldDeal
@@ -584,7 +853,7 @@ export function LeadOffersLogDialog({
                           <Handshake className="size-3.5 text-emerald-300" />
                           <span>
                             {isAccepted
-                              ? t.followUpDealBtn
+                              ? t.openDealFileBtn || t.followUpDealBtn
                               : t.followUpOfferBtn}
                           </span>
                         </Link>
@@ -638,7 +907,7 @@ export function LeadDetailsDialog({
   pending: boolean
   onClose: () => void
 }) {
-  const ui = getLeadUiMicroLabels(locale)
+  const ui = (t.ui as Record<string, string>) || {}
   const phoneOk = detailsLead
     ? isBuyerPhoneVerified(detailsLead, verificationMap)
     : false
@@ -778,12 +1047,16 @@ export function LeadDetailsDialog({
 
                   {activeOffer && (
                     <Link
-                      href={`/admin/deals?offerId=${activeOffer.id}`}
+                      href={resolveOfferRouteHref(activeOffer)}
                       onClick={onClose}
                       className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg bg-[#0f1d40] px-3 text-xs font-bold text-white hover:bg-[#1e293b]"
                     >
                       <Handshake className="size-3.5 text-emerald-400" />
-                      <span>{openInDealsRoomLabel || t.followUpOfferBtn}</span>
+                      <span>
+                        {activeOffer.status === "accepted"
+                          ? t.openDealFileBtn || openInDealsRoomLabel
+                          : t.followUpOfferBtn}
+                      </span>
                     </Link>
                   )}
 

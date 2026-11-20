@@ -39,6 +39,16 @@ function normalizeDigits(str: string): string {
     .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 1776))
 }
 
+function isUnitBoostEligibleStatus(rawStatus?: string | null): boolean {
+  const st = String(rawStatus || '').trim().toLowerCase()
+  return (
+    st === 'active' ||
+    st === 'approved' ||
+    st === 'published' ||
+    st === 'offer_received'
+  )
+}
+
 async function getVerifiedSessionUser() {
   const cookieStore = await cookies()
   const rawSession = cookieStore.get('user_session')?.value
@@ -87,6 +97,7 @@ async function verifyUnitOwnership(
 
   const cleanRole = String(user.role || 'user').trim().toLowerCase()
   const isStaff =
+    cleanRole === 'owner' ||
     cleanRole === 'admin' ||
     cleanRole === 'moderator' ||
     cleanRole === 'sales'
@@ -224,10 +235,8 @@ async function closeActiveOffersOnUnitWithdrawal(
         user_id: buyerId,
         role: 'client',
         type: 'status_update',
-        title: `ℹ️ ${oDict?.unitWithdrawnBuyerNotifTitle || 'لم تعد الوحدة متاحة حالياً'} (${projectNameFallback || ''})`,
-        message:
-          oDict?.unitWithdrawnBuyerNotifMsg ||
-          'تم إغلاق عرض هذه الوحدة من قِبل المالك. يمكنك استكشاف الفرص البديلة المطابقة لميزانيتك في حسابك.',
+        title: `ℹ️ ${oDict?.unitWithdrawnBuyerNotifTitle || ''} (${projectNameFallback || ''})`,
+        message: oDict?.unitWithdrawnBuyerNotifMsg || '',
         link: '/account/offers?role=buyer',
         is_read: false,
       }))
@@ -290,8 +299,14 @@ export async function createBoostRequestAction(payload: {
     const session = await getVerifiedSessionUser()
     const userId = session?.user?.id || null
 
-    const cleanAmount = Math.max(5, Math.round(Number(payload.amountGel) || 10))
-    const cleanDays = Math.max(1, Math.round(Number(payload.durationDays) || 1))
+    const cleanAmount = Math.max(
+      5,
+      Math.min(10000, Math.round(Number(payload.amountGel) || 10))
+    )
+    const cleanDays = Math.max(
+      1,
+      Math.min(90, Math.round(Number(payload.durationDays) || 1))
+    )
     const cleanTier = payload.packageTier === 'VIP+' ? 'VIP+' : 'SUPER VIP'
     const dbTierCode = cleanTier === 'VIP+' ? 'vip_plus' : 'super_vip'
     const cleanCode = String(payload.unitCode || '')
@@ -299,49 +314,66 @@ export async function createBoostRequestAction(payload: {
       .trim()
       .toUpperCase()
 
-    let resolvedUnitId = payload.unitId || null
-    let resolvedUnitCode = cleanCode || null
-    let resolvedProjectName = ''
+    let resolvedUnit: any = null
 
-    if (resolvedUnitId) {
-      const { data: uById } = await supabase
-        .from('sell_requests')
-        .select('id, code, project_name')
-        .eq('id', resolvedUnitId)
-        .maybeSingle()
-      if (uById) {
-        resolvedUnitCode = uById.code || resolvedUnitCode
-        resolvedProjectName = uById.project_name || ''
+    if (payload.unitId) {
+      if (session) {
+        resolvedUnit = await verifyUnitOwnership(
+          supabase,
+          payload.unitId,
+          session.user
+        )
+        if (!resolvedUnit) {
+          return { success: false, error: msg.unitNotFound }
+        }
+      } else {
+        const { data: uById } = await supabase
+          .from('sell_requests')
+          .select('id, code, project_name, status')
+          .eq('id', payload.unitId)
+          .maybeSingle()
+        resolvedUnit = uById
       }
     } else if (cleanCode) {
       const { data: uByCode } = await supabase
         .from('sell_requests')
-        .select('id, code, project_name')
+        .select('id, code, project_name, status')
         .ilike('code', cleanCode)
         .limit(1)
         .maybeSingle()
-      if (uByCode) {
-        resolvedUnitId = String(uByCode.id)
-        resolvedUnitCode = uByCode.code || cleanCode
-        resolvedProjectName = uByCode.project_name || ''
-      }
+      resolvedUnit = uByCode
     } else if (userId) {
       const { data: latestUnit } = await supabase
         .from('sell_requests')
-        .select('id, code, project_name')
+        .select('id, code, project_name, status')
         .eq('user_id', userId)
-        .neq('status', 'deleted_by_seller')
+        .in('status', ['active', 'approved', 'published', 'offer_received'])
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle()
-      if (latestUnit) {
-        resolvedUnitId = String(latestUnit.id)
-        resolvedUnitCode = latestUnit.code || null
-        resolvedProjectName = latestUnit.project_name || ''
+      resolvedUnit = latestUnit
+    }
+
+    if (resolvedUnit && !isUnitBoostEligibleStatus(resolvedUnit.status)) {
+      return {
+        success: false,
+        error: msg.boostOnlyActiveUnits || msg.promoFailed,
       }
     }
 
-    const { data: boostRow } = await supabase
+    const resolvedUnitId = resolvedUnit?.id ? String(resolvedUnit.id) : null
+    const resolvedUnitCode = resolvedUnit?.code || cleanCode || null
+    const resolvedProjectName = resolvedUnit?.project_name || ''
+
+    const prefix = payload.paymentMethod === 'bank' ? 'BK' : 'AD'
+    const refCore = (resolvedUnitCode || resolvedUnitId || Date.now().toString(36))
+      .replace(/[^A-Z0-9]/gi, '')
+      .slice(0, 4)
+      .toUpperCase()
+    const randomSuffix = Math.floor(100 + Math.random() * 900)
+    const orderRef = `${prefix}-${refCore}${randomSuffix}`
+
+    const { data: boostRow, error: insertErr } = await supabase
       .from('boost_requests')
       .insert({
         user_id: userId,
@@ -352,19 +384,33 @@ export async function createBoostRequestAction(payload: {
         duration_days: cleanDays,
         payment_method: payload.paymentMethod,
         status: 'pending_admin_approval',
+        order_ref: orderRef,
       })
       .select('id')
       .maybeSingle()
 
+    if (insertErr) {
+      // fallback if order_ref column is missing on legacy schemas
+      await supabase.from('boost_requests').insert({
+        user_id: userId,
+        unit_id: resolvedUnitId,
+        unit_code: resolvedUnitCode,
+        amount_gel: cleanAmount,
+        package_tier: cleanTier,
+        duration_days: cleanDays,
+        payment_method: payload.paymentMethod,
+        status: 'pending_admin_approval',
+      })
+    }
+
     if (resolvedUnitId) {
-      const adRef = `AD-${(resolvedUnitCode || resolvedUnitId).replace(/[^A-Z0-9]/gi, '').slice(0, 6).toUpperCase()}`
       await supabase
         .from('sell_requests')
         .update({
           featured_days: cleanDays,
           featured_price: cleanAmount,
           featured_status: 'pending_payment',
-          featured_fawry_code: adRef,
+          featured_fawry_code: orderRef,
           boost_tier: dbTierCode,
         })
         .eq('id', resolvedUnitId)
@@ -375,23 +421,17 @@ export async function createBoostRequestAction(payload: {
         ? msg.methodCard || 'Card'
         : msg.methodBank || 'Bank'
 
-    await supabase.from('notifications').insert({
-      user_id: null,
-      role: 'admin',
-      type: 'property',
-      title: `💳 ${msg.promoNewNotifTitle || 'Boost'} (${cleanTier} — ${cleanAmount} ₾ / ${cleanDays}d)`,
-      message: `${session?.user?.name || msg.dearClient || ''} ${resolvedUnitCode ? `· (${resolvedUnitCode})` : ''} ${resolvedProjectName ? `· ${resolvedProjectName}` : ''} · ${methodWord}`,
-      link: resolvedUnitId
-        ? `/admin/properties?tab=featured&unitId=${resolvedUnitId}`
-        : '/admin/promotions',
-      is_read: false,
-    })
-
-    const { data: settingsRow } = await supabase
-      .from('site_settings')
-      .select('"boostPaymentUrl"')
-      .eq('id', 'global')
-      .maybeSingle()
+    try {
+      await supabase.from('notifications').insert({
+        user_id: null,
+        role: 'admin',
+        type: 'property',
+        title: `💳 ${msg.promoNewNotifTitle || ''} (${cleanTier} — ${cleanAmount} ₾ / ${cleanDays}d) · ${orderRef}`,
+        message: `${session?.user?.name || msg.dearClient || ''} ${resolvedUnitCode ? `· (${resolvedUnitCode})` : ''} ${resolvedProjectName ? `· ${resolvedProjectName}` : ''} · ${methodWord}`,
+        link: '/admin/promotions',
+        is_read: false,
+      })
+    } catch {}
 
     revalidatePath('/account')
     revalidatePath('/admin/properties')
@@ -400,16 +440,14 @@ export async function createBoostRequestAction(payload: {
     return {
       success: true,
       boostRequestId: boostRow?.id ? String(boostRow.id) : '',
+      orderRef,
       unitId: resolvedUnitId,
       unitCode: resolvedUnitCode,
-      paymentUrl:
-        (settingsRow as any)?.boostPaymentUrl ||
-        process.env.NEXT_PUBLIC_BOOST_PAYMENT_URL ||
-        '',
+      message: msg.bankTransferSubmitted || '',
     }
   } catch (e) {
     console.error('createBoostRequestAction error:', e)
-    return { success: false }
+    return { success: false, error: msg.promoFailed }
   }
 }
 
@@ -592,7 +630,6 @@ export async function requestAccountDeletionAction(payload: {
     if (userUnits && userUnits.length > 0) {
       const allUnitIds = userUnits.map((u: any) => String(u.id))
 
-      // إغلاق وحذف جميع وحدات البائع وكل مراحلها نهائياً فور طلب حذف الحساب
       await supabase
         .from('sell_requests')
         .update({
@@ -603,14 +640,11 @@ export async function requestAccountDeletionAction(payload: {
           boost_tier: null,
           featured_status: 'none',
           last_seller_edit_at: nowIso,
-          admin_note:
-            msg.closedByAccountDeletionNote ||
-            'تم إغلاق هذه الوحدة نهائياً بسبب طلب حذف الحساب. لعرض وحدة مرة أخرى يرجى إضافة وحدة جديدة.',
+          admin_note: msg.closedByAccountDeletionNote || '',
         })
         .in('id', allUnitIds)
         .eq('user_id', user.id)
 
-      // إغلاق جميع العروض المرتبطة بهذه الوحدات عند كل المشترين وإبلاغهم فوراً
       await closeActiveOffersOnUnitWithdrawal(
         supabase,
         allUnitIds,
@@ -665,6 +699,7 @@ export async function requestAccountDeletionAction(payload: {
     revalidatePath('/admin/users')
     revalidatePath('/admin/properties')
     revalidatePath('/admin/deals')
+    revalidatePath('/admin/offers')
     return { success: true }
   } catch {
     return { success: false, error: msg.unexpected }
@@ -677,7 +712,6 @@ export async function cancelAccountDeletionAction() {
     if (!session) return { success: false }
     const { supabase, user } = session
 
-    // عند تراجع العميل عن حذف حسابه: يعود الحساب نشطاً، لكن الوحدات التي أُغلقت تظل مغلقة ويضيف وحدة جديدة من الصفر
     await supabase
       .from('users')
       .update({
@@ -787,6 +821,7 @@ export async function toggleSellerUnitStatusAction(payload: {
     revalidatePath('/opportunities')
     revalidatePath('/admin/properties')
     revalidatePath('/admin/deals')
+    revalidatePath('/admin/offers')
     return { success: true }
   } catch {
     return { success: false, error: msg.unexpected }
@@ -871,6 +906,7 @@ export async function deleteUnitBySellerAction(unitId: string) {
     revalidatePath('/opportunities')
     revalidatePath('/admin/properties')
     revalidatePath('/admin/deals')
+    revalidatePath('/admin/offers')
     return { success: true }
   } catch {
     return { success: false, error: msg.deleteFailed }
@@ -1127,73 +1163,29 @@ export async function requestUnitPromotionAction(payload: {
     const unit = await verifyUnitOwnership(supabase, payload.unitId, user)
     if (!unit) return { success: false, error: msg.unitNotFound }
 
-    const cleanIdPart = String(unit.id)
-      .replace(/[^a-zA-Z0-9]/g, '')
-      .slice(0, 4)
-      .toUpperCase()
-    const randomSuffix = Math.floor(10 + Math.random() * 90)
-    const adOrderRef =
-      unit.featured_fawry_code && unit.featured_fawry_code.startsWith('AD-')
-        ? unit.featured_fawry_code
-        : `AD-${cleanIdPart}${randomSuffix}`
-
-    const cleanTier =
-      payload.tier || (payload.price < 10 ? 'VIP+' : 'SUPER VIP')
-    const dbTierCode = cleanTier === 'VIP+' ? 'vip_plus' : 'super_vip'
-    const isChangingPackage = unit.featured_status === 'pending_payment'
-
-    const { error } = await supabase
-      .from('sell_requests')
-      .update({
-        featured_days: payload.days,
-        featured_price: payload.price,
-        featured_status: 'pending_payment',
-        featured_fawry_code: adOrderRef,
-        boost_tier: dbTierCode,
-      })
-      .eq('id', payload.unitId)
-
-    if (error) {
+    if (!isUnitBoostEligibleStatus(unit.status)) {
       return {
         success: false,
-        error: msg.promoFailed,
+        error: msg.boostOnlyActiveUnits || msg.promoFailed,
       }
     }
 
-    try {
-      await supabase.from('boost_requests').insert({
-        user_id: user.id,
-        unit_id: unit.id,
-        unit_code: unit.code || adOrderRef,
-        amount_gel: payload.price,
-        package_tier: cleanTier,
-        duration_days: payload.days,
-        payment_method: 'card',
-        status: 'pending_admin_approval',
-      })
-    } catch {}
+    const res = await createBoostRequestAction({
+      unitId: payload.unitId,
+      unitCode: unit.code || undefined,
+      amountGel: payload.price,
+      durationDays: payload.days,
+      packageTier: payload.tier || (payload.price < 10 ? 'VIP+' : 'SUPER VIP'),
+      paymentMethod: 'bank',
+    })
 
-    try {
-      await supabase.from('notifications').insert({
-        user_id: null,
-        role: 'admin',
-        title: isChangingPackage
-          ? `🔄 ${msg.promoUpdateNotifTitle} (${cleanTier} - ${payload.days}d · ${payload.price} ₾) — ${adOrderRef}`
-          : `📢 ${msg.promoNewNotifTitle} (${cleanTier} - ${payload.days}d · ${payload.price} ₾) — ${adOrderRef}`,
-        message: `${unit.name || ''} (${unit.phone || ''}) · ${unit.project_name || msg.unitWord}`,
-        type: 'property',
-        link: `/admin/properties?tab=featured&unitId=${payload.unitId}&action=promote`,
-        is_read: false,
-      })
-    } catch {}
+    if (!res.success) {
+      return { success: false, error: res.error || msg.promoFailed }
+    }
 
-    revalidatePath('/account')
-    revalidatePath('/opportunities')
-    revalidatePath('/admin/properties')
-    revalidatePath('/admin/promotions')
     return {
       success: true,
-      fawryCode: adOrderRef,
+      fawryCode: res.orderRef || '',
       days: payload.days,
       price: payload.price,
     }
@@ -1235,7 +1227,7 @@ export async function cancelUnitPromotionBySellerAction(unitId: string) {
         .from('boost_requests')
         .update({ status: 'rejected' })
         .eq('unit_id', unitId)
-        .eq('status', 'pending_admin_approval')
+        .in('status', ['pending_admin_approval', 'awaiting_payment'])
 
       await supabase.from('notifications').insert({
         user_id: null,
@@ -1245,7 +1237,7 @@ export async function cancelUnitPromotionBySellerAction(unitId: string) {
           : `✕ ${msg.promoCancelledNotifTitle} (${adRef})`,
         message: `${unit.name || ''} (${unit.project_name || ''})`,
         type: 'property',
-        link: '/admin/properties',
+        link: '/admin/promotions',
         is_read: false,
       })
     } catch {}
@@ -1254,6 +1246,7 @@ export async function cancelUnitPromotionBySellerAction(unitId: string) {
     revalidatePath('/account')
     revalidatePath('/opportunities')
     revalidatePath('/admin/properties')
+    revalidatePath('/admin/promotions')
     return { success: true }
   } catch {
     return { success: false, error: msg.unexpected }

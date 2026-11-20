@@ -1,6 +1,3 @@
-
-
-
 {
   "brand": {
     "name": "Aqar",
@@ -306,7 +303,7 @@
       "walletTitleAccent": "на любую сумму",
       "walletDesc": "Продвигайте объявления с пакетами SUPER VIP и VIP+. После оплаты и проверки администратором продвижение активируется автоматически.",
       "feature1Title": "Все способы оплаты",
-      "feature1Desc": "Apple Pay · Mastercard · Visa · BOG · TBC · Банковский перевод.",
+      "feature1Desc": "Прямая и безопасная онлайн-оплата картой через Flitt (Visa · Mastercard · Apple Pay · Google Pay).",
       "feature2Title": "100% возврат средств",
       "feature2Desc": "Неиспользованный баланс полностью возвращается по первому запросу.",
       "feature3Title": "Зачисление 1:1 без комиссии",
@@ -1381,7 +1378,9 @@
       "sellerDelayedNotifTitle": "Обновление по вашему предложению на объект",
       "sellerDelayedNotifMsg": "Собственник сейчас недоступен для оформления сделки. Изучите готовые альтернативные объекты в вашем кабинете.",
       "unitWithdrawnBuyerNotifTitle": "Объект больше не доступен",
-      "unitWithdrawnBuyerNotifMsg": "Собственник снял этот объект с публикации. Изучите альтернативные варианты в вашем кабинете."
+      "unitWithdrawnBuyerNotifMsg": "Собственник снял этот объект с публикации. Изучите альтернативные варианты в вашем кабинете.",
+      "advisorPicksSectionTitle": "Рекомендации вашего консультанта",
+      "advisorPicksSectionSubtitle": "Объекты, подобранные специально для вас вашим менеджером"
     },
     "documents": {
       "title": "Документы на объект и паспорт",
@@ -1665,7 +1664,13 @@
       "statusUnderReviewBadge": "2. Проверка документов",
       "statusUnderReviewHeadline": "Юридический отдел проверяет данные и документы вашего объекта перед публикацией",
       "statusDraftUnverifiedHeadline": "Объект сохранен как черновик — подтвердите Email и загрузите недостающие фото или документы ниже",
-      "activeOffersPriceEditWarn": "По этому объекту сейчас есть активные предложения; изменение цены будет применяться только к новым предложениям."
+      "activeOffersPriceEditWarn": "По этому объекту сейчас есть активные предложения; изменение цены будет применяться только к новым предложениям.",
+      "boostLockedTitle": "Продвижение откроется после публикации объекта",
+      "boostLockedDesc": "Вы сможете подключить пакеты SUPER VIP и +VIP с онлайн-оплатой картой Flitt сразу после одобрения объявления администрацией.",
+      "flittRedirectingBtn": "Переход на защищенную оплату Flitt...",
+      "flittPaymentReturnedNotice": "Возврат со страницы оплаты (Код: {ref}) — VIP-продвижение активируется автоматически после подтверждения платежа.",
+      "flittNotConfiguredErr": "Онлайн-оплата картой (Flitt) сейчас на финальной активации — попробуйте позже или напишите в поддержку.",
+      "flittInitFailedErr": "Не удалось открыть страницу оплаты картой. Пожалуйста, попробуйте снова через минуту."
     },
     "buyer": {
       "popularAreas": [
@@ -1832,7 +1837,18 @@
       "showAllBtn": "Показать все",
       "cardRequiredCash": "Сумма на руки сейчас",
       "cardMarketPriceToday": "Рыночная цена сегодня:",
-      "addToFavoritesAria": "В избранное"
+      "addToFavoritesAria": "В избранное",
+      "advisorPicksTitle": "Рекомендации вашего консультанта",
+      "advisorPicksSubtitle": "Объекты, подобранные специально для вас вашим менеджером",
+      "advisorPickBadge": "Рекомендация консультанта",
+      "purchasedSectionTitle": "Приобретённые объекты",
+      "purchasedSectionSub": "Поздравляем! Ваша сделка успешно завершена. Вы можете создать новую заявку на покупку в любое время.",
+      "newBuyReqBtn": "Создать новую заявку на покупку",
+      "purchasedPaidLabel": "Согласованная сумма",
+      "purchasedContractLabel": "Цена договора",
+      "purchasedBadge": "Куплено ✓",
+      "noActiveReqTitle": "Нет активной заявки на покупку",
+      "noActiveReqSub": "Создайте новую заявку с вашим бюджетом и районами для умного подбора объектов."
     }
   },
   "buy": {
@@ -3198,7 +3214,8 @@
       "promoCancelledNotifTitle": "Продавец отменил заявку на продвижение",
       "unitLockedByDeal": "Нельзя приостановить, изменить или удалить объект после принятия предложения и начала переоформления.",
       "allDocsReadyNotifTitle": "Все документы и фото объекта загружены",
-      "closedByAccountDeletionNote": "Этот объект был окончательно закрыт из-за запроса на удаление аккаунта. Чтобы разместить объект снова, добавьте новое объявление."
+      "closedByAccountDeletionNote": "Этот объект был окончательно закрыт из-за запроса на удаление аккаунта. Чтобы разместить объект снова, добавьте новое объявление.",
+      "boostOnlyActiveUnits": "Продвигать можно только одобренные и опубликованные на витрине объекты."
     },
     "admin": {
       "unauthorizedLogin": "Нет доступа: пожалуйста, войдите под аккаунтом администратора.",
@@ -3268,7 +3285,13 @@
       "cancelPromoFailed": "Не удалось отменить продвижение.",
       "purgeDeletedFailed": "Не удалось очистить удаленные объекты.",
       "cannotModifyOwnerAdmin": "Аккаунт владельца проекта (Super Admin) нельзя изменить, заблокировать или удалить.",
-      "onlyOwnerCanManageAdmins": "Только владелец проекта (Super Admin) может назначать, изменять или удалять администраторов."
+      "onlyOwnerCanManageAdmins": "Только владелец проекта (Super Admin) может назначать, изменять или удалять администраторов.",
+      "leadManualClosedNotAllowed": "Статус «Куплено» нельзя выбрать вручную — он устанавливается автоматически в разделе Сделки.",
+      "leadClosedLocked": "Заявка закрыта завершенной сделкой и не подлежит ручному изменению.",
+      "leadHasActiveDealBlocked": "Нельзя изменить статус, пока у покупателя есть активная сделка; сначала закройте её в разделе Сделки.",
+      "leadHasActiveOffersBlocked": "Нельзя изменить статус при наличии ({count}) активных офферов; сначала отзовите их.",
+      "unitSoldLocked": "Объект продан, его статус нельзя изменить вручную.",
+      "unitHasActiveDealBlocked": "По объекту идет активная сделка; сначала управляйте ею в разделе Сделки."
     },
     "forms": {
       "expiredLink": "Срок действия ссылки истек.",
@@ -3401,7 +3424,43 @@
       "confirmYesBtn": "Да, подтвердить",
       "confirmBackBtn": "Отмена",
       "btnAdminAcceptDeal": "Утвердить сделку напрямую",
-      "btnSellerUnavailableCancel": "Собственник не готов сейчас (Отменить и предложить аналоги)"
+      "btnSellerUnavailableCancel": "Собственник не готов сейчас (Отменить и предложить аналоги)",
+      "offersPageEyebrow": "Ежедневные офферы и переговоры",
+      "offersPageTitle": "Офферы и торги",
+      "offersPageSubtitle": "Проверяйте новые офферы, ведите переговоры по встречным ценам и фиксируйте телефонные заявки",
+      "dealsPageEyebrow": "Закрытие сделок и комиссии",
+      "dealsPageTitle": "Сделки и продажи",
+      "dealsPageSubtitle": "Управляйте согласованными сделками на переоформлении, листами ожидания по объектам и закрытыми продажами",
+      "tabCounterNegotiating": "🔥 Торг (Встречная цена)",
+      "tabPendingSellerOnly": "Ожидают ответа владельца",
+      "tabRejectedClosed": "Отклонены / Отменены",
+      "tabDealsClosing": "Сделки на переоформлении",
+      "tabDealsSold": "Завершенные продажи",
+      "sourceSalesPhoneBadge": "📞 Оформлено отделом продаж",
+      "sourceWebsiteBadge": "🌐 С сайта",
+      "recordPhoneOfferBtn": "+ Оформить оффер по телефону",
+      "openDealFileBtn": "Открыть карточку сделки",
+      "expectedCommissionsLabel": "Ожидаемые комиссии",
+      "collectedCommissionsLabel": "Закрытые комиссии",
+      "waitlistOnUnitBtn": "Лист ожидания по объекту",
+      "waitlistHighestOfferLabel": "Макс. резервное предложение:",
+      "waitlistEmptyOnUnit": "В листе ожидания по этому объекту пока нет заявок.",
+      "phoneModalTitle": "Оформление телефонного оффера",
+      "phoneModalSubtitle": "Выберите покупателя и любой активный объект для отправки оффера или прямого старта сделки",
+      "selectBuyerLabel": "1. Выберите покупателя",
+      "searchBuyerPlaceholder": "Поиск по имени покупателя или телефону...",
+      "noBuyersMatch": "Подходящие покупатели не найдены",
+      "selectUnitLabel": "2. Выберите объект из каталога",
+      "searchUnitPlaceholder": "Поиск по коду (U-15876), ЖК, району или владельцу...",
+      "noUnitsMatch": "Доступные объекты не найдены",
+      "offerModeSendLabel": "Отправить владельцу на одобрение",
+      "offerModeDirectLabel": "Владелец согласен — Начать сделку сразу",
+      "offerModeDirectWarn": "Объект перейдет на переоформление, прочие офферы покупателя заморозятся, а обе стороны получат подтверждение.",
+      "submitPhoneOfferBtn": "Оформить и отправить владельцу ✓",
+      "submitDirectDealBtn": "Утвердить сделку и перенести в Сделки 🤝",
+      "invalidOfferAmountErr": "Введите корректную сумму не выше требуемой наличной цены",
+      "directDealCreatedNotice": "Сделка подтверждена по телефону и перенесена в Сделки ✓",
+      "phoneOfferSentNotice": "Телефонный оффер оформлен и отправлен владельцу ✓"
     },
     "smartMatch": {
       "readyDealsTitle": "Готовые к закрытию согласованные сделки",
@@ -3463,7 +3522,19 @@
       "offerCancelledSuccess": "Оффер отозван и удален у владельца ✓",
       "openInDealsBtn": "К офферу",
       "invalidCustomPriceErr": "Введите корректную сумму не выше требуемой наличной цены",
-      "openAcceptedDealBtn": "К сделке"
+      "openAcceptedDealBtn": "К сделке",
+      "tabMatchedUnits": "Подходящие под бюджет",
+      "tabAllUnitsPhone": "Все объекты сайта (По телефону)",
+      "searchAllUnitsPlaceholder": "Поиск по коду (U-15876), ЖК, району или имени владельца...",
+      "directAcceptPhoneBtn": "Утвердить сделку сейчас 🤝",
+      "directAcceptConfirmWarn": "Объект перейдет на переоформление, прочие офферы покупателя заморозятся, а обе стороны получат подтверждение.",
+      "directDealCreatedSuccess": "Сделка подтверждена по телефону и перенесена в Сделки ✓",
+      "recordOfferOnAnyUnitBtn": "+ Оформить оффер на объект",
+      "offerModeSendShort": "Отправить владельцу",
+      "offerModeDirectShort": "Согласен — Начать сделку",
+      "recommendToBuyerStarBtn": "Рекомендовать",
+      "recordOfferAfterCallBtn": "Оформить оффер",
+      "sendUnitWaBtn": "Отправить в WhatsApp"
     },
     "shell": {
       "brand": "Darak",
@@ -3491,7 +3562,7 @@
         "propertiesShort": "Объекты",
         "promotions": "Заявки на рекламу ⭐",
         "promotionsShort": "Реклама",
-        "deals": "Предложения и сделки",
+        "deals": "Сделки и продажи",
         "dealsShort": "Сделки",
         "leads": "Заявки на покупку",
         "leadsShort": "Покупатели",
@@ -3500,7 +3571,9 @@
         "investors": "Инвесторы",
         "investorsShort": "Инвесторы",
         "settings": "Настройки сайта",
-        "settingsShort": "Настройки"
+        "settingsShort": "Настройки",
+        "offers": "Офферы и торги",
+        "offersShort": "Офферы"
       }
     },
     "dashboard": {
@@ -3560,6 +3633,41 @@
         "transferring": "Переуступка",
         "sold": "Продано",
         "rejected": "Отклонено"
+      },
+      "sections": {
+        "sec1Title": "1. Согласованные сделки (Готовы к переоформлению)",
+        "sec1Sub": "Стороны подтвердили цену — организуйте подписание у застройщика и получите комиссию",
+        "sec1EmptyShort": "Нет сделок к закрытию",
+        "sec1Empty": "Сейчас нет согласованных сделок, ожидающих закрытия.",
+        "sec1Btn": "Открыть Сделки",
+        "sec2Title": "2. Новые офферы и активные торги",
+        "sec2Sub": "Новые офферы на проверку и встречные цены, требующие быстрого участия отдела продаж",
+        "sec2EmptyShort": "Новых предложений нет",
+        "sec2Empty": "Все входящие предложения уже рассмотрены.",
+        "sec2Btn": "Открыть Офферы",
+        "pendingUnitsTitle": "Объекты на проверке (К публикации)",
+        "pendingUnitsEmpty": "Все новые заявки на продажу проверены ✓",
+        "newLeadsTitle": "Новые покупатели (Без контакта)",
+        "newLeadsEmpty": "Со всеми новыми покупателями уже связались ✓",
+        "colUnit": "Объект и ЖК",
+        "colSeller": "Продавец",
+        "colBuyer": "Покупатель",
+        "colAgreedCash": "Согласованная сумма",
+        "colOfferedCash": "Предложено",
+        "colOriginalCash": "Цена продавца",
+        "colCommission": "Комиссия",
+        "colReadiness": "Статус и готовность",
+        "colAction": "Действие",
+        "readiness48h": "За 48 часов",
+        "readiness1Week": "За 1 неделю",
+        "readiness2Weeks": "За 2 недели",
+        "methodCheck": "Банковский чек",
+        "methodTransfer": "Банковский перевод",
+        "btnApproveOffer": "Проверить",
+        "btnNegotiateNow": "К торгу",
+        "btnCloseDeal": "К сделке",
+        "negotiatingBadge": "🔥 Встречная цена",
+        "newOfferBadge": "Новый оффер"
       }
     },
     "promotions": {
@@ -3729,7 +3837,6 @@
       "vipPlusDailyLabel": "Цена в день +VIP (₾)",
       "superVipDailyLabel": "Цена в день SUPER VIP (₾)",
       "gePackagesGelTitle": "🇬🇪 Тарифы продвижения в Грузии (7 / 14 / 30 дней в ₾ GEL)",
-      "bankIbanGeLabel": "Банковский счет в Грузии (IBAN)",
       "seoCardTitle": "Аналитика, Facebook Pixel и Google SEO",
       "seoCardDesc": "Укажите идентификаторы счетчиков для автоматического подключения на всех страницах сайта.",
       "fbPixelLabel": "Facebook Pixel ID",
@@ -3854,7 +3961,56 @@
       "followUpOfferBtn": "Перейти к офферу",
       "followUpDealBtn": "Перейти к сделке",
       "activeOffersBadge": "Активен",
-      "closedOffersBadge": "Закрыт"
+      "closedOffersBadge": "Закрыт",
+      "ui": {
+        "searchProfilesTab": "Заявки покупателей и офферы",
+        "directInquiriesTab": "Интерес к объектам",
+        "searchTabDesc": "Все активные покупатели — как с заявкой на подбор, так и с прямым оффером.",
+        "inquiriesTabDesc": "Клиенты, проявившие прямой интерес или отправившие оффер по конкретным объектам.",
+        "desiredAreasCol": "Районы и параметры",
+        "targetUnitCol": "Объект и владелец",
+        "interestedBuyerCol": "Покупатель",
+        "offerFinanceCol": "Оффер / Бюджет",
+        "unitOwnerLabel": "Владелец:",
+        "targetBudgetLabel": "Целевой бюджет",
+        "hasGeneralProfileTag": "Есть заявка на подбор",
+        "alternativeUnitsWord": "похожих объектов",
+        "openDealsBtn": "К офферу",
+        "offeredCashLabel": "Предложено",
+        "unitRequiredCashLabel": "Наличными по объекту",
+        "sourceDirectOfferBadge": "Прямой оффер",
+        "sourceSearchBadge": "Заявка на подбор"
+      },
+      "statusHasActiveOffer": "💬 Есть активный оффер",
+      "statusNegotiating": "🔥 Идут переговоры",
+      "statusInActiveDeal": "🤝 В сделке сейчас",
+      "statusPurchasedLocked": "Успешно куплено",
+      "filterOffersAndNegTab": "Оффер / Торг",
+      "filterInDealTab": "В сделке",
+      "currentDealBtn": "Текущая сделка",
+      "frozenAlternativesBtn": "Доступные альтернативы",
+      "frozenAlternativesTitle": "Замороженные альтернативные офферы (Актуально)",
+      "frozenAlternativesSubtitle": "Здесь показаны только те объекты, которые все еще доступны на рынке",
+      "frozenAlternativesEmpty": "Других доступных альтернативных объектов сейчас нет.",
+      "frozenAvailableTag": "Доступен сейчас",
+      "dealQuickSummaryTitle": "Сводка по текущей сделке",
+      "dealSummaryAgreedCash": "Согласованная сумма",
+      "dealSummaryCommission": "Комиссия платформы",
+      "dealSummaryBuyer": "Покупатель",
+      "dealSummarySeller": "Продавец (Владелец)",
+      "dealSummaryWaitlistCount": "Лист ожидания по этому объекту",
+      "openDealFileBtn": "Открыть карточку сделки",
+      "viewDealBtn": "Детали сделки",
+      "soldOfferBadge": "Куплено ✓",
+      "soldOfferSummary": "Покупка и переоформление успешно завершены за {offered}",
+      "completedPurchaseNoDeal": "Покупка завершена — заявка закрыта",
+      "completedPurchaseSummary": "Приобрел объект {project} ({code}) у {owner} за {amount}",
+      "blockedModalTitle": "Автоматический статус на основе офферов и сделок",
+      "blockedActiveDealDesc": "У покупателя ({name}) сейчас есть активная сделка; управляйте ею в разделе Сделки и продажи.",
+      "blockedActiveOffersDesc": "У покупателя ({name}) есть ({count}) активных офферов. Для ручной смены статуса сначала отзовите активные офферы.",
+      "blockedGotItBtn": "Понятно",
+      "blockedOpenDealBtn": "Открыть карточку сделки",
+      "blockedOpenOffersBtn": "Открыть историю офферов"
     },
     "usersPage": {
       "eyebrow": "Пользователи и права доступа (RBAC)",
@@ -3999,7 +4155,10 @@
         "sold": "6. Продано",
         "paused_by_seller": "⏸ Приостановлен владельцем",
         "deleted_by_seller": "🗑 Удален владельцем",
-        "rejected": "7. Отклонено"
+        "rejected": "7. Отклонено",
+        "has_offers": "💬 Есть активные офферы",
+        "negotiating": "🔥 Идут переговоры",
+        "in_deal": "🤝 В сделке (Переоформление)"
       },
       "docs": {
         "contract": "Договор купли-продажи",
@@ -4046,7 +4205,8 @@
         "rejectedTab": "Отклоненные",
         "deletedTab": "Удаленные",
         "deletedBannerTitle": "Объекты, удаленные владельцами",
-        "purgeAllBtn": "Очистить все"
+        "purgeAllBtn": "Очистить все",
+        "inDealTab": "В сделке"
       },
       "table": {
         "emptyText": "Подходящих объектов сейчас нет.",
@@ -4156,6 +4316,31 @@
         "waReportFeaturedPrefix": "В топе",
         "waReportStandardTier": "Стандартный показ",
         "waReportDirectLinkLabel": "🔗 *Прямая ссылка на объявление:*"
+      },
+      "offersLog": {
+        "btnLabel": "Офферы по объекту",
+        "title": "Активные офферы по объекту",
+        "subtitle": "Все активные предложения по объекту, отсортированные по максимальной сумме",
+        "emptyText": "Активных офферов по этому объекту сейчас нет.",
+        "buyerOfferedShort": "Оффер покупателя",
+        "ownerCounterShort": "Встречная цена владельца",
+        "openDealBtn": "Карточка сделки",
+        "openOfferBtn": "Управлять оффером"
+      },
+      "dealSummary": {
+        "currentDealBtn": "Текущая сделка",
+        "openDealFileBtn": "Открыть карточку сделки",
+        "waitlistCountPrefix": "Лист ожидания",
+        "soldToBuyerSummary": "Продано покупателю {buyer} за {amount}",
+        "soldNoBuyerSummary": "Объект продан, сделка закрыта"
+      },
+      "blocked": {
+        "title": "Статус объекта защищен активной сделкой / офферами",
+        "activeDealDesc": "По объекту ({unit}) идет активная сделка; управляйте ею в разделе Сделки и продажи.",
+        "activeOffersDesc": "По объекту ({unit}) есть активные офферы. Сначала проверьте или отзовите их в списке офферов объекта.",
+        "gotItBtn": "Понятно",
+        "openDealBtn": "Карточка сделки",
+        "openOffersBtn": "Офферы по объекту"
       }
     },
     "contactVerification": {
@@ -4239,6 +4424,46 @@
         "readiness": "Готовность к оплате",
         "paymentMethod": "Способ оплаты"
       }
+    },
+    "areaFilter": {
+      "allLocationsOption": "Все города и районы",
+      "wholeCitySuffix": "Весь город",
+      "citiesGroupLabel": "Основные города",
+      "districtsGroupLabel": "Районы и зоны",
+      "ariaLabel": "Фильтр по городу или району"
+    },
+    "promotionsManager": {
+      "eyebrow": "VIP-объявления и оплаты",
+      "title": "Заявки на продвижение (SUPER VIP и +VIP)",
+      "subtitle": "Проверяйте онлайн-оплаты картой через Flitt, управляйте активными VIP-пакетами и ручным продвижением",
+      "searchPlaceholder": "Поиск по коду объекта, номеру заказа, ЖК или владельцу...",
+      "tabPending": "Ожидают активации",
+      "tabActive": "Активные сейчас",
+      "tabHistory": "История",
+      "tabManual": "Ручное продвижение",
+      "emptyPending": "Нет заявок на продвижение в очереди ✓",
+      "emptyActive": "Сейчас нет активных VIP-объектов.",
+      "emptyHistory": "История заявок пока пуста.",
+      "sellerLabel": "Владелец",
+      "refCodeLabel": "Код оплаты",
+      "paidFlittBadge": "Оплачено через Flitt ✓",
+      "bankTransferPendingBadge": "Банковский перевод — Проверить",
+      "rejectBtn": "Отклонить",
+      "activateBtn": "Активировать VIP ✓",
+      "remainingDaysLabel": "Осталось",
+      "stopPromoBtn": "Остановить VIP",
+      "approvedBadge": "Активно ✓",
+      "rejectedBadge": "Отклонено",
+      "onlyActiveUnitHint": "Примечание: Продвигать вручную можно только одобренные и опубликованные на витрине объекты.",
+      "manualPromoteBtn": "Продвинуть вручную ⭐",
+      "rejectModalTitle": "Отклонить / Отменить заявку VIP",
+      "rejectModalDesc": "Владелец получит уведомление об отклонении заявки",
+      "rejectReasonPlaceholder": "Причина отказа (необязательно — увидит владелец)...",
+      "cancelBtn": "Отмена",
+      "confirmRejectBtn": "Подтвердить отказ",
+      "activatedSuccess": "VIP-пакет активирован, владелец уведомлен ✓",
+      "rejectedSuccess": "Заявка на продвижение отклонена.",
+      "cancelledSuccess": "VIP-продвижение остановлено."
     }
   },
   "smartMatcher": {

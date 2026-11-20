@@ -1,6 +1,13 @@
 'use client'
 
-import { useEffect, useRef, useState, useTransition, type ReactNode } from 'react'
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  useTransition,
+  type ReactNode,
+} from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -262,8 +269,13 @@ function getCountryName(c: CountryConfig, lang: LanguageCode) {
 }
 
 export function Logo({ inverse = false }: { inverse?: boolean }) {
+  const uid = useId().replace(/:/g, '')
+  const maskId = `dual-mask-${uid}`
+  const sheenId = `dual-sheen-${uid}`
+
   const primaryFill = inverse ? '#ffffff' : '#0f1d40'
   const accentFill = inverse ? '#2ee59d' : '#007a5a'
+  const sheenColor = inverse ? '#2ee59d' : '#ffffff'
 
   return (
     <Link
@@ -280,6 +292,68 @@ export function Logo({ inverse = false }: { inverse?: boolean }) {
         xmlns="http://www.w3.org/2000/svg"
         className="h-[38px] w-auto sm:h-[42px]"
       >
+        <defs>
+          <linearGradient id={sheenId} x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor={sheenColor} stopOpacity="0" />
+            <stop
+              offset="50%"
+              stopColor={sheenColor}
+              stopOpacity={inverse ? '0.65' : '0.55'}
+            />
+            <stop offset="100%" stopColor={sheenColor} stopOpacity="0" />
+          </linearGradient>
+
+          {/* قناع يضمن مرور اللمعة على حروف اللوجو فقط بدون الخلفية */}
+          <mask id={maskId}>
+            <path
+              fillRule="evenodd"
+              clipRule="evenodd"
+              d="M2 2H14A13 13 0 0 1 14 28H2V2ZM6.6 6.6V23.4H14A8.4 8.4 0 0 0 14 6.6H6.6Z"
+              fill="#ffffff"
+            />
+            <path
+              d="M9 9.1H14A5.9 5.9 0 0 1 14 20.9H9V18.2H14A3.2 3.2 0 0 0 14 11.8H9V9.1Z"
+              fill="#ffffff"
+              className="transition-transform duration-300 ease-out group-hover:translate-x-[1.5px]"
+            />
+            <path
+              d="M32.5 10H37.1V18.7A4.9 4.9 0 0 0 46.9 18.7V10H51.5V18.7A9.5 9.5 0 0 1 32.5 18.7V10Z"
+              fill="#ffffff"
+            />
+            <rect x="46.9" y="18.5" width="4.6" height="9.5" fill="#ffffff" />
+            <path
+              fillRule="evenodd"
+              clipRule="evenodd"
+              d="M75.4 19A9.2 9.2 0 1 1 57 19A9.2 9.2 0 1 1 75.4 19ZM70.9 19A4.7 4.7 0 1 0 61.5 19A4.7 4.7 0 1 0 70.9 19Z"
+              fill="#ffffff"
+            />
+            <rect x="70.9" y="10" width="4.5" height="18" fill="#ffffff" />
+            <rect x="81.4" y="2" width="4.6" height="26" fill="#ffffff" />
+            <path
+              fillRule="evenodd"
+              clipRule="evenodd"
+              d="M2 34.2H6.6A4.8 4.8 0 0 1 6.6 43.8H2V34.2ZM3.9 36.1V41.9H6.6A2.9 2.9 0 0 0 6.6 36.1H3.9Z"
+              fill="#ffffff"
+            />
+            <path
+              d="M20.6 34.2H28.6V36.05H22.5V38.05H27.5V39.9H22.5V41.95H28.6V43.8H20.6V34.2Z"
+              fill="#ffffff"
+            />
+            <path
+              d="M37.8 43.8L42.1 34.2H43.9L48.2 43.8H46.15L43 36.6L39.85 43.8H37.8Z"
+              fill="#ffffff"
+            />
+            <path
+              d="M57.8 34.2H59.7V41.95H65.4V43.8H57.8V34.2Z"
+              fill="#ffffff"
+            />
+            <path
+              d="M76.4 34.2H86V35.95L79.05 41.95H86V43.8H76.2V42.05L83.15 36.05H76.4V34.2Z"
+              fill="#ffffff"
+            />
+          </mask>
+        </defs>
+
         {/* السطر العلوي: Dual — حروف هندسية مرسومة بالكامل */}
         {/* حرف D الخارجي */}
         <path
@@ -293,7 +367,7 @@ export function Logo({ inverse = false }: { inverse?: boolean }) {
         <path
           d="M9 9.1H14A5.9 5.9 0 0 1 14 20.9H9V18.2H14A3.2 3.2 0 0 0 14 11.8H9V9.1Z"
           fill={accentFill}
-          className="transition-transform duration-300 ease-out group-hover:translate-x-[1.2px]"
+          className="transition-transform duration-300 ease-out group-hover:translate-x-[1.5px]"
         />
 
         {/* حرف u الهندسي */}
@@ -343,6 +417,18 @@ export function Logo({ inverse = false }: { inverse?: boolean }) {
           d="M76.4 34.2H86V35.95L79.05 41.95H86V43.8H76.2V42.05L83.15 36.05H76.4V34.2Z"
           fill={accentFill}
         />
+
+        {/* طبقة اللمعة الضوئية المعمارية */}
+        <g mask={`url(#${maskId})`} className="pointer-events-none">
+          <rect
+            x="0"
+            y="-10"
+            width="26"
+            height="66"
+            fill={`url(#${sheenId})`}
+            className="dual-logo-sheen"
+          />
+        </g>
       </svg>
     </Link>
   )

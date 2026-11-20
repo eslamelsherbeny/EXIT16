@@ -379,3 +379,27 @@
     left: 125%;
   }
 }
+
+/* لمعة ضوئية معمارية هادئة للوجو DualDealz */
+.dual-logo-sheen {
+  animation: dualLogoSheen 6.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  will-change: transform;
+}
+
+@keyframes dualLogoSheen {
+  0%,
+  6% {
+    transform: translateX(-42px) skewX(-22deg);
+  }
+  26%,
+  100% {
+    transform: translateX(135px) skewX(-22deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dual-logo-sheen {
+    animation: none;
+    opacity: 0;
+  }
+}

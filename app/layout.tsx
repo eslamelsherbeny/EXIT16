@@ -12,7 +12,6 @@ import { getServerI18n } from '@/lib/get-server-dictionary'
 
 export const dynamic = 'force-dynamic'
 
-
 const cairo = Cairo({
   subsets: ['arabic', 'latin'],
   weight: ['400', '600', '700', '900'],
@@ -83,13 +82,6 @@ export async function generateMetadata(): Promise<Metadata> {
       statusBarStyle: 'default',
       title: 'DualDealz',
     },
-    icons: {
-      icon: [
-        { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
-        { url: '/icon-512.png', sizes: '512x512', type: 'image/png' },
-      ],
-      apple: [{ url: '/apple-icon.png', sizes: '180x180', type: 'image/png' }],
-    },
     openGraph: {
       type: 'website',
       url: SITE_URL,
@@ -114,6 +106,7 @@ export async function generateMetadata(): Promise<Metadata> {
     },
   }
 }
+
 export const viewport: Viewport = {
   colorScheme: 'light',
   themeColor: '#0a1122',

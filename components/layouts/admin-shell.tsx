@@ -13,6 +13,7 @@ import {
   Clock,
   ExternalLink,
   FileText,
+  Globe,
   Handshake,
   LayoutDashboard,
   Loader2,
@@ -47,6 +48,72 @@ export type AdminNotificationItem = {
   type: "property" | "lead" | "investor"
   isRead?: boolean
   createdAt: string
+}
+
+function DualDealzSvgLogo({
+  className = "h-[34px] w-auto",
+}: {
+  className?: string
+}) {
+  return (
+    <svg
+      width="88"
+      height="46"
+      viewBox="0 0 88 46"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      aria-label="DualDealz"
+    >
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M2 2H14A13 13 0 0 1 14 28H2V2ZM6.6 6.6V23.4H14A8.4 8.4 0 0 0 14 6.6H6.6Z"
+        fill="#0f1d40"
+      />
+      <path
+        d="M9 9.1H14A5.9 5.9 0 0 1 14 20.9H9V18.2H14A3.2 3.2 0 0 0 14 11.8H9V9.1Z"
+        fill="#007a5a"
+        className="transition-transform duration-300 ease-out group-hover:translate-x-[1.2px]"
+      />
+      <path
+        d="M32.5 10H37.1V18.7A4.9 4.9 0 0 0 46.9 18.7V10H51.5V18.7A9.5 9.5 0 0 1 32.5 18.7V10Z"
+        fill="#0f1d40"
+      />
+      <rect x="46.9" y="18.5" width="4.6" height="9.5" fill="#0f1d40" />
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M75.4 19A9.2 9.2 0 1 1 57 19A9.2 9.2 0 1 1 75.4 19ZM70.9 19A4.7 4.7 0 1 0 61.5 19A4.7 4.7 0 1 0 70.9 19Z"
+        fill="#0f1d40"
+      />
+      <rect x="70.9" y="10" width="4.5" height="18" fill="#0f1d40" />
+      <rect x="81.4" y="2" width="4.6" height="26" fill="#0f1d40" />
+
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M2 34.2H6.6A4.8 4.8 0 0 1 6.6 43.8H2V34.2ZM3.9 36.1V41.9H6.6A2.9 2.9 0 0 0 6.6 36.1H3.9Z"
+        fill="#007a5a"
+      />
+      <path
+        d="M20.6 34.2H28.6V36.05H22.5V38.05H27.5V39.9H22.5V41.95H28.6V43.8H20.6V34.2Z"
+        fill="#007a5a"
+      />
+      <path
+        d="M37.8 43.8L42.1 34.2H43.9L48.2 43.8H46.15L43 36.6L39.85 43.8H37.8Z"
+        fill="#007a5a"
+      />
+      <path
+        d="M57.8 34.2H59.7V41.95H65.4V43.8H57.8V34.2Z"
+        fill="#007a5a"
+      />
+      <path
+        d="M76.4 34.2H86V35.95L79.05 41.95H86V43.8H76.2V42.05L83.15 36.05H76.4V34.2Z"
+        fill="#007a5a"
+      />
+    </svg>
+  )
 }
 
 function LanguageFlagIcon({ code }: { code: LocaleCode }) {
@@ -131,8 +198,6 @@ export default function AdminShell({
       string,
       string
     >) || {}
-  const brandName = dict.brand?.name || "Aqar"
-  const brandAccent = dict.brand?.exit || "Exit"
 
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
@@ -270,6 +335,7 @@ export default function AdminShell({
 
   const handleSelectLanguage = (code: LocaleCode) => {
     setLangMenuOpen(false)
+    setDrawerOpen(false)
     if (code === locale) return
     const targetLang = SUPPORTED_LANGUAGES[code]
     document.cookie = `locale=${code}; path=/; max-age=31536000; SameSite=Lax`
@@ -398,6 +464,7 @@ export default function AdminShell({
       dir={dir}
       className="min-h-screen bg-[#f5f7fa] pb-20 text-[#0f1d40] lg:pb-0"
     >
+      {/* السايدبار في الكمبيوتر */}
       <aside
         className={`fixed inset-y-0 z-30 hidden w-[260px] border-slate-200/90 bg-white lg:flex lg:flex-col lg:justify-between ${
           isRtl ? "right-0 border-l" : "left-0 border-r"
@@ -407,23 +474,13 @@ export default function AdminShell({
           <div className="flex h-16 items-center justify-between border-b border-slate-100 px-5">
             <Link
               href="/admin"
-              className="flex items-center gap-3 transition hover:opacity-90"
+              className="group flex items-center gap-2.5 transition hover:opacity-95"
             >
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#007a5a] text-white shadow-xs">
-                <Building2 className="size-4 shrink-0" />
+              <DualDealzSvgLogo className="h-[34px] w-auto shrink-0" />
+              <span className="h-6 w-px bg-slate-200" aria-hidden="true" />
+              <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-extrabold text-slate-600">
+                {t.adminPanel}
               </span>
-              <div className="leading-tight">
-                <span
-                  dir="ltr"
-                  className="block text-base font-black tracking-tight text-[#0f1d40]"
-                >
-                  {brandName}{" "}
-                  <span className="text-[#007a5a]">{brandAccent}</span>
-                </span>
-                <span className="block text-[10.5px] font-bold text-slate-400">
-                  {t.adminPanel}
-                </span>
-              </div>
             </Link>
           </div>
 
@@ -516,6 +573,7 @@ export default function AdminShell({
         </div>
       </aside>
 
+      {/* القائمة الجانبية في الموبايل (تحتوي على اللوجو + اختيار اللغة + الروابط) */}
       {drawerOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div
@@ -524,32 +582,22 @@ export default function AdminShell({
           />
 
           <aside
-            className={`fixed inset-y-0 z-50 flex w-[275px] max-w-[82vw] flex-col justify-between bg-white text-[#0f1d40] shadow-2xl ${
+            className={`fixed inset-y-0 z-50 flex w-[285px] max-w-[85vw] flex-col justify-between overflow-y-auto bg-white text-[#0f1d40] shadow-2xl ${
               isRtl ? "right-0" : "left-0"
             }`}
           >
             <div>
-              <div className="flex h-15 items-center justify-between border-b border-slate-100 px-4">
+              <div className="flex h-16 items-center justify-between border-b border-slate-100 px-4">
                 <Link
                   href="/admin"
                   onClick={() => setDrawerOpen(false)}
-                  className="flex items-center gap-2.5"
+                  className="group flex items-center gap-2.5"
                 >
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-[#007a5a] text-white">
-                    <Building2 className="size-4 shrink-0" />
+                  <DualDealzSvgLogo className="h-[32px] w-auto shrink-0" />
+                  <span className="h-5 w-px bg-slate-200" aria-hidden="true" />
+                  <span className="rounded-md bg-[#eaf8f2] px-2 py-0.5 text-[10px] font-extrabold text-[#007a5a]">
+                    {roleBadgeLabel}
                   </span>
-                  <div className="leading-tight">
-                    <span
-                      dir="ltr"
-                      className="block text-sm font-black text-[#0f1d40]"
-                    >
-                      {brandName}{" "}
-                      <span className="text-[#007a5a]">{brandAccent}</span>
-                    </span>
-                    <span className="block text-[10px] font-bold text-slate-400">
-                      {roleBadgeLabel}
-                    </span>
-                  </div>
                 </Link>
 
                 <button
@@ -590,9 +638,48 @@ export default function AdminShell({
                   )
                 })}
               </nav>
+
+              {/* قسم اختيار اللغة داخل القائمة الجانبية للموبايل */}
+              <div className="mt-4 border-t border-slate-100 px-3.5 pt-3.5">
+                <div className="mb-2 flex items-center gap-1.5 text-[11px] font-extrabold text-slate-400">
+                  <Globe className="size-3.5" />
+                  <span>{t.languageLabel}</span>
+                  {isSwitchingLang && (
+                    <Loader2 className="size-3 animate-spin text-[#007a5a]" />
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {(Object.values(SUPPORTED_LANGUAGES) as LanguageConfig[]).map(
+                    (lang) => {
+                      const isSelected = locale === lang.code
+                      return (
+                        <button
+                          key={lang.code}
+                          type="button"
+                          disabled={isSwitchingLang}
+                          onClick={() => handleSelectLanguage(lang.code)}
+                          className={`flex items-center justify-between rounded-xl border px-2.5 py-2 text-[11.5px] font-bold transition ${
+                            isSelected
+                              ? "border-[#007a5a] bg-[#eaf8f2] text-[#007a5a]"
+                              : "border-slate-200/80 bg-slate-50/70 text-slate-700 hover:bg-slate-100"
+                          }`}
+                        >
+                          <span className="flex items-center gap-1.5 truncate">
+                            <LanguageFlagIcon code={lang.code} />
+                            <span className="truncate">{lang.nativeName}</span>
+                          </span>
+                          {isSelected && (
+                            <Check className="size-3 shrink-0 text-[#007a5a]" />
+                          )}
+                        </button>
+                      )
+                    }
+                  )}
+                </div>
+              </div>
             </div>
 
-            <div className="space-y-1.5 border-t border-slate-100 p-3.5">
+            <div className="mt-4 space-y-1.5 border-t border-slate-100 p-3.5">
               <Link
                 href="/admin/profile"
                 onClick={() => setDrawerOpen(false)}
@@ -627,23 +714,26 @@ export default function AdminShell({
       )}
 
       <div className={isRtl ? "lg:mr-[260px]" : "lg:ml-[260px]"}>
-        <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b border-slate-200/85 bg-white/95 px-4 backdrop-blur-md sm:px-6">
-          <div className="flex min-w-0 items-center gap-3">
+        <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-2.5 border-b border-slate-200/85 bg-white/95 px-4 backdrop-blur-md sm:px-6">
+          {/* اليمين/اليسار: زر القائمة في الموبايل + عنوان الصفحة واضح بالكامل */}
+          <div className="flex min-w-0 flex-1 items-center gap-2.5 sm:gap-3">
             <button
               type="button"
               onClick={() => setDrawerOpen(true)}
               className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-[#0f1d40] transition hover:bg-slate-100 lg:hidden"
+              aria-label="Menu"
             >
               <Menu className="size-4" />
             </button>
 
-            <h1 className="truncate text-base font-black text-[#0f1d40] sm:text-lg">
+            <h1 className="truncate text-[15px] font-black text-[#0f1d40] sm:text-lg">
               {currentSection}
             </h1>
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
-            <div className="relative" ref={langMenuRef}>
+            {/* زر اللغة يظهر في الهيدر على الكمبيوتر فقط (وفي الموبايل داخل القائمة الجانبية لمنع الزحمة) */}
+            <div className="relative hidden lg:block" ref={langMenuRef}>
               <button
                 type="button"
                 disabled={isSwitchingLang}

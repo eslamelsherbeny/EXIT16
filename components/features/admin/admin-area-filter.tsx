@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo } from "react"
-import { MapPin } from "lucide-react"
+import { ChevronDown, MapPin } from "lucide-react"
 import {
   GEORGIA_REGION_DISTRICTS,
   type GeorgiaRegionCode,
@@ -164,13 +164,13 @@ export function AdminAreaFilter({
   }, [itemsAreas, locale, cityGroupTitles])
 
   return (
-    <div className="relative min-w-[185px] shrink-0">
-      <MapPin className="pointer-events-none absolute top-1/2 start-2.5 size-3.5 -translate-y-1/2 text-[#007a5a]" />
+    <div className="relative w-full sm:w-auto sm:min-w-[205px] shrink-0">
+      <MapPin className="pointer-events-none absolute top-1/2 start-3 size-3.5 -translate-y-1/2 text-[#007a5a]" />
       <select
         aria-label={af.ariaLabel}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className={`h-9 w-full cursor-pointer rounded-xl border ps-8 pe-3 text-xs font-extrabold transition focus:border-[#007a5a] focus:outline-none ${
+        className={`h-9.5 w-full appearance-none cursor-pointer rounded-xl border ps-9 pe-8 text-xs font-extrabold transition focus:border-[#007a5a] focus:outline-none ${
           value !== "ALL"
             ? "border-[#007a5a] bg-[#eaf8f2] text-[#007a5a]"
             : "border-slate-200 bg-slate-50/60 text-[#0f1d40] hover:bg-white"
@@ -200,6 +200,7 @@ export function AdminAreaFilter({
           </optgroup>
         )}
       </select>
+      <ChevronDown className="pointer-events-none absolute top-1/2 end-2.5 size-3.5 -translate-y-1/2 text-slate-400" />
     </div>
   )
 }

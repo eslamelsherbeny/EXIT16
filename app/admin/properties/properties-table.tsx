@@ -591,7 +591,7 @@ export default function PropertiesTable({
   function exportUnitsReport(
     rowsToExport: SellRequest[],
     format: "excel" | "pdf" = "excel",
-    prefix = "AqarExit_Units",
+    prefix = "DualDealz_Units",
     customTitle?: string
   ) {
     const c = expL.cols
@@ -708,7 +708,7 @@ export default function PropertiesTable({
     exportUnitsReport(
       [property],
       format,
-      `AqarExit_Unit_${uCode}`,
+      `DualDealz_Unit_${uCode}`,
       `${expL.singlePropertyReportTitle} (${uCode} — ${property.project_name || property.name})`
     )
   }
@@ -819,9 +819,10 @@ export default function PropertiesTable({
         </div>
       )}
 
-      <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-slate-200/90 bg-white p-3.5 shadow-2xs sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-        <div className="flex w-full flex-wrap items-center gap-2 sm:max-w-2xl sm:flex-1">
-          <div className="relative min-w-[180px] flex-1">
+      {/* شريط الأدوات: صف علوي للبحث وفلتر المدن والتصدير + صف سفلي للتبويبات بدون أي تداخل */}
+      <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-slate-200/90 bg-white p-3.5 shadow-2xs">
+        <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center">
+          <div className="relative min-w-[220px] flex-1">
             <Search className="pointer-events-none absolute top-1/2 end-3 size-4 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
@@ -832,52 +833,62 @@ export default function PropertiesTable({
                   ? t.filters.promoSearchPlaceholder
                   : t.filters.sellSearchPlaceholder
               }
-              className="h-9 w-full rounded-xl border border-slate-200 bg-slate-50/50 ps-3 pe-9 text-xs font-semibold focus:border-[#007a5a] focus:bg-white focus:outline-none"
+              className="h-9.5 w-full rounded-xl border border-slate-200 bg-slate-50/50 ps-3 pe-9 text-xs font-semibold focus:border-[#007a5a] focus:bg-white focus:outline-none"
             />
           </div>
 
-          <AdminAreaFilter
-            value={areaFilter}
-            onChange={setAreaFilter}
-            itemsAreas={properties
-              .filter((p) => normalizeRowStatus(p.status) !== "deleted_by_seller")
-              .map((p) => [p.area])}
-          />
+          <div className="shrink-0">
+            <AdminAreaFilter
+              value={areaFilter}
+              onChange={setAreaFilter}
+              itemsAreas={properties
+                .filter(
+                  (p) => normalizeRowStatus(p.status) !== "deleted_by_seller"
+                )
+                .map((p) => [p.area])}
+            />
+          </div>
 
-          <button
-            type="button"
-            disabled={filtered.length === 0}
-            onClick={() =>
-              exportUnitsReport(
-                filtered,
-                "excel",
-                isPromotionsPage ? "AqarExit_Promotions" : "AqarExit_Properties"
-              )
-            }
-            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl border border-emerald-200 bg-[#eaf8f2] px-3 text-xs font-extrabold text-[#007a5a] transition hover:bg-[#007a5a] hover:text-white disabled:opacity-40"
-          >
-            <Download className="size-3.5" />
-            <span>{expL.exportAllBtn}</span>
-          </button>
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <button
+              type="button"
+              disabled={filtered.length === 0}
+              onClick={() =>
+                exportUnitsReport(
+                  filtered,
+                  "excel",
+                  isPromotionsPage
+                    ? "DualDealz_Promotions"
+                    : "DualDealz_Properties"
+                )
+              }
+              className="inline-flex h-9.5 shrink-0 items-center gap-1.5 rounded-xl border border-emerald-200 bg-[#eaf8f2] px-3.5 text-xs font-extrabold text-[#007a5a] transition hover:bg-[#007a5a] hover:text-white disabled:opacity-40"
+            >
+              <Download className="size-3.5" />
+              <span>{expL.exportAllBtn}</span>
+            </button>
 
-          <button
-            type="button"
-            disabled={filtered.length === 0}
-            onClick={() =>
-              exportUnitsReport(
-                filtered,
-                "pdf",
-                isPromotionsPage ? "AqarExit_Promotions" : "AqarExit_Properties"
-              )
-            }
-            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-800 px-3 text-xs font-extrabold text-white transition hover:bg-slate-900 disabled:opacity-40"
-          >
-            <FileText className="size-3.5 text-emerald-300" />
-            <span>{expL.exportPdfBtn}</span>
-          </button>
+            <button
+              type="button"
+              disabled={filtered.length === 0}
+              onClick={() =>
+                exportUnitsReport(
+                  filtered,
+                  "pdf",
+                  isPromotionsPage
+                    ? "DualDealz_Promotions"
+                    : "DualDealz_Properties"
+                )
+              }
+              className="inline-flex h-9.5 shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-800 px-3.5 text-xs font-extrabold text-white transition hover:bg-slate-900 disabled:opacity-40"
+            >
+              <FileText className="size-3.5 text-emerald-300" />
+              <span>{expL.exportPdfBtn}</span>
+            </button>
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5 border-t border-slate-100 pt-3">
           {isPromotionsPage ? (
             <>
               {[

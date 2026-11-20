@@ -262,93 +262,86 @@ function getCountryName(c: CountryConfig, lang: LanguageCode) {
 }
 
 export function Logo({ inverse = false }: { inverse?: boolean }) {
+  const primaryFill = inverse ? '#ffffff' : '#0f1d40'
+  const accentFill = inverse ? '#2ee59d' : '#007a5a'
+
   return (
     <Link
       href="/"
       dir="ltr"
-      className={`inline-block shrink-0 select-none ${
-        inverse ? 'text-white' : 'text-[#1e3a8a]'
-      }`}
-      aria-label="Aqar Exit"
+      aria-label="DualDealz"
+      className="group inline-flex shrink-0 items-center select-none focus:outline-none"
     >
       <svg
-        width="106"
-        height="48"
-        viewBox="0 0 116 54"
+        width="88"
+        height="46"
+        viewBox="0 0 88 46"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
         className="h-[38px] w-auto sm:h-[42px]"
       >
+        {/* السطر العلوي: Dual — حروف هندسية مرسومة بالكامل */}
+        {/* حرف D الخارجي */}
         <path
-          d="M5 30L17.5 5.5C18.2 4.1 19.8 4.1 20.5 5.5L33 30"
-          stroke="currentColor"
-          strokeWidth="3.3"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+          fillRule="evenodd"
+          clipRule="evenodd"
+          d="M2 2H14A13 13 0 0 1 14 28H2V2ZM6.6 6.6V23.4H14A8.4 8.4 0 0 0 14 6.6H6.6Z"
+          fill={primaryFill}
         />
-        <circle
-          cx="46.5"
-          cy="20"
-          r="9.2"
-          stroke="currentColor"
-          strokeWidth="3.2"
-        />
+
+        {/* بصمة Dual: القوس الزمردي المتداخل داخل حرف D */}
         <path
-          d="M55.7 10.8V35.5C55.7 37.5 56.8 38.8 58.8 38.8"
-          stroke="currentColor"
-          strokeWidth="3.2"
-          strokeLinecap="round"
+          d="M9 9.1H14A5.9 5.9 0 0 1 14 20.9H9V18.2H14A3.2 3.2 0 0 0 14 11.8H9V9.1Z"
+          fill={accentFill}
+          className="transition-transform duration-300 ease-out group-hover:translate-x-[1.2px]"
         />
-        <circle
-          cx="72"
-          cy="20"
-          r="9.2"
-          stroke="currentColor"
-          strokeWidth="3.2"
-        />
+
+        {/* حرف u الهندسي */}
         <path
-          d="M81.2 10.8V29.5"
-          stroke="currentColor"
-          strokeWidth="3.2"
-          strokeLinecap="round"
+          d="M32.5 10H37.1V18.7A4.9 4.9 0 0 0 46.9 18.7V10H51.5V18.7A9.5 9.5 0 0 1 32.5 18.7V10Z"
+          fill={primaryFill}
         />
+        <rect x="46.9" y="18.5" width="4.6" height="9.5" fill={primaryFill} />
+
+        {/* حرف a الدائري الهندسي */}
         <path
-          d="M90.5 29.5V17.5C90.5 13.2 93.8 10.8 98 10.8H100.5"
-          stroke="currentColor"
-          strokeWidth="3.2"
-          strokeLinecap="round"
+          fillRule="evenodd"
+          clipRule="evenodd"
+          d="M75.4 19A9.2 9.2 0 1 1 57 19A9.2 9.2 0 1 1 75.4 19ZM70.9 19A4.7 4.7 0 1 0 61.5 19A4.7 4.7 0 1 0 70.9 19Z"
+          fill={primaryFill}
         />
+        <rect x="70.9" y="10" width="4.5" height="18" fill={primaryFill} />
+
+        {/* حرف l المعماري */}
+        <rect x="81.4" y="2" width="4.6" height="26" fill={primaryFill} />
+
+        {/* السطر السفلي: D E Λ L Z — محاذاة هندسية كاملة من 2.0 إلى 86.0 */}
+        {/* D */}
         <path
-          d="M66 35.5C61 34.5 56.5 36.8 56.5 39.8C56.5 42.2 59.5 43.2 63 42.8C58.5 43.5 54.5 45.8 55 48.8C55.5 51.8 60.5 52.5 65.5 50.2"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+          fillRule="evenodd"
+          clipRule="evenodd"
+          d="M2 34.2H6.6A4.8 4.8 0 0 1 6.6 43.8H2V34.2ZM3.9 36.1V41.9H6.6A2.9 2.9 0 0 0 6.6 36.1H3.9Z"
+          fill={accentFill}
         />
+        {/* E */}
         <path
-          d="M69 42.5L76.5 50M77 42.2C73.5 45 70.5 48 67.5 50.8"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
+          d="M20.6 34.2H28.6V36.05H22.5V38.05H27.5V39.9H22.5V41.95H28.6V43.8H20.6V34.2Z"
+          fill={accentFill}
         />
+        {/* A — سقف معماري بدون عارضة */}
         <path
-          d="M81.5 43.2L79.5 49.5C79.2 50.3 79.8 50.8 80.8 50.3"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
+          d="M37.8 43.8L42.1 34.2H43.9L48.2 43.8H46.15L43 36.6L39.85 43.8H37.8Z"
+          fill={accentFill}
         />
-        <circle cx="82.5" cy="39.5" r="1" fill="currentColor" />
+        {/* L */}
         <path
-          d="M90.5 34.5L86 50.5"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
+          d="M57.8 34.2H59.7V41.95H65.4V43.8H57.8V34.2Z"
+          fill={accentFill}
         />
+        {/* Z */}
         <path
-          d="M83 41.2C88 40.5 94 39.8 100 39.2"
-          stroke="currentColor"
-          strokeWidth="1.4"
-          strokeLinecap="round"
+          d="M76.4 34.2H86V35.95L79.05 41.95H86V43.8H76.2V42.05L83.15 36.05H76.4V34.2Z"
+          fill={accentFill}
         />
       </svg>
     </Link>
@@ -1144,7 +1137,7 @@ export function Footer({ dictionary: _unused }: { dictionary?: Dictionary }) {
   const activePhone =
     siteSettings?.whatsappNumber || labels.footer?.phone || '+201018595959'
   const activeEmail =
-    siteSettings?.supportEmail || labels.footer?.email || 'info@aqarexit.com'
+    siteSettings?.supportEmail || labels.footer?.email || 'info@dualdealz.com'
 
   const platformLinks = [
     {
